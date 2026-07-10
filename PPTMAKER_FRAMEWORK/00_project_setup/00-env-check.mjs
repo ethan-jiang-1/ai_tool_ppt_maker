@@ -14,7 +14,7 @@
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
-import { homedir, tmpdir, platform, cwd, env } from 'node:os';
+import { homedir, tmpdir, platform } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -139,8 +139,8 @@ function checkFonts() {
 }
 
 function checkNpmPackages() {
-  const pkgPath = join(cwd(), 'package.json');
-  const nmPath = join(cwd(), 'node_modules');
+  const pkgPath = join(process.cwd(), 'package.json');
+  const nmPath = join(process.cwd(), 'node_modules');
   const pkgs = [
     { importName: '@napi-rs/canvas', pkg: '@napi-rs/canvas', required: true },
     { importName: 'pptxgenjs', pkg: 'pptxgenjs', required: true },
@@ -162,7 +162,7 @@ function checkNpmPackages() {
 function checkStage2Generator() {
   const rel = 'image2-ppt/scripts/generate_full_page_images.py';
   const roots = [];
-  const cwd_ = cwd();
+  const cwd_ = process.cwd();
   for (let p = cwd_; p !== dirname(p); p = dirname(p)) {
     for (const skills of ['.claude/skills', '.agents/skills']) {
       const d = join(p, skills);
@@ -186,25 +186,6 @@ function checkStage2Generator() {
   };
 }
 
-function checkDiskSpace() {
-  try {
-    // Node.js doesn't have a built-in disk usage API, use a simple heuristic
-    const tmp = tmpdir();
-    const testFile = join(tmp, `.ppkmaker_disk_test_${Date.now()}`);
-    const { writeFileSync, unlinkSync } = await_ ?
-      {} : (await ('fs')).promises;
-    return {
-      check: 'disk_space',
-      status: 'ok',
-      detail: 'disk check skipped (Node.js has no built-in disk usage)',
-      fix: null,
-    };
-  } catch {
-    return { check: 'disk_space', status: 'ok', detail: 'could not check (skipping)', fix: null };
-  }
-}
-
-// Simpler disk check using child_process
 function checkDiskSpaceSync() {
   try {
     if (IS_WINDOWS) {
@@ -240,7 +221,7 @@ function checkDiskSpaceSync() {
 
 function runAllChecks() {
   // Load .env from cwd/parents first
-  for (let p = cwd(); p !== dirname(p); p = dirname(p)) {
+  for (let p = process.cwd(); p !== dirname(p); p = dirname(p)) {
     if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
   }
 
