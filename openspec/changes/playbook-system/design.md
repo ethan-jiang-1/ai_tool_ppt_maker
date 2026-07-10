@@ -13,8 +13,8 @@ PPTMAKER_FRAMEWORK 的 Agent 执行逻辑目前全在散文文档中. Agent 需�
 
 **Non-Goals:**
 - 不重写任何 .mjs 脚本的管线逻辑
-- 不改变 run bundle 目录结构
-- 不创建新的 npm 依赖
+- 不改变 run bundle 目录结构 (run-bundle-state.yaml 与已有的 project-metadata.yaml 共存: state 跟踪执行进度, metadata 存储静态配置)
+- 不创建新的 npm 依赖 (YAML 格式足够简单, .mjs 用手写 parser 读写; 无需 js-yaml)
 
 ## Decisions
 
@@ -144,7 +144,7 @@ node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1
 - **MD 侧** (Agent): 读 state 判断当前 node 和进度. 写 state 标记 node 完成/gate 通过
 - **CLI 侧** (.mjs 脚本): 读 state 验证 entry 条件. 写 state 记录产出物路径和执行时间
 - **格式**: YAML——人可读, .mjs 用 `js-yaml` 或手写 parser (轻量)
-- **位置**: `deck_<name>/run-bundle-state.yaml`
+- **位置**: `deck_<name>/run-bundle-state.yaml` (与已有的 `project-metadata.yaml` 共存: state 管执行进度, metadata 管静态配置)
 
 ### 6. shared node 机制
 

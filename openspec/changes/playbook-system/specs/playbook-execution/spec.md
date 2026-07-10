@@ -55,10 +55,29 @@ When a playbook begins execution, `run-bundle-state.yaml` SHALL be created (if i
 
 ### Requirement: Gates are enforced at node boundaries
 
-No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (content_gate, visual_gate) SHALL remain `pending` until the human explicitly approves or waives them via the `scripts/ppt_flow.mjs approve` command.
+No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (content_gate, visual_gate) SHALL remain `pending` until the human explicitly approves or waives them (via Agent conversation or `scripts/ppt_flow.mjs approve`).
 
 #### Scenario: Production node blocked by pending visual gate
 
 - **WHEN** Stage 2 (image generation) is about to start
 - **THEN** the CLI script reads `run-bundle-state.yaml` and finds `visual_gate: pending`
 - **AND** the script refuses to run and reports "visual_gate must be approved or waived"
+
+### Requirement: Shared nodes are referenced via includes
+
+A playbook SHALL be able to reference a shared node via `includes: [<node-name>]` in its frontmatter. The referenced node SHALL be defined in a standalone `.md` file with `shared: true` in its frontmatter. Multiple playbooks SHALL be able to include the same shared node.
+
+#### Scenario: classify-change shared by chain-a and chain-b
+
+- **WHEN** `chain-a.md` and `chain-b.md` both need change classification
+- **THEN** both declare `includes: [classify-change]` in their frontmatter
+- **AND** `classify-change.md` exists as a standalone shared node with `shared: true`
+
+### Requirement: State file coexists with project-metadata.yaml
+
+`run-bundle-state.yaml` SHALL coexist with the existing `project-metadata.yaml` in the run bundle root. The state file SHALL track execution progress (playbook, current_node, per-node status). The metadata file SHALL continue to track static configuration (deck_name, topic, audience, gate decisions).
+
+#### Scenario: Both files exist in run bundle root
+
+- **WHEN** a run bundle is initialized and playbook execution begins
+- **THEN** `deck_<name>/` contains both `project-metadata.yaml` (static config) and `run-bundle-state.yaml` (execution state)

@@ -82,10 +82,7 @@ COMMANDS.md 从被动速查表转为主动路由: 用户一句话 → playbook �
 
 ### Modified Capabilities
 
-- `commands-reference`: COMMANDS.md 从被动速查表重构为主动路由表——用户意图 → playbook 调度
-- `framework-charter`: charter/ 目录新增 NODE-SPEC.md
-- `pipeline-orchestration`: 现有管线脚本增加 state 读写 (入口验证 + 出口记录)
-- `environment-check`: env-check.mjs 输出写入 state
+_无. COMMUNICATIONS.md 重构、charter/ 新增文件、管线脚本加 state I/O——这些都是实现细节, capability 的行为需求不变._
 
 ## Impact
 
