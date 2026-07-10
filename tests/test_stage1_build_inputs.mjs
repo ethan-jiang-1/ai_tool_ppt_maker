@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
 
-const STAGE1 = 'PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.mjs';
+const STAGE1 = 'PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs';
 
 describe('stage1_build_inputs', () => {
   it('shows usage with --help or no args', () => {

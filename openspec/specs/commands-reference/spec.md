@@ -60,9 +60,9 @@ COMMANDS.md SHALL document common iteration feedback patterns beyond simple sing
 - **THEN** COMMANDS.md shows this maps to visual direction change
 - **AND** agent will suggest 2-3 alternative visual presets before regenerating anything
 
-### Requirement: COMMANDS.md complements but does not duplicate automation/change-classifier.md
+### Requirement: COMMANDS.md complements but does not duplicate scripts/change-classifier.md
 
-COMMANDS.md SHALL be the human-facing interface. `automation/change-classifier.md` SHALL remain as the agent's detailed decision tree. COMMANDS.md SHALL be concise (no nested decision trees), use natural language examples, and be scannable in under 60 seconds.
+COMMANDS.md SHALL be the human-facing interface. `scripts/change-classifier.md` SHALL remain as the agent's detailed decision tree. COMMANDS.md SHALL be concise (no nested decision trees), use natural language examples, and be scannable in under 60 seconds.
 
 #### Scenario: Human scans COMMANDS.md quickly
 

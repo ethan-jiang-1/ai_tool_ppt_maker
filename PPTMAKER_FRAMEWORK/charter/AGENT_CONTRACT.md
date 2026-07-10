@@ -23,7 +23,7 @@ agent_action: read_first
 
 ## 2. 目录是宪法
 
-结构唯一事实源：`06_reference_scripts/bundle_layout.mjs`。
+结构唯一事实源：`scripts/bundle_layout.mjs`。
 - 创建：`--init deck_{NAME} --deck-type … --style …`（禁止手动 mkdir/cp 拼骨架）
 - 校验：`--check … --structure-only`（Phase 0）/ 管线跑前自动全量 check
 - 不自创目录、不把生成物乱放
@@ -79,7 +79,7 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 | 画面 / IMAGE PROMPT | `1,2,3,4,5 --only <id>`（指定页自动强制刷新） | ~5 min/页 |
 | speaker notes | `5` | ~30 sec |
 
-**改标题不要跑 Stage 2。** 分类见 `automation/change-classifier.md`。
+**改标题不要跑 Stage 2。** 分类见 `scripts/change-classifier.md`。
 
 ## 9. 用户做选择题，你做创造性劳动
 
@@ -99,28 +99,28 @@ Phase 2：先锁画风（sketch / diagram / photography / 3D / mixed），再选
 
 ```bash
 # 环境
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs doctor
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
 # 建 bundle
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs init deck_{NAME} \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_{NAME} \
   --deck-type {keynote|pitch|report|training} --style {preset}
 
 # 看进度与下一步（也检查结构）
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs status \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status \
   deck_{NAME}/3_versions/v1
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs approve \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve \
   deck_{NAME}/3_versions/v1 content
 
 # 生成风格母版；用户确认后记录 visual gate
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs style-master \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master \
   deck_{NAME}/3_versions/v1
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs approve \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve \
   deck_{NAME}/3_versions/v1 visual
 
 # 自动选代表页 pilot；通过后全量生产
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs pilot \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
   deck_{NAME}/3_versions/v1
-node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs build \
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
   deck_{NAME}/3_versions/v1
 ```
 
@@ -129,7 +129,7 @@ node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs build \
 | 需要时 | 打开 |
 |--------|------|
 | Phase 逐步怎么做 | `AGENTS.md` 对应 Phase 节 |
-| 改动分类 | `automation/change-classifier.md` |
-| 常见错误 | `00_project_setup/ANTI_PATTERNS.md` |
-| 术语 | `00_project_setup/GLOSSARY.md` |
+| 改动分类 | `scripts/change-classifier.md` |
+| 常见错误 | `workflow/00-setup/ANTI_PATTERNS.md` |
+| 术语 | `workflow/00-setup/GLOSSARY.md` |
 | 方法论深挖 | `01_`–`05_` 各模块 README |

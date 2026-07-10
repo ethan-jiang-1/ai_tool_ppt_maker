@@ -6,7 +6,7 @@
 
 #### Scenario: Run without node_modules
 
-- **WHEN** `node 00_project_setup/00-env-check.mjs` runs in a fresh directory with no `node_modules/`
+- **WHEN** `node workflow/00-setup/00-env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** script executes successfully
 
 ### Requirement: Node.js version gate

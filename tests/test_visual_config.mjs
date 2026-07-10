@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadVisualConfig, hexToRgba } from '../PPTMAKER_FRAMEWORK/06_reference_scripts/visual_config.mjs';
+import { loadVisualConfig, hexToRgba } from '../PPTMAKER_FRAMEWORK/scripts/visual_config.mjs';
 
 describe('visual_config', () => {
   it('exports loadVisualConfig and hexToRgba', () => {

@@ -6,6 +6,6 @@
 
 #### Scenario: Generate style master
 
-- **WHEN** agent runs `node 06_reference_scripts/generate_style_master.mjs --run-dir deck_demo/3_versions/v1`
+- **WHEN** agent runs `node scripts/generate_style_master.mjs --run-dir deck_demo/3_versions/v1`
 - **THEN** `2_backbone/visual-style/style_master.jpg` is created or overwritten
 - **AND** API credentials are loaded from `.env` and bridged to the skill's expected environment variables
