@@ -21,7 +21,9 @@ Playbook 体系定义了 Node 的 entry/exit gate 概念，但 gate 条件只存
 | `pptx_generated` | FILESYSTEM | .pptx 文件存在 |
 | ... | ... | ... |
 
-三种类型: FILESYSTEM (检查文件)、STATE (检查 state 字段)、USER (检查用户决策)。
+三种类型: FILESYSTEM (检查文件)、STATE (检查 state 字段)、USER (检查用户决策)。不在 catalog 中的条件名 → `unknown` 返回, Agent 人工判断——允许 node 特有 prose 条件存在, 逐步补进 catalog。
+
+同时对齐所有现有 playbook frontmatter 的 entry/exit 条件到 catalog 标准名。
 
 **2. scripts/lib/state.mjs 实现 checkEntry/checkExit**
 

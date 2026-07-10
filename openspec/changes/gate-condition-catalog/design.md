@@ -118,15 +118,34 @@ function nodeCompleted(name) {
 function checkEntry(nodeName, playbookDir, state, ctx = {}) {
   const conditions = parseNodeEntry(nodeName, playbookDir);
   const missing = [];
+  const unknown = [];
   for (const cond of conditions) {
-    const fn = resolveCondition(cond, state);
+    const fn = resolveCondition(cond);
+    if (!fn) { unknown.push(cond); continue; }    // 不在 catalog → 标记 unknown
     if (!fn(state, ctx)) missing.push(cond);
   }
-  return { pass: missing.length === 0, missing };
+  return { pass: missing.length === 0 && unknown.length === 0, missing, unknown };
 }
 ```
 
 `parseNodeEntry` 读 playbook MD 文件，解析 frontmatter 的 `entry` 列表。
+
+**自定义条件策略**: 不在 catalog 中的条件名 → `unknown` 数组返回。Agent/测试据此知道"这个条件还没有可执行校验，需人工判断"。这允许 node 特有条件 (如 `wave0_evidence_indexed`) 先以 prose 形式存在，后补进 catalog。
+
+### 4. 对齐 playbook frontmatter 到 catalog
+
+当前 playbook 的 entry/exit 条件使用 prose 名 (如 `seed_topics_complete`)。需要统一为 catalog 标准名 (如 `node_completed:seed-topics`):
+
+| 旧名 (prose) | 新名 (catalog) |
+|-------------|---------------|
+| `run_bundle_exists` | `run_bundle_exists` (已在 catalog) |
+| `seed_topics_complete` | `node_completed:seed-topics` |
+| `intake_complete` | `node_completed:hitl1` + `user_confirmed_direction` |
+| `visual_preset_seeded` | `visual_preset_seeded` (已在 catalog) |
+| `content_gate_approved` | `gate_approved:content` |
+| `visual_gate_approved` | `gate_approved:visual` |
+| `wave0_sources_collected` | `custom:wave0_sources_collected` (待补进 catalog) |
+| `slide_specs_l1_l2_l4_complete` | `custom:slide_specs_l1_l2_l4_complete` (待补) |
 
 ### 4. 测试扩展
 

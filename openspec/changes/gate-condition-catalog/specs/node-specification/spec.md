@@ -31,17 +31,18 @@
 
 ### Requirement: checkEntry validates entry conditions
 
-`checkEntry(nodeName, playbookDir, state, ctx)` SHALL parse the playbook MD file, extract the entry conditions from the node's frontmatter, resolve each against the CONDITIONS registry, and return `{ pass: boolean, missing: string[] }`.
+`checkEntry(nodeName, playbookDir, state, ctx)` SHALL parse the playbook MD file, extract the entry conditions from the node's frontmatter, resolve each against the CONDITIONS registry, and return `{ pass: boolean, missing: string[], unknown: string[] }`. Conditions not found in the catalog SHALL appear in the `unknown` array.
 
 #### Scenario: Entry gate fails with missing conditions
 
 - **WHEN** `checkEntry('wave0', playbookDir, state)` is called and `seed-topics` is pending
-- **THEN** it returns `{ pass: false, missing: ['node_completed:seed-topics'] }`
+- **THEN** it returns `{ pass: false, missing: ['node_completed:seed-topics'], unknown: [] }`
 
-#### Scenario: Entry gate passes when all conditions met
+#### Scenario: Unknown condition returned for manual judgment
 
-- **WHEN** all required nodes are completed and files exist
-- **THEN** `checkEntry('wave0', playbookDir, state)` returns `{ pass: true, missing: [] }`
+- **WHEN** a condition name is not in the catalog (e.g., `wave0_evidence_indexed`)
+- **THEN** it appears in the `unknown` array
+- **AND** the Agent or test can decide whether to pass or fail based on context
 
 ### Requirement: checkExit validates exit conditions
 

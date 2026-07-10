@@ -1,3 +1,9 @@
+## 0. 对齐 playbook frontmatter 条件到 catalog
+
+- [ ] 0.1 扫描所有 playbook 文件的 entry/exit 条件, 列出所有 prose 条件名
+- [ ] 0.2 将 prose 条件名映射为 catalog 标准名 (node_completed:<name>, gate_approved:<name>, etc.)
+- [ ] 0.3 catalog 覆盖不到的 node 特有条件, 标记为 `custom:<description>` (allow unknown, 人工判断)
+
 ## 1. 补全 charter/NODE-SPEC.md — Gate Conditions Catalog
 
 - [ ] 1.1 在 NODE-SPEC.md 新增 "Gate Conditions Catalog" 章节
