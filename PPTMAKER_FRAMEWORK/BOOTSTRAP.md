@@ -13,7 +13,7 @@ agent_action: read_first
 
 # BOOTSTRAP — Agent 启动入口
 
-> **如果你是 Agent**：这是启动入口。三步走完后读 [AGENT_CONTRACT.md](AGENT_CONTRACT.md)（10 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
+> **如果你是 Agent**：这是启动入口。三步走完后读 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
 >
 > **如果你是人类**：把这段话贴给 Agent：「我想做一个 PPT，引导我。」Agent 会自动读这个文件并带你走完全程。
 
@@ -192,7 +192,7 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-env-check.mjs
 
 用户确认了 deck type、叙事弧线、隐喻、公式、视觉 medium 和视觉预设后：
 
-1. **先读** [AGENT_CONTRACT.md](AGENT_CONTRACT.md)（10 条，不可违反）
+1. **先读** [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条，不可违反）
 2. **再按当前 Phase** 打开 [AGENTS.md](AGENTS.md) 对应章节——不要整本通读
 
 你现在已经完成了 Phase 0 的大部分工作——有了 metadata、内容方向、视觉方向。按 AGENTS.md 的 Phase 0-3 走，但注意：
@@ -216,17 +216,17 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-env-check.mjs
 |-----------|--------|
 | **目录结构（宪法·SSOT）** | `06_reference_scripts/bundle_layout.mjs`（跑它看树 / `--check` 校验） |
 | **日常执行入口** | `06_reference_scripts/ppt_flow.mjs`（status / approve / pilot / build / refresh） |
-| 目录结构（人读镜像） | `00_project_setup/01-directory-template.md` |
+| 目录结构（人读镜像） | `charter/CONSTITUTION.md` |
 | Deck type 模板 | `02_content_design/presets/deck-type-templates/` |
 | 叙事弧线 catalog | `02_content_design/presets/block-arc-catalog.md` |
 | 隐喻 catalog | `02_content_design/presets/metaphor-catalog.md` |
 | 公式 catalog | `02_content_design/presets/formula-catalog.md` |
 | 视觉预设 | `01_visual_style_master/presets/` |
-| 完整执行流程（铁律一页） | `AGENT_CONTRACT.md` |
+| 完整执行流程（铁律一页） | `charter/charter/AGENT_CONTRACT.md` |
 | Phase 详解 | `AGENTS.md`（按需翻） |
 | 环境检测脚本 | `00_project_setup/00-env-check.mjs` |
-| 术语解释 | `GLOSSARY.md` |
-| 常见错误 | `ANTI_PATTERNS.md` |
+| 术语解释 | `00_project_setup/00_project_setup/GLOSSARY.md` |
+| 常见错误 | `00_project_setup/00_project_setup/ANTI_PATTERNS.md` |
 
 ---
 
@@ -239,7 +239,7 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-env-check.mjs
 
 ## 铁律
 
-完整 10 条见 [AGENT_CONTRACT.md](AGENT_CONTRACT.md)。这里只重复最容易漂的四条：
+完整 10 条见 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)。这里只重复最容易漂的四条：
 
 1. **用户做选择题，你做创造性劳动。** 不要问"你的隐喻是什么"——生成 2-3 个候选。
 2. **闸门不可跳过。** 每个 Phase 结束等用户确认。

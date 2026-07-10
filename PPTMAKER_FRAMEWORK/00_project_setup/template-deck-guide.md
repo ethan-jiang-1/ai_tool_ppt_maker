@@ -5,7 +5,7 @@ position: template
 type: template
 summary: 复制到 deck_{NAME}/deck-guide.md。进入 run bundle 后先读它——一屏说清结构、控制流、编辑链、现在哪一步、怎么跑。人和 agent 都看得懂。
 depends_on:
-- 00_project_setup/01-directory-template.md
+- charter/CONSTITUTION.md
 - 06_reference_scripts/bundle_layout.mjs
 feeds_into: []
 agent_action: copy_to_bundle

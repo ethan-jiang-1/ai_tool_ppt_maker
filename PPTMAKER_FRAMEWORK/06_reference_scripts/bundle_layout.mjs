@@ -3,7 +3,7 @@
  * bundle_layout.mjs — THE SINGLE SOURCE OF TRUTH for the run-bundle directory structure.
  *
  * Everything that needs to know "where does X live in a run bundle" imports from here:
- * - the pipeline scripts (unified_pipeline.py) build every path from these constants;
+ * - the pipeline scripts (unified_pipeline.mjs) build every path from these constants;
  * - the docs are generated/validated against `renderTree()` so they can never drift.
  *
  * If you want to change the run-bundle layout, change it HERE and nowhere else. Do not
@@ -56,7 +56,7 @@
  * - Deck name (for the .pptx) derives from the deck root dir, two levels above a version.
  *
  * Node.js ESM port — zero external dependencies. Drop-in replacement for the Python
- * bundle_layout.py. All constants, functions, and CLI modes preserved identically.
+ * bundle_layout.mjs. All constants, functions, and CLI modes preserved identically.
  */
 
 import fs from 'node:fs';
@@ -540,7 +540,7 @@ const _DIR_READMES = {
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
         '**生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:\n' +
-        '`uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py ' +
+        '`uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs ' +
         '--run-dir <这个版本目录> --stage all`\n'
     ),
     [`${VERSIONS_DIR}/v1/${OVERRIDES_SUBDIR}`]: (
@@ -645,8 +645,8 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         path.join(deckDir, POINTER_FILE),
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
         `目录结构的权威源:\`PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs\`。\n`);
-    const pipelineScript = path.join(frameworkDir, '06_reference_scripts/unified_pipeline.py');
-    const versionScript = path.join(frameworkDir, '06_reference_scripts/bundle_layout.py');
+    const pipelineScript = path.join(frameworkDir, '06_reference_scripts/unified_pipeline.mjs');
+    const versionScript = path.join(frameworkDir, '06_reference_scripts/bundle_layout.mjs');
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),
         `# ${path.basename(deckDir)} — 这个 PPT 项目怎么用\n\n` +

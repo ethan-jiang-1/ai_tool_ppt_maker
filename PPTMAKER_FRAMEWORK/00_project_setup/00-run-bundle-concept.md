@@ -7,13 +7,13 @@ summary: 概念定义。Agent 内化此概念作为后续所有操作的基础�
 depends_on:
 - 00_project_setup/README.md
 feeds_into:
-- 00_project_setup/01-directory-template.md
+- charter/CONSTITUTION.md
 agent_action: internalize
 ---
 
 # 00 — The Run Bundle Concept
 
-← [README](README.md) | [Next →](01-directory-template.md)
+← [README](README.md) | [Next →](charter/CONSTITUTION.md)
 
 ## Soft Bundle vs Run Bundle
 
@@ -29,7 +29,7 @@ agent_action: internalize
 
 当你开始一个 PPT 项目时：
 1. Agent 读取 soft bundle（学方法论）
-2. Agent 创建 run bundle（按 `01-directory-template.md` 建目录结构）
+2. Agent 创建 run bundle（按 `charter/CONSTITUTION.md` 建目录结构）
 3. Agent 在 run bundle 中执行所有工作（设计、生产、迭代）
 
 ## 为什么文件系统就是 Run Bundle
@@ -85,4 +85,4 @@ agent_action: internalize
 
 ---
 
-> **Next**: `01-directory-template.md` — 项目目录的精确模板，每个子目录放什么、为什么。
+> **Next**: `charter/CONSTITUTION.md` — 项目目录的精确模板，每个子目录放什么、为什么。

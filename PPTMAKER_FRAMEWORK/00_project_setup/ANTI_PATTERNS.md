@@ -72,7 +72,7 @@ agent_action: internalize
 
 **修复**：改动永远从源文件开始。改 header 文字 → 改 markdown 的 TITLE 字段 → Stage 1（重新解析）→ Stage 3（重新叠加 header）→ Stage 4（重新打包）。**源文件是 single source of truth。**
 
-参见 `00_project_setup/01-directory-template.md` 的 "源文件 vs 派生品"。
+参见 `charter/CONSTITUTION.md` 的 "源文件 vs 派生品"。
 
 ---
 
@@ -137,7 +137,7 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 - 校验一个 bundle 合不合规:`node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1`。管线每次运行前也会自动 check,结构不对直接拒绝。
 - 只有两处是你手改的源:`2_backbone/`(主干)和 `3_versions/v{n}/`(这版的 slide 规格 + overrides)。其余全是 `_generated/` 派生品,绝不手动放。
 
-参见 `00_project_setup/01-directory-template.md` 和 `06_reference_scripts/bundle_layout.mjs`。
+参见 `charter/CONSTITUTION.md` 和 `06_reference_scripts/bundle_layout.mjs`。
 
 ---
 
@@ -147,7 +147,7 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 唯一对外词汇是 **`full-page`** 和 **`body+header-lock`**。旧词只在输入端兼容（旧 specs 仍能解析），新写的 specs、文档、changelog 禁止再用。
 
-**修复**：一律写 RENDER MODE。见 [GLOSSARY.md](GLOSSARY.md) 与 [AGENT_CONTRACT.md](AGENT_CONTRACT.md) §6。
+**修复**：一律写 RENDER MODE。见 [00_project_setup/GLOSSARY.md](00_project_setup/GLOSSARY.md) 与 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md) §6。
 
 ---
 
@@ -155,7 +155,7 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 > Agent 每次把 600 行 playbook 塞进上下文，铁律反而漂了。
 
-**修复**：入口是 BOOTSTRAP → **AGENT_CONTRACT（一页）** → 按 Phase 翻 AGENTS 对应节。见 [AGENT_CONTRACT.md](AGENT_CONTRACT.md)。
+**修复**：入口是 BOOTSTRAP → **AGENT_CONTRACT（一页）** → 按 Phase 翻 AGENTS 对应节。见 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。
 
 ---
 
