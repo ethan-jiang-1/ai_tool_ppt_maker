@@ -19,7 +19,7 @@ phase: 00
 requires: []
 produces: [run_bundle, project-metadata.yaml]
 entry:
-  - env_check_passed
+  - node_status:instantiation:completed
 exit:
   - run_bundle_exists
   - deck_guide_created
@@ -74,7 +74,7 @@ phase: 02
 requires: [setup]
 produces: [topic_list, block_map]
 entry:
-  - visual_style_locked
+  - gate_approved:visual
 exit:
   - topics_generated
   - block_map_confirmed
@@ -92,8 +92,8 @@ phase: 04
 requires: [seed-topics]
 produces: [slide-specifications.md (L1/L2/L4 filled), foundation-sources]
 entry:
-  - content_gate_approved
-  - visual_gate_approved
+  - gate_approved:content
+  - gate_approved:visual
 exit:
   - slide_specs_l1_l2_l4_complete
   - wave0_sources_collected
@@ -166,7 +166,7 @@ phase: 05
 requires: [hitl2]
 produces: [final_pptx]
 entry:
-  - review_decision: proceed
+  - review_decision:proceed
 exit:
   - all_checks_pass
 ```
@@ -182,7 +182,7 @@ phase: 05
 requires: [hitl2]
 produces: [fixes_applied]
 entry:
-  - review_decision: repair
+  - review_decision:repair
 exit:
   - fixes_confirmed
 ```

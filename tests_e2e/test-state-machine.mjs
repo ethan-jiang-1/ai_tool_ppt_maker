@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readState, writeState, setNodeStatus, STATE_FILE } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
+import { readState, writeState, setNodeStatus, skipNode, resetNode, switchPlaybook, resumePlaybook, isNodeDone, isNodeCompleted, validateState, createInitialState, statePath, appendHistory, readHistory } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
 
 // --- Helpers ---
 
@@ -220,8 +220,8 @@ describe('State Machine: resume from state', () => {
     writeState(deckDir, state);
 
     // "Session ends" — state goes out of scope
-    const statePath = join(deckDir, STATE_FILE);
-    expect(existsSync(statePath)).toBe(true);
+    const sp = statePath(deckDir);
+    expect(existsSync(sp)).toBe(true);
 
     // "New session starts" — read state back
     const resumed = readState(deckDir);
@@ -252,5 +252,90 @@ describe('State Machine: shared node includes', () => {
 
     // Same shared node, two playbooks — no duplication
     expect(editTextPlaybook.includes[0]).toBe(editVisualPlaybook.includes[0]);
+  });
+});
+
+// === NEW: node_done, playbook_stack, atomic write, corrupted state ===
+
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+
+describe('State Machine: node_done accepts skipped', () => {
+  let deckDir;
+  beforeEach(() => { deckDir = makeDeck(); });
+  afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
+
+  it('node_done condition passes for skipped node', () => {
+    const state = initState(deckDir);
+    skipNode(state, 'hitl1', 'user said skip');
+    writeState(deckDir, state);
+    expect(isNodeDone(state, 'hitl1')).toBe(true);
+    expect(isNodeCompleted(state, 'hitl1')).toBe(false);
+  });
+});
+
+describe('State Machine: playbook stack', () => {
+  let deckDir;
+  beforeEach(() => { deckDir = makeDeck(); });
+  afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
+
+  it('switchPlaybook pushes, resumePlaybook pops', () => {
+    const state = initState(deckDir);
+    setNodeStatus(state, 'wave0', 'in_progress');
+    switchPlaybook(state, 'edit-text');
+    expect(state.playbook).toBe('edit-text');
+    expect(state.current_node).toBe('');
+    expect(state.playbook_stack.length).toBe(1);
+    resumePlaybook(state);
+    expect(state.playbook).toBe('create-deck');
+    expect(state.current_node).toBe('wave0');
+  });
+});
+
+describe('State Machine: atomic write', () => {
+  let deckDir;
+  beforeEach(() => { deckDir = makeDeck(); });
+  afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
+
+  it('writeState produces readable state', () => {
+    const state = initState(deckDir);
+    setNodeStatus(state, 'instantiation', 'completed');
+    writeState(deckDir, state);
+    const reloaded = readState(deckDir);
+    expect(reloaded.current_node).toBe('instantiation');
+  });
+});
+
+describe('State Machine: corrupted state', () => {
+  let deckDir;
+  beforeEach(() => { deckDir = makeDeck(); });
+  afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
+
+  it('returns corrupted on bad YAML', () => {
+    mkdirSync(dirname(statePath(deckDir)), { recursive: true }); writeFileSync(statePath(deckDir), '{{{bad yaml:::');
+    const s = readState(deckDir);
+    expect(s.corrupted).toBe(true);
+    expect(s.errors.length).toBeGreaterThan(0);
+  });
+
+  it('returns default state when file missing', () => {
+    const s = readState(deckDir);
+    expect(s.corrupted).toBeUndefined();
+    expect(s.nodes).toBeDefined();
+  });
+});
+
+describe('State Machine: validateState', () => {
+  let deckDir;
+  beforeEach(() => { deckDir = makeDeck(); });
+  afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
+
+  it('detects completed→in_progress as illegal', () => {
+    const state = initState(deckDir);
+    setNodeStatus(state, 'instantiation', 'completed');
+    // Manually force an illegal transition for test
+    state.nodes.instantiation.status = 'in_progress';
+    const result = validateState(state);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('completed→in_progress'))).toBe(true);
   });
 });
