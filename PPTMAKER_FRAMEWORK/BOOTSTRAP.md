@@ -7,13 +7,13 @@ summary: Agent 的唯一入口。三步启动：环境验证 → 快速 intake �
 depends_on: []
 feeds_into:
 - AGENTS.md
-- workflow/00-setup/00-env-check.mjs
+- scripts/env-check.mjs
 agent_action: read_first
 ---
 
 # BOOTSTRAP — Agent 启动入口
 
-> **如果你是 Agent**：这是启动入口。三步走完后读 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
+> **如果你是 Agent**：这是启动入口。三步走完后读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
 >
 > **如果你是人类**：把这段话贴给 Agent：「我想做一个 PPT，引导我。」Agent 会自动读这个文件并带你走完全程。
 
@@ -41,30 +41,29 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 
 ## Step 1: 环境验证（硬闸门 · 不过不许往下走）
 
-**这是第一道硬闸门。** 先跑环境检测。**Python 3.11+ 和 UV 是 FOUNDATION——没配好就绝不进入 Step 2**，必须先把环境装好。
+**这是第一道硬闸门。** 先跑环境检测。**Node.js 18+ 和 npm 是 FOUNDATION——没配好就绝不进入 Step 2**，必须先把环境装好。
 
-**用裸解释器跑，别用 `uv run`**——这个脚本本身就是来检查 uv 在不在的，还没确认 uv 存在就用 `uv run` 会自相矛盾。脚本是零依赖（只用标准库），任何 Python 都能跑：
+本框架生产管线是 **Node.js ESM**（`@napi-rs/canvas`、`pptxgenjs`）。Stage 2 生图还依赖已安装的 `image2-ppt` skill——**缺 skill = 不能生产**（doctor 会硬失败）。
 
 ```bash
-# macOS / Linux
-node PPTMAKER_FRAMEWORK/workflow/00-setup/00-env-check.mjs
+# 推荐：统一入口
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
-# Windows（PowerShell 或 cmd）
-python  PPTMAKER_FRAMEWORK\workflow/00-setup\00-env-check.mjs
+# 等价：直接跑检查脚本
+node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 ```
-（Windows 上若 `python` 不识别，试 `py`。）
 
 判读输出：
-- **`⛔ FOUNDATION NOT READY`**（Python 或 UV 缺失/过旧）→ 按脚本给的 `→` 安装指引（已按 macOS/Windows 分平台）引导用户装好，**装完重跑，仍不过就停在这里,绝不进 Step 2**。
-- **`✗ NOT READY`**（foundation 通过，但缺 API key / pptx / Pillow 等硬依赖）→ 同样引导修复后重跑。
-- **`△` 警告**（字体等可降级项）→ 建议修复但可继续；`httpx`、Pillow、python-pptx 等硬依赖失败则不能生产。
+- **`⛔ FOUNDATION NOT READY`**（Node.js 或 npm 缺失/过旧）→ 按脚本给的 `→` 安装指引引导用户装好，**装完重跑，仍不过就停在这里,绝不进 Step 2**。
+- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / `image2-ppt` skill 等硬依赖）→ 同样引导修复后重跑。
+- **`△` 警告**（字体等可降级项）→ 建议修复但可继续。
 - **`✓ READY`** → 进入 Step 2。
 
-> 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。deps（pptx/Pillow）是在 `uv run` 环境里检测的（管线真正运行的地方），所以裸 python 跑本脚本不会误报它们缺失。参考 `workflow/00-setup/00-zero-to-ready.md`。
+> 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。参考 `workflow/00-setup/00-zero-to-ready.md` 与 `workflow/00-setup/02-nodejs-environment.md`。
 
 ### 首次凭据：API key + 图像 base URL（问一次，之后自动带）
 
-**没有 key/base URL，Stage 2 生不了图，PPT 就做不出来。** 所以第一次遇到 `✗ api_key: not set`（或 `△ image_base_url … relay calls will misfire`）时：
+**没有 key，Stage 2 生不了图，PPT 就做不出来。** 所以第一次遇到 `✗ api_key: not set` 时：
 
 1. **问用户要**：图像 API key，统一记录为 `OPENAI_API_KEY`；可选记录 `OPENAI_BASE_URL`。当前 wrapper 会桥接到已安装 skill 的原生变量。不同供应商的 API contract 不保证只换 URL 就兼容，必要时更换 skill adapter。
 2. **写进 deck 根目录的 `.env`（写一次就行）**：Phase 0 `--init` 会铺 `.env.example` 模板 + `.gitignore`（保护它不被提交）。复制成 `.env` 填：
@@ -72,14 +71,23 @@ python  PPTMAKER_FRAMEWORK\workflow/00-setup\00-env-check.mjs
    OPENAI_API_KEY=sk-...
    OPENAI_BASE_URL=https://your-relay/v1   # 可选
    ```
-3. **重跑 env-check** → key 变 `✓`（**从 deck 目录跑 env-check**，它按 cwd 向上找 `.env`；从别处跑可能看不到 deck 的 `.env`）。
-4. **key 的"有效性"要等真调一次才知道**——env-check 只能看"填没填"，看不出"对不对"。**别在这里就跑 Stage 2**：此刻 Stage 1 还没跑、`style_master.jpg` 还没生成，`--stage 2` 一定报 "prompts not found"。真正的 key 冒烟测试在 **Phase 3 第一次跑 Stage 2 时**——那时出图 = key/端点对了（之后自动加载不再问）；报 401/403 或连不上 = 回到第 1 步改 `.env` 再跑。
+3. **重跑 doctor** → key 变 `✓`（**从 deck 目录或 repo 根跑**，它按 cwd 向上找 `.env`；从别处跑可能看不到 deck 的 `.env`）。
+4. **key 的"有效性"要等真调一次才知道**——env-check 只能看"填没填"，看不出"对不对"。真正的 key 冒烟测试在 **Phase 3 第一次跑 Stage 2 / pilot 时**——那时出图 = key/端点对了；报 401/403 或连不上 = 回到第 1 步改 `.env` 再跑。
 
-> **⚠️ Stage 2 还依赖图像生成 skill。** env-check 里若 `stage2_generator` 是 `△`（"not found"），说明 `image2-ppt` skill 没装——**Phases 0–2 能做，但 Stage 2 生图会失败**。需在 `.claude/skills/`（或 `.agents/skills/`）下装好该 skill 再进 Phase 3。env-check 的 READY 行会用 `◑` 明确提示这种"能设计、不能生图"的半就绪状态。
+### 图像生成 skill（硬依赖）
+
+**Stage 2 依赖 `image2-ppt` skill。** doctor / env-check 里若 `stage2_generator` 是 `✗`，说明 skill 没装——**不能进 Phase 3 生图**。
+
+安装位置（任选其一，cwd 向上搜索）：
+- `.claude/skills/image2-ppt/`
+- `.agents/skills/image2-ppt/`
+- 或用户主目录下的同名路径
+
+装好后重跑 `ppt_flow.mjs doctor`，确认 `stage2_generator` 为 `✓`。
 
 > `.env` 里有它期待的东西 → 就能 work；没有 → 只能问用户；填好 → 一定要真跑一页试。（`unified_pipeline`、env-check、生成脚本都会读 deck 根/当前目录的 `.env`；真实 export 的环境变量优先。pipeline 会把 `OPENAI_*` 桥接到底层 skill 实际读的名字。）
 
-> **包**：Phase 0 的 `--init` 会在 deck 里铺一个最小 `pyproject.toml`（含 python-pptx / Pillow）。deck 建好后在 deck 目录跑一次 `uv sync`（或 `uv run` 自动解析），pptx/Pillow 就位——env-check 随后会显示 `✓`。
+> **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
 
 ---
 
@@ -192,7 +200,7 @@ python  PPTMAKER_FRAMEWORK\workflow/00-setup\00-env-check.mjs
 
 用户确认了 deck type、叙事弧线、隐喻、公式、视觉 medium 和视觉预设后：
 
-1. **先读** [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条，不可违反）
+1. **先读** [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条，不可违反）
 2. **再按当前 Phase** 打开 [AGENTS.md](AGENTS.md) 对应章节——不要整本通读
 
 你现在已经完成了 Phase 0 的大部分工作——有了 metadata、内容方向、视觉方向。按 AGENTS.md 的 Phase 0-3 走，但注意：
@@ -215,31 +223,32 @@ python  PPTMAKER_FRAMEWORK\workflow/00-setup\00-env-check.mjs
 | 你需要什么 | 去哪里 |
 |-----------|--------|
 | **目录结构（宪法·SSOT）** | `scripts/bundle_layout.mjs`（跑它看树 / `--check` 校验） |
-| **日常执行入口** | `scripts/ppt_flow.mjs`（status / approve / pilot / build / refresh） |
+| **日常执行入口** | `scripts/ppt_flow.mjs`（doctor / status / approve / pilot / build / refresh） |
 | 目录结构（人读镜像） | `charter/CONSTITUTION.md` |
 | Deck type 模板 | `workflow/02-content/presets/deck-type-templates/` |
 | 叙事弧线 catalog | `workflow/02-content/presets/block-arc-catalog.md` |
 | 隐喻 catalog | `workflow/02-content/presets/metaphor-catalog.md` |
 | 公式 catalog | `workflow/02-content/presets/formula-catalog.md` |
 | 视觉预设 | `workflow/01-visual/presets/` |
-| 完整执行流程（铁律一页） | `charter/charter/AGENT_CONTRACT.md` |
+| 完整执行流程（铁律一页） | `charter/AGENT_CONTRACT.md` |
 | Phase 详解 | `AGENTS.md`（按需翻） |
-| 环境检测脚本 | `workflow/00-setup/00-env-check.mjs` |
-| 术语解释 | `workflow/00-setup/workflow/00-setup/GLOSSARY.md` |
-| 常见错误 | `workflow/00-setup/workflow/00-setup/ANTI_PATTERNS.md` |
+| 环境检测 | `scripts/ppt_flow.mjs doctor`（或 `scripts/env-check.mjs`） |
+| 术语解释 | `reference/glossary.md` |
+| 常见错误 | `reference/anti-patterns.md` |
+| 人类 Quick Start | `reference/quick-start.md` |
 
 ---
 
 ## 已知限制（Agent 需告知用户）
 
-- **Slides 是图片**：PPTX 的每页是一张完整图片，文字已"烧入"图片中。要改文字需回到源 markdown 重跑管线（Chain A，~5 min）。不支持在 PowerPoint 中直接编辑文本框。
-- **中文 slides 支持受限**：预设的 deck_system.txt 默认英文。如需中文 slides，Agent 需手动改 deck_system.txt LANGUAGE 规则，并将 stage3 的字体切换为 Noto Sans CJK。
-- **自定义 Logo**：所有预设默认无 logo。如需添加，Agent 需在每个 slide 的 IMAGE PROMPT 中描述 logo 的位置和大小，并编辑 deck_system.txt 的 FORBIDDEN 规则。
+- **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown 按编辑链重跑管线（Chain A ~5 min；Chain B ~5 min/页）。不要尝试在 PowerPoint 里改文本框。
+- **中文 slides 支持受限**：预设的 `deck_system.txt` 默认英文。如需中文 slides，Agent 需改 `deck_system.txt` LANGUAGE 规则，并将 Stage 3 字体切换为 Noto Sans CJK（见 `scripts/fonts/README.md`）。
+- **自定义 Logo**：所有预设默认无 logo。如需添加，Agent 需在每个 slide 的 IMAGE PROMPT 中描述 logo 的位置和大小，并编辑 `deck_system.txt` 的 FORBIDDEN 规则。
 - **如果不喜欢 5 个预设**：告诉 Agent "我想自定义风格"，Agent 会切换到 Expert Mode（Phase 2 的完整视觉系统设计流程）。
 
 ## 铁律
 
-完整 10 条见 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)。这里只重复最容易漂的四条：
+完整 10 条见 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。这里只重复最容易漂的四条：
 
 1. **用户做选择题，你做创造性劳动。** 不要问"你的隐喻是什么"——生成 2-3 个候选。
 2. **闸门不可跳过。** 每个 Phase 结束等用户确认。

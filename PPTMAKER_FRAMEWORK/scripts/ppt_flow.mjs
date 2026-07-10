@@ -13,7 +13,7 @@
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
  *   - unified_pipeline.mjs      — production orchestrator (subprocess)
  *   - generate_style_master.mjs — visual style anchor (subprocess)
- *   - 00-env-check.mjs          — environment health check (subprocess)
+ *   - env-check.mjs             — environment health check (subprocess)
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -563,8 +563,8 @@ function buildEnvSearchDirs(dkRoot) {
 // ---------------------------------------------------------------------------
 
 /**
- * doctor — Check Node.js, npm, dependencies, and credentials.
- * Delegates to 00-env-check.mjs as a subprocess.
+ * doctor — Check Node.js, npm, dependencies, image2-ppt skill, and credentials.
+ * Delegates to env-check.mjs as a subprocess.
  */
 async function commandDoctor() {
   return runNode(ENV_CHECK);
@@ -1000,7 +1000,7 @@ Examples:
   // ---- doctor ----
   program
     .command("doctor")
-    .description("Check Node.js, npm, dependencies, and credentials")
+    .description("Check Node.js, npm, deps, image2-ppt skill, and credentials")
     .action(async () => {
       const code = await commandDoctor();
       process.exit(code);

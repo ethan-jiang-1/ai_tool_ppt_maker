@@ -1,4 +1,8 @@
-# 命令路由表
+# 命令路由表（附录）
+
+> **日常入口是 [BOOTSTRAP.md](BOOTSTRAP.md) + `scripts/ppt_flow.mjs`。**
+> 本文件是自然语言 → playbook 的意图路由附录——用户说一句话时，Agent 可用来匹配改动类型；
+> **不要**把本文件当成启动手册，也不要跳过 BOOTSTRAP / AGENT_CONTRACT。
 
 > 你说一句话 → Agent 判断意图 → 加载对应 Playbook 执行.
 > 每个 Playbook 是一个 MD Controller, 定义有序 Node 序列 + Entry/Exit Gate.

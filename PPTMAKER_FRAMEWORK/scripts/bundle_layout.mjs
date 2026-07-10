@@ -541,8 +541,8 @@ const _DIR_READMES = {
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
         '**生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:\n' +
-        '`uv run python PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs ' +
-        '--run-dir <这个版本目录> --stage all`\n'
+        '`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <这个版本目录>`\n' +
+        '（或 `node …/unified_pipeline.mjs --run-dir <这个版本目录> --stage all`）\n'
     ),
     [`${VERSIONS_DIR}/v1/${OVERRIDES_SUBDIR}`]: (
         '# 这一版的覆盖(overrides)\n\n' +
@@ -647,6 +647,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
         `目录结构的权威源:\`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs\`。\n`);
     const pipelineScript = path.join(frameworkDir, 'scripts/unified_pipeline.mjs');
+    const flowScript = path.join(frameworkDir, 'scripts/ppt_flow.mjs');
     const versionScript = path.join(frameworkDir, 'scripts/bundle_layout.mjs');
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),
@@ -664,17 +665,21 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `查看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`：有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
         `## 从项目根目录运行\n\n` +
+        `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
         `\`\`\`bash\n` +
-        `# 首次先解析；再让 Agent 选 3 张代表页做 pilot\n` +
-        `uv run python "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 1\n` +
-        `uv run python "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
+        `# 推荐：统一入口\n` +
+        `node "${flowScript}" doctor\n` +
+        `node "${flowScript}" pilot "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" build "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `\n# 等价：直接跑管线（Expert）\n` +
+        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 1\n` +
+        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
         `--only opener_id,content_id,closer_id --resolution 1k\n` +
-        `\n# Pilot 通过后全量生产\n` +
-        `uv run python "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
+        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
         `--resolution 2k --force-images\n` +
-        `uv run python "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 3,4,5\n` +
+        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 3,4,5\n` +
         `\n# 新建干净版本（不复制旧图片/PPTX）\n` +
-        `uv run python "${versionScript}" --new-version "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${versionScript}" --new-version "${deckDir}/${VERSIONS_DIR}/v1"\n` +
         `\`\`\`\n\n` +
         `用户只需告诉 Agent 想改什么；Agent 负责选择最小重跑链。\n`);
     log.push(`project files: ${METADATA_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
@@ -688,21 +693,11 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         'OPENAI_BASE_URL=           # 可选：API 端点，如 https://<relay>/v1（留空用默认）\n\n' +
         '# （若你的中转原生用别的变量名，直接填 APIMART_API_KEY / APIMART_BASE_URL 也认。）\n');
     _writeIfAbsent(
-        path.join(deckDir, 'pyproject.toml'),
-        `[project]\nname = "deck-${name}"\nversion = "0.0.0"\n` +
-        `requires-python = ">=3.11"\n` +
-        `dependencies = [\n` +
-        `    "python-pptx>=1.0",   # Stage 4/5 (pulls Pillow)\n` +
-        `    "Pillow>=10.0",       # Stage 3 header overlay\n` +
-        `    "httpx>=0.27",        # Stage 2 image skill HTTP client\n` +
-        `]\n\n[tool.uv]\npackage = false\n`);
-    _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +
-        '# environments / caches\n.venv/\n__pycache__/\n' +
         '# generated artifacts (regenerable from source)\n' +
         `${VERSIONS_DIR}/*/${GENERATED_SUBDIR}/\n`);
-    log.push('credentials/deps: .env.example, pyproject.toml, .gitignore');
+    log.push('credentials: .env.example, .gitignore');
 
     return log;
 }

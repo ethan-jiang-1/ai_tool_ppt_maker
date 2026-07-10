@@ -69,7 +69,7 @@ Stage 的产出物在写入后不修改（Stage 5 除外）：
 
 ## Header-Lock：AI + Python 的分工哲学
 
-管线中最关键的架构决策是 Header-Lock——把 slide 的标题文字从 AI image generation 中分离出来，交给 Python/Pillow 做确定性渲染。
+管线中最关键的架构决策是 Header-Lock——把 slide 的标题文字从 AI image generation 中分离出来，交给 Node `@napi-rs/canvas` 做确定性渲染。
 
 ### 为什么需要 Header-Lock
 
@@ -78,13 +78,13 @@ AI image model 有三个致命弱点：
 2. **字体大小飘忽**：prompt 里写 "46px"——model 不会数字体，它生成的是 "看起来像 46px" 的视觉 approximation
 3. **文字内容偶发出错**：偶尔拼错字、漏字、多字
 
-Python/Pillow 恰恰相反——它可以在精确的像素位置、用精确的字体大小、渲染精确的文字内容。每次都一样。
+确定性 canvas 渲染恰恰相反——它可以在精确的像素位置、用精确的字体大小、渲染精确的文字内容。每次都一样。
 
-因此：**AI 负责 "画面"（body visual）——图表、卡片、图标、色彩。Python 负责 "文字"（header text）——kicker、title、subtitle。**
+因此：**AI 负责 "画面"（body visual）——图表、卡片、图标、色彩。确定性层负责 "文字"（header text）——kicker、title、subtitle。**
 
 ### 两种 RENDER MODE（唯一词汇）
 
-| RENDER MODE | 数量（典型） | AI 负责 | Python 负责 |
+| RENDER MODE | 数量（典型） | AI 负责 | 确定性层负责 |
 |-------------|------------|---------|------------|
 | **`body+header-lock`** | ~80% | 生成 body 画面，顶部 260px 留空 | 在顶部叠加 kicker + title + subtitle |
 | **`full-page`** | ~20% | 生成完整画面，包括标题 | 什么都不做（pass-through） |

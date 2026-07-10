@@ -2,19 +2,23 @@
 
 > 本文描述 PPTMAKER_FRAMEWORK 的完整工作流程——从零开始到迭代打磨.
 > 详细执行步骤在 `AGENTS.md` (按 Phase 查阅), 启动流程在 `BOOTSTRAP.md`.
+> **Phase 编号以 `AGENTS.md` / `AGENT_CONTRACT.md` 为准**——本文是摘要，不是第二套编号。
 
-## 5 Phase 总览
+## Phase 总览（与 AGENTS.md 对齐）
 
 | Phase | 做什么 | Gate | Agent 角色 |
 |-------|--------|------|-----------|
-| 00 项目初始化 | 环境检查 → 5 问题 intake → 创建 run bundle | 结构合规 (`--check --structure-only`) | 执行者 |
-| 01 视觉风格 | medium → preset → style_master.jpg → review | 视觉锁定 (95%+ 通过审查) | 建议者 |
-| 02 内容设计 | 隐喻 → 公式 → Block Map → 四层 slide specs | 内容确认 (人审) | 创作者 |
-| 03 图像提示词 | 能力层: 教 Agent 怎么写好的 image prompt | — | 学习者 |
-| 04 生产管线 | Stage 1→5: markdown → PPTX | 每 Stage 一个 gate | 执行者 |
-| 05 迭代引擎 | 分类变更 → 最小化重跑 → 记录 | — | 判断者 |
+| **0** 项目初始化 | 环境检查 → 5 问题 intake → 创建 run bundle | 结构合规 (`--check --structure-only`) | 执行者 |
+| **1** 内容设计 | 隐喻 → 公式 → Block Map → 四层 slide specs（L3 占位） | 内容确认 (`content_gate`) | 创作者 |
+| **2** 视觉风格 | medium → preset → style_master.jpg → review → **§2.7 回填 L3** | 视觉锁定 (`visual_gate`) | 建议者 |
+| **3** 生产管线 | Stage 1→5: markdown → PPTX | 每 Stage 一个 gate | 执行者 |
+| **4** 迭代维护 | 分类变更 → 最小化重跑 → 记录 | — | 判断者 |
 
-Phase 顺序不可变: 00 → 01/02 (可并行) → 03 (能力层, 贯穿) → 04 → 05 (持续).
+支撑层（贯穿，不是独立 Phase 编号）：
+- `workflow/03-prompts/` — 图像提示词能力层
+- `workflow/05-iteration/` — 结构化迭代纪律
+
+Phase 顺序：`0 → 1/2（可交换）→ 2.7 回填 L3 → 3 → 4`。Phase 3 必须在 1+2 都锁定后启动。
 
 ## 编辑链 (变更分类)
 
@@ -47,6 +51,9 @@ Stage 2 运行前检查: 两个 gate 必须为 `approved` 或 `waived`.
 CLAUDE.md  →  BOOTSTRAP.md  →  charter/AGENT_CONTRACT.md  →  按 Phase 读 AGENTS.md
 (自动加载)     (三步启动)        (10 条铁律)            (详细执行)
 ```
+
+日常命令统一走 `scripts/ppt_flow.mjs`（doctor / init / status / approve / pilot / build）。
+`COMMANDS.md` + `playbook/` 是自然语言意图路由**附录**，不是第二套启动入口。
 
 ## 迭代节奏
 

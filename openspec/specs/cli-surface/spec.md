@@ -15,7 +15,7 @@ The `ppt_flow` CLI SHALL expose 11 commands: `doctor`, `init`, `status`, `approv
 
 ### Requirement: ppt_flow delegates to capability scripts
 
-`ppt_flow.mjs` SHALL delegate to `bundle_layout.mjs`, `unified_pipeline.mjs`, `generate_style_master.mjs`, and `00-env-check.mjs` as appropriate for each command.
+`ppt_flow.mjs` SHALL delegate to `bundle_layout.mjs`, `unified_pipeline.mjs`, `generate_style_master.mjs`, and `env-check.mjs` as appropriate for each command.
 
 #### Scenario: Command routes to its capability script
 

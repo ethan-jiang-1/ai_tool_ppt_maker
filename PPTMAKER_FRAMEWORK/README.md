@@ -15,8 +15,8 @@ agent_action: navigate
 > **先读这个。**
 > 这是 `PPTMAKER_FRAMEWORK/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。
 >
-> **第一次来（人类）？** 看 [Quick Start](workflow/00-setup/workflow/00-setup/QUICK_START.md)——5 分钟找到你的路径。
-> **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
+> **第一次来（人类）？** 看 [Quick Start](reference/quick-start.md)——5 分钟找到你的路径。
+> **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
 
 ## 一句话
 
@@ -33,19 +33,21 @@ agent_action: navigate
 ```
 PPTMAKER_FRAMEWORK/
   ├── BOOTSTRAP.md                      ← Agent 启动（env → intake → build）
-  ├── charter/charter/AGENT_CONTRACT.md                 ← Agent 一页铁律（每次 session 先内化）
+  ├── charter/AGENT_CONTRACT.md         ← Agent 一页铁律（每次 session 先内化）
   ├── AGENTS.md                         ← Phase 详解手册（按需翻，勿整本通读）
   ├── CLAUDE.md                         ← 自动加载桩 → BOOTSTRAP
   ├── README.md                         ← 你在读这个（是什么/为什么）
-  ├── workflow/00-setup/workflow/00-setup/QUICK_START.md                    ← 新用户 5 分钟入口
-  ├── workflow/00-setup/workflow/00-setup/ANTI_PATTERNS.md                  ← 框架级常见错误
-  ├── workflow/00-setup/      ← Foundation：项目初始化与环境
-  ├── workflow/01-visual/           ← 视觉方法模块
-  ├── workflow/02-content/               ← 内容方法模块
-  ├── workflow/03-prompts/            ← Skill Layer：Image Prompts
+  ├── COMMANDS.md                       ← 附录：自然语言 → playbook 意图路由
+  ├── reference/quick-start.md          ← 新用户 5 分钟入口
+  ├── reference/anti-patterns.md        ← 框架级常见错误
+  ├── reference/glossary.md             ← 术语表
+  ├── workflow/00-setup/                ← Foundation：项目初始化与环境
+  ├── workflow/01-visual/               ← 视觉方法模块
+  ├── workflow/02-content/              ← 内容方法模块
+  ├── workflow/03-prompts/              ← Skill Layer：Image Prompts
   ├── workflow/04-production/           ← Phase 3：生产管线（内部含 Stage 1-5）
-  ├── workflow/05-iteration/          ← Iteration Engine：持续打磨
-  └── scripts/    ← 五个 Stage 的 Python 参考实现
+  ├── workflow/05-iteration/            ← Iteration Engine：持续打磨
+  └── scripts/                          ← Node.js 管线脚本（ppt_flow / stages）
 ```
 
 对 coding agent 来说，文件是原生操作对象——读、写、搜索、diff、提交。不需要学习任何新抽象。`ls` 看进度，`git log` 看变更，`diff -r v2 v3` 看差异。
@@ -184,4 +186,4 @@ PPTMAKER_FRAMEWORK/
 
 > **Next**: `workflow/00-setup/` — 理解文件系统架构：soft bundle vs run bundle，以及项目目录模板。
 >
-> **遇到问题？** 先查 [ANTI_PATTERNS](workflow/00-setup/workflow/00-setup/ANTI_PATTERNS.md)——你可能撞上了 7 个常见错误之一。
+> **遇到问题？** 先查 [ANTI_PATTERNS](reference/anti-patterns.md)——你可能撞上了常见错误之一。

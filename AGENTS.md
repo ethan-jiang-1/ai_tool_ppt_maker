@@ -13,14 +13,13 @@ AI 驱动的 PPT 生成系统. Agent 是编排器——读方法论文档 → �
 ```
 ai_tool_ppt_maker/
 ├── PPTMAKER_FRAMEWORK/        ← 方法论知识库 (soft bundle, 只读)
-│   ├── 00_project_setup/      ← 项目初始化 + 环境检查
-│   ├── 01_visual_style_master/← 视觉风格设计
-│   ├── 02_content_design/     ← 内容架构设计
-│   ├── 03_image_prompts/      ← 图像 prompt 工程
-│   ├── 04_production_pipeline/← 生产管线方法论
-│   ├── 05_iteration/          ← 迭代引擎
-│   └── 06_reference_scripts/  ← 生产脚本 (.mjs)
-├── tests/                     ← 测试文件 (11 个 .mjs)
+│   ├── BOOTSTRAP.md           ← Agent 三步启动入口
+│   ├── charter/               ← 宪法 / 铁律 / 流程摘要
+│   ├── workflow/              ← 00-setup … 05-iteration 方法论
+│   ├── scripts/               ← 生产管线 (.mjs)
+│   ├── playbook/              ← 自然语言意图路由（附录）
+│   └── reference/             ← glossary / anti-patterns / quick-start
+├── tests/                     ← 测试文件 (.mjs)
 ├── openspec/                  ← OpenSpec spec-driven 开发
 ├── _backlog/                  ← 待办/Bug/Plan 簿记
 ├── package.json               ← npm 依赖声明
@@ -31,11 +30,11 @@ ai_tool_ppt_maker/
 
 | 做什么 | 命令 |
 |--------|------|
-| 环境检查 | `node PPTMAKER_FRAMEWORK/00_project_setup/00-env-check.mjs` |
+| 环境检查 | `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` |
 | 跑回归测试 | `npm test` |
-| 管线入口 | `node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs <cmd>` |
-| 打印目录宪法 | `node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs` |
-| 校验 run bundle | `node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check <dir>` |
+| 管线入口 | `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <cmd>` |
+| 打印目录宪法 | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` |
+| 校验 run bundle | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check <dir>` |
 
 ## 关键约束
 
@@ -47,6 +46,6 @@ ai_tool_ppt_maker/
 
 ## 从哪里开始
 
-如果是做 PPT → 读 `PPTMAKER_FRAMEWORK/BOOTSTRAP.md`
+如果是做 PPT → 读 `PPTMAKER_FRAMEWORK/BOOTSTRAP.md` → `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md`
 如果是改代码 → 看 `openspec/specs/` 和 `_backlog/`
 如果是修 bug → 看 `_backlog/bugs/`

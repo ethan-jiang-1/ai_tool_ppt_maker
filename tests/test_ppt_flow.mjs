@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
 
-const PPT_FLOW = 'PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs';
+const PPT_FLOW = 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs';
 
 describe('ppt_flow', () => {
   it('responds to --help (does not hang)', () => {

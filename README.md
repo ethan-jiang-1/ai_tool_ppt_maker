@@ -9,7 +9,7 @@ AI 驱动的 PPT 生成系统. Agent 读方法论文档 → 做创意判断 → 
 npm install
 
 # 2. 环境检查
-node PPTMAKER_FRAMEWORK/00_project_setup/00-env-check.mjs
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
 # 3. 配 API key
 echo "OPENAI_API_KEY=sk-..." > .env
