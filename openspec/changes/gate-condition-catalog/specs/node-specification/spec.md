@@ -2,7 +2,17 @@
 
 ### Requirement: Gate Conditions Catalog is defined in NODE-SPEC.md
 
-`charter/NODE-SPEC.md` SHALL contain a Gate Conditions Catalog section listing every valid gate condition name, its type (FILESYSTEM/STATE/USER), its check logic, and its implementation. All playbook frontmatter entry/exit conditions SHALL use names from this catalog.
+`charter/NODE-SPEC.md` SHALL contain a Gate Conditions Catalog section listing every valid gate condition name, its type (FILESYSTEM/STATE/USER), its data source (exact file path within run bundle, or state field path, or user decision field), and its check logic. All playbook frontmatter entry/exit conditions SHALL use names from this catalog.
+
+### Requirement: ctx parameter provides run bundle paths to conditions
+
+`checkEntry` and `checkExit` SHALL accept a `ctx` parameter providing: `deckDir` (deck root), `runDir` (current version dir), and `frameworkDir` (PPTMAKER_FRAMEWORK root). FILESYSTEM conditions SHALL resolve paths relative to these directories.
+
+#### Scenario: Condition resolves file path via ctx
+
+- **WHEN** `checkEntry('wave0', playbookDir, state, { deckDir, runDir })` is called
+- **THEN** the `slide_specs_exists` condition checks `join(runDir, 'slide-specifications.md')`
+- **AND** `visual_preset_seeded` checks `join(deckDir, '2_backbone/visual-style/color_palette.json')`
 
 #### Scenario: Developer looks up a condition
 
