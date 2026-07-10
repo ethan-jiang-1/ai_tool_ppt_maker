@@ -1,0 +1,64 @@
+## ADDED Requirements
+
+### Requirement: playbook/ directory contains five MD controllers
+
+`PPTMAKER_FRAMEWORK/playbook/` SHALL contain exactly five files: `full-creation.md`, `chain-a.md`, `chain-b.md`, `chain-c.md`, and `structural.md`. Each SHALL be a self-contained MD Controller defining an ordered sequence of nodes.
+
+#### Scenario: Agent lists available playbooks
+
+- **WHEN** Agent lists `PPTMAKER_FRAMEWORK/playbook/`
+- **THEN** it sees five available workflows
+
+### Requirement: full-creation playbook covers complete deck creation
+
+`full-creation.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, hitl1, setup, seed-topics, wave0, wave1, wave2, hitl2, readiness, rerun, final. Node order SHALL be: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → (rerun → seed-topics | readiness → final).
+
+#### Scenario: User says "帮我做一个PPT"
+
+- **WHEN** user requests a new PPT
+- **THEN** COMMANDS.md routes to playbook `full-creation`
+- **AND** Agent starts executing from node `instantiation`
+
+### Requirement: Chain playbooks cover iteration workflows
+
+`chain-a.md`, `chain-b.md`, `chain-c.md`, and `structural.md` SHALL each define a shortened workflow for iterative changes. Each SHALL begin with change classification and end with exit verification.
+
+#### Scenario: User requests a title change
+
+- **WHEN** user says "第5页标题改一下"
+- **THEN** COMMANDS.md routes to playbook `chain-a`
+- **AND** Agent classifies the change, runs stages 1,3,4,5 targeting slide 5, and verifies the output
+
+#### Scenario: User requests a visual redesign
+
+- **WHEN** user says "换个配色"
+- **THEN** COMMANDS.md routes to playbook `chain-b`
+- **AND** Agent runs a 3-slide pilot before full regeneration
+
+### Requirement: COMMANDS.md is a routing table
+
+`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL map natural-language user intents to playbook names. Each row SHALL include: example user input, target playbook, and any entry parameters. Agent SHALL read COMMANDS.md to classify user intent, then read the target playbook to execute.
+
+#### Scenario: Agent routes user request to correct playbook
+
+- **WHEN** user says "第8页的图重新生成"
+- **THEN** Agent reads COMMANDS.md, classifies as `chain-b`, and loads `playbook/chain-b.md`
+
+### Requirement: State file is created on playbook start
+
+When a playbook begins execution, `run-bundle-state.yaml` SHALL be created (if it does not exist) or validated (if it already exists). The `playbook` and `current_node` fields SHALL be set.
+
+#### Scenario: First node of full-creation writes initial state
+
+- **WHEN** Agent executes node `instantiation` for the first time
+- **THEN** `deck_<name>/run-bundle-state.yaml` is created with `playbook: full-creation`, `current_node: instantiation`
+
+### Requirement: Gates are enforced at node boundaries
+
+No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (content_gate, visual_gate) SHALL remain `pending` until the human explicitly approves or waives them via the `scripts/ppt_flow.mjs approve` command.
+
+#### Scenario: Production node blocked by pending visual gate
+
+- **WHEN** Stage 2 (image generation) is about to start
+- **THEN** the CLI script reads `run-bundle-state.yaml` and finds `visual_gate: pending`
+- **AND** the script refuses to run and reports "visual_gate must be approved or waived"
