@@ -168,3 +168,13 @@ playbook 引用 shared node 时不复制, 而是 `includes: [classify-change]`.
 
 **[R] Node 数量过多让 playbook 膨胀**
 → shared node 复用. 迭代 playbook (chain-a/b/c) 只定义差异 node, 公共 node 走 include
+
+### 7. 现有文件的关系
+
+**`scripts/change-classifier.md`**: playbook 体系引入后, 此文件成为 `classify-change` 共享 node 的参考实现. node body 写 "按 `scripts/change-classifier.md` 的决策树分类", 不重复分类逻辑. 文件本身保留——它是 Agent 内部分类的权威参考.
+
+**`scripts/agent-prompts.md`**: 不受影响. playbook 的 MD step 可能引用其中的 prompt 模板, 但不替代它.
+
+**`AGENTS.md`**: playbook 体系上线后, AGENTS.md 的角色从"唯一执行手册"降为"参考背景". Agent 按 playbook 执行, 但遇到需要深度理解方法论的场景时, 可回查 AGENTS.md 和 workflow/ 目录.
+
+**`charter/WORKFLOW.md`**: 流程宪法与 playbook 的关系: WORKFLOW 描述"大局流程是什么", playbook 描述"这一步怎么做". 不冲突, 互补.
