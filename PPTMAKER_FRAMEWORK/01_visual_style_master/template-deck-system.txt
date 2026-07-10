@@ -1,0 +1,55 @@
+# deck_system.txt — Deck-Wide Textual Constraints
+#
+# This file is the TEXTUAL complement to the VISUAL style master.
+# Style master SHOWS the model what to produce. This file TELLS the model what NOT to produce.
+#
+# HOW TO USE:
+# 1. Fill in all [PLACEHOLDER] values below
+# 2. Save to your run bundle as 2_backbone/visual-style/deck_system.txt
+# 3. Stage 1 (build_inputs.py) reads this to inject system-level contracts into every prompt
+#
+# This file is extracted from template-visual-style.md Section 7.
+# Delete all comment lines (starting with #) before using — the image model doesn't need them.
+
+LANGUAGE: [e.g., "English only. No Chinese/CJK text on slides."]
+DECK TYPE: [e.g., "Dark executive keynote for senior management."]
+BACKGROUND: [e.g., "Deep navy #0a1628 on every slide, no exceptions."]
+
+COLOR FAMILY:
+  Allowed: [e.g., "Blue-cyan-teal only."]
+  FORBIDDEN: [e.g., "No warm tones: no amber, orange, red, coral, gold, yellow."]
+
+TEXT DENSITY:
+  - Most slides: under 35 readable body words
+  - Complex evidence/framework slides: up to 50 words, only as short labels/cards/nodes
+  - NEVER: paragraphs on generated slide images
+  - NEVER: dashboard microtext, checkbox labels, table rows, axis labels, dense annotations
+
+FORBIDDEN:
+  - Company logos
+  - Watermarks, page numbers, source notes, draft labels, "CONFIDENTIAL" stamps
+  - Stock photo people or clip art
+  - Gradient orbs, decorative blobs, "tech" abstract shapes
+  - [Additional forbidden elements specific to your project]
+
+TONE: [e.g., "Confident, precise, industrial. Not heavy industry, not consumer."]
+
+PRODUCT DNA (if applicable):
+  [e.g., "When showing parts, use macro-scale jewel-like precision aesthetic.
+  Mirror-polished surfaces, specular highlights. Never show rough industrial bolts."]
+
+CONSISTENCY:
+  Every slide must feel like it belongs to the same visual system.
+  Color roles stay consistent:
+  - [color] = [semantic meaning, e.g., "cyan = positive outcomes"]
+  - [color] = [semantic meaning, e.g., "steel blue = structural panels"]
+  - [color] = [semantic meaning, e.g., "near-white = primary text"]
+
+KPI NUMBERS:
+  Oversized (3-4x body text). Color: [accent] for positive, [highlight] for attention.
+  Use order-of-magnitude precision. Round numbers. Never use decimal places on percentages.
+
+CALLOUT BAR:
+  Every slide ends with a full-width bottom callout bar.
+  Contains one management implication sentence.
+  Color depends on semantic role: [accent for insight, urgent color for warning].

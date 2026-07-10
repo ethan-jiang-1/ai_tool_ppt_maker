@@ -1,0 +1,45 @@
+{
+  "name": "Tech Startup",
+  "description": "Deep purple background with neon cyan and magenta accents. Bold, futuristic, memorable. Synthwave-meets-SaaS.",
+  "background": "#1a0a2e",
+  "canvas": {"width_px": 1672, "height_px": 941},
+  "body_layout": {
+    "content_top_gap_px": 30,
+    "content_bottom_px": 780,
+    "callout_top_px": 805,
+    "callout_bottom_px": 900,
+    "no_callout_bottom_px": 890
+  },
+  "colors": {
+    "panel_card": {"hex": "#2d1b4e", "role": "Card and panel backgrounds"},
+    "primary_text": {"hex": "#e0e0e0", "role": "Body text, titles"},
+    "secondary_text": {"hex": "#a0a0b8", "role": "Secondary text, labels"},
+    "accent_cyber": {"hex": "#00f5d4", "role": "Key numbers, CTA, growth data"},
+    "emphasis": {"hex": "#f72585", "role": "Emphasized text, important markers"},
+    "data": {"hex": "#7209b7", "role": "Secondary data, auxiliary elements"},
+    "muted": {"hex": "#4a3a6e", "role": "De-emphasized info"},
+    "kicker": {"hex": "#a0a0b8", "role": "Slide kicker (Header-Lock overlay)"},
+    "subtitle": {"hex": "#8888a0", "role": "Slide subtitle (Header-Lock overlay)"}
+  },
+  "header_lock": {
+    "body_header_safe_zone": 260,
+    "opener_safe_zone": 390,
+    "position": {
+      "left_px": 46,
+      "right_margin_px": 58,
+      "kicker_y_px": 24,
+      "title_y_px": 58,
+      "subtitle_gap_px": 8,
+      "title_line_height_px": 52,
+      "subtitle_line_height_px": 31
+    },
+    "fonts": {
+      "kicker": {"family": "Source Sans Pro", "weight": "Semibold", "size_px": 22, "color": "#a0a0b8"},
+      "title": {"family": "Source Sans Pro", "weight": "Bold", "size_px": 46, "color": "#e0e0e0"},
+      "subtitle": {"family": "Source Sans Pro", "weight": "Regular", "size_px": 27, "color": "#8888a0"}
+    }
+  },
+  "forbidden": ["corporate blues", "gray scale", "warm earth tones", "stock photos", "logos", "watermarks", "page numbers"],
+  "best_for": ["pitch decks", "product launches", "consumer tech", "SaaS", "young audiences", "Web3"],
+  "avoid_for": ["conservative industries", "board presentations", "manufacturing", "healthcare", "training"]
+}

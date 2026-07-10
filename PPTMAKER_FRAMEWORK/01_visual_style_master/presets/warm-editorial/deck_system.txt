@@ -1,0 +1,34 @@
+# Deck System Contract — Warm Editorial
+# Textual constraints. Visual constraints are in style_master.jpg.
+
+LANGUAGE: English only. No Chinese characters on slides.
+
+DECK TYPE: Brand story or editorial keynote. Every slide should feel crafted, not templated.
+
+BACKGROUND: Warm cream #fef9ef on every slide. No white backgrounds (too clinical). No dark backgrounds (loses warmth).
+
+COLOR FAMILY: Warm earth tones. #2d2d2d (warm charcoal) for primary text. #c44d34 (rust red) for emphasis and CTA. #b8860b (dark gold) for premium/accent. #7c9082 (sage green) for secondary. #f5f0e8 for panels.
+
+FORBIDDEN:
+- NO cold blues or corporate grays
+- NO neon or fluorescent colors
+- NO pure white backgrounds
+- NO dark backgrounds
+- NO stock photos or clip art
+- NO real company logos
+- NO watermarks or draft labels
+- NO page numbers
+- NO dashboard-style data displays
+- NO dense tables or grids
+
+TEXT DENSITY: Under 30 words per slide. This is editorial — white space is a design element. Max 2-3 body text zones.
+
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean cream. Python/Pillow will overlay the header text. For full-page slides (openers, closers), render complete slide with header text.
+
+BODY TEXT CONTRACT: Body text should feel crafted — use pull-quotes, single-statements, and visual metaphors, not bullet points. KPI numbers are rare in this style — use them sparingly as dramatic visual anchors, not data displays. Max 2-3 distinct text zones.
+
+CALLOUT BAR: Every content slide ends with an editorial takeaway at y=805 to y=900. One sentence, rust red (#c44d34) or muted gold. This is the "so what" for the human reader.
+
+IMAGERY: Use abstract visual metaphors, not literal representations. Textured backgrounds (subtle grain or paper texture) are welcome. Photography-style compositions rather than diagram-style.
+
+TONE: Warm, human, story-driven. Not corporate. Not academic. Every slide should feel like it was designed by a human who cares about craft.
