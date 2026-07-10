@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define Stage 5 of the production pipeline: extracting SPEAKER NOTE blocks from the source markdown and injecting them into the PPTX notes panel with `pptxgenjs`. This capability guarantees that every slide's presenter notes reach the final deck's Presenter View, and that a mismatch between note count and slide count aborts with an error rather than shipping a deck with misaligned notes.
+
+## Requirements
 
 ### Requirement: Stage 5 injects speaker notes
 
@@ -13,3 +17,8 @@ Stage 5 SHALL extract SPEAKER NOTE blocks from source markdown and inject them i
 ### Requirement: Stage 5 is a standalone ESM script
 
 The Stage 5 script SHALL be `stage5_inject_notes.mjs`, using `pptxgenjs` to access the notes panel.
+
+#### Scenario: Stage 5 runs standalone
+
+- **WHEN** `node stage5_inject_notes.mjs <run_dir>` is run directly
+- **THEN** it injects the extracted speaker notes into the PPTX notes panel using `pptxgenjs`, without requiring the orchestrator

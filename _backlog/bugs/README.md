@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-10 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-07-11 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -15,13 +15,11 @@
 
 ## 活跃列表
 
-_（暂无活跃 bug。新建时在下表加一行，并用下面的模板建 `BUG-<NNN>-<slug>.md`。）_
-
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| — | — | — |
+| — | — | 当前无活跃 bug |
 
-**Next available bug ID: BUG-001**
+**Next available bug ID: BUG-003**
 
 ---
 

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define the pre-flight environment check (`scripts/env-check.mjs`) that verifies a machine is ready to run the pipeline: a zero-dependency script (Node.js built-ins only) that gates the Node.js version (>= 18), npm and all declared dependencies, and the `OPENAI_API_KEY`, then emits a structured READY / NOT READY report with a matching exit code. This capability guarantees that setup problems are diagnosed with actionable messages before the pipeline runs, and that the check itself never requires `npm install` to execute.
+
+## Requirements
 
 ### Requirement: Zero-dependency runtime check
 

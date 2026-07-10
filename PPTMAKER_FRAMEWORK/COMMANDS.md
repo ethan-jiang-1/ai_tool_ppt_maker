@@ -42,5 +42,5 @@
   → 确定 playbook 名 + 入口参数
   → 加载 playbook/<name>.md (MD Controller)
   → 从第一个 node 开始执行
-  → State 写入 run-bundle-state.yaml
+  → State 写入 _state/state.yaml
 ```

@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define Stage 3 (Header-Lock) of the production pipeline: overlaying deterministic kicker/title/subtitle text onto AI-generated images with `@napi-rs/canvas`, at the exact pixel positions declared in the visual config. This capability guarantees that header typography is pixel-precise and reproducible rather than baked into the image by the generator, that fonts resolve through a defined priority chain (bundled fonts > `PPT_FONT_DIR` > OS font directories > fallback sans), and that a missing font degrades gracefully with a warning instead of aborting the pipeline.
+
+## Requirements
 
 ### Requirement: Stage 3 overlays header text on images
 
@@ -20,3 +24,8 @@ Stage 3 (Header-Lock) SHALL load AI-generated images, overlay kicker/title/subti
 ### Requirement: Stage 3 is a standalone ESM script
 
 The Stage 3 script SHALL be `stage3_lock_headers.mjs`, using `@napi-rs/canvas` for image manipulation and text rendering.
+
+#### Scenario: Stage 3 runs standalone
+
+- **WHEN** `node stage3_lock_headers.mjs <run_dir>` is run directly
+- **THEN** it overlays header text onto the images and writes them to `header_locked/` using `@napi-rs/canvas`, without requiring the orchestrator

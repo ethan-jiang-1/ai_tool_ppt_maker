@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define Stage 1 of the production pipeline: parsing `slide-specifications.md` into the machine-readable `slide_plan.json` and `page_prompts/_prompts.json` that drive every downstream stage. This capability guarantees that each slide's render mode, layout contract, and assembled image prompt are derived deterministically from the source markdown, and that malformed specs (for example a missing IMAGE PROMPT) are caught and reported before any image is generated.
+
+## Requirements
 
 ### Requirement: Stage 1 parses markdown to JSON
 
@@ -18,3 +22,8 @@ Stage 1 SHALL parse `slide-specifications.md` into `slide_plan.json` and `page_p
 ### Requirement: Stage 1 is a standalone ESM script
 
 The Stage 1 script SHALL be `stage1_build_inputs.mjs`, runnable with `node stage1_build_inputs.mjs <args>`.
+
+#### Scenario: Stage 1 runs standalone
+
+- **WHEN** `node stage1_build_inputs.mjs <run_dir>` is run directly
+- **THEN** it parses `slide-specifications.md` and writes `slide_plan.json` and `page_prompts/_prompts.json` without requiring the orchestrator

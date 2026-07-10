@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that maps natural-language user requests to the agent actions that fulfill them. It covers the full-deck creation path (BOOTSTRAP → Phases 0–3), the four editing chains (text / visual / notes / structural), the agent's request-classification logic, and common iteration-feedback patterns. This capability guarantees that a human can discover — in under 60 seconds — what to say and roughly how long each change takes, while the detailed decision tree stays in `scripts/change-classifier.md` and is not duplicated here.
+
+## Requirements
 
 ### Requirement: COMMANDS.md exists at framework root
 
