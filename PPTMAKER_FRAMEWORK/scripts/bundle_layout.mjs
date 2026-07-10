@@ -62,6 +62,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeState, setNodeStatus } from './lib/state.mjs';
 
 // ---------------------------------------------------------------------------
 // Self-location (replaces Python's __file__ / Path(__file__).resolve())
@@ -948,6 +949,9 @@ function _main() {
             process.exit(1);
         }
         const created = initBundle(deckDir, null, args.deckType, args.style);
+        const state = { playbook: "full-creation", current_node: "instantiation", started_at: new Date().toISOString(), updated_at: "", nodes: {}, gates: { content: "pending", visual: "pending" }, deck: { name: deckDir.replace(/^.*deck_/, ""), type: args.deckType || "", style: args.style || "" } };
+        setNodeStatus(state, "instantiation", "completed");
+        writeState(deckDir, state);
         const seeded = [];
         if (args.deckType) seeded.push(`deck-type=${args.deckType}`);
         if (args.style) seeded.push(`style=${args.style}`);

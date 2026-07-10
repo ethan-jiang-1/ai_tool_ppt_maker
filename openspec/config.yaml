@@ -65,6 +65,13 @@ context: |
   |-----------|--------|---------|
   | `cli-surface` | ppt_flow 命令面 (11 个命令): doctor/init/status/approve/style-master/validate/pilot/build/refresh/new-version/test | `ppt_flow.mjs` |
 
+  ### 执行层
+
+  | Capability | 做什么 | 关键文件 |
+  |-----------|--------|---------|
+  | `node-specification` | Node 规格宪法——Node 解剖、State Schema、Playbook 规则、CLI⇔MD 协议 | `charter/NODE-SPEC.md` |
+  | `playbook-execution` | MD Controller 执行体系——5 个 Playbook, 有序 Node 序列, Entry/Exit Gate, run-bundle-state.yaml | `playbook/*.md` |
+
   ## Agent 工作流程 (5 个 Phase, 顺序不可变)
 
   | Phase | 做什么 | Agent 的角色 |
