@@ -6,7 +6,7 @@
 
 #### Scenario: Agent runs pipeline on Windows
 
-- **WHEN** Agent runs `node 06_reference_scripts/ppt_flow.mjs build <run_dir>` on Windows 11 with Node.js 20
+- **WHEN** Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on Windows 11 with Node.js 20
 - **THEN** all 5 stages complete successfully, producing a .pptx file
 
 ### Requirement: Unified pipeline supports editing chains

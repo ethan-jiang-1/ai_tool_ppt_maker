@@ -11,8 +11,8 @@ context: |
 
   Node.js 18+ (ESM, `.mjs`). npm 依赖: `@napi-rs/canvas` (图片+字体), `pptxgenjs`
   (PPTX), `commander` (CLI). HTTP 用 `fetch` (Node 内置). 测试: `vitest`.
-  入口: `node 06_reference_scripts/ppt_flow.mjs <command>`.
-  环境检查: `node 00_project_setup/00-env-check.mjs` (零依赖, 先于 npm install).
+  入口: `node scripts/ppt_flow.mjs <command>`.
+  环境检查: `node workflow/00-setup/00-env-check.mjs` (零依赖, 先于 npm install).
 
   ## 两层结构
 
@@ -140,7 +140,7 @@ rules:
 
   specs:
     - "Spec 目录名必须来自 config.yaml capability 注册表——每个 capability 一个 specs/<name>/spec.md"
-    - "目录结构引用 PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs 的常量——不硬编码路径"
+    - "目录结构引用 PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs 的常量——不硬编码路径"
     - "使用规范 RENDER MODE 词汇: full-page / body+header-lock (不用 image_direct / normal)"
     - "IMAGE PROMPT 只描述视觉内容 (布局, 颜色, 图标, 图表)——系统契约由 Stage 1 组装"
     - "SPEAKER NOTE 是 60-90 秒叙述流, 不是讲稿"

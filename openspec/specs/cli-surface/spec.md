@@ -6,7 +6,7 @@ The `ppt_flow` CLI SHALL expose 11 commands: `doctor`, `init`, `status`, `approv
 
 #### Scenario: Agent runs ppt_flow init
 
-- **WHEN** Agent runs `node 06_reference_scripts/ppt_flow.mjs init deck_demo --deck-type keynote --style dark-executive`
+- **WHEN** Agent runs `node scripts/ppt_flow.mjs init deck_demo --deck-type keynote --style dark-executive`
 - **THEN** a run bundle is created at `deck_demo/` with the three-tier structure, preset templates seeded, metadata initialized
 
 ### Requirement: ppt_flow delegates to capability scripts

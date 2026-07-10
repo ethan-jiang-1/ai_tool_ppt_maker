@@ -1,6 +1,6 @@
 # 宪法: Run Bundle 目录结构
 
-> **唯一权威源**: `PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs`
+> **唯一权威源**: `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
 >
 > 所有脚本从这里 import 路径常量. **人读的树是下面这样——但它只是快照**.
 > 结构以 `bundle_layout.mjs` 为准. 命令行跑 `node bundle_layout.mjs` 看权威树.
@@ -64,7 +64,7 @@ deck_{NAME}/
 ## 初始化
 
 ```bash
-node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --init deck_<name> \
+node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_<name> \
   [--deck-type keynote|pitch|report|training] \
   [--style dark-executive|clean-clinical|corporate-safe|tech-startup|warm-editorial]
 ```

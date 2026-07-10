@@ -6,13 +6,13 @@ type: playbook
 summary: Agent 的主执行脚本。定义固定流程、对话引导、gate check、编辑链。
 depends_on:
 - README.md
-- 00_project_setup/README.md
+- workflow/00-setup/README.md
 feeds_into:
-- 01_visual_style_master/README.md
-- 02_content_design/README.md
-- 03_image_prompts/README.md
-- 04_production_pipeline/README.md
-- 05_iteration/README.md
+- workflow/01-visual/README.md
+- workflow/02-content/README.md
+- workflow/03-prompts/README.md
+- workflow/04-production/README.md
+- workflow/05-iteration/README.md
 agent_action: navigate
 ---
 
@@ -23,7 +23,7 @@ agent_action: navigate
 
 ## 给人类读者
 
-> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [00_project_setup/00_project_setup/QUICK_START.md](00_project_setup/00_project_setup/QUICK_START.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
+> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [workflow/00-setup/workflow/00-setup/QUICK_START.md](workflow/00-setup/workflow/00-setup/QUICK_START.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
 >
 > 下面这些步骤是 agent 的操作手册。你可以读它来理解流程，但不需要手动操作。
 
@@ -45,10 +45,10 @@ agent_action: navigate
 Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户没指定，默认 **standard**。
 
 **预设驱动**（见 BOOTSTRAP.md Step 3）：
-- Deck type → 从 `02_content_design/presets/deck-type-templates/` 选择模板
-- 叙事弧线 → 从 `02_content_design/presets/block-arc-catalog.md` 选择
-- 隐喻 → 参考 `02_content_design/presets/metaphor-catalog.md` 做模式匹配
-- 视觉风格 → 从 `01_visual_style_master/presets/` 选择预设
+- Deck type → 从 `workflow/02-content/presets/deck-type-templates/` 选择模板
+- 叙事弧线 → 从 `workflow/02-content/presets/block-arc-catalog.md` 选择
+- 隐喻 → 参考 `workflow/02-content/presets/metaphor-catalog.md` 做模式匹配
+- 视觉风格 → 从 `workflow/01-visual/presets/` 选择预设
 
 ## Role
 
@@ -58,7 +58,7 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 
 ## 核心理念：Run Bundle
 
-所有工作都发生在一个 **run bundle**（文件系统实例）中。run bundle 是一个遵循 `00_project_setup/` 定义的目录结构——它是项目的完整文件系统 workspace。不需要数据库、不需要 workflow server、不需要 YAML。`ls` 看进度，`diff -r v1 v2` 看差异，`git log` 看历史。
+所有工作都发生在一个 **run bundle**（文件系统实例）中。run bundle 是一个遵循 `workflow/00-setup/` 定义的目录结构——它是项目的完整文件系统 workspace。不需要数据库、不需要 workflow server、不需要 YAML。`ls` 看进度，`diff -r v1 v2` 看差异，`git log` 看历史。
 
 **Soft bundle**（`PPTMAKER_FRAMEWORK/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
 
@@ -80,11 +80,11 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 ```
 Phase 0: 项目初始化 → 创建 run bundle
     ↓
-Phase 1: 内容设计（参考 02_content_design/）
+Phase 1: 内容设计（参考 workflow/02-content/）
     ↓
-Phase 2: 风格设计（参考 01_visual_style_master/）
+Phase 2: 风格设计（参考 workflow/01-visual/）
     ↓
-Phase 3: 生产管线（参考 04_production_pipeline/）
+Phase 3: 生产管线（参考 workflow/04-production/）
     ↓
 Phase 4: 迭代维护
 ```
@@ -118,7 +118,7 @@ Phase 4: 迭代维护
 
 ### 0.2 创建 Run Bundle
 
-参考 `charter/CONSTITUTION.md`（人类可读镜像）和 `06_reference_scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
+参考 `charter/CONSTITUTION.md`（人类可读镜像）和 `scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
 
 ```
 deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留）
@@ -134,12 +134,12 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
               └── _generated/            ← 【派生】脚本产物，绝不手改，可 rm -rf 重建
 ```
 
-> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品全在 `_generated/` 里。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/06_reference_scripts/` 就地运行(见 Phase 3)。
+> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品全在 `_generated/` 里。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/scripts/` 就地运行(见 Phase 3)。
 
 创建命令——**用 `--init` 一条命令搭好整个骨架并播种选中的 preset,不要手动 mkdir、不要手动 cp**（手动建/手动拷是临场发挥的源头）：
 
 ```bash
-node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs \
+node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs \
   --init deck_{NAME} --deck-type {keynote|pitch|report|training} --style {preset-slug}
 ```
 
@@ -149,7 +149,7 @@ node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs \
 
 搭完后随时可校验结构合不合宪法(Phase 0 用 `--structure-only`——不查 Phase-2 才有的 `style_master.jpg`,新建 bundle 直接通过):
 ```bash
-node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1 --structure-only
+node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1 --structure-only
 ```
 
 `deck-guide.md` 是这个 bundle 的护栏——任何 agent 进目录先读它,就知道结构、能改什么、别碰什么、下一步干什么。它防止下次 session 临场发挥出错误的目录。
@@ -172,21 +172,21 @@ node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check deck_{NAM
 
 ```bash
 # 上游身份 → 2_backbone/
-cp PPTMAKER_FRAMEWORK/02_content_design/template-core-metaphor.md \
+cp PPTMAKER_FRAMEWORK/workflow/02-content/template-core-metaphor.md \
    deck_{NAME}/2_backbone/core-metaphor.md
-cp PPTMAKER_FRAMEWORK/02_content_design/template-core-formula.md \
+cp PPTMAKER_FRAMEWORK/workflow/02-content/template-core-formula.md \
    deck_{NAME}/2_backbone/core-formula.md
-cp PPTMAKER_FRAMEWORK/02_content_design/template-design-constraints.md \
+cp PPTMAKER_FRAMEWORK/workflow/02-content/template-design-constraints.md \
    deck_{NAME}/2_backbone/design-constraints.md
 
 # 视觉主干 → 2_backbone/visual-style/
-cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-visual-style.md \
+cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-visual-style.md \
    deck_{NAME}/2_backbone/visual-style/visual-style.md
-cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
+cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
    deck_{NAME}/2_backbone/visual-style/deck_system.txt
 
 # 下游这一版的每页规格 → 3_versions/v1/
-cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
+cp PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md \
    deck_{NAME}/3_versions/v1/slide-specifications.md
 ```
 
@@ -204,11 +204,11 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 ## Phase 1: 内容设计
 
-> 参考知识库：`02_content_design/`（每个子阶段有详细方法论）
+> 参考知识库：`workflow/02-content/`（每个子阶段有详细方法论）
 > 产出物：`slide-specifications.md`（run bundle 中的 `3_versions/v1/`）+ backbone 的隐喻/公式（`2_backbone/`）
-> 迭代引擎（`05_iteration/`）
+> 迭代引擎（`workflow/05-iteration/`）
 
-### 1.1 核心隐喻（参考 `02_content_design/01-find-the-core-metaphor-and-formula.md`）
+### 1.1 核心隐喻（参考 `workflow/02-content/01-find-the-core-metaphor-and-formula.md`）
 
 **Novice Mode（推荐）**：不要问用户"你的隐喻是什么"。用以下流程：
 
@@ -216,7 +216,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 > **如果直接进入 AGENTS.md（跳过 BOOTSTRAP）**：按以下流程生成隐喻候选。
 
-1. 基于用户 topic 和"最想让人记住什么"，参考 `02_content_design/presets/metaphor-catalog.md` 做模式匹配
+1. 基于用户 topic 和"最想让人记住什么"，参考 `workflow/02-content/presets/metaphor-catalog.md` 做模式匹配
 2. 生成 2-3 个候选隐喻，每个包含：
    - 隐喻名称和一句话描述
    - 核心 tension（什么信念错了？什么后果？）
@@ -230,7 +230,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 验证每个候选：可感知？有 tension？可延展 15-20 slides？
 
-### 1.2 核心公式（参考 `02_content_design/01`）
+### 1.2 核心公式（参考 `workflow/02-content/01`）
 
 > **如果已从 BOOTSTRAP Step 3.3 进入**：公式已随隐喻候选一起生成。只需验证：可证伪？（能想象让它不成立的场景？）5 秒能理解？（外行能听懂？）每张 slide 能追溯到？（公式的 A、B、C 各有 slide 对应？）三项都通过 → 进入 1.3。
 
@@ -242,7 +242,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 3. 写成 A + B = C 形式
 4. **验证可证伪性**——如果有人能证明它错了，deck 就失去了存在理由。如果公式不可证伪，回到 1.1。
 
-### 1.3 Block Map（参考 `02_content_design/02-build-narrative-arc-blocks.md`）
+### 1.3 Block Map（参考 `workflow/02-content/02-build-narrative-arc-blocks.md`）
 
 填写 Block Map：
 
@@ -252,7 +252,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 验证：每个 Block 有清晰的问题？Block 之间有递进关系？概念和证据分布平衡？
 
-### 1.4 Slide 规格（参考 `02_content_design/03-specify-slides-multi-layer.md`）
+### 1.4 Slide 规格（参考 `workflow/02-content/03-specify-slides-multi-layer.md`）
 
 为每张 slide 填写规格（直接编辑 `3_versions/v1/slide-specifications.md`，每张一个 `## Slide N` 块）。四层里 **Phase 1 只写 L1 / L2 / L4；L3 IMAGE PROMPT 本阶段留占位，等 Phase 2 视觉锁定后再回填（见 §2.7）**：
 
@@ -260,20 +260,20 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 |----|------|--------|--------|
 | L1 Meta | VISUAL TYPE, RENDER MODE, KICKER, TITLE | Pipeline scripts | **Phase 1** |
 | L2 Concept | MUST communicate, MUST NOT, Bridge | Reviewer, Presenter | **Phase 1** |
-| L3 Image Prompt | 完整视觉描述（参考 `03_image_prompts/`） | AI Image Model | **Phase 2 之后回填（§2.7）** |
+| L3 Image Prompt | 完整视觉描述（参考 `workflow/03-prompts/`） | AI Image Model | **Phase 2 之后回填（§2.7）** |
 | L4 Speaker Note | Narrative flow, Terms, Takeaway | Presenter | **Phase 1** |
 
 > **为什么 L3 押后**：L3 要"对照 `2_backbone/visual-style/`"（画风/色板/组件）才写得对，而那套视觉要到 Phase 2 才锁定。Phase 1 就写 L3 = 拿还不存在的东西做参照，写出来多半作废重来（本框架 bug 0003 的根因）。所以 Phase 1 每个 slide 的 L3 留占位（如 `[PLACEHOLDER: 视觉锁定后填]`），视觉锁定后统一回填。**L1 的 TITLE/KICKER/VISUAL TYPE 照常在 Phase 1 写全**——它们是内容判断，不依赖画风。
 
 > **每页声明 RENDER MODE**（两个之一）:`full-page`(image-2 画整页,含标题——开场/分隔/结尾) 或 `body+header-lock`(image-2 只画 body,Python 叠标题——常规页)。由 VISUAL TYPE 自动映射,但写出来让生产方式一眼可见。
 
-### 1.5 约束检查（参考 `02_content_design/05-iterate-with-version-discipline.md`）
+### 1.5 约束检查（参考 `workflow/02-content/05-iterate-with-version-discipline.md`）
 
 对照 `2_backbone/design-constraints.md` 逐项检查。任何 slide 违反约束 → 标记、修复。
 
 ### 1.6 迭代打磨
 
-对于内容层的改动，走结构化迭代流程（参考 `05_iteration/01-content-iteration-workflow.md`）：
+对于内容层的改动，走结构化迭代流程（参考 `workflow/05-iteration/01-content-iteration-workflow.md`）：
 - 大改动（隐喻/公式/Block 结构）→ 在 Claude Code 中用 `openspec-propose`；在其他 agent 中也遵循同样的 提案→审核→实施→归档 模式
 - 小改动（单张 slide wording）→ 直接改 `slide-specifications.md`
 
@@ -297,10 +297,10 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 ## Phase 2: 风格设计
 
-> 参考知识库：`01_visual_style_master/`
+> 参考知识库：`workflow/01-visual/`
 > 产出物：`style_master.jpg` + `visual-style.md`（在 run bundle 的 `2_backbone/visual-style/` 中）
-> 底层能力：`03_image_prompts/`（IMAGE PROMPT 写作）
-> 迭代引擎（`05_iteration/`）
+> 底层能力：`workflow/03-prompts/`（IMAGE PROMPT 写作）
+> 迭代引擎（`workflow/05-iteration/`）
 
 ### 2.1a Medium 决策：画风先于配色（Novice + Expert 都先做这步）
 
@@ -310,7 +310,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 - **Don't ask the user to confirm what they can't see.** 用户在选色板方向时，看不出"素描 vs 矢量图解 vs 摄影"的区别。所以要先让他们在**画风之间**做选择题，而不是色板之间。
 
 怎么做：
-1. **从 product DNA 推 medium**（参考 `01_visual_style_master/01-gather-product-context-dna.md` 的 medium 线索）：抽象概念/方法论 → illustration/sketch；实体产品 → photography；流程/系统/架构 → diagram；未来感/硬件 → 3D。
+1. **从 product DNA 推 medium**（参考 `workflow/01-visual/01-gather-product-context-dna.md` 的 medium 线索）：抽象概念/方法论 → illustration/sketch；实体产品 → photography；流程/系统/架构 → diagram；未来感/硬件 → 3D。
 2. **给用户 2-3 个画风候选做对比**（描述每种画风长什么样、适合什么；有条件就给参考图），让用户选一个。**这是画风对比，不是色板对比。**
 3. 用户选定 medium 后 **才**进入配色：Novice → 挑画风匹配的 preset；Expert → `02-design-the-visual-system.md` 从 **Dimension 0: Medium → Dimension 1: Color** 往下走。
 
@@ -322,7 +322,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 > **如果已从 BOOTSTRAP Step 3.4-3.5 进入**：medium 与视觉预设均已按顺序确认。跳过选择步骤，直接执行下方的“选中后”操作。
 
-> **如果直接进入 AGENTS.md（跳过 BOOTSTRAP）**：先按 §2.1a 和用户锁定 medium，再从 `01_visual_style_master/presets/` 里挑**画风匹配**该 medium 的 2-3 个预设让用户选。
+> **如果直接进入 AGENTS.md（跳过 BOOTSTRAP）**：先按 §2.1a 和用户锁定 medium，再从 `workflow/01-visual/presets/` 里挑**画风匹配**该 medium 的 2-3 个预设让用户选。
 
 5 个可用预设及其隐含画风（medium 线索见各 preset 的 `deck_system.txt`）：Dark Executive（几何/图解，无照片）/ Clean Clinical（干净图表/数据）/ Warm Editorial（摄影风）/ Tech Startup（霓虹/科技感）/ Corporate Safe（保守企业）。**先按 §2.1a 锁定的 medium 过滤**——只考虑画风匹配的 preset；若没有 preset 匹配想要的画风（如"素描/etching"），转 Expert Mode 自定义画风。详见各 preset 目录下的 README。
 
@@ -332,7 +332,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 3. **如果没有预生成的 jpg**（当前 5 个 preset 都不含）：把 style master prompt 存为 `2_backbone/visual-style/style-master-prompt.md`（源文件，别丢），再用框架的统一 wrapper 生成：
 
 ```bash
-node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
+node PTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -344,7 +344,7 @@ node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
 
 如果用户明确说了想要什么风格（如"我要白底蓝字的 corporate 风"），跳过预设选择，但仍走完整的视觉系统设计流程（2.1-2.6）。
 
-### 2.1 产品 DNA 调研（参考 `01_visual_style_master/01-gather-product-context-dna.md`）
+### 2.1 产品 DNA 调研（参考 `workflow/01-visual/01-gather-product-context-dna.md`）
 
 问用户：
 1. "客户做什么产品/服务？描述它的物理或数字形态。"
@@ -354,7 +354,7 @@ node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
 
 产出：一句 "defining sentence"（5-15 words）+ **锁定的 medium**（画风，见 §2.1a——这是 §2.2 配色的前提）。
 
-### 2.2 视觉系统设计（参考 `01_visual_style_master/02-design-the-visual-system.md`）
+### 2.2 视觉系统设计（参考 `workflow/01-visual/02-design-the-visual-system.md`）
 
 填充 `2_backbone/visual-style/visual-style.md`，**从 medium 开始，再配色**（次序不能反）：
 - **Dimension 0: Medium**（画风——§2.1a 已锁：sketch/etching · diagram · photography · 3D · mixed）
@@ -364,7 +364,7 @@ node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
 - Component patterns
 - Micro decorations（可选）
 
-### 2.3 Style Master Prompt（参考 `01_visual_style_master/03-write-the-style-master-prompt.md`）
+### 2.3 Style Master Prompt（参考 `workflow/01-visual/03-write-the-style-master-prompt.md`）
 
 组装 meta-prompt——生成视觉风格参考图。
 
@@ -373,7 +373,7 @@ node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
 先把 2.3 的 meta-prompt 存成 `2_backbone/visual-style/style-master-prompt.md`（源文件），再用框架的统一 wrapper 生成一张风格母版图：
 
 ```bash
-node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
+node PTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -384,7 +384,7 @@ wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、桥接 `OPENAI_
 从独立模板复制并填写：
 
 ```bash
-cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
+cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
    deck_{NAME}/2_backbone/visual-style/deck_system.txt
 ```
 
@@ -392,7 +392,7 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 
 `deck_system.txt` 是 Stage 1 的系统级约束来源——`stage1_build_inputs.mjs` 读取它来向每个 slide prompt 注入 TEXTUAL contracts。它与 style master（处理 VISUAL consistency）互补：style master **shows** 模型产出什么风格，deck_system.txt **tells** 模型不要产出什么内容。
 
-### 2.6 Review & Lock（参考 `01_visual_style_master/04-iterate-review-lock.md`）
+### 2.6 Review & Lock（参考 `workflow/01-visual/04-iterate-review-lock.md`）
 
 用 checklist 审查。Path A（95%+ pass）→ Lock。Path B（80-95%）→ 微调 prompt。Path C（<80%）→ 回到 2.2。
 
@@ -413,10 +413,10 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 
 视觉系统已锁（`style_master.jpg` + `deck_system.txt` + `color_palette.json` 就位）——**现在**回到 `3_versions/v1/slide-specifications.md`，为每张 slide 填 §1.4 留下的 L3 占位：
 
-- 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `03_image_prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
+- 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `workflow/03-prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
 - 全部回填后，跑一次内容契约校验（**这是 L3 gate 真正该跑的地方**，Phase 1 不跑）：
   ```bash
-  node PTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.mjs \
+  node PTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
     --validate --input deck_{NAME}/3_versions/v1/slide-specifications.md
   ```
   ERROR 清零（不再有占位符 / 缺 IMAGE PROMPT / body+header-lock 页缺 TITLE）才进 Phase 3。管线在 Phase 3 首次运行前也会自动跑同一道校验兜底。
@@ -427,7 +427,7 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 
 ## Phase 3: 生产管线
 
-> 参考知识库：`04_production_pipeline/`
+> 参考知识库：`workflow/04-production/`
 > 这是**确定性执行阶段**——不问设计问题，只按脚本执行。
 
 ### 前置检查
@@ -444,34 +444,34 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 
 ### 执行管线
 
-**推荐：使用统一管线脚本**（`06_reference_scripts/unified_pipeline.mjs`）：
+**推荐：使用统一管线脚本**（`scripts/unified_pipeline.mjs`）：
 
 ```bash
 # 首次生产：先解析，再用 3 张代表页做 1K pilot
-node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
+node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
+node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # Pilot 通过后，全量生成 2K，再完成 Header-Lock/PPTX/Notes
-node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
+node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --resolution 2k --force-images
-node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
+node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 
 # 只跑某个 stage（如只重新 lock headers）
-node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
+node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 ```
 
 `--stage all` 适合视觉方向已经在 pilot 中验证过的重建；它执行技术管线，不替代用户对内容和视觉 Phase gate 的确认。
 
-**如果 unified_pipeline.mjs 不可用**，手动按 Stage 1-5 执行（参考 `04_production_pipeline/reference-pipeline-scripts.md`）。
+**如果 unified_pipeline.mjs 不可用**，手动按 Stage 1-5 执行（参考 `workflow/04-production/reference-pipeline-scripts.md`）。
 
 ### Stage 概述
 
-每个 stage：运行 → gate check。产出全部写入 `3_versions/v1/_generated/`。适配参考 `04_production_pipeline/reference-pipeline-scripts.md`。
+每个 stage：运行 → gate check。产出全部写入 `3_versions/v1/_generated/`。适配参考 `workflow/04-production/reference-pipeline-scripts.md`。
 
 | Stage | 产出（在 `_generated/` 下） | ⛔ Gate Check |
 |-------|------|--------------|
@@ -507,7 +507,7 @@ Stage 2 每次完成后会自动更新 `_generated/preview/contact_sheet.jpg`。
 
 ### 结构化迭代流程
 
-大改动走结构化迭代流程（参考 `05_iteration/`）。核心模式：**提案 → 审核 → 实施 → 归档**——无论用什么工具。
+大改动走结构化迭代流程（参考 `workflow/05-iteration/`）。核心模式：**提案 → 审核 → 实施 → 归档**——无论用什么工具。
 
 在 Claude Code 中：
 ```bash
@@ -527,47 +527,47 @@ openspec-propose "Change: [description]"
 
 | 主题 | 文件 |
 |------|------|
-| Run bundle 架构 | `00_project_setup/` |
-| 为什么要叙事优先 | `02_content_design/00-the-problem-why-slide-count-fails.md` |
-| 怎么找隐喻和公式 | `02_content_design/01-find-the-core-metaphor-and-formula.md` |
-| 怎么组织 Block | `02_content_design/02-build-narrative-arc-blocks.md` |
-| 怎么写 slide 规格 | `02_content_design/03-specify-slides-multi-layer.md` |
-| 怎么准备内容资产 | `02_content_design/04-create-content-assets.md` |
-| 怎么版本迭代 | `02_content_design/05-iterate-with-version-discipline.md` |
-| 为什么 text-based style 失败 | `01_visual_style_master/00-the-problem-why-text-fails.md` |
-| 怎么调研产品 DNA | `01_visual_style_master/01-gather-product-context-dna.md` |
-| 怎么设计视觉系统 | `01_visual_style_master/02-design-the-visual-system.md` |
-| 怎么写 style master prompt | `01_visual_style_master/03-write-the-style-master-prompt.md` |
-| 怎么 review 和 lock | `01_visual_style_master/04-iterate-review-lock.md` |
-| 管线哲学和架构 | `04_production_pipeline/00-the-pipeline-philosophy.md` |
-| Stage 1-5 详解 | `04_production_pipeline/01-05-stage-N-*.md` |
-| Prompt 怎么写 | `03_image_prompts/02-prompt-structure-and-patterns.md` |
-| Style Anchoring | `03_image_prompts/03-style-anchoring-in-practice.md` |
-| 迭代引擎怎么用 | `05_iteration/` |
+| Run bundle 架构 | `workflow/00-setup/` |
+| 为什么要叙事优先 | `workflow/02-content/00-the-problem-why-slide-count-fails.md` |
+| 怎么找隐喻和公式 | `workflow/02-content/01-find-the-core-metaphor-and-formula.md` |
+| 怎么组织 Block | `workflow/02-content/02-build-narrative-arc-blocks.md` |
+| 怎么写 slide 规格 | `workflow/02-content/03-specify-slides-multi-layer.md` |
+| 怎么准备内容资产 | `workflow/02-content/04-create-content-assets.md` |
+| 怎么版本迭代 | `workflow/02-content/05-iterate-with-version-discipline.md` |
+| 为什么 text-based style 失败 | `workflow/01-visual/00-the-problem-why-text-fails.md` |
+| 怎么调研产品 DNA | `workflow/01-visual/01-gather-product-context-dna.md` |
+| 怎么设计视觉系统 | `workflow/01-visual/02-design-the-visual-system.md` |
+| 怎么写 style master prompt | `workflow/01-visual/03-write-the-style-master-prompt.md` |
+| 怎么 review 和 lock | `workflow/01-visual/04-iterate-review-lock.md` |
+| 管线哲学和架构 | `workflow/04-production/00-the-pipeline-philosophy.md` |
+| Stage 1-5 详解 | `workflow/04-production/01-05-stage-N-*.md` |
+| Prompt 怎么写 | `workflow/03-prompts/02-prompt-structure-and-patterns.md` |
+| Style Anchoring | `workflow/03-prompts/03-style-anchoring-in-practice.md` |
+| 迭代引擎怎么用 | `workflow/05-iteration/` |
 
 ### 模板 → 复制到 Run Bundle
 
 | 模板 | → Run Bundle 位置 | Phase |
 |------|-------------------|-------|
-| `02_content_design/template-core-metaphor.md` | `2_backbone/core-metaphor.md` | 1 |
-| `02_content_design/template-core-formula.md` | `2_backbone/core-formula.md` | 1 |
-| `02_content_design/template-design-constraints.md` | `2_backbone/design-constraints.md` | 1 |
-| `02_content_design/template-slide-specifications.md` | `3_versions/v{n}/slide-specifications.md` | 1 |
-| `01_visual_style_master/template-visual-style.md` | `2_backbone/visual-style/visual-style.md` | 2 |
-| `00_project_setup/template-deck-guide.md` | `deck-guide.md` + `CLAUDE.md`（一行指针） | 0 |
-| `03_image_prompts/template-image-prompt-builder.md` | 参考（不复制）——写 IMAGE PROMPT 时对照 | 1 & 2 |
+| `workflow/02-content/template-core-metaphor.md` | `2_backbone/core-metaphor.md` | 1 |
+| `workflow/02-content/template-core-formula.md` | `2_backbone/core-formula.md` | 1 |
+| `workflow/02-content/template-design-constraints.md` | `2_backbone/design-constraints.md` | 1 |
+| `workflow/02-content/template-slide-specifications.md` | `3_versions/v{n}/slide-specifications.md` | 1 |
+| `workflow/01-visual/template-visual-style.md` | `2_backbone/visual-style/visual-style.md` | 2 |
+| `workflow/00-setup/template-deck-guide.md` | `deck-guide.md` + `CLAUDE.md`（一行指针） | 0 |
+| `workflow/03-prompts/template-image-prompt-builder.md` | 参考（不复制）——写 IMAGE PROMPT 时对照 | 1 & 2 |
 
 ### 管线脚本 → Stage
 
 | 脚本 | 用途 | Phase |
 |------|------|-------|
-| `06_reference_scripts/bundle_layout.mjs` | **目录结构唯一事实源**——所有脚本 import 它取路径 | 全程 |
-| `06_reference_scripts/stage1_build_inputs.mjs` | markdown → slide_plan.json + page_prompts/ | 3 |
-| `06_reference_scripts/stage3_lock_headers.mjs` | Header-Lock：@napi-rs/canvas 叠加标题文字 | 3 |
-| `06_reference_scripts/stage4_build_pptx.mjs` | 图片 → PPTX 容器 | 3 |
-| `06_reference_scripts/stage5_inject_notes.mjs` | Speaker notes 注入 PPTX | 3 |
+| `scripts/bundle_layout.mjs` | **目录结构唯一事实源**——所有脚本 import 它取路径 | 全程 |
+| `scripts/stage1_build_inputs.mjs` | markdown → slide_plan.json + page_prompts/ | 3 |
+| `scripts/stage3_lock_headers.mjs` | Header-Lock：@napi-rs/canvas 叠加标题文字 | 3 |
+| `scripts/stage4_build_pptx.mjs` | 图片 → PPTX 容器 | 3 |
+| `scripts/stage5_inject_notes.mjs` | Speaker notes 注入 PPTX | 3 |
 
-所有脚本是参考实现，通过 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1` 就地运行（不复制进 run bundle）。需要适配项目时（换字体、canvas 尺寸、API），修改 `06_reference_scripts/` 里脚本顶部的 `# Customization` 常量。改目录结构只改 `bundle_layout.mjs`。
+所有脚本是参考实现，通过 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1` 就地运行（不复制进 run bundle）。需要适配项目时（换字体、canvas 尺寸、API），修改 `scripts/` 里脚本顶部的 `# Customization` 常量。改目录结构只改 `bundle_layout.mjs`。
 
 ### 迭代工具（以 OpenSpec 为例）
 

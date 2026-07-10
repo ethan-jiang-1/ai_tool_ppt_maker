@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const BUNDLE = 'PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs';
+const BUNDLE = 'PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
 const TEST_DECK = join(tmpdir(), `deck_test_${Date.now()}`);
 
 function run(cmd) {

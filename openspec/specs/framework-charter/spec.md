@@ -17,7 +17,7 @@
 
 ### Requirement: CONSTITUTION.md declares bundle_layout.mjs as the single source of truth
 
-`charter/CONSTITUTION.md` SHALL explicitly state that `PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs` is the single authoritative source for the run bundle directory structure. It SHALL contain a human-readable snapshot of the canonical tree, and SHALL state that the code authority takes precedence over any snapshot.
+`charter/CONSTITUTION.md` SHALL explicitly state that `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` is the single authoritative source for the run bundle directory structure. It SHALL contain a human-readable snapshot of the canonical tree, and SHALL state that the code authority takes precedence over any snapshot.
 
 #### Scenario: Human reads constitution to understand directory layout
 
@@ -81,15 +81,15 @@ The `PPTMAKER_FRAMEWORK/` root directory SHALL contain exactly five `.md` files:
 - **WHEN** a human lists `PPTMAKER_FRAMEWORK/` contents
 - **THEN** they see only five markdown files, all of which are self-explanatory entry points
 - **AND** AGENT_CONTRACT.md is NOT in the root (it is in charter/)
-- **AND** QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, VERSION_LOG.md are NOT in the root (they are in 00_project_setup/)
+- **AND** QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, VERSION_LOG.md are NOT in the root (they are in workflow/00-setup/)
 
-### Requirement: Reference documents are in 00_project_setup
+### Requirement: Reference documents are in workflow/00-setup
 
-QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, and VERSION_LOG.md SHALL be located in `PPTMAKER_FRAMEWORK/00_project_setup/`, moved from the framework root via `git mv`. Their content SHALL remain unchanged except for cross-reference links updated to reflect new locations.
+QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, and VERSION_LOG.md SHALL be located in `PPTMAKER_FRAMEWORK/workflow/00-setup/`, moved from the framework root via `git mv`. Their content SHALL remain unchanged except for cross-reference links updated to reflect new locations.
 
 #### Scenario: Human looks for reference material
 
-- **WHEN** a human navigates to `00_project_setup/`
+- **WHEN** a human navigates to `workflow/00-setup/`
 - **THEN** they find QUICK_START.md (5-minute onboarding), GLOSSARY.md (terminology), ANTI_PATTERNS.md (common mistakes), and VERSION_LOG.md (changelog)
 
 #### Scenario: Agent does not need to read reference files at startup
@@ -100,11 +100,11 @@ QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, and VERSION_LOG.md SHALL be locat
 
 ### Requirement: 01-directory-template.md is deleted and merged
 
-The file `PPTMAKER_FRAMEWORK/00_project_setup/01-directory-template.md` SHALL be deleted via `git rm`. Its essential content (directory tree, three-tier philosophy, override rules) SHALL be merged into `charter/CONSTITUTION.md`.
+The file `PPTMAKER_FRAMEWORK/workflow/00-setup/01-directory-template.md` SHALL be deleted via `git rm`. Its essential content (directory tree, three-tier philosophy, override rules) SHALL be merged into `charter/CONSTITUTION.md`.
 
 #### Scenario: Old template no longer exists
 
-- **WHEN** a file listing of `00_project_setup/` is performed
+- **WHEN** a file listing of `workflow/00-setup/` is performed
 - **THEN** `01-directory-template.md` does NOT appear
 
 #### Scenario: Old template content is preserved in constitution
@@ -115,20 +115,20 @@ The file `PPTMAKER_FRAMEWORK/00_project_setup/01-directory-template.md` SHALL be
 
 ### Requirement: All internal links resolve correctly after reorganization
 
-Every cross-reference to moved files SHALL be updated to their new paths. A full-text search for old root-level filenames SHALL return zero results outside of `charter/` and `00_project_setup/` internal self-references.
+Every cross-reference to moved files SHALL be updated to their new paths. A full-text search for old root-level filenames SHALL return zero results outside of `charter/` and `workflow/00-setup/` internal self-references.
 
 #### Scenario: No broken links after reorganization
 
 - **WHEN** `grep -r "QUICK_START\|GLOSSARY\|ANTI_PATTERNS\|VERSION_LOG\|01-directory-template" PPTMAKER_FRAMEWORK/` is run
-- **THEN** no matches are found (except charter/ and 00_project_setup/ internal self-references)
+- **THEN** no matches are found (except charter/ and workflow/00-setup/ internal self-references)
 
-### Requirement: 00_project_setup README reflects new file inventory
+### Requirement: workflow/00-setup README reflects new file inventory
 
-The file `PPTMAKER_FRAMEWORK/00_project_setup/README.md` SHALL be updated to list the four newly-added files (QUICK_START, GLOSSARY, ANTI_PATTERNS, VERSION_LOG) and remove the deleted `01-directory-template.md`.
+The file `PPTMAKER_FRAMEWORK/workflow/00-setup/README.md` SHALL be updated to list the four newly-added files (QUICK_START, GLOSSARY, ANTI_PATTERNS, VERSION_LOG) and remove the deleted `01-directory-template.md`.
 
 #### Scenario: README accurately lists directory contents
 
-- **WHEN** a human reads `00_project_setup/README.md`
+- **WHEN** a human reads `workflow/00-setup/README.md`
 - **THEN** the file inventory matches the actual directory contents
 
 ### Requirement: Root README references charter directory

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
 
-const ENV_CHECK = 'PPTMAKER_FRAMEWORK/00_project_setup/00-env-check.mjs';
+const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 
 function runCheck(args = '') {
   try {

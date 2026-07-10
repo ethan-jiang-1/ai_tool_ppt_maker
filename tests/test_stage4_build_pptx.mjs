@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
 
-const S4 = 'PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.mjs';
+const S4 = 'PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs';
 
 describe('stage4_build_pptx', () => {
   it('rejects missing inputs', () => {

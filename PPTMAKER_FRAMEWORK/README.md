@@ -3,10 +3,10 @@ title: PPT 信息加工流
 stage: root
 position: entry
 type: overview
-summary: "PPT 四阶段加工流总入口。Agent 首先读此文件理解体系全貌，然后按 depends_on 导航到 00_project_setup。"
+summary: "PPT 四阶段加工流总入口。Agent 首先读此文件理解体系全貌，然后按 depends_on 导航到 workflow/00-setup。"
 depends_on: []
 feeds_into:
-- 00_project_setup/README.md
+- workflow/00-setup/README.md
 agent_action: navigate
 ---
 
@@ -15,7 +15,7 @@ agent_action: navigate
 > **先读这个。**
 > 这是 `PPTMAKER_FRAMEWORK/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。
 >
-> **第一次来（人类）？** 看 [Quick Start](00_project_setup/00_project_setup/QUICK_START.md)——5 分钟找到你的路径。
+> **第一次来（人类）？** 看 [Quick Start](workflow/00-setup/workflow/00-setup/QUICK_START.md)——5 分钟找到你的路径。
 > **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
 
 ## 一句话
@@ -37,15 +37,15 @@ PPTMAKER_FRAMEWORK/
   ├── AGENTS.md                         ← Phase 详解手册（按需翻，勿整本通读）
   ├── CLAUDE.md                         ← 自动加载桩 → BOOTSTRAP
   ├── README.md                         ← 你在读这个（是什么/为什么）
-  ├── 00_project_setup/00_project_setup/QUICK_START.md                    ← 新用户 5 分钟入口
-  ├── 00_project_setup/00_project_setup/ANTI_PATTERNS.md                  ← 框架级常见错误
-  ├── 00_project_setup/      ← Foundation：项目初始化与环境
-  ├── 01_visual_style_master/           ← 视觉方法模块
-  ├── 02_content_design/               ← 内容方法模块
-  ├── 03_image_prompts/            ← Skill Layer：Image Prompts
-  ├── 04_production_pipeline/           ← Phase 3：生产管线（内部含 Stage 1-5）
-  ├── 05_iteration/          ← Iteration Engine：持续打磨
-  └── 06_reference_scripts/    ← 五个 Stage 的 Python 参考实现
+  ├── workflow/00-setup/workflow/00-setup/QUICK_START.md                    ← 新用户 5 分钟入口
+  ├── workflow/00-setup/workflow/00-setup/ANTI_PATTERNS.md                  ← 框架级常见错误
+  ├── workflow/00-setup/      ← Foundation：项目初始化与环境
+  ├── workflow/01-visual/           ← 视觉方法模块
+  ├── workflow/02-content/               ← 内容方法模块
+  ├── workflow/03-prompts/            ← Skill Layer：Image Prompts
+  ├── workflow/04-production/           ← Phase 3：生产管线（内部含 Stage 1-5）
+  ├── workflow/05-iteration/          ← Iteration Engine：持续打磨
+  └── scripts/    ← 五个 Stage 的 Python 参考实现
 ```
 
 对 coding agent 来说，文件是原生操作对象——读、写、搜索、diff、提交。不需要学习任何新抽象。`ls` 看进度，`git log` 看变更，`diff -r v2 v3` 看差异。
@@ -58,9 +58,9 @@ PPTMAKER_FRAMEWORK/
 
 | # | 模块 | 做什么 | 核心产出 |
 |---|------|--------|---------|
-| 1 | `02_content_design/` | 设计内容架构——隐喻、公式、叙事弧、slide 四层规格 | deck brief (markdown) |
-| 2 | `01_visual_style_master/` | 设计视觉系统——颜色、字体、布局、组件、装饰 | `style_master.jpg` + 视觉规范文档 |
-| 3 | `04_production_pipeline/` | 把内容和视觉合成 PPTX——五阶段管线 | `.pptx` 文件 |
+| 1 | `workflow/02-content/` | 设计内容架构——隐喻、公式、叙事弧、slide 四层规格 | deck brief (markdown) |
+| 2 | `workflow/01-visual/` | 设计视觉系统——颜色、字体、布局、组件、装饰 | `style_master.jpg` + 视觉规范文档 |
+| 3 | `workflow/04-production/` | 把内容和视觉合成 PPTX——五阶段管线 | `.pptx` 文件 |
 
 **Phase 1 和 Phase 2 可以交换起始顺序**（如果用户带着强烈视觉方向进来），但 L3 IMAGE PROMPT 必须等视觉锁定后回填。Phase 3 必须在内容与视觉都锁定后才能启动。
 
@@ -70,8 +70,8 @@ PPTMAKER_FRAMEWORK/
 
 | 层 | 模块 | 角色 |
 |----|------|------|
-| 技能层 | `03_image_prompts/` | 赋能所有 IMAGE PROMPT 写作——同时服务内容规格和 style master meta-prompt |
-| 迭代层 | `05_iteration/` | 把"反复改、来回调"变成结构化流程——贯穿全流程，在大改动（改隐喻、改 palette、重构 slide）时介入 |
+| 技能层 | `workflow/03-prompts/` | 赋能所有 IMAGE PROMPT 写作——同时服务内容规格和 style master meta-prompt |
+| 迭代层 | `workflow/05-iteration/` | 把"反复改、来回调"变成结构化流程——贯穿全流程，在大改动（改隐喻、改 palette、重构 slide）时介入 |
 
 ### 信息是怎么流动的
 
@@ -117,13 +117,13 @@ PPTMAKER_FRAMEWORK/
 ### 学习路径
 
 1. 读这个 README。理解体系架构。
-2. 读 `00_project_setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `06_reference_scripts/bundle_layout.mjs`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `charter/CONSTITUTION.md`。不要临场发挥目录。
+2. 读 `workflow/00-setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `scripts/bundle_layout.mjs`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `charter/CONSTITUTION.md`。不要临场发挥目录。
 3. **按需深入**：根据你在哪个阶段，进入对应的子目录。每个子目录有自己的 README 和阅读路径。
-   - 需要设计视觉 → `01_visual_style_master/`
-   - 需要设计内容 → `02_content_design/`
-   - 需要写更好的 prompt → `03_image_prompts/`
-   - 需要搭建管线 → `04_production_pipeline/`
-   - 需要理解迭代机制 → `05_iteration/`
+   - 需要设计视觉 → `workflow/01-visual/`
+   - 需要设计内容 → `workflow/02-content/`
+   - 需要写更好的 prompt → `workflow/03-prompts/`
+   - 需要搭建管线 → `workflow/04-production/`
+   - 需要理解迭代机制 → `workflow/05-iteration/`
 
 ### 执行路径（有项目要做时）
 
@@ -182,6 +182,6 @@ PPTMAKER_FRAMEWORK/
 
 ---
 
-> **Next**: `00_project_setup/` — 理解文件系统架构：soft bundle vs run bundle，以及项目目录模板。
+> **Next**: `workflow/00-setup/` — 理解文件系统架构：soft bundle vs run bundle，以及项目目录模板。
 >
-> **遇到问题？** 先查 [ANTI_PATTERNS](00_project_setup/00_project_setup/ANTI_PATTERNS.md)——你可能撞上了 7 个常见错误之一。
+> **遇到问题？** 先查 [ANTI_PATTERNS](workflow/00-setup/workflow/00-setup/ANTI_PATTERNS.md)——你可能撞上了 7 个常见错误之一。

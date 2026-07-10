@@ -10,10 +10,10 @@ const CRITICAL_FILES = [
   'PPTMAKER_FRAMEWORK/COMMANDS.md',
   'PPTMAKER_FRAMEWORK/charter/CONSTITUTION.md',
   'PPTMAKER_FRAMEWORK/charter/WORKFLOW.md',
-  'PPTMAKER_FRAMEWORK/00_project_setup/QUICK_START.md',
-  'PPTMAKER_FRAMEWORK/00_project_setup/GLOSSARY.md',
-  'PPTMAKER_FRAMEWORK/00_project_setup/ANTI_PATTERNS.md',
-  'PPTMAKER_FRAMEWORK/00_project_setup/VERSION_LOG.md',
+  'PPTMAKER_FRAMEWORK/reference/quick-start.md',
+  'PPTMAKER_FRAMEWORK/reference/glossary.md',
+  'PPTMAKER_FRAMEWORK/reference/anti-patterns.md',
+  'PPTMAKER_FRAMEWORK/reference/version-log.md',
 ];
 
 describe('docs_consistency', () => {
