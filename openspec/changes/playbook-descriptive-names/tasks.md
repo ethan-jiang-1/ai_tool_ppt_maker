@@ -3,7 +3,8 @@
 - [ ] 1.1 `git mv playbook/chain-a.md playbook/edit-text.md`
 - [ ] 1.2 `git mv playbook/chain-b.md playbook/edit-visual.md`
 - [ ] 1.3 `git mv playbook/chain-c.md playbook/edit-notes.md`
-- [ ] 1.4 `git mv playbook/structural.md playbook/restructure.md`
+- [ ] 1.4 `git mv playbook/structural.md playbook/restructure-slides.md`
+- [ ] 1.5 `git mv playbook/full-creation.md playbook/create-deck.md`
 
 ## 2. 更新 frontmatter 和内部引用
 

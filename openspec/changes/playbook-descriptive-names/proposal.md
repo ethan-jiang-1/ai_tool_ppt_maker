@@ -7,7 +7,8 @@
 - `chain-a.md` → `edit-text.md`
 - `chain-b.md` → `edit-visual.md`
 - `chain-c.md` → `edit-notes.md`
-- `structural.md` → `restructure.md`
+- `structural.md` → `restructure-slides.md`
+- `full-creation.md` → `create-deck.md`
 - 每个 playbook frontmatter 加 `description` 字段
 - COMMANDS.md 路由表更新文件名引用
 - `openspec/specs/playbook-execution/` 更新文件名引用
