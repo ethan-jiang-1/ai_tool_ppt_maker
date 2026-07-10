@@ -1,23 +1,24 @@
 #!/usr/bin/env node
 /**
- * ppt_flow.mjs — Friendly command surface for the PPT framework.
+ * ppt_flow.mjs — Node.js ESM port of ppt_flow.py
  *
+ * Friendly command surface for the PPT framework.
  * This is the default human/agent entry point. It delegates to the structural SSOT
  * and production orchestrator instead of duplicating their logic.
  *
- * Node.js ESM port of ppt_flow.py. Uses commander for CLI.
- * Implements all 11 commands: doctor, init, status, approve, style-master,
- * validate, pilot, build, refresh, new-version, test.
+ * 11 commands: doctor, init, status, approve, style-master, validate, pilot,
+ *              build, refresh, new-version, test
  *
- * Delegates to:
- *   bundle_layout.mjs         — directory SSOT, init_bundle, check_bundle, create_version
- *   unified_pipeline.mjs      — production orchestrator (subprocess)
- *   generate_style_master.mjs — visual style anchor (subprocess)
- *   00-env-check.mjs          — environment health check (subprocess)
+ * Uses commander for CLI. Delegates to:
+ *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
+ *   - unified_pipeline.mjs      — production orchestrator (subprocess)
+ *   - generate_style_master.mjs — visual style anchor (subprocess)
+ *   - 00-env-check.mjs          — environment health check (subprocess)
  */
 
-import { spawn } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
+         rmSync } from "node:fs";
 import { join, resolve, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -69,47 +70,59 @@ const ENV_CHECK = join(FRAMEWORK_DIR, "00_project_setup", "00-env-check.mjs");
 const RUN_TESTS_PY = join(REFERENCE_SCRIPTS_DIR, "run_tests.py");
 
 // ---------------------------------------------------------------------------
-// Helpers — subprocess runners
+// Subprocess runners
 // ---------------------------------------------------------------------------
 
 /**
  * Spawn a Node.js script as a subprocess with inherited stdio.
- * @param {string} script - Absolute path to the .mjs script
- * @param {string[]} args - CLI arguments
- * @returns {Promise<number>} exit code
+ * @param {string} script - Absolute path to the .mjs script.
+ * @param {string[]} args - CLI arguments.
+ * @returns {Promise<number>} Exit code.
  */
 function runNode(script, args = []) {
   const cmd = ["node", script, ...args].map(String);
   console.log("→ " + cmd.join(" "));
   return new Promise((resolve) => {
-    const child = spawn("node", [script, ...args], { stdio: "inherit", env: process.env });
-    child.on("close", (code) => resolve(code ?? 1));
-    child.on("error", (err) => { console.error(`✗ Failed to spawn node: ${err.message}`); resolve(1); });
+    const child = spawn("node", [script, ...args], {
+      stdio: "inherit",
+      env: process.env,
+    });
+    child.on("close", (code) => resolve(code !== null ? code : 1));
+    child.on("error", (err) => {
+      console.error(`✗ Failed to spawn node: ${err.message}`);
+      resolve(1);
+    });
   });
 }
 
 /**
  * Spawn a Python script as a subprocess with inherited stdio.
- * @param {string} script - Absolute path to the .py script
- * @param {string[]} args - CLI arguments
- * @returns {Promise<number>} exit code
+ * @param {string} script - Absolute path to the .py script.
+ * @param {string[]} args - CLI arguments.
+ * @returns {Promise<number>} Exit code.
  */
 function runPython(script, args = []) {
   const cmd = ["python3", script, ...args].map(String);
   console.log("→ " + cmd.join(" "));
   return new Promise((resolve) => {
-    const child = spawn("python3", [script, ...args], { stdio: "inherit", env: process.env });
-    child.on("close", (code) => resolve(code ?? 1));
-    child.on("error", (err) => { console.error(`✗ Failed to spawn python3: ${err.message}`); resolve(1); });
+    const child = spawn("python3", [script, ...args], {
+      stdio: "inherit",
+      env: process.env,
+    });
+    child.on("close", (code) => resolve(code !== null ? code : 1));
+    child.on("error", (err) => {
+      console.error(`✗ Failed to spawn python3: ${err.message}`);
+      resolve(1);
+    });
   });
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — metadata
+// Metadata helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Read simple key: value fields from a YAML-ish file.
+ * Parse simple key: value fields from a YAML-ish metadata file.
  * Skips comments and lines without colons.
  * @param {string} path
  * @returns {Record<string, string>}
@@ -129,12 +142,14 @@ function metadataFields(path) {
  * Update one metadata gate without rewriting unrelated fields/comments.
  * Creates the parent directory if it does not exist.
  * @param {string} metadataPath
- * @param {string} gate - e.g. "content" or "visual"
- * @param {string} value - default "approved"
+ * @param {string} gate - "content" or "visual".
+ * @param {string} value - Default "approved".
  */
 function updateGate(metadataPath, gate, value = "approved") {
   const key = `${gate}_gate`;
-  let lines = existsSync(metadataPath) ? readFileSync(metadataPath, "utf-8").split("\n") : [];
+  let lines = existsSync(metadataPath)
+    ? readFileSync(metadataPath, "utf-8").split("\n")
+    : [];
   const replacement = `${key}: ${value}`;
   let found = false;
   for (let i = 0; i < lines.length; i++) {
@@ -150,13 +165,13 @@ function updateGate(metadataPath, gate, value = "approved") {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — skill script discovery (for contact sheet in pilot command)
+// Skill script discovery (used by pilot command for contact sheet)
 // ---------------------------------------------------------------------------
 
 /**
  * Search for a skill script across project-level, cwd ancestry, and global
  * skill directories.
- * @param {string[]} relativePaths - Candidate paths relative to a skills root
+ * @param {string[]} relativePaths - Candidate paths relative to a skills root.
  * @returns {string | null}
  */
 function findSkillScript(relativePaths) {
@@ -203,7 +218,7 @@ function findContactSheetScript() {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — status
+// Status collection and printing
 // ---------------------------------------------------------------------------
 
 /**
@@ -220,7 +235,9 @@ function collectStatus(runDir) {
   if (existsSync(planPath)) {
     try {
       expected = (JSON.parse(readFileSync(planPath, "utf-8")).slides || []).length;
-    } catch { expected = 0; }
+    } catch {
+      expected = 0;
+    }
   }
 
   const imagesDir = join(genDir, GEN_IMAGES_SUBDIR);
@@ -228,13 +245,14 @@ function collectStatus(runDir) {
   const pptDir = join(genDir, GEN_PPT_SUBDIR);
   const meta = metadataFields(join(root, METADATA_FILE));
 
-  const pngCount = (d) => existsSync(d) ? readdirSync(d).filter(f => f.endsWith(".png")).length : 0;
+  const pngCount = (d) =>
+    existsSync(d) ? readdirSync(d).filter((f) => f.endsWith(".png")).length : 0;
 
   /** @type {string[]} */
   let pptxFiles = [];
   if (existsSync(pptDir)) {
     pptxFiles = readdirSync(pptDir)
-      .filter(f => f.endsWith(".pptx") && !f.endsWith(".backup.pptx"))
+      .filter((f) => f.endsWith(".pptx") && !f.endsWith(".backup.pptx"))
       .sort();
   }
 
@@ -248,8 +266,10 @@ function collectStatus(runDir) {
     expected_slides: expected,
     raw_images: pngCount(imagesDir),
     locked_images: pngCount(lockedDir),
-    pptx: pptxFiles.map(f => basename(f)),
-    pilot_preview: existsSync(join(genDir, GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg")),
+    pptx: pptxFiles.map((f) => basename(f)),
+    pilot_preview: existsSync(
+      join(genDir, GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg")
+    ),
   };
 }
 
@@ -258,8 +278,10 @@ function collectStatus(runDir) {
  * @param {object} status
  */
 function printStatus(status) {
-  const structure = status.structure_issues.length === 0
-    ? "OK" : `${status.structure_issues.length} issue(s)`;
+  const structure =
+    status.structure_issues.length === 0
+      ? "OK"
+      : `${status.structure_issues.length} issue(s)`;
   const expected = status.expected_slides || "?";
 
   console.log(`PPT Flow status — ${status.run_dir}`);
@@ -270,23 +292,32 @@ function printStatus(status) {
   console.log(`  Slide plan:    ${status.slide_plan ? "ready" : "not built"}`);
   console.log(`  Raw images:    ${status.raw_images}/${expected}`);
   console.log(`  Locked images: ${status.locked_images}/${expected}`);
-  console.log(`  PPTX:          ${status.pptx.length > 0 ? status.pptx.join(", ") : "not built"}`);
-  console.log(`  Pilot preview: ${status.pilot_preview ? "ready" : "not built"}`);
+  console.log(
+    `  PPTX:          ${status.pptx.length > 0 ? status.pptx.join(", ") : "not built"}`
+  );
+  console.log(
+    `  Pilot preview: ${status.pilot_preview ? "ready" : "not built"}`
+  );
 
   if (status.structure_issues.length > 0) {
     console.log("\nFix first:");
-    for (const issue of status.structure_issues) console.log(`  - ${issue}`);
+    for (const issue of status.structure_issues) {
+      console.log(`  - ${issue}`);
+    }
     return;
   }
 
   /** @type {string[]} */
   const nextSteps = [];
   const rd = status.run_dir;
+
   if (!["approved", "waived"].includes(status.content_gate)) {
     nextSteps.push(`After content review: ppt_flow.mjs approve ${rd} content`);
   }
   if (!status.style_master) {
-    nextSteps.push(`Generate style master: ppt_flow.mjs style-master ${rd}`);
+    nextSteps.push(
+      `Generate style master: ppt_flow.mjs style-master ${rd}`
+    );
   }
   if (!["approved", "waived"].includes(status.visual_gate)) {
     nextSteps.push(`After visual review: ppt_flow.mjs approve ${rd} visual`);
@@ -297,66 +328,104 @@ function printStatus(status) {
     status.style_master
   ) {
     if (!status.pilot_preview && status.pptx.length === 0) {
-      nextSteps.push(`Create representative pilot: ppt_flow.mjs pilot ${rd}`);
+      nextSteps.push(
+        `Create representative pilot: ppt_flow.mjs pilot ${rd}`
+      );
     } else if (status.pptx.length === 0) {
       nextSteps.push(`Build full deck: ppt_flow.mjs build ${rd}`);
     }
   }
   if (status.pptx.length > 0) {
-    nextSteps.push(`Future edits: ppt_flow.mjs refresh ${rd} --kind <title|visual|notes>`);
+    nextSteps.push(
+      `Future edits: ppt_flow.mjs refresh ${rd} --kind <title|visual|notes>`
+    );
   }
   if (nextSteps.length > 0) {
     console.log("\nNext:");
-    for (const step of nextSteps) console.log(`  - ${step}`);
+    for (const step of nextSteps) {
+      console.log(`  - ${step}`);
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — pilot slide selection
+// Pilot slide selection (mirrors Python select_pilot_slide_ids)
 // ---------------------------------------------------------------------------
 
 /**
  * Choose opener/body/closer representatives without requiring hand-picked IDs.
- * Mirrors Python `select_pilot_slide_ids`.
  *
- * @param {Array<{id: string, layout_contract?: {render_mode?: string}}>} slides
- * @param {number} count
- * @returns {string[]}
+ * Strategy:
+ *   - Opener = first full-page slide (or first slide)
+ *   - Body = midpoint-near non-full-page slide
+ *   - Closer = last full-page slide (or last slide)
+ *
+ * Mirrors the Python logic: classifies slides by render_mode via
+ * _contract_render_mode (which handles both canonical "full-page" and
+ * legacy "image_direct" header_variant values).
+ *
+ * @param {Array<{id: string, layout_contract?: {render_mode?: string, header_variant?: string}}>} slides
+ * @param {number} [count] - Max number of slides to select (default 3).
+ * @returns {string[]} Array of selected slide IDs.
  */
-function selectPilotSlideIds(slides, count = 3) {
-  let ids = slides.map((s) => String(s.id || "").trim()).filter(Boolean);
+export function selectPilotSlideIds(slides, count = 3) {
+  const ids = slides.map((s) => String(s.id || "").trim()).filter(Boolean);
   if (count < 1 || ids.length <= count) return ids;
 
-  // Classify: full-page slides have render_mode === "full-page"
-  const fullPage = [];
+  // Classify: full-page slides have render_mode === "full-page" or
+  // legacy header_variant === "image_direct"
+  const RENDER_MODE_FULL_PAGE = "full-page";
+  const fullPageIndices = [];
   for (let i = 0; i < slides.length; i++) {
-    const lc = slides[i].layout_contract;
-    if (lc && lc.render_mode === "full-page") fullPage.push(i);
+    const lc = slides[i].layout_contract || {};
+    const mode = lc.render_mode;
+    const legacy = lc.header_variant;
+    if (
+      mode === RENDER_MODE_FULL_PAGE ||
+      legacy === "image_direct"
+    ) {
+      fullPageIndices.push(i);
+    }
   }
-  const body = [];
+  const bodyIndices = [];
   for (let i = 0; i < slides.length; i++) {
-    if (!fullPage.includes(i)) body.push(i);
+    if (!fullPageIndices.includes(i)) bodyIndices.push(i);
   }
 
   /** @type {number[]} */
   const chosen = [];
+
   function add(index) {
-    if (index != null && !chosen.includes(index)) chosen.push(index);
+    if (
+      index != null &&
+      index >= 0 &&
+      index < slides.length &&
+      !chosen.includes(index)
+    ) {
+      chosen.push(index);
+    }
   }
 
   // Opener: first full-page, or slide 0
-  add(fullPage[0] ?? 0);
-  // Body: midpoint of body slides
-  if (body.length > 0) {
-    const midpoint = (slides.length - 1) / 2;
-    add(body.reduce((best, idx) =>
-      Math.abs(idx - midpoint) < Math.abs(best - midpoint) ? idx : best
-    ));
-  }
-  // Closer: last full-page, or last slide
-  add(fullPage.length > 0 ? fullPage[fullPage.length - 1] : slides.length - 1);
+  add(fullPageIndices.length > 0 ? fullPageIndices[0] : 0);
 
-  // Fallback fill
+  // Body: the non-full-page slide closest to the midpoint
+  if (bodyIndices.length > 0) {
+    const midpoint = (slides.length - 1) / 2;
+    bodyIndices.sort(
+      (a, b) => Math.abs(a - midpoint) - Math.abs(b - midpoint)
+    );
+    add(bodyIndices[0]);
+  }
+
+  // Closer: last full-page, or last slide
+  add(
+    fullPageIndices.length > 0
+      ? fullPageIndices[fullPageIndices.length - 1]
+      : slides.length - 1
+  );
+
+  // Fallback fill: first, middle, last, then sequential
   const fallback = [0, Math.floor(slides.length / 2), slides.length - 1];
   for (let i = 0; i < slides.length; i++) {
     if (!fallback.includes(i)) fallback.push(i);
@@ -370,7 +439,7 @@ function selectPilotSlideIds(slides, count = 3) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — pilot render (Stage 3 + contact sheet on pilot subset)
+// Pilot header render (Stage 3 + contact sheet on pilot subset)
 // ---------------------------------------------------------------------------
 
 /**
@@ -389,14 +458,18 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
   const selectedSet = new Set(selectedIds);
 
   /** @type {Array<object>} */
-  const slides = planData.slides
+  const slides = (planData.slides || [])
     .filter((s) => selectedSet.has(s.id))
     .sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id));
 
   const qaDir = join(genDir, GEN_QA_SUBDIR);
   const pilotPlan = join(qaDir, "pilot_slide_plan.json");
   const pilotImages = join(qaDir, "pilot_header_locked");
-  const preview = join(genDir, GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg");
+  const preview = join(
+    genDir,
+    GEN_PREVIEW_SUBDIR,
+    "pilot_final_contact_sheet.jpg"
+  );
 
   if (!dryRun) {
     mkdirSync(qaDir, { recursive: true });
@@ -408,16 +481,20 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
     writeFileSync(
       pilotPlan,
       JSON.stringify({ slides }, null, 2) + "\n",
-      "utf-8",
+      "utf-8"
     );
   }
 
   // Stage 3: Lock headers for pilot subset
   const stage3Args = [
-    "--images", join(genDir, GEN_IMAGES_SUBDIR),
-    "--slide-plan", pilotPlan,
-    "--out", pilotImages,
-    "--color-palette", styleAsset(runDir, COLOR_PALETTE_FILE),
+    "--images",
+    join(genDir, GEN_IMAGES_SUBDIR),
+    "--slide-plan",
+    pilotPlan,
+    "--out",
+    pilotImages,
+    "--color-palette",
+    styleAsset(runDir, COLOR_PALETTE_FILE),
   ];
 
   if (dryRun) {
@@ -438,9 +515,12 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
   }
 
   const contactArgs = [
-    "--image-dir", pilotImages,
-    "--out", preview,
-    "--columns", String(Math.min(3, selectedIds.length)),
+    "--image-dir",
+    pilotImages,
+    "--out",
+    preview,
+    "--columns",
+    String(Math.min(3, selectedIds.length)),
   ];
 
   if (dryRun) {
@@ -457,16 +537,42 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
 }
 
 // ---------------------------------------------------------------------------
-// Commands
+// Utility: Build env search dirs for .env loading
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the ordered list of directories to search for .env.
+ * @param {string} dkRoot - Deck root path.
+ * @returns {string[]}
+ */
+function buildEnvSearchDirs(dkRoot) {
+  const cwd = process.cwd();
+  const searchDirs = [dkRoot, cwd];
+  let p = cwd;
+  while (p) {
+    const parent = dirname(p);
+    if (parent === p) break;
+    if (!searchDirs.includes(parent)) searchDirs.push(parent);
+    p = parent;
+  }
+  return searchDirs;
+}
+
+// ---------------------------------------------------------------------------
+// Command: doctor
 // ---------------------------------------------------------------------------
 
 /**
  * doctor — Check Node.js, npm, dependencies, and credentials.
+ * Delegates to 00-env-check.mjs as a subprocess.
  */
 async function commandDoctor() {
-  const code = await runNode(ENV_CHECK);
-  return code;
+  return runNode(ENV_CHECK);
 }
+
+// ---------------------------------------------------------------------------
+// Command: init
+// ---------------------------------------------------------------------------
 
 /**
  * init — Create a conformant run bundle.
@@ -480,8 +586,23 @@ function commandInit(deckDir, { deckType, style }) {
     console.error("✗ Deck directory must start with 'deck_'.");
     return 1;
   }
-  if (FRAMEWORK_DIR === resolved || resolved.startsWith(FRAMEWORK_DIR + "/")) {
+  if (
+    FRAMEWORK_DIR === resolved ||
+    resolved.startsWith(FRAMEWORK_DIR + "/")
+  ) {
     console.error("✗ A run bundle must live outside PPTMAKER_FRAMEWORK/.");
+    return 1;
+  }
+  if (!(deckType in DECK_TYPE_TEMPLATES)) {
+    console.error(
+      `✗ Unknown deck-type: ${deckType}. Allowed: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
+    );
+    return 1;
+  }
+  if (!STYLE_PRESETS.includes(style)) {
+    console.error(
+      `✗ Unknown style: ${style}. Allowed: ${STYLE_PRESETS.sort().join(", ")}`
+    );
     return 1;
   }
 
@@ -495,9 +616,15 @@ function commandInit(deckDir, { deckType, style }) {
 
   console.log(`✓ Initialized ${resolved}`);
   for (const line of log) console.log(`  - ${line}`);
-  console.log(`\nNext: ppt_flow.mjs status ${join(resolved, VERSIONS_DIR, "v1")}`);
+  console.log(
+    `\nNext: ppt_flow.mjs status ${join(resolved, VERSIONS_DIR, "v1")}`
+  );
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Command: status
+// ---------------------------------------------------------------------------
 
 /**
  * status — Show gates, artifacts, and next action.
@@ -515,10 +642,14 @@ function commandStatus(runDir, { json: asJson }) {
   return status.structure_issues.length > 0 ? 1 : 0;
 }
 
+// ---------------------------------------------------------------------------
+// Command: approve
+// ---------------------------------------------------------------------------
+
 /**
  * approve — Record a reviewed content/visual gate.
  * @param {string} runDir
- * @param {string} gate - "content" or "visual"
+ * @param {string} gate - "content" or "visual".
  * @param {boolean} waive
  */
 function commandApprove(runDir, gate, { waive }) {
@@ -535,6 +666,10 @@ function commandApprove(runDir, gate, { waive }) {
   return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Command: style-master
+// ---------------------------------------------------------------------------
+
 /**
  * style-master — Generate the visual style anchor.
  * Delegates to generate_style_master.mjs as a subprocess.
@@ -542,7 +677,10 @@ function commandApprove(runDir, gate, { waive }) {
  * @param {string} runDir
  * @param {{resolution: string, model: string, baseUrl: string[], force: boolean, dryRun: boolean}} opts
  */
-async function commandStyleMaster(runDir, { resolution, model, baseUrl = [], force, dryRun }) {
+async function commandStyleMaster(
+  runDir,
+  { resolution, model, baseUrl = [], force, dryRun }
+) {
   const resolved = resolve(runDir);
   const args = ["--run-dir", resolved, "--resolution", resolution];
 
@@ -551,8 +689,12 @@ async function commandStyleMaster(runDir, { resolution, model, baseUrl = [], for
   if (force) args.push("--force");
   if (dryRun) args.push("--dry-run");
 
-  return await runNode(GENERATE_STYLE_MASTER, args);
+  return runNode(GENERATE_STYLE_MASTER, args);
 }
+
+// ---------------------------------------------------------------------------
+// Command: validate
+// ---------------------------------------------------------------------------
 
 /**
  * validate — Validate slide specs before image generation.
@@ -572,20 +714,27 @@ async function commandValidate(runDir) {
     console.error(`✗ No ${SLIDE_SPECS_GLOB} found in ${resolved}`);
     return 1;
   }
-  return await runNode(STAGE1_BUILD_INPUTS, ["--validate", "--input", specs]);
+  return runNode(STAGE1_BUILD_INPUTS, ["--validate", "--input", specs]);
 }
+
+// ---------------------------------------------------------------------------
+// Command: pilot
+// ---------------------------------------------------------------------------
 
 /**
  * pilot — Auto-select and build representative pages.
  *
- * Runs Stage 1 (via unified_pipeline.mjs), selects pilot slide IDs, runs Stage 2
- * (via unified_pipeline.mjs) with --only for the pilot subset, then renders
- * header-locked images and a contact sheet for QA.
+ * Runs Stage 1 (via unified_pipeline.mjs), selects pilot slide IDs,
+ * runs Stage 2 with --only for the pilot subset, then renders header-locked
+ * images and a contact sheet for QA.
  *
  * @param {string} runDir
  * @param {{only: string|null, count: number, resolution: string, baseUrl: string|null, dryRun: boolean}} opts
  */
-async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl, dryRun }) {
+async function commandPilot(
+  runDir,
+  { only: onlyStr, count, resolution, baseUrl, dryRun }
+) {
   const resolved = resolve(runDir);
 
   if (count < 1) {
@@ -596,23 +745,16 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
   // Validate structure (not requiring pipeline readiness yet)
   const preIssues = checkBundle(resolved, false);
   if (preIssues.length > 0) {
-    console.error(`✗ Bundle does NOT conform — ${preIssues.length} violation(s):`);
+    console.error(
+      `✗ Bundle does NOT conform — ${preIssues.length} violation(s):`
+    );
     for (const v of preIssues) console.error(`  - ${v}`);
     return 1;
   }
 
-  // Load .env so API credentials are available
+  // Load .env so API credentials are available for Stage 2
   const dkRoot = deckRoot(resolved);
-  const cwd = process.cwd();
-  const searchDirs = [dkRoot, cwd];
-  let p = cwd;
-  while (p) {
-    const parent = dirname(p);
-    if (parent === p) break;
-    if (!searchDirs.includes(parent)) searchDirs.push(parent);
-    p = parent;
-  }
-  loadDotenv(...searchDirs);
+  loadDotenv(...buildEnvSearchDirs(dkRoot));
 
   // --- Stage 1: Build slide plan ---
   const stage1Args = ["--run-dir", resolved, "--stage", "1"];
@@ -623,7 +765,9 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
   // --- Select pilot slide IDs ---
   const planPath = join(generatedDir(resolved), GEN_SLIDE_PLAN);
   if (dryRun && !existsSync(planPath)) {
-    console.log("  [DRY RUN] Pilot IDs will be auto-selected after Stage 1 creates slide_plan.json.");
+    console.log(
+      "  [DRY RUN] Pilot IDs will be auto-selected after Stage 1 creates slide_plan.json."
+    );
     return 0;
   }
   const plan = JSON.parse(readFileSync(planPath, "utf-8")).slides || [];
@@ -631,7 +775,10 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
   /** @type {string[]} */
   let selectedIds;
   if (onlyStr) {
-    selectedIds = onlyStr.split(",").map((s) => s.trim()).filter(Boolean);
+    selectedIds = onlyStr
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   } else {
     selectedIds = selectPilotSlideIds(plan, count);
   }
@@ -647,18 +794,24 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
   // Validate readiness (gates + style master)
   const readyIssues = checkBundle(resolved, true);
   if (readyIssues.length > 0) {
-    console.error(`✗ Bundle NOT pipeline-ready — ${readyIssues.length} issue(s):`);
+    console.error(
+      `✗ Bundle NOT pipeline-ready — ${readyIssues.length} issue(s):`
+    );
     for (const v of readyIssues) console.error(`  - ${v}`);
     return 1;
   }
 
   // --- Stage 2: Generate images for pilot subset ---
   const stage2Args = [
-    "--run-dir", resolved,
-    "--stage", "2",
-    "--only", selectedIds.join(","),
+    "--run-dir",
+    resolved,
+    "--stage",
+    "2",
+    "--only",
+    selectedIds.join(","),
     "--force-images",
-    "--resolution", resolution,
+    "--resolution",
+    resolution,
   ];
   if (baseUrl) stage2Args.push("--base-url", baseUrl);
   if (dryRun) stage2Args.push("--dry-run");
@@ -670,11 +823,19 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
   if (!ok) return 1;
 
   if (!dryRun) {
-    const previewPath = join(generatedDir(resolved), GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg");
+    const previewPath = join(
+      generatedDir(resolved),
+      GEN_PREVIEW_SUBDIR,
+      "pilot_final_contact_sheet.jpg"
+    );
     console.log(`\n✓ Pilot ready: ${previewPath}`);
   }
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Command: build
+// ---------------------------------------------------------------------------
 
 /**
  * build — Build the complete final deck.
@@ -683,16 +844,30 @@ async function commandPilot(runDir, { only: onlyStr, count, resolution, baseUrl,
  * @param {string} runDir
  * @param {{resolution: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean}} opts
  */
-async function commandBuild(runDir, { resolution, baseUrl, reuseImages, dryRun }) {
+async function commandBuild(
+  runDir,
+  { resolution, baseUrl, reuseImages, dryRun }
+) {
   const resolved = resolve(runDir);
-  const args = ["--run-dir", resolved, "--stage", "all", "--resolution", resolution];
+  const args = [
+    "--run-dir",
+    resolved,
+    "--stage",
+    "all",
+    "--resolution",
+    resolution,
+  ];
 
   if (!reuseImages) args.push("--force-images");
   if (baseUrl) args.push("--base-url", baseUrl);
   if (dryRun) args.push("--dry-run");
 
-  return await runNode(UNIFIED_PIPELINE, args);
+  return runNode(UNIFIED_PIPELINE, args);
 }
+
+// ---------------------------------------------------------------------------
+// Command: refresh
+// ---------------------------------------------------------------------------
 
 /**
  * refresh — Run the smallest safe edit chain.
@@ -701,7 +876,10 @@ async function commandBuild(runDir, { resolution, baseUrl, reuseImages, dryRun }
  * @param {string} runDir
  * @param {{kind: string, only: string|null, all: boolean, resolution: string, baseUrl: string|null, dryRun: boolean}} opts
  */
-async function commandRefresh(runDir, { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun }) {
+async function commandRefresh(
+  runDir,
+  { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun }
+) {
   const resolved = resolve(runDir);
 
   /** @type {string} */
@@ -722,25 +900,40 @@ async function commandRefresh(runDir, { kind, only: onlyStr, all: allSlides, res
   } else {
     // kind === "visual"
     if (!onlyStr && !allSlides) {
-      console.error("✗ Visual refresh needs --only slide_id[,slide_id] or explicit --all.");
+      console.error(
+        "✗ Visual refresh needs --only slide_id[,slide_id] or explicit --all."
+      );
       return 1;
     }
     stages = "1,2,3,4,5";
   }
 
-  const args = ["--run-dir", resolved, "--stage", stages, "--resolution", resolution];
+  const args = [
+    "--run-dir",
+    resolved,
+    "--stage",
+    stages,
+    "--resolution",
+    resolution,
+  ];
   if (onlyStr) args.push("--only", onlyStr);
   if (allSlides) args.push("--force-images");
   if (baseUrl) args.push("--base-url", baseUrl);
   if (dryRun) args.push("--dry-run");
 
-  return await runNode(UNIFIED_PIPELINE, args);
+  return runNode(UNIFIED_PIPELINE, args);
 }
 
+// ---------------------------------------------------------------------------
+// Command: new-version
+// ---------------------------------------------------------------------------
+
 /**
- * new-version — Create a clean downstream version (copies spec + overrides, not generated).
+ * new-version — Create a clean downstream version (copies spec + overrides,
+ * not generated artifacts).
+ *
  * @param {string} runDir
- * @param {string|null} name - e.g. "v3"
+ * @param {string|null} name - e.g. "v3".
  */
 function commandNewVersion(runDir, { name }) {
   const resolved = resolve(runDir);
@@ -755,12 +948,25 @@ function commandNewVersion(runDir, { name }) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Command: test
+// ---------------------------------------------------------------------------
+
 /**
  * test — Run all framework checks.
  * Delegates to run_tests.py.
  */
 async function commandTest() {
-  return await runPython(RUN_TESTS_PY);
+  if (existsSync(RUN_TESTS_PY)) {
+    return runPython(RUN_TESTS_PY);
+  }
+  // Fallback: run vitest from project root
+  const result = spawnSync("npm", ["test"], {
+    stdio: "inherit",
+    env: process.env,
+    cwd: resolve(FRAMEWORK_DIR, ".."),
+  });
+  return result.status !== null ? result.status : 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -773,7 +979,9 @@ async function main() {
   program
     .name("ppt_flow.mjs")
     .description("One friendly entry point for the complete PPT workflow.")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   ppt_flow.mjs doctor
   ppt_flow.mjs init deck_mydeck --deck-type pitch --style tech-startup
@@ -786,10 +994,12 @@ Examples:
   ppt_flow.mjs refresh deck_mydeck/3_versions/v1 --kind visual --only slide_03
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
-`);
+`
+    );
 
   // ---- doctor ----
-  program.command("doctor")
+  program
+    .command("doctor")
     .description("Check Node.js, npm, dependencies, and credentials")
     .action(async () => {
       const code = await commandDoctor();
@@ -797,29 +1007,47 @@ Examples:
     });
 
   // ---- init ----
-  program.command("init")
+  program
+    .command("init")
     .description("Create a conformant run bundle")
     .argument("<deck_dir>", "Target deck directory (must start with deck_)")
-    .requiredOption("--deck-type <type>", `Deck type: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`)
-    .requiredOption("--style <style>", `Style preset: ${STYLE_PRESETS.sort().join(", ")}`)
+    .requiredOption(
+      "--deck-type <type>",
+      `Deck type: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
+    )
+    .requiredOption(
+      "--style <style>",
+      `Style preset: ${STYLE_PRESETS.sort().join(", ")}`
+    )
     .action(async (deckDir, opts) => {
-      // Validate enums
+      // Validation already done in commandInit, but commander enums are friendly
       if (!(opts.deckType in DECK_TYPE_TEMPLATES)) {
-        console.error(`✗ Unknown deck-type: ${opts.deckType}. Allowed: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`);
+        console.error(
+          `✗ Unknown deck-type: ${opts.deckType}. Allowed: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
+        );
         process.exit(1);
       }
       if (!STYLE_PRESETS.includes(opts.style)) {
-        console.error(`✗ Unknown style: ${opts.style}. Allowed: ${STYLE_PRESETS.sort().join(", ")}`);
+        console.error(
+          `✗ Unknown style: ${opts.style}. Allowed: ${STYLE_PRESETS.sort().join(", ")}`
+        );
         process.exit(1);
       }
-      const code = commandInit(deckDir, { deckType: opts.deckType, style: opts.style });
+      const code = commandInit(deckDir, {
+        deckType: opts.deckType,
+        style: opts.style,
+      });
       process.exit(code);
     });
 
   // ---- status ----
-  program.command("status")
+  program
+    .command("status")
     .description("Show gates, artifacts, and next action")
-    .argument("<run_dir>", "Path to version dir (e.g., deck_xxx/3_versions/v1)")
+    .argument(
+      "<run_dir>",
+      "Path to version dir (e.g., deck_xxx/3_versions/v1)"
+    )
     .option("--json", "Output machine-readable JSON")
     .action((runDir, opts) => {
       const code = commandStatus(runDir, { json: opts.json ?? false });
@@ -827,32 +1055,45 @@ Examples:
     });
 
   // ---- approve ----
-  program.command("approve")
+  program
+    .command("approve")
     .description("Record a reviewed content/visual gate")
     .argument("<run_dir>", "Path to version dir")
     .argument("<gate>", "Gate to approve: content or visual")
     .option("--waive", "Record an explicit user decision to skip this gate")
     .action((runDir, gate, opts) => {
       if (!["content", "visual"].includes(gate)) {
-        console.error(`✗ gate must be "content" or "visual"; got: ${gate}`);
+        console.error(
+          `✗ gate must be "content" or "visual"; got: ${gate}`
+        );
         process.exit(1);
       }
-      const code = commandApprove(runDir, gate, { waive: opts.waive ?? false });
+      const code = commandApprove(runDir, gate, {
+        waive: opts.waive ?? false,
+      });
       process.exit(code);
     });
 
   // ---- style-master ----
-  program.command("style-master")
+  program
+    .command("style-master")
     .description("Generate the visual style anchor")
     .argument("<run_dir>", "Path to version dir")
-    .option("--resolution <res>", "Image resolution", "2k")
+    .option("--resolution <res>", "Image resolution (1k, 2k, or 4k)", "2k")
     .option("--model <model>", "Model name", "gpt-image-2")
-    .option("--base-url <url>", "API base URL (repeatable)", (val, prev) => [...(prev || []), val], [])
+    .option(
+      "--base-url <url>",
+      "API base URL (repeatable)",
+      (val, prev) => [...(prev || []), val],
+      []
+    )
     .option("--force", "Force regeneration")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(`✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`);
+        console.error(
+          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
+        );
         process.exit(1);
       }
       const code = await commandStyleMaster(runDir, {
@@ -866,7 +1107,8 @@ Examples:
     });
 
   // ---- validate ----
-  program.command("validate")
+  program
+    .command("validate")
     .description("Validate slide specs before image generation")
     .argument("<run_dir>", "Path to version dir")
     .action(async (runDir) => {
@@ -875,17 +1117,25 @@ Examples:
     });
 
   // ---- pilot ----
-  program.command("pilot")
+  program
+    .command("pilot")
     .description("Auto-select and build representative pages")
     .argument("<run_dir>", "Path to version dir")
     .option("--only <ids>", "Optional comma-separated slide IDs")
-    .option("--count <n>", "Number of pilot slides to auto-select", parseInt, 3)
+    .option(
+      "--count <n>",
+      "Number of pilot slides to auto-select",
+      (v) => parseInt(v, 10),
+      3
+    )
     .option("--resolution <res>", "Image resolution for pilot", "1k")
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(`✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`);
+        console.error(
+          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
+        );
         process.exit(1);
       }
       const code = await commandPilot(runDir, {
@@ -899,16 +1149,22 @@ Examples:
     });
 
   // ---- build ----
-  program.command("build")
+  program
+    .command("build")
     .description("Build the complete final deck")
     .argument("<run_dir>", "Path to version dir")
     .option("--resolution <res>", "Final image resolution", "2k")
     .option("--base-url <url>", "Override API base URL for Stage 2")
-    .option("--reuse-images", "Reuse existing Stage-2 images instead of refreshing at final resolution")
+    .option(
+      "--reuse-images",
+      "Reuse existing Stage-2 images instead of refreshing at final resolution"
+    )
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(`✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`);
+        console.error(
+          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
+        );
         process.exit(1);
       }
       const code = await commandBuild(runDir, {
@@ -921,10 +1177,15 @@ Examples:
     });
 
   // ---- refresh ----
-  program.command("refresh")
+  program
+    .command("refresh")
     .description("Run the smallest safe edit chain")
     .argument("<run_dir>", "Path to version dir")
-    .option("--kind <kind>", "Edit scope: title, visual, or notes", "visual")
+    .option(
+      "--kind <kind>",
+      "Edit scope: title, visual, or notes",
+      "visual"
+    )
     .option("--only <ids>", "For visual: comma-separated slide IDs")
     .option("--all", "For visual: explicitly refresh all pages")
     .option("--resolution <res>", "Image resolution", "2k")
@@ -932,11 +1193,15 @@ Examples:
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["title", "visual", "notes"].includes(opts.kind)) {
-        console.error(`✗ --kind must be title, visual, or notes; got: ${opts.kind}`);
+        console.error(
+          `✗ --kind must be title, visual, or notes; got: ${opts.kind}`
+        );
         process.exit(1);
       }
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(`✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`);
+        console.error(
+          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
+        );
         process.exit(1);
       }
       const code = await commandRefresh(runDir, {
@@ -951,17 +1216,21 @@ Examples:
     });
 
   // ---- new-version ----
-  program.command("new-version")
+  program
+    .command("new-version")
     .description("Create a clean downstream version")
     .argument("<run_dir>", "Path to source version dir")
     .option("--name <name>", "Explicit version name, e.g. v3")
     .action((runDir, opts) => {
-      const code = commandNewVersion(runDir, { name: opts.name || null });
+      const code = commandNewVersion(runDir, {
+        name: opts.name || null,
+      });
       process.exit(code);
     });
 
   // ---- test ----
-  program.command("test")
+  program
+    .command("test")
     .description("Run all framework checks")
     .action(async () => {
       const code = await commandTest();
@@ -980,8 +1249,8 @@ const invokedPath = process.argv[1];
 const isMain =
   invokedPath &&
   (invokedPath === __filename_main ||
-   invokedPath === resolve(__filename_main) ||
-   (basename(invokedPath) === "ppt_flow.mjs" && existsSync(invokedPath)));
+    invokedPath === resolve(__filename_main) ||
+    (basename(invokedPath) === "ppt_flow.mjs" && existsSync(invokedPath)));
 
 if (isMain) {
   main().catch((err) => {
