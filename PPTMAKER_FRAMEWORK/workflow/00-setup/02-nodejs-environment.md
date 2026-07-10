@@ -26,7 +26,8 @@ HTTP 请求用 Node 内置 `fetch` (Node 18+), 无需额外安装.
 ## 验证环境
 
 ```bash
-node workflow/00-setup/00-env-check.mjs
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
+# 等价: node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 ```
 
 输出 READY 表示可以开始. 如果显示 NOT READY, 按提示修复.

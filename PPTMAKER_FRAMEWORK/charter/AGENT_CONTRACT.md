@@ -62,7 +62,7 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 | 人写 / 文档 / slide_plan | 含义 |
 |--------------------------|------|
 | `full-page` | AI 画整页（含标题） |
-| `body+header-lock` | AI 画 body，Python 叠标题 |
+| `body+header-lock` | AI 画 body，Node `@napi-rs/canvas` 叠标题 |
 
 不要写 `image_direct` / `normal`（旧词；输入端仍兼容，输出与文档禁止再用）。
 
@@ -130,6 +130,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
 |--------|------|
 | Phase 逐步怎么做 | `AGENTS.md` 对应 Phase 节 |
 | 改动分类 | `scripts/change-classifier.md` |
-| 常见错误 | `workflow/00-setup/ANTI_PATTERNS.md` |
-| 术语 | `workflow/00-setup/GLOSSARY.md` |
-| 方法论深挖 | `01_`–`05_` 各模块 README |
+| 常见错误 | `reference/anti-patterns.md` |
+| 术语 | `reference/glossary.md` |
+| 人类 Quick Start | `reference/quick-start.md` |
+| 方法论深挖 | `workflow/01-visual/`–`workflow/05-iteration/` 各模块 README |

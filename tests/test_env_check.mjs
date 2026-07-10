@@ -42,11 +42,17 @@ describe('00-env-check', () => {
     expect(nodeCheck.status).toBe('ok');
   });
 
-  it('checks npm availability', () => {
+  it('treats missing image2-ppt skill as a hard fail', () => {
     const { stdout } = runCheck('--json');
     const data = JSON.parse(stdout);
-    const npmCheck = data.checks.find(c => c.check === 'npm');
-    expect(npmCheck).toBeDefined();
-    expect(npmCheck.foundation).toBe(true);
+    const stage2 = data.checks.find(c => c.check === 'stage2_generator');
+    expect(stage2).toBeDefined();
+    // When skill is absent, status must be fail (not warn) — production requires Image2.
+    if (stage2.detail.includes('not found')) {
+      expect(stage2.status).toBe('fail');
+      expect(data.allPass).toBe(false);
+    } else {
+      expect(stage2.status).toBe('ok');
+    }
   });
 });

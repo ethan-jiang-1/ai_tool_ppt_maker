@@ -93,17 +93,17 @@ agent_action: reference
 ## 生产管线
 
 ### Header-Lock（标题锁定）
-把 slide 的标题文字从 AI image generation 中分离出来，交给 Python/Pillow 做确定性渲染。AI 负责 body visual（图表、卡片、颜色），Python 负责 header text（kicker + title + subtitle），在精确的像素位置，用精确的字体大小。
+把 slide 的标题文字从 AI image generation 中分离出来，交给 Node `@napi-rs/canvas` 做确定性渲染。AI 负责 body visual（图表、卡片、颜色），确定性层负责 header text（kicker + title + subtitle），在精确的像素位置、用精确的字体大小。
 
-**为什么重要**：AI 在文字位置、字体大小、拼写上不可靠。Python 在精确渲染上 100% 可靠。**Split the work where each tool is strongest.**
+**为什么重要**：AI 在文字位置、字体大小、拼写上不可靠。确定性渲染在精确文字上 100% 可靠。**Split the work where each tool is strongest.**
 
 ### RENDER MODE（唯一对外词汇）
 每张 slide 的生产方式，**只使用这两个词**（写在 slide-specifications.md，也写入 `slide_plan.json` 的 `layout_contract.render_mode`）：
 
 | RENDER MODE | 含义 | 典型页 |
 |-------------|------|--------|
-| **`body+header-lock`** | AI 只画 body（顶部留白），Python 叠 kicker+title | 常规内容页 ~80% |
-| **`full-page`** | AI 画整页（含标题），Python 不叠字 | opener / divider / closer ~20% |
+| **`body+header-lock`** | AI 只画 body（顶部留白），Node 叠 kicker+title | 常规内容页 ~80% |
+| **`full-page`** | AI 画整页（含标题），不叠字 | opener / divider / closer ~20% |
 
 旧词 `normal` / `image_direct` 仅作输入别名兼容，**文档与新产出禁止再用**。Stage 3 读 `render_mode`；若遇到旧 `slide_plan.json` 里的 `header_variant`，会自动映射。
 

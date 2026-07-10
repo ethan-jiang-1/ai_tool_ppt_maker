@@ -28,6 +28,22 @@ v1 . 0 . 0
 
 ---
 
+## v1.4.1 — Doc executability + Stage-2 hard gate（2026-07-11）
+
+**代号**：Agent can follow the map
+
+> 收敛入口文档与 Node 实现；把 `image2-ppt` 升为 doctor 硬闸门（本框架产品是 Image2 视觉表达，缺 skill = 不能生产）。
+
+### 变了什么
+
+1. `BOOTSTRAP.md` / 根 `AGENTS.md` / `CLAUDE.md` / `README.md`：栈叙事改为 Node 18 + npm；死链 `charter/charter/`、`workflow/00-setup/workflow/…`、`PTMAKER_*` 拼写、旧 `00_project_setup` / `06_reference_scripts` 路径全部对齐。
+2. `env-check.mjs`：`stage2_generator` 缺失从 `warn` 改为 `fail`；READY 文案同步。
+3. `bundle_layout.mjs --init`：deck-guide 命令改为 `node` / `ppt_flow`；不再铺 `pyproject.toml`。
+4. `WORKFLOW.md` Phase 编号与 `AGENTS.md` 对齐；`COMMANDS.md` 标为意图路由附录。
+5. 烧图 PPTX 在已知限制中标为**设计选择**（视觉表达优先于 PPT 内编辑）。
+
+---
+
 ## v1.4.0 — Execution Hardening（2026-07-10）
 
 **代号**：Make the Contract Real

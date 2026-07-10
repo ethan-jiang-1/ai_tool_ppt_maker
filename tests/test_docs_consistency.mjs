@@ -36,11 +36,29 @@ describe('docs_consistency', () => {
     }
   });
 
-  it('doc files reference .mjs scripts', () => {
+  it('entry docs have no known path-drift patterns', () => {
     const { readFileSync } = require('node:fs');
-    for (const f of [CRITICAL_FILES[1], CRITICAL_FILES[2]]) {
+    const driftRes = [
+      /charter\/charter\//,
+      /(?<!P)PTMAKER_FRAMEWORK/, // typo missing leading P
+      /workflow\/00-setup\/workflow\//,
+      /00_project_setup\//,
+      /06_reference_scripts\//,
+      /00-env-check\.mjs/,
+    ];
+    for (const f of [
+      'PPTMAKER_FRAMEWORK/BOOTSTRAP.md',
+      'PPTMAKER_FRAMEWORK/CLAUDE.md',
+      'PPTMAKER_FRAMEWORK/README.md',
+      'PPTMAKER_FRAMEWORK/AGENTS.md',
+      'AGENTS.md',
+      'CLAUDE.md',
+      'README.md',
+    ]) {
       const content = readFileSync(f, 'utf-8');
-      expect(content).toMatch(/\.mjs|node/);
+      for (const re of driftRes) {
+        expect(re.test(content), `${f} still matches ${re}`).toBe(false);
+      }
     }
   });
 });

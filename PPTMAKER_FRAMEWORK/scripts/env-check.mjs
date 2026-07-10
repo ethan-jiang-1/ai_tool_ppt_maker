@@ -177,11 +177,15 @@ function checkStage2Generator() {
   const hit = roots.find(r => existsSync(join(r, rel)));
   return {
     check: 'stage2_generator',
-    status: hit ? 'ok' : 'warn',
+    // Hard fail: this framework's product is Image2 visual expression.
+    // Without the skill, pilot/build cannot produce slides.
+    status: hit ? 'ok' : 'fail',
     detail: hit ? `found (${hit})` : `'${rel}' not found in any skills dir`,
     fix: hit ? null : (
-      'Stage 2 (image generation) needs the image2-ppt skill. Install it into .claude/skills/. ' +
-      'You can still do Phases 0-2 and Stages 1,3,4,5 without it.'
+      'Stage 2 (image generation) needs the image2-ppt skill — this is a hard requirement.\n' +
+      '  Install into .claude/skills/image2-ppt/ (or .agents/skills/image2-ppt/).\n' +
+      '  Expected script: image2-ppt/scripts/generate_full_page_images.py\n' +
+      '  Then re-run: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor'
     ),
   };
 }
@@ -270,15 +274,15 @@ function formatText(results, allPass) {
     lines.push('  ⛔ FOUNDATION NOT READY — Node.js 18+ and npm must be set up FIRST.');
     lines.push('     Fix the [FOUNDATION] items above, then re-run.');
   } else if (allPass) {
-    if (stage2Missing) {
-      lines.push('  ◑  READY for Phases 0-2, but NOT for image generation — the Stage-2 image skill was not found.');
-      lines.push('     You can design content + visuals now, but Stage 2 will fail until the skill is installed.');
-    } else if (warns) {
+    if (warns) {
       lines.push(`  ✓  READY — foundation OK, no blockers. ${warns} advisory warning(s) above.`);
     } else {
       lines.push('  ✓  READY — all checks passed.');
       lines.push('  You can now start building decks.');
     }
+  } else if (stage2Missing) {
+    lines.push('  ✗  NOT READY — image2-ppt skill missing (hard requirement for Stage 2).');
+    lines.push('     Install the skill, then re-run doctor. Content design can wait; production cannot.');
   } else {
     lines.push('  ✗  NOT READY — foundation is fine, but a hard requirement failed. Fix those and re-run.');
   }

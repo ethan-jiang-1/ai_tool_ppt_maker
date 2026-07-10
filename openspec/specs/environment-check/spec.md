@@ -40,6 +40,20 @@ The env check SHALL verify `OPENAI_API_KEY` is set in `.env` and is non-empty.
 - **WHEN** `.env` contains `OPENAI_API_KEY=sk-...` → check passes
 - **WHEN** `.env` is absent or value is empty → report explains how to configure
 
+### Requirement: image2-ppt skill is a hard requirement
+
+The env check SHALL treat the Stage-2 generator skill (`image2-ppt/scripts/generate_full_page_images.py`) as a hard failure when missing — not a warning. Discovery SHALL search `.claude/skills/` and `.agents/skills/` under cwd parents and the user home directory.
+
+#### Scenario: Skill missing
+
+- **WHEN** the skill script is not found in any skills directory
+- **THEN** `stage2_generator` status is `fail`, overall verdict is NOT READY, exit non-zero
+
+#### Scenario: Skill present
+
+- **WHEN** the skill script exists under `.claude/skills/image2-ppt/` (or `.agents/skills/`)
+- **THEN** `stage2_generator` status is `ok`
+
 ### Requirement: Structured READY/NOT READY output
 
 The env check SHALL output a structured report with per-check status and an overall verdict. Exit 0 on READY, non-zero on NOT READY.

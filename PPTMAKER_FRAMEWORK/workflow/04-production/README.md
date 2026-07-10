@@ -19,13 +19,13 @@ agent_action: navigate
 
 > 本管线的所有 stage 都运行在 **run bundle**（文件系统实例）内部——消费 run bundle 中的源文件（`3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/`），产出 run bundle 中的派生品（全部写入 `_generated/`）。管线脚本从 `scripts/` **就地运行**（通过 `unified_pipeline.mjs --run-dir`），不复制进 run bundle。
 
-一套可复用的五阶段管线，将人类撰写的 slide 内容规格（来自 [workflow/02-content](../workflow/02-content/)）+ 一张 style master 视觉参考图（来自 [workflow/01-visual](../workflow/01-visual/)）转化为一份完成的 PPTX 文件。整个管线由 Python 脚本串联，每个阶段有明确的 input/output 契约，可以独立运行和调试。
+一套可复用的五阶段管线，将人类撰写的 slide 内容规格（来自 [workflow/02-content](../workflow/02-content/)）+ 一张 style master 视觉参考图（来自 [workflow/01-visual](../workflow/01-visual/)）转化为一份完成的 PPTX 文件。整个管线由 **Node.js** 脚本串联（Stage 2 经 `image2-ppt` skill 生图），每个阶段有明确的 input/output 契约，可以独立运行和调试。
 
 ## 核心思想，一段话讲完
 
-**Header-Lock（标题锁定）。** AI image model（GPT Image 2 或任何支持 text-to-image 的模型）善于生成创意视觉——图表、卡片布局、图标、配色。但它在**精确文字位置**上不可靠——字体大小飘忽、间距不一致、偶尔拼错字。Python/Pillow 恰恰相反——它可以 pixel-perfect 地在固定位置渲染文字，每次一模一样。因此，把工作分开：AI 生成 slide 的 body 视觉（画面上半部留空），Python 在顶部叠加 kicker/title/subtitle 文字。这消除了 "改文字→重新生图→新文字偏了 3px→重新生图" 的死循环，同时保留了 AI 的视觉创造力。
+**Header-Lock（标题锁定）。** AI image model（GPT Image 2 或任何支持 text-to-image 的模型）善于生成创意视觉——图表、卡片布局、图标、配色。但它在**精确文字位置**上不可靠——字体大小飘忽、间距不一致、偶尔拼错字。Node `@napi-rs/canvas` 恰恰相反——它可以 pixel-perfect 地在固定位置渲染文字，每次一模一样。因此，把工作分开：AI 生成 slide 的 body 视觉（画面上半部留空），确定性层在顶部叠加 kicker/title/subtitle 文字。这消除了 "改文字→重新生图→新文字偏了 3px→重新生图" 的死循环，同时保留了 AI 的视觉创造力。
 
-洞察：**Split the work where each tool is strongest.** AI for creative visuals. Python for deterministic text. The style master is the visual contract between them — it ensures every page feels like the same deck, regardless of which tool rendered which part.
+洞察：**Split the work where each tool is strongest.** AI for creative visuals. Deterministic canvas for text. The style master is the visual contract between them — it ensures every page feels like the same deck, regardless of which tool rendered which part.
 
 ## 适合谁
 
@@ -48,7 +48,7 @@ agent_action: navigate
 | 0 | `00-the-pipeline-philosophy.md` | 理解为什么用管线、Header-Lock 原理、编辑链概念 | — | Internalized architecture rationale |
 | 1 | `01-stage-1-parse-content-to-specs.md` | 把 markdown 内容规格解析为机器可读的 JSON | `*.md` (02 的产出) | `slide_plan.json` + `page_prompts/_prompts.json` |
 | 2 | `02-stage-2-generate-images-with-anchoring.md` | 用 style master 批量生图，并自动生成 contact sheet | prompts + style master | 原始 PNG + `preview/contact_sheet.jpg` |
-| 3 | `03-stage-3-lock-headers-deterministically.md` | Python/Pillow 叠加标题文字（Header-Lock 核心机制） | 原始 PNG + `slide_plan.json` | 最终 PNG（header 锁定） |
+| 3 | `03-stage-3-lock-headers-deterministically.md` | Node `@napi-rs/canvas` 叠加标题文字（Header-Lock 核心机制） | 原始 PNG + `slide_plan.json` | 最终 PNG（header 锁定） |
 | 4 | `04-stage-4-build-the-pptx-container.md` | 把最终图片封装进 PPTX 容器 | 最终 PNG | `.pptx` 文件 |
 | 5 | `05-stage-5-inject-speaker-notes.md` | 从源 md 提取 speaker note 注入 PPTX notes 面板 | `.pptx` + `*.md` | PPTX with notes |
 
@@ -57,7 +57,7 @@ agent_action: navigate
 - **3 分钟**：读这个 README。你会掌握管线概念和阶段地图。
 - **15 分钟**：加读 `00`（philosophy）和 `03`（Header-Lock）。你会理解为什么这样设计管线，以及 Header-Lock 为什么是整个体系的基石。
 - **完整方法论**：按顺序读 `00` 到 `05`。每个文件都在前一个基础上构建。
-- **准备实现**：`scripts/` —— 五个 Stage 的完整 Python 参考实现（可直接运行，按项目定制常量）。`reference-pipeline-scripts.md` 保留作为伪代码架构参考。
+- **准备实现**：`scripts/` —— Stage 脚本的 Node.js 参考实现（可直接运行）。`reference-pipeline-scripts.md` 保留作为伪代码架构参考。
 
 ## 三条编辑链
 
@@ -75,7 +75,7 @@ agent_action: navigate
 1. Markdown Parser — 从半结构化 markdown 提取结构化字段
 2. Prompt Assembler — 把源 prompt 和系统级约束组合成完整生成 prompt
 3. Async Image Generator — submit → poll → download → save with metadata
-4. Header Overlay — Pillow 精确文字渲染
+4. Header Overlay — `@napi-rs/canvas` 精确文字渲染
 5. PPTX Builder — 图片→slide 封装
 6. Notes Injector — markdown block 提取 + PPTX notes API
 
@@ -93,9 +93,9 @@ agent_action: navigate
 ## 真实案例
 
 这套管线源于为一个 precision manufacturing 客户制作 19 页 AI 战略 keynote 的生产实战。该案例的核心特征：
-- 5 个 Python 脚本串联的线性管线，每个阶段输出可检查的中间文件
-- Header-Lock 机制：16 张 body+header-lock slides（Python 叠加标题）+ 3 张 full-page slides（AI 全页生成）
-- APIMart async image API（submit→poll→download），三个 mirror 容错
+- 分阶段线性管线，每个阶段输出可检查的中间文件（现实现为 Node.js `.mjs`）
+- Header-Lock 机制：body+header-lock slides（确定性叠标题）+ full-page slides（AI 全页生成）
+- Async image API（submit→poll→download），经 `image2-ppt` skill
 - 三条编辑链：链 A 改标题 5 分钟，链 B 改画面 5 分钟/页，链 C 改讲稿 30 秒
 - Canvas 尺寸 1672×941 px，16:9 PPTX 容器
 

@@ -147,7 +147,7 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 唯一对外词汇是 **`full-page`** 和 **`body+header-lock`**。旧词只在输入端兼容（旧 specs 仍能解析），新写的 specs、文档、changelog 禁止再用。
 
-**修复**：一律写 RENDER MODE。见 [workflow/00-setup/GLOSSARY.md](workflow/00-setup/GLOSSARY.md) 与 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md) §6。
+**修复**：一律写 RENDER MODE。见 [glossary.md](glossary.md) 与 [charter/AGENT_CONTRACT.md](../charter/AGENT_CONTRACT.md) §6。
 
 ---
 

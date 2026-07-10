@@ -19,11 +19,11 @@ agent_action: navigate
 # AGENTS.md — PPT Flow Orchestrator
 
 > 本文件为 **agent-agnostic**——适用于 Claude Code、Codex、Cursor 及任何 AI coding agent。
-> **每次 session 先读 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
+> **每次 session 先读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
 
 ## 给人类读者
 
-> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [workflow/00-setup/workflow/00-setup/QUICK_START.md](workflow/00-setup/workflow/00-setup/QUICK_START.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
+> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [reference/quick-start.md](reference/quick-start.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
 >
 > 下面这些步骤是 agent 的操作手册。你可以读它来理解流程，但不需要手动操作。
 
@@ -265,7 +265,7 @@ cp PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md \
 
 > **为什么 L3 押后**：L3 要"对照 `2_backbone/visual-style/`"（画风/色板/组件）才写得对，而那套视觉要到 Phase 2 才锁定。Phase 1 就写 L3 = 拿还不存在的东西做参照，写出来多半作废重来（本框架 bug 0003 的根因）。所以 Phase 1 每个 slide 的 L3 留占位（如 `[PLACEHOLDER: 视觉锁定后填]`），视觉锁定后统一回填。**L1 的 TITLE/KICKER/VISUAL TYPE 照常在 Phase 1 写全**——它们是内容判断，不依赖画风。
 
-> **每页声明 RENDER MODE**（两个之一）:`full-page`(image-2 画整页,含标题——开场/分隔/结尾) 或 `body+header-lock`(image-2 只画 body,Python 叠标题——常规页)。由 VISUAL TYPE 自动映射,但写出来让生产方式一眼可见。
+> **每页声明 RENDER MODE**（两个之一）:`full-page`(image-2 画整页,含标题——开场/分隔/结尾) 或 `body+header-lock`(image-2 只画 body,Node `@napi-rs/canvas` 叠标题——常规页)。由 VISUAL TYPE 自动映射,但写出来让生产方式一眼可见。
 
 ### 1.5 约束检查（参考 `workflow/02-content/05-iterate-with-version-discipline.md`）
 
@@ -332,7 +332,7 @@ cp PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md \
 3. **如果没有预生成的 jpg**（当前 5 个 preset 都不含）：把 style master prompt 存为 `2_backbone/visual-style/style-master-prompt.md`（源文件，别丢），再用框架的统一 wrapper 生成：
 
 ```bash
-node PTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
+node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -373,7 +373,7 @@ node PTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
 先把 2.3 的 meta-prompt 存成 `2_backbone/visual-style/style-master-prompt.md`（源文件），再用框架的统一 wrapper 生成一张风格母版图：
 
 ```bash
-node PTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
+node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -416,7 +416,7 @@ cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
 - 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `workflow/03-prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
 - 全部回填后，跑一次内容契约校验（**这是 L3 gate 真正该跑的地方**，Phase 1 不跑）：
   ```bash
-  node PTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
+  node PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
     --validate --input deck_{NAME}/3_versions/v1/slide-specifications.md
   ```
   ERROR 清零（不再有占位符 / 缺 IMAGE PROMPT / body+header-lock 页缺 TITLE）才进 Phase 3。管线在 Phase 3 首次运行前也会自动跑同一道校验兜底。
@@ -448,20 +448,20 @@ cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
 
 ```bash
 # 首次生产：先解析，再用 3 张代表页做 1K pilot
-node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # Pilot 通过后，全量生成 2K，再完成 Header-Lock/PPTX/Notes
-node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --resolution 2k --force-images
-node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 
 # 只跑某个 stage（如只重新 lock headers）
-node PTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 ```
 

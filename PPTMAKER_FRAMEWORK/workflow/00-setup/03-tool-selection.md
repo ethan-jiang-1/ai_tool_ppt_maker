@@ -74,7 +74,7 @@ GET  /tasks/{task_id}/result   → 下载生成的图片
 Phase 0 创建 run bundle 后，确认：
 
 - [ ] 在 deck 根运行 `uv sync` 成功
-- [ ] `00-env-check.mjs` 显示 READY
+- [ ] `ppt_flow.mjs doctor`（或 `scripts/env-check.mjs`）显示 READY
 - [ ] `OPENAI_API_KEY` 环境变量已设置
 - [ ] 如需固定 relay，`OPENAI_BASE_URL` 已设置；否则使用 skill 默认 endpoint
 - [ ] 字体文件存在于 `stage3_lock_headers.mjs` 中配置的路径（macOS: `/Library/Fonts/`，Linux: `/usr/share/fonts/`，Windows: `C:/Windows/Fonts/`）
