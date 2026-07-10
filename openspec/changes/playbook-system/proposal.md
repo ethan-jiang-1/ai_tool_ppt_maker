@@ -8,7 +8,9 @@ PPTMAKER_FRAMEWORK 当前所有 Agent 执行逻辑散落在散文文档中——
 
 根本原因: **参考文档不等于执行控制器**. Agent 需要的是结构化的"剧本"——每一步有明确的进场条件 (缺什么?)、执行步骤 (读哪个文件? 跑哪个命令?)、出场验收 (产出物齐了吗? gate 过了吗?).
 
-这套体系的灵感来自 DPT_FRAMEWORK 的三层执行模型: MD phase node (控制器) → JS Engine gate (验证) → transitions.chain.json (路由). MD 不是文档——它是控制面, 告诉 Agent 这一步的目标、允许动作、gate 命令、通过/失败处理.
+核心理念: **MD 文件不是参考文档, 而是可调用的命令**. 一个 playbook 就是一个程序——用 Markdown 写的程序. Agent 不是"读文档然后自己想怎么做", 而是"加载这个命令, 按 node 序列执行, 过 gate 才前进". 这套体系借鉴 DPT_FRAMEWORK 的三层执行模型: MD phase node (控制器) → Engine gate (验证) → chain.json (路由). 同样地, MD 是控制面, 告诉 Agent 这一步的目标、允许动作、gate 命令、通过/失败处理.
+
+这套体系的产物——NODE-SPEC.md (Node 规格宪法)、playbook/ 目录 (可调用命令集合)、run-bundle-state.yaml schema (MD⇔CLI 共用状态)——将永久留在 PPTMAKER_FRAMEWORK 内, 成为框架的执行层基础设施. 今后所有 Agent 行为都由 playbook 驱动, 不再靠 AGENTS.md 散文推导.
 
 ## What Changes
 
@@ -18,8 +20,8 @@ PPTMAKER_FRAMEWORK 当前所有 Agent 执行逻辑散落在散文文档中——
 
 - **Node frontmatter**: `node` (名字), `playbook` (所属), `phase` (对应), `requires` (前置 node), `produces` (产出物), `entry` (进场条件), `exit` (出场条件), `shared` (是否可被多个 playbook 引用)
 - **Node body**: 结构化的 step 序列, 每步标注类型 `MD` (Agent 读方法论文档/做创意/人审) 或 `CLI` (调脚本)
-- **Entry Gate**: 进场前检查条件 (如 `run_bundle_exists`, `style_master_locked`). 不满足→Agent 被告知缺什么, 先去补
-- **Exit Gate**: 出场前验收条件 (如 `pptx_exists`, `visual_gate: approved`). 不满足→不允许标记 completed, 必须回退
+- **Entry Gate**: 进场前检查条件 (如 `run_bundle_exists`, `style_master_locked`). 不满足→Agent 被告知缺什么, 引导用户去补 (而不是报错退出)
+- **Exit Gate**: 出场前验收条件 (如 `pptx_exists`, `visual_gate: approved`). 不满足→不允许标记 completed, 必须回退重做
 - **Shared Node**: `shared: true` 的 node 可被多个 playbook 引用而不复制
 
 ### 2. 定义 Run Bundle State Schema
@@ -52,7 +54,20 @@ Node 命名沿 DPT 的 11 phases: instantiation → hitl1 → setup → seed-top
 
 ### 4. 重构 `COMMANDS.md` 为路由表
 
-从被动速查表转为主动路由: 用户一句话 → playbook 名 + 入口参数. Agent 读 COMMANDS.md 判断该调哪个 playbook, 然后读取对应 playbook 文件开始执行.
+COMMANDS.md 从被动速查表转为主动路由: 用户一句话 → playbook 名 + 入口参数. 每个 playbook 文件本身就是一个**可调用的命令单元**——Agent 读 COMMANDS.md 分类用户意图, 然后加载对应的 playbook MD 文件作为执行命令开始按 node 序列工作.
+
+```
+用户说 "帮我做一个PPT"
+  → COMMANDS.md 查表: 全量创建 → playbook: full-creation
+  → Agent 加载 playbook/full-creation.md (MD Controller 命令)
+  → 从 instantiation node 开始逐个执行
+  → State 落盘, 断可续
+
+用户说 "第5页标题改一下"
+  → COMMANDS.md 查表: 文本修改 → playbook: chain-a, args: slide=5
+  → Agent 加载 playbook/chain-a.md
+  → classify-change → stage1-3-4-5 → verify
+```
 
 ### 5. CLI 脚本适配
 
