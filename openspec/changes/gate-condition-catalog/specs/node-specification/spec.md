@@ -52,3 +52,46 @@
 
 - **WHEN** wave0 exit conditions are satisfied
 - **THEN** `checkExit('wave0', playbookDir, state)` returns `{ pass: true }`
+
+### Requirement: State API provides complete query interface
+
+`state.mjs` SHALL export query functions: `getNodeStatus(state, name)`, `getCurrentNode(state)`, `getCompletedNodes(state)`, `getPendingNodes(state)`, `isNodeCompleted(state, name)`, `isPlaybookComplete(state)`, `getGateStatus(state, name)`, `isGateApproved(state, name)`, `getMissingConditions(nodeName, playbookDir, state, ctx)`.
+
+#### Scenario: Agent queries current position
+
+- **WHEN** Agent calls `getCurrentNode(state)` on a state with `current_node: wave0`
+- **THEN** it returns `'wave0'`
+
+### Requirement: State API provides complete manipulation interface
+
+`state.mjs` SHALL export manipulation functions: `setNodeStatus(state, name, status, extra)`, `resetNode(state, name)`, `skipNode(state, name, reason)`, `setGate(state, name, status)`, `switchPlaybook(state, newPlaybook)`, `startPlaybook(state, playbook)`, `createInitialState(deckName, deckType, style)`.
+
+#### Scenario: Rerun resets a node
+
+- **WHEN** Agent calls `resetNode(state, 'seed-topics')` during a rerun cycle
+- **THEN** `seed-topics` status returns to `pending`
+- **AND** previously stored extra fields (topic_count) are cleared
+
+### Requirement: State API handles corruption and absence gracefully
+
+`readState(deckDir)` SHALL return a default initial state when the file does not exist. When the YAML file is corrupted, it SHALL return `{ corrupted: true, errors: [...] }` without throwing.
+
+#### Scenario: Fresh deck has no state file
+
+- **WHEN** `readState(deckDir)` is called on a deck without `run-bundle-state.yaml`
+- **THEN** it returns a default initial state structure
+
+#### Scenario: Corrupted state file is detected
+
+- **WHEN** the YAML file contains invalid syntax
+- **THEN** `readState(deckDir)` returns `{ corrupted: true, errors: ['YAML parse error at line 5'] }`
+
+### Requirement: CLI exposes state via ppt_flow state command
+
+`scripts/ppt_flow.mjs` SHALL support a `state` subcommand: `state <runDir>` (human-readable summary), `state <runDir> --json` (JSON output), `state <runDir> --check-gates` (gate validation with exit 0/1).
+
+#### Scenario: Agent checks state before Stage 2
+
+- **WHEN** Agent runs `node scripts/ppt_flow.mjs state <runDir> --check-gates`
+- **THEN** it exits 0 if content and visual gates are not pending
+- **AND** exits 1 with message if any gate is still pending

@@ -90,7 +90,86 @@ const ctx = {
 };
 ```
 
-### 2. CONDITIONS 注册表实现
+### 2. State API — 完整 CRUD + Query
+
+MD 和 CLI 交替执行: 读盘→干活→写盘。State 是两边的通信协议。`state.mjs` 暴露完整的查询和操纵 API。
+
+**READ / QUERY — 读状态:**
+
+```javascript
+// 基础读写
+readState(deckDir) → state
+writeState(deckDir, state)
+statePath(deckDir) → string                  // deckDir/run-bundle-state.yaml
+
+// 节点查询
+getNodeStatus(state, name) → 'pending' | 'in_progress' | 'completed' | 'skipped' | 'failed'
+getCurrentNode(state) → string               // e.g. 'wave0'
+getCompletedNodes(state) → string[]          // 已完成的 node 列表
+getPendingNodes(state) → string[]            // 待执行的 node 列表
+isNodeCompleted(state, name) → boolean       // 语法糖
+isPlaybookComplete(state) → boolean          // 所有 node 都是 completed/skipped
+
+// Gate 查询
+getGateStatus(state, name) → 'pending' | 'approved' | 'waived'
+isGateApproved(state, name) → boolean        // approved OR waived
+
+// 条件检查
+checkEntry(nodeName, playbookDir, state, ctx) → { pass, missing[], unknown[] }
+checkExit(nodeName, playbookDir, state, ctx) → { pass, missing[], unknown[] }
+getMissingConditions(nodeName, playbookDir, state, ctx) → string[]  // missing + unknown
+```
+
+**WRITE / MANIPULATE — 写状态:**
+
+```javascript
+// 节点操纵
+setNodeStatus(state, name, status, extra) → state
+  // status ∈ pending | in_progress | completed | skipped | failed
+  // extra: { decision: 'proceed', topic_count: 5, ... }
+resetNode(state, name) → state               // 回退到 pending (rerun 用)
+skipNode(state, name, reason) → state        // 标记 skipped + 记录原因
+
+// Gate 操纵
+setGate(state, name, status) → state
+
+// Playbook 操纵
+switchPlaybook(state, newPlaybook) → state   // 切换 playbook, 保留已有 node 状态
+startPlaybook(state, playbook) → state       // 初始化新 playbook
+
+// 工厂
+createInitialState(deckName, deckType, style) → state
+
+// 验证
+validateState(state) → { valid: boolean, errors: string[] }
+```
+
+**SAFETY — 防损坏:**
+
+```javascript
+readState(deckDir) → state
+  // 文件不存在 → createInitialState()
+  // YAML 解析失败 → 返回 { corrupted: true, errors: [...] } 
+  //   不抛异常, Agent 看到 corrupted 标记知道要重建
+```
+
+### 3. CLI 命令
+
+```bash
+# Agent 查状态
+node scripts/ppt_flow.mjs state <runDir>
+# → 人类可读: playbook, current_node, 已完成/待做 node, gate 状态
+
+node scripts/ppt_flow.mjs state <runDir> --json
+# → JSON, 脚本消费
+
+# CLI 脚本验证 gate (Stage 2 前检查)
+node scripts/ppt_flow.mjs state <runDir> --check-gates
+# → exit 0 当 content_gate≠pending AND visual_gate≠pending
+# → exit 1 + 打印缺失的 gate
+```
+
+### 4. CONDITIONS 注册表实现
 
 ```javascript
 // scripts/lib/state.mjs
