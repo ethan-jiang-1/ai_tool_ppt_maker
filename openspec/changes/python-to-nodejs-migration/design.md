@@ -5,7 +5,7 @@ PPTMAKER_FRAMEWORK 当前的生产管线 (Stage 1-5) 和基础设施脚本全部
 ## Goals / Non-Goals
 
 **Goals:**
-- 用 TypeScript/Node.js 重写全部 19 个 Python 文件, 功能等价, 对外接口不变
+- 用 Node.js ESM (`.mjs`) 重写全部 Python 文件, 功能等价, 对外接口不变
 - 三个核心外部依赖找到 Node.js 等价替代
 - CLI 命令名和参数保持兼容——Agent 调用的命令面不变
 - Windows/macOS/Linux 跨平台
@@ -20,21 +20,21 @@ PPTMAKER_FRAMEWORK 当前的生产管线 (Stage 1-5) 和基础设施脚本全部
 
 ## Decisions
 
-### 1. TypeScript + ESM
+### 1. Node.js ESM (`.mjs`)
 
-**选择**: TypeScript, ESM 模块, `tsx` 运行时.
+**选择**: Node.js 原生 ESM, `.mjs` 扩展名. `node script.mjs` 直接运行, 零额外依赖.
 
-**为什么不是纯 JS**: TypeScript 的类型系统对管线脚本 (大量 JSON 解析/组装) 有实质价值——接口即文档, 编译期捕获字段拼写错误. 原 Python 用 dataclass 做的事, TS interface 更简洁.
+**为什么不是 TypeScript**: 少一层编译/运行时依赖 (`tsx`, `typescript`). TypeScript 的类型系统对管线脚本有价值, 但 `.mjs` 的简单性更重要——用户只需要装 Node.js, `npm install` 就好了. Agent 跑 `node script.mjs`, 完全等同于 `python script.py` 的体验.
 
-**为什么是 `tsx`**: 不需要编译步骤. Agent 直接跑 `npx tsx script.ts`, 和 `python script.py` 体验一致.
+**`.mjs` vs `.js` + `"type": "module"`**: `.mjs` 扩展名强制 ESM 语义, 不受 package.json 的 `type` 字段影响. 与其他 `.js` 文件共存时不冲突.
 
 **考虑过的替代**:
-- `ts-node` — 慢, ESM 支持不好
-- 预编译为 JS — 多了 build step, Agent 体验差
+- TypeScript + `tsx` — 多两个依赖, 对用户无可见收益
+- CommonJS (`.cjs`) — 2026 年了, ESM 是标准
 
 ### 2. 包管理与入口
 
-**选择**: npm + `package.json` 放在 `PPTMAKER_FRAMEWORK/` 根. Agent 调用的入口是 `npx tsx 06_reference_scripts/ppt_flow.ts <command>`.
+**选择**: npm + `package.json` 放在 `PPTMAKER_FRAMEWORK/` 根. Agent 调用的入口是 `node 06_reference_scripts/ppt_flow.mjs <command>`. Node.js 最低版本 18 (LTS, `fetch` 内置). 用户只需: 装 Node.js → `npm install` → 配 `.env` → 跑.
 
 **为什么不是 pnpm/yarn**: npm 随 Node.js 发行, 零额外安装. coding agent 项目可能已有自己的包管理器; 框架不强制.
 
@@ -47,7 +47,7 @@ PPTMAKER_FRAMEWORK 当前的生产管线 (Stage 1-5) 和基础设施脚本全部
 | requests | `fetch` (Node 18+ 内置) | 零依赖. 异步原生. |
 | argparse | `commander` | 纯 JS, 声明式 CLI 定义 |
 | subprocess | `child_process` | Node 内置 |
-| dataclasses | TypeScript interface/type | 语言特性 |
+| dataclasses | JSDoc `@typedef` | 文档即类型, 无编译 |
 
 **`@napi-rs/canvas` 深度评估**:
 - 对标 Pillow 的核心能力: loadImage, drawText (含自定义字体), 像素级定位, saveImage
@@ -61,33 +61,53 @@ PPTMAKER_FRAMEWORK 当前的生产管线 (Stage 1-5) 和基础设施脚本全部
 ```
 PPTMAKER_FRAMEWORK/
 ├── package.json              # npm 依赖声明
-├── tsconfig.json             # TypeScript 配置
 ├── 06_reference_scripts/
-│   ├── ppt_flow.ts           # CLI 入口 (← 原 ppt_flow.py)
-│   ├── bundle_layout.ts      # 目录结构宪法 (← 原 bundle_layout.py)
-│   ├── unified_pipeline.ts   # 管线编排器 (← 原 unified_pipeline.py)
-│   ├── stage1_build_inputs.ts
-│   ├── stage3_lock_headers.ts
-│   ├── stage4_build_pptx.ts
-│   ├── stage5_inject_notes.ts
-│   ├── visual_config.ts
-│   ├── generate_style_master.ts
-│   └── __tests__/            # 测试
-│       ├── test_bundle_layout.ts
-│       ├── test_pipeline_e2e.ts
-│       ├── test_pipeline_guards.ts
-│       ├── test_spec_validation.ts
-│       ├── test_visual_config.ts
-│       └── test_docs_consistency.ts
+│   ├── ppt_flow.mjs          # CLI 入口 (← 原 ppt_flow.py)
+│   ├── bundle_layout.mjs     # 目录结构宪法 (← 原 bundle_layout.py)
+│   ├── unified_pipeline.mjs  # 管线编排器 (← 原 unified_pipeline.py)
+│   ├── stage1_build_inputs.mjs
+│   ├── stage3_lock_headers.mjs
+│   ├── stage4_build_pptx.mjs
+│   ├── stage5_inject_notes.mjs
+│   ├── visual_config.mjs
+│   └── generate_style_master.mjs
+├── tests/                    # 测试 (根目录, 与 scripts 一一对应)
+│   ├── test_bundle_layout.mjs
+│   ├── test_stage1_build_inputs.mjs
+│   ├── test_stage3_lock_headers.mjs
+│   ├── test_stage4_build_pptx.mjs
+│   ├── test_stage5_inject_notes.mjs
+│   ├── test_unified_pipeline.mjs
+│   ├── test_ppt_flow.mjs
+│   ├── test_visual_config.mjs
+│   ├── test_generate_style_master.mjs
+│   ├── test_env_check.mjs
+│   └── test_docs_consistency.mjs
 ├── 00_project_setup/
-│   ├── 00-env-check.ts       # 环境检查 (← .py)
+│   ├── 00-env-check.mjs      # 环境检查 (← 00-auto-env-check.py)
 │   └── 02-nodejs-environment.md  # 环境文档 (← 02-python-environment.md)
-│
+
 # 删除:
 # ✗ *.py (全部 19 个)
 # ✗ stage2_generate_images.LEGACY.py (已废弃)
 # ✗ run_tests.py (vitest 替代)
 ```
+
+测试放在 repo 根目录 `tests/`, 与 `PPTMAKER_FRAMEWORK/` 平级——用户不需要看到测试。
+
+```
+tests/
+├── test_bundle_layout.mjs
+├── test_stage1_build_inputs.mjs
+├── test_stage3_lock_headers.mjs
+├── test_stage4_build_pptx.mjs
+├── test_stage5_inject_notes.mjs
+├── test_unified_pipeline.mjs
+├── test_ppt_flow.mjs
+├── test_visual_config.mjs
+├── test_generate_style_master.mjs
+├── test_env_check.mjs
+└── test_docs_consistency.mjs
 
 ### 5. Stage 2 LEGACY
 
@@ -95,9 +115,21 @@ PPTMAKER_FRAMEWORK/
 
 ### 6. 测试
 
-**选择**: `vitest`, 测试与源文件同层放在 `__tests__/`.
+**选择**: `vitest`. 测试放在 repo 根目录 `tests/` (与 `PPTMAKER_FRAMEWORK/` 平级), 每个源脚本一个测试文件, 命名 `test_<script>.mjs`.
 
-vitest 原生支持 TypeScript ESM, 与 `tsx` 运行时一致. `node:test` 也可以但生态不如 vitest.
+| 源脚本 | 测试文件 |
+|--------|---------|
+| `06_reference_scripts/bundle_layout.mjs` | `tests/test_bundle_layout.mjs` |
+| `06_reference_scripts/stage1_build_inputs.mjs` | `tests/test_stage1_build_inputs.mjs` |
+| `06_reference_scripts/stage3_lock_headers.mjs` | `tests/test_stage3_lock_headers.mjs` |
+| `06_reference_scripts/stage4_build_pptx.mjs` | `tests/test_stage4_build_pptx.mjs` |
+| `06_reference_scripts/stage5_inject_notes.mjs` | `tests/test_stage5_inject_notes.mjs` |
+| `06_reference_scripts/unified_pipeline.mjs` | `tests/test_unified_pipeline.mjs` |
+| `06_reference_scripts/ppt_flow.mjs` | `tests/test_ppt_flow.mjs` |
+| `06_reference_scripts/visual_config.mjs` | `tests/test_visual_config.mjs` |
+| `06_reference_scripts/generate_style_master.mjs` | `tests/test_generate_style_master.mjs` |
+| `00_project_setup/00-env-check.mjs` | `tests/test_env_check.mjs` |
+| — | `tests/test_docs_consistency.mjs` (static drift guard) |
 
 ## Risks / Trade-offs
 
@@ -115,4 +147,5 @@ vitest 原生支持 TypeScript ESM, 与 `tsx` 运行时一致. `node:test` 也�
 
 ## Open Questions
 
-_无. 所有技术决策已在探索阶段确认._
+1. **`@napi-rs/canvas` 的预编译包是否覆盖 Windows ARM?** — 目前主流 Windows 是 x64. 如果未来需支持 Windows ARM (Surface Pro X 等), 需要确认 `@napi-rs/canvas-win32-arm64-msvc` 的存在. 当前不阻塞.
+2. **`pptxgenjs` 对 16:9 full-bleed image slide 的支持是否完美?** — 需在首轮实现中验证. 备选: 直接用 `jszip` 操作 PPTX XML (更底层但更可控).
