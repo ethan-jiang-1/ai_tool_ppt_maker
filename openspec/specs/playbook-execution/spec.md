@@ -46,12 +46,12 @@
 
 ### Requirement: State file is created on playbook start
 
-When a playbook begins execution, `run-bundle-state.yaml` SHALL be created (if it does not exist) or validated (if it already exists). The `playbook` and `current_node` fields SHALL be set.
+When a playbook begins execution, `_state/state.yaml` SHALL be created (if it does not exist) or validated (if it already exists). The `playbook` and `current_node` fields SHALL be set.
 
 #### Scenario: First node of create-deck writes initial state
 
 - **WHEN** Agent executes node `instantiation` for the first time
-- **THEN** `deck_<name>/run-bundle-state.yaml` is created with `playbook: create-deck`, `current_node: instantiation`
+- **THEN** `deck_<name>/_state/state.yaml` is created with `playbook: create-deck`, `current_node: instantiation`
 
 ### Requirement: Gates are enforced at node boundaries
 
@@ -60,7 +60,7 @@ No node SHALL transition to `completed` until its exit gate conditions are met. 
 #### Scenario: Production node blocked by pending visual gate
 
 - **WHEN** Stage 2 (image generation) is about to start
-- **THEN** the CLI script reads `run-bundle-state.yaml` and finds `visual_gate: pending`
+- **THEN** the CLI script reads `_state/state.yaml` and finds `visual_gate: pending`
 - **AND** the script refuses to run and reports "visual_gate must be approved or waived"
 
 ### Requirement: Shared nodes are referenced via includes
@@ -75,9 +75,9 @@ A playbook SHALL be able to reference a shared node via `includes: [<node-name>]
 
 ### Requirement: State file coexists with project-metadata.yaml
 
-`run-bundle-state.yaml` SHALL coexist with the existing `project-metadata.yaml` in the run bundle root. The state file SHALL track execution progress (playbook, current_node, per-node status). The metadata file SHALL continue to track static configuration (deck_name, topic, audience, gate decisions).
+`_state/state.yaml` SHALL coexist with the existing `project-metadata.yaml` in the run bundle root. The state file SHALL track execution progress (playbook, current_node, per-node status). The metadata file SHALL continue to track static configuration (deck_name, topic, audience, gate decisions).
 
 #### Scenario: Both files exist in run bundle root
 
 - **WHEN** a run bundle is initialized and playbook execution begins
-- **THEN** `deck_<name>/` contains both `project-metadata.yaml` (static config) and `run-bundle-state.yaml` (execution state)
+- **THEN** `deck_<name>/` contains both `project-metadata.yaml` (static config) and `_state/state.yaml` (execution state)
