@@ -2,11 +2,11 @@
 
 ### Requirement: Zero-dependency runtime check
 
-`00-env-check.mjs` SHALL have zero npm dependencies. It SHALL run on any Node.js >= 18 installation without `npm install` first, using only Node.js built-in modules (`fs`, `path`, `os`, `child_process`).
+`scripts/env-check.mjs` SHALL have zero npm dependencies. It SHALL run on any Node.js >= 18 installation without `npm install` first, using only Node.js built-in modules (`fs`, `path`, `os`, `child_process`).
 
 #### Scenario: Run without node_modules
 
-- **WHEN** `node workflow/00-setup/00-env-check.mjs` runs in a fresh directory with no `node_modules/`
+- **WHEN** `node scripts/env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** script executes successfully
 
 ### Requirement: Node.js version gate

@@ -1,45 +1,46 @@
-# 命令速查
+# 命令路由表
 
-> 你说什么 → Agent 做什么. 30 秒扫完.
+> 你说一句话 → Agent 判断意图 → 加载对应 Playbook 执行.
+> 每个 Playbook 是一个 MD Controller, 定义有序 Node 序列 + Entry/Exit Gate.
 
 ## 全量创建
 
-| 你说 | Agent 走 |
-|------|---------|
-| "帮我做一个PPT" / "我要做一个关于X的演示" | BOOTSTRAP 三步启动 → Phase 0→1→2→3→4 |
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "帮我做一个PPT" | `full-creation` | 11 nodes, 从 instantiation → final |
+| "我要做一个关于X的演示" | `full-creation` | 同上 |
 
 ## 迭代打磨
 
-| 你说 | 链 | 执行 | 耗时 |
-|------|----|------|------|
-| "第5页标题不够有力" | A | Stage 1,3,4,5 --only 5 | ~5 min |
-| "第8页的图重新生成一张" | B | Stage all --only 8 | ~5 min |
-| "换个配色试试" | B | pilot 3 页 1k → 确认 → 全量 2k | ~15 min |
-| "所有页面的颜色都换成蓝色系" | B | --force-images 2k | ~N×5 min |
-| "备注改一下" | C | Stage 5 | ~30 sec |
-| "加一页案例在最后" | Structural | --new-version + 新页 | ~5 min |
-| "删掉第3页" | Structural | --new-version | ~5 min |
-| "第2页和第5页换个顺序" | Structural | --new-version | ~5 min |
+| 用户说 | Playbook | 入口参数 |
+|--------|----------|---------|
+| "第N页标题改一下" | `chain-a` | slide=N, field=title |
+| "第N页标题不够有力" | `chain-a` | slide=N |
+| "kicker 改成 XXX" | `chain-a` | slide=N, field=kicker |
+| "第N页的图重新生成" | `chain-b` | slide=N |
+| "换个配色试试" | `chain-b` | scope=all, pilot=true |
+| "全部换成蓝色系" | `chain-b` | scope=all, pilot=true, force=true |
+| "整体感觉不够高端" | `chain-b` | scope=direction (回 Phase 1, 重选 preset) |
+| "备注改一下" | `chain-c` | — |
+| "加一页案例在最后" | `structural` | action=add, position=end |
+| "删掉第N页" | `structural` | action=delete, slide=N |
+| "第N页和第M页换个顺序" | `structural` | action=reorder |
 
-## 内容 & 结构变更
+## 内容 & 方向变更
 
-| 你说 | 走什么 |
-|------|--------|
-| "这段论证逻辑有问题" | 回 Phase 2, 改 backbone 的 formula/block map |
-| "每页的数据都更新一下" | Chain A, 所有页 (批量文本) |
-| "换个案例, 用特斯拉代替苹果" | Chain A, 单页或几页 |
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "这段论证逻辑有问题" | `full-creation` | 回 hitl2 → rerun → seed-topics |
+| "换个案例, 用X代替Y" | `chain-a` | 改内容, 不改图 |
+| "每页的数据都更新一下" | `chain-a` | 批量文本, 所有页 |
 
-## 视觉 & 风格变更
-
-| 你说 | 走什么 |
-|------|--------|
-| "整体感觉不够高端" | 回 Phase 1, Agent 推荐 2-3 个替代 preset |
-| "这个红色太刺眼了" | 改 color_palette.json → regenerate style_master → pilot |
-
-## Agent 怎么判断
+## Agent 路由逻辑
 
 ```
-1. 改了什么?   title/text → Chain A   visual → Chain B   notes → C   structure → Structural
-2. 几页?       1 → --only   几页 → rerun affected   全部 → --force-images
-3. pilot?      颜色/风格变更 → 先试 3 页   文本变更 → 直接跑
+用户说了一句话
+  → 读 COMMANDS.md, 匹配意图
+  → 确定 playbook 名 + 入口参数
+  → 加载 playbook/<name>.md (MD Controller)
+  → 从第一个 node 开始执行
+  → State 写入 run-bundle-state.yaml
 ```
