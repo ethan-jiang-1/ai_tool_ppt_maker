@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: State file is created at _state/state.yaml on playbook start
+### Requirement: State file is created on playbook start
 
 When a playbook begins execution, `_state/state.yaml` SHALL be created (if it does not exist) or validated (if it already exists). The `playbook` and `current_node` fields SHALL be set.
 
@@ -11,7 +11,7 @@ When a playbook begins execution, `_state/state.yaml` SHALL be created (if it do
 
 ### Requirement: Gates are enforced at node boundaries
 
-No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (content_gate, visual_gate) SHALL remain `pending` until the human explicitly approves or waives them.
+No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (content_gate, visual_gate) SHALL remain `pending` until the human explicitly approves or waives them. CLI scripts SHALL read `_state/state.yaml` to verify gate status before executing.
 
 #### Scenario: Production node blocked by pending visual gate
 
@@ -23,6 +23,6 @@ No node SHALL transition to `completed` until its exit gate conditions are met. 
 
 ### Requirement: State file coexists with project-metadata.yaml
 
-**Reason**: Replaced by `_state/` directory design. `state.yaml` lives in `_state/`, `project-metadata.yaml` at deck root. No longer a single-file coexistence concern.
+**Reason**: Replaced by `_state/` directory design. `state.yaml` lives in `_state/`, `project-metadata.yaml` at deck root.
 
-**Migration**: `_state/state.yaml` is the execution state. `project-metadata.yaml` is static config. They live in different locations.
+**Migration**: `_state/state.yaml` is execution state. `project-metadata.yaml` is static config. Separate locations, no coexistence concern.
