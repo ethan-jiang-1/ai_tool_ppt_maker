@@ -19,7 +19,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 |----|------|-------|
 | — | — | — |
 
-**Next available bug ID: BUG-001**
+**Next available bug ID: BUG-002**
 
 ---
 

@@ -15,13 +15,11 @@
 
 ## 活跃列表
 
-_（暂无活跃 bug。新建时在下表加一行，并用下面的模板建 `BUG-<NNN>-<slug>.md`。）_
-
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| — | — | — |
+| [BUG-001](BUG-001-main-specs-stored-in-delta-format.md) | P1 | 15/16 主 spec 存成 delta 格式，`openspec validate --specs` 系统性失败 |
 
-**Next available bug ID: BUG-001**
+**Next available bug ID: BUG-002**
 
 ---
 
