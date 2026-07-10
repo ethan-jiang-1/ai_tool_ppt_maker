@@ -81,7 +81,7 @@ agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时
 - `02_content_design/00-03` — 为什么叙事优先、怎么找隐喻和公式
 - `01_visual_style_master/00,02,03` — style anchoring 怎么工作
 - `04_production_pipeline/00` — 管线哲学和 Header-Lock
-- `00_project_setup/01-directory-template.md` — 目录结构(宪法)的人读版
+- `charter/CONSTITUTION.md` — 目录结构(宪法)的人读版
 
 ---
 

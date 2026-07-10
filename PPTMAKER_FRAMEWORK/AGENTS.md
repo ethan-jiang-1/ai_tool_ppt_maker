@@ -19,11 +19,11 @@ agent_action: navigate
 # AGENTS.md — PPT Flow Orchestrator
 
 > 本文件为 **agent-agnostic**——适用于 Claude Code、Codex、Cursor 及任何 AI coding agent。
-> **每次 session 先读 [AGENT_CONTRACT.md](AGENT_CONTRACT.md)（10 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
+> **每次 session 先读 [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
 
 ## 给人类读者
 
-> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [QUICK_START.md](QUICK_START.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [AGENT_CONTRACT.md](AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
+> 如果你是正在读这份文件的人类——**你不需要自己执行下面的命令。** 把 [00_project_setup/00_project_setup/QUICK_START.md](00_project_setup/00_project_setup/QUICK_START.md) 里的 conversation starter 贴进你的 AI coding agent，agent 会读 [BOOTSTRAP.md](BOOTSTRAP.md) + [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md) 并替你执行。你的工作：回答 agent 的问题（关于你的 topic、听众、偏好），在每个闸门前做内容判断。
 >
 > 下面这些步骤是 agent 的操作手册。你可以读它来理解流程，但不需要手动操作。
 
@@ -118,7 +118,7 @@ Phase 4: 迭代维护
 
 ### 0.2 创建 Run Bundle
 
-参考 `00_project_setup/01-directory-template.md`（人类可读镜像）和 `06_reference_scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
+参考 `charter/CONSTITUTION.md`（人类可读镜像）和 `06_reference_scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
 
 ```
 deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留）

@@ -129,4 +129,4 @@ agent 提问（关于你的内容/风格）→ 你回答 → agent 生成/修改
 
 ---
 
-> **准备好了？** 回到 [QUICK_START.md](../QUICK_START.md)，或者直接把上面的 conversation starter 贴进你的 agent。
+> **准备好了？** 回到 [00_project_setup/QUICK_START.md](../00_project_setup/QUICK_START.md)，或者直接把上面的 conversation starter 贴进你的 agent。

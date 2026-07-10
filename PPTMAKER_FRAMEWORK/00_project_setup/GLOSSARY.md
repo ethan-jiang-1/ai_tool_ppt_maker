@@ -141,4 +141,4 @@ Image generation 的调用模式：submit（提交 prompt）→ poll（轮询任
 
 ---
 
-> 有术语缺失？先查 [AGENT_CONTRACT.md](AGENT_CONTRACT.md)，或在 AGENTS.md 的快速查阅表中搜索。
+> 有术语缺失？先查 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)，或在 AGENTS.md 的快速查阅表中搜索。

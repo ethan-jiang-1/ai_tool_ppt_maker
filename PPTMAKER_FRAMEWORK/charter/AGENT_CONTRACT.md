@@ -130,6 +130,6 @@ node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs build \
 |--------|------|
 | Phase 逐步怎么做 | `AGENTS.md` 对应 Phase 节 |
 | 改动分类 | `automation/change-classifier.md` |
-| 常见错误 | `ANTI_PATTERNS.md` |
-| 术语 | `GLOSSARY.md` |
+| 常见错误 | `00_project_setup/ANTI_PATTERNS.md` |
+| 术语 | `00_project_setup/GLOSSARY.md` |
 | 方法论深挖 | `01_`–`05_` 各模块 README |

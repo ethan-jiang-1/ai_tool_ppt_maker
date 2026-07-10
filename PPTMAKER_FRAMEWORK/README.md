@@ -15,8 +15,8 @@ agent_action: navigate
 > **先读这个。**
 > 这是 `PPTMAKER_FRAMEWORK/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。
 >
-> **第一次来（人类）？** 看 [Quick Start](QUICK_START.md)——5 分钟找到你的路径。
-> **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [AGENT_CONTRACT.md](AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
+> **第一次来（人类）？** 看 [Quick Start](00_project_setup/00_project_setup/QUICK_START.md)——5 分钟找到你的路径。
+> **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [charter/charter/AGENT_CONTRACT.md](charter/charter/AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
 
 ## 一句话
 
@@ -33,12 +33,12 @@ agent_action: navigate
 ```
 PPTMAKER_FRAMEWORK/
   ├── BOOTSTRAP.md                      ← Agent 启动（env → intake → build）
-  ├── AGENT_CONTRACT.md                 ← Agent 一页铁律（每次 session 先内化）
+  ├── charter/charter/AGENT_CONTRACT.md                 ← Agent 一页铁律（每次 session 先内化）
   ├── AGENTS.md                         ← Phase 详解手册（按需翻，勿整本通读）
   ├── CLAUDE.md                         ← 自动加载桩 → BOOTSTRAP
   ├── README.md                         ← 你在读这个（是什么/为什么）
-  ├── QUICK_START.md                    ← 新用户 5 分钟入口
-  ├── ANTI_PATTERNS.md                  ← 框架级常见错误
+  ├── 00_project_setup/00_project_setup/QUICK_START.md                    ← 新用户 5 分钟入口
+  ├── 00_project_setup/00_project_setup/ANTI_PATTERNS.md                  ← 框架级常见错误
   ├── 00_project_setup/      ← Foundation：项目初始化与环境
   ├── 01_visual_style_master/           ← 视觉方法模块
   ├── 02_content_design/               ← 内容方法模块
@@ -117,7 +117,7 @@ PPTMAKER_FRAMEWORK/
 ### 学习路径
 
 1. 读这个 README。理解体系架构。
-2. 读 `00_project_setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `06_reference_scripts/bundle_layout.mjs`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `00_project_setup/01-directory-template.md`。不要临场发挥目录。
+2. 读 `00_project_setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `06_reference_scripts/bundle_layout.mjs`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `charter/CONSTITUTION.md`。不要临场发挥目录。
 3. **按需深入**：根据你在哪个阶段，进入对应的子目录。每个子目录有自己的 README 和阅读路径。
    - 需要设计视觉 → `01_visual_style_master/`
    - 需要设计内容 → `02_content_design/`
@@ -184,4 +184,4 @@ PPTMAKER_FRAMEWORK/
 
 > **Next**: `00_project_setup/` — 理解文件系统架构：soft bundle vs run bundle，以及项目目录模板。
 >
-> **遇到问题？** 先查 [ANTI_PATTERNS](ANTI_PATTERNS.md)——你可能撞上了 7 个常见错误之一。
+> **遇到问题？** 先查 [ANTI_PATTERNS](00_project_setup/00_project_setup/ANTI_PATTERNS.md)——你可能撞上了 7 个常见错误之一。

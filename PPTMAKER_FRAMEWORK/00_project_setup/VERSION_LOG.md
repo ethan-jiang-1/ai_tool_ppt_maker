@@ -65,7 +65,7 @@ v1 . 0 . 0
 
 1. **RENDER MODE 唯一词汇**：对外与 `slide_plan.json` 一律使用 `full-page` / `body+header-lock`。字段为 `layout_contract.render_mode`（不再写 `header_variant`）。旧词 `image_direct` / `normal` 仅作**输入别名**兼容；Stage 3 读 canonical，旧 plan 的 `header_variant` 仍可映射。
 2. **Stage 2 官方路径唯一**：`unified_pipeline.mjs` → `image2-ppt/scripts/generate_full_page_images.py`。原 `stage2_generate_images.py` 改名为 `stage2_generate_images.LEGACY.py`（默认不用）。
-3. **AGENT_CONTRACT.md**：10 条不可违反铁律（一页）。入口流变为 BOOTSTRAP → AGENT_CONTRACT → 按 Phase 翻 AGENTS（勿整本通读）。CLAUDE / README / QUICK_START / ANTI_PATTERNS 已对齐。
+3. **charter/AGENT_CONTRACT.md**：10 条不可违反铁律（一页）。入口流变为 BOOTSTRAP → AGENT_CONTRACT → 按 Phase 翻 AGENTS（勿整本通读）。CLAUDE / README / QUICK_START / ANTI_PATTERNS 已对齐。
 
 ### 兼容性
 
