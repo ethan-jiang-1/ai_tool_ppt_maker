@@ -75,9 +75,34 @@ The directory `PPTMAKER_FRAMEWORK/06_reference_scripts/` SHALL NOT exist. All it
 
 ### Requirement: All cross-references resolve correctly
 
-Every cross-reference in .md and .mjs files SHALL use the new directory names. A grep for old directory names SHALL return zero results.
+Every cross-reference in .md and .mjs files SHALL use the new directory names. This includes files inside `PPTMAKER_FRAMEWORK/`, `openspec/specs/`, and `openspec/config.yaml`. A grep for old directory names SHALL return zero results.
 
-#### Scenario: Grep for old names is clean
+#### Scenario: Grep for old names inside framework is clean
 
 - **WHEN** `grep -r "06_reference_scripts\|00_project_setup\|automation/" PPTMAKER_FRAMEWORK/` is run
+- **THEN** no matches are found (VERSION_LOG historical references excepted)
+
+#### Scenario: Grep for old names in openspec specs is clean
+
+- **WHEN** `grep -r "06_reference_scripts\|00_project_setup\|automation/\|01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" openspec/specs/` is run
 - **THEN** no matches are found
+
+### Requirement: workflow/00-setup README reflects reduced file inventory
+
+The file `PPTMAKER_FRAMEWORK/workflow/00-setup/README.md` SHALL be updated to remove references to the 4 moved appendix files (now in `reference/`) and the env-check script (now in `scripts/`).
+
+#### Scenario: README accurately lists remaining contents
+
+- **WHEN** a human reads `workflow/00-setup/README.md`
+- **THEN** the file inventory no longer mentions QUICK_START, GLOSSARY, ANTI_PATTERNS, VERSION_LOG, or the env-check script
+- **AND** it mentions that reference documents are in `../reference/`
+
+### Requirement: env-check script is accessible from scripts/
+
+The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/env-check.mjs`. It SHALL function correctly from this location, with internal font search paths updated to reflect the new directory structure.
+
+#### Scenario: Env check runs from new location
+
+- **WHEN** `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` is run
+- **THEN** it checks fonts from `scripts/fonts/` (not `06_reference_scripts/fonts/`)
+- **AND** outputs READY/NOT READY correctly

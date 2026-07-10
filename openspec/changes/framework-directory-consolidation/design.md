@@ -85,10 +85,12 @@ rmdir automation/
 **所有 .mjs 脚本** (相对 import):
 - 脚本彼此之间的 import 路径不变 (都在 `scripts/` 内, 相对路径不涉及目录名)
 
-**硬编码路径 (需要更新)**:
-- `env-check.mjs` 中 `fonts/` 的搜索路径
-- `bundle_layout.mjs` 中 `deck-guide.md` 模板里的脚本路径
-- `ppt_flow.mjs` 中 `env-check.mjs` 的引用
+**硬编码路径 (具体需要更新)**:
+- `scripts/env-check.mjs`: `resolve(__dirname, '..', '06_reference_scripts', 'fonts')` → `resolve(__dirname, 'fonts')` (fonts 现在在同一目录)
+- `scripts/env-check.mjs`: 用户提示字符串 `"Drop SourceSansPro-*.otf into 06_reference_scripts/fonts/"` → `"Drop SourceSansPro-*.otf into scripts/fonts/"`
+- `scripts/ppt_flow.mjs`: `join(FRAMEWORK_DIR, "00_project_setup", "00-env-check.mjs")` → `join(FRAMEWORK_DIR, "scripts", "env-check.mjs")`
+- `scripts/unified_pipeline.mjs`: 脚本路径字符串 (如 `stage3_lock_headers.py` → `stage3_lock_headers.mjs`)
+- `scripts/bundle_layout.mjs`: `init_bundle` 中 deck-guide.md 模板里的 `unified_pipeline.mjs` 和 `bundle_layout.mjs` 路径字符串
 
 **所有 .md 文件** (~30+ 个):
 - 全量 grep + sed: 旧目录名 → 新目录名
@@ -104,3 +106,7 @@ rmdir automation/
 
 **[R] 测试文件中的硬编码路径**
 → `test_docs_consistency.mjs` 和 `test_env_check.mjs` 需更新
+
+**[R] sed 替换顺序风险** — 如果先替换 `00_project_setup` → `workflow/00-setup`, 再替换 `automation/` → `scripts/`, 没问题. 但如果 sed 模式太宽 (如 `/automation/`), 会误伤已替换的内容. → 替换顺序: 先改长名 (Phase 目录), 再改短名 (scripts, reference). 每个模式用精确匹配: `\b00_project_setup\b` → `workflow/00-setup`.
+
+**[R] `openspec/specs/` 主 spec 引用旧路径** — 17 处分布在 5 个 spec 文件中 → 需纳入全量 grep/sed 更新范围

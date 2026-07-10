@@ -44,8 +44,7 @@ PPTMAKER_FRAMEWORK/                      PPTMAKER_FRAMEWORK/
 
 ### Modified Capabilities
 
-- `framework-charter`: CONSTITUTION.md 中的目录树和脚本路径更新
-- `commands-reference`: COMMANDS.md 中的命令路径更新
+_无. `framework-charter` 和 `commands-reference` 的 spec 文件中包含旧目录路径需要更新, 但 capability 的行为需求不变——仅是文档内路径引用的同步._
 
 ## Impact
 
@@ -58,5 +57,6 @@ PPTMAKER_FRAMEWORK/                      PPTMAKER_FRAMEWORK/
 | `automation/` | 删除 (空目录) |
 | 旧目录名 (`00_project_setup/`, `01_visual_style_master/`, ...) | 全部消失 |
 | 所有 .mjs import 路径 | 更新 |
-| 所有 .md 交叉引用 | 更新 (~30+ 文件) |
-| `tests/test_docs_consistency.mjs` | CRITICAL_FILES 路径更新 |
+| 所有 .md 交叉引用 | 更新 (PPTMAKER_FRAMEWORK 内 ~30+ 文件 + `openspec/specs/` 内 17 处) |
+| `openspec/config.yaml` | capability 表格脚本路径更新 |
+| `openspec/specs/` (主 spec) | 11 个 spec 文件中的旧路径更新 |

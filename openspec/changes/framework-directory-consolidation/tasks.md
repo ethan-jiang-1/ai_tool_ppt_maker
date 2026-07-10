@@ -52,13 +52,18 @@
 - [ ] 6.7 替换所有 `06_reference_scripts` → `scripts`
 - [ ] 6.8 替换所有 `automation/` → `scripts/` (对于 agent_prompts.md 和 change-classifier.md)
 - [ ] 6.9 更新 `workflow/00-setup/README.md` 文件清单
-- [ ] 6.10 更新 repo 根 `AGENTS.md` 目录地图
+- [ ] 6.10 更新 `workflow/00-setup/README.md`: 移除 QUICK_START/GLOSSARY/ANTI_PATTERNS/VERSION_LOG/env-check 引用, 指向 `../reference/` 和 `../scripts/`
+- [ ] 6.11 更新 repo 根 `AGENTS.md` 目录地图
+- [ ] 6.12 更新 `openspec/specs/` 中 11 个主 spec 文件的旧路径引用 (全量 grep + sed)
+- [ ] 6.13 检查并清理 `workflow/00-setup/__pycache__/` (如存在)
 
-## 7. 更新测试和配置
+## 7. 更新测试、配置和 openspec/specs/
 
-- [ ] 7.1 `tests/test_docs_consistency.mjs`: CRITICAL_FILES 路径
-- [ ] 7.2 `tests/test_env_check.mjs`: env-check.mjs 路径
-- [ ] 7.3 `openspec/config.yaml`: capability 表格中的脚本路径
+- [ ] 7.1 `tests/test_docs_consistency.mjs`: CRITICAL_FILES 路径更新
+- [ ] 7.2 `tests/test_env_check.mjs`: env-check.mjs 路径更新
+- [ ] 7.3 `tests/test_bundle_layout.mjs`: bundle 路径更新 (如有)
+- [ ] 7.4 `openspec/config.yaml`: capability 表格中的脚本路径更新
+- [ ] 7.5 `openspec/specs/`: 全量 grep + sed 更新 17 处旧路径引用
 
 ## 8. 验证
 
@@ -66,5 +71,7 @@
 - [ ] 8.2 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --self-check` 通过
 - [ ] 8.3 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` 打印完整权威树
 - [ ] 8.4 `npm test` 全部通过
-- [ ] 8.5 `grep -r "06_reference_scripts\|00_project_setup\|automation/" PPTMAKER_FRAMEWORK/` 零残留 (新位置内部引用除外)
+- [ ] 8.5 `grep -r "06_reference_scripts\|00_project_setup\|automation/" PPTMAKER_FRAMEWORK/` 零残留 (VERSION_LOG 历史引用除外)
 - [ ] 8.6 `grep -r "01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" PPTMAKER_FRAMEWORK/` 零残留
+- [ ] 8.7 `grep -r "06_reference_scripts\|00_project_setup\|automation/\|01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" openspec/specs/` 零残留
+- [ ] 8.8 `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` 正常运行
