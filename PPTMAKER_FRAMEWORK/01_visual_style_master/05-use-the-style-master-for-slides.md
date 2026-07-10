@@ -23,7 +23,7 @@ agent_action: internalize
 
 ## Anchoring 如何在技术上工作
 
-当你用 `unified_pipeline.py`（Stage 2 → image2-ppt skill）生成 slides 时：
+当你用 `unified_pipeline.mjs`（Stage 2 → image2-ppt skill）生成 slides 时：
 
 1. Style master 作为 reference image 传入 API（`--style-reference` 参数）
 2. Stage 1 组装的最终 prompt 已含一次 **anchoring clause（锚定条款）**；Stage 2 只附加 reference image，不重复修改 prompt：
@@ -54,14 +54,14 @@ system — do not deviate from it. Only change the slide content, not the style.
 
 ```bash
 # 先跑 Stage 1（解析 markdown → JSON，写入 _generated/）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.mjs \
   --input 3_versions/v1/slide-specifications.md \
   --out-dir 3_versions/v1/_generated/ \
   --style-dir 2_backbone/visual-style/
 
 # 手动编辑 _generated/page_prompts/_prompts.json，只保留 pilot 用的几张 slide
 # 然后跑 Stage 2（生图）
-uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
+node <skills>/image2-ppt/scripts/generate_full_page_images.py \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \
@@ -74,7 +74,7 @@ uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
 Pilot 通过后，生成全 deck：
 
 ```bash
-uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
+node <skills>/image2-ppt/scripts/generate_full_page_images.py \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \
@@ -83,19 +83,19 @@ uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
 
 ### Step 4: Header-Lock + PPTX
 ```bash
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.mjs \
   --images 3_versions/v1/_generated/page_images_full/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/header_locked/ \
   --style-dir 2_backbone/visual-style/
 
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.mjs \
   --images 3_versions/v1/_generated/header_locked/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/ppt/{NAME}.pptx
 ```
 
-> 实践中直接用 `unified_pipeline.py --run-dir deck_{NAME}/3_versions/v1 --stage all` 一条命令跑完更省事；上面拆开是为了说明 style master 在哪几步被消费。
+> 实践中直接用 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage all` 一条命令跑完更省事；上面拆开是为了说明 style master 在哪几步被消费。
 
 ## Deck System Text — 互补的 Contract
 
@@ -127,7 +127,7 @@ GPT Image 2 text rendering 好但并非完美。如果一页需要超过 ~50 wor
 
 ## Style Master 与 Header-Lock 的关系
 
-Style anchoring 和 Header-Lock（`stage3_lock_headers.py`）是互补机制：
+Style anchoring 和 Header-Lock（`stage3_lock_headers.mjs`）是互补机制：
 - **Style anchoring**：确保每一页的 body visual（KPI cards、diagrams、callout bar）look 一致
 - **Header-Lock**：确保每一页的 kicker/title/subtitle 文字在**精确相同的位置**，用**精确相同的字体**
 

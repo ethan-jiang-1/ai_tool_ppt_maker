@@ -44,10 +44,10 @@ deck_{NAME}/
     │   ├── slide-specifications.md   ← 这版每页规格
     │   ├── overrides/               ← 这版偏离 backbone 的东西(空=全继承)
     │   └── _generated/             ← 派生品
-    └── v2/                   ← bundle_layout.py --new-version 创建
+    └── v2/                   ← bundle_layout.mjs --new-version 创建
 ```
 
-**版本快照由 `bundle_layout.py --new-version` 创建。** 它只复制下游 delta（slide-specifications.md + overrides/），并创建干净 `_generated/`；backbone 和上游共享不复制。好处:
+**版本快照由 `bundle_layout.mjs --new-version` 创建。** 它只复制下游 delta（slide-specifications.md + overrides/），并创建干净 `_generated/`；backbone 和上游共享不复制。好处:
 - `diff -r 3_versions/v1 3_versions/v2` 只显示设计真正变了什么,不被 research/视觉噪音淹没
 - v2 崩溃时 v1 完整可用
 - 共性只有 backbone 一份,永不分叉
@@ -55,7 +55,7 @@ deck_{NAME}/
 
 > **改 backbone vs 开新版本**:改 slide(加/砍/重排/改措辞)= 开新版本(下游)。改隐喻/公式/视觉主干 = 改 `2_backbone/`(影响所有版本),不是开新版本。判据:"这个改动只属于这一版,还是属于整个 deck?"
 
-> **历史对照**:早期纯内容打磨(只有 markdown、没进生产)时,T10 用过 `session_design/T10-v{n}/` 那种把版本嵌在内容目录里、文件名带 `T10v{n}-` 前缀的写法。那是**纯设计稿快照**模式,不是 run bundle 结构。进入完整生产后一律用上面的三层 run bundle 结构。唯一权威定义:`06_reference_scripts/bundle_layout.py`(机器源)+ [`00_project_setup/01-directory-template.md`](../00_project_setup/01-directory-template.md)(人读镜像)。
+> **历史对照**:早期纯内容打磨(只有 markdown、没进生产)时,T10 用过 `session_design/T10-v{n}/` 那种把版本嵌在内容目录里、文件名带 `T10v{n}-` 前缀的写法。那是**纯设计稿快照**模式,不是 run bundle 结构。进入完整生产后一律用上面的三层 run bundle 结构。唯一权威定义:`06_reference_scripts/bundle_layout.mjs`(机器源)+ [`00_project_setup/01-directory-template.md`](../00_project_setup/01-directory-template.md)(人读镜像)。
 
 关键原则：**版本是完整快照,不是增量 patch。** 但"完整"指的是完整的**下游** delta——不是把整个 deck(含共享底座)复制一遍。
 

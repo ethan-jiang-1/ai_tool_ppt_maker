@@ -84,7 +84,7 @@ agent_action: internalize
 
 **症状**：你不记得 v1 长什么样。客户问 "能回到上周那个版本吗"——你不能。你想对比 "改 Block 结构前后怎么变了"——没法 diff。
 
-**修复**：需要留档时运行 `bundle_layout.py --new-version deck_X/3_versions/v{n}`。它只复制下游源 delta，并创建干净 `_generated/`，不会把旧图片和 PPTX 带进新版本。
+**修复**：需要留档时运行 `bundle_layout.mjs --new-version deck_X/3_versions/v{n}`。它只复制下游源 delta，并创建干净 `_generated/`，不会把旧图片和 PPTX 带进新版本。
 
 **但注意分清"改哪一层"**（这是常见误区）：
 - **新版本 = 下游 slide 改动**：砍/加 slide、重排、这一版单独换视觉（放 `overrides/`）。
@@ -131,13 +131,13 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 **症状**：目录越来越深、越来越乱;同一种东西有两个可能的家,agent 两个都建、填错一个;换个 session 接手完全看不懂;改一个东西要在好几处同步。
 
-**修复**：结构的唯一事实源是 `06_reference_scripts/bundle_layout.py`。
+**修复**：结构的唯一事实源是 `06_reference_scripts/bundle_layout.mjs`。
 - 不自创目录名、不把生成物乱放、不新造 prompt 文件格式。
-- 不确定就查:`python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py`(打印权威树)。
-- 校验一个 bundle 合不合规:`python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --check deck_{NAME}/3_versions/v1`。管线每次运行前也会自动 check,结构不对直接拒绝。
+- 不确定就查:`node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs`(打印权威树)。
+- 校验一个 bundle 合不合规:`node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1`。管线每次运行前也会自动 check,结构不对直接拒绝。
 - 只有两处是你手改的源:`2_backbone/`(主干)和 `3_versions/v{n}/`(这版的 slide 规格 + overrides)。其余全是 `_generated/` 派生品,绝不手动放。
 
-参见 `00_project_setup/01-directory-template.md` 和 `06_reference_scripts/bundle_layout.py`。
+参见 `00_project_setup/01-directory-template.md` 和 `06_reference_scripts/bundle_layout.mjs`。
 
 ---
 

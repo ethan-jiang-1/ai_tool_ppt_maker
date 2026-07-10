@@ -34,9 +34,9 @@ PPTMAKER_FRAMEWORK 当前的生产管线 (Stage 1-5) 和基础设施脚本全部
 
 ### 2. 包管理与入口
 
-**选择**: npm + `package.json` 放在 `PPTMAKER_FRAMEWORK/` 根. Agent 调用的入口是 `node 06_reference_scripts/ppt_flow.mjs <command>`. Node.js 最低版本 18 (LTS, `fetch` 内置). 用户只需: 装 Node.js → `npm install` → 配 `.env` → 跑.
+**选择**: npm + `package.json` 放在 **repo 根目录** (与 `PPTMAKER_FRAMEWORK/` 平级). Agent 调用的入口是 `node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs <command>`. Node.js 最低版本 18 (LTS, `fetch` 内置). 用户只需: 装 Node.js → `npm install` → 配 `.env` → 跑.
 
-**为什么不是 pnpm/yarn**: npm 随 Node.js 发行, 零额外安装. coding agent 项目可能已有自己的包管理器; 框架不强制.
+**为什么 `node_modules` 不在框架内**: `PPTMAKER_FRAMEWORK` 是纯方法论 + 脚本, 拷给用户时不带 node_modules.
 
 ### 3. 依赖映射
 

@@ -26,7 +26,7 @@ agent_action: iterate_with_openspec
        40 分钟。只讲方向和模式，不讲具体数字。"
 
 Agent (读 AGENTS.md → Phase 0):
-  1. python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --init deck_mfg_ai
+  1. node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --init deck_mfg_ai
      → 一条命令建好三层结构 + 每目录 README + 铺好内容模板 + deck-guide/CLAUDE/metadata 桩
   2. 填 project-metadata.yaml(topic/听众/语言)
   3. （可选）template-visual-style.md → 2_backbone/visual-style/visual-style.md
@@ -116,7 +116,7 @@ Agent (Phase 2.5):
 Agent (Phase 2.7 — 回填 L3):
   → 视觉锁定后，回到 slide-specifications.md 逐张填 L3 IMAGE PROMPT
     （此刻可真正对照 2_backbone/visual-style/，不会作废）
-  → 跑 stage1_build_inputs.py --validate 清 ERROR
+  → 跑 stage1_build_inputs.mjs --validate 清 ERROR
 ```
 
 **第二个迭代介入点**：
@@ -143,7 +143,7 @@ Agent: "这会影响所有 slide 的颜色语义。走结构化迭代流程。"
 
 ```
 Agent (Phase 3 — 一条命令跑全部 5 个 stage)：
-  → uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+  → node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
        --run-dir deck_mfg_ai/3_versions/v1 --stage all
   （脚本就地运行，不复制进 run bundle；跑前自动 --check 结构 + L3 校验）
 
@@ -168,7 +168,7 @@ Agent (Phase 3 — 一条命令跑全部 5 个 stage)：
 
 Agent: "这是链 B 改动——改 IMAGE PROMPT。
   改 slide-specifications.md → 只重跑该页的画面：
-  unified_pipeline.py --run-dir deck_mfg_ai/3_versions/v1 --stage 1,2,3,4,5 --only s12
+  unified_pipeline.mjs --run-dir deck_mfg_ai/3_versions/v1 --stage 1,2,3,4,5 --only s12
   （--only 只把 Stage 2 生图限定到 s12；1/3/4/5 处理全部但很快）"
   → 5 分钟完成
 ```
@@ -180,7 +180,7 @@ Agent: "新增 slide 会影响后续 slide 编号和 Bridge。走迭代流程。
 
   # 在 Claude Code 中：
   openspec-propose "Add regulation slide in Block 2"
-    → 大改动 → bundle_layout.py --new-version deck_mfg_ai/3_versions/v1
+    → 大改动 → bundle_layout.mjs --new-version deck_mfg_ai/3_versions/v1
     → 在 v2 中实施变更
     → 部分 slide 需要重新生图（链 B）
     → archive

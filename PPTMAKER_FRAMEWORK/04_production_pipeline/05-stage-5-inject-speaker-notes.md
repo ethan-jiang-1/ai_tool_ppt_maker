@@ -30,7 +30,7 @@ Speaker notes 是唯一对视觉没有影响的元素。它们存在于 PPTX 的
 
 ```bash
 cp _generated/ppt/{NAME}.pptx _generated/ppt/{NAME}.backup.pptx
-python stage5_inject_notes.py
+python stage5_inject_notes.mjs
 ```
 
 ## 提取 Speaker Notes

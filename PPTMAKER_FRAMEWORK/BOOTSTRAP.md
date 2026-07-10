@@ -7,7 +7,7 @@ summary: Agent 的唯一入口。三步启动：环境验证 → 快速 intake �
 depends_on: []
 feeds_into:
 - AGENTS.md
-- 00_project_setup/00-auto-env-check.py
+- 00_project_setup/00-env-check.mjs
 agent_action: read_first
 ---
 
@@ -26,13 +26,13 @@ agent_action: read_first
 ## ⚖️ 目录结构是宪法（不可临场发挥）
 
 run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源是
-[`06_reference_scripts/bundle_layout.py`](06_reference_scripts/bundle_layout.py)——机器可读、脚本从它取路径。
+[`06_reference_scripts/bundle_layout.mjs`](06_reference_scripts/bundle_layout.mjs)——机器可读、脚本从它取路径。
 
-- **不要临场发挥目录**。不要自创目录名、不要把生成物乱放。日常检查统一用 `ppt_flow.py status`；底层权威结构仍由 `bundle_layout.py` 定义。
+- **不要临场发挥目录**。不要自创目录名、不要把生成物乱放。日常检查统一用 `ppt_flow.mjs status`；底层权威结构仍由 `bundle_layout.mjs` 定义。
 - **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。
-- **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.py --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
+- **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.mjs --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
   ```bash
-  uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py status deck_{NAME}/3_versions/v1
+  node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs status deck_{NAME}/3_versions/v1
   ```
 
 同理,**流程也别乱发挥**:严格按下面三步 + AGENTS.md 的固定 Phase 走,闸门不跳。
@@ -47,10 +47,10 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 
 ```bash
 # macOS / Linux
-python3 PPTMAKER_FRAMEWORK/00_project_setup/00-auto-env-check.py
+node PPTMAKER_FRAMEWORK/00_project_setup/00-env-check.mjs
 
 # Windows（PowerShell 或 cmd）
-python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
+python  PPTMAKER_FRAMEWORK\00_project_setup\00-env-check.mjs
 ```
 （Windows 上若 `python` 不识别，试 `py`。）
 
@@ -197,15 +197,15 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
 
 你现在已经完成了 Phase 0 的大部分工作——有了 metadata、内容方向、视觉方向。按 AGENTS.md 的 Phase 0-3 走，但注意：
 
-1. **Phase 0 简化为**:一条 `ppt_flow.py init` 命令搭好整个骨架**并把选中的 preset 播种到位**(**不要手动 mkdir、不要手动 cp**),再填 metadata:
+1. **Phase 0 简化为**:一条 `ppt_flow.mjs init` 命令搭好整个骨架**并把选中的 preset 播种到位**(**不要手动 mkdir、不要手动 cp**),再填 metadata:
    ```bash
-   uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py init deck_{NAME} \
+   node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs init deck_{NAME} \
      --deck-type {keynote|pitch|report|training} --style {preset-slug}
    ```
    它建好三层结构、每个目录放大白话 README、铺好内容模板、**把 deck-type 模板铺成 `slide-specifications.md`、把视觉 preset 的 `deck_system.txt` + `color_palette.json` 铺进 `2_backbone/visual-style/`**、写好完整 deck-guide.md + CLAUDE.md + project-metadata.yaml。`_generated/` 的空壳与 README 会预建，真实管线产物在首次运行时生成。`{preset-slug}` 是 3.5 表里的 `--style` 值。**不要再手敲 cp**——播种由 `--init` 确定性完成。
 2. **Phase 1 简化为**：隐喻/公式写进 `2_backbone/core-metaphor.md` + `core-formula.md`；deck-type 模板已由 `--init` 铺成 `3_versions/v1/slide-specifications.md`,填真实内容,让用户审核关键 claim。
 3. **Phase 2 简化为**：视觉 preset 的 `deck_system.txt` + `color_palette.json` 已由 `--init --style` 铺进 `2_backbone/visual-style/`;只剩 `style_master.jpg` 需生成(preset 不含预生成图),把它的 prompt 存为 `style-master-prompt.md` 再生成。
-4. **Phase 3**：先跑 `ppt_flow.py pilot deck_{NAME}/3_versions/v1`，用户确认后跑 `ppt_flow.py build deck_{NAME}/3_versions/v1`。两者都会自动检查结构与闸门。
+4. **Phase 3**：先跑 `ppt_flow.mjs pilot deck_{NAME}/3_versions/v1`，用户确认后跑 `ppt_flow.mjs build deck_{NAME}/3_versions/v1`。两者都会自动检查结构与闸门。
 5. **Phase 4（迭代）**：交付后用户提改动时，参考 [05_iteration/README.md](05_iteration/README.md) 和 [automation/change-classifier.md](automation/change-classifier.md) 做最小重跑。改 slide = 下游；改隐喻/视觉主干 = 改 `2_backbone/`（影响全版本）。
 
 ---
@@ -214,8 +214,8 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
 
 | 你需要什么 | 去哪里 |
 |-----------|--------|
-| **目录结构（宪法·SSOT）** | `06_reference_scripts/bundle_layout.py`（跑它看树 / `--check` 校验） |
-| **日常执行入口** | `06_reference_scripts/ppt_flow.py`（status / approve / pilot / build / refresh） |
+| **目录结构（宪法·SSOT）** | `06_reference_scripts/bundle_layout.mjs`（跑它看树 / `--check` 校验） |
+| **日常执行入口** | `06_reference_scripts/ppt_flow.mjs`（status / approve / pilot / build / refresh） |
 | 目录结构（人读镜像） | `00_project_setup/01-directory-template.md` |
 | Deck type 模板 | `02_content_design/presets/deck-type-templates/` |
 | 叙事弧线 catalog | `02_content_design/presets/block-arc-catalog.md` |
@@ -224,7 +224,7 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
 | 视觉预设 | `01_visual_style_master/presets/` |
 | 完整执行流程（铁律一页） | `AGENT_CONTRACT.md` |
 | Phase 详解 | `AGENTS.md`（按需翻） |
-| 环境检测脚本 | `00_project_setup/00-auto-env-check.py` |
+| 环境检测脚本 | `00_project_setup/00-env-check.mjs` |
 | 术语解释 | `GLOSSARY.md` |
 | 常见错误 | `ANTI_PATTERNS.md` |
 
@@ -244,4 +244,4 @@ python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
 1. **用户做选择题，你做创造性劳动。** 不要问"你的隐喻是什么"——生成 2-3 个候选。
 2. **闸门不可跳过。** 每个 Phase 结束等用户确认。
 3. **源文件是 SSOT。** 改 `2_backbone/` 或 `slide-specifications.md`，绝不手改 `_generated/`。
-4. **目录是宪法。** `bundle_layout.py` 定义结构；不自创目录。
+4. **目录是宪法。** `bundle_layout.mjs` 定义结构；不自创目录。

@@ -69,7 +69,7 @@ v2/                              ← 重大下游改动时用 --new-version 创�
 |---------|------|
 | 改几个字（标题、speaker note） | 直接改，不新建版本 |
 | 改几张 slide 的 IMAGE PROMPT | 直接改，不新建版本 |
-| 砍/加/重构 slide | `bundle_layout.py --new-version ...` → 在新版本中改 |
+| 砍/加/重构 slide | `bundle_layout.mjs --new-version ...` → 在新版本中改 |
 | 改核心隐喻/公式 | 改 `2_backbone/`，明确告知会影响所有版本 |
 | 改全 deck color palette / typography | 改 `2_backbone/visual-style/`；只属于某版则放 override |
 

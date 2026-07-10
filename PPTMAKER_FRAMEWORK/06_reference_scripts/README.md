@@ -14,7 +14,7 @@ agent_action: run_in_place
 
 本目录包含 PPT 生产管线五个 Stage 的**完整 Python 参考实现**。它们是 `04_production_pipeline/reference-pipeline-scripts.md` 中伪代码的对应可运行版本。
 
-> **推荐使用统一管线入口**：[`unified_pipeline.py`](unified_pipeline.py) — 单一命令运行全部或部分 Stage，自动检测 skill 脚本路径。底下的独立脚本仍然可用（Expert Mode 或需要深度定制时），但大多数情况用统一入口即可。
+> **推荐使用统一管线入口**：[`unified_pipeline.mjs`](unified_pipeline.mjs) — 单一命令运行全部或部分 Stage，自动检测 skill 脚本路径。底下的独立脚本仍然可用（Expert Mode 或需要深度定制时），但大多数情况用统一入口即可。
 
 ## 环境准备
 
@@ -22,7 +22,7 @@ agent_action: run_in_place
 
 需要 Python 3.11+。推荐用 [uv](https://docs.astral.sh/uv/) 管理依赖。
 
-`bundle_layout.py --init` 已在 run bundle 根生成 `pyproject.toml`，无需再次 `uv init`。
+`bundle_layout.mjs --init` 已在 run bundle 根生成 `pyproject.toml`，无需再次 `uv init`。
 
 ### 2. 安装依赖
 
@@ -44,7 +44,7 @@ uv sync
 验证安装：
 
 ```bash
-uv run python -c "import httpx; from PIL import Image; from pptx import Presentation; print('All good')"
+node -c "import httpx; from PIL import Image; from pptx import Presentation; print('All good')"
 ```
 
 ### 3. 字体
@@ -76,44 +76,44 @@ export OPENAI_BASE_URL="https://..."     # API endpoint
 
 | 脚本 | Stage | 输入 | 输出 | 依赖 |
 |------|-------|------|------|------|
-| `stage1_build_inputs.py` | 1 | `3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/deck_system.txt` | `_generated/slide_plan.json` + `_generated/page_prompts/_prompts.json` | 标准库 |
+| `stage1_build_inputs.mjs` | 1 | `3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/deck_system.txt` | `_generated/slide_plan.json` + `_generated/page_prompts/_prompts.json` | 标准库 |
 | **Stage 2（官方）** | 2 | skill: `image2-ppt/scripts/generate_full_page_images.py` | `_generated/page_images_full/*.png` | skill + API key |
 | `stage2_generate_images.LEGACY.py` | 2（遗留） | 仅无 skill 时用；**默认忽略** | 同上 | `requests` + API key |
-| `stage3_lock_headers.py` | 3 | `_generated/page_images_full/*.png` + `_generated/slide_plan.json` + `2_backbone/visual-style/color_palette.json` | `_generated/header_locked/*.png` | `Pillow` + 系统字体 |
-| `stage4_build_pptx.py` | 4 | `_generated/header_locked/*.png` + `_generated/slide_plan.json` | `_generated/ppt/{NAME}.pptx` | `python-pptx` |
-| `stage5_inject_notes.py` | 5 | `_generated/ppt/{NAME}.pptx` + `3_versions/v1/slide-specifications.md` | `_generated/ppt/{NAME}.pptx`（原地修改） | `python-pptx` |
-| `generate_style_master.py` | Phase 2 | `style-master-prompt.md` + `.env` | `style_master.jpg` + trace | image2-imagegen skill |
-| `bundle_layout.py --new-version` | 版本 | 当前版本源 delta | 干净的新版本 | 标准库 |
-| `run_tests.py` | QA | 全部 `test_*.py` | 汇总结果 | 项目运行环境 |
+| `stage3_lock_headers.mjs` | 3 | `_generated/page_images_full/*.png` + `_generated/slide_plan.json` + `2_backbone/visual-style/color_palette.json` | `_generated/header_locked/*.png` | `Pillow` + 系统字体 |
+| `stage4_build_pptx.mjs` | 4 | `_generated/header_locked/*.png` + `_generated/slide_plan.json` | `_generated/ppt/{NAME}.pptx` | `python-pptx` |
+| `stage5_inject_notes.mjs` | 5 | `_generated/ppt/{NAME}.pptx` + `3_versions/v1/slide-specifications.md` | `_generated/ppt/{NAME}.pptx`（原地修改） | `python-pptx` |
+| `generate_style_master.mjs` | Phase 2 | `style-master-prompt.md` + `.env` | `style_master.jpg` + trace | image2-imagegen skill |
+| `bundle_layout.mjs --new-version` | 版本 | 当前版本源 delta | 干净的新版本 | 标准库 |
+| `vitest run` | QA | 全部 `test_*.py` | 汇总结果 | 项目运行环境 |
 
 ## 使用方法
 
-> **脚本就地运行，不复制进 run bundle。** 通过 `unified_pipeline.py --run-dir` 指向你的 run bundle 版本目录即可。run bundle 里**没有** `scripts/` 目录。所有产出写入 `3_versions/v{n}/_generated/`。
+> **脚本就地运行，不复制进 run bundle。** 通过 `unified_pipeline.mjs --run-dir` 指向你的 run bundle 版本目录即可。run bundle 里**没有** `scripts/` 目录。所有产出写入 `3_versions/v{n}/_generated/`。
 
 ### 推荐：统一管线入口
 
 ```bash
 # 已完成 pilot 后，运行全部 5 个 stage
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage all
 
 # 首次生产 pilot：先 1，再选 3 张代表页跑 1K Stage 2
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # 只跑某个 stage（如只重新 lock headers）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 
 # 编辑链：改标题只跑 1,3,4,5；改画面跑 1,2,3,4,5；改 notes 只跑 5
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1,3,4,5
 
 # 全量视觉刷新（配色/style master/全局 prompt 变化）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage all --force-images
 ```
 
@@ -136,38 +136,38 @@ v1 canvas 固定为 1672×941。常规项目优先通过 `color_palette.json` �
 cd deck_{NAME}
 
 # Stage 1: markdown → JSON（写入 _generated/，style 从 2_backbone/visual-style/ 读）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.mjs \
   --input 3_versions/v1/slide-specifications.md \
   --out-dir 3_versions/v1/_generated/ \
   --style-dir 2_backbone/visual-style/
 
 # Stage 2: text → images（需要 API key）
-uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
+node <skills>/image2-ppt/scripts/generate_full_page_images.py \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/
 
 # Stage 3: Header-Lock（style 从 2_backbone/visual-style/ 读取 color_palette.json）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.mjs \
   --images 3_versions/v1/_generated/page_images_full/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/header_locked/ \
   --style-dir 2_backbone/visual-style/
 
 # Stage 4: images → PPTX（{NAME} = deck_{NAME} 目录名去掉 deck_ 前缀）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.mjs \
   --images 3_versions/v1/_generated/header_locked/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/ppt/{NAME}.pptx
 
 # Stage 5: inject speaker notes（管线会自动备份；手动跑时先备份）
 cp 3_versions/v1/_generated/ppt/{NAME}.pptx 3_versions/v1/_generated/ppt/{NAME}.backup.pptx
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage5_inject_notes.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/stage5_inject_notes.mjs \
   --pptx 3_versions/v1/_generated/ppt/{NAME}.pptx \
   --input 3_versions/v1/slide-specifications.md
 ```
 
-> **Stage 2 官方路径只有一条**：`unified_pipeline.py` → skill `image2-ppt/scripts/generate_full_page_images.py`。本目录的 `stage2_generate_images.LEGACY.py` 是无 skill 时的遗留参考，**默认不用**。
+> **Stage 2 官方路径只有一条**：`unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.py`。本目录的 `stage2_generate_images.LEGACY.py` 是无 skill 时的遗留参考，**默认不用**。
 
 ### 选择性重跑
 
@@ -175,9 +175,9 @@ uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage5_inject_notes.py \
 
 ```bash
 # 只重新生成 slide_07 这一张图，然后重跑 3,4,5
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only slide_07
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 ```
 
@@ -186,7 +186,7 @@ uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
 ### 统一测试入口
 
 ```bash
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/run_tests.py
+node PPTMAKER_FRAMEWORK/06_reference_scripts/vitest run
 ```
 
 ## 自定义 API 适配
@@ -215,7 +215,7 @@ Stage 2 需要 API key。设置 `export OPENAI_API_KEY="sk-..."`。
 
 **Q: Header 文字位置不对**
 
-检查 `stage3_lock_headers.py` 中的 `CANVAS_SIZE` 和 `stage1_build_inputs.py` 中的 `NORMAL_HEADER_SAFE_ZONE` 是否匹配你的 canvas 尺寸。
+检查 `stage3_lock_headers.mjs` 中的 `CANVAS_SIZE` 和 `stage1_build_inputs.mjs` 中的 `NORMAL_HEADER_SAFE_ZONE` 是否匹配你的 canvas 尺寸。
 
 **Q: 字体找不到，Pillow 用了 fallback 字体**
 
