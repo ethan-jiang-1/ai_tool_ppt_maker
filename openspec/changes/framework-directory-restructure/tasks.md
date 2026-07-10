@@ -19,9 +19,9 @@
 - [ ] 2.1 创建 `PPTMAKER_FRAMEWORK/COMMANDS.md`:
   - 全量创建入口 ("帮我做一个PPT" → BOOTSTRAP → Phase 0-4)
   - 四类编辑链映射表 (每类至少一个中文示例)
-  - 迭代反馈模式 (论证问题/数据更新/风格调整 等)
+  - 迭代反馈模式 (论证问题/数据更新/风格调整/整体感觉不够高端)
   - Agent 分类逻辑简述 (改了什么→几页→要pilot吗)
-  - 从 `automation/change-classifier.md` 提炼, 但面向人类可读
+  - 从 `automation/change-classifier.md` 提炼核心逻辑, 面向人类可读, 30 秒可扫完
 
 ## 3. 根级瘦身: 4 个文件移入 00_project_setup
 
@@ -45,6 +45,7 @@
   - `QUICK_START.md` → `00_project_setup/QUICK_START.md`
 - [ ] 5.3 更新 `README.md`:
   - 目录树图更新 (移除移走的文件, 新增 charter/ 和 COMMANDS.md)
+  - 添加 charter/ 的用途说明
   - 所有内部链接更新
 - [ ] 5.4 更新 `AGENTS.md`:
   - `QUICK_START.md` → `00_project_setup/QUICK_START.md`
@@ -75,3 +76,5 @@
 - [ ] 7.6 `node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs` 打印完整权威树
 - [ ] 7.7 `npm test` 25 tests 仍然全部通过
 - [ ] 7.8 `git log --follow PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md` 确认 git 历史保留
+- [ ] 7.9 `git diff HEAD -- PPTMAKER_FRAMEWORK/00_project_setup/QUICK_START.md` 确认移入的 4 个文件内容未变
+- [ ] 7.10 抽查: 打开 README.md 能看到 charter/ 和 COMMANDS.md 的描述

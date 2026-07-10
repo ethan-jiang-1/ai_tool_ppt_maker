@@ -137,7 +137,7 @@ CLAUDE.md → BOOTSTRAP.md → AGENT_CONTRACT.md → 按 Phase 读 AGENTS.md
 3. 要 pilot 吗? (颜色变更→先试3页)
 ```
 
-`automation/change-classifier.md` 的角色退为 Agent 实现细节——COMMANDS.md 是人类接口.
+`automation/change-classifier.md` 的角色退为 Agent 实现细节——COMMANDS.md 是人类接口. 两者的关系: COMMANDS 是"用户看到的菜单", change-classifier 是"后厨的食谱". 菜单简洁易扫, 食谱有完整决策树.
 
 ### 4. 文件移动与历史保留
 

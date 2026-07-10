@@ -19,10 +19,10 @@ PPTMAKER_FRAMEWORK/                     PPTMAKER_FRAMEWORK/
 ├── BOOTSTRAP.md                        ├── BOOTSTRAP.md
 ├── AGENTS.md                           ├── AGENTS.md
 ├── AGENT_CONTRACT.md  ──→ charter/     ├── COMMANDS.md        ← 新建
-├── QUICK_START.md     ──→ 00_setup/    │
-├── GLOSSARY.md        ──→ 00_setup/    ├── charter/           ← 新建目录
-├── ANTI_PATTERNS.md   ──→ 00_setup/    │   ├── CONSTITUTION.md ← 新建
-├── VERSION_LOG.md     ──→ 00_setup/    │   ├── WORKFLOW.md     ← 新建
+├── QUICK_START.md     ──→ 00_project_setup/  │
+├── GLOSSARY.md        ──→ 00_project_setup/  ├── charter/           ← 新建目录
+├── ANTI_PATTERNS.md   ──→ 00_project_setup/  │   ├── CONSTITUTION.md ← 新建
+├── VERSION_LOG.md     ──→ 00_project_setup/  │   ├── WORKFLOW.md     ← 新建
 └── 00_project_setup/                   │   └── AGENT_CONTRACT  ← 移入
     └── 01-directory-   ──→ 删除        │
         template.md                     ├── 00_project_setup/
@@ -59,7 +59,7 @@ _无. 纯目录重组和文档新建, 不改变任何 capability 的行为需求
 | `PPTMAKER_FRAMEWORK/` 根级 | 9 个 .md → 5 个. 4 个移入子目录 |
 | `charter/` | 新建目录, 3 个宪法文件 |
 | `00_project_setup/` | +4 个文件 (从根移入), -1 个 (删除 01-directory-template) |
-| `CLAUE.md` | 入口链更新 |
+| `CLAUDE.md` | 入口链更新 |
 | `BOOTSTRAP.md` | 文件引用路径更新 |
 | `README.md` | 目录树 + 链接更新 |
 | `AGENTS.md` | 内部引用更新 |

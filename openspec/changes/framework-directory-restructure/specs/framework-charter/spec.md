@@ -130,3 +130,22 @@ The file `PPTMAKER_FRAMEWORK/00_project_setup/README.md` SHALL be updated to lis
 
 - **WHEN** a human reads `00_project_setup/README.md`
 - **THEN** the file inventory matches the actual directory contents
+
+### Requirement: Root README references charter directory
+
+The file `PPTMAKER_FRAMEWORK/README.md` SHALL mention the `charter/` directory and describe its purpose: housing the three constitutional documents (CONSTITUTION, WORKFLOW, AGENT_CONTRACT). The README's directory tree diagram SHALL include `charter/` and `COMMANDS.md`.
+
+#### Scenario: Human discovers charter from root README
+
+- **WHEN** a human reads `PPTMAKER_FRAMEWORK/README.md`
+- **THEN** they see `charter/` in the directory tree
+- **AND** they understand it contains the framework's governing documents
+
+### Requirement: Moved files preserve content and git history
+
+Files moved via `git mv` SHALL have identical content to their originals. Their git history SHALL be preserved (verified via `git log --follow`).
+
+#### Scenario: Diff confirms content unchanged
+
+- **WHEN** `git diff HEAD -- PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md` is run after the move
+- **THEN** no diff output is produced (file content is identical to before the move)
