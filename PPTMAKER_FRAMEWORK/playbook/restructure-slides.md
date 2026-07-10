@@ -1,5 +1,6 @@
 ---
-playbook: structural
+playbook: restructure-slides
+description: 结构变更——加页/删页/重排, --new-version
 includes: [classify-change]
 ---
 

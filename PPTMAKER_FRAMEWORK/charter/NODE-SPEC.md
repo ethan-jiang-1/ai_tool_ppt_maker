@@ -48,7 +48,7 @@ State 文件 `run-bundle-state.yaml` 放在 run bundle 根目录 (`deck_<name>/`
 
 ```yaml
 # run-bundle-state.yaml
-playbook: full-creation       # 当前 playbook
+playbook: create-deck       # 当前 playbook
 current_node: wave0           # 当前执行到的 node
 started_at: 2026-07-10T14:00:00Z
 updated_at: 2026-07-10T14:23:00Z
@@ -104,7 +104,7 @@ Playbook 是**有序 node 序列**. Agent 按 playbook 中 node 出现的顺序�
 
 ```yaml
 ---
-playbook: chain-a
+playbook: edit-text
 includes: [classify-change]
 ---
 ```
@@ -122,7 +122,7 @@ includes: [classify-change]
 ```markdown
 ---
 node: wave0
-playbook: full-creation
+playbook: create-deck
 phase: 04
 requires: [seed-topics]
 produces: [wave0-artifacts, foundation-sources]

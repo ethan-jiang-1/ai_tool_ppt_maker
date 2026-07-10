@@ -1,5 +1,6 @@
 ---
-playbook: chain-a
+playbook: edit-text
+description: 文本修改——改标题/kicker/subtitle, ~5 min
 includes: [classify-change]
 ---
 

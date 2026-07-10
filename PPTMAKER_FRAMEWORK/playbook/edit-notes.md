@@ -1,5 +1,6 @@
 ---
-playbook: chain-c
+playbook: edit-notes
+description: 备注修改——speaker notes only, ~30 sec
 includes: [classify-change]
 ---
 

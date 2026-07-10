@@ -1,5 +1,6 @@
 ---
-playbook: chain-b
+playbook: edit-visual
+description: 视觉修改——换图/换配色/改布局, 先pilot再全量
 includes: [classify-change]
 ---
 
