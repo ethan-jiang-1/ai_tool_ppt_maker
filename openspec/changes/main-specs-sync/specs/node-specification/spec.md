@@ -12,22 +12,34 @@ Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml
 
 #### Scenario: CLI reads state before Stage 2
 
-- **WHEN** `unified_pipeline.mjs` is about to run Stage 2
-- **THEN** it reads `_state/state.yaml` to verify `visual_gate` is `approved` or `waived`
-- **AND** if the gate is `pending`, the script refuses to run
+- **WHEN** `ppt_flow.mjs` gates Stage 2 (image generation) via `state <runDir> --check-gates`
+- **THEN** it reads `_state/state.yaml` to verify `gates.visual` is `approved` or `waived`
+- **AND** if the gate is `pending`, the check exits non-zero and the pipeline refuses to run
 
-### Requirement: checkEntry validates entry conditions
+### Requirement: Node frontmatter defines entry and exit gates
 
-`checkEntry(nodeName, playbookDir, state, ctx)` SHALL parse the playbook MD file, extract entry conditions from the node's frontmatter, resolve each against the CONDITIONS registry, and return `{ pass: boolean, missing: string[], unknown: string[] }`. Conditions not found in the Gate Conditions Catalog SHALL appear in the `unknown` array.
+Every node SHALL have YAML frontmatter with at minimum: `node` (kebab-case name), `entry` (list of conditions that must be true before starting), and `exit` (list of conditions that must be true before marking completed).
 
-#### Scenario: Entry gate fails with missing and unknown
+#### Scenario: Agent checks entry gate before executing a node
 
-- **WHEN** `checkEntry('wave0', playbookDir, state)` is called with `seed-topics` pending and a custom condition `wave0_sources_collected` not in the catalog
-- **THEN** it returns `{ pass: false, missing: ['node_completed:seed-topics'], unknown: ['custom:wave0_sources_collected'] }`
+- **WHEN** Agent begins executing node `wave0` in playbook `create-deck`
+- **THEN** it verifies all `entry` conditions are met
+- **AND** if any condition fails (e.g., `node_completed:seed-topics` is false), Agent reports the missing condition and does NOT proceed
 
-### Requirement: checkExit validates exit conditions
+#### Scenario: Agent checks exit gate before marking node complete
 
-`checkExit(nodeName, playbookDir, state, ctx)` SHALL work identically to `checkEntry` but parse the `exit` field from the node's frontmatter, returning `{ pass: boolean, missing: string[], unknown: string[] }`.
+- **WHEN** Agent finishes the steps in node `wave0`
+- **THEN** it verifies all `exit` conditions are met
+- **AND** if any condition fails, Agent stays in the node until conditions are satisfied
+
+### Requirement: Shared nodes can be referenced by multiple playbooks
+
+A node with `shared: true` in frontmatter SHALL be referenceable by multiple playbooks. Playbooks SHALL reference shared nodes via `includes: [<node-name>, ...]` rather than duplicating the node content.
+
+#### Scenario: Two playbooks use the same classification node
+
+- **WHEN** playbook `edit-text.md` and `edit-visual.md` both need change classification
+- **THEN** they both reference `includes: [classify-change]` rather than each containing a copy
 
 ## ADDED Requirements
 

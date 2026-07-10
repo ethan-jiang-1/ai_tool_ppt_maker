@@ -15,9 +15,9 @@ Every node SHALL have YAML frontmatter with at minimum: `node` (kebab-case name)
 
 #### Scenario: Agent checks entry gate before executing a node
 
-- **WHEN** Agent begins executing node `wave0` in playbook `full-creation`
+- **WHEN** Agent begins executing node `wave0` in playbook `create-deck`
 - **THEN** it verifies all `entry` conditions are met
-- **AND** if any condition fails (e.g., `seed_topics_complete` is false), Agent reports the missing condition and does NOT proceed
+- **AND** if any condition fails (e.g., `node_completed:seed-topics` is false), Agent reports the missing condition and does NOT proceed
 
 #### Scenario: Agent checks exit gate before marking node complete
 
@@ -37,9 +37,9 @@ Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml
 
 #### Scenario: CLI reads state before Stage 2
 
-- **WHEN** `unified_pipeline.mjs` is about to run Stage 2
-- **THEN** it reads `_state/state.yaml` to verify `visual_gate` is `approved` or `waived`
-- **AND** if the gate is `pending`, the script refuses to run
+- **WHEN** `ppt_flow.mjs` gates Stage 2 (image generation) via `state <runDir> --check-gates`
+- **THEN** it reads `_state/state.yaml` to verify `gates.visual` is `approved` or `waived`
+- **AND** if the gate is `pending`, the check exits non-zero and the pipeline refuses to run
 
 ### Requirement: Node status has exactly five valid states
 
@@ -57,7 +57,7 @@ A node with `shared: true` in frontmatter SHALL be referenceable by multiple pla
 
 #### Scenario: Two playbooks use the same classification node
 
-- **WHEN** playbook `chain-a.md` and `chain-b.md` both need change classification
+- **WHEN** playbook `edit-text.md` and `edit-visual.md` both need change classification
 - **THEN** they both reference `includes: [classify-change]` rather than each containing a copy
 
 ### Requirement: Node body distinguishes MD steps from CLI steps
