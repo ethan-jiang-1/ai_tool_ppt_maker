@@ -1,0 +1,45 @@
+{
+  "name": "Clean Clinical",
+  "description": "White background with slate text and teal accents. Clean, rational, data-forward. Like a consulting report or medical journal.",
+  "background": "#ffffff",
+  "canvas": {"width_px": 1672, "height_px": 941},
+  "body_layout": {
+    "content_top_gap_px": 30,
+    "content_bottom_px": 780,
+    "callout_top_px": 805,
+    "callout_bottom_px": 900,
+    "no_callout_bottom_px": 890
+  },
+  "colors": {
+    "panel_card": {"hex": "#f1f5f9", "role": "Card and panel backgrounds"},
+    "primary_text": {"hex": "#1e293b", "role": "Body text, titles"},
+    "secondary_text": {"hex": "#64748b", "role": "Secondary text, labels"},
+    "positive_accent": {"hex": "#0d9488", "role": "Growth data, positive outcomes, KPI numbers"},
+    "emphasis": {"hex": "#0284c7", "role": "Emphasized text, icons, connector lines"},
+    "warning": {"hex": "#d97706", "role": "Risk/warning signals only — use sparingly"},
+    "divider": {"hex": "#e2e8f0", "role": "Dividers, subtle borders"},
+    "kicker": {"hex": "#475569", "role": "Slide kicker (Header-Lock overlay)"},
+    "subtitle": {"hex": "#64748b", "role": "Slide subtitle (Header-Lock overlay)"}
+  },
+  "header_lock": {
+    "body_header_safe_zone": 260,
+    "opener_safe_zone": 390,
+    "position": {
+      "left_px": 46,
+      "right_margin_px": 58,
+      "kicker_y_px": 24,
+      "title_y_px": 58,
+      "subtitle_gap_px": 8,
+      "title_line_height_px": 52,
+      "subtitle_line_height_px": 31
+    },
+    "fonts": {
+      "kicker": {"family": "Source Sans Pro", "weight": "Semibold", "size_px": 22, "color": "#475569"},
+      "title": {"family": "Source Sans Pro", "weight": "Bold", "size_px": 46, "color": "#1e293b"},
+      "subtitle": {"family": "Source Sans Pro", "weight": "Regular", "size_px": 27, "color": "#64748b"}
+    }
+  },
+  "forbidden": ["dark backgrounds", "neon colors", "stock photos", "logos", "watermarks", "page numbers"],
+  "best_for": ["healthcare", "life sciences", "consulting reports", "research", "training", "data-driven keynotes"],
+  "avoid_for": ["creative brand stories", "pitch decks", "emotional/human topics"]
+}

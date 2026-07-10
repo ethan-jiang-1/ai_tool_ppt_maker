@@ -1,0 +1,45 @@
+{
+  "name": "Dark Executive",
+  "description": "Deep navy background with cyan/electric blue accents. Precision, modern, executive. T10 battle-tested.",
+  "background": "#0a1628",
+  "canvas": {"width_px": 1672, "height_px": 941},
+  "body_layout": {
+    "content_top_gap_px": 30,
+    "content_bottom_px": 780,
+    "callout_top_px": 805,
+    "callout_bottom_px": 900,
+    "no_callout_bottom_px": 890
+  },
+  "colors": {
+    "panel_card": {"hex": "#1e3a5f", "role": "Card and panel backgrounds"},
+    "positive_accent": {"hex": "#06b6d4", "role": "Growth data, positive outcomes, KPI numbers"},
+    "emphasis": {"hex": "#3b82f6", "role": "Emphasized text, icons, connector lines"},
+    "data_analysis": {"hex": "#0d9488", "role": "Analysis blocks, flow diagram nodes"},
+    "primary_text": {"hex": "#f4f8fc", "role": "Body text, titles"},
+    "secondary_text": {"hex": "#94a3b8", "role": "Secondary text, labels"},
+    "muted": {"hex": "#475569", "role": "De-emphasized info, watermark effect"},
+    "kicker": {"hex": "#becbda", "role": "Slide kicker (Header-Lock overlay)"},
+    "subtitle": {"hex": "#a4b8cc", "role": "Slide subtitle (Header-Lock overlay)"}
+  },
+  "header_lock": {
+    "body_header_safe_zone": 260,
+    "opener_safe_zone": 390,
+    "position": {
+      "left_px": 46,
+      "right_margin_px": 58,
+      "kicker_y_px": 24,
+      "title_y_px": 58,
+      "subtitle_gap_px": 8,
+      "title_line_height_px": 52,
+      "subtitle_line_height_px": 31
+    },
+    "fonts": {
+      "kicker": {"family": "Source Sans Pro", "weight": "Semibold", "size_px": 22, "color": "#becbda"},
+      "title": {"family": "Source Sans Pro", "weight": "Bold", "size_px": 46, "color": "#f4f8fc"},
+      "subtitle": {"family": "Source Sans Pro", "weight": "Regular", "size_px": 27, "color": "#a4b8cc"}
+    }
+  },
+  "forbidden": ["warm tones", "red", "orange", "yellow", "gold", "stock photos", "logos", "watermarks", "page numbers"],
+  "best_for": ["strategy keynote", "executive briefing", "manufacturing", "deep tech", "B2B"],
+  "avoid_for": ["consumer brand stories", "training", "healthcare", "warm/emotional topics"]
+}

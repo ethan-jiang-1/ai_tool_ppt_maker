@@ -1,0 +1,35 @@
+# Deck System Contract — Tech Startup
+# Textual constraints. Visual constraints are in style_master.jpg.
+
+LANGUAGE: English only. No Chinese characters on slides.
+
+DECK TYPE: Pitch deck or product launch. Every slide must drive toward a decision or action.
+
+BACKGROUND: Deep purple #1a0a2e on every slide. No white or light backgrounds. No gradient backgrounds that introduce non-purple tones.
+
+COLOR FAMILY: Purple-magenta-cyan ONLY. #00f5d4 (neon cyan) for positive/growth/KPIs. #f72585 (magenta) for emphasis/urgency. #7209b7 (deep purple) for secondary data. #2d1b4e for panels/cards.
+
+FORBIDDEN:
+- NO corporate blues or grays
+- NO warm earth tones
+- NO pastels or muted palettes
+- NO stock photos or clip art
+- NO real company logos (unless user provides)
+- NO watermarks or draft labels
+- NO page numbers
+- NO traditional dashboard layouts
+- NO conservative/formal design elements
+
+TEXT DENSITY: Under 28 words per slide. Pitch decks are sparse — one idea per slide. Max 2-3 body text zones.
+
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean dark purple. Python/Pillow will overlay the header text. For full-page slides (opener, closer, traction page), render complete slide with header text.
+
+BODY TEXT CONTRACT: Big claims need big typography. Use oversized numbers and bold statements. No paragraphs — single sentences or bullet-like fragments. KPI numbers should be MASSIVE (>=96px visual equivalent) in neon cyan (#00f5d4).
+
+CALLOUT BAR: Every slide ends with an investor/decision-maker takeaway at y=805 to y=900. One sentence, muted purple (#a0a0b8). This answers "why this matters to you."
+
+KPI NUMBERS: VERY large (>=96px visual), bold, neon cyan (#00f5d4). Always paired with a short label. Max 2 KPI numbers per slide. Growth metrics in neon cyan, market size in magenta (#f72585).
+
+ICONS AND DIAGRAMS: Bold, simple, geometric. Neon cyan lines on dark purple. Glow effects on key elements. Flow diagrams use connected circles with cyan-to-magenta gradients on arrows.
+
+TONE: Bold, confident, energetic. Not corporate. Not cautious. Every slide should feel like it's daring the audience to say no.

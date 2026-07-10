@@ -1,0 +1,35 @@
+# Deck System Contract — Corporate Safe
+# Textual constraints. Visual constraints are in style_master.jpg.
+
+LANGUAGE: English only. No Chinese characters on slides.
+
+DECK TYPE: Formal corporate presentation. Every slide should be defensible in a boardroom.
+
+BACKGROUND: White #ffffff on every slide. Subtle off-white #f8fafc for panels. No dark or colored backgrounds.
+
+COLOR FAMILY: Blue-gray corporate. #1e40af (corporate blue) for primary brand and emphasis. #0f172a (dark blue-black) for text. #475569 (slate gray) for secondary. #059669 (emerald green) for positive data. #dc2626 (red) ONLY for risk/warning — use sparingly.
+
+FORBIDDEN:
+- NO neon or fluorescent colors
+- NO dark backgrounds
+- NO gradient backgrounds
+- NO stock photos or clip art
+- NO real company logos (unless user provides)
+- NO watermarks or draft labels
+- NO page numbers (user can add in PPT if needed)
+- NO decorative or playful elements
+- NO excessive red (reserved for genuine risk)
+
+TEXT DENSITY: Under 45 words per slide. Corporate audiences expect more detail — but still not paragraphs. Max 4-5 body text zones. Bullet points are acceptable in this style.
+
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean white. Python/Pillow will overlay the header text. For full-page slides (dividers, title slide, closing), render complete slide with header text.
+
+BODY TEXT CONTRACT: Clear hierarchy — headlines larger, supporting text readable. KPI numbers must be visually large (>=72px equivalent). Tables welcome (clean borders, alternating row colors). Charts welcome (simple bar/line, blue with emerald highlight). Use exact text from prompt.
+
+CALLOUT BAR: Every content slide ends with an executive implication at y=805 to y=900. One sentence, slate gray (#475569). Answers "what action does this imply?"
+
+KPI NUMBERS: Large (>=72px visual), bold, corporate blue (#1e40af) for neutral, emerald green (#059669) for positive, red (#dc2626) for negative. Max 4 KPI numbers per slide.
+
+TABLES AND CHARTS: Clean, simple, professional. Blue (#1e40af) primary data series. Green (#059669) highlight. Gray (#e2e8f0) borders. Alternating row backgrounds (#ffffff / #f1f5f9). No 3D effects. No pie charts with more than 4 slices. No stacked bar charts with more than 3 series.
+
+TONE: Professional, measured, evidence-based. Not salesy. Not dramatic. Every claim should feel like it could survive a CFO's scrutiny.
