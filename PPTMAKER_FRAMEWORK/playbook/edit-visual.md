@@ -24,7 +24,7 @@ produces: [pilot-images]
 entry:
   - target_slides_identified (opener/body/closer)
 exit:
-  - pilot_approved_by_user
+  - pilot_approved
 ```
 
 **Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1,2 --only <slide_ids> --resolution 1k`

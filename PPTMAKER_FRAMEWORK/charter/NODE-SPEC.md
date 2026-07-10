@@ -117,6 +117,66 @@ includes: [classify-change]
 - **CLI → MD**: 脚本执行后写 state (node status, 产出物路径, 时间戳). 如果 entry 条件不满足, 脚本拒绝执行并报告缺失条件
 - **State 读写**: 写操作只更新自己负责的字段. 读操作前先加载最新 state
 
+## State API
+
+`scripts/lib/state.mjs` 提供完整 CRUD + Query API.
+
+**READ**: `readState(deckDir)`, `writeState(deckDir, state)`, `statePath(deckDir)`
+
+**QUERY**: `getNodeStatus(state, name)`, `getCurrentNode(state)`, `getCompletedNodes(state)`, `getPendingNodes(state)`, `isNodeCompleted(state, name)`, `isPlaybookComplete(state)`, `getGateStatus(state, name)`, `isGateApproved(state, name)`
+
+**VALIDATE**: `checkEntry(node, playbookDir, state, ctx)`, `checkExit(node, playbookDir, state, ctx)`, `getMissingConditions(node, playbookDir, state, ctx)`, `validateState(state)`
+
+**WRITE**: `setNodeStatus(state, name, status, extra)`, `resetNode(state, name)`, `skipNode(state, name, reason)`, `setGate(state, name, status)`, `switchPlaybook(state, newPlaybook)`, `resumePlaybook(state)`, `startPlaybook(state, playbook)`, `createInitialState(deckName, deckType, style)`
+
+**SAFETY**: `readState` 文件不存在 → 返回初始态. YAML 损坏 → 返回 `{corrupted:true, errors:[...]}`. `writeState` 原子写 (tmp file → rename).
+
+## Gate Conditions Catalog
+
+条件名统一格式: 参数化条件用冒号 (`gate_approved:visual`), 原子条件用下划线 (`run_bundle_exists`). 所有 playbook frontmatter 的 entry/exit 条件必须使用本 catalog 中的标准名.
+
+### FILESYSTEM — 检查 run bundle 内文件/目录
+
+| 条件名 | 检查 | 路径 (相对 ctx) |
+|--------|------|----------------|
+| `run_bundle_exists` | deck dir 存在 | `ctx.deckDir` 本身 |
+| `deck_guide_created` | deck-guide.md 存在 | `ctx.deckDir/deck-guide.md` |
+| `visual_preset_seeded` | 配色方案已落盘 | `ctx.deckDir/2_backbone/visual-style/color_palette.json` |
+| `style_master_exists` | 视觉锚点图已生成 | `ctx.deckDir/2_backbone/visual-style/style_master.jpg` |
+| `slide_specs_exists` | slide 规格文件存在 | `ctx.runDir/slide-specifications.md` |
+| `stage1_output_exists` | Stage 1 产出物存在 | `ctx.runDir/_generated/slide_plan.json` |
+| `pptx_generated` | PPTX 已产出 | `ctx.runDir/_generated/ppt/*.pptx` |
+| `speaker_notes_injected` | 备注已注入 | pptx notes panel 非空 |
+
+### STATE — 检查 run-bundle-state.yaml 字段
+
+| 条件名 | 检查 | state 路径 |
+|--------|------|-----------|
+| `node_completed:<name>` | node 已完成 | `state.nodes.<name>.status === 'completed'` |
+| `node_done:<name>` | node 已完成或被跳过 | `['completed','skipped'].includes(state.nodes.<name>?.status)` |
+| `node_status:<name>:<s>` | node 处于某状态 | `state.nodes.<name>.status === <s>` |
+| `gate_approved:<name>` | gate 非 pending | `state.gates.<name> !== 'pending'` |
+| `current_node_is:<name>` | 当前在某 node | `state.current_node === <name>` |
+| `playbook_is:<name>` | 当前在某 playbook | `state.playbook === <name>` |
+
+`node_done:<name>` 用于 requires 链——跳过的 node 不阻塞下游. `node_completed:<name>` 用于严格检查.
+
+### USER — 检查用户决策 (存储在 node extra 字段)
+
+| 条件名 | 检查 | state 路径 |
+|--------|------|-----------|
+| `user_confirmed_direction` | hitl1 有决策 | `state.nodes.hitl1?.decision` 存在 |
+| `review_decision:proceed` | 用户选 proceed | `state.nodes.hitl2?.decision === 'proceed'` |
+| `review_decision:repair` | 用户选 repair | `state.nodes.hitl2?.decision === 'repair'` |
+
+### Playbook 栈
+
+`state.playbook_stack` 数组保存切换前的 `{playbook, current_node}`. `switchPlaybook` push, `resumePlaybook` pop 恢复.
+
+### 自定义条件策略
+
+不在 catalog 中的条件名 → checkEntry/checkExit 返回 `{unknown: [...]}`. Agent 人工判断. 允许 node 特有 prose 条件逐步补进 catalog.
+
 ## 示例: 一个完整的 Node
 
 ```markdown

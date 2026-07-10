@@ -53,6 +53,36 @@
 - **WHEN** wave0 exit conditions are satisfied
 - **THEN** `checkExit('wave0', playbookDir, state)` returns `{ pass: true }`
 
+### Requirement: node_done condition accepts completed or skipped
+
+The catalog SHALL include a `node_done:<name>` condition that returns true when the node status is `completed` OR `skipped`. This condition SHALL be used in `requires` chains so skipped nodes do NOT block downstream nodes.
+
+#### Scenario: Skipped node does not block downstream
+
+- **WHEN** node `hitl1` is `skipped` and `checkEntry` for `setup` includes `node_done:hitl1`
+- **THEN** the condition passes
+- **AND** setup can proceed
+
+### Requirement: Playbook stack preserves position during switching
+
+`_state/ 目录` SHALL include a `playbook_stack` field (array of `{playbook, current_node}`). `switchPlaybook()` SHALL push the current position onto the stack. `resumePlaybook()` SHALL pop and restore position.
+
+#### Scenario: Agent switches playbooks and returns
+
+- **WHEN** Agent is at `hitl2` in `create-deck`, switches to `edit-text`, finishes, and resumes
+- **THEN** `resumePlaybook()` restores `playbook: create-deck`, `current_node: hitl2`
+- **AND** `playbook_stack` is empty after resume
+
+### Requirement: State writes are atomic
+
+`writeState` SHALL write to a temporary file first, then rename to the target path. This SHALL prevent partial-write corruption on crash.
+
+#### Scenario: Crash during write does not corrupt state
+
+- **WHEN** the process crashes during `writeState`
+- **THEN** the target YAML file is either the complete old version or the complete new version
+- **AND** never a partial file
+
 ### Requirement: State API provides complete query interface
 
 `state.mjs` SHALL export query functions: `getNodeStatus(state, name)`, `getCurrentNode(state)`, `getCompletedNodes(state)`, `getPendingNodes(state)`, `isNodeCompleted(state, name)`, `isPlaybookComplete(state)`, `getGateStatus(state, name)`, `isGateApproved(state, name)`, `getMissingConditions(nodeName, playbookDir, state, ctx)`.
@@ -72,19 +102,6 @@
 - **THEN** `seed-topics` status returns to `pending`
 - **AND** previously stored extra fields (topic_count) are cleared
 
-### Requirement: State API handles corruption and absence gracefully
-
-`readState(deckDir)` SHALL return a default initial state when the file does not exist. When the YAML file is corrupted, it SHALL return `{ corrupted: true, errors: [...] }` without throwing.
-
-#### Scenario: Fresh deck has no state file
-
-- **WHEN** `readState(deckDir)` is called on a deck without `run-bundle-state.yaml`
-- **THEN** it returns a default initial state structure
-
-#### Scenario: Corrupted state file is detected
-
-- **WHEN** the YAML file contains invalid syntax
-- **THEN** `readState(deckDir)` returns `{ corrupted: true, errors: ['YAML parse error at line 5'] }`
 
 ### Requirement: CLI exposes state via ppt_flow state command
 
@@ -95,3 +112,17 @@
 - **WHEN** Agent runs `node scripts/ppt_flow.mjs state <runDir> --check-gates`
 - **THEN** it exits 0 if content and visual gates are not pending
 - **AND** exits 1 with message if any gate is still pending
+
+### Requirement: History log is append-only and optional
+
+`appendHistory(deckDir, event)` SHALL atomically append one JSON line to `_state/history.jsonl`. `readHistory(deckDir)` SHALL return all valid events, skipping damaged lines. The history log SHALL NOT participate in any automatic recovery logic——it is for LLM reference only.
+
+#### Scenario: history survives crash
+
+- **WHEN** process crashes mid-write to `history.jsonl`
+- **THEN** the last line may be truncated but preceding lines are intact
+- **AND** `readHistory` skips the damaged line
+
+### Requirement: JS is simple, LLM handles recovery
+
+`readState(deckDir)` SHALL return `{ corrupted: true }` when `state.yaml` is unreadable. It SHALL NOT attempt automatic recovery. The LLM SHALL read `history.jsonl` to understand what happened and manually repair `state.yaml`. No JS function SHALL throw——errors SHALL be surfaced as structured return values.

@@ -1258,3 +1258,27 @@ if (isMain) {
     process.exit(1);
   });
 }
+
+// state command
+program.command('state')
+  .argument('<runDir>', 'Path to version directory')
+  .option('--json', 'JSON output')
+  .option('--check-gates', 'Verify gates for Stage 2 readiness')
+  .action(async (runDir, opts) => {
+    const { readState, getCurrentNode, getCompletedNodes, getPendingNodes, isGateApproved, statePath } = await import('./lib/state.mjs');
+    const deckDir = join(runDir, '..', '..');
+    const s = readState(deckDir);
+    if (s.corrupted) { console.error('State corrupted:', s.errors); process.exit(2); }
+    if (opts.checkGates) {
+      const c = isGateApproved(s, 'content'), v = isGateApproved(s, 'visual');
+      if (c && v) { console.log('Gates OK'); process.exit(0); }
+      else { console.log('Gates BLOCKED:' + (c?'':' content') + (v?'':' visual')); process.exit(1); }
+    }
+    if (opts.json) { console.log(JSON.stringify(s, null, 2)); return; }
+    console.log('Playbook: ' + (s.playbook || '(none)'));
+    console.log('Current:  ' + (getCurrentNode(s) || '(none)'));
+    console.log('Done:     ' + getCompletedNodes(s).join(', '));
+    console.log('Pending:  ' + getPendingNodes(s).join(', '));
+    console.log('Gates:    content=' + (s.gates?.content||'pending') + ' visual=' + (s.gates?.visual||'pending'));
+  });
+
