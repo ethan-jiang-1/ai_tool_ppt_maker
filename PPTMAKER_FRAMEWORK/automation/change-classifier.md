@@ -61,7 +61,7 @@ agent_action: classify_changes
   - 告知用户："这会重新生成全部 Y 张 slide，约 Z 分钟。建议先跑 3 张确认效果？"
   - **如果是改配色：硬性前置条件——必须先更新 style_master.jpg。** 改了 deck_system.txt 和 color_palette.json 的颜色但没重生 style_master → 生图阶段用的是旧配色 style master + 新配色文本约束 → 画面矛盾。顺序：编辑颜色文件 → 重生 style_master → 试点 3 张 → 全量
 
-结构改动（加/删/重排 slides）→ `bundle_layout.py --new-version` 创建干净版本
+结构改动（加/删/重排 slides）→ `bundle_layout.mjs --new-version` 创建干净版本
   - 告知用户："这是结构改动，我会创建 v{n+1} 版本来保留当前版本。"
   - 在新版本中：更新 Block Map → 重新编号 → 重跑受影响范围
 ```
@@ -161,16 +161,16 @@ Agent 回复：
 使用统一管线脚本：
 ```bash
 # Chain A: text only (re-parses all slides, re-locks headers, rebuilds PPTX)
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
 
 # Chain B: visual — single slide (--only flag limits image generation to one slide; stages 1,3,4,5 run for all slides which is fast)
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN
 
 # Chain C: notes only
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 5
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 5
 
 # Full visual rerun（配色/style master/全局 prompt 改动）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage all --force-images
+node PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage all --force-images
 ```
 
 > **Note**: `--only` 只限制 Stage 2，并自动强制刷新指定图片；Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。

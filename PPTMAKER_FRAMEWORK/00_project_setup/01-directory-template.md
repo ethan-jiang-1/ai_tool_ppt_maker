@@ -3,7 +3,7 @@ title: 01 — Project Directory Template
 stage: 00_project_setup
 position: "02 of 05"
 type: methodology
-summary: 方法论文件。Agent 理解其中原理并应用于对话引导。目录结构的机器权威源是 06_reference_scripts/bundle_layout.py。
+summary: 方法论文件。Agent 理解其中原理并应用于对话引导。目录结构的机器权威源是 06_reference_scripts/bundle_layout.mjs。
 depends_on:
 - 00_project_setup/README.md
 - 00_project_setup/00-run-bundle-concept.md
@@ -16,17 +16,17 @@ agent_action: internalize
 
 ← [00](00-run-bundle-concept.md) | [Next →](02-python-environment.md)
 
-## 唯一事实源（SSOT）：`bundle_layout.py`
+## 唯一事实源（SSOT）：`bundle_layout.mjs`
 
 > **目录结构的唯一事实源是代码，不是本文。** 机器可读定义在
-> [`06_reference_scripts/bundle_layout.py`](../06_reference_scripts/bundle_layout.py)——所有管线脚本从它
+> [`06_reference_scripts/bundle_layout.mjs`](../06_reference_scripts/bundle_layout.mjs)——所有管线脚本从它
 > import 路径，本文的目录树也应与它一致。想看权威树，直接跑：
 >
 > ```bash
-> python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py
+> node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs
 > ```
 >
-> 改目录结构 → 只改 `bundle_layout.py`，别在任何脚本里硬编码路径、别在任何文档里另画一棵树。
+> 改目录结构 → 只改 `bundle_layout.mjs`，别在任何脚本里硬编码路径、别在任何文档里另画一棵树。
 > 这条纪律就是为了根除"结构信息散在各处、各自漂移"的碎片化问题。下面这棵树是它的人类可读镜像。
 
 ## Run Bundle 的精确目录结构
@@ -127,7 +127,7 @@ deck_{NAME}/                       ← 一个 deck（run bundle）。"deck_" 前
 ## 版本策略：`--new-version`
 
 ```bash
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs \
   --new-version deck_X/3_versions/v1
 ```
 
@@ -139,7 +139,7 @@ uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py \
 
 ## 脚本不放在 run bundle 里
 
-管线通过 `unified_pipeline.py --run-dir deck_{NAME}/3_versions/v1` 从
+管线通过 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1` 从
 `PPTMAKER_FRAMEWORK/06_reference_scripts/` **就地运行**。run bundle 里**没有** `scripts/` 目录。
 
 ---

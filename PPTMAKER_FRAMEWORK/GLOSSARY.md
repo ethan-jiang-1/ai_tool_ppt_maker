@@ -127,7 +127,7 @@ agent_action: reference
 把"反复改、来回调"变成有纪律的流程：明确要改什么和为什么 → 审核影响范围 → 实施变更 → 记录归档。不管用什么工具（Claude Code 的 OpenSpec、changelog + git、issue tracker），核心纪律不变。
 
 ### 版本快照（Version Snapshot）
-`bundle_layout.py --new-version deck_X/3_versions/v{n}`——只复制下游源 delta，并创建干净 `_generated/`。适用于砍/加/重排 slide 等下游结构改动；隐喻/公式/共享视觉属于 backbone，不应借开版本逃避共享语义。
+`bundle_layout.mjs --new-version deck_X/3_versions/v{n}`——只复制下游源 delta，并创建干净 `_generated/`。适用于砍/加/重排 slide 等下游结构改动；隐喻/公式/共享视觉属于 backbone，不应借开版本逃避共享语义。
 
 ---
 

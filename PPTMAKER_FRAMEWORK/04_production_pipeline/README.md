@@ -17,7 +17,7 @@ agent_action: navigate
 
 ## 这是什么
 
-> 本管线的所有 stage 都运行在 **run bundle**（文件系统实例）内部——消费 run bundle 中的源文件（`3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/`），产出 run bundle 中的派生品（全部写入 `_generated/`）。管线脚本从 `06_reference_scripts/` **就地运行**（通过 `unified_pipeline.py --run-dir`），不复制进 run bundle。
+> 本管线的所有 stage 都运行在 **run bundle**（文件系统实例）内部——消费 run bundle 中的源文件（`3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/`），产出 run bundle 中的派生品（全部写入 `_generated/`）。管线脚本从 `06_reference_scripts/` **就地运行**（通过 `unified_pipeline.mjs --run-dir`），不复制进 run bundle。
 
 一套可复用的五阶段管线，将人类撰写的 slide 内容规格（来自 [02_content_design](../02_content_design/)）+ 一张 style master 视觉参考图（来自 [01_visual_style_master](../01_visual_style_master/)）转化为一份完成的 PPTX 文件。整个管线由 Python 脚本串联，每个阶段有明确的 input/output 契约，可以独立运行和调试。
 

@@ -77,7 +77,7 @@ agent_action: navigate
 
 该案例的 visual direction 演变过程（从 multi-color Amber/Emerald/Red/Gold → single-family blue-cyan-teal，从粗糙工业螺栓 → "Jewel-like, not industrial. Think Swiss watch components, not construction bolts"）贯穿了本方法论文件中的示例。
 
-这套方法论的执行依赖 `unified_pipeline.py`（Stage 2 走 image2-ppt skill）和 `06_reference_scripts/` 中的后续管线脚本。
+这套方法论的执行依赖 `unified_pipeline.mjs`（Stage 2 走 image2-ppt skill）和 `06_reference_scripts/` 中的后续管线脚本。
 
 ---
 

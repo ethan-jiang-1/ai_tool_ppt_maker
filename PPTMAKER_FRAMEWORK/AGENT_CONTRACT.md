@@ -23,7 +23,7 @@ agent_action: read_first
 
 ## 2. 目录是宪法
 
-结构唯一事实源：`06_reference_scripts/bundle_layout.py`。
+结构唯一事实源：`06_reference_scripts/bundle_layout.mjs`。
 - 创建：`--init deck_{NAME} --deck-type … --style …`（禁止手动 mkdir/cp 拼骨架）
 - 校验：`--check … --structure-only`（Phase 0）/ 管线跑前自动全量 check
 - 不自创目录、不把生成物乱放
@@ -68,7 +68,7 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 ## 7. Stage 2 只有一条路
 
-官方：`unified_pipeline.py` → skill `image2-ppt/scripts/generate_full_page_images.py`。
+官方：`unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.py`。
 `stage2_generate_images.LEGACY.py` = 遗留参考，**默认不用**。
 
 ## 8. 编辑链（改完怎么重跑）
@@ -95,32 +95,32 @@ Phase 2：先锁画风（sketch / diagram / photography / 3D / mixed），再选
 
 ## 一页速查：统一入口
 
-默认只用 `ppt_flow.py`。独立 stage 脚本只留给 Expert 调试。
+默认只用 `ppt_flow.mjs`。独立 stage 脚本只留给 Expert 调试。
 
 ```bash
 # 环境
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py doctor
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs doctor
 
 # 建 bundle
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py init deck_{NAME} \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs init deck_{NAME} \
   --deck-type {keynote|pitch|report|training} --style {preset}
 
 # 看进度与下一步（也检查结构）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py status \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs status \
   deck_{NAME}/3_versions/v1
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py approve \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs approve \
   deck_{NAME}/3_versions/v1 content
 
 # 生成风格母版；用户确认后记录 visual gate
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py style-master \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs style-master \
   deck_{NAME}/3_versions/v1
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py approve \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs approve \
   deck_{NAME}/3_versions/v1 visual
 
 # 自动选代表页 pilot；通过后全量生产
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py pilot \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs pilot \
   deck_{NAME}/3_versions/v1
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py build \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.mjs build \
   deck_{NAME}/3_versions/v1
 ```
 

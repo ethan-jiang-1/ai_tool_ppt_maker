@@ -1,6 +1,6 @@
 # fonts/ — bundled fonts for the Header-Lock stage (optional)
 
-Stage 3 (`stage3_lock_headers.py`) overlays kicker/title/subtitle text onto the
+Stage 3 (`stage3_lock_headers.mjs`) overlays kicker/title/subtitle text onto the
 AI-generated body images. Its `_load_font()` resolves fonts **cross-platform** in
 this order:
 

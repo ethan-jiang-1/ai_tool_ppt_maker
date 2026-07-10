@@ -54,12 +54,12 @@ GET  /tasks/{task_id}/result   → 下载生成的图片
 
 | 脚本 | Stage |
 |------|-------|
-| `stage1_build_inputs.py` | markdown → JSON |
-| image2-ppt skill（经 `unified_pipeline.py`） | text → images（需要 API） |
+| `stage1_build_inputs.mjs` | markdown → JSON |
+| image2-ppt skill（经 `unified_pipeline.mjs`） | text → images（需要 API） |
 | `stage2_generate_images.LEGACY.py` | 遗留参考（默认不用） |
-| `stage3_lock_headers.py` | Header-Lock（需要 Pillow） |
-| `stage4_build_pptx.py` | images → PPTX（需要 python-pptx） |
-| `stage5_inject_notes.py` | speaker notes 注入 |
+| `stage3_lock_headers.mjs` | Header-Lock（需要 Pillow） |
+| `stage4_build_pptx.mjs` | images → PPTX（需要 python-pptx） |
+| `stage5_inject_notes.mjs` | speaker notes 注入 |
 
 ## Python 工具链
 
@@ -74,7 +74,7 @@ GET  /tasks/{task_id}/result   → 下载生成的图片
 Phase 0 创建 run bundle 后，确认：
 
 - [ ] 在 deck 根运行 `uv sync` 成功
-- [ ] `00-auto-env-check.py` 显示 READY
+- [ ] `00-env-check.mjs` 显示 READY
 - [ ] `OPENAI_API_KEY` 环境变量已设置
 - [ ] 如需固定 relay，`OPENAI_BASE_URL` 已设置；否则使用 skill 默认 endpoint
-- [ ] 字体文件存在于 `stage3_lock_headers.py` 中配置的路径（macOS: `/Library/Fonts/`，Linux: `/usr/share/fonts/`，Windows: `C:/Windows/Fonts/`）
+- [ ] 字体文件存在于 `stage3_lock_headers.mjs` 中配置的路径（macOS: `/Library/Fonts/`，Linux: `/usr/share/fonts/`，Windows: `C:/Windows/Fonts/`）

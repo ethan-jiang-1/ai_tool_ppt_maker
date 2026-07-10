@@ -391,4 +391,4 @@ def inject_notes(pptx_path: str, notes_list: list[str]):
 3. **添加错误处理**：伪代码省略了 retry logic、timeout handling、partial failure recovery
 4. **选择脚本语言**：Python 是推荐（Pillow 和 python-pptx 是生态标准），但模式和逻辑与语言无关
 
-完整的生产实现参考：`06_reference_scripts/` 目录（通过 `unified_pipeline.py --run-dir` 就地运行，不复制进 run bundle）。历史案例 T10 当年把脚本放在 `session_ppt_flow_T10/v3/scripts/`——那是本框架成形前的做法，当前布局已改为脚本就地运行、产物统一写入 `_generated/`。
+完整的生产实现参考：`06_reference_scripts/` 目录（通过 `unified_pipeline.mjs --run-dir` 就地运行，不复制进 run bundle）。历史案例 T10 当年把脚本放在 `session_ppt_flow_T10/v3/scripts/`——那是本框架成形前的做法，当前布局已改为脚本就地运行、产物统一写入 `_generated/`。

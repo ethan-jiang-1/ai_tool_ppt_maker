@@ -63,7 +63,7 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 **Soft bundle**（`PPTMAKER_FRAMEWORK/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
 
 > ### ⚙️ 跨平台（macOS / Linux / Windows 都要能跑）
-> 本文档里的 `ls` / `cp` / `cp -r` / `rm -rf` / `diff -r` 是 **POSIX 示例**。核心 Python 脚本（`bundle_layout.py --init`、`unified_pipeline.py`、各 stage）本身是跨平台的，用它们就无需这些 shell 命令。当你确实需要文件操作时：
+> 本文档里的 `ls` / `cp` / `cp -r` / `rm -rf` / `diff -r` 是 **POSIX 示例**。核心 Python 脚本（`bundle_layout.mjs --init`、`unified_pipeline.mjs`、各 stage）本身是跨平台的，用它们就无需这些 shell 命令。当你确实需要文件操作时：
 > - **首选：用你的 agent 文件工具**（读/写/复制/删除），完全避开 shell 差异——这是最稳的跨平台方式。
 > - 需要 shell 时的等价命令：
 >   | 操作 | macOS / Linux | Windows PowerShell |
@@ -118,7 +118,7 @@ Phase 4: 迭代维护
 
 ### 0.2 创建 Run Bundle
 
-参考 `00_project_setup/01-directory-template.md`（人类可读镜像）和 `06_reference_scripts/bundle_layout.py`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
+参考 `00_project_setup/01-directory-template.md`（人类可读镜像）和 `06_reference_scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
 
 ```
 deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留）
@@ -139,17 +139,17 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
 创建命令——**用 `--init` 一条命令搭好整个骨架并播种选中的 preset,不要手动 mkdir、不要手动 cp**（手动建/手动拷是临场发挥的源头）：
 
 ```bash
-python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py \
+node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs \
   --init deck_{NAME} --deck-type {keynote|pitch|report|training} --style {preset-slug}
 ```
 
 它从 SSOT 长出完整三层结构、给**每个目录**放一份大白话 README、把内容模板铺到位、播种 deck-type 与视觉 preset，并写好可直接使用的 `deck-guide.md` + `CLAUDE.md` + `project-metadata.yaml`。`_generated/` 空壳与 README 会预建，真实管线产物首次运行时生成。
 
-> `--deck-type` / `--style` 的合法值来自 SSOT catalog(`bundle_layout.py` 的 `DECK_TYPE_TEMPLATES` / `STYLE_PRESETS`);拼错会被 argparse 直接拒绝。省略它们则铺空模板(Expert Mode 手填)。`style_master.jpg` 不由 preset 提供,Phase 2 生成。
+> `--deck-type` / `--style` 的合法值来自 SSOT catalog(`bundle_layout.mjs` 的 `DECK_TYPE_TEMPLATES` / `STYLE_PRESETS`);拼错会被 argparse 直接拒绝。省略它们则铺空模板(Expert Mode 手填)。`style_master.jpg` 不由 preset 提供,Phase 2 生成。
 
 搭完后随时可校验结构合不合宪法(Phase 0 用 `--structure-only`——不查 Phase-2 才有的 `style_master.jpg`,新建 bundle 直接通过):
 ```bash
-python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --check deck_{NAME}/3_versions/v1 --structure-only
+node PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1 --structure-only
 ```
 
 `deck-guide.md` 是这个 bundle 的护栏——任何 agent 进目录先读它,就知道结构、能改什么、别碰什么、下一步干什么。它防止下次 session 临场发挥出错误的目录。
@@ -192,11 +192,11 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 
 ### ⛔ 闸门：Phase 0
 
-- [ ] `bundle_layout.py --init deck_{NAME}` 已跑（三层结构 + 每目录 README + 模板 + deck-guide/CLAUDE/metadata 桩全部就位）
+- [ ] `bundle_layout.mjs --init deck_{NAME}` 已跑（三层结构 + 每目录 README + 模板 + deck-guide/CLAUDE/metadata 桩全部就位）
 - [ ] Metadata 已填写（`project-metadata.yaml` 无 vague 项）
 - [ ] 源文件已就位（backbone 的隐喻/公式/约束/视觉 + 这版的 slide-specifications.md）
 - [ ] `deck-guide.md` 占位符已按项目填好（`--init` 生成的是桩,需替换 {{...}}）
-- [ ] `bundle_layout.py --check deck_{NAME}/3_versions/v1 --structure-only` 通过（结构合宪法；`style_master.jpg` 是 Phase 2 产物，此闸门不查它）
+- [ ] `bundle_layout.mjs --check deck_{NAME}/3_versions/v1 --structure-only` 通过（结构合宪法；`style_master.jpg` 是 Phase 2 产物，此闸门不查它）
 
 → 用户确认后进入 Phase 1。如果某项不通过，在进入 Phase 1 前修复。
 
@@ -287,7 +287,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 - [ ] 所有 Design Constraints 检查通过
 - [ ] 没有 filler slide——每张 slide 的叙事功能可以一句话说出
 
-> **L3 的内容契约校验不在这里。** `stage1_build_inputs.py --validate`（L3 gate，会把"缺 IMAGE PROMPT"判为 ERROR）**放到 §2.7 回填之后 / Phase 3 生产前**——那时 L3 才应齐全。管线在 Phase 3 首次运行前会自动跑这道校验（见 §3 执行管线），无需在 Phase 1 手动跑。**Phase 1 跑它一定失败**（L3 还是占位），别在此处 gate。
+> **L3 的内容契约校验不在这里。** `stage1_build_inputs.mjs --validate`（L3 gate，会把"缺 IMAGE PROMPT"判为 ERROR）**放到 §2.7 回填之后 / Phase 3 生产前**——那时 L3 才应齐全。管线在 Phase 3 首次运行前会自动跑这道校验（见 §3 执行管线），无需在 Phase 1 手动跑。**Phase 1 跑它一定失败**（L3 还是占位），别在此处 gate。
 
 → 用户确认内容锁定后，把 `project-metadata.yaml` 的 `content_gate` 改为 `approved`，再进入 Phase 2。如果闸门不通过，回到对应子阶段修复。**不跳闸门。**
 
@@ -332,7 +332,7 @@ cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
 3. **如果没有预生成的 jpg**（当前 5 个 preset 都不含）：把 style master prompt 存为 `2_backbone/visual-style/style-master-prompt.md`（源文件，别丢），再用框架的统一 wrapper 生成：
 
 ```bash
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -373,7 +373,7 @@ uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
 先把 2.3 的 meta-prompt 存成 `2_backbone/visual-style/style-master-prompt.md`（源文件），再用框架的统一 wrapper 生成一张风格母版图：
 
 ```bash
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -390,7 +390,7 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 
 然后填入你的项目约束（language policy、forbidden elements、text density、tone 等）。模板有详细注释说明每项填什么。
 
-`deck_system.txt` 是 Stage 1 的系统级约束来源——`stage1_build_inputs.py` 读取它来向每个 slide prompt 注入 TEXTUAL contracts。它与 style master（处理 VISUAL consistency）互补：style master **shows** 模型产出什么风格，deck_system.txt **tells** 模型不要产出什么内容。
+`deck_system.txt` 是 Stage 1 的系统级约束来源——`stage1_build_inputs.mjs` 读取它来向每个 slide prompt 注入 TEXTUAL contracts。它与 style master（处理 VISUAL consistency）互补：style master **shows** 模型产出什么风格，deck_system.txt **tells** 模型不要产出什么内容。
 
 ### 2.6 Review & Lock（参考 `01_visual_style_master/04-iterate-review-lock.md`）
 
@@ -416,7 +416,7 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 - 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `03_image_prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
 - 全部回填后，跑一次内容契约校验（**这是 L3 gate 真正该跑的地方**，Phase 1 不跑）：
   ```bash
-  uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
+  node PTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.mjs \
     --validate --input deck_{NAME}/3_versions/v1/slide-specifications.md
   ```
   ERROR 清零（不再有占位符 / 缺 IMAGE PROMPT / body+header-lock 页缺 TITLE）才进 Phase 3。管线在 Phase 3 首次运行前也会自动跑同一道校验兜底。
@@ -440,34 +440,34 @@ cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
 > **Novice Mode**：无需 `visual-style.md`（preset 的 README + color_palette.json + deck_system.txt 替代了它）。**Expert Mode**：额外有 `2_backbone/visual-style/visual-style.md`。
 > 某一版要微调视觉/讲稿,放进该版的 `overrides/`(管线自动优先用 override,否则回退 backbone)。
 > `3_versions/v1/_generated/` 的空壳由 `--init` 创建；真实 JSON、图片和 PPTX 由管线写入，你不要手工准备或编辑。
-> **内容契约会自动把关**:Stage 1 每次运行前先跑 L3 校验(`validate_specs`),spec 有 ERROR 直接中止、一次列全,不会带着未填占位符或缺 TITLE 的页跑到最贵的生图那步。想提前手动看:`stage1_build_inputs.py --validate --input <spec>`。
+> **内容契约会自动把关**:Stage 1 每次运行前先跑 L3 校验(`validate_specs`),spec 有 ERROR 直接中止、一次列全,不会带着未填占位符或缺 TITLE 的页跑到最贵的生图那步。想提前手动看:`stage1_build_inputs.mjs --validate --input <spec>`。
 
 ### 执行管线
 
-**推荐：使用统一管线脚本**（`06_reference_scripts/unified_pipeline.py`）：
+**推荐：使用统一管线脚本**（`06_reference_scripts/unified_pipeline.mjs`）：
 
 ```bash
 # 首次生产：先解析，再用 3 张代表页做 1K pilot
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # Pilot 通过后，全量生成 2K，再完成 Header-Lock/PPTX/Notes
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --resolution 2k --force-images
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 
 # 只跑某个 stage（如只重新 lock headers）
-uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
+node PTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 ```
 
 `--stage all` 适合视觉方向已经在 pilot 中验证过的重建；它执行技术管线，不替代用户对内容和视觉 Phase gate 的确认。
 
-**如果 unified_pipeline.py 不可用**，手动按 Stage 1-5 执行（参考 `04_production_pipeline/reference-pipeline-scripts.md`）。
+**如果 unified_pipeline.mjs 不可用**，手动按 Stage 1-5 执行（参考 `04_production_pipeline/reference-pipeline-scripts.md`）。
 
 ### Stage 概述
 
@@ -503,7 +503,7 @@ Stage 2 每次完成后会自动更新 `_generated/preview/contact_sheet.jpg`。
 
 ### 版本快照
 
-重大下游改动 → 用 `bundle_layout.py --new-version deck_{NAME}/3_versions/v{n}` 创建干净版本。它只复制 `slide-specifications.md` + `overrides/`，不会复制旧 `_generated/`。砍/加 slide、重排、这一版单独换视觉方向属于新版本；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开新版本。
+重大下游改动 → 用 `bundle_layout.mjs --new-version deck_{NAME}/3_versions/v{n}` 创建干净版本。它只复制 `slide-specifications.md` + `overrides/`，不会复制旧 `_generated/`。砍/加 slide、重排、这一版单独换视觉方向属于新版本；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开新版本。
 
 ### 结构化迭代流程
 
@@ -561,14 +561,13 @@ openspec-propose "Change: [description]"
 
 | 脚本 | 用途 | Phase |
 |------|------|-------|
-| `06_reference_scripts/bundle_layout.py` | **目录结构唯一事实源**——所有脚本 import 它取路径 | 全程 |
-| `06_reference_scripts/stage1_build_inputs.py` | markdown → slide_plan.json + page_prompts/ | 3 |
-| `06_reference_scripts/stage2_generate_images.LEGACY.py` | **遗留**。官方 Stage 2 = skill `image2-ppt/scripts/generate_full_page_images.py`（经 `unified_pipeline.py`）。默认不用 LEGACY | 2 |
-| `06_reference_scripts/stage3_lock_headers.py` | Header-Lock：Python/Pillow 叠加标题文字 | 3 |
-| `06_reference_scripts/stage4_build_pptx.py` | 图片 → PPTX 容器 | 3 |
-| `06_reference_scripts/stage5_inject_notes.py` | Speaker notes 注入 PPTX | 3 |
+| `06_reference_scripts/bundle_layout.mjs` | **目录结构唯一事实源**——所有脚本 import 它取路径 | 全程 |
+| `06_reference_scripts/stage1_build_inputs.mjs` | markdown → slide_plan.json + page_prompts/ | 3 |
+| `06_reference_scripts/stage3_lock_headers.mjs` | Header-Lock：@napi-rs/canvas 叠加标题文字 | 3 |
+| `06_reference_scripts/stage4_build_pptx.mjs` | 图片 → PPTX 容器 | 3 |
+| `06_reference_scripts/stage5_inject_notes.mjs` | Speaker notes 注入 PPTX | 3 |
 
-所有脚本是参考实现，通过 `unified_pipeline.py --run-dir deck_{NAME}/3_versions/v1` 就地运行（不复制进 run bundle）。需要适配项目时（换字体、canvas 尺寸、API），修改 `06_reference_scripts/` 里脚本顶部的 `# Customization` 常量。改目录结构只改 `bundle_layout.py`。
+所有脚本是参考实现，通过 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1` 就地运行（不复制进 run bundle）。需要适配项目时（换字体、canvas 尺寸、API），修改 `06_reference_scripts/` 里脚本顶部的 `# Customization` 常量。改目录结构只改 `bundle_layout.mjs`。
 
 ### 迭代工具（以 OpenSpec 为例）
 

@@ -117,7 +117,7 @@ PPTMAKER_FRAMEWORK/
 ### 学习路径
 
 1. 读这个 README。理解体系架构。
-2. 读 `00_project_setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `06_reference_scripts/bundle_layout.py`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `00_project_setup/01-directory-template.md`。不要临场发挥目录。
+2. 读 `00_project_setup/`。理解文件系统架构（soft bundle vs run bundle）、目录结构、命名约定。**run bundle 的目录结构是框架的"宪法"**——唯一事实源是 `06_reference_scripts/bundle_layout.mjs`（跑它看权威树、`--check` 校验一个 bundle），人读镜像是 `00_project_setup/01-directory-template.md`。不要临场发挥目录。
 3. **按需深入**：根据你在哪个阶段，进入对应的子目录。每个子目录有自己的 README 和阅读路径。
    - 需要设计视觉 → `01_visual_style_master/`
    - 需要设计内容 → `02_content_design/`
@@ -149,7 +149,7 @@ PPTMAKER_FRAMEWORK/
 
 ### 3. 版本快照
 
-- 每次重大下游改动用 `bundle_layout.py --new-version ...` 创建干净版本
+- 每次重大下游改动用 `bundle_layout.mjs --new-version ...` 创建干净版本
 - Changelog 记录什么变了、为什么——"原因"比"做什么"更重要
 - 方法论文件在 Git 中版本管理；项目产出物在项目目录中管理
 

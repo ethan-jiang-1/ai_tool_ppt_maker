@@ -36,14 +36,14 @@ v1 . 0 . 0
 
 ### 变了什么
 
-1. 新增 `generate_style_master.py`：读取源 prompt、加载 deck `.env`、桥接凭据并调用实际 image skill。
+1. 新增 `generate_style_master.mjs`：读取源 prompt、加载 deck `.env`、桥接凭据并调用实际 image skill。
 2. Chain B 的 `--only` 自动强制刷新指定图片；全量视觉刷新新增 `--force-images`；pilot 可用 `--resolution 1k`。
 3. visual-style override 改为**按文件**解析，允许只覆盖 palette 而继承 backbone 的 system/style master。
-4. 新增 `bundle_layout.py --new-version`，只复制 slide specs + overrides，永不复制 `_generated/`。
+4. 新增 `bundle_layout.mjs --new-version`，只复制 slide specs + overrides，永不复制 `_generated/`。
 5. 去除 deck_system/style anchoring 的重复注入：Stage 1 组装完整实发 prompt，Stage 2 以 `--prompt-is-final` 只负责发送与附加 reference image。
 6. metadata 新增 `content_gate` / `visual_gate`；Stage 2 readiness check 要求 `approved` 或明确 `waived`。
 7. BOOTSTRAP 顺序改为隐喻/公式 → medium → visual preset，落实 Medium before color。
-8. 新增统一测试入口 `run_tests.py`，补充 version/override/cache/gate/deck-guide、文档漂移 guard 与 Stage 1→3→4→5 offline E2E smoke test。
+8. 新增统一测试入口 `vitest run`，补充 version/override/cache/gate/deck-guide、文档漂移 guard 与 Stage 1→3→4→5 offline E2E smoke test。
 9. 初始化直接生成可执行的 `deck-guide.md`，不再只生成待填 stub。
 10. Stage 2 完成后自动生成 `_generated/preview/contact_sheet.jpg`，pilot QA 有固定检查产物。
 
@@ -64,7 +64,7 @@ v1 . 0 . 0
 ### 变了什么
 
 1. **RENDER MODE 唯一词汇**：对外与 `slide_plan.json` 一律使用 `full-page` / `body+header-lock`。字段为 `layout_contract.render_mode`（不再写 `header_variant`）。旧词 `image_direct` / `normal` 仅作**输入别名**兼容；Stage 3 读 canonical，旧 plan 的 `header_variant` 仍可映射。
-2. **Stage 2 官方路径唯一**：`unified_pipeline.py` → `image2-ppt/scripts/generate_full_page_images.py`。原 `stage2_generate_images.py` 改名为 `stage2_generate_images.LEGACY.py`（默认不用）。
+2. **Stage 2 官方路径唯一**：`unified_pipeline.mjs` → `image2-ppt/scripts/generate_full_page_images.py`。原 `stage2_generate_images.py` 改名为 `stage2_generate_images.LEGACY.py`（默认不用）。
 3. **AGENT_CONTRACT.md**：10 条不可违反铁律（一页）。入口流变为 BOOTSTRAP → AGENT_CONTRACT → 按 Phase 翻 AGENTS（勿整本通读）。CLAUDE / README / QUICK_START / ANTI_PATTERNS 已对齐。
 
 ### 兼容性
@@ -83,7 +83,7 @@ v1 . 0 . 0
 
 ### 变了什么
 
-run bundle 现在是**三层分化梯度**(唯一权威源:`06_reference_scripts/bundle_layout.py`,跑它打印权威树):
+run bundle 现在是**三层分化梯度**(唯一权威源:`06_reference_scripts/bundle_layout.mjs`,跑它打印权威树):
 
 ```
 deck_{NAME}/
@@ -97,7 +97,7 @@ deck_{NAME}/
 
 - **版本 = 下游 delta**。`cp -r 3_versions/v1 3_versions/v2` 只复制 slide 规格 + overrides;backbone/上游引用共享,不复制 → 共性永不分叉。
 - **下游从 backbone 汲取,可局部 override**。版本 `overrides/<X>` 存在就用它,否则回退 `2_backbone/<X>`(`bundle_layout.resolve_backbone_asset`)——给下游灵活度又不拷贝分叉。
-- **目录结构 SSOT = `bundle_layout.py`**。所有脚本 import 它取路径,文档树是它的人读镜像。彻底根除"结构信息散在各处、各自漂移"的碎片化(用户核心诉求)。
+- **目录结构 SSOT = `bundle_layout.mjs`**。所有脚本 import 它取路径,文档树是它的人读镜像。彻底根除"结构信息散在各处、各自漂移"的碎片化(用户核心诉求)。
 - **prompt 是一等资产**。每页 prompt 拆成 `_generated/page_prompts/NN_id.prompt.md`(人读)+ `_prompts.json`(机器);style master 的 prompt 存为 `2_backbone/visual-style/style-master-prompt.md`(以前画完就丢)。
 - **两个 render mode 显式化**:每页在 slide-specifications.md 声明 `full-page`(整页 image-2)或 `body+header-lock`(image-2 画 body + Python 叠标题)。
 - **`deck-brief.md` 拆成 4 个模板**:`template-core-metaphor` / `template-core-formula` / `template-design-constraints`(→ backbone)+ `template-slide-specifications`(→ 版本)。
@@ -125,7 +125,7 @@ deck_{NAME}/
 
 - **源与派生物理分离**。`v{n}/` 下只有两个源目录（`session_design/` + `style/`，你手改），脚本生成的一切进 `_build/`（绝不手改，可 `rm -rf` 后重跑重建）。打开 `v{n}/` 只看到三样东西，边界自明。
 - **唯一权威定义**落在 `00_project_setup/01-directory-template.md`。AGENTS.md、06_reference_scripts/README、04_production_pipeline/* 全部对齐到它。
-- **管线路径写死在 `unified_pipeline.py` 常量里**，不再靠人工传 `--out-dir`。stage1/stage3 解耦了"写产物"和"读 style"的位置（新增 `--style-dir`）。
+- **管线路径写死在 `unified_pipeline.mjs` 常量里**，不再靠人工传 `--out-dir`。stage1/stage3 解耦了"写产物"和"读 style"的位置（新增 `--style-dir`）。
 - **脚本就地运行**，不再复制进 `v{n}/scripts/`——少一个分叉源。
 - **文件名去掉 `-v1` 后缀**（bug 0004）；版本只由 `v{n}/` 目录承载。
 - **新增 per-bundle `CLAUDE.md` 模板**（`00_project_setup/template-bundle-claude.md`）——每个 run bundle 的反临场发挥护栏，agent 进目录先读它就知道能改什么、别碰什么。
@@ -141,7 +141,7 @@ deck_{NAME}/
 
 ### 兼容性
 
-- 现有旧 run bundle（产物在 `v{n}/` 根、带 `-v1` 后缀）需要迁移：把生成物移进 `_build/`。脚本对独立调用保留了向后兼容的 style 目录探测，但推荐统一走 `unified_pipeline.py`。
+- 现有旧 run bundle（产物在 `v{n}/` 根、带 `-v1` 后缀）需要迁移：把生成物移进 `_build/`。脚本对独立调用保留了向后兼容的 style 目录探测，但推荐统一走 `unified_pipeline.mjs`。
 
 ---
 

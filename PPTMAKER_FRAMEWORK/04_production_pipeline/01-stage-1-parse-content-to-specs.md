@@ -165,6 +165,6 @@ else:
 
 ---
 
-> **案例**：某 19 张 slide 的 keynote，Stage 1（`stage1_build_inputs.py`）从其 slide-specifications.md 解析出 19 张。其中 3 张（title/bridge/closer）归为 full-page（VISUAL TYPE 映射或显式 RENDER MODE=full-page），其余 16 张为 body+header-lock。canvas 尺寸 1672×941，header_safe_zone 260px（后者可由 preset 的 color_palette.json 覆盖）。这些参数按项目/preset 定制。
+> **案例**：某 19 张 slide 的 keynote，Stage 1（`stage1_build_inputs.mjs`）从其 slide-specifications.md 解析出 19 张。其中 3 张（title/bridge/closer）归为 full-page（VISUAL TYPE 映射或显式 RENDER MODE=full-page），其余 16 张为 body+header-lock。canvas 尺寸 1672×941，header_safe_zone 260px（后者可由 preset 的 color_palette.json 覆盖）。这些参数按项目/preset 定制。
 
 > **Next**: `02-stage-2-generate-images-with-anchoring.md` — Stage 2 详解：怎么用 async API 批量生图，同时用 style master 做视觉锚定。
