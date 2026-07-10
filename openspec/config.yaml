@@ -1,20 +1,105 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  ## 项目本质
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  这是一个 **Agent 驱动的 PPT 生成系统**.它不是传统程序——没有 Makefile, 没有
+  Airflow DAG, 没有 YAML 配置的状态机. **Agent 就是编排器**: 读方法论文档 → 做创意
+  判断 → 运行管线 → 响应迭代.
+
+  ## 两层结构
+
+  - **Soft bundle** (`PPTMAKER_FRAMEWORK/`): 只读的方法论知识库. Agent 从这里学习
+    "怎么做", 但不修改它.
+  - **Run bundle** (`deck_{NAME}/`): 每个具体 PPT 项目的文件系统实例. Agent 在这里
+    执行所有工作. 三层梯度:
+    - `1_upstream_raw_material/` — 原始素材 (共享)
+    - `2_backbone/` — 主干: 隐喻, 公式, 视觉风格 (共享, 稳定)
+    - `3_versions/v{n}/` — 下游增量: slide-specifications, overrides, _generated/
+
+  ## Agent 工作流程 (5 个 Phase, 顺序不可变)
+
+  | Phase | 做什么 | Agent 的角色 |
+  |-------|--------|-------------|
+  | 00 项目初始化 | 环境检查 + 5 问题 intake + 创建 run bundle | 执行者: 跑 `bundle_layout.py --init`, 填模板 |
+  | 01 视觉风格 | 锁定 medium → 选预设 → 生成 style_master.jpg → review | 建议者: 推荐 2-3 个预设, 生成 style master, 迭代到 95%+ |
+  | 02 内容设计 | 隐喻 → 公式 → Block Map → 四层 slide specs | 创作者: 生成隐喻候选, 公式, Block Map, 填充 L1/L2/L4 |
+  | 03 图像提示词 | 能力层 (不产生文件): 教 Agent 怎么写好的 image prompt | 学习者: 内化 5 段式 prompt 结构, 用于 Phase 02 的 L3 回填 |
+  | 04 生产管线 | 5 个 Stage 从 markdown → PPTX | 执行者: 跑 `unified_pipeline.py`, gate 处停下让人类 review |
+  | 05 迭代引擎 | 分类变更 → 最小化重跑 → 记录 | 判断者: 分类编辑链 A/B/C, 决定是否要新版本 |
+
+  ## 核心架构原则
+
+  1. **文件系统即工作流引擎** — 目录 = 阶段, 文件 = 交接产物, 版本快照 = 目录复制,
+     git = 审计跟踪. Agent 看文件系统就知道当前在哪里.
+  2. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
+     80% 的 slide 用 `body+header-lock` 模式: AI 生成的图上留白顶部 260px,
+     确定性代码以像素精度叠加标题. 20% 用 `full-page`: AI 画完整页面.
+  3. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
+     是所有图像生成的视觉锚点——每张 slide 生成时作为 reference image 传入.
+  4. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
+     `_generated/` 内一切都可以通过重跑管线重新生成, 绝不手动编辑.
+
+  ## Agent 入口
+
+  1. 关键词触发 → `CLAUDE.md`
+  2. `PPTMAKER_FRAMEWORK/BOOTSTRAP.md` — 环境检查 + 5 问题 intake
+  3. `PPTMAKER_FRAMEWORK/AGENT_CONTRACT.md` — 10 条铁律 (一页纸, 必读)
+  4. `PPTMAKER_FRAMEWORK/AGENTS.md` — 按 Phase 分段读, 不从头到尾读
+
+  ## 编辑链 (变更分类)
+
+  任何用户变更请求都必须先分类, 再执行最小化重跑:
+
+  | 链 | 变更类型 | Stage | 耗时 |
+  |----|---------|-------|------|
+  | A (纯文本) | title/kicker/subtitle 修改 | 1,3,4,5 | ~5 min |
+  | B (视觉) | image prompt/颜色/布局 | 1,2,3,4,5 | ~5 min/页 |
+  | C (备注) | speaker notes | 5 | ~30 sec |
+  | Structural | 增/删/重排 slide | new-version + 受影响页 | 按页数 |
+
+  分类参照: `PPTMAKER_FRAMEWORK/automation/change-classifier.md`
+
+  ## 核心词汇 (只有这些)
+
+  - RENDER MODE: `full-page` (AI 画整页), `body+header-lock` (AI 画 body, 代码锁标题)
+  - 禁用别名: `image_direct`, `normal`——这些已废弃
+  - Slide 四层: L1 Meta (视觉类型/标题), L2 Concept (认知载荷),
+    L3 Image Prompt (视觉执行指令), L4 Speaker Note (叙述流 60-90s)
+
+  ## 人-Agent 协作边界
+
+  - **Agent 拥有过程**: 目录结构, 管线执行, 变更分类, 文件管理
+  - **人类拥有内容**: 隐喻准确度, 案例可信度, 颜色适当性, 核心主张——这些必须由人判断
+  - **Gate 是强制停顿点**: `project-metadata.yaml` 中 `content_gate` 和 `visual_gate`
+    必须为 `approved` 或 `waived` 才能进入 Stage 2
+
+  ## 与 _backlog 的关系
+
+  `_backlog/` 是独立的簿记系统 (bugs/todos/plans), 有自己基于 `git mv` 的生命周期.
+  与 OpenSpec 各自簿记, 不交叉判定. `_` 前缀目录 (`_done/`, `_fixed_bugs/` 等)
+  是已归档内容, Agent 默认忽略.
+
+rules:
+  proposal:
+    - "先分类变更类型: narrative-frame / case-anchor / content-constraint / pipeline-script / pipeline-operation"
+    - "再分类影响范围: Chain A (文本)/ B (视觉)/ C (备注)/ Structural (结构)——参照 automation/change-classifier.md"
+    - "结构变更 (增/删/重排 slide)必须走 --new-version"
+    - "视觉变更涉及颜色/style master 时, 标注需要 --force-images"
+    - "视觉变更超过 1 页时, 先 pilot 3 页再全量"
+    - "绝不提议跳过某个 Phase gate 而不写豁免理由"
+
+  specs:
+    - "目录结构引用 PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py 的常量——不硬编码路径"
+    - "使用规范 RENDER MODE 词汇: full-page / body+header-lock (不用 image_direct / normal)"
+    - "IMAGE PROMPT 只描述视觉内容 (布局, 颜色, 图标, 图表)——系统契约由 Stage 1 组装"
+    - "SPEAKER NOTE 是 60-90 秒叙述流, 不是讲稿"
+    - "区分 backbone (所有版本共享)和 version delta (单版本)——改 backbone 影响所有版本"
+
+  tasks:
+    - "任务粒度 = pipeline stage 级别 (e.g. '修改 Stage 1 解析逻辑以支持新字段')"
+    - "标注编辑链 (A/B/C/Structural)和对应的 --stage 参数"
+    - "标注是否需要 --force-images, --only <id>, 或 --new-version"
+    - "标注是否需重新生成 style_master.jpg"
+    - "每个任务对应到测试层: bundle-layout / pipeline-e2e / pipeline-guards / spec-validation / visual-config / docs-consistency"
+    - "绝不包含需要手动编辑 _generated/ 内容的步骤"
