@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.68",
