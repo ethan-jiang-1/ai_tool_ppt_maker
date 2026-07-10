@@ -15,9 +15,9 @@ Every node SHALL have YAML frontmatter with at minimum: `node` (kebab-case name)
 
 #### Scenario: Agent checks entry gate before executing a node
 
-- **WHEN** Agent begins executing node `wave0` in playbook `full-creation`
+- **WHEN** Agent begins executing node `wave0` in playbook `create-deck`
 - **THEN** it verifies all `entry` conditions are met
-- **AND** if any condition fails (e.g., `seed_topics_complete` is false), Agent reports the missing condition and does NOT proceed
+- **AND** if any condition fails (e.g., `node_completed:seed-topics` is false), Agent reports the missing condition and does NOT proceed
 
 #### Scenario: Agent checks exit gate before marking node complete
 
@@ -27,19 +27,19 @@ Every node SHALL have YAML frontmatter with at minimum: `node` (kebab-case name)
 
 ### Requirement: State file is YAML at run bundle root
 
-Every run bundle SHALL contain a `run-bundle-state.yaml` file at its root (`deck_<name>/run-bundle-state.yaml`). This file SHALL be readable and writable by both MD-side (Agent) and CLI-side (.mjs scripts). It SHALL track: active playbook, current node, per-node status, gate decisions, and deck metadata.
+Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml` (single truth source, atomically written) and `history.jsonl` (append-only reference log). `state.yaml` SHALL track: active playbook, current node, per-node status, gate decisions, playbook_stack, and deck metadata. `history.jsonl` SHALL NOT participate in any automatic recovery logic——it is for LLM reference only. `readState(deckDir)` reads `_state/state.yaml`. `appendHistory(deckDir, event)` appends to `_state/history.jsonl`. `readHistory(deckDir)` returns all events.
 
-#### Scenario: Agent reads state to resume after interruption
+#### Scenario: Agent reads state to resume
 
 - **WHEN** Agent opens a run bundle that was previously in progress
-- **THEN** reading `run-bundle-state.yaml` reveals which playbook is active, which node is current, and which nodes are completed
-- **AND** Agent can resume from the current_node without repeating completed work
+- **THEN** reading `_state/state.yaml` reveals which playbook is active, which node is current, and which nodes are completed
+- **AND** Agent can resume from the current_node
 
-#### Scenario: CLI script reads state before executing
+#### Scenario: CLI reads state before Stage 2
 
-- **WHEN** `unified_pipeline.mjs` is about to run Stage 2
-- **THEN** it reads `run-bundle-state.yaml` to verify `visual_gate` is `approved` or `waived`
-- **AND** if the gate is `pending`, the script refuses to run and reports the missing condition
+- **WHEN** `ppt_flow.mjs` gates Stage 2 (image generation) via `state <runDir> --check-gates`
+- **THEN** it reads `_state/state.yaml` to verify `gates.visual` is `approved` or `waived`
+- **AND** if the gate is `pending`, the check exits non-zero and the pipeline refuses to run
 
 ### Requirement: Node status has exactly five valid states
 
@@ -57,7 +57,7 @@ A node with `shared: true` in frontmatter SHALL be referenceable by multiple pla
 
 #### Scenario: Two playbooks use the same classification node
 
-- **WHEN** playbook `chain-a.md` and `chain-b.md` both need change classification
+- **WHEN** playbook `edit-text.md` and `edit-visual.md` both need change classification
 - **THEN** they both reference `includes: [classify-change]` rather than each containing a copy
 
 ### Requirement: Node body distinguishes MD steps from CLI steps
@@ -135,7 +135,7 @@ The catalog SHALL include a `node_done:<name>` condition that returns true when 
 
 ### Requirement: Playbook stack preserves position during switching
 
-`run-bundle-state.yaml` SHALL include a `playbook_stack` field (array of `{playbook, current_node}`). `switchPlaybook()` SHALL push the current position onto the stack. `resumePlaybook()` SHALL pop and restore position.
+`_state/state.yaml` SHALL include a `playbook_stack` field (array of `{playbook, current_node}`). `switchPlaybook()` SHALL push the current position onto the stack. `resumePlaybook()` SHALL pop and restore position.
 
 #### Scenario: Agent switches playbooks and returns
 
@@ -172,19 +172,15 @@ The catalog SHALL include a `node_done:<name>` condition that returns true when 
 - **THEN** `seed-topics` status returns to `pending`
 - **AND** previously stored extra fields (topic_count) are cleared
 
-### Requirement: State API handles corruption and absence gracefully
+### Requirement: History log is append-only
 
-`readState(deckDir)` SHALL return a default initial state when the file does not exist. When the YAML file is corrupted, it SHALL return `{ corrupted: true, errors: [...] }` without throwing.
+`appendHistory(deckDir, event)` SHALL atomically append one JSON line to `_state/history.jsonl`. `readHistory(deckDir)` SHALL return all valid JSON events, skipping lines that fail to parse. The history log SHALL NOT participate in automatic recovery——it is for LLM reference only.
 
-#### Scenario: Fresh deck has no state file
+#### Scenario: History survives crash
 
-- **WHEN** `readState(deckDir)` is called on a deck without `run-bundle-state.yaml`
-- **THEN** it returns a default initial state structure
-
-#### Scenario: Corrupted state file is detected
-
-- **WHEN** the YAML file contains invalid syntax
-- **THEN** `readState(deckDir)` returns `{ corrupted: true, errors: ['YAML parse error at line 5'] }`
+- **WHEN** process crashes mid-write to `history.jsonl`
+- **THEN** the last line may be truncated but preceding lines are intact
+- **AND** `readHistory` skips the damaged line
 
 ### Requirement: CLI exposes state via ppt_flow state command
 

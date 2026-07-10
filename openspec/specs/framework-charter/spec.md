@@ -1,13 +1,13 @@
 ## ADDED Requirements
 
-### Requirement: Charter directory exists with exactly three files
+### Requirement: Charter directory exists with exactly four files
 
-`PPTMAKER_FRAMEWORK/charter/` SHALL exist as a subdirectory containing exactly three files: CONSTITUTION.md, WORKFLOW.md, and AGENT_CONTRACT.md. No other files SHALL be placed in this directory.
+`PPTMAKER_FRAMEWORK/charter/` SHALL exist as a subdirectory containing exactly four files: CONSTITUTION.md, WORKFLOW.md, AGENT_CONTRACT.md, and NODE-SPEC.md. No other files SHALL be placed in this directory.
 
 #### Scenario: Agent enters framework and reads charter
 
 - **WHEN** Agent navigates to `PPTMAKER_FRAMEWORK/charter/`
-- **THEN** it finds CONSTITUTION.md (structure constitution), WORKFLOW.md (process constitution), and AGENT_CONTRACT.md (behavioral constitution)
+- **THEN** it finds CONSTITUTION.md (structure constitution), WORKFLOW.md (process constitution), AGENT_CONTRACT.md (behavioral constitution), and NODE-SPEC.md (node constitution)
 - **AND** no other files exist in this directory
 
 ### Requirement: CONSTITUTION.md declares bundle_layout.mjs as the single source of truth
@@ -49,16 +49,16 @@ The `PPTMAKER_FRAMEWORK/` root directory SHALL contain exactly five `.md` files:
 
 - **WHEN** a human lists `PPTMAKER_FRAMEWORK/` contents
 - **THEN** they see only five markdown files, all of which are entry points
-- **AND** reference documents (QUICK_START, GLOSSARY, ANTI_PATTERNS, VERSION_LOG) are NOT in the root
+- **AND** reference documents (`quick-start.md`, `glossary.md`, `anti-patterns.md`, `version-log.md`) are NOT in the root
 
 ### Requirement: Reference documents are in reference/ directory
 
-QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, and VERSION_LOG.md SHALL be located in `PPTMAKER_FRAMEWORK/reference/`. These are pure lookup appendices, not entry points.
+`quick-start.md`, `glossary.md`, `anti-patterns.md`, and `version-log.md` SHALL be located in `PPTMAKER_FRAMEWORK/reference/`. These are pure lookup appendices, not entry points.
 
 #### Scenario: Human looks for reference material
 
 - **WHEN** a human navigates to `reference/`
-- **THEN** they find QUICK_START.md (onboarding), GLOSSARY.md (terminology), ANTI_PATTERNS.md (common mistakes), and VERSION_LOG.md (changelog)
+- **THEN** they find `quick-start.md` (onboarding), `glossary.md` (terminology), `anti-patterns.md` (common mistakes), and `version-log.md` (changelog)
 
 ### Requirement: Root README references charter directory
 
@@ -72,30 +72,11 @@ The file `PPTMAKER_FRAMEWORK/README.md` SHALL mention the `charter/` directory a
 
 ### Requirement: Framework root subdirectories follow type-based organization
 
-The `PPTMAKER_FRAMEWORK/` root SHALL contain exactly four subdirectories: `workflow/` (methodology), `scripts/` (executable code), `charter/` (constitution), and `reference/` (appendices). Phase-numbered directories (00_*, 01_*, etc.) SHALL NOT exist at root level.
+The `PPTMAKER_FRAMEWORK/` root SHALL contain exactly five subdirectories: `workflow/` (methodology), `scripts/` (executable code), `charter/` (constitution), `reference/` (appendices), and `playbook/` (workflow controllers). Phase-numbered directories (00_*, 01_*, etc.) SHALL NOT exist at root level.
 
 #### Scenario: Human lists root subdirectories
 
 - **WHEN** a human runs `ls PPTMAKER_FRAMEWORK/`
-- **THEN** they see exactly `workflow/`, `scripts/`, `charter/`, `reference/`
+- **THEN** they see exactly `workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`
 - **AND** no directory names contain Phase numbers at root level
 
-## REMOVED Requirements
-
-### Requirement: 01-directory-template.md is deleted and merged
-
-**Reason**: This requirement was fulfilled in the framework-directory-restructure change. The file was deleted and its content merged into `charter/CONSTITUTION.md`. The requirement is no longer relevant.
-
-**Migration**: No action needed — CONSTITUTION.md is the permanent home for the run bundle directory structure documentation.
-
-### Requirement: Reference documents are in 00_project_setup
-
-**Reason**: Superseded by framework-directory-consolidation. Reference documents moved from `00_project_setup/` → `reference/`. The requirement "Reference documents are in reference/ directory" above replaces this one.
-
-**Migration**: Reference documents are now at `PPTMAKER_FRAMEWORK/reference/`.
-
-### Requirement: 00_project_setup README reflects new file inventory
-
-**Reason**: Superseded by framework-directory-consolidation. The `00_project_setup/` directory itself was renamed to `workflow/00-setup/` and no longer contains reference documents. The README was updated during consolidation.
-
-**Migration**: See `workflow/00-setup/README.md` for the current file inventory.
