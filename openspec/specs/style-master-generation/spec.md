@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define `generate_style_master.mjs`, which produces the deck's visual anchor image: it reads `style-master-prompt.md` from the run bundle, calls the external `image2-imagegen` skill with credentials bridged from `.env`, and writes the result to `2_backbone/visual-style/style_master.jpg`. This capability guarantees that every deck has a single generated style master that downstream image prompts can anchor to for visual consistency.
+
+## Requirements
 
 ### Requirement: Style master is generated from source prompt
 

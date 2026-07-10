@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an agent through a deck's lifecycle: the six playbook files (five MD Controllers plus the shared `classify-change.md` node), the 11-node `create-deck` creation flow and the shortened edit chains, intent routing via `COMMANDS.md`, state initialization on playbook start, gate enforcement at node boundaries, and shared-node reuse via `includes:`. This capability guarantees that user intent maps to exactly one playbook, that human-judgment gates (content and visual) block progression until explicitly approved or waived, and that execution state lives in `_state/state.yaml` alongside the static `project-metadata.yaml`.
+
+## Requirements
 
 ### Requirement: playbook/ directory contains five MD controllers
 

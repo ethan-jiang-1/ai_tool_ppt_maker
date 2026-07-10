@@ -1,6 +1,6 @@
 # _done — 已完成/已归档记录
 
-> 最后更新: 2026-07-10 | `_backlog/_done/` — 所有已完成内容的归档根目录。
+> 最后更新: 2026-07-11 | `_backlog/_done/` — 所有已完成内容的归档根目录。
 > **`_` 前缀 = coding agent 默认忽略，除非显式点名要读。**
 >
 > 状态总览和查阅指南在本文件。活跃工作的 PENDING 表、依赖链、执行顺序 → 见 [`../todos/README.md`](../todos/README.md)。
@@ -24,12 +24,12 @@ _done/
 
 | 归档目录 | 数量 | Next ID |
 |---------|------|---------|
-| `_fixed_bugs/` | 0 | BUG-001 |
+| `_fixed_bugs/` | 2 | BUG-003 |
 | `_suspened_bugs/` | 0 | — |
 | `_done_todos/` | 0 | DONE-001 |
 | `_closed_plans/` | 0 | CLS-001 |
 
-_（尚无已完成项。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
+_（已修复 2 个 bug：BUG-001 主 spec delta 格式规范化、BUG-002 框架文档 state 漂移。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 
 ---
 

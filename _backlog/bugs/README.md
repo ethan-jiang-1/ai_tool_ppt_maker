@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-10 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-07-11 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -17,8 +17,7 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| [BUG-001](BUG-001-main-specs-stored-in-delta-format.md) | P1 | 15/16 主 spec 存成 delta 格式，`openspec validate --specs` 系统性失败 |
-| [BUG-002](BUG-002-framework-docs-still-say-run-bundle-state.md) | P1 | 框架方法论文档仍写 `run-bundle-state.yaml`（NODE-SPEC.md 等 4 处），与 `_state/` 代码/spec 漂移 |
+| — | — | 当前无活跃 bug |
 
 **Next available bug ID: BUG-003**
 

@@ -27,7 +27,7 @@ exit:
 
 **Step 1 — CLI**: `node scripts/env-check.mjs`
 **Step 2 — CLI**: `node scripts/bundle_layout.mjs --init deck_<name> [--deck-type X] [--style Y]`
-**Step 3 — CLI**: 写 `run-bundle-state.yaml` 初始状态
+**Step 3 — CLI**: 写 `_state/state.yaml` 初始状态
 
 ### hitl1
 → 人机交互: 确认方向/profile/topics

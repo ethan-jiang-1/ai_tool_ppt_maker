@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/lib/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
+
+## Requirements
 
 ### Requirement: NODE-SPEC.md exists in charter directory
 
@@ -73,6 +77,12 @@ Each node body SHALL use `## Step N — MD` for Agent-executed instructions and 
 ### Requirement: Gate Conditions Catalog is defined in NODE-SPEC.md
 
 `charter/NODE-SPEC.md` SHALL contain a Gate Conditions Catalog section listing every valid gate condition name, its type (FILESYSTEM/STATE/USER), its data source (exact file path within run bundle, or state field path, or user decision field), and its check logic. All playbook frontmatter entry/exit conditions SHALL use names from this catalog.
+
+#### Scenario: Developer looks up a gate condition in the catalog
+
+- **WHEN** a developer opens the Gate Conditions Catalog in `charter/NODE-SPEC.md`
+- **THEN** each condition lists its name, type (FILESYSTEM / STATE / USER), data source, and check logic
+- **AND** every entry/exit condition used in playbook frontmatter appears by name in the catalog
 
 ### Requirement: ctx parameter provides run bundle paths to conditions
 

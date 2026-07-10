@@ -1,5 +1,5 @@
 /**
- * state.mjs — Complete State API for run-bundle-state.yaml.
+ * state.mjs — Complete State API for _state/state.yaml (+ _state/history.jsonl).
  * Zero npm dependencies. MD and CLI both use this to read/write state.
  */
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync, readdirSync } from 'node:fs';

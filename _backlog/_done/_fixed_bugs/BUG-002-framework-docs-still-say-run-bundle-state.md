@@ -1,6 +1,6 @@
 # BUG-002: 框架方法论文档仍描述旧的单文件 state（`run-bundle-state.yaml`），与代码/spec 漂移
 
-> 严重级别: P1 | 发现: 2026-07-11 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-11 | 状态: 已修复 (2026-07-11)
 
 ## 症状
 
@@ -24,9 +24,12 @@ grep -rn "run-bundle-state" PPTMAKER_FRAMEWORK   # 4 个文件命中
 
 ## 修复关联
 
-两步（纯 doc/注释同步，非 requirement 变更，故走 `_backlog` 不走 OpenSpec）:
+已修复（纯 doc/注释同步，非 requirement 变更，故直接改文件、不走 OpenSpec change）:
 
-1. **数据修复**: 上述 4 处 `run-bundle-state.yaml` → `_state/state.yaml`（+ 补 `_state/history.jsonl` append-only 提及），删 NODE-SPEC.md "与 project-metadata.yaml 共存" 旧措辞。
-2. **根因修复（防复发）**: 消除双真相源——让 `NODE-SPEC.md` 的 `## State Schema` 段**指向** openspec `node-specification` spec（而不是各存一份副本）。此步偏结构重构，可另立 plan。
+1. **数据修复**: 7 处 `run-bundle-state.yaml` → `_state/state.yaml`（NODE-SPEC.md 的 State Schema 段/YAML 注释/CLI⇔MD 协议/STATE 条件表 共 5 处，playbook/create-deck.md、COMMANDS.md、state.mjs 头注释各 1 处），并补 `_state/history.jsonl`（append-only、仅供 LLM 参考）的说明；State API 段补 `historyPath` / `appendHistory` / `readHistory`。
+   - **修正一处 bug 卡片旧判断**：卡片原写"删 NODE-SPEC.md '与 project-metadata.yaml 共存' 旧措辞"。但 openspec `playbook-execution` spec 仍有需求 "State file coexists with project-metadata.yaml"——共存是**现行**约定。故**保留**共存表述，只改文件名/文件模型（单文件 → `_state/` 目录），以 spec 为准更自洽。
+2. **根因修复（防复发）**: 消除双真相源——在 NODE-SPEC.md `## State Schema` 段头加**权威指针** blockquote：规范定义在 openspec `node-specification` / `playbook-execution` spec，本段是快照，冲突时**以 spec 为准**并同步更新（对齐 CONSTITUTION.md 对 `bundle_layout.mjs` 的 SSOT 模式）。
+
+**结果**: `grep -rn run-bundle-state`（除 archive/_backlog）→ 0；`node --check state.mjs` 通过；unit 25/25、e2e 16/16 绿。
 
 注: 曾一度立成 OpenSpec change `sync-framework-docs-state`，但文档漂移是 correctness 缺陷、非 requirement 变更，按两层簿记规矩归入本 bug；该 change 已解散。

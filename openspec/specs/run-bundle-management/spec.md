@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define `bundle_layout.mjs` as the single source of truth for run-bundle directory structure: every other script imports its path constants, and it exposes `--init` (scaffold), `--check` (validate against a whitelist), `--new-version` (create a clean downstream version), and `--self-check` (drift alarm for CI). This capability guarantees that run bundles have one authoritative, machine-enforced layout, so directory drift is caught rather than silently tolerated.
+
+## Requirements
 
 ### Requirement: Bundle layout is the directory constitution
 

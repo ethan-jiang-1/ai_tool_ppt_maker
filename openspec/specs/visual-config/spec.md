@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Define `visual_config.mjs`, the shared loader for `color_palette.json` consumed by both Stage 1 (prompt assembly) and Stage 3 (header rendering). This capability guarantees that prompt layout and deterministic text positioning read from one identical config instance — canvas dimensions, header safe zone, and font settings cannot drift apart between the two stages — with built-in defaults filling any missing fields.
+
+## Requirements
 
 ### Requirement: Visual config is shared between Stage 1 and Stage 3
 

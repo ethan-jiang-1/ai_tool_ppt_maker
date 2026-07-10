@@ -44,10 +44,12 @@ node scripts/<script>.mjs --arg <value>
 
 ## State Schema
 
-State 文件 `run-bundle-state.yaml` 放在 run bundle 根目录 (`deck_<name>/`). 与 `project-metadata.yaml` **共存**: state 管执行进度, metadata 管静态配置.
+> **单一真相源**: state 模型的规范定义在 openspec spec [`node-specification`](../../openspec/specs/node-specification/spec.md) 和 [`playbook-execution`](../../openspec/specs/playbook-execution/spec.md). 下面是给 agent 的**快速参考快照**——若快照与 spec 冲突, **以 spec 为准**, 并同步更新本快照 (这是防止 state 模型再次漂移的约定).
+
+State 存放在 run bundle 根目录的 `_state/` 目录 (`deck_<name>/_state/`): `state.yaml` 是唯一真相源 (原子写), `history.jsonl` 是 append-only 参考日志 (仅供 LLM 参考, 不参与自动恢复). 与 `project-metadata.yaml` **共存**: state 管执行进度, metadata 管静态配置.
 
 ```yaml
-# run-bundle-state.yaml
+# _state/state.yaml
 playbook: create-deck       # 当前 playbook
 current_node: wave0           # 当前执行到的 node
 started_at: 2026-07-10T14:00:00Z
@@ -113,7 +115,7 @@ includes: [classify-change]
 
 ### CLI ⇔ MD 协议
 
-- **MD → CLI**: Agent 执行 CLI step 前, 确保 `entry` 条件满足. 将 `run-bundle-state.yaml` 路径传给脚本
+- **MD → CLI**: Agent 执行 CLI step 前, 确保 `entry` 条件满足. 将 `_state/state.yaml` 路径传给脚本
 - **CLI → MD**: 脚本执行后写 state (node status, 产出物路径, 时间戳). 如果 entry 条件不满足, 脚本拒绝执行并报告缺失条件
 - **State 读写**: 写操作只更新自己负责的字段. 读操作前先加载最新 state
 
@@ -121,7 +123,9 @@ includes: [classify-change]
 
 `scripts/lib/state.mjs` 提供完整 CRUD + Query API.
 
-**READ**: `readState(deckDir)`, `writeState(deckDir, state)`, `statePath(deckDir)`
+**READ**: `readState(deckDir)`, `writeState(deckDir, state)`, `statePath(deckDir)`, `historyPath(deckDir)`
+
+**HISTORY**: `appendHistory(deckDir, event)` (原子 append 一行 JSON 到 `_state/history.jsonl`), `readHistory(deckDir)` (返回所有可解析事件, 跳过损坏行). History 仅供 LLM 参考, 不参与自动恢复.
 
 **QUERY**: `getNodeStatus(state, name)`, `getCurrentNode(state)`, `getCompletedNodes(state)`, `getPendingNodes(state)`, `isNodeCompleted(state, name)`, `isPlaybookComplete(state)`, `getGateStatus(state, name)`, `isGateApproved(state, name)`
 
@@ -148,7 +152,7 @@ includes: [classify-change]
 | `pptx_generated` | PPTX 已产出 | `ctx.runDir/_generated/ppt/*.pptx` |
 | `speaker_notes_injected` | 备注已注入 | pptx notes panel 非空 |
 
-### STATE — 检查 run-bundle-state.yaml 字段
+### STATE — 检查 `_state/state.yaml` 字段
 
 | 条件名 | 检查 | state 路径 |
 |--------|------|-----------|
