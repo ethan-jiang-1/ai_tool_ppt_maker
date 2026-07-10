@@ -21,7 +21,7 @@ agent_action: reference
 **为什么重要**：整个框架的工作都发生在一个 run bundle 里。不需要数据库、不需要 workflow server。`ls` 看进度，`diff -r 3_versions/v1 3_versions/v2` 看差异。
 
 ### Soft Bundle（软包 / 知识包）
-`_ppt_framework_v1/` 本身——方法论文档、模板、参考脚本。它是只读的知识库，不包含任何具体项目的内容。
+`PPTMAKER_FRAMEWORK/` 本身——方法论文档、模板、参考脚本。它是只读的知识库，不包含任何具体项目的内容。
 
 **为什么重要**：Soft bundle 教你"怎么想"，run bundle 存放"你做了什么"。一个 soft bundle 可以服务无数个 run bundle。
 

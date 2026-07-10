@@ -57,7 +57,7 @@ Constraints:
 - Must be visualizable (not abstract — something you can draw)
 - Must create tension (not just "X is important")
 
-Reference the metaphor catalog in _ppt_framework_v1/02_content_design/presets/metaphor-catalog.md
+Reference the metaphor catalog in PPTMAKER_FRAMEWORK/02_content_design/presets/metaphor-catalog.md
 for patterns. Match against the user's industry and topic.
 ```
 
@@ -88,7 +88,7 @@ Available presets:
 4. Tech Startup — deep purple, neon cyan/magenta accents. Bold, energetic, memorable.
 5. Corporate Safe — white, corporate blue, gray. Professional, trustworthy, timeless.
 
-Reference each preset's README in _ppt_framework_v1/01_visual_style_master/presets/ for full details.
+Reference each preset's README in PPTMAKER_FRAMEWORK/01_visual_style_master/presets/ for full details.
 ```
 
 **变量**：`{TOPIC}`, `{AUDIENCE}`, `{DECK_TYPE}`

@@ -107,7 +107,7 @@ export OPENAI_BASE_URL="https://你的-relay/v1"   # 可选；留空使用已安
 现在打开 Claude Code（terminal 里输入 `claude`），把这段话贴进去：
 
 ```
-I want to create a presentation using the _ppt_framework_v1/ at /path/to/_ppt_framework_v1/.
+I want to create a presentation using the PPTMAKER_FRAMEWORK/ at /path/to/PPTMAKER_FRAMEWORK/.
 Read AGENTS.md first, then guide me through Phase 0.
 
 Here's what I know so far:

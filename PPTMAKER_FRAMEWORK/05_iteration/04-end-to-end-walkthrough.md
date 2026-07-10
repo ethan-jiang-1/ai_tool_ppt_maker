@@ -26,7 +26,7 @@ agent_action: iterate_with_openspec
        40 分钟。只讲方向和模式，不讲具体数字。"
 
 Agent (读 AGENTS.md → Phase 0):
-  1. python _ppt_framework_v1/06_reference_scripts/bundle_layout.py --init deck_mfg_ai
+  1. python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --init deck_mfg_ai
      → 一条命令建好三层结构 + 每目录 README + 铺好内容模板 + deck-guide/CLAUDE/metadata 桩
   2. 填 project-metadata.yaml(topic/听众/语言)
   3. （可选）template-visual-style.md → 2_backbone/visual-style/visual-style.md
@@ -143,7 +143,7 @@ Agent: "这会影响所有 slide 的颜色语义。走结构化迭代流程。"
 
 ```
 Agent (Phase 3 — 一条命令跑全部 5 个 stage)：
-  → uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+  → uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
        --run-dir deck_mfg_ai/3_versions/v1 --stage all
   （脚本就地运行，不复制进 run bundle；跑前自动 --check 结构 + L3 校验）
 

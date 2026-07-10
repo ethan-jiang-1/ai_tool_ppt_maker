@@ -99,28 +99,28 @@ Phase 2：先锁画风（sketch / diagram / photography / 3D / mixed），再选
 
 ```bash
 # 环境
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py doctor
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py doctor
 
 # 建 bundle
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py init deck_{NAME} \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py init deck_{NAME} \
   --deck-type {keynote|pitch|report|training} --style {preset}
 
 # 看进度与下一步（也检查结构）
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py status \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py status \
   deck_{NAME}/3_versions/v1
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py approve \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py approve \
   deck_{NAME}/3_versions/v1 content
 
 # 生成风格母版；用户确认后记录 visual gate
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py style-master \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py style-master \
   deck_{NAME}/3_versions/v1
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py approve \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py approve \
   deck_{NAME}/3_versions/v1 visual
 
 # 自动选代表页 pilot；通过后全量生产
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py pilot \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py pilot \
   deck_{NAME}/3_versions/v1
-uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py build \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py build \
   deck_{NAME}/3_versions/v1
 ```
 

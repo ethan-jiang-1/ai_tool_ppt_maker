@@ -404,7 +404,7 @@ def validate_run_dir(run_dir: Path, require_ready: bool = True) -> bool:
         for v in violations:
             print(f"      - {v}")
         print("  The directory structure is the constitution. Fix the above, then rerun.")
-        print("  Canonical structure:  python _ppt_framework_v1/06_reference_scripts/bundle_layout.py")
+        print("  Canonical structure:  python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py")
         return False
     return True
 

@@ -23,7 +23,7 @@ agent_action: internalize
 > import 路径，本文的目录树也应与它一致。想看权威树，直接跑：
 >
 > ```bash
-> python _ppt_framework_v1/06_reference_scripts/bundle_layout.py
+> python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py
 > ```
 >
 > 改目录结构 → 只改 `bundle_layout.py`，别在任何脚本里硬编码路径、别在任何文档里另画一棵树。
@@ -127,7 +127,7 @@ deck_{NAME}/                       ← 一个 deck（run bundle）。"deck_" 前
 ## 版本策略：`--new-version`
 
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/bundle_layout.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py \
   --new-version deck_X/3_versions/v1
 ```
 
@@ -140,7 +140,7 @@ uv run python _ppt_framework_v1/06_reference_scripts/bundle_layout.py \
 ## 脚本不放在 run bundle 里
 
 管线通过 `unified_pipeline.py --run-dir deck_{NAME}/3_versions/v1` 从
-`_ppt_framework_v1/06_reference_scripts/` **就地运行**。run bundle 里**没有** `scripts/` 目录。
+`PPTMAKER_FRAMEWORK/06_reference_scripts/` **就地运行**。run bundle 里**没有** `scripts/` 目录。
 
 ---
 

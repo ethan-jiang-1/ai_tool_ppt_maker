@@ -3,13 +3,13 @@ title: VERSION_LOG
 stage: root
 position: meta
 type: changelog
-summary: _ppt_framework_v1 的小版本迭代记录。只追 v1.x.x 线。v2 是未来的另一个目录。
+summary: PPTMAKER_FRAMEWORK 的小版本迭代记录。只追 v1.x.x 线。v2 是未来的另一个目录。
 depends_on: []
 feeds_into: []
 agent_action: reference
 ---
 
-# VERSION_LOG — `_ppt_framework_v1/`
+# VERSION_LOG — `PPTMAKER_FRAMEWORK/`
 
 > 这个文件只记录 **v1.x.x** 的变更。大版本（v2、v3…）各有一个独立目录（`_ppt_framework_v2/`、`_ppt_framework_v3/`…），各自的 VERSION_LOG 只管自己的小版本线。
 >

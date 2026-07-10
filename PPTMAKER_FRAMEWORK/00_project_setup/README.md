@@ -19,7 +19,7 @@ agent_action: navigate
 
 本目录定义了 PPT 制作体系的**运行环境（run bundle）**——文件系统就是一切运行在其上的基础设施。但它不仅讲文件系统——它覆盖项目初始化的**全部**内容：怎么搭目录、怎么配 Python 环境、怎么选工具。
 
-- **Soft bundle** = `_ppt_framework_v1/`（方法论参考，只读）
+- **Soft bundle** = `PPTMAKER_FRAMEWORK/`（方法论参考，只读）
 - **Run bundle** = 你为每个项目创建的文件系统实例（目录 + 代码 + 配置 + 产出物）
 
 当你开始一个 PPT 项目，第一步就是按本目录的指导创建 run bundle。之后所有的设计、生产、迭代都在这个 run bundle 中进行。

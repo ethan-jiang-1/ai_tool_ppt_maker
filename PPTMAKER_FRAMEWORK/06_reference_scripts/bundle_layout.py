@@ -478,7 +478,7 @@ _DIR_READMES = {
         "- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n"
         "- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n\n"
         "**只改带 README 说'你改这里'的文件。** 结构由 "
-        "`_ppt_framework_v1/06_reference_scripts/bundle_layout.py` 定义,别自己新建目录。\n"
+        "`PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py` 定义,别自己新建目录。\n"
     ),
     UPSTREAM_DIR: (
         "# 上游:原始素材\n\n"
@@ -524,7 +524,7 @@ _DIR_READMES = {
         "- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n"
         "**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n"
         "**生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:\n"
-        "`uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py "
+        "`uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py "
         "--run-dir <这个版本目录> --stage all`\n"
     ),
     f"{VERSIONS_DIR}/v1/{OVERRIDES_SUBDIR}": (
@@ -647,7 +647,7 @@ def init_bundle(deck_dir: Path, framework_dir: Path | None = None,
                      f"content_gate: pending\nvisual_gate: pending\n")
     _write_if_absent(deck_dir / POINTER_FILE,
                      f"# {name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。"
-                     f"目录结构的权威源:`_ppt_framework_v1/06_reference_scripts/bundle_layout.py`。\n")
+                     f"目录结构的权威源:`PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py`。\n")
     pipeline_script = framework_dir / "06_reference_scripts/unified_pipeline.py"
     version_script = framework_dir / "06_reference_scripts/bundle_layout.py"
     _write_if_absent(

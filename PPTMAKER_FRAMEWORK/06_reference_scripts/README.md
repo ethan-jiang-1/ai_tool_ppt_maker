@@ -94,26 +94,26 @@ export OPENAI_BASE_URL="https://..."     # API endpoint
 
 ```bash
 # 已完成 pilot 后，运行全部 5 个 stage
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage all
 
 # 首次生产 pilot：先 1，再选 3 张代表页跑 1K Stage 2
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # 只跑某个 stage（如只重新 lock headers）
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 
 # 编辑链：改标题只跑 1,3,4,5；改画面跑 1,2,3,4,5；改 notes 只跑 5
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1,3,4,5
 
 # 全量视觉刷新（配色/style master/全局 prompt 变化）
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage all --force-images
 ```
 
@@ -136,7 +136,7 @@ v1 canvas 固定为 1672×941。常规项目优先通过 `color_palette.json` �
 cd deck_{NAME}
 
 # Stage 1: markdown → JSON（写入 _generated/，style 从 2_backbone/visual-style/ 读）
-uv run python _ppt_framework_v1/06_reference_scripts/stage1_build_inputs.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
   --input 3_versions/v1/slide-specifications.md \
   --out-dir 3_versions/v1/_generated/ \
   --style-dir 2_backbone/visual-style/
@@ -148,21 +148,21 @@ uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
   --out-dir 3_versions/v1/_generated/page_images_full/
 
 # Stage 3: Header-Lock（style 从 2_backbone/visual-style/ 读取 color_palette.json）
-uv run python _ppt_framework_v1/06_reference_scripts/stage3_lock_headers.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.py \
   --images 3_versions/v1/_generated/page_images_full/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/header_locked/ \
   --style-dir 2_backbone/visual-style/
 
 # Stage 4: images → PPTX（{NAME} = deck_{NAME} 目录名去掉 deck_ 前缀）
-uv run python _ppt_framework_v1/06_reference_scripts/stage4_build_pptx.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.py \
   --images 3_versions/v1/_generated/header_locked/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/ppt/{NAME}.pptx
 
 # Stage 5: inject speaker notes（管线会自动备份；手动跑时先备份）
 cp 3_versions/v1/_generated/ppt/{NAME}.pptx 3_versions/v1/_generated/ppt/{NAME}.backup.pptx
-uv run python _ppt_framework_v1/06_reference_scripts/stage5_inject_notes.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage5_inject_notes.py \
   --pptx 3_versions/v1/_generated/ppt/{NAME}.pptx \
   --input 3_versions/v1/slide-specifications.md
 ```
@@ -175,9 +175,9 @@ uv run python _ppt_framework_v1/06_reference_scripts/stage5_inject_notes.py \
 
 ```bash
 # 只重新生成 slide_07 这一张图，然后重跑 3,4,5
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only slide_07
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 ```
 
@@ -186,7 +186,7 @@ uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
 ### 统一测试入口
 
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/run_tests.py
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/run_tests.py
 ```
 
 ## 自定义 API 适配

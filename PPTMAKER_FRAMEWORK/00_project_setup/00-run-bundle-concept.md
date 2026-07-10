@@ -21,7 +21,7 @@ agent_action: internalize
 
 | | Soft Bundle | Run Bundle |
 |---|------------|------------|
-| **是什么** | `_ppt_framework_v1/` — 方法论知识库 | 你为具体项目创建的文件系统实例 |
+| **是什么** | `PPTMAKER_FRAMEWORK/` — 方法论知识库 | 你为具体项目创建的文件系统实例 |
 | **包含** | 方法论文件、模板、参考案例 | 项目产出物：设计文档、图片、JSON、PPTX |
 | **谁读** | Agent 和人类——学习 "怎么做" | Agent——作为执行环境 |
 | **版本管理** | Git 追踪方法论演进 | `bundle_layout.py --new-version ...` 创建干净下游快照 |
@@ -38,7 +38,7 @@ agent_action: internalize
 
 | 你需要做的 | 文件系统怎么支持 |
 |-----------|----------------|
-| 创建新项目 | `python _ppt_framework_v1/06_reference_scripts/bundle_layout.py --init deck_{NAME}`（一条命令搭全,不手动 mkdir） |
+| 创建新项目 | `python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --init deck_{NAME}`（一条命令搭全,不手动 mkdir） |
 | 看当前进度 | `ls 3_versions/v1/_generated/page_images_full/` — 生成了几张图 |
 | 版本快照 | `bundle_layout.py --new-version deck_X/3_versions/v1` — 只复制源 delta，随时 `diff -r` |
 | 重跑某个阶段 | `python scripts/stage_2.py` |

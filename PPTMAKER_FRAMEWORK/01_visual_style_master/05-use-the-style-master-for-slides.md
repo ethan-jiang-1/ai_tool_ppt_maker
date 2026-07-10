@@ -54,7 +54,7 @@ system — do not deviate from it. Only change the slide content, not the style.
 
 ```bash
 # 先跑 Stage 1（解析 markdown → JSON，写入 _generated/）
-uv run python _ppt_framework_v1/06_reference_scripts/stage1_build_inputs.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
   --input 3_versions/v1/slide-specifications.md \
   --out-dir 3_versions/v1/_generated/ \
   --style-dir 2_backbone/visual-style/
@@ -83,13 +83,13 @@ uv run python <skills>/image2-ppt/scripts/generate_full_page_images.py \
 
 ### Step 4: Header-Lock + PPTX
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/stage3_lock_headers.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage3_lock_headers.py \
   --images 3_versions/v1/_generated/page_images_full/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/header_locked/ \
   --style-dir 2_backbone/visual-style/
 
-uv run python _ppt_framework_v1/06_reference_scripts/stage4_build_pptx.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage4_build_pptx.py \
   --images 3_versions/v1/_generated/header_locked/ \
   --slide-plan 3_versions/v1/_generated/slide_plan.json \
   --out 3_versions/v1/_generated/ppt/{NAME}.pptx

@@ -39,7 +39,7 @@ agent_action: navigate
 ## 怎么开始:把这段话贴给你的 agent
 
 ```
-我想做一个 PPT,请引导我。先读 _ppt_framework_v1/BOOTSTRAP.md,
+我想做一个 PPT,请引导我。先读 PPTMAKER_FRAMEWORK/BOOTSTRAP.md,
 然后一步步带我走(我是新手,请多给我选择题、少让我做问答题)。
 
 我目前知道的:

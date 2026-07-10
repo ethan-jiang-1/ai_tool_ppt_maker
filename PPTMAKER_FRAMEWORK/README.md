@@ -13,7 +13,7 @@ agent_action: navigate
 # PPT 信息加工流
 
 > **先读这个。**
-> 这是 `_ppt_framework_v1/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。
+> 这是 `PPTMAKER_FRAMEWORK/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。
 >
 > **第一次来（人类）？** 看 [Quick Start](QUICK_START.md)——5 分钟找到你的路径。
 > **你是 Agent？** 操作入口：[BOOTSTRAP.md](BOOTSTRAP.md) → [AGENT_CONTRACT.md](AGENT_CONTRACT.md)（10 条铁律）→ 按 Phase 翻 [AGENTS.md](AGENTS.md)。本 README 讲"是什么/为什么"。
@@ -31,7 +31,7 @@ agent_action: navigate
 **目录 = Stage。文件 = 交接物。版本快照 = 完整复制。Git = 审计追踪。**
 
 ```
-_ppt_framework_v1/
+PPTMAKER_FRAMEWORK/
   ├── BOOTSTRAP.md                      ← Agent 启动（env → intake → build）
   ├── AGENT_CONTRACT.md                 ← Agent 一页铁律（每次 session 先内化）
   ├── AGENTS.md                         ← Phase 详解手册（按需翻，勿整本通读）

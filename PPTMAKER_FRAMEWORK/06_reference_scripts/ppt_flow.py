@@ -223,7 +223,7 @@ def command_init(args: argparse.Namespace) -> int:
         print("✗ Deck directory must start with 'deck_'.")
         return 1
     if FRAMEWORK_DIR == deck_dir or FRAMEWORK_DIR in deck_dir.parents:
-        print("✗ A run bundle must live outside _ppt_framework_v1/.")
+        print("✗ A run bundle must live outside PPTMAKER_FRAMEWORK/.")
         return 1
     try:
         log = layout.init_bundle(

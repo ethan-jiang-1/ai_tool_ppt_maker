@@ -69,7 +69,7 @@ agent_action: copy_to_bundle
 
 # 以下给 AI agent:控制流与命令
 
-> 目录结构是宪法,唯一事实源 `_ppt_framework_v1/06_reference_scripts/bundle_layout.py`
+> 目录结构是宪法,唯一事实源 `PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py`
 > (跑它看树 / `--check deck_{NAME}/3_versions/v1` 校验)。只改 `2_backbone/` 和
 > `3_versions/{{CURRENT_VERSION}}/{slide-specifications.md, overrides/}`;`_generated/` 全是派生品。
 
@@ -128,15 +128,15 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
 
 ```bash
 # 全量(跑前会自动 --check 结构)
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage all
 
 # 最小重跑(见编辑链),如只改标题:
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage 1,3,4,5
 ```
 
-> 完整方法论见 `_ppt_framework_v1/AGENTS.md`。目录宪法见 `06_reference_scripts/bundle_layout.py`。
+> 完整方法论见 `PPTMAKER_FRAMEWORK/AGENTS.md`。目录宪法见 `06_reference_scripts/bundle_layout.py`。
 ```
 
 ---
@@ -148,7 +148,7 @@ uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
 
 进入这个 run bundle 请先读 [deck-guide.md](deck-guide.md)——它说清了目录结构、控制流、
 编辑链、以及下一步该做什么。目录结构的机器权威源：
-`_ppt_framework_v1/06_reference_scripts/bundle_layout.py`。
+`PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py`。
 ```
 
 ---

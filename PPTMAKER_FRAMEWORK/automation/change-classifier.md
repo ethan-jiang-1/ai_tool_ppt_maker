@@ -161,16 +161,16 @@ Agent 回复：
 使用统一管线脚本：
 ```bash
 # Chain A: text only (re-parses all slides, re-locks headers, rebuilds PPTX)
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
 
 # Chain B: visual — single slide (--only flag limits image generation to one slide; stages 1,3,4,5 run for all slides which is fast)
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN
 
 # Chain C: notes only
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 5
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage 5
 
 # Full visual rerun（配色/style master/全局 prompt 改动）
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage all --force-images
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py --run-dir deck_X/3_versions/v1 --stage all --force-images
 ```
 
 > **Note**: `--only` 只限制 Stage 2，并自动强制刷新指定图片；Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。

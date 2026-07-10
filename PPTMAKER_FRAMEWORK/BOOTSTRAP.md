@@ -32,7 +32,7 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 - **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。
 - **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.py --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
   ```bash
-  uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py status deck_{NAME}/3_versions/v1
+  uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py status deck_{NAME}/3_versions/v1
   ```
 
 同理,**流程也别乱发挥**:严格按下面三步 + AGENTS.md 的固定 Phase 走,闸门不跳。
@@ -47,10 +47,10 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 
 ```bash
 # macOS / Linux
-python3 _ppt_framework_v1/00_project_setup/00-auto-env-check.py
+python3 PPTMAKER_FRAMEWORK/00_project_setup/00-auto-env-check.py
 
 # Windows（PowerShell 或 cmd）
-python  _ppt_framework_v1\00_project_setup\00-auto-env-check.py
+python  PPTMAKER_FRAMEWORK\00_project_setup\00-auto-env-check.py
 ```
 （Windows 上若 `python` 不识别，试 `py`。）
 
@@ -199,7 +199,7 @@ python  _ppt_framework_v1\00_project_setup\00-auto-env-check.py
 
 1. **Phase 0 简化为**:一条 `ppt_flow.py init` 命令搭好整个骨架**并把选中的 preset 播种到位**(**不要手动 mkdir、不要手动 cp**),再填 metadata:
    ```bash
-   uv run python _ppt_framework_v1/06_reference_scripts/ppt_flow.py init deck_{NAME} \
+   uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/ppt_flow.py init deck_{NAME} \
      --deck-type {keynote|pitch|report|training} --style {preset-slug}
    ```
    它建好三层结构、每个目录放大白话 README、铺好内容模板、**把 deck-type 模板铺成 `slide-specifications.md`、把视觉 preset 的 `deck_system.txt` + `color_palette.json` 铺进 `2_backbone/visual-style/`**、写好完整 deck-guide.md + CLAUDE.md + project-metadata.yaml。`_generated/` 的空壳与 README 会预建，真实管线产物在首次运行时生成。`{preset-slug}` 是 3.5 表里的 `--style` 值。**不要再手敲 cp**——播种由 `--init` 确定性完成。

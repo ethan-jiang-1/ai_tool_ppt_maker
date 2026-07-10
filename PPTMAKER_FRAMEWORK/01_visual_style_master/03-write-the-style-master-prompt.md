@@ -296,7 +296,7 @@ No real company logo, no watermark, no page number, no draft label.
 Prompt 存好后，用框架统一 wrapper 生成 style master。它负责读取 prompt、加载 `.env`、桥接凭据变量并保存 trace：
 
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/generate_style_master.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 

@@ -60,7 +60,7 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 
 所有工作都发生在一个 **run bundle**（文件系统实例）中。run bundle 是一个遵循 `00_project_setup/` 定义的目录结构——它是项目的完整文件系统 workspace。不需要数据库、不需要 workflow server、不需要 YAML。`ls` 看进度，`diff -r v1 v2` 看差异，`git log` 看历史。
 
-**Soft bundle**（`_ppt_framework_v1/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
+**Soft bundle**（`PPTMAKER_FRAMEWORK/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
 
 > ### ⚙️ 跨平台（macOS / Linux / Windows 都要能跑）
 > 本文档里的 `ls` / `cp` / `cp -r` / `rm -rf` / `diff -r` 是 **POSIX 示例**。核心 Python 脚本（`bundle_layout.py --init`、`unified_pipeline.py`、各 stage）本身是跨平台的，用它们就无需这些 shell 命令。当你确实需要文件操作时：
@@ -134,12 +134,12 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
               └── _generated/            ← 【派生】脚本产物，绝不手改，可 rm -rf 重建
 ```
 
-> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品全在 `_generated/` 里。脚本不复制进 run bundle——管线从 `_ppt_framework_v1/06_reference_scripts/` 就地运行(见 Phase 3)。
+> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品全在 `_generated/` 里。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/06_reference_scripts/` 就地运行(见 Phase 3)。
 
 创建命令——**用 `--init` 一条命令搭好整个骨架并播种选中的 preset,不要手动 mkdir、不要手动 cp**（手动建/手动拷是临场发挥的源头）：
 
 ```bash
-python _ppt_framework_v1/06_reference_scripts/bundle_layout.py \
+python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py \
   --init deck_{NAME} --deck-type {keynote|pitch|report|training} --style {preset-slug}
 ```
 
@@ -149,7 +149,7 @@ python _ppt_framework_v1/06_reference_scripts/bundle_layout.py \
 
 搭完后随时可校验结构合不合宪法(Phase 0 用 `--structure-only`——不查 Phase-2 才有的 `style_master.jpg`,新建 bundle 直接通过):
 ```bash
-python _ppt_framework_v1/06_reference_scripts/bundle_layout.py --check deck_{NAME}/3_versions/v1 --structure-only
+python PPTMAKER_FRAMEWORK/06_reference_scripts/bundle_layout.py --check deck_{NAME}/3_versions/v1 --structure-only
 ```
 
 `deck-guide.md` 是这个 bundle 的护栏——任何 agent 进目录先读它,就知道结构、能改什么、别碰什么、下一步干什么。它防止下次 session 临场发挥出错误的目录。
@@ -172,21 +172,21 @@ python _ppt_framework_v1/06_reference_scripts/bundle_layout.py --check deck_{NAM
 
 ```bash
 # 上游身份 → 2_backbone/
-cp _ppt_framework_v1/02_content_design/template-core-metaphor.md \
+cp PPTMAKER_FRAMEWORK/02_content_design/template-core-metaphor.md \
    deck_{NAME}/2_backbone/core-metaphor.md
-cp _ppt_framework_v1/02_content_design/template-core-formula.md \
+cp PPTMAKER_FRAMEWORK/02_content_design/template-core-formula.md \
    deck_{NAME}/2_backbone/core-formula.md
-cp _ppt_framework_v1/02_content_design/template-design-constraints.md \
+cp PPTMAKER_FRAMEWORK/02_content_design/template-design-constraints.md \
    deck_{NAME}/2_backbone/design-constraints.md
 
 # 视觉主干 → 2_backbone/visual-style/
-cp _ppt_framework_v1/01_visual_style_master/template-visual-style.md \
+cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-visual-style.md \
    deck_{NAME}/2_backbone/visual-style/visual-style.md
-cp _ppt_framework_v1/01_visual_style_master/template-deck-system.txt \
+cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
    deck_{NAME}/2_backbone/visual-style/deck_system.txt
 
 # 下游这一版的每页规格 → 3_versions/v1/
-cp _ppt_framework_v1/02_content_design/template-slide-specifications.md \
+cp PPTMAKER_FRAMEWORK/02_content_design/template-slide-specifications.md \
    deck_{NAME}/3_versions/v1/slide-specifications.md
 ```
 
@@ -332,7 +332,7 @@ cp _ppt_framework_v1/02_content_design/template-slide-specifications.md \
 3. **如果没有预生成的 jpg**（当前 5 个 preset 都不含）：把 style master prompt 存为 `2_backbone/visual-style/style-master-prompt.md`（源文件，别丢），再用框架的统一 wrapper 生成：
 
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/generate_style_master.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -373,7 +373,7 @@ uv run python _ppt_framework_v1/06_reference_scripts/generate_style_master.py \
 先把 2.3 的 meta-prompt 存成 `2_backbone/visual-style/style-master-prompt.md`（源文件），再用框架的统一 wrapper 生成一张风格母版图：
 
 ```bash
-uv run python _ppt_framework_v1/06_reference_scripts/generate_style_master.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/generate_style_master.py \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
@@ -384,7 +384,7 @@ wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、桥接 `OPENAI_
 从独立模板复制并填写：
 
 ```bash
-cp _ppt_framework_v1/01_visual_style_master/template-deck-system.txt \
+cp PPTMAKER_FRAMEWORK/01_visual_style_master/template-deck-system.txt \
    deck_{NAME}/2_backbone/visual-style/deck_system.txt
 ```
 
@@ -416,7 +416,7 @@ cp _ppt_framework_v1/01_visual_style_master/template-deck-system.txt \
 - 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `03_image_prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
 - 全部回填后，跑一次内容契约校验（**这是 L3 gate 真正该跑的地方**，Phase 1 不跑）：
   ```bash
-  uv run python _ppt_framework_v1/06_reference_scripts/stage1_build_inputs.py \
+  uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/stage1_build_inputs.py \
     --validate --input deck_{NAME}/3_versions/v1/slide-specifications.md
   ```
   ERROR 清零（不再有占位符 / 缺 IMAGE PROMPT / body+header-lock 页缺 TITLE）才进 Phase 3。管线在 Phase 3 首次运行前也会自动跑同一道校验兜底。
@@ -448,20 +448,20 @@ cp _ppt_framework_v1/01_visual_style_master/template-deck-system.txt \
 
 ```bash
 # 首次生产：先解析，再用 3 张代表页做 1K pilot
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 1
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
   --only opener_id,content_id,closer_id --resolution 1k
 
 # Pilot 通过后，全量生成 2K，再完成 Header-Lock/PPTX/Notes
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 2 --resolution 2k --force-images
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
 
 # 只跑某个 stage（如只重新 lock headers）
-uv run python _ppt_framework_v1/06_reference_scripts/unified_pipeline.py \
+uv run python PPTMAKER_FRAMEWORK/06_reference_scripts/unified_pipeline.py \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 ```
 
