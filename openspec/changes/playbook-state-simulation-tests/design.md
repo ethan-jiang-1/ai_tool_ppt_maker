@@ -1,57 +1,44 @@
 ## Context
 
-`tests/` 是单元测试 (单个脚本 I/O). `tests_e2e/` 是状态机模拟测试 (playbook state 转换). 两者分开: 单元测试验证脚本正确, 模拟测试验证流程设计正确.
-
-## Goals / Non-Goals
-
-**Goals:**
-- 创建 `tests_e2e/test-state-machine.mjs` — 7 个测试场景
-- 纯逻辑: import `scripts/lib/state.mjs`, 模拟 Agent 行为, 验证 state 转换
-- 用 `os.tmpdir()` 创建临时 run bundle, 测试完清理
-- `npm run test:e2e` 独立运行
-
-**Non-Goals:**
-- 不调真实 CLI (不跑 bundle_layout, unified_pipeline)
-- 不调真实 LLM (不生成 prompt, 不解析 Agent 输出)
-- 不创建真实的 run bundle 目录结构
+`tests/` 是单元测试 (脚本 I/O). `tests_e2e/` 是状态机模拟——验证 playbook state 转换矩阵. 两者独立运行.
 
 ## Decisions
 
-### 1. 测试结构
+### 1. 测试依赖
 
 ```
-tests_e2e/
-└── test-state-machine.mjs    ← 7 个 describe block
+test-state-machine.mjs
+  → import state.mjs (readState, writeState, setNodeStatus, checkEntry, checkExit, ...)
+  → os.tmpdir() 临时目录 (模拟 deckDir)
+  → 测试完 rmSync 清理
+  → 不调 CLI (bundle_layout, unified_pipeline)
+  → 不调 LLM (Agent 行为由函数调用模拟)
 ```
 
-每个测试: (1) 创建 tmp dir → (2) 写初始 state → (3) 模拟 Agent 操作 → (4) 读 state → (5) 断言字段正确 → (6) 清理 tmp dir.
+### 2. 12 个测试场景
 
-### 2. Agent 行为模拟
+| # | describe | it | 验证 |
+|---|----------|----|------|
+| 1 | happy path | 10 nodes 序列 | status: pending→in_progress→completed, current_node 更新 |
+| 1b | happy path | timestamp | started/completed 时间戳写入 |
+| 2 | entry gate | wave0 被 seed-topics pending 阻挡 | seed-topics 不是 completed, wave0 不能启动 |
+| 3 | exit gate | instantiation 未完成 exit 检查 | status 保持 in_progress, 不标记 completed |
+| 4 | rerun | hitl2 repair | nodes.hitl2.decision=repair, rerun completed, seed-topics re-completed |
+| 4b | rerun | hitl2 proceed | nodes.hitl2.decision=proceed, readiness→final |
+| 5 | gate | approved/waived | 两者 readState 恢复正确 |
+| 5b | gate | pending | pending 阻止 Stage 2 |
+| 6 | resume | write→read→continue | readState 恢复 current_node 和 node statuses |
+| 7 | shared | classify-change includes | 两个 playbook 引用同一 shared node, 不重复 |
+| 8 | node_done | skipNode | isNodeDone=true, isNodeCompleted=false |
+| 9 | playbook_stack | switch→resume | push 保存位置, pop 恢复 |
+| 10 | atomic write | write→read | writeState 后 readState 读到正确数据 |
+| 11 | corrupted | bad YAML | readState 返回 {corrupted:true, errors:[...]} |
+| 11b | corrupted | missing file | readState 返回 default state |
+| 12 | validateState | completed→in_progress | validateState 检测非法, errors 包含详情 |
 
-```javascript
-// 模拟 Agent 开始一个 node
-function simulateNodeStart(state, nodeName, entryChecks) { ... }
-// 模拟 Agent 完成一个 node
-function simulateNodeComplete(state, nodeName, exitChecks) { ... }
-// 模拟用户 gate 决策
-function simulateGateApprove(state, gateName) { ... }
-```
-
-### 3. 7 个测试场景
-
-| # | 场景 | 验证点 |
-|---|------|--------|
-| 1 | create-deck happy path | 11 nodes 顺序执行, state 每步正确 |
-| 2 | entry gate 拒绝 | 跳过前置 node → 拒绝前进 |
-| 3 | exit gate 拒绝 | 条件不满足 → 不允许 completed |
-| 4 | rerun 分支 | hitl2 → rerun → seed-topics |
-| 5 | gate approved/waived | approved 和 waived 行为一致 (Stage 2 都能跑) |
-| 6 | 断电续跑 | writeState → 清理 → readState → 从 current_node 继续 |
-| 7 | shared node | edit-text + edit-visual 都 includes classify-change |
-
-### 4. 运行方式
+### 3. 运行方式
 
 ```bash
-npm run test:e2e        # 独立运行
-npm test                 # 不含 e2e (保持快速)
+npm run test:e2e        # vitest run --config vitest.e2e.config.mjs (16 tests)
+npm test                 # 单元测试 (25 tests, 不含 e2e)
 ```

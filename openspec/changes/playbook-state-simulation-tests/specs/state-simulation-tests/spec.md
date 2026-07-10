@@ -2,69 +2,57 @@
 
 ### Requirement: tests_e2e/ directory exists at repo root
 
-`tests_e2e/` SHALL exist at repo root, separate from `tests/`. It SHALL contain state machine simulation tests for playbook execution.
+`tests_e2e/` SHALL exist at repo root, separate from `tests/`. It SHALL contain state machine simulation tests.
 
 #### Scenario: Human lists repo root
 
 - **WHEN** a human runs `ls`
-- **THEN** they see both `tests/` (unit) and `tests_e2e/` (simulation)
+- **THEN** they see both `tests/` and `tests_e2e/`
 
-### Requirement: Happy path test covers all 11 nodes
+### Requirement: Happy path covers all create-deck nodes
 
-`test-state-machine.mjs` SHALL simulate the complete create-deck playbook: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → readiness → final. Each node transition SHALL verify state is updated correctly.
-
-#### Scenario: Full playbook executes without error
-
-- **WHEN** the happy path test runs
-- **THEN** all 11 node statuses transition through pending → in_progress → completed
-- **AND** `current_node` updates at each step
-- **AND** final state has all nodes completed
+The happy path test SHALL simulate 10 nodes: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → readiness → final. Each SHALL transition pending→in_progress→completed with current_node updated.
 
 ### Requirement: Entry gate prevents premature execution
 
-When a node's `requires` predecessor is not `completed`, the test SHALL verify that the node cannot be started.
-
-#### Scenario: Agent tries to execute wave0 before seed-topics
-
-- **WHEN** seed-topics is `pending` and Agent tries to start wave0
-- **THEN** the simulation detects entry condition failure
-- **AND** wave0 status remains `pending`
+When a `requires` predecessor is not `completed`, the simulation SHALL detect that the downstream node cannot start.
 
 ### Requirement: Exit gate prevents premature completion
 
-When a node's `exit` conditions are not met, the test SHALL verify the node cannot transition to `completed`.
-
-#### Scenario: Node exit conditions fail
-
-- **WHEN** Agent finishes node steps but exit conditions are not satisfied
-- **THEN** the simulation detects exit condition failure
-- **AND** node status remains `in_progress`
+When exit conditions are not met, the simulation SHALL keep the node `in_progress`.
 
 ### Requirement: Rerun branch routes correctly
 
-When hitl2 produces `decision: repair`, the simulation SHALL route to `rerun` node, then back to `seed-topics`.
+`hitl2` with `decision: repair` SHALL route to `rerun` → `seed-topics`. `decision: proceed` SHALL route to `readiness` → `final`.
 
-#### Scenario: User requests repair at hitl2
+### Requirement: Gate states persist correctly
 
-- **WHEN** user decision is `repair`
-- **THEN** next node is `rerun` (not `readiness`)
-- **AND** after rerun completes, flow returns to `seed-topics`
+`approved` and `waived` SHALL both survive `writeState`→`readState` round-trip. `pending` SHALL prevent Stage 2.
 
 ### Requirement: State survives restart
 
-State written via `writeState()` SHALL be recoverable via `readState()`. The simulation SHALL write state, clear in-memory state, read it back, and resume from `current_node`.
-
-#### Scenario: Agent resumes after session ends
-
-- **WHEN** state is written with `current_node: wave1` and then reloaded
-- **THEN** `readState()` returns the same current_node and node statuses
-- **AND** Agent can continue from wave1
+`writeState`→`readState` SHALL restore `current_node` and all node statuses. The simulation SHALL resume from current_node.
 
 ### Requirement: Shared nodes are referenceable
 
-`classify-change.md` SHALL be referenced correctly by both `edit-text` and `edit-visual` playbooks via `includes`.
+`classify-change` SHALL be referenced by both `edit-text` and `edit-visual` via `includes` without duplication.
 
-#### Scenario: Two playbooks include the same shared node
+### Requirement: node_done accepts skipped
 
-- **WHEN** `edit-text` and `edit-visual` both declare `includes: [classify-change]`
-- **THEN** both can execute classify-change without duplicating its content
+`isNodeDone` SHALL return `true` for `skipped` nodes. `isNodeCompleted` SHALL return `false`.
+
+### Requirement: Playbook stack preserves position
+
+`switchPlaybook` SHALL push `{playbook, current_node}`. `resumePlaybook` SHALL pop and restore.
+
+### Requirement: Atomic write produces valid state
+
+`writeState` SHALL produce a file that `readState` can read back correctly.
+
+### Requirement: Corrupted state is detected
+
+Invalid YAML SHALL return `{corrupted: true, errors: [...]}`. Missing file SHALL return default state.
+
+### Requirement: validateState detects illegal transitions
+
+`completed`→`in_progress` SHALL be detected as illegal by `validateState`.
