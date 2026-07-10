@@ -20,7 +20,7 @@ export class VisualConfigError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Default values (mirror Python DEFAULT_CONFIG exactly)
+// Default values (ported
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CANVAS = Object.freeze({
@@ -84,14 +84,14 @@ export const DEFAULT_CONFIG = Object.freeze({
 });
 
 // ---------------------------------------------------------------------------
-// Internal validators (mirror Python private helpers exactly)
+// Internal validators (ported
 // ---------------------------------------------------------------------------
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
  * Normalise a value to a plain object, raising on non-objects.
- * Mirrors Python `_mapping`.
+ * ported helper
  */
 function _mapping(value, context) {
     if (value == null) {
@@ -105,7 +105,7 @@ function _mapping(value, context) {
 
 /**
  * Extract and validate a positive (or non-negative) integer from a mapping.
- * Mirrors Python `_positive_int`.
+ * ported helper
  */
 function _positiveInt(mapping, key, defaultValue, context, { allowZero = false } = {}) {
     const value = key in mapping ? mapping[key] : defaultValue;
@@ -119,7 +119,7 @@ function _positiveInt(mapping, key, defaultValue, context, { allowZero = false }
 
 /**
  * Extract and validate a non-empty string from a mapping.
- * Mirrors Python `_text`.
+ * ported helper
  */
 function _text(mapping, key, defaultValue, context) {
     const value = key in mapping ? mapping[key] : defaultValue;
@@ -131,7 +131,7 @@ function _text(mapping, key, defaultValue, context) {
 
 /**
  * Extract and validate a #RRGGBB color string from a mapping.
- * Mirrors Python `_color`.
+ * ported helper
  */
 function _color(mapping, key, defaultValue, context) {
     const value = _text(mapping, key, defaultValue, context);
@@ -143,7 +143,7 @@ function _color(mapping, key, defaultValue, context) {
 
 /**
  * Build a font config object from a mapping and defaults.
- * Mirrors Python `_font`.
+ * ported helper
  */
 function _font(mapping, defaultFont, context) {
     return Object.freeze({
@@ -160,7 +160,7 @@ function _font(mapping, defaultFont, context) {
 
 /**
  * Parse a palette mapping, applying shared defaults for omitted fields.
- * Mirrors Python `parse_visual_config`.
+ * ported helper
  *
  * @param {Record<string, any>} data - Parsed JSON object from color_palette.json.
  * @returns {ReturnType<typeof DEFAULT_CONFIG>} Frozen visual config object.
@@ -327,7 +327,7 @@ export function parseVisualConfig(data) {
 
 /**
  * Load an existing palette, or return shared defaults when it is absent.
- * Mirrors Python `load_visual_config`.
+ * ported helper
  *
  * @param {string} path - Filesystem path to color_palette.json.
  * @returns {ReturnType<typeof DEFAULT_CONFIG>} Frozen visual config object.
@@ -366,7 +366,7 @@ export function loadVisualConfig(path) {
 
 /**
  * Convert a validated #RRGGBB color to an opaque RGBA array.
- * Mirrors Python `hex_to_rgba`.
+ * ported helper
  *
  * @param {string} value - A hex color string like "#ff8800".
  * @returns {[number, number, number, number]} [r, g, b, a] with a = 255.

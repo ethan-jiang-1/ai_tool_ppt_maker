@@ -59,7 +59,7 @@ Falsifiable? If someone can prove that [A] alone achieves [C] without [B], the t
 ## Section 5: Slide Specifications
 
 > **每页按四层规格填**（Phase 1 填 L1/L2/L4；**L3 IMAGE PROMPT 视觉锁定后再回填**——见 `AGENTS.md` §2.7 / 本框架 bug 0003）。本模板已给每页 L1 骨架 + L2 的 `MUST communicate`/`MUST NOT` + L4 讲稿提示；填充时**补全**：
-> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`（image-direct，AI 连标题一起画）；其余 = `body+header-lock`（AI 只画 body，Python 叠标题）。省略则由 VISUAL TYPE 自动映射。
+> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`（image-direct，AI 连标题一起画）；其余 = `body+header-lock`（AI 只画 body，Stage 3 Header-Lock 叠标题）。省略则由 VISUAL TYPE 自动映射。
 > - **L2 Concept — 每页补上 `Bridge`**（本页承上启下的论证功能）：模板已有 `MUST communicate`/`MUST NOT`，加一条 Bridge 让叙事弧线连贯。
 > - **L3 IMAGE PROMPT — 只写"画面内容"**。不要往里写 header 安全区、body 文字契约、或 style anchoring 语句——Stage 1 组装时会自动注入这些系统契约，重复写只会干扰图像模型。用 `[方括号]` 标注要填的视觉描述；**Phase 1 留占位，视觉锁定后（§2.7）回填**。
 > - **L4 Speaker Note**：已给提示，按你的内容改写。

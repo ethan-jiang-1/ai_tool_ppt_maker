@@ -19,7 +19,7 @@ agent_action: iterate_with_openspec
 ## 核心模式
 
 管线（Phase 3）的改动和内容/风格改动有本质区别：
-- 管线是**代码**（Python scripts）——改动是 software change，不是 design change
+- 管线是**代码**（Node.js `.mjs` scripts）——改动是 software change，不是 design change
 - 管线产出是**派生品**（图片、JSON、PPTX）——改动后必须重跑来验证
 - 管线应该**稳定**——频繁改管线是 smell，说明设计阶段没有做够
 

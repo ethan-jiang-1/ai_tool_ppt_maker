@@ -52,7 +52,7 @@ agent_action: fill_template
 
 [INSTRUCTION: RENDER MODE 决定这页怎么生产,两选一:
 - **full-page**(整页):image-2 画整页,包括标题。用于 opener / section divider / closer(约 20%)。
-- **body+header-lock**(半自动):image-2 只画 body(顶部留白),Python 把 kicker+title 叠在固定像素位——标题永远精准一致。用于常规内容页(约 80%)。
+- **body+header-lock**(半自动):image-2 只画 body(顶部留白),Stage 3（`@napi-rs/canvas`）把 kicker+title 叠在固定像素位——标题永远精准一致。用于常规内容页(约 80%)。
 VISUAL TYPE 会自动映射到 render mode(Title/Opener、Section Divider、Closer → full-page;其余 → body+header-lock),所以通常你选对 VISUAL TYPE 即可;RENDER MODE 写出来是为了让这页的生产方式一眼可见。映射定义见 stage1_build_inputs.mjs 的 FULL_PAGE_TYPES。]
 
 **KICKER**: [PLACEHOLDER: 3-6 词全大写。区段标签,不是 claim。opener/closer 可填 "(none)"。]
@@ -80,7 +80,7 @@ VISUAL TYPE 会自动映射到 render mode(Title/Opener、Section Divider、Clos
 5. CALLOUT BAR — 底部整宽句子(如适用)
 6. ANTI-PATTERNS — 不要画什么
 
-body+header-lock 模式:不要画 kicker/title(顶部留白,Python 会叠)。
+body+header-lock 模式:不要画 kicker/title(顶部留白,Stage 3 Header-Lock 会叠)。
 full-page 模式:画整页含标题。
 视觉风格(颜色/字体/组件)对照 2_backbone/visual-style/;prompt 技巧见 workflow/03-prompts。]
 ```

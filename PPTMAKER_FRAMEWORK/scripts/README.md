@@ -14,13 +14,14 @@
 | 脚本 | Stage | 输入 → 输出 | 依赖 |
 |------|-------|------------|------|
 | `stage1_build_inputs.mjs` | 1 | `slide-specifications.md` → `slide_plan.json` + `_prompts.json` | 标准库 |
-| (Stage 2) | 2 | 外部 skill: `image2-ppt` | API key |
+| `stage2_generate_images.mjs` | 2 | `_prompts.json` + style master → PNGs | `image_api_client.mjs` + API key |
+| `make_contact_sheet.mjs` | 2 QA | PNGs → `preview/contact_sheet.jpg` | `@napi-rs/canvas` |
 | `stage3_lock_headers.mjs` | 3 | `page_images_full/*.png` → `header_locked/*.png` | `@napi-rs/canvas` |
 | `stage4_build_pptx.mjs` | 4 | `header_locked/*.png` → `.pptx` | `pptxgenjs` |
 | `stage5_inject_notes.mjs` | 5 | `.pptx` + `slide-specifications.md` → `.pptx` (with notes) | `pptxgenjs` |
 | `unified_pipeline.mjs` | 编排 | 串联 Stage 1→5 | 所有 |
 
-Stage 2 由外部 `image2-ppt` skill 实现, 不在本目录.
+Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill。
 
 ## 辅助
 

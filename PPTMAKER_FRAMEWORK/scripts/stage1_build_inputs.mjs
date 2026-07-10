@@ -2,7 +2,7 @@
 /**
  * Stage 1: Parse human-authored markdown slide specs into machine-readable JSON.
  *
- * Node.js ESM port of stage1_build_inputs.py.
+ * Stage 1: Parse human-authored markdown slide specs into machine-readable JSON.
  *
  * Reads one or more markdown files in the four-layer slide spec format (workflow/02-content),
  * produces the artifacts consumed by downstream stages:
@@ -19,7 +19,7 @@
  *
  * Render mode per slide (ONE vocabulary everywhere):
  *     full-page          — AI paints the whole slide including title
- *     body+header-lock   — AI paints body only; Python overlays kicker/title
+ *     body+header-lock   — AI paints body only; Stage 3 Header-Lock overlays kicker/title
  *
  * If a slide declares explicit `RENDER MODE` it wins; otherwise derived from
  * VISUAL TYPE → FULL_PAGE_TYPES. The resolved mode + its source are recorded in
@@ -64,7 +64,7 @@ let NO_CALLOUT_BOTTOM;
 
 /**
  * Expose config values through module-scoped variables used by helpers.
- * Mirrors Python `_apply_visual_config`.
+ * Legacy port of `_apply_visual_config`.
  */
 function applyVisualConfig(config) {
     CANVAS_WIDTH = config.canvas.width_px;
@@ -79,7 +79,7 @@ function applyVisualConfig(config) {
 
 applyVisualConfig(DEFAULT_CONFIG);
 
-// VISUAL TYPEs that get full-page AI rendering (no Python header overlay)
+// VISUAL TYPEs that get full-page AI rendering (no Stage 3 header overlay)
 const FULL_PAGE_TYPES = new Set([
     "Title / Opener",
     "Section Divider / Bridge",
@@ -131,7 +131,7 @@ const SYSTEM_FINAL_RULES = (
 
 /**
  * Load deck-wide textual rules from an explicitly resolved source file.
- * Mirrors Python `_load_deck_system`.
+ * Legacy port of `_load_deck_system`.
  */
 function loadDeckSystem(path) {
     try {
@@ -146,7 +146,7 @@ function loadDeckSystem(path) {
 
 /**
  * Load the one shared executable layout used by prompt and header stages.
- * Mirrors Python `_load_visual_config_from_palette`.
+ * Legacy port of `_load_visual_config_from_palette`.
  */
 function loadVisualConfigFromPalette(palettePath) {
     let config;
@@ -170,7 +170,7 @@ function loadVisualConfigFromPalette(palettePath) {
 
 /**
  * Backward-compatible alias for older tests and standalone callers.
- * Mirrors Python `_load_safe_zone_from_palette`.
+ * Legacy port of `_load_safe_zone_from_palette`.
  */
 function loadSafeZoneFromPalette(palettePath) {
     loadVisualConfigFromPalette(palettePath);
@@ -182,7 +182,7 @@ function loadSafeZoneFromPalette(palettePath) {
 
 /**
  * Extract a bold-labeled field value from a slide body.
- * Mirrors Python `_extract_field`.
+ * Legacy port of `_extract_field`.
  */
 function extractField(body, field) {
     // Escape regex-special characters in the field name
@@ -195,7 +195,7 @@ function extractField(body, field) {
 /**
  * Extract the IMAGE PROMPT block from a slide body.
  * Raises on missing prompt (non-raising twin: getImagePrompt).
- * Mirrors Python `_extract_prompt`.
+ * Legacy port of `_extract_prompt`.
  */
 function extractPrompt(body, slideId) {
     // Format A (code block): **IMAGE PROMPT**:\n```\ncontent\n```
@@ -219,7 +219,7 @@ function extractPrompt(body, slideId) {
 /**
  * Return the IMAGE PROMPT text (code-fence OR inline form), or null if absent.
  * Non-raising twin of extractPrompt, for the validator.
- * Mirrors Python `_get_image_prompt`.
+ * Legacy port of `_get_image_prompt`.
  */
 function getImagePrompt(body) {
     let m = body.match(/^\*\*IMAGE PROMPT\*\*:\s*```\s*([\s\S]*?)```/m);
@@ -235,7 +235,7 @@ function getImagePrompt(body) {
 
 /**
  * Detect whether a slide body contains a bottom callout section.
- * Mirrors Python `_has_bottom_callout`.
+ * Legacy port of `_has_bottom_callout`.
  */
 function hasBottomCallout(body) {
     return /\b(BOTTOM CALLOUT|Bottom callout|Bottom statement|callout bar)\b/i.test(body);
@@ -271,7 +271,7 @@ const RENDER_MODE_ALIASES = {
  * If the field is PRESENT but unrecognized (a typo), throws — a silent fallback
  * would let the author think they controlled the mode when they didn't.
  * Empty = fine; wrong = loud.
- * Mirrors Python `_normalize_render_mode`.
+ * Legacy port of `_normalize_render_mode`.
  */
 function normalizeRenderMode(raw, slideId) {
     if (!raw || !raw.trim()) {
@@ -295,7 +295,7 @@ function normalizeRenderMode(raw, slideId) {
  * VISUAL TYPE → FULL_PAGE_TYPES mapping. `source` records which rule decided,
  * so slide_plan.json is traceable (explicit vs derived). A typo'd RENDER MODE
  * throws (see normalizeRenderMode) rather than silently falling back.
- * Mirrors Python `_determine_render_mode`.
+ * Legacy port of `_determine_render_mode`.
  */
 function determineRenderMode(slideId, visualType, renderMode) {
     const explicit = normalizeRenderMode(renderMode, slideId);
@@ -324,7 +324,7 @@ const determineHeaderVariant = determineRenderMode;
  * Prefers `render_mode` (v1.3+). Falls back to legacy `header_variant`
  * (image_direct→full-page, normal*→body+header-lock) so consumers can still
  * read older slide_plan.json files without a Stage-1 rerun.
- * Mirrors Python `_contract_render_mode`.
+ * Legacy port of `_contract_render_mode`.
  */
 function contractRenderMode(layout) {
     const mode = layout.render_mode;
@@ -348,7 +348,7 @@ function contractRenderMode(layout) {
 
 /**
  * Build the layout_contract dict for a single slide.
- * Mirrors Python `_build_layout_contract`.
+ * Legacy port of `_build_layout_contract`.
  */
 function buildLayoutContract(slideId, visualType, body, renderMode) {
     const { mode, safeZone, source } = determineRenderMode(slideId, visualType, renderMode);
@@ -392,7 +392,7 @@ function buildLayoutContract(slideId, visualType, body, renderMode) {
  * @param {string} sourcePrompt - The human-authored IMAGE PROMPT from markdown.
  * @param {object} slide - Slide record with layout_contract, kicker, headline, etc.
  * @param {string} finalRules - System final rules — either from deck_system.txt or hardcoded default.
- * Mirrors Python `_assemble_prompt`.
+ * Legacy port of `_assemble_prompt`.
  */
 function assemblePrompt(sourcePrompt, slide, finalRules) {
     if (!finalRules) {
@@ -427,7 +427,7 @@ function assemblePrompt(sourcePrompt, slide, finalRules) {
 
     return (
         `${systemHeaderContract(safeZone)}` +
-        `Local Python overlay will draw header: ${overlayInfo}.\n\n` +
+        `Stage 3 (Header-Lock) will draw header: ${overlayInfo}.\n\n` +
         `LAYOUT CONTRACT:\n` +
         `Canvas: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}. ` +
         `Content zone: y=${layout.content_y_min} to y=${layout.content_y_max}. ` +
@@ -478,7 +478,7 @@ const PLACEHOLDER_MARKERS = ["[PLACEHOLDER", "[slide_id]", "## Slide 01: `slide_
 
 /**
  * True if the whole field value is a single [...] placeholder.
- * Mirrors Python `_is_bracket_placeholder`.
+ * Legacy port of `_is_bracket_placeholder`.
  */
 function isBracketPlaceholder(value) {
     const v = value.trim();
@@ -605,12 +605,12 @@ export function validateSpecs(mdPaths) {
                 );
             }
 
-            // c) body+header-lock slides get their TITLE overlaid by Python — an empty
+            // c) body+header-lock slides get their TITLE overlaid by Stage 3 — an empty
             //    OR placeholder TITLE draws a blank/garbage header band onto the image.
             const titleFilled = Boolean(title) && !isBracketPlaceholder(title);
             if (mode === RENDER_MODE_BODY_HEADER_LOCK && !titleFilled) {
                 problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: body+header-lock slide has no real TITLE — Python would ` +
+                    `ERROR: slide ${JSON.stringify(sid)}: body+header-lock slide has no real TITLE — Stage 3 would ` +
                     `overlay an empty/placeholder header. Add a TITLE, or make it full-page.`
                 );
             }
@@ -642,7 +642,7 @@ export function validateSpecs(mdPaths) {
  * @param {string} finalRules - Custom final rules from deck_system.txt (if available).
  *                              Falls back to hardcoded SYSTEM_FINAL_RULES if empty.
  * @returns {{ plan: object[], prompts: object[] }}
- * Mirrors Python `parse_slides`.
+ * Legacy port of `parse_slides`.
  */
 export function parseSlides(mdPaths, finalRules) {
     if (!finalRules) {
@@ -721,7 +721,7 @@ export function parseSlides(mdPaths, finalRules) {
 
 /**
  * Parse command-line arguments into a structured options object.
- * Mirrors the argparse behaviour of the Python version.
+ * CLI argument parsing (legacy port).
  */
 function parseArgs(argv) {
     const args = {

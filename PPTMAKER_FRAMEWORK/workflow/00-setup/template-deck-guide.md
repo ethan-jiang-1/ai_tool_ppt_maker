@@ -95,7 +95,7 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
         每页按 render mode 分两条路:          ▼
   ┌─ full-page(整页,~20%):  image-2 画整页(含标题) ─────────────────┐
   │   开场/分隔/结尾                                                  │
-  └─ body+header-lock(~80%): image-2 只画 body ──> Python 叠 kicker+title ┘
+  └─ body+header-lock(~80%): image-2 只画 body ──> Stage 3 Header-Lock 叠 kicker+title ┘
        常规页                    (Stage 2)          (Stage 3,固定像素)
                                               │
                         (Stage 4) 打包 PPTX ──> (Stage 5) 注入 speaker notes

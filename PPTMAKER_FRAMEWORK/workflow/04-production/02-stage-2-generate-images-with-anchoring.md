@@ -166,4 +166,4 @@ design system — do not deviate from it. Only change the slide content, not the
 
 > **案例**：T10 项目使用 APIMart API 的三个 mirror URL，model `gpt-image-2`，16:9，2K 分辨率。19 张 slide，skip-if-exists 机制让 prompt 没变的 slides 自动跳过。每张图配 `.apimart-task.json` 记录 task ID、model、耗时。某张 slide 的 callout bar 颜色偏了——查 trace 发现用了不同的 mirror（不同 mirror 的 model 版本可能不同），重新指定 mirror 后修正。
 
-> **Next**: `03-stage-3-lock-headers-deterministically.md` — Stage 3 详解：Header-Lock 机制怎么用 Python/Pillow 精确叠加标题文字。
+> **Next**: `03-stage-3-lock-headers-deterministically.md` — Stage 3 详解：Header-Lock 机制怎么用 Node `@napi-rs/canvas` 精确叠加标题文字。

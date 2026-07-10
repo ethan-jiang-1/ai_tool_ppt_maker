@@ -15,7 +15,7 @@
  *
  * Dependencies: pptxgenjs
  *
- * Port of stage4_build_pptx.py. Imports path constants from bundle_layout.mjs.
+ * Imports path constants from bundle_layout.mjs.
  */
 
 import { readFileSync, readdirSync, mkdirSync } from "node:fs";
@@ -32,7 +32,7 @@ import {
 } from "./bundle_layout.mjs";
 
 // ---------------------------------------------------------------------------
-// 16:9 standard — matches python-pptx Inches(13.333) x Inches(7.5)
+// 16:9 standard — 16:9 full-bleed
 // ---------------------------------------------------------------------------
 
 const SLIDE_WIDTH_IN = 13.333;
@@ -59,7 +59,7 @@ function escapeRegex(s) {
  * — ANCHORED and sorted. An unanchored substring match cross-hits ids like 's1'
  * onto '10_s10.png'; anchoring the id to the stem's end prevents wrong-image builds.
  *
- * Matches the Python regex:  r"^(\d+_)?{re.escape(slide_id)}$"
+ * Matches the slide-id regex:  r"^(\d+_)?{re.escape(slide_id)}$"
  *
  * @param {string} imgDir - Directory containing Stage 3 header-locked images.
  * @param {string} slideId - The slide identifier (e.g. "opener", "s1", "closer").
@@ -112,7 +112,7 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   // ---- resolve images — fail loud BEFORE building --------------------------
   // A skipped slide would silently shrink the deck and misalign downstream
-  // speaker notes; validate the full image set upfront (matches Python).
+  // speaker notes; validate the full image set upfront (deterministic).
   const imgDir = resolve(images);
   const resolved = [];
   const problems = [];
@@ -157,7 +157,7 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
     const pptSlide = pres.addSlide();
 
-    // Full-bleed image shape — matches python-pptx:
+    // Full-bleed image shape — 16:9 full-bleed
     //   new_slide.shapes.add_picture(str(img_path),
     //       left=Inches(0), top=Inches(0),
     //       width=SLIDE_WIDTH_IN, height=SLIDE_HEIGHT_IN)

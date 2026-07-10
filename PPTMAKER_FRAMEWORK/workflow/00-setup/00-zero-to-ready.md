@@ -3,7 +3,7 @@ title: 00 — Zero to Ready：零基础 20 分钟准备
 stage: workflow/00-setup
 position: pre-setup
 type: guide
-summary: 给从没用过 terminal、Python、AI agent 的人。20 分钟装好三样东西，然后 agent 接管一切。
+summary: 给从没用过 terminal、Node.js、AI agent 的人。20 分钟装好三样东西，然后 agent 接管一切。
 depends_on: []
 feeds_into:
 - workflow/00-setup/README.md
@@ -19,7 +19,7 @@ agent_action: guide
 | # | 东西 | 是什么 | 你要做什么 |
 |---|------|--------|-----------|
 | 1 | **AI coding agent** | 一个能读文件、写文件、跑命令的 AI 助手 | 安装 + 打开 |
-| 2 | **Python + UV** | 运行脚本的环境 | agent 帮你装 |
+| 2 | **Node.js + npm** | 运行生产管线的 JavaScript 环境（Node 18+） | agent 帮你装 |
 | 3 | **GPT Image 2 API key** | 生成图片的权限 | 注册账号，复制一串 key |
 
 装完这三样，把 conversation starter 贴进 agent，你就进入了"回答问题 → agent 干活 → 你审核闸门"的循环。
@@ -39,14 +39,14 @@ agent_action: guide
 npm install -g @anthropic-ai/claude-code
 ```
 
-如果提示 `command not found: npm`，说明你的 Mac 还没有 Node.js。去 [nodejs.org](https://nodejs.org) 下载安装（选 LTS 版本），然后再跑上面的命令。
+如果提示 `command not found: npm`，说明你的 Mac 还没有 Node.js。去 [nodejs.org](https://nodejs.org) 下载安装（选 LTS 版本，需 Node 18+），然后再跑上面的命令。
 
 3. 安装完成后，在 terminal 里输入 `claude`，回车。第一次会要求你登录。
 
 ### 如果你用 Windows
 
 1. 按 `Win` 键，输入 `PowerShell`，右键 → 以管理员身份运行。
-2. 先去 [nodejs.org](https://nodejs.org) 下载安装 Node.js（选 LTS 版本）。
+2. 先去 [nodejs.org](https://nodejs.org) 下载安装 Node.js（选 LTS 版本，需 Node 18+）。
 3. 安装完后，在 PowerShell 里运行：
 
 ```powershell
@@ -64,16 +64,18 @@ npm install -g @anthropic-ai/claude-code
 
 ---
 
-## Step 2：让 Agent 帮你装 Python + UV（5 分钟）
+## Step 2：让 Agent 帮你装 Node.js + npm（5 分钟）
 
 打开 Claude Code（在 terminal 里输入 `claude`），贴这段话：
 
 ```
-I need Python 3.11+ and UV package manager installed to run PPT production scripts.
-Can you check what's installed and set up whatever is missing?
+I need Node.js 18+ and npm to run the PPTMAKER_FRAMEWORK production pipeline.
+The repo is at /path/to/ai_tool_ppt_maker — please check what's installed,
+run `npm install` in the repo root if needed, and verify with
+`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`.
 ```
 
-Agent 会检查你的系统，告诉你缺什么，帮你装好。你只需要在它问"可以安装吗？"的时候说 yes。
+Agent 会检查你的系统，告诉你缺什么，帮你装好依赖。你只需要在它问"可以安装吗？"的时候说 yes。
 
 ---
 
@@ -116,7 +118,7 @@ Here's what I know so far:
 - Audience: [谁在听，如 "集团管理层 + 各厂 GM，AI literacy 低"]
 - Duration: [时长，如 "40 分钟 keynote"]
 - Language: [slides 用什么语言，演讲用什么语言]
-- I have Python and UV set up, and GPT Image 2 API key configured.
+- I have Node.js 18+ and npm set up, dependencies installed (`npm install`), and GPT Image 2 API key configured.
 ```
 
 Agent 会从 Phase 0 开始引导你——收集信息、创建目录、复制模板。之后你会进入一个循环：

@@ -160,31 +160,21 @@ function checkNpmPackages() {
 }
 
 function checkStage2Generator() {
-  const rel = 'image2-ppt/scripts/generate_full_page_images.py';
-  const roots = [];
-  const cwd_ = process.cwd();
-  for (let p = cwd_; p !== dirname(p); p = dirname(p)) {
-    for (const skills of ['.claude/skills', '.agents/skills']) {
-      const d = join(p, skills);
-      if (existsSync(d) && !roots.includes(d)) roots.push(d);
-    }
-  }
-  for (const skills of ['.claude/skills', '.agents/skills']) {
-    const d = join(homedir(), skills);
-    if (existsSync(d) && !roots.includes(d)) roots.push(d);
-  }
-
-  const hit = roots.find(r => existsSync(join(r, rel)));
+  // In-framework Node Stage 2 — no external skills.
+  const scriptPath = join(__dirname, 'stage2_generate_images.mjs');
+  const contactPath = join(__dirname, 'make_contact_sheet.mjs');
+  const clientPath = join(__dirname, 'image_api_client.mjs');
+  const ok = existsSync(scriptPath) && existsSync(contactPath) && existsSync(clientPath);
   return {
     check: 'stage2_generator',
-    // Hard fail: this framework's product is Image2 visual expression.
-    // Without the skill, pilot/build cannot produce slides.
-    status: hit ? 'ok' : 'fail',
-    detail: hit ? `found (${hit})` : `'${rel}' not found in any skills dir`,
-    fix: hit ? null : (
-      'Stage 2 (image generation) needs the image2-ppt skill — this is a hard requirement.\n' +
-      '  Install into .claude/skills/image2-ppt/ (or .agents/skills/image2-ppt/).\n' +
-      '  Expected script: image2-ppt/scripts/generate_full_page_images.py\n' +
+    status: ok ? 'ok' : 'fail',
+    detail: ok
+      ? 'in-framework (stage2_generate_images.mjs + make_contact_sheet.mjs)'
+      : 'missing in-framework Stage 2 scripts under PPTMAKER_FRAMEWORK/scripts/',
+    fix: ok ? null : (
+      'Stage 2 must ship inside the framework as Node ESM.\n' +
+      '  Expected: scripts/stage2_generate_images.mjs, make_contact_sheet.mjs, image_api_client.mjs\n' +
+      '  External skills / Python / bash are not allowed.\n' +
       '  Then re-run: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor'
     ),
   };
@@ -281,8 +271,8 @@ function formatText(results, allPass) {
       lines.push('  You can now start building decks.');
     }
   } else if (stage2Missing) {
-    lines.push('  ✗  NOT READY — image2-ppt skill missing (hard requirement for Stage 2).');
-    lines.push('     Install the skill, then re-run doctor. Content design can wait; production cannot.');
+    lines.push('  ✗  NOT READY — in-framework Stage 2 scripts missing (hard requirement).');
+    lines.push('     Restore scripts/stage2_generate_images.mjs (+ contact sheet + image client), then re-run doctor.');
   } else {
     lines.push('  ✗  NOT READY — foundation is fine, but a hard requirement failed. Fix those and re-run.');
   }

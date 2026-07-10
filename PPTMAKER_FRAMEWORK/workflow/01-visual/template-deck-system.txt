@@ -6,7 +6,7 @@
 # HOW TO USE:
 # 1. Fill in all [PLACEHOLDER] values below
 # 2. Save to your run bundle as 2_backbone/visual-style/deck_system.txt
-# 3. Stage 1 (build_inputs.py) reads this to inject system-level contracts into every prompt
+# 3. Stage 1 (stage1_build_inputs.mjs) reads this to inject system-level contracts into every prompt
 #
 # This file is extracted from template-visual-style.md Section 7.
 # Delete all comment lines (starting with #) before using — the image model doesn't need them.

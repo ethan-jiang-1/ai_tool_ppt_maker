@@ -11,8 +11,18 @@ context: |
 
   Node.js 18+ (ESM, `.mjs`). npm 依赖: `@napi-rs/canvas` (图片+字体), `pptxgenjs`
   (PPTX), `commander` (CLI). HTTP 用 `fetch` (Node 内置). 测试: `vitest`.
-  入口: `node scripts/ppt_flow.mjs <command>`.
-  环境检查: `node workflow/00-setup/00-env-check.mjs` (零依赖, 先于 npm install).
+  入口: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`.
+  环境检查: `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` (零依赖, 先于 npm install).
+
+  ## 运行时铁律（宪法级 · 不可违反）
+
+  **唯一允许的可执行代码：Node.js ESM。** 绝对禁止把下列任何一项当作生产路径或框架资产：
+  - Python / `.py` / Pillow / uv / `pyproject.toml`
+  - bash / `.sh` / POSIX-only shell 管线（Windows 会断）
+  - 外部 agent skill（`.claude/skills`、`.agents/skills`）作为 Stage 2 / style-master 依赖
+  Stage 2、contact sheet、style-master 必须实现在 `PPTMAKER_FRAMEWORK/scripts/` 内。
+  文档中的 shell 代码块只是 `node …` 命令示例，不是可执行资产。
+  权威条文: `charter/CONSTITUTION.md`（运行时宪法）+ `charter/AGENT_CONTRACT.md` §7。
 
   ## 两层结构
 
@@ -34,14 +44,14 @@ context: |
   | Capability | 做什么 | 关键脚本 |
   |-----------|--------|---------|
   | `run-bundle-management` | 目录结构宪法: init scaffold, check 校验, new-version | `bundle_layout.mjs` |
-  | `environment-check` | 零依赖运行时检查 (Node.js>=18, npm, API key, 字体) | `00-env-check.mjs` |
+  | `environment-check` | 零依赖运行时检查 (Node.js>=18, npm, API key, 字体, in-framework Stage 2) | `env-check.mjs` |
 
   ### 生产管线 (5 Stage)
 
   | Capability | 做什么 | 关键脚本 |
   |-----------|--------|---------|
   | `content-parsing` | Stage 1: markdown → slide_plan.json + page_prompts + validate_specs | `stage1_build_inputs.mjs` |
-  | `image-generation` | Stage 2: 调用 image2-ppt skill 生成 slide 图片 (外部 skill, 框架不实现) | `unified_pipeline.mjs` 负责路由 |
+  | `image-generation` | Stage 2: 框架内 Node 异步生图 + contact sheet（无外部 skill） | `stage2_generate_images.mjs`, `make_contact_sheet.mjs`, `image_api_client.mjs` |
   | `header-lock` | Stage 3: 确定性文字叠加 (kicker/title/subtitle) | `stage3_lock_headers.mjs` |
   | `pptx-assembly` | Stage 4: 图片 → PPTX 容器 | `stage4_build_pptx.mjs` |
   | `notes-injection` | Stage 5: 演讲备注注入 PPTX notes panel | `stage5_inject_notes.mjs` |
@@ -87,12 +97,14 @@ context: |
 
   1. **文件系统即工作流引擎** — 目录 = 阶段, 文件 = 交接产物, 版本快照 = 目录复制,
      git = 审计跟踪. Agent 看文件系统就知道当前在哪里.
-  2. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
+  2. **Node-only 运行时** — 可执行资产只有 Node ESM；禁止 Python/bash/外部 skill 生产路径
+     （见「运行时铁律」与 `charter/CONSTITUTION.md`）。
+  3. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
      80% 的 slide 用 `body+header-lock` 模式: AI 生成的图上留白顶部 260px,
      确定性代码以像素精度叠加标题. 20% 用 `full-page`: AI 画完整页面.
-  3. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
+  4. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
      是所有图像生成的视觉锚点——每张 slide 生成时作为 reference image 传入.
-  4. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
+  5. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
      `_generated/` 内一切都可以通过重跑管线重新生成, 绝不手动编辑.
 
   ## Agent 入口
@@ -137,6 +149,8 @@ context: |
 
 rules:
   proposal:
+    - "可执行资产只能是 Node.js ESM (.mjs)；不得提议 Python、bash/.sh、或外部 skill 作为生产路径"
+    - "Stage 2 / style-master / contact sheet 必须落在 PPTMAKER_FRAMEWORK/scripts/ 内"
     - "先分类变更类型: narrative-frame / case-anchor / content-constraint / pipeline-script / pipeline-operation"
     - "再分类影响范围: Chain A (文本)/ B (视觉)/ C (备注)/ Structural (结构)——参照 automation/change-classifier.md"
     - "涉及哪些 capability, 必须在 Capabilities 段使用 config.yaml 注册表中的 kebab-case identifier——不得自创名字"

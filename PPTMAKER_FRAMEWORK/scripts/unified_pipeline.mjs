@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * unified_pipeline.mjs — Node.js ESM port of unified_pipeline.py
+ * unified_pipeline.mjs — Node.js ESM pipeline script
  *
  * Single entry point that delegates to the appropriate scripts for each stage.
  * Reads configuration from the run bundle and handles stage-to-stage handoffs.
@@ -32,8 +32,6 @@ import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync,
          copyFileSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
-import { homedir } from "node:os";
 import { Command } from "commander";
 
 // --- Import from bundle_layout.mjs — the single source of truth ---------------
@@ -66,107 +64,7 @@ export const FRAMEWORK_DIR = resolve(__dirname, "..");
 /** scripts/ — where the per-stage scripts live */
 export const REFERENCE_SCRIPTS_DIR = __dirname;
 
-// Stage 1: Parse markdown to JSON — use the Node.js ESM port programmatically
-// (imported below as parseSlides from stage1_build_inputs.mjs)
-
-// Stage 3: Header-Lock (Python script — no Node.js port yet)
-const STAGE3_SCRIPT = join(REFERENCE_SCRIPTS_DIR, "stage3_lock_headers.py");
-
-// Stage 4: Build PPTX — use the Node.js ESM port programmatically
-// (imported below as buildPptx from stage4_build_pptx.mjs)
-
-// Stage 5: Inject notes — use the Node.js ESM port programmatically
-// (imported below as injectNotes/extractNotesFromMarkdown from stage5_inject_notes.mjs)
-
-// --- Python discovery --------------------------------------------------------
-
-/**
- * Find a usable Python executable. Tries python3 first, then python.
- * @returns {string}
- */
-export function findPython() {
-  return "python3";
-}
-
-// --- Skill script discovery --------------------------------------------------
-
-/**
- * Find a skill script by searching common skill directory locations.
- *
- * Searches:
- *   1. Project-level: <FRAMEWORK_DIR>/../.claude/skills, .agents/skills
- *   2. CWD and parents: .claude/skills, .agents/skills
- *   3. Global: ~/.claude/skills, ~/.agents/skills
- *
- * @param {string[]} relativePaths - Candidate paths relative to a skills root.
- * @returns {string | null}
- */
-export function findSkillScript(relativePaths) {
-  const searchRoots = [];
-
-  // Project-level skills — include the framework's parent even when launched
-  // from an external deck directory.
-  const projectBases = [resolve(FRAMEWORK_DIR, "..")];
-  const cwd = process.cwd();
-  projectBases.push(cwd);
-  // Walk up CWD parents
-  let p = cwd;
-  while (p) {
-    if (!projectBases.includes(p)) projectBases.push(p);
-    const parent = dirname(p);
-    if (parent === p) break;
-    p = parent;
-  }
-
-  for (const base of projectBases) {
-    for (const skillsDir of [".claude/skills", ".agents/skills"]) {
-      const candidate = join(base, skillsDir);
-      if (existsSync(candidate) && !searchRoots.includes(candidate)) {
-        searchRoots.push(candidate);
-      }
-    }
-  }
-
-  // Global skills
-  const home = homedir();
-  for (const skillsDir of [".claude/skills", ".agents/skills"]) {
-    const candidate = join(home, skillsDir);
-    if (existsSync(candidate)) {
-      searchRoots.push(candidate);
-    }
-  }
-
-  for (const root of searchRoots) {
-    for (const rel of relativePaths) {
-      const candidate = join(root, rel);
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Find the stage 2 image generation script (from skill layer).
- * @returns {string | null}
- */
-export function findStage2Script() {
-  return findSkillScript([
-    "image2-ppt/scripts/generate_full_page_images.py",
-  ]);
-}
-
-/**
- * Find the contact-sheet script (from skill layer).
- * @returns {string | null}
- */
-export function findContactSheetScript() {
-  return findSkillScript([
-    "image2-ppt/scripts/make_contact_sheet.py",
-  ]);
-}
+// Stage 1–5 are all in-framework Node (.mjs). No external skills. No Python. No bash.
 
 // --- JSON helpers ------------------------------------------------------------
 
@@ -205,56 +103,6 @@ export function writePromptSubset(source, target, selectedIds) {
     "utf-8"
   );
   return target;
-}
-
-// --- Subprocess runners ------------------------------------------------------
-
-/**
- * Run a Python script as a subprocess. Returns a promise that resolves
- * with true on success, false on failure.
- *
- * @param {string} script - Absolute path to the Python script.
- * @param {string[]} args - CLI arguments.
- * @param {string} stageName - Human-readable stage name for logging.
- * @param {boolean} dryRun - If true, print but don't execute.
- * @returns {Promise<boolean>}
- */
-export function runPythonStage(script, args, stageName, dryRun) {
-  const python = findPython();
-  const cmd = [python, script, ...args];
-  const cmdStr = cmd.map((c) => (c.includes(" ") ? `"${c}"` : c)).join(" ");
-
-  console.log(`\n${"=".repeat(60)}`);
-  console.log(`  Stage: ${stageName}`);
-  console.log(`  Command: ${cmdStr}`);
-  console.log(`${"=".repeat(60)}\n`);
-
-  if (dryRun) {
-    console.log("  [DRY RUN] Would execute the above command.\n");
-    return Promise.resolve(true);
-  }
-
-  return new Promise((resolve) => {
-    const child = spawn(python, [script, ...args], {
-      stdio: "inherit",
-      env: process.env,
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        console.log(`\n  ✗ Stage ${stageName} FAILED (exit code ${code})`);
-        resolve(false);
-      } else {
-        console.log(`\n  ✓ Stage ${stageName} completed successfully.`);
-        resolve(true);
-      }
-    });
-
-    child.on("error", (err) => {
-      console.log(`\n  ✗ Stage ${stageName} FAILED: ${err.message}`);
-      resolve(false);
-    });
-  });
 }
 
 /**
@@ -378,11 +226,10 @@ export async function stage1(runDir, dryRun) {
 }
 
 /**
- * Stage 2: Generate images with style anchoring.
+ * Stage 2: Generate images with style anchoring (in-framework Node).
  *
- * Routes to the image2-ppt skill (generate_full_page_images.py + contact sheet).
- * Bridges generic OPENAI_API_KEY / OPENAI_BASE_URL credentials to whatever the
- * underlying skill natively reads (APIMART_API_KEY / --base-url).
+ * Uses scripts/stage2_generate_images.mjs + make_contact_sheet.mjs.
+ * Credentials: OPENAI_API_KEY / OPENAI_BASE_URL (APIMART_* aliases accepted).
  *
  * @param {string} runDir
  * @param {string|null} [baseUrl]
@@ -399,14 +246,6 @@ export async function stage2(runDir, {
   resolution = "2k",
   dryRun = false,
 } = {}) {
-  const script = findStage2Script();
-  if (!script) {
-    console.log("  ✗ Stage 2 script not found. Looking for:");
-    console.log("    image2-ppt/scripts/generate_full_page_images.py");
-    console.log("    in .claude/skills/ or .agents/skills/ (project or global).");
-    return false;
-  }
-
   const buildDir = generatedDir(runDir);
   const promptsFile = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
   if (!existsSync(promptsFile) && !dryRun) {
@@ -425,62 +264,64 @@ export async function stage2(runDir, {
     mkdirSync(outDir, { recursive: true });
   }
 
-  // Bridge generic OPENAI_* credentials to the image2-ppt skill's native vars.
   if (!("APIMART_API_KEY" in process.env) && process.env.OPENAI_API_KEY) {
     process.env.APIMART_API_KEY = process.env.OPENAI_API_KEY;
-  }
-  const resolvedBase = baseUrl
-    || process.env.OPENAI_BASE_URL
-    || process.env.APIMART_BASE_URL;
-
-  const args = [
-    "--prompt-json", promptsFile,
-    "--out-dir", outDir,
-    "--resolution", resolution,
-    "--style-reference", styleMaster,
-    "--prompt-is-final",
-  ];
-
-  if (resolvedBase) {
-    args.push("--base-url", resolvedBase);
   }
 
   /** @type {string[]} */
   const selectedIds = [];
   if (only) {
-    // Split comma-separated --only list into individual --only flags
-    // (the Stage-2 skill uses action="append", one id per flag).
     for (let slideId of only.split(",")) {
       slideId = slideId.trim();
-      if (slideId) {
-        selectedIds.push(slideId);
-        args.push("--only", slideId);
-      }
+      if (slideId) selectedIds.push(slideId);
     }
   }
 
-  // An explicit --only means "refresh these pages", not "select them and then
-  // silently skip because old files exist". Full-deck refresh remains opt-in.
-  if (forceImages || only) {
-    args.push("--force");
+  const baseUrls = [];
+  const resolvedBase = baseUrl
+    || process.env.OPENAI_BASE_URL
+    || process.env.APIMART_BASE_URL;
+  if (resolvedBase) baseUrls.push(resolvedBase);
+
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`  Stage: Stage 2: Generate Images`);
+  console.log(`  Generator: scripts/stage2_generate_images.mjs (in-framework)`);
+  console.log(`${"=".repeat(60)}\n`);
+
+  if (dryRun) {
+    console.log("  [DRY RUN] Would generate images + contact sheet.\n");
+    return true;
   }
 
-  const ok = await runPythonStage(script, args, "Stage 2: Generate Images", dryRun);
-  if (!ok) return false;
-
-  // --- Contact sheet (QA preview) ---
-  const contactScript = findContactSheetScript();
-  if (!contactScript) {
-    console.log("  ✗ Contact-sheet script not found in image2-ppt skill.");
+  try {
+    const { generateImages } = await import("./stage2_generate_images.mjs");
+    const result = await generateImages({
+      promptJson: promptsFile,
+      outDir,
+      styleReference: styleMaster,
+      resolution,
+      only: selectedIds,
+      force: !!(forceImages || only),
+      promptIsFinal: true,
+      baseUrl: baseUrls,
+      dryRun: false,
+    });
+    if (result.errors.length > 0) {
+      console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
+      return false;
+    }
+    console.log(`\n  ✓ Stage 2: Generate Images completed successfully.`);
+  } catch (err) {
+    console.log(`\n  ✗ Stage 2: Generate Images FAILED: ${err.message}`);
     return false;
   }
+
+  // --- Contact sheet (QA preview) ---
   const previewDir = join(buildDir, GEN_PREVIEW_SUBDIR);
-  if (!dryRun) {
-    mkdirSync(previewDir, { recursive: true });
-  }
+  mkdirSync(previewDir, { recursive: true });
   let contactPrompts = promptsFile;
   let contactName = "contact_sheet.jpg";
-  if (selectedIds.length > 0 && !dryRun) {
+  if (selectedIds.length > 0) {
     contactPrompts = join(previewDir, "_pilot_prompts.json");
     try {
       writePromptSubset(promptsFile, contactPrompts, selectedIds);
@@ -491,17 +332,28 @@ export async function stage2(runDir, {
     contactName = "pilot_contact_sheet.jpg";
   }
 
-  const contactArgs = [
-    "--image-dir", outDir,
-    "--prompt-json", contactPrompts,
-    "--out", join(previewDir, contactName),
-    "--columns", "4",
-  ];
-  return runPythonStage(contactScript, contactArgs, "Stage 2 QA: Contact Sheet", dryRun);
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`  Stage: Stage 2 QA: Contact Sheet`);
+  console.log(`${"=".repeat(60)}\n`);
+
+  try {
+    const { makeContactSheet } = await import("./make_contact_sheet.mjs");
+    await makeContactSheet({
+      imageDir: outDir,
+      promptJson: contactPrompts,
+      out: join(previewDir, contactName),
+      columns: 4,
+    });
+    console.log(`\n  ✓ Stage 2 QA: Contact Sheet completed successfully.`);
+    return true;
+  } catch (err) {
+    console.log(`\n  ✗ Stage 2 QA: Contact Sheet FAILED: ${err.message}`);
+    return false;
+  }
 }
 
 /**
- * Stage 3: Lock headers (Python/Pillow text overlay).
+ * Stage 3: Lock headers (Node @napi-rs/canvas text overlay).
  * @param {string} runDir
  * @param {boolean} dryRun
  * @returns {Promise<boolean>}
@@ -528,9 +380,6 @@ export async function stage3(runDir, dryRun) {
       return false;
     }
 
-    // Validate image count matches expected slide count (early heads-up).
-    // stage3_lock_headers.resolve_images will fail loud if any slide lacks its
-    // image — it does not build a partial deck. So warn, but don't claim we'll proceed.
     const planData = loadJson(slidePlan);
     const expected = (planData.slides || []).length;
     const actual = pngs.length;
@@ -546,22 +395,36 @@ export async function stage3(runDir, dryRun) {
     mkdirSync(outDir, { recursive: true });
   }
 
-  // slide_plan lives in _generated/, so stage3 can't derive style/ from its parent.
-  // Pass the override-aware backbone visual-style dir explicitly (color_palette.json lives there).
-  const args = [
-    "--images", imagesDir,
-    "--slide-plan", slidePlan,
-    "--out", outDir,
-    "--color-palette", styleAsset(runDir, COLOR_PALETTE_FILE),
-  ];
-  return runPythonStage(STAGE3_SCRIPT, args, "Stage 3: Lock Headers", dryRun);
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`  Stage: Stage 3: Lock Headers`);
+  console.log(`  Output: ${outDir}`);
+  console.log(`${"=".repeat(60)}\n`);
+
+  if (dryRun) {
+    console.log("  [DRY RUN] Would lock headers.\n");
+    return true;
+  }
+
+  try {
+    const { lockHeaders } = await import("./stage3_lock_headers.mjs");
+    await lockHeaders({
+      images: imagesDir,
+      slidePlan,
+      out: outDir,
+      colorPalette: styleAsset(runDir, COLOR_PALETTE_FILE),
+    });
+    console.log(`\n  ✓ Stage 3: Lock Headers completed successfully.`);
+    return true;
+  } catch (err) {
+    console.log(`\n  ✗ Stage 3: Lock Headers FAILED: ${err.message}`);
+    return false;
+  }
 }
 
 /**
  * Stage 4: Build PPTX container.
  *
- * Uses the Node.js ESM port (stage4_build_pptx.mjs) programmatically so we
- * don't need a Python subprocess for this stage.
+ * Uses stage4_build_pptx.mjs programmatically (Node / pptxgenjs).
  *
  * @param {string} runDir
  * @param {boolean} dryRun

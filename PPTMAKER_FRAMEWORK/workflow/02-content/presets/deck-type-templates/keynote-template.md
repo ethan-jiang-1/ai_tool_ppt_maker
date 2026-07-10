@@ -54,7 +54,7 @@ tier: standard
 ## Section 5: Slide Specifications
 
 > **每页按四层规格填**（Phase 1 填 L1/L2/L4；**L3 IMAGE PROMPT 视觉锁定后再回填**——见 `AGENTS.md` §2.7 / 本框架 bug 0003）。本模板给了每页的 **L1 骨架**（VISUAL TYPE / KICKER / TITLE）和 **L4 讲稿提示**；填充时**补全缺的两处**：
-> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`（image-2 画整页含标题）；其余 = `body+header-lock`（image-2 画 body，Python 叠标题）。省略则由 VISUAL TYPE 自动映射，但写出来更清楚。
+> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`（image-2 画整页含标题）；其余 = `body+header-lock`（image-2 画 body，Stage 3 Header-Lock 叠标题）。省略则由 VISUAL TYPE 自动映射，但写出来更清楚。
 > - **L2 Concept — 每页加 `MUST communicate` / `MUST NOT` / `Bridge`**（本页在整体论证中承上启下的功能）。这是叙事弧线落到每一页的地方，**别省**——省了就退回"一堆没有论证力的 slide"。
 > - **L3 IMAGE PROMPT**：Phase 1 留占位（如 `[PLACEHOLDER: 视觉锁定后填]`），Phase 2 视觉锁定后对照 `2_backbone/visual-style/` 回填。
 > - **L4 Speaker Note**：已给提示，按你的内容改写。

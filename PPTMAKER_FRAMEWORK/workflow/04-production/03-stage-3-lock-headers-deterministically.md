@@ -20,11 +20,13 @@ agent_action: execute_pipeline
 
 把 Stage 2 生成的 AI 画面和 Stage 1 定义的标题文字合成为最终 slide 图片。
 
-- **`body+header-lock` slides**（~80%）：用 Python/Pillow 在画面顶部叠加 kicker + title + subtitle，精确像素位置
+- **`body+header-lock` slides**（~80%）：用 Node `@napi-rs/canvas` 在画面顶部叠加 kicker + title + subtitle，精确像素位置
 - **`full-page` slides**（~20%）：什么都不做——AI 已经画了完整画面，pass-through 保存
 
 输入：`_generated/page_images_full/*.png`（Stage 2 产出）+ `_generated/slide_plan.json`（Stage 1 产出）
 输出：`_generated/header_locked/*.png`（最终 slide 图片）+ `_generated/qa/header_lock_qa.json`（QA 记录）
+
+脚本：`node PPTMAKER_FRAMEWORK/scripts/stage3_lock_headers.mjs --run-dir ...`
 
 ## Header-Lock 的核心原理
 
@@ -33,24 +35,24 @@ AI image model 在文字渲染上有三个系统性弱点：
 2. **字体大小不一致**：model 没有字体大小的精确概念——"46px" 对它来说是一个视觉印象
 3. **偶发拼写错误**：极少但可能——尤其是大写字母序列
 
-Python/Pillow 在这三件事上是精确的：
-1. **像素级定位**：`draw.text((46, 58), text)` — 每次都画在同一个位置
-2. **精确字体大小**：`ImageFont.truetype("SourceSansPro-Black.otf", 46)` — 46 就是 46pt
-3. **文字内容无误**：你给 Python 什么 string，它就渲染什么 string
+Node `@napi-rs/canvas` 在这三件事上是精确的：
+1. **像素级定位**：`ctx.fillText(text, 46, 58)` — 每次都画在同一个位置
+2. **精确字体大小**：`registerFont(...); ctx.font = '46px SourceSansPro-Black'` — 46 就是 46px
+3. **文字内容无误**：你给 Stage 3 什么 string，它就渲染什么 string
 
-因此分工：**AI 负责画面（body visual），Python 负责标题文字（header text）。**
+因此分工：**AI 负责画面（body visual），Stage 3（Header-Lock）负责标题文字（header text）。**
 
 ## 两种 RENDER MODE 的处理逻辑
 
-### body+header-lock（Python 叠加 header）
+### body+header-lock（Stage 3 叠加 header）
 
 ```
-1. 打开 AI 生成的图片 → 转为 RGBA
+1. 打开 AI 生成的图片 → 载入 canvas
 2. 在图片上叠加文字：
    - Kicker:  (x=46, y=24), font=Semibold 22px, color=#becbda, tracking=5
    - Title:   (x=46, y=58), font=Black 46px, color=#f4f8fc, word-wrap enabled
    - Subtitle: (below title), font=Regular 27px, color=#a4b8cc (if exists)
-3. 保存为 .png, quality=94
+3. 保存为 .png
 ```
 
 **关键参数**（这些来自视觉系统设计——01 的 typography scale）：
@@ -73,7 +75,7 @@ Python/Pillow 在这三件事上是精确的：
 3. 直接保存——不叠加任何文字
 ```
 
-`full-page` 用于 opening、section divider、closing 等 slide。这些 slide 的标题是画面构图的一部分——由 AI 完整生成，Python 不做任何处理。
+`full-page` 用于 opening、section divider、closing 等 slide。这些 slide 的标题是画面构图的一部分——由 AI 完整生成，Stage 3 不做任何处理。
 
 ## 怎么判定 RENDER MODE
 
@@ -129,6 +131,6 @@ Stage 3 产出一个 QA JSON：
 
 ---
 
-> **案例**：T10 项目使用 Source Sans Pro 字体（Semibold/Black/Regular），kicker 22px, title 46px Black, subtitle 27px。19 张 slide 中 3 张 pass-through（title/bridge/closer），16 张叠加 header。字体由跨平台解析（bundled `fonts/` → `$PPT_FONT_DIR` → 系统字体）。Header-Lock 实现细节可演进，但 AI+Python 分工原则不变。
+> **案例**：T10 项目使用 Source Sans Pro 字体（Semibold/Black/Regular），kicker 22px, title 46px Black, subtitle 27px。19 张 slide 中 3 张 pass-through（title/bridge/closer），16 张叠加 header。字体由跨平台解析（bundled `fonts/` → `$PPT_FONT_DIR` → 系统字体）。Header-Lock 实现细节可演进，但 AI + 确定性 canvas 分工原则不变。
 
 > **Next**: `04-stage-4-build-the-pptx-container.md` — Stage 4 详解：怎么把最终图片封装进 PPTX 容器。

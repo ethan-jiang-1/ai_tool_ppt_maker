@@ -28,6 +28,36 @@ v1 . 0 . 0
 
 ---
 
+## v1.4.3 — Node-only runtime constitution（2026-07-11）
+
+**代号**：No skills, no bash, no Python
+
+> 可执行资产只允许 Node ESM。Stage 2 / style-master / contact sheet 全部内置；宪法 + config.yaml + AGENT_CONTRACT §7 写死；回归测试托底。
+
+### 变了什么
+
+1. 新增 `image_api_client.mjs`、`stage2_generate_images.mjs`、`make_contact_sheet.mjs`；管线不再发现外部 skill。
+2. `generate_style_master.mjs` / `env-check` / `ppt_flow` 去 skill 依赖。
+3. `charter/CONSTITUTION.md` 增加「运行时宪法」；`openspec/config.yaml` 增加「运行时铁律」。
+4. 测试：`test_image_generation.mjs`（mock fetch）、`test_runtime_constitution.mjs`（禁 .py/.sh/skill 发现）。
+
+---
+
+## v1.4.2 — Node-only hard cut（2026-07-11）
+
+**代号**：No Python in the building
+
+> 框架内彻底去掉 Python 执行路径与栈叙事。Stage 3 走 `@napi-rs/canvas`；Stage 2 / style-master 只认 Node skill 入口（`.mjs`/`.js`）。
+
+### 变了什么
+
+1. `unified_pipeline` / `ppt_flow`：Stage 3 改为 programmatic `lockHeaders()`，不再 spawn 已删除的 `.py`。
+2. Stage 2 / contact sheet / style-master：只发现并 `node` 执行 skill；`.py` adapter 明确拒绝。
+3. `env-check`：`stage2_generator` 要求 `generate_full_page_images.mjs`（仅有 `.py` 也算失败）。
+4. 方法论文档与 preset `deck_system.txt`：Header-Lock / 工具链一律 Node 表述。
+
+---
+
 ## v1.4.1 — Doc executability + Stage-2 hard gate（2026-07-11）
 
 **代号**：Agent can follow the map
@@ -115,7 +145,7 @@ deck_{NAME}/
 - **下游从 backbone 汲取,可局部 override**。版本 `overrides/<X>` 存在就用它,否则回退 `2_backbone/<X>`(`bundle_layout.resolve_backbone_asset`)——给下游灵活度又不拷贝分叉。
 - **目录结构 SSOT = `bundle_layout.mjs`**。所有脚本 import 它取路径,文档树是它的人读镜像。彻底根除"结构信息散在各处、各自漂移"的碎片化(用户核心诉求)。
 - **prompt 是一等资产**。每页 prompt 拆成 `_generated/page_prompts/NN_id.prompt.md`(人读)+ `_prompts.json`(机器);style master 的 prompt 存为 `2_backbone/visual-style/style-master-prompt.md`(以前画完就丢)。
-- **两个 render mode 显式化**:每页在 slide-specifications.md 声明 `full-page`(整页 image-2)或 `body+header-lock`(image-2 画 body + Python 叠标题)。
+- **两个 render mode 显式化**:每页在 slide-specifications.md 声明 `full-page`(整页 image-2)或 `body+header-lock`(image-2 画 body + Stage 3 Header-Lock 叠标题)。
 - **`deck-brief.md` 拆成 4 个模板**:`template-core-metaphor` / `template-core-formula` / `template-design-constraints`(→ backbone)+ `template-slide-specifications`(→ 版本)。
 - **`_build/` → `_generated/`**;**per-bundle guide** 从 `template-deck-guide.md` 生成(`deck-guide.md` 人读控制流 + `CLAUDE.md` 一行指针)。
 
@@ -173,7 +203,7 @@ deck_{NAME}/
 
 **不用发明隐喻。** Agent 从 22 个隐喻模式里做匹配，给你 2-3 个候选。你做选择题——"这个对"或"换一个"。
 
-**不用学管线。** 一条命令跑完 5 个 Stage（解析 markdown → AI 生图 → Python 叠加标题 → 打包 PPTX → 注入演讲备注）。改一个字不用重跑全流程——Agent 自动判断影响范围和最小重跑路径。
+**不用学管线。** 一条命令跑完 5 个 Stage（解析 markdown → AI 生图 → Header-Lock 叠加标题 → 打包 PPTX → 注入演讲备注）。改一个字不用重跑全流程——Agent 自动判断影响范围和最小重跑路径。
 
 **改东西说人话就行。** "第 5 页的案例换成特斯拉"、"颜色太暗了"——Agent 听懂自然语言，内部分类到对应的编辑链，告诉你要多久，执行。
 

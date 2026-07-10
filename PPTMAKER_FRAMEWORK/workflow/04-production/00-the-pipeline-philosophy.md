@@ -41,7 +41,7 @@ agent_action: internalize
 
 ### 原则 2：Checkpoint — 每个阶段输出可检查的文件
 
-不写 `script.py` 把一切串在一起。而是：
+不写单体脚本把一切串在一起。而是：
 - Stage 1 输出 `slide_plan.json` + `page_prompts/_prompts.json`——打开就能看
 - Stage 2 输出 `_generated/page_images_full/*.png`——双击就能看
 - Stage 3 输出 `_generated/header_locked/*.png`——和 Stage 2 的图对比就能看 header 对不对
@@ -67,7 +67,7 @@ Stage 的产出物在写入后不修改（Stage 5 除外）：
 
 如果 Stage 3 产出的 header 不对，问题不在 Stage 3——而是 Stage 1 的 `slide_plan.json` 里 `render_mode` 字段错了。你不需要 "修复 Stage 3 的 bug"——你需要回到上游修 Stage 1 的数据。这种 upstream-downstream traceability 是管线最大的价值。
 
-## Header-Lock：AI + Python 的分工哲学
+## Header-Lock：AI + 确定性 canvas 的分工哲学
 
 管线中最关键的架构决策是 Header-Lock——把 slide 的标题文字从 AI image generation 中分离出来，交给 Node `@napi-rs/canvas` 做确定性渲染。
 
@@ -134,6 +134,6 @@ v1 的 canvas 固定为 1672×941；颜色、header 字号和 safe zone 从 `col
 
 ---
 
-> **案例**：T10 项目（precision manufacturing AI strategy keynote）的管线实现了这里描述的所有模式——5 个 Python 脚本，16 张 body+header-lock + 3 张 full-page slides，三条编辑链，1672×941 canvas，260px header zone，Source Sans Pro 字体。后续各文件中的具体数值和实现细节来自这个案例——但管线架构本身是 industry-agnostic 的。
+> **案例**：T10 项目（precision manufacturing AI strategy keynote）的管线实现了这里描述的所有模式——5 个 Node.js stage 脚本（`.mjs`），16 张 body+header-lock + 3 张 full-page slides，三条编辑链，1672×941 canvas，260px header zone，Source Sans Pro 字体。后续各文件中的具体数值和实现细节来自这个案例——但管线架构本身是 industry-agnostic 的。
 
 > **Next**: `01-stage-1-parse-content-to-specs.md` — Stage 1 详解：怎么把人类写的 markdown 变成机器可读的 JSON。

@@ -141,7 +141,7 @@ PPTMAKER_FRAMEWORK/
 ### 1. 分离关注点
 
 - 内容（02）和视觉（01）是独立维度——不同的 slide 内容可以配不同的 visual style master；同一个 visual style master 可以用在多份 content 上
-- AI 负责创意视觉，Python 负责精确文字——两者各有擅长，不要用一个替代另一个
+- AI 负责创意视觉，Node `@napi-rs/canvas`（Header-Lock）负责精确标题文字——两者各有擅长，不要用一个替代另一个
 
 ### 2. 文件系统原生
 

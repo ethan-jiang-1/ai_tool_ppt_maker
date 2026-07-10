@@ -1,11 +1,28 @@
-# 宪法: Run Bundle 目录结构
+# 宪法: Run Bundle 目录结构 + 运行时
 
-> **唯一权威源**: `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
+> **目录权威源**: `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
 >
-> 所有脚本从这里 import 路径常量. **人读的树是下面这样——但它只是快照**.
+> **运行时权威源**: 本节「运行时宪法」+ `openspec/config.yaml` 技术栈条款 + `charter/AGENT_CONTRACT.md` 铁律。
+>
+> 所有脚本从 `bundle_layout.mjs` import 路径常量. **人读的树是下面这样——但它只是快照**.
 > 结构以 `bundle_layout.mjs` 为准. 命令行跑 `node bundle_layout.mjs` 看权威树.
 >
 > **改目录结构 → 只改 bundle_layout.mjs**. 别在任何脚本里硬编码路径, 别在任何文档里另画一棵树.
+
+## 运行时宪法（不可违反）
+
+**唯一允许的可执行代码形态：Node.js ESM（`.mjs` / 必要的 `.js`）。**
+
+| 禁止 | 原因 |
+|------|------|
+| Python（`.py`）、Pillow、uv、`pyproject.toml` | 目标环境不保证有 Python |
+| bash / shell 脚本（`.sh`）、POSIX-only 管线 | Windows 移植会断 |
+| 外部 agent skill（「拜师」：`.claude/skills` / `.agents/skills` 作为生产依赖） | 跨平台 / 跨 agent 发现路径不一致，冷启动不可复现 |
+| 任何非 Node 子进程作为 Stage 官方路径 | 破坏单一运行时 |
+
+**允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
+
+Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts/` 内实现，不发现、不依赖外部 skill。
 
 ## 权威树 (快照)
 
@@ -63,7 +80,7 @@ deck_{NAME}/
 
 ## 初始化
 
-```bash
+```
 node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_<name> \
   [--deck-type keynote|pitch|report|training] \
   [--style dark-executive|clean-clinical|corporate-safe|tech-startup|warm-editorial]
@@ -71,7 +88,7 @@ node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_<name> \
 
 ## 校验
 
-```bash
+```
 # 校验一个版本目录是否符合宪法
 node bundle_layout.mjs --check deck_<name>/3_versions/v1
 

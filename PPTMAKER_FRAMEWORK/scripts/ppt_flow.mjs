@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ppt_flow.mjs — Node.js ESM port of ppt_flow.py
+ * ppt_flow.mjs — Node.js ESM pipeline script
  *
  * Friendly command surface for the PPT framework.
  * This is the default human/agent entry point. It delegates to the structural SSOT
@@ -21,7 +21,6 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
          rmSync } from "node:fs";
 import { join, resolve, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { homedir } from "node:os";
 import { Command } from "commander";
 
 // ---------------------------------------------------------------------------
@@ -65,9 +64,8 @@ import {
 const UNIFIED_PIPELINE = join(REFERENCE_SCRIPTS_DIR, "unified_pipeline.mjs");
 const GENERATE_STYLE_MASTER = join(REFERENCE_SCRIPTS_DIR, "generate_style_master.mjs");
 const STAGE1_BUILD_INPUTS = join(REFERENCE_SCRIPTS_DIR, "stage1_build_inputs.mjs");
-const STAGE3_LOCK_HEADERS_PY = join(REFERENCE_SCRIPTS_DIR, "stage3_lock_headers.py");
+const STAGE3_LOCK_HEADERS = join(REFERENCE_SCRIPTS_DIR, "stage3_lock_headers.mjs");
 const ENV_CHECK = join(FRAMEWORK_DIR, "scripts", "env-check.mjs");
-const RUN_TESTS_PY = join(REFERENCE_SCRIPTS_DIR, "run_tests.py");
 
 // ---------------------------------------------------------------------------
 // Subprocess runners
@@ -90,28 +88,6 @@ function runNode(script, args = []) {
     child.on("close", (code) => resolve(code !== null ? code : 1));
     child.on("error", (err) => {
       console.error(`✗ Failed to spawn node: ${err.message}`);
-      resolve(1);
-    });
-  });
-}
-
-/**
- * Spawn a Python script as a subprocess with inherited stdio.
- * @param {string} script - Absolute path to the .py script.
- * @param {string[]} args - CLI arguments.
- * @returns {Promise<number>} Exit code.
- */
-function runPython(script, args = []) {
-  const cmd = ["python3", script, ...args].map(String);
-  console.log("→ " + cmd.join(" "));
-  return new Promise((resolve) => {
-    const child = spawn("python3", [script, ...args], {
-      stdio: "inherit",
-      env: process.env,
-    });
-    child.on("close", (code) => resolve(code !== null ? code : 1));
-    child.on("error", (err) => {
-      console.error(`✗ Failed to spawn python3: ${err.message}`);
       resolve(1);
     });
   });
@@ -162,59 +138,6 @@ function updateGate(metadataPath, gate, value = "approved") {
   if (!found) lines.push(replacement);
   mkdirSync(dirname(metadataPath), { recursive: true });
   writeFileSync(metadataPath, lines.join("\n").trimEnd() + "\n", "utf-8");
-}
-
-// ---------------------------------------------------------------------------
-// Skill script discovery (used by pilot command for contact sheet)
-// ---------------------------------------------------------------------------
-
-/**
- * Search for a skill script across project-level, cwd ancestry, and global
- * skill directories.
- * @param {string[]} relativePaths - Candidate paths relative to a skills root.
- * @returns {string | null}
- */
-function findSkillScript(relativePaths) {
-  const searchRoots = [];
-
-  // Project-level
-  const projectBases = [resolve(FRAMEWORK_DIR, ".."), process.cwd()];
-  let p = process.cwd();
-  while (p) {
-    if (!projectBases.includes(p)) projectBases.push(p);
-    const parent = dirname(p);
-    if (parent === p) break;
-    p = parent;
-  }
-
-  for (const base of projectBases) {
-    for (const skillsDir of [".claude/skills", ".agents/skills"]) {
-      const candidate = join(base, skillsDir);
-      if (existsSync(candidate) && !searchRoots.includes(candidate)) {
-        searchRoots.push(candidate);
-      }
-    }
-  }
-
-  // Global
-  const home = homedir();
-  for (const skillsDir of [".claude/skills", ".agents/skills"]) {
-    const candidate = join(home, skillsDir);
-    if (existsSync(candidate)) searchRoots.push(candidate);
-  }
-
-  for (const root of searchRoots) {
-    for (const rel of relativePaths) {
-      const candidate = join(root, rel);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
-}
-
-/** @returns {string | null} */
-function findContactSheetScript() {
-  return findSkillScript(["image2-ppt/scripts/make_contact_sheet.py"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -349,7 +272,7 @@ function printStatus(status) {
 }
 
 // ---------------------------------------------------------------------------
-// Pilot slide selection (mirrors Python select_pilot_slide_ids)
+// Pilot slide selection (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -360,7 +283,7 @@ function printStatus(status) {
  *   - Body = midpoint-near non-full-page slide
  *   - Closer = last full-page slide (or last slide)
  *
- * Mirrors the Python logic: classifies slides by render_mode via
+ * Pilot selection: classifies slides by render_mode via
  * _contract_render_mode (which handles both canonical "full-page" and
  * legacy "image_direct" header_variant values).
  *
@@ -444,7 +367,7 @@ export function selectPilotSlideIds(slides, count = 3) {
 
 /**
  * Render header-locked images and contact sheet for the pilot subset.
- * Mirrors Python `_render_pilot_headers`.
+ * ported helper
  *
  * @param {string} runDir
  * @param {string[]} selectedIds
@@ -500,20 +423,15 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
   if (dryRun) {
     console.log("  [DRY RUN] Pilot Stage 3 would run.");
   } else {
-    const stage3Code = await runPython(STAGE3_LOCK_HEADERS_PY, stage3Args);
+    const stage3Code = await runNode(STAGE3_LOCK_HEADERS, stage3Args);
     if (stage3Code !== 0) {
       console.error("✗ Pilot QA: Final Header-Locked Pages FAILED");
       return false;
     }
   }
 
-  // Contact sheet
-  const contactScript = findContactSheetScript();
-  if (!contactScript) {
-    console.error("✗ Contact-sheet script not found in image2-ppt skill.");
-    return false;
-  }
-
+  // Contact sheet (in-framework)
+  const MAKE_CONTACT_SHEET = join(REFERENCE_SCRIPTS_DIR, "make_contact_sheet.mjs");
   const contactArgs = [
     "--image-dir",
     pilotImages,
@@ -526,7 +444,7 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
   if (dryRun) {
     console.log("  [DRY RUN] Contact sheet would run.");
   } else {
-    const contactCode = await runPython(contactScript, contactArgs);
+    const contactCode = await runNode(MAKE_CONTACT_SHEET, contactArgs);
     if (contactCode !== 0) {
       console.error("✗ Pilot QA: Final Contact Sheet FAILED");
       return false;
@@ -563,7 +481,7 @@ function buildEnvSearchDirs(dkRoot) {
 // ---------------------------------------------------------------------------
 
 /**
- * doctor — Check Node.js, npm, dependencies, image2-ppt skill, and credentials.
+ * doctor — Check Node.js, npm, dependencies, in-framework Stage 2, and credentials.
  * Delegates to env-check.mjs as a subprocess.
  */
 async function commandDoctor() {
@@ -953,14 +871,9 @@ function commandNewVersion(runDir, { name }) {
 // ---------------------------------------------------------------------------
 
 /**
- * test — Run all framework checks.
- * Delegates to run_tests.py.
+ * test — Run all framework checks via vitest.
  */
 async function commandTest() {
-  if (existsSync(RUN_TESTS_PY)) {
-    return runPython(RUN_TESTS_PY);
-  }
-  // Fallback: run vitest from project root
   const result = spawnSync("npm", ["test"], {
     stdio: "inherit",
     env: process.env,
@@ -1000,7 +913,7 @@ Examples:
   // ---- doctor ----
   program
     .command("doctor")
-    .description("Check Node.js, npm, deps, image2-ppt skill, and credentials")
+    .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
     .action(async () => {
       const code = await commandDoctor();
       process.exit(code);

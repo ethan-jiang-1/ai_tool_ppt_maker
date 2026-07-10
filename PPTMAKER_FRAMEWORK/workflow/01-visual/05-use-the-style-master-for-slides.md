@@ -61,7 +61,7 @@ node PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
 
 # 手动编辑 _generated/page_prompts/_prompts.json，只保留 pilot 用的几张 slide
 # 然后跑 Stage 2（生图）
-node <skills>/image2-ppt/scripts/generate_full_page_images.py \
+node <skills>/image2-ppt/scripts/generate_full_page_images.mjs \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \
@@ -74,7 +74,7 @@ node <skills>/image2-ppt/scripts/generate_full_page_images.py \
 Pilot 通过后，生成全 deck：
 
 ```bash
-node <skills>/image2-ppt/scripts/generate_full_page_images.py \
+node <skills>/image2-ppt/scripts/generate_full_page_images.mjs \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \
@@ -131,7 +131,7 @@ Style anchoring 和 Header-Lock（`stage3_lock_headers.mjs`）是互补机制：
 - **Style anchoring**：确保每一页的 body visual（KPI cards、diagrams、callout bar）look 一致
 - **Header-Lock**：确保每一页的 kicker/title/subtitle 文字在**精确相同的位置**，用**精确相同的字体**
 
-Style master 的 layout grid 教模型在哪里**留出空间**给 header。Header-Lock 用 Python/Pillow 精确渲染 header 文字。
+Style master 的 layout grid 教模型在哪里**留出空间**给 header。Header-Lock 用 Node `@napi-rs/canvas` 精确渲染 header 文字。
 
 ## 总结
 
@@ -141,7 +141,7 @@ Phase 2: Visual Style Master → 2_backbone/visual-style/style_master.jpg + deck
 Phase 3: Production Pipeline (Stages 1-5) → 3_versions/v1/_generated/ppt/{NAME}.pptx
   Stage 1: markdown → JSON
   Stage 2: GPT Image 2 生图（style master 作为 visual anchor）
-  Stage 3: Header-Lock（Python/Pillow 叠加标题）
+  Stage 3: Header-Lock（Node `@napi-rs/canvas` 叠加标题）
   Stage 4: Build PPTX
   Stage 5: Inject speaker notes
 ```

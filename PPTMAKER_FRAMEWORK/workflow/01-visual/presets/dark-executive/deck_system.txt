@@ -1,5 +1,5 @@
 # Deck System Contract — Dark Executive
-# This file is read by Stage 1 (build_inputs.py) and injected into every slide prompt.
+# This file is read by Stage 1 (stage1_build_inputs.mjs) and injected into every slide prompt.
 # It defines TEXTUAL constraints (what the model must NOT do).
 # The visual style master (style_master.jpg) defines VISUAL constraints (what the model SHOULD do).
 # They are complementary: style master shows, deck_system.txt tells.
@@ -24,7 +24,7 @@ FORBIDDEN:
 
 TEXT DENSITY: Under 35 words per slide total (excluding header). Never paragraphs. Max 3-5 body text zones.
 
-HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone completely clean — dark empty space. Python/Pillow will overlay the header text after generation. If the slide is a visual pause/transition page (full-page), ignore this rule — render the complete slide including header text.
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone completely clean — dark empty space. Stage 3 (Node @napi-rs/canvas) will overlay the header text after generation. If the slide is a visual pause/transition page (full-page), ignore this rule — render the complete slide including header text.
 
 BODY TEXT CONTRACT: Keep body words large, deliberate, and readable. No font size below what looks like 18pt. KPI numbers must be visually large (>=72px equivalent). No more than 3-5 distinct text zones on any slide. Use exact text from the prompt — do not reword or paraphrase.
 

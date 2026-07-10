@@ -2,8 +2,7 @@
 /**
  * Stage 3: Lock headers — overlay kicker/title/subtitle text onto AI-generated images.
  *
- * Node.js ESM port of stage3_lock_headers.py. Uses @napi-rs/canvas for
- * image/text compositing instead of Pillow (Python Imaging Library).
+ * Uses @napi-rs/canvas for image/text compositing.
  *
  * Reads raw images from Stage 2 and slide_plan.json from Stage 1.
  * - body+header-lock slides: render kicker + title + subtitle at fixed pixel
@@ -59,10 +58,10 @@ import {
 import { COLOR_PALETTE_FILE } from "./bundle_layout.mjs";
 
 // ---------------------------------------------------------------------------
-// Canonical render-mode vocabulary (inlined from stage1_build_inputs.py)
+// Canonical render-mode vocabulary (shared with stage1)
 //
 // No ESM port of stage1 exists yet, so constant definitions and the
-// _contract_render_mode helper are defined here (mirrors Python exactly).
+// _contract_render_mode helper are defined here (ported helper
 // ---------------------------------------------------------------------------
 
 const RENDER_MODE_FULL_PAGE = "full-page";
@@ -79,7 +78,7 @@ const CANONICAL_RENDER_MODES = new Set([
  * (image_direct → full-page, normal* → body+header-lock) so Stage 3 can
  * still consume older slide_plan.json files without a Stage-1 rerun.
  *
- * Mirrors Python `stage1._contract_render_mode`.
+ * ported helper
  *
  * @param {Record<string, any>} layout
  * @returns {string}
@@ -106,7 +105,7 @@ function _contractRenderMode(layout) {
 
 /**
  * Expose the shared config through module globals used by rendering helpers.
- * Mirrors Python `_apply_visual_config`.
+ * ported helper
  *
  * @param {ReturnType<typeof DEFAULT_CONFIG>} config
  */
@@ -219,7 +218,7 @@ const _BUNDLED_FONTS_DIR = join(__dirname, "fonts");
  */
 const _FALLBACK_FONTS = [
   "DejaVuSans-Bold.ttf",
-  "DejaVuSans.ttf",               // Linux / Pillow-common
+  "DejaVuSans.ttf",               // Linux common
   "Arial Bold.ttf",
   "Arial.ttf",
   "ArialBd.ttf",                  // Windows / macOS supplemental
@@ -279,7 +278,7 @@ function _walkFiles(root) {
 }
 
 // ---------------------------------------------------------------------------
-// _os_font_dirs  (mirrors Python exactly)
+// _os_font_dirs  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -307,7 +306,7 @@ function _osFontDirs() {
 }
 
 // ---------------------------------------------------------------------------
-// _find_font_file  (mirrors Python exactly)
+// _find_font_file  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -339,7 +338,7 @@ function _findFontFile(name) {
 }
 
 // ---------------------------------------------------------------------------
-// _font_name_candidates  (mirrors Python exactly)
+// _font_name_candidates  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -385,7 +384,7 @@ function _fontNameCandidates(family, weight) {
 }
 
 // ---------------------------------------------------------------------------
-// _find_configured_font  (mirrors Python exactly)
+// _find_configured_font  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -499,7 +498,7 @@ function _warnFontFallback(faceLabel, fallbackName) {
 }
 
 // ---------------------------------------------------------------------------
-// _load_font  (mirrors Python exactly)
+// _load_font  (ported helper
 //
 // Resolve a size-respecting TrueType/OpenType font for use with
 // @napi-rs/canvas.  Returns an object with `family` (registered canvas family
@@ -564,7 +563,7 @@ function _loadFont(family, weightOrSize, size) {
   }
 
   // Try bare family and each candidate filename as a system font lookup.
-  // Pillow's ImageFont.truetype(candidate, size) can open a font by name; we
+  // Font loading
   // approximate this by searching for a file on disk, and if none is found we
   // pass the candidate through so the canvas backend may recognise it.
   const toTry = [family, ...candidates];
@@ -613,7 +612,7 @@ function _loadFont(family, weightOrSize, size) {
 }
 
 // ---------------------------------------------------------------------------
-// Palette loading  (mirrors Python _load_colors_from_palette)
+// Palette loading  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -658,7 +657,7 @@ function _rgbaString(rgba) {
  * Word-wrap `text` to fit within `maxWidth` pixels when rendered with the
  * given font spec. Uses a small scratch canvas solely for measurement.
  *
- * Mirrors Python `_word_wrap`.
+ * ported helper
  *
  * @param {string} text
  * @param {FontSpec} fontSpec
@@ -693,9 +692,9 @@ function _wordWrap(text, fontSpec, maxWidth) {
 
 /**
  * Draw text with a soft shadow for readability on varied backgrounds.
- * Uses CSS stroke (rendered behind fill) to simulate Pillow's stroke_fill.
+ * Uses CSS stroke (rendered behind fill) to simulate stroke behind fill.
  *
- * Mirrors Python `_draw_text_with_shadow`.
+ * ported helper
  *
  * @param {import("@napi-rs/canvas").SKRSContext2D} ctx
  * @param {[number, number]} xy
@@ -727,13 +726,13 @@ function _drawTextWithShadow(ctx, xy, text, fontSpec, fill, shadow, strokeWidth)
 }
 
 // ---------------------------------------------------------------------------
-// _draw_header  (mirrors Python exactly)
+// _draw_header  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
  * Overlay kicker + title + subtitle onto a slide image.
  *
- * Port of Python `_draw_header`. In the Python version an RGBA overlay is
+ * Header draw: an RGBA-style overlay is
  * composited onto the image (Image.alpha_composite).  The @napi-rs/canvas
  * model draws directly onto the canvas context: everything goes onto one
  * layer, which is equivalent for a non-overlapping placement.
@@ -844,7 +843,7 @@ function _escapeRegex(s) {
  * the caller turns either into a loud error instead of silently taking
  * candidates[0].
  *
- * Mirrors Python `match_slide_image`.
+ * ported helper
  *
  * @param {string} imgDir
  * @param {string} slideId
@@ -884,7 +883,7 @@ function _matchSlideImage(imgDir, slideId) {
  * only produced some images, this stops here and tells you to finish Stage 2 —
  * the deck is never built half-complete.
  *
- * Mirrors Python `resolve_images`.
+ * ported helper
  *
  * @param {string} imgDir
  * @param {Array<{ id: string }>} slides
@@ -932,7 +931,7 @@ function _resolveImages(imgDir, slides) {
 /**
  * Load an image from a file path into an @napi-rs/canvas Canvas, resized to
  * the target dimensions.  Uses the synchronous Image API (new Image() + .src)
- * for consistency with the synchronous Python original.
+ * for consistency with the synchronous original.
  *
  * @param {string} imgPath
  * @param {[number, number]} targetSize - [width, height]
@@ -948,7 +947,7 @@ function _loadImageToCanvas(imgPath, targetSize) {
 }
 
 // ---------------------------------------------------------------------------
-// Argument parsing  (mirrors Python argparse semantics)
+// Argument parsing  (ported helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -1004,17 +1003,29 @@ function _parseArgs(argv) {
 }
 
 // ---------------------------------------------------------------------------
-// Main  (mirrors Python exactly)
+// Main
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {Promise<void>}
+ * Programmatic entry used by unified_pipeline / ppt_flow.
+ * @param {{ images: string, slidePlan: string, out: string, styleDir?: string|null, colorPalette?: string|null }} opts
  */
-async function main() {
-  const opts = _parseArgs(process.argv.slice(2));
+export async function lockHeaders(opts) {
+  return runLockHeaders(opts);
+}
+
+/**
+ * @param {{ images: string, slidePlan: string, out: string, styleDir?: string|null, colorPalette?: string|null }} opts
+ */
+async function runLockHeaders(opts) {
+  if (!opts?.images || !opts?.slidePlan || !opts?.out) {
+    throw new Error(
+      "stage3_lock_headers requires --images, --slide-plan, and --out",
+    );
+  }
 
   // -----------------------------------------------------------------------
-  // Resolve color_palette.json path (mirrors Python exactly).
+  // Resolve color_palette.json path.
   //
   // The orchestrator passes --color-palette explicitly after file-level
   // override resolution.  Standalone callers may still pass --style-dir or
@@ -1095,6 +1106,11 @@ async function main() {
   console.log(`\n--- Stage 3 complete ---`);
   console.log(`body+header-lock (text overlay): ${bodyLockCount}`);
   console.log(`full-page (passthrough):         ${fullPageCount}`);
+}
+
+async function main(argv = process.argv) {
+  const opts = _parseArgs(argv.slice(2));
+  return runLockHeaders(opts);
 }
 
 // ---------------------------------------------------------------------------
