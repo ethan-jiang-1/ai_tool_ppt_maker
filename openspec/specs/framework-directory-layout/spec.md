@@ -1,17 +1,17 @@
 ## Purpose
 
-Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, four-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, and all lookup appendices under `reference/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure.
+Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, all lookup appendices under `reference/`, and all workflow controllers under `playbook/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure.
 
 ## Requirements
 
-### Requirement: Framework root has exactly four subdirectories
+### Requirement: Framework root has exactly five subdirectories
 
-`PPTMAKER_FRAMEWORK/` SHALL contain exactly four subdirectories: `workflow/`, `scripts/`, `charter/`, and `reference/`. No other subdirectories SHALL exist at this level.
+`PPTMAKER_FRAMEWORK/` SHALL contain exactly five subdirectories: `workflow/`, `scripts/`, `charter/`, `reference/`, and `playbook/`. No other subdirectories SHALL exist at this level.
 
 #### Scenario: Human lists framework root
 
 - **WHEN** a human runs `ls PPTMAKER_FRAMEWORK/`
-- **THEN** they see exactly `workflow/`, `scripts/`, `charter/`, `reference/` plus the five root .md files
+- **THEN** they see exactly `workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/` plus the five root .md files
 - **AND** directories named with Phase numbers (00_, 01_, etc.) or `automation/` do NOT appear
 
 ### Requirement: Phase directories are under workflow/
@@ -34,7 +34,7 @@ All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts
 
 ### Requirement: Reference documents are under reference/
 
-QUICK_START.md, GLOSSARY.md, ANTI_PATTERNS.md, and VERSION_LOG.md SHALL be located under `PPTMAKER_FRAMEWORK/reference/`.
+`quick-start.md`, `glossary.md`, `anti-patterns.md`, and `version-log.md` SHALL be located under `PPTMAKER_FRAMEWORK/reference/`.
 
 #### Scenario: Human looks up glossary
 
