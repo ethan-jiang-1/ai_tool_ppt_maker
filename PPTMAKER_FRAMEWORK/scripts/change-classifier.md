@@ -97,7 +97,7 @@ Agent 回复：
 用户说：{REQUEST}
 
 Agent 回复：
-"好的，重新生成 Slide {N} 的画面。改完后 Python 会把标题叠加上去，约 5 分钟。"
+"好的，重新生成 Slide {N} 的画面。改完后 Stage 3（Header-Lock）会把标题叠加上去，约 5 分钟。"
 → 执行 → "Slide {N} 已更新。要看一下效果吗？"
 ```
 

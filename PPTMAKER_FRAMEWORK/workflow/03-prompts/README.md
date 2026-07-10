@@ -43,7 +43,7 @@ agent_action: navigate
 
 ## 工具
 
-Image generation 的官方路径是 `unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.py`。无 skill 时才用遗留参考 `stage2_generate_images.LEGACY.py`。参见 `workflow/00-setup/03-tool-selection.md` 了解 API 配置。
+Image generation 的官方路径是 `unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.mjs`（经 unified_pipeline 调用）。无 skill 时 Stage 2 无法生图。参见 `workflow/00-setup/03-tool-selection.md` 了解 API 配置。
 
 > **模型说明**：本框架基于 GPT Image 2 设计和验证。它是目前做 image-based PPT 效果最好的模型——style anchoring 机制、文字渲染质量、色彩一致性都最优。如果你用其他模型，方法论原则仍然适用，但具体 prompt 结构和参数可能需要调整。
 

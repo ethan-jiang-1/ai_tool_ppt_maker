@@ -40,19 +40,23 @@ The env check SHALL verify `OPENAI_API_KEY` is set in `.env` and is non-empty.
 - **WHEN** `.env` contains `OPENAI_API_KEY=sk-...` → check passes
 - **WHEN** `.env` is absent or value is empty → report explains how to configure
 
-### Requirement: image2-ppt skill is a hard requirement
+### Requirement: In-framework Stage 2 scripts are a hard requirement
 
-The env check SHALL treat the Stage-2 generator skill (`image2-ppt/scripts/generate_full_page_images.py`) as a hard failure when missing — not a warning. Discovery SHALL search `.claude/skills/` and `.agents/skills/` under cwd parents and the user home directory.
+The env check SHALL treat missing in-framework Stage 2 modules as a hard failure
+when absent — not a warning. It SHALL verify these files exist under
+`PPTMAKER_FRAMEWORK/scripts/`:
+`stage2_generate_images.mjs`, `make_contact_sheet.mjs`, `image_api_client.mjs`.
+It SHALL NOT search `.claude/skills/` or `.agents/skills/`.
 
-#### Scenario: Skill missing
+#### Scenario: Scripts present
 
-- **WHEN** the skill script is not found in any skills directory
+- **WHEN** the three Stage 2 modules exist under `scripts/`
+- **THEN** `stage2_generator` status is `ok` and detail mentions `in-framework`
+
+#### Scenario: Scripts missing
+
+- **WHEN** any of the three modules is missing
 - **THEN** `stage2_generator` status is `fail`, overall verdict is NOT READY, exit non-zero
-
-#### Scenario: Skill present
-
-- **WHEN** the skill script exists under `.claude/skills/image2-ppt/` (or `.agents/skills/`)
-- **THEN** `stage2_generator` status is `ok`
 
 ### Requirement: Structured READY/NOT READY output
 

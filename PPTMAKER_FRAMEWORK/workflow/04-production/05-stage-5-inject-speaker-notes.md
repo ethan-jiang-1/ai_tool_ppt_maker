@@ -30,7 +30,7 @@ Speaker notes 是唯一对视觉没有影响的元素。它们存在于 PPTX 的
 
 ```bash
 cp _generated/ppt/{NAME}.pptx _generated/ppt/{NAME}.backup.pptx
-python stage5_inject_notes.mjs
+node PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs --run-dir ...
 ```
 
 ## 提取 Speaker Notes
@@ -66,23 +66,23 @@ assert len(slide_notes) == len(pptx_slides)
 
 ## 注入 PPTX Notes 面板
 
-```python
-from pptx import Presentation
+```javascript
+import PptxGenJS from "pptxgenjs";
 
-prs = Presentation("_generated/ppt/{NAME}.pptx")
+const pptx = new PptxGenJS();
+await pptx.load("_generated/ppt/{NAME}.pptx");
 
-for i, slide in enumerate(prs.slides):
-    notes_text = slide_notes[i]
-    if notes_text:
-        notes_slide = slide.notes_slide
-        text_frame = notes_slide.notes_text_frame
-        text_frame.clear()
-        text_frame.text = notes_text
+pptx.slides.forEach((slide, i) => {
+  const notesText = slideNotes[i];
+  if (notesText) {
+    slide.addNotes(notesText);
+  }
+});
 
-prs.save("_generated/ppt/{NAME}.pptx")  # 原地保存
+await pptx.writeFile({ fileName: "_generated/ppt/{NAME}.pptx" });
 ```
 
-**务必先备份**——`python-pptx` 的 `save()` 会覆盖原文件，没有 undo。
+**务必先备份**——`pptxgenjs` 的 `writeFile()` 会覆盖原文件，没有 undo。
 
 ## 三条编辑链：完整工作流
 

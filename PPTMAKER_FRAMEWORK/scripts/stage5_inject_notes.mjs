@@ -15,7 +15,7 @@
  * Dependencies: pptxgenjs (whose transitive dependency jszip is used for the
  * actual PPTX XML manipulation, since pptxgenjs cannot open existing PPTX files).
  *
- * Port of stage5_inject_notes.py. Imports path constants from ./bundle_layout.mjs.
+ * Imports path constants from ./bundle_layout.mjs.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -165,7 +165,7 @@ function addNotesOverrideToContentTypes(typesXml, slideNum) {
 /**
  * Extract SPEAKER NOTE text from each slide block, in order.
  *
- * Mirrors the Python regex logic precisely:
+ * Slide-id matching:
  *  - Slides are split on "## Slide N" headers.
  *  - Format B (inline):  > **SPEAKER NOTE**: text
  *  - Format A (multi-line): > **SPEAKER NOTE**\n> line1\n> line2

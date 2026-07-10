@@ -66,10 +66,13 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 不要写 `image_direct` / `normal`（旧词；输入端仍兼容，输出与文档禁止再用）。
 
-## 7. Stage 2 只有一条路
+## 7. 运行时只有 Node；Stage 2 在框架内
 
-官方：`unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.py`。
-`stage2_generate_images.LEGACY.py` = 遗留参考，**默认不用**。
+**唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
+
+官方 Stage 2：`unified_pipeline.mjs` → `scripts/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
+Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
+不发现 `.claude/skills` / `.agents/skills`。
 
 ## 8. 编辑链（改完怎么重跑）
 

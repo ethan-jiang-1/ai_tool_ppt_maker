@@ -54,9 +54,9 @@ agent_action: reference
 - AI 生成的 title 字体大小每页浮动，即使 prompt 写了 "46px"——模型不会数字体，它生成的是 "看起来像 46px" 的 approximation
 - 偶尔拼错 headline 中的关键词
 
-**学到的**：**AI 在精确文字渲染上不可靠。** Python/Pillow 恰恰相反——pixel-perfect，每次都一样。让 AI 做它擅长的（创意视觉），让 Python 做它擅长的（精确文字）。
+**学到的**：**AI 在精确文字渲染上不可靠。** Node `@napi-rs/canvas`（Header-Lock）恰恰相反——pixel-perfect，每次都一样。让 AI 做它擅长的（创意视觉），让确定性 canvas 做它擅长的（精确标题文字）。
 
-→ 触发 v3：Header-Lock——AI 生成 body 视觉（画面），Python 叠加 header 文字（标题）。
+→ 触发 v3：Header-Lock——AI 生成 body 视觉（画面），Stage 3 叠加 header 文字（标题）。
 
 ---
 
@@ -78,7 +78,7 @@ agent_action: reference
 
 **发现 body_shift 机制**：
 - 某些 slide 的 AI 生成画面离 header 太近（差了 24px）
-- 与其重新生成 raw 图（可能引入新的问题），不如在 Python 阶段把 body 下移 24px
+- 与其重新生成 raw 图（可能引入新的问题），不如在 Stage 3 把 body 下移 24px
 - 露出的顶部区域用 raw 图顶部 texture 补齐，不用硬编码纯色
 - 但这个机制有边界：**如果 raw 图本身没留够 header safe zone，不能靠 body shift 硬补——必须回到 prompt 源头重生 raw。**
 
@@ -116,7 +116,7 @@ agent_action: reference
 颜色、字体层级、空间关系——用图片展示，不要用文字描述。Style Anchoring 不是锦上添花，是**必须的**。没有它，到第 15 页你的 deck 看起来像 15 个不同的人做的。
 
 ### 2. Split the work where each tool is strongest
-AI 负责创意视觉（charts、cards、icons、color）。Python 负责精确文字（kicker、title、subtitle，在精确的像素位置）。不要用一个替代另一个。
+AI 负责创意视觉（charts、cards、icons、color）。Stage 3 Header-Lock 负责精确文字（kicker、title、subtitle，在精确的像素位置）。不要用一个替代另一个。
 
 ### 3. Fix upstream, not downstream
 如果 raw 图的 header zone 被 AI 内容侵入，问题不在 Stage 3（header overlay）——问题在 Stage 1 的 prompt。回到源头修 prompt 中的 header contract，不要靠后期 trick 硬补。

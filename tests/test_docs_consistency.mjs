@@ -40,7 +40,7 @@ describe('docs_consistency', () => {
     const { readFileSync } = require('node:fs');
     const driftRes = [
       /charter\/charter\//,
-      /(?<!P)PTMAKER_FRAMEWORK/, // typo missing leading P
+      /(?<!P)PTMAKER_FRAMEWORK/,
       /workflow\/00-setup\/workflow\//,
       /00_project_setup\//,
       /06_reference_scripts\//,
@@ -59,6 +59,33 @@ describe('docs_consistency', () => {
       for (const re of driftRes) {
         expect(re.test(content), `${f} still matches ${re}`).toBe(false);
       }
+    }
+  });
+
+  it('framework docs and scripts ban Python stack language', () => {
+    const { execSync } = require('node:child_process');
+    // Ban "use Python" stack language — not the constitutional "Python is forbidden" prose.
+    const out = execSync(
+      `rg -n 'Python/Pillow|python-pptx|uv run|pyproject\\.toml|python3 |I need Python|Python \\+ UV|runPython\\(|findPython\\(|stage3_lock_headers\\.py|run_tests\\.py' PPTMAKER_FRAMEWORK -g '*.md' -g '*.mjs' -g '*.txt' -g '!version-log.md' -g '!CONSTITUTION.md' || true`,
+      { encoding: 'utf-8', timeout: 15000 }
+    ).trim();
+    expect(out, `Python stack remnants:\n${out}`).toBe('');
+  });
+
+  it('entry docs do not require external image2 skills', () => {
+    const { readFileSync } = require('node:fs');
+    for (const f of [
+      'PPTMAKER_FRAMEWORK/BOOTSTRAP.md',
+      'PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md',
+      'PPTMAKER_FRAMEWORK/charter/CONSTITUTION.md',
+      'openspec/config.yaml',
+    ]) {
+      const content = readFileSync(f, 'utf-8');
+      // Fail only if docs still prescribe installing/using skill paths as the official route.
+      expect(
+        /image2-ppt\/scripts|Install\/provide:.*\.claude\/skills|\.claude\/skills\/image2-ppt/.test(content),
+        `${f} still requires external skill path`
+      ).toBe(false);
     }
   });
 });

@@ -55,7 +55,7 @@
  *   if present, else the backbone default is used (see resolveBackboneAsset).
  * - Deck name (for the .pptx) derives from the deck root dir, two levels above a version.
  *
- * Node.js ESM port — zero external dependencies. Drop-in replacement for the Python
+ * Node.js ESM port — zero external dependencies. Zero external dependencies
  * bundle_layout.mjs. All constants, functions, and CLI modes preserved identically.
  */
 
@@ -65,7 +65,7 @@ import { fileURLToPath } from 'node:url';
 import { writeState, setNodeStatus } from './lib/state.mjs';
 
 // ---------------------------------------------------------------------------
-// Self-location (replaces Python's __file__ / Path(__file__).resolve())
+// Self-location (self path resolution
 // ---------------------------------------------------------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

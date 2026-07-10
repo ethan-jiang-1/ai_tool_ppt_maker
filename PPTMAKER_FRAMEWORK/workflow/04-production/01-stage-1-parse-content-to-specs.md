@@ -135,7 +135,7 @@ if explicit RENDER MODE == "full-page" OR visual_type in FULL_PAGE_TYPES:
   header_safe_zone = 0        // AI 画满整个 canvas
 else:
   render_mode = "body+header-lock"
-  header_safe_zone = 260      // 顶部 260px 留给 Python header
+  header_safe_zone = 260      // 顶部 260px 留给 Stage 3 Header-Lock
   content_y_min = 290
   content_y_max = 780
 ```

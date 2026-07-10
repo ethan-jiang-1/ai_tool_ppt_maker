@@ -22,7 +22,7 @@ FORBIDDEN:
 
 TEXT DENSITY: Under 28 words per slide. Pitch decks are sparse — one idea per slide. Max 2-3 body text zones.
 
-HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean dark purple. Python/Pillow will overlay the header text. For full-page slides (opener, closer, traction page), render complete slide with header text.
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean dark purple. Stage 3 (Node @napi-rs/canvas) will overlay the header text. For full-page slides (opener, closer, traction page), render complete slide with header text.
 
 BODY TEXT CONTRACT: Big claims need big typography. Use oversized numbers and bold statements. No paragraphs — single sentences or bullet-like fragments. KPI numbers should be MASSIVE (>=96px visual equivalent) in neon cyan (#00f5d4).
 

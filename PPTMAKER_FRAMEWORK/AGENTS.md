@@ -63,7 +63,7 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 **Soft bundle**（`PPTMAKER_FRAMEWORK/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
 
 > ### ⚙️ 跨平台（macOS / Linux / Windows 都要能跑）
-> 本文档里的 `ls` / `cp` / `cp -r` / `rm -rf` / `diff -r` 是 **POSIX 示例**。核心 Python 脚本（`bundle_layout.mjs --init`、`unified_pipeline.mjs`、各 stage）本身是跨平台的，用它们就无需这些 shell 命令。当你确实需要文件操作时：
+> 本文档里的 `ls` / `cp` / `cp -r` / `rm -rf` / `diff -r` 是 **POSIX 示例**。核心 Node.js 脚本（`bundle_layout.mjs --init`、`unified_pipeline.mjs`、各 stage `.mjs`）本身是跨平台的，用它们就无需这些 shell 命令。当你确实需要文件操作时：
 > - **首选：用你的 agent 文件工具**（读/写/复制/删除），完全避开 shell 差异——这是最稳的跨平台方式。
 > - 需要 shell 时的等价命令：
 >   | 操作 | macOS / Linux | Windows PowerShell |
@@ -72,8 +72,8 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 >   | 复制目录 | `cp -r v1 v2` | `Copy-Item v1 v2 -Recurse` |
 >   | 删除目录 | `rm -rf d` | `Remove-Item d -Recurse -Force` |
 >   | 看目录 | `ls` | `dir` / `Get-ChildItem` |
-> - **路径分隔符**：脚本和 `python -c` 里一律用 `/`（`pathlib`/`uv` 在 Windows 也接受 `/`）；不要硬编码 `\`。
-> - **不要用 `$(cmd)` 命令替换、`/tmp`、heredoc**（都是 bash-only）。需要临时文件用 Python `tempfile` 或写进 deck 根（非 whitelisted，用完可删）。
+> - **路径分隔符**：脚本和 Node 路径里一律用 `/`（Windows 也接受 `/`）；不要硬编码 `\`。
+> - **不要用 `$(cmd)` 命令替换、`/tmp`、heredoc**（都是 bash-only）。需要临时文件用 Node `os.tmpdir()` 或写进 deck 根（非 whitelisted，用完可删）。
 
 ## 固定流程（不可跳过，不可重排）
 

@@ -41,7 +41,7 @@ agent_action: internalize
 | 创建新项目 | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_{NAME}`（一条命令搭全,不手动 mkdir） |
 | 看当前进度 | `ls 3_versions/v1/_generated/page_images_full/` — 生成了几张图 |
 | 版本快照 | `bundle_layout.mjs --new-version deck_X/3_versions/v1` — 只复制源 delta，随时 `diff -r` |
-| 重跑某个阶段 | `python scripts/stage_2.py` |
+| 重跑某个阶段 | `node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir ... --stage N` |
 | 检查中间产物 | 打开 `page_images_full/03_xxx.png` — 直接看图 |
 | 回滚 | `rm -rf 3_versions/v2 && cp -r 3_versions/v1_backup 3_versions/v1` |
 | 审计追踪 | `git log` — 谁改了啥、什么时候 |

@@ -12,7 +12,7 @@ agent_action: copy_and_adapt
 
 # Reference: Pipeline Script Patterns
 
-> **此文件保留作为架构参考。** 完整的可运行 Python 实现已移至 `scripts/` ——五个 Stage 的生产脚本，复制到 run bundle 后修改常量即可使用。
+> **此文件保留作为架构参考。** 完整的可运行 Node.js 实现位于 `scripts/` ——五个 Stage 的 `.mjs` 生产脚本，通过 `unified_pipeline.mjs --run-dir` 就地运行，修改脚本顶部常量即可适配项目。
 >
 > 以下是六个关键模式的注释版伪代码——展示每个阶段的核心代码结构和设计决策。读它来理解**为什么这样设计**；用 `scripts/` 来**实际执行**。
 
@@ -20,49 +20,33 @@ agent_action: copy_and_adapt
 
 ## Pattern 1: Markdown Parser（Stage 1）
 
-**做什么**：从半结构化 markdown 提取结构化字段。
+**做什么**：从半结构化 markdown 提取结构化字段（`stage1_build_inputs.mjs`）。
 
-```python
-import re
-import json
+```javascript
+import { readFileSync } from "node:fs";
 
-def parse_slides(md_path: str) -> list[dict]:
-    """Parse markdown into slide records."""
-    text = open(md_path).read()
-    
-    # Split by slide marker
-    slide_blocks = re.split(r'## Slide \d+:', text)[1:]  # skip preamble
-    
-    slides = []
-    for block in slide_blocks:
-        slide = {}
-        
-        # Extract fields with regex
-        slide['id'] = extract_id(block)  # first line after ## Slide NN:
-        slide['visual_type'] = extract_field(block, 'VISUAL TYPE')
-        slide['kicker'] = extract_field(block, 'KICKER') or ''
-        slide['headline'] = extract_field(block, 'TITLE')
-        slide['subtitle'] = extract_field(block, 'SUBTITLE') or None
-        
-        # Extract code block
-        slide['image_prompt'] = extract_code_block(block, 'IMAGE PROMPT')
-        
-        slides.append(slide)
-    
-    return slides
+function parseSlides(mdPath) {
+  const text = readFileSync(mdPath, "utf-8");
+  const slideBlocks = text.split(/## Slide \d+:/).slice(1);
+  return slideBlocks.map((block) => ({
+    id: extractId(block),
+    visual_type: extractField(block, "VISUAL TYPE"),
+    kicker: extractField(block, "KICKER") ?? "",
+    headline: extractField(block, "TITLE"),
+    subtitle: extractField(block, "SUBTITLE") ?? null,
+    image_prompt: extractCodeBlock(block, "IMAGE PROMPT"),
+  }));
+}
 
-def extract_field(block: str, field_name: str) -> str:
-    """Extract **FIELD_NAME**: value from markdown block."""
-    pattern = rf'\*\*{field_name}\*\*:\s*(.+)'
-    match = re.search(pattern, block)
-    return match.group(1).strip() if match else None
+function extractField(block, fieldName) {
+  const match = block.match(new RegExp(`\\*\\*${fieldName}\\*\\*:\\s*(.+)`));
+  return match ? match[1].trim() : null;
+}
 
-def extract_code_block(block: str, label: str) -> str:
-    """Extract content of ``` block after a label."""
-    # Find the IMAGE PROMPT label, then extract next ```...``` block
-    pattern = rf'\*\*{label}\*\*:.*?\n```\n(.*?)```'
-    match = re.search(pattern, block, re.DOTALL)
-    return match.group(1).strip() if match else ''
+function extractCodeBlock(block, label) {
+  const match = block.match(new RegExp(`\\*\\*${label}\\*\\*:.*?\\n\`\`\`\\n([\\s\\S]*?)\`\`\``, "s"));
+  return match ? match[1].trim() : "";
+}
 ```
 
 **关键设计决策**：
@@ -76,43 +60,24 @@ def extract_code_block(block: str, label: str) -> str:
 
 **做什么**：把源 IMAGE PROMPT 和系统级 contracts 组装成完整 prompt。
 
-```python
-SYSTEM_HEADER_CONTRACT = """
+```javascript
+const SYSTEM_HEADER_CONTRACT = (headerSafeZone) => `
 HEADER CONTRACT (ABSOLUTE):
-The top {header_safe_zone}px of this image (y=0 to y={header_safe_zone}) 
-is the header zone. Keep this area clean, dark navy (#0a1628), 
-with NO text, NO visual elements, NO decorations. 
-The header text will be overlaid by a deterministic renderer after generation.
-"""
+The top ${headerSafeZone}px of this image (y=0 to y=${headerSafeZone})
+is the header zone. Keep this area clean, dark navy (#0a1628),
+with NO text, NO visual elements, NO decorations.
+Stage 3 (Header-Lock) will overlay the header text after generation.
+`;
 
-SYSTEM_BODY_TEXT_CONTRACT = """
-BODY TEXT CONTRACT:
-- All body labels, captions, and callouts must be visually at minimum 26px
-- KPI numbers must be visually at minimum 72px
-- Callout bar text at bottom must be visually at minimum 32px
-- Maximum 3-5 readable text zones per slide (excluding callout bar)
-"""
-
-SYSTEM_STYLE_ANCHORING = """
-Use the reference image(s) as your EXACT visual style guide.
-Match the color palette, typography scale, layout grid, component patterns,
-and overall visual language precisely. Only change the slide content, not the style.
-"""
-
-def assemble_prompt(source_prompt: str, layout_contract: dict, is_full_page: bool) -> str:
-    """Assemble full generation prompt from source prompt and system contracts."""
-    if is_full_page:
-        # Image-direct: AI generates everything including title
-        contract = "IMAGE-DIRECT EXCEPTION: Render the complete slide including all text."
-    else:
-        contract = (
-            SYSTEM_HEADER_CONTRACT.format(
-                header_safe_zone=layout_contract['header_safe_zone']
-            )
-            + SYSTEM_BODY_TEXT_CONTRACT
-        )
-    
-    return f"{contract}\n\n---\n\n{source_prompt}\n\n---\n\n{SYSTEM_STYLE_ANCHORING}"
+function assemblePrompt(sourcePrompt, layoutContract, isFullPage) {
+  if (isFullPage) {
+    return `FULL-PAGE: Render the complete slide including all text.\n\n${sourcePrompt}`;
+  }
+  const contract =
+    SYSTEM_HEADER_CONTRACT(layoutContract.header_safe_zone) +
+    SYSTEM_BODY_TEXT_CONTRACT;
+  return `${contract}\n\n---\n\n${sourcePrompt}\n\n---\n\n${SYSTEM_STYLE_ANCHORING}`;
+}
 ```
 
 **关键设计决策**：
@@ -124,68 +89,24 @@ def assemble_prompt(source_prompt: str, layout_contract: dict, is_full_page: boo
 
 ## Pattern 3: Async Image Generator（Stage 2）
 
-**做什么**：Submit → poll → download，skip-if-exists，mirror fallback。
+**做什么**：Submit → poll → download，skip-if-exists，mirror fallback。官方路径：`unified_pipeline.mjs` → image2-ppt skill（Node skill 入口，由管线 spawn）。
 
-```python
-import time, json, requests
+```javascript
+const MIRRORS = [
+  "https://api.primary.com/v1",
+  "https://api.fallback1.com/v1",
+];
+const MAX_POLLS = 120;
+const POLL_INTERVAL_MS = 5000;
 
-MIRRORS = [
-    "https://api.primary.com/v1",
-    "https://api.fallback1.com/v1",
-    "https://api.fallback2.com/v1",
-]
-MAX_POLLS = 120       # 10 min max at 5s interval
-POLL_INTERVAL = 5     # seconds
-
-def generate_image(prompt: str, output_path: str, 
-                   model: str = "gpt-image-2",
-                   size: str = "16:9", 
-                   resolution: str = "2k") -> dict:
-    """Generate one image. Skip if output exists."""
-    
-    if os.path.exists(output_path):
-        print(f"  Skip — already exists: {output_path}")
-        return None
-    
-    task_id = None
-    for mirror in MIRRORS:
-        try:
-            resp = requests.post(
-                f"{mirror}/images/generations",
-                json={"prompt": prompt, "model": model, 
-                      "size": size, "resolution": resolution},
-                headers={"Authorization": f"Bearer {API_KEY}"}
-            )
-            task_id = resp.json()["task_id"]
-            break
-        except (ConnectionError, KeyError):
-            continue
-    
-    if not task_id:
-        raise Exception("All mirrors failed for task submission")
-    
-    # Poll until complete
-    for poll_count in range(MAX_POLLS):
-        status = get_task_status(task_id, MIRRORS)
-        if status == "completed":
-            download_result(task_id, output_path, MIRRORS)
-            break
-        if status == "failed":
-            raise Exception(f"Task {task_id} failed")
-        time.sleep(POLL_INTERVAL)
-    
-    # Save trace
-    trace = {
-        "task_id": task_id,
-        "model": model, "size": size, "resolution": resolution,
-        "prompt_chars": len(prompt),
-        "poll_count": poll_count + 1,
-        "total_seconds": (poll_count + 1) * POLL_INTERVAL
-    }
-    with open(output_path.replace('.png', '.apimart-task.json'), 'w') as f:
-        json.dump(trace, f, indent=2)
-    
-    return trace
+async function generateImage(prompt, outputPath, { model = "gpt-image-2", resolution = "2k" } = {}) {
+  if (existsSync(outputPath)) {
+    console.log(`  Skip — already exists: ${outputPath}`);
+    return null;
+  }
+  // Submit via skill adapter, poll task, download PNG, write trace JSON
+  // See unified_pipeline.mjs runStage2() for production wiring
+}
 ```
 
 **关键设计决策**：
@@ -197,134 +118,122 @@ def generate_image(prompt: str, output_path: str,
 
 ## Pattern 4: Header Overlay（Stage 3）
 
-**做什么**：Python/Pillow 在 AI 生成的画面上叠加 header 文字。
+**做什么**：Node `@napi-rs/canvas` 在 AI 生成的画面上叠加 header 文字（`stage3_lock_headers.mjs`）。
 
-```python
-from PIL import Image, ImageDraw, ImageFont
+```javascript
+import { createCanvas, loadImage, registerFont } from "@napi-rs/canvas";
 
-# Fonts — resolved cross-platform by _load_font (bundled fonts/ → $PPT_FONT_DIR →
-# OS dirs), with a size-respecting fallback and a hard abort if nothing is usable.
-# Never ImageFont.load_default() — it ignores size and prints garbled headers.
-FONT_KICKER = _load_font("SourceSansPro-Semibold.otf", 22)
-FONT_TITLE = _load_font("SourceSansPro-Bold.otf", 46)
-FONT_SUBTITLE = _load_font("SourceSansPro-Regular.otf", 27)
+// Fonts — resolved cross-platform (bundled fonts/ → $PPT_FONT_DIR → OS dirs),
+// with a size-respecting fallback and a hard abort if nothing is usable.
+registerFont("SourceSansPro-Semibold.otf", { family: "Kicker", weight: "600" });
+registerFont("SourceSansPro-Bold.otf", { family: "Title", weight: "700" });
+registerFont("SourceSansPro-Regular.otf", { family: "Subtitle", weight: "400" });
 
-KICKER_POS = (46, 24)
-TITLE_POS = (46, 58)
-KICKER_COLOR = (190, 203, 218)   # #becbda
-TITLE_COLOR = (244, 248, 252)    # #f4f8fc
-SUBTITLE_COLOR = (164, 184, 204) # #a4b8cc
+const KICKER_POS = { x: 46, y: 24 };
+const TITLE_POS = { x: 46, y: 58 };
+const KICKER_COLOR = "#becbda";
+const TITLE_COLOR = "#f4f8fc";
+const SUBTITLE_COLOR = "#a4b8cc";
+const CANVAS_SIZE = { width: 1672, height: 941 };
 
-CANVAS_SIZE = (1672, 941)
+async function lockHeader(imgPath, slidePlan, outputPath) {
+  const img = await loadImage(imgPath);
 
-def lock_header(img_path: str, slide_plan: dict, output_path: str):
-    """Overlay header text on AI-generated image."""
-    
-    if slide_plan['render_mode'] == 'full-page':
-        # Pass-through — just resize if needed
-        img = Image.open(img_path).convert('RGBA')
-        img = img.resize(CANVAS_SIZE, Image.LANCZOS)
-        img.save(output_path, 'PNG', quality=94)
-        print(f"  PASS-THROUGH: {slide_plan['id']}")
-        return
-    
-    # Normal slide — draw header text
-    img = Image.open(img_path).convert('RGBA')
-    img = img.resize(CANVAS_SIZE, Image.LANCZOS)
-    draw = ImageDraw.Draw(img)
-    
-    # Draw kicker
-    kicker = slide_plan.get('kicker', '')
-    if kicker and kicker != '(无)' and kicker != '(none)':
-        draw.text(KICKER_POS, kicker.upper(), 
-                  font=FONT_KICKER, fill=KICKER_COLOR)
-    
-    # Draw title (with word wrap if needed)
-    title = slide_plan['headline']
-    wrapped_lines = word_wrap(title, FONT_TITLE, max_width=CANVAS_SIZE[0] - 92)
-    y = TITLE_POS[1]
-    for line in wrapped_lines:
-        draw.text((TITLE_POS[0], y), line, 
-                  font=FONT_TITLE, fill=TITLE_COLOR)
-        y += 52  # line height
-    
-    # Draw subtitle if present
-    subtitle = slide_plan.get('subtitle')
-    if subtitle:
-        y += 8  # extra spacing
-        draw.text((TITLE_POS[0], y), subtitle, 
-                  font=FONT_SUBTITLE, fill=SUBTITLE_COLOR)
-    
-    img.save(output_path, 'PNG', quality=94)
-    print(f"  DREW HEADER: {slide_plan['id']}")
+  if (slidePlan.render_mode === "full-page") {
+    const canvas = createCanvas(CANVAS_SIZE.width, CANVAS_SIZE.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, CANVAS_SIZE.width, CANVAS_SIZE.height);
+    writeFileSync(outputPath, canvas.toBuffer("image/png"));
+    console.log(`  PASS-THROUGH: ${slidePlan.id}`);
+    return;
+  }
 
-def word_wrap(text: str, font: ImageFont, max_width: int) -> list[str]:
-    """Simple word wrapping for Pillow text."""
-    lines = []
-    words = text.split()
-    current_line = words[0]
-    for word in words[1:]:
-        test_line = current_line + ' ' + word
-        bbox = font.getbbox(test_line)
-        if bbox[2] <= max_width:
-            current_line = test_line
-        else:
-            lines.append(current_line)
-            current_line = word
-    lines.append(current_line)
-    return lines
+  const canvas = createCanvas(CANVAS_SIZE.width, CANVAS_SIZE.height);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, CANVAS_SIZE.width, CANVAS_SIZE.height);
+
+  const kicker = slidePlan.kicker ?? "";
+  if (kicker && kicker !== "(无)" && kicker !== "(none)") {
+    ctx.font = "22px Kicker";
+    ctx.fillStyle = KICKER_COLOR;
+    ctx.fillText(kicker.toUpperCase(), KICKER_POS.x, KICKER_POS.y);
+  }
+
+  ctx.font = "46px Title";
+  ctx.fillStyle = TITLE_COLOR;
+  let y = TITLE_POS.y;
+  for (const line of wordWrap(slidePlan.headline, ctx, CANVAS_SIZE.width - 92)) {
+    ctx.fillText(line, TITLE_POS.x, y);
+    y += 52;
+  }
+
+  if (slidePlan.subtitle) {
+    y += 8;
+    ctx.font = "27px Subtitle";
+    ctx.fillStyle = SUBTITLE_COLOR;
+    ctx.fillText(slidePlan.subtitle, TITLE_POS.x, y);
+  }
+
+  writeFileSync(outputPath, canvas.toBuffer("image/png"));
+  console.log(`  DREW HEADER: ${slidePlan.id}`);
+}
+
+function wordWrap(text, ctx, maxWidth) {
+  const words = text.split(" ");
+  const lines = [words[0]];
+  for (const word of words.slice(1)) {
+    const test = `${lines.at(-1)} ${word}`;
+    if (ctx.measureText(test).width <= maxWidth) lines[lines.length - 1] = test;
+    else lines.push(word);
+  }
+  return lines;
+}
 ```
 
 **关键设计决策**：
-- **Font resolution (fail-loud)**：跨平台查找目标字体(bundled `fonts/` → `$PPT_FONT_DIR` → 系统目录);缺失则降级到**字号正确**的后备 sans 并打响亮 warning;毫无可用字体才硬中止。**绝不** `ImageFont.load_default()`——它忽略字号,会产出错字号的乱标题。
-- **Word wrap**：Title 可能超过一行——必须 wrap。用 `font.getbbox()` 测量文字实际宽度
+- **Font resolution (fail-loud)**：跨平台查找目标字体(bundled `fonts/` → `$PPT_FONT_DIR` → 系统目录);缺失则降级到**字号正确**的后备 sans 并打响亮 warning;毫无可用字体才硬中止。
+- **Word wrap**：Title 可能超过一行——必须 wrap。用 `ctx.measureText()` 测量文字实际宽度
 - **full-page = pass-through**：不画任何东西——AI 生成的完整画面直接保存
 
 ---
 
 ## Pattern 5: PPTX Builder（Stage 4）
 
-**做什么**：把最终 PNG 按顺序装入 PPTX 容器。
+**做什么**：把最终 PNG 按顺序装入 PPTX 容器（`stage4_build_pptx.mjs`，`pptxgenjs`）。
 
-```python
-from pptx import Presentation
-from pptx.util import Inches
+```javascript
+import PptxGenJS from "pptxgenjs";
+import { readFileSync } from "node:fs";
 
-SLIDE_WIDTH = Inches(13.333)
-SLIDE_HEIGHT = Inches(7.5)
+const SLIDE_WIDTH = 13.333;
+const SLIDE_HEIGHT = 7.5;
 
-def build_pptx(slide_plan_path: str, images_dir: str, output_path: str):
-    """Build PPTX from final slide images."""
-    
-    with open(slide_plan_path) as f:
-        plan = json.load(f)
-    
-    prs = Presentation()
-    prs.slide_width = SLIDE_WIDTH
-    prs.slide_height = SLIDE_HEIGHT
-    
-    blank_layout = prs.slide_layouts[6]  # Blank layout
-    
-    for i, slide in enumerate(plan['slides']):
-        new_slide = prs.slides.add_slide(blank_layout)
-        
-        filename = f"{i+1:02d}_{slide['id']}.png"
-        img_path = os.path.join(images_dir, filename)
-        
-        new_slide.shapes.add_picture(
-            img_path,
-            left=Inches(0),
-            top=Inches(0),
-            width=SLIDE_WIDTH,
-            height=SLIDE_HEIGHT
-        )
-    
-    prs.save(output_path)
-    print(f"PPTX saved: {output_path} ({len(plan['slides'])} slides)")
+function buildPptx(slidePlanPath, imagesDir, outputPath) {
+  const plan = JSON.parse(readFileSync(slidePlanPath, "utf-8"));
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: "HD", width: SLIDE_WIDTH, height: SLIDE_HEIGHT });
+  pptx.layout = "HD";
+
+  for (let i = 0; i < plan.slides.length; i++) {
+    const slide = plan.slides[i];
+    const s = pptx.addSlide();
+    const filename = `${String(i + 1).padStart(2, "0")}_${slide.id}.png`;
+    s.addImage({
+      path: `${imagesDir}/${filename}`,
+      x: 0,
+      y: 0,
+      w: "100%",
+      h: "100%",
+    });
+  }
+
+  pptx.writeFile({ fileName: outputPath });
+  console.log(`PPTX saved: ${outputPath} (${plan.slides.length} slides)`);
+}
 ```
 
 **关键设计决策**：
-- **Blank layout**：`slide_layouts[6]`——避免任何占位符干扰
+- **Blank slide**：`pptxgenjs` 默认空白 slide——避免任何占位符干扰
 - **图片 aspect ratio**：1672×941 渲染到 13.333"×7.5" 是精确匹配（约 125 DPI），不会拉伸
 - **文件大小**：19 张 2K PNG → ~30 MB PPTX。如果需要更小，可以用 JPEG 压缩（trade-off 画质）
 
@@ -332,47 +241,34 @@ def build_pptx(slide_plan_path: str, images_dir: str, output_path: str):
 
 ## Pattern 6: Notes Injector（Stage 5）
 
-**做什么**：从 markdown 提取 SPEAKER NOTE，注入 PPTX notes 面板。
+**做什么**：从 markdown 提取 SPEAKER NOTE，注入 PPTX notes 面板（`stage5_inject_notes.mjs`）。
 
-```python
-import re
-from pptx import Presentation
+```javascript
+import PptxGenJS from "pptxgenjs";
+import { readFileSync } from "node:fs";
 
-def extract_notes(md_path: str) -> list[str]:
-    """Extract SPEAKER NOTE from each slide block in markdown."""
-    text = open(md_path).read()
-    slide_blocks = re.split(r'## Slide \d+:', text)[1:]
-    
-    notes_list = []
-    for block in slide_blocks:
-        # Find SPEAKER NOTE section (blockquote after SPEAKER NOTE marker)
-        pattern = r'> \*\*SPEAKER NOTE\*\*\s*\n((?:> .*\n?)*)'
-        match = re.search(pattern, block)
-        if match:
-            # Strip "> " prefix from each line
-            note_text = re.sub(r'^> ?', '', match.group(1), flags=re.MULTILINE)
-            notes_list.append(note_text.strip())
-        else:
-            notes_list.append('')  # No notes for this slide
-    
-    return notes_list
+function extractNotes(mdPath) {
+  const text = readFileSync(mdPath, "utf-8");
+  const slideBlocks = text.split(/## Slide \d+:/).slice(1);
+  return slideBlocks.map((block) => {
+    const match = block.match(/> \*\*SPEAKER NOTE\*\*\s*\n((?:> .*\n?)*)/);
+    if (!match) return "";
+    return match[1].replace(/^> ?/gm, "").trim();
+  });
+}
 
-def inject_notes(pptx_path: str, notes_list: list[str]):
-    """Inject speaker notes into PPTX. Modifies file in place."""
-    prs = Presentation(pptx_path)
-    
-    assert len(notes_list) == len(prs.slides), \
-        f"Notes count ({len(notes_list)}) != slides count ({len(prs.slides)})"
-    
-    for slide, notes_text in zip(prs.slides, notes_list):
-        if notes_text:
-            notes_slide = slide.notes_slide
-            text_frame = notes_slide.notes_text_frame
-            text_frame.clear()
-            text_frame.text = notes_text
-    
-    prs.save(pptx_path)
-    print(f"Notes injected into {pptx_path}")
+async function injectNotes(pptxPath, notesList) {
+  const pptx = new PptxGenJS();
+  await pptx.load(pptxPath);
+  if (notesList.length !== pptx.slides.length) {
+    throw new Error(`Notes count (${notesList.length}) != slides (${pptx.slides.length})`);
+  }
+  pptx.slides.forEach((slide, i) => {
+    if (notesList[i]) slide.addNotes(notesList[i]);
+  });
+  await pptx.writeFile({ fileName: pptxPath });
+  console.log(`Notes injected into ${pptxPath}`);
+}
 ```
 
 **关键设计决策**：
@@ -389,6 +285,6 @@ def inject_notes(pptx_path: str, notes_list: list[str]):
 1. **修改常量**：canvas size、header safe zone、font paths、API credentials——这些都是项目特定的
 2. **替换 API 调用**：把 `requests.post(f"{mirror}/images/generations")` 替换为你的实际 image generation API
 3. **添加错误处理**：伪代码省略了 retry logic、timeout handling、partial failure recovery
-4. **选择脚本语言**：Python 是推荐（Pillow 和 python-pptx 是生态标准），但模式和逻辑与语言无关
+4. **工具栈**：本框架使用 Node.js 18+、`@napi-rs/canvas`（Stage 3）、`pptxgenjs`（Stage 4–5）；模式与语言无关，但参考实现已是 Node `.mjs`。
 
 完整的生产实现参考：`scripts/` 目录（通过 `unified_pipeline.mjs --run-dir` 就地运行，不复制进 run bundle）。历史案例 T10 当年把脚本放在 `session_ppt_flow_T10/v3/scripts/`——那是本框架成形前的做法，当前布局已改为脚本就地运行、产物统一写入 `_generated/`。

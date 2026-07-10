@@ -47,7 +47,7 @@ agent_action: navigate
 - 听众: [谁看、角色、懂不懂技术]
 - 时长/场合: [多长、有没有 breakout]
 - 语言: [slides 语言 / 演讲语言]
-- 我有: GPT Image 2 API、Python(UV)、python-pptx、Pillow
+- 我有: GPT Image 2 API、Node.js 18+、npm（`@napi-rs/canvas` + `pptxgenjs` 由 repo 安装）
 ```
 
 agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时长、语言、最想让人记住什么),再带你选隐喻、选风格,最后搭出框架。Agent 入口是 BOOTSTRAP → AGENT_CONTRACT（10 条铁律）→ 按 Phase 翻 AGENTS。
@@ -59,7 +59,7 @@ agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时
 | 隐喻对不对、有没有打动你 | 建目录结构(有一套固定"宪法",它不会乱来) |
 | 案例可不可信、有没有说服力 | 写 slide 规格、拼 prompt |
 | 颜色/风格喜不喜欢 | 调 GPT Image 2 生图 |
-| 每页的 claim 站不站得住 | Python 叠标题、打包 PPTX |
+| 每页的 claim 站不站得住 | Header-Lock 叠标题、打包 PPTX |
 | 哪里要改 | 判断改动影响范围、最小重跑 |
 
 **你永远不需要**:记目录长什么样、记管线几个 stage、手动跑脚本、直接改图片或 JSON。

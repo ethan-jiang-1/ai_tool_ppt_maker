@@ -43,9 +43,9 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 
 **这是第一道硬闸门。** 先跑环境检测。**Node.js 18+ 和 npm 是 FOUNDATION——没配好就绝不进入 Step 2**，必须先把环境装好。
 
-本框架生产管线是 **Node.js ESM**（`@napi-rs/canvas`、`pptxgenjs`）。Stage 2 生图还依赖已安装的 `image2-ppt` skill——**缺 skill = 不能生产**（doctor 会硬失败）。
+本框架生产管线是 **Node.js ESM only**（`@napi-rs/canvas`、`pptxgenjs`、框架内 Stage 2）。**禁止 Python / bash / 外部 skill 作为生产路径**（跨平台会断）。
 
-```bash
+```
 # 推荐：统一入口
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
@@ -55,7 +55,7 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 
 判读输出：
 - **`⛔ FOUNDATION NOT READY`**（Node.js 或 npm 缺失/过旧）→ 按脚本给的 `→` 安装指引引导用户装好，**装完重跑，仍不过就停在这里,绝不进 Step 2**。
-- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / `image2-ppt` skill 等硬依赖）→ 同样引导修复后重跑。
+- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / 框架内 Stage 2 脚本等硬依赖）→ 同样引导修复后重跑。
 - **`△` 警告**（字体等可降级项）→ 建议修复但可继续。
 - **`✓ READY`** → 进入 Step 2。
 
@@ -65,27 +65,20 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 
 **没有 key，Stage 2 生不了图，PPT 就做不出来。** 所以第一次遇到 `✗ api_key: not set` 时：
 
-1. **问用户要**：图像 API key，统一记录为 `OPENAI_API_KEY`；可选记录 `OPENAI_BASE_URL`。当前 wrapper 会桥接到已安装 skill 的原生变量。不同供应商的 API contract 不保证只换 URL 就兼容，必要时更换 skill adapter。
+1. **问用户要**：图像 API key，统一记录为 `OPENAI_API_KEY`；**必须**记录 `OPENAI_BASE_URL`（异步生图 endpoint）。`APIMART_*` 别名也认。
 2. **写进 deck 根目录的 `.env`（写一次就行）**：Phase 0 `--init` 会铺 `.env.example` 模板 + `.gitignore`（保护它不被提交）。复制成 `.env` 填：
    ```
    OPENAI_API_KEY=sk-...
-   OPENAI_BASE_URL=https://your-relay/v1   # 可选
+   OPENAI_BASE_URL=https://your-relay/v1
    ```
 3. **重跑 doctor** → key 变 `✓`（**从 deck 目录或 repo 根跑**，它按 cwd 向上找 `.env`；从别处跑可能看不到 deck 的 `.env`）。
 4. **key 的"有效性"要等真调一次才知道**——env-check 只能看"填没填"，看不出"对不对"。真正的 key 冒烟测试在 **Phase 3 第一次跑 Stage 2 / pilot 时**——那时出图 = key/端点对了；报 401/403 或连不上 = 回到第 1 步改 `.env` 再跑。
 
-### 图像生成 skill（硬依赖）
+### Stage 2 在框架内（无 skill）
 
-**Stage 2 依赖 `image2-ppt` skill。** doctor / env-check 里若 `stage2_generator` 是 `✗`，说明 skill 没装——**不能进 Phase 3 生图**。
+Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` 下的 Node 模块（`stage2_generate_images.mjs`、`image_api_client.mjs`、`make_contact_sheet.mjs`）。doctor 的 `stage2_generator` 检查这些文件是否存在——**不要求、不搜索** `.claude/skills`。
 
-安装位置（任选其一，cwd 向上搜索）：
-- `.claude/skills/image2-ppt/`
-- `.agents/skills/image2-ppt/`
-- 或用户主目录下的同名路径
-
-装好后重跑 `ppt_flow.mjs doctor`，确认 `stage2_generator` 为 `✓`。
-
-> `.env` 里有它期待的东西 → 就能 work；没有 → 只能问用户；填好 → 一定要真跑一页试。（`unified_pipeline`、env-check、生成脚本都会读 deck 根/当前目录的 `.env`；真实 export 的环境变量优先。pipeline 会把 `OPENAI_*` 桥接到底层 skill 实际读的名字。）
+> `.env` 里有它期待的东西 → 就能 work；没有 → 只能问用户；填好 → 一定要真跑一页试。
 
 > **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
 

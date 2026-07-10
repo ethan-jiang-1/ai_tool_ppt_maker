@@ -22,7 +22,7 @@ FORBIDDEN:
 
 TEXT DENSITY: Under 40 words per slide total (excluding header). Max 4-5 body text zones.
 
-HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean white/light. Python/Pillow will overlay the header text. For full-page slides (dividers, closers), render complete slide with header text.
+HEADER LOCK: Do NOT render the slide kicker, title, or subtitle. The top y=0 to y=260 is a FIXED RESERVED HEADER BAND. Keep this zone clean white/light. Stage 3 (Node @napi-rs/canvas) will overlay the header text. For full-page slides (dividers, closers), render complete slide with header text.
 
 BODY TEXT CONTRACT: Keep body words readable — no font below what looks like 16pt. KPI numbers must be visually large (>=72px equivalent). Max 5 distinct text zones. Use exact text from prompt.
 
