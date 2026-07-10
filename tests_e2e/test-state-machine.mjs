@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { readState, writeState, setNodeStatus, skipNode, resetNode, switchPlaybook, resumePlaybook, isNodeDone, isNodeCompleted, validateState, createInitialState, STATE_FILE } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
+import { readState, writeState, setNodeStatus, skipNode, resetNode, switchPlaybook, resumePlaybook, isNodeDone, isNodeCompleted, validateState, createInitialState, statePath, appendHistory, readHistory } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
 
 // --- Helpers ---
 
@@ -220,8 +220,8 @@ describe('State Machine: resume from state', () => {
     writeState(deckDir, state);
 
     // "Session ends" — state goes out of scope
-    const statePath = join(deckDir, STATE_FILE);
-    expect(existsSync(statePath)).toBe(true);
+    const sp = statePath(deckDir);
+    expect(existsSync(sp)).toBe(true);
 
     // "New session starts" — read state back
     const resumed = readState(deckDir);
@@ -311,7 +311,7 @@ describe('State Machine: corrupted state', () => {
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
   it('returns corrupted on bad YAML', () => {
-    writeFileSync(join(deckDir, STATE_FILE), '{{{bad yaml:::');
+    mkdirSync(dirname(statePath(deckDir)), { recursive: true }); writeFileSync(statePath(deckDir), '{{{bad yaml:::');
     const s = readState(deckDir);
     expect(s.corrupted).toBe(true);
     expect(s.errors.length).toBeGreaterThan(0);

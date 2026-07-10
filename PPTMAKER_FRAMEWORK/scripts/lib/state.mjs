@@ -7,7 +7,9 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
 
-export const STATE_FILE = 'run-bundle-state.yaml';
+export const STATE_DIR = '_state';
+export const STATE_FILE = 'state.yaml';
+export const HISTORY_FILE = 'history.jsonl';
 
 // --- YAML ---
 function parseYaml(text) {
@@ -38,8 +40,11 @@ function toYaml(obj, indent = 0) {
 }
 
 // --- CORE ---
-export function statePath(deckDir) { return join(deckDir, STATE_FILE); }
+export function statePath(deckDir) { return join(deckDir, STATE_DIR, STATE_FILE); }
+export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_FILE); }
 export function readState(deckDir) { const sp = statePath(deckDir); if (!existsSync(sp)) return createDefaultState(); try { const s = parseYaml(readFileSync(sp, 'utf-8')); if (!s.playbook && Object.keys(s.nodes||{}).length===0) return { corrupted: true, errors: ['missing playbook+nodes'] }; return s; } catch (e) { return { corrupted: true, errors: [e.message] }; } }
+export function appendHistory(deckDir, event) { event.at = event.at || new Date().toISOString(); const hp = historyPath(deckDir); mkdirSync(dirname(hp), { recursive: true }); const line = JSON.stringify(event) + '\n'; writeFileSync(hp, line, { flag: 'a' }); }
+export function readHistory(deckDir) { const hp = historyPath(deckDir); if (!existsSync(hp)) return []; try { return readFileSync(hp,'utf-8').split('\n').filter(l=>l.trim()).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean); } catch { return []; } }
 export function writeState(deckDir, state) { state.updated_at = new Date().toISOString(); const sp = statePath(deckDir), tmp = join(tmpdir(), `.state_${randomBytes(4).toString('hex')}.tmp`); mkdirSync(dirname(sp), { recursive: true }); writeFileSync(tmp, toYaml(state), 'utf-8'); renameSync(tmp, sp); }
 
 // --- QUERY ---
