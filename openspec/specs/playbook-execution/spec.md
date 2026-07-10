@@ -2,37 +2,37 @@
 
 ### Requirement: playbook/ directory contains five MD controllers
 
-`PPTMAKER_FRAMEWORK/playbook/` SHALL contain exactly five files: `full-creation.md`, `chain-a.md`, `chain-b.md`, `chain-c.md`, and `structural.md`. Each SHALL be a self-contained MD Controller defining an ordered sequence of nodes.
+`PPTMAKER_FRAMEWORK/playbook/` SHALL contain exactly five files: `create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, and `restructure-slides.md`. Each SHALL be a self-contained MD Controller defining an ordered sequence of nodes.
 
 #### Scenario: Agent lists available playbooks
 
 - **WHEN** Agent lists `PPTMAKER_FRAMEWORK/playbook/`
 - **THEN** it sees five available workflows
 
-### Requirement: full-creation playbook covers complete deck creation
+### Requirement: create-deck playbook covers complete deck creation
 
-`full-creation.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, hitl1, setup, seed-topics, wave0, wave1, wave2, hitl2, readiness, rerun, final. Node order SHALL be: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → (rerun → seed-topics | readiness → final).
+`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, hitl1, setup, seed-topics, wave0, wave1, wave2, hitl2, readiness, rerun, final. Node order SHALL be: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → (rerun → seed-topics | readiness → final).
 
 #### Scenario: User says "帮我做一个PPT"
 
 - **WHEN** user requests a new PPT
-- **THEN** COMMANDS.md routes to playbook `full-creation`
+- **THEN** COMMANDS.md routes to playbook `create-deck`
 - **AND** Agent starts executing from node `instantiation`
 
 ### Requirement: Chain playbooks cover iteration workflows
 
-`chain-a.md`, `chain-b.md`, `chain-c.md`, and `structural.md` SHALL each define a shortened workflow for iterative changes. Each SHALL begin with change classification and end with exit verification.
+`edit-text.md`, `edit-visual.md`, `edit-notes.md`, and `restructure-slides.md` SHALL each define a shortened workflow for iterative changes. Each SHALL begin with change classification and end with exit verification.
 
 #### Scenario: User requests a title change
 
 - **WHEN** user says "第5页标题改一下"
-- **THEN** COMMANDS.md routes to playbook `chain-a`
+- **THEN** COMMANDS.md routes to playbook `edit-text`
 - **AND** Agent classifies the change, runs stages 1,3,4,5 targeting slide 5, and verifies the output
 
 #### Scenario: User requests a visual redesign
 
 - **WHEN** user says "换个配色"
-- **THEN** COMMANDS.md routes to playbook `chain-b`
+- **THEN** COMMANDS.md routes to playbook `edit-visual`
 - **AND** Agent runs a 3-slide pilot before full regeneration
 
 ### Requirement: COMMANDS.md is a routing table
@@ -42,16 +42,16 @@
 #### Scenario: Agent routes user request to correct playbook
 
 - **WHEN** user says "第8页的图重新生成"
-- **THEN** Agent reads COMMANDS.md, classifies as `chain-b`, and loads `playbook/chain-b.md`
+- **THEN** Agent reads COMMANDS.md, classifies as `edit-visual`, and loads `playbook/edit-visual.md`
 
 ### Requirement: State file is created on playbook start
 
 When a playbook begins execution, `run-bundle-state.yaml` SHALL be created (if it does not exist) or validated (if it already exists). The `playbook` and `current_node` fields SHALL be set.
 
-#### Scenario: First node of full-creation writes initial state
+#### Scenario: First node of create-deck writes initial state
 
 - **WHEN** Agent executes node `instantiation` for the first time
-- **THEN** `deck_<name>/run-bundle-state.yaml` is created with `playbook: full-creation`, `current_node: instantiation`
+- **THEN** `deck_<name>/run-bundle-state.yaml` is created with `playbook: create-deck`, `current_node: instantiation`
 
 ### Requirement: Gates are enforced at node boundaries
 
@@ -67,9 +67,9 @@ No node SHALL transition to `completed` until its exit gate conditions are met. 
 
 A playbook SHALL be able to reference a shared node via `includes: [<node-name>]` in its frontmatter. The referenced node SHALL be defined in a standalone `.md` file with `shared: true` in its frontmatter. Multiple playbooks SHALL be able to include the same shared node.
 
-#### Scenario: classify-change shared by chain-a and chain-b
+#### Scenario: classify-change shared by edit-text and edit-visual
 
-- **WHEN** `chain-a.md` and `chain-b.md` both need change classification
+- **WHEN** `edit-text.md` and `edit-visual.md` both need change classification
 - **THEN** both declare `includes: [classify-change]` in their frontmatter
 - **AND** `classify-change.md` exists as a standalone shared node with `shared: true`
 

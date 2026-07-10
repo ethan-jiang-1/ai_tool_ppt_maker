@@ -1,5 +1,6 @@
 ---
-playbook: full-creation
+playbook: create-deck
+description: 全量创建——从零开始做一个PPT, ~11 nodes
 includes: []
 ---
 
@@ -186,7 +187,7 @@ exit:
   - fixes_confirmed
 ```
 
-**Step 1 — MD**: 按用户反馈分类 → 选 chain-a/b/c/structural. 修完后回到 hitl2 再审
+**Step 1 — MD**: 按用户反馈分类 → 选 edit-text/edit-visual/edit-notes/restructure-slides. 修完后回到 hitl2 再审
 
 ### final
 → 最终报告生成
