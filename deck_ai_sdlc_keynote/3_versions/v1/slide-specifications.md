@@ -460,7 +460,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber KICKER: 中层最危险, with amber line. Large serif title: AI 最先替代的不是不会写代码的人。是只会写代码的人。 Below three tiers: 初级开发者：意外安全。AI-native 一代，LLM 是 24/7 导师。 中层开发者：真正危机。CRUD 和调试正是 AI 进步最快的领域。还没积累架构判断力。 资深开发者：转向架构。变成 Harness Engineer、Agent 编排者。 中层。这是我最担心的。— Kent Beck。 Below text: three-layer geological sketch — top green Junior safe, middle amber-red Mid squeezed, bottom gold Senior orchestrating. Right margin: Organizational Pyramid mnemonic. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CJK LEGIBILITY: keep every Chinese phrase at medium-or-large size so glyphs stay clean — avoid tiny footnote-size Chinese. Render amber KICKER (large Chinese): 中层最危险, with amber line. Large serif title (Chinese): AI 最先替代的不是不会写代码的人。是只会写代码的人。 Below, a three-layer geological cross-section sketch, each tier with a LARGE Chinese keyword and a MEDIUM Chinese one-line description (readable at a glance, not tiny): top tier green — 初级：意外安全（AI-native，LLM 是 24/7 导师）; middle tier amber-red, visibly squeezed — 中层：真正危机（CRUD 与调试正是 AI 进步最快处，尚无架构判断力）; bottom tier gold — 资深：转向架构（Harness Engineer、Agent 编排者）. One large pull-quote in Chinese: 中层，这是我最担心的。 with attribution — Kent Beck. Right margin: small English mnemonic label "Organizational Pyramid". Keep the layout uncluttered — a few medium Chinese blocks, not a wall of text. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
