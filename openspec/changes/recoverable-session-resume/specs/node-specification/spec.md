@@ -67,7 +67,7 @@ Human-readable and `--json` success output SHALL include a **resume card**: `pla
 
 ### Requirement: Node transitions persist via writeState
 
-Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `skipped`, the agent SHALL persist via `setNodeStatus` (or equivalent API) and `writeState` before relying on chat memory. Leaving a human-wait SHALL clear or update `waiting_for` accordingly. Agents SHALL NOT treat an unpersisted node transition as durable across sessions.
+Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `skipped`, the agent SHALL persist via `setNodeStatus` (or equivalent API) and `writeState` before relying on chat memory. Leaving a human-wait SHALL clear or update `waiting_for` accordingly. Agents SHALL NOT treat an unpersisted node transition as durable across sessions. Schema heal / round-trip SHALL preserve optional `waiting_for` and `note` fields when present.
 
 #### Scenario: Entering a node writes in_progress
 
@@ -78,3 +78,9 @@ Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `
 
 - **WHEN** Agent finishes a node and exit conditions are met
 - **THEN** `writeState` records `completed` (and clears `waiting_for` when present) before the next node starts
+
+#### Scenario: waiting_for survives heal round-trip
+
+- **WHEN** a state file has `nodes.review-gate.waiting_for` set
+- **AND** `readState` with default heal runs
+- **THEN** the returned state still includes that `waiting_for` value

@@ -28,7 +28,7 @@
 
 `PPTMAKER_FRAMEWORK/BOOTSTRAP.md` SHALL instruct agents that before asking the user to approve a visual or pilot gate, the agent MUST open or otherwise present the real artifact to the user (at minimum `style_master.jpg` and pilot contact sheets when those gates apply). Text-only description of appearance SHALL NOT satisfy this requirement when the image file exists. When no API key / image is available yet, BOOTSTRAP MAY allow a degraded show (preset thumbnails, master prompt text) and SHALL require upgrading to real images once generation is possible. BOOTSTRAP (and sibling entry docs that cite the iron-law count) SHALL state eleven iron laws when referring to AGENT_CONTRACT length.
 
-BOOTSTRAP SHALL also instruct: when the user points at an existing `deck_*` (or work resumes after a cleared session), agents MUST run `ppt_flow state` (and `status` as needed) and continue the active playbook at `current_node` before re-asking greenfield intake questions. BOOTSTRAP SHALL point to COMMANDS **续跑 / 恢复** phrasing for “接着做 / 做到哪了”.
+BOOTSTRAP SHALL also instruct: when the user points at an existing `deck_*` (or work resumes after a cleared session), agents MUST run `ppt_flow state` (and `status` as needed), report whole-workflow position in plain language, and continue the active playbook at `current_node` before re-asking greenfield intake questions. BOOTSTRAP SHALL point to COMMANDS **续跑 / 做到哪了** phrasing for “接着做 / 断线了做到哪了”.
 
 #### Scenario: Style master gate requires open
 
