@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-10 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-11 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,17 +19,19 @@
 
 | Plan | 简述 |
 |------|------|
-| [agent-interaction-protocol](agent-interaction-protocol.md) | 交互节律协议（show / 心跳 / 步长）；与 preview 合成 Change 1，migrate 为 Change 2 |
-| [style-iterate-and-quick-preview](style-iterate-and-quick-preview.md) | 探索入口实例（`iterate-style` + `quick-preview`）；**并入 Change 1**，不单独开 change |
+| — | _无活跃 plan_ |
 
-### 已定名 OpenSpec changes（2026-07-11）
+### 已定名 OpenSpec changes
 
-| # | Change 名 | 吸收哪些 plan | 何时 |
-|---|-----------|--------------|------|
-| 1 | **`add-interaction-rhythm-and-explore-playbooks`** | 协议 P0 + 本目录两个 plan 的探索实例 | 先做（待 propose） |
-| 2 | **`guard-offpath-migrate-import-ux`** | 旁路迁移/导入：补方法论+playbook，套同一套 gate+show，禁止裸奔 | Change 1 之后 |
+| # | Change 名 | 状态 |
+|---|-----------|------|
+| 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** → `openspec/changes/archive/2026-07-11-…` |
+| 2 | `guard-offpath-migrate-import-ux` | **已 archive** → `openspec/changes/archive/2026-07-11-guard-offpath-migrate-import-ux/` |
 
-**Next available plan ID: CLS-001**（移入 `_closed_plans/` 时分配）
+_无活跃 OpenSpec change。_
+
+
+**Next available plan ID: CLS-003**（移入 `_closed_plans/` 时分配；CLS-001/002 已用）
 
 ---
 

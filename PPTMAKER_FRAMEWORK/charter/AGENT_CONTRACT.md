@@ -1,5 +1,5 @@
 ---
-title: AGENT_CONTRACT — 不可违反的 10 条
+title: AGENT_CONTRACT — 不可违反的 11 条
 stage: root
 position: contract
 type: playbook
@@ -11,7 +11,7 @@ feeds_into:
 agent_action: read_first
 ---
 
-# AGENT_CONTRACT — 不可违反的 10 条
+# AGENT_CONTRACT — 不可违反的 11 条
 
 > **读完这一页就能开工。** AGENTS.md 是详解手册，不是每次都要通读的入口。
 > 违反任一条 → 停下来修，不要"先做完再说"。
@@ -96,6 +96,24 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 
 Phase 2：先锁画风（sketch / diagram / photography / 3D / mixed），再选配色 / preset。
 不要先甩色板让用户"喜欢哪个颜色"。
+
+---
+
+
+## 11. 交互节律
+
+小白×强 AI：你扛「做对」，用户只「认/纠」。违反任一条 → 停下修正。
+
+1. **可认，别出考题。** 每步给 2–3 个具体候选 + 你的推荐 + 为什么；用户挑/改，不从零空想。
+2. **Show, don't tell。** 视觉/样张必须打开给用户看（`open`/展示文件）。文件已在盘上时，禁止只用文字描述外观。
+3. **默认 + 可逆。** 永远给合理默认（「拿不准我先按 X，随时可改」）；早期一切廉价可重来。
+4. **相关时刻亮能力。** 用到某能力时顺带说「我还能做 Y，要不要」——用户无法索取自己不知道的东西。
+5. **长任务给心跳。** 禁止静默长跑；要有可见 checkpoint。对用户，沉默 ≈ 坏了/走丢了。
+6. **信心校准步长。** 早期小步、多确认；对齐后放长、少打断。步长是变量。
+7. **Checkpoint = 方向对不对。** 每次停顿都框成「我们还指着正确方向吗」。
+8. **第一步先给看得见的赢。** 首次交互就产出用户能快速判断的实物。
+
+pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
 
 ---
 

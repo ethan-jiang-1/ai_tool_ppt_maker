@@ -11,8 +11,9 @@
 - 新建 `playbook/quick-preview.md`：validate → pilot → review（须 gates 已批；open contact sheet）
 - `COMMANDS.md`：插入「探索 & 预览」；划清 ≠ `edit-visual`
 - `create-deck` `setup` + `edit-visual` pilot：gate 步强制 show；深度打磨可 `switchPlaybook` → `iterate-style`
-- Specs：`framework-charter` + `playbook-execution`（目录计数、探索路由、gate show；废除 CONTRACT 内容冻结）
-- 落地后关闭两份 plan → `_closed_plans/`（migrate 留给 Change 2）
+- Specs：`framework-charter` + `playbook-execution`
+- **落地文案钉死在 design D13 Copy Deck**（§11 原文、playbook 骨架、COMMANDS 表、LOCK 双写）；apply 照抄
+- 关闭两份 plan → `_closed_plans/`（migrate 留给 Change 2）
 
 **非 BREAKING**：不改 CLI 代码/行为；不改 state schema；不加 migrate。
 

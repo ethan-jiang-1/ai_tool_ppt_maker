@@ -78,7 +78,7 @@ start-iterate → tweak-prompt → generate → review-gate
 | 约定 | 选择 |
 |------|------|
 | 迭代分辨率 | playbook 写死 `style-master --force --resolution 1k` |
-| LOCK | `ppt_flow approve … visual`（或等价写 gate）；再 `style-master --force --resolution 2k` 一次；然后 `resumePlaybook`（若从栈切入） |
+| LOCK | **必须**按 D13.2 双写；再可选 `style-master --force --resolution 2k`；栈切入则 `resumePlaybook` |
 | BACK | 回 Phase 2.1 重选 medium/preset；**不**批 visual_gate |
 | round | `setNodeStatus(..., { round: N })`；N≥5 时建议换方向或接受 |
 | 历史版 | 大改动先存 `1_upstream_raw_material/style-master-iterations/` |
@@ -121,7 +121,7 @@ validate-ready → pilot-generate → review-preview
 
 1. 必须 `open` `style_master.jpg`
 2. 用户要多轮打磨 → `switchPlaybook(iterate-style)`（勿只改文案糊弄过 gate）
-3. 用户一次满意 → `approve visual` 后继续 `seed-topics`
+3. 用户一次满意 → **D13.2 双写**（`approve visual` + `_state` setGate）后继续 `seed-topics`
 
 ### D9 — `edit-visual` 同样遵守 show
 
@@ -144,10 +144,16 @@ validate-ready → pilot-generate → review-preview
 | 模式 | 从哪来 | 从哪 node 起 |
 |------|--------|--------------|
 | A 独立 | COMMANDS「先定视觉」 | `start-iterate` |
-| B 栈切入 | `create-deck` setup 审图不满意 | 可跳到 `tweak-prompt`（已有 master）或 `start-iterate` |
-| C 锁后反悔 | 用户打回视觉 | `start-iterate`；先视情况 `approve` 回退/保持 pending 由 agent 按 gate 规则处理——**本 change 约定**：反悔时将 visual 视为需重锁，agent 用 `approve` 前先说明；不新增 CLI |
+| B 栈切入 | `create-deck` setup 审图不满意 | 已有 master → `tweak-prompt`；否则 `start-iterate` |
+| C 锁后反悔 | visual 已 approved，用户要大改 | `start-iterate`；见下硬规则 |
 
-模式 C 保持轻量：playbook 写「若已 approved 仍要大改，先告知用户将重走 visual lock」，不发明 un-approve 命令（可用对话 + 必要时手改 metadata；或 `waived` 路径——**禁止**静默覆盖。优先：用户确认后重新走 LOCK 流程并再次 `approve`）。
+**模式 C 硬规则（无 un-approve CLI）：**
+
+1. 开场必须告知：「视觉曾锁定；本轮未再次 LOCK 前，不要跑 `pilot` / `build`。」
+2. **不**手改 metadata 把 `visual_gate` 改回 pending；**不**新增 CLI。
+3. 迭代照常改 prompt / 1k 出图；旧 `approved` 可暂时留在文件里，但 Agent 行为上视为「重锁中」。
+4. 用户再次 LOCK → 再跑一遍 `approve visual`（幂等刷新签字）+ 同步 `_state` gates。
+5. 用户 BACK 且已改过 `style_master.jpg` → 警告「图可能与旧锁不一致」，建议 LOCK 或从 `style-master-iterations/` 恢复后再决定。
 
 ### D12 — 测试 / 措辞扫尾 / Acceptance
 
@@ -155,17 +161,105 @@ validate-ready → pilot-generate → review-preview
 |----|------|
 | 回归 | `npm test`；未改 runtime 则 e2e 可选 |
 | 措辞 | grep「10 条」/「10 non-negotiable」/「exactly six」playbook 相关 → 更新 |
-| backlog | 两 plan → `_closed_plans/` + CLS-ID |
-| Acceptance | 见下 |
+| backlog | 两 plan → `_done/_closed_plans/` + CLS-ID |
+| 文案 | **必须**按下方 Copy Deck 粘贴，禁止 apply 临场改写铁律/骨架 |
 
 **Acceptance：**
 
-1. CONTRACT §11 存在且可执行；标题 11 条；入口文档条数一致
+1. CONTRACT §11 与 Copy Deck 一致；标题 11 条；入口文档条数一致
 2. BOOTSTRAP 写明 gate 前 open；pre-key 降级
-3. 两 playbook + COMMANDS 路由；时序/前置写清
+3. 两 playbook 节点/CLI/出口与 Copy Deck 一致；COMMANDS 表一致
 4. create-deck setup + edit-visual pilot 含 show
-5. delta 与实现一致；零 CLI 代码 diff（除文档）
-6. 两 plan 关闭
+5. LOCK 双写（metadata `approve` + `_state` `setGate`）写进 playbook
+6. delta 与实现一致；零 CLI 代码 diff
+7. 两 plan 关闭
+
+### D13 — Copy Deck（apply 照抄；本轮钉死的落地文案）
+
+#### D13.1 — AGENT_CONTRACT §11 正文（整段可贴）
+
+标题：`## 11. 交互节律`
+
+```markdown
+小白×强 AI：你扛「做对」，用户只「认/纠」。违反任一条 → 停下修正。
+
+1. **可认，别出考题。** 每步给 2–3 个具体候选 + 你的推荐 + 为什么；用户挑/改，不从零空想。
+2. **Show, don't tell。** 视觉/样张必须打开给用户看（`open`/展示文件）。文件已在盘上时，禁止只用文字描述外观。
+3. **默认 + 可逆。** 永远给合理默认（「拿不准我先按 X，随时可改」）；早期一切廉价可重来。
+4. **相关时刻亮能力。** 用到某能力时顺带说「我还能做 Y，要不要」——用户无法索取自己不知道的东西。
+5. **长任务给心跳。** 禁止静默长跑；要有可见 checkpoint。对用户，沉默 ≈ 坏了/走丢了。
+6. **信心校准步长。** 早期小步、多确认；对齐后放长、少打断。步长是变量。
+7. **Checkpoint = 方向对不对。** 每次停顿都框成「我们还指着正确方向吗」。
+8. **第一步先给看得见的赢。** 首次交互就产出用户能快速判断的实物。
+
+pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
+```
+
+CONTRACT 文首「10 条」→「11 条」。§1–10 不动。
+
+#### D13.2 — LOCK 双写（闸门真相）
+
+管线 / `pilot` / `status` 读的是 **`project-metadata.yaml` 的 `visual_gate`**（`ppt_flow approve` 只写这里）。  
+Playbook 进度另有 **`_state/state.yaml` 的 `gates.visual`**（`setGate`）。
+
+**LOCK 必须两步都做（顺序固定）：**
+
+1. `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> visual`
+2. Agent：`setGate(state, 'visual', 'approved')` + `writeState`
+
+可选：`ppt_flow.mjs style-master <run-dir> --force --resolution 2k`  
+若从 `create-deck` 栈切入：再 `resumePlaybook`。
+
+#### D13.3 — `iterate-style.md` 骨架要点（版式对齐 `edit-notes.md`）
+
+Frontmatter：`playbook: iterate-style`；`description: 探索——打磨 style master（1k 迭代 → LOCK 升 2k）`；`includes: []`。
+
+| Node | 类型 | 关键步骤 |
+|------|------|----------|
+| `start-iterate` | MD | 读 prompt+图（有则 open）；模式 C 宣读 D11.1；确认 1–3 打磨维度 |
+| `tweak-prompt` | MD | 大改先存 `style-master-iterations/`；改 prompt；round≥5 建议换向 |
+| `generate` | CLI | `ppt_flow.mjs style-master <run-dir> --force --resolution 1k`；递增 round |
+| `review-gate` | Gate | **必须 open** 图；RETRY→tweak / BACK→Phase 2.1+D11.5 / LOCK→D13.2（+可选 2k + resume） |
+
+引用 checklist：`workflow/01-visual/04-iterate-review-lock.md`。
+
+#### D13.4 — `quick-preview.md` 骨架要点
+
+Frontmatter：`playbook: quick-preview`；`description: 探索——3 页 pilot 快览（contact sheet）`；`includes: []`。
+
+| Node | 类型 | 关键步骤 |
+|------|------|----------|
+| `validate-ready` | MD+CLI | gate pending → 停并导向 lock；否则 `ppt_flow validate` |
+| `pilot-generate` | CLI | `ppt_flow.mjs pilot <run-dir>`（默认 1k） |
+| `review-preview` | Gate | **必须 open** contact sheet；PROCEED→建议 build / RETRY→改 L3 后回 pilot / BACK→Phase 1/2 或 iterate-style |
+
+禁止承诺 partial PPTX。
+
+#### D13.5 — COMMANDS「探索 & 预览」表（插在全量创建与迭代打磨之间）
+
+```markdown
+## 探索 & 预览
+
+> 还没全量交付、也不是改已有 PPTX——pre-commitment 试探。
+> 推荐顺序：视觉 LOCK（可用 `iterate-style`）→ `quick-preview` → `build`。
+
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "先定视觉方向，反复打磨 style master" | `iterate-style` | 1k loop → LOCK 升 2k |
+| "视觉风格不满意，再调一版" | `iterate-style` | review-gate RETRY / 模式 C |
+| "内容有了，先出 3 页典型页看看效果" | `quick-preview` | 须 gates 已批；contact sheet |
+| "先预览一下再决定要不要全量" | `quick-preview` | PROCEED 再 build |
+```
+
+#### D13.6 — setup / edit-visual 补丁句
+
+`create-deck` setup Gate：
+
+> **必须 open** `style_master.jpg`。多轮打磨 → `switchPlaybook` → `iterate-style`。一次满意 → `approve … visual` + 同步 `_state` gates.visual，再进 seed-topics。
+
+`edit-visual` pilot 审图：
+
+> **必须 open** pilot 产物。禁止只描述。
 
 ## Risks / Trade-offs
 
@@ -173,11 +267,12 @@ validate-ready → pilot-generate → review-preview
 |------|------|
 | 每步都停 | 信心校准步长写进 §11 |
 | pre-key 无图 | 降级 show |
-| CONTRACT 膨胀 | 一条 §11 + 短子弹 |
+| CONTRACT 膨胀 | Copy Deck 限长 |
 | iterate 无限 | round≥5 建议 |
 | 与 edit-visual 混淆 | COMMANDS + D10 |
-| 栈切入丢上下文 | D11 入口表；resume 回 setup 下一 node |
-| visual 反悔无 un-approve CLI | D11 模式 C 对话约定；不扩 CLI |
+| 栈切入丢上下文 | D11；resume |
+| 双闸门漂移 | D13.2 强制双写 |
+| 模式 C 旧 approved 残留 | D11 行为锁 + BACK 警告 |
 
 ## Migration Plan
 
@@ -185,4 +280,4 @@ validate-ready → pilot-generate → review-preview
 
 ## Open Questions
 
-_无（D1–D12 已关闭；migrate = Change 2）。_
+_无（D1–D13 已关闭；migrate = Change 2）。_

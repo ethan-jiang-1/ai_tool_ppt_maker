@@ -28,7 +28,7 @@ exit:
 ```
 
 **Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1,2 --only <slide_ids> --resolution 1k`
-**Step 2 — MD**: 人审 pilot 结果. 通过 → confirm; 不通过 → 回到 classify-change 调整 prompt 方向
+**Step 2 — MD**: **必须 open** pilot 产物（contact sheet / 页图）。禁止只描述。通过 → confirm; 不通过 → 回到 classify-change 调整 prompt 方向
 
 ### confirm
 → 确认 pilot, 准备全量

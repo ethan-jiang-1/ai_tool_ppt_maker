@@ -36,6 +36,7 @@ agent_action: navigate
 | `02-nodejs-environment.md` | Node.js 环境搭建——npm install、.env 配置 | 5 min |
 | `03-tool-selection.md` | 工具选用——image generation、PPT 生产、Node.js 工具链 | 5 min |
 | `04-conventions.md` | 命名约定、版本快照策略、Git 管理、工作纪律 | 5 min |
+| `05-migrate-import-existing-deck.md` | 旁路：迁移/导入已有 deck（强制 show + 闸门） | 8 min |
 | `template-deck-guide.md` | 每个 run bundle 里的 deck-guide.md 模板 | 3 min |
 
 ### 参考附录
@@ -53,7 +54,7 @@ agent_action: navigate
 |------|------|
 | `CONSTITUTION.md` | 结构宪法——run bundle 目录结构权威声明 (SSOT: bundle_layout.mjs) |
 | `WORKFLOW.md` | 流程宪法——5 Phase + 编辑链 + Gate |
-| `AGENT_CONTRACT.md` | 行为宪法——10 条铁律 |
+| `AGENT_CONTRACT.md` | 行为宪法——11 条铁律 |
 
 ## 核心原则
 
