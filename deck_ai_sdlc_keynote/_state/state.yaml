@@ -6,9 +6,9 @@
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
 playbook: migrate-import
-current_node: reaffirm-gates
+current_node: handoff
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-11T03:22:14.960Z
+updated_at: 2026-07-11T03:45:13.775Z
 nodes:
   intake-source:
     status: completed
@@ -23,11 +23,17 @@ nodes:
     status: completed
     completed: 2026-07-11T02:50:16.159Z
   reaffirm-gates:
-    status: in_progress
+    status: completed
     started: 2026-07-11T02:50:16.159Z
+    completed: 2026-07-11T03:45:13.767Z
+  handoff:
+    status: completed
+    completed: 2026-07-11T03:45:13.775Z
+    next: quick-preview or edit-*; build only if regenerating pptx
+    note: Aligned to current framework; migrated pptx retained
 gates:
-  content: pending
-  visual: pending
+  content: approved
+  visual: approved
 deck:
   name: ai_sdlc_keynote
   type: keynote
