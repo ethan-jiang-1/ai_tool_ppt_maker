@@ -720,7 +720,8 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `\`content_gate\` / \`visual_gate\` 改为 \`approved\`；若用户明确跳过则写 \`waived\`。` +
         `Stage 2 会自动检查。\n\n` +
         `## 当前进度\n\n` +
-        `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1" [--check-gates]\`）。\n` +
+        `- 断线 / 清聊天续跑：先跑 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1"\`（整流程 where-am-I），再动手——进度在盘上，不在聊天。\n` +
+        `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或同上 \`state\` / \`state --check-gates\`）。\n` +
         `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
         `## 自留教训（非进度）\n\n` +

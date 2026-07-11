@@ -65,6 +65,10 @@ nodes:                        # 每个 node 的状态
     decision: proceed          # node 特有字段可选
   wave0:
     status: in_progress
+  review-gate:                 # 示例：等人审图
+    status: in_progress
+    waiting_for: user:review-style-master   # 可选；短 machine token
+    note: open style_master.jpg → LOCK/RETRY/BACK  # 可选；人话
 
 gates:                        # 人审 gate
   content: pending             # pending | approved | waived

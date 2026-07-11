@@ -21,6 +21,8 @@ agent_action: read_first
 `BOOTSTRAP.md`（环境 + intake）→ 本文件 → 按 Phase 执行时再翻 `AGENTS.md` 对应章节。
 不要跳过 BOOTSTRAP 直接临场发挥目录。
 
+**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。先跑 session resume（`ppt_flow state` + `status` → 人话汇报 → 从 `current_node` 续），再决定是否绿场 intake。节点进出必须 `writeState`；等人写 `waiting_for` / `note`。
+
 ## 2. 目录是宪法
 
 结构唯一事实源：`scripts/bundle_layout.mjs`。

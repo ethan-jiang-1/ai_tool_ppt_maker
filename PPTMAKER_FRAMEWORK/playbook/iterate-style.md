@@ -12,6 +12,7 @@ includes: []
 > 参考 checklist：`workflow/01-visual/04-iterate-review-lock.md`。
 >
 > 推荐时序：本 playbook LOCK visual →（内容就绪）→ `quick-preview` → `build`。
+> **写盘:** 进出节点必须 `writeState`；`review-gate` 等人时写 `waiting_for`（如 `user:review-style-master`）+ 可选 `note`。
 
 ## 入口模式
 

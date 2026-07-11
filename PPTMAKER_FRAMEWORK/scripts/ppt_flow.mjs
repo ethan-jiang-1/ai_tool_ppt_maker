@@ -242,6 +242,37 @@ function collectStatus(runDir) {
 }
 
 /**
+ * Attach playbook breakpoint + optional workflow_summary onto a status object.
+ * @param {object} status
+ * @param {string} runDir
+ */
+async function enrichStatusWithState(status, runDir) {
+  const { readState, buildResumeCard } = await import("./lib/state.mjs");
+  const root = deckRoot(runDir);
+  const s = readState(root);
+  if (s.corrupted) {
+    status.playbook = "";
+    status.current_node = "";
+    status.state_corrupted = true;
+    return status;
+  }
+  const card = buildResumeCard(s, {
+    style_master: status.style_master,
+    raw_images: status.raw_images,
+    expected_slides: status.expected_slides,
+    pptx: status.pptx,
+    pilot_preview: status.pilot_preview,
+    content_gate: status.content_gate,
+    visual_gate: status.visual_gate,
+  });
+  status.playbook = card.playbook;
+  status.current_node = card.current_node;
+  status.workflow_summary = card.workflow_summary;
+  status.suggested_next = card.suggested_next;
+  return status;
+}
+
+/**
  * Pretty-print status to stdout.
  * @param {object} status
  */
@@ -254,6 +285,13 @@ function printStatus(status) {
 
   console.log(`PPT Flow status — ${status.run_dir}`);
   console.log(`  Structure:     ${structure}`);
+  if (status.playbook != null || status.current_node != null) {
+    console.log(`  Playbook:      ${status.playbook || "(none)"}`);
+    console.log(`  Current node:  ${status.current_node || "(none)"}`);
+  }
+  if (status.workflow_summary) {
+    console.log(`  Summary:       ${status.workflow_summary}`);
+  }
   console.log(`  Content gate:  ${status.content_gate}`);
   console.log(`  Visual gate:   ${status.visual_gate}`);
   console.log(`  Style master:  ${status.style_master ? "ready" : "missing"}`);
@@ -619,13 +657,14 @@ function commandInit(deckDir, { deckType, style }) {
 // ---------------------------------------------------------------------------
 
 /**
- * status — Show gates, artifacts, and next action.
+ * status — Show gates, artifacts, playbook breakpoint, and next action.
  * @param {string} runDir
  * @param {{json: boolean}} opts
  */
-function commandStatus(runDir, { json: asJson }) {
+async function commandStatus(runDir, { json: asJson }) {
   const resolved = resolve(runDir);
   const status = collectStatus(resolved);
+  await enrichStatusWithState(status, resolved);
   if (asJson) {
     console.log(JSON.stringify(status, null, 2));
   } else {
@@ -647,16 +686,18 @@ function commandStatus(runDir, { json: asJson }) {
 // ---------------------------------------------------------------------------
 
 /**
- * approve — Record a reviewed content/visual gate.
+ * approve — Record a reviewed content/visual gate (metadata + _state dual-write).
  * @param {string} runDir
  * @param {string} gate - "content" or "visual".
  * @param {boolean} waive
  */
-function commandApprove(runDir, gate, { waive }) {
+async function commandApprove(runDir, gate, { waive }) {
   const resolved = resolve(runDir);
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
-    printStatus(collectStatus(resolved));
+    const status = collectStatus(resolved);
+    await enrichStatusWithState(status, resolved);
+    printStatus(status);
     emitFailed(
       "ppt_flow.approve",
       `Cannot approve: ${issues.length} bundle issue(s)`,
@@ -665,9 +706,31 @@ function commandApprove(runDir, gate, { waive }) {
     return 1;
   }
   const value = waive ? "waived" : "approved";
-  const metadata = join(deckRoot(resolved), METADATA_FILE);
+  const root = deckRoot(resolved);
+  const metadata = join(root, METADATA_FILE);
   updateGate(metadata, gate, value);
+
+  const { readState, writeState, setGate, appendHistory } = await import(
+    "./lib/state.mjs"
+  );
+  const s = readState(root);
+  if (!s.corrupted) {
+    setGate(s, gate, value);
+    writeState(root, s);
+    try {
+      appendHistory(root, {
+        type: "gate_set",
+        gate,
+        value,
+        source: "ppt_flow.approve",
+      });
+    } catch {
+      /* history is optional */
+    }
+  }
+
   console.log(`✓ ${gate}_gate: ${value} (${metadata})`);
+  console.log(`✓ _state.gates.${gate}: ${value}`);
   return 0;
 }
 
@@ -1168,14 +1231,14 @@ Examples:
   // ---- status ----
   program
     .command("status")
-    .description("Show gates, artifacts, and next action")
+    .description("Show gates, artifacts, playbook breakpoint, and next action")
     .argument(
       "<run_dir>",
       "Path to version dir (e.g., deck_xxx/3_versions/v1)"
     )
     .option("--json", "Output machine-readable JSON")
-    .action((runDir, opts) => {
-      const code = commandStatus(runDir, { json: opts.json ?? false });
+    .action(async (runDir, opts) => {
+      const code = await commandStatus(runDir, { json: opts.json ?? false });
       process.exit(code);
     });
 
@@ -1186,7 +1249,7 @@ Examples:
     .argument("<run_dir>", "Path to version dir")
     .argument("<gate>", "Gate to approve: content or visual")
     .option("--waive", "Record an explicit user decision to skip this gate")
-    .action((runDir, gate, opts) => {
+    .action(async (runDir, gate, opts) => {
       if (!["content", "visual"].includes(gate)) {
         console.error(
           `✗ gate must be "content" or "visual"; got: ${gate}`
@@ -1201,7 +1264,7 @@ Examples:
           1
         );
       }
-      const code = commandApprove(runDir, gate, {
+      const code = await commandApprove(runDir, gate, {
         waive: opts.waive ?? false,
       });
       process.exit(code);
@@ -1424,12 +1487,13 @@ Examples:
     .action(async (runDir, opts) => {
       const {
         readState,
-        getCurrentNode,
         getCompletedNodes,
         getPendingNodes,
         isGateApproved,
+        buildResumeCard,
       } = await import("./lib/state.mjs");
-      const deckDir = join(runDir, "..", "..");
+      const resolved = resolve(runDir);
+      const deckDir = deckRoot(resolved);
       const s = readState(deckDir);
       if (s.corrupted) {
         console.error("State corrupted:", s.errors);
@@ -1466,14 +1530,48 @@ Examples:
           1
         );
       }
+
+      let statusSnapshot = null;
+      try {
+        const st = collectStatus(resolved);
+        statusSnapshot = {
+          style_master: st.style_master,
+          raw_images: st.raw_images,
+          expected_slides: st.expected_slides,
+          pptx: st.pptx,
+          pilot_preview: st.pilot_preview,
+          content_gate: st.content_gate,
+          visual_gate: st.visual_gate,
+        };
+      } catch {
+        statusSnapshot = null;
+      }
+      const card = buildResumeCard(s, statusSnapshot);
+
       if (opts.json) {
         if (healed) s.healed = true;
-        console.log(JSON.stringify(s, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              ...s,
+              node_status: card.node_status,
+              waiting_for: card.waiting_for,
+              note: card.note,
+              workflow_summary: card.workflow_summary,
+              suggested_next: card.suggested_next,
+            },
+            null,
+            2
+          )
+        );
         return;
       }
       if (healed) console.log("Note:     state.yaml was auto-tidied (heal)");
-      console.log("Playbook: " + (s.playbook || "(none)"));
-      console.log("Current:  " + (getCurrentNode(s) || "(none)"));
+      console.log("Playbook: " + (card.playbook || "(none)"));
+      console.log("Current:  " + (card.current_node || "(none)"));
+      console.log("Status:   " + (card.node_status || "(none)"));
+      if (card.waiting_for) console.log("Waiting:  " + card.waiting_for);
+      if (card.note) console.log("Note:     " + card.note);
       console.log("Done:     " + getCompletedNodes(s).join(", "));
       console.log("Pending:  " + getPendingNodes(s).join(", "));
       console.log(
@@ -1482,6 +1580,8 @@ Examples:
           " visual=" +
           (s.gates?.visual || "pending")
       );
+      console.log("Summary:  " + card.workflow_summary);
+      console.log("Next:     " + card.suggested_next);
     });
 
   try {

@@ -76,13 +76,26 @@
 | "换个案例, 用X代替Y" | `edit-text` | 改内容, 不改图 |
 | "每页的数据都更新一下" | `edit-text` | 批量文本, 所有页 |
 
+## 续跑 / 做到哪了
+
+> 小白断线、清聊天、合盖再开——进度在 **deck 磁盘**，不在聊天。这是**整流程** session resume，不是新 playbook；活跃 playbook = `_state.playbook`。
+
+| 用户说 | 动作 | 说明 |
+|--------|------|------|
+| "接着做" / "继续" | session resume ritual | `state`+`status` → 从 `current_node` 续 |
+| "我做到哪了" / "上次做到哪" | 同上 | 先人话汇报（Summary/Next），再动手 |
+| "清了聊天继续" / "断线了继续" | 同上 | 禁止默认绿场 intake / 从 node 1 重开 |
+
 ## Agent 路由逻辑
 
 ```
 用户说了一句话
   → 读 COMMANDS.md, 匹配意图
-  → 确定 playbook 名 + 入口参数
-  → 加载 playbook/<name>.md (MD Controller)
-  → 从第一个 node 开始执行
-  → State 写入 _state/state.yaml
+  → 若已有 deck 且（续跑说法 | 用户只丢了 deck 路径）
+       → session resume ritual（state+status → 人话 where-am-I → 从 current_node 续）
+  → 否则确定 playbook 名 + 入口参数
+       → 加载 playbook/<name>.md (MD Controller)
+       → 有 in-progress _state 且同 playbook → 从 current_node 续
+       → 确认的绿场 → 从第一个 node 开始
+  → 节点进出 writeState；等人写 waiting_for / note
 ```
