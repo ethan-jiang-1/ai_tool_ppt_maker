@@ -1,0 +1,10 @@
+LANGUAGE: Chinese on all slides. KICKER and title in Chinese. English only for proper nouns (SDLC, BPM, Fable 5, etc.) and direct quotes from English speakers.
+DECK TYPE: Strategic keynote about AI disrupting information work. Sketch/etching visual language.
+BACKGROUND: Cream paper #F5F0EB on every slide. Exception: closer slide uses near-black warm brown.
+COLOR FAMILY: Earth tones only — cream, sepia brown, warm gray-brown, amber. FORBIDDEN: blue, green, neon, purple, pure black, pure white, cool grays.
+TEXT-TO-IMAGE RATIO: Text area 50-60% of slide, sketch/illustration 40-50%. Every slide must have enough Chinese text (title + key concepts + data/quotes) to be understood at a glance without the speaker. The sketch is supporting visual — not the entire slide.
+TEXT DENSITY: Title (large serif, 1 line). Core claim or key concept (medium, 1-2 lines). Supporting text or data (small, 2-4 lines). Pull quotes where relevant. Never paragraphs — short blocks, cards, or labels only.
+FORBIDDEN: Photography, 3D renders, vector clip art, smooth digital icons, stock photos, corporate logos, watermarks, page numbers, source notes, draft labels, glowing orbs, gradient backgrounds, circuit boards, robot imagery, brain icons.
+TONE: Warm, intellectual, human. Like a 19th-century naturalist's notebook. Confident but curious. Sketch style signals 'thinking in progress.'
+SKETCH QUALITY: Visible hand-drawn lines. Slight irregularity. Cross-hatched shadows. Sepia ink on cream paper. Deliberate, not messy.
+CONSISTENCY: Every slide must feel like a page from the same sketchbook.
