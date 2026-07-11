@@ -1,12 +1,4 @@
-## Purpose
-
-Define Stage 2 (image generation) as an **in-framework Node** capability: async
-submit→poll→download via `image_api_client.mjs`, batch generation via
-`stage2_generate_images.mjs`, and QA contact sheets via `make_contact_sheet.mjs`.
-Credentials follow the Image2 contract (`IMAGE2_VENDORS` and/or `IMAGE2_*`, with OPENAI_*/APIMART_* aliases).
-No external agent skills. No Python. No bash.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Stage 2 is implemented inside the framework
 
@@ -69,68 +61,6 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or
 - **WHEN** submit returns an extractable image ref and no task id
 - **THEN** the client saves the image without polling
 
-### Requirement: Submit and poll accept data-array response envelopes
-
-`image_api_client.mjs` SHALL extract submit `task_id` from object and array `data` envelopes, including `{ code, data: [ { task_id, status } ] }`, consistent with result's `data[0]` handling (closes BUG-008). Poll status SHALL read top-level or unwrapped `data` so array envelopes are not stuck as unknown. Unit tests SHALL cover array submit and object regression.
-
-#### Scenario: Submit response with data array yields task_id
-
-- **WHEN** submit returns `{"code":200,"data":[{"status":"submitted","task_id":"task_abc"}]}`
-- **THEN** the client obtains `task_abc` without throwing `No task_id`
-
-#### Scenario: Submit response with object data still works
-
-- **WHEN** submit returns `{"task_id":"task_xyz"}` or `{"data":{"task_id":"task_xyz"}}`
-- **THEN** the client still obtains the task id
-
-### Requirement: Image2 smoke, persist secrets to .env, lessons to _lessons/
-
-Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-tool-selection.md`) SHALL require: on missing credentials or first image failure, the agent tries multiple combinations (`IMAGE2_VENDORS` items in order, IMAGE2_*, aliases, BASE_URLS, `--base-url`, user URLs) and a cheap smoke (`doctor --smoke` and/or `style-master … --force --resolution 1k`) before telling a novice to self-configure. When image-path symptoms persist (smoke fail, 502, all vendors fail, or user reports images will not generate), entry docs SHALL also direct the agent to offer channel体检 in plain language (playbook `probe-image-channels` / `doctor --probe-vendors`) rather than only "configure the API yourself". Entry docs SHALL document `IMAGE2_VENDORS` as the multi-vendor form and SHALL state that when `IMAGE2_VENDORS` is set it takes routing precedence over `IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS`.
-
-On success, the **run bundle** retains:
-
-1. **Secrets and routing in `.env`** (walk-up, prefer deck-root): secret key **values** in their env vars; optional non-secret `IMAGE2_VENDORS` routing line (KEY_ENV **names** only in that line).
-2. **Non-secret lesson** → `deck_*/_lessons/image2-proven.yaml` under `_lessons/` (read-before-guess). Fields: `proven_at`, `base_url`, `via` (`env`|`cli`|`alias`|`user-provided`|`vendors`), optional `notes`; **no API key field**.
-
-Entry docs SHALL describe `_lessons/` as the general retained-lessons surface and SHALL treat `image2-proven.yaml` as an Image2 example entry, not as the definition of `_lessons/`. Next session SHOULD read `_lessons/` before guessing endpoints. The agent SHALL NOT leave proven combos only in chat, SHALL NOT put keys in `_lessons/`, and SHALL NOT invent non-canonical folders for these lessons.
-
-#### Scenario: Smoke succeeds then bundle retains the lesson
-
-- **WHEN** a smoke combination succeeds after earlier failures
-- **THEN** `.env` retains the working secret vars and any chosen `IMAGE2_VENDORS` routing
-- **AND** `_lessons/image2-proven.yaml` exists without an API key field
-
-#### Scenario: Novice is not left with a single hard failure
-
-- **WHEN** doctor reports missing Image2 URL/key or the first smoke fails
-- **THEN** entry docs direct further combinations (including the next `IMAGE2_VENDORS` item) and channel体检 as a concrete next step before "configure the API yourself" as the only next step
-
-#### Scenario: Persist docs name _lessons as general surface
-
-- **WHEN** an agent follows BOOTSTRAP / `03-tool-selection` after a successful smoke
-- **THEN** those docs tell them to write the non-secret receipt under `_lessons/` as one lesson among possible lessons (not under `_state/` or as chat-only)
-- **AND** they do not describe `_lessons/` as an Image2-only directory
-
-### Requirement: Contact sheet is in-framework
-
-After image generation, the pipeline SHALL produce a contact sheet using
-`make_contact_sheet.mjs` (`@napi-rs/canvas`), not an external skill.
-
-#### Scenario: Contact sheet written under preview/
-
-- **WHEN** Stage 2 completes successfully
-- **THEN** a JPEG contact sheet is written under `_generated/preview/`
-
-### Requirement: No external skill dependency
-
-The framework SHALL NOT require `image2-ppt` or `image2-imagegen` skills to be
-installed for production readiness.
-
-#### Scenario: Doctor without skills dirs
-
-- **WHEN** env-check runs with no `.claude/skills` / `.agents/skills` present
-- **THEN** `stage2_generator` is still `ok` if in-framework scripts exist
-
 ### Requirement: Poll loop emits heartbeat within MAX_WAIT_MS
 
 `image_api_client.mjs` SHALL emit a progress log at least every **30 seconds** (`HEARTBEAT_MS`) while waiting on a single image, covering:
@@ -162,15 +92,35 @@ Submit wait SHALL be bounded by the same per-image budget as poll (`MAX_WAIT_MS`
 - **THEN** that image generation fails with a timeout error
 - **AND** the client does not continue polling that task
 
-### Requirement: Image API response fixtures cover extract paths
+### Requirement: Image2 smoke, persist secrets to .env, lessons to _lessons/
 
-The test suite SHALL include checked-in, secret-free JSON fixtures for known relay shapes (at minimum: submit `data:[{task_id}]`, and a completed poll body with embedded image URL under `data.result.images[0].url`). Tests SHALL assert exported unwrap/extract helpers accept those fixtures.
+Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-tool-selection.md`) SHALL require: on missing credentials or first image failure, the agent tries multiple combinations (`IMAGE2_VENDORS` items in order, IMAGE2_*, aliases, BASE_URLS, `--base-url`, user URLs) and a cheap smoke (`doctor --smoke` and/or `style-master … --force --resolution 1k`) before telling a novice to self-configure. When image-path symptoms persist (smoke fail, 502, all vendors fail, or user reports images will not generate), entry docs SHALL also direct the agent to offer channel体检 in plain language (playbook `probe-image-channels` / `doctor --probe-vendors`) rather than only "configure the API yourself". Entry docs SHALL document `IMAGE2_VENDORS` as the multi-vendor form and SHALL state that when `IMAGE2_VENDORS` is set it takes routing precedence over `IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS`.
 
-#### Scenario: Fixture poll embedded URL extracts
+On success, the **run bundle** retains:
 
-- **WHEN** tests load the poll-embedded-image fixture
-- **THEN** the extract helper returns the image URL (or downloadable ref)
-- **AND** no API key appears in the fixture files
+1. **Secrets and routing in `.env`** (walk-up, prefer deck-root): secret key **values** in their env vars; optional non-secret `IMAGE2_VENDORS` routing line (KEY_ENV **names** only in that line).
+2. **Non-secret lesson** → `deck_*/_lessons/image2-proven.yaml` under `_lessons/` (read-before-guess). Fields: `proven_at`, `base_url`, `via` (`env`|`cli`|`alias`|`user-provided`|`vendors`), optional `notes`; **no API key field**.
+
+Entry docs SHALL describe `_lessons/` as the general retained-lessons surface and SHALL treat `image2-proven.yaml` as an Image2 example entry, not as the definition of `_lessons/`. Next session SHOULD read `_lessons/` before guessing endpoints. The agent SHALL NOT leave proven combos only in chat, SHALL NOT put keys in `_lessons/`, and SHALL NOT invent non-canonical folders for these lessons.
+
+#### Scenario: Smoke succeeds then bundle retains the lesson
+
+- **WHEN** a smoke combination succeeds after earlier failures
+- **THEN** `.env` retains the working secret vars and any chosen `IMAGE2_VENDORS` routing
+- **AND** `_lessons/image2-proven.yaml` exists without an API key field
+
+#### Scenario: Novice is not left with a single hard failure
+
+- **WHEN** doctor reports missing Image2 URL/key or the first smoke fails
+- **THEN** entry docs direct further combinations (including the next `IMAGE2_VENDORS` item) and channel体检 as a concrete next step before "configure the API yourself" as the only next step
+
+#### Scenario: Persist docs name _lessons as general surface
+
+- **WHEN** an agent follows BOOTSTRAP / `03-tool-selection` after a successful smoke
+- **THEN** those docs tell them to write the non-secret receipt under `_lessons/` as one lesson among possible lessons (not under `_state/` or as chat-only)
+- **AND** they do not describe `_lessons/` as an Image2-only directory
+
+## ADDED Requirements
 
 ### Requirement: Stage 2 batch progress is logged as i/N
 

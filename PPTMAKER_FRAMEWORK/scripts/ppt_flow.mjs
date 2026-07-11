@@ -529,11 +529,21 @@ function buildEnvSearchDirs(dkRoot) {
 /**
  * doctor — Check Node.js, npm, dependencies, in-framework Stage 2, and credentials.
  * Delegates to env-check.mjs as a subprocess.
- * @param {{smoke?: boolean}} [opts]
+ * @param {{smoke?: boolean, probeVendors?: boolean}} [opts]
  */
-async function commandDoctor({ smoke = false } = {}) {
+async function commandDoctor({ smoke = false, probeVendors = false } = {}) {
+  if (smoke && probeVendors) {
+    emitFailed(
+      "USAGE",
+      "--smoke and --probe-vendors are mutually exclusive",
+      "Use --smoke for first-vendor gate; --probe-vendors for full channel report",
+      "ppt_flow.doctor"
+    );
+    return 1;
+  }
   const args = [];
   if (smoke) args.push("--smoke");
+  if (probeVendors) args.push("--probe-vendors");
   return runNode(ENV_CHECK, args);
 }
 
@@ -1116,14 +1126,21 @@ Examples:
   program
     .command("doctor")
     .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
-    .option("--smoke", "Live Image2 probe (POST generations; pass on task_id)")
+    .option("--smoke", "Live Image2 probe of first vendor (image ref or task_id)")
+    .option(
+      "--probe-vendors",
+      "Live probe every IMAGE2 vendor; print channel report (not --smoke)"
+    )
     .action(async (opts) => {
-      const code = await commandDoctor({ smoke: opts.smoke ?? false });
+      const code = await commandDoctor({
+        smoke: opts.smoke ?? false,
+        probeVendors: opts.probeVendors ?? false,
+      });
       exitWithCode(
         code,
         "ppt_flow.doctor",
         `doctor exited ${code}`,
-        "Fix env issues reported by env-check, then re-run doctor"
+        "Fix env / Image2 channel issues reported by env-check, then re-run doctor"
       );
     });
 

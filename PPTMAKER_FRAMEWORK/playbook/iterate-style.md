@@ -76,6 +76,7 @@ exit: [master_generated]
 ```
 
 **Step 1 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir> --force --resolution 1k`
+（长出图：转述 stdout `phase=submit|poll` / `Mirror failed`；勿静默干等。API/502/全挂且未 probe → 白话亮能力，可切 `probe-image-channels`。）
 **Step 2 — MD**: `setNodeStatus` 递增 `round`（写在当前 node extra）。
 
 ### review-gate

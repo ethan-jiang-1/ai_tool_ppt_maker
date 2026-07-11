@@ -38,6 +38,20 @@
 | "导入以前的 PPT/素材进这个项目" | `migrate-import` | 同上 |
 | "旧版 run bundle 要升到三层结构" | `migrate-import` | 映射旧路径；禁止静默裸奔 |
 
+## 环境 / 画画通道
+
+> Image2 通道体检——哪家通、哪家快、建议 `IMAGE2_VENDORS` 顺序。用户**不必**背 `doctor --probe-vendors`。
+> 症状时刻（doctor 图像红 / smoke 败 / 出图 502·全挂 /「画不出来」）且本 session 未 probe：白话亮能力——「要不要我逐家试一下你配的画画通道？」
+
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "哪家画画通道能用" | `probe-image-channels` | 逐家 probe + Summary |
+| "帮我试一下图像 API 供应商" | `probe-image-channels` | 同上 |
+| "出图一直 502 / 中转挂了" | `probe-image-channels` | 症状 → 通道体检 |
+| "生不了图 / 画不出来" | `probe-image-channels` | 症状 → 通道体检 |
+| "换一家画画的" | `probe-image-channels` | 报告后 confirm-write 改顺序 |
+| "哪家出图更快" | `probe-image-channels` | Suggested 按耗时排序 |
+
 ## 迭代打磨
 
 | 用户说 | Playbook | 入口参数 |

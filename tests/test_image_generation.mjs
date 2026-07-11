@@ -32,6 +32,7 @@ describe('image_api_client', () => {
     delete process.env.IMAGE2_API_KEY;
     delete process.env.IMAGE2_BASE_URL;
     delete process.env.IMAGE2_BASE_URLS;
+    delete process.env.IMAGE2_VENDORS;
   });
 
   afterEach(() => {
@@ -43,6 +44,9 @@ describe('image_api_client', () => {
     delete process.env.IMAGE2_API_KEY;
     delete process.env.IMAGE2_BASE_URL;
     delete process.env.IMAGE2_BASE_URLS;
+    delete process.env.IMAGE2_VENDORS;
+    delete process.env.CODEX_API_KEY_LCONAI;
+    delete process.env.CODEX_API_KEY_ZENMUX;
     rmSync(ROOT, { recursive: true, force: true });
   });
 
@@ -52,6 +56,43 @@ describe('image_api_client', () => {
     expect(process.env.APIMART_API_KEY).toBe('test-key');
     expect(mod.resolveBaseUrls()).toEqual(['https://api.example.test/v1']);
     expect(mod.resolveBaseUrls(['https://mirror.test/v1'])).toEqual(['https://mirror.test/v1']);
+  });
+
+  it('resolveVendors parses IMAGE2_VENDORS with per-key env vars', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.APIMART_API_KEY;
+    process.env.CODEX_API_KEY_LCONAI = 'lcon-key';
+    process.env.CODEX_API_KEY_ZENMUX = 'zen-key';
+    process.env.IMAGE2_VENDORS =
+      'https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX';
+    const mod = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    expect(mod.resolveVendors()).toEqual([
+      { base_url: 'https://s.lconai.com/v1', api_key: 'lcon-key' },
+      { base_url: 'https://zenmux.ai/api/v1', api_key: 'zen-key' },
+    ]);
+  });
+
+  it('resolveVendors fails on missing KEY_ENV and ignores BASE_URL when VENDORS set', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    process.env.IMAGE2_BASE_URL = 'https://legacy.test/v1';
+    process.env.IMAGE2_VENDORS = 'https://a.test/v1|MISSING_KEY_VAR';
+    const mod = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    expect(() => mod.resolveVendors()).toThrow(/MISSING_KEY_VAR/);
+    process.env.CODEX_API_KEY_LCONAI = 'k';
+    process.env.IMAGE2_VENDORS = 'https://a.test/v1|CODEX_API_KEY_LCONAI';
+    expect(mod.resolveVendors()).toEqual([{ base_url: 'https://a.test/v1', api_key: 'k' }]);
+  });
+
+  it('CLI --base-url requires shared key and does not borrow VENDORS keys', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.IMAGE2_API_KEY;
+    process.env.CODEX_API_KEY_LCONAI = 'lcon-key';
+    process.env.IMAGE2_VENDORS = 'https://a.test/v1|CODEX_API_KEY_LCONAI';
+    const mod = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    expect(() => mod.resolveVendors(['https://cli.test/v1'])).toThrow(/IMAGE2_API_KEY/);
   });
 
   it('prefers IMAGE2_* over aliases and errors when base URL missing', async () => {
@@ -232,6 +273,69 @@ describe('image_api_client', () => {
     });
     expect(result).toBeNull();
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('failover tries second vendor and records attempts in trace', async () => {
+    const pngBytes = (() => {
+      const c = createCanvas(4, 4);
+      return c.toBuffer('image/png');
+    })();
+    process.env.IMAGE2_API_KEY = 'shared';
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const u = String(url);
+      if (u.startsWith('https://bad.test/') && init?.method === 'POST') {
+        return {
+          ok: false,
+          status: 502,
+          text: async () => JSON.stringify({ error: 'bad gateway' }),
+          headers: { get: () => 'application/json' },
+        };
+      }
+      if (u.startsWith('https://good.test/') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({ data: [{ b64_json: pngBytes.toString('base64') }] }),
+          headers: { get: () => 'application/json' },
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+    const { generateOneImage } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    const outPath = join(ROOT, 'failover.png');
+    const tracePath = join(ROOT, 'failover.json');
+    const trace = await generateOneImage({
+      prompt: 'failover',
+      outPath,
+      force: true,
+      baseUrls: ['https://bad.test/v1', 'https://good.test/v1'],
+      tracePath,
+    });
+    expect(trace.base_url).toBe('https://good.test/v1');
+    expect(trace.attempts).toHaveLength(1);
+    expect(trace.attempts[0].base_url).toBe('https://bad.test/v1');
+    expect(trace.task_id).toBeNull();
+    expect(existsSync(outPath)).toBe(true);
+  });
+
+  it('all vendors failed includes attempts summary', async () => {
+    process.env.IMAGE2_API_KEY = 'shared';
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ error: 'down' }),
+      headers: { get: () => 'application/json' },
+    }));
+    const { generateOneImage } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    await expect(
+      generateOneImage({
+        prompt: 'x',
+        outPath: join(ROOT, 'fail.png'),
+        force: true,
+        baseUrls: ['https://a.test/v1', 'https://b.test/v1'],
+      })
+    ).rejects.toThrow(/All image API vendors failed.*a\.test.*b\.test/s);
   });
 });
 

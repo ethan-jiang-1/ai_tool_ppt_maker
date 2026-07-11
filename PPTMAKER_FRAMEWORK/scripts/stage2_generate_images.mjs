@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import {
   generateOneImage,
-  resolveBaseUrls,
+  resolveVendors,
   bridgeCredentials,
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
@@ -73,7 +73,9 @@ export async function generateImages({
 
   let baseUrls = [];
   if (!dryRun) {
-    baseUrls = resolveBaseUrls(baseUrl);
+    // Fail-fast credential resolve; CLI --base-url extras only (empty → full IMAGE2_VENDORS/env).
+    resolveVendors(baseUrl);
+    baseUrls = baseUrl;
   }
 
   let generated = 0;
@@ -81,11 +83,18 @@ export async function generateImages({
   /** @type {string[]} */
   const errors = [];
 
-  for (const slide of slides) {
+  const workSlides = slides.filter((slide) => {
     const slideId = slide.id;
-    if (!slideId) continue;
-    if (onlySet && !onlySet.has(slideId)) continue;
+    if (!slideId) return false;
+    if (onlySet && !onlySet.has(slideId)) return false;
+    return true;
+  });
+  const total = workSlides.length;
+  let index = 0;
 
+  for (const slide of workSlides) {
+    index += 1;
+    const slideId = slide.id;
     const outName = slide.out || `${slideId}.png`;
     const outPath = join(outDir, outName);
     const stem = basename(outName, ".png");
@@ -94,7 +103,7 @@ export async function generateImages({
     let prompt = String(slide.prompt || "").trim();
     if (!prompt) {
       errors.push(`${slideId}: empty prompt`);
-      console.log(`  ERROR: ${slideId}: empty prompt`);
+      console.log(`  ERROR ${index}/${total}: ${slideId}: empty prompt`);
       continue;
     }
 
@@ -103,11 +112,12 @@ export async function generateImages({
     void promptIsFinal;
 
     if (dryRun) {
-      console.log(`  [DRY RUN] Would generate ${outPath}`);
+      console.log(`  [DRY RUN] ${index}/${total} Would generate ${outPath}`);
       generated += 1;
       continue;
     }
 
+    console.log(`  generating slide ${index}/${total} (id=${slideId})`);
     try {
       const trace = await generateOneImage({
         prompt,
@@ -119,11 +129,16 @@ export async function generateImages({
         baseUrls,
         tracePath,
       });
-      if (trace) generated += 1;
-      else skipped += 1;
+      if (trace) {
+        generated += 1;
+        console.log(`  done ${index}/${total} (id=${slideId})`);
+      } else {
+        skipped += 1;
+        console.log(`  done ${index}/${total} (id=${slideId}) skipped-exists`);
+      }
     } catch (err) {
       errors.push(`${slideId}: ${err.message}`);
-      console.log(`  ERROR: ${slideId}: ${err.message}`);
+      console.log(`  ERROR ${index}/${total}: ${slideId}: ${err.message}`);
     }
   }
 

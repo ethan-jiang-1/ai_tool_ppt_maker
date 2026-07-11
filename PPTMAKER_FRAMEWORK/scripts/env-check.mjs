@@ -114,11 +114,75 @@ function checkNpm() {
   };
 }
 
-function checkApiKey() {
-  const key =
+function sharedImage2KeyFromEnv() {
+  return (
     process.env.IMAGE2_API_KEY ||
     process.env.OPENAI_API_KEY ||
-    process.env.APIMART_API_KEY;
+    process.env.APIMART_API_KEY ||
+    ''
+  );
+}
+
+/** @returns {{ base_url: string, key_env: string|null, api_key: string, error?: string }[]} */
+function parseVendorsEnvStatic() {
+  const raw = (process.env.IMAGE2_VENDORS || '').trim();
+  if (!raw) return [];
+  /** @type {{ base_url: string, key_env: string|null, api_key: string, error?: string }[]} */
+  const out = [];
+  for (const part of raw.split(',')) {
+    const item = part.trim();
+    if (!item) continue;
+    const pipe = item.indexOf('|');
+    const base_url = (pipe >= 0 ? item.slice(0, pipe) : item).trim().replace(/\/+$/, '');
+    const key_env = pipe >= 0 ? item.slice(pipe + 1).trim() : null;
+    if (!base_url) continue;
+    let api_key = '';
+    if (key_env) {
+      api_key = process.env[key_env] || '';
+      if (!api_key) {
+        out.push({ base_url, key_env, api_key: '', error: `${key_env} is not set` });
+        continue;
+      }
+    } else {
+      api_key = sharedImage2KeyFromEnv();
+      if (!api_key) {
+        out.push({
+          base_url,
+          key_env: null,
+          api_key: '',
+          error: 'IMAGE2_API_KEY missing for item without |KEY_ENV',
+        });
+        continue;
+      }
+    }
+    out.push({ base_url, key_env, api_key });
+  }
+  return out;
+}
+
+function checkApiKey() {
+  const vendors = parseVendorsEnvStatic();
+  if (vendors.length > 0) {
+    const bad = vendors.filter((v) => v.error);
+    if (bad.length === 0) {
+      return {
+        check: 'api_key',
+        status: 'ok',
+        detail: `found (IMAGE2_VENDORS ×${vendors.length})`,
+        fix: null,
+      };
+    }
+    const missing = bad.map((v) => v.key_env || 'IMAGE2_API_KEY').join(', ');
+    return {
+      check: 'api_key',
+      status: 'fail',
+      detail: `IMAGE2_VENDORS key missing: ${missing}`,
+      fix:
+        `Set the missing env var(s) named in IMAGE2_VENDORS (${missing}), or use a shared IMAGE2_API_KEY.`,
+    };
+  }
+
+  const key = sharedImage2KeyFromEnv();
   const source = process.env.IMAGE2_API_KEY
     ? 'IMAGE2_API_KEY'
     : (process.env.OPENAI_API_KEY
@@ -130,12 +194,22 @@ function checkApiKey() {
     detail: source ? `found (${source})` : 'not set',
     fix: source ? null : (
       'Stage 2 (image generation) needs a key. Put it in .env (loaded automatically):\n' +
-      '  IMAGE2_API_KEY=sk-...'
+      '  IMAGE2_API_KEY=sk-...\n' +
+      '  # or IMAGE2_VENDORS=https://…/v1|YOUR_KEY_ENV_VAR'
     ),
   };
 }
 
 function checkBaseUrl() {
+  const vendors = parseVendorsEnvStatic();
+  if (vendors.length > 0) {
+    return {
+      check: 'image_base_url',
+      status: 'ok',
+      detail: `set (IMAGE2_VENDORS → ${vendors[0].base_url})`,
+      fix: null,
+    };
+  }
   const url =
     process.env.IMAGE2_BASE_URL ||
     process.env.IMAGE2_BASE_URLS ||
@@ -150,7 +224,7 @@ function checkBaseUrl() {
     fix: ok ? null : (
       'Image API base URL is required (no silent default). Put it in .env:\n' +
       '  IMAGE2_BASE_URL=https://your-relay/v1\n' +
-      '  # or IMAGE2_BASE_URLS=https://a/v1,https://b/v1'
+      '  # or IMAGE2_VENDORS=https://a/v1|KEY_ENV,https://b/v1|KEY_ENV'
     ),
   };
 }
@@ -280,16 +354,20 @@ function runAllChecks() {
 }
 
 /**
- * Minimal live Image2 probe: POST generations; success = got task_id.
+ * Minimal live Image2 probe against first resolveVendors() entry.
+ * Success = extractImageRef OR task id (same as client).
  * @returns {Promise<{check:string,status:string,detail:string,fix:string|null}>}
  */
 async function checkImageSmoke() {
   try {
-    const { resolveApiKey, resolveBaseUrls, unwrapDataRecord, DEFAULT_MODEL } =
-      await import('./image_api_client.mjs');
-    const key = resolveApiKey();
-    const bases = resolveBaseUrls();
-    const base = bases[0].replace(/\/+$/, '');
+    const {
+      resolveVendors,
+      extractImageRef,
+      extractTaskId,
+      DEFAULT_MODEL,
+    } = await import('./image_api_client.mjs');
+    const vendors = resolveVendors();
+    const { base_url: base, api_key: key } = vendors[0];
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30_000);
     let resp;
@@ -320,7 +398,7 @@ async function checkImageSmoke() {
         check: 'image_smoke',
         status: 'fail',
         detail: `non-JSON response (${resp.status})`,
-        fix: 'Check IMAGE2_BASE_URL points at an Image2-compatible /v1 relay.',
+        fix: 'Check IMAGE2_BASE_URL / IMAGE2_VENDORS points at an Image2-compatible /v1 relay.',
       };
     }
     if (!resp.ok) {
@@ -328,24 +406,32 @@ async function checkImageSmoke() {
         check: 'image_smoke',
         status: 'fail',
         detail: `HTTP ${resp.status}: ${JSON.stringify(data).slice(0, 160)}`,
-        fix: 'Verify IMAGE2_API_KEY and IMAGE2_BASE_URL; re-run doctor --smoke.',
+        fix: 'Verify keys and IMAGE2_VENDORS / IMAGE2_BASE_URL; re-run doctor --smoke.',
       };
     }
-    const unwrapped = unwrapDataRecord(data);
-    const taskId = data.task_id || data.id || unwrapped.task_id || unwrapped.id;
-    if (!taskId) {
+    const syncRef = extractImageRef(data);
+    const taskId = extractTaskId(data);
+    if (syncRef) {
       return {
         check: 'image_smoke',
-        status: 'fail',
-        detail: `no task_id in response: ${JSON.stringify(data).slice(0, 160)}`,
-        fix: 'Relay submit contract unexpected; see _lessons/ and image_api_client unwrap rules.',
+        status: 'ok',
+        detail: `submit ok (sync image from ${base})`,
+        fix: null,
+      };
+    }
+    if (taskId) {
+      return {
+        check: 'image_smoke',
+        status: 'ok',
+        detail: `submit ok (task_id=${taskId})`,
+        fix: null,
       };
     }
     return {
       check: 'image_smoke',
-      status: 'ok',
-      detail: `submit ok (task_id=${taskId})`,
-      fix: null,
+      status: 'fail',
+      detail: `no image ref or task_id: ${JSON.stringify(data).slice(0, 160)}`,
+      fix: 'Relay submit contract unexpected; see _lessons/ and image_api_client unwrap rules.',
     };
   } catch (err) {
     const msg = err?.name === 'AbortError' ? 'timed out after 30s' : (err?.message || String(err));
@@ -358,7 +444,156 @@ async function checkImageSmoke() {
   }
 }
 
-export { runAllChecks, checkImageSmoke };
+/**
+ * Probe every resolveVendors() entry; print human report; return aggregate check.
+ * Does not write .env.
+ * @returns {Promise<{check:string,status:string,detail:string,fix:string|null,rows?:object[]}>}
+ */
+async function checkProbeVendors() {
+  const {
+    resolveVendors,
+    extractImageRef,
+    extractTaskId,
+    DEFAULT_MODEL,
+    HEARTBEAT_MS,
+  } = await import('./image_api_client.mjs');
+
+  let vendors;
+  try {
+    vendors = resolveVendors();
+  } catch (err) {
+    return {
+      check: 'image_probe_vendors',
+      status: 'fail',
+      detail: err?.message || String(err),
+      fix: 'Fix IMAGE2_VENDORS / keys, then re-run doctor --probe-vendors',
+    };
+  }
+
+  /** @type {{ base_url: string, ok: boolean, mode: string, elapsed_s: number, error: string|null, key_env?: string|null }[]} */
+  const rows = [];
+  const n = vendors.length;
+
+  for (let i = 0; i < n; i += 1) {
+    const { base_url: base, api_key: key } = vendors[i];
+    const idx = i + 1;
+    console.log(`  probing ${idx}/${n} → ${base}`);
+    const started = Date.now();
+    let lastHb = started;
+    const controller = new AbortController();
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (now - lastHb >= HEARTBEAT_MS) {
+        const elapsedSec = Math.floor((now - started) / 1000);
+        console.log(
+          `  … still waiting vendor=${base} phase=submit elapsed=${elapsedSec}s`
+        );
+        lastHb = now;
+      }
+    }, Math.min(1_000, HEARTBEAT_MS));
+    const hardTimeout = setTimeout(() => controller.abort(), 120_000);
+
+    try {
+      const resp = await fetch(`${base}/images/generations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: DEFAULT_MODEL,
+          prompt: 'env-check probe: solid mid-gray square, no text',
+          n: 1,
+          size: '1024x1024',
+        }),
+        signal: controller.signal,
+      });
+      const text = await resp.text();
+      const elapsed_s = Math.round(((Date.now() - started) / 1000) * 10) / 10;
+      let data = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        rows.push({
+          base_url: base,
+          ok: false,
+          mode: 'unknown',
+          elapsed_s,
+          error: `non-JSON (${resp.status})`,
+        });
+        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  non-JSON`);
+        continue;
+      }
+      if (!resp.ok) {
+        const err = `HTTP ${resp.status}: ${JSON.stringify(data).slice(0, 120)}`;
+        rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
+        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${err}`);
+        continue;
+      }
+      const syncRef = extractImageRef(data);
+      const taskId = extractTaskId(data);
+      if (syncRef) {
+        rows.push({ base_url: base, ok: true, mode: 'sync', elapsed_s, error: null });
+        console.log(`  [${idx}/${n}] OK    sync  ${elapsed_s}s  ${base}`);
+      } else if (taskId) {
+        rows.push({ base_url: base, ok: true, mode: 'async', elapsed_s, error: null });
+        console.log(`  [${idx}/${n}] OK    async task=${taskId}  ${elapsed_s}s  ${base}`);
+      } else {
+        const err = `no image/task_id: ${JSON.stringify(data).slice(0, 120)}`;
+        rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
+        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${err}`);
+      }
+    } catch (err) {
+      const elapsed_s = Math.round(((Date.now() - started) / 1000) * 10) / 10;
+      const msg =
+        err?.name === 'AbortError' ? 'timed out' : (err?.message || String(err));
+      rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: msg.slice(0, 160) });
+      console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${msg}`);
+    } finally {
+      clearInterval(timer);
+      clearTimeout(hardTimeout);
+    }
+  }
+
+  const okRows = rows.filter((r) => r.ok).sort((a, b) => a.elapsed_s - b.elapsed_s);
+  const failRows = rows.filter((r) => !r.ok);
+  console.log('');
+  console.log('  --- Summary ---');
+  console.log(`  OK:   ${okRows.map((r) => `${r.base_url} (${r.elapsed_s}s ${r.mode})`).join(', ') || '(none)'}`);
+  console.log(`  FAIL: ${failRows.map((r) => `${r.base_url} (${r.error})`).join(', ') || '(none)'}`);
+
+  // Suggested IMAGE2_VENDORS: rebuild with KEY_ENV names from env parse when possible
+  const parsed = parseVendorsEnvStatic();
+  const keyEnvByUrl = new Map(parsed.map((p) => [p.base_url, p.key_env]));
+  const ordered = [...okRows, ...failRows];
+  const suggested = ordered
+    .map((r) => {
+      const ke = keyEnvByUrl.get(r.base_url);
+      return ke ? `${r.base_url}|${ke}` : r.base_url;
+    })
+    .join(',');
+  if (suggested) {
+    console.log('');
+    console.log('  Suggested IMAGE2_VENDORS (ok by speed, then failed):');
+    console.log(`  IMAGE2_VENDORS=${suggested}`);
+    console.log('  (not written — confirm before updating .env)');
+  }
+
+  const anyOk = okRows.length > 0;
+  return {
+    check: 'image_probe_vendors',
+    status: anyOk ? 'ok' : 'fail',
+    detail: anyOk
+      ? `${okRows.length}/${rows.length} vendors OK`
+      : `0/${rows.length} vendors OK`,
+    fix: anyOk
+      ? null
+      : 'All vendors failed. Check keys/URLs or try doctor --probe-vendors after fixing .env.',
+    rows,
+  };
+}
+
+export { runAllChecks, checkImageSmoke, checkProbeVendors, checkApiKey, checkBaseUrl };
 
 function formatText(results, allPass) {
   const lines = [];
@@ -410,19 +645,41 @@ function formatText(results, allPass) {
 
 async function main() {
   const wantSmoke = process.argv.includes('--smoke');
+  const wantProbe = process.argv.includes('--probe-vendors');
+
+  if (wantSmoke && wantProbe) {
+    console.error(
+      'Usage: pass only one of --smoke or --probe-vendors (mutually exclusive).'
+    );
+    console.error(
+      JSON.stringify({
+        ok: false,
+        code: 'USAGE',
+        message: '--smoke and --probe-vendors are mutually exclusive',
+        hint: 'Use --smoke for first-vendor gate; --probe-vendors for full channel report',
+        where: 'env-check.main',
+      })
+    );
+    process.exit(1);
+  }
+
   const { results } = runAllChecks();
 
-  if (wantSmoke) {
+  if (wantSmoke || wantProbe) {
     const keyOk = results.find((r) => r.check === 'api_key')?.status === 'ok';
     const urlOk = results.find((r) => r.check === 'image_base_url')?.status === 'ok';
     if (keyOk && urlOk) {
-      results.push(await checkImageSmoke());
+      if (wantProbe) {
+        results.push(await checkProbeVendors());
+      } else {
+        results.push(await checkImageSmoke());
+      }
     } else {
       results.push({
-        check: 'image_smoke',
+        check: wantProbe ? 'image_probe_vendors' : 'image_smoke',
         status: 'fail',
         detail: 'skipped — api_key or image_base_url missing',
-        fix: 'Set IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run with --smoke',
+        fix: 'Set IMAGE2_VENDORS (or IMAGE2_API_KEY + IMAGE2_BASE_URL), then re-run',
       });
     }
   }
@@ -431,7 +688,19 @@ async function main() {
   const foundationOk = results.filter((r) => r.foundation).every((r) => r.status === 'ok');
 
   if (process.argv.includes('--json')) {
-    console.log(JSON.stringify({ allPass, foundationOk, checks: results, smoke: wantSmoke }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          allPass,
+          foundationOk,
+          checks: results,
+          smoke: wantSmoke,
+          probeVendors: wantProbe,
+        },
+        null,
+        2
+      )
+    );
   } else {
     console.log(formatText(results, allPass));
   }
