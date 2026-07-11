@@ -5,10 +5,9 @@ slides: S1.1–S1.9
 version: v1
 status: draft
 sources:
-  - research/software/topics/
-  - research/software/storylines/
-  - _business_ai_case/03-block-radical-ai-restructuring.md
-  - _business_ai_case/04-cloudflare-measured-personnel-swap.md
+  - 1_upstream_raw_material/software/topics/
+  - 1_upstream_raw_material/software/storylines/
+  - 1_upstream_raw_material/business/  # Block/Cloudflare cases live under business topics when present; external archives noted historically
 ---
 
 # PART 1: THE SOFTWARE FRONTLINE — 高科技软件业经历了什么

@@ -1,1 +1,2 @@
 {"type":"state_healed","reason":"schema","at":"2026-07-11T03:15:35.309Z"}
+{"type":"truth_align","reason":"align-sdlc-keynote-deck","playbook":"iterate-style","current_node":"review-gate","gates":"waived/waived","at":"2026-07-11T08:21:46.165Z"}

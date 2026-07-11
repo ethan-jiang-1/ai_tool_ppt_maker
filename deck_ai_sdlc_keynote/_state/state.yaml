@@ -5,10 +5,10 @@
 # Fields: playbook, current_node, nodes.*, gates.{content,visual}, deck.*, playbook_stack
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
-playbook: migrate-import
-current_node: iterate_style
+playbook: iterate-style
+current_node: review-gate
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-11T04:43:08.749Z
+updated_at: 2026-07-11T08:26:59.860Z
 nodes:
   intake-source:
     status: completed
@@ -29,15 +29,27 @@ nodes:
   handoff:
     status: completed
     completed: 2026-07-11T03:45:13.775Z
-    next: quick-preview or edit-*; build only if regenerating pptx
-    note: Aligned to current framework; migrated pptx retained
-  iterate_style:
+    next: iterate-style review-gate (style master on disk); then quick-preview / build when ready
+    note: Migrate complete; truth-aligned 2026-07-11. Gates waived. Active playbook iterate-style.
+  start-iterate:
+    status: completed
+    completed: 2026-07-11T08:21:46.152Z
+  tweak-prompt:
+    status: completed
+    completed: 2026-07-11T08:21:46.159Z
+  generate:
+    status: completed
+    completed: 2026-07-11T08:21:46.159Z
+    round: 1
+  review-gate:
     status: in_progress
-    started: 2026-07-11T04:43:08.744Z
+    started: 2026-07-11T08:26:59.852Z
+    waiting_for: user:review-style-master
+    note: style_master.jpg on disk; gates waived (not re-LOCKed). Open image → LOCK / RETRY / BACK.
     round: 1
 gates:
-  content: approved
-  visual: approved
+  content: waived
+  visual: waived
 deck:
   name: ai_sdlc_keynote
   type: keynote

@@ -5,9 +5,8 @@ slides: S2.1–S2.5
 version: v1
 status: draft
 sources:
-  - research/business/topics/
-  - research/business/storylines/
-  - _business_bpm/
+  - 1_upstream_raw_material/business/topics/
+  - 1_upstream_raw_material/business/storylines/
 pending:
   - S2.5 中国传统行业 AI 落地案例
 ---

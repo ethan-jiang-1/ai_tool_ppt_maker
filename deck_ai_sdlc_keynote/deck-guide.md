@@ -1,7 +1,7 @@
 # deck_ai_sdlc_keynote — 这个 PPT 项目怎么用
 
 > 当前版本：`v1`。先改源文件，再让管线重建；不要直接改 `_generated/`。
-> 本 deck 已从旧框架迁入现行三层树；交付物以迁移/管线产物为准。
+> 本 deck 已从旧框架迁入现行三层树。迁移说明见 [MIGRATION.md](MIGRATION.md)。
 
 ## 你改哪里
 
@@ -14,49 +14,47 @@
 
 用户确认内容/视觉后：
 
-1. **Pipeline gates**（Stage 2 检查）：把 `project-metadata.yaml` 的 `content_gate` / `visual_gate` 写成 `approved`（或明确跳过则 `waived`）
-2. **Playbook gates**：同步 `_state/state.yaml` 的 `gates.content` / `gates.visual`
-
-推荐一条命令双写：
+1. **Pipeline gates**（Stage 2 检查）：`project-metadata.yaml` 的 `content_gate` / `visual_gate`
+2. **Playbook gates**：`_state/state.yaml` 的 `gates.content` / `gates.visual`
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 content
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 visual
 ```
 
+**当前选择（迁移真相）：** content / visual 均为 **`waived`**（metadata 与 `_state` 已对齐）。交付物是迁移备份 + 部分重生，**不是**在现行 `iterate-style` 下重新 LOCK 的视觉。要当真锁定：open `style_master.jpg` → review-gate **LOCK** → `approve visual`。
+
 ## 当前进度
 
-- **Playbook / 闸门**：看 `_state/state.yaml`（或 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_ai_sdlc_keynote/3_versions/v1 [--check-gates]`）
-- **管线产物**：看 `3_versions/v1/_generated/`
-  - 有 `ppt/deck.pptx` → 交付 PPTX 已在（迁移备份；重跑 Stage 4 会按管线命名覆盖）
-  - 有 `preview/contact_sheet.jpg` → 样张/联系表
-  - 有 `slide_plan.json` → Stage 1 已解析（可按需补跑 Stage 1；**不以缺 slide_plan 否定已有 pptx**）
-  - 详见 `_generated/MIGRATED.md`
+- **Playbook / 闸门**：`ppt_flow state deck_ai_sdlc_keynote/3_versions/v1`
+  - 活跃：`iterate-style` @ `review-gate`（`waiting_for: user:review-style-master`）
+  - `2_backbone/visual-style/style_master.jpg` **在盘**
+  - migrate-import 已 handoff；清上下文后续跑，勿绿场重开
+- **管线产物**（`3_versions/v1/_generated/`；该目录 gitignore，以磁盘为准）：
+  - `ppt/deck.pptx` — Stage4 默认名（迁移备份；重跑会覆盖）
+  - `preview/contact_sheet.jpg` — 迁移备份；另有 `pilot_*_contact_sheet.jpg`
+  - `slide_plan.json` + `page_prompts/` — Stage 1 现行重跑（**22** 页）
+  - `page_images_full/` — 约 **3/22** PNG（其余未重生）
+  - 详见 [MIGRATION.md](MIGRATION.md)
 
 ## 自留教训（非进度）
 
-- 遇事自己克服后留下的**非密钥**教训在 `_lessons/`（先读再猜；见 `_lessons/README.md`）
-- 例：Image2 冒烟回执 `_lessons/image2-proven.yaml`（试通后才写；无 API key）。密钥只写 `.env`，不要写进 `_lessons/` 或 `_state/`
+- `_lessons/`（先读再猜）。例：冒烟后写 `image2-proven.yaml`（无 key）。密钥只写 `.env`。
 
 ## 从项目根目录运行
 
-依赖在 **repo 根** 用 `npm install` 一次装好（`@napi-rs/canvas` / `pptxgenjs` / `yaml`）。
+依赖在 **repo 根** `npm install` 一次。
 
 ```bash
-# 推荐：统一入口
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs" doctor
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs" state "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1"
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs" pilot "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1"
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs" build "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1"
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_ai_sdlc_keynote/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_ai_sdlc_keynote/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v1
 
-# 等价：直接跑管线（Expert）
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs" --run-dir "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1" --stage 1
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs" --run-dir "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1" --stage 2 --only opener_id,content_id,closer_id --resolution 1k
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs" --run-dir "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1" --stage 2 --resolution 2k --force-images
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs" --run-dir "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1" --stage 3,4,5
-
-# 新建干净版本（不复制旧图片/PPTX）
-node "/Users/bowhead/ai_tool_ppt_maker/PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs" --new-version "/Users/bowhead/ai_tool_ppt_maker/deck_ai_sdlc_keynote/3_versions/v1"
+# Expert
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_ai_sdlc_keynote/3_versions/v1 --stage 1
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_ai_sdlc_keynote/3_versions/v1 --stage 2 --resolution 2k --force-images
+node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --new-version deck_ai_sdlc_keynote/3_versions/v1
 ```
 
 用户只需告诉 Agent 想改什么；Agent 负责选择最小重跑链。
