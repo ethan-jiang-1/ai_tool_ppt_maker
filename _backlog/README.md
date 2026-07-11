@@ -1,6 +1,6 @@
 # _backlog — 项目待办与决策记录
 
-> 最后更新: 2026-07-10 | 本目录追踪本仓库的工作项、设计决策、上游分析。
+> 最后更新: 2026-07-11 | 本目录追踪本仓库的工作项、设计决策、上游分析。
 > 活跃工作走 OpenSpec（`openspec/changes/`）；本目录是 **上游分析与决策记录 + 待办池**，不是运行时真相。
 >
 > **本文件是 `_backlog` 的规矩手册。** 搬迁流程在下面定死，今后大家都遵循这里头定的规矩。
@@ -27,8 +27,10 @@ _backlog/
 ├── bugs/                              # 🐛 活跃 bug → 修完移入 _done/_fixed_bugs/
 ├── todos/                            # 📋 活跃 todo → 做完移入 _done/_done_todos/
 ├── plans/                            # 📐 活跃 plan → 完成移入 _done/_closed_plans/
-└── learning/                         # 📖 apply/研究复盘 retro（长期留存）
+└── learning/                         # 📖 框架级 apply/研究复盘 retro（≠ deck_*/_lessons/）
 ```
+
+> **记忆分流：** `_backlog/learning/` = 框架 retro（本仓库长期留存）。`deck_*/_lessons/` = 单个 PPT 项目的自留操作教训（已从 `_learning/` 改名）。详见 [`learning/README.md`](learning/README.md)。
 
 ---
 

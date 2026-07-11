@@ -19,19 +19,20 @@
 
 | Plan | 简述 |
 |------|------|
-| [improve-visual-iteration-env](improve-visual-iteration-env.md) | 视觉迭代环境复盘：doctor 冒烟测试、image_api_client 契约+trace fixture、`--only` id 友好化、预览不篡改闸门、长渲染心跳/续跑、style-master↔deck_system 约束共享 |
+| （无） | — |
 
 ### 已定名 OpenSpec changes
 
 | # | Change 名 | 状态 |
 |---|-----------|------|
-| 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** → `openspec/changes/archive/2026-07-11-…` |
-| 2 | `guard-offpath-migrate-import-ux` | **已 archive** → `openspec/changes/archive/2026-07-11-guard-offpath-migrate-import-ux/` |
+| 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** |
+| 2 | `guard-offpath-migrate-import-ux` | **已 archive** |
+| 3 | `improve-visual-iteration-env` | **已 archive** → `openspec/changes/archive/2026-07-11-improve-visual-iteration-env/` |
 
 _无活跃 OpenSpec change。_
 
 
-**Next available plan ID: CLS-003**（移入 `_closed_plans/` 时分配；CLS-001/002 已用）
+**Next available plan ID: CLS-004**（移入 `_closed_plans/` 时分配；CLS-001…003 已用）
 
 ---
 
