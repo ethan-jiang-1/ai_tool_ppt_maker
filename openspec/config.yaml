@@ -25,7 +25,8 @@ context: |
   权威条文: `charter/CONSTITUTION.md`（运行时宪法）+ `charter/AGENT_CONTRACT.md` §7。
 
   **CLI 失败回执（宪法级 · MD Controller 友好）。** 任何 CLI 硬失败除非零 exit 外，
-  **必须**输出一条 JSON envelope（`ok:false` + 稳定 `code` + `message` + `hint` + `where`）。
+  **必须**向 **stderr 最后一个非空行**写出单行 JSON envelope
+  （`ok:false` + 稳定 `code` + `message` + `hint` + `where`）。
   消费者包括 MD Controller、coding agent、以及今后更多编排器——没有结构化回执 =
   它们无法立刻意识到错在哪，也就无法修。禁止仅散文 `Fatal error` 致盲。
   权威条文: `charter/CONSTITUTION.md`（CLI 失败回执宪法）+ `charter/NODE-SPEC.md`（CLI ⇔ MD）。
@@ -79,7 +80,7 @@ context: |
 
   | Capability | 做什么 | 关键脚本 |
   |-----------|--------|---------|
-  | `cli-surface` | ppt_flow 命令面 (11 个命令): doctor/init/status/approve/style-master/validate/pilot/build/refresh/new-version/test | `ppt_flow.mjs` |
+  | `cli-surface` | ppt_flow 命令面 (12 个命令): doctor/init/status/approve/style-master/validate/pilot/build/refresh/new-version/test/state | `ppt_flow.mjs` |
 
   ### 执行层
 
@@ -105,7 +106,7 @@ context: |
      git = 审计跟踪. Agent 看文件系统就知道当前在哪里.
   2. **Node-only 运行时** — 可执行资产只有 Node ESM；禁止 Python/bash/外部 skill 生产路径
      （见「运行时铁律」与 `charter/CONSTITUTION.md`）。
-  3. **CLI 失败必出 JSON** — exit code 之外必须有 MD Controller 友好的 envelope
+  3. **CLI 失败必出 JSON** — 非零 exit 时 stderr 最后一个非空行必须是 MD Controller 友好的 envelope
      （`ok`/`code`/`message`/`hint`/`where`）；否则编排器无法立刻修错。
   4. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
      80% 的 slide 用 `body+header-lock` 模式: AI 生成的图上留白顶部 260px,

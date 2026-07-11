@@ -1081,6 +1081,7 @@ async function commandBuildWrapped(runDir, opts) {
 
 async function main() {
   const program = new Command();
+  program.exitOverride();
 
   program
     .name("ppt_flow.mjs")
@@ -1100,6 +1101,7 @@ Examples:
   ppt_flow.mjs refresh deck_mydeck/3_versions/v1 --kind visual --only slide_03
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
+  ppt_flow.mjs state deck_mydeck/3_versions/v1 --check-gates
 `
     );
 
@@ -1109,7 +1111,12 @@ Examples:
     .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
     .action(async () => {
       const code = await commandDoctor();
-      process.exit(code);
+      exitWithCode(
+        code,
+        "ppt_flow.doctor",
+        `doctor exited ${code}`,
+        "Fix env issues reported by env-check, then re-run doctor"
+      );
     });
 
   // ---- init ----
@@ -1119,26 +1126,13 @@ Examples:
     .argument("<deck_dir>", "Target deck directory (must start with deck_)")
     .requiredOption(
       "--deck-type <type>",
-      `Deck type: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
+      `Deck type: ${DECK_TYPES_SORTED().join(", ")}`
     )
     .requiredOption(
       "--style <style>",
-      `Style preset: ${STYLE_PRESETS.sort().join(", ")}`
+      `Style preset: ${STYLE_PRESETS_SORTED().join(", ")}`
     )
     .action(async (deckDir, opts) => {
-      // Validation already done in commandInit, but commander enums are friendly
-      if (!(opts.deckType in DECK_TYPE_TEMPLATES)) {
-        console.error(
-          `✗ Unknown deck-type: ${opts.deckType}. Allowed: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
-        );
-        process.exit(1);
-      }
-      if (!STYLE_PRESETS.includes(opts.style)) {
-        console.error(
-          `✗ Unknown style: ${opts.style}. Allowed: ${STYLE_PRESETS.sort().join(", ")}`
-        );
-        process.exit(1);
-      }
       const code = commandInit(deckDir, {
         deckType: opts.deckType,
         style: opts.style,
@@ -1172,7 +1166,15 @@ Examples:
         console.error(
           `✗ gate must be "content" or "visual"; got: ${gate}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `gate must be "content" or "visual"; got: ${gate}`,
+            hint: 'Pass "content" or "visual" as the gate argument',
+            where: "ppt_flow.approve.gate",
+          },
+          1
+        );
       }
       const code = commandApprove(runDir, gate, {
         waive: opts.waive ?? false,
@@ -1200,9 +1202,17 @@ Examples:
         console.error(
           `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
+            hint: "Pass --resolution 1k, 2k, or 4k",
+            where: "ppt_flow.style-master.resolution",
+          },
+          1
+        );
       }
-      const code = await commandStyleMaster(runDir, {
+      const code = await commandStyleMasterWrapped(runDir, {
         resolution: opts.resolution,
         model: opts.model,
         baseUrl: opts.baseUrl || [],
@@ -1242,7 +1252,15 @@ Examples:
         console.error(
           `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
+            hint: "Pass --resolution 1k, 2k, or 4k",
+            where: "ppt_flow.pilot.resolution",
+          },
+          1
+        );
       }
       const code = await commandPilot(runDir, {
         only: opts.only || null,
@@ -1271,9 +1289,17 @@ Examples:
         console.error(
           `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
+            hint: "Pass --resolution 1k, 2k, or 4k",
+            where: "ppt_flow.build.resolution",
+          },
+          1
+        );
       }
-      const code = await commandBuild(runDir, {
+      const code = await commandBuildWrapped(runDir, {
         resolution: opts.resolution,
         baseUrl: opts.baseUrl || null,
         reuseImages: opts.reuseImages ?? false,
@@ -1302,13 +1328,29 @@ Examples:
         console.error(
           `✗ --kind must be title, visual, or notes; got: ${opts.kind}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `--kind must be title, visual, or notes; got: ${opts.kind}`,
+            hint: "Pass --kind title, visual, or notes",
+            where: "ppt_flow.refresh.kind",
+          },
+          1
+        );
       }
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
         console.error(
           `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
         );
-        process.exit(1);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.USAGE,
+            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
+            hint: "Pass --resolution 1k, 2k, or 4k",
+            where: "ppt_flow.refresh.resolution",
+          },
+          1
+        );
       }
       const code = await commandRefresh(runDir, {
         kind: opts.kind,
@@ -1343,7 +1385,93 @@ Examples:
       process.exit(code);
     });
 
-  await program.parseAsync(process.argv);
+  // ---- state ----
+  program
+    .command("state")
+    .description("Show playbook state / check gates")
+    .argument("<runDir>", "Path to version directory")
+    .option("--json", "JSON output")
+    .option("--check-gates", "Verify gates for Stage 2 readiness")
+    .action(async (runDir, opts) => {
+      const {
+        readState,
+        getCurrentNode,
+        getCompletedNodes,
+        getPendingNodes,
+        isGateApproved,
+      } = await import("./lib/state.mjs");
+      const deckDir = join(runDir, "..", "..");
+      const s = readState(deckDir);
+      if (s.corrupted) {
+        console.error("State corrupted:", s.errors);
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.STATE_CORRUPTED,
+            message: `State corrupted: ${(s.errors || []).join("; ") || "unknown"}`,
+            hint: "Repair or regenerate _state/state.yaml, then re-run state",
+            where: "ppt_flow.state",
+          },
+          2
+        );
+      }
+      if (opts.checkGates) {
+        const c = isGateApproved(s, "content");
+        const v = isGateApproved(s, "visual");
+        if (c && v) {
+          console.log("Gates OK");
+          process.exit(0);
+        }
+        const pending = [];
+        if (!c) pending.push("content");
+        if (!v) pending.push("visual");
+        console.log("Gates BLOCKED:" + (c ? "" : " content") + (v ? "" : " visual"));
+        exitCliError(
+          {
+            code: CLI_ERROR_CODES.GATE_BLOCKED,
+            message: `Gates blocked: ${pending.join(", ")}`,
+            hint: `Pending gate(s): ${pending.join(", ")}. Run approve for each, or --waive if intentional.`,
+            where: "ppt_flow.state.check-gates",
+          },
+          1
+        );
+      }
+      if (opts.json) {
+        console.log(JSON.stringify(s, null, 2));
+        return;
+      }
+      console.log("Playbook: " + (s.playbook || "(none)"));
+      console.log("Current:  " + (getCurrentNode(s) || "(none)"));
+      console.log("Done:     " + getCompletedNodes(s).join(", "));
+      console.log("Pending:  " + getPendingNodes(s).join(", "));
+      console.log(
+        "Gates:    content=" +
+          (s.gates?.content || "pending") +
+          " visual=" +
+          (s.gates?.visual || "pending")
+      );
+    });
+
+  try {
+    await program.parseAsync(process.argv);
+  } catch (err) {
+    if (
+      err?.code === "commander.helpDisplayed" ||
+      err?.code === "commander.versionDisplayed"
+    ) {
+      process.exit(0);
+    }
+    const message = err?.message || String(err);
+    console.error(`✗ ${message}`);
+    exitCliError(
+      {
+        code: CLI_ERROR_CODES.USAGE,
+        message,
+        hint: "Run with --help for usage",
+        where: "ppt_flow.main",
+      },
+      typeof err?.exitCode === "number" && err.exitCode !== 0 ? err.exitCode : 1
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1361,30 +1489,15 @@ const isMain =
 if (isMain) {
   main().catch((err) => {
     console.error(`✗ Fatal error: ${err.message}`);
-    process.exit(1);
+    exitCliError(
+      {
+        code: CLI_ERROR_CODES.UNCAUGHT,
+        message: err.message || String(err),
+        hint: "Unexpected failure — check stack and re-run",
+        where: "ppt_flow.main",
+        stack: err.stack,
+      },
+      1
+    );
   });
 }
-
-// state command
-program.command('state')
-  .argument('<runDir>', 'Path to version directory')
-  .option('--json', 'JSON output')
-  .option('--check-gates', 'Verify gates for Stage 2 readiness')
-  .action(async (runDir, opts) => {
-    const { readState, getCurrentNode, getCompletedNodes, getPendingNodes, isGateApproved, statePath } = await import('./lib/state.mjs');
-    const deckDir = join(runDir, '..', '..');
-    const s = readState(deckDir);
-    if (s.corrupted) { console.error('State corrupted:', s.errors); process.exit(2); }
-    if (opts.checkGates) {
-      const c = isGateApproved(s, 'content'), v = isGateApproved(s, 'visual');
-      if (c && v) { console.log('Gates OK'); process.exit(0); }
-      else { console.log('Gates BLOCKED:' + (c?'':' content') + (v?'':' visual')); process.exit(1); }
-    }
-    if (opts.json) { console.log(JSON.stringify(s, null, 2)); return; }
-    console.log('Playbook: ' + (s.playbook || '(none)'));
-    console.log('Current:  ' + (getCurrentNode(s) || '(none)'));
-    console.log('Done:     ' + getCompletedNodes(s).join(', '));
-    console.log('Pending:  ' + getPendingNodes(s).join(', '));
-    console.log('Gates:    content=' + (s.gates?.content||'pending') + ' visual=' + (s.gates?.visual||'pending'));
-  });
-

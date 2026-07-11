@@ -19,10 +19,10 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 |----|------|-------|
 | [BUG-001](BUG-001-main-specs-stored-in-delta-format.md) | 2026-07-11 | 15/16 主 spec 存成 delta 格式，`openspec validate --specs` 系统性失败 |
 | [BUG-002](BUG-002-framework-docs-still-say-run-bundle-state.md) | 2026-07-11 | 框架方法论文档仍写 `run-bundle-state.yaml`，与 `_state/` 代码/spec 漂移 |
+| [BUG-003](BUG-003-ppt-flow-frozen-style-presets-sort.md) | 2026-07-11 | `ppt_flow.mjs` 对冻结 `STYLE_PRESETS` 原地 `.sort()`，启动即崩 |
+| [BUG-004](BUG-004-ppt-flow-state-command-registered-outside-main.md) | 2026-07-11 | `state` 在 `main()` 外注册，`program is not defined` |
 
 **Next available bug ID: BUG-005**
-
-> BUG-003 / BUG-004 已分配给活跃 bug（见 [`../../bugs/`](../../bugs/)），尚未修复。故下一个可用编号从 BUG-005 起。
 
 ---
 

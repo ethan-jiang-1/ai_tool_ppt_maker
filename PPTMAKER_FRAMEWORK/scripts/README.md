@@ -6,7 +6,7 @@
 
 | 脚本 | 用途 | 调用 |
 |------|------|------|
-| `ppt_flow.mjs` | CLI 命令面 (11 个命令) | `node scripts/ppt_flow.mjs <command>` |
+| `ppt_flow.mjs` | CLI 命令面 (12 个命令) | `node scripts/ppt_flow.mjs <command>` |
 | `bundle_layout.mjs` | 目录结构 SSOT | `node scripts/bundle_layout.mjs [--init\|--check\|--self-check]` |
 
 ## 生产管线

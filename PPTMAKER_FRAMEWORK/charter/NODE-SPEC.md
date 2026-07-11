@@ -117,8 +117,8 @@ includes: [classify-change]
 
 - **MD → CLI**: Agent 执行 CLI step 前, 确保 `entry` 条件满足. 将 `_state/state.yaml` 路径传给脚本
 - **CLI → MD（成功）**: 脚本执行后写 state (node status, 产出物路径, 时间戳). exit 0
-- **CLI → MD（失败 · 宪法）**: entry 不满足、参数非法、未捕获异常等硬失败 → **非零 exit + 一条 JSON envelope**
-  （`ok:false`, 稳定 `code`, `message`, `hint`, `where`）。MD Controller / agent 必须能立刻识别错因并修复。
+- **CLI → MD（失败 · 宪法）**: entry 不满足、参数非法、未捕获异常等硬失败 → **非零 exit + stderr 最后一个非空行为单行 JSON envelope**
+  （`ok:false`, 稳定 `code`, `message`, `hint`, `where`）。MD Controller / agent 取末非空行 `JSON.parse`，按 `code`/`hint` 修复。
   禁止仅打印散文 `Fatal error` 致盲。权威: `charter/CONSTITUTION.md`「CLI 失败回执宪法」。
 - **State 读写**: 写操作只更新自己负责的字段. 读操作前先加载最新 state
 
