@@ -24,4 +24,4 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 
 **Next available plan ID: CLS-003**
 
-> Change 1 已 archive。Change 2 前景：`guard-offpath-migrate-import-ux`（旁路迁移/导入 UX 护栏）。
+> Change 1 / Change 2 均已 archive。无活跃旁路/协议 change。

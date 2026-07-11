@@ -27,6 +27,17 @@
 | "内容有了，先出 3 页典型页看看效果" | `quick-preview` | 须 gates 已批；contact sheet |
 | "先预览一下再决定要不要全量" | `quick-preview` | PROCEED 再 build |
 
+## 旁路 / 迁移
+
+> 已有 deck、旧布局、或外部素材要迁进本框架宪法树——**不是**从零 `create-deck`，也**不能**跳过 show/gate。
+> 全程遵守 AGENT_CONTRACT §11。迁法在 playbook 里以 A/B/C 候选让用户认。
+
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "把已有的 deck 迁到新框架" | `migrate-import` | 对齐目录 + 早期 show + 重申闸门 |
+| "导入以前的 PPT/素材进这个项目" | `migrate-import` | 同上 |
+| "旧版 run bundle 要升到三层结构" | `migrate-import` | 映射旧路径；禁止静默裸奔 |
+
 ## 迭代打磨
 
 | 用户说 | Playbook | 入口参数 |

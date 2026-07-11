@@ -26,7 +26,10 @@
 | # | Change 名 | 状态 |
 |---|-----------|------|
 | 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** → `openspec/changes/archive/2026-07-11-…` |
-| 2 | `guard-offpath-migrate-import-ux` | **当前前景** → `openspec/changes/guard-offpath-migrate-import-ux/`（proposed，待打磨/apply） |
+| 2 | `guard-offpath-migrate-import-ux` | **已 archive** → `openspec/changes/archive/2026-07-11-guard-offpath-migrate-import-ux/` |
+
+_无活跃 OpenSpec change。_
+
 
 **Next available plan ID: CLS-003**（移入 `_closed_plans/` 时分配；CLS-001/002 已用）
 

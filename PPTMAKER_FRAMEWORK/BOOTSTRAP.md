@@ -27,6 +27,10 @@ agent_action: read_first
 
 审 `style_master.jpg`、pilot contact sheet（及同类视觉 review）并请用户批准/继续之前，Agent **必须**用环境能力打开/展示真实文件。文件已在盘上时，**禁止**只用文字描述外观。pre-key 尚无图：可用 preset 说明或母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
 
+### 已有 deck / 素材要迁入？
+
+不要当「特殊通道」跳过 show 与闸门。走 [COMMANDS.md](COMMANDS.md)「旁路 / 迁移」→ playbook `migrate-import`（方法论：`workflow/00-setup/05-migrate-import-existing-deck.md`）。全程遵守 AGENT_CONTRACT §11。
+
 ## ⚖️ 目录结构是宪法（不可临场发挥）
 
 run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源是
