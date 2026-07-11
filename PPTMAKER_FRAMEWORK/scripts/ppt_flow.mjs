@@ -1408,12 +1408,14 @@ Examples:
           {
             code: CLI_ERROR_CODES.STATE_CORRUPTED,
             message: `State corrupted: ${(s.errors || []).join("; ") || "unknown"}`,
-            hint: "Repair or regenerate _state/state.yaml, then re-run state",
+            hint: "Re-run with a healable file, or delete _state/state.yaml and re-init; see CONSTITUTION MD↔JS heal",
             where: "ppt_flow.state",
           },
           2
         );
       }
+      const healed = !!s._healed;
+      if (healed) delete s._healed;
       if (opts.checkGates) {
         const c = isGateApproved(s, "content");
         const v = isGateApproved(s, "visual");
@@ -1436,9 +1438,11 @@ Examples:
         );
       }
       if (opts.json) {
+        if (healed) s.healed = true;
         console.log(JSON.stringify(s, null, 2));
         return;
       }
+      if (healed) console.log("Note:     state.yaml was auto-tidied (heal)");
       console.log("Playbook: " + (s.playbook || "(none)"));
       console.log("Current:  " + (getCurrentNode(s) || "(none)"));
       console.log("Done:     " + getCompletedNodes(s).join(", "));

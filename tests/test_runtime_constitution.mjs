@@ -54,16 +54,20 @@ describe('runtime constitution — Node only', () => {
     expect(constitution).toMatch(/运行时宪法/);
     expect(constitution).toMatch(/唯一允许的可执行代码形态：Node\.js ESM/);
     expect(constitution).toMatch(/外部 agent skill/);
+    expect(constitution).toMatch(/MD↔JS 互补健壮性/);
+    expect(constitution).toMatch(/`yaml`/);
 
     const contract = readFileSync('PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md', 'utf-8');
     expect(contract).toMatch(/运行时只有 Node/);
     expect(contract).toMatch(/stage2_generate_images\.mjs/);
+    expect(contract).toMatch(/先 heal/);
     expect(contract).not.toMatch(/image2-ppt\/scripts\/generate_full_page_images\.py/);
 
     const cfg = readFileSync('openspec/config.yaml', 'utf-8');
     expect(cfg).toMatch(/运行时铁律/);
     expect(cfg).toMatch(/绝对禁止/);
     expect(cfg).toMatch(/stage2_generate_images\.mjs/);
+    expect(cfg).toMatch(/yaml/);
   });
 
   it('env-check reports in-framework stage2_generator as ok', () => {

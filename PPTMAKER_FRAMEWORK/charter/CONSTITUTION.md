@@ -20,7 +20,7 @@
 | 外部 agent skill（「拜师」：`.claude/skills` / `.agents/skills` 作为生产依赖） | 跨平台 / 跨 agent 发现路径不一致，冷启动不可复现 |
 | 任何非 Node 子进程作为 Stage 官方路径 | 破坏单一运行时 |
 
-**允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
+**允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`、`yaml`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
 
 Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts/` 内实现，不发现、不依赖外部 skill。
 
@@ -49,6 +49,21 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 ```
 
 权威交叉引用：`openspec/config.yaml`（运行时铁律）· `charter/NODE-SPEC.md`（CLI ⇔ MD 协议）· capability `cli-surface`。
+
+## MD↔JS 互补健壮性（Agentic 双轨 · 不可违反）
+
+**MD/Agent 聪明但糊糊实实；JS/CLI 精准但笨。** 理想配合：模糊侧推进意图，精准侧修格式与契约。
+
+| 要求 | 说明 |
+|------|------|
+| **读容错** | 状态/压模上的小格式瑕疵（缺标点、类型不对、空 mapping 当数组等）优先由精准侧确定性自愈 |
+| **写洗净** | 自愈或成功读写后，磁盘上的 YAML/JSON 须是规范输出，避免 MD 在脏文件上越改越错 |
+| **先修后问** | MD/Agent 发现坏 state / 坏压模 → 先 heal 或重写合法文件再继续；禁止把「去修语法」当作小白的下一步 |
+| **真不可恢复才回执** | 仍走 CLI JSON envelope（见上节）；可恢复的格式问题应先修再走 |
+
+样板实现：`scripts/lib/state.mjs` 对 `_state/state.yaml`。同一原则可扩到其他压模，但不要求一次做完。
+
+权威交叉引用：`charter/NODE-SPEC.md`（SAFETY）· `charter/AGENT_CONTRACT.md` §7 · capability `node-specification` / `framework-charter`。
 
 ## 权威树 (快照)
 

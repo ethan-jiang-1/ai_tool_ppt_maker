@@ -310,9 +310,19 @@ describe('State Machine: corrupted state', () => {
   beforeEach(() => { deckDir = makeDeck(); });
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
-  it('returns corrupted on bad YAML', () => {
-    mkdirSync(dirname(statePath(deckDir)), { recursive: true }); writeFileSync(statePath(deckDir), '{{{bad yaml:::');
+  it('heals bad YAML into usable state by default', () => {
+    mkdirSync(dirname(statePath(deckDir)), { recursive: true });
+    writeFileSync(statePath(deckDir), '][}{');
     const s = readState(deckDir);
+    expect(s.corrupted).toBeFalsy();
+    expect(s.nodes).toBeDefined();
+    expect(Array.isArray(s.playbook_stack)).toBe(true);
+  });
+
+  it('returns corrupted on bad YAML when heal:false', () => {
+    mkdirSync(dirname(statePath(deckDir)), { recursive: true });
+    writeFileSync(statePath(deckDir), '][}{');
+    const s = readState(deckDir, { heal: false });
     expect(s.corrupted).toBe(true);
     expect(s.errors.length).toBeGreaterThan(0);
   });

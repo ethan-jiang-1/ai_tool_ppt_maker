@@ -17,7 +17,7 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| [BUG-007](BUG-007-state-yaml-no-array-playbook-stack-roundtrip.md) | P1 | state.mjs 的 YAML 不支持数组，`playbook_stack` 往返即坏 → `switchPlaybook`/`resumePlaybook` 崩（正好在 migrate-import 切 iterate-style 的必经路径上） |
+| _(无)_ | — | — |
 
 **Next available bug ID: BUG-008**
 
