@@ -6,9 +6,9 @@
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
 playbook: migrate-import
-current_node: handoff
+current_node: iterate_style
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-11T03:45:13.775Z
+updated_at: 2026-07-11T04:43:08.749Z
 nodes:
   intake-source:
     status: completed
@@ -31,6 +31,10 @@ nodes:
     completed: 2026-07-11T03:45:13.775Z
     next: quick-preview or edit-*; build only if regenerating pptx
     note: Aligned to current framework; migrated pptx retained
+  iterate_style:
+    status: in_progress
+    started: 2026-07-11T04:43:08.744Z
+    round: 1
 gates:
   content: approved
   visual: approved

@@ -1,6 +1,6 @@
 ## Purpose
 
-Define `bundle_layout.mjs` as the single source of truth for run-bundle directory structure — including the execution-state directory `_state/` and the operational-learning surface `_learning/` at the deck root — and the CLI modes `--init` (scaffold), `--check` (validate against a whitelist), `--new-version` (create a clean downstream version), and `--self-check` (drift alarm for CI). This capability guarantees that run bundles have one authoritative, machine-enforced layout with discoverable progress state and purpose-stated learning surface, so directory drift is caught rather than silently tolerated.
+Define `bundle_layout.mjs` as the single source of truth for run-bundle directory structure — including the execution-state directory `_state/` and the self-retained lessons surface `_lessons/` at the deck root — and the CLI modes `--init` (scaffold), `--check` (validate against a whitelist), `--new-version` (create a clean downstream version), and `--self-check` (drift alarm for CI). This capability guarantees that run bundles have one authoritative, machine-enforced layout with discoverable progress state and purpose-stated lessons surface, so directory drift is caught rather than silently tolerated.
 
 ## Requirements
 
@@ -63,44 +63,48 @@ The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml
 - **WHEN** a new bundle is initialized
 - **THEN** `project-metadata.yaml` contains a `#` comment that mentions `_state`
 
-### Requirement: Run bundle includes _learning/ with purpose-stated README
+### Requirement: Run bundle includes _lessons/ with purpose-stated README
 
-`bundle_layout.mjs` SHALL treat `deck_*/_learning/` as a canonical deck-root directory whose **single purpose** is: this deck's **non-secret operational lessons** (read-before-guess)—not playbook progress, not secrets, not materials or `_generated/` outputs.
+`bundle_layout.mjs` SHALL treat `deck_*/_lessons/` as the canonical deck-root **self-retained lessons** directory (replacing the former `_learning/` name). Its **single purpose** is: non-secret lessons retained after the agent (or maintainer) **probes and overcomes** difficulties—so the next session **reads before guessing**. It is not playbook progress, not secrets, not materials or `_generated/` outputs. Image2/env receipts are **examples**, not the definition of the directory. Leaving a successful fix only in chat SHALL be incomplete relative to this purpose.
 
-`initBundle` SHALL create `_learning/` and seed `_learning/README.md` from a Framework-owned constant (same pattern as `_state/README` via `STATE_DIR_README`). That README SHALL explicitly include, in Chinese voice consistent with other dir READMEs:
+`initBundle` SHALL create `_lessons/` and seed `_lessons/README.md` from Framework constant `LESSONS_DIR_README` (same pattern as `STATE_DIR_README`). That README SHALL include, in Chinese voice consistent with other dir READMEs:
 
-- **这里放什么:** 本 deck 操作中试出来的、可复用的非密钥经验；下次 Agent/人先读再猜  
-- **不放什么:** 密钥（→`.env`）、playbook 进度（→`_state/`）、素材、生成物  
-- **谁读写:** Agent（代表本 bundle）  
-- **约定文件:** `image2-proven.yaml`（Image2 冒烟试通回执；无 API key 字段）  
-- 禁止把密钥写入本目录  
+- **这里放什么:** 克服困难后可复用的非密钥教训；先读再猜；禁止只留聊天  
+- **闭环:** 试通或修好之后必须留下，避免下一轮失忆  
+- **不放什么:** 密钥（→`.env`）、进度（→`_state/`）、素材、生成物、无复用吐槽  
+- **谁读写:** Agent（编排器）/ 维护者；Framework 只定规矩  
+- **怎么写（规矩）:** 一题一文；`kebab-case` 文件名；四问（遇到什么/怎么试的/结论/下次先看哪）；修好就留；禁密钥；`.md` 或 `.yaml`  
+- **打个比方:** 非绑定例子，并声明不是目录清单  
+- 禁止 API key  
 
-The human-readable tree (`renderTree` / CONSTITUTION snapshot) SHALL list `_learning/` **with a purpose annotation**. Deck-root `README.md` template SHALL list `_learning/` with the same purpose (not a bare name). `deck-guide` / `template-deck-guide` MAY mention `_learning/` only as operational lessons—**not** inside the playbook-progress (`_state`) guidance block. Structure checks SHALL allow `_learning/` at deck root. Absence of `_learning/` on a legacy deck SHALL NOT by itself fail `--check --structure-only`. `selfCheck()` SHALL fail if `renderTree()` omits `_learning`.
+Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `renderTree` / CONSTITUTION snapshot SHALL list `_lessons/` with a purpose annotation and SHALL NOT present a single domain file as the sole canonical child. Deck-root `README.md` template SHALL list `_lessons/` with the same purpose. `deck-guide` / `template-deck-guide` MAY mention `_lessons/` only as retained lessons—**not** inside the `_state` progress block. Structure checks SHALL allow `_lessons/` at deck root. Absence of `_lessons/` on a legacy deck SHALL NOT by itself fail `--check --structure-only`. `selfCheck()` SHALL fail if `renderTree()` omits `_lessons`.
 
-#### Scenario: Init seeds purpose-stated learning README
+#### Scenario: Init seeds _lessons README with writing rules
 
 - **WHEN** `ppt_flow init` (or `initBundle`) creates a new deck
-- **THEN** `deck_*/_learning/README.md` exists
-- **AND** the README contains an explicit 这里放什么 (or equivalent) purpose statement for non-secret operational lessons
-- **AND** the README states the no-secrets rule and points at `image2-proven.yaml` as the Image2 receipt filename
+- **THEN** `deck_*/_lessons/README.md` exists
+- **AND** the README states 这里放什么 for retained non-secret lessons
+- **AND** the README states writing rules (one-lesson-one-file, no-secrets)
+- **AND** Image2/env mentions are examples only
 
-#### Scenario: Tree and deck README annotate purpose
+#### Scenario: Tree and deck README annotate _lessons purpose
 
-- **WHEN** Agent inspects `renderTree()` output or a newly inited deck-root `README.md`
-- **THEN** `_learning/` appears with a short purpose annotation (operational lessons / non-secret), not only the folder name
+- **WHEN** Agent inspects `renderTree()` or a newly inited deck-root `README.md`
+- **THEN** `_lessons/` appears with a purpose annotation (retained lessons / read-before-guess)
+- **AND** the tree does not imply the directory exists only for `image2-proven.yaml`
 
-#### Scenario: Structure check allows _learning; legacy absence soft
+#### Scenario: Structure check allows _lessons; legacy absence soft
 
-- **WHEN** a deck has `_learning/` at the deck root
+- **WHEN** a deck has `_lessons/` at the deck root
 - **AND** `bundle_layout --check … --structure-only` runs
-- **THEN** `_learning/` is not reported as an unexpected path
+- **THEN** `_lessons/` is not reported as unexpected
 
-- **WHEN** a legacy deck lacks `_learning/`
+- **WHEN** a legacy deck lacks `_lessons/`
 - **AND** `--check --structure-only` runs
-- **THEN** absence of `_learning/` alone does not fail the check
+- **THEN** absence of `_lessons/` alone does not fail the check
 
-#### Scenario: selfCheck requires _learning in renderTree
+#### Scenario: selfCheck requires _lessons in renderTree
 
 - **WHEN** `bundle_layout --self-check` runs
-- **AND** `renderTree()` omits `_learning`
+- **AND** `renderTree()` omits `_lessons`
 - **THEN** self-check fails

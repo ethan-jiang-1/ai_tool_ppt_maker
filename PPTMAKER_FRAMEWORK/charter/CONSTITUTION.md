@@ -65,17 +65,23 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 
 权威交叉引用：`charter/NODE-SPEC.md`（SAFETY）· `charter/AGENT_CONTRACT.md` §7 · capability `node-specification` / `framework-charter`。
 
-## Run bundle 自学习面（`_learning/` · 不可空挂目录名）
+## Run bundle 自留教训面（`_lessons/` · Agent workflow 闭环 · 不可空挂目录名）
 
-**唯一职责：** 本 deck 在操作中试出来的、可复用的**非密钥**经验。下次 Agent/人进 deck：**先读这里再猜**，禁止只把经验留在聊天里。
+这是 **Agent workflow** 的暗示与约定：编排器会自我琢磨、自我试探、**自己克服困难**；修好之后必须把**非密钥**教训留在本 run bundle，下次**先读再猜**——禁止只留在聊天里导致失忆。
+
+**闭环：**
+
+```
+遇事 → 琢磨/试探 → 自己克服 → 写入 _lessons/ → 下次先读再猜
+```
 
 | 面 | 放什么 | 不放什么 |
 |----|--------|----------|
-| `.env` | 密钥与生效凭据（机器加载） | 操作笔记 |
-| `_learning/` | 非密钥操作经验（人/Agent 可读；约定文件如 `image2-proven.yaml`） | 密钥、playbook 进度、素材、生成物 |
-| `_state/` | playbook 执行进度 | 学习笔记 |
+| `.env` | 密钥与生效凭据（机器加载） | 教训笔记 |
+| `_lessons/` | 克服困难后留下的非密钥教训（按 README 规矩一题一文；例：`image2-proven.yaml`） | 密钥、playbook 进度、素材、生成物 |
+| `_state/` | playbook 执行进度 | 教训笔记 |
 
-**Framework 只约定**路径、职责、禁止项；**每个 run bundle 自己积累**内容。Framework 树不替各 deck 存 endpoint 经验。
+**Framework 只约定**路径、闭环、写条目规矩、禁止项；**每个 run bundle 自己积累**内容。写条目规矩见 init 种子 `_lessons/README.md`（与 `LESSONS_DIR_README` 同源）。
 
 ## 权威树 (快照)
 
@@ -87,9 +93,9 @@ deck_{NAME}/
 ├── _state/                           ← playbook execution progress (not material)
 │   ├── state.yaml                    ← truth source (atomic write)
 │   └── history.jsonl                 ← append-only reference log (created on demand)
-├── _learning/                        ← non-secret operational lessons (read-before-guess; not secrets / not progress)
-│   ├── README.md                     ← 这里放什么 / 不放什么（仿 _state README）
-│   └── image2-proven.yaml            ← Image2 smoke receipt when proven (no API key)
+├── _lessons/                         ← retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
+│   ├── README.md                     ← 这里放什么 / 闭环 / 怎么写
+│   └── *.md | *.yaml                 ← one lesson per file (e.g. image2-proven.yaml)
 │
 ├── 1_upstream_raw_material/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │
