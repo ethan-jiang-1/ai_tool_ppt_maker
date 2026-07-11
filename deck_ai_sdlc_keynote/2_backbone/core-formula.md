@@ -15,7 +15,7 @@
 | **人定义边界** | Framed Autonomy：人设定 frame，AI 在框内自主 | Deer Valley → Engelberg；Dagstuhl APM Manifesto（18 位作者） |
 | **AI 自主执行** | Fable 5 级别的自主性：从「操作工具」到「委托任务」 | Mollick「I commission」；Krieger「wake up to find it done」 |
 | **共享 Agent 基础设施** | Claude Code / Codex 同一套引擎同时用于 coding + office | 飞书 CLI 化；Nadella「Agent 需要 Office」 |
-| **= 组织重构** | 中层消失、角色重写、金字塔变平 | Block 砍 40%；Cloudflare 精准置换 20%；Three-Tier Developer Split |
+| **= 组织重构** | 中层消失、角色重写、金字塔变平 | Block 重定义三角色(IC/DRI/Player-Coach)；Cloudflare 重定义三种人(Builder/Seller/Measurer)；Three-Tier Developer Split |
 
 ## 怎么证伪这个公式
 

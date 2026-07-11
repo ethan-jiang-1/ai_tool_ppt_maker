@@ -40,19 +40,16 @@
  *             ├── slide-specifications.md  per-slide 4-layer specs (pipeline input)
  *             ├── overrides/               only what THIS version changes vs backbone
  *             │   └── visual-style/ · manuscript/
- *             └── _generated/              GENERATED · never hand-edit · rm -rf & rerun
- *                 ├── slide_plan.json
- *                 ├── page_prompts/{NN_id.prompt.md, _prompts.json}
- *                 ├── page_images_full/{NN_id.png, NN_id.apimart-task.json}
- *                 ├── header_locked/NN_id.png
- *                 ├── ppt/<name>.pptx (+ .backup.pptx)
- *                 ├── qa/
- *                 └── preview/contact_sheet.jpg
+ *             ├── _generated/              GENERATED · never hand-edit · rm -rf & rerun
+ *             └── _scratch/                THIS version temp/bak only · not SSOT · deletable
+ *
+ * Strictness gradient (constitutional): deck root strictest → mid tiers whitelist →
+ * version leaf looser → _scratch internals loosest. Do not dump bak at deck root.
  *
  * Rules encoded here:
  * - A "version" (deck_<name>/3_versions/vN) is the DOWNSTREAM delta only. Create one
  *   with `--new-version`; it copies slide-specifications.md + overrides/ but never
- *   `_generated/`. Backbone & upstream are referenced, never copied.
+ *   `_generated/` or `_scratch/` contents. Backbone & upstream are referenced, never copied.
  * - Override precedence: for any backbone asset, a version's overrides/<relpath> wins
  *   if present, else the backbone default is used (see resolveBackboneAsset).
  * - Deck name (for the .pptx) derives from the deck root dir, two levels above a version.
@@ -136,6 +133,50 @@ export const SLIDE_SPECS_NAME = 'slide-specifications.md';
 export const SLIDE_SPECS_GLOB = 'slide-specifications*.md';
 export const OVERRIDES_SUBDIR = 'overrides';
 export const GENERATED_SUBDIR = '_generated';
+/** Version-local temp/bak outlet (upper-strict / lower-loose leaf). */
+export const SCRATCH_SUBDIR = '_scratch';
+
+export const VERSION_SUBDIRS = Object.freeze([
+  OVERRIDES_SUBDIR,
+  GENERATED_SUBDIR,
+  SCRATCH_SUBDIR,
+]);
+
+/** Canonical README for version `_scratch/` (Chinese). */
+export const SCRATCH_DIR_README = `\
+# 本版临时区 (_scratch)
+
+**宪章：上严下松。** run bundle **根最严**；越往下越松；这里是本版**最松**的官方出口。
+
+**这里放什么:** 仅属**这一版**的临时拷贝——改 \`slide-specifications.md\` 前的 \`.bak\`、对照稿、一次性草稿。不是真相源，可随时删。
+
+**不放什么 / 去哪放:**
+| 东西 | 放哪 |
+|------|------|
+| style master 被拒轮次 | \`1_upstream_raw_material/style-master-iterations/\` |
+| 管线产物 / pptx.backup | \`_generated/\` |
+| 克服困难后的教训 | \`_lessons/\` |
+| playbook 断点 | \`_state/\` |
+
+**禁止:** 自创 \`_tmp/\` · \`backup/\` · \`_bak/\`；把 bak 丢到 **deck 根** 或 \`2_backbone/\`。
+`;
+
+/** Deck-root allowed names (strictest layer). Dotfiles handled by _ignorable. */
+export const DECK_ROOT_ALLOWED = new Set([
+  'deck-guide.md',
+  'CLAUDE.md',
+  'project-metadata.yaml',
+  'README.md',
+  'MIGRATION.md',
+  '.gitignore',
+  '.env',
+  '.env.example',
+  UPSTREAM_DIR,
+  BACKBONE_DIR,
+  VERSIONS_DIR,
+  STATE_DIR,
+  LESSONS_DIR,
+]);
 
 // ---------------------------------------------------------------------------
 // --- Inside a version's _generated/ ----------------------------------------
@@ -172,8 +213,6 @@ export const VISUAL_STYLE_OPTIONAL = new Set([
     'visual-style.md',
     'style_master' + IMAGE_TRACE_SUFFIX,
 ]);
-
-export const VERSION_SUBDIRS = Object.freeze([OVERRIDES_SUBDIR, GENERATED_SUBDIR]);
 
 const _ALLOWED_IN_BACKBONE = new Set([
     ...Object.keys(BACKBONE_FILE_SEEDS),
@@ -338,6 +377,17 @@ export function checkBundle(runDir, requirePipelineReady = true) {
 
     const root = deckRoot(runDir);
 
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (_ignorable(entry.name)) continue;
+        if (!DECK_ROOT_ALLOWED.has(entry.name)) {
+            problems.push(
+                `unexpected '${entry.name}' at deck root — root is the strictest layer (上严下松). ` +
+                `Allowed: ${[...DECK_ROOT_ALLOWED].sort().join(', ')}. ` +
+                `Version temp/bak → ${VERSIONS_DIR}/v{n}/${SCRATCH_SUBDIR}/; do not litter the deck root.`
+            );
+        }
+    }
+
     for (const requiredFile of [GUIDE_FILE, POINTER_FILE, METADATA_FILE]) {
         const fp = path.join(root, requiredFile);
         if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) {
@@ -394,14 +444,20 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         const name = entry.name;
         if (_ignorable(name)) continue;
         const isSlideSpec = entry.isFile() && name.startsWith('slide-specifications') && name.endsWith('.md');
-        if (isSlideSpec || name === OVERRIDES_SUBDIR || name === GENERATED_SUBDIR || name === 'README.md') {
+        if (
+            isSlideSpec ||
+            name === OVERRIDES_SUBDIR ||
+            name === GENERATED_SUBDIR ||
+            name === SCRATCH_SUBDIR ||
+            name === 'README.md'
+        ) {
             continue;
         }
         problems.push(
             `unexpected '${name}' at version root — not part of the canonical structure. ` +
             `A version holds only: slide-specifications.md, ${OVERRIDES_SUBDIR}/, ` +
-            `${GENERATED_SUBDIR}/, README.md. Sources live in ${BACKBONE_DIR}/ (deck root); ` +
-            `generated artifacts live under ${GENERATED_SUBDIR}/. Do not improvise.`);
+            `${GENERATED_SUBDIR}/, ${SCRATCH_SUBDIR}/, README.md. Sources live in ${BACKBONE_DIR}/ (deck root); ` +
+            `temp/bak → ${SCRATCH_SUBDIR}/; generated → ${GENERATED_SUBDIR}/. Do not improvise.`);
     }
 
     if (fs.existsSync(bbPath) && fs.statSync(bbPath).isDirectory()) {
@@ -521,11 +577,15 @@ export function createVersion(sourceRunDir, versionName = null) {
         path.join(generated, 'README.md'),
         '# 派生品(_generated)——别手改\n\n' +
         '这是一个干净的新版本。管线产物会在首次运行时写到这里。\n');
+    const scratch = path.join(target, SCRATCH_SUBDIR);
+    fs.mkdirSync(scratch, { recursive: true });
+    _writeIfAbsent(path.join(scratch, 'README.md'), SCRATCH_DIR_README);
     _writeIfAbsent(
         path.join(target, 'README.md'),
         `# 这一版(${versionName})\n\n` +
         `源自 \`${path.basename(sourceRunDir)}\`，只复制了 \`${SLIDE_SPECS_NAME}\` + \`${OVERRIDES_SUBDIR}/\`。\n` +
-        `\`${GENERATED_SUBDIR}/\` 是干净的，旧版本图片/PPTX 没有复制过来。\n`);
+        `\`${GENERATED_SUBDIR}/\` 与 \`${SCRATCH_SUBDIR}/\` 是干净的（旧版临时 bak 不拷贝）。\n` +
+        `临时/备份只放 \`${SCRATCH_SUBDIR}/\`（上严下松）。\n`);
     return target;
 }
 
@@ -543,10 +603,14 @@ const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
         '先读 **deck-guide.md**（进来先看那个）。\n\n' +
-        '这个文件夹分三层 + 执行状态 + 自留教训:\n' +
+        '**上严下松（structure gradient）：** deck 根最严；临时/`.bak` 往下沉，' +
+        '只放 `3_versions/v{n}/_scratch/`——别丢到根、别自创 `_tmp/`/`backup/`。' +
+        '不知往哪放 → GREP → `PPTMAKER_FRAMEWORK/reference/glossary.md` Where Map。\n\n' +
+        '这个文件夹分三层 + 执行状态 + 自留教训 + 版本临时:\n' +
         '- `1_upstream_raw_material/` — 原始素材、调研(你往里堆资料)\n' +
         '- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n' +
         '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n' +
+        '  - 每版还有 `_generated/`（派生）和 `_scratch/`（本版临时/bak）\n' +
         '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n' +
         '- `_lessons/` — 遇事克服后留下的**非密钥**教训（先读再猜；见里面的 README）\n\n' +
         '**只改带 README 说\'你改这里\'的文件。** 结构由 ' +
@@ -589,13 +653,15 @@ const _DIR_READMES = {
         '# 下游:版本\n\n' +
         '**这里放什么:** 每个版本一个子目录(`v1/`、`v2/`…)。版本就是在这一层切的。\n' +
         '**你做什么:** 在 `v1/` 里改 slide、生成 PPT。要留档就用 ' +
-        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/`。\n'
+        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/` ' +
+        '或 `_scratch/` 内容（新版是干净临时区）。\n'
     ),
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +
         '**你改这两处:**\n' +
         '- `slide-specifications.md` — 每一页讲什么(标题、要点、画面描述、render mode)\n' +
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
+        '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
         '**生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:\n' +
         '`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <这个版本目录>`\n' +
@@ -614,6 +680,7 @@ const _DIR_READMES = {
         '**不要手改任何东西**——改源文件(slide-specifications.md / backbone)后重跑管线,这里会被覆盖重建。\n' +
         '整个目录可以 `rm -rf` 掉,需要时从源文件重新生成。\n'
     ),
+    [`${VERSIONS_DIR}/v1/${SCRATCH_SUBDIR}`]: SCRATCH_DIR_README,
 };
 
 export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
@@ -760,7 +827,10 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +
         '# generated artifacts (regenerable from source)\n' +
-        `${VERSIONS_DIR}/*/${GENERATED_SUBDIR}/\n`);
+        `${VERSIONS_DIR}/*/${GENERATED_SUBDIR}/\n` +
+        `# version temp/bak (keep README)\n` +
+        `${VERSIONS_DIR}/*/${SCRATCH_SUBDIR}/*\n` +
+        `!${VERSIONS_DIR}/*/${SCRATCH_SUBDIR}/README.md\n`);
     log.push('credentials: .env.example, .gitignore');
 
     if (!fs.existsSync(statePath(deckDir))) {
@@ -810,15 +880,16 @@ deck_\${NAME}/
     │   ├── ${OVERRIDES_SUBDIR}/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── ${BACKBONE_STYLE_SUBDIR}/           ←   (optional) this version's visual tweaks
     │   │   └── ${BACKBONE_MANUSCRIPT_SUBDIR}/               ←   (optional) this version's script tweaks
-    │   └── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │       ├── ${GEN_SLIDE_PLAN}
-    │       ├── ${GEN_PROMPTS_SUBDIR}/{NN_id.prompt.md, ${GEN_PROMPTS_JSON}}   ← one readable prompt per slide
-    │       ├── ${GEN_IMAGES_SUBDIR}/{NN_id.png, NN_id${IMAGE_TRACE_SUFFIX}}
-    │       ├── ${GEN_HEADER_LOCKED_SUBDIR}/NN_id.png
-    │       ├── ${GEN_PPT_SUBDIR}/{NAME}.pptx (+ .backup.pptx)
-    │       ├── ${GEN_QA_SUBDIR}/
-    │       └── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg
-    └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/; backbone referenced)
+    │   ├── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
+    │   │   ├── ${GEN_SLIDE_PLAN}
+    │   │   ├── ${GEN_PROMPTS_SUBDIR}/{NN_id.prompt.md, ${GEN_PROMPTS_JSON}}   ← one readable prompt per slide
+    │   │   ├── ${GEN_IMAGES_SUBDIR}/{NN_id.png, NN_id${IMAGE_TRACE_SUFFIX}}
+    │   │   ├── ${GEN_HEADER_LOCKED_SUBDIR}/NN_id.png
+    │   │   ├── ${GEN_PPT_SUBDIR}/{NAME}.pptx (+ .backup.pptx)
+    │   │   ├── ${GEN_QA_SUBDIR}/
+    │   │   └── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg
+    │   └── ${SCRATCH_SUBDIR}/                      ← THIS version temp/bak · not SSOT · deletable (上严下松 leaf)
+    └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
 }
 
@@ -860,7 +931,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

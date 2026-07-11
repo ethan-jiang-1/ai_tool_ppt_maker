@@ -30,15 +30,17 @@ agent_action: read_first
 - 校验：`--check … --structure-only`（Phase 0）/ 管线跑前自动全量 check
 - 不自创目录、不把生成物乱放
 
+**上严下松（组织层级）：** run bundle **根最严**（只许宪法级 control / 三层 / `_state` / `_lessons`）；越往下越松；版本内临时/`.bak` **只**放 `3_versions/v{n}/_scratch/`。禁止在 deck 根堆 `_slidespec.bak*`、自创 `_tmp/` / `backup/`。
+
 ## 3. 源 vs 派生
 
-| 可手改（源） | 绝不手改（派生） |
-|-------------|-----------------|
-| `2_backbone/` | `3_versions/v{n}/_generated/` |
-| `3_versions/v{n}/slide-specifications.md` | PNG / JSON / PPTX |
-| `3_versions/v{n}/overrides/` | |
+| 可手改（源） | 绝不手改（派生） | 临时（可删） |
+|-------------|-----------------|-------------|
+| `2_backbone/` | `3_versions/v{n}/_generated/` | `3_versions/v{n}/_scratch/` |
+| `3_versions/v{n}/slide-specifications.md` | PNG / JSON / PPTX | 改源前的 `.bak` / 草稿 |
+| `3_versions/v{n}/overrides/` | | |
 
-改动永远从源 markdown 开始，再重跑管线。
+改动永远从源 markdown 开始，再重跑管线。临时备份不进 `_generated/`，不进 deck 根。
 
 ## 4. Phase 顺序与闸门
 

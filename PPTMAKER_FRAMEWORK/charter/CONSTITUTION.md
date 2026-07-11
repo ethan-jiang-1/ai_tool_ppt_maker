@@ -83,6 +83,19 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 
 **Framework 只约定**路径、闭环、写条目规矩、禁止项；**每个 run bundle 自己积累**内容。写条目规矩见 init 种子 `_lessons/README.md`（与 `LESSONS_DIR_README` 同源）。
 
+## 目录严格度（上严下松 · 宪章原则）
+
+像组织层级一样：**越往上越严，越往下越松。**
+
+| 层 | 例子 | 严格度 |
+|----|------|--------|
+| 最严 | `deck_*` 根 | 只许宪法级 control 与一级目录；禁止散落 `.bak` / `_tmp` |
+| 中 | `1_upstream` / `2_backbone` | 白名单；共享稳定 |
+| 松 | `3_versions/v{n}/` 源 + `_generated/` | 本版源与管线产物 |
+| 最松 | `3_versions/v{n}/_scratch/` | 本版临时/备份官方出口；内部不抠文件名；可删 |
+
+临时东西**往下沉**进 `_scratch/`，**禁止往上逃**到 deck 根。
+
 ## 权威树 (快照)
 
 ```
@@ -117,15 +130,16 @@ deck_{NAME}/
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
-    │   └── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │       ├── slide_plan.json
-    │       ├── page_prompts/{NN_id.prompt.md, _prompts.json}
-    │       ├── page_images_full/{NN_id.png, NN_id.apimart-task.json}
-    │       ├── header_locked/NN_id.png
-    │       ├── ppt/{NAME}.pptx (+ .backup.pptx)
-    │       ├── qa/
-    │       └── preview/contact_sheet.jpg
-    └── v2/  (--new-version v1 → copies source delta only; clean _generated/; backbone referenced)
+    │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
+    │   │   ├── slide_plan.json
+    │   │   ├── page_prompts/{NN_id.prompt.md, _prompts.json}
+    │   │   ├── page_images_full/{NN_id.png, NN_id.apimart-task.json}
+    │   │   ├── header_locked/NN_id.png
+    │   │   ├── ppt/{NAME}.pptx (+ .backup.pptx)
+    │   │   ├── qa/
+    │   │   └── preview/contact_sheet.jpg
+    │   └── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
+    └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; backbone referenced)
 ```
 
 ## 三层梯度

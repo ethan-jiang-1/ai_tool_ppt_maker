@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, all lookup appendices under `reference/`, and all workflow controllers under `playbook/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure.
+Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, all lookup appendices under `reference/`, and all workflow controllers under `playbook/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure. It describes only the soft bundle `PPTMAKER_FRAMEWORK/`; run-bundle (`deck_*`) folder ontology — three tiers, `_scratch/`, `_generated/` version leaves, structure gradient — is owned by capability `run-bundle-layout` and SHALL NOT be extended here.
 
 ## Requirements
 
@@ -110,3 +110,13 @@ The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/env
 - **WHEN** `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` is run
 - **THEN** it checks fonts from `scripts/fonts/` (not `06_reference_scripts/fonts/`)
 - **AND** outputs READY/NOT READY correctly
+
+### Requirement: Soft-bundle layout does not define run-bundle trees
+
+`framework-directory-layout` SHALL describe only `PPTMAKER_FRAMEWORK/` (five type-based subdirectories and root entry markdown). It SHALL NOT define `deck_*` run-bundle tiers, `_scratch/`, `_generated/` version leaves, or run-bundle structure gradient. Run-bundle folder ontology is owned by capability `run-bundle-layout`.
+
+#### Scenario: Soft-bundle layout stays soft-bundle-only
+
+- **WHEN** a reader opens `openspec/specs/framework-directory-layout/spec.md`
+- **THEN** its requirements address `PPTMAKER_FRAMEWORK/` paths
+- **AND** do not define `deck_*/3_versions/` or version `_scratch/` as soft-bundle folders

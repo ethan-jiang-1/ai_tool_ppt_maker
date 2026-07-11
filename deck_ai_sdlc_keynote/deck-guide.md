@@ -26,6 +26,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
 
 ## 当前进度
 
+- **临时/备份（上严下松）：** `3_versions/v1/_scratch/` — slidespec `.bak` 等只放这里，禁止 deck 根
 - **断线 / 清聊天续跑：** 先跑下面 `state`（整流程 where-am-I：Summary + Next），再动手——进度在盘上，不在聊天
 - **Playbook / 闸门**：`ppt_flow state deck_ai_sdlc_keynote/3_versions/v1`
   - 活跃：`iterate-style` @ `review-gate`（`waiting_for: user:review-style-master`）

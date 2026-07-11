@@ -118,10 +118,10 @@ Phase 4: 迭代维护
 
 ### 0.2 创建 Run Bundle
 
-参考 `charter/CONSTITUTION.md`（人类可读镜像）和 `scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源**），创建以下 **run bundle**。它遵循三层分化梯度：
+参考 `charter/CONSTITUTION.md`（人类可读镜像）和 `scripts/bundle_layout.mjs`（**目录结构的唯一机器权威源** / capability **run-bundle-layout**），创建以下 **run bundle**。它遵循三层分化梯度，并遵守 **上严下松**：根最严；临时/bak 只进 `v{n}/_scratch/`。不知往哪放 → GREP → [`reference/glossary.md`](reference/glossary.md) **Where Map**。
 
 ```
-deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留）
+deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留）· 根最严
   ├── deck-guide.md              ← 进目录先读（控制流护栏）
   ├── CLAUDE.md                  ← 一行指针 → deck-guide.md
   ├── _state/                    ← playbook 执行进度（state.yaml）
@@ -133,10 +133,11 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
         └── v1/                  ← 一次设计迭代（= --run-dir）
               ├── slide-specifications.md  ← 【源】每页规格（你改）
               ├── overrides/              ← 【源】这版偏离 backbone 的东西（空=全继承）
-              └── _generated/            ← 【派生】脚本产物，绝不手改，可 rm -rf 重建
+              ├── _generated/            ← 【派生】脚本产物，绝不手改，可 rm -rf 重建
+              └── _scratch/              ← SCRATCH · version temp/bak · not SSOT · 禁丢到 deck 根
 ```
 
-> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品全在 `_generated/` 里。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/scripts/` 就地运行(见 Phase 3)。
+> **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品在 `_generated/`；本版临时在 `_scratch/`。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/scripts/` 就地运行(见 Phase 3)。
 
 创建命令——**用 `--init` 一条命令搭好整个骨架并播种选中的 preset,不要手动 mkdir、不要手动 cp**（手动建/手动拷是临场发挥的源头）：
 

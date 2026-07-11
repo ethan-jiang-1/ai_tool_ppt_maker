@@ -88,4 +88,32 @@ describe('docs_consistency', () => {
       ).toBe(false);
     }
   });
+
+  it('Where Map / GREP placement anchors exist (run-bundle-layout)', () => {
+    const { readFileSync } = require('node:fs');
+    const glossary = readFileSync('PPTMAKER_FRAMEWORK/reference/glossary.md', 'utf-8');
+    expect(glossary).toMatch(/## Where Map/);
+    expect(glossary).toMatch(/^### _scratch\//m);
+    expect(glossary).toMatch(/^### --run-dir/m);
+    expect(glossary).toMatch(/^### style_master\.jpg/m);
+    expect(glossary).toMatch(/contact_sheet|### pilot/);
+
+    const bootstrap = readFileSync('PPTMAKER_FRAMEWORK/BOOTSTRAP.md', 'utf-8');
+    expect(bootstrap).toMatch(/Where Map/);
+    expect(bootstrap).toMatch(/GREP/);
+    expect(bootstrap).toMatch(/_scratch/);
+
+    const agents = readFileSync('PPTMAKER_FRAMEWORK/AGENTS.md', 'utf-8');
+    expect(agents).toMatch(/_scratch\//);
+
+    const layoutSrc = readFileSync('PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs', 'utf-8');
+    // Deck-root _DIR_READMES['.'] seed must name _scratch (first-look map).
+    expect(layoutSrc).toMatch(/3_versions\/v\{n\}\/_scratch/);
+    expect(layoutSrc).toMatch(/_scratch\/` 内容|_scratch\/ contents|`_scratch\/` 内容/);
+
+    const keynoteRoot = readFileSync('deck_ai_sdlc_keynote/README.md', 'utf-8');
+    expect(keynoteRoot).toMatch(/_scratch/);
+    const keynoteV1 = readFileSync('deck_ai_sdlc_keynote/3_versions/v1/README.md', 'utf-8');
+    expect(keynoteV1).toMatch(/_scratch/);
+  });
 });

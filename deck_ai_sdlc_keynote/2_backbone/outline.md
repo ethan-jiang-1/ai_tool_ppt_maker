@@ -44,7 +44,7 @@ source: 1_upstream_raw_material/ (software/ + business/)
 | **人定义边界** | Framed Autonomy：人设定 frame，AI 在框内自主 | Deer Valley → Engelberg, Dagstuhl APM Manifesto |
 | **AI 自主执行** | Fable 5 级别的自主性：从"操作工具"到"委托任务" | Mollick "I commission", Krieger "wake up to find it done" |
 | **共享基础设施** | Claude Code/Codex 同时用于 coding + office | 飞书 CLI 化, Nadella "Agent 需要 Office" |
-| **= 组织重构** | 中层消失、角色重写、金字塔变平 | Block 40%, Cloudflare 20%, Three-Tier Split |
+| **= 组织重构** | 中层消失、角色重写、金字塔变平 | Block 重定义三角色, Cloudflare 重定义三种人, Three-Tier Split |
 
 **可证伪性**：如果 12 个月后，软件公司恢复了中层管理岗位，传统企业的组织架构没有显著变化——这个公式就不成立。
 
@@ -103,7 +103,7 @@ source: 1_upstream_raw_material/ (software/ + business/)
 
 **Block C: 组织的连锁反应 (2 slides)**
 - **S1.8** 中层危机：Three-Tier Developer Split
-- **S1.9** Block vs Cloudflare：一刀切 40% vs 精准置换 20%
+- **S1.9** Block vs Cloudflare：两种重新定义"人"的方式——激进(IC/DRI/Player-Coach) vs 精准(Builder/Seller/Measurer)
 
 ### Part 2: The Business Mirror — 同样的事正在传统企业发生 (5 slides)
 
@@ -148,7 +148,7 @@ source: 1_upstream_raw_material/ (software/ + business/)
 | 1.6 | 反馈周期炸了 | Concept Split | 以前一个 PR 等几小时。现在 AI 几分钟写几千行——人还是那个速度在 review。 | 核心瓶颈不是"写不够快"，是"审不过来" |
 | 1.7 | On the loop | Framework | 以前"AI 写一行，人看一眼"。现在"AI 写一天，人看一眼结果"。 | Kief Morris：in the loop→on the loop。人建护栏，AI 在框内自主。新工种诞生 |
 | 1.8 | 中层危机 | Evidence | 初级意外安全。中层——真正危险。 | AI 最先替代的不是"不会写代码的人"——是"只会写代码的人" |
-| 1.9 | Block vs Cloudflare | Evidence | 两家公司，同一个季度裁员。一个砍 40%，一个精准换掉"量度者"。 | 一刀切 vs 精准置换。区分标准不是 AI 用没用——是裁前公司到底出了什么问题 |
+| 1.9 | Block vs Cloudflare | Evidence | 两位 CEO，同一季度，都在重新定义"组织里有哪几种人"。Block 激进废层级留三角色，Cloudflare 精准用三分法。 | 不是裁法对错——是 AI 后组织必须重新定义人的种类。激进 vs 精准 |
 | 2.1 | BPM = SDLC 孪生 | Framework | 软件有 SDLC。你们公司有 BPM。 | 企业业务处理是跟软件开发完全同构的信息加工链。40 年学术传承 |
 | 2.2 | Framed Autonomy | Framework | "有框的自主"——AI 时代企业和软件共同的答案。 | 人定义边界，Agent 在框内自主执行。= AI Sandwich。18 位作者 Dagstuhl Manifesto |
 | 2.3 | 四层重构 | Framework | 你公司的 IT 架构有四层。每一层都在重写。 | 前端（Office→Agent 基础设施）、中端（编排）、后端（记录）、治理——每层都有 SDLC 映射 |

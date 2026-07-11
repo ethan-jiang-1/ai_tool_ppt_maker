@@ -46,10 +46,13 @@ agent_action: read_first
 
 run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源是
 [`scripts/bundle_layout.mjs`](scripts/bundle_layout.mjs)——机器可读、脚本从它取路径。
+（OpenSpec capability：**`run-bundle-layout`** — 不要和软包的 `framework-directory-layout` 混为一谈。）
 
 - **不要临场发挥目录**。不要自创目录名、不要把生成物乱放。日常检查统一用 `ppt_flow.mjs status`；底层权威结构仍由 `bundle_layout.mjs` 定义。
-- **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。另有 `_state/` 存放 playbook 执行进度（`state.yaml`）；`_lessons/` 存放遇事克服后留下的**非密钥教训**（先读再猜；不是进度 / 不是密钥）。
-- **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.mjs --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
+- **找不到往哪放 → 先 GREP，再动手。** 对 `_scratch` / `_generated` / `style_master` / `contact_sheet` / `pilot` / `--run-dir` / `run bundle` 等词 `rg`，命中 [`reference/glossary.md`](reference/glossary.md) 的 **Where Map** 即规矩（term → path → role）。禁止自创 `_tmp/` 或把 bak 丢到 deck 根。
+- **上严下松（structure gradient）：** `deck_*` **根最严**（只许宪法级条目）；越往下越松；本版临时/`.bak` **只**放 `3_versions/v{n}/_scratch/`——禁止堆在 deck 根或自创 `_tmp/`/`backup/`。
+- **三层梯度:** `1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干·共享)+ `3_versions/v{n}/`(slide 规格 + overrides + `_generated/` 派生 + `_scratch/` 本版临时)。另有 `_state/`（playbook 进度）、`_lessons/`（非密钥教训，先读再猜）。
+- **宪法能执法:**管线每次运行前会自动跑 `bundle_layout.mjs --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
   ```bash
   node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_{NAME}/3_versions/v1
   ```

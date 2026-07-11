@@ -91,10 +91,11 @@ agent_action: copy_to_bundle
 └── 3_versions/{{CURRENT_VERSION}}/
     ├── slide-specifications.md ← 源·每页规格 + 每页 render mode(管线入口)
     ├── overrides/            ← 源·只放这版偏离 backbone 的东西;空=全继承
-    └── _generated/           ← 派生·别碰·可 rm -rf 重建
+    ├── _generated/           ← 派生·别碰·可 rm -rf 重建
+    └── _scratch/             ← 本版临时/bak（上严下松；别丢到 deck 根）
 ```
 
-版本只切 `3_versions/`：用 `bundle_layout.mjs --new-version` 创建干净版本，只复制下游源 delta，不复制 `_generated/`。改隐喻/视觉主干 = 改 `2_backbone/`（影响全版本），不是开新版本。
+版本只切 `3_versions/`：用 `bundle_layout.mjs --new-version` 创建干净版本，只复制下游源 delta，不复制 `_generated/` / `_scratch/` 内容。改隐喻/视觉主干 = 改 `2_backbone/`（影响全版本），不是开新版本。
 
 ## 控制流:五阶段 + 两个 render mode
 

@@ -8,7 +8,9 @@ import {
   renderTree,
   selfCheck,
   checkBundle,
+  createVersion,
   LESSONS_DIR,
+  SCRATCH_SUBDIR,
 } from '../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
 import {
   writeState,
@@ -59,6 +61,7 @@ describe('bundle_layout', () => {
   it('renderTree and selfCheck include STATE_DIR and LESSONS_DIR', () => {
     expect(renderTree()).toContain(STATE_DIR);
     expect(renderTree()).toContain(LESSONS_DIR);
+    expect(renderTree()).toContain('_scratch');
     expect(selfCheck()).toEqual([]);
   });
 
@@ -115,6 +118,11 @@ describe('bundle_layout', () => {
       expect(lessonsReadme).toContain('image2-proven.yaml');
       expect(readFileSync(join(deck, '.env.example'), 'utf-8')).toContain('IMAGE2_API_KEY');
       expect(readFileSync(join(deck, 'deck-guide.md'), 'utf-8')).toContain('_lessons/');
+      expect(existsSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'))).toBe(true);
+      expect(readFileSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'), 'utf-8')).toMatch(
+        /上严下松|_scratch/
+      );
+      expect(readFileSync(join(deck, '.gitignore'), 'utf-8')).toMatch(/_scratch/);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -229,5 +237,43 @@ describe('state discoverability', () => {
       'utf-8'
     );
     expect(src).not.toMatch(/bundle_layout/);
+  });
+});
+
+describe('version _scratch (上严下松)', () => {
+  it('allows bak inside version _scratch and rejects deck-root bak', () => {
+    const deck = join(tmpdir(), `deck_scratch_${Date.now()}`);
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      writeFileSync(join(v1, SCRATCH_SUBDIR, 'slide.bak'), 'old specs\n');
+      const ok = checkBundle(v1, false);
+      expect(ok.every((i) => !i.includes(SCRATCH_SUBDIR) || !i.includes('unexpected'))).toBe(
+        true
+      );
+      expect(ok.filter((i) => i.includes("unexpected '_scratch'")).length).toBe(0);
+
+      writeFileSync(join(deck, '_slidespec.bak-kicker'), 'litter\n');
+      const bad = checkBundle(v1, false);
+      expect(bad.some((i) => i.includes('_slidespec.bak-kicker') && i.includes('deck root'))).toBe(
+        true
+      );
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('new-version seeds empty scratch without copying bak', () => {
+    const deck = join(tmpdir(), `deck_scratch_nv_${Date.now()}`);
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      writeFileSync(join(v1, SCRATCH_SUBDIR, 'keep-me-out-of-v2.bak'), 'secret\n');
+      const v2 = createVersion(v1);
+      expect(existsSync(join(v2, SCRATCH_SUBDIR, 'README.md'))).toBe(true);
+      expect(existsSync(join(v2, SCRATCH_SUBDIR, 'keep-me-out-of-v2.bak'))).toBe(false);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
   });
 });
