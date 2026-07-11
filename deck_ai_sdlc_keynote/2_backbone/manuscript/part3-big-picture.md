@@ -5,8 +5,8 @@ slides: S3.1–S3.4
 version: v1
 status: draft
 sources:
-  - research/ (cross-cutting)
-  - _business_ai_case/
+  - 1_upstream_raw_material/software/
+  - 1_upstream_raw_material/business/
 ---
 
 # PART 3: THE BIG PICTURE — Productivity × Communication × Organization

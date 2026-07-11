@@ -6,52 +6,37 @@ type: guide
 summary: 两个领域（软件 SDLC + 企业 BPM）的关键信号抽取，按 topics + storylines 组织。两条线独立抽取，但共享同一个范式转移。
 depends_on: []
 feeds_into:
-  - v1/outline/outline.md
+  - 2_backbone/outline.md
 agent_action: guide
 ---
 
 # Phase 0: 素材抽取与合成
 
 > 本阶段目标：从两个领域的关键源材料中提取信号，按主题（topics）和叙事线（storylines）组织，让 Phase 1 叙事设计有据可依。
+>
+> **现行路径：** 本目录即 `1_upstream_raw_material/`（旧文档里的 `research/` 已迁到这里）。
 
 ---
 
 ## 两个领域，两条信息线
 
 ```
-research/
+1_upstream_raw_material/
 │
 ├── software/                  ← SDLC（软件开发）
-│   │  来源：fable5_field_signals/ + aidlc_reference_kol/
+│   │  历史来源（仓库外归档）：fable5_field_signals / aidlc_reference_kol
 │   │
-│   ├── topics/                ← 5 个主题（概念/判断/框架）
-│   │   ├── 01-traditional-sdlc-premise.md
-│   │   ├── 02-ai-evolution-three-stages.md
-│   │   ├── 03-speed-communication-bottleneck.md
-│   │   ├── 04-agent-new-program-type.md
-│   │   └── 05-ai-human-amplifier-scope.md
-│   │
-│   ├── storylines/            ← 3 条叙事线（事件/人物/时间线）
-│   │   ├── 01-deer-valley-to-engelberg.md
-│   │   ├── 02-pragmatic-summit.md
-│   │   └── 03-fable5.md
-│   │
-│   └── initial-ideas.md       ← 初始想法草稿
+│   ├── topics/                ← 主题（概念/判断/框架）
+│   ├── storylines/            ← 叙事线（事件/人物/时间线）
+│   └── initial-ideas.md
 │
-├── business/                  ← BPM（企业信息加工流）
-│   │  来源：enterprise_bpm/
-│   │
-│   ├── topics/                ← 4 个主题
-│   │   ├── 01-bpm-sdlc-equivalence.md
-│   │   ├── 02-framed-autonomy.md
-│   │   ├── 03-four-layer-architecture.md
-│   │   └── 04-competitive-landscape.md
-│   │
-│   └── storylines/            ← 2 条叙事线
-│       ├── 01-camunda-processos-transformation.md
-│       └── 02-office-becomes-agent-infrastructure.md
+├── business/                  ← BPM / 企业侧
+│   │  历史来源（仓库外归档）：_business_bpm 等
+│   ├── topics/
+│   └── storylines/
 │
-└── README.md                  ← 你在这里
+├── deck-brief.md
+└── style-master-iterations/   ← style master 迭代备份
 ```
 
 **一眼看明白**：`software/` = SDLC，`business/` = BPM。同类文件同一结构（topics + storylines）。
@@ -60,34 +45,28 @@ research/
 
 ## 来源
 
-| 目录 | 源材料 | 内容 |
+> 下表「源材料」列多为**仓库外历史归档**（迁入本 deck 前的研究路径），不是本 run bundle 内的活路径。活内容以本目录下 `software/` / `business/` 为准。
+
+| 目录 | 源材料（历史/外部） | 内容 |
 |------|--------|------|
-| `software/` | `../fable5_field_signals/` | 16 位一线开发者使用 Fable 5 的真实信号（Willison, Mollick, Krieger, Klaassen, Vincent 等） |
-| `software/` | `../aidlc_reference_kol/` | 14 位 KOL 深度拆解 + Deer Valley/Engelberg/Pragmatic Summit + 跨公司变革共识 + Fable 5 信号合成 |
-| `business/` | `../../_business_bpm/` | 7 轮探索 + 14 个 findings 文件：BPM = SDLC 等价物、Framed Autonomy、四层架构、竞争格局 |
+| `software/` | `fable5_field_signals/`（外部） | 一线开发者使用 Fable 5 的真实信号 |
+| `software/` | `aidlc_reference_kol/`（外部） | KOL 拆解 + Deer Valley/Engelberg/Pragmatic Summit 等 |
+| `business/` | `_business_bpm/`（外部） | BPM = SDLC 等价、Framed Autonomy、四层架构、竞争格局 |
 
-### software/ 源目录速查
-
-| 想看什么 | 路径 |
-|---------|------|
-| 具体的人怎么说 | `../aidlc_reference_kol/_raw_kol/` |
-| 四家公司达成了什么共识 | `../aidlc_reference_kol/_raw_frontier/` |
-| Fable 5 具体改变了什么 | `../aidlc_reference_kol/_raw_fable5/` |
-| Agile 社区怎么回应 AI | `../aidlc_reference_kol/_raw_agile_manifesto_2026/` |
-| 工业界的大会声音 | `../aidlc_reference_kol/_raw_promatic_summit_2026/` |
-| 从实验到生产的转折 | `../aidlc_reference_kol/_raw_engelberg_2026/` |
-| 一线开发者真实使用 Fable 5 的信号 | `../fable5_field_signals/` |
-| 厂商方法论框架 | `../aidlc_reference_corp/_raw_aws/` |
-
-### business/ 源目录速查
+### software/ 活路径
 
 | 想看什么 | 路径 |
 |---------|------|
-| BPM 与 SDLC 的等价论证 | `../../_business_bpm/findings/bpm-and-sdlc-equivalence/` |
-| Framed Autonomy 从理论到实现 | `../../_business_bpm/findings/agentic-orchestration/` |
-| Office 变成 Agent 平台 | `../../_business_bpm/findings/office-and-collaboration-tools/` |
-| 竞争格局与分类 | `../../_business_bpm/findings/terminology-and-taxonomy/` |
-| 探索全过程轨迹 | `../../_business_bpm/exploration-trajectory.md` |
+| 主题 | `software/topics/` |
+| 叙事线 | `software/storylines/` |
+| 初始草稿 | `software/initial-ideas.md` |
+
+### business/ 活路径
+
+| 想看什么 | 路径 |
+|---------|------|
+| 主题 | `business/topics/` |
+| 叙事线 | `business/storylines/` |
 
 ---
 

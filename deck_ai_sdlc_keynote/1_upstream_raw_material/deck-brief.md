@@ -3,9 +3,9 @@ deck_title: AI 时代的信息加工革命
 deck_subtitle: 从 SDLC 到 BPM，工作方式正在被整体重写
 version: v1
 status: draft
-total_slides: 21
-visual_system: ../style/visual-style.md
-style_master: ../style/style_master.png
+total_slides: 22
+visual_system: 2_backbone/visual-style/visual-style.md
+style_master: 2_backbone/visual-style/style_master.jpg
 ---
 
 # Deck Brief v1: AI 时代的信息加工革命
@@ -13,7 +13,7 @@ style_master: ../style/style_master.png
 > **Deck title**: AI 时代的信息加工革命
 > **Deck subtitle**: 从 SDLC 到 BPM，工作方式正在被整体重写
 
-> **Visual system**: All slides use `../style/visual-style.md` (Sketch/Etching + Warm Editorial). Reference `style_master.png` for every image generation.
+> **Visual system**: All slides use `2_backbone/visual-style/visual-style.md` (Sketch/Etching + Warm Editorial). Reference `style_master.jpg` for every image generation.
 > **Language**: Chinese with English key terms. KICKER in English all-caps.
 > **Core metaphor**: 信息加工链 (ITO Chain) — 软件开发和企业业务是同一条链。AI 站到了流水线中间。
 

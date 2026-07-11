@@ -2,9 +2,9 @@
 title: Outline v1 — AI 时代的信息加工变革
 version: v1
 status: draft
-total_slides: 21
+total_slides: 22
 created: 2026-07-08
-source: research/ (software/ + business/)
+source: 1_upstream_raw_material/ (software/ + business/)
 ---
 
 # Outline v1: AI 时代的信息加工变革

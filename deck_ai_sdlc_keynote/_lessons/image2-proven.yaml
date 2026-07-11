@@ -1,0 +1,23 @@
+# Image2 试通回执（proven lesson · 非密钥）
+# 规矩：只记"哪条通道通了/怎么通的"，密钥永远只在 .env。
+# 用途：下次进 deck 先读这里，别从零猜 endpoint。
+
+proven_at: 2026-07-11
+via: env            # 凭据来自 repo 根 .env（APIMART_API_KEY + APIMART_BASE_URLS）
+model: gpt-image-2
+resolution_tested: 1k    # pilot 3 页用 1k 验证；全量正式建议 2k
+
+# 三条通道（failover 顺序 = APIMART_BASE_URLS）
+vendors:
+  - url: https://api.apib.ai/v1     # 探针最快(0.4s)，但 pilot 实跑出现 "fetch failed" 偶发抖动
+  - url: https://api.aiuxu.com/v1   # apib 失败后自动兜底成功（s01 实证）
+  - url: https://api.aishuch.com/v1 # 探针 0.2s 最快，备用
+
+# 实证：failover 生效
+# s01_opening: apib.ai fetch failed → 自动切 aiuxu.com 成功（235s, poll×14）
+# 结论：别赌单条通道；保持三条 failover 串联最稳。
+notes: |
+  - probe-vendors 只测握手(全通)，真出图才算数：apib 握手快但出图有偶发 fetch failed，
+    aiuxu / aishuch 兜底可靠。
+  - 每页出图 ~1-4 min（素描风 + style_master 参考）；22 页全量 2k 预计 ~1h 量级。
+  - style_master.jpg 已锁（custom-sketch-etching），Stage 2 每页都以它为画风参考。
