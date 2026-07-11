@@ -26,7 +26,7 @@ Define `bundle_layout.mjs` as the single source of truth for run-bundle director
 
 ### Requirement: Run bundle scaffolds a discoverable _state directory
 
-`bundle_layout.mjs` SHALL treat `_state/` as a first-class run-bundle root directory. `initBundle` SHALL create `_state/` and write `_state/README.md` using the same README body owned by `scripts/lib/state.mjs` (so init scaffolding and `writeState` self-heal cannot drift). That README SHALL explain: purpose (playbook execution progress), primary fields, coexistence with `project-metadata.yaml`, and pointers to `charter/NODE-SPEC.md` and `scripts/lib/state.mjs`. `renderTree()` and the module header layout comment SHALL include `_state/` and SHALL indicate that `history.jsonl` is created on demand. `selfCheck()` SHALL fail if `renderTree()` omits `_state`.
+`bundle_layout.mjs` SHALL treat `_state/` as a first-class run-bundle root directory. `initBundle` SHALL create `_state/` and write `_state/README.md` using the same README body owned by `scripts/lib/state.mjs` (so init scaffolding and `writeState` self-heal cannot drift). That README SHALL explain: purpose (playbook execution progress / whole-session resume pointer), primary fields (including that per-node `waiting_for` may record human waits), coexistence with `project-metadata.yaml`, pointers to `charter/NODE-SPEC.md` and `scripts/lib/state.mjs`, and that **after a cleared chat / disconnect / new session** agents MUST run `ppt_flow state` (where-am-I resume card) before restarting work — progress is on the deck disk, not in chat. `renderTree()` and the module header layout comment SHALL include `_state/` and SHALL indicate that `history.jsonl` is created on demand. `selfCheck()` SHALL fail if `renderTree()` omits `_state`.
 
 #### Scenario: Init creates _state README
 
@@ -39,9 +39,14 @@ Define `bundle_layout.mjs` as the single source of truth for run-bundle director
 - **WHEN** Agent inspects `renderTree()` output (including `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` with no mode flags)
 - **THEN** the tree text includes `_state`
 
+#### Scenario: _state README mentions clear-context resume
+
+- **WHEN** a developer reads `_state/README.md` from a freshly initialized deck
+- **THEN** it instructs using `ppt_flow state` (or equivalent) to recover progress after a cleared session
+
 ### Requirement: Control-file templates mention _state
 
-The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml` as the place to inspect playbook progress (in addition to any `_generated/` artifact hints). The framework copy at `workflow/00-setup/template-deck-guide.md` SHALL likewise mention `_state/state.yaml` in its progress guidance so Expert/manual paths do not contradict init. The deck-root `README.md` template SHALL list `_state/` alongside the three-tier directories. The `project-metadata.yaml` template SHALL include a leading comment stating that pipeline gate fields live in metadata while playbook progress/gates live under `_state/` (field names and values SHALL remain unchanged).
+The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml` as the place to inspect playbook / session progress (in addition to any `_generated/` artifact hints) and SHALL note that cleared-context / disconnect resume starts with `ppt_flow state` (whole-workflow where-am-I, not chat memory). The framework copy at `workflow/00-setup/template-deck-guide.md` SHALL likewise mention `_state/state.yaml` in its progress guidance so Expert/manual paths do not contradict init. The deck-root `README.md` template SHALL list `_state/` alongside the three-tier directories. The `project-metadata.yaml` template SHALL include a leading comment stating that pipeline gate fields live in metadata while playbook progress/gates live under `_state/` (field names and values SHALL remain unchanged).
 
 #### Scenario: New deck-guide references state file
 
@@ -62,6 +67,11 @@ The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml
 
 - **WHEN** a new bundle is initialized
 - **THEN** `project-metadata.yaml` contains a `#` comment that mentions `_state`
+
+#### Scenario: Deck-guide mentions resume via ppt_flow state
+
+- **WHEN** a developer opens the seeded `deck-guide.md` or framework `template-deck-guide.md`
+- **THEN** it mentions `ppt_flow state` (or `state.yaml`) as the clear-context recovery entry
 
 ### Requirement: Run bundle includes _lessons/ with purpose-stated README
 
