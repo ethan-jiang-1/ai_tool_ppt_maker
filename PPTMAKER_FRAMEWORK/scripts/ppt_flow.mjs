@@ -6,14 +6,17 @@
  * This is the default human/agent entry point. It delegates to the structural SSOT
  * and production orchestrator instead of duplicating their logic.
  *
- * 11 commands: doctor, init, status, approve, style-master, validate, pilot,
- *              build, refresh, new-version, test
+ * 12 commands: doctor, init, status, approve, style-master, validate, pilot,
+ *              build, refresh, new-version, test, state
  *
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
  *   - unified_pipeline.mjs      — production orchestrator (subprocess)
  *   - generate_style_master.mjs — visual style anchor (subprocess)
  *   - env-check.mjs             — environment health check (subprocess)
+ *   - lib/state.mjs             — state / gates (state command)
+ *
+ * Hard failures: JSON envelope on last non-empty stderr line (lib/cli_error.mjs).
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -22,6 +25,11 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
 import { join, resolve, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import {
+  CLI_ERROR_CODES,
+  emitCliError,
+  exitCliError,
+} from "./lib/cli_error.mjs";
 
 // ---------------------------------------------------------------------------
 // Path constants
@@ -66,6 +74,42 @@ const GENERATE_STYLE_MASTER = join(REFERENCE_SCRIPTS_DIR, "generate_style_master
 const STAGE1_BUILD_INPUTS = join(REFERENCE_SCRIPTS_DIR, "stage1_build_inputs.mjs");
 const STAGE3_LOCK_HEADERS = join(REFERENCE_SCRIPTS_DIR, "stage3_lock_headers.mjs");
 const ENV_CHECK = join(FRAMEWORK_DIR, "scripts", "env-check.mjs");
+
+const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
+const DECK_TYPES_SORTED = () => Object.keys(DECK_TYPE_TEMPLATES).sort();
+
+/** Emit FAILED envelope; caller still returns/exits the numeric code (D13). */
+function emitFailed(where, message, hint = "See stderr above for details") {
+  emitCliError({
+    code: CLI_ERROR_CODES.FAILED,
+    message,
+    hint,
+    where,
+  });
+}
+
+/** Emit USAGE envelope; return 1 for command* return paths. */
+function emitUsage(where, message, hint) {
+  emitCliError({
+    code: CLI_ERROR_CODES.USAGE,
+    message,
+    hint,
+    where,
+  });
+  return 1;
+}
+
+/** After subprocess/command code: emit FAILED if non-zero, then exit. */
+function exitWithCode(code, where, message, hint) {
+  if (code !== 0) {
+    emitFailed(
+      where,
+      message || `command exited ${code}`,
+      hint || "See stderr above for details"
+    );
+  }
+  process.exit(code);
+}
 
 // ---------------------------------------------------------------------------
 // Subprocess runners
@@ -502,26 +546,40 @@ function commandInit(deckDir, { deckType, style }) {
 
   if (!basename(resolved).startsWith("deck_")) {
     console.error("✗ Deck directory must start with 'deck_'.");
-    return 1;
+    return emitUsage(
+      "ppt_flow.init",
+      "Deck directory must start with 'deck_'.",
+      "Pass a path whose basename starts with deck_, e.g. deck_mydeck"
+    );
   }
   if (
     FRAMEWORK_DIR === resolved ||
     resolved.startsWith(FRAMEWORK_DIR + "/")
   ) {
     console.error("✗ A run bundle must live outside PPTMAKER_FRAMEWORK/.");
-    return 1;
+    return emitUsage(
+      "ppt_flow.init",
+      "A run bundle must live outside PPTMAKER_FRAMEWORK/.",
+      "Create the deck directory next to (not inside) PPTMAKER_FRAMEWORK/"
+    );
   }
   if (!(deckType in DECK_TYPE_TEMPLATES)) {
-    console.error(
-      `✗ Unknown deck-type: ${deckType}. Allowed: ${Object.keys(DECK_TYPE_TEMPLATES).sort().join(", ")}`
+    const allowed = DECK_TYPES_SORTED().join(", ");
+    console.error(`✗ Unknown deck-type: ${deckType}. Allowed: ${allowed}`);
+    return emitUsage(
+      "ppt_flow.init.deck-type",
+      `Unknown deck-type: ${deckType}`,
+      `Allowed: ${allowed}`
     );
-    return 1;
   }
   if (!STYLE_PRESETS.includes(style)) {
-    console.error(
-      `✗ Unknown style: ${style}. Allowed: ${STYLE_PRESETS.sort().join(", ")}`
+    const allowed = STYLE_PRESETS_SORTED().join(", ");
+    console.error(`✗ Unknown style: ${style}. Allowed: ${allowed}`);
+    return emitUsage(
+      "ppt_flow.init.style",
+      `Unknown style: ${style}`,
+      `Allowed: ${allowed}`
     );
-    return 1;
   }
 
   let log;
@@ -529,6 +587,7 @@ function commandInit(deckDir, { deckType, style }) {
     log = initBundle(resolved, FRAMEWORK_DIR, deckType, style);
   } catch (err) {
     console.error(`✗ ${err.message}`);
+    emitFailed("ppt_flow.init", err.message, "Fix the reported init error and retry");
     return 1;
   }
 
@@ -557,7 +616,15 @@ function commandStatus(runDir, { json: asJson }) {
   } else {
     printStatus(status);
   }
-  return status.structure_issues.length > 0 ? 1 : 0;
+  if (status.structure_issues.length > 0) {
+    emitFailed(
+      "ppt_flow.status",
+      `Bundle has ${status.structure_issues.length} structure issue(s)`,
+      "Fix structure issues listed above, then re-run status"
+    );
+    return 1;
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -575,6 +642,11 @@ function commandApprove(runDir, gate, { waive }) {
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
     printStatus(collectStatus(resolved));
+    emitFailed(
+      "ppt_flow.approve",
+      `Cannot approve: ${issues.length} bundle issue(s)`,
+      "Fix structure issues, then re-run approve"
+    );
     return 1;
   }
   const value = waive ? "waived" : "approved";
@@ -625,14 +697,36 @@ async function commandValidate(runDir) {
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
     printStatus(collectStatus(resolved));
+    emitFailed(
+      "ppt_flow.validate",
+      `Cannot validate: ${issues.length} bundle issue(s)`,
+      "Fix structure issues, then re-run validate"
+    );
     return 1;
   }
   const specs = findSlideSpecs(resolved);
   if (!specs) {
     console.error(`✗ No ${SLIDE_SPECS_GLOB} found in ${resolved}`);
+    emitFailed(
+      "ppt_flow.validate",
+      `No ${SLIDE_SPECS_GLOB} found in ${resolved}`,
+      "Add slide-specifications.md under the version directory"
+    );
     return 1;
   }
-  return runNode(STAGE1_BUILD_INPUTS, ["--validate", "--input", specs]);
+  const code = await runNode(STAGE1_BUILD_INPUTS, [
+    "--validate",
+    "--input",
+    specs,
+  ]);
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.validate",
+      `validate exited ${code}`,
+      "Fix slide-spec validation errors, then re-run validate"
+    );
+  }
+  return code;
 }
 
 // ---------------------------------------------------------------------------
@@ -657,7 +751,11 @@ async function commandPilot(
 
   if (count < 1) {
     console.error("✗ --count must be at least 1.");
-    return 1;
+    return emitUsage(
+      "ppt_flow.pilot.count",
+      "--count must be at least 1",
+      "Pass --count N with N >= 1"
+    );
   }
 
   // Validate structure (not requiring pipeline readiness yet)
@@ -667,6 +765,11 @@ async function commandPilot(
       `✗ Bundle does NOT conform — ${preIssues.length} violation(s):`
     );
     for (const v of preIssues) console.error(`  - ${v}`);
+    emitFailed(
+      "ppt_flow.pilot",
+      `Bundle does not conform — ${preIssues.length} violation(s)`,
+      "Fix structure violations, then re-run pilot"
+    );
     return 1;
   }
 
@@ -678,7 +781,14 @@ async function commandPilot(
   const stage1Args = ["--run-dir", resolved, "--stage", "1"];
   if (dryRun) stage1Args.push("--dry-run");
   let code = await runNode(UNIFIED_PIPELINE, stage1Args);
-  if (code !== 0) return 1;
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.pilot",
+      `Stage 1 exited ${code}`,
+      "Fix Stage 1 errors, then re-run pilot"
+    );
+    return 1;
+  }
 
   // --- Select pilot slide IDs ---
   const planPath = join(generatedDir(resolved), GEN_SLIDE_PLAN);
@@ -705,7 +815,11 @@ async function commandPilot(
   const unknown = selectedIds.filter((id) => !known.has(id));
   if (unknown.length > 0) {
     console.error(`✗ Unknown pilot slide IDs: ${unknown.join(", ")}`);
-    return 1;
+    return emitUsage(
+      "ppt_flow.pilot.only",
+      `Unknown pilot slide IDs: ${unknown.join(", ")}`,
+      "Pass slide IDs that exist in slide_plan.json"
+    );
   }
   console.log(`Pilot slides: ${selectedIds.join(", ")}`);
 
@@ -716,6 +830,11 @@ async function commandPilot(
       `✗ Bundle NOT pipeline-ready — ${readyIssues.length} issue(s):`
     );
     for (const v of readyIssues) console.error(`  - ${v}`);
+    emitFailed(
+      "ppt_flow.pilot",
+      `Bundle not pipeline-ready — ${readyIssues.length} issue(s)`,
+      "Approve gates / fix readiness issues, then re-run pilot"
+    );
     return 1;
   }
 
@@ -734,11 +853,25 @@ async function commandPilot(
   if (baseUrl) stage2Args.push("--base-url", baseUrl);
   if (dryRun) stage2Args.push("--dry-run");
   code = await runNode(UNIFIED_PIPELINE, stage2Args);
-  if (code !== 0) return 1;
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.pilot",
+      `Stage 2 exited ${code}`,
+      "Fix Stage 2 / image generation errors, then re-run pilot"
+    );
+    return 1;
+  }
 
   // --- Render pilot headers (Stage 3 + contact sheet on pilot subset) ---
   const ok = await renderPilotHeaders(resolved, selectedIds, dryRun);
-  if (!ok) return 1;
+  if (!ok) {
+    emitFailed(
+      "ppt_flow.pilot",
+      "Pilot QA rendering failed",
+      "Fix Stage 3 / contact sheet errors, then re-run pilot"
+    );
+    return 1;
+  }
 
   if (!dryRun) {
     const previewPath = join(
@@ -806,13 +939,21 @@ async function commandRefresh(
   if (kind === "title") {
     if (onlyStr || allSlides) {
       console.error("✗ --only/--all apply only to --kind visual.");
-      return 1;
+      return emitUsage(
+        "ppt_flow.refresh",
+        "--only/--all apply only to --kind visual",
+        "Omit --only/--all for title/notes, or use --kind visual"
+      );
     }
     stages = "1,3,4,5";
   } else if (kind === "notes") {
     if (onlyStr || allSlides) {
       console.error("✗ --only/--all apply only to --kind visual.");
-      return 1;
+      return emitUsage(
+        "ppt_flow.refresh",
+        "--only/--all apply only to --kind visual",
+        "Omit --only/--all for title/notes, or use --kind visual"
+      );
     }
     stages = "5";
   } else {
@@ -821,7 +962,11 @@ async function commandRefresh(
       console.error(
         "✗ Visual refresh needs --only slide_id[,slide_id] or explicit --all."
       );
-      return 1;
+      return emitUsage(
+        "ppt_flow.refresh",
+        "Visual refresh needs --only or --all",
+        "Pass --only slide_id[,slide_id] or explicit --all"
+      );
     }
     stages = "1,2,3,4,5";
   }
@@ -839,7 +984,15 @@ async function commandRefresh(
   if (baseUrl) args.push("--base-url", baseUrl);
   if (dryRun) args.push("--dry-run");
 
-  return runNode(UNIFIED_PIPELINE, args);
+  const code = await runNode(UNIFIED_PIPELINE, args);
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.refresh",
+      `refresh exited ${code}`,
+      "Fix pipeline errors, then re-run refresh"
+    );
+  }
+  return code;
 }
 
 // ---------------------------------------------------------------------------
@@ -862,6 +1015,11 @@ function commandNewVersion(runDir, { name }) {
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
+    emitFailed(
+      "ppt_flow.new-version",
+      err.message,
+      "Fix the reported error and retry new-version"
+    );
     return 1;
   }
 }
@@ -879,7 +1037,42 @@ async function commandTest() {
     env: process.env,
     cwd: resolve(FRAMEWORK_DIR, ".."),
   });
-  return result.status !== null ? result.status : 1;
+  const code = result.status !== null ? result.status : 1;
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.test",
+      `npm test exited ${code}`,
+      "Fix failing tests, then re-run ppt_flow test"
+    );
+  }
+  return code;
+}
+
+async function commandStyleMasterWrapped(
+  runDir,
+  opts
+) {
+  const code = await commandStyleMaster(runDir, opts);
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.style-master",
+      `style-master exited ${code}`,
+      "Fix style-master / API errors, then retry"
+    );
+  }
+  return code;
+}
+
+async function commandBuildWrapped(runDir, opts) {
+  const code = await commandBuild(runDir, opts);
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.build",
+      `build exited ${code}`,
+      "Fix pipeline errors, then re-run build"
+    );
+  }
+  return code;
 }
 
 // ---------------------------------------------------------------------------
