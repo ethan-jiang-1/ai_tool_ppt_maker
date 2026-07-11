@@ -15,3 +15,19 @@ When an agent (or playbook step) creates a disposable backup or draft of version
 - **WHEN** Agent needs a temporary workspace for a version edit
 - **THEN** it uses `_scratch/` (or an existing canonical path from the routing table)
 - **AND** does not create `deck_*/_tmp/` or `deck_*/backup/`
+
+### Requirement: Unsure placement triggers GREP of Where Map before inventing paths
+
+When an agent does not know where a file belongs (temp bak, draft, preview artifact, style-master related file, etc.), it SHALL search the soft bundle for canonical placement tokens and consult `PPTMAKER_FRAMEWORK/reference/glossary.md` Where Map **before** creating a new directory name or writing to the deck root. Agents SHALL prefer paths named by the Where Map over improvised names. Enforcement via `checkBundle` remains; GREP discoverability does not replace the check.
+
+#### Scenario: Agent greps before inventing temp dir
+
+- **WHEN** Agent needs a place for a version-scoped `.bak` and is unsure of policy
+- **THEN** Agent searches for `_scratch` (or opens glossary Where Map)
+- **AND** writes under `3_versions/v{n}/_scratch/` rather than inventing `deck_*/_tmp/`
+
+#### Scenario: Agent routes pilot preview via known token
+
+- **WHEN** Agent looks for where pilot / 小样 / contact sheet lives
+- **THEN** Agent can resolve via `contact_sheet` or `pilot` to `_generated/preview/`
+- **AND** does not treat deck-root litter as the preview home

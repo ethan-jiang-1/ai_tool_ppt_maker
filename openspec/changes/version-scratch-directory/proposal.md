@@ -1,50 +1,55 @@
 ## Why
 
-**Phase A（已落地）：** Agent 改 `slide-specifications` 前会拷 `.bak`，却因 version 根过严、deck 根过松而把备份丢到 `deck_*` 根。已用 **上严下松** + 版本内 `_scratch/` + `checkBundle` 收紧根白名单修好**机制**。
+有目录规矩却**搜不到**，等于没有规矩。
 
-**Phase B（本轮打开要补的）：** 机制在宪章深文与叶子 `_scratch/README` 里，**不在 Agent 第一眼会 GREP 的入口**。BOOTSTRAP / AGENTS Phase 0 树 / deck 根 README 种子 / 活金甲板 README 仍缺 `_scratch` 与落盘词表 → 模型「不知道往哪放」时仍会临场发挥。
+Phase A 已落地 `_scratch/` 机制与 `checkBundle` 执法，但 Agent（code agent）不会通读 CONSTITUTION 深文或先打开叶子 README。它擅长的是 **GREP**：思考「东西往哪放」时，若 `rg '_scratch'` / `rg 'style_master'` / `rg 'contact_sheet'` 能撞到 **term → path → role**，就会按规矩放；撞不到就会自创 `_tmp/`、把 bak 扔 deck 根。
 
-规矩要 **GREP 友好**：不知道放哪 → `rg` 稳定英文 term / 真路径 → 命中 Where Map（term → path → role）→ 按规矩放。找不到 = 会乱发挥。
+**Capability 缺口（本轮必须动刀）：** 软包已有独立 capability `framework-directory-layout`（只描述 `PPTMAKER_FRAMEWORK/`）。Run bundle 的 **folder definition**（`deck_*` 树本体、各目录 role、上严下松、落盘词表）却没有对等 capability——被揉进 `run-bundle-management`（ops）和 `framework-charter`（文档镜像）。两者混在一起不对。本 change **新建 `run-bundle-layout`**，与 `framework-directory-layout` 对称、**禁止混用**。
+
+本 change 打开后的工作 = 立 `run-bundle-layout` + 在其上钉 **GREP 友好 Where Map** + 入口/种子用同一套词，使「不知往哪放 → rg → Where Map」成为默认闭环。
 
 ## What Changes
 
-### Already done (do not re-litigate)
+### Capability action (do this in the change, not only in chat)
 
-- `SCRATCH_SUBDIR='_scratch'`；version 白名单；deck 根拒 litter
-- CONSTITUTION「目录严格度」+ AGENT_CONTRACT §2/§3 上严下松
-- init / new-version 种子；gitignore；金甲板 bak → `v1/_scratch/`
-- 回归绿
+- **NEW** `run-bundle-layout` — run-bundle (`deck_*`) folder ontology + roles + structure gradient + Where Map / GREP discoverability. Machine SSOT remains `bundle_layout.mjs`; this capability owns the **definition & discoverability** requirements.
+- **NOT** `framework-directory-layout` — that capability stays soft-bundle-only; do not extend it to cover `deck_*`.
+- **Narrow use of** `run-bundle-management` — keep init/check/new-version/self-check **ops**; first-look README seed text that teaches placement MAY be required here as scaffolding output of layout, but the Where Map SSOT lives under `run-bundle-layout`.
+- **Narrow use of** `framework-charter` — entry docs (BOOTSTRAP / AGENTS / CONSTITUTION mirror) **point at / align with** `run-bundle-layout`; they do not own the folder ontology.
 
-### Still to do (Phase B — discoverability)
+### Baseline (Phase A — already shipped; do not re-implement)
 
-- **Where Map（GREP 索引）** 写入 `reference/glossary.md`：高频落盘物用**可搜标题**（`_scratch/`、`_generated/`、`style_master.jpg`、`--run-dir`、`contact_sheet` / `pilot` 等）+ 一行 path / means / do-not；Also-search 别名指向 canonical
-- **BOOTSTRAP** 宪法段：一句「找不到往哪放 → 先 GREP 这些键 → glossary Where Map」
-- **AGENTS** Phase 0 树：与 `renderTree()` 对齐，标注 `_scratch/`（英文角色标签与 glossary 同词）
-- **`_DIR_READMES`**：deck 根 README 含 `_scratch` 归属 + 上严下松；`3_versions` README 写明 new-version 不拷 `_scratch` 内容；必要时与 template-deck-guide 对齐
-- **活金甲板**：强制刷新 `deck_ai_sdlc_keynote/README.md` + `v1/README.md`（`_writeIfAbsent` 不会自动更新旧文）
-- **轻测**：入口文档 / 种子含 `_scratch` 或 Where Map 锚；keynote `--structure-only` 仍绿
+- Version `_scratch/` + 上严下松 + deck-root litter rejection + init/new-version/gitignore + keynote bak move + charter deep text (requirements today sit under management/charter; ontology belongs conceptually to `run-bundle-layout` going forward)
 
-**Non-goals：** 不改 `_scratch` 路径；不加 deck 根 scratch；不重开机制辩论；不批量改写全库旧 deck（只修框架种子 + 金甲板样本）。
+### Remaining (Phase B)
 
-**BREAKING：** 无新增（Phase A 已对乱放习惯 breaking）。
+1. Add delta spec `specs/run-bundle-layout/spec.md` (new capability) with tree/role/gradient + Where Map requirements
+2. Where Map in `reference/glossary.md` (grep tokens = headings)
+3. BOOTSTRAP GREP-before-invent pointer; AGENTS Phase 0 tree same vocabulary
+4. `_DIR_READMES` + keynote README refresh; light tests
+5. On archive/sync: main `openspec/specs/run-bundle-layout/spec.md` appears; do not merge into `framework-directory-layout`
+
+**Non-goals:** new disk paths; deck-root `_scratch`; extending soft-bundle layout capability to decks; BM25 metaphors.
 
 ## Capabilities
 
 ### New Capabilities
 
-- (none)
+- `run-bundle-layout` — Canonical **run bundle** (`deck_{NAME}/`) directory definition: tier tree, per-directory roles (`_scratch/`, `_generated/`, `_state/`, `_lessons/`, upstream/backbone/versions/overrides, …), structure gradient (上严下松), and GREP-friendly Where Map / entry discoverability. Distinct from `framework-directory-layout` (soft bundle only).
 
 ### Modified Capabilities
 
-- `run-bundle-management` —（已有 `_scratch` 机制）补：种子 README / 入口树与 Where Map 可发现性一致
-- `framework-charter` —（已有上严下松）补：BOOTSTRAP / glossary Where Map / GREP-first 指引
-- `playbook-execution` —（已有 bak→scratch 路由）补：Agent 不知放哪时先 GREP Where Map，禁止自创临时目录名
+- `framework-charter` — BOOTSTRAP / AGENTS / CONSTITUTION **mirror and point to** run-bundle layout + Where Map; do not redefine soft-bundle layout
+- `run-bundle-management` — ops remain; seed READMEs must surface layout tokens (`_scratch`, gradient); live golden README refresh
+- `playbook-execution` — GREP Where Map before inventing temp paths; bak → `_scratch/`
+- `framework-directory-layout` — **no change** (explicitly out of scope; do not conflate)
 
 ## Impact
 
-- `PPTMAKER_FRAMEWORK/reference/glossary.md`（Where Map SSOT）
-- `PPTMAKER_FRAMEWORK/BOOTSTRAP.md`、`AGENTS.md`
-- `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`（`_DIR_READMES` 文案）
-- 可选：`workflow/00-setup/template-deck-guide.md`
-- 活样本：`deck_ai_sdlc_keynote/README.md`、`3_versions/v1/README.md`
-- 轻测：docs / bundle 断言各 ≥1；keynote structure-only
+- `openspec/changes/version-scratch-directory/specs/run-bundle-layout/spec.md` → sync to `openspec/specs/run-bundle-layout/`
+- `PPTMAKER_FRAMEWORK/reference/glossary.md`
+- `PPTMAKER_FRAMEWORK/BOOTSTRAP.md`, `AGENTS.md`
+- `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` (`_DIR_READMES` copy only)
+- optional `workflow/00-setup/template-deck-guide.md`
+- `deck_ai_sdlc_keynote` root + v1 READMEs
+- light tests under `tests/`

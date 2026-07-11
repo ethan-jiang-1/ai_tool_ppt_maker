@@ -603,10 +603,14 @@ const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
         '先读 **deck-guide.md**（进来先看那个）。\n\n' +
-        '这个文件夹分三层 + 执行状态 + 自留教训:\n' +
+        '**上严下松（structure gradient）：** deck 根最严；临时/`.bak` 往下沉，' +
+        '只放 `3_versions/v{n}/_scratch/`——别丢到根、别自创 `_tmp/`/`backup/`。' +
+        '不知往哪放 → GREP → `PPTMAKER_FRAMEWORK/reference/glossary.md` Where Map。\n\n' +
+        '这个文件夹分三层 + 执行状态 + 自留教训 + 版本临时:\n' +
         '- `1_upstream_raw_material/` — 原始素材、调研(你往里堆资料)\n' +
         '- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n' +
         '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n' +
+        '  - 每版还有 `_generated/`（派生）和 `_scratch/`（本版临时/bak）\n' +
         '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n' +
         '- `_lessons/` — 遇事克服后留下的**非密钥**教训（先读再猜；见里面的 README）\n\n' +
         '**只改带 README 说\'你改这里\'的文件。** 结构由 ' +
@@ -649,7 +653,8 @@ const _DIR_READMES = {
         '# 下游:版本\n\n' +
         '**这里放什么:** 每个版本一个子目录(`v1/`、`v2/`…)。版本就是在这一层切的。\n' +
         '**你做什么:** 在 `v1/` 里改 slide、生成 PPT。要留档就用 ' +
-        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/`。\n'
+        '`bundle_layout.mjs --new-version 3_versions/v1`，它不会复制旧的 `_generated/` ' +
+        '或 `_scratch/` 内容（新版是干净临时区）。\n'
     ),
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +

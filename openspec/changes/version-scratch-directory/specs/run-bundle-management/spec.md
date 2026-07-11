@@ -36,3 +36,26 @@
 - **WHEN** a deck root contains `_slidespec.bak-kicker` (or similar loose bak)
 - **AND** Agent runs `bundle_layout --check` on a version under that deck
 - **THEN** check reports the deck-root entry as unexpected and exits non-zero
+
+### Requirement: First-look README seeds surface _scratch on the placement map
+
+Init-seeded directory READMEs from `_DIR_READMES` in `bundle_layout.mjs` SHALL make `_scratch/` discoverable **before** an agent opens the leaf drawer, consistent with capability `run-bundle-layout` Where Map tokens. The deck-root README (`.`) SHALL state that version temp/bak lives under `3_versions/v{n}/_scratch/` and SHALL mention the structure gradient (上严下松 / root strictest). The `3_versions` README SHALL state that `--new-version` does not copy `_scratch/` contents (in addition to not copying `_generated/`).
+
+#### Scenario: Deck-root seed README names _scratch
+
+- **WHEN** Agent reads the init-seeded deck-root `README.md` from `_DIR_READMES['.']`
+- **THEN** the text mentions `_scratch` under `3_versions/v{n}/` as the temp/bak outlet
+
+#### Scenario: Versions seed README mentions scratch on new-version
+
+- **WHEN** Agent reads the init-seeded `3_versions/README.md`
+- **THEN** the text states that new-version does not copy `_scratch` contents
+
+### Requirement: Golden sample first-look READMEs match current seeds
+
+The live golden deck `deck_ai_sdlc_keynote` root `README.md` and `3_versions/v1/README.md` SHALL be refreshed to match the current init-seed placement map (including `_scratch/`), because `_writeIfAbsent` does not update stale READMEs on existing decks.
+
+#### Scenario: Keynote root README mentions _scratch
+
+- **WHEN** Agent opens `deck_ai_sdlc_keynote/README.md`
+- **THEN** the file mentions `_scratch` as the version temp outlet (not an outdated three-tier-only map without scratch)

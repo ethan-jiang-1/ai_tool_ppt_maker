@@ -1,83 +1,121 @@
 ## Context
 
-宪法执行不对称：`3_versions/v{n}/` 白名单只允许 specs/overrides/`_generated`/README，Agent 想 bak 无处可放；deck 根几乎不拒散落文件 → bak 逃到上层。金甲板已现形。
+Phase A fixed **enforcement**: version `_scratch/`, deck-root whitelist, charter deep text. That is necessary but not sufficient.
 
-**宪章原则（组织层级）：上严下松。**
+Failure mode that remains: Agent mid-task thinks “I need a bak / temp / pilot artifact” and **does not know which canonical token to trust**. It will not scroll CONSTITUTION mid-paragraph. It **will** `rg`. If the soft bundle has no stable, path-named headings and no entry-doc pointer saying “grep these keys,” the model improvises directory names — then check fails after the damage, or worse, litter accumulates until someone notices.
 
-- **越往上越严** — run bundle 根像大门：只许宪法级条目，禁止临时堆箱
-- **越往下越松** — 版本内 `_scratch/` 像工位抽屉：本版临时/bak 可松，但不得逃到大门
+So Phase B is a **discoverability / vocabulary** layer on top of the same layout SSOT (`bundle_layout.mjs`). Soft bundle teaches *how to think*; the Where Map teaches *which string to search and where the file lives*.
 
 ```
-deck 根          ← 最严：仅 control + 三层 + _state + _lessons + .env* + .gitignore (+ 可选 MIGRATION.md)
-  ├─ 1_upstream / 2_backbone   ← 中层：有白名单，共享稳定
-  └─ 3_versions/v{n}/
-       ├─ slide-specifications.md / overrides/   ← 本版源
-       ├─ _generated/                            ← 更松：管线派生，可 rm
-       └─ _scratch/                              ← 最松：本版唯一临时出口，内部不抠文件名
+think: where does X go?
+    → rg canonical token (_scratch | style_master | contact_sheet | …)
+    → hit glossary Where Map (term → path → role → not-here)
+    → write to that path
+    → checkBundle still enforces if wrong
 ```
 
-此原则写入 CONSTITUTION + AGENT_CONTRACT，不仅是实现细节。
-
-已有出口不动：`style-master-iterations/`、`_generated/ppt/*.backup.pptx`、`_state/`、`_lessons/`。
+Code agents are GREP-native; design for `rg` hits, not prose recall or BM25.
 
 ## Goals / Non-Goals
 
 **Goals**
 
-- 版本内 `_scratch/` 为临时/备份唯一官方出口
-- deck 根 check 拒 bak 等意外条目（上严）
-- version 根白名单含 `_scratch/`（下松有名）
-- 文档路由表；init/new-version 种子；gitignore
-- 金甲板 bak 迁入 `v1/_scratch/`
+- One **Where Map** SSOT in `reference/glossary.md`: grep-friendly terms for high-frequency placement objects (workspace, version leaf, scratch, generated, style master, pilot/contact sheet, state, lessons, upstream, backbone, overrides)
+- Entry docs plant **search keys** + the grep-before-invent rule
+- Phase 0 / deck-root README maps show `_scratch` with the **same tokens** as glossary
+- Golden deck first-look READMEs refreshed so opening a live deck does not teach a stale map
+- Light tests that anchors exist
 
 **Non-Goals**
 
-- deck 根 `_scratch/`
-- `_scratch` 进管线 / 当第二真相
-- 强制每次改文件自动 bak
-- 全量重生页图
+- Changing `SCRATCH_SUBDIR` or adding deck-root scratch
+- Replacing `checkBundle` with docs-only trust
+- Auto-rewriting every historical deck README
+- Expanding glossary into a full design textbook (only placement-critical terms)
 
 ## Decisions
 
-### D1 — 名字与位置
+### D0 — New capability `run-bundle-layout` ≠ `framework-directory-layout`
 
-`SCRATCH_SUBDIR = '_scratch'`，仅在 version dir。不做 deck 根 scratch。
+| Capability | Object |
+|------------|--------|
+| `framework-directory-layout` | Soft bundle `PPTMAKER_FRAMEWORK/` only |
+| **`run-bundle-layout` (NEW)** | Run bundle `deck_{NAME}/` tree, roles, gradient, Where Map |
+| `run-bundle-management` | Ops: init / check / new-version / self-check (+ seed README copy) |
+| `framework-charter` | Entry/charter **mirrors and points**; does not own ontology |
 
-### D2 — 上严：deck 根允许集
+Do **not** extend soft-bundle layout to cover `deck_*`. Delta spec: `specs/run-bundle-layout/spec.md` → sync to main on archive. Where Map requirements live primarily under `run-bundle-layout`.
 
-`checkBundle` 在 `deckRoot(runDir)` 上扫描：允许 `deck-guide.md`、`CLAUDE.md`、`project-metadata.yaml`、`README.md`、`.gitignore`、`.env`、`.env.example`、`1_upstream_raw_material/`、`2_backbone/`、`3_versions/`、`_state/`、`_lessons/`；可选 `MIGRATION.md`（迁移 deck 文档，允许）。其余文件/目录 → unexpected（含 `_slidespec.bak*`）。
+### D1 — Phase A mechanism stays; Phase B is the open work
 
-### D3 — 下松：version 根白名单
+Do not re-litigate `_scratch` path, whitelist, or gitignore. Reopened change = capability split + discoverability + vocabulary alignment.
 
-在现有允许项上增加 `_scratch/`。`_scratch/` **内部**不白名单文件名（任意 bak/草稿 OK）；仅要求目录存在时可有 README。
+### D2 — Where Map is the GREP index; glossary definitions hang under same headings
 
-### D4 — README 路由表（种子文案）
+- Top of `glossary.md`: **Where Map** table (Term | Path | Means | Do not).
+- Body: `###` headings = **exact grep tokens** (`### _scratch/`, `### style_master.jpg`, `### --run-dir`, …).
+- English-primary one-liners; Chinese allowed as gloss.
+- Alias line only: `Also-search → canonical` (e.g. bak/temp → `_scratch/`; 小样 → `contact_sheet` / `pilot`).
 
-中文 README 写清欲望→路径，并写「禁止自创 `_tmp`/`backup`/`_bak` 或放到 deck 根」。
+### D3 — Canonical tokens (minimum set)
 
-### D5 — new-version / gitignore
+Must appear as searchable anchors (table and/or `###`):
 
-新版：空 `_scratch/` + README，不拷旧内容。gitignore：`3_versions/*/_scratch/*` 并 `!3_versions/*/_scratch/README.md`（或等价）。
+| Token | Path gist |
+|-------|-----------|
+| `run bundle` | `deck_{NAME}/` |
+| `soft bundle` | `PPTMAKER_FRAMEWORK/` |
+| `--run-dir` | `…/3_versions/v{n}/` (≠ deck root) |
+| `_scratch/` | version temp / bak |
+| `_generated/` | pipeline derived |
+| `slide-specifications.md` | version source SSOT |
+| `style_master.jpg` | backbone visual anchor |
+| `contact_sheet` / `pilot` | `_generated/preview/` 小样 |
+| `_state/` / `_lessons/` | progress vs notes |
+| `1_upstream_raw_material/` / `2_backbone/` / `overrides/` | tiers |
+| structure gradient / 上严下松 | rule, not a path |
 
-### D6 — 金甲板
+`_scratch/` definition MUST answer: what / where / not what / vs `_generated/`.
 
-apply：`mv` 两份 bak → `3_versions/v1/_scratch/`，直到 `--check` 绿。
+### D4 — BOOTSTRAP plants the loop; does not duplicate the whole map
+
+One bullet under「目录结构是宪法」: unsure where to put → GREP tokens → `reference/glossary.md` Where Map. Do not paste the full table into BOOTSTRAP (drift risk). Quick-ref table may link glossary.
+
+### D5 — AGENTS Phase 0 tree uses same labels as glossary
+
+Tree annotation for `_scratch/` uses English role words aligned with Where Map (e.g. SCRATCH · version temp/bak · not SSOT). No third Chinese-only nickname as the sole label.
+
+### D6 — `_DIR_READMES` are first-look maps for agents inside a deck
+
+- Deck-root README: list that version temp lives at `3_versions/v{n}/_scratch/`; one line structure gradient / 上严下松.
+- `3_versions` README: `--new-version` does not copy `_scratch/` contents (alongside `_generated/`).
+- Leaf `_scratch` README already OK; keep routing table; ensure opening line shares glossary token `_scratch/`.
+
+### D7 — Force-refresh golden deck READMEs
+
+`deck_ai_sdlc_keynote` root + `v1/README.md` overwritten to match current seeds (init uses `_writeIfAbsent` — stale live decks stay wrong forever otherwise).
+
+### D8 — Tests are anchor presence, not prose quality
+
+Assert strings like `_scratch` / `Where Map` / grep-loop phrasing in glossary + BOOTSTRAP (and/or seed README constants). Structure check on keynote remains green.
 
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
 |------|------------|
-| 旧 deck 根有合法杂文件 | 白名单含 `MIGRATION.md`；其余按 unexpected 修 |
-| Agent 仍往 `_generated` 塞 bak | README + CONTRACT 路由表 |
-| scratch 膨胀 | 文案：可 rm；非进度 |
+| Glossary grows into unmaintainable essay | Cap Where Map to placement-critical rows; deep why stays in existing sections |
+| Entry docs and glossary drift | Same tokens; BOOTSTRAP points, does not fork table |
+| Agent greps Chinese only | Also-search line + English paths in table |
+| Stale decks outside keynote | Non-goal; seeds fix new inits; document refresh pattern |
 
 ## Migration Plan
 
-1. bundle_layout + tests  
-2. 宪章/模板文档  
-3. 金甲板 bak 搬家  
-4. `npm test` + keynote `--check`
+1. Add `specs/run-bundle-layout/spec.md`; slim charter/management deltas to mirror/ops  
+2. Apply: glossary Where Map → BOOTSTRAP → AGENTS tree → `_DIR_READMES` → keynote README force → light tests  
+3. `npm test` + keynote `--structure-only`  
+4. On archive/sync: main gains `openspec/specs/run-bundle-layout/` — never merge into `framework-directory-layout`  
+5. Archive only after human OK (do not self-commit/archive)  
 
 ## Open Questions
 
-无。
+None for mechanism. Copy tone (EN/中 mix) follows D2; human reviews wording at apply.

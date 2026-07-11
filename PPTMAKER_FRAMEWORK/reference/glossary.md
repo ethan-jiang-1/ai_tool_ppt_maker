@@ -11,32 +11,71 @@ agent_action: reference
 
 # GLOSSARY — 关键术语
 
-> 框架中反复出现的术语，按概念分组。每个术语有**一句话定义** + **它在框架中为什么重要**。
+> 不知道东西往哪放？**先 GREP，再 mkdir。** 对 Where Map 里的 **Term**（路径/文件名）跑 `rg`，命中本文件即规矩。  
+> Capability: **`run-bundle-layout`**（run bundle `deck_*` 树本体）≠ `framework-directory-layout`（软包 `PPTMAKER_FRAMEWORK/`）。  
+> 下文：先 Where Map → 再分组定义。
+
+## Where Map
+
+> Grep anchors = left column / `###` headings below. One term → one path → one role. Owned by **run-bundle-layout**.
+
+| Term (GREP this) | Path | Means / put here | Do **not** |
+|------------------|------|------------------|------------|
+| `run bundle` | `deck_{NAME}/` | Whole project workspace | Soft bundle |
+| `soft bundle` | `PPTMAKER_FRAMEWORK/` | Read-only methodology | Project files |
+| `--run-dir` | `deck_*/3_versions/v{n}/` | Version leaf pipeline runs on | Deck root |
+| `_scratch/` | `…/v{n}/_scratch/` | Version temp / `.bak` / drafts | Deck root; `_generated/` |
+| `_generated/` | `…/v{n}/_generated/` | Pipeline derived (rebuildable) | Hand-edit |
+| `slide-specifications.md` | `…/v{n}/slide-specifications.md` | Per-slide source SSOT | Prompt copies under `_generated/` |
+| `style_master.jpg` | `2_backbone/visual-style/style_master.jpg` | Shared visual anchor | Rejected rounds (→ upstream) |
+| `style-master-prompt.md` | `…/visual-style/style-master-prompt.md` | Source that generates the jpg | Throw away after generate |
+| `contact_sheet` / `pilot` | `…/_generated/preview/*contact_sheet*.jpg` | Few-page visual gate (小样) | Final PPTX as review proxy |
+| `pptx` (deliverable) | `…/_generated/ppt/*.pptx` | Output deck | Edit in PPT as SSOT |
+| `_state/` | `deck_*/_state/` | Playbook progress pointer | Lessons / secrets |
+| `_lessons/` | `deck_*/_lessons/` | Non-secret hard-won notes | Progress; API keys |
+| `1_upstream_raw_material/` | deck root | Raw research; rejected style rounds | Version bak |
+| `2_backbone/` | deck root | Shared metaphor / formula / visual | Version-only deltas |
+| `overrides/` | `…/v{n}/overrides/` | This version’s deltas only | Copy whole backbone |
+| structure gradient / 上严下松 | (rule) | Root strictest; temp sinks **down** | Litter deck root; invent `_tmp/` |
+
+**Also-search → canonical:** `bak` / `temp` / `scratch` → `_scratch/` · `小样` / `preview` → `contact_sheet` / `pilot` · `style master` → `style_master.jpg` · `production` / `derived` → `_generated/`
+
+---
 
 ## 核心概念
 
-### Run Bundle（运行包）
-你为一个具体 PPT 项目创建的文件系统实例——包含所有设计文档、图片、JSON、PPTX。它就是 `deck_{NAME}/` 这个目录。
+### run bundle
+Filesystem instance for one PPT project: `deck_{NAME}/`. All design docs, images, JSON, PPTX live here. No DB, no workflow server — `ls` / `diff -r` / `git log`.
 
-**为什么重要**：整个框架的工作都发生在一个 run bundle 里。不需要数据库、不需要 workflow server。`ls` 看进度，`diff -r 3_versions/v1 3_versions/v2` 看差异。
+**≠ `--run-dir`.** Run bundle = whole tree. `--run-dir` = one version leaf inside it.
 
-### Soft Bundle（软包 / 知识包）
-`PPTMAKER_FRAMEWORK/` 本身——方法论文档、模板、参考脚本。它是只读的知识库，不包含任何具体项目的内容。
+### soft bundle
+`PPTMAKER_FRAMEWORK/` — read-only methodology, templates, scripts. Teaches how to think; never holds a specific deck’s content. Soft-bundle **folder** rules live under capability `framework-directory-layout`, not `run-bundle-layout`.
 
-**为什么重要**：Soft bundle 教你"怎么想"，run bundle 存放"你做了什么"。一个 soft bundle 可以服务无数个 run bundle。
+### --run-dir
+Path argument to the pipeline: `deck_*/3_versions/v{n}/`. That leaf holds `slide-specifications.md`, `overrides/`, `_generated/`, `_scratch/`. Do not pass the deck root as `--run-dir`.
 
 ### Source File（源文件）
-你亲手写的文件——slide-specifications.md、visual-style.md。这些文件进 Git，人类编辑它们。
+Human-edited truth: `slide-specifications.md`, backbone markdown, `style-master-prompt.md`, etc. Git-tracked. Change these; regenerate derived.
 
-### Derived Artifact（派生品）
-脚本生成的产物——`_generated/slide_plan.json`、`_generated/page_images_full/*.png`、`_generated/ppt/*.pptx`。全部在 `_generated/` 目录下，可以随时从源文件重新生成。**绝不要直接改派生品。**
+### _generated/
+Pipeline output under `3_versions/v{n}/_generated/` — `slide_plan.json`, images, PPTX, preview. Rebuildable from sources. **Never hand-edit.** (Also called Derived Artifact.)
+
+### _scratch/
+Official **version-local temp outlet**: `3_versions/v{n}/_scratch/`. Pre-edit `.bak`, throwaway drafts, one-off comparisons for **this version only**. Not SSOT; deletable. Structure gradient leaf (上严下松 — loosest).
+
+**Do not:** invent `_tmp/` / `backup/` / `_bak/`; dump bak at run-bundle root or in `2_backbone/`.  
+**Route elsewhere:** rejected style-master rounds → `1_upstream_raw_material/style-master-iterations/` · pipeline backups → `_generated/` · lessons → `_lessons/` · progress → `_state/`.
+
+### structure gradient / 上严下松
+Organizational rule: run-bundle **root strictest** (constitution entries only) → mid layers whitelisted → `_generated/` regenerable → `_scratch/` loosest. Temporary files sink **down**; never escape **up** to deck root.
 
 ---
 
 ## 视觉系统
 
-### Visual Style Master（视觉风格母版）
-一张参考图（`style_master.jpg`），上面展示了 color palette、typography scale、layout grid、component patterns。它的作用是作为 **visual anchor**——生成每一页 slide 时传给 AI 模型，让模型"看到"并"匹配"这套视觉系统。
+### style_master.jpg
+Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type scale, grid, components. **Visual Style Master** / visual anchor for every slide generation (SHOW, don’t only describe).
 
 **为什么重要**：这是整个框架最核心的洞察——用图片而不是文字来描述视觉风格。文字说"deep teal"每次都不一样；图片展示 exact teal swatch，每次都一样。
 
@@ -119,6 +158,9 @@ agent_action: reference
 ### Stage（管线阶段）
 生产管线的 5 个步骤：Stage 1（markdown→JSON）、Stage 2（text→images）、Stage 3（Header-Lock）、Stage 4（build PPTX）、Stage 5（inject notes）。每个 Stage 有明确的输入/输出，可以独立运行和 debug。
 
+### pilot / contact_sheet（小样）
+Few-page visual gate before full production. Artifacts under `_generated/preview/` (e.g. `*contact_sheet*.jpg`). Command: `ppt_flow.mjs pilot <--run-dir>`. Show the sheet; do not treat final PPTX as the pilot review stand-in.
+
 ---
 
 ## 迭代
@@ -141,4 +183,4 @@ Image generation 的调用模式：submit（提交 prompt）→ poll（轮询任
 
 ---
 
-> 有术语缺失？先查 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)，或在 AGENTS.md 的快速查阅表中搜索。
+> 有术语缺失？先 `rg` 真路径/文件名（Where Map）；再查 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。Where Map 缺行补本文件——别另造目录名。Run-bundle 树定义属 **run-bundle-layout**，软包树属 **framework-directory-layout**。
