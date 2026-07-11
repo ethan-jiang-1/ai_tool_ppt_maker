@@ -1,12 +1,4 @@
-## Purpose
-
-Define Stage 2 (image generation) as an **in-framework Node** capability: async
-submit→poll→download via `image_api_client.mjs`, batch generation via
-`stage2_generate_images.mjs`, and QA contact sheets via `make_contact_sheet.mjs`.
-Credentials follow the Image2 contract (`IMAGE2_*`, with OPENAI_*/APIMART_* aliases).
-No external agent skills. No Python. No bash.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Stage 2 is implemented inside the framework
 
@@ -23,6 +15,8 @@ Image credentials SHALL follow the **Image2 contract**: canonical `IMAGE2_API_KE
 
 - **WHEN** Stage 2 runs with a key but no resolvable base URL
 - **THEN** resolution fails naming `IMAGE2_BASE_URL`
+
+## ADDED Requirements
 
 ### Requirement: Submit and poll accept data-array response envelopes
 
@@ -64,23 +58,3 @@ Entry docs SHALL name `_learning/` by that purpose when instructing persist/read
 
 - **WHEN** an agent follows BOOTSTRAP / `03-tool-selection` after a successful smoke
 - **THEN** those docs tell them to write the non-secret receipt under `_learning/` as operational lessons (not under `_state/` or as chat-only)
-
-### Requirement: Contact sheet is in-framework
-
-After image generation, the pipeline SHALL produce a contact sheet using
-`make_contact_sheet.mjs` (`@napi-rs/canvas`), not an external skill.
-
-#### Scenario: Contact sheet written under preview/
-
-- **WHEN** Stage 2 completes successfully
-- **THEN** a JPEG contact sheet is written under `_generated/preview/`
-
-### Requirement: No external skill dependency
-
-The framework SHALL NOT require `image2-ppt` or `image2-imagegen` skills to be
-installed for production readiness.
-
-#### Scenario: Doctor without skills dirs
-
-- **WHEN** env-check runs with no `.claude/skills` / `.agents/skills` present
-- **THEN** `stage2_generator` is still `ok` if in-framework scripts exist

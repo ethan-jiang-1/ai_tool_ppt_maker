@@ -125,6 +125,7 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
   ├── deck-guide.md              ← 进目录先读（控制流护栏）
   ├── CLAUDE.md                  ← 一行指针 → deck-guide.md
   ├── _state/                    ← playbook 执行进度（state.yaml）
+  ├── _learning/                 ← 非密钥操作经验（先读再猜；不是进度 / 不是密钥）
   ├── 1_upstream_raw_material/   ← 【源·共享】原始素材/调研
   ├── 2_backbone/                ← 【源·共享】主干:隐喻/公式/约束/大纲/讲稿/视觉
   │     └── visual-style/        ←   style-master-prompt.md + style_master.jpg + deck_system.txt + color_palette.json
@@ -378,7 +379,7 @@ node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
-wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、桥接 `OPENAI_*`/`APIMART_*`，并把图片与 trace 写回同一视觉源目录。
+wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、按 Image2 契约解析凭据（`IMAGE2_*`，别名 `OPENAI_*`/`APIMART_*`），并把图片与 trace 写回同一视觉源目录。
 
 ### 2.5 提取 deck_system.txt
 

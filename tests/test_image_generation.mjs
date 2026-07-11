@@ -29,6 +29,9 @@ describe('image_api_client', () => {
     delete process.env.APIMART_API_KEY;
     delete process.env.APIMART_BASE_URL;
     delete process.env.APIMART_BASE_URLS;
+    delete process.env.IMAGE2_API_KEY;
+    delete process.env.IMAGE2_BASE_URL;
+    delete process.env.IMAGE2_BASE_URLS;
   });
 
   afterEach(() => {
@@ -37,6 +40,9 @@ describe('image_api_client', () => {
     else process.env.OPENAI_API_KEY = prevKey;
     if (prevBase === undefined) delete process.env.OPENAI_BASE_URL;
     else process.env.OPENAI_BASE_URL = prevBase;
+    delete process.env.IMAGE2_API_KEY;
+    delete process.env.IMAGE2_BASE_URL;
+    delete process.env.IMAGE2_BASE_URLS;
     rmSync(ROOT, { recursive: true, force: true });
   });
 
@@ -46,6 +52,89 @@ describe('image_api_client', () => {
     expect(process.env.APIMART_API_KEY).toBe('test-key');
     expect(mod.resolveBaseUrls()).toEqual(['https://api.example.test/v1']);
     expect(mod.resolveBaseUrls(['https://mirror.test/v1'])).toEqual(['https://mirror.test/v1']);
+  });
+
+  it('prefers IMAGE2_* over aliases and errors when base URL missing', async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.APIMART_API_KEY;
+    delete process.env.APIMART_BASE_URL;
+    delete process.env.APIMART_BASE_URLS;
+    process.env.IMAGE2_API_KEY = 'img2-key';
+    process.env.IMAGE2_BASE_URL = 'https://image2.test/v1';
+    const mod = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    expect(mod.resolveApiKey()).toBe('img2-key');
+    expect(mod.resolveBaseUrls()).toEqual(['https://image2.test/v1']);
+    delete process.env.IMAGE2_BASE_URL;
+    delete process.env.IMAGE2_BASE_URLS;
+    delete process.env.APIMART_BASE_URL;
+    delete process.env.APIMART_BASE_URLS;
+    delete process.env.OPENAI_BASE_URL;
+    expect(() => mod.resolveBaseUrls()).toThrow(/IMAGE2_BASE_URL/);
+    delete process.env.IMAGE2_API_KEY;
+  });
+
+  it('unwrapDataRecord reads array and object data envelopes', async () => {
+    const { unwrapDataRecord } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    expect(unwrapDataRecord({ code: 200, data: [{ task_id: 'task_abc', status: 'submitted' }] }).task_id).toBe('task_abc');
+    expect(unwrapDataRecord({ data: { task_id: 'task_obj' } }).task_id).toBe('task_obj');
+    expect(unwrapDataRecord({ task_id: 'task_top' }).task_id).toBe('task_top');
+  });
+
+  it('submit accepts data-array task_id envelope (BUG-008)', async () => {
+    const pngBytes = (() => {
+      const c = createCanvas(4, 4);
+      return c.toBuffer('image/png');
+    })();
+    globalThis.fetch = vi.fn(async (url, init) => {
+      const u = String(url);
+      if (u.endsWith('/images/generations') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              code: 200,
+              data: [{ status: 'submitted', task_id: 'task_arr' }],
+            }),
+          json: async () => ({
+            code: 200,
+            data: [{ status: 'submitted', task_id: 'task_arr' }],
+          }),
+          headers: { get: () => 'application/json' },
+        };
+      }
+      if (u.includes('/tasks/task_arr') && !u.endsWith('/result')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ code: 200, data: [{ status: 'completed' }] }),
+          headers: { get: () => 'application/json' },
+        };
+      }
+      if (u.endsWith('/result')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [{ b64_json: pngBytes.toString('base64') }],
+          }),
+          headers: { get: () => 'application/json' },
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+
+    const { generateOneImage } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    const outPath = join(ROOT, 'arr.png');
+    const trace = await generateOneImage({
+      prompt: 'array envelope',
+      outPath,
+      force: true,
+      baseUrls: ['https://api.example.test/v1'],
+    });
+    expect(trace.task_id).toBe('task_arr');
+    expect(existsSync(outPath)).toBe(true);
   });
 
   it('submit→poll→download writes PNG + optional trace (mocked fetch)', async () => {

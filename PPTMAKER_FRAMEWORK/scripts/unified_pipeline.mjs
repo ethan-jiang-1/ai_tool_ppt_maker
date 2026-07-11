@@ -229,7 +229,7 @@ export async function stage1(runDir, dryRun) {
  * Stage 2: Generate images with style anchoring (in-framework Node).
  *
  * Uses scripts/stage2_generate_images.mjs + make_contact_sheet.mjs.
- * Credentials: OPENAI_API_KEY / OPENAI_BASE_URL (APIMART_* aliases accepted).
+ * Credentials: IMAGE2_API_KEY / IMAGE2_BASE_URL (APIMART_* / OPENAI_* aliases accepted).
  *
  * @param {string} runDir
  * @param {string|null} [baseUrl]
@@ -264,9 +264,8 @@ export async function stage2(runDir, {
     mkdirSync(outDir, { recursive: true });
   }
 
-  if (!("APIMART_API_KEY" in process.env) && process.env.OPENAI_API_KEY) {
-    process.env.APIMART_API_KEY = process.env.OPENAI_API_KEY;
-  }
+  const { bridgeCredentials, resolveBaseUrls } = await import("./image_api_client.mjs");
+  bridgeCredentials();
 
   /** @type {string[]} */
   const selectedIds = [];
@@ -277,11 +276,14 @@ export async function stage2(runDir, {
     }
   }
 
-  const baseUrls = [];
-  const resolvedBase = baseUrl
-    || process.env.OPENAI_BASE_URL
-    || process.env.APIMART_BASE_URL;
-  if (resolvedBase) baseUrls.push(resolvedBase);
+  /** @type {string[]} */
+  let baseUrls = [];
+  try {
+    baseUrls = resolveBaseUrls(baseUrl ? [baseUrl] : []);
+  } catch (err) {
+    console.log(`  ✗ ${err.message}`);
+    return false;
+  }
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`  Stage: Stage 2: Generate Images`);

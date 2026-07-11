@@ -114,26 +114,43 @@ function checkNpm() {
 }
 
 function checkApiKey() {
-  const key = process.env.OPENAI_API_KEY || process.env.APIMART_API_KEY;
-  const source = process.env.OPENAI_API_KEY ? 'OPENAI_API_KEY' : (process.env.APIMART_API_KEY ? 'APIMART_API_KEY' : null);
+  const key =
+    process.env.IMAGE2_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.APIMART_API_KEY;
+  const source = process.env.IMAGE2_API_KEY
+    ? 'IMAGE2_API_KEY'
+    : (process.env.OPENAI_API_KEY
+      ? 'OPENAI_API_KEY'
+      : (process.env.APIMART_API_KEY ? 'APIMART_API_KEY' : null));
   return {
     check: 'api_key',
     status: source ? 'ok' : 'fail',
     detail: source ? `found (${source})` : 'not set',
     fix: source ? null : (
       'Stage 2 (image generation) needs a key. Put it in .env (loaded automatically):\n' +
-      '  OPENAI_API_KEY=sk-...'
+      '  IMAGE2_API_KEY=sk-...'
     ),
   };
 }
 
 function checkBaseUrl() {
-  const url = process.env.OPENAI_BASE_URL || process.env.APIMART_BASE_URL || process.env.APIMART_BASE_URLS;
+  const url =
+    process.env.IMAGE2_BASE_URL ||
+    process.env.IMAGE2_BASE_URLS ||
+    process.env.OPENAI_BASE_URL ||
+    process.env.APIMART_BASE_URL ||
+    process.env.APIMART_BASE_URLS;
+  const ok = Boolean(url && String(url).trim());
   return {
     check: 'image_base_url',
-    status: 'ok',
-    detail: url ? `set (${url})` : 'unset — the Stage-2 backend uses its default endpoint',
-    fix: null,
+    status: ok ? 'ok' : 'fail',
+    detail: ok ? `set (${String(url).split(',')[0].trim()})` : 'not set',
+    fix: ok ? null : (
+      'Image API base URL is required (no silent default). Put it in .env:\n' +
+      '  IMAGE2_BASE_URL=https://your-relay/v1\n' +
+      '  # or IMAGE2_BASE_URLS=https://a/v1,https://b/v1'
+    ),
   };
 }
 

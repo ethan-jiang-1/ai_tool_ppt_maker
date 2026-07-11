@@ -11,8 +11,11 @@ npm install
 # 2. 环境检查
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
-# 3. 配 API key
-echo "OPENAI_API_KEY=sk-..." > .env
+# 3. 配 Image2 凭据（key + base URL 都必填）
+cat > .env <<'EOF'
+IMAGE2_API_KEY=sk-...
+IMAGE2_BASE_URL=https://your-relay/v1
+EOF
 
 # 4. 跟 Agent 说: "我要做一个 PPT"
 ```
