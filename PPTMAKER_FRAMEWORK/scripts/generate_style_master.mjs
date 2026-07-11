@@ -29,7 +29,7 @@ import {
 
 import {
   generateOneImage,
-  resolveBaseUrls,
+  resolveVendors,
   bridgeCredentials,
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
@@ -85,15 +85,14 @@ export async function generateStyleMaster({
   loadDotenv(...searchDirs);
   bridgeCredentials();
 
-  let resolvedBaseUrls = Array.isArray(baseUrl) ? baseUrl.slice() : [];
-  if (resolvedBaseUrls.length === 0) {
+  // CLI --base-url extras only; empty → generateOneImage uses full IMAGE2_VENDORS/env.
+  const cliBaseUrls = Array.isArray(baseUrl) ? baseUrl.filter(Boolean) : [];
+  if (!dryRun) {
     try {
-      resolvedBaseUrls = resolveBaseUrls();
+      resolveVendors(cliBaseUrls);
     } catch (err) {
-      if (!dryRun) {
-        console.error(`✗ ${err.message}`);
-        return 1;
-      }
+      console.error(`✗ ${err.message}`);
+      return 1;
     }
   }
 
@@ -133,7 +132,7 @@ export async function generateStyleMaster({
       resolution,
       model,
       force,
-      baseUrls: resolvedBaseUrls,
+      baseUrls: cliBaseUrls,
       tracePath,
     });
     return 0;

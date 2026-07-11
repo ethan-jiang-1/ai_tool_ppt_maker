@@ -62,7 +62,7 @@ exit:
 ```
 
 **Step 1 — MD**: 读 workflow/01-visual/. 推荐 2-3 个 visual preset, 用户选一个.
-**Step 2 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`（prompt 源：`2_backbone/visual-style/style-master-prompt.md`）
+**Step 2 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`（prompt 源：`2_backbone/visual-style/style-master-prompt.md`；转述 client 进度日志）
 **Step 3 — Gate**: **必须 open** `2_backbone/visual-style/style_master.jpg`（禁止只描述）。一次满意 → `ppt_flow.mjs approve <run-dir> visual`，并同步 `_state`：`setGate(state, 'visual', 'approved')` + `writeState`，再进 seed-topics。用户要多轮打磨 → `switchPlaybook` 进入 `iterate-style`（勿只改文案过 gate）；回来后 `resumePlaybook`。
 
 ### seed-topics
@@ -136,9 +136,9 @@ exit:
 ```
 
 **Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1`
-**Step 2 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --only <opener>,<body>,<closer> --resolution 1k` (pilot)
+**Step 2 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --only <opener>,<body>,<closer> --resolution 1k` (pilot；转述 `i/N` / 心跳)
 **Step 3 — MD**: 人审 pilot. 通过 → 继续; 不通过 → 回 Step 2 调 prompt
-**Step 4 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --resolution 2k --force-images` (full)
+**Step 4 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --resolution 2k --force-images` (full；同上可观察等待)
 **Step 5 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 3,4,5`
 
 ### hitl2

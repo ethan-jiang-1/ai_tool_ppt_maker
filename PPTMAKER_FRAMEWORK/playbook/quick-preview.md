@@ -41,7 +41,7 @@ exit: [pilot_done]
 ```
 
 **Step 1 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot <run-dir>`
-（默认跳过已有图；要重渲加 `--force-images`。`--only 3` / `--only s03` 可用。）
+（默认跳过已有图；要重渲加 `--force-images`。`--only 3` / `--only s03` 可用。长出图转述 `i/N` 与心跳；失败 envelope 原样。）
 
 ### review-preview
 → 人审 contact sheet
