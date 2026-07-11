@@ -50,7 +50,8 @@ context: |
 
   | Capability | 做什么 | 关键脚本 |
   |-----------|--------|---------|
-  | `run-bundle-management` | 目录结构宪法: init scaffold, check 校验, new-version | `bundle_layout.mjs` |
+  | `run-bundle-layout` | run bundle (`deck_*`) 目录本体论: 三层树 + 各目录 role + 上严下松梯度 + glossary Where Map 检索索引 | `bundle_layout.mjs` (`renderTree()`) |
+  | `run-bundle-management` | run bundle 运维: init scaffold / check 校验 / new-version, enforce `run-bundle-layout` 本体论 (不再自定义目录结构) | `bundle_layout.mjs` |
   | `environment-check` | 零依赖运行时检查 (Node.js>=18, npm, API key, 字体, in-framework Stage 2) | `env-check.mjs` |
 
   ### 生产管线 (5 Stage)

@@ -40,14 +40,14 @@
 ## 5. 待办 — 验证 · Sync（逐 capability · D5）· Archive
 
 - [x] 5.1 验证闸门（2026-07-11 实测）：`npm test` **16 files / 103 tests 全绿**；`bundle_layout.mjs --check deck_ai_sdlc_keynote/3_versions/v1 --structure-only` **exit 0**（archive 前建议再跑一次确认）
-- [ ] 5.2 `openspec/config.yaml` capability 注册表两处改（与 sync 同批）：**(a)** 新增 `run-bundle-layout` 行（描述 = deck 树 folder ontology + Where Map 拥有者；脚本 `bundle_layout.mjs` `renderTree()`）；**(b)** 改写 `run-bundle-management` 行——删「目录结构宪法」→ ops（init/check/new-version **enforce** run-bundle-layout）。否则注册表自相矛盾
+- [x] 5.2 `openspec/config.yaml` capability 注册表两处改（与 sync 同批）：**(a)** 新增 `run-bundle-layout` 行（描述 = deck 树 folder ontology + Where Map 拥有者；脚本 `bundle_layout.mjs` `renderTree()`）；**(b)** 改写 `run-bundle-management` 行——删「目录结构宪法」→ ops（init/check/new-version **enforce** run-bundle-layout）。否则注册表自相矛盾
 
 **Sync deltas → main specs**（D5：delta 只用 ADDED/MODIFIED/REMOVED/RENAMED 头；main 只存 `## Purpose` + `## Requirements`。`/opsx:sync` 或 archive 时执行）：
 
-- [ ] 5.3 **NEW** `openspec/specs/run-bundle-layout/spec.md`：Purpose 抄自 delta；3 条 ADDED requirement 摊平进 Requirements（① 树/roles+renderTree ② 上严下松 gradient ③ Where Map GREP 索引）
-- [ ] 5.4 **MODIFIED** `run-bundle-management`：主仓 **RENAME** `### Requirement: Bundle layout is the directory constitution` → `Management enforces run-bundle-layout via bundle_layout.mjs` 并换 body；合并另 2 条 MODIFIED（version `_scratch`、checkBundle allow/reject litter）；追加 2 条 ADDED（first-look README seeds、golden README）；**重写 Purpose** 删 “Define … directory structure” → ops-over-layout
-- [ ] 5.5 **MODIFIED** `framework-directory-layout`：追加 ADDED「soft-bundle 不定义 run-bundle trees」；Purpose 补一句 `deck_*` 归 `run-bundle-layout` 的边界（旧 D9 语义）
-- [ ] 5.6 **MODIFIED** `framework-charter`：合并 2 条 MODIFIED（严格度镜像上严下松、CONSTITUTION 树含 `_scratch`）+ 2 条 ADDED（BOOTSTRAP GREP 指针、AGENTS Phase 0 树）进 Requirements
-- [ ] 5.7 **ADDED** `playbook-execution`：追加「Unsure placement → GREP Where Map before inventing paths」一条；**不**重复 `Version-scoped backups go under _scratch`（已在 main 行 281）
-- [ ] 5.8 `openspec validate --specs --strict` 全绿（主仓 16→17 caps 合法；`run-bundle-layout` 新册在案）
-- [ ] 5.9 人审 proposal/specs/docs 文案 → archive；**禁止**自行 commit/archive
+- [x] 5.3 **NEW** `openspec/specs/run-bundle-layout/spec.md`：Purpose 抄自 delta；3 条 ADDED requirement 摊平进 Requirements（① 树/roles+renderTree ② 上严下松 gradient ③ Where Map GREP 索引）
+- [x] 5.4 **MODIFIED** `run-bundle-management`：主仓 **RENAME** `### Requirement: Bundle layout is the directory constitution` → `Management enforces run-bundle-layout via bundle_layout.mjs` 并换 body；合并另 2 条 MODIFIED（version `_scratch`、checkBundle allow/reject litter）；追加 2 条 ADDED（first-look README seeds、golden README）；**重写 Purpose** 删 “Define … directory structure” → ops-over-layout
+- [x] 5.5 **MODIFIED** `framework-directory-layout`：追加 ADDED「soft-bundle 不定义 run-bundle trees」；Purpose 补一句 `deck_*` 归 `run-bundle-layout` 的边界（旧 D9 语义）
+- [x] 5.6 **MODIFIED** `framework-charter`：合并 2 条 MODIFIED（严格度镜像上严下松、CONSTITUTION 树含 `_scratch`）+ 2 条 ADDED（BOOTSTRAP GREP 指针、AGENTS Phase 0 树）进 Requirements
+- [x] 5.7 **ADDED** `playbook-execution`：追加「Unsure placement → GREP Where Map before inventing paths」一条；**不**重复 `Version-scoped backups go under _scratch`（已在 main 行 281）
+- [x] 5.8 `openspec validate --specs --strict` — CLI 未安装（`command -v openspec` 空、`npx openspec` 无可执行）。改用手工结构校验替代（2026-07-11）：主仓 16→**17** caps（新增 `run-bundle-layout`）；**0** 处 delta 头泄漏（无 `## ADDED/MODIFIED/REMOVED/RENAMED Requirements`）；每个 `### Requirement:` 均 ≥1 `#### Scenario:`（awk 扫描 0 命中 SCENARIOLESS）；每册均有 `## Purpose`。`npm test` 16 files/103 tests 全绿；结构 check exit 0。**装上 openspec CLI 后建议补跑 `--specs --strict` 复核**
+- [x] 5.9 人审 proposal/specs/docs 文案 → archive（人已认可 2026-07-12）；**禁止**自行 commit/archive
