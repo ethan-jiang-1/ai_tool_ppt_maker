@@ -81,6 +81,20 @@ describe('image_api_client', () => {
     expect(unwrapDataRecord({ task_id: 'task_top' }).task_id).toBe('task_top');
   });
 
+  it('fixtures cover submit array and poll-embedded extractImageRef', async () => {
+    const { unwrapDataRecord, extractImageRef } = await import(
+      '../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs'
+    );
+    const submit = JSON.parse(
+      readFileSync(join('tests/fixtures/image-api/submit-data-array.json'), 'utf-8')
+    );
+    expect(unwrapDataRecord(submit).task_id).toBe('task_fixture_submit');
+    const poll = JSON.parse(
+      readFileSync(join('tests/fixtures/image-api/poll-embedded-image.json'), 'utf-8')
+    );
+    expect(extractImageRef(poll)).toEqual({ url: 'https://cdn.example.test/out/slide.png' });
+  });
+
   it('submit accepts data-array task_id envelope (BUG-008)', async () => {
     const pngBytes = (() => {
       const c = createCanvas(4, 4);

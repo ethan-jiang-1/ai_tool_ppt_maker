@@ -52,6 +52,7 @@ import {
   deckRoot, backboneDir, styleAsset, generatedDir,
   findSlideSpecs, deckName, checkBundle, loadDotenv,
 } from "./bundle_layout.mjs";
+import { resolveSlideIds } from "./lib/slide_ids.mjs";
 
 // --- Configuration -----------------------------------------------------------
 
@@ -268,11 +269,21 @@ export async function stage2(runDir, {
   bridgeCredentials();
 
   /** @type {string[]} */
-  const selectedIds = [];
+  let selectedIds = [];
   if (only) {
+    const tokens = [];
     for (let slideId of only.split(",")) {
       slideId = slideId.trim();
-      if (slideId) selectedIds.push(slideId);
+      if (slideId) tokens.push(slideId);
+    }
+    if (tokens.length > 0) {
+      try {
+        const plan = JSON.parse(readFileSync(join(buildDir, GEN_SLIDE_PLAN), "utf-8"));
+        selectedIds = resolveSlideIds(tokens, plan.slides || []);
+      } catch (err) {
+        console.log(`  ✗ --only: ${err.message}`);
+        return false;
+      }
     }
   }
 
@@ -303,7 +314,7 @@ export async function stage2(runDir, {
       styleReference: styleMaster,
       resolution,
       only: selectedIds,
-      force: !!(forceImages || only),
+      force: !!forceImages,
       promptIsFinal: true,
       baseUrl: baseUrls,
       dryRun: false,
@@ -577,16 +588,15 @@ export async function stage5(runDir, dryRun) {
  * Enforce the run-bundle constitution before doing anything.
  *
  * Delegates to bundle_layout.checkBundle (the single enforcement point). Any
- * deviation from the canonical structure aborts the run. `requireReady` toggles
- * Stage-2 readiness: style_master.jpg plus recorded content/visual gate decisions.
- * Cheap authoring reruns (e.g. Stage 1 or 5) do not demand them.
+ * deviation from the canonical structure aborts the run. `mode` selects
+ * structure | preview (style master) | pipeline (style master + gates).
  *
  * @param {string} runDir
- * @param {boolean} [requireReady=true] - Require Stage-2 readiness.
+ * @param {boolean|string} [mode=true] - readiness mode (bool aliases kept).
  * @returns {boolean} true if valid.
  */
-export function validateRunDir(runDir, requireReady = true) {
-  const violations = checkBundle(resolve(runDir), requireReady);
+export function validateRunDir(runDir, mode = true) {
+  const violations = checkBundle(resolve(runDir), mode);
   if (violations.length > 0) {
     console.log(`  ✗ Bundle does NOT conform to the structure (宪法) — ${violations.length} violation(s):`);
     for (const v of violations) {
@@ -639,6 +649,7 @@ Examples:
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option("--only <ids>", "Only process specific slide IDs (Stage 2, comma-separated)")
     .option("--force-images", "Regenerate all selected Stage-2 images even if files exist")
+    .option("--preview", "Stage-2 readiness: style master only (skip metadata gate check)")
     .option("--resolution <res>", "Stage-2 image resolution (default: 2k; use 1k for pilots)", "2k")
     .option("--dry-run", "Print what would be executed without running")
     .action(async (opts) => {
@@ -679,7 +690,12 @@ Examples:
         process.exit(1);
       }
 
-      if (!validateRunDir(runDir, stages.includes(2))) {
+      /** @type {boolean|string} */
+      let readyMode = false;
+      if (stages.includes(2)) {
+        readyMode = opts.preview ? "preview" : "pipeline";
+      }
+      if (!validateRunDir(runDir, readyMode)) {
         process.exit(1);
       }
 

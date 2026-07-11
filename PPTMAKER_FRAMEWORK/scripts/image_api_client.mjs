@@ -22,6 +22,7 @@ import { dirname, extname } from "node:path";
 export const DEFAULT_MODEL = "gpt-image-2";
 export const MAX_WAIT_MS = 600_000;
 export const POLL_INTERVAL_MS = 5_000;
+export const HEARTBEAT_MS = 30_000;
 
 /**
  * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
@@ -174,7 +175,9 @@ async function submitTask(baseUrl, apiKey, body) {
 async function pollTask(baseUrl, apiKey, taskId) {
   const url = `${baseUrl}/tasks/${taskId}`;
   const deadline = Date.now() + MAX_WAIT_MS;
+  const started = Date.now();
   let pollCount = 0;
+  let lastHeartbeat = started;
 
   while (Date.now() < deadline) {
     pollCount += 1;
@@ -189,6 +192,14 @@ async function pollTask(baseUrl, apiKey, taskId) {
     const status = String(
       data.status || data.state || unwrapped.status || unwrapped.state || "unknown"
     ).toLowerCase();
+    const now = Date.now();
+    if (now - lastHeartbeat >= HEARTBEAT_MS) {
+      const elapsedSec = Math.floor((now - started) / 1000);
+      console.log(
+        `  … still waiting task=${taskId} status=${status} elapsed=${elapsedSec}s polls=${pollCount}`
+      );
+      lastHeartbeat = now;
+    }
     if (status === "completed" || status === "success" || status === "succeeded") {
       return { data, pollCount };
     }
@@ -205,7 +216,11 @@ async function pollTask(baseUrl, apiKey, taskId) {
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
-  throw new Error(`Task ${taskId} timed out after ${MAX_WAIT_MS / 1000}s (${pollCount} polls)`);
+  const elapsedSec = Math.floor((Date.now() - started) / 1000);
+  throw new Error(
+    `Image task ${taskId} timed out after ${elapsedSec}s ` +
+      `(MAX_WAIT_MS=${MAX_WAIT_MS}, ${pollCount} polls) — this image failed; re-run with --force-images for this slide`
+  );
 }
 
 /**
@@ -279,9 +294,10 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
  * Extract an image reference (b64 or url) from any response body shape —
  * a completed poll response OR a /result response. Handles this relay's
  * `data.result.images[0].url` (url may be an array) plus common fallbacks.
+ * @param {unknown} data
  * @returns {{b64:string}|{url:string}|null}
  */
-function extractImageRef(data) {
+export function extractImageRef(data) {
   if (!data || typeof data !== "object") return null;
   const unwrapped = unwrapDataRecord(data);
   const b64 =

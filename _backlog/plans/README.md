@@ -19,7 +19,7 @@
 
 | Plan | 简述 |
 |------|------|
-| — | _无活跃 plan_ |
+| [improve-visual-iteration-env](improve-visual-iteration-env.md) | 视觉迭代环境复盘：doctor 冒烟测试、image_api_client 契约+trace fixture、`--only` id 友好化、预览不篡改闸门、长渲染心跳/续跑、style-master↔deck_system 约束共享 |
 
 ### 已定名 OpenSpec changes
 

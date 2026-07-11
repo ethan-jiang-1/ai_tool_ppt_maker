@@ -23,6 +23,7 @@ import {
   loadDotenv,
   STYLE_MASTER_PROMPT,
   STYLE_MASTER_IMAGE,
+  DECK_SYSTEM_FILE,
   IMAGE_TRACE_SUFFIX,
 } from "./bundle_layout.mjs";
 
@@ -32,6 +33,7 @@ import {
   bridgeCredentials,
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
+import { loadDeckSystem } from "./lib/deck_system.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -43,6 +45,7 @@ const __filename = fileURLToPath(import.meta.url);
  * @param {string} [opts.model]
  * @param {boolean} [opts.force]
  * @param {boolean} [opts.dryRun]
+ * @param {boolean} [opts.noDeckSystem]
  * @returns {Promise<number>} Exit code
  */
 export async function generateStyleMaster({
@@ -52,6 +55,7 @@ export async function generateStyleMaster({
   model = DEFAULT_MODEL,
   force = false,
   dryRun = false,
+  noDeckSystem = false,
 }) {
   const resolvedRunDir = resolve(runDir);
 
@@ -93,7 +97,21 @@ export async function generateStyleMaster({
     }
   }
 
-  const promptText = readFileSync(promptPath, "utf-8");
+  let promptText = readFileSync(promptPath, "utf-8");
+  const deckSystemPath = styleAsset(resolvedRunDir, DECK_SYSTEM_FILE);
+  if (!noDeckSystem) {
+    const deckSystem = loadDeckSystem(deckSystemPath);
+    if (deckSystem) {
+      promptText =
+        `${promptText.trim()}\n\n` +
+        `---\nDECK SYSTEM CONSTRAINTS (from ${DECK_SYSTEM_FILE}; shared with Stage 1):\n` +
+        `${deckSystem}`;
+      console.log(`Injected constraints from ${deckSystemPath}`);
+    }
+  } else {
+    console.log(`Skipping ${DECK_SYSTEM_FILE} (--no-deck-system)`);
+  }
+
   const promptDir = dirname(promptPath);
   const outPath = join(promptDir, STYLE_MASTER_IMAGE);
   const tracePath = join(promptDir, `style_master${IMAGE_TRACE_SUFFIX}`);
@@ -139,6 +157,7 @@ export async function main(argv = process.argv) {
     .option("--resolution <res>", "Output resolution: 1k, 2k, or 4k", "2k")
     .option("--model <name>", "Image model name", DEFAULT_MODEL)
     .option("--force", "Force regeneration even if output exists")
+    .option("--no-deck-system", "Do not append deck_system.txt constraints")
     .option("--dry-run", "Print what would be executed without running")
     .action(async (opts) => {
       const exitCode = await generateStyleMaster({
@@ -148,6 +167,7 @@ export async function main(argv = process.argv) {
         model: opts.model,
         force: opts.force || false,
         dryRun: opts.dryRun || false,
+        noDeckSystem: opts.noDeckSystem || false,
       });
       process.exit(exitCode);
     });

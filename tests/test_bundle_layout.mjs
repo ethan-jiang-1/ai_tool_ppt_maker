@@ -166,6 +166,33 @@ describe('bundle_layout', () => {
       rmSync(deck, { recursive: true, force: true });
     }
   });
+
+  it('preview readiness allows pending gates when style master exists', () => {
+    const deck = join(tmpdir(), `deck_preview_${Date.now()}`);
+    const v1 = join(deck, '3_versions', 'v1');
+    const vs = join(deck, '2_backbone', 'visual-style');
+    mkdirSync(v1, { recursive: true });
+    mkdirSync(join(deck, '1_upstream_raw_material'), { recursive: true });
+    mkdirSync(vs, { recursive: true });
+    writeFileSync(join(deck, 'deck-guide.md'), '# g\n');
+    writeFileSync(join(deck, 'CLAUDE.md'), '# c\n');
+    writeFileSync(
+      join(deck, 'project-metadata.yaml'),
+      'deck_name: x\ncontent_gate: pending\nvisual_gate: pending\n'
+    );
+    writeFileSync(join(v1, 'slide-specifications.md'), '# specs\n');
+    writeFileSync(join(v1, 'README.md'), '# v1\n');
+    writeFileSync(join(vs, 'style_master.jpg'), 'fake');
+    try {
+      const preview = checkBundle(v1, 'preview');
+      expect(preview.filter((i) => i.includes('gate')).length).toBe(0);
+      const pipeline = checkBundle(v1, 'pipeline');
+      expect(pipeline.some((i) => i.includes('content_gate'))).toBe(true);
+      expect(pipeline.some((i) => i.includes('visual_gate'))).toBe(true);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('state discoverability', () => {

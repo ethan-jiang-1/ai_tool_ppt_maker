@@ -174,3 +174,42 @@ describe('env-check Image2 base URL hard fail', () => {
     }
   });
 });
+
+describe('env-check --smoke', () => {
+  it('checkImageSmoke fails on HTTP error without hanging', async () => {
+    const prevFetch = globalThis.fetch;
+    process.env.IMAGE2_API_KEY = 'k';
+    process.env.IMAGE2_BASE_URL = 'https://api.example.test/v1';
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: 'unauthorized' }),
+      json: async () => ({ error: 'unauthorized' }),
+    });
+    try {
+      const { checkImageSmoke } = await import('../PPTMAKER_FRAMEWORK/scripts/env-check.mjs');
+      const r = await checkImageSmoke();
+      expect(r.check).toBe('image_smoke');
+      expect(r.status).toBe('fail');
+      expect(r.detail).toMatch(/401|unauthorized/i);
+    } finally {
+      globalThis.fetch = prevFetch;
+      delete process.env.IMAGE2_API_KEY;
+      delete process.env.IMAGE2_BASE_URL;
+    }
+  });
+
+  it('default env-check without --smoke has no image_smoke check', () => {
+    const stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+      encoding: 'utf-8',
+      timeout: 20000,
+      env: {
+        ...process.env,
+        IMAGE2_API_KEY: 'k',
+        IMAGE2_BASE_URL: 'https://example.test/v1',
+      },
+    });
+    const data = JSON.parse(stdout);
+    expect(data.checks.find((c) => c.check === 'image_smoke')).toBeUndefined();
+  });
+});

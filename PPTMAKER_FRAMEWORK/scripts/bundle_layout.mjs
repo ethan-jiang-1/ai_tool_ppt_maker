@@ -299,7 +299,30 @@ function _ignorable(name) {
     return name.startsWith('.') || name === '__pycache__';
 }
 
+/**
+ * Normalize checkBundle readiness mode.
+ * @param {boolean|string} [mode=true]
+ * @returns {'structure'|'preview'|'pipeline'}
+ */
+export function normalizeCheckMode(mode = true) {
+    if (mode === false || mode === 'structure') return 'structure';
+    if (mode === 'preview') return 'preview';
+    if (mode === true || mode === 'pipeline') return 'pipeline';
+    throw new Error(
+        `checkBundle mode must be structure|preview|pipeline or boolean; got: ${mode}`);
+}
+
+/**
+ * Validate a version dir against the run-bundle constitution.
+ * @param {string} runDir
+ * @param {boolean|string} [requirePipelineReady=true] - `true`/`'pipeline'`,
+ *   `'preview'` (style master, no gates), or `false`/`'structure'`.
+ * @returns {string[]}
+ */
 export function checkBundle(runDir, requirePipelineReady = true) {
+    const mode = normalizeCheckMode(requirePipelineReady);
+    const needStyle = mode === 'preview' || mode === 'pipeline';
+    const needGates = mode === 'pipeline';
     const problems = [];
 
     if (!fs.existsSync(runDir) || !fs.statSync(runDir).isDirectory()) {
@@ -336,12 +359,12 @@ export function checkBundle(runDir, requirePipelineReady = true) {
             `missing canonical ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ dir ` +
             `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
     }
-    if (requirePipelineReady && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
+    if (needStyle && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
         problems.push(
             `missing ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${STYLE_MASTER_IMAGE} ` +
             `(Phase-2 output; generate it before running the pipeline, or add a version override)`);
     }
-    if (requirePipelineReady) {
+    if (needGates) {
         const metadataPath = path.join(root, METADATA_FILE);
         if (fs.existsSync(metadataPath) && fs.statSync(metadataPath).isFile()) {
             const fields = {};
