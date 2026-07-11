@@ -24,6 +24,32 @@
 
 Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts/` 内实现，不发现、不依赖外部 skill。
 
+## CLI 失败回执宪法（不可违反）
+
+**消费者不只是人。** MD Controller、coding agent、未来更多自动化编排器都会跑 CLI。  
+**exit code ≠ 0 不够**——没有结构化回执，消费者无法立刻知道「犯了什么错」，也就没有机会修。
+
+| 要求 | 说明 |
+|------|------|
+| **失败必出 JSON** | 任何 CLI 硬失败（含未捕获异常、闸门拒绝、参数非法）除非零 exit 外，**必须**向 **stderr 最后一个非空行**写出一条单行、机器可解析的 JSON 回执 |
+| **人机双读** | JSON 同时含稳定机器字段（`ok` / `code` / `where`）与人读字段（`message` / `hint`）；人话 `✗ …` 可写在 JSON **之前**，禁止写在 JSON 之后 |
+| **禁止只抛散文** | 禁止仅打印 `✗ Fatal error: …` 就 `process.exit(1)` 且无 JSON——那是对 MD Controller 的致盲 |
+| **解析约定** | 按行 split → 取最后一个非空行 → `JSON.parse`（不要假定整段 stderr 都是 JSON） |
+
+最小 envelope（字段名稳定，可扩展）：
+
+```json
+{
+  "ok": false,
+  "code": "STABLE_ERROR_CODE",
+  "message": "what failed (human + agent readable)",
+  "hint": "what to do next",
+  "where": "script#command or module path"
+}
+```
+
+权威交叉引用：`openspec/config.yaml`（运行时铁律）· `charter/NODE-SPEC.md`（CLI ⇔ MD 协议）· capability `cli-surface`。
+
 ## 权威树 (快照)
 
 ```
@@ -31,6 +57,9 @@ deck_{NAME}/
 ├── deck-guide.md                     ← read first: structure + workflow + edit chains
 ├── CLAUDE.md                         ← 1-line pointer to deck-guide.md (auto-load)
 ├── project-metadata.yaml
+├── _state/                           ← playbook execution progress (not material)
+│   ├── state.yaml                    ← truth source (atomic write)
+│   └── history.jsonl                 ← append-only reference log (created on demand)
 │
 ├── 1_upstream_raw_material/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │

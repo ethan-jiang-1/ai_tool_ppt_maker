@@ -11,6 +11,51 @@ export const STATE_DIR = '_state';
 export const STATE_FILE = 'state.yaml';
 export const HISTORY_FILE = 'history.jsonl';
 
+/** Re-emitted on every writeState (toYaml regenerates the body). */
+export const STATE_YAML_HEADER = `\
+# _state/state.yaml — playbook execution state (not a hand-edit playground)
+# Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
+# API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
+# CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
+# Fields: playbook, current_node, nodes.*, gates.{content,visual}, deck.*, playbook_stack
+# Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
+`;
+
+/** Canonical README body for _state/ (Chinese, same voice as other dir READMEs). */
+export const STATE_DIR_README = `\
+# 执行状态 (_state)
+
+**这里放什么:** playbook 跑到哪了——当前节点、闸门、进度。不是素材，也不是生成的 PPT。
+
+**谁读写:** MD Controller / agent、\`scripts/lib/state.mjs\`、\`ppt_flow.mjs state\`。
+
+**主要文件:**
+- \`state.yaml\` — 执行进度真相源（原子写）
+- \`history.jsonl\` — 可选参考日志（首次 append 才出现；不参与自动恢复）
+
+**字段一览:** \`playbook\` · \`current_node\` · \`nodes.*\` · \`gates.content/visual\` · \`deck.*\` · \`playbook_stack\`
+
+**权威说明:** \`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md\`  
+**API:** \`PPTMAKER_FRAMEWORK/scripts/lib/state.mjs\`
+
+**别手改乱改** \`state.yaml\`——优先用 CLI/API，否则可能破坏原子写约定。
+
+**和 \`project-metadata.yaml\` 的关系:** metadata 管静态配置 + 管线闸门字段；这里管 playbook 执行进度与 playbook 闸门。两份共存，不要当成同一份文件合并。
+`;
+
+/**
+ * Ensure _state/ exists and README.md is present (create if absent).
+ * @param {string} deckDir
+ */
+export function ensureStateDirHints(deckDir) {
+  const dir = join(deckDir, STATE_DIR);
+  mkdirSync(dir, { recursive: true });
+  const readme = join(dir, 'README.md');
+  if (!existsSync(readme)) {
+    writeFileSync(readme, STATE_DIR_README, 'utf-8');
+  }
+}
+
 // --- YAML ---
 function parseYaml(text) {
   const lines = text.split('\n'), root = {}, stack = [{ obj: root, indent: -1 }];
@@ -45,7 +90,15 @@ export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_F
 export function readState(deckDir) { const sp = statePath(deckDir); if (!existsSync(sp)) return createDefaultState(); try { const s = parseYaml(readFileSync(sp, 'utf-8')); if (!s.playbook && Object.keys(s.nodes||{}).length===0) return { corrupted: true, errors: ['missing playbook+nodes'] }; return s; } catch (e) { return { corrupted: true, errors: [e.message] }; } }
 export function appendHistory(deckDir, event) { event.at = event.at || new Date().toISOString(); const hp = historyPath(deckDir); mkdirSync(dirname(hp), { recursive: true }); const line = JSON.stringify(event) + '\n'; writeFileSync(hp, line, { flag: 'a' }); }
 export function readHistory(deckDir) { const hp = historyPath(deckDir); if (!existsSync(hp)) return []; try { return readFileSync(hp,'utf-8').split('\n').filter(l=>l.trim()).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean); } catch { return []; } }
-export function writeState(deckDir, state) { state.updated_at = new Date().toISOString(); const sp = statePath(deckDir), tmp = join(tmpdir(), `.state_${randomBytes(4).toString('hex')}.tmp`); mkdirSync(dirname(sp), { recursive: true }); writeFileSync(tmp, toYaml(state), 'utf-8'); renameSync(tmp, sp); }
+export function writeState(deckDir, state) {
+  state.updated_at = new Date().toISOString();
+  ensureStateDirHints(deckDir);
+  const sp = statePath(deckDir);
+  const tmp = join(tmpdir(), `.state_${randomBytes(4).toString('hex')}.tmp`);
+  mkdirSync(dirname(sp), { recursive: true });
+  writeFileSync(tmp, STATE_YAML_HEADER + toYaml(state), 'utf-8');
+  renameSync(tmp, sp);
+}
 
 // --- QUERY ---
 export function getNodeStatus(state, name) { return state.nodes?.[name]?.status || 'pending'; }

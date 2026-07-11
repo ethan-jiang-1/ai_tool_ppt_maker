@@ -66,13 +66,16 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 不要写 `image_direct` / `normal`（旧词；输入端仍兼容，输出与文档禁止再用）。
 
-## 7. 运行时只有 Node；Stage 2 在框架内
+## 7. 运行时只有 Node；Stage 2 在框架内；CLI 失败必出 JSON
 
 **唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
 
 官方 Stage 2：`unified_pipeline.mjs` → `scripts/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
 Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 不发现 `.claude/skills` / `.agents/skills`。
+
+**CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出单行 JSON envelope（`ok`/`code`/`message`/`hint`/`where`），
+让 MD Controller / agent 立刻知道错在哪并能修。禁止只打 `Fatal error` 散文。见 `charter/CONSTITUTION.md`。
 
 ## 8. 编辑链（改完怎么重跑）
 
@@ -125,6 +128,10 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
   deck_{NAME}/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
   deck_{NAME}/3_versions/v1
+
+# gates / playbook state
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
+  deck_{NAME}/3_versions/v1 --check-gates
 ```
 
 ## 详解去哪翻

@@ -19,8 +19,12 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 |----|------|-------|
 | [BUG-001](BUG-001-main-specs-stored-in-delta-format.md) | 2026-07-11 | 15/16 主 spec 存成 delta 格式，`openspec validate --specs` 系统性失败 |
 | [BUG-002](BUG-002-framework-docs-still-say-run-bundle-state.md) | 2026-07-11 | 框架方法论文档仍写 `run-bundle-state.yaml`，与 `_state/` 代码/spec 漂移 |
+| [BUG-003](BUG-003-ppt-flow-frozen-style-presets-sort.md) | 2026-07-11 | `ppt_flow.mjs` 对冻结 `STYLE_PRESETS` 原地 `.sort()`，启动即崩 |
+| [BUG-004](BUG-004-ppt-flow-state-command-registered-outside-main.md) | 2026-07-11 | `state` 在 `main()` 外注册，`program is not defined` |
+| [BUG-005](BUG-005-state-dir-invisible-no-hints.md) | 2026-07-11 | `_state/` 在 run bundle 中隐形——无 README/注释/面包屑 |
+| [BUG-006](BUG-006-env-check-deps-no-parent-walkup.md) | 2026-07-11 | env-check 依赖检测只查 cwd 不向上找（`.env` 却向上找） |
 
-**Next available bug ID: BUG-003**
+**Next available bug ID: BUG-007**
 
 ---
 
