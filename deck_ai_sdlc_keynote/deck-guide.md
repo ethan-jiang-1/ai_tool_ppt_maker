@@ -26,10 +26,12 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
 
 ## 当前进度
 
+- **断线 / 清聊天续跑：** 先跑下面 `state`（整流程 where-am-I：Summary + Next），再动手——进度在盘上，不在聊天
 - **Playbook / 闸门**：`ppt_flow state deck_ai_sdlc_keynote/3_versions/v1`
   - 活跃：`iterate-style` @ `review-gate`（`waiting_for: user:review-style-master`）
   - `2_backbone/visual-style/style_master.jpg` **在盘**
   - migrate-import 已 handoff；清上下文后续跑，勿绿场重开
+  - 下一步人审：open style master → LOCK / RETRY / BACK
 - **管线产物**（`3_versions/v1/_generated/`；该目录 gitignore，以磁盘为准）：
   - `ppt/deck.pptx` — Stage4 默认名（迁移备份；重跑会覆盖）
   - `preview/contact_sheet.jpg` — 迁移备份；另有 `pilot_*_contact_sheet.jpg`

@@ -19,16 +19,17 @@ export const STATE_YAML_HEADER = `\
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
 # API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: playbook, current_node, nodes.*, gates.{content,visual}, deck.*, playbook_stack
+# Fields: playbook, current_node, nodes.* (status, optional waiting_for/note), gates.{content,visual}, deck.*, playbook_stack
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
+# Resume: after disconnect / cleared chat, run ppt_flow state first (whole-workflow where-am-I card)
 `;
 
 /** Canonical README body for _state/ (Chinese, same voice as other dir READMEs). */
 export const STATE_DIR_README = `\
 # 执行状态 (_state)
 
-**这里放什么:** playbook 跑到哪了——当前节点、闸门、进度。不是素材，也不是生成的 PPT。
+**这里放什么:** playbook 跑到哪了——当前节点、闸门、进度。不是素材，也不是生成的 PPT。整流程「做到哪了」以这里为执行指针，再配合 \`ppt_flow status\` 看产物。
 
 **谁读写:** MD Controller / agent、\`scripts/lib/state.mjs\`、\`ppt_flow.mjs state\`。
 
@@ -36,12 +37,14 @@ export const STATE_DIR_README = `\
 - \`state.yaml\` — 执行进度真相源（原子写）
 - \`history.jsonl\` — 可选参考日志（首次 append 才出现；不参与自动恢复）
 
-**字段一览:** \`playbook\` · \`current_node\` · \`nodes.*\` · \`gates.content/visual\` · \`deck.*\` · \`playbook_stack\`
+**字段一览:** \`playbook\` · \`current_node\` · \`nodes.*\`（\`status\`；可选 \`waiting_for\` / \`note\`）· \`gates.content/visual\` · \`deck.*\` · \`playbook_stack\`
+
+**断线 / 清聊天后续跑:** 先跑 \`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir>\`（where-am-I 卡：指针 + \`workflow_summary\` + \`suggested_next\`），再动手。进度在 deck 盘上，不在聊天里。
 
 **权威说明:** \`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md\`  
 **API:** \`PPTMAKER_FRAMEWORK/scripts/lib/state.mjs\`
 
-**别手改乱改** \`state.yaml\`——优先用 CLI/API。格式小瑕疵会在下次 \`readState\` 时尽量自动整理（读容错、写洗净）。
+**别手改乱改** \`state.yaml\`——优先用 CLI/API。格式小瑕疵会在下次 \`readState\` 时尽量自动整理（读容错、写洗净）。\`waiting_for\` / \`note\` 会在 heal round-trip 中保留。
 
 **和 \`project-metadata.yaml\` 的关系:** metadata 管静态配置 + 管线闸门字段；这里管 playbook 执行进度与 playbook 闸门。两份共存，不要当成同一份文件合并。
 
@@ -154,6 +157,17 @@ export function healState(raw) {
   }
   if (!state.nodes || typeof state.nodes !== 'object' || Array.isArray(state.nodes)) {
     state.nodes = {};
+  } else {
+    // Preserve optional waiting_for / note; coerce to string when present
+    for (const rec of Object.values(state.nodes)) {
+      if (!rec || typeof rec !== 'object' || Array.isArray(rec)) continue;
+      if (rec.waiting_for != null && typeof rec.waiting_for !== 'string') {
+        rec.waiting_for = String(rec.waiting_for);
+      }
+      if (rec.note != null && typeof rec.note !== 'string') {
+        rec.note = String(rec.note);
+      }
+    }
   }
   if (!state.gates || typeof state.gates !== 'object' || Array.isArray(state.gates)) {
     state.gates = { ...base.gates };
@@ -300,6 +314,80 @@ export function isNodeDone(state, name) { return ['completed','skipped'].include
 export function isPlaybookComplete(state) { const ns = state.nodes||{}; return Object.keys(ns).length>0 && Object.values(ns).every(n=>['completed','skipped'].includes(n.status)); }
 export function getGateStatus(state, name) { return state.gates?.[name] || 'pending'; }
 export function isGateApproved(state, name) { return ['approved','waived'].includes(state.gates?.[name]); }
+
+/**
+ * Whole-workflow where-am-I card (heuristics; does not mutate state).
+ * @param {object} state
+ * @param {{ style_master?: boolean, raw_images?: number, expected_slides?: number, pptx?: string[], pilot_preview?: boolean, content_gate?: string, visual_gate?: string } | null} [statusSnapshot]
+ */
+export function buildResumeCard(state, statusSnapshot = null) {
+  const playbook = state?.playbook == null ? '' : String(state.playbook);
+  const current_node = state?.current_node == null ? '' : String(state.current_node);
+  const nodeRec =
+    state?.nodes && current_node && state.nodes[current_node] && typeof state.nodes[current_node] === 'object'
+      ? state.nodes[current_node]
+      : {};
+  const node_status = nodeRec.status == null ? '' : String(nodeRec.status);
+  const waiting_for =
+    nodeRec.waiting_for != null && String(nodeRec.waiting_for).trim() !== ''
+      ? String(nodeRec.waiting_for)
+      : null;
+  const note =
+    nodeRec.note != null && String(nodeRec.note).trim() !== ''
+      ? String(nodeRec.note)
+      : null;
+  const gates = { ...(state?.gates && typeof state.gates === 'object' ? state.gates : {}) };
+  const playbook_stack = Array.isArray(state?.playbook_stack) ? [...state.playbook_stack] : [];
+
+  const pb = playbook || '（未初始化）';
+  const cn = current_node || '（未初始化）';
+  const execLabel = `${pb} / ${cn}`;
+
+  let workflow_summary;
+  if (waiting_for) {
+    workflow_summary = `卡在等人：${waiting_for}（${pb}/${cn}）`;
+  } else if (statusSnapshot && !statusSnapshot.style_master) {
+    workflow_summary = `视觉母版未就绪（${execLabel}）`;
+  } else if (
+    statusSnapshot &&
+    statusSnapshot.style_master &&
+    Number(statusSnapshot.expected_slides) > 0 &&
+    Number(statusSnapshot.raw_images) < Number(statusSnapshot.expected_slides)
+  ) {
+    workflow_summary = `生产页图进行中 ${statusSnapshot.raw_images}/${statusSnapshot.expected_slides}（执行点 ${execLabel}）`;
+  } else if (
+    statusSnapshot &&
+    Array.isArray(statusSnapshot.pptx) &&
+    statusSnapshot.pptx.length > 0
+  ) {
+    workflow_summary = `已有交付 PPTX，可迭代（执行点 ${execLabel}）`;
+  } else {
+    workflow_summary = `执行点：${execLabel}`;
+  }
+
+  let suggested_next;
+  if (waiting_for) {
+    suggested_next = `waiting:${waiting_for}`;
+  } else if (node_status === 'in_progress') {
+    suggested_next = `continue:${playbook}/${current_node}`;
+  } else if (current_node) {
+    suggested_next = `advance-or-inspect:${playbook}/${current_node}`;
+  } else {
+    suggested_next = 'inspect:run ppt_flow state|status';
+  }
+
+  return {
+    playbook,
+    current_node,
+    node_status,
+    waiting_for,
+    note,
+    gates,
+    playbook_stack,
+    workflow_summary,
+    suggested_next,
+  };
+}
 
 // --- WRITE ---
 export function setNodeStatus(state, name, status, extra = {}) {

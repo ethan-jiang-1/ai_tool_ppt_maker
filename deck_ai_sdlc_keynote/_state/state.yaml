@@ -2,13 +2,14 @@
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
 # API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: playbook, current_node, nodes.*, gates.{content,visual}, deck.*, playbook_stack
+# Fields: playbook, current_node, nodes.* (status, optional waiting_for/note), gates.{content,visual}, deck.*, playbook_stack
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
+# Resume: after disconnect / cleared chat, run ppt_flow state first (whole-workflow where-am-I card)
 playbook: iterate-style
 current_node: review-gate
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-11T08:26:59.860Z
+updated_at: 2026-07-11T09:05:10.525Z
 nodes:
   intake-source:
     status: completed

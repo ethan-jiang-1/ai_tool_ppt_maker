@@ -27,6 +27,17 @@ agent_action: read_first
 
 审 `style_master.jpg`、pilot contact sheet（及同类视觉 review）并请用户批准/继续之前，Agent **必须**用环境能力打开/展示真实文件。文件已在盘上时，**禁止**只用文字描述外观。pre-key 尚无图：可用 preset 说明或母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
 
+### 已有 deck / 断线回来？
+
+用户指向已有 `deck_*`，或说「做到哪了 / 接着做 / 断线了 / 清了聊天继续」时：**先读盘，再 intake**。
+
+1. `ppt_flow state <runDir>` + `ppt_flow status <runDir>`（执行指针 + 产物门闩）
+2. 用人话报告整流程位置（优先卡上的 Summary / Next；不要只甩 playbook 文件名）
+3. 加载 `_state.playbook`，从 `current_node` 续（`checkEntry`）
+4. 确认「从这里接着做？」——用户明确要重开才绿场 intake
+
+进度在 deck 磁盘（`_state` + `_generated` / status），**不在聊天记忆**。说法见 [COMMANDS.md](COMMANDS.md) **续跑 / 做到哪了**。
+
 ### 已有 deck / 素材要迁入？
 
 不要当「特殊通道」跳过 show 与闸门。走 [COMMANDS.md](COMMANDS.md)「旁路 / 迁移」→ playbook `migrate-import`（方法论：`workflow/00-setup/05-migrate-import-existing-deck.md`）。全程遵守 AGENT_CONTRACT §11。

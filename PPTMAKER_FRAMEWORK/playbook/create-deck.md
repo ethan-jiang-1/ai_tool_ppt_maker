@@ -7,6 +7,7 @@ includes: []
 # Playbook: 全量创建
 
 > 从零开始做一个 PPT. 11 个 node, 按顺序执行.
+> **写盘:** 进出节点必须 `writeState`；等人时在当前 node 写 `waiting_for` / `note`（断线后续跑靠盘，不靠聊天）。
 
 ## Nodes
 

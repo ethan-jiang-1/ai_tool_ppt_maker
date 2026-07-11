@@ -54,8 +54,9 @@ agent_action: copy_to_bundle
 
 ## 现在做到哪一步了?
 
-- **Playbook / 闸门进度**:看 `_state/state.yaml`（或 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} [--check-gates]`）
-- **管线产物**:看 `3_versions/{{CURRENT_VERSION}}/_generated/` 里有没有东西:
+- **断线 / 清聊天续跑:** 先跑 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}`（整流程 where-am-I 卡），再动手——进度在盘上，不在聊天
+- **Playbook / 闸门进度:**看 `_state/state.yaml`（或同上 `state` / `state --check-gates`）
+- **管线产物:**看 `3_versions/{{CURRENT_VERSION}}/_generated/` 里有没有东西:
   - 空的 → 还没生产,跟 agent 说"开始生成"
   - 有 `ppt/{{OUTPUT_NAME}}.pptx` → 成品好了 ✅,打开看看
 
@@ -126,7 +127,7 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
 
 | 看哪里 | 说明 |
 |------|------|
-| `_state/state.yaml` | playbook / 闸门进度 |
+| `_state/state.yaml` | playbook / 会话进度（断线后续跑先看这里 + `ppt_flow state`） |
 | `3_versions/{{CURRENT_VERSION}}/_generated/` 空 | 还没生产 |
 | `slide_plan.json` + `page_prompts/` | Stage 1 完成 |
 | `page_images_full/` | Stage 2 完成 |

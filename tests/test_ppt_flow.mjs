@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, mkdtempSync } from "node:fs";
+import { mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { initBundle } from "../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
+import { readState } from "../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs";
 
 const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const PPT_FLOW_SRC = readFileSync(PPT_FLOW, "utf-8");
@@ -103,5 +105,99 @@ describe("ppt_flow", () => {
     expect(PPT_FLOW_SRC).not.toMatch(
       /STYLE_PRESETS\.(sort|reverse|splice)\(/
     );
+  });
+
+  it("registers exactly 12 top-level commands", () => {
+    const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
+    expect(matches.length).toBe(12);
+  });
+
+  it("state --json includes resume card fields", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));
+    const deck = join(root, "deck_resume");
+    const runDir = join(deck, "3_versions", "v1");
+    mkdirSync(join(deck, "_state"), { recursive: true });
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(
+      join(deck, "_state", "state.yaml"),
+      `playbook: iterate-style
+current_node: review-gate
+nodes:
+  review-gate:
+    status: in_progress
+    waiting_for: user:review-style-master
+gates:
+  content: pending
+  visual: pending
+deck:
+  name: resume
+  type: keynote
+  style: dark
+playbook_stack: []
+`,
+      "utf-8"
+    );
+    const r = runPptFlow(["state", runDir, "--json"]);
+    expect(r.status).toBe(0);
+    const j = JSON.parse(r.stdout);
+    expect(j.playbook).toBe("iterate-style");
+    expect(j.current_node).toBe("review-gate");
+    expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
+    expect(j.suggested_next).toContain("user:review-style-master");
+  });
+
+  it("approve dual-writes metadata and _state gates", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-approve-")), "deck_approve");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const r = runPptFlow(["approve", runDir, "visual"]);
+      expect(r.status).toBe(0);
+      const meta = readFileSync(join(deck, "project-metadata.yaml"), "utf-8");
+      expect(meta).toMatch(/visual_gate:\s*approved/);
+      const s = readState(deck);
+      expect(s.gates.visual).toBe("approved");
+      const r2 = runPptFlow(["approve", runDir, "content", "--waive"]);
+      expect(r2.status).toBe(0);
+      const meta2 = readFileSync(join(deck, "project-metadata.yaml"), "utf-8");
+      expect(meta2).toMatch(/content_gate:\s*waived/);
+      const s2 = readState(deck);
+      expect(s2.gates.content).toBe("waived");
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("status --json includes playbook breakpoint", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-status-")), "deck_status");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      writeFileSync(
+        join(deck, "_state", "state.yaml"),
+        `playbook: create-deck
+current_node: hitl1
+nodes:
+  hitl1:
+    status: in_progress
+gates:
+  content: pending
+  visual: pending
+deck:
+  name: status
+  type: keynote
+  style: dark
+playbook_stack: []
+`,
+        "utf-8"
+      );
+      const r = runPptFlow(["status", runDir, "--json"]);
+      expect(r.status).toBe(0);
+      const j = JSON.parse(r.stdout);
+      expect(j.playbook).toBe("create-deck");
+      expect(j.current_node).toBe("hitl1");
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
   });
 });

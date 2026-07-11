@@ -160,4 +160,77 @@ playbook_stack: {}
     normalizePlaybookStack(state);
     expect(Array.isArray(state.playbook_stack)).toBe(true);
   });
+
+  it('waiting_for survives heal round-trip', () => {
+    const deck = tmpDeck('waiting');
+    try {
+      const s = createInitialState('demo', 'keynote', 'dark');
+      s.playbook = 'iterate-style';
+      s.current_node = 'review-gate';
+      s.nodes = {
+        'review-gate': {
+          status: 'in_progress',
+          waiting_for: 'user:review-style-master',
+          note: 'open style master',
+        },
+      };
+      writeState(deck, s);
+      const loaded = readState(deck);
+      expect(loaded.nodes['review-gate'].waiting_for).toBe('user:review-style-master');
+      expect(loaded.nodes['review-gate'].note).toBe('open style master');
+      const { state: healed, dirty } = healState(JSON.parse(JSON.stringify(loaded)));
+      expect(healed.nodes['review-gate'].waiting_for).toBe('user:review-style-master');
+      expect(healed.nodes['review-gate'].note).toBe('open style master');
+      expect(dirty).toBe(false);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('buildResumeCard: waiting_for shapes summary and suggested_next', async () => {
+    const { buildResumeCard } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs');
+    const s = createDefaultState();
+    s.playbook = 'iterate-style';
+    s.current_node = 'review-gate';
+    s.nodes = {
+      'review-gate': {
+        status: 'in_progress',
+        waiting_for: 'user:review-style-master',
+      },
+    };
+    const card = buildResumeCard(s, {
+      style_master: true,
+      raw_images: 3,
+      expected_slides: 22,
+      pptx: ['deck.pptx'],
+    });
+    expect(card.workflow_summary).toMatch(/等人/);
+    expect(card.workflow_summary).toMatch(/user:review-style-master/);
+    expect(card.suggested_next).toBe('waiting:user:review-style-master');
+    expect(card.playbook).toBe('iterate-style');
+    expect(card.current_node).toBe('review-gate');
+  });
+
+  it('buildResumeCard: artifact heuristics when not waiting', async () => {
+    const { buildResumeCard } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs');
+    const s = createDefaultState();
+    s.playbook = 'create-deck';
+    s.current_node = 'wave3';
+    s.nodes = { wave3: { status: 'in_progress' } };
+    const mid = buildResumeCard(s, {
+      style_master: true,
+      raw_images: 3,
+      expected_slides: 22,
+      pptx: [],
+    });
+    expect(mid.workflow_summary).toMatch(/页图/);
+    expect(mid.suggested_next).toBe('continue:create-deck/wave3');
+    const done = buildResumeCard(s, {
+      style_master: true,
+      raw_images: 22,
+      expected_slides: 22,
+      pptx: ['deck.pptx'],
+    });
+    expect(done.workflow_summary).toMatch(/PPTX/);
+  });
 });
