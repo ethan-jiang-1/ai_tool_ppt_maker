@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
+import { mkdirSync, rmSync, mkdtempSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+  checkNpmPackages,
+  findPackageInAncestorNodeModules,
+} from '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
+const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander'];
 
 function runCheck(args = '') {
   try {
@@ -13,6 +21,12 @@ function runCheck(args = '') {
     return { exitCode: 0, stdout: out };
   } catch (e) {
     return { exitCode: e.status ?? 1, stdout: e.stdout ?? '', stderr: e.stderr ?? '' };
+  }
+}
+
+function stubPackages(nmDir) {
+  for (const pkg of REQUIRED) {
+    mkdirSync(join(nmDir, ...pkg.split('/')), { recursive: true });
   }
 }
 
@@ -49,5 +63,69 @@ describe('00-env-check', () => {
     expect(stage2).toBeDefined();
     expect(stage2.status).toBe('ok');
     expect(stage2.detail).toMatch(/in-framework/);
+  });
+});
+
+describe('env-check deps walk-up', () => {
+  it('finds packages in a parent node_modules from a child start dir', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-deps-parent-'));
+    try {
+      const nm = join(root, 'node_modules');
+      stubPackages(nm);
+      const deck = join(root, 'deck_x');
+      mkdirSync(deck, { recursive: true });
+
+      for (const pkg of REQUIRED) {
+        expect(findPackageInAncestorNodeModules(pkg, deck)).toBe(nm);
+      }
+      const results = checkNpmPackages(deck);
+      expect(results.every(r => r.status === 'ok')).toBe(true);
+      expect(results[0].detail).toContain(nm);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when no ancestor has the packages', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-deps-isolated-'));
+    try {
+      const results = checkNpmPackages(root);
+      expect(results.every(r => r.status === 'fail')).toBe(true);
+      for (const pkg of REQUIRED) {
+        expect(findPackageInAncestorNodeModules(pkg, root)).toBeNull();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('uses node_modules at the start directory when complete', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-deps-cwd-'));
+    try {
+      const nm = join(root, 'node_modules');
+      stubPackages(nm);
+      expect(findPackageInAncestorNodeModules('commander', root)).toBe(nm);
+      expect(checkNpmPackages(root).every(r => r.status === 'ok')).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('continues past an empty local node_modules to parent packages', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-deps-empty-local-'));
+    try {
+      const parentNm = join(root, 'node_modules');
+      stubPackages(parentNm);
+      const deck = join(root, 'deck_x');
+      mkdirSync(join(deck, 'node_modules'), { recursive: true });
+      // leave deck/node_modules empty — Node would keep walking up
+
+      for (const pkg of REQUIRED) {
+        expect(findPackageInAncestorNodeModules(pkg, deck)).toBe(parentNm);
+      }
+      expect(checkNpmPackages(deck).every(r => r.status === 'ok')).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

@@ -17,11 +17,17 @@
 
 ## 活跃列表
 
-_（暂无活跃 plan。新建时在下表加一行，并用下面的模板建 `<name>.md`。）_
-
 | Plan | 简述 |
 |------|------|
-| — | — |
+| [agent-interaction-protocol](agent-interaction-protocol.md) | 交互节律协议（show / 心跳 / 步长）；与 preview 合成 Change 1，migrate 为 Change 2 |
+| [style-iterate-and-quick-preview](style-iterate-and-quick-preview.md) | 探索入口实例（`iterate-style` + `quick-preview`）；**并入 Change 1**，不单独开 change |
+
+### 已定名 OpenSpec changes（2026-07-11）
+
+| # | Change 名 | 吸收哪些 plan | 何时 |
+|---|-----------|--------------|------|
+| 1 | **`add-interaction-rhythm-and-explore-playbooks`** | 协议 P0 + 本目录两个 plan 的探索实例 | 先做（待 propose） |
+| 2 | **`guard-offpath-migrate-import-ux`** | 旁路迁移/导入：补方法论+playbook，套同一套 gate+show，禁止裸奔 | Change 1 之后 |
 
 **Next available plan ID: CLS-001**（移入 `_closed_plans/` 时分配）
 

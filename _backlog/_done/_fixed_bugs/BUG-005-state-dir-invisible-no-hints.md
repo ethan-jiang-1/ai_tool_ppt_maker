@@ -1,6 +1,6 @@
 # BUG-005: `_state/` 在 run bundle 中完全隐形 — 无 README/注释/面包屑
 
-> 严重级别: P1 | 发现: 2026-07-11 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-11 | 状态: 已修复（surface-state-dir-in-bundle）
 
 ## 症状
 

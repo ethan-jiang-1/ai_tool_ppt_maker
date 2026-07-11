@@ -54,9 +54,10 @@ agent_action: copy_to_bundle
 
 ## 现在做到哪一步了?
 
-看 `3_versions/{{CURRENT_VERSION}}/_generated/` 里有没有东西:
-- 空的 → 还没生产,跟 agent 说"开始生成"
-- 有 `ppt/{{OUTPUT_NAME}}.pptx` → 成品好了 ✅,打开看看
+- **Playbook / 闸门进度**:看 `_state/state.yaml`（或 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} [--check-gates]`）
+- **管线产物**:看 `3_versions/{{CURRENT_VERSION}}/_generated/` 里有没有东西:
+  - 空的 → 还没生产,跟 agent 说"开始生成"
+  - 有 `ppt/{{OUTPUT_NAME}}.pptx` → 成品好了 ✅,打开看看
 
 ## 这个项目的约定
 - **语言**:{{LANGUAGE_POLICY}}
@@ -77,6 +78,7 @@ agent_action: copy_to_bundle
 
 ```
 {{DECK_NAME}}/
+├── _state/                    ← playbook 执行进度（state.yaml）
 ├── 1_upstream_raw_material/   ← 源·共享·原始素材(只增)
 ├── 2_backbone/               ← 源·共享·主干:隐喻/公式/约束/大纲/讲稿/视觉(默认事实源)
 └── 3_versions/{{CURRENT_VERSION}}/
@@ -114,11 +116,12 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
 | speaker notes | 5 | ~30 sec |
 | 视觉主干(backbone) | 重新生成 style master + `1,2,3,4,5 --force-images` | — |
 
-## 进度对照:`ls 3_versions/{{CURRENT_VERSION}}/_generated/`
+## 进度对照
 
-| 看到 | 说明 |
+| 看哪里 | 说明 |
 |------|------|
-| 空 | 还没生产 |
+| `_state/state.yaml` | playbook / 闸门进度 |
+| `3_versions/{{CURRENT_VERSION}}/_generated/` 空 | 还没生产 |
 | `slide_plan.json` + `page_prompts/` | Stage 1 完成 |
 | `page_images_full/` | Stage 2 完成 |
 | `header_locked/` | Stage 3 完成 |

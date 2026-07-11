@@ -18,6 +18,7 @@
  *     ├── deck-guide.md                  read-first control-flow doc (human + agent)
  *     ├── CLAUDE.md                      1-line pointer to deck-guide.md (auto-load)
  *     ├── project-metadata.yaml          topic / audience / language / north-star
+ *     ├── _state/                        playbook execution progress (state.yaml; history.jsonl on demand)
  *     │
  *     ├── 1_upstream_raw_material/       UPSTREAM  · raw research/material · shared · append-mostly
  *     │
@@ -62,7 +63,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeState, setNodeStatus } from './lib/state.mjs';
+import { writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from './lib/state.mjs';
 
 // ---------------------------------------------------------------------------
 // Self-location (self path resolution
@@ -490,13 +491,15 @@ const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
         '先读 **deck-guide.md**（进来先看那个）。\n\n' +
-        '这个文件夹分三层:\n' +
+        '这个文件夹分三层 + 执行状态:\n' +
         '- `1_upstream_raw_material/` — 原始素材、调研(你往里堆资料)\n' +
         '- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n' +
-        '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n\n' +
+        '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n' +
+        '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n\n' +
         '**只改带 README 说\'你改这里\'的文件。** 结构由 ' +
         '`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` 定义,别自己新建目录。\n'
     ),
+    [STATE_DIR]: STATE_DIR_README,
     [UPSTREAM_DIR]: (
         '# 上游:原始素材\n\n' +
         '**这里放什么:** 你的调研、参考资料、事实来源——任何「喂养」这个 deck 的原料。\n' +
@@ -576,7 +579,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
-    const dirs = ['.', UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
+    const dirs = ['.', STATE_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
     for (const sd of BACKBONE_SUBDIRS) {
         dirs.push(`${BACKBONE_DIR}/${sd}`);
     }
@@ -638,7 +641,8 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
 
     _writeIfAbsent(
         path.join(deckDir, METADATA_FILE),
-        `# ${name} — project metadata\n` +
+        `# ${name} — project metadata (static config + pipeline gates)\n` +
+        `# Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md\n` +
         `deck_name: ${name}\n` +
         `topic: \naudience: \nlanguage: \none_thing_to_remember: \n` +
         `content_gate: pending\nvisual_gate: pending\n`);
@@ -662,7 +666,8 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `\`content_gate\` / \`visual_gate\` 改为 \`approved\`；若用户明确跳过则写 \`waived\`。` +
         `Stage 2 会自动检查。\n\n` +
         `## 当前进度\n\n` +
-        `查看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`：有 \`slide_plan.json\` 表示 Stage 1 完成；` +
+        `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1" [--check-gates]\`）。\n` +
+        `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
         `## 从项目根目录运行\n\n` +
         `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
@@ -699,6 +704,13 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `${VERSIONS_DIR}/*/${GENERATED_SUBDIR}/\n`);
     log.push('credentials: .env.example, .gitignore');
 
+    if (!fs.existsSync(statePath(deckDir))) {
+        const state = createInitialState(name, deckType || '', style || '');
+        setNodeStatus(state, 'instantiation', 'completed');
+        writeState(deckDir, state);
+        log.push(`state: ${STATE_DIR}/${STATE_FILE}`);
+    }
+
     return log;
 }
 
@@ -712,6 +724,9 @@ deck_\${NAME}/
 ├── ${GUIDE_FILE}                     ← read first: structure + workflow + edit chains
 ├── ${POINTER_FILE}                         ← 1-line pointer to ${GUIDE_FILE} (auto-load)
 ├── ${METADATA_FILE}
+├── ${STATE_DIR}/                          ← playbook execution progress (not material)
+│   ├── ${STATE_FILE}                    ← truth source (atomic write)
+│   └── history.jsonl                   ← append-only reference log (created on demand)
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │
@@ -783,7 +798,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }
@@ -944,9 +959,6 @@ function _main() {
             process.exit(1);
         }
         const created = initBundle(deckDir, null, args.deckType, args.style);
-        const state = { playbook: "create-deck", current_node: "instantiation", started_at: new Date().toISOString(), updated_at: "", nodes: {}, gates: { content: "pending", visual: "pending" }, deck: { name: deckDir.replace(/^.*deck_/, ""), type: args.deckType || "", style: args.style || "" } };
-        setNodeStatus(state, "instantiation", "completed");
-        writeState(deckDir, state);
         const seeded = [];
         if (args.deckType) seeded.push(`deck-type=${args.deckType}`);
         if (args.style) seeded.push(`style=${args.style}`);

@@ -54,7 +54,34 @@ function loadDotenv(...searchDirs) {
   return null;
 }
 
-export { loadDotenv };
+/**
+ * Yield absolute ancestor directories from `start` up to the filesystem root.
+ * Shared by .env loading and per-package node_modules walk-up.
+ */
+function* walkUpDirs(start = process.cwd()) {
+  for (let p = resolve(start); ; p = dirname(p)) {
+    yield p;
+    const parent = dirname(p);
+    if (parent === p) break;
+  }
+}
+
+/**
+ * Find the nearest ancestor `node_modules` that contains `pkg`
+ * (e.g. `@napi-rs/canvas` → `node_modules/@napi-rs/canvas`).
+ * Continues past empty/incomplete local `node_modules` (Node-like).
+ * @returns {string|null} absolute path to the matching `node_modules` dir
+ */
+function findPackageInAncestorNodeModules(pkg, start = process.cwd()) {
+  const parts = pkg.split('/');
+  for (const dir of walkUpDirs(start)) {
+    const nm = join(dir, 'node_modules');
+    if (existsSync(join(nm, ...parts))) return nm;
+  }
+  return null;
+}
+
+export { loadDotenv, walkUpDirs, findPackageInAncestorNodeModules };
 
 // --- Checks ---
 
@@ -138,26 +165,26 @@ function checkFonts() {
   };
 }
 
-function checkNpmPackages() {
-  const pkgPath = join(process.cwd(), 'package.json');
-  const nmPath = join(process.cwd(), 'node_modules');
+function checkNpmPackages(start = process.cwd()) {
   const pkgs = [
     { importName: '@napi-rs/canvas', pkg: '@napi-rs/canvas', required: true },
     { importName: 'pptxgenjs', pkg: 'pptxgenjs', required: true },
     { importName: 'commander', pkg: 'commander', required: true },
   ];
 
-  const installed = existsSync(nmPath);
   return pkgs.map(({ importName, pkg, required }) => {
-    const importable = installed && existsSync(join(nmPath, ...importName.split('/')));
+    const nm = findPackageInAncestorNodeModules(importName, start);
+    const ok = nm != null;
     return {
       check: pkg,
-      status: importable ? 'ok' : (required ? 'fail' : 'warn'),
-      detail: importable ? 'installed' : 'not installed',
-      fix: importable ? null : 'Run `npm install` in the project root.',
+      status: ok ? 'ok' : (required ? 'fail' : 'warn'),
+      detail: ok ? `installed (via ${nm})` : 'not installed',
+      fix: ok ? null : 'Run `npm install` in the project root.',
     };
   });
 }
+
+export { checkNpmPackages };
 
 function checkStage2Generator() {
   // In-framework Node Stage 2 — no external skills.
@@ -214,8 +241,8 @@ function checkDiskSpaceSync() {
 // --- Runner ---
 
 function runAllChecks() {
-  // Load .env from cwd/parents first
-  for (let p = process.cwd(); p !== dirname(p); p = dirname(p)) {
+  // Load .env from cwd/parents first (same walk-up helper as deps)
+  for (const p of walkUpDirs()) {
     if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
   }
 
@@ -295,4 +322,9 @@ function main() {
   process.exit(allPass ? 0 : 1);
 }
 
-main();
+const isMain =
+  process.argv[1] &&
+  (resolve(process.argv[1]) === __filename ||
+    process.argv[1].endsWith('/env-check.mjs') ||
+    process.argv[1].endsWith('\\env-check.mjs'));
+if (isMain) main();

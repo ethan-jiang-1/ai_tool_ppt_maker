@@ -57,6 +57,9 @@ deck_{NAME}/
 ├── deck-guide.md                     ← read first: structure + workflow + edit chains
 ├── CLAUDE.md                         ← 1-line pointer to deck-guide.md (auto-load)
 ├── project-metadata.yaml
+├── _state/                           ← playbook execution progress (not material)
+│   ├── state.yaml                    ← truth source (atomic write)
+│   └── history.jsonl                 ← append-only reference log (created on demand)
 │
 ├── 1_upstream_raw_material/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │

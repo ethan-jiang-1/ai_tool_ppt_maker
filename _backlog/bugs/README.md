@@ -17,9 +17,9 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| — | — | （无活跃 bug） |
+| — | — | _无活跃 bug_ |
 
-**Next available bug ID: BUG-005**
+**Next available bug ID: BUG-007**
 
 ---
 

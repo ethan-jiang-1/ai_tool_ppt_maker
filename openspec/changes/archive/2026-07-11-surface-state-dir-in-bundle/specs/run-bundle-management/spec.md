@@ -1,28 +1,4 @@
-## Purpose
-
-Define `bundle_layout.mjs` as the single source of truth for run-bundle directory structure — including the execution-state directory `_state/` at the deck root — and the CLI modes `--init` (scaffold), `--check` (validate against a whitelist), `--new-version` (create a clean downstream version), and `--self-check` (drift alarm for CI). This capability guarantees that run bundles have one authoritative, machine-enforced layout with discoverable progress state, so directory drift is caught rather than silently tolerated.
-
-## Requirements
-
-### Requirement: Bundle layout is the directory constitution
-
-`bundle_layout.mjs` SHALL be the single source of truth for run-bundle directory structure, including the execution-state directory `_state/` at the deck root. Other scripts SHALL import general bundle path constants from `bundle_layout.mjs`. The `_state` directory/file name constants SHALL be imported from `scripts/lib/state.mjs` (not re-declared as string literals in `bundle_layout.mjs`). It SHALL support `--init` (scaffold, including `_state/` hints and initial state when absent), `--check` (validate), `--new-version` (create clean downstream version), and `--self-check` (drift alarm for CI, including `_state` presence in `renderTree()`). Absence of `_state/` on a legacy deck SHALL NOT by itself cause `--check --structure-only` to fail.
-
-#### Scenario: Init creates whitelist-clean bundle
-
-- **WHEN** `bundle_layout --init deck_test` runs
-- **THEN** `bundle_layout --check deck_test/3_versions/v1 --structure-only` passes with zero violations
-
-#### Scenario: Check catches ad-hoc directory
-
-- **WHEN** a run bundle has a manually created unexpected entry at the version root (for example `random_dir/`)
-- **THEN** `bundle_layout --check` reports it as an unexpected entry and exits non-zero
-
-#### Scenario: Init seeds _state for both entry points
-
-- **WHEN** either `bundle_layout --init` or `ppt_flow init` creates a new deck
-- **THEN** `deck_*/_state/state.yaml` exists after init completes
-- **AND** the file begins with a `#` comment header
+## ADDED Requirements
 
 ### Requirement: Run bundle scaffolds a discoverable _state directory
 
@@ -62,3 +38,24 @@ The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml
 
 - **WHEN** a new bundle is initialized
 - **THEN** `project-metadata.yaml` contains a `#` comment that mentions `_state`
+## MODIFIED Requirements
+
+### Requirement: Bundle layout is the directory constitution
+
+`bundle_layout.mjs` SHALL be the single source of truth for run-bundle directory structure, including the execution-state directory `_state/` at the deck root. Other scripts SHALL import general bundle path constants from `bundle_layout.mjs`. The `_state` directory/file name constants SHALL be imported from `scripts/lib/state.mjs` (not re-declared as string literals in `bundle_layout.mjs`). It SHALL support `--init` (scaffold, including `_state/` hints and initial state when absent), `--check` (validate), `--new-version` (create clean downstream version), and `--self-check` (drift alarm for CI, including `_state` presence in `renderTree()`). Absence of `_state/` on a legacy deck SHALL NOT by itself cause `--check --structure-only` to fail.
+
+#### Scenario: Init creates whitelist-clean bundle
+
+- **WHEN** `bundle_layout --init deck_test` runs
+- **THEN** `bundle_layout --check deck_test/3_versions/v1 --structure-only` passes with zero violations
+
+#### Scenario: Check catches ad-hoc directory
+
+- **WHEN** a run bundle has a manually created unexpected entry at the version root (for example `random_dir/`)
+- **THEN** `bundle_layout --check` reports it as an unexpected entry and exits non-zero
+
+#### Scenario: Init seeds _state for both entry points
+
+- **WHEN** either `bundle_layout --init` or `ppt_flow init` creates a new deck
+- **THEN** `deck_*/_state/state.yaml` exists after init completes
+- **AND** the file begins with a `#` comment header
