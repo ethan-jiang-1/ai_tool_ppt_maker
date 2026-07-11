@@ -1,105 +1,189 @@
 ## Context
 
-**北星场景：** 小白断线 → 新会话只给 `deck_*`（或问「做到哪了」）→ Agent 必须从**磁盘**回答整条 workflow 位置并继续，而不是重做 intake，也不是只甩一个 playbook 文件名。
+**北星：** 小白断线 → 新会话只给 `deck_*`（或问「做到哪了」）→ Agent 必须从磁盘回答**整条 workflow**位置并继续——不是重做 intake，也不是只甩 playbook 文件名。
 
-Playbook `current_node` 是指针的一层；**整流程**还包括门闩与产物（style master、slide plan、页图比例、pptx、pilot）。二者合成「你在哪儿」。旧 framing「playbook resume」过窄；本设计叫 **session / whole-workflow resume**。
+两层真相、一张卡：
 
-真机锚点：`deck_ai_sdlc_keynote`（`iterate-style`@`review-gate`，`waiting_for`，gates waived，页图部分就绪）。
+```
+_state (指针) ──┐
+                ├──► buildResumeCard → workflow_summary + suggested_next
+status (产物) ──┘
+```
 
-约束：Node ESM；12 命令；不新建 Phase 状态机文件；不把 API 任务塞进 `_state`。
+真机锚点：`deck_ai_sdlc_keynote`（`iterate-style` @ `review-gate`，`waiting_for: user:review-style-master`，gates waived，页图部分就绪）。
+
+约束：Node ESM；**12** 命令；不新建 Phase 状态文件；不把 API 任务塞进 `_state`。
 
 ## Goals / Non-Goals
 
-**Goals:**
+**Goals**
 
-- 小白一问「做到哪了」→ 一句人话 + 可执行下一步（整流程，不只 playbook）
-- 清上下文后续跑仪式强制读盘
-- 节点写盘 + `waiting_for`
-- approve 双写消漂移
-- 文档与 COMMANDS 同义词覆盖断线/接着做
+- 「做到哪了」→ 一句人话 + 可执行下一步（整流程）
+- 清上下文 → 强制读盘仪式
+- 节点写盘 + `waiting_for`；approve 双写消漂移
+- 文档覆盖断线/接着做同义词
 
-**Non-Goals:**
+**Non-Goals**
 
-- 另建 `workflow_phase.yaml` 第二真相源（用启发式摘要即可）
+- `workflow_phase.yaml` 第二写盘真相
 - mid-node Step 图；history 自动重放；第 13 命令；会话 DB
 
 ## Decisions
 
-### D1 — 续跑仪式 = 整会话入口（不是新 playbook）
+### D1 — Session resume ritual（不是新 playbook）
 
-已有 `deck_*` 或用户说「做到哪了 / 接着做 / 断线了继续」时：
+触发：用户指向已有 `deck_*`，或说「做到哪了 / 接着做 / 断线了 / 清了聊天继续」。
 
-1. `ppt_flow state`（`deckRoot(resolve(runDir))`）
-2. `ppt_flow status`（产物 + metadata 门闩）
-3. 合成 where-am-I（见 D3）用人话讲给用户
-4. 加载活跃 `playbook/<name>.md` 从 `current_node` 续（`checkEntry`）
-5. 确认：「从这里接着做？」——用户否认重开才重置
+顺序（硬）：
 
-绿场「帮我做个新 PPT」且无 in-progress state 时才走 intake。
+1. `ppt_flow state <runDir>` — 与 `status`/`approve` 一致：`deckRoot(resolve(runDir))`，**禁止**单独写 `join(runDir,'..','..')` 且不 `resolve`（相对路径、cwd 漂移会踩坑）
+2. `ppt_flow status <runDir>` — 产物 + metadata 门闩
+3. 用人话讲 where-am-I（优先复述卡上的 `workflow_summary` + `suggested_next`）
+4. 加载 `playbook/<active>.md`，从 `current_node` 续（`checkEntry`）
+5. 一句确认：「从这里接着做？」——用户明确要重开才重置
+
+绿场「帮我做个新 PPT」且无 in-progress `_state` 时才走 intake / 从第一 node 开始。
 
 ### D2 — Write discipline + `waiting_for`
 
-同前：进出节点 `writeState`；等人 `waiting_for`/`note`；heal 保字段。
+- 进出节点：`setNodeStatus` + `writeState`（或等价）后再依赖进度
+- 等人：当前 node 写 `waiting_for`（短 machine token，如 `user:review-style-master`）+ 可选 `note`
+- 离开等待：清或更新 `waiting_for`
+- `healState` / round-trip：**不得丢弃**已有 `waiting_for` / `note`（若规范化 node 记录，这两个字段必须保留）
 
-### D3 — Where-am-I 卡（state 为主，status 互补）
+### D3 — `buildResumeCard(state, statusSnapshot?)`
 
-`state.mjs` 导出 `buildResumeCard(state, statusSnapshot?)`：
+住在 `state.mjs`，供 `state` / `status` 复用。
 
-**必有字段：**
+**返回对象（字段钉死）：**
 
-| 字段 | 含义 |
-|------|------|
-| `playbook`, `current_node`, `node_status` | 执行指针 |
-| `waiting_for`, `note` | 等人原因（可空） |
-| `gates` | `_state` 门闩 |
-| `playbook_stack` | 栈顶摘要 |
-| `workflow_summary` | **整流程人话一行**（中英均可，默认中文短句） |
-| `suggested_next` | 下一步短句 |
+| 字段 | 类型 | 含义 |
+|------|------|------|
+| `playbook` | string | 活跃 playbook |
+| `current_node` | string | 当前 node |
+| `node_status` | string | `nodes[current_node].status` 或 `""` |
+| `waiting_for` | string \| null | 当前 node 的 waiting_for，无则 null |
+| `note` | string \| null | 当前 node 的 note，无则 null |
+| `gates` | object | `_state.gates` 拷贝 |
+| `playbook_stack` | array | 栈摘要（可原样） |
+| `workflow_summary` | string | **非空**中文短句（整流程位置） |
+| `suggested_next` | string | **非空**下一步（可含 machine token） |
 
-**`workflow_summary` 启发式（只读，不写盘）——按优先级拼短句，例如：**
+**`statusSnapshot`（可选）形状——与 `collectStatus` 对齐的只读子集：**
 
-1. 有 `waiting_for` → 「卡在等人：`<waiting_for>`（playbook/node）」
-2. 否则结合可选 status 快照：缺 style master → 「视觉母版未就绪」；有 master 无人图/少图 → 「内容/视觉已有源，生产页图进行中 N/M」；有 pptx → 「已有交付 PPTX，可迭代修改」
-3. 再贴 playbook/node：「执行点：`<playbook>` / `<current_node>`」
+```
+{
+  style_master: boolean,
+  raw_images: number,
+  expected_slides: number,
+  pptx: string[],          // 空数组 = 无 pptx
+  pilot_preview: boolean,
+  content_gate: string,    // metadata
+  visual_gate: string
+}
+```
 
-无 status 快照时，仅用 state 也能给出「执行点 + waiting」摘要（降级可接受）。
+无快照时：摘要只靠 state（执行点 + waiting）——降级可接受。
 
-**`suggested_next`：** 同前（waiting → continue → advance → inspect）。
+#### `workflow_summary` 启发式（按优先级，取第一条能拼出的主句，再可附「执行点」）
 
-`ppt_flow state`：打印卡；`--json` 含上述字段。  
-`ppt_flow status`：增加 Playbook 断点行；若方便可打印同一 `workflow_summary`（可再调 `buildResumeCard`）。
+1. 若 `waiting_for` 非空 → `卡在等人：<waiting_for>（<playbook>/<current_node>）`
+2. 否则若有快照且 `!style_master` → `视觉母版未就绪（<playbook>/<current_node>）`
+3. 否则若有快照且 `style_master` 且 `raw_images < expected_slides`（且 expected>0）→ `生产页图进行中 <raw>/<expected>（执行点 <playbook>/<current_node>）`
+4. 否则若有快照且 `pptx.length > 0` → `已有交付 PPTX，可迭代（执行点 <playbook>/<current_node>）`
+5. 否则 → `执行点：<playbook> / <current_node>`（playbook/node 空则用「（未初始化）」类兜底，仍须非空字符串）
+
+#### `suggested_next` 启发式（按优先级）
+
+1. `waiting_for` 非空 → `waiting:<waiting_for>`
+2. 否则 `node_status === 'in_progress'` → `continue:<playbook>/<current_node>`
+3. 否则有 `current_node` → `advance-or-inspect:<playbook>/<current_node>`
+4. 否则 → `inspect:run ppt_flow state|status`
+
+语言：`workflow_summary` 默认中文；`suggested_next` 可用短英文 token 前缀（便于测），人读 state 时可原样打印。
+
+#### CLI 呈现
+
+**`ppt_flow state`（人读）至少打印：**
+
+- Playbook / Current / node status  
+- Waiting（若有）/ Note（若有）  
+- Gates（`_state`）  
+- Summary（`workflow_summary`）  
+- Next（`suggested_next`）  
+- Done/Pending 可保留现有列表  
+
+**`state --json`：** 在可用 state 对象上**顶层增加** `workflow_summary`、`suggested_next`（以及实现若方便可带 `node_status` / 展平的 `waiting_for`）；**不要**另起第 13 命令或只输出不含指针的瘦卡。
+
+**`ppt_flow status`：**
+
+- 人读：增加 Playbook / Current 行；若已调 `buildResumeCard`，可再打 Summary 一行  
+- `--json`：对象须含 `playbook`、`current_node`（缺 `_state` 时仍报告 heal 后的种子值，不得静默省略）
 
 仍 **12** 命令。
 
 ### D4 — approve 双写
 
-不变：metadata + `_state.gates` + `writeState`。
+`approve` 写 `project-metadata.yaml` 的 `content_gate`/`visual_gate` **且** `writeState` 同步 `_state.gates.<gate>` 为同一 `approved`|`waived`。可选 `appendHistory` `gate_set`。管线 readiness 可继续读 metadata；`state --check-gates` 与续跑读 `_state`。
 
-### D5 — Docs / 小白说法
+### D5 — Docs / 小白说法（apply 时按此落字）
 
-COMMANDS 节名用 **续跑 / 做到哪了**（勿叫成仅 playbook）：断线、清聊天、接着做、我做到哪了 → 仪式。  
-BOOTSTRAP / CONTRACT：进度在 deck（`_state` + `_generated` 产物），不在聊天。  
-强调：Agent 回答小白时先读卡，再动手。
+**COMMANDS.md** — 新增节（建议放在「内容 & 文字变更」与「Agent 路由逻辑」之间），标题：**续跑 / 做到哪了**
 
-### D6 — 真机锚点
+| 用户说（至少覆盖） | 动作 | 说明 |
+|--------------------|------|------|
+| 「接着做」「继续」 | session resume ritual | 读盘 → 从 current_node 续 |
+| 「我做到哪了」「上次做到哪」 | 同上 | 先人话汇报再动手 |
+| 「清了聊天继续」「断线了继续」 | 同上 | 进度在 deck，不在聊天 |
 
-`deck_ai_sdlc_keynote`：断线后应能说出「视觉审图等待 / review-gate / 页图未满」并继续 iterate-style，而不是重跑 migrate 或绿场。
+说明行写清：这是**整流程**续跑，不是新 playbook；目标 playbook = `_state.playbook`。
+
+**Agent 路由逻辑** 改为分支，**删除**「一律从第一个 node 开始」：
+
+```
+匹配意图
+  → 若已有 deck 且（续跑说法 | 用户只丢了 deck 路径）→ session resume ritual
+  → 否则加载 playbook
+       → 有 in-progress _state 且同 playbook → 从 current_node 续
+       → 确认的绿场 → 从第一个 node 开始
+  → writeState 纪律
+```
+
+**BOOTSTRAP：** 「已有 deck / 断线回来」小节：先 state+status，人话 where-am-I，再决定是否 intake。  
+**AGENT_CONTRACT §1：** 进度在盘（`_state` 指针 + status/产物）；不信赖聊天；写盘纪律。  
+**template-deck-guide / `_state` README：** 清上下文 → `ppt_flow state`。
+
+Playbook 注记范围（控制 apply 面）：`create-deck`、`iterate-style` 正文加一句「进出节点 writeState；等人写 waiting_for」即可；其它 playbook 不强制本 change 逐个改完。
+
+### D6 — 真机冒烟期望（`deck_ai_sdlc_keynote`）
+
+在当前 truth-aligned 状态下，`state --json` 应近似满足：
+
+- `playbook === "iterate-style"`
+- `current_node === "review-gate"`
+- `waiting_for` 含 `user:review-style-master`（顶层或 `nodes.review-gate`）
+- `suggested_next` 含该 token（如 `waiting:user:review-style-master`）
+- `workflow_summary` 含「等人」或 `waiting_for` / `review-gate` 之一类信号
+
+Agent 清上下文后只拿到该 deck 路径时：打开 `style_master.jpg` → LOCK/RETRY/BACK 路径；**不**重跑 `migrate-import` / 绿场 intake。
 
 ## Risks / Trade-offs
 
 | Risk | Mitigation |
 |------|------------|
-| 名字/文档仍像只续 playbook | 已改 change 名；COMMANDS/BOOTSTRAP 用「做到哪了」 |
-| `workflow_summary` 不准 | 短启发式 + 以 state 指针为准；status 仅补产物 |
-| 双真相（state vs status 门闩） | D4 双写 |
+| 文档仍像只续 playbook | change 名 + COMMANDS「做到哪了」+ summary 启发式用产物 |
+| `workflow_summary` 偶发不准 | 短启发式；指针优先；status 只补产物 |
+| metadata vs `_state` 门闩漂移 | D4 双写 + 测试 |
+| apply 时改太多 playbook | D5 限定 create-deck / iterate-style |
 
 ## Migration Plan
 
-1. `buildResumeCard` + CLI + `deckRoot` 修正 + 测试  
-2. NODE-SPEC / STATE README  
-3. Docs（续跑说法面向小白整流程）  
-4. 真机 deck 冒烟  
+1. `buildResumeCard` + `deckRoot` + state/status/approve + 单测  
+2. NODE-SPEC / STATE header+README  
+3. Docs（COMMANDS / BOOTSTRAP / CONTRACT / deck-guide）  
+4. 两 playbook 注记  
+5. `npm test` + keynote 冒烟  
 
 ## Open Questions
 
-无。
+无——启发式与验收锚点已钉死；若真机页图比例变化，summary 条文 3 仍成立，冒烟以 waiting/review-gate 为主断言。

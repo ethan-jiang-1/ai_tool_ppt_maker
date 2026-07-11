@@ -2,7 +2,7 @@
 
 ### Requirement: State file is YAML at run bundle root
 
-Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml` (single truth source, atomically written) and `history.jsonl` (append-only reference log). `state.yaml` SHALL track: active playbook, current node, per-node status, gate decisions, playbook_stack, and deck metadata. Per-node records MAY include optional string fields `waiting_for` (short machine-oriented wait reason, e.g. `user:approve-visual`) and `note` (human-readable). `history.jsonl` SHALL NOT participate in any automatic recovery logic——it is for LLM reference only. `readState(deckDir)` reads `_state/state.yaml`. `appendHistory(deckDir, event)` appends to `_state/history.jsonl`. `readHistory(deckDir)` returns all events.
+Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml` (single truth source for **execution pointer**, atomically written) and `history.jsonl` (append-only reference log). `state.yaml` SHALL track: active playbook, current node, per-node status, gate decisions, playbook_stack, and deck metadata. Per-node records MAY include optional string fields `waiting_for` (short machine-oriented wait reason, e.g. `user:approve-visual` or `user:review-style-master`) and `note` (human-readable). Whole-workflow **where-am-I** answers MAY compose `_state` with artifact status from `ppt_flow status`; that composition SHALL NOT invent a second persisted phase file. `history.jsonl` SHALL NOT participate in any automatic recovery logic——it is for LLM reference only. `readState(deckDir)` reads `_state/state.yaml`. `appendHistory(deckDir, event)` appends to `_state/history.jsonl`. `readHistory(deckDir)` returns all events.
 
 #### Scenario: Agent reads state to resume
 
@@ -27,7 +27,7 @@ Every run bundle SHALL contain a `_state/` directory with two files: `state.yaml
 
 `scripts/ppt_flow.mjs` SHALL support a `state` subcommand registered inside `main()` on the same `Command` instance used by `parseAsync`, before parsing: `state <runDir>` (human-readable summary), `state <runDir> --json` (JSON state dump on success), `state <runDir> --check-gates` (gate validation). On success, `--check-gates` exits `0`. On pending gates (any required gate not in `approved`/`waived` per `isGateApproved`), exit `1` **and** emit the CLI failure JSON envelope (`code` `GATE_BLOCKED`) as the last non-empty line of stderr per `cli-surface`. The `state` command SHALL call `readState` with **default heal** so recoverable format/schema defects do not surface as corruption. Exit `2` with envelope `code` `STATE_CORRUPTED` SHALL occur only when state remains unusable after the configured read path (for example explicit `heal: false` diagnostic reads that return `{corrupted:true}`, or an implementation failure to seed a usable state) — not when heal successfully rewrote or normalized the file.
 
-Human-readable and `--json` success output SHALL include a **resume card**: `playbook`, `current_node`, current node `status`, optional `waiting_for` / `note`, `_state` gates, `playbook_stack` (or empty), and a short `suggested_next` string derived from position. The card SHALL NOT invent a new top-level CLI command.
+Human-readable and `--json` success output SHALL include a **resume card**: `playbook`, `current_node`, current node `status`, optional `waiting_for` / `note`, `_state` gates, `playbook_stack` (or empty), a non-empty `workflow_summary`, and a non-empty `suggested_next` string derived from position (and optional status snapshot). The card SHALL NOT invent a new top-level CLI command. Deck path resolution SHALL use `deckRoot`.
 
 #### Scenario: Agent checks state before Stage 2 — gates OK
 
@@ -60,14 +60,14 @@ Human-readable and `--json` success output SHALL include a **resume card**: `pla
 #### Scenario: state --json includes resume card fields
 
 - **WHEN** Agent runs `ppt_flow state <runDir> --json` on a usable in-progress deck
-- **THEN** the JSON includes `playbook`, `current_node`, and `suggested_next`
+- **THEN** the JSON includes `playbook`, `current_node`, `workflow_summary`, and `suggested_next`
 - **AND** gates and playbook_stack are present
 
 ## ADDED Requirements
 
 ### Requirement: Node transitions persist via writeState
 
-Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `skipped`, the agent SHALL persist via `setNodeStatus` (or equivalent API) and `writeState` before relying on chat memory. Leaving a human-wait SHALL clear or update `waiting_for` accordingly. Agents SHALL NOT treat an unpersisted node transition as durable across sessions. Schema heal / round-trip SHALL preserve optional `waiting_for` and `note` fields when present.
+Whenever a node status transitions to `in_progress`, `completed`, `failed`, or `skipped`, the agent SHALL persist via `setNodeStatus` (or equivalent API) and `writeState` before relying on chat memory. Leaving a human-wait SHALL clear or update `waiting_for` accordingly. Agents SHALL NOT treat an unpersisted node transition as durable across sessions. Schema heal / round-trip SHALL preserve optional `waiting_for` and `note` fields when present on node records.
 
 #### Scenario: Entering a node writes in_progress
 
