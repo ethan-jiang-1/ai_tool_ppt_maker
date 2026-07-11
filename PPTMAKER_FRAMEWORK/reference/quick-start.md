@@ -50,7 +50,7 @@ agent_action: navigate
 - 我有: GPT Image 2 API、Node.js 18+、npm（`@napi-rs/canvas` + `pptxgenjs` 由 repo 安装）
 ```
 
-agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时长、语言、最想让人记住什么),再带你选隐喻、选风格,最后搭出框架。Agent 入口是 BOOTSTRAP → AGENT_CONTRACT（10 条铁律）→ 按 Phase 翻 AGENTS。
+agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时长、语言、最想让人记住什么),再带你选隐喻、选风格,最后搭出框架。Agent 入口是 BOOTSTRAP → AGENT_CONTRACT（11 条铁律）→ 按 Phase 翻 AGENTS。
 
 ## 你负责什么 vs agent 负责什么
 

@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-07-10 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-07-11 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -19,6 +19,9 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 
 | ID | Date | File | Summary |
 |----|------|------|---------|
-| — | — | — | — |
+| [CLS-001](agent-interaction-protocol.md) | 2026-07-11 | `agent-interaction-protocol.md` | 交互节律协议；由 Change 1 吸收（§11 + show） |
+| [CLS-002](style-iterate-and-quick-preview.md) | 2026-07-11 | `style-iterate-and-quick-preview.md` | 探索 playbook 实例；并入 Change 1 |
 
-**Next available plan ID: CLS-001**
+**Next available plan ID: CLS-003**
+
+> Change 1 已 archive。Change 2 前景：`guard-offpath-migrate-import-ux`（旁路迁移/导入 UX 护栏）。

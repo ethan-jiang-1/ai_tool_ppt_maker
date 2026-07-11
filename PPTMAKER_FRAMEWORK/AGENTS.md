@@ -19,7 +19,7 @@ agent_action: navigate
 # AGENTS.md — PPT Flow Orchestrator
 
 > 本文件为 **agent-agnostic**——适用于 Claude Code、Codex、Cursor 及任何 AI coding agent。
-> **每次 session 先读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
+> **每次 session 先读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（11 条铁律）。** 本文件是 Phase 详解——按当前 Phase 翻对应章节，不要整本通读当入口。
 
 ## 给人类读者
 

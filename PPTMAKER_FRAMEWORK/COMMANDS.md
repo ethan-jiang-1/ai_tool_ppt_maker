@@ -14,6 +14,19 @@
 | "帮我做一个PPT" | `create-deck` | 11 nodes, 从 instantiation → final |
 | "我要做一个关于X的演示" | `create-deck` | 同上 |
 
+## 探索 & 预览
+
+> 还没全量交付、也不是改已有 PPTX——pre-commitment 试探。
+> 推荐顺序：视觉 LOCK（可用 `iterate-style`）→ `quick-preview` → `build`。
+> 不要把「打磨 style master」路由到 post-PPTX 的 `edit-visual`。
+
+| 用户说 | Playbook | 说明 |
+|--------|----------|------|
+| "先定视觉方向，反复打磨 style master" | `iterate-style` | 1k loop → LOCK 升 2k |
+| "视觉风格不满意，再调一版" | `iterate-style` | review-gate RETRY / 锁后反悔模式 C |
+| "内容有了，先出 3 页典型页看看效果" | `quick-preview` | 须 gates 已批；contact sheet |
+| "先预览一下再决定要不要全量" | `quick-preview` | PROCEED 再 build |
+
 ## 迭代打磨
 
 | 用户说 | Playbook | 入口参数 |

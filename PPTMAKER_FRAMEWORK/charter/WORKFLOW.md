@@ -49,7 +49,7 @@ Stage 2 运行前检查: 两个 gate 必须为 `approved` 或 `waived`.
 
 ```
 CLAUDE.md  →  BOOTSTRAP.md  →  charter/AGENT_CONTRACT.md  →  按 Phase 读 AGENTS.md
-(自动加载)     (三步启动)        (10 条铁律)            (详细执行)
+(自动加载)     (三步启动)        (11 条铁律)            (详细执行)
 ```
 
 日常命令统一走 `scripts/ppt_flow.mjs`（doctor / init / status / approve / pilot / build）。

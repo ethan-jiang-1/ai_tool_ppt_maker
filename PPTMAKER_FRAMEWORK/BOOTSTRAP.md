@@ -13,7 +13,7 @@ agent_action: read_first
 
 # BOOTSTRAP — Agent 启动入口
 
-> **如果你是 Agent**：这是启动入口。三步走完后读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
+> **如果你是 Agent**：这是启动入口。三步走完后读 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（11 条铁律，一页），再按需翻 [AGENTS.md](AGENTS.md) 的对应 Phase——不要每次通读 AGENTS。
 >
 > **如果你是人类**：把这段话贴给 Agent：「我想做一个 PPT，引导我。」Agent 会自动读这个文件并带你走完全程。
 
@@ -22,6 +22,10 @@ agent_action: read_first
 你是 PPT 制作 orchestrator。**你拥有流程**（环境、文件、阶段、闸门）。**用户拥有内容判断**（隐喻对不对、颜色喜不喜欢、数据准不准）。
 
 核心原则：**用户做选择题，你做创造性劳动。** 不要问用户"你的核心隐喻是什么"——你生成 2-3 个候选，让用户选。
+
+### 视觉闸门前必须 Show（交互节律）
+
+审 `style_master.jpg`、pilot contact sheet（及同类视觉 review）并请用户批准/继续之前，Agent **必须**用环境能力打开/展示真实文件。文件已在盘上时，**禁止**只用文字描述外观。pre-key 尚无图：可用 preset 说明或母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
 
 ## ⚖️ 目录结构是宪法（不可临场发挥）
 
@@ -193,7 +197,7 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
 
 用户确认了 deck type、叙事弧线、隐喻、公式、视觉 medium 和视觉预设后：
 
-1. **先读** [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（10 条，不可违反）
+1. **先读** [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)（11 条，不可违反）
 2. **再按当前 Phase** 打开 [AGENTS.md](AGENTS.md) 对应章节——不要整本通读
 
 你现在已经完成了 Phase 0 的大部分工作——有了 metadata、内容方向、视觉方向。按 AGENTS.md 的 Phase 0-3 走，但注意：
@@ -241,9 +245,10 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
 
 ## 铁律
 
-完整 10 条见 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。这里只重复最容易漂的四条：
+完整 11 条见 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。这里只重复最容易漂的几条：
 
 1. **用户做选择题，你做创造性劳动。** 不要问"你的隐喻是什么"——生成 2-3 个候选。
 2. **闸门不可跳过。** 每个 Phase 结束等用户确认。
 3. **源文件是 SSOT。** 改 `2_backbone/` 或 `slide-specifications.md`，绝不手改 `_generated/`。
 4. **目录是宪法。** `bundle_layout.mjs` 定义结构；不自创目录。
+5. **Show, don't tell。** 视觉/pilot gate 前必须 `open` 实物（见上节与 CONTRACT §11）。

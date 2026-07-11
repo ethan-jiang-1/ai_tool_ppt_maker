@@ -62,8 +62,8 @@ exit:
 ```
 
 **Step 1 — MD**: 读 workflow/01-visual/. 推荐 2-3 个 visual preset, 用户选一个.
-**Step 2 — CLI**: `node scripts/generate_style_master.mjs --run-dir <dir>`
-**Step 3 — Gate**: review style_master.jpg. 95%+ → lock. 更新 state: visual_gate → approved
+**Step 2 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`（prompt 源：`2_backbone/visual-style/style-master-prompt.md`）
+**Step 3 — Gate**: **必须 open** `2_backbone/visual-style/style_master.jpg`（禁止只描述）。一次满意 → `ppt_flow.mjs approve <run-dir> visual`，并同步 `_state`：`setGate(state, 'visual', 'approved')` + `writeState`，再进 seed-topics。用户要多轮打磨 → `switchPlaybook` 进入 `iterate-style`（勿只改文案过 gate）；回来后 `resumePlaybook`。
 
 ### seed-topics
 → 生成初始 topic 列表
