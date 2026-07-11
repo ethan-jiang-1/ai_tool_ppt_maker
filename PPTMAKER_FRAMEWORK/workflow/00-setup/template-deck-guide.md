@@ -59,6 +59,11 @@ agent_action: copy_to_bundle
   - 空的 → 还没生产,跟 agent 说"开始生成"
   - 有 `ppt/{{OUTPUT_NAME}}.pptx` → 成品好了 ✅,打开看看
 
+## 操作经验（不是进度）
+
+- 本 deck 试通的**非密钥**操作经验在 `_learning/`（先读再猜；见 `_learning/README.md`）
+- Image2 冒烟回执：`_learning/image2-proven.yaml`（无 API key）。密钥只写 `.env`
+
 ## 这个项目的约定
 - **语言**:{{LANGUAGE_POLICY}}
 - **内容禁忌**:{{CONTENT_CONSTRAINTS}}
@@ -79,6 +84,7 @@ agent_action: copy_to_bundle
 ```
 {{DECK_NAME}}/
 ├── _state/                    ← playbook 执行进度（state.yaml）
+├── _learning/                 ← 非密钥操作经验（先读再猜；不是进度 / 不是密钥）
 ├── 1_upstream_raw_material/   ← 源·共享·原始素材(只增)
 ├── 2_backbone/               ← 源·共享·主干:隐喻/公式/约束/大纲/讲稿/视觉(默认事实源)
 └── 3_versions/{{CURRENT_VERSION}}/
@@ -126,6 +132,14 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
 | `page_images_full/` | Stage 2 完成 |
 | `header_locked/` | Stage 3 完成 |
 | `ppt/{{OUTPUT_NAME}}.pptx` | 完成 ✅ |
+
+## 操作经验对照（非进度）
+
+| 看哪里 | 说明 |
+|------|------|
+| `_learning/` | 本 deck 非密钥操作经验（先读再猜） |
+| `_learning/image2-proven.yaml` | Image2 冒烟试通回执（无 key） |
+| `.env` | 密钥与生效 URL（机器加载；不进 `_learning/`） |
 
 ## 命令
 

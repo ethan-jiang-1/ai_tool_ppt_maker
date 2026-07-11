@@ -19,6 +19,7 @@
  *     ├── CLAUDE.md                      1-line pointer to deck-guide.md (auto-load)
  *     ├── project-metadata.yaml          topic / audience / language / north-star
  *     ├── _state/                        playbook execution progress (state.yaml; history.jsonl on demand)
+ *     ├── _learning/                     non-secret operational lessons (read-before-guess; not secrets / not progress)
  *     │
  *     ├── 1_upstream_raw_material/       UPSTREAM  · raw research/material · shared · append-mostly
  *     │
@@ -81,6 +82,26 @@ export const VERSIONS_DIR = '3_versions';
 export const GUIDE_FILE = 'deck-guide.md';
 export const POINTER_FILE = 'CLAUDE.md';
 export const METADATA_FILE = 'project-metadata.yaml';
+
+/** Deck-root learning surface (non-secret operational lessons). */
+export const LEARNING_DIR = '_learning';
+export const LEARNING_IMAGE2_PROVEN = 'image2-proven.yaml';
+
+/** Canonical README body for _learning/ (Chinese, same voice as _state README). */
+export const LEARNING_DIR_README = `\
+# 操作经验 (_learning)
+
+**这里放什么:** 本 deck 在操作中试出来的、可复用的**非密钥**经验。下次 Agent/人进 deck：**先读这里再猜**，禁止只把经验留在聊天里。
+
+**不放什么:** 密钥与生效凭据（→ \`.env\`）、playbook 执行进度（→ \`_state/\`）、上游素材、\`_generated/\` 产物。
+
+**谁读写:** Agent（代表本 run bundle）；Framework 只约定目录与禁止项，不替各 deck 存经验内容。
+
+**约定文件:**
+- \`image2-proven.yaml\` — Image2 冒烟试通回执（\`proven_at\` / \`base_url\` / \`via\` / 可选 \`notes\`；**无 API key 字段**）
+
+**禁止**把 API key 写入本目录。
+`;
 
 // ---------------------------------------------------------------------------
 // --- Inside 2_backbone/ ----------------------------------------------------
@@ -491,15 +512,17 @@ const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
         '先读 **deck-guide.md**（进来先看那个）。\n\n' +
-        '这个文件夹分三层 + 执行状态:\n' +
+        '这个文件夹分三层 + 执行状态 + 操作经验:\n' +
         '- `1_upstream_raw_material/` — 原始素材、调研(你往里堆资料)\n' +
         '- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n' +
         '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n' +
-        '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n\n' +
+        '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n' +
+        '- `_learning/` — 操作中试出的**非密钥**经验（先读再猜；见里面的 README）\n\n' +
         '**只改带 README 说\'你改这里\'的文件。** 结构由 ' +
         '`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` 定义,别自己新建目录。\n'
     ),
     [STATE_DIR]: STATE_DIR_README,
+    [LEARNING_DIR]: LEARNING_DIR_README,
     [UPSTREAM_DIR]: (
         '# 上游:原始素材\n\n' +
         '**这里放什么:** 你的调研、参考资料、事实来源——任何「喂养」这个 deck 的原料。\n' +
@@ -579,7 +602,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
-    const dirs = ['.', STATE_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
+    const dirs = ['.', STATE_DIR, LEARNING_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
     for (const sd of BACKBONE_SUBDIRS) {
         dirs.push(`${BACKBONE_DIR}/${sd}`);
     }
@@ -669,6 +692,9 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1" [--check-gates]\`）。\n` +
         `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
+        `## 操作经验（非进度）\n\n` +
+        `- 本 deck 试通的**非密钥**操作经验在 \`${LEARNING_DIR}/\`（先读再猜；见 \`${LEARNING_DIR}/README.md\`）。` +
+        `Image2 冒烟回执：\`${LEARNING_DIR}/${LEARNING_IMAGE2_PROVEN}\`。密钥只写 \`.env\`，不要写进 \`${LEARNING_DIR}/\` 或 \`${STATE_DIR}/\`。\n\n` +
         `## 从项目根目录运行\n\n` +
         `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
         `\`\`\`bash\n` +
@@ -691,12 +717,13 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
 
     _writeIfAbsent(
         path.join(deckDir, '.env.example'),
-        '# 图像生成凭据（Stage 2 需要——没有 key 就生不了图，PPT 做不出来）。\n' +
-        '# 复制本文件为 .env 并填好；每次跑管线会自动加载 .env（填一次即可）。\n\n' +
-        '# 框架统一入口变量；wrapper 会桥接到当前 image skill 的原生变量：\n' +
-        'OPENAI_API_KEY=            # 必填：你的图像 API key\n' +
-        'OPENAI_BASE_URL=           # 可选：API 端点，如 https://<relay>/v1（留空用默认）\n\n' +
-        '# （若你的中转原生用别的变量名，直接填 APIMART_API_KEY / APIMART_BASE_URL 也认。）\n');
+        '# Image2 图像生成凭据（Stage 2 / style-master 需要——没有 key+URL 就生不了图）。\n' +
+        '# 复制本文件为 .env 并填好；管线按 cwd 向上加载 .env（填一次即可）。\n' +
+        '# 这些变量只用于出图，不是 ChatGPT 聊天。\n\n' +
+        'IMAGE2_API_KEY=            # 必填：图像 API key\n' +
+        'IMAGE2_BASE_URL=           # 必填：API 端点，如 https://<relay>/v1\n' +
+        '# IMAGE2_BASE_URLS=        # 可选；非空可代替单条 BASE_URL（逗号分隔）\n\n' +
+        '# 别名仍认：OPENAI_* / APIMART_*（优先 IMAGE2_*）。\n');
     _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +
@@ -727,6 +754,9 @@ deck_\${NAME}/
 ├── ${STATE_DIR}/                          ← playbook execution progress (not material)
 │   ├── ${STATE_FILE}                    ← truth source (atomic write)
 │   └── history.jsonl                   ← append-only reference log (created on demand)
+├── ${LEARNING_DIR}/                       ← non-secret operational lessons (read-before-guess; not secrets / not progress)
+│   ├── README.md                       ← 这里放什么 / 不放什么
+│   └── ${LEARNING_IMAGE2_PROVEN}         ← Image2 smoke receipt when proven (no API key)
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │
@@ -798,7 +828,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LEARNING_DIR]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

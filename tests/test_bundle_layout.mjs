@@ -8,6 +8,7 @@ import {
   renderTree,
   selfCheck,
   checkBundle,
+  LEARNING_DIR,
 } from '../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
 import {
   writeState,
@@ -39,13 +40,15 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
-  it('prints tree by default including _state', () => {
+  it('prints tree by default including _state and _learning', () => {
     const out = run(`node ${BUNDLE}`);
     expect(out).toContain('deck_');
     expect(out).toContain('1_upstream_raw_material');
     expect(out).toContain('2_backbone');
     expect(out).toContain('3_versions');
     expect(out).toContain('_state');
+    expect(out).toContain('_learning');
+    expect(out).toMatch(/operational lessons|read-before-guess/);
   });
 
   it('passes self-check', () => {
@@ -53,8 +56,9 @@ describe('bundle_layout', () => {
     expect(out).toContain('SSOT self-consistent');
   });
 
-  it('renderTree and selfCheck include STATE_DIR', () => {
+  it('renderTree and selfCheck include STATE_DIR and LEARNING_DIR', () => {
     expect(renderTree()).toContain(STATE_DIR);
+    expect(renderTree()).toContain(LEARNING_DIR);
     expect(selfCheck()).toEqual([]);
   });
 
@@ -81,7 +85,7 @@ describe('bundle_layout', () => {
     }
   });
 
-  it('initBundle scaffolds discoverable _state', () => {
+  it('initBundle scaffolds discoverable _state and _learning', () => {
     const deck = join(tmpdir(), `deck_state_init_${Date.now()}`);
     mkdirSync(deck, { recursive: true });
     try {
@@ -100,9 +104,15 @@ describe('bundle_layout', () => {
         '_state/state.yaml'
       );
       expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_state/');
+      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_learning/');
       expect(
         readFileSync(join(deck, 'project-metadata.yaml'), 'utf-8')
       ).toMatch(/#.*_state/);
+      const learningReadme = readFileSync(join(deck, LEARNING_DIR, 'README.md'), 'utf-8');
+      expect(learningReadme).toContain('这里放什么');
+      expect(learningReadme).toContain('image2-proven.yaml');
+      expect(readFileSync(join(deck, '.env.example'), 'utf-8')).toContain('IMAGE2_API_KEY');
+      expect(readFileSync(join(deck, 'deck-guide.md'), 'utf-8')).toContain('_learning/');
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -125,7 +135,31 @@ describe('bundle_layout', () => {
     try {
       const issues = checkBundle(v1, false);
       expect(issues.every((i) => !i.includes('_state'))).toBe(true);
+      expect(issues.every((i) => !i.includes('_learning'))).toBe(true);
       expect(issues.filter((i) => i.includes('unexpected')).length).toBe(0);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('structure-only check allows _learning at deck root', () => {
+    const deck = join(tmpdir(), `deck_learning_ok_${Date.now()}`);
+    const v1 = join(deck, '3_versions', 'v1');
+    mkdirSync(v1, { recursive: true });
+    mkdirSync(join(deck, '1_upstream_raw_material'), { recursive: true });
+    mkdirSync(join(deck, '2_backbone', 'visual-style'), { recursive: true });
+    mkdirSync(join(deck, LEARNING_DIR), { recursive: true });
+    writeFileSync(join(deck, 'deck-guide.md'), '# g\n');
+    writeFileSync(join(deck, 'CLAUDE.md'), '# c\n');
+    writeFileSync(
+      join(deck, 'project-metadata.yaml'),
+      'deck_name: x\ncontent_gate: pending\nvisual_gate: pending\n'
+    );
+    writeFileSync(join(v1, 'slide-specifications.md'), '# specs\n');
+    writeFileSync(join(v1, 'README.md'), '# v1\n');
+    try {
+      const issues = checkBundle(v1, false);
+      expect(issues.filter((i) => i.includes('unexpected') && i.includes('_learning')).length).toBe(0);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

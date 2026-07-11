@@ -129,3 +129,48 @@ describe('env-check deps walk-up', () => {
     }
   });
 });
+
+describe('env-check Image2 base URL hard fail', () => {
+  it('fails image_base_url when key present but no URL', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'env-nourl-'));
+    try {
+      const cleanEnv = {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        IMAGE2_API_KEY: 'test-key-only',
+      };
+      // Ensure no inherited URL aliases leak in
+      for (const k of [
+        'IMAGE2_BASE_URL', 'IMAGE2_BASE_URLS',
+        'OPENAI_API_KEY', 'OPENAI_BASE_URL',
+        'APIMART_API_KEY', 'APIMART_BASE_URL', 'APIMART_BASE_URLS',
+      ]) {
+        // omit from cleanEnv
+      }
+      let stdout = '';
+      let exitCode = 0;
+      try {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+          encoding: 'utf-8',
+          timeout: 15000,
+          cwd,
+          env: cleanEnv,
+        });
+      } catch (e) {
+        exitCode = e.status ?? 1;
+        stdout = e.stdout ?? '';
+      }
+      expect(exitCode).not.toBe(0);
+      const data = JSON.parse(stdout);
+      const urlCheck = data.checks.find(c => c.check === 'image_base_url');
+      expect(urlCheck).toBeDefined();
+      expect(urlCheck.status).toBe('fail');
+      expect(urlCheck.fix).toMatch(/IMAGE2_BASE_URL/);
+      const keyCheck = data.checks.find(c => c.check === 'api_key');
+      expect(keyCheck.status).toBe('ok');
+      expect(keyCheck.detail).toContain('IMAGE2_API_KEY');
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});

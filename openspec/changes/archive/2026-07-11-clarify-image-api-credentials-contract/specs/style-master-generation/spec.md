@@ -1,10 +1,4 @@
-## Purpose
-
-Define `generate_style_master.mjs`, which produces the deck's visual anchor
-image using the in-framework `image_api_client.mjs` (Node fetch, async API)
-under the Image2 credentials contract. No external `image2-imagegen` skill.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Style master uses in-framework image client
 

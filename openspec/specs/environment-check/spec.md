@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the pre-flight environment check (`scripts/env-check.mjs`) that verifies a machine is ready to run the pipeline: a zero-dependency script (Node.js built-ins only) that gates the Node.js version (>= 18), npm and the hard-required packages (`@napi-rs/canvas`, `pptxgenjs`, `commander`), and the `OPENAI_API_KEY`, then emits a structured READY / NOT READY report with a matching exit code. This capability guarantees that setup problems are diagnosed with actionable messages before the pipeline runs, and that the check itself never requires `npm install` to execute.
+Define the pre-flight environment check (`scripts/env-check.mjs`) that verifies a machine is ready to run the pipeline: a zero-dependency script (Node.js built-ins only) that gates the Node.js version (>= 18), npm and the hard-required packages (`@napi-rs/canvas`, `pptxgenjs`, `commander`), the Image2 API key (`IMAGE2_API_KEY`, with OPENAI_*/APIMART_* aliases), and a hard-required image API base URL (`IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS` or aliases), then emits a structured READY / NOT READY report with a matching exit code. This capability guarantees that setup problems are diagnosed with actionable messages before the pipeline runs, and that the check itself never requires `npm install` to execute.
 
 ## Requirements
 
@@ -51,12 +51,41 @@ The env check SHALL verify npm is available. It SHALL verify that the hard-requi
 
 ### Requirement: API key verification
 
-The env check SHALL verify `OPENAI_API_KEY` is set in `.env` and is non-empty.
+The env check SHALL verify that an image-generation API key is set and non-empty. The **canonical** name SHALL be `IMAGE2_API_KEY`. Legacy aliases `OPENAI_API_KEY` and `APIMART_API_KEY` SHALL also satisfy the check. Fix text SHALL name `IMAGE2_API_KEY`.
 
-#### Scenario: API key
+#### Scenario: Canonical IMAGE2 key
 
-- **WHEN** `.env` contains `OPENAI_API_KEY=sk-...` → check passes
-- **WHEN** `.env` is absent or value is empty → report explains how to configure
+- **WHEN** `.env` contains non-empty `IMAGE2_API_KEY`
+- **THEN** `api_key` passes and detail identifies `IMAGE2_API_KEY`
+
+#### Scenario: Legacy alias key still works
+
+- **WHEN** only `OPENAI_API_KEY` or only `APIMART_API_KEY` is non-empty
+- **THEN** `api_key` still passes
+
+#### Scenario: Missing key
+
+- **WHEN** none of the three key variables is non-empty
+- **THEN** `api_key` fails and fix names `IMAGE2_API_KEY`
+
+### Requirement: Image API base URL is a hard requirement
+
+The env check SHALL require a non-empty base URL via `IMAGE2_BASE_URL` or `IMAGE2_BASE_URLS`, or legacy `OPENAI_BASE_URL` / `APIMART_BASE_URL` / `APIMART_BASE_URLS`. When none is set, `image_base_url` SHALL be **`fail`** and overall NOT READY. The check SHALL NOT claim a silent default endpoint when URL is unset. Fix text SHALL name `IMAGE2_BASE_URL`.
+
+#### Scenario: Canonical IMAGE2 base URL
+
+- **WHEN** `.env` contains `IMAGE2_BASE_URL=https://example/v1`
+- **THEN** `image_base_url` passes
+
+#### Scenario: BASE_URLS alone satisfies the check
+
+- **WHEN** `.env` has non-empty `IMAGE2_BASE_URLS` and no `IMAGE2_BASE_URL`
+- **THEN** `image_base_url` passes
+
+#### Scenario: Missing base URL fails doctor
+
+- **WHEN** a key is present but no base URL variable is set
+- **THEN** `image_base_url` is `fail` and env-check is NOT READY
 
 ### Requirement: In-framework Stage 2 scripts are a hard requirement
 

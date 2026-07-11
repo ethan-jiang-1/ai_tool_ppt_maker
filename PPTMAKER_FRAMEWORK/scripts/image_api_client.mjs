@@ -7,8 +7,11 @@
  *   GET  {base}/tasks/{id}          → poll until completed|failed
  *   GET  {base}/tasks/{id}/result   → image URL or b64
  *
- * Credentials: OPENAI_API_KEY / APIMART_API_KEY
- * Base URL(s): OPENAI_BASE_URL / APIMART_BASE_URL / APIMART_BASE_URLS (comma-separated)
+ * Image2 credentials (canonical):
+ *   IMAGE2_API_KEY + IMAGE2_BASE_URL and/or IMAGE2_BASE_URLS
+ * Legacy aliases (still accepted): OPENAI_* / APIMART_*
+ * Priority: IMAGE2_* → OPENAI_* → APIMART_*; CLI --base-url highest.
+ * These variables are for image generation only — not chat LLMs.
  *
  * No external skills. No Python. No bash. Node fetch only.
  */
@@ -21,24 +24,42 @@ export const MAX_WAIT_MS = 600_000;
 export const POLL_INTERVAL_MS = 5_000;
 
 /**
- * Bridge OPENAI_* → APIMART_* in-process (does not override already-set APIMART_*).
+ * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
+ * Keeps older call sites that still read APIMART_* working.
  */
 export function bridgeCredentials() {
-  if (!process.env.APIMART_API_KEY && process.env.OPENAI_API_KEY) {
-    process.env.APIMART_API_KEY = process.env.OPENAI_API_KEY;
+  const key =
+    process.env.IMAGE2_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.APIMART_API_KEY;
+  if (!process.env.APIMART_API_KEY && key) {
+    process.env.APIMART_API_KEY = key;
   }
-  if (!process.env.APIMART_BASE_URL && process.env.OPENAI_BASE_URL) {
-    process.env.APIMART_BASE_URL = process.env.OPENAI_BASE_URL;
+  const base =
+    process.env.IMAGE2_BASE_URL ||
+    process.env.OPENAI_BASE_URL ||
+    process.env.APIMART_BASE_URL;
+  if (!process.env.APIMART_BASE_URL && base) {
+    process.env.APIMART_BASE_URL = base;
+  }
+  const bases =
+    process.env.IMAGE2_BASE_URLS ||
+    process.env.APIMART_BASE_URLS;
+  if (!process.env.APIMART_BASE_URLS && bases) {
+    process.env.APIMART_BASE_URLS = bases;
   }
 }
 
 /** @returns {string} */
 export function resolveApiKey() {
   bridgeCredentials();
-  const key = process.env.OPENAI_API_KEY || process.env.APIMART_API_KEY;
+  const key =
+    process.env.IMAGE2_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.APIMART_API_KEY;
   if (!key) {
     throw new Error(
-      "OPENAI_API_KEY (or APIMART_API_KEY) is not set. Put it in deck .env or export it."
+      "IMAGE2_API_KEY is not set (aliases: OPENAI_API_KEY / APIMART_API_KEY). Put it in deck .env or export it."
     );
   }
   return key;
@@ -51,13 +72,17 @@ export function resolveApiKey() {
 export function resolveBaseUrls(extra = []) {
   bridgeCredentials();
   const fromCli = (extra || []).filter(Boolean);
-  if (fromCli.length > 0) return fromCli;
+  if (fromCli.length > 0) return fromCli.map((u) => u.replace(/\/+$/, ""));
 
   const single =
+    process.env.IMAGE2_BASE_URL ||
     process.env.OPENAI_BASE_URL ||
     process.env.APIMART_BASE_URL ||
     "";
-  const multi = process.env.APIMART_BASE_URLS || "";
+  const multi =
+    process.env.IMAGE2_BASE_URLS ||
+    process.env.APIMART_BASE_URLS ||
+    "";
   const urls = [];
   if (single) urls.push(single.trim());
   for (const part of multi.split(",")) {
@@ -66,10 +91,28 @@ export function resolveBaseUrls(extra = []) {
   }
   if (urls.length === 0) {
     throw new Error(
-      "No image API base URL. Set OPENAI_BASE_URL (or APIMART_BASE_URL / APIMART_BASE_URLS)."
+      "No image API base URL. Set IMAGE2_BASE_URL (or IMAGE2_BASE_URLS; aliases: OPENAI_BASE_URL / APIMART_BASE_URL / APIMART_BASE_URLS)."
     );
   }
   return urls.map((u) => u.replace(/\/+$/, ""));
+}
+
+/**
+ * Normalize object / array `data` envelopes used by submit / poll / result.
+ * @param {unknown} data
+ * @returns {Record<string, unknown>}
+ */
+export function unwrapDataRecord(data) {
+  if (!data || typeof data !== "object") return {};
+  const root = /** @type {Record<string, unknown>} */ (data);
+  const inner = root.data;
+  if (Array.isArray(inner) && inner.length > 0 && inner[0] && typeof inner[0] === "object") {
+    return /** @type {Record<string, unknown>} */ (inner[0]);
+  }
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    return /** @type {Record<string, unknown>} */ (inner);
+  }
+  return root;
 }
 
 /** @param {string} filePath @returns {string} data URL */
@@ -110,7 +153,12 @@ async function submitTask(baseUrl, apiKey, body) {
   if (!resp.ok) {
     throw new Error(`Submit failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
   }
-  const taskId = data.task_id || data.id || data.data?.task_id || data.data?.id;
+  const unwrapped = unwrapDataRecord(data);
+  const taskId =
+    data.task_id ||
+    data.id ||
+    unwrapped.task_id ||
+    unwrapped.id;
   if (!taskId) {
     throw new Error(`No task_id in submit response: ${JSON.stringify(data).slice(0, 300)}`);
   }
@@ -137,13 +185,22 @@ async function pollTask(baseUrl, apiKey, taskId) {
     if (!resp.ok) {
       throw new Error(`Poll failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
     }
-    const status = String(data.status || data.state || "unknown").toLowerCase();
+    const unwrapped = unwrapDataRecord(data);
+    const status = String(
+      data.status || data.state || unwrapped.status || unwrapped.state || "unknown"
+    ).toLowerCase();
     if (status === "completed" || status === "success" || status === "succeeded") {
       return { data, pollCount };
     }
     if (status === "failed" || status === "failure" || status === "error") {
       const msg =
-        data.error?.message || data.message || data.error || "unknown error";
+        data.error?.message ||
+        data.message ||
+        data.error ||
+        unwrapped.error?.message ||
+        unwrapped.message ||
+        unwrapped.error ||
+        "unknown error";
       throw new Error(`Task ${taskId} failed: ${msg}`);
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
@@ -176,9 +233,11 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
     throw new Error(`Result failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
   }
 
+  const unwrapped = unwrapDataRecord(data);
   const b64 =
     data.b64_json ||
     data.data?.[0]?.b64_json ||
+    unwrapped.b64_json ||
     data.result?.b64_json;
   if (b64) {
     mkdirSync(dirname(outPath), { recursive: true });
@@ -190,6 +249,8 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
     data.image_url ||
     data.url ||
     data.data?.[0]?.url ||
+    unwrapped.url ||
+    unwrapped.image_url ||
     data.result?.url ||
     data.result?.image_url ||
     data.output?.url;

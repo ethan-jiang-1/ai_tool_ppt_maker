@@ -17,9 +17,9 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| _(无)_ | — | — |
+| [BUG-008](BUG-008-image-api-client-submit-parse-array.md) | P1 | image_api_client submit 解析不认 `data:[{task_id}]` 数组，出图全线卡死（style master + Stage 2） |
 
-**Next available bug ID: BUG-008**
+**Next available bug ID: BUG-009**
 
 ---
 

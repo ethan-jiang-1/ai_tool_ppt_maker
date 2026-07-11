@@ -37,7 +37,7 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 [`scripts/bundle_layout.mjs`](scripts/bundle_layout.mjs)——机器可读、脚本从它取路径。
 
 - **不要临场发挥目录**。不要自创目录名、不要把生成物乱放。日常检查统一用 `ppt_flow.mjs status`；底层权威结构仍由 `bundle_layout.mjs` 定义。
-- **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。另有 `_state/` 存放 playbook 执行进度（`state.yaml`）。
+- **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。另有 `_state/` 存放 playbook 执行进度（`state.yaml`）；`_learning/` 存放本 deck **非密钥操作经验**（先读再猜；不是进度 / 不是密钥）。
 - **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.mjs --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
   ```bash
   node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_{NAME}/3_versions/v1
@@ -69,24 +69,30 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 
 > 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。参考 `workflow/00-setup/00-zero-to-ready.md` 与 `workflow/00-setup/02-nodejs-environment.md`。
 
-### 首次凭据：API key + 图像 base URL（问一次，之后自动带）
+### 首次凭据：Image2 API key + base URL（问一次，试通后落盘）
 
-**没有 key，Stage 2 生不了图，PPT 就做不出来。** 所以第一次遇到 `✗ api_key: not set` 时：
+**没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。完整规程 SSOT：`workflow/00-setup/03-tool-selection.md`。
 
-1. **问用户要**：图像 API key，统一记录为 `OPENAI_API_KEY`；**必须**记录 `OPENAI_BASE_URL`（异步生图 endpoint）。`APIMART_*` 别名也认。
-2. **写进 deck 根目录的 `.env`（写一次就行）**：Phase 0 `--init` 会铺 `.env.example` 模板 + `.gitignore`（保护它不被提交）。复制成 `.env` 填：
+进 deck 时：若存在 `_learning/image2-proven.yaml`，**先读**（非密钥操作经验面）再猜 endpoint。
+
+1. **问用户要**候选：规范名 `IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或 `IMAGE2_BASE_URLS`）。别名 `OPENAI_*` / `APIMART_*` 也认。
+2. **写进 deck 根（优先）或 repo 根 `.env`**：
    ```
-   OPENAI_API_KEY=sk-...
-   OPENAI_BASE_URL=https://your-relay/v1
+   IMAGE2_API_KEY=sk-...
+   IMAGE2_BASE_URL=https://your-relay/v1
    ```
-3. **重跑 doctor** → key 变 `✓`（**从 deck 目录或 repo 根跑**，它按 cwd 向上找 `.env`；从别处跑可能看不到 deck 的 `.env`）。
-4. **key 的"有效性"要等真调一次才知道**——env-check 只能看"填没填"，看不出"对不对"。真正的 key 冒烟测试在 **Phase 3 第一次跑 Stage 2 / pilot 时**——那时出图 = key/端点对了；报 401/403 或连不上 = 回到第 1 步改 `.env` 再跑。
+3. **重跑 doctor** → key 与 `image_base_url` 都变 `✓`（从 deck 或 repo 根跑；walk-up 找 `.env`）。
+4. **廉价冒烟**（多组合；禁止首败甩锅）：  
+   `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <versionDir> --force --resolution 1k`  
+   首败换组合（别名 / URL 列表 / `--base-url`）；通了再继续。
+5. **试通落点**：生效 `IMAGE2_*` → `.env`；非密钥回执 → `_learning/image2-proven.yaml`（`proven_at` / `base_url` / `via`；**无 key**）。  
+   `_learning/` = 本 deck 操作中试出的非密钥经验（先读再猜）——不是 `_state/` 进度，不是密钥。
 
 ### Stage 2 在框架内（无 skill）
 
 Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` 下的 Node 模块（`stage2_generate_images.mjs`、`image_api_client.mjs`、`make_contact_sheet.mjs`）。doctor 的 `stage2_generator` 检查这些文件是否存在——**不要求、不搜索** `.claude/skills`。
 
-> `.env` 里有它期待的东西 → 就能 work；没有 → 只能问用户；填好 → 一定要真跑一页试。
+> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。经验写 `_learning/`，密钥只写 `.env`。
 
 > **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
 
