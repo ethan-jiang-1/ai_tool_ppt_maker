@@ -33,10 +33,10 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
   - 有 `slide_plan.json` → Stage 1 已解析（可按需补跑 Stage 1；**不以缺 slide_plan 否定已有 pptx**）
   - 详见 `_generated/MIGRATED.md`
 
-## 操作经验（非进度）
+## 自留教训（非进度）
 
-- 本 deck 试通的**非密钥**操作经验在 `_learning/`（先读再猜；见 `_learning/README.md`）
-- Image2 冒烟回执：`_learning/image2-proven.yaml`（试通后才写；无 API key）。密钥只写 `.env`，不要写进 `_learning/` 或 `_state/`
+- 遇事自己克服后留下的**非密钥**教训在 `_lessons/`（先读再猜；见 `_lessons/README.md`）
+- 例：Image2 冒烟回执 `_lessons/image2-proven.yaml`（试通后才写；无 API key）。密钥只写 `.env`，不要写进 `_lessons/` 或 `_state/`
 
 ## 从项目根目录运行
 

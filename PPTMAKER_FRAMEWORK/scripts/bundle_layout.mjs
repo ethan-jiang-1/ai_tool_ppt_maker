@@ -19,7 +19,7 @@
  *     ├── CLAUDE.md                      1-line pointer to deck-guide.md (auto-load)
  *     ├── project-metadata.yaml          topic / audience / language / north-star
  *     ├── _state/                        playbook execution progress (state.yaml; history.jsonl on demand)
- *     ├── _learning/                     non-secret operational lessons (read-before-guess; not secrets / not progress)
+ *     ├── _lessons/                      retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
  *     │
  *     ├── 1_upstream_raw_material/       UPSTREAM  · raw research/material · shared · append-mostly
  *     │
@@ -83,22 +83,30 @@ export const GUIDE_FILE = 'deck-guide.md';
 export const POINTER_FILE = 'CLAUDE.md';
 export const METADATA_FILE = 'project-metadata.yaml';
 
-/** Deck-root learning surface (non-secret operational lessons). */
-export const LEARNING_DIR = '_learning';
-export const LEARNING_IMAGE2_PROVEN = 'image2-proven.yaml';
+/** Deck-root self-retained lessons surface (agentic probe → overcome → retain). */
+export const LESSONS_DIR = '_lessons';
+export const LESSONS_IMAGE2_PROVEN = 'image2-proven.yaml';
 
-/** Canonical README body for _learning/ (Chinese, same voice as _state README). */
-export const LEARNING_DIR_README = `\
-# 操作经验 (_learning)
+/** Canonical README body for _lessons/ (Chinese, same voice as _state README). */
+export const LESSONS_DIR_README = `\
+# 自留教训 (_lessons)
 
-**这里放什么:** 本 deck 在操作中试出来的、可复用的**非密钥**经验。下次 Agent/人进 deck：**先读这里再猜**，禁止只把经验留在聊天里。
+**这里放什么:** 本 deck 在运作中**遇事自己琢磨、试探、克服**之后，值得下次复用的**非密钥**教训。下次 Agent/人进 deck：**先读这里再猜**，免得从头学一遍。禁止只把经验留在聊天里。
 
-**不放什么:** 密钥与生效凭据（→ \`.env\`）、playbook 执行进度（→ \`_state/\`）、上游素材、\`_generated/\` 产物。
+**闭环:** 试通或修好之后**必须留下**——这是 Agent workflow 的自留教训面，不是可选项。
 
-**谁读写:** Agent（代表本 run bundle）；Framework 只约定目录与禁止项，不替各 deck 存经验内容。
+**不放什么:** 密钥与生效凭据（→ \`.env\`）、playbook 执行进度（→ \`_state/\`）、上游素材、\`_generated/\` 产物、没有复用价值的一次性吐槽。
 
-**约定文件:**
-- \`image2-proven.yaml\` — Image2 冒烟试通回执（\`proven_at\` / \`base_url\` / \`via\` / 可选 \`notes\`；**无 API key 字段**）
+**谁读写:** Agent（编排器）和懂行的维护者。Framework 只定目录与规矩，不替各 deck 写具体教训。
+
+**怎么写（规矩）:**
+1. **一题一文** — 一件可复用的教训对应一个文件（\`.md\` 或 \`.yaml\`）
+2. **文件名可扫读** — \`kebab-case\` + 主题（例：\`image2-proven.yaml\`、\`header-lock-font-path.md\`）；禁止 \`notes.md\` / \`tmp.md\`
+3. **正文至少四问** — 遇到什么？怎么试的？结论是什么？下次先看哪？
+4. **修好就留** — 试通/自愈成功后写条目；禁止「修好了只在聊天里说一声」
+5. **禁止密钥** — 不得写入 API key / token / 密码；非密钥的 endpoint URL 可以写
+
+**打个比方（不是目录清单）:** 配通出图 API、某页 render mode 踩坑后的结论——都可以各写一篇丢进来。
 
 **禁止**把 API key 写入本目录。
 `;
@@ -291,7 +299,30 @@ function _ignorable(name) {
     return name.startsWith('.') || name === '__pycache__';
 }
 
+/**
+ * Normalize checkBundle readiness mode.
+ * @param {boolean|string} [mode=true]
+ * @returns {'structure'|'preview'|'pipeline'}
+ */
+export function normalizeCheckMode(mode = true) {
+    if (mode === false || mode === 'structure') return 'structure';
+    if (mode === 'preview') return 'preview';
+    if (mode === true || mode === 'pipeline') return 'pipeline';
+    throw new Error(
+        `checkBundle mode must be structure|preview|pipeline or boolean; got: ${mode}`);
+}
+
+/**
+ * Validate a version dir against the run-bundle constitution.
+ * @param {string} runDir
+ * @param {boolean|string} [requirePipelineReady=true] - `true`/`'pipeline'`,
+ *   `'preview'` (style master, no gates), or `false`/`'structure'`.
+ * @returns {string[]}
+ */
 export function checkBundle(runDir, requirePipelineReady = true) {
+    const mode = normalizeCheckMode(requirePipelineReady);
+    const needStyle = mode === 'preview' || mode === 'pipeline';
+    const needGates = mode === 'pipeline';
     const problems = [];
 
     if (!fs.existsSync(runDir) || !fs.statSync(runDir).isDirectory()) {
@@ -328,12 +359,12 @@ export function checkBundle(runDir, requirePipelineReady = true) {
             `missing canonical ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ dir ` +
             `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
     }
-    if (requirePipelineReady && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
+    if (needStyle && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
         problems.push(
             `missing ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${STYLE_MASTER_IMAGE} ` +
             `(Phase-2 output; generate it before running the pipeline, or add a version override)`);
     }
-    if (requirePipelineReady) {
+    if (needGates) {
         const metadataPath = path.join(root, METADATA_FILE);
         if (fs.existsSync(metadataPath) && fs.statSync(metadataPath).isFile()) {
             const fields = {};
@@ -512,17 +543,17 @@ const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
         '先读 **deck-guide.md**（进来先看那个）。\n\n' +
-        '这个文件夹分三层 + 执行状态 + 操作经验:\n' +
+        '这个文件夹分三层 + 执行状态 + 自留教训:\n' +
         '- `1_upstream_raw_material/` — 原始素材、调研(你往里堆资料)\n' +
         '- `2_backbone/` — 主干:隐喻/公式/约束/大纲/讲稿/视觉(整个 deck 共享)\n' +
         '- `3_versions/` — 每个版本(你实际改 slide、生成 PPT 的地方)\n' +
         '- `_state/` — playbook 执行进度（`state.yaml`；见里面的 README）\n' +
-        '- `_learning/` — 操作中试出的**非密钥**经验（先读再猜；见里面的 README）\n\n' +
+        '- `_lessons/` — 遇事克服后留下的**非密钥**教训（先读再猜；见里面的 README）\n\n' +
         '**只改带 README 说\'你改这里\'的文件。** 结构由 ' +
         '`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` 定义,别自己新建目录。\n'
     ),
     [STATE_DIR]: STATE_DIR_README,
-    [LEARNING_DIR]: LEARNING_DIR_README,
+    [LESSONS_DIR]: LESSONS_DIR_README,
     [UPSTREAM_DIR]: (
         '# 上游:原始素材\n\n' +
         '**这里放什么:** 你的调研、参考资料、事实来源——任何「喂养」这个 deck 的原料。\n' +
@@ -602,7 +633,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
-    const dirs = ['.', STATE_DIR, LEARNING_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
+    const dirs = ['.', STATE_DIR, LESSONS_DIR, UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, `${VERSIONS_DIR}/v1`];
     for (const sd of BACKBONE_SUBDIRS) {
         dirs.push(`${BACKBONE_DIR}/${sd}`);
     }
@@ -692,9 +723,9 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1" [--check-gates]\`）。\n` +
         `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
-        `## 操作经验（非进度）\n\n` +
-        `- 本 deck 试通的**非密钥**操作经验在 \`${LEARNING_DIR}/\`（先读再猜；见 \`${LEARNING_DIR}/README.md\`）。` +
-        `Image2 冒烟回执：\`${LEARNING_DIR}/${LEARNING_IMAGE2_PROVEN}\`。密钥只写 \`.env\`，不要写进 \`${LEARNING_DIR}/\` 或 \`${STATE_DIR}/\`。\n\n` +
+        `## 自留教训（非进度）\n\n` +
+        `- 遇事自己克服后留下的**非密钥**教训在 \`${LESSONS_DIR}/\`（先读再猜；见 \`${LESSONS_DIR}/README.md\`）。` +
+        `例：Image2 冒烟回执 \`${LESSONS_DIR}/${LESSONS_IMAGE2_PROVEN}\`（试通后才写）。密钥只写 \`.env\`，不要写进 \`${LESSONS_DIR}/\` 或 \`${STATE_DIR}/\`。\n\n` +
         `## 从项目根目录运行\n\n` +
         `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
         `\`\`\`bash\n` +
@@ -754,9 +785,9 @@ deck_\${NAME}/
 ├── ${STATE_DIR}/                          ← playbook execution progress (not material)
 │   ├── ${STATE_FILE}                    ← truth source (atomic write)
 │   └── history.jsonl                   ← append-only reference log (created on demand)
-├── ${LEARNING_DIR}/                       ← non-secret operational lessons (read-before-guess; not secrets / not progress)
-│   ├── README.md                       ← 这里放什么 / 不放什么
-│   └── ${LEARNING_IMAGE2_PROVEN}         ← Image2 smoke receipt when proven (no API key)
+├── ${LESSONS_DIR}/                       ← retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
+│   ├── README.md                       ← 这里放什么 / 闭环 / 怎么写
+│   └── *.md | *.yaml                   ← one lesson per file (e.g. image2-proven.yaml)
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
 │
@@ -828,7 +859,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LEARNING_DIR]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

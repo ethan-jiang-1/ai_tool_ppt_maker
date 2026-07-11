@@ -45,7 +45,7 @@ export const STATE_DIR_README = `\
 
 **和 \`project-metadata.yaml\` 的关系:** metadata 管静态配置 + 管线闸门字段；这里管 playbook 执行进度与 playbook 闸门。两份共存，不要当成同一份文件合并。
 
-**操作经验不在这里:** 本 deck 试通的非密钥操作经验在 \`_learning/\`（先读再猜；见 \`_learning/README.md\`）。密钥只写 \`.env\`。
+**自留教训不在这里:** 遇事克服后的非密钥教训在 \`_lessons/\`（先读再猜；见 \`_lessons/README.md\`）。密钥只写 \`.env\`。
 `;
 
 /**

@@ -21,7 +21,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 |----|------|------|---------|
 | [CLS-001](agent-interaction-protocol.md) | 2026-07-11 | `agent-interaction-protocol.md` | 交互节律协议；由 Change 1 吸收（§11 + show） |
 | [CLS-002](style-iterate-and-quick-preview.md) | 2026-07-11 | `style-iterate-and-quick-preview.md` | 探索 playbook 实例；并入 Change 1 |
+| [CLS-003](improve-visual-iteration-env.md) | 2026-07-11 | `improve-visual-iteration-env.md` | 视觉迭代环境；由 `improve-visual-iteration-env` change 吸收 |
 
-**Next available plan ID: CLS-003**
+**Next available plan ID: CLS-004**
 
-> Change 1 / Change 2 均已 archive。无活跃旁路/协议 change。
+> 相关 OpenSpec changes 已 archive。无活跃 plan。

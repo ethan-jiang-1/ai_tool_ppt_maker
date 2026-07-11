@@ -48,6 +48,7 @@ import {
     GEN_PROMPTS_SUBDIR,
     GEN_PROMPTS_JSON,
 } from "./bundle_layout.mjs";
+import { loadDeckSystem } from "./lib/deck_system.mjs";
 
 // ---------------------------------------------------------------------------
 // Shared executable visual configuration
@@ -129,25 +130,9 @@ const SYSTEM_FINAL_RULES = (
 // File loaders
 // ---------------------------------------------------------------------------
 
-/**
- * Load deck-wide textual rules from an explicitly resolved source file.
- * Legacy port of `_load_deck_system`.
- */
-function loadDeckSystem(path) {
-    try {
-        if (existsSync(path)) {
-            return readFileSync(path, "utf-8").trim() + "\n";
-        }
-    } catch {
-        // File inaccessible — treat as absent
-    }
-    return null;
-}
-
-/**
- * Load the one shared executable layout used by prompt and header stages.
- * Legacy port of `_load_visual_config_from_palette`.
- */
+// ---------------------------------------------------------------------------
+// Shared executable visual configuration
+// ---------------------------------------------------------------------------
 function loadVisualConfigFromPalette(palettePath) {
     let config;
     try {

@@ -10,6 +10,7 @@
  *
  *     node scripts/env-check.mjs           # human-readable
  *     node scripts/env-check.mjs --json    # machine-readable
+ *     node scripts/env-check.mjs --smoke   # + live Image2 submit probe (task_id)
  */
 
 import { execFileSync, execSync } from 'node:child_process';
@@ -278,6 +279,87 @@ function runAllChecks() {
   return { results, allPass };
 }
 
+/**
+ * Minimal live Image2 probe: POST generations; success = got task_id.
+ * @returns {Promise<{check:string,status:string,detail:string,fix:string|null}>}
+ */
+async function checkImageSmoke() {
+  try {
+    const { resolveApiKey, resolveBaseUrls, unwrapDataRecord, DEFAULT_MODEL } =
+      await import('./image_api_client.mjs');
+    const key = resolveApiKey();
+    const bases = resolveBaseUrls();
+    const base = bases[0].replace(/\/+$/, '');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    let resp;
+    try {
+      resp = await fetch(`${base}/images/generations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: DEFAULT_MODEL,
+          prompt: 'env-check smoke: solid mid-gray square, no text',
+          n: 1,
+          size: '1024x1024',
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    const text = await resp.text();
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return {
+        check: 'image_smoke',
+        status: 'fail',
+        detail: `non-JSON response (${resp.status})`,
+        fix: 'Check IMAGE2_BASE_URL points at an Image2-compatible /v1 relay.',
+      };
+    }
+    if (!resp.ok) {
+      return {
+        check: 'image_smoke',
+        status: 'fail',
+        detail: `HTTP ${resp.status}: ${JSON.stringify(data).slice(0, 160)}`,
+        fix: 'Verify IMAGE2_API_KEY and IMAGE2_BASE_URL; re-run doctor --smoke.',
+      };
+    }
+    const unwrapped = unwrapDataRecord(data);
+    const taskId = data.task_id || data.id || unwrapped.task_id || unwrapped.id;
+    if (!taskId) {
+      return {
+        check: 'image_smoke',
+        status: 'fail',
+        detail: `no task_id in response: ${JSON.stringify(data).slice(0, 160)}`,
+        fix: 'Relay submit contract unexpected; see _lessons/ and image_api_client unwrap rules.',
+      };
+    }
+    return {
+      check: 'image_smoke',
+      status: 'ok',
+      detail: `submit ok (task_id=${taskId})`,
+      fix: null,
+    };
+  } catch (err) {
+    const msg = err?.name === 'AbortError' ? 'timed out after 30s' : (err?.message || String(err));
+    return {
+      check: 'image_smoke',
+      status: 'fail',
+      detail: msg,
+      fix: 'Fix credentials/network, then: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke',
+    };
+  }
+}
+
+export { runAllChecks, checkImageSmoke };
+
 function formatText(results, allPass) {
   const lines = [];
   const platformName = IS_WINDOWS ? 'Windows' : process.platform;
@@ -326,12 +408,30 @@ function formatText(results, allPass) {
 
 // --- Main ---
 
-function main() {
-  const { results, allPass } = runAllChecks();
-  const foundationOk = results.filter(r => r.foundation).every(r => r.status === 'ok');
+async function main() {
+  const wantSmoke = process.argv.includes('--smoke');
+  const { results } = runAllChecks();
+
+  if (wantSmoke) {
+    const keyOk = results.find((r) => r.check === 'api_key')?.status === 'ok';
+    const urlOk = results.find((r) => r.check === 'image_base_url')?.status === 'ok';
+    if (keyOk && urlOk) {
+      results.push(await checkImageSmoke());
+    } else {
+      results.push({
+        check: 'image_smoke',
+        status: 'fail',
+        detail: 'skipped — api_key or image_base_url missing',
+        fix: 'Set IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run with --smoke',
+      });
+    }
+  }
+
+  const allPass = results.every((r) => r.status !== 'fail');
+  const foundationOk = results.filter((r) => r.foundation).every((r) => r.status === 'ok');
 
   if (process.argv.includes('--json')) {
-    console.log(JSON.stringify({ allPass, foundationOk, checks: results }, null, 2));
+    console.log(JSON.stringify({ allPass, foundationOk, checks: results, smoke: wantSmoke }, null, 2));
   } else {
     console.log(formatText(results, allPass));
   }
@@ -344,4 +444,9 @@ const isMain =
   (resolve(process.argv[1]) === __filename ||
     process.argv[1].endsWith('/env-check.mjs') ||
     process.argv[1].endsWith('\\env-check.mjs'));
-if (isMain) main();
+if (isMain) {
+  main().catch((err) => {
+    console.error(`✗ env-check failed: ${err.message}`);
+    process.exit(1);
+  });
+}

@@ -22,6 +22,7 @@ import { dirname, extname } from "node:path";
 export const DEFAULT_MODEL = "gpt-image-2";
 export const MAX_WAIT_MS = 600_000;
 export const POLL_INTERVAL_MS = 5_000;
+export const HEARTBEAT_MS = 30_000;
 
 /**
  * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
@@ -174,7 +175,9 @@ async function submitTask(baseUrl, apiKey, body) {
 async function pollTask(baseUrl, apiKey, taskId) {
   const url = `${baseUrl}/tasks/${taskId}`;
   const deadline = Date.now() + MAX_WAIT_MS;
+  const started = Date.now();
   let pollCount = 0;
+  let lastHeartbeat = started;
 
   while (Date.now() < deadline) {
     pollCount += 1;
@@ -189,6 +192,14 @@ async function pollTask(baseUrl, apiKey, taskId) {
     const status = String(
       data.status || data.state || unwrapped.status || unwrapped.state || "unknown"
     ).toLowerCase();
+    const now = Date.now();
+    if (now - lastHeartbeat >= HEARTBEAT_MS) {
+      const elapsedSec = Math.floor((now - started) / 1000);
+      console.log(
+        `  … still waiting task=${taskId} status=${status} elapsed=${elapsedSec}s polls=${pollCount}`
+      );
+      lastHeartbeat = now;
+    }
     if (status === "completed" || status === "success" || status === "succeeded") {
       return { data, pollCount };
     }
@@ -205,7 +216,11 @@ async function pollTask(baseUrl, apiKey, taskId) {
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
-  throw new Error(`Task ${taskId} timed out after ${MAX_WAIT_MS / 1000}s (${pollCount} polls)`);
+  const elapsedSec = Math.floor((Date.now() - started) / 1000);
+  throw new Error(
+    `Image task ${taskId} timed out after ${elapsedSec}s ` +
+      `(MAX_WAIT_MS=${MAX_WAIT_MS}, ${pollCount} polls) — this image failed; re-run with --force-images for this slide`
+  );
 }
 
 /**
@@ -276,6 +291,59 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
 }
 
 /**
+ * Extract an image reference (b64 or url) from any response body shape —
+ * a completed poll response OR a /result response. Handles this relay's
+ * `data.result.images[0].url` (url may be an array) plus common fallbacks.
+ * @param {unknown} data
+ * @returns {{b64:string}|{url:string}|null}
+ */
+export function extractImageRef(data) {
+  if (!data || typeof data !== "object") return null;
+  const unwrapped = unwrapDataRecord(data);
+  const b64 =
+    data.b64_json ||
+    data.data?.[0]?.b64_json ||
+    unwrapped.b64_json ||
+    unwrapped.result?.images?.[0]?.b64_json ||
+    data.result?.b64_json;
+  if (b64) return { b64: String(b64) };
+  let url =
+    data.image_url ||
+    data.url ||
+    data.data?.[0]?.url ||
+    unwrapped.url ||
+    unwrapped.image_url ||
+    unwrapped.result?.images?.[0]?.url ||
+    data.result?.url ||
+    data.result?.image_url ||
+    data.output?.url;
+  if (Array.isArray(url)) url = url[0];
+  return url ? { url: String(url) } : null;
+}
+
+/**
+ * Save an already-extracted image ref (b64 or url) to outPath.
+ * @param {{b64:string}|{url:string}} ref
+ * @param {string} outPath
+ */
+async function saveImageRef(ref, outPath) {
+  mkdirSync(dirname(outPath), { recursive: true });
+  if (ref.b64) {
+    writeFileSync(outPath, Buffer.from(ref.b64, "base64"));
+    return;
+  }
+  if (ref.url.startsWith("data:")) {
+    writeFileSync(outPath, Buffer.from(ref.url.split(",")[1] || "", "base64"));
+    return;
+  }
+  const imgResp = await fetch(ref.url);
+  if (!imgResp.ok) {
+    throw new Error(`Download image failed ${imgResp.status} from ${ref.url}`);
+  }
+  writeFileSync(outPath, Buffer.from(await imgResp.arrayBuffer()));
+}
+
+/**
  * Generate one image via async API with mirror fallback.
  *
  * @param {object} opts
@@ -336,8 +404,16 @@ export async function generateOneImage({
       console.log(`  Submit → ${baseUrl}  (${outPath})`);
       const taskId = await submitTask(baseUrl, apiKey, body);
       console.log(`  task_id=${taskId}`);
-      const { pollCount } = await pollTask(baseUrl, apiKey, taskId);
-      await downloadResult(baseUrl, apiKey, taskId, outPath);
+      const { data: pollData, pollCount } = await pollTask(baseUrl, apiKey, taskId);
+      // This relay embeds the finished image in the completed poll response
+      // (data.result.images[0].url). Prefer that; fall back to /tasks/{id}/result
+      // only for APIs that expose a separate result endpoint.
+      const ref = extractImageRef(pollData);
+      if (ref) {
+        await saveImageRef(ref, outPath);
+      } else {
+        await downloadResult(baseUrl, apiKey, taskId, outPath);
+      }
       const elapsed = (Date.now() - t0) / 1000;
       const trace = {
         base_url: baseUrl,

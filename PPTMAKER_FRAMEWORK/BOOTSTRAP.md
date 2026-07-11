@@ -37,7 +37,7 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 [`scripts/bundle_layout.mjs`](scripts/bundle_layout.mjs)——机器可读、脚本从它取路径。
 
 - **不要临场发挥目录**。不要自创目录名、不要把生成物乱放。日常检查统一用 `ppt_flow.mjs status`；底层权威结构仍由 `bundle_layout.mjs` 定义。
-- **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。另有 `_state/` 存放 playbook 执行进度（`state.yaml`）；`_learning/` 存放本 deck **非密钥操作经验**（先读再猜；不是进度 / 不是密钥）。
+- **三层梯度**:`1_upstream_raw_material/`(原始素材·共享)+ `2_backbone/`(主干:隐喻/公式/约束/大纲/讲稿/视觉·共享)+ `3_versions/v{n}/`(每版:slide 规格 + overrides + `_generated/` 派生品)。另有 `_state/` 存放 playbook 执行进度（`state.yaml`）；`_lessons/` 存放遇事克服后留下的**非密钥教训**（先读再猜；不是进度 / 不是密钥）。
 - **宪法能执法**:管线每次运行前会自动跑 `bundle_layout.mjs --check`。Stage 2 的 readiness check 同时要求 `style_master.jpg` 和 metadata 中的 content/visual gates 已 `approved` 或明确 `waived`。刚 `--init` 完核结构用 `--structure-only`。
   ```bash
   node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_{NAME}/3_versions/v1
@@ -73,7 +73,7 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 
 **没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。完整规程 SSOT：`workflow/00-setup/03-tool-selection.md`。
 
-进 deck 时：若存在 `_learning/image2-proven.yaml`，**先读**（非密钥操作经验面）再猜 endpoint。
+进 deck 时：先扫 `_lessons/`（自留教训面）；若有 `image2-proven.yaml` 优先用它再猜 endpoint。
 
 1. **问用户要**候选：规范名 `IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或 `IMAGE2_BASE_URLS`）。别名 `OPENAI_*` / `APIMART_*` 也认。
 2. **写进 deck 根（优先）或 repo 根 `.env`**：
@@ -85,14 +85,14 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 4. **廉价冒烟**（多组合；禁止首败甩锅）：  
    `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <versionDir> --force --resolution 1k`  
    首败换组合（别名 / URL 列表 / `--base-url`）；通了再继续。
-5. **试通落点**：生效 `IMAGE2_*` → `.env`；非密钥回执 → `_learning/image2-proven.yaml`（`proven_at` / `base_url` / `via`；**无 key**）。  
-   `_learning/` = 本 deck 操作中试出的非密钥经验（先读再猜）——不是 `_state/` 进度，不是密钥。
+5. **试通落点**：生效 `IMAGE2_*` → `.env`；非密钥回执 → `_lessons/image2-proven.yaml`（服从 `_lessons/README` 规矩；`proven_at` / `base_url` / `via`；**无 key**）。  
+   `_lessons/` = 遇事自己克服后留下的非密钥教训（先读再猜）——不是 `_state/` 进度，不是密钥，也不是 Image2 专用夹。
 
 ### Stage 2 在框架内（无 skill）
 
 Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` 下的 Node 模块（`stage2_generate_images.mjs`、`image_api_client.mjs`、`make_contact_sheet.mjs`）。doctor 的 `stage2_generator` 检查这些文件是否存在——**不要求、不搜索** `.claude/skills`。
 
-> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。经验写 `_learning/`，密钥只写 `.env`。
+> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。教训写 `_lessons/`，密钥只写 `.env`。
 
 > **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
 

@@ -51,7 +51,7 @@ agent_action: classify_changes
 
 1 张 slide → 只重跑该 slide
   - Chain A（改标题文字）: `--stage 1,3,4,5`（**不要加 `--only`**——A 不含 Stage 2，`--only` 只限制生图，对 A 是空操作；1/3/4/5 会处理全部 slide，但很快、无生图）
-  - Chain B（改画面）: `--stage 1,2,3,4,5 --only slide_NN`（`--only` 把**生图**限定到该 slide；多张用逗号 `--only s5,s7`；1/3/4/5 仍处理全部，很快）
+  - Chain B（改画面）: `--stage 1,2,3,4,5 --only slide_NN --force-images`（`--only` 限定生图；**重渲须显式 `--force-images`**；多张用逗号 `--only s5,s7`；1/3/4/5 仍处理全部，很快）
   - Chain C（改讲稿）: `--stage 5`（整体重跑，但只改 note）
 
 2-5 张 slides → 重跑受影响 slides
@@ -163,8 +163,8 @@ Agent 回复：
 # Chain A: text only (re-parses all slides, re-locks headers, rebuilds PPTX)
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
 
-# Chain B: visual — single slide (--only flag limits image generation to one slide; stages 1,3,4,5 run for all slides which is fast)
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN
+# Chain B: visual — single slide (--only limits Stage 2; --force-images required to regenerate)
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN --force-images
 
 # Chain C: notes only
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 5
@@ -173,4 +173,4 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage all --force-images
 ```
 
-> **Note**: `--only` 只限制 Stage 2，并自动强制刷新指定图片；Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。
+> **Note**: `--only` 只限制 Stage 2；**不会**隐式强制重渲——已有图默认跳过，要刷新须加 `--force-images`。Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。`--only` 也接受页号（`3`）或前缀（`s03`）。

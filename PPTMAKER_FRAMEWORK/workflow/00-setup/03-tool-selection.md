@@ -3,7 +3,7 @@ title: "03 — 工具与 API 配置"
 stage: "workflow/00-setup"
 position: "04 of 05"
 type: methodology
-summary: "图片生成只用 GPT Image 2。Image2 凭据契约；框架内 Node API client；冒烟与 _learning/ 落点。"
+summary: "图片生成只用 GPT Image 2。Image2 凭据契约；框架内 Node API client；冒烟与 _lessons/ 落点。"
 depends_on:
   - "workflow/00-setup/README.md"
   - "workflow/00-setup/02-nodejs-environment.md"
@@ -65,21 +65,19 @@ submit / poll / result 均认 `data` 为对象或数组包络（含 `{ code, dat
 4. 首败换组合；禁止首败结案
 5. **通了 → 落点（下一节）**
 
-下次进 deck：先读 `_learning/image2-proven.yaml`（若有）再决定先试哪个 base。
+下次进 deck：先扫 `_lessons/`（若有 `image2-proven.yaml` 优先读）再猜 endpoint。
 
-### 试通落点（密钥 ≠ 经验）
+### 试通落点（密钥 ≠ 教训）
 
 | 写什么 | 写哪 | 指定的事儿 |
 |--------|------|------------|
 | 生效 `IMAGE2_API_KEY` / `IMAGE2_BASE_URL` | `.env`（优先 deck 根） | 密钥 / 机器加载 |
-| 非密钥回执 | `deck_*/_learning/image2-proven.yaml` | **操作经验**（`_learning/` 唯一职责） |
+| 非密钥回执 | `deck_*/_lessons/image2-proven.yaml` | **一类教训条目**（服从 `_lessons/README` 规矩） |
 
-`_learning/` **这里放什么：** 本 deck 操作中试出的、可复用的**非密钥**经验；下次**先读再猜**。  
-**不放：** 密钥、playbook 进度（`_state/`）、素材、生成物。
+`_lessons/` 是 run bundle **自留教训面**（遇事自己克服 → 留下 → 下次先读），不是 Image2 专用夹。`image2-proven.yaml` 只是例子。  
+字段：`proven_at`、`base_url`、`via`（`env`|`cli`|`alias`|`user-provided`）、可选 `notes`；**无 API key 字段**。
 
-`image2-proven.yaml` 字段：`proven_at`、`base_url`、`via`（`env`|`cli`|`alias`|`user-provided`）、可选 `notes`；**无 API key 字段**。
-
-禁止：经验只留聊天；密钥进 `_learning/`；自创非宪法目录装学习内容。
+禁止：经验只留聊天；密钥进 `_lessons/`；自创非宪法目录装教训。
 
 ## 参考脚本
 
@@ -111,5 +109,5 @@ Phase 0 创建 run bundle 后，确认：
 - [ ] 在 repo 根运行 `npm install` 成功
 - [ ] `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` 显示 READY
 - [ ] `IMAGE2_API_KEY` 与 `IMAGE2_BASE_URL`（或 `IMAGE2_BASE_URLS`）已设置
-- [ ] 若已有 `_learning/image2-proven.yaml`，先读再猜 endpoint
+- [ ] 若已有 `_lessons/image2-proven.yaml`，先读再猜 endpoint
 - [ ] 字体文件存在于 `stage3_lock_headers.mjs` 可解析路径（bundled `fonts/` 或系统字体）

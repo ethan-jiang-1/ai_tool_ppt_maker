@@ -27,9 +27,9 @@ _done/
 | `_fixed_bugs/` | 7 | BUG-008 |
 | `_suspened_bugs/` | 0 | — |
 | `_done_todos/` | 0 | DONE-001 |
-| `_closed_plans/` | 2 | CLS-003 |
+| `_closed_plans/` | 3 | CLS-004 |
 
-_（已修复 6 个 bug：BUG-001…BUG-006。已关闭 2 个 plan：CLS-001…CLS-002。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
+_（已修复 bug：BUG-001…BUG-008。已关闭 plan：CLS-001…CLS-003。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 
 ---
 
@@ -45,7 +45,7 @@ _（已修复 6 个 bug：BUG-001…BUG-006。已关闭 2 个 plan：CLS-001…C
 → `_closed_plans/` 下的 plan（分析/复盘）与 `_done_todos/` 下的 DONE 文件（按文件名主题查阅）。
 
 ### 想看复盘经验
-→ [`../learning/`](../learning/) — apply / 研究 retro。
+→ [`../learning/`](../learning/) — 框架级 apply / 研究 retro（≠ `deck_*/_lessons/` 自留操作教训）。
 
 ### 想看具体 TODO 的设计思路
 → `../todos/todo-*.md`，每个都含：Why、现状对齐、Current Direction、Design Questions、Non-Goals、Next Step。

@@ -64,6 +64,7 @@ import {
   // init / check / create
   initBundle, checkBundle, createVersion,
 } from "./bundle_layout.mjs";
+import { resolveSlideIds, formatAvailableSlideIds } from "./lib/slide_ids.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -278,13 +279,18 @@ function printStatus(status) {
   const nextSteps = [];
   const rd = status.run_dir;
 
-  if (!["approved", "waived"].includes(status.content_gate)) {
-    nextSteps.push(`After content review: ppt_flow.mjs approve ${rd} content`);
-  }
   if (!status.style_master) {
     nextSteps.push(
       `Generate style master: ppt_flow.mjs style-master ${rd}`
     );
+  }
+  if (status.style_master && !status.pilot_preview && status.pptx.length === 0) {
+    nextSteps.push(
+      `Preview sample pages (gates not required): ppt_flow.mjs pilot ${rd}`
+    );
+  }
+  if (!["approved", "waived"].includes(status.content_gate)) {
+    nextSteps.push(`After content review: ppt_flow.mjs approve ${rd} content`);
   }
   if (!["approved", "waived"].includes(status.visual_gate)) {
     nextSteps.push(`After visual review: ppt_flow.mjs approve ${rd} visual`);
@@ -294,11 +300,7 @@ function printStatus(status) {
     ["approved", "waived"].includes(status.visual_gate) &&
     status.style_master
   ) {
-    if (!status.pilot_preview && status.pptx.length === 0) {
-      nextSteps.push(
-        `Create representative pilot: ppt_flow.mjs pilot ${rd}`
-      );
-    } else if (status.pptx.length === 0) {
+    if (status.pptx.length === 0) {
       nextSteps.push(`Build full deck: ppt_flow.mjs build ${rd}`);
     }
   }
@@ -527,9 +529,12 @@ function buildEnvSearchDirs(dkRoot) {
 /**
  * doctor — Check Node.js, npm, dependencies, in-framework Stage 2, and credentials.
  * Delegates to env-check.mjs as a subprocess.
+ * @param {{smoke?: boolean}} [opts]
  */
-async function commandDoctor() {
-  return runNode(ENV_CHECK);
+async function commandDoctor({ smoke = false } = {}) {
+  const args = [];
+  if (smoke) args.push("--smoke");
+  return runNode(ENV_CHECK, args);
 }
 
 // ---------------------------------------------------------------------------
@@ -669,7 +674,7 @@ function commandApprove(runDir, gate, { waive }) {
  */
 async function commandStyleMaster(
   runDir,
-  { resolution, model, baseUrl = [], force, dryRun }
+  { resolution, model, baseUrl = [], force, dryRun, noDeckSystem = false }
 ) {
   const resolved = resolve(runDir);
   const args = ["--run-dir", resolved, "--resolution", resolution];
@@ -677,6 +682,7 @@ async function commandStyleMaster(
   if (model) args.push("--model", model);
   for (const url of baseUrl) args.push("--base-url", url);
   if (force) args.push("--force");
+  if (noDeckSystem) args.push("--no-deck-system");
   if (dryRun) args.push("--dry-run");
 
   return runNode(GENERATE_STYLE_MASTER, args);
@@ -741,11 +747,11 @@ async function commandValidate(runDir) {
  * images and a contact sheet for QA.
  *
  * @param {string} runDir
- * @param {{only: string|null, count: number, resolution: string, baseUrl: string|null, dryRun: boolean}} opts
+ * @param {{only: string|null, count: number, resolution: string, baseUrl: string|null, dryRun: boolean, forceImages?: boolean}} opts
  */
 async function commandPilot(
   runDir,
-  { only: onlyStr, count, resolution, baseUrl, dryRun }
+  { only: onlyStr, count, resolution, baseUrl, dryRun, forceImages = false }
 ) {
   const resolved = resolve(runDir);
 
@@ -803,42 +809,42 @@ async function commandPilot(
   /** @type {string[]} */
   let selectedIds;
   if (onlyStr) {
-    selectedIds = onlyStr
+    const tokens = onlyStr
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    try {
+      selectedIds = resolveSlideIds(tokens, plan);
+    } catch (err) {
+      console.error(`✗ ${err.message}`);
+      return emitUsage(
+        "ppt_flow.pilot.only",
+        err.message,
+        `Available ids: ${formatAvailableSlideIds(plan)}`
+      );
+    }
   } else {
     selectedIds = selectPilotSlideIds(plan, count);
   }
 
-  const known = new Set(plan.map((s) => s.id));
-  const unknown = selectedIds.filter((id) => !known.has(id));
-  if (unknown.length > 0) {
-    console.error(`✗ Unknown pilot slide IDs: ${unknown.join(", ")}`);
-    return emitUsage(
-      "ppt_flow.pilot.only",
-      `Unknown pilot slide IDs: ${unknown.join(", ")}`,
-      "Pass slide IDs that exist in slide_plan.json"
-    );
-  }
   console.log(`Pilot slides: ${selectedIds.join(", ")}`);
 
-  // Validate readiness (gates + style master)
-  const readyIssues = checkBundle(resolved, true);
+  // Preview readiness: style master required; metadata gates NOT required
+  const readyIssues = checkBundle(resolved, "preview");
   if (readyIssues.length > 0) {
     console.error(
-      `✗ Bundle NOT pipeline-ready — ${readyIssues.length} issue(s):`
+      `✗ Bundle NOT preview-ready — ${readyIssues.length} issue(s):`
     );
     for (const v of readyIssues) console.error(`  - ${v}`);
     emitFailed(
       "ppt_flow.pilot",
-      `Bundle not pipeline-ready — ${readyIssues.length} issue(s)`,
-      "Approve gates / fix readiness issues, then re-run pilot"
+      `Bundle not preview-ready — ${readyIssues.length} issue(s)`,
+      "Generate style_master.jpg, then re-run pilot (gates need not be approved)"
     );
     return 1;
   }
 
-  // --- Stage 2: Generate images for pilot subset ---
+  // --- Stage 2: Generate images for pilot subset (preview readiness) ---
   const stage2Args = [
     "--run-dir",
     resolved,
@@ -846,10 +852,11 @@ async function commandPilot(
     "2",
     "--only",
     selectedIds.join(","),
-    "--force-images",
+    "--preview",
     "--resolution",
     resolution,
   ];
+  if (forceImages) stage2Args.push("--force-images");
   if (baseUrl) stage2Args.push("--base-url", baseUrl);
   if (dryRun) stage2Args.push("--dry-run");
   code = await runNode(UNIFIED_PIPELINE, stage2Args);
@@ -1109,8 +1116,9 @@ Examples:
   program
     .command("doctor")
     .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
-    .action(async () => {
-      const code = await commandDoctor();
+    .option("--smoke", "Live Image2 probe (POST generations; pass on task_id)")
+    .action(async (opts) => {
+      const code = await commandDoctor({ smoke: opts.smoke ?? false });
       exitWithCode(
         code,
         "ppt_flow.doctor",
@@ -1196,6 +1204,7 @@ Examples:
       []
     )
     .option("--force", "Force regeneration")
+    .option("--no-deck-system", "Do not append deck_system.txt constraints")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
@@ -1218,6 +1227,7 @@ Examples:
         baseUrl: opts.baseUrl || [],
         force: opts.force ?? false,
         dryRun: opts.dryRun ?? false,
+        noDeckSystem: opts.noDeckSystem ?? false,
       });
       process.exit(code);
     });
@@ -1237,7 +1247,7 @@ Examples:
     .command("pilot")
     .description("Auto-select and build representative pages")
     .argument("<run_dir>", "Path to version dir")
-    .option("--only <ids>", "Optional comma-separated slide IDs")
+    .option("--only <ids>", "Optional comma-separated slide IDs (or page nums / s03)")
     .option(
       "--count <n>",
       "Number of pilot slides to auto-select",
@@ -1246,6 +1256,7 @@ Examples:
     )
     .option("--resolution <res>", "Image resolution for pilot", "1k")
     .option("--base-url <url>", "Override API base URL for Stage 2")
+    .option("--force-images", "Regenerate pilot images even if files exist")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["1k", "2k", "4k"].includes(opts.resolution)) {
@@ -1268,6 +1279,7 @@ Examples:
         resolution: opts.resolution,
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
+        forceImages: opts.forceImages ?? false,
       });
       process.exit(code);
     });
