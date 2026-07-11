@@ -17,9 +17,10 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| — | — | 当前无活跃 bug |
+| [BUG-003](BUG-003-ppt-flow-frozen-style-presets-sort.md) | P0 | `ppt_flow.mjs` 对冻结的 `STYLE_PRESETS` 调 `.sort()`，所有子命令启动即崩 |
+| [BUG-004](BUG-004-ppt-flow-state-command-registered-outside-main.md) | P1 | `ppt_flow.mjs` 的 `state` 子命令在 `main()` 外注册、引用越界的 `program`（被 BUG-003 掩盖） |
 
-**Next available bug ID: BUG-003**
+**Next available bug ID: BUG-005**
 
 ---
 

@@ -24,6 +24,12 @@ context: |
   文档中的 shell 代码块只是 `node …` 命令示例，不是可执行资产。
   权威条文: `charter/CONSTITUTION.md`（运行时宪法）+ `charter/AGENT_CONTRACT.md` §7。
 
+  **CLI 失败回执（宪法级 · MD Controller 友好）。** 任何 CLI 硬失败除非零 exit 外，
+  **必须**输出一条 JSON envelope（`ok:false` + 稳定 `code` + `message` + `hint` + `where`）。
+  消费者包括 MD Controller、coding agent、以及今后更多编排器——没有结构化回执 =
+  它们无法立刻意识到错在哪，也就无法修。禁止仅散文 `Fatal error` 致盲。
+  权威条文: `charter/CONSTITUTION.md`（CLI 失败回执宪法）+ `charter/NODE-SPEC.md`（CLI ⇔ MD）。
+
   ## 两层结构
 
   - **Soft bundle** (`PPTMAKER_FRAMEWORK/`): 只读的方法论知识库. Agent 从这里学习
@@ -99,12 +105,14 @@ context: |
      git = 审计跟踪. Agent 看文件系统就知道当前在哪里.
   2. **Node-only 运行时** — 可执行资产只有 Node ESM；禁止 Python/bash/外部 skill 生产路径
      （见「运行时铁律」与 `charter/CONSTITUTION.md`）。
-  3. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
+  3. **CLI 失败必出 JSON** — exit code 之外必须有 MD Controller 友好的 envelope
+     （`ok`/`code`/`message`/`hint`/`where`）；否则编排器无法立刻修错。
+  4. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
      80% 的 slide 用 `body+header-lock` 模式: AI 生成的图上留白顶部 260px,
      确定性代码以像素精度叠加标题. 20% 用 `full-page`: AI 画完整页面.
-  4. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
+  5. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
      是所有图像生成的视觉锚点——每张 slide 生成时作为 reference image 传入.
-  5. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
+  6. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
      `_generated/` 内一切都可以通过重跑管线重新生成, 绝不手动编辑.
 
   ## Agent 入口
@@ -151,6 +159,7 @@ rules:
   proposal:
     - "可执行资产只能是 Node.js ESM (.mjs)；不得提议 Python、bash/.sh、或外部 skill 作为生产路径"
     - "Stage 2 / style-master / contact sheet 必须落在 PPTMAKER_FRAMEWORK/scripts/ 内"
+    - "CLI 硬失败必须有 JSON envelope（ok/code/message/hint/where），不得仅散文 Fatal error"
     - "先分类变更类型: narrative-frame / case-anchor / content-constraint / pipeline-script / pipeline-operation"
     - "再分类影响范围: Chain A (文本)/ B (视觉)/ C (备注)/ Structural (结构)——参照 automation/change-classifier.md"
     - "涉及哪些 capability, 必须在 Capabilities 段使用 config.yaml 注册表中的 kebab-case identifier——不得自创名字"
