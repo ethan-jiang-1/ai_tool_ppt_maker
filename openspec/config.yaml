@@ -10,7 +10,7 @@ context: |
   ## 技术栈
 
   Node.js 18+ (ESM, `.mjs`). npm 依赖: `@napi-rs/canvas` (图片+字体), `pptxgenjs`
-  (PPTX), `commander` (CLI). HTTP 用 `fetch` (Node 内置). 测试: `vitest`.
+  (PPTX), `commander` (CLI), `yaml` (state.yaml 容错读写). HTTP 用 `fetch` (Node 内置). 测试: `vitest`.
   入口: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`.
   环境检查: `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` (零依赖, 先于 npm install).
 

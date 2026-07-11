@@ -1,17 +1,19 @@
 /**
  * state.mjs — Complete State API for _state/state.yaml (+ _state/history.jsonl).
- * Zero npm dependencies. MD and CLI both use this to read/write state.
+ * YAML I/O via `yaml` (tolerant read → schema heal → canonical write).
+ * MD and CLI both use this to read/write state.
  */
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomBytes } from 'node:crypto';
+import { parseDocument, stringify } from 'yaml';
 
 export const STATE_DIR = '_state';
 export const STATE_FILE = 'state.yaml';
 export const HISTORY_FILE = 'history.jsonl';
 
-/** Re-emitted on every writeState (toYaml regenerates the body). */
+/** Re-emitted on every writeState (stringify regenerates the body). */
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — playbook execution state (not a hand-edit playground)
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
@@ -19,6 +21,7 @@ export const STATE_YAML_HEADER = `\
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
 # Fields: playbook, current_node, nodes.*, gates.{content,visual}, deck.*, playbook_stack
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
+# Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
 `;
 
 /** Canonical README body for _state/ (Chinese, same voice as other dir READMEs). */
@@ -38,7 +41,7 @@ export const STATE_DIR_README = `\
 **权威说明:** \`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md\`  
 **API:** \`PPTMAKER_FRAMEWORK/scripts/lib/state.mjs\`
 
-**别手改乱改** \`state.yaml\`——优先用 CLI/API，否则可能破坏原子写约定。
+**别手改乱改** \`state.yaml\`——优先用 CLI/API。格式小瑕疵会在下次 \`readState\` 时尽量自动整理（读容错、写洗净）。
 
 **和 \`project-metadata.yaml\` 的关系:** metadata 管静态配置 + 管线闸门字段；这里管 playbook 执行进度与 playbook 闸门。两份共存，不要当成同一份文件合并。
 `;
@@ -56,48 +59,233 @@ export function ensureStateDirHints(deckDir) {
   }
 }
 
-// --- YAML ---
-function parseYaml(text) {
-  const lines = text.split('\n'), root = {}, stack = [{ obj: root, indent: -1 }];
-  for (const raw of lines) {
-    const line = raw.replace(/\s+$/, ''); if (!line || line.startsWith('#')) continue;
-    const indent = line.search(/\S|$/), content = line.trim();
-    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
-    const cur = stack[stack.length - 1].obj;
-    if (content.includes(': ')) {
-      const i = content.indexOf(': '), k = content.slice(0, i).trim(), v = content.slice(i + 2).trim();
-      if (v === '') { const c = {}; cur[k] = c; stack.push({ obj: c, indent }); }
-      else cur[k] = _scalar(v);
-    } else if (content.endsWith(':')) { const c = {}; cur[content.slice(0, -1).trim()] = c; stack.push({ obj: c, indent }); }
+// --- YAML (yaml package) ---
+
+const YAML_PARSE_OPTS = {
+  strict: false,
+  uniqueKeys: false,
+  logLevel: 'error',
+};
+
+/**
+ * @param {string} text
+ * @returns {{ ok: true, value: object, hadErrors: boolean } | { ok: false, errors: string[] }}
+ */
+export function parseStateYaml(text) {
+  try {
+    const doc = parseDocument(text, YAML_PARSE_OPTS);
+    const hadErrors = Array.isArray(doc.errors) && doc.errors.length > 0;
+    const value = doc.toJS({ mapAsMap: false });
+    if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) {
+      return {
+        ok: false,
+        errors: hadErrors
+          ? doc.errors.map((e) => e.message || String(e))
+          : ['YAML root is not a mapping'],
+      };
+    }
+    return { ok: true, value, hadErrors };
+  } catch (e) {
+    return { ok: false, errors: [e.message || String(e)] };
   }
-  return root;
 }
-function _scalar(v) { if (v === 'true') return true; if (v === 'false') return false; if (v === 'null'||v === '~') return null; if (/^-?\d+$/.test(v)) return parseInt(v); if (/^-?\d+\.\d+$/.test(v)) return parseFloat(v); return v.replace(/^["']|["']$/g,''); }
-function toYaml(obj, indent = 0) {
-  const pad = '  '.repeat(indent); let out = '';
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === null || v === undefined) out += `${pad}${k}: null\n`;
-    else if (typeof v === 'object' && !Array.isArray(v)) { out += `${pad}${k}:\n`; out += toYaml(v, indent + 1); }
-    else if (Array.isArray(v)) { out += `${pad}${k}:\n`; for (const i of v) out += `${pad}  - ${i}\n`; }
-    else out += `${pad}${k}: ${v}\n`;
+
+/**
+ * @param {object} state
+ * @returns {string} YAML body without header
+ */
+export function stringifyStateYaml(state) {
+  return stringify(state, { indent: 2, lineWidth: 0 });
+}
+
+// --- HEAL ---
+
+/**
+ * @param {object} state
+ * @returns {object}
+ */
+export function normalizePlaybookStack(state) {
+  if (!state || typeof state !== 'object') return state;
+  const s = state.playbook_stack;
+  if (!Array.isArray(s)) {
+    state.playbook_stack = [];
+  } else {
+    state.playbook_stack = s
+      .filter((e) => e && typeof e === 'object' && !Array.isArray(e))
+      .map((e) => ({
+        playbook: e.playbook == null ? '' : String(e.playbook),
+        current_node: e.current_node == null ? '' : String(e.current_node),
+      }));
   }
-  return out;
+  return state;
+}
+
+/**
+ * Schema heal. Mutates and returns { state, dirty }.
+ * @param {object} raw
+ * @returns {{ state: object, dirty: boolean }}
+ */
+export function healState(raw) {
+  const base = createDefaultState();
+  const state = raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {};
+  let dirty = false;
+
+  const before = JSON.stringify({
+    playbook_stack: state.playbook_stack,
+    nodes: state.nodes,
+    gates: state.gates,
+    deck: state.deck,
+    playbook: state.playbook,
+    current_node: state.current_node,
+  });
+
+  if (typeof state.playbook !== 'string') {
+    state.playbook =
+      state.playbook == null
+        ? base.playbook
+        : typeof state.playbook === 'object'
+          ? base.playbook
+          : String(state.playbook);
+  }
+  if (typeof state.current_node !== 'string') {
+    state.current_node = state.current_node == null ? base.current_node : String(state.current_node);
+  }
+  if (!state.nodes || typeof state.nodes !== 'object' || Array.isArray(state.nodes)) {
+    state.nodes = {};
+  }
+  if (!state.gates || typeof state.gates !== 'object' || Array.isArray(state.gates)) {
+    state.gates = { ...base.gates };
+  } else {
+    if (state.gates.content == null) state.gates.content = 'pending';
+    if (state.gates.visual == null) state.gates.visual = 'pending';
+  }
+  if (!state.deck || typeof state.deck !== 'object' || Array.isArray(state.deck)) {
+    state.deck = { ...base.deck };
+  } else {
+    state.deck = {
+      name: state.deck.name == null ? '' : String(state.deck.name),
+      type: state.deck.type == null ? '' : String(state.deck.type),
+      style: state.deck.style == null ? '' : String(state.deck.style),
+    };
+  }
+  if (state.started_at == null) state.started_at = '';
+  if (state.updated_at == null) state.updated_at = '';
+
+  normalizePlaybookStack(state);
+
+  const after = JSON.stringify({
+    playbook_stack: state.playbook_stack,
+    nodes: state.nodes,
+    gates: state.gates,
+    deck: state.deck,
+    playbook: state.playbook,
+    current_node: state.current_node,
+  });
+  dirty = before !== after;
+  return { state, dirty };
+}
+
+function _seedFromBroken(rawText) {
+  const seeded = createDefaultState();
+  // Best-effort: pull deck.name from broken text
+  const m = /(?:^|\n)deck:\s*\n(?:[ \t]+.*\n)*?[ \t]+name:\s*["']?([^\n"']+)/.exec(rawText)
+    || /(?:^|\n)name:\s*["']?([^\n"']+)/.exec(rawText);
+  if (m) seeded.deck.name = m[1].trim();
+  return seeded;
 }
 
 // --- CORE ---
 export function statePath(deckDir) { return join(deckDir, STATE_DIR, STATE_FILE); }
 export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_FILE); }
-export function readState(deckDir) { const sp = statePath(deckDir); if (!existsSync(sp)) return createDefaultState(); try { const s = parseYaml(readFileSync(sp, 'utf-8')); if (!s.playbook && Object.keys(s.nodes||{}).length===0) return { corrupted: true, errors: ['missing playbook+nodes'] }; return s; } catch (e) { return { corrupted: true, errors: [e.message] }; } }
-export function appendHistory(deckDir, event) { event.at = event.at || new Date().toISOString(); const hp = historyPath(deckDir); mkdirSync(dirname(hp), { recursive: true }); const line = JSON.stringify(event) + '\n'; writeFileSync(hp, line, { flag: 'a' }); }
-export function readHistory(deckDir) { const hp = historyPath(deckDir); if (!existsSync(hp)) return []; try { return readFileSync(hp,'utf-8').split('\n').filter(l=>l.trim()).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean); } catch { return []; } }
+
+/**
+ * @param {string} deckDir
+ * @param {{ heal?: boolean }} [opts]
+ */
+export function readState(deckDir, opts = {}) {
+  const heal = opts.heal !== false;
+  const sp = statePath(deckDir);
+  if (!existsSync(sp)) return createDefaultState();
+
+  let raw;
+  try {
+    raw = readFileSync(sp, 'utf-8');
+  } catch (e) {
+    if (!heal) return { corrupted: true, errors: [e.message] };
+    const seeded = createDefaultState();
+    writeState(deckDir, seeded);
+    seeded._healed = true;
+    return seeded;
+  }
+
+  const parsed = parseStateYaml(raw);
+  if (!parsed.ok) {
+    if (!heal) return { corrupted: true, errors: parsed.errors };
+    const broken = `${sp}.broken.${Date.now()}`;
+    try { renameSync(sp, broken); } catch { /* keep going */ }
+    const seeded = _seedFromBroken(raw);
+    writeState(deckDir, seeded);
+    try {
+      appendHistory(deckDir, { type: 'state_healed', reason: 'unparseable', backup: broken });
+    } catch { /* history optional */ }
+    seeded._healed = true;
+    return seeded;
+  }
+
+  if (!heal) {
+    return parsed.value;
+  }
+
+  const { state, dirty } = healState(parsed.value);
+  const shouldRewrite = dirty || parsed.hadErrors;
+  if (shouldRewrite) {
+    writeState(deckDir, state);
+    try {
+      appendHistory(deckDir, {
+        type: 'state_healed',
+        reason: dirty ? 'schema' : 'parse_errors',
+      });
+    } catch { /* optional */ }
+    state._healed = true;
+  }
+  return state;
+}
+
+export function appendHistory(deckDir, event) {
+  event.at = event.at || new Date().toISOString();
+  const hp = historyPath(deckDir);
+  mkdirSync(dirname(hp), { recursive: true });
+  const line = JSON.stringify(event) + '\n';
+  writeFileSync(hp, line, { flag: 'a' });
+}
+
+export function readHistory(deckDir) {
+  const hp = historyPath(deckDir);
+  if (!existsSync(hp)) return [];
+  try {
+    return readFileSync(hp, 'utf-8')
+      .split('\n')
+      .filter((l) => l.trim())
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export function writeState(deckDir, state) {
-  state.updated_at = new Date().toISOString();
+  // Don't persist ephemeral flags
+  const { _healed, ...persist } = state;
+  persist.updated_at = new Date().toISOString();
+  normalizePlaybookStack(persist);
   ensureStateDirHints(deckDir);
   const sp = statePath(deckDir);
   const tmp = join(tmpdir(), `.state_${randomBytes(4).toString('hex')}.tmp`);
   mkdirSync(dirname(sp), { recursive: true });
-  writeFileSync(tmp, STATE_YAML_HEADER + toYaml(state), 'utf-8');
+  writeFileSync(tmp, STATE_YAML_HEADER + stringifyStateYaml(persist), 'utf-8');
   renameSync(tmp, sp);
+  // Reflect updated_at on caller's object
+  state.updated_at = persist.updated_at;
 }
 
 // --- QUERY ---
@@ -112,18 +300,81 @@ export function getGateStatus(state, name) { return state.gates?.[name] || 'pend
 export function isGateApproved(state, name) { return ['approved','waived'].includes(state.gates?.[name]); }
 
 // --- WRITE ---
-export function setNodeStatus(state, name, status, extra = {}) { if (!state.nodes) state.nodes = {}; if (!state.nodes[name]) state.nodes[name] = {}; state.nodes[name].status = status; const now = new Date().toISOString(); if (status==='in_progress') state.nodes[name].started = now; if (['completed','skipped','failed'].includes(status)) state.nodes[name].completed = now; Object.assign(state.nodes[name], extra); state.current_node = name; return state; }
+export function setNodeStatus(state, name, status, extra = {}) {
+  if (!state.nodes) state.nodes = {};
+  if (!state.nodes[name]) state.nodes[name] = {};
+  state.nodes[name].status = status;
+  const now = new Date().toISOString();
+  if (status === 'in_progress') state.nodes[name].started = now;
+  if (['completed', 'skipped', 'failed'].includes(status)) state.nodes[name].completed = now;
+  Object.assign(state.nodes[name], extra);
+  state.current_node = name;
+  return state;
+}
 export function resetNode(state, name) { if (!state.nodes) state.nodes = {}; state.nodes[name] = { status: 'pending' }; return state; }
 export function skipNode(state, name, reason = '') { return setNodeStatus(state, name, 'skipped', { skip_reason: reason }); }
 export function setGate(state, name, status) { if (!state.gates) state.gates = {}; state.gates[name] = status; return state; }
-export function switchPlaybook(state, newPlaybook) { if (!state.playbook_stack) state.playbook_stack = []; state.playbook_stack.push({ playbook: state.playbook, current_node: state.current_node }); state.playbook = newPlaybook; state.current_node = ''; return state; }
-export function resumePlaybook(state) { if (!state.playbook_stack||state.playbook_stack.length===0) return state; const prev = state.playbook_stack.pop(); state.playbook = prev.playbook; state.current_node = prev.current_node; return state; }
-export function startPlaybook(state, playbook) { state.playbook = playbook; state.current_node = ''; state.started_at = new Date().toISOString(); if (!state.playbook_stack) state.playbook_stack = []; return state; }
-export function createDefaultState() { return { playbook: '', current_node: '', started_at: '', updated_at: '', nodes: {}, gates: { content: 'pending', visual: 'pending' }, deck: { name: '', type: '', style: '' }, playbook_stack: [] }; }
-export function createInitialState(deckName, deckType, style) { return { playbook: 'create-deck', current_node: 'instantiation', started_at: new Date().toISOString(), updated_at: '', nodes: {}, gates: { content: 'pending', visual: 'pending' }, deck: { name: deckName, type: deckType||'', style: style||'' }, playbook_stack: [] }; }
+
+export function switchPlaybook(state, newPlaybook) {
+  normalizePlaybookStack(state);
+  state.playbook_stack.push({ playbook: state.playbook, current_node: state.current_node });
+  state.playbook = newPlaybook;
+  state.current_node = '';
+  return state;
+}
+export function resumePlaybook(state) {
+  normalizePlaybookStack(state);
+  if (state.playbook_stack.length === 0) return state;
+  const prev = state.playbook_stack.pop();
+  state.playbook = prev.playbook;
+  state.current_node = prev.current_node;
+  return state;
+}
+export function startPlaybook(state, playbook) {
+  normalizePlaybookStack(state);
+  state.playbook = playbook;
+  state.current_node = '';
+  state.started_at = new Date().toISOString();
+  return state;
+}
+
+export function createDefaultState() {
+  return {
+    playbook: '',
+    current_node: '',
+    started_at: '',
+    updated_at: '',
+    nodes: {},
+    gates: { content: 'pending', visual: 'pending' },
+    deck: { name: '', type: '', style: '' },
+    playbook_stack: [],
+  };
+}
+export function createInitialState(deckName, deckType, style) {
+  return {
+    playbook: 'create-deck',
+    current_node: 'instantiation',
+    started_at: new Date().toISOString(),
+    updated_at: '',
+    nodes: {},
+    gates: { content: 'pending', visual: 'pending' },
+    deck: { name: deckName, type: deckType || '', style: style || '' },
+    playbook_stack: [],
+  };
+}
 
 // --- VALIDATE ---
-export function validateState(state) { const errors = []; if (!state) return { valid: false, errors: ['state is null'] }; if (state.corrupted) return { valid: false, errors: state.errors||['corrupted'] }; if (!state.nodes) errors.push('missing nodes'); if (!state.gates) errors.push('missing gates'); for (const [name, node] of Object.entries(state.nodes||{})) { if (node.status==='in_progress' && node.completed) errors.push(`illegal: ${name} completed→in_progress`); } return { valid: errors.length===0, errors }; }
+export function validateState(state) {
+  const errors = [];
+  if (!state) return { valid: false, errors: ['state is null'] };
+  if (state.corrupted) return { valid: false, errors: state.errors || ['corrupted'] };
+  if (!state.nodes) errors.push('missing nodes');
+  if (!state.gates) errors.push('missing gates');
+  for (const [name, node] of Object.entries(state.nodes || {})) {
+    if (node.status === 'in_progress' && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
+  }
+  return { valid: errors.length === 0, errors };
+}
 
 // --- CONDITIONS ---
 function _c_nodeCompleted(name) { return (s) => s.nodes?.[name]?.status === 'completed'; }
@@ -172,16 +423,36 @@ function _parseNodeYaml(md) {
 }
 
 function _findNodeMd(nodeName, dir) {
-  try { for (const f of readdirSync(dir).filter(x=>x.endsWith('.md'))) { const c=readFileSync(join(dir,f),'utf-8'); if (c.includes(`node: ${nodeName}`)) return c; } } catch {}
+  try {
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.md'))) {
+      const c = readFileSync(join(dir, f), 'utf-8');
+      if (c.includes(`node: ${nodeName}`)) return c;
+    }
+  } catch { /* ignore */ }
   return '';
 }
 
 function _check(conds, state, ctx) {
-  const missing=[], unknown=[];
-  for (const c of conds) { const fn=_resolveCondition(c); if (!fn) { unknown.push(c); continue; } try { if(!fn(state,ctx)) missing.push(c); } catch { missing.push(c); } }
-  return { pass: missing.length===0&&unknown.length===0, missing, unknown };
+  const missing = [], unknown = [];
+  for (const c of conds) {
+    const fn = _resolveCondition(c);
+    if (!fn) { unknown.push(c); continue; }
+    try { if (!fn(state, ctx)) missing.push(c); } catch { missing.push(c); }
+  }
+  return { pass: missing.length === 0 && unknown.length === 0, missing, unknown };
 }
 
-export function checkEntry(nodeName, playbookDir, state, ctx = {}) { const md=_findNodeMd(nodeName, playbookDir); const {entry}=_parseNodeYaml(md); return _check(entry, state, ctx); }
-export function checkExit(nodeName, playbookDir, state, ctx = {}) { const md=_findNodeMd(nodeName, playbookDir); const {exit}=_parseNodeYaml(md); return _check(exit, state, ctx); }
-export function getMissingConditions(nodeName, playbookDir, state, ctx = {}) { const r=checkEntry(nodeName,playbookDir,state,ctx); return [...r.missing,...r.unknown]; }
+export function checkEntry(nodeName, playbookDir, state, ctx = {}) {
+  const md = _findNodeMd(nodeName, playbookDir);
+  const { entry } = _parseNodeYaml(md);
+  return _check(entry, state, ctx);
+}
+export function checkExit(nodeName, playbookDir, state, ctx = {}) {
+  const md = _findNodeMd(nodeName, playbookDir);
+  const { exit } = _parseNodeYaml(md);
+  return _check(exit, state, ctx);
+}
+export function getMissingConditions(nodeName, playbookDir, state, ctx = {}) {
+  const r = checkEntry(nodeName, playbookDir, state, ctx);
+  return [...r.missing, ...r.unknown];
+}

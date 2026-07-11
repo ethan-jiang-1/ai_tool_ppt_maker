@@ -77,6 +77,8 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 **CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出单行 JSON envelope（`ok`/`code`/`message`/`hint`/`where`），
 让 MD Controller / agent 立刻知道错在哪并能修。禁止只打 `Fatal error` 散文。见 `charter/CONSTITUTION.md`。
 
+**坏 state / 坏压模：先 heal 或重写合法文件再继续。** 禁止把 YAML/JSON 语法题甩给用户。见 `charter/CONSTITUTION.md`「MD↔JS 互补健壮性」。
+
 ## 8. 编辑链（改完怎么重跑）
 
 | 改了什么 | `--stage` | 耗时 |

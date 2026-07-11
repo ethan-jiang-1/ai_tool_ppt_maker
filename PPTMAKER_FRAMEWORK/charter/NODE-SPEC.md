@@ -136,7 +136,7 @@ includes: [classify-change]
 
 **WRITE**: `setNodeStatus(state, name, status, extra)`, `resetNode(state, name)`, `skipNode(state, name, reason)`, `setGate(state, name, status)`, `switchPlaybook(state, newPlaybook)`, `resumePlaybook(state)`, `startPlaybook(state, playbook)`, `createInitialState(deckName, deckType, style)`
 
-**SAFETY**: `readState` 文件不存在 → 返回初始态. YAML 损坏 → 返回 `{corrupted:true, errors:[...]}`. `writeState` 原子写 (tmp file → rename).
+**SAFETY**: `readState` 文件不存在 → 返回初始态. **默认 heal**（`heal: true`）：容错解析 + schema 归一；脏则规范回写；完全不可解 → `state.yaml.broken.<ts>` + seed 可用态. `{corrupted:true}` 仅 `heal: false` 诊断或无法产出可用态时. `writeState` 原子写 (tmp → rename). MD：先修后问，不把 YAML 语法题甩给用户（见 CONSTITUTION「MD↔JS 互补健壮性」).
 
 ## Gate Conditions Catalog
 
