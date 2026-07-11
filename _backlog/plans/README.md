@@ -19,7 +19,7 @@
 
 | Plan | 简述 |
 |------|------|
-| （无） | — |
+| [image2-multi-vendor-architecture](image2-multi-vendor-architecture.md) | Image2 多 vendor = 多组 (base_url,key) 顺序试 + failover；同步/异步一个薄分支；实验证明 vendor 无真差异，别搞重抽象 |
 
 ### 已定名 OpenSpec changes
 

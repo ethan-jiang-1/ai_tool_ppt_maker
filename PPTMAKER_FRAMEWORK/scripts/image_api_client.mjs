@@ -134,7 +134,7 @@ export function fileToDataUrl(filePath) {
  * @param {object} body
  * @returns {Promise<string>} task_id
  */
-async function submitTask(baseUrl, apiKey, body) {
+async function submitGenerate(baseUrl, apiKey, body) {
   const url = `${baseUrl}/images/generations`;
   const resp = await fetch(url, {
     method: "POST",
@@ -154,16 +154,14 @@ async function submitTask(baseUrl, apiKey, body) {
   if (!resp.ok) {
     throw new Error(`Submit failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
   }
+  return data;
+}
+
+/** Extract an async task_id from a submit response (null if the vendor is synchronous). */
+function extractTaskId(data) {
   const unwrapped = unwrapDataRecord(data);
-  const taskId =
-    data.task_id ||
-    data.id ||
-    unwrapped.task_id ||
-    unwrapped.id;
-  if (!taskId) {
-    throw new Error(`No task_id in submit response: ${JSON.stringify(data).slice(0, 300)}`);
-  }
-  return String(taskId);
+  const taskId = data.task_id || data.id || unwrapped.task_id || unwrapped.id;
+  return taskId ? String(taskId) : null;
 }
 
 /**
@@ -402,17 +400,33 @@ export async function generateOneImage({
   for (const baseUrl of urls) {
     try {
       console.log(`  Submit → ${baseUrl}  (${outPath})`);
-      const taskId = await submitTask(baseUrl, apiKey, body);
-      console.log(`  task_id=${taskId}`);
-      const { data: pollData, pollCount } = await pollTask(baseUrl, apiKey, taskId);
-      // This relay embeds the finished image in the completed poll response
-      // (data.result.images[0].url). Prefer that; fall back to /tasks/{id}/result
-      // only for APIs that expose a separate result endpoint.
-      const ref = extractImageRef(pollData);
-      if (ref) {
-        await saveImageRef(ref, outPath);
+      const submitData = await submitGenerate(baseUrl, apiKey, body);
+      // SYNC vendor (OpenAI-standard /images/generations): the finished image is
+      // already in the submit response (data[0].url / b64_json) — no task_id, no poll.
+      let taskId = null;
+      let pollCount = 0;
+      const syncRef = extractImageRef(submitData);
+      if (syncRef) {
+        console.log(`  sync image returned (no task) → saving`);
+        await saveImageRef(syncRef, outPath);
       } else {
-        await downloadResult(baseUrl, apiKey, taskId, outPath);
+        // ASYNC vendor: submit → task_id → poll → image embedded in the completed
+        // poll response (fall back to /tasks/{id}/result only if not embedded).
+        taskId = extractTaskId(submitData);
+        if (!taskId) {
+          throw new Error(
+            `No task_id and no image in submit response: ${JSON.stringify(submitData).slice(0, 300)}`
+          );
+        }
+        console.log(`  task_id=${taskId}`);
+        const polled = await pollTask(baseUrl, apiKey, taskId);
+        pollCount = polled.pollCount;
+        const ref = extractImageRef(polled.data);
+        if (ref) {
+          await saveImageRef(ref, outPath);
+        } else {
+          await downloadResult(baseUrl, apiKey, taskId, outPath);
+        }
       }
       const elapsed = (Date.now() - t0) / 1000;
       const trace = {
