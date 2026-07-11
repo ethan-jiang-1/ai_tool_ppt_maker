@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 /**
- * Native Node image API client (APIMart-compatible async contract).
+ * Native Node image API client (OpenAI-compatible generations + optional async poll).
  *
  * Contract:
- *   POST {base}/images/generations  → task_id
- *   GET  {base}/tasks/{id}          → poll until completed|failed
- *   GET  {base}/tasks/{id}/result   → image URL or b64
+ *   POST {base}/images/generations  → image (sync) or task_id (async)
+ *   GET  {base}/tasks/{id}          → poll until completed|failed (async only)
+ *   GET  {base}/tasks/{id}/result   → fallback download if poll has no embedded image
  *
  * Image2 credentials (canonical):
- *   IMAGE2_API_KEY + IMAGE2_BASE_URL and/or IMAGE2_BASE_URLS
- * Legacy aliases (still accepted): OPENAI_* / APIMART_*
- * Priority: IMAGE2_* → OPENAI_* → APIMART_*; CLI --base-url highest.
+ *   IMAGE2_VENDORS=url|KEY_ENV,...   (preferred multi-key)
+ *   or IMAGE2_API_KEY + IMAGE2_BASE_URL and/or IMAGE2_BASE_URLS
+ * Legacy aliases: OPENAI_* / APIMART_*
+ * Priority: CLI --base-url (+ shared key) → IMAGE2_VENDORS → legacy URL(s)+shared key.
  * These variables are for image generation only — not chat LLMs.
  *
  * No external skills. No Python. No bash. Node fetch only.
@@ -23,10 +24,11 @@ export const DEFAULT_MODEL = "gpt-image-2";
 export const MAX_WAIT_MS = 600_000;
 export const POLL_INTERVAL_MS = 5_000;
 export const HEARTBEAT_MS = 30_000;
+export const ATTEMPTS_SUMMARY_MAX = 5;
 
 /**
  * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
- * Keeps older call sites that still read APIMART_* working.
+ * Legacy single-key path only; multi-vendor resolution does not depend on this.
  */
 export function bridgeCredentials() {
   const key =
@@ -52,29 +54,82 @@ export function bridgeCredentials() {
 }
 
 /** @returns {string} */
-export function resolveApiKey() {
-  bridgeCredentials();
-  const key =
+function sharedImage2Key() {
+  return (
     process.env.IMAGE2_API_KEY ||
     process.env.OPENAI_API_KEY ||
-    process.env.APIMART_API_KEY;
+    process.env.APIMART_API_KEY ||
+    ""
+  );
+}
+
+/** @param {string} u @returns {string} */
+function normalizeBaseUrl(u) {
+  return String(u).trim().replace(/\/+$/, "");
+}
+
+/**
+ * Ordered vendor list: { base_url, api_key }.
+ * @param {string[]} [extraBaseUrls] CLI --base-url values (highest priority; shared key only).
+ * @returns {{ base_url: string, api_key: string }[]}
+ */
+export function resolveVendors(extraBaseUrls = []) {
+  bridgeCredentials();
+  const fromCli = (extraBaseUrls || []).filter(Boolean).map(normalizeBaseUrl);
+  if (fromCli.length > 0) {
+    const key = sharedImage2Key();
+    if (!key) {
+      throw new Error(
+        "IMAGE2_API_KEY is not set (aliases: OPENAI_API_KEY / APIMART_API_KEY). " +
+          "Required when using --base-url (does not borrow keys from IMAGE2_VENDORS)."
+      );
+    }
+    return fromCli.map((base_url) => ({ base_url, api_key: key }));
+  }
+
+  const vendorsEnv = (process.env.IMAGE2_VENDORS || "").trim();
+  if (vendorsEnv) {
+    /** @type {{ base_url: string, api_key: string }[]} */
+    const vendors = [];
+    for (const part of vendorsEnv.split(",")) {
+      const item = part.trim();
+      if (!item) continue;
+      const pipe = item.indexOf("|");
+      const base_url = normalizeBaseUrl(pipe >= 0 ? item.slice(0, pipe) : item);
+      const keyEnv = pipe >= 0 ? item.slice(pipe + 1).trim() : "";
+      if (!base_url) continue;
+      let api_key = "";
+      if (keyEnv) {
+        api_key = process.env[keyEnv] || "";
+        if (!api_key) {
+          throw new Error(
+            `${keyEnv} is not set (referenced by IMAGE2_VENDORS for ${base_url}).`
+          );
+        }
+      } else {
+        api_key = sharedImage2Key();
+        if (!api_key) {
+          throw new Error(
+            `IMAGE2_API_KEY is not set (IMAGE2_VENDORS item ${base_url} has no |KEY_ENV; aliases: OPENAI_API_KEY / APIMART_API_KEY).`
+          );
+        }
+      }
+      vendors.push({ base_url, api_key });
+    }
+    if (vendors.length === 0) {
+      throw new Error(
+        "IMAGE2_VENDORS is set but empty after parse. Use url|KEY_ENV items."
+      );
+    }
+    return vendors;
+  }
+
+  const key = sharedImage2Key();
   if (!key) {
     throw new Error(
       "IMAGE2_API_KEY is not set (aliases: OPENAI_API_KEY / APIMART_API_KEY). Put it in deck .env or export it."
     );
   }
-  return key;
-}
-
-/**
- * @param {string[]} [extra] - CLI --base-url values (highest priority).
- * @returns {string[]}
- */
-export function resolveBaseUrls(extra = []) {
-  bridgeCredentials();
-  const fromCli = (extra || []).filter(Boolean);
-  if (fromCli.length > 0) return fromCli.map((u) => u.replace(/\/+$/, ""));
-
   const single =
     process.env.IMAGE2_BASE_URL ||
     process.env.OPENAI_BASE_URL ||
@@ -84,18 +139,32 @@ export function resolveBaseUrls(extra = []) {
     process.env.IMAGE2_BASE_URLS ||
     process.env.APIMART_BASE_URLS ||
     "";
+  /** @type {string[]} */
   const urls = [];
-  if (single) urls.push(single.trim());
+  if (single.trim()) urls.push(normalizeBaseUrl(single));
   for (const part of multi.split(",")) {
-    const u = part.trim();
+    const u = normalizeBaseUrl(part);
     if (u && !urls.includes(u)) urls.push(u);
   }
   if (urls.length === 0) {
     throw new Error(
-      "No image API base URL. Set IMAGE2_BASE_URL (or IMAGE2_BASE_URLS; aliases: OPENAI_BASE_URL / APIMART_BASE_URL / APIMART_BASE_URLS)."
+      "No image API base URL. Set IMAGE2_VENDORS or IMAGE2_BASE_URL (or IMAGE2_BASE_URLS; aliases: OPENAI_BASE_URL / APIMART_BASE_URL / APIMART_BASE_URLS)."
     );
   }
-  return urls.map((u) => u.replace(/\/+$/, ""));
+  return urls.map((base_url) => ({ base_url, api_key: key }));
+}
+
+/** @returns {string} first resolved vendor key (compat wrapper) */
+export function resolveApiKey() {
+  return resolveVendors()[0].api_key;
+}
+
+/**
+ * @param {string[]} [extra] - CLI --base-url values (highest priority).
+ * @returns {string[]}
+ */
+export function resolveBaseUrls(extra = []) {
+  return resolveVendors(extra).map((v) => v.base_url);
 }
 
 /**
@@ -132,36 +201,73 @@ export function fileToDataUrl(filePath) {
  * @param {string} baseUrl
  * @param {string} apiKey
  * @param {object} body
- * @returns {Promise<string>} task_id
+ * @returns {Promise<object>} submit JSON
  */
 async function submitGenerate(baseUrl, apiKey, body) {
   const url = `${baseUrl}/images/generations`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const text = await resp.text();
-  let data;
+  const controller = new AbortController();
+  const started = Date.now();
+  let lastHeartbeat = started;
+  const timer = setInterval(() => {
+    const now = Date.now();
+    if (now - lastHeartbeat >= HEARTBEAT_MS) {
+      const elapsedSec = Math.floor((now - started) / 1000);
+      console.log(
+        `  … still waiting vendor=${baseUrl} phase=submit elapsed=${elapsedSec}s`
+      );
+      lastHeartbeat = now;
+    }
+    if (now - started >= MAX_WAIT_MS) {
+      controller.abort();
+    }
+  }, Math.min(1_000, HEARTBEAT_MS));
+
   try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(`Submit non-JSON (${resp.status}): ${text.slice(0, 200)}`);
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Submit non-JSON (${resp.status}): ${text.slice(0, 200)}`);
+    }
+    if (!resp.ok) {
+      throw new Error(`Submit failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
+    }
+    return data;
+  } catch (err) {
+    if (err && (err.name === "AbortError" || err.code === "ABORT_ERR")) {
+      const elapsedSec = Math.floor((Date.now() - started) / 1000);
+      throw new Error(
+        `Submit timed out after ${elapsedSec}s (MAX_WAIT_MS=${MAX_WAIT_MS}) ` +
+          `phase=submit vendor=${baseUrl}`
+      );
+    }
+    throw err;
+  } finally {
+    clearInterval(timer);
   }
-  if (!resp.ok) {
-    throw new Error(`Submit failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
-  }
-  return data;
 }
 
 /** Extract an async task_id from a submit response (null if the vendor is synchronous). */
-function extractTaskId(data) {
+export function extractTaskId(data) {
+  if (!data || typeof data !== "object") return null;
   const unwrapped = unwrapDataRecord(data);
   const taskId = data.task_id || data.id || unwrapped.task_id || unwrapped.id;
   return taskId ? String(taskId) : null;
+}
+
+/** True if submit response is accepted (sync image or async task id). */
+export function submitAccepted(data) {
+  return Boolean(extractImageRef(data) || extractTaskId(data));
 }
 
 /**
@@ -194,7 +300,7 @@ async function pollTask(baseUrl, apiKey, taskId) {
     if (now - lastHeartbeat >= HEARTBEAT_MS) {
       const elapsedSec = Math.floor((now - started) / 1000);
       console.log(
-        `  … still waiting task=${taskId} status=${status} elapsed=${elapsedSec}s polls=${pollCount}`
+        `  … still waiting vendor=${baseUrl} phase=poll task=${taskId} status=${status} elapsed=${elapsedSec}s polls=${pollCount}`
       );
       lastHeartbeat = now;
     }
@@ -342,7 +448,7 @@ async function saveImageRef(ref, outPath) {
 }
 
 /**
- * Generate one image via async API with mirror fallback.
+ * Generate one image with ordered vendor failover.
  *
  * @param {object} opts
  * @param {string} opts.prompt
@@ -352,7 +458,7 @@ async function saveImageRef(ref, outPath) {
  * @param {string} [opts.model]
  * @param {string} [opts.size]
  * @param {boolean} [opts.force]
- * @param {string[]} [opts.baseUrls]
+ * @param {string[]} [opts.baseUrls] - CLI --base-url extras only; empty → full env resolveVendors()
  * @param {string|null} [opts.tracePath] - If set, write JSON trace here.
  * @returns {Promise<object|null>} Trace object, or null if skipped.
  */
@@ -372,8 +478,7 @@ export async function generateOneImage({
     return null;
   }
 
-  const apiKey = resolveApiKey();
-  const urls = baseUrls.length > 0 ? baseUrls : resolveBaseUrls();
+  const vendors = resolveVendors(baseUrls);
   const t0 = Date.now();
 
   /** @type {object} */
@@ -396,13 +501,15 @@ export async function generateOneImage({
     body.image_urls = [dataUrl];
   }
 
-  let lastError = null;
-  for (const baseUrl of urls) {
+  /** @type {{ base_url: string, error: string }[]} */
+  const attempts = [];
+
+  for (const vendor of vendors) {
+    const { base_url: baseUrl, api_key: apiKey } = vendor;
     try {
       console.log(`  Submit → ${baseUrl}  (${outPath})`);
       const submitData = await submitGenerate(baseUrl, apiKey, body);
-      // SYNC vendor (OpenAI-standard /images/generations): the finished image is
-      // already in the submit response (data[0].url / b64_json) — no task_id, no poll.
+      // SYNC: finished image in submit response. ASYNC: task_id → poll.
       let taskId = null;
       let pollCount = 0;
       const syncRef = extractImageRef(submitData);
@@ -410,8 +517,6 @@ export async function generateOneImage({
         console.log(`  sync image returned (no task) → saving`);
         await saveImageRef(syncRef, outPath);
       } else {
-        // ASYNC vendor: submit → task_id → poll → image embedded in the completed
-        // poll response (fall back to /tasks/{id}/result only if not embedded).
         taskId = extractTaskId(submitData);
         if (!taskId) {
           throw new Error(
@@ -439,6 +544,7 @@ export async function generateOneImage({
         poll_count: pollCount,
         total_seconds: Math.round(elapsed * 10) / 10,
         style_reference: styleReferencePath || null,
+        attempts,
       };
       if (tracePath) {
         mkdirSync(dirname(tracePath), { recursive: true });
@@ -447,10 +553,17 @@ export async function generateOneImage({
       console.log(`  Done: ${outPath}  (${elapsed.toFixed(0)}s)`);
       return trace;
     } catch (err) {
-      lastError = err;
-      console.log(`  Mirror failed (${baseUrl}): ${err.message}`);
+      const msg = err && err.message ? String(err.message) : String(err);
+      attempts.push({ base_url: baseUrl, error: msg.slice(0, 200) });
+      console.log(`  Mirror failed (${baseUrl}): ${msg}`);
     }
   }
 
-  throw lastError || new Error("All image API mirrors failed");
+  const summary = attempts
+    .slice(0, ATTEMPTS_SUMMARY_MAX)
+    .map((a) => `${a.base_url}: ${a.error}`)
+    .join(" | ");
+  throw new Error(
+    `All image API vendors failed (${attempts.length} attempt(s)): ${summary || "no attempts"}`
+  );
 }
