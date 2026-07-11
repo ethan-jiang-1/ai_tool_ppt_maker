@@ -1,8 +1,10 @@
 ## Why
 
-小现象：Agent 把 version 临时文件（`.bak`）丢到 `deck_*` 根。
+小现象（**反复出现，不是偶发**）：Agent 把 version 临时文件丢到 `deck_*` 根。
 
-根因不止缺抽屉——是 **OpenSpec 里 run-bundle folder 没有独立主家**：
+金甲板刚又冒出 `deck_ai_sdlc_keynote/_slidespec.bak-split`——`checkBundle` **能拦**（上严下松已执法），但拦在**事后**：说明抽屉 `_scratch/` 机制在，**落盘前 Agent 仍不知道往哪放**。本 change 圈子必须覆盖这件事，不能只当文档打磨。
+
+根因：
 
 - 软包已有 `framework-directory-layout`（只描述 `PPTMAKER_FRAMEWORK/`）
 - Run bundle（`deck_*`）的树 / 目录角色 / 上严下松，却捆在 `run-bundle-management`（Purpose 写成 “Define directory structure” + init/check）和 `framework-charter`（文档像定义方）里
@@ -10,7 +12,7 @@
 
 本 change（由 `version-scratch-directory` 更名）要做的事一句话：
 
-> **用 delta specs 把 main specs 调对**：新建 `run-bundle-layout` 拥有 deck 树本体 + Where Map；收窄 management 为 ops；入口只镜像；Agent 不知放哪先 GREP。
+> **用 delta specs 把 main specs 调对**：新建 `run-bundle-layout` 拥有 deck 树本体 + Where Map；收窄 management 为 ops；入口只镜像；Agent 不知放哪先 GREP——**避免再往 deck 根扔 `_slidespec.bak-*`**。
 
 ## What Changes
 
@@ -38,16 +40,14 @@
 
 ## Impact
 
-- **Main specs（经 delta sync）：** 新建 `run-bundle-layout`；改写 management / framework-directory-layout / charter（及 playbook 增量）；`config.yaml` 注册表补一行
+- **Main specs（经 delta sync）：** 新建 `run-bundle-layout`；改写 management / framework-directory-layout / charter（及 playbook 增量）；`config.yaml` 注册表**补 `run-bundle-layout` 行 + 改写 `run-bundle-management` 行描述**（删「目录结构宪法」→ ops，与收窄的 Purpose 自洽）
 - **运行时文档/种子（apply）：** `glossary.md`、`BOOTSTRAP.md`、`AGENTS.md`、`_DIR_READMES`、金甲板 README、轻测
 - **不改：** `SCRATCH_SUBDIR` 路径与既有 check 执法逻辑（已是基线）
 
 ## Artifact order（本 change 遵守）
 
-1. **proposal**（本文件）— 你审结构/范围  
-2. **specs/** — 合法 delta（ADDED/MODIFIED/REMOVED Requirement only；用 delta **调对 main**；此步最重要）  
-3. **design** — 决策与边界（服从已定 specs）  
+1. **proposal** — 范围与 Capabilities  
+2. **specs/** — 合法 delta（已重焊；用 delta 调对 main）  
+3. **design**（本步）— 决策服从已定 specs  
 4. **tasks** — 可执行实现清单  
 5. 人审通过 → apply → archive/sync  
-
-当前错误的 specs 形态（Purpose-only delta、重复 ADDED、meta requirement 等）在进入步骤 2 时整棵重焊，不在 proposal 里假装已修好。
