@@ -156,5 +156,7 @@ export async function main(argv = process.argv) {
 }
 
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/make_contact_sheet.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "make_contact_sheet" });
   main();
 }

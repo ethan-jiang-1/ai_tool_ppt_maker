@@ -26,7 +26,7 @@ agent_action: execute_pipeline
 输入：`_generated/page_images_full/*.png`（Stage 2 产出）+ `_generated/slide_plan.json`（Stage 1 产出）
 输出：`_generated/header_locked/*.png`（最终 slide 图片）+ `_generated/qa/header_lock_qa.json`（QA 记录）
 
-脚本：`node PPTMAKER_FRAMEWORK/scripts/stage3_lock_headers.mjs --run-dir ...`
+Run-bundle 路径：`node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <version-dir> --stage 3`。低层 Expert 模式才直接调用 `stage3_lock_headers.mjs`，并使用它真实的 `--images`、`--slide-plan`、`--out` 参数。
 
 ## Header-Lock 的核心原理
 

@@ -85,4 +85,4 @@ agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时
 
 ---
 
-> **准备好了?** 把上面的对话起点贴进你的 agent。它会读 [BOOTSTRAP.md](BOOTSTRAP.md) 然后带你走。
+> **准备好了?** 把上面的对话起点贴进你的 agent。它会读 [BOOTSTRAP.md](../BOOTSTRAP.md) 然后带你走。

@@ -23,7 +23,7 @@ agent_action: internalize
 
 ## Anchoring 如何在技术上工作
 
-当你用 `unified_pipeline.mjs`（Stage 2 → image2-ppt skill）生成 slides 时：
+当你用 `unified_pipeline.mjs`（Stage 2 → 框架内 `stage2_generate_images.mjs`）生成 slides 时：
 
 1. Style master 作为 reference image 传入 API（`--style-reference` 参数）
 2. Stage 1 组装的最终 prompt 已含一次 **anchoring clause（锚定条款）**；Stage 2 只附加 reference image，不重复修改 prompt：
@@ -55,16 +55,16 @@ system — do not deviate from it. Only change the slide content, not the style.
 ```bash
 # 先跑 Stage 1（解析 markdown → JSON，写入 _generated/）
 node PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
-  --input 3_versions/v1/slide-specifications.md \
-  --out-dir 3_versions/v1/_generated/ \
+  --spec 3_versions/v1/slide-specifications.md \
+  --out 3_versions/v1/_generated/ \
   --style-dir 2_backbone/visual-style/
 
-# 手动编辑 _generated/page_prompts/_prompts.json，只保留 pilot 用的几张 slide
-# 然后跑 Stage 2（生图）
-node <skills>/image2-ppt/scripts/generate_full_page_images.mjs \
+# 然后用 Stage 2 的 --only 选择 pilot slides；不要手动编辑 _generated/
+node PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \
+  --only slide_01 --only slide_05 --only slide_09 \
   --resolution 1k
 ```
 
@@ -74,7 +74,7 @@ node <skills>/image2-ppt/scripts/generate_full_page_images.mjs \
 Pilot 通过后，生成全 deck：
 
 ```bash
-node <skills>/image2-ppt/scripts/generate_full_page_images.mjs \
+node PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs \
   --prompt-json 3_versions/v1/_generated/page_prompts/_prompts.json \
   --style-reference 2_backbone/visual-style/style_master.jpg \
   --out-dir 3_versions/v1/_generated/page_images_full/ \

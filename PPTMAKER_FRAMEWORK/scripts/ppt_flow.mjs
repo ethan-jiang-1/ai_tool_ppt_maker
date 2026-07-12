@@ -29,6 +29,8 @@ import {
   CLI_ERROR_CODES,
   emitCliError,
   exitCliError,
+  createChildStderrFramer,
+  normalizeDelegatedExit,
 } from "./lib/cli_error.mjs";
 
 // ---------------------------------------------------------------------------
@@ -104,11 +106,13 @@ function emitUsage(where, message, hint) {
 /** After subprocess/command code: emit FAILED if non-zero, then exit. */
 function exitWithCode(code, where, message, hint) {
   if (code !== 0) {
+    const childError = runNode.lastChildError;
     emitFailed(
       where,
-      message || `command exited ${code}`,
-      hint || "See stderr above for details"
+      childError?.message || message || `command exited ${code}`,
+      childError?.hint || hint || "See stderr above for details"
     );
+    runNode.lastChildError = null;
   }
   process.exit(code);
 }
@@ -128,16 +132,34 @@ function runNode(script, args = []) {
   console.log("→ " + cmd.join(" "));
   return new Promise((resolve) => {
     const child = spawn("node", [script, ...args], {
-      stdio: "inherit",
+      stdio: ["inherit", "inherit", "pipe"],
       env: process.env,
     });
-    child.on("close", (code) => resolve(code !== null ? code : 1));
+    child.stderr.setEncoding("utf8");
+    const relay = (line) => {
+      if (!line) return;
+      process.stderr.write(line.endsWith("\n") ? line : `${line}\n`);
+    };
+    const framer = createChildStderrFramer({ relay });
+    child.stderr.on("data", (chunk) => framer.push(chunk));
+    child.on("close", (rawCode) => {
+      const { childError, fallback } = framer.finish();
+      const code = normalizeDelegatedExit(rawCode, childError);
+      if (childError) {
+        runNode.lastChildError = childError;
+      } else {
+        runNode.lastChildError = fallback ? { message: fallback, hint: "See child diagnostics above" } : null;
+      }
+      resolve(code);
+    });
     child.on("error", (err) => {
+      runNode.lastChildError = { message: err.message, hint: "Check the Node executable and child script path" };
       console.error(`✗ Failed to spawn node: ${err.message}`);
       resolve(1);
     });
   });
 }
+runNode.lastChildError = null;
 
 // ---------------------------------------------------------------------------
 // Metadata helpers
@@ -271,6 +293,43 @@ async function enrichStatusWithState(status, runDir) {
   status.workflow_summary = card.workflow_summary;
   status.suggested_next = card.suggested_next;
   return status;
+}
+
+/**
+ * Build the real deterministic gate context used by controller-aware resume
+ * cards. This deliberately reuses Stage 1 validation and the production
+ * header-review validator instead of maintaining state-only approximations.
+ */
+export async function buildControllerGateContext(runDir) {
+  const resolved = resolve(runDir);
+  const specPath = findSlideSpecs(resolved);
+  let slideSpecsValid = false;
+  if (specPath) {
+    try {
+      const { validateSpecs } = await import("./stage1_build_inputs.mjs");
+      slideSpecsValid = !validateSpecs([specPath]).some((problem) => problem.startsWith("ERROR:"));
+    } catch {
+      slideSpecsValid = false;
+    }
+  }
+
+  let headerReviewCurrent = false;
+  try {
+    const { validateProductionHeaderReview } = await import("./unified_pipeline.mjs");
+    headerReviewCurrent = (await validateProductionHeaderReview(resolved, {
+      requireCurrentImages: true,
+    })).current;
+  } catch {
+    headerReviewCurrent = false;
+  }
+
+  return {
+    deckDir: deckRoot(resolved),
+    runDir: resolved,
+    frameworkDir: FRAMEWORK_DIR,
+    slideSpecsValid,
+    headerReviewCurrent,
+  };
 }
 
 /**
@@ -1734,8 +1793,6 @@ Examples:
     .action(async (runDir, opts) => {
       const {
         readState,
-        getCompletedNodes,
-        getPendingNodes,
         isGateApproved,
         buildResumeCard,
       } = await import("./lib/state.mjs");
@@ -1793,7 +1850,13 @@ Examples:
       } catch {
         statusSnapshot = null;
       }
-      const card = buildResumeCard(s, statusSnapshot);
+      const { buildPlaybookIndex } = await import("./lib/md_controller_reader.mjs");
+      const controllerIndex = buildPlaybookIndex(join(FRAMEWORK_DIR, "playbook"));
+      const controllerCtx = await buildControllerGateContext(resolved);
+      const indexedCard = buildResumeCard(s, statusSnapshot, {
+        index: controllerIndex,
+        ctx: controllerCtx,
+      });
 
       if (opts.json) {
         if (healed) s.healed = true;
@@ -1801,11 +1864,14 @@ Examples:
           JSON.stringify(
             {
               ...s,
-              node_status: card.node_status,
-              waiting_for: card.waiting_for,
-              note: card.note,
-              workflow_summary: card.workflow_summary,
-              suggested_next: card.suggested_next,
+              node_status: indexedCard.node_status,
+              waiting_for: indexedCard.waiting_for,
+              note: indexedCard.note,
+              completed_nodes: indexedCard.completed_nodes,
+              pending_nodes: indexedCard.pending_nodes,
+              eligible_candidates: indexedCard.eligible_candidates,
+              workflow_summary: indexedCard.workflow_summary,
+              suggested_next: indexedCard.suggested_next,
             },
             null,
             2
@@ -1814,21 +1880,24 @@ Examples:
         return;
       }
       if (healed) console.log("Note:     state.yaml was auto-tidied (heal)");
-      console.log("Playbook: " + (card.playbook || "(none)"));
-      console.log("Current:  " + (card.current_node || "(none)"));
-      console.log("Status:   " + (card.node_status || "(none)"));
-      if (card.waiting_for) console.log("Waiting:  " + card.waiting_for);
-      if (card.note) console.log("Note:     " + card.note);
-      console.log("Done:     " + getCompletedNodes(s).join(", "));
-      console.log("Pending:  " + getPendingNodes(s).join(", "));
+      console.log("Playbook: " + (indexedCard.playbook || "(none)"));
+      console.log("Current:  " + (indexedCard.current_node || "(none)"));
+      console.log("Status:   " + (indexedCard.node_status || "(none)"));
+      if (indexedCard.waiting_for) console.log("Waiting:  " + indexedCard.waiting_for);
+      if (indexedCard.note) console.log("Note:     " + indexedCard.note);
+      console.log("Done:     " + indexedCard.completed_nodes.join(", "));
+      console.log("Pending:  " + indexedCard.pending_nodes.join(", "));
+      if (indexedCard.eligible_candidates.length > 1) {
+        console.log("Eligible: " + indexedCard.eligible_candidates.join(", "));
+      }
       console.log(
         "Gates:    content=" +
           (s.gates?.content || "pending") +
           " visual=" +
           (s.gates?.visual || "pending")
       );
-      console.log("Summary:  " + card.workflow_summary);
-      console.log("Next:     " + card.suggested_next);
+      console.log("Summary:  " + indexedCard.workflow_summary);
+      console.log("Next:     " + indexedCard.suggested_next);
     });
 
   try {
@@ -1867,6 +1936,8 @@ const isMain =
     (basename(invokedPath) === "ppt_flow.mjs" && existsSync(invokedPath)));
 
 if (isMain) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "ppt_flow.main" });
   main().catch((err) => {
     console.error(`✗ Fatal error: ${err.message}`);
     exitCliError(

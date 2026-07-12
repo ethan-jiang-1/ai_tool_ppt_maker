@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initBundle } from "../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
 import { readState } from "../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs";
-import { selectPilotSlideIds } from "../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+import {
+  buildControllerGateContext,
+  selectPilotSlideIds,
+} from "../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 import {
   generationFingerprint,
   generationProfile,
@@ -150,6 +153,21 @@ playbook_stack: []
     expect(j.current_node).toBe("review-gate");
     expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
     expect(j.suggested_next).toContain("user:review-style-master");
+  });
+
+  it("controller gate context reuses real validators and fails closed", async () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const ctx = await buildControllerGateContext(runDir);
+      expect(ctx.deckDir).toBe(deck);
+      expect(ctx.runDir).toBe(runDir);
+      expect(ctx.slideSpecsValid).toBe(false);
+      expect(ctx.headerReviewCurrent).toBe(false);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
   });
 
   it("approve dual-writes metadata and _state gates", () => {

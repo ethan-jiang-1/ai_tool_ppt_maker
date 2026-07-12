@@ -1124,6 +1124,12 @@ const _isMain =
     basename(process.argv[1]) === basename(__filename));
 
 if (_isMain) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "stage3_lock_headers" });
+  if (process.argv.includes("--help")) {
+    console.log("Usage: node stage3_lock_headers.mjs --images <dir> --slide-plan <file> --out <dir> [--style-dir <dir>] [--color-palette <file>]");
+    process.exit(0);
+  }
   main().catch((err) => {
     console.error(err.message);
     process.exit(1);

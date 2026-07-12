@@ -3,7 +3,7 @@ title: PPT 信息加工流
 stage: root
 position: entry
 type: overview
-summary: "PPT 四阶段加工流总入口。Agent 首先读此文件理解体系全貌，然后按 depends_on 导航到 workflow/00-setup。"
+summary: "PPT Lifecycle Phase 0→1/2→2.7→3→4 总入口。Agent 首先读此文件理解体系全貌，然后按 depends_on 导航到 workflow/00-setup。"
 depends_on: []
 feeds_into:
 - workflow/00-setup/README.md
@@ -28,7 +28,7 @@ agent_action: navigate
 
 不需要 Jenkins。不需要 Airflow。不需要 YAML pipeline 配置。
 
-**目录 = Stage。文件 = 交接物。版本快照 = 完整复制。Git = 审计追踪。**
+**目录表达职责层级。文件 = 交接物。版本只复制下游源 delta，`_generated/` 保持干净。Git = 审计追踪。**
 
 ```
 PPTMAKER_FRAMEWORK/
@@ -41,12 +41,12 @@ PPTMAKER_FRAMEWORK/
   ├── reference/quick-start.md          ← 新用户 5 分钟入口
   ├── reference/anti-patterns.md        ← 框架级常见错误
   ├── reference/glossary.md             ← 术语表
-  ├── workflow/00-setup/                ← Foundation：项目初始化与环境
-  ├── workflow/01-visual/               ← 视觉方法模块
-  ├── workflow/02-content/              ← 内容方法模块
-  ├── workflow/03-prompts/              ← Skill Layer：Image Prompts
-  ├── workflow/04-production/           ← Phase 3：生产管线（内部含 Stage 1-5）
-  ├── workflow/05-iteration/            ← Iteration Engine：持续打磨
+  ├── workflow/00-setup/                ← Method Module 00：项目初始化与环境
+  ├── workflow/01-visual/               ← Method Module 01：视觉方法
+  ├── workflow/02-content/              ← Method Module 02：内容方法
+  ├── workflow/03-prompts/              ← Method Module 03：Image Prompts
+  ├── workflow/04-production/           ← Method Module 04：生产管线（内部含 Pipeline Stage 1-5）
+  ├── workflow/05-iteration/            ← Method Module 05：持续打磨
   └── scripts/                          ← Node.js 管线脚本（ppt_flow / stages）
 ```
 
@@ -54,9 +54,9 @@ PPTMAKER_FRAMEWORK/
 
 ## 体系架构
 
-### 三个宏观 Phase
+### Lifecycle Phase 与 Method Module
 
-这三个 Phase 有先后依赖——内容架构与视觉系统都锁定后才能进入生产。
+端到端 Lifecycle Phase 是 `0 → 1/2 → 2.7 → 3 → 4`：初始化；内容/视觉（可交换起始顺序）；L3 prompt 回填；生产；迭代与交付。下面三项是主要工作域，不是另一套 Phase 编号；它们分别落在 Method Module 02、01、04。
 
 | # | 模块 | 做什么 | 核心产出 |
 |---|------|--------|---------|
@@ -64,7 +64,7 @@ PPTMAKER_FRAMEWORK/
 | 2 | `workflow/01-visual/` | 设计视觉系统——颜色、字体、布局、组件、装饰 | `style_master.jpg` + 视觉规范文档 |
 | 3 | `workflow/04-production/` | 把内容和视觉合成 PPTX——五阶段管线 | `.pptx` 文件 |
 
-**Phase 1 和 Phase 2 可以交换起始顺序**（如果用户带着强烈视觉方向进来），但 L3 IMAGE PROMPT 必须等视觉锁定后回填。Phase 3 必须在内容与视觉都锁定后才能启动。
+Lifecycle Phase 1 和 2 可以交换起始顺序（如果用户带着强烈视觉方向进来），但 Phase 2.7 的 L3 IMAGE PROMPT 必须等视觉锁定后回填。Lifecycle Phase 3 必须在内容与视觉都锁定后才能启动。
 
 ### 两个支撑层（Supporting Layers）
 
@@ -151,7 +151,7 @@ PPTMAKER_FRAMEWORK/
 
 ### 3. 版本快照
 
-- 每次重大下游改动用 `bundle_layout.mjs --new-version ...` 创建干净版本
+- 每次重大下游改动用 `bundle_layout.mjs --new-version ...` 创建干净版本；只复制 `slide-specifications.md` 与 `overrides/` 等下游源 delta，不复制 `_generated/`
 - Changelog 记录什么变了、为什么——"原因"比"做什么"更重要
 - 方法论文件在 Git 中版本管理；项目产出物在项目目录中管理
 

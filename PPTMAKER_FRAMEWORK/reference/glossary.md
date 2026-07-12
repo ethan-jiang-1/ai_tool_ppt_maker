@@ -119,7 +119,7 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 - **Speaker Note**：叙事流、术语解释、takeaway（给演讲者读）
 
 ### VISUAL TYPE（页面视觉类型）
-一张 slide 的布局标签——Title / Opener、Concept Split、Direction、Evidence、Framework、Section Divider、Closer 等。这个标签告诉 pipeline：默认映射到哪个 RENDER MODE（Title/Opener、Section Divider、Closer → `full-page`；其余 → `body+header-lock`）。也可在 L1 显式写 `RENDER MODE` 覆盖。
+一张 slide 的布局标签——Title / Opener、Concept Split、Direction、Evidence、Framework、Section Divider、Closer 等。新 deck 的 top-level `render.default: full-page` 是默认策略；`VISUAL TYPE` 不会把普通页自动降为 body-lock。只有没有 top-level `render` 的 legacy deck 才按 VISUAL TYPE 派生 mode，也可用显式 render policy/override 调整。
 
 ### KICKER
 一行短小的全大写文字（3-6 词），放在 slide 左上角，告诉观众"你现在在哪个部分"。它是标签，不是 claim。如 `THE PROBLEM`、`HOW IT WORKS`。
@@ -148,9 +148,11 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 
 ### 编辑链（Editing Chain）
 不同类型改动走不同的管线阶段子集：
-- **链 A**：改标题文字 → Stage 1 → 3 → 4 → 5（~5 分钟）
+- **链 A**：只适用于 resolved `body+header-lock` 的 Kicker/Title/Subtitle → Stage 1 → 3 → 4 → 5（~5 分钟）
 - **链 B**：改画面/IMAGE PROMPT → Stage 1 → 2 → 3 → 4 → 5（~5 分钟/页）
 - **链 C**：改 speaker notes → Stage 5 only（~30 秒）
+
+标题意图统一走 `ppt_flow refresh --kind title`：resolved `full-page` 标题属于链 B，需要所选页生图与 header review。
 
 ### Gate Check（闸门检查）
 每个 Phase 和 Stage 结束时的强制检查点。Agent 停下来等用户确认后才能继续。**跳过闸门 = 下游改动成本指数增长。**
@@ -183,4 +185,4 @@ Image generation 的调用模式：submit（提交 prompt）→ poll（轮询任
 
 ---
 
-> 有术语缺失？先 `rg` 真路径/文件名（Where Map）；再查 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。Where Map 缺行补本文件——别另造目录名。Run-bundle 树定义属 **run-bundle-layout**，软包树属 **framework-directory-layout**。
+> 有术语缺失？先 `rg` 真路径/文件名（Where Map）；再查 [charter/AGENT_CONTRACT.md](../charter/AGENT_CONTRACT.md)。Where Map 缺行补本文件——别另造目录名。Run-bundle 树定义属 **run-bundle-layout**，软包树属 **framework-directory-layout**。

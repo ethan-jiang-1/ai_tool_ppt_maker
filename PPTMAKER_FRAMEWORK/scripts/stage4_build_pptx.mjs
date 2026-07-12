@@ -242,5 +242,7 @@ export async function main(argv = process.argv) {
 // Run when executed directly (not imported)
 const __filename = fileURLToPath(import.meta.url);
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/stage4_build_pptx.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "stage4_build_pptx" });
   main();
 }

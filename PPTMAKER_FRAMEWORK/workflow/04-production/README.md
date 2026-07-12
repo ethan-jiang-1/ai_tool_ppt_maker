@@ -19,7 +19,7 @@ agent_action: navigate
 
 > 本管线的所有 stage 都运行在 **run bundle**（文件系统实例）内部——消费 run bundle 中的源文件（`3_versions/v1/slide-specifications.md` + `2_backbone/visual-style/`），产出 run bundle 中的派生品（全部写入 `_generated/`）。管线脚本从 `scripts/` **就地运行**（通过 `unified_pipeline.mjs --run-dir`），不复制进 run bundle。
 
-一套可复用的五阶段管线，将人类撰写的 slide 内容规格（来自 [workflow/02-content](../workflow/02-content/)）+ 一张 style master 视觉参考图（来自 [workflow/01-visual](../workflow/01-visual/)）转化为一份完成的 PPTX 文件。整个管线由 **Node.js** 脚本串联（Stage 2 经 `image2-ppt` skill 生图），每个阶段有明确的 input/output 契约，可以独立运行和调试。
+一套可复用的五阶段管线，将人类撰写的 slide 内容规格（来自 [workflow/02-content](../02-content/)）+ 一张 style master 视觉参考图（来自 [workflow/01-visual](../01-visual/)）转化为一份完成的 PPTX 文件。整个管线由框架内 **Node.js** 脚本串联；Stage 2 由 `stage2_generate_images.mjs` 与 `image_api_client.mjs` 执行，不依赖外部 agent skill。
 
 ## 核心思想，一段话讲完
 
@@ -65,7 +65,7 @@ agent_action: navigate
 
 | 链 | 改了什么 | 走哪些 Stage | 耗时 |
 |----|---------|-------------|------|
-| **A** | Kicker / Title / Subtitle 文字 | 1 → 3 → 4 → 5 | ~5 min |
+| **A** | `body+header-lock` 的 Kicker / Title / Subtitle | 1 → 3 → 4 → 5 | ~5 min |
 | **B** | Image prompt / 画面视觉 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
 | **C** | Speaker notes 讲稿 | 5 | ~30 sec |
 
@@ -83,9 +83,9 @@ agent_action: navigate
 
 ## 这份指南不覆盖什么
 
-- 怎么设计 slide 内容——在 [workflow/02-content](../workflow/02-content/) 里
-- 怎么创建 style master——在 [workflow/01-visual](../workflow/01-visual/) 里
-- 怎么写好 image prompt——在 [workflow/03-prompts](../workflow/03-prompts/) 里
+- 怎么设计 slide 内容——在 [workflow/02-content](../02-content/) 里
+- 怎么创建 style master——在 [workflow/01-visual](../01-visual/) 里
+- 怎么写好 image prompt——在 [workflow/03-prompts](../03-prompts/) 里
 - 特定 vendor 的 API 集成细节——在 reference-pipeline-scripts.md 里用通用模式替代
 
 这份指南只聚焦于 **生产管线**——把设计变成可交付的 PPTX 文件。
@@ -95,8 +95,8 @@ agent_action: navigate
 这套管线源于为一个 precision manufacturing 客户制作 19 页 AI 战略 keynote 的生产实战。该案例的核心特征：
 - 分阶段线性管线，每个阶段输出可检查的中间文件（现实现为 Node.js `.mjs`）
 - Header-Lock 机制：body+header-lock slides（确定性叠标题）+ full-page slides（AI 全页生成）
-- Async image API（submit→poll→download），经 `image2-ppt` skill
-- 三条编辑链：链 A 改标题 5 分钟，链 B 改画面 5 分钟/页，链 C 改讲稿 30 秒
+- Async image API（submit→poll→download），由框架内 `image_api_client.mjs` 执行
+- 三条编辑链：标题请求先走 `ppt_flow refresh --kind title`；resolved `body+header-lock` 走链 A，`full-page` 走链 B；讲稿走链 C
 - Canvas 尺寸 1672×941 px，16:9 PPTX 容器
 
 该管线的版本演进（v1 26 slides → v2 20 slides → v3 19 slides）贯穿了本方法论文件中的示例。

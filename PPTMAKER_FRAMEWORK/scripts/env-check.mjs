@@ -714,6 +714,12 @@ const isMain =
     process.argv[1].endsWith('/env-check.mjs') ||
     process.argv[1].endsWith('\\env-check.mjs'));
 if (isMain) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "env-check" });
+  if (process.argv.includes("--help")) {
+    console.log("Usage: node env-check.mjs [--json] [--smoke] [--probe-vendors]");
+    process.exit(0);
+  }
   main().catch((err) => {
     console.error(`✗ env-check failed: ${err.message}`);
     process.exit(1);

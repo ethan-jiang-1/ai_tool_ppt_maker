@@ -1,81 +1,80 @@
 ---
 playbook: edit-visual
-description: 视觉修改——换图/换配色/改布局, 先pilot再全量
+description: 视觉修改——固定三页 pilot，审查后再生成范围内页面
 includes: [classify-change]
 ---
 
-# Playbook: Chain B — 视觉修改
-
-> 换图/换颜色/改布局. 先 pilot 再全量, ~5 min/page.
+# Playbook: 视觉修改
 
 ## Nodes
 
 ### classify-change (shared)
-执行变更分类 → 确认这是 Chain B. 判断是否 pilot 先行.
+
+确认 Chain B、三页代表性 pilot 和最终 regeneration scope。
 
 ### pilot
-→ 3 页试跑
 
 ```yaml
 node: pilot
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [classify-change]
-produces: [pilot-images]
-entry:
-  - target_slides_identified (opener/body/closer)
+produces: [three-slide-pilot, pilot-contact-sheet]
+entry: [style_master_exists]
 exit:
-  - pilot_approved
+  - header_review_current
+  - user_evidence:pilot-approved
 ```
 
-**Step 1 — CLI**: `node scripts/ppt_flow.mjs pilot <dir> --only <slide_ids> --force-images --resolution <production-profile>`
-**Step 2 — MD**: **必须 open** pilot 产物。full-page header 还要检查准确性、清晰度、位置、字号、左对齐、跨页一致性与 body overlap。手工 subset 覆盖不足时补跑 content full-page。通过后 `approve <dir> header`；不通过回到 classify-change。
+**Step 1 — CLI**: 选择 opener/body/closer 三页，运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot <run-dir> --only <three-slide-ids> --force-images --resolution <production-profile>`。
+
+**Step 2 — GATE**: 必须 open pilot/contact sheet；用户批准后运行 `approve <run-dir> header` 并记录 `pilot-approved`（kind `user`）。
 
 ### confirm
-→ 确认 pilot, 准备全量
 
 ```yaml
 node: confirm
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [pilot]
 produces: [regeneration-plan]
-entry:
-  - pilot_approved
-exit:
-  - scope_confirmed
+entry: []
+exit: [user_evidence:scope-confirmed]
 ```
 
-**Step 1 — MD**: 确认全量范围: 所有页? 还是受影响页? 告知用户预估时间
+**Step 1 — MD**: 展示所有页或受影响页的明确范围和预计耗时。
+
+**Step 2 — GATE**: 用户确认范围后记录 `scope-confirmed`（kind `user`）。
 
 ### regenerate
-→ 全量生图 + 管线
 
 ```yaml
 node: regenerate
-phase: 04
+lifecycle_phase: 4
+method_module: 04-production
 requires: [confirm]
 produces: [updated-images, updated-pptx]
-entry:
-  - scope_confirmed
+entry: []
 exit:
-  - all_images_regenerated
-  - pptx_updated
+  - pptx_generated
+  - speaker_notes_injected
+  - header_review_current
 ```
 
-**Step 1 — CLI**: 受影响页先按 Chain B pilot + review + `approve header`；不要在同一条生产链中覆盖已审 full-page 图片。
-**Step 2 — CLI**: `node scripts/ppt_flow.mjs build <dir> --resolution 2k --reuse-images`
+**Step 1 — CLI**: 对范围内页面完成 pilot/review；运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，不得覆盖已审 full-page 图片。
 
-### verify-output
-→ 验证视觉修改
+### verify-visual-output
 
 ```yaml
-node: verify-output
-phase: 05
+node: verify-visual-output
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [regenerate]
 produces: [verified-pptx]
-entry:
-  - pptx_updated
-exit:
-  - visual_change_verified
+entry: []
+exit: [user_evidence:visual-change-verified]
 ```
 
-**Step 1 — MD**: 抽查修改页, 确认颜色/布局/图片正确. 更新 state
+**Step 1 — MD**: Open 最终 PPTX，抽查修改页及未修改页的颜色、布局、图片和 header。
+
+**Step 2 — GATE**: 用户确认后记录 `visual-change-verified`（kind `user`）。

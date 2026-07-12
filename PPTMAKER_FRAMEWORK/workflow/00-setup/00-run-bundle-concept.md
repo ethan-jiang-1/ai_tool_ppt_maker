@@ -13,7 +13,7 @@ agent_action: internalize
 
 # 00 — The Run Bundle Concept
 
-← [README](README.md) | [Next →](charter/CONSTITUTION.md)
+← [README](README.md) | [Next →](../../charter/CONSTITUTION.md)
 
 ## Soft Bundle vs Run Bundle
 

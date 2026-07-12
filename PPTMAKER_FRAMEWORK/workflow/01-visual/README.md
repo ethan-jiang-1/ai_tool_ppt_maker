@@ -64,8 +64,8 @@ agent_action: navigate
 ## 这份指南不覆盖什么
 
 - 完整 deck production pipeline——在 `workflow/04-production/` 和 `scripts/` 里
-- 如何安装或配置 image generation scripts——在 skill 的 script usage 里
-- 怎么做 contact sheet 或封装 PPTX——那是 skill workflow 的 Phase 3
+- 如何配置 image generation API——见 `workflow/00-setup/03-tool-selection.md`
+- 怎么做 contact sheet 或封装 PPTX——见 Method Module 04 的 Pipeline Stage 2–4
 
 这份指南只聚焦于 **Visual Style Master**——一切视觉一致性的基础。
 
@@ -77,7 +77,7 @@ agent_action: navigate
 
 该案例的 visual direction 演变过程（从 multi-color Amber/Emerald/Red/Gold → single-family blue-cyan-teal，从粗糙工业螺栓 → "Jewel-like, not industrial. Think Swiss watch components, not construction bolts"）贯穿了本方法论文件中的示例。
 
-这套方法论的执行依赖 `unified_pipeline.mjs`（Stage 2 走 image2-ppt skill）和 `scripts/` 中的后续管线脚本。
+这套方法论由 `scripts/` 内的 `unified_pipeline.mjs`、`stage2_generate_images.mjs`、`image_api_client.mjs` 与后续管线脚本执行。
 
 ---
 

@@ -16,7 +16,7 @@ agent_action: navigate
 
 ## 这是什么
 
-> 本模块是**能力层**——它不产出文件，而是赋能 [01 Visual Style Master](../workflow/01-visual/) 和 [02 Content Design](../workflow/02-content/) 中的 IMAGE PROMPT 写作。所有 IMAGE PROMPT 最终都写入 run bundle 的源文件中。
+> 本模块是**能力层**——它不产出文件，而是赋能 [01 Visual Style Master](../01-visual/) 和 [02 Content Design](../02-content/) 中的 IMAGE PROMPT 写作。所有 IMAGE PROMPT 最终都写入 run bundle 的源文件中。
 
 一份方法论，教你为 **GPT Image 2** 写出高质量、可复现的 image generation prompt。
 
@@ -43,7 +43,7 @@ agent_action: navigate
 
 ## 工具
 
-Image generation 的官方路径是 `unified_pipeline.mjs` → skill `image2-ppt/scripts/generate_full_page_images.mjs`（经 unified_pipeline 调用）。无 skill 时 Stage 2 无法生图。参见 `workflow/00-setup/03-tool-selection.md` 了解 API 配置。
+Image generation 的官方路径是框架内 `unified_pipeline.mjs` → `stage2_generate_images.mjs` → `image_api_client.mjs`。它不依赖外部 agent skill；API 配置见 `workflow/00-setup/03-tool-selection.md`。
 
 > **模型说明**：本框架基于 GPT Image 2 设计和验证。它是目前做 image-based PPT 效果最好的模型——style anchoring 机制、文字渲染质量、色彩一致性都最优。如果你用其他模型，方法论原则仍然适用，但具体 prompt 结构和参数可能需要调整。
 

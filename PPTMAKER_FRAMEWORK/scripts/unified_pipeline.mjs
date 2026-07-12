@@ -28,8 +28,7 @@
  *     Chain C (speaker notes):    --stage 5
  */
 
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync,
-         copyFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -702,45 +701,13 @@ export async function stage5(runDir, dryRun) {
     return true;
   }
 
-  let pptxFiles = [];
-  if (existsSync(pptDir)) {
-    pptxFiles = readdirSync(pptDir)
-      .filter((f) => f.endsWith(".pptx") && !f.endsWith(".backup.pptx"))
-      .map((f) => join(pptDir, f))
-      .sort();
-  }
-  if (pptxFiles.length === 0) {
-    console.log(`  ✗ No .pptx found in ${pptDir}. Run Stage 4 first.`);
-    return false;
-  }
-
-  if (pptxFiles.length > 1) {
-    console.log(
-      `  ⚠  ${pptxFiles.length} .pptx files in ${pptDir}; using ${basename(pptxFiles[0])}. ` +
-      `Remove strays so the target is unambiguous.`
-    );
-  }
-  const pptxFile = pptxFiles[0];
-
-  // Back up the pre-notes deck — but never CLOBBER an existing backup, or a second
-  // Stage-5 run would overwrite the clean images-only backup with the already-
-  // notes-injected deck, destroying the recoverable pre-notes state.
-  const backup = join(dirname(pptxFile),
-    basename(pptxFile).replace(/\.pptx$/, ".backup.pptx"));
-  if (existsSync(backup)) {
-    console.log(`  Keeping existing backup ${basename(backup)} (not overwriting).`);
-  } else {
-    console.log(`  Backing up PPTX to ${basename(backup)}`);
-    copyFileSync(pptxFile, backup);
-  }
-
   try {
-    const { extractNotesFromMarkdown, injectNotes } = await import("./stage5_inject_notes.mjs");
-    const notes = extractNotesFromMarkdown([inputFile]);
-    const result = await injectNotes({ pptx: pptxFile, notes });
+    const { injectNotesFromRunDir } = await import("./stage5_inject_notes.mjs");
+    const result = await injectNotesFromRunDir(runDir);
 
     console.log(`\n  ✓ Stage 5: Inject Notes completed successfully.`);
     console.log(`  Notes injected: ${result.notesInjected}/${result.slideCount} slides`);
+    console.log(`  Receipt: ${join(generatedDir(runDir), GEN_QA_SUBDIR, "notes_injection.json")}`);
     return true;
   } catch (err) {
     console.log(`\n  ✗ Stage 5: Inject Notes FAILED: ${err.message}`);
@@ -922,6 +889,8 @@ Examples:
 const __filename_main = fileURLToPath(import.meta.url);
 if (process.argv[1] === __filename_main ||
     process.argv[1]?.endsWith("/unified_pipeline.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "unified_pipeline" });
   main().catch((err) => {
     console.error(`✗ Fatal error: ${err.message}`);
     process.exit(1);

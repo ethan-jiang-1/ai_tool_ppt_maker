@@ -26,12 +26,13 @@ agent_action: execute_pipeline
 
 Speaker notes 是唯一对视觉没有影响的元素。它们存在于 PPTX 的 notes 面板中——只在 Presenter View 中可见，不影响 slide 画面。因此它们可以最后注入——在所有视觉相关阶段（1-4）完成之后。
 
-这也意味着：**Stage 5 是唯一原地修改 PPTX 的阶段。** Stages 1-4 都是 "读取输入、写入新输出"。Stage 5 是 "读取输入、修改现有文件"。因此在运行 Stage 5 之前，必须先备份 PPTX：
+这也意味着：**Stage 5 是唯一原地替换 PPTX 的阶段。** Stages 1-4 都是“读取输入、写入新输出”。Canonical run-bundle 路径会保留备份、在同目录临时文件中完成修改、原子替换 PPTX，并在成功后写 `_generated/qa/notes_injection.json` receipt：
 
 ```bash
-cp _generated/ppt/{NAME}.pptx _generated/ppt/{NAME}.backup.pptx
-node PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs --run-dir ...
+node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <version-dir> --stage 5
 ```
+
+低层 Expert 模式可用 `node PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs --pptx <file> --input <spec.md>`，但它不是 run-bundle receipt 路径。
 
 ## 提取 Speaker Notes
 
@@ -82,21 +83,19 @@ pptx.slides.forEach((slide, i) => {
 await pptx.writeFile({ fileName: "_generated/ppt/{NAME}.pptx" });
 ```
 
-**务必先备份**——`pptxgenjs` 的 `writeFile()` 会覆盖原文件，没有 undo。
+Run-bundle 路径自动保留备份并原子替换；不要手工改 `_generated/` 或绕过 receipt。
 
 ## 三条编辑链：完整工作流
 
 编辑链是整个管线最实用的概念。不同类型的改动走不同的阶段子集：
 
-### 链 A：改标题文字（Kicker / Title / Subtitle）
+### 标题修改：先按 resolved render mode 分流
 
 **场景**："Slide 8 的标题不够 sharp，改成更直接的表述。"
 
-**影响范围**：单张或多个 slide 的 header 文字
-**走哪些 Stage**：1 → 3 → 4 → 5
-**为什么跳过 Stage 2**：画面没变——AI 生成的 body visual 不需要重新生成。Stage 3 需要重跑因为 header 文字变了（需要重新叠加）。
+统一入口是 `ppt_flow refresh --kind title`。`body+header-lock` 的 Kicker / Title / Subtitle 走链 A（1 → 3 → 4 → 5），因为文字由 Stage 3 渲染；`full-page` 的标题烧在图里，走链 B（1 → 2 → 3 → 4 → 5），只强制重生所选图片并完成当前 header review。
 
-**耗时**：~5 分钟（Stage 1: 30s → Stage 3: 30s → Stage 4: 30s → Stage 5: 30s）
+**耗时**：body-lock 通常 ~5 分钟；full-page 按受影响页数计。
 
 ### 链 B：改画面视觉（Image Prompt）
 

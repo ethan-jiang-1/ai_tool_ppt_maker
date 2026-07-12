@@ -1,207 +1,217 @@
 ---
 playbook: create-deck
-description: 全量创建——从零开始做一个PPT, ~11 nodes
+description: 从初始化到交付的完整 deck workflow
 includes: []
 ---
 
-# Playbook: 全量创建
+# Playbook: Create Deck
 
-> 从零开始做一个 PPT. 11 个 node, 按顺序执行.
-> **写盘:** 进出节点必须 `writeState`；等人时在当前 node 写 `waiting_for` / `note`（断线后续跑靠盘，不靠聊天）。
+节点顺序：instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → readiness/rerun → final。
 
 ## Nodes
 
 ### instantiation
-→ 创建 run bundle
 
 ```yaml
 node: instantiation
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: []
-produces: [run_bundle, project-metadata.yaml]
-entry:
-  - node_status:instantiation:completed
-exit:
-  - run_bundle_exists
-  - deck_guide_created
+produces: [run-bundle, deck-guide]
+entry: []
+exit: [run_bundle_exists, deck_guide_created]
 ```
 
-**Step 1 — CLI**: `node scripts/env-check.mjs`
-**Step 2 — CLI**: `node scripts/bundle_layout.mjs --init deck_<name> [--deck-type X] [--style Y]`
-**Step 3 — CLI**: 写 `_state/state.yaml` 初始状态
+**Step 1 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`。
+
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_<name> --deck-type <type> --style <style>`，不手工复制 preset。
+
+**Step 3 — CLI**: 用 `createInitialState` + `writeState` 写入 schema v2 初始状态。
 
 ### hitl1
-→ 人机交互: 确认方向/profile/topics
 
 ```yaml
 node: hitl1
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [instantiation]
-produces: [intake_decisions]
-entry:
-  - run_bundle_exists
+produces: [confirmed-intake]
+entry: []
 exit:
-  - intake_complete
-  - user_confirmed_direction
+  - user_evidence:intake-confirmed
+  - user_evidence:direction-confirmed
 ```
 
-**Step 1 — MD**: 5 问题 intake (topic/audience/duration/language/key-takeaway). Agent 推荐 2-3 个候选, 用户选.
-**Step 2 — MD**: 确认结果写入 state
+**Step 1 — MD**: 完成 topic/audience/duration/language/key-takeaway intake，并给出有理由的方向候选。
+
+**Step 2 — GATE**: 用户确认 intake 和方向后分别记录 user evidence。
 
 ### setup
-→ 配置 research profile + 视觉 preset
 
 ```yaml
 node: setup
-phase: 01
+lifecycle_phase: 2
+method_module: 01-visual
 requires: [hitl1]
-produces: [color_palette.json, deck_system.txt, style-master-prompt.md]
-entry:
-  - intake_complete
+produces: [visual-system, style-master]
+entry: []
 exit:
   - visual_preset_seeded
+  - style_master_exists
+  - gate_approved:visual
+  - user_evidence:style-master-reviewed
 ```
 
-**Step 1 — MD**: 读 workflow/01-visual/. 推荐 2-3 个 visual preset, 用户选一个.
-**Step 2 — CLI**: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`（prompt 源：`2_backbone/visual-style/style-master-prompt.md`；转述 client 进度日志）
-**Step 3 — Gate**: **必须 open** `2_backbone/visual-style/style_master.jpg`（禁止只描述）。一次满意 → `ppt_flow.mjs approve <run-dir> visual`，并同步 `_state`：`setGate(state, 'visual', 'approved')` + `writeState`，再进 seed-topics。用户要多轮打磨 → `switchPlaybook` 进入 `iterate-style`（勿只改文案过 gate）；回来后 `resumePlaybook`。
+**Step 1 — MD**: 读取 `workflow/01-visual/`；确认 medium/preset，生成或迭代 style master。
+
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`。
+
+**Step 3 — GATE**: 必须 open `style_master.jpg`；满意后 `approve <run-dir> visual`、同步 state gate，并记录 `style-master-reviewed`。需要多轮时使用 `switchPlaybook(iterate-style)`。
 
 ### seed-topics
-→ 生成初始 topic 列表
 
 ```yaml
 node: seed-topics
-phase: 02
+lifecycle_phase: 1
+method_module: 02-content
 requires: [setup]
-produces: [topic_list, block_map]
-entry:
-  - gate_approved:visual
+produces: [core-metaphor, core-formula, block-map]
+entry: []
 exit:
-  - topics_generated
-  - block_map_confirmed
+  - gate_approved:content
+  - evidence:topics-generated
+  - user_evidence:block-map-confirmed
 ```
 
-**Step 1 — MD**: 读 workflow/02-content/. 生成核心隐喻 + 公式 + Block Map.
-**Step 2 — MD**: 用户确认. 更新 state: content_gate → approved
+**Step 1 — MD**: 读取 `workflow/02-content/`，生成核心隐喻、公式和 Block Map。
+
+**Step 2 — GATE**: 用户确认 Block Map 后批准 content gate；记录 agent/user evidence。
 
 ### wave0
-→ 基础证据收集
 
 ```yaml
 node: wave0
-phase: 04
+lifecycle_phase: 1
+method_module: 02-content
 requires: [seed-topics]
-produces: [slide-specifications.md (L1/L2/L4 filled), foundation-sources]
-entry:
-  - gate_approved:content
-  - gate_approved:visual
+produces: [slide-specifications-l1-l2-l4]
+entry: [gate_approved:content, gate_approved:visual]
 exit:
-  - slide_specs_l1_l2_l4_complete
-  - wave0_sources_collected
+  - slide_specs_exists
+  - evidence:l1-l2-l4-complete
+  - evidence:sources-collected
 ```
 
-**Step 1 — MD**: 读 workflow/02-content/. 为每页 slide 填 L1 Meta + L2 Concept + L4 Speaker Note. L3 Image Prompt 留占位.
-**Step 2 — CLI**: `node scripts/stage1_build_inputs.mjs --spec <path> --out <dir> --validate`
+**Step 1 — MD**: 为每页完成 L1 Meta、L2 Concept、L4 Speaker Note；L3 保持明确占位。
+
+**Step 2 — MD**: 收集并标注所需来源，记录 `l1-l2-l4-complete` 与 `sources-collected`（kind `agent`）。
 
 ### wave1
-→ 深度证据收集 (L3 Image Prompt 回填)
 
 ```yaml
 node: wave1
-phase: 04
+lifecycle_phase: 2.7
+method_module: 03-prompts
 requires: [wave0]
-produces: [slide-specifications.md (L3 filled)]
-entry:
-  - slide_specs_l1_l2_l4_complete
+produces: [validated-slide-specifications]
+entry: []
 exit:
-  - all_l3_prompts_filled
-  - stage1_validate_passes
+  - slide_specs_valid
+  - evidence:l3-prompts-filled
 ```
 
-**Step 1 — MD**: 读 workflow/03-prompts/. 为每页 slide 写 L3 Image Prompt (参考 style_master.jpg + deck_system.txt).
-**Step 2 — CLI**: `node scripts/stage1_build_inputs.mjs --spec <path> --out <dir> --validate`
+**Step 1 — MD**: 读取 `workflow/03-prompts/`，依据锁定的 visual system 填完所有 L3 IMAGE PROMPT。
+
+**Step 2 — CLI**: 运行 Stage 1 使用的同一 validation contract，ERROR 清零后记录 `l3-prompts-filled`（kind `agent`）。
 
 ### wave2
-→ 生产管线: pilot → full generation
 
 ```yaml
 node: wave2
-phase: 04
+lifecycle_phase: 3
+method_module: 04-production
 requires: [wave1]
-produces: [page_images_full/*.png, header_locked/*.png, .pptx]
-entry:
-  - all_l3_prompts_filled
+produces: [page-images, reviewed-header-evidence, final-pptx, notes-receipt]
+entry: [gate_approved:content, gate_approved:visual]
 exit:
   - pptx_generated
   - speaker_notes_injected
+  - header_review_current
 ```
 
-**Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1`
-**Step 2 — CLI**: `node scripts/ppt_flow.mjs pilot <dir> --resolution 2k --force-images`（使用计划 production profile；自动优先覆盖 1-2 张 content full-page）
-**Step 3 — MD**: open contact sheet，检查 header 准确性、清晰度、位置、字号、左对齐、跨页一致性和 body overlap。手工 subset 覆盖不足就补跑。问题页只有用户确认后才升级 `render.header-lock`，并按 Chain B 重生重审。
-**Step 4 — CLI**: `node scripts/ppt_flow.mjs approve <dir> header`。partial evidence 必须继续补足；既有 visual approval 不能替代 header evidence。
-**Step 5 — CLI**: `node scripts/ppt_flow.mjs build <dir> --resolution 2k --reuse-images`（保留 reviewed hashes，生成未缓存页，再完成 Stage 3/4/5）
+**Step 1 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot <run-dir> --resolution 2k --force-images`。
+
+**Step 2 — GATE**: Open contact sheet，审查 full-page header；运行 `approve <run-dir> header`，partial coverage 必须补足。
+
+**Step 3 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，完成 Stage 3/4/5。
 
 ### hitl2
-→ 人机交互: 审阅 synthesis
 
 ```yaml
 node: hitl2
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [wave2]
-produces: [review_decision]
-entry:
-  - pptx_generated
-exit:
-  - review_complete
+produces: [review-decision]
+decisions: [proceed, repair, redirect]
+entry: []
+exit: [user_decision_recorded]
 ```
 
-**Step 1 — MD**: 用户审阅生成的 .pptx. 三个出口: (a) 满意 → readiness, (b) 要修 → rerun, (c) 方向错 → 回 hitl1
+**Step 1 — MD**: 用户审阅最终 PPTX；说明 proceed、repair、redirect 三个明确出口。
+
+**Step 2 — GATE**: 用 `setNodeDecision` 记录用户 decision。`redirect` 重置 hitl1 及其下游；不得伪装成 proceed。
 
 ### readiness
-→ 最终交付前检查
 
 ```yaml
 node: readiness
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [hitl2]
-produces: [final_pptx]
-entry:
-  - review_decision:proceed
+produces: [delivery-checklist]
+entry: [node_decision:hitl2:proceed]
 exit:
-  - all_checks_pass
+  - pptx_generated
+  - speaker_notes_injected
+  - header_review_current
+  - gate_approved:content
+  - gate_approved:visual
+  - evidence:delivery-checks-passed
 ```
 
-**Step 1 — MD**: 检查清单: 页数对, gate 全批, 备注注入, 文件完整
+**Step 1 — MD**: 检查页数、gates、PPTX、notes receipt、header review 和文件完整性。
+
+**Step 2 — CLI**: 通过后记录 `delivery-checks-passed`（kind `agent`）。
 
 ### rerun
-→ 重跑/修复循环
 
 ```yaml
 node: rerun
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [hitl2]
-produces: [fixes_applied]
-entry:
-  - review_decision:repair
-exit:
-  - fixes_confirmed
+produces: [completed-repair]
+entry: [node_decision:hitl2:repair]
+exit: [evidence:repair-completed]
 ```
 
-**Step 1 — MD**: 按用户反馈分类 → 选 edit-text/edit-visual/edit-notes/restructure-slides. 修完后回到 hitl2 再审
+**Step 1 — MD**: 按反馈选择 edit-text/edit-visual/edit-notes/restructure-slides，并用 `switchPlaybook` 进入嵌套执行。
+
+**Step 2 — CLI**: 子 playbook 完成并 `resumePlaybook` 后记录 `repair-completed`（kind `agent`），再重置并返回 hitl2。
 
 ### final
-→ 最终报告生成
 
 ```yaml
 node: final
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [readiness]
-produces: [final-deliverable.pptx]
-entry:
-  - all_checks_pass
-exit:
-  - deck_delivered
+produces: [delivered-deck]
+entry: []
+exit: [evidence:deck-delivered]
 ```
 
-**Step 1 — MD**: 交付. 更新 state: playbook completed
+**Step 1 — MD**: 交付最终 PPTX、说明版本和可迭代入口。
+
+**Step 2 — CLI**: 记录 `deck-delivered`（kind `agent`）并持久化完成状态。

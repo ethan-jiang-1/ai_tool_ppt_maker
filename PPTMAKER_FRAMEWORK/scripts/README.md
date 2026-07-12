@@ -45,8 +45,8 @@ Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill�
 # 全量生产
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage all
 
-# 只改标题 (Chain A)
-node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 1,3,4,5
+# 改标题：先解析 resolved render mode，再由 ppt_flow 选择 Chain A / B
+node scripts/ppt_flow.mjs refresh deck_{NAME}/3_versions/v1 --kind title --only slide_07
 
 # 只改备注 (Chain C)
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 5

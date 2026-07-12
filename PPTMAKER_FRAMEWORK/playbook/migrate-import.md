@@ -1,116 +1,115 @@
 ---
 playbook: migrate-import
-description: 旁路——迁移/导入已有 deck（强制 show + 闸门）
+description: 迁移/导入已有 deck，强制可见检查与 gates
 includes: []
 ---
 
-# Playbook: 旁路 — 迁移 / 导入
-
-> 把已有资产迁进宪法树。禁止静默长跑、禁止只描述不 open、禁止「以前做过了」就跳过 gate。
-> 方法论：`workflow/00-setup/05-migrate-import-existing-deck.md`。
-> §11 全程有效。
-
-## 迁法 A / B / C（intake 必须让用户认）
-
-| 代号 | 策略 | 适用 |
-|------|------|------|
-| **A 新 init + 迁入** | `ppt_flow init deck_NEW …`，再把源资产拷/映射进新树 | 源很乱、或非 `deck_*` 命名 |
-| **B 原地升三层** | 已有 `deck_*`，把扁平/`_build` 映射到 `2_backbone` + `3_versions/v1` + `_generated` | 旧框架 run bundle |
-| **C 素材导入** | 只有 PPTX/图/markdown 碎片 → init 后填 `1_upstream` + 再走内容/视觉 | 无完整旧 bundle |
+# Playbook: 迁移 / 导入
 
 ## Nodes
 
 ### intake-source
-→ 定源、目标、迁法
 
 ```yaml
 node: intake-source
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: []
-produces: [migration_plan]
+produces: [migration-plan]
+decisions: [A, B, C]
 entry: []
-exit: [strategy_chosen]
+exit:
+  - user_decision_recorded
+  - user_evidence:success-criteria-confirmed
 ```
 
-**Step 1 — MD**: 确认源路径与目标 `deck_*` 名。
-**Step 2 — MD**: 给出迁法 **A / B / C** + 推荐 + 理由；用户选。
-**Step 3 — MD**: 写清成功标准（结构对齐、early-show 完成、gates 重申）。
+**Step 1 — MD**: 确认源、目标和 A 新 init / B 原地升三层 / C 素材导入三种策略。
+
+**Step 2 — GATE**: 用户选择 A/B/C 并确认成功标准后，记录 decision 和 `success-criteria-confirmed`。
 
 ### align-bundle
-→ 对齐/校验宪法树
 
 ```yaml
 node: align-bundle
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [intake-source]
-produces: [run_bundle_aligned]
-entry: [strategy_chosen]
-exit: [structure_ok]
+produces: [aligned-run-bundle]
+entry: []
+exit:
+  - run_bundle_exists
+  - evidence:bundle-layout-validated
 ```
 
-**Step 1 — MD**: 心跳——告知用户正在对齐结构。
-**Step 2 — CLI**: 策略 A/C → `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_<NAME> --deck-type … --style …`；策略 B → `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check <run-dir> --structure-only`。缺目录按宪法补，不自创结构。
+**Step 1 — CLI**: A/C 使用 `ppt_flow init`；B 使用 `bundle_layout.mjs --check <run-dir> --structure-only`。成功后记录 `bundle-layout-validated`（kind `cli`）。
 
 ### inventory-map
-→ 盘点与映射
 
 ```yaml
 node: inventory-map
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [align-bundle]
-produces: [asset_map]
-entry: [structure_ok]
-exit: [assets_mapped]
+produces: [asset-map]
+entry: []
+exit:
+  - evidence:assets-mapped
+  - user_evidence:mapping-confirmed
 ```
 
-**Step 1 — MD**: 列出源资产 → 目标路径映射表（旧 `style/`→`2_backbone/visual-style/`；slide 源→`3_versions/v1/slide-specifications.md`；`_build`→`_generated` 等）。
-**Step 2 — MD**: 用户确认映射后再搬；每完成一类资产 checkpoint 一次。禁止静默搬完再汇报。
-**Step 3 — MD**: 提醒：绝不手改 `_generated/` 当源。
+**Step 1 — MD**: 展示源资产到 canonical path 的映射；禁止把 `_generated/` 当源。
+
+**Step 2 — GATE**: 用户确认映射后搬运，并记录 agent/user evidence。
 
 ### early-show
-→ 第一步看得见的赢
 
 ```yaml
 node: early-show
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [inventory-map]
-produces: [first_visible_win]
-entry: [assets_mapped]
-exit: [user_saw_artifact]
+produces: [first-visible-win]
+entry: []
+exit: [user_evidence:artifact-reviewed]
 ```
 
-**Step 1 — MD**: 若存在 `style_master.jpg`（目标或源）或样张 → **必须 open**。
-**Step 2 — MD**: 否则降级 show：open `2_backbone/visual-style/style-master-prompt.md` / 展示 `bundle_layout` 树 / 打开旧 PPT 首页（环境允许时）。
-**Step 3 — Gate**: 有可展示图却只文字描述 → **不得** completed。
+**Step 1 — MD**: Open style master、样张、旧 PPT 首页或 canonical tree 中最有信息量的可见产物。
+
+**Step 2 — GATE**: 用户实际看过后记录 `artifact-reviewed`；有图却只文字描述不得完成。
 
 ### reaffirm-gates
-→ 重申 content + visual
 
 ```yaml
 node: reaffirm-gates
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [early-show]
-produces: [gates_reaffirmed]
-entry: [user_saw_artifact]
-exit: [gates_ok]
+produces: [reaffirmed-gates]
+entry: []
+exit:
+  - gate_approved:content
+  - gate_approved:visual
+  - user_evidence:gates-reaffirmed
 ```
 
-**Step 1 — MD**: content——**open** `3_versions/v1/slide-specifications.md`（或等价大纲）；用户认方向。
-**Step 2 — MD**: visual——**open** `2_backbone/visual-style/style_master.jpg`（若无则说明并建议 `iterate-style`）。
-**Step 3 — CLI/State**: 用户满意 → `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> content` 与/或 `visual`，并 `setGate` + `writeState`（双写）。
-**Step 4 — MD**: 视觉不满意 → `switchPlaybook(iterate-style)`；回来后 `resumePlaybook`。
+**Step 1 — MD**: Open content source和 style master；让用户重新确认方向。
+
+**Step 2 — CLI**: 运行 `ppt_flow approve <run-dir> content|visual` 并同步 state gates。
+
+**Step 3 — GATE**: 记录 `gates-reaffirmed`；视觉需迭代时使用 `switchPlaybook(iterate-style)`。
 
 ### handoff
-→ 下一步
 
 ```yaml
 node: handoff
-phase: 00
+lifecycle_phase: 0
+method_module: 00-setup
 requires: [reaffirm-gates]
-produces: [next_action]
-entry: [gates_ok]
-exit: [handed_off]
+produces: [next-action]
+entry: []
+exit: [evidence:handoff-recorded]
 ```
 
-**Step 1 — MD**: 推荐 `quick-preview`（gates 已批）或说明何时 `build`。
-**Step 2 — MD**: 若用户要全量生图：先说明耗时与 checkpoint 计划；禁止静默开长 Stage 2。
+**Step 1 — MD**: 推荐 quick-preview 或 production 的明确下一步和预计耗时。
+
+**Step 2 — CLI**: 记录 `handoff-recorded`（kind `agent`）。

@@ -244,5 +244,7 @@ export async function main(argv = process.argv) {
 }
 
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/stage2_generate_images.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "stage2_generate_images" });
   main();
 }

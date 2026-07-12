@@ -18,8 +18,8 @@
  * Imports path constants from ./bundle_layout.mjs.
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { Command } from "commander";
@@ -32,6 +32,11 @@ import {
   findSlideSpecs,
   deckName,
 } from "./bundle_layout.mjs";
+import {
+  buildNotesReceipt,
+  invalidateNotesReceipt,
+  writeNotesReceiptAtomic,
+} from "./lib/notes_receipt.mjs";
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -242,6 +247,10 @@ function countSlides(zip) {
  * @returns {Promise<{slideCount: number, notesInjected: number}>}
  */
 export async function injectNotes({ pptx, notes }) {
+  if (notes.some((note) => typeof note !== "string" || note.trim() === "")) {
+    const missing = notes.map((note, index) => (!note || !note.trim() ? index + 1 : null)).filter(Boolean);
+    throw new Error(`Stage 5 aborted: missing SPEAKER NOTE content for slide(s) ${missing.join(", ")}`);
+  }
   const pptxBuf = readFileSync(pptx);
   const zip = await JSZip.loadAsync(pptxBuf);
 
@@ -298,7 +307,14 @@ export async function injectNotes({ pptx, notes }) {
     compression: "DEFLATE",
     compressionOptions: { level: 6 },
   });
-  writeFileSync(pptx, outBuf);
+  const temp = join(dirname(pptx), `.${basename(pptx)}.stage5-${process.pid}-${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temp, outBuf);
+    renameSync(temp, pptx);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 
   return { slideCount, notesInjected };
 }
@@ -316,14 +332,13 @@ export async function injectNotes({ pptx, notes }) {
  * @returns {Promise<{slideCount: number, notesInjected: number}>}
  */
 export async function injectNotesFromRunDir(runDir) {
+  invalidateNotesReceipt(runDir);
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
     throw new Error(`No ${SLIDE_SPECS_GLOB} found in ${runDir}`);
   }
 
   const pptDir = join(generatedDir(runDir), GEN_PPT_SUBDIR);
-  const { readdirSync, existsSync } = await import("node:fs");
-
   if (!existsSync(pptDir)) {
     throw new Error(`No ppt/ dir found in _generated/. Run Stage 4 first.`);
   }
@@ -333,11 +348,25 @@ export async function injectNotesFromRunDir(runDir) {
     .map((f) => join(pptDir, f))
     .sort();
 
-  if (pptxFiles.length === 0) {
-    throw new Error(`No .pptx found in ${pptDir}. Run Stage 4 first.`);
+  if (pptxFiles.length !== 1) {
+    throw new Error(pptxFiles.length === 0
+      ? `No .pptx found in ${pptDir}. Run Stage 4 first.`
+      : `${pptxFiles.length} non-backup PPTX files found in ${pptDir}; remove strays before Stage 5.`);
   }
-
-  return injectNotes({ pptx: pptxFiles[0], notes: extractNotesFromMarkdown([inputFile]) });
+  const pptxFile = pptxFiles[0];
+  const backup = pptxFile.replace(/\.pptx$/, ".backup.pptx");
+  if (!existsSync(backup)) copyFileSync(pptxFile, backup);
+  const notes = extractNotesFromMarkdown([inputFile]);
+  const result = await injectNotes({ pptx: pptxFile, notes });
+  const receipt = buildNotesReceipt({
+    runDir,
+    inputPath: inputFile,
+    pptxPath: pptxFile,
+    slideCount: result.slideCount,
+    notesInjected: result.notesInjected,
+  });
+  writeNotesReceiptAtomic(runDir, receipt);
+  return { ...result, receipt, inputFile, pptxFile };
 }
 
 // ---------------------------------------------------------------------------
@@ -378,5 +407,7 @@ export async function main(argv = process.argv) {
 // Run when executed directly (not imported)
 const __filename = fileURLToPath(import.meta.url);
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/stage5_inject_notes.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "stage5_inject_notes" });
   main();
 }
