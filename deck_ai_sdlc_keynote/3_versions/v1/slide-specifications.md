@@ -3,12 +3,15 @@ title: Slide Specifications — AI 时代的信息加工变革 (v1)
 stage: workflow/02-content
 position: downstream
 type: slide-specifications
-summary: 本 deck 的每页四层规格 + Block Map + 每页 render mode。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 22 页。
+summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 25 页。
 depends_on:
 - workflow/02-content/03-specify-slides-multi-layer.md
 - workflow/02-content/02-build-narrative-arc-blocks.md
 feeds_into:
 - scripts/stage1_build_inputs.mjs
+render:
+  default: full-page
+  header-lock: []
 ---
 
 # Slide Specifications — AI 时代的信息加工变革 (v1)
@@ -16,6 +19,8 @@ feeds_into:
 > 每个版本一份下游文件,也是**管线入口**:Stage 1 解析 `## Slide N` 块生成 JSON。
 >
 > **上游身份不在这里**:核心隐喻(信息加工链 / ITO)在 `2_backbone/core-metaphor.md`,公式在 `2_backbone/core-formula.md`,约束在 `2_backbone/design-constraints.md`,视觉在 `2_backbone/visual-style/`。写每页 IMAGE PROMPT 时对照那些,不在这里重复。
+>
+> **Render policy（2026-07-12 框架同步）**：全册默认 `full-page`，逐页 `RENDER MODE` 仅在确需覆盖 policy 时使用。IMAGE PROMPT 只描述 body/整体构图；结构化 KICKER/TITLE/SUBTITLE 由 Stage 1 注入。
 
 ---
 
@@ -46,9 +51,8 @@ feeds_into:
 
 ## Slide 01: `s01_cover`
 
-**VISUAL TYPE**: Title / Cover
+**VISUAL TYPE**: Title / Opener
 
-**RENDER MODE**: full-page
 
 **KICKER**: (none)
 
@@ -65,7 +69,7 @@ feeds_into:
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote COVER slide, sketch/etching aesthetic but MINIMAL — this is a title page, calm and spacious, mostly empty cream paper. Cream paper #F5F0EB background, sepia ink #2D1B11, one amber #D97706 accent. CENTERED composition. Upper-center: a LARGE clean serif Chinese title: AI 时代的信息加工革命 Directly below it, centered, a smaller Chinese subtitle on one line: 从 SDLC 到 BPM，工作方式正在被整体重写 Beneath the subtitle, a single thin hand-drawn amber horizontal line and one small amber dot as the only decoration. NO illustrated scene, NO chains, NO nodes, NO diagrams — just title, subtitle, and generous empty space. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). Faint paper texture and a hand-drawn feel is fine. CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No logos, no watermarks, no page numbers, no photography, no 3D, no glowing orbs. No blue.
+Design a finished 16:9 keynote COVER slide, sketch/etching aesthetic but MINIMAL — this is a title page, calm and spacious, mostly empty cream paper. Cream paper #F5F0EB background, sepia ink #2D1B11, one amber #D97706 accent. Keep the composition calm, centered, and spacious. Use a single thin hand-drawn amber horizontal line and one small amber dot as the only decoration. NO illustrated scene, NO chains, NO nodes, NO diagrams — preserve generous empty space. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). Faint paper texture and a hand-drawn feel is fine. CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No logos, no watermarks, no page numbers, no photography, no 3D, no glowing orbs. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -87,7 +91,6 @@ Design a finished 16:9 keynote COVER slide, sketch/etching aesthetic but MINIMAL
 
 **VISUAL TYPE**: Title / Opener
 
-**RENDER MODE**: full-page
 
 **KICKER**: 三年
 
@@ -104,7 +107,7 @@ Design a finished 16:9 keynote COVER slide, sketch/etching aesthetic but MINIMAL
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB background, sepia ink #2D1B11, amber #D97706 accents, serif typography. A horizontal timeline drawn in fine sepia ink across the cream paper, left to right: 2024, 2025, 2026. Three light sources sketched along the timeline — 2024 is a tiny candle-flame in faded ink, 2025 is a larger lamp glow, 2026 is a radiating sun-like orb in warm amber wash with etched radial lines. Below the timeline, three code fragments evolve from one-line completion to a full project structure. At the top of the slide, render these Chinese texts clearly: a small amber #D97706 KICKER label: 三年, with a thin amber #D97706 horizontal line below it. Below the line, a large serif Chinese title: 从补全一行代码，到接管整个项目。 Below the title in smaller sepia text: 2024 — AI 帮你写完这一行。2025 — AI 帮你写完这个函数。2026 — AI 接住整个项目，你去睡觉。 Below that in faded ink: 这不是 hype。这是加速度。 No logos, watermarks. No photography. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB background, sepia ink #2D1B11, amber #D97706 accents, serif typography. A horizontal timeline drawn in fine sepia ink across the cream paper, left to right: 2024, 2025, 2026. Three light sources sketched along the timeline — 2024 is a tiny candle-flame in faded ink, 2025 is a larger lamp glow, 2026 is a radiating sun-like orb in warm amber wash with etched radial lines. Below the timeline, three code fragments evolve from one-line completion to a full project structure. In the body area, add three medium timeline captions: 2024 — AI 帮你写完这一行。2025 — AI 帮你写完这个函数。2026 — AI 接住整个项目，你去睡觉。 No logos, watermarks. No photography. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -126,7 +129,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Concept Split
 
-**RENDER MODE**: full-page
 
 **KICKER**: 为什么是软件先被颠覆
 
@@ -141,7 +143,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text clearly at the top: amber #D97706 KICKER label: 为什么是软件先被颠覆, with thin amber #D97706 line below. Large serif title: 两个东西让 AI 学编程比学别的都快。 Below the title in smaller sepia: 第一，代码有编译器。AI 写得对不对，0.1 秒就知道。这个反馈循环快到离谱。 第二，GitHub 上有几十亿行代码。AI 有读不完的教材。 进步快，资本涌入，模型越训越强，开始溢出到其他领域。 Below the text area, a diagrammatic sketch: left panel — code editor with green checkmarks cascading like waterfall, feedback loop as amber ring. Right panel — countless tiny code fragments falling like rain into knowledge base. Center: both converge at amber AI glow core. No logos. No photography. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 第一，代码有编译器。AI 写得对不对，0.1 秒就知道。这个反馈循环快到离谱。 第二，GitHub 上有几十亿行代码。AI 有读不完的教材。 进步快，资本涌入，模型越训越强，开始溢出到其他领域。 Below the text area, a diagrammatic sketch: left panel — code editor with green checkmarks cascading like waterfall, feedback loop as amber ring. Right panel — countless tiny code fragments falling like rain into knowledge base. Center: both converge at amber AI glow core. No logos. No photography. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -164,7 +166,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 同一套工具，两种模式
 
@@ -179,7 +180,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 同一套工具，两种模式, with amber #D97706 line. Large serif title: Claude Code。Codex Desktop。上午写代码，下午写报告。 Below in smaller sepia: 同一个 Agent 引擎。同一种工作方式：给出任务，Agent 执行，人验收。 软件开发者已经在这条路上跑了三年。办公室白领才刚刚开始。 Below text: a diagrammatic sketch — central amber diamond core, left branch to dark terminal panel with code symbols and programmer silhouette, right branch to bright document panel with office worker silhouette. Both face the same core. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 同一个 Agent 引擎。同一种工作方式：给出任务，Agent 执行，人验收。 软件开发者已经在这条路上跑了三年。办公室白领才刚刚开始。 Below text: a diagrammatic sketch — central amber diamond core, left branch to dark terminal panel with code symbols and programmer silhouette, right branch to bright document panel with office worker silhouette. Both face the same core. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -202,7 +203,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Section Divider
 
-**RENDER MODE**: full-page
 
 **KICKER**: 今天讲三件事
 
@@ -219,7 +219,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 今天讲三件事, with amber #D97706 line. Large serif title: 软件发生了什么。传统企业同样的事。大局。 Below: 第一：软件前线。SDLC 被掀翻，角色重写，组织冲击。 第二：企业镜像。BPM 跟 SDLC 一模一样。 第三：大局。生产力 x 沟通 x 组织。三个东西变了，一切重来。 Below text: a hand-drawn three-station route map like old explorer map. Station 1: code symbol breaking apart. Station 2: chain linking office and code. Station 3: pyramid becoming flat grid. Path line grows bolder left to right. Like minimalist hand-drawn subway map. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render three numbered sections: 第一：软件前线。SDLC 被掀翻，角色重写，组织冲击。 第二：企业镜像。BPM 跟 SDLC 一模一样。 第三：大局。生产力 x 沟通 x 组织。三个东西变了，一切重来。 Below text: a hand-drawn three-station route map like old explorer map. Station 1: code symbol breaking apart. Station 2: chain linking office and code. Station 3: pyramid becoming flat grid. Path line grows bolder left to right. Like minimalist hand-drawn subway map. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -242,7 +242,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Framework
 
-**RENDER MODE**: full-page
 
 **KICKER**: 前提被挖了
 
@@ -257,7 +256,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 前提被挖了, with amber #D97706 line. Large serif title: 瀑布、V模型、敏捷——都是同一个前提下的参数变体。 Below: 前提：人必须先想清楚。程序是确定性的，不会自己想。 1970s 瀑布：想全部做全部。2001 敏捷：想一点做一点。只是节奏不同。 AI 出现后：程序不再需要人完全想清楚。地基裂了。 Below text: a classical building sketch — three floors (Waterfall/V-Model/Agile) on one foundation stone. Below foundation: crack with amber light spilling through. Building tilts slightly. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 前提：人必须先想清楚。程序是确定性的，不会自己想。 1970s 瀑布：想全部做全部。2001 敏捷：想一点做一点。只是节奏不同。 AI 出现后：程序不再需要人完全想清楚。地基裂了。 Below text: a classical building sketch — three floors (Waterfall/V-Model/Agile) on one foundation stone. Below foundation: crack with amber light spilling through. Building tilts slightly. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -280,7 +279,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 五个月，从犹豫到确信
 
@@ -295,7 +293,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 五个月，从犹豫到确信, with amber #D97706 line. Large serif title: 2026年2月：「可能有点东西。」2026年7月：「证据在握。」 Below: Not slides。Production。房间里所有人都在生产环境里做。 Below text: split sketch — left: snowy Utah mountains, campfire, tentative ink, Feb 2026 Deer Valley. Right: green Swiss valley, glowing dashboards, confident ink, Jul 2026 Engelberg. Bold amber arrow between them labeled: 5个月. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render this medium evidence line: Not slides。Production。房间里所有人都在生产环境里做。 Below text: split sketch — left: snowy Utah mountains, campfire, tentative ink, Feb 2026 Deer Valley. Right: green Swiss valley, glowing dashboards, confident ink, Jul 2026 Engelberg. Bold amber arrow between them labeled: 5个月. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -318,7 +316,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: Agile 的原班人马怎么说
 
@@ -333,7 +330,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: Agile 的原班人马怎么说, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title: Beck + Fowler：AI 的量级，大于之前所有变革的总和。 Directly under the title, one medium Chinese one-line intro in lighter sepia: 这两位是敏捷开发奠基人——2001《敏捷宣言》核心作者，定义了过去 20 年全球软件怎么做。 Below: Nothing has hit with the magnitude of AI. — Fowler。 TDD 不可协商。没有测试，根本驾驭不了 AI 产出的代码。 中层。这是我最担心的。— Beck。 Laura Tacho 12万开发者数据：好团队用 AI，incidents 降 50%；差团队翻倍。 Below text: marginal sketch — two silhouettes in fireside chat, amber stage light, three keywords floating behind. Right margin: tiny AI Agent mnemonic. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese intro in lighter sepia: 这两位是敏捷开发奠基人——2001《敏捷宣言》核心作者，定义了过去 20 年全球软件怎么做。 Below: Nothing has hit with the magnitude of AI. — Fowler。 TDD 不可协商。没有测试，根本驾驭不了 AI 产出的代码。 中层。这是我最担心的。— Beck。 Laura Tacho 12万开发者数据：好团队用 AI，incidents 降 50%；差团队翻倍。 Below text: marginal sketch — two silhouettes in fireside chat, amber stage light, three keywords floating behind. Right margin: tiny AI Agent mnemonic. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -358,7 +355,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 瓶颈从机器变成了人
 
@@ -373,7 +369,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 瓶颈从机器变成了人, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title below the header zone: Fable 5 来了。写代码的能力远超一般程序员。 MAIN IMAGE (role-reversal driving metaphor, clear and readable): a hand-drawn car seen from the side. In the DRIVER seat sits an AI figure (a calm, capable silhouette formed from clean code/circuit lines) confidently steering, the road ahead smooth. In the BACK seat sits a HUMAN, holding a small slip of paper labeled 任务单, watching the AI drive with an uncertain expression. An amber caption beside the human: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」 One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交出去。 In the right margin a small mnemonic label: Trust Gap. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN IMAGE (role-reversal driving metaphor, clear and readable): a hand-drawn car seen from the side. In the DRIVER seat sits an AI figure (a calm, capable silhouette formed from clean code/circuit lines) confidently steering, the road ahead smooth. In the BACK seat sits a HUMAN, holding a small slip of paper labeled 任务单, watching the AI drive with an uncertain expression. An amber caption beside the human: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」 One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交出去。 In the right margin a small mnemonic label: Trust Gap. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -396,7 +392,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Concept Split
 
-**RENDER MODE**: full-page
 
 **KICKER**: 信息加工链
 
@@ -411,7 +406,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 信息加工链, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title: 软件开发就是把需求一步步加工成代码。以前每个环节都是人。 Below: 现在 AI 接管了中间的编码、测试、甚至部分设计。 人往哪走？两条路： 往上：定义做什么。架构师、产品经理。 往下：验收治理。Harness Engineer。 Build is cheap. Argument is expensive. — Simon Willison。 Below text: horizontal chain sketch — seven linked nodes, middle three replaced by amber AI glow cores, left figures pointing up, right figures pointing down. Left margin: tiny Information Chain mnemonic. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 现在 AI 接管了中间的编码、测试、甚至部分设计。 人往哪走？两条路： 往上：定义做什么。架构师、产品经理。 往下：验收治理。Harness Engineer。 Build is cheap. Argument is expensive. — Simon Willison。 Below text: horizontal chain sketch — seven linked nodes, middle three replaced by amber AI glow cores, left figures pointing up, right figures pointing down. Left margin: tiny Information Chain mnemonic. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -434,7 +429,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Concept Split
 
-**RENDER MODE**: full-page
 
 **KICKER**: 人审不过来了
 
@@ -449,7 +443,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 人审不过来了, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title: AI 一晚上写几千行代码。人还是那个速度在 review。 Below: 传统 SDLC 前提：人的信息吞吐速度是恒定的。一天几百行。 AI 把这个前提也炸了。反馈周期从人-paced 变成 AI-paced。 Pull quote: Verified 以前的意思是你读过了。现在必须是被测试、类型检查器、自动门禁检查过。— Martin Fowler。 Below text: a funnel sketch — dense code pouring in at wide top, single drip emerging at narrow bottom, 10:1 ratio. Tiny human silhouette sits at exit, overwhelmed. Right margin: Communication Bottleneck mnemonic. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 传统 SDLC 前提：人的信息吞吐速度是恒定的。一天几百行。 AI 把这个前提也炸了。反馈周期从人-paced 变成 AI-paced。 Pull quote: Verified 以前的意思是你读过了。现在必须是被测试、类型检查器、自动门禁检查过。— Martin Fowler。 Below text: a funnel sketch — dense code pouring in at wide top, single drip emerging at narrow bottom, 10:1 ratio. Tiny human silhouette sits at exit, overwhelmed. Right margin: Communication Bottleneck mnemonic. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -472,7 +466,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Framework
 
-**RENDER MODE**: full-page
 
 **KICKER**: 从盯着到设护栏
 
@@ -487,7 +480,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 从盯着到设护栏, with amber #D97706 line. Large serif title: Human-in-the-loop 变成 Human-on-the-loop。 Below: In the loop：人逐行 review。不可扩展。 On the loop：人建护栏。AI 在框内自主。修的是 harness，不是 artifact。— Kief Morris。 新工种：Supervisory Engineer / Harness Engineer / Middle Loop。 Agents are not hard. The Harness is hard. — OpenAI。 Below text: comparison sketch — upper In Loop human inspecting each agent like assembly line (muted red-brown). Lower On Loop human at control console with guardrails, agents autonomous inside (green-gold). Bottom: three job title badges. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium comparison points: In the loop：人逐行 review。不可扩展。 On the loop：人建护栏。AI 在框内自主。修的是 harness，不是 artifact。— Kief Morris。 新工种：Supervisory Engineer / Harness Engineer / Middle Loop。 Agents are not hard. The Harness is hard. — OpenAI。 Below text: comparison sketch — upper In Loop human inspecting each agent like assembly line (muted red-brown). Lower On Loop human at control console with guardrails, agents autonomous inside (green-gold). Bottom: three job title badges. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -510,7 +503,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 中层最危险
 
@@ -525,7 +517,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CJK LEGIBILITY: keep every Chinese phrase at medium-or-large size so glyphs stay clean — avoid tiny footnote-size Chinese. Render amber #D97706 KICKER (large Chinese): 中层最危险, with amber #D97706 line. Large serif title (Chinese): AI 最先替代的不是不会写代码的人。是只会写代码的人。 Below, a three-layer geological cross-section sketch, each tier with a LARGE Chinese keyword and a MEDIUM Chinese one-line description (readable at a glance, not tiny): top tier green — 初级：意外安全（AI-native，LLM 是 24/7 导师）; middle tier amber-red, visibly squeezed — 中层：真正危机（CRUD 与调试正是 AI 进步最快处，尚无架构判断力）; bottom tier gold — 资深：转向架构（Harness Engineer、Agent 编排者）. One large pull-quote in Chinese: 中层，这是我最担心的。 with attribution — Kent Beck. Right margin: small English mnemonic label "Organizational Pyramid". Keep the layout uncluttered — a few medium Chinese blocks, not a wall of text. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CJK LEGIBILITY: keep every Chinese phrase at medium-or-large size so glyphs stay clean — avoid tiny footnote-size Chinese. In the body area, create a three-layer geological cross-section sketch, each tier with a LARGE Chinese keyword and a MEDIUM Chinese one-line description (readable at a glance, not tiny): top tier green — 初级：意外安全（AI-native，LLM 是 24/7 导师）; middle tier amber-red, visibly squeezed — 中层：真正危机（CRUD 与调试正是 AI 进步最快处，尚无架构判断力）; bottom tier gold — 资深：转向架构（Harness Engineer、Agent 编排者）. One large pull-quote in Chinese: 中层，这是我最担心的。 with attribution — Kent Beck. Right margin: small English mnemonic label "Organizational Pyramid". Keep the layout uncluttered — a few medium Chinese blocks, not a wall of text. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -548,7 +540,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 激进重构
 
@@ -563,7 +554,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 激进重构, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title below the header zone: Block：废掉层级，一家公司只留三种人。 Directly under the title, one medium Chinese one-line company intro in lighter sepia: Block＝美国支付巨头（原 Square，Twitter 创始人 Jack Dorsey 掌舵，Cash App 母公司）。 Below, the main sketch: on the LEFT, a traditional 5-layer management pyramid drawn faintly, collapsing/crumbling. An amber arrow points RIGHT to a new flat arrangement of THREE role badges side by side. Each badge is a hand-drawn card with a medium Chinese role name AND a medium Chinese one-line plain explanation beneath the name: Badge 1 — 「IC 执行者」自己干活，不带人; Badge 2 — 「DRI 负责人」一件事的总扛把子，能拍板但不管人; Badge 3 — 「Player-Coach 球员教练」既自己上手、又带团队，没有只带人的经理. Between and beneath the three badges, a small amber AI-agent glyph acting as the connecting coordination layer (replacing the removed managers). One medium Chinese caption near the badges: 5 层压成 2-3 层，AI 做中间协调层。 Below that, a medium Chinese RESULT line highlighted in amber: 结果：6000 人跑出 27% 毛利增长，Goose 成行业基础设施(GitHub 39K stars)。 In a bottom corner, a small understated footnote in medium Chinese: 背景：同期裁员 40%，独立分析师判主因是成本削减。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Block＝美国支付巨头（原 Square，Twitter 创始人 Jack Dorsey 掌舵，Cash App 母公司）。 Below, the main sketch: on the LEFT, a traditional 5-layer management pyramid drawn faintly, collapsing/crumbling. An amber arrow points RIGHT to a new flat arrangement of THREE role badges side by side. Each badge is a hand-drawn card with a medium Chinese role name AND a medium Chinese one-line plain explanation beneath the name: Badge 1 — 「IC 执行者」自己干活，不带人; Badge 2 — 「DRI 负责人」一件事的总扛把子，能拍板但不管人; Badge 3 — 「Player-Coach 球员教练」既自己上手、又带团队，没有只带人的经理. Between and beneath the three badges, a small amber AI-agent glyph acting as the connecting coordination layer (replacing the removed managers). One medium Chinese caption near the badges: 5 层压成 2-3 层，AI 做中间协调层。 Below that, a medium Chinese RESULT line highlighted in amber: 结果：6000 人跑出 27% 毛利增长，Goose 成行业基础设施(GitHub 39K stars)。 In a bottom corner, a small understated footnote in medium Chinese: 背景：同期裁员 40%，独立分析师判主因是成本削减。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -586,7 +577,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 精准诊断
 
@@ -601,7 +591,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 精准诊断, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title below the header zone: Cloudflare：一把尺，把所有人分成三种。 Directly under the title, one medium Chinese one-line company intro in lighter sepia: Cloudflare＝全球互联网基础设施公司（全世界约五分之一网站靠它做加速和安全防护）。 Below, THREE columns side by side, each a hand-drawn card with a medium Chinese role label and one-line definition: Column 1「Builders 建造者」创造产品的人 (mark: AI 难替代·保留); Column 2「Sellers 销售者」获取客户的人 (mark: AI 难替代·保留); Column 3「Measurers 量度者」测量·报告·协调的人 (mark: AI 重塑·重新设计). The Measurer column subtly highlighted in amber to show it is the one being reshaped. A small line under the three columns: 溯源 Drucker 1954：只有建造者和销售者产生成果。 A medium Chinese RESULT line highlighted in amber: 结果：裁量度者+扩招工程师后，营收 +34%、Workers 平台 550 万开发者仍在加速。 One large amber phrase at the bottom: Displacement, not reduction. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Cloudflare＝全球互联网基础设施公司（全世界约五分之一网站靠它做加速和安全防护）。 Below, THREE columns side by side, each a hand-drawn card with a medium Chinese role label and one-line definition: Column 1「Builders 建造者」创造产品的人 (mark: AI 难替代·保留); Column 2「Sellers 销售者」获取客户的人 (mark: AI 难替代·保留); Column 3「Measurers 量度者」测量·报告·协调的人 (mark: AI 重塑·重新设计). The Measurer column subtly highlighted in amber to show it is the one being reshaped. A small line under the three columns: 溯源 Drucker 1954：只有建造者和销售者产生成果。 A medium Chinese RESULT line highlighted in amber: 结果：裁量度者+扩招工程师后，营收 +34%、Workers 平台 550 万开发者仍在加速。 One large amber phrase at the bottom: Displacement, not reduction. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -620,9 +610,8 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ## Slide 16: `s16_sdlc_to_bpm_bridge`
 
-**VISUAL TYPE**: Transition / Bridge
+**VISUAL TYPE**: Section Divider / Bridge
 
-**RENDER MODE**: full-page
 
 **KICKER**: 换挡
 
@@ -639,7 +628,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote TRANSITION slide, sketch/etching aesthetic but MINIMAL — a pause page, calm and spacious, mostly empty cream paper, matching the cover's visual language. Cream paper #F5F0EB background, sepia ink #2D1B11, one amber #D97706 accent. CENTERED composition. A small amber #D97706 KICKER word above the title: 换挡. Upper-center: a LARGE clean serif Chinese title: 软件的故事讲完了。现在，轮到你的行业。 Directly below, centered, a smaller Chinese subtitle on one line: 同一条信息加工链，只是换了名字 The ONLY decoration: one small centered amber dot or a single faint hand-drawn arrow suggesting a gear-shift/pivot. NO river scene, NO chains of nodes, NO diagrams, NO side-by-side labels — just kicker, title, subtitle, and generous empty space. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No logos, no watermarks, no page numbers, no photography, no 3D. No blue.
+Design a finished 16:9 keynote TRANSITION slide, sketch/etching aesthetic but MINIMAL — a pause page, calm and spacious, mostly empty cream paper, matching the cover's visual language. Cream paper #F5F0EB background, sepia ink #2D1B11, one amber #D97706 accent. Keep the composition calm, centered, and spacious. The ONLY decoration is one small centered amber dot or a single faint hand-drawn arrow suggesting a gear-shift/pivot. NO river scene, NO chains of nodes, NO diagrams, NO side-by-side labels — preserve generous empty space. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No logos, no watermarks, no page numbers, no photography, no 3D. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -661,7 +650,6 @@ Design a finished 16:9 keynote TRANSITION slide, sketch/etching aesthetic but MI
 
 **VISUAL TYPE**: Framework
 
-**RENDER MODE**: full-page
 
 **KICKER**: 你们公司也在加工信息
 
@@ -676,7 +664,7 @@ Design a finished 16:9 keynote TRANSITION slide, sketch/etching aesthetic but MI
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 你们公司也在加工信息, with amber #D97706 line. Large serif title: 软件有 SDLC。你们公司有 BPM。两条完全同构的信息加工链。 Below: SDLC：需求到分析到设计到编码到测试到产品。 BPM：业务信息到汇总到分析到审批到执行到决策。 BPM 不是新概念。从 1980 年代 MIT 到 2026 年 Dagstuhl Manifesto，40 年学术传承。 18 位作者联合发表 Agentic BPM Manifesto。核心概念：Framed Autonomy。 Below text: two parallel chains sketch with vertical dotted lines connecting nodes. Timelines behind converging at 2026 with amber dot. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: SDLC：需求到分析到设计到编码到测试到产品。 BPM：业务信息到汇总到分析到审批到执行到决策。 BPM 不是新概念。从 1980 年代 MIT 到 2026 年 Dagstuhl Manifesto，40 年学术传承。 18 位作者联合发表 Agentic BPM Manifesto。核心概念：Framed Autonomy。 Below text: two parallel chains sketch with vertical dotted lines connecting nodes. Timelines behind converging at 2026 with amber dot. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -699,7 +687,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Framework
 
-**RENDER MODE**: full-page
 
 **KICKER**: 有框的自主
 
@@ -714,7 +701,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 有框的自主, with amber #D97706 line. Large serif title: Framed Autonomy = AI Sandwich。人定边界，Agent 在框内自主。 Below: Dagstuhl 18 位作者定义：通过对 Agent 的知识和目标施加限制来约束其自主性。 两种框：Operational Frame（规定执行序列）+ Normative Frame（规定禁止行为）。 德国能源网 meter-to-cash 流程：99% 成功执行率。 BPM 叫 Framed Autonomy。SDLC 叫 AI Sandwich。同一个东西。 Below text: sketch of warm amber geometric frame (transparent force field), tiny AI agent figures moving freely inside, larger human figure outside with hand on frame edge. Two edge types. Bottom: Framed Autonomy = AI Sandwich. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: Dagstuhl 18 位作者定义：通过对 Agent 的知识和目标施加限制来约束其自主性。 两种框：Operational Frame（规定执行序列）+ Normative Frame（规定禁止行为）。 德国能源网 meter-to-cash 流程：99% 成功执行率。 BPM 叫 Framed Autonomy。SDLC 叫 AI Sandwich。同一个东西。 Below text: sketch of warm amber geometric frame (transparent force field), tiny AI agent figures moving freely inside, larger human figure outside with hand on frame edge. Two edge types. Bottom: Framed Autonomy = AI Sandwich. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -737,7 +724,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Framework
 
-**RENDER MODE**: full-page
 
 **KICKER**: 四层重构
 
@@ -752,7 +738,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 四层重构, with amber #D97706 line. Large serif title: 企业 IT 有四层。每一层都在被 AI 重写。 Below, four horizontal stacked panels with hand-drawn borders and same amber wave passing through each: Layer 1 前端 'Office、飞书、钉钉变成 Agent 基础设施。Agent 时代企业配置的第一个资源是 Office。' Layer 2 中端 'Agentic Orchestration / ProcessOS。Camunda CEO：你公司的每一个流程都是 legacy。' Layer 3 后端 'CRM、ERP、HCM。记录系统仍在，但变成 Agent 调用的数据源。' Layer 4 治理 'Agent 365 / AI Control Tower。谁控制 Agent 的身份和权限，谁就控制企业 AI。' No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, create four horizontal stacked panels with hand-drawn borders and same amber wave passing through each: Layer 1 前端 'Office、飞书、钉钉变成 Agent 基础设施。Agent 时代企业配置的第一个资源是 Office。' Layer 2 中端 'Agentic Orchestration / ProcessOS。Camunda CEO：你公司的每一个流程都是 legacy。' Layer 3 后端 'CRM、ERP、HCM。记录系统仍在，但变成 Agent 调用的数据源。' Layer 4 治理 'Agent 365 / AI Control Tower。谁控制 Agent 的身份和权限，谁就控制企业 AI。' No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -775,7 +761,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 唯一有独立第三方验证
 
@@ -790,7 +775,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only, text: 唯一有独立第三方验证, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker elsewhere. Large serif title (the hero line): Allianz「Project Nemo」——不是高举高打，是从最窄处跑通，再铺开。 One short intro line under the title: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent 指挥 7 个专才 agent。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure radiating thin sepia lines to about seven small specialist agent nodes; behind ONE node stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent 指挥 7 个专才 agent。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure radiating thin sepia lines to about seven small specialist agent nodes; behind ONE node stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -814,7 +799,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 中国也在动
 
@@ -829,7 +813,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Render Chinese text at top: amber #D97706 KICKER: 中国也在动, with amber #D97706 line. Large serif title: 奇瑞 4000+ 智能体。兆企合同审批 1天变20分钟。不是科技公司，是传统企业。 Below three columns with compact sketches and data: Left Chery Auto 制造 — 4000+ 智能体 / 6万员工。年降本超 3000 万。翻译成本归零。 Center Zhaoqi 贸易 — 合同审批 1天变20分钟。Agent 覆盖报价、合同、客户画像。 Right Simeng 企业服务 — 效率提升 5 倍。Agent 接管海外邮件、审计、合同审核。 Bottom: 共同模式跟海外一样：不是替代人，是流程交给 Agent，人做策展。 No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, create three columns with compact sketches and data: Left Chery Auto 制造 — 4000+ 智能体 / 6万员工。年降本超 3000 万。翻译成本归零。 Center Zhaoqi 贸易 — 合同审批 1天变20分钟。Agent 覆盖报价、合同、客户画像。 Right Simeng 企业服务 — 效率提升 5 倍。Agent 接管海外邮件、审计、合同审核。 Bottom: 共同模式跟海外一样：不是替代人，是流程交给 Agent，人做策展。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -852,7 +836,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Concept Split
 
-**RENDER MODE**: full-page
 
 **KICKER**: 两千年的结构
 
@@ -867,7 +850,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element in ONE corner only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 两千年的结构, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title (the hero line): 组织金字塔不是「效率最高」。是「人是信息瓶颈」下的不得已。 Below the title, FIVE short medium-Chinese lines with generous spacing: 为什么不是 CEO 直接管所有人？因为一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。 所以必须分层：CEO → VP → Director → Manager → IC——每层负责汇总信息、过滤噪音、上传下达。 这不是"效率最高"，是"人是信息瓶颈"下用层级管理带宽的不得已。 罗马军团时代就这套逻辑，2000 年没变过。 AI 让 Agent 自动汇总、跨层同步、人→Agent→人；纯搬运的中层，理由消失了（Block 已在试：CEO 直接管 6000 人）。 ILLUSTRATION (small, bottom-right corner only): a simple clean outline of a human-figure pyramid, with a single amber ripple gently fading its top layer to a ghost outline. Keep it minimal — one clear image, not a dense crowd. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element in ONE corner only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. In the body area, render FIVE short medium-Chinese lines with generous spacing: 为什么不是 CEO 直接管所有人？因为一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。 所以必须分层：CEO → VP → Director → Manager → IC——每层负责汇总信息、过滤噪音、上传下达。 这不是"效率最高"，是"人是信息瓶颈"下用层级管理带宽的不得已。 罗马军团时代就这套逻辑，2000 年没变过。 AI 让 Agent 自动汇总、跨层同步、人→Agent→人；纯搬运的中层，理由消失了（Block 已在试：CEO 直接管 6000 人）。 ILLUSTRATION (small, bottom-right corner only): a simple clean outline of a human-figure pyramid, with a single amber ripple gently fading its top layer to a ghost outline. Keep it minimal — one clear image, not a dense crowd. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -890,7 +873,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Impact / Evidence
 
-**RENDER MODE**: full-page
 
 **KICKER**: 量度者，不是建造者
 
@@ -905,7 +887,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 量度者，不是建造者, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title: 纯测量、报告、协调的岗位——不是裁掉，是重新定义。 Below three columns: Left BUILDERS: 创造产品的人。AI 是他们的工具。 Center SELLERS: 获取客户的人。人际关系不可替代。 Right MEASURERS: 测量、报告、协调的人。AI 替代测量动作。人变成 AI 测量输出的决策者。 Arrow transformation: 质检员变成 AI 异常处理员。排产员变成 AI 排产审查员。成本会计变成 AI 成本决策者。 Bottom: 在中国尤其重要：法院已裁定 AI 不能作为裁员的合法理由。但这不影响重新设计岗位。 No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, create three columns: Left BUILDERS: 创造产品的人。AI 是他们的工具。 Center SELLERS: 获取客户的人。人际关系不可替代。 Right MEASURERS: 测量、报告、协调的人。AI 替代测量动作。人变成 AI 测量输出的决策者。 Arrow transformation: 质检员变成 AI 异常处理员。排产员变成 AI 排产审查员。成本会计变成 AI 成本决策者。 Bottom: 在中国尤其重要：法院已裁定 AI 不能作为裁员的合法理由。但这不影响重新设计岗位。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -928,7 +910,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Concept Split
 
-**RENDER MODE**: full-page
 
 **KICKER**: 不是互相借鉴，是融合
 
@@ -943,7 +924,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element along the BOTTOM only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. Place a SMALL amber #D97706 KICKER label in the TOP-LEFT corner only (near the top margin), text: 不是互相借鉴，是融合, with a thin amber #D97706 underline directly beneath it; do NOT repeat the kicker anywhere else and keep it out of the body area. Large serif title (the hero line): SDLC 和 BPM。两条河，正在汇成一条。 Below the title, FOUR short medium-Chinese lines with generous spacing: 软件经历了什么：前提被挖 → 人从操作者变委托人 → 方法论转向 Harness Engineering → 组织从中层密集变极端扁平。 企业 BPM 完全一样：Framed Autonomy = AI Sandwich，Agentic BPM = Agentic SDLC，四层逐层精确映射。 而且两边用同一套工具：Claude Code 上午写代码、下午写报告；飞书/钉钉 CLI 化，office 变成 Agent 的 terminal。 所以这不是"两个领域互相借鉴"——是它们在同一个 Agent 基础设施上收敛成一条河。 ILLUSTRATION (simple, bottom band only): two thin sepia lines labeled 软件 and 企业 flowing in from the left and right, merging at center into ONE thicker amber stream. Minimal and clean — just the confluence, no busy detail. Earth tones only (sepia + amber). Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue. No green.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element along the BOTTOM only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. In the body area, render FOUR short medium-Chinese lines with generous spacing: 软件经历了什么：前提被挖 → 人从操作者变委托人 → 方法论转向 Harness Engineering → 组织从中层密集变极端扁平。 企业 BPM 完全一样：Framed Autonomy = AI Sandwich，Agentic BPM = Agentic SDLC，四层逐层精确映射。 而且两边用同一套工具：Claude Code 上午写代码、下午写报告；飞书/钉钉 CLI 化，office 变成 Agent 的 terminal。 所以这不是"两个领域互相借鉴"——是它们在同一个 Agent 基础设施上收敛成一条河。 ILLUSTRATION (simple, bottom band only): two thin sepia lines labeled 软件 and 企业 flowing in from the left and right, merging at center into ONE thicker amber stream. Minimal and clean — just the confluence, no busy detail. Earth tones only (sepia + amber). Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue. No green.
 ```
 
 > **SPEAKER NOTE**
@@ -966,7 +947,6 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **VISUAL TYPE**: Closer
 
-**RENDER MODE**: full-page
 
 **KICKER**: (none)
 
@@ -983,7 +963,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMAL — a pause / closing page, calm and spacious, matching the cover and transition pages. Cream paper #F5F0EB background (NOT dark), sepia ink #2D1B11, one amber #D97706 accent. CENTERED composition, generous empty space. Upper-center: a LARGE clean serif Chinese title, the closing question: 外面都变了。你打算怎么变？ Directly below, centered, a smaller Chinese subtitle on one line: 我今天没有结论。只有一个问题。 The ONLY decoration: one small amber dot below the subtitle, like a period or a first spark of light. NO illustration, NO scene, NO dark background — just the question, the subtitle, and empty cream paper. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No KICKER, no callout bar, no logos, no watermarks, no page numbers. No blue.
+Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMAL — a pause / closing page, calm and spacious, matching the cover and transition pages. Cream paper #F5F0EB background (NOT dark), sepia ink #2D1B11, one amber #D97706 accent. Keep the composition calm, centered, and spacious. The ONLY decoration is one small amber dot, like a period or a first spark of light. NO illustration, NO scene, NO dark background — preserve generous empty cream paper. In the BOTTOM-RIGHT corner, a small, plain, unobtrusive author byline in English: Ethan Jiang (small size, simple sans/serif, sepia ink, modest — like a signature, not a heading). CJK LEGIBILITY: keep all Chinese large and clean; no tiny Chinese. The only small text allowed is the English byline. No callout bar, logos, watermarks, page numbers, or blue.
 ```
 
 > **SPEAKER NOTE**
@@ -1006,6 +986,7 @@ Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMA
 
 | Date | Change Type | Slide(s) | What Changed | Why |
 |------|-------------|----------|-------------|-----|
+| 2026-07-12 | Framework Sync | All | 加入全册 render policy；移除 25 个冗余逐页 mode；逐页剥离 IMAGE PROMPT 中重复的结构化 header 文案/位置；规范 cover/bridge hero 类型 | 对齐 Stage 1 header contract、policy source、provenance/header-review 新流程，避免双重文字指令 |
 | 2026-07-11 | Initial (migrated) | All | 从 deck_ai_sdlc_keynote 迁移重建 22 页四层规格 | 把已完成的中文 keynote 逐页规格从旧框架格式重建为新框架 slide-specifications.md,供 Stage 1 解析;L3 IMAGE PROMPT 逐字照抄 page_prompts.json |
 | 2026-07-11 | Note | All | RENDER MODE 全部设为 full-page | 该 deck 中文 KICKER + 大标题已内嵌于每页 IMAGE PROMPT(烤进图),故全部走 full-page 渲染、不使用 body+header-lock 叠字(header-lock 是给 Latin 字体叠标题用的,会与图内已有中文标题冲突) |
 | 2026-07-11 | Note | All | 21↔22 页数对齐:outline.md frontmatter 标 total_slides:21,但其 Slide Map 与 Block 结构实际枚举 22 页 | "21" 为 outline 陈旧元数据;Slide Map 22 行与 page_prompts.json 22 页 1:1 对齐,无孤立/多余 slide,全部按主题一一对应 |
