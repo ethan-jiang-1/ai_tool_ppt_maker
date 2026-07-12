@@ -24,6 +24,28 @@ export const MAX_WAIT_MS = 600_000;
 export const POLL_INTERVAL_MS = 5_000;
 export const HEARTBEAT_MS = 30_000;
 export const ATTEMPTS_SUMMARY_MAX = 5;
+export const MAX_RETRIES = 2; // extra attempts per vendor (3 total)
+
+/**
+ * Check whether an error is retryable (transient) vs permanent (4xx auth/bad request).
+ * @param {*} err
+ * @returns {boolean}
+ */
+function _isRetryableError(err) {
+  if (!err) return false;
+  const msg = err.message ? String(err.message) : "";
+  // HTTP 5xx status
+  if (/\b5\d\d\b/.test(msg)) return true;
+  // Network-level errors
+  if (msg.includes("ECONNRESET")) return true;
+  if (msg.includes("ETIMEDOUT")) return true;
+  if (msg.includes("ECONNREFUSED")) return true;
+  if (msg.includes("fetch failed")) return true;
+  // Timeout
+  if (msg.includes("timeout")) return true;
+  // 4xx is NOT retryable
+  return false;
+}
 
 /**
  * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
@@ -74,7 +96,15 @@ function normalizeBaseUrl(u) {
  */
 export function resolveVendors(extraBaseUrls = []) {
   bridgeCredentials();
-  const fromCli = (extraBaseUrls || []).filter(Boolean).map(normalizeBaseUrl);
+  const fromCli = [];
+  for (const raw of (extraBaseUrls || [])) {
+    if (!raw) continue;
+    // Support comma-separated URLs: --base-url url1,url2,url3
+    for (const part of raw.split(",")) {
+      const u = normalizeBaseUrl(part.trim());
+      if (u) fromCli.push(u);
+    }
+  }
   if (fromCli.length > 0) {
     const key = sharedImage2Key();
     if (!key) {
@@ -101,9 +131,8 @@ export function resolveVendors(extraBaseUrls = []) {
       if (keyEnv) {
         api_key = process.env[keyEnv] || "";
         if (!api_key) {
-          throw new Error(
-            `${keyEnv} is not set (referenced by IMAGE2_VENDORS for ${base_url}).`
-          );
+          console.warn(`  Skip vendor ${base_url}: ${keyEnv} is not set`);
+          continue;
         }
       } else {
         api_key = sharedImage2Key();
@@ -505,56 +534,69 @@ export async function generateOneImage({
 
   for (const vendor of vendors) {
     const { base_url: baseUrl, api_key: apiKey } = vendor;
-    try {
-      console.log(`  Submit → ${baseUrl}  (${outPath})`);
-      const submitData = await submitGenerate(baseUrl, apiKey, body);
-      // SYNC: finished image in submit response. ASYNC: task_id → poll.
-      let taskId = null;
-      let pollCount = 0;
-      const syncRef = extractImageRef(submitData);
-      if (syncRef) {
-        console.log(`  sync image returned (no task) → saving`);
-        await saveImageRef(syncRef, outPath);
-      } else {
-        taskId = extractTaskId(submitData);
-        if (!taskId) {
-          throw new Error(
-            `No task_id and no image in submit response: ${JSON.stringify(submitData).slice(0, 300)}`
-          );
-        }
-        console.log(`  task_id=${taskId}`);
-        const polled = await pollTask(baseUrl, apiKey, taskId);
-        pollCount = polled.pollCount;
-        const ref = extractImageRef(polled.data);
-        if (ref) {
-          await saveImageRef(ref, outPath);
+    let lastError = null;
+    // Retry transient errors up to 2 extra times per vendor (3 total attempts)
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        if (retry > 0) console.log(`  Retry ${retry}/${2} → ${baseUrl}`);
+        else console.log(`  Submit → ${baseUrl}  (${outPath})`);
+        const submitData = await submitGenerate(baseUrl, apiKey, body);
+        let taskId = null;
+        let pollCount = 0;
+        const syncRef = extractImageRef(submitData);
+        if (syncRef) {
+          console.log(`  sync image returned (no task) → saving`);
+          await saveImageRef(syncRef, outPath);
         } else {
-          await downloadResult(baseUrl, apiKey, taskId, outPath);
+          taskId = extractTaskId(submitData);
+          if (!taskId) {
+            throw new Error(
+              `No task_id and no image in submit response: ${JSON.stringify(submitData).slice(0, 300)}`
+            );
+          }
+          console.log(`  task_id=${taskId}`);
+          const polled = await pollTask(baseUrl, apiKey, taskId);
+          pollCount = polled.pollCount;
+          const ref = extractImageRef(polled.data);
+          if (ref) {
+            await saveImageRef(ref, outPath);
+          } else {
+            await downloadResult(baseUrl, apiKey, taskId, outPath);
+          }
         }
+        const elapsed = (Date.now() - t0) / 1000;
+        const trace = {
+          base_url: baseUrl,
+          task_id: taskId,
+          model,
+          size,
+          resolution,
+          prompt_chars: prompt.length,
+          poll_count: pollCount,
+          total_seconds: Math.round(elapsed * 10) / 10,
+          style_reference: styleReferencePath || null,
+          attempts,
+        };
+        if (tracePath) {
+          mkdirSync(dirname(tracePath), { recursive: true });
+          writeFileSync(tracePath, JSON.stringify(trace, null, 2) + "\n", "utf-8");
+        }
+        console.log(`  Done: ${outPath}  (${elapsed.toFixed(0)}s)`);
+        return trace;
+      } catch (err) {
+        lastError = err;
+        const msg = err && err.message ? String(err.message) : String(err);
+        // Retry on transient errors (5xx, network), skip on 4xx
+        if (retry < 2 && _isRetryableError(err)) {
+          const delay = (retry + 1) * 1000; // 1s, 2s backoff
+          console.log(`  Transient error (${baseUrl}), retrying in ${delay / 1000}s: ${msg.slice(0, 100)}`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        attempts.push({ base_url: baseUrl, error: msg.slice(0, 200) });
+        console.log(`  Image generation failed (${baseUrl}): ${msg}`);
+        break; // non-retryable or out of retries — move to next vendor
       }
-      const elapsed = (Date.now() - t0) / 1000;
-      const trace = {
-        base_url: baseUrl,
-        task_id: taskId,
-        model,
-        size,
-        resolution,
-        prompt_chars: prompt.length,
-        poll_count: pollCount,
-        total_seconds: Math.round(elapsed * 10) / 10,
-        style_reference: styleReferencePath || null,
-        attempts,
-      };
-      if (tracePath) {
-        mkdirSync(dirname(tracePath), { recursive: true });
-        writeFileSync(tracePath, JSON.stringify(trace, null, 2) + "\n", "utf-8");
-      }
-      console.log(`  Done: ${outPath}  (${elapsed.toFixed(0)}s)`);
-      return trace;
-    } catch (err) {
-      const msg = err && err.message ? String(err.message) : String(err);
-      attempts.push({ base_url: baseUrl, error: msg.slice(0, 200) });
-      console.log(`  Mirror failed (${baseUrl}): ${msg}`);
     }
   }
 

@@ -73,14 +73,21 @@ describe('image_api_client', () => {
     ]);
   });
 
-  it('resolveVendors fails on missing KEY_ENV and ignores BASE_URL when VENDORS set', async () => {
+  it('resolveVendors skips vendor with missing KEY_ENV, fails only when all skipped', async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
     process.env.IMAGE2_BASE_URL = 'https://legacy.test/v1';
+    // Single vendor with missing key → all skipped → throws
     process.env.IMAGE2_VENDORS = 'https://a.test/v1|MISSING_KEY_VAR';
     const mod = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
-    expect(() => mod.resolveVendors()).toThrow(/MISSING_KEY_VAR/);
+    expect(() => mod.resolveVendors()).toThrow(/empty after parse/);
+    // Two vendors, one missing key → skips missing one, returns the valid one
     process.env.CODEX_API_KEY_LCONAI = 'k';
+    process.env.IMAGE2_VENDORS = 'https://a.test/v1|MISSING_KEY_VAR,https://b.test/v1|CODEX_API_KEY_LCONAI';
+    const vendors = mod.resolveVendors();
+    expect(vendors).toHaveLength(1);
+    expect(vendors[0]).toEqual({ base_url: 'https://b.test/v1', api_key: 'k' });
+    // Reset for next test
     process.env.IMAGE2_VENDORS = 'https://a.test/v1|CODEX_API_KEY_LCONAI';
     expect(mod.resolveVendors()).toEqual([{ base_url: 'https://a.test/v1', api_key: 'k' }]);
   });
@@ -319,7 +326,7 @@ describe('image_api_client', () => {
     expect(existsSync(outPath)).toBe(true);
   });
 
-  it('all vendors failed includes attempts summary', async () => {
+  it('all vendors failed includes attempts summary', { timeout: 15000 }, async () => {
     process.env.IMAGE2_API_KEY = 'shared';
     globalThis.fetch = vi.fn(async () => ({
       ok: false,

@@ -31,7 +31,7 @@
  *     add Noto Sans CJK and point FONT_BOLD/SEMIBOLD/REGULAR at it.
  */
 
-import { createCanvas, Image, GlobalFonts, loadImage } from "@napi-rs/canvas";
+import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import {
   existsSync,
   readFileSync,
@@ -39,6 +39,7 @@ import {
   statSync,
   mkdirSync,
   writeFileSync,
+  copyFileSync,
 } from "node:fs";
 import { join, resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -929,6 +930,31 @@ function _resolveImages(imgDir, slides) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Read PNG dimensions from the IHDR chunk (first 24 bytes of file).
+ * Pure Node.js Buffer — does NOT invoke @napi-rs/canvas, so it cannot
+ * trigger "Invalid SVG" or similar decode errors on unusual PNG encodings
+ * from certain image vendors (BUG-004).
+ *
+ * @param {string} imgPath
+ * @returns {{width: number, height: number} | null}
+ */
+function _readPngDimensions(imgPath) {
+  try {
+    const buf = readFileSync(imgPath);
+    if (buf.length < 24) return null;
+    // PNG signature check
+    const sig = [137, 80, 78, 71, 13, 10, 26, 10];
+    for (let i = 0; i < 8; i++) if (buf[i] !== sig[i]) return null;
+    // IHDR starts at byte 16: width (4 bytes, big-endian), height (4 bytes)
+    const width = buf.readUInt32BE(16);
+    const height = buf.readUInt32BE(20);
+    return { width, height };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Load an image from a file path into an @napi-rs/canvas Canvas, resized to
  * the target dimensions.  Uses async loadImage() to guarantee the image is
  * fully decoded before drawImage — the sync new Image() + .src pattern can
@@ -1078,6 +1104,24 @@ async function runLockHeaders(opts) {
 
     const layout = slide.layout_contract || {};
     const mode = contractRenderMode(layout);
+    const seq = String(i + 1).padStart(2, "0");
+    const outName = `${seq}_${slideId}.png`;
+    const outPath = join(outDir, outName);
+
+    if (mode === RENDER_MODE_FULL_PAGE) {
+      // Full-page passthrough: check PNG dimensions without decoding.
+      // If the source image already matches the canonical canvas size,
+      // copy it directly — avoids @napi-rs/canvas decode errors on
+      // unusual PNG encodings from certain vendors (BUG-004).
+      const dims = _readPngDimensions(imgPath);
+      if (dims && dims.width === _CANVAS_SIZE[0] && dims.height === _CANVAS_SIZE[1]) {
+        copyFileSync(imgPath, outPath);
+        fullPageCount++;
+        console.log(`  ${outName}  (${mode}, direct copy)`);
+        continue;
+      }
+      // Dimensions mismatch — fall through to canvas resize below.
+    }
 
     // Load and resize the raw image into a Canvas.
     const imageCanvas = await _loadImageToCanvas(imgPath, _CANVAS_SIZE);
@@ -1085,19 +1129,13 @@ async function runLockHeaders(opts) {
     /** @type {import("@napi-rs/canvas").Canvas} */
     let finalCanvas;
     if (mode === RENDER_MODE_FULL_PAGE) {
-      // Pass-through: AI rendered the complete slide.  We still resize to the
-      // canonical canvas so the rest of the pipeline sees a uniform size.
       finalCanvas = imageCanvas;
       fullPageCount++;
     } else {
-      // Body + header-lock: overlay deterministic text.
       finalCanvas = _drawHeader(imageCanvas, slide);
       bodyLockCount++;
     }
 
-    const seq = String(i + 1).padStart(2, "0");
-    const outName = `${seq}_${slideId}.png`;
-    const outPath = join(outDir, outName);
     const buffer = finalCanvas.toBuffer("image/png");
     writeFileSync(outPath, buffer);
     console.log(`  ${outName}  (${mode})`);
