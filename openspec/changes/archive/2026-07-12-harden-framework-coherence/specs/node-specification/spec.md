@@ -54,7 +54,7 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 - **THEN** the API throws a validation error
 - **AND** does not mutate the node record
 
-#### Scenario: Node transitions through valid statuses
+#### Scenario: Node transitions through statuses
 
 - **WHEN** an agent starts a pending node and later satisfies every exit condition
 - **THEN** the persisted status transitions `pending` → `in_progress` → `completed`
@@ -82,12 +82,18 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 
 `checkEntry(nodeName, playbookDir, state, ctx)` SHALL resolve the exact node declaration from the canonical playbook index, evaluate each `requires` dependency as `node_done:<id>` within the active `execution_id`, then evaluate explicit deterministic `entry` conditions. It SHALL return `{ pass: boolean, missing: string[], unknown: string[] }`. An absent, duplicated, invalid, or unknown-condition node SHALL NOT return `pass: true`. Current-node `evidence:`, `user_evidence:`, `decision_recorded`, and `user_decision_recorded` conditions SHALL be forbidden in entry lists; branch selection MAY use `node_evidence:<required-node>:<key>` or `node_decision:<required-node>:<value>`. Cross-node evidence and decisions SHALL additionally require the upstream node to be `completed`, not merely `skipped`.
 
-#### Scenario: Required predecessor blocks entry
+#### Scenario: Entry gate fails with missing conditions
 
 - **WHEN** `wave0` declares `requires: [seed-topics]`
 - **AND** `seed-topics` is neither completed nor skipped
 - **THEN** `checkEntry('wave0', ...)` returns `pass: false`
 - **AND** `missing` includes `node_done:seed-topics`
+
+#### Scenario: Unknown condition returned for manual judgment
+
+- **WHEN** a node declaration contains a condition outside the canonical catalog
+- **THEN** `checkEntry` returns that token in `unknown`
+- **AND** returns `pass: false` so the declaration must be corrected rather than implicitly approved
 
 #### Scenario: Embedded declaration is actually parsed
 
@@ -125,7 +131,7 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 
 `charter/NODE-SPEC.md` SHALL contain a Gate Conditions Catalog listing every valid deterministic condition and parameterized condition family, its type, data source, and check logic. Every `entry`/`exit` condition in canonical node declarations SHALL use the catalog, including `evidence:<key>`, `user_evidence:<key>`, `decision_recorded`, `user_decision_recorded`, `node_evidence:<node>:<key>`, and `node_decision:<node>:<value>`. Free-form unknown tokens SHALL be invalid. The catalog SHALL state that `requires` is enforced separately as `node_done:<id>`, that current-node evidence/decision families are exit-only, and that cross-node evidence/decision conditions may reference only a declared required and completed upstream node in the same execution.
 
-#### Scenario: Developer looks up a deterministic condition
+#### Scenario: Developer looks up a gate condition in the catalog
 
 - **WHEN** a developer opens the Gate Conditions Catalog
 - **THEN** each filesystem/state/gate condition lists its name, data source, and check logic
@@ -189,13 +195,13 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 - **AND** nested execution evidence does not replace parent execution evidence
 - **AND** the popped stack entry is removed
 
-#### Scenario: Empty stack survives write/read
+#### Scenario: Empty playbook_stack survives write/read
 
 - **WHEN** a state with `playbook_stack: []` is written and read
 - **THEN** it remains an empty array
 - **AND** switch can push a five-field entry with an object snapshot
 
-#### Scenario: Non-empty stack survives write/read
+#### Scenario: Non-empty playbook_stack survives write/read
 
 - **WHEN** a stack contains `{playbook: "create-deck", current_node: "setup", execution_id: "exec-parent", execution_started_at: "2026-07-12T00:00:00Z", controller_nodes: {...}}`
 - **THEN** write/read preserves all four strings, the deep controller snapshot, and array order
@@ -230,7 +236,7 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 - **THEN** `writeState` still completes through same-directory rename
 - **AND** does not fail with cross-device `EXDEV`
 
-#### Scenario: Crash leaves a temp sibling
+#### Scenario: Crash during write does not corrupt state
 
 - **WHEN** the process stops after writing the temp file but before rename
 - **THEN** the previous `state.yaml` remains complete

@@ -4,7 +4,7 @@
 
 `edit-text.md`, `edit-visual.md`, `edit-notes.md`, and `restructure-slides.md` SHALL each define a shortened workflow for iterative changes. Each SHALL begin with change classification and end with an intent-specific, globally unique verification node. The text-edit controller SHALL use the public `ppt_flow refresh --kind title` path so the affected slide's resolved render mode selects the chain centrally: `body+header-lock` uses Chain A without Stage 2, while `full-page` uses Chain B with selected forced image regeneration, pilot/header review evidence, and reviewed-image reuse for build.
 
-#### Scenario: User requests a body-lock title change
+#### Scenario: User requests a title change
 
 - **WHEN** user says "第5页标题改一下"
 - **AND** Stage 1 resolves slide 5 as `body+header-lock`

@@ -1,9 +1,7 @@
 ## Purpose
 
 Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, all lookup appendices under `reference/`, and all workflow controllers under `playbook/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure. It describes only the soft bundle `PPTMAKER_FRAMEWORK/`; run-bundle (`deck_*`) folder ontology — three tiers, `_scratch/`, `_generated/` version leaves, structure gradient — is owned by capability `run-bundle-layout` and SHALL NOT be extended here.
-
 ## Requirements
-
 ### Requirement: Framework root has exactly five subdirectories
 
 `PPTMAKER_FRAMEWORK/` SHALL contain exactly five subdirectories: `workflow/`, `scripts/`, `charter/`, `reference/`, and `playbook/`. No other subdirectories SHALL exist at this level.
@@ -79,17 +77,25 @@ The directory `PPTMAKER_FRAMEWORK/06_reference_scripts/` SHALL NOT exist. All it
 
 ### Requirement: All cross-references resolve correctly
 
-Every cross-reference in .md and .mjs files SHALL use the new directory names. This includes files inside `PPTMAKER_FRAMEWORK/`, `openspec/specs/`, and `openspec/config.yaml`. A grep for old directory names SHALL return zero results.
+Every local Markdown cross-reference in active files under `PPTMAKER_FRAMEWORK/` SHALL resolve relative to its containing file, and every active `.md`/`.mjs` path reference SHALL use the current directory and production-path names. The test suite SHALL scan the complete active framework rather than only a hand-selected entry subset. Explicit historical documents and intentionally unresolved template examples MAY be excluded only through narrow, visible rules.
+
+#### Scenario: Markdown link graph is clean
+
+- **WHEN** the documentation consistency test scans every active Markdown link under `PPTMAKER_FRAMEWORK/`
+- **THEN** each local target exists after resolving it relative to the source file
+- **AND** broken links report source file, line, and target
 
 #### Scenario: Grep for old names inside framework is clean
 
-- **WHEN** `grep -r "06_reference_scripts\|00_project_setup\|automation/" PPTMAKER_FRAMEWORK/` is run
-- **THEN** no matches are found (VERSION_LOG historical references excepted)
+- **WHEN** the coherence test scans active framework files for removed directories and production paths
+- **THEN** no active reference to `06_reference_scripts`, `00_project_setup`, `automation/`, `01_visual_style_master`, `02_content_design`, `03_image_prompts`, `04_production_pipeline`, `05_iteration`, or external Image2 skill production paths remains
+- **AND** explicitly historical version-log text may remain under a documented exception
 
 #### Scenario: Grep for old names in openspec specs is clean
 
-- **WHEN** `grep -r "06_reference_scripts\|00_project_setup\|automation/\|01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" openspec/specs/` is run
-- **THEN** no matches are found
+- **WHEN** the coherence test scans `openspec/specs/` and `openspec/config.yaml`
+- **THEN** path references use current framework locations such as `scripts/change-classifier.md`
+- **AND** removed paths or directory names including `automation/change-classifier.md`, `06_reference_scripts`, `00_project_setup`, `01_visual_style_master`, `02_content_design`, `03_image_prompts`, `04_production_pipeline`, and `05_iteration` are absent
 
 ### Requirement: workflow/00-setup README reflects reduced file inventory
 
@@ -120,3 +126,13 @@ The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/env
 - **WHEN** a reader opens `openspec/specs/framework-directory-layout/spec.md`
 - **THEN** its requirements address `PPTMAKER_FRAMEWORK/` paths
 - **AND** do not define `deck_*/3_versions/` or version `_scratch/` as soft-bundle folders
+
+### Requirement: Documentation exceptions are explicit and narrow
+
+Any broken-link or stale-path exclusion SHALL identify the exact historical/template file and reason. Directory-wide or broad regex exclusions that could hide active drift SHALL be forbidden. A command pseudocode exception SHALL use the exact adjacent next-example marker defined by `cli-surface` and SHALL not double as a link/path exclusion.
+
+#### Scenario: Active README is hidden by broad exclusion
+
+- **WHEN** a test exclusion would skip an entire workflow directory
+- **THEN** the consistency test fails configuration validation
+- **AND** requires a file-specific exception instead

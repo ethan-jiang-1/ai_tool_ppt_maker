@@ -16,7 +16,7 @@ Every local Markdown cross-reference in active files under `PPTMAKER_FRAMEWORK/`
 - **THEN** no active reference to `06_reference_scripts`, `00_project_setup`, `automation/`, `01_visual_style_master`, `02_content_design`, `03_image_prompts`, `04_production_pipeline`, `05_iteration`, or external Image2 skill production paths remains
 - **AND** explicitly historical version-log text may remain under a documented exception
 
-#### Scenario: OpenSpec context uses current paths
+#### Scenario: Grep for old names in openspec specs is clean
 
 - **WHEN** the coherence test scans `openspec/specs/` and `openspec/config.yaml`
 - **THEN** path references use current framework locations such as `scripts/change-classifier.md`
