@@ -175,5 +175,7 @@ export async function main(argv = process.argv) {
 }
 
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/generate_style_master.mjs")) {
+  const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+  installStandaloneFailureEnvelope({ where: "generate_style_master" });
   main();
 }

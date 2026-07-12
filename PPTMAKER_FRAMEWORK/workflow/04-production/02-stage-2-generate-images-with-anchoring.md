@@ -137,7 +137,7 @@ design system — do not deviate from it. Only change the slide content, not the
 
 同时，prompt 的头部声明了 style master 作为 reference image。Multimodal model 接收 text prompt + reference image——它**看到** style master 上的颜色、字体层级、组件样式，然后在新画面中**匹配**这些属性。
 
-> Style Anchoring 的完整原理和方法论在 [workflow/01-visual](../workflow/01-visual/) 中详细展开。Stage 2 是 anchoring 的执行环节——在这里，anchoring clause 被实际发送给 model。
+> Style Anchoring 的完整原理和方法论在 [workflow/01-visual](../01-visual/) 中详细展开。Stage 2 是 anchoring 的执行环节——在这里，anchoring clause 被实际发送给 model。
 
 ### 分辨率决策
 

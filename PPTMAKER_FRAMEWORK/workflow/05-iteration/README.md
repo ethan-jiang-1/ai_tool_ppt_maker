@@ -59,7 +59,8 @@ agent_action: navigate
 用户自然语言改动请求
     ↓
 1. 分类器判断：改的是什么？
-   ├─ 文字（标题/标注）        → Chain A
+   ├─ 标题（KICKER/TITLE/SUBTITLE）→ `ppt_flow refresh --kind title`，resolved body-lock=A / full-page=B
+   ├─ 其他烧在图片里的标注      → Chain B
    ├─ 画面/配色/prompt         → Chain B
    ├─ Speaker notes            → Chain C
    └─ 结构（加/删/重排 slides）→ 版本升级
@@ -80,7 +81,7 @@ agent_action: navigate
 
 ### 决策树和沟通模板
 
-详见 `../scripts/change-classifier.md` — Agent 的完整分类决策树和用户沟通模板。
+详见 `../../scripts/change-classifier.md` — Agent 的完整分类决策树和用户沟通模板。
 
 ## 五个文件
 

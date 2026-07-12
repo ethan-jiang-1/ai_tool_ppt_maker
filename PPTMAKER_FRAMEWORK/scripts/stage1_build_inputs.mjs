@@ -885,5 +885,11 @@ const isMain =
      basename(invokedPath) === "stage1_build_inputs.mjs");
 
 if (isMain) {
+    const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+    installStandaloneFailureEnvelope({ where: "stage1_build_inputs" });
+    if (process.argv.includes("--help")) {
+        console.log("Usage: node stage1_build_inputs.mjs --spec <path> [--spec <path2>] [--out <dir>] [--style-dir <dir>] [--deck-system <file>] [--color-palette <file>] [--validate]");
+        process.exit(0);
+    }
     main();
 }

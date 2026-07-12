@@ -21,7 +21,7 @@ agent_action: navigate
 
 一套可复用的方法论，用于将 "我需要一份关于 X 的 deck" 转化为一份**完整的、多层精确的 slide 规格文档**——其中每张 slide 都定义了它的认知载荷、视觉执行方案、和演讲者叙事路径。
 
-它不是关于视觉风格（那是 [workflow/01-visual](../workflow/01-visual/) 的领域），也不是关于如何把规格变成 PPTX 文件（那是 [workflow/04-production](../workflow/04-production/) 的领域）。它聚焦于**内容架构**——在写第一个 image prompt 之前，先回答最根本的问题：这份 deck 到底要说什么，按什么顺序说，每张 slide 承载什么论证功能。
+它不是关于视觉风格（那是 [workflow/01-visual](../01-visual/) 的领域），也不是关于如何把规格变成 PPTX 文件（那是 [workflow/04-production](../04-production/) 的领域）。它聚焦于**内容架构**——在写第一个 image prompt 之前，先回答最根本的问题：这份 deck 到底要说什么，按什么顺序说，每张 slide 承载什么论证功能。
 
 ## 核心思想，一段话讲完
 
@@ -74,13 +74,13 @@ agent_action: navigate
 
 每份模板都把 project-specific 内容替换为 `[PLACEHOLDER]` 标记，并内嵌 `[INSTRUCTION: ...]` 注释解释每一段放什么、为什么。
 
-复制它们。填空。然后用 [workflow/01-visual](../workflow/01-visual/) 设计视觉系统，用 [workflow/04-production](../workflow/04-production/) 把它变成 PPTX。
+复制它们。填空。然后用 [workflow/01-visual](../01-visual/) 设计视觉系统，用 [workflow/04-production](../04-production/) 把它变成 PPTX。
 
 ## 这份指南不覆盖什么
 
-- 视觉风格设计（color palette、typography、layout grid、components）——在 [workflow/01-visual](../workflow/01-visual/) 里
-- PPT 生产 pipeline（image generation、header lock、PPTX assembly）——在 [workflow/04-production](../workflow/04-production/) 里
-- Image prompt 的底层写作技巧（prompt engineering for image models）——在 [workflow/03-prompts](../workflow/03-prompts/) 里
+- 视觉风格设计（color palette、typography、layout grid、components）——在 [workflow/01-visual](../01-visual/) 里
+- PPT 生产 pipeline（image generation、header lock、PPTX assembly）——在 [workflow/04-production](../04-production/) 里
+- Image prompt 的底层写作技巧（prompt engineering for image models）——在 [workflow/03-prompts](../03-prompts/) 里
 - 演讲技巧、舞台表现、观众互动——不在本知识库范围内
 
 这份指南只聚焦于 **内容架构**——在视觉和执行之前，先回答 "what to say and in what order"。

@@ -1143,5 +1143,11 @@ function _main() {
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
+    const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
+    installStandaloneFailureEnvelope({ where: "bundle_layout" });
+    if (process.argv.includes("--help")) {
+        console.log("Usage: node bundle_layout.mjs [--init <deck>] [--deck-type <type>] [--style <preset>] [--check <run-dir> [--structure-only]] [--new-version <run-dir> [--version-name <name>]] [--self-check]");
+        process.exit(0);
+    }
     _main();
 }

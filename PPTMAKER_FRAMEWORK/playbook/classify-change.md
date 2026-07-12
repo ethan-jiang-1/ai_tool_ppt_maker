@@ -1,24 +1,21 @@
 ---
 node: classify-change
 shared: true
-produces: [change-classification]
-entry:
-  - user_request_received
+lifecycle_phase: 4
+method_module: 05-iteration
+requires: []
+entry: []
 exit:
-  - change_type_identified
-  - playbook_selected
+  - evidence:change-classified
+  - evidence:playbook-selected
+  - evidence:scope-resolved
+produces: [change-classification, execution-scope]
 ---
 
-# classify-change: 变更分类
+# Shared Node: Classify Change
 
-## Step 1 — MD
-分析用户的变更请求. 参考 `scripts/change-classifier.md` 决策树.
+**Step 1 — MD**: Read `scripts/change-classifier.md`; classify the request and select the smallest valid controller/chain.
 
-判断:
-1. 改了什么? (text / visual / notes / structure)
-2. 影响多少页? (1 / few / all)
-3. 要 pilot 吗?
+**Step 2 — MD**: Persist `classification: {mode: all|slides, slide_ids: [...], change_kind, selected_playbook}` on this node. `mode: slides` requires at least one canonical slide ID; a mixed render-mode title request without resolved IDs remains blocked.
 
-## Step 2 — MD
-确认分类结果, 告知用户: "这是 Chain X, 预计 ~N 分钟". 
-选择对应 playbook 继续执行.
+**Step 3 — CLI**: Record agent evidence `change-classified`, `playbook-selected`, and `scope-resolved`, then persist with `writeState`.

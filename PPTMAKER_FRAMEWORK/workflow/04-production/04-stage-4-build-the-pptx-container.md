@@ -23,7 +23,7 @@ agent_action: execute_pipeline
 输入：`_generated/header_locked/*.png`（Stage 3 产出）+ `_generated/slide_plan.json`（排序依据）
 输出：`_generated/ppt/{NAME}.pptx`
 
-脚本：`node PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs --run-dir ...`
+Run-bundle 路径：`node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <version-dir> --stage 4`。低层 Expert 模式才直接调用 `stage4_build_pptx.mjs`，并使用它真实的 `--images`、`--slide-plan`、`--out` 参数。
 
 ## PPTX 作为媒体容器的理念
 

@@ -1,48 +1,64 @@
 ---
 playbook: restructure-slides
-description: 结构变更——加页/删页/重排, --new-version
+description: 结构变更——新版本、重建受影响页、验证
 includes: [classify-change]
 ---
 
-# Playbook: Structural — 结构变更
-
-> 增/删/重排 slide. --new-version + 受影响页.
+# Playbook: 结构变更
 
 ## Nodes
 
 ### classify-change (shared)
-执行变更分类 → 确认这是 Structural change.
+
+确认增/删/重排范围及受影响 slide IDs。
 
 ### new-version
-→ 创建干净版本
 
 ```yaml
 node: new-version
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [classify-change]
 produces: [new-version-dir]
-entry:
-  - current_version_exists
-exit:
-  - new_version_created
+entry: [run_bundle_exists]
+exit: [evidence:new-version-created]
 ```
 
-**Step 1 — MD**: 确认变更范围 (加/删/重排 哪些 slide).
-**Step 2 — CLI**: `node scripts/bundle_layout.mjs --new-version <current_version_dir>`
+**Step 1 — MD**: 展示结构变化和 source delta，确认新版本边界。
+
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --new-version <current-run-dir>`；记录 `new-version-created`（kind `cli`）及新 run-dir。
 
 ### regenerate-affected
-→ 重跑受影响页
 
 ```yaml
 node: regenerate-affected
-phase: 04
+lifecycle_phase: 4
+method_module: 04-production
 requires: [new-version]
 produces: [updated-pptx]
-entry:
-  - new_version_created
+entry: []
 exit:
-  - affected_slides_regenerated
+  - pptx_generated
+  - speaker_notes_injected
+  - header_review_current
 ```
 
-**Step 1 — MD**: 更新 slide-specifications.md (增/删/重排 slide).
-**Step 2 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <new_version_dir> --stage 1,2,3,4,5 --only <affected_slide_ids>`
+**Step 1 — MD**: 只编辑新版本的 slide specifications；`_generated/` 保持干净并由管线重建。
+
+**Step 2 — CLI**: 对受影响页按当前 render mode 跑最小链；full-page 必须完成 pilot/header review 后使用 reviewed-image reuse。
+
+### verify-restructure-output
+
+```yaml
+node: verify-restructure-output
+lifecycle_phase: 4
+method_module: 05-iteration
+requires: [regenerate-affected]
+produces: [verified-structure]
+entry: []
+exit: [user_evidence:structure-change-verified]
+```
+
+**Step 1 — MD**: Open 最终 PPTX，核对新增、删除、重排、页码、notes 和未受影响页面。
+
+**Step 2 — GATE**: 用户确认后记录 `structure-change-verified`（kind `user`）。

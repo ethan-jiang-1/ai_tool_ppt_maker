@@ -22,7 +22,7 @@ agent_action: internalize
 
 不是 "用文字描述风格"——文字描述每次渲染出来都不一样。而是 **show the style**——model 看到 reference image 上的颜色、字体大小关系、卡片风格、线条粗细，然后在新的画面中匹配这些属性。
 
-> Style master 的创建方法论在 [workflow/01-visual](../workflow/01-visual/) 中完整展开。这里聚焦于 "怎么在 prompt 中使用 anchoring"。
+> Style master 的创建方法论在 [workflow/01-visual](../01-visual/) 中完整展开。这里聚焦于 "怎么在 prompt 中使用 anchoring"。
 
 ## Anchoring Clause
 

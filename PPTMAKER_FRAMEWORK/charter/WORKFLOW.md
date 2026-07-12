@@ -26,13 +26,13 @@ Phase 顺序：`0 → 1/2（可交换）→ 2.7 回填 L3 → 3 → 4`。Phase 3
 
 | 链 | 用户说 (示例) | 变更类型 | Stage | 耗时 |
 |----|-------------|---------|-------|------|
-| **A** | "第5页标题改一下" | title/kicker/subtitle | 1,3,4,5 | ~5 min |
+| **A** | "第5页 body-lock 标题改一下" | resolved `body+header-lock` title/kicker/subtitle | 1,3,4,5 | ~5 min |
 | **B** | "第8页的图重新生成" | image prompt/颜色/布局 | 1,2,3,4,5 | ~5 min/页 |
 | **C** | "备注改一下" | speaker notes | 5 | ~30 sec |
 | **Structural** | "加一页案例" / "删掉第3页" | 增/删/重排 slide | new-version + 受影响页 | 按页数 |
 
 **Agent 分类逻辑**:
-1. 改了什么? (text / visual / notes / structure)
+1. 改了什么? 标题意图先用 `ppt_flow refresh --kind title` 解析 resolved mode：body-lock=A，full-page=B；其他再分 visual / notes / structure
 2. 影响多少页? (1 页 → targeted; 几页 → rerun affected; 全部 → full rebuild)
 3. 要 pilot 吗? (颜色/风格变更 → 先试 3 页, 通过后再全量)
 
@@ -59,6 +59,6 @@ CLAUDE.md  →  BOOTSTRAP.md  →  charter/AGENT_CONTRACT.md  →  按 Phase 读
 
 | 频率 | 操作 | 走什么 |
 |------|------|--------|
-| 高 (每轮对话) | 改 wording, 调单页 prompt | Chain A/B, 直接编辑 |
+| 高 (每轮对话) | 改 wording, 调单页 prompt | 先解析 render mode，再走 Chain A/B |
 | 中 (每几次) | 换案例, 调结构 | Structural, proposal 先行 |
 | 低 (关键节点) | 换隐喻/公式, 换视觉方向 | 回 Phase 1/2, 全量重跑 |

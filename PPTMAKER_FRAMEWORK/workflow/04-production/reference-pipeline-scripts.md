@@ -89,7 +89,7 @@ function assemblePrompt(sourcePrompt, layoutContract, isFullPage) {
 
 ## Pattern 3: Async Image Generator（Stage 2）
 
-**做什么**：Submit → poll → download，skip-if-exists，mirror fallback。官方路径：`unified_pipeline.mjs` → image2-ppt skill（Node skill 入口，由管线 spawn）。
+**做什么**：Submit → poll → download，skip-if-exists，mirror fallback。官方路径：`unified_pipeline.mjs` → 框架内 `stage2_generate_images.mjs` → `image_api_client.mjs`。
 
 ```javascript
 const MIRRORS = [
@@ -104,7 +104,7 @@ async function generateImage(prompt, outputPath, { model = "gpt-image-2", resolu
     console.log(`  Skip — already exists: ${outputPath}`);
     return null;
   }
-  // Submit via skill adapter, poll task, download PNG, write trace JSON
+  // Submit through the in-framework API client, poll task, download PNG, write trace JSON
   // See unified_pipeline.mjs runStage2() for production wiring
 }
 ```

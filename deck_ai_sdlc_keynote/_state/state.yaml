@@ -1,53 +1,39 @@
-# _state/state.yaml — playbook execution state (not a hand-edit playground)
+# _state/state.yaml — MD Controller execution state (not a hand-edit playground)
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
 # API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: playbook, current_node, nodes.* (including header-review.by_version evidence), gates.{content,visual}, deck.*, playbook_stack
-# Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
-# Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
-# Resume: after disconnect / cleared chat, run ppt_flow state first (whole-workflow where-am-I card)
+# Fields: schema_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
+# Heal: readState defaults to tolerant parse + schema migration/repair
 playbook: iterate-style
 current_node: review-gate
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-12T04:47:43.046Z
+updated_at: 2026-07-12T07:17:31.078Z
 nodes:
-  intake-source:
-    status: completed
-    completed: 2026-07-11T02:50:16.155Z
-  align-bundle:
-    status: completed
-    completed: 2026-07-11T02:50:16.159Z
-  inventory-map:
-    status: completed
-    completed: 2026-07-11T02:50:16.159Z
-  early-show:
-    status: completed
-    completed: 2026-07-11T02:50:16.159Z
-  reaffirm-gates:
-    status: completed
-    started: 2026-07-11T02:50:16.159Z
-    completed: 2026-07-11T03:45:13.767Z
-  handoff:
-    status: completed
-    completed: 2026-07-11T03:45:13.775Z
-    next: iterate-style review-gate (style master on disk); then quick-preview / build when ready
-    note: Migrate complete; truth-aligned 2026-07-11. Gates waived. Active playbook iterate-style.
   start-iterate:
     status: completed
     completed: 2026-07-11T08:21:46.152Z
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
   tweak-prompt:
     status: completed
     completed: 2026-07-11T08:21:46.159Z
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
   generate:
     status: completed
     completed: 2026-07-11T08:21:46.159Z
     round: 1
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
   review-gate:
     status: in_progress
     started: 2026-07-11T08:26:59.852Z
     waiting_for: user:review-style-master
     note: "style_master.jpg on disk; gates waived (not re-LOCKed). Framework data sync complete 2026-07-12: current Stage 1 has 25 policy-default full-page slides; legacy structured-header duplication removed from all IMAGE PROMPTs; old unmanifested mixed-profile outputs preserved under v1/_scratch/framework-sync-2026-07-12. Open style master → LOCK / RETRY / BACK; after LOCK run target-profile pilot → approve header → build --reuse-images."
     round: 1
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
 gates:
   content: waived
   visual: waived
@@ -56,3 +42,13 @@ deck:
   type: keynote
   style: custom-sketch-etching
 playbook_stack: []
+schema_version: 2
+execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+execution_started_at: 2026-07-11T01:11:51.522Z
+diagnostics:
+  - intake-source removed from active iterate-style working set
+  - align-bundle removed from active iterate-style working set
+  - inventory-map removed from active iterate-style working set
+  - early-show removed from active iterate-style working set
+  - reaffirm-gates removed from active iterate-style working set
+  - handoff removed from active iterate-style working set

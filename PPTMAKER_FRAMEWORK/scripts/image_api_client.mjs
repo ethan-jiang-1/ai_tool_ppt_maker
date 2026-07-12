@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Native Node image API client (OpenAI-compatible generations + optional async poll).
  *

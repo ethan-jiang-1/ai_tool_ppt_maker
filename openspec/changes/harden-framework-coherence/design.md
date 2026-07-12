@@ -35,7 +35,7 @@ The change must remain Node.js ESM only, preserve the run-bundle layout and publ
 
 ### 1. Keep Markdown controllers and define one parseable node grammar
 
-Ordered playbooks will continue to contain fenced YAML node declarations. Standalone shared nodes may use document frontmatter. A new orchestration-independent module, `scripts/lib/playbook_model.mjs`, will support exactly those forms and construct an index containing playbook, order, includes, node ID, source file/line, `requires`, `entry`, `exit`, optional `produces`, optional `decisions`, lifecycle metadata, and step blocks. `decisions` is a non-empty list of unique strings for a GATE node whose outcome controls later routing. It will use the already declared `yaml` package for parsing, add no dependency, and will not import runtime orchestration modules.
+Ordered playbooks remain MD Controllers and are the only source of truth for workflow content and node order. Standalone shared nodes may use document frontmatter. A new orchestration-independent reader, `scripts/lib/md_controller_reader.mjs`, will read those Markdown forms and construct a transient index containing playbook, order, includes, node ID, source file/line, `requires`, `entry`, `exit`, optional `produces`, optional `decisions`, lifecycle metadata, and step blocks. It SHALL NOT maintain a second hard-coded workflow definition. Its file header SHALL state that it only reads, parses, indexes, and validates MD Controllers; it does not define, generate, modify, or execute playbooks. `decisions` is a non-empty list of unique strings for a GATE node whose outcome controls later routing. The reader will use the already declared `yaml` package, add no dependency, and will not import runtime orchestration modules.
 
 Node declarations will replace ambiguous `phase` with:
 
@@ -217,7 +217,7 @@ The following table is normative for controller edits. `A:`, `U:`, and `C:` mean
 | restructure-slides | `verify-restructure-output` (new) | 4 / 05-iteration | regenerate-affected | U:`structure-change-verified` |
 | quick-preview | `validate-ready` | 2 / 04-production | — | `style_master_exists`, C:`preview-readiness-validated` (content/visual gates may remain pending) |
 | quick-preview | `pilot-generate` | 2 / 04-production | validate-ready | C:`pilot-generated` |
-| quick-preview | `review-preview` | 2 / 01-visual | pilot-generate | D[`approve`,`retry`], `user_decision_recorded`; approve records current header evidence, retry resets pilot/review |
+| quick-preview | `review-preview` | 2 / 01-visual | pilot-generate | D[`proceed`,`retry`,`header-lock`,`accept-risk`,`back`], `user_decision_recorded`; proceed records current header evidence, retry/header-lock reset pilot/review, accept-risk persists reason |
 | iterate-style | `start-iterate` | 2 / 01-visual | — | U:`iteration-goals-confirmed` |
 | iterate-style | `tweak-prompt` | 2 / 01-visual | start-iterate | A:`style-prompt-updated` |
 | iterate-style | `generate` | 2 / 01-visual | tweak-prompt | `style_master_exists`, C:`style-master-generated` |
@@ -266,23 +266,23 @@ Every delta requirement has an implementation task and a named proof. Task numbe
 
 | Capability / requirement | Tasks | Named proof |
 |---|---|---|
-| node — Node frontmatter | 1.1, 2.1–2.3, 4.1 | `test_playbook_validation`: exact fenced/frontmatter parsing, duplicate source lines, fail-closed lookup |
-| node — Node body step types | 1.1, 2.1–2.2, 4.1 | `test_playbook_validation`: MD/CLI/GATE grammar and numbering fixtures |
+| node — Node frontmatter | 1.1, 2.1–2.3, 4.1 | `test_md_controller_reader`: exact fenced/frontmatter parsing, duplicate source lines, fail-closed lookup |
+| node — Node body step types | 1.1, 2.1–2.2, 4.1 | `test_md_controller_reader`: MD/CLI/GATE grammar and numbering fixtures |
 | node — Five node statuses | 1.2, 3.2 | `test_state_yaml`: enum rejection, restart cleanup, healed diagnostics |
-| node — checkEntry | 1.1, 2.3–2.4 | `test_state_yaml` + `test_playbook_validation`: requires-first, evidence placement, unknown fail-closed |
+| node — checkEntry | 1.1, 2.3–2.4 | `test_state_yaml` + `test_md_controller_reader`: requires-first, evidence placement, unknown fail-closed |
 | node — checkExit | 1.1, 2.3–2.4 | `test_state_yaml`: deterministic/evidence pass and absent-node failure |
-| node — Gate Conditions Catalog | 2.2, 4.2, 7.7 | `test_playbook_validation`: zero uncataloged conditions and family placement errors |
+| node — Gate Conditions Catalog | 2.2, 4.2, 7.7 | `test_md_controller_reader`: zero uncataloged conditions and family placement errors |
 | node — Query interface | 2.5, 4.5 | `test_state_yaml` + `test_ppt_flow`: unwritten pending nodes, execution filtering, branch candidates |
 | node — Playbook stack | 1.2, 3.4 | `test_state_yaml`: nested shared-node overwrite regression, five-field snapshot round-trip, legacy safe fallback |
 | node — Atomic state writes | 3.5 | `test_state_yaml`: same-filesystem rename, crash sibling, EXDEV regression |
-| node — Index validation | 1.1, 2.1–2.2, 4.4 | `test_playbook_validation`: all nine controllers plus shared node, cycles/order/reserved IDs |
+| node — Index validation | 1.1, 2.1–2.2, 4.4 | `test_md_controller_reader`: all nine controllers plus shared node, cycles/order/reserved IDs |
 | node — Typed evidence/decisions | 2.4, 4.2 | `test_state_yaml`: provenance, ISO timestamps, skipped/prior-execution branch rejection, scalar migration |
 | node — Versioned state migration | 1.2, 3.1–3.4 | `test_state_yaml` + `test_header_review`: v1→v2 idempotence, aliases, reserved records, ambiguous-stack diagnostic |
 | node — Execution isolation | 1.2, 3.4 | `test_state_yaml`: repeated same playbook starts clean; nested resume restores parent working set |
 | node — Gate enum enforcement | 1.2, 3.2 | `test_state_yaml`: invalid writes reject and invalid persisted values block |
-| playbook — Iteration chains | 1.1, 4.3, 7.4 | `test_ppt_flow` + `test_playbook_validation`: body-lock/full-page title routes and exact 3-slide visual pilot |
-| playbook — Registered validation | 2.2, 4.4 | `test_playbook_validation`: registered inventory has zero errors |
-| playbook — Lifecycle/module metadata | 1.1, 4.1 | `test_playbook_validation` + `test_docs_consistency`: enum and hierarchy fixtures |
+| playbook — Iteration chains | 1.1, 4.3, 7.4 | `test_ppt_flow` + `test_md_controller_reader`: body-lock/full-page title routes and exact 3-slide visual pilot |
+| playbook — Registered validation | 2.2, 4.4 | `test_md_controller_reader`: registered inventory has zero errors |
+| playbook — Lifecycle/module metadata | 1.1, 4.1 | `test_md_controller_reader` + `test_docs_consistency`: enum and hierarchy fixtures |
 | playbook — Legacy duplicate resume | 1.2, 3.3 | `test_state_yaml`: edit-text/edit-visual alias collision behavior |
 | playbook — Resume cards | 2.5, 4.5 | `test_ppt_flow`: complete pending list, unique suggestion, multi-candidate, waiting priority |
 | notes — Stage 5 injection | 1.3, 5.2–5.4 | `test_stage5_inject_notes` + `test_unified_pipeline`: counts, empty-note failure, atomic output/receipt |

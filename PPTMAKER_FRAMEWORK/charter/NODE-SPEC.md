@@ -1,219 +1,190 @@
 # Node 规格宪法
 
-> 本文定义 Playbook 体系中 **Node** 的解剖结构、State Schema、和执行规则.
-> 这是整个 MD Controller 体系的基石——所有 playbook 和 CLI 脚本都按此规格读写 state.
+> 本文定义 MD Controller 的 Playbook Node、state schema 与 gate 条件。`playbook/*.md` 是工作流内容、节点顺序与声明的唯一真相源；`scripts/lib/md_controller_reader.mjs` 只负责读取、解析、索引和校验，不定义、生成、修改或执行 playbook。
 
-## Node 解剖
+## 规范层级
 
-每个 Node 是一个 Markdown 文件, 由 **YAML frontmatter** (元数据) 和 **Markdown body** (执行步骤) 组成.
+- **Lifecycle Phase**：`0 → 1/2 → 2.7 → 3 → 4`
+- **Method Module**：`00-setup`、`01-visual`、`02-content`、`03-prompts`、`04-production`、`05-iteration`
+- **Pipeline Stage**：生产脚本 Stage 1–5
+- **Playbook Node**：MD Controller 中的有序执行节点
 
-### Frontmatter 字段
+这四个层级不可混称。尤其禁止用旧字段 `phase: 04` 表示 Method Module。
+
+## Node 声明
+
+有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`。
 
 ```yaml
----
-node: <kebab-case>           # Node 唯一标识
-playbook: <playbook-name>    # 所属 playbook (shared node 此项为空)
-phase: <00-05>               # 对应 Phase
-requires:                    # 前置 node, 必须 completed 才能进
-  - <node-name>
-optional-deps:               # 可选前置, 有更好没有也可以
-  - <node-name>
-produces:                    # 产出物 (文件 / gate 决策 / state 字段)
-  - <artifact-name>
-entry:                       # ENTRY GATE: 进场前必须满足的条件
-  - <condition>
-exit:                        # EXIT GATE: 出场前必须满足的条件
-  - <condition>
-shared: false                # true = 可被多个 playbook 通过 includes 引用
----
+node: wave0
+lifecycle_phase: 1
+method_module: 02-content
+requires: [seed-topics]
+entry: []
+exit:
+  - slide_specs_exists
+  - evidence:l1-l2-l4-complete
+produces: [slide-specifications]
 ```
 
-### Body 结构
+必填字段：`node`、`lifecycle_phase`、`method_module`、`requires`、`entry`、`exit`。可选字段包括 `produces`。控制后续分支的 GATE node 还必须声明非空、无重复的 `decisions` enum。
 
-Node body 是 Agent 读取的执行指令. 每步标注类型:
+`requires` 是唯一 node-to-node 前置机制：runtime 会在显式 `entry` 之前把每项按 `node_done:<id>` 检查。不要在 `entry` 重复前驱完成条件。
+
+## Node body
+
+每个 node 至少包含一个 canonical step；编号从 1 开始单调递增，类型只能是 MD、CLI、GATE：
 
 ```markdown
-## Step N — MD
-Agent 读方法论文档、做创意判断、人机交互.
-引用 workflow/ 下的文件, 不重复其内容.
+**Step 1 — MD**: 读方法论、做判断或更新源文件。
 
-## Step N — CLI
-调脚本. 写完整命令 + 参数占位符.
-node scripts/<script>.mjs --arg <value>
+**Step 2 — CLI**: 运行完整 Node 命令或调用 state API。
+
+**Step 3 — GATE**: 向用户展示可审查产物，记录 typed decision/evidence。
 ```
 
-## State Schema
+禁止 `CLI/State` 等混合标签；需要分别落成 CLI 与 MD/GATE step。
 
-> **单一真相源**: state 模型的规范定义在 openspec spec [`node-specification`](../../openspec/specs/node-specification/spec.md) 和 [`playbook-execution`](../../openspec/specs/playbook-execution/spec.md). 下面是给 agent 的**快速参考快照**——若快照与 spec 冲突, **以 spec 为准**, 并同步更新本快照 (这是防止 state 模型再次漂移的约定).
+## State Schema v2
 
-State 存放在 run bundle 根目录的 `_state/` 目录 (`deck_<name>/_state/`): `state.yaml` 是唯一真相源 (原子写), `history.jsonl` 是 append-only 参考日志 (仅供 LLM 参考, 不参与自动恢复). 与 `project-metadata.yaml` **共存**: state 管执行进度, metadata 管静态配置.
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/lib/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按顺序 heal v1→v2，且二次读取幂等。
 
 ```yaml
-# _state/state.yaml
-playbook: create-deck       # 当前 playbook
-current_node: wave0           # 当前执行到的 node
-started_at: 2026-07-10T14:00:00Z
-updated_at: 2026-07-10T14:23:00Z
+schema_version: 2
+playbook: create-deck
+current_node: wave0
+execution_id: exec-...
+execution_started_at: 2026-07-12T06:00:00.000Z
+started_at: 2026-07-12T05:00:00.000Z   # 整个 workflow 的稳定开始时间
+updated_at: 2026-07-12T06:20:00.000Z
 
-nodes:                        # 每个 node 的状态
-  instantiation:
-    status: completed
-    started: 2026-07-10T14:00:00Z
-    completed: 2026-07-10T14:05:00Z
-  hitl1:
-    status: completed
-    decision: proceed          # node 特有字段可选
+nodes:
   wave0:
     status: in_progress
-  review-gate:                 # 示例：等人审图
-    status: in_progress
-    waiting_for: user:review-style-master   # 可选；短 machine token
-    note: open style_master.jpg → LOCK/RETRY/BACK  # 可选；人话
+    execution_id: exec-...
+    evidence:
+      sources-collected:
+        met: true
+        kind: agent
+        at: 2026-07-12T06:15:00.000Z
+  hitl2:
+    status: completed
+    execution_id: exec-...
+    decision:
+      value: proceed
+      kind: user
+      at: 2026-07-12T06:18:00.000Z
 
-gates:                        # 人审 gate
-  content: pending             # pending | approved | waived
-  visual:  pending
+gates:
+  content: approved
+  visual: approved
 
-deck:                         # 静态 deck 信息 (从 metadata 镜像)
-  name: my_deck
-  type: keynote
-  style: dark-executive
+playbook_stack:
+  - playbook: create-deck
+    current_node: rerun
+    execution_id: exec-parent
+    execution_started_at: 2026-07-12T06:00:00.000Z
+    controller_nodes: {}
 ```
 
-### Node Status 枚举
+### Execution working set
 
-| Status | 含义 |
-|--------|------|
-| `pending` | 未开始 |
-| `in_progress` | 正在执行 |
-| `completed` | 所有 exit 条件满足 |
-| `skipped` | 用户明确跳过 |
-| `failed` | 阻塞, 需人工干预 |
+顶层 `nodes` 只包含当前 execution 的 controller working set，加上独立 freshness contract 管理的系统保留记录（目前为 `header-review`）。controller record、evidence 与 decision 都必须匹配当前 `execution_id`；旧 execution 不能授权新 execution。
 
-### Gate Status 枚举
+- `startPlaybook`：顶层启动新 execution；清理旧 controller records，保留系统记录。未完成 execution 只有显式 `{replace:true}` 才能替换；stack 非空时禁止调用。
+- `switchPlaybook`：把 parent 的 `{playbook,current_node,execution_id,execution_started_at,controller_nodes}` 深拷贝进 stack，再创建干净 child execution。
+- `resumePlaybook`：丢弃 child controller working set，恢复五字段 parent snapshot，同时保留最新系统记录。
+- legacy pointer-only stack 无法恢复 provenance 时，heal 成安全阻塞 snapshot，并记录诊断；禁止猜测归属。
 
-| Status | 含义 |
-|--------|------|
-| `pending` | 等待人审 |
-| `approved` | 人审通过 |
-| `waived` | 用户明确跳过 |
+### Status enums
 
-## Playbook 规则
+Node status 只能是 `pending`、`in_progress`、`completed`、`skipped`、`failed`。Gate status 只能是 `pending`、`approved`、`waived`。writer 拒绝其他值；heal 把非法持久值降级为阻塞的 `pending` 并保留诊断。重启 completed node 会清掉旧 `completed` 时间；完成 node 会清掉不兼容的 failure 字段。
 
-### Node 串联
+### Typed evidence 与 decision
 
-Playbook 是**有序 node 序列**. Agent 按 playbook 中 node 出现的顺序执行. 每个 node 的 `requires` 字段声明前置依赖——如果前置 node 不是 `completed`, Agent 必须先完成它.
+Evidence 形状：`{met:true, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
 
-### Shared Node
+Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
 
-`shared: true` 的 node 可被多个 playbook 引用. Playbook 通过 frontmatter 的 `includes` 字段声明:
+用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。legacy boolean/scalar 只可保守迁移为 `kind: agent`，绝不能伪造用户批准。
 
-```yaml
----
-playbook: edit-text
-includes: [classify-change]
----
-```
+## CLI ⇔ MD 协议
 
-引用的 shared node 行为上等同于写在 playbook 里, 但不复制内容.
-
-### CLI ⇔ MD 协议
-
-- **MD → CLI**: Agent 执行 CLI step 前, 确保 `entry` 条件满足. 将 `_state/state.yaml` 路径传给脚本
-- **CLI → MD（成功）**: 脚本执行后写 state (node status, 产出物路径, 时间戳). exit 0
-- **CLI → MD（失败 · 宪法）**: entry 不满足、参数非法、未捕获异常等硬失败 → **非零 exit + stderr 最后一个非空行为单行 JSON envelope**
-  （`ok:false`, 稳定 `code`, `message`, `hint`, `where`）。MD Controller / agent 取末非空行 `JSON.parse`，按 `code`/`hint` 修复。
-  禁止仅打印散文 `Fatal error` 致盲。权威: `charter/CONSTITUTION.md`「CLI 失败回执宪法」。
-- **State 读写**: 写操作只更新自己负责的字段. 读操作前先加载最新 state
+- MD → CLI：先过 entry gate，再执行 CLI step。
+- CLI 成功：exit 0；需要的 durable evidence/state 由负责该动作的调用方写入。
+- CLI 硬失败：非零 exit，stderr 最后一个非空行必须是唯一单行 JSON envelope：`ok:false`、稳定 `code`、非空 `message`、`hint`、`where`。
+- State 写入：只改本动作负责的字段；temp 文件必须与 `_state/state.yaml` 同目录，再 atomic rename。
 
 ## State API
 
-`scripts/lib/state.mjs` 提供完整 CRUD + Query API.
+- READ/HISTORY：`readState`、`writeState`、`statePath`、`historyPath`、`appendHistory`、`readHistory`
+- QUERY：`getNodeStatus`、`getCurrentNode`、`getCompletedNodes(state,nodeIds?)`、`getPendingNodes(state,nodeIds?)`、`isNodeCompleted`、`isPlaybookComplete(state,nodeIds?)`、`getGateStatus`、`isGateApproved`
+- VALIDATE：`checkEntry`、`checkExit`、`getMissingConditions`、`validateState`、`getEligibleNextNodes`
+- WRITE：`setNodeStatus`、`resetNode`、`skipNode`、`setGate`、`setNodeEvidence`、`setNodeDecision`、`startPlaybook`、`switchPlaybook`、`resumePlaybook`
 
-**READ**: `readState(deckDir)`, `writeState(deckDir, state)`, `statePath(deckDir)`, `historyPath(deckDir)`
-
-**HISTORY**: `appendHistory(deckDir, event)` (原子 append 一行 JSON 到 `_state/history.jsonl`), `readHistory(deckDir)` (返回所有可解析事件, 跳过损坏行). History 仅供 LLM 参考, 不参与自动恢复.
-
-**QUERY**: `getNodeStatus(state, name)`, `getCurrentNode(state)`, `getCompletedNodes(state)`, `getPendingNodes(state)`, `isNodeCompleted(state, name)`, `isPlaybookComplete(state)`, `getGateStatus(state, name)`, `isGateApproved(state, name)`
-
-**VALIDATE**: `checkEntry(node, playbookDir, state, ctx)`, `checkExit(node, playbookDir, state, ctx)`, `getMissingConditions(node, playbookDir, state, ctx)`, `validateState(state)`
-
-**WRITE**: `setNodeStatus(state, name, status, extra)`, `resetNode(state, name)`, `skipNode(state, name, reason)`, `setGate(state, name, status)`, `switchPlaybook(state, newPlaybook)`, `resumePlaybook(state)`, `startPlaybook(state, playbook)`, `createInitialState(deckName, deckType, style)`
-
-**SAFETY**: `readState` 文件不存在 → 返回初始态. **默认 heal**（`heal: true`）：容错解析 + schema 归一；脏则规范回写；完全不可解 → `state.yaml.broken.<ts>` + seed 可用态. `{corrupted:true}` 仅 `heal: false` 诊断或无法产出可用态时. `writeState` 原子写 (tmp → rename). MD：先修后问，不把 YAML 语法题甩给用户（见 CONSTITUTION「MD↔JS 互补健壮性」).
+传入 canonical node-ID list 时，尚未写入或 execution-mismatched 的 node 都按 pending 处理；系统记录和 controller 外节点不影响 playbook completion。
 
 ## Gate Conditions Catalog
 
-条件名统一格式: 参数化条件用冒号 (`gate_approved:visual`), 原子条件用下划线 (`run_bundle_exists`). 所有 playbook frontmatter 的 entry/exit 条件必须使用本 catalog 中的标准名.
+未知 condition 必须 fail closed，返回 `unknown`；不得当作“人工判断后默认通过”。`requires` 由 runtime 单独按 `node_done:<id>` 强制执行。
 
-### FILESYSTEM — 检查 run bundle 内文件/目录
+### Deterministic artifact conditions
 
-| 条件名 | 检查 | 路径 (相对 ctx) |
-|--------|------|----------------|
-| `run_bundle_exists` | deck dir 存在 | `ctx.deckDir` 本身 |
-| `deck_guide_created` | deck-guide.md 存在 | `ctx.deckDir/deck-guide.md` |
-| `visual_preset_seeded` | 配色方案已落盘 | `ctx.deckDir/2_backbone/visual-style/color_palette.json` |
-| `style_master_exists` | 视觉锚点图已生成 | `ctx.deckDir/2_backbone/visual-style/style_master.jpg` |
-| `slide_specs_exists` | slide 规格文件存在 | `ctx.runDir/slide-specifications.md` |
-| `stage1_output_exists` | Stage 1 产出物存在 | `ctx.runDir/_generated/slide_plan.json` |
-| `pptx_generated` | PPTX 已产出 | `ctx.runDir/_generated/ppt/*.pptx` |
-| `speaker_notes_injected` | 备注已注入 | pptx notes panel 非空 |
+| Condition | 类型 / 数据源 | 精确检查 |
+|---|---|---|
+| `run_bundle_exists` | filesystem / `ctx.deckDir` | run bundle 目录存在 |
+| `deck_guide_created` | filesystem | `<deckDir>/deck-guide.md` 存在 |
+| `visual_preset_seeded` | filesystem | `2_backbone/visual-style/color_palette.json` 存在 |
+| `style_master_exists` | filesystem | `2_backbone/visual-style/style_master.jpg` 存在 |
+| `slide_specs_exists` | filesystem | `<runDir>/slide-specifications.md` 存在 |
+| `slide_specs_valid` | Stage 1 validation | 调用 Stage 1 同一 side-effect-free validator；零错误、无 L3 placeholder、render-required 字段齐全 |
+| `pptx_generated` | filesystem | `_generated/ppt/` 恰有当前非 backup PPTX 产物 |
+| `speaker_notes_injected` | receipt | 校验 `_generated/qa/notes_injection.json` schema v1、contained paths、当前 input/PPTX SHA-256 与 count equality |
+| `header_review_current` | header review contract | 按当前 profile 与 execution classification scope 检查 relevant `full-page` IDs 的 reviewed hashes/fingerprint；无 relevant full-page 时才 vacuous pass |
 
-### STATE — 检查 `_state/state.yaml` 字段
+### State/gate condition families
 
-| 条件名 | 检查 | state 路径 |
-|--------|------|-----------|
-| `node_completed:<name>` | node 已完成 | `state.nodes.<name>.status === 'completed'` |
-| `node_done:<name>` | node 已完成或被跳过 | `['completed','skipped'].includes(state.nodes.<name>?.status)` |
-| `node_status:<name>:<s>` | node 处于某状态 | `state.nodes.<name>.status === <s>` |
-| `gate_approved:<name>` | gate 非 pending | `state.gates.<name> !== 'pending'` |
-| `current_node_is:<name>` | 当前在某 node | `state.current_node === <name>` |
-| `playbook_is:<name>` | 当前在某 playbook | `state.playbook === <name>` |
+| Condition | 数据源 | 规则 |
+|---|---|---|
+| `gate_approved:<name>` | `state.gates` | status 为 `approved` 或 `waived` |
+| `node_completed:<id>` | active node record | 同 execution 且 status 为 `completed` |
+| `node_done:<id>` | active node record | 同 execution 且 status 为 `completed` 或 `skipped`；`requires` 自动使用此条件 |
+| `node_status:<id>:<status>` | active node record | 同 execution 且精确 status 匹配 |
 
-`node_done:<name>` 用于 requires 链——跳过的 node 不阻塞下游. `node_completed:<name>` 用于严格检查.
+### Typed evidence/decision families
 
-### USER — 检查用户决策 (存储在 node extra 字段)
+| Condition | 允许位置 | 规则 |
+|---|---|---|
+| `evidence:<key>` | 当前 node exit only | 当前 node 同 execution 的有效 evidence，任意 provenance |
+| `user_evidence:<key>` | 当前 node exit only | 同上，但 `kind:user` |
+| `decision_recorded` | 当前 node exit only | 当前 node 有有效 typed decision |
+| `user_decision_recorded` | 当前 node exit only | 当前 node 有 `kind:user` 的 typed decision |
+| `node_evidence:<required-node>:<key>` | downstream entry | source 必须在 `requires` 中、同 execution、status=`completed`；skipped 不供 evidence |
+| `node_decision:<required-node>:<value>` | downstream entry | 同上，且 value 精确匹配 upstream `decisions` enum |
 
-| 条件名 | 检查 | state 路径 |
-|--------|------|-----------|
-| `user_confirmed_direction` | hitl1 有决策 | `state.nodes.hitl1?.decision` 存在 |
-| `review_decision:proceed` | 用户选 proceed | `state.nodes.hitl2?.decision === 'proceed'` |
-| `review_decision:repair` | 用户选 repair | `state.nodes.hitl2?.decision === 'repair'` |
+如果 downstream 使用 `node_decision:<node>:<value>`，upstream 必须声明该 value、包含 GATE step，并以 `decision_recorded` 或 `user_decision_recorded` 退出。
 
-### Playbook 栈
+## 完整 Node 示例
 
-`state.playbook_stack` 数组保存切换前的 `{playbook, current_node}`. `switchPlaybook` push, `resumePlaybook` pop 恢复.
-
-### 自定义条件策略
-
-不在 catalog 中的条件名 → checkEntry/checkExit 返回 `{unknown: [...]}`. Agent 人工判断. 允许 node 特有 prose 条件逐步补进 catalog.
-
-## 示例: 一个完整的 Node
-
-```markdown
----
+````markdown
+```yaml
 node: wave0
-playbook: create-deck
-phase: 04
+lifecycle_phase: 1
+method_module: 02-content
 requires: [seed-topics]
-produces: [wave0-artifacts, foundation-sources]
-entry:
-  - run_bundle_exists
-  - seed_topics_complete
+entry: []
 exit:
-  - wave0_sources_collected
-  - wave0_evidence_indexed
----
+  - slide_specs_exists
+  - evidence:l1-l2-l4-complete
+  - evidence:sources-collected
+produces: [slide-specifications]
+```
 
 # wave0: Foundation Shared Reference
 
-## Step 1 — MD
-读 workflow/02-content/04-create-content-assets.md.
-为每个 topic 收集 foundation source metadata.
+**Step 1 — MD**: 读 `workflow/02-content/04-create-content-assets.md`，完成 L1/L2/L4 与来源收集。
 
-## Step 2 — CLI
-node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1
+**Step 2 — CLI**: 用 `setNodeEvidence` 记录 `l1-l2-l4-complete` 与 `sources-collected`，再 `writeState`。
+````
 
-## Step 3 — Gate
-人工审查收集的 source. 确认齐全后更新 state: node wave0 → completed
-```
+Registry validator 必须对 9 个有序 controllers、1 个 shared node、40 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。

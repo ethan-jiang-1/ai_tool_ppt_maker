@@ -13,7 +13,7 @@ agent_action: internalize
 
 # 04 — Conventions and Rules
 
-← [01](charter/CONSTITUTION.md) | [README](README.md)
+← [01](../../charter/CONSTITUTION.md) | [README](README.md)
 
 **本文档中的所有约定适用于 run bundle（项目文件系统实例）。** run bundle 的概念和设计原理见 `00-run-bundle-concept.md`。这些约定确保 agent 和人类在同一个文件系统中协作时，行为可预测、改动可追溯。
 

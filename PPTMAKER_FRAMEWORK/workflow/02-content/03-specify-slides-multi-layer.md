@@ -76,7 +76,7 @@ VISUAL TYPE 是一个标签，告诉 pipeline 脚本这张 slide 用什么模板
 | `Risk / 2 Panels` | 风险展示 | 诚实披露 |
 | `Closer` | 结束页 | 最后一张 |
 
-VISUAL TYPE 关联到视觉系统中的 Slide Type Template（参见 [workflow/01-visual](../workflow/01-visual/)）。如果你在 01 的视觉系统中定义了 8 种 slide type template，那么每张 slide 的 VISUAL TYPE 必须对应其中之一。
+VISUAL TYPE 关联到视觉系统中的 Slide Type Template（参见 [workflow/01-visual](../01-visual/)）。如果你在 01 的视觉系统中定义了 8 种 slide type template，那么每张 slide 的 VISUAL TYPE 必须对应其中之一。
 
 ### KICKER
 
@@ -156,7 +156,7 @@ T10 案例（Slide 08 Growth Direction）：
 
 IMAGE PROMPT 是给 AI image model 的执行指令。它不是 "make it look nice"——而是精确的视觉描述：layout 分区、元素位置、颜色语义、文字内容和位置。
 
-这是本方法论和接下来的 [workflow/03-prompts](../workflow/03-prompts/)（Prompt Engineering 方法论）交叉最深的层。这里聚焦于 **content-driven prompt design**——怎么把你的内容概念翻译成精确的视觉指令。
+这是本方法论和接下来的 [workflow/03-prompts](../03-prompts/)（Prompt Engineering 方法论）交叉最深的层。这里聚焦于 **content-driven prompt design**——怎么把你的内容概念翻译成精确的视觉指令。
 
 ### IMAGE PROMPT 的结构
 
@@ -214,7 +214,7 @@ ANTI-PATTERNS:
 4. **文字内容必须明确**：画面中出现的所有文字必须在 prompt 中给出精确的 wording。不要让模型自己编——它会编出不对的东西。
 5. **Anti-pattern 同样重要**：告诉模型 "NOT red/green" 比告诉它 "use blue" 更能避免最常见的失败模式。
 
-更多关于 IMAGE PROMPT 的底层技巧，参见 [workflow/03-prompts](../workflow/03-prompts/)。
+更多关于 IMAGE PROMPT 的底层技巧，参见 [workflow/03-prompts](../03-prompts/)。
 
 ## Layer 4: Speaker Note — 叙事执行层
 

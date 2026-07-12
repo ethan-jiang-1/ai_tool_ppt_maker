@@ -1,47 +1,45 @@
 ---
 playbook: edit-notes
-description: 备注修改——speaker notes only, ~30 sec
+description: 备注修改——只重跑 Stage 5
 includes: [classify-change]
 ---
 
-# Playbook: Chain C — 备注修改
-
-> Speaker notes only. ~30 sec.
+# Playbook: 备注修改
 
 ## Nodes
 
 ### classify-change (shared)
-执行变更分类 → 确认这是 Chain C.
+
+确认范围为 speaker notes，并持久化 slide scope。
 
 ### inject-notes
-→ 注入备注
 
 ```yaml
 node: inject-notes
-phase: 05
+lifecycle_phase: 4
+method_module: 04-production
 requires: [classify-change]
-produces: [updated-pptx-with-notes]
-entry:
-  - pptx_exists
-  - slide_specs_exists
-exit:
-  - notes_injected
+produces: [updated-pptx-with-notes, notes-injection-receipt]
+entry: [slide_specs_exists]
+exit: [speaker_notes_injected]
 ```
 
-**Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 5`
+**Step 1 — MD**: 修改源 slide specification 的 SPEAKER NOTE，禁止直接改 PPTX 或 receipt。
+
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <run-dir> --stage 5`。
 
 ### verify-notes
-→ 验证备注
 
 ```yaml
 node: verify-notes
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [inject-notes]
 produces: [verified-notes]
-entry:
-  - notes_injected
-exit:
-  - notes_correct
+entry: []
+exit: [user_evidence:notes-verified]
 ```
 
-**Step 1 — MD**: 打开 .pptx, 检查 Presenter View 中的备注正确. 更新 state
+**Step 1 — MD**: Open PPTX Presenter View，逐页检查备注与 slide 对齐。
+
+**Step 2 — GATE**: 用户确认后记录 `notes-verified`（kind `user`）。

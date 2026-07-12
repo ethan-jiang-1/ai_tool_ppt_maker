@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { EXECUTABLE_INVENTORY } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 
 const SCRIPTS = 'PPTMAKER_FRAMEWORK/scripts';
 
@@ -31,6 +32,19 @@ describe('runtime constitution — Node only', () => {
     ]) {
       expect(existsSync(join(SCRIPTS, f)), `missing ${f}`).toBe(true);
     }
+  });
+
+  it('the explicit executable inventory matches direct-entry modules and excludes libraries', () => {
+    const direct = readdirSync(SCRIPTS)
+      .filter((name) => name.endsWith('.mjs'))
+      .filter((name) => {
+        const src = readFileSync(join(SCRIPTS, name), 'utf8');
+        return /process\.argv\[1\]/.test(src) && /\bmain\b|_main/.test(src);
+      })
+      .filter((name) => !['image_api_client.mjs', 'visual_config.mjs'].includes(name))
+      .sort();
+    expect([...EXECUTABLE_INVENTORY].sort()).toEqual(direct);
+    expect(readFileSync(join(SCRIPTS, 'image_api_client.mjs'), 'utf8')).not.toMatch(/^#!/);
   });
 
   it('pipeline/orchestrator code does not discover external skills', () => {

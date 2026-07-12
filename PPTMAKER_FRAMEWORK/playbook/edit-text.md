@@ -1,47 +1,52 @@
 ---
 playbook: edit-text
-description: 文本修改——改标题/kicker/subtitle, ~5 min
+description: 文本修改——KICKER/TITLE/SUBTITLE，按 resolved render mode 路由
 includes: [classify-change]
 ---
 
-# Playbook: Chain A — 文本修改
+# Playbook: 文本修改
 
-> title/kicker/subtitle 修改. 不改图, ~5 min.
+MD Controller 是流程真相源；标题类修改必须由 `ppt_flow refresh --kind title` 中央判断 Chain A / B。
 
 ## Nodes
 
 ### classify-change (shared)
-执行变更分类 → 确认这是 Chain A.
+
+读取 shared node，持久化变更类型和明确 slide scope。
 
 ### stage-text
-→ 跑文本链
 
 ```yaml
 node: stage-text
-phase: 05
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [classify-change]
-produces: [updated-slide]
-entry:
-  - slide_specs_exists
-  - target_slide_identified
+produces: [updated-slide, updated-pptx]
+entry: [slide_specs_exists]
 exit:
-  - stage_complete
+  - pptx_generated
+  - speaker_notes_injected
+  - header_review_current
 ```
 
-**Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1,3,4,5 --only <slide_id>`
+**Step 1 — MD**: 修改所选 slide 的 KICKER/TITLE/SUBTITLE 源字段，不编辑 `_generated/`。
 
-### verify-output
-→ 验证文本修改
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <slide-ids>`。`body+header-lock` 自动走 1,3,4,5；`full-page` 返回 `TITLE_REVIEW_REQUIRED` 时只对所选页运行 2K `pilot --only <ids> --force-images`。
+
+**Step 3 — GATE**: Open pilot/contact sheet；确认后运行 `approve <run-dir> header`，再用同 profile `build --reuse-images`，不得进行第二次图片生成。
+
+### verify-text-output
 
 ```yaml
-node: verify-output
-phase: 05
+node: verify-text-output
+lifecycle_phase: 4
+method_module: 05-iteration
 requires: [stage-text]
 produces: [verified-slide]
-entry:
-  - stage_complete
-exit:
-  - title_updated_correctly
+entry: []
+exit: [user_evidence:text-change-verified]
 ```
 
-**Step 1 — MD**: 打开生成的 .pptx, 确认标题/kicker/subtitle 正确. 更新 state
+**Step 1 — MD**: Open 最终 PPTX，检查所选页文字、render mode 和未选页均正确。
+
+**Step 2 — GATE**: 用户确认后记录 `text-change-verified`（kind `user`）并完成节点。

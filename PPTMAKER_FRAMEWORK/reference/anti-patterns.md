@@ -155,7 +155,7 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 > Agent 每次把 600 行 playbook 塞进上下文，铁律反而漂了。
 
-**修复**：入口是 BOOTSTRAP → **AGENT_CONTRACT（一页）** → 按 Phase 翻 AGENTS 对应节。见 [charter/AGENT_CONTRACT.md](charter/AGENT_CONTRACT.md)。
+**修复**：入口是 BOOTSTRAP → **AGENT_CONTRACT（一页）** → 按 Lifecycle Phase 翻 AGENTS 对应节。见 [charter/AGENT_CONTRACT.md](../charter/AGENT_CONTRACT.md)。
 
 ---
 
