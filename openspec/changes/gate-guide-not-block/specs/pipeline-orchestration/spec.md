@@ -47,17 +47,22 @@ Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Con
 
 ### Requirement: Gate output is MD-controller-friendly
 
-返回结构 SHALL 含：`format`(2), `applicable`, `ok`, `changed: [{id, field, was, now}]`, `action`(含 `{runDir}` 模板), `hint`。MD 遇无 `format` 字段 → 放行（旧代码）。Gate SHALL NOT 仅输出 "fingerprint is stale"。
+返回结构 SHALL 始终包含全部 6 个字段。`ok: true` 时 `changed: []`, `action: null`, `hint: null`。`ok: false` 时 `changed` 非空、`action` 为可执行命令、`hint` 为人话解释。MD 遇无 `format` 字段 → 旧代码 → 放行。
 
-#### Scenario: MD auto-executes on gate failure
+#### Scenario: Gate passes — null action
 
-- **WHEN** `ok: false, action: "node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \"{runDir}\" --only s05"`
-- **THEN** MD 替换 `{runDir}` 后直接执行
+- **WHEN** 没有 slide 需要 review
+- **THEN** `{ok: true, changed: [], action: null, hint: null}`
+
+#### Scenario: Gate fails — MD gets command
+
+- **WHEN** s05 title 变了
+- **THEN** `{ok: false, changed: [{s05,...}], action: "node ... pilot \"{runDir}\" --only s05", hint: "..."}`
 
 #### Scenario: Non-existent slide in --only
 
 - **WHEN** `--only s99` 且 s99 不在 plan 中
-- **THEN** `ok: true`, `hint` 注明 "s99 not found"
+- **THEN** `ok: true`, `hint: "s99 not found in slide plan"`
 
 ### Requirement: buildHeaderReviewInputs produces per-slide fingerprints
 

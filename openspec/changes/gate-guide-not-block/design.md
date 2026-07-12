@@ -2,6 +2,53 @@
 
 `deck_ai_sdlc_keynote` 25 页全量生产暴露了 gate 系统姿态问题：守门员（拒绝→报错），不是向导（检查→给 MD 指令→继续）。BUG-003 记录 7 种 workaround 全失败。管线的核心消费者是 MD Controller——gate 应该返回 MD 可直接执行的动作。
 
+## MD Controller 视角（第一人称）
+
+**我是 MD Controller。我调用 gate 检查，拿到一个结构体。我的处理逻辑：**
+
+```
+result = validateHeaderReviewRecord(...)
+
+if (!result.format)        → 旧代码，放行，继续管线
+if (result.ok)             → 没问题，继续管线
+if (!result.applicable)    → gate 不适用（纯 full-page、旧 record），继续管线
+if (result.ok === false && result.applicable) →
+    cmd = result.action.replace("{runDir}", runDir)
+    执行 cmd（pilot）
+    等用户 approve
+    重试 gate → result.ok === true → 继续管线
+```
+
+**我会收到的典型输出：**
+
+```
+一页变了：
+{ format:2, applicable:true, ok:false,
+  changed:[{id:"s05", field:"title", was:"旧", now:"新"}],
+  action: "node ... pilot \"{runDir}\" --only s05",
+  hint: "1 页标题变了，正在确认效果..." }
+
+三页变了：
+{ ..., changed:[s05, s07, s14],
+  action: "node ... pilot \"{runDir}\" --only s05,s07,s14", ... }
+
+八页变了（>5）：
+{ ..., changed:[s01,s02,...,s08],
+  action: "node ... pilot \"{runDir}\"",     ← 不含 --only，全量
+  hint: "8 页有变化，建议全量 pilot" }
+
+纯 full-page deck：
+{ format:2, applicable:false, ok:true, changed:[], action:null, hint:null }
+
+旧 record（无 slides 字段）：
+{ format:2, applicable:false, ok:true, changed:[], action:null, hint:null }
+```
+
+**用户看到什么？**
+- gate 过 → 用户无感知，继续
+- gate 不过 → MD 自动跑 pilot → 用户看到 "正在生成 s05, s07 的预览图..." → 图出来后问 "效果可以吗？" → 用户说可以 → 继续
+- 用户全程不需要知道 fingerprint、hash、state record 这些词
+
 ## Goals / Non-Goals
 
 **Goals:**

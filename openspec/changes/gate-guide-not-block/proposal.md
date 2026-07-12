@@ -10,7 +10,7 @@ Header review gate 被建成守门员（检查→拒绝→报错），而不是�
 - **Gate 输出改为 MD 可消费格式**——`{format, applicable, ok, changed: [{id, field, was, now}], action: "可执行命令", hint: "人话解释"}`
 - **纯 full-page deck 自动跳过**——无 body+header-lock 对比基线时 gate 不适用
 - **`--only` 限缩 gate 检查**——只查指定的 slide
-- **AGENT_CONTRACT 定位升级**：标题从「不可违反的 11 条」改为「你的 PPT 助手」；新增开篇定位声明（"我是来帮你做成的，不是来卡你的"）；Rule 4 软化（"执法检查"→"确认 gate 状态，不满足时引导完成"）；新增 Rule 12「Gate 是向导，不是路障」
+- **AGENT_CONTRACT 定位升级**：标题改为「你的 PPT 助手」；新增开篇定位声明（"我是来帮你做成的，不是来卡你的"）；Rule 4 软化；新增 Rule 12「Gate 是向导，不是路障」
 - **State record 改为 per-slide schema**——`slides.{id}.{status, fingerprint, header_snapshot, ...}`
 
 ## Capabilities
