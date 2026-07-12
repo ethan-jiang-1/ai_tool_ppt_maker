@@ -57,8 +57,9 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_ai_sdlc_keynote/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_ai_sdlc_keynote/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v1 --reuse-images
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_ai_sdlc_keynote/3_versions/v1 --resolution 2k --force-images
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 header
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v1 --resolution 2k --reuse-images
 
 # Expert
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_ai_sdlc_keynote/3_versions/v1 --stage 1
