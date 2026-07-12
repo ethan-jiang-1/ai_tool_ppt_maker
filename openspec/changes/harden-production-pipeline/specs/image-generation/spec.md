@@ -60,16 +60,3 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or
 - **THEN** the client does NOT retry that vendor
 - **AND** immediately falls back to the next vendor
 
-### Requirement: Submit and poll accept data-array response envelopes
-
-`image_api_client.mjs` SHALL extract submit `task_id` from object and array `data` envelopes, including `{ code, data: [ { task_id, status } ] }`. Poll status SHALL read top-level or unwrapped `data` so array envelopes are not stuck as unknown. Unit tests SHALL cover array submit and object regression.
-
-#### Scenario: Submit response with data array yields task_id
-
-- **WHEN** submit returns `{"code":200,"data":[{"status":"submitted","task_id":"task_abc"}]}`
-- **THEN** the client obtains `task_abc` without throwing `No task_id`
-
-#### Scenario: Submit response with object data still works
-
-- **WHEN** submit returns `{"task_id":"task_xyz"}` or `{"data":{"task_id":"task_xyz"}}`
-- **THEN** the client still obtains the task id

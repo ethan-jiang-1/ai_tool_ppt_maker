@@ -48,7 +48,7 @@ slides:
 1. 用 fingerprint 快速判断哪些 slide 变了（O(1) hash 比较）
 2. 对变了的 slide，逐字段比较当前 header 与 state 中的 `header_snapshot`
 3. 比较的字段: `kicker`, `title`, `subtitle`（三个文本字段）
-4. `visual_type` 或 `geometry` 变化 → fingerprint 不匹配 → `changed` 中产生 `{id, field: "other", was: null, now: null}`，`hint` 说明 "visual type 或布局参数变化"
+4. 文本字段都相同但 fingerprint 不匹配 → 比较 `visual_type`（不同 → `{field: "visual_type", was, now}`），再比较 `geometry`（不同 → `{field: "layout", was: null, now: null}`）。保证 `changed` 永远非空当 `ok: false`
 5. 无 `header_snapshot` 的 slide（新建或旧 record 放行后首次出现）→ `changed` 中 `was: null`
 6. `changed` 永远非空当 `ok: false`——MD 不需要额外判断
 
