@@ -5,6 +5,11 @@
 `_state/state.yaml` 中 `nodes.header-review.by_version.{key}` SHALL 使用：
 
 ```yaml
+generation_profile:                # 版本级——所有 slide 共享同一个 model/resolution
+  model: "gpt-image-2"
+  resolution: "2k"
+  style_reference_sha256: "sha256"
+  semantic_options: { size: "16:9", n: 1 }
 slides:
   s05:
     status: ok            # ok | changed | reviewed | waived
@@ -17,6 +22,8 @@ slides:
     image_sha256: "sha256"
     reviewed_at: "2026-07-13T10:00:00Z"
 ```
+
+`generation_profile` SHALL 保留在版本级——所有 slide 共享同一个 model/resolution。profile 不匹配时 gate 返回所有 slide 为 `changed`。
 
 旧格式（全局 `status`/`header_review_fingerprint`，无 `slides`）→ gate 返回 `applicable: false`（放行）。无需迁移。
 

@@ -37,17 +37,33 @@ if (result.ok === false && result.applicable) →
   action: "node ... pilot \"{runDir}\"",     ← 不含 --only，全量
   hint: "8 页有变化，建议全量 pilot" }
 
-纯 full-page deck：
+无变化（混合 deck，gate 适用但全 OK）：
+{ format:2, applicable:true, ok:true, changed:[], action:null, hint:null }
+
+纯 full-page deck（gate 不适用）：
 { format:2, applicable:false, ok:true, changed:[], action:null, hint:null }
 
-旧 record（无 slides 字段）：
+旧 record（无 slides 字段——gate 不适用）：
 { format:2, applicable:false, ok:true, changed:[], action:null, hint:null }
 ```
 
 **用户看到什么？**
-- gate 过 → 用户无感知，继续
-- gate 不过 → MD 自动跑 pilot → 用户看到 "正在生成 s05, s07 的预览图..." → 图出来后问 "效果可以吗？" → 用户说可以 → 继续
+- gate 过 → 用户无感知，build 直接跑完
+- gate 不过 → MD 告诉用户 "s05, s07 标题变了，先确认效果" → 跑 pilot → 图出来问 "可以吗？" → 用户说可以 → approve → MD 重跑 `build`（第二次 gate 自然过，因为 approve 时 state 已更新）→ PPTX 出来
 - 用户全程不需要知道 fingerprint、hash、state record 这些词
+
+**完整流程（两次 build）**：
+```
+第一次 build:
+  Stage 1 → gate 返回 {ok:false, action:"pilot --only s05,s07"}
+  → MD 执行 pilot --only s05,s07
+  → 用户 approve header
+  → state 更新（s05,s07.header_snapshot 写入当前值）
+  
+第二次 build（MD 自动重跑或用户手动重跑）:
+  Stage 1 → gate 检查 → fingerprint 匹配 → {ok:true}
+  → Stage 2,3,4,5 → PPTX
+```
 
 ## Goals / Non-Goals
 

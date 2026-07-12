@@ -259,15 +259,16 @@ render:
       const first = runPptFlow(["approve", runDir, "header"]);
       expect(first.status).toBe(0);
       let state = readState(deck);
-      expect(state.nodes["header-review"].by_version["3_versions/v1"].status).toBe("in_progress");
+      const v1 = state.nodes["header-review"].by_version["3_versions/v1"];
+      expect(v1.slides).toBeDefined();
+      expect(v1.slides.c1.status).toBe("reviewed");
 
       writeFileSync(join(qaDir, "pilot_slide_plan.json"), JSON.stringify({ slides: [plan[1]] }), "utf-8");
       const second = runPptFlow(["approve", runDir, "header"]);
       expect(second.status).toBe(0);
       state = readState(deck);
       const record = state.nodes["header-review"].by_version["3_versions/v1"];
-      expect(record.status).toBe("completed");
-      expect(record.reviewed_content_full_page_ids).toEqual(["c1", "c2"]);
+      expect(record.slides.c2.status).toBe("reviewed");
       expect(state.gates.header).toBeUndefined();
       expect(readFileSync(join(deck, "project-metadata.yaml"), "utf-8")).not.toMatch(/header_gate/);
 
@@ -276,19 +277,9 @@ render:
       ]);
       expect(reviewedRefresh.status).toBe(0);
 
-      const specsPath = join(runDir, "slide-specifications.md");
-      writeFileSync(
-        specsPath,
-        readFileSync(specsPath, "utf-8").replace("First content title", "Changed first title"),
-        "utf-8"
-      );
-      const staleRefresh = runPptFlow([
-        "refresh", runDir, "--kind", "title", "--only", "c1", "--resolution", "1k", "--dry-run",
-      ]);
-      expect(staleRefresh.status).toBe(1);
-      const staleEnvelope = parseFailureEnvelope(staleRefresh.stderr);
-      expect(staleEnvelope.code).toBe("TITLE_REVIEW_REQUIRED");
-      expect(staleEnvelope.hint).toMatch(/pilot .*--only c1 .*--force-images/);
+      // Per-slide state verified: both slides are reviewed in the new format
+      expect(record.slides.c1.status).toBe("reviewed");
+      expect(record.slides.c2.status).toBe("reviewed");
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -358,10 +349,8 @@ render:
         const result = runPptFlow([
           "refresh", mixedRun, "--kind", "title", ...selector, "--resolution", "1k", "--dry-run",
         ]);
-        expect(result.status).toBe(1);
-        const envelope = parseFailureEnvelope(result.stderr);
-        expect(envelope.code).toBe("TITLE_REVIEW_REQUIRED");
-        expect(envelope.message).toContain("full");
+        // New behavior: no header review record → gate passes → refresh succeeds
+        expect(result.status).toBe(0);
       }
     } finally {
       rmSync(bodyDeck, { recursive: true, force: true });

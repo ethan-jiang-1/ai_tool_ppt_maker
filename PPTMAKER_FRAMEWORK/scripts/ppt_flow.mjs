@@ -318,7 +318,7 @@ export async function buildControllerGateContext(runDir) {
     const { validateProductionHeaderReview } = await import("./unified_pipeline.mjs");
     headerReviewCurrent = (await validateProductionHeaderReview(resolved, {
       requireCurrentImages: true,
-    })).current;
+    })).ok;
   } catch {
     headerReviewCurrent = false;
   }
@@ -869,12 +869,11 @@ async function commandApproveHeader(runDir, {
     const key = versionKey(root, resolved);
     const previousRecord = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[key] || null;
     const { changedFullPageIds } = await import("./lib/header_review.mjs");
-    const changedIds = previousRecord
-      ? changedFullPageIds(
-          previousRecord.full_page_header_snapshot || {},
-          inputs.fullPageHeaderSnapshot
-        )
-      : [];
+    const changedIds = previousRecord?.slides
+      ? changedFullPageIds({}, {}, previousRecord.slides)  // per-slide state
+      : previousRecord?.full_page_header_snapshot
+        ? changedFullPageIds(previousRecord.full_page_header_snapshot, inputs.fullPageHeaderSnapshot)  // old format fallback
+        : [];
     const selectedReviewIds = selectedIds.filter((id) =>
       selectedCurrentFullPageIds.includes(id) || changedIds.includes(id)
     );
@@ -891,7 +890,7 @@ async function commandApproveHeader(runDir, {
     });
     if (!state.nodes) state.nodes = {};
     if (!state.nodes[HEADER_REVIEW_NODE]) {
-      state.nodes[HEADER_REVIEW_NODE] = { status: "pending", by_version: {} };
+      state.nodes[HEADER_REVIEW_NODE] = { by_version: {} };
     }
     const node = state.nodes[HEADER_REVIEW_NODE];
     if (!node.by_version || typeof node.by_version !== "object") node.by_version = {};
@@ -907,7 +906,6 @@ async function commandApproveHeader(runDir, {
       acceptedRisks,
     });
     node.by_version[key] = record;
-    node.status = record.status;
     writeState(root, state);
     try {
       appendHistory(root, {
@@ -915,20 +913,14 @@ async function commandApproveHeader(runDir, {
         version: key,
         ids: selectedReviewIds,
         fingerprint: inputs.headerReviewFingerprint,
-        status: record.status,
+        status: "completed",
         reason: waive ? reason.trim() : undefined,
       });
     } catch {
       /* history is optional */
     }
-    console.log(`✓ header review ${key}: ${record.status}`);
-    console.log(`  reviewed content full-page: ${record.reviewed_content_full_page_ids.join(", ") || "none"}`);
-    if (record.missing_content_review_count > 0) {
-      console.log(`  missing content review count: ${record.missing_content_review_count}`);
-    }
-    if (record.missing_changed_full_page_ids.length > 0) {
-      console.log(`  missing changed ids: ${record.missing_changed_full_page_ids.join(", ")}`);
-    }
+    const slideStatuses = Object.entries(record.slides || {}).map(([id, s]) => `${id}:${s.status}`).join(", ");
+    console.log(`✓ header review ${key}: ${slideStatuses || "no slides"}`);
     return 0;
   } catch (err) {
     emitFailed(
@@ -1202,11 +1194,11 @@ async function commandBuild(
       model,
       forceImages: !reuseImages,
     });
-    if (!review.current) {
+    if (!review.ok) {
       emitCliError({
         code: CLI_ERROR_CODES.GATE_BLOCKED,
-        message: review.errors.join("; "),
-        hint: review.hint,
+        message: review.hint || "header review required",
+        hint: review.action || "run pilot to review header changes",
         where: "ppt_flow.build.header-review",
       });
       return 1;
@@ -1311,18 +1303,12 @@ async function commandRefresh(
     );
     if (fullPageAffected.length > 0) {
       const { validateProductionHeaderReview } = await import("./unified_pipeline.mjs");
-      const review = await validateProductionHeaderReview(resolved);
-      const reviewedOrAccepted = new Set([
-        ...Object.keys(review.record?.reviewed_image_provenance || {}),
-        ...Object.keys(review.record?.accepted_risks || {}),
-      ]);
-      const affectedCurrent = fullPageAffected.every((id) => reviewedOrAccepted.has(id));
-      if (!review.current || !affectedCurrent) {
-        const hint = `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot ${resolved} --only ${fullPageAffected.join(",")} --force-images --resolution ${resolution}`;
+      const review = await validateProductionHeaderReview(resolved, { onlyIds: fullPageAffected });
+      if (!review.ok) {
         emitCliError({
           code: CLI_ERROR_CODES.TITLE_REVIEW_REQUIRED,
-          message: `full-page title review required for: ${fullPageAffected.join(", ")}`,
-          hint,
+          message: review.hint || `full-page title review required for: ${fullPageAffected.join(", ")}`,
+          hint: review.action || `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot ${resolved} --only ${fullPageAffected.join(",")}`,
           where: "ppt_flow.refresh.title",
         });
         return 1;

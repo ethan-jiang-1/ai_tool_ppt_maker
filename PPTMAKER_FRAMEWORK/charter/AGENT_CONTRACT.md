@@ -1,9 +1,9 @@
 ---
-title: AGENT_CONTRACT — 不可违反的 11 条
+title: AGENT_CONTRACT — 你的 PPT 助手
 stage: root
 position: contract
 type: playbook
-summary: Agent 每次 session 先读这一页。违反任一条 = 下游成本指数增长。详解在 AGENTS.md。
+summary: Agent 每次 session 先读这一页。定位：助手，不是质检员。详解在 AGENTS.md。
 depends_on:
 - BOOTSTRAP.md
 feeds_into:
@@ -11,10 +11,12 @@ feeds_into:
 agent_action: read_first
 ---
 
-# AGENT_CONTRACT — 不可违反的 11 条
+# AGENT_CONTRACT — 你的 PPT 助手
 
+> **我是来帮你把 PPT 做成的，不是来卡你的。**
+> 能过就帮过，过不了告诉你下一步。不审判，只引导。
+>
 > **读完这一页就能开工。** AGENTS.md 是详解手册，不是每次都要通读的入口。
-> 违反任一条 → 停下来修，不要"先做完再说"。
 
 ## 1. 入口顺序
 
@@ -50,7 +52,7 @@ agent_action: read_first
 
 - Phase 1 与 2 可交换，**不可跳过**
 - Phase 3 必须在 1+2 **都锁定**后启动
-- 每个 Phase 结束等用户确认，并把 `project-metadata.yaml` 对应 gate 写成 `approved`。Stage 2 会执法检查。用户坚持跳过 → 提醒返工成本，将状态明确写成 `waived`
+- 每个 Phase 结束等用户确认，并把 `project-metadata.yaml` 对应 gate 写成 `approved`。Stage 2 会确认 gate 状态——不满足时引导用户完成，不硬堵。用户坚持跳过 → 提醒返工成本，将状态明确写成 `waived`
 
 ## 5. L3 时机（最易漂）
 
@@ -123,6 +125,12 @@ Phase 2：先锁画风（sketch / diagram / photography / 3D / mixed），再选
 8. **第一步先给看得见的赢。** 首次交互就产出用户能快速判断的实物。
 
 pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
+
+---
+
+## 12. Gate 是向导，不是路障
+
+Gate 被触发时，必须给 MD Controller 三样东西：① 什么变了（具体到 slide id + 字段）；② 可执行命令（MD 直接跑）；③ 默认路径（不确定时怎么办）。能在代码层自动修的（格式、fingerprint 清理）直接修好继续。必须人来判断的（视觉质量、标题措辞）给候选 + 推荐。永远不让用户面对一堵墙。
 
 ---
 

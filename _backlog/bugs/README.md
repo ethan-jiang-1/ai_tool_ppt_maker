@@ -15,13 +15,11 @@
 
 ## 活跃列表
 
-| Bug | 严重级别 | 简述 |
-|-----|---------|------|
-| [BUG-003](BUG-003-header-review-stale-fingerprint.md) | high | Header review gate 全局锁——纯 full-page deck 被强制拦截，改了 3 页堵住 25 页 |
+**No active bugs.**
 
-**Next available bug ID: BUG-012**
+**Next available bug ID: BUG-013**
 
-> BUG-004（Stage 3 passthrough）已修→`_done/_fixed_bugs/BUG-010`。BUG-005（vendor resilience）已修→`_done/_fixed_bugs/BUG-011`。BUG-008/009 此前已修。
+> BUG-003（gate per-slide）已修→`_done/_fixed_bugs/BUG-012`。BUG-004/005 已修→`_done/_fixed_bugs/BUG-010/011`。BUG-008/009 此前已修。
 
 ---
 
