@@ -70,6 +70,8 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 不要写 `image_direct` / `normal`（旧词；输入端仍兼容，输出与文档禁止再用）。
 
+新 `--init` deck 在 `slide-specifications.md` frontmatter 中使用 `render.default: full-page`；逐页 `RENDER MODE` 只是高级 override。没有顶层 `render` 的旧 deck 保持 legacy VISUAL TYPE 派生。`render` 内未知键会 fail-loud；顶层误写成 `renders:` 无法在不破坏 legacy 兼容的前提下猜测纠正，排障查看 `layout_contract.render_mode_source`。
+
 ## 7. 运行时只有 Node；Stage 2 在框架内；CLI 失败必出 JSON
 
 **唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
@@ -87,11 +89,12 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 
 | 改了什么 | `--stage` | 耗时 |
 |---------|-----------|------|
-| 标题/kicker 文字 | `1,3,4,5` | ~5 min |
+| body+header-lock 标题/kicker 文字 | `1,3,4,5` | ~5 min |
+| full-page 标题/kicker 文字 | `1,2,3,4,5 --only <id> --force-images` | ~5 min/页 |
 | 画面 / IMAGE PROMPT | `1,2,3,4,5 --only <id>`（指定页自动强制刷新） | ~5 min/页 |
 | speaker notes | `5` | ~30 sec |
 
-**改标题不要跑 Stage 2。** 分类见 `scripts/change-classifier.md`。
+标题是否需要 Stage 2 取决于 resolved mode：body+header-lock 是 Chain A；full-page 是 Chain B。分类见 `scripts/change-classifier.md`。
 
 ## 9. 用户做选择题，你做创造性劳动
 

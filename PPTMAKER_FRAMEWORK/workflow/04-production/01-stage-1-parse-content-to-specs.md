@@ -39,6 +39,18 @@ Markdown 是人类创作格式。JSON 是机器执行格式。Stage 1 是它们�
 
 **IMAGE PROMPT**:
 ```
+
+新 deck 的文档开头还有有效 YAML frontmatter：
+
+```yaml
+---
+render:
+  default: full-page
+  header-lock: []
+---
+```
+
+无 frontmatter 或无顶层 `render` 的旧 deck 合法，进入 legacy 分支。其他顶层 metadata 保留；`render` 是 closed mapping，只允许 `default` / `header-lock`，内部 typo 会 fail-loud。顶层若误写 `renders:`，Stage 1 不能 fuzzy 纠正，因为“没有 render”本身必须解释为 legacy；用 `layout_contract.render_mode_source` 排障。
 [200-500 word visual description]
 ```
 ```
@@ -59,9 +71,9 @@ Markdown 是人类创作格式。JSON 是机器执行格式。Stage 1 是它们�
       "subtitle": null,
       "layout_contract": {
         "canvas": [1672, 941],
-        "render_mode": "body+header-lock",
-        "render_mode_source": "derived:visual_type",
-        "header_safe_zone": 260,
+        "render_mode": "full-page",
+        "render_mode_source": "policy:default",
+        "header_safe_zone": 0,
         "content_y_min": 290,
         "content_y_max": 780,
         "has_bottom_callout": true,
@@ -108,63 +120,52 @@ for each ## Slide NN block:
 
 ### 问题 2：把源 IMAGE PROMPT 和系统级 contract 组装成完整 prompt
 
-源 markdown 中的 IMAGE PROMPT 只描述了画面内容。但 image model 还需要知道系统级约束——header zone 在哪里、body text 的大小下限、callout bar 的位置。这些系统级约束在每个项目中是固定的（从视觉系统文档中派生），应该由 Stage 1 统一注入，而不是让人类在每个 IMAGE PROMPT 中重复写。
+源 markdown 中的 IMAGE PROMPT 只描述画面和构图，不重复结构化 KICKER/TITLE/SUBTITLE 文案或 header 位置。Stage 1 根据 resolved mode 统一注入系统契约：content full-page 获得 exact text + 语义 top-left band + px geometry；hero full-page 获得 exact text，但没有固定 band；body+header-lock 只有 generic overlay-later 和硬 safe-zone，不包含 header 具体值。
 
 **组装逻辑**（伪代码）：
 
 ```
 full_prompt = assemble([
   source_image_prompt,           // 源 markdown 中的 IMAGE PROMPT
-  system_header_contract,        // "Top N px is reserved. Do NOT render text there."
+  mode_specific_header_contract,// exact text soft band, hero text, or overlay-later reserve
   system_body_text_contract,     // "All body labels ≥ 26px visual. KPIs ≥ 72px."
   system_style_contract,         // "Background: deep navy. No warm tones. No logos."
   system_anchoring_clause,       // "Use reference image as EXACT visual style guide."
 ])
 ```
 
-系统级 contract 从 `deck_system.txt` 或视觉系统文档中读取，与具体 slide 无关。
+系统级 style contract 从 `deck_system.txt` 读取；header geometry 从 Stage 1 与 Stage 3 共用的 visual config 读取。可选 header 字段为空、`(none)`、`(无)` 或整字段 bracket placeholder 时视为 absent，不进入 slide record 或 prompt。
 
 ### 问题 3：判定每张 slide 的 RENDER MODE
 
 这是 Stage 1 最关键的判定——因为它直接决定 Stage 3 的行为：
 
+```text
+顶层 render 缺失
+└─ legacy: explicit RENDER MODE > VISUAL TYPE derivation
+
+顶层 render 存在
+└─ policy: explicit RENDER MODE
+          > render.header-lock exception
+          > hero guard
+          > render.default (missing => full-page)
 ```
-# Precedence: explicit RENDER MODE field > VISUAL TYPE → FULL_PAGE_TYPES
-if explicit RENDER MODE == "full-page" OR visual_type in FULL_PAGE_TYPES:
-  render_mode = "full-page"
-  header_safe_zone = 0        // AI 画满整个 canvas
-else:
-  render_mode = "body+header-lock"
-  header_safe_zone = 260      // 顶部 260px 留给 Stage 3 Header-Lock
-  content_y_min = 290
-  content_y_max = 780
-```
 
-`FULL_PAGE_TYPES` 是 VISUAL TYPE 集合（Title / Opener、Section Divider / Bridge、Closer）。也可在每页 L1 写显式 `RENDER MODE` 覆盖。写入 `slide_plan.json` 的字段是 `layout_contract.render_mode`（不再写 `header_variant`）。
+hero canonical 类型是 `Title / Opener`、`Section Divider / Bridge`（含 `Section Divider` alias）、`Closer`。policy 下默认 body+header-lock 时 hero guard 仍保持 full-page，除非 explicit/exception 覆盖。policy deck 每页必须有真实 VISUAL TYPE。
 
-**典型分类**：
-
-| VISUAL TYPE | RENDER MODE |
-|-------------|-------------|
-| Title / Opener | full-page |
-| Section Divider / Bridge | full-page |
-| Closer | full-page |
-| Concept Split | body+header-lock |
-| Direction | body+header-lock |
-| Evidence / Case | body+header-lock |
-| Framework | body+header-lock |
-| Risk | body+header-lock |
+`render_mode_source` 只用于追踪：`explicit`、`policy:exception`、`derived:hero_type`、`policy:default`、`derived:visual_type`。Stage 3 不按 source 分支。
 
 ## Gate Check：Stage 1 完成后必须确认什么
 
 - [ ] `slide_plan.json` 中的 slide 数量 = 源 markdown 中的 slide 数量
 - [ ] 每个 slide id 在 `slide_plan.json` 和 `page_prompts/_prompts.json` 中一致
-- [ ] full-page 分类正确（opening/divider/closing）
+- [ ] policy/legacy 分支与 `render_mode_source` 正确
+- [ ] content full-page prompt 有统一 soft band；hero 无固定 band；body-lock prompt 不含具体 header 值
 - [ ] 没有丢失任何 IMAGE PROMPT（所有 code block 都被提取）
 - [ ] `render_mode` 只有 `full-page` 或 `body+header-lock`（Stage 3 依赖于此）
 
 ---
 
-> **案例**：某 19 张 slide 的 keynote，Stage 1（`stage1_build_inputs.mjs`）从其 slide-specifications.md 解析出 19 张。其中 3 张（title/bridge/closer）归为 full-page（VISUAL TYPE 映射或显式 RENDER MODE=full-page），其余 16 张为 body+header-lock。canvas 尺寸 1672×941，header_safe_zone 260px（后者可由 preset 的 color_palette.json 覆盖）。这些参数按项目/preset 定制。
+> **案例**：新初始化 deck 的 19 张 slide 默认都可为 full-page；pilot 若发现两张 content header 漂移，就把其 id 加入 `render.header-lock`。这两张的 `render_mode_source` 为 `policy:exception`，其余为 `policy:default`。full-page 的 `header_safe_zone` 恒为 0；header-lock 的硬 safe zone 来自 visual config。
 
 > **Next**: `02-stage-2-generate-images-with-anchoring.md` — Stage 2 详解：怎么用 async API 批量生图，同时用 style master 做视觉锚定。

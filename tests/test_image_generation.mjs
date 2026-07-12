@@ -341,13 +341,32 @@ describe('image_api_client', () => {
 
 describe('stage2_generate_images', () => {
   const dir = join(tmpdir(), `ppt-stage2-${process.pid}`);
+  let previousFetch;
+  let previousImageKey;
 
   beforeEach(() => {
     mkdirSync(dir, { recursive: true });
+    previousFetch = globalThis.fetch;
+    previousImageKey = process.env.IMAGE2_API_KEY;
+    process.env.IMAGE2_API_KEY = 'stage2-test-key';
   });
   afterEach(() => {
+    globalThis.fetch = previousFetch;
+    if (previousImageKey === undefined) delete process.env.IMAGE2_API_KEY;
+    else process.env.IMAGE2_API_KEY = previousImageKey;
     rmSync(dir, { recursive: true, force: true });
   });
+
+  function mockSyncGeneration() {
+    const canvas = createCanvas(8, 8);
+    const png = canvas.toBuffer('image/png').toString('base64');
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ data: [{ b64_json: png }] }),
+      headers: { get: () => 'application/json' },
+    }));
+  }
 
   it('dry-run counts slides and respects --only', async () => {
     const prompts = join(dir, '_prompts.json');
@@ -375,6 +394,165 @@ describe('stage2_generate_images', () => {
     });
     expect(result.errors).toEqual([]);
     expect(result.generated).toBe(1);
+  });
+
+  it('reuses only matching manifest/image pairs and preserves unrelated entries', async () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'prompt a' },
+      { id: 'b', out: '02_b.png', prompt: 'prompt b' },
+    ] }), 'utf-8');
+    const { generateImages } = await import('../PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs');
+
+    mockSyncGeneration();
+    const first = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      only: ['a'],
+      force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    expect(first.generated).toBe(1);
+    const aEntry = JSON.parse(readFileSync(join(outDir, '_manifest.json'), 'utf-8')).slides.a;
+
+    mockSyncGeneration();
+    await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      only: ['b'],
+      force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    const afterB = JSON.parse(readFileSync(join(outDir, '_manifest.json'), 'utf-8'));
+    expect(afterB.slides.a).toEqual(aEntry);
+    expect(afterB.slides.b.image_sha256).toMatch(/^[a-f0-9]{64}$/);
+
+    globalThis.fetch = vi.fn(async () => { throw new Error('matching reuse must not call API'); });
+    const reused = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      only: ['a'],
+      force: false,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    expect(reused).toMatchObject({ generated: 0, skipped: 1, errors: [] });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('fails loudly instead of reusing stale prompt or corrupt manifest', async () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'prompt a' },
+    ] }), 'utf-8');
+    const { generateImages } = await import('../PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs');
+    mockSyncGeneration();
+    await generateImages({
+      promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'changed prompt' },
+    ] }), 'utf-8');
+    globalThis.fetch = vi.fn(async () => { throw new Error('stale reuse must not call API'); });
+    const stale = await generateImages({
+      promptJson: prompts, outDir, styleReference: style, only: ['a'], force: false,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    expect(stale.errors[0]).toMatch(/generation fingerprint mismatch.*--only a --force-images/);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    writeFileSync(join(outDir, '_manifest.json'), '{bad json', 'utf-8');
+    const corrupt = await generateImages({
+      promptJson: prompts, outDir, styleReference: style, only: ['a'], force: false,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    expect(corrupt.errors[0]).toMatch(/corrupt manifest.*--only a --force-images/);
+  });
+
+  it('invalidates selected provenance before a forced generation that fails', async () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'prompt a' },
+    ] }), 'utf-8');
+    const { generateImages } = await import('../PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs');
+    mockSyncGeneration();
+    await generateImages({
+      promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: 'no image' }),
+      headers: { get: () => 'application/json' },
+    }));
+    const failed = await generateImages({
+      promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+    expect(failed.errors).toHaveLength(1);
+    const manifest = JSON.parse(readFileSync(join(outDir, '_manifest.json'), 'utf-8'));
+    expect(manifest.slides.a).toBeUndefined();
+  });
+});
+
+describe('image provenance fingerprints', () => {
+  it('bind prompt, style, resolution, model, semantic options, and image bytes', async () => {
+    const dir = join(tmpdir(), `ppt-provenance-${process.pid}`);
+    mkdirSync(dir, { recursive: true });
+    try {
+      const imagePath = join(dir, 'a.png');
+      tinyPng(imagePath);
+      const {
+        buildImageManifestEntry,
+        generationProfile,
+        inspectImageProvenance,
+        sha256Bytes,
+      } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs');
+      const base = generationProfile({
+        styleReferenceSha256: sha256Bytes('style-a'),
+        resolution: '1k',
+        model: 'model-a',
+        semanticOptions: { size: '16:9', n: 1 },
+      });
+      const entry = buildImageManifestEntry({
+        slideId: 'a', output: 'a.png', prompt: 'p', profile: base, imagePath,
+      });
+      const manifest = { version: 1, slides: { a: entry } };
+      expect(inspectImageProvenance({
+        slide: { id: 'a', out: 'a.png', prompt: 'p' }, outDir: dir, manifest, profile: base,
+      }).current).toBe(true);
+      for (const changed of [
+        { ...base, resolution: '2k' },
+        { ...base, model: 'model-b' },
+        { ...base, style_reference_sha256: sha256Bytes('style-b') },
+        { ...base, semantic_options: { ...base.semantic_options, quality: 'high' } },
+      ]) {
+        expect(inspectImageProvenance({
+          slide: { id: 'a', out: 'a.png', prompt: 'p' }, outDir: dir, manifest, profile: changed,
+        }).current).toBe(false);
+      }
+      writeFileSync(imagePath, Buffer.from('different bytes'));
+      expect(inspectImageProvenance({
+        slide: { id: 'a', out: 'a.png', prompt: 'p' }, outDir: dir, manifest, profile: base,
+      }).reason).toBe('image SHA-256 mismatch');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

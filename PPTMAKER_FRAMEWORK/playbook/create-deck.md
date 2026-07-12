@@ -137,10 +137,10 @@ exit:
 ```
 
 **Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1`
-**Step 2 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --only <opener>,<body>,<closer> --resolution 1k` (pilot；转述 `i/N` / 心跳)
-**Step 3 — MD**: 人审 pilot. 通过 → 继续; 不通过 → 回 Step 2 调 prompt
-**Step 4 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --resolution 2k --force-images` (full；同上可观察等待)
-**Step 5 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 3,4,5`
+**Step 2 — CLI**: `node scripts/ppt_flow.mjs pilot <dir> --resolution 2k --force-images`（使用计划 production profile；自动优先覆盖 1-2 张 content full-page）
+**Step 3 — MD**: open contact sheet，检查 header 准确性、清晰度、位置、字号、左对齐、跨页一致性和 body overlap。手工 subset 覆盖不足就补跑。问题页只有用户确认后才升级 `render.header-lock`，并按 Chain B 重生重审。
+**Step 4 — CLI**: `node scripts/ppt_flow.mjs approve <dir> header`。partial evidence 必须继续补足；既有 visual approval 不能替代 header evidence。
+**Step 5 — CLI**: `node scripts/ppt_flow.mjs build <dir> --resolution 2k --reuse-images`（保留 reviewed hashes，生成未缓存页，再完成 Stage 3/4/5）
 
 ### hitl2
 → 人机交互: 审阅 synthesis

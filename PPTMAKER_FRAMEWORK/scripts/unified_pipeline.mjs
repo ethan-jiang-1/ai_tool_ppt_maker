@@ -165,7 +165,7 @@ export async function stage1(runDir, dryRun) {
 
   // Use the Node.js ESM port's parseSlides function programmatically.
   // This avoids spawning a subprocess for a stage we have natively.
-  const { parseSlides } = await import("./stage1_build_inputs.mjs");
+  const { parseSlides, configureVisualConfig } = await import("./stage1_build_inputs.mjs");
   const { loadVisualConfig } = await import("./visual_config.mjs");
 
   const deckSystemPath = styleAsset(runDir, DECK_SYSTEM_FILE);
@@ -184,6 +184,7 @@ export async function stage1(runDir, dryRun) {
   if (existsSync(palettePath)) {
     try {
       const config = loadVisualConfig(palettePath);
+      configureVisualConfig(config);
       console.log(
         `  Visual config: ${config.canvas.width_px}x${config.canvas.height_px}, ` +
         `header=${config.header_lock.body_header_safe_zone}px (${palettePath})`
@@ -192,6 +193,9 @@ export async function stage1(runDir, dryRun) {
       console.log(`  ✗ Invalid visual config: ${exc.message}`);
       return false;
     }
+  } else {
+    const { DEFAULT_CONFIG } = await import("./visual_config.mjs");
+    configureVisualConfig(DEFAULT_CONFIG);
   }
 
   const { plan, prompts } = parseSlides([inputFile], finalRules);
@@ -237,6 +241,7 @@ export async function stage1(runDir, dryRun) {
  * @param {string|null} [only]
  * @param {boolean} [forceImages]
  * @param {string} [resolution]
+ * @param {string} [model]
  * @param {boolean} [dryRun]
  * @returns {Promise<boolean>}
  */
@@ -245,6 +250,8 @@ export async function stage2(runDir, {
   only = null,
   forceImages = false,
   resolution = "2k",
+  model = "gpt-image-2",
+  requireHeaderReview = false,
   dryRun = false,
 } = {}) {
   const buildDir = generatedDir(runDir);
@@ -263,6 +270,19 @@ export async function stage2(runDir, {
   const outDir = join(buildDir, GEN_IMAGES_SUBDIR);
   if (!dryRun) {
     mkdirSync(outDir, { recursive: true });
+  }
+
+  if (requireHeaderReview && !dryRun) {
+    const review = await validateProductionHeaderReview(runDir, {
+      resolution,
+      model,
+      forceImages,
+    });
+    if (!review.current) {
+      console.log(`  ✗ Header review gate: ${review.errors.join("; ")}`);
+      console.log(`  Hint: ${review.hint}`);
+      return false;
+    }
   }
 
   const { bridgeCredentials, resolveBaseUrls } = await import("./image_api_client.mjs");
@@ -313,6 +333,7 @@ export async function stage2(runDir, {
       outDir,
       styleReference: styleMaster,
       resolution,
+      model,
       only: selectedIds,
       force: !!forceImages,
       promptIsFinal: true,
@@ -321,6 +342,25 @@ export async function stage2(runDir, {
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
+      return false;
+    }
+    const promptData = loadJson(promptsFile);
+    const selectedSet = selectedIds.length > 0 ? new Set(selectedIds) : null;
+    const provenanceSlides = (promptData.slides || []).filter(
+      (slide) => !selectedSet || selectedSet.has(slide.id)
+    );
+    const { validateImageProvenance, provenanceRepairHint } = await import("./lib/image_provenance.mjs");
+    const provenance = validateImageProvenance({
+      slides: provenanceSlides,
+      outDir,
+      profile: result.profile,
+    });
+    if (!provenance.current) {
+      const ids = provenance.stale.map((entry) => entry.slideId);
+      console.log(
+        `\n  ✗ Stage 2 provenance FAILED: ${provenance.stale.map((entry) => `${entry.slideId}: ${entry.reason}`).join("; ")}`
+      );
+      console.log(`  ${provenanceRepairHint(ids)}`);
       return false;
     }
     console.log(`\n  ✓ Stage 2: Generate Images completed successfully.`);
@@ -464,6 +504,12 @@ export async function stage4(runDir, dryRun) {
       console.log(`  ✗ ${slidePlan} not found. Run Stage 1 first.`);
       return false;
     }
+    const review = await validateProductionHeaderReview(runDir, { requireCurrentImages: true });
+    if (!review.current) {
+      console.log(`  ✗ Header review gate: ${review.errors.join("; ")}`);
+      console.log(`  Hint: ${review.hint}`);
+      return false;
+    }
   }
 
   const pptDir = join(buildDir, GEN_PPT_SUBDIR);
@@ -503,6 +549,126 @@ export async function stage4(runDir, dryRun) {
     console.log(`\n  ✗ Stage 4: Build PPTX FAILED: ${err.message}`);
     return false;
   }
+}
+
+export async function validateProductionHeaderReview(runDir, {
+  resolution = null,
+  model = null,
+  forceImages = false,
+  requireCurrentImages = false,
+} = {}) {
+  const buildDir = generatedDir(runDir);
+  const planPath = join(buildDir, GEN_SLIDE_PLAN);
+  if (!existsSync(planPath)) {
+    return { current: false, errors: ["current slide plan is missing"], hint: "run Stage 1, then pilot and approve header" };
+  }
+  const slides = loadJson(planPath).slides || [];
+  const palettePath = styleAsset(runDir, COLOR_PALETTE_FILE);
+  const { loadVisualConfig, DEFAULT_CONFIG } = await import("./visual_config.mjs");
+  const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
+  const {
+    buildHeaderReviewInputs,
+    HEADER_REVIEW_NODE,
+    validateHeaderReviewRecord,
+    versionKey,
+  } = await import("./lib/header_review.mjs");
+  const inputs = buildHeaderReviewInputs(slides, visualConfig);
+  const root = deckRoot(runDir);
+  const { readState } = await import("./lib/state.mjs");
+  const state = readState(root);
+  const key = versionKey(root, runDir);
+  const record = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[key] || null;
+  let targetProfile = null;
+  const profileResolution = resolution || record?.generation_profile?.resolution || null;
+  const profileModel = model || record?.generation_profile?.model || null;
+  if (profileResolution && profileModel) {
+    const { generationProfile, sha256File } = await import("./lib/image_provenance.mjs");
+    const styleMaster = styleAsset(runDir, STYLE_MASTER_IMAGE);
+    targetProfile = generationProfile({
+      styleReferenceSha256: sha256File(styleMaster),
+      resolution: profileResolution,
+      model: profileModel,
+      semanticOptions: { size: "16:9", n: 1 },
+    });
+  }
+  const validation = validateHeaderReviewRecord({
+    record,
+    inputs,
+    imagesDir: join(buildDir, GEN_IMAGES_SUBDIR),
+    targetProfile,
+  });
+  const protectedIds = new Set([
+    ...Object.keys(record?.reviewed_image_provenance || {}),
+    ...Object.keys(record?.accepted_risks || {}),
+  ]);
+  const protectedFullPageIds = inputs.fullPageIds.filter((id) => protectedIds.has(id));
+  const errors = [...validation.errors];
+  if (requireCurrentImages) {
+    const promptsPath = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
+    const prompts = existsSync(promptsPath) ? loadJson(promptsPath).slides || [] : [];
+    const promptById = new Map(prompts.map((slide) => [slide.id, slide]));
+    const { generationFingerprint, readImageManifest, sha256File } = await import("./lib/image_provenance.mjs");
+    const imagesDir = join(buildDir, GEN_IMAGES_SUBDIR);
+    const { manifest, error: manifestError } = readImageManifest(imagesDir);
+    if (manifestError) errors.push(manifestError);
+    for (const id of inputs.fullPageIds) {
+      const prompt = promptById.get(id);
+      const entry = manifest.slides?.[id];
+      if (!prompt) errors.push(`current prompt missing for full-page id ${id}`);
+      if (!entry) errors.push(`current raw-image provenance missing for full-page id ${id}`);
+      if (prompt && entry) {
+        const expected = generationFingerprint({
+          prompt: String(prompt.prompt || "").trim(),
+          profile: entry.generation_profile,
+        });
+        if (entry.generation_fingerprint !== expected) {
+          errors.push(`raw-image provenance is stale for full-page id ${id}`);
+        }
+        const imagePath = join(imagesDir, entry.output);
+        if (!existsSync(imagePath)) errors.push(`raw image missing for full-page id ${id}`);
+        else if (sha256File(imagePath) !== entry.image_sha256) {
+          errors.push(`raw image bytes changed for full-page id ${id}`);
+        }
+      }
+    }
+  }
+  if (record && targetProfile) {
+    const promptsPath = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
+    const prompts = existsSync(promptsPath) ? loadJson(promptsPath).slides || [] : [];
+    const promptById = new Map(prompts.map((slide) => [slide.id, slide]));
+    const { generationFingerprint, readImageManifest } = await import("./lib/image_provenance.mjs");
+    const { manifest, error: manifestError } = readImageManifest(join(buildDir, GEN_IMAGES_SUBDIR));
+    if (manifestError) errors.push(manifestError);
+    for (const [id, reviewed] of Object.entries(record.reviewed_image_provenance || {})) {
+      const prompt = promptById.get(id);
+      const entry = manifest.slides?.[id];
+      if (!prompt) errors.push(`current prompt missing for reviewed id ${id}`);
+      if (!entry) errors.push(`current manifest entry missing for reviewed id ${id}`);
+      if (prompt && entry) {
+        const expected = generationFingerprint({
+          prompt: String(prompt.prompt || "").trim(),
+          profile: targetProfile,
+        });
+        if (entry.generation_fingerprint !== expected) {
+          errors.push(`raw-image provenance is stale for reviewed id ${id}`);
+        }
+        if (entry.image_sha256 !== reviewed.image_sha256) {
+          errors.push(`manifest image hash differs from reviewed evidence for ${id}`);
+        }
+      }
+    }
+  }
+  if (forceImages && protectedFullPageIds.length > 0) {
+    errors.push(`force-images would overwrite reviewed full-page ids: ${protectedFullPageIds.join(", ")}`);
+  }
+  const pilotIds = validation.changedIds.length > 0
+    ? validation.changedIds
+    : inputs.contentFullPageIds.slice(0, Math.min(2, inputs.contentFullPageIds.length));
+  const profileArgs = resolution ? ` --resolution ${resolution}` : "";
+  const hint = protectedFullPageIds.length > 0 && targetProfile && validation.errors.length === 0
+    ? "use ppt_flow build --reuse-images with this matching profile"
+    : `run ppt_flow pilot ${runDir} --only ${pilotIds.join(",")} --force-images${profileArgs}, review it, then approve header`;
+  return { ...validation, inputs, record, current: errors.length === 0, errors, hint, targetProfile };
 }
 
 /**
@@ -651,6 +817,7 @@ Examples:
     .option("--force-images", "Regenerate all selected Stage-2 images even if files exist")
     .option("--preview", "Stage-2 readiness: style master only (skip metadata gate check)")
     .option("--resolution <res>", "Stage-2 image resolution (default: 2k; use 1k for pilots)", "2k")
+    .option("--model <name>", "Stage-2 image model", "gpt-image-2")
     .option("--dry-run", "Print what would be executed without running")
     .action(async (opts) => {
       const runDir = resolve(opts.runDir);
@@ -709,6 +876,14 @@ Examples:
       // Max stage validation — stages must be sequential from the current run.
       // We don't validate here since partial chains (1,3,4,5) are valid editing chains.
 
+      if (!opts.preview && !stages.includes(1) && (stages.includes(2) || stages.includes(4))) {
+        const refreshed = await stage1(runDir, opts.dryRun);
+        if (!refreshed) {
+          console.log("\n  Pipeline stopped while refreshing Stage 1 for header review.");
+          process.exit(1);
+        }
+      }
+
       // Stage dispatch table
       const stageFuncs = {
         1: () => stage1(runDir, opts.dryRun),
@@ -717,6 +892,8 @@ Examples:
           only: opts.only || null,
           forceImages: opts.forceImages || false,
           resolution: opts.resolution || "2k",
+          model: opts.model || "gpt-image-2",
+          requireHeaderReview: !opts.preview,
           dryRun: opts.dryRun,
         }),
         3: () => stage3(runDir, opts.dryRun),

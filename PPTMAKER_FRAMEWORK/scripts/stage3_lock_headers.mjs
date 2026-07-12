@@ -83,7 +83,7 @@ const CANONICAL_RENDER_MODES = new Set([
  * @param {Record<string, any>} layout
  * @returns {string}
  */
-function _contractRenderMode(layout) {
+export function contractRenderMode(layout) {
   const mode = layout.render_mode;
   if (CANONICAL_RENDER_MODES.has(mode)) {
     return mode;
@@ -1077,7 +1077,7 @@ async function runLockHeaders(opts) {
     const imgPath = images[slideId];
 
     const layout = slide.layout_contract || {};
-    const mode = _contractRenderMode(layout);
+    const mode = contractRenderMode(layout);
 
     // Load and resize the raw image into a Canvas.
     const imageCanvas = _loadImageToCanvas(imgPath, _CANVAS_SIZE);

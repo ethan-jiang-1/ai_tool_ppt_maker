@@ -10,6 +10,9 @@ depends_on:
 feeds_into:
 - Run bundle 3_versions/v1/slide-specifications.md
 agent_action: fill_template
+render:
+  default: full-page
+  header-lock: []
 ---
 
 # Report Template
@@ -56,9 +59,9 @@ tier: quick
 ## Section 5: Slide Specifications
 
 > **每页按四层规格填**（Phase 1 填 L1/L2/L4；**L3 IMAGE PROMPT 视觉锁定后再回填**——见 `AGENTS.md` §2.7 / 本框架 bug 0003）。本模板给了每页的 **L1 骨架**（VISUAL TYPE / KICKER / TITLE）和 **L4 讲稿提示**；填充时**补全缺的两处**：
-> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`；其余 = `body+header-lock`。省略则由 VISUAL TYPE 自动映射，但写出来更清楚。
+> - **L1 Meta — 通常不写逐页 `RENDER MODE`**：frontmatter 已设全册默认 `full-page`。需要确定性标题的页，把 id 加入 `render.header-lock`；逐页字段只用于高级覆盖。
 > - **L2 Concept — 每页加 `MUST communicate` / `MUST NOT` / `Bridge`**（本页在整体论证中承上启下的功能）。这是叙事弧线落到每一页的地方，**别省**。
-> - **L3 IMAGE PROMPT**：Phase 1 留占位，Phase 2 视觉锁定后对照 `2_backbone/visual-style/` 回填。
+> - **L3 IMAGE PROMPT**：Phase 1 留占位，Phase 2 视觉锁定后只写画面/构图。不要重复 KICKER/TITLE/SUBTITLE 或 header 位置；hero 也只写自由构图意图，准确文字由 Stage 1 注入。
 > - **L4 Speaker Note**：已给提示，按你的内容改写。
 >
 > 完整四层形状见 `workflow/02-content/template-slide-specifications.md`；**填好的范例**见 `example-deck-brief-mini.md`。

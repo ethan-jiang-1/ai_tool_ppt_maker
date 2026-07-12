@@ -89,7 +89,7 @@ agent_action: copy_to_bundle
 ├── 1_upstream_raw_material/   ← 源·共享·原始素材(只增)
 ├── 2_backbone/               ← 源·共享·主干:隐喻/公式/约束/大纲/讲稿/视觉(默认事实源)
 └── 3_versions/{{CURRENT_VERSION}}/
-    ├── slide-specifications.md ← 源·每页规格 + 每页 render mode(管线入口)
+    ├── slide-specifications.md ← 源·每页规格 + 全册 render policy(管线入口)
     ├── overrides/            ← 源·只放这版偏离 backbone 的东西;空=全继承
     ├── _generated/           ← 派生·别碰·可 rm -rf 重建
     └── _scratch/             ← 本版临时/bak（上严下松；别丢到 deck 根）
@@ -102,24 +102,26 @@ agent_action: copy_to_bundle
 ```
 slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page_prompts/
                                               │
-        每页按 render mode 分两条路:          ▼
-  ┌─ full-page(整页,~20%):  image-2 画整页(含标题) ─────────────────┐
-  │   开场/分隔/结尾                                                  │
-  └─ body+header-lock(~80%): image-2 只画 body ──> Stage 3 Header-Lock 叠 kicker+title ┘
-       常规页                    (Stage 2)          (Stage 3,固定像素)
+        每页按 resolved render mode 分两条路:       ▼
+  ┌─ full-page: image-2 画整页(含 Stage 1 注入的准确 header 文字) ─────┐
+  └─ body+header-lock: image-2 只画 body ──> Stage 3 叠 kicker+title ┘
+                            (Stage 2)          (Stage 3,固定像素)
                                               │
                         (Stage 4) 打包 PPTX ──> (Stage 5) 注入 speaker notes
                                               ▼
                             _generated/ppt/{{OUTPUT_NAME}}.pptx
 ```
 
-每页走哪条路:优先看那页显式声明的 `RENDER MODE`,没写则由 VISUAL TYPE 推(开场/分隔/结尾=full-page,其余=body+header-lock)。
+新 `--init` deck 在 frontmatter 中默认 `render.default: full-page`；`render.header-lock` 点名需要确定性标题的页，逐页 `RENDER MODE` 只做高级 override。没有顶层 `render` 的旧 deck 保持 legacy：显式 mode 优先，否则按 VISUAL TYPE 派生。`render` 内 typo 会 fail-loud；顶层 `renders:` 无法安全猜测纠正，排障看 `render_mode_source`。
+
+full-page header 由图像模型尽力保持稳定，不承诺像素精度；文字清晰度与精确位置必须用 body+header-lock。
 
 ## 编辑链:改了什么 → 只重跑哪几步
 
 | 改了 | 跑哪些 stage | 耗时 |
 |------|-------------|------|
-| kicker / title 文字 | 1,3,4,5 | ~5 min |
+| body+header-lock 的 kicker / title 文字 | 1,3,4,5 | ~5 min |
+| full-page 的 kicker / title 文字 | `1,2,3,4,5 --only <id> --force-images` | ~5 min/页 |
 | image prompt / 画面 | 1,2,3,4,5 | ~5 min/页 |
 | speaker notes | 5 | ~30 sec |
 | 视觉主干(backbone) | 重新生成 style master + `1,2,3,4,5 --force-images` | — |

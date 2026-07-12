@@ -13,7 +13,7 @@
  *     [--only id] [--force] [--prompt-is-final] [--base-url URL] [--dry-run]
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -24,6 +24,15 @@ import {
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
 import { IMAGE_TRACE_SUFFIX } from "./bundle_layout.mjs";
+import {
+  buildImageManifestEntry,
+  generationProfile,
+  inspectImageProvenance,
+  provenanceRepairHint,
+  readImageManifest,
+  sha256File,
+  writeImageManifestAtomic,
+} from "./lib/image_provenance.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -70,6 +79,14 @@ export async function generateImages({
 
   const onlySet = only.length > 0 ? new Set(only) : null;
   mkdirSync(outDir, { recursive: true });
+  const styleReferenceSha256 = sha256File(styleReference);
+  const profile = generationProfile({
+    styleReferenceSha256,
+    resolution,
+    model,
+    semanticOptions: { size: "16:9", n: 1 },
+  });
+  let { manifest, error: manifestError } = readImageManifest(outDir);
 
   let baseUrls = [];
   if (!dryRun) {
@@ -117,6 +134,31 @@ export async function generateImages({
       continue;
     }
 
+    if (!force && existsSync(outPath)) {
+      const provenance = inspectImageProvenance({
+        slide: { ...slide, prompt },
+        outDir,
+        manifest,
+        manifestError,
+        profile,
+      });
+      if (provenance.current) {
+        skipped += 1;
+        console.log(`  done ${index}/${total} (id=${slideId}) skipped-exists`);
+        continue;
+      }
+      const hint = provenanceRepairHint([slideId]);
+      errors.push(`${slideId}: stale cached image (${provenance.reason}); ${hint}`);
+      console.log(`  ERROR ${index}/${total}: ${slideId}: stale cached image (${provenance.reason}); ${hint}`);
+      continue;
+    }
+
+    if (force && Object.hasOwn(manifest.slides, slideId)) {
+      delete manifest.slides[slideId];
+      writeImageManifestAtomic(outDir, manifest);
+      manifestError = null;
+    }
+
     console.log(`  generating slide ${index}/${total} (id=${slideId})`);
     try {
       const trace = await generateOneImage({
@@ -125,17 +167,25 @@ export async function generateImages({
         styleReferencePath: styleReference,
         resolution,
         model,
-        force,
+        force: true,
         baseUrls,
         tracePath,
       });
-      if (trace) {
-        generated += 1;
-        console.log(`  done ${index}/${total} (id=${slideId})`);
-      } else {
-        skipped += 1;
-        console.log(`  done ${index}/${total} (id=${slideId}) skipped-exists`);
+      if (!trace || !existsSync(outPath)) {
+        throw new Error("generator returned without a current output image");
       }
+      const entry = buildImageManifestEntry({
+        slideId,
+        output: outName,
+        prompt,
+        profile,
+        imagePath: outPath,
+      });
+      manifest.slides[slideId] = entry;
+      writeImageManifestAtomic(outDir, manifest);
+      manifestError = null;
+      generated += 1;
+      console.log(`  done ${index}/${total} (id=${slideId})`);
     } catch (err) {
       errors.push(`${slideId}: ${err.message}`);
       console.log(`  ERROR ${index}/${total}: ${slideId}: ${err.message}`);
@@ -147,7 +197,7 @@ export async function generateImages({
   if (errors.length > 0) {
     for (const e of errors) console.log(`  ${e}`);
   }
-  return { generated, skipped, errors };
+  return { generated, skipped, errors, profile, selectedIds: workSlides.map((slide) => slide.id) };
 }
 
 /**

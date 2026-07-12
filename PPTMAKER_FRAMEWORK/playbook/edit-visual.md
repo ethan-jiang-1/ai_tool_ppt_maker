@@ -27,8 +27,8 @@ exit:
   - pilot_approved
 ```
 
-**Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 1,2 --only <slide_ids> --resolution 1k`
-**Step 2 — MD**: **必须 open** pilot 产物（contact sheet / 页图）。禁止只描述。通过 → confirm; 不通过 → 回到 classify-change 调整 prompt 方向
+**Step 1 — CLI**: `node scripts/ppt_flow.mjs pilot <dir> --only <slide_ids> --force-images --resolution <production-profile>`
+**Step 2 — MD**: **必须 open** pilot 产物。full-page header 还要检查准确性、清晰度、位置、字号、左对齐、跨页一致性与 body overlap。手工 subset 覆盖不足时补跑 content full-page。通过后 `approve <dir> header`；不通过回到 classify-change。
 
 ### confirm
 → 确认 pilot, 准备全量
@@ -61,8 +61,8 @@ exit:
   - pptx_updated
 ```
 
-**Step 1 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 2 --resolution 2k --force-images [--only <ids>]`
-**Step 2 — CLI**: `node scripts/unified_pipeline.mjs --run-dir <dir> --stage 3,4,5`
+**Step 1 — CLI**: 受影响页先按 Chain B pilot + review + `approve header`；不要在同一条生产链中覆盖已审 full-page 图片。
+**Step 2 — CLI**: `node scripts/ppt_flow.mjs build <dir> --resolution 2k --reuse-images`
 
 ### verify-output
 → 验证视觉修改

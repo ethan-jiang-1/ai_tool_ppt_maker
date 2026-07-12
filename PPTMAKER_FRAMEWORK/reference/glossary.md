@@ -141,8 +141,8 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 
 | RENDER MODE | 含义 | 典型页 |
 |-------------|------|--------|
-| **`body+header-lock`** | AI 只画 body（顶部留白），Node 叠 kicker+title | 常规内容页 ~80% |
-| **`full-page`** | AI 画整页（含标题），不叠字 | opener / divider / closer ~20% |
+| **`full-page`** | AI 画整页（含 Stage 1 注入的结构化 header），Stage 3 不叠字 | 新 deck 默认；header 稳定度尽力保证 |
+| **`body+header-lock`** | AI 只画 body（顶部留白），Node 叠 kicker+title | 按需升级；保证文字清晰度与像素位置 |
 
 旧词 `normal` / `image_direct` 仅作输入别名兼容，**文档与新产出禁止再用**。Stage 3 读 `render_mode`；若遇到旧 `slide_plan.json` 里的 `header_variant`，会自动映射。
 

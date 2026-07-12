@@ -261,14 +261,14 @@ cp PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md \
 
 | 层 | 内容 | 消费者 | 何时填 |
 |----|------|--------|--------|
-| L1 Meta | VISUAL TYPE, RENDER MODE, KICKER, TITLE | Pipeline scripts | **Phase 1** |
+| L1 Meta | VISUAL TYPE, KICKER, TITLE；可选高级 RENDER MODE override | Pipeline scripts | **Phase 1** |
 | L2 Concept | MUST communicate, MUST NOT, Bridge | Reviewer, Presenter | **Phase 1** |
 | L3 Image Prompt | 完整视觉描述（参考 `workflow/03-prompts/`） | AI Image Model | **Phase 2 之后回填（§2.7）** |
 | L4 Speaker Note | Narrative flow, Terms, Takeaway | Presenter | **Phase 1** |
 
 > **为什么 L3 押后**：L3 要"对照 `2_backbone/visual-style/`"（画风/色板/组件）才写得对，而那套视觉要到 Phase 2 才锁定。Phase 1 就写 L3 = 拿还不存在的东西做参照，写出来多半作废重来（本框架 bug 0003 的根因）。所以 Phase 1 每个 slide 的 L3 留占位（如 `[PLACEHOLDER: 视觉锁定后填]`），视觉锁定后统一回填。**L1 的 TITLE/KICKER/VISUAL TYPE 照常在 Phase 1 写全**——它们是内容判断，不依赖画风。
 
-> **每页声明 RENDER MODE**（两个之一）:`full-page`(image-2 画整页,含标题——开场/分隔/结尾) 或 `body+header-lock`(image-2 只画 body,Node `@napi-rs/canvas` 叠标题——常规页)。由 VISUAL TYPE 自动映射,但写出来让生产方式一眼可见。
+> 新 deck 的 frontmatter 已声明 `render.default: full-page`，通常不逐页写 RENDER MODE。需要确定性标题时把 id 加入 `render.header-lock`；单页字段仅用于高级 override。无顶层 `render` 的旧 deck 才按 VISUAL TYPE 派生。`render` 内 typo 会 fail-loud；顶层 `renders:` 不做 fuzzy 纠正，排障看 `render_mode_source`。
 
 ### 1.5 约束检查（参考 `workflow/02-content/05-iterate-with-version-discipline.md`）
 
@@ -416,7 +416,7 @@ cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
 
 视觉系统已锁（`style_master.jpg` + `deck_system.txt` + `color_palette.json` 就位）——**现在**回到 `3_versions/v1/slide-specifications.md`，为每张 slide 填 §1.4 留下的 L3 占位：
 
-- 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件（这套东西此刻真实存在了，不会写废）。写法参考 `workflow/03-prompts/` 和该 slide 的 L1 VISUAL TYPE / RENDER MODE。
+- 逐页写完整 IMAGE PROMPT，**对照 `2_backbone/visual-style/`** 的画风/色板/组件。只写 body/整体构图，不重复结构化 KICKER/TITLE/SUBTITLE 文案或 header 位置；hero 也只写自由构图意图，准确文字由 Stage 1 注入。写法参考 `workflow/03-prompts/` 和 resolved mode。
 - 全部回填后，跑一次内容契约校验（**这是 L3 gate 真正该跑的地方**，Phase 1 不跑）：
   ```bash
   node PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs \
@@ -447,28 +447,27 @@ cp PPTMAKER_FRAMEWORK/workflow/01-visual/template-deck-system.txt \
 
 ### 执行管线
 
-**推荐：使用统一管线脚本**（`scripts/unified_pipeline.mjs`）：
+**推荐：使用 `ppt_flow.mjs` 统一入口**：
 
 ```bash
-# 首次生产：先解析，再用 3 张代表页做 1K pilot
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir deck_{NAME}/3_versions/v1 --stage 1
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir deck_{NAME}/3_versions/v1 --stage 2 \
-  --only opener_id,content_id,closer_id --resolution 1k
+# 可选：先用 1K 探索方向（这份 evidence 不授权 2K）
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
+  deck_{NAME}/3_versions/v1 --resolution 1k --force-images
 
-# Pilot 通过后，全量生成 2K，再完成 Header-Lock/PPTX/Notes
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir deck_{NAME}/3_versions/v1 --stage 2 --resolution 2k --force-images
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir deck_{NAME}/3_versions/v1 --stage 3,4,5
+# 正式生产前：用目标 2K profile 重新 pilot，打开 contact sheet 审查并写 evidence
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
+  deck_{NAME}/3_versions/v1 --resolution 2k --force-images
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve \
+  deck_{NAME}/3_versions/v1 header
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
+  deck_{NAME}/3_versions/v1 --resolution 2k --reuse-images
 
 # 只跑某个 stage（如只重新 lock headers）
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --stage 3
 ```
 
-`--stage all` 适合视觉方向已经在 pilot 中验证过的重建；它执行技术管线，不替代用户对内容和视觉 Phase gate 的确认。
+1K/2K、model 或 style-reference 任一变化都会改变 generation profile；不同 profile 必须重新 pilot + `approve header`。正式 build 使用 `--reuse-images` 保留 reviewed hashes。
 
 **如果 unified_pipeline.mjs 不可用**，手动按 Stage 1-5 执行（参考 `workflow/04-production/reference-pipeline-scripts.md`）。
 
@@ -498,8 +497,8 @@ Stage 2 每次完成后会自动更新 `_generated/preview/contact_sheet.jpg`。
 
 | 链 | 改了什么 | 走哪些 Stage | 耗时 |
 |----|---------|-------------|------|
-| **A** | Kicker/Title 文字 | 1 → 3 → 4 → 5 | ~5 min |
-| **B** | Image prompt/画面 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
+| **A** | body+header-lock 的 Kicker/Title/Subtitle | 1 → 3 → 4 → 5 | ~5 min |
+| **B** | full-page header 文字、mode 切换、Image prompt/画面 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
 | **C** | Speaker notes | 5 only | ~30 sec |
 
 > 配色、style master 或 deck-wide visual rules 改动属于全量 Chain B：重新生成 style master 后，运行 `--stage all --force-images`。否则 skip-if-exists 会保留旧视觉。

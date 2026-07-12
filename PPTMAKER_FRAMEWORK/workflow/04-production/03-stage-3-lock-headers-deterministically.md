@@ -20,8 +20,8 @@ agent_action: execute_pipeline
 
 把 Stage 2 生成的 AI 画面和 Stage 1 定义的标题文字合成为最终 slide 图片。
 
-- **`body+header-lock` slides**（~80%）：用 Node `@napi-rs/canvas` 在画面顶部叠加 kicker + title + subtitle，精确像素位置
-- **`full-page` slides**（~20%）：什么都不做——AI 已经画了完整画面，pass-through 保存
+- **`body+header-lock` slides**：用 Node `@napi-rs/canvas` 在画面顶部叠加 kicker + title + subtitle，精确像素位置
+- **`full-page` slides**：什么都不做——AI 已经画了完整画面，pass-through 保存
 
 输入：`_generated/page_images_full/*.png`（Stage 2 产出）+ `_generated/slide_plan.json`（Stage 1 产出）
 输出：`_generated/header_locked/*.png`（最终 slide 图片）+ `_generated/qa/header_lock_qa.json`（QA 记录）
@@ -40,7 +40,7 @@ Node `@napi-rs/canvas` 在这三件事上是精确的：
 2. **精确字体大小**：`registerFont(...); ctx.font = '46px SourceSansPro-Black'` — 46 就是 46px
 3. **文字内容无误**：你给 Stage 3 什么 string，它就渲染什么 string
 
-因此分工：**AI 负责画面（body visual），Stage 3（Header-Lock）负责标题文字（header text）。**
+因此 `body+header-lock` 的分工是：AI 负责 body visual，Stage 3 负责 header text。`full-page` 则由 AI 生成全部内容，header 稳定度仅尽力保证；要求像素精度和清晰度时必须选 header-lock。
 
 ## 两种 RENDER MODE 的处理逻辑
 
@@ -75,7 +75,7 @@ Node `@napi-rs/canvas` 在这三件事上是精确的：
 3. 直接保存——不叠加任何文字
 ```
 
-`full-page` 用于 opening、section divider、closing 等 slide。这些 slide 的标题是画面构图的一部分——由 AI 完整生成，Stage 3 不做任何处理。
+`full-page` 可以用于 content 或 hero。Stage 1 会注入结构化准确文字；content 还得到统一软 header band，hero 保持自由构图。Stage 3 都不叠加文字。
 
 ## 怎么判定 RENDER MODE
 
@@ -83,7 +83,7 @@ Stage 3 **不自己判定** slide 类型。它从 `slide_plan.json` 的 `layout_
 
 这很重要：如果 Stage 1 把某张 slide 错标成了 `body+header-lock`（但应该是 `full-page`），Stage 3 会在它的 opening 页面上叠一个 header——破坏画面。反过来，如果把 `body+header-lock` 错标成 `full-page`，标题文字就不会被画上去。
 
-**黄金法则：改了 VISUAL TYPE / RENDER MODE → 必须重跑 Stage 1。** `slide_plan.json` 是 Stage 3 判定 header 要不要画的唯一依据。
+**黄金法则：改了 policy、VISUAL TYPE 或 RENDER MODE → 必须重跑 Stage 1。** Stage 3 只看 resolved `render_mode`，完全不看 `render_mode_source`；任何来源的 body+header-lock 都叠加，任何来源的 full-page 都透传。
 
 ## 字体依赖
 

@@ -136,7 +136,7 @@ deck_{NAME}/
 ├── 1_upstream_raw_material/   ← 上游:原始素材,共享,只增
 ├── 2_backbone/               ← 中游:主干(隐喻/公式/约束/大纲/讲稿/视觉),共享,默认事实源
 └── 3_versions/v{n}/          ← 下游:微调+生产,版本只切这里
-    ├── slide-specifications.md   (每页规格,管线入口,每页声明 render mode)
+    ├── slide-specifications.md   (每页规格 + 全册 render policy,管线入口)
     ├── overrides/               (只放这版偏离 backbone 的东西)
     └── _generated/             (派生品,可 rm -rf 重建)
 ```
@@ -145,7 +145,7 @@ deck_{NAME}/
 - **下游从 backbone 汲取,可局部 override**。版本 `overrides/<X>` 存在就用它,否则回退 `2_backbone/<X>`(`bundle_layout.resolve_backbone_asset`)——给下游灵活度又不拷贝分叉。
 - **目录结构 SSOT = `bundle_layout.mjs`**。所有脚本 import 它取路径,文档树是它的人读镜像。彻底根除"结构信息散在各处、各自漂移"的碎片化(用户核心诉求)。
 - **prompt 是一等资产**。每页 prompt 拆成 `_generated/page_prompts/NN_id.prompt.md`(人读)+ `_prompts.json`(机器);style master 的 prompt 存为 `2_backbone/visual-style/style-master-prompt.md`(以前画完就丢)。
-- **两个 render mode 显式化**:每页在 slide-specifications.md 声明 `full-page`(整页 image-2)或 `body+header-lock`(image-2 画 body + Stage 3 Header-Lock 叠标题)。
+- **两个 render mode**:新 deck frontmatter 默认 `full-page`；需要确定性 header 的页加入 `render.header-lock`，逐页字段仅作高级 override。旧 deck 无顶层 `render` 时保持 VISUAL TYPE 派生。
 - **`deck-brief.md` 拆成 4 个模板**:`template-core-metaphor` / `template-core-formula` / `template-design-constraints`(→ backbone)+ `template-slide-specifications`(→ 版本)。
 - **`_build/` → `_generated/`**;**per-bundle guide** 从 `template-deck-guide.md` 生成(`deck-guide.md` 人读控制流 + `CLAUDE.md` 一行指针)。
 

@@ -16,6 +16,7 @@ describe("cli_error", () => {
         "FAILED",
         "GATE_BLOCKED",
         "STATE_CORRUPTED",
+        "TITLE_REVIEW_REQUIRED",
         "UNCAUGHT",
         "USAGE",
       ].sort()
