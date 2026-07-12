@@ -1,16 +1,22 @@
 ## ADDED Requirements
 
-### Requirement: Header-lock is an on-demand remedy sharing geometry with the full-page soft contract
+### Requirement: Stage 3 follows resolved render mode regardless of its source
 
-Header-lock (Stage 3 hard text overlay) SHALL be applied to a slide only when that slide's resolved `render_mode` is `body+header-lock` — i.e. selected on demand via the deck `render.header-lock` exception list or a per-slide explicit `RENDER MODE`, not by a whole-deck default. Full-page slides SHALL continue to pass through Stage 3 unchanged. The header geometry (position, size, alignment) used by the hard overlay SHALL be the same `color_palette.json` geometry that Stage 1 directs into the content full-page soft contract, so that switching a slide between `full-page` and `body+header-lock` changes only how the header is enforced — a best-effort instruction to the generator versus a pixel-exact script overlay — not which geometry it targets. Only the hard overlay guarantees the pixel result.
+Stage 3 SHALL overlay header text on every slide whose resolved `render_mode` is `body+header-lock`, regardless of whether the source is a per-slide explicit value, policy exception, whole-deck policy default, or legacy VISUAL TYPE derivation. Stage 3 SHALL pass every `full-page` slide through unchanged. `render_mode_source` is diagnostic metadata and SHALL NOT alter Stage 3 behavior.
 
-#### Scenario: Overlay applies only to on-demand locked pages
+#### Scenario: Every body+header-lock source overlays
+- **WHEN** slides resolve to `body+header-lock` from different supported sources
+- **THEN** Stage 3 overlays each of them using the same normal processing path
 
-- **WHEN** a deck defaults to `full-page` and one page is added to the `header-lock` exception list
-- **THEN** Stage 3 overlays header text on that one page and passes every `full-page` page through unchanged
+#### Scenario: Every full-page source passes through
+- **WHEN** slides resolve to `full-page` from policy, explicit, hero, or legacy sources
+- **THEN** Stage 3 passes each through without drawing header text
 
-#### Scenario: Both modes target the same header geometry
+### Requirement: Hard overlay and full-page soft contract share real visual config geometry
 
-- **WHEN** the same slide is prepared once as content `full-page` (soft contract) and once as `body+header-lock` (hard overlay)
-- **THEN** both are directed to the same `color_palette.json` header geometry (position, size, alignment) — the full-page prompt as a best-effort instruction to the generator, the header-lock overlay as pixel-exact placement
-- **AND** only the header-lock overlay guarantees the pixel result; the full-page directive is a target the generator approximates
+Stage 3 SHALL continue to draw using the header position, font, line-height, margin, color, and fixed left-alignment values returned by `visual_config.mjs`. Stage 1's content full-page soft contract SHALL target those same values. This shared target SHALL NOT be interpreted as a guarantee that an image model reproduces the hard overlay pixel-for-pixel.
+
+#### Scenario: Both modes target the same configuration
+- **WHEN** the same content slide is prepared once as full-page and once as body+header-lock
+- **THEN** both paths target the same configurable header geometry and fixed left-alignment invariant
+- **AND** only Stage 3 guarantees the final pixel placement and text clarity

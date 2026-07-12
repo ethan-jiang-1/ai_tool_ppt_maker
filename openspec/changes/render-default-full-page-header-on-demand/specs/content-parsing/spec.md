@@ -1,63 +1,94 @@
 ## ADDED Requirements
 
-### Requirement: Render mode resolves through a precedence cascade defaulting to full-page
+### Requirement: Render policy extends the existing YAML frontmatter with an explicit legacy boundary
 
-Stage 1 SHALL resolve each slide's `render_mode` through a fixed precedence cascade (most specific wins): per-slide explicit `RENDER MODE` > deck-level `render.header-lock` exception list > hero VISUAL TYPE guard > deck-level `render.default` > VISUAL TYPE derivation. When no deck-level `render:` policy is present, `render.default` SHALL be treated as `full-page`. The hero VISUAL TYPE guard means slides whose VISUAL TYPE is `Title / Opener`, `Section Divider / Bridge`, or `Closer` SHALL resolve to `full-page` (free-form composition) unless a per-slide explicit mode or the exception list names them — so a whole-deck `render.default: body+header-lock` never force-locks a cover/divider/closer. The deck-level policy SHALL be read from an optional `render:` frontmatter block in `3_versions/v{n}/slide-specifications.md`. Every resolved `layout_contract` SHALL record `render_mode_source` so the decision is traceable (`explicit`, `policy:exception`, `derived:hero_type`, `policy:default`, or `derived:visual_type`).
+Stage 1 SHALL parse an optional YAML frontmatter block only when it begins at the start of `slide-specifications.md`, using a structured YAML parser. A file without leading frontmatter SHALL remain valid and have no `render` key. Stage 1 SHALL preserve and tolerate unrelated top-level keys while consuming an optional closed `render` mapping whose only allowed keys are `default` and `header-lock`. A present mapping SHALL accept `default` (`full-page` or `body+header-lock`, defaulting to `full-page` when omitted) and `header-lock` (an array defaulting to empty). Exception ids SHALL be trimmed, non-empty, unique after trimming, present in the file, and unambiguous; an id matching duplicate slide blocks SHALL be rejected. Markdown `---` separators after the leading frontmatter SHALL remain body content. Malformed leading YAML, duplicate YAML keys, an unknown render key, invalid type/mode, or an empty/duplicate/unknown/ambiguous exception id SHALL fail loudly with a specific error. When invoked through `ppt_flow`, the orchestrator SHALL retain its standard JSON failure envelope contract.
 
-#### Scenario: Default deck resolves every slide to full-page
+When Stage 1 is invoked with multiple input files, each file's leading frontmatter SHALL apply only to the slide blocks from that file, and exception ids SHALL be validated within that file; policy state SHALL NOT leak between inputs.
 
-- **WHEN** a slide has no per-slide `RENDER MODE` and the deck has no `render:` policy block (or `render.default: full-page`)
-- **THEN** `slide_plan.json` contains `render_mode: "full-page"` with `render_mode_source: "policy:default"`
-- **AND** no header safe zone is reserved (`header_safe_zone: 0`)
+#### Scenario: Existing frontmatter keys coexist with render policy
+- **WHEN** a slide specification frontmatter contains existing metadata keys plus a valid `render` mapping
+- **THEN** Stage 1 reads the render policy without rejecting or discarding the unrelated keys
+- **AND** strips the single frontmatter block before splitting slide blocks
 
-#### Scenario: Exception list locks a single page
+#### Scenario: Invalid policy fails loudly
+- **WHEN** leading YAML has duplicate keys, `render` contains an unknown key such as `header_lock`, `render.default` has an unsupported value, or `render.header-lock` has the wrong type or invalid ids
+- **THEN** validation fails and identifies every policy problem and affected id
+- **AND** `ppt_flow` emits its standard JSON failure envelope on failure
 
-- **WHEN** the deck `render:` block lists a slide id under `header-lock:` and that slide has no per-slide `RENDER MODE`
-- **THEN** that slide resolves to `render_mode: "body+header-lock"` with `render_mode_source: "policy:exception"` and a header safe zone from `color_palette.json`
-- **AND** all other slides remain `full-page`
+#### Scenario: Multiple standalone inputs keep policies scoped
+- **WHEN** Stage 1 receives two input files with different or absent render policies
+- **THEN** each file's slides resolve only against that file's policy and exception ids
 
-#### Scenario: Hero slide resists a body+header-lock deck default
+### Requirement: Render mode uses distinct policy and legacy resolution branches
 
-- **WHEN** the deck sets `render.default: body+header-lock` and a slide whose VISUAL TYPE is `Title / Opener` has no per-slide `RENDER MODE` and is not in the `header-lock` exception list
-- **THEN** that hero slide resolves to `full-page` with `render_mode_source: "derived:hero_type"` (free-form composition, not force-locked)
-- **AND** a non-hero slide under the same deck default resolves to `body+header-lock`
+When the top-level `render` key is present, Stage 1 SHALL resolve each slide through: per-slide explicit `RENDER MODE` > `render.header-lock` exception > hero guard > `render.default`. When the entire `render` key is absent, Stage 1 SHALL preserve legacy resolution: per-slide explicit `RENDER MODE` > VISUAL TYPE derivation. Absence of `render` SHALL NOT also mean a new full-page policy. Every result SHALL record `render_mode_source` as `explicit`, `policy:exception`, `derived:hero_type`, `policy:default`, or `derived:visual_type`.
 
-#### Scenario: Per-slide explicit mode overrides the deck default
+#### Scenario: Initialized policy defaults content pages to full-page
+- **WHEN** frontmatter contains `render.default: full-page` and a non-hero slide has no explicit mode or exception
+- **THEN** it resolves to `full-page` with source `policy:default` and `header_safe_zone: 0`
 
-- **WHEN** a slide declares `RENDER MODE: body+header-lock` while the deck `render.default` is `full-page`
-- **THEN** that slide resolves to `body+header-lock` with `render_mode_source: "explicit"`
+#### Scenario: Present render mapping may omit default
+- **WHEN** frontmatter contains `render: { header-lock: [] }`
+- **THEN** its effective default is `full-page` with source `policy:default`
 
-#### Scenario: Legacy deck without policy falls back to VISUAL TYPE derivation
+#### Scenario: Legacy deck preserves VISUAL TYPE behavior
+- **WHEN** the entire top-level `render` key is absent and the slide has no explicit mode
+- **THEN** opener/divider/closer derive to `full-page`, other slides derive to `body+header-lock`, and source is `derived:visual_type`
 
-- **WHEN** a deck's `slide-specifications.md` has no `render:` frontmatter block and a slide has no per-slide `RENDER MODE`
-- **THEN** Stage 1 derives the mode from VISUAL TYPE (opener/divider/closer → full-page, else body+header-lock) with `render_mode_source: "derived:visual_type"`, preserving backward compatibility
+#### Scenario: Exception locks one policy page
+- **WHEN** a valid policy lists a slide id under `header-lock` and that slide has no explicit mode
+- **THEN** it resolves to `body+header-lock` with source `policy:exception` and configured header safe zone
 
-### Requirement: Content full-page prompts carry a header placement contract; hero slides stay free-form
+#### Scenario: Explicit mode wins in both branches
+- **WHEN** a slide declares a valid per-slide `RENDER MODE`
+- **THEN** that mode wins over policy, exception, hero guard, and legacy derivation with source `explicit`
 
-For `full-page` slides whose VISUAL TYPE is NOT a hero/composition type (`Title / Opener`, `Section Divider / Bridge`, `Closer`), Stage 1 SHALL assemble the image prompt with an explicit header placement contract built from the slide's structured kicker/headline/subtitle plus the header position, size, and alignment from `color_palette.json` (the same geometry `header-lock` uses), rather than relying on header text hand-written into the source IMAGE PROMPT prose. This contract SHALL be identical in geometry across all such content full-page slides of a deck so the AI-drawn header stays positionally and typographically stable page to page. Hero full-page slides SHALL NOT receive a fixed header band — their title is the composition and MUST remain free-form. Any header sub-clause whose source field is empty or a bracket placeholder SHALL be omitted from the contract. When a content full-page slide has no real TITLE (empty or placeholder), Stage 1 SHALL emit a non-blocking WARN naming the slide (it would ship without a header title) rather than silently dropping it; hero full-page slides SHALL NOT trigger this warning.
+### Requirement: Hero guard operates on canonicalized VISUAL TYPE values
 
-#### Scenario: Content full-page prompt includes structured header placement
+Stage 1 SHALL canonicalize supported hero VISUAL TYPE spellings before mode resolution. `Title / Opener`, `Section Divider / Bridge`, `Section Divider`, and `Closer` SHALL be recognized as hero types after trimming and normalizing case/whitespace. Every slide in the policy branch SHALL have a non-empty, non-placeholder VISUAL TYPE so Stage 1 can choose a hero or content prompt contract. Under a present policy, a hero slide not explicitly overridden or named in the exception list SHALL resolve to `full-page`. Its source SHALL be `derived:hero_type` only when the guard overrides an effective `body+header-lock` default; when the effective default is already `full-page`, its source SHALL remain `policy:default`.
 
-- **WHEN** Stage 1 assembles the prompt for a content `full-page` slide (non-hero VISUAL TYPE) with kicker/headline/subtitle
-- **THEN** the assembled prompt contains the present header fields together with position, size, and alignment directives derived from `color_palette.json` header geometry
+#### Scenario: Template divider alias is protected
+- **WHEN** policy default is `body+header-lock` and a slide uses the template spelling `Section Divider`
+- **THEN** it resolves to `full-page` with source `derived:hero_type`
 
-#### Scenario: Hero full-page slide stays free-form
+#### Scenario: Hero under a full-page default uses the default source
+- **WHEN** policy default is `full-page` and a hero slide has no explicit mode or exception
+- **THEN** it resolves to `full-page` with source `policy:default`
 
-- **WHEN** Stage 1 assembles the prompt for a `full-page` slide whose VISUAL TYPE is `Title / Opener`, `Section Divider / Bridge`, or `Closer`
-- **THEN** no fixed header band is imposed and the title composition is left to the image generator
+#### Scenario: Policy slide missing VISUAL TYPE fails
+- **WHEN** a slide is resolved under a present render policy but its VISUAL TYPE is empty or a bracket placeholder
+- **THEN** validation fails rather than guessing whether to inject a hero or content contract
 
-#### Scenario: Empty or placeholder header fields are omitted
+### Requirement: Content full-page prompts carry the shared header placement contract
 
-- **WHEN** a content `full-page` slide has an empty or bracket-placeholder kicker (or subtitle)
-- **THEN** that sub-clause is omitted from the header placement contract and only the present fields are directed
+For non-hero `full-page` slides, Stage 1 SHALL assemble a fixed-format header placement contract from structured kicker/title/subtitle and the same visual config fields used by Stage 3: canvas, body header safe-zone height, margins and y positions, line heights, font family/weight/size/color, plus the existing fixed left-alignment invariant. The contract SHALL combine a semantic top-left header-band instruction with exact canvas/px values, reserve that band for header elements only, and direct body visuals below it. Alignment SHALL NOT be described as a configurable `color_palette.json` field. The configured band height is a prompt-only soft target; every full-page slide SHALL retain `layout_contract.header_safe_zone: 0` so the existing field continues to mean a deterministic overlay hard safe zone. Hero full-page slides SHALL NOT receive fixed geometry, but SHALL receive an exact-text contract containing every present structured header field so their composition remains free without losing or requiring duplicate title text in the source IMAGE PROMPT. Exact text SHALL be serialized with stable JSON escaping. Stage 1 SHALL use one shared presence normalization for optional header fields: empty, case-insensitive `(none)`, `(无)`, or whole-field bracket-placeholder values are absent and SHALL be omitted from both the emitted slide record and assembled prompt. A content full-page slide without a real TITLE SHALL produce a non-blocking warning naming the slide.
 
-#### Scenario: Header geometry is uniform across content full-page slides
+#### Scenario: Content prompt receives shared geometry
+- **WHEN** a non-hero full-page slide has real header fields
+- **THEN** its prompt contains those fields and directives derived from the shared visual config
+- **AND** the prompt excludes body visuals from the configured band while its layout contract remains `header_safe_zone: 0`
+- **AND** equivalent content pages use identical geometry directives apart from their text
 
-- **WHEN** two content `full-page` slides in the same deck are assembled
-- **THEN** both prompts specify the same header zone position, size, and alignment (only the header text differs)
+#### Scenario: Hero prompt stays free-form
+- **WHEN** a canonical hero slide resolves to full-page with structured title text
+- **THEN** no fixed header band contract is injected
+- **AND** the assembled prompt still requires the exact structured title text while leaving its composition free
+- **AND** its layout contract keeps `header_safe_zone: 0`
 
-#### Scenario: Content full-page slide missing a real title warns (non-blocking)
+#### Scenario: Missing optional fields are omitted
+- **WHEN** kicker or subtitle is empty, any case variant of `(none)`, `(无)`, or a bracket placeholder
+- **THEN** no clause or visible sentinel for that field is emitted in either render path
 
-- **WHEN** a content `full-page` slide (non-hero VISUAL TYPE) has no real TITLE (empty or bracket placeholder)
-- **THEN** Stage 1 emits a non-blocking WARN naming the slide (it would ship without a header title) and does not abort
-- **AND** a hero `full-page` slide with no TITLE does NOT trigger this warning
+#### Scenario: Missing content title warns
+- **WHEN** a non-hero full-page slide lacks a real TITLE
+- **THEN** validation emits a non-blocking warning naming it and does not abort
+
+### Requirement: Body-lock image prompts are independent of deterministic header text
+
+For `body+header-lock` slides, the assembled image prompt SHALL contain the reserved header band and body-layout instructions but SHALL NOT contain the slide's kicker, title, or subtitle values. It MAY state generically that Stage 3 will overlay header text later. The structured header values SHALL remain in `slide_plan.json` for Stage 3. Therefore changing only those fields SHALL NOT change the final Stage-2 prompt or raw-image generation fingerprint.
+
+#### Scenario: Title-only body-lock edit preserves the raw prompt
+- **WHEN** only kicker/title/subtitle changes on a body+header-lock slide
+- **THEN** its assembled Stage-2 prompt is byte-identical
+- **AND** Stage 3 receives the new structured text from `slide_plan.json`
