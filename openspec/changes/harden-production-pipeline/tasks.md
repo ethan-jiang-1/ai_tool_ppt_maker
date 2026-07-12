@@ -2,25 +2,29 @@
 
 **Capability**: `pipeline-orchestration` | **编辑链**: 影响所有 gate 调用 | **测试**: `tests/test_header_review.mjs`, `tests/test_unified_pipeline.mjs`
 
-- [ ] 1.1 `buildHeaderReviewInputs()` in `lib/header_review.mjs`: 为每张 full-page slide 独立计算 fingerprint → `slideFingerprints: { [id]: sha }`；新增 `hasBodyHeaderLockSlides: boolean`
-- [ ] 1.2 `validateHeaderReviewRecord()`: 改为 per-slide 检查 —— 对比每个 `slideFingerprints[id]` 与 record 中的值；输出结构改为 `{ applicable, ok, changed: [{id, field, was, now}], action: "pilot --only ...", hint: "人话解释" }`
-- [ ] 1.3 `mergeHeaderReviewRecord()`: 适配 per-slide state schema —— `slides.{id}.{status, fingerprint, reviewed_at, image_sha256?}`；旧全局 record 自动迁移
-- [ ] 1.4 State record schema (`NODE-SPEC.md` header-review 节): 从全局 `status`/`header_review_fingerprint` 更新为 `slides.{id}.{status: ok|changed|reviewed|waived, fingerprint, reviewed_at, image_sha256?}`
-- [ ] 1.5 `unified_pipeline.mjs`: Stage 2/4 gate 调用处适配新返回格式 —— 取 `changed` 数组生成 MD 友好的结构化输出；`--only` 参数传入 `validateHeaderReviewRecord`
-- [ ] 1.6 `ppt_flow.mjs` build/refresh 命令: 适配新的 gate 返回格式
-- [ ] 1.7 添加测试: 纯 full-page deck → `applicable: false`；s05 单页 title 变化 → 只 s05 flagged；`--only` 限缩检查；旧 record 自动迁移
+- [ ] 1.1 `buildHeaderReviewInputs()`: per-slide fingerprint + `hasBodyHeaderLockSlides` — 每张 full-page slide 出 `{fingerprint, headerSnapshot}`
+- [ ] 1.2 `validateHeaderReviewRecord()`: per-slide 检查 — fingerprint 快速比较 → 逐字段 diff → `changed: [{id, field, was, now}]`；输出含 `format: 2`；`action` 含 `"{runDir}"`；旧 record → `format: 1` 放行；edge cases: 不存在 slide → `ok: true` + hint；缺 `header_snapshot` → `was: null`
+- [ ] 1.3 `mergeHeaderReviewRecord()`: 适配 per-slide schema；首次 body+header-lock → 全量 review；plan 中已删除的 slide → 自动清理 state 中对应条目
+- [ ] 1.4 `changedFullPageIds()`: 改为读 `slides.{id}.status === "changed"` 而非全局 snapshot diff；`ppt_flow pilot` 自动选页基于此
+- [ ] 1.5 `unified_pipeline.mjs`: Stage 2/4 gate 调用 — 传入 `--only`；取 `action`（含 `{runDir}` 模板）；Stage 4 图片字节不匹配时硬拦 + 引导修复命令
+- [ ] 1.6 `ppt_flow.mjs` build/refresh: 适配新 gate 返回格式
+- [ ] 1.7 单元测试: 纯 full-page → `applicable: false`；s05 title 变化 → `changed[{field, was, now}]`；`--only` 限缩；旧 record → 放行；首次 body+header-lock → 全量 review 提示
+- [ ] 1.8 集成测试: 修改 2 页 title → gate 返回 `changed` + `action` → 模拟 MD 执行 pilot → approve → gate 检查通过 → build 继续
 
-## 2. AGENT_CONTRACT: Gate 姿态原则（Rule 12）
+## 2. AGENT_CONTRACT + state schema: 宪法级变更
 
-**Capability**: `node-specification`（charter 文档）
+**Capability**: `node-specification`
 
-- [ ] 2.1 `AGENT_CONTRACT.md` 新增 Rule 12「Gate 是向导，不是路障」: gate 必须告诉 MD 三件事——什么变了、下一步命令、默认路径；能自动修的不停顿；必须人判的给候选
+- [ ] 2.1 `AGENT_CONTRACT.md` 新增 Rule 12「Gate 是向导，不是路障」（在现有 11 条之后）:
+  > **Gate 是向导，不是路障。** Gate 被触发时，必须给 MD Controller 三样东西：① 什么变了（slide id + 字段）；② 可执行命令（MD 直接跑）；③ 默认路径（不确定时怎么办）。能在代码层自动修的不停顿（格式、fingerprint 清理）。必须人来判断的（视觉质量、标题措辞）给候选 + 推荐。永远不让用户面对一堵墙。
+
+- [ ] 2.2 `NODE-SPEC.md` header-review state schema: `slides.{id}.{status, fingerprint, header_snapshot: {kicker,title,subtitle,visual_type}, reviewed_at, image_sha256?}`
 
 ## 3. Stage 3 full-page passthrough: skip decode (BUG-004)
 
 **Capability**: `header-lock` | **编辑链**: B | **测试**: `tests/test_stage3_lock_headers.mjs`
 
-- [ ] 3.1 `stage3_lock_headers.mjs` `RENDER_MODE_FULL_PAGE` 分支: 尺寸匹配 → `copyFileSync`；尺寸不匹配 → canvas resize
+- [ ] 3.1 `stage3_lock_headers.mjs` `RENDER_MODE_FULL_PAGE` 分支: 读 PNG IHDR 前 24 字节获取尺寸（纯 Buffer，不走 canvas）→ 尺寸匹配 → `copyFileSync`；不匹配 → canvas resize
 - [ ] 3.2 移除未使用的 `Image` import
 - [ ] 3.3 添加测试: 正确尺寸 → 字节一致 copy；错误尺寸 → canvas resize；body+header-lock → overlay 不变
 
@@ -30,7 +34,7 @@
 
 - [ ] 4.1 `resolveVendors()`: 解析 `--base-url` 逗号分隔 → 多 vendor 列表
 - [ ] 4.2 `resolveVendors()`: `IMAGE2_VENDORS` 缺 key → skip + warn；全缺 → throw
-- [ ] 4.3 `generateOneImage()`: 每个 vendor 重试最多 2 次（1s/2s backoff），仅对 transient errors（5xx/网络）
+- [ ] 4.3 `generateOneImage()`: 每个 vendor 重试最多 2 次（1s/2s backoff），仅对 transient errors（5xx/网络）；同 vendor 重试不产生额外 attempt 条目
 - [ ] 4.4 添加测试: 逗号分隔 → 2 vendor；缺 key skip；502 retry → 成功；401 no retry
 
 ## 5. BUG-008 verify + backlog sync

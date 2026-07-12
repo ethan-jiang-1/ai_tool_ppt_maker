@@ -40,4 +40,4 @@
 - `PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs` — `resolveVendors` 多 URL + fail-soft；`generateOneImage` 重试
 - `PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md` — header-review state schema 更新
 - `_backlog/bugs/README.md` — 同步
-- **BREAKING**: header-review state record 结构变更——旧 record 中的全局 `status`/`header_review_fingerprint` 不再使用，需迁移或自动忽略
+- **非 BREAKING**: header-review state record 结构变更——旧 record（无 `slides` 字段）自动放行，用户无感知。新格式在下次 pilot + approve 时自然产生。

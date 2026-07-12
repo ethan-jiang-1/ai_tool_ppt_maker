@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-11 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-07-13 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -17,10 +17,13 @@
 
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
-| [BUG-008](BUG-008-image-api-client-submit-parse-array.md) | P1 | image_api_client submit 解析不认 `data:[{task_id}]` 数组，出图全线卡死（style master + Stage 2） |
-| [BUG-009](BUG-009-stage3-loadimage-sync-decode-blank-passthrough.md) | P0 | Stage 3 `_loadImageToCanvas` 同步解码竞态 → 输出全白图，PPTX 25 页白板（Stage 4 无辜） |
+| [BUG-003](BUG-003-header-review-stale-fingerprint.md) | high | Header review gate 全局锁——纯 full-page deck 被强制拦截，改了 3 页堵住 25 页 |
+| [BUG-004](BUG-004-stage3-invalid-svg-passthrough.md) | medium | Stage 3 full-page passthrough 对某些 vendor PNG 抛 "Invalid SVG image" |
+| [BUG-005](BUG-005-image2-vendor-experience.md) | medium | Image2 vendor 切换体验差——key 不互通、单 vendor 无 fallback、无重试 |
 
 **Next available bug ID: BUG-010**
+
+> BUG-008（image_api_client submit 数组解析）已修，在 `_done/_fixed_bugs/`。BUG-009（Stage 3 loadImage sync race）已修，在 `_done/_fixed_bugs/`。
 
 ---
 

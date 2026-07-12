@@ -40,7 +40,7 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or
 
 ### Requirement: Mirror download retries on transient failure
 
-`generateOneImage` SHALL retry each vendor's submit→poll→download sequence up to **two additional times** (three total attempts) when the failure is a retryable transient error. Retryable errors SHALL include: HTTP 5xx, `ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED`, and `fetch` network errors. Non-retryable errors SHALL include: HTTP 4xx. Retries SHALL use exponential backoff: 1s before first retry, 2s before second retry. Each retry attempt SHALL be logged so MD Controller can track progress.
+`generateOneImage` SHALL retry each vendor's submit→poll→download sequence up to **two additional times** (three total attempts) when the failure is a retryable transient error. Retryable errors SHALL include: HTTP 5xx, `ECONNRESET`, `ETIMEDOUT`, `ECONNREFUSED`, and `fetch` network errors. Non-retryable errors SHALL include: HTTP 4xx. Retries SHALL use exponential backoff: 1s before first retry, 2s before second retry. Same-vendor retries SHALL NOT create separate entries in the `attempts[]` array——only the final outcome (success or failure after all retries) is recorded per vendor. Each retry SHALL be logged so MD Controller can track progress.
 
 #### Scenario: Transient 502 is retried then succeeds
 

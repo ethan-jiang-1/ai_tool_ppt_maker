@@ -2,7 +2,7 @@
 
 ### Requirement: Stage 3 follows resolved render mode regardless of its source
 
-Stage 3 SHALL overlay header text on every slide whose resolved `render_mode` is `body+header-lock`, regardless of source. Stage 3 SHALL pass every `full-page` slide through by directly copying the source image file (`copyFileSync`) when source dimensions match the canonical canvas size; it SHALL only decode and resize through canvas when dimensions differ. `render_mode_source` is diagnostic metadata and SHALL NOT alter Stage 3 behavior.
+Stage 3 SHALL overlay header text on every slide whose resolved `render_mode` is `body+header-lock`, regardless of source. Stage 3 SHALL pass every `full-page` slide through by reading the PNG IHDR chunk (first 24 bytes of file, pure Node.js Buffer, no `@napi-rs/canvas`) to obtain dimensions. When dimensions match the canonical canvas size, Stage 3 SHALL `copyFileSync` directly. Only when dimensions differ SHALL it invoke `loadImage` for canvas resize. `render_mode_source` is diagnostic metadata and SHALL NOT alter Stage 3 behavior.
 
 #### Scenario: Every body+header-lock source overlays
 
