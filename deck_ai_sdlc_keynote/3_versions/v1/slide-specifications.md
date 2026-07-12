@@ -35,7 +35,7 @@ render:
 | Block C: 组织的连锁反应 | 中层危机 + 两种极端裁法各展开一页 | 组织会怎么变?谁最危险? | 13–15 | Three-Tier Split、Block 一刀切、Cloudflare 精准置换 |
 | 中转: 换挡 | 软件→传统企业的叙事枢纽,软件是先行样本 | 这跟我的行业有什么关系? | 16 | SDLC↔BPM 同一条链 |
 | Block D: BPM = SDLC 孪生 | 建立 SDLC↔BPM 同构,证明软件不是特例 | 这跟传统企业有什么关系? | 17–19 | Dagstuhl Manifesto、Framed Autonomy、四层架构 |
-| Block E: 案例 | 用真实 production 案例证明不是 demo | 真有传统企业在做吗? | 20–21 | 海外四家 + 中国三家生产级案例 |
+| Block E: 案例 | 用真实 production 案例证明不是 demo | 真有传统企业在做吗? | 20–21 | Allianz（保险理赔 agentic 重构）+ Maersk（航运流程情报先行）|
 | Block F: 罗马军团散了 | 拔高到组织理论,给出"人是信息瓶颈"核心论点 | 金字塔为什么存在?还需要吗? | 22–23 | 信息瓶颈论、Builder/Seller/Measurer |
 | Block G: 没有结论,只有问题 | SDLC/BPM 收敛 + 行动号召 | 这一切说明什么?我该怎么办? | 24–25 | 两条河收敛、开放问题收尾 |
 
@@ -199,77 +199,80 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 05: `s05_the_map`
+## Slide 05: `s05_partner_not_tools`
 
-**VISUAL TYPE**: Section Divider
+**VISUAL TYPE**: Concept Split
 
 
-**KICKER**: 今天讲三件事
+**KICKER**: 你多了一个伙伴
 
-**TITLE**: 软件发生了什么。传统企业同样的事。大局。
+**TITLE**: 以前每次技术浪潮，给你换工具。这次给你一个搭档。
 
-**SUBTITLE**: 我是搞软件的——但如果你不是，别走。
+**SUBTITLE**: 超级能干。但人还不会跟它协作——这本身就是最大的挑战。
 
 **CONCEPT**:
-- **MUST communicate**: 全场三步路线图——(1) 软件前线:SDLC 被掀翻、角色重写、组织冲击;(2) 企业镜像:BPM 与 SDLC 同构;(3) 大局:生产力 × 沟通 × 组织三者皆变,一切重来。
-- **MUST NOT**: 不要让非软件听众觉得"这跟我无关"而离场;第二步 BPM 与他们直接相关。
-- **Bridge from previous**: 承接"先行样本"——既然软件领先,先看软件。
-- **Bridge to next**: 进入第一站:软件的 SDLC 到底被动了什么地基。
-- **Content structure**: 手绘三站路线图,像老探险地图/地铁图(站1 代码碎裂 → 站2 办公与代码相扣 → 站3 金字塔变平网),路径由左到右越来越粗。
+- **MUST communicate**: 互联网给了你更快的传真。iPhone 给了你口袋里的电脑。每一次技术浪潮都是「工具升级」——人不变，工具更好。这次不一样：AI 不只是工具——它是能自己做判断、自己执行的**搭档**。你能把一整件事委派给它，它理解、执行、回来等你验收。这不是「帮你更快」，是「帮你做了」。问题？人从来没有过这种工作关系。我们习惯了管工具——告诉它每一步怎么做。现在我们得学会管搭档——告诉它**要什么**，不是**怎么做**。这不是技能升级，是角色转换。挑战不在 AI 够不够好——在**人还不会用搭档**。这一页不给答案，只给这个张力：你多了个超级能干的伙伴——这是好消息。但你不知道怎么跟它配合——这是新挑战。两个都是真的。
+- **MUST NOT**: 不要预告 BPM/企业/路线图。不出现 SDLC 术语（留给 06）。不要画成「人 vs AI」对抗——是「人 + AI」并肩但不适应。不要恐惧感——是可能性和不适并存。不要把 AI 画成机器人或威胁性形象——是一个温暖的琥珀光晕轮廓，像伙伴不像武器。
+- **Bridge from previous**: 承接 Slide 04——Claude Code 上午写代码下午写报告，看起来像又一个工具升级。但这一页说清楚：不是。这次是搭档，不是工具。两个量级。
+- **Bridge to next**: 这个新搭档最先撞进软件开发——看 SDLC，人以前是怎么想的，现在有了搭档以后旧地图怎么不管用了。下一页。
+- **Content structure**: 一张手绘工作台横跨画面。左边一个人，手里拿着熟悉的工具（键盘、笔记本），姿态不恐惧——但微微侧头，表情是「你太能干了，我该拿你怎么办」。右边一个 AI 伙伴，温暖琥珀光晕轮廓，简洁、非人形但可辨识——像存在感，不像武器。AI 那边已经堆出一摞成果——代码、文档、分析，整齐漂亮。上方一条过渡箭头从「工具升级」跨到「伙伴关系」。底部一行字：*你多了个超级能干的伙伴——但你还不会配合。两个都是真的。*
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render three numbered sections: 第一：软件前线。SDLC 被掀翻，角色重写，组织冲击。 第二：企业镜像。BPM 跟 SDLC 一模一样。 第三：大局。生产力 x 沟通 x 组织。三个东西变了，一切重来。 Below text: a hand-drawn three-station route map like old explorer map. Station 1: code symbol breaking apart. Station 2: chain linking office and code. Station 3: pyramid becoming flat grid. Path line grows bolder left to right. Like minimalist hand-drawn subway map. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CONCEPT SPLIT layout. Warm, not foreboding. The image tells the story of GAINING a partner — not losing control. SCENE: a hand-drawn worktable spanning the composition. On the LEFT, a human figure stands with familiar tools (keyboard, notebook) — posture is not fearful, but slightly uncertain, looking sideways as if thinking "what do I do with you?" On the RIGHT, an AI partner — a warm amber-glow silhouette, a collaborator, not a threat. The AI's side of the table is stacked with impressive output: neat piles of code, documents, analysis — already done. A subtle transition arrow crosses the table from left to right, labeled: 工具升级 → 伙伴关系. UPPER AREA, one large Chinese proposition: 以前每次技术浪潮，给你换工具。这次给你一个搭档。 LOWER AREA, one line: 超级能干。但人还不会跟它协作——这本身就是挑战。 Overall mood: possibility mixed with productive discomfort. Not a disaster — an adjustment that hasn't happened yet. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 自报身份(搞软件的),先安抚非软件听众别走。给出三步框架,强调第二步 BPM 跟你直接相关。第三步拔高到生产力/沟通/组织三大冲击——这三个东西变了,一切重来。
+> 停一拍。互联网、iPhone——每次都说「这次不一样」，但每次其实都一样：工具升级，人还在中间。这次真不一样：AI 不只是帮你更快——它帮你**做了**。你能把一整件事委派给它，它理解、执行、回来交差。你从操作者变成了委托人。但问题是：人从来没有过这种工作关系。我们擅长管工具（告诉它每一步怎么做），不擅长管搭档（告诉它要什么、信任它去执行）。挑战不在 AI 够不够好——在**人还不会用搭档**。好消息是你多了一个超级能干的伙伴。新挑战是你不知道怎么配合。两个都是真的。拿软件开发看——这个搭档最先撞进的地方。
 >
 > **Terms:**
-> — SDLC: 软件开发全生命周期
-> — BPM: 企业业务流程管理,与 SDLC 同构
+> — 工具升级: 人不变、工具变——以前每次技术浪潮的实质
+> — 伙伴关系: AI 从「帮你更快」变成「替你做了」——人的角色从操作者变成委托人
 >
 > **Takeaway:**
-> 今天分三步:软件发生了什么 → 企业同样的事 → 大局,而它们本质是同一件事。
+> 这次不一样——不是换了更好的工具，是多了一个搭档。好消息是它超级能干。挑战是你还不会跟它配合。两个都是真的。
 
 
 
 ---
 
-## Slide 06: `s06_sdlc_premise_gone`
+## Slide 06: `s06_old_map_new_map`
 
 **VISUAL TYPE**: Framework
 
 
-**KICKER**: 前提被挖了
+**KICKER**: 旧地图只管人
 
-**TITLE**: 瀑布、V模型、敏捷——都是同一个前提下的参数变体。
+**TITLE**: 瀑布、V 模型、敏捷——画的是人独自怎么走。现在多了一个。
+
+**SUBTITLE**: AIDLC？没人知道长什么样。但大家已经在画了。
 
 **CONCEPT**:
-- **MUST communicate**: 所有传统 SDLC 方法论(瀑布/V/敏捷)看似不同,其实共享同一个前提——"人必须先想清楚,因为程序是确定性的、不会自己想"。瀑布与敏捷只是"想多少再做"的节奏差异。AI 挖掉的不是某个方法论,是这个前提本身。
-- **MUST NOT**: 不要把这理解成"敏捷取代瀑布"式的又一次方法论迭代;这次是地基裂了。
-- **Bridge from previous**: 承接路线图第一站——软件本来是怎么做的。
-- **Bridge to next**: "前提被挖"是理论断言,需要证据;下一页用 Deer Valley→Engelberg 5 个月的亲历给出实证。
-- **Content structure**: 一栋三层楼(瀑布/V模型/敏捷)立在同一块地基石上,地基裂开渗出琥珀色光,楼身微倾。
+- **MUST communicate**: 1970 年代瀑布——人把需求想清楚，一次性做出来。2001 年敏捷——人想一点做一点，边做边改。不管怎么迭代，前提是一样的：**人在想，人在写，人在验证**。方法论的差异只是「想多少再做」的节奏，不是「谁在想」的分配。现在多了一个搭档——它能写、能测、甚至能替你想一部分。旧地图画的是人独自走的路线——几条岔路（瀑布、敏捷、V 模型），但都假定你是独自上路。AI 加入后，地图上多了一个同行者——怎么分工？谁想多少、谁做多少、谁验多少？这不是某一派方法的危机——是所有旧地图都管不了新路况。AIDLC 打了个问号——**大家还在摸索中，没人知道正确答案，但都在试。** 这不是恐慌，是摸索中的诚实。
+- **MUST NOT**: 不要画成楼塌了或地基裂了——旧的结构不是「毁了」，是「不够用了」。不要暗示某一种方法论（瀑布/敏捷）对了或错了。不要把 AI 放在「取代人」的位置——是并列、同行、一起看前方的空白画布。不要恐惧感——是探索感。
+- **Bridge from previous**: Slide 05 说这次不是换工具，是多了个搭档。拿软件开发看——这个搭档最先撞进 SDLC，旧地图不管用了。
+- **Bridge to next**: 「旧地图不管用」是理论，证据在哪？Martin Fowler 两次 retreat 的亲历者告诉你——下一页。
+- **Content structure**: 一面墙上挂着三张褪色的旧地图——瀑布（一条直线从上到下）、V 模型（左右对称）、敏捷（环形迭代）——都是 sepia 墨水，经典完整但已褪色。人站在墙前，手里拿着铅笔。旁边是 AI 伙伴（琥珀光晕轮廓）。他们一起面向前方——前方是一大片留白画布，上面只有几根试探性线条、一个问号、一行淡淡的铅笔字：「AIDLC？」。不是没有地图——是旧地图只管人独自走，新地图还在画。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 前提：人必须先想清楚。程序是确定性的，不会自己想。 1970s 瀑布：想全部做全部。2001 敏捷：想一点做一点。只是节奏不同。 AI 出现后：程序不再需要人完全想清楚。地基裂了。 Below text: a classical building sketch — three floors (Waterfall/V-Model/Agile) on one foundation stone. Below foundation: crack with amber light spilling through. Building tilts slightly. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. EXPLORATORY mood, not catastrophic. SCENE: A wall with three classic SDLC maps hanging on it — LEFT: Waterfall (a straight line from top to bottom, cascading boxes), CENTER: V-Model (a V-shaped symmetric curve), RIGHT: Agile (a circular iterative loop). All three are drawn in SEPIA INK — complete, classic, but visibly FADED (lighter strokes, like old blueprints). A human figure stands before the wall, holding a pencil. Beside the human stands an AI partner — a warm amber-glow silhouette, a collaborator, not a threat. Together they face FORWARD — toward a large, mostly BLANK CANVAS on an easel. On the blank canvas, only a few tentative pencil lines, one large question mark, and faint amber letters: AIDLC？ The mood is: old maps were drawn for walking alone. Now there's a companion — the new map isn't drawn yet, but it's being drawn. The question mark is honest, not anxious. LOWER AREA, one line: 旧地图画的是人独自怎么走。现在多了一个——新地图还在画。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 先讲 SDLC 三代演化(瀑布/V/敏捷)其实是同一件事的三种节奏,共同前提是"人先替确定性的程序想清楚"。再讲 AI 后前提三点崩塌:不必人完全想清楚、输出不再确定、"正确"从符合设计变成符合验收。地基裂→整栋要重建。
+> SDLC 三代演化——瀑布（想全部做全部）、V 模型（边做边验证）、敏捷（想一点做一点）——看似不同，共享同一个前提：人在想，人在写，人在验证。差异只是「想多少再做」的节奏，不是「谁在想」的分配。现在多了一个搭档——它能写、能测、甚至能替你想一部分。旧地图不管用了，不是因为它错了，是因为它画的是人独自走的路线。现在有了同行者——怎么分工？谁想多少、谁做多少、谁验多少？没人知道正确答案。AIDLC 是个问号——但大家已经在摸索了。这不是恐慌，是探索中的诚实。旧地图在墙上——尊敬它，但知道它不够用了。新地图在画布上——只有几根试探线，但铅笔已经在手里。下一页，看同一群人 5 个月内怎么从犹豫走到确信的。
 >
 > **Terms:**
-> — SDLC: 软件开发全生命周期
-> — 前提: "人必须先替确定性的程序想清楚"——这是所有方法论共享的地基
+> — SDLC 三代: 瀑布（1970s 想全部做全部）、V 模型（验证与开发对称）、敏捷（2001 想一点做一点）——都是「人独自走」的路线
+> — AIDLC 问号: AI 加入后的新软件生命周期——还没定型，大家正在摸索
+> — 旧地图新地图: 不是旧错了新对了——是旧的不够用了，新的还没画完
 >
 > **Takeaway:**
-> AI 挖掉的是"人必须先想清楚"这个共同前提,不是某一个方法论。
+> 旧地图画的是人独自怎么走——瀑布、V 模型、敏捷，都是。现在多了一个搭档——新地图还在画，铅笔已经在手里。AIDLC 不是答案，是正在被回答的问号。
 
 
 
@@ -280,33 +283,37 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **VISUAL TYPE**: Impact / Evidence
 
 
-**KICKER**: 五个月，从犹豫到确信
+**KICKER**: 五个月，同一群人
 
-**TITLE**: 2026年2月：「可能有点东西。」2026年7月：「证据在握。」
+**TITLE**: 「不确定多于确定」→「不是 slides，是 production。」
+
+**SUBTITLE**: Martin Fowler，ThoughtWorks 首席科学家。两次 retreat，他召的。
 
 **CONCEPT**:
-- **MUST communicate**: Martin Fowler 召集的两次 retreat(2月 Deer Valley、7月 Engelberg)是变革最鲜活的证据。5 个月内,顶尖软件工程大脑的语气从"不确定这是什么"变成"所有人都在生产环境里做"。这是 disruption 的速度,不是渐进改进。
-- **MUST NOT**: 不要以为这只是会议观点;关键在于"Not slides, Production"——大家真在生产环境里做。
-- **Bridge from previous**: 为"前提被挖"提供亲历证据。
-- **Bridge to next**: 同一时期还有一场更大的公开大会(Beck+Fowler 同台)——下一页。
-- **Content structure**: 左右对比(左:2月雪山篝火、试探犹豫 / 右:7月瑞士山谷、发光仪表盘、确信),中间琥珀箭头标 5个月。
+- **MUST communicate**: Martin Fowler——ThoughtWorks 首席科学家、2001 年《敏捷宣言》17 位签署者之一，过去 20 年全球软件方法学的灯塔。25 年后同一片 Utah 山，他把新一代软件工程大脑召回来——两次闭门 retreat，同一批人，5 个月内语气从试探翻到笃定。**Deer Valley（2 月，~40 人）**：Annie Vella——「There is more uncertainty than certainty. Nobody has it all figured out.」Fowler 自称「a total, absolute skeptic.」Rachel Laycock（ThoughtWorks CTO）——「AI 是放大器——速度乘数也是债务乘数。」全场反复追问同一个问题：「Rigor 去哪了？没人有同一个答案——但都同意这个问题很紧迫。」四个新概念在此诞生：Rigor Relocation、Supervisory Engineering、Cognitive Debt、Three-Tier Split。**Engelberg（6 月，~60 人）**：Greg Herlein——「Everybody in the room was shipping it. Not slides — production. The whole debate about whether this changes software engineering is over.」Giles Edwards-Alexander——「Deer Valley 还有犹豫……Engelberg 只有信心：证据就在这里。这不是信徒聚会。」Fowler 自己——「满场都在谈 harness engineering——这个词在 Utah 甚至还不是一个词。」议程从「这是什么」扩展到 harness engineering、token 经济、spec-driven code、风险分层。这不是两场会——是同一群人、同一个召集人、5 个月内的一次集体认知跃迁。disruption 的速度，不是渐进改进。
+- **MUST NOT**: 不要把 retreat 说成「大会」或「峰会」——是闭门邀请制 Open-Space，Chatham House Rule（可引内容，不可指认发言人）。不要等同全行业——这群人是早期采用者，方向真实但幅度有选择偏差。
+- **Bridge from previous**: Slide 06 说 SDLC 的前提被挖了——那是理论断言。这一页亮最鲜活的亲历证据：同一群顶级大脑，5 个月内从犹豫翻到确信。
+- **Bridge to next**: 同一时期旧金山还有一场更大的公开场——Fowler 和 Kent Beck 同台，有硬数据、有 12 万开发者调查，下一页。
+- **Content structure**: 左右并置对比——左：Utah 雪山、篝火几人围坐、铅笔笔触试探犹豫、两条引语浮在旁边（Vella 的「不确定多于确定」+ Laycock 的「速度乘数也是债务乘数」），角标注「Deer Valley，2026.02，~40 人」；右：瑞士绿色山谷、发光仪表盘/控制台、笔触自信果断、两条引语浮在旁边（Herlein 的「Not slides — production」+ Edwards-Alexander 的「证据就在这里」），角标注「Engelberg，2026.06，~60 人」。中间一道粗琥珀箭头标「5 个月」。底部一行大字：Not slides — Production。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render this medium evidence line: Not slides。Production。房间里所有人都在生产环境里做。 Below text: split sketch — left: snowy Utah mountains, campfire, tentative ink, Feb 2026 Deer Valley. Right: green Swiss valley, glowing dashboards, confident ink, Jul 2026 Engelberg. Bold amber arrow between them labeled: 5个月. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. SPLIT COMPARISON layout. LEFT panel (~45%): snowy Utah mountains, a campfire with a few figures seated around it — tentative, exploratory mood. Pen strokes lighter, more hesitant. Two medium Chinese pull-quotes with English originals floating beside the scene: Annie Vella：「不确定多于确定。没人搞明白了。」(There is more uncertainty than certainty.) Rachel Laycock（ThoughtWorks CTO）：「AI 是放大器——速度乘数也是债务乘数。」(This velocity multiplier becomes a debt accelerator.) Label top-left: Deer Valley，2026.02，~40 人。 RIGHT panel (~45%): green Swiss valley, glowing instrument panels/dashboards — confident, decisive mood. Pen strokes bolder, more assured. Two medium Chinese pull-quotes with English originals floating beside the scene: Greg Herlein：「所有人都在 production 里做。不是 slides——是 production。争论结束了。」(Not slides — production. The debate is over.) Giles Edwards-Alexander：「证据就在这里。这不是信徒聚会。」(The evidence is in. Not a conference for true believers.) Label top-right: Engelberg，2026.06，~60 人。 CENTER: a thick amber arrow spanning the gap between the two panels, labeled 5个月. Bottom of slide, one large amber line: Not slides — Production。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 25 年前同一片山写出敏捷宣言;如今 Fowler 把新一代大脑召回。2月只有问题、充满犹豫(Rigor Relocation、Supervisory Engineering、Cognitive Debt、Three-Tier Split 概念在此诞生)。7月语气反转:价值就在这里,人人在 production 做,Harness Engineering 成核心议题。
+> 先介绍 Martin Fowler 是谁——ThoughtWorks 首席科学家，2001 年《敏捷宣言》17 位签署者之一，全球软件方法学过去 20 年的灯塔。25 年后同一片 Utah 山，他把新一代大脑召回来——但明确拒绝再写一份宣言。两次 retreat，同一批人。左边的 Deer Valley（2 月，~40 人）：Annie Vella 原话「不确定多于确定，没人搞明白了」。Fowler 自称「彻底的怀疑者」。CTO Rachel Laycock 定性「AI 是放大器——你要么加速交付，要么加速债务」。全场反复问「Rigor 去哪了？没人有同一个答案——但都同意很紧迫」。四个概念在 Utah 诞生（Rigor Relocation、Supervisory Engineering、Cognitive Debt、Three-Tier Split）。右边的 Engelberg（6 月，~60 人）：Greg Herlein 那句成了 retreat 的标志——「所有人都在 production 里做。不是 slides——是 production。AI 会不会改变软件工程的争论，结束了。」Giles Edwards-Alexander 追加「这就是证据。不是信徒聚会。」Fowler 自己都惊讶「满场谈 harness engineering——在 Utah 甚至还不是一个词」。术语弧：2 月还没这个词 → 4 月 Birgitta Böckeler 发里程碑文章 → 5 月被评为「2026 年软件工程最重要的术语之一」→ 6 月全场核心议题。5 个月，同一群人，从「不确定」到「production」。disruption 的速度。
 >
 > **Terms:**
-> — Deer Valley / Engelberg: Fowler 的两次闭门 retreat
-> — Not slides, Production: 不是纸上谈兵,是生产环境交付
+> — Deer Valley / Engelberg: Fowler 召集的两次闭门 retreat，Chatham House Rule（可引内容不可指认具体发言人），Open-Space 形式
+> — Not slides, Production: Greg Herlein 在 Engelberg 的原话，全场最强生产置信信号
+> — Harness Engineering: Agent = Model + Harness——人在模型外面建的护栏（测试、类型、linter、LLM-as-judge）。Utah「甚至还不是一个词」→ 瑞士「全场核心议题」
+> — 四个 Utah 概念: Rigor Relocation（严谨性迁移到护栏层）、Supervisory Engineering（人从写代码变成管 Agent）、Cognitive Debt（Agent 产出的理解负债）、Three-Tier Split（初级安全/中层危机/资深转架构）
 >
 > **Takeaway:**
-> 5 个月从"可能有点东西"到"证据在握"——这是颠覆的速度。
+> 同一群人、同一个召集人、5 个月内从「不确定多于确定」到「所有人都在 production 里做」——这不是观点之争，是亲历者的集体认知跃迁。disruption 的速度，不是渐进改进。
 
 
 
@@ -369,7 +376,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN IMAGE (role-reversal driving metaphor, clear and readable): a hand-drawn car seen from the side. In the DRIVER seat sits an AI figure (a calm, capable silhouette formed from clean code/circuit lines) confidently steering, the road ahead smooth. In the BACK seat sits a HUMAN, holding a small slip of paper labeled 任务单, watching the AI drive with an uncertain expression. An amber caption beside the human: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」 One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交出去。 In the right margin a small mnemonic label: Trust Gap. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN IMAGE (role-reversal driving metaphor, clear and readable): a hand-drawn car seen from the side. In the DRIVER seat sits an AI figure — a warm amber-glow silhouette, calm, capable — confidently steering, the road ahead smooth. In the BACK seat sits a HUMAN, holding a small slip of paper labeled 任务单, watching the AI drive with an uncertain expression. An amber caption beside the human: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」 One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交出去。 In the right margin a small mnemonic label: Trust Gap. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -554,7 +561,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Block＝美国支付巨头（原 Square，Twitter 创始人 Jack Dorsey 掌舵，Cash App 母公司）。 Below, the main sketch: on the LEFT, a traditional 5-layer management pyramid drawn faintly, collapsing/crumbling. An amber arrow points RIGHT to a new flat arrangement of THREE role badges side by side. Each badge is a hand-drawn card with a medium Chinese role name AND a medium Chinese one-line plain explanation beneath the name: Badge 1 — 「IC 执行者」自己干活，不带人; Badge 2 — 「DRI 负责人」一件事的总扛把子，能拍板但不管人; Badge 3 — 「Player-Coach 球员教练」既自己上手、又带团队，没有只带人的经理. Between and beneath the three badges, a small amber AI-agent glyph acting as the connecting coordination layer (replacing the removed managers). One medium Chinese caption near the badges: 5 层压成 2-3 层，AI 做中间协调层。 Below that, a medium Chinese RESULT line highlighted in amber: 结果：6000 人跑出 27% 毛利增长，Goose 成行业基础设施(GitHub 39K stars)。 In a bottom corner, a small understated footnote in medium Chinese: 背景：同期裁员 40%，独立分析师判主因是成本削减。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Block＝美国支付巨头（原 Square，Twitter 创始人 Jack Dorsey 掌舵，Cash App 母公司）。 Below, the main sketch: on the LEFT, a traditional 5-layer management pyramid drawn faintly, collapsing/crumbling. An amber arrow points RIGHT to a new flat arrangement of THREE role badges side by side. Each badge is a hand-drawn card with a medium Chinese role name AND a medium Chinese one-line plain explanation beneath the name: Badge 1 — 「IC 执行者」自己干活，不带人; Badge 2 — 「DRI 负责人」一件事的总扛把子，能拍板但不管人; Badge 3 — 「Player-Coach 球员教练」既自己上手、又带团队，没有只带人的经理. Between and beneath the three badges, a small amber AI-agent glyph acting as the connecting coordination layer (replacing the removed managers). One medium Chinese caption near the badges: 5 层压成 2-3 层，AI 做中间协调层。 Below that, a medium Chinese RESULT line highlighted in amber: 结果：6000 人跑出 27% 毛利增长，Goose 成行业基础设施(GitHub 39K stars)。 In the TOP-RIGHT corner, a small hand-drawn sketch of the Block (formerly Square) logo — a simple cube made of squares — in faded sepia ink, like a stamped seal, subtle, matching the sketch aesthetic. In a bottom corner, a small understated footnote in medium Chinese: 背景：同期裁员 40%，独立分析师判主因是成本削减。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -591,7 +598,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Cloudflare＝全球互联网基础设施公司（全世界约五分之一网站靠它做加速和安全防护）。 Below, THREE columns side by side, each a hand-drawn card with a medium Chinese role label and one-line definition: Column 1「Builders 建造者」创造产品的人 (mark: AI 难替代·保留); Column 2「Sellers 销售者」获取客户的人 (mark: AI 难替代·保留); Column 3「Measurers 量度者」测量·报告·协调的人 (mark: AI 重塑·重新设计). The Measurer column subtly highlighted in amber to show it is the one being reshaped. A small line under the three columns: 溯源 Drucker 1954：只有建造者和销售者产生成果。 A medium Chinese RESULT line highlighted in amber: 结果：裁量度者+扩招工程师后，营收 +34%、Workers 平台 550 万开发者仍在加速。 One large amber phrase at the bottom: Displacement, not reduction. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: Cloudflare＝全球互联网基础设施公司（全世界约五分之一网站靠它做加速和安全防护）。 Below, THREE columns side by side, each a hand-drawn card with a medium Chinese role label and one-line definition: Column 1「Builders 建造者」创造产品的人 (mark: AI 难替代·保留); Column 2「Sellers 销售者」获取客户的人 (mark: AI 难替代·保留); Column 3「Measurers 量度者」测量·报告·协调的人 (mark: AI 重塑·重新设计). The Measurer column subtly highlighted in amber to show it is the one being reshaped. A small line under the three columns: 溯源 Drucker 1954：只有建造者和销售者产生成果。 A medium Chinese RESULT line highlighted in amber: 结果：裁量度者+扩招工程师后，营收 +34%、Workers 平台 550 万开发者仍在加速。 In the TOP-RIGHT corner, a small hand-drawn sketch of the Cloudflare logo — a stylized cloud glyph with radiating lines — in faded sepia ink, like a stamped seal, subtle, matching the sketch aesthetic. One large amber phrase at the bottom: Displacement, not reduction. Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -688,33 +695,36 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **VISUAL TYPE**: Framework
 
 
-**KICKER**: 有框的自主
+**KICKER**: 有框，才有真正的自主
 
-**TITLE**: Framed Autonomy = AI Sandwich。人定边界，Agent 在框内自主。
+**TITLE**: Framed Autonomy = 人定边界。Agent 在框内可劲儿干。
+
+**SUBTITLE**: 框不是笼子——是让你敢放手的边界。
 
 **CONCEPT**:
-- **MUST communicate**: Dagstuhl 18 位作者定义 Framed Autonomy:通过对 Agent 的知识和目标施加限制来约束其自主性。两种框:Operational Frame(规定执行序列,对应 CI 管道)+ Normative Frame(规定禁止行为,对应编码规范/安全策略)。德国能源网 meter-to-cash 达 99% 成功执行率。BPM 叫 Framed Autonomy,SDLC 叫 AI Sandwich——同一件事。
-- **MUST NOT**: 不要以为"自主"=放任;自主永远在人定义的框内。
-- **Bridge from previous**: 承接上页点名的 Framed Autonomy,正式展开它。
-- **Bridge to next**: 这个模式落到企业架构,就是四层重构——下一页。
-- **Content structure**: 琥珀色几何力场框(透明力场),AI 小人框内自由移动,人形在框外手扶框边;两种边类型;底部 Framed Autonomy = AI Sandwich。
+- **MUST communicate**: Dagstuhl 18 位作者定义 Framed Autonomy：通过对 Agent 的知识和目标施加限制来约束其自主性。关键是「约束」不等于「限制发挥」——恰恰相反，**明确的边界让 Agent 敢放手干活**。就像沙盒——因为知道什么不能碰，所以框内什么都能试。框内两个 Agent 性格完全不同：一个安静地在写——写代码、写测试、写规范，沉稳精确；一个狂野地在跑——连接设备、调动资源、跑流程，能量充沛。两种 Agent，同一个框。框外，人一只手轻轻搭在框边——不是紧张地扶着，是信任但关注。姿态是「框我设好了，你们尽情发挥」。两种框的类型：Operational Frame（规定执行序列——像 CI 管道，告诉你怎么走）和 Normative Frame（规定禁止行为——像编码规范，告诉你不许碰什么）。德国能源网 meter-to-cash 达 99% 成功执行率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——同一件事。框是信任，不是锁。
+- **MUST NOT**: 不要把框理解成「限制 Agent 能力」——是「让 Agent 有能力放手干」的前提。不要把框内 Agent 画成一群无差别小人——是两个性格鲜明、各司其职的搭档。不要画成笼子或监狱——框是温暖的琥珀色力场，沙盒感。
+- **Bridge from previous**: 承接上页点名的 Framed Autonomy，把这一个概念展开——框是什么、框内谁在干什么、为什么有框才有自由。
+- **Bridge to next**: Framed Autonomy 落到企业架构，就是四层同时重构——下一页。
+- **Content structure**: 主画面=一个温暖的琥珀色几何力场框（透明发光边界，沙盒感）。框内两个 Agent 性格对比鲜明——左边：安静坐着，手在纸上写，周围飘着整洁产出（代码块、文档、测试用例），笔触稳定干净，标签「在想，在写，在验证」；右边：站着的，能量充沛，在摆弄设备、连接管线、调动资源，周围齿轮和仪表，笔触有动感，标签「在搭，在连，在跑」。框外：一个人一只手轻轻搭在框边——信任但关注，不是紧张地扶着。底部两行：*有框，才有真正的自主。框不是笼子——是让你敢放手的边界。*
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: Dagstuhl 18 位作者定义：通过对 Agent 的知识和目标施加限制来约束其自主性。 两种框：Operational Frame（规定执行序列）+ Normative Frame（规定禁止行为）。 德国能源网 meter-to-cash 流程：99% 成功执行率。 BPM 叫 Framed Autonomy。SDLC 叫 AI Sandwich。同一个东西。 Below text: sketch of warm amber geometric frame (transparent force field), tiny AI agent figures moving freely inside, larger human figure outside with hand on frame edge. Two edge types. Bottom: Framed Autonomy = AI Sandwich. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN ILLUSTRATION (~55% of body): a warm amber geometric force-field frame drawn as a translucent glowing boundary — like a sandbox, not a cage. Inside the frame are TWO distinct agents with contrasting personalities. LEFT AGENT: a warm amber-glow silhouette, seated calmly, head down, writing — pen on paper, surrounded by neat floating outputs (code blocks, documents, test cases). Pen strokes clean and stable. Amber label under this agent: 在想，在写，在验证。 RIGHT AGENT: a warm amber-glow silhouette, standing, dynamic, energetic — manipulating equipment, connecting pipes/wires, orchestrating resources, surrounded by gears and instrument panels. Pen strokes bolder, more kinetic. Amber label under this agent: 在搭，在连，在跑。 OUTSIDE the frame: a single human figure stands beside the frame, one hand resting lightly on the frame edge — posture is trust with attention, not anxiety. Not gripping — just touching. The human's expression is calm confidence: the frame is set, let them go. ABOVE the frame, three medium Chinese points: Operational Frame：规定执行序列（像 CI 管道——告诉你怎么走）。 Normative Frame：规定禁止行为（像编码规范——告诉你不许碰什么）。 德国能源网 meter-to-cash：99% 成功执行率。 BOTTOM, one line: 有框，才有真正的自主。框不是笼子——是让你敢放手的边界。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 给出 Dagstuhl 正式定义。两种框:Operational(命令式,规定序列=CI 管道)、Normative(声明式,规定允许/禁止=编码规范)。真实验证:德国能源网 meter-to-cash 99% 成功率。映射:Framed Autonomy↔AI Sandwich、人定 Frame↔人定 harness、框内自主↔护栏内自主。
+> 给出 Dagstuhl 正式定义。关键翻面——「约束」这个词听起来像限制，但本质是赋能。就像沙盒——因为知道边界在哪，所以框内什么都能试。框内两个 Agent 性格截然不同：一个安静写代码/写测试/写规范，沉稳精确；一个狂野地连接设备/调动资源/跑流程。两种 Agent，同一个框，各司其职。框外，人不再紧张地盯着每一步——一只手轻轻搭在框边，信任但关注。两种框：Operational Frame 规定执行序列（像 CI 管道）、Normative Frame 规定禁止行为（像编码规范）。真实验证：德国能源网 meter-to-cash 99% 成功率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——人定框，Agent 在框内可劲儿干。框是信任，不是锁。
 >
 > **Terms:**
-> — Operational / Normative Frame: 规定"怎么做" / 规定"不许做"
-> — AI Sandwich: 人定任务→AI 执行→人验收
+> — Operational / Normative Frame: 规定「怎么做」/ 规定「不许做」
+> — AI Sandwich: 人定任务→AI 执行→人验收，与 Framed Autonomy 同一件事
+> — 框=信任: 约束不是限制发挥——是让 Agent 敢放手的前提
 >
 > **Takeaway:**
-> 人定边界、Agent 框内自主——BPM 叫 Framed Autonomy,SDLC 叫 AI Sandwich,同一件事。
+> 有框，才有真正的自主。框不是笼子——是让你敢放手的边界。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich，同一件事。
 
 
 
@@ -775,7 +785,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent 指挥 7 个专才 agent。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure radiating thin sepia lines to about seven small specialist agent nodes; behind ONE node stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent 指挥 7 个专才 agent。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central warm amber-glow planner figure radiating thin sepia lines to about seven small warm amber-glow agent nodes; behind ONE node stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. In the TOP-RIGHT corner, a small hand-drawn sketch of the Allianz eagle logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -795,38 +805,42 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 21: `s21_china_cases`
+## Slide 21: `s21_maersk_edge_ai`
 
 **VISUAL TYPE**: Impact / Evidence
 
 
-**KICKER**: 中国也在动
+**KICKER**: 情报先行
 
-**TITLE**: 奇瑞 4000+ 智能体。兆企合同审批 1天变20分钟。不是科技公司，是传统企业。
+**TITLE**: Maersk：130 年航运巨头，先建数字孪生，再让 AI 上船。
+
+**SUBTITLE**: 不是科技公司。是全球最大的集装箱航运公司。
 
 **CONCEPT**:
-- **MUST communicate**: 中国传统企业(非科技公司)已部署生产级 AI Agent:奇瑞(制造,6万员工、4000+ 智能体,年降本超 3000 万、翻译成本归零)、兆企(贸易/供应链,报价/合同/客户画像全流程,合同审批 1天→20分钟)、司盟(企业服务,接管海外邮件/审计/合同,效率提升 5 倍+)。模式与海外完全一致。
-- **MUST NOT**: 不要以为这只在科技公司;案例都是传统制造/贸易/企服。
-- **Bridge from previous**: 承接海外案例——中国镜像。
-- **Bridge to next**: 两个领域都看完,退一步看大局——进入 Part 3。
-- **Content structure**: 三列(奇瑞/兆企/司盟),各含简图与数据;底部共同模式注释。
+- **MUST communicate**: Maersk（A.P. Moller-Maersk，1904 年丹麦创立）是全球最大航运集团，10 万员工、700+ 艘船、130 国运营。跟 Allianz 的「直建 agentic」不同，Maersk 走的是第二条路——**Process Intelligence First**：先建数字孪生、让流程可见，再叠 AI。最独特的约束：海上卫星带宽太贵，AI **必须在船上的边缘服务器跑**——Star Connect 平台在 700 艘船上实时处理 25 亿 IoT 数据点，油耗 -9.2%、年省 $300M+。信息加工链的一面：Trade & Tariff Studio 用 AI 做报关——6000+ 商品编码自动分类、关税计算、贸易合规监控，把海关文书处理从人工变成 AI-driven。Gemini 联盟（Maersk+Hapag-Lloyd）的航线网络本身就是 AI 优化的产物——90% 准班率，行业平均的 **两倍**。两条路，同一个目的地：AI 正在重写传统企业的核心流程。
+- **MUST NOT**: 不要让听众觉得「航运 AI 只是省油」——报关/文件处理/客服 = 纯粹的信息加工链，跟 SDLC 同构。也不要把 Maersk 讲成「AI 万能」——坦承 AI 客户服务跟不上运营 AI 的质量（machine-AI vs people-AI gap），以及 2023 年 TradeLens 平台失败（$100M+ 投入后关闭，因为竞争对手不愿把数据喂进 Maersk 控制的平台）的教训：AI 在自有资产上跑得通，在需要全行业协作的平台上没那么容易。
+- **Bridge from previous**: 承接 Allianz——第一种路径（直建 agentic、窄处验证）。Maersk 展示第二种路径（情报先行、数字孪生再叠 AI），两者形成对照。
+- **Bridge to next**: 两家传统巨头、两条不同的路，结果一样——软件发生的正在所有行业重演。退一步看大局（进入 Part 3：罗马军团散了）。
+- **Content structure**: 主图=一艘巨型集装箱船，船身上叠一张发光的数字孪生蓝图，船上 edge AI 核心标记为琥珀色（25 亿 IoT 数据点→船上推理→只传结论回岸）。下方三列要点：① 油耗 -9.2%/$300M+ 年省、90% 准班率（行业 2x）；② 报关 AI：6000+ 商品码自动分类；③ 客服 AI：人审 AI 回复→一键批准。底部一行 amber 小字：跟 Allianz 不同路，同一个结论——传统企业的核心流程在被 AI 重写。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, create three columns with compact sketches and data: Left Chery Auto 制造 — 4000+ 智能体 / 6万员工。年降本超 3000 万。翻译成本归零。 Center Zhaoqi 贸易 — 合同审批 1天变20分钟。Agent 覆盖报价、合同、客户画像。 Right Simeng 企业服务 — 效率提升 5 倍。Agent 接管海外邮件、审计、合同审核。 Bottom: 共同模式跟海外一样：不是替代人，是流程交给 Agent，人做策展。 No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. At the top of the body area, render one medium Chinese company intro in lighter sepia: A.P. Moller-Maersk，1904 年丹麦创立。全球最大航运集团，10 万员工、700+ 艘船、130 国运营。 MAIN ILLUSTRATION (~45% of body): a large container vessel sketched in fine sepia ink, with a translucent digital-twin blueprint overlaid on the hull (showing sensor nodes, data flows). An amber AI core glows on the bridge of the ship, labeled 边缘 AI（Edge AI）. A small annotation next to the ship: 卫星带宽太贵 → AI 在船上跑，不上云。 Below the ship, label: Star Connect — 25 亿 IoT 数据点，700 艘船实时推理。 Below the illustration, THREE compact Chinese result blocks with amber-highlighted numbers: ① 油耗 −9.2%，年省 $300M+。Gemini 联盟 90% 准班率（行业 2x）。 ② 报关 AI：Trade & Tariff Studio，6000+ 商品码自动分类+关税计算。 ③ 客服 AI：AI 生成回复，人审核后一键批准。数千次/天。 In the TOP-RIGHT corner, a small hand-drawn sketch of the Maersk seven-pointed star logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. One amber line at bottom: 跟 Allianz 不同路——情报先行、再上 AI。同一个结论。 No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 中国传统行业同样在动。奇瑞 4000+ 智能体、年降本超 3000 万、翻译成本归零;兆企合同审批 1天→20分钟;司盟效率 5 倍+。共同模式跟海外一样:不是替代人,是流程交 Agent、人做策展。
+> 先介绍 Maersk 是谁——130 年丹麦航运巨头，不是科技公司。10 万员工、700+ 艘船——你买的东西很可能坐过它的船。跟 Allianz 对照：Allianz 是「直建 agent、窄处验证」，Maersk 走第二条路「情报先行、再上 AI」——先建数字孪生让流程可见，再往上叠 AI。最独特的约束是海上卫星带宽太贵，AI 不能上云——必须装在船上的边缘服务器。Star Connect 在 700 艘船上处理 25 亿 IoT 数据点，油耗 -9.2%、年省 $300M+（占集团 EBIT 的 8.6%）。Gemini 联盟的航线网络本身是 AI 优化出来的——90% 准班率是行业平均的两倍。报关 AI（Trade & Tariff Studio）是纯信息加工——6000+ 商品编码自动分类，关税自动计算。客服 AI 是人审 AI 回复后一键批准。诚实提两个教训：TradeLens 失败了（$100M+ 投入关闭——竞争对手不愿把数据喂进 Maersk 平台 → AI 在自有资产上跑得通，在需要全行业协作的平台上没那么容易）；客服 AI 还没跟上运营 AI 的质量。但结论不变：一条 130 年的航运公司也在被 AI 重写核心流程。跟 Allianz 不同路，同一个目的地。
 >
 > **Terms:**
-> — 智能体: 企业内自主执行流程的 Agent
-> — 策展: 人做例外处理与决策
+> — Process Intelligence First: 先建数字孪生/流程可见性，再叠 AI——与 Allianz「直建 agentic」对照
+> — Edge AI（边缘 AI）: AI 推理在船上本地跑，不依赖云——因为卫星带宽太贵太慢
+> — Gemini Cooperation: Maersk+Hapag-Lloyd 联盟，AI 优化的枢纽-辐射网络，90% 准班率（行业 ~50%）
+> — TradeLens 教训: $100M+ 的区块链平台 2023 年关闭——AI 在自有资产上跑赢，在需要全行业协作的平台上没那么容易
 >
 > **Takeaway:**
-> 中国的传统企业也已落地生产级 Agent,模式与海外一致。
+> 两条路，同一个结论：Allianz 直建 agent、窄处验证；Maersk 先建数字孪生、再叠 AI。130 年的航运巨头和 130 年的保险巨头——都在被 AI 重写核心流程。这不是 demo，是 production。
 
 
 
@@ -841,29 +855,33 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **TITLE**: 组织金字塔不是「效率最高」。是「人是信息瓶颈」下的不得已。
 
+**SUBTITLE**: 罗马军团，公元 1 世纪。现代企业，公元 21 世纪。同一种结构。
+
 **CONCEPT**:
-- **MUST communicate**: 组织层级存在的根本原因是"人是信息流动的瓶颈"——一个 manager 只能有效沟通 7-15 人（管理版 Dunbar 数），所以必须分层：CEO → VP → Director → Manager → IC，每层负责汇总信息、过滤噪音、上传下达。这不是"效率最高",是人带宽有限下用层级管理带宽的不得已。这是罗马军团时代的逻辑,2000 年没变。AI 让 Agent 自动汇总、跨层同步、人→Agent→人,沟通成本归零,只做上传下达的中层就失去存在理由（Block 已在试：CEO 直接管 6000 人）。
-- **MUST NOT**: 不要以为金字塔是"最优效率结构";它只是人带宽有限下的不得已。
-- **Bridge from previous**: 从案例拔高到组织理论——为什么会有金字塔。
-- **Bridge to next**: 中层若只做搬运就没用了,那到底该怎么重新分类岗位?下一页 Builder/Seller/Measurer。
-- **Content structure**: 文字为主舞台（约 65%），插画退为配角（约 35%）。核心一句大字压题，下方**五行递进要点**（反问钩子 → 层级链条+三职能 → 根因 → 罗马军团 → AI 打破前提+Block 证据）。右下角一个**简洁的单一意象**：一个由小人堆叠的金字塔轮廓，只在顶部/右侧被一道琥珀涟漪轻轻淡化——克制、干净，不铺满画面。
+- **MUST communicate**: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。所以必须分层——CEO → VP → Director → Manager → IC，每层负责汇总信息、过滤噪音、上传下达。这不是「效率最高」，是**人带宽有限下用层级管理带宽的不得已**。而这个结构不是现代企业发明的——罗马军团两千年前就是这套：Legatus → Centurion → Decurion → Legionary，指挥链一模一样。两千年，信息传输技术从骑马信使变成 Slack 再变成 AI Agent——**但组织结构没变过**。因为瓶颈始终是人——只要人的信息吞吐恒定，层级就是最优解。AI 打破了前提：Agent 自动汇总、跨层同步、人→Agent→人——沟通成本归零。只做上传下达的中层，存在的理由消失了。Block 已在试——Dorsey 砍掉中间层，CEO 直接管 6000 人。不是理论，已经在发生。
+- **MUST NOT**: 不要把罗马军团画成「古代落后、现代先进」——关键是**结构一模一样**，令人不安。不要让金字塔「倒塌」——是中间层被一道琥珀涟漪轻轻淡化，不是灾难，是重构。不要暗示所有中层都会消失——淡化的是「纯搬运」的层级，不是所有管理者。
+- **Bridge from previous**: 从案例拔高到组织理论——两家传统企业之外，退一步看：为什么会有金字塔？答案藏在两千年前。
+- **Bridge to next**: 中层若只做搬运就没用了——那到底该怎么重新分类岗位？下一页 Builder/Seller/Measurer。
+- **Content structure**: 上半部文字为主（约 55%），五行递进要点（管理版 Dunbar 数 → 层级链条 → 不是效率最高是不得已 → 罗马军团同构 → AI 打破前提）。下半部三栏对比（约 45%）：左栏=罗马军团金字塔（Legatus → Centurion → Decurion → Legionary，手绘士兵小人，钢笔线条古迹感）；中栏=现代企业金字塔（CEO → VP → Director → Manager → IC，西装小人，跟左边**完全一样的结构**，灰色 sepia，中间写「2000 年，同一套逻辑」）；右栏=同一个金字塔轮廓被一道琥珀涟漪从中间轻轻淡化——所有纯搬运的中间层变半透明，只留下顶层和底层清晰，顶层和底层之间出现一条细的琥珀色直连线（Agent 直连），右下角标注「Block 已在试：CEO 直接管 6000 人」。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element in ONE corner only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. In the body area, render FIVE short medium-Chinese lines with generous spacing: 为什么不是 CEO 直接管所有人？因为一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。 所以必须分层：CEO → VP → Director → Manager → IC——每层负责汇总信息、过滤噪音、上传下达。 这不是"效率最高"，是"人是信息瓶颈"下用层级管理带宽的不得已。 罗马军团时代就这套逻辑，2000 年没变过。 AI 让 Agent 自动汇总、跨层同步、人→Agent→人；纯搬运的中层，理由消失了（Block 已在试：CEO 直接管 6000 人）。 ILLUSTRATION (small, bottom-right corner only): a simple clean outline of a human-figure pyramid, with a single amber ripple gently fading its top layer to a ghost outline. Keep it minimal — one clear image, not a dense crowd. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. UPPER HALF (~55%): TEXT IS THE MAIN SUBJECT. Render FIVE short medium-Chinese lines with generous spacing: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。 所以必须分层：CEO → VP → Director → Manager → IC——每层负责汇总信息、过滤噪音、上传下达。 这不是「效率最高」，是「人是信息瓶颈」下用层级管理带宽的不得已。 罗马军团两千年前就是这套：Legatus → Centurion → Decurion → Legionary——指挥链一模一样。 AI 让 Agent 自动汇总、跨层同步——纯搬运的中层，理由消失了。 LOWER HALF (~45%): THREE-COLUMN COMPARISON. LEFT column: a hand-drawn Roman legion hierarchy pyramid sketched in sepia ink with slightly antique-line feel — Legatus at top, Centurion, Decurion, Legionary at base. Tiny soldier figures at each level. Label: 罗马军团，公元 1 世纪. CENTER column: a pyramid with the EXACT SAME STRUCTURE but modern — CEO → VP → Director → Manager → IC. Tiny modern figures (business suits). Gray sepia. Between left and center, a small annotation: 2000 年，同一套逻辑。 RIGHT column: the SAME pyramid outline but TRANSFORMED — a soft amber ripple passes through the middle layers, gently fading all the pure-relay management tiers (VP, Director, Manager) to translucent ghost outlines. Only top (CEO) and bottom (IC) remain fully drawn. A thin amber direct-connection line links top directly to bottom, bypassing the faded layers — Agent 直连。 Small annotation bottom-right: Block 已在试：CEO 直接管 6000 人。 Overall: calm, historical perspective, not sensational. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 为什么要分层?因为人沟通带宽有限(管理版 Dunbar 数 7-15),必须 CEO→VP→Director→Manager→IC 层层中转。这是罗马军团逻辑,2000 年没变。AI 打破前提:自动汇总、跨层同步、人→Agent→人。只做上传下达的中层,存在理由消失。
+> 先问：为什么不是 CEO 直接管所有人？因为人沟通带宽有限——管理版 Dunbar 数 7–15。所以必须 CEO→VP→Director→Manager→IC 层层中转。这不是效率最高的结构——是人在信息带宽瓶颈下用层级来管理带宽的不得已。这个结构谁发明的？不是现代企业。两千年前罗马军团就是这套——Legatus→Centurion→Decurion→Legionary，指挥链一模一样。两千年，信息传输从骑马信使变成了 Slack——但组织结构没变。因为瓶颈始终是人。AI 打破了这个前提：Agent 自动汇总、跨层同步、人→Agent→人——沟通成本归零。只做上传下达的中层，存在的理由消失了。Block 已经在试——Jack Dorsey 砍掉中间层，CEO 直接管 6000 人。这不是理论，已经在发生。下一页，把透镜从「层级去哪了」转向「岗位怎么重新分类」——Builder/Seller/Measurer。
 >
 > **Terms:**
-> — 信息瓶颈: 人是信息流动的中转站,带宽有限
-> — 罗马军团结构: 沿用两千年的层级逻辑
+> — 信息瓶颈: 人是信息流动的中转站，沟通带宽有限——组织层级是对这个瓶颈的补偿
+> — 罗马军团结构: Legatus→Centurion→Decurion→Legionary，沿用两千年的指挥链逻辑
+> — 管理版 Dunbar 数: 一个人能有效管理的直接下属上限约 7–15 人
+> — Agent 直连: 沟通成本归零后，顶层可以直接触达底层——纯搬运的中层不再必需
 >
 > **Takeaway:**
-> 金字塔是"人是信息瓶颈"的产物;沟通成本归零后,纯搬运的中层没了理由。
+> 两千年，组织结构没变过——因为瓶颈始终是人。AI 让沟通成本归零，纯搬运的中层失去了存在的理由。不是理论——Block 已经在试。
 
 
 
@@ -986,6 +1004,14 @@ Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMA
 
 | Date | Change Type | Slide(s) | What Changed | Why |
 |------|-------------|----------|-------------|-----|
+| 2026-07-12 | Content | 18 | Slide 18 重写：IMAGE PROMPT 从「无差别 AI 小人框内移动+人形框外扶框边」改为「框内两个性格鲜明的 Agent——左边安静写代码/文档（在想在写），右边狂野连接设备/调动资源（在搭在连）——框是沙盒不是笼子」；SUBTITLE/CONCEPT/SPEAKER NOTE 同步更新 | 原版把框内 Agent 画成无差别群体，未体现「不同 Agent 不同性格、框让它们各展所长」的洞察 |
+| 2026-07-12 | Content | 22 | Slide 22 重写：IMAGE PROMPT 从「右下角单一金字塔+琥珀涟漪」改为三栏对比构图（左=罗马军团 LEGATUS→CENTURION→DECURION→LEGIONARY / 中=现代企业 CEO→VP→DIRECTOR→MANAGER→IC 完全同构 / 右=同一金字塔中间层被琥珀涟漪淡化→AGENT 直连）；SUBTITLE/CONCEPT/SPEAKER NOTE 同步补全「2000 年同一套逻辑」叙事 | 原版画面偏弱——只说「金字塔是信息瓶颈的产物」但没让观众看到罗马军团和现代企业真的是同一个结构 |
+| 2026-07-12 | Content | 05-06 | Slide 05+06 双双重写，情绪从「失去/崩塌」翻为「获得+挑战」：Slide 05 从「前提被挖」改为「多了一个搭档——超级能干，但人还不会配合」（工具升级→伙伴关系）；Slide 06 从「地基裂了楼要塌」改为「旧地图只管人独自走，新地图还在画」；两页 IMAGE PROMPT 同步替换 | 原版两页情绪偏悲观（地基裂、前提挖），新版保持挑战的真实感但不拍成灾难 |
+| 2026-07-12 | Content | 07 | Slide 07 重写：KICKER/TITLE/CONCEPT 从模糊概括改为具体人物+引语对照（Deer Valley: Vella「不确定多于确定」/ Laycock「速度乘数也是债务乘数」→ Engelberg: Herlein「Not slides — production」/ Edwards-Alexander「证据就在这里」）；IMAGE PROMPT 改为左右 split 构图+四条引语+5个月琥珀箭头 | 源材料（dpt_rb_martin-fowler-ai-sdlc-retreats）有大量可追溯的真实引语和命名人物，原版未充分利用 |
+| 2026-07-12 | Case Restructure | 20-21 | Slide 21 从「中国三家合并页」重写为 Maersk 深度案例；Block Map 更新为「Allianz + Maersk」 | 中国公司无深度研究支撑；Maersk 与 Allianz 形成路径对照 |：Slide 05 从「前提被挖」改为「多了一个搭档——超级能干，但人还不会配合」（工具升级→伙伴关系）；Slide 06 从「地基裂了楼要塌」改为「旧地图只管人独自走，新地图还在画」；两页 IMAGE PROMPT 同步替换（工作台+搭档 / 旧地图墙+空白画布）| 原版两页情绪偏悲观（地基裂、前提挖），新版保持挑战的真实感但不拍成灾难——是「有了新东西还没学会用」的诚实，不是「旧东西塌了」的恐惧 |
+| 2026-07-12 | Content | 07 | Slide 07 重写：KICKER/TITLE/CONCEPT 从模糊概括改为具体人物+引语对照（Deer Valley: Vella「不确定多于确定」/ Laycock「速度乘数也是债务乘数」→ Engelberg: Herlein「Not slides — production」/ Edwards-Alexander「证据就在这里」）；IMAGE PROMPT 改为左右 split 构图+四条引语+5个月琥珀箭头；SPEAKER NOTE 补全 Fowler 身份、四人引语、术语弧、四个 Utah 概念 | 源材料（dpt_rb_martin-fowler-ai-sdlc-retreats）有大量可追溯的真实引语和命名人物，原版未充分利用——只说「语气变了」没说是谁说的、原话是什么、态度怎么翻的 |
+| 2026-07-12 | Case Restructure | 20-21 | Slide 21 从「中国三家合并页」重写为 Maersk 深度案例（130 年航运巨头，边端 AI+报关智能化，$300M+ 年省）；Block Map 证据列更新为「Allianz + Maersk」；Allianz/Maersk 各含 source material 深度研究（38KB/40KB） | 中国公司无深度研究支撑（每家仅 2-3 行指标），三家合并页信息密度不足；Maersk 有 40KB 独立研究文件，与 Allianz 形成「直建 agentic vs 情报先行」路径对照，均为非科技传统企业 |
+| 2026-07-12 | Visual Polish | 14, 15, 20, 21 | 四页公司案例 IMAGE PROMPT 增加手绘 sketch logo：Block（方块立方体）、Cloudflare（云形辐射线）、Allianz（鹰形徽章）、Maersk（七角星），均为 faded sepia ink，右上角盖章式低调呈现 | 统一公司案例页的视觉标识，增强品牌辨识度，保持 sketch/etching 整体美学 |
 | 2026-07-12 | Framework Sync | All | 加入全册 render policy；移除 25 个冗余逐页 mode；逐页剥离 IMAGE PROMPT 中重复的结构化 header 文案/位置；规范 cover/bridge hero 类型 | 对齐 Stage 1 header contract、policy source、provenance/header-review 新流程，避免双重文字指令 |
 | 2026-07-11 | Initial (migrated) | All | 从 deck_ai_sdlc_keynote 迁移重建 22 页四层规格 | 把已完成的中文 keynote 逐页规格从旧框架格式重建为新框架 slide-specifications.md,供 Stage 1 解析;L3 IMAGE PROMPT 逐字照抄 page_prompts.json |
 | 2026-07-11 | Note | All | RENDER MODE 全部设为 full-page | 该 deck 中文 KICKER + 大标题已内嵌于每页 IMAGE PROMPT(烤进图),故全部走 full-page 渲染、不使用 body+header-lock 叠字(header-lock 是给 Latin 字体叠标题用的,会与图内已有中文标题冲突) |
