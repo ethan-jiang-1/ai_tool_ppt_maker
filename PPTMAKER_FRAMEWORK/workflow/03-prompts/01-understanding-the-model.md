@@ -43,7 +43,7 @@ Model 看到一个 prompt 时，它不 "读" prompt——它把文字翻译成�
 | 2K | Great | ~30-60s | 最终生产——细节锐利，全屏 16:9 |
 | 4K | Excellent | ~60-120s | 超大屏幕/印刷——通常不需要 |
 
-建议：永远用 1K 做 pilot（省时间、省 quota），确认 design 后用 2K 跑 final。
+建议：可先用 1K 做探索 pilot（省时间、省 quota）；但 1K evidence 不授权 2K。final 前必须用目标 2K/model/style profile 重新 pilot、审查并 `approve header`，再 `build --reuse-images`。
 
 ## Model 不知道的事
 

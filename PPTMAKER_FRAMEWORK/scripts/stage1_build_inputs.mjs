@@ -49,6 +49,20 @@ import {
     GEN_PROMPTS_JSON,
 } from "./bundle_layout.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
+import {
+    CANONICAL_RENDER_MODES,
+    RENDER_MODE_FULL_PAGE,
+    RENDER_MODE_BODY_HEADER_LOCK,
+    RenderPolicyError,
+    determineRenderMode as resolveRenderMode,
+    isBracketPlaceholder,
+    isHeroVisualType,
+    normalizeRenderMode,
+    normalizeVisualType,
+    parseLeadingFrontmatter,
+    presentHeaderText,
+    validatePolicySlideIds,
+} from "./lib/render_policy.mjs";
 
 // ---------------------------------------------------------------------------
 // Shared executable visual configuration
@@ -62,12 +76,14 @@ let CONTENT_BOTTOM;
 let CALLOUT_TOP;
 let CALLOUT_BOTTOM;
 let NO_CALLOUT_BOTTOM;
+let ACTIVE_VISUAL_CONFIG;
 
 /**
  * Expose config values through module-scoped variables used by helpers.
  * Legacy port of `_apply_visual_config`.
  */
 function applyVisualConfig(config) {
+    ACTIVE_VISUAL_CONFIG = config;
     CANVAS_WIDTH = config.canvas.width_px;
     CANVAS_HEIGHT = config.canvas.height_px;
     NORMAL_HEADER_SAFE_ZONE = config.header_lock.body_header_safe_zone;
@@ -80,14 +96,9 @@ function applyVisualConfig(config) {
 
 applyVisualConfig(DEFAULT_CONFIG);
 
-// VISUAL TYPEs that get full-page AI rendering (no Stage 3 header overlay)
-const FULL_PAGE_TYPES = new Set([
-    "Title / Opener",
-    "Section Divider / Bridge",
-    "Closer",
-]);
-// Back-compat alias — do not use in new code
-const IMAGE_DIRECT_TYPES = FULL_PAGE_TYPES;
+export function configureVisualConfig(config) {
+    applyVisualConfig(config || DEFAULT_CONFIG);
+}
 
 // IDs for specific slides that need extra header space (optional, can be empty)
 const EXTRA_SAFE_IDS = {};
@@ -172,7 +183,7 @@ function loadSafeZoneFromPalette(palettePath) {
 function extractField(body, field) {
     // Escape regex-special characters in the field name
     const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`^\\*\\*${escaped}\\*\\*:\\s*(.*?)\\s*$`, "m");
+    const re = new RegExp(`^\\*\\*${escaped}\\*\\*:[ \\t]*(.*?)[ \\t]*$`, "m");
     const m = body.match(re);
     return m ? m[1].trim() : "";
 }
@@ -230,49 +241,6 @@ function hasBottomCallout(body) {
 // Header variant detection
 // ---------------------------------------------------------------------------
 
-// Canonical render modes — ONE vocabulary for specs, docs, and slide_plan.json.
-const RENDER_MODE_FULL_PAGE = "full-page";
-const RENDER_MODE_BODY_HEADER_LOCK = "body+header-lock";
-const CANONICAL_RENDER_MODES = new Set([RENDER_MODE_FULL_PAGE, RENDER_MODE_BODY_HEADER_LOCK]);
-
-// Authored RENDER MODE synonyms → canonical. Legacy image_direct/normal accepted
-// on INPUT only so old specs don't break; they never appear in new outputs.
-// Parser + validateSpecs share this table — they can't drift on typos.
-const RENDER_MODE_ALIASES = {
-    "full-page": RENDER_MODE_FULL_PAGE,
-    "fullpage": RENDER_MODE_FULL_PAGE,
-    "image_direct": RENDER_MODE_FULL_PAGE,       // legacy input alias
-    "imagedirect": RENDER_MODE_FULL_PAGE,
-    "body+header-lock": RENDER_MODE_BODY_HEADER_LOCK,
-    "bodyheaderlock": RENDER_MODE_BODY_HEADER_LOCK,
-    "body+headerlock": RENDER_MODE_BODY_HEADER_LOCK,
-    "normal": RENDER_MODE_BODY_HEADER_LOCK,      // legacy input alias
-};
-
-/**
- * Map an authored RENDER MODE string to a canonical mode.
- *
- * Returns null if the field is unset/empty (→ caller falls back to VISUAL TYPE).
- * If the field is PRESENT but unrecognized (a typo), throws — a silent fallback
- * would let the author think they controlled the mode when they didn't.
- * Empty = fine; wrong = loud.
- * Legacy port of `_normalize_render_mode`.
- */
-function normalizeRenderMode(raw, slideId) {
-    if (!raw || !raw.trim()) {
-        return null;
-    }
-    const key = raw.trim().toLowerCase().replace(/\s+/g, "");
-    const canonical = RENDER_MODE_ALIASES[key];
-    if (canonical === undefined) {
-        throw new Error(
-            `Slide ${JSON.stringify(slideId)}: unrecognized RENDER MODE ${JSON.stringify(raw)}. ` +
-            `Use 'full-page' or 'body+header-lock' (or omit the field to derive from VISUAL TYPE).`
-        );
-    }
-    return canonical;
-}
-
 /**
  * Return (renderMode, safeZonePx, source).
  *
@@ -282,22 +250,15 @@ function normalizeRenderMode(raw, slideId) {
  * throws (see normalizeRenderMode) rather than silently falling back.
  * Legacy port of `_determine_render_mode`.
  */
-function determineRenderMode(slideId, visualType, renderMode) {
-    const explicit = normalizeRenderMode(renderMode, slideId);
-    if (explicit === RENDER_MODE_FULL_PAGE) {
-        return { mode: RENDER_MODE_FULL_PAGE, safeZone: 0, source: "explicit" };
-    }
-    if (explicit === RENDER_MODE_BODY_HEADER_LOCK) {
-        return { mode: RENDER_MODE_BODY_HEADER_LOCK, safeZone: NORMAL_HEADER_SAFE_ZONE, source: "explicit" };
-    }
-
-    if (slideId in EXTRA_SAFE_IDS) {
-        return { mode: RENDER_MODE_BODY_HEADER_LOCK, safeZone: EXTRA_SAFE_IDS[slideId], source: "derived:extra_safe_id" };
-    }
-    if (FULL_PAGE_TYPES.has(visualType)) {
-        return { mode: RENDER_MODE_FULL_PAGE, safeZone: 0, source: "derived:visual_type" };
-    }
-    return { mode: RENDER_MODE_BODY_HEADER_LOCK, safeZone: NORMAL_HEADER_SAFE_ZONE, source: "derived:visual_type" };
+function determineRenderMode(slideId, visualType, renderMode, policy = null) {
+    return resolveRenderMode({
+        slideId,
+        visualType,
+        renderMode,
+        policy,
+        safeZone: NORMAL_HEADER_SAFE_ZONE,
+        extraSafeZone: slideId in EXTRA_SAFE_IDS ? EXTRA_SAFE_IDS[slideId] : null,
+    });
 }
 
 // Back-compat name used by older call sites / docs
@@ -335,8 +296,10 @@ function contractRenderMode(layout) {
  * Build the layout_contract dict for a single slide.
  * Legacy port of `_build_layout_contract`.
  */
-function buildLayoutContract(slideId, visualType, body, renderMode) {
-    const { mode, safeZone, source } = determineRenderMode(slideId, visualType, renderMode);
+function buildLayoutContract(slideId, visualType, body, renderMode, policy = null) {
+    const { mode, safeZone, source } = determineRenderMode(
+        slideId, visualType, renderMode, policy
+    );
 
     if (mode === RENDER_MODE_FULL_PAGE) {
         return {
@@ -371,6 +334,39 @@ function buildLayoutContract(slideId, visualType, body, renderMode) {
 // Prompt assembler
 // ---------------------------------------------------------------------------
 
+function exactHeaderTextContract(slide, { freeForm = false } = {}) {
+    const fields = [];
+    if (slide.kicker) fields.push(`KICKER: ${JSON.stringify(slide.kicker)}`);
+    if (slide.headline) fields.push(`TITLE: ${JSON.stringify(slide.headline)}`);
+    if (slide.subtitle) fields.push(`SUBTITLE: ${JSON.stringify(slide.subtitle)}`);
+    const composition = freeForm
+        ? "Use these exact strings, but integrate them freely into the hero composition."
+        : "Render these exact strings in the specified header geometry.";
+    return `HEADER TEXT - EXACT:\n${fields.join("\n")}\n${composition}\n`;
+}
+
+function contentHeaderPlacementContract(slide) {
+    const config = ACTIVE_VISUAL_CONFIG;
+    const header = config.header_lock;
+    const position = header.position;
+    return (
+        `HEADER PLACEMENT - ABSOLUTE SOFT TARGET:\n` +
+        `Reserve the top-left header band from y=0 to y=${header.body_header_safe_zone}px ` +
+        `for header text only on a ${config.canvas.width_px}x${config.canvas.height_px}px canvas. ` +
+        `Body visuals, diagrams, cards, and icons must begin below y=${header.body_header_safe_zone}px.\n` +
+        `Left-align all header text at x=${position.left_px}px with right margin ${position.right_margin_px}px.\n` +
+        `Kicker target: y=${position.kicker_y_px}px, ${header.kicker.family} ` +
+        `${header.kicker.weight}, ${header.kicker.size_px}px, ${header.kicker.color}.\n` +
+        `Title target: y=${position.title_y_px}px, ${header.title.family} ` +
+        `${header.title.weight}, ${header.title.size_px}px, ${header.title.color}, ` +
+        `line height ${position.title_line_height_px}px.\n` +
+        `Subtitle target: ${position.subtitle_gap_px}px below the title, ${header.subtitle.family} ` +
+        `${header.subtitle.weight}, ${header.subtitle.size_px}px, ${header.subtitle.color}, ` +
+        `line height ${position.subtitle_line_height_px}px.\n` +
+        `${exactHeaderTextContract(slide)}`
+    );
+}
+
 /**
  * Wrap source IMAGE PROMPT with system contracts.
  *
@@ -389,18 +385,16 @@ function assemblePrompt(sourcePrompt, slide, finalRules) {
     const mode = contractRenderMode(layout);
 
     if (mode === RENDER_MODE_FULL_PAGE) {
-        // Full-page AI render: no header contract needed
+        const headerContract = isHeroVisualType(slide.visual_type)
+            ? exactHeaderTextContract(slide, { freeForm: true })
+            : contentHeaderPlacementContract(slide);
         return (
             `FULL-PAGE: Render the complete slide including all text.\n` +
             `Canvas: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}.\n\n` +
+            `${headerContract}\n` +
             `${sourcePrompt}\n\n` +
             `${SYSTEM_STYLE_ANCHORING}${finalRules}`
         );
-    }
-
-    let overlayInfo = `kicker=${slide.kicker}, title=${slide.headline}`;
-    if (slide.subtitle) {
-        overlayInfo += `, subtitle=${slide.subtitle}`;
     }
 
     const hasCallout = layout.has_bottom_callout || false;
@@ -412,7 +406,7 @@ function assemblePrompt(sourcePrompt, slide, finalRules) {
 
     return (
         `${systemHeaderContract(safeZone)}` +
-        `Stage 3 (Header-Lock) will draw header: ${overlayInfo}.\n\n` +
+        `Stage 3 (Header-Lock) will draw the structured header later.\n\n` +
         `LAYOUT CONTRACT:\n` +
         `Canvas: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}. ` +
         `Content zone: y=${layout.content_y_min} to y=${layout.content_y_max}. ` +
@@ -461,18 +455,23 @@ function splitSlideBlocks(text) {
 // reach image generation).
 const PLACEHOLDER_MARKERS = ["[PLACEHOLDER", "[slide_id]", "## Slide 01: `slide_id`"];
 
-/**
- * True if the whole field value is a single [...] placeholder.
- * Legacy port of `_is_bracket_placeholder`.
- */
-function isBracketPlaceholder(value) {
-    const v = value.trim();
-    return v.length > 2 && v.startsWith("[") && v.endsWith("]");
-}
-
 // ≥3 chars, leading upper, only UPPER/digit/underscore — matches [CASE_KICKER],
 // [OUTCOME]; deliberately skips short inline refs like [C1]/[C2] used in prose.
 const ALLCAPS_PLACEHOLDER_RE = /\[[A-Z][A-Z0-9_]{2,}\b/g;
+
+function readSpecContext(mdPath) {
+    let text;
+    try {
+        text = readFileSync(mdPath, "utf-8");
+    } catch {
+        throw new Error(`Cannot read spec file: ${mdPath}`);
+    }
+    const label = basename(mdPath);
+    const frontmatter = parseLeadingFrontmatter(text, label);
+    const blocks = splitSlideBlocks(frontmatter.body);
+    validatePolicySlideIds(frontmatter.policy, blocks.map(([id]) => id), label);
+    return { text, body: frontmatter.body, blocks, policy: frontmatter.policy };
+}
 
 /**
  * Validate slide-specs against the pipeline's CONTENT contract before any
@@ -503,13 +502,15 @@ export function validateSpecs(mdPaths) {
             continue;
         }
 
-        let text;
+        let context;
         try {
-            text = readFileSync(mdPath, "utf-8");
-        } catch {
-            problems.push(`ERROR: cannot read spec file: ${mdPath}`);
+            context = readSpecContext(mdPath);
+        } catch (error) {
+            const details = error instanceof RenderPolicyError ? error.problems : [error.message];
+            for (const detail of details) problems.push(`ERROR: ${detail}`);
             continue;
         }
+        const { text, blocks, policy } = context;
 
         const marker = PLACEHOLDER_MARKERS.find((m) => text.includes(m));
         if (marker) {
@@ -529,7 +530,6 @@ export function validateSpecs(mdPaths) {
             );
         }
 
-        const blocks = splitSlideBlocks(text);
         if (blocks.length === 0) {
             problems.push(
                 `ERROR: ${label} has no slide blocks (need '## Slide N: slide_id' headings).`
@@ -546,37 +546,25 @@ export function validateSpecs(mdPaths) {
             const title = extractField(body, "TITLE");
             const kicker = extractField(body, "KICKER");
 
-            // Resolve the render mode WITHOUT raising (collect, don't abort).
-            let explicitMode = null;
-            if (renderModeRaw.trim()) {
-                const canonical = RENDER_MODE_ALIASES[renderModeRaw.trim().toLowerCase().replace(/\s+/g, "")];
-                if (canonical === undefined) {
-                    problems.push(
-                        `ERROR: slide ${JSON.stringify(sid)}: RENDER MODE ${JSON.stringify(renderModeRaw)} is not ` +
-                        `'full-page' or 'body+header-lock' (a typo aborts the pipeline).`
-                    );
-                } else {
-                    explicitMode = canonical;
-                }
-            }
-
-            let mode;
-            if (explicitMode !== null) {
-                mode = explicitMode;
-            } else if (FULL_PAGE_TYPES.has(visualType)) {
-                mode = RENDER_MODE_FULL_PAGE;
-            } else if (visualType) {
-                mode = RENDER_MODE_BODY_HEADER_LOCK;
-            } else {
-                mode = null; // neither signal present
-            }
-
-            // a) render mode must be resolvable — else it silently defaults to body+header-lock.
-            if (mode === null) {
+            if (policy && (!visualType || isBracketPlaceholder(visualType))) {
                 problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: no VISUAL TYPE and no RENDER MODE — it would silently ` +
-                    `default to body+header-lock. Declare RENDER MODE (full-page | body+header-lock).`
+                    `ERROR: slide ${JSON.stringify(sid)}: render policy requires a real VISUAL TYPE ` +
+                    `to distinguish hero and content prompt contracts.`
                 );
+            }
+            if (!policy && !visualType && !renderModeRaw) {
+                problems.push(
+                    `ERROR: slide ${JSON.stringify(sid)}: no VISUAL TYPE and no RENDER MODE — ` +
+                    `legacy resolution would silently choose body+header-lock.`
+                );
+            }
+
+            let mode = null;
+            try {
+                mode = determineRenderMode(slideId, visualType, renderModeRaw, policy).mode;
+            } catch (error) {
+                const details = error instanceof RenderPolicyError ? error.problems : [error.message];
+                for (const detail of details) problems.push(`ERROR: ${detail}`);
             }
 
             // b) IMAGE PROMPT is mandatory and must be real (not an [instruction] stub).
@@ -592,7 +580,7 @@ export function validateSpecs(mdPaths) {
 
             // c) body+header-lock slides get their TITLE overlaid by Stage 3 — an empty
             //    OR placeholder TITLE draws a blank/garbage header band onto the image.
-            const titleFilled = Boolean(title) && !isBracketPlaceholder(title);
+            const titleFilled = Boolean(presentHeaderText(title));
             if (mode === RENDER_MODE_BODY_HEADER_LOCK && !titleFilled) {
                 problems.push(
                     `ERROR: slide ${JSON.stringify(sid)}: body+header-lock slide has no real TITLE — Stage 3 would ` +
@@ -601,7 +589,13 @@ export function validateSpecs(mdPaths) {
             }
 
             // d) quality-layer warnings (do not block generation).
-            if (mode === RENDER_MODE_BODY_HEADER_LOCK && (!kicker || isBracketPlaceholder(kicker))) {
+            if (mode === RENDER_MODE_FULL_PAGE && !isHeroVisualType(visualType) && !titleFilled) {
+                problems.push(
+                    `WARN: slide ${JSON.stringify(sid)}: content full-page slide has no real TITLE ` +
+                    `(it would ship without a header title).`
+                );
+            }
+            if (mode === RENDER_MODE_BODY_HEADER_LOCK && !presentHeaderText(kicker)) {
                 problems.push(`WARN: slide ${JSON.stringify(sid)}: no real KICKER (header overlay will show the title alone).`);
             }
         }
@@ -639,12 +633,8 @@ export function parseSlides(mdPaths, finalRules) {
     let seq = 1;
 
     for (const mdPath of mdPaths) {
-        let text;
-        try {
-            text = readFileSync(mdPath, "utf-8");
-        } catch {
-            throw new Error(`Cannot read spec file: ${mdPath}`);
-        }
+        const context = readSpecContext(mdPath);
+        const { text, blocks, policy } = context;
 
         // Novice guard: the file may still be the unfilled template (--init copies
         // it in with [PLACEHOLDER] markers and placeholder slide ids). Running the
@@ -659,7 +649,6 @@ export function parseSlides(mdPaths, finalRules) {
         }
 
         // Accept colon (:), full-width colon (：), hyphen (-), or em-dash (—) after slide number (with optional space)
-        const blocks = splitSlideBlocks(text);
         if (blocks.length === 0) {
             throw new Error(
                 `${mdPath} 里没找到 slide 块(需要 '## Slide N: slide_id' 这样的标题)。\n` +
@@ -668,25 +657,31 @@ export function parseSlides(mdPaths, finalRules) {
         }
 
         for (const [slideId, body] of blocks) {
-            const visualType = extractField(body, "VISUAL TYPE");
+            const rawVisualType = extractField(body, "VISUAL TYPE");
+            if (policy && (!rawVisualType || isBracketPlaceholder(rawVisualType))) {
+                throw new RenderPolicyError(
+                    `slide ${JSON.stringify(slideId)}: render policy requires a real VISUAL TYPE`
+                );
+            }
+            const visualType = normalizeVisualType(rawVisualType);
             const renderMode = extractField(body, "RENDER MODE");   // explicit author override (optional)
-            const kicker = extractField(body, "KICKER");
-            const headline = extractField(body, "TITLE");
-            const subtitle = extractField(body, "SUBTITLE");
+            const kicker = presentHeaderText(extractField(body, "KICKER"));
+            const headline = presentHeaderText(extractField(body, "TITLE"));
+            const subtitle = presentHeaderText(extractField(body, "SUBTITLE"));
             const sourcePrompt = extractPrompt(body, slideId);
 
             const slideRecord = {
                 id: slideId,
                 visual_type: visualType,
-                kicker: kicker,
-                headline: headline,
             };
+            if (kicker) slideRecord.kicker = kicker;
+            if (headline) slideRecord.headline = headline;
             if (subtitle) {
                 slideRecord.subtitle = subtitle;
             }
 
             slideRecord.layout_contract = buildLayoutContract(
-                slideId, visualType, body, renderMode
+                slideId, visualType, body, renderMode, policy
             );
             plan.push(slideRecord);
 

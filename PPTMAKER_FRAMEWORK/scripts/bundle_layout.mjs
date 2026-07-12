@@ -659,7 +659,7 @@ const _DIR_READMES = {
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +
         '**你改这两处:**\n' +
-        '- `slide-specifications.md` — 每一页讲什么(标题、要点、画面描述、render mode)\n' +
+        '- `slide-specifications.md` — 每一页讲什么(标题、要点、画面描述) + 全册 render policy\n' +
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
         '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
@@ -799,19 +799,19 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `\`\`\`bash\n` +
         `# 推荐：统一入口\n` +
         `node "${flowScript}" doctor\n` +
-        `node "${flowScript}" pilot "${deckDir}/${VERSIONS_DIR}/v1"\n` +
-        `node "${flowScript}" build "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" pilot "${deckDir}/${VERSIONS_DIR}/v1" --resolution 2k --force-images\n` +
+        `node "${flowScript}" approve "${deckDir}/${VERSIONS_DIR}/v1" header\n` +
+        `node "${flowScript}" build "${deckDir}/${VERSIONS_DIR}/v1" --resolution 2k --reuse-images\n` +
         `\n# 等价：直接跑管线（Expert）\n` +
         `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 1\n` +
-        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
-        `--only opener_id,content_id,closer_id --resolution 1k\n` +
-        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 2 ` +
-        `--resolution 2k --force-images\n` +
-        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 3,4,5\n` +
+        `# Expert 可直跑 stage 做诊断；正式生产仍须通过上面的 header review gate。\n` +
         `\n# 新建干净版本（不复制旧图片/PPTX）\n` +
         `node "${versionScript}" --new-version "${deckDir}/${VERSIONS_DIR}/v1"\n` +
         `\`\`\`\n\n` +
-        `用户只需告诉 Agent 想改什么；Agent 负责选择最小重跑链。\n`);
+        `新 deck 默认 full-page；需要像素级标题位置和稳定清晰文字时，把对应 slide id 加入 specs frontmatter 的 ` +
+        `\`render.header-lock\`。逐页 RENDER MODE 仅作高级 override。full-page header 是尽力稳定，header-lock 才是确定性保证。\n\n` +
+        `1K evidence 不授权 2K；resolution/model/style 任一变化都要用目标 profile 重新 pilot + approve header。\n\n` +
+        `用户只需告诉 Agent 想改什么；Agent 负责按 resolved mode 选择最小重跑链。\n`);
     log.push(`project files: ${METADATA_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
 
     _writeIfAbsent(

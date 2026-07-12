@@ -10,6 +10,9 @@ depends_on:
 feeds_into:
 - Run bundle 3_versions/v1/slide-specifications.md
 agent_action: fill_template
+render:
+  default: full-page
+  header-lock: []
 ---
 
 # Pitch Deck Template
@@ -59,9 +62,9 @@ Falsifiable? If someone can prove that [A] alone achieves [C] without [B], the t
 ## Section 5: Slide Specifications
 
 > **每页按四层规格填**（Phase 1 填 L1/L2/L4；**L3 IMAGE PROMPT 视觉锁定后再回填**——见 `AGENTS.md` §2.7 / 本框架 bug 0003）。本模板已给每页 L1 骨架 + L2 的 `MUST communicate`/`MUST NOT` + L4 讲稿提示；填充时**补全**：
-> - **L1 Meta — 加显式 `RENDER MODE`**：`Title / Opener` 和 `Closer` = `full-page`（image-direct，AI 连标题一起画）；其余 = `body+header-lock`（AI 只画 body，Stage 3 Header-Lock 叠标题）。省略则由 VISUAL TYPE 自动映射。
+> - **L1 Meta — 通常不写逐页 `RENDER MODE`**：frontmatter 已设全册默认 `full-page`。需要确定性标题的页，把 id 加入 `render.header-lock`；逐页字段只用于高级覆盖。
 > - **L2 Concept — 每页补上 `Bridge`**（本页承上启下的论证功能）：模板已有 `MUST communicate`/`MUST NOT`，加一条 Bridge 让叙事弧线连贯。
-> - **L3 IMAGE PROMPT — 只写"画面内容"**。不要往里写 header 安全区、body 文字契约、或 style anchoring 语句——Stage 1 组装时会自动注入这些系统契约，重复写只会干扰图像模型。用 `[方括号]` 标注要填的视觉描述；**Phase 1 留占位，视觉锁定后（§2.7）回填**。
+> - **L3 IMAGE PROMPT — 只写"画面内容/构图意图"**。不要写 KICKER/TITLE/SUBTITLE 的文案或位置，也不要重复 header 安全区、body 契约或 style anchoring；Stage 1 会注入。hero 页同样只描述自由构图。用 `[方括号]` 标注要填的视觉描述；**Phase 1 留占位，视觉锁定后（§2.7）回填**。
 > - **L4 Speaker Note**：已给提示，按你的内容改写。
 >
 > 完整四层形状见 `workflow/02-content/template-slide-specifications.md`；**填好的范例**见 `example-deck-brief-mini.md`。
@@ -82,10 +85,10 @@ Falsifiable? If someone can prove that [A] alone achieves [C] without [B], the t
 
 **IMAGE PROMPT**:
 ```
-IMAGE-DIRECT opener — the AI renders the complete slide including the text.
-LAYOUT: Full-slide visual with one large central statement.
+Opener composition — dramatic, minimal, and full-slide.
+LAYOUT: One dominant visual focus with intentional negative space for the structured header.
 VISUAL: [DESCRIBE the one metaphor or image that captures the company's essence — the product, the problem solved, the transformation — as a dramatic single-image composition]
-TEXT: Kicker (company name) small at top; Title (the hook) large and dominant, center or center-left; subtitle (round + date) small below. No body text.
+No body text or extra labels.
 ```
 
 > **SPEAKER NOTE**

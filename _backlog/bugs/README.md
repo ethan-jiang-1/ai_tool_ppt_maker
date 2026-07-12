@@ -18,8 +18,9 @@
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
 | [BUG-008](BUG-008-image-api-client-submit-parse-array.md) | P1 | image_api_client submit 解析不认 `data:[{task_id}]` 数组，出图全线卡死（style master + Stage 2） |
+| [BUG-009](BUG-009-stage3-loadimage-sync-decode-blank-passthrough.md) | P0 | Stage 3 `_loadImageToCanvas` 同步解码竞态 → 输出全白图，PPTX 25 页白板（Stage 4 无辜） |
 
-**Next available bug ID: BUG-009**
+**Next available bug ID: BUG-010**
 
 ---
 

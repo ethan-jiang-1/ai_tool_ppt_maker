@@ -27,10 +27,11 @@ agent_action: classify_changes
 ```
 用户说 → 分类到
 
-"改第 3 页的标题"                    → Chain A
-"把 kicker 改成 XXX"                → Chain A
-"标题太长了，缩短一点"               → Chain A
-"这个 subtitle 不够有力"            → Chain A
+"改第 3 页的标题"                    → 先查 resolved mode：body+header-lock = Chain A；full-page = Chain B
+"把 kicker 改成 XXX"                → 同上
+"标题太长了，缩短一点"               → 同上
+"这个 subtitle 不够有力"            → 同上
+"把这页切到/切出 header-lock"         → Chain B（raw image contract 改变）
 
 "第 7 页的画面不太对"                → Chain B
 "这个图换成 XXX 的例子"             → Chain B
@@ -50,8 +51,8 @@ agent_action: classify_changes
 影响范围 → 重跑策略
 
 1 张 slide → 只重跑该 slide
-  - Chain A（改标题文字）: `--stage 1,3,4,5`（**不要加 `--only`**——A 不含 Stage 2，`--only` 只限制生图，对 A 是空操作；1/3/4/5 会处理全部 slide，但很快、无生图）
-  - Chain B（改画面）: `--stage 1,2,3,4,5 --only slide_NN --force-images`（`--only` 限定生图；**重渲须显式 `--force-images`**；多张用逗号 `--only s5,s7`；1/3/4/5 仍处理全部，很快）
+  - Chain A（body+header-lock 的 header 文字）: `--stage 1,3,4,5`（A 不含 Stage 2；`--only` 对它是空操作）
+  - Chain B（full-page header、mode 切换或画面）: `--stage 1,2,3,4,5 --only slide_NN --force-images`（多张用逗号；Stage 2 只重生选中页）
   - Chain C（改讲稿）: `--stage 5`（整体重跑，但只改 note）
 
 2-5 张 slides → 重跑受影响 slides
@@ -74,20 +75,20 @@ agent_action: classify_changes
 改配色/TONE → "先跑 3 张代表性 slides（opener, content, closer）确认效果？"
 改 prompt 写法 → "先跑 1 张看效果，满意了再批量？"
 新增 slide → 直接跑（单张成本低）
-改全部 slides 的文字 → 直接跑（Chain A 成本低，5 分钟）
+改全部 slides 的 header 文字 → 先按 resolved mode 分组；full-page 部分需要 pilot/review 后再批量
 ```
 
 ---
 
 ## 用户沟通模板
 
-### 模板 1: 小改动（单页，Chain A/C）
+### 模板 1: 小改动（单页 body+header-lock，Chain A/C）
 
 ```
 用户说：{REQUEST}
 
 Agent 回复：
-"好的，改 Slide {N} 的 {WHAT}。只改文字不动画面，约 2 分钟。"
+"好的，Slide {N} 使用确定性标题层，只需重画标题并刷新 PPTX，约 2 分钟。"
 → 执行 → "{N} 页已更新，PPTX 刷新完成。"
 ```
 
@@ -96,8 +97,8 @@ Agent 回复：
 ```
 用户说：{REQUEST}
 
-Agent 回复：
-"好的，重新生成 Slide {N} 的画面。改完后 Stage 3（Header-Lock）会把标题叠加上去，约 5 分钟。"
+Agent 回复（按实际 mode 描述，不承诺一定经过 Header-Lock）：
+"好的，这项改动会进入 Slide {N} 的生成图片。我会只重生这一页并重新检查标题，约 5 分钟。"
 → 执行 → "Slide {N} 已更新。要看一下效果吗？"
 ```
 
@@ -141,7 +142,7 @@ Agent 回复：
 
 ### "数据是错的"
 
-→ 第一步：确认正确数据。第二步：判断文字实际由谁渲染。只有 KICKER/TITLE/SUBTITLE 属于 Chain A；KPI、卡片、图表标签等 body 内容都属于 Chain B，即使只是改一个数字。
+→ 第一步：确认正确数据。第二步：判断文字实际由谁渲染。只有 body+header-lock 的 KICKER/TITLE/SUBTITLE 属于 Chain A；full-page header 与 KPI、卡片、图表标签等都属于 Chain B。
 
 ### "我不确定哪里不对，但就是不对"
 
@@ -153,17 +154,17 @@ Agent 回复：
 
 | Chain | Stage 序列 | 时间 | 适合 |
 |-------|-----------|------|------|
-| **A** (text only) | 1 → 3 → 4 → 5 | ~5 min | 标题/副标题/标注文字改动 |
-| **B** (visual) | 1 → 2 → 3 → 4 → 5 | ~5 min/page | 画面/配色/prompt 改动 |
+| **A** (deterministic header) | 1 → 3 → 4 → 5 | ~5 min | body+header-lock 的标题/副标题改动 |
+| **B** (generated image) | 1 → 2 → 3 → 4 → 5 | ~5 min/page | full-page header、mode 切换、画面/配色/prompt 改动 |
 | **C** (notes only) | 5 | ~30 sec | Speaker notes 改动 |
 | **结构** (add/del/reorder) | cp 3_versions/v{n} → 3_versions/v{n+1} + 受影响 slides | 视范围 | 加/删/重排 slides |
 
 使用统一管线脚本：
 ```bash
-# Chain A: text only (re-parses all slides, re-locks headers, rebuilds PPTX)
+# Chain A: body+header-lock header only
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
 
-# Chain B: visual — single slide (--only limits Stage 2; --force-images required to regenerate)
+# Chain B: full-page header, mode switch, or visual — single slide
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN --force-images
 
 # Chain C: notes only
@@ -174,3 +175,5 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions
 ```
 
 > **Note**: `--only` 只限制 Stage 2；**不会**隐式强制重渲——已有图默认跳过，要刷新须加 `--force-images`。Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。`--only` 也接受页号（`3`）或前缀（`s03`）。
+
+> 新 deck 的 `render.default` 为 `full-page`。full-page header 只尽力稳定；要求像素位置和清晰度时，用户确认后把 slide id 加入 `render.header-lock`，再按 Chain B 强制重生并重新 review。若用户接受残余风险，在版本 Change Log 或 playbook state extra 持久记录 slide id 与症状。整册目标 geometry 改动属于 visual-config 变更，不是 exception。

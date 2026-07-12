@@ -42,6 +42,23 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
+  it('all init templates seed full-page policy without per-slide mode requirements', () => {
+    for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
+      const deck = join(tmpdir(), `deck_render_policy_${deckType || 'generic'}_${Date.now()}`);
+      try {
+        initBundle(deck, null, deckType, null);
+        const specs = readFileSync(
+          join(deck, '3_versions', 'v1', 'slide-specifications.md'),
+          'utf-8'
+        );
+        expect(specs).toMatch(/render:\s*\n\s+default: full-page\s*\n\s+header-lock: \[\]/);
+        expect(specs).not.toMatch(/加显式 `RENDER MODE`|每页声明 RENDER MODE/);
+      } finally {
+        rmSync(deck, { recursive: true, force: true });
+      }
+    }
+  });
+
   it('prints tree by default including _state and _lessons', () => {
     const out = run(`node ${BUNDLE}`);
     expect(out).toContain('deck_');

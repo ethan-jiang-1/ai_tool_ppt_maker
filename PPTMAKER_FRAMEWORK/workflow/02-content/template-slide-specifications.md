@@ -3,13 +3,16 @@ title: Template — slide-specifications.md
 stage: workflow/02-content
 position: template
 type: template
-summary: 复制到 deck_{NAME}/3_versions/v{n}/slide-specifications.md。下游:每页规格 + block map + 每页 render mode。管线入口(Stage 1 解析它)。
+summary: 复制到 deck_{NAME}/3_versions/v{n}/slide-specifications.md。下游:每页规格 + block map + 全册 render policy。管线入口(Stage 1 解析它)。
 depends_on:
 - workflow/02-content/03-specify-slides-multi-layer.md
 - workflow/02-content/02-build-narrative-arc-blocks.md
 feeds_into:
 - scripts/stage1_build_inputs.mjs
 agent_action: fill_template
+render:
+  default: full-page
+  header-lock: []
 ---
 
 # Template — slide-specifications.md
@@ -48,12 +51,9 @@ agent_action: fill_template
 
 **VISUAL TYPE**: [PLACEHOLDER: Title / Opener | Concept Split | Direction | Impact / Evidence | Framework | Case Anchor | Flow / Mechanism | Section Divider | Risk / 2 Panels | Closer]
 
-**RENDER MODE**: [PLACEHOLDER: full-page | body+header-lock]
+<!-- Advanced override only: **RENDER MODE**: full-page | body+header-lock -->
 
-[INSTRUCTION: RENDER MODE 决定这页怎么生产,两选一:
-- **full-page**(整页):image-2 画整页,包括标题。用于 opener / section divider / closer(约 20%)。
-- **body+header-lock**(半自动):image-2 只画 body(顶部留白),Stage 3（`@napi-rs/canvas`）把 kicker+title 叠在固定像素位——标题永远精准一致。用于常规内容页(约 80%)。
-VISUAL TYPE 会自动映射到 render mode(Title/Opener、Section Divider、Closer → full-page;其余 → body+header-lock),所以通常你选对 VISUAL TYPE 即可;RENDER MODE 写出来是为了让这页的生产方式一眼可见。映射定义见 stage1_build_inputs.mjs 的 FULL_PAGE_TYPES。]
+[INSTRUCTION: 本模板 frontmatter 的 `render.default: full-page` 控制全册默认值，通常不要逐页填写 RENDER MODE。需要像素级标题位置和稳定清晰文字时，把 slide id 加入 `render.header-lock`；只有单页确实要脱离全册策略时才使用逐页 RENDER MODE。full-page 的 header 由图像模型尽力保持稳定；只有 body+header-lock 由 Stage 3 确定性保证位置与清晰度。]
 
 **KICKER**: [PLACEHOLDER: 3-6 词全大写。区段标签,不是 claim。opener/closer 可填 "(none)"。]
 
@@ -76,15 +76,17 @@ VISUAL TYPE 会自动映射到 render mode(Title/Opener、Section Divider、Clos
 1. LAYOUT OVERVIEW — 分区、y 范围、比例
 2. ZONE DESCRIPTIONS — 每区的内容:面板、图标、文字、视觉元素
 3. COLOR SEMANTICS — 每个颜色在这页的语义
-4. TEXT CONTENT — 每个文字元素的精确措辞(加引号)
+4. BODY TEXT CONTENT — body 内必要文字的精确措辞(加引号)
 5. CALLOUT BAR — 底部整宽句子(如适用)
 6. ANTI-PATTERNS — 不要画什么
 
-body+header-lock 模式:不要画 kicker/title(顶部留白,Stage 3 Header-Lock 会叠)。
-full-page 模式:画整页含标题。
+不要重复结构化 KICKER/TITLE/SUBTITLE 的文案或位置；Stage 1 会按 resolved mode 注入对应契约。
+body+header-lock:只描述 body 构图；Stage 1 注入顶部保留区，Stage 3 叠 header。
+普通 full-page:只描述 body 与整体构图；Stage 1 注入准确 header 文字和统一软 band。
+hero full-page:只描述自由构图意图；Stage 1 注入准确 header 文字，不注入固定 band。
 视觉风格(颜色/字体/组件)对照 2_backbone/visual-style/;prompt 技巧见 workflow/03-prompts。]
 ```
-> **何时填 L3**：Phase 1 **留占位就好**（上面这段 `[PLACEHOLDER]` 原样保留）。L3 要"对照 `2_backbone/visual-style/`"才写得对，而那套视觉 Phase 2 才锁定——Phase 1 就写 = 拿不存在的东西做参照，多半作废。**视觉锁定后（AGENTS.md §2.7）统一回填**，再跑 `stage1_build_inputs.mjs --validate` 清 ERROR。L1 的 TITLE/VISUAL TYPE/RENDER MODE 照常在 Phase 1 写全。
+> **何时填 L3**：Phase 1 **留占位就好**（上面这段 `[PLACEHOLDER]` 原样保留）。L3 要"对照 `2_backbone/visual-style/`"才写得对，而那套视觉 Phase 2 才锁定——Phase 1 就写 = 拿不存在的东西做参照，多半作废。**视觉锁定后（AGENTS.md §2.7）统一回填**，再跑 `stage1_build_inputs.mjs --validate` 清 ERROR。L1 的 TITLE/VISUAL TYPE 照常在 Phase 1 写全；逐页 RENDER MODE 仅用于高级覆盖。
 
 > **SPEAKER NOTE**
 >
@@ -120,6 +122,6 @@ full-page 模式:画整页含标题。
 
 ---
 
-> **完成标志**:所有 placeholder 已替换;Block Map 讲出连贯故事;每张 slide **L1 Meta + L2 Concept + L4 Speaker Note 齐全 + RENDER MODE 明确**;change log 有首条。**L3 IMAGE PROMPT 是最后一层**——Phase 1 留占位、视觉锁定后（§2.7）回填,回填完再算真正四层齐全。
+> **完成标志**:所有 placeholder 已替换;Block Map 讲出连贯故事;每张 slide **L1 Meta + L2 Concept + L4 Speaker Note 齐全**，全册 render policy 有效;change log 有首条。**L3 IMAGE PROMPT 是最后一层**——Phase 1 留占位、视觉锁定后（§2.7）回填,回填完再算真正四层齐全。
 >
 > **下一步**:视觉在 `2_backbone/visual-style/`(全版本共享);生产跑 `unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v{n} --stage all`;写 IMAGE PROMPT 见 workflow/03-prompts。

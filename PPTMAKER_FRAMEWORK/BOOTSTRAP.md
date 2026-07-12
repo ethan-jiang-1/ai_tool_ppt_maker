@@ -238,7 +238,7 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
    它建好三层结构、每个目录放大白话 README、铺好内容模板、**把 deck-type 模板铺成 `slide-specifications.md`、把视觉 preset 的 `deck_system.txt` + `color_palette.json` 铺进 `2_backbone/visual-style/`**、写好完整 deck-guide.md + CLAUDE.md + project-metadata.yaml。`_generated/` 的空壳与 README 会预建，真实管线产物在首次运行时生成。`{preset-slug}` 是 3.5 表里的 `--style` 值。**不要再手敲 cp**——播种由 `--init` 确定性完成。
 2. **Phase 1 简化为**：隐喻/公式写进 `2_backbone/core-metaphor.md` + `core-formula.md`；deck-type 模板已由 `--init` 铺成 `3_versions/v1/slide-specifications.md`,填真实内容,让用户审核关键 claim。
 3. **Phase 2 简化为**：视觉 preset 的 `deck_system.txt` + `color_palette.json` 已由 `--init --style` 铺进 `2_backbone/visual-style/`;只剩 `style_master.jpg` 需生成(preset 不含预生成图),把它的 prompt 存为 `style-master-prompt.md` 再生成。
-4. **Phase 3**：先跑 `ppt_flow.mjs pilot deck_{NAME}/3_versions/v1`，用户确认后跑 `ppt_flow.mjs build deck_{NAME}/3_versions/v1`。两者都会自动检查结构与闸门。
+4. **Phase 3**：先用计划 production profile 跑 `ppt_flow.mjs pilot`，open contact sheet 审查后执行 `ppt_flow.mjs approve <run-dir> header`，最后用同 profile `ppt_flow.mjs build <run-dir> --reuse-images`。1K evidence 不授权 2K。
 5. **Phase 4（迭代）**：交付后用户提改动时，参考 [workflow/05-iteration/README.md](workflow/05-iteration/README.md) 和 [scripts/change-classifier.md](scripts/change-classifier.md) 做最小重跑。改 slide = 下游；改隐喻/视觉主干 = 改 `2_backbone/`（影响全版本）。
 
 ---
@@ -267,6 +267,7 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
 ## 已知限制（Agent 需告知用户）
 
 - **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown 按编辑链重跑管线（Chain A ~5 min；Chain B ~5 min/页）。不要尝试在 PowerPoint 里改文本框。
+- **新 deck 默认 full-page**：`--init` 会在 slide specs frontmatter 写入 `render.default: full-page`。full-page header 的位置与清晰度是图像模型的尽力保证；需要像素精度或稳定清晰度时，把页升级到 `render.header-lock`。没有顶层 `render` 的旧 deck 保持 VISUAL TYPE 派生；`render` 内 typo 会报错，顶层 `renders:` 不会被猜测纠正，排障看 `render_mode_source`。
 - **中文 slides 支持受限**：预设的 `deck_system.txt` 默认英文。如需中文 slides，Agent 需改 `deck_system.txt` LANGUAGE 规则，并将 Stage 3 字体切换为 Noto Sans CJK（见 `scripts/fonts/README.md`）。
 - **自定义 Logo**：所有预设默认无 logo。如需添加，Agent 需在每个 slide 的 IMAGE PROMPT 中描述 logo 的位置和大小，并编辑 `deck_system.txt` 的 FORBIDDEN 规则。
 - **如果不喜欢 5 个预设**：告诉 Agent "我想自定义风格"，Agent 会切换到 Expert Mode（Phase 2 的完整视觉系统设计流程）。

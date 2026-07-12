@@ -80,18 +80,18 @@ AI image model 有三个致命弱点：
 
 确定性 canvas 渲染恰恰相反——它可以在精确的像素位置、用精确的字体大小、渲染精确的文字内容。每次都一样。
 
-因此：**AI 负责 "画面"（body visual）——图表、卡片、图标、色彩。确定性层负责 "文字"（header text）——kicker、title、subtitle。**
+因此有两种质量档：`full-page` 由 AI 生成完整画面和结构化 header，位置一致性属于尽力而为；`body+header-lock` 把 header 交给确定性层，保证文字内容、清晰度和像素位置。
 
 ### 两种 RENDER MODE（唯一词汇）
 
-| RENDER MODE | 数量（典型） | AI 负责 | 确定性层负责 |
-|-------------|------------|---------|------------|
-| **`body+header-lock`** | ~80% | 生成 body 画面，顶部 260px 留空 | 在顶部叠加 kicker + title + subtitle |
-| **`full-page`** | ~20% | 生成完整画面，包括标题 | 什么都不做（pass-through） |
+| RENDER MODE | AI 负责 | 确定性层负责 |
+|-------------|---------|------------|
+| **`full-page`** | 生成完整画面，包括 Stage 1 注入的准确 header 文字与软位置契约 | 什么都不做（pass-through） |
+| **`body+header-lock`** | 生成 body 画面，顶部保留硬 safe zone | 在顶部叠加 kicker + title + subtitle |
 
-`full-page` 用于 opening、section divider、closing 等 "全页视觉效果" 的 slide——这些 slide 的标题是画面构图的一部分，需要 AI 生成完整画面。但它们只占少数——通常是 3-5 张。
+新 deck 默认 `full-page`，先用统一软契约获得完整构图；当某页必须保证清晰度/像素位置，或 pilot 发现漂移时，将它升级为 `body+header-lock`。hero 页仍适合 full-page 自由构图。
 
-**如何判定**：问——"这张 slide 的标题位置是否固定、可预测？" 如果是（= 大部分 slide），用 `body+header-lock`。如果不是（= 标题在画面中间、偏右、或其他非固定位置），用 `full-page`。
+策略分两支：新 deck 有顶层 `render`，按 explicit > exception > hero guard > default；旧 deck完全没有 `render`，按 explicit > VISUAL TYPE 派生。`render` 内未知键 fail-loud；顶层 `renders:` 不做 fuzzy 纠正，因为“缺少 render”本身是合法 legacy 信号。排障查看 `render_mode_source`。
 
 > 旧词 `normal` / `image_direct` 已废弃。`slide_plan.json` 写 `layout_contract.render_mode`；Stage 3 读它（旧 plan 的 `header_variant` 仍可映射）。
 
@@ -101,14 +101,13 @@ AI image model 有三个致命弱点：
 
 | 链 | 改了什么 | 影响范围 | 走哪些 Stage | 耗时 |
 |----|---------|---------|-------------|------|
-| **A** | Kicker / Title / Subtitle 的文字 | 单张或多张 slide 的标题 | 1 → 3 → 4 → 5 | ~5 min |
-| **B** | Image prompt / 画面视觉设计 | 单张 slide 的画面 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
+| **A** | body+header-lock 的 Kicker / Title / Subtitle | 单张或多张 slide 的标题 | 1 → 3 → 4 → 5 | ~5 min |
+| **B** | full-page header、mode 切换、Image prompt / 画面 | 单张 slide 的生成图片 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
 | **C** | Speaker notes 讲稿 | 演讲者备注 | 5 | ~30 sec |
 
 ### 编辑链的实践意义
 
-**场景 1**：客户说 "Slide 8 的标题不够有冲击力"。你需要改 2 个词。
-- 链 A：改 markdown → Stage 1（重新解析标题）→ Stage 3（重新画 header）→ Stage 4（重新打包 PPTX）→ Stage 5（重新注入 notes）。5 分钟。**不要跑 Stage 2**——画面没变，不需要重新生图。
+**场景 1**：客户说 "Slide 8 的标题不够有冲击力"。先查 resolved mode。body+header-lock 走链 A；full-page 的标题烧在图里，走链 B 并用 `--only slide_8 --force-images`。
 
 **场景 2**：客户说 "Slide 12 的视觉太拥挤，换一种布局"。你需要重写 IMAGE PROMPT。
 - 链 B：改 markdown → Stage 1 → Stage 2（重新生这张图）→ Stage 3 → Stage 4 → Stage 5。但 Stage 2 用 `--only slide_12` 只生这一张——其他 18 张跳过。
@@ -116,7 +115,7 @@ AI image model 有三个致命弱点：
 **场景 3**：演讲者说 "Slide 5 的 takeaway 改一下"。只需要改 markdown 里的 SPEAKER NOTE。
 - 链 C：只跑 Stage 5。30 秒。
 
-**关键纪律**：知道你的改动在哪条链上。不要在链 A 场景下跑 Stage 2——那会浪费 20 分钟在不需要重新生图上，而且新生成的图可能和上一版不一样（AI 的非确定性），引入你不需要的视觉变化。
+**关键纪律**：按文字实际由谁渲染分类。只有 body+header-lock header 属于链 A；full-page header 和任意 mode 切换都属于链 B。
 
 ## 管线参数化：为不同项目定制
 
@@ -126,7 +125,7 @@ AI image model 有三个致命弱点：
 |------|------|---------|
 | Canvas 尺寸 | 16:9 的像素尺寸（如 1672×941） | 视觉系统的 typography scale |
 | Header safe zone | 顶部留空高度（如 260px） | 视觉系统的 layout grid |
-| RENDER MODE / VISUAL TYPE 映射 | 哪些 slide 是 full-page | 内容设计——每张 slide 的 VISUAL TYPE 或显式 RENDER MODE |
+| Render policy / override | 哪些 slide 使用 header-lock | frontmatter policy、例外表或高级逐页 override |
 | API endpoint + model | 用哪个 image generation API | 你的 tooling 选择 |
 | Font 路径 + 大小 | header 用什么字体 | 视觉系统的 typography scale |
 

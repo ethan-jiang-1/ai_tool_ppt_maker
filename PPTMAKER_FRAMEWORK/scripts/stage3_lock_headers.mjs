@@ -31,7 +31,7 @@
  *     add Noto Sans CJK and point FONT_BOLD/SEMIBOLD/REGULAR at it.
  */
 
-import { createCanvas, Image, GlobalFonts } from "@napi-rs/canvas";
+import { createCanvas, Image, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import {
   existsSync,
   readFileSync,
@@ -83,7 +83,7 @@ const CANONICAL_RENDER_MODES = new Set([
  * @param {Record<string, any>} layout
  * @returns {string}
  */
-function _contractRenderMode(layout) {
+export function contractRenderMode(layout) {
   const mode = layout.render_mode;
   if (CANONICAL_RENDER_MODES.has(mode)) {
     return mode;
@@ -930,16 +930,16 @@ function _resolveImages(imgDir, slides) {
 
 /**
  * Load an image from a file path into an @napi-rs/canvas Canvas, resized to
- * the target dimensions.  Uses the synchronous Image API (new Image() + .src)
- * for consistency with the synchronous original.
+ * the target dimensions.  Uses async loadImage() to guarantee the image is
+ * fully decoded before drawImage — the sync new Image() + .src pattern can
+ * race and produce blank canvases (BUG-009).
  *
  * @param {string} imgPath
  * @param {[number, number]} targetSize - [width, height]
- * @returns {import("@napi-rs/canvas").Canvas}
+ * @returns {Promise<import("@napi-rs/canvas").Canvas>}
  */
-function _loadImageToCanvas(imgPath, targetSize) {
-  const img = new Image();
-  img.src = readFileSync(imgPath);
+async function _loadImageToCanvas(imgPath, targetSize) {
+  const img = await loadImage(readFileSync(imgPath));
   const canvas = createCanvas(targetSize[0], targetSize[1]);
   const ctx = canvas.getContext("2d");
   ctx.drawImage(img, 0, 0, targetSize[0], targetSize[1]);
@@ -1077,10 +1077,10 @@ async function runLockHeaders(opts) {
     const imgPath = images[slideId];
 
     const layout = slide.layout_contract || {};
-    const mode = _contractRenderMode(layout);
+    const mode = contractRenderMode(layout);
 
     // Load and resize the raw image into a Canvas.
-    const imageCanvas = _loadImageToCanvas(imgPath, _CANVAS_SIZE);
+    const imageCanvas = await _loadImageToCanvas(imgPath, _CANVAS_SIZE);
 
     /** @type {import("@napi-rs/canvas").Canvas} */
     let finalCanvas;

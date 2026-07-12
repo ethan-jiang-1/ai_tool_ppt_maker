@@ -65,6 +65,7 @@ import {
   initBundle, checkBundle, createVersion,
 } from "./bundle_layout.mjs";
 import { resolveSlideIds, formatAvailableSlideIds } from "./lib/slide_ids.mjs";
+import { isHeroVisualType } from "./lib/render_policy.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -360,12 +361,8 @@ function printStatus(status) {
 // ---------------------------------------------------------------------------
 
 /**
- * Choose opener/body/closer representatives without requiring hand-picked IDs.
- *
- * Strategy:
- *   - Opener = first full-page slide (or first slide)
- *   - Body = midpoint-near non-full-page slide
- *   - Closer = last full-page slide (or last slide)
+ * Choose deterministic representatives while guaranteeing content full-page
+ * coverage when those slides exist.
  *
  * Pilot selection: classifies slides by render_mode via
  * _contract_render_mode (which handles both canonical "full-page" and
@@ -379,27 +376,22 @@ export function selectPilotSlideIds(slides, count = 3) {
   const ids = slides.map((s) => String(s.id || "").trim()).filter(Boolean);
   if (count < 1 || ids.length <= count) return ids;
 
-  // Classify: full-page slides have render_mode === "full-page" or
-  // legacy header_variant === "image_direct"
-  const RENDER_MODE_FULL_PAGE = "full-page";
   const fullPageIndices = [];
-  for (let i = 0; i < slides.length; i++) {
-    const lc = slides[i].layout_contract || {};
-    const mode = lc.render_mode;
-    const legacy = lc.header_variant;
-    if (
-      mode === RENDER_MODE_FULL_PAGE ||
-      legacy === "image_direct"
-    ) {
-      fullPageIndices.push(i);
-    }
-  }
+  const contentFullPageIndices = [];
+  const heroFullPageIndices = [];
   const bodyIndices = [];
   for (let i = 0; i < slides.length; i++) {
-    if (!fullPageIndices.includes(i)) bodyIndices.push(i);
+    const lc = slides[i].layout_contract || {};
+    const fullPage = lc.render_mode === "full-page" || lc.header_variant === "image_direct";
+    if (fullPage) {
+      fullPageIndices.push(i);
+      if (isHeroVisualType(slides[i].visual_type)) heroFullPageIndices.push(i);
+      else contentFullPageIndices.push(i);
+    } else {
+      bodyIndices.push(i);
+    }
   }
 
-  /** @type {number[]} */
   const chosen = [];
 
   function add(index) {
@@ -413,26 +405,22 @@ export function selectPilotSlideIds(slides, count = 3) {
     }
   }
 
-  // Opener: first full-page, or slide 0
-  add(fullPageIndices.length > 0 ? fullPageIndices[0] : 0);
+  const requiredContent = Math.min(count, contentFullPageIndices.length, count >= 2 ? 2 : 1);
+  for (let i = 0; i < requiredContent; i++) add(contentFullPageIndices[i]);
 
-  // Body: the non-full-page slide closest to the midpoint
-  if (bodyIndices.length > 0) {
-    const midpoint = (slides.length - 1) / 2;
-    bodyIndices.sort(
-      (a, b) => Math.abs(a - midpoint) - Math.abs(b - midpoint)
-    );
-    add(bodyIndices[0]);
-  }
-
-  // Closer: last full-page, or last slide
-  add(
-    fullPageIndices.length > 0
-      ? fullPageIndices[fullPageIndices.length - 1]
-      : slides.length - 1
+  const midpoint = (slides.length - 1) / 2;
+  const nearestToMidpoint = (indices) => [...indices].sort(
+    (a, b) => Math.abs(a - midpoint) - Math.abs(b - midpoint) || a - b
   );
 
-  // Fallback fill: first, middle, last, then sequential
+  // Representative fill order: first/last hero, midpoint body, remaining
+  // content full-page, then stable deck positions.
+  add(heroFullPageIndices[0]);
+  add(heroFullPageIndices[heroFullPageIndices.length - 1]);
+  add(nearestToMidpoint(bodyIndices)[0]);
+  for (const idx of contentFullPageIndices) add(idx);
+  for (const idx of fullPageIndices) add(idx);
+
   const fallback = [0, Math.floor(slides.length / 2), slides.length - 1];
   for (let i = 0; i < slides.length; i++) {
     if (!fallback.includes(i)) fallback.push(i);
@@ -734,6 +722,165 @@ async function commandApprove(runDir, gate, { waive }) {
   return 0;
 }
 
+async function commandApproveHeader(runDir, {
+  waive = false,
+  only: onlyStr = null,
+  reason = null,
+} = {}) {
+  const resolved = resolve(runDir);
+  const issues = checkBundle(resolved, false);
+  if (issues.length > 0) {
+    emitFailed("ppt_flow.approve.header", `Cannot approve: ${issues.length} bundle issue(s)`, "Fix structure issues, then re-run approve header");
+    return 1;
+  }
+  if (waive && (!onlyStr || !String(reason || "").trim())) {
+    return emitUsage(
+      "ppt_flow.approve.header",
+      "approve header --waive requires --only and --reason",
+      "Pass --waive --only slide_id[,slide_id] --reason \"accepted symptom\""
+    );
+  }
+
+  let code = await runNode(UNIFIED_PIPELINE, ["--run-dir", resolved, "--stage", "1"]);
+  if (code !== 0) {
+    emitFailed("ppt_flow.approve.header", `Stage 1 exited ${code}`, "Fix current source/config errors, then re-run approve header");
+    return 1;
+  }
+
+  const genDir = generatedDir(resolved);
+  const plan = JSON.parse(readFileSync(join(genDir, GEN_SLIDE_PLAN), "utf-8")).slides || [];
+  let selectedIds;
+  if (waive) {
+    try {
+      selectedIds = resolveSlideIds(
+        onlyStr.split(",").map((id) => id.trim()).filter(Boolean),
+        plan
+      );
+    } catch (err) {
+      return emitUsage("ppt_flow.approve.header", err.message, `Available ids: ${formatAvailableSlideIds(plan)}`);
+    }
+  } else {
+    const pilotPlanPath = join(genDir, GEN_QA_SUBDIR, "pilot_slide_plan.json");
+    const pilotContactSheet = join(genDir, GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg");
+    if (!existsSync(pilotPlanPath)) {
+      emitFailed(
+        "ppt_flow.approve.header",
+        "current pilot_slide_plan.json is missing",
+        `Run ppt_flow pilot ${resolved} --force-images, review it, then approve header`
+      );
+      return 1;
+    }
+    if (!existsSync(pilotContactSheet)) {
+      emitFailed(
+        "ppt_flow.approve.header",
+        "current pilot final contact sheet is missing",
+        `Run ppt_flow pilot ${resolved} --force-images, review it, then approve header`
+      );
+      return 1;
+    }
+    selectedIds = (JSON.parse(readFileSync(pilotPlanPath, "utf-8")).slides || [])
+      .map((slide) => String(slide.id || "").trim())
+      .filter(Boolean);
+  }
+
+  const selectedCurrentFullPageIds = selectedIds.filter((id) =>
+    plan.some((slide) => slide.id === id && slide.layout_contract?.render_mode === "full-page")
+  );
+
+  try {
+    const prompts = JSON.parse(readFileSync(
+      join(genDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON),
+      "utf-8"
+    )).slides || [];
+    const { loadVisualConfig, DEFAULT_CONFIG } = await import("./visual_config.mjs");
+    const palettePath = styleAsset(resolved, COLOR_PALETTE_FILE);
+    const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
+    const {
+      buildHeaderReviewInputs,
+      collectPilotProvenance,
+      HEADER_REVIEW_NODE,
+      mergeHeaderReviewRecord,
+      versionKey,
+    } = await import("./lib/header_review.mjs");
+    const inputs = buildHeaderReviewInputs(plan, visualConfig);
+    const root = deckRoot(resolved);
+    const { readState, writeState, appendHistory } = await import("./lib/state.mjs");
+    const state = readState(root);
+    if (state.corrupted) throw new Error("state is corrupted");
+    const key = versionKey(root, resolved);
+    const previousRecord = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[key] || null;
+    const { changedFullPageIds } = await import("./lib/header_review.mjs");
+    const changedIds = previousRecord
+      ? changedFullPageIds(
+          previousRecord.full_page_header_snapshot || {},
+          inputs.fullPageHeaderSnapshot
+        )
+      : [];
+    const selectedReviewIds = selectedIds.filter((id) =>
+      selectedCurrentFullPageIds.includes(id) || changedIds.includes(id)
+    );
+    if (selectedReviewIds.length === 0) {
+      throw new Error("selected pilot has no current or changed full-page slides to approve");
+    }
+    const provenance = collectPilotProvenance({
+      selectedIds: selectedReviewIds,
+      prompts,
+      imagesDir: join(genDir, GEN_IMAGES_SUBDIR),
+      currentStyleReferenceSha256: (await import("./lib/image_provenance.mjs")).sha256File(
+        styleAsset(resolved, STYLE_MASTER_IMAGE)
+      ),
+    });
+    if (!state.nodes) state.nodes = {};
+    if (!state.nodes[HEADER_REVIEW_NODE]) {
+      state.nodes[HEADER_REVIEW_NODE] = { status: "pending", by_version: {} };
+    }
+    const node = state.nodes[HEADER_REVIEW_NODE];
+    if (!node.by_version || typeof node.by_version !== "object") node.by_version = {};
+    const acceptedRisks = waive
+      ? Object.fromEntries(selectedReviewIds.map((id) => [id, { reason: reason.trim(), accepted_at: new Date().toISOString() }]))
+      : {};
+    const record = mergeHeaderReviewRecord({
+      previousRecord,
+      inputs,
+      reviewedIds: waive ? [] : selectedReviewIds,
+      provenanceEntries: provenance.entries,
+      profile: provenance.profile,
+      acceptedRisks,
+    });
+    node.by_version[key] = record;
+    node.status = record.status;
+    writeState(root, state);
+    try {
+      appendHistory(root, {
+        type: waive ? "header_risk_accepted" : "header_review_approved",
+        version: key,
+        ids: selectedReviewIds,
+        fingerprint: inputs.headerReviewFingerprint,
+        status: record.status,
+        reason: waive ? reason.trim() : undefined,
+      });
+    } catch {
+      /* history is optional */
+    }
+    console.log(`✓ header review ${key}: ${record.status}`);
+    console.log(`  reviewed content full-page: ${record.reviewed_content_full_page_ids.join(", ") || "none"}`);
+    if (record.missing_content_review_count > 0) {
+      console.log(`  missing content review count: ${record.missing_content_review_count}`);
+    }
+    if (record.missing_changed_full_page_ids.length > 0) {
+      console.log(`  missing changed ids: ${record.missing_changed_full_page_ids.join(", ")}`);
+    }
+    return 0;
+  } catch (err) {
+    emitFailed(
+      "ppt_flow.approve.header",
+      err.message,
+      `Run ppt_flow pilot ${resolved} --only ${selectedIds.join(",")} --force-images, review it, then approve header`
+    );
+    return 1;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Command: style-master
 // ---------------------------------------------------------------------------
@@ -820,11 +967,11 @@ async function commandValidate(runDir) {
  * images and a contact sheet for QA.
  *
  * @param {string} runDir
- * @param {{only: string|null, count: number, resolution: string, baseUrl: string|null, dryRun: boolean, forceImages?: boolean}} opts
+ * @param {{only: string|null, count: number, resolution: string, model: string, baseUrl: string|null, dryRun: boolean, forceImages?: boolean}} opts
  */
 async function commandPilot(
   runDir,
-  { only: onlyStr, count, resolution, baseUrl, dryRun, forceImages = false }
+  { only: onlyStr, count, resolution, model, baseUrl, dryRun, forceImages = false }
 ) {
   const resolved = resolve(runDir);
 
@@ -928,6 +1075,8 @@ async function commandPilot(
     "--preview",
     "--resolution",
     resolution,
+    "--model",
+    model,
   ];
   if (forceImages) stage2Args.push("--force-images");
   if (baseUrl) stage2Args.push("--base-url", baseUrl);
@@ -973,13 +1122,37 @@ async function commandPilot(
  * Delegates to unified_pipeline.mjs --stage all.
  *
  * @param {string} runDir
- * @param {{resolution: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean}} opts
+ * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean}} opts
  */
 async function commandBuild(
   runDir,
-  { resolution, baseUrl, reuseImages, dryRun }
+  { resolution, model, baseUrl, reuseImages, dryRun }
 ) {
   const resolved = resolve(runDir);
+  if (!dryRun) {
+    const stage1Code = await runNode(UNIFIED_PIPELINE, [
+      "--run-dir", resolved, "--stage", "1",
+    ]);
+    if (stage1Code !== 0) {
+      emitFailed("ppt_flow.build", `Stage 1 exited ${stage1Code}`, "Fix current source/config errors, then rerun build");
+      return 1;
+    }
+    const { validateProductionHeaderReview } = await import("./unified_pipeline.mjs");
+    const review = await validateProductionHeaderReview(resolved, {
+      resolution,
+      model,
+      forceImages: !reuseImages,
+    });
+    if (!review.current) {
+      emitCliError({
+        code: CLI_ERROR_CODES.GATE_BLOCKED,
+        message: review.errors.join("; "),
+        hint: review.hint,
+        where: "ppt_flow.build.header-review",
+      });
+      return 1;
+    }
+  }
   const args = [
     "--run-dir",
     resolved,
@@ -987,13 +1160,23 @@ async function commandBuild(
     "all",
     "--resolution",
     resolution,
+    "--model",
+    model,
   ];
 
   if (!reuseImages) args.push("--force-images");
   if (baseUrl) args.push("--base-url", baseUrl);
   if (dryRun) args.push("--dry-run");
 
-  return runNode(UNIFIED_PIPELINE, args);
+  const code = await runNode(UNIFIED_PIPELINE, args);
+  if (code !== 0) {
+    emitFailed(
+      "ppt_flow.build",
+      `build exited ${code}`,
+      "Fix pipeline errors, then re-run build"
+    );
+  }
+  return code;
 }
 
 // ---------------------------------------------------------------------------
@@ -1015,17 +1198,79 @@ async function commandRefresh(
 
   /** @type {string} */
   let stages;
+  /** @type {string|null} */
+  let resolvedOnly = onlyStr;
 
   if (kind === "title") {
-    if (onlyStr || allSlides) {
-      console.error("✗ --only/--all apply only to --kind visual.");
+    if (onlyStr && allSlides) {
       return emitUsage(
         "ppt_flow.refresh",
-        "--only/--all apply only to --kind visual",
-        "Omit --only/--all for title/notes, or use --kind visual"
+        "--only and --all are mutually exclusive",
+        "Pass one title selector: --only <ids> or --all"
       );
     }
-    stages = "1,3,4,5";
+    const stage1Args = ["--run-dir", resolved, "--stage", "1"];
+    if (dryRun) stage1Args.push("--dry-run");
+    const stage1Code = await runNode(UNIFIED_PIPELINE, stage1Args);
+    if (stage1Code !== 0) {
+      emitFailed("ppt_flow.refresh.title", `Stage 1 exited ${stage1Code}`, "Fix current source/config errors, then rerun title refresh");
+      return stage1Code;
+    }
+    const planPath = join(generatedDir(resolved), GEN_SLIDE_PLAN);
+    if (dryRun && !existsSync(planPath)) {
+      console.log("  [DRY RUN] Title routing will resolve after Stage 1 creates slide_plan.json.");
+      return 0;
+    }
+    const plan = JSON.parse(readFileSync(planPath, "utf-8")).slides || [];
+    let affected;
+    if (onlyStr) {
+      try {
+        affected = resolveSlideIds(
+          onlyStr.split(",").map((id) => id.trim()).filter(Boolean),
+          plan
+        );
+      } catch (err) {
+        return emitUsage("ppt_flow.refresh.title", err.message, `Available ids: ${formatAvailableSlideIds(plan)}`);
+      }
+    } else if (allSlides) {
+      affected = plan.map((slide) => slide.id);
+    } else {
+      const fullPageIds = plan
+        .filter((slide) => slide.layout_contract?.render_mode === "full-page")
+        .map((slide) => slide.id);
+      if (fullPageIds.length > 0) {
+        return emitUsage(
+          "ppt_flow.refresh.title",
+          "mixed/full-page title refresh requires --only or --all",
+          `Pass --only <affected-ids> or --all; full-page ids: ${fullPageIds.join(",")}`
+        );
+      }
+      affected = plan.map((slide) => slide.id);
+    }
+    const fullPageAffected = affected.filter((id) =>
+      plan.some((slide) => slide.id === id && slide.layout_contract?.render_mode === "full-page")
+    );
+    if (fullPageAffected.length > 0) {
+      const { validateProductionHeaderReview } = await import("./unified_pipeline.mjs");
+      const review = await validateProductionHeaderReview(resolved);
+      const reviewedOrAccepted = new Set([
+        ...Object.keys(review.record?.reviewed_image_provenance || {}),
+        ...Object.keys(review.record?.accepted_risks || {}),
+      ]);
+      const affectedCurrent = fullPageAffected.every((id) => reviewedOrAccepted.has(id));
+      if (!review.current || !affectedCurrent) {
+        const hint = `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot ${resolved} --only ${fullPageAffected.join(",")} --force-images --resolution ${resolution}`;
+        emitCliError({
+          code: CLI_ERROR_CODES.TITLE_REVIEW_REQUIRED,
+          message: `full-page title review required for: ${fullPageAffected.join(", ")}`,
+          hint,
+          where: "ppt_flow.refresh.title",
+        });
+        return 1;
+      }
+    }
+    stages = "3,4,5";
+    resolvedOnly = null;
   } else if (kind === "notes") {
     if (onlyStr || allSlides) {
       console.error("✗ --only/--all apply only to --kind visual.");
@@ -1059,8 +1304,8 @@ async function commandRefresh(
     "--resolution",
     resolution,
   ];
-  if (onlyStr) args.push("--only", onlyStr);
-  if (allSlides) args.push("--force-images");
+  if (resolvedOnly) args.push("--only", resolvedOnly);
+  if (kind === "visual" && (resolvedOnly || allSlides)) args.push("--force-images");
   if (baseUrl) args.push("--base-url", baseUrl);
   if (dryRun) args.push("--dry-run");
 
@@ -1144,15 +1389,7 @@ async function commandStyleMasterWrapped(
 }
 
 async function commandBuildWrapped(runDir, opts) {
-  const code = await commandBuild(runDir, opts);
-  if (code !== 0) {
-    emitFailed(
-      "ppt_flow.build",
-      `build exited ${code}`,
-      "Fix pipeline errors, then re-run build"
-    );
-  }
-  return code;
+  return commandBuild(runDir, opts);
 }
 
 // ---------------------------------------------------------------------------
@@ -1245,28 +1482,34 @@ Examples:
   // ---- approve ----
   program
     .command("approve")
-    .description("Record a reviewed content/visual gate")
+    .description("Record a reviewed content, visual, or header gate")
     .argument("<run_dir>", "Path to version dir")
-    .argument("<gate>", "Gate to approve: content or visual")
+    .argument("<gate>", "Gate to approve: content, visual, or header")
     .option("--waive", "Record an explicit user decision to skip this gate")
+    .option("--only <ids>", "For header risk acceptance: comma-separated slide IDs")
+    .option("--reason <text>", "For header risk acceptance: persisted symptom/reason")
     .action(async (runDir, gate, opts) => {
-      if (!["content", "visual"].includes(gate)) {
+      if (!["content", "visual", "header"].includes(gate)) {
         console.error(
-          `✗ gate must be "content" or "visual"; got: ${gate}`
+          `✗ gate must be "content", "visual", or "header"; got: ${gate}`
         );
         exitCliError(
           {
             code: CLI_ERROR_CODES.USAGE,
-            message: `gate must be "content" or "visual"; got: ${gate}`,
-            hint: 'Pass "content" or "visual" as the gate argument',
+            message: `gate must be "content", "visual", or "header"; got: ${gate}`,
+            hint: 'Pass "content", "visual", or "header" as the gate argument',
             where: "ppt_flow.approve.gate",
           },
           1
         );
       }
-      const code = await commandApprove(runDir, gate, {
-        waive: opts.waive ?? false,
-      });
+      const code = gate === "header"
+        ? await commandApproveHeader(runDir, {
+            waive: opts.waive ?? false,
+            only: opts.only || null,
+            reason: opts.reason || null,
+          })
+        : await commandApprove(runDir, gate, { waive: opts.waive ?? false });
       process.exit(code);
     });
 
@@ -1335,6 +1578,7 @@ Examples:
       3
     )
     .option("--resolution <res>", "Image resolution for pilot", "1k")
+    .option("--model <name>", "Image model for pilot", "gpt-image-2")
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option("--force-images", "Regenerate pilot images even if files exist")
     .option("--dry-run", "Print what would be executed")
@@ -1357,6 +1601,7 @@ Examples:
         only: opts.only || null,
         count: opts.count ?? 3,
         resolution: opts.resolution,
+        model: opts.model,
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
         forceImages: opts.forceImages ?? false,
@@ -1370,6 +1615,7 @@ Examples:
     .description("Build the complete final deck")
     .argument("<run_dir>", "Path to version dir")
     .option("--resolution <res>", "Final image resolution", "2k")
+    .option("--model <name>", "Final image model", "gpt-image-2")
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option(
       "--reuse-images",
@@ -1393,6 +1639,7 @@ Examples:
       }
       const code = await commandBuildWrapped(runDir, {
         resolution: opts.resolution,
+        model: opts.model,
         baseUrl: opts.baseUrl || null,
         reuseImages: opts.reuseImages ?? false,
         dryRun: opts.dryRun ?? false,
@@ -1410,8 +1657,8 @@ Examples:
       "Edit scope: title, visual, or notes",
       "visual"
     )
-    .option("--only <ids>", "For visual: comma-separated slide IDs")
-    .option("--all", "For visual: explicitly refresh all pages")
+    .option("--only <ids>", "For title/visual: comma-separated slide IDs")
+    .option("--all", "For title/visual: explicitly select all pages")
     .option("--resolution <res>", "Image resolution", "2k")
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option("--dry-run", "Print what would be executed")

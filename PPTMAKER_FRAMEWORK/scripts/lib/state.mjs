@@ -19,7 +19,7 @@ export const STATE_YAML_HEADER = `\
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
 # API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: playbook, current_node, nodes.* (status, optional waiting_for/note), gates.{content,visual}, deck.*, playbook_stack
+# Fields: playbook, current_node, nodes.* (including header-review.by_version evidence), gates.{content,visual}, deck.*, playbook_stack
 # Coexists with project-metadata.yaml (static config / pipeline gates) — see README.md
 # Heal: readState defaults to tolerant parse + schema repair; dirty files are rewritten clean
 # Resume: after disconnect / cleared chat, run ppt_flow state first (whole-workflow where-am-I card)
@@ -37,7 +37,7 @@ export const STATE_DIR_README = `\
 - \`state.yaml\` — 执行进度真相源（原子写）
 - \`history.jsonl\` — 可选参考日志（首次 append 才出现；不参与自动恢复）
 
-**字段一览:** \`playbook\` · \`current_node\` · \`nodes.*\`（\`status\`；可选 \`waiting_for\` / \`note\`）· \`gates.content/visual\` · \`deck.*\` · \`playbook_stack\`
+**字段一览:** \`playbook\` · \`current_node\` · \`nodes.*\`（\`status\`；可选 \`waiting_for\` / \`note\`；\`header-review.by_version\` 保存逐版本图片审查证据）· \`gates.content/visual\` · \`deck.*\` · \`playbook_stack\`
 
 **断线 / 清聊天后续跑:** 先跑 \`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir>\`（where-am-I 卡：指针 + \`workflow_summary\` + \`suggested_next\`），再动手。进度在 deck 盘上，不在聊天里。
 

@@ -146,7 +146,7 @@ design system — do not deviate from it. Only change the slide content, not the
 | 1K | Pilot/测试阶段 | ~15-25s | 可接受的——检查 layout 和颜色 |
 | 2K | 最终生产 | ~30-60s | 细节锐利——适合 16:9 全屏显示 |
 
-建议：pilot 阶段用 1K 快速迭代（便宜、快），确认 design 后用 2K 跑最终版。
+建议：可先用 1K 快速探索方向；但 1K header evidence 不授权 2K。最终生产前必须用目标 2K/model/style profile 再跑 pilot、审查并 `approve header`，然后 `build --reuse-images` 保留 reviewed hashes。
 
 ## Stage 2 不做什么
 
