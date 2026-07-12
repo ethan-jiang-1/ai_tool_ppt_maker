@@ -2,13 +2,14 @@
 
 ### Requirement: Framework hierarchy terminology is canonical
 
-Active framework documents and `openspec/config.yaml` SHALL distinguish four hierarchy terms: Lifecycle Phase 0–4, Method Module 00–05, Pipeline Stage 1–5, and Playbook Node. Documents SHALL NOT describe workflow directory numbers as a second lifecycle Phase sequence or use incompatible phase counts for the same end-to-end process.
+Active framework documents and `openspec/config.yaml` SHALL distinguish four hierarchy terms: Lifecycle Phase sequence `0 → 1/2 → 2.7 → 3 → 4`, Method Module 00–05, Pipeline Stage 1–5, and Playbook Node. Documents SHALL NOT describe workflow directory numbers as a second lifecycle Phase sequence or use incompatible phase counts for the same end-to-end process.
 
 #### Scenario: Reader compares entry and workflow documents
 
 - **WHEN** a reader opens BOOTSTRAP, AGENT_CONTRACT, WORKFLOW, workflow/README, and openspec/config.yaml
 - **THEN** the same four hierarchy terms and meanings are used
 - **AND** the reader can distinguish lifecycle order from methodology folder order and production stages
+- **AND** the Phase 2.7 L3 prompt-fill checkpoint is preserved rather than erased by a simplified count
 
 ### Requirement: Active constitutional guidance matches current runtime behavior
 

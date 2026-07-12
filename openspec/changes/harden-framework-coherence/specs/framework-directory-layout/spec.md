@@ -13,20 +13,20 @@ Every local Markdown cross-reference in active files under `PPTMAKER_FRAMEWORK/`
 #### Scenario: Grep for old names inside framework is clean
 
 - **WHEN** the coherence test scans active framework files for removed directories and production paths
-- **THEN** no active reference to `06_reference_scripts`, `00_project_setup`, `automation/`, or external Image2 skill production paths remains
+- **THEN** no active reference to `06_reference_scripts`, `00_project_setup`, `automation/`, `01_visual_style_master`, `02_content_design`, `03_image_prompts`, `04_production_pipeline`, `05_iteration`, or external Image2 skill production paths remains
 - **AND** explicitly historical version-log text may remain under a documented exception
 
 #### Scenario: OpenSpec context uses current paths
 
 - **WHEN** the coherence test scans `openspec/specs/` and `openspec/config.yaml`
 - **THEN** path references use current framework locations such as `scripts/change-classifier.md`
-- **AND** removed paths such as `automation/change-classifier.md` are absent
+- **AND** removed paths or directory names including `automation/change-classifier.md`, `06_reference_scripts`, `00_project_setup`, `01_visual_style_master`, `02_content_design`, `03_image_prompts`, `04_production_pipeline`, and `05_iteration` are absent
 
 ## ADDED Requirements
 
 ### Requirement: Documentation exceptions are explicit and narrow
 
-Any broken-link or stale-path exclusion SHALL identify the exact historical/template file and reason. Directory-wide or broad regex exclusions that could hide active drift SHALL be forbidden.
+Any broken-link or stale-path exclusion SHALL identify the exact historical/template file and reason. Directory-wide or broad regex exclusions that could hide active drift SHALL be forbidden. A command pseudocode exception SHALL use the exact adjacent next-example marker defined by `cli-surface` and SHALL not double as a link/path exclusion.
 
 #### Scenario: Active README is hidden by broad exclusion
 
