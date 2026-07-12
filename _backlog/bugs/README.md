@@ -18,12 +18,10 @@
 | Bug | 严重级别 | 简述 |
 |-----|---------|------|
 | [BUG-003](BUG-003-header-review-stale-fingerprint.md) | high | Header review gate 全局锁——纯 full-page deck 被强制拦截，改了 3 页堵住 25 页 |
-| [BUG-004](BUG-004-stage3-invalid-svg-passthrough.md) | medium | Stage 3 full-page passthrough 对某些 vendor PNG 抛 "Invalid SVG image" |
-| [BUG-005](BUG-005-image2-vendor-experience.md) | medium | Image2 vendor 切换体验差——key 不互通、单 vendor 无 fallback、无重试 |
 
-**Next available bug ID: BUG-010**
+**Next available bug ID: BUG-012**
 
-> BUG-008（image_api_client submit 数组解析）已修，在 `_done/_fixed_bugs/`。BUG-009（Stage 3 loadImage sync race）已修，在 `_done/_fixed_bugs/`。
+> BUG-004（Stage 3 passthrough）已修→`_done/_fixed_bugs/BUG-010`。BUG-005（vendor resilience）已修→`_done/_fixed_bugs/BUG-011`。BUG-008/009 此前已修。
 
 ---
 
