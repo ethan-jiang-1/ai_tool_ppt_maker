@@ -124,117 +124,30 @@ function checkNpm() {
   };
 }
 
-function sharedImage2KeyFromEnv() {
-  return (
-    process.env.IMAGE2_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.APIMART_API_KEY ||
-    ''
-  );
-}
-
-/** @returns {{ base_url: string, key_env: string|null, api_key: string, error?: string }[]} */
-function parseVendorsEnvStatic() {
-  const raw = (process.env.IMAGE2_VENDORS || '').trim();
-  if (!raw) return [];
-  /** @type {{ base_url: string, key_env: string|null, api_key: string, error?: string }[]} */
-  const out = [];
-  for (const part of raw.split(',')) {
-    const item = part.trim();
-    if (!item) continue;
-    const pipe = item.indexOf('|');
-    const base_url = (pipe >= 0 ? item.slice(0, pipe) : item).trim().replace(/\/+$/, '');
-    const key_env = pipe >= 0 ? item.slice(pipe + 1).trim() : null;
-    if (!base_url) continue;
-    let api_key = '';
-    if (key_env) {
-      api_key = process.env[key_env] || '';
-      if (!api_key) {
-        out.push({ base_url, key_env, api_key: '', error: `${key_env} is not set` });
-        continue;
-      }
-    } else {
-      api_key = sharedImage2KeyFromEnv();
-      if (!api_key) {
-        out.push({
-          base_url,
-          key_env: null,
-          api_key: '',
-          error: 'IMAGE2_API_KEY missing for item without |KEY_ENV',
-        });
-        continue;
-      }
-    }
-    out.push({ base_url, key_env, api_key });
-  }
-  return out;
-}
-
 function checkApiKey() {
-  const vendors = parseVendorsEnvStatic();
-  if (vendors.length > 0) {
-    const bad = vendors.filter((v) => v.error);
-    if (bad.length === 0) {
-      return {
-        check: 'api_key',
-        status: 'ok',
-        detail: `found (IMAGE2_VENDORS ×${vendors.length})`,
-        fix: null,
-      };
-    }
-    const missing = bad.map((v) => v.key_env || 'IMAGE2_API_KEY').join(', ');
-    return {
-      check: 'api_key',
-      status: 'fail',
-      detail: `IMAGE2_VENDORS key missing: ${missing}`,
-      fix:
-        `Set the missing env var(s) named in IMAGE2_VENDORS (${missing}), or use a shared IMAGE2_API_KEY.`,
-    };
-  }
-
-  const key = sharedImage2KeyFromEnv();
-  const source = process.env.IMAGE2_API_KEY
-    ? 'IMAGE2_API_KEY'
-    : (process.env.OPENAI_API_KEY
-      ? 'OPENAI_API_KEY'
-      : (process.env.APIMART_API_KEY ? 'APIMART_API_KEY' : null));
+  const key = process.env.IMAGE2_API_KEY || '';
+  const ok = Boolean(key);
   return {
     check: 'api_key',
-    status: source ? 'ok' : 'fail',
-    detail: source ? `found (${source})` : 'not set',
-    fix: source ? null : (
+    status: ok ? 'ok' : 'fail',
+    detail: ok ? 'found (IMAGE2_API_KEY)' : 'not set',
+    fix: ok ? null : (
       'Stage 2 (image generation) needs a key. Put it in .env (loaded automatically):\n' +
-      '  IMAGE2_API_KEY=sk-...\n' +
-      '  # or IMAGE2_VENDORS=https://…/v1|YOUR_KEY_ENV_VAR'
+      '  IMAGE2_API_KEY=sk-...'
     ),
   };
 }
 
 function checkBaseUrl() {
-  const vendors = parseVendorsEnvStatic();
-  if (vendors.length > 0) {
-    return {
-      check: 'image_base_url',
-      status: 'ok',
-      detail: `set (IMAGE2_VENDORS → ${vendors[0].base_url})`,
-      fix: null,
-    };
-  }
-  const url =
-    process.env.IMAGE2_BASE_URL ||
-    process.env.IMAGE2_BASE_URLS ||
-    process.env.OPENAI_BASE_URL ||
-    process.env.APIMART_BASE_URL ||
-    process.env.APIMART_BASE_URLS;
-  const ok = Boolean(url && String(url).trim());
+  const url = (process.env.IMAGE2_BASE_URL || '').trim();
+  const ok = Boolean(url);
   return {
     check: 'image_base_url',
     status: ok ? 'ok' : 'fail',
-    detail: ok ? `set (${String(url).split(',')[0].trim()})` : 'not set',
+    detail: ok ? `set (${url})` : 'not set',
     fix: ok ? null : (
-      'Image API base URL is required (no silent default). Put it in .env:\n' +
-      '  IMAGE2_BASE_URL=https://your-relay/v1\n' +
-      '  # or IMAGE2_VENDORS=https://a/v1|KEY_ENV,https://b/v1|KEY_ENV'
+      'Image API base URL is required. Put it in .env:\n' +
+      '  IMAGE2_BASE_URL=https://your-relay/v1'
     ),
   };
 }
@@ -409,7 +322,7 @@ async function checkImageSmoke() {
         check: 'image_smoke',
         status: 'fail',
         detail: `non-JSON response (${resp.status})`,
-        fix: 'Check IMAGE2_BASE_URL / IMAGE2_VENDORS points at an Image2-compatible /v1 relay.',
+        fix: 'Check IMAGE2_BASE_URL points at an Image2-compatible /v1 relay.',
       };
     }
     if (!resp.ok) {
@@ -417,7 +330,7 @@ async function checkImageSmoke() {
         check: 'image_smoke',
         status: 'fail',
         detail: `HTTP ${resp.status} from ${providerHost(base) || 'provider'} (response body withheld)`,
-        fix: 'Verify keys and IMAGE2_VENDORS / IMAGE2_BASE_URL; re-run doctor --smoke.',
+        fix: 'Verify IMAGE2_API_KEY and IMAGE2_BASE_URL; re-run doctor --smoke.',
       };
     }
     const syncRef = extractImageRef(data);
@@ -478,7 +391,7 @@ async function checkProbeVendors() {
       check: 'image_probe_vendors',
       status: 'fail',
       detail: 'provider configuration could not be resolved',
-      fix: 'Fix IMAGE2_VENDORS / keys, then re-run doctor --probe-vendors',
+      fix: 'Fix IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run doctor --probe-vendors',
     };
   }
 
@@ -572,33 +485,25 @@ async function checkProbeVendors() {
   console.log(`  OK:   ${okRows.map((r) => `${r.base_url} (${r.elapsed_s}s ${r.mode})`).join(', ') || '(none)'}`);
   console.log(`  FAIL: ${failRows.map((r) => `${r.base_url} (${r.error})`).join(', ') || '(none)'}`);
 
-  // Suggested IMAGE2_VENDORS: rebuild with KEY_ENV names from env parse when possible
-  const parsed = parseVendorsEnvStatic();
-  const keyEnvByUrl = new Map(parsed.map((p) => [p.base_url, p.key_env]));
-  const ordered = [...okRows, ...failRows];
-  const suggested = ordered
-    .map((r) => {
-      const ke = keyEnvByUrl.get(r.base_url);
-      return ke ? `${r.base_url}|${ke}` : r.base_url;
-    })
-    .join(',');
-  if (suggested) {
-    console.log('');
-    console.log('  Suggested IMAGE2_VENDORS (ok by speed, then failed):');
-    console.log(`  IMAGE2_VENDORS=${suggested}`);
-    console.log('  (not written — confirm before updating .env)');
+  const anyOk = okRows.length > 0;
+  const okList = okRows.map((r) => r.base_url).join(', ');
+  console.log('');
+  console.log('  --- Result ---');
+  if (anyOk) {
+    console.log(`  OK: ${okList}`);
+  } else {
+    console.log('  FAIL: check IMAGE2_API_KEY and IMAGE2_BASE_URL');
   }
 
-  const anyOk = okRows.length > 0;
   return {
     check: 'image_probe_vendors',
     status: anyOk ? 'ok' : 'fail',
     detail: anyOk
-      ? `${okRows.length}/${rows.length} vendors OK`
-      : `0/${rows.length} vendors OK`,
+      ? `provider OK (${okRows[0].elapsed_s}s ${okRows[0].mode})`
+      : 'provider check failed',
     fix: anyOk
       ? null
-      : 'All vendors failed. Check keys/URLs or try doctor --probe-vendors after fixing .env.',
+      : 'Check IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run doctor --probe-vendors.',
     rows,
   };
 }
@@ -694,7 +599,7 @@ async function main() {
         check: wantProbe ? 'image_probe_vendors' : 'image_smoke',
         status: 'fail',
         detail: 'skipped — api_key or image_base_url missing',
-        fix: 'Set IMAGE2_VENDORS (or IMAGE2_API_KEY + IMAGE2_BASE_URL), then re-run',
+        fix: 'Set IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run',
       });
     }
   }

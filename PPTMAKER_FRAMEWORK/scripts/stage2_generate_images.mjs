@@ -24,7 +24,6 @@ import {
   generateOneImage,
   ImageProviderError,
   resolveVendors,
-  bridgeCredentials,
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
 import { IMAGE_TRACE_SUFFIX } from "./bundle_layout.mjs";
@@ -66,8 +65,6 @@ export async function generateImages({
   baseUrl = [],
   dryRun = false,
 } = {}) {
-  bridgeCredentials();
-
   if (!existsSync(promptJson)) {
     throw new Error(`Prompt JSON not found: ${promptJson}`);
   }
@@ -94,7 +91,7 @@ export async function generateImages({
 
   let baseUrls = [];
   if (!dryRun) {
-    // Fail-fast credential resolve; CLI --base-url extras only (empty → full IMAGE2_VENDORS/env).
+    // Fail-fast credential resolve; CLI --base-url overrides IMAGE2_BASE_URL.
     resolveVendors(baseUrl);
     baseUrls = baseUrl;
   }

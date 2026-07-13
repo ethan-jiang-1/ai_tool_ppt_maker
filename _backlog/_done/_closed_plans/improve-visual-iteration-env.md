@@ -25,7 +25,7 @@
 - 证据：本次 `env-check` 全绿假象 vs `style-master` 深层失败。
 
 **2. image_api_client：契约单一真相 + 回放 trace 做 fixture 测试** — 本次连撞两个响应格式不匹配：BUG-008（submit 不认 `data:[{task_id}]` 数组，`:113`）+ `/tasks/{id}/result` 端点不存在（结果其实内嵌在 poll 完成响应 `data.result.images[0].url`；我已改 orchestrator 优先取 poll 内嵌图）。根因："对该 relay 的响应契约没有单一真相，submit/poll/result 各自假设不同形态"。
-- 改：抽"从任意响应体提取图 ref"的单一函数（本轮已落 `extractImageRef`/`saveImageRef`），并把 `*.apimart-task.json` trace 当 **golden fixture** 写解析单测。
+- 改：抽"从任意响应体提取图 ref"的单一函数（本轮已落 `extractImageRef`/`saveImageRef`），并把 `*.image2-task.json` trace 当 **golden fixture** 写解析单测。
 - 证据：BUG-008 卡 + 本轮对 `image_api_client.mjs` 的修改。
 
 **3. `--only` 的 slide-id 反直觉（UX bug）** — 传 `slide_03` → `✗ Unknown pilot slide IDs`，真实是 `s03_one_tool_two_modes`，需先跑 Stage 1 读 `slide_plan.json` 才知道。

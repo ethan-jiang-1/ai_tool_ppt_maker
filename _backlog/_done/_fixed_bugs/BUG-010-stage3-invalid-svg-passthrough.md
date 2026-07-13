@@ -24,8 +24,8 @@ Stage 3（Lock Headers）处理全部 25 张 full-page 图时报错：
 
 ## 根因推测
 
-- 图中混合了多个 vendor 的输出：s01-s04 是 APIMART vendor 生成的，s05/s06/s18/s22 是 LCON vendor（sync mode, "sync image returned (no task) → saving"）
-- LCON sync mode 返回的 PNG 可能格式/编码与 APIMART 不同，导致 Stage 3 的 canvas 库在读取时误判为 SVG
+- 图中混合了多个 vendor 的输出：s01-s04 是 IMAGE2 vendor 生成的，s05/s06/s18/s22 是 LCON vendor（sync mode, "sync image returned (no task) → saving"）
+- LCON sync mode 返回的 PNG 可能格式/编码与 IMAGE2 不同，导致 Stage 3 的 canvas 库在读取时误判为 SVG
 - 或者 Stage 3 在 full-page passthrough 路径中不应该调用 canvas 解析，但实际代码路径触发了图片解析
 
 ## 影响

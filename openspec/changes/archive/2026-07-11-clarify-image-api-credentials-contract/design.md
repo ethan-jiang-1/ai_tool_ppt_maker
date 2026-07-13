@@ -64,14 +64,14 @@ flowchart TB
 ```bash
 IMAGE2_API_KEY=...
 IMAGE2_BASE_URL=https://…/v1
-# IMAGE2_BASE_URLS=…   # 可选；非空可代替单条 BASE_URL
+# IMAGE2_BASE_URL=…   # 可选；非空可代替单条 BASE_URL
 ```
 
-别名 OPENAI_* / APIMART_* 仍解析；优先级 IMAGE2 → OPENAI → APIMART；CLI `--base-url` 最高。
+别名 OPENAI_* / IMAGE2_* 仍解析；优先级 IMAGE2 → OPENAI → IMAGE2；CLI `--base-url` 最高。
 
 ### D2 — Resolve / bridge
 
-`resolveApiKey` / `resolveBaseUrls` 直接读三套名。`bridgeCredentials` 填空 `APIMART_*`。`unified_pipeline` 去掉重复 bridge。
+`resolveApiKey` / `resolveBaseUrls` 直接读三套名。`bridgeCredentials` 填空 `IMAGE2_*`。`unified_pipeline` 去掉重复 bridge。
 
 ### D3 — doctor ≡ 运行时
 

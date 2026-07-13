@@ -21,7 +21,7 @@ agent_action: execute_pipeline
 把 Stage 1 产出的 text prompts 变成 PNG 图片——通过 async image generation API，用 style master 作为视觉锚点。
 
 输入：`_generated/page_prompts/_prompts.json`（19 个完整 prompt）+ `2_backbone/visual-style/style_master.jpg`（视觉参考）
-输出：`_generated/page_images_full/*.png`（19 张原始 AI 生成的画面）+ `.apimart-task.json`（每张的 trace）
+输出：`_generated/page_images_full/*.png`（19 张原始 AI 生成的画面）+ `.image-task.json`（每张的 trace）
 
 ## 为什么用 Async API
 
@@ -159,11 +159,11 @@ design system — do not deviate from it. Only change the slide content, not the
 - [ ] 生成的图片数量 = `page_prompts/_prompts.json` 中的 slide 数量
 - [ ] 每张图片的 header zone（顶部 260px）干净——没有 AI 生成的文字侵入
 - [ ] 每张图片的 body text 可读——没有乱码、截断、严重错位
-- [ ] 每张图片有对应的 `.apimart-task.json` trace 文件
+- [ ] 每张图片有对应的 `.image-task.json` trace 文件
 - [ ] Style coloring 一致——所有 slide 使用相同的调色板（如果某张偏暖色，说明 anchoring 没有生效，需要检查 prompt）
 
 ---
 
-> **案例**：T10 项目使用 APIMart API 的三个 mirror URL，model `gpt-image-2`，16:9，2K 分辨率。19 张 slide，skip-if-exists 机制让 prompt 没变的 slides 自动跳过。每张图配 `.apimart-task.json` 记录 task ID、model、耗时。某张 slide 的 callout bar 颜色偏了——查 trace 发现用了不同的 mirror（不同 mirror 的 model 版本可能不同），重新指定 mirror 后修正。
+> **案例**：T10 项目使用 Image2 API 的三个 mirror URL，model `gpt-image-2`，16:9，2K 分辨率。19 张 slide，skip-if-exists 机制让 prompt 没变的 slides 自动跳过。每张图配 `.image-task.json` 记录 task ID、model、耗时。某张 slide 的 callout bar 颜色偏了——查 trace 发现用了不同的 mirror（不同 mirror 的 model 版本可能不同），重新指定 mirror 后修正。
 
 > **Next**: `03-stage-3-lock-headers-deterministically.md` — Stage 3 详解：Header-Lock 机制怎么用 Node `@napi-rs/canvas` 精确叠加标题文字。

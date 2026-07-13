@@ -6,7 +6,7 @@
 repo/                     ← package.json + node_modules（npm install 一次）
 ├── PPTMAKER_FRAMEWORK/
 └── deck_foo/
-    └── .env              ← OPENAI_API_KEY
+    └── .env              ← IMAGE2_API_KEY
 ```
 
 今日 `env-check.mjs`：

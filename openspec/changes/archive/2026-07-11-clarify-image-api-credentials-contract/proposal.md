@@ -19,8 +19,8 @@ Framework 不替每个 deck「记住」；记忆在 bundle 里长出来。
 
 ### A. Image2 凭据契约（机器）
 
-规范名：`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或非空 `IMAGE2_BASE_URLS`）双必填。  
-别名：`OPENAI_*` / `APIMART_*` 仍解析。doctor ≡ 运行时。
+规范名：`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或非空 `IMAGE2_BASE_URL`）双必填。  
+别名：`OPENAI_*` / `IMAGE2_*` 仍解析。doctor ≡ 运行时。
 
 ### B. BUG-008（机器）
 

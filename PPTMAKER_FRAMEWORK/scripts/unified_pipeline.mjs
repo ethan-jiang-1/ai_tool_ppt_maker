@@ -289,7 +289,7 @@ export async function stage1(runDir, dryRun) {
  * Stage 2: Generate images with style anchoring (in-framework Node).
  *
  * Uses scripts/stage2_generate_images.mjs + make_contact_sheet.mjs.
- * Credentials: IMAGE2_API_KEY / IMAGE2_BASE_URL (APIMART_* / OPENAI_* aliases accepted).
+ * Credentials: IMAGE2_API_KEY / IMAGE2_BASE_URL.
  *
  * @param {string} runDir
  * @param {string|null} [baseUrl]
@@ -343,8 +343,7 @@ export async function stage2(runDir, {
     }
   }
 
-  const { bridgeCredentials, resolveBaseUrls } = await import("./image_api_client.mjs");
-  bridgeCredentials();
+  const { resolveBaseUrls } = await import("./image_api_client.mjs");
 
   /** @type {string[]} */
   let selectedIds = [];

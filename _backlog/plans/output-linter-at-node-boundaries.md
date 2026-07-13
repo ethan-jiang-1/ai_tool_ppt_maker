@@ -53,7 +53,7 @@ Agent（主 agent 或 sub-agent）输出 MD、YAML、JSON 文件时，缺乏系�
 |------|-------------|
 | `charter/NODE-SPEC.md` | node 声明规范 + `state.yaml` 结构定义 |
 | `workflow/04-production/01-stage-1-*.md` | `slide_plan.json` + `_prompts.json` 输出结构 |
-| `workflow/04-production/02-stage-2-*.md` | `.apimart-task.json` trace schema |
+| `workflow/04-production/02-stage-2-*.md` | `.image-task.json` trace schema |
 | `workflow/04-production/03-stage-3-*.md` | `header_lock_qa.json` schema |
 
 #### 🟢 第三类：仅 YAML Frontmatter（框架路由元数据）

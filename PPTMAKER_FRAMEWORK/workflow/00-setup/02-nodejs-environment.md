@@ -41,6 +41,6 @@ IMAGE2_API_KEY=sk-你的key
 IMAGE2_BASE_URL=https://你的-relay/v1
 ```
 
-两者都必填（doctor ≡ 运行时）。别名 `OPENAI_*` / `APIMART_*` 仍认。完整规程见 `03-tool-selection.md`。
+两者都必填（doctor ≡ 运行时）。完整规程见 `03-tool-selection.md`。
 
 管线运行时自动 walk-up 加载 `.env`. 填一次即可, 不用每次跑都设置.

@@ -29,11 +29,11 @@ The env check SHALL verify npm is available. If `package.json` exists, SHALL ver
 
 ### Requirement: API key verification
 
-The env check SHALL verify `OPENAI_API_KEY` is set in `.env` and is non-empty.
+The env check SHALL verify `IMAGE2_API_KEY` is set in `.env` and is non-empty.
 
 #### Scenario: API key
 
-- **WHEN** `.env` contains `OPENAI_API_KEY=sk-...` → check passes
+- **WHEN** `.env` contains `IMAGE2_API_KEY=sk-...` → check passes
 - **WHEN** `.env` is absent or value is empty → report explains how to configure
 
 ### Requirement: Structured READY/NOT READY output

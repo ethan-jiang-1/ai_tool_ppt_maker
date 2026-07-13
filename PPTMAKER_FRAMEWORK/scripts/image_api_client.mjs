@@ -6,12 +6,11 @@
  *   GET  {base}/tasks/{id}          → poll until completed|failed (async only)
  *   GET  {base}/tasks/{id}/result   → fallback download if poll has no embedded image
  *
- * Image2 credentials (canonical):
- *   IMAGE2_VENDORS=url|KEY_ENV,...   (preferred multi-key)
- *   or IMAGE2_API_KEY + IMAGE2_BASE_URL and/or IMAGE2_BASE_URLS
- * Legacy aliases: OPENAI_* / APIMART_*
- * Priority: CLI --base-url (+ shared key) → IMAGE2_VENDORS → legacy URL(s)+shared key.
- * These variables are for image generation only — not chat LLMs.
+ * Image2 credentials:
+ *   IMAGE2_API_KEY  — required API key for image generation
+ *   IMAGE2_BASE_URL — required API endpoint
+ *   CLI --base-url overrides IMAGE2_BASE_URL at runtime.
+ *   These variables are for image generation only — not chat LLMs.
  *
  * No external skills. No Python. No bash. Node fetch only.
  */
@@ -75,43 +74,6 @@ function _isRetryableError(err) {
   return false;
 }
 
-/**
- * Bridge IMAGE2_* / OPENAI_* → empty APIMART_* slots (does not override set APIMART_*).
- * Legacy single-key path only; multi-vendor resolution does not depend on this.
- */
-export function bridgeCredentials() {
-  const key =
-    process.env.IMAGE2_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.APIMART_API_KEY;
-  if (!process.env.APIMART_API_KEY && key) {
-    process.env.APIMART_API_KEY = key;
-  }
-  const base =
-    process.env.IMAGE2_BASE_URL ||
-    process.env.OPENAI_BASE_URL ||
-    process.env.APIMART_BASE_URL;
-  if (!process.env.APIMART_BASE_URL && base) {
-    process.env.APIMART_BASE_URL = base;
-  }
-  const bases =
-    process.env.IMAGE2_BASE_URLS ||
-    process.env.APIMART_BASE_URLS;
-  if (!process.env.APIMART_BASE_URLS && bases) {
-    process.env.APIMART_BASE_URLS = bases;
-  }
-}
-
-/** @returns {string} */
-function sharedImage2Key() {
-  return (
-    process.env.IMAGE2_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.APIMART_API_KEY ||
-    ""
-  );
-}
-
 /** @param {string} u @returns {string} */
 function normalizeBaseUrl(u) {
   const raw = String(u).trim();
@@ -125,97 +87,40 @@ function normalizeBaseUrl(u) {
   return parsed.toString().replace(/\/+$/, "");
 }
 
+/** @returns {string} */
+function resolveKey() {
+  return process.env.IMAGE2_API_KEY || "";
+}
+
 /**
- * Ordered vendor list: { base_url, api_key }.
- * @param {string[]} [extraBaseUrls] CLI --base-url values (highest priority; shared key only).
+ * Single-vendor credential resolution.
+ * CLI --base-url overrides IMAGE2_BASE_URL.
+ * @param {string[]} [extraBaseUrls] CLI --base-url values.
  * @returns {{ base_url: string, api_key: string }[]}
  */
 export function resolveVendors(extraBaseUrls = []) {
-  bridgeCredentials();
-  const fromCli = [];
-  for (const raw of (extraBaseUrls || [])) {
-    if (!raw) continue;
-    // Support comma-separated URLs: --base-url url1,url2,url3
-    for (const part of raw.split(",")) {
-      const u = normalizeBaseUrl(part.trim());
-      if (u) fromCli.push(u);
-    }
-  }
-  if (fromCli.length > 0) {
-    const key = sharedImage2Key();
-    if (!key) {
-      throw new Error(
-        "IMAGE2_API_KEY is not set (aliases: OPENAI_API_KEY / APIMART_API_KEY). " +
-          "Required when using --base-url (does not borrow keys from IMAGE2_VENDORS)."
-      );
-    }
-    return fromCli.map((base_url) => ({ base_url, api_key: key }));
-  }
-
-  const vendorsEnv = (process.env.IMAGE2_VENDORS || "").trim();
-  if (vendorsEnv) {
-    /** @type {{ base_url: string, api_key: string }[]} */
-    const vendors = [];
-    for (const part of vendorsEnv.split(",")) {
-      const item = part.trim();
-      if (!item) continue;
-      const pipe = item.indexOf("|");
-      const base_url = normalizeBaseUrl(pipe >= 0 ? item.slice(0, pipe) : item);
-      const keyEnv = pipe >= 0 ? item.slice(pipe + 1).trim() : "";
-      if (!base_url) continue;
-      let api_key = "";
-      if (keyEnv) {
-        api_key = process.env[keyEnv] || "";
-        if (!api_key) {
-          console.warn(`  Skip vendor ${base_url}: ${keyEnv} is not set`);
-          continue;
-        }
-      } else {
-        api_key = sharedImage2Key();
-        if (!api_key) {
-          throw new Error(
-            `IMAGE2_API_KEY is not set (IMAGE2_VENDORS item ${base_url} has no |KEY_ENV; aliases: OPENAI_API_KEY / APIMART_API_KEY).`
-          );
-        }
-      }
-      vendors.push({ base_url, api_key });
-    }
-    if (vendors.length === 0) {
-      throw new Error(
-        "IMAGE2_VENDORS is set but empty after parse. Use url|KEY_ENV items."
-      );
-    }
-    return vendors;
-  }
-
-  const key = sharedImage2Key();
+  const key = resolveKey();
   if (!key) {
     throw new Error(
-      "IMAGE2_API_KEY is not set (aliases: OPENAI_API_KEY / APIMART_API_KEY). Put it in deck .env or export it."
+      "IMAGE2_API_KEY is not set. Put it in deck .env or export it."
     );
   }
-  const single =
-    process.env.IMAGE2_BASE_URL ||
-    process.env.OPENAI_BASE_URL ||
-    process.env.APIMART_BASE_URL ||
-    "";
-  const multi =
-    process.env.IMAGE2_BASE_URLS ||
-    process.env.APIMART_BASE_URLS ||
-    "";
-  /** @type {string[]} */
-  const urls = [];
-  if (single.trim()) urls.push(normalizeBaseUrl(single));
-  for (const part of multi.split(",")) {
-    const u = normalizeBaseUrl(part);
-    if (u && !urls.includes(u)) urls.push(u);
+
+  let baseUrl = "";
+  // CLI --base-url takes priority
+  if (extraBaseUrls && extraBaseUrls.length > 0) {
+    baseUrl = String(extraBaseUrls[0]).trim();
   }
-  if (urls.length === 0) {
+  if (!baseUrl) {
+    baseUrl = (process.env.IMAGE2_BASE_URL || "").trim();
+  }
+  if (!baseUrl) {
     throw new Error(
-      "No image API base URL. Set IMAGE2_VENDORS or IMAGE2_BASE_URL (or IMAGE2_BASE_URLS; aliases: OPENAI_BASE_URL / APIMART_BASE_URL / APIMART_BASE_URLS)."
+      "No image API base URL. Set IMAGE2_BASE_URL or use --base-url."
     );
   }
-  return urls.map((base_url) => ({ base_url, api_key: key }));
+
+  return [{ base_url: normalizeBaseUrl(baseUrl), api_key: key }];
 }
 
 /** @returns {string} first resolved vendor key (compat wrapper) */
@@ -224,7 +129,7 @@ export function resolveApiKey() {
 }
 
 /**
- * @param {string[]} [extra] - CLI --base-url values (highest priority).
+ * @param {string[]} [extra] - CLI --base-url values.
  * @returns {string[]}
  */
 export function resolveBaseUrls(extra = []) {

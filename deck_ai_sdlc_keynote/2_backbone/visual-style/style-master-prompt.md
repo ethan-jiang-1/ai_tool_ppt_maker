@@ -1,6 +1,6 @@
 # Style Master Prompt
 
-> 生成风格母版图 `style_master.jpg` 的原始 prompt（源文件，别丢）。迁移自 `deck_ai_sdlc_keynote/v1/style/style_master.apimart-task.json`。
+> 生成风格母版图 `style_master.jpg` 的原始 prompt（源文件，别丢）。迁移自 `deck_ai_sdlc_keynote/v1/style/style_master.image-task.json`。
 
 ```
 Design a visual style guide for a keynote slide deck. This is a reference image, not a slide itself. The deck uses etching and sketch illustration (fine sepia ink, visible hand-drawn lines, cross-hatching) as its DRAWING TECHNIQUE — but the SUBJECTS it depicts are strictly CONTEMPORARY: present-day people (modern casual / business-casual clothing), current devices (laptops, phones, screens), and present-day workplaces. Historical technique, present-day subjects. No period costume, no 19th-century dress, no antique props.

@@ -40,7 +40,7 @@
 
 ## 环境 / 画画通道
 
-> Image2 通道体检——哪家通、哪家快、建议 `IMAGE2_VENDORS` 顺序。用户**不必**背 `doctor --probe-vendors`。
+> Image2 通道体检——哪家通、哪家快、建议 base URL。用户**不必**背 `doctor --probe-vendors`。
 > 症状时刻（doctor 图像红 / smoke 败 / 出图 502·全挂 /「画不出来」）且本 session 未 probe：白话亮能力——「要不要我逐家试一下你配的画画通道？」
 
 | 用户说 | Playbook | 说明 |

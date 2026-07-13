@@ -172,57 +172,35 @@ describe('env-check Image2 base URL hard fail', () => {
     }
   });
 
-  it('IMAGE2_VENDORS alone satisfies api_key and image_base_url', async () => {
-    const prev = {
-      IMAGE2_VENDORS: process.env.IMAGE2_VENDORS,
-      KEY_A: process.env.KEY_A,
-      KEY_B: process.env.KEY_B,
-      IMAGE2_API_KEY: process.env.IMAGE2_API_KEY,
-      IMAGE2_BASE_URL: process.env.IMAGE2_BASE_URL,
-    };
+  it('IMAGE2_API_KEY alone satisfies api_key', async () => {
+    const prev = process.env.IMAGE2_API_KEY;
     try {
-      delete process.env.IMAGE2_API_KEY;
-      delete process.env.IMAGE2_BASE_URL;
-      process.env.IMAGE2_VENDORS =
-        'https://a.example/v1|KEY_A,https://b.example/v1|KEY_B';
-      process.env.KEY_A = 'ka';
-      process.env.KEY_B = 'kb';
-      const { checkApiKey, checkBaseUrl } = await import(
+      process.env.IMAGE2_API_KEY = 'test-key';
+      const { checkApiKey } = await import(
         '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs'
       );
       const key = checkApiKey();
-      const url = checkBaseUrl();
       expect(key.status).toBe('ok');
-      expect(key.detail).toMatch(/IMAGE2_VENDORS/);
-      expect(url.status).toBe('ok');
-      expect(url.detail).toMatch(/a\.example/);
+      expect(key.detail).toMatch(/IMAGE2_API_KEY/);
     } finally {
-      for (const [k, v] of Object.entries(prev)) {
-        if (v === undefined) delete process.env[k];
-        else process.env[k] = v;
-      }
+      if (prev === undefined) delete process.env.IMAGE2_API_KEY;
+      else process.env.IMAGE2_API_KEY = prev;
     }
   });
 
-  it('IMAGE2_VENDORS with missing KEY_ENV fails api_key', async () => {
-    const prev = {
-      IMAGE2_VENDORS: process.env.IMAGE2_VENDORS,
-      MISSING_KEY_VAR: process.env.MISSING_KEY_VAR,
-      IMAGE2_API_KEY: process.env.IMAGE2_API_KEY,
-    };
+  it('IMAGE2_BASE_URL alone satisfies image_base_url', async () => {
+    const prev = process.env.IMAGE2_BASE_URL;
     try {
-      delete process.env.IMAGE2_API_KEY;
-      delete process.env.MISSING_KEY_VAR;
-      process.env.IMAGE2_VENDORS = 'https://a.example/v1|MISSING_KEY_VAR';
-      const { checkApiKey } = await import('../PPTMAKER_FRAMEWORK/scripts/env-check.mjs');
-      const key = checkApiKey();
-      expect(key.status).toBe('fail');
-      expect(key.detail).toMatch(/MISSING_KEY_VAR/);
+      process.env.IMAGE2_BASE_URL = 'https://example.test/v1';
+      const { checkBaseUrl } = await import(
+        '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs'
+      );
+      const url = checkBaseUrl();
+      expect(url.status).toBe('ok');
+      expect(url.detail).toMatch(/example/);
     } finally {
-      for (const [k, v] of Object.entries(prev)) {
-        if (v === undefined) delete process.env[k];
-        else process.env[k] = v;
-      }
+      if (prev === undefined) delete process.env.IMAGE2_BASE_URL;
+      else process.env.IMAGE2_BASE_URL = prev;
     }
   });
 });
@@ -267,12 +245,10 @@ describe('env-check --smoke', () => {
 });
 
 describe('env-check --probe-vendors', () => {
-  it('checkProbeVendors reports per-vendor ok/fail without writing .env', async () => {
+  it('checkProbeVendors reports ok/fail without writing .env', async () => {
     const prevFetch = globalThis.fetch;
-    process.env.IMAGE2_VENDORS =
-      'https://ok.example/v1|KEY_OK,https://bad.example/v1|KEY_BAD';
-    process.env.KEY_OK = 'ok-key';
-    process.env.KEY_BAD = 'bad-key';
+    process.env.IMAGE2_API_KEY = 'ok-key';
+    process.env.IMAGE2_BASE_URL = 'https://ok.example/v1';
     globalThis.fetch = async (url) => {
       if (String(url).includes('ok.example')) {
         return {
@@ -294,16 +270,13 @@ describe('env-check --probe-vendors', () => {
       const r = await checkProbeVendors();
       expect(r.check).toBe('image_probe_vendors');
       expect(r.status).toBe('ok');
-      expect(r.detail).toMatch(/1\/2/);
-      expect(r.rows).toHaveLength(2);
+      expect(r.rows).toHaveLength(1);
       expect(r.rows[0].ok).toBe(true);
-      expect(r.rows[1].ok).toBe(false);
       expect(r.fix).toBeNull();
     } finally {
       globalThis.fetch = prevFetch;
-      delete process.env.IMAGE2_VENDORS;
-      delete process.env.KEY_OK;
-      delete process.env.KEY_BAD;
+      delete process.env.IMAGE2_API_KEY;
+      delete process.env.IMAGE2_BASE_URL;
     }
   });
 

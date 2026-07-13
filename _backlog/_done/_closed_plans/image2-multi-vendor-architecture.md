@@ -47,7 +47,7 @@ image2 这类 API 都是 OpenAI 兼容、同一个模型。所以"支持多个 v
 |--------|----------|-------------|-------|---------|------|------|
 | **LCON** | `https://s.lconai.com/v1` | `CODEX_API_KEY_LCONAI` | `gpt-image-2` | `data[0].url`（CDN PNG） | 同步 | 本轮 curl 两种参数都 200 出图（~57–64s） |
 | **Zenmux** | `https://zenmux.ai/api/v1` | `CODEX_API_KEY_ZENMUX` | `openai/gpt-image-2`（裸名也行） | `data[0].b64_json` | 同步 | summary.json 实测 ~11–30s |
-| apib.ai（现用/异步） | `https://api.apib.ai/v1`（+2 镜像 aiuxu/aishuch） | `APIMART_API_KEY` | `gpt-image-2` | poll `data.result.images[0].url` | 异步 | 时通时 502/拥堵 |
+| apib.ai（现用/异步） | `https://api.apib.ai/v1`（+2 镜像 aiuxu/aishuch） | `IMAGE2_API_KEY` | `gpt-image-2` | poll `data.result.images[0].url` | 异步 | 时通时 502/拥堵 |
 
 不可用（probe 结论）：MIRROR/AICodeMirror（`SETTLEMENT_UNKNOWN_MODEL`）、DUCK（返 HTML）、CTOK（key 限额）、Zenmux 的 `-pro`（`404 invalid_model`）。
 原始证据：`ait_exam_docker/cli_codex/image2/summary.json` + `probe_archive/`。
@@ -57,19 +57,19 @@ image2 这类 API 都是 OpenAI 兼容、同一个模型。所以"支持多个 v
 难点：`.env` 是扁平 `KEY=VALUE`，而我们要一个**有序的 (base_url, key) 列表**，且 key 是密钥、不该到处复制。
 
 **笨办法（不推荐）**：
-- 平行列表 `IMAGE2_BASE_URLS=a,b` + `IMAGE2_KEYS=k1,k2` —— **靠位置配对，最易错位**。
+- 平行列表 `IMAGE2_BASE_URL=a,b` + `IMAGE2_KEYS=k1,k2` —— **靠位置配对，最易错位**。
 - 每个 vendor 把密钥再抄一份进新变量 —— **重复、易漏改**。
 
-**聪明办法（推荐）：列表只存 `base_url` +「用哪个 key 变量名」，密钥值仍留在各自已命名的变量里**（`CODEX_API_KEY_LCONAI` / `CODEX_API_KEY_ZENMUX` / `APIMART_API_KEY` —— 环境里本来就有，不用重抄）。一行，顺序=优先级：
+**聪明办法（推荐）：列表只存 `base_url` +「用哪个 key 变量名」，密钥值仍留在各自已命名的变量里**（`CODEX_API_KEY_LCONAI` / `CODEX_API_KEY_ZENMUX` / `IMAGE2_API_KEY` —— 环境里本来就有，不用重抄）。一行，顺序=优先级：
 
 ```
-IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|APIMART_API_KEY
+IMAGE2_BASE_URL=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|IMAGE2_API_KEY
 ```
 
 - 每项 `base_url|KEY_ENV_VAR`；解析：按 `,` 切成 vendor、再按 `|` 切成 `(url, KEY_ENV)`，`key = process.env[KEY_ENV]`。
 - 缺 `|KEY_ENV` 的项，回退共享 `IMAGE2_API_KEY`。
 - **好处**：① 密钥不进列表、与路由表**解耦**（列表非密、可读、甚至可提交，密钥另存）；② 顺序即优先级；③ 加 vendor = 追加一项 `,url|KEYVAR`；④ 复用已有命名 key，不重抄。
-- **向后兼容**：老的 `IMAGE2_BASE_URLS` + 单 `IMAGE2_API_KEY`（共用一把 key）继续认。
+- **向后兼容**：老的 `IMAGE2_BASE_URL` + 单 `IMAGE2_API_KEY`（共用一把 key）继续认。
 
 解析约 6 行代码，替换现 `resolveBaseUrls`/`resolveApiKey` 的"单 key"假设为"per-vendor key"。
 

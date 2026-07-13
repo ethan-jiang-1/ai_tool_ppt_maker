@@ -123,7 +123,7 @@ deck_{NAME}/
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── slide_plan.json
     │   │   ├── page_prompts/{NN_id.prompt.md, _prompts.json}
-    │   │   ├── page_images_full/{NN_id.png, NN_id.apimart-task.json}
+    │   │   ├── page_images_full/{NN_id.png, NN_id.image-task.json}
     │   │   ├── header_locked/NN_id.png
     │   │   ├── ppt/{NAME}.pptx (+ .backup.pptx)
     │   │   ├── qa/

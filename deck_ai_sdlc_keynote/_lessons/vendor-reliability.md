@@ -15,4 +15,4 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot <runDir> \
   --only <ids> --resolution 2k --base-url https://api.aishuch.com/v1
 ```
 
-**不是密钥:** aishuch 的 API key 已经在 `.env` 的 `IMAGE2_VENDORS` 里配好了，不需额外操作。
+**不是密钥:** API key 已经在 `.env` 的 `IMAGE2_API_KEY` 里配好了，不需额外操作。

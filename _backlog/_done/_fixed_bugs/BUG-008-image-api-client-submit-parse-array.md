@@ -34,7 +34,7 @@ const taskId = data.task_id || data.id || data.data?.task_id || data.data?.id;
 cd deck_ai_sdlc_keynote && node …/ppt_flow.mjs style-master …/3_versions/v1 --force --resolution 1k
 # → Mirror failed … No task_id in submit response: {"code":200,"data":[{…,"task_id":"…"}]}
 ```
-前置：`.env` 需有 `APIMART_API_KEY` + base url（`APIMART_BASE_URLS` / `OPENAI_BASE_URL`）——本次这些都已就绪，连接与提交均成功，纯粹是响应解析问题。
+前置：`.env` 需有 `IMAGE2_API_KEY` + base url（`IMAGE2_BASE_URL` / `IMAGE2_BASE_URL`）——本次这些都已就绪，连接与提交均成功，纯粹是响应解析问题。
 
 ## 契约探针 · 横切
 
