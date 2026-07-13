@@ -15,7 +15,7 @@ agent_action: copy_to_bundle
 
 > **这是模板,不是某个具体项目的 deck-guide。** Phase 0 初始化 run bundle 时:
 > 1. 把下面第一个代码块复制到 `deck_{NAME}/deck-guide.md`,替换 `{{...}}` 占位符。
-> 2. 把第二个代码块复制到 `deck_{NAME}/CLAUDE.md`(一行指针,保 Claude Code 自动加载)。
+> 2. 把第二个代码块同时作为 `deck_{NAME}/AGENTS.md` 与 `deck_{NAME}/CLAUDE.md` 的短指针。
 >
 > `deck-guide.md` 有两个读者:**上半部给人**(大白话,新手一进来就知道怎么办),**下半部给 agent**(控制流、编辑链、命令)。人不会被技术细节淹没,agent 也拿得到执行所需的一切。
 
@@ -64,6 +64,14 @@ agent_action: copy_to_bundle
 
 - 遇事自己克服后留下的**非密钥**教训在 `_lessons/`（先读再猜；见 `_lessons/README.md`）
 - 例：Image2 冒烟回执 `_lessons/image2-proven.yaml`（试通后才写；无 API key）。密钥只写 `.env`
+
+## CLI 失败怎么处理
+
+- 非零退出时，以 stderr 最后一个有效 JSON failure envelope 为控制消息；只在完整支持并校验 `diagnostic.version` 后使用结构化字段。
+- 优先看 `diagnostic.next`。执行 `next.invocation` 时直接传 `program` + `args`，保持参数边界，不经过 shell。
+- `requires_human: true` 必须停下来让人决定；不能把提示文字当作批准。
+- 不猜被省略的 path/id/line/lineage；没有有效末行 envelope 就按外部中断或崩溃处理。
+- 只改 source，再重跑 prerequisite；`_generated/` 是派生品，永远不要手改。
 
 ## 这个项目的约定
 - **语言**:{{LANGUAGE_POLICY}}
@@ -162,14 +170,13 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
 
 ---
 
-## 复制到 `deck_{NAME}/CLAUDE.md`（一行指针）：
+## 复制到 `deck_{NAME}/AGENTS.md` 与 `deck_{NAME}/CLAUDE.md`（短指针）：
 
 ```markdown
 # {{DECK_NAME}}
 
-进入这个 run bundle 请先读 [deck-guide.md](deck-guide.md)——它说清了目录结构、控制流、
-编辑链、以及下一步该做什么。目录结构的机器权威源：
-`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`。
+进入这个 run bundle 请先读 [deck-guide.md](deck-guide.md)——它定义源文件所有权、
+CLI 诊断处理、控制流和下一步动作。
 ```
 
 ---

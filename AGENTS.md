@@ -38,7 +38,7 @@ ai_tool_ppt_maker/
 
 ## 关键约束
 
-- `PPTMAKER_FRAMEWORK/` 是只读方法论——Agent 从这里学习, 不修改它
+- 做具体 PPT 时 `PPTMAKER_FRAMEWORK/` 是只读方法论；repo 维护 change 可以按 OpenSpec 任务修改框架源
 - Agent 拥有过程, 人类拥有内容
 - 编辑链 A/B/C 分类后再跑管线, 不要每次都全量
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
@@ -49,3 +49,9 @@ ai_tool_ppt_maker/
 如果是做 PPT → 读 `PPTMAKER_FRAMEWORK/BOOTSTRAP.md` → `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md`
 如果是改代码 → 看 `openspec/specs/` 和 `_backlog/`
 如果是修 bug → 看 `_backlog/bugs/`
+
+## CLI / MD 诊断维护路由
+
+- 新增或修改 direct CLI、命令、exit path、stdout JSON、stderr diagnostic、child process、`cli_error.mjs`：先读 `openspec/specs/cli-surface/spec.md`，再用 `openspec status` 找 active `cli-surface` delta，并复用 `PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs`。
+- 修改 MD Controller / state 对 CLI 回执的消费：先读 `openspec/specs/node-specification/spec.md`，再读 active `node-specification` delta。producer 字段与发射规则仍以 `cli-surface` 为权威，不在 consumer 侧复制 schema。
+- 上述是 framework repository maintenance；run-bundle 生产 Agent 仍不得修改 framework，也不得手改 `_generated/`。

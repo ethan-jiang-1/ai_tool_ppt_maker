@@ -112,7 +112,11 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 
 - MD → CLI：先过 entry gate，再执行 CLI step。
 - CLI 成功：exit 0；需要的 durable evidence/state 由负责该动作的调用方写入。
-- CLI 硬失败：非零 exit，stderr 最后一个非空行必须是唯一单行 JSON envelope：`ok:false`、稳定 `code`、非空 `message`、`hint`、`where`。
+- CLI 硬失败：非零 exit，以 stderr 最后一个有效 JSON envelope 为控制消息；producer schema、bounds 与发射规则由 capability `cli-surface` 唯一拥有。
+- MD 仅在完整支持并校验 `diagnostic.version` 后使用 structured evidence；legacy/unsupported/malformed nested data 退回 top-level summary。非零但无有效末行 envelope 按外部中断/崩溃处理，不从 partial output 猜原因。
+- `diagnostic.next.requires_human:true` 必须停下交给人；自动 invocation 直接传 `program`/`args` 且 `shell:false`。不发明省略的 path/id/line/cause/approval；lineage 是证据，不是修改所有 artifact 的许可，`_generated/` 永不手改。
+- parent-wrapped failure 以 parent code/where/next 为控制权，保留的 child source/subject/reason/lineage/issues 仅作因果证据；不寻找第二个 child envelope，不执行被丢弃的 child next。
+- 新 run bundle 通过根 `AGENTS.md` / `CLAUDE.md` → `deck-guide.md` 发现这些 consumer 规则。
 - State 写入：只改本动作负责的字段；temp 文件必须与 `_state/state.yaml` 同目录，再 atomic rename。
 
 ## State API

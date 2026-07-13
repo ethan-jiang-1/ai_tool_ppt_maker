@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -13,6 +13,7 @@ import {
   validateNotesReceipt,
   writeNotesReceiptAtomic,
 } from "../PPTMAKER_FRAMEWORK/scripts/lib/notes_receipt.mjs";
+import { diagnosticFromError } from "../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs";
 
 const S5 = "PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs";
 
@@ -51,7 +52,14 @@ describe("stage5_inject_notes", () => {
       const pptx = join(run, "deck.pptx");
       await writeMinimalPptx(pptx);
       const before = readFileSync(pptx);
-      await expect(injectNotes({ pptx, notes: [""] })).rejects.toThrow(/missing SPEAKER NOTE/);
+      let error;
+      try {
+        await injectNotes({ pptx, notes: [""] });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error.message).toMatch(/missing SPEAKER NOTE/);
+      expect(diagnosticFromError(error).issues[0]).toMatchObject({ subject: { id: "1", field: "SPEAKER NOTE" }, reason: { kind: "missing_required_field" } });
       expect(readFileSync(pptx)).toEqual(before);
     } finally {
       rmSync(run, { recursive: true, force: true });
@@ -102,8 +110,33 @@ describe("stage5_inject_notes", () => {
       writeFileSync(join(run, "slide-specifications.md"), "## Slide 1: One\n\n> **SPEAKER NOTE**: hello\n", "utf8");
       await injectNotesFromRunDir(run);
       await writeMinimalPptx(join(pptDir, "b.pptx"));
-      await expect(injectNotesFromRunDir(run)).rejects.toThrow(/2 non-backup PPTX/);
+      let error;
+      try {
+        await injectNotesFromRunDir(run);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error.message).toMatch(/2 non-backup PPTX/);
+      expect(diagnosticFromError(error)).toMatchObject({ reason: { kind: "ambiguous_pptx", actual: 2, expected: 1 } });
       expect(existsSync(notesReceiptPath(run))).toBe(false);
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it("adds source/PPTX lineage to direct missing-note diagnostics", async () => {
+    const run = tmpRun("cli-diagnostic");
+    try {
+      const pptx = join(run, "deck.pptx");
+      const spec = join(run, "slide-specifications.md");
+      await writeMinimalPptx(pptx);
+      writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**: \n", "utf8");
+      const result = spawnSync("node", [S5, "--pptx", pptx, "--input", spec], { encoding: "utf8", timeout: 10000 });
+      expect(result.status).toBe(1);
+      const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
+      expect(envelope.diagnostic).toMatchObject({ category: "source_validation", stage: "stage5", source: { path: spec } });
+      expect(envelope.diagnostic.issues[0].source.path).toBe(spec);
+      expect(envelope.diagnostic.issues[0].lineage.map((item) => item.path)).toEqual([spec, pptx]);
     } finally {
       rmSync(run, { recursive: true, force: true });
     }

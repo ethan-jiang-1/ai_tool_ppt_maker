@@ -13,12 +13,16 @@
  *     [--only id] [--force] [--prompt-is-final] [--base-url URL] [--dry-run]
  */
 
+import "./lib/cli_bootstrap.mjs?entry=stage2_generate_images.mjs";
+import { CLI_ERROR_CODES, createCliNext, emitCliError, emitCliProgress } from "./lib/cli_error.mjs";
+
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import {
   generateOneImage,
+  ImageProviderError,
   resolveVendors,
   bridgeCredentials,
   DEFAULT_MODEL,
@@ -48,7 +52,7 @@ const __filename = fileURLToPath(import.meta.url);
  * @param {boolean} [opts.promptIsFinal]
  * @param {string[]} [opts.baseUrl]
  * @param {boolean} [opts.dryRun]
- * @returns {Promise<{generated:number, skipped:number, errors:string[]}>}
+ * @returns {Promise<{generated:number, skipped:number, errors:string[],failures:object[]}>}
  */
 export async function generateImages({
   promptJson,
@@ -99,6 +103,8 @@ export async function generateImages({
   let skipped = 0;
   /** @type {string[]} */
   const errors = [];
+  /** @type {Array<{slideId:string,outPath:string,category:string,reason:object,message:string}>} */
+  const failures = [];
 
   const workSlides = slides.filter((slide) => {
     const slideId = slide.id;
@@ -120,6 +126,7 @@ export async function generateImages({
     let prompt = String(slide.prompt || "").trim();
     if (!prompt) {
       errors.push(`${slideId}: empty prompt`);
+      failures.push({ slideId, outPath, category: "source_validation", reason: { kind: "missing_prompt" }, message: "slide image prompt is empty" });
       console.log(`  ERROR ${index}/${total}: ${slideId}: empty prompt`);
       continue;
     }
@@ -149,6 +156,7 @@ export async function generateImages({
       }
       const hint = provenanceRepairHint([slideId]);
       errors.push(`${slideId}: stale cached image (${provenance.reason}); ${hint}`);
+      failures.push({ slideId, outPath, category: "artifact", reason: { kind: "stale_image_provenance" }, message: "cached slide image provenance is stale" });
       console.log(`  ERROR ${index}/${total}: ${slideId}: stale cached image (${provenance.reason}); ${hint}`);
       continue;
     }
@@ -159,7 +167,7 @@ export async function generateImages({
       manifestError = null;
     }
 
-    console.log(`  generating slide ${index}/${total} (id=${slideId})`);
+    emitCliProgress("item_start", { stage: "stage2", index, total, id: slideId });
     try {
       const trace = await generateOneImage({
         prompt,
@@ -185,9 +193,18 @@ export async function generateImages({
       writeImageManifestAtomic(outDir, manifest);
       manifestError = null;
       generated += 1;
-      console.log(`  done ${index}/${total} (id=${slideId})`);
+      emitCliProgress("item_complete", { stage: "stage2", index, total, id: slideId, status: "generated" });
     } catch (err) {
       errors.push(`${slideId}: ${err.message}`);
+      failures.push({
+        slideId,
+        outPath,
+        category: err instanceof ImageProviderError ? "provider" : "artifact",
+        reason: err instanceof ImageProviderError
+          ? { kind: err.reason || "provider_generation_failed", ...(err.status !== null ? { actual: err.status } : {}) }
+          : { kind: "image_generation_failed" },
+        message: err instanceof ImageProviderError ? "image provider failed for selected slide" : "slide image artifact could not be produced",
+      });
       console.log(`  ERROR ${index}/${total}: ${slideId}: ${err.message}`);
     }
   }
@@ -197,7 +214,37 @@ export async function generateImages({
   if (errors.length > 0) {
     for (const e of errors) console.log(`  ${e}`);
   }
-  return { generated, skipped, errors, profile, selectedIds: workSlides.map((slide) => slide.id) };
+  return { generated, skipped, errors, failures, profile, selectedIds: workSlides.map((slide) => slide.id) };
+}
+
+export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styleReference, resolution, selectedIds = [] }) {
+  const categories = new Set(failures.map((failure) => failure.category));
+  const category = categories.size === 1 ? [...categories][0] : "artifact";
+  const action = category === "provider" ? "repair_environment" : "repair_prerequisite";
+  return {
+    version: 1,
+    category,
+    stage: "stage2",
+    operation: "generate-images",
+    source: { path: promptJson },
+    issues: failures.map((failure) => ({
+      message: failure.message,
+      subject: { kind: "slide", id: failure.slideId },
+      source: { path: promptJson },
+      reason: failure.reason,
+      lineage: [
+        { kind: "derived", path: promptJson, stage: "stage1" },
+        { kind: "derived", path: failure.outPath, stage: "stage2" },
+      ],
+    })),
+    next: createCliNext(action, {
+      inspect: [{ path: promptJson }, { path: outDir }],
+      invocation: { program: "node", args: [__filename, "--prompt-json", promptJson, "--out-dir", outDir, "--style-reference", styleReference, "--resolution", resolution, ...selectedIds.flatMap((id) => ["--only", id]), "--force"] },
+      default: category === "provider"
+        ? "Repair provider availability without exposing credentials, then rerun only the failed slides."
+        : "Repair or rerun the named prerequisite; do not hand-edit generated images.",
+    }),
+  };
 }
 
 /**
@@ -233,9 +280,36 @@ export async function main(argv = process.argv) {
           baseUrl: opts.baseUrl || [],
           dryRun: !!opts.dryRun,
         });
+        if (result.errors.length > 0) {
+          emitCliError({
+            code: CLI_ERROR_CODES.FAILED,
+            message: `${result.errors.length} selected slide image(s) failed in Stage 2.`,
+            hint: "Inspect the retained slide/artifact evidence and repair the source or provider prerequisite.",
+            where: "stage2_generate_images.generate",
+            diagnostic: buildImageFailureDiagnostic({ failures: result.failures, promptJson: opts.promptJson, outDir: opts.outDir, styleReference: opts.styleReference, resolution: opts.resolution, selectedIds: result.selectedIds }),
+          });
+        }
         process.exit(result.errors.length > 0 ? 1 : 0);
       } catch (err) {
         console.error(`✗ ${err.message}`);
+        const missingPrompt = !existsSync(opts.promptJson);
+        const missingStyle = !existsSync(opts.styleReference);
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "Stage 2 prerequisites are missing or invalid.",
+          hint: "Restore the Stage 1 prompt manifest and style reference before generating images.",
+          where: "stage2_generate_images.main",
+          diagnostic: {
+            version: 1,
+            category: "artifact",
+            stage: "stage2",
+            operation: "load-prerequisites",
+            source: { path: missingPrompt ? opts.promptJson : opts.styleReference },
+            reason: { kind: missingPrompt ? "missing_prompt_manifest" : missingStyle ? "missing_style_reference" : "invalid_generation_prerequisite" },
+            lineage: [{ kind: "derived", path: opts.promptJson, stage: "stage1" }, { kind: "derived", path: opts.outDir, stage: "stage2" }],
+            next: createCliNext("repair_prerequisite", { inspect: [{ path: opts.promptJson }, { path: opts.styleReference }], default: "Rerun Stage 1 or style-master for the missing prerequisite, then rerun Stage 2." }),
+          },
+        });
         process.exit(1);
       }
     });

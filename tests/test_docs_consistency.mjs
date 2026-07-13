@@ -6,6 +6,7 @@ import {
   scanMarkdownLinks,
   scanSemanticDrift,
   validateDocumentedCommands,
+  validateDiagnosticAuthorityPointers,
   validateExceptionMap,
   validatePseudocodeMarkers,
 } from "../PPTMAKER_FRAMEWORK/scripts/lib/framework_coherence.mjs";
@@ -47,6 +48,10 @@ describe("framework documentation coherence", () => {
     expect(validatePseudocodeMarkers("doc.md", text)).toEqual([]);
     expect(validatePseudocodeMarkers("doc.md", '<!-- coherence:pseudocode reason="" -->\n```bash\nnode scripts/fake.mjs\n```')).toHaveLength(1);
     expect(validatePseudocodeMarkers("doc.md", '<!-- coherence:pseudocode reason="two examples" -->\n```bash\nnode scripts/a.mjs\nnode scripts/b.mjs\n```')).toHaveLength(1);
+  });
+
+  it("keeps CLI producer and MD consumer authority routes discoverable", () => {
+    expect(validateDiagnosticAuthorityPointers()).toEqual([]);
   });
 
   it("the complete active framework has no coherence violations", () => {

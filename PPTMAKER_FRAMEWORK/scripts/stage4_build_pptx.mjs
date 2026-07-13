@@ -18,6 +18,9 @@
  * Imports path constants from bundle_layout.mjs.
  */
 
+import "./lib/cli_bootstrap.mjs?entry=stage4_build_pptx.mjs";
+import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
+
 import { readFileSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, basename, extname, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,7 +109,16 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
   try {
     planData = JSON.parse(readFileSync(slidePlan, "utf-8"));
   } catch (err) {
-    throw new Error(`Cannot read slide plan ${slidePlan}: ${err.message}`);
+    throw attachCliDiagnostic(new Error(`Cannot read slide plan ${slidePlan}: ${err.message}`), {
+      version: 1,
+      category: "artifact",
+      stage: "stage4",
+      operation: "load-slide-plan",
+      source: { path: slidePlan },
+      reason: { kind: "invalid_slide_plan" },
+      lineage: [{ kind: "derived", path: slidePlan, stage: "stage1" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }], default: "Rerun Stage 1 to recreate the slide plan, then rerun Stage 4." }),
+    });
   }
   const slides = planData.slides ?? [];
 
@@ -121,25 +133,37 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
     const sid = slide.id;
     const hits = matchSlideImage(imgDir, sid);
     if (hits.length === 0) {
-      problems.push(
-        `no image for slide ${JSON.stringify(sid)} (expected NN_${sid}.png in ${basename(imgDir)}/)`
-      );
+      problems.push({ slideId: sid, reason: "missing_image", hits: [] });
     } else if (hits.length > 1) {
-      problems.push(
-        `ambiguous images for slide ${JSON.stringify(sid)}: ${hits.map((h) => basename(h)).join(", ")}`
-      );
+      problems.push({ slideId: sid, reason: "ambiguous_images", hits });
     } else {
       resolved.push(hits[0]);
     }
   }
 
   if (problems.length > 0) {
-    throw new Error(
+    throw attachCliDiagnostic(new Error(
       `✗ Stage 4 cannot build the deck — ${problems.length} image problem(s):\n` +
-        problems.map((p) => `  - ${p}`).join("\n") +
+        problems.map((problem) => problem.reason === "missing_image"
+          ? `  - no image for slide ${JSON.stringify(problem.slideId)} (expected NN_${problem.slideId}.png in ${basename(imgDir)}/)`
+          : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: ${problem.hits.map((hit) => basename(hit)).join(", ")}`).join("\n") +
         `\n  Re-run Stage 3 (and Stage 2 if images are missing) so every slide has ` +
         `exactly one header-locked image, then Stage 4.`
-    );
+    ), {
+      version: 1,
+      category: "artifact",
+      stage: "stage4",
+      operation: "resolve-images",
+      source: { path: slidePlan },
+      issues: problems.map((problem) => ({
+        message: problem.reason === "missing_image" ? "header-locked slide image is missing" : "multiple header-locked images are ambiguous",
+        subject: { kind: "slide", id: problem.slideId },
+        source: { path: problem.hits[0] || imgDir },
+        reason: { kind: problem.reason, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
+        lineage: [{ kind: "derived", path: slidePlan, stage: "stage1" }, { kind: "derived", path: problem.hits[0] || imgDir, stage: "stage3" }, { kind: "derived", path: out, stage: "stage4" }],
+      })),
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }, { path: imgDir }], default: "Rerun Stage 3, and Stage 2 if needed, then rebuild the PPTX." }),
+    });
   }
 
   // ---- build PPTX ----------------------------------------------------------
@@ -232,6 +256,31 @@ export async function main(argv = process.argv) {
         });
       } catch (err) {
         console.error(`✗ ${err.message}`);
+        const structured = diagnosticFromError(err);
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "Stage 4 could not assemble the PPTX from the selected slide artifacts.",
+          hint: "Restore a one-to-one slide plan and header-locked image set, then rerun Stage 4.",
+          where: "stage4_build_pptx.main",
+          diagnostic: structured || {
+            version: 1,
+            category: "artifact",
+            stage: "stage4",
+            operation: "build-pptx",
+            source: { path: opts.slidePlan },
+            reason: { kind: "missing_ambiguous_or_invalid_slide_image" },
+            lineage: [
+              { kind: "derived", path: opts.slidePlan, stage: "stage1" },
+              { kind: "derived", path: opts.images, stage: "stage3" },
+              { kind: "derived", path: opts.out, stage: "stage4" },
+            ],
+            next: createCliNext("repair_prerequisite", {
+              inspect: [{ path: opts.slidePlan }, { path: opts.images }],
+              invocation: { program: "node", args: [__filename, "--images", opts.images, "--slide-plan", opts.slidePlan, "--out", opts.out, "--title", opts.title] },
+              default: "Rerun Stage 3, and Stage 2 if needed, until every slide has exactly one image; do not patch the PPTX directly.",
+            }),
+          },
+        });
         process.exit(1);
       }
     });

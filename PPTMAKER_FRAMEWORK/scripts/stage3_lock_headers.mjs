@@ -31,6 +31,9 @@
  *     add Noto Sans CJK and point FONT_BOLD/SEMIBOLD/REGULAR at it.
  */
 
+import "./lib/cli_bootstrap.mjs?entry=stage3_lock_headers.mjs";
+import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
+
 import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import {
   existsSync,
@@ -604,12 +607,20 @@ function _loadFont(family, weightOrSize, size) {
 
   // ---- 3. Nothing usable — abort loudly rather than emit garbage headers ---
 
-  throw new Error(
+  throw attachCliDiagnostic(new Error(
     `✗ No usable font for header-lock. Wanted '${faceLabel}', and no fallback ` +
       `(${_FALLBACK_FONTS.join(", ")}) was found either.\n` +
       `  Fix: put a .otf/.ttf into ${_BUNDLED_FONTS_DIR}/ (create it), or set ` +
       `$PPT_FONT_DIR to a dir containing sans-serif fonts, then rerun Stage 3.`,
-  );
+  ), {
+    version: 1,
+    category: "environment",
+    stage: "stage3",
+    operation: "load-fonts",
+    source: { path: _BUNDLED_FONTS_DIR },
+    reason: { kind: "font_unavailable" },
+    next: createCliNext("repair_environment", { inspect: [{ path: _BUNDLED_FONTS_DIR }], default: "Install a usable configured font or set PPT_FONT_DIR, then rerun Stage 3." }),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -893,7 +904,7 @@ function _matchSlideImage(imgDir, slideId) {
 function _resolveImages(imgDir, slides) {
   /** @type {Record<string, string>} */
   const resolved = {};
-  /** @type {string[]} */
+  /** @type {Array<{slideId:string,reason:string,hits:string[]}>} */
   const problems = [];
   const dirName = basename(imgDir);
 
@@ -901,26 +912,38 @@ function _resolveImages(imgDir, slides) {
     const sid = slide.id;
     const hits = _matchSlideImage(imgDir, sid);
     if (hits.length === 0) {
-      problems.push(
-        `no image for slide ${JSON.stringify(sid)} (expected NN_${sid}.png in ${dirName}/)`,
-      );
+      problems.push({ slideId: sid, reason: "missing_image", hits: [] });
     } else if (hits.length > 1) {
-      problems.push(
-        `ambiguous images for slide ${JSON.stringify(sid)}: [${hits.map((h) => basename(h)).join(", ")}]`,
-      );
+      problems.push({ slideId: sid, reason: "ambiguous_images", hits });
     } else {
       resolved[sid] = hits[0];
     }
   }
 
   if (problems.length > 0) {
-    throw new Error(
+    throw attachCliDiagnostic(new Error(
       `✗ Stage 3 cannot start — ${problems.length} image problem(s):\n` +
-        problems.map((p) => `  - ${p}`).join("\n") +
+        problems.map((problem) => problem.reason === "missing_image"
+          ? `  - no image for slide ${JSON.stringify(problem.slideId)} (expected NN_${problem.slideId}.png in ${dirName}/)`
+          : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`).join("\n") +
         `\n  Stage 2 likely didn't finish. Re-run Stage 2 (e.g. --stage 2) to ` +
         `generate the missing images, then Stage 3. (Building a partial deck would ` +
         `misalign every downstream speaker note.)`,
-    );
+    ), {
+      version: 1,
+      category: "artifact",
+      stage: "stage3",
+      operation: "resolve-images",
+      source: { path: imgDir },
+      issues: problems.map((problem) => ({
+        message: problem.reason === "missing_image" ? "slide image is missing" : "multiple slide images are ambiguous",
+        subject: { kind: "slide", id: problem.slideId },
+        source: { path: problem.hits[0] || imgDir },
+        reason: { kind: problem.reason, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
+        lineage: [{ kind: "derived", path: problem.hits[0] || imgDir, stage: "stage2" }],
+      })),
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: imgDir }], default: "Rerun Stage 2 for the retained slide ids, then rerun Stage 3." }),
+    });
   }
   return resolved;
 }
@@ -1081,9 +1104,17 @@ async function runLockHeaders(opts) {
   try {
     planData = JSON.parse(readFileSync(opts.slidePlan, "utf-8"));
   } catch (exc) {
-    throw new Error(
+    throw attachCliDiagnostic(new Error(
       `Failed to read slide plan ${opts.slidePlan}: ${exc.message}`,
-    );
+    ), {
+      version: 1,
+      category: "artifact",
+      stage: "stage3",
+      operation: "load-slide-plan",
+      source: { path: opts.slidePlan },
+      reason: { kind: "invalid_slide_plan" },
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: opts.slidePlan }], default: "Rerun Stage 1 to recreate the slide plan, then rerun Stage 3." }),
+    });
   }
   const slides = planData.slides || [];
 
@@ -1147,8 +1178,43 @@ async function runLockHeaders(opts) {
 }
 
 async function main(argv = process.argv) {
-  const opts = _parseArgs(argv.slice(2));
-  return runLockHeaders(opts);
+  let opts;
+  try {
+    opts = _parseArgs(argv.slice(2));
+  } catch (err) {
+    emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Stage 3 requires images, slide plan, and output paths.", hint: "Pass --images, --slide-plan, and --out.", where: "stage3_lock_headers.arguments", diagnostic: { version: 1, category: "usage", stage: "stage3", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Pass every required Stage 3 path, then rerun." }) } });
+    throw err;
+  }
+  try {
+    return await runLockHeaders(opts);
+  } catch (err) {
+    const structured = diagnosticFromError(err);
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Stage 3 could not produce the complete header-locked image set.",
+      hint: "Inspect the slide plan, Stage 2 images, and visual configuration, then rerun the prerequisite stage.",
+      where: "stage3_lock_headers.main",
+      diagnostic: structured || {
+        version: 1,
+        category: "artifact",
+        stage: "stage3",
+        operation: "lock-headers",
+        source: { path: opts.slidePlan || opts.images || "stage3-input" },
+        reason: { kind: "missing_ambiguous_or_invalid_stage_input" },
+        lineage: [
+          ...(opts.slidePlan ? [{ kind: "derived", path: opts.slidePlan, stage: "stage1" }] : []),
+          ...(opts.images ? [{ kind: "derived", path: opts.images, stage: "stage2" }] : []),
+          ...(opts.out ? [{ kind: "derived", path: opts.out, stage: "stage3" }] : []),
+        ],
+        next: createCliNext("repair_prerequisite", {
+          inspect: [opts.slidePlan, opts.images, opts.colorPalette].filter(Boolean).map((path) => ({ path })),
+          invocation: opts.images && opts.slidePlan && opts.out ? { program: "node", args: [__filename, "--images", opts.images, "--slide-plan", opts.slidePlan, "--out", opts.out] } : undefined,
+          default: "Repair or rerun Stage 1/2 inputs; do not edit Stage 3 generated images directly.",
+        }),
+      },
+    });
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------

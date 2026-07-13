@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,6 +9,7 @@ import {
   selfCheck,
   checkBundle,
   createVersion,
+  AGENT_POINTER_FILE,
   LESSONS_DIR,
   SCRATCH_SUBDIR,
 } from '../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
@@ -79,6 +80,7 @@ describe('bundle_layout', () => {
     expect(renderTree()).toContain(STATE_DIR);
     expect(renderTree()).toContain(LESSONS_DIR);
     expect(renderTree()).toContain('_scratch');
+    expect(renderTree()).toContain(AGENT_POINTER_FILE);
     expect(selfCheck()).toEqual([]);
   });
 
@@ -123,6 +125,17 @@ describe('bundle_layout', () => {
       expect(readFileSync(join(deck, 'deck-guide.md'), 'utf-8')).toContain(
         '_state/state.yaml'
       );
+      const agents = readFileSync(join(deck, AGENT_POINTER_FILE), 'utf-8');
+      const claude = readFileSync(join(deck, 'CLAUDE.md'), 'utf-8');
+      const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
+      expect(agents).toContain('[deck-guide.md](deck-guide.md)');
+      expect(claude).toContain('[deck-guide.md](deck-guide.md)');
+      expect(guide).toContain('stderr 最后一个有效 JSON failure envelope');
+      expect(guide).toContain('program` + `args');
+      expect(guide).toContain('requires_human: true');
+      expect(guide).toContain('不猜被省略');
+      expect(guide).toContain('`_generated/` 是派生品');
+      expect(checkBundle(join(deck, '3_versions', 'v1'), false)).toEqual([]);
       expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_state/');
       expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_lessons/');
       expect(
@@ -164,6 +177,23 @@ describe('bundle_layout', () => {
       expect(issues.every((i) => !i.includes('_state'))).toBe(true);
       expect(issues.every((i) => !i.includes('_lessons'))).toBe(true);
       expect(issues.filter((i) => i.includes('unexpected')).length).toBe(0);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('structure check emits bounded issues and an argument-safe rerun', () => {
+    const deck = join(tmpdir(), `deck_bad_structure_${Date.now()}`);
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      writeFileSync(join(deck, 'unexpected-root.txt'), 'x', 'utf8');
+      const runDir = join(deck, '3_versions', 'v1');
+      const result = spawnSync('node', [BUNDLE, '--check', runDir, '--structure-only'], { encoding: 'utf8', timeout: 10000 });
+      expect(result.status).toBe(1);
+      const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
+      expect(envelope.diagnostic).toMatchObject({ category: 'structure', source: { path: runDir } });
+      expect(envelope.diagnostic.issues.length).toBeGreaterThan(0);
+      expect(envelope.diagnostic.next.invocation.args).toEqual([BUNDLE.replace('PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs', join(process.cwd(), BUNDLE)), '--check', runDir, '--structure-only']);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

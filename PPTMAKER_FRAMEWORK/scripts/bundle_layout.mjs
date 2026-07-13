@@ -16,7 +16,8 @@
  *
  *     deck_<name>/                       the deck (one evolving entity)
  *     ├── deck-guide.md                  read-first control-flow doc (human + agent)
- *     ├── CLAUDE.md                      1-line pointer to deck-guide.md (auto-load)
+ *     ├── AGENTS.md                      agent-agnostic pointer to deck-guide.md
+ *     ├── CLAUDE.md                      Claude pointer to deck-guide.md (auto-load)
  *     ├── project-metadata.yaml          topic / audience / language / north-star
  *     ├── _state/                        playbook execution progress (state.yaml; history.jsonl on demand)
  *     ├── _lessons/                      retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
@@ -58,6 +59,13 @@
  * bundle_layout.mjs. All constants, functions, and CLI modes preserved identically.
  */
 
+import "./lib/cli_bootstrap.mjs?entry=bundle_layout.mjs";
+import {
+    CLI_ERROR_CODES,
+    createCliNext,
+    emitCliError,
+} from "./lib/cli_error.mjs";
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,6 +85,7 @@ export const BACKBONE_DIR = '2_backbone';
 export const VERSIONS_DIR = '3_versions';
 
 export const GUIDE_FILE = 'deck-guide.md';
+export const AGENT_POINTER_FILE = 'AGENTS.md';
 export const POINTER_FILE = 'CLAUDE.md';
 export const METADATA_FILE = 'project-metadata.yaml';
 
@@ -164,6 +173,7 @@ export const SCRATCH_DIR_README = `\
 /** Deck-root allowed names (strictest layer). Dotfiles handled by _ignorable. */
 export const DECK_ROOT_ALLOWED = new Set([
   'deck-guide.md',
+  'AGENTS.md',
   'CLAUDE.md',
   'project-metadata.yaml',
   'README.md',
@@ -768,9 +778,13 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `topic: \naudience: \nlanguage: \none_thing_to_remember: \n` +
         `content_gate: pending\nvisual_gate: pending\n`);
     _writeIfAbsent(
+        path.join(deckDir, AGENT_POINTER_FILE),
+        `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
+        `它定义源文件所有权、CLI 诊断处理和下一步动作。\n`);
+    _writeIfAbsent(
         path.join(deckDir, POINTER_FILE),
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
-        `目录结构的权威源:\`PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs\`。\n`);
+        `它定义源文件所有权、CLI 诊断处理和下一步动作。\n`);
     const pipelineScript = path.join(frameworkDir, 'scripts/unified_pipeline.mjs');
     const flowScript = path.join(frameworkDir, 'scripts/ppt_flow.mjs');
     const versionScript = path.join(frameworkDir, 'scripts/bundle_layout.mjs');
@@ -791,6 +805,12 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或同上 \`state\` / \`state --check-gates\`）。\n` +
         `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
         `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
+        `## CLI 失败怎么处理\n\n` +
+        `- 非零退出时，以 stderr 最后一个有效 JSON failure envelope 为控制消息；只在完整支持并校验 \`diagnostic.version\` 后使用结构化字段。\n` +
+        `- 优先看 \`diagnostic.next\`。执行 \`next.invocation\` 时直接传 \`program\` + \`args\`，保持参数边界，不经过 shell。\n` +
+        `- \`requires_human: true\` 必须停下来让人决定；不能把提示文字当作批准。\n` +
+        `- 不猜被省略的 path/id/line/lineage；没有有效末行 envelope 就按外部中断或崩溃处理。\n` +
+        `- 只改 source，再重跑 prerequisite；\`_generated/\` 是派生品，永远不要手改。\n\n` +
         `## 自留教训（非进度）\n\n` +
         `- 遇事自己克服后留下的**非密钥**教训在 \`${LESSONS_DIR}/\`（先读再猜；见 \`${LESSONS_DIR}/README.md\`）。` +
         `例：Image2 冒烟回执 \`${LESSONS_DIR}/${LESSONS_IMAGE2_PROVEN}\`（试通后才写）。密钥只写 \`.env\`，不要写进 \`${LESSONS_DIR}/\` 或 \`${STATE_DIR}/\`。\n\n` +
@@ -812,7 +832,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `\`render.header-lock\`。逐页 RENDER MODE 仅作高级 override。full-page header 是尽力稳定，header-lock 才是确定性保证。\n\n` +
         `1K evidence 不授权 2K；resolution/model/style 任一变化都要用目标 profile 重新 pilot + approve header。\n\n` +
         `用户只需告诉 Agent 想改什么；Agent 负责按 resolved mode 选择最小重跑链。\n`);
-    log.push(`project files: ${METADATA_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
+    log.push(`project files: ${METADATA_FILE}, ${AGENT_POINTER_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
 
     _writeIfAbsent(
         path.join(deckDir, '.env.example'),
@@ -851,7 +871,8 @@ export function renderTree() {
     return `\
 deck_\${NAME}/
 ├── ${GUIDE_FILE}                     ← read first: structure + workflow + edit chains
-├── ${POINTER_FILE}                         ← 1-line pointer to ${GUIDE_FILE} (auto-load)
+├── ${AGENT_POINTER_FILE}                       ← agent-agnostic pointer to ${GUIDE_FILE}
+├── ${POINTER_FILE}                        ← Claude pointer to ${GUIDE_FILE} (auto-load)
 ├── ${METADATA_FILE}
 ├── ${STATE_DIR}/                          ← playbook execution progress (not material)
 │   ├── ${STATE_FILE}                    ← truth source (atomic write)
@@ -1046,19 +1067,29 @@ function _main() {
 
     if ((args.deckType || args.style) && !args.init) {
         console.error('✗ --deck-type / --style only apply together with --init.');
+        emitCliError({
+            code: CLI_ERROR_CODES.USAGE,
+            message: "--deck-type and --style require --init.",
+            hint: "Use the template options only while initializing a deck.",
+            where: "bundle_layout.arguments",
+            diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) },
+        });
         process.exit(1);
     }
     if (args.versionName && !args.newVersion) {
         console.error('✗ --version-name only applies together with --new-version.');
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--version-name requires --new-version.", hint: "Use --version-name only while creating a version.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --new-version or remove --version-name." }) } });
         process.exit(1);
     }
     const primaryModes = [args.init, args.check, args.newVersion, args.selfCheck].filter(Boolean).length;
     if (primaryModes > 1) {
         console.error('✗ choose only one of --init, --check, --new-version, or --self-check.');
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Bundle layout modes are mutually exclusive.", hint: "Choose one primary mode.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Choose exactly one of --init, --check, --new-version, or --self-check." }) } });
         process.exit(1);
     }
     if (args.structureOnly && !args.check) {
         console.error('✗ --structure-only only applies together with --check.');
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "--structure-only requires --check.", hint: "Pair the option with a run directory check.", where: "bundle_layout.arguments", diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --check <run-dir> or remove --structure-only." }) } });
         process.exit(1);
     }
 
@@ -1069,6 +1100,7 @@ function _main() {
             for (const d of drift) {
                 console.error(`  - ${d}`);
             }
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle layout SSOT has ${drift.length} coherence issue(s).`, hint: "Repair the layout constants and generated tree together.", where: "bundle_layout.self-check", diagnostic: { version: 1, category: "internal", operation: "self-check", issues: drift.map((message) => ({ message })), next: createCliNext("report_internal", { default: "Inspect bundle_layout.mjs and repair the reported SSOT drift." }) } });
             process.exit(1);
         }
         console.log('✓ SSOT self-consistent: renderTree / whitelist / init all agree.');
@@ -1081,6 +1113,7 @@ function _main() {
             console.error(
                 `✗ deck dir name must start with 'deck_' (Stage 4 derives the .pptx name from it); ` +
                 `got: ${path.basename(deckDir)}`);
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Deck directory name must start with deck_.", hint: "Rename the target directory and rerun init.", where: "bundle_layout.init.name", diagnostic: { version: 1, category: "usage", operation: "init", subject: { kind: "deck", id: path.basename(deckDir) }, source: { path: deckDir }, next: createCliNext("fix_arguments", { inspect: [{ path: path.dirname(deckDir) }], default: "Choose a target directory whose basename starts with deck_." }) } });
             process.exit(1);
         }
         const frameworkDir = path.dirname(__dirname);
@@ -1089,9 +1122,16 @@ function _main() {
                 `✗ refusing to scaffold inside the framework (${path.basename(frameworkDir)}/). ` +
                 `A run bundle is a separate project — give an absolute path or a path outside ` +
                 `the framework, e.g.  --init ~/decks/${path.basename(deckDir)}`);
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "refusing to scaffold a run bundle inside PPTMAKER_FRAMEWORK.", hint: "Choose a target outside the framework source tree.", where: "bundle_layout.init.location", diagnostic: { version: 1, category: "structure", operation: "init", source: { path: deckDir }, reason: { kind: "framework_source_boundary" }, next: createCliNext("fix_arguments", { inspect: [{ path: frameworkDir }], default: "Choose a deck_ target outside PPTMAKER_FRAMEWORK and rerun init." }) } });
             process.exit(1);
         }
-        const created = initBundle(deckDir, null, args.deckType, args.style);
+        let created;
+        try {
+            created = initBundle(deckDir, null, args.deckType, args.style);
+        } catch {
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "unknown or invalid bundle initialization option.", hint: "Choose a documented deck type and style preset.", where: "bundle_layout.init.options", diagnostic: { version: 1, category: "usage", operation: "init", source: { path: deckDir }, next: createCliNext("fix_arguments", { default: "Inspect --help, choose supported initialization options, and rerun." }) } });
+            process.exit(1);
+        }
         const seeded = [];
         if (args.deckType) seeded.push(`deck-type=${args.deckType}`);
         if (args.style) seeded.push(`style=${args.style}`);
@@ -1111,6 +1151,7 @@ function _main() {
             target = createVersion(args.newVersion, args.versionName);
         } catch (exc) {
             console.error(`✗ ${exc.message}`);
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Unable to create the requested clean version.", hint: "Inspect the source version structure and version name.", where: "bundle_layout.new-version", diagnostic: { version: 1, category: "structure", operation: "new-version", source: { path: path.resolve(args.newVersion) }, next: createCliNext("inspect", { inspect: [{ path: path.resolve(args.newVersion) }], default: "Inspect the source version and correct its structure or requested version name." }) } });
             process.exit(1);
         }
         console.log(`✓ Created clean version: ${target}`);
@@ -1131,6 +1172,7 @@ function _main() {
             }
             console.error('\nThe structure is the constitution. Fix these, or see the canonical tree:');
             console.error('  node bundle_layout.mjs');
+            emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `Bundle ${scope} check found ${violations.length} violation(s).`, hint: "Fix the named source layout, then rerun the check.", where: "bundle_layout.check", diagnostic: { version: 1, category: "structure", operation: "check", source: { path: runDir }, issues: violations.map((message) => ({ message, source: { path: runDir }, reason: { kind: "layout_violation" } })), next: createCliNext("edit_source", { inspect: [{ path: runDir }], invocation: { program: "node", args: [__filename, "--check", runDir, ...(args.structureOnly ? ["--structure-only"] : [])] }, default: "Repair the reported run-bundle paths; do not edit _generated artifacts as source." }) } });
             process.exit(1);
         }
         const note = ready ? '' : '  (pipeline assets and Phase approvals are not required at this gate.)';

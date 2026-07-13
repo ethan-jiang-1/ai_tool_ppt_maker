@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   configureVisualConfig,
   parseSlides,
+  validateSpecRecords,
   validateSpecs,
 } from '../PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs';
+import { parseCliErrorLine } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 import { DEFAULT_CONFIG } from '../PPTMAKER_FRAMEWORK/scripts/visual_config.mjs';
 
 const STAGE1 = 'PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs';
@@ -140,5 +142,35 @@ describe('stage1_build_inputs', () => {
       'full-page',
       'body+header-lock',
     ]);
+  });
+
+  it('retains structured source, line, slide, field, reason, and aggregate CLI issues', () => {
+    const path = specFile(
+      `## Slide 01: s01\n\n` +
+      `**VISUAL TYPE**: Framework\n` +
+      `**RENDER MODE**: unsupported-mode\n` +
+      `**TITLE**: A title\n\n` +
+      `## Slide 02: s02\n\n` +
+      `**VISUAL TYPE**: Framework\n` +
+      `**RENDER MODE**: body+header-lock\n` +
+      `**TITLE**: \n`
+    );
+    const records = validateSpecRecords([path]).filter((record) => record.severity === 'ERROR');
+    expect(records.length).toBeGreaterThanOrEqual(3);
+    expect(records.find((record) => record.subject.id === 's01' && record.subject.field === 'RENDER MODE')).toMatchObject({
+      source: { path, line: 4 },
+      reason: { kind: 'invalid_enum', expected: ['full-page', 'body+header-lock'] },
+    });
+    expect(records.find((record) => record.subject.id === 's02' && record.subject.field === 'TITLE')).toMatchObject({
+      reason: { kind: 'missing_required_field' },
+    });
+
+    const result = spawnSync('node', [STAGE1, '--spec', path, '--validate'], { encoding: 'utf8', timeout: 10000 });
+    expect(result.status).toBe(1);
+    const envelope = parseCliErrorLine(result.stderr.trim().split(/\r?\n/).at(-1));
+    expect(envelope.diagnostic.category).toBe('source_validation');
+    expect(envelope.diagnostic.issues.length).toBe(records.length);
+    expect(envelope.diagnostic.issues.some((issue) => issue.subject?.id === 's01' && issue.source?.line === 4)).toBe(true);
+    expect(`${result.stdout}${result.stderr}`).not.toContain('unsupported-mode');
   });
 });

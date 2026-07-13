@@ -18,6 +18,9 @@
  * Imports path constants from ./bundle_layout.mjs.
  */
 
+import "./lib/cli_bootstrap.mjs?entry=stage5_inject_notes.mjs";
+import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
+
 import { copyFileSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +38,7 @@ import {
 import {
   buildNotesReceipt,
   invalidateNotesReceipt,
+  notesReceiptPath,
   writeNotesReceiptAtomic,
 } from "./lib/notes_receipt.mjs";
 
@@ -249,20 +253,54 @@ function countSlides(zip) {
 export async function injectNotes({ pptx, notes }) {
   if (notes.some((note) => typeof note !== "string" || note.trim() === "")) {
     const missing = notes.map((note, index) => (!note || !note.trim() ? index + 1 : null)).filter(Boolean);
-    throw new Error(`Stage 5 aborted: missing SPEAKER NOTE content for slide(s) ${missing.join(", ")}`);
+    throw attachCliDiagnostic(new Error(`Stage 5 aborted: missing SPEAKER NOTE content for slide(s) ${missing.join(", ")}`), {
+      version: 1,
+      category: "source_validation",
+      stage: "stage5",
+      operation: "validate-notes",
+      issues: missing.map((slideNumber) => ({
+        message: "speaker note content is missing",
+        subject: { kind: "slide", id: String(slideNumber), field: "SPEAKER NOTE" },
+        reason: { kind: "missing_required_field", expected: "non-empty speaker note" },
+      })),
+      next: createCliNext("edit_source", { default: "Add every missing speaker note in source markdown, then rerun Stage 5." }),
+    });
   }
-  const pptxBuf = readFileSync(pptx);
-  const zip = await JSZip.loadAsync(pptxBuf);
+  let zip;
+  try {
+    const pptxBuf = readFileSync(pptx);
+    zip = await JSZip.loadAsync(pptxBuf);
+  } catch {
+    throw attachCliDiagnostic(new Error("Stage 5 PPTX prerequisite is missing or invalid."), {
+      version: 1,
+      category: "artifact",
+      stage: "stage5",
+      operation: "load-pptx",
+      source: { path: pptx },
+      reason: { kind: "invalid_pptx" },
+      lineage: [{ kind: "derived", path: pptx, stage: "stage4" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Rerun Stage 4 to recreate a valid PPTX, then rerun Stage 5." }),
+    });
+  }
 
   const slideCount = countSlides(zip);
 
   if (notes.length !== slideCount) {
-    throw new Error(
+    throw attachCliDiagnostic(new Error(
       `✗ Stage 5 aborted: ${notes.length} speaker notes in the spec but ` +
         `${slideCount} slides in the PPTX. Positional matching would misalign ` +
         `notes. Rebuild the deck from the current spec (Stage 1→4) so counts agree, ` +
         `then rerun Stage 5.`
-    );
+    ), {
+      version: 1,
+      category: "artifact",
+      stage: "stage5",
+      operation: "match-note-count",
+      source: { path: pptx },
+      reason: { kind: "count_mismatch", actual: notes.length, expected: slideCount },
+      lineage: [{ kind: "derived", path: pptx, stage: "stage4" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Rerun Stages 1 through 4 from current source so slide and note counts agree." }),
+    });
   }
 
   // Read [Content_Types].xml once — we'll update it as notes are added.
@@ -335,12 +373,16 @@ export async function injectNotesFromRunDir(runDir) {
   invalidateNotesReceipt(runDir);
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
-    throw new Error(`No ${SLIDE_SPECS_GLOB} found in ${runDir}`);
+    throw attachCliDiagnostic(new Error(`No ${SLIDE_SPECS_GLOB} found in ${runDir}`), {
+      version: 1, category: "source_validation", stage: "stage5", operation: "find-notes-source", source: { path: runDir }, reason: { kind: "missing_notes_source" }, next: createCliNext("edit_source", { inspect: [{ path: runDir }], default: "Restore the slide specification source with speaker notes, then rerun Stage 5." }),
+    });
   }
 
   const pptDir = join(generatedDir(runDir), GEN_PPT_SUBDIR);
   if (!existsSync(pptDir)) {
-    throw new Error(`No ppt/ dir found in _generated/. Run Stage 4 first.`);
+    throw attachCliDiagnostic(new Error(`No ppt/ dir found in _generated/. Run Stage 4 first.`), {
+      version: 1, category: "artifact", stage: "stage5", operation: "find-pptx", source: { path: pptDir }, reason: { kind: "missing_pptx_directory" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }], default: "Rerun Stage 4 to create the PPTX prerequisite; do not create generated directories by hand." }),
+    });
   }
 
   const pptxFiles = readdirSync(pptDir)
@@ -349,9 +391,18 @@ export async function injectNotesFromRunDir(runDir) {
     .sort();
 
   if (pptxFiles.length !== 1) {
-    throw new Error(pptxFiles.length === 0
+    throw attachCliDiagnostic(new Error(pptxFiles.length === 0
       ? `No .pptx found in ${pptDir}. Run Stage 4 first.`
-      : `${pptxFiles.length} non-backup PPTX files found in ${pptDir}; remove strays before Stage 5.`);
+      : `${pptxFiles.length} non-backup PPTX files found in ${pptDir}; remove strays before Stage 5.`), {
+      version: 1,
+      category: "artifact",
+      stage: "stage5",
+      operation: "find-pptx",
+      source: { path: pptDir },
+      reason: { kind: pptxFiles.length === 0 ? "missing_pptx" : "ambiguous_pptx", actual: pptxFiles.length, expected: 1 },
+      lineage: [{ kind: "source", path: inputFile, stage: "input" }, { kind: "derived", path: pptDir, stage: "stage4" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }, { path: pptDir }], default: "Rerun Stage 4 until exactly one current PPTX exists, then rerun Stage 5." }),
+    });
   }
   const pptxFile = pptxFiles[0];
   const backup = pptxFile.replace(/\.pptx$/, ".backup.pptx");
@@ -365,7 +416,21 @@ export async function injectNotesFromRunDir(runDir) {
     slideCount: result.slideCount,
     notesInjected: result.notesInjected,
   });
-  writeNotesReceiptAtomic(runDir, receipt);
+  try {
+    writeNotesReceiptAtomic(runDir, receipt);
+  } catch {
+    const receiptPath = notesReceiptPath(runDir);
+    throw attachCliDiagnostic(new Error("Stage 5 notes receipt could not be written."), {
+      version: 1,
+      category: "artifact",
+      stage: "stage5",
+      operation: "write-receipt",
+      source: { path: inputFile },
+      reason: { kind: "receipt_write_failed" },
+      lineage: [{ kind: "source", path: inputFile, stage: "input" }, { kind: "derived", path: pptxFile, stage: "stage4" }, { kind: "derived", path: receiptPath, stage: "stage5" }],
+      next: createCliNext("rerun", { inspect: [{ path: inputFile }, { path: pptxFile }], default: "Resolve filesystem availability and rerun Stage 5; do not hand-create the generated receipt." }),
+    });
+  }
   return { ...result, receipt, inputFile, pptxFile };
 }
 
@@ -396,6 +461,38 @@ export async function main(argv = process.argv) {
         console.error(`Notes injected: ${result.notesInjected}/${result.slideCount} slides`);
       } catch (err) {
         console.error(`✗ ${err.message}`);
+        const inputs = Array.isArray(opts.input) ? opts.input : [opts.input];
+        const structured = diagnosticFromError(err);
+        const diagnostic = structured ? {
+          ...structured,
+          source: structured.source || { path: inputs[0] },
+          issues: structured.issues?.map((issue) => ({ ...issue, source: issue.source || { path: inputs[0] }, lineage: issue.lineage || [{ kind: "source", path: inputs[0], stage: "input" }, { kind: "derived", path: opts.pptx, stage: "stage4" }] })),
+          lineage: structured.lineage || [...inputs.map((path) => ({ kind: "source", path, stage: "input" })), { kind: "derived", path: opts.pptx, stage: "stage4" }],
+        } : null;
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "Stage 5 could not inject speaker notes into the PPTX.",
+          hint: "Inspect the source markdown and Stage 4 PPTX prerequisite, then rerun Stage 5.",
+          where: "stage5_inject_notes.main",
+          diagnostic: diagnostic || {
+            version: 1,
+            category: "artifact",
+            stage: "stage5",
+            operation: "inject-notes",
+            source: { path: inputs[0] },
+            reason: { kind: "invalid_notes_source_or_pptx" },
+            lineage: [
+              ...inputs.map((path) => ({ kind: "source", path, stage: "input" })),
+              { kind: "derived", path: opts.pptx, stage: "stage4" },
+              { kind: "derived", path: opts.pptx, stage: "stage5" },
+            ],
+            next: createCliNext("repair_prerequisite", {
+              inspect: [...inputs.map((path) => ({ path })), { path: opts.pptx }],
+              invocation: { program: "node", args: [__filename, "--pptx", opts.pptx, "--input", ...inputs] },
+              default: "Edit speaker notes in source markdown or rerun Stage 4 for a valid PPTX; do not hand-edit generated receipts.",
+            }),
+          },
+        });
         process.exit(1);
       }
     });

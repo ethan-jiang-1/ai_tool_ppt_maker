@@ -7,6 +7,7 @@ import {
   checkNpmPackages,
   findPackageInAncestorNodeModules,
 } from '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
+import { parseCliErrorLine } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander'];
@@ -39,12 +40,17 @@ describe('00-env-check', () => {
   });
 
   it('produces JSON with --json', () => {
-    const { stdout, exitCode } = runCheck('--json');
+    const { stdout, stderr, exitCode } = runCheck('--json');
     // JSON output may have exit 1 if deps missing, but should still be valid JSON
     const data = JSON.parse(stdout);
     expect(data).toHaveProperty('allPass');
     expect(data).toHaveProperty('checks');
     expect(Array.isArray(data.checks)).toBe(true);
+    if (exitCode !== 0) {
+      const envelope = parseCliErrorLine(stderr.trim().split(/\r?\n/).at(-1));
+      expect(envelope.diagnostic).toMatchObject({ category: 'environment', operation: 'check' });
+      expect(envelope.diagnostic.next.invocation.args).toContain('--json');
+    }
   });
 
   it('checks Node.js version', () => {

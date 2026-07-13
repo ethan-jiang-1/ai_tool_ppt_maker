@@ -18,6 +18,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname } from "node:path";
+import { emitCliProgress } from "./lib/cli_error.mjs";
 
 export const DEFAULT_MODEL = "gpt-image-2";
 export const MAX_WAIT_MS = 600_000;
@@ -26,6 +27,32 @@ export const HEARTBEAT_MS = 30_000;
 export const ATTEMPTS_SUMMARY_MAX = 5;
 export const MAX_RETRIES = 2; // extra attempts per vendor (3 total)
 
+export class ImageProviderError extends Error {
+  constructor({ phase, reason, baseUrl = null, status = null, retryable = false }) {
+    const host = providerHost(baseUrl);
+    super(`Image provider ${phase} failed (${reason}${status ? `, HTTP ${status}` : ""}${host ? `, host ${host}` : ""})`);
+    this.name = "ImageProviderError";
+    this.phase = phase;
+    this.reason = reason;
+    this.host = host;
+    this.status = Number.isInteger(status) ? status : null;
+    this.retryable = retryable;
+  }
+}
+
+export function providerHost(baseUrl) {
+  if (!baseUrl) return null;
+  try {
+    return new URL(baseUrl).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function providerFailure(phase, reason, baseUrl, status = null, retryable = false) {
+  return new ImageProviderError({ phase, reason, baseUrl, status, retryable });
+}
+
 /**
  * Check whether an error is retryable (transient) vs permanent (4xx auth/bad request).
  * @param {*} err
@@ -33,6 +60,7 @@ export const MAX_RETRIES = 2; // extra attempts per vendor (3 total)
  */
 function _isRetryableError(err) {
   if (!err) return false;
+  if (err instanceof ImageProviderError) return err.retryable;
   const msg = err.message ? String(err.message) : "";
   // HTTP 5xx status
   if (/\b5\d\d\b/.test(msg)) return true;
@@ -86,7 +114,15 @@ function sharedImage2Key() {
 
 /** @param {string} u @returns {string} */
 function normalizeBaseUrl(u) {
-  return String(u).trim().replace(/\/+$/, "");
+  const raw = String(u).trim();
+  if (!raw) return "";
+  const parsed = new URL(raw);
+  if (parsed.username || parsed.password) {
+    throw new Error("Image provider URL must not contain credentials");
+  }
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.toString().replace(/\/+$/, "");
 }
 
 /**
@@ -240,9 +276,11 @@ async function submitGenerate(baseUrl, apiKey, body) {
     const now = Date.now();
     if (now - lastHeartbeat >= HEARTBEAT_MS) {
       const elapsedSec = Math.floor((now - started) / 1000);
-      console.log(
-        `  … still waiting vendor=${baseUrl} phase=submit elapsed=${elapsedSec}s`
-      );
+      emitCliProgress("provider_poll", {
+        host: providerHost(baseUrl) || "provider",
+        attempt: elapsedSec,
+        status: "submit-wait",
+      });
       lastHeartbeat = now;
     }
     if (now - started >= MAX_WAIT_MS) {
@@ -265,19 +303,15 @@ async function submitGenerate(baseUrl, apiKey, body) {
     try {
       data = JSON.parse(text);
     } catch {
-      throw new Error(`Submit non-JSON (${resp.status}): ${text.slice(0, 200)}`);
+      throw providerFailure("submit", "non_json_response", baseUrl, resp.status, resp.status >= 500);
     }
     if (!resp.ok) {
-      throw new Error(`Submit failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
+      throw providerFailure("submit", "http_error", baseUrl, resp.status, resp.status >= 500);
     }
     return data;
   } catch (err) {
     if (err && (err.name === "AbortError" || err.code === "ABORT_ERR")) {
-      const elapsedSec = Math.floor((Date.now() - started) / 1000);
-      throw new Error(
-        `Submit timed out after ${elapsedSec}s (MAX_WAIT_MS=${MAX_WAIT_MS}) ` +
-          `phase=submit vendor=${baseUrl}`
-      );
+      throw providerFailure("submit", "timeout", baseUrl, null, true);
     }
     throw err;
   } finally {
@@ -318,7 +352,7 @@ async function pollTask(baseUrl, apiKey, taskId) {
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      throw new Error(`Poll failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
+      throw providerFailure("poll", "http_error", baseUrl, resp.status, resp.status >= 500);
     }
     const unwrapped = unwrapDataRecord(data);
     const status = String(
@@ -327,32 +361,22 @@ async function pollTask(baseUrl, apiKey, taskId) {
     const now = Date.now();
     if (now - lastHeartbeat >= HEARTBEAT_MS) {
       const elapsedSec = Math.floor((now - started) / 1000);
-      console.log(
-        `  … still waiting vendor=${baseUrl} phase=poll task=${taskId} status=${status} elapsed=${elapsedSec}s polls=${pollCount}`
-      );
+      emitCliProgress("provider_poll", {
+        host: providerHost(baseUrl) || "provider",
+        attempt: pollCount,
+        status,
+      });
       lastHeartbeat = now;
     }
     if (status === "completed" || status === "success" || status === "succeeded") {
       return { data, pollCount };
     }
     if (status === "failed" || status === "failure" || status === "error") {
-      const msg =
-        data.error?.message ||
-        data.message ||
-        data.error ||
-        unwrapped.error?.message ||
-        unwrapped.message ||
-        unwrapped.error ||
-        "unknown error";
-      throw new Error(`Task ${taskId} failed: ${msg}`);
+      throw providerFailure("poll", "task_failed", baseUrl, null, false);
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
-  const elapsedSec = Math.floor((Date.now() - started) / 1000);
-  throw new Error(
-    `Image task ${taskId} timed out after ${elapsedSec}s ` +
-      `(MAX_WAIT_MS=${MAX_WAIT_MS}, ${pollCount} polls) — this image failed; re-run with --force-images for this slide`
-  );
+  throw providerFailure("poll", "timeout", baseUrl, null, true);
 }
 
 /**
@@ -377,7 +401,7 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
 
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    throw new Error(`Result failed ${resp.status}: ${JSON.stringify(data).slice(0, 300)}`);
+    throw providerFailure("result", "http_error", baseUrl, resp.status, resp.status >= 500);
   }
 
   const unwrapped = unwrapDataRecord(data);
@@ -403,7 +427,7 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
     data.output?.url;
 
   if (!imageUrl) {
-    throw new Error(`No image in result for ${taskId}: ${JSON.stringify(data).slice(0, 300)}`);
+    throw providerFailure("result", "missing_image", baseUrl, null, false);
   }
 
   if (String(imageUrl).startsWith("data:")) {
@@ -415,7 +439,7 @@ async function downloadResult(baseUrl, apiKey, taskId, outPath) {
 
   const imgResp = await fetch(imageUrl);
   if (!imgResp.ok) {
-    throw new Error(`Download image failed ${imgResp.status} from ${imageUrl}`);
+    throw providerFailure("download", "http_error", imageUrl, imgResp.status, imgResp.status >= 500);
   }
   const buf = Buffer.from(await imgResp.arrayBuffer());
   mkdirSync(dirname(outPath), { recursive: true });
@@ -470,7 +494,7 @@ async function saveImageRef(ref, outPath) {
   }
   const imgResp = await fetch(ref.url);
   if (!imgResp.ok) {
-    throw new Error(`Download image failed ${imgResp.status} from ${ref.url}`);
+    throw providerFailure("download", "http_error", ref.url, imgResp.status, imgResp.status >= 500);
   }
   writeFileSync(outPath, Buffer.from(await imgResp.arrayBuffer()));
 }
@@ -531,17 +555,18 @@ export async function generateOneImage({
     console.log(`  No style reference — generating without visual style anchoring`);
   }
 
-  /** @type {{ base_url: string, error: string }[]} */
+  /** @type {{ base_url: string, host: string|null, reason: string, status: number|null }[]} */
   const attempts = [];
 
   for (const vendor of vendors) {
     const { base_url: baseUrl, api_key: apiKey } = vendor;
-    let lastError = null;
     // Retry transient errors up to 2 extra times per vendor (3 total attempts)
     for (let retry = 0; retry < 3; retry++) {
       try {
-        if (retry > 0) console.log(`  Retry ${retry}/${2} → ${baseUrl}`);
-        else console.log(`  Submit → ${baseUrl}  (${outPath})`);
+        emitCliProgress("provider_attempt", {
+          host: providerHost(baseUrl) || "provider",
+          attempt: retry + 1,
+        });
         const submitData = await submitGenerate(baseUrl, apiKey, body);
         let taskId = null;
         let pollCount = 0;
@@ -552,11 +577,8 @@ export async function generateOneImage({
         } else {
           taskId = extractTaskId(submitData);
           if (!taskId) {
-            throw new Error(
-              `No task_id and no image in submit response: ${JSON.stringify(submitData).slice(0, 300)}`
-            );
+            throw providerFailure("submit", "missing_task_or_image", baseUrl, null, false);
           }
-          console.log(`  task_id=${taskId}`);
           const polled = await pollTask(baseUrl, apiKey, taskId);
           pollCount = polled.pollCount;
           const ref = extractImageRef(polled.data);
@@ -586,17 +608,26 @@ export async function generateOneImage({
         console.log(`  Done: ${outPath}  (${elapsed.toFixed(0)}s)`);
         return trace;
       } catch (err) {
-        lastError = err;
-        const msg = err && err.message ? String(err.message) : String(err);
+        const safeError = err instanceof ImageProviderError
+          ? err
+          : providerFailure("request", "network_error", baseUrl, null, _isRetryableError(err));
         // Retry on transient errors (5xx, network), skip on 4xx
-        if (retry < 2 && _isRetryableError(err)) {
+        if (retry < 2 && safeError.retryable) {
           const delay = (retry + 1) * 1000; // 1s, 2s backoff
-          console.log(`  Transient error (${baseUrl}), retrying in ${delay / 1000}s: ${msg.slice(0, 100)}`);
+          emitCliProgress("provider_poll", {
+            host: providerHost(baseUrl) || "provider",
+            attempt: retry + 1,
+            status: "retrying",
+          });
           await new Promise((r) => setTimeout(r, delay));
           continue;
         }
-        attempts.push({ base_url: baseUrl, error: msg.slice(0, 200) });
-        console.log(`  Image generation failed (${baseUrl}): ${msg}`);
+        attempts.push({
+          base_url: baseUrl,
+          host: safeError.host,
+          reason: safeError.reason,
+          status: safeError.status,
+        });
         break; // non-retryable or out of retries — move to next vendor
       }
     }
@@ -604,9 +635,10 @@ export async function generateOneImage({
 
   const summary = attempts
     .slice(0, ATTEMPTS_SUMMARY_MAX)
-    .map((a) => `${a.base_url}: ${a.error}`)
+    .map((a) => `${a.host || "provider"}:${a.reason}${a.status ? `:${a.status}` : ""}`)
     .join(" | ");
-  throw new Error(
-    `All image API vendors failed (${attempts.length} attempt(s)): ${summary || "no attempts"}`
-  );
+  const failure = providerFailure("generation", "all_vendors_failed", null, null, false);
+  failure.attempts = attempts.slice(0, ATTEMPTS_SUMMARY_MAX);
+  failure.message = `All image API vendors failed (${attempts.length} attempt(s)): ${summary || "no attempts"}`;
+  throw failure;
 }

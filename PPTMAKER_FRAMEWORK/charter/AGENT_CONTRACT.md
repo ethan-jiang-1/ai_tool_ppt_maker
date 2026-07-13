@@ -82,8 +82,9 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 不发现 `.claude/skills` / `.agents/skills`。
 
-**CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出单行 JSON envelope（`ok`/`code`/`message`/`hint`/`where`），
-让 MD Controller / agent 立刻知道错在哪并能修。禁止只打 `Fatal error` 散文。见 `charter/CONSTITUTION.md`。
+**CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出唯一 JSON envelope，并用受支持的 `diagnostic` 交付 JS 已知的 source/artifact lineage 与安全 `next`。MD 只使用完整校验的版本；`requires_human:true` 必须停下，`program`/`args` 保持参数边界，未知证据不猜，`_generated/` 不手改。producer 细则见 capability `cli-surface`，consumer 语义见 `charter/NODE-SPEC.md`。
+
+新建 run bundle 的 `AGENTS.md` / `CLAUDE.md` 都指向 `deck-guide.md`，运行时 Agent 从 guide 获取同一套 consumer essentials，不依赖 repo-only OpenSpec 路径。
 
 **坏 state / 坏压模：先 heal 或重写合法文件再继续。** 禁止把 YAML/JSON 语法题甩给用户。见 `charter/CONSTITUTION.md`「MD↔JS 互补健壮性」。
 

@@ -12,6 +12,9 @@
  *     [--columns 4]
  */
 
+import "./lib/cli_bootstrap.mjs?entry=make_contact_sheet.mjs";
+import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
+
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
@@ -77,12 +80,53 @@ export async function makeContactSheet({
   dryRun = false,
 } = {}) {
   const cols = Math.max(1, Number(columns) || 4);
-  const entries = resolveImageEntries(imageDir, promptJson);
+  let entries;
+  const failures = [];
+  if (promptJson) {
+    if (!existsSync(promptJson)) {
+      throw attachCliDiagnostic(new Error("Contact sheet prompt manifest is missing."), {
+        version: 1,
+        category: "artifact",
+        stage: "contact-sheet",
+        operation: "load-manifest",
+        source: { path: promptJson },
+        reason: { kind: "missing_prompt_manifest" },
+        lineage: [{ kind: "derived", path: promptJson, stage: "stage1" }, { kind: "derived", path: out, stage: "contact-sheet" }],
+        next: createCliNext("repair_prerequisite", { inspect: [{ path: promptJson }], default: "Rerun Stage 1 to recreate the prompt manifest, then regenerate the contact sheet." }),
+      });
+    }
+    let data;
+    try {
+      data = JSON.parse(readFileSync(promptJson, "utf-8"));
+    } catch {
+      throw attachCliDiagnostic(new Error("Contact sheet prompt manifest is invalid."), {
+        version: 1,
+        category: "artifact",
+        stage: "contact-sheet",
+        operation: "load-manifest",
+        source: { path: promptJson },
+        reason: { kind: "invalid_prompt_manifest" },
+        lineage: [{ kind: "derived", path: promptJson, stage: "stage1" }, { kind: "derived", path: out, stage: "contact-sheet" }],
+        next: createCliNext("repair_prerequisite", { inspect: [{ path: promptJson }], default: "Rerun Stage 1 instead of editing the generated prompt manifest, then regenerate the contact sheet." }),
+      });
+    }
+    const slides = data.slides || data.prompts || [];
+    entries = slides.map((slide) => {
+      const outName = slide.out || `${slide.id}.png`;
+      return { id: slide.id || basename(outName, ".png"), path: join(imageDir, outName) };
+    });
+    for (const entry of entries) {
+      if (!existsSync(entry.path)) failures.push({ ...entry, reason: "missing_image" });
+    }
+    entries = entries.filter((entry) => existsSync(entry.path));
+  } else {
+    entries = resolveImageEntries(imageDir, null);
+  }
   if (entries.length === 0) {
-    throw new Error(`No images found in ${imageDir}`);
+    if (failures.length === 0) failures.push({ id: "image-set", path: imageDir, reason: "missing_image_set" });
   }
 
-  if (dryRun) {
+  if (dryRun && failures.length === 0) {
     console.log(`  [DRY RUN] Would write contact sheet (${entries.length} images) → ${out}`);
     return { count: entries.length, out };
   }
@@ -107,7 +151,8 @@ export async function makeContactSheet({
     try {
       const img = await loadImage(entries[i].path);
       ctx.drawImage(img, x, y, CELL_W, CELL_H);
-    } catch (err) {
+    } catch {
+      failures.push({ ...entries[i], reason: "invalid_image" });
       ctx.fillStyle = "#333";
       ctx.fillRect(x, y, CELL_W, CELL_H);
       ctx.fillStyle = "#f66";
@@ -115,6 +160,31 @@ export async function makeContactSheet({
       ctx.fillStyle = LABEL_COLOR;
     }
     ctx.fillText(entries[i].id, x + 4, y + CELL_H + 20);
+  }
+
+  if (failures.length > 0) {
+    throw attachCliDiagnostic(new Error(`Contact sheet has ${failures.length} image problem(s).`), {
+      version: 1,
+      category: "artifact",
+      stage: "contact-sheet",
+      operation: "compose",
+      source: { path: promptJson || imageDir },
+      issues: failures.map((failure) => ({
+        message: failure.reason === "invalid_image" ? "slide image cannot be decoded" : "slide image is missing",
+        subject: { kind: failure.id === "image-set" ? "artifact" : "slide", id: failure.id },
+        source: { path: failure.path },
+        reason: { kind: failure.reason },
+        lineage: [
+          ...(promptJson ? [{ kind: "derived", path: promptJson, stage: "stage1" }] : []),
+          { kind: "derived", path: failure.path, stage: "stage2" },
+          { kind: "derived", path: out, stage: "contact-sheet" },
+        ],
+      })),
+      next: createCliNext("repair_prerequisite", {
+        inspect: [{ path: imageDir }, ...(promptJson ? [{ path: promptJson }] : [])],
+        default: "Rerun Stage 2 for the retained slides; do not hand-edit generated image artifacts.",
+      }),
+    });
   }
 
   mkdirSync(dirname(out), { recursive: true });
@@ -149,6 +219,30 @@ export async function main(argv = process.argv) {
         process.exit(0);
       } catch (err) {
         console.error(`✗ ${err.message}`);
+        const structured = diagnosticFromError(err);
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "Contact sheet generation could not complete.",
+          hint: "Restore the selected slide images or prompt manifest, then rerun.",
+          where: "make_contact_sheet.main",
+          diagnostic: structured || {
+            version: 1,
+            category: "artifact",
+            stage: "contact-sheet",
+            operation: "compose",
+            source: { path: opts.promptJson || opts.imageDir },
+            reason: { kind: "missing_or_invalid_images" },
+            lineage: [
+              ...(opts.promptJson ? [{ kind: "derived", path: opts.promptJson, stage: "stage1" }] : []),
+              { kind: "derived", path: opts.imageDir, stage: "stage2" },
+              { kind: "derived", path: opts.out, stage: "contact-sheet" },
+            ],
+            next: createCliNext("repair_prerequisite", {
+              inspect: [{ path: opts.imageDir }, ...(opts.promptJson ? [{ path: opts.promptJson }] : [])],
+              default: "Rerun the image prerequisite for missing slides, then regenerate the contact sheet.",
+            }),
+          },
+        });
         process.exit(1);
       }
     });
