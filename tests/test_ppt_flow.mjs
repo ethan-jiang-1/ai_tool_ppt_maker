@@ -14,6 +14,7 @@ import {
   generationProfile,
   sha256File,
 } from "../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs";
+import { PPT_FLOW_COMMAND_INVENTORY } from "../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs";
 
 const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const PPT_FLOW_SRC = readFileSync(PPT_FLOW, "utf-8");
@@ -42,6 +43,39 @@ function parseFailureEnvelope(stderr) {
 }
 
 describe("ppt_flow", () => {
+  it("audits clean help and deterministic usage diagnostics across all 12 commands", () => {
+    const usageProbes = {
+      doctor: ["doctor", "--smoke", "--probe-vendors"],
+      init: ["init"],
+      status: ["status"],
+      approve: ["approve"],
+      "style-master": ["style-master", "/tmp/missing-run", "--resolution", "8k"],
+      validate: ["validate"],
+      pilot: ["pilot", "/tmp/missing-run", "--resolution", "8k"],
+      build: ["build", "/tmp/missing-run", "--resolution", "8k"],
+      refresh: ["refresh", "/tmp/missing-run", "--kind", "unsupported"],
+      "new-version": ["new-version"],
+      state: ["state"],
+    };
+    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(12);
+    for (const command of PPT_FLOW_COMMAND_INVENTORY) {
+      const help = runPptFlow([command, "--help"]);
+      expect(help.status, `${command} --help\n${help.stderr}`).toBe(0);
+      expect(help.stderr).not.toMatch(/"ok"\s*:\s*false/);
+      if (command === "test") continue;
+      const result = runPptFlow(usageProbes[command]);
+      expect(result.status, `${command} usage`).not.toBe(0);
+      const envelope = parseFailureEnvelope(result.stderr);
+      expect(envelope.code, command).toBe("USAGE");
+      expect(envelope.diagnostic, command).toMatchObject({
+        version: 1,
+        category: "usage",
+        next: { action: "fix_arguments", requires_human: false },
+      });
+      expect((result.stderr.match(/"ok"\s*:\s*false/g) || []).length, command).toBe(1);
+    }
+  }, 30000);
+
   it("responds to --help and lists state", () => {
     const r = runPptFlow(["--help"]);
     expect(r.status).toBe(0);
@@ -212,13 +246,13 @@ render:
 **VISUAL TYPE**: Framework
 **KICKER**: ONE
 **TITLE**: First content title
-**IMAGE PROMPT**: [A clear three-part framework diagram]
+**IMAGE PROMPT**: Create a clear three-part framework diagram with large labels.
 
 ## Slide 02 — \`c2\`
 **VISUAL TYPE**: Direction
 **KICKER**: TWO
 **TITLE**: Second content title
-**IMAGE PROMPT**: [A clear directional roadmap]
+**IMAGE PROMPT**: Create a clear directional roadmap with three milestones.
 `, "utf-8");
       const stage1 = spawnSync("node", [
         "PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs",
@@ -315,7 +349,7 @@ render:
 ## Slide 01 — \`body\`
 **VISUAL TYPE**: Framework
 **TITLE**: Body title
-**IMAGE PROMPT**: [A simple body diagram]
+**IMAGE PROMPT**: Create a simple body diagram with two labeled sections.
 `, "utf-8");
       const body = runPptFlow(["refresh", bodyRun, "--kind", "title", "--dry-run"]);
       expect(body.status).toBe(0);
@@ -334,12 +368,12 @@ render:
 ## Slide 01 — \`full\`
 **VISUAL TYPE**: Framework
 **TITLE**: Full title
-**IMAGE PROMPT**: [A complete visual]
+**IMAGE PROMPT**: Create a complete visual with a strong central framework.
 
 ## Slide 02 — \`body\`
 **VISUAL TYPE**: Direction
 **TITLE**: Body title
-**IMAGE PROMPT**: [A body visual]
+**IMAGE PROMPT**: Create a body visual with one directional sequence.
 `, "utf-8");
       const noSelector = runPptFlow(["refresh", mixedRun, "--kind", "title", "--dry-run"]);
       expect(noSelector.status).toBe(1);

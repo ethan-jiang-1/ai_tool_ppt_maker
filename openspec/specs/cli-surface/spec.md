@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the command-line surface of the framework's single entry-point script, `ppt_flow.mjs`: the fixed set of 12 subcommands it exposes, the capability scripts it delegates to, and its use of `commander` for argument parsing and subcommand routing. This capability guarantees that the CLI contract stays stable — command names and flags remain backward-compatible — that each command routes to the correct underlying capability script rather than reimplementing it, and that hard failures emit a machine-parseable JSON envelope on stderr for MD Controllers.
+Define the producer contract for every registered direct Node CLI under `PPTMAKER_FRAMEWORK/scripts/`: entry discovery, output transactions, success and JSON channels, bounded actionable failure diagnostics with source/artifact lineage, secret-safe provider and child boundaries, and exhaustive return auditing. It also defines `ppt_flow.mjs` as the fixed 12-command unified entry point, preserving command compatibility and delegated capability routing.
 ## Requirements
 ### Requirement: CLI surface preserves command names
 
@@ -400,4 +400,3 @@ The documentation consistency suite SHALL extract active Node CLI examples from 
 
 - **WHEN** a marker lacks a reason, is not adjacent to an example, or attempts to exempt multiple examples
 - **THEN** documentation validation fails with source file and line
-

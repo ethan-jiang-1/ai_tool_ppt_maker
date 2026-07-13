@@ -37,6 +37,13 @@
  *     defined locally because it is a content/rendering policy rather than styling.
  */
 
+import "./lib/cli_bootstrap.mjs?entry=stage1_build_inputs.mjs";
+import {
+    CLI_ERROR_CODES,
+    createCliNext,
+    emitCliError,
+} from "./lib/cli_error.mjs";
+
 import { readFileSync, writeFileSync, mkdirSync, statSync, existsSync } from "node:fs";
 import { join, dirname, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -433,6 +440,14 @@ const SLIDE_BLOCK_HEADING_RE = /^## Slide \d+\s*[：:\-–—]\s*`?([^`\n]+)`?/g
  * Shared by parseSlides() and validateSpecs() so they cannot drift.
  */
 function splitSlideBlocks(text) {
+    return splitSlideBlockRecords(text).map(({ slideId, body }) => [slideId, body]);
+}
+
+function lineNumberAt(text, index) {
+    return text.slice(0, Math.max(0, index)).split("\n").length;
+}
+
+function splitSlideBlockRecords(text, sourceOffset = 0, sourceText = text) {
     const blocks = [];
     const matches = [...text.matchAll(SLIDE_BLOCK_HEADING_RE)];
 
@@ -441,10 +456,22 @@ function splitSlideBlocks(text) {
         const bodyStart = matches[i].index + matches[i][0].length;
         const bodyEnd = i + 1 < matches.length ? matches[i + 1].index : text.length;
         const body = text.slice(bodyStart, bodyEnd);
-        blocks.push([slideId, body]);
+        blocks.push({
+            slideId,
+            body,
+            headingStart: sourceOffset + matches[i].index,
+            bodyStart: sourceOffset + bodyStart,
+            headingLine: lineNumberAt(sourceText, sourceOffset + matches[i].index),
+        });
     }
 
     return blocks;
+}
+
+function fieldLine(text, block, field) {
+    const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = block.body.match(new RegExp(`^\\*\\*${escaped}\\*\\*:[ \\t]*`, "m"));
+    return match ? lineNumberAt(text, block.bodyStart + match.index) : block.headingLine;
 }
 
 // ---------------------------------------------------------------------------
@@ -468,9 +495,37 @@ function readSpecContext(mdPath) {
     }
     const label = basename(mdPath);
     const frontmatter = parseLeadingFrontmatter(text, label);
-    const blocks = splitSlideBlocks(frontmatter.body);
+    const bodyOffset = text.length - frontmatter.body.length;
+    const blockRecords = splitSlideBlockRecords(frontmatter.body, bodyOffset, text);
+    const blocks = blockRecords.map(({ slideId, body }) => [slideId, body]);
     validatePolicySlideIds(frontmatter.policy, blocks.map(([id]) => id), label);
-    return { text, body: frontmatter.body, blocks, policy: frontmatter.policy };
+    return { text, body: frontmatter.body, blocks, blockRecords, policy: frontmatter.policy };
+}
+
+function validationRecord({
+    severity = "ERROR",
+    display,
+    message,
+    path,
+    line = 1,
+    slideId = null,
+    field = null,
+    reason,
+    actual,
+    expected,
+}) {
+    const sourcePath = resolve(path);
+    return {
+        severity,
+        display,
+        message,
+        source: { path: sourcePath, line: Math.max(1, line) },
+        subject: slideId || field
+            ? { kind: slideId ? "slide" : "source_file", ...(slideId ? { id: slideId } : { id: basename(path) }), ...(field ? { field } : {}) }
+            : { kind: "source_file", id: basename(path) },
+        reason: { kind: reason, ...(actual !== undefined ? { actual } : {}), ...(expected !== undefined ? { expected } : {}) },
+        lineage: [{ kind: "source", path: sourcePath, stage: "input" }],
+    };
 }
 
 /**
@@ -490,15 +545,21 @@ function readSpecContext(mdPath) {
  * @param {string[]} mdPaths - Array of paths to markdown slide spec files.
  * @returns {string[]} Array of problem strings.
  */
-export function validateSpecs(mdPaths) {
+export function validateSpecRecords(mdPaths) {
     const problems = [];
-    const seenIds = {};
+    const seenIds = new Map();
 
     for (const mdPath of mdPaths) {
         const label = basename(mdPath);
 
         if (!existsSync(mdPath)) {
-            problems.push(`ERROR: spec file not found: ${mdPath}`);
+            problems.push(validationRecord({
+                display: `spec file not found: ${mdPath}`,
+                message: "slide specification source file is missing",
+                path: mdPath,
+                reason: "missing_file",
+                expected: "existing markdown source",
+            }));
             continue;
         }
 
@@ -507,39 +568,65 @@ export function validateSpecs(mdPaths) {
             context = readSpecContext(mdPath);
         } catch (error) {
             const details = error instanceof RenderPolicyError ? error.problems : [error.message];
-            for (const detail of details) problems.push(`ERROR: ${detail}`);
+            for (const detail of details) {
+                problems.push(validationRecord({
+                    display: detail,
+                    message: "slide specification render policy is invalid",
+                    path: mdPath,
+                    reason: "invalid_render_policy",
+                    expected: "valid render mapping and known slide ids",
+                }));
+            }
             continue;
         }
-        const { text, blocks, policy } = context;
+        const { text, blockRecords, policy } = context;
 
         const marker = PLACEHOLDER_MARKERS.find((m) => text.includes(m));
         if (marker) {
-            problems.push(
-                `ERROR: ${label} still contains the unfilled-template marker ${JSON.stringify(marker)} — ` +
-                `fill real content and delete every [PLACEHOLDER]/[INSTRUCTION] note.`
-            );
+            problems.push(validationRecord({
+                display: `${label} still contains an unfilled-template marker — fill real content and delete every placeholder instruction.`,
+                message: "slide specification contains an unfilled template marker",
+                path: mdPath,
+                line: lineNumberAt(text, text.indexOf(marker)),
+                field: "template",
+                reason: "unfilled_template_marker",
+                expected: "real slide content",
+            }));
         }
 
         const shouty = text.match(ALLCAPS_PLACEHOLDER_RE);
         if (shouty) {
             const unique = [...new Set(shouty)].sort();
             const examples = unique.slice(0, 3).map((m) => m + "]").join(", ");
-            problems.push(
-                `ERROR: ${label} still has unfilled template placeholders (e.g. ${examples}) — ` +
-                `replace every [SHOUTY_TOKEN] with real content before generating.`
-            );
+            problems.push(validationRecord({
+                display: `${label} still has unfilled template placeholders (e.g. ${examples}) — replace every placeholder with real content before generating.`,
+                message: "slide specification contains unfilled placeholder tokens",
+                path: mdPath,
+                line: lineNumberAt(text, text.search(ALLCAPS_PLACEHOLDER_RE)),
+                field: "template",
+                reason: "unfilled_placeholder",
+                expected: "real slide content",
+            }));
         }
 
-        if (blocks.length === 0) {
-            problems.push(
-                `ERROR: ${label} has no slide blocks (need '## Slide N: slide_id' headings).`
-            );
+        if (blockRecords.length === 0) {
+            problems.push(validationRecord({
+                display: `${label} has no slide blocks (need '## Slide N: slide_id' headings).`,
+                message: "slide specification has no slide blocks",
+                path: mdPath,
+                field: "slide heading",
+                reason: "missing_slide_blocks",
+                expected: "## Slide N: slide_id",
+            }));
             continue;
         }
 
-        for (const [slideId, body] of blocks) {
+        for (const block of blockRecords) {
+            const { slideId, body } = block;
             const sid = slideId || "<unnamed>";
-            seenIds[slideId] = (seenIds[slideId] || 0) + 1;
+            const occurrences = seenIds.get(slideId) || [];
+            occurrences.push({ path: mdPath, line: block.headingLine });
+            seenIds.set(slideId, occurrences);
 
             const visualType = extractField(body, "VISUAL TYPE");
             const renderModeRaw = extractField(body, "RENDER MODE");
@@ -547,16 +634,10 @@ export function validateSpecs(mdPaths) {
             const kicker = extractField(body, "KICKER");
 
             if (policy && (!visualType || isBracketPlaceholder(visualType))) {
-                problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: render policy requires a real VISUAL TYPE ` +
-                    `to distinguish hero and content prompt contracts.`
-                );
+                problems.push(validationRecord({ display: `slide ${JSON.stringify(sid)}: render policy requires a real VISUAL TYPE to distinguish hero and content prompt contracts.`, message: "render policy requires a real visual type", path: mdPath, line: fieldLine(text, block, "VISUAL TYPE"), slideId: sid, field: "VISUAL TYPE", reason: "missing_required_field", expected: "non-placeholder visual type" }));
             }
             if (!policy && !visualType && !renderModeRaw) {
-                problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: no VISUAL TYPE and no RENDER MODE — ` +
-                    `legacy resolution would silently choose body+header-lock.`
-                );
+                problems.push(validationRecord({ display: `slide ${JSON.stringify(sid)}: no VISUAL TYPE and no RENDER MODE — legacy resolution would silently choose body+header-lock.`, message: "slide has neither visual type nor render mode", path: mdPath, line: block.headingLine, slideId: sid, field: "VISUAL TYPE/RENDER MODE", reason: "missing_required_field", expected: ["VISUAL TYPE", "RENDER MODE"] }));
             }
 
             let mode = null;
@@ -564,50 +645,47 @@ export function validateSpecs(mdPaths) {
                 mode = determineRenderMode(slideId, visualType, renderModeRaw, policy).mode;
             } catch (error) {
                 const details = error instanceof RenderPolicyError ? error.problems : [error.message];
-                for (const detail of details) problems.push(`ERROR: ${detail}`);
+                for (const detail of details) {
+                    problems.push(validationRecord({ display: detail, message: "render mode is not supported", path: mdPath, line: fieldLine(text, block, "RENDER MODE"), slideId: sid, field: "RENDER MODE", reason: "invalid_enum", expected: [RENDER_MODE_FULL_PAGE, RENDER_MODE_BODY_HEADER_LOCK] }));
+                }
             }
 
             // b) IMAGE PROMPT is mandatory and must be real (not an [instruction] stub).
             const prompt = getImagePrompt(body);
             if (prompt === null) {
-                problems.push(`ERROR: slide ${JSON.stringify(sid)}: missing IMAGE PROMPT block.`);
+                problems.push(validationRecord({ display: `slide ${JSON.stringify(sid)}: missing IMAGE PROMPT block.`, message: "slide is missing an image prompt", path: mdPath, line: block.headingLine, slideId: sid, field: "IMAGE PROMPT", reason: "missing_required_field", expected: "non-empty image prompt" }));
             } else if (isBracketPlaceholder(prompt)) {
-                problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: IMAGE PROMPT is still a placeholder (${prompt.slice(0, 40)}…) — ` +
-                    `write the actual visual description.`
-                );
+                problems.push(validationRecord({ display: `slide ${JSON.stringify(sid)}: IMAGE PROMPT is still a placeholder — write the actual visual description.`, message: "slide image prompt is still a placeholder", path: mdPath, line: fieldLine(text, block, "IMAGE PROMPT"), slideId: sid, field: "IMAGE PROMPT", reason: "unfilled_placeholder", expected: "concrete image prompt" }));
             }
 
             // c) body+header-lock slides get their TITLE overlaid by Stage 3 — an empty
             //    OR placeholder TITLE draws a blank/garbage header band onto the image.
             const titleFilled = Boolean(presentHeaderText(title));
             if (mode === RENDER_MODE_BODY_HEADER_LOCK && !titleFilled) {
-                problems.push(
-                    `ERROR: slide ${JSON.stringify(sid)}: body+header-lock slide has no real TITLE — Stage 3 would ` +
-                    `overlay an empty/placeholder header. Add a TITLE, or make it full-page.`
-                );
+                problems.push(validationRecord({ display: `slide ${JSON.stringify(sid)}: body+header-lock slide has no real TITLE — Stage 3 would overlay an empty header. Add a TITLE, or make it full-page.`, message: "body+header-lock slide is missing a real title", path: mdPath, line: fieldLine(text, block, "TITLE"), slideId: sid, field: "TITLE", reason: "missing_required_field", expected: "non-placeholder title or full-page render mode" }));
             }
 
             // d) quality-layer warnings (do not block generation).
             if (mode === RENDER_MODE_FULL_PAGE && !isHeroVisualType(visualType) && !titleFilled) {
-                problems.push(
-                    `WARN: slide ${JSON.stringify(sid)}: content full-page slide has no real TITLE ` +
-                    `(it would ship without a header title).`
-                );
+                problems.push(validationRecord({ severity: "WARN", display: `slide ${JSON.stringify(sid)}: content full-page slide has no real TITLE (it would ship without a header title).`, message: "content full-page slide has no real title", path: mdPath, line: fieldLine(text, block, "TITLE"), slideId: sid, field: "TITLE", reason: "missing_recommended_field", expected: "non-placeholder title" }));
             }
             if (mode === RENDER_MODE_BODY_HEADER_LOCK && !presentHeaderText(kicker)) {
-                problems.push(`WARN: slide ${JSON.stringify(sid)}: no real KICKER (header overlay will show the title alone).`);
+                problems.push(validationRecord({ severity: "WARN", display: `slide ${JSON.stringify(sid)}: no real KICKER (header overlay will show the title alone).`, message: "body+header-lock slide has no real kicker", path: mdPath, line: fieldLine(text, block, "KICKER"), slideId: sid, field: "KICKER", reason: "missing_recommended_field", expected: "non-placeholder kicker" }));
             }
         }
     }
 
-    for (const [sid, n] of Object.entries(seenIds)) {
-        if (n > 1) {
-            problems.push(`WARN: slide id ${JSON.stringify(sid)} appears ${n} times (duplicate ids are confusing to trace).`);
+    for (const [sid, occurrences] of seenIds.entries()) {
+        if (occurrences.length > 1) {
+            problems.push(validationRecord({ severity: "WARN", display: `slide id ${JSON.stringify(sid)} appears ${occurrences.length} times (duplicate ids are confusing to trace).`, message: "slide id appears more than once", path: occurrences[0].path, line: occurrences[0].line, slideId: sid, field: "slide id", reason: "duplicate_id", actual: occurrences.length, expected: 1 }));
         }
     }
 
     return problems;
+}
+
+export function validateSpecs(mdPaths) {
+    return validateSpecRecords(mdPaths).map((problem) => `${problem.severity}: ${problem.display}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -757,23 +835,25 @@ function main() {
     if (args.input.length === 0) {
         console.error("Error: --spec is required (one or more markdown slide spec files)");
         console.error("Usage: node stage1_build_inputs.mjs --spec <path> [--spec <path2> ...] --out <dir> [--validate]");
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Stage 1 requires at least one --spec source file.", hint: "Pass one or more markdown slide specification files.", where: "stage1_build_inputs.arguments", diagnostic: { version: 1, category: "usage", stage: "stage1", operation: "parse-arguments", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--spec", "slide-specifications.md", "--validate"] }, default: "Pass at least one --spec path, then rerun Stage 1." }) } });
         process.exit(1);
     }
 
     // L3 content gate — validate the spec contract BEFORE anything expensive.
     // Runs on every invocation (so unified_pipeline gets it for free), lists every
     // problem at once, and aborts on any ERROR. Structure gate: bundle_layout --check.
-    const problems = validateSpecs(args.input);
-    for (const w of problems.filter((p) => p.startsWith("WARN:"))) {
-        console.log(`  ⚠  ${w.slice("WARN:".length).trim()}`);
+    const problems = validateSpecRecords(args.input);
+    for (const warning of problems.filter((problem) => problem.severity === "WARN")) {
+        console.log(`  ⚠  ${warning.display}`);
     }
-    const errors = problems.filter((p) => p.startsWith("ERROR:"));
+    const errors = problems.filter((problem) => problem.severity === "ERROR");
     if (errors.length > 0) {
         console.log(`✗ slide-specs failed the content contract — ${errors.length} problem(s):`);
-        for (const e of errors) {
-            console.log(`  - ${e.slice("ERROR:".length).trim()}`);
+        for (const error of errors) {
+            console.log(`  - ${error.display}`);
         }
         console.log("  Fix these in slide-specifications.md, then rerun.");
+        emitCliError({ code: CLI_ERROR_CODES.FAILED, message: `${errors.length} slide specification error(s) block Stage 1.`, hint: "Edit the named markdown source problems, then rerun validation.", where: "stage1_build_inputs.validateSpecs", diagnostic: { version: 1, category: "source_validation", stage: "stage1", operation: "validate-specs", source: errors[0].source, issues: errors.map(({ message, subject, source, reason, lineage }) => ({ message, subject, source, reason, lineage })), next: createCliNext("edit_source", { inspect: errors.map(({ source }) => source), invocation: { program: "node", args: [__filename, ...args.input.flatMap((path) => ["--spec", path]), "--validate"] }, default: "Fix the retained source issues; do not edit _generated artifacts, then rerun validation." }) } });
         process.exit(1);
     }
     if (args.validate) {
@@ -783,6 +863,7 @@ function main() {
 
     if (!args.outDir) {
         console.error("Error: --out is required for generation (omit it only with --validate).");
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Stage 1 generation requires --out.", hint: "Pass the generated output directory or use --validate only.", where: "stage1_build_inputs.arguments", diagnostic: { version: 1, category: "usage", stage: "stage1", operation: "parse-arguments", source: { path: resolve(args.input[0]) }, next: createCliNext("fix_arguments", { default: "Add --out <generated-dir>, or add --validate for validation-only execution." }) } });
         process.exit(1);
     }
     const outDir = args.outDir;

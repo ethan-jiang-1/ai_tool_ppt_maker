@@ -11,6 +11,9 @@
  *   node generate_style_master.mjs --run-dir deck_x/3_versions/v1 --dry-run
  */
 
+import "./lib/cli_bootstrap.mjs?entry=generate_style_master.mjs";
+import { CLI_ERROR_CODES, createCliNext, emitCliError } from "./lib/cli_error.mjs";
+
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +35,7 @@ import {
   resolveVendors,
   bridgeCredentials,
   DEFAULT_MODEL,
+  ImageProviderError,
 } from "./image_api_client.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
 
@@ -57,18 +61,21 @@ export async function generateStyleMaster({
   dryRun = false,
   noDeckSystem = false,
 }) {
+  generateStyleMaster.lastFailure = null;
   const resolvedRunDir = resolve(runDir);
 
   const violations = checkBundle(resolvedRunDir, false);
   if (violations.length > 0) {
     console.error("✗ Bundle structure is not valid:");
     for (const v of violations) console.error(`  - ${v}`);
+    generateStyleMaster.lastFailure = { category: "structure", issues: violations.map((message) => ({ message, source: { path: resolvedRunDir } })), source: { path: resolvedRunDir } };
     return 1;
   }
 
   const promptPath = styleAsset(resolvedRunDir, STYLE_MASTER_PROMPT);
   if (!existsSync(promptPath)) {
     console.error(`✗ Missing style master prompt: ${promptPath}`);
+    generateStyleMaster.lastFailure = { category: "artifact", source: { path: promptPath }, reason: { kind: "missing_source_prompt" } };
     return 1;
   }
 
@@ -92,6 +99,7 @@ export async function generateStyleMaster({
       resolveVendors(cliBaseUrls);
     } catch (err) {
       console.error(`✗ ${err.message}`);
+      generateStyleMaster.lastFailure = { category: "environment", source: { path: dkRoot }, reason: { kind: "provider_configuration_unavailable" } };
       return 1;
     }
   }
@@ -138,6 +146,9 @@ export async function generateStyleMaster({
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
+    generateStyleMaster.lastFailure = err instanceof ImageProviderError
+      ? { category: "provider", source: { path: promptPath }, reason: { kind: err.reason, ...(err.status ? { actual: err.status } : {}) } }
+      : { category: "artifact", source: { path: promptPath }, reason: { kind: "style_master_generation_failed" } };
     return 1;
   }
 }
@@ -168,11 +179,37 @@ export async function main(argv = process.argv) {
         dryRun: opts.dryRun || false,
         noDeckSystem: opts.noDeckSystem || false,
       });
+      if (exitCode !== 0) {
+        const failure = generateStyleMaster.lastFailure || { category: "internal" };
+        const promptPath = opts.runDir ? styleAsset(resolve(opts.runDir), STYLE_MASTER_PROMPT) : null;
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "Style master generation could not complete.",
+          hint: "Inspect the retained source/provider evidence, repair it, then rerun.",
+          where: "generate_style_master.main",
+          diagnostic: {
+            version: 1,
+            category: failure.category,
+            stage: "style-master",
+            operation: "generate",
+            ...(failure.source ? { source: failure.source } : {}),
+            ...(failure.reason ? { reason: failure.reason } : {}),
+            ...(failure.issues ? { issues: failure.issues } : {}),
+            ...(promptPath ? { lineage: [{ kind: "source", path: promptPath, stage: "input" }, { kind: "derived", path: styleAsset(resolve(opts.runDir), STYLE_MASTER_IMAGE), stage: "style-master" }] } : {}),
+            next: createCliNext(failure.category === "environment" ? "repair_environment" : failure.category === "structure" ? "edit_source" : "repair_prerequisite", {
+              inspect: failure.source ? [failure.source] : [],
+              invocation: { program: "node", args: [__filename, "--run-dir", opts.runDir, "--resolution", opts.resolution] },
+              default: failure.category === "environment" ? "Repair provider configuration without exposing credentials, then rerun." : "Repair the named source or prerequisite; do not edit generated style artifacts directly.",
+            }),
+          },
+        });
+      }
       process.exit(exitCode);
     });
 
   await program.parseAsync(argv);
 }
+generateStyleMaster.lastFailure = null;
 
 if (process.argv[1] === __filename || process.argv[1]?.endsWith("/generate_style_master.mjs")) {
   const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");

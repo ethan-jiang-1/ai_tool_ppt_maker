@@ -32,23 +32,13 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 | 要求 | 说明 |
 |------|------|
 | **失败必出 JSON** | 任何 CLI 硬失败（含未捕获异常、闸门拒绝、参数非法）除非零 exit 外，**必须**向 **stderr 最后一个非空行**写出一条单行、机器可解析的 JSON 回执 |
-| **人机双读** | JSON 同时含稳定机器字段（`ok` / `code` / `where`）与人读字段（`message` / `hint`）；人话 `✗ …` 可写在 JSON **之前**，禁止写在 JSON 之后 |
+| **人机双读** | 失败通道先输出由 sanitized envelope 确定性渲染的人读摘要，再以唯一 JSON envelope 收尾；原始失败 prose、stack、provider body、prompt、`.env` 内容和 child output 不得释放 |
 | **禁止只抛散文** | 禁止仅打印 `✗ Fatal error: …` 就 `process.exit(1)` 且无 JSON——那是对 MD Controller 的致盲 |
 | **解析约定** | 按行 split → 取最后一个非空行 → `JSON.parse`（不要假定整段 stderr 都是 JSON） |
 
-最小 envelope（字段名稳定，可扩展）：
+回执必须保留稳定 top-level summary，并携带受版本约束的 `diagnostic`，把 JS 当刻知道的 category、source/subject、reason、ordered lineage、aggregate issues 与 `next` 交给 MD/人。`review` / `approve` 等人类决定必须显式停下；恢复命令使用 `{program,args}`，不得拼 shell。字段、enum、bounds、transaction、delegation 与 provider safety 的唯一 producer 权威是 capability `cli-surface`；本宪法不复制详细 schema。
 
-```json
-{
-  "ok": false,
-  "code": "STABLE_ERROR_CODE",
-  "message": "what failed (human + agent readable)",
-  "hint": "what to do next",
-  "where": "script#command or module path"
-}
-```
-
-权威交叉引用：`openspec/config.yaml`（运行时铁律）· `charter/NODE-SPEC.md`（CLI ⇔ MD 协议）· capability `cli-surface`。
+权威交叉引用：`openspec/specs/cli-surface/spec.md`（producer）· `charter/NODE-SPEC.md` / capability `node-specification`（consumer）。
 
 ## MD↔JS 互补健壮性（Agentic 双轨 · 不可违反）
 

@@ -19,6 +19,8 @@
  * Hard failures: JSON envelope on last non-empty stderr line (lib/cli_error.mjs).
  */
 
+import "./lib/cli_bootstrap.mjs?entry=ppt_flow.mjs";
+
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
          rmSync } from "node:fs";
@@ -27,10 +29,17 @@ import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import {
   CLI_ERROR_CODES,
+  CLI_JSON_REPORT_SCHEMAS,
+  CLI_PROGRESS_ENV,
+  CLI_TRANSACTION_SYMBOL,
+  buildDelegatedDiagnostic,
+  createChildOutputCollector,
+  createCliNext,
   emitCliError,
+  emitCliProgress,
   exitCliError,
-  createChildStderrFramer,
-  normalizeDelegatedExit,
+  registerCliJsonReport,
+  setCliOutputMode,
 } from "./lib/cli_error.mjs";
 
 // ---------------------------------------------------------------------------
@@ -83,12 +92,28 @@ const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
 const DECK_TYPES_SORTED = () => Object.keys(DECK_TYPE_TEMPLATES).sort();
 
 /** Emit FAILED envelope; caller still returns/exits the numeric code (D13). */
-function emitFailed(where, message, hint = "See stderr above for details") {
+function emitFailed(where, message, hint = "Inspect the diagnostic evidence before retrying", diagnostic = undefined) {
+  const childResult = runNode.lastChildResult;
+  const inferred = diagnostic || (childResult ? buildDelegatedDiagnostic({
+    invocation: childResult.invocation,
+    childError: childResult.childError,
+    operation: where.split(".").at(-1).replaceAll("_", "-"),
+    overflow: childResult.overflow,
+    next: createCliNext("inspect", { default: "Inspect the retained child evidence and parent command context before retrying." }),
+  }) : {
+    version: 1,
+    category: /(?:init|status|approve|new-version)/.test(where) ? "structure" : /doctor/.test(where) ? "environment" : "artifact",
+    operation: where.split(".").at(-1).replaceAll("_", "-"),
+    next: createCliNext(/doctor/.test(where) ? "repair_environment" : "repair_prerequisite", {
+      default: /doctor/.test(where) ? "Repair the named environment prerequisite, then rerun." : "Inspect and repair the named source or prerequisite, then rerun the command.",
+    }),
+  });
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
     message,
     hint,
     where,
+    diagnostic: inferred,
   });
 }
 
@@ -99,20 +124,65 @@ function emitUsage(where, message, hint) {
     message,
     hint,
     where,
+    diagnostic: {
+      version: 1,
+      category: "usage",
+      operation: where.split(".").at(-1).replaceAll("_", "-"),
+      next: createCliNext("fix_arguments", {
+        invocation: { program: "node", args: [__filename, "--help"] },
+        default: "Correct the command arguments using --help, then rerun.",
+      }),
+    },
   });
   return 1;
+}
+
+function exitUsage(where, message, hint) {
+  emitUsage(where, message, hint);
+  process.exit(1);
+}
+
+function validateResolution(where, resolution) {
+  if (["1k", "2k", "4k"].includes(resolution)) return;
+  exitUsage(where, "Resolution must be 1k, 2k, or 4k.", "Pass --resolution 1k, 2k, or 4k");
+}
+
+function createGateDiagnostic({ operation, source, issues = [], action = "review", invocation, defaultText }) {
+  return {
+    version: 1,
+    category: "gate",
+    operation,
+    ...(source ? { source: { path: source } } : {}),
+    ...(issues.length ? { issues } : {}),
+    next: createCliNext(action, {
+      requiresHuman: true,
+      ...(source ? { inspect: [{ path: source }] } : {}),
+      ...(invocation ? { invocation } : {}),
+      default: defaultText,
+    }),
+  };
 }
 
 /** After subprocess/command code: emit FAILED if non-zero, then exit. */
 function exitWithCode(code, where, message, hint) {
   if (code !== 0) {
-    const childError = runNode.lastChildError;
+    const childResult = runNode.lastChildResult;
     emitFailed(
       where,
-      childError?.message || message || `command exited ${code}`,
-      childError?.hint || hint || "See stderr above for details"
+      message || `Delegated command exited ${code}`,
+      hint || "Inspect the delegated diagnostic evidence before retrying",
+      childResult ? buildDelegatedDiagnostic({
+        invocation: childResult.invocation,
+        childError: childResult.childError,
+        operation: where.split(".").at(-1).replaceAll("_", "-"),
+        overflow: childResult.overflow,
+        next: createCliNext("inspect", {
+          requiresHuman: false,
+          default: "Inspect the retained child evidence and parent command context before retrying.",
+        }),
+      }) : undefined
     );
-    runNode.lastChildError = null;
+    runNode.lastChildResult = null;
   }
   process.exit(code);
 }
@@ -122,7 +192,7 @@ function exitWithCode(code, where, message, hint) {
 // ---------------------------------------------------------------------------
 
 /**
- * Spawn a Node.js script as a subprocess with inherited stdio.
+ * Spawn a registered Node.js child with transactional output capture.
  * @param {string} script - Absolute path to the .mjs script.
  * @param {string[]} args - CLI arguments.
  * @returns {Promise<number>} Exit code.
@@ -131,35 +201,46 @@ function runNode(script, args = []) {
   const cmd = ["node", script, ...args].map(String);
   console.log("→ " + cmd.join(" "));
   return new Promise((resolve) => {
+    const collector = createChildOutputCollector({
+      registered: true,
+      onProgress: (event, fields) => emitCliProgress(event, fields),
+    });
     const child = spawn("node", [script, ...args], {
-      stdio: ["inherit", "inherit", "pipe"],
-      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, [CLI_PROGRESS_ENV]: "1" },
     });
+    const transaction = globalThis[CLI_TRANSACTION_SYMBOL];
+    if (transaction?.installed) transaction.activeChild = child;
+    child.stdout.on("data", (chunk) => collector.pushStdout(chunk));
     child.stderr.setEncoding("utf8");
-    const relay = (line) => {
-      if (!line) return;
-      process.stderr.write(line.endsWith("\n") ? line : `${line}\n`);
-    };
-    const framer = createChildStderrFramer({ relay });
-    child.stderr.on("data", (chunk) => framer.push(chunk));
+    child.stderr.on("data", (chunk) => collector.pushStderr(chunk));
     child.on("close", (rawCode) => {
-      const { childError, fallback } = framer.finish();
-      const code = normalizeDelegatedExit(rawCode, childError);
-      if (childError) {
-        runNode.lastChildError = childError;
+      if (transaction?.activeChild === child) transaction.activeChild = null;
+      const result = collector.finish(rawCode);
+      if (result.code === 0 && !result.overflow) {
+        runNode.lastChildResult = null;
+        if (result.stdout) process.stdout.write(result.stdout);
+        if (result.stderr) process.stderr.write(result.stderr);
       } else {
-        runNode.lastChildError = fallback ? { message: fallback, hint: "See child diagnostics above" } : null;
+        runNode.lastChildResult = {
+          ...result,
+          invocation: { program: "node", args: [script, ...args] },
+        };
       }
-      resolve(code);
+      resolve(result.overflow ? 1 : result.code);
     });
-    child.on("error", (err) => {
-      runNode.lastChildError = { message: err.message, hint: "Check the Node executable and child script path" };
-      console.error(`✗ Failed to spawn node: ${err.message}`);
+    child.on("error", () => {
+      if (transaction?.activeChild === child) transaction.activeChild = null;
+      runNode.lastChildResult = {
+        childError: null,
+        overflow: false,
+        invocation: { program: "node", args: [script, ...args] },
+      };
       resolve(1);
     });
   });
 }
-runNode.lastChildError = null;
+runNode.lastChildResult = null;
 
 // ---------------------------------------------------------------------------
 // Metadata helpers
@@ -617,15 +698,6 @@ function buildEnvSearchDirs(dkRoot) {
  * @param {{smoke?: boolean, probeVendors?: boolean}} [opts]
  */
 async function commandDoctor({ smoke = false, probeVendors = false } = {}) {
-  if (smoke && probeVendors) {
-    emitFailed(
-      "USAGE",
-      "--smoke and --probe-vendors are mutually exclusive",
-      "Use --smoke for first-vendor gate; --probe-vendors for full channel report",
-      "ppt_flow.doctor"
-    );
-    return 1;
-  }
   const args = [];
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
@@ -713,6 +785,7 @@ async function commandStatus(runDir, { json: asJson }) {
   const status = collectStatus(resolved);
   await enrichStatusWithState(status, resolved);
   if (asJson) {
+    registerCliJsonReport(status);
     console.log(JSON.stringify(status, null, 2));
   } else {
     printStatus(status);
@@ -1200,6 +1273,13 @@ async function commandBuild(
         message: review.hint || "header review required",
         hint: review.action || "run pilot to review header changes",
         where: "ppt_flow.build.header-review",
+        diagnostic: createGateDiagnostic({
+          operation: "header-review",
+          source: resolved,
+          issues: (review.changed || []).map((change) => ({ message: "slide header review evidence is stale or missing", subject: { kind: "slide", id: change.id }, reason: { kind: "review_required" } })),
+          invocation: { program: "node", args: [__filename, "pilot", resolved, "--resolution", resolution] },
+          defaultText: "Stop for current header review or explicit risk acceptance before building the final deck.",
+        }),
       });
       return 1;
     }
@@ -1310,6 +1390,13 @@ async function commandRefresh(
           message: review.hint || `full-page title review required for: ${fullPageAffected.join(", ")}`,
           hint: review.action || `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot ${resolved} --only ${fullPageAffected.join(",")}`,
           where: "ppt_flow.refresh.title",
+          diagnostic: createGateDiagnostic({
+            operation: "title-header-review",
+            source: resolved,
+            issues: fullPageAffected.map((id) => ({ message: "full-page title change requires current image review", subject: { kind: "slide", id }, reason: { kind: "review_required" } })),
+            invocation: { program: "node", args: [__filename, "pilot", resolved, "--only", fullPageAffected.join(","), "--force-images"] },
+            defaultText: "Stop for current review of the affected full-page title images before continuing.",
+          }),
         });
         return 1;
       }
@@ -1403,16 +1490,39 @@ function commandNewVersion(runDir, { name }) {
  */
 async function commandTest() {
   const result = spawnSync("npm", ["test"], {
-    stdio: "inherit",
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+    maxBuffer: 2 * 1024 * 1024,
     env: process.env,
     cwd: resolve(FRAMEWORK_DIR, ".."),
   });
-  const code = result.status !== null ? result.status : 1;
+  const collector = createChildOutputCollector({ registered: false });
+  collector.pushStdout(result.stdout || "");
+  collector.pushStderr(result.stderr || "");
+  const captured = collector.finish(result.status !== null ? result.status : 1);
+  const code = captured.overflow ? 1 : captured.code;
+  runNode.lastChildResult = {
+    ...captured,
+    invocation: { program: "npm", args: ["test"] },
+  };
+  if (code === 0) {
+    if (captured.stdout) process.stdout.write(captured.stdout);
+    if (captured.stderr) process.stderr.write(captured.stderr);
+  }
   if (code !== 0) {
     emitFailed(
       "ppt_flow.test",
       `npm test exited ${code}`,
-      "Fix failing tests, then re-run ppt_flow test"
+      "Inspect the failing test suite, fix the source, then rerun ppt_flow test",
+      buildDelegatedDiagnostic({
+        invocation: { program: "npm", args: ["test"] },
+        overflow: captured.overflow,
+        operation: "test",
+        next: createCliNext("edit_source", {
+          default: "Inspect the test failures in a direct test run, fix source code or tests, then rerun.",
+          invocation: { program: "npm", args: ["test"] },
+        }),
+      })
     );
   }
   return code;
@@ -1477,6 +1587,13 @@ Examples:
       "Live probe every IMAGE2 vendor; print channel report (not --smoke)"
     )
     .action(async (opts) => {
+      if (opts.smoke && opts.probeVendors) {
+        exitUsage(
+          "ppt_flow.doctor",
+          "--smoke and --probe-vendors are mutually exclusive.",
+          "Use --smoke for the first-vendor gate or --probe-vendors for the full channel report"
+        );
+      }
       const code = await commandDoctor({
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
@@ -1520,6 +1637,7 @@ Examples:
     )
     .option("--json", "Output machine-readable JSON")
     .action(async (runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
       const code = await commandStatus(runDir, { json: opts.json ?? false });
       process.exit(code);
     });
@@ -1535,18 +1653,7 @@ Examples:
     .option("--reason <text>", "For header risk acceptance: persisted symptom/reason")
     .action(async (runDir, gate, opts) => {
       if (!["content", "visual", "header"].includes(gate)) {
-        console.error(
-          `✗ gate must be "content", "visual", or "header"; got: ${gate}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `gate must be "content", "visual", or "header"; got: ${gate}`,
-            hint: 'Pass "content", "visual", or "header" as the gate argument',
-            where: "ppt_flow.approve.gate",
-          },
-          1
-        );
+        exitUsage("ppt_flow.approve.gate", 'gate must be "content", "visual", or "header".', 'Pass "content", "visual", or "header" as the gate argument');
       }
       const code = gate === "header"
         ? await commandApproveHeader(runDir, {
@@ -1575,20 +1682,7 @@ Examples:
     .option("--no-deck-system", "Do not append deck_system.txt constraints")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
-      if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(
-          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
-            hint: "Pass --resolution 1k, 2k, or 4k",
-            where: "ppt_flow.style-master.resolution",
-          },
-          1
-        );
-      }
+      validateResolution("ppt_flow.style-master.resolution", opts.resolution);
       const code = await commandStyleMasterWrapped(runDir, {
         resolution: opts.resolution,
         model: opts.model,
@@ -1628,20 +1722,7 @@ Examples:
     .option("--force-images", "Regenerate pilot images even if files exist")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
-      if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(
-          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
-            hint: "Pass --resolution 1k, 2k, or 4k",
-            where: "ppt_flow.pilot.resolution",
-          },
-          1
-        );
-      }
+      validateResolution("ppt_flow.pilot.resolution", opts.resolution);
       const code = await commandPilot(runDir, {
         only: opts.only || null,
         count: opts.count ?? 3,
@@ -1668,20 +1749,7 @@ Examples:
     )
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
-      if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(
-          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
-            hint: "Pass --resolution 1k, 2k, or 4k",
-            where: "ppt_flow.build.resolution",
-          },
-          1
-        );
-      }
+      validateResolution("ppt_flow.build.resolution", opts.resolution);
       const code = await commandBuildWrapped(runDir, {
         resolution: opts.resolution,
         model: opts.model,
@@ -1709,33 +1777,9 @@ Examples:
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       if (!["title", "visual", "notes"].includes(opts.kind)) {
-        console.error(
-          `✗ --kind must be title, visual, or notes; got: ${opts.kind}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `--kind must be title, visual, or notes; got: ${opts.kind}`,
-            hint: "Pass --kind title, visual, or notes",
-            where: "ppt_flow.refresh.kind",
-          },
-          1
-        );
+        exitUsage("ppt_flow.refresh.kind", "--kind must be title, visual, or notes.", "Pass --kind title, visual, or notes");
       }
-      if (!["1k", "2k", "4k"].includes(opts.resolution)) {
-        console.error(
-          `✗ Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.USAGE,
-            message: `Resolution must be 1k, 2k, or 4k; got: ${opts.resolution}`,
-            hint: "Pass --resolution 1k, 2k, or 4k",
-            where: "ppt_flow.refresh.resolution",
-          },
-          1
-        );
-      }
+      validateResolution("ppt_flow.refresh.resolution", opts.resolution);
       const code = await commandRefresh(runDir, {
         kind: opts.kind,
         only: opts.only || null,
@@ -1777,6 +1821,7 @@ Examples:
     .option("--json", "JSON output")
     .option("--check-gates", "Verify gates for Stage 2 readiness")
     .action(async (runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
       const {
         readState,
         isGateApproved,
@@ -1787,12 +1832,27 @@ Examples:
       const s = readState(deckDir);
       if (s.corrupted) {
         console.error("State corrupted:", s.errors);
+        if (opts.json) registerCliJsonReport(
+          { corrupted: true, error_count: Array.isArray(s.errors) ? s.errors.length : 0 },
+          { schema: CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE }
+        );
         exitCliError(
           {
             code: CLI_ERROR_CODES.STATE_CORRUPTED,
-            message: `State corrupted: ${(s.errors || []).join("; ") || "unknown"}`,
-            hint: "Re-run with a healable file, or delete _state/state.yaml and re-init; see CONSTITUTION MD↔JS heal",
+            message: "State data is corrupted and could not be healed deterministically.",
+            hint: "Inspect or recreate the state source before resuming the workflow.",
             where: "ppt_flow.state",
+            diagnostic: {
+              version: 1,
+              category: "artifact",
+              operation: "read-state",
+              source: { path: join(deckDir, "_state", "state.yaml") },
+              reason: { kind: "state_corrupted" },
+              next: createCliNext("repair_prerequisite", {
+                inspect: [{ path: join(deckDir, "_state", "state.yaml") }],
+                default: "Repair a healable state file or explicitly recreate state before continuing.",
+              }),
+            },
           },
           2
         );
@@ -1816,6 +1876,12 @@ Examples:
             message: `Gates blocked: ${pending.join(", ")}`,
             hint: `Pending gate(s): ${pending.join(", ")}. Run approve for each, or --waive if intentional.`,
             where: "ppt_flow.state.check-gates",
+            diagnostic: createGateDiagnostic({
+              operation: "check-gates",
+              source: join(deckDir, "project-metadata.yaml"),
+              issues: pending.map((gate) => ({ message: "production gate is pending", subject: { kind: "gate", id: gate }, reason: { kind: "approval_required" } })),
+              defaultText: "Stop for explicit content and visual gate decisions before Stage 2 production.",
+            }),
           },
           1
         );
@@ -1846,23 +1912,19 @@ Examples:
 
       if (opts.json) {
         if (healed) s.healed = true;
-        console.log(
-          JSON.stringify(
-            {
-              ...s,
-              node_status: indexedCard.node_status,
-              waiting_for: indexedCard.waiting_for,
-              note: indexedCard.note,
-              completed_nodes: indexedCard.completed_nodes,
-              pending_nodes: indexedCard.pending_nodes,
-              eligible_candidates: indexedCard.eligible_candidates,
-              workflow_summary: indexedCard.workflow_summary,
-              suggested_next: indexedCard.suggested_next,
-            },
-            null,
-            2
-          )
-        );
+        const report = {
+          ...s,
+          node_status: indexedCard.node_status,
+          waiting_for: indexedCard.waiting_for,
+          note: indexedCard.note,
+          completed_nodes: indexedCard.completed_nodes,
+          pending_nodes: indexedCard.pending_nodes,
+          eligible_candidates: indexedCard.eligible_candidates,
+          workflow_summary: indexedCard.workflow_summary,
+          suggested_next: indexedCard.suggested_next,
+        };
+        registerCliJsonReport(report);
+        console.log(JSON.stringify(report, null, 2));
         return;
       }
       if (healed) console.log("Note:     state.yaml was auto-tidied (heal)");
@@ -1895,14 +1957,14 @@ Examples:
     ) {
       process.exit(0);
     }
-    const message = err?.message || String(err);
-    console.error(`✗ ${message}`);
+    console.error("✗ Command arguments are invalid.");
     exitCliError(
       {
         code: CLI_ERROR_CODES.USAGE,
-        message,
+        message: "Command arguments are invalid.",
         hint: "Run with --help for usage",
         where: "ppt_flow.main",
+        diagnostic: { version: 1, category: "usage", operation: "parse-command", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--help"] }, default: "Inspect --help, correct the command arguments, then rerun." }) },
       },
       typeof err?.exitCode === "number" && err.exitCode !== 0 ? err.exitCode : 1
     );
@@ -1929,10 +1991,10 @@ if (isMain) {
     exitCliError(
       {
         code: CLI_ERROR_CODES.UNCAUGHT,
-        message: err.message || String(err),
-        hint: "Unexpected failure — check stack and re-run",
+        message: "ppt_flow failed unexpectedly.",
+        hint: "Inspect the command location and report the framework failure.",
         where: "ppt_flow.main",
-        stack: err.stack,
+        diagnostic: { version: 1, category: "internal", operation: "run-command", next: createCliNext("report_internal", { default: "Inspect ppt_flow.mjs without relying on captured exception prose, then report the defect." }) },
       },
       1
     );

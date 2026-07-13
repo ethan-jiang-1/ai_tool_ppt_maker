@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -46,6 +47,20 @@ describe('generate_style_master', () => {
   it('module exports expected functions', async () => {
     const mod = await import('../PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs');
     expect(mod.generateStyleMaster).toBeTypeOf('function');
+  });
+
+  it('emits a structured source diagnostic for an invalid run bundle', () => {
+    const missing = join(tmpdir(), `deck_missing_style_${Date.now()}`, '3_versions', 'v1');
+    const result = spawnSync('node', [
+      'PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs',
+      '--run-dir', missing,
+      '--dry-run',
+    ], { encoding: 'utf8', timeout: 10000 });
+    expect(result.status).toBe(1);
+    const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
+    expect(envelope.diagnostic.category).toBe('structure');
+    expect(envelope.diagnostic.source.path).toBe(missing);
+    expect(envelope.diagnostic.next.invocation).toMatchObject({ program: 'node' });
   });
 });
 

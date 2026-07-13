@@ -11,6 +11,9 @@
  *   declarations. Its index is transient and is rebuilt from the MD files.
  * - This module does NOT define a second playbook, generate controller
  *   content, modify Markdown, make creative decisions, or execute nodes.
+ * CLI diagnostic consumer authority: openspec/specs/node-specification/spec.md
+ * plus active node-specification deltas discovered through `openspec status`.
+ * Producer fields remain owned by cli-surface and are not redefined here.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";

@@ -24,12 +24,12 @@ context: |
   文档中的 shell 代码块只是 `node …` 命令示例，不是可执行资产。
   权威条文: `charter/CONSTITUTION.md`（运行时宪法）+ `charter/AGENT_CONTRACT.md` §7。
 
-  **CLI 失败回执（宪法级 · MD Controller 友好）。** 任何 CLI 硬失败除非零 exit 外，
-  **必须**向 **stderr 最后一个非空行**写出单行 JSON envelope
-  （`ok:false` + 稳定 `code` + `message` + `hint` + `where`）。
-  消费者包括 MD Controller、coding agent、以及今后更多编排器——没有结构化回执 =
-  它们无法立刻意识到错在哪，也就无法修。禁止仅散文 `Fatal error` 致盲。
-  权威条文: `charter/CONSTITUTION.md`（CLI 失败回执宪法）+ `charter/NODE-SPEC.md`（CLI ⇔ MD）。
+  **CLI 失败回执（宪法级 · MD Controller 友好）。** 每个 registered direct CLI 的
+  JS-controlled non-zero return 必须以唯一末行 envelope 收尾，并提供受版本约束、bounded、
+  secret-safe 的 actionable diagnostic：保留 JS 已知的 source/artifact lineage 和安全 next，
+  不释放 raw prose、stack、provider body、prompt、`.env` 内容或 child output。
+  producer 权威: `openspec/specs/cli-surface/spec.md`；consumer 权威:
+  `openspec/specs/node-specification/spec.md` / `charter/NODE-SPEC.md`。此 config 不复制详细 schema。
 
   ## 两层结构
 
@@ -81,7 +81,7 @@ context: |
 
   | Capability | 做什么 | 关键脚本 |
   |-----------|--------|---------|
-  | `cli-surface` | ppt_flow 命令面 (12 个命令): doctor/init/status/approve/style-master/validate/pilot/build/refresh/new-version/test/state | `ppt_flow.mjs` |
+  | `cli-surface` | 全部 direct CLI 的诊断 producer/output/delegation 契约；并固定 ppt_flow 的 12 个命令 | `scripts/lib/cli_error.mjs`, `ppt_flow.mjs` |
 
   ### 执行层
 
@@ -108,8 +108,8 @@ context: |
   1. **文件系统即工作流引擎** — 目录表达职责层级，文件 = 交接产物；新版本只复制下游源 delta，`_generated/` 干净重建；git = 审计跟踪.
   2. **Node-only 运行时** — 可执行资产只有 Node ESM；禁止 Python/bash/外部 skill 生产路径
      （见「运行时铁律」与 `charter/CONSTITUTION.md`）。
-  3. **CLI 失败必出 JSON** — 非零 exit 时 stderr 最后一个非空行必须是 MD Controller 友好的 envelope
-     （`ok`/`code`/`message`/`hint`/`where`）；否则编排器无法立刻修错。
+  3. **CLI 失败必出 actionable diagnostic** — 非零 exit 的唯一末行 envelope 必须把 JS 已知的
+     source/artifact lineage 与安全 next 交给 MD；详细 producer 契约只在 `cli-surface`。
   4. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
      新 deck 默认 `full-page`；只有显式 opt-in 的 slide 才用 `body+header-lock`，让 AI body 留出 header safe zone 后由代码叠加标题.
   5. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
@@ -161,7 +161,7 @@ rules:
   proposal:
     - "可执行资产只能是 Node.js ESM (.mjs)；不得提议 Python、bash/.sh、或外部 skill 作为生产路径"
     - "Stage 2 / style-master / contact sheet 必须落在 PPTMAKER_FRAMEWORK/scripts/ 内"
-    - "CLI 硬失败必须有 JSON envelope（ok/code/message/hint/where），不得仅散文 Fatal error"
+    - "CLI 硬失败遵守 cli-surface：唯一末行 envelope + bounded secret-safe actionable diagnostic，不得仅散文 Fatal error"
     - "先分类变更类型: narrative-frame / case-anchor / content-constraint / pipeline-script / pipeline-operation"
     - "再分类影响范围: 标题先按 resolved render mode 分流到 Chain A/B；视觉=B；备注=C；结构=Structural——参照 scripts/change-classifier.md"
     - "涉及哪些 capability, 必须在 Capabilities 段使用 config.yaml 注册表中的 kebab-case identifier——不得自创名字"

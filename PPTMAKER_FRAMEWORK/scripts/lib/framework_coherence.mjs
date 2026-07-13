@@ -170,8 +170,38 @@ export function validateDocumentedCommands(commands, scriptsDir) {
   return issues;
 }
 
+export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
+  const issues = [];
+  const requirements = [
+    ["AGENTS.md", ["openspec/specs/cli-surface/spec.md", "openspec/specs/node-specification/spec.md", "openspec status"]],
+    ["PPTMAKER_FRAMEWORK/scripts/README.md", ["openspec/specs/cli-surface/spec.md"]],
+    ["PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs", ["openspec/specs/cli-surface/spec.md"]],
+    ["PPTMAKER_FRAMEWORK/scripts/lib/md_controller_reader.mjs", ["openspec/specs/node-specification/spec.md"]],
+    ["PPTMAKER_FRAMEWORK/scripts/lib/state.mjs", ["openspec/specs/node-specification/spec.md"]],
+  ];
+  for (const [file, needles] of requirements) {
+    const path = join(root, file);
+    if (!existsSync(path)) {
+      issues.push(issue(file, 1, "diagnostic-authority", "authority pointer file is missing", "restore the canonical maintenance route"));
+      continue;
+    }
+    const text = readFileSync(path, "utf8");
+    for (const needle of needles) {
+      if (!text.includes(needle)) issues.push(issue(file, 1, "diagnostic-authority", `missing canonical target ${needle}`, "point to the canonical capability without copying its schema"));
+    }
+  }
+  const mainSpec = join(root, "openspec/specs/cli-surface/spec.md");
+  if (existsSync(mainSpec)) {
+    const purpose = readFileSync(mainSpec, "utf8").split("## Requirements", 1)[0];
+    if (!/every registered direct Node CLI/i.test(purpose) || !/12-command/i.test(purpose)) {
+      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 12-command ppt_flow surface"));
+    }
+  }
+  return issues;
+}
+
 export function scanFrameworkCoherence({ root = "PPTMAKER_FRAMEWORK", exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS } = {}) {
-  const issues = [...validateExceptionMap(exceptions, linkExceptions)];
+  const issues = [...validateExceptionMap(exceptions, linkExceptions), ...validateDiagnosticAuthorityPointers()];
   const markdown = walk(root).filter((file) => file.endsWith(".md"));
   const scriptsDir = join(root, "scripts");
   for (const file of markdown) {

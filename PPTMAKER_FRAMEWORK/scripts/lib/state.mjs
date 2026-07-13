@@ -4,6 +4,9 @@
  * MD Controllers remain the workflow source of truth. This module stores the
  * active execution pointer/evidence and evaluates gates from declarations read
  * by md_controller_reader.mjs.
+ * CLI diagnostic consumer authority: openspec/specs/node-specification/spec.md
+ * plus active node-specification deltas from `openspec status`; do not duplicate
+ * the producer schema owned by cli-surface in this module.
  */
 import {
   appendFileSync,

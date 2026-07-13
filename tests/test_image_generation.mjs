@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -512,8 +513,37 @@ describe('stage2_generate_images', () => {
       baseUrl: ['https://api.example.test/v1'],
     });
     expect(failed.errors).toHaveLength(1);
+    expect(failed.failures[0]).toMatchObject({
+      slideId: 'a',
+      outPath: join(outDir, '01_a.png'),
+      category: 'provider',
+      reason: { kind: 'all_vendors_failed' },
+    });
     const manifest = JSON.parse(readFileSync(join(outDir, '_manifest.json'), 'utf-8'));
     expect(manifest.slides.a).toBeUndefined();
+  });
+
+  it('emits slide/output lineage for an aggregate CLI failure without prompt prose', () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: '' },
+      { id: 'b', out: '02_b.png', prompt: '' },
+    ] }), 'utf8');
+    const result = spawnSync('node', [
+      'PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs',
+      '--prompt-json', prompts,
+      '--out-dir', outDir,
+      '--style-reference', style,
+      '--dry-run',
+    ], { encoding: 'utf8', timeout: 10000 });
+    expect(result.status).toBe(1);
+    const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
+    expect(envelope.diagnostic).toMatchObject({ category: 'source_validation', stage: 'stage2' });
+    expect(envelope.diagnostic.issues.map((issue) => issue.subject.id)).toEqual(['a', 'b']);
+    expect(envelope.diagnostic.issues[0].lineage.at(-1).path).toBe(join(outDir, '01_a.png'));
   });
 });
 
@@ -602,5 +632,32 @@ describe('make_contact_sheet', () => {
     const buf = readFileSync(out);
     expect(buf[0]).toBe(0xff);
     expect(buf[1]).toBe(0xd8); // JPEG SOI
+  });
+
+  it('aggregates missing and invalid slide images without writing a partial sheet', async () => {
+    const imgDir = join(dir, 'images');
+    mkdirSync(imgDir, { recursive: true });
+    writeFileSync(join(imgDir, '01_a.png'), 'not an image');
+    const prompts = join(dir, '_prompts.json');
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'a' },
+      { id: 'b', out: '02_b.png', prompt: 'b' },
+    ] }), 'utf8');
+    const out = join(dir, 'sheet.jpg');
+    const { makeContactSheet } = await import('../PPTMAKER_FRAMEWORK/scripts/make_contact_sheet.mjs');
+    const { diagnosticFromError } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs');
+    let error;
+    try {
+      await makeContactSheet({ imageDir: imgDir, promptJson: prompts, out, columns: 2 });
+    } catch (caught) {
+      error = caught;
+    }
+    const diagnostic = diagnosticFromError(error);
+    expect(diagnostic.issues).toHaveLength(2);
+    expect(diagnostic.issues.map((issue) => [issue.subject.id, issue.reason.kind])).toEqual([
+      ['b', 'missing_image'],
+      ['a', 'invalid_image'],
+    ]);
+    expect(existsSync(out)).toBe(false);
   });
 });

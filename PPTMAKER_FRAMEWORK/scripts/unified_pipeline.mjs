@@ -28,6 +28,9 @@
  *     Chain C (speaker notes):    --stage 5
  */
 
+import "./lib/cli_bootstrap.mjs?entry=unified_pipeline.mjs";
+import { CLI_ERROR_CODES, createCliNext, diagnosticFromError, emitCliError, emitCliProgress, sanitizeCliDiagnostic } from "./lib/cli_error.mjs";
+
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,6 +140,45 @@ export async function runStage(fn, stageName, dryRun) {
   }
 }
 
+function failStage(stageFunction, diagnostic) {
+  stageFunction.lastFailure = sanitizeCliDiagnostic(diagnostic);
+  return false;
+}
+
+function pipelineStageDiagnostic(stageNum, runDir, diagnostic, resolution) {
+  const category = diagnostic?.category || (stageNum === 1 ? "source_validation" : "artifact");
+  const action = category === "gate" ? "review"
+    : category === "source_validation" ? "edit_source"
+      : ["environment", "provider"].includes(category) ? "repair_environment"
+        : category === "internal" ? "report_internal"
+          : "repair_prerequisite";
+  return sanitizeCliDiagnostic({
+    version: 1,
+    category,
+    stage: `stage${stageNum}`,
+    operation: "run-stage",
+    ...(diagnostic?.subject ? { subject: diagnostic.subject } : {}),
+    ...(diagnostic?.source ? { source: diagnostic.source } : { source: { path: runDir } }),
+    ...(diagnostic?.reason ? { reason: diagnostic.reason } : { reason: { kind: "stage_failed" } }),
+    ...(diagnostic?.lineage ? { lineage: diagnostic.lineage } : {}),
+    ...(diagnostic?.issues ? { issues: diagnostic.issues } : {}),
+    next: createCliNext(action, {
+      requiresHuman: category === "gate",
+      inspect: diagnostic?.next?.inspect || (diagnostic?.source ? [diagnostic.source] : [{ path: runDir }]),
+      invocation: { program: "node", args: [__filename_main, "--run-dir", runDir, "--stage", String(stageNum), "--resolution", resolution] },
+      default: category === "gate"
+        ? "Stop for the named human review or approval, then rerun the selected stage."
+        : category === "source_validation"
+          ? "Edit the named source fields, then rerun Stage 1."
+          : ["environment", "provider"].includes(category)
+            ? "Repair the named environment or provider prerequisite without exposing secrets, then rerun."
+            : category === "internal"
+              ? "Inspect and report the framework failure before retrying."
+              : `Repair or rerun the prerequisite for Stage ${stageNum}; do not edit _generated artifacts directly.`,
+    }),
+  });
+}
+
 // --- Stage runners -----------------------------------------------------------
 
 /**
@@ -149,10 +191,11 @@ export async function runStage(fn, stageName, dryRun) {
  * @returns {Promise<boolean>}
  */
 export async function stage1(runDir, dryRun) {
+  stage1.lastFailure = null;
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
     console.log(`  ✗ No ${SLIDE_SPECS_GLOB} found in ${runDir}`);
-    return false;
+    return failStage(stage1, { version: 1, category: "source_validation", stage: "stage1", operation: "find-source", source: { path: runDir }, reason: { kind: "missing_slide_specification" }, next: createCliNext("edit_source", { inspect: [{ path: runDir }], default: "Restore the slide specification source, then rerun Stage 1." }) });
   }
 
   console.log(`  Input: ${inputFile}`);
@@ -164,7 +207,7 @@ export async function stage1(runDir, dryRun) {
 
   // Use the Node.js ESM port's parseSlides function programmatically.
   // This avoids spawning a subprocess for a stage we have natively.
-  const { parseSlides, configureVisualConfig } = await import("./stage1_build_inputs.mjs");
+  const { parseSlides, configureVisualConfig, validateSpecRecords } = await import("./stage1_build_inputs.mjs");
   const { loadVisualConfig } = await import("./visual_config.mjs");
 
   const deckSystemPath = styleAsset(runDir, DECK_SYSTEM_FILE);
@@ -190,11 +233,24 @@ export async function stage1(runDir, dryRun) {
       );
     } catch (exc) {
       console.log(`  ✗ Invalid visual config: ${exc.message}`);
-      return false;
+      return failStage(stage1, { version: 1, category: "artifact", stage: "stage1", operation: "load-visual-config", source: { path: palettePath }, reason: { kind: "invalid_visual_config" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: palettePath }], default: "Repair the visual configuration source, then rerun Stage 1." }) });
     }
   } else {
     const { DEFAULT_CONFIG } = await import("./visual_config.mjs");
     configureVisualConfig(DEFAULT_CONFIG);
+  }
+
+  const validationErrors = validateSpecRecords([inputFile]).filter((problem) => problem.severity === "ERROR");
+  if (validationErrors.length > 0) {
+    return failStage(stage1, {
+      version: 1,
+      category: "source_validation",
+      stage: "stage1",
+      operation: "validate-specs",
+      source: validationErrors[0].source,
+      issues: validationErrors.map(({ message, subject, source, reason, lineage }) => ({ message, subject, source, reason, lineage })),
+      next: createCliNext("edit_source", { inspect: validationErrors.map(({ source }) => source), default: "Fix the retained source issues, then rerun Stage 1." }),
+    });
   }
 
   const { plan, prompts } = parseSlides([inputFile], finalRules);
@@ -253,17 +309,18 @@ export async function stage2(runDir, {
   requireHeaderReview = false,
   dryRun = false,
 } = {}) {
+  stage2.lastFailure = null;
   const buildDir = generatedDir(runDir);
   const promptsFile = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
   if (!existsSync(promptsFile) && !dryRun) {
     console.log(`  ✗ ${promptsFile} not found. Run Stage 1 first.`);
-    return false;
+    return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "load-prompts", source: { path: promptsFile }, reason: { kind: "missing_prompt_manifest" }, lineage: [{ kind: "derived", path: promptsFile, stage: "stage1" }], next: createCliNext("repair_prerequisite", { inspect: [{ path: runDir }], default: "Rerun Stage 1 to recreate the prompt manifest, then rerun Stage 2." }) });
   }
 
   const styleMaster = styleAsset(runDir, STYLE_MASTER_IMAGE);
   if (!existsSync(styleMaster) && !dryRun) {
     console.log(`  ✗ ${styleMaster} not found. Generate ${STYLE_MASTER_IMAGE} first.`);
-    return false;
+    return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "load-style-reference", source: { path: styleMaster }, reason: { kind: "missing_style_reference" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: styleMaster }], default: "Generate the style master prerequisite, then rerun Stage 2." }) });
   }
 
   const outDir = join(buildDir, GEN_IMAGES_SUBDIR);
@@ -282,7 +339,7 @@ export async function stage2(runDir, {
         console.log(`  ⚠ ${review.hint}`);
         console.log(`  → 执行: ${review.action}`);
       }
-      return false;
+      return failStage(stage2, { version: 1, category: "gate", stage: "stage2", operation: "header-review", source: { path: runDir }, issues: (review.changed || []).map((change) => ({ message: "slide header review evidence is stale or missing", subject: { kind: "slide", id: change.id }, reason: { kind: "review_required" } })), next: createCliNext("review", { requiresHuman: true, inspect: [{ path: runDir }], default: "Stop for current header review evidence before production image generation." }) });
     }
   }
 
@@ -303,7 +360,7 @@ export async function stage2(runDir, {
         selectedIds = resolveSlideIds(tokens, plan.slides || []);
       } catch (err) {
         console.log(`  ✗ --only: ${err.message}`);
-        return false;
+        return failStage(stage2, { version: 1, category: "usage", stage: "stage2", operation: "resolve-selection", source: { path: join(buildDir, GEN_SLIDE_PLAN) }, reason: { kind: "unknown_slide_selector" }, next: createCliNext("fix_arguments", { inspect: [{ path: join(buildDir, GEN_SLIDE_PLAN) }], default: "Choose slide ids from the current slide plan, then rerun Stage 2." }) });
       }
     }
   }
@@ -314,7 +371,7 @@ export async function stage2(runDir, {
     baseUrls = resolveBaseUrls(baseUrl ? [baseUrl] : []);
   } catch (err) {
     console.log(`  ✗ ${err.message}`);
-    return false;
+    return failStage(stage2, { version: 1, category: "environment", stage: "stage2", operation: "resolve-provider", source: { path: deckRoot(runDir) }, reason: { kind: "provider_configuration_unavailable" }, next: createCliNext("repair_environment", { default: "Repair provider configuration without exposing credentials, then rerun Stage 2." }) });
   }
 
   console.log(`\n${"=".repeat(60)}`);
@@ -328,7 +385,7 @@ export async function stage2(runDir, {
   }
 
   try {
-    const { generateImages } = await import("./stage2_generate_images.mjs");
+    const { buildImageFailureDiagnostic, generateImages } = await import("./stage2_generate_images.mjs");
     const result = await generateImages({
       promptJson: promptsFile,
       outDir,
@@ -343,7 +400,7 @@ export async function stage2(runDir, {
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
-      return false;
+      return failStage(stage2, buildImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
     }
     const promptData = loadJson(promptsFile);
     const selectedSet = selectedIds.length > 0 ? new Set(selectedIds) : null;
@@ -362,12 +419,12 @@ export async function stage2(runDir, {
         `\n  ✗ Stage 2 provenance FAILED: ${provenance.stale.map((entry) => `${entry.slideId}: ${entry.reason}`).join("; ")}`
       );
       console.log(`  ${provenanceRepairHint(ids)}`);
-      return false;
+      return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "validate-provenance", source: { path: promptsFile }, issues: provenance.stale.map((entry) => ({ message: "slide image provenance is stale", subject: { kind: "slide", id: entry.slideId }, source: { path: outDir }, reason: { kind: "stale_image_provenance" }, lineage: [{ kind: "derived", path: promptsFile, stage: "stage1" }, { kind: "derived", path: outDir, stage: "stage2" }] })), next: createCliNext("repair_prerequisite", { inspect: [{ path: promptsFile }, { path: outDir }], default: "Regenerate only the stale slide images, then rerun Stage 2 validation." }) });
     }
     console.log(`\n  ✓ Stage 2: Generate Images completed successfully.`);
   } catch (err) {
     console.log(`\n  ✗ Stage 2: Generate Images FAILED: ${err.message}`);
-    return false;
+    return failStage(stage2, diagnosticFromError(err) || { version: 1, category: "artifact", stage: "stage2", operation: "generate-images", source: { path: promptsFile }, reason: { kind: "image_generation_failed" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: promptsFile }, { path: styleMaster }], default: "Repair the named Stage 2 prerequisite, then rerun." }) });
   }
 
   // --- Contact sheet (QA preview) ---
@@ -381,7 +438,7 @@ export async function stage2(runDir, {
       writePromptSubset(promptsFile, contactPrompts, selectedIds);
     } catch (exc) {
       console.log(`  ✗ Cannot build pilot contact sheet; ${exc.message}`);
-      return false;
+      return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "build-contact-selection", source: { path: promptsFile }, reason: { kind: "invalid_prompt_selection" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: promptsFile }], default: "Rerun Stage 1 and select current slide ids before rebuilding the contact sheet." }) });
     }
     contactName = "pilot_contact_sheet.jpg";
   }
@@ -402,7 +459,7 @@ export async function stage2(runDir, {
     return true;
   } catch (err) {
     console.log(`\n  ✗ Stage 2 QA: Contact Sheet FAILED: ${err.message}`);
-    return false;
+    return failStage(stage2, diagnosticFromError(err) || { version: 1, category: "artifact", stage: "contact-sheet", operation: "compose", source: { path: contactPrompts }, reason: { kind: "contact_sheet_failed" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: contactPrompts }, { path: outDir }], default: "Repair the selected image prerequisites, then regenerate the contact sheet." }) });
   }
 }
 
@@ -413,6 +470,7 @@ export async function stage2(runDir, {
  * @returns {Promise<boolean>}
  */
 export async function stage3(runDir, dryRun) {
+  stage3.lastFailure = null;
   const buildDir = generatedDir(runDir);
   const imagesDir = join(buildDir, GEN_IMAGES_SUBDIR);
   const slidePlan = join(buildDir, GEN_SLIDE_PLAN);
@@ -420,18 +478,18 @@ export async function stage3(runDir, dryRun) {
   if (!dryRun) {
     if (!existsSync(imagesDir)) {
       console.log(`  ✗ No images found in ${imagesDir}. Run Stage 2 first.`);
-      return false;
+      return failStage(stage3, { version: 1, category: "artifact", stage: "stage3", operation: "load-images", source: { path: imagesDir }, reason: { kind: "missing_image_directory" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }], default: "Rerun Stage 2 to recreate slide images, then rerun Stage 3." }) });
     }
     const pngs = existsSync(imagesDir)
       ? readdirSync(imagesDir).filter((f) => f.endsWith(".png"))
       : [];
     if (pngs.length === 0) {
       console.log(`  ✗ No images found in ${imagesDir}. Run Stage 2 first.`);
-      return false;
+      return failStage(stage3, { version: 1, category: "artifact", stage: "stage3", operation: "load-images", source: { path: imagesDir }, reason: { kind: "missing_images" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }], default: "Rerun Stage 2 to recreate slide images, then rerun Stage 3." }) });
     }
     if (!existsSync(slidePlan)) {
       console.log(`  ✗ ${slidePlan} not found. Run Stage 1 first.`);
-      return false;
+      return failStage(stage3, { version: 1, category: "artifact", stage: "stage3", operation: "load-slide-plan", source: { path: slidePlan }, reason: { kind: "missing_slide_plan" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: runDir }], default: "Rerun Stage 1 to recreate the slide plan, then rerun Stage 3." }) });
     }
 
     const planData = loadJson(slidePlan);
@@ -471,7 +529,7 @@ export async function stage3(runDir, dryRun) {
     return true;
   } catch (err) {
     console.log(`\n  ✗ Stage 3: Lock Headers FAILED: ${err.message}`);
-    return false;
+    return failStage(stage3, diagnosticFromError(err) || { version: 1, category: "artifact", stage: "stage3", operation: "lock-headers", source: { path: slidePlan }, reason: { kind: "header_lock_failed" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }, { path: imagesDir }], default: "Repair Stage 1/2 prerequisites, then rerun Stage 3." }) });
   }
 }
 
@@ -485,6 +543,7 @@ export async function stage3(runDir, dryRun) {
  * @returns {Promise<boolean>}
  */
 export async function stage4(runDir, dryRun) {
+  stage4.lastFailure = null;
   const buildDir = generatedDir(runDir);
   const imagesDir = join(buildDir, GEN_HEADER_LOCKED_SUBDIR);
   const slidePlan = join(buildDir, GEN_SLIDE_PLAN);
@@ -492,18 +551,18 @@ export async function stage4(runDir, dryRun) {
   if (!dryRun) {
     if (!existsSync(imagesDir)) {
       console.log(`  ✗ No images found in ${imagesDir}. Run Stage 3 first.`);
-      return false;
+      return failStage(stage4, { version: 1, category: "artifact", stage: "stage4", operation: "load-images", source: { path: imagesDir }, reason: { kind: "missing_header_locked_directory" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }], default: "Rerun Stage 3 to recreate header-locked images, then rerun Stage 4." }) });
     }
     const pngs = existsSync(imagesDir)
       ? readdirSync(imagesDir).filter((f) => f.endsWith(".png"))
       : [];
     if (pngs.length === 0) {
       console.log(`  ✗ No images found in ${imagesDir}. Run Stage 3 first.`);
-      return false;
+      return failStage(stage4, { version: 1, category: "artifact", stage: "stage4", operation: "load-images", source: { path: imagesDir }, reason: { kind: "missing_header_locked_images" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }], default: "Rerun Stage 3 to recreate header-locked images, then rerun Stage 4." }) });
     }
     if (!existsSync(slidePlan)) {
       console.log(`  ✗ ${slidePlan} not found. Run Stage 1 first.`);
-      return false;
+      return failStage(stage4, { version: 1, category: "artifact", stage: "stage4", operation: "load-slide-plan", source: { path: slidePlan }, reason: { kind: "missing_slide_plan" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: runDir }], default: "Rerun Stage 1 to recreate the slide plan, then rerun Stage 4." }) });
     }
     const review = await validateProductionHeaderReview(runDir, { requireCurrentImages: true });
     if (!review.ok) {
@@ -511,7 +570,7 @@ export async function stage4(runDir, dryRun) {
         console.log(`  ⚠ ${review.hint}`);
         console.log(`  → 执行: ${review.action}`);
       }
-      return false;
+      return failStage(stage4, { version: 1, category: "gate", stage: "stage4", operation: "header-review", source: { path: runDir }, issues: (review.changed || []).map((change) => ({ message: "slide header review evidence is stale or missing", subject: { kind: "slide", id: change.id }, reason: { kind: "review_required" } })), next: createCliNext("review", { requiresHuman: true, inspect: [{ path: runDir }], default: "Stop for current header review evidence before assembling the PPTX." }) });
     }
   }
 
@@ -550,7 +609,7 @@ export async function stage4(runDir, dryRun) {
     return true;
   } catch (err) {
     console.log(`\n  ✗ Stage 4: Build PPTX FAILED: ${err.message}`);
-    return false;
+    return failStage(stage4, diagnosticFromError(err) || { version: 1, category: "artifact", stage: "stage4", operation: "build-pptx", source: { path: slidePlan }, reason: { kind: "pptx_build_failed" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }, { path: imagesDir }], default: "Repair Stage 3 outputs, then rerun Stage 4." }) });
   }
 }
 
@@ -675,13 +734,14 @@ export async function validateProductionHeaderReview(runDir, {
  * @returns {Promise<boolean>}
  */
 export async function stage5(runDir, dryRun) {
+  stage5.lastFailure = null;
   const pptDir = join(generatedDir(runDir), GEN_PPT_SUBDIR);
 
   // Speaker notes come from the per-slide spec markdown (in the version dir).
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
     console.log(`  ✗ No ${SLIDE_SPECS_GLOB} found in ${runDir}`);
-    return false;
+    return failStage(stage5, { version: 1, category: "source_validation", stage: "stage5", operation: "find-notes-source", source: { path: runDir }, reason: { kind: "missing_notes_source" }, next: createCliNext("edit_source", { inspect: [{ path: runDir }], default: "Restore the slide specification source with speaker notes, then rerun Stage 5." }) });
   }
 
   if (dryRun) {
@@ -706,7 +766,7 @@ export async function stage5(runDir, dryRun) {
     return true;
   } catch (err) {
     console.log(`\n  ✗ Stage 5: Inject Notes FAILED: ${err.message}`);
-    return false;
+    return failStage(stage5, diagnosticFromError(err) || { version: 1, category: "artifact", stage: "stage5", operation: "inject-notes", source: { path: inputFile }, reason: { kind: "notes_injection_failed" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }, { path: pptDir }], default: "Repair the source notes or Stage 4 PPTX prerequisite, then rerun Stage 5." }) });
   }
 }
 
@@ -807,6 +867,7 @@ Examples:
           const n = parseInt(s.trim(), 10);
           if (![1, 2, 3, 4, 5].includes(n)) {
             console.log(`  ✗ Invalid stage: ${s.trim()}. Must be 1-5.`);
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Pipeline stage selection must contain only stages 1 through 5.", hint: "Use all or a comma-separated subset of 1,2,3,4,5.", where: "unified_pipeline.arguments.stage", diagnostic: { version: 1, category: "usage", operation: "parse-stages", reason: { kind: "invalid_stage" }, next: createCliNext("fix_arguments", { default: "Correct --stage to all or valid stage numbers, then rerun." }) } });
             process.exit(1);
           }
           return n;
@@ -816,6 +877,7 @@ Examples:
       // Validate resolution
       if (opts.resolution && !["1k", "2k", "4k"].includes(opts.resolution)) {
         console.log(`  ✗ Invalid resolution: ${opts.resolution}. Must be 1k, 2k, or 4k.`);
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Pipeline resolution must be 1k, 2k, or 4k.", hint: "Choose a supported image resolution.", where: "unified_pipeline.arguments.resolution", diagnostic: { version: 1, category: "usage", operation: "parse-resolution", reason: { kind: "invalid_enum", expected: ["1k", "2k", "4k"] }, next: createCliNext("fix_arguments", { default: "Correct --resolution, then rerun the selected stages." }) } });
         process.exit(1);
       }
 
@@ -825,6 +887,7 @@ Examples:
         readyMode = opts.preview ? "preview" : "pipeline";
       }
       if (!validateRunDir(runDir, readyMode)) {
+        emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Run-bundle structure or readiness checks block the selected pipeline stages.", hint: "Repair the named run-bundle source or gate prerequisite, then rerun.", where: "unified_pipeline.validate-run-dir", diagnostic: { version: 1, category: readyMode ? "gate" : "structure", operation: "validate-run-dir", source: { path: runDir }, next: createCliNext(readyMode ? "review" : "edit_source", { requiresHuman: !!readyMode, inspect: [{ path: runDir }], default: readyMode ? "Review and resolve the required production gates before continuing." : "Repair the run-bundle source structure, then rerun the pipeline." }) } });
         process.exit(1);
       }
 
@@ -842,11 +905,13 @@ Examples:
         const refreshed = await stage1(runDir, opts.dryRun);
         if (!refreshed) {
           console.log("\n  Pipeline stopped while refreshing Stage 1 for header review.");
+          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Stage 1 refresh failed before header review.", hint: "Repair the slide specification source, then rerun the requested chain.", where: "unified_pipeline.header-review-refresh", diagnostic: pipelineStageDiagnostic(1, runDir, stage1.lastFailure, opts.resolution) });
           process.exit(1);
         }
       }
 
       // Stage dispatch table
+      const stageImplementations = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5 };
       const stageFuncs = {
         1: () => stage1(runDir, opts.dryRun),
         2: () => stage2(runDir, {
@@ -864,12 +929,35 @@ Examples:
       };
 
       for (const stageNum of stages) {
-        const success = await stageFuncs[stageNum]();
+        emitCliProgress("stage_start", { stage: `stage${stageNum}` });
+        let success;
+        try {
+          success = await stageFuncs[stageNum]();
+        } catch (err) {
+          stageImplementations[stageNum].lastFailure = diagnosticFromError(err) || sanitizeCliDiagnostic({
+            version: 1,
+            category: "internal",
+            stage: `stage${stageNum}`,
+            operation: "run-stage",
+            source: { path: runDir },
+            reason: { kind: "unexpected_stage_exception" },
+            next: createCliNext("report_internal", { inspect: [{ path: runDir }], default: "Inspect and report the unexpected Stage failure before retrying." }),
+          });
+          success = false;
+        }
         if (!success) {
           console.log(`\n  Pipeline stopped at Stage ${stageNum}.`);
           console.log(`  Fix the issue above and re-run with: --stage ${stageNum}`);
+          emitCliError({
+            code: CLI_ERROR_CODES.FAILED,
+            message: `Pipeline stopped because Stage ${stageNum} failed.`,
+            hint: "Inspect the stage-specific source and artifact lineage, then rerun the smallest safe chain.",
+            where: `unified_pipeline.stage${stageNum}`,
+            diagnostic: pipelineStageDiagnostic(stageNum, runDir, stageImplementations[stageNum].lastFailure, opts.resolution),
+          });
           process.exit(1);
         }
+        emitCliProgress("stage_complete", { stage: `stage${stageNum}` });
       }
 
       console.log(`\n${"=".repeat(60)}`);
@@ -888,6 +976,7 @@ if (process.argv[1] === __filename_main ||
   installStandaloneFailureEnvelope({ where: "unified_pipeline" });
   main().catch((err) => {
     console.error(`✗ Fatal error: ${err.message}`);
+    emitCliError({ code: CLI_ERROR_CODES.UNCAUGHT, message: "The unified pipeline failed unexpectedly.", hint: "Inspect the orchestrator command location and report the framework failure.", where: "unified_pipeline.main", diagnostic: { version: 1, category: "internal", operation: "run-pipeline", next: createCliNext("report_internal", { default: "Inspect unified_pipeline.mjs without relying on captured exception prose, then report the defect." }) } });
     process.exit(1);
   });
 }

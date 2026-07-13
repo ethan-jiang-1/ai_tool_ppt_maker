@@ -2,6 +2,8 @@
 
 > 所有可执行代码. Agent 运行时调这些. 脚本就地运行, 不复制进 run bundle.
 
+> 修改任何 CLI 入口、返回通道、JSON 模式、delegation 或 exit path 前，先读 `openspec/specs/cli-surface/spec.md` 与 active `cli-surface` delta；统一使用 `scripts/lib/cli_error.mjs`，不要在脚本内复制诊断 schema。
+
 ## 入口
 
 | 脚本 | 用途 | 调用 |

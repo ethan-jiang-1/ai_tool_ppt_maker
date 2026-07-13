@@ -20,6 +20,7 @@
 | Plan | 简述 |
 |------|------|
 | [image2-multi-vendor-architecture](image2-multi-vendor-architecture.md) | Image2 多 vendor = 多组 (base_url,key) 顺序试 + failover；同步/异步一个薄分支；实验证明 vendor 无真差异，别搞重抽象 |
+| [output-linter-at-node-boundaries](output-linter-at-node-boundaries.md) | 通用 output linter：node 边界对 YAML/JSON/MD 产出做格式校验；主 agent 走 exit condition，sub-agent 走 tolerant 手动调 |
 
 ### 已定名 OpenSpec changes
 

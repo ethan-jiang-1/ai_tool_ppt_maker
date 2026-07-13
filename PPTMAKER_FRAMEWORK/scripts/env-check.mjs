@@ -13,6 +13,16 @@
  *     node scripts/env-check.mjs --smoke   # + live Image2 submit probe (task_id)
  */
 
+import "./lib/cli_bootstrap.mjs?entry=env-check.mjs";
+import {
+  CLI_ERROR_CODES,
+  CLI_JSON_REPORT_SCHEMAS,
+  createCliNext,
+  emitCliError,
+  registerCliJsonReport,
+  setCliOutputMode,
+} from './lib/cli_error.mjs';
+
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { homedir, tmpdir, platform } from 'node:os';
@@ -365,6 +375,7 @@ async function checkImageSmoke() {
       extractImageRef,
       extractTaskId,
       DEFAULT_MODEL,
+      providerHost,
     } = await import('./image_api_client.mjs');
     const vendors = resolveVendors();
     const { base_url: base, api_key: key } = vendors[0];
@@ -405,7 +416,7 @@ async function checkImageSmoke() {
       return {
         check: 'image_smoke',
         status: 'fail',
-        detail: `HTTP ${resp.status}: ${JSON.stringify(data).slice(0, 160)}`,
+        detail: `HTTP ${resp.status} from ${providerHost(base) || 'provider'} (response body withheld)`,
         fix: 'Verify keys and IMAGE2_VENDORS / IMAGE2_BASE_URL; re-run doctor --smoke.',
       };
     }
@@ -415,7 +426,7 @@ async function checkImageSmoke() {
       return {
         check: 'image_smoke',
         status: 'ok',
-        detail: `submit ok (sync image from ${base})`,
+        detail: `submit ok (sync image from ${providerHost(base) || 'provider'})`,
         fix: null,
       };
     }
@@ -423,18 +434,18 @@ async function checkImageSmoke() {
       return {
         check: 'image_smoke',
         status: 'ok',
-        detail: `submit ok (task_id=${taskId})`,
+        detail: `submit ok (async task accepted by ${providerHost(base) || 'provider'})`,
         fix: null,
       };
     }
     return {
       check: 'image_smoke',
       status: 'fail',
-      detail: `no image ref or task_id: ${JSON.stringify(data).slice(0, 160)}`,
+      detail: `provider response omitted both image ref and task id (${providerHost(base) || 'provider'})`,
       fix: 'Relay submit contract unexpected; see _lessons/ and image_api_client unwrap rules.',
     };
   } catch (err) {
-    const msg = err?.name === 'AbortError' ? 'timed out after 30s' : (err?.message || String(err));
+    const msg = err?.name === 'AbortError' ? 'timed out after 30s' : 'provider request failed before a valid response';
     return {
       check: 'image_smoke',
       status: 'fail',
@@ -456,6 +467,7 @@ async function checkProbeVendors() {
     extractTaskId,
     DEFAULT_MODEL,
     HEARTBEAT_MS,
+    providerHost,
   } = await import('./image_api_client.mjs');
 
   let vendors;
@@ -465,7 +477,7 @@ async function checkProbeVendors() {
     return {
       check: 'image_probe_vendors',
       status: 'fail',
-      detail: err?.message || String(err),
+      detail: 'provider configuration could not be resolved',
       fix: 'Fix IMAGE2_VENDORS / keys, then re-run doctor --probe-vendors',
     };
   }
@@ -477,7 +489,8 @@ async function checkProbeVendors() {
   for (let i = 0; i < n; i += 1) {
     const { base_url: base, api_key: key } = vendors[i];
     const idx = i + 1;
-    console.log(`  probing ${idx}/${n} → ${base}`);
+    const host = providerHost(base) || 'provider';
+    console.log(`  probing ${idx}/${n} → ${host}`);
     const started = Date.now();
     let lastHb = started;
     const controller = new AbortController();
@@ -485,9 +498,7 @@ async function checkProbeVendors() {
       const now = Date.now();
       if (now - lastHb >= HEARTBEAT_MS) {
         const elapsedSec = Math.floor((now - started) / 1000);
-        console.log(
-          `  … still waiting vendor=${base} phase=submit elapsed=${elapsedSec}s`
-        );
+        console.log(`  … still waiting vendor=${host} phase=submit elapsed=${elapsedSec}s`);
         lastHb = now;
       }
     }, Math.min(1_000, HEARTBEAT_MS));
@@ -521,34 +532,33 @@ async function checkProbeVendors() {
           elapsed_s,
           error: `non-JSON (${resp.status})`,
         });
-        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  non-JSON`);
+        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  non-JSON`);
         continue;
       }
       if (!resp.ok) {
-        const err = `HTTP ${resp.status}: ${JSON.stringify(data).slice(0, 120)}`;
+        const err = `http_error:${resp.status}`;
         rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
-        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${err}`);
+        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
         continue;
       }
       const syncRef = extractImageRef(data);
       const taskId = extractTaskId(data);
       if (syncRef) {
         rows.push({ base_url: base, ok: true, mode: 'sync', elapsed_s, error: null });
-        console.log(`  [${idx}/${n}] OK    sync  ${elapsed_s}s  ${base}`);
+        console.log(`  [${idx}/${n}] OK    sync  ${elapsed_s}s  ${host}`);
       } else if (taskId) {
         rows.push({ base_url: base, ok: true, mode: 'async', elapsed_s, error: null });
-        console.log(`  [${idx}/${n}] OK    async task=${taskId}  ${elapsed_s}s  ${base}`);
+        console.log(`  [${idx}/${n}] OK    async  ${elapsed_s}s  ${host}`);
       } else {
-        const err = `no image/task_id: ${JSON.stringify(data).slice(0, 120)}`;
+        const err = 'missing_image_or_task';
         rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
-        console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${err}`);
+        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
       }
     } catch (err) {
       const elapsed_s = Math.round(((Date.now() - started) / 1000) * 10) / 10;
-      const msg =
-        err?.name === 'AbortError' ? 'timed out' : (err?.message || String(err));
-      rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: msg.slice(0, 160) });
-      console.log(`  [${idx}/${n}] FAIL  ${base}  ${elapsed_s}s  ${msg}`);
+      const msg = err?.name === 'AbortError' ? 'timeout' : 'network_error';
+      rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: msg });
+      console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${msg}`);
     } finally {
       clearInterval(timer);
       clearTimeout(hardTimeout);
@@ -646,20 +656,25 @@ function formatText(results, allPass) {
 async function main() {
   const wantSmoke = process.argv.includes('--smoke');
   const wantProbe = process.argv.includes('--probe-vendors');
+  const wantJson = process.argv.includes('--json');
+  if (wantJson) setCliOutputMode('json');
 
   if (wantSmoke && wantProbe) {
     console.error(
       'Usage: pass only one of --smoke or --probe-vendors (mutually exclusive).'
     );
-    console.error(
-      JSON.stringify({
-        ok: false,
-        code: 'USAGE',
-        message: '--smoke and --probe-vendors are mutually exclusive',
-        hint: 'Use --smoke for first-vendor gate; --probe-vendors for full channel report',
-        where: 'env-check.main',
-      })
-    );
+    emitCliError({
+      code: CLI_ERROR_CODES.USAGE,
+      message: '--smoke and --probe-vendors are mutually exclusive.',
+      hint: 'Choose the single live provider check that matches the task.',
+      where: 'env-check.arguments',
+      diagnostic: {
+        version: 1,
+        category: 'usage',
+        operation: 'parse-arguments',
+        next: createCliNext('fix_arguments', { default: 'Use --smoke for the first-vendor gate or --probe-vendors for the full channel report, not both.' }),
+      },
+    });
     process.exit(1);
   }
 
@@ -687,22 +702,42 @@ async function main() {
   const allPass = results.every((r) => r.status !== 'fail');
   const foundationOk = results.filter((r) => r.foundation).every((r) => r.status === 'ok');
 
-  if (process.argv.includes('--json')) {
-    console.log(
-      JSON.stringify(
-        {
-          allPass,
-          foundationOk,
-          checks: results,
-          smoke: wantSmoke,
-          probeVendors: wantProbe,
-        },
-        null,
-        2
-      )
-    );
+  const report = {
+    allPass,
+    foundationOk,
+    checks: results,
+    smoke: wantSmoke,
+    probeVendors: wantProbe,
+  };
+  if (wantJson) {
+    registerCliJsonReport(report, { schema: CLI_JSON_REPORT_SCHEMAS.ENV_CHECK });
+    console.log(JSON.stringify(report, null, 2));
   } else {
     console.log(formatText(results, allPass));
+  }
+
+  if (!allPass) {
+    const failed = results.filter((result) => result.status === 'fail');
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: `Environment check found ${failed.length} blocking requirement(s).`,
+      hint: 'Repair the named local prerequisites, then rerun doctor.',
+      where: 'env-check.results',
+      diagnostic: {
+        version: 1,
+        category: 'environment',
+        operation: wantProbe ? 'probe-vendors' : wantSmoke ? 'smoke' : 'check',
+        issues: failed.map((result) => ({
+          message: `${result.check} is not ready`,
+          subject: { kind: 'environment_check', id: result.check },
+          reason: { kind: 'check_failed', actual: result.status, expected: 'ok' },
+        })),
+        next: createCliNext('repair_environment', {
+          invocation: { program: 'node', args: [__filename, ...(wantJson ? ['--json'] : []), ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])] },
+          default: 'Repair the failed environment checks without exposing credential values, then rerun.',
+        }),
+      },
+    });
   }
 
   process.exit(allPass ? 0 : 1);
@@ -722,6 +757,7 @@ if (isMain) {
   }
   main().catch((err) => {
     console.error(`✗ env-check failed: ${err.message}`);
+    emitCliError({ code: CLI_ERROR_CODES.UNCAUGHT, message: 'Environment check failed unexpectedly.', hint: 'Inspect the environment checker implementation without exposing local values.', where: 'env-check.main', diagnostic: { version: 1, category: 'internal', operation: 'check', next: createCliNext('report_internal', { default: 'Inspect env-check.mjs and report the unexpected checker failure.' }) } });
     process.exit(1);
   });
 }
