@@ -31,16 +31,23 @@ function headerFields(slide) {
 export function buildHeaderReviewInputs(slides, visualConfig) {
   const fullPageHeaderSnapshot = {};
   const contentFullPageIds = [];
+  const slideFingerprints = {};
+  let hasBodyHeaderLockSlides = false;
   for (const slide of slides) {
     const id = String(slide.id || "").trim();
-    if (!id || slide.layout_contract?.render_mode !== "full-page") continue;
+    if (!id) continue;
+    if (slide.layout_contract?.render_mode === "body+header-lock") {
+      hasBodyHeaderLockSlides = true;
+    }
+    if (slide.layout_contract?.render_mode !== "full-page") continue;
     const hero = isHeroVisualType(slide.visual_type);
-    fullPageHeaderSnapshot[id] = {
+    const snapshot = {
       render_mode: "full-page",
       visual_type: normalizeVisualType(slide.visual_type) || null,
       hero,
       ...headerFields(slide),
     };
+    fullPageHeaderSnapshot[id] = snapshot;
     if (!hero) contentFullPageIds.push(id);
   }
   const geometry = {
@@ -52,12 +59,22 @@ export function buildHeaderReviewInputs(slides, visualConfig) {
     subtitle: visualConfig.header_lock.subtitle,
     alignment: "left",
   };
+  // Per-slide fingerprints for state comparison
+  for (const id of Object.keys(fullPageHeaderSnapshot)) {
+    slideFingerprints[id] = sha256Bytes(stableJson({
+      ...fullPageHeaderSnapshot[id],
+      content_header_geometry: geometry,
+    }));
+  }
+  // Global fingerprint retained for changedFullPageIds fallback (first pilot, no per-slide state)
   const fingerprint = sha256Bytes(stableJson({
     full_page_header_snapshot: fullPageHeaderSnapshot,
     content_header_geometry: geometry,
   }));
   return {
     headerReviewFingerprint: fingerprint,
+    slideFingerprints,
+    hasBodyHeaderLockSlides,
     fullPageHeaderSnapshot,
     contentFullPageIds,
     fullPageIds: Object.keys(fullPageHeaderSnapshot),
@@ -65,7 +82,15 @@ export function buildHeaderReviewInputs(slides, visualConfig) {
   };
 }
 
-export function changedFullPageIds(previousSnapshot = {}, currentSnapshot = {}) {
+export function changedFullPageIds(previousSnapshot = {}, currentSnapshot = {}, slideStates = null) {
+  // Per-slide state available → read status directly
+  if (slideStates) {
+    return Object.entries(slideStates)
+      .filter(([, s]) => s && s.status === "changed")
+      .map(([id]) => id)
+      .sort();
+  }
+  // Fallback: global snapshot diff (first pilot, before per-slide state exists)
   const ids = new Set([...Object.keys(previousSnapshot || {}), ...Object.keys(currentSnapshot || {})]);
   return [...ids].filter((id) => !isDeepStrictEqual(previousSnapshot?.[id], currentSnapshot?.[id])).sort();
 }
@@ -134,63 +159,111 @@ export function mergeHeaderReviewRecord({
   profile,
   acceptedRisks = {},
 }) {
-  const previousSnapshot = previousRecord?.full_page_header_snapshot || {};
-  const sameReview = previousRecord &&
-    previousRecord.header_review_fingerprint === inputs.headerReviewFingerprint &&
-    sameGenerationProfile(previousRecord.generation_profile, profile);
-  const changedIds = sameReview
-    ? [...(previousRecord.changed_full_page_ids || [])]
-    : previousRecord
-      ? changedFullPageIds(previousSnapshot, inputs.fullPageHeaderSnapshot)
-      : [];
-  const record = sameReview ? structuredClone(previousRecord) : {
-    status: "in_progress",
-    reviewed_content_full_page_ids: [],
-    reviewed_changed_full_page_ids: [],
-    reviewed_image_provenance: {},
-    accepted_risks: {},
+  // Build per-slide state from previous record or start fresh
+  const slides = {};
+  const previousSlides = previousRecord?.slides || {};
+  // Migrate old accepted_risks → waived status
+  const acceptedIds = new Set(Object.keys(acceptedRisks));
+  // Copy existing slide states, marking old accepted risks as waived
+  for (const [id, s] of Object.entries(previousSlides)) {
+    if (acceptedIds.has(id)) {
+      slides[id] = { ...s, status: "waived" };
+    } else {
+      slides[id] = { ...s };
+    }
+  }
+  // Mark newly reviewed slides (accepted risks override to waived)
+  for (const id of reviewedIds) {
+    const snapshot = inputs.fullPageHeaderSnapshot[id];
+    if (!snapshot) continue;
+    const status = acceptedIds.has(id) ? "waived" : "reviewed";
+    slides[id] = {
+      status,
+      fingerprint: inputs.slideFingerprints[id] || "",
+      header_snapshot: {
+        kicker: snapshot.kicker ?? null,
+        title: snapshot.title ?? null,
+        subtitle: snapshot.subtitle ?? null,
+        visual_type: snapshot.visual_type ?? null,
+      },
+      image_sha256: provenanceEntries[id]?.image_sha256 || null,
+      reviewed_at: new Date().toISOString(),
+    };
+  }
+  // Apply accepted risks to slides not in reviewedIds
+  for (const id of acceptedIds) {
+    if (!slides[id] || slides[id].status !== "reviewed") {
+      const snapshot = inputs.fullPageHeaderSnapshot[id];
+      slides[id] = {
+        status: "waived",
+        fingerprint: inputs.slideFingerprints[id] || "",
+        header_snapshot: snapshot ? {
+          kicker: snapshot.kicker ?? null,
+          title: snapshot.title ?? null,
+          subtitle: snapshot.subtitle ?? null,
+          visual_type: snapshot.visual_type ?? null,
+        } : null,
+        image_sha256: provenanceEntries[id]?.image_sha256 || null,
+      };
+    }
+  }
+  // Mark slides not yet reviewed as changed (first body+header-lock transition)
+  const wasMixed = previousRecord && previousRecord.slides;
+  if (!wasMixed && inputs.hasBodyHeaderLockSlides) {
+    for (const id of inputs.fullPageIds) {
+      if (!slides[id]) {
+        const snapshot = inputs.fullPageHeaderSnapshot[id];
+        slides[id] = {
+          status: "changed",
+          fingerprint: inputs.slideFingerprints[id] || "",
+          header_snapshot: snapshot ? {
+            kicker: snapshot.kicker ?? null,
+            title: snapshot.title ?? null,
+            subtitle: snapshot.subtitle ?? null,
+            visual_type: snapshot.visual_type ?? null,
+          } : null,
+          image_sha256: null,
+        };
+      }
+    }
+  }
+  // Detect changes: slides in current plan whose fingerprint differs from stored
+  for (const id of inputs.fullPageIds) {
+    const currentFp = inputs.slideFingerprints[id];
+    const stored = slides[id];
+    if (!currentFp) continue;
+    if (!stored) {
+      // New slide, no previous record
+      const snapshot = inputs.fullPageHeaderSnapshot[id];
+      slides[id] = {
+        status: "changed",
+        fingerprint: currentFp,
+        header_snapshot: snapshot ? {
+          kicker: snapshot.kicker ?? null,
+          title: snapshot.title ?? null,
+          subtitle: snapshot.subtitle ?? null,
+          visual_type: snapshot.visual_type ?? null,
+        } : null,
+        image_sha256: null,
+      };
+    } else if (stored.status !== "reviewed" && stored.status !== "waived") {
+      // Already pending — keep current fingerprint so gate can detect if changed again
+      if (stored.fingerprint !== currentFp) {
+        stored.fingerprint = currentFp;
+        if (stored.status !== "changed") stored.status = "changed";
+      }
+    }
+  }
+  // Clean up slides not in current plan
+  for (const id of Object.keys(slides)) {
+    if (!inputs.fullPageIds.includes(id)) delete slides[id];
+  }
+
+  return {
+    generation_profile: profile || previousRecord?.generation_profile || null,
+    slides,
+    updated_at: new Date().toISOString(),
   };
-  record.header_review_fingerprint = inputs.headerReviewFingerprint;
-  record.full_page_header_snapshot = inputs.fullPageHeaderSnapshot;
-  record.generation_profile = profile;
-  record.reviewed_content_full_page_ids = [...new Set([
-    ...(record.reviewed_content_full_page_ids || []),
-    ...reviewedIds.filter((id) => inputs.contentFullPageIds.includes(id)),
-  ])].sort();
-  record.reviewed_changed_full_page_ids = [...new Set([
-    ...(record.reviewed_changed_full_page_ids || []),
-    ...reviewedIds.filter((id) => changedIds.includes(id)),
-  ])].sort();
-  record.reviewed_image_provenance = {
-    ...(record.reviewed_image_provenance || {}),
-    ...provenanceEntries,
-  };
-  record.accepted_risks = { ...(record.accepted_risks || {}), ...acceptedRisks };
-  record.changed_full_page_ids = changedIds;
-  const reviewedContent = record.reviewed_content_full_page_ids.filter((id) =>
-    inputs.contentFullPageIds.includes(id)
-  );
-  const acceptedIds = new Set(Object.keys(record.accepted_risks));
-  const coveredContentIds = new Set([
-    ...reviewedContent,
-    ...[...acceptedIds].filter((id) => inputs.contentFullPageIds.includes(id)),
-  ]);
-  const resolvedChanged = new Set([
-    ...record.reviewed_changed_full_page_ids,
-    ...acceptedIds,
-  ]);
-  const missingChanged = changedIds.filter((id) => !resolvedChanged.has(id));
-  const missingContentCount = Math.max(
-    0,
-    requiredContentReviewCount(inputs.contentFullPageIds) - coveredContentIds.size
-  );
-  record.missing_content_review_count = missingContentCount;
-  record.missing_changed_full_page_ids = missingChanged;
-  record.status = missingContentCount === 0 && missingChanged.length === 0
-    ? "completed"
-    : "in_progress";
-  record.updated_at = new Date().toISOString();
-  return record;
 }
 
 export function validateHeaderReviewRecord({
@@ -198,28 +271,89 @@ export function validateHeaderReviewRecord({
   inputs,
   imagesDir,
   targetProfile = null,
+  onlyIds = null,
 }) {
-  const previousSnapshot = record?.full_page_header_snapshot || {};
-  const changedIds = changedFullPageIds(previousSnapshot, inputs.fullPageHeaderSnapshot);
-  const applicable = inputs.contentFullPageIds.length > 0 || Boolean(record);
-  if (!applicable) return { applicable: false, current: true, changedIds, errors: [] };
-  const errors = [];
-  if (!record) errors.push("header review evidence is missing for this version");
-  else {
-    if (record.status !== "completed") errors.push(`header review status is ${record.status || "missing"}`);
-    if (record.header_review_fingerprint !== inputs.headerReviewFingerprint) {
-      errors.push("header review fingerprint is stale");
+  // Old format (no slides field) → pass through
+  if (!record || !record.slides) {
+    return { format: 2, applicable: false, ok: true, changed: [], action: null, hint: null };
+  }
+  // Pure full-page deck (no body+header-lock baseline) → not applicable
+  if (!inputs.hasBodyHeaderLockSlides) {
+    return { format: 2, applicable: false, ok: true, changed: [], action: null, hint: null };
+  }
+  // Profile mismatch → all content full-page slides need review
+  if (targetProfile && record.generation_profile &&
+      !sameGenerationProfile(record.generation_profile, targetProfile)) {
+    const allChanged = inputs.contentFullPageIds.map((id) => ({ id, field: "profile", was: null, now: null }));
+    const actionIds = allChanged.map((c) => c.id);
+    return {
+      format: 2, applicable: true, ok: false,
+      changed: allChanged,
+      action: _buildAction(actionIds),
+      hint: `generation profile 不匹配（当前: ${targetProfile.resolution || "?"}/${targetProfile.model || "?"}），需重新 pilot`,
+    };
+  }
+
+  // Per-slide comparison
+  const checkIds = onlyIds && onlyIds.length > 0
+    ? onlyIds.filter((id) => inputs.fullPageIds.includes(id))
+    : inputs.fullPageIds;
+  if (onlyIds && onlyIds.length > 0) {
+    const missing = onlyIds.filter((id) => !inputs.fullPageIds.includes(id));
+    if (missing.length > 0 && checkIds.length === 0) {
+      return { format: 2, applicable: true, ok: true, changed: [], action: null,
+        hint: `${missing.join(",")} not found in slide plan` };
     }
-    if (targetProfile && !sameGenerationProfile(record.generation_profile, targetProfile)) {
-      errors.push("generation profile does not match header review");
-    }
-    for (const [id, provenance] of Object.entries(record.reviewed_image_provenance || {})) {
-      const imagePath = join(imagesDir, provenance.output);
-      if (!existsSync(imagePath)) errors.push(`reviewed image missing for ${id}`);
-      else if (sha256File(imagePath) !== provenance.image_sha256) {
-        errors.push(`reviewed image bytes changed for ${id}`);
+  }
+
+  const changed = [];
+  for (const id of checkIds) {
+    const currentFp = inputs.slideFingerprints[id];
+    if (!currentFp) continue;
+    const stored = record.slides[id];
+    if (!stored || stored.fingerprint !== currentFp) {
+      const snapshot = stored?.header_snapshot || null;
+      const currentHeader = inputs.fullPageHeaderSnapshot[id] || {};
+      // Diff text fields
+      let found = false;
+      for (const field of ["kicker", "title", "subtitle"]) {
+        const was = snapshot?.[field] ?? null;
+        const now = currentHeader[field] ?? null;
+        if (was !== now) {
+          changed.push({ id, field, was, now });
+          found = true;
+        }
+      }
+      // Non-text change: fingerprint differs but text fields same → visual_type or geometry
+      if (!found) {
+        if (snapshot?.visual_type !== (currentHeader.visual_type || null)) {
+          changed.push({ id, field: "visual_type", was: snapshot?.visual_type ?? null, now: currentHeader.visual_type || null });
+        } else {
+          changed.push({ id, field: "layout", was: null, now: null });
+        }
       }
     }
   }
-  return { applicable: true, current: errors.length === 0, changedIds, errors };
+
+  if (changed.length === 0) {
+    return { format: 2, applicable: true, ok: true, changed: [], action: null, hint: null };
+  }
+
+  const changedIds = [...new Set(changed.map((c) => c.id))].sort();
+  return {
+    format: 2, applicable: true, ok: false,
+    changed,
+    action: _buildAction(changedIds),
+    hint: changed.length === 1
+      ? `1 页标题有变化（${changedIds[0]}），跑 pilot 确认效果后继续`
+      : `${changed.length} 处标题有变化（${changedIds.length} 页），跑 pilot 确认效果后继续`,
+  };
+}
+
+function _buildAction(changedIds) {
+  if (changedIds.length === 0) return null;
+  if (changedIds.length <= 5) {
+    return `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot "{runDir}" --only ${changedIds.join(",")}`;
+  }
+  return `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot "{runDir}"`;
 }

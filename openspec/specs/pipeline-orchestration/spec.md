@@ -94,42 +94,125 @@ Stage 2 SHALL skip existing image files unless `--force-images` is set. Presence
 - **WHEN** the caller supplies valid `--only` ids
 - **THEN** the CLI uses exactly those ids and does not append content full-page slides
 
-### Requirement: Production readiness enforces current header-review evidence
+### Requirement: Header review gate guides per-slide
 
-For `ppt_flow build`, non-preview Stage 2, and Stage 4 final assembly, production readiness SHALL compute header-review inputs from the current source specifications and current visual config, or SHALL first refresh Stage 1; it SHALL NOT trust a possibly stale `slide_plan.json`. It SHALL load only the current version's completed record from `_state/state.yaml` `nodes.header-review.by_version`. When the current source resolves content full-page slides, evidence SHALL satisfy the one-page/two-page content coverage. The deterministic fingerprint SHALL cover all current full-page slides' resolved mode, normalized VISUAL TYPE, present structured header text, plus shared content header geometry. Evidence SHALL retain a per-slide `full_page_header_snapshot`; compared with the prior accepted snapshot for that version, every added/changed full-page id SHALL be reviewed or have a named accepted risk before a new fingerprint is accepted. Evidence MAY record user-accepted risks, but each accepted risk SHALL name affected slide ids and symptoms and be bound to the current fingerprint. Preview/pilot SHALL remain allowed without current evidence. When no content full-page slides and no changed full-page header ids exist, this gate SHALL not apply.
+Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Controller 可消费的结构体。纯 full-page deck SHALL 自动放行。`--only` SHALL 限缩检查范围。
 
-Production validation SHALL also compare requested generation profile with approved full-page image provenance. A build/non-preview Stage 2 that would force-regenerate a reviewed/accepted full-page id SHALL fail before generation. To continue without another review, the caller SHALL use matching-profile cached images (for `ppt_flow build`, `--reuse-images`); changing profile or image bytes requires target-profile pilot regeneration and header approval before Stage 4.
+#### Scenario: Single slide title change — MD gets actionable command
 
-#### Scenario: Production blocks absent evidence
-- **WHEN** a production build contains content full-page slides but no current header-review evidence exists
-- **THEN** production validation fails with the standard JSON envelope
-- **AND** the hint directs the Agent to run and review pilot rather than edit state manually
+- **WHEN** s05 的 title 从 "传统开发" 改为 "软件优先"，其余 24 页不变
+- **THEN** `changed: [{id: "s05", field: "title", was: "传统开发", now: "软件优先"}]`
+- **AND** `action: "node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \"{runDir}\" --only s05"`
+- **AND** 不阻塞其余 24 页
 
-#### Scenario: Changed header inputs stale the evidence
-- **WHEN** reviewed header text, render policy/mode, content-full-page membership, or shared geometry changes
-- **THEN** the recomputed fingerprint differs and production remains blocked until regeneration and review
+#### Scenario: Pure full-page deck skips
 
-#### Scenario: Changed hero title also stales evidence
-- **WHEN** a hero full-page slide's structured header text changes after the accepted snapshot
-- **THEN** that slide appears in the changed full-page ids and must be regenerated and reviewed or explicitly accepted
+- **WHEN** deck 无 body+header-lock slide
+- **THEN** `applicable: false`
 
-#### Scenario: Stale generated plan cannot preserve approval
-- **WHEN** source markdown changed but the existing `slide_plan.json` still reflects older header inputs
-- **THEN** production readiness uses/refreshed current source parsing and rejects stale evidence
+#### Scenario: --only limits scope
 
-#### Scenario: Valid accepted risk permits production
-- **WHEN** the user explicitly accepted named header symptoms for named slides and that decision is persisted against the current fingerprint
-- **THEN** production readiness accepts the evidence
+- **WHEN** `--only s05,s07` 传入
+- **THEN** 仅检查 s05 和 s07
 
-#### Scenario: No content full-page needs no evidence
-- **WHEN** the current plan has no content full-page slides and there are no changed full-page ids relative to accepted evidence
-- **THEN** production readiness does not require a header-review fingerprint
+#### Scenario: No changes — silent pass
 
-#### Scenario: Partial chain cannot assemble stale full-page images
-- **WHEN** a caller runs a Stage 1/3/4 partial chain after changing a full-page header without current evidence
-- **THEN** Stage 4 refuses to assemble the PPTX
+- **WHEN** 所有 full-page slide 与上次 review 一致
+- **THEN** `ok: true`
 
-#### Scenario: Production profile must match approved images
-- **WHEN** production requests a different resolution/model/style profile than reviewed full-page images
-- **THEN** production refuses to treat the old review as current
+#### Scenario: More than 5 slides changed — full pilot
+
+- **WHEN** 6 页标题发生变化
+- **THEN** `action` 不含 `--only`，指向全量 pilot
+
+#### Scenario: End-to-end — title change to resolution
+
+- **WHEN** 用户改 s05/s07 标题后 build
+- **THEN** gate → `ok: false` + `action: pilot --only s05,s07`
+- **AND** MD 执行 pilot → approve → gate 重检（第二次 build）→ `ok: true` → 继续
+
+#### Scenario: Stage 4 image bytes mismatch on single slide
+
+- **WHEN** Stage 4 `requireCurrentImages` 检查发现 s05 的 PNG 文件 SHA-256 与 manifest 不匹配
+- **THEN** `changed: [{id: "s05", field: "image", was: null, now: null}]`
+- **AND** `action` 引导 `--force-images --only s05` + pilot
+
+#### Scenario: Missing header_snapshot in state
+
+- **WHEN** slide 有 `status` 但缺 `header_snapshot`
+- **THEN** `changed` 中 `was: null`，建议 pilot 确认
+
+#### Scenario: Visual type change detected
+
+- **WHEN** s05 的 visual_type 从 "Content Page" 改为 "Title / Opener"，标题文字未变
+- **THEN** fingerprint 不匹配 → `changed: [{id: "s05", field: "visual_type", was: "Content Page", now: "Title / Opener"}]`
+
+#### Scenario: Generation profile mismatch
+
+- **WHEN** 当前 build 请求 2k resolution 但上次 review 用 1k
+- **THEN** gate 返回所有 content full-page slide 为 `changed`
+- **AND** `hint` 说明 profile 不匹配，需重新 pilot
+
+### Requirement: Gate output is MD-controller-friendly
+
+返回结构 SHALL 始终包含全部 6 个字段。`ok: true` 时 `changed: []`, `action: null`, `hint: null`。`ok: false` 时 `changed` 非空、`action` 为可执行命令、`hint` 为人话解释。MD 遇无 `format` 字段 → 旧代码 → 放行。
+
+#### Scenario: Gate passes — null action
+
+- **WHEN** 没有 slide 需要 review
+- **THEN** `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}`
+
+#### Scenario: Gate fails — MD gets command
+
+- **WHEN** s05 title 变了
+- **THEN** `{ok: false, changed: [{s05,...}], action: "node ... pilot \"{runDir}\" --only s05", hint: "..."}`
+
+#### Scenario: Non-existent slide in --only
+
+- **WHEN** `--only s99` 且 s99 不在 plan 中
+- **THEN** `ok: true`, `hint: "s99 not found in slide plan"`
+
+### Requirement: buildHeaderReviewInputs produces per-slide fingerprints
+
+`buildHeaderReviewInputs()` SHALL 为每页 full-page slide 独立计算 fingerprint + `hasBodyHeaderLockSlides: boolean`。
+
+#### Scenario: Per-slide fingerprint varies independently
+
+- **WHEN** s05 的 title 改变但 s06 不变
+- **THEN** `slideFingerprints["s05"]` 改变，`slideFingerprints["s06"]` 不变
+
+#### Scenario: hasBodyHeaderLockSlides reflects deck composition
+
+- **WHEN** deck 有 `body+header-lock` slide → `hasBodyHeaderLockSlides: true`
+- **WHEN** deck 全部 `full-page` → `hasBodyHeaderLockSlides: false`
+
+### Requirement: mergeHeaderReviewRecord stores per-slide state
+
+`mergeHeaderReviewRecord()` SHALL 写入 `header_snapshot` + `fingerprint` + `status`。SHALL 自动清理 plan 中不存在的 slide 条目。首次 body+header-lock 引入时所有无 record 的 full-page slide → `status: "changed"`。
+
+#### Scenario: Reviewed slide gets snapshot stored
+
+- **WHEN** 用户 approve s05 的 pilot
+- **THEN** `slides.s05.header_snapshot` 保存当前 kicker/title/subtitle
+- **AND** `slides.s05.status` 变为 `reviewed`
+
+#### Scenario: Deleted slide is cleaned up
+
+- **WHEN** slide plan 中不再包含 s05
+- **AND** `mergeHeaderReviewRecord` 被调用
+- **THEN** state 中 `slides.s05` 条目被移除
+
+### Requirement: changedFullPageIds supports per-slide state
+
+`changedFullPageIds()` SHALL 接受可选 `slideStates` 参数。有 per-slide state → 读 `status === "changed"`；无 state（首次 pilot）→ fallback 到全局 snapshot diff。
+
+#### Scenario: Per-slide state used when available
+
+- **WHEN** `slideStates` 含 `{c1: {status: "changed"}}`
+- **THEN** 返回 `["c1"]`
+
+#### Scenario: Fallback to snapshot diff when no state
+
+- **WHEN** `slideStates` 为 null
+- **THEN** 使用全局 `previousSnapshot` vs `currentSnapshot` diff
 

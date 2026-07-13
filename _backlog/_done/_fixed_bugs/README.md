@@ -24,8 +24,9 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-005](BUG-005-state-dir-invisible-no-hints.md) | 2026-07-11 | `_state/` 在 run bundle 中隐形——无 README/注释/面包屑 |
 | [BUG-006](BUG-006-env-check-deps-no-parent-walkup.md) | 2026-07-11 | env-check 依赖检测只查 cwd 不向上找（`.env` 却向上找） |
 | [BUG-007](BUG-007-state-yaml-no-array-playbook-stack-roundtrip.md) | 2026-07-11 | state.mjs YAML 无数组往返 → playbook_stack 崩 |
+| [BUG-013](BUG-013-model-sheet-pollutes-style-master.md) | 2026-07-13 | 实验脚本占用 style_master.jpg 作为 style reference，框架层 generateOneImage 无 style ref 时静默接受 |
 
-**Next available bug ID: BUG-008**
+**Next available bug ID: BUG-014**
 
 ---
 

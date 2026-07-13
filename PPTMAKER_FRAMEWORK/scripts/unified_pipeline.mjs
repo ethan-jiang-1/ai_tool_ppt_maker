@@ -277,9 +277,11 @@ export async function stage2(runDir, {
       model,
       forceImages,
     });
-    if (!review.current) {
-      console.log(`  ✗ Header review gate: ${review.errors.join("; ")}`);
-      console.log(`  Hint: ${review.hint}`);
+    if (!review.ok) {
+      if (review.changed.length > 0) {
+        console.log(`  ⚠ ${review.hint}`);
+        console.log(`  → 执行: ${review.action}`);
+      }
       return false;
     }
   }
@@ -504,9 +506,11 @@ export async function stage4(runDir, dryRun) {
       return false;
     }
     const review = await validateProductionHeaderReview(runDir, { requireCurrentImages: true });
-    if (!review.current) {
-      console.log(`  ✗ Header review gate: ${review.errors.join("; ")}`);
-      console.log(`  Hint: ${review.hint}`);
+    if (!review.ok) {
+      if (review.changed.length > 0) {
+        console.log(`  ⚠ ${review.hint}`);
+        console.log(`  → 执行: ${review.action}`);
+      }
       return false;
     }
   }
@@ -555,11 +559,13 @@ export async function validateProductionHeaderReview(runDir, {
   model = null,
   forceImages = false,
   requireCurrentImages = false,
+  onlyIds = null,
 } = {}) {
   const buildDir = generatedDir(runDir);
   const planPath = join(buildDir, GEN_SLIDE_PLAN);
   if (!existsSync(planPath)) {
-    return { current: false, errors: ["current slide plan is missing"], hint: "run Stage 1, then pilot and approve header" };
+    return { format: 2, applicable: true, ok: false, changed: [],
+      action: null, hint: "slide plan missing — run Stage 1 first" };
   }
   const slides = loadJson(planPath).slides || [];
   const palettePath = styleAsset(runDir, COLOR_PALETTE_FILE);
@@ -590,84 +596,73 @@ export async function validateProductionHeaderReview(runDir, {
       semanticOptions: { size: "16:9", n: 1 },
     });
   }
-  const validation = validateHeaderReviewRecord({
+  const result = validateHeaderReviewRecord({
     record,
     inputs,
     imagesDir: join(buildDir, GEN_IMAGES_SUBDIR),
     targetProfile,
+    onlyIds,
   });
-  const protectedIds = new Set([
-    ...Object.keys(record?.reviewed_image_provenance || {}),
-    ...Object.keys(record?.accepted_risks || {}),
-  ]);
-  const protectedFullPageIds = inputs.fullPageIds.filter((id) => protectedIds.has(id));
-  const errors = [...validation.errors];
-  if (requireCurrentImages) {
+
+  // Stage 4: per-slide image integrity check
+  if (requireCurrentImages && result.ok) {
     const promptsPath = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
     const prompts = existsSync(promptsPath) ? loadJson(promptsPath).slides || [] : [];
     const promptById = new Map(prompts.map((slide) => [slide.id, slide]));
     const { generationFingerprint, readImageManifest, sha256File } = await import("./lib/image_provenance.mjs");
     const imagesDir = join(buildDir, GEN_IMAGES_SUBDIR);
     const { manifest, error: manifestError } = readImageManifest(imagesDir);
-    if (manifestError) errors.push(manifestError);
-    for (const id of inputs.fullPageIds) {
+    const imageChanged = [];
+    if (manifestError) {
+      imageChanged.push({ id: "_manifest", field: "image", was: null, now: null });
+    }
+    const checkIds = onlyIds && onlyIds.length > 0
+      ? onlyIds.filter((id) => inputs.fullPageIds.includes(id))
+      : inputs.fullPageIds;
+    for (const id of checkIds) {
       const prompt = promptById.get(id);
-      const entry = manifest.slides?.[id];
-      if (!prompt) errors.push(`current prompt missing for full-page id ${id}`);
-      if (!entry) errors.push(`current raw-image provenance missing for full-page id ${id}`);
-      if (prompt && entry) {
-        const expected = generationFingerprint({
-          prompt: String(prompt.prompt || "").trim(),
-          profile: entry.generation_profile,
-        });
-        if (entry.generation_fingerprint !== expected) {
-          errors.push(`raw-image provenance is stale for full-page id ${id}`);
-        }
-        const imagePath = join(imagesDir, entry.output);
-        if (!existsSync(imagePath)) errors.push(`raw image missing for full-page id ${id}`);
-        else if (sha256File(imagePath) !== entry.image_sha256) {
-          errors.push(`raw image bytes changed for full-page id ${id}`);
-        }
+      const entry = manifest?.slides?.[id];
+      if (!prompt || !entry) {
+        imageChanged.push({ id, field: "image", was: null, now: null });
+        continue;
+      }
+      const expected = generationFingerprint({
+        prompt: String(prompt.prompt || "").trim(),
+        profile: entry.generation_profile,
+      });
+      if (entry.generation_fingerprint !== expected) {
+        imageChanged.push({ id, field: "image", was: null, now: null });
+        continue;
+      }
+      const imagePath = join(imagesDir, entry.output);
+      if (!existsSync(imagePath) || sha256File(imagePath) !== entry.image_sha256) {
+        imageChanged.push({ id, field: "image", was: null, now: null });
       }
     }
-  }
-  if (record && targetProfile) {
-    const promptsPath = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
-    const prompts = existsSync(promptsPath) ? loadJson(promptsPath).slides || [] : [];
-    const promptById = new Map(prompts.map((slide) => [slide.id, slide]));
-    const { generationFingerprint, readImageManifest } = await import("./lib/image_provenance.mjs");
-    const { manifest, error: manifestError } = readImageManifest(join(buildDir, GEN_IMAGES_SUBDIR));
-    if (manifestError) errors.push(manifestError);
-    for (const [id, reviewed] of Object.entries(record.reviewed_image_provenance || {})) {
-      const prompt = promptById.get(id);
-      const entry = manifest.slides?.[id];
-      if (!prompt) errors.push(`current prompt missing for reviewed id ${id}`);
-      if (!entry) errors.push(`current manifest entry missing for reviewed id ${id}`);
-      if (prompt && entry) {
-        const expected = generationFingerprint({
-          prompt: String(prompt.prompt || "").trim(),
-          profile: targetProfile,
-        });
-        if (entry.generation_fingerprint !== expected) {
-          errors.push(`raw-image provenance is stale for reviewed id ${id}`);
-        }
-        if (entry.image_sha256 !== reviewed.image_sha256) {
-          errors.push(`manifest image hash differs from reviewed evidence for ${id}`);
-        }
-      }
+    if (imageChanged.length > 0) {
+      const changedIds = [...new Set(imageChanged.map((c) => c.id))];
+      return {
+        format: 2, applicable: true, ok: false,
+        changed: imageChanged,
+        action: changedIds.length <= 5
+          ? `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build "{runDir}" --force-images --only ${changedIds.join(",")}`
+          : `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build "{runDir}" --force-images`,
+        hint: `${imageChanged.length} 张图片需重新生成，跑 --force-images 后 pilot 确认`,
+      };
     }
   }
-  if (forceImages && protectedFullPageIds.length > 0) {
-    errors.push(`force-images would overwrite reviewed full-page ids: ${protectedFullPageIds.join(", ")}`);
+
+  // forceImages overwrite warning — not a hard block, just inform
+  if (forceImages && record?.slides) {
+    const reviewedIds = Object.entries(record.slides)
+      .filter(([, s]) => s && s.status === "reviewed")
+      .map(([id]) => id);
+    if (reviewedIds.length > 0) {
+      result.hint = (result.hint || "") + ` (注意: ${reviewedIds.length} 页已 review 的图片将被覆盖)`;
+    }
   }
-  const pilotIds = validation.changedIds.length > 0
-    ? validation.changedIds
-    : inputs.contentFullPageIds.slice(0, Math.min(2, inputs.contentFullPageIds.length));
-  const profileArgs = resolution ? ` --resolution ${resolution}` : "";
-  const hint = protectedFullPageIds.length > 0 && targetProfile && validation.errors.length === 0
-    ? "use ppt_flow build --reuse-images with this matching profile"
-    : `run ppt_flow pilot ${runDir} --only ${pilotIds.join(",")} --force-images${profileArgs}, review it, then approve header`;
-  return { ...validation, inputs, record, current: errors.length === 0, errors, hint, targetProfile };
+
+  return result;
 }
 
 /**

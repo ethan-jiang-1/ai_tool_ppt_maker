@@ -43,7 +43,29 @@ Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Con
 
 - **WHEN** 用户改 s05/s07 标题后 build
 - **THEN** gate → `ok: false` + `action: pilot --only s05,s07`
-- **AND** MD 执行 pilot → approve → gate 重检 → `ok: true` → 继续
+- **AND** MD 执行 pilot → approve → gate 重检（第二次 build）→ `ok: true` → 继续
+
+#### Scenario: Stage 4 image bytes mismatch on single slide
+
+- **WHEN** Stage 4 `requireCurrentImages` 检查发现 s05 的 PNG 文件 SHA-256 与 manifest 不匹配
+- **THEN** `changed: [{id: "s05", field: "image", was: null, now: null}]`
+- **AND** `action` 引导 `--force-images --only s05` + pilot
+
+#### Scenario: Missing header_snapshot in state
+
+- **WHEN** slide 有 `status` 但缺 `header_snapshot`
+- **THEN** `changed` 中 `was: null`，建议 pilot 确认
+
+#### Scenario: Visual type change detected
+
+- **WHEN** s05 的 visual_type 从 "Content Page" 改为 "Title / Opener"，标题文字未变
+- **THEN** fingerprint 不匹配 → `changed: [{id: "s05", field: "visual_type", was: "Content Page", now: "Title / Opener"}]`
+
+#### Scenario: Generation profile mismatch
+
+- **WHEN** 当前 build 请求 2k resolution 但上次 review 用 1k
+- **THEN** gate 返回所有 content full-page slide 为 `changed`
+- **AND** `hint` 说明 profile 不匹配，需重新 pilot
 
 ### Requirement: Gate output is MD-controller-friendly
 
@@ -52,7 +74,7 @@ Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Con
 #### Scenario: Gate passes — null action
 
 - **WHEN** 没有 slide 需要 review
-- **THEN** `{ok: true, changed: [], action: null, hint: null}`
+- **THEN** `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}`
 
 #### Scenario: Gate fails — MD gets command
 
