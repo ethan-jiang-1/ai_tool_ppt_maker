@@ -17,7 +17,7 @@
 
 **No active bugs.**
 
-**Next available bug ID: BUG-013**
+**Next available bug ID: BUG-014**
 
 > BUG-003（gate per-slide）已修→`_done/_fixed_bugs/BUG-012`。BUG-004/005 已修→`_done/_fixed_bugs/BUG-010/011`。BUG-008/009 此前已修。
 

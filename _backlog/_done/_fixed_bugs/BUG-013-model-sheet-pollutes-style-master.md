@@ -22,3 +22,15 @@
 ## 临时规避
 
 删掉 `styleReferencePath` 参数，实验图不引用 style master。
+
+## 解决
+
+**日期**: 2026-07-13
+**Change**: `fix-bug003-style-ref-silent-fallback`
+
+四项修复方向的状态：
+
+1. ✅ `_scratch/` 实验脚本不传 `styleReferencePath` — `_gen_agent.mjs` 已在 change 前修复，不传该参数
+2. ✅ 不同实验起不同输出文件名 — `agent_reference_sheet.png`（唯一）
+3. ✅ 实验脚本名区分 — `_gen_agent.mjs`（描述性命名）
+4. ✅ 框架层 warn — `generateOneImage` 在 `image_api_client.mjs` 中当 `styleReferencePath` 为 falsy 时 log: `"No style reference — generating without visual style anchoring"`

@@ -527,6 +527,8 @@ export async function generateOneImage({
     body.image = dataUrl;
     body.images = [dataUrl];
     body.image_urls = [dataUrl];
+  } else {
+    console.log(`  No style reference — generating without visual style anchoring`);
   }
 
   /** @type {{ base_url: string, error: string }[]} */
