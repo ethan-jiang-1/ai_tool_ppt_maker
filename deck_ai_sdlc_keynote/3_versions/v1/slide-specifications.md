@@ -211,28 +211,43 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **SUBTITLE**: 超级能干。但人还不会跟它协作——这本身就是最大的挑战。
 
 **CONCEPT**:
-- **MUST communicate**: 互联网给了你更快的传真。iPhone 给了你口袋里的电脑。每一次技术浪潮都是「工具升级」——人不变，工具更好。这次不一样：AI 不只是工具——它是能自己做判断、自己执行的**搭档**。你能把一整件事委派给它，它理解、执行、回来等你验收。这不是「帮你更快」，是「帮你做了」。问题？人从来没有过这种工作关系。我们习惯了管工具——告诉它每一步怎么做。现在我们得学会管搭档——告诉它**要什么**，不是**怎么做**。这不是技能升级，是角色转换。挑战不在 AI 够不够好——在**人还不会用搭档**。这一页不给答案，只给这个张力：你多了个超级能干的伙伴——这是好消息。但你不知道怎么跟它配合——这是新挑战。两个都是真的。
-- **MUST NOT**: 不要预告 BPM/企业/路线图。不出现 SDLC 术语（留给 06）。不要画成「人 vs AI」对抗——是「人 + AI」并肩但不适应。不要恐惧感——是可能性和不适并存。不要把 AI 画成机器人或威胁性形象——是一个温暖的琥珀光晕轮廓，像伙伴不像武器。
+- **MUST communicate**: 互联网给了你更快的传真。iPhone 给了你口袋里的电脑。每一次技术浪潮都是「工具升级」——人不变，工具更好。这次不一样：AI 不只是工具——它是能自己做判断、自己执行的**搭档**。你看左边的程序员——他只懂写代码。产品？不懂。测试？不懂。运维？不懂。汇报？不懂。他是专才，一个领域钻得很深，跨出这个领域就得换人。右边的 AI 不同——产品、程序、测试、运维、汇报，它全都懂。不是「每样都只会一点」，是每样都能上手干活。你把一整件事委派给它——「帮我从零到一做出这个功能」——它理解需求、写代码、跑测试、部署上线、写汇报。全套。这不是「帮你更快」，是「帮你做了」。问题？人从来没有过这种工作关系。我们习惯了管工具——告诉它每一步怎么做。现在我们得学会管搭档——告诉它**要什么**，不是**怎么做**。这不是技能升级，是角色转换。挑战不在 AI 够不够好——在**人还不会用搭档**。这一页不给答案，只给这个张力：你多了个超级能干的伙伴——这是好消息。但你不知道怎么跟它配合——这是新挑战。两个都是真的。
+- **MUST NOT**: 不要预告 BPM/企业/路线图。不出现 SDLC 术语（留给 06）。不要画成「人 vs AI」对抗——是「人 + AI」并肩但不适应。不要把 AI 画得没能力——AI 是全能通才，每样都能上手干活。不要把 AI 画成机器人或威胁性形象——用 agent-portrayal.md 的规格：中性偏瘦琥珀光晕轮廓，内部拓扑网络可见，左手夹书，右手开掌。
 - **Bridge from previous**: 承接 Slide 04——Claude Code 上午写代码下午写报告，看起来像又一个工具升级。但这一页说清楚：不是。这次是搭档，不是工具。两个量级。
 - **Bridge to next**: 这个新搭档最先撞进软件开发——看 SDLC，人以前是怎么想的，现在有了搭档以后旧地图怎么不管用了。下一页。
-- **Content structure**: 一张手绘工作台横跨画面。左边一个人，手里拿着熟悉的工具（键盘、笔记本），姿态不恐惧——但微微侧头，表情是「你太能干了，我该拿你怎么办」。右边一个 AI 伙伴，温暖琥珀光晕轮廓，简洁、非人形但可辨识——像存在感，不像武器。AI 那边已经堆出一摞成果——代码、文档、分析，整齐漂亮。上方一条过渡箭头从「工具升级」跨到「伙伴关系」。底部一行字：*你多了个超级能干的伙伴——但你还不会配合。两个都是真的。*
+- **Content structure**: 左右对比构图。左边：一个传统程序员，桌上只有代码相关的工具（键盘、终端、IDE）——他是专才，只会写代码。姿态不是恐惧，是微微侧头看向右边——「你什么都会？」。右边：一个 AI 伙伴，按 agent-portrayal.md 规格——中性偏瘦琥珀光晕轮廓、内部拓扑网络可见（发光节点+细线连接）、左手夹书、右手开掌。AI 那边的桌上堆着**多种产出**：代码、测试报告、部署流水线、产品文档、汇报 PPT——五个领域，同一个搭档做的。AI 头顶或身旁浮现五个小标签围成弧线：产品 · 程序 · 测试 · 运维 · 汇报。上方过渡箭头：专才 → 通才。底部一行字：*你多了个超级能干的伙伴——但你还不会配合。两个都是真的。*
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CONCEPT SPLIT layout. Warm, not foreboding. The image tells the story of GAINING a partner — not losing control. SCENE: a hand-drawn worktable spanning the composition. On the LEFT, a human figure stands with familiar tools (keyboard, notebook) — posture is not fearful, but slightly uncertain, looking sideways as if thinking "what do I do with you?" On the RIGHT, an AI partner — a warm amber-glow silhouette, a collaborator, not a threat. The AI's side of the table is stacked with impressive output: neat piles of code, documents, analysis — already done. A subtle transition arrow crosses the table from left to right, labeled: 工具升级 → 伙伴关系. UPPER AREA, one large Chinese proposition: 以前每次技术浪潮，给你换工具。这次给你一个搭档。 LOWER AREA, one line: 超级能干。但人还不会跟它协作——这本身就是挑战。 Overall mood: possibility mixed with productive discomfort. Not a disaster — an adjustment that hasn't happened yet. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. CONCEPT SPLIT layout. Warm, not foreboding. The image tells the story of GAINING a partner who knows EVERYTHING — not losing control.
+
+LEFT SIDE (~40%): A traditional programmer at a desk. Their tools are narrow: a keyboard, a terminal window, an IDE — all code-related. This person is a SPECIALIST — they only write code. Posture is not fearful but slightly uncertain, head turned toward the right, expression says "you can do ALL of that?"
+
+RIGHT SIDE (~50%): ONE AI partner. Use the Agent visual spec:
+- Neutral androgynous silhouette, lean with normal human proportions — a clean column of amber glass light
+- NO clothing — the amber glass IS its form
+- NO facial features, fingers, or gender markers
+- 4-layer construction: (1) amber glass translucent base wash, (2) fine curved cross-hatching on surface, (3) INTERNAL TOPOLOGICAL NETWORK — soft glowing white-gold nodes connected by thin straight lines forming hexagonal/pentagonal mesh, densest in chest/torso, visible through the translucent body, (4) soft golden-amber edge glow 3–5px wide
+- Posture: head slightly tilted (listening), left arm gently cradles a book, right hand with open palm in a soft inviting gesture
+
+On the AI's side of the table, DIVERSE output from ALL domains — NOT just code. Stack: a code module, a test report with green checks, a deployment pipeline diagram, a product requirements doc, a business report slide. Five domain labels float in an arc above the AI: 产品 · 程序 · 测试 · 运维 · 汇报 — all connected to the same AI partner.
+
+A transition arrow crosses between them: 专才 → 通才. UPPER AREA, one large Chinese proposition: 以前每次技术浪潮，给你换工具。这次给你一个搭档。 LOWER AREA, one line: 超级能干。但人还不会跟它协作——这本身就是挑战。
+
+Overall mood: possibility mixed with productive discomfort. The AI is CAPABLE — impressively broad, not weak. The human is skilled but narrow. The tension is "I'm a specialist, you're a generalist — how do we work together?" Not a disaster — an adjustment. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 停一拍。互联网、iPhone——每次都说「这次不一样」，但每次其实都一样：工具升级，人还在中间。这次真不一样：AI 不只是帮你更快——它帮你**做了**。你能把一整件事委派给它，它理解、执行、回来交差。你从操作者变成了委托人。但问题是：人从来没有过这种工作关系。我们擅长管工具（告诉它每一步怎么做），不擅长管搭档（告诉它要什么、信任它去执行）。挑战不在 AI 够不够好——在**人还不会用搭档**。好消息是你多了一个超级能干的伙伴。新挑战是你不知道怎么配合。两个都是真的。拿软件开发看——这个搭档最先撞进的地方。
+> 停一拍。互联网、iPhone——每次都说「这次不一样」，但每次其实都一样：工具升级，人还在中间。这次真不一样。你看左边这个程序员——他只懂写代码。产品？测试？运维？汇报？都不懂。他不是不行——他是专才，一个领域钻得很深。但跨出这个领域就得换人。右边这个 AI 不同——产品、程序、测试、运维、汇报，它全都懂。不是每样只会一点、关键时刻掉链子——是每样都能上手干活。你把一整件事委派给它——「帮我从零到一做出这个功能」——它理解需求、写代码、跑测试、部署上线、写汇报。全套。这不是帮你更快——是帮你**做了**。你从操作者变成了委托人。问题是：人从来没有过这种工作关系。我们擅长管工具（告诉它每一步怎么做），不擅长管搭档（告诉它要什么、信任它去执行）。挑战不在 AI 够不够好——在人还不会用搭档。好消息是你多了一个超级能干的伙伴。新挑战是你不知道怎么配合。两个都是真的。拿软件开发看——这个搭档最先撞进的地方。
 >
 > **Terms:**
-> — 工具升级: 人不变、工具变——以前每次技术浪潮的实质
+> — 专才 vs 通才: 人深耕一个领域，AI 横跨产品/程序/测试/运维/汇报
 > — 伙伴关系: AI 从「帮你更快」变成「替你做了」——人的角色从操作者变成委托人
 >
 > **Takeaway:**
-> 这次不一样——不是换了更好的工具，是多了一个搭档。好消息是它超级能干。挑战是你还不会跟它配合。两个都是真的。
+> 这次不一样——不是换了更好的工具，是多了一个什么都懂的搭档。好消息是它超级能干。挑战是你还不会跟它配合。两个都是真的。
 
 
 
@@ -250,21 +265,40 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **SUBTITLE**: AIDLC？没人知道长什么样。但大家已经在画了。
 
 **CONCEPT**:
-- **MUST communicate**: 1970 年代瀑布——人把需求想清楚，一次性做出来。2001 年敏捷——人想一点做一点，边做边改。不管怎么迭代，前提是一样的：**人在想，人在写，人在验证**。方法论的差异只是「想多少再做」的节奏，不是「谁在想」的分配。现在多了一个搭档——它能写、能测、甚至能替你想一部分。旧地图画的是人独自走的路线——几条岔路（瀑布、敏捷、V 模型），但都假定你是独自上路。AI 加入后，地图上多了一个同行者——怎么分工？谁想多少、谁做多少、谁验多少？这不是某一派方法的危机——是所有旧地图都管不了新路况。AIDLC 打了个问号——**大家还在摸索中，没人知道正确答案，但都在试。** 这不是恐慌，是摸索中的诚实。
-- **MUST NOT**: 不要画成楼塌了或地基裂了——旧的结构不是「毁了」，是「不够用了」。不要暗示某一种方法论（瀑布/敏捷）对了或错了。不要把 AI 放在「取代人」的位置——是并列、同行、一起看前方的空白画布。不要恐惧感——是探索感。
-- **Bridge from previous**: Slide 05 说这次不是换工具，是多了个搭档。拿软件开发看——这个搭档最先撞进 SDLC，旧地图不管用了。
+- **MUST communicate**: SDLC——软件开发生命周期——是帮助软件开发的工程流程。1970 年代瀑布——人把需求想清楚，一次性做出来。2001 年敏捷——人想一点做一点，边做边改。不管怎么迭代，前提是一样的：**人在想，人在写，人在验证**。方法论的差异只是「想多少再做」的节奏，不是「谁在想」的分配。现在多了一个搭档——一个通才，产品/程序/测试/运维/汇报全懂。它能写、能测、甚至能替你想一部分。旧地图画的是人独自走的路线——几条岔路（瀑布、敏捷、V 模型），但都假定你是独自上路。AI 加入后，地图上多了一个同行者——怎么分工？谁想多少、谁做多少、谁验多少？这不是某一派方法的危机——是所有旧地图都管不了新路况。AIDLC 打了个问号——**大家还在摸索中，没人知道正确答案，但都在试。** 这不是恐慌，是摸索中的诚实。
+- **MUST NOT**: 不要画成楼塌了或地基裂了——旧的结构不是「毁了」，是「不够用了」。不要暗示某一种方法论（瀑布/敏捷）对了或错了。不要把 AI 放在「取代人」的位置——是并列、同行、一起看前方的空白画布。不要恐惧感——是探索感。AI 形象严格按 agent-portrayal.md 规格：中性偏瘦琥珀光晕轮廓，内部拓扑网络可见，左手夹书，右手开掌。
+- **Bridge from previous**: Slide 05 说这次不是换工具，是多了个什么都懂的搭档。拿软件开发看——这个搭档最先撞进 SDLC，旧地图不管用了。
 - **Bridge to next**: 「旧地图不管用」是理论，证据在哪？Martin Fowler 两次 retreat 的亲历者告诉你——下一页。
-- **Content structure**: 一面墙上挂着三张褪色的旧地图——瀑布（一条直线从上到下）、V 模型（左右对称）、敏捷（环形迭代）——都是 sepia 墨水，经典完整但已褪色。人站在墙前，手里拿着铅笔。旁边是 AI 伙伴（琥珀光晕轮廓）。他们一起面向前方——前方是一大片留白画布，上面只有几根试探性线条、一个问号、一行淡淡的铅笔字：「AIDLC？」。不是没有地图——是旧地图只管人独自走，新地图还在画。
+- **Content structure**: 一面墙上挂着三张褪色的旧地图——瀑布（一条直线从上到下）、V 模型（左右对称）、敏捷（环形迭代）——都是 sepia 墨水，经典完整但已褪色。人站在墙前，手里拿着铅笔。旁边是 AI 伙伴——按 agent-portrayal.md 规格：中性偏瘦琥珀光晕轮廓、内部拓扑网络可见（发光节点+细线网）、左手夹书、右手开掌。他们一起面向前方——前方是一大片留白画布，上面只有几根试探性线条、一个问号、一行淡淡的铅笔字：「AIDLC？」。不是没有地图——是旧地图只管人独自走，新地图还在画。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. EXPLORATORY mood, not catastrophic. SCENE: A wall with three classic SDLC maps hanging on it — LEFT: Waterfall (a straight line from top to bottom, cascading boxes), CENTER: V-Model (a V-shaped symmetric curve), RIGHT: Agile (a circular iterative loop). All three are drawn in SEPIA INK — complete, classic, but visibly FADED (lighter strokes, like old blueprints). A human figure stands before the wall, holding a pencil. Beside the human stands an AI partner — a warm amber-glow silhouette, a collaborator, not a threat. Together they face FORWARD — toward a large, mostly BLANK CANVAS on an easel. On the blank canvas, only a few tentative pencil lines, one large question mark, and faint amber letters: AIDLC？ The mood is: old maps were drawn for walking alone. Now there's a companion — the new map isn't drawn yet, but it's being drawn. The question mark is honest, not anxious. LOWER AREA, one line: 旧地图画的是人独自怎么走。现在多了一个——新地图还在画。 No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. EXPLORATORY mood, not catastrophic.
+
+SCENE: A wall with three classic SDLC maps hanging on it — LEFT: Waterfall (a straight line from top to bottom, cascading boxes), CENTER: V-Model (a V-shaped symmetric curve), RIGHT: Agile (a circular iterative loop). All three are drawn in SEPIA INK — complete, classic, but visibly FADED (lighter strokes, like old blueprints). A small annotation near the maps in medium Chinese: SDLC — 软件开发生命周期，帮助软件开发的工程流程。
+
+A human figure (programmer) stands before the wall, holding a pencil.
+
+Beside the human stands an AI partner. Use the Agent visual spec:
+- Neutral androgynous silhouette, lean with normal human proportions — a clean column of amber glass light
+- NO clothing — the amber glass IS its form
+- NO facial features, fingers, or gender markers
+- 4-layer construction: (1) amber glass translucent base wash, (2) fine curved cross-hatching on surface, (3) INTERNAL TOPOLOGICAL NETWORK — soft glowing white-gold nodes connected by thin straight lines forming hexagonal/pentagonal mesh, densest in chest/torso, visible through the translucent body, (4) soft golden-amber edge glow 3–5px wide
+- Posture: head slightly tilted (listening), left arm gently cradles a book, right hand with open palm in a soft inviting gesture
+
+Together they face FORWARD — toward a large, mostly BLANK CANVAS on an easel. On the blank canvas, only a few tentative pencil lines, one large question mark, and faint amber letters: AIDLC？
+
+The mood is: old maps were drawn for walking alone. Now there's a companion — a generalist who knows everything. The new map isn't drawn yet, but it's being drawn. The question mark is honest, not anxious.
+
+LOWER AREA, one line: 旧地图画的是人独自怎么走。现在多了一个——新地图还在画。
+
+No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> SDLC 三代演化——瀑布（想全部做全部）、V 模型（边做边验证）、敏捷（想一点做一点）——看似不同，共享同一个前提：人在想，人在写，人在验证。差异只是「想多少再做」的节奏，不是「谁在想」的分配。现在多了一个搭档——它能写、能测、甚至能替你想一部分。旧地图不管用了，不是因为它错了，是因为它画的是人独自走的路线。现在有了同行者——怎么分工？谁想多少、谁做多少、谁验多少？没人知道正确答案。AIDLC 是个问号——但大家已经在摸索了。这不是恐慌，是探索中的诚实。旧地图在墙上——尊敬它，但知道它不够用了。新地图在画布上——只有几根试探线，但铅笔已经在手里。下一页，看同一群人 5 个月内怎么从犹豫走到确信的。
+> SDLC 三代演化——瀑布（想全部做全部）、V 模型（边做边验证）、敏捷（想一点做一点）——看似不同，共享同一个前提：人在想，人在写，人在验证。差异只是「想多少再做」的节奏，不是「谁在想」的分配。不止——这些方法还默认每个环节要换人。需求分析师、架构师、程序员、测试工程师——各自的知识边界固定。流程长，不是因为工作本身复杂——是因为每跨一个边界就需要翻译、对齐、确认。旧地图画的不只是「一个人」的路线，是「一群窄专家怎么接力」的路线。而 AI——从 Slide 05 我们已经知道——是通才，没有职业边界。旧地图管不了这种新角色。现在多了一个搭档——它能写、能测、甚至能替你想一部分。旧地图不管用了，不是因为它错了，是因为它画的是人独自走的路线。现在有了同行者——怎么分工？谁想多少、谁做多少、谁验多少？没人知道正确答案。AIDLC 是个问号——但大家已经在摸索了。这不是恐慌，是探索中的诚实。更深一层：旧地图不只假设「人独自走」——还假设**每一步要换人**。瀑布的需求→设计→编码→测试，每步需要的知识不同，所以每步都是不同的人。流程的复杂度，有一半是「跨边界沟通」。旧地图在墙上——尊敬它，但知道它不够用了。新地图在画布上——只有几根试探线，但铅笔已经在手里。下一页，看同一群人 5 个月内怎么从犹豫走到确信的。
 >
 > **Terms:**
 > — SDLC 三代: 瀑布（1970s 想全部做全部）、V 模型（验证与开发对称）、敏捷（2001 想一点做一点）——都是「人独自走」的路线
@@ -372,11 +406,32 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 - **MUST NOT**: 不要把它当作"更快的补全";变的是关系,不只是速度。
 - **Bridge from previous**: 承接 Beck+Fowler——他们讨论时 Fable 5 未发布,现在它来了并推高量级。
 - **Bridge to next**: 瓶颈变成人,人的角色就必须被重写——进入 Block B。
-- **Content structure**: 主仆易位的驾车隐喻——AI 坐上驾驶位在开车（又快又稳），人退到后座、手里拿着一张"任务单/订单"（commission），表情是"它开得比我好……我信得过吗"。画面直接呼应 Mollick 引语 "I no longer steer. I commission."。瓶颈=人能不能放心把方向盘交出去（Trust Gap）。右侧 Trust Gap 记忆点。
+- **Content structure**: 车内视角——现代汽车驾驶室内部，简洁流畅的中控台设计。AI 搭档坐在驾驶位上（左边），双手搭在方向盘上，沉稳自信。人坐在副驾驶（右边），手里拿着一张「任务单」，姿态是信任+关注——不是紧张地抓着扶手，而是放松地看向前方，偶尔瞥一眼 AI。两人并排、面朝同一方向——搭档同路，不是主仆。画面从后座角度往前看，能看到两人的侧脸/背影和前方的挡风玻璃与道路。呼应 Mollick 引语 "I no longer steer. I commission."。瓶颈=人能不能放心把方向盘交给搭档（Trust Gap）。右侧 Trust Gap 记忆点。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN IMAGE (role-reversal driving metaphor, clear and readable): a hand-drawn car seen from the side. In the DRIVER seat sits an AI figure — a warm amber-glow silhouette, calm, capable — confidently steering, the road ahead smooth. In the BACK seat sits a HUMAN, holding a small slip of paper labeled 任务单, watching the AI drive with an uncertain expression. An amber caption beside the human: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」 One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交出去。 In the right margin a small mnemonic label: Trust Gap. Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706.
+
+INTERIOR CAR VIEW — the scene is inside a MODERN car cabin (clean, sleek dashboard, no weird retro doors). The viewpoint is from the BACK SEAT looking forward through the cabin toward the windshield, so BOTH front-seat occupants are clearly visible.
+
+LEFT — DRIVER SEAT: The AI partner, actively driving. Use the Agent visual spec:
+- Neutral androgynous silhouette, lean with normal human proportions — a clean column of amber glass light
+- NO clothing — the amber glass IS its form
+- NO facial features, fingers, or gender markers
+- 4-layer construction: (1) amber glass translucent base wash, (2) fine curved cross-hatching on surface, (3) INTERNAL TOPOLOGICAL NETWORK — soft glowing white-gold nodes connected by thin straight lines forming hexagonal/pentagonal mesh, visible through the translucent body, (4) soft golden-amber edge glow 3–5px wide
+- Hands resting calmly on the steering wheel, confident, facing the road ahead
+
+RIGHT — PASSENGER SEAT: A human, relaxed posture — not gripping the seat in fear, but sitting back with attention. Holding a small slip of paper labeled 任务单. Looking at the road ahead, occasionally glancing at the AI partner with an expression of trust mixed with getting-used-to-this.
+
+Both face FORWARD together through the windshield — partners on the same journey. The road ahead is visible through the glass, smooth and open.
+
+An amber caption floating in the cabin: 我不再自己开，我改下订单。— Mollick「I no longer steer. I commission.」
+
+One medium Chinese line under the scene, amber-highlighted: 瓶颈第一次从机器，变成了人——人能不能放心把方向盘交给搭档。
+
+Right margin: small mnemonic label "Trust Gap."
+
+Keep Chinese medium-or-large and clean. Modern car interior, not vintage. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -405,7 +460,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **TITLE**: 软件开发就是把需求一步步加工成代码。以前每个环节都是人。
 
 **CONCEPT**:
-- **MUST communicate**: 软件开发是一条信息加工链(需求→分析→设计→编码→测试→部署→产品)。AI 接管中间加工环节后,人只有两个方向:往上游定义"做什么"(架构师、产品经理),或往下游做验收治理(Harness Engineer)。"Build is cheap. Argument is expensive."
+- **MUST communicate**: 软件开发是一条信息加工链(需求→分析→设计→编码→测试→部署→产品)。以前每个环节不只是一个「人」——经常是**不同的人**：需求分析师、架构师、程序员、测试工程师，各自有知识边界。链条长，很大一块是跨边界的沟通成本。AI 没有职业边界——它同时懂需求、能设计、会编码、会测试。所以它接管中间加工环节后,人只有两个方向:往上游定义"做什么"(架构师、产品经理),或往下游做验收治理(Harness Engineer)。"Build is cheap. Argument is expensive."
 - **MUST NOT**: 不要以为人被彻底取代;人是被挤到链条两端,不是消失。
 - **Bridge from previous**: 承接"瓶颈变成人"——那人往哪走?这页给出方向。
 - **Bridge to next**: 往下游要验收,但 AI 一晚写几千行——人审得过来吗?下一页。
@@ -413,16 +468,22 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 现在 AI 接管了中间的编码、测试、甚至部分设计。 人往哪走？两条路： 往上：定义做什么。架构师、产品经理。 往下：验收治理。Harness Engineer。 Build is cheap. Argument is expensive. — Simon Willison。 Below text: horizontal chain sketch — seven linked nodes, middle three replaced by amber AI glow cores, left figures pointing up, right figures pointing down. Left margin: tiny Information Chain mnemonic. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium Chinese points: 现在 AI 接管了中间的编码、测试、甚至部分设计。 人往哪走？两条路： 往上：定义做什么。架构师、产品经理。 往下：验收治理。Harness Engineer。 Build is cheap. Argument is expensive. — Simon Willison。 Below text: horizontal chain sketch — seven linked nodes. Each node is labeled with a DIFFERENT specialist role: 需求分析师, 架构师, 程序员, 测试工程师, 运维… — showing that each link was a different narrow expert, and every handoff between them was friction. The middle section of the chain is spanned by ONE AI partner. Use the Agent visual spec:
+- Neutral androgynous silhouette, lean with normal human proportions — a clean column of amber glass light
+- NO clothing — the amber glass IS its form
+- NO facial features, fingers, or gender markers
+- 4-layer construction: (1) amber glass translucent base wash, (2) fine curved cross-hatching on surface, (3) INTERNAL TOPOLOGICAL NETWORK — soft glowing white-gold nodes connected by thin straight lines forming hexagonal/pentagonal mesh, visible through the translucent body, (4) soft golden-amber edge glow 3–5px wide
+- Arms extended across the middle nodes — one generalist partner spanning what used to require a relay team of narrow specialists. Left figures point up (define what), right figures point down (govern output). Left margin: tiny Information Chain mnemonic. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 把开发抽象成 ITO 链(输入→加工→输出),以前每个工位都是人。AI 接管中间加工。人两条路:往上游(做什么、tradeoff、架构)或往下游(验收标准、护栏、信任)。引 Willison:写代码变便宜了,真正贵的是判断。
+> 把开发抽象成 ITO 链。以前每个工位不仅是人——还经常是不同的人。需求分析师不懂代码，程序员不了解业务，测试工程师不知道设计决策。所以链条上每一环的产出，到下一环都要「翻译」一遍。流程的很多步骤，本质上是在补偿「窄专家之间无法直接沟通」这个事实。AI 没有这个问题——它是通才，各环节在它内部直接连通。所以它一站接管中间加工。人两条路:往上游(做什么、tradeoff、架构)或往下游(验收标准、护栏、信任)。引 Willison:写代码变便宜了,真正贵的是判断。
 >
 > **Terms:**
 > — 信息加工链 / ITO: 输入→加工→输出,一环的输出是下一环的输入
+> — 窄专家 / 通才: 人的知识有边界 → 流程需要跨边界接力；AI 跨领域 → 中间环节在内部一步完成
 > — Harness Engineer: 建护栏、做验收的新角色
 >
 > **Takeaway:**
@@ -487,7 +548,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium comparison points: In the loop：人逐行 review。不可扩展。 On the loop：人建护栏。AI 在框内自主。修的是 harness，不是 artifact。— Kief Morris。 新工种：Supervisory Engineer / Harness Engineer / Middle Loop。 Agents are not hard. The Harness is hard. — OpenAI。 Below text: comparison sketch — upper In Loop human inspecting each agent like assembly line (muted red-brown). Lower On Loop human at control console with guardrails, agents autonomous inside (green-gold). Bottom: three job title badges. No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. In the body area, render these medium comparison points: In the loop：人逐行 review。不可扩展。 On the loop：人建护栏。AI 在框内自主。修的是 harness，不是 artifact。— Kief Morris。 新工种：Supervisory Engineer / Harness Engineer / Middle Loop。 Agents are not hard. The Harness is hard. — OpenAI。 Below text: comparison sketch — UPPER (In Loop, muted red-brown): one anxious human bent over, trying to check each agent one by one, overwhelmed; the agents stand around as individual partner figures waiting to be reviewed — each distinct, not interchangeable. LOWER (On Loop, green-gold): the same human stands relaxed at a control console, setting guardrails; the same agents now work confidently inside the frame, each a distinct partner with their own task, no longer waiting in a queue. ALL agents use the Agent visual spec: neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible, soft amber edge glow. Agents are collaborators, not assembly-line units. Bottom: three job title badges. No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
@@ -702,21 +763,21 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **SUBTITLE**: 框不是笼子——是让你敢放手的边界。
 
 **CONCEPT**:
-- **MUST communicate**: Dagstuhl 18 位作者定义 Framed Autonomy：通过对 Agent 的知识和目标施加限制来约束其自主性。关键是「约束」不等于「限制发挥」——恰恰相反，**明确的边界让 Agent 敢放手干活**。就像沙盒——因为知道什么不能碰，所以框内什么都能试。框内两个 Agent 性格完全不同：一个安静地在写——写代码、写测试、写规范，沉稳精确；一个狂野地在跑——连接设备、调动资源、跑流程，能量充沛。两种 Agent，同一个框。框外，人一只手轻轻搭在框边——不是紧张地扶着，是信任但关注。姿态是「框我设好了，你们尽情发挥」。两种框的类型：Operational Frame（规定执行序列——像 CI 管道，告诉你怎么走）和 Normative Frame（规定禁止行为——像编码规范，告诉你不许碰什么）。德国能源网 meter-to-cash 达 99% 成功执行率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——同一件事。框是信任，不是锁。
+- **MUST communicate**: Dagstuhl 18 位作者定义 Framed Autonomy：通过对 Agent 的知识和目标施加限制来约束其自主性。关键是「约束」不等于「限制发挥」——恰恰相反，**明确的边界让 Agent 敢放手干活**。就像沙盒——因为知道什么不能碰，所以框内什么都能试。框内两个 Agent 性格完全不同：一个叫「砚」——安静地在写，写代码、写测试、写规范，沉稳精确；一个叫「铸」——狂野地在跑，连接设备、调动资源、跑流程，能量充沛。两种 Agent，同一个框。框外，人一只手轻轻搭在框边——不是紧张地扶着，是信任但关注。姿态是「框我设好了，你们尽情发挥」。两种框的类型：Operational Frame（规定执行序列——像 CI 管道，告诉你怎么走）和 Normative Frame（规定禁止行为——像编码规范，告诉你不许碰什么）。德国能源网 meter-to-cash 达 99% 成功执行率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——同一件事。框是信任，不是锁。
 - **MUST NOT**: 不要把框理解成「限制 Agent 能力」——是「让 Agent 有能力放手干」的前提。不要把框内 Agent 画成一群无差别小人——是两个性格鲜明、各司其职的搭档。不要画成笼子或监狱——框是温暖的琥珀色力场，沙盒感。
 - **Bridge from previous**: 承接上页点名的 Framed Autonomy，把这一个概念展开——框是什么、框内谁在干什么、为什么有框才有自由。
 - **Bridge to next**: Framed Autonomy 落到企业架构，就是四层同时重构——下一页。
-- **Content structure**: 主画面=一个温暖的琥珀色几何力场框（透明发光边界，沙盒感）。框内两个 Agent 性格对比鲜明——左边：安静坐着，手在纸上写，周围飘着整洁产出（代码块、文档、测试用例），笔触稳定干净，标签「在想，在写，在验证」；右边：站着的，能量充沛，在摆弄设备、连接管线、调动资源，周围齿轮和仪表，笔触有动感，标签「在搭，在连，在跑」。框外：一个人一只手轻轻搭在框边——信任但关注，不是紧张地扶着。底部两行：*有框，才有真正的自主。框不是笼子——是让你敢放手的边界。*
+- **Content structure**: 主画面=一个温暖的琥珀色几何力场框（透明发光边界，沙盒感）。框内两个 Agent 性格对比鲜明——左边：「砚」——安静坐着，手在纸上写，周围飘着整洁产出（代码块、文档、测试用例），笔触稳定干净，标签「砚 · 在想，在写，在验证」；右边：「铸」——站着的，能量充沛，在摆弄设备、连接管线、调动资源，周围齿轮和仪表，笔触有动感，标签「铸 · 在搭，在连，在跑」。框外：一个人一只手轻轻搭在框边——信任但关注，不是紧张地扶着。底部两行：*有框，才有真正的自主。框不是笼子——是让你敢放手的边界。*
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN ILLUSTRATION (~55% of body): a warm amber geometric force-field frame drawn as a translucent glowing boundary — like a sandbox, not a cage. Inside the frame are TWO distinct agents with contrasting personalities. LEFT AGENT: a warm amber-glow silhouette, seated calmly, head down, writing — pen on paper, surrounded by neat floating outputs (code blocks, documents, test cases). Pen strokes clean and stable. Amber label under this agent: 在想，在写，在验证。 RIGHT AGENT: a warm amber-glow silhouette, standing, dynamic, energetic — manipulating equipment, connecting pipes/wires, orchestrating resources, surrounded by gears and instrument panels. Pen strokes bolder, more kinetic. Amber label under this agent: 在搭，在连，在跑。 OUTSIDE the frame: a single human figure stands beside the frame, one hand resting lightly on the frame edge — posture is trust with attention, not anxiety. Not gripping — just touching. The human's expression is calm confidence: the frame is set, let them go. ABOVE the frame, three medium Chinese points: Operational Frame：规定执行序列（像 CI 管道——告诉你怎么走）。 Normative Frame：规定禁止行为（像编码规范——告诉你不许碰什么）。 德国能源网 meter-to-cash：99% 成功执行率。 BOTTOM, one line: 有框，才有真正的自主。框不是笼子——是让你敢放手的边界。 No logos. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. MAIN ILLUSTRATION (~55% of body): a warm amber geometric force-field frame drawn as a translucent glowing boundary — like a sandbox, not a cage. Inside the frame are TWO distinct agents with contrasting personalities. LEFT AGENT「砚」: Use the Agent visual spec — neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible (nodes densest in chest/torso), soft amber edge glow. Seated calmly, head down, writing — pen on paper, surrounded by neat floating outputs (code blocks, documents, test cases). Pen strokes clean and stable. Amber label under this agent: 砚 · 在想，在写，在验证。 RIGHT AGENT「铸」: Use the Agent visual spec — same 4-layer amber-glass construction, internal network brighter and more dynamic. Standing, energetic — manipulating equipment, connecting pipes/wires, orchestrating resources, surrounded by gears and instrument panels. Pen strokes bolder, more kinetic. Amber label under this agent: 铸 · 在搭，在连，在跑。 OUTSIDE the frame: a single human figure stands beside the frame, one hand resting lightly on the frame edge — posture is trust with attention, not anxiety. Not gripping — just touching. The human's expression is calm confidence: the frame is set, let them go. ABOVE the frame, three medium Chinese points: Operational Frame：规定执行序列（像 CI 管道——告诉你怎么走）。 Normative Frame：规定禁止行为（像编码规范——告诉你不许碰什么）。 德国能源网 meter-to-cash：99% 成功执行率。 BOTTOM, one line: 有框，才有真正的自主。框不是笼子——是让你敢放手的边界。 No logos. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 给出 Dagstuhl 正式定义。关键翻面——「约束」这个词听起来像限制，但本质是赋能。就像沙盒——因为知道边界在哪，所以框内什么都能试。框内两个 Agent 性格截然不同：一个安静写代码/写测试/写规范，沉稳精确；一个狂野地连接设备/调动资源/跑流程。两种 Agent，同一个框，各司其职。框外，人不再紧张地盯着每一步——一只手轻轻搭在框边，信任但关注。两种框：Operational Frame 规定执行序列（像 CI 管道）、Normative Frame 规定禁止行为（像编码规范）。真实验证：德国能源网 meter-to-cash 99% 成功率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——人定框，Agent 在框内可劲儿干。框是信任，不是锁。
+> 给出 Dagstuhl 正式定义。关键翻面——「约束」这个词听起来像限制，但本质是赋能。就像沙盒——因为知道边界在哪，所以框内什么都能试。框内两个 Agent 性格截然不同：砚——安静写代码/写测试/写规范，沉稳精确；铸——狂野地连接设备/调动资源/跑流程。两种 Agent，同一个框，各司其职。框外，人不再紧张地盯着每一步——一只手轻轻搭在框边，信任但关注。两种框：Operational Frame 规定执行序列（像 CI 管道）、Normative Frame 规定禁止行为（像编码规范）。真实验证：德国能源网 meter-to-cash 99% 成功率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——人定框，Agent 在框内可劲儿干。框是信任，不是锁。
 >
 > **Terms:**
 > — Operational / Normative Frame: 规定「怎么做」/ 规定「不许做」
@@ -777,21 +838,21 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **TITLE**: Allianz「Project Nemo」——不是高举高打，是从最窄处跑通，再铺开。
 
 **CONCEPT**:
-- **MUST communicate**: 安联（Allianz，全球最大保险集团之一，传统金融巨头、非科技公司）的 Project Nemo 有两个突出点。① 结果与角色迁移：澳洲「食品变质理赔」场景，1 个 planner agent 调度 7 个专才 agent（承保核对 / 天气事件确认 / 欺诈筛查 / 赔付计算 / 审计…），处理时间从数天→数小时（-80%）；理赔员没被裁，从"逐单处理者"升格为"审 AI 结果、签字负责的签核者"(human-in-the-loop)。② 打法与洞察：首席转型官 Maria Janssen 原话 "We scoped it intentionally"——巨头没有全面铺 AI，而是刻意缩到又窄又高频、金额小(<AUD$500)、边界清楚的场景先跑通、先被独立第三方验证，再向外铺开。这是全 deck 唯一有独立媒体 + 独立评估机构双重佐证的案例。
+- **MUST communicate**: 安联（Allianz，全球最大保险集团之一，传统金融巨头、非科技公司）的 Project Nemo 有两个突出点。① 结果与角色迁移：澳洲「食品变质理赔」场景，1 个 planner agent「舵」调度 3 个专才 agent——「核」（承保核对）、「察」（欺诈筛查）、「算」（赔付计算），处理时间从数天→数小时（-80%）；理赔员没被裁，从"逐单处理者"升格为"审 AI 结果、签字负责的签核者"(human-in-the-loop)。② 打法与洞察：首席转型官 Maria Janssen 原话 "We scoped it intentionally"——巨头没有全面铺 AI，而是刻意缩到又窄又高频、金额小(<AUD$500)、边界清楚的场景先跑通、先被独立第三方验证，再向外铺开。这是全 deck 唯一有独立媒体 + 独立评估机构双重佐证的案例。
 - **MUST NOT**: 不要说成"全理赔 -80%"——-80% 只限"食品变质 <AUD$500"这一窄类目，车险/健康险扩展仍是意向。不要说成"AI 替代理赔员"——人升格为签核者。
 - **Bridge from previous**: 承接四层重构——用一个证据最扎实的真实案例把落地讲透。
 - **Bridge to next**: 海外如此，中国呢？下一页中国案例。
-- **Content structure**: 单案例深讲（非 2x2）。一侧一个克制的"AI 理赔班组"意象：1 个 planner 小人居中，向外发散连到约 7 个专才 agent 小节点，其中一个节点后一个人形在"盖章/签核"。另一侧文字主舞台：公司一行介绍 + 两个带标号的突出点（① 结果：数天→数小时/-80%、人升为签核者；② 打法：刻意缩窄先验证、再铺开）。底部小字诚实注脚（-80% 仅限窄类目 + 独立佐证来源）。全程土色系，不用蓝。
+- **Content structure**: 单案例深讲（非 2x2）。一侧一个克制的"AI 理赔班组"意象：planner「舵」居中，向外发散连到 3 个命名专才 agent（核 / 察 / 算），每个是独立的琥珀光晕搭档轮廓，不是无差别节点；其中一个 agent 后一个人形在"盖章/签核"。另一侧文字主舞台：公司一行介绍 + 两个带标号的突出点（① 结果：数天→数小时/-80%、人升为签核者；② 打法：刻意缩窄先验证、再铺开）。底部小字诚实注脚（-80% 仅限窄类目 + 独立佐证来源）。全程土色系，不用蓝。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent 指挥 7 个专才 agent。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central warm amber-glow planner figure radiating thin sepia lines to about seven small warm amber-glow agent nodes; behind ONE node stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. In the TOP-RIGHT corner, a small hand-drawn sketch of the Allianz eagle logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent「舵」指挥 3 个专才 agent「核」「察」「算」。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure「舵」, radiating thin sepia lines to THREE distinct named agent figures: 「核」(underwriting check), 「察」(fraud screen), 「算」(claim calc). ALL agents use the Agent visual spec: neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible, soft amber edge glow. Each agent is a distinct partner, not a generic node — individual, named, each with their own posture. Behind ONE agent stands a human figure stamping / signing (human-in-the-loop). Behind ONE agent stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. In the TOP-RIGHT corner, a small hand-drawn sketch of the Allianz eagle logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
 ```
 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 只讲一家，但讲透。安联是全球最大保险集团之一，传统金融巨头。Project Nemo 两个突出点：① 一个 planner agent 指挥 7 个专才 agent 处理澳洲食品变质理赔，数天→数小时、-80%，理赔员没被裁、升为签核者(human-in-the-loop)；② 打法才是真洞察——首席转型官 Maria Janssen "We scoped it intentionally"，巨头刻意把 AI 缩到极窄高频低值场景先跑通、被独立第三方验证，再铺开。这是全场唯一独立媒体 + 独立机构双重佐证的案例。诚实交代：-80% 只限食品变质 <AUD$500 窄类目，扩展仍是意向——这恰是"缩窄验证"打法的证据，不是减分。
+> 只讲一家，但讲透。安联是全球最大保险集团之一，传统金融巨头。Project Nemo 两个突出点：① 一个 planner「舵」指挥 3 个专才 agent——「核」（承保核对）、「察」（欺诈筛查）、「算」（赔付计算）——处理澳洲食品变质理赔，数天→数小时、-80%，理赔员没被裁、升为签核者(human-in-the-loop)；② 打法才是真洞察——首席转型官 Maria Janssen "We scoped it intentionally"，巨头刻意把 AI 缩到极窄高频低值场景先跑通、被独立第三方验证，再铺开。这是全场唯一独立媒体 + 独立机构双重佐证的案例。诚实交代：-80% 只限食品变质 <AUD$500 窄类目，扩展仍是意向——这恰是"缩窄验证"打法的证据，不是减分。
 >
 > **Terms:**
 > — Project Nemo: 安联的 agentic 理赔试点
@@ -858,7 +919,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **SUBTITLE**: 罗马军团，公元 1 世纪。现代企业，公元 21 世纪。同一种结构。
 
 **CONCEPT**:
-- **MUST communicate**: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）。所以必须分层——CEO → VP → Director → Manager → IC，每层负责汇总信息、过滤噪音、上传下达。这不是「效率最高」，是**人带宽有限下用层级管理带宽的不得已**。而这个结构不是现代企业发明的——罗马军团两千年前就是这套：Legatus → Centurion → Decurion → Legionary，指挥链一模一样。两千年，信息传输技术从骑马信使变成 Slack 再变成 AI Agent——**但组织结构没变过**。因为瓶颈始终是人——只要人的信息吞吐恒定，层级就是最优解。AI 打破了前提：Agent 自动汇总、跨层同步、人→Agent→人——沟通成本归零。只做上传下达的中层，存在的理由消失了。Block 已在试——Dorsey 砍掉中间层，CEO 直接管 6000 人。不是理论，已经在发生。
+- **MUST communicate**: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）——这是**纵向瓶颈**。还有一层**横向瓶颈**：人是窄专家，知识有边界。律师不懂工程，工程师不懂财务，所以组织必须切成部门，流程必须在不同专家之间接力。每一个接力点——翻译、对齐、确认——都是摩擦。层级 + 部门墙，不是「效率最高」，是人在两种约束下的不得已：沟通带宽有限，且知识边界固定。两千年没变过——罗马军团 Legatus → Centurion → Decurion → Legionary，指挥链一模一样；现代企业加上部门墙，横向纵向都是同一套逻辑。AI 同时打破两层：① 它是通才——没有职业边界，跨领域一步直通；② 它沟通成本接近零——瞬时对齐，不需要层层中转。还记得 Slide 05 吗——「以前给你换工具，这次给你一个搭档」。搭档能拆金字塔，不是因为更强，是因为这两个特质正好打在金字塔存在的两个理由上。纯做上传下达的中层 + 纯做跨边界搬运的流程环节，存在的理由一起消失了。Block 已在试——Dorsey 砍掉中间层，CEO 直接管 6000 人。不是理论，已经在发生。
 - **MUST NOT**: 不要把罗马军团画成「古代落后、现代先进」——关键是**结构一模一样**，令人不安。不要让金字塔「倒塌」——是中间层被一道琥珀涟漪轻轻淡化，不是灾难，是重构。不要暗示所有中层都会消失——淡化的是「纯搬运」的层级，不是所有管理者。
 - **Bridge from previous**: 从案例拔高到组织理论——两家传统企业之外，退一步看：为什么会有金字塔？答案藏在两千年前。
 - **Bridge to next**: 中层若只做搬运就没用了——那到底该怎么重新分类岗位？下一页 Builder/Seller/Measurer。
@@ -872,10 +933,11 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 > **SPEAKER NOTE**
 >
 > **Narrative flow:**
-> 先问：为什么不是 CEO 直接管所有人？因为人沟通带宽有限——管理版 Dunbar 数 7–15。所以必须 CEO→VP→Director→Manager→IC 层层中转。这不是效率最高的结构——是人在信息带宽瓶颈下用层级来管理带宽的不得已。这个结构谁发明的？不是现代企业。两千年前罗马军团就是这套——Legatus→Centurion→Decurion→Legionary，指挥链一模一样。两千年，信息传输从骑马信使变成了 Slack——但组织结构没变。因为瓶颈始终是人。AI 打破了这个前提：Agent 自动汇总、跨层同步、人→Agent→人——沟通成本归零。只做上传下达的中层，存在的理由消失了。Block 已经在试——Jack Dorsey 砍掉中间层，CEO 直接管 6000 人。这不是理论，已经在发生。下一页，把透镜从「层级去哪了」转向「岗位怎么重新分类」——Builder/Seller/Measurer。
+> 先问两个问题。第一，为什么不是 CEO 直接管所有人？因为人沟通带宽有限——管理版 Dunbar 数 7-15。第二，为什么要分部门？财务部、法务部、工程部——因为一个人学不会所有专业知识，人的知识有边界。所以组织有两道墙：纵向的层级链（管不过来），横向的部门墙（懂不过来）。这不是效率最高的结构——是人在两种约束下的不得已。两千年没变：罗马军团的指挥链传到现代企业，又加上了部门分工——但底层逻辑一模一样：人是瓶颈。回到 Slide 05——我们说 AI 是搭档不是工具，因为它是通才（没有职业边界）+ 它能理解你（沟通成本接近零）。这两个特质，正好打在金字塔存在的两个理由上。所以搭档不只是帮你干活——它在拆组织的底层逻辑。纯做上传下达的中层，和纯做跨边界搬运的流程环节，理由一起消失了。Block 已经在试。下一页，把透镜转向岗位怎么重新分类。
 >
 > **Terms:**
-> — 信息瓶颈: 人是信息流动的中转站，沟通带宽有限——组织层级是对这个瓶颈的补偿
+> — 纵向瓶颈: 管理带宽 7-15 → 需要层级链；横向瓶颈: 人是窄专家 → 需要部门墙 + 流程接力
+> — 通才破界: AI 没有职业边界，跨领域知识一步直通；沟通成本归零: AI 瞬时对齐，不需要中转翻译
 > — 罗马军团结构: Legatus→Centurion→Decurion→Legionary，沿用两千年的指挥链逻辑
 > — 管理版 Dunbar 数: 一个人能有效管理的直接下属上限约 7–15 人
 > — Agent 直连: 沟通成本归零后，顶层可以直接触达底层——纯搬运的中层不再必需
@@ -938,11 +1000,11 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 - **MUST NOT**: 不要理解成"两个领域可以互相借鉴";是收敛到同一基础设施,不是借鉴。
 - **Bridge from previous**: 承接量度者重定义——把软件与企业两条线合流。
 - **Bridge to next**: 收敛已成事实,最后抛出开放问题——下一页 closer。
-- **Content structure**: 文字为主舞台（约 65%），插画退为配角（约 35%）。核心一句大字压题，下方**四行要点**（软件侧4环节 → BPM四层映射 → 同一套工具+飞书钉钉CLI → 收敛结论）。底部一个**简洁的单一意象**：两条细线（软件 / 企业）在中间汇成一条更粗的琥珀主流——克制、干净，不铺满画面。全程土色系（不用蓝/绿）。
+- **Content structure**: 文字为主舞台（约 65%），插画退为配角（约 35%）。核心一句大字压题，下方**四行要点**（软件侧4环节 → BPM四层映射 → 同一套工具+飞书钉钉CLI → 收敛结论）。底部一个**简洁的单一意象**：两条细线（软件 / 企业）在中间汇成一条更粗的琥珀主流。水边站几个小小的琥珀光晕搭档轮廓——砚、铸、舵……之前见过的那些搭档，静静看着两条河汇合。他们本就是同一条河里的。克制、干净，不铺满画面。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element along the BOTTOM only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. In the body area, render FOUR short medium-Chinese lines with generous spacing: 软件经历了什么：前提被挖 → 人从操作者变委托人 → 方法论转向 Harness Engineering → 组织从中层密集变极端扁平。 企业 BPM 完全一样：Framed Autonomy = AI Sandwich，Agentic BPM = Agentic SDLC，四层逐层精确映射。 而且两边用同一套工具：Claude Code 上午写代码、下午写报告；飞书/钉钉 CLI 化，office 变成 Agent 的 terminal。 所以这不是"两个领域互相借鉴"——是它们在同一个 Agent 基础设施上收敛成一条河。 ILLUSTRATION (simple, bottom band only): two thin sepia lines labeled 软件 and 企业 flowing in from the left and right, merging at center into ONE thicker amber stream. Minimal and clean — just the confluence, no busy detail. Earth tones only (sepia + amber). Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue. No green.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. TEXT IS THE MAIN SUBJECT (~65% of the slide); the illustration is a restrained supporting element along the BOTTOM only (~35%), lots of clean empty cream space — do NOT fill the frame with drawing. In the body area, render FOUR short medium-Chinese lines with generous spacing: 软件经历了什么：前提被挖 → 人从操作者变委托人 → 方法论转向 Harness Engineering → 组织从中层密集变极端扁平。 企业 BPM 完全一样：Framed Autonomy = AI Sandwich，Agentic BPM = Agentic SDLC，四层逐层精确映射。 而且两边用同一套工具：Claude Code 上午写代码、下午写报告；飞书/钉钉 CLI 化，office 变成 Agent 的 terminal。 所以这不是"两个领域互相借鉴"——是它们在同一个 Agent 基础设施上收敛成一条河。 ILLUSTRATION (simple, bottom band only): two thin sepia lines labeled 软件 and 企业 flowing in from the left and right, merging at center into ONE thicker amber stream. By the water's edge, a few small partner figures stand — familiar named agents (砚, 铸, 舵…) from earlier slides, quietly watching the confluence. Use the Agent visual spec for each: neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible, soft amber edge glow. They were always part of the same river. Minimal and clean — just the stream and a few companion figures at its edge. Earth tones only (sepia + amber). Keep Chinese medium-or-large and clean; only tiny tags may be English. No logos. No blue. No green.
 ```
 
 > **SPEAKER NOTE**
