@@ -145,7 +145,7 @@ canonical 文件名始终只有一个，版本由 Git 或下游 override 承载�
 2_backbone/visual-style/
   style-master-prompt.md    # 当前源 prompt
   style_master.jpg          # 当前锁定视觉锚
-  style_master.apimart-task.json
+  style_master.image-task.json
 ```
 
 需要保留被拒绝的尝试时，放进 `1_upstream_raw_material/style-master-iterations/`，不要污染 canonical visual-style 目录。

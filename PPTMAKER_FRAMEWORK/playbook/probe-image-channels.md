@@ -53,7 +53,7 @@ exit:
   - user_evidence:report-acknowledged
 ```
 
-**Step 1 — MD**: 展示 OK/FAIL、mode、elapsed 和建议的 `IMAGE2_VENDORS`，不得展示密钥。
+**Step 1 — MD**: 展示 OK/FAIL、mode、elapsed 不得展示密钥。
 
 **Step 2 — GATE**: 用户选择 `finish` 或 `configure`，并记录 report acknowledgment。
 

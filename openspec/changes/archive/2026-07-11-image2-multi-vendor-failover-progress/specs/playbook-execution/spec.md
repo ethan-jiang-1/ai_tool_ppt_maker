@@ -55,7 +55,7 @@ COMMANDS.md SHALL also include an **环境 / 画画通道** section, placed betw
 
 ### Requirement: probe-image-channels playbook runs doctor channel体检
 
-`probe-image-channels.md` SHALL orchestrate Image2 channel health checks: intake → run `ppt_flow doctor --probe-vendors` (background + progress relay when long) → show Summary and suggested `IMAGE2_VENDORS` to the human → confirm-write only after human confirmation (`.env` routing + `_lessons/image2-proven.yaml` with `via: vendors`, no secrets). It SHALL NOT auto-write `.env` without confirmation.
+`probe-image-channels.md` SHALL orchestrate Image2 channel health checks: intake → run `ppt_flow doctor --probe-vendors` (background + progress relay when long) → show Summary and suggested `IMAGE2_BASE_URL` to the human → confirm-write only after human confirmation (`.env` routing + `_lessons/image2-proven.yaml` with `via: vendors`, no secrets). It SHALL NOT auto-write `.env` without confirmation.
 
 When the user only wants a report and explicitly does not want config changes, the agent MAY run `doctor --probe-vendors` and present the report without entering confirm-write; any write to `.env` or `_lessons` still requires confirmation.
 

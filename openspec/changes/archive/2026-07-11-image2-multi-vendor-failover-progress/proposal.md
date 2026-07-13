@@ -14,7 +14,7 @@ Image2 多 vendor 被想复杂了：不是 registry/strategy，而是有序 `(ba
 
 ### A. 运行时（出图怎么跑）
 
-- `resolveVendors`：`IMAGE2_VENDORS=url|KEY_ENV,...`（推荐 LCON→Zenmux→apib）；legacy 兼容；VENDORS 优先于 BASE_URL(S)；`--base-url` 只配共享 key。
+- `resolveVendors`：`IMAGE2_BASE_URL=url|KEY_ENV,...`（推荐 LCON→Zenmux→apib）；legacy 兼容；VENDORS 优先于 BASE_URL(S)；`--base-url` 只配共享 key。
 - 一层 failover + 薄 sync/async；`Mirror failed`；全挂 attempts 摘要；成功 trace 含 `attempts`（无密钥）。
 - submit+poll 统一心跳；submit 受 `MAX_WAIT_MS`；Stage 2 打 `i/N`。
 

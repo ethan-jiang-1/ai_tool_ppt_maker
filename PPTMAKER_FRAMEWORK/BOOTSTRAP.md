@@ -85,25 +85,26 @@ node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 
 ### 首次凭据：Image2（问一次，试通后落盘）
 
-**没有 key+URL（或 `IMAGE2_VENDORS`），Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。完整规程 SSOT：`workflow/00-setup/03-tool-selection.md`。
+**没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。完整规程 SSOT：`workflow/00-setup/03-tool-selection.md`。
 
 进 deck 时：先扫 `_lessons/`（自留教训面）；若有 `image2-proven.yaml` 优先用它再猜 endpoint。
 
-1. **问用户要**候选。多 key 推荐：
+1. **问用户要**候选 key 和 URL。
    ```
-   IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|APIMART_API_KEY
+   IMAGE2_API_KEY=sk-...
+   IMAGE2_BASE_URL=https://your-relay/v1
    ```
-   （行内只写 KEY_ENV **名**；密钥值各自写在对应变量里。）单 key 仍可用 `IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或 `IMAGE2_BASE_URLS`）。别名 `OPENAI_*` / `APIMART_*` 也认。**`IMAGE2_VENDORS` 非空时优先于 BASE_URL(S)。**
-2. **写进 deck 根（优先）或 repo 根 `.env`**（密钥与路由分行；勿把 secret 嵌进 VENDORS 行）。
+   单 key + 单 URL。`IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 两者都必填。
+2. **写进 deck 根（优先）或 repo 根 `.env`**（密钥与 URL 分行）。
 3. **重跑 doctor** → `api_key` 与 `image_base_url` 都变 `✓`（从 deck 或 repo 根跑；walk-up 找 `.env`）。
 4. **廉价冒烟**（多组合；禁止首败甩锅）：  
    - 门禁：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke`（只探第一家）  
    - 或：`… style-master <versionDir> --force --resolution 1k`  
-   首败换组合（下一 VENDORS 项 / 别名 / URL 列表 / `--base-url`）；症状持续 → 白话亮能力，跑通道体检（见下）。通了再继续。
+   首败换 `--base-url`；症状持续 → 白话亮能力，跑通道体检（见下）。通了再继续。
 5. **通道体检**（哪家通、哪家快）：意图路由见 [COMMANDS.md](COMMANDS.md)「环境 / 画画通道」→ playbook `probe-image-channels`，或直跑  
    `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --probe-vendors`  
    （与 `--smoke` 互斥；**不**自动写 `.env`；写路由须人确认。）长出图 / 长探针：转述 stdout 心跳与 `i/N`，勿静默干等。
-6. **试通落点**：生效 `IMAGE2_*` / `IMAGE2_VENDORS` → `.env`；非密钥回执 → `_lessons/image2-proven.yaml`（`proven_at` / `base_url` / `via` 含 `vendors`|`env`|`cli`|…；**无 key**）。  
+6. **试通落点**：生效 `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` → `.env`；非密钥回执 → `_lessons/image2-proven.yaml`（`proven_at` / `base_url` / `via` 含 `env`|`cli`；**无 key**）。  
    `_lessons/` = 遇事自己克服后留下的非密钥教训（先读再猜）——不是 `_state/` 进度，不是密钥，也不是 Image2 专用夹。
 
 ### Stage 2 在框架内（无 skill）

@@ -33,7 +33,6 @@ import {
 import {
   generateOneImage,
   resolveVendors,
-  bridgeCredentials,
   DEFAULT_MODEL,
   ImageProviderError,
 } from "./image_api_client.mjs";
@@ -90,9 +89,8 @@ export async function generateStyleMaster({
     p = parent;
   }
   loadDotenv(...searchDirs);
-  bridgeCredentials();
 
-  // CLI --base-url extras only; empty → generateOneImage uses full IMAGE2_VENDORS/env.
+  // CLI --base-url overrides IMAGE2_BASE_URL at runtime.
   const cliBaseUrls = Array.isArray(baseUrl) ? baseUrl.filter(Boolean) : [];
   if (!dryRun) {
     try {

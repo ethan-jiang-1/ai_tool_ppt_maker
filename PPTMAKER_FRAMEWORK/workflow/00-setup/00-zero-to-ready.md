@@ -100,7 +100,6 @@ Agent 会检查你的系统，告诉你缺什么，帮你装好依赖。你只�
 ```bash
 export IMAGE2_API_KEY="你的key"
 export IMAGE2_BASE_URL="https://你的-relay/v1"   # 必填；无静默默认 endpoint
-# 别名 OPENAI_* / APIMART_* 仍认。详见 workflow/00-setup/03-tool-selection.md
 ```
 
 ---

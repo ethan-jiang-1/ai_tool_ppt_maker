@@ -4,7 +4,7 @@
 
 Stage 2 SHALL be implemented by Node ESM modules under `PPTMAKER_FRAMEWORK/scripts/`. The unified pipeline SHALL call these modules directly, not discover external skills.
 
-Image credentials SHALL follow the **Image2 contract**: canonical `IMAGE2_API_KEY` plus `IMAGE2_BASE_URL` and/or `IMAGE2_BASE_URLS`. Legacy `OPENAI_*` / `APIMART_*` SHALL remain accepted. Priority: `IMAGE2_*` then `OPENAI_*` then `APIMART_*`; CLI `--base-url` overrides env. These variables are for **image generation only**, not chat LLMs. Errors SHALL name IMAGE2 variables.
+Image credentials SHALL follow the **Image2 contract**: canonical `IMAGE2_API_KEY` plus `IMAGE2_BASE_URL` and/or `IMAGE2_BASE_URL`. Legacy `OPENAI_*` / `IMAGE2_*` SHALL remain accepted. Priority: `IMAGE2_*` then `OPENAI_*` then `IMAGE2_*`; CLI `--base-url` overrides env. These variables are for **image generation only**, not chat LLMs. Errors SHALL name IMAGE2 variables.
 
 #### Scenario: Pipeline uses in-framework generator
 

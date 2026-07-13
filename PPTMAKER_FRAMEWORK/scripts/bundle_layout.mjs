@@ -199,7 +199,7 @@ export const GEN_HEADER_LOCKED_SUBDIR = 'header_locked';
 export const GEN_PPT_SUBDIR = 'ppt';
 export const GEN_QA_SUBDIR = 'qa';
 export const GEN_PREVIEW_SUBDIR = 'preview';
-export const IMAGE_TRACE_SUFFIX = '.apimart-task.json';
+export const IMAGE_TRACE_SUFFIX = '.image-task.json';
 
 // ---------------------------------------------------------------------------
 // --- CANONICAL STRUCTURE (the ONE data source) -----------------------------
@@ -840,9 +840,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         '# 复制本文件为 .env 并填好；管线按 cwd 向上加载 .env（填一次即可）。\n' +
         '# 这些变量只用于出图，不是 ChatGPT 聊天。\n\n' +
         'IMAGE2_API_KEY=            # 必填：图像 API key\n' +
-        'IMAGE2_BASE_URL=           # 必填：API 端点，如 https://<relay>/v1\n' +
-        '# IMAGE2_BASE_URLS=        # 可选；非空可代替单条 BASE_URL（逗号分隔）\n\n' +
-        '# 别名仍认：OPENAI_* / APIMART_*（优先 IMAGE2_*）。\n');
+        'IMAGE2_BASE_URL=           # 必填：API 端点，如 https://<relay>/v1\n');
     _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +

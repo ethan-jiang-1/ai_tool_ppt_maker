@@ -293,14 +293,14 @@ No real company logo, no watermark, no page number, no draft label.
 > 而不是塞进 `/tmp` 用完就丢。style_master 是 image-2 画出来的,它的 prompt 和每页 slide 的
 > prompt 一样重要——画歪了要能回溯"当初拿什么 prompt 画的"。
 
-Prompt 存好后，用框架统一 wrapper 生成 style master。它负责读取 prompt、加载 `.env`、桥接凭据变量并保存 trace：
+Prompt 存好后，用框架统一 wrapper 生成 style master。它负责读取 prompt、加载 `.env`、（`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`）并保存 trace：
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
-Style master 用 `2k` resolution——它是其他一切所 reference 的基础图像,quality matters。脚本自动处理 API submission、polling、downloading 和保存 trace file(`.apimart-task.json`)。生成后 `2_backbone/visual-style/` 里同时有:`style-master-prompt.md`(源 prompt)+ `style_master.jpg`(图)+ trace。
+Style master 用 `2k` resolution——它是其他一切所 reference 的基础图像,quality matters。脚本自动处理 API submission、polling、downloading 和保存 trace file(`.image-task.json`)。生成后 `2_backbone/visual-style/` 里同时有:`style-master-prompt.md`(源 prompt)+ `style_master.jpg`(图)+ trace。
 
 ---
 

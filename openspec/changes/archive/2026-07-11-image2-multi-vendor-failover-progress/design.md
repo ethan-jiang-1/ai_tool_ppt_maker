@@ -13,7 +13,7 @@ C 意图可发现      COMMANDS 同义词 → playbook 编排 │ 症状亮能�
 实验结论（勿再推翻）：vendor 参数面无真差异；真差异 = sync/async + url/b64，一个薄分支 + `extractImageRef` 即可。推荐顺序 LCON → Zenmux → apib。
 
 ```bash
-IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|APIMART_API_KEY
+IMAGE2_BASE_URL=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|IMAGE2_API_KEY
 ```
 
 约束：Node ESM；CLI JSON envelope；不新增顶层子命令；不造 watch daemon。
@@ -27,7 +27,7 @@ IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/ap
 
 ### A — 运行时
 
-**D1 `resolveVendors`：** `--base-url`（仅共享 key）→ `IMAGE2_VENDORS` → legacy BASE_URL(S)+共享 key。VENDORS 非空忽略 legacy URL。缺 KEY_ENV → 整表失败点名。多 vendor 不靠 `bridgeCredentials`。
+**D1 `resolveVendors`：** `--base-url`（仅共享 key）→ `IMAGE2_BASE_URL` → legacy BASE_URL(S)+共享 key。VENDORS 非空忽略 legacy URL。缺 KEY_ENV → 整表失败点名。多 vendor 不靠 `bridgeCredentials`。
 
 **D2 一层循环：** submit → 有图则存 → 否则 poll → 否则下一 vendor。
 
@@ -43,7 +43,7 @@ IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/ap
 |--|------|------|
 | 静态 | key/url/VENDORS | READY / NOT READY |
 | `--smoke` | 第一家 | 门禁 |
-| `--probe-vendors` | 全部 | 每家 ok/fail/mode/elapsed + Suggested `IMAGE2_VENDORS`（通的按耗时升序，不通附末） |
+| `--probe-vendors` | 全部 | 每家 ok/fail/mode/elapsed + Suggested `IMAGE2_BASE_URL`（通的按耗时升序，不通附末） |
 
 成功判定一律：图 ref **或** task id（共用 extract helpers；缺则 export）。不写 `.env`。两旗标互斥。`ppt_flow doctor` 转发；仍 12 命令。  
 `api_key`：共享 key **或** VENDORS 各项均可解析。

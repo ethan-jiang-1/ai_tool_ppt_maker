@@ -3,21 +3,16 @@
 Define Stage 2 (image generation) as an **in-framework Node** capability: async
 submit→poll→download via `image_api_client.mjs`, batch generation via
 `stage2_generate_images.mjs`, and QA contact sheets via `make_contact_sheet.mjs`.
-Credentials follow the Image2 contract (`IMAGE2_VENDORS` and/or `IMAGE2_*`, with OPENAI_*/APIMART_* aliases).
+Credentials SHALL use `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` (CLI `--base-url` overrides the URL).
 No external agent skills. No Python. No bash.
 ## Requirements
 ### Requirement: Stage 2 is implemented inside the framework
 
 Stage 2 SHALL be implemented by Node ESM modules under `PPTMAKER_FRAMEWORK/scripts/`. The unified pipeline SHALL call these modules directly, not discover external skills.
 
-Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or equivalent) into an ordered list of `{ base_url, api_key }` vendors. Canonical configuration forms:
+Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors`) into a single `{ base_url, api_key }` entry. The key is `IMAGE2_API_KEY`; the base URL is `IMAGE2_BASE_URL`, with CLI `--base-url` taking priority. These variables are for **image generation only**, not chat LLMs. Missing key or URL SHALL produce a clear error naming the missing variable.
 
-1. **Vendor list (preferred for multi-key):** non-empty `IMAGE2_VENDORS` — comma-separated ordered items `base_url|KEY_ENV_VAR` (recommended example: `https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|APIMART_API_KEY`). The list SHALL NOT embed secret values; each item resolves `api_key` from `process.env[KEY_ENV_VAR]`. An item without `|KEY_ENV_VAR` SHALL fall back to the shared Image2 key (`IMAGE2_API_KEY`, then OPENAI_*/APIMART_* aliases). If any listed item cannot resolve a key, resolution SHALL fail and name the missing variable.
-2. **Legacy single-key + URL(s):** when `IMAGE2_VENDORS` is empty/unset — `IMAGE2_API_KEY` (or aliases) plus `IMAGE2_BASE_URL` and/or `IMAGE2_BASE_URLS` (OPENAI_*/APIMART_* aliases). The client SHALL synthesize an ordered vendor list sharing that one key.
-
-**Priority:** CLI `--base-url` (highest) SHALL replace the URL list and MUST pair only with the shared Image2 key (not a key borrowed from `IMAGE2_VENDORS`); if no shared key is set, resolution SHALL fail naming `IMAGE2_API_KEY`. Else if `IMAGE2_VENDORS` is non-empty it SHALL be the sole env vendor source and legacy `IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS` SHALL be ignored for routing. Else legacy URL(s) + shared key. These variables are for **image generation only**, not chat LLMs. Errors SHALL name the IMAGE2 variable that is missing or in use (`IMAGE2_VENDORS` / `IMAGE2_BASE_URL` / `IMAGE2_API_KEY` as applicable).
-
-`generateOneImage` SHALL try vendors **in list order**. On each failure it SHALL log with the existing `Mirror failed (<base_url>):` prefix and the error message (no silent swallow). When all vendors fail it SHALL throw an error whose message includes an **attempts summary** (each attempt: base URL + short error; at most five attempts in the summary). Sync vs async SHALL remain one thin post-submit branch: if `extractImageRef` yields an image, save it; else if a task id exists, poll; else fail that attempt. Output shapes (`url`, `b64_json`, poll-embedded URL) SHALL continue through one extract helper — no per-vendor strategy classes.
+`generateOneImage` SHALL submit the image request, poll if async, and save the result. On failure it SHALL throw an `ImageProviderError` with host, reason, and HTTP status where known. Sync vs async SHALL remain one thin post-submit branch: if `extractImageRef` yields an image, save it; else if a task id exists, poll; else fail that attempt. Output shapes (`url`, `b64_json`, poll-embedded URL) SHALL continue through one extract helper.
 
 #### Scenario: Pipeline uses in-framework generator
 
@@ -26,41 +21,24 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or
 
 #### Scenario: Missing base URL fails at resolve time
 
-- **WHEN** Stage 2 runs with a shared key but no resolvable base URL and no `IMAGE2_VENDORS`
+- **WHEN** Stage 2 runs with `IMAGE2_API_KEY` set but no `IMAGE2_BASE_URL`
 - **THEN** resolution fails naming `IMAGE2_BASE_URL`
 
-#### Scenario: IMAGE2_VENDORS resolves per-vendor keys
+#### Scenario: CLI --base-url overrides IMAGE2_BASE_URL
 
-- **WHEN** `IMAGE2_VENDORS` lists two `url|KEY_ENV` items and both KEY_ENV values are set
-- **THEN** `resolveVendors` returns two vendors with distinct keys in list order
+- **WHEN** `--base-url https://custom.example/v1` is passed and `IMAGE2_API_KEY` is set
+- **THEN** the custom URL is used instead of `IMAGE2_BASE_URL`
 
-#### Scenario: IMAGE2_VENDORS missing KEY_ENV fails at resolve
+#### Scenario: Missing API key fails at resolve time
 
-- **WHEN** `IMAGE2_VENDORS` lists `https://example/v1|MISSING_KEY_VAR` and that variable is unset
-- **AND** no shared Image2 key applies as fallback for that item
-- **THEN** resolution fails naming `MISSING_KEY_VAR`
-
-#### Scenario: Legacy BASE_URLS plus single key still works
-
-- **WHEN** only `IMAGE2_API_KEY` and `IMAGE2_BASE_URLS` are set (no `IMAGE2_VENDORS`)
-- **THEN** the client synthesizes an ordered vendor list sharing that key
-
-#### Scenario: IMAGE2_VENDORS wins over legacy BASE_URL
-
-- **WHEN** both `IMAGE2_VENDORS` and `IMAGE2_BASE_URL` are set
-- **THEN** routing uses only the `IMAGE2_VENDORS` list
-
-#### Scenario: CLI --base-url requires shared key
-
-- **WHEN** `--base-url` is passed and no shared `IMAGE2_API_KEY` / OPENAI / APIMART key is set
+- **WHEN** Stage 2 runs with `IMAGE2_BASE_URL` set but no `IMAGE2_API_KEY`
 - **THEN** resolution fails naming `IMAGE2_API_KEY`
-- **AND** it does not silently use a key from `IMAGE2_VENDORS`
 
-#### Scenario: Failover logs each attempt and aggregates on total failure
+#### Scenario: Provider failure surfaces host and reason
 
-- **WHEN** the first vendor fails and the second also fails
-- **THEN** output includes a `Mirror failed` line for each vendor base URL
-- **AND** the thrown error message includes an attempts summary covering both
+- **WHEN** the image provider returns an error
+- **THEN** the `ImageProviderError` includes host, reason, and HTTP status where known
+- **AND** no credential values or raw response bodies appear in the error
 
 #### Scenario: Sync submit success without task_id
 
@@ -83,25 +61,25 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors` or
 
 ### Requirement: Image2 smoke, persist secrets to .env, lessons to _lessons/
 
-Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-tool-selection.md`) SHALL require: on missing credentials or first image failure, the agent tries multiple combinations (`IMAGE2_VENDORS` items in order, IMAGE2_*, aliases, BASE_URLS, `--base-url`, user URLs) and a cheap smoke (`doctor --smoke` and/or `style-master … --force --resolution 1k`) before telling a novice to self-configure. When image-path symptoms persist (smoke fail, 502, all vendors fail, or user reports images will not generate), entry docs SHALL also direct the agent to offer channel体检 in plain language (playbook `probe-image-channels` / `doctor --probe-vendors`) rather than only "configure the API yourself". Entry docs SHALL document `IMAGE2_VENDORS` as the multi-vendor form and SHALL state that when `IMAGE2_VENDORS` is set it takes routing precedence over `IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS`.
+Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-tool-selection.md`) SHALL require: on missing credentials or image failure, the agent verifies `IMAGE2_API_KEY` and `IMAGE2_BASE_URL` and runs a cheap smoke (`doctor --smoke` and/or `style-master … --force --resolution 1k`) before telling a novice to self-configure. When image-path symptoms persist (smoke fail, 502, or user reports images will not generate), entry docs SHALL direct the agent to offer channel体检 in plain language (`doctor --probe-vendors`) rather than only "configure the API yourself".
 
 On success, the **run bundle** retains:
 
-1. **Secrets and routing in `.env`** (walk-up, prefer deck-root): secret key **values** in their env vars; optional non-secret `IMAGE2_VENDORS` routing line (KEY_ENV **names** only in that line).
-2. **Non-secret lesson** → `deck_*/_lessons/image2-proven.yaml` under `_lessons/` (read-before-guess). Fields: `proven_at`, `base_url`, `via` (`env`|`cli`|`alias`|`user-provided`|`vendors`), optional `notes`; **no API key field**.
+1. **Secrets in `.env`** (walk-up, prefer deck-root): `IMAGE2_API_KEY` and `IMAGE2_BASE_URL` values.
+2. **Non-secret lesson** → `deck_*/_lessons/image2-proven.yaml` under `_lessons/` (read-before-guess). Fields: `proven_at`, `base_url`, `via` (`env`|`cli`), optional `notes`; **no API key field**.
 
 Entry docs SHALL describe `_lessons/` as the general retained-lessons surface and SHALL treat `image2-proven.yaml` as an Image2 example entry, not as the definition of `_lessons/`. Next session SHOULD read `_lessons/` before guessing endpoints. The agent SHALL NOT leave proven combos only in chat, SHALL NOT put keys in `_lessons/`, and SHALL NOT invent non-canonical folders for these lessons.
 
 #### Scenario: Smoke succeeds then bundle retains the lesson
 
-- **WHEN** a smoke combination succeeds after earlier failures
-- **THEN** `.env` retains the working secret vars and any chosen `IMAGE2_VENDORS` routing
+- **WHEN** a smoke succeeds with valid credentials
+- **THEN** `.env` retains the working `IMAGE2_API_KEY` and `IMAGE2_BASE_URL`
 - **AND** `_lessons/image2-proven.yaml` exists without an API key field
 
 #### Scenario: Novice is not left with a single hard failure
 
-- **WHEN** doctor reports missing Image2 URL/key or the first smoke fails
-- **THEN** entry docs direct further combinations (including the next `IMAGE2_VENDORS` item) and channel体检 as a concrete next step before "configure the API yourself" as the only next step
+- **WHEN** doctor reports missing Image2 URL/key or the smoke fails
+- **THEN** entry docs direct verifying credentials and channel体检 as a concrete next step before "configure the API yourself" as the only next step
 
 #### Scenario: Persist docs name _lessons as general surface
 
@@ -152,7 +130,7 @@ Submit wait SHALL be bounded by the same per-image budget as poll (`MAX_WAIT_MS`
 
 - **WHEN** a single submit stays in flight longer than `MAX_WAIT_MS`
 - **THEN** that vendor attempt fails with a timeout error identifying submit phase
-- **AND** the client may failover to the next vendor
+- **AND** the client records the timeout error with submit phase and host
 
 #### Scenario: Per-image timeout stops polling
 
@@ -179,21 +157,21 @@ The test suite SHALL include checked-in, secret-free JSON fixtures for known rel
 - **WHEN** Stage 2 generates a batch of three slides
 - **THEN** output includes progress lines that identify each slide as part of `i/3` (or equivalent `i/N`)
 
-### Requirement: Image generation trace records vendor attempts without secrets
+### Requirement: Image generation trace records provider info without secrets
 
-When `generateOneImage` succeeds and writes a trace JSON (e.g. `*.apimart-task.json`), the trace SHALL include the winning `base_url` and an `attempts` array of prior failed tries as `{ base_url, error }` (empty array when the first vendor succeeded), **without** API key values. Total failure after all vendors fail SHALL NOT be required to write a trace file; the thrown attempts summary is sufficient.
+When `generateOneImage` succeeds and writes a trace JSON (e.g. `*.image-task.json`), the trace SHALL include the `base_url`, task id, model, resolution, elapsed time, and an `attempts` array of prior failed tries as `{ base_url, reason, status }` (empty array when the first attempt succeeded), **without** API key values or raw response bodies. Total failure SHALL NOT be required to write a trace file; the thrown attempts summary is sufficient.
 
-#### Scenario: Successful failover trace names winning base_url and prior attempts
+#### Scenario: Trace records provider metadata
 
-- **WHEN** the first vendor fails and the second succeeds and a trace path is provided
-- **THEN** the trace file includes the winning `base_url`
-- **AND** `attempts` includes the failed first vendor
+- **WHEN** image generation succeeds and a trace path is provided
+- **THEN** the trace file includes `base_url`, task id, model, and elapsed seconds
+- **AND** `attempts` records any prior failed attempts with host, reason, and HTTP status
 - **AND** no API key appears in the trace file
 
-#### Scenario: First-vendor success writes empty attempts
+#### Scenario: First-attempt success writes empty attempts
 
-- **WHEN** the first vendor succeeds and a trace path is provided
-- **THEN** the trace includes the winning `base_url`
+- **WHEN** the provider succeeds on the first try and a trace path is provided
+- **THEN** the trace includes the `base_url`
 - **AND** `attempts` is an empty array
 
 ### Requirement: Raw image cache reuse is proven by a generation manifest

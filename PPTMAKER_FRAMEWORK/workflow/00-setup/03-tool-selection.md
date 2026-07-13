@@ -28,32 +28,21 @@ agent_action: internalize
 
 | 方式 | 说明 | Base URL |
 |------|------|----------|
-| **当前默认** | APIMart-compatible async relay | **必填** `IMAGE2_BASE_URL`（或非空 `IMAGE2_BASE_URLS`） |
+| **当前默认** | Async relay (submit/poll/download) | **必填** `IMAGE2_BASE_URL` |
 | **其他供应商** | 需匹配同一 submit/poll/download contract；差异改 `image_api_client.mjs` | 由你配置 |
 
 ### 环境变量配置（Image2 契约 · SSOT）
 
-**多 vendor（推荐）**——`IMAGE2_VENDORS` 非空时**优先于** `IMAGE2_BASE_URL` / `IMAGE2_BASE_URLS`；行内只写 KEY_ENV **名**：
-
-```
-# 密钥值各自放在对应变量里（勿嵌进 VENDORS 行）
-CODEX_API_KEY_LCONAI=sk-...
-CODEX_API_KEY_ZENMUX=sk-...
-APIMART_API_KEY=sk-...
-IMAGE2_VENDORS=https://s.lconai.com/v1|CODEX_API_KEY_LCONAI,https://zenmux.ai/api/v1|CODEX_API_KEY_ZENMUX,https://api.apib.ai/v1|APIMART_API_KEY
-```
-
-**单 key + URL（legacy，仍支持）**：
+在 deck 根（优先）或 repo 根创建 `.env`：
 
 ```
 IMAGE2_API_KEY=sk-...
 IMAGE2_BASE_URL=https://your-relay/v1
-# IMAGE2_BASE_URLS=https://a/v1,https://b/v1   # 可选；非空可代替单条 BASE_URL
 ```
 
-别名仍认：`OPENAI_*` / `APIMART_*`。解析优先级：CLI `--base-url`（仅配共享 key）→ `IMAGE2_VENDORS` → legacy URL(S)+共享 key。
+两者都必填。`IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 是唯一的凭据组合。CLI `--base-url` 可在运行时覆盖 URL。
 
-写进 **deck 根（优先）或 repo 根** 的 `.env`（walk-up 加载）。doctor ≡ 运行时：缺可解析 key 或缺 URL/VENDORS → **NOT READY**（无静默默认 endpoint）。
+写进 **deck 根（优先）或 repo 根** 的 `.env`（walk-up 加载）。doctor ≡ 运行时：缺 key 或缺 URL → **NOT READY**（无静默默认 endpoint）。
 
 Contract：
 
@@ -69,8 +58,8 @@ submit / poll / result 均认 `data` 为对象或数组包络（含 `{ code, dat
 
 缺凭据、doctor 报缺 URL、或第一次出图失败时，Agent **必须**多组合试通，再告诉新手「你自己配」：
 
-1. 问用户要候选 key / URL / `IMAGE2_VENDORS` 项（及别名）
-2. 按优先级试：`IMAGE2_VENDORS` 各项 → 共享 `IMAGE2_*` → 别名 → `BASE_URLS` → `--base-url` → 用户给的其它 URL
+1. 问用户要候选 key / URL
+2. 按优先级试：`IMAGE2_*` → `--base-url` → 用户给的其它 URL
 3. 廉价门禁：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke`（第一家）  
    或：`… style-master <versionDir> --force --resolution 1k`
 4. 首败换组合；禁止首败结案
@@ -83,11 +72,11 @@ submit / poll / result 均认 `data` 为对象或数组包络（含 `{ code, dat
 
 | 写什么 | 写哪 | 指定的事儿 |
 |--------|------|------------|
-| 生效密钥 + 可选 `IMAGE2_VENDORS` 路由行 | `.env`（优先 deck 根） | 密钥 / 机器加载；VENDORS 行无 secret 值 |
+| 生效密钥 | `.env`（优先 deck 根） | 密钥 / 机器加载 |
 | 非密钥回执 | `deck_*/_lessons/image2-proven.yaml` | **一类教训条目**（服从 `_lessons/README` 规矩） |
 
 `_lessons/` 是 run bundle **自留教训面**（遇事自己克服 → 留下 → 下次先读），不是 Image2 专用夹。`image2-proven.yaml` 只是例子。  
-字段：`proven_at`、`base_url`、`via`（`env`|`cli`|`alias`|`user-provided`|`vendors`）、可选 `notes`；**无 API key 字段**。
+字段：`proven_at`、`base_url`、`via`（`env`|`cli`|`user-provided`）、可选 `notes`；**无 API key 字段**。
 
 禁止：经验只留聊天；密钥进 `_lessons/`；自创非宪法目录装教训；探针未确认就写 `.env`。
 
@@ -120,7 +109,7 @@ Phase 0 创建 run bundle 后，确认：
 
 - [ ] 在 repo 根运行 `npm install` 成功
 - [ ] `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` 显示 READY
-- [ ] `IMAGE2_VENDORS` 已设，**或** `IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（或 `IMAGE2_BASE_URLS`）已设置
+- [ ] `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 已设置
 - [ ] 若已有 `_lessons/image2-proven.yaml`，先读再猜 endpoint
 - [ ] 出图症状持续时已考虑 `doctor --probe-vendors` / `probe-image-channels`（见 COMMANDS「环境 / 画画通道」）
 - [ ] 字体文件存在于 `stage3_lock_headers.mjs` 可解析路径（bundled `fonts/` 或系统字体）

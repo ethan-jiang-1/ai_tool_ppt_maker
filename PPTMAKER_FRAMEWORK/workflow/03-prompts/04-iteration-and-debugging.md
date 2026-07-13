@@ -61,7 +61,7 @@ agent_action: ask_questions
 
 1. **改太多变量**：一次改 5 个地方 → 你不知道哪个改动产生了哪个效果 → 下轮重蹈覆辙。**一次改 1-2 个变量。**
 2. **追求 100%**：95% 够了。剩下 5% 的细节在 slide 实际播放时观众不会注意到。**Perfection is the enemy of done.**
-3. **不看 trace**：图片有问题但你不看 `.apimart-task.json`——不知道是哪个 model、哪个 mirror、prompt 有多长。**Always check trace before debugging.**
+3. **不看 trace**：图片有问题但你不看 `.image-task.json`——不知道是哪个 model、哪个 mirror、prompt 有多长。**Always check trace before debugging.**
 
 ---
 

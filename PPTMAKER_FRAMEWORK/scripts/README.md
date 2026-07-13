@@ -23,7 +23,7 @@
 | `stage5_inject_notes.mjs` | 5 | `.pptx` + `slide-specifications.md` → `.pptx` (with notes) | `pptxgenjs` |
 | `unified_pipeline.mjs` | 编排 | 串联 Stage 1→5 | 所有 |
 
-Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill。凭据规范名：`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`（别名 `OPENAI_*` / `APIMART_*`）；详见 `workflow/00-setup/03-tool-selection.md`。
+Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill。凭据规范名：`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`；详见 `workflow/00-setup/03-tool-selection.md`。
 
 ## 辅助
 

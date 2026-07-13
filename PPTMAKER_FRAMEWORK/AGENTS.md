@@ -339,7 +339,7 @@ node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
-> **提示**：生成的 `style_master.jpg` 放在 `2_backbone/visual-style/` 下,和它的源 prompt(`style-master-prompt.md`)、trace(`.apimart-task.json`)在一起。style master 是全版本共享的视觉锚,属于 backbone。
+> **提示**：生成的 `style_master.jpg` 放在 `2_backbone/visual-style/` 下,和它的源 prompt(`style-master-prompt.md`)、trace(`.image-task.json`)在一起。style master 是全版本共享的视觉锚,属于 backbone。
 
 然后跳到 Phase 2 闸门——审查视觉系统，用户确认锁定。
 
@@ -380,7 +380,7 @@ node PPTMAKER_FRAMEWORK/scripts/generate_style_master.mjs \
   --run-dir deck_{NAME}/3_versions/v1 --resolution 2k
 ```
 
-wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、按 Image2 契约解析凭据（`IMAGE2_*`，别名 `OPENAI_*`/`APIMART_*`），并把图片与 trace 写回同一视觉源目录。
+wrapper 会读取 prompt 文件、自动加载 deck 根 `.env`、按 Image2 契约解析凭据（`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`），并把图片与 trace 写回同一视觉源目录。
 
 ### 2.5 提取 deck_system.txt
 
