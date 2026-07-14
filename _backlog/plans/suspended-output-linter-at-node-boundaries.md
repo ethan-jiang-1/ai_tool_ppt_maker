@@ -1,6 +1,12 @@
-# Plan: Output Linter at Node Boundaries
+# SUSPENDED: Output Linter at Node Boundaries
 
-> 类型：设计边界 | 更新：2026-07-14
+> 状态：SUSPENDED | 更新：2026-07-14
+
+## 暂停原因
+
+当前项目中，Agent 手写结构化数据的实际机会很少，现阶段为此调整框架不值得。
+
+本计划停止推进，不修改 `PPTMAKER_FRAMEWORK/`。只有以后出现多个真实、重复发生的 Agent 结构化输出问题，才重新评估；不能因为本文已经存在就顺势实施。
 
 ## 一句话
 
