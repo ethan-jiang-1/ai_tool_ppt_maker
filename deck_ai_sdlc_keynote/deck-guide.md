@@ -36,7 +36,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
   - 下一步人审：open style master → LOCK / RETRY / BACK
 - **管线产物**（`3_versions/v1/_generated/`；该目录 gitignore，以磁盘为准）：
   - `slide_plan.json` + `page_prompts/` — 由当前框架重建（**25** 页）
-  - `page_images_full/` / `header_locked/` / `ppt/` — 当前应为空，直到新版 provenance + header review 流程重新生成
+  - `page_images_full/` / `header_locked/` / `ppt/` — 已重新生成（25 页，2K，含 `_manifest.json` provenance + header-review evidence）
   - 旧 25 张 raw/locked 图片、PPTX、contact sheets 与旧 prompts 已备份到版本 `_scratch/framework-sync-2026-07-12/`
   - 详见 [MIGRATION.md](MIGRATION.md)
 

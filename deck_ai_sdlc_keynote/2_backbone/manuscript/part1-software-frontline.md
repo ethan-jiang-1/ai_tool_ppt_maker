@@ -1,13 +1,26 @@
 ---
 title: Part 1 — The Software Frontline
 part: 1
-slides: S1.1–S1.9
-version: v1
+slides: S1.1–S1.9 (06–15 in v1 production)
+version: v2
 status: draft
+updated: 2026-07-15
 sources:
   - 1_upstream_raw_material/software/topics/
   - 1_upstream_raw_material/software/storylines/
-  - 1_upstream_raw_material/business/  # Block/Cloudflare cases live under business topics when present; external archives noted historically
+  - 1_upstream_raw_material/business/  # Block/Cloudflare cases
+note: v2 吸纳 v1 honest footnote 惯例 + slide ID 对照
+
+slide_id_map:
+  S1.1: s06_old_map_new_map (SDLC 前提被挖)
+  S1.2: s07_deer_valley_engelberg (Fowler 两次 retreat)
+  S1.3: s08_beck_fowler (Beck+Fowler 同台)
+  S1.4: s09_fable5_bottleneck (Fable 5 瓶颈转移)
+  S1.5: s10_the_chain (信息加工链)
+  S1.6: s11_too_fast_to_review (反馈周期炸了)
+  S1.7: s12_on_the_loop (in-the-loop→on-the-loop)
+  S1.8: s13_mid_pack_at_risk (Three-Tier Split)
+  S1.9: s14_block_layoff + s15_cloudflare_precision (Block vs Cloudflare)
 ---
 
 # PART 1: THE SOFTWARE FRONTLINE — 高科技软件业经历了什么
