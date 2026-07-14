@@ -557,45 +557,22 @@ Evidence-backed conditions SHALL use records shaped as `{met:true, kind:"user"|"
 
 #### Scenario: Known node rename is playbook-scoped
 
-- **WHEN** legacy state has `playbook: edit-text` and `current_node: verify-output`
-- **THEN** migration maps it to the text-specific node ID
-- **AND** the same legacy ID under `edit-visual` maps to the visual-specific node ID
-
-#### Scenario: Playbook-scoped alias covers the full create-deck rename
-
-- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
-- **AND** `nodes` contains keys `hitl1`, `hitl2`, `wave0`, `wave1`, `wave2`
-- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
-- **AND** all five node keys in `nodes` are mapped to their canonical names
-- **AND** `state.diagnostics` contains at least one migration entry referencing the create-deck rename
+- **WHEN** legacy state has `playbook:` set to a playbook whose `NODE_ALIASES` entry maps legacy ID `⟨legacy-id⟩` to canonical ID `⟨canonical-id⟩`
+- **AND** `current_node` equals `⟨legacy-id⟩`
+- **THEN** migration maps `current_node` to `⟨canonical-id⟩`
+- **AND** the same legacy ID under a different playbook maps to that playbook's own canonical ID
 - **AND** the migration is idempotent on repeated reads
 
-#### Scenario: Pointer-only migration preserves current_node without a node record
+#### Scenario: Playbook-scoped alias migration is comprehensive and idempotent
 
-- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
-- **AND** `nodes` does NOT contain a `hitl2` key
-- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
-- **AND** `current_node` is not cleared during active-working-set restriction
-- **AND** the migration is idempotent on repeated reads
-
-#### Scenario: Legacy and canonical keys coexist with canonical priority
-
-- **WHEN** legacy state has `playbook: create-deck`
-- **AND** `nodes` contains BOTH legacy key `wave0` (with `status: completed`, `extra_field: old-value`) AND canonical key `authoring-slides` (with `status: in_progress`)
-- **THEN** `readState(deckDir)` returns a healed state where the canonical `authoring-slides` record has `status: in_progress` (canonical wins)
-- **AND** `extra_field: old-value` is preserved from the legacy record (missing fields filled)
-- **AND** the legacy `wave0` key is removed
-- **AND** the canonical record's business fields (status, decision, evidence content) are preserved; execution ID is normalized to the owning active/stack execution per `validateState` rules; timestamps are cleaned per existing healer rules (incompatible fields removed, compatible timestamps preserved)
-- **AND** a second heal produces identical state
-
-#### Scenario: Playbook stack entries receive alias migration
-
-- **WHEN** legacy state has `playbook_stack` containing an entry with `playbook: create-deck`
-- **AND** that entry's `current_node` or `controller_nodes` keys reference old `hitl2` or `wave0` IDs
-- **THEN** `readState(deckDir)` returns a healed state where those stack entry fields are migrated to canonical names
-- **AND** `controller_nodes` keys are migrated alongside `current_node`
+- **WHEN** legacy state has `playbook:` set to a playbook whose `NODE_ALIASES` entry maps one or more legacy IDs to canonical IDs
+- **THEN** `readState(deckDir)` returns a healed state where:
+  - **Pointer migration**: `current_node` matching a legacy ID is migrated to the canonical ID, regardless of whether a corresponding `nodes` record exists (pointer-only case); the migrated pointer survives subsequent active-working-set restriction because the canonical ID is a declared controller node
+  - **Record key migration**: every `nodes` key matching a legacy ID is migrated to its canonical name using `mergeMissing` (canonical fields win; fields present only in legacy are preserved; execution ID is normalized to the owning execution; timestamps follow existing healer rules)
+  - **Stack migration**: every `playbook_stack` entry whose playbook has declared aliases has its `current_node` migrated (pointer-only) and its `controller_nodes` keys migrated (record key, same `mergeMissing` rules)
+  - **Diagnostics**: `state.diagnostics` contains at least one migration message referencing the playbook whose aliases were applied
 - **AND** entries whose playbook has no declared aliases are left unchanged
-- **AND** the same collision and idempotency rules as top-level migration apply to stack entries
+- **AND** the migration is idempotent on repeated reads
 
 #### Scenario: Migration is idempotent
 
