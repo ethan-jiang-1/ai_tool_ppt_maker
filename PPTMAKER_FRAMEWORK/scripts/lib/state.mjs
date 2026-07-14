@@ -67,6 +67,13 @@ export const STATE_DIR_README = `\
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
 const NODE_ALIASES = Object.freeze({
+  "create-deck": Object.freeze({
+    "hitl1": "checkpoint-intake",
+    "hitl2": "checkpoint-final-review",
+    "wave0": "authoring-slides",
+    "wave1": "composing-prompts",
+    "wave2": "producing-deck",
+  }),
   "edit-text": Object.freeze({ "verify-output": "verify-text-output" }),
   "edit-visual": Object.freeze({ "verify-output": "verify-visual-output" }),
 });
@@ -200,13 +207,44 @@ function normalizeNodeRecord(record, nodeId, executionId, migrationTime, state) 
 }
 
 function applyNodeAliases(state) {
+  // Top-level aliases
   const aliases = NODE_ALIASES[state.playbook] || {};
+
+  // Pointer migration (decoupled from record existence)
+  for (const [legacyId, canonicalId] of Object.entries(aliases)) {
+    if (state.current_node === legacyId) {
+      state.current_node = canonicalId;
+      appendDiagnostic(state, `${legacyId} current_node migrated to ${canonicalId} for ${state.playbook}`);
+    }
+  }
+
+  // Record migration with mergeMissing (canonical wins, missing fields filled from legacy)
   for (const [legacyId, canonicalId] of Object.entries(aliases)) {
     if (!state.nodes?.[legacyId]) continue;
     state.nodes[canonicalId] = mergeMissing(state.nodes[canonicalId], state.nodes[legacyId]);
     delete state.nodes[legacyId];
-    if (state.current_node === legacyId) state.current_node = canonicalId;
-    appendDiagnostic(state, `${legacyId} migrated to ${canonicalId} for ${state.playbook}`);
+    appendDiagnostic(state, `${legacyId} nodes key migrated to ${canonicalId} for ${state.playbook}`);
+  }
+
+  // Playbook stack entry aliases
+  for (const entry of state.playbook_stack || []) {
+    const stackAliases = NODE_ALIASES[entry.playbook] || {};
+
+    // Pointer migration for stack entry
+    for (const [legacyId, canonicalId] of Object.entries(stackAliases)) {
+      if (entry.current_node === legacyId) {
+        entry.current_node = canonicalId;
+        appendDiagnostic(state, `playbook_stack entry ${entry.playbook}: ${legacyId} current_node migrated to ${canonicalId}`);
+      }
+    }
+
+    // Controller nodes key migration for stack entry
+    for (const [legacyId, canonicalId] of Object.entries(stackAliases)) {
+      if (!entry.controller_nodes?.[legacyId]) continue;
+      entry.controller_nodes[canonicalId] = mergeMissing(entry.controller_nodes[canonicalId], entry.controller_nodes[legacyId]);
+      delete entry.controller_nodes[legacyId];
+      appendDiagnostic(state, `playbook_stack entry ${entry.playbook}: ${legacyId} controller_nodes key migrated to ${canonicalId}`);
+    }
   }
 }
 
@@ -249,7 +287,12 @@ export function healState(raw) {
     style: state.deck.style == null ? "" : String(state.deck.style),
   };
 
+  // Phase 1: normalize — ensure playbook_stack is a clean plain-object array before alias migration
+  normalizePlaybookStack(state, migrationTime);
+
+  // Phase 2: alias — migrate legacy node IDs (top-level + playbook_stack entries)
   applyNodeAliases(state);
+
   if (state.playbook) {
     if (typeof state.execution_id !== "string" || !state.execution_id) state.execution_id = newExecutionId();
     state.execution_started_at = isoOr(state.execution_started_at, isoOr(state.started_at, migrationTime));
@@ -261,6 +304,7 @@ export function healState(raw) {
     state.current_node = "";
   }
 
+  // Phase 3: restrict — validate migrated current_node against playbook index
   restrictActiveWorkingSet(state);
 
   for (const [id, record] of Object.entries(state.nodes)) {
@@ -273,7 +317,6 @@ export function healState(raw) {
       state.gates[gate] = "pending";
     }
   }
-  normalizePlaybookStack(state, migrationTime);
   for (const entry of state.playbook_stack) {
     if (entry.diagnostic) appendDiagnostic(state, entry.diagnostic);
   }

@@ -72,7 +72,7 @@
 
 | 用户说 | Playbook | 说明 |
 |--------|----------|------|
-| "这段论证逻辑有问题" | `create-deck` | 回 hitl2 → rerun → seed-topics |
+| "这段论证逻辑有问题" | `create-deck` | 回 checkpoint-final-review → rerun → seed-topics |
 | "换个案例, 用X代替Y" | `edit-text` | 改内容, 不改图 |
 | "每页的数据都更新一下" | `edit-text` | 批量文本, 所有页 |
 

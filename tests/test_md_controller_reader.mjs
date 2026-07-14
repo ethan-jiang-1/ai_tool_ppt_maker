@@ -12,7 +12,7 @@ import {
 const PLAYBOOK_DIR = "PPTMAKER_FRAMEWORK/playbook";
 
 export const EXPECTED_CONTROLLER_MANIFEST = Object.freeze({
-  "create-deck": ["instantiation", "hitl1", "setup", "seed-topics", "wave0", "wave1", "wave2", "hitl2", "readiness", "rerun", "final"],
+  "create-deck": ["instantiation", "checkpoint-intake", "setup", "seed-topics", "authoring-slides", "composing-prompts", "producing-deck", "checkpoint-final-review", "readiness", "rerun", "final"],
   "edit-text": ["classify-change", "stage-text", "verify-text-output"],
   "edit-visual": ["classify-change", "pilot", "confirm", "regenerate", "verify-visual-output"],
   "edit-notes": ["classify-change", "inject-notes", "verify-notes"],
@@ -33,8 +33,8 @@ describe("MD Controller reader characterization", () => {
   it("parses fenced YAML nodes rather than only document frontmatter", () => {
     const parsed = parseControllerFile(join(PLAYBOOK_DIR, "create-deck.md"));
     expect(parsed.playbook).toBe("create-deck");
-    expect(parsed.nodes.map((node) => node.id)).toContain("wave0");
-    expect(parsed.nodes.find((node) => node.id === "wave0")?.entry).toContain("gate_approved:content");
+    expect(parsed.nodes.map((node) => node.id)).toContain("authoring-slides");
+    expect(parsed.nodes.find((node) => node.id === "authoring-slides")?.entry).toContain("gate_approved:content");
   });
 
   it("the live MD Controller registry matches the forty-node manifest and validates cleanly", () => {

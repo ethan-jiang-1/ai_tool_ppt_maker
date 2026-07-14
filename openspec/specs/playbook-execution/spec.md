@@ -14,7 +14,7 @@ Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an
 
 ### Requirement: create-deck playbook covers complete deck creation
 
-`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, hitl1, setup, seed-topics, wave0, wave1, wave2, hitl2, readiness, rerun, final. Node order SHALL be: instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → (rerun → seed-topics | readiness → final).
+`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, checkpoint-intake, setup, seed-topics, authoring-slides, composing-prompts, producing-deck, checkpoint-final-review, readiness, rerun, final. Node order SHALL be: instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → producing-deck → checkpoint-final-review → (rerun → seed-topics | readiness → final).
 
 #### Scenario: User says "帮我做一个PPT"
 

@@ -400,9 +400,9 @@ render:
       writeFileSync(
         join(deck, "_state", "state.yaml"),
         `playbook: create-deck
-current_node: hitl1
+current_node: checkpoint-intake
 nodes:
-  hitl1:
+  checkpoint-intake:
     status: in_progress
 gates:
   content: pending
@@ -419,7 +419,7 @@ playbook_stack: []
       expect(r.status).toBe(0);
       const j = JSON.parse(r.stdout);
       expect(j.playbook).toBe("create-deck");
-      expect(j.current_node).toBe("hitl1");
+      expect(j.current_node).toBe("checkpoint-intake");
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
