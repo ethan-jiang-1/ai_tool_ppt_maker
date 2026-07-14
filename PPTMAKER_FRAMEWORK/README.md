@@ -8,10 +8,10 @@ depends_on: []
 feeds_into:
 - workflow/00-setup/README.md
 agent_action: navigate
-version: 0.14.3
+version: 0.15.0
 ---
 
-# PPT 信息加工流  ·  v0.14.3
+# PPT 信息加工流  ·  v0.15.0
 
 > **先读这个。**
 > 这是 `PPTMAKER_FRAMEWORK/` 的总入口。读完你会理解整个体系是什么、为什么需要它、以及怎么用。

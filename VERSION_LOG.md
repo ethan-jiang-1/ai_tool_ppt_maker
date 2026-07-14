@@ -20,6 +20,26 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.15.0 — Visual Asset System（2026-07-14）
+
+**代号**：Multi-reference image support
+
+> 新增 visual-asset-management capability。GPT Image 2 支持多 reference image 传入，管线不再局限于单张 style_master.jpg。用户可注册 SVG/PNG/JPG 视觉资产并在 slide 级别绑定。
+
+### 变了什么
+
+1. 新增 `asset_manifest.mjs` — YAML 资产目录的 SSOT 加载/校验/解析/SHA-256。
+2. `bundle_layout.mjs` — 5 个新常量 + 2 个路径解析器；renderTree / initBundle / checkBundle / selfCheck 更新。
+3. Stage 1 — `parseSlides` / `validateSpecRecords` / `validateSpecs` 接受可选的 `assetManifest`；`**VISUAL ASSETS**` 字段解析（WARNING 级）。
+4. Stage 2 — per-slide profile 计算；`assetResolver` 闭包注入；`additionalReferencePaths` 传入 API。
+5. `image_api_client.mjs` — `fileToDataUrl` 支持 SVG；`generateOneImage` 接受多 reference paths。
+6. `image_provenance.mjs` — `generationProfile` 接受可选 `assetRefs`；资产变化 → fingerprint 变化 → 精确失效。
+7. `unified_pipeline.mjs` — stage1/stage2 资产 manifest 加载；post-generation per-slide provenance。
+8. Specs：1 新建（visual-asset-management）+ 4 更新（content-parsing, image-generation, run-bundle-layout, run-bundle-management）。13 requirements, 41 scenarios。
+9. 模板 + glossary + config.yaml 同步更新。
+
+---
+
 ## v0.14.3 — Node-only runtime constitution（2026-07-11）
 
 **代号**：No skills, no bash, no Python
