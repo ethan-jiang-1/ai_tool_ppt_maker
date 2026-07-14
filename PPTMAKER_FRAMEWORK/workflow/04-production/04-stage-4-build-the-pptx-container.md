@@ -85,4 +85,4 @@ Slide 顺序来自 `slide_plan.json` 中 slides 数组的顺序——就是 Stag
 
 > **案例**：T10 项目最终产出 `T10v3_strategic_briefing.pptx`——19 张 slide，约 30 MB。每张 slide 是一张 1672×941 的全屏图片。文件在所有主流 PPT 软件中兼容。PNG 输出平衡文件大小和画质。
 
-> **Next**: `05-stage-5-inject-speaker-notes.md` — Stage 5 详解：怎么把 speaker notes 注入 PPTX + 三条编辑链的完整工作流。
+> **Next**: `05-stage-5-inject-speaker-notes.md` — Stage 5 详解：怎么把 speaker notes 注入 PPTX + 三条刷新路径的完整工作流。

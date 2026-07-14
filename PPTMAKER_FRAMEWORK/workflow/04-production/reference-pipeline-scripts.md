@@ -111,7 +111,7 @@ async function generateImage(prompt, outputPath, { model = "gpt-image-2", resolu
 
 **关键设计决策**：
 - **Mirror 列表外部化**：放在脚本顶部或 config 文件——方便添加/删除 mirror
-- **Skip-if-exists**：恢复运行默认跳过已有图片；明确刷新单页用 `--only`（统一管线自动 force），全量刷新用 `--force-images`
+- **Skip-if-exists**：恢复运行默认跳过已有图片；raw `unified_pipeline --only` 只限定范围，明确重建已有单页必须配 `--force-images`；公共 `ppt_flow refresh --kind visual` 会为明确 scope 加 force
 - **Trace 文件**：每个图片配一个——调试时 invaluable
 
 ---

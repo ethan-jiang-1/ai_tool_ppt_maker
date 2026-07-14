@@ -88,16 +88,16 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 
 **坏 state / 坏压模：先 heal 或重写合法文件再继续。** 禁止把 YAML/JSON 语法题甩给用户。见 `charter/CONSTITUTION.md`「MD↔JS 互补健壮性」。
 
-## 8. 编辑链（改完怎么重跑）
+## 8. 刷新路径（改完怎么重跑）
 
-| 改了什么 | `--stage` | 耗时 |
-|---------|-----------|------|
-| body+header-lock 标题/kicker 文字 | `1,3,4,5` | ~5 min |
-| full-page 标题/kicker 文字 | `1,2,3,4,5 --only <id> --force-images` | ~5 min/页 |
-| 画面 / IMAGE PROMPT | `1,2,3,4,5 --only <id>`（指定页自动强制刷新） | ~5 min/页 |
-| speaker notes | `5` | ~30 sec |
+| 正式路径 | 改了什么 | 逻辑执行 | 耗时 |
+|---------|---------|---------|------|
+| Header Text & Style Refresh | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned header 样式，raw-image contract 不变 | Stage 1 → 3 → 4 → 5 | ~5 min |
+| Generated Image Rebuild | full-page header、body/画面/IMAGE PROMPT，或 render mode / safe-zone 改动 | Stage 1 → 对所选页强制 Stage 2 → review → 3/4/5（复用已审图） | ~5 min/页 |
+| Notes-Only Refresh | speaker notes only | Stage 5 | ~30 sec |
+| Structural Versioning Path | 增/删/重排 slide | `--new-version` 创建干净版本，再按受影响页选择刷新路径 | 按范围 |
 
-标题是否需要 Stage 2 取决于 resolved mode：body+header-lock 是 Chain A；full-page 是 Chain B。分类见 `scripts/change-classifier.md`。
+标题是否需要 Stage 2 取决于 resolved mode：`body+header-lock` 使用 Header Text & Style Refresh；`full-page` 使用 Generated Image Rebuild。后者的 raw `unified_pipeline --only <id>` 只限定范围，不会自动重生已有图片，必须同时使用 `--force-images`；公共 `ppt_flow refresh --kind visual --only <id>` 会为明确范围加 force。分类见 `scripts/change-classifier.md`。
 
 ## 9. 用户做选择题，你做创造性劳动
 

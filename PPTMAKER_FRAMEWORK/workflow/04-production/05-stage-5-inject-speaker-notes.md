@@ -85,30 +85,30 @@ await pptx.writeFile({ fileName: "_generated/ppt/{NAME}.pptx" });
 
 Run-bundle 路径自动保留备份并原子替换；不要手工改 `_generated/` 或绕过 receipt。
 
-## 三条编辑链：完整工作流
+## 三条刷新路径：完整工作流
 
-编辑链是整个管线最实用的概念。不同类型的改动走不同的阶段子集：
+按内容所有权和失效产物选择最小刷新路径。Generated Image Rebuild 是经过强制重生与 review 的逻辑工作流，不要求一次命令跑完全部 Stage：
 
 ### 标题修改：先按 resolved render mode 分流
 
 **场景**："Slide 8 的标题不够 sharp，改成更直接的表述。"
 
-统一入口是 `ppt_flow refresh --kind title`。`body+header-lock` 的 Kicker / Title / Subtitle 走链 A（1 → 3 → 4 → 5），因为文字由 Stage 3 渲染；`full-page` 的标题烧在图里，走链 B（1 → 2 → 3 → 4 → 5），只强制重生所选图片并完成当前 header review。
+统一入口是 `ppt_flow refresh --kind title`。当 raw-image contract 不变时，`body+header-lock` 的 KICKER/TITLE/SUBTITLE 使用 Header Text & Style Refresh（1 → 3 → 4 → 5），因为文字由 Stage 3 渲染；`full-page` 的标题烧在图里，使用 Generated Image Rebuild，通过所选页 pilot 强制重生、完成当前 header review，再复用已审图完成 3/4/5。
 
 **耗时**：body-lock 通常 ~5 分钟；full-page 按受影响页数计。
 
-### 链 B：改画面视觉（Image Prompt）
+### Generated Image Rebuild：改画面视觉（Image Prompt）
 
 **场景**："Slide 12 的 layout 太拥挤，改成上下结构而非左右结构。"
 
 **影响范围**：单张 slide
-**走哪些 Stage**：1 → 2 → 3 → 4 → 5
+**逻辑执行**：1 → 强制所选 2 → review → 3/4/5
 **为什么全走**：IMAGE PROMPT 变了 → 需要重新解析（Stage 1）→ 重新生图（Stage 2）→ 重新叠加 header（Stage 3）→ 重新打包（Stage 4）→ 重新注入 notes（Stage 5）
-**只生这一张**：Stage 2 用 `--only slide_12` 或 skip-if-exists 机制。其他 18 张不需要重生的会跳过。
+**只生这一张**：使用 `ppt_flow refresh --kind visual --only slide_12`，或 raw Stage 2 的 `--only slide_12 --force-images`。`--only` 本身不 force，skip-if-exists 会保留已有图片；其他 18 张不重生。
 
 **耗时**：~5 分钟/页（Stage 1: 30s → Stage 2: 30-60s → Stage 3: 30s → Stage 4: 30s → Stage 5: 30s）
 
-### 链 C：改讲稿备注（Speaker Notes）
+### Notes-Only Refresh：改讲稿备注（Speaker Notes）
 
 **场景**："Slide 5 的 takeaway 要改一下，把 emphasis 从 efficiency 改为 speed。"
 
@@ -118,13 +118,13 @@ Run-bundle 路径自动保留备份并原子替换；不要手工改 `_generated
 
 **耗时**：~30 秒
 
-### 编辑链的纪律
+### 刷新路径的纪律
 
-| 链 | 违规操作 | 后果 |
-|----|---------|------|
-| A | 跑了 Stage 2 | 浪费 20 分钟重新生图 + AI 非确定性可能导致画面意外变化 |
-| B | 没跑 Stage 1 | `slide_plan.json` 是旧的 → Stage 3 用旧的 render_mode → 静默做错 |
-| C | 没备份 PPTX | Stage 5 原地修改 → 注入出错无法回滚 |
+| 路径 | 违规操作 | 后果 |
+|------|---------|------|
+| Header Text & Style Refresh | 在 raw-image contract 未变时跑 Stage 2 | 浪费时间重新生图 + AI 非确定性可能导致画面意外变化 |
+| Generated Image Rebuild | 没跑 Stage 1，或 raw `--only` 未配 `--force-images` | plan 仍旧，或已有图未实际重生，产生静默错误 |
+| Notes-Only Refresh | 没备份 PPTX | Stage 5 原地修改 → 注入出错无法回滚 |
 
 ## Gate Check：Stage 5 完成后必须确认什么
 
@@ -135,6 +135,9 @@ Run-bundle 路径自动保留备份并原子替换；不要手工改 `_generated
 
 ---
 
-> **案例**：T10 项目频繁使用三条链——链 A（客户反馈改了 4 个 slide 的标题，5 分钟搞定）、链 B（Slide 10 的视觉 prompt 重写，只生这一张，5 分钟）、链 C（演讲者干跑后改了 6 个 slide 的 takeaway，30 秒完成）。在项目最后一周，90% 的改动都在链 C 上——所有视觉已经锁定，只 tune 讲稿。
+> **案例**：T10 项目频繁使用三条刷新路径：
+> - Header Text & Style Refresh 用于 4 个 body-lock 标题。
+> - Generated Image Rebuild 用于 Slide 10 的视觉 prompt。
+> - Notes-Only Refresh 用于干跑后的 6 页 takeaway。项目最后一周大部分改动只刷新讲稿，因为所有视觉已经锁定。
 
 > **Next**: `reference-pipeline-scripts.md` — 6 个管线的关键模式参考（注释版伪代码），帮助你在自己的项目中实现这些阶段。

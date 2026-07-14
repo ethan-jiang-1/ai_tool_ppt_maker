@@ -22,10 +22,10 @@
  *     # Dry run (print what would be executed)
  *     node unified_pipeline.mjs --run-dir deck_myproject/3_versions/v1 --stage all --dry-run
  *
- * Editing chains (after initial production):
- *     Chain A (title text only):  --stage 1,3,4,5
- *     Chain B (image/visual):     --stage 1,2,3,4,5
- *     Chain C (speaker notes):    --stage 5
+ * Descriptive refresh paths after initial production (these are not CLI enums):
+ *     Header Text & Style Refresh: --stage 1,3,4,5
+ *     Generated Image Rebuild:     logical 1 + forced selected 2 + review + 3,4,5/reuse
+ *     Notes-Only Refresh:           --stage 5
  */
 
 import "./lib/cli_bootstrap.mjs?entry=unified_pipeline.mjs";

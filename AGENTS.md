@@ -20,8 +20,11 @@ ai_tool_ppt_maker/
 │   ├── playbook/              ← 自然语言意图路由（附录）
 │   └── reference/             ← glossary / anti-patterns / quick-start
 ├── tests/                     ← 测试文件 (.mjs)
+├── tests_e2e/                 ← 端到端测试
 ├── openspec/                  ← OpenSpec spec-driven 开发
-├── _backlog/                  ← 待办/Bug/Plan 簿记
+├── _backlog/                  ← 待办/Bug/Plan 簿记 - 如果不指定, 就不许读
+├── deck_*/                    ← [产出] run bundle — 框架生产出的 PPT 项目目录
+├── dpt_*/                     ← [输入] deep research 素材 - 如果不指定，就不许读
 ├── package.json               ← npm 依赖声明
 └── vitest.config.mjs          ← 测试配置
 ```
@@ -36,11 +39,26 @@ ai_tool_ppt_maker/
 | 打印目录宪法 | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` |
 | 校验 run bundle | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check <dir>` |
 
+## 框架边界
+
+本仓库只有 4 个目录是框架源代码：
+
+| 框架目录 | 是什么 |
+|----------|--------|
+| `PPTMAKER_FRAMEWORK/` | 方法论 + 管线脚本（soft bundle） |
+| `openspec/` | 规格系统 |
+| `tests/` | 单元/集成测试 |
+| `tests_e2e/` | 端到端测试 |
+
+**`deck_*` 和 `dpt_*` 是框架的产出物**——`deck_*` 是 run bundle（`ppt_flow.mjs init` 创建，做 PPT 时 Agent 在里面工作），`dpt_*` 是 deep research 素材。它们是生产数据，不是框架代码。
+
+Agent 探索/理解框架时只看上面 4 个源码目录。**做具体 deck 时由用户指定 deck 路径，然后在该 run bundle 内操作。**
+
 ## 关键约束
 
 - 做具体 PPT 时 `PPTMAKER_FRAMEWORK/` 是只读方法论；repo 维护 change 可以按 OpenSpec 任务修改框架源
 - Agent 拥有过程, 人类拥有内容
-- 编辑链 A/B/C 分类后再跑管线, 不要每次都全量
+- 先按所有权和失效产物选择最小刷新路径：Header Text & Style Refresh / Generated Image Rebuild / Notes-Only Refresh；增删重排先走 Structural Versioning Path
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
 - RENDER MODE 只有两个: `full-page` / `body+header-lock`
 

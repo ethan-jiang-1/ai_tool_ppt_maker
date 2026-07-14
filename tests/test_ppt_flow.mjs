@@ -334,7 +334,7 @@ render:
     }
   });
 
-  it("title refresh keeps body-only Chain A and requires selectors for mixed decks", () => {
+  it("title refresh keeps body-only Header Text & Style Refresh and requires selectors for mixed decks", () => {
     const bodyDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-body-")), "deck_title_body");
     const mixedDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-mixed-")), "deck_title_mixed");
     try {

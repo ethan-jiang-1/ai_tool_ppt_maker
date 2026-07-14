@@ -20,21 +20,25 @@
 
 Phase 顺序：`0 → 1/2（可交换）→ 2.7 回填 L3 → 3 → 4`。Phase 3 必须在 1+2 都锁定后启动。
 
-## 编辑链 (变更分类)
+## Refresh Path（变更分类）
 
-任何用户变更请求必须先分类, 再跑对应链:
+用户只需自然语言描述改动。Agent 必须先判断是否改变 slide 集合/顺序，再按“内容由谁渲染、哪个下游产物失效”选择最小安全路径。英文名是正式名称；中文只作解释；旧字母不是缩写，只作兼容对照。
 
-| 链 | 用户说 (示例) | 变更类型 | Stage | 耗时 |
-|----|-------------|---------|-------|------|
-| **A** | "第5页 body-lock 标题改一下" | resolved `body+header-lock` title/kicker/subtitle | 1,3,4,5 | ~5 min |
-| **B** | "第8页的图重新生成" | image prompt/颜色/布局 | 1,2,3,4,5 | ~5 min/页 |
-| **C** | "备注改一下" | speaker notes | 5 | ~30 sec |
-| **Structural** | "加一页案例" / "删掉第3页" | 增/删/重排 slide | new-version + 受影响页 | 按页数 |
+| 正式名称（兼容旧称） | 用户说（示例） | 能改什么 | 逻辑执行 | 耗时 |
+|----------------------|----------------|----------|----------|------|
+| **Header Text & Style Refresh**（页眉文字与样式刷新；formerly Chain A） | "第5页 body-lock 标题改一下" | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，以及 Stage 3 拥有的字体、字号、字重、颜色、位置、行高和间距；raw-image contract 不变 | 1 → 3 → 4 → 5 | ~5 min |
+| **Generated Image Rebuild**（生成图重建；formerly Chain B） | "第8页的图重新生成" | full-page header、body 文案/数据、image prompt、画面/配色，以及 mode/safe-zone 等 raw-image contract | Stage 1 → 强制重生所选 Stage 2 → review → 3/4/5（复用已审图） | ~5 min/页 |
+| **Notes-Only Refresh**（仅备注刷新；formerly Chain C） | "备注改一下" | speaker notes | Stage 5 | ~30 sec |
+| **Structural Versioning Path**（结构版本路径；formerly Structural） | "加一页案例" / "删掉第3页" | 增/删/重排 slide | `--new-version` → 在新版本按受影响页选择上述 refresh path | 按页数 |
+
+Structural Versioning Path 是外层版本流程，不是第四条并列 refresh path。
 
 **Agent 分类逻辑**:
-1. 改了什么? 标题意图先用 `ppt_flow refresh --kind title` 解析 resolved mode：body-lock=A，full-page=B；其他再分 visual / notes / structure
-2. 影响多少页? (1 页 → targeted; 几页 → rerun affected; 全部 → full rebuild)
-3. 要 pilot 吗? (颜色/风格变更 → 先试 3 页, 通过后再全量)
+1. 改了 slide 集合/顺序吗? 是 → Structural Versioning Path；新版本中的受影响页仍需继续分类
+2. 内容由谁渲染? Stage 3 header / 生成图片 / Stage 5 notes
+3. 哪个产物失效? 标题意图用 `ppt_flow refresh --kind title` 解析 resolved mode：body-lock=Header Text & Style Refresh，full-page=Generated Image Rebuild
+4. 影响多少页? (1 页 → targeted; 几页 → rerun affected; 全部 → full rebuild)
+5. 要 pilot 吗? (生成图片/颜色/风格变更 → 先试代表页, 通过后再全量)
 
 ## Gate 机制
 
@@ -59,6 +63,6 @@ CLAUDE.md  →  BOOTSTRAP.md  →  charter/AGENT_CONTRACT.md  →  按 Phase 读
 
 | 频率 | 操作 | 走什么 |
 |------|------|--------|
-| 高 (每轮对话) | 改 wording, 调单页 prompt | 先解析 render mode，再走 Chain A/B |
-| 中 (每几次) | 换案例, 调结构 | Structural, proposal 先行 |
+| 高 (每轮对话) | 改 wording, 调单页 prompt | 先查内容所有者和 render mode，再选 Header Text & Style Refresh / Generated Image Rebuild |
+| 中 (每几次) | 换案例, 调结构 | image-owned 案例走 Generated Image Rebuild；增删重排走 Structural Versioning Path，proposal 先行 |
 | 低 (关键节点) | 换隐喻/公式, 换视觉方向 | 回 Phase 1/2, 全量重跑 |

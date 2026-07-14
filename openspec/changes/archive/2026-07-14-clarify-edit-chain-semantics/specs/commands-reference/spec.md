@@ -1,25 +1,9 @@
-## Purpose
+## RENAMED Requirements
 
-Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that maps natural-language user requests to intent routes and ownership-aware execution. It covers the full-deck creation path (BOOTSTRAP → Phases 0–3), the three artifact-refresh paths plus the outer Structural Versioning Path, the agent's request-classification logic, and common iteration-feedback patterns. This capability guarantees that a human can discover — in under 60 seconds — what to say and roughly how long each change takes, while the detailed decision tree stays in `scripts/change-classifier.md` and is not duplicated here.
-## Requirements
-### Requirement: COMMANDS.md exists at framework root
+- FROM: `### Requirement: COMMANDS.md covers all four editing chains`
+- TO: `### Requirement: COMMANDS.md covers refresh and structural paths`
 
-`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL exist as a human-readable command reference. It SHALL map natural-language user requests to the agent actions that fulfill them.
-
-#### Scenario: Human opens COMMANDS.md to learn what to say
-
-- **WHEN** a human opens `COMMANDS.md`
-- **THEN** they see a table of common requests with corresponding agent actions
-- **AND** each row includes estimated duration
-
-### Requirement: COMMANDS.md covers full-deck creation
-
-COMMANDS.md SHALL document the entry path for creating a new PPT from scratch: the user says "帮我做一个PPT" and the agent follows BOOTSTRAP → Phase 0 (init) → Phase 1 (content design) → Phase 2 (visual style) → Phase 3 (production pipeline).
-
-#### Scenario: First-time user wants to create a PPT
-
-- **WHEN** user says "帮我做一个关于AI的PPT"
-- **THEN** COMMANDS.md shows the path starts at BOOTSTRAP and walks through all phases
+## MODIFIED Requirements
 
 ### Requirement: COMMANDS.md covers refresh and structural paths
 
@@ -41,7 +25,8 @@ COMMANDS.md SHALL document user intents with concrete Chinese-language examples 
 #### Scenario: User asks for a full color palette change
 
 - **WHEN** user says "全部换成蓝色系"
-- **THEN** COMMANDS.md shows this requires `--force-images` for all slides, suggests pilot of 3 slides first
+- **THEN** COMMANDS.md shows this requires style-master alignment and `--force-images` for all affected slides
+- **AND** suggests a representative three-slide pilot first
 
 #### Scenario: User asks to add a slide
 
@@ -85,16 +70,6 @@ COMMANDS.md SHALL document common iteration feedback beyond simple single-slide 
 - **WHEN** user says "整体感觉不够高端"
 - **THEN** COMMANDS.md shows this maps to visual direction change
 - **AND** agent will suggest 2-3 alternative visual presets before regenerating anything
-
-### Requirement: COMMANDS.md complements but does not duplicate scripts/change-classifier.md
-
-COMMANDS.md SHALL be the human-facing interface. `scripts/change-classifier.md` SHALL remain as the agent's detailed decision tree. COMMANDS.md SHALL be concise (no nested decision trees), use natural language examples, and be scannable in under 60 seconds.
-
-#### Scenario: Human scans COMMANDS.md quickly
-
-- **WHEN** a human scans COMMANDS.md for 30 seconds
-- **THEN** they can identify which type of change their request falls under
-- **AND** they know roughly how long it will take
 
 ### Requirement: Title-edit intents route by resolved render mode
 

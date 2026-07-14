@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how the five production stages are orchestrated: the whole pipeline runs on the Node.js 18+ runtime as directly-runnable ESM (`.mjs`, no build step), and the `unified_pipeline.mjs` entry point supports the three editing chains (Chain A: stages 1,3,4,5; Chain B: all stages; Chain C: stage 5 only), loads credentials from `.env`, and offers `--dry-run`, `--force-images`, and `--only <id>` while running Stage 2 via in-framework `stage2_generate_images.mjs` (no external skills). This capability guarantees that full builds and targeted edits share one orchestrator, so an iteration re-runs only the stages it actually needs.
+Define how the five production stages are orchestrated: the whole pipeline runs on the Node.js 18+ runtime as directly-runnable ESM (`.mjs`, no build step), and the `unified_pipeline.mjs` entry point supports the Stage subsets used by Header Text & Style Refresh, Generated Image Rebuild, and Notes-Only Refresh; loads credentials from `.env`; and offers `--dry-run`, `--force-images`, and `--only <id>` while running Stage 2 via in-framework `stage2_generate_images.mjs` (no external skills). This capability guarantees that full builds and targeted edits share one orchestrator, so an iteration refreshes only the artifacts it actually invalidated.
 ## Requirements
 ### Requirement: Pipeline runs on Node.js runtime
 
@@ -11,15 +11,39 @@ Define how the five production stages are orchestrated: the whole pipeline runs 
 - **WHEN** Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on Windows 11 with Node.js 20
 - **THEN** all 5 stages complete successfully, producing a .pptx file
 
-### Requirement: Unified pipeline supports editing chains
+### Requirement: Unified pipeline supports semantic refresh paths
 
-The unified pipeline entry point (`unified_pipeline.mjs`) SHALL support three editing chains: Chain A (stages 1,3,4,5), Chain B (all stages), Chain C (stage 5 only).
+The unified pipeline entry point (`unified_pipeline.mjs`) SHALL continue to support the Stage subsets used by three English canonical refresh paths: Header Text & Style Refresh resolves source in Stage 1 and completes Stages 3,4,5 without Stage 2 when only KICKER/TITLE/SUBTITLE text or Stage-3-owned overlay styling is stale and the raw-image contract is unchanged; Generated Image Rebuild covers Stages 1,2,3,4,5 as a logical workflow with actual selected image regeneration and required review; Notes-Only Refresh uses Stage 5 only. The former Chain A/B/C labels are compatibility aliases, not CLI values or machine identifiers.
 
-#### Scenario: Chain A skips image regeneration
+Generated Image Rebuild SHALL preserve the existing force semantics: raw `unified_pipeline --only <ids>` limits Stage 2 scope but does not imply force, so intentional rebuilding of existing selected images SHALL include `--force-images`. A public `ppt_flow refresh --kind visual` request MAY add force for its explicitly selected/all scope. For reviewed full-page title changes, Stage 2 MAY occur in a pilot command and final Stages 3,4,5 MAY reuse the reviewed image; the path SHALL NOT require one literal all-stage invocation.
 
-- **WHEN** `--stage 1,3,4,5` is passed
-- **THEN** Stage 2 (image generation) is skipped entirely
+#### Scenario: Header Text & Style Refresh skips image regeneration
+
+- **WHEN** a resolved `body+header-lock` header change follows Header Text & Style Refresh
+- **THEN** Stage 1 refreshes the plan and Stages 3,4,5 complete without Stage 2
 - **AND** pipeline completes in under 5 minutes for a standard deck
+
+#### Scenario: Safe-zone change is not a header-only refresh
+
+- **WHEN** a header safe-zone or render-mode change alters the raw-image prompt contract
+- **THEN** the affected slide uses Generated Image Rebuild rather than Header Text & Style Refresh
+
+#### Scenario: Raw selected image rebuild requires force
+
+- **WHEN** an existing selected image must be intentionally regenerated through raw `unified_pipeline`
+- **THEN** the invocation includes both `--only <ids>` and `--force-images`
+- **AND** `--only` by itself remains a scope selector rather than a regeneration request
+
+#### Scenario: Reviewed full-page title rebuild is multi-command
+
+- **WHEN** a full-page title change requires new reviewed image evidence
+- **THEN** selected Stage 2 regeneration MAY run through pilot with `--force-images`
+- **AND** final assembly reuses the reviewed image without a second image generation
+
+#### Scenario: Canonical names are not CLI values
+
+- **WHEN** maintainers update help or guidance for refresh paths
+- **THEN** they do not add `--chain`, canonical-name arguments, or a new machine-readable path enum
 
 ### Requirement: Unified pipeline orchestrates stages
 
@@ -215,4 +239,3 @@ Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Con
 
 - **WHEN** `slideStates` 为 null
 - **THEN** 使用全局 `previousSnapshot` vs `currentSnapshot` diff
-

@@ -23,6 +23,8 @@ agent_action: read_first
 
 核心原则：**用户做选择题，你做创造性劳动。** 不要问用户"你的核心隐喻是什么"——你生成 2-3 个候选，让用户选。
 
+用户不需要记刷新路径，直接用自然语言说改动即可。英文名称 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 和 Structural Versioning Path 是 Agent/维护者的稳定检索词；中文只作解释，旧字母别名只在兼容注册表和历史材料中保留。
+
 ### 视觉闸门前必须 Show（交互节律）
 
 审 `style_master.jpg`、pilot contact sheet（及同类视觉 review）并请用户批准/继续之前，Agent **必须**用环境能力打开/展示真实文件。文件已在盘上时，**禁止**只用文字描述外观。pre-key 尚无图：可用 preset 说明或母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
@@ -395,7 +397,7 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
 
 ## 已知限制（Agent 需告知用户）
 
-- **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown 按编辑链重跑管线（Chain A ~5 min；Chain B ~5 min/页）。不要尝试在 PowerPoint 里改文本框。
+- **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown，按内容所有权选择 Header Text & Style Refresh（~5 min）或 Generated Image Rebuild（~5 min/页）。不要尝试在 PowerPoint 里改文本框。
 - **新 deck 默认 full-page**：`--init` 会在 slide specs frontmatter 写入 `render.default: full-page`。full-page header 的位置与清晰度是图像模型的尽力保证；需要像素精度或稳定清晰度时，把页升级到 `render.header-lock`。没有顶层 `render` 的旧 deck 保持 VISUAL TYPE 派生；`render` 内 typo 会报错，顶层 `renders:` 不会被猜测纠正，排障看 `render_mode_source`。
 - **中文 slides 支持受限**：预设的 `deck_system.txt` 默认英文。如需中文 slides，Agent 需改 `deck_system.txt` LANGUAGE 规则，并将 Stage 3 字体切换为 Noto Sans CJK（见 `scripts/fonts/README.md`）。
 - **自定义 Logo**：所有预设默认无 logo。如需添加，Agent 需在每个 slide 的 IMAGE PROMPT 中描述 logo 的位置和大小，并编辑 `deck_system.txt` 的 FORBIDDEN 规则。

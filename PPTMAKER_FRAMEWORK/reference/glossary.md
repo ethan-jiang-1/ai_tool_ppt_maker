@@ -146,13 +146,15 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 
 旧词 `normal` / `image_direct` 仅作输入别名兼容，**文档与新产出禁止再用**。Stage 3 读 `render_mode`；若遇到旧 `slide_plan.json` 里的 `header_variant`，会自动映射。
 
-### 编辑链（Editing Chain）
-不同类型改动走不同的管线阶段子集：
-- **链 A**：只适用于 resolved `body+header-lock` 的 Kicker/Title/Subtitle → Stage 1 → 3 → 4 → 5（~5 分钟）
-- **链 B**：改画面/IMAGE PROMPT → Stage 1 → 2 → 3 → 4 → 5（~5 分钟/页）
-- **链 C**：改 speaker notes → Stage 5 only（~30 秒）
+### Refresh Path
+按内容所有者和失效产物选择最小安全路径。英文是正式名称；中文只作解释；旧字母不是缩写，只作兼容检索。
 
-标题意图统一走 `ppt_flow refresh --kind title`：resolved `full-page` 标题属于链 B，需要所选页生图与 header review。
+- **Header Text & Style Refresh**（页眉文字与样式刷新；formerly Chain A）：只适用于 resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，或 Stage 3 拥有的字体、颜色、位置、行高与间距；raw-image contract 必须不变。Stage 1 → 3 → 4 → 5（~5 分钟）。
+- **Generated Image Rebuild**（生成图重建；formerly Chain B）：生成图或 raw-image contract 失效。Stage 1 → 对所选页强制 Stage 2 → review → Stage 3/4/5；full-page 标题使用 pilot/review 后复用已审图（~5 分钟/页）。
+- **Notes-Only Refresh**（仅备注刷新；formerly Chain C）：只改 speaker notes。Stage 5（~30 秒）。
+- **Structural Versioning Path**（结构版本路径；formerly Structural）：增/删/重排先创建干净新版本，再按受影响页选择上述 refresh path；它不是第四条并列 refresh path。
+
+标题意图统一走 `ppt_flow refresh --kind title`：resolved `body+header-lock` 使用 Header Text & Style Refresh；resolved `full-page` 使用 Generated Image Rebuild，需要所选页生图与 header review。safe-zone 或 render mode 变化也属于 Generated Image Rebuild。
 
 ### Gate Check（闸门检查）
 每个 Phase 和 Stage 结束时的强制检查点。Agent 停下来等用户确认后才能继续。**跳过闸门 = 下游改动成本指数增长。**

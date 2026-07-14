@@ -3,7 +3,7 @@ title: Change Classifier
 stage: automation
 position: toolkit
 type: reference
-summary: Agent 决策树——用户的自然语言改动 → 编辑链分类 → 沟通模板。用户永远不需要知道 Chain A 或 Stage 3。
+summary: Agent 决策树——用户的自然语言改动 → intent route → Structural Versioning Path / refresh path。用户无需学习内部路径名。
 depends_on:
 - BOOTSTRAP.md
 - AGENTS.md
@@ -11,10 +11,21 @@ feeds_into: []
 agent_action: classify_changes
 ---
 
-# Change Classifier — Natural Language to Editing Chain
+# Change Classifier — Natural Language to Refresh Path
 
-> Agent 使用这个决策树，将用户的自然语言改动请求分类到正确的编辑链。
-> **用户永远不需要知道 "Chain A" 或 "Stage 3"。** Agent 内部分类，告诉用户影响，执行。
+> Agent 使用这个决策树，把用户的自然语言请求先路由到 controller，再按内容所有者和失效产物选择执行路径。
+> **用户不需要知道 refresh path 或 Stage 编号。** Agent 用人话说明影响、成本和 review，再执行。
+
+## 正式路径与兼容旧称
+
+| 正式名称（兼容旧称） | 适用边界 | 逻辑执行 |
+|----------------------|----------|----------|
+| Header Text & Style Refresh（页眉文字与样式刷新；formerly Chain A） | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，或 Stage 3 拥有的字体/颜色/位置/间距；raw-image contract 不变 | Stage 1 → 3 → 4 → 5 |
+| Generated Image Rebuild（生成图重建；formerly Chain B） | full-page header、body 文案/数据、画面/prompt，或 mode/safe-zone 等 raw-image contract | Stage 1 → 强制重生所选 Stage 2 → review → Stage 3/4/5（复用已审图） |
+| Notes-Only Refresh（仅备注刷新；formerly Chain C） | speaker notes only | Stage 5 |
+| Structural Versioning Path（结构版本路径；formerly Structural） | 增/删/重排 slide | `--new-version` → 在新版本按受影响页选择上述 refresh path |
+
+旧字母不是缩写。只在本兼容映射中保留；下文使用正式英文名。
 
 ---
 
@@ -22,38 +33,48 @@ agent_action: classify_changes
 
 收到用户的改动请求后，按以下顺序判断：
 
-### Level 1: 改动的是什么？（5 秒判断）
+### Level 1: 是否改变 slide 集合或顺序？
 
 ```
 用户说 → 分类到
 
-"改第 3 页的标题"                    → 先查 resolved mode：body+header-lock = Chain A；full-page = Chain B
+"加一张 slide 在 4 和 5 之间"       → Structural Versioning Path → 新版本中为新增/受影响页选择 refresh path
+"删掉第 8 页"                      → Structural Versioning Path → 新版本中重编号并选择 refresh path
+"把第 3 页移到第 6 页后面"          → Structural Versioning Path → 新版本中重排并选择 refresh path
+```
+
+### Level 2: 内容由谁渲染、哪个产物失效？（5 秒判断）
+
+```
+用户说 → 分类到
+
+"改第 3 页的标题"                    → 先查 resolved mode：body+header-lock = Header Text & Style Refresh；full-page = Generated Image Rebuild
 "把 kicker 改成 XXX"                → 同上
 "标题太长了，缩短一点"               → 同上
 "这个 subtitle 不够有力"            → 同上
-"把这页切到/切出 header-lock"         → Chain B（raw image contract 改变）
+"改 body-lock 标题的字体/颜色/位置"    → Header Text & Style Refresh（仅限 raw-image contract 不变）
+"改 header safe-zone 高度"            → Generated Image Rebuild（raw-image contract 改变）
+"把这页切到/切出 header-lock"         → Generated Image Rebuild（raw-image contract 改变）
 
-"第 7 页的画面不太对"                → Chain B
-"这个图换成 XXX 的例子"             → Chain B
-"颜色太暗了/太亮了"                 → Chain B（涉及所有 slides）
-"加一张 slide 在 4 和 5 之间"       → Chain B（新 slide 需要生图）
-"删掉第 8 页"                      → 结构改动（需重新编号）
-"这个 KPI 数字换成 50%"             → 通常 Chain B（KPI 多数烧在 body 图片里；只有 header 字段才是 Chain A）
+"第 7 页的画面不太对"                → Generated Image Rebuild
+"这个图换成 XXX 的例子"             → Generated Image Rebuild
+"颜色太暗了/太亮了"                 → Generated Image Rebuild（涉及所有 slides）
+"这个 KPI 数字换成 50%"             → Generated Image Rebuild（KPI 烧在 body 图片里；只有 header overlay 字段可走 Header Text & Style Refresh）
 
-"speaker note 里加上 XXX 的案例"    → Chain C
-"演讲时这里应该说慢一点"             → Chain C
-"备注里补充数据来源"                → Chain C
+"speaker note 里加上 XXX 的案例"    → Notes-Only Refresh
+"演讲时这里应该说慢一点"             → Notes-Only Refresh
+"备注里补充数据来源"                → Notes-Only Refresh
 ```
 
-### Level 2: 影响多少 slides？（10 秒判断）
+### Level 3: 影响多少 slides？（10 秒判断）
 
 ```
 影响范围 → 重跑策略
 
 1 张 slide → 只重跑该 slide
-  - Chain A（body+header-lock 的 header 文字）: `--stage 1,3,4,5`（A 不含 Stage 2；`--only` 对它是空操作）
-  - Chain B（full-page header、mode 切换或画面）: `--stage 1,2,3,4,5 --only slide_NN --force-images`（多张用逗号；Stage 2 只重生选中页）
-  - Chain C（改讲稿）: `--stage 5`（整体重跑，但只改 note）
+  - Header Text & Style Refresh: `ppt_flow refresh --kind title --only slide_NN`，或明确的 Stage 3 overlay-style refresh；不含 Stage 2
+  - Generated Image Rebuild: `ppt_flow refresh --kind visual --only slide_NN`（public route 自动 force）；raw `unified_pipeline` 必须显式 `--only slide_NN --force-images`
+  - Notes-Only Refresh: `--stage 5`（整体重跑，但只改 note）
 
 2-5 张 slides → 重跑受影响 slides
   - 告知用户："这会重新生成 N 张 slide，约 X 分钟"
@@ -62,27 +83,27 @@ agent_action: classify_changes
   - 告知用户："这会重新生成全部 Y 张 slide，约 Z 分钟。建议先跑 3 张确认效果？"
   - **如果是改配色：硬性前置条件——必须先更新 style_master.jpg。** 改了 deck_system.txt 和 color_palette.json 的颜色但没重生 style_master → 生图阶段用的是旧配色 style master + 新配色文本约束 → 画面矛盾。顺序：编辑颜色文件 → 重生 style_master → 试点 3 张 → 全量
 
-结构改动（加/删/重排 slides）→ `bundle_layout.mjs --new-version` 创建干净版本
+Structural Versioning Path（加/删/重排 slides）→ `bundle_layout.mjs --new-version` 创建干净版本
   - 告知用户："这是结构改动，我会创建 v{n+1} 版本来保留当前版本。"
   - 在新版本中：更新 Block Map → 重新编号 → 重跑受影响范围
 ```
 
-### Level 3: 是否建议试点？
+### Level 4: 是否建议试点？
 
 ```
 场景 → 建议
 
 改配色/TONE → "先跑 3 张代表性 slides（opener, content, closer）确认效果？"
 改 prompt 写法 → "先跑 1 张看效果，满意了再批量？"
-新增 slide → 直接跑（单张成本低）
-改全部 slides 的 header 文字 → 先按 resolved mode 分组；full-page 部分需要 pilot/review 后再批量
+新增 slide → 先完成 Structural Versioning Path；新版本中的新增/受影响页再按刷新路径判断是否需要 pilot
+改全部 slides 的 header 文字 → 先按 resolved mode 分组；Generated Image Rebuild 部分需要 pilot/review 后再批量
 ```
 
 ---
 
 ## 用户沟通模板
 
-### 模板 1: 小改动（单页 body+header-lock，Chain A/C）
+### 模板 1: 小改动（Header Text & Style Refresh / Notes-Only Refresh）
 
 ```
 用户说：{REQUEST}
@@ -92,7 +113,7 @@ Agent 回复：
 → 执行 → "{N} 页已更新，PPTX 刷新完成。"
 ```
 
-### 模板 2: 中等改动（单页，Chain B）
+### 模板 2: 中等改动（Generated Image Rebuild）
 
 ```
 用户说：{REQUEST}
@@ -142,7 +163,7 @@ Agent 回复：
 
 ### "数据是错的"
 
-→ 第一步：确认正确数据。第二步：判断文字实际由谁渲染。只有 body+header-lock 的 KICKER/TITLE/SUBTITLE 属于 Chain A；full-page header 与 KPI、卡片、图表标签等都属于 Chain B。
+→ 第一步：确认正确数据。第二步：判断文字实际由谁渲染。只有 `body+header-lock` 的 KICKER/TITLE/SUBTITLE 及 Stage 3 overlay style 可用 Header Text & Style Refresh；full-page header 与 KPI、卡片、图表标签等使用 Generated Image Rebuild。
 
 ### "我不确定哪里不对，但就是不对"
 
@@ -150,24 +171,24 @@ Agent 回复：
 
 ---
 
-## 快速参考：Chain → Stage 映射
+## 快速参考：Refresh Path → 执行映射
 
-| Chain | Stage 序列 | 时间 | 适合 |
-|-------|-----------|------|------|
-| **A** (deterministic header) | 1 → 3 → 4 → 5 | ~5 min | body+header-lock 的标题/副标题改动 |
-| **B** (generated image) | 1 → 2 → 3 → 4 → 5 | ~5 min/page | full-page header、mode 切换、画面/配色/prompt 改动 |
-| **C** (notes only) | 5 | ~30 sec | Speaker notes 改动 |
-| **结构** (add/del/reorder) | cp 3_versions/v{n} → 3_versions/v{n+1} + 受影响 slides | 视范围 | 加/删/重排 slides |
+| 正式路径 | 逻辑执行 | 时间 | 适合 |
+|---------|----------|------|------|
+| Header Text & Style Refresh | 1 → 3 → 4 → 5 | ~5 min | body+header-lock 的 header 文字与 overlay style |
+| Generated Image Rebuild | 1 → 强制 2 → review → 3/4/5 | ~5 min/page | full-page header、mode/safe-zone、body/画面/配色/prompt |
+| Notes-Only Refresh | 5 | ~30 sec | Speaker notes |
+| Structural Versioning Path | new version → 受影响页 refresh | 视范围 | 加/删/重排 slides |
 
 使用统一管线脚本：
 ```bash
-# Chain A: body+header-lock header only
+# Header Text & Style Refresh: body+header-lock header only
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,3,4,5
 
-# Chain B: full-page header, mode switch, or visual — single slide
+# Generated Image Rebuild: full-page header, mode switch, or visual — single slide
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 1,2,3,4,5 --only slide_NN --force-images
 
-# Chain C: notes only
+# Notes-Only Refresh
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions/v1 --stage 5
 
 # Full visual rerun（配色/style master/全局 prompt 改动）
@@ -176,4 +197,4 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions
 
 > **Note**: `--only` 只限制 Stage 2；**不会**隐式强制重渲——已有图默认跳过，要刷新须加 `--force-images`。Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。`--only` 也接受页号（`3`）或前缀（`s03`）。
 
-> 新 deck 的 `render.default` 为 `full-page`。full-page header 只尽力稳定；要求像素位置和清晰度时，用户确认后把 slide id 加入 `render.header-lock`，再按 Chain B 强制重生并重新 review。若用户接受残余风险，在版本 Change Log 或 playbook state extra 持久记录 slide id 与症状。整册目标 geometry 改动属于 visual-config 变更，不是 exception。
+> 新 deck 的 `render.default` 为 `full-page`。full-page header 只尽力稳定；要求像素位置和清晰度时，用户确认后把 slide id 加入 `render.header-lock`，再通过 Generated Image Rebuild 强制重生并重新 review。若用户接受残余风险，在版本 Change Log 或 playbook state extra 持久记录 slide id 与症状。整册目标 geometry 改动属于 visual-config 变更，不是 exception。

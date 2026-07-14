@@ -39,7 +39,7 @@ Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill�
 | 文件 | 用途 |
 |------|------|
 | `agent-prompts.md` | 6 个可复用 Agent prompt 模板 |
-| `change-classifier.md` | 用户自然语言变更 → 编辑链 A/B/C 决策树 |
+| `change-classifier.md` | 用户自然语言变更 → 所有权/失效产物 → 刷新或结构路径决策树 |
 
 ## 常用命令
 
@@ -47,14 +47,14 @@ Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill�
 # 全量生产
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage all
 
-# 改标题：先解析 resolved render mode，再由 ppt_flow 选择 Chain A / B
+# 改标题：先解析 resolved render mode，再选择 Header Text & Style Refresh / Generated Image Rebuild
 node scripts/ppt_flow.mjs refresh deck_{NAME}/3_versions/v1 --kind title --only slide_07
 
-# 只改备注 (Chain C)
+# 只改备注 (Notes-Only Refresh)
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 5
 
-# 单页生图 (Chain B)
-node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only slide_07
+# 单页重建生成图 (Generated Image Rebuild；raw --only 必须显式 force)
+node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only slide_07 --force-images
 ```
 
 ## 依赖

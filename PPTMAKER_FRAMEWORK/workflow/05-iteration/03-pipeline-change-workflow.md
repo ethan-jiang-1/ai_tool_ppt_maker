@@ -56,11 +56,13 @@ agent_action: iterate_with_openspec
 3. 实施
    → 更新 Stage 1 脚本的 HEADER_SAFE_ZONE 常量
    → 更新 Stage 3 脚本
-   → 重跑 Stage 1 → Stage 3（链 A，不需要重跑 Stage 2）
-   → 检查 header 位置是否正确
+   → safe-zone 改变了 Stage 2 prompt/raw-image contract，受影响页使用 Generated Image Rebuild
+   → 对所选页显式 `--force-images`，review 新 body 留白和 header，再完成后续 Stage
 
 4. 归档
 ```
+
+如果只改 Stage-3-owned 的 header 字体、颜色、位置、行高、间距或 text width，并且仍处于既有 reserved zone、raw-image contract 不变，则 resolved `body+header-lock` 页面可使用 Header Text & Style Refresh（Stage 1 → 3 → 4 → 5），无需 Stage 2。render-mode 切换与 safe-zone 高度变化不能走这条路径。
 
 ## 场景 3：添加新的管线 Stage
 
@@ -88,7 +90,7 @@ agent_action: iterate_with_openspec
 
 | 改动类型 | 最低测试 |
 |---------|---------|
-| 改脚本逻辑（算法变了） | 用一张 slide 跑完整条受影响链 |
+| 改脚本逻辑（算法变了） | 用一张 slide 跑完整条受影响刷新路径 |
 | 改参数（常量变了） | 跑受影响 stage + 下一 stage |
 | 新增 stage | 跑完整管线（所有 slide）至少一次 |
 | 改 Stage 1 解析逻辑 | 确认 slide_plan.json 的 slide 数量、render_mode 分类正确 |

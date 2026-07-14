@@ -24,6 +24,10 @@ agent_action: navigate
 
 它不是一个工具集，不是一堆 loose scripts，也不是一个 "万能 PPT 模板"。它是一个**数据加工体系**——原材料从一端进入，经过逐阶段加工，成品从另一端输出。做好 PPT 不是靠一个 "好的 prompt" 或一个 "好看的模板"——是靠一个有结构的加工过程。
 
+## 命名与沟通
+
+用户始终用自然语言描述要改什么，不需要先学内部分类。Agent 和维护者使用四个英文检索词：Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh、Structural Versioning Path；中文只帮助理解，不是第二套正式名称。旧字母别名只保留在 `charter/WORKFLOW.md`、`reference/glossary.md`、`scripts/change-classifier.md`、`openspec/config.yaml` 的兼容映射和历史记录中，日常操作文档不再使用。
+
 ## 核心哲学：文件系统即 Workflow 引擎
 
 不需要 Jenkins。不需要 Airflow。不需要 YAML pipeline 配置。
@@ -175,7 +179,7 @@ Lifecycle Phase 1 和 2 可以交换起始顺序（如果用户带着强烈视�
 这个框架的目标不是让你永远依赖它，而是让你内化方法论后独立操作。以下是你 "毕业" 的标志：
 
 1. 你完成过至少一个完整的 deck（brief → PPTX），走完了 Phase 0-4
-2. 你能不用翻 AGENTS.md 就判断一个改动属于哪条编辑链（A/B/C）
+2. 你能不用翻 AGENTS.md 就按所有权和失效产物选择 Header Text & Style Refresh、Generated Image Rebuild 或 Notes-Only Refresh，并知道增删重排先走 Structural Versioning Path
 3. 你能向同事解释 Header-Lock 为什么存在
 4. 你已经为至少一个管线脚本做了适配（换了自己的 API、字体、canvas 尺寸）
 5. 你写 slide 的四层规格时已经不需要对照模板——肌肉记忆形成了
