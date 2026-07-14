@@ -206,8 +206,9 @@ describe("cli_error", () => {
       contextual: focused({
         "bundle_layout.mjs": "tests/test_bundle_layout.mjs",
         "env-check.mjs": "tests/test_env_check.mjs",
-        "generate_style_master.mjs": "tests/test_generate_style_master.mjs",
-        "make_contact_sheet.mjs": "tests/test_image_generation.mjs",
+	        "generate_style_master.mjs": "tests/test_generate_style_master.mjs",
+	        "lessons.mjs": "tests/test_lessons.mjs",
+	        "make_contact_sheet.mjs": "tests/test_image_generation.mjs",
         "ppt_flow.mjs": "tests/test_ppt_flow.mjs",
         "stage1_build_inputs.mjs": "tests/test_stage1_build_inputs.mjs",
         "stage2_generate_images.mjs": "tests/test_image_generation.mjs",
@@ -219,7 +220,7 @@ describe("cli_error", () => {
       delegated: entry === "ppt_flow.mjs" ? focused("tests/test_cli_error.mjs", "suppresses child failure prose") : na("Executable does not own a subprocess boundary."),
       interruption: focused("tests/test_cli_error.mjs", "handles catchable interruption once"),
       prose_success: focused("tests/test_cli_error.mjs", "every registered executable has side-effect-free help"),
-      json_success: ["env-check.mjs", "ppt_flow.mjs"].includes(entry) ? focused(entry === "env-check.mjs" ? "tests/test_env_check.mjs" : "tests/test_ppt_flow.mjs", "documented JSON output") : na("No documented JSON success mode."),
+      json_success: ["env-check.mjs", "ppt_flow.mjs", "lessons.mjs"].includes(entry) ? focused(entry === "env-check.mjs" ? "tests/test_env_check.mjs" : entry === "ppt_flow.mjs" ? "tests/test_ppt_flow.mjs" : "tests/test_lessons.mjs", "documented JSON output") : na("No documented JSON success mode."),
     }]));
     const delegatedCommands = new Set(["doctor", "style-master", "validate", "pilot", "build", "refresh", "test"]);
     const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => [entry, {
@@ -460,6 +461,7 @@ describe("cli_error", () => {
       "bundle_layout.mjs": ["--structure-only"],
       "env-check.mjs": ["--smoke", "--probe-vendors"],
       "generate_style_master.mjs": [],
+      "lessons.mjs": ["nosuch"],
       "make_contact_sheet.mjs": [],
       "ppt_flow.mjs": ["nosuch"],
       "stage1_build_inputs.mjs": [],

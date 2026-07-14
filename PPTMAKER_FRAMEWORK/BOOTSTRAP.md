@@ -35,14 +35,26 @@ agent_action: read_first
 
 1. `ppt_flow state <runDir>` + `ppt_flow status <runDir>`（执行指针 + 产物门闩）
 2. 用人话报告整流程位置（优先卡上的 Summary / Next；不要只甩 playbook 文件名）
-3. 加载 `_state.playbook`，从 `current_node` 续（`checkEntry`）
-4. 确认「从这里接着做？」——用户明确要重开才绿场 intake
+3. **扫描 `_lessons/`**：`node PPTMAKER_FRAMEWORK/scripts/lessons.mjs list <runDir>`，列出所有教训文件并总结关键发现
+4. 加载 `_state.playbook`，从 `current_node` 续（`checkEntry`）
+5. 确认「从这里接着做？」——用户明确要重开才绿场 intake
 
 进度在 deck 磁盘（`_state` + `_generated` / status），**不在聊天记忆**。说法见 [COMMANDS.md](COMMANDS.md) **续跑 / 做到哪了**。
 
 ### 已有 deck / 素材要迁入？
 
 不要当「特殊通道」跳过 show 与闸门。走 [COMMANDS.md](COMMANDS.md)「旁路 / 迁移」→ playbook `migrate-import`（方法论：`workflow/00-setup/05-migrate-import-existing-deck.md`）。全程遵守 AGENT_CONTRACT §11。
+
+### 用户说「记住这个」——立即写教训
+
+当用户说出以下短语（或类似表达），Agent **必须立即**将相关教训写入 `_lessons/`：
+
+- "记住这个" / "记下来"
+- "下回别忘了"
+- "不容易总算调出来了"
+- "太难了，好不容易修好"
+
+**立即执行：** 用 `lessons.mjs add <runDir> --title "<slug>"` 建文件，或用编辑器直接写。按 `_lessons/README.md` 的四问格式（遇到什么？/ 怎么试的？/ 结论？/ 下次先看哪？）。不要只留在聊天里——换个 session 就丢了。
 
 ## ⚖️ 目录结构是宪法（不可临场发挥）
 

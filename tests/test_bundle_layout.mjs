@@ -146,8 +146,13 @@ describe('bundle_layout', () => {
       expect(lessonsReadme).toContain('闭环');
       expect(lessonsReadme).toContain('一题一文');
       expect(lessonsReadme).toContain('image2-proven.yaml');
+      // Copy-paste template present in LESSONS_DIR_README
+      expect(lessonsReadme).toContain('遇到什么');
+      expect(lessonsReadme).toContain('怎么试的');
       expect(readFileSync(join(deck, '.env.example'), 'utf-8')).toContain('IMAGE2_API_KEY');
-      expect(readFileSync(join(deck, 'deck-guide.md'), 'utf-8')).toContain('_lessons/');
+      const guideContent = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
+      expect(guideContent).toContain('_lessons/');
+      expect(guideContent).toContain('lessons.mjs');
       expect(existsSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'))).toBe(true);
       expect(readFileSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'), 'utf-8')).toMatch(
         /上严下松|_scratch/

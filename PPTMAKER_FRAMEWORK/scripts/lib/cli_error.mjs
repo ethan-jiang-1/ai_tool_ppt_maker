@@ -16,6 +16,7 @@ export const EXECUTABLE_INVENTORY = Object.freeze([
   "bundle_layout.mjs",
   "env-check.mjs",
   "generate_style_master.mjs",
+  "lessons.mjs",
   "make_contact_sheet.mjs",
   "ppt_flow.mjs",
   "stage1_build_inputs.mjs",
