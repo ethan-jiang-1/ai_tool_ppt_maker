@@ -2,7 +2,7 @@
 
 ### Requirement: create-deck playbook covers complete deck creation
 
-`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, checkpoint-intake, setup, seed-topics, authoring-slides, composing-prompts, assembling-deck, checkpoint-delivery, readiness, rerun, final. Node order SHALL be: instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → assembling-deck → checkpoint-delivery → (rerun → seed-topics | readiness → final).
+`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, checkpoint-intake, setup, seed-topics, authoring-slides, composing-prompts, producing-deck, checkpoint-final-review, readiness, rerun, final. Node order SHALL be: instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → producing-deck → checkpoint-final-review → (rerun → seed-topics | readiness → final).
 
 #### Scenario: User says "帮我做一个PPT"
 

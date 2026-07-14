@@ -4,11 +4,11 @@
 
 The node gate condition `speaker_notes_injected` SHALL validate `_generated/qa/notes_injection.json`. It SHALL pass only when the receipt schema is valid; `input_path` and `pptx_path` are normalized relative paths whose lexical paths and resolved realpaths remain inside the current run directory; the referenced current slide specification and PPTX exist; both SHA-256 values match; and `notes_injected` equals `slide_count`. It SHALL NOT use completion of the containing playbook node as a proxy.
 
-#### Scenario: Circular assembling-deck proxy is forbidden
+#### Scenario: Circular producing-deck proxy is forbidden
 
-- **WHEN** `assembling-deck` exit includes `speaker_notes_injected`
+- **WHEN** `producing-deck` exit includes `speaker_notes_injected`
 - **THEN** the condition inspects the Stage-5 receipt
-- **AND** does not check whether `assembling-deck` is already completed
+- **AND** does not check whether `producing-deck` is already completed
 
 #### Scenario: PPTX changed after notes injection
 

@@ -108,8 +108,8 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 
 #### Scenario: Upstream decision selects a branch
 
-- **WHEN** a readiness branch declares `entry: [node_decision:checkpoint-delivery:proceed]`
-- **AND** required upstream node `checkpoint-delivery` completed after recording a typed user decision with value `proceed` in the current execution
+- **WHEN** a readiness branch declares `entry: [node_decision:checkpoint-final-review:proceed]`
+- **AND** required upstream node `checkpoint-final-review` completed after recording a typed user decision with value `proceed` in the current execution
 - **THEN** the branch entry condition passes
 
 ### Requirement: checkExit validates exit conditions
@@ -188,6 +188,94 @@ The implementation SHALL expose a reusable playbook index and validator that che
 
 #### Scenario: Downstream branch value is not declared upstream
 
-- **WHEN** a node uses `node_decision:checkpoint-delivery:proceeed` but `checkpoint-delivery.decisions` contains only `proceed`, `repair`, and `redirect`
+- **WHEN** a node uses `node_decision:checkpoint-final-review:proceeed` but `checkpoint-final-review.decisions` contains only `proceed`, `repair`, and `redirect`
 - **THEN** validation fails at the downstream condition
 - **AND** names the upstream declaration and allowed values
+
+### Requirement: State schema is explicitly versioned and migrated
+
+`state.yaml` SHALL contain integer `schema_version: 2`, exposed by `STATE_SCHEMA_VERSION`, stable whole-workflow `started_at`, and—whenever `playbook` is non-empty—a non-empty `execution_id` and `execution_started_at`. A default state with no active playbook MAY keep the playbook and execution fields empty but SHALL contain no controller-node records. Top-level `nodes` SHALL contain the active execution's controller working set plus reserved system records. Every controller-node record written for the active playbook SHALL carry the same execution ID. Starting a new top-level execution SHALL clear prior controller records while preserving reserved records, but SHALL reject a non-empty stack and SHALL require explicit replacement authorization when the active execution is incomplete. Reserved system evidence such as `header-review` SHALL retain capability-specific version/fingerprint semantics and SHALL NOT be treated as controller execution records. A missing version SHALL be treated as legacy v1. Default read/heal SHALL apply ordered, idempotent migrations to v2 before validation and rewrite the normalized file. Migrations SHALL cover known renamed node IDs, evidence and decision normalization, controller execution tagging, enum normalization, time-field normalization, incompatible timestamp cleanup, and safe legacy stack snapshots.
+
+#### Scenario: Legacy state gains current schema version
+
+- **WHEN** a valid legacy state has no `schema_version`
+- **THEN** default read/heal returns a usable current state
+- **AND** rewrites the file with the current schema version
+
+#### Scenario: Inactive default state has no phantom execution
+
+- **WHEN** no playbook has been started and no controller records exist
+- **THEN** `schema_version` is current while `playbook`, `execution_id`, and `execution_started_at` may remain empty
+- **AND** starting a playbook populates all active execution fields together
+
+#### Scenario: Known node rename is playbook-scoped
+
+- **WHEN** legacy state has `playbook: edit-text` and `current_node: verify-output`
+- **THEN** migration maps it to the text-specific node ID
+- **AND** the same legacy ID under `edit-visual` maps to the visual-specific node ID
+
+#### Scenario: Playbook-scoped alias covers the full create-deck rename
+
+- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
+- **AND** `nodes` contains keys `hitl1`, `hitl2`, `wave0`, `wave1`, `wave2`
+- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
+- **AND** all five node keys in `nodes` are mapped to their canonical names
+- **AND** `state.diagnostics` contains at least one migration entry referencing the create-deck rename
+- **AND** the migration is idempotent on repeated reads
+
+#### Scenario: Pointer-only migration preserves current_node without a node record
+
+- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
+- **AND** `nodes` does NOT contain a `hitl2` key
+- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
+- **AND** `current_node` is not cleared during active-working-set restriction
+- **AND** the migration is idempotent on repeated reads
+
+#### Scenario: Legacy and canonical keys coexist with canonical priority
+
+- **WHEN** legacy state has `playbook: create-deck`
+- **AND** `nodes` contains BOTH legacy key `wave0` (with `status: completed`, `extra_field: old-value`) AND canonical key `authoring-slides` (with `status: in_progress`)
+- **THEN** `readState(deckDir)` returns a healed state where the canonical `authoring-slides` record has `status: in_progress` (canonical wins)
+- **AND** `extra_field: old-value` is preserved from the legacy record (missing fields filled)
+- **AND** the legacy `wave0` key is removed
+- **AND** the canonical record's business fields (status, decision, evidence content) are preserved; execution ID is normalized to the owning active/stack execution per `validateState` rules; timestamps are cleaned per existing healer rules (incompatible fields removed, compatible timestamps preserved)
+- **AND** a second heal produces identical state
+
+#### Scenario: Playbook stack entries receive alias migration
+
+- **WHEN** legacy state has `playbook_stack` containing an entry with `playbook: create-deck`
+- **AND** that entry's `current_node` or `controller_nodes` keys reference old `hitl2` or `wave0` IDs
+- **THEN** `readState(deckDir)` returns a healed state where those stack entry fields are migrated to canonical names
+- **AND** `controller_nodes` keys are migrated alongside `current_node`
+- **AND** entries whose playbook has no declared aliases are left unchanged
+- **AND** the same collision and idempotency rules as top-level migration apply to stack entries
+
+#### Scenario: Migration is idempotent
+
+- **WHEN** an already migrated state is read and healed again
+- **THEN** node IDs, evidence, and timestamps do not change again
+
+#### Scenario: Legacy execution ID is stable
+
+- **WHEN** a legacy state without execution IDs is healed twice
+- **THEN** the first heal persists one execution ID on the active state and migrated node records
+- **AND** the second heal preserves that same ID
+
+#### Scenario: Scalar legacy decision is not upgraded to human approval
+
+- **WHEN** a v1 node contains `decision: proceed` without provenance
+- **THEN** migration converts it to a typed decision with `kind: agent` and a migration timestamp
+- **AND** it cannot satisfy `user_decision_recorded` until a user decision is recorded
+
+#### Scenario: Workflow start is not overwritten by a new playbook
+
+- **WHEN** a state with an existing `started_at` begins a new playbook execution
+- **THEN** `started_at` remains unchanged
+- **AND** a new `execution_started_at` is recorded
+
+#### Scenario: Incomplete execution is not silently replaced
+
+- **WHEN** the active execution has an in-progress or failed controller node
+- **AND** `startPlaybook` is called without explicit replacement authorization
+- **THEN** it throws without clearing the active working set
+- **AND** a nested workflow must use `switchPlaybook`
