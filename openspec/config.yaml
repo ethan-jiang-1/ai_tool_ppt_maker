@@ -53,6 +53,7 @@ context: |
   | `run-bundle-layout` | run bundle (`deck_*`) 目录本体论: 三层树 + 各目录 role + 上严下松梯度 + glossary Where Map 检索索引 | `bundle_layout.mjs` (`renderTree()`) |
   | `run-bundle-management` | run bundle 运维: init scaffold / check 校验 / new-version, enforce `run-bundle-layout` 本体论 (不再自定义目录结构) | `bundle_layout.mjs` |
   | `environment-check` | 零依赖运行时检查 (Node.js>=18, npm, API key, 字体, in-framework Stage 2) | `env-check.mjs` |
+  | `project-versioning` | repo 级版本管理：VERSION 文件、VERSION_LOG.md、archive 后 agent 判断 bump 粒度 | `VERSION`, `VERSION_LOG.md` |
 
   ### 生产管线 (5 Stage)
 
@@ -186,3 +187,9 @@ rules:
     - "标注任务涉及哪些 capability (用注册表 kebab-case identifier)"
     - "每个任务对应到测试文件: tests/test_<script>.mjs (repo 根目录, 与 scripts 一一对应)"
     - "绝不包含需要手动编辑 _generated/ 内容的步骤"
+
+  version:
+    - "repo 版本号在根目录 VERSION 文件中（纯文本 semver，如 0.14.3），VERSION 是 SSOT"
+    - "archive change 后必须检查：本次变更是否需要 bump 版本"
+    - "bump 粒度：新 capability / 破坏性变更 / 架构变化 → MINOR；bug fix / 小改进 → PATCH；纯文档 → 不 bump"
+    - "用户确认 bump 后，同步更新 VERSION、VERSION_LOG.md、PPTMAKER_FRAMEWORK/README.md 和 package.json"
