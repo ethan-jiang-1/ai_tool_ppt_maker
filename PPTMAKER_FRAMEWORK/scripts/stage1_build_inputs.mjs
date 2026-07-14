@@ -51,10 +51,13 @@ import { DEFAULT_CONFIG, loadVisualConfig, VisualConfigError } from "./visual_co
 import {
     DECK_SYSTEM_FILE,
     COLOR_PALETTE_FILE,
+    BACKBONE_ASSETS_SUBDIR,
+    ASSET_MANIFEST_FILE,
     GEN_SLIDE_PLAN,
     GEN_PROMPTS_SUBDIR,
     GEN_PROMPTS_JSON,
 } from "./bundle_layout.mjs";
+import { loadAssetManifest, validateAssetManifest } from "./asset_manifest.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
 import {
     CANONICAL_RENDER_MODES,
@@ -545,7 +548,7 @@ function validationRecord({
  * @param {string[]} mdPaths - Array of paths to markdown slide spec files.
  * @returns {string[]} Array of problem strings.
  */
-export function validateSpecRecords(mdPaths) {
+export function validateSpecRecords(mdPaths, assetManifest = null) {
     const problems = [];
     const seenIds = new Map();
 
@@ -672,6 +675,30 @@ export function validateSpecRecords(mdPaths) {
             if (mode === RENDER_MODE_BODY_HEADER_LOCK && !presentHeaderText(kicker)) {
                 problems.push(validationRecord({ severity: "WARN", display: `slide ${JSON.stringify(sid)}: no real KICKER (header overlay will show the title alone).`, message: "body+header-lock slide has no real kicker", path: mdPath, line: fieldLine(text, block, "KICKER"), slideId: sid, field: "KICKER", reason: "missing_recommended_field", expected: "non-placeholder kicker" }));
             }
+
+            // e) VISUAL ASSETS validation (WARNING only — assets are optional infrastructure)
+            if (assetManifest) {
+                const assetRaw = extractField(body, "VISUAL ASSETS");
+                if (assetRaw) {
+                    const ids = assetRaw.split(",").map(s => s.trim()).filter(Boolean);
+                    for (const assetId of ids) {
+                        if (!assetManifest.assets || !assetManifest.assets[assetId]) {
+                            problems.push(validationRecord({
+                                severity: "WARN",
+                                display: `slide ${JSON.stringify(sid)}: VISUAL ASSETS references unknown asset "${assetId}" (not in asset-manifest.yaml)`,
+                                message: "slide references an unknown visual asset",
+                                path: mdPath,
+                                line: fieldLine(text, block, "VISUAL ASSETS"),
+                                slideId: sid,
+                                field: "VISUAL ASSETS",
+                                reason: "unknown_asset_reference",
+                                actual: assetId,
+                                expected: "registered asset id",
+                            }));
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -684,8 +711,8 @@ export function validateSpecRecords(mdPaths) {
     return problems;
 }
 
-export function validateSpecs(mdPaths) {
-    return validateSpecRecords(mdPaths).map((problem) => `${problem.severity}: ${problem.display}`);
+export function validateSpecs(mdPaths, assetManifest = null) {
+    return validateSpecRecords(mdPaths, assetManifest).map((problem) => `${problem.severity}: ${problem.display}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -697,11 +724,12 @@ export function validateSpecs(mdPaths) {
  *
  * @param {string[]} mdPaths - Paths to markdown slide spec files.
  * @param {string} finalRules - Custom final rules from deck_system.txt (if available).
+ * @param {object|null} [assetManifest] - Optional parsed asset-manifest.yaml.
  *                              Falls back to hardcoded SYSTEM_FINAL_RULES if empty.
  * @returns {{ plan: object[], prompts: object[] }}
  * Legacy port of `parse_slides`.
  */
-export function parseSlides(mdPaths, finalRules) {
+export function parseSlides(mdPaths, finalRules, assetManifest = null) {
     if (!finalRules) {
         finalRules = SYSTEM_FINAL_RULES;
     }
@@ -748,6 +776,22 @@ export function parseSlides(mdPaths, finalRules) {
             const subtitle = presentHeaderText(extractField(body, "SUBTITLE"));
             const sourcePrompt = extractPrompt(body, slideId);
 
+            // Parse VISUAL ASSETS field (optional — only when manifest provided)
+            const visualAssetsRaw = extractField(body, "VISUAL ASSETS");
+            const rawAssetIds = visualAssetsRaw
+                ? visualAssetsRaw.split(",").map(s => s.trim()).filter(Boolean)
+                : [];
+            const validAssetIds = [];
+            if (rawAssetIds.length > 0 && assetManifest) {
+                for (const id of rawAssetIds) {
+                    if (assetManifest.assets && assetManifest.assets[id]) {
+                        validAssetIds.push(id);
+                    } else {
+                        console.warn(`  WARNING: slide ${slideId} references unknown asset "${id}" — skipping`);
+                    }
+                }
+            }
+
             const slideRecord = {
                 id: slideId,
                 visual_type: visualType,
@@ -757,6 +801,9 @@ export function parseSlides(mdPaths, finalRules) {
             if (subtitle) {
                 slideRecord.subtitle = subtitle;
             }
+            if (validAssetIds.length > 0) {
+                slideRecord.assets = validAssetIds;
+            }
 
             slideRecord.layout_contract = buildLayoutContract(
                 slideId, visualType, body, renderMode, policy
@@ -765,7 +812,11 @@ export function parseSlides(mdPaths, finalRules) {
 
             const outName = `${String(seq).padStart(2, "0")}_${slideId}.png`;
             const fullPrompt = assemblePrompt(sourcePrompt, slideRecord, finalRules);
-            prompts.push({ id: slideId, out: outName, prompt: fullPrompt });
+            const promptEntry = { id: slideId, out: outName, prompt: fullPrompt };
+            if (validAssetIds.length > 0) {
+                promptEntry.asset_ids = validAssetIds;
+            }
+            prompts.push(promptEntry);
             seq++;
         }
     }
@@ -902,7 +953,24 @@ function main() {
     // Header safe zone is a live per-preset knob (color_palette.json), not hardcoded.
     loadSafeZoneFromPalette(palettePath);
 
-    const { plan, prompts } = parseSlides(args.input, finalRules);
+    // Load asset manifest if present (optional infrastructure)
+    let assetManifest = null;
+    const assetDir = join(styleDir, BACKBONE_ASSETS_SUBDIR);
+    if (existsSync(join(assetDir, ASSET_MANIFEST_FILE))) {
+        try {
+            assetManifest = loadAssetManifest(assetDir);
+            const assetProblems = validateAssetManifest(assetManifest);
+            if (assetProblems.length > 0) {
+                console.warn(`  WARNING: asset manifest has ${assetProblems.length} issue(s):`);
+                for (const p of assetProblems) console.warn(`    - ${p}`);
+            }
+            console.log(`  Asset manifest: ${Object.keys(assetManifest.assets || {}).length} assets registered`);
+        } catch (err) {
+            console.warn(`  WARNING: cannot load asset manifest: ${err.message}`);
+        }
+    }
+
+    const { plan, prompts } = parseSlides(args.input, finalRules, assetManifest);
 
     // slide_plan.json stays at the _generated/ root; per-slide prompts go into a
     // page_prompts/ subdir — one readable .prompt.md per slide plus a machine

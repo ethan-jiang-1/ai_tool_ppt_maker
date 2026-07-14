@@ -61,6 +61,10 @@ render:
 
 **SUBTITLE**: [PLACEHOLDER: 可选。仅 divider/opener/closer 用。不需要就删。]
 
+**VISUAL ASSETS**: [PLACEHOLDER: 可选。逗号分隔的资产 ID 列表，如 ai_arch_diagram, data_pipeline。
+  资产在 2_backbone/visual-style/assets/asset-manifest.yaml 中注册。
+  不需要引用资产时，删除此行。]
+
 **CONCEPT**:
 - **MUST communicate**: [PLACEHOLDER: 2-3 句。核心认知载荷——听众必须理解什么。]
 - **MUST NOT**: [PLACEHOLDER: 1-2 句。要主动防止的误解。]

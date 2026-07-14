@@ -33,6 +33,7 @@ import {
   inspectImageProvenance,
   provenanceRepairHint,
   readImageManifest,
+  sha256Bytes,
   sha256File,
   writeImageManifestAtomic,
 } from "./lib/image_provenance.mjs";
@@ -64,6 +65,7 @@ export async function generateImages({
   promptIsFinal = false,
   baseUrl = [],
   dryRun = false,
+  assetResolver = null,
 } = {}) {
   if (!existsSync(promptJson)) {
     throw new Error(`Prompt JSON not found: ${promptJson}`);
@@ -81,13 +83,11 @@ export async function generateImages({
   const onlySet = only.length > 0 ? new Set(only) : null;
   mkdirSync(outDir, { recursive: true });
   const styleReferenceSha256 = sha256File(styleReference);
-  const profile = generationProfile({
-    styleReferenceSha256,
-    resolution,
-    model,
-    semanticOptions: { size: "16:9", n: 1 },
-  });
+  // Shared profile params (without per-slide assetRefs)
+  const sharedProfileParams = { styleReferenceSha256, resolution, model, semanticOptions: { size: "16:9", n: 1 } };
   let { manifest, error: manifestError } = readImageManifest(outDir);
+  /** @type {Map<string, object>} */
+  const profiles = new Map();
 
   let baseUrls = [];
   if (!dryRun) {
@@ -132,6 +132,35 @@ export async function generateImages({
     // (Anchoring clause is already in the prompt text; we only attach the reference image.)
     void promptIsFinal;
 
+    // Per-slide asset resolution and profile computation
+    let perSlideAssetRefs = {};
+    if (assetResolver && slide.asset_ids && slide.asset_ids.length > 0) {
+      const assetHashes = {};
+      for (const assetId of slide.asset_ids) {
+        const filePath = assetResolver(assetId);
+        if (filePath && existsSync(filePath)) {
+          try {
+            assetHashes[assetId] = sha256File(filePath);
+          } catch (_err) {
+            console.warn(`  WARNING: cannot hash asset "${assetId}": ${_err.message}`);
+          }
+        } else {
+          console.warn(`  WARNING: asset "${assetId}" file not found, skipping`);
+        }
+      }
+      if (Object.keys(assetHashes).length > 0) {
+        const sortedIds = [...Object.keys(assetHashes)].sort();
+        const aggregateInput = sortedIds.map(k => assetHashes[k]).join('');
+        perSlideAssetRefs = {
+          aggregate_sha256: sha256Bytes(aggregateInput),
+          asset_count: sortedIds.length,
+          assets: assetHashes,
+        };
+      }
+    }
+    const profile = generationProfile({ ...sharedProfileParams, assetRefs: perSlideAssetRefs });
+    profiles.set(slideId, profile);
+
     if (dryRun) {
       console.log(`  [DRY RUN] ${index}/${total} Would generate ${outPath}`);
       generated += 1;
@@ -166,6 +195,18 @@ export async function generateImages({
 
     emitCliProgress("item_start", { stage: "stage2", index, total, id: slideId });
     try {
+      // Resolve per-slide asset reference paths
+      const additionalRefPaths = [];
+      if (assetResolver && slide.asset_ids && slide.asset_ids.length > 0) {
+        for (const assetId of slide.asset_ids) {
+          const resolvedPath = assetResolver(assetId);
+          if (resolvedPath && existsSync(resolvedPath)) {
+            additionalRefPaths.push(resolvedPath);
+          } else {
+            console.warn(`  WARNING: slide ${slideId} references asset "${assetId}" but file not found`);
+          }
+        }
+      }
       const trace = await generateOneImage({
         prompt,
         outPath,
@@ -175,6 +216,7 @@ export async function generateImages({
         force: true,
         baseUrls,
         tracePath,
+        additionalReferencePaths: additionalRefPaths,
       });
       if (!trace || !existsSync(outPath)) {
         throw new Error("generator returned without a current output image");
@@ -211,7 +253,7 @@ export async function generateImages({
   if (errors.length > 0) {
     for (const e of errors) console.log(`  ${e}`);
   }
-  return { generated, skipped, errors, failures, profile, selectedIds: workSlides.map((slide) => slide.id) };
+  return { generated, skipped, errors, failures, profiles, selectedIds: workSlides.map((slide) => slide.id) };
 }
 
 export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styleReference, resolution, selectedIds = [] }) {
