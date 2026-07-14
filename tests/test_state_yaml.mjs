@@ -246,20 +246,20 @@ playbook_stack: {}
 
   it('rejects invalid node/gate enum writes without mutation', () => {
     const s = createInitialState('demo', 'keynote', 'dark');
-    expect(() => setNodeStatus(s, 'wave0', 'done')).toThrow(/invalid node status/);
-    expect(s.nodes.wave0).toBeUndefined();
+    expect(() => setNodeStatus(s, 'authoring-slides', 'done')).toThrow(/invalid node status/);
+    expect(s.nodes['authoring-slides']).toBeUndefined();
     expect(() => setGate(s, 'visual', 'done')).toThrow(/invalid gate status/);
     expect(s.gates.visual).toBe('pending');
   });
 
   it('cleans incompatible timestamps when a completed node restarts', () => {
     const s = createInitialState('demo', 'keynote', 'dark');
-    setNodeStatus(s, 'wave0', 'completed', { failed_reason: 'old' });
-    expect(s.nodes.wave0.completed).toBeTruthy();
-    expect(s.nodes.wave0.failed_reason).toBeUndefined();
-    setNodeStatus(s, 'wave0', 'in_progress');
-    expect(s.nodes.wave0.completed).toBeUndefined();
-    expect(s.nodes.wave0.started).toBeTruthy();
+    setNodeStatus(s, 'authoring-slides', 'completed', { failed_reason: 'old' });
+    expect(s.nodes['authoring-slides'].completed).toBeTruthy();
+    expect(s.nodes['authoring-slides'].failed_reason).toBeUndefined();
+    setNodeStatus(s, 'authoring-slides', 'in_progress');
+    expect(s.nodes['authoring-slides'].completed).toBeUndefined();
+    expect(s.nodes['authoring-slides'].started).toBeTruthy();
   });
 
   it('migrates legacy schema, decisions, aliases, gates, and execution fields idempotently', () => {
@@ -291,6 +291,176 @@ playbook_stack: {}
     expect(second.execution_id).toBe(first.execution_id);
     expect(second.playbook_stack[0].execution_id).toBe(first.playbook_stack[0].execution_id);
     expect(second).toEqual(first);
+  });
+
+  it('migrates all five create-deck legacy node IDs to canonical names', () => {
+    const legacy = {
+      playbook: 'create-deck',
+      current_node: 'hitl2',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {
+        hitl1: { status: 'completed' },
+        hitl2: { status: 'in_progress' },
+        wave0: { status: 'completed', evidence: { 'sources-collected': { met: true, kind: 'agent', at: '2026-01-01T00:00:00.000Z' } } },
+        wave1: { status: 'pending' },
+        wave2: { status: 'pending' },
+      },
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+    };
+    const first = healState(legacy).state;
+    expect(first.current_node).toBe('checkpoint-final-review');
+    expect(first.nodes.hitl1).toBeUndefined();
+    expect(first.nodes.hitl2).toBeUndefined();
+    expect(first.nodes.wave0).toBeUndefined();
+    expect(first.nodes.wave1).toBeUndefined();
+    expect(first.nodes.wave2).toBeUndefined();
+    expect(first.nodes['checkpoint-intake'].status).toBe('completed');
+    expect(first.nodes['checkpoint-final-review'].status).toBe('in_progress');
+    expect(first.nodes['authoring-slides'].status).toBe('completed');
+    expect(first.nodes['composing-prompts'].status).toBe('pending');
+    expect(first.nodes['producing-deck'].status).toBe('pending');
+    const second = healState(first).state;
+    expect(second).toEqual(first);
+  });
+
+  it('migrates pointer-only current_node without a node record', () => {
+    const legacy = {
+      playbook: 'create-deck',
+      current_node: 'hitl2',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {},
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+    };
+    const healed = healState(legacy).state;
+    expect(healed.current_node).toBe('checkpoint-final-review');
+    // current_node should survive restrictActiveWorkingSet because it's a valid canonical ID
+    expect(healed.current_node).not.toBe('');
+    const second = healState(healed).state;
+    expect(second.current_node).toBe('checkpoint-final-review');
+  });
+
+  it('handles collision where legacy and canonical keys coexist with canonical priority', () => {
+    const legacy = {
+      playbook: 'create-deck',
+      current_node: 'authoring-slides',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {
+        wave0: { status: 'completed', extra_field: 'old-value', evidence: { old: { met: true, kind: 'agent', at: '2026-01-01T00:00:00.000Z' } } },
+        'authoring-slides': { status: 'in_progress' },
+      },
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+    };
+    const healed = healState(legacy).state;
+    // canonical status wins
+    expect(healed.nodes['authoring-slides'].status).toBe('in_progress');
+    // legacy-only field is preserved
+    expect(healed.nodes['authoring-slides'].extra_field).toBe('old-value');
+    // legacy key is removed
+    expect(healed.nodes.wave0).toBeUndefined();
+    // idempotent
+    const second = healState(healed).state;
+    expect(second).toEqual(healed);
+  });
+
+  it('migrates playbook_stack entry legacy node IDs', () => {
+    const legacy = {
+      playbook: 'edit-text',
+      current_node: 'classify-change',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {
+        'classify-change': { status: 'in_progress' },
+      },
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+      playbook_stack: [
+        {
+          playbook: 'create-deck',
+          current_node: 'hitl2',
+          execution_id: 'exec-parent',
+          execution_started_at: '2026-01-01T00:00:00.000Z',
+          controller_nodes: {
+            hitl1: { status: 'completed' },
+            wave0: { status: 'completed' },
+            wave2: { status: 'pending' },
+          },
+        },
+      ],
+    };
+    const healed = healState(legacy).state;
+    const entry = healed.playbook_stack[0];
+    expect(entry.current_node).toBe('checkpoint-final-review');
+    expect(entry.controller_nodes['checkpoint-intake']).toBeDefined();
+    expect(entry.controller_nodes['checkpoint-intake'].status).toBe('completed');
+    expect(entry.controller_nodes['authoring-slides']).toBeDefined();
+    expect(entry.controller_nodes['authoring-slides'].status).toBe('completed');
+    expect(entry.controller_nodes['producing-deck']).toBeDefined();
+    expect(entry.controller_nodes['producing-deck'].status).toBe('pending');
+    expect(entry.controller_nodes.hitl1).toBeUndefined();
+    expect(entry.controller_nodes.wave0).toBeUndefined();
+    expect(entry.controller_nodes.wave2).toBeUndefined();
+    // top-level nodes unaffected (different playbook)
+    expect(healed.nodes['classify-change']).toBeDefined();
+  });
+
+  it('handles stack collision with canonical priority for controller_nodes', () => {
+    const legacy = {
+      playbook: 'edit-text',
+      current_node: 'classify-change',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {
+        'classify-change': { status: 'in_progress' },
+      },
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+      playbook_stack: [
+        {
+          playbook: 'create-deck',
+          current_node: 'wave0',
+          execution_id: 'exec-parent',
+          execution_started_at: '2026-01-01T00:00:00.000Z',
+          controller_nodes: {
+            wave0: { status: 'completed', legacy_field: 'from-legacy' },
+            'authoring-slides': { status: 'in_progress' },
+          },
+        },
+      ],
+    };
+    const healed = healState(legacy).state;
+    const entry = healed.playbook_stack[0];
+    expect(entry.current_node).toBe('authoring-slides');
+    // canonical status wins
+    expect(entry.controller_nodes['authoring-slides'].status).toBe('in_progress');
+    // legacy-only field preserved
+    expect(entry.controller_nodes['authoring-slides'].legacy_field).toBe('from-legacy');
+    // legacy key removed
+    expect(entry.controller_nodes.wave0).toBeUndefined();
+    // idempotent
+    const second = healState(healed).state;
+    expect(second).toEqual(healed);
+  });
+
+  it('records create-deck rename migration messages in diagnostics', () => {
+    const legacy = {
+      playbook: 'create-deck',
+      current_node: 'hitl2',
+      started_at: '2026-01-01T00:00:00.000Z',
+      nodes: {
+        hitl1: { status: 'completed' },
+        wave0: { status: 'completed' },
+      },
+      gates: { content: 'pending', visual: 'pending' },
+      deck: { name: 'x' },
+    };
+    const healed = healState(legacy).state;
+    expect(Array.isArray(healed.diagnostics)).toBe(true);
+    const diags = healed.diagnostics.join('\n');
+    expect(diags).toMatch(/create-deck/);
+    expect(diags).toMatch(/migrated/);
+    // pointer migration message
+    expect(diags).toMatch(/hitl2.*current_node.*checkpoint-final-review/);
   });
 
   it('heal removes controller records outside the active playbook working set', () => {
@@ -357,10 +527,10 @@ playbook_stack: {}
     const s = createInitialState('demo', 'keynote', 'dark');
     setNodeStatus(s, 'instantiation', 'completed');
     s.nodes['header-review'] = { status: 'in_progress' };
-    const ids = ['instantiation', 'hitl1', 'setup'];
-    expect(getPendingNodes(s, ids)).toEqual(['hitl1', 'setup']);
+    const ids = ['instantiation', 'checkpoint-intake', 'setup'];
+    expect(getPendingNodes(s, ids)).toEqual(['checkpoint-intake', 'setup']);
     expect(isPlaybookComplete(s, ids)).toBe(false);
-    setNodeStatus(s, 'hitl1', 'skipped');
+    setNodeStatus(s, 'checkpoint-intake', 'skipped');
     setNodeStatus(s, 'setup', 'completed');
     expect(isPlaybookComplete(s, ids)).toBe(true);
   });

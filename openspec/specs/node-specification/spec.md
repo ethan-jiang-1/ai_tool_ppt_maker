@@ -17,14 +17,14 @@ Every registered node SHALL have one canonical YAML declaration with at minimum:
 
 #### Scenario: Agent checks entry gate before executing a node
 
-- **WHEN** Agent begins executing node `wave0` in playbook `create-deck`
-- **THEN** the parser resolves the exact `wave0` declaration from the playbook index
+- **WHEN** Agent begins executing node `authoring-slides` in playbook `create-deck`
+- **THEN** the parser resolves the exact `authoring-slides` declaration from the playbook index
 - **AND** verifies all `requires` dependencies and explicit `entry` conditions
 - **AND** if any check fails, Agent reports the missing condition and does NOT proceed
 
 #### Scenario: Agent checks exit gate before marking node complete
 
-- **WHEN** Agent finishes the steps in node `wave0`
+- **WHEN** Agent finishes the steps in node `authoring-slides`
 - **THEN** it verifies all `exit` conditions are met
 - **AND** if any condition fails, Agent stays in the node until conditions are satisfied
 
@@ -69,7 +69,7 @@ A node's status SHALL be one of: `pending` (not started), `in_progress` (current
 
 #### Scenario: Invalid status write is rejected
 
-- **WHEN** a caller invokes `setNodeStatus(state, 'wave0', 'done')`
+- **WHEN** a caller invokes `setNodeStatus(state, 'authoring-slides', 'done')`
 - **THEN** the API throws a validation error
 - **AND** does not mutate the node record
 
@@ -159,7 +159,7 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 #### Scenario: Condition resolves file path via ctx
 
-- **WHEN** `checkEntry('wave0', playbookDir, state, { deckDir, runDir })` is called
+- **WHEN** `checkEntry('authoring-slides', playbookDir, state, { deckDir, runDir })` is called
 - **THEN** the `slide_specs_exists` condition checks `join(runDir, 'slide-specifications.md')`
 - **AND** `visual_preset_seeded` checks `join(deckDir, '2_backbone/visual-style/color_palette.json')`
 
@@ -184,9 +184,9 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 #### Scenario: Entry gate fails with missing conditions
 
-- **WHEN** `wave0` declares `requires: [seed-topics]`
+- **WHEN** `authoring-slides` declares `requires: [seed-topics]`
 - **AND** `seed-topics` is neither completed nor skipped
-- **THEN** `checkEntry('wave0', ...)` returns `pass: false`
+- **THEN** `checkEntry('authoring-slides', ...)` returns `pass: false`
 - **AND** `missing` includes `node_done:seed-topics`
 
 #### Scenario: Unknown condition returned for manual judgment
@@ -208,8 +208,8 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 #### Scenario: Upstream decision selects a branch
 
-- **WHEN** a readiness branch declares `entry: [node_decision:hitl2:proceed]`
-- **AND** required upstream node `hitl2` completed after recording a typed user decision with value `proceed` in the current execution
+- **WHEN** a readiness branch declares `entry: [node_decision:checkpoint-final-review:proceed]`
+- **AND** required upstream node `checkpoint-final-review` completed after recording a typed user decision with value `proceed` in the current execution
 - **THEN** the branch entry condition passes
 
 ### Requirement: checkExit validates exit conditions
@@ -218,8 +218,8 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 #### Scenario: Exit gate passes when conditions met
 
-- **WHEN** wave0 deterministic exit conditions and required typed evidence are current in state
-- **THEN** `checkExit('wave0', ...)` returns `{ pass: true, missing: [], unknown: [] }`
+- **WHEN** authoring-slides deterministic exit conditions and required typed evidence are current in state
+- **THEN** `checkExit('authoring-slides', ...)` returns `{ pass: true, missing: [], unknown: [] }`
 
 #### Scenario: Missing artifact blocks exit
 
@@ -233,7 +233,7 @@ The catalog SHALL include a `node_done:<name>` condition that returns true when 
 
 #### Scenario: Skipped node does not block downstream
 
-- **WHEN** node `hitl1` is `skipped` and `checkEntry` for `setup` includes `node_done:hitl1`
+- **WHEN** node `checkpoint-intake` is `skipped` and `checkEntry` for `setup` includes `node_done:checkpoint-intake`
 - **THEN** the condition passes
 - **AND** setup can proceed
 
@@ -301,8 +301,8 @@ The catalog SHALL include a `node_done:<name>` condition that returns true when 
 
 #### Scenario: Agent queries current position
 
-- **WHEN** Agent calls `getCurrentNode(state)` on a state with `current_node: wave0`
-- **THEN** it returns `wave0`
+- **WHEN** Agent calls `getCurrentNode(state)` on a state with `current_node: authoring-slides`
+- **THEN** it returns `authoring-slides`
 
 #### Scenario: Pending query sees nodes not yet written
 
@@ -496,7 +496,7 @@ The implementation SHALL expose a reusable playbook index and validator that che
 
 #### Scenario: Downstream branch value is not declared upstream
 
-- **WHEN** a node uses `node_decision:hitl2:proceeed` but `hitl2.decisions` contains only `proceed`, `repair`, and `redirect`
+- **WHEN** a node uses `node_decision:checkpoint-final-review:proceeed` but `checkpoint-final-review.decisions` contains only `proceed`, `repair`, and `redirect`
 - **THEN** validation fails at the downstream condition
 - **AND** names the upstream declaration and allowed values
 
@@ -560,6 +560,42 @@ Evidence-backed conditions SHALL use records shaped as `{met:true, kind:"user"|"
 - **WHEN** legacy state has `playbook: edit-text` and `current_node: verify-output`
 - **THEN** migration maps it to the text-specific node ID
 - **AND** the same legacy ID under `edit-visual` maps to the visual-specific node ID
+
+#### Scenario: Playbook-scoped alias covers the full create-deck rename
+
+- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
+- **AND** `nodes` contains keys `hitl1`, `hitl2`, `wave0`, `wave1`, `wave2`
+- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
+- **AND** all five node keys in `nodes` are mapped to their canonical names
+- **AND** `state.diagnostics` contains at least one migration entry referencing the create-deck rename
+- **AND** the migration is idempotent on repeated reads
+
+#### Scenario: Pointer-only migration preserves current_node without a node record
+
+- **WHEN** legacy state has `playbook: create-deck` and `current_node: hitl2`
+- **AND** `nodes` does NOT contain a `hitl2` key
+- **THEN** `readState(deckDir)` returns a healed state where `current_node` is `checkpoint-final-review`
+- **AND** `current_node` is not cleared during active-working-set restriction
+- **AND** the migration is idempotent on repeated reads
+
+#### Scenario: Legacy and canonical keys coexist with canonical priority
+
+- **WHEN** legacy state has `playbook: create-deck`
+- **AND** `nodes` contains BOTH legacy key `wave0` (with `status: completed`, `extra_field: old-value`) AND canonical key `authoring-slides` (with `status: in_progress`)
+- **THEN** `readState(deckDir)` returns a healed state where the canonical `authoring-slides` record has `status: in_progress` (canonical wins)
+- **AND** `extra_field: old-value` is preserved from the legacy record (missing fields filled)
+- **AND** the legacy `wave0` key is removed
+- **AND** the canonical record's business fields (status, decision, evidence content) are preserved; execution ID is normalized to the owning active/stack execution per `validateState` rules; timestamps are cleaned per existing healer rules (incompatible fields removed, compatible timestamps preserved)
+- **AND** a second heal produces identical state
+
+#### Scenario: Playbook stack entries receive alias migration
+
+- **WHEN** legacy state has `playbook_stack` containing an entry with `playbook: create-deck`
+- **AND** that entry's `current_node` or `controller_nodes` keys reference old `hitl2` or `wave0` IDs
+- **THEN** `readState(deckDir)` returns a healed state where those stack entry fields are migrated to canonical names
+- **AND** `controller_nodes` keys are migrated alongside `current_node`
+- **AND** entries whose playbook has no declared aliases are left unchanged
+- **AND** the same collision and idempotency rules as top-level migration apply to stack entries
 
 #### Scenario: Migration is idempotent
 

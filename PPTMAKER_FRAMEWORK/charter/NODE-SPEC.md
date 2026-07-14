@@ -16,7 +16,7 @@
 有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`。
 
 ```yaml
-node: wave0
+node: authoring-slides
 lifecycle_phase: 1
 method_module: 02-content
 requires: [seed-topics]
@@ -52,14 +52,14 @@ State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/lib/state.m
 ```yaml
 schema_version: 2
 playbook: create-deck
-current_node: wave0
+current_node: authoring-slides
 execution_id: exec-...
 execution_started_at: 2026-07-12T06:00:00.000Z
 started_at: 2026-07-12T05:00:00.000Z   # 整个 workflow 的稳定开始时间
 updated_at: 2026-07-12T06:20:00.000Z
 
 nodes:
-  wave0:
+  authoring-slides:
     status: in_progress
     execution_id: exec-...
     evidence:
@@ -67,7 +67,7 @@ nodes:
         met: true
         kind: agent
         at: 2026-07-12T06:15:00.000Z
-  hitl2:
+  checkpoint-final-review:
     status: completed
     execution_id: exec-...
     decision:
@@ -172,7 +172,7 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 
 ````markdown
 ```yaml
-node: wave0
+node: authoring-slides
 lifecycle_phase: 1
 method_module: 02-content
 requires: [seed-topics]
@@ -184,7 +184,7 @@ exit:
 produces: [slide-specifications]
 ```
 
-# wave0: Foundation Shared Reference
+# authoring-slides: Foundation Shared Reference
 
 **Step 1 — MD**: 读 `workflow/02-content/04-create-content-assets.md`，完成 L1/L2/L4 与来源收集。
 

@@ -265,13 +265,13 @@ describe('state discoverability', () => {
       );
 
       rmSync(join(deck, STATE_DIR, 'README.md'));
-      s1.current_node = 'wave0';
+      s1.current_node = 'authoring-slides';
       writeState(deck, s1);
       const yaml2 = readFileSync(join(deck, STATE_DIR, STATE_FILE), 'utf-8');
       expect(yaml2.startsWith('#')).toBe(true);
       expect(existsSync(join(deck, STATE_DIR, 'README.md'))).toBe(true);
       const loaded = readState(deck);
-      expect(loaded.current_node).toBe('wave0');
+      expect(loaded.current_node).toBe('authoring-slides');
       expect(loaded.playbook).toBe('create-deck');
     } finally {
       rmSync(deck, { recursive: true, force: true });

@@ -18,16 +18,9 @@ function makeDeck() {
   return dir;
 }
 
-function initState(deckDir, playbook = 'create-deck') {
-  const state = {
-    playbook,
-    current_node: '',
-    started_at: new Date().toISOString(),
-    updated_at: '',
-    nodes: {},
-    gates: { content: 'pending', visual: 'pending' },
-    deck: { name: deckDir.replace(/^.*deck_/, ''), type: 'keynote', style: 'dark-executive' },
-  };
+function initState(deckDir) {
+  const deckName = deckDir.replace(/^.*deck_/, '');
+  const state = createInitialState(deckName, 'keynote', 'dark-executive');
   writeState(deckDir, state);
   return state;
 }
@@ -41,8 +34,8 @@ describe('State Machine: create-deck happy path', () => {
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
   const NODES = [
-    'instantiation', 'hitl1', 'setup', 'seed-topics',
-    'wave0', 'wave1', 'wave2', 'hitl2', 'readiness', 'final',
+    'instantiation', 'checkpoint-intake', 'setup', 'seed-topics',
+    'authoring-slides', 'composing-prompts', 'producing-deck', 'checkpoint-final-review', 'readiness', 'final',
   ];
 
   it('completes all 10 nodes in sequence', () => {
@@ -89,10 +82,10 @@ describe('State Machine: entry gate reject', () => {
   beforeEach(() => { deckDir = makeDeck(); });
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
-  it('refuses to start wave0 when seed-topics is pending', () => {
+  it('refuses to start authoring-slides when seed-topics is pending', () => {
     const state = initState(deckDir);
     setNodeStatus(state, 'instantiation', 'completed');
-    setNodeStatus(state, 'hitl1', 'completed');
+    setNodeStatus(state, 'checkpoint-intake', 'completed');
     setNodeStatus(state, 'setup', 'completed');
     // seed-topics intentionally left pending
 
@@ -124,16 +117,16 @@ describe('State Machine: rerun branch', () => {
   beforeEach(() => { deckDir = makeDeck(); });
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
-  it('routes to rerun when hitl2 decision is repair', () => {
+  it('routes to rerun when checkpoint-final-review decision is repair', () => {
     const state = initState(deckDir);
 
-    // Complete all nodes up to hitl2
-    for (const node of ['instantiation', 'hitl1', 'setup', 'seed-topics', 'wave0', 'wave1', 'wave2']) {
+    // Complete all nodes up to checkpoint-final-review
+    for (const node of ['instantiation', 'checkpoint-intake', 'setup', 'seed-topics', 'authoring-slides', 'composing-prompts', 'producing-deck']) {
       setNodeStatus(state, node, 'completed');
     }
 
-    // hitl2: user decides repair
-    setNodeStatus(state, 'hitl2', 'completed', { decision: 'repair' });
+    // checkpoint-final-review: user decides repair
+    setNodeStatus(state, 'checkpoint-final-review', 'completed', { decision: 'repair' });
     writeState(deckDir, state);
 
     // Rerun node
@@ -145,25 +138,25 @@ describe('State Machine: rerun branch', () => {
     writeState(deckDir, state);
 
     const final = readState(deckDir);
-    expect(final.nodes.hitl2.decision).toBe('repair');
+    expect(final.nodes['checkpoint-final-review'].decision.value).toBe('repair');
     expect(final.nodes.rerun.status).toBe('completed');
     expect(final.nodes['seed-topics'].status).toBe('completed');
   });
 
-  it('routes to readiness when hitl2 decision is proceed', () => {
+  it('routes to readiness when checkpoint-final-review decision is proceed', () => {
     const state = initState(deckDir);
 
-    for (const node of ['instantiation', 'hitl1', 'setup', 'seed-topics', 'wave0', 'wave1', 'wave2']) {
+    for (const node of ['instantiation', 'checkpoint-intake', 'setup', 'seed-topics', 'authoring-slides', 'composing-prompts', 'producing-deck']) {
       setNodeStatus(state, node, 'completed');
     }
 
-    setNodeStatus(state, 'hitl2', 'completed', { decision: 'proceed' });
+    setNodeStatus(state, 'checkpoint-final-review', 'completed', { decision: 'proceed' });
     setNodeStatus(state, 'readiness', 'completed');
     setNodeStatus(state, 'final', 'completed');
     writeState(deckDir, state);
 
     const final = readState(deckDir);
-    expect(final.nodes.hitl2.decision).toBe('proceed');
+    expect(final.nodes['checkpoint-final-review'].decision.value).toBe('proceed');
     expect(final.nodes.readiness.status).toBe('completed');
     // rerun should not exist since it was never needed
   });
@@ -213,7 +206,7 @@ describe('State Machine: resume from state', () => {
     const state = initState(deckDir);
 
     // Simulate partial progress
-    for (const node of ['instantiation', 'hitl1', 'setup']) {
+    for (const node of ['instantiation', 'checkpoint-intake', 'setup']) {
       setNodeStatus(state, node, 'completed');
     }
     setNodeStatus(state, 'seed-topics', 'in_progress');
@@ -231,12 +224,12 @@ describe('State Machine: resume from state', () => {
 
     // Continue from seed-topics
     setNodeStatus(resumed, 'seed-topics', 'completed');
-    setNodeStatus(resumed, 'wave0', 'in_progress');
+    setNodeStatus(resumed, 'authoring-slides', 'in_progress');
     writeState(deckDir, resumed);
 
     const after = readState(deckDir);
     expect(after.nodes['seed-topics'].status).toBe('completed');
-    expect(after.current_node).toBe('wave0');
+    expect(after.current_node).toBe('authoring-slides');
   });
 });
 
@@ -266,10 +259,10 @@ describe('State Machine: node_done accepts skipped', () => {
 
   it('node_done condition passes for skipped node', () => {
     const state = initState(deckDir);
-    skipNode(state, 'hitl1', 'user said skip');
+    skipNode(state, 'checkpoint-intake', 'user said skip');
     writeState(deckDir, state);
-    expect(isNodeDone(state, 'hitl1')).toBe(true);
-    expect(isNodeCompleted(state, 'hitl1')).toBe(false);
+    expect(isNodeDone(state, 'checkpoint-intake')).toBe(true);
+    expect(isNodeCompleted(state, 'checkpoint-intake')).toBe(false);
   });
 });
 
@@ -280,14 +273,14 @@ describe('State Machine: playbook stack', () => {
 
   it('switchPlaybook pushes, resumePlaybook pops', () => {
     const state = initState(deckDir);
-    setNodeStatus(state, 'wave0', 'in_progress');
+    setNodeStatus(state, 'authoring-slides', 'in_progress');
     switchPlaybook(state, 'edit-text');
     expect(state.playbook).toBe('edit-text');
     expect(state.current_node).toBe('');
     expect(state.playbook_stack.length).toBe(1);
     resumePlaybook(state);
     expect(state.playbook).toBe('create-deck');
-    expect(state.current_node).toBe('wave0');
+    expect(state.current_node).toBe('authoring-slides');
   });
 });
 

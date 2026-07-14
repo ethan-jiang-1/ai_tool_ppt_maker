@@ -6,7 +6,7 @@ includes: []
 
 # Playbook: Create Deck
 
-节点顺序：instantiation → hitl1 → setup → seed-topics → wave0 → wave1 → wave2 → hitl2 → readiness/rerun → final。
+节点顺序：instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → producing-deck → checkpoint-final-review → readiness/rerun → final。
 
 ## Nodes
 
@@ -28,10 +28,10 @@ exit: [run_bundle_exists, deck_guide_created]
 
 **Step 3 — CLI**: 用 `createInitialState` + `writeState` 写入 schema v2 初始状态。
 
-### hitl1
+### checkpoint-intake
 
 ```yaml
-node: hitl1
+node: checkpoint-intake
 lifecycle_phase: 0
 method_module: 00-setup
 requires: [instantiation]
@@ -52,7 +52,7 @@ exit:
 node: setup
 lifecycle_phase: 2
 method_module: 01-visual
-requires: [hitl1]
+requires: [checkpoint-intake]
 produces: [visual-system, style-master]
 entry: []
 exit:
@@ -87,10 +87,10 @@ exit:
 
 **Step 2 — GATE**: 用户确认 Block Map 后批准 content gate；记录 agent/user evidence。
 
-### wave0
+### authoring-slides
 
 ```yaml
-node: wave0
+node: authoring-slides
 lifecycle_phase: 1
 method_module: 02-content
 requires: [seed-topics]
@@ -106,13 +106,13 @@ exit:
 
 **Step 2 — MD**: 收集并标注所需来源，记录 `l1-l2-l4-complete` 与 `sources-collected`（kind `agent`）。
 
-### wave1
+### composing-prompts
 
 ```yaml
-node: wave1
+node: composing-prompts
 lifecycle_phase: 2.7
 method_module: 03-prompts
-requires: [wave0]
+requires: [authoring-slides]
 produces: [validated-slide-specifications]
 entry: []
 exit:
@@ -124,13 +124,13 @@ exit:
 
 **Step 2 — CLI**: 运行 Stage 1 使用的同一 validation contract，ERROR 清零后记录 `l3-prompts-filled`（kind `agent`）。
 
-### wave2
+### producing-deck
 
 ```yaml
-node: wave2
+node: producing-deck
 lifecycle_phase: 3
 method_module: 04-production
-requires: [wave1]
+requires: [composing-prompts]
 produces: [page-images, reviewed-header-evidence, final-pptx, notes-receipt]
 entry: [gate_approved:content, gate_approved:visual]
 exit:
@@ -145,13 +145,13 @@ exit:
 
 **Step 3 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，完成 Stage 3/4/5。
 
-### hitl2
+### checkpoint-final-review
 
 ```yaml
-node: hitl2
+node: checkpoint-final-review
 lifecycle_phase: 4
 method_module: 05-iteration
-requires: [wave2]
+requires: [producing-deck]
 produces: [review-decision]
 decisions: [proceed, repair, redirect]
 entry: []
@@ -160,7 +160,7 @@ exit: [user_decision_recorded]
 
 **Step 1 — MD**: 用户审阅最终 PPTX；说明 proceed、repair、redirect 三个明确出口。
 
-**Step 2 — GATE**: 用 `setNodeDecision` 记录用户 decision。`redirect` 重置 hitl1 及其下游；不得伪装成 proceed。
+**Step 2 — GATE**: 用 `setNodeDecision` 记录用户 decision。`redirect` 重置 checkpoint-intake 及其下游；不得伪装成 proceed。
 
 ### readiness
 
@@ -168,9 +168,9 @@ exit: [user_decision_recorded]
 node: readiness
 lifecycle_phase: 4
 method_module: 05-iteration
-requires: [hitl2]
+requires: [checkpoint-final-review]
 produces: [delivery-checklist]
-entry: [node_decision:hitl2:proceed]
+entry: [node_decision:checkpoint-final-review:proceed]
 exit:
   - pptx_generated
   - speaker_notes_injected
@@ -190,15 +190,15 @@ exit:
 node: rerun
 lifecycle_phase: 4
 method_module: 05-iteration
-requires: [hitl2]
+requires: [checkpoint-final-review]
 produces: [completed-repair]
-entry: [node_decision:hitl2:repair]
+entry: [node_decision:checkpoint-final-review:repair]
 exit: [evidence:repair-completed]
 ```
 
 **Step 1 — MD**: 按反馈选择 edit-text/edit-visual/edit-notes/restructure-slides，并用 `switchPlaybook` 进入嵌套执行。
 
-**Step 2 — CLI**: 子 playbook 完成并 `resumePlaybook` 后记录 `repair-completed`（kind `agent`），再重置并返回 hitl2。
+**Step 2 — CLI**: 子 playbook 完成并 `resumePlaybook` 后记录 `repair-completed`（kind `agent`），再重置并返回 checkpoint-final-review。
 
 ### final
 
