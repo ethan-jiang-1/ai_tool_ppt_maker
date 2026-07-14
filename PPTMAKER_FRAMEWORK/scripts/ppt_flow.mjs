@@ -22,7 +22,7 @@
 import "./lib/cli_bootstrap.mjs?entry=ppt_flow.mjs";
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync,
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync,
          rmSync } from "node:fs";
 import { join, resolve, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,6 +59,7 @@ import {
   // top-level constants
   UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR,
   GUIDE_FILE, POINTER_FILE, METADATA_FILE,
+  LESSONS_DIR,
   // visual-style
   STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE,
   BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE,
@@ -329,6 +330,14 @@ function collectStatus(runDir) {
       .sort();
   }
 
+  const lessonsDir = join(root, LESSONS_DIR);
+  let lessonsCount = 0;
+  if (existsSync(lessonsDir) && statSync(lessonsDir).isDirectory()) {
+    lessonsCount = readdirSync(lessonsDir)
+      .filter((f) => f !== "README.md" && (f.endsWith(".md") || f.endsWith(".yaml")))
+      .length;
+  }
+
   return {
     run_dir: String(runDir),
     structure_issues: checkBundle(runDir, false),
@@ -343,6 +352,7 @@ function collectStatus(runDir) {
     pilot_preview: existsSync(
       join(genDir, GEN_PREVIEW_SUBDIR, "pilot_final_contact_sheet.jpg")
     ),
+    lessons_count: lessonsCount,
   };
 }
 
@@ -445,6 +455,9 @@ function printStatus(status) {
   );
   console.log(
     `  Pilot preview: ${status.pilot_preview ? "ready" : "not built"}`
+  );
+  console.log(
+    `  Lessons:       ${status.lessons_count > 0 ? `${status.lessons_count} (run \`lessons.mjs list\` to review)` : "none"}`
   );
 
   if (status.structure_issues.length > 0) {

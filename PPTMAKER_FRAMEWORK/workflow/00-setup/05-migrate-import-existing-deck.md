@@ -52,7 +52,7 @@ Agent 必须在 intake 给出 A/B/C + 推荐 + 理由，让用户**认**，不�
 
 ## 4. 旧路径 → 新路径
 
-权威细节见 [`reference/version-log.md`](../../reference/version-log.md)（v1.1 扁平 → v1.2 三层）。常用对照：
+权威细节见 [`VERSION_LOG.md`](../../../VERSION_LOG.md)（v1.1 扁平 → v1.2 三层）。常用对照：
 
 | 旧（示意） | 新（宪法） |
 |------------|------------|

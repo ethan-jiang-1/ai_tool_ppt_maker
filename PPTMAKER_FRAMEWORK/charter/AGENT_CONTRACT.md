@@ -53,6 +53,7 @@ agent_action: read_first
 - Phase 1 与 2 可交换，**不可跳过**
 - Phase 3 必须在 1+2 **都锁定**后启动
 - 每个 Phase 结束等用户确认，并把 `project-metadata.yaml` 对应 gate 写成 `approved`。Stage 2 会确认 gate 状态——不满足时引导用户完成，不硬堵。用户坚持跳过 → 提醒返工成本，将状态明确写成 `waived`
+- **教训捕获：** 解决任何经过 3+ 次尝试才搞定的错误之后，主动问一句 "Worth writing a lesson to `_lessons/`？" 在每个 Phase gate 确认前，检查有没有值得留下但还没写的教训。用 `lessons.mjs add <runDir> --title "<slug>"` 捕获。规矩见 `_lessons/README.md`。
 
 ## 5. L3 时机（最易漂）
 

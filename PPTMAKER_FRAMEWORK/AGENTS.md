@@ -93,6 +93,10 @@ Phase 4: 迭代维护
 
 **如果用户想跳过某个 Phase**：解释为什么这个 Phase 不可跳过（"没有内容设计就直接生产 = 生成一堆没有论证力的 slide"）。如果用户坚持，提醒他们 "之后可能需要大量返工"，但仍然尊重用户决定——agent 不强制 lock-in。
 
+**每个 Phase 开始时：** 先跑 `lessons.mjs check <runDir>` 看一眼有没有相关教训。有就认真读完再动手——别重走前人的死胡同。
+
+**每个 Phase 闸门确认前：** 检查有没有值得留下但还没写的教训。解决任何经过 2+ 次尝试的错误后，主动问一句 "Worth writing a lesson？" 用 `lessons.mjs add <runDir> --title "<slug>"` 捕获。
+
 ---
 
 ## Phase 0: 项目初始化
@@ -304,6 +308,8 @@ cp PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md \
 > 产出物：`style_master.jpg` + `visual-style.md`（在 run bundle 的 `2_backbone/visual-style/` 中）
 > 底层能力：`workflow/03-prompts/`（IMAGE PROMPT 写作）
 > 迭代引擎（`workflow/05-iteration/`）
+>
+> **⚠ 先看教训：** 生图之前先跑 `lessons.mjs search <runDir> vendor` 和 `lessons.mjs search <runDir> endpoint`，检查有没有前人留下的出图通道/endpoint 相关教训——这些是 Phase 2 最容易重复踩的坑。
 
 ### 2.1a Medium 决策：画风先于配色（Novice + Expert 都先做这步）
 

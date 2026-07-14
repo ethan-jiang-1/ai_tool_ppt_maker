@@ -112,6 +112,19 @@ export const LESSONS_DIR_README = `\
 4. **修好就留** — 试通/自愈成功后写条目；禁止「修好了只在聊天里说一声」
 5. **禁止密钥** — 不得写入 API key / token / 密码；非密钥的 endpoint URL 可以写
 
+**新建 .md 教训模板（复制粘贴用）:**
+\`\`\`markdown
+# <kebab-case-标题>
+
+**遇到什么:**
+
+**怎么试的:**
+
+**结论:**
+
+**下次先看哪:**
+\`\`\`
+
 **打个比方（不是目录清单）:** 配通出图 API、某页 render mode 踩坑后的结论——都可以各写一篇丢进来。
 
 **禁止**把 API key 写入本目录。
@@ -875,9 +888,14 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `- \`requires_human: true\` 必须停下来让人决定；不能把提示文字当作批准。\n` +
         `- 不猜被省略的 path/id/line/lineage；没有有效末行 envelope 就按外部中断或崩溃处理。\n` +
         `- 只改 source，再重跑 prerequisite；\`_generated/\` 是派生品，永远不要手改。\n\n` +
-        `## 自留教训（非进度）\n\n` +
-        `- 遇事自己克服后留下的**非密钥**教训在 \`${LESSONS_DIR}/\`（先读再猜；见 \`${LESSONS_DIR}/README.md\`）。` +
-        `例：Image2 冒烟回执 \`${LESSONS_DIR}/${LESSONS_IMAGE2_PROVEN}\`（试通后才写）。密钥只写 \`.env\`，不要写进 \`${LESSONS_DIR}/\` 或 \`${STATE_DIR}/\`。\n\n` +
+        `## 自留教训\n\n` +
+        `**每次进这个 deck 先看教训（避免重走弯路）：**\n\n` +
+        `\`\`\`bash\n` +
+        `node "${frameworkDir}/scripts/lessons.mjs" list ${VERSIONS_DIR}/v1\n` +
+        `\`\`\`\n\n` +
+        `- 遇事自己克服后留下的**非密钥**教训在 \`${LESSONS_DIR}/\`（先读再猜；见 \`${LESSONS_DIR}/README.md\`）。\n` +
+        `- 写新教训：\`node "${frameworkDir}/scripts/lessons.mjs" add ${VERSIONS_DIR}/v1 --title "<slug>"\`\n` +
+        `- 例：Image2 冒烟回执 \`${LESSONS_DIR}/${LESSONS_IMAGE2_PROVEN}\`（试通后才写）。密钥只写 \`.env\`，不要写进 \`${LESSONS_DIR}/\`。\n\n` +
         `## 从项目根目录运行\n\n` +
         `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
         `\`\`\`bash\n` +

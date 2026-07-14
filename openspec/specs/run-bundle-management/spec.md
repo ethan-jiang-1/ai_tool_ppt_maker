@@ -85,18 +85,22 @@ The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml
 - **闭环:** 试通或修好之后必须留下，避免下一轮失忆  
 - **不放什么:** 密钥（→`.env`）、进度（→`_state/`）、素材、生成物、无复用吐槽  
 - **谁读写:** Agent（编排器）/ 维护者；Framework 只定规矩  
-- **怎么写（规矩）:** 一题一文；`kebab-case` 文件名；四问（遇到什么/怎么试的/结论/下次先看哪）；修好就留；禁密钥；`.md` 或 `.yaml`  
+- **怎么写（规矩）:** 一题一文；`kebab-case` 文件名；四问（遇到什么/怎么试的/结论/下次先看哪）；修好就留；禁密钥；`.md` 或 `.yaml`
+- **A copy-paste markdown template** for new `.md` lessons, showing the 4-question structure with placeholder text, so the agent can trivially scaffold a well-formed lesson  
 - **打个比方:** 非绑定例子，并声明不是目录清单  
 - 禁止 API key  
 
+The `GUIDE_FILE` template (deck-guide.md seeded by `initBundle`) SHALL include a prominent "自留教训" section that references the `lessons.mjs list` command for the agent to run. This section SHALL be visually distinct from the "当前进度" section and SHALL NOT be buried inside it.
+
 Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `renderTree` / CONSTITUTION snapshot SHALL list `_lessons/` with a purpose annotation and SHALL NOT present a single domain file as the sole canonical child. Deck-root `README.md` template SHALL list `_lessons/` with the same purpose. `deck-guide` / `template-deck-guide` MAY mention `_lessons/` only as retained lessons—**not** inside the `_state` progress block. Structure checks SHALL allow `_lessons/` at deck root. Absence of `_lessons/` on a legacy deck SHALL NOT by itself fail `--check --structure-only`. `selfCheck()` SHALL fail if `renderTree()` omits `_lessons`.
 
-#### Scenario: Init seeds _lessons README with writing rules
+#### Scenario: Init seeds _lessons README with writing rules and template
 
 - **WHEN** `ppt_flow init` (or `initBundle`) creates a new deck
 - **THEN** `deck_*/_lessons/README.md` exists
 - **AND** the README states 这里放什么 for retained non-secret lessons
 - **AND** the README states writing rules (one-lesson-one-file, no-secrets)
+- **AND** the README includes a copy-paste markdown template for new lessons
 - **AND** Image2/env mentions are examples only
 
 #### Scenario: Tree and deck README annotate _lessons purpose
@@ -120,6 +124,12 @@ Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `ren
 - **WHEN** `bundle_layout --self-check` runs
 - **AND** `renderTree()` omits `_lessons`
 - **THEN** self-check fails
+
+#### Scenario: deck-guide template surfaces lessons separately from progress
+
+- **WHEN** `initBundle` writes `deck-guide.md`
+- **THEN** the file includes a "自留教训" section that is visually distinct from the "当前进度" section
+- **AND** the section references `lessons.mjs list` as the command to list lessons
 
 ### Requirement: checkBundle supports preview vs pipeline readiness
 
