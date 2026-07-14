@@ -1,196 +1,248 @@
 schema: spec-driven
 
-context: |
-  ## 项目本质
+context: |-
+  ## 项目本质与所有权
 
-  这是一个 **Agent 驱动的 PPT 生成系统**.它不是传统程序——没有 Makefile, 没有
-  Airflow DAG, 没有 YAML 配置的状态机. **Agent 就是编排器**: 读方法论文档 → 做创意
-  判断 → 运行管线 → 响应迭代.
+  这是一个 **Markdown-first 的 Agentic PPT workflow**，不是由代码拥有主流程的传统程序。
+  Agent 读取 Charter、workflow 与 `playbook/*.md`，理解意图、做创意和路径判断，再调用
+  JS/CLI 完成确定性工作并在 Gate 处把控制权交还给 Agent / 人类。
 
-  ## 技术栈
+  | 控制面 | 所有权 |
+  |--------|--------|
+  | MD Controller / Agent | 流程、节点、依赖、路径选择、模糊意图、创意判断与用户交互 |
+  | JS / CLI | 解析、校验、自愈、状态、证据、产物转换和结构化诊断；不得定义第二套 playbook |
+  | 人类 | 隐喻、主张、案例可信度、视觉与最终内容判断 |
 
-  Node.js 18+ (ESM, `.mjs`). npm 依赖: `@napi-rs/canvas` (图片+字体), `pptxgenjs`
-  (PPTX), `jszip` (Stage 5 notes), `commander` (CLI), `yaml` (state.yaml 容错读写). HTTP 用 `fetch` (Node 内置). 测试: `vitest`.
-  入口: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`.
-  环境检查: `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` (零依赖, 先于 npm install).
+  `playbook/*.md` 是 controller 节点、顺序、entry/exit 与 decision 的事实源；
+  `md_controller_reader.mjs` 只负责读取、索引和验证。可确定修复的 YAML/JSON 瑕疵优先由
+  精准侧 heal 并写回 canonical form，不把格式问题甩给用户。
 
-  ## 运行时铁律（宪法级 · 不可违反）
+  ## 工作域与对象边界
 
-  **唯一允许的可执行代码：Node.js ESM。** 绝对禁止把下列任何一项当作生产路径或框架资产：
-  - Python / `.py` / Pillow / uv / `pyproject.toml`
-  - bash / `.sh` / POSIX-only shell 管线（Windows 会断）
-  - 外部 agent skill（`.claude/skills`、`.agents/skills`）作为 Stage 2 / style-master 依赖
-  Stage 2、contact sheet、style-master 必须实现在 `PPTMAKER_FRAMEWORK/scripts/` 内。
-  文档中的 shell 代码块只是 `node …` 命令示例，不是可执行资产。
-  权威条文: `charter/CONSTITUTION.md`（运行时宪法）+ `charter/AGENT_CONTRACT.md` §7。
+  Framework repository maintenance 只把以下四个目录视为框架源码域：
 
-  **CLI 失败回执（宪法级 · MD Controller 友好）。** 每个 registered direct CLI 的
-  JS-controlled non-zero return 必须以唯一末行 envelope 收尾，并提供受版本约束、bounded、
-  secret-safe 的 actionable diagnostic：保留 JS 已知的 source/artifact lineage 和安全 next，
-  不释放 raw prose、stack、provider body、prompt、`.env` 内容或 child output。
-  producer 权威: `openspec/specs/cli-surface/spec.md`；consumer 权威:
-  `openspec/specs/node-specification/spec.md` / `charter/NODE-SPEC.md`。此 config 不复制详细 schema。
+  | 对象 | 路径 | 角色 |
+  |------|------|------|
+  | Framework soft bundle | `PPTMAKER_FRAMEWORK/` | Charter、方法论、MD Controller 与 Node 工具 |
+  | OpenSpec system | `openspec/` | main specs、changes、archive 与项目配置 |
+  | Unit / integration tests | `tests/` | 单元测试与跨模块集成测试 |
+  | End-to-end tests | `tests_e2e/` | 从公开入口验证完整流程与状态机 |
 
-  ## 两层结构
+  做 repository maintenance 时，按 OpenSpec change 修改上述源码域。做具体 deck 时，
+  `PPTMAKER_FRAMEWORK/` 是只读方法论与工具，不得为某个 deck 顺手修改 framework。
 
-  - **Soft bundle** (`PPTMAKER_FRAMEWORK/`): 只读的方法论知识库. Agent 从这里学习
-    "怎么做", 但不修改它.
-  - **Run bundle** (`deck_{NAME}/`): 每个具体 PPT 项目的文件系统实例. Agent 在这里
-    执行所有工作. 三层梯度:
-    - `1_upstream_raw_material/` — 原始素材 (共享)
-    - `2_backbone/` — 主干: 隐喻, 公式, 视觉风格 (共享, 稳定)
-    - `3_versions/v{n}/` — 下游增量: slide-specifications, overrides, _generated/
+  - **Run bundle** (`deck_{NAME}/`) 是 framework 生产和维护的 PPT 项目对象，不是框架源码。
+    只有用户明确指定 deck 路径后才进入其中工作。其稳定梯度是：
+    `1_upstream_raw_material/` → `2_backbone/` → `3_versions/v{n}/`。
+  - `3_versions/v{n}/` 是 `--run-dir`，不是 deck 根；`_generated/` 是可重建派生物，
+    `_scratch/` 是版本级临时出口。
+  - **Deep research input** (`dpt_*`) 是输入素材，不是 framework、run bundle 或测试夹具；
+    用户未明确指定时不读。
+  - `_backlog/` 是独立簿记系统，只有用户明确指定时读取；它不替代 OpenSpec change 状态。
 
-  ## 系统 Capability 注册表
+  Framework soft-bundle 结构由 `framework-directory-layout` 管；run bundle 本体论由
+  `run-bundle-layout` 管，机器 SSOT 是 `bundle_layout.mjs`。两者不得混称。
 
-  **这是项目 capability 的命名权威源. 所有 change 的 spec 必须使用以下 kebab-case
-  identifier, 不得自创名字.**
+  ## 权威源与查找顺序
 
-  ### 项目基础
+  | 主题 | 权威源 |
+  |------|--------|
+  | 项目宪法与 Agent 行为 | `PPTMAKER_FRAMEWORK/charter/*.md` |
+  | MD Controller 流程 | `PPTMAKER_FRAMEWORK/playbook/*.md` |
+  | Capability 当前行为 | `openspec/specs/<capability>/spec.md` |
+  | 当前 change 增量 | active change 下的 `specs/<capability>/spec.md` |
+  | Run-bundle 目录与路径 | `bundle_layout.mjs` + `run-bundle-layout` |
+  | CLI diagnostic producer | `cli-surface` |
+  | CLI diagnostic consumer / Node state | `node-specification` + `charter/NODE-SPEC.md` |
+  | Runtime dependencies | `package.json` |
 
-  | Capability | 做什么 | 关键脚本 |
-  |-----------|--------|---------|
-  | `run-bundle-layout` | run bundle (`deck_*`) 目录本体论: 三层树 + 各目录 role + 上严下松梯度 + glossary Where Map 检索索引 | `bundle_layout.mjs` (`renderTree()`) |
-  | `run-bundle-management` | run bundle 运维: init scaffold / check 校验 / new-version, enforce `run-bundle-layout` 本体论 (不再自定义目录结构) | `bundle_layout.mjs` |
-  | `environment-check` | 零依赖运行时检查 (Node.js>=18, npm, API key, 字体, in-framework Stage 2) | `env-check.mjs` |
-  | `project-versioning` | repo 级版本管理：VERSION 文件、VERSION_LOG.md、archive 后 agent 判断 bump 粒度 | `VERSION`, `VERSION_LOG.md` |
+  修改行为前先读对应 main spec，再读 active delta；不要在 consumer、镜像文档或 config 中
+  复制另一 capability 的详细 schema。
 
-  ### 生产管线 (5 Stage)
+  ## 技术栈与运行时铁律
 
-  | Capability | 做什么 | 关键脚本 |
-  |-----------|--------|---------|
-  | `content-parsing` | Stage 1: markdown → slide_plan.json + page_prompts + validate_specs | `stage1_build_inputs.mjs` |
-  | `image-generation` | Stage 2: 框架内 Node 异步生图 + contact sheet（无外部 skill） | `stage2_generate_images.mjs`, `make_contact_sheet.mjs`, `image_api_client.mjs` |
-  | `header-lock` | Stage 3: 确定性文字叠加 (kicker/title/subtitle) | `stage3_lock_headers.mjs` |
-  | `pptx-assembly` | Stage 4: 图片 → PPTX 容器 | `stage4_build_pptx.mjs` |
-  | `notes-injection` | Stage 5: 演讲备注注入 PPTX notes panel | `stage5_inject_notes.mjs` |
+  Node.js 18+ ESM。主要依赖由 `package.json` 声明：`@napi-rs/canvas`、`pptxgenjs`、
+  `jszip`、`commander`、`yaml`；HTTP 使用 Node 内置 `fetch`，测试使用 `vitest`。
+  统一入口：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`。
 
-  ### 编排 & 配置
+  | 边界 | 规则 |
+  |------|------|
+  | 官方运行时 | 所有 framework 可执行资产使用 Node.js ESM（`.mjs` / 必要的 `.js`）和声明的 npm 依赖 |
+  | 绝对禁止的生产依赖 | 不把 Python / `.py` / Pillow / uv / `pyproject.toml`、bash / `.sh` / POSIX-only 管线作为 framework 生产路径 |
+  | Agent skill 边界 | 外部 skill 可以辅助开发 Agent，但不得成为 framework 冷启动或生产管线的运行时依赖 |
+  | 图像与视觉工具 | 图像生成、style master、contact sheet 等正式能力由 `PPTMAKER_FRAMEWORK/scripts/` 内的 Node 模块实现 |
+  | 文档命令 | shell 代码块只是供人或 Agent 调用 `node …` 的命令示例，不是 `.sh` 可执行资产 |
 
-  | Capability | 做什么 | 关键脚本 |
-  |-----------|--------|---------|
-  | `pipeline-orchestration` | 统一编排 + 三条 refresh path + credential 桥接 | `unified_pipeline.mjs` |
-  | `visual-config` | Stage 1/3 共享的 color_palette.json 加载器 | `visual_config.mjs` |
+  详细权威：`charter/CONSTITUTION.md` + `charter/AGENT_CONTRACT.md` §7。
 
-  ### 视觉设计
+  ## CLI 失败回执
 
-  | Capability | 做什么 | 关键脚本 |
-  |-----------|--------|---------|
-  | `style-master-generation` | 从 prompt 生成 style_master.jpg, credential 桥接 | `generate_style_master.mjs` |
-  | `visual-asset-management` | 管理视觉资产目录：asset-manifest.yaml 加载与校验、资产文件指纹、按 ID 解析路径 | `asset_manifest.mjs` |
+  | 维度 | 规则 |
+  |------|------|
+  | 适用范围 | Framework 直接暴露的 CLI 发生 JS-controlled non-zero hard failure |
+  | 机器回执 | `stderr` 最后一个非空行必须是唯一的单行 JSON envelope，不能只返回散文错误 |
+  | 诊断内容 | Diagnostic 必须有版本、范围受限且 secret-safe；只交付 JS 已知的 source/artifact lineage 与安全 `next` |
+  | 禁止泄露 | 不释放 raw prose、stack、provider body、prompt、`.env` 内容或未经整理的 child output |
+  | Producer | `cli-surface` 定义 CLI 发射字段和规则 |
+  | Consumer | `node-specification` / `charter/NODE-SPEC.md` 定义 MD Controller 如何消费回执 |
 
-  ### 交互层
+  Config 只固定协议边界，不复制 producer 或 consumer 的详细 schema。
 
-  | Capability | 做什么 | 关键脚本 |
-  |-----------|--------|---------|
-  | `cli-surface` | 全部 direct CLI 的诊断 producer/output/delegation 契约；并固定 ppt_flow 的 12 个命令 | `scripts/lib/cli_error.mjs`, `ppt_flow.mjs` |
+  ## Capability 注册表
 
-  ### 执行层
+  Capability 是 proposal → delta specs → main specs 的稳定归属边界。名称使用 kebab-case，
+  表达长期责任，不使用文件名、实现手段或一次性 change 名。优先复用已有 capability；
+  只有现有 capability 都不拥有新行为时才新增。
 
-  | Capability | 做什么 | 关键文件 |
-  |-----------|--------|---------|
-  | `node-specification` | Node 规格宪法——Node 解剖、State Schema、Playbook 规则、CLI⇔MD 协议 | `charter/NODE-SPEC.md` |
-  | `playbook-execution` | MD Controller 执行体系——9 个有序 controller + 1 个 shared node，40 个全局唯一 Playbook Node，Entry/Exit Gate，`_state/state.yaml` schema v2 | `playbook/*.md`, `scripts/lib/md_controller_reader.mjs`, `scripts/lib/state.mjs` |
+  ### 项目宪法与目录
 
-  ## 规范层级与 Agent 工作流程
+  | Capability | 稳定责任 | 主要权威 |
+  |------------|----------|----------|
+  | `framework-charter` | Charter、入口面、Agent 行为与 framework-wide 一致性 | `charter/*.md`, `BOOTSTRAP.md` |
+  | `framework-directory-layout` | `PPTMAKER_FRAMEWORK/` soft-bundle 目录布局 | `PPTMAKER_FRAMEWORK/` |
+  | `run-bundle-layout` | `deck_*` 目录本体论、角色与结构梯度 | `bundle_layout.mjs`, `reference/glossary.md` |
+  | `run-bundle-management` | init、check、new-version 与 layout 执法 | `bundle_layout.mjs` |
+  | `bootstrap-env-guidance` | BOOTSTRAP 环境修复与首次凭据指导 | `BOOTSTRAP.md`, `env-check.mjs` |
+  | `environment-check` | Node/npm/凭据/字体/框架内图像能力检查 | `env-check.mjs` |
+  | `project-versioning` | VERSION、VERSION_LOG 与 archive 后版本判断 | `VERSION`, `VERSION_LOG.md` |
 
-  Lifecycle Phase 是 `0 → 1/2 → 2.7 → 3 → 4`；Method Module 是 `workflow/00-setup` 到 `workflow/05-iteration`；Pipeline Stage 是生产脚本 1–5；Playbook Node 是 MD Controller 中的执行节点。四者不得混称。
+  ### 生产管线
 
-  | Method Module | Lifecycle 位置 | 做什么 | Agent 的角色 |
-  |--------------|----------------|--------|-------------|
-  | 00 项目初始化 | Phase 0 | 环境检查 + 5 问题 intake + 创建 run bundle | 执行者: 跑 `node ppt_flow.mjs init`, 填模板 |
-  | 01 视觉风格 | Phase 2 | 锁定 medium → 选预设 → 生成 style_master.jpg → review | 建议者: 推荐 2-3 个预设, 生成 style master, 迭代到 95%+ |
-  | 02 内容设计 | Phase 1 | 隐喻 → 公式 → Block Map → 四层 slide specs | 创作者: 生成隐喻候选, 公式, Block Map, 填充 L1/L2/L4 |
-  | 03 图像提示词 | Phase 2.7 | 能力层 (不产生独立文件): 回填 L3 image prompt | 学习者: 内化 5 段式 prompt 结构 |
-  | 04 生产管线 | Phase 3 | Pipeline Stage 1–5 从 markdown → PPTX | 执行者: 跑 `node unified_pipeline.mjs`, gate 处停下让人类 review |
-  | 05 迭代引擎 | Phase 4 | 分类变更 → 最小化重跑 → 记录 | 判断者: 先判断 Structural Versioning Path，再按内容所有者与 resolved render mode 选择 refresh path |
+  | Capability | 稳定责任 | 主要权威 |
+  |------------|----------|----------|
+  | `content-parsing` | Stage 1：Markdown → slide plan / prompts / source validation | `stage1_build_inputs.mjs` |
+  | `image-generation` | Stage 2：框架内 Node 图像生成与 contact sheet | `stage2_generate_images.mjs`, `make_contact_sheet.mjs`, `image_api_client.mjs` |
+  | `header-lock` | Stage 3：确定性 kicker/title/subtitle 叠加 | `stage3_lock_headers.mjs` |
+  | `pptx-assembly` | Stage 4：最终图片 → PPTX | `stage4_build_pptx.mjs` |
+  | `notes-injection` | Stage 5：Speaker notes 注入与 receipt | `stage5_inject_notes.mjs` |
 
-  ## 核心架构原则
+  ### 编排与视觉能力
 
-  1. **文件系统即工作流引擎** — 目录表达职责层级，文件 = 交接产物；新版本只复制下游源 delta，`_generated/` 干净重建；git = 审计跟踪.
-  2. **Node-only 运行时** — 可执行资产只有 Node ESM；禁止 Python/bash/外部 skill 生产路径
-     （见「运行时铁律」与 `charter/CONSTITUTION.md`）。
-  3. **CLI 失败必出 actionable diagnostic** — 非零 exit 的唯一末行 envelope 必须把 JS 已知的
-     source/artifact lineage 与安全 next 交给 MD；详细 producer 契约只在 `cli-surface`。
-  4. **Header-Lock** — AI 画身体 (body 视觉), 代码画标题 (kicker/title/subtitle).
-     新 deck 默认 `full-page`；只有显式 opt-in 的 slide 才用 `body+header-lock`，让 AI body 留出 header safe zone 后由代码叠加标题.
-  5. **Style Anchoring** — 用参考图传视觉风格, 而非用文字描述. `style_master.jpg`
-     是所有图像生成的视觉锚点——每张 slide 生成时作为 reference image 传入.
-  6. **源 vs 派生** — `2_backbone/` 和 `slide-specifications.md` 是手编源文件.
-     `_generated/` 内一切都可以通过重跑管线重新生成, 绝不手动编辑.
+  | Capability | 稳定责任 | 主要权威 |
+  |------------|----------|----------|
+  | `pipeline-orchestration` | Stage 编排、preview/build 与 refresh paths | `unified_pipeline.mjs` |
+  | `visual-config` | Stage 1/3 共享视觉配置 | `visual_config.mjs` |
+  | `style-master-generation` | Style master 生成与视觉约束注入 | `generate_style_master.mjs` |
+  | `visual-asset-management` | Asset manifest、路径解析与资产指纹 | `asset_manifest.mjs` |
 
-  ## Agent 入口
+  ### 交互与执行协议
 
-  1. 关键词触发 → `CLAUDE.md`
-  2. `PPTMAKER_FRAMEWORK/BOOTSTRAP.md` — 环境检查 + 5 问题 intake
-  3. `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md` — 11 条铁律 (一页纸, 必读)
-  4. `PPTMAKER_FRAMEWORK/AGENTS.md` — 按 Phase 分段读, 不从头到尾读
+  | Capability | 稳定责任 | 主要权威 |
+  |------------|----------|----------|
+  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/change-classifier.md` |
+  | `cli-surface` | Registered direct CLI 的输出、诊断与 delegation 契约 | `scripts/lib/cli_error.mjs`, `ppt_flow.mjs` |
+  | `node-specification` | Node、State Schema、Gate condition 与 CLI consumer 协议 | `charter/NODE-SPEC.md` |
+  | `playbook-execution` | MD Controller、Entry/Exit Gate 与执行状态 | `playbook/*.md`, `scripts/lib/md_controller_reader.mjs`, `scripts/lib/state.mjs` |
 
-  ## Refresh Path（变更分类）
+  ## Workflow 术语与生产语义
 
-  用户只需自然语言描述改动。Agent 先判断是否改变 slide 集合/顺序，再按内容所有者和失效产物选择最小安全路径。英文名是正式检索词；括号内中文只作解释，旧字母只作兼容对照。
+  | 层级 | 含义 |
+  |------|------|
+  | Lifecycle Phase | `0 → 1/2 → 2.7 → 3 → 4` 的端到端进程 |
+  | Method Module | `workflow/00-setup` 到 `workflow/05-iteration` 的方法论目录 |
+  | Pipeline Stage | Stage 1–5 的确定性生产步骤 |
+  | Playbook Node | MD Controller 中的执行节点 |
 
-  | 正式名称（兼容旧称） | 能改什么 | 逻辑执行 | 耗时 |
-  |----------------------|----------|----------|------|
-  | Header Text & Style Refresh（页眉文字与样式刷新；formerly Chain A） | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 及 Stage 3 拥有的字体/颜色/位置/间距；raw-image contract 不变 | Stage 1 → 3 → 4 → 5 | ~5 min |
-  | Generated Image Rebuild（生成图重建；formerly Chain B） | full-page header、body 文案/数据、image prompt、画面/配色、mode 或 safe-zone 等 raw-image contract | Stage 1 → 强制重生所选 Stage 2 → review → Stage 3/4/5（复用已审图） | ~5 min/页 |
-  | Notes-Only Refresh（仅备注刷新；formerly Chain C） | speaker notes | Stage 5 | ~30 sec |
-  | Structural Versioning Path（结构版本路径；formerly Structural） | 增/删/重排 slide | `--new-version` → 在新版本按受影响页选择上述 refresh path | 按页数 |
+  四者不得混称。RENDER MODE 只有 `full-page` 和 `body+header-lock`；旧别名
+  `image_direct` / `normal` 仅可用于兼容输入，不用于新 spec 和文档。
 
-  标题意图统一走 `ppt_flow refresh --kind title`：resolved `body+header-lock` 走 Header Text & Style Refresh，`full-page` 走 Generated Image Rebuild；混合 scope 必须显式给 slide IDs。分类参照: `PPTMAKER_FRAMEWORK/scripts/change-classifier.md`
+  Production Stage 2 要求 content/visual gate 为 `approved` 或 `waived`；preview/pilot 可在
+  gate pending 时运行，但不得因此自动 waive，正式 build 前仍须 review / approval。
 
-  ## 核心词汇 (只有这些)
+  Run-bundle production 的正式编辑路径：
 
-  - RENDER MODE: `full-page` (AI 画整页), `body+header-lock` (AI 画 body, 代码锁标题)
-  - 禁用别名: `image_direct`, `normal`——这些已废弃
-  - Slide 四层: L1 Meta (视觉类型/标题), L2 Concept (认知载荷),
-    L3 Image Prompt (视觉执行指令), L4 Speaker Note (叙述流 60-90s)
+  | 路径 | 所有权 / 失效范围 | 逻辑执行 |
+  |------|-------------------|----------|
+  | Header Text & Style Refresh（formerly Chain A） | `body+header-lock` header 与 Stage-3-owned 样式 | Stage 1 → 3 → 4 → 5 |
+  | Generated Image Rebuild（formerly Chain B） | Full-page header、body/数据/画面/prompt、mode/safe-zone | Stage 1 → 强制所选 Stage 2 → review → 3/4/5 |
+  | Notes-Only Refresh（formerly Chain C） | Speaker notes | Stage 5 |
+  | Structural Versioning Path（formerly Structural） | 增/删/重排 slide | `--new-version` 后再选受影响页 refresh path |
 
-  ## 人-Agent 协作边界
+  Structural Versioning Path 是外层版本流程，不是第四条并列 refresh path。`_generated/`
+  永远通过源文件和负责它的 capability 重建，不手工编辑。
 
-  - **Agent 拥有过程**: 目录结构, 管线执行, 变更分类, 文件管理
-  - **人类拥有内容**: 隐喻准确度, 案例可信度, 颜色适当性, 核心主张——这些必须由人判断
-  - **Gate 是强制停顿点**: `project-metadata.yaml` 中 `content_gate` 和 `visual_gate`
-    必须为 `approved` 或 `waived` 才能进入 Stage 2
+  ## Agent 入口与 OpenSpec 开发循环
 
-  ## 与 _backlog 的关系
+  做具体 PPT：`BOOTSTRAP.md` → `charter/AGENT_CONTRACT.md` → 按当前 Phase 读 `AGENTS.md`。
+  已有 deck 先读 `_state` / status，聊天上下文不是进度真相；视觉 Gate 前必须展示真实产物。
 
-  `_backlog/` 是独立的簿记系统 (bugs/todos/plans), 有自己基于 `git mv` 的生命周期.
-  与 OpenSpec 各自簿记, 不交叉判定. `_` 前缀目录 (`_done/`, `_fixed_bugs/` 等)
-  是已归档内容, Agent 默认忽略.
+  Framework maintenance：proposal → specs → design → tasks → apply → validate → archive。
+  - Proposal 保存 WHY、范围和 capability 合同。
+  - Specs 定义 capability 的可测试 WHAT。
+  - Design 记录 HOW、关键取舍、迁移与验证策略。
+  - Tasks 把 specs/design 完整转成可跟踪实施清单。
+
+  Archive 后按 `project-versioning` 判断 MINOR / PATCH / no bump，并在用户确认后更新版本位置。
 
 rules:
   proposal:
-    - "可执行资产只能是 Node.js ESM (.mjs)；不得提议 Python、bash/.sh、或外部 skill 作为生产路径"
-    - "Stage 2 / style-master / contact sheet 必须落在 PPTMAKER_FRAMEWORK/scripts/ 内"
-    - "CLI 硬失败遵守 cli-surface：唯一末行 envelope + bounded secret-safe actionable diagnostic，不得仅散文 Fatal error"
-    - "先分类变更类型: narrative-frame / case-anchor / content-constraint / pipeline-script / pipeline-operation"
-    - "再分类影响范围: 增删重排先走 Structural Versioning Path；标题按 resolved render mode 分流到 Header Text & Style Refresh / Generated Image Rebuild；body/画面走 Generated Image Rebuild；备注走 Notes-Only Refresh——参照 scripts/change-classifier.md"
-    - "涉及哪些 capability, 必须在 Capabilities 段使用 config.yaml 注册表中的 kebab-case identifier——不得自创名字"
-    - "结构变更 (增/删/重排 slide)必须走 --new-version"
-    - "视觉变更涉及颜色/style master 时, 标注需要 --force-images"
-    - "视觉变更超过 1 页时, 先 pilot 3 页再全量"
-    - "绝不提议跳过某个 Phase gate 而不写豁免理由"
+    - >-
+      Proposal 的首要职责是保存能够支撑后续 Design 的来龙去脉：除了“要什么、为什么要”，
+      还要用简洁但足够的上下文说明当前状态、前置决策、触发问题、为什么选择这个方向、
+      关键约束、期望结果和范围边界，使后续或并行 Agent 不依赖聊天记录也能理解方案如何形成。
+    - >-
+      Capabilities 是 proposal 与 delta specs 的合同。先检查 openspec/specs/ 并优先复用已有、
+      职责稳定的 capability；只有现有 capability 都不拥有新行为时才新增，并使用长期责任型
+      kebab-case 名称。
+    - >-
+      New Capabilities 与 Modified Capabilities 必须准确：只有 requirement-level 行为变化才列入；
+      纯实现、测试或文案调整不得伪装成 capability 变化。
+    - >-
+      明确 change domain（framework maintenance 或指定 deck 的 run-bundle production）以及
+      control owner（MD、JS 或 MD⇔JS protocol），并在 What Changes / Impact 中说明权威源、
+      兼容或迁移影响；不要提前展开 design.md 的实现细节。
+    - >-
+      Run-bundle production 才需要按 change-classifier 说明 Structural Versioning Path、refresh path、
+      Gate 与生成物影响；framework maintenance 不得把 deck_* 生产对象当框架源码或测试夹具。
 
   specs:
-    - "Spec 目录名必须来自 config.yaml capability 注册表——每个 capability 一个 specs/<name>/spec.md"
-    - "目录结构引用 PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs 的常量——不硬编码路径"
-    - "使用规范 RENDER MODE 词汇: full-page / body+header-lock (不用 image_direct / normal)"
-    - "IMAGE PROMPT 只描述视觉内容 (布局, 颜色, 图标, 图表)——系统契约由 Stage 1 组装"
-    - "SPEAKER NOTE 是 60-90 秒叙述流, 不是讲稿"
-    - "区分 backbone (所有版本共享)和 version delta (单版本)——改 backbone 影响所有版本"
+    - >-
+      每个 delta spec 必须使用 proposal 中的准确 capability 名称，并放在
+      specs/<capability>/spec.md；ADDED、MODIFIED、REMOVED、RENAMED 必须归入真正拥有该行为的
+      capability，不能为了省事塞进相邻 capability。
+    - >-
+      优先扩展现有 capability。新增 capability 前确认它不是已有 capability 的实现细节、文件名、
+      测试名或一次性 change 名，并确保其责任边界可长期复用。
+    - >-
+      Requirement 必须定义可观察、可测试的 WHAT，并通过场景明确行为所有者：MD Controller / Agent
+      负责意图和路径判断，JS / CLI 负责确定性契约、证据与诊断；跨 capability 时引用权威，
+      不复制 producer schema。
+    - >-
+      MODIFIED requirement 必须保留完整更新后的 requirement 和全部仍有效场景；REMOVED 必须写明
+      Reason 与 Migration。Delta 必须足以在 archive 时安全同步到 main specs，不依赖聊天补全。
+    - >-
+      目录、render mode、source/derived 等领域术语必须使用本 context 的 canonical 含义；
+      framework-directory-layout 与 run-bundle-layout 不得混称。
+
+  design:
+    - >-
+      Design 解释 HOW 和关键取舍，不重复 proposal 的完整动机或 specs 的规范正文。简单 change 保持
+      简洁；跨模块、迁移、状态、协议或新架构模式才展开详细决策。
+    - >-
+      每个关键决策说明由 MD、JS 或 MD⇔JS protocol 的哪一侧拥有，并给出理由与备选；不得创建与
+      playbook/*.md、cli-surface、node-specification 或 bundle_layout.mjs 重复的第二事实源。
+    - >-
+      Change 只要涉及 framework 可执行代码，Design 就必须单独思考验证策略：分别评估 unit、
+      integration、e2e 是否需要、各自验证哪一层边界以及为什么。不是机械要求三类测试全部增加，
+      但不得跳过评估；测试资产优先复用 tests/fixtures 与最小代表性夹具，不把 deck_* 生产数据
+      默认为 framework 测试资产。
+    - >-
+      涉及兼容、状态或持久化时说明 migration、heal、幂等与回退；涉及生成物时说明失效与重建路径，
+      不把手工修改派生产物作为方案。
 
   tasks:
-    - "任务粒度 = pipeline stage 级别 (e.g. '修改 Stage 1 解析逻辑以支持新字段')"
-    - "标注 canonical refresh path / Structural Versioning Path 和对应的 --stage 参数"
-    - "标注是否需要 --force-images, --only <id>, 或 --new-version"
-    - "标注是否需重新生成 style_master.jpg"
-    - "标注任务涉及哪些 capability (用注册表 kebab-case identifier)"
-    - "每个任务对应到测试文件: tests/test_<script>.mjs (repo 根目录, 与 scripts 一一对应)"
-    - "绝不包含需要手动编辑 _generated/ 内容的步骤"
-
-  version:
-    - "repo 版本号在根目录 VERSION 文件中（纯文本 semver，如 0.14.3），VERSION 是 SSOT"
-    - "archive change 后必须检查：本次变更是否需要 bump 版本"
-    - "bump 粒度：新 capability / 破坏性变更 / 架构变化 → MINOR；bug fix / 小改进 → PATCH；纯文档 → 不 bump"
-    - "用户确认 bump 后，同步更新 VERSION、VERSION_LOG.md、PPTMAKER_FRAMEWORK/README.md 和 package.json"
+    - >-
+      Tasks 必须完整覆盖所有会影响实现或验收的 delta requirements 与 design decisions；不得为省事
+      静默删减。确需延期时，用明确的 deferred task 或说明记录范围和理由。
+    - >-
+      按依赖顺序拆分：权威 spec / source → MD Controller 或 JS capability → consumer / 镜像文档 →
+      tests → validation。任务应小而可验证，但不强制所有 change 按 Pipeline Stage 粒度。
+    - >-
+      每个任务标注或清楚体现所涉及的 capability，并包含完成判据；实现、迁移、错误路径、文档和测试
+      只要被 specs/design 要求，就必须进入清单。
+    - >-
+      按风险安排 tests/ 中的 unit/integration tests 与 tests_e2e/ 中的端到端测试，不要求脚本与测试
+      文件机械一一对应；最终包含 targeted validation、openspec strict validation 和必要的回归测试。
+    - >-
+      只有 run-bundle production 任务才标注 refresh path、--force-images、--only 或 --new-version；
+      任何任务都不得要求手工编辑 _generated/。
