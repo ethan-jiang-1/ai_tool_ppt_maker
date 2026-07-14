@@ -10,7 +10,7 @@ includes: [classify-change]
 
 ### classify-change (shared)
 
-确认 Chain B、三页代表性 pilot 和最终 regeneration scope。
+确认 Generated Image Rebuild、三页代表性 pilot 和最终 regeneration scope。此 controller 也接收 KPI/card/chart label、案例、数据及其他烧入生成图的 body 文本。
 
 ### pilot
 
@@ -61,7 +61,7 @@ exit:
   - header_review_current
 ```
 
-**Step 1 — CLI**: 对范围内页面完成 pilot/review；运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，不得覆盖已审 full-page 图片。
+**Step 1 — CLI**: 对范围内页面先通过 `ppt_flow refresh --kind visual --only <ids>` 或 `pilot --only <ids> --force-images` 实际强制重生并完成 review；再运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，不得覆盖已审 full-page 图片。
 
 ### verify-visual-output
 

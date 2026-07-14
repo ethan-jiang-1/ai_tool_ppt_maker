@@ -1,5 +1,7 @@
 # Node.js 环境配置
 
+> **首次安装？** 请走 [BOOTSTRAP.md](../../BOOTSTRAP.md) Step 1，Agent 会引导你完成环境检查与修复。本文为详细参考。
+
 > 替代 `02-python-environment.md`. PPTMAKER_FRAMEWORK 生产管线只需要 Node.js.
 
 ## 你需要什么

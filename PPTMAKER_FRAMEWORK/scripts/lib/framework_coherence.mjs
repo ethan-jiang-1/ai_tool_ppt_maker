@@ -6,6 +6,15 @@ export const DOC_EXCEPTIONS = Object.freeze({
   "PPTMAKER_FRAMEWORK/reference/version-log.md": "historical migration record",
 });
 
+export const COMPATIBILITY_REGISTRIES = Object.freeze({
+  "openspec/config.yaml": "repository planning context",
+  "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md": "process constitution compatibility table",
+  "PPTMAKER_FRAMEWORK/reference/glossary.md": "terminology compatibility registry",
+  "PPTMAKER_FRAMEWORK/scripts/change-classifier.md": "agent classification compatibility table",
+  "openspec/specs/framework-charter/spec.md": "governing terminology requirement",
+  "openspec/specs/pipeline-orchestration/spec.md": "governing pipeline terminology requirement",
+});
+
 export const LINK_EXCEPTIONS = Object.freeze([
   Object.freeze({
     file: "PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md",
@@ -67,8 +76,38 @@ const STALE_RULES = [
 
 const NEGATIVE_POLICY = /(?:不要求|不搜索|不依赖|禁止|不得|绝对禁止|无需|no external|does not require|shall not search|shall not require)/i;
 
+const CANONICAL_PATHS = Object.freeze([
+  "Header Text & Style Refresh",
+  "Generated Image Rebuild",
+  "Notes-Only Refresh",
+  "Structural Versioning Path",
+]);
+
+const LEGACY_ALIAS_RULES = Object.freeze([
+  Object.freeze({ alias: /(?:Chain\s*A\b|链\s*A\b|链A\b)/i, canonical: CANONICAL_PATHS[0] }),
+  Object.freeze({ alias: /(?:Chain\s*B\b|链\s*B\b|链B\b)/i, canonical: CANONICAL_PATHS[1] }),
+  Object.freeze({ alias: /(?:Chain\s*C\b|链\s*C\b|链C\b)/i, canonical: CANONICAL_PATHS[2] }),
+  Object.freeze({ alias: /formerly\s+Structural\b/i, canonical: CANONICAL_PATHS[3] }),
+]);
+
+function normalizedRepoPath(file) {
+  const normalized = normalize(file).split("\\").join("/");
+  const marker = "/PPTMAKER_FRAMEWORK/";
+  const markerIndex = normalized.lastIndexOf(marker);
+  if (markerIndex >= 0) return normalized.slice(markerIndex + 1);
+  const specMarker = "/openspec/";
+  const specIndex = normalized.lastIndexOf(specMarker);
+  if (specIndex >= 0) return normalized.slice(specIndex + 1);
+  return normalized.replace(/^\.\//, "");
+}
+
+function isCompatibilityRegistry(file) {
+  return Object.hasOwn(COMPATIBILITY_REGISTRIES, normalizedRepoPath(file));
+}
+
 export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
   const issues = [];
+  const registry = isCompatibilityRegistry(file);
   let offset = 0;
   for (const line of text.split("\n")) {
     for (const [rule, regex, hint] of STALE_RULES) {
@@ -76,10 +115,34 @@ export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
       if (!match || (rule === "external-image-skill" && NEGATIVE_POLICY.test(line))) continue;
       issues.push(issue(file, lineAt(text, offset + match.index), rule, match[0].trim(), hint));
     }
+    for (const { alias, canonical } of LEGACY_ALIAS_RULES) {
+      const match = alias.exec(line);
+      if (!match) continue;
+      if (!registry) {
+        issues.push(issue(file, lineAt(text, offset + match.index), "legacy-edit-path", `${match[0]} is a compatibility alias in operational prose`, `use ${canonical}`));
+      } else if (!line.includes(canonical)) {
+        issues.push(issue(file, lineAt(text, offset + match.index), "unpaired-legacy-alias", `${match[0]} is not paired locally with ${canonical}`, `put the canonical English name in the same definition, sentence, or table row`));
+      }
+    }
+    if (!registry && /\|\s*(?:\*\*)?[ABC](?:\*\*)?\s*\|/.test(line) && /(?:Stage|(?:1\s*(?:→|,)[^|]*[345])|(?:5\s*(?:only|仅)))/i.test(line)) {
+      issues.push(issue(file, lineAt(text, offset), "legacy-edit-path-table", "bare A/B/C editing-path stage table", "use the canonical English refresh-path name"));
+    }
+    if (/(?:safe[- ]?zone|render[- ]?mode|RENDER MODE)[^.;。|]*(?:use|uses|using|使用|走|归为|→|=)[^.;。|]*Header Text & Style Refresh/i.test(line)) {
+      issues.push(issue(file, lineAt(text, offset), "raw-contract-header-route", "raw-image contract change is routed to Header Text & Style Refresh", "use Generated Image Rebuild for safe-zone or render-mode changes"));
+    }
+    const imageOwnedHeaderRoute = /(?:KPI|card|chart|case|body (?:text|data)|body 文案|body 数据|案例|数据|卡片|图表)[^.;。|]*(?:use|uses|using|使用|走|归为|→|=)[^.;。|]*Header Text & Style Refresh/i.exec(line);
+    if (imageOwnedHeaderRoute && !imageOwnedHeaderRoute[0].includes("Generated Image Rebuild") && !/(?:body\+header-lock|body-lock)/i.test(imageOwnedHeaderRoute[0])) {
+      issues.push(issue(file, lineAt(text, offset), "image-owned-header-route", "image-owned body content is routed to Header Text & Style Refresh", "use Generated Image Rebuild for content burned into the image"));
+    }
+    if (/(?:add(?:ing)? (?:a )?slide|新增|添加|加一页)/i.test(line) && line.includes("Generated Image Rebuild") && !line.includes("Structural Versioning Path") && !/(?:not|不是|不能|不得|不只|after|随后|先|affected|受影响|新版本)/i.test(line)) {
+      issues.push(issue(file, lineAt(text, offset), "structural-bypass", "slide addition is routed directly to Generated Image Rebuild", "enter Structural Versioning Path before affected-slide refresh"));
+    }
+    if (/(?:raw\s+)?unified_pipeline[^\n]*--only[^\n]*(?:automatically|auto(?:matically)?|自动|隐式).{0,30}(?:force|强制|刷新)/i.test(line) && !/(?:does not|doesn't|不|不会|并非|不是)/i.test(line)) {
+      issues.push(issue(file, lineAt(text, offset), "only-implies-force", "raw --only is described as forcing regeneration", "state that raw --only scopes Stage 2 and requires --force-images to rebuild existing images"));
+    }
     offset += line.length + 1;
   }
   const semanticRules = [
-    ["render-unaware-title", /(?:标题|title|kicker|subtitle)[^\n]*(?:→|=|是|只|一律)[^\n]*(?:Chain A|链 A)(?![^\n]*(?:body\+header-lock|full-page|resolved))/i, "title edit is described as unconditionally Chain A", "route through ppt_flow refresh --kind title after resolved render mode"],
     ["hierarchy-ambiguity", /(?:三个宏观 Phase|5 个 Phase|六个 Phase|目录\s*=\s*(?:阶段|Stage)|(?:^|\s)phase:\s*0?4\b)/i, "ambiguous lifecycle/module hierarchy", "use Lifecycle Phase, Method Module, Pipeline Stage, and Playbook Node explicitly"],
   ];
   for (const [rule, regex, message, hint] of semanticRules) {
@@ -214,6 +277,10 @@ export function scanFrameworkCoherence({ root = "PPTMAKER_FRAMEWORK", exceptions
     issues.push(...validateDocumentedCommands(extractNodeCommands(file, text), scriptsDir));
   }
   for (const file of ["openspec/config.yaml"]) {
+    if (!existsSync(file)) continue;
+    issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
+  }
+  for (const file of Object.keys(COMPATIBILITY_REGISTRIES).filter((file) => file.startsWith("openspec/specs/"))) {
     if (!existsSync(file)) continue;
     issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
   }

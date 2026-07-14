@@ -3,7 +3,7 @@ title: AGENTS.md — PPT Flow Orchestrator
 stage: root
 position: playbook
 type: playbook
-summary: Agent 的主执行脚本。定义固定流程、对话引导、gate check、编辑链。
+summary: Agent 的主执行脚本。定义固定流程、对话引导、gate check、刷新路径。
 depends_on:
 - README.md
 - workflow/00-setup/README.md
@@ -491,21 +491,21 @@ Stage 2 每次完成后会自动更新 `_generated/preview/contact_sheet.jpg`。
 
 ## Phase 4: 迭代维护
 
-### 编辑链分类
+### 刷新路径分类
 
-当用户提出改动，先分类：
+当用户提出改动，先判断是否需要 Structural Versioning Path，再按内容所有者、resolved render mode 和失效产物选择刷新路径：
 
-| 链 | 改了什么 | 走哪些 Stage | 耗时 |
-|----|---------|-------------|------|
-| **A** | body+header-lock 的 Kicker/Title/Subtitle | 1 → 3 → 4 → 5 | ~5 min |
-| **B** | full-page header 文字、mode 切换、Image prompt/画面 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
-| **C** | Speaker notes | 5 only | ~30 sec |
+| 路径 | 改了什么 | 逻辑执行 | 耗时 |
+|------|---------|---------|------|
+| **Header Text & Style Refresh** | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned header 样式；raw-image contract 不变 | 1 → 3 → 4 → 5 | ~5 min |
+| **Generated Image Rebuild** | full-page header、body 文案/数据、mode/safe-zone、Image prompt/画面 | 1 → 强制所选 2 → review → 3/4/5 | ~5 min/page |
+| **Notes-Only Refresh** | Speaker notes only | 5 only | ~30 sec |
 
-> 配色、style master 或 deck-wide visual rules 改动属于全量 Chain B：重新生成 style master 后，运行 `--stage all --force-images`。否则 skip-if-exists 会保留旧视觉。
+> 配色、style master 或 deck-wide visual rules 改动属于全量 Generated Image Rebuild：重新生成 style master 后，运行 `--stage all --force-images`。否则 skip-if-exists 会保留旧视觉。
 
 ### 版本快照
 
-重大下游改动 → 用 `bundle_layout.mjs --new-version deck_{NAME}/3_versions/v{n}` 创建干净版本。它只复制 `slide-specifications.md` + `overrides/`，不会复制旧 `_generated/`。砍/加 slide、重排、这一版单独换视觉方向属于新版本；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开新版本。
+增/删/重排先进入 Structural Versioning Path：用 `bundle_layout.mjs --new-version deck_{NAME}/3_versions/v{n}` 创建干净版本。它只复制 `slide-specifications.md` + `overrides/`，不会复制旧 `_generated/`；随后在新版本按受影响页选择适用刷新路径。重大下游改动和这一版单独换视觉方向也可开新版本；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开新版本。
 
 ### 结构化迭代流程
 

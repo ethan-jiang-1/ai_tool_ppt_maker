@@ -51,25 +51,27 @@ agent_action: navigate
 
 ## Natural Language Iteration（Agent 自动分类）
 
-> **这是面向 Agent 的迭代界面。用户用自然语言说想要什么改动——Agent 内部分类、评估影响、告知用户、执行。用户永远不需要知道 "Chain A" 或 "Stage 3"。**
+> **这是面向 Agent 的迭代界面。用户只需用自然语言说想改什么；英文路径名是 Agent/维护者的 lookup term，不是用户口令。Agent 内部分离结构版本决策和产物刷新决策，再评估影响、告知用户、执行。**
 
 ### Agent 处理流程
 
 ```
 用户自然语言改动请求
     ↓
-1. 分类器判断：改的是什么？
-   ├─ 标题（KICKER/TITLE/SUBTITLE）→ `ppt_flow refresh --kind title`，resolved body-lock=A / full-page=B
-   ├─ 其他烧在图片里的标注      → Chain B
-   ├─ 画面/配色/prompt         → Chain B
-   ├─ Speaker notes            → Chain C
-   └─ 结构（加/删/重排 slides）→ 版本升级
+1. 先判断是否改 slide 集合/顺序
+   └─ 增/删/重排 → Structural Versioning Path → 创建干净版本
+2. 在当前或新版本按所有权/失效产物选择刷新路径
+   ├─ 标题（KICKER/TITLE/SUBTITLE）→ `ppt_flow refresh --kind title`
+   │   ├─ resolved body+header-lock → Header Text & Style Refresh
+   │   └─ resolved full-page        → Generated Image Rebuild
+   ├─ body 标注/数据/画面/配色/prompt → Generated Image Rebuild
+   └─ Speaker notes only              → Notes-Only Refresh
     ↓
-2. 评估影响范围：几张 slides 受影响？
+3. 评估影响范围：几张 slides 受影响？
     ↓
-3. 告知用户影响 + 预估时间
+4. 告知用户影响 + 预估时间
     ↓
-4. 用户确认 → 执行 → 交付更新
+5. 用户确认 → 执行 → 交付更新
 ```
 
 ### Agent 沟通示例

@@ -10,7 +10,7 @@ includes: [classify-change]
 
 ### classify-change (shared)
 
-确认范围为 speaker notes，并持久化 slide scope。
+确认只有 speaker notes 失效，选择 Notes-Only Refresh，并持久化 slide scope。
 
 ### inject-notes
 

@@ -46,17 +46,17 @@ agent_action: internalize
 
 > "Slide 8 的标题改成...我们跑一遍完整管线吧。"
 
-从头跑 Stage 1-5 = 浪费 20 分钟在不必要的重跑上（尤其是 Stage 2 生图）。如果你只改了标题文字，画面完全不需要重新生成。
+从头跑 Stage 1-5 可能浪费 20 分钟在不必要的重跑上（尤其是 Stage 2 生图）。先查标题由谁渲染：raw-image contract 不变的 `body+header-lock` header 不需要重新生图；full-page header 或 body 文字烧在图里，仍需要重生。
 
 **症状**：每次小改动都要等 20 分钟，迭代速度越来越慢，团队逐渐放弃 review。
 
-**修复**：记住三条编辑链：
+**修复**：按所有权和失效产物选择最小刷新路径：
 
-| 改了什么 | 走哪些 Stage | 耗时 |
-|---------|-------------|------|
-| Kicker/Title 文字 | 1 → 3 → 4 → 5 | ~5 min |
-| Image prompt/画面 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
-| Speaker notes | 5 only | ~30 sec |
+| 路径 | 改了什么 | 逻辑执行 | 耗时 |
+|------|---------|---------|------|
+| Header Text & Style Refresh | body+header-lock 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned 样式，raw-image contract 不变 | 1 → 3 → 4 → 5 | ~5 min |
+| Generated Image Rebuild | full-page header、body/image prompt/画面，或 mode/safe-zone | 1 → 强制所选 2 → review → 3/4/5 | ~5 min/page |
+| Notes-Only Refresh | Speaker notes only | 5 only | ~30 sec |
 
 参见 `workflow/04-production/00-the-pipeline-philosophy.md`。
 
@@ -70,7 +70,7 @@ agent_action: internalize
 
 **症状**：改动莫名其妙地消失了。或者更糟——改动还在但你不知道为什么，因为改动路径不可追溯。
 
-**修复**：改动永远从源文件开始。改 header 文字 → 改 markdown 的 TITLE 字段 → Stage 1（重新解析）→ Stage 3（重新叠加 header）→ Stage 4（重新打包）。**源文件是 single source of truth。**
+**修复**：改动永远从源文件开始。resolved `body+header-lock` 的 header 文字 → 改 markdown 的 TITLE 字段 → Header Text & Style Refresh；full-page header 或 body 文字 → Generated Image Rebuild。**源文件是 single source of truth。**
 
 参见 `charter/CONSTITUTION.md` 的 "源文件 vs 派生品"。
 

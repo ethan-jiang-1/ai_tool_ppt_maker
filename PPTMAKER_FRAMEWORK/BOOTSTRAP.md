@@ -23,6 +23,8 @@ agent_action: read_first
 
 核心原则：**用户做选择题，你做创造性劳动。** 不要问用户"你的核心隐喻是什么"——你生成 2-3 个候选，让用户选。
 
+用户不需要记刷新路径，直接用自然语言说改动即可。英文名称 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 和 Structural Versioning Path 是 Agent/维护者的稳定检索词；中文只作解释，旧字母别名只在兼容注册表和历史材料中保留。
+
 ### 视觉闸门前必须 Show（交互节律）
 
 审 `style_master.jpg`、pilot contact sheet（及同类视觉 review）并请用户批准/继续之前，Agent **必须**用环境能力打开/展示真实文件。文件已在盘上时，**禁止**只用文字描述外观。pre-key 尚无图：可用 preset 说明或母版 prompt 降级展示；一旦出图，立刻升级为真图 show。
@@ -70,48 +72,176 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 ```
 # 推荐：统一入口
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-
-# 等价：直接跑检查脚本
-node PPTMAKER_FRAMEWORK/scripts/env-check.mjs
 ```
 
 判读输出：
-- **`⛔ FOUNDATION NOT READY`**（Node.js 或 npm 缺失/过旧）→ 按脚本给的 `→` 安装指引引导用户装好，**装完重跑，仍不过就停在这里,绝不进 Step 2**。
-- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / 框架内 Stage 2 脚本等硬依赖）→ 同样引导修复后重跑。
-- **`△` 警告**（字体等可降级项）→ 建议修复但可继续。
-- **`✓ READY`** → 进入 Step 2。
+- **`⛔ FOUNDATION NOT READY`**（Node.js 或 npm 缺失/过旧）→ 跳到下方同名 `###` 节，按指引修复。**装完重跑，仍不过就停在这里，绝不进 Step 2**
+- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / 框架内 Stage 2 脚本等硬依赖）→ 跳到对应 `###` 节修复后重跑
+- **`△` 警告**（字体等可降级项）→ 建议修复但可继续
+- **`✓ READY`** → 进入 Step 2
 
-> 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。参考 `workflow/00-setup/00-zero-to-ready.md` 与 `workflow/00-setup/02-nodejs-environment.md`。
+> 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。
+
+### Agent 匹配规则
+
+doctor 输出中每行失败带着 `check` 名称（如 `✗ nodejs`、`✗ api_key`）。**匹配 check 名 → 跳到下方同名 `###` 节 → 按用户 profile 选路径 → 告诉用户怎么修 → 重跑 doctor 验证。所有失败清零才进 Step 2。**
+
+> 给人类读者的背景阅读：[00-zero-to-ready.md](workflow/00-setup/00-zero-to-ready.md)（概念说明）、[02-nodejs-environment.md](workflow/00-setup/02-nodejs-environment.md)（Node.js 环境参考）、[03-tool-selection.md](workflow/00-setup/03-tool-selection.md)（Image2 API 契约 SSOT）。**Agent 不需要读这些——下方各节已覆盖全部修复步骤。**
+
+### nodejs
+
+**doctor 输出**：`✗ nodejs: [FOUNDATION] fail — Node.js vN.x.x`
+
+**如果你在用 Claude Code / Codex**：Node.js 应该已经装了。终端运行 `node --version` 确认版本 ≥ 18。如果版本 < 18，按下方平台升级。
+
+**如果你没有 agent（裸机）**：先装 Node.js 18+ LTS。
+
+**macOS / Linux：**
+```bash
+node --version          # 确认当前版本（需要 ≥ 18）
+brew install node@20    # macOS 升级
+# Linux: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+#        sudo apt-get install -y nodejs
+```
+
+**Windows：**
+```powershell
+node --version          # 确认当前版本（需要 ≥ 18）
+winget install OpenJS.NodeJS.LTS
+# 或从 https://nodejs.org 下载 LTS 安装包
+```
+
+**验证**：重跑 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`
+
+### npm
+
+**doctor 输出**：`✗ npm: [FOUNDATION] fail — not found`
+
+npm 随 Node.js 一起发布。npm 缺失通常意味着 Node.js 安装不完整。
+
+**如果你在用 Claude Code / Codex**：重装 Node.js（npm 随附其中），见上方 `### nodejs`。
+
+**如果你没有 agent（裸机）**：从 https://nodejs.org 下载 LTS 安装包（npm 随附）。
+
+**验证**：`npm --version` 应输出版本号，然后重跑 doctor。
+
+### api_key
+
+**doctor 输出**：`✗ api_key: fail — not set`
+
+**所有用户**：需要一个 Image2 API key（出图用）。在 **repo 根** 或 **deck 根** 创建 `.env` 文件：
+
+```
+IMAGE2_API_KEY=sk-你的key
+IMAGE2_BASE_URL=https://你的-relay/v1
+```
+
+> 两项都是必填——缺任一 doctor 都会 NOT READY。Base URL 没有静默默认值。
+
+**如果你还没有 API key**：去 [platform.openai.com](https://platform.openai.com) → API keys → 创建一个。如果用中转服务，向服务商获取 URL + key。
+
+**验证**：重跑 doctor → `api_key` 应变成 `✓`
+
+### image_base_url
+
+**doctor 输出**：`✗ image_base_url: fail — not set`
+
+**所有用户**：在 `.env` 中设置 `IMAGE2_BASE_URL`（和 `api_key` 同一个文件）：
+```
+IMAGE2_BASE_URL=https://你的-relay/v1
+```
+
+**验证**：重跑 doctor → `image_base_url` 应变成 `✓`。如果 `api_key` 和 `image_base_url` 同时缺，一次创建 `.env` 写两行即可。
+
+### @napi-rs/canvas
+
+**doctor 输出**：`✗ @napi-rs/canvas: fail — not installed`
+
+**所有用户**：三个 npm 包（`@napi-rs/canvas`、`pptxgenjs`、`commander`）由同一个 `npm install` 一次装完。如果这项失败，另外两项大概率也失败——**让用户跑一条命令即可**：
+
+```bash
+# 在 repo 根（有 package.json 的目录）运行
+npm install
+```
+
+**验证**：重跑 doctor → 三个包应全部变 `✓`
+
+### pptxgenjs
+
+**doctor 输出**：`✗ pptxgenjs: fail — not installed`
+
+同 `### @napi-rs/canvas`——跑 `npm install` 一次解决。
+
+### commander
+
+**doctor 输出**：`✗ commander: fail — not installed`
+
+同 `### @napi-rs/canvas`——跑 `npm install` 一次解决。
+
+### stage2_generator
+
+**doctor 输出**：`✗ stage2_generator: fail — missing in-framework Stage 2 scripts`
+
+**所有用户**：框架的三个脚本文件缺失。确认以下文件存在于 `PPTMAKER_FRAMEWORK/scripts/` 下：
+- `stage2_generate_images.mjs`
+- `make_contact_sheet.mjs`
+- `image_api_client.mjs`
+
+如果缺失，检查 git clone 是否完整：`cd` 到 repo 根，`git status` 看是否有未检出文件。
+
+**验证**：重跑 doctor → `stage2_generator` 应变成 `✓`
+
+### fonts
+
+**doctor 输出**：`△ fonts: warn — Source Sans Pro not found`
+
+这是**可降级警告**，不阻塞。Stage 3（Header-Lock 叠加标题）会使用系统 fallback sans-serif 字体。
+
+如果想修复（可选）：把 `SourceSansPro-*.otf` 文件放到 `PPTMAKER_FRAMEWORK/scripts/fonts/` 下，或设环境变量 `PPT_FONT_DIR` 指向字体目录。
+
+**Agent**：此警告不阻塞——告知用户后可以继续进入 Step 2。
+
+### disk_space
+
+**doctor 输出**：`△ disk_space: warn — N MB free`
+
+这是**可降级警告**（阈值 200 MB）。生图管线需要磁盘空间存图片和 PPTX。如果空间紧张，建议清理后再继续。
+
+**Agent**：此警告不阻塞——告知用户后可以继续进入 Step 2。
+
+---
 
 ### 首次凭据：Image2（问一次，试通后落盘）
 
-**没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。完整规程 SSOT：`workflow/00-setup/03-tool-selection.md`。
+**没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。
 
-进 deck 时：先扫 `_lessons/`（自留教训面）；若有 `image2-proven.yaml` 优先用它再猜 endpoint。
-
-1. **问用户要**候选 key 和 URL。
+1. **问用户要** `IMAGE2_API_KEY` 和 `IMAGE2_BASE_URL`。两者都必填。
+2. **写进 deck 根（优先）或 repo 根 `.env`**：
    ```
    IMAGE2_API_KEY=sk-...
    IMAGE2_BASE_URL=https://your-relay/v1
    ```
-   单 key + 单 URL。`IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 两者都必填。
-2. **写进 deck 根（优先）或 repo 根 `.env`**（密钥与 URL 分行）。
-3. **重跑 doctor** → `api_key` 与 `image_base_url` 都变 `✓`（从 deck 或 repo 根跑；walk-up 找 `.env`）。
-4. **廉价冒烟**（多组合；禁止首败甩锅）：  
-   - 门禁：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke`（只探第一家）  
-   - 或：`… style-master <versionDir> --force --resolution 1k`  
-   首败换 `--base-url`；症状持续 → 白话亮能力，跑通道体检（见下）。通了再继续。
-5. **通道体检**（哪家通、哪家快）：意图路由见 [COMMANDS.md](COMMANDS.md)「环境 / 画画通道」→ playbook `probe-image-channels`，或直跑  
-   `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --probe-vendors`  
-   （与 `--smoke` 互斥；**不**自动写 `.env`；写路由须人确认。）长出图 / 长探针：转述 stdout 心跳与 `i/N`，勿静默干等。
-6. **试通落点**：生效 `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` → `.env`；非密钥回执 → `_lessons/image2-proven.yaml`（`proven_at` / `base_url` / `via` 含 `env`|`cli`；**无 key**）。  
-   `_lessons/` = 遇事自己克服后留下的非密钥教训（先读再猜）——不是 `_state/` 进度，不是密钥，也不是 Image2 专用夹。
+3. **重跑 doctor** → `api_key` 与 `image_base_url` 应都变 `✓`。
+4. **廉价冒烟验证**（禁止首败甩锅）：
+   ```bash
+   node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke
+   ```
+   通过 → 继续。失败 → 提示用户换 `--base-url` 重试，或换一组 key/URL。
+   **仍失败 → 指向 [03-tool-selection.md](workflow/00-setup/03-tool-selection.md) 的通道体检（`doctor --probe-vendors`），不要在首次安装时内联全套 probe 流程。**
+
+> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。**密钥只写 `.env`**（不进 `_lessons/`、不进聊天记录）。更多 API 契约细节 → [03-tool-selection.md](workflow/00-setup/03-tool-selection.md)。
+>
+> **`_lessons/` 教训机制（Agent 必读）**：`deck_*/_lessons/` 是本项目的**自留教训目录**——Agent 遇事自己克服后，把非密钥的经验写进去，下次（或另一个 Agent）进 deck 时先读再猜，不用重复踩坑。
+>
+> **每次进已有 deck 时**：先扫 `_lessons/`。若有 `image2-proven.yaml`，优先用它猜 endpoint（避免重复试错）。
+>
+> **什么写进 `_lessons/`**：任何 Agent 自己摸索出来的、下次有用的经验。比如：哪家 API 通了（`image2-proven.yaml`，**无 key**）、哪个参数组合有效、某个报错的 workaround、字体渲染的注意事项。**不写密钥，不写 `_state/` 进度。**
+>
+> **禁止**：经验只留聊天记录（换个 session 就丢了）；密钥进 `_lessons/`（安全红线）。
 
 ### Stage 2 在框架内（无 skill）
 
 Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` 下的 Node 模块（`stage2_generate_images.mjs`、`image_api_client.mjs`、`make_contact_sheet.mjs`）。doctor 的 `stage2_generator` 检查这些文件是否存在——**不要求、不搜索** `.claude/skills`。
-
-> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。教训写 `_lessons/`，密钥只写 `.env`。
 
 > **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
 
@@ -267,7 +397,7 @@ Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` �
 
 ## 已知限制（Agent 需告知用户）
 
-- **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown 按编辑链重跑管线（Chain A ~5 min；Chain B ~5 min/页）。不要尝试在 PowerPoint 里改文本框。
+- **Slides 是整页图片（设计选择，不是缺陷）**：PPTX 每页是一张完整图片——视觉表达优先于 PowerPoint 内编辑。要改文字/画面，回到源 markdown，按内容所有权选择 Header Text & Style Refresh（~5 min）或 Generated Image Rebuild（~5 min/页）。不要尝试在 PowerPoint 里改文本框。
 - **新 deck 默认 full-page**：`--init` 会在 slide specs frontmatter 写入 `render.default: full-page`。full-page header 的位置与清晰度是图像模型的尽力保证；需要像素精度或稳定清晰度时，把页升级到 `render.header-lock`。没有顶层 `render` 的旧 deck 保持 VISUAL TYPE 派生；`render` 内 typo 会报错，顶层 `renders:` 不会被猜测纠正，排障看 `render_mode_source`。
 - **中文 slides 支持受限**：预设的 `deck_system.txt` 默认英文。如需中文 slides，Agent 需改 `deck_system.txt` LANGUAGE 规则，并将 Stage 3 字体切换为 Noto Sans CJK（见 `scripts/fonts/README.md`）。
 - **自定义 Logo**：所有预设默认无 logo。如需添加，Agent 需在每个 slide 的 IMAGE PROMPT 中描述 logo 的位置和大小，并编辑 `deck_system.txt` 的 FORBIDDEN 规则。

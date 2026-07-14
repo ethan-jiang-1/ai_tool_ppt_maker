@@ -45,7 +45,7 @@ agent_action: navigate
 
 | 阶段 | 文件 | 做什么 | 输入 | 产出 |
 |------|------|--------|------|------|
-| 0 | `00-the-pipeline-philosophy.md` | 理解为什么用管线、Header-Lock 原理、编辑链概念 | — | Internalized architecture rationale |
+| 0 | `00-the-pipeline-philosophy.md` | 理解为什么用管线、Header-Lock 原理、刷新路径与产物所有权 | — | Internalized architecture rationale |
 | 1 | `01-stage-1-parse-content-to-specs.md` | 把 markdown 内容规格解析为机器可读的 JSON | `*.md` (02 的产出) | `slide_plan.json` + `page_prompts/_prompts.json` |
 | 2 | `02-stage-2-generate-images-with-anchoring.md` | 用 style master 批量生图，并自动生成 contact sheet | prompts + style master | 原始 PNG + `preview/contact_sheet.jpg` |
 | 3 | `03-stage-3-lock-headers-deterministically.md` | Node `@napi-rs/canvas` 叠加标题文字（Header-Lock 核心机制） | 原始 PNG + `slide_plan.json` | 最终 PNG（header 锁定） |
@@ -59,15 +59,15 @@ agent_action: navigate
 - **完整方法论**：按顺序读 `00` 到 `05`。每个文件都在前一个基础上构建。
 - **准备实现**：`scripts/` —— Stage 脚本的 Node.js 参考实现（可直接运行）。`reference-pipeline-scripts.md` 保留作为伪代码架构参考。
 
-## 三条编辑链
+## 三条产物刷新路径
 
-不同改动走不同的阶段子集——知道你的改动在哪条链上，节省大量时间：
+按内容所有权和失效产物选最小路径。Generated Image Rebuild 是“强制重生所选图片、review、再完成组装”的逻辑工作流，不要求一次命令跑完所有 Stage：
 
-| 链 | 改了什么 | 走哪些 Stage | 耗时 |
-|----|---------|-------------|------|
-| **A** | `body+header-lock` 的 Kicker / Title / Subtitle | 1 → 3 → 4 → 5 | ~5 min |
-| **B** | Image prompt / 画面视觉 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
-| **C** | Speaker notes 讲稿 | 5 | ~30 sec |
+| 路径 | 改了什么 | 逻辑执行 | 耗时 |
+|------|---------|---------|------|
+| **Header Text & Style Refresh** | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned 样式；raw-image contract 不变 | 1 → 3 → 4 → 5 | ~5 min |
+| **Generated Image Rebuild** | full-page header、body 文案/数据、Image prompt/画面，或 mode/safe-zone | 1 → 强制所选 2 → review → 3/4/5（复用已审图） | ~5 min/page |
+| **Notes-Only Refresh** | Speaker notes only | 5 | ~30 sec |
 
 ## 参考实现
 
@@ -96,11 +96,11 @@ agent_action: navigate
 - 分阶段线性管线，每个阶段输出可检查的中间文件（现实现为 Node.js `.mjs`）
 - Header-Lock 机制：body+header-lock slides（确定性叠标题）+ full-page slides（AI 全页生成）
 - Async image API（submit→poll→download），由框架内 `image_api_client.mjs` 执行
-- 三条编辑链：标题请求先走 `ppt_flow refresh --kind title`；resolved `body+header-lock` 走链 A，`full-page` 走链 B；讲稿走链 C
+- 三条刷新路径：标题请求先走 `ppt_flow refresh --kind title`；resolved `body+header-lock` 使用 Header Text & Style Refresh，`full-page` 使用 Generated Image Rebuild；仅讲稿变化使用 Notes-Only Refresh
 - Canvas 尺寸 1672×941 px，16:9 PPTX 容器
 
 该管线的版本演进（v1 26 slides → v2 20 slides → v3 19 slides）贯穿了本方法论文件中的示例。
 
 ---
 
-> **Next**: `00-the-pipeline-philosophy.md` — 为什么用管线模式，Header-Lock 的设计原理，以及编辑链的完整概念。
+> **Next**: `00-the-pipeline-philosophy.md` — 为什么用管线模式，Header-Lock 的设计原理，以及刷新路径的完整概念。

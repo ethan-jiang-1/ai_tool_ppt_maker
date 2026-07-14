@@ -58,7 +58,7 @@ for each slide in page_prompts/_prompts.json:
 
 **为什么重要**：改了一张 slide 的 IMAGE PROMPT 之后，你只重新生成这一张。其他 18 张保持不变。Skip-if-exists 让你不需要每次都用 `--only` 手动指定——自动跳过已有的。
 
-统一管线中，`--only slide_12` 表示明确刷新指定页面，会自动传递 `--force`。全量视觉变化使用 `--force-images`；普通恢复运行仍默认跳过已有图片。
+raw `unified_pipeline --only slide_12` 只限定 Stage 2 的处理范围，不会自动强制替换已有图片。要有意重建该页，必须同时传 `--force-images`；公共入口 `ppt_flow refresh --kind visual --only slide_12` 会为其明确 scope 加 force。全量视觉变化也使用 `--force-images`；普通恢复运行仍默认跳过已有图片。
 
 ### 模式 2：Mirror/Fallback
 

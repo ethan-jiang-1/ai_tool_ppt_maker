@@ -37,7 +37,7 @@ agent_action: internalize
 | Stage 4 | 图片 → PPTX | PNG files | .pptx file |
 | Stage 5 | markdown speaker notes → PPTX notes | .md + .pptx | .pptx (modified) |
 
-每个阶段有且仅有一个职责。如果 Stage 2 出了 bug（生图不对），你不需要重跑 Stage 1 来定位问题——你只需要检查 Stage 1 的产出（`page_prompts/_prompts.json`）是否合理，然后用 `--only` 重跑 Stage 2 的那一张 slide 即可。
+每个阶段有且仅有一个职责。如果 Stage 2 出了 bug（生图不对），你不需要重跑 Stage 1 来定位问题——先检查 Stage 1 的产出（`page_prompts/_prompts.json`）是否合理；若要替换已有图片，用 `--only <id> --force-images` 重跑 Stage 2 的那一张 slide。
 
 ### 原则 2：Checkpoint — 每个阶段输出可检查的文件
 
@@ -95,27 +95,27 @@ AI image model 有三个致命弱点：
 
 > 旧词 `normal` / `image_direct` 已废弃。`slide_plan.json` 写 `layout_contract.render_mode`；Stage 3 读它（旧 plan 的 `header_variant` 仍可映射）。
 
-## 三条编辑链：让 cheap changes 走 cheap paths
+## 三条刷新路径：让 cheap changes 走 cheap paths
 
-管线设计中最实用的概念是 "编辑链"——不同类型的改动走不同的阶段子集。
+管线设计中最实用的概念是按产物所有权选择最小刷新路径。Generated Image Rebuild 是经过强制重生与 review 的逻辑工作流，Stage 2 pilot 和最终 assembly 可以分开执行。
 
-| 链 | 改了什么 | 影响范围 | 走哪些 Stage | 耗时 |
-|----|---------|---------|-------------|------|
-| **A** | body+header-lock 的 Kicker / Title / Subtitle | 单张或多张 slide 的标题 | 1 → 3 → 4 → 5 | ~5 min |
-| **B** | full-page header、mode 切换、Image prompt / 画面 | 单张 slide 的生成图片 | 1 → 2 → 3 → 4 → 5 | ~5 min/page |
-| **C** | Speaker notes 讲稿 | 演讲者备注 | 5 | ~30 sec |
+| 路径 | 改了什么 | 影响范围 | 逻辑执行 | 耗时 |
+|------|---------|---------|---------|------|
+| **Header Text & Style Refresh** | body+header-lock 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned 样式；raw-image contract 不变 | 单张或多张 slide 的 header | 1 → 3 → 4 → 5 | ~5 min |
+| **Generated Image Rebuild** | full-page header、body、mode/safe-zone、Image prompt / 画面 | 单张或多张 slide 的生成图片 | 1 → 强制所选 2 → review → 3/4/5 | ~5 min/page |
+| **Notes-Only Refresh** | Speaker notes 讲稿 | 演讲者备注 | 5 | ~30 sec |
 
-### 编辑链的实践意义
+### 刷新路径的实践意义
 
-**场景 1**：客户说 "Slide 8 的标题不够有冲击力"。先查 resolved mode。body+header-lock 走链 A；full-page 的标题烧在图里，走链 B 并用 `--only slide_8 --force-images`。
+**场景 1**：客户说 "Slide 8 的标题不够有冲击力"。先查 resolved mode。body+header-lock 使用 Header Text & Style Refresh；full-page 的标题烧在图里，使用 Generated Image Rebuild，通过 `pilot --only slide_8 --force-images` 重生、review，再复用已审图完成组装。
 
 **场景 2**：客户说 "Slide 12 的视觉太拥挤，换一种布局"。你需要重写 IMAGE PROMPT。
-- 链 B：改 markdown → Stage 1 → Stage 2（重新生这张图）→ Stage 3 → Stage 4 → Stage 5。但 Stage 2 用 `--only slide_12` 只生这一张——其他 18 张跳过。
+- Generated Image Rebuild：改 markdown → Stage 1 → Stage 2（用 `--only slide_12 --force-images` 重生这张图）→ review → Stage 3 → Stage 4 → Stage 5。其他 18 张不重生。
 
 **场景 3**：演讲者说 "Slide 5 的 takeaway 改一下"。只需要改 markdown 里的 SPEAKER NOTE。
-- 链 C：只跑 Stage 5。30 秒。
+- Notes-Only Refresh：只跑 Stage 5。30 秒。
 
-**关键纪律**：按文字实际由谁渲染分类。只有 body+header-lock header 属于链 A；full-page header 和任意 mode 切换都属于链 B。
+**关键纪律**：按文字实际由谁渲染分类。只有 raw-image contract 不变的 body+header-lock header 属于 Header Text & Style Refresh；full-page header、body 文案/数据、safe-zone 和任意 mode 切换都属于 Generated Image Rebuild。
 
 ## 管线参数化：为不同项目定制
 
@@ -133,6 +133,6 @@ v1 的 canvas 固定为 1672×941；颜色、header 字号和 safe zone 从 `col
 
 ---
 
-> **案例**：T10 项目（precision manufacturing AI strategy keynote）的管线实现了这里描述的所有模式——5 个 Node.js stage 脚本（`.mjs`），16 张 body+header-lock + 3 张 full-page slides，三条编辑链，1672×941 canvas，260px header zone，Source Sans Pro 字体。后续各文件中的具体数值和实现细节来自这个案例——但管线架构本身是 industry-agnostic 的。
+> **案例**：T10 项目（precision manufacturing AI strategy keynote）的管线实现了这里描述的所有模式——5 个 Node.js stage 脚本（`.mjs`），16 张 body+header-lock + 3 张 full-page slides，三条刷新路径，1672×941 canvas，260px header zone，Source Sans Pro 字体。后续各文件中的具体数值和实现细节来自这个案例——但管线架构本身是 industry-agnostic 的。
 
 > **Next**: `01-stage-1-parse-content-to-specs.md` — Stage 1 详解：怎么把人类写的 markdown 变成机器可读的 JSON。

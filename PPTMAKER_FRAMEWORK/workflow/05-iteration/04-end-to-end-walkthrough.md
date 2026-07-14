@@ -166,23 +166,23 @@ Agent (Phase 3 — 一条命令跑全部 5 个 stage)：
 ```
 用户 (一周后): "客户觉得 Slide 12 的文字太多了——精简一下。"
 
-Agent: "这是链 B 改动——改 IMAGE PROMPT。
+Agent: "这段 body 文字烧在生成图里，使用 Generated Image Rebuild。
   改 slide-specifications.md → 只重跑该页的画面：
-  unified_pipeline.mjs --run-dir deck_mfg_ai/3_versions/v1 --stage 1,2,3,4,5 --only s12
-  （--only 只把 Stage 2 生图限定到 s12；1/3/4/5 处理全部但很快）"
+  unified_pipeline.mjs --run-dir deck_mfg_ai/3_versions/v1 --stage 1,2,3,4,5 --only s12 --force-images
+  （--only 只把 Stage 2 限定到 s12，不会自动 force；重生后先 review，再完成组装）"
   → 5 分钟完成
 ```
 
 ```
 用户 (一个月后): "要在 Block 2 加一张 slide——新的 regulations 要讲。"
 
-Agent: "新增 slide 会影响后续 slide 编号和 Bridge。走迭代流程。"
+Agent: "新增 slide 会影响后续 slide 编号和 Bridge。先走 Structural Versioning Path，再刷新受影响页。"
 
   # 在 Claude Code 中：
   openspec-propose "Add regulation slide in Block 2"
-    → 大改动 → bundle_layout.mjs --new-version deck_mfg_ai/3_versions/v1
+    → Structural Versioning Path → bundle_layout.mjs --new-version deck_mfg_ai/3_versions/v1
     → 在 v2 中实施变更
-    → 部分 slide 需要重新生图（链 B）
+    → image-owned 的新增/受影响页使用 Generated Image Rebuild
     → archive
 
   # 在其他 agent 中：先在 changelog 中写下提案（新 slide 位置、理由、四层规格草案），
@@ -194,7 +194,7 @@ Agent: "新增 slide 会影响后续 slide 编号和 Bridge。走迭代流程。
 1. **小改动直接改，大改动走结构化迭代流程**——规则是 "影响 multi-slide 或 deck 级约束"
 2. **迭代流程在 Phase 1 和 Phase 2 最活跃**——设计和迭代阶段
 3. **Phase 3 不走迭代流程**——管线执行是确定性的
-4. **Phase 4 用迭代流程管理大改动**——小改动直接走编辑链
+4. **Phase 4 用迭代流程管理大改动**——先分离 Structural Versioning Path，再按失效产物选择刷新路径
 5. **每次变更结束后归档**——保持 change log 干净
 
 ---

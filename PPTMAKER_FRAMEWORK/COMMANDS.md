@@ -7,6 +7,8 @@
 > 你说一句话 → Agent 判断意图 → 加载对应 Playbook 执行.
 > 每个 Playbook 是一个 MD Controller, 定义有序 Node 序列 + Entry/Exit Gate.
 
+用户不需要记路径名，直接说要改什么即可。英文名称是维护者和 Agent 的检索词：Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh，以及外层的 Structural Versioning Path。Agent 先判断是否增删重排，再看内容由谁渲染、哪个产物已经失效；意图 route 不等于执行路径。
+
 ## 全量创建
 
 | 用户说 | Playbook | 说明 |
@@ -60,6 +62,9 @@
 | "第N页标题不够有力" | `edit-text` | slide=N |
 | "kicker 改成 XXX" | `edit-text` | slide=N, field=kicker |
 | "第N页的图重新生成" | `edit-visual` | slide=N |
+| "第N页 KPI 改成 50%" | `edit-visual` | image-owned body text, slide=N |
+| "第N页卡片/图表标签改一下" | `edit-visual` | image-owned body text, slide=N |
+| "案例从 X 换成 Y" | `edit-visual` | 按受影响页重建生成图 |
 | "换个配色试试" | `edit-visual` | scope=all, pilot=true |
 | "全部换成蓝色系" | `edit-visual` | scope=all, pilot=true, force=true |
 | "整体感觉不够高端" | `edit-visual` | scope=direction (回 Phase 1, 重选 preset) |
@@ -73,8 +78,17 @@
 | 用户说 | Playbook | 说明 |
 |--------|----------|------|
 | "这段论证逻辑有问题" | `create-deck` | 回 checkpoint-final-review → rerun → seed-topics |
-| "换个案例, 用X代替Y" | `edit-text` | 改内容, 不改图 |
-| "每页的数据都更新一下" | `edit-text` | 批量文本, 所有页 |
+| "换个案例, 用X代替Y" | `edit-visual` | 案例烧在 body 图片中；受影响页走 Generated Image Rebuild |
+| "每页的数据都更新一下" | `edit-visual` | KPI/card/chart 等 image-owned 数据按受影响页走 Generated Image Rebuild |
+
+## Agent 分类顺序
+
+1. 增/删/重排 slide：先进入 Structural Versioning Path，创建干净新版本；随后再为新增和受影响页选择刷新路径。
+2. 判断所有权和失效产物：resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 及 Stage-3-owned header 字体、颜色、位置、行高、间距可用 Header Text & Style Refresh；full-page header、body 文案/数据、画面、prompt、render mode 或 safe-zone 改动使用 Generated Image Rebuild；只有 speaker notes 失效时使用 Notes-Only Refresh。
+3. 解析明确 slide scope；Generated Image Rebuild 对已有图片必须实际强制重生并 review。raw `unified_pipeline --only` 只限定范围，不隐式 force。
+4. 大范围视觉变化先跑代表性 pilot，经用户 review 后再扩展到确认范围。
+
+标题请求统一进入 `edit-text` 并调用 `ppt_flow refresh --kind title`：resolved `body+header-lock` 使用 Header Text & Style Refresh；resolved `full-page` 使用 Generated Image Rebuild，按 CLI 回执执行 `pilot --only <ids> --force-images`、header review 和 reviewed-image reuse。Header safe-zone 高度或 render-mode 改动会改变 raw-image contract，即使表面上也属于“页眉”，仍必须使用 Generated Image Rebuild。
 
 ## 续跑 / 做到哪了
 

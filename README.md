@@ -32,8 +32,13 @@ npm test
 |------|------|
 | `PPTMAKER_FRAMEWORK/` | 方法论知识库 + 生产脚本 |
 | `tests/` | 测试文件 |
+| `tests_e2e/` | 端到端测试 |
 | `openspec/` | Spec-driven 开发 |
 | `_backlog/` | 待办/Bug/Plan |
+| `deck_*/` | [产出] run bundle — 框架生产出的 PPT 项目 |
+| `dpt_*/` | [输入] deep research 素材 不指定就不要读|
+
+> `deck_*` 由 `ppt_flow.mjs init` 创建，做 PPT 时 Agent 在里面工作。它是框架的**产出物**，不是框架源码。
 
 ## 技术栈
 

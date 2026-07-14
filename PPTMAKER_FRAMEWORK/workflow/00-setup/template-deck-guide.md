@@ -3,7 +3,7 @@ title: Template — Per-Bundle deck-guide.md
 stage: workflow/00-setup
 position: template
 type: template
-summary: 复制到 deck_{NAME}/deck-guide.md。进入 run bundle 后先读它——一屏说清结构、控制流、编辑链、现在哪一步、怎么跑。人和 agent 都看得懂。
+summary: 复制到 deck_{NAME}/deck-guide.md。进入 run bundle 后先读它——一屏说清结构、控制流、刷新路径、现在哪一步、怎么跑。人和 agent 都看得懂。
 depends_on:
 - charter/CONSTITUTION.md
 - scripts/bundle_layout.mjs
@@ -17,7 +17,7 @@ agent_action: copy_to_bundle
 > 1. 把下面第一个代码块复制到 `deck_{NAME}/deck-guide.md`,替换 `{{...}}` 占位符。
 > 2. 把第二个代码块同时作为 `deck_{NAME}/AGENTS.md` 与 `deck_{NAME}/CLAUDE.md` 的短指针。
 >
-> `deck-guide.md` 有两个读者:**上半部给人**(大白话,新手一进来就知道怎么办),**下半部给 agent**(控制流、编辑链、命令)。人不会被技术细节淹没,agent 也拿得到执行所需的一切。
+> `deck-guide.md` 有两个读者:**上半部给人**(大白话,新手一进来就知道怎么办),**下半部给 agent**(控制流、刷新路径、命令)。人不会被技术细节淹没,agent 也拿得到执行所需的一切。
 
 ---
 
@@ -124,15 +124,16 @@ slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page
 
 full-page header 由图像模型尽力保持稳定，不承诺像素精度；文字清晰度与精确位置必须用 body+header-lock。
 
-## 编辑链:改了什么 → 只重跑哪几步
+## 刷新路径:改了什么 → 刷新哪些产物
 
-| 改了 | 跑哪些 stage | 耗时 |
-|------|-------------|------|
-| body+header-lock 的 kicker / title 文字 | 1,3,4,5 | ~5 min |
-| full-page 的 kicker / title 文字 | `1,2,3,4,5 --only <id> --force-images` | ~5 min/页 |
-| image prompt / 画面 | 1,2,3,4,5 | ~5 min/页 |
-| speaker notes | 5 | ~30 sec |
-| 视觉主干(backbone) | 重新生成 style master + `1,2,3,4,5 --force-images` | — |
+| 路径 | 改了 | 逻辑执行 | 耗时 |
+|------|------|---------|------|
+| Header Text & Style Refresh | body+header-lock 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned header 样式；raw-image contract 不变 | 1,3,4,5 | ~5 min |
+| Generated Image Rebuild | full-page header、body/image prompt/画面，或 mode/safe-zone | 强制所选 2 → review → 3/4/5 | ~5 min/页 |
+| Notes-Only Refresh | speaker notes only | 5 | ~30 sec |
+| Generated Image Rebuild | 视觉主干(backbone) | 重生 style master + `1,2,3,4,5 --force-images` | — |
+
+增/删/重排先走 Structural Versioning Path：用 `--new-version` 创建干净版本，再为新增和受影响页选择上面的刷新路径。
 
 ## 进度对照
 
@@ -160,9 +161,14 @@ full-page header 由图像模型尽力保持稳定，不承诺像素精度；文
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
   --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage all
 
-# 最小重跑(见编辑链),如只改标题:
+# 标题意图先让公共入口按 resolved render mode 分流:
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --kind title --only slide_NN
+
+# 明确重建已有单页图片（raw --only 不会自动 force）:
 node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage 1,3,4,5
+  --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage 1,2,3,4,5 \
+  --only slide_NN --force-images
 ```
 
 > 完整方法论见 `PPTMAKER_FRAMEWORK/AGENTS.md`。目录宪法见 `scripts/bundle_layout.mjs`。

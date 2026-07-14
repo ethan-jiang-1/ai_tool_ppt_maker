@@ -39,7 +39,7 @@ agent_action: iterate_with_openspec
    在其他 agent 中：按 proposal 逐项修改
    → 更新 visual-style.md 的 Section 2（Color System）
    → 更新 style master prompt → 重新生成 style_master.jpg
-   → 如果 style master 变化大 → 可能需要重新生成部分 slide（链 B）
+   → 如果 style master 变化大 → 受影响页使用 Generated Image Rebuild
 
 4. 归档
    在 Claude Code 中：openspec-archive-change
@@ -57,7 +57,7 @@ agent_action: iterate_with_openspec
 3. 实施
    → 更新 visual-style 的 typography table
    → 更新 `color_palette.json` 的 `header_lock.fonts.title.size_px`
-   → 重跑 Stage 3（header overlay）——**不需要重新生图**（链 A）
+   → raw-image contract 不变时，使用 Header Text & Style Refresh 重跑 Stage 1 → 3 → 4 → 5，**不需要重新生图**
 
 4. 归档
 ```

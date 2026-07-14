@@ -110,7 +110,7 @@ v2/                              ← 重大下游改动时用 --new-version 创�
 | 目录结构、文件命名 | 核心隐喻、公式 |
 | 模板选择、复制 | Color palette 方向 |
 | 脚本适配、执行 | Slide 的 claim 和认知载荷 |
-| 编辑链分类 | Gate check 通过/不通过 |
+| 结构版本与刷新路径分类 | Gate check 通过/不通过 |
 | 版本号递增 | 是否锁定、是否进入下一 Phase |
 
 **Agent owns process, user owns substance.**

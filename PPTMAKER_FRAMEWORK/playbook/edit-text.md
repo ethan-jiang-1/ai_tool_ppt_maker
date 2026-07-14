@@ -6,7 +6,7 @@ includes: [classify-change]
 
 # Playbook: 文本修改
 
-MD Controller 是流程真相源；标题类修改必须由 `ppt_flow refresh --kind title` 中央判断 Chain A / B。
+MD Controller 是流程真相源；本 controller 只处理 KICKER/TITLE/SUBTITLE 意图，并由 `ppt_flow refresh --kind title` 按 resolved render mode 选择 Header Text & Style Refresh 或 Generated Image Rebuild。body label、KPI、card/chart text、案例和数据等 image-owned 内容转交 `edit-visual`。
 
 ## Nodes
 
@@ -31,7 +31,7 @@ exit:
 
 **Step 1 — MD**: 修改所选 slide 的 KICKER/TITLE/SUBTITLE 源字段，不编辑 `_generated/`。
 
-**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <slide-ids>`。`body+header-lock` 自动走 1,3,4,5；`full-page` 返回 `TITLE_REVIEW_REQUIRED` 时只对所选页运行 2K `pilot --only <ids> --force-images`。
+**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <slide-ids>`。`body+header-lock` 通过 Header Text & Style Refresh 自动走 1,3,4,5；`full-page` 需要 Generated Image Rebuild，返回 `TITLE_REVIEW_REQUIRED` 时只对所选页运行 2K `pilot --only <ids> --force-images`。
 
 **Step 3 — GATE**: Open pilot/contact sheet；确认后运行 `approve <run-dir> header`，再用同 profile `build --reuse-images`，不得进行第二次图片生成。
 

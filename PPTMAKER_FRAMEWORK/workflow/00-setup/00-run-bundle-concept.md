@@ -63,8 +63,8 @@ agent_action: internalize
   │  产出 page_images_full/*.png → header_locked/*.png → ppt/*.pptx
   ↓
 迭代（Phase 4）
-  │  链 A/B/C 选择性重跑
-  │  大改动用 bundle_layout.mjs --new-version 创建干净版本
+  │  按失效产物选择 Header Text & Style / Generated Image / Notes-Only 刷新
+  │  增删重排先用 Structural Versioning Path 创建干净版本，再刷新受影响页
   ↓
 归档
    │  保留最终版本目录

@@ -47,7 +47,7 @@ agent_action: navigate
 - 听众: [谁看、角色、懂不懂技术]
 - 时长/场合: [多长、有没有 breakout]
 - 语言: [slides 语言 / 演讲语言]
-- 我有: GPT Image 2 API、Node.js 18+、npm（`@napi-rs/canvas` + `pptxgenjs` 由 repo 安装）
+- 我有: API key（或需要帮助获取）。请先检查我的环境（`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`），告诉我还需要装什么
 ```
 
 agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时长、语言、最想让人记住什么),再带你选隐喻、选风格,最后搭出框架。Agent 入口是 BOOTSTRAP → AGENT_CONTRACT（11 条铁律）→ 按 Phase 翻 AGENTS。

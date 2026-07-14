@@ -10,7 +10,7 @@ includes: [classify-change]
 
 ### classify-change (shared)
 
-确认增/删/重排范围及受影响 slide IDs。
+确认增/删/重排范围，先选择 Structural Versioning Path，并记录新版本中受影响 slide IDs 的后续刷新路径。
 
 ### new-version
 
@@ -45,7 +45,7 @@ exit:
 
 **Step 1 — MD**: 只编辑新版本的 slide specifications；`_generated/` 保持干净并由管线重建。
 
-**Step 2 — CLI**: 对受影响页按当前 render mode 跑最小链；full-page 必须完成 pilot/header review 后使用 reviewed-image reuse。
+**Step 2 — CLI**: 对受影响页按内容所有权和当前 render mode 选择 Header Text & Style Refresh、Generated Image Rebuild 或 Notes-Only Refresh；full-page 必须强制重生所选图片，完成 pilot/header review 后使用 reviewed-image reuse。
 
 ### verify-restructure-output
 
