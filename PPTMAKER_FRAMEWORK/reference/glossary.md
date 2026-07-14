@@ -37,8 +37,11 @@ agent_action: reference
 | `2_backbone/` | deck root | Shared metaphor / formula / visual | Version-only deltas |
 | `overrides/` | `…/v{n}/overrides/` | This version’s deltas only | Copy whole backbone |
 | structure gradient / 上严下松 | (rule) | Root strictest; temp sinks **down** | Litter deck root; invent `_tmp/` |
+| `asset-manifest.yaml` | `2_backbone/visual-style/assets/asset-manifest.yaml` | Visual asset SSOT catalog | Put secret keys |
+| `assets/` (visual) | `2_backbone/visual-style/assets/` | Optional visual asset files (svg/reference/icons) | Non-visual files |
+| `**VISUAL ASSETS**` | (field in slide-specifications.md) | Per-slide asset binding | IMAGE PROMPT text |
 
-**Also-search → canonical:** `bak` / `temp` / `scratch` → `_scratch/` · `小样` / `preview` → `contact_sheet` / `pilot` · `style master` → `style_master.jpg` · `production` / `derived` → `_generated/`
+**Also-search → canonical:** `bak` / `temp` / `scratch` → `_scratch/` · `小样` / `preview` → `contact_sheet` / `pilot` · `style master` → `style_master.jpg` · `production` / `derived` → `_generated/` · `视觉资产` / `visual asset` → `asset-manifest.yaml`
 
 ---
 
@@ -93,6 +96,24 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 一份独立的文本文件，定义了全 deck 的 **textual constraints**——语言策略、禁用元素、文字密度、tone、颜色规则。它和 visual style master 互补：style master 展示视觉风格，deck_system.txt 规定文字约束。
 
 **为什么重要**：Stage 1 脚本读取它，向每个 slide prompt 注入系统级 contract。它和 style master 共同构成 AI 模型的完整创作边界。
+
+### Visual Asset（视觉资产）
+
+一个命名、编目的视觉文件（SVG/PNG/JPG），存储在 `2_backbone/visual-style/assets/` 中，在 `asset-manifest.yaml` 注册，通过 `**VISUAL ASSETS**` 字段绑定到 slide。作为附加 reference image 随 `style_master.jpg` 一起传入 GPT Image 2 API。
+
+**为什么重要**：当 slide 需要特定 diagram、SVG、reference photo 等模型不知道的视觉元素时，资产提供了 per-slide 的附加视觉锚点。它是可选基础设施——不需要时忽略即可。
+
+### asset-manifest.yaml
+
+视觉资产目录的 SSOT，位于 `2_backbone/visual-style/assets/asset-manifest.yaml`。每个资产一条记录：id（kebab-case）、path（相对于 assets/ 的路径）、type（svg|png|jpg）、label、description（多模态描述）、usage_guidance。Stage 1 据此验证 `**VISUAL ASSETS**` 引用。
+
+**为什么重要**：manifest 是资产系统的注册中心——没有它，资产文件只是磁盘上的孤立文件，管线无法发现、验证或使用它们。
+
+### VISUAL ASSETS
+
+`slide-specifications.md` 中的 per-slide 字段：`**VISUAL ASSETS**: id1, id2`。逗号分隔的资产 ID 列表。可选字段——不引用资产时不写。当存在时，Stage 1 验证引用（WARNING 级），Stage 2 将对应的资产文件作为附加 reference image 传入 API。
+
+**为什么重要**：这是用户绑定资产到 slide 的唯一入口点。和 `**RENDER MODE**` 一样，它是 per-slide 的显式决策——不需要额外配置文件。
 
 ---
 

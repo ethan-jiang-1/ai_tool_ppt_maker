@@ -61,6 +61,7 @@ import {
   GUIDE_FILE, POINTER_FILE, METADATA_FILE,
   // visual-style
   STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE,
+  BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE,
   // version
   SLIDE_SPECS_GLOB, OVERRIDES_SUBDIR, GENERATED_SUBDIR,
   // _generated
@@ -68,7 +69,7 @@ import {
   GEN_IMAGES_SUBDIR, GEN_HEADER_LOCKED_SUBDIR,
   GEN_PPT_SUBDIR, GEN_QA_SUBDIR, GEN_PREVIEW_SUBDIR,
   // resolvers
-  deckRoot, backboneDir, styleAsset, styleDir, generatedDir,
+  deckRoot, backboneDir, styleAsset, styleDir, assetsDir, generatedDir,
   findSlideSpecs, deckName, isVersionDir, loadDotenv,
   // catalogues
   DECK_TYPE_TEMPLATES, STYLE_PRESETS,

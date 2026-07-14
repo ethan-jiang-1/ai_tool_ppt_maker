@@ -51,9 +51,10 @@ import {
   GEN_PPT_SUBDIR, GEN_PREVIEW_SUBDIR,
   GEN_QA_SUBDIR,
   // resolvers
-  deckRoot, backboneDir, styleAsset, generatedDir,
+  deckRoot, backboneDir, styleAsset, assetsDir, generatedDir,
   findSlideSpecs, deckName, checkBundle, loadDotenv,
 } from "./bundle_layout.mjs";
+import { loadAssetManifest, validateAssetManifest, resolveAssetFile } from "./asset_manifest.mjs";
 import { resolveSlideIds } from "./lib/slide_ids.mjs";
 
 // --- Configuration -----------------------------------------------------------
@@ -240,7 +241,24 @@ export async function stage1(runDir, dryRun) {
     configureVisualConfig(DEFAULT_CONFIG);
   }
 
-  const validationErrors = validateSpecRecords([inputFile]).filter((problem) => problem.severity === "ERROR");
+  // Load asset manifest if present (optional infrastructure)
+  let assetManifest = null;
+  try {
+    const assetDir = assetsDir(runDir);
+    if (existsSync(join(assetDir, 'asset-manifest.yaml'))) {
+      assetManifest = loadAssetManifest(assetDir);
+      const assetProblems = validateAssetManifest(assetManifest);
+      if (assetProblems.length > 0) {
+        console.warn(`  WARNING: asset manifest has ${assetProblems.length} issue(s):`);
+        for (const p of assetProblems) console.warn(`    - ${p}`);
+      }
+      console.log(`  Asset manifest: ${Object.keys(assetManifest.assets || {}).length} assets registered`);
+    }
+  } catch (err) {
+    console.warn(`  WARNING: cannot load asset manifest: ${err.message}`);
+  }
+
+  const validationErrors = validateSpecRecords([inputFile], assetManifest).filter((problem) => problem.severity === "ERROR");
   if (validationErrors.length > 0) {
     return failStage(stage1, {
       version: 1,
@@ -253,7 +271,7 @@ export async function stage1(runDir, dryRun) {
     });
   }
 
-  const { plan, prompts } = parseSlides([inputFile], finalRules);
+  const { plan, prompts } = parseSlides([inputFile], finalRules, assetManifest);
 
   const planPath = join(buildDir, GEN_SLIDE_PLAN);
   const promptsDir = join(buildDir, GEN_PROMPTS_SUBDIR);
@@ -384,6 +402,21 @@ export async function stage2(runDir, {
   }
 
   try {
+    // Load asset manifest for asset resolver (optional infrastructure)
+    let assetResolver = null;
+    try {
+      const assetDir = assetsDir(runDir);
+      const manifest = loadAssetManifest(assetDir);
+      if (manifest.assets && Object.keys(manifest.assets).length > 0) {
+        const capturedRunDir = runDir;
+        const capturedManifest = manifest;
+        assetResolver = (assetId) => resolveAssetFile(capturedRunDir, capturedManifest, assetId);
+        console.log(`  Asset resolver: ${Object.keys(manifest.assets).length} assets available`);
+      }
+    } catch (_err) {
+      // Manifest may not exist or be invalid — optional, no hard error
+    }
+
     const { buildImageFailureDiagnostic, generateImages } = await import("./stage2_generate_images.mjs");
     const result = await generateImages({
       promptJson: promptsFile,
@@ -396,29 +429,34 @@ export async function stage2(runDir, {
       promptIsFinal: true,
       baseUrl: baseUrls,
       dryRun: false,
+      assetResolver,
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
       return failStage(stage2, buildImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
     }
+    // Post-generation provenance check — per-slide profiles replace the old batch validateImageProvenance
     const promptData = loadJson(promptsFile);
     const selectedSet = selectedIds.length > 0 ? new Set(selectedIds) : null;
     const provenanceSlides = (promptData.slides || []).filter(
       (slide) => !selectedSet || selectedSet.has(slide.id)
     );
-    const { validateImageProvenance, provenanceRepairHint } = await import("./lib/image_provenance.mjs");
-    const provenance = validateImageProvenance({
-      slides: provenanceSlides,
-      outDir,
-      profile: result.profile,
-    });
-    if (!provenance.current) {
-      const ids = provenance.stale.map((entry) => entry.slideId);
+    const { inspectImageProvenance, readImageManifest, provenanceRepairHint } = await import("./lib/image_provenance.mjs");
+    const { manifest: provManifest, error: provManifestError } = readImageManifest(outDir);
+    const stale = [];
+    for (const slide of provenanceSlides) {
+      const slideProfile = result.profiles.get(slide.id);
+      if (!slideProfile) { stale.push({ slideId: slide.id, reason: "missing per-slide profile" }); continue; }
+      const check = inspectImageProvenance({ slide, outDir, manifest: provManifest, manifestError: provManifestError, profile: slideProfile });
+      if (!check.current) stale.push({ slideId: slide.id, reason: check.reason });
+    }
+    if (stale.length > 0) {
+      const ids = stale.map((entry) => entry.slideId);
       console.log(
-        `\n  ✗ Stage 2 provenance FAILED: ${provenance.stale.map((entry) => `${entry.slideId}: ${entry.reason}`).join("; ")}`
+        `\n  ✗ Stage 2 provenance FAILED: ${stale.map((entry) => `${entry.slideId}: ${entry.reason}`).join("; ")}`
       );
       console.log(`  ${provenanceRepairHint(ids)}`);
-      return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "validate-provenance", source: { path: promptsFile }, issues: provenance.stale.map((entry) => ({ message: "slide image provenance is stale", subject: { kind: "slide", id: entry.slideId }, source: { path: outDir }, reason: { kind: "stale_image_provenance" }, lineage: [{ kind: "derived", path: promptsFile, stage: "stage1" }, { kind: "derived", path: outDir, stage: "stage2" }] })), next: createCliNext("repair_prerequisite", { inspect: [{ path: promptsFile }, { path: outDir }], default: "Regenerate only the stale slide images, then rerun Stage 2 validation." }) });
+      return failStage(stage2, { version: 1, category: "artifact", stage: "stage2", operation: "validate-provenance", source: { path: promptsFile }, issues: stale.map((entry) => ({ message: "slide image provenance is stale", subject: { kind: "slide", id: entry.slideId }, source: { path: outDir }, reason: { kind: "stale_image_provenance" }, lineage: [{ kind: "derived", path: promptsFile, stage: "stage1" }, { kind: "derived", path: outDir, stage: "stage2" }] })), next: createCliNext("repair_prerequisite", { inspect: [{ path: promptsFile }, { path: outDir }], default: "Regenerate only the stale slide images, then rerun Stage 2 validation." }) });
     }
     console.log(`\n  ✓ Stage 2: Generate Images completed successfully.`);
   } catch (err) {

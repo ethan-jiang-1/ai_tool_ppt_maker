@@ -136,6 +136,15 @@ export const DECK_SYSTEM_FILE = 'deck_system.txt';
 export const COLOR_PALETTE_FILE = 'color_palette.json';
 
 // ---------------------------------------------------------------------------
+// --- Inside 2_backbone/visual-style/assets/ (NEW — visual asset catalog) ---
+// ---------------------------------------------------------------------------
+export const BACKBONE_ASSETS_SUBDIR = 'assets';
+export const ASSET_MANIFEST_FILE = 'asset-manifest.yaml';
+export const ASSET_SVG_SUBDIR = 'svg';
+export const ASSET_REFERENCE_SUBDIR = 'reference';
+export const ASSET_ICONS_SUBDIR = 'icons';
+
+// ---------------------------------------------------------------------------
 // --- Inside a version dir (deck_<name>/3_versions/vN) ----------------------
 // ---------------------------------------------------------------------------
 export const SLIDE_SPECS_NAME = 'slide-specifications.md';
@@ -234,6 +243,15 @@ const _ALLOWED_IN_BACKBONE = new Set([
 const _ALLOWED_IN_VISUAL_STYLE = new Set([
     ...VISUAL_STYLE_FILES,
     ...VISUAL_STYLE_OPTIONAL,
+    BACKBONE_ASSETS_SUBDIR,
+    'README.md',
+]);
+
+const _ALLOWED_IN_ASSETS = new Set([
+    ASSET_MANIFEST_FILE,
+    ASSET_SVG_SUBDIR,
+    ASSET_REFERENCE_SUBDIR,
+    ASSET_ICONS_SUBDIR,
     'README.md',
 ]);
 
@@ -283,6 +301,14 @@ export function styleAsset(runDir, filename) {
 
 export function styleDir(runDir) {
     return resolveBackboneAsset(runDir, BACKBONE_STYLE_SUBDIR);
+}
+
+export function assetsDir(runDir) {
+    return resolveBackboneAsset(runDir, `${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`);
+}
+
+export function resolveAssetPath(runDir, relpath) {
+    return resolveBackboneAsset(runDir, `${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/${relpath}`);
 }
 
 export function generatedDir(runDir) {
@@ -490,6 +516,18 @@ export function checkBundle(runDir, requirePipelineReady = true) {
                     `not canonical. Allowed: ${[..._ALLOWED_IN_VISUAL_STYLE].sort().join(', ')}`);
             }
         }
+        // Validate assets/ subdirectory contents if present (optional infrastructure)
+        const assetsPath = path.join(vsPath, BACKBONE_ASSETS_SUBDIR);
+        if (fs.existsSync(assetsPath) && fs.statSync(assetsPath).isDirectory()) {
+            for (const entry of fs.readdirSync(assetsPath, { withFileTypes: true })) {
+                if (_ignorable(entry.name)) continue;
+                if (!_ALLOWED_IN_ASSETS.has(entry.name)) {
+                    problems.push(
+                        `unexpected '${entry.name}' in ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/ — ` +
+                        `not canonical. Allowed: ${[..._ALLOWED_IN_ASSETS].sort().join(', ')}`);
+                }
+            }
+        }
     }
 
     const overridesPath = path.join(runDir, OVERRIDES_SUBDIR);
@@ -654,6 +692,16 @@ const _DIR_READMES = {
         '- `color_palette.json` — 配色 + 标题字号(管线读它)\n\n' +
         '**你做什么:** 改配色/风格改这里。锁定后尽量别动——它是「全 deck 长一样」的根源。\n'
     ),
+    [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`]: (
+        '# 视觉资产 (assets)\n\n' +
+        '**这里放什么:**\n' +
+        '- `asset-manifest.yaml` — 资产目录（SSOT），定义每个资产的 id、路径、类型、描述\n' +
+        '- `svg/` — SVG 矢量资产\n' +
+        '- `reference/` — PNG/JPG 参考图\n' +
+        '- `icons/` — 图标集\n\n' +
+        '**你做什么:** 添加资产文件到此目录，在 `asset-manifest.yaml` 注册，然后在 slide-specifications.md 中用 `**VISUAL ASSETS**: <id>` 绑定到页。\n' +
+        '**这是可选基础设施:** 不需要资产时忽略此目录即可，管线在无 assets/ 时正常运作。\n'
+    ),
     [`${BACKBONE_DIR}/${BACKBONE_MANUSCRIPT_SUBDIR}`]: (
         '# 讲稿主干\n\n' +
         '**这里放什么:** 演讲讲稿(可按 part0/part1… 分文件)。全版本共享。\n' +
@@ -717,6 +765,11 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     for (const sd of VERSION_SUBDIRS) {
         dirs.push(`${VERSIONS_DIR}/v1/${sd}`);
     }
+    // Asset subdirectories (optional infrastructure, placeholder on init)
+    const assetsBase = `${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`;
+    for (const sd of [ASSET_SVG_SUBDIR, ASSET_REFERENCE_SUBDIR, ASSET_ICONS_SUBDIR]) {
+        dirs.push(`${assetsBase}/${sd}`);
+    }
     for (const rel of dirs) {
         const d = rel === '.' ? deckDir : path.join(deckDir, rel);
         fs.mkdirSync(d, { recursive: true });
@@ -769,6 +822,17 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
             }
         }
     }
+
+    // Stub asset-manifest.yaml (placeholder — user registers assets here when needed)
+    _writeIfAbsent(
+        path.join(deckDir, assetsBase, ASSET_MANIFEST_FILE),
+        '# Visual Asset Manifest — SSOT catalog of visual assets.\n' +
+        '# Register each asset file here, then bind to slides with **VISUAL ASSETS**: <id>.\n' +
+        '# This is optional infrastructure — delete this file or leave assets: {} if unused.\n' +
+        '\n' +
+        'version: 1\n' +
+        'assets: {}\n');
+    log.push(`asset catalog: ${assetsBase}/${ASSET_MANIFEST_FILE}`);
 
     _writeIfAbsent(
         path.join(deckDir, METADATA_FILE),
@@ -891,7 +955,12 @@ deck_\${NAME}/
 │       ├── ${STYLE_MASTER_PROMPT}
 │       ├── ${STYLE_MASTER_IMAGE}
 │       ├── ${DECK_SYSTEM_FILE}
-│       └── ${COLOR_PALETTE_FILE}
+│       ├── ${COLOR_PALETTE_FILE}
+│       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional visual asset catalog (placeholder on init)
+│           ├── ${ASSET_MANIFEST_FILE}
+│           ├── ${ASSET_SVG_SUBDIR}/
+│           ├── ${ASSET_REFERENCE_SUBDIR}/
+│           └── ${ASSET_ICONS_SUBDIR}/
 │
 └── ${VERSIONS_DIR}/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
@@ -942,6 +1011,9 @@ export function selfCheck() {
             problems.push(`canonical visual-style file ${f} not in its whitelist`);
         }
     }
+    if (!_ALLOWED_IN_VISUAL_STYLE.has(BACKBONE_ASSETS_SUBDIR)) {
+        problems.push(`BACKBONE_ASSETS_SUBDIR (${JSON.stringify(BACKBONE_ASSETS_SUBDIR)}) not in _ALLOWED_IN_VISUAL_STYLE`);
+    }
 
     if (!_globToRegex(SLIDE_SPECS_GLOB).test(SLIDE_SPECS_NAME)) {
         problems.push(
@@ -950,7 +1022,7 @@ export function selfCheck() {
     }
 
     const tree = renderTree();
-    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR]) {
+    for (const n of [UPSTREAM_DIR, BACKBONE_DIR, VERSIONS_DIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, SLIDE_SPECS_NAME, STATE_DIR, LESSONS_DIR, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE]) {
         if (!tree.includes(n)) {
             problems.push(`renderTree() is missing canonical entry ${JSON.stringify(n)} (stale hardcoded literal?)`);
         }

@@ -36,8 +36,9 @@ export function generationProfile({
   resolution,
   model,
   semanticOptions = {},
+  assetRefs = {},
 }) {
-  return {
+  const profile = {
     model,
     resolution,
     size: semanticOptions.size || DEFAULT_IMAGE_SIZE,
@@ -47,6 +48,10 @@ export function generationProfile({
       ...semanticOptions,
     },
   };
+  if (assetRefs && Object.keys(assetRefs).length > 0) {
+    profile.asset_refs = assetRefs;
+  }
+  return profile;
 }
 
 export function generationFingerprint({ prompt, profile }) {

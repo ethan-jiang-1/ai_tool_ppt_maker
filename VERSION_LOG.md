@@ -1,34 +1,26 @@
 ---
 title: VERSION_LOG
-stage: root
-position: meta
-type: changelog
-summary: PPTMAKER_FRAMEWORK 的小版本迭代记录。只追 v1.x.x 线。v2 是未来的另一个目录。
-depends_on: []
-feeds_into: []
-agent_action: reference
+description: Repo 级版本迭代记录。从 v0.14.3 起追踪项目整体（软包+脚本+管线+OpenSpec 体系）的版本演进。
 ---
 
-# VERSION_LOG — `PPTMAKER_FRAMEWORK/`
+# VERSION_LOG
 
-> 这个文件只记录 **v1.x.x** 的变更。大版本（v2、v3…）各有一个独立目录（`_ppt_framework_v2/`、`_ppt_framework_v3/`…），各自的 VERSION_LOG 只管自己的小版本线。
->
-> 每次对框架的实质性改动（新增/删除/重构文件、修改管线行为、调整预设参数）都应在顶部追加一条记录。文档措辞微调不必记录。
+> 这个文件记录 repo 整体的版本变更。每次实质性改动（新增 capability、修改管线行为、架构变更）在 archive 后追加一条 bump 记录。文档措辞微调不必记录。
 
 ## 版本号规则
 
 ```
-v1 . 0 . 0
+v0 . 14 . 3
 │   │   └─ PATCH：修 bug、改措辞、小修正（不影响使用方式）
-│   └───── MINOR：新预设、新模板、新 catalog 条目、新功能（向后兼容）
-└───────── MAJOR：不在这里——MAJOR 升级 = 新建 _ppt_framework_v2/ 目录
+│   └───── MINOR：新 capability、破坏性变更、架构变化
+└───────── MAJOR：目前为 0（pre-1.0）。MAJOR 升为 1 在项目稳定、可对外发布时。
 ```
 
-这个目录是 **v1**。大版本升级（如架构重写、不兼容的管线变更）会新建 `_ppt_framework_v2/`——它不是这个文件里的一条记录，而是一个全新的目录，有自己的 VERSION_LOG 从 v2.0.0 开始。
+MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过旧 MAJOR.MINOR 合并为新 MINOR 得以保留（v1.4.3 → v0.14.3）。以下历史条目已从 v1.x.y 重编号为 v0.xy.z。
 
 ---
 
-## v1.4.3 — Node-only runtime constitution（2026-07-11）
+## v0.14.3 — Node-only runtime constitution（2026-07-11）
 
 **代号**：No skills, no bash, no Python
 
@@ -43,7 +35,7 @@ v1 . 0 . 0
 
 ---
 
-## v1.4.2 — Node-only hard cut（2026-07-11）
+## v0.14.2 — Node-only hard cut（2026-07-11）
 
 **代号**：No Python in the building
 
@@ -58,7 +50,7 @@ v1 . 0 . 0
 
 ---
 
-## v1.4.1 — Doc executability + Stage-2 hard gate（2026-07-11）
+## v0.14.1 — Doc executability + Stage-2 hard gate（2026-07-11）
 
 **代号**：Agent can follow the map
 
@@ -74,7 +66,7 @@ v1 . 0 . 0
 
 ---
 
-## v1.4.0 — Execution Hardening（2026-07-10）
+## v0.14.0 — Execution Hardening（2026-07-10）
 
 **代号**：Make the Contract Real
 
@@ -101,7 +93,7 @@ v1 . 0 . 0
 
 ---
 
-## v1.3.0 — 词汇统一 + Agent 铁律（2026-07-10）
+## v0.13.0 — 词汇统一 + Agent 铁律（2026-07-10）
 
 **代号**：One Vocab / Contract
 
@@ -121,7 +113,7 @@ v1 . 0 . 0
 
 ---
 
-## v1.2.0 — 三层分化梯度（2026-07-09）
+## v0.12.0 — 三层分化梯度（2026-07-09）
 
 **代号**：Gradient
 
@@ -159,7 +151,7 @@ deck_{NAME}/
 
 ---
 
-## v1.1.0 — 目录结构锁定（2026-07-09）
+## v0.11.0 — 目录结构锁定（2026-07-09）
 
 > ⚠️ 本版的扁平 `_build/` 布局已被 **v1.2 三层梯度**取代。以下为历史记录。
 
@@ -191,7 +183,7 @@ deck_{NAME}/
 
 ---
 
-## v1.0.0 — 小白可用（2026-07-08）
+## v0.10.0 — 小白可用（2026-07-08）
 
 **代号**：Turnkey
 
@@ -220,3 +212,19 @@ deck_{NAME}/
 ### 这个版本基于什么
 
 v1.0.0 的前身是 T9（30 页 3-session keynote + breakout）和 T10（19 页单 session 战略简报）两个真实项目中长出来的方法论框架——Style Anchoring、Header-Lock、四层 slide 规格、三编辑链。那些核心资产没变，变的是**入口**：从"你得先读完 60 个文件才能上手"变成了"Agent 读 BOOTSTRAP.md，你回答选择题"。
+
+---
+
+> **分界说明**：以上为 v1.x.y → v0.xy.z 重编号的历史条目。MAJOR 从 1 修正为 0（项目未到 1.0 水准），旧 MAJOR.MINOR 合并为新 MINOR。自本条目起，版本号覆盖 repo 整体（软包+脚本+管线+OpenSpec 体系），由根目录 `VERSION` 文件作为 SSOT。
+
+## v0.14.3 — 确立 repo 级版本管理（2026-07-14）
+
+**代号**：Version Awareness
+
+### 变了什么
+
+1. 根目录新建 `VERSION` 文件（`0.14.3`）作为 repo 版本号 SSOT。
+2. `PPTMAKER_FRAMEWORK/reference/version-log.md` 移动到根目录并重命名为 `VERSION_LOG.md`，历史条目从 v1.x.y 重编号为 v0.xy.z。
+3. `PPTMAKER_FRAMEWORK/README.md` frontmatter 和标题旁加版本号。
+4. `CLAUDE.md` 追加版本管理行为铁律；`openspec/config.yaml` `rules:` 下新增 `version:` 段。
+5. `package.json` `version` 同步为 `0.14.3`；`openspec/config.yaml` capability 注册表新增 `project-versioning`。

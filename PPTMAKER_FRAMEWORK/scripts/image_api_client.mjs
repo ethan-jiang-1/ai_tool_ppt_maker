@@ -16,7 +16,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, extname } from "node:path";
+import { dirname, extname, basename } from "node:path";
 import { emitCliProgress } from "./lib/cli_error.mjs";
 
 export const DEFAULT_MODEL = "gpt-image-2";
@@ -162,6 +162,7 @@ export function fileToDataUrl(filePath) {
     ext === ".png" ? "image/png" :
     ext === ".webp" ? "image/webp" :
     ext === ".gif" ? "image/gif" :
+    ext === ".svg" ? "image/svg+xml" :
     "image/jpeg";
   return `data:${mime};base64,${buf.toString("base64")}`;
 }
@@ -429,6 +430,7 @@ export async function generateOneImage({
   force = false,
   baseUrls = [],
   tracePath = null,
+  additionalReferencePaths = [],
 } = {}) {
   if (!force && existsSync(outPath)) {
     console.log(`  Skip (exists): ${outPath}`);
@@ -458,6 +460,28 @@ export async function generateOneImage({
     body.image_urls = [dataUrl];
   } else {
     console.log(`  No style reference — generating without visual style anchoring`);
+  }
+
+  // Additional reference images (per-slide visual assets)
+  if (additionalReferencePaths.length > 0) {
+    const existingImages = body.images || [];
+    for (const refPath of additionalReferencePaths) {
+      if (!existsSync(refPath)) {
+        console.warn(`  WARNING: asset reference not found, skipping: ${refPath}`);
+        continue;
+      }
+      try {
+        const assetDataUrl = fileToDataUrl(refPath);
+        existingImages.push(assetDataUrl);
+      } catch (err) {
+        console.warn(`  WARNING: cannot read asset reference, skipping: ${refPath} (${err.message})`);
+      }
+    }
+    if (existingImages.length > (styleReferencePath ? 1 : 0)) {
+      body.images = existingImages;
+      if (!body.image) body.image = existingImages[0];
+      body.image_urls = existingImages;
+    }
   }
 
   /** @type {{ base_url: string, host: string|null, reason: string, status: number|null }[]} */
@@ -504,6 +528,9 @@ export async function generateOneImage({
           poll_count: pollCount,
           total_seconds: Math.round(elapsed * 10) / 10,
           style_reference: styleReferencePath || null,
+          additional_references: additionalReferencePaths.length > 0
+            ? additionalReferencePaths.map(p => basename(p))
+            : [],
           attempts,
         };
         if (tracePath) {

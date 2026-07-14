@@ -14,3 +14,7 @@
 ## 技术栈
 
 Node.js 18+ ESM (.mjs). 回归测试: `npm test`.
+
+## 版本管理
+
+根目录 `VERSION` 是当前 repo 版本号（semver）。每次 `openspec-archive-change` 完成后，按 `openspec/config.yaml` `rules:` `version:` 段定义的 bump 粒度规则判断是否需要 bump（MINOR/PATCH/不 bump），向用户建议，确认后同步更新 `VERSION`、`VERSION_LOG.md`、`PPTMAKER_FRAMEWORK/README.md` 和 `package.json`。
