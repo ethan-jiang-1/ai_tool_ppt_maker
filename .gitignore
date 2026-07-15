@@ -80,3 +80,6 @@ deck-tmp-*
 dpt_rb_*
 
 *.ppt*
+
+skills-lock.json
+.agents
