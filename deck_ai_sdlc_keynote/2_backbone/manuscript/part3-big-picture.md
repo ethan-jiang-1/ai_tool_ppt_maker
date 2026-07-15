@@ -1,12 +1,20 @@
 ---
 title: Part 3 — The Big Picture
 part: 3
-slides: S3.1–S3.4
-version: v1
+slides: S3.1–S3.4 (22–25 in v1 production)
+version: v2
 status: draft
+updated: 2026-07-15
 sources:
   - 1_upstream_raw_material/software/
   - 1_upstream_raw_material/business/
+note: v2 吸纳 v1 双瓶颈理论（金字塔存在理由）+ slide ID 对照
+
+slide_id_map:
+  S3.1: s22_roman_legion (罗马军团 — 双瓶颈)
+  S3.2: s23_measurers_not_builders (Measurer 重新定义 + 三波冲击)
+  S3.3: s24_convergence (SDLC+BPM 融合)
+  S3.4: s25_what_will_you_do (Closer — 不给答案)
 ---
 
 # PART 3: THE BIG PICTURE — Productivity × Communication × Organization

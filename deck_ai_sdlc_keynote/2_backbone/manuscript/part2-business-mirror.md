@@ -1,17 +1,49 @@
 ---
 title: Part 2 — The Business Mirror
 part: 2
-slides: S2.1–S2.5
-version: v1
+slides: S2.0–S2.5 (16–21 in v1 production)
+version: v2
 status: draft
+updated: 2026-07-15
 sources:
   - 1_upstream_raw_material/business/topics/
   - 1_upstream_raw_material/business/storylines/
-pending:
-  - S2.5 中国传统行业 AI 落地案例
+note: v2 新增 transition bridge (S2.0=s16) + agent 人格引用 + honest footnote + slide ID 对照
+
+slide_id_map:
+  S2.0: s16_sdlc_to_bpm_bridge (换挡 — 过渡页) ← v1 新增
+  S2.1: s17_bpm_sdlc_twin (BPM=SDLC 同构)
+  S2.2: s18_framed_autonomy (Framed Autonomy, 含 Yan/Zhu 人格)
+  S2.3: s19_four_layers (四层重构)
+  S2.4: s20_allianz_nemo (Allianz 深度案例) ← v1 从 grid 改为 deep dive
+  S2.5: s21_maersk_edge_ai (Maersk 深度案例) ← v1 从 grid 改为 deep dive
 ---
 
 # PART 2: THE BUSINESS MIRROR — 同样的事正在传统企业发生
+
+---
+
+## Transition: 换挡 ★ v1 新增 (s16)
+
+---
+
+### S2.0: 软件的故事讲完了。现在，轮到你的行业。
+
+**KICKER**: 换挡
+
+**CLAIM**: 前半段讲的软件（SDLC）不是特例——是"先行样本"。现在把镜头从科技公司转向传统企业（BPM）。软件先经历的方法论、角色、组织重写，正沿着同一条信息加工链蔓延到所有行业。
+
+**BODY**:
+
+你刚刚看到的——SDLC 的前提被挖掉、人的角色从操作者变成委托人、组织从中层密集转向极端扁平——这些不是"软件行业的特殊问题"。软件是煤矿里的金丝雀。它先感觉到了空气的变化。
+
+你的行业也在加工信息。只是换了名字——不叫 SDLC，叫 BPM（Business Process Management，业务流程管理）。但本质完全一样：需求进去，决策/文档/工单出来。同一条 ITO 链。
+
+接下来的几张 slide，我们把同样的故事，映射到你身上。
+
+**v1 视觉注**：极简过渡页——cream 纸，几乎全空，只有居中一个小琥珀色原点或手绘细箭头（换挡/转向的暗示）。不给任何新数据——这是纯叙事齿轮，让受众在内心完成"从程序员到我"的切换。
+
+**TRANSITION**: 先建立同构关系——你们公司也在加工信息。这有一个 40 年的方法论。
 
 ---
 
@@ -77,6 +109,8 @@ Dagstuhl Seminar 18 位作者的正式定义：
 | Agent 在框内自主 | Agent 在护栏内自主 |
 
 **同一件事。不同的术语。**
+
+**v1 视觉注**：本页是 v1 最丰富的框架页。画面中两个具名 Agent——Yan（砚，坐姿执笔，产出代码/文档/测试）和 Zhu（铸，站姿操作设备，连接管道/齿轮）——在同一个琥珀色力场框内工作。框外一只手轻搭在框边（信任+关注，不是焦虑）。见 `agent-portrayal.md`。具体视觉描述参考 v1 slide-specifications s18_framed_autonomy 的 IMAGE PROMPT。
 
 **TRANSITION**: 这个概念不只存在于学术论文里。整个行业的架构都在围绕它重组。
 
@@ -160,5 +194,7 @@ Dagstuhl Seminar 18 位作者的正式定义：
 | **司盟企服** | 企业服务 | Agent 接管海外邮件/审计/合同 | 效率提升 5 倍+ |
 
 共同模式：跟海外一样——不是"AI 替代人"，是特定流程交给 Agent，人做策展和例外处理。
+
+**v1 注**：v1 实际 slide 采用了不同的案例策略——每个案例一页 deep dive（s20_allianz_nemo + s21_maersk_edge_ai），而非本稿中的 grid 罗列。deep dive 策略的优势是每个案例可以标注 honest footnote（Allianz: -80% 仅窄类别；Maersk: TradeLens $100M+ 关停），听众信任度更高。v2 或新 deck 可自行选择 grid vs deep dive 策略——本稿保留 grid 作为快速参考。
 
 **TRANSITION**: 两个领域都看完了。退一步看大局。
