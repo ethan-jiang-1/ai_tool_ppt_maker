@@ -13,6 +13,12 @@ After successful atomic PPTX publication, Stage 4 SHALL atomically write `_gener
 - **AND** slide order exactly matches the plan rather than directory or filename order
 - **AND** a current assembly receipt records those N ordered IDs and image hashes
 
+#### Scenario: Build PPTX from header_locked images
+
+- **WHEN** `header_locked/` contains N PNG images and `slide_plan.json` has N slides
+- **THEN** output .pptx has N slides, each a 16:9 full-frame image
+- **AND** slide order matches `slide_plan.json` sequence
+
 #### Scenario: Missing, unverified, or ambiguous final image fails
 
 - **WHEN** a planned ID has no verified final artifact, has only a `legacy-located` candidate, or resolves to more than one unsupported candidate

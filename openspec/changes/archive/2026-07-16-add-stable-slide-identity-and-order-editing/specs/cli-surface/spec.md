@@ -39,6 +39,12 @@ The `ppt_flow` CLI SHALL expose **13** commands: `doctor`, `init`, `status`, `ap
 - **THEN** the command exits non-zero with an envelope
 - **AND** its bounded diagnostic identifies real current positions, formal IDs, and titles from `slide_plan.json`
 
+#### Scenario: Unknown selector lists ids
+
+- **WHEN** `--only slide_03` matches nothing
+- **THEN** the command exits non-zero with an envelope
+- **AND** `hint` includes real ids from `slide_plan.json`
+
 #### Scenario: Repeated selectors retain resolution evidence
 
 - **WHEN** one `--only` invocation contains multiple tokens that resolve to the same formal ID by different branches
