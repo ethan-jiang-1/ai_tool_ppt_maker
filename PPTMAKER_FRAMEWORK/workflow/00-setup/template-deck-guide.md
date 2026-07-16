@@ -133,7 +133,9 @@ full-page header 由图像模型尽力保持稳定，不承诺像素精度；文
 | Notes-Only Refresh | speaker notes only | 5 | ~30 sec |
 | Generated Image Rebuild | 视觉主干(backbone) | 重生 style master + `1,2,3,4,5 --force-images` | — |
 
-增/删/重排先走 Structural Versioning Path：用 `--new-version` 创建干净版本，再为新增和受影响页选择上面的刷新路径。
+增/删/重排先走 Structural Versioning Path：用户可以说“第 7 页”或“UX gap 那页”，Agent 用 `ppt_flow slides` 绑定当前 position 与稳定 ID，展示 `position · ID · title` 的 before/after preview，并在用户确认后用同一个 `plan_sha256` 提交干净 vNext。用户不负责抄 hash；stale 时重新 preview。
+
+结构提交与跨版本 materialization 都不调用远端 renderer。只复用 manifest 证明完整的 raw render；Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 只报告后续成本，必须另行取得 Generated Image Rebuild 授权。若一版内无法收敛，按新 preview → 新 vNext → 新 deck 处理。
 
 ## 进度对照
 

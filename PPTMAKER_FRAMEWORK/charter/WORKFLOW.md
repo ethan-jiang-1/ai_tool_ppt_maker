@@ -29,9 +29,11 @@ Phase 顺序：`0 → 1/2（可交换）→ 2.7 回填 L3 → 3 → 4`。Phase 3
 | **Header Text & Style Refresh**（页眉文字与样式刷新；formerly Chain A） | "第5页 body-lock 标题改一下" | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，以及 Stage 3 拥有的字体、字号、字重、颜色、位置、行高和间距；raw-image contract 不变 | 1 → 3 → 4 → 5 | ~5 min |
 | **Generated Image Rebuild**（生成图重建；formerly Chain B） | "第8页的图重新生成" | full-page header、body 文案/数据、image prompt、画面/配色，以及 mode/safe-zone 等 raw-image contract | Stage 1 → 强制重生所选 Stage 2 → review → 3/4/5（复用已审图） | ~5 min/页 |
 | **Notes-Only Refresh**（仅备注刷新；formerly Chain C） | "备注改一下" | speaker notes | Stage 5 | ~30 sec |
-| **Structural Versioning Path**（结构版本路径；formerly Structural） | "加一页案例" / "删掉第3页" | 增/删/重排 slide | `--new-version` → 在新版本按受影响页选择上述 refresh path | 按页数 |
+| **Structural Versioning Path**（结构版本路径；formerly Structural） | "加一页案例" / "把 UX gap 那页放到第3页后" | 增/删/重排 slide | stable-ID preview/hash 确认 → 干净 vNext → verified raw-only materialization → target-local 3/contact sheet/4/5；缺 raw 才另行授权 Generated Image Rebuild | 按页数 |
 
 Structural Versioning Path 是外层版本流程，不是第四条并列 refresh path。
+
+结构讨论显示 `position · slide_id · title`：position 是当前快照，ID 才跨版本。Agent 保存 preview hash，用户只确认 before/after；stale 时重新 preview。结构提交和 materialization 都是 renderer-free，`needs_render` 不等于生图授权。长期无法收敛时使用新 preview → 新 vNext → 新 deck 的逃生阶梯。
 
 **Agent 分类逻辑**:
 1. 改了 slide 集合/顺序吗? 是 → Structural Versioning Path；新版本中的受影响页仍需继续分类
@@ -56,7 +58,7 @@ CLAUDE.md  →  BOOTSTRAP.md  →  charter/AGENT_CONTRACT.md  →  按 Phase 读
 (自动加载)     (三步启动)        (11 条铁律)            (详细执行)
 ```
 
-日常命令统一走 `scripts/ppt_flow.mjs`（doctor / init / status / approve / pilot / build）。
+日常命令统一走 `scripts/ppt_flow.mjs`（13 个 top-level commands，含 `slides`）。
 `COMMANDS.md` + `playbook/` 是自然语言意图路由**附录**，不是第二套启动入口。
 
 ## 迭代节奏

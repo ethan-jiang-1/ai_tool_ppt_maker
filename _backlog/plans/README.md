@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-11 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-17 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -29,6 +29,8 @@
 | 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** |
 | 2 | `guard-offpath-migrate-import-ux` | **已 archive** |
 | 3 | `improve-visual-iteration-env` | **已 archive** → `openspec/changes/archive/2026-07-11-improve-visual-iteration-env/` |
+
+| 1 | `add-stable-slide-identity-and-order-editing` | **已 archive** → `openspec/changes/archive/2026-07-16-add-stable-slide-identity-and-order-editing/` |
 
 _无活跃 OpenSpec change。_
 

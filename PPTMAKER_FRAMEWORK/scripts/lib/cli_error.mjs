@@ -37,6 +37,7 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "pilot",
   "build",
   "refresh",
+  "slides",
   "new-version",
   "test",
   "state",

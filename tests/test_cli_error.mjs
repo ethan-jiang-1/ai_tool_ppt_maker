@@ -190,7 +190,7 @@ describe("cli_error", () => {
     }
   });
 
-  it("matches the exact 12-command ppt_flow registry", () => {
+  it("matches the exact 13-command ppt_flow registry", () => {
     const source = readFileSync(join(SCRIPTS, "ppt_flow.mjs"), "utf8");
     const commands = [...source.matchAll(/\.command\("([^"]+)"\)/g)].map((match) => match[1]);
     expect(commands).toEqual(PPT_FLOW_COMMAND_INVENTORY);

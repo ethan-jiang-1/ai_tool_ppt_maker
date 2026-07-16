@@ -10,6 +10,8 @@ depends_on:
 feeds_into:
 - Run bundle 3_versions/v1/slide-specifications.md
 agent_action: fill_template
+identity:
+  scheme: mnemonic-v1
 render:
   default: full-page
   header-lock: []

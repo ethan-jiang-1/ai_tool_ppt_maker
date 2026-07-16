@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   extractNodeCommands,
   scanFrameworkCoherence,
@@ -93,6 +93,27 @@ describe("framework documentation coherence", () => {
 
   it("keeps CLI producer and MD consumer authority routes discoverable", () => {
     expect(validateDiagnosticAuthorityPointers()).toEqual([]);
+  });
+
+  it("keeps stable identity and renderer authorization guidance aligned", () => {
+    const docs = [
+      "PPTMAKER_FRAMEWORK/playbook/restructure-slides.md",
+      "PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md",
+      "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
+      "PPTMAKER_FRAMEWORK/COMMANDS.md",
+      "PPTMAKER_FRAMEWORK/scripts/change-classifier.md",
+    ].map((file) => [file, readFileSync(file, "utf8")]);
+    for (const [file, text] of docs) {
+      expect(text, file).toMatch(/position/);
+      expect(text, file).toMatch(/slide_id|stable ID|正式 ID/i);
+      expect(text, file).toMatch(/plan_sha256|plan hash/i);
+      expect(text, file).toMatch(/needs_render/);
+    }
+    const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md", "utf8");
+    expect(template).toMatch(/identity:\s*\n\s+scheme: mnemonic-v1/);
+    expect(template).toMatch(/SUBJECT \+ MOVE/);
+    expect(template).toMatch(/5–8/);
+    expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("13 个命令");
   });
 
   it("the complete active framework has no coherence violations", () => {

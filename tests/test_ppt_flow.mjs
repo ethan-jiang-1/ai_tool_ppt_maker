@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initBundle } from "../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
@@ -43,7 +43,7 @@ function parseFailureEnvelope(stderr) {
 }
 
 describe("ppt_flow", () => {
-  it("audits clean help and deterministic usage diagnostics across all 12 commands", () => {
+  it("audits clean help and deterministic usage diagnostics across all 13 commands", () => {
     const usageProbes = {
       doctor: ["doctor", "--smoke", "--probe-vendors"],
       init: ["init"],
@@ -54,10 +54,11 @@ describe("ppt_flow", () => {
       pilot: ["pilot", "/tmp/missing-run", "--resolution", "8k"],
       build: ["build", "/tmp/missing-run", "--resolution", "8k"],
       refresh: ["refresh", "/tmp/missing-run", "--kind", "unsupported"],
+      slides: ["slides", "resolve", "/tmp/missing-run"],
       "new-version": ["new-version"],
       state: ["state"],
     };
-    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(12);
+    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(13);
     for (const command of PPT_FLOW_COMMAND_INVENTORY) {
       const help = runPptFlow([command, "--help"]);
       expect(help.status, `${command} --help\n${help.stderr}`).toBe(0);
@@ -150,9 +151,9 @@ describe("ppt_flow", () => {
     );
   });
 
-  it("registers exactly 12 top-level commands", () => {
+  it("registers exactly 13 top-level commands", () => {
     const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
-    expect(matches.length).toBe(12);
+    expect(matches.length).toBe(13);
   });
 
   it("state --json includes resume card fields", () => {
@@ -420,6 +421,235 @@ playbook_stack: []
       const j = JSON.parse(r.stdout);
       expect(j.playbook).toBe("create-deck");
       expect(j.current_node).toBe("checkpoint-intake");
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("slides list/resolve are read-only and retain per-token binding evidence", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-read-")), "deck_slides_read");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const spec = join(runDir, "slide-specifications.md");
+      writeFileSync(spec, `---
+identity:
+  scheme: mnemonic-v1
+---
+# Deck
+
+## Slide 01: \`DeckGo\`
+
+**VISUAL TYPE**: Framework
+**TITLE**: Opening claim
+**IMAGE PROMPT**: Show an opening claim with two large labeled zones.
+
+## Slide 02: \`UXGap\`
+
+**VISUAL TYPE**: Framework
+**TITLE**: Why the old workflow breaks
+**IMAGE PROMPT**: Show the workflow friction with a clear before and after.
+`, "utf8");
+      const before = readFileSync(spec, "utf8");
+      const list = runPptFlow(["slides", "list", runDir, "--json"]);
+      expect(list.status).toBe(0);
+      expect(JSON.parse(list.stdout).slides).toEqual([
+        { slide_id: "DeckGo", position: 1, title: "Opening claim" },
+        { slide_id: "UXGap", position: 2, title: "Why the old workflow breaks" },
+      ]);
+      const stage1 = spawnSync("node", [
+        "PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs",
+        "--run-dir", runDir,
+        "--stage", "1",
+      ], { encoding: "utf8", timeout: 10000 });
+      expect(stage1.status, stage1.stderr).toBe(0);
+      const status = runPptFlow(["status", runDir, "--json"]);
+      expect(status.status).toBe(0);
+      expect(JSON.parse(status.stdout).slide_labels).toEqual([
+        "01 · DeckGo · Opening claim",
+        "02 · UXGap · Why the old workflow breaks",
+      ]);
+      const resolved = runPptFlow(["slides", "resolve", runDir, "UXGap", "UX gap", "2", "--json"]);
+      expect(resolved.status).toBe(0);
+      expect(JSON.parse(resolved.stdout).bindings).toEqual([
+        { token: "UXGap", slide_id: "UXGap", position: 2, matched_by: "exact_id" },
+        { token: "UX gap", slide_id: "UXGap", position: 2, matched_by: "spoken_key" },
+        { token: "2", slide_id: "UXGap", position: 2, matched_by: "position" },
+      ]);
+      expect(readFileSync(spec, "utf8")).toBe(before);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("slides preview writes nothing; bare/hash-mismatched apply fails; confirmed move publishes clean vNext", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-move-")), "deck_slides_move");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const spec = join(runDir, "slide-specifications.md");
+      writeFileSync(spec, `## Slide 01: DeckGo
+
+**TITLE**: Opening
+
+## Slide 02: UXGap
+
+**TITLE**: Gap
+
+## Slide 03: AICost
+
+**TITLE**: Cost
+`, "utf8");
+      writeFileSync(join(runDir, "_generated", "stale.bin"), "must not copy", "utf8");
+      const before = readFileSync(spec, "utf8");
+      const preview = runPptFlow(["slides", "move", runDir, "3", "--after", "1", "--json"]);
+      expect(preview.status).toBe(0);
+      const transaction = JSON.parse(preview.stdout).transaction;
+      expect(transaction.after_order).toEqual(["DeckGo", "AICost", "UXGap"]);
+      expect(transaction.bindings.map((binding) => binding.matched_by)).toEqual(["position", "position"]);
+      expect(readFileSync(spec, "utf8")).toBe(before);
+      expect(() => statSync(join(deck, "3_versions", "v2"))).toThrow();
+
+      const bare = runPptFlow(["slides", "move", runDir, "3", "--after", "1", "--apply"]);
+      expect(bare.status).toBe(1);
+      expect(parseFailureEnvelope(bare.stderr).code).toBe("USAGE");
+      const mismatch = runPptFlow(["slides", "move", runDir, "3", "--after", "1", "--apply", "--plan-sha256", "0".repeat(64)]);
+      expect(mismatch.status).toBe(1);
+      expect(() => statSync(join(deck, "3_versions", "v2"))).toThrow();
+
+      const applied = runPptFlow(["slides", "move", runDir, "3", "--after", "1", "--apply", "--plan-sha256", transaction.plan_sha256, "--json"]);
+      expect(applied.status, applied.stderr).toBe(0);
+      const result = JSON.parse(applied.stdout);
+      const v2 = join(deck, "3_versions", "v2");
+      expect(result.receipt.after_order).toEqual(transaction.after_order);
+      expect(readFileSync(spec, "utf8")).toBe(before);
+      expect(readFileSync(join(v2, "slide-specifications.md"), "utf8")).toMatch(
+        /Slide 01: DeckGo[\s\S]*Slide 02: AICost[\s\S]*Slide 03: UXGap/
+      );
+      expect(readdirSync(join(v2, "_generated"))).toEqual(["README.md"]);
+      expect(readdirSync(join(v2, "_scratch"))).toEqual(["README.md"]);
+      expect(readdirSync(join(deck, "3_versions")).filter((name) => name.startsWith(".v2"))).toEqual([]);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("slides normalize is the hash-bound in-place exception and changes only heading projections", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-normalize-")), "deck_slides_normalize");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const spec = join(runDir, "slide-specifications.md");
+      writeFileSync(spec, `## Slide 07: DeckGo
+
+body one
+
+## Slide 09: UXGap
+
+body two
+`, "utf8");
+      const preview = runPptFlow(["slides", "normalize", runDir, "--json"]);
+      expect(preview.status).toBe(0);
+      const hash = JSON.parse(preview.stdout).transaction.plan_sha256;
+      const applied = runPptFlow(["slides", "normalize", runDir, "--apply", "--plan-sha256", hash, "--json"]);
+      expect(applied.status, applied.stderr).toBe(0);
+      expect(readFileSync(spec, "utf8")).toBe(`## Slide 01: DeckGo
+
+body one
+
+## Slide 02: UXGap
+
+body two
+`);
+      expect(readdirSync(join(deck, "3_versions")).filter((name) => /^v\d+$/.test(name))).toEqual(["v1"]);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("slides insertion requires mnemonic/history availability and apply-plan stays inside _scratch", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-insert-")), "deck_slides_insert");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const v1 = join(deck, "3_versions", "v1");
+      writeFileSync(join(v1, "slide-specifications.md"), `## Slide 01: DeckGo
+
+**TITLE**: Opening
+`, "utf8");
+      const block = join(v1, "_scratch", "insert.md");
+      writeFileSync(block, `## Slide 01: UXGap
+
+**TITLE**: New gap
+`, "utf8");
+      const preview = runPptFlow(["slides", "insert", v1, "--source", block, "--to", "end", "--json"]);
+      expect(preview.status).toBe(0);
+      const transaction = JSON.parse(preview.stdout).transaction;
+      expect(transaction.after_order).toEqual(["DeckGo", "UXGap"]);
+      expect(transaction.plan_sha256).toMatch(/^[a-f0-9]{64}$/);
+
+      const planPath = join(v1, "_scratch", "plan.json");
+      writeFileSync(planPath, JSON.stringify(transaction), "utf8");
+      const applied = runPptFlow(["slides", "apply-plan", v1, "--plan", planPath, "--apply", "--json"]);
+      expect(applied.status, applied.stderr).toBe(0);
+      expect(JSON.parse(applied.stdout).receipt.needs_render).toEqual(["UXGap"]);
+
+      const v2 = join(deck, "3_versions", "v2");
+      const reused = join(v2, "_scratch", "reused.md");
+      writeFileSync(reused, `## Slide 01: UXGap
+
+**TITLE**: Reuse deleted or retained ID
+`, "utf8");
+      const conflict = runPptFlow(["slides", "insert", v2, "--source", reused, "--to", "end", "--json"]);
+      expect(conflict.status).toBe(1);
+
+      const outside = join(tmpdir(), `outside-plan-${Date.now()}.json`);
+      writeFileSync(outside, JSON.stringify(transaction), "utf8");
+      const rejected = runPptFlow(["slides", "apply-plan", v1, "--plan", outside, "--apply"]);
+      expect(rejected.status).toBe(1);
+      expect(parseFailureEnvelope(rejected.stderr).message).toMatch(/_scratch/);
+      rmSync(outside, { force: true });
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it("slides multi-delete binds every position before mutation and ambiguity requires a human", () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-delete-")), "deck_slides_delete");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      writeFileSync(join(runDir, "slide-specifications.md"), `## Slide 01: DeckGo
+
+**TITLE**: Opening
+
+## Slide 02: UXGap
+
+**TITLE**: Cost gap
+
+## Slide 03: AICost
+
+**TITLE**: Cost curve
+
+## Slide 04: IDFix
+
+**TITLE**: Fix
+`, "utf8");
+      const preview = runPptFlow(["slides", "delete", runDir, "2", "4", "--json"]);
+      expect(preview.status).toBe(0);
+      const transaction = JSON.parse(preview.stdout).transaction;
+      expect(transaction.bindings.map((binding) => binding.slide_id)).toEqual(["UXGap", "IDFix"]);
+      expect(transaction.after_order).toEqual(["DeckGo", "AICost"]);
+
+      const ambiguous = runPptFlow(["slides", "resolve", runDir, "cost", "--json"]);
+      expect(ambiguous.status).toBe(1);
+      const envelope = parseFailureEnvelope(ambiguous.stderr);
+      expect(envelope.diagnostic.next.requires_human).toBe(true);
+      expect(envelope.diagnostic.issues.map((issue) => issue.subject.id)).toEqual(["UXGap", "AICost"]);
+      expect(envelope.diagnostic.issues[0]).toMatchObject({
+        message: expect.stringMatching(/02.*UXGap.*Cost gap/),
+        reason: { kind: "selector_candidate" },
+      });
+      expect((ambiguous.stderr.match(/"ok"\s*:\s*false/g) || [])).toHaveLength(1);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

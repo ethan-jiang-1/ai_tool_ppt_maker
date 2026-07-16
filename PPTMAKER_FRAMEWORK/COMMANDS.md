@@ -9,6 +9,8 @@
 
 用户不需要记路径名，直接说要改什么即可。英文名称是维护者和 Agent 的检索词：Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh，以及外层的 Structural Versioning Path。Agent 先判断是否增删重排，再看内容由谁渲染、哪个产物已经失效；意图 route 不等于执行路径。
 
+谈页面时同时保留两个维度：`position` 是当前快照里的页序号，正式 `slide_id` 是跨版本身份。用户可以说“第 7 页”“UX gap 那页”或 `UXGap`；Agent 用 `ppt_flow slides resolve` 一次性绑定后，以 `07 · UXGap · Why onboarding breaks` 回显。顺序变化后继续用 ID，不能把旧“第 7 页”硬套到新顺序。
+
 ## 全量创建
 
 | 用户说 | Playbook | 说明 |
@@ -69,9 +71,10 @@
 | "全部换成蓝色系" | `edit-visual` | scope=all, pilot=true, force=true |
 | "整体感觉不够高端" | `edit-visual` | scope=direction (回 Phase 1, 重选 preset) |
 | "备注改一下" | `edit-notes` | — |
-| "加一页案例在最后" | `restructure-slides` | action=add, position=end |
-| "删掉第N页" | `restructure-slides` | action=delete, slide=N |
-| "第N页和第M页换个顺序" | `restructure-slides` | action=reorder |
+| "加一页案例在最后" | `restructure-slides` | action=add；Agent 写内容并命名 5–8 字母两块 BlockCase ID |
+| "删掉第N页" | `restructure-slides` | action=delete；先把 position snapshot 绑定为正式 ID |
+| "把 UX gap 那页放到第 3 页后" | `restructure-slides` | action=reorder；spoken mnemonic + position 在一个 snapshot 解析 |
+| "第N页和第M页换个顺序" | `restructure-slides` | action=reorder；preview before/after 后再确认提交 |
 
 ## 内容 & 方向变更
 
@@ -83,10 +86,12 @@
 
 ## Agent 分类顺序
 
-1. 增/删/重排 slide：先进入 Structural Versioning Path，创建干净新版本；随后再为新增和受影响页选择刷新路径。
+1. 增/删/重排 slide：先进入 Structural Versioning Path。Agent 解析 selector，生成 no-write preview，向用户展示 before/after；内部保留 `plan_sha256`，确认后用同一 hash 提交干净 vNext。用户不需要记 hash。
 2. 判断所有权和失效产物：resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 及 Stage-3-owned header 字体、颜色、位置、行高、间距可用 Header Text & Style Refresh；full-page header、body 文案/数据、画面、prompt、render mode 或 safe-zone 改动使用 Generated Image Rebuild；只有 speaker notes 失效时使用 Notes-Only Refresh。
 3. 解析明确 slide scope；Generated Image Rebuild 对已有图片必须实际强制重生并 review。raw `unified_pipeline --only` 只限定范围，不隐式 force。
 4. 大范围视觉变化先跑代表性 pilot，经用户 review 后再扩展到确认范围。
+
+Structural apply、impact 和 cross-version materialization 一律 renderer-free。retained raw 只有 stable ID、engine、kind、generation fingerprint/profile 和 bytes 全部验证后才能物化；Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 是成本提示，不是授权：Agent 先报告 ID 数量与成本，再单独获得 Generated Image Rebuild 授权。stale preview 重新生成，不 rebase。若一版内反复冲突，按“新 preview → 新 vNext → 新 deck”升级；受众、主叙事或设计系统分叉时直接建议新 deck。
 
 标题请求统一进入 `edit-text` 并调用 `ppt_flow refresh --kind title`：resolved `body+header-lock` 使用 Header Text & Style Refresh；resolved `full-page` 使用 Generated Image Rebuild，按 CLI 回执执行 `pilot --only <ids> --force-images`、header review 和 reviewed-image reuse。Header safe-zone 高度或 render-mode 改动会改变 raw-image contract，即使表面上也属于“页眉”，仍必须使用 Generated Image Rebuild。
 

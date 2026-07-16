@@ -122,9 +122,9 @@ deck_{NAME}/
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── slide_plan.json
-    │   │   ├── page_prompts/{NN_id.prompt.md, _prompts.json}
-    │   │   ├── page_images_full/{NN_id.png, NN_id.image-task.json}
-    │   │   ├── header_locked/NN_id.png
+    │   │   ├── page_prompts/{NN--ID.prompt.md, _prompts.json}  ← cheap position projection
+    │   │   ├── page_images_full/{ID.png, _manifest.json}      ← raw-render identity by ID
+    │   │   ├── header_locked/{ID.png, _manifest.json}         ← target-local final-slide
     │   │   ├── ppt/{NAME}.pptx (+ .backup.pptx)
     │   │   ├── qa/
     │   │   └── preview/contact_sheet.jpg

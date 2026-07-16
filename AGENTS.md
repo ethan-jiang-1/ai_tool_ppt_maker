@@ -59,6 +59,8 @@ Agent 探索/理解框架时只看上面 4 个源码目录。**做具体 deck �
 - 做具体 PPT 时 `PPTMAKER_FRAMEWORK/` 是只读方法论；repo 维护 change 可以按 OpenSpec 任务修改框架源
 - Agent 拥有过程, 人类拥有内容
 - 先按所有权和失效产物选择最小刷新路径：Header Text & Style Refresh / Generated Image Rebuild / Notes-Only Refresh；增删重排先走 Structural Versioning Path
+- 页面 `slide_id` 是跨版本身份，`position` 只属于当前快照；结构编辑必须 preview + exact plan hash，提交/materialization 零远端调用，`needs_render` 另行授权
+- 新 deck 使用 `identity.scheme: mnemonic-v1`；Agent 编写 5–8 字母、恰好两块 BlockCase 的可口述 ID，优先 5–6
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
 - RENDER MODE 只有两个: `full-page` / `body+header-lock`
 

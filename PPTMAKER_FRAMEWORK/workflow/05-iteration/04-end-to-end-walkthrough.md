@@ -176,17 +176,19 @@ Agent: "这段 body 文字烧在生成图里，使用 Generated Image Rebuild。
 ```
 用户 (一个月后): "要在 Block 2 加一张 slide——新的 regulations 要讲。"
 
-Agent: "新增 slide 会影响后续 slide 编号和 Bridge。先走 Structural Versioning Path，再刷新受影响页。"
+Agent: "新增 slide 会改变后续 position 和 Bridge，但已有页继续用 stable ID 追踪。我先展示 before/after；确认后零远端提交 v2，缺图再单列授权。"
 
   # 在 Claude Code 中：
   openspec-propose "Add regulation slide in Block 2"
-    → Structural Versioning Path → bundle_layout.mjs --new-version deck_mfg_ai/3_versions/v1
+    → Structural Versioning Path → ppt_flow slides insert preview → exact plan_sha256 apply
     → 在 v2 中实施变更
-    → image-owned 的新增/受影响页使用 Generated Image Rebuild
+    → retained verified raw 自动 materialize；新增 ID 出现在 needs_render
+    → Structural Versioning Path 完成并交付 receipt
+    → 用户另行授权 receipt 中的昂贵生图成本后，仅处理新增 ID
     → archive
 
   # 在其他 agent 中：先在 changelog 中写下提案（新 slide 位置、理由、四层规格草案），
-  # 审核后用 --new-version 创建 v2，在 v2 中改，改完归档。
+  # 审核后提交同一 hash-bound preview 创建 v2，在 v2 中按 receipt 继续，改完归档。
 ```
 
 ## 关键 Takeaways

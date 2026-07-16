@@ -16,7 +16,7 @@
 import "./lib/cli_bootstrap.mjs?entry=stage2_generate_images.mjs";
 import { CLI_ERROR_CODES, createCliNext, emitCliError, emitCliProgress } from "./lib/cli_error.mjs";
 
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -104,7 +104,7 @@ export async function generateImages({
   const failures = [];
 
   const workSlides = slides.filter((slide) => {
-    const slideId = slide.id;
+    const slideId = slide.slide_id || slide.id;
     if (!slideId) return false;
     if (onlySet && !onlySet.has(slideId)) return false;
     return true;
@@ -114,8 +114,8 @@ export async function generateImages({
 
   for (const slide of workSlides) {
     index += 1;
-    const slideId = slide.id;
-    const outName = slide.out || `${slideId}.png`;
+    const slideId = slide.slide_id || slide.id;
+    const outName = slide.slide_id ? `${slideId}.png` : (slide.out || `${slideId}.png`);
     const outPath = join(outDir, outName);
     const stem = basename(outName, ".png");
     const tracePath = join(outDir, `${stem}${IMAGE_TRACE_SUFFIX}`);
@@ -167,7 +167,7 @@ export async function generateImages({
       continue;
     }
 
-    if (!force && existsSync(outPath)) {
+    if (!force) {
       const provenance = inspectImageProvenance({
         slide: { ...slide, prompt },
         outDir,
@@ -176,15 +176,37 @@ export async function generateImages({
         profile,
       });
       if (provenance.current) {
+        if (provenance.imagePath !== outPath) {
+          copyFileSync(provenance.imagePath, outPath);
+          manifest.slides[slideId] = {
+            ...provenance.entry,
+            slide_id: slideId,
+            render_engine: "image2",
+            artifact_kind: "raw-render",
+            output: basename(outName),
+            image_sha256: sha256File(outPath),
+            materialized_from: {
+              source_output: basename(provenance.imagePath),
+              source_image_sha256: provenance.imageSha256,
+            },
+          };
+          writeImageManifestAtomic(outDir, manifest);
+        }
         skipped += 1;
         console.log(`  done ${index}/${total} (id=${slideId}) skipped-exists`);
         continue;
       }
-      const hint = provenanceRepairHint([slideId]);
-      errors.push(`${slideId}: stale cached image (${provenance.reason}); ${hint}`);
-      failures.push({ slideId, outPath, category: "artifact", reason: { kind: "stale_image_provenance" }, message: "cached slide image provenance is stale" });
-      console.log(`  ERROR ${index}/${total}: ${slideId}: stale cached image (${provenance.reason}); ${hint}`);
-      continue;
+      if (!existsSync(outPath)) {
+        // An explicitly invoked Stage 2 generation is allowed to create truly
+        // missing bytes. Structural materialization uses the separate proof-only
+        // helper and never reaches this renderer path.
+      } else {
+        const hint = provenanceRepairHint([slideId]);
+        errors.push(`${slideId}: stale cached image (${provenance.reason}); ${hint}`);
+        failures.push({ slideId, outPath, category: "artifact", reason: { kind: "stale_image_provenance" }, message: "cached slide image provenance is stale" });
+        console.log(`  ERROR ${index}/${total}: ${slideId}: stale cached image (${provenance.reason}); ${hint}`);
+        continue;
+      }
     }
 
     if (force && Object.hasOwn(manifest.slides, slideId)) {
@@ -253,7 +275,7 @@ export async function generateImages({
   if (errors.length > 0) {
     for (const e of errors) console.log(`  ${e}`);
   }
-  return { generated, skipped, errors, failures, profiles, selectedIds: workSlides.map((slide) => slide.id) };
+  return { generated, skipped, errors, failures, profiles, selectedIds: workSlides.map((slide) => slide.slide_id || slide.id) };
 }
 
 export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styleReference, resolution, selectedIds = [] }) {

@@ -158,6 +158,7 @@ Lifecycle Phase 1 和 2 可以交换起始顺序（如果用户带着强烈视�
 
 - 每次重大下游改动用 `bundle_layout.mjs --new-version ...` 创建干净版本；只复制 `slide-specifications.md` 与 `overrides/` 等下游源 delta，不复制 `_generated/`
 - Changelog 记录什么变了、为什么——"原因"比"做什么"更重要
+- 增删重排用 stable-ID preview/hash 提交；结构提交本身零远端调用。验证过的 raw render 可按 ID 物化到目标，final/contact sheet/PPTX/notes 在目标重建；缺图只报告 `needs_render`，另行授权。
 - 方法论文件在 Git 中版本管理；项目产出物在项目目录中管理
 
 ### 4. 方法论优先，案例辅助

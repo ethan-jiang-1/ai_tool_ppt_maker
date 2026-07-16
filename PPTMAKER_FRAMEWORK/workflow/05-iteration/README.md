@@ -59,7 +59,7 @@ agent_action: navigate
 用户自然语言改动请求
     ↓
 1. 先判断是否改 slide 集合/顺序
-   └─ 增/删/重排 → Structural Versioning Path → 创建干净版本
+   └─ 增/删/重排 → stable-ID preview/hash → Structural Versioning Path → renderer-free 干净版本
 2. 在当前或新版本按所有权/失效产物选择刷新路径
    ├─ 标题（KICKER/TITLE/SUBTITLE）→ `ppt_flow refresh --kind title`
    │   ├─ resolved body+header-lock → Header Text & Style Refresh
@@ -79,7 +79,7 @@ agent_action: navigate
 **小改动**："改 Slide 5 的标题。只改文字不动画面，2 分钟。"
 **中等改动**："重新生成 Slide 7 的画面，约 5 分钟。"
 **大改动**："这会影响 12 张 slides。建议先跑 3 张确认方向（约 15 分钟），满意后批量跑剩余。"
-**结构改动**："结构改动——我会创建 v2 保留当前版本，在新版本中加 slide。v1 不变，随时回退。"
+**结构改动**："我先把‘第 7 页/UX gap 那页’绑定成 `07 · UXGap · title`，展示新顺序；你确认后提交 v2。结构提交不生图，缺图会单列 `needs_render` 和成本。v1 不变，随时回退。"
 
 ### 决策树和沟通模板
 

@@ -73,6 +73,13 @@ import {
     presentHeaderText,
     validatePolicySlideIds,
 } from "./lib/render_policy.mjs";
+import {
+    IDENTITY_SCHEME_MNEMONIC_V1,
+    SlideDocumentError,
+    parseSlideDocument,
+    validateSlideDocument,
+} from "./lib/slide_document.mjs";
+import { normalizeSpokenKey } from "./lib/slide_ids.mjs";
 
 // ---------------------------------------------------------------------------
 // Shared executable visual configuration
@@ -427,48 +434,8 @@ function assemblePrompt(sourcePrompt, slide, finalRules) {
     );
 }
 
-// ---------------------------------------------------------------------------
-// Slide block regex
-// ---------------------------------------------------------------------------
-
-// Slide-block heading regex — the ONE pattern the parser and the validator share.
-// Matches "## Slide N: slide_id" headings; captures slide_id and separates blocks.
-// In JS we use a two-pass approach: find heading positions, then slice bodies,
-// because JS regex has no \Z equivalent that coexists with the m flag.
-const SLIDE_BLOCK_HEADING_RE = /^## Slide \d+\s*[：:\-–—]\s*`?([^`\n]+)`?/gm;
-
-/**
- * Parse a markdown text into an array of [slideId, body] tuples.
- * Splits on "## Slide N: slide_id" headings.
- * Shared by parseSlides() and validateSpecs() so they cannot drift.
- */
-function splitSlideBlocks(text) {
-    return splitSlideBlockRecords(text).map(({ slideId, body }) => [slideId, body]);
-}
-
 function lineNumberAt(text, index) {
     return text.slice(0, Math.max(0, index)).split("\n").length;
-}
-
-function splitSlideBlockRecords(text, sourceOffset = 0, sourceText = text) {
-    const blocks = [];
-    const matches = [...text.matchAll(SLIDE_BLOCK_HEADING_RE)];
-
-    for (let i = 0; i < matches.length; i++) {
-        const slideId = matches[i][1].trim();
-        const bodyStart = matches[i].index + matches[i][0].length;
-        const bodyEnd = i + 1 < matches.length ? matches[i + 1].index : text.length;
-        const body = text.slice(bodyStart, bodyEnd);
-        blocks.push({
-            slideId,
-            body,
-            headingStart: sourceOffset + matches[i].index,
-            bodyStart: sourceOffset + bodyStart,
-            headingLine: lineNumberAt(sourceText, sourceOffset + matches[i].index),
-        });
-    }
-
-    return blocks;
 }
 
 function fieldLine(text, block, field) {
@@ -497,12 +464,30 @@ function readSpecContext(mdPath) {
         throw new Error(`Cannot read spec file: ${mdPath}`);
     }
     const label = basename(mdPath);
+    const document = parseSlideDocument(text, { path: mdPath, relative_path: label });
     const frontmatter = parseLeadingFrontmatter(text, label);
-    const bodyOffset = text.length - frontmatter.body.length;
-    const blockRecords = splitSlideBlockRecords(frontmatter.body, bodyOffset, text);
+    const blockRecords = document.slides.map((block) => ({
+        slideId: block.slide_id,
+        body: block.body,
+        headingStart: block.heading_range.start,
+        bodyStart: block.body_range.start,
+        headingLine: block.heading_range.start_line,
+        position: block.position,
+        headingNumber: block.heading_number,
+        headingNumberToken: block.heading_number_token,
+        documentBlock: block,
+    }));
     const blocks = blockRecords.map(({ slideId, body }) => [slideId, body]);
     validatePolicySlideIds(frontmatter.policy, blocks.map(([id]) => id), label);
-    return { text, body: frontmatter.body, blocks, blockRecords, policy: frontmatter.policy };
+    return {
+        text,
+        body: frontmatter.body,
+        blocks,
+        blockRecords,
+        policy: frontmatter.policy,
+        document,
+        identity: document.frontmatter.metadata?.identity || null,
+    };
 }
 
 function validationRecord({
@@ -531,6 +516,28 @@ function validationRecord({
     };
 }
 
+function slideDocumentValidationRecord(issue, mdPath) {
+    const line = issue.source?.line || 1;
+    const slideId = issue.subject?.id || null;
+    const expected = issue.expected ?? (
+        issue.code === "noncanonical_heading_position" ? issue.expected : undefined
+    );
+    return validationRecord({
+        severity: issue.severity || "ERROR",
+        display: issue.repair_hint
+            ? `${issue.message}. Repair: ${issue.repair_hint}.`
+            : issue.message,
+        message: issue.message,
+        path: mdPath,
+        line,
+        slideId,
+        field: issue.code.includes("heading") ? "slide heading" : "slide id",
+        reason: issue.code,
+        ...(issue.actual !== undefined ? { actual: issue.actual } : {}),
+        ...(expected !== undefined ? { expected } : {}),
+    });
+}
+
 /**
  * Validate slide-specs against the pipeline's CONTENT contract before any
  * (expensive) image generation. Structure has bundle_layout.mjs --check; this is
@@ -551,6 +558,7 @@ function validationRecord({
 export function validateSpecRecords(mdPaths, assetManifest = null) {
     const problems = [];
     const seenIds = new Map();
+    const seenSpokenKeys = new Map();
 
     for (const mdPath of mdPaths) {
         const label = basename(mdPath);
@@ -570,6 +578,12 @@ export function validateSpecRecords(mdPaths, assetManifest = null) {
         try {
             context = readSpecContext(mdPath);
         } catch (error) {
+            if (error instanceof SlideDocumentError) {
+                for (const issue of error.issues) {
+                    problems.push(slideDocumentValidationRecord(issue, mdPath));
+                }
+                continue;
+            }
             const details = error instanceof RenderPolicyError ? error.problems : [error.message];
             for (const detail of details) {
                 problems.push(validationRecord({
@@ -582,7 +596,12 @@ export function validateSpecRecords(mdPaths, assetManifest = null) {
             }
             continue;
         }
-        const { text, blockRecords, policy } = context;
+        const { text, blockRecords, policy, document } = context;
+
+        const documentIssues = validateSlideDocument(document);
+        for (const issue of documentIssues) {
+            problems.push(slideDocumentValidationRecord(issue, mdPath));
+        }
 
         const marker = PLACEHOLDER_MARKERS.find((m) => text.includes(m));
         if (marker) {
@@ -630,6 +649,10 @@ export function validateSpecRecords(mdPaths, assetManifest = null) {
             const occurrences = seenIds.get(slideId) || [];
             occurrences.push({ path: mdPath, line: block.headingLine });
             seenIds.set(slideId, occurrences);
+            const spokenKey = normalizeSpokenKey(slideId);
+            const spokenOccurrences = seenSpokenKeys.get(spokenKey) || [];
+            spokenOccurrences.push({ slideId, path: mdPath, line: block.headingLine });
+            seenSpokenKeys.set(spokenKey, spokenOccurrences);
 
             const visualType = extractField(body, "VISUAL TYPE");
             const renderModeRaw = extractField(body, "RENDER MODE");
@@ -704,7 +727,34 @@ export function validateSpecRecords(mdPaths, assetManifest = null) {
 
     for (const [sid, occurrences] of seenIds.entries()) {
         if (occurrences.length > 1) {
-            problems.push(validationRecord({ severity: "WARN", display: `slide id ${JSON.stringify(sid)} appears ${occurrences.length} times (duplicate ids are confusing to trace).`, message: "slide id appears more than once", path: occurrences[0].path, line: occurrences[0].line, slideId: sid, field: "slide id", reason: "duplicate_id", actual: occurrences.length, expected: 1 }));
+            const alreadyReported = problems.some((problem) =>
+                problem.reason?.kind === "duplicate_slide_id" && problem.subject?.id === sid
+            );
+            if (!alreadyReported) {
+                problems.push(validationRecord({ severity: "ERROR", display: `slide id ${JSON.stringify(sid)} appears ${occurrences.length} times.`, message: "slide id appears more than once", path: occurrences[0].path, line: occurrences[0].line, slideId: sid, field: "slide id", reason: "duplicate_slide_id", actual: occurrences.length, expected: 1 }));
+            }
+        }
+    }
+    for (const [spokenKey, occurrences] of seenSpokenKeys.entries()) {
+        const ids = [...new Set(occurrences.map((entry) => entry.slideId))];
+        if (occurrences.length <= 1 || ids.length <= 1) continue;
+        const alreadyReported = problems.some((problem) =>
+            problem.reason?.kind === "duplicate_spoken_key" &&
+            ids.includes(problem.subject?.id)
+        );
+        if (!alreadyReported) {
+            problems.push(validationRecord({
+                severity: "ERROR",
+                display: `spoken key ${JSON.stringify(spokenKey)} is shared by slide ids ${ids.join(", ")}.`,
+                message: "slide spoken key appears more than once",
+                path: occurrences[0].path,
+                line: occurrences[0].line,
+                slideId: ids[0],
+                field: "slide id",
+                reason: "duplicate_spoken_key",
+                actual: ids,
+                expected: "one formal slide id per spoken key",
+            }));
         }
     }
 
@@ -737,10 +787,24 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
     const plan = [];
     const prompts = [];
     let seq = 1;
+    const identitySchemes = [];
+    const currentIds = new Map();
+    const currentSpokenKeys = new Map();
 
     for (const mdPath of mdPaths) {
         const context = readSpecContext(mdPath);
-        const { text, blocks, policy } = context;
+        const { text, blockRecords, policy, document, identity } = context;
+        identitySchemes.push(identity?.scheme || null);
+
+        const documentIssues = validateSlideDocument(document).filter(
+            (issue) => issue.severity === "ERROR"
+        );
+        if (documentIssues.length > 0) {
+            throw new SlideDocumentError(
+                `${basename(mdPath)} has ${documentIssues.length} slide document error(s)`,
+                documentIssues
+            );
+        }
 
         // Novice guard: the file may still be the unfilled template (--init copies
         // it in with [PLACEHOLDER] markers and placeholder slide ids). Running the
@@ -755,14 +819,33 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
         }
 
         // Accept colon (:), full-width colon (：), hyphen (-), or em-dash (—) after slide number (with optional space)
-        if (blocks.length === 0) {
+        if (blockRecords.length === 0) {
             throw new Error(
                 `${mdPath} 里没找到 slide 块(需要 '## Slide N: slide_id' 这样的标题)。\n` +
                 `  如果这是新建的空文件,请按模板格式填入至少一张 slide。`
             );
         }
 
-        for (const [slideId, body] of blocks) {
+        for (const block of blockRecords) {
+            const { slideId, body } = block;
+            const previousId = currentIds.get(slideId);
+            if (previousId) {
+                throw new SlideDocumentError(
+                    `slide ID ${JSON.stringify(slideId)} appears in both ${previousId.path} and ${mdPath}`,
+                    []
+                );
+            }
+            const spokenKey = normalizeSpokenKey(slideId);
+            const previousSpoken = currentSpokenKeys.get(spokenKey);
+            if (previousSpoken && previousSpoken.slideId !== slideId) {
+                throw new SlideDocumentError(
+                    `spoken key ${JSON.stringify(spokenKey)} is shared by ${previousSpoken.slideId} and ${slideId}`,
+                    []
+                );
+            }
+            currentIds.set(slideId, { path: mdPath });
+            currentSpokenKeys.set(spokenKey, { path: mdPath, slideId });
+
             const rawVisualType = extractField(body, "VISUAL TYPE");
             if (policy && (!rawVisualType || isBracketPlaceholder(rawVisualType))) {
                 throw new RenderPolicyError(
@@ -794,6 +877,8 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
 
             const slideRecord = {
                 id: slideId,
+                slide_id: slideId,
+                position: seq,
                 visual_type: visualType,
             };
             if (kicker) slideRecord.kicker = kicker;
@@ -810,9 +895,18 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
             );
             plan.push(slideRecord);
 
-            const outName = `${String(seq).padStart(2, "0")}_${slideId}.png`;
+            const outName = `${slideId}.png`;
+            const promptTwin = `${String(seq).padStart(2, "0")}--${slideId}.prompt.md`;
             const fullPrompt = assemblePrompt(sourcePrompt, slideRecord, finalRules);
-            const promptEntry = { id: slideId, out: outName, prompt: fullPrompt };
+            const promptEntry = {
+                id: slideId,
+                slide_id: slideId,
+                position: seq,
+                label: `${String(seq).padStart(2, "0")} · ${slideId}${headline ? ` · ${headline}` : ""}`,
+                out: outName,
+                prompt_twin: promptTwin,
+                prompt: fullPrompt,
+            };
             if (validAssetIds.length > 0) {
                 promptEntry.asset_ids = validAssetIds;
             }
@@ -821,7 +915,14 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
         }
     }
 
-    return { plan, prompts };
+    const allMnemonic = identitySchemes.length > 0 && identitySchemes.every(
+        (scheme) => scheme === IDENTITY_SCHEME_MNEMONIC_V1
+    );
+    return {
+        plan,
+        prompts,
+        identity: allMnemonic ? { scheme: IDENTITY_SCHEME_MNEMONIC_V1 } : null,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -970,7 +1071,7 @@ function main() {
         }
     }
 
-    const { plan, prompts } = parseSlides(args.input, finalRules, assetManifest);
+    const { plan, prompts, identity } = parseSlides(args.input, finalRules, assetManifest);
 
     // slide_plan.json stays at the _generated/ root; per-slide prompts go into a
     // page_prompts/ subdir — one readable .prompt.md per slide plus a machine
@@ -983,20 +1084,19 @@ function main() {
 
     writeFileSync(
         planPath,
-        JSON.stringify({ slides: plan }, null, 2) + "\n",
+        JSON.stringify({ ...(identity ? { identity } : {}), slides: plan }, null, 2) + "\n",
         "utf-8"
     );
     writeFileSync(
         promptsPath,
-        JSON.stringify({ slides: prompts }, null, 2) + "\n",
+        JSON.stringify({ ...(identity ? { identity } : {}), slides: prompts }, null, 2) + "\n",
         "utf-8"
     );
 
-    // One human-readable prompt file per slide: NN_id.prompt.md (derived from `out`,
-    // which is NN_id.png). This is the readable twin of the machine _prompts.json.
+    // The position-bearing prompt twin is a cheap projection. The logical raw
+    // image output remains ID-stable and never contains the current position.
     for (const entry of prompts) {
-        const stem = basename(entry.out, ".png"); // e.g. "01_s1_title"
-        const mdPath = join(promptsDir, `${stem}.prompt.md`);
+        const mdPath = join(promptsDir, entry.prompt_twin);
         writeFileSync(
             mdPath,
             `# Prompt — ${entry.id}\n\n` +
@@ -1010,7 +1110,7 @@ function main() {
     console.log(`Parsed ${plan.length} slides from ${args.input.length} file(s)`);
     console.log(`  slide_plan:  ${planPath}`);
     console.log(`  prompts:     ${promptsPath}`);
-    console.log(`  per-slide:   ${promptsDir}/NN_id.prompt.md  (${prompts.length} files)`);
+    console.log(`  per-slide:   ${promptsDir}/NN--id.prompt.md  (${prompts.length} files)`);
 
     // Quick validation
     const fullPage = plan

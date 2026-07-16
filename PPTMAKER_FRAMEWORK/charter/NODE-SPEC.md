@@ -119,6 +119,15 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 - 新 run bundle 通过根 `AGENTS.md` / `CLAUDE.md` → `deck-guide.md` 发现这些 consumer 规则。
 - State 写入：只改本动作负责的字段；temp 文件必须与 `_state/state.yaml` 同目录，再 atomic rename。
 
+### 结构 preview/receipt consumer 规则
+
+- UI、status、selector candidate 与用户复述统一显示 `position · formal slide_id · title`。`position` 是当前快照投影，`slide_id` 是跨版本身份；MD 不把页序号写成持久身份，也不复制 producer 的 selector/plan wire schema。
+- MD 按引用消费 `slides` preview、edit receipt 与 structural impact receipt，并在内存/state note 中保留确认过的 `plan_sha256`；用户只确认 before/after，不负责抄写或管理 hash。
+- Apply 必须重放同一个 preview 并传 exact hash。stale base/hash mismatch 时重新生成 preview；禁止替旧计划 rebase、猜测新 selector 或在 `_generated/` 补状态。
+- `requires_human:true`、selector ambiguity、正文页码 warning 或新增内容/成本选择必须停下。其他确定性冲突由 Agent 修复或重新 preview。
+- Structural apply/materialization 是 renderer-free 授权域；receipt 的 `needs_render` 只说明后续昂贵工作，不自动授权 Stage 2。Generated Image Rebuild 必须是用户知情后的独立调用。
+- 结构变化若无法在一个版本内清晰收敛，consumer 使用逃生阶梯：新 preview → 新 vNext → 新 deck。新 deck 适用于受众、主叙事或设计系统已经分叉，不用于逃避普通小改。
+
 ## State API
 
 - READ/HISTORY：`readState`、`writeState`、`statePath`、`historyPath`、`appendHistory`、`readHistory`

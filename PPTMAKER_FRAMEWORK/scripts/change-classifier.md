@@ -23,7 +23,7 @@ agent_action: classify_changes
 | Header Text & Style Refresh（页眉文字与样式刷新；formerly Chain A） | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，或 Stage 3 拥有的字体/颜色/位置/间距；raw-image contract 不变 | Stage 1 → 3 → 4 → 5 |
 | Generated Image Rebuild（生成图重建；formerly Chain B） | full-page header、body 文案/数据、画面/prompt，或 mode/safe-zone 等 raw-image contract | Stage 1 → 强制重生所选 Stage 2 → review → Stage 3/4/5（复用已审图） |
 | Notes-Only Refresh（仅备注刷新；formerly Chain C） | speaker notes only | Stage 5 |
-| Structural Versioning Path（结构版本路径；formerly Structural） | 增/删/重排 slide | `--new-version` → 在新版本按受影响页选择上述 refresh path |
+| Structural Versioning Path（结构版本路径；formerly Structural） | 增/删/重排 slide | stable-ID snapshot preview → exact hash 提交 vNext → verified raw-only materialization → target-local rebuild |
 
 旧字母不是缩写。只在本兼容映射中保留；下文使用正式英文名。
 
@@ -39,8 +39,9 @@ agent_action: classify_changes
 用户说 → 分类到
 
 "加一张 slide 在 4 和 5 之间"       → Structural Versioning Path → 新版本中为新增/受影响页选择 refresh path
-"删掉第 8 页"                      → Structural Versioning Path → 新版本中重编号并选择 refresh path
-"把第 3 页移到第 6 页后面"          → Structural Versioning Path → 新版本中重排并选择 refresh path
+"删掉第 8 页"                      → Structural Versioning Path → snapshot 绑定 ID → preview/hash 确认 → renderer-free vNext
+"把 UX gap 那页移到第 6 页后面"      → Structural Versioning Path → spoken ID + position 同快照解析 → preview/hash 确认
+"加一页新的成本结论"                 → Structural Versioning Path → Agent 命名如 AICost → insert preview → renderer-free vNext
 ```
 
 ### Level 2: 内容由谁渲染、哪个产物失效？（5 秒判断）
@@ -71,9 +72,9 @@ agent_action: classify_changes
 ```
 影响范围 → 重跑策略
 
-1 张 slide → 只重跑该 slide
-  - Header Text & Style Refresh: `ppt_flow refresh --kind title --only slide_NN`，或明确的 Stage 3 overlay-style refresh；不含 Stage 2
-  - Generated Image Rebuild: `ppt_flow refresh --kind visual --only slide_NN`（public route 自动 force）；raw `unified_pipeline` 必须显式 `--only slide_NN --force-images`
+1 张 slide → 先把 position/title/spoken selector 解析为正式 ID，再只重跑该 ID
+  - Header Text & Style Refresh: `ppt_flow refresh --kind title --only UXGap`，或明确的 Stage 3 overlay-style refresh；不含 Stage 2
+  - Generated Image Rebuild: `ppt_flow refresh --kind visual --only UXGap`（public route 自动 force）；raw `unified_pipeline` 必须显式 `--only UXGap --force-images`
   - Notes-Only Refresh: `--stage 5`（整体重跑，但只改 note）
 
 2-5 张 slides → 重跑受影响 slides
@@ -83,9 +84,9 @@ agent_action: classify_changes
   - 告知用户："这会重新生成全部 Y 张 slide，约 Z 分钟。建议先跑 3 张确认效果？"
   - **如果是改配色：硬性前置条件——必须先更新 style_master.jpg。** 改了 deck_system.txt 和 color_palette.json 的颜色但没重生 style_master → 生图阶段用的是旧配色 style master + 新配色文本约束 → 画面矛盾。顺序：编辑颜色文件 → 重生 style_master → 试点 3 张 → 全量
 
-Structural Versioning Path（加/删/重排 slides）→ `bundle_layout.mjs --new-version` 创建干净版本
-  - 告知用户："这是结构改动，我会创建 v{n+1} 版本来保留当前版本。"
-  - 在新版本中：更新 Block Map → 重新编号 → 重跑受影响范围
+Structural Versioning Path（加/删/重排 slides）→ `ppt_flow slides` preview/hash 创建干净版本
+  - 告知用户："这是结构改动，我先展示 before/after；确认后创建 v{n+1} 保留当前版本。结构提交不会生图。"
+  - 在目标版本中：更新 Block Map → position 自动投影 → verified raw materialization → cheap local rebuild；只有 `needs_render` IDs 另行授权
 ```
 
 ### Level 4: 是否建议试点？
@@ -198,3 +199,13 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions
 > **Note**: `--only` 只限制 Stage 2；**不会**隐式强制重渲——已有图默认跳过，要刷新须加 `--force-images`。Stage 1/3/4/5 仍处理全部 slides。全量视觉刷新使用 `--force-images`。`--only` 也接受页号（`3`）或前缀（`s03`）。
 
 > 新 deck 的 `render.default` 为 `full-page`。full-page header 只尽力稳定；要求像素位置和清晰度时，用户确认后把 slide id 加入 `render.header-lock`，再通过 Generated Image Rebuild 强制重生并重新 review。若用户接受残余风险，在版本 Change Log 或 playbook state extra 持久记录 slide id 与症状。整册目标 geometry 改动属于 visual-config 变更，不是 exception。
+
+## Structural Versioning 决策细则
+
+1. `position` 只属于当前 snapshot；正式 `slide_id` 才跨版本稳定。候选与回执显示 `position · slide_id · title`。
+2. exact ID、spoken mnemonic（如“UX gap”）、`N`/`pN`、唯一标题、legacy prefix 按共享 resolver 解析；一个请求里的所有 selector 先绑定，再执行任何 mutation。
+3. move/delete/insert 默认只 preview。Agent 保存 canonical `plan_sha256`，用户确认 before/after 后才以同一 hash apply；bare apply、stale source 和 hash drift 都 fail closed，重新 preview 而非 rebase。
+4. 新页 ID 由 Agent 根据 `SUBJECT + MOVE` 命名：5–8 ASCII 字母、恰好两个 BlockCase 块，优先 5–6；避免单词类别、数字/随机后缀和为了缩短而失去可读性。
+5. apply 只发布 source/control vNext，不调用 renderer。跨版本只 materialize manifest 证明完整的 `raw-render`；target 本地重建 Stage 3、contact sheet、PPTX、notes。
+6. `needs_render` 不扩大授权。先向用户报告明确 ID、预计调用与 review 成本，再单独调用 Generated Image Rebuild；用户只授权结构时远端调用必须为零。
+7. 逃生阶梯：stale/小冲突重新 preview；同一方向的大改另起 vNext；受众、主叙事或设计系统已分叉时建议新 deck。不要为了“必须在这一版修好”而无限叠补丁。

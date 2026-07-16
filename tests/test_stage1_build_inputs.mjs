@@ -15,6 +15,7 @@ import { DEFAULT_CONFIG } from '../PPTMAKER_FRAMEWORK/scripts/visual_config.mjs'
 const STAGE1 = 'PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs';
 
 function slide(id, {
+  number = 1,
   visualType = 'Framework',
   renderMode = '',
   kicker = 'CONTEXT',
@@ -22,7 +23,7 @@ function slide(id, {
   subtitle = '',
   prompt = 'Create a clear visual with two large labeled panels.',
 } = {}) {
-  return `## Slide 01: ${id}\n\n` +
+  return `## Slide ${String(number).padStart(2, '0')}: ${id}\n\n` +
     `**VISUAL TYPE**: ${visualType}\n` +
     (renderMode ? `**RENDER MODE**: ${renderMode}\n` : '') +
     `**KICKER**: ${kicker}\n` +
@@ -78,7 +79,7 @@ describe('stage1_build_inputs', () => {
     const path = specFile(
       `---\nrender:\n  default: body+header-lock\n  header-lock: [content]\n---\n` +
       slide('divider', { visualType: 'section   divider' }) + '\n' +
-      slide('content')
+      slide('content', { number: 2 })
     );
     const { plan } = parseSlides([path]);
     expect(plan[0].visual_type).toBe('Section Divider / Bridge');
@@ -172,5 +173,131 @@ describe('stage1_build_inputs', () => {
     expect(envelope.diagnostic.issues.length).toBe(records.length);
     expect(envelope.diagnostic.issues.some((issue) => issue.subject?.id === 's01' && issue.source?.line === 4)).toBe(true);
     expect(`${result.stdout}${result.stderr}`).not.toContain('unsupported-mode');
+  });
+
+  it('emits stable formal identity, derived position, and mnemonic scheme projection', () => {
+    const path = specFile(
+      `---\nidentity:\n  scheme: mnemonic-v1\n---\n` +
+      slide('DeckGo') + '\n' +
+      slide('UXGap', { number: 2 })
+    );
+    const result = parseSlides([path]);
+
+    expect(result.identity).toEqual({ scheme: 'mnemonic-v1' });
+    expect(result.plan).toEqual([
+      expect.objectContaining({ id: 'DeckGo', slide_id: 'DeckGo', position: 1 }),
+      expect.objectContaining({ id: 'UXGap', slide_id: 'UXGap', position: 2 }),
+    ]);
+    expect(result.prompts).toEqual([
+      expect.objectContaining({
+        id: 'DeckGo', slide_id: 'DeckGo', position: 1,
+        label: '01 · DeckGo · A precise title',
+        out: 'DeckGo.png', prompt_twin: '01--DeckGo.prompt.md',
+      }),
+      expect.objectContaining({
+        id: 'UXGap', slide_id: 'UXGap', position: 2,
+        label: '02 · UXGap · A precise title',
+        out: 'UXGap.png', prompt_twin: '02--UXGap.prompt.md',
+      }),
+    ]);
+  });
+
+  it('keeps semantic generation inputs stable across reorder-only changes', () => {
+    const before = specFile(
+      slide('UXGap', { title: 'User experience gap' }) + '\n' +
+      slide('AICost', { number: 2, title: 'AI generation cost' })
+    );
+    const after = specFile(
+      slide('AICost', { title: 'AI generation cost' }) + '\n' +
+      slide('UXGap', { number: 2, title: 'User experience gap' })
+    );
+    const first = parseSlides([before]);
+    const second = parseSlides([after]);
+    const byId = (entries) => Object.fromEntries(entries.map((entry) => [entry.id, entry]));
+
+    expect(byId(second.prompts).UXGap).toMatchObject({
+      position: 2,
+      out: 'UXGap.png',
+      prompt_twin: '02--UXGap.prompt.md',
+      prompt: byId(first.prompts).UXGap.prompt,
+    });
+    expect(byId(second.prompts).AICost).toMatchObject({
+      position: 1,
+      out: 'AICost.png',
+      prompt_twin: '01--AICost.prompt.md',
+      prompt: byId(first.prompts).AICost.prompt,
+    });
+  });
+
+  it('blocks heading drift, duplicate IDs, spoken collisions, and malformed slide headings', () => {
+    const drift = specFile(
+      slide('DeckGo') + '\n' + slide('UXGap', { number: 7 })
+    );
+    const driftRecords = validateSpecRecords([drift]);
+    expect(driftRecords).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'noncanonical_heading_position' }),
+      display: expect.stringMatching(/slides normalize/i),
+    }));
+
+    const duplicate = specFile(
+      slide('UXGap') + '\n' + slide('UXGap', { number: 2 })
+    );
+    expect(validateSpecRecords([duplicate])).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'duplicate_slide_id' }),
+    }));
+
+    const spoken = specFile(
+      slide('UXGap') + '\n' + slide('UxGap', { number: 2 })
+    );
+    expect(validateSpecRecords([spoken])).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'duplicate_spoken_key' }),
+    }));
+
+    const malformed = specFile(slide('DeckGo') + '\n## Slide seven UXGap\n\nNot epilogue.\n');
+    expect(validateSpecRecords([malformed])).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'malformed_slide_heading' }),
+      source: expect.objectContaining({ line: 8 }),
+    }));
+  });
+
+  it('accepts markerless legacy IDs and validates every mnemonic-native ID', () => {
+    const legacy = specFile(slide('s07_problem'));
+    expect(validateSpecRecords([legacy]).filter((record) => record.severity === 'ERROR')).toEqual([]);
+    expect(parseSlides([legacy]).plan[0]).toMatchObject({
+      id: 's07_problem', slide_id: 's07_problem', position: 1,
+    });
+
+    const invalidNative = specFile(
+      `---\nidentity:\n  scheme: mnemonic-v1\n---\n` + slide('s07_problem')
+    );
+    expect(validateSpecRecords([invalidNative])).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'invalid_mnemonic_id' }),
+    }));
+
+    const unsupported = specFile(
+      `---\nidentity:\n  scheme: future-v2\n---\n` + slide('DeckGo')
+    );
+    expect(validateSpecRecords([unsupported])).toContainEqual(expect.objectContaining({
+      severity: 'ERROR',
+      reason: expect.objectContaining({ kind: 'unsupported_identity_scheme' }),
+    }));
+  });
+
+  it('validates local numbering per input and derives positions globally', () => {
+    const first = specFile(slide('DeckGo') + '\n' + slide('UXGap', { number: 2 }));
+    const second = specFile(slide('AICost') + '\n' + slide('IDFix', { number: 2 }));
+    const result = parseSlides([first, second]);
+    expect(result.plan.map((entry) => [entry.id, entry.position])).toEqual([
+      ['DeckGo', 1], ['UXGap', 2], ['AICost', 3], ['IDFix', 4],
+    ]);
+    expect(result.prompts.map((entry) => entry.prompt_twin)).toEqual([
+      '01--DeckGo.prompt.md', '02--UXGap.prompt.md',
+      '03--AICost.prompt.md', '04--IDFix.prompt.md',
+    ]);
   });
 });

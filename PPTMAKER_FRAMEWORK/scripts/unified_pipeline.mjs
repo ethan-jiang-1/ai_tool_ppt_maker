@@ -31,7 +31,7 @@
 import "./lib/cli_bootstrap.mjs?entry=unified_pipeline.mjs";
 import { CLI_ERROR_CODES, createCliNext, diagnosticFromError, emitCliError, emitCliProgress, sanitizeCliDiagnostic } from "./lib/cli_error.mjs";
 
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -56,6 +56,11 @@ import {
 } from "./bundle_layout.mjs";
 import { loadAssetManifest, validateAssetManifest, resolveAssetFile } from "./asset_manifest.mjs";
 import { resolveSlideIds } from "./lib/slide_ids.mjs";
+import {
+  carryForwardHeaderReview,
+  computeStructuralImpact,
+} from "./lib/structural_reuse.mjs";
+import { versionKey } from "./lib/header_review.mjs";
 
 // --- Configuration -----------------------------------------------------------
 
@@ -107,6 +112,233 @@ export function writePromptSubset(source, target, selectedIds) {
     "utf-8"
   );
   return target;
+}
+
+function writeJsonAtomic(path, value) {
+  mkdirSync(dirname(path), { recursive: true });
+  const temp = `${path}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(temp, JSON.stringify(value, null, 2) + "\n", "utf-8");
+  renameSync(temp, path);
+  return path;
+}
+
+async function targetGenerationProfiles(runDir, prompts, { resolution, model }) {
+  const {
+    generationProfile,
+    sha256Bytes,
+    sha256File,
+  } = await import("./lib/image_provenance.mjs");
+  const styleReferenceSha256 = sha256File(styleAsset(runDir, STYLE_MASTER_IMAGE));
+  let manifest = null;
+  try { manifest = loadAssetManifest(assetsDir(runDir)); } catch { /* optional */ }
+  const profiles = {};
+  for (const slide of prompts) {
+    const id = String(slide.slide_id || slide.id || "");
+    const assetHashes = {};
+    for (const assetId of slide.asset_ids || []) {
+      const path = manifest ? resolveAssetFile(runDir, manifest, assetId) : null;
+      if (path && existsSync(path)) assetHashes[assetId] = sha256File(path);
+    }
+    const sortedIds = Object.keys(assetHashes).sort();
+    const assetRefs = sortedIds.length > 0 ? {
+      aggregate_sha256: sha256Bytes(sortedIds.map((key) => assetHashes[key]).join("")),
+      asset_count: sortedIds.length,
+      assets: assetHashes,
+    } : {};
+    profiles[id] = generationProfile({
+      styleReferenceSha256,
+      resolution,
+      model,
+      semanticOptions: { size: "16:9", n: 1 },
+      assetRefs,
+    });
+  }
+  return profiles;
+}
+
+/**
+ * Materialize verified source raw renders into a structural target. This path
+ * performs local file work only; it never invokes Stage 2 or any renderer.
+ */
+export async function materializeStructuralVersion({
+  sourceRunDir,
+  targetRunDir,
+  resolution = "2k",
+  model = "gpt-image-2",
+  rebuildLocal = true,
+} = {}) {
+  const sourceDir = resolve(sourceRunDir);
+  const targetDir = resolve(targetRunDir);
+  if (sourceDir === targetDir) throw new Error("structural materialization requires distinct source and target versions");
+  if (!await stage1(targetDir, false)) {
+    const error = new Error("target Stage 1 failed before structural materialization");
+    error.cliDiagnostic = stage1.lastFailure;
+    throw error;
+  }
+
+  const sourceBuild = generatedDir(sourceDir);
+  const targetBuild = generatedDir(targetDir);
+  const sourcePlanPath = join(sourceBuild, GEN_SLIDE_PLAN);
+  const sourcePromptsPath = join(sourceBuild, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
+  const targetPlanPath = join(targetBuild, GEN_SLIDE_PLAN);
+  const targetPromptsPath = join(targetBuild, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
+  for (const path of [sourcePlanPath, sourcePromptsPath, targetPlanPath, targetPromptsPath]) {
+    if (!existsSync(path)) throw new Error(`structural materialization prerequisite missing: ${path}`);
+  }
+  const sourcePlan = loadJson(sourcePlanPath).slides || [];
+  const sourcePrompts = loadJson(sourcePromptsPath).slides || [];
+  const targetPlan = loadJson(targetPlanPath).slides || [];
+  const targetPrompts = loadJson(targetPromptsPath).slides || [];
+  const targetProfiles = await targetGenerationProfiles(targetDir, targetPrompts, { resolution, model });
+  const sourceImages = join(sourceBuild, GEN_IMAGES_SUBDIR);
+  const targetImages = join(targetBuild, GEN_IMAGES_SUBDIR);
+  const root = deckRoot(targetDir);
+  const sourceKey = versionKey(root, sourceDir);
+  const targetKey = versionKey(root, targetDir);
+  const {
+    generationFingerprint,
+    materializeVerifiedRawImage,
+    publishMaterializedRawImages,
+    readImageManifest,
+  } = await import("./lib/image_provenance.mjs");
+  const {
+    ARTIFACT_KIND_RAW_RENDER,
+    ARTIFACT_STATUS_VERIFIED,
+    RENDER_ENGINE_IMAGE2,
+    resolveRenderArtifact,
+  } = await import("./lib/render_artifacts.mjs");
+  const sourceManifestRead = readImageManifest(sourceImages);
+  const sourceIds = new Set(sourcePlan.map((slide) => String(slide.slide_id || slide.id || "")));
+  const results = [];
+  const artifactProofs = {};
+  for (const slide of targetPrompts) {
+    const id = String(slide.slide_id || slide.id || "");
+    const profile = targetProfiles[id];
+    if (!sourceIds.has(id)) {
+      const result = { status: "needs_render", slide_id: id, reason: "stable ID is inserted in the target" };
+      results.push(result);
+      artifactProofs[id] = { status: "missing", reason: result.reason };
+      continue;
+    }
+    const fingerprint = generationFingerprint({ prompt: String(slide.prompt || "").trim(), profile });
+    const proof = resolveRenderArtifact({
+      directory: sourceImages,
+      manifest: sourceManifestRead.manifest,
+      manifestError: sourceManifestRead.error,
+      slideId: id,
+      renderEngine: RENDER_ENGINE_IMAGE2,
+      artifactKind: ARTIFACT_KIND_RAW_RENDER,
+      fingerprint,
+      profile,
+      defaultEngine: RENDER_ENGINE_IMAGE2,
+      defaultKind: ARTIFACT_KIND_RAW_RENDER,
+    });
+    artifactProofs[id] = {
+      status: proof.status,
+      ...(proof.reason ? { reason: proof.reason } : {}),
+      ...(proof.byte_sha256 ? { byte_sha256: proof.byte_sha256 } : {}),
+    };
+    if (proof.status !== ARTIFACT_STATUS_VERIFIED) {
+      results.push({ status: "needs_render", slide_id: id, reason: proof.reason, target_profile: profile, proof });
+      continue;
+    }
+    results.push(materializeVerifiedRawImage({
+      sourceDir: sourceImages,
+      targetDir: targetImages,
+      slide,
+      sourceManifest: sourceManifestRead.manifest,
+      sourceManifestError: sourceManifestRead.error,
+      profile,
+      sourceVersion: sourceKey,
+    }));
+  }
+  const verified = results.filter((result) => result.status === ARTIFACT_STATUS_VERIFIED);
+  publishMaterializedRawImages({ targetDir: targetImages, results: verified, replace: true });
+
+  const sourceProfiles = Object.fromEntries(Object.entries(sourceManifestRead.manifest.slides || {})
+    .map(([id, entry]) => [id, entry?.generation_profile || null]));
+  const { readState, writeState } = await import("./lib/state.mjs");
+  const {
+    HEADER_REVIEW_NODE,
+    buildHeaderReviewInputs,
+  } = await import("./lib/header_review.mjs");
+  const { loadVisualConfig, DEFAULT_CONFIG } = await import("./visual_config.mjs");
+  const palettePath = styleAsset(targetDir, COLOR_PALETTE_FILE);
+  const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
+  const state = readState(root);
+  const sourceRecord = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[sourceKey] || null;
+  const targetInputs = buildHeaderReviewInputs(targetPlan, visualConfig);
+  const resultById = Object.fromEntries(results.map((result) => [result.slide_id, result]));
+  const review = carryForwardHeaderReview({
+    sourceRecord,
+    targetInputs,
+    materializedEntries: resultById,
+    sourceVersion: sourceKey,
+  });
+  if (review.record) {
+    state.nodes[HEADER_REVIEW_NODE] ||= {};
+    state.nodes[HEADER_REVIEW_NODE].by_version ||= {};
+    state.nodes[HEADER_REVIEW_NODE].by_version[targetKey] = review.record;
+    writeState(root, state);
+  }
+
+  const impact = computeStructuralImpact({
+    sourcePlan,
+    targetPlan,
+    sourcePrompts,
+    targetPrompts,
+    sourceProfiles,
+    targetProfiles,
+    artifactProofs,
+    reviewWarnings: review.warnings.reduce((groups, warning) => {
+      groups[warning.slide_id] ||= [];
+      groups[warning.slide_id].push(warning.reason);
+      return groups;
+    }, {}),
+  });
+  const completedLocalStages = ["stage1"];
+  if (impact.needs_render.length === 0 && rebuildLocal) {
+    if (!await stage3(targetDir, false)) {
+      const error = new Error("target Stage 3 failed after raw materialization");
+      error.cliDiagnostic = stage3.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage3");
+    const { makeContactSheet } = await import("./make_contact_sheet.mjs");
+    await makeContactSheet({
+      imageDir: join(targetBuild, GEN_IMAGES_SUBDIR),
+      promptJson: targetPromptsPath,
+      out: join(targetBuild, GEN_PREVIEW_SUBDIR, "contact_sheet.jpg"),
+      columns: 4,
+    });
+    completedLocalStages.push("contact-sheet");
+    if (!await stage4(targetDir, false)) {
+      const error = new Error("target Stage 4 failed after structural materialization");
+      error.cliDiagnostic = stage4.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage4");
+    if (!await stage5(targetDir, false)) {
+      const error = new Error("target Stage 5 failed after structural materialization");
+      error.cliDiagnostic = stage5.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage5");
+  }
+  const receipt = {
+    ...impact,
+    source_version: sourceKey,
+    target_version: targetKey,
+    materialized_ids: verified.map((result) => result.slide_id),
+    carried_review_ids: review.carried_ids,
+    review_warnings: review.warnings,
+    completed_local_stages: completedLocalStages,
+    production_complete: impact.needs_render.length === 0 && completedLocalStages.includes("stage5"),
+    generated_at: new Date().toISOString(),
+  };
+  const receiptPath = join(targetBuild, GEN_QA_SUBDIR, "structural_impact.json");
+  writeJsonAtomic(receiptPath, receipt);
+  return { ...receipt, receipt_path: receiptPath, materialization_results: results };
 }
 
 /**
@@ -271,20 +503,19 @@ export async function stage1(runDir, dryRun) {
     });
   }
 
-  const { plan, prompts } = parseSlides([inputFile], finalRules, assetManifest);
+  const { plan, prompts, identity } = parseSlides([inputFile], finalRules, assetManifest);
 
   const planPath = join(buildDir, GEN_SLIDE_PLAN);
   const promptsDir = join(buildDir, GEN_PROMPTS_SUBDIR);
   mkdirSync(promptsDir, { recursive: true });
   const promptsPath = join(promptsDir, GEN_PROMPTS_JSON);
 
-  writeFileSync(planPath, JSON.stringify({ slides: plan }, null, 2) + "\n", "utf-8");
-  writeFileSync(promptsPath, JSON.stringify({ slides: prompts }, null, 2) + "\n", "utf-8");
+  writeFileSync(planPath, JSON.stringify({ ...(identity ? { identity } : {}), slides: plan }, null, 2) + "\n", "utf-8");
+  writeFileSync(promptsPath, JSON.stringify({ ...(identity ? { identity } : {}), slides: prompts }, null, 2) + "\n", "utf-8");
 
   // One human-readable prompt file per slide
   for (const entry of prompts) {
-    const stem = basename(entry.out, ".png");
-    const mdPath = join(promptsDir, `${stem}.prompt.md`);
+    const mdPath = join(promptsDir, entry.prompt_twin);
     writeFileSync(
       mdPath,
       `# Prompt — ${entry.id}\n\n` +
@@ -298,7 +529,7 @@ export async function stage1(runDir, dryRun) {
   console.log(`  Parsed ${plan.length} slides`);
   console.log(`  slide_plan:  ${planPath}`);
   console.log(`  prompts:     ${promptsPath}`);
-  console.log(`  per-slide:   ${promptsDir}/NN_id.prompt.md  (${prompts.length} files)`);
+  console.log(`  per-slide:   ${promptsDir}/NN--id.prompt.md  (${prompts.length} files)`);
 
   return true;
 }

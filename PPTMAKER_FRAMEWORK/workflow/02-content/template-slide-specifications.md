@@ -10,6 +10,8 @@ depends_on:
 feeds_into:
 - scripts/stage1_build_inputs.mjs
 agent_action: fill_template
+identity:
+  scheme: mnemonic-v1
 render:
   default: full-page
   header-lock: []
@@ -43,11 +45,11 @@ render:
 
 ## Slide Specifications（每页四层规格）
 
-[INSTRUCTION: 这是核心。每张 slide 填四层:Meta / Concept / Image Prompt / Speaker Note。每张 slide 用一个 `## Slide N` 块——Stage 1 靠这个标记切分。方法见 03-specify-slides-multi-layer.md。]
+[INSTRUCTION: 这是核心。每张 slide 填四层:Meta / Concept / Image Prompt / Speaker Note。每张 slide 用一个 `## Slide N: ID` 块——Stage 1 靠这个标记切分。Agent 为每页写耐久 mnemonic ID：SUBJECT + MOVE 两个语义块、BlockCase、5–8 ASCII 字母，优先 5–6；7–8 只在更清楚时使用。示例 DeckGo、UXGap、AICost。不要用单词类别（Problem）、编号/随机后缀（Risk2/Xq91），也不要为了凑短而压成难读 token。]
 
 ---
 
-## Slide 01: `slide_id`
+## Slide 01: `DeckGo`
 
 **VISUAL TYPE**: [PLACEHOLDER: Title / Opener | Concept Split | Direction | Impact / Evidence | Framework | Case Anchor | Flow / Mechanism | Section Divider | Risk / 2 Panels | Closer]
 
@@ -105,7 +107,7 @@ hero full-page:只描述自由构图意图；Stage 1 注入准确 header 文字�
 
 ---
 
-## Slide 02: `slide_id`
+## Slide 02: `UXGap`
 
 [PLACEHOLDER: 每张 slide 复制 Slide 01 的模板,替换所有 placeholder。]
 

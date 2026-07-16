@@ -30,7 +30,7 @@ Markdown 是人类创作格式。JSON 是机器执行格式。Stage 1 是它们�
 输入是一个或多个 markdown 文件，每张 slide 的结构遵循 02 定义的多层规格：
 
 ```markdown
-## Slide NN: [slide_id]
+## Slide NN: [BlockCase mnemonic ID, e.g. UXGap]
 
 **VISUAL TYPE**: [Concept Split | Direction | Evidence | ...]
 **KICKER**: [ALL CAPS LABEL]
@@ -44,6 +44,8 @@ Markdown 是人类创作格式。JSON 是机器执行格式。Stage 1 是它们�
 
 ```yaml
 ---
+identity:
+  scheme: mnemonic-v1
 render:
   default: full-page
   header-lock: []
@@ -51,6 +53,8 @@ render:
 ```
 
 无 frontmatter 或无顶层 `render` 的旧 deck 合法，进入 legacy 分支。其他顶层 metadata 保留；`render` 是 closed mapping，只允许 `default` / `header-lock`，内部 typo 会 fail-loud。顶层若误写 `renders:`，Stage 1 不能 fuzzy 纠正，因为“没有 render”本身必须解释为 legacy；用 `layout_contract.render_mode_source` 排障。
+
+`identity.scheme: mnemonic-v1` 表示每个新 ID 都是 Agent 编写的 `SUBJECT + MOVE` 两块 BlockCase mnemonic：5–8 ASCII 字母、优先 5–6。`slide_id` 跨版本稳定，`position` 从当前数组顺序派生；标题编号只投影 position。markerless legacy ID 仍可读，但不会静默迁移。
 [200-500 word visual description]
 ```
 ```
@@ -63,8 +67,9 @@ render:
 {
   "slides": [
     {
-      "id": "s1_b1_02_two_ais",
-      "session": "Keynote",
+      "id": "AIGap",
+      "slide_id": "AIGap",
+      "position": 2,
       "visual_type": "Concept Split",
       "kicker": "TWO KINDS OF AI",
       "headline": "One kind improves efficiency. One changes market access.",
@@ -91,8 +96,12 @@ render:
 {
   "slides": [
     {
-      "id": "s1_b1_02_two_ais",
-      "out": "02_s1_b1_02_two_ais.png",
+      "id": "AIGap",
+      "slide_id": "AIGap",
+      "position": 2,
+      "label": "02 · AIGap · One kind improves efficiency. One changes market access.",
+      "out": "AIGap.png",
+      "prompt_twin": "02--AIGap.prompt.md",
       "prompt": "[Complete wrapped prompt — source IMAGE PROMPT + system contracts]"
     }
   ]
@@ -116,7 +125,7 @@ for each ## Slide NN block:
   image_prompt = extract_code_block("IMAGE PROMPT")
 ```
 
-关键原则：**宽容解析。** 如果某张 slide 缺少 `**SUBTITLE**`，不要报错——设为 null。如果 `**KICKER**` 是 "(无)" 或 "(none)"，设为空字符串。Markdown 是人类写的——容错。
+关键原则：可选内容字段宽容，身份/顺序 fail closed。如果某张 slide 缺少 `**SUBTITLE**`，设为 null；`**KICKER**` 是 "(无)" 或 "(none)" 时设为空。重复/空 ID、spoken collision、mnemonic marker 下的非法 ID、非连续 heading position 和 malformed slide-like heading 必须报错，不能静默 normalize。
 
 ### 问题 2：把源 IMAGE PROMPT 和系统级 contract 组装成完整 prompt
 
@@ -159,6 +168,7 @@ hero canonical 类型是 `Title / Opener`、`Section Divider / Bridge`（含 `Se
 
 - [ ] `slide_plan.json` 中的 slide 数量 = 源 markdown 中的 slide 数量
 - [ ] 每个 slide id 在 `slide_plan.json` 和 `page_prompts/_prompts.json` 中一致
+- [ ] `position` 连续且只来自数组顺序；raw output/fingerprint 不含 position
 - [ ] policy/legacy 分支与 `render_mode_source` 正确
 - [ ] content full-page prompt 有统一 soft band；hero 无固定 band；body-lock prompt 不含具体 header 值
 - [ ] 没有丢失任何 IMAGE PROMPT（所有 code block 都被提取）

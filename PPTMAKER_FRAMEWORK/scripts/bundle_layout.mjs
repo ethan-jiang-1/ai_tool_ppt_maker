@@ -68,6 +68,8 @@ import {
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from './lib/state.mjs';
 
@@ -587,36 +589,7 @@ function _copyTree(src, dest) {
     }
 }
 
-export function createVersion(sourceRunDir, versionName = null) {
-    sourceRunDir = path.resolve(sourceRunDir);
-    if (!isVersionDir(sourceRunDir)) {
-        throw new Error(
-            `source must be a version dir inside ${VERSIONS_DIR}/ (got ${sourceRunDir})`);
-    }
-
-    if (versionName === null) {
-        const numbers = [];
-        const parentDir = path.dirname(sourceRunDir);
-        if (fs.existsSync(parentDir)) {
-            for (const child of fs.readdirSync(parentDir, { withFileTypes: true })) {
-                if (!child.isDirectory()) continue;
-                const match = child.name.match(/^v(\d+)$/);
-                if (match) {
-                    numbers.push(parseInt(match[1], 10));
-                }
-            }
-        }
-        versionName = `v${Math.max(0, ...numbers) + 1}`;
-    }
-    if (!/^v\d+$/.test(versionName)) {
-        throw new Error(`version name must look like v2, v3, ... (got ${JSON.stringify(versionName)})`);
-    }
-
-    const target = path.join(path.dirname(sourceRunDir), versionName);
-    if (fs.existsSync(target)) {
-        throw new Error(`target version already exists: ${target}`);
-    }
-
+function _seedCleanVersion(sourceRunDir, target, versionName) {
     const specs = findSlideSpecs(sourceRunDir);
     if (specs === null) {
         throw new Error(`missing ${SLIDE_SPECS_NAME} in ${sourceRunDir}`);
@@ -647,7 +620,164 @@ export function createVersion(sourceRunDir, versionName = null) {
         `源自 \`${path.basename(sourceRunDir)}\`，只复制了 \`${SLIDE_SPECS_NAME}\` + \`${OVERRIDES_SUBDIR}/\`。\n` +
         `\`${GENERATED_SUBDIR}/\` 与 \`${SCRATCH_SUBDIR}/\` 是干净的（旧版临时 bak 不拷贝）。\n` +
         `临时/备份只放 \`${SCRATCH_SUBDIR}/\`（上严下松）。\n`);
+}
+
+export function nextVersionName(sourceRunDir) {
+    sourceRunDir = path.resolve(sourceRunDir);
+    const numbers = [];
+    const parentDir = path.dirname(sourceRunDir);
+    if (fs.existsSync(parentDir)) {
+        for (const child of fs.readdirSync(parentDir, { withFileTypes: true })) {
+            if (!child.isDirectory()) continue;
+            const match = child.name.match(/^v(\d+)$/);
+            if (match) numbers.push(parseInt(match[1], 10));
+        }
+    }
+    return `v${Math.max(0, ...numbers) + 1}`;
+}
+
+export function createVersion(sourceRunDir, versionName = null) {
+    sourceRunDir = path.resolve(sourceRunDir);
+    if (!isVersionDir(sourceRunDir)) {
+        throw new Error(
+            `source must be a version dir inside ${VERSIONS_DIR}/ (got ${sourceRunDir})`);
+    }
+
+    if (versionName === null) {
+        versionName = nextVersionName(sourceRunDir);
+    }
+    if (!/^v\d+$/.test(versionName)) {
+        throw new Error(`version name must look like v2, v3, ... (got ${JSON.stringify(versionName)})`);
+    }
+
+    const target = path.join(path.dirname(sourceRunDir), versionName);
+    if (fs.existsSync(target)) {
+        throw new Error(`target version already exists: ${target}`);
+    }
+
+    _seedCleanVersion(sourceRunDir, target, versionName);
     return target;
+}
+
+export function checkStagedVersion(stagingRunDir) {
+    const problems = [];
+    const requiredDirs = [OVERRIDES_SUBDIR, GENERATED_SUBDIR, SCRATCH_SUBDIR];
+    const source = path.join(stagingRunDir, SLIDE_SPECS_NAME);
+    if (!fs.existsSync(source) || !fs.statSync(source).isFile()) {
+        problems.push(`missing staged ${SLIDE_SPECS_NAME}`);
+    }
+    for (const name of requiredDirs) {
+        const target = path.join(stagingRunDir, name);
+        if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+            problems.push(`missing staged ${name}/`);
+        }
+    }
+    for (const name of [GENERATED_SUBDIR, SCRATCH_SUBDIR]) {
+        const target = path.join(stagingRunDir, name);
+        if (!fs.existsSync(target)) continue;
+        const unexpected = fs.readdirSync(target).filter((entry) => entry !== 'README.md' && !_ignorable(entry));
+        if (unexpected.length > 0) problems.push(`staged ${name}/ is not clean: ${unexpected.join(', ')}`);
+    }
+    const allowed = new Set([SLIDE_SPECS_NAME, OVERRIDES_SUBDIR, GENERATED_SUBDIR, SCRATCH_SUBDIR, 'README.md']);
+    if (fs.existsSync(stagingRunDir)) {
+        for (const entry of fs.readdirSync(stagingRunDir, { withFileTypes: true })) {
+            if (_ignorable(entry.name)) continue;
+            if (!allowed.has(entry.name)) problems.push(`unexpected staged version entry ${entry.name}`);
+        }
+    }
+    return problems;
+}
+
+/**
+ * Publish a transformed source as one clean visible version. Reservation and
+ * staging are hidden siblings owned by one invocation token; visible target is
+ * created only by the final same-parent rename.
+ */
+export function publishStructuralVersion({
+    sourceRunDir,
+    versionName,
+    transformedSource,
+    expectedSourceSha256 = null,
+    validateSource = null,
+}) {
+    sourceRunDir = path.resolve(sourceRunDir);
+    if (!isVersionDir(sourceRunDir)) {
+        throw new Error(`source must be a version dir inside ${VERSIONS_DIR}/ (got ${sourceRunDir})`);
+    }
+    const sourceStructureIssues = checkBundle(sourceRunDir, false);
+    if (sourceStructureIssues.length > 0) {
+        throw new Error(`source version is invalid: ${sourceStructureIssues.join('; ')}`);
+    }
+    if (!/^v\d+$/.test(String(versionName || ''))) {
+        throw new Error(`version name must look like v2, v3, ... (got ${JSON.stringify(versionName)})`);
+    }
+    const parent = path.dirname(sourceRunDir);
+    const target = path.join(parent, versionName);
+    if (fs.existsSync(target)) throw new Error(`target version already exists: ${target}; obtain a fresh preview`);
+
+    const owner = randomUUID();
+    const reservation = path.join(parent, `.${versionName}.reservation`);
+    const staging = path.join(parent, `.${versionName}.staging-${owner}`);
+    let reservationOwned = false;
+    let stagingOwned = false;
+    let targetOwned = false;
+    try {
+        fs.mkdirSync(reservation, { recursive: false });
+        reservationOwned = true;
+        fs.writeFileSync(path.join(reservation, 'owner'), owner, { flag: 'wx' });
+        if (fs.existsSync(target)) throw new Error(`target version appeared before staging: ${target}; obtain a fresh preview`);
+        if (expectedSourceSha256) {
+            const currentSource = findSlideSpecs(sourceRunDir);
+            const currentHash = currentSource
+                ? createHash('sha256').update(fs.readFileSync(currentSource)).digest('hex')
+                : null;
+            if (currentHash !== expectedSourceSha256) {
+                throw new Error('source changed after preview; obtain a fresh preview');
+            }
+        }
+        fs.mkdirSync(staging, { recursive: false });
+        stagingOwned = true;
+        _seedCleanVersion(sourceRunDir, staging, versionName);
+        const stagedSource = path.join(staging, SLIDE_SPECS_NAME);
+        fs.writeFileSync(stagedSource, String(transformedSource), 'utf8');
+
+        const structureIssues = checkStagedVersion(staging);
+        if (structureIssues.length > 0) {
+            throw new Error(`staged structural version is invalid: ${structureIssues.join('; ')}`);
+        }
+        if (typeof validateSource === 'function') {
+            const validation = validateSource({ stagingRunDir: staging, sourcePath: stagedSource });
+            const issues = Array.isArray(validation) ? validation : validation?.issues || [];
+            if (issues.length > 0) throw new Error(`staged slide source is invalid: ${issues.map((issue) => issue.message || issue).join('; ')}`);
+        }
+        if (fs.readFileSync(path.join(reservation, 'owner'), 'utf8') !== owner) {
+            throw new Error(`target reservation ownership changed: ${reservation}`);
+        }
+        if (fs.existsSync(target)) throw new Error(`target version appeared before publication: ${target}; obtain a fresh preview`);
+        fs.renameSync(staging, target);
+        stagingOwned = false;
+        targetOwned = true;
+        const publishedIssues = checkBundle(target, false);
+        if (publishedIssues.length > 0) {
+            throw new Error(`published structural version is invalid: ${publishedIssues.join('; ')}`);
+        }
+        fs.rmSync(reservation, { recursive: true, force: true });
+        reservationOwned = false;
+        targetOwned = false;
+        return { source: sourceRunDir, target, version_name: versionName, published: true };
+    } catch (error) {
+        if (stagingOwned) fs.rmSync(staging, { recursive: true, force: true });
+        if (targetOwned) fs.rmSync(target, { recursive: true, force: true });
+        if (reservationOwned) {
+            try {
+                const recorded = fs.readFileSync(path.join(reservation, 'owner'), 'utf8');
+                if (recorded === owner) fs.rmSync(reservation, { recursive: true, force: true });
+            } catch {
+                // A reservation that cannot be proven owned is intentionally retained.
+            }
+        }
+        throw error;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -864,7 +994,6 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `它定义源文件所有权、CLI 诊断处理和下一步动作。\n`);
     const pipelineScript = path.join(frameworkDir, 'scripts/unified_pipeline.mjs');
     const flowScript = path.join(frameworkDir, 'scripts/ppt_flow.mjs');
-    const versionScript = path.join(frameworkDir, 'scripts/bundle_layout.mjs');
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),
         `# ${path.basename(deckDir)} — 这个 PPT 项目怎么用\n\n` +
@@ -907,12 +1036,16 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `\n# 等价：直接跑管线（Expert）\n` +
         `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 1\n` +
         `# Expert 可直跑 stage 做诊断；正式生产仍须通过上面的 header review gate。\n` +
-        `\n# 新建干净版本（不复制旧图片/PPTX）\n` +
-        `node "${versionScript}" --new-version "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `\n# 结构编辑默认 preview；确认后 Agent 重放同一操作并传 exact plan hash\n` +
+        `node "${flowScript}" slides list "${deckDir}/${VERSIONS_DIR}/v1"\n` +
         `\`\`\`\n\n` +
         `新 deck 默认 full-page；需要像素级标题位置和稳定清晰文字时，把对应 slide id 加入 specs frontmatter 的 ` +
         `\`render.header-lock\`。逐页 RENDER MODE 仅作高级 override。full-page header 是尽力稳定，header-lock 才是确定性保证。\n\n` +
         `1K evidence 不授权 2K；resolution/model/style 任一变化都要用目标 profile 重新 pilot + approve header。\n\n` +
+        `页面 position 只代表当前顺序，正式 slide ID 才跨版本稳定；状态/候选统一显示 position · ID · title。` +
+        `结构 preview 的 plan hash 由 Agent 保存，用户只确认 before/after；stale 时重新 preview。\n\n` +
+        `结构提交与跨版本 materialization 不调用 renderer。只复用 verified raw render；target 本地重建 Stage 3/contact sheet/PPTX/notes。` +
+        `needs_render 只报告后续成本，必须另行获得 Generated Image Rebuild 授权。无法在一版内收敛时使用新 preview → 新 vNext → 新 deck。\n\n` +
         `用户只需告诉 Agent 想改什么；Agent 负责按 resolved mode 选择最小重跑链。\n`);
     log.push(`project files: ${METADATA_FILE}, ${AGENT_POINTER_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
 
@@ -988,9 +1121,9 @@ deck_\${NAME}/
     │   │   └── ${BACKBONE_MANUSCRIPT_SUBDIR}/               ←   (optional) this version's script tweaks
     │   ├── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── ${GEN_SLIDE_PLAN}
-    │   │   ├── ${GEN_PROMPTS_SUBDIR}/{NN_id.prompt.md, ${GEN_PROMPTS_JSON}}   ← one readable prompt per slide
-    │   │   ├── ${GEN_IMAGES_SUBDIR}/{NN_id.png, NN_id${IMAGE_TRACE_SUFFIX}}
-    │   │   ├── ${GEN_HEADER_LOCKED_SUBDIR}/NN_id.png
+    │   │   ├── ${GEN_PROMPTS_SUBDIR}/{NN--ID.prompt.md, ${GEN_PROMPTS_JSON}}  ← cheap position projection
+    │   │   ├── ${GEN_IMAGES_SUBDIR}/{ID.png, ID${IMAGE_TRACE_SUFFIX}, _manifest.json}
+    │   │   ├── ${GEN_HEADER_LOCKED_SUBDIR}/{ID.png, _manifest.json}
     │   │   ├── ${GEN_PPT_SUBDIR}/{NAME}.pptx (+ .backup.pptx)
     │   │   ├── ${GEN_QA_SUBDIR}/
     │   │   └── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg

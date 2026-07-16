@@ -60,6 +60,24 @@ import {
 } from "./visual_config.mjs";
 
 import { COLOR_PALETTE_FILE } from "./bundle_layout.mjs";
+import {
+  ARTIFACT_KIND_FINAL_SLIDE,
+  ARTIFACT_KIND_RAW_RENDER,
+  ARTIFACT_STATUS_VERIFIED,
+  RENDER_ENGINE_IMAGE2,
+  artifactManifestEntryKey,
+  emptyArtifactManifest,
+  readArtifactManifest,
+  resolveRenderArtifact,
+  writeArtifactManifestAtomic,
+} from "./lib/render_artifacts.mjs";
+import {
+  IMAGE_MANIFEST_NAME,
+  readImageManifest,
+  sha256Bytes,
+  sha256File,
+  stableJson,
+} from "./lib/image_provenance.mjs";
 
 // ---------------------------------------------------------------------------
 // Canonical render-mode vocabulary (shared with stage1)
@@ -479,7 +497,7 @@ function _registerFontBuffer(buffer, family, weight) {
     return existing;
   }
   const synthName = `__hdr_${_REGISTERED_FONTS.size}`;
-  GlobalFonts.register(buffer, { family: synthName });
+  GlobalFonts.register(buffer, synthName);
   _REGISTERED_FONTS.set(key, synthName);
   return synthName;
 }
@@ -650,6 +668,7 @@ function _loadColorsFromPalette(palettePath) {
       `  Loaded canvas, header geometry, colors, and fonts from ${palettePath}`,
     );
   }
+  return config;
 }
 
 // ---------------------------------------------------------------------------
@@ -907,16 +926,33 @@ function _resolveImages(imgDir, slides) {
   /** @type {Array<{slideId:string,reason:string,hits:string[]}>} */
   const problems = [];
   const dirName = basename(imgDir);
+  const { manifest, error: manifestError } = readImageManifest(imgDir);
 
   for (const slide of slides) {
-    const sid = slide.id;
-    const hits = _matchSlideImage(imgDir, sid);
-    if (hits.length === 0) {
-      problems.push({ slideId: sid, reason: "missing_image", hits: [] });
-    } else if (hits.length > 1) {
-      problems.push({ slideId: sid, reason: "ambiguous_images", hits });
+    const sid = slide.slide_id || slide.id;
+    const artifact = resolveRenderArtifact({
+      directory: imgDir,
+      manifest,
+      manifestError,
+      slideId: sid,
+      renderEngine: RENDER_ENGINE_IMAGE2,
+      artifactKind: ARTIFACT_KIND_RAW_RENDER,
+      defaultEngine: RENDER_ENGINE_IMAGE2,
+      defaultKind: ARTIFACT_KIND_RAW_RENDER,
+    });
+    if (artifact.status === ARTIFACT_STATUS_VERIFIED) {
+      resolved[sid] = artifact;
     } else {
-      resolved[sid] = hits[0];
+      problems.push({
+        slideId: sid,
+        reason: artifact.status === "legacy-located"
+          ? "legacy_located_image"
+          : artifact.status === "ambiguous"
+            ? "ambiguous_images"
+            : "missing_image",
+        hits: artifact.candidates || (artifact.path ? [artifact.path] : []),
+        artifact,
+      });
     }
   }
 
@@ -924,8 +960,10 @@ function _resolveImages(imgDir, slides) {
     throw attachCliDiagnostic(new Error(
       `✗ Stage 3 cannot start — ${problems.length} image problem(s):\n` +
         problems.map((problem) => problem.reason === "missing_image"
-          ? `  - no image for slide ${JSON.stringify(problem.slideId)} (expected NN_${problem.slideId}.png in ${dirName}/)`
-          : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`).join("\n") +
+          ? `  - no verified raw-render for slide ${JSON.stringify(problem.slideId)} in ${dirName}/`
+          : problem.reason === "legacy_located_image"
+            ? `  - legacy image for slide ${JSON.stringify(problem.slideId)} is locatable but not provenance-verified: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`
+            : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`).join("\n") +
         `\n  Stage 2 likely didn't finish. Re-run Stage 2 (e.g. --stage 2) to ` +
         `generate the missing images, then Stage 3. (Building a partial deck would ` +
         `misalign every downstream speaker note.)`,
@@ -936,10 +974,14 @@ function _resolveImages(imgDir, slides) {
       operation: "resolve-images",
       source: { path: imgDir },
       issues: problems.map((problem) => ({
-        message: problem.reason === "missing_image" ? "slide image is missing" : "multiple slide images are ambiguous",
+        message: problem.reason === "missing_image"
+          ? "verified raw slide image is missing"
+          : problem.reason === "legacy_located_image"
+            ? "raw slide image is only legacy-located"
+            : "multiple slide images are ambiguous",
         subject: { kind: "slide", id: problem.slideId },
         source: { path: problem.hits[0] || imgDir },
-        reason: { kind: problem.reason, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
+        reason: { kind: problem.reason, status: problem.artifact.status, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
         lineage: [{ kind: "derived", path: problem.hits[0] || imgDir, stage: "stage2" }],
       })),
       next: createCliNext("repair_prerequisite", { inspect: [{ path: imgDir }], default: "Rerun Stage 2 for the retained slide ids, then rerun Stage 3." }),
@@ -1097,7 +1139,7 @@ async function runLockHeaders(opts) {
       candidates.find((c) => _isDir(c)) || candidates[0];
     palettePath = join(styleDir, COLOR_PALETTE_FILE);
   }
-  _loadColorsFromPalette(palettePath);
+  const visualConfig = _loadColorsFromPalette(palettePath);
 
   // Load slide plan.
   let planData;
@@ -1124,20 +1166,40 @@ async function runLockHeaders(opts) {
 
   // Fail loud on a partial/ambiguous image set BEFORE writing anything.
   const images = _resolveImages(imgDir, slides);
+  const finalManifestPath = join(outDir, IMAGE_MANIFEST_NAME);
+  const existingFinal = readArtifactManifest(finalManifestPath);
+  if (existingFinal.error && existsSync(finalManifestPath)) {
+    throw attachCliDiagnostic(new Error(existingFinal.error), {
+      version: 1,
+      category: "artifact",
+      stage: "stage3",
+      operation: "load-final-manifest",
+      source: { path: finalManifestPath },
+      reason: { kind: "invalid_final_manifest" },
+      next: createCliNext("repair_prerequisite", {
+        inspect: [{ path: finalManifestPath }],
+        default: "Remove the corrupt generated Stage 3 manifest and rerun Stage 3.",
+      }),
+    });
+  }
+  const finalManifest = existingFinal.manifest?.entries
+    ? existingFinal.manifest
+    : emptyArtifactManifest();
 
   let bodyLockCount = 0;
   let fullPageCount = 0;
 
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i];
-    const slideId = slide.id;
-    const imgPath = images[slideId];
+    const slideId = slide.slide_id || slide.id;
+    const rawArtifact = images[slideId];
+    const imgPath = rawArtifact.path;
 
     const layout = slide.layout_contract || {};
     const mode = contractRenderMode(layout);
-    const seq = String(i + 1).padStart(2, "0");
-    const outName = `${seq}_${slideId}.png`;
+    const outName = `${slideId}.png`;
     const outPath = join(outDir, outName);
+    let directCopy = false;
 
     if (mode === RENDER_MODE_FULL_PAGE) {
       // Full-page passthrough: check PNG dimensions without decoding.
@@ -1148,29 +1210,69 @@ async function runLockHeaders(opts) {
       if (dims && dims.width === _CANVAS_SIZE[0] && dims.height === _CANVAS_SIZE[1]) {
         copyFileSync(imgPath, outPath);
         fullPageCount++;
-        console.log(`  ${outName}  (${mode}, direct copy)`);
-        continue;
+        directCopy = true;
       }
       // Dimensions mismatch — fall through to canvas resize below.
     }
 
-    // Load and resize the raw image into a Canvas.
-    const imageCanvas = await _loadImageToCanvas(imgPath, _CANVAS_SIZE);
+    if (!directCopy) {
+      // Load and resize the raw image into a Canvas.
+      const imageCanvas = await _loadImageToCanvas(imgPath, _CANVAS_SIZE);
 
-    /** @type {import("@napi-rs/canvas").Canvas} */
-    let finalCanvas;
-    if (mode === RENDER_MODE_FULL_PAGE) {
-      finalCanvas = imageCanvas;
-      fullPageCount++;
-    } else {
-      finalCanvas = _drawHeader(imageCanvas, slide);
-      bodyLockCount++;
+      /** @type {import("@napi-rs/canvas").Canvas} */
+      let finalCanvas;
+      if (mode === RENDER_MODE_FULL_PAGE) {
+        finalCanvas = imageCanvas;
+        fullPageCount++;
+      } else {
+        finalCanvas = _drawHeader(imageCanvas, slide);
+        bodyLockCount++;
+      }
+
+      const buffer = finalCanvas.toBuffer("image/png");
+      writeFileSync(outPath, buffer);
     }
 
-    const buffer = finalCanvas.toBuffer("image/png");
-    writeFileSync(outPath, buffer);
-    console.log(`  ${outName}  (${mode})`);
+    const headerProfile = {
+      raw_render: {
+        generation_fingerprint: rawArtifact.fingerprint,
+        generation_profile: rawArtifact.profile,
+        image_sha256: rawArtifact.byte_sha256,
+      },
+      render_mode: mode,
+      header: mode === RENDER_MODE_BODY_HEADER_LOCK
+        ? {
+            kicker: slide.kicker || "",
+            headline: slide.headline || "",
+            subtitle: slide.subtitle || "",
+            visual_config: visualConfig,
+          }
+        : { passthrough_canvas: _CANVAS_SIZE },
+    };
+    const headerFingerprint = sha256Bytes(stableJson(headerProfile));
+    const finalEntry = {
+      slide_id: slideId,
+      render_engine: RENDER_ENGINE_IMAGE2,
+      artifact_kind: ARTIFACT_KIND_FINAL_SLIDE,
+      output: outName,
+      output_sha256: sha256File(outPath),
+      raw_input: basename(imgPath),
+      raw_image_sha256: rawArtifact.byte_sha256,
+      render_mode: mode,
+      fingerprint: headerFingerprint,
+      profile: headerProfile,
+      header_fingerprint: headerFingerprint,
+      generated_at: new Date().toISOString(),
+    };
+    finalManifest.entries[artifactManifestEntryKey({
+      slideId,
+      renderEngine: RENDER_ENGINE_IMAGE2,
+      artifactKind: ARTIFACT_KIND_FINAL_SLIDE,
+    })] = finalEntry;
+    console.log(`  ${outName}  (${mode}${directCopy ? ", direct copy" : ""})`);
   }
+
+  writeArtifactManifestAtomic(finalManifestPath, finalManifest);
 
   console.log(`\n--- Stage 3 complete ---`);
   console.log(`body+header-lock (text overlay): ${bodyLockCount}`);

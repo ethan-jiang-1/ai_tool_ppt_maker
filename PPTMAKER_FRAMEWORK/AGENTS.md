@@ -511,7 +511,7 @@ Stage 2 每次完成后会自动更新 `_generated/preview/contact_sheet.jpg`。
 
 ### 版本快照
 
-增/删/重排先进入 Structural Versioning Path：用 `bundle_layout.mjs --new-version deck_{NAME}/3_versions/v{n}` 创建干净版本。它只复制 `slide-specifications.md` + `overrides/`，不会复制旧 `_generated/`；随后在新版本按受影响页选择适用刷新路径。重大下游改动和这一版单独换视觉方向也可开新版本；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开新版本。
+增/删/重排先进入 Structural Versioning Path：用 `ppt_flow slides` 将当前 position/spoken selector 绑定为 stable ID，生成 no-write preview；用户确认 before/after 后，Agent 用同一个 `plan_sha256` 原子发布干净 vNext。它只复制源/control，不复制旧 `_generated/`。随后只物化 manifest 证明完整的 raw render，在目标本地重建 Stage 3/contact sheet/4/5；`needs_render` 必须单独说明成本并获得 Generated Image Rebuild 授权。重大下游改动可另起 vNext；受众、主叙事或设计系统分叉可建议新 deck；改隐喻/公式/视觉主干是改 backbone（影响全版本），不是开版本逃避共享语义。
 
 ### 结构化迭代流程
 
