@@ -271,20 +271,19 @@ export async function stage1(runDir, dryRun) {
     });
   }
 
-  const { plan, prompts } = parseSlides([inputFile], finalRules, assetManifest);
+  const { plan, prompts, identity } = parseSlides([inputFile], finalRules, assetManifest);
 
   const planPath = join(buildDir, GEN_SLIDE_PLAN);
   const promptsDir = join(buildDir, GEN_PROMPTS_SUBDIR);
   mkdirSync(promptsDir, { recursive: true });
   const promptsPath = join(promptsDir, GEN_PROMPTS_JSON);
 
-  writeFileSync(planPath, JSON.stringify({ slides: plan }, null, 2) + "\n", "utf-8");
-  writeFileSync(promptsPath, JSON.stringify({ slides: prompts }, null, 2) + "\n", "utf-8");
+  writeFileSync(planPath, JSON.stringify({ ...(identity ? { identity } : {}), slides: plan }, null, 2) + "\n", "utf-8");
+  writeFileSync(promptsPath, JSON.stringify({ ...(identity ? { identity } : {}), slides: prompts }, null, 2) + "\n", "utf-8");
 
   // One human-readable prompt file per slide
   for (const entry of prompts) {
-    const stem = basename(entry.out, ".png");
-    const mdPath = join(promptsDir, `${stem}.prompt.md`);
+    const mdPath = join(promptsDir, entry.prompt_twin);
     writeFileSync(
       mdPath,
       `# Prompt — ${entry.id}\n\n` +
@@ -298,7 +297,7 @@ export async function stage1(runDir, dryRun) {
   console.log(`  Parsed ${plan.length} slides`);
   console.log(`  slide_plan:  ${planPath}`);
   console.log(`  prompts:     ${promptsPath}`);
-  console.log(`  per-slide:   ${promptsDir}/NN_id.prompt.md  (${prompts.length} files)`);
+  console.log(`  per-slide:   ${promptsDir}/NN--id.prompt.md  (${prompts.length} files)`);
 
   return true;
 }

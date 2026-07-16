@@ -30,6 +30,7 @@ import JSZip from "jszip";
 
 import {
   GEN_PPT_SUBDIR,
+  GEN_SLIDE_PLAN,
   SLIDE_SPECS_GLOB,
   generatedDir,
   findSlideSpecs,
@@ -37,10 +38,12 @@ import {
 } from "./bundle_layout.mjs";
 import {
   buildNotesReceipt,
-  invalidateNotesReceipt,
   notesReceiptPath,
+  validateNotesRerunInputLineage,
+  validatePptxAssemblyReceipt,
   writeNotesReceiptAtomic,
 } from "./lib/notes_receipt.mjs";
+import { parseSlideDocument } from "./lib/slide_document.mjs";
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -183,25 +186,26 @@ function addNotesOverrideToContentTypes(typesXml, slideNum) {
  * @returns {string[]} Array of note strings (empty string where no note found).
  */
 export function extractNotesFromMarkdown(mdPaths) {
-  const allNotes = [];
+  return extractNoteRecordsFromMarkdown(mdPaths).map((record) => record.note);
+}
+
+/** Parse notes with formal ID evidence through the shared document model. */
+export function extractNoteRecordsFromMarkdown(mdPaths) {
+  const records = [];
 
   for (const mdPath of mdPaths) {
     const text = readFileSync(mdPath, "utf-8");
-    // Accept colon (:), full-width colon (:), hyphen (-), en-dash (–), or em-dash (—)
-    const blocks = text
-      .split(/^## Slide \d+\s*[：:\-–—]/m)
-      .slice(1);
-
-    for (const block of blocks) {
+    const document = parseSlideDocument(text, mdPath);
+    for (const block of document.slides) {
       let note = "";
 
       // Format B: inline colon-separated — > **SPEAKER NOTE**: content
-      const mB = block.match(/> \*\*SPEAKER NOTE\*\*:\s*(.+)$/m);
+      const mB = block.body.match(/> \*\*SPEAKER NOTE\*\*:\s*(.+)$/m);
       if (mB) {
         note = mB[1].trim();
       } else {
         // Format A: multi-line blockquote — > **SPEAKER NOTE**\n> content...
-        const mA = block.match(/> \*\*SPEAKER NOTE\*\*\s*\n((?:> .+\n?)+)/m);
+        const mA = block.body.match(/> \*\*SPEAKER NOTE\*\*\s*\r?\n((?:> .+(?:\r?\n|$))+)/m);
         if (mA) {
           note = mA[1]
             .replace(/^> ?/gm, "")
@@ -209,11 +213,14 @@ export function extractNotesFromMarkdown(mdPaths) {
         }
       }
 
-      allNotes.push(note);
+      records.push({
+        slide_id: block.slide_id,
+        note,
+        source: { path: mdPath, line: block.heading_range.start_line },
+      });
     }
   }
-
-  return allNotes;
+  return records;
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +377,6 @@ export async function injectNotes({ pptx, notes }) {
  * @returns {Promise<{slideCount: number, notesInjected: number}>}
  */
 export async function injectNotesFromRunDir(runDir) {
-  invalidateNotesReceipt(runDir);
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
     throw attachCliDiagnostic(new Error(`No ${SLIDE_SPECS_GLOB} found in ${runDir}`), {
@@ -405,16 +411,95 @@ export async function injectNotesFromRunDir(runDir) {
     });
   }
   const pptxFile = pptxFiles[0];
+  const planPath = join(generatedDir(runDir), GEN_SLIDE_PLAN);
+  if (!existsSync(planPath)) {
+    throw attachCliDiagnostic(new Error("Current slide_plan.json is missing. Run Stage 1 first."), {
+      version: 1, category: "artifact", stage: "stage5", operation: "load-slide-plan",
+      source: { path: planPath }, reason: { kind: "missing_slide_plan" },
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }], default: "Rerun Stage 1 before injecting notes." }),
+    });
+  }
+  let plan;
+  try {
+    plan = JSON.parse(readFileSync(planPath, "utf8"));
+  } catch (error) {
+    throw attachCliDiagnostic(new Error(`Current slide_plan.json is invalid: ${error.message}`), {
+      version: 1, category: "artifact", stage: "stage5", operation: "load-slide-plan",
+      source: { path: planPath }, reason: { kind: "invalid_slide_plan" },
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }], default: "Rerun Stage 1 before injecting notes." }),
+    });
+  }
+  const orderedSlideIds = (plan.slides || []).map((slide) => String(slide.slide_id || slide.id || ""));
+  if (orderedSlideIds.length === 0 || orderedSlideIds.some((id) => !id) || new Set(orderedSlideIds).size !== orderedSlideIds.length) {
+    throw attachCliDiagnostic(new Error("Current slide plan has missing or duplicate formal IDs."), {
+      version: 1, category: "artifact", stage: "stage5", operation: "validate-slide-plan",
+      source: { path: planPath }, reason: { kind: "invalid_slide_id_set" },
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: inputFile }, { path: planPath }], default: "Repair Stage 1 identity validation and rerun." }),
+    });
+  }
+  const noteRecords = extractNoteRecordsFromMarkdown([inputFile]);
+  const notesById = new Map();
+  const duplicateNoteIds = [];
+  for (const record of noteRecords) {
+    if (notesById.has(record.slide_id)) duplicateNoteIds.push(record.slide_id);
+    notesById.set(record.slide_id, record);
+  }
+  const planSet = new Set(orderedSlideIds);
+  const missingIds = orderedSlideIds.filter((id) => !notesById.has(id));
+  const unexpectedIds = [...notesById.keys()].filter((id) => !planSet.has(id));
+  if (missingIds.length > 0 || unexpectedIds.length > 0 || duplicateNoteIds.length > 0) {
+    throw attachCliDiagnostic(new Error(
+      `Stage 5 note IDs do not match the current plan` +
+      `${missingIds.length ? `; missing: ${missingIds.join(", ")}` : ""}` +
+      `${unexpectedIds.length ? `; unexpected: ${unexpectedIds.join(", ")}` : ""}` +
+      `${duplicateNoteIds.length ? `; duplicate: ${duplicateNoteIds.join(", ")}` : ""}`
+    ), {
+      version: 1,
+      category: "source_validation",
+      stage: "stage5",
+      operation: "match-note-ids",
+      source: { path: inputFile },
+      issues: [
+        ...missingIds.map((id) => ({ message: "planned slide has no source note block", subject: { kind: "slide", id }, reason: { kind: "missing_note_id" } })),
+        ...unexpectedIds.map((id) => ({ message: "source note ID is absent from current plan", subject: { kind: "slide", id }, reason: { kind: "unexpected_note_id" } })),
+        ...duplicateNoteIds.map((id) => ({ message: "source note ID is duplicated", subject: { kind: "slide", id }, reason: { kind: "duplicate_note_id" } })),
+      ],
+      next: createCliNext("edit_source", { inspect: [{ path: inputFile }, { path: planPath }], default: "Make source note IDs exactly match the current slide plan, then rerun Stage 5." }),
+    });
+  }
+  const notes = orderedSlideIds.map((id) => notesById.get(id).note);
+  const assembly = validatePptxAssemblyReceipt(runDir, {
+    requireCurrentPptx: true,
+    expectedOrderedIds: orderedSlideIds,
+  });
+  const rerun = assembly.valid ? null : validateNotesRerunInputLineage(runDir, {
+    pptxPath: pptxFile,
+    planPath,
+    orderedSlideIds,
+  });
+  const lineage = assembly.valid ? assembly : rerun?.assembly;
+  if (!lineage?.valid || (!assembly.valid && !rerun?.valid)) {
+    throw attachCliDiagnostic(new Error(
+      `Stage 5 cannot prove ordered PPTX lineage: ${assembly.reason}; rerun lineage: ${rerun?.reason || "unavailable"}`
+    ), {
+      version: 1, category: "artifact", stage: "stage5", operation: "validate-pptx-lineage",
+      source: { path: pptxFile }, reason: { kind: "unproven_pptx_lineage" },
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: planPath }, { path: pptxFile }], default: "Rerun Stage 4 to establish current ordered-ID assembly evidence, then rerun Stage 5." }),
+    });
+  }
   const backup = pptxFile.replace(/\.pptx$/, ".backup.pptx");
   if (!existsSync(backup)) copyFileSync(pptxFile, backup);
-  const notes = extractNotesFromMarkdown([inputFile]);
   const result = await injectNotes({ pptx: pptxFile, notes });
   const receipt = buildNotesReceipt({
     runDir,
     inputPath: inputFile,
+    planPath,
     pptxPath: pptxFile,
+    orderedSlideIds,
     slideCount: result.slideCount,
     notesInjected: result.notesInjected,
+    assembly: lineage,
+    predecessor: rerun?.valid ? rerun : null,
   });
   try {
     writeNotesReceiptAtomic(runDir, receipt);

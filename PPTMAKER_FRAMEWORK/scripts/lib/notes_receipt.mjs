@@ -1,4 +1,4 @@
-/** Stage-5 completion receipt helpers. Uses only Node built-ins. */
+/** Stage-5 assembly and notes receipt helpers. Uses only Node built-ins. */
 import {
   existsSync,
   mkdirSync,
@@ -11,11 +11,16 @@ import {
 import { createHash, randomBytes } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-export const NOTES_RECEIPT_VERSION = 1;
+export const NOTES_RECEIPT_VERSION = 2;
 export const NOTES_RECEIPT_RELATIVE_PATH = join("_generated", "qa", "notes_injection.json");
+export const PPTX_ASSEMBLY_RELATIVE_PATH = join("_generated", "qa", "pptx_assembly.json");
 
 export function notesReceiptPath(runDir) {
   return join(runDir, NOTES_RECEIPT_RELATIVE_PATH);
+}
+
+export function assemblyReceiptPath(runDir) {
+  return join(runDir, PPTX_ASSEMBLY_RELATIVE_PATH);
 }
 
 export function sha256File(filePath) {
@@ -49,21 +54,183 @@ function resolveContainedExisting(runDir, relativePath) {
   return lexical;
 }
 
+function readJson(path, label) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw new Error(`${label} is invalid JSON: ${error.message}`);
+  }
+}
+
+function orderedIdsFromPlan(planPath) {
+  const plan = readJson(planPath, "slide plan");
+  const ids = (plan.slides || []).map((slide) => String(slide.slide_id || slide.id || ""));
+  if (ids.length === 0 || ids.some((id) => !id) || new Set(ids).size !== ids.length) {
+    throw new Error("slide plan has missing or duplicate formal IDs");
+  }
+  return ids;
+}
+
+function sameArray(left, right) {
+  return Array.isArray(left) && Array.isArray(right) &&
+    left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 export function invalidateNotesReceipt(runDir) {
   rmSync(notesReceiptPath(runDir), { force: true });
 }
 
-export function buildNotesReceipt({ runDir, inputPath, pptxPath, slideCount, notesInjected }) {
+export function readAssemblyReceipt(runDir) {
+  const path = assemblyReceiptPath(runDir);
+  if (!existsSync(path)) return { receipt: null, error: "PPTX assembly receipt is missing", path };
+  try {
+    return { receipt: JSON.parse(readFileSync(path, "utf8")), error: null, path };
+  } catch (error) {
+    return { receipt: null, error: `PPTX assembly receipt is invalid JSON: ${error.message}`, path };
+  }
+}
+
+/**
+ * Validate immutable assembly lineage. requireCurrentPptx is true before the
+ * first notes injection and false when validating the retained root after notes
+ * have legitimately changed the PPTX bytes.
+ */
+export function validatePptxAssemblyReceipt(runDir, {
+  requireCurrentPptx = true,
+  expectedOrderedIds = null,
+} = {}) {
+  const { receipt, error, path } = readAssemblyReceipt(runDir);
+  if (error) return { valid: false, reason: error, receipt: null, path };
+  try {
+    if (receipt.schema_version !== 1) throw new Error(`unsupported assembly schema ${receipt.schema_version}`);
+    if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length < 1) {
+      throw new Error("assembly ordered_slide_ids are missing");
+    }
+    if (new Set(receipt.ordered_slide_ids).size !== receipt.ordered_slide_ids.length) {
+      throw new Error("assembly ordered_slide_ids contain duplicates");
+    }
+    const planPath = resolveContainedExisting(runDir, receipt.slide_plan_path);
+    const pptxPath = resolveContainedExisting(runDir, receipt.pptx_path);
+    if (sha256File(planPath) !== receipt.slide_plan_sha256) throw new Error("assembly slide plan hash is stale");
+    const planIds = orderedIdsFromPlan(planPath);
+    if (!sameArray(planIds, receipt.ordered_slide_ids)) throw new Error("assembly ordered IDs do not match slide plan");
+    if (expectedOrderedIds && !sameArray(expectedOrderedIds, receipt.ordered_slide_ids)) {
+      throw new Error("assembly ordered IDs do not match current requested IDs");
+    }
+    if (!Array.isArray(receipt.final_images) || receipt.final_images.length !== planIds.length) {
+      throw new Error("assembly final image evidence count is invalid");
+    }
+    for (let index = 0; index < receipt.final_images.length; index += 1) {
+      const image = receipt.final_images[index];
+      if (image.slide_id !== planIds[index]) throw new Error("assembly final image order is invalid");
+      const imagePath = resolveContainedExisting(runDir, image.path);
+      if (sha256File(imagePath) !== image.sha256) {
+        throw new Error(`assembly final image hash is stale for ${image.slide_id}`);
+      }
+    }
+    if (requireCurrentPptx && sha256File(pptxPath) !== receipt.pptx_sha256) {
+      throw new Error("assembled PPTX hash is stale");
+    }
+    return {
+      valid: true,
+      reason: "current",
+      receipt,
+      receiptPath: path,
+      receiptSha256: sha256File(path),
+      planPath,
+      pptxPath,
+      orderedIds: planIds,
+    };
+  } catch (validationError) {
+    return { valid: false, reason: validationError.message, receipt, path };
+  }
+}
+
+export function readNotesReceipt(runDir) {
+  const path = notesReceiptPath(runDir);
+  if (!existsSync(path)) return { receipt: null, error: "notes injection receipt is missing", path };
+  try {
+    return { receipt: JSON.parse(readFileSync(path, "utf8")), error: null, path };
+  } catch (error) {
+    return { receipt: null, error: `notes injection receipt is invalid JSON: ${error.message}`, path };
+  }
+}
+
+function validateV2Shape(receipt) {
+  if (receipt.schema_version !== NOTES_RECEIPT_VERSION) {
+    throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
+  }
+  if (!Number.isInteger(receipt.slide_count) || receipt.slide_count < 1) throw new Error("invalid slide_count");
+  if (receipt.notes_injected !== receipt.slide_count) throw new Error("notes_injected does not equal slide_count");
+  if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length !== receipt.slide_count) {
+    throw new Error("ordered_slide_ids do not equal slide_count");
+  }
+  if (new Set(receipt.ordered_slide_ids).size !== receipt.ordered_slide_ids.length) {
+    throw new Error("ordered_slide_ids contain duplicates");
+  }
+  if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) {
+    throw new Error("invalid created_at");
+  }
+  if (!receipt.root_assembly || typeof receipt.root_assembly !== "object") {
+    throw new Error("root assembly lineage is missing");
+  }
+}
+
+function validateRootAssembly(runDir, receipt) {
+  const root = receipt.root_assembly;
+  const rootPath = resolveContainedExisting(runDir, root.receipt_path);
+  if (sha256File(rootPath) !== root.receipt_sha256) throw new Error("root assembly receipt hash is stale");
+  const assembly = validatePptxAssemblyReceipt(runDir, {
+    requireCurrentPptx: false,
+    expectedOrderedIds: receipt.ordered_slide_ids,
+  });
+  if (!assembly.valid) throw new Error(assembly.reason);
+  if (assembly.receipt.slide_plan_sha256 !== root.slide_plan_sha256) {
+    throw new Error("root assembly plan lineage differs");
+  }
+  if (assembly.receipt.pptx_sha256 !== root.assembled_pptx_sha256) {
+    throw new Error("root assembled PPTX lineage differs");
+  }
+  return assembly;
+}
+
+export function buildNotesReceipt({
+  runDir,
+  inputPath,
+  planPath,
+  pptxPath,
+  orderedSlideIds,
+  slideCount,
+  notesInjected,
+  assembly,
+  predecessor = null,
+}) {
   if (!Number.isInteger(slideCount) || slideCount < 1) throw new Error("slide_count must be a positive integer");
   if (!Number.isInteger(notesInjected) || notesInjected !== slideCount) throw new Error("notes_injected must equal slide_count");
+  if (!sameArray(orderedSlideIds, assembly?.orderedIds)) throw new Error("notes IDs must match root assembly IDs");
   return {
     schema_version: NOTES_RECEIPT_VERSION,
     input_path: normalizedRelative(runDir, inputPath),
     input_sha256: sha256File(inputPath),
+    slide_plan_path: normalizedRelative(runDir, planPath),
+    slide_plan_sha256: sha256File(planPath),
     pptx_path: normalizedRelative(runDir, pptxPath),
     pptx_sha256: sha256File(pptxPath),
+    ordered_slide_ids: [...orderedSlideIds],
     slide_count: slideCount,
     notes_injected: notesInjected,
+    root_assembly: {
+      receipt_path: normalizedRelative(runDir, assembly.receiptPath),
+      receipt_sha256: assembly.receiptSha256,
+      slide_plan_sha256: assembly.receipt.slide_plan_sha256,
+      ordered_slide_ids: [...assembly.orderedIds],
+      assembled_pptx_path: assembly.receipt.pptx_path,
+      assembled_pptx_sha256: assembly.receipt.pptx_sha256,
+    },
+    predecessor: predecessor ? {
+      receipt_sha256: predecessor.receiptSha256,
+      input_pptx_sha256: predecessor.inputPptxSha256,
+    } : null,
     created_at: new Date().toISOString(),
   };
 }
@@ -78,31 +245,74 @@ export function writeNotesReceiptAtomic(runDir, receipt) {
   return path;
 }
 
-export function readNotesReceipt(runDir) {
-  const path = notesReceiptPath(runDir);
-  if (!existsSync(path)) return { receipt: null, error: "notes injection receipt is missing" };
-  try {
-    return { receipt: JSON.parse(readFileSync(path, "utf8")), error: null };
-  } catch (error) {
-    return { receipt: null, error: `notes injection receipt is invalid JSON: ${error.message}` };
-  }
-}
-
-export function validateNotesReceipt(runDir) {
+/** Strict current-completion proof used by the speaker_notes_injected gate. */
+export function validateNotesCompletionReceipt(runDir) {
   const { receipt, error } = readNotesReceipt(runDir);
   const hint = "Rerun Stage 5 through unified_pipeline/ppt_flow for the current run directory";
   if (error) return { valid: false, reason: error, hint, receipt: null };
   try {
-    if (receipt.schema_version !== NOTES_RECEIPT_VERSION) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
-    if (!Number.isInteger(receipt.slide_count) || receipt.slide_count < 1) throw new Error("invalid slide_count");
-    if (receipt.notes_injected !== receipt.slide_count) throw new Error("notes_injected does not equal slide_count");
-    if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) throw new Error("invalid created_at");
+    validateV2Shape(receipt);
     const inputPath = resolveContainedExisting(runDir, receipt.input_path);
+    const planPath = resolveContainedExisting(runDir, receipt.slide_plan_path);
     const pptxPath = resolveContainedExisting(runDir, receipt.pptx_path);
     if (sha256File(inputPath) !== receipt.input_sha256) throw new Error("slide specification hash is stale");
+    if (sha256File(planPath) !== receipt.slide_plan_sha256) throw new Error("slide plan hash is stale");
     if (sha256File(pptxPath) !== receipt.pptx_sha256) throw new Error("PPTX hash is stale");
-    return { valid: true, reason: "current", hint: "", receipt, inputPath, pptxPath };
+    const planIds = orderedIdsFromPlan(planPath);
+    if (!sameArray(planIds, receipt.ordered_slide_ids)) throw new Error("ordered IDs differ from current slide plan");
+    validateRootAssembly(runDir, receipt);
+    return { valid: true, reason: "current", hint: "", receipt, inputPath, planPath, pptxPath };
   } catch (validationError) {
     return { valid: false, reason: validationError.message, hint, receipt };
   }
+}
+
+/**
+ * Authorize a notes-only successor. Source hash is intentionally not checked;
+ * edited notes make completion stale but do not erase valid PPTX ancestry.
+ */
+export function validateNotesRerunInputLineage(runDir, {
+  pptxPath = null,
+  planPath = null,
+  orderedSlideIds = null,
+} = {}) {
+  const { receipt, error, path } = readNotesReceipt(runDir);
+  const hint = "Re-establish Stage 4 assembly lineage before rerunning Stage 5";
+  if (error) return { valid: false, reason: error, hint, receipt: null };
+  try {
+    validateV2Shape(receipt);
+    const currentPptx = pptxPath || resolveContainedExisting(runDir, receipt.pptx_path);
+    const currentPlan = planPath || resolveContainedExisting(runDir, receipt.slide_plan_path);
+    // Explicit caller paths must still be contained.
+    const containedPptx = resolveContainedExisting(runDir, normalizedRelative(runDir, currentPptx));
+    const containedPlan = resolveContainedExisting(runDir, normalizedRelative(runDir, currentPlan));
+    if (sha256File(containedPptx) !== receipt.pptx_sha256) throw new Error("PPTX is not the prior notes successor");
+    if (sha256File(containedPlan) !== receipt.slide_plan_sha256) throw new Error("slide plan changed after prior notes injection");
+    const planIds = orderedIdsFromPlan(containedPlan);
+    if (!sameArray(planIds, receipt.ordered_slide_ids)) throw new Error("prior receipt ordered IDs differ from current plan");
+    if (orderedSlideIds && !sameArray(orderedSlideIds, receipt.ordered_slide_ids)) {
+      throw new Error("requested ordered IDs differ from prior notes lineage");
+    }
+    const assembly = validateRootAssembly(runDir, receipt);
+    return {
+      valid: true,
+      reason: "current rerun input lineage",
+      hint: "",
+      receipt,
+      receiptPath: path,
+      receiptSha256: sha256File(path),
+      inputPptxSha256: receipt.pptx_sha256,
+      pptxPath: containedPptx,
+      planPath: containedPlan,
+      orderedIds: planIds,
+      assembly,
+    };
+  } catch (validationError) {
+    return { valid: false, reason: validationError.message, hint, receipt };
+  }
+}
+
+/** Compatibility name now means strict schema-v2 completion. */
+export function validateNotesReceipt(runDir) {
+  return validateNotesCompletionReceipt(runDir);
 }

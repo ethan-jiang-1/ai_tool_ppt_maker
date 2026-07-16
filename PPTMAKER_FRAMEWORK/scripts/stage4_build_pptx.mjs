@@ -21,8 +21,8 @@
 import "./lib/cli_bootstrap.mjs?entry=stage4_build_pptx.mjs";
 import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
 
-import { readFileSync, readdirSync, mkdirSync } from "node:fs";
-import { resolve, basename, extname, dirname, join } from "node:path";
+import { readFileSync, readdirSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { resolve, basename, extname, dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import PptxGenJS from "pptxgenjs";
@@ -31,8 +31,17 @@ import {
   GEN_HEADER_LOCKED_SUBDIR,
   GEN_SLIDE_PLAN,
   GEN_PPT_SUBDIR,
+  GEN_QA_SUBDIR,
   generatedDir,
 } from "./bundle_layout.mjs";
+import {
+  ARTIFACT_KIND_FINAL_SLIDE,
+  ARTIFACT_STATUS_VERIFIED,
+  RENDER_ENGINE_IMAGE2,
+  readArtifactManifest,
+  resolveRenderArtifact,
+} from "./lib/render_artifacts.mjs";
+import { sha256File } from "./lib/image_provenance.mjs";
 
 // ---------------------------------------------------------------------------
 // 16:9 standard — 16:9 full-bleed
@@ -43,6 +52,31 @@ const SLIDE_HEIGHT_IN = 7.5;
 
 /** Image extensions recognised as slide images. */
 const IMG_EXTS = new Set([".png", ".jpg", ".jpeg"]);
+export const PPTX_ASSEMBLY_RECEIPT_VERSION = 1;
+export const PPTX_ASSEMBLY_RECEIPT_NAME = "pptx_assembly.json";
+
+function writeJsonAtomic(path, value) {
+  mkdirSync(dirname(path), { recursive: true });
+  const temp = `${path}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  renameSync(temp, path);
+  return path;
+}
+
+function runRelativePath(runDir, path) {
+  return relative(runDir, path).split(sep).join("/");
+}
+
+export function pptxAssemblyReceiptPath({ images, out }) {
+  const generated = dirname(resolve(images));
+  const runDir = dirname(generated);
+  return {
+    generated,
+    runDir,
+    path: join(generated, GEN_QA_SUBDIR, PPTX_ASSEMBLY_RECEIPT_NAME),
+    outPath: resolve(out),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Image matching — anchored to prevent substring cross-hits
@@ -104,6 +138,8 @@ function matchSlideImage(imgDir, slideId) {
  * @returns {Promise<{slideCount: number, outPath: string}>}
  */
 export async function buildPptx({ images, slidePlan, out, title = "Presentation" }) {
+  const receiptLocation = pptxAssemblyReceiptPath({ images, out });
+  rmSync(receiptLocation.path, { force: true });
   // ---- load slide plan -----------------------------------------------------
   let planData;
   try {
@@ -128,16 +164,34 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
   const imgDir = resolve(images);
   const resolved = [];
   const problems = [];
+  const manifestPath = join(imgDir, "_manifest.json");
+  const { manifest, error: manifestError } = readArtifactManifest(manifestPath);
 
   for (const slide of slides) {
-    const sid = slide.id;
-    const hits = matchSlideImage(imgDir, sid);
-    if (hits.length === 0) {
-      problems.push({ slideId: sid, reason: "missing_image", hits: [] });
-    } else if (hits.length > 1) {
-      problems.push({ slideId: sid, reason: "ambiguous_images", hits });
+    const sid = slide.slide_id || slide.id;
+    const engine = slide.render_engine || planData.render_engine || RENDER_ENGINE_IMAGE2;
+    const artifact = resolveRenderArtifact({
+      directory: imgDir,
+      manifest,
+      manifestError,
+      slideId: sid,
+      renderEngine: engine,
+      artifactKind: ARTIFACT_KIND_FINAL_SLIDE,
+    });
+    if (artifact.status !== ARTIFACT_STATUS_VERIFIED) {
+      problems.push({
+        slideId: sid,
+        engine,
+        reason: artifact.status === "legacy-located"
+          ? "legacy_located_image"
+          : artifact.status === "ambiguous"
+            ? "ambiguous_images"
+            : "missing_image",
+        hits: artifact.candidates || (artifact.path ? [artifact.path] : []),
+        artifact,
+      });
     } else {
-      resolved.push(hits[0]);
+      resolved.push(artifact);
     }
   }
 
@@ -145,10 +199,11 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
     throw attachCliDiagnostic(new Error(
       `✗ Stage 4 cannot build the deck — ${problems.length} image problem(s):\n` +
         problems.map((problem) => problem.reason === "missing_image"
-          ? `  - no image for slide ${JSON.stringify(problem.slideId)} (expected NN_${problem.slideId}.png in ${basename(imgDir)}/)`
-          : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: ${problem.hits.map((hit) => basename(hit)).join(", ")}`).join("\n") +
-        `\n  Re-run Stage 3 (and Stage 2 if images are missing) so every slide has ` +
-        `exactly one header-locked image, then Stage 4.`
+          ? `  - no verified final-slide for ${JSON.stringify(problem.slideId)} (${problem.engine})`
+          : problem.reason === "legacy_located_image"
+            ? `  - final image for ${JSON.stringify(problem.slideId)} is only legacy-located`
+            : `  - ambiguous final images for ${JSON.stringify(problem.slideId)}: ${problem.hits.map((hit) => basename(hit)).join(", ")}`).join("\n") +
+        `\n  Re-run local Stage 3 so every planned ID has one verified final-slide artifact.`
     ), {
       version: 1,
       category: "artifact",
@@ -156,10 +211,14 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
       operation: "resolve-images",
       source: { path: slidePlan },
       issues: problems.map((problem) => ({
-        message: problem.reason === "missing_image" ? "header-locked slide image is missing" : "multiple header-locked images are ambiguous",
+        message: problem.reason === "missing_image"
+          ? "verified final slide image is missing"
+          : problem.reason === "legacy_located_image"
+            ? "final slide image is only legacy-located"
+            : "multiple final slide images are ambiguous",
         subject: { kind: "slide", id: problem.slideId },
         source: { path: problem.hits[0] || imgDir },
-        reason: { kind: problem.reason, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
+        reason: { kind: problem.reason, status: problem.artifact.status, render_engine: problem.engine, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
         lineage: [{ kind: "derived", path: slidePlan, stage: "stage1" }, { kind: "derived", path: problem.hits[0] || imgDir, stage: "stage3" }, { kind: "derived", path: out, stage: "stage4" }],
       })),
       next: createCliNext("repair_prerequisite", { inspect: [{ path: slidePlan }, { path: imgDir }], default: "Rerun Stage 3, and Stage 2 if needed, then rebuild the PPTX." }),
@@ -176,8 +235,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i];
-    const imgPath = resolved[i];
-    const slideId = slide.id;
+    const imgPath = resolved[i].path;
+    const slideId = slide.slide_id || slide.id;
 
     const pptSlide = pres.addSlide();
 
@@ -199,13 +258,38 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
   // Ensure output directory exists
   const outPath = resolve(out);
   mkdirSync(dirname(outPath), { recursive: true });
+  const tempPptx = join(dirname(outPath), `.${basename(outPath)}.stage4-${process.pid}-${Date.now()}.tmp.pptx`);
+  try {
+    await pres.writeFile({ fileName: tempPptx });
+    renameSync(tempPptx, outPath);
+  } catch (error) {
+    rmSync(tempPptx, { force: true });
+    throw error;
+  }
 
-  await pres.writeFile({ fileName: outPath });
+  const receipt = {
+    schema_version: PPTX_ASSEMBLY_RECEIPT_VERSION,
+    slide_plan_path: runRelativePath(receiptLocation.runDir, resolve(slidePlan)),
+    slide_plan_sha256: sha256File(slidePlan),
+    ordered_slide_ids: slides.map((slide) => slide.slide_id || slide.id),
+    final_images: resolved.map((artifact) => ({
+      slide_id: artifact.slide_id,
+      render_engine: artifact.render_engine,
+      artifact_kind: artifact.artifact_kind,
+      path: runRelativePath(receiptLocation.runDir, artifact.path),
+      sha256: artifact.byte_sha256,
+      fingerprint: artifact.fingerprint,
+    })),
+    pptx_path: runRelativePath(receiptLocation.runDir, outPath),
+    pptx_sha256: sha256File(outPath),
+    created_at: new Date().toISOString(),
+  };
+  writeJsonAtomic(receiptLocation.path, receipt);
 
   console.error(`\n--- Stage 4 complete ---`);
   console.error(`PPTX: ${outPath}  (${slides.length} slides)`);
 
-  return { slideCount: slides.length, outPath };
+  return { slideCount: slides.length, outPath, receipt, receiptPath: receiptLocation.path };
 }
 
 /**
