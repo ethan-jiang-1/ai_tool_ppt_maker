@@ -47,7 +47,7 @@ export function resolveImageEntries(imageDir, promptJson = null) {
       const outName = slide.out || `${slide.id}.png`;
       const p = join(imageDir, outName);
       if (existsSync(p)) {
-        entries.push({ id: slide.id || basename(outName, ".png"), path: p });
+        entries.push({ id: slide.id || basename(outName, ".png"), label: slide.label || slide.id || basename(outName, ".png"), path: p });
       }
     }
     if (entries.length > 0) return entries;
@@ -113,7 +113,7 @@ export async function makeContactSheet({
     const slides = data.slides || data.prompts || [];
     entries = slides.map((slide) => {
       const outName = slide.out || `${slide.id}.png`;
-      return { id: slide.id || basename(outName, ".png"), path: join(imageDir, outName) };
+      return { id: slide.id || basename(outName, ".png"), label: slide.label || slide.id || basename(outName, ".png"), path: join(imageDir, outName) };
     });
     for (const entry of entries) {
       if (!existsSync(entry.path)) failures.push({ ...entry, reason: "missing_image" });
@@ -159,7 +159,7 @@ export async function makeContactSheet({
       ctx.fillText("load fail", x + 8, y + 24);
       ctx.fillStyle = LABEL_COLOR;
     }
-    ctx.fillText(entries[i].id, x + 4, y + CELL_H + 20);
+    ctx.fillText(entries[i].label || entries[i].id, x + 4, y + CELL_H + 20);
   }
 
   if (failures.length > 0) {

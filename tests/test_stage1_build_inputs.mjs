@@ -191,10 +191,12 @@ describe('stage1_build_inputs', () => {
     expect(result.prompts).toEqual([
       expect.objectContaining({
         id: 'DeckGo', slide_id: 'DeckGo', position: 1,
+        label: '01 · DeckGo · A precise title',
         out: 'DeckGo.png', prompt_twin: '01--DeckGo.prompt.md',
       }),
       expect.objectContaining({
         id: 'UXGap', slide_id: 'UXGap', position: 2,
+        label: '02 · UXGap · A precise title',
         out: 'UXGap.png', prompt_twin: '02--UXGap.prompt.md',
       }),
     ]);

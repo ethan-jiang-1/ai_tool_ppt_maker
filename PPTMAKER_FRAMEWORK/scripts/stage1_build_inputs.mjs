@@ -902,6 +902,7 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
                 id: slideId,
                 slide_id: slideId,
                 position: seq,
+                label: `${String(seq).padStart(2, "0")} · ${slideId}${headline ? ` · ${headline}` : ""}`,
                 out: outName,
                 prompt_twin: promptTwin,
                 prompt: fullPrompt,

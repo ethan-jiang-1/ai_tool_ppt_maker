@@ -8,7 +8,7 @@
 
 | 脚本 | 用途 | 调用 |
 |------|------|------|
-| `ppt_flow.mjs` | CLI 命令面 (12 个命令) | `node scripts/ppt_flow.mjs <command>` |
+| `ppt_flow.mjs` | CLI 命令面 (13 个命令，含 `slides`) | `node scripts/ppt_flow.mjs <command>` |
 | `bundle_layout.mjs` | 目录结构 SSOT | `node scripts/bundle_layout.mjs [--init\|--check\|--self-check]` |
 
 ## 生产管线
@@ -22,6 +22,8 @@
 | `stage4_build_pptx.mjs` | 4 | `header_locked/*.png` → `.pptx` | `pptxgenjs` |
 | `stage5_inject_notes.mjs` | 5 | `.pptx` + `slide-specifications.md` → `.pptx` (with notes) | `pptxgenjs` |
 | `unified_pipeline.mjs` | 编排 | 串联 Stage 1→5 | 所有 |
+
+结构版本由 `slide_id` 维持身份、`position` 投影当前顺序。跨版本只复用 provenance 完整的 expensive `raw-render`；目标版本拥有自己的 raw manifest，Stage 3 final、contact sheet、PPTX 与 notes 都本地重建。文件/manifest identity 按 ID + engine + artifact kind + fingerprint，不按页序或 glob 猜测；`legacy-located` 只能提示，不算复用证据。
 
 Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill。凭据规范名：`IMAGE2_API_KEY` + `IMAGE2_BASE_URL`；详见 `workflow/00-setup/03-tool-selection.md`。
 
@@ -48,13 +50,16 @@ Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill�
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage all
 
 # 改标题：先解析 resolved render mode，再选择 Header Text & Style Refresh / Generated Image Rebuild
-node scripts/ppt_flow.mjs refresh deck_{NAME}/3_versions/v1 --kind title --only slide_07
+node scripts/ppt_flow.mjs refresh deck_{NAME}/3_versions/v1 --kind title --only UXGap
 
 # 只改备注 (Notes-Only Refresh)
 node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 5
 
 # 单页重建生成图 (Generated Image Rebuild；raw --only 必须显式 force)
-node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only slide_07 --force-images
+node scripts/unified_pipeline.mjs --run-dir deck_{NAME}/3_versions/v1 --stage 2 --only UXGap --force-images
+
+# 结构编辑默认 preview；确认后 Agent 重放同一操作并传 exact plan hash
+node scripts/ppt_flow.mjs slides move deck_{NAME}/3_versions/v1 "UX gap" --after 3 --json
 ```
 
 ## 依赖

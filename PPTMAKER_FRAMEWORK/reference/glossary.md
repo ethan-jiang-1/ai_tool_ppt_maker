@@ -152,6 +152,12 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 
 ## 生产管线
 
+### Slide Identity / Position
+`slide_id` 是一页跨版本稳定的身份；`position` 是当前 slide document 顺序派生的 1-based 页序。人类输出统一为 `07 · UXGap · Why onboarding breaks`。新 deck frontmatter 声明 `identity.scheme: mnemonic-v1`；Agent 使用 5–8 个 ASCII 字母、恰好两个 BlockCase 语义块，优先 5–6，如 `DeckGo`、`UXGap`、`AICost`。页码可用于当下口述，但重排后引用必须回到 ID。
+
+### Render Artifact Identity
+生成 artifact 的逻辑身份是 `(slide_id, render_engine, artifact_kind, fingerprint)`。`raw-render` 是昂贵生成物；`final-slide` 是 Stage 3 本地派生物。只有 manifest 的 kind/engine/fingerprint/profile/byte SHA 全部验证后状态才是 `verified`；只能从旧文件名定位但证据不全时是 `legacy-located`，不能跨版本复用。
+
 ### Header-Lock（标题锁定）
 把 slide 的标题文字从 AI image generation 中分离出来，交给 Node `@napi-rs/canvas` 做确定性渲染。AI 负责 body visual（图表、卡片、颜色），确定性层负责 header text（kicker + title + subtitle），在精确的像素位置、用精确的字体大小。
 
@@ -173,7 +179,7 @@ Reference image at `2_backbone/visual-style/style_master.jpg` — palette, type 
 - **Header Text & Style Refresh**（页眉文字与样式刷新；formerly Chain A）：只适用于 resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE，或 Stage 3 拥有的字体、颜色、位置、行高与间距；raw-image contract 必须不变。Stage 1 → 3 → 4 → 5（~5 分钟）。
 - **Generated Image Rebuild**（生成图重建；formerly Chain B）：生成图或 raw-image contract 失效。Stage 1 → 对所选页强制 Stage 2 → review → Stage 3/4/5；full-page 标题使用 pilot/review 后复用已审图（~5 分钟/页）。
 - **Notes-Only Refresh**（仅备注刷新；formerly Chain C）：只改 speaker notes。Stage 5（~30 秒）。
-- **Structural Versioning Path**（结构版本路径；formerly Structural）：增/删/重排先创建干净新版本，再按受影响页选择上述 refresh path；它不是第四条并列 refresh path。
+- **Structural Versioning Path**（结构版本路径；formerly Structural）：增/删/重排先用 stable-ID snapshot preview 和 exact hash 发布干净 vNext，再只物化 verified raw、在目标本地重建 cheap outputs；`needs_render` 需另行授权。它不是第四条并列 refresh path。
 
 标题意图统一走 `ppt_flow refresh --kind title`：resolved `body+header-lock` 使用 Header Text & Style Refresh；resolved `full-page` 使用 Generated Image Rebuild，需要所选页生图与 header review。safe-zone 或 render mode 变化也属于 Generated Image Rebuild。
 
@@ -195,6 +201,9 @@ Few-page visual gate before full production. Artifacts under `_generated/preview
 
 ### 版本快照（Version Snapshot）
 `bundle_layout.mjs --new-version deck_X/3_versions/v{n}`——只复制下游源 delta，并创建干净 `_generated/`。适用于砍/加/重排 slide 等下游结构改动；隐喻/公式/共享视觉属于 backbone，不应借开版本逃避共享语义。
+
+### 结构逃生阶梯
+结构计划 stale 或小冲突时重新 preview；同一方向变化大时另起 vNext；受众、主叙事或设计系统分叉时另建 deck。Git 可用于审计和回退，但不替代 run-bundle 的版本边界。
 
 ---
 

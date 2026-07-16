@@ -265,7 +265,7 @@ SPEAKER NOTE 是给演讲者的。它不是 slide 内容的重复——而是 sl
 把四层合在一起，一个完整的 slide 规格看起来是这样的：
 
 ```markdown
-## Slide NN: [slide_id]
+## Slide NN: [BlockCase mnemonic ID, e.g. UXGap]
 
 **VISUAL TYPE**: [from list]
 **KICKER**: [3-6 words, ALL CAPS]
@@ -280,6 +280,13 @@ SPEAKER NOTE 是给演讲者的。它不是 slide 内容的重复——而是 sl
 - Content structure: [Logical structure — comparison/framework/flow]
 
 **IMAGE PROMPT**:
+```
+
+正式 ID 是跨版本身份，页序只是当前投影。Agent 用 `SUBJECT + MOVE` 命名恰好两个 BlockCase 语义块，5–8 个 ASCII 字母、优先 5–6；7–8 仅在更清楚时使用。避免 `Problem` 这类单词类别、`Risk2`/随机后缀和为压缩长度而生成的不可口述 token。新文档 frontmatter 声明：
+
+```yaml
+identity:
+  scheme: mnemonic-v1
 ```
 [LAYOUT OVERVIEW: y ranges, zone proportions]
 [ZONE 1 DESCRIPTION: panels, icons, text, colors]

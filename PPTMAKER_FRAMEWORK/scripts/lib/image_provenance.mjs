@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { basename, join } from "node:path";
@@ -91,6 +92,7 @@ export function readImageManifest(outDir) {
 }
 
 export function writeImageManifestAtomic(outDir, manifest) {
+  mkdirSync(outDir, { recursive: true });
   const path = manifestPath(outDir);
   const temp = `${path}.tmp-${process.pid}-${Date.now()}`;
   writeFileSync(temp, JSON.stringify(manifest, null, 2) + "\n", "utf-8");
@@ -203,7 +205,16 @@ export function materializeVerifiedRawImage({
   }
   mkdirSync(targetDir, { recursive: true });
   const targetPath = join(targetDir, targetOutput);
-  if (proof.imagePath !== targetPath) copyFileSync(proof.imagePath, targetPath);
+  if (proof.imagePath !== targetPath) {
+    const tempPath = join(targetDir, `.${targetOutput}.materialize-${process.pid}-${Date.now()}`);
+    try {
+      copyFileSync(proof.imagePath, tempPath);
+      renameSync(tempPath, targetPath);
+    } catch (error) {
+      try { rmSync(tempPath, { force: true }); } catch { /* best effort */ }
+      throw error;
+    }
+  }
   const entry = {
     ...proof.entry,
     slide_id: slideId,
@@ -222,8 +233,8 @@ export function materializeVerifiedRawImage({
   return { status: "verified", slide_id: slideId, path: targetPath, entry, proof };
 }
 
-export function publishMaterializedRawImages({ targetDir, results }) {
-  const { manifest } = readImageManifest(targetDir);
+export function publishMaterializedRawImages({ targetDir, results, replace = false }) {
+  const manifest = replace ? emptyImageManifest() : readImageManifest(targetDir).manifest;
   for (const result of results || []) {
     if (result.status === "verified" && result.entry) {
       manifest.slides[result.slide_id] = result.entry;

@@ -6,8 +6,8 @@
  * This is the default human/agent entry point. It delegates to the structural SSOT
  * and production orchestrator instead of duplicating their logic.
  *
- * 12 commands: doctor, init, status, approve, style-master, validate, pilot,
- *              build, refresh, new-version, test, state
+ * 13 commands: doctor, init, status, approve, style-master, validate, pilot,
+ *              build, refresh, slides, new-version, test, state
  *
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
@@ -23,8 +23,8 @@ import "./lib/cli_bootstrap.mjs?entry=ppt_flow.mjs";
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync,
-         rmSync } from "node:fs";
-import { join, resolve, basename, dirname } from "node:path";
+         rmSync, renameSync, realpathSync } from "node:fs";
+import { join, resolve, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import {
@@ -64,7 +64,7 @@ import {
   STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE,
   BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE,
   // version
-  SLIDE_SPECS_GLOB, OVERRIDES_SUBDIR, GENERATED_SUBDIR,
+  SLIDE_SPECS_GLOB, OVERRIDES_SUBDIR, GENERATED_SUBDIR, SCRATCH_SUBDIR,
   // _generated
   GEN_SLIDE_PLAN, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON,
   GEN_IMAGES_SUBDIR, GEN_HEADER_LOCKED_SUBDIR,
@@ -75,9 +75,16 @@ import {
   // catalogues
   DECK_TYPE_TEMPLATES, STYLE_PRESETS,
   // init / check / create
-  initBundle, checkBundle, createVersion,
+  initBundle, checkBundle, createVersion, nextVersionName, publishStructuralVersion,
 } from "./bundle_layout.mjs";
-import { resolveSlideIds, formatAvailableSlideIds } from "./lib/slide_ids.mjs";
+import { resolveSlideBindings, resolveSlideIds, formatAvailableSlideIds, formatSlideCandidate } from "./lib/slide_ids.mjs";
+import {
+  applySlideEdit,
+  parseSlideDocument,
+  planSlideEdit,
+  validateSlideDocument,
+  verifySlideEditPlanHash,
+} from "./lib/slide_document.mjs";
 import { isHeroVisualType } from "./lib/render_policy.mjs";
 
 // ---------------------------------------------------------------------------
@@ -306,11 +313,19 @@ function collectStatus(runDir) {
   const planPath = join(genDir, GEN_SLIDE_PLAN);
 
   let expected = 0;
+  let slideLabels = [];
   if (existsSync(planPath)) {
     try {
-      expected = (JSON.parse(readFileSync(planPath, "utf-8")).slides || []).length;
+      const slides = JSON.parse(readFileSync(planPath, "utf-8")).slides || [];
+      expected = slides.length;
+      slideLabels = slides.map((slide) => formatSlideCandidate({
+        slide_id: slide.slide_id || slide.id,
+        position: slide.position,
+        title: slide.headline || slide.title || "",
+      }));
     } catch {
       expected = 0;
+      slideLabels = [];
     }
   }
 
@@ -346,6 +361,7 @@ function collectStatus(runDir) {
     style_master: existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE)),
     slide_plan: existsSync(planPath),
     expected_slides: expected,
+    slide_labels: slideLabels,
     raw_images: pngCount(imagesDir),
     locked_images: pngCount(lockedDir),
     pptx: pptxFiles.map((f) => basename(f)),
@@ -448,6 +464,7 @@ function printStatus(status) {
   console.log(`  Visual gate:   ${status.visual_gate}`);
   console.log(`  Style master:  ${status.style_master ? "ready" : "missing"}`);
   console.log(`  Slide plan:    ${status.slide_plan ? "ready" : "not built"}`);
+  for (const label of status.slide_labels || []) console.log(`    ${label}`);
   console.log(`  Raw images:    ${status.raw_images}/${expected}`);
   console.log(`  Locked images: ${status.locked_images}/${expected}`);
   console.log(
@@ -1496,6 +1513,274 @@ function commandNewVersion(runDir, { name }) {
 }
 
 // ---------------------------------------------------------------------------
+// Command: slides
+// ---------------------------------------------------------------------------
+
+function readCanonicalSlideSource(runDir) {
+  const resolved = resolve(runDir);
+  const structureIssues = checkBundle(resolved, false);
+  if (structureIssues.length > 0) {
+    const error = new Error(`run bundle has ${structureIssues.length} structure issue(s)`);
+    error.slideDiagnostic = {
+      category: "structure",
+      operation: "load-slide-source",
+      source: { path: resolved },
+      issues: structureIssues.map((message) => ({ message, reason: { kind: "structure_violation" } })),
+    };
+    throw error;
+  }
+  const sourcePath = findSlideSpecs(resolved);
+  if (!sourcePath || basename(sourcePath) !== "slide-specifications.md") {
+    throw new Error("slides editing requires exactly one canonical slide-specifications.md");
+  }
+  const sourceText = readFileSync(sourcePath, "utf8");
+  const source = relative(deckRoot(resolved), sourcePath).split(sep).join("/");
+  return {
+    runDir: resolved,
+    sourcePath,
+    sourceText,
+    document: parseSlideDocument(sourceText, source),
+  };
+}
+
+function renderSlidesResult(result, asJson) {
+  if (asJson) {
+    registerCliJsonReport(result);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (result.kind === "slide-list") {
+    for (const slide of result.slides) console.log(formatSlideCandidate(slide));
+    return;
+  }
+  if (result.kind === "slide-resolution") {
+    for (const binding of result.bindings) {
+      const slide = result.slides.find((entry) => entry.slide_id === binding.slide_id);
+      console.log(`${binding.token} -> ${formatSlideCandidate(slide)} (${binding.matched_by})`);
+    }
+    return;
+  }
+  const label = result.applied ? "Applied" : "Preview";
+  console.log(`${label}: ${result.transaction.plan_sha256}`);
+  console.log(`Before: ${result.transaction.before_order.join(" -> ")}`);
+  console.log(`After:  ${result.transaction.after_order.join(" -> ")}`);
+  if (result.target_run_dir) console.log(`Created: ${result.target_run_dir}`);
+  if (result.receipt?.no_op) console.log("No source bytes changed.");
+  if (result.transaction.warnings.length > 0) console.log(`Review warnings: ${result.transaction.warnings.length}`);
+}
+
+function collectDeckHistoryIds(runDir) {
+  const versionsDir = dirname(runDir);
+  const ids = [];
+  for (const entry of readdirSync(versionsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !/^v\d+$/.test(entry.name)) continue;
+    const versionDir = join(versionsDir, entry.name);
+    const sourcePath = findSlideSpecs(versionDir);
+    if (!sourcePath) continue;
+    try {
+      const document = parseSlideDocument(
+        readFileSync(sourcePath, "utf8"),
+        relative(deckRoot(runDir), sourcePath).split(sep).join("/")
+      );
+      ids.push(...document.slides.map((slide) => slide.slide_id).filter(Boolean));
+    } catch {
+      // A malformed historical source remains inspectable but cannot silently
+      // contribute invented IDs. Current source validation still fails closed.
+    }
+  }
+  return [...new Set(ids)];
+}
+
+function slideTransaction({ context, operations, targetVersion = null }) {
+  const structural = operations.some((operation) => operation.op !== "normalize");
+  const versionName = targetVersion || (structural ? nextVersionName(context.runDir) : null);
+  return planSlideEdit(context.document, [], operations, collectDeckHistoryIds(context.runDir), {
+    publication: {
+      mode: structural ? "next-version" : "current-version",
+      target_version: versionName,
+    },
+  });
+}
+
+function atomicWriteCurrentSource(path, text) {
+  const temp = join(dirname(path), `.${basename(path)}.normalize-${process.pid}-${Date.now()}.tmp`);
+  writeFileSync(temp, text, "utf8");
+  renameSync(temp, path);
+}
+
+function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
+  if (readFileSync(context.sourcePath, "utf8") !== context.sourceText) {
+    throw new Error("source changed after preview; obtain a fresh preview");
+  }
+  const applied = applySlideEdit(transaction, context.sourceText, {
+    expectedPlanSha256: expectedHash,
+  });
+  if (transaction.publication.mode === "current-version") {
+    atomicWriteCurrentSource(context.sourcePath, applied.text);
+    return {
+      kind: "slide-edit",
+      applied: true,
+      transaction,
+      receipt: applied.receipt,
+      target_run_dir: context.runDir,
+    };
+  }
+  const publication = publishStructuralVersion({
+    sourceRunDir: context.runDir,
+    versionName: transaction.publication.target_version,
+    transformedSource: applied.text,
+    expectedSourceSha256: transaction.base_spec_sha256,
+    validateSource: ({ sourcePath }) => {
+      const staged = parseSlideDocument(readFileSync(sourcePath, "utf8"), basename(sourcePath));
+      return validateSlideDocument(staged).filter((issue) => issue.severity === "ERROR");
+    },
+  });
+  const receipt = {
+    ...applied.receipt,
+    source_run_dir: context.runDir,
+    target_run_dir: publication.target,
+    needs_render: transaction.operations
+      .filter((operation) => operation.op === "insert")
+      .map((operation) => operation.slide_id),
+  };
+  return {
+    kind: "slide-edit",
+    applied: true,
+    transaction,
+    receipt,
+    target_run_dir: publication.target,
+  };
+}
+
+function ensureConfirmedApply(opts, transaction) {
+  if (!opts.planSha256) {
+    const error = new Error("--apply requires --plan-sha256 from a confirmed preview");
+    error.code = "missing_plan_sha256";
+    throw error;
+  }
+  if (opts.planSha256 !== transaction.plan_sha256) {
+    const error = new Error("confirmed --plan-sha256 differs from the current canonical preview");
+    error.code = "plan_sha256_mismatch";
+    throw error;
+  }
+}
+
+function slideOperationsFor(subcommand, args, opts) {
+  if (subcommand === "normalize") return [{ op: "normalize" }];
+  if (subcommand === "move") {
+    const operation = { op: "move", selector: args[0] };
+    if (opts.after != null) operation.after = opts.after;
+    else if (opts.before != null) operation.before = opts.before;
+    else if (opts.to) operation.to = opts.to;
+    else throw new Error("move requires --after, --before, or --to start|end");
+    return [operation];
+  }
+  if (subcommand === "delete") return [{ op: "delete", selectors: args }];
+  if (subcommand === "insert") {
+    const blockPath = resolve(opts.source);
+    const operation = { op: "insert", block: readFileSync(blockPath, "utf8") };
+    if (opts.after != null) operation.after = opts.after;
+    else if (opts.before != null) operation.before = opts.before;
+    else operation.to = opts.to || "end";
+    return [operation];
+  }
+  throw new Error(`unsupported slides subcommand ${subcommand}`);
+}
+
+async function commandSlides(subcommand, runDir, args = [], opts = {}) {
+  try {
+    const context = readCanonicalSlideSource(runDir);
+    const slides = context.document.slides.map((slide) => ({
+      slide_id: slide.slide_id,
+      position: slide.position,
+      title: slide.title,
+    }));
+    if (subcommand === "list") {
+      renderSlidesResult({ kind: "slide-list", slides }, opts.json);
+      return 0;
+    }
+    if (subcommand === "resolve") {
+      const bindings = resolveSlideBindings(args, slides);
+      renderSlidesResult({ kind: "slide-resolution", bindings, slides }, opts.json);
+      return 0;
+    }
+    if (subcommand === "apply-plan") {
+      if (!opts.apply) throw new Error("apply-plan requires explicit --apply");
+      const scratch = resolve(context.runDir, SCRATCH_SUBDIR);
+      const planPath = resolve(opts.plan);
+      const rel = relative(scratch, planPath);
+      if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
+        throw new Error("apply-plan input must be inside the current version _scratch/");
+      }
+      const realScratch = realpathSync(scratch);
+      const realPlan = realpathSync(planPath);
+      const realRel = relative(realScratch, realPlan);
+      if (!realRel || realRel === ".." || realRel.startsWith(`..${sep}`)) {
+        throw new Error("apply-plan realpath must remain inside the current version _scratch/");
+      }
+      const transaction = JSON.parse(readFileSync(planPath, "utf8"));
+      if (!verifySlideEditPlanHash(transaction)) throw new Error("persisted slide plan self-hash is invalid");
+      if (transaction.source !== context.document.source) {
+        throw new Error("persisted slide plan source does not match the current canonical source");
+      }
+      if (opts.planSha256 && opts.planSha256 !== transaction.plan_sha256) {
+        throw new Error("--plan-sha256 differs from persisted slide plan");
+      }
+      const result = applyConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
+      renderSlidesResult(result, opts.json);
+      return 0;
+    }
+
+    const operations = slideOperationsFor(subcommand, args, opts);
+    const transaction = slideTransaction({ context, operations });
+    if (!opts.apply) {
+      renderSlidesResult({ kind: "slide-edit", applied: false, transaction }, opts.json);
+      return 0;
+    }
+    ensureConfirmedApply(opts, transaction);
+    const result = applyConfirmedSlideTransaction(context, transaction, opts.planSha256);
+    renderSlidesResult(result, opts.json);
+    return 0;
+  } catch (error) {
+    const requiresHuman = /ambiguous/i.test(error.message);
+    const selectorIssues = Array.isArray(error.candidates)
+      ? error.candidates.map((candidate) => ({
+          message: `slide selector candidate: ${formatSlideCandidate(candidate)}`,
+          subject: { kind: "slide", id: candidate.slide_id },
+          reason: { kind: "selector_candidate" },
+        }))
+      : [];
+    emitCliError({
+      code: error.code === "missing_plan_sha256" ? CLI_ERROR_CODES.USAGE : CLI_ERROR_CODES.FAILED,
+      message: error.message,
+      hint: /plan_sha256|source changed|target version/i.test(error.message)
+        ? "Obtain a fresh slides preview and apply its exact plan_sha256"
+        : "Inspect the current slide source and operation, then retry",
+      where: `ppt_flow.slides.${subcommand}`,
+      diagnostic: {
+        version: 1,
+        category: error.code === "missing_plan_sha256" ? "usage"
+          : /ambiguous/.test(error.message) ? "source_validation"
+            : /structure|version|staging|reservation/.test(error.message) ? "structure"
+              : "source_validation",
+        operation: subcommand,
+        source: { path: resolve(runDir) },
+        reason: { kind: error.code || error.name || "slide_edit_failed" },
+        ...((error.issues || selectorIssues.length > 0) ? { issues: error.issues || selectorIssues } : {}),
+        next: createCliNext(error.code === "missing_plan_sha256" ? "fix_arguments" : "edit_source", {
+          requiresHuman,
+          inspect: [{ path: resolve(runDir) }],
+          default: requiresHuman
+            ? "Stop for a choice among the bounded slide candidates, then rerun preview."
+            : "Read current source, obtain a fresh preview, and retry without editing generated artifacts.",
+        }),
+      },
+    });
+    return 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Command: test
 // ---------------------------------------------------------------------------
 
@@ -1585,6 +1870,8 @@ Examples:
   ppt_flow.mjs pilot deck_mydeck/3_versions/v1
   ppt_flow.mjs build deck_mydeck/3_versions/v1
   ppt_flow.mjs refresh deck_mydeck/3_versions/v1 --kind visual --only slide_03
+  ppt_flow.mjs slides list deck_mydeck/3_versions/v1
+  ppt_flow.mjs slides move deck_mydeck/3_versions/v1 7 --after 3
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
   ppt_flow.mjs state deck_mydeck/3_versions/v1 --check-gates
@@ -1801,6 +2088,59 @@ Examples:
         resolution: opts.resolution,
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
+      });
+      process.exit(code);
+    });
+
+  // ---- slides ----
+  program
+    .command("slides")
+    .description("Preview and apply stable-ID slide order edits")
+    .argument("<subcommand>", "list, resolve, normalize, move, delete, insert, or apply-plan")
+    .argument("<run_dir>", "Path to current version dir")
+    .argument("[selectors...]", "Slide selectors for resolve/move/delete")
+    .option("--after <selector>", "Place target after snapshot selector")
+    .option("--before <selector>", "Place target before snapshot selector")
+    .option("--to <edge>", "Place target at start or end")
+    .option("--source <path>", "Insert source containing one complete slide block")
+    .option("--plan <path>", "Persisted edit plan under current _scratch/")
+    .option("--apply", "Apply the confirmed preview")
+    .option("--plan-sha256 <hash>", "Canonical hash from the confirmed preview")
+    .option("--json", "Output one machine-readable report")
+    .action(async (subcommand, runDir, selectors, opts) => {
+      const allowed = new Set(["list", "resolve", "normalize", "move", "delete", "insert", "apply-plan"]);
+      if (!allowed.has(subcommand)) {
+        exitUsage("ppt_flow.slides.subcommand", `unknown slides subcommand ${JSON.stringify(subcommand)}`, `Use one of: ${[...allowed].join(", ")}`);
+      }
+      if (opts.json) setCliOutputMode("json");
+      const args = selectors || [];
+      if (subcommand === "resolve" && args.length === 0) {
+        exitUsage("ppt_flow.slides.resolve", "resolve requires at least one selector", "Pass one or more position, ID, or title selectors");
+      }
+      if (subcommand === "move" && args.length !== 1) {
+        exitUsage("ppt_flow.slides.move", "move requires exactly one target selector", "Pass one target plus --after, --before, or --to");
+      }
+      if (subcommand === "delete" && args.length === 0) {
+        exitUsage("ppt_flow.slides.delete", "delete requires at least one selector", "Pass one or more snapshot selectors");
+      }
+      if (subcommand === "insert" && !opts.source) {
+        exitUsage("ppt_flow.slides.insert", "insert requires --source", "Pass --source <one-slide-block.md>");
+      }
+      if (subcommand === "apply-plan" && !opts.plan) {
+        exitUsage("ppt_flow.slides.apply-plan", "apply-plan requires --plan", "Pass a plan file inside the current version _scratch/");
+      }
+      if (opts.to && !["start", "end"].includes(opts.to)) {
+        exitUsage("ppt_flow.slides.to", "--to must be start or end", "Pass --to start or --to end");
+      }
+      const code = await commandSlides(subcommand, runDir, args, {
+        after: opts.after,
+        before: opts.before,
+        to: opts.to,
+        source: opts.source,
+        plan: opts.plan,
+        apply: opts.apply ?? false,
+        planSha256: opts.planSha256 || null,
+        json: opts.json ?? false,
       });
       process.exit(code);
     });

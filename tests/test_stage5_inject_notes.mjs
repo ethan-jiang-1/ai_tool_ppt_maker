@@ -10,10 +10,13 @@ import {
 } from "../PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs";
 import {
   notesReceiptPath,
+  validateNotesCompletionReceipt,
+  validateNotesRerunInputLineage,
   validateNotesReceipt,
   writeNotesReceiptAtomic,
 } from "../PPTMAKER_FRAMEWORK/scripts/lib/notes_receipt.mjs";
 import { diagnosticFromError } from "../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs";
+import { sha256File } from "../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs";
 
 const S5 = "PPTMAKER_FRAMEWORK/scripts/stage5_inject_notes.mjs";
 
@@ -31,6 +34,40 @@ async function writeMinimalPptx(path, slideCount = 1) {
     zip.file(`ppt/slides/_rels/slide${i}.xml.rels`, `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
   }
   writeFileSync(path, await zip.generateAsync({ type: "nodebuffer" }));
+}
+
+function writeAssemblyEvidence(run, pptx, ids = ["One"]) {
+  const generated = join(run, "_generated");
+  const plan = join(generated, "slide_plan.json");
+  const images = join(generated, "header_locked");
+  const qa = join(generated, "qa");
+  mkdirSync(images, { recursive: true });
+  mkdirSync(qa, { recursive: true });
+  writeFileSync(plan, JSON.stringify({ slides: ids.map((id, index) => ({
+    id, slide_id: id, position: index + 1,
+  })) }), "utf8");
+  const finalImages = ids.map((id) => {
+    const path = join(images, `${id}.png`);
+    writeFileSync(path, `final ${id}`);
+    return {
+      slide_id: id,
+      render_engine: "image2",
+      artifact_kind: "final-slide",
+      path: `_generated/header_locked/${id}.png`,
+      sha256: sha256File(path),
+      fingerprint: id.repeat(64).slice(0, 64),
+    };
+  });
+  writeFileSync(join(qa, "pptx_assembly.json"), JSON.stringify({
+    schema_version: 1,
+    slide_plan_path: "_generated/slide_plan.json",
+    slide_plan_sha256: sha256File(plan),
+    ordered_slide_ids: ids,
+    final_images: finalImages,
+    pptx_path: `_generated/ppt/${pptx.split("/").at(-1)}`,
+    pptx_sha256: sha256File(pptx),
+    created_at: new Date().toISOString(),
+  }), "utf8");
 }
 
 describe("stage5_inject_notes", () => {
@@ -72,6 +109,7 @@ describe("stage5_inject_notes", () => {
       const pptx = join(run, "_generated", "ppt", "deck.pptx");
       await writeMinimalPptx(pptx);
       writeFileSync(join(run, "slide-specifications.md"), "## Slide 1: One\n\n> **SPEAKER NOTE**: hello\n", "utf8");
+      writeAssemblyEvidence(run, pptx);
       const result = await injectNotesFromRunDir(run);
       expect(result.notesInjected).toBe(1);
       expect(existsSync(notesReceiptPath(run))).toBe(true);
@@ -89,6 +127,7 @@ describe("stage5_inject_notes", () => {
       const spec = join(run, "slide-specifications.md");
       await writeMinimalPptx(pptx);
       writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**: hello\n", "utf8");
+      writeAssemblyEvidence(run, pptx);
       await injectNotesFromRunDir(run);
       writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**: changed\n", "utf8");
       expect(validateNotesReceipt(run)).toMatchObject({ valid: false });
@@ -102,12 +141,13 @@ describe("stage5_inject_notes", () => {
     }
   });
 
-  it("invalidates an old receipt before rejecting ambiguous target PPTX files", async () => {
+  it("preserves prior rerun lineage before rejecting ambiguous target PPTX files", async () => {
     const run = tmpRun("multiple");
     try {
       const pptDir = join(run, "_generated", "ppt");
       await writeMinimalPptx(join(pptDir, "a.pptx"));
       writeFileSync(join(run, "slide-specifications.md"), "## Slide 1: One\n\n> **SPEAKER NOTE**: hello\n", "utf8");
+      writeAssemblyEvidence(run, join(pptDir, "a.pptx"));
       await injectNotesFromRunDir(run);
       await writeMinimalPptx(join(pptDir, "b.pptx"));
       let error;
@@ -118,7 +158,7 @@ describe("stage5_inject_notes", () => {
       }
       expect(error.message).toMatch(/2 non-backup PPTX/);
       expect(diagnosticFromError(error)).toMatchObject({ reason: { kind: "ambiguous_pptx", actual: 2, expected: 1 } });
-      expect(existsSync(notesReceiptPath(run))).toBe(false);
+      expect(existsSync(notesReceiptPath(run))).toBe(true);
     } finally {
       rmSync(run, { recursive: true, force: true });
     }
@@ -137,6 +177,53 @@ describe("stage5_inject_notes", () => {
       expect(envelope.diagnostic).toMatchObject({ category: "source_validation", stage: "stage5", source: { path: spec } });
       expect(envelope.diagnostic.issues[0].source.path).toBe(spec);
       expect(envelope.diagnostic.issues[0].lineage.map((item) => item.path)).toEqual([spec, pptx]);
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects equal note and plan counts when formal ID sets differ", async () => {
+    const run = tmpRun("id-mismatch");
+    try {
+      const pptx = join(run, "_generated", "ppt", "deck.pptx");
+      await writeMinimalPptx(pptx);
+      writeFileSync(join(run, "slide-specifications.md"), "## Slide 1: Other\n\n> **SPEAKER NOTE**: hello\n", "utf8");
+      writeAssemblyEvidence(run, pptx, ["One"]);
+      await expect(injectNotesFromRunDir(run)).rejects.toThrow(/missing: One.*unexpected: Other/i);
+      expect(existsSync(notesReceiptPath(run))).toBe(false);
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps completion strict while allowing a notes-only successor from valid rerun lineage", async () => {
+    const run = tmpRun("rerun-lineage");
+    try {
+      const pptx = join(run, "_generated", "ppt", "deck.pptx");
+      const spec = join(run, "slide-specifications.md");
+      await writeMinimalPptx(pptx);
+      writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**: first\n", "utf8");
+      writeAssemblyEvidence(run, pptx);
+      await injectNotesFromRunDir(run);
+      const firstReceipt = JSON.parse(readFileSync(notesReceiptPath(run), "utf8"));
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: true });
+
+      writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**: changed\n", "utf8");
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: false });
+      expect(validateNotesRerunInputLineage(run)).toMatchObject({ valid: true });
+
+      await injectNotesFromRunDir(run);
+      const secondReceipt = JSON.parse(readFileSync(notesReceiptPath(run), "utf8"));
+      expect(secondReceipt.schema_version).toBe(2);
+      expect(secondReceipt.predecessor).toMatchObject({
+        input_pptx_sha256: firstReceipt.pptx_sha256,
+      });
+      expect(secondReceipt.root_assembly).toEqual(firstReceipt.root_assembly);
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: true });
+
+      writeFileSync(pptx, Buffer.concat([readFileSync(pptx), Buffer.from('tamper')]));
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: false });
+      expect(validateNotesRerunInputLineage(run)).toMatchObject({ valid: false });
     } finally {
       rmSync(run, { recursive: true, force: true });
     }

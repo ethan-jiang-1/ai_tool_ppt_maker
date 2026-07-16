@@ -75,6 +75,8 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 新 `--init` deck 在 `slide-specifications.md` frontmatter 中使用 `render.default: full-page`；逐页 `RENDER MODE` 只是高级 override。没有顶层 `render` 的旧 deck 保持 legacy VISUAL TYPE 派生。`render` 内未知键会 fail-loud；顶层误写成 `renders:` 无法在不破坏 legacy 兼容的前提下猜测纠正，排障查看 `layout_contract.render_mode_source`。
 
+每页同时有稳定 `slide_id` 和派生 `position`。用户可说“第 7 页”或“UX gap 那页”，Agent 必须解析为当前快照中的 `07 · UXGap · title`；顺序变化后用 ID 继续追踪，不能把旧页码当永久身份。新 deck 使用 `identity.scheme: mnemonic-v1`；Agent 命名 5–8 个 ASCII 字母、恰好两个 BlockCase 语义块，优先 5–6 个字母，不让用户编随机 token。
+
 ## 7. 运行时只有 Node；Stage 2 在框架内；CLI 失败必出 JSON
 
 **唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
@@ -96,9 +98,11 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 | Header Text & Style Refresh | resolved `body+header-lock` 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned header 样式，raw-image contract 不变 | Stage 1 → 3 → 4 → 5 | ~5 min |
 | Generated Image Rebuild | full-page header、body/画面/IMAGE PROMPT，或 render mode / safe-zone 改动 | Stage 1 → 对所选页强制 Stage 2 → review → 3/4/5（复用已审图） | ~5 min/页 |
 | Notes-Only Refresh | speaker notes only | Stage 5 | ~30 sec |
-| Structural Versioning Path | 增/删/重排 slide | `--new-version` 创建干净版本，再按受影响页选择刷新路径 | 按范围 |
+| Structural Versioning Path | 增/删/重排 slide | stable-ID preview → 用户确认 before/after → exact `plan_sha256` 提交干净 vNext → verified raw-only materialization → 本地重建 | 按范围 |
 
 标题是否需要 Stage 2 取决于 resolved mode：`body+header-lock` 使用 Header Text & Style Refresh；`full-page` 使用 Generated Image Rebuild。后者的 raw `unified_pipeline --only <id>` 只限定范围，不会自动重生已有图片，必须同时使用 `--force-images`；公共 `ppt_flow refresh --kind visual --only <id>` 会为明确范围加 force。分类见 `scripts/change-classifier.md`。
+
+结构 preview 的 hash 由 Agent 保留，用户只确认变化。stale source/hash mismatch 必须重新 preview，不 rebase。Structural apply、impact 与 materialization 不得调用远端 renderer；只有 manifest 证明完整的 raw render 可以跨版本物化，Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 只报告后续成本，不能把结构授权扩张为生图授权。若一版内无法清晰收敛，按新 preview → 新 vNext → 新 deck 升级；受众、主叙事或设计系统分叉时直接建议新 deck。
 
 ## 9. 用户做选择题，你做创造性劳动
 
