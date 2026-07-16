@@ -1,8 +1,8 @@
 # Plan: 稳定 Slide ID + 可编辑页序
 
-> 类型: 设计 | 状态: OpenSpec 已提案并完成复核 | 更新: 2026-07-16
+> 类型: 设计 | 状态: 已关闭 (CLS-005) — change 已实施并 archive | 更新: 2026-07-17
 > 关联: `_backlog/todos/todo-dual-render-pipeline.md`、`_backlog/todos/todo-optional-git-safety-and-startup-guidance.md`
-> 推荐 change 名: `add-stable-slide-identity-and-order-editing`
+> 落地: `openspec/changes/archive/2026-07-16-add-stable-slide-identity-and-order-editing/`
 
 > 实现权威: `openspec/changes/add-stable-slide-identity-and-order-editing/`。本 plan 保留问题推导和 UX 背景；若细节与 OpenSpec 冲突，以已校验的 OpenSpec artifacts 为准。
 

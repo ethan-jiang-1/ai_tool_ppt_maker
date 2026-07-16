@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-16 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-17 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,7 +19,6 @@
 
 | Plan | 简述 |
 |------|------|
-| [slide-identity-and-sequence-editing](slide-identity-and-sequence-editing.md) | 页面使用目标 5、最多 6 字母的双语义 mnemonic ID + derived position；提供事务化增删重排 UX，并为 Image2/HTML 建立共同 artifact identity |
 | [image2-multi-vendor-architecture](image2-multi-vendor-architecture.md) | Image2 多 vendor = 多组 (base_url,key) 顺序试 + failover；同步/异步一个薄分支；实验证明 vendor 无真差异，别搞重抽象 |
 | [output-linter-at-node-boundaries](output-linter-at-node-boundaries.md) | 通用 output linter：node 边界对 YAML/JSON/MD 产出做格式校验；主 agent 走 exit condition，sub-agent 走 tolerant 手动调 |
 
@@ -30,6 +29,8 @@
 | 1 | `add-interaction-rhythm-and-explore-playbooks` | **已 archive** |
 | 2 | `guard-offpath-migrate-import-ux` | **已 archive** |
 | 3 | `improve-visual-iteration-env` | **已 archive** → `openspec/changes/archive/2026-07-11-improve-visual-iteration-env/` |
+
+| 1 | `add-stable-slide-identity-and-order-editing` | **已 archive** → `openspec/changes/archive/2026-07-16-add-stable-slide-identity-and-order-editing/` |
 
 _无活跃 OpenSpec change。_
 
