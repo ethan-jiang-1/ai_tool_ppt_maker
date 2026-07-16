@@ -2,7 +2,7 @@
 
 ### Requirement: Shared slide-id resolution for --only
 
-`unified_pipeline.mjs` SHALL resolve every `--only` token through the shared selector contract owned by `slide-identity-and-ordering`, also used by `ppt_flow`: exact current mnemonic ID, spoken key, explicit 1-based position, unique case-insensitive title fragment, then supported exact/prefix legacy fallback. It SHALL resolve all tokens against one current `slide_plan.json` snapshot and return formal slide IDs. Ambiguous or unknown tokens SHALL fail and list bounded available `position + slide_id + title` tuples; approximate matches SHALL NOT be selected automatically.
+`unified_pipeline.mjs` SHALL resolve every `--only` token through the shared selector contract owned by `slide-identity-and-ordering`, also used by `ppt_flow`: exact current formal ID, spoken key, explicit 1-based position, unique case-insensitive title fragment, then supported legacy-prefix fallback. It SHALL resolve all tokens against one current `slide_plan.json` snapshot and preserve per-token bindings with `matched_by`; after that, this caller MAY deduplicate repeated formal IDs for stage execution. Ambiguous or unknown tokens SHALL fail and list bounded available `position + slide_id + title` tuples; approximate matches SHALL NOT be selected automatically.
 
 #### Scenario: Spoken mnemonic resolves
 
@@ -29,9 +29,9 @@
 
 ### Requirement: Structural refresh impact is computed by stable identity
 
-After a structural edit creates a target version, orchestration SHALL compare source and target slide plans by formal `slide_id` and classify each ID as retained, inserted, deleted, reordered, or content/profile changed. Position changes alone SHALL invalidate only order-dependent cheap outputs such as slide plan projections, prompt twins, contact sheets, PPTX assembly, and notes injection. They SHALL NOT invalidate an expensive render fingerprint.
+After a structural edit creates a target version, orchestration SHALL compare source and target slide plans by formal `slide_id` and classify each ID as retained, inserted, deleted, reordered, or content/profile changed. Position changes alone SHALL invalidate only cheap local outputs such as slide plan projections, prompt twins, Stage 3 final/header-lock output, contact sheets, PPTX assembly, and notes injection. They SHALL NOT invalidate an expensive raw-render fingerprint.
 
-The impact report SHALL expose current position, stable ID, title, retained/materialized artifacts, missing or stale artifacts, required stages, and any human review requirement. Deleted IDs SHALL not be assembled into the target while the source version and its artifacts remain unchanged.
+The impact report SHALL expose current position, stable ID, title, retained/materialized raw artifacts, missing or stale artifacts, `verified` versus `legacy-located` status, required local stages, `needs_render`, and any human review requirement. Deleted IDs SHALL not be assembled into the target while the source version and its artifacts remain unchanged.
 
 #### Scenario: Reorder-only impact is cheap
 
@@ -45,23 +45,35 @@ The impact report SHALL expose current position, stable ID, title, retained/mate
 - **THEN** orchestration marks only the new ID as missing a raw render
 - **AND** retained IDs remain eligible for verified materialization
 
-### Requirement: Structural versions reuse only verified artifacts
+### Requirement: Structural versions materialize only verified expensive raw renders
 
-Orchestration SHALL materialize an artifact from the source version into the target only through the shared render-artifact resolver and the owning Stage's manifest rules. A retained raw render SHALL require matching stable ID, engine, generation fingerprint/profile, and verified source-byte SHA. A retained final/header artifact SHALL additionally require matching resolved mode/header fingerprint, verified raw-input SHA, and verified final-output SHA. Successful materialization SHALL atomically copy bytes into the target and write target-owned manifest entries with source-version lineage. Any failed or missing check SHALL fall back to the normal target refresh path without guessing from filenames or reading the source version as a runtime fallback.
+Orchestration SHALL materialize an artifact from the source version into the target only through the shared render-artifact resolver and the owning Stage's manifest rules. Cross-version materialization in this change SHALL be limited to expensive `raw-render` artifacts. A retained raw render SHALL require matching stable ID, engine, artifact kind, generation fingerprint/profile, and verified source-byte SHA. A `legacy-located` file without complete proof SHALL NOT qualify. Successful materialization SHALL atomically copy bytes into the target and write target-owned manifest entries with source-version lineage. Stage 3 final/header-lock output, contact sheet/QA, PPTX, and notes SHALL be rebuilt locally in the target rather than copied across versions. Any failed or missing raw check SHALL report the ID under `needs_render` without guessing from filenames or reading the source version as a runtime fallback.
 
-Header-review evidence MAY be materialized into the target's version-scoped state only when stable ID, current header fingerprint, generation profile, and reviewed raw-image SHA all match verified current inputs. The target record SHALL identify source-version lineage and SHALL satisfy the existing current-version review contract only after publication in the target. Unverified source-version evidence SHALL remain unusable.
+Header-review evidence MAY be re-established in the target's version-scoped state only when it is a verified per-slide approval and stable ID, generation profile, and reviewed raw-image SHA all match verified current inputs. The target record SHALL identify source-version lineage and SHALL satisfy the existing current-version review contract only after publication in the target. Waivers, `legacy-located` evidence, and unverified source-version evidence SHALL remain unusable.
 
-#### Scenario: Verified retained artifacts become target-owned
+#### Scenario: Verified retained raw render becomes target-owned
 
-- **WHEN** a retained slide passes every raw and final manifest fingerprint/hash check
-- **THEN** orchestration materializes its artifacts and current manifest entries into the target version
-- **AND** downstream stages resolve only the target-owned entries
+- **WHEN** a retained slide passes every raw-render kind, engine, fingerprint/profile, and byte-hash check
+- **THEN** orchestration materializes its raw bytes and current manifest entry into the target version
+- **AND** Stage 3 and all later cheap stages rebuild from that target-owned raw entry
 
 #### Scenario: One retained slide has stale provenance
 
-- **WHEN** one source artifact's bytes do not match its recorded SHA while all other retained IDs verify
-- **THEN** only that ID is excluded from materialization and follows normal refresh
+- **WHEN** one source raw artifact's bytes do not match its recorded SHA while all other retained IDs verify
+- **THEN** only that ID is excluded from materialization and appears under `needs_render`
 - **AND** verified unrelated IDs remain reusable
+
+#### Scenario: Legacy-located file does not prove reuse
+
+- **WHEN** a compatibility adapter locates a retained PNG but cannot prove its current raw-render fingerprint and bytes
+- **THEN** orchestration does not materialize it as current
+- **AND** reports the retained ID under `needs_render` without making a remote call
+
+#### Scenario: Cheap final artifact is rebuilt locally
+
+- **WHEN** a retained raw render is materialized into a reordered target
+- **THEN** target Stage 3 reruns and publishes a target-owned final manifest
+- **AND** no prior-version Stage 3 final file is copied as the current target output
 
 #### Scenario: Header evidence is re-established, not borrowed
 
@@ -69,14 +81,22 @@ Header-review evidence MAY be materialized into the target's version-scoped stat
 - **THEN** orchestration may publish equivalent target-version evidence with source lineage
 - **AND** the target does not directly treat the source-version record as current
 
-### Requirement: Reorder and delete avoid remote rendering
+#### Scenario: Waiver is not carried forward
 
-For a structural transaction containing only reorder and delete operations, when every retained render artifact passes the required provenance checks, orchestration SHALL complete Stage 1, target materialization, order-dependent QA/contact-sheet work, Stage 4, and Stage 5 without invoking Image2 or any future remote renderer. For insertion, it SHALL invoke a renderer only for IDs whose selected engine artifact is absent or stale. A renderer call count greater than the computed missing/stale ID set SHALL fail structural integration tests.
+- **WHEN** the source version proceeded through a waiver rather than a verified per-slide approval
+- **THEN** orchestration does not establish target review evidence from that waiver
+- **AND** the target remains subject to its normal review contract
+
+### Requirement: Structural materialization never silently invokes remote rendering
+
+Structural apply, structural impact analysis, and cross-version materialization SHALL never invoke Image2 or any future remote renderer. They SHALL materialize verified raw renders, rebuild cheap local stages where prerequisites exist, and return every missing/stale selected-engine raw artifact as `needs_render`. The Agent SHALL invoke Generated Image Rebuild only through an explicit subsequent refresh after the relevant cost/scope is authorized. A structural or materialization code path with any remote renderer call SHALL fail integration tests.
+
+For reorder/delete-only work whose retained raw renders all verify, the explicit local production path SHALL complete Stage 1, raw materialization, Stage 3, order-dependent QA/contact-sheet work, Stage 4, and Stage 5 with zero remote calls. If any retained raw render cannot be proven, the source vNext remains valid but production stops with `needs_render` rather than quietly spending quota.
 
 #### Scenario: Reorder-only makes zero renderer calls
 
 - **WHEN** all retained artifacts verify after a reorder-only edit
-- **THEN** the target PPTX and notes are rebuilt in current order
+- **THEN** Stage 3, target PPTX, and notes are rebuilt locally in current order
 - **AND** no Image2 or future HTML remote render request is made
 
 #### Scenario: Delete-only makes zero renderer calls
@@ -85,10 +105,17 @@ For a structural transaction containing only reorder and delete operations, when
 - **THEN** the deleted ID is omitted from target assembly
 - **AND** no retained slide is remotely rerendered
 
-#### Scenario: One inserted page makes one renderer call
+#### Scenario: Insert reports missing render before any renderer call
 
 - **WHEN** exactly one inserted ID lacks its selected-engine artifact and all retained IDs verify
-- **THEN** orchestration requests rendering only for that inserted ID
+- **THEN** structural apply/materialization reports exactly that ID under `needs_render`
+- **AND** makes zero remote calls until an explicit Generated Image Rebuild is invoked
+
+#### Scenario: Explicit rebuild scopes the remote call
+
+- **WHEN** the Agent subsequently invokes an authorized Generated Image Rebuild for the one `needs_render` ID
+- **THEN** the selected renderer is called only for that ID
+- **AND** retained verified raw renders remain untouched
 
 ### Requirement: Order-dependent views display position and stable identity
 

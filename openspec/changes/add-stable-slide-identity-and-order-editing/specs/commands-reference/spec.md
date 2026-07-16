@@ -10,9 +10,9 @@ COMMANDS.md SHALL document user intents with concrete Chinese-language examples 
 | "把 UX gap 那页标题收紧" | `edit-text` | Resolve the mnemonic to its formal ID, then choose refresh by render mode | ~5 min or ~5 min/page |
 | "第8页的图重新生成一张" | `edit-visual` | Generated Image Rebuild for the selected page | ~5 min/page |
 | "备注改一下" | `edit-notes` | Notes-Only Refresh | ~30 sec |
-| "删掉第5页和第11页" | `restructure-slides` | Snapshot-resolved preview, confirmation, Structural Versioning Path, then minimal affected refresh | per affected slides |
-| "把 ID fix 放到 AI cost 后面" | `restructure-slides` | Spoken mnemonic resolution, preview/apply, then order-dependent rebuild | usually no remote render |
-| "加一页案例" | `restructure-slides` | Agent proposes a stable mnemonic; preview/confirm Structural Versioning Path, then render the inserted page | per inserted/changed slides |
+| "删掉第5页和第11页" | `restructure-slides` | Snapshot-resolved preview, hash-bound confirmation, Structural Versioning Path, then local rebuild from verified raw renders | usually no remote render |
+| "把 ID fix 放到 AI cost 后面" | `restructure-slides` | Spoken mnemonic resolution, preview/hash-bound apply, then local order-dependent rebuild | usually no remote render |
+| "加一页案例" | `restructure-slides` | Agent proposes a stable mnemonic; preview/confirm Structural Versioning Path; report `needs_render`, then explicitly rebuild the inserted page | per inserted/changed slides |
 
 #### Scenario: User asks to change a slide's visual style
 
@@ -29,7 +29,7 @@ COMMANDS.md SHALL document user intents with concrete Chinese-language examples 
 
 - **WHEN** user says "加一页案例"
 - **THEN** COMMANDS.md routes to `restructure-slides` and a preview-first Structural Versioning Path before generated-image rebuilding
-- **AND** explains that the Agent proposes a short stable mnemonic and only the inserted/changed IDs need expensive work
+- **AND** explains that the Agent proposes a short stable mnemonic, structure apply makes no remote call, and only reported `needs_render` IDs need explicit expensive work
 - **AND** does not classify the addition as a peer Generated Image Rebuild-only change
 
 #### Scenario: User reorders by spoken mnemonic
@@ -42,9 +42,11 @@ COMMANDS.md SHALL document user intents with concrete Chinese-language examples 
 
 ### Requirement: Structural command guidance is preview-first and identity-aware
 
-COMMANDS.md and `scripts/change-classifier.md` SHALL explain the structural UX using the same concepts: current `position` is convenient but snapshot-scoped; formal `slide_id` remains stable across reordering; the combined display is `position + slide_id + title`; all position selectors in one request resolve before any edit; and a mutating structure operation requires preview followed by explicit apply. Guidance SHALL route deterministic list, resolution, normalization, move, delete, insert, and multi-operation work through `ppt_flow slides` rather than instructing the Agent to split/reorder Markdown with ad hoc edits.
+COMMANDS.md and `scripts/change-classifier.md` SHALL explain the structural UX using the same concepts: current `position` is convenient but snapshot-scoped; formal `slide_id` remains stable across reordering; the combined display is `position + slide_id + title`; all position selectors in one request resolve before any edit; and a mutating structure operation requires preview followed by explicit apply bound to the preview's canonical plan hash. The Agent SHALL carry that hash; user-facing guidance SHALL not ask the user to type or pronounce it. Guidance SHALL route deterministic list, resolution, normalization, move, delete, insert, and multi-operation work through `ppt_flow slides` rather than instructing the Agent to split/reorder Markdown with ad hoc edits.
 
-The reference SHALL explain that reorder/delete-only normally reuse verified render artifacts and rebuild order-dependent outputs, while inserted or content-changed IDs follow their owning refresh path. It SHALL retain the rule that `_generated/` is never hand-edited or manually copied between versions.
+The reference SHALL explain that reorder/delete-only normally materialize verified expensive raw renders and rebuild Stage 3 and later cheap outputs locally, while inserted or unproven IDs are reported as `needs_render` and follow an explicit Generated Image Rebuild only after authorization. Structural apply/materialization SHALL be documented as renderer-free. It SHALL retain the rule that `_generated/` is never hand-edited or manually copied between versions.
+
+The reference SHALL document the escape ladder: heading-only current-version repair; same-deck clean vNext; explicit missing-render rebuild in vNext; and a new-deck recommendation when audience, objective, or narrative materially changes. Git MAY be recommended separately as source/control rollback and audit, but SHALL not replace run-bundle versions or become a PPT creation prerequisite.
 
 #### Scenario: User deletes two page numbers
 
@@ -61,5 +63,16 @@ The reference SHALL explain that reorder/delete-only normally reuse verified ren
 #### Scenario: Reorder-only scope is explained accurately
 
 - **WHEN** guidance describes moving unchanged pages
-- **THEN** it says verified expensive artifacts are retained while plan/contact sheet/PPTX/notes order is rebuilt
+- **THEN** it says verified expensive raw renders are retained while Stage 3/contact sheet/PPTX/notes are rebuilt locally
 - **AND** it does not prescribe remote regeneration for every shifted page
+
+#### Scenario: User confirms structure but not render cost
+
+- **WHEN** an insertion preview is authorized and the resulting receipt reports `needs_render`
+- **THEN** guidance treats the source vNext as successfully published but production as incomplete
+- **AND** requests separate authorization before remote Generated Image Rebuild
+
+#### Scenario: Major reframing is not forced into vNext
+
+- **WHEN** the requested work materially changes audience, objective, or narrative
+- **THEN** guidance recommends considering a new deck instead of presenting vNext as the only route

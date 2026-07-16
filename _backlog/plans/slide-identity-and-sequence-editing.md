@@ -1,8 +1,10 @@
 # Plan: 稳定 Slide ID + 可编辑页序
 
-> 类型: 设计 | 状态: 可进入 OpenSpec proposal | 更新: 2026-07-16
-> 关联: `_backlog/todos/todo-dual-render-pipeline.md`
+> 类型: 设计 | 状态: OpenSpec 已提案并完成复核 | 更新: 2026-07-16
+> 关联: `_backlog/todos/todo-dual-render-pipeline.md`、`_backlog/todos/todo-optional-git-safety-and-startup-guidance.md`
 > 推荐 change 名: `add-stable-slide-identity-and-order-editing`
+
+> 实现权威: `openspec/changes/add-stable-slide-identity-and-order-editing/`。本 plan 保留问题推导和 UX 背景；若细节与 OpenSpec 冲突，以已校验的 OpenSpec artifacts 为准。
 
 ## 一句话决策
 
@@ -43,10 +45,10 @@
 - 页面移动、前后插页、标题改写、render engine 切换时均不变。
 - 新页面创建时生成，删除后不回收复用。
 - 新 deck 使用**可口述的双语义呼号**：`SUBJECT + MOVE`，同时回答“这页讲什么”与“这页要对它说什么”。五字母示例：`UXGap`、`AIFee`、`IDFix`、`PPTGo`；六字母示例：`UXPain`、`AICost`、`IDStay`、`WebWin`。
-- **正式 ID 目标是 5 个英文字母，必要时放宽到 6 个**。五字母使用 `2+3` / `3+2`；六字母可使用 `2+4` / `3+3` / `4+2`。连字符只是一种 selector 输入别名，不计入正式 ID。
-- 双语义是硬约束，字数是软预算。能清楚压成五位就用五位；如果五位会迫使正常词变成难念 token，则保留六位。宁可 `AICost`，不要为了五位写成 `AICst`。
+- **正式 ID 合法范围是 5–8 个英文字母，5–6 是优先预算**。每块 2–4 个字母；7–8 位只在能明显保留口述或语义清晰度时使用。连字符只是一种 selector 输入别名，不计入正式 ID。
+- 双语义是 Agent authoring 硬要求，字数是软预算。能清楚压成五或六位就不增长；如果压缩会把正常词变成难念 token，则保留更清楚的七或八位。宁可 `AICost`，不要为了五位写成 `AICst`。
 - 第一块 `SUBJECT` 是对象/领域，第二块 `MOVE` 是该页的角度、判断或叙事动作。单独的 `PAIN`、`CASE`、`PLAN` 只描述页型或名词类别，信息不足，不作为新 ID。
-- 两块都必须可独立辨认，且至少一块必须是可直接念出的正常短词；禁止为了凑长度制造纯辅音缩写或伪随机码，例如 `UXPn5`、`AICst`。
+- 两块都必须可独立辨认，且至少一块必须是可直接念出的正常短词；禁止为了凑长度制造纯辅音缩写或伪随机码，例如 `UXPn5`、`AICst`。JS 只证明 ASCII/BlockCase syntax、长度和冲突，不能假装证明词义或可读性。
 - Agent 按页面较稳定的叙事职责命名一次，而不是从当前 TITLE 机械抽首字母。例如 `AICost` 表达 Image2 成本，`WebWin` 表达 HTML 优势。
 - 正式 `slide_id` 就使用无连字符的 `BlockCase`：已知缩写保持大写，普通词首字母大写，例如 `UXGap`、`AICost`、`WebWin`。它同时出现在源 Markdown、`slide_plan.json`、manifest key 和用户界面中；五个字母里没有一个浪费在分隔符上，大小写让人眼立刻看出两块。
 - 程序不把大小写当唯一性基础，而是为 selector 另算 `spoken_key`：去掉 `@`、连字符和空格后转小写，例如 `UXGap -> uxgap`。语音输入用自然停顿说成“UX gap”；正式 ID 和多种口述/键入形式通过 spoken key 匹配。
@@ -112,6 +114,15 @@
 
 变化的是 block 位置和 heading 中的 `03`；`UXGap` 以及该页的内容、渲染指纹和 review identity 均不变。
 
+新 deck 在 frontmatter 声明：
+
+```yaml
+identity:
+  scheme: mnemonic-v1
+```
+
+这个 marker 断言整份 source 的当前 ID 都符合 mnemonic syntax。Markerless legacy deck 继续可读；在 legacy deck 插入的新 ID 仍单独严格校验，但只要 retained legacy ID 尚未显式迁移，就不能自动写入这个全册 marker。
+
 ### 权威与校验
 
 - slide block 的物理顺序是 order SSOT。
@@ -151,11 +162,11 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> 7 --after 3
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides delete <run-dir> 5 11
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides insert <run-dir> --after 3 --source <slide-block.md>
 
-# 用户确认预览后，显式 apply；自动创建 vNext
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> 7 --after 3 --apply
+# Agent 在用户确认预览后提交同一份 plan hash；自动创建 vNext
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> 7 --after 3 --apply --plan-sha256 <preview-hash>
 ```
 
-结构命令不带 `--apply` 时绝不写文件；显式 apply 默认走 Structural Versioning Path，创建 `v{n+1}`。MVP 不提供静默 in-place structural edit。`normalize --apply` 是唯一例外：它不改变 ID、block order 或内容，可以对当前源做 atomic heading 修复。
+结构命令不带 `--apply` 时绝不写文件；preview 返回 canonical `plan_sha256`，Agent 内部保留，用户不需要念或输入。Apply 必须同时携带这个 hash，裸 `--apply` 不得现场重规划并直接提交。结构 apply 默认走 Structural Versioning Path，创建 `v{n+1}`。MVP 不提供静默 in-place structural edit。`normalize --apply` 是唯一 current-version 例外，但同样绑定已确认 preview。
 
 复杂的多动作指令由 Agent 生成一个结构化 edit plan，再交给同一深模块一次性执行：
 
@@ -163,10 +174,14 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> 7 --after 3 -
 {
   "schema_version": 1,
   "base_spec_sha256": "...",
+  "bindings": [
+    { "token": "7", "slide_id": "IDFix", "position": 7, "matched_by": "position" }
+  ],
   "operations": [
     { "op": "move", "slide_id": "IDFix", "after_id": "AICost" },
     { "op": "delete", "slide_id": "UXGap" }
-  ]
+  ],
+  "plan_sha256": "..."
 }
 ```
 
@@ -208,11 +223,11 @@ Review: Block Map contains page-number text that may need a content edit
 1. 解析 `frontmatter + preamble + slide blocks + epilogue`，完整保留未编辑文本。
 2. 不把最后一张 slide 后面的 `## Change Log` 错当成最后一页 body。
 3. 所有 selector 先针对同一 base snapshot 解析为 ID。
-4. 通过 `base_spec_sha256` 做 optimistic concurrency check；源在 plan 后被改过则拒绝 apply。
+4. 同时通过 `base_spec_sha256` 和 canonical `plan_sha256` 绑定 source 与用户看过的 transaction；源或计划变化都拒绝 apply，不自动 rebase/replan。
 5. 校验 final ID set、唯一性、插入 ID、删除 ID、最终 order 和连续 position。
 6. 自动更新机器可判定的 ID 引用，例如 `render.header-lock`：删页移除、ID migration 时映射。
 7. 不对 Block Map、speaker note 或正文里的自然语言“第 7 页”做盲目字符串替换；扫描并列为 review warning，由 Agent 语义更新。
-8. 先创建新版本并写临时文件，校验通过后 atomic rename；失败不留下半写的 source。
+8. 在 `3_versions/` 下 hidden sibling staging 构造并校验完整 target，最后一次 same-parent rename 才发布可见 vNext；失败不留下空或半写版本。
 
 推荐的核心 interface 是“提交一个完整事务”，而不是让调用方按步骤操作内部状态：
 
@@ -250,11 +265,11 @@ Stage 1 输出显式 position，但数组顺序仍是组装顺序：
 
 ### 昂贵产物按 ID 寻址
 
-新的 Image2 raw image、HTML render、header-locked image、provenance 与 review evidence 均以 `slide_id` 为 key。position 不进入其文件 identity 或内容 fingerprint。
+新的 Image2 raw image、HTML render、header-locked image、provenance 与 review evidence 均以 `slide_id` 为第一身份。position 不进入其文件 identity 或内容 fingerprint；`artifact_kind` 防止同 engine 的 raw/final 互相覆盖。
 
 ```text
-逻辑 artifact key（昂贵、可复用）:
-  (slide_id, render_engine, generation_fingerprint)
+逻辑 artifact key:
+  (slide_id, render_engine, artifact_kind, fingerprint)
 
 物理文件（由 engine adapter 写入、由 manifest 精确登记）:
   page_images_full/<slide_id>.png       # Image2 现有目录角色保留
@@ -266,19 +281,19 @@ Stage 1 输出显式 position，但数组顺序仍是组装顺序：
   PPTX slide order
 ```
 
-为了兼容旧 deck，读侧暂时接受 `NN_<legacy-id>.png`；新写侧逐步改为稳定 ID 文件名。Stage 3/4 最终通过 manifest/plan 明确解析，不再靠目录 glob 猜测。身份计划只规定逻辑 artifact key，不替 dual-render change 决定 HTML 的物理目录。
+为了兼容旧 deck，读侧暂时定位 `NN_<legacy-id>.png`；新写侧逐步改为稳定 ID 文件名。Resolver 必须区分 provenance/bytes 完整的 `verified` 与只能找到路径的 `legacy-located`，后者不能直接作为 current cache 或进入 Stage 4。Stage 3/4 最终通过 manifest/plan 明确解析，不再靠目录 glob 猜测。身份计划只规定逻辑 artifact key，不替 dual-render change 决定 HTML 的物理目录。
 
 ### 失效规则
 
 | 改动 | Image2 / HTML render | Header-lock | PPTX | Notes |
 |------|----------------------|-------------|------|-------|
-| 仅移动页面 | 复用 | 复用 | 重组 | 按新顺序重注入 |
-| 删除页面 | 其余页复用 | 其余页复用 | 重组 | 按新顺序重注入 |
-| 插入新页面 | 只渲染新 ID | 只处理新/受影响 ID | 重组 | 全册按 ID 对齐后注入 |
+| 仅移动页面 | verified raw materialize | target 本地重跑 | 重组 | 按新顺序重注入 |
+| 删除页面 | 其余 verified raw materialize | target 本地重跑 | 重组 | 按新顺序重注入 |
+| 插入新页面 | 先报新 ID `needs_render`；授权后只渲染它 | target 本地处理 | 重组 | 全册按 ID 对齐后注入 |
 | 同时改某页内容 | 仅该 ID 按现有 fingerprint 规则失效 | 按 ownership 刷新 | 重组 | 相关 notes 更新后重注入 |
 | 仅切换 engine | 只补目标 engine 缺失的 variant | 依目标产物处理 | 重组 | 不因 engine 改变内容身份 |
 
-Structural Versioning Path 仍保留，但新版本可以从上一版本复制经过 manifest fingerprint + image SHA 校验的派生产物。这里的“复用”是管线自动 materialize，不是人工拷贝或手改 `_generated/`。
+Structural Versioning Path 仍保留，但只自动 materialize 经 manifest kind/engine/fingerprint/profile + bytes SHA 证明的昂贵 raw render。Stage 3、contact sheet/QA、PPTX、notes 等便宜产物在 target 本地重跑。结构 apply/materialization 零远端调用；无法证明的 ID 只报告 `needs_render`，由后续显式 Generated Image Rebuild 授权。这里的“复用”是管线自动 materialize，不是人工拷贝或手改 `_generated/`。
 
 ### Notes 由 ID 对齐后再按位置写入
 
@@ -310,7 +325,7 @@ slide-specifications.md
 双渲染的 artifact key 至少是：
 
 ```text
-(slide_id, render_engine, generation_fingerprint)
+(slide_id, render_engine, artifact_kind, fingerprint)
 ```
 
 不包含 position。build 时根据当前 plan 顺序和每页 resolved engine 选择对应 artifact；同一页两种 engine 可以共存，不互相覆盖。
@@ -331,11 +346,11 @@ slide-specifications.md
 | 完全去掉可见页序 | 不选 | 人工打磨时“第几页”是最低摩擦的共同语言 |
 | 随机短码，如 `k7m2qp` | 不选 | 机器唯一但人念不出、记不住，尤其破坏语音交互 |
 | 单名词呼号，如 `PAIN` / `CASE` | 不选 | 只有一个语义维度，容易重复，也容易在口语中失去页面引用特征 |
-| 固定死 5 字母 | 不选 | 五位是优先预算，不是压坏正常词的理由；清楚的六位优于难念的五位 |
+| 固定死 5–6 字母 | 不选 | 五六位是优先预算，不是压坏正常词的理由；必要时清楚的七八位优于难念压缩 |
 | 把 `07_UXGap` 作为一个复合 ID | 不选 | 序号变化仍等于主键变化，只是换了写法 |
 | 从当前 TITLE 机械生成首字母 | 不选 | 标题频繁润色会制造改 ID 的冲动；呼号应来自更耐久的叙事职责 |
 | 用 10/20/30 或 LexoRank 避免重编号 | 不选 | 这是多人并发排序问题的解法；当前单 Agent 文档会增加不必要复杂度，最终展示页码仍要重算 |
-| 目标 5、最多 6 字母的双语义 stable ID + derived position | 采用 | 五位足够轻，六位提供语义保真逃生口；两块共同表达“对象 + 角度” |
+| 优先 5–6、合法 5–8 字母的双语义 stable ID + derived position | 采用 | 短 ID 保持轻巧，7–8 位提供有限语义逃生口；两块共同表达“对象 + 角度” |
 
 ## 兼容与迁移
 
@@ -348,7 +363,7 @@ slide-specifications.md
 
 ### 新 deck
 
-- scaffold/template/Agent 根据叙事职责生成双语义 mnemonic ID；目标 5 字母、必要时 6 字母，不再生成单名词、带序号或随机字符的 ID。
+- scaffold/template/Agent 根据叙事职责生成双语义 mnemonic ID；优先 5–6 字母、必要时 7–8 字母，不再生成单名词、带序号或随机字符的 ID；新 deck 写入 `identity.scheme: mnemonic-v1`。
 - `slides list` 始终同时展示 position、BlockCase mnemonic ID 和 title。
 
 ### 可选迁移
@@ -368,7 +383,7 @@ slide-specifications.md
 
 - 将 heading parser 提升为唯一共享的结构化 slide-document parser。
 - 捕获 heading position、stable ID、preamble、epilogue 和原始 block bytes。
-- 增加 mnemonic ID validator/reservation：验证正式 BlockCase ID 的 SUBJECT + MOVE 两块、总长 5–6 字母、至少一个可念短词；为 selector 计算忽略空格/连字符/大小写/`@` 的 spoken key，并强制其唯一；扫描全部 deck version，防止历史 ID 复用，拒绝命令保留词，提示语音近似冲突。语义命名由 Agent 完成，validator 不随机造词，也不为了五位截断正常词。
+- 增加 mnemonic ID validator/reservation：验证正式 BlockCase ID 的 ASCII/两块 syntax、总长 5–8 字母；为 selector 计算忽略空格/连字符/大小写/`@` 的 spoken key，并强制其唯一；扫描全部 deck version，防止历史 ID 复用，拒绝命令保留词，提示语音近似冲突。语义命名与可口述判断由 Agent 完成，validator 不随机造词，也不为了五位截断正常词。
 - duplicate ID 从 WARNING 升为 ERROR。
 - 加连续 position 校验与纯 `normalize` serializer。
 - 保持 Stage 1 多输入解析兼容；MVP 的结构编辑 CLI 只修改 run-dir 中唯一 canonical spec。
@@ -398,8 +413,8 @@ slide-specifications.md
 ### Phase 5: 最小刷新与跨版本复用
 
 - 对同 ID 比较 generation fingerprint/profile/bytes。
-- 将验证通过的上一版本 Image2/header/未来 HTML artifacts 自动 materialize 到新版本。
-- move/delete-only 跳过远端渲染；insert 只渲染新 ID。
+- 只将验证通过的上一版本昂贵 raw render 与 verified per-slide approval 自动 materialize 到新版本；waiver 和 cheap final 不跨版复制。
+- structural apply/materialization 一律跳过远端渲染；insert 先报告新 ID `needs_render`，再由显式 refresh 只渲染已授权 ID。
 - Stage 4 重组 PPTX；Stage 5 按 ID 对齐 notes 后重新注入。
 
 ### Phase 6: 模板、迁移和端到端收口
@@ -418,7 +433,7 @@ slide-specifications.md
 - [ ] duplicate/empty ID 在 Stage 1 前 fail loud。
 - [ ] 新 ID 不含 position/version/engine。
 - [ ] 新 ID 必须含 SUBJECT + MOVE 两个可辨认语义块，不接受单名词页型 ID。
-- [ ] 新 ID 优先 5 个字母、必要时允许 6 个字母；两块均可辨认且至少一块是可念短词，不生成纯辅音缩写或随机短码。
+- [ ] 新 ID 合法 5–8 个字母、优先 5–6；两块均可辨认且至少一块是可念短词，不生成纯辅音缩写或随机短码。
 - [ ] 重名消歧通过替换其中一个语义块完成，不使用当前页码或随机 suffix。
 - [ ] 命令保留词不能成为 ID；读音/拼写近似的 deck 内 ID 会触发警告。
 - [ ] 去掉大小写、空格、连字符后的 spoken key 在 deck 历史内唯一，连续语音转写不会命中两页。
@@ -432,7 +447,7 @@ slide-specifications.md
 - [ ] `normalize` 只改错误序号，不改 block body/ID/order。
 - [ ] “删第 3、7 页”按旧快照删除正确两张。
 - [ ] dry-run 的 after order 与 apply 结果完全一致。
-- [ ] base source 在 dry-run 后变化时 apply 拒绝执行。
+- [ ] base source 或 canonical plan hash 在 dry-run 后变化时 apply 拒绝执行；裸 `--apply` 也拒绝。
 
 ### Pipeline correctness
 
@@ -441,13 +456,13 @@ slide-specifications.md
 - [ ] Stage 4 输出严格等于新 plan 顺序。
 - [ ] Stage 5 先做 exact ID-set match，删除中间页后 notes 不 shift。
 - [ ] 删除页不会在新版本被组装，但旧版本仍完整保留。
-- [ ] 插入一页只生成一个新 render artifact。
+- [ ] 插入一页的结构 apply 零远端调用并报告一个 `needs_render`；显式授权 refresh 后只生成该 ID 的新 raw render。
 
 ### Dual render readiness
 
 - [ ] 同一 ID 的 `image2` 与 `html` artifact 可共存。
 - [ ] engine switch 不改变 slide ID。
-- [ ] build 由 `(slide_id, engine)` 选产物，由 position 排顺序。
+- [ ] build 由 `(slide_id, engine, artifact_kind)` 选产物，由 position 排顺序。
 - [ ] mixed deck 重排不会让两种 engine 的产物串页。
 
 ### Compatibility
@@ -462,7 +477,7 @@ slide-specifications.md
 |------|------|
 | Markdown 编辑器误吞 epilogue 或破坏格式 | 单一 structured slide-document parser；golden round-trip tests；无改动部分 byte-preserving |
 | 人工直接改 ID 导致“同页变新页” | 文档声明 rename = delete + insert；status/impact report 标出 artifact loss；常规命令永不改 ID |
-| 5–6 字母双语义呼号重名或语音近似 | 调整 SUBJECT 或 MOVE；宁可清楚的六位，不造晦涩五位；解析歧义时展示 `position + ID + title` 确认 |
+| 5–8 字母双语义呼号重名或语音近似 | 调整 SUBJECT 或 MOVE；优先清楚的五六位，确需时用七八位，不造晦涩压缩；解析歧义时展示 `position + ID + title` 确认 |
 | 页面标题变化后呼号不再完全贴切 | 呼号锚定叙事职责而非当前措辞；小改保持，职责彻底变化才显式 rename/migrate |
 | legacy ID 带旧序号造成认知冲突 | UI 标 legacy；当前 position 永远单独显示；提供显式迁移而非隐藏迁移 |
 | 跨版本复用拿到陈旧图片 | 必须同时验证 stable ID、generation fingerprint/profile 和 image SHA；失败则不复用 |
@@ -476,6 +491,17 @@ slide-specifications.md
 - 不承诺自动理解并重写所有自然语言页码引用。
 - 不在 MVP 提供无版本保护的 in-place add/delete/reorder。
 - 不在这个 change 实现 HTML renderer；这里只给 dual render 建立稳定输入与 artifact seam。
+
+## 安全层与逃生路径
+
+```text
+heading-only current version
+  -> same deck clean vNext
+  -> reuse unproven: explicit rebuild in vNext
+  -> audience/goal/narrative materially changed: recommend a new deck
+```
+
+Git 是另一层手段：建议开工时检测并安装，用于 source/control 回滚、diff 和审计；run-bundle `v1/v2` 仍是用户可理解的作品版本，`_generated/` 不进 Git。缺少 Git 不阻断 PPT 创建。具体计划见 `_backlog/todos/todo-optional-git-safety-and-startup-guidance.md`。
 
 ## 落地关联
 
