@@ -58,7 +58,7 @@ Tier 在 Step 2 Intake 时根据用户回答的时长自动判断。如果用户
 
 ## 核心理念：Run Bundle
 
-所有工作都发生在一个 **run bundle**（文件系统实例）中。run bundle 是一个遵循 `workflow/00-setup/` 定义的目录结构——它是项目的完整文件系统 workspace。不需要数据库、不需要 workflow server、不需要 YAML。`ls` 看进度，`diff -r v1 v2` 看差异，`git log` 看历史。
+所有工作都发生在一个 **run bundle**（文件系统实例）中。run bundle 是一个遵循 `workflow/00-setup/` 定义的目录结构——它是项目的完整文件系统 workspace。不需要数据库、不需要 workflow server、不需要 YAML。`ls` 看进度，`diff -r v1 v2` 看可见版本差异；若用户选择自己的 Git 仓库，Git history 只是额外的 source/control 审计。
 
 **Soft bundle**（`PPTMAKER_FRAMEWORK/`）= 方法论文档（只读参考）。**Run bundle**（`deck_{NAME}/`）= 项目 workspace（所有动态内容）。
 
@@ -142,6 +142,8 @@ deck_{NAME}/          ← 这是你的 run bundle（"deck_" 前缀必须保留�
 ```
 
 > **三层梯度**:上游(原始素材)+ 中游 backbone(主干,含视觉)全版本**共享一份**;版本只切下游 `3_versions/`。派生品在 `_generated/`；本版临时在 `_scratch/`。脚本不复制进 run bundle——管线从 `PPTMAKER_FRAMEWORK/scripts/` 就地运行(见 Phase 3)。
+
+> **可选 Git：** 可见 `vN` + Structural Versioning Path 是 deck 工作版本权威。Git 是用户拥有的 source/control 审计，不是创建、渲染、结构发布或交付的前提；`_generated/` 不强制追踪，也不是恢复目标。没有用户对命名操作和精确范围的明确授权，Agent 不检查 Git 工作树、不执行 Git mutation，也不把 clean worktree 当 gate。
 
 创建命令——**用 `--init` 一条命令搭好整个骨架并播种选中的 preset,不要手动 mkdir、不要手动 cp**（手动建/手动拷是临场发挥的源头）：
 

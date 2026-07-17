@@ -27,6 +27,8 @@ agent_action: copy_to_bundle
 # {{DECK_NAME}} — 这个 PPT 项目怎么用
 
 > 这份说明给你(人)看。不用懂目录、不用懂管线、不用写代码。看完你就知道现在能做什么。
+>
+> **版本与可选 Git**：可见 `vN` + Structural Versioning Path 是 deck 工作版本权威。Git 只是可选、用户拥有的 source/control 审计与比较；`_generated/` 不是恢复目标。本框架不提供自动 Git source recovery 或默认回退协议。没有用户对命名 Git 操作和精确范围的明确授权，Agent 不做 Git mutation。
 
 ## 你在这里
 
@@ -87,6 +89,7 @@ agent_action: copy_to_bundle
 > 目录结构是宪法,唯一事实源 `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
 > (跑它看树 / `--check deck_{NAME}/3_versions/v1` 校验)。只改 `2_backbone/` 和
 > `3_versions/{{CURRENT_VERSION}}/{slide-specifications.md, overrides/}`;`_generated/` 全是派生品。
+> 可见 `vN` + Structural Versioning Path 是 deck 工作版本权威；Git 只是可选、用户拥有的 source/control 审计。没有用户对命名 Git 操作和精确范围的明确授权，Agent 不做 Git inspection 或 mutation。
 
 ## 结构(三层梯度)
 

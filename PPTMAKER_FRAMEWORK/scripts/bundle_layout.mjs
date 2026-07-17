@@ -998,6 +998,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         path.join(deckDir, GUIDE_FILE),
         `# ${path.basename(deckDir)} — 这个 PPT 项目怎么用\n\n` +
         `> 当前版本：\`v1\`。先改源文件，再让管线重建；不要直接改 \`_generated/\`。\n\n` +
+        `> 版本：可见 \`vN\` + Structural Versioning Path 是 deck 工作版本权威。Git 仅是可选、用户拥有的 source/control 审计；\`_generated/\` 不是恢复目标。本框架不提供自动 Git source recovery 或默认回退协议；没有用户对命名操作和精确范围的明确授权，Agent 不做 Git mutation。\n\n` +
         `## 你改哪里\n\n` +
         `- 每页内容：\`${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}\`\n` +
         `- 整体主线：\`${BACKBONE_DIR}/${BACKBONE_METAPHOR}\` + \`${BACKBONE_DIR}/${BACKBONE_FORMULA}\`\n` +

@@ -109,6 +109,15 @@ describe("ppt_flow", () => {
     }
   });
 
+  it("doctor remains text-only and does not expose a JSON flag", () => {
+    const help = runPptFlow(["doctor", "--help"]);
+    expect(help.status).toBe(0);
+    expect(help.stdout + help.stderr).not.toMatch(/--json/);
+    const unsupported = runPptFlow(["doctor", "--json"]);
+    expect(unsupported.status).not.toBe(0);
+    expect(parseFailureEnvelope(unsupported.stderr).code).toBe("USAGE");
+  });
+
   it("unknown command → USAGE envelope", () => {
     const r = runPptFlow(["nosuch"]);
     expect(r.status).not.toBe(0);

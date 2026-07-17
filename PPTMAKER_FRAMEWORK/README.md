@@ -33,7 +33,7 @@ version: 0.15.0
 
 不需要 Jenkins。不需要 Airflow。不需要 YAML pipeline 配置。
 
-**目录表达职责层级。文件 = 交接物。版本只复制下游源 delta，`_generated/` 保持干净。Git = 审计追踪。**
+**目录表达职责层级。文件 = 交接物。版本只复制下游源 delta，`_generated/` 保持干净。可见 `vN` 是 deck 工作版本；Git 是可选、用户拥有的源文件审计。**
 
 ```
 PPTMAKER_FRAMEWORK/
@@ -55,7 +55,7 @@ PPTMAKER_FRAMEWORK/
   └── scripts/                          ← Node.js 管线脚本（ppt_flow / stages）
 ```
 
-对 coding agent 来说，文件是原生操作对象——读、写、搜索、diff、提交。不需要学习任何新抽象。`ls` 看进度，`git log` 看变更，`diff -r v2 v3` 看差异。
+对 coding agent 来说，文件是原生操作对象——读、写、搜索、diff。不需要学习任何新抽象。`ls` 看进度，`diff -r v2 v3` 看可见版本差异；若用户选择了自己的 Git 仓库，Git history 可作为额外的源文件审计。
 
 ## 体系架构
 
@@ -159,7 +159,7 @@ Lifecycle Phase 1 和 2 可以交换起始顺序（如果用户带着强烈视�
 - 每次重大下游改动用 `bundle_layout.mjs --new-version ...` 创建干净版本；只复制 `slide-specifications.md` 与 `overrides/` 等下游源 delta，不复制 `_generated/`
 - Changelog 记录什么变了、为什么——"原因"比"做什么"更重要
 - 增删重排用 stable-ID preview/hash 提交；结构提交本身零远端调用。验证过的 raw render 可按 ID 物化到目标，final/contact sheet/PPTX/notes 在目标重建；缺图只报告 `needs_render`，另行授权。
-- 方法论文件在 Git 中版本管理；项目产出物在项目目录中管理
+- 方法论文件可由其维护者在 Git 中版本管理；deck 的 source/control 文件可由用户选择纳入自己的仓库，项目产出物仍按项目目录与 Structural Versioning Path 管理
 
 ### 4. 方法论优先，案例辅助
 

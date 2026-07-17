@@ -104,6 +104,14 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 
 结构 preview 的 hash 由 Agent 保留，用户只确认变化。stale source/hash mismatch 必须重新 preview，不 rebase。Structural apply、impact 与 materialization 不得调用远端 renderer；只有 manifest 证明完整的 raw render 可以跨版本物化，Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 只报告后续成本，不能把结构授权扩张为生图授权。若一版内无法清晰收敛，按新 preview → 新 vNext → 新 deck 升级；受众、主叙事或设计系统分叉时直接建议新 deck。
 
+## 8.1 可选 Git，用户拥有
+
+可见 `vN` 与 Structural Versioning Path 是 deck 的工作版本权威；Git 仅是用户拥有的 source/control 审计与比较层，绝不成为第二个排序来源、生产前提或框架提供的回退机制。`_generated/` 始终是可重建派生品，绝不是 Git 恢复目标，也不要求强制追踪。
+
+Agent 只能在当前 interaction 已知发生实质 source 工作时，在一个 deck 的连续 source-work episode 内最多给一次非阻塞 checkpoint 建议。用户拒绝或暂缓后，本 episode 不再提醒。建议本身不授权检查工作树或执行 Git 操作。
+
+没有用户对**命名操作和精确范围**的明确授权时，Agent 不得暗中检查 Git 状态、cleanliness、`git status` 或 `git diff`，也不得 init、add、commit、push、pull、改 remote、checkout、restore、reset、clean 或丢弃改动；clean worktree 不是任何 deck 阶段的 gate。用户明确授权后，先复述该操作与范围，只协助它本身，不推断涉及文件、暂存状态或效果。普通 checkpoint 授权不包含任何 inspection。本框架不提供 Git history reader、自动 source replacement 或默认 recovery protocol。
+
 ## 9. 用户做选择题，你做创造性劳动
 
 隐喻 / 公式 / 视觉：给 **2–3 个候选** + 推荐理由，让用户选。

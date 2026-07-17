@@ -95,6 +95,14 @@ Structural apply、impact 和 cross-version materialization 一律 renderer-free
 
 标题请求统一进入 `edit-text` 并调用 `ppt_flow refresh --kind title`：resolved `body+header-lock` 使用 Header Text & Style Refresh；resolved `full-page` 使用 Generated Image Rebuild，按 CLI 回执执行 `pilot --only <ids> --force-images`、header review 和 reviewed-image reuse。Header safe-zone 高度或 render-mode 改动会改变 raw-image contract，即使表面上也属于“页眉”，仍必须使用 Generated Image Rebuild。
 
+## 可选 Git 与版本回访
+
+可见 `vN` + Structural Versioning Path 是 deck 工作版本的唯一框架权威；Git 可另行作为用户拥有的 source/control 审计与比较，不是第二个 slide order 来源、创建/渲染前提或原地回退工具。`_generated/` 是可重建派生品，不手改、不手动跨版本复制、不 force-track，也不是 Git recovery target。
+
+用户要回访 deck `vN` 时，保留所有可见版本，走既有 escape ladder：标题/小问题修当前版本；同一方向的大改发布 clean vNext；vNext 中明确 `needs_render` 后另行授权 rebuild；受众、目标或叙事实质改变时建议新 deck。本 change 不提供 Git history reader、source-content comparison、`git checkout` / `git restore` fallback、框架 source replacement、recovery receipt 或默认 recovery protocol。
+
+用户若要处理自己的 Git history，Agent 必须先取得对一个**命名 Git 操作和用户给定范围**的明确授权，并复述后只协助该操作。普通 checkpoint 同意不包括 `git status`、`git diff` 或其它 inspection；没有该授权时不得检查 cleanliness，也不得 init/add/commit/push/pull、改 remote、restore/reset/checkout/clean 或丢弃改动。
+
 ## 续跑 / 做到哪了
 
 > 小白断线、清聊天、合盖再开——进度在 **deck 磁盘**，不在聊天。这是**整流程** session resume，不是新 playbook；活跃 playbook = `_state.playbook`。

@@ -24,6 +24,24 @@ const CRITICAL_FILES = [
   "PPTMAKER_FRAMEWORK/reference/anti-patterns.md",
 ];
 
+const GIT_GUIDANCE_CORPUS = [
+  "PPTMAKER_FRAMEWORK/README.md",
+  "PPTMAKER_FRAMEWORK/AGENTS.md",
+  "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
+  "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
+  "PPTMAKER_FRAMEWORK/COMMANDS.md",
+  "PPTMAKER_FRAMEWORK/scripts/change-classifier.md",
+  "PPTMAKER_FRAMEWORK/workflow/00-setup/00-run-bundle-concept.md",
+  "PPTMAKER_FRAMEWORK/workflow/00-setup/04-conventions.md",
+  "PPTMAKER_FRAMEWORK/workflow/00-setup/README.md",
+  "PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md",
+  "PPTMAKER_FRAMEWORK/workflow/01-visual/04-iterate-review-lock.md",
+  "PPTMAKER_FRAMEWORK/workflow/04-production/05-stage-5-inject-speaker-notes.md",
+  "PPTMAKER_FRAMEWORK/workflow/05-iteration/README.md",
+  "PPTMAKER_FRAMEWORK/workflow/05-iteration/02-style-iteration-workflow.md",
+  "PPTMAKER_FRAMEWORK/reference/glossary.md",
+];
+
 describe("framework documentation coherence", () => {
   it("critical entry documents exist", () => {
     for (const file of CRITICAL_FILES) expect(existsSync(file), file).toBe(true);
@@ -114,6 +132,40 @@ describe("framework documentation coherence", () => {
     expect(template).toMatch(/SUBJECT \+ MOVE/);
     expect(template).toMatch(/5–8/);
     expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("13 个命令");
+  });
+
+  it("keeps optional Git guidance aligned with visible deck versions", () => {
+    const bootstrap = readFileSync("PPTMAKER_FRAMEWORK/BOOTSTRAP.md", "utf8");
+    expect(bootstrap).toContain("### git");
+    expect(bootstrap).toContain("Git 对做 PPT **可选但推荐**");
+    expect(bootstrap).toContain("本次调用所在目录");
+    expect(bootstrap).toContain("not confirmed as a worktree");
+    expect(bootstrap).toContain("no verifiable Git history checkpoint");
+    expect(bootstrap).toContain("项目根");
+    expect(bootstrap).toContain("不得嵌套 `git init`");
+
+    const contract = readFileSync("PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md", "utf8");
+    expect(contract).toContain("连续 source-work episode");
+    expect(contract).toContain("命名操作和精确范围");
+    expect(contract).toContain("普通 checkpoint 授权不包含任何 inspection");
+    expect(contract).toContain("`_generated/` 始终是可重建派生品");
+
+    const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md", "utf8");
+    expect(template).toContain("Git 只是可选、用户拥有的 source/control 审计");
+    expect(template).toContain("自动 Git source recovery");
+
+    for (const file of GIT_GUIDANCE_CORPUS) {
+      const text = readFileSync(file, "utf8");
+      expect(text, file).not.toMatch(/Git commit \+ push/);
+      expect(text, file).not.toMatch(/源文件属于 Git/);
+      expect(text, file).not.toMatch(/v1 不变，随时回退/);
+      expect(text, file).not.toMatch(/git add -f\s+_generated/);
+    }
+
+    const commands = readFileSync("PPTMAKER_FRAMEWORK/COMMANDS.md", "utf8");
+    expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
+    expect(commands).toContain("Git history reader");
+    expect(commands).toContain("命名 Git 操作和用户给定范围");
   });
 
   it("the complete active framework has no coherence violations", () => {

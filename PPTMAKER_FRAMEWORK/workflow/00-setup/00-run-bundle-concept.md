@@ -43,8 +43,8 @@ agent_action: internalize
 | 版本快照 | `bundle_layout.mjs --new-version deck_X/3_versions/v1` — 只复制源 delta，随时 `diff -r` |
 | 重跑某个阶段 | `node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir ... --stage N` |
 | 检查中间产物 | 打开 `page_images_full/03_xxx.png` — 直接看图 |
-| 回滚 | `rm -rf 3_versions/v2 && cp -r 3_versions/v1_backup 3_versions/v1` |
-| 审计追踪 | `git log` — 谁改了啥、什么时候 |
+| 回访已有版本 | 保留所有可见 `vN`；小修复当前源，同方向大改建 clean vNext，受众/主叙事分叉时另建 deck |
+| 源文件审计（可选） | 用户拥有的 Git history 可比较 source/control 变化；不替代 `vN` |
 
 **关键差异**：不需要启动服务器。不需要配置 YAML。不需要学习新工具。文件系统就是 agent 的原生操作环境。
 
@@ -68,7 +68,7 @@ agent_action: internalize
   ↓
 归档
    │  保留最终版本目录
-   │  Git commit + push
+   │  交付 / 按用户自己的流程归档（Git checkpoint 仅在用户选择且明确授权时）
 ```
 
 每个阶段在文件系统中有**可见的痕迹**——不是数据库里的状态字段，是你可以 `ls` 看到的实际文件。
