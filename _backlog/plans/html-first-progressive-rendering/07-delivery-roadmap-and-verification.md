@@ -17,7 +17,7 @@
 
 | Change | Propose | Review | Apply | Validate | Sync + Archive |
 |---|---|---|---|---|---|
-| 1 `upgrade-html-render-runtime-readiness` | [x] | [x] | [x] | [x] | [ ] |
+| 1 `upgrade-html-render-runtime-readiness` | [x] | [x] | [x] | [x] | [x] |
 | 2 `add-structured-html-slide-contract` | [x] | [ ] | [ ] | [ ] | [ ] |
 | 3 `deliver-html-first-decks` | [ ] | [ ] | [ ] | [ ] | [ ] |
 | 4 `add-image2-visual-slot-refinement` | [ ] | [ ] | [ ] | [ ] | [ ] |
