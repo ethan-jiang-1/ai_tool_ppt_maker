@@ -1,4 +1,4 @@
-# 专题 07: PPTMAKER_FRAMEWORK 目录影响
+# 专题 06: PPTMAKER_FRAMEWORK 目录影响
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
 > 状态: 目标目录与迁移责任已锁定，实际改动由四个 OpenSpec changes 分步完成 | 更新: 2026-07-17
@@ -40,7 +40,9 @@
 
 `workflow/` 的目录形状在 Change 3 一次迁移到最终六目录；Change 4 只激活并补全可选 refinement 内容。目录编号同时成为 Lifecycle Phase 与 `method_module` 顺序，不再维护“Method Module 编号与 Lifecycle Phase 编号不同”的双重解释。
 
-目标 lifecycle 为 `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`：Phase 3 已经交付完整 PPTX；Phase 4 只有用户明确选择专业精修时进入；Phase 5 可从 HTML 成品或精修成品开始迭代。Change 3 必须同步迁移 `node-specification` 的 `lifecycle_phase`/`method_module` enum、全部 playbook node frontmatter 和 validator fixture。
+目标 lifecycle 为 `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`：Phase 3 已经交付完整 PPTX；Phase 4 只有用户明确选择专业精修时进入；Phase 5 可从 HTML 成品或精修成品开始迭代。Change 3 必须同步迁移 `node-specification` 的 `lifecycle_phase`/`method_module` enum、全部 playbook node frontmatter、validator fixture 和既有 `_state` 的续跑解释。
+
+已有 deck 的断线续跑不能因 framework 目录改名而丢失。state heal 必须确定性映射仍存在的 playbook/current-node/module 引用，保留 completed evidence、human waits、execution identity 和 reserved records；若旧执行拓扑无法无歧义映射，必须返回需要人类确认的 replacement/restart 诊断，不能静默清空进度或假装 completed。legacy deck 即使不迁移内容，也必须能在新 framework 下 `ppt_flow state/status` 并继续其兼容维护路径。
 
 ```text
 PPTMAKER_FRAMEWORK/workflow/
@@ -99,6 +101,7 @@ PPTMAKER_FRAMEWORK/workflow/
 │   ├── 04-generate-and-review-candidates.md
 │   ├── 05-accept-fallback-and-clean.md
 │   ├── 06-debug-provider-and-retry.md
+│   ├── legacy-image2-first-maintenance.md
 │   └── template-visual-refinement-brief.md
 │
 └── 05-iteration/
@@ -122,7 +125,19 @@ PPTMAKER_FRAMEWORK/workflow/
 | `04-production/` | `03-production/` | rename + 重写 Stage 2/3 | 默认生产改为 HTML render + deterministic composition |
 | `05-iteration/` | `05-iteration/` | 保留并改写 | 默认刷新变成本地 rebuild；远端重试需要新授权 |
 
-最终不得同时保留旧目录和新目录作为两套活跃方法论。Change 3 必须原子更新全 framework cross-reference、frontmatter `stage/depends_on/feeds_into`、playbook `lifecycle_phase/method_module`、OpenSpec main specs 和链接扫描；旧路径不能靠复制文件长期兼容。
+最终不得同时保留旧目录和新目录作为两套活跃方法论。Change 3 必须原子更新全 framework cross-reference、frontmatter `stage/depends_on/feeds_into`、playbook `lifecycle_phase/method_module`、state heal/migration、OpenSpec main specs 和链接扫描；旧路径不能靠复制文件长期兼容。
+
+## Gate 合同怎样变化
+
+为避免同时迁移 state/metadata 的 gate key，`content` 和 `visual` 两个 gate 名称保留，但其证据按 `production.pipeline` 分支，不能混用：
+
+| Gate | HTML-first deck | Legacy Image2-first deck |
+|---|---|---|
+| `content` | 用户确认 narrative、准确 header/body、family 和 fallback 已可进入渲染 | 保持当前内容确认语义 |
+| `visual` | 使用与正式生产相同的 HTML compositor 渲染代表页/contact sheet，展示实物后由用户确认 visual system；不要求 style master 或 Image2 | 保持当前 style master/pilot review 语义 |
+| refinement page review | 不复用全 deck `visual` gate；每个 candidate 的 accepted/use-html 决定写入 version-scoped `visual-refinement` state | 不适用；继续当前 legacy review evidence |
+
+HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远端、可反复重跑的 HTML preview/composition。这样 Phase 2 能看到真实产物再确认，Phase 3 仍拥有正式 contact sheet/PPTX/notes 交付。gate evidence 记录 pipeline marker、visual-config fingerprint、renderer profile、已覆盖的 family/geometry、代表页 IDs 和当时展示的 preview SHAs。preview SHA 是“用户看过什么”的审计证据，不直接参与 freshness；只有 visual config、renderer profile 或未覆盖的新 family/geometry 改变才使 visual gate stale。普通 header/body 文案变化只需重新通过 schema/pixel overflow 和本地 composition，不重新索要整册视觉批准。legacy evidence 不得被 HTML-first 分支接受，反之亦然。
 
 ## `workflow/` 逐文件处置
 
@@ -179,6 +194,7 @@ PPTMAKER_FRAMEWORK/workflow/
 | `04-iteration-and-debugging.md` | 改写为 plan/authorization/unknown-submit/retry 纪律 |
 | `05-resolution-quality-tradeoffs.md` | 保留为 profile、质量、成本选择 |
 | `template-image-prompt-builder.md` | 替换为 `template-visual-refinement-brief.md`；不允许准确文字和整页 layout |
+| 新文件 `legacy-image2-first-maintenance.md` | 汇总旧 deck 的 style master、whole-page prompt、pilot/review 与刷新入口；仅兼容维护，不进入新 deck 默认生命周期 |
 
 ### 当前 `04-production/` -> 目标 `03-production/`
 
@@ -203,6 +219,21 @@ PPTMAKER_FRAMEWORK/workflow/
 | 新文件 `04-refinement-iteration.md` | 明确 retry/new candidate 必须新 plan 和授权 |
 | `04-end-to-end-walkthrough.md` | 顺延为 `05-...`，展示 novice stop 与 professional continue 两条结尾 |
 
+## 迭代与刷新分类
+
+Change 3 起，change classifier 先读取 `production.pipeline`，再选择所有权和最小失效路径；不能再用 render mode 统一解释新旧 deck。
+
+| 用户改动 | HTML-first 路径 | Legacy 路径 |
+|---|---|---|
+| 单页 header/body/family/fallback | Local Slide Rebuild：parse/validate -> HTML render -> compose -> contact sheet/PPTX；零远端 | 保持 Header Text & Style Refresh / Generated Image Rebuild 分流 |
+| deck visual config | Local Deck Rebuild：使受影响 HTML/final-slide 失效，先出代表页 visual gate，再本地全量 | 保持 style master -> pilot -> Generated Image Rebuild |
+| notes only | Notes-Only Refresh | Notes-Only Refresh |
+| 增删重排 | Structural Versioning Path -> target-local HTML rebuild；零远端 | 保持当前 structural materialization/`needs_render` 语义 |
+| 已接受主视觉后的普通文字/layout 变化 | 若 visual contract 仍匹配则本地重合成；不匹配则 stale 并回退 HTML，不自动生成 | 不适用 |
+| 用户明确要求新的专业主视觉 | Phase 4 新 plan/authorization/refinement | legacy Generated Image Rebuild，除非先显式迁移 deck |
+
+`Local Slide Rebuild`、`Local Deck Rebuild`、`Notes-Only Refresh` 和 `Structural Versioning Path` 是 HTML-first 的稳定维护检索词。Phase 4 refinement 是单独的付费工作流，不伪装成普通 refresh。Phase 5 iteration 不是单向终点；它按这张表回到对应 source owner/production path，再返回可交付状态。
+
 ## `PPTMAKER_FRAMEWORK/` 其他目录怎样变
 
 根目录形状不变，但以下文件会随 workflow 一起改，避免方法论与执行代码分裂。
@@ -224,7 +255,7 @@ PPTMAKER_FRAMEWORK/
 │   ├── iterate-style.md         [改] HTML visual system 为默认
 │   ├── quick-preview.md         [改] HTML contact sheet，不要求 style master
 │   ├── refine-visuals.md        [新] 推荐、授权、生成、逐页 review
-│   └── classify-change.md       [改] 先结构/所有权/失效，再判断是否需远端
+│   └── classify-change.md       [改] 先 pipeline marker，再结构/所有权/失效，最后判断是否需远端
 └── scripts/
     ├── env-check.mjs            [改] base 与 `--image2` readiness 分层
     ├── stage1_build_inputs.mjs  [改] structured plan + legacy branch
@@ -259,7 +290,7 @@ composeSlide(structured_plan, resolved_assets, runtime_profile)
 |---|---|---|
 | 1 `upgrade-html-render-runtime-readiness` | 只更新 `00-setup/` 的 Node/browser/font/readiness 事实；不重排目录 | `BOOTSTRAP`、doctor、fonts、runtime profile |
 | 2 `add-structured-html-slide-contract` | 在当前 `02-content/` 先落 structured body/family authoring；尚不切默认 workflow | parser、visual config、asset catalog interfaces |
-| 3 `deliver-html-first-decks` | 原子迁移为最终六目录和 Phase 0-5 enum；旧 `03-prompts`/style-master 知识移入 `04-refinement/`，但只服务 legacy 维护并明确 HTML-first refinement 尚不可用 | HTML renderer、composition、Stage 4、node/playbook schema、init/template、create/edit playbooks |
+| 3 `deliver-html-first-decks` | 原子迁移为最终六目录和 Phase 0-5 enum；迁移既有 state 续跑解释；旧 `03-prompts`/style-master 知识移入 `04-refinement/`，但只服务 legacy 维护并明确 HTML-first refinement 尚不可用 | HTML renderer、composition、Stage 4、node/playbook/state schema、init/template、create/edit playbooks |
 | 4 `add-image2-visual-slot-refinement` | 激活并补全 `04-refinement/` 的推荐、授权、候选、review、promotion、cleanup，更新 Phase 5 refinement iteration | refine CLI/state/provider adapter/promotion/cleanup/playbook |
 
 每个 change 归档时，`workflow/README.md`、`charter/WORKFLOW.md`、`AGENTS.md` 和 active playbook 必须准确描述当时已经可用的系统，不能提前宣传下一 change 才实现的路径。

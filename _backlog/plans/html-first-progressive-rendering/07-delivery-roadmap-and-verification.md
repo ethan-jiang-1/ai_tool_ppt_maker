@@ -1,4 +1,4 @@
-# 专题 06: OpenSpec 路线与验收
+# 专题 07: OpenSpec 路线与验收
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
 > 状态: 四个 change 边界已锁定，待 Change 1 propose | 更新: 2026-07-17
@@ -134,9 +134,9 @@ Proposal 必须明确：`env-check` 保持 Node built-ins-only 的可启动入�
 | 3A Deterministic composition | structured plan -> self-contained HTML -> browser measurement/screenshot -> verified `final-slide`；ECharts/local asset adapters | 新增 `html-slide-rendering`；消费 `html-render-runtime`、`html-slide-contract` |
 | 3B Artifact pipeline | `html_pages`/`final_slides` manifests、fingerprints、target-owned materialization、contact sheet | 修改 `pipeline-orchestration`、`slide-identity-and-ordering` |
 | 3C Provider-neutral delivery | Stage 4 不再按 selected engine 寻址，只按 plan order 消费唯一 current `final-slide`；Stage 5 继续按 ID 注 notes | 修改 `pptx-assembly`、`notes-injection` |
-| 3D New-deck default | init/template/source 写 HTML-first marker，移除基础 Image2 onboarding，更新 intake/status/readiness/change classifier | 修改 `run-bundle-management`、`framework-charter`、`commands-reference`、`bootstrap-env-guidance` |
+| 3D New-deck default | init/template/source 写 HTML-first marker，按 pipeline marker 分支 content/visual gate evidence与 preview/publication readiness，移除基础 Image2 onboarding，更新 intake/status/readiness/change classifier | 修改 `run-bundle-management`、`pipeline-orchestration`、`framework-charter`、`commands-reference`、`bootstrap-env-guidance`、`playbook-execution` |
 | 3E Compatibility/migration | legacy 路径保持；显式 clean vNext 迁移、对照 gate、零远端结构/重排 rebuild | 修改 `pipeline-orchestration`、`project-versioning`、相关 playbook specs |
-| 3F Workflow migration | 原子迁移最终六个 workflow 目录、Phase 0-5 和 `method_module` enums、全部 active links/nodes；`04-refinement` 此时仅服务 legacy 维护 | 修改 `framework-directory-layout`、`framework-charter`、`node-specification`、`playbook-execution` |
+| 3F Workflow migration | 原子迁移最终六个 workflow 目录、Phase 0-5、`method_module` enums、全部 active links/nodes 和既有 state 续跑解释；`04-refinement` 此时仅服务 legacy 维护 | 修改 `framework-directory-layout`、`framework-charter`、`node-specification`、`playbook-execution` |
 
 Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 条件下沿新 Phase 0-5 workflow 交付完整 PPTX。若 renderer、assembly、目录/node schema 或默认 workflow 任一缺失，就不能归档；也不能先切默认再留下不可交付的 deck。
 
@@ -145,8 +145,11 @@ Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 
 - 新手 E2E 从 init/create-deck 到完整 PPTX 不接触 Image2 setup。
 - 每个 family renderer 有非空像素、稳定 geometry、overflow 和 screenshot tests。
 - 纯重排/删页用本地重建完成，零远端调用；notes 不 shift。
+- HTML-first content/visual gates 使用真实 HTML preview 且不要求 style master；visual freshness 只绑定 visual system/runtime/family coverage，普通文案重建不使其失效，也不接受 legacy gate evidence。
+- classifier 对 HTML-first 单页、全局 visual config、notes 和结构改动分别走 Local Slide/Deck Rebuild、Notes-Only、Structural 路径；普通维护零远端。
 - legacy Image2-first E2E 保持现有行为；显式迁移产生新 vNext 和用户对照 gate。
 - workflow 顶层恰为最终六目录；active link/frontmatter/node schema 全部使用新 Phase/module 名称，旧目录引用为零。
+- 已有 HTML/legacy deck 的 `_state` 经确定性 heal 后保留可映射进度并可续跑；不可映射执行要求人类确认 replacement，不静默重置。
 - targeted tests、全量 `npm test`、相关 `tests_e2e`、bundle self-check 和 OpenSpec strict validation 通过。
 
 ## Change 4: `add-image2-visual-slot-refinement`
@@ -184,7 +187,7 @@ Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 
 | 4B Cost-safe generation | persisted random attempt IDs、setup-output dependency、generation fingerprint finalization、submit state machine、partial failure、`unknown-submit` 人工处置 | `visual-slot-refinement`；修改 `image-generation`、`cli-surface` |
 | 4C Review artifacts | candidate manifest、output SHA、同 prompt 多结果、同 geometry/crop 的 refinement preview、逐页 review state | `visual-slot-refinement`；修改 `run-bundle-layout` |
 | 4D Promotion/recovery | write-ahead journal、accepted candidate 原子提升为 version asset、source selection commit、use-html、幂等恢复、state evidence | `visual-slot-refinement`；修改 `visual-asset-management`、`content-parsing`、`node-specification` |
-| 4E Closeout/UX | recent rejected upstream archive、hash-bound cleanup、首次 Image2 onboarding、COMMANDS/BOOTSTRAP/playbooks | `visual-slot-refinement`；修改 `commands-reference`、`framework-charter`、`bootstrap-env-guidance` |
+| 4E Closeout/UX | recent rejected upstream archive、hash-bound cleanup、首次 Image2 onboarding、COMMANDS/BOOTSTRAP/playbooks；保留独立 legacy maintenance 指南 | `visual-slot-refinement`；修改 `commands-reference`、`framework-charter`、`bootstrap-env-guidance` |
 
 Image2 provider 是 true external dependency：remote transport 以注入 adapter 只置于显式 refinement generation module 内部，测试使用 fake adapter，并通过 CLI receipt 验证 observable behavior。普通 `composeSlide/build` 不持有这个 adapter；provider task schema 也不得泄漏成 Stage 4 或 slide source 的调用知识。
 
@@ -207,6 +210,8 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 | 无 Image2 完整交付 | prerequisite | prerequisite | owner | preserve |
 | Legacy Image2-first 兼容 | readiness | parser | owner | preserve |
 | Stable ID/reorder/notes | - | fingerprint | owner | preserve |
+| Workflow dirs/Phase/node enums | - | - | owner | preserve |
+| HTML-first gates/local refresh | - | contract | owner | preserve |
 | Cost authorization/exactly-once | - | - | - | owner |
 | Candidate review/promotion/cleanup | - | selection contract | composition prerequisite | owner |
 
@@ -234,4 +239,4 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 
 每个 change 单独 propose、review、apply、validate、archive。后一个 change 只依赖已经归档并同步到 main specs 的行为，不能依赖聊天或未落地的未来 interface。四个 change 的 proposal/design/tasks 必须逐项覆盖本文件对应的“包含、完成标准”，若延期必须回写本 plan，不能在 change 中静默删项。
 
-`PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`07-framework-directory-impact.md`](07-framework-directory-impact.md)。Change 3 的 workflow rename 必须原子更新 active cross-references 和 node schema，不能留下两套活跃方法论。
+`PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`06-framework-directory-impact.md`](06-framework-directory-impact.md)。Change 3 的 workflow rename 必须原子更新 active cross-references 和 node schema，不能留下两套活跃方法论。

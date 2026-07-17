@@ -58,8 +58,8 @@ HTML 不是低配预览；它是所有新用户都会得到的正式成品。Ima
 | 4 | [`03-rendering-runtime.md`](html-first-progressive-rendering/03-rendering-runtime.md) | visual config、Playwright/Chromium、字体和 readiness |
 | 5 | [`04-run-bundle-and-artifacts.md`](html-first-progressive-rendering/04-run-bundle-and-artifacts.md) | 文件放哪里、谁拥有、如何寻址、怎样跨版本失效/复用 |
 | 6 | [`05-refinement-transactions-and-interfaces.md`](html-first-progressive-rendering/05-refinement-transactions-and-interfaces.md) | 候选生成、成本计划、promotion transaction、CLI/MD interface |
-| 7 | [`06-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/06-delivery-roadmap-and-verification.md) | OpenSpec changes 顺序、测试、风险和 non-goals |
-| 8 | [`07-framework-directory-impact.md`](html-first-progressive-rendering/07-framework-directory-impact.md) | `PPTMAKER_FRAMEWORK/` 尤其 `workflow/` 的最终目标树、逐文件迁移和 change 落点 |
+| 7 | [`06-framework-directory-impact.md`](html-first-progressive-rendering/06-framework-directory-impact.md) | `PPTMAKER_FRAMEWORK/` 尤其 `workflow/` 的最终目标树、逐文件迁移和 change 落点 |
+| 8 | [`07-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/07-delivery-roadmap-and-verification.md) | 最终 OpenSpec changes 顺序、任务包、测试矩阵、风险和执行纪律 |
 
 专题之间通过链接引用，不复制另一专题的 schema。若专题与本总控的锁定决策冲突，以本页为当前产品决策；若未来 OpenSpec main spec 已落地，则以 main spec 为实现权威并回写本计划状态。
 
@@ -86,7 +86,7 @@ stable slide_id + derived position + artifact provenance
 | 3 | `deliver-html-first-decks` | 等待阶段 2 | HTML renderer、assembly、新 deck 默认、基础 UX 与 legacy migration 一次形成可交付垂直切片 |
 | 4 | `add-image2-visual-slot-refinement` | 等待阶段 3 | 授权、候选、逐页采用/回退、promotion、provenance 与专业 UX 闭环 |
 
-每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；四个 change 不再继续细拆，也不得反向合成一个巨型 change。每个 change 的具体任务包、影响 capability 和独立完成线见 [`06-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/06-delivery-roadmap-and-verification.md)。
+每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；四个 change 不再继续细拆，也不得反向合成一个巨型 change。每个 change 的具体任务包、影响 capability 和独立完成线见最后一篇 [`07-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/07-delivery-roadmap-and-verification.md)。
 
 ## 全局不变量
 
