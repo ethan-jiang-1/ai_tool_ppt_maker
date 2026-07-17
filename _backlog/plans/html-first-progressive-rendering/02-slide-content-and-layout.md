@@ -1,7 +1,7 @@
 # 专题 02: Slide 内容与 Layout 模型
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 决策完成 | 更新: 2026-07-17
+> 状态: 架构已锁定 | 更新: 2026-07-17
 
 ## 当前缺口
 
@@ -109,7 +109,20 @@ Stage 1 对每个主视觉区计算 renderer-neutral 的 `visual_contract_finger
 
 dependency projection 必须是 versioned、可测试的 allowlist，不能对整份 config 粗暴 hash。fingerprint 不覆盖 position、header/body 精确文字、speaker notes、Image2 model/profile、style reference 或生成时 reference assets。精确正文若改变了主视觉应表达的语义，Agent 必须同步更新 `brief` 或 `CONCEPT`，而不是让 JS 猜正文是否相关。
 
-`selection.accepted_for` 必须等于当前 visual contract fingerprint 才生效；不匹配时保留 source 中的历史 selection，但 resolver 返回 `stale` 并使用 HTML fallback，直到用户重新接受或清除 selection。Image2 特有输入另形成 `generation_fingerprint = visual_contract_fingerprint + derived prompt + provider profile + style-reference SHA + declared reference-asset SHAs`；它用于候选 provenance 和去重，不决定已经由用户接受的正式资产是否继续生效。这样 Change 2 可以在没有 Image2 配置时独立完成，Change 4 再实现生成合同。
+`selection.accepted_for` 必须等于当前 visual contract fingerprint 才有资格生效，但 contract 匹配不是资产完整性的替代品。resolver 必须产出以下互斥结果：
+
+| 结果 | 条件 | 当前 composition 行为 |
+|---|---|---|
+| `fallback` | `selection: null` | 使用结构化 HTML fallback |
+| `selected` | fingerprint 匹配，asset ID 可由 merged catalog 解析，文件 SHA 与 `output_sha256` 一致 | 使用已接受的正式本地资产 |
+| `stale` | selection 存在、正式 asset 引用完整，但 `accepted_for` 与当前 fingerprint 不匹配 | 保留 binding 供人类决定，发出可定位诊断并使用 HTML fallback |
+| `broken` | selection 存在，但 asset 未登记、文件缺失/不可读、类型不支持或 SHA 不一致，不论 contract 是否匹配 | 阻断 build；这是 source/control 完整性错误，不得静默 fallback |
+
+resolution 顺序固定为：没有 selection -> `fallback`；有 selection 先验证 manifest/path/type/bytes/SHA，失败 -> `broken`；资产完整后再比较 contract，匹配 -> `selected`，不匹配 -> `stale`。若资产已被有意移除，应同时显式清除 selection，而不是留下悬空引用。重新接受会替换当前 binding；旧的已登记资产可以继续作为未引用版本历史存在，由显式 source maintenance 处理。
+
+在上述 selection resolution 之前，Stage 1 无条件验证结构化 fallback：recipe enum/version 必须受支持，所引用 asset/icon 必须在 merged catalog 中登记、可读且 byte SHA 可计算。即使 selection 当前为 `selected` 也不能跳过，因为 fallback 是 HTML-only 完成交付和未来 stale recovery 的 source contract。fallback 损坏属于 slide source/control error，统一阻断 parse/build/vNext publication；它不借用 `broken` selection 状态，也不能靠当前 accepted asset 暂时遮蔽。
+
+Image2 特有输入另形成 `generation_fingerprint = visual_contract_fingerprint + derived prompt + provider profile + style-reference SHA + declared reference-asset SHAs`；它用于候选 provenance 和去重，不决定已经由用户接受的正式像素是否继续生效。改变 provider profile/style reference 只影响下一次生成；改变被 dependency projection 声明为影响构图或画面语义的 renderer-neutral visual tokens 会改变 visual contract，并使旧 selection stale。这样 Change 2 可以在没有 Image2 配置时独立完成，Change 4 再实现生成合同。
 
 ## Overflow 策略
 
@@ -132,6 +145,9 @@ Change 2 先以 schema 数量和 Unicode grapheme 数量做结构 preflight；Ch
 
 - 所有准确文字只出现于结构化 header/body 字段，不藏在 visual brief。
 - family validator 对未知字段、错误类型和超量集合 fail closed。
+- 每个 `primary_visual.fallback` 无条件通过 recipe/asset integrity validation；selection 存在不能使该验证短路。
+- HTML-only source 可以始终写 `selection: null`；`primary_visual` 只声明 renderer-neutral visual slot 与本地 fallback，不要求 Image2 profile、style reference、凭据或候选目录存在。
+- selection resolver 的 `fallback|selected|stale|broken` 结果为 structured plan 的显式字段；renderer、CLI 和 playbook 不得各自重推一遍。
 - 结构化 source 经过 parse/serialize 后保留其他 Markdown 字节和 speaker notes。
 - reorder 只改变 position projection，不改变 body/visual contract fingerprint。
 - legacy 与 `production.pipeline: html-first-v1` 两个解析分支明确隔离，不静默混用。使用独立 `production` mapping，现有 `render.default/header-lock` 继续只属于 legacy Image2 render policy；HTML-first source 出现旧 render policy 时 fail closed 并要求显式迁移清理。

@@ -1,116 +1,133 @@
 ## ADDED Requirements
 
-### Requirement: HTML rendering uses one pinned Node Playwright Chromium profile
+### Requirement: HTML runtime uses one pinned Node Playwright Chromium profile
 
-The framework SHALL support HTML rendering runtime operations on Node.js 22 or newer and SHALL declare `playwright` as an exact production dependency at version `1.61.1`. The paired Chromium SHALL be the browser owned by that Playwright package: revision `1228`, browser version `149.0.7827.55`. The runtime SHALL launch Playwright's bundled `chromium` without selecting a system browser channel or accepting an arbitrary executable override. Package version, lockfile, expected browser identity, runtime guidance, and tests SHALL change atomically when this profile is upgraded.
+The framework SHALL support HTML-runtime operations on Node.js 22 or newer and SHALL declare exact `playwright@1.61.1` as a production dependency. The paired browser SHALL be Playwright Chromium revision `1228`, browser version `149.0.7827.55`. Runtime operations SHALL use that paired Chromium without selecting a system-browser channel or accepting an arbitrary executable override. Package version, lockfile, expected browser identity, setup guidance, and profile tests SHALL be upgraded atomically.
 
 #### Scenario: Installed profile matches
 
-- **WHEN** Node.js 22 or newer, `playwright@1.61.1`, and its paired Chromium revision 1228 are installed
-- **THEN** runtime profile inspection reports the Node, Playwright, and Chromium components as matching
+- **WHEN** Node.js 22+, exact `playwright@1.61.1`, and its paired Chromium are installed
+- **THEN** runtime inspection reports the Node, Playwright, and Chromium components as matching
 
-#### Scenario: Browser from another Playwright version is not accepted
+#### Scenario: Browser from another profile is present
 
-- **WHEN** the npm package is present but its paired Chromium executable/revision is missing or mismatched
-- **THEN** runtime readiness fails with an install-oriented diagnostic
-- **AND** it does not launch a system Chrome, Edge, or caller-selected executable as fallback
+- **WHEN** the exact npm package is present but its paired Chromium executable/revision is missing or mismatched
+- **THEN** runtime readiness fails with installation-oriented evidence
+- **AND** it does not launch system Chrome, Edge, or a caller-selected executable
 
-### Requirement: Browser acquisition is explicit setup and never render-time behavior
+### Requirement: Browser acquisition is explicit setup and never readiness or render behavior
 
-The repository SHALL provide canonical package-script setup commands that invoke the pinned local Playwright CLI to install Chromium, plus a Linux/CI variant that installs Chromium with supported OS dependencies. Setup MAY use the standard Playwright cache or a consistently configured `PLAYWRIGHT_BROWSERS_PATH`; restricted-network setup MAY use documented Playwright proxy/download-host variables. Doctor, runtime smoke, and future render operations SHALL only inspect and launch an already installed matching browser and SHALL NOT execute a browser installer or download a browser.
+The repository SHALL expose canonical package-script setup commands that invoke the pinned local Playwright CLI to install Chromium, including a Linux/CI variant that installs supported OS dependencies. Setup MAY use the standard Playwright cache or a consistently configured `PLAYWRIGHT_BROWSERS_PATH`, and restricted-network setup MAY use documented Playwright proxy/download-host variables. Doctor, runtime smoke, and future rendering SHALL only inspect and launch an already installed matching browser and SHALL NOT invoke an installer or download a browser.
 
-#### Scenario: Beginner installs Chromium explicitly
+#### Scenario: Browser is installed explicitly
 
-- **WHEN** npm dependencies exist but the paired Chromium is absent
-- **THEN** guidance gives one copy-pasteable repository package-script command for normal setup
+- **WHEN** npm dependencies exist but paired Chromium is absent
+- **THEN** normal-user guidance gives one repository package-script command to install Chromium
 - **AND** Linux/CI guidance identifies the separate with-dependencies command where privilege policy permits it
 
-#### Scenario: Offline runtime has no matching browser
+#### Scenario: Offline runtime lacks paired Chromium
 
-- **WHEN** doctor or runtime smoke runs offline without the paired Chromium already installed or restored
+- **WHEN** doctor or runtime smoke runs offline without paired Chromium already installed or restored
 - **THEN** it fails with setup guidance
 - **AND** no installer, network download, or system-browser fallback is attempted
 
-#### Scenario: Custom cache location is consistent
+#### Scenario: Custom browser cache is selected
 
 - **WHEN** setup uses `PLAYWRIGHT_BROWSERS_PATH`
-- **THEN** doctor and runtime execution use the same configured location
-- **AND** readiness fails rather than silently looking for an unrelated browser when that location is unavailable
+- **THEN** readiness and execution use the same configured location
+- **AND** fail rather than searching for an unrelated browser when that location is unavailable
 
-### Requirement: Local runtime smoke is fixed, offline, and renderer-independent
+### Requirement: Static runtime smoke is local, fixed, and renderer-independent
 
-The framework SHALL include a checked-in static HTML runtime fixture that launches in the paired headless Chromium at a fixed viewport, loads only local/data resources, waits for bundled fonts, and verifies deterministic DOM geometry. The smoke SHALL abort every `http:` and `https:` request and SHALL block service workers. It SHALL fail if any network request is attempted. The fixture SHALL NOT import, emulate, or require the future structured-slide or HTML slide renderer.
+The framework SHALL include a checked-in static HTML fixture with a fixture-owned fixed viewport. Runtime smoke SHALL launch paired headless Chromium, load only local/data resources, block service workers, abort all HTTP/HTTPS requests, wait for required fonts, verify family/weight evidence, and assert deterministic DOM geometry. Any attempted network request SHALL fail the smoke. The fixture SHALL NOT import or emulate structured-slide or HTML-slide rendering and SHALL NOT alter legacy canvas/profile fingerprints.
 
-#### Scenario: Static fixture launches offline
+#### Scenario: Static fixture succeeds offline
 
-- **WHEN** the pinned runtime and bundled fonts are present
-- **THEN** the smoke launches Chromium, renders the fixed fixture, verifies its expected geometry and font evidence, and exits successfully without network access
+- **WHEN** the pinned runtime and bundled fonts are valid
+- **THEN** the smoke verifies expected font and geometry evidence with zero network requests
 
-#### Scenario: Fixture attempts a remote request
+#### Scenario: Fixture attempts remote access
 
-- **WHEN** the fixture or a dependency attempts an HTTP or HTTPS request
-- **THEN** the request is aborted and runtime smoke fails
+- **WHEN** the fixture or one of its resources attempts HTTP or HTTPS access
+- **THEN** the request is aborted and the smoke fails
 - **AND** no remote response is consumed
 
-### Requirement: Licensed Latin and Simplified-Chinese WOFF2 fonts are distributed with the framework
+#### Scenario: Legacy canvas remains unchanged
 
-The framework SHALL distribute Source Sans 3 variable normal WOFF2 for Latin weights 200-900 and Noto Sans SC variable normal WOFF2 unicode-range shards for Simplified Chinese weights 100-900 under `PPTMAKER_FRAMEWORK/scripts/fonts/`. Each family SHALL include its copyright notice, complete SIL OFL 1.1 license, upstream/distribution provenance, and pinned acquisition version. The distributed Noto files SHALL be pre-generated WOFF2 shards and SHALL NOT be fetched, concatenated, converted, or dynamically subset during doctor or rendering.
+- **WHEN** the Change-1 fixture profile is added
+- **THEN** existing legacy `1672x941` configuration and Stage-3 fingerprints remain unchanged
+- **AND** no future `html-first-v1` slide viewport is declared by this capability
 
-#### Scenario: Framework is installed on a machine with no system fonts
+### Requirement: Official Latin and Simplified-Chinese WOFF2 assets are distributed immutably
 
-- **WHEN** the distributed font tree is complete and its manifest is valid
-- **THEN** HTML runtime font readiness succeeds using only framework-owned WOFF2 files
-- **AND** it does not depend on an OS font directory or Google Fonts request
+The framework SHALL distribute Source Sans 3 variable normal WOFF2 weights 200-900 from Adobe release `3.052R` and Noto Sans SC variable normal WOFF2 weights 100-900 from a recorded snapshot of the official Google Fonts CSS/WOFF2 service. The Noto snapshot SHALL include the original CSS response, every referenced WOFF2 shard unchanged, locally rewritten CSS, fixed request metadata, served version/path, measured bytes, and a complete file/range inventory. Runtime SHALL use only committed local assets and SHALL NOT query Google Fonts, depend on a third-party font package, concatenate shards, convert TTF, or dynamically subset fonts.
 
-#### Scenario: License material is absent
+Each family SHALL include provenance, copyright notices, and complete SIL OFL 1.1 material. This HTML WOFF2 profile SHALL NOT silently replace the existing Stage-3 `@napi-rs/canvas` OTF/TTF/system-font contract.
 
-- **WHEN** a required family binary is present but its declared copyright or OFL file is missing
-- **THEN** font runtime readiness fails
-- **AND** the family is not treated as distributable-ready
+#### Scenario: Machine has no usable system font
 
-### Requirement: Font integrity and declared text coverage fail closed
+- **WHEN** the distributed font tree and manifest are valid
+- **THEN** HTML runtime font readiness succeeds using only framework-owned WOFF2 assets
+- **AND** it makes no remote font request
 
-A canonical font manifest SHALL record every distributed font file's family, style, supported weight range, Unicode range, relative path, SHA-256, provenance, and license path. Runtime verification SHALL fail when a required file is absent, its digest differs, range metadata is malformed, or required Latin/Simplified-Chinese sentinel text is outside the declared coverage. Browser smoke SHALL wait for `document.fonts.ready` and verify the required families/weights against checked-in Latin, punctuation/numeral, Simplified-Chinese, and CJK-punctuation corpora. System fallback SHALL NOT count as coverage evidence.
+#### Scenario: Noto CSS inventory is incomplete
 
-#### Scenario: Font file is corrupted
+- **WHEN** a WOFF2 referenced by the pinned original/local CSS or manifest is missing
+- **THEN** font readiness fails
+- **AND** no system font or network request fills the gap
 
-- **WHEN** a distributed WOFF2 file's bytes do not match the manifest SHA-256
-- **THEN** font readiness and local runtime smoke fail before any future slide render
-- **AND** the diagnostic identifies the normalized family/file role without exposing unrelated local paths
+#### Scenario: Legal material is absent
 
-#### Scenario: Requested glyph is outside the v1 profile
+- **WHEN** a required family binary exists but its declared copyright or OFL file is missing
+- **THEN** font readiness fails
+- **AND** the family is not treated as distribution-ready
 
-- **WHEN** a runtime caller asks to render text containing a code point not covered by the declared Latin or Simplified-Chinese profile
-- **THEN** coverage validation returns a blocking unsupported-glyph result
-- **AND** it does not silently accept an OS fallback glyph
+### Requirement: Font integrity and fixed sentinel coverage fail closed
 
-#### Scenario: Representative bilingual corpus is supported
+A versioned manifest SHALL record each distributed font's family, style, weight range, Unicode range, relative path, SHA-256, source snapshot/release, CSS identity, and license path. Verification SHALL fail when a required file is absent, a digest differs, CSS/inventory relations are incomplete, range metadata is malformed or conflicting, or required fixed sentinel text is outside declared coverage.
 
-- **WHEN** the checked-in English/Latin and Simplified-Chinese sentinel corpus is validated
-- **THEN** every required code point maps to a manifest range and every required browser font check passes
+The static browser smoke SHALL wait for `document.fonts.ready` and verify checked-in ASCII, Latin-accent, punctuation/currency, numeral, common Simplified-Chinese, and CJK-punctuation sentinels using required local families/weights. System fallback SHALL NOT count as evidence. This capability SHALL NOT claim actual deck-source coverage or pixel-overflow validation.
 
-### Requirement: Runtime evidence is reusable by later renderers
+#### Scenario: Font file digest drifts
 
-The browser/font runtime SHALL expose one internal structured inspection and smoke interface that `environment-check` and future HTML rendering consume. The interface SHALL return normalized profile, browser, font-integrity, coverage, geometry, and network-attempt evidence without defining workflow sequencing or user intent. Callers SHALL NOT independently rediscover Chromium or rebuild font CSS/coverage rules.
+- **WHEN** a required WOFF2 file does not match its manifest SHA-256
+- **THEN** font readiness and static runtime smoke fail
+- **AND** evidence identifies the normalized family/file role without exposing unrelated absolute paths
 
-#### Scenario: Environment check consumes the runtime seam
+#### Scenario: Fixed bilingual corpus is supported
 
-- **WHEN** base doctor performs its browser and font checks after npm dependencies are present
-- **THEN** it consumes the shared runtime evidence and maps it into environment check records
-- **AND** no duplicate browser-selection or font-manifest implementation exists in `env-check.mjs`
+- **WHEN** the checked-in Latin and Simplified-Chinese sentinel corpus is verified
+- **THEN** every required code point maps to declared local coverage
+- **AND** all required browser family/weight checks pass
 
-#### Scenario: Future renderer consumes the same profile
+#### Scenario: Real slide source is not supplied
 
-- **WHEN** a later change adds HTML slide rendering
-- **THEN** it uses the same installed-browser and bundled-font contract established here
-- **AND** it does not introduce a second cache, executable, or font-discovery authority
+- **WHEN** doctor runs without a run-dir
+- **THEN** successful font readiness claims only the fixed sentinel corpus
+- **AND** does not claim that an arbitrary deck has complete glyph coverage or no overflow
 
-### Requirement: Supported platforms share the profile but not a pixel-identity promise
+### Requirement: Runtime evidence is reusable without becoming a workflow controller
 
-The setup and diagnostic contract SHALL cover the Playwright-supported Node 22 desktop/CI platforms adopted by the repository on macOS, Windows, and Linux x86-64/arm64. The framework SHALL test stable launch, font coverage, and fixture geometry under the pinned profile. It SHALL NOT claim that independent operating systems produce byte-identical screenshot pixels.
+The HTML runtime SHALL expose one internal structured interface for profile inspection, font-manifest/sentinel validation, and static smoke evidence. `environment-check` and later HTML rendering SHALL consume that authority rather than independently discovering Chromium or rebuilding font CSS/coverage rules. The interface SHALL NOT own user intent, playbook transitions, slide source, or production authorization.
 
-#### Scenario: Same fixture runs on two supported operating systems
+#### Scenario: Environment check consumes runtime evidence
 
-- **WHEN** the pinned runtime fixture passes on two supported operating systems
-- **THEN** both runs satisfy the same viewport, font, network, and geometry assertions
-- **AND** the framework does not require their raster bytes to be identical
+- **WHEN** base doctor enters npm-backed checks after dependencies are present
+- **THEN** it maps the shared runtime evidence into readiness records
+- **AND** does not duplicate browser-selection or font-manifest authority
+
+#### Scenario: Later renderer reuses the profile
+
+- **WHEN** a later change implements HTML slide rendering
+- **THEN** it consumes the same installed-browser and bundled-font profile
+- **AND** does not introduce a second cache, executable, or font-distribution authority
+
+### Requirement: Supported platforms share behavioral inputs, not a pixel-identity promise
+
+The declared setup/diagnostic contract SHALL cover the Playwright-supported Node 22 macOS, Windows, and Linux desktop/CI platforms adopted by the repository. Platform verification SHALL test launch, local font evidence, zero-network behavior, and fixture geometry under the pinned profile. The framework SHALL NOT claim byte-identical raster output across independent operating systems.
+
+#### Scenario: Fixture passes on two supported operating systems
+
+- **WHEN** the pinned fixture passes on two supported operating systems
+- **THEN** both satisfy the same browser/font/network/geometry contract
+- **AND** raster-byte identity is not required

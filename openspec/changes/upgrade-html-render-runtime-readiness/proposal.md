@@ -1,38 +1,38 @@
 ## Why
 
-The framework currently treats Image2 credentials, its relay URL, and whole-page image-generation scripts as universal doctor prerequisites, so a user cannot be declared ready without configuring the expensive optional renderer. The planned HTML-first workflow needs an independently reproducible local runtime first: a supported Node baseline, pinned browser, and bundled fonts that later rendering changes can consume without downloads or silent font fallback.
-
-This is the first change in the HTML-first progressive-rendering plan. It establishes runtime and readiness contracts only; it deliberately stops before structured slide authoring, HTML slide rendering, new-deck defaults, or visual-slot refinement.
+The framework currently makes Image2 credentials and implementation presence part of universal startup readiness, while the planned HTML-first path needs a reproducible local browser/font runtime that does not depend on Image2. This first progressive-rendering change establishes that runtime and separates local readiness from optional Image2 environment and live-channel checks without prematurely introducing the HTML deck workflow.
 
 ## What Changes
 
-- **BREAKING** Raise the repository runtime baseline from Node.js 18+ to Node.js 22 and align package metadata, CI, executable checks, and active framework guidance.
-- Add a versioned local HTML runtime profile covering the Playwright library, its pinned Chromium revision, explicit install/cache behavior, offline rendering rules, and a static browser-launch smoke that does not depend on a future slide renderer.
-- Bundle licensed Latin and CJK WOFF2 fonts under the framework soft bundle, include license/attribution material, and fail local runtime readiness when required font files or requested glyph coverage are unavailable.
-- Split doctor into an offline base-readiness path and an explicit Image2-readiness path. Base readiness no longer requires `IMAGE2_API_KEY`, `IMAGE2_BASE_URL`, style-master assets, or a live provider.
-- Add `ppt_flow doctor --image2` for Image2 presence checks while keeping all live probes explicitly opt-in and mutually exclusive. Preserve the existing text delegation and secret-safe CLI failure envelope.
-- Keep legacy Image2-first decks safe by enforcing Image2 credentials and style-master prerequisites at the actual legacy pilot/build entry points after base doctor stops enforcing them globally.
-- Update only environment/runtime guidance in this change. Do not announce the HTML-first deck workflow as available before the later delivery change.
+- **BREAKING** Raise the repository runtime baseline from Node.js 18+ to Node.js 22+ across package metadata, executable gates, CI, tests, and active runtime guidance.
+- Add one pinned local HTML runtime profile: exact Playwright library and paired Chromium, explicit browser installation/cache behavior, checked-in browser/font smoke fixture, and a no-network execution contract.
+- Distribute licensed Latin and Simplified-Chinese (`Hans`) WOFF2 assets from official upstream services under the framework soft bundle, with pinned local CSS, complete file inventory, SHA-256 integrity, Unicode ranges, provenance, copyright, and OFL material.
+- Make default doctor an offline base-readiness check. Add `ppt_flow doctor --image2` for offline Image2 presence checks; keep `--smoke` and `--probe-vendors` as explicit, backward-compatible live probes.
+- Require the MD Controller to disclose the expected Image2 submit count and obtain confirmation before either live probe. Environment or channel readiness does not create page-refinement authorization.
+- Preserve legacy Image2-first behavior by checking credentials, base URL, and required style reference immediately before actual legacy remote submission rather than relying on default doctor as a global gate.
+- Update only active environment/runtime/bootstrap guidance. Do not expose structured slide authoring, HTML rendering, new-deck defaults, visual-slot refinement, or the future workflow-directory migration in this change.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `html-render-runtime`: Owns the supported Node/Playwright/Chromium/font runtime profile, explicit browser setup/cache contract, static local smoke, offline/network restrictions, and required-font coverage behavior consumed by later HTML rendering.
+- `html-render-runtime`: Owns the supported Node/Playwright/Chromium/font profile, explicit browser setup/cache contract, framework-distributed web-font evidence, and renderer-independent offline browser smoke reused by later HTML rendering.
 
 ### Modified Capabilities
 
-- `environment-check`: Changes the Node gate to 22, separates base and Image2 check groups, adds browser/font runtime checks, and removes credentials from the default READY verdict.
-- `bootstrap-env-guidance`: Changes Step 1 remediation to match base versus explicit Image2 readiness, Node 22, Chromium setup, and bundled-font failures without presenting Image2 as a new-user prerequisite.
-- `cli-surface`: Adds and constrains `doctor --image2`, preserves explicit live-probe flags and secret-safe delegation, and keeps the top-level command set unchanged.
-- `pipeline-orchestration`: Changes the production runtime baseline and requires legacy Image2 pilot/build paths to enforce their own credential/style-master prerequisites without weakening structural or local no-remote paths.
-- `framework-directory-layout`: Changes `scripts/fonts/` from a documentation-only placeholder into the canonical home for distributed font binaries and their license/attribution files while preserving the five-subdirectory framework root.
+- `environment-check`: Raises the Node gate, adds browser/font base checks, and separates default base readiness from offline Image2 presence and explicit live probes.
+- `bootstrap-env-guidance`: Makes base setup beginner-complete without Image2 while retaining optional, self-contained Image2 remediation when that path is selected.
+- `cli-surface`: Adds text-only `doctor --image2` delegation and preserves the existing live-probe and failure-envelope contracts.
+- `pipeline-orchestration`: Raises the runtime floor and moves legacy Image2 prerequisites to the actual remote-submit boundary without burdening local, dry-run, or structural paths.
+- `framework-directory-layout`: Makes `PPTMAKER_FRAMEWORK/scripts/fonts/` the canonical soft-bundle home for distributed HTML font binaries, CSS, manifest, provenance, and licenses without changing the five-directory framework root.
+- `playbook-execution`: Keeps channel diagnosis in the Phase-0 `probe-image-channels` controller and requires cost disclosure and confirmation before live Image2 probes.
+- `image-generation`: Makes confirmed doctor probes, rather than style-master generation, the documented channel-diagnostic path and preserves consent before retaining probe-derived configuration lessons.
 
 ## Impact
 
-- **Domain and owners:** Framework repository maintenance. JS/CLI owns deterministic runtime detection, browser/font smoke, legacy entry guards, and diagnostics; MD guidance owns remediation and progressive disclosure; the user still decides whether to configure or invoke Image2.
-- **Runtime/dependencies:** `package.json`, lockfile, CI setup, Playwright/Chromium installation workflow, and framework-distributed font assets/licenses.
-- **Framework code:** `env-check.mjs`, `ppt_flow.mjs`, legacy pipeline readiness call sites, and shared runtime/font helpers under `PPTMAKER_FRAMEWORK/scripts/`.
-- **Framework guidance:** BOOTSTRAP and the existing setup/runtime documents only. New HTML authoring, production, and refinement workflow documentation remains out of scope.
-- **Compatibility:** Running framework commands on Node 18-21 becomes unsupported. Existing Image2-first deck behavior remains available and continues to fail closed at its actual remote-render entry points when Image2 prerequisites are missing.
-- **Tests:** Environment/CLI/runtime unit and integration coverage, cross-platform declared setup checks, legacy build guard regression tests, full test suite, and strict OpenSpec validation. No `deck_*` production bundle is used as a framework test fixture.
+- **Domain and ownership:** Framework repository maintenance only. JS/CLI owns deterministic runtime evidence, readiness aggregation, submit-boundary guards, and secret-safe diagnostics; MD Controller owns whether and when a paid live probe is proposed and confirmed; the human owns consent. No `deck_*` is modified or used as a framework fixture.
+- **Runtime and dependencies:** `package.json`, lockfile, Node/CI declarations, exact Playwright dependency, paired Chromium installation workflow, and framework-distributed WOFF2 assets/licenses.
+- **Framework code:** `env-check.mjs`, `ppt_flow.mjs`, shared runtime/font helpers and fixtures under `PPTMAKER_FRAMEWORK/scripts/`, plus current legacy Image2 orchestration call sites.
+- **Guidance:** BOOTSTRAP and active setup/runtime documentation only. Existing workflow/playbook topology remains in place except for the bounded live-probe confirmation rule.
+- **Compatibility:** Node 18-21 becomes unsupported. Existing `doctor --smoke` and `doctor --probe-vendors` remain valid. Legacy Image2-first pilot/build remains available and fails closed before remote submit when its prerequisites are absent.
+- **Delivery boundary:** After this change, maintainers can install and diagnose a fixed local browser/font runtime, but users still cannot render a structured HTML slide deck or enter modern Image2 visual-slot refinement; those remain later changes.

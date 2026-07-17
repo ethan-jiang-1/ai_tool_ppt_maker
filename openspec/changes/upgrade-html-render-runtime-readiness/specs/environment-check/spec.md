@@ -2,7 +2,7 @@
 
 ### Requirement: Environment check separates base and Image2 readiness modes
 
-`env-check.mjs` SHALL resolve one readiness mode per invocation. An invocation without `--image2`, `--smoke`, or `--probe-vendors` SHALL run base checks only. `--image2` SHALL run base checks plus Image2 presence checks. `--smoke` and `--probe-vendors` SHALL each imply Image2 mode and SHALL retain their live-probe behavior after presence checks pass. `--smoke` and `--probe-vendors` SHALL remain mutually exclusive; either MAY be combined with redundant `--image2`.
+`env-check.mjs` SHALL resolve one readiness mode per invocation. An invocation without `--image2`, `--smoke`, or `--probe-vendors` SHALL run base checks only. `--image2` SHALL run base checks plus Image2 presence checks and SHALL remain offline. `--smoke` and `--probe-vendors` SHALL each imply Image2 mode and SHALL retain their live-probe behavior after presence checks pass. `--smoke` and `--probe-vendors` SHALL remain mutually exclusive; either MAY be combined with redundant `--image2`.
 
 Base checks SHALL include the Node/npm/package foundation, existing local framework dependencies and advisory checks, the exact Playwright package, matching installed Chromium, distributed HTML-font integrity/coverage, and fixed offline runtime smoke. Base checks SHALL omit `api_key`, `image_base_url`, and `stage2_generator`. Missing Image2 configuration SHALL therefore not change base READY or its exit status.
 
@@ -16,7 +16,8 @@ Base checks SHALL include the Node/npm/package foundation, existing local framew
 
 - **WHEN** env-check runs with `--image2`
 - **THEN** it runs all base checks plus `api_key`, `image_base_url`, and `stage2_generator`
-- **AND** it makes no Image2 network call unless a live-probe flag is also present
+- **AND** it reports the resolved vendor count without exposing endpoint or secret values
+- **AND** it makes no Image2 network call
 
 #### Scenario: Legacy live flag implies Image2 mode
 
@@ -26,7 +27,7 @@ Base checks SHALL include the Node/npm/package foundation, existing local framew
 
 ### Requirement: HTML browser and font checks are blocking base checks
 
-After npm package presence succeeds, env-check SHALL dynamically enter the runtime owned by `html-render-runtime` and emit stable base check records for `chromium`, `html_fonts`, and `html_runtime_smoke`. Missing/mismatched Chromium, absent/corrupt font or license assets, unsupported sentinel coverage, network attempts, browser-launch failure, or fixture-geometry failure SHALL be `fail` and SHALL make base readiness NOT READY. The checker SHALL NOT install/download a browser or font and SHALL NOT accept OS font fallback as readiness evidence.
+After npm package presence succeeds, env-check SHALL dynamically enter the runtime owned by `html-render-runtime` and emit stable base check records for `chromium`, `html_fonts`, and `html_runtime_smoke`. Missing/mismatched Chromium, absent/corrupt font, CSS, manifest, provenance, or license assets, unsupported fixed sentinel coverage, network attempts, browser-launch failure, or fixture-geometry failure SHALL be `fail` and SHALL make base readiness NOT READY. The checker SHALL NOT install/download a browser or font and SHALL NOT accept OS font fallback as readiness evidence. With no run-dir, these checks SHALL NOT claim actual deck code-point coverage or pixel-overflow validation.
 
 #### Scenario: Chromium has not been installed
 
@@ -44,6 +45,12 @@ After npm package presence succeeds, env-check SHALL dynamically enter the runti
 
 - **WHEN** the package-paired browser and valid distributed fonts render the fixed offline fixture with expected geometry and no network attempt
 - **THEN** `html_runtime_smoke` is `ok`
+
+#### Scenario: Base doctor has no deck coverage claim
+
+- **WHEN** base readiness succeeds without a run-dir
+- **THEN** its font result is scoped to the fixed sentinel corpus
+- **AND** it does not assert that arbitrary slide source will fit or has complete glyph coverage
 
 ## MODIFIED Requirements
 
@@ -139,7 +146,7 @@ When none is set, `image_base_url` SHALL be **`fail`** and the Image2-mode verdi
 - **AND** Image2 mode is selected
 - **THEN** `image_base_url` passes
 
-#### Scenario: Missing base URL fails Image2 doctor
+#### Scenario: Missing base URL fails doctor
 
 - **WHEN** a shared key is present but no base URL variable is set
 - **AND** Image2 mode is selected
@@ -189,7 +196,7 @@ The env check SHALL output a structured report with per-check status and an over
 
 ### Requirement: Optional --smoke performs one live credential probe
 
-`env-check.mjs` SHALL accept `--smoke`. `--smoke` SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL perform one minimal live Image2 probe against the **first** vendor from `resolveVendors`. Success SHALL be an extractable image ref **or** a task id, using the same exported extract helpers as the client (no forked parser). Full async image completion is NOT required. Without `--smoke` and without `--probe-vendors`, env-check SHALL NOT make Image2 network calls. The zero-static-dependency startup contract remains; dynamic-importing sibling ESM after prerequisites pass is allowed.
+`env-check.mjs` SHALL accept `--smoke`. `--smoke` SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL perform exactly one minimal live Image2 submit against the **first** vendor from `resolveVendors`. Success SHALL be an extractable image ref **or** a task id, using the same exported extract helpers as the client (no forked parser). Full async image completion is NOT required. Without `--smoke` and without `--probe-vendors`, env-check SHALL NOT make Image2 network calls. The zero-static-dependency startup contract remains; dynamic-importing sibling ESM after prerequisites pass is allowed.
 
 #### Scenario: --smoke fails on bad credentials
 
@@ -220,15 +227,17 @@ The env check SHALL output a structured report with per-check status and an over
 
 - **WHEN** `env-check --smoke` runs without an explicit `--image2`
 - **THEN** Image2 presence checks and the first-vendor live probe still run
+- **AND** exactly one provider submit is attempted
 
 ### Requirement: Optional --probe-vendors reports every Image2 channel
 
-`env-check.mjs` SHALL accept `--probe-vendors`, which SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL live-probe **each** vendor from `resolveVendors` in order (same success rule as `--smoke`: image ref or task id; no forked parser). It SHALL log `probing i/N` progress and per-vendor submit heartbeats consistent with the image client's wait contract. For each vendor it SHALL print `base_url`, `ok|fail`, `mode` (`sync`|`async`|`unknown`), `elapsed_s`, and a short `error` on failure — never API key values. After all probes it SHALL print a Summary (OK vs FAIL) with working vendors first sorted by ascending elapsed time; failed vendors appended in original relative order. Exit 0 if at least one vendor is OK; otherwise non-zero with an actionable failure path. It SHALL NOT write `.env` or `_lessons/`. If both `--smoke` and `--probe-vendors` are passed, the tool SHALL fail with a clear usage error. `--image2` MAY accompany either live flag without changing behavior.
+`env-check.mjs` SHALL accept `--probe-vendors`, which SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL make exactly one live submit to **each** vendor from `resolveVendors` in order (same success rule as `--smoke`: image ref or task id; no forked parser). It SHALL log `probing i/N` progress and per-vendor submit heartbeats consistent with the image client's wait contract. For each vendor it SHALL print `base_url`, `ok|fail`, `mode` (`sync`|`async`|`unknown`), `elapsed_s`, and a short `error` on failure — never API key values. After all probes it SHALL print a Summary (OK vs FAIL) with working vendors first sorted by ascending elapsed time; failed vendors appended in original relative order. Exit 0 if at least one vendor is OK; otherwise non-zero with an actionable failure path. It SHALL NOT write `.env` or `_lessons/`. If both `--smoke` and `--probe-vendors` are passed, the tool SHALL fail with a clear usage error. `--image2` MAY accompany either live flag without changing behavior.
 
 #### Scenario: --probe-vendors lists per-vendor outcomes
 
 - **WHEN** three vendors are configured and `--probe-vendors` runs
 - **THEN** output includes a result line for each vendor
+- **AND** exactly three provider submits are attempted
 - **AND** no API key values appear in the output
 
 #### Scenario: --probe-vendors exits non-zero when all fail

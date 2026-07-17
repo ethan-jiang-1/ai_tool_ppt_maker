@@ -52,8 +52,8 @@ recommended
         -> retry requested -> new authorization -> new candidate
 ```
 
-- 精修期间保留本版全部候选，以支持多轮比较和退回。
-- accepted candidate 通过 promotion 成为正式版本资产。收尾时把每页最近一个 rejected candidate 归档到版本关联的 refinement history；其他未接受候选才允许显式清理。
+- 精修期间保留本版全部候选在 version-owned 的 `_generated/image2_refinement/`，以支持多轮比较和退回。
+- accepted candidate 通过 promotion 成为正式版本资产；rejected 不进入 `1_upstream_raw_material/`。显式 cleanup 在 Image2 派生区每页保留至多一个 recent rejected 像素与 provenance，其余按计划删除；这些 retained copies 仍不是 source。
 - rejected 不等于删除；清理候选是独立、显式操作。
 
 ## 交互文案原则
@@ -63,6 +63,7 @@ recommended
 - 授权前说清页面、目的、预计调用数和失败是否收费；不要只给抽象预算。
 - 推荐用缩略图 + 原因 + 收益，不用伪精确视觉评分表。
 - Agent 提建议，人类拥有最终视觉判断和远端成本决定。
+- `doctor --image2` 是不联网的 presence check；`doctor --smoke` / `--probe-vendors` 会产生明确数量的诊断 submit，Agent 也必须先用白话说明并取得用户确认。
 
 ## 旧 deck 体验
 

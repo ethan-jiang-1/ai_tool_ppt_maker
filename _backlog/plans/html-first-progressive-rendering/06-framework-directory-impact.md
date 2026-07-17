@@ -1,15 +1,16 @@
 # 专题 06: PPTMAKER_FRAMEWORK 目录影响
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 目标目录与迁移责任已锁定，实际改动由四个 OpenSpec changes 分步完成 | 更新: 2026-07-17
+> 状态: 架构已锁定 | 更新: 2026-07-17
 
 ## 这份文档回答什么
 
-这份文档只回答：总计划落地后，`PPTMAKER_FRAMEWORK/` 尤其是 `workflow/` 会变成什么样。
+这份文档回答两件必须同时成立的事：总计划落地后 `PPTMAKER_FRAMEWORK/` 尤其是 `workflow/` / `playbook/` 会变成什么样，以及它们如何指向 [04-run-bundle-and-artifacts.md](04-run-bundle-and-artifacts.md) 定义的 HTML/Image2 物理分区。
 
 - 这里画的是 framework soft bundle，不是 `deck_*` run bundle。
 - 本计划阶段不移动 framework 文件；实际 rename/rewrite 必须进入对应 OpenSpec change。
 - framework 根仍严格保持 5 个子目录：`workflow/`、`scripts/`、`charter/`、`reference/`、`playbook/`。不会新增第六个根目录。
+- run bundle 仍保持 `1_upstream_raw_material/` → `2_backbone/` → `3_versions/vN/` 三层本体论；本文件不把 run-bundle 目录定义复制进 framework。
 - 目标树中的公开方法文档名称和职责在本计划锁定；`scripts/lib/` 内部文件名可在各 change design 中微调，但不得改变本页规定的模块 interface 和所有权。
 
 ## 一眼看懂
@@ -20,8 +21,8 @@
 00-setup                                  00-setup
 01-visual          style master 必经       01-content
 02-content                                 02-visual-system
-03-prompts         整页生图 prompt 必经 -> 03-production
-04-production      Image2 Stage 2/3        04-refinement      可选、付费
+03-prompts         整页生图 prompt 必经 -> 03-html-production
+04-production      Image2 Stage 2/3        04-image2-refinement 可选、付费
 05-iteration                               05-iteration
 ```
 
@@ -33,14 +34,26 @@
 
 目标: setup -> structured content -> renderer-neutral visual system
       -> HTML complete PPTX -> user may finish
-      -> optional authorized Image2 visual-slot refinement -> iteration
+      -> optional authorized Image2 visual-slot asset upgrade -> local recomposition
+      -> iteration / maintenance
 ```
 
 ## 最终 `workflow/` 目标树
 
-`workflow/` 的目录形状在 Change 3 一次迁移到最终六目录；Change 4 只激活并补全可选 refinement 内容。目录编号同时成为 Lifecycle Phase 与 `method_module` 顺序，不再维护“Method Module 编号与 Lifecycle Phase 编号不同”的双重解释。
+`workflow/` 的目录形状在 Change 3 一次迁移到最终六目录；Change 4 只激活并补全可选 Image2 refinement 内容。目录编号同时成为 Lifecycle Phase 与 `method_module` 顺序，不再维护“Method Module 编号与 Lifecycle Phase 编号不同”的双重解释。
 
-目标 lifecycle 为 `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`：Phase 3 已经交付完整 PPTX；Phase 4 只有用户明确选择专业精修时进入；Phase 5 可从 HTML 成品或精修成品开始迭代。Change 3 必须同步迁移 `node-specification` 的 `lifecycle_phase`/`method_module` enum、全部 playbook node frontmatter、validator fixture 和既有 `_state` 的续跑解释。
+目标 lifecycle 为 `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`：Phase 3 已经交付完整 PPTX；Phase 4 只有用户明确选择 Image2 专业升级时进入；Phase 5 可从 HTML 成品或采用 Image2 asset 后的成品开始迭代。Change 3 必须同步迁移 `node-specification` 的 `lifecycle_phase`/`method_module` enum、全部 playbook node frontmatter、validator fixture 和既有 `_state` 的续跑解释。
+
+四层必须一一对应，用户和 Agent 不需要跨文档猜所有权：
+
+| 用户正在做什么 | Workflow 方法 | Playbook Controller | Run bundle 主要路径 | 远端成本 |
+|---|---|---|---|---|
+| 完成一份可直接使用的 PPT | `03-html-production/` | `create-deck` / `quick-preview` / build nodes | `_generated/html_production/` | 无 |
+| 修改文案、layout、visual system、notes 或结构 | `05-iteration/` | `edit-text` / `edit-visual` / `iterate-style` / `edit-notes` / `restructure-slides` | source + `_generated/html_production/` | 无 |
+| 在已完成 HTML deck 上升级少数主视觉 | `04-image2-refinement/` | `image2-refine` | lazy `_scratch/image2_refinement/` + `_generated/image2_refinement/`；接受后进入 `overrides/.../refined/image2/` | 有，必须授权 |
+| 维护未迁移的旧 Image2-first deck | `reference/legacy-image2-first-maintenance.md` | `legacy-image2-maintenance` | legacy version-owned paths | 有，沿旧合同 |
+
+任何实现若让同一用户意图同时匹配两行，或让普通 HTML/local 行触达 Image2 adapter，即为 ownership 错误。
 
 已有 deck 的断线续跑不能因 framework 目录改名而丢失。state heal 必须确定性映射仍存在的 playbook/current-node/module 引用，保留 completed evidence、human waits、execution identity 和 reserved records；若旧执行拓扑无法无歧义映射，必须返回需要人类确认的 replacement/restart 诊断，不能静默清空进度或假装 completed。legacy deck 即使不迁移内容，也必须能在新 framework 下 `ppt_flow state/status` 并继续其兼容维护路径。
 
@@ -82,7 +95,7 @@ PPTMAKER_FRAMEWORK/workflow/
 │   ├── template-color-palette.json
 │   └── presets/...
 │
-├── 03-production/
+├── 03-html-production/
 │   ├── README.md
 │   ├── 00-the-pipeline-philosophy.md
 │   ├── 01-stage-1-resolve-slide-plan.md
@@ -92,7 +105,7 @@ PPTMAKER_FRAMEWORK/workflow/
 │   ├── 05-stage-5-inject-speaker-notes.md
 │   └── reference-pipeline-scripts.md
 │
-├── 04-refinement/
+├── 04-image2-refinement/
 │   ├── README.md
 │   ├── 00-when-refinement-is-worth-it.md
 │   ├── 01-recommend-visual-slots.md
@@ -101,7 +114,6 @@ PPTMAKER_FRAMEWORK/workflow/
 │   ├── 04-generate-and-review-candidates.md
 │   ├── 05-accept-fallback-and-clean.md
 │   ├── 06-debug-provider-and-retry.md
-│   ├── legacy-image2-first-maintenance.md
 │   └── template-visual-refinement-brief.md
 │
 └── 05-iteration/
@@ -110,19 +122,21 @@ PPTMAKER_FRAMEWORK/workflow/
     ├── 01-content-and-layout-iteration.md
     ├── 02-visual-system-iteration.md
     ├── 03-structural-versioning-workflow.md
-    ├── 04-refinement-iteration.md
+    ├── 04-image2-refinement-iteration.md
     └── 05-end-to-end-walkthrough.md
 ```
+
+旧 deck 的方法说明不进入上面的 active phase tree，而是单独位于 `PPTMAKER_FRAMEWORK/reference/legacy-image2-first-maintenance.md`；执行入口由 `playbook/legacy-image2-maintenance.md` 拥有。
 
 ## 当前目录怎样迁移
 
 | 当前目录 | 最终去向 | 处理方式 | 原因 |
 |---|---|---|---|
 | `00-setup/` | `00-setup/` | 保留并改写 | base readiness 不再要求 Image2；Image2 setup 移至可选 refinement |
-| `01-visual/` | `02-visual-system/` + `04-refinement/` | 拆分 | visual tokens/presets 属于所有 deck；style master/prompt/review 只属于专业精修 |
+| `01-visual/` | `02-visual-system/` + `04-image2-refinement/` | 拆分 | visual tokens/presets 属于所有 deck；style master/prompt/review 只属于专业 Image2 精修 |
 | `02-content/` | `01-content/` | rename + 扩展 | 内容成为默认第一工作面；新增 structured body 和 family authoring |
-| `03-prompts/` | `04-refinement/` | 吸收后删除旧目录 | Image prompt 不再是所有页面必经的独立阶段 |
-| `04-production/` | `03-production/` | rename + 重写 Stage 2/3 | 默认生产改为 HTML render + deterministic composition |
+| `03-prompts/` | `04-image2-refinement/`（专业知识）+ `reference/legacy-image2-first-maintenance.md`（旧 deck） | 吸收后删除旧目录 | Image prompt 不再是所有新页面必经的独立阶段 |
+| `04-production/` | `03-html-production/` | rename + 重写 Stage 2/3 | 默认生产改为 HTML render + deterministic composition；Image2 不作为整页 production renderer |
 | `05-iteration/` | `05-iteration/` | 保留并改写 | 默认刷新变成本地 rebuild；远端重试需要新授权 |
 
 最终不得同时保留旧目录和新目录作为两套活跃方法论。Change 3 必须原子更新全 framework cross-reference、frontmatter `stage/depends_on/feeds_into`、playbook `lifecycle_phase/method_module`、state heal/migration、OpenSpec main specs 和链接扫描；旧路径不能靠复制文件长期兼容。
@@ -135,9 +149,13 @@ PPTMAKER_FRAMEWORK/workflow/
 |---|---|---|
 | `content` | 用户确认 narrative、准确 header/body、family 和 fallback 已可进入渲染 | 保持当前内容确认语义 |
 | `visual` | 使用与正式生产相同的 HTML compositor 渲染代表页/contact sheet，展示实物后由用户确认 visual system；不要求 style master 或 Image2 | 保持当前 style master/pilot review 语义 |
-| refinement page review | 不复用全 deck `visual` gate；每个 candidate 的 accepted/use-html 决定写入 version-scoped `visual-refinement` state | 不适用；继续当前 legacy review evidence |
+| Image2 page review | 不复用全 deck `visual` gate；每个 candidate 的 accepted/use-html 决定写入 version-scoped `image2-refinement` state | legacy 继续使用独立 maintenance review evidence |
 
-HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远端、可反复重跑的 HTML preview/composition。这样 Phase 2 能看到真实产物再确认，Phase 3 仍拥有正式 contact sheet/PPTX/notes 交付。gate evidence 记录 pipeline marker、visual-config fingerprint、renderer profile、已覆盖的 family/geometry、代表页 IDs 和当时展示的 preview SHAs。preview SHA 是“用户看过什么”的审计证据，不直接参与 freshness；只有 visual config、renderer profile 或未覆盖的新 family/geometry 改变才使 visual gate stale。普通 header/body 文案变化只需重新通过 schema/pixel overflow 和本地 composition，不重新索要整册视觉批准。legacy evidence 不得被 HTML-first 分支接受，反之亦然。
+HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远端、可反复重跑的 HTML preview/composition。这样 Phase 2 能看到真实产物再确认，Phase 3 仍拥有正式 contact sheet/PPTX/notes 交付。
+
+gate evidence 记录 pipeline marker、`visual_system_fingerprint`、已覆盖的 family/geometry、代表页 IDs 和当时展示的 preview SHAs。`visual_system_fingerprint` 覆盖 visual config、renderer/runtime profile、family registry、CSS/abstract recipe/chart/compositor versions，以及 gate 代表页实际消费的 renderer-neutral fallback asset SHAs；versioned canonicalization 由 JS 拥有。preview SHA 是“用户看过什么”的审计证据，不直接参与 freshness。
+
+以下变化使全册 visual gate stale：visual config、renderer/runtime/family/recipe/compositor 版本改变，或出现尚未覆盖的新 family/geometry。普通 header/body 文案变化只需重新通过 schema/pixel overflow 和本地 composition，不重新索要整册视觉批准。只影响某些页面的 fallback/source asset byte 变化也不把它伪装成纯文字改动：classifier 走 Local Slide/Deck Rebuild，展示受影响页面实物，并在同一 version-scoped、pipeline-specific `visual` gate record 的 `page_reviews[slide_id]` 下记录 current composition fingerprint、preview SHA、reviewed asset SHAs 和时间；它不新增第三个 gate key，也不要求重批未受影响 family 的整册 gate。若该页当前为 `selected`，review 必须显式强制 composition 使用 fallback variant 并将 variant 标入 evidence，不能拿 accepted 图遮住本次 fallback 改动。对应页面再次变化时只使自己的 page review stale。accepted selection 的 asset byte 变化不是可审核的普通更新，而是 SHA integrity failure，必须通过正式 source transaction 修复。legacy evidence 不得被 HTML-first 分支接受，反之亦然。
 
 ## `workflow/` 逐文件处置
 
@@ -148,7 +166,7 @@ HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远�
 | `00-run-bundle-concept.md` | 保留；补 HTML-first source/generated artifact 说明 |
 | `00-zero-to-ready.md` | 改写为 base HTML readiness；Image2 不再阻断新手 |
 | `02-nodejs-environment.md` | 更新 Node 22、Playwright/Chromium、bundled fonts |
-| `03-tool-selection.md` | rename 为 `03-runtime-and-tools.md`；只讲基础 runtime，provider 配置迁到 `04-refinement/` |
+| `03-tool-selection.md` | rename 为 `03-runtime-and-tools.md`；只讲基础 runtime，provider 配置迁到 `04-image2-refinement/` |
 | `04-conventions.md` | 更新 `production.pipeline`、`SLIDE BODY` 和 source ownership |
 | `05-migrate-import-existing-deck.md` | 增加 legacy Image2-first -> clean HTML-first vNext 对照 gate |
 | `template-deck-guide.md` | 新 deck 默认说明 HTML complete delivery，不要求 key/style master |
@@ -167,23 +185,23 @@ HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远�
 | `template-slide-specifications.md` | 默认写 `production.pipeline: html-first-v1`、mnemonic ID、`SLIDE BODY` |
 | examples/presets/templates | 全部更新示例，不再把准确正文藏进 prompt |
 
-### 当前 `01-visual/` -> 目标 `02-visual-system/` 与 `04-refinement/`
+### 当前 `01-visual/` -> 目标 `02-visual-system/` 与 `04-image2-refinement/`
 
 | 当前文件 | 目标动作 |
 |---|---|
 | `00-the-problem-why-text-fails.md` | 不原样保留；改写为 `02-visual-system/00-why-deterministic-visual-systems.md` |
 | `01-gather-product-context-dna.md` | 移入 `02-visual-system/` |
 | `02-design-the-visual-system.md` | 移入 `02-visual-system/`，视觉决策落到 visual config |
-| `03-write-the-style-master-prompt.md` | 移入 `04-refinement/03-design-image2-visual-briefs.md`，从默认必经降为可选 |
+| `03-write-the-style-master-prompt.md` | 移入 `04-image2-refinement/03-design-image2-visual-briefs.md`，从默认必经降为可选 |
 | `04-iterate-review-lock.md` | 拆成 HTML visual-system validation 与 Image2 candidate review 两部分 |
-| `05-use-the-style-master-for-slides.md` | 改写为 refinement style-reference 使用规则，不再控制整页 layout |
+| `05-use-the-style-master-for-slides.md` | 改写为 Image2 refinement style-reference 使用规则，不再控制整页 layout |
 | `template-deck-system.txt` | 移入 `02-visual-system/`，继续拥有自然语言约束 |
 | `template-visual-style.md` | 拆为 renderer-neutral config template + optional refinement brief template |
 | `presets/` | 移入 `02-visual-system/presets/`；扩展 body/layout/chart/callout tokens |
 
 结构化视觉真相仍叫 `color_palette.json`；这里的 `template-color-palette.json` 只是它的 authoring template。不得再创建 `html-theme.json` 或第二份 visual-config source。
 
-### 当前 `03-prompts/` -> 目标 `04-refinement/`
+### 当前 `03-prompts/` -> 目标 `04-image2-refinement/` / legacy reference
 
 | 当前文件 | 目标动作 |
 |---|---|
@@ -194,19 +212,19 @@ HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远�
 | `04-iteration-and-debugging.md` | 改写为 plan/authorization/unknown-submit/retry 纪律 |
 | `05-resolution-quality-tradeoffs.md` | 保留为 profile、质量、成本选择 |
 | `template-image-prompt-builder.md` | 替换为 `template-visual-refinement-brief.md`；不允许准确文字和整页 layout |
-| 新文件 `legacy-image2-first-maintenance.md` | 汇总旧 deck 的 style master、whole-page prompt、pilot/review 与刷新入口；仅兼容维护，不进入新 deck 默认生命周期 |
+| 新文件 `reference/legacy-image2-first-maintenance.md` | 汇总旧 deck 的 style master、whole-page prompt、pilot/review 与刷新入口；仅兼容维护，不进入新 deck 默认生命周期 |
 
-### 当前 `04-production/` -> 目标 `03-production/`
+### 当前 `04-production/` -> 目标 `03-html-production/`
 
 | 当前文件 | 目标动作 |
 |---|---|
-| `00-the-pipeline-philosophy.md` | 改写为 HTML complete first、remote refinement explicit |
+| `00-the-pipeline-philosophy.md` | 改写为 HTML complete first、Image2 asset refinement explicit |
 | `01-stage-1-parse-content-to-specs.md` | 改为 resolve/validate structured slide plan，同时保留 legacy branch |
-| `02-stage-2-generate-images-with-anchoring.md` | 默认文档替换为 HTML page rendering；legacy whole-page Image2 只留兼容说明 |
+| `02-stage-2-generate-images-with-anchoring.md` | 默认文档替换为 HTML page rendering；legacy whole-page Image2 只留指向 legacy reference 的兼容说明 |
 | `03-stage-3-lock-headers-deterministically.md` | 改为 final-slide composition；HTML 拥有所有准确文字 |
 | `04-stage-4-build-the-pptx-container.md` | 保留，改为只消费 verified provider-neutral `final-slide` |
 | `05-stage-5-inject-speaker-notes.md` | 保留，继续按 stable ID + current order 注入 |
-| `reference-pipeline-scripts.md` | 更新 HTML/refinement CLI 和 legacy compatibility 路由 |
+| `reference-pipeline-scripts.md` | Change 3 更新 HTML/local CLI 和 legacy compatibility；Change 4 才加入实际可用的 `image2` CLI |
 
 ### `05-iteration/`
 
@@ -216,7 +234,7 @@ HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远�
 | `01-content-iteration-workflow.md` | 改为 content + family，普通变化全部本地重合成 |
 | `02-style-iteration-workflow.md` | 改为 renderer-neutral visual config；style reference 变化归 refinement |
 | `03-pipeline-change-workflow.md` | 改为 structural versioning + artifact invalidation 路径 |
-| 新文件 `04-refinement-iteration.md` | 明确 retry/new candidate 必须新 plan 和授权 |
+| 新文件 `04-image2-refinement-iteration.md` | Change 4 新增；明确 Image2 retry/new candidate 必须新 plan 和授权，HTML/local iteration 仍走本地路径；Change 3 不创建可执行内容 |
 | `04-end-to-end-walkthrough.md` | 顺延为 `05-...`，展示 novice stop 与 professional continue 两条结尾 |
 
 ## 迭代与刷新分类
@@ -225,14 +243,14 @@ Change 3 起，change classifier 先读取 `production.pipeline`，再选择所�
 
 | 用户改动 | HTML-first 路径 | Legacy 路径 |
 |---|---|---|
-| 单页 header/body/family/fallback | Local Slide Rebuild：parse/validate -> HTML render -> compose -> contact sheet/PPTX；零远端 | 保持 Header Text & Style Refresh / Generated Image Rebuild 分流 |
+| 单页 header/body/family/fallback | Local Slide Rebuild：parse/validate -> HTML render -> compose -> affected-page review -> contact sheet/PPTX；零远端；纯文字不重批整册 visual gate，family/asset 变化按上文刷新相应 evidence | 保持 Header Text & Style Refresh / Generated Image Rebuild 分流 |
 | deck visual config | Local Deck Rebuild：使受影响 HTML/final-slide 失效，先出代表页 visual gate，再本地全量 | 保持 style master -> pilot -> Generated Image Rebuild |
 | notes only | Notes-Only Refresh | Notes-Only Refresh |
 | 增删重排 | Structural Versioning Path -> target-local HTML rebuild；零远端 | 保持当前 structural materialization/`needs_render` 语义 |
 | 已接受主视觉后的普通文字/layout 变化 | 若 visual contract 仍匹配则本地重合成；不匹配则 stale 并回退 HTML，不自动生成 | 不适用 |
-| 用户明确要求新的专业主视觉 | Phase 4 新 plan/authorization/refinement | legacy Generated Image Rebuild，除非先显式迁移 deck |
+| 用户明确要求新的专业主视觉 | Phase 4 新 Image2 plan/authorization | legacy Generated Image Rebuild，除非先显式迁移 deck |
 
-`Local Slide Rebuild`、`Local Deck Rebuild`、`Notes-Only Refresh` 和 `Structural Versioning Path` 是 HTML-first 的稳定维护检索词。Phase 4 refinement 是单独的付费工作流，不伪装成普通 refresh。Phase 5 iteration 不是单向终点；它按这张表回到对应 source owner/production path，再返回可交付状态。
+`Local Slide Rebuild`、`Local Deck Rebuild`、`Notes-Only Refresh` 和 `Structural Versioning Path` 是 HTML-first 的稳定维护检索词。Phase 4 Image2 refinement 是单独的付费工作流，不伪装成普通 refresh。Phase 5 iteration 不是单向终点；它按这张表回到对应 source owner/production path，再返回可交付状态。
 
 ## `PPTMAKER_FRAMEWORK/` 其他目录怎样变
 
@@ -241,7 +259,7 @@ Change 3 起，change classifier 先读取 `production.pipeline`，再选择所�
 ```text
 PPTMAKER_FRAMEWORK/
 ├── BOOTSTRAP.md                 [改] base HTML readiness；Image2 按需 onboarding
-├── COMMANDS.md                  [改] build + refine 命令与用户话术
+├── COMMANDS.md                  [改] build + `image2` 命令与用户话术
 ├── AGENTS.md                    [改] Phase 顺序、gate、source ownership
 ├── README.md                    [改] 新 workflow 树
 ├── charter/
@@ -251,24 +269,25 @@ PPTMAKER_FRAMEWORK/
 ├── playbook/
 │   ├── create-deck.md           [改] 新 deck 默认 HTML-first
 │   ├── edit-text.md             [改] local compose，不按 render mode 分流
-│   ├── edit-visual.md           [改] visual config / accepted asset 分流
+│   ├── edit-visual.md           [改] HTML/local visual config；专业升级只路由到 Image2
 │   ├── iterate-style.md         [改] HTML visual system 为默认
 │   ├── quick-preview.md         [改] HTML contact sheet，不要求 style master
-│   ├── refine-visuals.md        [新] 推荐、授权、生成、逐页 review
+│   ├── image2-refine.md         [新] HTML 成品后的推荐、授权、候选、逐页 review
+│   ├── legacy-image2-maintenance.md [新] 仅 legacy pipeline 的 whole-page Image2 兼容维护
 │   └── classify-change.md       [改] 先 pipeline marker，再结构/所有权/失效，最后判断是否需远端
 └── scripts/
     ├── env-check.mjs            [改] base 与 `--image2` readiness 分层
     ├── stage1_build_inputs.mjs  [改] structured plan + legacy branch
     ├── stage2_render_html.mjs   [新] deterministic HTML page renderer
-    ├── stage2_generate_images.mjs [留] 仅 legacy whole-page Image2，不进 HTML-first build/refine workflow
+    ├── stage2_generate_images.mjs [留] 仅 legacy whole-page Image2，不进 HTML-first build/image2 workflow
     ├── stage3_compose_slides.mjs  [新] local final-slide composition
     ├── stage3_lock_headers.mjs  [留] legacy compatibility
     ├── stage4_build_pptx.mjs    [改] provider-neutral final-slide consumer
     ├── unified_pipeline.mjs     [改] 以 `production.pipeline` 选择完整分支
-    ├── ppt_flow.mjs             [改] refine 子命令
+    ├── ppt_flow.mjs             [改] `image2` 子命令；普通 build/refresh 不持有远端 adapter
     ├── asset_manifest.mjs       [改] per-ID layered catalog
     ├── visual_config.mjs        [改] renderer-neutral schema
-    ├── fonts/                   [改] bundled licensed Latin/CJK WOFF2
+    ├── fonts/                   [改] bundled licensed Latin + Simplified-Chinese WOFF2
     └── lib/                     [改/新] structured slide、layout family、HTML composition、refinement transaction 深模块
 ```
 
@@ -282,7 +301,7 @@ composeSlide(structured_plan, resolved_assets, runtime_profile)
   -> verified final-slide | diagnostics
 ```
 
-远端 Image2 transport 不进入 `composeSlide`。它只由显式、已授权的 refinement generation interface 调用；该 interface 可以复用 `image_api_client.mjs` 的 transport/extract 能力，但 refinement 不是新 Stage 2，也不借用 legacy whole-page Stage 2 的业务 interface。
+远端 Image2 transport 不进入 `composeSlide`。它只由显式、已授权的 Image2 generation interface 调用；该 interface 可以复用 `image_api_client.mjs` 的 transport/extract 能力，但 Image2 visual-slot refinement 不是新 Stage 2，也不借用 legacy whole-page Stage 2 的业务 interface。
 
 ## 四个 Change 分别动哪里
 
@@ -290,8 +309,8 @@ composeSlide(structured_plan, resolved_assets, runtime_profile)
 |---|---|---|
 | 1 `upgrade-html-render-runtime-readiness` | 只更新 `00-setup/` 的 Node/browser/font/readiness 事实；不重排目录 | `BOOTSTRAP`、doctor、fonts、runtime profile |
 | 2 `add-structured-html-slide-contract` | 在当前 `02-content/` 先落 structured body/family authoring；尚不切默认 workflow | parser、visual config、asset catalog interfaces |
-| 3 `deliver-html-first-decks` | 原子迁移为最终六目录和 Phase 0-5 enum；迁移既有 state 续跑解释；旧 `03-prompts`/style-master 知识移入 `04-refinement/`，但只服务 legacy 维护并明确 HTML-first refinement 尚不可用 | HTML renderer、composition、Stage 4、node/playbook/state schema、init/template、create/edit playbooks |
-| 4 `add-image2-visual-slot-refinement` | 激活并补全 `04-refinement/` 的推荐、授权、候选、review、promotion、cleanup，更新 Phase 5 refinement iteration | refine CLI/state/provider adapter/promotion/cleanup/playbook |
+| 3 `deliver-html-first-decks` | 原子迁移为最终六目录和 Phase 0-5 enum；迁移既有 state 续跑解释；新 `03-html-production/` 只拥有 HTML 完整交付；legacy whole-page Image2 进入独立兼容 playbook/reference | HTML renderer、composition、Stage 4、node/playbook/state schema、init/template、create/edit playbooks |
+| 4 `add-image2-visual-slot-refinement` | 激活并补全 `04-image2-refinement/` 的推荐、授权、候选、review、promotion、cleanup，更新 Phase 5 Image2 refinement iteration | `image2` CLI/state/provider adapter/promotion/cleanup/playbook |
 
 每个 change 归档时，`workflow/README.md`、`charter/WORKFLOW.md`、`AGENTS.md` 和 active playbook 必须准确描述当时已经可用的系统，不能提前宣传下一 change 才实现的路径。
 
@@ -304,12 +323,12 @@ workflow/
 ├── 00-setup/          active: HTML base readiness
 ├── 01-content/        active
 ├── 02-visual-system/  active
-├── 03-production/     active: HTML complete delivery
-├── 04-refinement/     legacy-only: 只维护旧 deck；HTML-first 路径明确标为 not available
-└── 05-iteration/      active: HTML/local + legacy maintenance，暂无 visual-slot refinement
+├── 03-html-production/ active: HTML complete delivery
+├── 04-image2-refinement/ README-only unavailable stub; never a new-user gate
+└── 05-iteration/      active: HTML/local maintenance; Image2 iteration remains explicit/not available
 ```
 
-这个归档点必须可用且自洽：新用户可以完整交付，旧 deck 可以按旧行为维护，但系统不会提前声称 visual-slot refinement 已经存在。Change 4 随后在既有 `04-refinement/` 中激活新能力，不再进行第二次目录或 enum 迁移。
+这个归档点必须可用且自洽：新用户可以完整交付，旧 deck 通过独立 `legacy-image2-maintenance` 兼容入口维护。为了让 Phase/module enum 和顶层目录一次迁移到最终形状，Change 3 创建 `04-image2-refinement/README.md`，但 README 只能明确写“本版本尚不可用、不是完成交付的 gate”，不得包含可执行步骤、controller link 或命令。Change 3 的 active playbook index、status 和 next-node calculation 不注册 Phase 4 execution。Change 4 才填充该目录其余文件、注册 `image2-refine` nodes/CLI 并移除 unavailable 标记，不再进行第二次目录或 enum 迁移。
 
 ## 最终阅读体验
 
@@ -319,9 +338,41 @@ workflow/
 00 setup
 01 content
 02 visual system
-03 production -> 完整 PPTX，可以结束
-04 refinement -> 只有用户想继续并授权成本时才进入
+03 HTML production -> 完整 PPTX，可以结束
+04 Image2 refinement -> 只有用户想继续并授权成本时才进入
 05 iteration
 ```
 
-`04-refinement/` 的存在不能让前四步显得是半成品；它是完成后的专业升级，不是完成 PPT 的必经 gate。
+`04-image2-refinement/` 的存在不能让前三步显得是半成品；它是完成后的专业升级，不是完成 PPT 的必经 gate。HTML 的普通打磨属于 `05-iteration/` 的 local path，不进入 Image2 refinement。
+
+## Playbook 路由与用户可见边界
+
+`workflow/` 是方法论阅读面，`playbook/` 是 MD Controller 的执行面；两者必须用同一组 ownership 名称。Change 3/4 之后，Controller 的最小路由应是：
+
+```text
+production.pipeline = html-first-v1
+        │
+        ├── create-deck / quick-preview / build
+        │       └── 03-html-production -> PPTX complete -> user may finish
+        │
+        ├── ordinary content/layout/visual-config/notes change
+        │       └── 05-iteration -> local HTML/composition path
+        │
+        └── explicit user request after HTML delivery
+                └── image2-refine -> plan -> authorize -> generate -> review
+
+production.pipeline = legacy-image2-first
+        └── legacy-image2-maintenance -> style-master/pilot/whole-page refresh
+```
+
+约束如下：
+
+- `create-deck` 和 `quick-preview` 不得自动进入 Image2；HTML 成品完成后才允许出现“可选专业升级”的分支。
+- `create-deck` 必须先把 HTML final/PPTX/notes 和用户交付确认记录为 completed，再以普通 handoff 文案询问是否查看 Image2 建议。用户拒绝或结束时，不留下 pending Image2 node；用户选择继续时启动独立 `image2-refine` execution，而不是让 create-deck 永远卡在一个 optional node 上。
+- `classify-change` 必须先读取 `production.pipeline`，再判断 source ownership 和失效路径；普通 HTML iteration 不得因为“视觉变好”而暗中创建远端授权。
+- `image2-refine` 只服务 visual-slot asset 生成，CLI 使用 `ppt_flow image2 ...`，不再使用容易误解的裸 `refine` 命令。
+- `ppt_flow image2 ...` 必须验证 `production.pipeline: html-first-v1`；legacy deck fail closed 并由 `legacy-image2-maintenance` 使用既有 pilot/build 路径，两个 Image2 模型不能交叉调用。
+- `image2-refine` controller nodes 使用 `lifecycle_phase: 4` / `method_module: 04-image2-refinement`；这不是普通 iteration 的别名。
+- `legacy-image2-maintenance` 只服务没有 `html-first-v1` marker 的旧 deck；不得被新 deck 的默认入口引用。它是兼容维护，nodes 使用 `lifecycle_phase: 5` / `method_module: 05-iteration`，不伪装成新的 visual-slot Phase 4。
+- `probe-image-channels` 保持独立的 off-path 环境诊断 playbook，nodes 继续使用 `lifecycle_phase: 0` / `method_module: 00-setup`；它不是 modern Phase 4 execution，也不属于 HTML production path。modern `image2-refine` 与 `legacy-image2-maintenance` 需要体检时都通过 playbook switch 进入并返回，调用方不得复制 probe nodes 或把诊断 submit 当成页面授权。这样 Change 3 可以保留 legacy 诊断而不注册 modern Phase 4，Change 4 也只消费既有 helper。
+- `_state` 的 reserved record 使用明确的 `image2-refinement` 名称；HTML/local progress、Image2 authorization 和 legacy execution 不得共用一个模糊的 `refinement` 状态。

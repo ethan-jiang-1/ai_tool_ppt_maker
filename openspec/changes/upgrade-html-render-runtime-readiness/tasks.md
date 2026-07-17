@@ -1,56 +1,58 @@
-## 1. Runtime Baseline and Dependency Profile
+## 1. Node and Browser Runtime Profile
 
-- [ ] 1.1 Update `package.json` and `package-lock.json` to require Node.js `>=22`, add exact production dependency `playwright@1.61.1` without a range, and add canonical `setup:chromium` plus Linux/CI `setup:chromium:with-deps` package scripts.
-- [ ] 1.2 Add one checked-in HTML runtime profile/fixture that binds Playwright 1.61.1 to Chromium revision 1228 / browser version 149.0.7827.55 and fails version drift instead of selecting a system browser.
-- [ ] 1.3 Extend runtime-constitution/coherence tests so Node metadata, active Node guidance, the exact Playwright dependency, paired browser identity, and no-build-step ESM contract cannot drift independently.
-- [ ] 1.4 Document the supported macOS/Windows/Linux setup commands, `PLAYWRIGHT_BROWSERS_PATH` consistency rule, restricted-network install variables, offline preinstallation requirement, and CI cache-key rule without creating a repository-external CI authority.
+- [ ] 1.1 (`html-render-runtime`, `environment-check`, `pipeline-orchestration`) Raise package/runtime declarations and executable gates to Node.js 22+, pin production `playwright` exactly to `1.61.1` in package and lock files, and add tests proving Node 20 fails while Node 22 passes.
+- [ ] 1.2 (`html-render-runtime`) Add canonical `setup:chromium` and `setup:chromium:with-deps` package scripts using the pinned local Playwright CLI; document standard/custom cache and setup-only proxy/download-host behavior without adding install logic to doctor or runtime.
+- [ ] 1.3 (`html-render-runtime`) Add one checked-in runtime profile and internal ESM interface that verifies Playwright 1.61.1 plus paired Chromium revision 1228/browser 149.0.7827.55, launches only Playwright Chromium, and returns normalized evidence without exposing a direct CLI.
+- [ ] 1.4 (`html-render-runtime`) Add unit tests for exact version/profile comparison, standard and consistently configured custom cache discovery, missing/mismatched paired browser, and rejection of system channels or arbitrary executable overrides.
 
-## 2. Distributed Font Profile
+## 2. Official Font Distribution and Evidence
 
-- [ ] 2.1 Acquire and commit the Source Sans 3 release 3.052 variable-normal Latin WOFF2 assets required for weights 200-900, recording immutable upstream provenance and SHA-256 values.
-- [ ] 2.2 Acquire and commit the complete pre-generated Noto Sans SC variable-normal WOFF2 shard set from exactly pinned `@fontsource-variable/noto-sans-sc@5.2.10`, recording package integrity, every shard SHA-256, and Simplified-Chinese (`Hans`) scope.
-- [ ] 2.3 Add family copyright notices, complete OFL 1.1 license texts, provenance records, and active `scripts/fonts/README.md` guidance that separates required HTML WOFF2 assets from legacy Stage-3 OTF/TTF/system-font fallback behavior.
-- [ ] 2.4 Add canonical local `@font-face` CSS and a machine-readable manifest covering family/style/weight/unicode-range/path/SHA/license/provenance, with no remote URL used by runtime CSS.
-- [ ] 2.5 Add checked-in Latin, accents, punctuation/currency, numerals, common Simplified-Chinese, and CJK-punctuation sentinel corpora plus tests for missing files, digest drift, malformed/overlapping ranges, missing license material, and unsupported code points.
-- [ ] 2.6 Add directory/coherence tests proving `PPTMAKER_FRAMEWORK/scripts/fonts/` is the only canonical framework distribution root, no sixth framework-root directory appears, and no font authority is placed in a run bundle.
+- [ ] 2.1 (`html-render-runtime`) Acquire Source Sans 3 variable-normal WOFF2 weights 200-900 from Adobe's official `3.052R` release and record source URL/release, original filename, measured bytes, and SHA-256.
+- [ ] 2.2 (`html-render-runtime`) Snapshot the official Google Fonts Noto Sans SC 100-900 CSS response with fixed request parameters and recorded modern-browser user-agent class; commit the original response and every referenced WOFF2 shard unchanged, recording served version/path, retrieval date, URL, Unicode range, measured bytes, and SHA-256.
+- [ ] 2.3 (`html-render-runtime`) Generate local relative-URL CSS plus a canonical machine-readable inventory that proves original-CSS/local-CSS/file completeness, family/style/weight/range metadata, per-file integrity, snapshot identity, and total bytes; add no third-party font package or TTF conversion toolchain.
+- [ ] 2.4 (`html-render-runtime`, `framework-directory-layout`) Place binaries, original/local CSS, inventory, provenance, copyright notices, and complete OFL material under the sole canonical `PPTMAKER_FRAMEWORK/scripts/fonts/` tree; keep the five-directory framework root and the legacy Stage-3 canvas font contract unchanged.
+- [ ] 2.5 (`html-render-runtime`) Add a fixed ASCII/Latin-accent/punctuation-currency/numeral/Simplified-Chinese/CJK-punctuation sentinel corpus and validation for missing files, digest drift, CSS/inventory mismatch, malformed/conflicting ranges, missing legal material, and unsupported sentinel code points.
+- [ ] 2.6 (`html-render-runtime`, `framework-directory-layout`) Add directory and coherence tests proving no duplicate framework font authority, runtime font URL, run-bundle font distribution, third-party acquisition authority, or unsupported full-CJK claim exists.
 
-## 3. Shared Browser and Font Runtime Seam
+## 3. Renderer-Independent Offline Smoke
 
-- [ ] 3.1 Implement one internal ESM runtime module under `PPTMAKER_FRAMEWORK/scripts/lib/` that inspects the exact profile, resolves only Playwright's paired Chromium, verifies the font manifest/licenses/digests/coverage, and returns normalized structured evidence.
-- [ ] 3.2 Implement the fixed local HTML smoke fixture at a fixed viewport: block service workers and all HTTP/HTTPS requests, load only checked-in assets, await `document.fonts.ready`, verify required family/weight evidence, and assert deterministic DOM geometry.
-- [ ] 3.3 Ensure the runtime seam never invokes a browser/font installer, never downloads, never accepts `channel` or arbitrary `executablePath`, and fails with setup-oriented normalized results when the matching browser/cache is absent.
-- [ ] 3.4 Add unit tests for profile/version comparison, default/custom cache handling, no-system-browser fallback, network-attempt failure, coverage failure, and normalized secret-safe evidence.
-- [ ] 3.5 Add an integration test that launches the installed paired Chromium against the static fixture and proves successful local geometry/font checks with zero network requests; skip only through an explicit documented test-environment condition, not by treating a missing browser as success.
+- [ ] 3.1 (`html-render-runtime`) Add a checked-in static HTML fixture with its own fixed viewport, local font CSS, deterministic geometry assertions, and explicit evidence that it does not import future slide-renderer code or alter legacy `1672x941` configuration/fingerprints.
+- [ ] 3.2 (`html-render-runtime`) Implement runtime smoke that launches paired headless Chromium, blocks service workers, aborts and records every HTTP/HTTPS attempt, waits for `document.fonts.ready`, verifies required local families/weights and sentinel coverage, and fails on geometry or network violations.
+- [ ] 3.3 (`html-render-runtime`) Prove through unit tests that smoke/runtime never invokes a browser/font installer, downloads an asset, accepts OS-font fallback as readiness evidence, or claims actual-deck code-point/overflow coverage.
+- [ ] 3.4 (`html-render-runtime`) Add an integration test that launches installed paired Chromium against the fixture and verifies zero network requests plus expected font/geometry evidence; allow skipping only through an explicit documented unavailable-browser test condition, never by treating absence as success.
 
 ## 4. Layered Environment and CLI Readiness
 
-- [ ] 4.1 Refactor `env-check.mjs` argument/mode assembly so default runs base only, `--image2` adds offline Image2 presence, and existing `--smoke`/`--probe-vendors` imply Image2 while remaining mutually exclusive with each other.
-- [ ] 4.2 Preserve the built-ins-only startup path: diagnose missing npm packages before any dynamic import, add exact Playwright presence/version checking through the existing ancestor walk, and dynamically enter the shared runtime only when dependencies are available.
-- [ ] 4.3 Add blocking base records `chromium`, `html_fonts`, and `html_runtime_smoke`; keep existing local/advisory checks; omit `api_key`, `image_base_url`, and `stage2_generator` entirely from base mode.
-- [ ] 4.4 Move `api_key`, `image_base_url`, and in-framework Stage-2 presence into Image2 mode while preserving their current resolution rules, fix text, live-probe parsers, ordering, progress, and secret safety.
-- [ ] 4.5 Preserve `env-check-v1` JSON compatibility, foundation/allPass semantics for the selected mode, direct `--json`, text READY/NOT READY endings, and the unique final failure envelope; label human output clearly as base or Image2 readiness.
-- [ ] 4.6 Extend `ppt_flow doctor` with text-only `--image2` delegation, preserve old live flags and delegated parent envelopes, accept redundant `--image2` plus one live flag, and add no top-level command or doctor JSON option.
-- [ ] 4.7 Update environment/CLI tests for no-node_modules startup, Node 20 failure/Node 22 pass, dependency walk-up, missing/mismatched browser, no-Image2 base READY, explicit Image2 failures, implied live modes, flag combinations, help text, command inventory, and secret-safe diagnostics.
+- [ ] 4.1 (`environment-check`) Preserve built-ins-only startup and ancestor package discovery, diagnose missing packages before dynamic import, verify exact Playwright metadata, and enter the shared runtime only after npm-backed prerequisites exist.
+- [ ] 4.2 (`environment-check`) Implement deterministic modes: default base only; `--image2` base plus offline Image2 presence; existing `--smoke`/`--probe-vendors` imply Image2; live flags remain mutually exclusive and accept redundant `--image2`.
+- [ ] 4.3 (`environment-check`) Add blocking base records `chromium`, `html_fonts`, and `html_runtime_smoke`; omit `api_key`, `image_base_url`, and `stage2_generator` from base output so absent Image2 configuration cannot change base READY.
+- [ ] 4.4 (`environment-check`) Keep existing Image2 credential/base-URL/Stage-2 resolution rules in Image2 mode, report only a secret-safe resolved vendor count, make `--image2` network-free, and preserve exactly one submit for `--smoke` or one per resolved vendor for `--probe-vendors`.
+- [ ] 4.5 (`environment-check`) Preserve `env-check-v1` JSON/check-array semantics, selected-mode exit status, human READY/NOT READY endings, live progress/summary behavior, and secret safety without introducing a second diagnostic schema.
+- [ ] 4.6 (`cli-surface`) Add text-only `ppt_flow doctor --image2` delegation and help; preserve old live flags, their implied Image2 mode, mutual exclusion, top-level command inventory, and the existing delegated parent failure envelope.
+- [ ] 4.7 (`environment-check`, `cli-surface`) Add tests for no-`node_modules` startup, ancestor resolution, version/browser/font failures, no-Image2 base READY, offline Image2 failure/success, safe vendor count, all live-flag combinations/submit counts, help, JSON compatibility, and secret-safe direct/delegated failures.
 
-## 5. Legacy Image2 Entry Guards
+## 5. Legacy Image2 Submit-Boundary Guards
 
-- [ ] 5.1 Inventory every current legacy remote-submit entry reached by pilot, build, visual refresh, unified Stage 2, and style-master generation; identify the existing credential, base-URL, and style-reference authorities used at each boundary.
-- [ ] 5.2 Add or strengthen a shared fail-before-submit guard immediately at legacy Stage-2 orchestration boundaries so missing credentials/base URL or required style master cannot reach the provider adapter after default doctor becomes base-only.
-- [ ] 5.3 Preserve local-only Stage 1/3/4/5, notes-only refresh, assembly from reviewed images, dry-run, and structural materialization behavior without acquiring Image2 prerequisites or making a remote request.
-- [ ] 5.4 Add fake-adapter regression tests proving zero submit on missing credentials/style, secret-safe CLI envelopes, successful legacy submit when prerequisites exist, and zero remote calls for local/structural/dry-run paths.
+- [ ] 5.1 (`pipeline-orchestration`) Inventory every current remote Image2 submit reached by style-master generation, pilot, build, visual rebuild, and unified Stage 2, recording the existing credential/base-URL and style-reference authorities used at each boundary.
+- [ ] 5.2 (`pipeline-orchestration`) Add or strengthen one shared fail-before-submit guard: all remote submits require transport prerequisites; legacy page generation additionally requires current style reference; style-master generation does not require a pre-existing style master.
+- [ ] 5.3 (`pipeline-orchestration`, `cli-surface`) Route missing prerequisites through the existing secret-safe diagnostic authority before provider-adapter invocation, without relying on a previous doctor result or emitting key/provider payload data.
+- [ ] 5.4 (`pipeline-orchestration`) Preserve local Stage subsets, notes-only work, assembly from reviewed images, dry runs, and Structural Versioning analysis/materialization with no Image2 prerequisite acquisition or remote call.
+- [ ] 5.5 (`pipeline-orchestration`) Add fake-adapter regressions proving zero submit for missing credential/base URL/page style reference, permitted style-master submit with valid transport and no prior style master, successful guarded page submit, and zero remote calls on local/dry-run/structural paths.
 
-## 6. BOOTSTRAP and Active Guidance Migration
+## 6. BOOTSTRAP and Phase-0 Diagnostic UX
 
-- [ ] 6.1 Rewrite BOOTSTRAP Step 1 base remediation sections to cover the emitted base check names, Node 22 verification/upgrade, one consolidated `npm install`, explicit Chromium setup, font/runtime-smoke repair, and existing advisory Git guidance.
-- [ ] 6.2 Move `api_key`, `image_base_url`, `stage2_generator`, and live-probe remediation into a clearly optional Image2 subsection; explain `doctor --image2` presence versus `--smoke`/`--probe-vendors` live checks and preserve self-contained first-time setup when the user chooses that path.
-- [ ] 6.3 Update gate wording so foundation/base NOT READY blocks framework progress, advisory warnings remain non-blocking, and Image2 NOT READY blocks only an action about to enter the legacy remote path.
-- [ ] 6.4 Update active Node/runtime/setup documents and command examples to Node 22, base-vs-Image2 readiness, explicit Chromium setup, and Simplified-Chinese font scope while avoiding any claim that HTML-first deck authoring/delivery already exists.
-- [ ] 6.5 Add documentation consistency tests that compare default and Image2 check-name inventories with the correct BOOTSTRAP sections and reject stale universal-Image2, Node-18, runtime-download, full-CJK, or system-browser-fallback claims in active guidance.
+- [ ] 6.1 (`playbook-execution`) Update `probe-image-channels` in its existing Phase-0 / `00-setup` role to resolve vendor count offline, disclose one submit per vendor, obtain confirmation before `--probe-vendors`, relay progress, and keep report-only intent separate from optional configuration writes.
+- [ ] 6.2 (`playbook-execution`, `bootstrap-env-guidance`, `image-generation`) Require any current playbook/entry-doc offer of `doctor --smoke` to disclose exactly one expected submit and obtain confirmation; remove style-master generation as a channel-diagnostic substitute, ensure decline makes zero calls, and ensure success creates no build approval or page-refinement authorization/state.
+- [ ] 6.3 (`bootstrap-env-guidance`) Rewrite BOOTSTRAP Step 1 base remediation for Node 22, one consolidated npm install, explicit Chromium setup, HTML font/runtime-smoke failures, current local/advisory checks, and beginner-copyable macOS/Windows/Linux paths.
+- [ ] 6.4 (`bootstrap-env-guidance`) Move `api_key`, `image_base_url`, `stage2_generator`, and live-probe remediation into a clearly optional Image2 subsection; distinguish offline `doctor --image2` from confirmed live flags and scope Image2 NOT READY only to an Image2 action.
+- [ ] 6.5 (`bootstrap-env-guidance`) Update active setup/runtime guidance to the new environment facts while retaining the current workflow topology and avoiding claims that structured HTML deck rendering, new-deck HTML defaults, modern Phase-4 refinement, or full CJK support already exists.
+- [ ] 6.6 (`bootstrap-env-guidance`, `playbook-execution`, `image-generation`) Add consistency tests comparing emitted base/Image2/live check names to the owning guidance sections and rejecting stale Node-18, universal-Image2 prerequisite, unconfirmed-live-probe, style-master-as-diagnostic, runtime-download, system-browser-fallback, and premature HTML-product claims.
 
-## 7. Verification and Apply Completion
+## 7. Apply Verification and Boundary Audit
 
-- [ ] 7.1 Run focused Vitest suites for environment checks, CLI delegation/error envelopes, runtime constitution, documentation consistency, pipeline orchestration, Image2 generation/style master, and structural no-remote behavior; resolve every regression.
-- [ ] 7.2 Run the real paired-Chromium offline fixture smoke on the development platform and record the inspected Playwright/Chromium/font profile without local absolute paths or secrets.
-- [ ] 7.3 Run full `npm test`; run relevant `tests_e2e` if the legacy pilot/build guard changes cross public workflow boundaries; document why any E2E category is not required.
-- [ ] 7.4 Run `openspec validate upgrade-html-render-runtime-readiness --strict`, inspect `git diff --check`, and confirm the change has not implemented structured slide source, HTML slide rendering, new-deck defaults, or Image2 refinement UX.
-- [ ] 7.5 Update this checklist as work completes and leave the change apply-complete only when all required tasks and validations pass; then update the parent four-change roadmap tracker's Apply/Validate stages through their defined completion rules.
+- [ ] 7.1 Run focused Vitest suites for runtime profile/fonts/smoke, environment modes, doctor delegation/envelopes, legacy submit guards, playbook confirmation, and documentation/layout coherence; resolve every regression.
+- [ ] 7.2 Run the real paired-Chromium offline fixture smoke on the development platform and record only normalized profile/font evidence, with no local absolute paths or secrets; verify declared macOS/Windows/Linux/CI setup commands structurally.
+- [ ] 7.3 Run full `npm test` and relevant `tests_e2e` when legacy public pilot/build behavior crosses an E2E boundary; record a concrete reason for any E2E category not required.
+- [ ] 7.4 Run `openspec validate upgrade-html-render-runtime-readiness --strict` and `git diff --check`; verify proposal capability names exactly match all eight delta-spec directories.
+- [ ] 7.5 Audit the final diff for scope: no structured slide source, actual slide HTML renderer, future 1600x900/DPR-2 profile activation, PPTX/default-workflow change, workflow-directory migration, run-bundle/state schema change, or modern Image2 refinement transaction may be implemented.
+- [ ] 7.6 Keep this checklist current during apply and mark the parent roadmap Apply/Validate stages only after their defined tests pass; do not use OpenSpec artifact status or chat progress as implementation evidence.

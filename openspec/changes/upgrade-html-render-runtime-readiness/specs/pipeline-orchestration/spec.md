@@ -2,7 +2,7 @@
 
 ### Requirement: Legacy Image2 entry points enforce their own remote prerequisites
 
-Every legacy orchestration path that is about to submit Image2 work SHALL validate its Image2 credential/base-URL resolution and required style-reference asset immediately before entering the remote Stage-2 adapter. The guard SHALL use the existing credential and run-bundle/style-reference authorities and SHALL NOT rely on a prior default doctor result. A missing prerequisite SHALL fail before provider submit with the existing secret-safe CLI diagnostic authority.
+Every legacy orchestration path that is about to submit Image2 work SHALL validate action-specific prerequisites immediately before entering its remote adapter. Every remote submit SHALL require resolvable Image2 credentials and base URL. Legacy page generation through pilot, build, or visual rebuild SHALL additionally require its current style-reference asset. Style-master generation SHALL require transport prerequisites but SHALL NOT require a pre-existing style master. The guard SHALL use existing credential, run-bundle, and style-reference authorities and SHALL NOT rely on a prior doctor result. A missing prerequisite SHALL fail before provider submit with the existing secret-safe CLI diagnostic authority.
 
 Local-only Stage subsets, dry runs, Structural Versioning materialization from verified artifacts, notes-only refresh, and assembly that reuses already reviewed images SHALL NOT acquire Image2 prerequisites and SHALL NOT make a remote request merely because default doctor no longer checks Image2.
 
@@ -17,6 +17,12 @@ Local-only Stage subsets, dry runs, Structural Versioning materialization from v
 - **WHEN** a legacy build or visual refresh is about to enter Stage 2 and its required style master is absent
 - **THEN** orchestration fails before any Image2 submit
 - **AND** it identifies the style-reference prerequisite through existing run-bundle paths
+
+#### Scenario: Style-master generation has no style master yet
+
+- **WHEN** legacy style-master generation has valid Image2 transport prerequisites but no existing style master
+- **THEN** the action may enter its remote adapter
+- **AND** does not impose the page-generation style-reference guard on itself
 
 #### Scenario: Local stages do not inherit Image2 gate
 

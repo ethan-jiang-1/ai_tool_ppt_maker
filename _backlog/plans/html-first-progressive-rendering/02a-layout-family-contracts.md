@@ -2,7 +2,7 @@
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
 > 上游: [`02-slide-content-and-layout.md`](02-slide-content-and-layout.md)
-> 状态: v1 合同已锁定 | 更新: 2026-07-17
+> 状态: 架构已锁定 | 更新: 2026-07-17
 
 ## 共同类型
 
@@ -36,7 +36,7 @@ grapheme 上限按用户可见字符计数，是跨中英文的粗粒度 preflig
 
 不在表内的字段、placement 或数量 fail closed。`split` 用 `mode` 做真正的 discriminated union，禁止同时提交 `left/right` 与 `text/primary_visual` 两组字段；`text-visual` 的准确标签应放在 `text` 或 callout。`hero` 的 body 字段可以为空，因为结构化 TITLE 已构成页面主陈述；`visual-focus` 则必须有非空的本地主视觉 fallback，不能形成空白 body。
 
-共同的 `primary_visual` 必须声明 `placement`、无准确文字的 `brief`、`fit: cover`、`focal_point` 和结构化 `fallback`；`selection` 可为 null 或正式资产 binding。`data.chart` 必须声明 `kind`、1-12 个 `categories` 与 1-4 个 `series`，每个 series 的 values 与 categories 等长。
+共同的 `primary_visual` 必须声明 `placement`、无准确文字的 `brief`、`fit: cover`、`focal_point` 和结构化 `fallback`；`selection` 可为 null 或正式资产 binding。这个 schema 表达“页面有一个可被专业资产增强的视觉槽”，不表达“页面等待 Image2”：在 `selection: null`、没有 Image2 配置且相关 lazy directories 不存在时，fallback 也必须独立形成完整成品。`data.chart` 必须声明 `kind`、1-12 个 `categories` 与 1-4 个 `series`，每个 series 的 values 与 categories 等长。
 
 ## Slot geometry
 
@@ -60,18 +60,21 @@ grapheme 上限按用户可见字符计数，是跨中英文的粗粒度 preflig
 | `abstract-css` | hero、visual-focus | `recipe`：从受支持 recipe enum 选择；由 visual config tokens 驱动 |
 | `none` | hero、split、quote | 保持背景/留白；结构化 TITLE、text 或 quote 仍须独立构成完整页面 |
 
-fallback 必须是结构化对象；引用资产时在 Stage 1 验证其存在。任意自由 HTML/SVG 字符串不进入 slide source。`visual-focus` 不允许 `none`；它必须由 `icon-composition`、`asset` 或 `abstract-css` 在零远端条件下完成。
+fallback 必须是结构化对象；引用资产时在 Stage 1 无条件验证 manifest registration、可读 bytes 和 SHA，即使当前存在有效 selection 也不能跳过。任意自由 HTML/SVG 字符串不进入 slide source。`visual-focus` 不允许 `none`；它必须由 `icon-composition`、`asset` 或 `abstract-css` 在零远端条件下完成。
 
 ## Layout 与视觉所有权
 
 - cards、kpi、comparison、flow、timeline、data 依赖准确结构表达，v1 不开放 Image2 slot。
 - hero、split、quote、visual-focus 才允许主视觉精修。
 - Image2 只填充 slot 像素；HTML 仍绘制所有 typed blocks、header 和 callout。
+- family renderer 只消费 structured plan 已解析出的 `fallback|selected|stale` 结果；`broken` 在进入 renderer 前已经阻断。renderer 不读取 Image2 profile、style reference、candidate manifest 或 authorization state。
 - future family 或新 placement 必须通过新的 OpenSpec requirement 和像素 overflow 测试添加，不能由 Agent 临时发明。
 
 ## 验收样例
 
 - 每个 family 至少有最小、最大容量和非法字段 fixture。
 - 每个开放 slot 的 HTML fallback、candidate preview 和 accepted asset 使用相同 resolved geometry。
+- 所有允许 `primary_visual` 的 family 都有 `selection: null`、无 Image2 环境的完整页面 fixture；不得出现“等待精修”的空白占位文案或 pending 状态。
+- accepted selection 存在但 fallback recipe/asset 损坏时 fixture 必须 fail closed，证明 accepted 像素不会遮蔽 HTML-only source contract 回归。
 - 同一 family 在 callout on/off 时几何变化可预测且进入 fingerprint。
 - 中英文 fixture 都通过字体覆盖、换行与像素 overflow 检查。
