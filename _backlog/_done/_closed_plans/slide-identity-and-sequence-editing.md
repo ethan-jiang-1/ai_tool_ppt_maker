@@ -1,7 +1,7 @@
 # Plan: 稳定 Slide ID + 可编辑页序
 
 > 类型: 设计 | 状态: 已关闭 (CLS-005) — change 已实施并 archive | 更新: 2026-07-17
-> 关联: `_backlog/todos/todo-dual-render-pipeline.md`、`_backlog/todos/todo-optional-git-safety-and-startup-guidance.md`
+> 关联: [`../../plans/html-first-progressive-rendering.md`](../../plans/html-first-progressive-rendering.md)、[`../_done_todos/todo-optional-git-safety-and-startup-guidance.md`](../_done_todos/todo-optional-git-safety-and-startup-guidance.md)
 > 落地: `openspec/changes/archive/2026-07-16-add-stable-slide-identity-and-order-editing/`
 
 > 实现权威: `openspec/changes/add-stable-slide-identity-and-order-editing/`。本 plan 保留问题推导和 UX 背景；若细节与 OpenSpec 冲突，以已校验的 OpenSpec artifacts 为准。
@@ -299,9 +299,9 @@ Structural Versioning Path 仍保留，但只自动 materialize 经 manifest kin
 
 Stage 5 应把 Markdown notes 解析为 `{slide_id, note}`，与当前 `slide_plan` 做 exact ID-set 校验，再按 plan order 注入 PPTX position。这样删除一页不会让剩余 notes 靠“数量刚好一致”而错配。
 
-## 与 dual-render-pipeline 的合流点
+## 与后续渲染架构的合流点
 
-双渲染不拥有页面身份，它消费这份计划定义的稳定 slide model：
+后续渲染架构不拥有页面身份，它消费这份计划定义的稳定 slide model：
 
 ```text
 slide-specifications.md
@@ -322,19 +322,19 @@ slide-specifications.md
         build follows current position
 ```
 
-双渲染的 artifact key 至少是：
+后续多层渲染的 artifact key 至少从这里定义的接口演进：
 
 ```text
 (slide_id, render_engine, artifact_kind, fingerprint)
 ```
 
-不包含 position。build 时根据当前 plan 顺序和每页 resolved engine 选择对应 artifact；同一页两种 engine 可以共存，不互相覆盖。
+不包含 position。后续 plan 已将整页 engine 选择进一步收敛为 layout document、visual-slot 与 final-slide 三层 artifact；build 只消费当前 plan 顺序下的 verified final-slide。
 
 因此实施顺序建议为：
 
 1. 先落 stable identity + order editing + ID-keyed artifact resolution。
-2. 再让 dual render 的两个 adapter 接入同一个 render-artifact interface。
-3. 最后增加 mixed deck / sequential / parallel 等策略；这些策略不得反向污染 slide ID。
+2. 再让 HTML layout、visual-slot 和 final composition 接入同一个 render-artifact interface。
+3. 最后按 `_backlog/plans/html-first-progressive-rendering.md` 的分阶段 changes 增加可选 visual-slot 精修；该策略不得反向污染 slide ID。
 
 两个主题可以在设计阶段一起审，但不建议塞进同一个超大 OpenSpec change。
 
@@ -458,12 +458,12 @@ slide-specifications.md
 - [ ] 删除页不会在新版本被组装，但旧版本仍完整保留。
 - [ ] 插入一页的结构 apply 零远端调用并报告一个 `needs_render`；显式授权 refresh 后只生成该 ID 的新 raw render。
 
-### Dual render readiness
+### Progressive rendering readiness
 
-- [ ] 同一 ID 的 `image2` 与 `html` artifact 可共存。
-- [ ] engine switch 不改变 slide ID。
-- [ ] build 由 `(slide_id, engine, artifact_kind)` 选产物，由 position 排顺序。
-- [ ] mixed deck 重排不会让两种 engine 的产物串页。
+- [ ] 同一 ID 的 HTML layout、Image2 visual-slot candidate 与 composed final-slide 可共存。
+- [ ] visual provider 或 accepted asset 变化不改变 slide ID。
+- [ ] build 按 position 排序，并只消费每个 slide ID 的 verified final-slide。
+- [ ] 重排不会让 layout、visual slot 或 final-slide 跨 ID/slot 串用。
 
 ### Compatibility
 
@@ -482,7 +482,7 @@ slide-specifications.md
 | legacy ID 带旧序号造成认知冲突 | UI 标 legacy；当前 position 永远单独显示；提供显式迁移而非隐藏迁移 |
 | 跨版本复用拿到陈旧图片 | 必须同时验证 stable ID、generation fingerprint/profile 和 image SHA；失败则不复用 |
 | Block Map / 正文含自然语言页码 | 扫描并给 review warning；Agent 语义更新，不做盲目全局替换 |
-| 一次 change 范围过大 | identity/order change 先落；dual-render 作为下游独立 change 接口化接入 |
+| 一次 change 范围过大 | identity/order change 先落；HTML-first 渐进式渲染作为下游计划分 change 接入 |
 
 ## Non-Goals
 
@@ -490,7 +490,7 @@ slide-specifications.md
 - 不把 PowerPoint 自身的内部 slide XML id 当 source identity。
 - 不承诺自动理解并重写所有自然语言页码引用。
 - 不在 MVP 提供无版本保护的 in-place add/delete/reorder。
-- 不在这个 change 实现 HTML renderer；这里只给 dual render 建立稳定输入与 artifact seam。
+- 不在这个 change 实现 HTML renderer；这里只给后续渐进式渲染建立稳定输入与 artifact seam。
 
 ## 安全层与逃生路径
 
@@ -501,7 +501,7 @@ heading-only current version
   -> audience/goal/narrative materially changed: recommend a new deck
 ```
 
-Git 是另一层手段：建议开工时检测并安装，用于 source/control 回滚、diff 和审计；run-bundle `v1/v2` 仍是用户可理解的作品版本，`_generated/` 不进 Git。缺少 Git 不阻断 PPT 创建。具体计划见 `_backlog/todos/todo-optional-git-safety-and-startup-guidance.md`。
+Git 是另一层手段：建议开工时检测并安装，用于 source/control 回滚、diff 和审计；run-bundle `v1/v2` 仍是用户可理解的作品版本，`_generated/` 不进 Git。缺少 Git 不阻断 PPT 创建。该计划已落地并归档到 `_backlog/_done/_done_todos/todo-optional-git-safety-and-startup-guidance.md`。
 
 ## 落地关联
 
@@ -511,10 +511,10 @@ Git 是另一层手段：建议开工时检测并安装，用于 source/control 
 add-stable-slide-identity-and-order-editing
 ```
 
-该 change 完成并归档后，再从 `todo-dual-render-pipeline` 创建：
+该 change 完成并归档后，原计划曾准备创建：
 
 ```text
 add-dual-render-pipeline
 ```
 
-后者必须复用稳定 slide model 和 render-artifact interface，不再定义第二套 ID、排序或文件名寻址规则。
+该命名和“两个整页 renderer”方向后来被 `_backlog/plans/html-first-progressive-rendering.md` 取代。后续 changes 仍必须复用稳定 slide model 和 render-artifact interface，不再定义第二套 ID、排序或文件名寻址规则。

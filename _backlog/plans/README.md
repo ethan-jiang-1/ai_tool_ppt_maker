@@ -19,9 +19,7 @@
 
 | Plan | 简述 |
 |------|------|
-| — | — |
-
-_无活跃 plan。_
+| [`html-first-progressive-rendering.md`](html-first-progressive-rendering.md) | HTML-first 渐进式渲染总控；详细设计按产品、schema、runtime、artifact、事务和交付拆入同名专题目录 |
 
 **Next available plan ID: CLS-008**（移入 `_closed_plans/` 时分配；CLS-001…007 已用）
 
