@@ -1,7 +1,7 @@
 # 专题 07: OpenSpec 路线与验收
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 四个 change 边界已锁定，待 Change 1 propose | 更新: 2026-07-17
+> 状态: 四个 change 边界已锁定，Change 1 propose 已完成，待 Review | 更新: 2026-07-17
 
 ## 为什么是四个 Change
 
@@ -12,6 +12,17 @@
 | 5 个 | 太多 | 只能把 Change 3 的 renderer/default workflow 或 Change 4 的 cost transaction/UX 硬拆，归档后会留下用户无法完整使用的中间态 |
 
 四个是能保持每个 change 可独立 review、apply、archive 的最小数量。以后某一 change 实施时若暴露未知风险，优先在该 change 内用 spike/task 管理；只有其完成线本身被证伪，才回写本 plan 重新切割，不能为了文件数量好看机械加 change。
+
+## Change 实施追踪
+
+| Change | Propose | Review | Apply | Validate | Sync + Archive |
+|---|---|---|---|---|---|
+| 1 `upgrade-html-render-runtime-readiness` | [x] | [ ] | [ ] | [ ] | [ ] |
+| 2 `add-structured-html-slide-contract` | [ ] | [ ] | [ ] | [ ] | [ ] |
+| 3 `deliver-html-first-decks` | [ ] | [ ] | [ ] | [ ] | [ ] |
+| 4 `add-image2-visual-slot-refinement` | [ ] | [ ] | [ ] | [ ] | [ ] |
+
+勾选纪律：只有对应动作已经完成且其强制校验通过才可标记 `[x]`；`Review` 指 proposal/design/specs/tasks 已经过质量审查并达到 apply-ready；`Validate` 指实现后的 targeted/full tests 与 strict OpenSpec validation 全部通过；`Sync + Archive` 必须在 delta specs 同步 main specs 且 change 正式归档后一起勾选。任一步失败或返工时保持未勾选，并在该 change 的 artifacts/tasks 中记录阻塞，不用聊天状态代替此表。
 
 ## Change 1: `upgrade-html-render-runtime-readiness`
 
