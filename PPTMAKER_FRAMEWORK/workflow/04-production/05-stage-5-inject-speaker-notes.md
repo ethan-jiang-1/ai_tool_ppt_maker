@@ -85,6 +85,8 @@ await pptx.writeFile({ fileName: "_generated/ppt/{NAME}.pptx" });
 
 Run-bundle 路径自动保留备份并原子替换；不要手工改 `_generated/` 或绕过 receipt。
 
+这里的管线备份仅服务于该次原子写入，不是 Git recovery target，也不构成 deck 版本 rollback。可见 `vN` 与 Structural Versioning Path 仍是 deck 工作版本权威；若用户选择 Git，它只是经明确授权的 source/control 审计。
+
 ## 三条刷新路径：完整工作流
 
 按内容所有权和失效产物选择最小刷新路径。Generated Image Rebuild 是经过强制重生与 review 的逻辑工作流，不要求一次命令跑完全部 Stage：

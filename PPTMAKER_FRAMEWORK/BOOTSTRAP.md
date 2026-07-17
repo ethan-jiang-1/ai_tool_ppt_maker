@@ -190,6 +190,50 @@ npm install
 
 同 `### @napi-rs/canvas`——跑 `npm install` 一次解决。
 
+### git
+
+**doctor 输出**：`△ git: ...`。Git 对做 PPT **可选但推荐**：它可以为用户自己选择的源文件提供审计和比较；它不替代可见的 `vN` 与 Structural Versioning Path，也不是继续生产的门槛。Git-only 警告出现时，只要其它硬检查已通过，仍可进入 Step 2。
+
+doctor 只观察**本次调用所在目录**，不会打印该目录路径；它不能证明未来创建或另一个位置的 deck 已受保护。`not confirmed as a worktree` 表示当前目录没有得到正向确认；`no verifiable Git history checkpoint` 常见于尚无首次提交的新仓库。两者都不是修 doctor 的任务，也不需要先创建提交。
+
+**如果你在用 Claude Code / Codex**：先验证，不要假设：
+
+```bash
+git --version
+```
+
+没有 Git 也可以继续做 deck；只有用户想要源文件历史时，再按其平台安装。
+
+**macOS：**
+
+```bash
+git --version
+xcode-select --install
+# 或：brew install git
+```
+
+**Linux：**
+
+```bash
+git --version
+sudo apt-get install -y git
+# Fedora/RHEL 可用：sudo dnf install -y git
+```
+
+**Windows PowerShell：**
+
+```powershell
+git --version
+winget install --id Git.Git -e
+git --version
+```
+
+若用户希望为某个 deck 使用 Git，先由用户指出并明确确认**包含所需 source/control 文件的项目根**。如需检查该目标根是否已在一个 worktree 内，Agent 必须先获得用户对“检查这个目标根”的单独明确授权；doctor 的当前目录结果不能代替它。已有祖先 worktree 时不得嵌套 `git init`；绝不在 `_generated/` 或单个 `3_versions/vN/` 叶目录初始化。任何 `git init`、add、commit、push 或其他 Git 操作都仍需用户对命名操作和范围的明确授权。
+
+**Checkpoint 提醒（Agent）**：一次连续的 source-work episode 是当前 interaction 中为一个 deck 做的连续实质 source 工作。已知发生真实作者工作后、Agent 即将做重要结构 source 改动前、validated vNext 后或交付/归档时，最多给一次简短的可选提醒：“要不要把这次源文件工作保存到你自己的 Git 历史里？” 用户拒绝或暂缓后，本 episode 内不再提醒。提醒不是授权，也不允许隐藏地检查 cleanliness。
+
+普通“做个 checkpoint”的同意不授权 `git status`、`git diff` 或其它检查。只有用户明确给出一个命名 Git 操作和其范围后，Agent 才能复述该操作与范围，并只协助这一个操作；不得根据隐藏检查推断文件、暂存状态或效果。默认禁止自动 init/add/commit/push/pull、改 remote、restore/reset/checkout/clean 或丢弃改动；也绝不把 clean worktree 当作 deck workflow 的门槛。
+
 ### stage2_generator
 
 **doctor 输出**：`✗ stage2_generator: fail — missing in-framework Stage 2 scripts`
@@ -199,7 +243,7 @@ npm install
 - `make_contact_sheet.mjs`
 - `image_api_client.mjs`
 
-如果缺失，检查 git clone 是否完整：`cd` 到 repo 根，`git status` 看是否有未检出文件。
+如果缺失，确认框架安装是否完整，或重新取得完整的 framework 文件；不要把 `git status` 当作 doctor 修复步骤。若用户明确授权检查某个已知 framework checkout，才按其指定范围协助该检查。
 
 **验证**：重跑 doctor → `stage2_generator` 应变成 `✓`
 

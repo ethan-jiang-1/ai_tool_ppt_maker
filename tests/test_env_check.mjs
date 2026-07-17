@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
-import { mkdirSync, rmSync, mkdtempSync } from 'node:fs';
+import { chmodSync, mkdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   checkNpmPackages,
   findPackageInAncestorNodeModules,
+  probeGitSafetyForTest,
 } from '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 import { parseCliErrorLine } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 
@@ -30,6 +31,254 @@ function stubPackages(nmDir) {
     mkdirSync(join(nmDir, ...pkg.split('/')), { recursive: true });
   }
 }
+
+function writeFakeGit(binDir, body) {
+  const script = join(binDir, 'git');
+  writeFileSync(script, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+  chmodSync(script, 0o755);
+  return script;
+}
+
+function gitRunner(...responses) {
+  const calls = [];
+  const run = (invocation) => {
+    calls.push(invocation);
+    return responses[calls.length - 1] ?? { kind: 'malformed' };
+  };
+  return { calls, run };
+}
+
+const GIT_ENV = {
+  PATH: '/safe/bin',
+  IMAGE2_API_KEY: 'secret-key',
+  IMAGE2_BASE_URL: 'https://secret.example/v1',
+  PPT_FONT_DIR: '/private/fonts',
+  GIT_DIR: '/private/git-dir',
+};
+
+describe('env-check optional Git probe', () => {
+  it('normalizes missing Git without raw child details', () => {
+    const { calls, run } = gitRunner({ kind: 'missing' });
+    const result = probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+    expect(result).toEqual(expect.objectContaining({ check: 'git', status: 'warn' }));
+    expect(result).not.toHaveProperty('foundation');
+    expect(JSON.stringify(result)).not.toContain('private');
+    expect(JSON.stringify(result)).not.toContain('secret');
+    expect(calls).toHaveLength(1);
+  });
+
+  it.each([
+    'git version 2.48.1\n',
+    'git version 2.48.1.windows.1\n',
+    'git version 2.48.1 (Apple Git-154)\n',
+  ])('recognizes conservative Git version form %j', (versionText) => {
+    const { calls, run } = gitRunner(
+      { kind: 'ok', rc: 0, stdout: versionText },
+      { kind: 'ok', rc: 0, stdout: 'true\n' },
+      { kind: 'ok', rc: 0, stdout: 'a'.repeat(40) },
+    );
+    const result = probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+    expect(result).toEqual({
+      check: 'git',
+      status: 'ok',
+      detail: 'Git 2.48.1 confirms history for the current invocation directory.',
+      fix: null,
+    });
+    expect(calls.map(({ args }) => args)).toEqual([
+      ['--version'],
+      ['rev-parse', '--is-inside-work-tree'],
+      ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
+    ]);
+  });
+
+  it('rejects version suffixes outside the narrow allowlist', () => {
+    const { calls, run } = gitRunner(
+      { kind: 'ok', rc: 0, stdout: 'git version 2.48.1-custom\n' },
+    );
+    const result = probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+    expect(result.status).toBe('warn');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('treats false and nonzero worktree results as nonblocking unconfirmed state', () => {
+    for (const worktree of [
+      { kind: 'ok', rc: 0, stdout: 'false\n' },
+      { kind: 'exit', rc: 128, stdout: '', stderrEmpty: false },
+    ]) {
+      const { calls, run } = gitRunner(
+        { kind: 'ok', rc: 0, stdout: 'git version 2.48.1\n' },
+        worktree,
+      );
+      const result = probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+      expect(result.status).toBe('warn');
+      expect(result.detail).toContain('not confirmed as a Git worktree');
+      expect(calls).toHaveLength(2);
+    }
+  });
+
+  it('recognizes no HEAD only for a quiet rc=1 response', () => {
+    const ordinary = gitRunner(
+      { kind: 'ok', rc: 0, stdout: 'git version 2.48.1\n' },
+      { kind: 'ok', rc: 0, stdout: 'true\n' },
+      { kind: 'exit', rc: 1, stdout: '', stderrEmpty: true },
+    );
+    const noHead = probeGitSafetyForTest({ run: ordinary.run, platform: 'linux', env: GIT_ENV });
+    expect(noHead.detail).toContain('no verifiable Git history checkpoint');
+
+    for (const abnormal of [
+      { kind: 'exit', rc: 1, stdout: '', stderrEmpty: false },
+      { kind: 'timeout' },
+      { kind: 'permission' },
+      { kind: 'exit', rc: 2, stdout: '', stderrEmpty: true },
+      { kind: 'ok', rc: 0, stdout: 'not-an-oid' },
+    ]) {
+      const { run } = gitRunner(
+        { kind: 'ok', rc: 0, stdout: 'git version 2.48.1\n' },
+        { kind: 'ok', rc: 0, stdout: 'true\n' },
+        abnormal,
+      );
+      const result = probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+      expect(result.status).toBe('warn');
+      expect(result.detail).toContain('observation is unavailable');
+      expect(result.detail).not.toContain('history checkpoint');
+    }
+  });
+
+  it('uses fixed bounded invocations and a restricted POSIX child environment', () => {
+    const { calls, run } = gitRunner(
+      { kind: 'ok', rc: 0, stdout: 'git version 2.48.1\n' },
+      { kind: 'ok', rc: 0, stdout: 'true\n' },
+      { kind: 'ok', rc: 0, stdout: 'b'.repeat(64) },
+    );
+    probeGitSafetyForTest({ run, platform: 'linux', env: GIT_ENV });
+    for (const call of calls) {
+      expect(call.command).toBe('git');
+      expect(call.cwd).toBe(process.cwd());
+      expect(call.shell).toBe(false);
+      expect(call.timeoutMs).toBe(2_000);
+      expect(call.maxBuffer).toBe(4 * 1024);
+      expect(call.env).toMatchObject({
+        PATH: '/safe/bin',
+        LC_ALL: 'C',
+        LANG: 'C',
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_OPTIONAL_LOCKS: '0',
+        GIT_NO_REPLACE_OBJECTS: '1',
+        GIT_CONFIG_NOSYSTEM: '1',
+      });
+      expect(call.env).not.toHaveProperty('IMAGE2_API_KEY');
+      expect(call.env).not.toHaveProperty('IMAGE2_BASE_URL');
+      expect(call.env).not.toHaveProperty('PPT_FONT_DIR');
+      expect(call.env).not.toHaveProperty('GIT_DIR');
+    }
+  });
+
+  it('canonicalizes Windows path forwarding and filters inherited Git names case-insensitively', () => {
+    const { calls, run } = gitRunner({ kind: 'missing' });
+    probeGitSafetyForTest({
+      run,
+      platform: 'win32',
+      env: {
+        PATH: 'upper-path',
+        Path: 'preferred-path',
+        pAtH: 'third-path',
+        PATHEXT: '.EXE;.CMD',
+        SYSTEMROOT: 'C:\\Windows',
+        git_dir: 'C:\\private',
+        GIT_CONFIG_GLOBAL: 'C:\\private-config',
+      },
+    });
+    const child = calls[0].env;
+    expect(Object.keys(child).filter((key) => key.toUpperCase() === 'PATH')).toEqual(['PATH']);
+    expect(child.PATH).toBe('preferred-path');
+    expect(child).toMatchObject({ PATHEXT: '.EXE;.CMD', SystemRoot: 'C:\\Windows' });
+    expect(Object.keys(child).filter((key) => key.toUpperCase() === 'GIT_DIR')).toEqual([]);
+    expect(child.GIT_CONFIG_GLOBAL).toBe('\\\\.\\nul');
+  });
+});
+
+describe('env-check optional Git public wiring', () => {
+  const canUsePosixFakeGit = process.platform !== 'win32';
+
+  (canUsePosixFakeGit ? it : it.skip)('shows exactly one advisory Git record without changing READY semantics', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-git-public-'));
+    try {
+      const bin = join(root, 'bin');
+      mkdirSync(bin);
+      writeFakeGit(bin, [
+        'if [ "$1" = "--version" ]; then echo "git version 2.48.1"; exit 0; fi',
+        'if [ "$1" = "rev-parse" ]; then echo "false"; exit 0; fi',
+        'exit 2',
+      ].join('\n'));
+      const env = {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH || ''}`,
+        IMAGE2_API_KEY: 'test-key',
+        IMAGE2_BASE_URL: 'https://example.test/v1',
+      };
+      const json = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+        encoding: 'utf8', timeout: 15_000, env,
+      });
+      const report = JSON.parse(json);
+      const gitRecords = report.checks.filter((check) => check.check === 'git');
+      expect(gitRecords).toHaveLength(1);
+      expect(gitRecords[0]).toMatchObject({ status: 'warn' });
+      expect(gitRecords[0]).not.toHaveProperty('foundation');
+      expect(report.allPass).toBe(true);
+
+      const direct = execSync(`node ${join(process.cwd(), ENV_CHECK)}`, {
+        encoding: 'utf8', timeout: 15_000, env,
+      });
+      expect(direct).toContain('△ git');
+      expect(direct).toContain('READY');
+
+      const doctor = execSync(`node ${join(process.cwd(), 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs')} doctor`, {
+        encoding: 'utf8', timeout: 20_000, env,
+      });
+      expect(doctor).toContain('△ git');
+      expect(doctor).toContain('READY');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  (canUsePosixFakeGit ? it : it.skip)('keeps a real hard failure blocking beside a Git warning', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-git-hard-fail-'));
+    try {
+      const bin = join(root, 'bin');
+      mkdirSync(bin);
+      writeFakeGit(bin, [
+        'if [ "$1" = "--version" ]; then echo "git version 2.48.1"; exit 0; fi',
+        'if [ "$1" = "rev-parse" ]; then echo "false"; exit 0; fi',
+        'exit 2',
+      ].join('\n'));
+      let stdout = '';
+      let status = 0;
+      try {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH || ''}`,
+            IMAGE2_API_KEY: 'test-key',
+            IMAGE2_BASE_URL: '',
+          },
+        });
+      } catch (error) {
+        status = error.status ?? 1;
+        stdout = error.stdout ?? '';
+      }
+      const report = JSON.parse(stdout);
+      expect(status).not.toBe(0);
+      expect(report.allPass).toBe(false);
+      expect(report.checks.find((check) => check.check === 'git')).toMatchObject({ status: 'warn' });
+      expect(report.checks.find((check) => check.check === 'image_base_url')).toMatchObject({ status: 'fail' });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('00-env-check', () => {
   it('produces text output by default', () => {

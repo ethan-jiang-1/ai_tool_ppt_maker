@@ -84,7 +84,7 @@ agent_action: iterate_with_openspec
 
 1. 确认改动范围——只改 color？还是连 typography + layout 都改？
 2. 写提案明确列出所有受影响的维度（在 Claude Code 中用 `openspec-propose`）
-3. 更新 `style-master-prompt.md` 并重新生成 canonical `style_master.jpg`；历史由 Git 或 upstream iteration archive 保留
+3. 更新 `style-master-prompt.md` 并重新生成 canonical `style_master.jpg`；可见 `vN` / upstream iteration archive 保留 deck 工作上下文，用户可选 Git 仅按明确授权保存 source audit
 4. 评估下游影响——哪些已有的 slide 图和新的 style master 不兼容？（颜色变了？header zone 高度变了？）
 5. 可能需要重新生成部分或全部 slide 图片
 

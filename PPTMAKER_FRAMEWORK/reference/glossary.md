@@ -48,7 +48,7 @@ agent_action: reference
 ## 核心概念
 
 ### run bundle
-Filesystem instance for one PPT project: `deck_{NAME}/`. All design docs, images, JSON, PPTX live here. No DB, no workflow server — `ls` / `diff -r` / `git log`.
+Filesystem instance for one PPT project: `deck_{NAME}/`. All design docs, images, JSON, PPTX live here. No DB, no workflow server — `ls` / `diff -r`; a user-owned Git history may optionally audit source/control changes.
 
 **≠ `--run-dir`.** Run bundle = whole tree. `--run-dir` = one version leaf inside it.
 
@@ -59,7 +59,7 @@ Filesystem instance for one PPT project: `deck_{NAME}/`. All design docs, images
 Path argument to the pipeline: `deck_*/3_versions/v{n}/`. That leaf holds `slide-specifications.md`, `overrides/`, `_generated/`, `_scratch/`. Do not pass the deck root as `--run-dir`.
 
 ### Source File（源文件）
-Human-edited truth: `slide-specifications.md`, backbone markdown, `style-master-prompt.md`, etc. Git-tracked. Change these; regenerate derived.
+Human-edited truth: `slide-specifications.md`, backbone markdown, `style-master-prompt.md`, etc. Change these; regenerate derived. They are eligible for user-owned Git tracking, not intrinsically Git-tracked.
 
 ### _generated/
 Pipeline output under `3_versions/v{n}/_generated/` — `slide_plan.json`, images, PPTX, preview. Rebuildable from sources. **Never hand-edit.** (Also called Derived Artifact.)
@@ -203,7 +203,10 @@ Few-page visual gate before full production. Artifacts under `_generated/preview
 `bundle_layout.mjs --new-version deck_X/3_versions/v{n}`——只复制下游源 delta，并创建干净 `_generated/`。适用于砍/加/重排 slide 等下游结构改动；隐喻/公式/共享视觉属于 backbone，不应借开版本逃避共享语义。
 
 ### 结构逃生阶梯
-结构计划 stale 或小冲突时重新 preview；同一方向变化大时另起 vNext；受众、主叙事或设计系统分叉时另建 deck。Git 可用于审计和回退，但不替代 run-bundle 的版本边界。
+结构计划 stale 或小冲突时重新 preview；同一方向变化大时另起 vNext；受众、主叙事或设计系统分叉时另建 deck。Git 可作为用户拥有的 source/control 审计和比较，但不替代 run-bundle 的版本边界，也不提供框架默认回退或 source replacement。
+
+### 可选 Git 审计
+Git 是用户拥有的 source/control 审计与比较层，不是 deck 工作版本、slide order、renderer cache 或 pipeline gate。可见 `vN` + Structural Versioning Path 才是 deck 工作版本权威；`_generated/` 始终是派生品，不 force-track，也不是 recovery target。没有用户对命名操作和精确范围的明确授权，Agent 不检查 Git 状态或执行 Git mutation；本框架没有默认 `git checkout`、`git restore` 或其它 source-recovery protocol。
 
 ---
 

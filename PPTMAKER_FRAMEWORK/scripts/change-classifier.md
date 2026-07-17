@@ -147,12 +147,18 @@ Agent 回复：
 2. 在新版本中调整 slide 结构和编号
 3. 重新生成受影响的 slides
 
-当前版本 v{n} 保持不变，随时可以回退。开始？"
+当前版本 v{n} 会保留。需要回访时按小修复当前版本 → clean vNext → 新 deck 的 escape ladder 处理，不覆盖或删除可见版本。开始？"
 ```
 
 ---
 
 ## 常见边界情况
+
+### "回到以前版本 / 用 Git 撤掉一个源改动"
+
+→ 先区分两件事。要回访可见 deck `vN`：保留所有版本，按 escape ladder 选择当前版本小修复、同方向 clean vNext、vNext 中明确缺图 rebuild，或受众/主叙事/设计系统分叉时新 deck。不要删除、覆盖、改名或复制一个可见版本来充当 rollback。
+
+→ 要处理用户自己 Git 仓库里的 source history：本框架没有 Git history reader、自动 source replacement、`git checkout` / `git restore` fallback 或默认 recovery protocol。只有用户明确授权一个命名 Git 操作及其精确范围时，Agent 才能复述并协助该操作；不得自行选择 generic recovery command。
 
 ### "这个 slide 看起来不对"
 
@@ -209,3 +215,5 @@ node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_X/3_versions
 5. apply 只发布 source/control vNext，不调用 renderer。跨版本只 materialize manifest 证明完整的 `raw-render`；target 本地重建 Stage 3、contact sheet、PPTX、notes。
 6. `needs_render` 不扩大授权。先向用户报告明确 ID、预计调用与 review 成本，再单独调用 Generated Image Rebuild；用户只授权结构时远端调用必须为零。
 7. 逃生阶梯：stale/小冲突重新 preview；同一方向的大改另起 vNext；受众、主叙事或设计系统已分叉时建议新 deck。不要为了“必须在这一版修好”而无限叠补丁。
+
+可见 `vN` 是 deck 工作版本权威。Git 仅可作为用户拥有的 source/control 审计和比较，不替代版本、结构 preview/hash 或 renderer 授权。本 change 不提供 Git history reader、自动 source replacement、`git checkout` / `git restore` fallback 或默认 recovery protocol；用户明确授权一个命名 Git 操作和范围后，Agent 才复述并协助该操作本身。

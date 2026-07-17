@@ -135,7 +135,7 @@ COMMANDS.md and `scripts/change-classifier.md` SHALL explain the structural UX u
 
 The reference SHALL explain that reorder/delete-only normally materialize verified expensive raw renders and rebuild Stage 3 and later cheap outputs locally, while inserted or unproven IDs are reported as `needs_render` and follow an explicit Generated Image Rebuild only after authorization. Structural apply/materialization SHALL be documented as renderer-free. It SHALL retain the rule that `_generated/` is never hand-edited or manually copied between versions.
 
-The reference SHALL document the escape ladder: heading-only current-version repair; same-deck clean vNext; explicit missing-render rebuild in vNext; and a new-deck recommendation when audience, objective, or narrative materially changes. Git MAY be recommended separately as source/control rollback and audit, but SHALL not replace run-bundle versions or become a PPT creation prerequisite.
+The reference SHALL document the escape ladder: heading-only current-version repair; same-deck clean vNext; explicit missing-render rebuild in vNext; and a new-deck recommendation when audience, objective, or narrative materially changes. Git MAY be recommended separately as a user-owned source/control audit and comparison aid, but SHALL not replace run-bundle versions, become a PPT creation prerequisite, become a second ordering source, or be presented as a framework-provided in-place rollback command. This change SHALL not add a Git-history reader, source-content comparison, `git checkout`/`git restore` fallback, framework-owned source-file replacement, recovery receipt, or new source-recovery playbook. If a user asks to undo an accidental source edit with Git, guidance may explain that Git history belongs to the user-owned repository and that an Agent needs separate explicit authorization for any named Git operation and scope; it SHALL not choose or prescribe a generic recovery command as the default. After such independent authorization, the general Agent authorization rule applies, but this change still supplies no framework recovery protocol.
 
 #### Scenario: User deletes two page numbers
 
@@ -165,3 +165,21 @@ The reference SHALL document the escape ladder: heading-only current-version rep
 
 - **WHEN** the requested work materially changes audience, objective, or narrative
 - **THEN** guidance recommends considering a new deck instead of presenting vNext as the only route
+
+#### Scenario: Deck-version request preserves visible versions
+
+- **WHEN** a user asks to revisit a prior deck version such as `v2`
+- **THEN** guidance preserves all visible version directories and evaluates the current source/version context through the existing escape ladder
+- **AND** it does not prescribe deleting `vN`, copying `vN` over another visible version, or treating a Git checkout as a deck-version replacement
+
+#### Scenario: Source-history request is not overpromised
+
+- **WHEN** a user asks to undo an accidental source edit using Git history
+- **THEN** guidance keeps the request distinct from a visible deck-version change and states that this change adds no automated history reader, framework source replacement, or default recovery command
+- **AND** it does not autonomously choose or prescribe a generic `git restore`, `git checkout`, reset, clean, or source-file mutation before the user separately authorizes the named operation and scope
+
+#### Scenario: Git absence does not block normal correction
+
+- **WHEN** a user has no Git executable, no worktree, or no first commit
+- **THEN** guidance keeps normal source correction, Structural Versioning Path, and the repair/vNext/new-deck escape ladder available
+- **AND** it does not characterize Git as a required workflow gate

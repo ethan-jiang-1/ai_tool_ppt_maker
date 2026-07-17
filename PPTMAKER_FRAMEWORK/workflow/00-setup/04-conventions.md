@@ -53,15 +53,15 @@ v2/                              ← 重大下游改动时用 --new-version 创�
 
 ## 版本管理
 
-### 什么进 Git
+### 可选 Git 审计边界
 
-| 进 Git | 不进 Git |
+| 用户可选择纳入其 Git 仓库 | 不应强制追踪 |
 |--------|---------|
 | 源文件（`*.md`） | 派生品（`*.png`, `*.json`） |
 | 模板（`template-*.md`） | 大型二进制（`*.pptx`, `*.jpg`） |
 | 脚本（`*.mjs`） | 临时文件、cache |
 
-原则：**源文件属于 Git（可 diff、可 merge）；派生品属于文件系统（可重跑、可覆盖）。**
+原则：**可见 `vN` + Structural Versioning Path 是 deck 工作版本权威；Git 是可选、用户拥有的 source/control 审计。** source/control 文件可由用户选择追踪；派生品属于文件系统（可重跑、可覆盖）。`_generated/` 不 force-track，也不是恢复目标。本框架不提供自动 Git source recovery、checkout/restore 或默认回退协议；任何 Git mutation 都需要用户对命名操作和精确范围的明确授权。
 
 ### 版本快照的节奏
 

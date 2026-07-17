@@ -25,7 +25,7 @@ import {
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
-import { homedir, tmpdir, platform } from 'node:os';
+import { devNull, homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +44,213 @@ function run(cmd, args = [], timeout = 15) {
     if (e.killed) return { rc: -2, stdout: '', stderr: 'timed out' };
     return { rc: e.status ?? -1, stdout: (e.stdout ?? '').trim(), stderr: (e.stderr ?? '').trim() };
   }
+}
+
+// Git is an optional, user-owned source audit. Keep its bounded child-process
+// observation separate from `run()`, which intentionally retains general output.
+const GIT_PROBE_TIMEOUT_MS = 2_000;
+const GIT_PROBE_MAX_BUFFER = 4 * 1024;
+const GIT_VERSION_RE = /^git version (\d+\.\d+\.\d+)(?:\.windows\.\d+| \(Apple Git-\d+\))?\r?\n?$/;
+const GIT_HEAD_OID_RE = /^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/;
+
+function isWindowsPlatform(platformName) {
+  return platformName === 'win32';
+}
+
+function gitNullDevice(platformName) {
+  return isWindowsPlatform(platformName) ? '\\\\.\\nul' : devNull;
+}
+
+function readEnvValue(env, requestedKey, { caseInsensitive = false } = {}) {
+  if (!env || typeof env !== 'object') return undefined;
+  if (!caseInsensitive) return env[requestedKey];
+  const wanted = requestedKey.toUpperCase();
+  for (const [key, value] of Object.entries(env)) {
+    if (key.toUpperCase() === wanted) return value;
+  }
+  return undefined;
+}
+
+function firstWindowsPath(env) {
+  // Prefer the conventional spelling when a process has both spellings, then
+  // collapse it to one canonical child key.
+  const preferred = readEnvValue(env, 'Path');
+  if (preferred !== undefined) return preferred;
+  const uppercase = readEnvValue(env, 'PATH');
+  if (uppercase !== undefined) return uppercase;
+  return readEnvValue(env, 'PATH', { caseInsensitive: true });
+}
+
+function buildGitChildEnv(sourceEnv = process.env, platformName = process.platform) {
+  const windows = isWindowsPlatform(platformName);
+  const env = {};
+
+  if (windows) {
+    const pathValue = firstWindowsPath(sourceEnv);
+    if (typeof pathValue === 'string' && pathValue) env.PATH = pathValue;
+    for (const key of ['PATHEXT', 'SystemRoot', 'ComSpec', 'WINDIR']) {
+      const value = readEnvValue(sourceEnv, key, { caseInsensitive: true });
+      if (typeof value === 'string' && value) env[key] = value;
+    }
+  } else {
+    const pathValue = readEnvValue(sourceEnv, 'PATH');
+    if (typeof pathValue === 'string' && pathValue) env.PATH = pathValue;
+  }
+
+  // These are the only Git-related values that cross the boundary. Inherited
+  // GIT_* variables are deliberately not copied, case-insensitively on Windows.
+  Object.assign(env, {
+    LC_ALL: 'C',
+    LANG: 'C',
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_NO_REPLACE_OBJECTS: '1',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: gitNullDevice(platformName),
+  });
+
+  return env;
+}
+
+function normalizeGitRunnerResult(value) {
+  if (!value || typeof value !== 'object') return { kind: 'malformed' };
+  const allowedKinds = new Set(['ok', 'missing', 'timeout', 'permission', 'exit', 'malformed']);
+  if (!allowedKinds.has(value.kind)) return { kind: 'malformed' };
+  const result = { kind: value.kind };
+  if (Number.isInteger(value.rc)) result.rc = value.rc;
+  if (typeof value.stdout === 'string') result.stdout = value.stdout;
+  if (typeof value.stderrEmpty === 'boolean') result.stderrEmpty = value.stderrEmpty;
+  return result;
+}
+
+function runGitProbeCommand({ command, args, cwd, shell, timeoutMs, maxBuffer, env }) {
+  try {
+    const stdout = execFileSync(command, args, {
+      cwd,
+      shell,
+      timeout: timeoutMs,
+      maxBuffer,
+      encoding: 'utf-8',
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { kind: 'ok', rc: 0, stdout: String(stdout) };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { kind: 'missing' };
+    if (error?.code === 'ETIMEDOUT' || error?.killed) return { kind: 'timeout' };
+    if (error?.code === 'EACCES' || error?.code === 'EPERM') return { kind: 'permission' };
+    if (Number.isInteger(error?.status)) {
+      return {
+        kind: 'exit',
+        rc: error.status,
+        stdout: typeof error.stdout === 'string' ? error.stdout : '',
+        stderrEmpty: String(error.stderr ?? '').length === 0,
+      };
+    }
+    return { kind: 'malformed' };
+  }
+}
+
+function gitCheck(status, detail, fix = null) {
+  return { check: 'git', status, detail, fix };
+}
+
+function gitUnavailableCheck() {
+  return gitCheck(
+    'warn',
+    'Git safety observation is unavailable for the current invocation directory; deck work can continue.',
+    'Git is optional. Retry later if you want user-owned source history and comparison.'
+  );
+}
+
+function gitUnconfirmedWorktreeCheck() {
+  return gitCheck(
+    'warn',
+    'Current invocation directory is not confirmed as a Git worktree; deck work can continue.',
+    'Git is optional. If wanted, choose and confirm a project root for user-owned source history later.'
+  );
+}
+
+function gitNoHeadCheck() {
+  return gitCheck(
+    'warn',
+    'Current invocation directory has no verifiable Git history checkpoint; deck work can continue.',
+    'Git is optional. A first source checkpoint is a user-owned choice, not an environment repair step.'
+  );
+}
+
+function gitMissingCheck() {
+  return gitCheck(
+    'warn',
+    'Git is optional and is not available; deck work can continue.',
+    'Install Git if you want user-owned source history and comparison, then run `git --version`.'
+  );
+}
+
+function isGitSuccess(result) {
+  return result.kind === 'ok' && result.rc === 0;
+}
+
+function isExpectedNoHead(result) {
+  return result.kind === 'exit'
+    && result.rc === 1
+    && (result.stdout ?? '').trim() === ''
+    && result.stderrEmpty === true;
+}
+
+/**
+ * Test seam for the isolated Git observation. It accepts only a normalized
+ * command runner and returns only the public check record.
+ */
+function probeGitSafetyForTest({ run: injectedRun, platform: platformName = process.platform, env = process.env } = {}) {
+  const runCommand = typeof injectedRun === 'function' ? injectedRun : runGitProbeCommand;
+  const childEnv = buildGitChildEnv(env, platformName);
+  const invoke = (args) => {
+    try {
+      return normalizeGitRunnerResult(runCommand({
+        command: 'git',
+        args,
+        cwd: process.cwd(),
+        shell: false,
+        timeoutMs: GIT_PROBE_TIMEOUT_MS,
+        maxBuffer: GIT_PROBE_MAX_BUFFER,
+        env: childEnv,
+      }));
+    } catch {
+      return { kind: 'malformed' };
+    }
+  };
+
+  const version = invoke(['--version']);
+  if (version.kind === 'missing') return gitMissingCheck();
+  if (!isGitSuccess(version)) return gitUnavailableCheck();
+
+  const versionMatch = GIT_VERSION_RE.exec(version.stdout ?? '');
+  if (!versionMatch) return gitUnavailableCheck();
+
+  const worktree = invoke(['rev-parse', '--is-inside-work-tree']);
+  if (isGitSuccess(worktree) && (worktree.stdout ?? '').trim() === 'true') {
+    const head = invoke(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}']);
+    if (isGitSuccess(head) && GIT_HEAD_OID_RE.test((head.stdout ?? '').trim())) {
+      return gitCheck(
+        'ok',
+        `Git ${versionMatch[1]} confirms history for the current invocation directory.`,
+        null
+      );
+    }
+    if (isExpectedNoHead(head)) return gitNoHeadCheck();
+    return gitUnavailableCheck();
+  }
+
+  if (isGitSuccess(worktree) && (worktree.stdout ?? '').trim() === 'false') {
+    return gitUnconfirmedWorktreeCheck();
+  }
+  if (worktree.kind === 'exit') return gitUnconfirmedWorktreeCheck();
+  return gitUnavailableCheck();
+}
+
+function checkGitSafety() {
+  return probeGitSafetyForTest();
 }
 
 function loadDotenv(...searchDirs) {
@@ -270,6 +477,7 @@ function runAllChecks() {
     checkStage2Generator(),
     checkFonts(),
     checkDiskSpaceSync(),
+    checkGitSafety(),
   ];
 
   const allPass = results.every(r => r.status !== 'fail');
@@ -508,7 +716,14 @@ async function checkProbeVendors() {
   };
 }
 
-export { runAllChecks, checkImageSmoke, checkProbeVendors, checkApiKey, checkBaseUrl };
+export {
+  runAllChecks,
+  checkImageSmoke,
+  checkProbeVendors,
+  checkApiKey,
+  checkBaseUrl,
+  probeGitSafetyForTest,
+};
 
 function formatText(results, allPass) {
   const lines = [];

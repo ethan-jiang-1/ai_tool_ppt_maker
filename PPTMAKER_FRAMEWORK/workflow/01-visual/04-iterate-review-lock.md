@@ -134,12 +134,12 @@ Style master 在以下条件满足时**锁定**：
 
 1. Style master 文件成为 deck 的 **immutable visual contract**
 2. 在 `2_backbone/visual-style/visual-style.md` 的 Change Log 中记录锁定决定
-3. 如果以后改变整个 deck 的 visual direction，更新 `style-master-prompt.md` 后重新生成 canonical `style_master.jpg`，并通过 Git 保留历史；如果只属于某一版，放进该版 `overrides/visual-style/`
+3. 如果以后改变整个 deck 的 visual direction，更新 `style-master-prompt.md` 后重新生成 canonical `style_master.jpg`；若用户选择自己的 Git 仓库，可按其明确授权保存 source history；如果只属于某一版，放进该版 `overrides/visual-style/`
 4. 锁定的 style master 通过 `--style-reference` 传入所有后续 slide generation
 
 ## Versioning（版本管理）
 
-canonical 文件名始终只有一个，版本由 Git 或下游 override 承载，不把版本号再次编码进文件名：
+canonical 文件名始终只有一个；deck 工作版本由可见 `vN` / 下游 override 承载，用户可选 Git 仅做 source audit，不把版本号再次编码进文件名：
 
 ```
 2_backbone/visual-style/

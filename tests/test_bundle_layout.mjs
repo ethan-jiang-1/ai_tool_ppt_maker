@@ -161,11 +161,22 @@ describe('bundle_layout', () => {
       const guideContent = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
       expect(guideContent).toContain('_lessons/');
       expect(guideContent).toContain('lessons.mjs');
+      expect(guideContent).toContain('Git 仅是可选、用户拥有的 source/control 审计');
+      expect(guideContent).toContain('`_generated/` 不是恢复目标');
+      expect(guideContent).toContain('不做 Git mutation');
       expect(existsSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'))).toBe(true);
       expect(readFileSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'), 'utf-8')).toMatch(
         /上严下松|_scratch/
       );
-      expect(readFileSync(join(deck, '.gitignore'), 'utf-8')).toMatch(/_scratch/);
+      const gitignore = readFileSync(join(deck, '.gitignore'), 'utf-8');
+      expect(gitignore).toContain('.env');
+      expect(gitignore).toContain('3_versions/*/_generated/');
+      expect(gitignore).toContain('3_versions/*/_scratch/*');
+      expect(gitignore).toContain('!3_versions/*/_scratch/README.md');
+      expect(gitignore).not.toContain('slide-specifications.md');
+      expect(gitignore).not.toContain('_state/');
+      expect(gitignore).not.toContain('_lessons/');
+      expect(existsSync(join(deck, '.git'))).toBe(false);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -255,6 +266,43 @@ describe('bundle_layout', () => {
       expect(readdirSync(join(result.target, '_generated'))).toEqual(['README.md']);
       expect(readdirSync(join(deck, '3_versions')).filter((name) => name.startsWith('.v2'))).toEqual([]);
       expect(checkBundle(result.target, false)).toEqual([]);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps init and structural publication Git-independent', () => {
+    const source = readFileSync(BUNDLE, 'utf8');
+    expect(source).not.toMatch(/(?:execFile|spawn|execSync|execFileSync)\s*\(/);
+    expect(source).not.toMatch(/(?:command|cmd)\s*[:=]\s*['"]git['"]/);
+    const deck = join(tmpdir(), `deck_git_independent_${Date.now()}`);
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      writeFileSync(join(v1, 'slide-specifications.md'), '## Slide 01: DeckGo\n\nbody\n', 'utf8');
+      const result = publishStructuralVersion({
+        sourceRunDir: v1,
+        versionName: 'v2',
+        transformedSource: '## Slide 01: DeckGo\n\nchanged\n',
+      });
+      expect(result.published).toBe(true);
+      expect(existsSync(join(deck, '.git'))).toBe(false);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
+  it('does not rewrite an existing guide or ignore file during a later init call', () => {
+    const deck = join(tmpdir(), `deck_existing_git_boundary_${Date.now()}`);
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      const guidePath = join(deck, 'deck-guide.md');
+      const ignorePath = join(deck, '.gitignore');
+      writeFileSync(guidePath, '# existing guide\n', 'utf8');
+      writeFileSync(ignorePath, '# existing ignore\n', 'utf8');
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      expect(readFileSync(guidePath, 'utf8')).toBe('# existing guide\n');
+      expect(readFileSync(ignorePath, 'utf8')).toBe('# existing ignore\n');
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
