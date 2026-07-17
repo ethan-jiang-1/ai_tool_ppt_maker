@@ -69,24 +69,23 @@ HTML 不是低配预览；它是所有新用户都会得到的正式成品。Ima
 stable slide_id + derived position + artifact provenance
                          |
                          v
-1. runtime readiness -> 2. structured body -> 3. HTML delivery
-                                                  |
-                                                  v
-                                  4. Image2 visual refinement
-                                                  |
-                                                  v
-                                      5. workflow adoption
+1. runtime readiness -> 2. structured body/layout
+                                  |
+                                  v
+                    3. HTML-first delivery + default workflow
+                                  |
+                                  v
+                    4. optional Image2 visual refinement
 ```
 
 | 阶段 | OpenSpec change | 状态 | 完成定义 |
 |---|---|---|---|
 | 1 | `upgrade-html-render-runtime-readiness` | 待 propose | Node 22、固定 Chromium/字体、分层 doctor 契约定稿并归档 |
 | 2 | `add-structured-slide-body-contract` | 等待阶段 1 | 新 schema、families、visual config、asset merge 可独立验证 |
-| 3 | `add-html-first-render-and-assembly` | 等待阶段 2 | 显式 `html-first-v1` deck 无 Image2 条件可交付完整 contact sheet/PPTX/notes |
-| 4 | `add-image2-visual-slot-refinement` | 等待阶段 3 | 授权、候选、逐页采用/回退、promotion 和 provenance 闭环 |
-| 5 | `adopt-progressive-rendering-workflow` | 等待阶段 4 | 新 deck 默认切换、BOOTSTRAP、COMMANDS、playbooks 和 legacy migration UX 一致 |
+| 3 | `deliver-html-first-decks` | 等待阶段 2 | HTML renderer、assembly、新 deck 默认、基础 UX 与 legacy migration 一次形成可交付垂直切片 |
+| 4 | `add-image2-visual-slot-refinement` | 等待阶段 3 | 授权、候选、逐页采用/回退、promotion、provenance 与专业 UX 闭环 |
 
-每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；不得把五个阶段塞进一个 change。
+每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；四个 change 不再继续细拆，也不得反向合成一个巨型 change。
 
 ## 全局不变量
 

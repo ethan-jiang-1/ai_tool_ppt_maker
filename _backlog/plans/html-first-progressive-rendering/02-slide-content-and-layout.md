@@ -10,7 +10,7 @@
 新 deck 必须显式声明：
 
 ```yaml
-render:
+production:
   pipeline: html-first-v1
 ```
 
@@ -135,4 +135,4 @@ Agent 可以缩短文案或更换 family。拆页会改变页序和叙事，必�
 - family validator 对未知字段、错误类型和超量集合 fail closed。
 - 结构化 source 经过 parse/serialize 后保留其他 Markdown 字节和 speaker notes。
 - reorder 只改变 position projection，不改变 body/visual contract fingerprint。
-- legacy 与 `html-first-v1` 两个解析分支明确隔离，不静默混用。
+- legacy 与 `production.pipeline: html-first-v1` 两个解析分支明确隔离，不静默混用。使用独立 `production` mapping，现有 `render.default/header-lock` 继续只属于 legacy Image2 render policy；HTML-first source 出现旧 render policy 时 fail closed 并要求显式迁移清理。

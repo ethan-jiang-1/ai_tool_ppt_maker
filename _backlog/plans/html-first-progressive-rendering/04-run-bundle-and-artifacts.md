@@ -9,6 +9,10 @@
 
 ```text
 deck_NAME/
+├── 1_upstream_raw_material/
+│   └── refinement-history/{version}/{slide_id}/
+│       ├── recent-rejected.png
+│       └── provenance.json
 ├── 2_backbone/
 │   └── visual-style/
 │       ├── deck_system.txt
@@ -17,7 +21,6 @@ deck_NAME/
 │           ├── asset-manifest.yaml
 │           ├── svg/
 │           ├── reference/
-│           │   └── refinement-history/{version}/{slide_id}/recent-rejected.png
 │           └── icons/
 │
 └── 3_versions/
@@ -109,5 +112,5 @@ Stage 4 只按当前 `slide_plan` 顺序解析一个 verified `final-slide`，�
 - 删除 `_generated/` 前检测未接受的昂贵候选并明确提示它们不可逐像素重生。
 - `refine clean` 只清未引用候选、comparison previews 和对应 prompt/task evidence，不碰正式 override asset。
 - 本版精修尚未结束时默认不清候选。
-- accepted candidate 已由正式 override asset 持久保存；收尾清理前，把每页 recent rejected 归档到 `1_upstream_raw_material/refinement-history/{version}/{slide_id}/`，附非密钥 provenance JSON。
+- accepted candidate 已由正式 override asset 持久保存；收尾清理前，把每页 recent rejected 归档到 `1_upstream_raw_material/refinement-history/{version}/{slide_id}/`，附非密钥 provenance JSON。该历史不是 asset catalog，也不参与当前 composition。
 - orphan manifest entry 和未引用 staged asset 只能通过 transaction recovery 或显式清理回收。

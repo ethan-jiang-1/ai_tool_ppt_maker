@@ -44,9 +44,9 @@ MD Controller 在用户确认后通过 state API 记录 version-scoped authoriza
 - model、resolution、style reference 与 reference asset SHAs
 - provider task evidence
 - output byte SHA
-- generation time 与当前 review status
+- generation time
 
-candidate manifest 只拥有生成 provenance，不拥有 review status。authorization、reviewed/accepted/rejected 和 attempt consumption 都由 `_state/state.yaml` 的 version-scoped reserved record 管理。
+candidate manifest 只拥有生成 provenance，不拥有 review status。authorization、reviewed/accepted/rejected 和 attempt consumption 都由 `_state/state.yaml` 的 version-scoped reserved record `visual-refinement.by_version[version_key]` 管理。Change 4 必须把 `visual-refinement` 加入 `RESERVED_NODE_IDS`、state schema validation/heal 和 controller-node collision tests；它和 `header-review` 一样跨 top-level playbook execution 保留，但有独立 freshness contract。
 
 同一 generation fingerprint 下不同 output SHA 的候选必须共存，不互相覆盖。
 
@@ -57,7 +57,7 @@ candidate manifest 只拥有生成 provenance，不拥有 review status。author
 1. 验证 slide ID、slot ID、candidate fingerprint 和 output SHA。
 2. 在目标目录写临时文件、校验 SHA，再 rename 发布版本 override asset；页面此时尚未引用它。
 3. 合并并校验 version asset manifest，原子文件替换注册新 asset ID/provenance。
-4. 在内存更新该页 `primary_visual.selected_asset` 并完整验证 slide document。
+4. 在内存更新该页 `primary_visual.selection` 并完整验证 slide document。
 5. 最后原子替换 `slide-specifications.md`；这是 commit point，因为 source 只引用已存在、已登记的 asset。
 6. 重跑该页 composition；成功后通过 state API 写版本级接受证据和最终 asset SHA。
 
@@ -69,7 +69,7 @@ candidate manifest 只拥有生成 provenance，不拥有 review status。author
 - current final-slide 与 state evidence 都完成后才报告成功。
 - 重复接受同一候选是 no-op。
 
-“保留 HTML”通过同一 source transaction 清除 `selected_asset` 并重合成，不删除候选或正式历史 asset。
+“保留 HTML”通过同一 source transaction 清除 `selection` 并重合成，不删除候选或正式历史 asset。
 
 source 中写入的 selection 结构为：
 
@@ -90,10 +90,13 @@ ppt_flow refine plan <run-dir> --only <ids>
 ppt_flow refine generate <run-dir> --plan <path> --plan-sha256 <sha>
 ppt_flow refine accept <run-dir> --slide <id> --candidate-sha <sha>
 ppt_flow refine use-html <run-dir> --slide <id>
-ppt_flow refine clean <run-dir> [--keep accepted,recent-rejected]
+ppt_flow refine clean <run-dir>                  # dry-run cleanup plan
+ppt_flow refine clean <run-dir> --apply --plan-sha256 <sha>
 ```
 
 CLI 不自行推荐页面、不自行记录用户授权、不自动重试。所有 non-zero JS-controlled failure 继续遵守 `cli-surface` 的 secret-safe failure envelope。
+
+`refine clean` 默认只产生确定性 cleanup plan；apply 必须绑定 exact plan hash。它先归档 recent rejected，再删除计划列出的 orphan/unselected candidate、preview、prompt 和 task evidence；不触碰正式 override asset、source selection 或 state authorization history。
 
 ## MD Controller / JS 所有权
 

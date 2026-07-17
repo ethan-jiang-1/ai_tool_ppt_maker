@@ -66,7 +66,7 @@ recommended
 
 ## 旧 deck 体验
 
-- 没有 `html-first-v1` 标记的 deck 保持当前 Image2-first 行为。
+- 没有 `production.pipeline: html-first-v1` 标记的 deck 保持当前 Image2-first 行为。
 - 不在升级框架后自动改版，也不把已有审阅结果作废。
 - 迁移时创建 clean vNext，由 Agent 把 free-form prompt 重写成结构化 body，生成完整 HTML 对照稿，再请用户确认。
 - 迁移无法合理收敛时，沿用已有逃生路径：新的 vNext，必要时新的 deck；不强求在一个版本内修到完美。
