@@ -231,3 +231,5 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 ## 执行纪律
 
 每个 change 单独 propose、review、apply、validate、archive。后一个 change 只依赖已经归档并同步到 main specs 的行为，不能依赖聊天或未落地的未来 interface。四个 change 的 proposal/design/tasks 必须逐项覆盖本文件对应的“包含、完成标准”，若延期必须回写本 plan，不能在 change 中静默删项。
+
+`PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`07-framework-directory-impact.md`](07-framework-directory-impact.md)。涉及 workflow rename 的 change 必须原子更新 active cross-references，不能留下两套活跃方法论。
