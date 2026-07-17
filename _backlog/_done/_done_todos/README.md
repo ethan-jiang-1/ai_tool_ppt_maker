@@ -19,6 +19,6 @@ todo 完成后从 `_backlog/todos/` 通过 `git mv` 移入本目录：
 
 | ID | Date | File | Summary |
 |----|------|------|---------|
-| — | — | — | — |
+| [DONE-001](todo-optional-git-safety-and-startup-guidance.md) | 2026-07-17 | `todo-optional-git-safety-and-startup-guidance.md` | 可选 Git 安全检测与启动引导；由 `add-optional-git-safety-guidance` change 吸收 |
 
-**Next available DONE ID: DONE-001**
+**Next available DONE ID: DONE-002**
