@@ -9,8 +9,9 @@
 
 ```text
 deck_NAME/
+├── _state/state.yaml
 ├── 1_upstream_raw_material/
-│   └── refinement-history/{version}/{slide_id}/
+│   └── refinement-history/{version_basename}/{slide_id}/
 │       ├── recent-rejected.png
 │       └── provenance.json
 ├── 2_backbone/
@@ -44,11 +45,15 @@ deck_NAME/
         │   │   ├── {slide_id}.png
         │   │   └── _manifest.json
         │   ├── refinement_previews/
-        │   │   └── {slide_id}/{candidate_sha256}.png
+        │   │   └── {slide_id}/{output_sha256}.png
         │   ├── preview/
         │   ├── qa/
         │   └── ppt/
         └── _scratch/
+            └── refinement/
+                ├── plans/{plan_sha256}.json
+                ├── cleanup/{plan_sha256}.json
+                └── transactions/{transaction_id}.json
 ```
 
 ## 所有权与删除语义
@@ -76,6 +81,7 @@ deck_NAME/
 - 未覆盖 ID 继续继承 backbone。
 - 不复制整套共享资产到版本目录。
 - 每个 resolved asset 的 fingerprint 包含最终选择的文件 SHA 和来源层级。
+- 新的 resolved-catalog interface 取代 HTML-first 消费者对单一 `assetsDir()` 的假设；legacy 调用继续走兼容路径，不能让 version manifest 的存在整目录遮蔽 backbone。
 
 ## Artifact identity
 
@@ -103,6 +109,7 @@ Stage 4 只按当前 `slide_plan` 顺序解析一个 verified `final-slide`，�
 - 纯重排只重建 HTML projection、final slide、contact sheet、PPTX 和 notes，不调用远端 renderer。
 - accepted selection 的 `accepted_for` 等于当前 visual contract fingerprint 时才生效，并可随 source/override 复制到 vNext。
 - fingerprint 变化时，旧 asset 与 selection 留在 source history，但 resolver 返回 stale，当前页回退 HTML fallback。
+- source selection + resolved正式资产是零远端重建的充分依据；`_state` 中的 review evidence 是审计/交互状态，不是已经接受页面的 build 前置条件。新 vNext 或 state heal 不得仅因缺少旧版 review record 让有效 selection 失效。
 - Structural apply、impact 和 materialization 永不调用 Image2。
 - target version 只消费 target-owned/materialized artifact，不以旧版本目录作为隐式 runtime fallback。
 - legacy-located 文件不是 verified provenance，不能作为当前成品或跨版本复用依据。
@@ -110,7 +117,7 @@ Stage 4 只按当前 `slide_plan` 顺序解析一个 verified `final-slide`，�
 ## 清理规则
 
 - 删除 `_generated/` 前检测未接受的昂贵候选并明确提示它们不可逐像素重生。
-- `refine clean` 只清未引用候选、comparison previews 和对应 prompt/task evidence，不碰正式 override asset。
+- `refine clean` 只清计划列出的未引用候选、refinement previews、prompt 和非权威 transport receipt，不碰正式 override asset，也不删除 state 中的 authorization/attempt cost audit。
 - 本版精修尚未结束时默认不清候选。
-- accepted candidate 已由正式 override asset 持久保存；收尾清理前，把每页 recent rejected 归档到 `1_upstream_raw_material/refinement-history/{version}/{slide_id}/`，附非密钥 provenance JSON。该历史不是 asset catalog，也不参与当前 composition。
+- accepted candidate 已由正式 override asset 持久保存；收尾清理前，把每页按 review timestamp 判定的 recent rejected 归档到 `1_upstream_raw_material/refinement-history/{version_basename}/{slide_id}/`（例如 `v2/UXGap/`），附非密钥 provenance JSON。该历史不是 asset catalog，也不参与当前 composition。
 - orphan manifest entry 和未引用 staged asset 只能通过 transaction recovery 或显式清理回收。

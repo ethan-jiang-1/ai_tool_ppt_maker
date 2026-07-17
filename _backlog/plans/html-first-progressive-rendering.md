@@ -81,11 +81,11 @@ stable slide_id + derived position + artifact provenance
 | 阶段 | OpenSpec change | 状态 | 完成定义 |
 |---|---|---|---|
 | 1 | `upgrade-html-render-runtime-readiness` | 待 propose | Node 22、固定 Chromium/字体、分层 doctor 契约定稿并归档 |
-| 2 | `add-structured-slide-body-contract` | 等待阶段 1 | 新 schema、families、visual config、asset merge 可独立验证 |
+| 2 | `add-structured-html-slide-contract` | 等待阶段 1 | 新 schema、families、visual config、asset merge 可独立验证 |
 | 3 | `deliver-html-first-decks` | 等待阶段 2 | HTML renderer、assembly、新 deck 默认、基础 UX 与 legacy migration 一次形成可交付垂直切片 |
 | 4 | `add-image2-visual-slot-refinement` | 等待阶段 3 | 授权、候选、逐页采用/回退、promotion、provenance 与专业 UX 闭环 |
 
-每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；四个 change 不再继续细拆，也不得反向合成一个巨型 change。
+每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；四个 change 不再继续细拆，也不得反向合成一个巨型 change。每个 change 的具体任务包、影响 capability 和独立完成线见 [`06-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/06-delivery-roadmap-and-verification.md)。
 
 ## 全局不变量
 

@@ -39,16 +39,12 @@ production:
 ```yaml
 schema_version: 1
 family: split
-left:
+mode: text-visual
+text:
   heading: What buyers see
   bullets:
     - Generic capability claims
     - PDF-only specifications
-right:
-  heading: What machines need
-  bullets:
-    - Structured attributes
-    - Comparable evidence
 callout: Discovery is now a data problem.
 primary_visual:
   placement: right
@@ -57,6 +53,7 @@ primary_visual:
   focal_point: [0.5, 0.5]
   fallback:
     kind: icon-composition
+    asset_ids: [precision-part, data-lattice]
   selection: null
 ```
 ````
@@ -103,14 +100,16 @@ v1 只支持经过测试的 family，不允许每页任意 HTML：
 
 ### Visual contract fingerprint
 
-Stage 1 对每个主视觉区计算 `visual_contract_fingerprint`，覆盖：
+Stage 1 对每个主视觉区计算 renderer-neutral 的 `visual_contract_fingerprint`，覆盖：
 
 - `brief`、`placement`、`fit`、`focal_point`
 - family 与 resolved slot geometry
 - 影响视觉语义的 `CONCEPT.MUST communicate/MUST NOT`
-- resolved visual config、style reference 和 declared reference assets
+- family registry 为该 slot 声明的 visual-config dependency projection（只含影响构图或期望画面风格的 tokens）
 
-不覆盖 position、header/body 精确文字或 speaker notes。`selection.accepted_for` 必须等于当前 fingerprint 才生效；不匹配时保留 source 中的历史 selection，但 resolver 返回 `stale` 并使用 HTML fallback，直到用户重新接受或清除 selection。
+dependency projection 必须是 versioned、可测试的 allowlist，不能对整份 config 粗暴 hash。fingerprint 不覆盖 position、header/body 精确文字、speaker notes、Image2 model/profile、style reference 或生成时 reference assets。精确正文若改变了主视觉应表达的语义，Agent 必须同步更新 `brief` 或 `CONCEPT`，而不是让 JS 猜正文是否相关。
+
+`selection.accepted_for` 必须等于当前 visual contract fingerprint 才生效；不匹配时保留 source 中的历史 selection，但 resolver 返回 `stale` 并使用 HTML fallback，直到用户重新接受或清除 selection。Image2 特有输入另形成 `generation_fingerprint = visual_contract_fingerprint + derived prompt + provider profile + style-reference SHA + declared reference-asset SHAs`；它用于候选 provenance 和去重，不决定已经由用户接受的正式资产是否继续生效。这样 Change 2 可以在没有 Image2 配置时独立完成，Change 4 再实现生成合同。
 
 ## Overflow 策略
 
@@ -127,7 +126,7 @@ HTML renderer 可以正常换行，但不得：
 position + slide_id + family + overflow slot + measured/allowed capacity
 ```
 
-Agent 可以缩短文案或更换 family。拆页会改变页序和叙事，必须进入 Structural Versioning Path 并由用户确认。
+Change 2 先以 schema 数量和 Unicode grapheme 数量做结构 preflight；Change 3 的固定 browser profile 再执行像素级 overflow 测量。任一层失败都不得发布。Agent 可以缩短文案或更换 family。拆页会改变页序和叙事，必须进入 Structural Versioning Path 并由用户确认。
 
 ## Schema 验收边界
 

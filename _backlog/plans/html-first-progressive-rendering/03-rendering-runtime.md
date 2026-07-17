@@ -38,15 +38,15 @@
 - npm dependencies
 - pinned Playwright 与已安装的 pinned Chromium
 - bundled fonts 可加载且覆盖当前 slide 语言
-- local HTML renderer smoke 成功
+- local Chromium launch + bundled-font static-page smoke 成功
 
-该层不检查 Image2 key、base URL 或 style master。新用户必须能停留在这一层完成整个 deck。
+该层不检查 Image2 key、base URL 或 style master。Change 1 只用固定静态页证明 browser/font runtime；Change 3 接入真实 slide renderer 后，`ppt_flow build` 才把完整 HTML composition 纳入 readiness。最终产品中，新用户必须能停留在这一层完成整个 deck。
 
 ### Image2 refinement readiness
 
 - 已绑定且仍当前的 refinement plan / scope authorization
 - `IMAGE2_API_KEY` + `IMAGE2_BASE_URL`
-- current style reference
+- current style reference，或同一已授权 plan 中尚待执行的 style-reference setup attempt
 - provider smoke / channel health
 - 每页 profile 与预计调用数
 
@@ -71,7 +71,7 @@
 
 ## 验收重点
 
-- 无 Image2 凭据、无 style master 时 base doctor 与完整 HTML build 成功。
+- Change 1 后，无 Image2 凭据、无 style master 时 base doctor 和静态 browser/font smoke 成功；Change 3 后完整 HTML build 也成功。
 - Chromium 不在 render 时下载，所有外部网络请求被阻断。
 - required fonts 加载失败或缺字时明确失败。
 - 固定 profile 重复渲染得到相同尺寸、当前 fingerprint、稳定 layout 和非空像素。
