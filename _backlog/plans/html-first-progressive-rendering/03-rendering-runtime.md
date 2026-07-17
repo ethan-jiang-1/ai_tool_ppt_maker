@@ -21,7 +21,7 @@
 
 ## HTML renderer profile
 
-- Node.js 22 baseline
+- Node.js `>=22` engine floor；Change 1 profile 只支持经核验的 `22.x` / `24.x` / `26.x`
 - Playwright library + pinned Chromium；不引入 Playwright Test runtime
 - HTML runtime fixture 与新 HTML-first profile 使用固定 `1600x900` CSS viewport（精确 16:9），默认 DPR 2；Change 3 的最终 3200x1800 raster 进入 composition/PPTX
 - self-contained HTML、内联 CSS、本地或 data URL assets
@@ -38,7 +38,7 @@
 
 ### Base HTML readiness
 
-- Node.js 22
+- supported Node major: `22.x` / `24.x` / `26.x`（新安装默认推荐 current LTS `24.x`）
 - npm dependencies
 - pinned Playwright 与已安装的 pinned Chromium
 - bundled fonts 可加载且覆盖固定 Latin + Simplified-Chinese sentinel corpus

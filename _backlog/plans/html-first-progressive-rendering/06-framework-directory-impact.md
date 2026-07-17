@@ -165,7 +165,7 @@ gate evidence 记录 pipeline marker、`visual_system_fingerprint`、已覆盖�
 |---|---|
 | `00-run-bundle-concept.md` | 保留；补 HTML-first source/generated artifact 说明 |
 | `00-zero-to-ready.md` | 改写为 base HTML readiness；Image2 不再阻断新手 |
-| `02-nodejs-environment.md` | 更新 Node 22、Playwright/Chromium、bundled fonts |
+| `02-nodejs-environment.md` | 更新 `>=22` engine floor、supported `22.x`/`24.x`/`26.x` profile、Playwright/Chromium、bundled fonts |
 | `03-tool-selection.md` | rename 为 `03-runtime-and-tools.md`；只讲基础 runtime，provider 配置迁到 `04-image2-refinement/` |
 | `04-conventions.md` | 更新 `production.pipeline`、`SLIDE BODY` 和 source ownership |
 | `05-migrate-import-existing-deck.md` | 增加 legacy Image2-first -> clean HTML-first vNext 对照 gate |

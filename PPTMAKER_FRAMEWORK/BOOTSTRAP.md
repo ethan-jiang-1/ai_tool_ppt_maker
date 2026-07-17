@@ -75,120 +75,93 @@ run bundle 的目录结构是这个框架的**宪法**。它的唯一事实源�
 
 ---
 
-## Step 1: 环境验证（硬闸门 · 不过不许往下走）
+## Step 1: 环境验证（默认本地硬闸门）
 
-**这是第一道硬闸门。** 先跑环境检测。**Node.js 18+ 和 npm 是 FOUNDATION——没配好就绝不进入 Step 2**，必须先把环境装好。
+统一入口只有一个：
 
-本框架生产管线是 **Node.js ESM only**（`@napi-rs/canvas`、`pptxgenjs`、框架内 Stage 2）。**禁止 Python / bash / 外部 skill 作为生产路径**（跨平台会断）。
-
-```
-# 推荐：统一入口
+```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 ```
 
-判读输出：
-- **`⛔ FOUNDATION NOT READY`**（Node.js 或 npm 缺失/过旧）→ 跳到下方同名 `###` 节，按指引修复。**装完重跑，仍不过就停在这里，绝不进 Step 2**
-- **`✗ NOT READY`**（foundation 通过，但缺 API key / npm 依赖 / 框架内 Stage 2 脚本等硬依赖）→ 跳到对应 `###` 节修复后重跑
-- **`△` 警告**（字体等可降级项）→ 建议修复但可继续
-- **`✓ READY`** → 进入 Step 2
+默认 doctor 是离线 base readiness：Node/npm、四个 repo 依赖、配对 Chromium、framework 内置 WOFF2 字体、固定 HTML runtime smoke，以及现有本地/警告检查。它不要求 Image2 key/URL，也不产生 provider submit。`FOUNDATION NOT READY` 或 base `NOT READY` 时停在 Step 1；只有警告时可以继续。
 
-> 脚本退出码：任何硬失败都返回非 0，agent 可据此 gate。
+本框架是 Node.js ESM only。可执行 profile 支持 `22.x`、`24.x`、`26.x`；新安装推荐当前 LTS `24.x`。`package.json` 的 `>=22` 不代表 23/25 等未验证 major 受支持。
 
 ### Agent 匹配规则
 
-doctor 输出中每行失败带着 `check` 名称（如 `✗ nodejs`、`✗ api_key`）。**匹配 check 名 → 跳到下方同名 `###` 节 → 按用户 profile 选路径 → 告诉用户怎么修 → 重跑 doctor 验证。所有失败清零才进 Step 2。**
-
-> 给人类读者的背景阅读：[00-zero-to-ready.md](workflow/00-setup/00-zero-to-ready.md)（概念说明）、[02-nodejs-environment.md](workflow/00-setup/02-nodejs-environment.md)（Node.js 环境参考）、[03-tool-selection.md](workflow/00-setup/03-tool-selection.md)（Image2 API 契约 SSOT）。**Agent 不需要读这些——下方各节已覆盖全部修复步骤。**
+匹配 doctor 的稳定 check 名到下面同名标题，合并重复修复。例如四个 npm 包同时缺失时，只让用户运行一次 `npm install`。修复后重跑相同模式；base READY 后才进入 Step 2。背景参考：[00-zero-to-ready.md](workflow/00-setup/00-zero-to-ready.md)、[02-nodejs-environment.md](workflow/00-setup/02-nodejs-environment.md)、[03-tool-selection.md](workflow/00-setup/03-tool-selection.md)。
 
 ### nodejs
 
-**doctor 输出**：`✗ nodejs: [FOUNDATION] fail — Node.js vN.x.x`
+先运行 `node --version`，不要假设 coding agent 自带的 runtime 符合本 framework。版本必须属于 22、24、26；新安装或升级优先 24.x。
 
-**如果你在用 Claude Code / Codex**：Node.js 应该已经装了。终端运行 `node --version` 确认版本 ≥ 18。如果版本 < 18，按下方平台升级。
+macOS：
 
-**如果你没有 agent（裸机）**：先装 Node.js 18+ LTS。
-
-**macOS / Linux：**
 ```bash
-node --version          # 确认当前版本（需要 ≥ 18）
-brew install node@20    # macOS 升级
-# Linux: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-#        sudo apt-get install -y nodejs
+brew install node@24
+node --version
 ```
 
-**Windows：**
+Linux（Debian/Ubuntu 裸机）：
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node --version
+```
+
+其它发行版从 https://nodejs.org 的 24.x 下载页或对应发行版仓库安装。Windows PowerShell：
+
 ```powershell
-node --version          # 确认当前版本（需要 ≥ 18）
 winget install OpenJS.NodeJS.LTS
-# 或从 https://nodejs.org 下载 LTS 安装包
+node --version
 ```
 
-**验证**：重跑 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`
+若当前 LTS 已不是 24.x，按 nodejs.org 的 24.x 下载页安装本 profile 指定版本，不要自动采用未验证 major。coding-agent 用户和裸机用户使用同一版本判断；区别只是前者先验证现有安装。
 
 ### npm
 
-**doctor 输出**：`✗ npm: [FOUNDATION] fail — not found`
-
-npm 随 Node.js 一起发布。npm 缺失通常意味着 Node.js 安装不完整。
-
-**如果你在用 Claude Code / Codex**：重装 Node.js（npm 随附其中），见上方 `### nodejs`。
-
-**如果你没有 agent（裸机）**：从 https://nodejs.org 下载 LTS 安装包（npm 随附）。
-
-**验证**：`npm --version` 应输出版本号，然后重跑 doctor。
-
-### api_key
-
-**doctor 输出**：`✗ api_key: fail — not set`
-
-**所有用户**：需要一个 Image2 API key（出图用）。在 **repo 根** 或 **deck 根** 创建 `.env` 文件：
-
-```
-IMAGE2_API_KEY=sk-你的key
-IMAGE2_BASE_URL=https://你的-relay/v1
-```
-
-> 两项都是必填——缺任一 doctor 都会 NOT READY。Base URL 没有静默默认值。
-
-**如果你还没有 API key**：去 [platform.openai.com](https://platform.openai.com) → API keys → 创建一个。如果用中转服务，向服务商获取 URL + key。
-
-**验证**：重跑 doctor → `api_key` 应变成 `✓`
-
-### image_base_url
-
-**doctor 输出**：`✗ image_base_url: fail — not set`
-
-**所有用户**：在 `.env` 中设置 `IMAGE2_BASE_URL`（和 `api_key` 同一个文件）：
-```
-IMAGE2_BASE_URL=https://你的-relay/v1
-```
-
-**验证**：重跑 doctor → `image_base_url` 应变成 `✓`。如果 `api_key` 和 `image_base_url` 同时缺，一次创建 `.env` 写两行即可。
+npm 随 Node.js 提供。`npm --version` 不可用时，按 `### nodejs` 修复完整 Node 安装。
 
 ### @napi-rs/canvas
 
-**doctor 输出**：`✗ @napi-rs/canvas: fail — not installed`
-
-**所有用户**：三个 npm 包（`@napi-rs/canvas`、`pptxgenjs`、`commander`）由同一个 `npm install` 一次装完。如果这项失败，另外两项大概率也失败——**让用户跑一条命令即可**：
+在 repo 根（`package.json` 所在目录）运行一次：
 
 ```bash
-# 在 repo 根（有 package.json 的目录）运行
 npm install
 ```
 
-**验证**：重跑 doctor → 三个包应全部变 `✓`
+同一命令修复 `@napi-rs/canvas`、`pptxgenjs`、`commander` 和精确的 `playwright@1.61.1`；不要逐包安装。
 
 ### pptxgenjs
 
-**doctor 输出**：`✗ pptxgenjs: fail — not installed`
-
-同 `### @napi-rs/canvas`——跑 `npm install` 一次解决。
+同 `### @napi-rs/canvas`，合并为一次 repo-root `npm install`。
 
 ### commander
 
-**doctor 输出**：`✗ commander: fail — not installed`
+同 `### @napi-rs/canvas`，合并为一次 repo-root `npm install`。
 
-同 `### @napi-rs/canvas`——跑 `npm install` 一次解决。
+### playwright
+
+同 `### @napi-rs/canvas`。若版本不等于 `1.61.1`，用 repo-root `npm install` 恢复 package/lock 对齐，不要手动选择另一个 Playwright 版本。
+
+### chromium
+
+Playwright 库与浏览器是两步安装。repo-root `npm install` 后运行：
+
+```bash
+npm run setup:chromium
+```
+
+Linux/CI 仅在明确允许安装系统依赖时用 `npm run setup:chromium:with-deps`。doctor 只检查并启动已安装的配对 Chromium，绝不自动安装、联网下载或回退到系统 Chrome/Edge。自定义 cache/proxy 见 [02-nodejs-environment.md](workflow/00-setup/02-nodejs-environment.md)。
+
+### html_fonts
+
+HTML runtime 的 Source Sans 3 与 Noto Sans SC WOFF2、CSS、inventory 和许可证已经随 framework 放在 `PPTMAKER_FRAMEWORK/scripts/fonts/`。用户不安装系统字体，也不需要联网下载字体。失败时恢复完整的 `PPTMAKER_FRAMEWORK` 包；不要用系统字体掩盖缺失或 digest 错误。
+
+### html_runtime_smoke
+
+先修复 `playwright`、`chromium` 和 `html_fonts`，再重跑默认 doctor。该 smoke 使用固定本地 HTML、固定双语 sentinel 和零网络 Chromium；它不下载任何资源，也不声称任意实际 deck 已完成字符覆盖或 overflow 检查。
 
 ### git
 
@@ -234,19 +207,6 @@ git --version
 
 普通“做个 checkpoint”的同意不授权 `git status`、`git diff` 或其它检查。只有用户明确给出一个命名 Git 操作和其范围后，Agent 才能复述该操作与范围，并只协助这一个操作；不得根据隐藏检查推断文件、暂存状态或效果。默认禁止自动 init/add/commit/push/pull、改 remote、restore/reset/checkout/clean 或丢弃改动；也绝不把 clean worktree 当作 deck workflow 的门槛。
 
-### stage2_generator
-
-**doctor 输出**：`✗ stage2_generator: fail — missing in-framework Stage 2 scripts`
-
-**所有用户**：框架的三个脚本文件缺失。确认以下文件存在于 `PPTMAKER_FRAMEWORK/scripts/` 下：
-- `stage2_generate_images.mjs`
-- `make_contact_sheet.mjs`
-- `image_api_client.mjs`
-
-如果缺失，确认框架安装是否完整，或重新取得完整的 framework 文件；不要把 `git status` 当作 doctor 修复步骤。若用户明确授权检查某个已知 framework checkout，才按其指定范围协助该检查。
-
-**验证**：重跑 doctor → `stage2_generator` 应变成 `✓`
-
 ### fonts
 
 **doctor 输出**：`△ fonts: warn — Source Sans Pro not found`
@@ -265,11 +225,38 @@ git --version
 
 **Agent**：此警告不阻塞——告知用户后可以继续进入 Step 2。
 
----
+## 可选 Image2 checks（只保护远程出图动作）
 
-### 首次凭据：Image2（问一次，试通后落盘）
+### stage2_generator
 
-**没有 key+URL，Stage 2 生不了图，PPT 就做不出来。** doctor 缺任一项都会 **NOT READY**（无静默默认 endpoint）。
+**仅可选 Image2 模式输出**：`✗ stage2_generator: fail — missing in-framework Stage 2 scripts`
+
+确认以下文件存在于 `PPTMAKER_FRAMEWORK/scripts/` 下：
+- `stage2_generate_images.mjs`
+- `make_contact_sheet.mjs`
+- `image_api_client.mjs`
+
+如果缺失，恢复完整的 framework 文件；不要用外部 skill 替代。验证时重跑 `doctor --image2`。
+
+默认 base READY 不需要 Image2。只有用户选择 legacy Image2 远程动作时，才配置 key/URL；Image2 NOT READY 只阻塞该远程动作，不阻塞本地工作。
+
+### api_key
+
+在 deck 根（优先）或 repo 根 `.env` 写 `IMAGE2_API_KEY`。密钥不进聊天或 `_lessons/`。
+
+### image_base_url
+
+在同一 `.env` 写非空 `IMAGE2_BASE_URL`；没有静默默认 endpoint。
+
+### image_smoke
+
+`doctor --smoke` 是 live probe，会向第一个 resolved vendor **提交 1 次**。Agent 必须先披露这 1 次可能计费的 submit，并得到用户明确确认；用户拒绝时调用为零。成功只证明通道可用，不批准 build、style-master 或后续页面工作。
+
+### image_probe_vendors
+
+先用离线 `doctor --image2` 得到 resolved vendor count。`doctor --probe-vendors` 对每个 entry **恰好提交 1 次**；Agent 必须先说出总次数并得到确认。它与 `--smoke` 互斥，成功也不产生生产授权。
+
+### 首次凭据：Image2（可选）
 
 1. **问用户要** `IMAGE2_API_KEY` 和 `IMAGE2_BASE_URL`。两者都必填。
 2. **写进 deck 根（优先）或 repo 根 `.env`**：
@@ -277,15 +264,17 @@ git --version
    IMAGE2_API_KEY=sk-...
    IMAGE2_BASE_URL=https://your-relay/v1
    ```
-3. **重跑 doctor** → `api_key` 与 `image_base_url` 应都变 `✓`。
-4. **廉价冒烟验证**（禁止首败甩锅）：
+3. **离线验证 presence**（不产生 provider submit）：
+   ```bash
+   node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2
+   ```
+4. 只有需要 live diagnosis 时，先说明“将向第一家提交 1 次，可能计费”，取得明确确认后才运行：
    ```bash
    node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke
    ```
-   通过 → 继续。失败 → 提示用户换 `--base-url` 重试，或换一组 key/URL。
-   **仍失败 → 指向 [03-tool-selection.md](workflow/00-setup/03-tool-selection.md) 的通道体检（`doctor --probe-vendors`），不要在首次安装时内联全套 probe 流程。**
+   失败时指向 [03-tool-selection.md](workflow/00-setup/03-tool-selection.md) 与 `probe-image-channels`；不要用 style-master 充当诊断。
 
-> `.env` 有 Image2 凭据 → doctor 绿；真通不通靠冒烟。**密钥只写 `.env`**（不进 `_lessons/`、不进聊天记录）。更多 API 契约细节 → [03-tool-selection.md](workflow/00-setup/03-tool-selection.md)。
+> `.env` presence 由 `doctor --image2` 离线验证；真通不通只能由用户确认后的 live probe 验证。**密钥只写 `.env`**。probe 成功不等于用户批准生产。
 >
 > **`_lessons/` 教训机制（Agent 必读）**：`deck_*/_lessons/` 是本项目的**自留教训目录**——Agent 遇事自己克服后，把非密钥的经验写进去，下次（或另一个 Agent）进 deck 时先读再猜，不用重复踩坑。
 >
@@ -299,7 +288,7 @@ git --version
 
 Stage 2 / style-master / contact sheet 全部是 `PPTMAKER_FRAMEWORK/scripts/` 下的 Node 模块（`stage2_generate_images.mjs`、`image_api_client.mjs`、`make_contact_sheet.mjs`）。doctor 的 `stage2_generator` 检查这些文件是否存在——**不要求、不搜索** `.claude/skills`。
 
-> **包**：在 **repo 根**（有 `package.json` 的地方）跑一次 `npm install`，装上 `@napi-rs/canvas` / `pptxgenjs` / `commander`——env-check 随后会显示 `✓`。
+> **包**：repo-root `npm install` 一次安装四个依赖；随后 `npm run setup:chromium` 安装配对浏览器。内置 HTML WOFF2 字体随 framework 提供，不复制进 run bundle。
 
 ---
 

@@ -592,8 +592,6 @@ export async function stage2(runDir, {
     }
   }
 
-  const { resolveBaseUrls } = await import("./image_api_client.mjs");
-
   /** @type {string[]} */
   let selectedIds = [];
   if (only) {
@@ -613,14 +611,9 @@ export async function stage2(runDir, {
     }
   }
 
-  /** @type {string[]} */
-  let baseUrls = [];
-  try {
-    baseUrls = resolveBaseUrls(baseUrl ? [baseUrl] : []);
-  } catch (err) {
-    console.log(`  ✗ ${err.message}`);
-    return failStage(stage2, { version: 1, category: "environment", stage: "stage2", operation: "resolve-provider", source: { path: deckRoot(runDir) }, reason: { kind: "provider_configuration_unavailable" }, next: createCliNext("repair_environment", { default: "Repair provider configuration without exposing credentials, then rerun Stage 2." }) });
-  }
+  // Keep the optional CLI URL unresolved until generateOneImage reaches an
+  // actual remote submit. Current-provenance reuse must not touch transport.
+  const baseUrls = baseUrl ? [baseUrl] : [];
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`  Stage: Stage 2: Generate Images`);

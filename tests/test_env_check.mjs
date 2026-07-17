@@ -1,17 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { chmodSync, mkdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
+  checkImageSmoke,
+  checkNode,
   checkNpmPackages,
+  checkProbeVendors,
   findPackageInAncestorNodeModules,
   probeGitSafetyForTest,
 } from '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 import { parseCliErrorLine } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
-const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander'];
+const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
 
 function runCheck(args = '') {
   try {
@@ -28,7 +31,11 @@ function runCheck(args = '') {
 
 function stubPackages(nmDir) {
   for (const pkg of REQUIRED) {
-    mkdirSync(join(nmDir, ...pkg.split('/')), { recursive: true });
+    const root = join(nmDir, ...pkg.split('/'));
+    mkdirSync(root, { recursive: true });
+    if (pkg === 'playwright') {
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'playwright', version: '1.61.1' }));
+    }
   }
 }
 
@@ -240,7 +247,7 @@ describe('env-check optional Git public wiring', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   (canUsePosixFakeGit ? it : it.skip)('keeps a real hard failure blocking beside a Git warning', () => {
     const root = mkdtempSync(join(tmpdir(), 'env-git-hard-fail-'));
@@ -255,7 +262,7 @@ describe('env-check optional Git public wiring', () => {
       let stdout = '';
       let status = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --image2`, {
           encoding: 'utf8',
           timeout: 15_000,
           env: {
@@ -281,6 +288,32 @@ describe('env-check optional Git public wiring', () => {
 });
 
 describe('00-env-check', () => {
+  it('starts without node_modules and reports package/runtime failures instead of import failure', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'env-no-node-modules-'));
+    try {
+      let stdout = '';
+      let status = 0;
+      try {
+        stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json'], {
+          cwd,
+          encoding: 'utf8',
+          timeout: 15_000,
+          env: { PATH: process.env.PATH, HOME: process.env.HOME },
+        });
+      } catch (error) {
+        status = error.status ?? 1;
+        stdout = error.stdout ?? '';
+      }
+      expect(status).not.toBe(0);
+      const report = JSON.parse(stdout);
+      expect(report.checks.find((check) => check.check === 'playwright')).toMatchObject({ status: 'fail' });
+      expect(report.checks.find((check) => check.check === 'chromium')).toMatchObject({ status: 'fail' });
+      expect(report.checks.find((check) => check.check === 'api_key')).toBeUndefined();
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('produces text output by default', () => {
     const { stdout } = runCheck();
     expect(stdout).toContain('Environment Check');
@@ -302,6 +335,36 @@ describe('00-env-check', () => {
     }
   });
 
+  it.each([
+    ['base', []],
+    ['image2', ['--image2']],
+    ['smoke', ['--smoke']],
+    ['probe-vendors', ['--probe-vendors']],
+  ])('emits exactly one parseable JSON document in %s mode', (_mode, modeArgs) => {
+    const live = modeArgs.some((arg) => arg === '--smoke' || arg === '--probe-vendors');
+    const preload = join(process.cwd(), 'tests', 'fixtures', 'mock_image_probe_fetch.mjs');
+    const script = join(process.cwd(), ENV_CHECK);
+    const stdout = execFileSync('node', [
+      ...(live ? ['--import', preload] : []),
+      script,
+      '--json',
+      ...modeArgs,
+    ], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        IMAGE2_API_KEY: 'test-only-key',
+        IMAGE2_BASE_URL: 'https://json.example/v1',
+      },
+    });
+    const report = JSON.parse(stdout);
+    expect(report.checks).toEqual(expect.any(Array));
+    expect(stdout.trim().startsWith('{')).toBe(true);
+    expect(stdout.trim().endsWith('}')).toBe(true);
+  }, 35_000);
+
   it('checks Node.js version', () => {
     const { stdout } = runCheck('--json');
     const data = JSON.parse(stdout);
@@ -311,8 +374,26 @@ describe('00-env-check', () => {
     expect(nodeCheck.status).toBe('ok');
   });
 
-  it('treats in-framework Stage 2 scripts as stage2_generator ok', () => {
+  it.each([22, 24, 26])('accepts supported Node major %s', (major) => {
+    expect(checkNode(`${major}.0.0`).status).toBe('ok');
+  });
+
+  it.each([20, 23, 25])('rejects unsupported Node major %s', (major) => {
+    expect(checkNode(`${major}.0.0`).status).toBe('fail');
+  });
+
+  it('default mode includes HTML runtime checks and omits Image2 presence', () => {
     const { stdout } = runCheck('--json');
+    const data = JSON.parse(stdout);
+    expect(data.image2).toBe(false);
+    expect(data.checks.filter((check) => ['chromium', 'html_fonts', 'html_runtime_smoke'].includes(check.check)).map((check) => check.status)).toEqual(['ok', 'ok', 'ok']);
+    expect(data.checks.find((check) => check.check === 'api_key')).toBeUndefined();
+    expect(data.checks.find((check) => check.check === 'image_base_url')).toBeUndefined();
+    expect(data.checks.find((check) => check.check === 'stage2_generator')).toBeUndefined();
+  });
+
+  it('treats in-framework Stage 2 scripts as stage2_generator ok only in Image2 mode', () => {
+    const { stdout } = runCheck('--json --image2');
     const data = JSON.parse(stdout);
     const stage2 = data.checks.find(c => c.check === 'stage2_generator');
     expect(stage2).toBeDefined();
@@ -335,7 +416,8 @@ describe('env-check deps walk-up', () => {
       }
       const results = checkNpmPackages(deck);
       expect(results.every(r => r.status === 'ok')).toBe(true);
-      expect(results[0].detail).toContain(nm);
+      expect(results[0].detail).toBe('installed (ancestor node_modules)');
+      expect(results[0].detail).not.toContain(nm);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -383,6 +465,20 @@ describe('env-check deps walk-up', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('fails a present but mismatched Playwright package', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-playwright-drift-'));
+    try {
+      const nm = join(root, 'node_modules');
+      stubPackages(nm);
+      writeFileSync(join(nm, 'playwright', 'package.json'), JSON.stringify({ name: 'playwright', version: '1.60.0' }));
+      const playwright = checkNpmPackages(root).find((check) => check.check === 'playwright');
+      expect(playwright).toMatchObject({ status: 'fail' });
+      expect(playwright.detail).toMatch(/does not match 1\.61\.1/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('env-check Image2 base URL hard fail', () => {
@@ -397,7 +493,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --image2`, {
           encoding: 'utf-8',
           timeout: 15000,
           cwd,
@@ -446,7 +542,8 @@ describe('env-check Image2 base URL hard fail', () => {
       );
       const url = checkBaseUrl();
       expect(url.status).toBe('ok');
-      expect(url.detail).toMatch(/example/);
+      expect(url.detail).toBe('found (IMAGE2_BASE_URL)');
+      expect(url.detail).not.toMatch(/example/);
     } finally {
       if (prev === undefined) delete process.env.IMAGE2_BASE_URL;
       else process.env.IMAGE2_BASE_URL = prev;
@@ -490,6 +587,22 @@ describe('env-check --smoke', () => {
     });
     const data = JSON.parse(stdout);
     expect(data.checks.find((c) => c.check === 'image_smoke')).toBeUndefined();
+  });
+
+  it.each([307, 308, 503])('makes one POST and never follows/retries HTTP %s', async (status) => {
+    let calls = 0;
+    let options;
+    const result = await checkImageSmoke({
+      vendors: [{ base_url: 'https://one.example/v1', api_key: 'key-one' }],
+      fetchImpl: async (_url, opts) => {
+        calls += 1;
+        options = opts;
+        return { ok: false, status, text: async () => JSON.stringify({ error: 'withheld' }) };
+      },
+    });
+    expect(result.status).toBe('fail');
+    expect(calls).toBe(1);
+    expect(options).toMatchObject({ method: 'POST', redirect: 'error' });
   });
 });
 
@@ -551,5 +664,58 @@ describe('env-check --probe-vendors', () => {
     }
     expect(exitCode).not.toBe(0);
     expect(out).toMatch(/mutually exclusive/i);
+  });
+
+  it('submits exactly once per injected resolver entry and keeps output secret-safe', async () => {
+    const vendors = [
+      { base_url: 'https://first.example/v1', api_key: 'SECRET_ONE' },
+      { base_url: 'https://second.example/v1', api_key: 'SECRET_TWO' },
+      { base_url: 'https://third.example/v1', api_key: 'SECRET_THREE' },
+    ];
+    const calls = [];
+    const logs = [];
+    const result = await checkProbeVendors({
+      vendors,
+      log: (line) => logs.push(line),
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return { ok: true, status: 200, text: async () => JSON.stringify({ task_id: `task-${calls.length}` }) };
+      },
+    });
+    expect(result.status).toBe('ok');
+    expect(calls).toHaveLength(3);
+    expect(calls.every((call) => call.options.method === 'POST' && call.options.redirect === 'error')).toBe(true);
+    expect(`${JSON.stringify(result)}${logs.join('\n')}`).not.toMatch(/SECRET_ONE|SECRET_TWO|SECRET_THREE/);
+  });
+
+  it.each([
+    ['redirect', async () => ({ ok: false, status: 307, text: async () => '' })],
+    ['transient 5xx', async () => ({ ok: false, status: 503, text: async () => '{}' })],
+    ['network error', async () => { throw new Error('network'); }],
+  ])('does not retry a vendor after %s', async (_name, response) => {
+    let calls = 0;
+    const result = await checkProbeVendors({
+      vendors: [{ base_url: 'https://only.example/v1', api_key: 'key' }],
+      log: () => {},
+      fetchImpl: async (...args) => { calls += 1; return response(...args); },
+    });
+    expect(result.status).toBe('fail');
+    expect(calls).toBe(1);
+  });
+
+  it('does not retry after timeout', async () => {
+    let calls = 0;
+    const result = await checkProbeVendors({
+      vendors: [{ base_url: 'https://timeout.example/v1', api_key: 'key' }],
+      log: () => {},
+      timeoutMs: 10,
+      fetchImpl: async (_url, { signal }) => {
+        calls += 1;
+        return new Promise((_, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
+      },
+    });
+    expect(result.status).toBe('fail');
+    expect(result.rows[0].error).toBe('timeout');
+    expect(calls).toBe(1);
   });
 });

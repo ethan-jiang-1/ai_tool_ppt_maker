@@ -1,7 +1,7 @@
 # 专题 07: OpenSpec 路线与验收
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 架构已锁定；Change 1 已完成 Propose + apply-ready Review | 更新: 2026-07-18
+> 状态: 架构已锁定；Change 1 已完成 Propose + 多轮对抗性 Review，apply-ready | 更新: 2026-07-18
 
 ## 为什么是四个 Change
 
@@ -17,14 +17,14 @@
 
 | Change | Propose | Review | Apply | Validate | Sync + Archive |
 |---|---|---|---|---|---|
-| 1 `upgrade-html-render-runtime-readiness` | [x] | [x] | [ ] | [ ] | [ ] |
+| 1 `upgrade-html-render-runtime-readiness` | [x] | [x] | [x] | [x] | [ ] |
 | 2 `add-structured-html-slide-contract` | [ ] | [ ] | [ ] | [ ] | [ ] |
 | 3 `deliver-html-first-decks` | [ ] | [ ] | [ ] | [ ] | [ ] |
 | 4 `add-image2-visual-slot-refinement` | [ ] | [ ] | [ ] | [ ] | [ ] |
 
 勾选纪律：只有对应动作已经完成且其强制校验通过才可标记 `[x]`；`Review` 指 proposal/design/specs/tasks 已经过质量审查并达到 apply-ready；`Validate` 指实现后的 targeted/full tests 与 strict OpenSpec validation 全部通过；`Sync + Archive` 必须在 delta specs 同步 main specs 且 change 正式归档后一起勾选。任一步失败或返工时保持未勾选，并在该 change 的 artifacts/tasks 中记录阻塞，不用聊天状态代替此表。
 
-`openspec/changes/upgrade-html-render-runtime-readiness/` 已在总体 ownership 锁定后完成整套替换和独立复审：字体 authority 改为官方 Adobe + Google Fonts byte-pinned snapshot，base/Image2/live readiness 分层，legacy submit guard 按 action 区分，Phase-0 live probe 增加调用数披露与确认。Strict validation、capability/spec 对应、MODIFIED scenario 保留和范围审查均通过，因此 `Propose` / `Review` 已勾选；尚未实施 framework code，`Apply` 及后续阶段保持未勾选。
+`openspec/changes/upgrade-html-render-runtime-readiness/` 已完成整套替换、多轮对抗性 Review 和当前 Mac 实施验收。追加轮次修复了 Node 支持集合过宽、mutable Noto 分片事实、字体 fallback 伪阳性、browser smoke 无界等待、package discovery/load 分裂、远程 guard 过早、live redirect/重试超额提交、JSON stdout 污染与 confirm-write 重复 probe。当前 Mac 的 `doctor`、paired Chromium/font smoke、focused/full Vitest、相关 E2E、strict validation 和范围审计全部通过；Windows/Linux/CI 执行明确不作为本 change 门槛。`Propose` / `Review` / `Apply` / `Validate` 已勾选，`Sync + Archive` 待归档时处理。
 
 ## Change 1: `upgrade-html-render-runtime-readiness`
 
@@ -34,7 +34,7 @@
 
 ### 包含
 
-- 全仓 Node.js baseline 从 18 升到 22，保持 ESM/无 build step。
+- 全仓 Node.js engine floor 从 18 升到 `>=22`，Change 1 profile 支持 `22.x` / `24.x` / `26.x`，保持 ESM/无 build step。
 - 引入 pinned Playwright library/Chromium 安装与 cache 合同；render 时禁止下载。
 - 选择并随框架分发许可清楚的 Latin + Simplified-Chinese (`Hans`) WOFF2 字体，加入 required-font/coverage smoke；不宣称完整 Traditional Chinese/Japanese/Korean coverage。
 - `env-check`/doctor 输出 base readiness 与 Image2 environment readiness 两组结果；plan/authorization 属于 Change 4 的 transaction gate，不进入 doctor。
@@ -54,7 +54,7 @@
 
 | 包 | 内容 | 主要 spec 归属 |
 |---|---|---|
-| 1A Runtime baseline | `package.json`/CI/文档统一 Node 22，锁定 Playwright library 与 Chromium revision，定义显式 browser install/cache | 新增 `html-render-runtime`；修改 `environment-check` |
+| 1A Runtime baseline | `package.json` 使用 `>=22` engine floor，runtime/CI/文档锁定支持 `22.x` / `24.x` / `26.x`，并锁定 Playwright library、Chromium revision 与显式 browser install/cache | 新增 `html-render-runtime`；修改 `environment-check` |
 | 1B Font distribution | 确定 Latin + Simplified-Chinese WOFF2、许可证、框架内 canonical path、coverage/static-page smoke | `html-render-runtime`；修改 `framework-directory-layout` |
 | 1C Layered readiness | base doctor 只检查本地生产基础；`--image2` 只加 Image2 presence，off-path Phase 0 `probe-image-channels` 仍通过现有显式 live flags 工作；live 诊断先披露调用数并确认，style-master 不再充当通道探针；plan/authorization 不进入 doctor | 修改 `environment-check`、`cli-surface`、`playbook-execution`、`image-generation` |
 | 1D Legacy guard | legacy Image2-first 的 pilot/build 在真正进入远端路径前继续强制 credentials/style master，不依赖 base doctor 代为阻断 | 修改 `pipeline-orchestration`、`bootstrap-env-guidance` |
@@ -65,7 +65,7 @@ Change 1 的 fixture viewport 不得改写 legacy deck/preset 的现有 `1672x94
 
 ### 完成标准
 
-- macOS/Windows/Linux/CI 的声明安装路径和失败诊断有测试。
+- 当前 Mac 的声明安装路径和失败诊断有实测；Windows/Linux/CI 只保留为后续可执行的 portability guidance，不作为本 change 完成门槛。
 - 无 Image2 key 时 base readiness 可通过；显式 Image2 check 仍失败并给现有修复路径。
 - 用户入口固定为 `ppt_flow doctor` 检查 base，`ppt_flow doctor --image2` 检查 refinement presence；live smoke 仍需显式 flag，普通 doctor 不联网。
 - doctor 的 font smoke 只验证固定 Latin + Simplified-Chinese sentinel；实际 deck code-point coverage 与 pixel overflow 由后续 structured-plan/build gate 负责，不能由无 run-dir 的 doctor 冒充。

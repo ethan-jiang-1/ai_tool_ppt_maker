@@ -33,8 +33,8 @@ Stage 2 在框架内实现（`image_api_client.mjs`），不依赖外部 skill�
 |------|------|
 | `visual_config.mjs` | Stage 1/3 共享颜色配置加载器 |
 | `generate_style_master.mjs` | Phase 2: 生成 `style_master.jpg` |
-| `env-check.mjs` | 零依赖环境检查 (Node/npm/API key/字体) |
-| `fonts/` | Header-Lock 字体文件 |
+| `env-check.mjs` | built-ins-first 环境检查（默认本地 runtime；Image2 显式选择） |
+| `fonts/` | HTML runtime 内置 WOFF2/inventory/license；与 legacy canvas 字体 contract 分开 |
 
 ## Agent 工具
 
@@ -68,5 +68,6 @@ node scripts/ppt_flow.mjs slides move deck_{NAME}/3_versions/v1 "UX gap" --after
 @napi-rs/canvas  — Stage 3 图片+字体渲染
 pptxgenjs        — Stage 4/5 PPTX 生成
 commander        — ppt_flow CLI
+playwright@1.61.1 — 固定 Chromium runtime（浏览器另跑 setup:chromium 安装）
 vitest           — 测试 (dev)
 ```

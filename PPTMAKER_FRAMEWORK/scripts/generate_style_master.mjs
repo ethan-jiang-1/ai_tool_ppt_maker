@@ -32,9 +32,9 @@ import {
 
 import {
   generateOneImage,
-  resolveVendors,
   DEFAULT_MODEL,
   ImageProviderError,
+  ImageSubmitPrerequisiteError,
 } from "./image_api_client.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
 
@@ -90,17 +90,9 @@ export async function generateStyleMaster({
   }
   loadDotenv(...searchDirs);
 
-  // CLI --base-url overrides IMAGE2_BASE_URL at runtime.
+  // Keep the CLI override unresolved. The shared submit guard resolves
+  // transport only when the existing style master cannot be reused.
   const cliBaseUrls = Array.isArray(baseUrl) ? baseUrl.filter(Boolean) : [];
-  if (!dryRun) {
-    try {
-      resolveVendors(cliBaseUrls);
-    } catch (err) {
-      console.error(`✗ ${err.message}`);
-      generateStyleMaster.lastFailure = { category: "environment", source: { path: dkRoot }, reason: { kind: "provider_configuration_unavailable" } };
-      return 1;
-    }
-  }
 
   let promptText = readFileSync(promptPath, "utf-8");
   const deckSystemPath = styleAsset(resolvedRunDir, DECK_SYSTEM_FILE);
@@ -140,11 +132,14 @@ export async function generateStyleMaster({
       force,
       baseUrls: cliBaseUrls,
       tracePath,
+      requireStyleReference: false,
     });
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
-    generateStyleMaster.lastFailure = err instanceof ImageProviderError
+    generateStyleMaster.lastFailure = err instanceof ImageSubmitPrerequisiteError
+      ? { category: "environment", source: { path: dkRoot }, reason: { kind: err.reason } }
+      : err instanceof ImageProviderError
       ? { category: "provider", source: { path: promptPath }, reason: { kind: err.reason, ...(err.status ? { actual: err.status } : {}) } }
       : { category: "artifact", source: { path: promptPath }, reason: { kind: "style_master_generation_failed" } };
     return 1;

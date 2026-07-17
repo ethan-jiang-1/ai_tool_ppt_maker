@@ -724,12 +724,13 @@ function buildEnvSearchDirs(dkRoot) {
 // ---------------------------------------------------------------------------
 
 /**
- * doctor — Check Node.js, npm, dependencies, in-framework Stage 2, and credentials.
+ * doctor — Check base local runtime and optional Image2 readiness.
  * Delegates to env-check.mjs as a subprocess.
- * @param {{smoke?: boolean, probeVendors?: boolean}} [opts]
+ * @param {{image2?: boolean, smoke?: boolean, probeVendors?: boolean}} [opts]
  */
-async function commandDoctor({ smoke = false, probeVendors = false } = {}) {
+async function commandDoctor({ image2 = false, smoke = false, probeVendors = false } = {}) {
   const args = [];
+  if (image2) args.push("--image2");
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
   return runNode(ENV_CHECK, args);
@@ -1881,11 +1882,12 @@ Examples:
   // ---- doctor ----
   program
     .command("doctor")
-    .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
-    .option("--smoke", "Live Image2 probe of first vendor (image ref or task_id)")
+    .description("Check offline local runtime and optional Image2 readiness")
+    .option("--image2", "Add offline Image2 presence checks (no provider submit)")
+    .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
     .option(
       "--probe-vendors",
-      "Live probe every IMAGE2 vendor; print channel report (not --smoke)"
+      "Add Image2 presence and live-probe every resolved vendor (not --smoke)"
     )
     .action(async (opts) => {
       if (opts.smoke && opts.probeVendors) {
@@ -1896,6 +1898,7 @@ Examples:
         );
       }
       const code = await commandDoctor({
+        image2: opts.image2 ?? false,
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
       });

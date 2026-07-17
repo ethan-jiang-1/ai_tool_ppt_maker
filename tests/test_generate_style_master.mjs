@@ -132,4 +132,16 @@ describe('style master deck_system injection', () => {
     expect(sentPrompt).toContain('STYLE PROMPT ONLY');
     expect(sentPrompt).not.toContain('FORBIDDEN: clipart');
   });
+
+  it('reuses an existing style master without Image2 transport', async () => {
+    const stylePath = join(deck, '2_backbone', 'visual-style', 'style_master.jpg');
+    writeFileSync(stylePath, Buffer.from(tinyPngB64(), 'base64'));
+    delete process.env.IMAGE2_API_KEY;
+    delete process.env.IMAGE2_BASE_URL;
+    globalThis.fetch = vi.fn(async () => { throw new Error('no-op style master must not submit'); });
+
+    const code = await generateStyleMaster({ runDir: v1, force: false });
+    expect(code).toBe(0);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
 });

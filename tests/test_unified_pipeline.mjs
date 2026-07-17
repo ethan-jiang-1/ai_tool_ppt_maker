@@ -8,6 +8,7 @@ import { createVersion, initBundle } from '../PPTMAKER_FRAMEWORK/scripts/bundle_
 import {
   materializeStructuralVersion,
   stage1,
+  stage2,
 } from '../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs';
 import {
   buildImageManifestEntry,
@@ -136,6 +137,22 @@ describe('unified_pipeline', () => {
       }
       writeImageManifestAtomic(images, manifest);
 
+      let rendererCalls = 0;
+      globalThis.fetch = async () => {
+        rendererCalls += 1;
+        throw new Error('current Stage 2 attempted a remote renderer call');
+      };
+      const previousKey = process.env.IMAGE2_API_KEY;
+      const previousBaseUrl = process.env.IMAGE2_BASE_URL;
+      delete process.env.IMAGE2_API_KEY;
+      delete process.env.IMAGE2_BASE_URL;
+      expect(await stage2(source, { forceImages: false, requireHeaderReview: false })).toBe(true);
+      expect(rendererCalls).toBe(0);
+      if (previousKey === undefined) delete process.env.IMAGE2_API_KEY;
+      else process.env.IMAGE2_API_KEY = previousKey;
+      if (previousBaseUrl === undefined) delete process.env.IMAGE2_BASE_URL;
+      else process.env.IMAGE2_BASE_URL = previousBaseUrl;
+
       const sourcePlan = JSON.parse(readFileSync(join(sourceGenerated, 'slide_plan.json'), 'utf8')).slides;
       const reviewInputs = buildHeaderReviewInputs(sourcePlan, DEFAULT_CONFIG);
       const sourceRecord = mergeHeaderReviewRecord({
@@ -162,7 +179,6 @@ describe('unified_pipeline', () => {
         { id: 'NewAsk', title: 'New request', prompt: 'New request visual' },
       ]), 'utf8');
 
-      let rendererCalls = 0;
       globalThis.fetch = async () => {
         rendererCalls += 1;
         throw new Error('structural path attempted a remote renderer call');
@@ -215,7 +231,7 @@ describe('unified_pipeline', () => {
           headers: { get: () => 'application/json' },
         };
       };
-      const previousKey = process.env.IMAGE2_API_KEY;
+      const explicitPreviousKey = process.env.IMAGE2_API_KEY;
       process.env.IMAGE2_API_KEY = 'structural-explicit-refresh-test';
       const { generateImages } = await import('../PPTMAKER_FRAMEWORK/scripts/stage2_generate_images.mjs');
       const explicit = await generateImages({
@@ -229,8 +245,8 @@ describe('unified_pipeline', () => {
         promptIsFinal: true,
         baseUrl: ['https://renderer.example.test/v1'],
       });
-      if (previousKey === undefined) delete process.env.IMAGE2_API_KEY;
-      else process.env.IMAGE2_API_KEY = previousKey;
+      if (explicitPreviousKey === undefined) delete process.env.IMAGE2_API_KEY;
+      else process.env.IMAGE2_API_KEY = explicitPreviousKey;
       expect(explicit).toMatchObject({ generated: 1, errors: [] });
       expect(rendererCalls).toBe(1);
       const afterExplicit = readImageManifest(targetImages).manifest;

@@ -87,7 +87,7 @@ describe('runtime constitution — Node only', () => {
   it('env-check reports in-framework stage2_generator as ok', () => {
     let out = '';
     try {
-      out = execSync('node PPTMAKER_FRAMEWORK/scripts/env-check.mjs --json', {
+      out = execSync('node PPTMAKER_FRAMEWORK/scripts/env-check.mjs --json --image2', {
         encoding: 'utf-8',
         timeout: 15000,
       });

@@ -39,6 +39,17 @@ export class ImageProviderError extends Error {
   }
 }
 
+export class ImageSubmitPrerequisiteError extends Error {
+  constructor(reason) {
+    const message = reason === "missing_style_reference"
+      ? "The current style reference is required before Image2 page submission."
+      : "Image2 transport prerequisites are unavailable; run doctor --image2 and repair the reported presence checks.";
+    super(message);
+    this.name = "ImageSubmitPrerequisiteError";
+    this.reason = reason;
+  }
+}
+
 export function providerHost(baseUrl) {
   if (!baseUrl) return null;
   try {
@@ -134,6 +145,26 @@ export function resolveApiKey() {
  */
 export function resolveBaseUrls(extra = []) {
   return resolveVendors(extra).map((v) => v.base_url);
+}
+
+/**
+ * Shared last-mile guard for production Image2 submits. Call only after the
+ * caller has established that remote work is actually required.
+ */
+export function assertImageSubmitPrerequisites({
+  baseUrls = [],
+  styleReferencePath = null,
+  requireStyleReference = false,
+  transportResolver = resolveVendors,
+} = {}) {
+  if (requireStyleReference && (!styleReferencePath || !existsSync(styleReferencePath))) {
+    throw new ImageSubmitPrerequisiteError("missing_style_reference");
+  }
+  try {
+    return transportResolver(baseUrls);
+  } catch {
+    throw new ImageSubmitPrerequisiteError("provider_configuration_unavailable");
+  }
 }
 
 /**
@@ -431,13 +462,21 @@ export async function generateOneImage({
   baseUrls = [],
   tracePath = null,
   additionalReferencePaths = [],
+  requireStyleReference = false,
+  transportResolver = resolveVendors,
+  submitImpl = submitGenerate,
 } = {}) {
   if (!force && existsSync(outPath)) {
     console.log(`  Skip (exists): ${outPath}`);
     return null;
   }
 
-  const vendors = resolveVendors(baseUrls);
+  const vendors = assertImageSubmitPrerequisites({
+    baseUrls,
+    styleReferencePath,
+    requireStyleReference,
+    transportResolver,
+  });
   const t0 = Date.now();
 
   /** @type {object} */
@@ -496,7 +535,7 @@ export async function generateOneImage({
           host: providerHost(baseUrl) || "provider",
           attempt: retry + 1,
         });
-        const submitData = await submitGenerate(baseUrl, apiKey, body);
+        const submitData = await submitImpl(baseUrl, apiKey, body);
         let taskId = null;
         let pollCount = 0;
         const syncRef = extractImageRef(submitData);

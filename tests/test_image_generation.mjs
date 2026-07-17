@@ -231,6 +231,82 @@ describe('image_api_client', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
+  it('guards page style and transport immediately before a fake submit adapter', async () => {
+    const {
+      generateOneImage,
+      ImageSubmitPrerequisiteError,
+    } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    const transportResolver = vi.fn(() => [
+      { base_url: 'https://guard.example/v1', api_key: 'guard-key' },
+    ]);
+    const submitImpl = vi.fn(async () => ({
+      data: [{ b64_json: createCanvas(4, 4).toBuffer('image/png').toString('base64') }],
+    }));
+
+    await expect(generateOneImage({
+      prompt: 'page without style',
+      outPath: join(ROOT, 'missing-style.png'),
+      force: true,
+      requireStyleReference: true,
+      transportResolver,
+      submitImpl,
+    })).rejects.toMatchObject({
+      name: ImageSubmitPrerequisiteError.name,
+      reason: 'missing_style_reference',
+    });
+    expect(transportResolver).not.toHaveBeenCalled();
+    expect(submitImpl).not.toHaveBeenCalled();
+
+    const stylePath = join(ROOT, 'guard-style.jpg');
+    tinyPng(stylePath);
+    const missingTransport = vi.fn(() => { throw new Error('missing transport'); });
+    await expect(generateOneImage({
+      prompt: 'page without transport',
+      outPath: join(ROOT, 'missing-transport.png'),
+      styleReferencePath: stylePath,
+      force: true,
+      requireStyleReference: true,
+      transportResolver: missingTransport,
+      submitImpl,
+    })).rejects.toMatchObject({ reason: 'provider_configuration_unavailable' });
+    expect(missingTransport).toHaveBeenCalledTimes(1);
+    expect(submitImpl).not.toHaveBeenCalled();
+
+    const outPath = join(ROOT, 'guarded-page.png');
+    await generateOneImage({
+      prompt: 'guarded page',
+      outPath,
+      styleReferencePath: stylePath,
+      force: true,
+      requireStyleReference: true,
+      transportResolver,
+      submitImpl,
+    });
+    expect(transportResolver).toHaveBeenCalledTimes(1);
+    expect(submitImpl).toHaveBeenCalledTimes(1);
+    expect(existsSync(outPath)).toBe(true);
+  });
+
+  it('permits style-master submit without a prior style reference', async () => {
+    const { generateOneImage } = await import('../PPTMAKER_FRAMEWORK/scripts/image_api_client.mjs');
+    const transportResolver = vi.fn(() => [
+      { base_url: 'https://style.example/v1', api_key: 'style-key' },
+    ]);
+    const submitImpl = vi.fn(async () => ({
+      data: [{ b64_json: createCanvas(4, 4).toBuffer('image/png').toString('base64') }],
+    }));
+    await generateOneImage({
+      prompt: 'new style master',
+      outPath: join(ROOT, 'new-style.png'),
+      force: true,
+      requireStyleReference: false,
+      transportResolver,
+      submitImpl,
+    });
+    expect(transportResolver).toHaveBeenCalledTimes(1);
+    expect(submitImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('retry succeeds after transient 502 and records attempts in trace', async () => {
     const pngBytes = (() => {
       const c = createCanvas(4, 4);
@@ -395,6 +471,18 @@ describe('stage2_generate_images', () => {
       baseUrl: ['https://api.example.test/v1'],
     });
     expect(reused).toMatchObject({ generated: 0, skipped: 1, errors: [] });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    delete process.env.IMAGE2_API_KEY;
+    delete process.env.IMAGE2_BASE_URL;
+    const reusedWithoutTransport = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      only: ['a'],
+      force: false,
+    });
+    expect(reusedWithoutTransport).toMatchObject({ generated: 0, skipped: 1, errors: [] });
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 

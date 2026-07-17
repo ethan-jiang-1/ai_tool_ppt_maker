@@ -32,7 +32,7 @@ agent_action: navigate
 2. **听众是谁** — 谁坐在下面?他们的角色、懂不懂技术、想带走什么。
 3. **多长、什么场合** — 40 分钟 keynote?有没有 breakout?
 4. **语言** — slides 上用什么语言?演讲用什么语言?(可以不同)
-5. **一个 AI coding agent** — Claude Code / Codex / Cursor 都行,配 GPT Image 2 API。
+5. **一个 AI coding agent** — Claude Code / Codex / Cursor 都行。GPT Image 2 API 只在选择远程出图路径时再配置。
 
 想不清楚也没关系——第 2、3、5 条 agent 会追问帮你厘清。
 
@@ -47,7 +47,7 @@ agent_action: navigate
 - 听众: [谁看、角色、懂不懂技术]
 - 时长/场合: [多长、有没有 breakout]
 - 语言: [slides 语言 / 演讲语言]
-- 我有: API key（或需要帮助获取）。请先检查我的环境（`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`），告诉我还需要装什么
+- Image2: 暂时不用 / 我有 API key / 需要帮助获取（任选）。请先检查本地环境（`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`），告诉我还需要装什么
 ```
 
 agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时长、语言、最想让人记住什么),再带你选隐喻、选风格,最后搭出框架。Agent 入口是 BOOTSTRAP → AGENT_CONTRACT（11 条铁律）→ 按 Phase 翻 AGENTS。

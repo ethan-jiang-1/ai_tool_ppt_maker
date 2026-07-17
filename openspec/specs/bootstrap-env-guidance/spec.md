@@ -1,56 +1,64 @@
 ## Purpose
 
 Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It SHALL contain labeled sections for every base `env-check.mjs` check, with user-profile-aware fix instructions that are copy-pasteable by beginners. External file references SHALL be marked as human-only background reading. The BOOTSTRAP gate behavior (FOUNDATION NOT READY / NOT READY / △ warning) SHALL be preserved. Image2 first-time credential setup SHALL be self-contained in BOOTSTRAP without duplicating the full API contract from `03-tool-selection.md`. BOOTSTRAP sections SHALL stay in sync with `env-check.mjs` check names.
-
 ## Requirements
-
 ### Requirement: BOOTSTRAP Step 1 contains a failure-to-fix section for every base doctor check
 
-BOOTSTRAP.md Step 1 SHALL contain labeled sections (using markdown headers with the check name as identifier, e.g., `### nodejs`, `### npm`, `### api_key`) for every base check performed by `env-check.mjs`. Each section SHALL provide Agent-ready remediation instructions. The Agent SHALL be able to match a failing check name from the doctor output to the corresponding section header and present the fix to the user without reading any other file. The check names covered SHALL include at minimum: `nodejs`, `npm`, `api_key`, `image_base_url`, `@napi-rs/canvas`, `pptxgenjs`, `commander`, `stage2_generator`, `fonts`, `disk_space`.
+BOOTSTRAP.md Step 1 SHALL contain labeled sections using each stable base `env-check.mjs` check name as the identifier. Each section SHALL provide Agent-ready remediation instructions, and the Agent SHALL be able to map a base doctor failure to a beginner-safe fix without reading another file. The covered base names SHALL include at minimum `nodejs`, `npm`, `@napi-rs/canvas`, `pptxgenjs`, `commander`, `playwright`, `chromium`, `html_fonts`, `html_runtime_smoke`, `fonts`, `disk_space`, and `git` while those checks remain in base output.
+
+Image2-only checks (`api_key`, `image_base_url`, `stage2_generator`, `image_smoke`, `image_probe_vendors`) SHALL be grouped in a clearly optional Image2 subsection and SHALL NOT be presented as requirements for base READY. The subsection SHALL still permit direct mapping from an explicit `doctor --image2`, `--smoke`, or `--probe-vendors` failure.
 
 #### Scenario: Agent matches doctor failure to fix via section header
 
 - **WHEN** `ppt_flow.mjs doctor` reports `✗ nodejs: [FOUNDATION] fail`
 - **AND** the Agent reads BOOTSTRAP.md Step 1
-- **THEN** the Agent finds a section headed `### nodejs` with concrete installation commands for macOS, Linux, and Windows
-- **AND** the Agent presents the appropriate platform-specific commands to the user without reading any other file
+- **THEN** the Agent finds a section headed `### nodejs` with concrete supported-Node installation/upgrade commands for macOS, Linux, and Windows, naming `22.x`/`24.x`/`26.x` and recommending current LTS `24.x` for a fresh install
+- **AND** the Agent presents the appropriate platform-specific commands without reading another file
 
 #### Scenario: Multiple failures are each matched
 
-- **WHEN** doctor reports `✗ api_key: fail` and `✗ image_base_url: fail` simultaneously
-- **THEN** the Agent finds both `### api_key` and `### image_base_url` sections
-- **AND** recognizes both are resolved by creating one `.env` file with both variables
-- **AND** presents a single consolidated fix to the user
+- **WHEN** base doctor reports `✗ chromium: fail` and `✗ html_fonts: fail`
+- **THEN** BOOTSTRAP provides a browser-install command under `### chromium` and framework-asset repair guidance under `### html_fonts`
+- **AND** it does not tell the user to configure Image2 for either failure
 
 #### Scenario: Missing npm packages resolved by one command
 
-- **WHEN** doctor reports `✗ @napi-rs/canvas: fail`, `✗ pptxgenjs: fail`, and `✗ commander: fail`
-- **THEN** each check name has its own section, but the Agent recognizes all three resolve via a single `npm install`
-- **AND** tells the user to run one command rather than three separate fixes
+- **WHEN** doctor reports missing `@napi-rs/canvas`, `pptxgenjs`, `commander`, and `playwright`
+- **THEN** each check name has a matching section but the Agent consolidates them into one `npm install` action in the repository root
+
+#### Scenario: Explicit Image2 failures remain discoverable
+
+- **WHEN** `doctor --image2` reports `api_key` and `image_base_url` failures
+- **THEN** the Agent finds both names in the optional Image2 subsection
+- **AND** explains that they block only the selected Image2 path, not base local readiness
 
 ### Requirement: Fix instructions are user-profile-aware
 
-Each fix section in BOOTSTRAP.md Step 1 SHALL distinguish between users who already have a coding agent installed (Claude Code / Codex — who therefore already have Node.js 18+ and npm) and users who do not (bare-metal, no Node.js). For the agent-user profile, the fix SHALL focus on `npm install` and API key setup and SHALL NOT include "install Node.js first" steps. For bare-metal users, the fix SHALL include full Node.js installation steps before any framework-specific setup.
+Each fix section in BOOTSTRAP.md Step 1 SHALL distinguish users with an existing coding agent from bare-metal users, but SHALL NOT assume that the coding-agent installation already provides a supported Node line. For the coding-agent profile, guidance SHALL verify the current Node major first, upgrade when it is outside `22.x`/`24.x`/`26.x`, then use repository-local `npm install` and Chromium setup commands. For bare-metal users, guidance SHALL install current LTS `24.x` plus npm before repository setup while naming `22.x` and `26.x` as the other supported lines. Image2 credential setup SHALL appear only when the user selects or reaches an Image2-dependent action.
 
 #### Scenario: Agent user missing npm packages
 
-- **WHEN** doctor reports `✗ @napi-rs/canvas: fail`
-- **AND** the user indicates they are using Claude Code or Codex
-- **THEN** the Agent tells the user to run `npm install` in the repo root (one command)
-- **AND** does NOT tell them to install Node.js first
+- **WHEN** the user has Claude Code or Codex and doctor shows a supported Node major but missing npm packages
+- **THEN** the Agent gives one repository-root `npm install` command and the explicit Chromium setup command
+- **AND** does not tell the user to reinstall Node or configure Image2
+
+#### Scenario: Coding-agent user has Node 20
+
+- **WHEN** the user has a coding agent but doctor reports Node 20 below the required baseline
+- **THEN** the Agent provides a platform-specific supported-Node upgrade path, recommending current LTS `24.x`, before npm/browser setup
+- **AND** does not assume the coding agent's own runtime satisfies the framework
 
 #### Scenario: Bare-metal user missing Node.js
 
-- **WHEN** doctor reports `⛔ FOUNDATION NOT READY` (Node.js missing or too old)
-- **AND** the user does not have a coding agent installed
-- **THEN** the Agent provides full installation instructions per platform
-- **AND** only after Node.js is confirmed, proceeds to `npm install` and API key setup
+- **WHEN** doctor reports `FOUNDATION NOT READY` and the user has no coding agent installation
+- **THEN** the Agent provides full current-LTS Node.js `24.x` installation instructions per platform and names the supported `22.x`/`24.x`/`26.x` profile
+- **AND** only after Node/npm are confirmed proceeds to `npm install` and Chromium setup
 
 #### Scenario: User profile is unknown
 
 - **WHEN** the Agent cannot determine whether the user has a coding agent installed
-- **THEN** the Agent presents the agent-user path first ("如果你在用 Claude Code 或 Codex…")
-- **AND** follows with the bare-metal path as fallback ("如果你还没有安装 AI coding agent…")
+- **THEN** the Agent presents the verify-existing-Node path first
+- **AND** follows with the bare-metal current-LTS Node 24 installation path as fallback while naming the supported `22.x`/`24.x`/`26.x` profile
 
 ### Requirement: Fix instructions are copy-pasteable by beginners
 
@@ -70,49 +78,66 @@ Each fix instruction SHALL use concrete, copy-pasteable commands in fenced code 
 
 ### Requirement: BOOTSTRAP gate behavior is preserved
 
-The hard gate behavior of Step 1 SHALL be preserved: FOUNDATION NOT READY (Node.js or npm missing) SHALL still block all progress into Step 2. NOT READY (deps/key/scripts missing) SHALL also block progress. Warnings (△) SHALL allow continuation with a note. The new inline guidance SHALL only change HOW the Agent guides the user through fixes — not WHEN the gate blocks.
+Step 1 SHALL distinguish gate scope. FOUNDATION NOT READY (Node.js or npm missing/unsupported) and a base NOT READY result SHALL block progress into later framework work until base doctor is READY. Base warnings SHALL remain non-blocking. Image2 NOT READY SHALL block only an action that will enter the legacy Image2 remote path; it SHALL NOT revoke base READY or block local-only work. The Agent SHALL re-run the same mode that failed before entering its protected scope.
 
 #### Scenario: Foundation failure still blocks
 
-- **WHEN** doctor reports `⛔ FOUNDATION NOT READY`
-- **THEN** the Agent SHALL NOT proceed to Step 2 under any circumstances
-- **AND** the Agent SHALL present the inline fix guidance from BOOTSTRAP Step 1
-- **AND** SHALL require the user to re-run doctor and confirm READY before continuing
-
-#### Scenario: Warnings allow continuation
-
-- **WHEN** doctor reports only `△` warnings (e.g., fonts not found) and no failures
-- **THEN** the Agent SHALL explain what may be affected (e.g., "Stage 3 will use a fallback sans-serif font")
-- **AND** SHALL offer to continue to Step 2
-- **AND** the user MAY choose to proceed or fix the warning first
+- **WHEN** base doctor reports `FOUNDATION NOT READY`
+- **THEN** the Agent SHALL NOT proceed to Step 2
+- **AND** SHALL present the inline Node/npm fix and require base doctor to confirm READY
 
 #### Scenario: NOT READY blocks but offers clear path
 
-- **WHEN** doctor reports `✗ NOT READY` (foundation OK but hard requirement failed)
-- **THEN** the Agent SHALL list each failure with its fix from the corresponding section
-- **AND** SHALL NOT proceed to Step 2 until all failures are resolved and doctor confirms READY
+- **WHEN** base doctor reports NOT READY because Chromium or required HTML fonts are unavailable
+- **THEN** the Agent SHALL list each base failure with its inline fix
+- **AND** SHALL NOT proceed until default doctor confirms READY
+
+#### Scenario: Warnings allow continuation
+
+- **WHEN** base doctor reports only advisory warnings and no hard failure
+- **THEN** the Agent explains the affected optional behavior and MAY continue to Step 2
+
+#### Scenario: Image2 failure has bounded scope
+
+- **WHEN** default doctor is READY but `doctor --image2` is NOT READY
+- **THEN** the Agent MAY continue local-only work
+- **AND** SHALL repair and re-run Image2 readiness before a legacy remote image action
 
 ### Requirement: Image2 first-time credential setup is self-contained in BOOTSTRAP
 
-BOOTSTRAP.md Step 1 SHALL contain sufficient guidance for first-time Image2 credential setup: what to ask the user (`IMAGE2_API_KEY` and `IMAGE2_BASE_URL`), where to write it (`.env` in deck root or repo root), how to verify (`doctor --smoke`), and how to record non-key lessons in `_lessons/`. It SHALL NOT duplicate the full Image2 API contract (submit/poll/download protocol, vendor resolution, async task lifecycle, `--probe-vendors` channel probing). Those remain in `03-tool-selection.md`. When smoke fails, BOOTSTRAP SHALL point to `03-tool-selection.md` for advanced troubleshooting rather than inlining it.
+BOOTSTRAP.md Step 1 SHALL contain sufficient optional guidance for first-time Image2 credential setup when the user chooses or reaches an Image2-dependent action: what to ask for (`IMAGE2_API_KEY` and `IMAGE2_BASE_URL`), where to write it (`.env` in deck root or repo root), how to verify presence offline (`doctor --image2`), how to offer the existing first-vendor live probe (`doctor --smoke`), and how to record non-key lessons in `_lessons/`. It SHALL explicitly say that Image2 configuration is not required for base doctor. Before any live flag, guidance SHALL require the Agent to disclose the expected provider-submit count and obtain human confirmation; successful channel diagnosis SHALL NOT be described as page-generation authorization.
+
+BOOTSTRAP SHALL NOT duplicate the full Image2 API contract (submit/poll/download protocol, vendor resolution, async task lifecycle, or full `--probe-vendors` troubleshooting), which remains in `03-tool-selection.md`. When a live probe fails, BOOTSTRAP SHALL point to that advanced reference rather than inlining it.
+
+#### Scenario: Base setup does not solicit credentials
+
+- **WHEN** a new user is only repairing default doctor
+- **THEN** BOOTSTRAP does not ask for `IMAGE2_API_KEY` or `IMAGE2_BASE_URL`
+- **AND** identifies Image2 setup as a later optional/dependency-triggered action
 
 #### Scenario: First-time credential setup is self-contained
 
-- **WHEN** the Agent guides a user through setting up Image2 credentials for the first time
-- **THEN** the Agent uses only the inline guidance in BOOTSTRAP.md Step 1
-- **AND** does not need to open `03-tool-selection.md`
+- **WHEN** the user chooses an Image2-dependent path for the first time
+- **THEN** the Agent can configure `.env` and run offline `doctor --image2` using only BOOTSTRAP Step 1
+- **AND** can offer `doctor --smoke` only after disclosing its one expected submit and obtaining confirmation
+
+#### Scenario: User declines the optional live probe
+
+- **WHEN** Image2 presence is ready but the user declines the disclosed `doctor --smoke` provider submit
+- **THEN** the Agent does not invoke the live flag
+- **AND** does not reinterpret the decline as base or Image2-presence failure
 
 #### Scenario: Smoke failure points to advanced reference
 
-- **WHEN** `doctor --smoke` fails after the user has configured `.env`
-- **THEN** BOOTSTRAP tells the Agent to suggest swapping `--base-url` or trying alternate credentials
-- **AND** points to `03-tool-selection.md` for `--probe-vendors` channel probing (not inlined)
+- **WHEN** `doctor --smoke` fails after `.env` is configured
+- **THEN** BOOTSTRAP points to `03-tool-selection.md` for channel probing and advanced provider troubleshooting
+- **AND** does not inline the full provider protocol
 
 #### Scenario: Agent records non-key lessons in _lessons/
 
-- **WHEN** the Agent overcomes an environment issue through trial and error (e.g., finding a working API endpoint)
-- **THEN** the Agent writes the non-key takeaway to `deck_*/_lessons/` (e.g., `image2-proven.yaml` with `base_url` and `via`, no API key)
-- **AND** on subsequent visits to the same deck, scans `_lessons/` first to avoid re-learning
+- **WHEN** the Agent overcomes an Image2 environment issue through trial and error
+- **THEN** the Agent records only the non-key takeaway in `deck_*/_lessons/`
+- **AND** no API key is written to the lesson
 
 ### Requirement: External file references are for human readers only, not required for agents
 
@@ -132,19 +157,24 @@ BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `work
 
 ### Requirement: BOOTSTRAP stays in sync with env-check check names
 
-When `env-check.mjs` adds a new base check (a new stable `check` name in the non-`--smoke`/`--probe-vendors` output), BOOTSTRAP.md Step 1 SHALL add a corresponding labeled section for that check name. This SHALL happen in the same change or an immediately following change. The set of check names covered by BOOTSTRAP sections SHALL be a superset of the check names emitted by the base env-check run.
+When `env-check.mjs` adds a stable base check name, BOOTSTRAP.md Step 1 SHALL add a corresponding labeled base section in the same change. When env-check adds an Image2-only check name, BOOTSTRAP SHALL add it to the clearly optional Image2 subsection rather than the base checklist. The base BOOTSTRAP section-name set SHALL be a superset of default env-check names, and the Image2 subsection SHALL cover names emitted only by `--image2`, `--smoke`, or `--probe-vendors`.
 
 #### Scenario: New env-check item requires BOOTSTRAP section
 
-- **WHEN** a developer adds a new base check (e.g., `git`) to `env-check.mjs`
-- **THEN** a corresponding `### git` section SHALL be added to BOOTSTRAP.md Step 1
-- **AND** the section SHALL include both agent-user and bare-metal remediation paths
+- **WHEN** a developer adds a new stable default check
+- **THEN** a matching base section with executable remediation is added to BOOTSTRAP Step 1 in the same change
+
+#### Scenario: Image2-only item does not become a base prerequisite
+
+- **WHEN** a check is emitted only in Image2 mode
+- **THEN** its BOOTSTRAP section appears under optional Image2 readiness
+- **AND** it is not listed as a requirement for default doctor READY
 
 #### Scenario: env-check is the authority
 
-- **WHEN** there is a discrepancy between env-check's check names and BOOTSTRAP's sections
-- **THEN** env-check.mjs is the authority (it defines what gets checked)
-- **AND** the fix is to update BOOTSTRAP, not to change env-check's check names to match BOOTSTRAP
+- **WHEN** there is a discrepancy between env-check check names and BOOTSTRAP sections
+- **THEN** env-check is the check-name authority
+- **AND** BOOTSTRAP is updated in the owning readiness group rather than renaming the producer to fit prose
 
 ### Requirement: BOOTSTRAP provides optional, scope-honest Git startup guidance
 
@@ -193,3 +223,4 @@ The Agent and framework SHALL NOT automatically initialize a repository, stage f
 - **WHEN** a user declines installation, initialization, or a checkpoint
 - **THEN** the Agent continues the applicable deck workflow after existing hard gates pass
 - **AND** it does not frame the decision as skipping Structural Versioning Path or source validation
+

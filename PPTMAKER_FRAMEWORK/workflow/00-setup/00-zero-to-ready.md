@@ -12,23 +12,24 @@ agent_action: guide
 
 # Zero to Ready：你需要什么
 
-> 你不需要懂编程。你只需要理解这三样东西各自是干什么的。之后 Agent 会接管所有技术操作。
+> 你不需要懂编程。你只需要理解下面这些东西各自是干什么的。之后 Agent 会接管所有技术操作。
 >
 > **操作步骤不在这里。** Agent 会在 [BOOTSTRAP.md](../../BOOTSTRAP.md) Step 1 中一步步引导你完成环境检查与修复——你只需要跟着做。
 
-## 三样东西
+## 默认只需要两样东西
 
 | # | 东西 | 是什么 | 你很可能已经有了？ |
 |---|------|--------|-------------------|
 | 1 | **AI coding agent** | 一个能读文件、写文件、跑命令的 AI 助手（Claude Code / Codex / Cursor） | ✅ 如果你正在跟 agent 对话——你已经有了 |
-| 2 | **Node.js + npm** | 运行生产管线的 JavaScript 环境（Node 18+） | ✅ Claude Code 和 Codex 都要求先装 Node.js——你大概率已经有了 |
-| 3 | **GPT Image 2 API key** | 生成图片的权限（一串 `sk-...` 开头的 key）+ 一个 base URL | ❓ 这个可能需要你注册/获取 |
+| 2 | **Node.js + npm + Chromium** | 本地生产 runtime（Node 22/24/26，新装推荐 24）与 HTML 浏览器 | ❓ Agent 会用 doctor 确认 |
 
-**核心洞察**：如果你在用 Claude Code 或 Codex，你已经有了前两样。Agent 会跑 `doctor` 确认——真正需要你动手的，很可能只是拿一个 API key 和跑一次 `npm install`。
+framework 已经自带 HTML runtime 所需的 Source Sans 3 / Noto Sans SC WOFF2 字体，用户不用安装系统字体，也不用联网下载字体。首次本地 setup 通常只需 repo-root `npm install` 与 `npm run setup:chromium`。
+
+**可选第三样**：只有选择付费/远程的 Image2 路径时，才需要 GPT Image 2 API key + base URL。默认本地 doctor READY 不要求它们。
 
 ---
 
-## 这三样东西各自干什么
+## 这些东西各自干什么
 
 ### 1. AI coding agent
 
@@ -45,15 +46,17 @@ agent_action: guide
 
 Agent 第一次运行时会检查这个环境。如果缺了什么，它会告诉你具体怎么装——你复制粘贴一条命令就行。
 
-### 3. GPT Image 2 API key + Base URL
+Node profile 只支持 22.x、24.x、26.x；coding agent 自己能运行不代表当前 Node 一定符合 framework。Agent 会先检查，随后安装 repo 依赖和配对 Chromium。字体已在 framework 包内。
 
-这是**出图能力**。没有它，Stage 2 生不了图，PPT 就做不出来。
+### 3. GPT Image 2 API key + Base URL（可选）
+
+这是可选的远程精细视觉能力。没有它仍可完成本地环境检查和本地工作；只有进入 legacy Image2 远程生成时才需要。
 
 你需要两样东西：
 - **API Key**（`IMAGE2_API_KEY`）：一串 `sk-...` 开头的密钥。去 [platform.openai.com](https://platform.openai.com) → API keys 创建，或向中转服务商获取。
 - **Base URL**（`IMAGE2_BASE_URL`）：API 的访问地址，如 `https://api.xxx.com/v1`。
 
-Agent 会引导你把它们写进 `.env` 文件（一行 key、一行 URL），然后自动加载。
+Agent 会在你选择 Image2 后引导你把它们写进 `.env`，先用离线 `doctor --image2` 检查。任何会真实提交 provider 的 live probe 都会先告诉你提交次数并征得同意。
 
 ---
 
@@ -70,7 +73,7 @@ Agent 会引导你把它们写进 `.env` 文件（一行 key、一行 URL），�
 - 听众: [谁看、角色、懂不懂技术]
 - 时长/场合: [多长、有没有 breakout]
 - 语言: [slides 语言 / 演讲语言]
-- 我有: API key（或需要帮助获取）。请先检查我的环境（`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`），告诉我还需要装什么
+- Image2: 暂时不用 / 我有 API key / 需要帮助获取（任选）。请先检查本地环境（`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`），告诉我还需要装什么
 ```
 
 Agent 会从 BOOTSTRAP.md 开始——先检查环境（缺什么告诉你），再问 5 个选择题，带你选隐喻、选风格，最后搭出 PPT。

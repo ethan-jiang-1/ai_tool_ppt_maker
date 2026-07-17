@@ -1,6 +1,6 @@
 # Plan: HTML-first 渐进式渲染
 
-> 类型: 总控设计 | 状态: 架构已锁定；Change 1 已重写并完成 apply-ready review | 更新: 2026-07-18
+> 类型: 总控设计 | 状态: 架构已锁定；Change 1 已完成多轮对抗性 review，apply-ready | 更新: 2026-07-18
 > 上游: [`slide-identity-and-sequence-editing`](../_done/_closed_plans/slide-identity-and-sequence-editing.md)（已落地并归档）
 > 专题目录: [`html-first-progressive-rendering/`](html-first-progressive-rendering/)
 > 原始记录: 由 `_backlog/todos/todo-dual-render-pipeline.md` 升级、改名而来
@@ -107,4 +107,4 @@ stable slide_id + derived position + artifact provenance
 
 架构打磨已完成：selection applicability / asset integrity / generation provenance 已分层，五条端到端路径与四个归档点已反证，workflow/playbook/run-bundle/state/CLI ownership 已统一，内部链接与 diff 格式检查通过。
 
-Change 1 `upgrade-html-render-runtime-readiness` 已依据本计划完整重写 proposal/design/specs/tasks，并通过 strict OpenSpec、capability 对应、MODIFIED scenario 保留、范围与 diff 格式审查，当前为 apply-ready。下一步只在用户明确启动 `openspec apply` 后按 tasks 实施；Change 2 继续等待 Change 1 apply、validate、sync 和 archive 完成。
+Change 1 `upgrade-html-render-runtime-readiness` 已依据本计划完整重写 proposal/design/specs/tasks，并完成多轮对抗性 review。最终版本收紧了 Node support profile、mutable font snapshot、浏览器实际字体证据、smoke timeout/cleanup、canonical package-root loading、lazy submit guard、live redirect/no-retry、JSON stdout purity、重复 probe 避免及跨平台 CI 证据；strict OpenSpec、capability/task 对应、19 个 MODIFIED requirement 场景保留、远程入口清单、范围与 diff 格式均通过，当前 apply-ready。Change 2 继续等待 Change 1 apply、validate、sync 和 archive 完成。

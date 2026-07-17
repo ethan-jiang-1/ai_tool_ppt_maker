@@ -23,7 +23,7 @@ import { Command } from "commander";
 import {
   generateOneImage,
   ImageProviderError,
-  resolveVendors,
+  ImageSubmitPrerequisiteError,
   DEFAULT_MODEL,
 } from "./image_api_client.mjs";
 import { IMAGE_TRACE_SUFFIX } from "./bundle_layout.mjs";
@@ -89,12 +89,9 @@ export async function generateImages({
   /** @type {Map<string, object>} */
   const profiles = new Map();
 
-  let baseUrls = [];
-  if (!dryRun) {
-    // Fail-fast credential resolve; CLI --base-url overrides IMAGE2_BASE_URL.
-    resolveVendors(baseUrl);
-    baseUrls = baseUrl;
-  }
+  // Preserve the CLI override as unresolved input. Transport is resolved by
+  // the shared submit guard only after provenance proves remote work is needed.
+  const baseUrls = baseUrl;
 
   let generated = 0;
   let skipped = 0;
@@ -239,6 +236,7 @@ export async function generateImages({
         baseUrls,
         tracePath,
         additionalReferencePaths: additionalRefPaths,
+        requireStyleReference: true,
       });
       if (!trace || !existsSync(outPath)) {
         throw new Error("generator returned without a current output image");
@@ -260,11 +258,17 @@ export async function generateImages({
       failures.push({
         slideId,
         outPath,
-        category: err instanceof ImageProviderError ? "provider" : "artifact",
-        reason: err instanceof ImageProviderError
+        category: err instanceof ImageSubmitPrerequisiteError
+          ? "environment"
+          : err instanceof ImageProviderError ? "provider" : "artifact",
+        reason: err instanceof ImageSubmitPrerequisiteError
+          ? { kind: err.reason }
+          : err instanceof ImageProviderError
           ? { kind: err.reason || "provider_generation_failed", ...(err.status !== null ? { actual: err.status } : {}) }
           : { kind: "image_generation_failed" },
-        message: err instanceof ImageProviderError ? "image provider failed for selected slide" : "slide image artifact could not be produced",
+        message: err instanceof ImageSubmitPrerequisiteError
+          ? "Image2 submission prerequisites are unavailable for the selected slide"
+          : err instanceof ImageProviderError ? "image provider failed for selected slide" : "slide image artifact could not be produced",
       });
       console.log(`  ERROR ${index}/${total}: ${slideId}: ${err.message}`);
     }
@@ -281,7 +285,7 @@ export async function generateImages({
 export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styleReference, resolution, selectedIds = [] }) {
   const categories = new Set(failures.map((failure) => failure.category));
   const category = categories.size === 1 ? [...categories][0] : "artifact";
-  const action = category === "provider" ? "repair_environment" : "repair_prerequisite";
+  const action = ["environment", "provider"].includes(category) ? "repair_environment" : "repair_prerequisite";
   return {
     version: 1,
     category,
@@ -301,7 +305,7 @@ export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styl
     next: createCliNext(action, {
       inspect: [{ path: promptJson }, { path: outDir }],
       invocation: { program: "node", args: [__filename, "--prompt-json", promptJson, "--out-dir", outDir, "--style-reference", styleReference, "--resolution", resolution, ...selectedIds.flatMap((id) => ["--only", id]), "--force"] },
-      default: category === "provider"
+      default: ["environment", "provider"].includes(category)
         ? "Repair provider availability without exposing credentials, then rerun only the failed slides."
         : "Repair or rerun the named prerequisite; do not hand-edit generated images.",
     }),
