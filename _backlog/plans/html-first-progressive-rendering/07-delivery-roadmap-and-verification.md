@@ -136,8 +136,9 @@ Proposal 必须明确：`env-check` 保持 Node built-ins-only 的可启动入�
 | 3C Provider-neutral delivery | Stage 4 不再按 selected engine 寻址，只按 plan order 消费唯一 current `final-slide`；Stage 5 继续按 ID 注 notes | 修改 `pptx-assembly`、`notes-injection` |
 | 3D New-deck default | init/template/source 写 HTML-first marker，移除基础 Image2 onboarding，更新 intake/status/readiness/change classifier | 修改 `run-bundle-management`、`framework-charter`、`commands-reference`、`bootstrap-env-guidance` |
 | 3E Compatibility/migration | legacy 路径保持；显式 clean vNext 迁移、对照 gate、零远端结构/重排 rebuild | 修改 `pipeline-orchestration`、`project-versioning`、相关 playbook specs |
+| 3F Workflow migration | 原子迁移最终六个 workflow 目录、Phase 0-5 和 `method_module` enums、全部 active links/nodes；`04-refinement` 此时仅服务 legacy 维护 | 修改 `framework-directory-layout`、`framework-charter`、`node-specification`、`playbook-execution` |
 
-Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 条件下交付完整 PPTX。若 renderer、assembly 或默认 workflow 任一缺失，就不能归档；也不能先切默认再留下不可交付的 deck。
+Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 条件下沿新 Phase 0-5 workflow 交付完整 PPTX。若 renderer、assembly、目录/node schema 或默认 workflow 任一缺失，就不能归档；也不能先切默认再留下不可交付的 deck。
 
 ### 完成标准
 
@@ -145,6 +146,7 @@ Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 
 - 每个 family renderer 有非空像素、稳定 geometry、overflow 和 screenshot tests。
 - 纯重排/删页用本地重建完成，零远端调用；notes 不 shift。
 - legacy Image2-first E2E 保持现有行为；显式迁移产生新 vNext 和用户对照 gate。
+- workflow 顶层恰为最终六目录；active link/frontmatter/node schema 全部使用新 Phase/module 名称，旧目录引用为零。
 - targeted tests、全量 `npm test`、相关 `tests_e2e`、bundle self-check 和 OpenSpec strict validation 通过。
 
 ## Change 4: `add-image2-visual-slot-refinement`
@@ -232,4 +234,4 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 
 每个 change 单独 propose、review、apply、validate、archive。后一个 change 只依赖已经归档并同步到 main specs 的行为，不能依赖聊天或未落地的未来 interface。四个 change 的 proposal/design/tasks 必须逐项覆盖本文件对应的“包含、完成标准”，若延期必须回写本 plan，不能在 change 中静默删项。
 
-`PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`07-framework-directory-impact.md`](07-framework-directory-impact.md)。涉及 workflow rename 的 change 必须原子更新 active cross-references，不能留下两套活跃方法论。
+`PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`07-framework-directory-impact.md`](07-framework-directory-impact.md)。Change 3 的 workflow rename 必须原子更新 active cross-references 和 node schema，不能留下两套活跃方法论。
