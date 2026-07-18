@@ -24,7 +24,7 @@
 
 勾选纪律：只有对应动作已经完成且其强制校验通过才可标记 `[x]`；`Review` 指 proposal/design/specs/tasks 已经过质量审查并达到 apply-ready；`Validate` 指实现后的 targeted/full tests 与 strict OpenSpec validation 全部通过；`Sync + Archive` 必须在 delta specs 同步 main specs 且 change 正式归档后一起勾选。任一步失败或返工时保持未勾选，并在该 change 的 artifacts/tasks 中记录阻塞，不用聊天状态代替此表。
 
-`openspec/changes/archive/2026-07-18-upgrade-html-render-runtime-readiness/` 已完成整套替换、多轮对抗性 Review、当前 Mac 实施验收、main-spec 同步和归档。追加轮次修复了 Node 支持集合过宽、mutable Noto 分片事实、字体 fallback 伪阳性、browser smoke 无界等待、package discovery/load 分裂、远程 guard 过早、live redirect/重试超额提交、JSON stdout 污染与 confirm-write 重复 probe。当前 Mac 的 `doctor`、paired Chromium/font smoke、focused/full Vitest、相关 E2E、strict validation 和范围审计全部通过；Windows/Linux/CI 执行明确不作为本 change 门槛。
+`openspec/changes/archive/2026-07-17-upgrade-html-render-runtime-readiness/` 已完成整套替换、多轮对抗性 Review、当前 Mac 实施验收、main-spec 同步和归档。追加轮次修复了 Node 支持集合过宽、mutable Noto 分片事实、字体 fallback 伪阳性、browser smoke 无界等待、package discovery/load 分裂、远程 guard 过早、live redirect/重试超额提交、JSON stdout 污染与 confirm-write 重复 probe。当前 Mac 的 `doctor`、paired Chromium/font smoke、focused/full Vitest、相关 E2E、strict validation 和范围审计全部通过；Windows/Linux/CI 执行明确不作为本 change 门槛。
 
 `openspec/changes/archive/2026-07-18-add-structured-html-slide-contract/` 已完成 Change 2 的多轮 Review、Apply、完整回归/结构 E2E/依赖与范围审计、main-spec 同步和归档。它交付 renderer-neutral structured slide plan、10-family/68-variant geometry、严格 source/config/catalog/font/fallback/selection/fingerprint 合同和 validation-only authoring guidance，未引入浏览器渲染、PPTX/default workflow 或 Image2 refinement。
 
