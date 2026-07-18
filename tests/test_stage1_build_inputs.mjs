@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { execSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   configureVisualConfig,
   parseSlides,
@@ -299,5 +299,46 @@ describe('stage1_build_inputs', () => {
       '01--DeckGo.prompt.md', '02--UXGap.prompt.md',
       '03--AICost.prompt.md', '04--IDFix.prompt.md',
     ]);
+  });
+
+  it('validates marked source only through the canonical --spec route', () => {
+    const temp = mkdtempSync(join(tmpdir(), 'html-stage1-'));
+    try {
+      const deck = join(temp, 'deck_html');
+      const runDir = join(deck, '3_versions', 'v1');
+      const style = join(deck, '2_backbone', 'visual-style');
+      mkdirSync(runDir, { recursive: true }); mkdirSync(style, { recursive: true });
+      copyFileSync(resolve('PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json'), join(style, 'color_palette.json'));
+      const path = join(runDir, 'slide-specifications.md');
+      writeFileSync(path, `---
+production:
+  pipeline: html-first-v1
+---
+## Slide 01: \`HeroGo\`
+**VISUAL TYPE**: Title / Opener
+**TITLE**: Hello
+**CONCEPT**:
+- **MUST communicate**: One idea
+- **MUST NOT**: Noise
+**SLIDE BODY**:
+\`\`\`yaml
+schema_version: 1
+family: hero
+\`\`\`
+`);
+      const valid = spawnSync('node', [STAGE1, '--validate', '--spec', path], { encoding: 'utf8', timeout: 10000 });
+      expect(valid.status).toBe(0);
+      expect(valid.stdout).toMatch(/complete local contract/);
+      const alias = spawnSync('node', [STAGE1, '--validate', '--input', path], { encoding: 'utf8', timeout: 10000 });
+      expect(alias.status).toBe(1);
+      expect(parseCliErrorLine(alias.stderr.trim().split(/\r?\n/).at(-1)).code).toBe('USAGE');
+      const unknown = spawnSync('node', [STAGE1, '--validate', '--spec', path, '--mystery'], { encoding: 'utf8', timeout: 10000 });
+      expect(unknown.status).toBe(1);
+      const publish = spawnSync('node', [STAGE1, '--spec', path, '--out', join(runDir, '_generated')], { encoding: 'utf8', timeout: 10000 });
+      expect(publish.status).toBe(1);
+      expect(parseCliErrorLine(publish.stderr.trim().split(/\r?\n/).at(-1)).diagnostic.reason.kind).toBe('html_first_projection_requires_run_dir');
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
   });
 });

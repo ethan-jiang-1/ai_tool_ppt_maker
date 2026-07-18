@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PPTMaker HTML runtime smoke</title>
+  <link rel="stylesheet" href="../../fonts/source-sans-3/local.css">
+  <link rel="stylesheet" href="../../fonts/noto-sans-sc/local.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 960px; height: 540px; margin: 0; overflow: hidden; }
+    body { background: #fff; color: #111; }
+    #fixture { position: relative; width: 960px; height: 540px; }
+    .sentinel { position: absolute; left: 80px; width: 800px; height: 96px; font-size: 36px; line-height: 48px; }
+    #latin-sentinel { top: 120px; font-family: 'Source Sans 3'; font-weight: 600; }
+    #han-sentinel { top: 300px; font-family: 'Noto Sans SC'; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main id="fixture" data-purpose="renderer-independent-runtime-smoke">
+    <div id="latin-sentinel" class="sentinel">PPT 2026 - Cafe resume: EUR GBP USD $42.50 !?</div>
+    <div id="han-sentinel" class="sentinel" lang="zh-Hans">中文演示：标题、正文与数字2026。</div>
+  </main>
+</body>
+</html>

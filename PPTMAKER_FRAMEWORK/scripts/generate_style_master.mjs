@@ -15,7 +15,7 @@ import "./lib/cli_bootstrap.mjs?entry=generate_style_master.mjs";
 import { CLI_ERROR_CODES, createCliNext, emitCliError } from "./lib/cli_error.mjs";
 
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 
@@ -28,13 +28,15 @@ import {
   STYLE_MASTER_IMAGE,
   DECK_SYSTEM_FILE,
   IMAGE_TRACE_SUFFIX,
+  SLIDE_SPECS_NAME,
+  findSlideSpecs,
 } from "./bundle_layout.mjs";
 
 import {
   generateOneImage,
-  resolveVendors,
   DEFAULT_MODEL,
   ImageProviderError,
+  ImageSubmitPrerequisiteError,
 } from "./image_api_client.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
 
@@ -63,6 +65,25 @@ export async function generateStyleMaster({
   generateStyleMaster.lastFailure = null;
   const resolvedRunDir = resolve(runDir);
 
+  const canonicalSource = join(resolvedRunDir, SLIDE_SPECS_NAME);
+  const sourceCandidate = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolvedRunDir);
+  if (sourceCandidate) {
+    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+    const marker = probeProductionMarker(readFileSync(sourceCandidate), { source: basename(sourceCandidate) });
+    if (marker.branch === "invalid") {
+      generateStyleMaster.lastFailure = { category: "source_validation", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })) };
+      return 1;
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE && sourceCandidate !== canonicalSource) {
+      generateStyleMaster.lastFailure = { category: "source_validation", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: SLIDE_SPECS_NAME } };
+      return 1;
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE) {
+      generateStyleMaster.lastFailure = { category: "gate", source: { path: SLIDE_SPECS_NAME }, reason: { kind: "html_first_delivery_unavailable" } };
+      return 1;
+    }
+  }
+
   const violations = checkBundle(resolvedRunDir, false);
   if (violations.length > 0) {
     console.error("✗ Bundle structure is not valid:");
@@ -90,17 +111,9 @@ export async function generateStyleMaster({
   }
   loadDotenv(...searchDirs);
 
-  // CLI --base-url overrides IMAGE2_BASE_URL at runtime.
+  // Keep the CLI override unresolved. The shared submit guard resolves
+  // transport only when the existing style master cannot be reused.
   const cliBaseUrls = Array.isArray(baseUrl) ? baseUrl.filter(Boolean) : [];
-  if (!dryRun) {
-    try {
-      resolveVendors(cliBaseUrls);
-    } catch (err) {
-      console.error(`✗ ${err.message}`);
-      generateStyleMaster.lastFailure = { category: "environment", source: { path: dkRoot }, reason: { kind: "provider_configuration_unavailable" } };
-      return 1;
-    }
-  }
 
   let promptText = readFileSync(promptPath, "utf-8");
   const deckSystemPath = styleAsset(resolvedRunDir, DECK_SYSTEM_FILE);
@@ -140,11 +153,14 @@ export async function generateStyleMaster({
       force,
       baseUrls: cliBaseUrls,
       tracePath,
+      requireStyleReference: false,
     });
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
-    generateStyleMaster.lastFailure = err instanceof ImageProviderError
+    generateStyleMaster.lastFailure = err instanceof ImageSubmitPrerequisiteError
+      ? { category: "environment", source: { path: dkRoot }, reason: { kind: err.reason } }
+      : err instanceof ImageProviderError
       ? { category: "provider", source: { path: promptPath }, reason: { kind: err.reason, ...(err.status ? { actual: err.status } : {}) } }
       : { category: "artifact", source: { path: promptPath }, reason: { kind: "style_master_generation_failed" } };
     return 1;

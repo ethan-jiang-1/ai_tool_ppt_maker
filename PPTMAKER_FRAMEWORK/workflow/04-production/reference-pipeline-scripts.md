@@ -285,6 +285,6 @@ async function injectNotes(pptxPath, notesList) {
 1. **修改常量**：canvas size、header safe zone、font paths、API credentials——这些都是项目特定的
 2. **替换 API 调用**：把 `requests.post(f"{mirror}/images/generations")` 替换为你的实际 image generation API
 3. **添加错误处理**：伪代码省略了 retry logic、timeout handling、partial failure recovery
-4. **工具栈**：本框架使用 Node.js 18+、`@napi-rs/canvas`（Stage 3）、`pptxgenjs`（Stage 4–5）；模式与语言无关，但参考实现已是 Node `.mjs`。
+4. **工具栈**：本框架使用 checked-in profile 支持的 Node.js 22/24/26、`@napi-rs/canvas`（Stage 3）、`pptxgenjs`（Stage 4–5）；模式与语言无关，但参考实现已是 Node `.mjs`。
 
 完整的生产实现参考：`scripts/` 目录（通过 `unified_pipeline.mjs --run-dir` 就地运行，不复制进 run bundle）。历史案例 T10 当年把脚本放在 `session_ppt_flow_T10/v3/scripts/`——那是本框架成形前的做法，当前布局已改为脚本就地运行、产物统一写入 `_generated/`。

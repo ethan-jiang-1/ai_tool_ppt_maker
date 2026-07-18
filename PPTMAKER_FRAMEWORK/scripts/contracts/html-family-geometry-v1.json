@@ -1,0 +1,2865 @@
+{
+  "schema": "pptmaker-html-family-geometry-v1",
+  "canvas": {
+    "width": 1000,
+    "height": 562.5
+  },
+  "variants": {
+    "cards--n2--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          442,
+          338
+        ],
+        "card_2": [
+          510,
+          150,
+          442,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "cards--n2--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          442,
+          280
+        ],
+        "card_2": [
+          510,
+          150,
+          442,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "cards--n3--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          288,
+          338
+        ],
+        "card_2": [
+          356,
+          150,
+          288,
+          338
+        ],
+        "card_3": [
+          664,
+          150,
+          288,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "cards--n3--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          288,
+          280
+        ],
+        "card_2": [
+          356,
+          150,
+          288,
+          280
+        ],
+        "card_3": [
+          664,
+          150,
+          288,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "cards--n4--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          211,
+          338
+        ],
+        "card_2": [
+          279,
+          150,
+          211,
+          338
+        ],
+        "card_3": [
+          510,
+          150,
+          211,
+          338
+        ],
+        "card_4": [
+          741,
+          150,
+          211,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "cards--n4--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "card_1": [
+          48,
+          150,
+          211,
+          280
+        ],
+        "card_2": [
+          279,
+          150,
+          211,
+          280
+        ],
+        "card_3": [
+          510,
+          150,
+          211,
+          280
+        ],
+        "card_4": [
+          741,
+          150,
+          211,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "comparison--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "left": [
+          48,
+          158,
+          430,
+          330
+        ],
+        "right": [
+          522,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "comparison--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "left": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "right": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "data--insight0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "chart": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "data--insight0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "chart": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "data--insight1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "chart": [
+          48,
+          150,
+          616,
+          338
+        ],
+        "insight": [
+          688,
+          150,
+          264,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "data--insight1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "chart": [
+          48,
+          150,
+          616,
+          280
+        ],
+        "insight": [
+          688,
+          150,
+          264,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n3--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          288,
+          338
+        ],
+        "step_2": [
+          356,
+          150,
+          288,
+          338
+        ],
+        "step_3": [
+          664,
+          150,
+          288,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n3--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          288,
+          280
+        ],
+        "step_2": [
+          356,
+          150,
+          288,
+          280
+        ],
+        "step_3": [
+          664,
+          150,
+          288,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n4--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          211,
+          338
+        ],
+        "step_2": [
+          279,
+          150,
+          211,
+          338
+        ],
+        "step_3": [
+          510,
+          150,
+          211,
+          338
+        ],
+        "step_4": [
+          741,
+          150,
+          211,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n4--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          211,
+          280
+        ],
+        "step_2": [
+          279,
+          150,
+          211,
+          280
+        ],
+        "step_3": [
+          510,
+          150,
+          211,
+          280
+        ],
+        "step_4": [
+          741,
+          150,
+          211,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n5--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          164.8,
+          338
+        ],
+        "step_2": [
+          232.8,
+          150,
+          164.8,
+          338
+        ],
+        "step_3": [
+          417.6,
+          150,
+          164.8,
+          338
+        ],
+        "step_4": [
+          602.4000000000001,
+          150,
+          164.8,
+          338
+        ],
+        "step_5": [
+          787.2,
+          150,
+          164.8,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "flow--n5--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          164.8,
+          280
+        ],
+        "step_2": [
+          232.8,
+          150,
+          164.8,
+          280
+        ],
+        "step_3": [
+          417.6,
+          150,
+          164.8,
+          280
+        ],
+        "step_4": [
+          602.4000000000001,
+          150,
+          164.8,
+          280
+        ],
+        "step_5": [
+          787.2,
+          150,
+          164.8,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement0--support0--visual0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement0--support0--visual0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement0--support0--visual1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        }
+      ]
+    },
+    "hero--statement0--support0--visual1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "callout"
+        }
+      ]
+    },
+    "hero--statement0--support1--visual0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "supporting_line": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement0--support1--visual0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "supporting_line": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement0--support1--visual1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "supporting_line": [
+          48,
+          150,
+          904,
+          338
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "supporting_line"
+        }
+      ]
+    },
+    "hero--statement0--support1--visual1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "supporting_line": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "supporting_line"
+        },
+        {
+          "back": "primary_visual",
+          "front": "callout"
+        }
+      ]
+    },
+    "hero--statement1--support0--visual0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement1--support0--visual0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement1--support0--visual1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          338
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "hero_statement"
+        }
+      ]
+    },
+    "hero--statement1--support0--visual1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "hero_statement"
+        },
+        {
+          "back": "primary_visual",
+          "front": "callout"
+        }
+      ]
+    },
+    "hero--statement1--support1--visual0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          161
+        ],
+        "supporting_line": [
+          48,
+          327,
+          904,
+          161
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement1--support1--visual0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          132
+        ],
+        "supporting_line": [
+          48,
+          298,
+          904,
+          132
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "hero--statement1--support1--visual1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          161
+        ],
+        "supporting_line": [
+          48,
+          327,
+          904,
+          161
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "hero_statement"
+        },
+        {
+          "back": "primary_visual",
+          "front": "supporting_line"
+        }
+      ]
+    },
+    "hero--statement1--support1--visual1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "hero_statement": [
+          48,
+          150,
+          904,
+          132
+        ],
+        "supporting_line": [
+          48,
+          298,
+          904,
+          132
+        ],
+        "primary_visual": [
+          0,
+          0,
+          1000,
+          562.5
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": [
+        {
+          "back": "primary_visual",
+          "front": "kicker"
+        },
+        {
+          "back": "primary_visual",
+          "front": "title"
+        },
+        {
+          "back": "primary_visual",
+          "front": "subtitle"
+        },
+        {
+          "back": "primary_visual",
+          "front": "hero_statement"
+        },
+        {
+          "back": "primary_visual",
+          "front": "supporting_line"
+        },
+        {
+          "back": "primary_visual",
+          "front": "callout"
+        }
+      ]
+    },
+    "kpi--n1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "kpi--n1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "kpi--n2--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          442,
+          338
+        ],
+        "metric_2": [
+          510,
+          150,
+          442,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "kpi--n2--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          442,
+          280
+        ],
+        "metric_2": [
+          510,
+          150,
+          442,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "kpi--n3--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          288,
+          338
+        ],
+        "metric_2": [
+          356,
+          150,
+          288,
+          338
+        ],
+        "metric_3": [
+          664,
+          150,
+          288,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "kpi--n3--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "metric_1": [
+          48,
+          150,
+          288,
+          280
+        ],
+        "metric_2": [
+          356,
+          150,
+          288,
+          280
+        ],
+        "metric_3": [
+          664,
+          150,
+          288,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-left--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          158,
+          430,
+          330
+        ],
+        "quote": [
+          522,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-left--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "quote": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-none--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "quote": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-none--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "quote": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-right--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          522,
+          158,
+          430,
+          330
+        ],
+        "quote": [
+          48,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support0--visual-right--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "quote": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-left--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          158,
+          430,
+          330
+        ],
+        "quote": [
+          522,
+          158,
+          430,
+          244
+        ],
+        "supporting": [
+          522,
+          418,
+          430,
+          70
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-left--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "quote": [
+          522,
+          150,
+          430,
+          194
+        ],
+        "supporting": [
+          522,
+          360,
+          430,
+          70
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-none--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "quote": [
+          48,
+          150,
+          904,
+          252
+        ],
+        "supporting": [
+          48,
+          418,
+          904,
+          70
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-none--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "quote": [
+          48,
+          150,
+          904,
+          194
+        ],
+        "supporting": [
+          48,
+          360,
+          904,
+          70
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-right--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          522,
+          158,
+          430,
+          330
+        ],
+        "quote": [
+          48,
+          158,
+          430,
+          244
+        ],
+        "supporting": [
+          48,
+          418,
+          430,
+          70
+        ]
+      },
+      "overlays": []
+    },
+    "quote--support1--visual-right--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "quote": [
+          48,
+          150,
+          430,
+          194
+        ],
+        "supporting": [
+          48,
+          360,
+          430,
+          70
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-text--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "left": [
+          48,
+          158,
+          430,
+          330
+        ],
+        "right": [
+          522,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-text--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "left": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "right": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-visual-left--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "text": [
+          522,
+          158,
+          430,
+          330
+        ],
+        "primary_visual": [
+          48,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-visual-left--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "text": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "primary_visual": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-visual-right--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "text": [
+          48,
+          158,
+          430,
+          330
+        ],
+        "primary_visual": [
+          522,
+          158,
+          430,
+          330
+        ]
+      },
+      "overlays": []
+    },
+    "split--text-visual-right--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "text": [
+          48,
+          150,
+          430,
+          280
+        ],
+        "primary_visual": [
+          522,
+          150,
+          430,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n3--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          288,
+          338
+        ],
+        "step_2": [
+          356,
+          150,
+          288,
+          338
+        ],
+        "step_3": [
+          664,
+          150,
+          288,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n3--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          288,
+          280
+        ],
+        "step_2": [
+          356,
+          150,
+          288,
+          280
+        ],
+        "step_3": [
+          664,
+          150,
+          288,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n4--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          211,
+          338
+        ],
+        "step_2": [
+          279,
+          150,
+          211,
+          338
+        ],
+        "step_3": [
+          510,
+          150,
+          211,
+          338
+        ],
+        "step_4": [
+          741,
+          150,
+          211,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n4--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          211,
+          280
+        ],
+        "step_2": [
+          279,
+          150,
+          211,
+          280
+        ],
+        "step_3": [
+          510,
+          150,
+          211,
+          280
+        ],
+        "step_4": [
+          741,
+          150,
+          211,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n5--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          164.8,
+          338
+        ],
+        "step_2": [
+          232.8,
+          150,
+          164.8,
+          338
+        ],
+        "step_3": [
+          417.6,
+          150,
+          164.8,
+          338
+        ],
+        "step_4": [
+          602.4000000000001,
+          150,
+          164.8,
+          338
+        ],
+        "step_5": [
+          787.2,
+          150,
+          164.8,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "timeline--n5--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "step_1": [
+          48,
+          150,
+          164.8,
+          280
+        ],
+        "step_2": [
+          232.8,
+          150,
+          164.8,
+          280
+        ],
+        "step_3": [
+          417.6,
+          150,
+          164.8,
+          280
+        ],
+        "step_4": [
+          602.4000000000001,
+          150,
+          164.8,
+          280
+        ],
+        "step_5": [
+          787.2,
+          150,
+          164.8,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "visual-focus--caption0--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          904,
+          338
+        ]
+      },
+      "overlays": []
+    },
+    "visual-focus--caption0--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          904,
+          280
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    },
+    "visual-focus--caption1--callout0": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          904,
+          246
+        ],
+        "caption": [
+          48,
+          412,
+          904,
+          76
+        ]
+      },
+      "overlays": []
+    },
+    "visual-focus--caption1--callout1": {
+      "boxes": {
+        "kicker": [
+          48,
+          24,
+          904,
+          20
+        ],
+        "title": [
+          48,
+          48,
+          904,
+          70
+        ],
+        "subtitle": [
+          48,
+          122,
+          904,
+          22
+        ],
+        "primary_visual": [
+          48,
+          150,
+          904,
+          188
+        ],
+        "caption": [
+          48,
+          354,
+          904,
+          76
+        ],
+        "callout": [
+          48,
+          454,
+          904,
+          62
+        ]
+      },
+      "overlays": []
+    }
+  }
+}

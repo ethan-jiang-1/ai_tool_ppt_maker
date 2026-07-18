@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { basename, isAbsolute } from "node:path";
 import { parseDocument } from "yaml";
+import { canonicalJson } from "./canonical_json.mjs";
 import {
   normalizeSpokenKey,
   parseMnemonicSlideId,
@@ -197,6 +198,36 @@ function extractTitle(body) {
   return match ? match[1].trim() : "";
 }
 
+function scanStructuredBodyFields(sourceText, body, bodyStart, lines) {
+  const fields = [];
+  const re = /^\*\*SLIDE BODY\*\*:\r?\n```yaml\r?\n([\s\S]*?)^```(?:\r?\n|$)/gm;
+  let match;
+  while ((match = re.exec(body)) !== null) {
+    const start = bodyStart + match.index;
+    const yamlOffset = match[0].indexOf(match[1]);
+    const yamlStart = start + yamlOffset;
+    fields.push({
+      raw: match[0],
+      yaml: match[1],
+      range: makeRange(
+        sourceText,
+        start,
+        start + match[0].length,
+        lineAtOffset(lines, start),
+        lineAtOffset(lines, Math.max(start, start + match[0].length - 1))
+      ),
+      yaml_range: makeRange(
+        sourceText,
+        yamlStart,
+        yamlStart + match[1].length,
+        lineAtOffset(lines, yamlStart),
+        lineAtOffset(lines, Math.max(yamlStart, yamlStart + match[1].length - 1))
+      ),
+    });
+  }
+  return fields;
+}
+
 /**
  * Parse one slide source while retaining all character and UTF-8 byte ranges.
  */
@@ -245,6 +276,7 @@ export function parseSlideDocument(text, source = "slide-specifications.md") {
     const bodyBlockStart = line.end;
     const raw = sourceText.slice(line.start, nextStart);
     const body = sourceText.slice(bodyBlockStart, nextStart);
+    const structuredBodyFields = scanStructuredBodyFields(sourceText, body, bodyBlockStart, lines);
     return {
       slide_id: heading.slide_id,
       id: heading.slide_id,
@@ -256,6 +288,7 @@ export function parseSlideDocument(text, source = "slide-specifications.md") {
       title: extractTitle(body),
       raw,
       body,
+      structured_body_fields: structuredBodyFields,
       range: makeRange(
         sourceText,
         line.start,
@@ -516,19 +549,6 @@ export function validateSlideDocument(document, { historyIds = [] } = {}) {
 
 export function validateSlideDocuments(documents, options = {}) {
   return (documents || []).flatMap((document) => validateSlideDocument(document, options));
-}
-
-function canonicalJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
 }
 
 export function canonicalSlideEditJson(value) {

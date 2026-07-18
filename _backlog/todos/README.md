@@ -1,6 +1,6 @@
 # Active Todos — 活跃 todo + 依赖链 + 执行顺序
 
-> 最后更新: 2026-07-16 | `_backlog/todos/` — 活跃 todo 在此，做完移入 [`../_done/_done_todos/`](../_done/_done_todos/)。
+> 最后更新: 2026-07-17 | `_backlog/todos/` — 活跃 todo 在此，做完移入 [`../_done/_done_todos/`](../_done/_done_todos/)。
 >
 > **本文件是所有活跃工作的中枢。** todo 没有编号，文件名即标识（`todo-<name>.md`）。完成后文件名不变，位置即状态。
 
@@ -19,7 +19,9 @@
 
 | # | 文件 | 优先级 | 简述 | 阻塞 / 备注 |
 |---|------|--------|------|-------------|
-| 1 | `todo-dual-render-pipeline.md` | 中 | 双渲染管线：Image2 + HTML，用户可选 sequential/parallel | 先落 stable slide identity / order editing 的共同地基 |
+| — | — | — | — | — |
+
+_无活跃 todo。原 `todo-dual-render-pipeline.md` 已升级为 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md)。_
 
 ---
 
@@ -27,11 +29,7 @@
 
 > 有多个 todo 且存在先后依赖时，在这里用 mermaid 画依赖关系，标出"已完成地基（勿再当下一步）"与"当前应优先的车道"。示例骨架：
 
-```mermaid
-flowchart LR
-  A["plan: stable slide ID + editable order"] --> B["change: stable identity/order editing"]
-  B --> C["todo/change: dual render pipeline"]
-```
+_当前没有 todo 间依赖链。HTML-first 渐进式渲染的 change 拆分与顺序由 active plan 维护。_
 
 ---
 
@@ -41,8 +39,7 @@ flowchart LR
 
 | 顺序 | 项 | 为什么 |
 |------|-----|--------|
-| 1 | `slide-identity-and-sequence-editing` plan -> OpenSpec change | 先让顺序与身份解耦，避免 Image2/HTML 各自复制一套 `NN_<id>` 耦合 |
-| 2 | `todo-dual-render-pipeline` -> OpenSpec change | 在共同的 `(slide_id, engine)` artifact interface 上增加第二条 renderer |
+| — | — | 当前无活跃 todo；下一步见 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md) 的 OpenSpec 落地顺序 |
 
 ---
 

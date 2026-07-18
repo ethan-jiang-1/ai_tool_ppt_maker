@@ -31,7 +31,7 @@
 import "./lib/cli_bootstrap.mjs?entry=unified_pipeline.mjs";
 import { CLI_ERROR_CODES, createCliNext, diagnosticFromError, emitCliError, emitCliProgress, sanitizeCliDiagnostic } from "./lib/cli_error.mjs";
 
-import { existsSync, readFileSync, readdirSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { resolve, join, basename, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
@@ -122,6 +122,19 @@ function writeJsonAtomic(path, value) {
   return path;
 }
 
+function writeHtmlPlanAtomic(runDir, path, value, verify) {
+  const temp = join(runDir, `.slide_plan-${process.pid}-${Date.now()}.tmp`);
+  try {
+    writeFileSync(temp, JSON.stringify(value, null, 2) + "\n", { encoding: "utf-8", flag: "wx" });
+    verify();
+    mkdirSync(dirname(path), { recursive: true });
+    renameSync(temp, path);
+    return path;
+  } finally {
+    rmSync(temp, { force: true });
+  }
+}
+
 async function targetGenerationProfiles(runDir, prompts, { resolution, model }) {
   const {
     generationProfile,
@@ -170,6 +183,16 @@ export async function materializeStructuralVersion({
   const sourceDir = resolve(sourceRunDir);
   const targetDir = resolve(targetRunDir);
   if (sourceDir === targetDir) throw new Error("structural materialization requires distinct source and target versions");
+  const targetSource = join(targetDir, "slide-specifications.md");
+  if (existsSync(targetSource)) {
+    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+    const marker = probeProductionMarker(readFileSync(targetSource), { source: "slide-specifications.md" });
+    if (marker.branch === HTML_FIRST_PIPELINE) {
+      const error = new Error("HTML-first delivery is unavailable");
+      error.cliDiagnostic = { version: 1, category: "gate", operation: "structural-materialization", source: { path: "slide-specifications.md" }, reason: { kind: "html_first_delivery_unavailable" }, next: createCliNext("rerun", { default: "Keep the published source version and wait for the later HTML renderer before materialization." }) };
+      throw error;
+    }
+  }
   if (!await stage1(targetDir, false)) {
     const error = new Error("target Stage 1 failed before structural materialization");
     error.cliDiagnostic = stage1.lastFailure;
@@ -423,7 +446,7 @@ function pipelineStageDiagnostic(stageNum, runDir, diagnostic, resolution) {
  * @param {boolean} dryRun
  * @returns {Promise<boolean>}
  */
-export async function stage1(runDir, dryRun) {
+export async function stage1(runDir, dryRun, { beforeHtmlFirstPublish = null } = {}) {
   stage1.lastFailure = null;
   const inputFile = findSlideSpecs(runDir);
   if (!inputFile) {
@@ -432,6 +455,67 @@ export async function stage1(runDir, dryRun) {
   }
 
   console.log(`  Input: ${inputFile}`);
+
+  const canonicalInput = join(runDir, "slide-specifications.md");
+  const branchInput = existsSync(canonicalInput) ? canonicalInput : inputFile;
+  if (branchInput) {
+    const {
+      HTML_FIRST_PIPELINE,
+      probeProductionMarker,
+      validateAndBuildHtmlFirstPlan,
+      verifyInputReceipts,
+    } = await import("./lib/html_slide_contract.mjs");
+    const marker = probeProductionMarker(readFileSync(branchInput), { source: basename(branchInput) });
+    if (marker.branch === "invalid") {
+      return failStage(stage1, {
+        version: 1,
+        category: "source_validation",
+        stage: "stage1",
+        operation: "probe-html-first",
+        source: marker.issues[0]?.source || { path: canonicalInput },
+        issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })),
+        next: createCliNext("edit_source", { default: "Repair leading frontmatter, then rerun Stage 1." }),
+      });
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE) {
+      if (branchInput !== canonicalInput) {
+        return failStage(stage1, {
+          version: 1,
+          category: "source_validation",
+          stage: "stage1",
+          operation: "select-html-first-source",
+          source: { path: basename(branchInput) },
+          reason: { kind: "canonical_source_missing", actual: basename(branchInput), expected: "slide-specifications.md" },
+          next: createCliNext("edit_source", { default: "Restore exact slide-specifications.md and move backup copies under _scratch/." }),
+        });
+      }
+      try {
+        const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir });
+        if (dryRun) {
+          console.log(`  HTML-first validation passed (${plan.slides.length} slide(s)); no plan published.`);
+          return true;
+        }
+        const planPath = join(generatedDir(runDir), GEN_SLIDE_PLAN);
+        writeHtmlPlanAtomic(runDir, planPath, plan, () => {
+          if (typeof beforeHtmlFirstPublish === "function") beforeHtmlFirstPublish({ validated, plan, planPath });
+          verifyInputReceipts(validated.receipts, { runDir, assetCatalog: validated.assetCatalog });
+        });
+        console.log(`  HTML-first slide_plan: ${planPath}`);
+        return true;
+      } catch (error) {
+        const issues = Array.isArray(error?.issues) ? error.issues : [];
+        return failStage(stage1, {
+          version: 1,
+          category: issues.some((entry) => /asset|config|font|receipt/.test(entry.code || entry.kind || "")) ? "artifact" : "source_validation",
+          stage: "stage1",
+          operation: "validate-html-first",
+          ...(issues[0]?.source ? { source: issues[0].source } : { source: { path: canonicalInput } }),
+          ...(issues.length ? { issues: issues.map((entry) => ({ message: entry.message, subject: entry.subject, source: entry.source, reason: { kind: entry.code || entry.kind || "html_first_invalid" } })) } : { reason: { kind: "html_first_invalid" } }),
+          next: createCliNext("repair_prerequisite", { default: "Repair the retained HTML-first source/control issue, then rerun Stage 1." }),
+        });
+      }
+    }
+  }
 
   const buildDir = generatedDir(runDir);
   if (!dryRun) {
@@ -592,8 +676,6 @@ export async function stage2(runDir, {
     }
   }
 
-  const { resolveBaseUrls } = await import("./image_api_client.mjs");
-
   /** @type {string[]} */
   let selectedIds = [];
   if (only) {
@@ -613,14 +695,9 @@ export async function stage2(runDir, {
     }
   }
 
-  /** @type {string[]} */
-  let baseUrls = [];
-  try {
-    baseUrls = resolveBaseUrls(baseUrl ? [baseUrl] : []);
-  } catch (err) {
-    console.log(`  ✗ ${err.message}`);
-    return failStage(stage2, { version: 1, category: "environment", stage: "stage2", operation: "resolve-provider", source: { path: deckRoot(runDir) }, reason: { kind: "provider_configuration_unavailable" }, next: createCliNext("repair_environment", { default: "Repair provider configuration without exposing credentials, then rerun Stage 2." }) });
-  }
+  // Keep the optional CLI URL unresolved until generateOneImage reaches an
+  // actual remote submit. Current-provenance reuse must not touch transport.
+  const baseUrls = baseUrl ? [baseUrl] : [];
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`  Stage: Stage 2: Generate Images`);
@@ -1112,18 +1189,6 @@ Examples:
     .action(async (opts) => {
       const runDir = resolve(opts.runDir);
 
-      // Load credentials from .env into process.env so the API key + base URL
-      // reach Stage 2's subprocess. Search deck root first (the documented home),
-      // then cwd and its parents — a SUPERSET of env-check's search so the two
-      // never disagree (env-check greenlighting a key the pipeline then can't find).
-      // Explicit env wins (loadDotenv does not override already-set vars).
-      const dkRoot = deckRoot(runDir);
-      const searchDirs = buildEnvSearchDirs(dkRoot);
-      const envLoaded = loadDotenv(...searchDirs);
-      if (envLoaded) {
-        console.log(`Loaded credentials from ${envLoaded}`);
-      }
-
       // Parse stages first — the structure gate only needs to require the Phase-2
       // Stage-2 assets and human gate decisions only when Stage 2 is in the run.
       /** @type {number[]} */
@@ -1147,6 +1212,36 @@ Examples:
         console.log(`  ✗ Invalid resolution: ${opts.resolution}. Must be 1k, 2k, or 4k.`);
         emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Pipeline resolution must be 1k, 2k, or 4k.", hint: "Choose a supported image resolution.", where: "unified_pipeline.arguments.resolution", diagnostic: { version: 1, category: "usage", operation: "parse-resolution", reason: { kind: "invalid_enum", expected: ["1k", "2k", "4k"] }, next: createCliNext("fix_arguments", { default: "Correct --resolution, then rerun the selected stages." }) } });
         process.exit(1);
+      }
+
+      const canonicalSource = join(runDir, "slide-specifications.md");
+      const sourceCandidate = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(runDir);
+      let htmlFirst = false;
+      if (sourceCandidate) {
+        const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+        const marker = probeProductionMarker(readFileSync(sourceCandidate), { source: basename(sourceCandidate) });
+        if (marker.branch === "invalid") {
+          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker, then rerun.", where: "unified_pipeline.probe-html-first", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: "slide-specifications.md" }, issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })), next: createCliNext("edit_source", { default: "Repair leading frontmatter before readiness or stage execution." }) } });
+          process.exit(1);
+        }
+        if (marker.branch === HTML_FIRST_PIPELINE && sourceCandidate !== canonicalSource) {
+          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first requires the canonical source filename.", hint: "Restore slide-specifications.md and move backup copies under _scratch/.", where: "unified_pipeline.select-html-first-source", diagnostic: { version: 1, category: "source_validation", operation: "select-html-first-source", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: "slide-specifications.md" }, next: createCliNext("edit_source", { default: "Restore exact slide-specifications.md before readiness or stage execution." }) } });
+          process.exit(1);
+        }
+        if (marker.branch === HTML_FIRST_PIPELINE && stages.some((stage) => stage >= 2)) {
+          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first delivery is unavailable in this change.", hint: "Use validation or canonical unified Stage 1 only.", where: "unified_pipeline.html-first-delivery", diagnostic: { version: 1, category: "gate", operation: "route-html-first", source: { path: "slide-specifications.md" }, reason: { kind: "html_first_delivery_unavailable" }, next: createCliNext("rerun", { default: "Run --stage 1 with or without --dry-run; wait for the later renderer change before delivery." }) } });
+          process.exit(1);
+        }
+        htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+      }
+
+      // Legacy production keeps the existing dotenv search. HTML-first Stage 1
+      // deliberately avoids provider/prerequisite setup.
+      const dkRoot = deckRoot(runDir);
+      if (!htmlFirst) {
+        const searchDirs = buildEnvSearchDirs(dkRoot);
+        const envLoaded = loadDotenv(...searchDirs);
+        if (envLoaded) console.log(`Loaded credentials from ${envLoaded}`);
       }
 
       /** @type {boolean|string} */

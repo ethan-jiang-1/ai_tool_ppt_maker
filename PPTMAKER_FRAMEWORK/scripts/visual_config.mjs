@@ -7,6 +7,13 @@
  */
 
 import { readFileSync, statSync } from "node:fs";
+import { parseDocument } from "yaml";
+import { HTML_FAMILY_GEOMETRY_ID } from "./lib/html_family_geometry.mjs";
+import {
+    HTML_COMPONENTS_SPEC,
+    HTML_SPACING_SPEC,
+    HTML_TYPOGRAPHY_SPEC,
+} from "./lib/html_visual_tokens.mjs";
 
 // ---------------------------------------------------------------------------
 // Error class
@@ -17,6 +24,175 @@ export class VisualConfigError extends Error {
         super(message);
         this.name = "VisualConfigError";
     }
+}
+
+const HTML_EXACT_KEYS = Object.freeze([
+    "schema_version", "canvas", "palette", "typography", "spacing",
+    "components", "image_language", "geometry",
+]);
+
+const HTML_PALETTE_KEYS = Object.freeze([
+    "background", "surface", "text", "muted_text", "accent",
+    "accent_secondary", "accent_tertiary", "divider",
+]);
+
+export const HTML_VISUAL_PROJECTION_V1_PATHS = Object.freeze([
+    "canvas",
+    "geometry.registry",
+    "geometry.registry_sha256",
+    "geometry.record",
+]);
+
+export const HTML_STYLE_REFERENCE_PROJECTION_V1_PATHS = Object.freeze([
+    ...HTML_PALETTE_KEYS.map((key) => `palette.${key}`),
+    "image_language.medium",
+    "image_language.material",
+    "image_language.lighting",
+    "image_language.texture",
+    "image_language.composition",
+    "image_language.avoid",
+]);
+
+export function buildHtmlVisualProjectionV1(config, { registrySha256, record }) {
+    return {
+        canvas: config.canvas,
+        registry: config.geometry.registry,
+        registry_sha256: registrySha256,
+        record,
+    };
+}
+
+export function buildHtmlStyleReferenceProjectionV1(config) {
+    return {
+        palette: config.palette,
+        image_language: config.image_language,
+    };
+}
+
+function htmlGraphemes(value) {
+    return [...new Intl.Segmenter("und", { granularity: "grapheme" }).segment(String(value))].length;
+}
+
+function exactKeys(value, expected, context) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new VisualConfigError(`${context} must be an object`);
+    }
+    const actual = Object.keys(value);
+    const unknown = actual.filter((key) => !expected.includes(key));
+    const missing = expected.filter((key) => !actual.includes(key));
+    if (unknown.length || missing.length) {
+        throw new VisualConfigError(`${context} keys mismatch; missing=${missing.join(",") || "none"}; unknown=${unknown.join(",") || "none"}`);
+    }
+    return value;
+}
+
+function resolvePaletteReference(data, reference, context) {
+    if (typeof reference !== "string") throw new VisualConfigError(`${context} must be a palette path string`);
+    let value;
+    if (reference === "background") value = data.background;
+    else {
+        const match = /^colors\.([a-z0-9_]+)\.hex$/.exec(reference);
+        if (!match) throw new VisualConfigError(`${context} has unsupported palette path ${JSON.stringify(reference)}`);
+        value = data.colors?.[match[1]]?.hex;
+    }
+    if (typeof value !== "string" || !HEX_COLOR_RE.test(value)) {
+        throw new VisualConfigError(`${context} does not resolve to #RRGGBB`);
+    }
+    return value.toLowerCase();
+}
+
+function resolveHtmlColor(value, palette, context) {
+    if (typeof value !== "string") throw new VisualConfigError(`${context} must be a palette reference`);
+    const match = /^palette\.([a-z_]+)$/.exec(value);
+    if (!match || !Object.hasOwn(palette, match[1])) throw new VisualConfigError(`${context} references an unknown palette token`);
+    return palette[match[1]];
+}
+
+function deepResolveComponentColors(value, palette, context = "html_first.components") {
+    if (Array.isArray(value)) return value.map((item, index) => deepResolveComponentColors(item, palette, `${context}[${index}]`));
+    if (value && typeof value === "object") {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, deepResolveComponentColors(item, palette, `${context}.${key}`)]));
+    }
+    if (typeof value === "string" && value.startsWith("palette.")) return resolveHtmlColor(value, palette, context);
+    return value;
+}
+
+export function parseHtmlVisualConfig(data) {
+    const html = exactKeys(data?.html_first, HTML_EXACT_KEYS, "html_first");
+    if (html.schema_version !== 1) throw new VisualConfigError("html_first.schema_version must equal 1");
+    if (JSON.stringify(html.canvas) !== JSON.stringify({ width: 1000, height: 562.5 })) {
+        throw new VisualConfigError("html_first.canvas must equal {width:1000,height:562.5}");
+    }
+    const paletteSource = exactKeys(html.palette, HTML_PALETTE_KEYS, "html_first.palette");
+    const palette = Object.fromEntries(HTML_PALETTE_KEYS.map((key) => [
+        key,
+        resolvePaletteReference(data, paletteSource[key], `html_first.palette.${key}`),
+    ]));
+
+    const typographySource = exactKeys(html.typography, Object.keys(HTML_TYPOGRAPHY_SPEC), "html_first.typography");
+    const typography = {};
+    for (const [role, [weight, size, lineHeight, color]] of Object.entries(HTML_TYPOGRAPHY_SPEC)) {
+        const record = exactKeys(typographySource[role], ["families", "weight", "size", "line_height", "color"], `html_first.typography.${role}`);
+        if (JSON.stringify(record.families) !== JSON.stringify(["Source Sans 3", "Noto Sans SC"])) throw new VisualConfigError(`html_first.typography.${role}.families is invalid`);
+        if (record.weight !== weight || record.size !== size || record.line_height !== lineHeight || record.color !== `palette.${color}`) throw new VisualConfigError(`html_first.typography.${role} differs from schema v1`);
+        typography[role] = { ...record, color: palette[color] };
+    }
+
+    if (JSON.stringify(html.spacing) !== JSON.stringify(HTML_SPACING_SPEC)) throw new VisualConfigError("html_first.spacing differs from schema v1");
+    const componentKeys = ["text_block", "card", "metric", "step", "quote", "chart", "icon", "icon_composition", "callout", "abstract_pattern"];
+    exactKeys(html.components, componentKeys, "html_first.components");
+    if (JSON.stringify(html.components) !== JSON.stringify(HTML_COMPONENTS_SPEC)) throw new VisualConfigError("html_first.components differs from schema v1");
+    const components = deepResolveComponentColors(html.components, palette);
+
+    const language = exactKeys(html.image_language, ["medium", "material", "lighting", "texture", "composition", "avoid"], "html_first.image_language");
+    const resolvedLanguage = {};
+    for (const key of ["medium", "material", "lighting", "texture", "composition"]) {
+        if (typeof language[key] !== "string" || !language[key].trim() || /[\r\n]/.test(language[key]) || htmlGraphemes(language[key]) > 200) throw new VisualConfigError(`html_first.image_language.${key} must be non-empty single-line text of at most 200 graphemes`);
+        resolvedLanguage[key] = language[key];
+    }
+    if (language.avoid !== "forbidden") throw new VisualConfigError("html_first.image_language.avoid must equal forbidden");
+    if (!Array.isArray(data.forbidden) || data.forbidden.length > 16 || data.forbidden.some((item) => typeof item !== "string" || !item.trim() || /[\r\n]/.test(item) || htmlGraphemes(item) > 100)) {
+        throw new VisualConfigError("forbidden must be an array of at most 16 non-empty single-line strings of at most 100 graphemes");
+    }
+    resolvedLanguage.avoid = [...data.forbidden];
+    if (JSON.stringify(html.geometry) !== JSON.stringify({ registry: HTML_FAMILY_GEOMETRY_ID })) throw new VisualConfigError("html_first.geometry.registry is unsupported");
+
+    return Object.freeze({
+        schema_version: 1,
+        canvas: { width: 1000, height: 562.5 },
+        palette,
+        typography,
+        spacing: { ...HTML_SPACING_SPEC },
+        components,
+        image_language: resolvedLanguage,
+        geometry: { registry: HTML_FAMILY_GEOMETRY_ID },
+    });
+}
+
+function parseStrictJsonWithDuplicateAudit(raw, path) {
+    let data;
+    try { data = JSON.parse(raw); } catch (error) {
+        throw new VisualConfigError(`could not read ${path}: ${error.message}`);
+    }
+    const document = parseDocument(raw, { version: "1.2", schema: "json", uniqueKeys: true });
+    if (document.errors.length || document.warnings.length) {
+        const problem = [...document.errors, ...document.warnings][0];
+        throw new VisualConfigError(`could not read ${path}: ${problem.message.split("\n")[0]}`);
+    }
+    return data;
+}
+
+export function loadVisualConfigViews(path) {
+    let raw;
+    try { raw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(path)); } catch (error) {
+        throw new VisualConfigError(`could not read ${path}: ${error.message}`);
+    }
+    const data = parseStrictJsonWithDuplicateAudit(raw, path);
+    return { raw, data, legacy: parseVisualConfig(data), html_first: parseHtmlVisualConfig(data) };
+}
+
+export function loadHtmlVisualConfig(path) {
+    return loadVisualConfigViews(path).html_first;
 }
 
 // ---------------------------------------------------------------------------

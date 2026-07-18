@@ -19,9 +19,7 @@
 
 | Plan | 简述 |
 |------|------|
-| — | — |
-
-_无活跃 plan。_
+| [`html-first-progressive-rendering.md`](html-first-progressive-rendering.md) | HTML-first 渐进式渲染总控；专题覆盖产品、schema/family、runtime、artifact、事务、OpenSpec 交付及 `PPTMAKER_FRAMEWORK/workflow` 目录迁移 |
 
 **Next available plan ID: CLS-008**（移入 `_closed_plans/` 时分配；CLS-001…007 已用）
 

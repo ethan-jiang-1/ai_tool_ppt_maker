@@ -88,6 +88,14 @@ describe("ppt_flow", () => {
     }
   });
 
+  it("documents doctor --image2 as offline and keeps live flags distinct", () => {
+    const help = runPptFlow(["doctor", "--help"]);
+    expect(help.status).toBe(0);
+    expect(help.stdout).toMatch(/--image2.*offline Image2 presence/is);
+    expect(help.stdout).toMatch(/--smoke.*one live first-vendor submit/is);
+    expect(help.stdout).toMatch(/--probe-vendors.*every resolved vendor/is);
+  });
+
   it("state --help exits 0 without failure envelope", () => {
     const r = runPptFlow(["state", "--help"]);
     expect(r.status).toBe(0);

@@ -42,7 +42,7 @@ IMAGE2_BASE_URL=https://your-relay/v1
 
 两者都必填。`IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 是唯一的凭据组合。CLI `--base-url` 可在运行时覆盖 URL。
 
-写进 **deck 根（优先）或 repo 根** 的 `.env`（walk-up 加载）。doctor ≡ 运行时：缺 key 或缺 URL → **NOT READY**（无静默默认 endpoint）。
+写进 **deck 根（优先）或 repo 根** 的 `.env`（walk-up 加载）。默认 doctor 不读取或要求 Image2；显式 `doctor --image2` 才离线检查 key、URL、Stage 2 implementation 与 resolved count。缺 key 或 URL 只让 Image2 mode **NOT READY**，不撤销 base READY。
 
 Contract：
 
@@ -54,17 +54,17 @@ GET  /tasks/{task_id}/result   → 下载生成的图片（async）
 
 submit / poll / result 均认 `data` 为对象或数组包络（含 `{ code, data:[{ task_id }] }`）。sync 响应可直接带图 ref。
 
-### 冒烟赋能（禁止首败甩锅小白）
+### 离线 presence 与确认后的 live probe
 
-缺凭据、doctor 报缺 URL、或第一次出图失败时，Agent **必须**多组合试通，再告诉新手「你自己配」：
+缺凭据、显式 Image2 doctor 报缺 URL、或第一次出图失败时，Agent 先把本地检查与 live provider submit 分开：
 
 1. 问用户要候选 key / URL
-2. 按优先级试：`IMAGE2_*` → `--base-url` → 用户给的其它 URL
-3. 廉价门禁：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --smoke`（第一家）  
-   或：`… style-master <versionDir> --force --resolution 1k`
-4. 首败换组合；禁止首败结案
-5. 症状持续（smoke 败 / 502 / 全挂 / 用户说画不出）且本 session 未 probe → **白话亮能力**：要不要逐家试画画通道？→ `probe-image-channels` / `doctor --probe-vendors`（见 [COMMANDS.md](../../COMMANDS.md)「环境 / 画画通道」）。`--smoke` 与 `--probe-vendors` 互斥。长出图转述 stdout 心跳与 `i/N`。
-6. **通了 → 落点（下一节）**
+2. 写入获准的 `.env` 后先跑 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2`；这是离线 presence/resolver-count 检查，provider submit 为 0
+3. 需要第一家通道诊断时，先披露 `doctor --smoke` 会向第一家提交 **1 次**、可能计费，并取得用户明确确认；拒绝时不调用
+4. 症状持续且需要逐家体检时，先从离线输出取得 resolved count，披露 `doctor --probe-vendors` 将每家 **1 次**、说清总 submit 数，并取得用户明确确认
+5. `--smoke` 与 `--probe-vendors` 互斥；长出图持续转述 heartbeat、`i/N` 与 Summary。redirect、5xx、timeout 或 ambiguous network failure 不在同一次 doctor probe 内重试
+6. style-master 是真实生产 reference asset，不是 channel diagnostic substitute；probe success 也不批准 style-master、build 或页面 refinement
+7. **通了 → 按下一节在另一次确认后落点**
 
 下次进 deck：先扫 `_lessons/`（若有 `image2-proven.yaml` 优先读）再猜 endpoint。
 
@@ -78,7 +78,7 @@ submit / poll / result 均认 `data` 为对象或数组包络（含 `{ code, dat
 `_lessons/` 是 run bundle **自留教训面**（遇事自己克服 → 留下 → 下次先读），不是 Image2 专用夹。`image2-proven.yaml` 只是例子。  
 字段：`proven_at`、`base_url`、`via`（`env`|`cli`|`user-provided`）、可选 `notes`；**无 API key 字段**。
 
-禁止：经验只留聊天；密钥进 `_lessons/`；自创非宪法目录装教训；探针未确认就写 `.env`。
+禁止：经验只留聊天；密钥进 `_lessons/`；自创非宪法目录装教训；探针成功后未经单独确认就写 `.env`。写入后只用离线 `doctor --image2` 复查 presence，不自动追加一次 `--smoke`；若确需再 smoke，重新披露 1 次 submit 并重新确认。
 
 ## 参考脚本
 
@@ -108,8 +108,10 @@ Stage 2 HTTP 用 Node 内置 `fetch`，无额外 npm 依赖。
 Phase 0 创建 run bundle 后，确认：
 
 - [ ] 在 repo 根运行 `npm install` 成功
+- [ ] 运行 `npm run setup:chromium` 安装固定 Playwright 配对的 Chromium
 - [ ] `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` 显示 READY
-- [ ] `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 已设置
+- [ ] framework 内置 HTML WOFF2 字体通过 `html_fonts`；用户未被要求安装系统字体或联网下载字体
+- [ ] 仅当用户选择 Image2 时，`IMAGE2_API_KEY` + `IMAGE2_BASE_URL` 已设置且离线 `doctor --image2` READY
 - [ ] 若已有 `_lessons/image2-proven.yaml`，先读再猜 endpoint
-- [ ] 出图症状持续时已考虑 `doctor --probe-vendors` / `probe-image-channels`（见 COMMANDS「环境 / 画画通道」）
-- [ ] 字体文件存在于 `stage3_lock_headers.mjs` 可解析路径（bundled `fonts/` 或系统字体）
+- [ ] 任何 live doctor probe 都先披露 submit 总数并得到确认；style-master 不作诊断替代
+- [ ] Stage 3 的 legacy canvas 字体 warning 与 HTML runtime 的 blocking WOFF2 检查没有混为一谈

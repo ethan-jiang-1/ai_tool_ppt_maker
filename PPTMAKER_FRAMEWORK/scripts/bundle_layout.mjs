@@ -566,6 +566,17 @@ export function checkBundle(runDir, requirePipelineReady = true) {
                         `not a canonical visual-style asset`);
                 }
             }
+            const overrideAssets = path.join(overrideStyle, BACKBONE_ASSETS_SUBDIR);
+            if (fs.existsSync(overrideAssets) && fs.statSync(overrideAssets).isDirectory()) {
+                for (const entry of fs.readdirSync(overrideAssets, { withFileTypes: true })) {
+                    if (_ignorable(entry.name)) continue;
+                    if (!_ALLOWED_IN_ASSETS.has(entry.name)) {
+                        problems.push(
+                            `unexpected '${entry.name}' in ${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/ — ` +
+                            `not canonical. Allowed: ${[..._ALLOWED_IN_ASSETS].sort().join(', ')}`);
+                    }
+                }
+            }
         }
     }
 

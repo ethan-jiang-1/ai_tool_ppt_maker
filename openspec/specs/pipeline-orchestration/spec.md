@@ -4,12 +4,17 @@ Define how the five production stages are orchestrated: the whole pipeline runs 
 ## Requirements
 ### Requirement: Pipeline runs on Node.js runtime
 
-整个生产管线 SHALL 在 Node.js 18+ 运行时上执行. 所有脚本 SHALL 以 ESM (`.mjs`) 编写, `node script.mjs` 直接运行, 无需编译.
+整个生产管线 SHALL 在 checked-in runtime profile 支持的 Node.js major (`22.x`、`24.x` 或 `26.x`) 上执行；`package.json` 的 `>=22` 只表达 engine floor，不自动支持 23/25 等未列出的 major. 所有脚本 SHALL 以 ESM (`.mjs`) 编写, `node script.mjs` 直接运行, 无需编译. 需要本地 HTML runtime 的调用 SHALL 消费 `html-render-runtime` 拥有的 exact Playwright/Chromium/font profile，而不得自行选择 system browser；legacy Image2 stages SHALL 继续使用其现有 Node adapter.
 
 #### Scenario: Agent runs pipeline on Windows
 
-- **WHEN** Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on Windows 11 with Node.js 20
-- **THEN** all 5 stages complete successfully, producing a .pptx file
+- **WHEN** Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on supported Windows with Node.js 22 and the selected pipeline's prerequisites
+- **THEN** all selected production stages complete successfully, producing a `.pptx` file
+
+#### Scenario: Node 20 is below the repository baseline
+
+- **WHEN** Agent attempts to run the production pipeline on Node.js 20
+- **THEN** the environment gate reports the unsupported runtime before production work proceeds
 
 ### Requirement: Unified pipeline supports semantic refresh paths
 
@@ -350,3 +355,140 @@ Pipeline status, selector diagnostics, pilot/contact-sheet labels, and structura
 - **WHEN** a contact sheet is rebuilt after reordering
 - **THEN** each label shows the page's new position and unchanged formal ID
 - **AND** the image artifact remains associated by ID rather than label text
+
+### Requirement: Legacy Image2 entry points enforce their own remote prerequisites
+
+Every legacy orchestration path SHALL first determine whether selected work can reuse current verified artifacts. Only a path that is about to submit Image2 work SHALL validate action-specific prerequisites, immediately before entering its remote adapter. Every remote submit SHALL require resolvable Image2 credentials and base URL. Legacy page generation through pilot, build, or visual rebuild SHALL additionally require its current style-reference asset. Style-master generation SHALL require transport prerequisites but SHALL NOT require a pre-existing style master. The guard SHALL use existing credential, run-bundle, and style-reference authorities and SHALL NOT rely on a prior doctor result. A missing prerequisite SHALL fail before provider submit with the existing secret-safe CLI diagnostic authority.
+
+Local-only Stage subsets, dry runs, Structural Versioning materialization from verified artifacts, notes-only refresh, assembly that reuses already reviewed images, a no-op style-master invocation retaining its existing output, and Stage 2 when every selected image has current provenance SHALL NOT acquire Image2 transport prerequisites and SHALL NOT make a remote request merely because default doctor no longer checks Image2.
+
+#### Scenario: Legacy pilot has no credentials
+
+- **WHEN** a legacy pilot reaches its Image2 generation boundary without resolvable `IMAGE2_API_KEY` or `IMAGE2_BASE_URL`
+- **THEN** it fails before the provider adapter is called
+- **AND** the diagnostic points to explicit Image2 readiness/remediation without exposing secret values
+
+#### Scenario: Legacy Stage 2 has no style reference
+
+- **WHEN** a legacy build or visual refresh is about to enter Stage 2 and its required style master is absent
+- **THEN** orchestration fails before any Image2 submit
+- **AND** it identifies the style-reference prerequisite through existing run-bundle paths
+
+#### Scenario: Style-master generation has no style master yet
+
+- **WHEN** legacy style-master generation has valid Image2 transport prerequisites but no existing style master
+- **THEN** the action may enter its remote adapter
+- **AND** does not impose the page-generation style-reference guard on itself
+
+#### Scenario: Local stages do not inherit Image2 gate
+
+- **WHEN** an invocation runs only Stages 1, 3, 4, or 5 from valid local/reviewed inputs
+- **THEN** missing Image2 credentials do not block the invocation
+- **AND** no provider submit occurs
+
+#### Scenario: Structural materialization remains remote-free
+
+- **WHEN** a structural version reuses verified expensive raw renders under the existing materialization contract
+- **THEN** it does not run an Image2 readiness guard as a substitute for materialization evidence
+- **AND** it never silently invokes remote rendering
+
+#### Scenario: Dry run does not require or submit Image2
+
+- **WHEN** a legacy pipeline invocation includes Stage 2 but is executed with `--dry-run`
+- **THEN** it may report the future prerequisite boundary but does not require secret values, launch a provider adapter, or submit remote work
+
+#### Scenario: Current generated artifacts require no transport lookup
+
+- **WHEN** style-master or Stage 2 determines that every selected output can be retained or reused under current provenance without generation
+- **THEN** missing Image2 credentials and base URL do not block the invocation
+- **AND** no transport prerequisite resolver or provider adapter is invoked
+
+### Requirement: HTML-first source validation is available before HTML-first production
+
+Change 2 SHALL expose exactly three general-purpose, Stage-1-equivalent write-free HTML-first validation routes: `ppt_flow.mjs validate <run-dir>`, `stage1_build_inputs.mjs --validate --spec <run-dir>/slide-specifications.md`, and `unified_pipeline.mjs --run-dir <run-dir> --stage 1 --dry-run`. Edit-specific structural preview may invoke the same local validation core only as part of a concrete source transaction under `slide-identity-and-ordering`; it is not a fourth general validation entry, cannot publish a plan, and cannot substitute alternate run/config/catalog inputs. Direct HTML-first validation SHALL accept exactly that one canonical `--spec` and SHALL reject additional specs plus `--out`, `--style-dir`, `--color-palette`, or `--deck-system` overrides through the existing usage envelope, so validation and publication cannot resolve different control inputs. The sole generated-artifact publication route SHALL be literal `unified_pipeline.mjs --run-dir <run-dir> --stage 1` without `--dry-run`; it atomically rebuilds only the existing structured `_generated/slide_plan.json` projection without legacy prompt files. All HTML-first validation and canonical Stage-1 routes SHALL run without dotenv search, provider/model/style-reference prerequisite resolution, or remote-call setup. A non-validation direct `stage1_build_inputs.mjs` invocation that detects the marker SHALL fail with existing code `FAILED`, category `gate`, and `reason.kind: html_first_projection_requires_run_dir`, directing the caller to the canonical unified Stage-1 route rather than honoring arbitrary `--out` as a second publication authority.
+
+For a marked source, the direct validator SHALL reject the legacy `--input` alias, repeated/combined `--spec` values, and every unknown option with the existing `USAGE` envelope before reading alternate control inputs. The markerless branch SHALL retain the existing `--input` alias, multi-input behavior, and legacy option compatibility.
+
+Until a later owning change installs the HTML renderer and provider-neutral delivery path, direct `generate_style_master.mjs --run-dir <run-dir>`, `ppt_flow style-master`, `ppt_flow approve <run-dir> header`, public pilot, build, every refresh kind, and any `unified_pipeline --stage` selection containing legacy Stage 2-5 SHALL perform a shared leading-frontmatter marker probe before run readiness, dotenv/credential/provider-prerequisite resolution, implicit Stage-1 refresh, output/state writes, or any selected stage. They SHALL fail through the existing CLI envelope code `FAILED` with diagnostic category `gate` and `reason.kind: html_first_delivery_unavailable`. The diagnostic SHALL use `cli_error.mjs`, direct maintainers to validation/canonical Stage 1 only, and SHALL not suggest removing the marker or silently use the legacy pipeline. Malformed leading frontmatter SHALL flow to the normal write-free source-validation diagnostic before those prerequisites rather than be treated as a legacy omission. Standalone Stage 2-5 CLIs consume explicit artifact arguments rather than a run-directory source and are unchanged; this change does not claim they can infer a source marker they are not given. Content/visual gate approval and structural source preview/apply remain governed by their existing non-delivery authorities.
+
+The existing structural source preview/apply path MAY operate on HTML-first source under `slide-identity-and-ordering`, but legacy cross-version raw-render materialization SHALL detect an HTML-first target and return the same unavailable-delivery reason before target Stage 1, prompt lookup, artifact copy, state write, or local Stage 3-5 work. Source publication and production materialization remain separate authorizations.
+
+#### Scenario: Structured source validates locally
+
+- **WHEN** a valid HTML-first source runs the explicit parse/validate path
+- **THEN** schema, family, capacity/font, asset, selection, and fingerprint validation can complete locally
+- **AND** zero remote calls or production images are created
+
+#### Scenario: Stage 1-only projection is the sole write-enabled path
+
+- **WHEN** canonical `unified_pipeline --run-dir <run-dir> --stage 1` without `--dry-run` processes a valid HTML-first source
+- **THEN** it atomically rebuilds only the existing `slide_plan.json` projection
+- **AND** it writes no legacy prompt manifest/twins or downstream artifacts
+
+#### Scenario: Stage 1 dry-run is validation-only
+
+- **WHEN** `unified_pipeline --run-dir <run-dir> --stage 1 --dry-run` processes an HTML-first source
+- **THEN** it performs the same local source/config/catalog/font/fingerprint validation without publishing a temp or final plan
+- **AND** every source, control, generated, and state byte remains unchanged
+
+#### Scenario: Direct Stage 1 cannot publish to an arbitrary output
+
+- **WHEN** non-validation `stage1_build_inputs.mjs` receives an HTML-first canonical source plus any `--out`
+- **THEN** it returns `html_first_projection_requires_run_dir` before creating the output path
+- **AND** only the canonical unified Stage-1 route can publish `_generated/slide_plan.json`
+
+#### Scenario: Direct validation cannot substitute control inputs
+
+- **WHEN** direct Stage-1 `--validate` detects HTML-first source and also receives a second spec or any explicit output/style/palette/deck-system path
+- **THEN** it returns the existing usage envelope before resolving alternate control bytes
+- **AND** the canonical source's run context remains the only validation authority
+
+#### Scenario: HTML-first validation does not accept legacy aliases or unknown flags
+
+- **WHEN** a marked source is passed to direct Stage 1 with `--input` or an unknown option
+- **THEN** it returns the existing `USAGE` envelope before source/config/catalog resolution
+- **AND** markerless legacy invocations retain their existing alias and option behavior
+
+#### Scenario: Invalid Stage 1 leaves the prior projection intact
+
+- **WHEN** canonical write-enabled unified Stage 1 fails source, config, catalog, or fingerprint validation
+- **THEN** any prior `slide_plan.json` bytes remain unchanged and no temp file remains published
+- **AND** when `_generated/` did not exist before the invocation, the failed attempt does not create the directory or any other generated/state path
+- **AND** the failure uses the existing source/artifact diagnostic authority
+
+#### Scenario: Input drift before atomic publish aborts
+
+- **WHEN** source, effective palette, geometry-registry bytes, any verified font-authority input, either manifest, or any validated manifest asset changes after Stage 1 reads it but before final `slide_plan.json` rename, or an asset no longer passes the same realpath/regular-file confinement check
+- **THEN** Stage 1 detects the input-receipt mismatch and fails without replacing the prior plan
+- **AND** it leaves the pre-existing generated directory/file set unchanged apart from cleanup of its own hidden temp path
+- **AND** the next action is a clean Stage-1 rerun rather than publishing mixed-snapshot evidence
+
+#### Scenario: Build fails before legacy Stage 2
+
+- **WHEN** a user invokes pilot, build, or production refresh on an HTML-first source during Change 2
+- **THEN** orchestration emits the existing `FAILED` envelope with reason `html_first_delivery_unavailable` before readiness, implicit Stage 1, dotenv/Image2/style-reference resolution, or any stage
+- **AND** no legacy prompt, provider submit, screenshot, PPTX, or production state is created or changed
+
+#### Scenario: Dry-run does not imply HTML-first delivery availability
+
+- **WHEN** `unified_pipeline --run-dir <html-first-run> --stage <selection>` contains any of Stages 2-5 and also uses `--dry-run`
+- **THEN** it returns the same unavailable-delivery diagnostic before stage planning
+- **AND** it does not advertise the legacy stages as a viable future route for that source branch
+
+#### Scenario: Legacy style/header preparation is unavailable for the branch
+
+- **WHEN** direct `generate_style_master.mjs`, `ppt_flow style-master`, or `ppt_flow approve <run-dir> header` targets an HTML-first source
+- **THEN** it returns `html_first_delivery_unavailable` before Stage 1, Image2/style-reference/header-review prerequisites, metadata writes, or generated writes
+- **AND** content/visual approval remains a separate existing human-control action rather than proof of delivery readiness
+
+#### Scenario: Structural source edit does not enter legacy materialization
+
+- **WHEN** an HTML-first structural apply has published a valid target version and legacy structural materialization is requested for it
+- **THEN** materialization returns `html_first_delivery_unavailable` before Stage 1 or generated/state writes
+- **AND** the already-published source version remains valid and unchanged
+
+#### Scenario: Legacy production remains unchanged
+
+- **WHEN** a source has no HTML-first pipeline marker
+- **THEN** existing pilot/build/refresh routing and prerequisites remain unchanged
+

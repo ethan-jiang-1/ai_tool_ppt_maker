@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "scope": "fixed-bilingual-runtime-smoke-only",
+  "latin": {
+    "family": "Source Sans 3",
+    "weight": 600,
+    "text": "PPT 2026 - Cafe resume: EUR GBP USD $42.50 !?"
+  },
+  "han": {
+    "family": "Noto Sans SC",
+    "weight": 600,
+    "text": "中文演示：标题、正文与数字2026。"
+  },
+  "claims": {
+    "actualDeckCoverage": false,
+    "pixelOverflow": false,
+    "fullCjk": false,
+    "supportedCjkProfile": "Simplified Chinese (Hans)"
+  }
+}

@@ -2,14 +2,15 @@
 /**
  * Zero-dependency environment checker for PPTMAKER_FRAMEWORK.
  *
- * Run this FIRST — it is the hard startup gate. Node.js 18+ and npm are the
- * FOUNDATION. Also checks API key, deps, fonts, and prints a clear READY/NOT READY
- * report.
+ * Run this FIRST — it is the hard startup gate. Supported Node.js and npm are
+ * the FOUNDATION. Default mode checks local HTML runtime readiness; Image2 is
+ * selected explicitly.
  *
  * Cross-platform: macOS, Linux, Windows. Node built-in modules only.
  *
  *     node scripts/env-check.mjs           # human-readable
  *     node scripts/env-check.mjs --json    # machine-readable
+ *     node scripts/env-check.mjs --image2  # + offline Image2 presence
  *     node scripts/env-check.mjs --smoke   # + live Image2 submit probe (task_id)
  */
 
@@ -22,6 +23,7 @@ import {
   registerCliJsonReport,
   setCliOutputMode,
 } from './lib/cli_error.mjs';
+import { HTML_RUNTIME_PROFILE } from './lib/html_runtime_profile.mjs';
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
@@ -32,6 +34,13 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const IS_WINDOWS = process.platform === 'win32';
+
+export const BASE_CHECK_NAMES = Object.freeze([
+  'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
+  'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
+]);
+export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'stage2_generator']);
+export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
 
 // --- Helpers ---
 
@@ -303,17 +312,17 @@ export { loadDotenv, walkUpDirs, findPackageInAncestorNodeModules };
 
 // --- Checks ---
 
-function checkNode() {
-  const v = process.versions.node.split('.').map(Number);
-  const ok = v[0] >= 18;
+function checkNode(nodeVersion = process.versions.node) {
+  const major = Number.parseInt(String(nodeVersion).split('.')[0], 10);
+  const ok = HTML_RUNTIME_PROFILE.supportedNodeMajors.includes(major);
   const winFix = 'Windows: install from https://nodejs.org (LTS), or `winget install OpenJS.NodeJS.LTS`';
-  const unixFix = 'macOS: `brew install node@20`. Linux: use your package manager or https://nodejs.org';
+  const unixFix = 'macOS: `brew install node@24`. Linux: install Node.js 24 LTS from your package manager or https://nodejs.org';
   return {
     check: 'nodejs',
     foundation: true,
     status: ok ? 'ok' : 'fail',
-    detail: `Node.js ${process.versions.node}`,
-    fix: ok ? null : `Need Node.js 18+. ${IS_WINDOWS ? winFix : unixFix}`,
+    detail: `Node.js ${nodeVersion} (supported majors: 22, 24, 26)`,
+    fix: ok ? null : `Need Node.js 22.x, 24.x, or 26.x (24.x recommended). ${IS_WINDOWS ? winFix : unixFix}`,
   };
 }
 
@@ -351,7 +360,7 @@ function checkBaseUrl() {
   return {
     check: 'image_base_url',
     status: ok ? 'ok' : 'fail',
-    detail: ok ? `set (${url})` : 'not set',
+    detail: ok ? 'found (IMAGE2_BASE_URL)' : 'not set',
     fix: ok ? null : (
       'Image API base URL is required. Put it in .env:\n' +
       '  IMAGE2_BASE_URL=https://your-relay/v1'
@@ -387,26 +396,47 @@ function checkFonts() {
   };
 }
 
-function checkNpmPackages(start = process.cwd()) {
+function discoverNpmPackages(start = process.cwd()) {
   const pkgs = [
     { importName: '@napi-rs/canvas', pkg: '@napi-rs/canvas', required: true },
     { importName: 'pptxgenjs', pkg: 'pptxgenjs', required: true },
     { importName: 'commander', pkg: 'commander', required: true },
+    { importName: 'playwright', pkg: 'playwright', required: true, exactVersion: HTML_RUNTIME_PROFILE.playwrightVersion },
   ];
 
-  return pkgs.map(({ importName, pkg, required }) => {
+  let playwright = null;
+  const checks = pkgs.map(({ importName, pkg, required, exactVersion }) => {
     const nm = findPackageInAncestorNodeModules(importName, start);
-    const ok = nm != null;
+    const packageRoot = nm ? join(nm, ...importName.split('/')) : null;
+    let installedVersion = null;
+    if (packageRoot && exactVersion) {
+      try {
+        installedVersion = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).version;
+      } catch {}
+    }
+    const present = nm != null;
+    const versionOk = !exactVersion || installedVersion === exactVersion;
+    const ok = present && versionOk;
+    if (pkg === 'playwright' && present) {
+      playwright = { root: packageRoot, version: installedVersion };
+    }
     return {
       check: pkg,
       status: ok ? 'ok' : (required ? 'fail' : 'warn'),
-      detail: ok ? `installed (via ${nm})` : 'not installed',
-      fix: ok ? null : 'Run `npm install` in the project root.',
+      detail: ok
+        ? (exactVersion ? `installed (exact ${installedVersion})` : 'installed (ancestor node_modules)')
+        : (present && exactVersion ? `version ${installedVersion ?? 'unknown'} does not match ${exactVersion}` : 'not installed'),
+      fix: ok ? null : 'Run `npm install` in the project root to restore package/lock alignment.',
     };
   });
+  return { checks, playwright };
 }
 
-export { checkNpmPackages };
+function checkNpmPackages(start = process.cwd()) {
+  return discoverNpmPackages(start).checks;
+}
+
+export { checkNode, checkNpmPackages, discoverNpmPackages };
 
 function checkStage2Generator() {
   // In-framework Node Stage 2 — no external skills.
@@ -462,23 +492,112 @@ function checkDiskSpaceSync() {
 
 // --- Runner ---
 
-function runAllChecks() {
+function unavailableHtmlRuntimeChecks(reason) {
+  return [
+    {
+      check: 'chromium', status: 'fail', detail: `not checked (${reason})`,
+      fix: 'Run `npm install`, then `npm run setup:chromium` in the project root.',
+    },
+    {
+      check: 'html_fonts', status: 'fail', detail: `not checked (${reason})`,
+      fix: 'Restore the complete PPTMAKER_FRAMEWORK package, including scripts/fonts/.',
+    },
+    {
+      check: 'html_runtime_smoke', status: 'fail', detail: `not checked (${reason})`,
+      fix: 'Repair the preceding local runtime checks, then rerun doctor.',
+    },
+  ];
+}
+
+async function checkHtmlRuntime(playwright) {
+  const { inspectHtmlRuntime, runHtmlRuntimeSmoke } = await import('./lib/html_runtime.mjs');
+  const { verifyHtmlFontBundle } = await import('./lib/html_fonts.mjs');
+  const runtime = await inspectHtmlRuntime({
+    playwrightRoot: playwright.root,
+    playwrightVersion: playwright.version,
+  });
+  const fontEvidence = verifyHtmlFontBundle();
+  const chromium = {
+    check: 'chromium',
+    status: runtime.ok ? 'ok' : 'fail',
+    detail: runtime.ok
+      ? `paired Chromium ${runtime.chromium.browserVersion} (revision ${runtime.chromium.revision}) installed`
+      : (runtime.error === 'paired_chromium_missing' ? 'paired Chromium is not installed' : 'Playwright/Chromium profile mismatch'),
+    fix: runtime.ok ? null : 'Run `npm run setup:chromium` in the project root; doctor never installs a browser.',
+  };
+  const htmlFonts = {
+    check: 'html_fonts',
+    status: fontEvidence.ok ? 'ok' : 'fail',
+    detail: fontEvidence.ok
+      ? `${fontEvidence.fontFiles} bundled WOFF2 files; fixed bilingual corpus coverage verified`
+      : 'bundled font inventory, files, CSS, coverage, or legal material is invalid',
+    fix: fontEvidence.ok ? null : 'Restore the complete framework package under PPTMAKER_FRAMEWORK/scripts/fonts/.',
+  };
+
+  let smoke;
+  if (runtime.ok && fontEvidence.ok) {
+    const evidence = await runHtmlRuntimeSmoke({ runtimeEvidence: runtime });
+    smoke = {
+      check: 'html_runtime_smoke',
+      status: evidence.ok ? 'ok' : 'fail',
+      detail: evidence.ok
+        ? `offline Chromium smoke passed (network=0, custom Latin/Han fonts, ${evidence.viewport.width}x${evidence.viewport.height} fixture)`
+        : `offline Chromium smoke failed during ${evidence.phase ?? 'unknown phase'}`,
+      fix: evidence.ok ? null : 'Repair Chromium/font assets, then rerun doctor; no installer or network fallback is used.',
+    };
+  } else {
+    smoke = {
+      check: 'html_runtime_smoke', status: 'fail',
+      detail: 'not run because Chromium or bundled fonts are not ready',
+      fix: 'Repair chromium and html_fonts first, then rerun doctor.',
+    };
+  }
+  return [chromium, htmlFonts, smoke];
+}
+
+async function runAllChecks({ includeImage2 = false, start = process.cwd() } = {}) {
   // Load .env from cwd/parents first (same walk-up helper as deps)
-  for (const p of walkUpDirs()) {
+  for (const p of walkUpDirs(start)) {
     if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
   }
 
+  const node = checkNode();
+  const npm = checkNpm();
+  const packages = discoverNpmPackages(start);
   const results = [
-    checkNode(),
-    checkNpm(),
-    checkApiKey(),
-    checkBaseUrl(),
-    ...checkNpmPackages(),
-    checkStage2Generator(),
+    node,
+    npm,
+    ...packages.checks,
     checkFonts(),
     checkDiskSpaceSync(),
     checkGitSafety(),
   ];
+
+  const npmBackedReady = node.status === 'ok'
+    && npm.status === 'ok'
+    && packages.checks.every((check) => check.status === 'ok')
+    && packages.playwright?.version === HTML_RUNTIME_PROFILE.playwrightVersion;
+  const runtimeChecks = npmBackedReady
+    ? await checkHtmlRuntime(packages.playwright)
+    : unavailableHtmlRuntimeChecks('npm-backed prerequisites are not ready');
+  results.splice(2 + packages.checks.length, 0, ...runtimeChecks);
+
+  if (includeImage2) {
+    const apiKey = checkApiKey();
+    const baseUrl = checkBaseUrl();
+    const stage2 = checkStage2Generator();
+    if (apiKey.status === 'ok' && baseUrl.status === 'ok' && stage2.status === 'ok') {
+      try {
+        const { resolveVendors } = await import('./image_api_client.mjs');
+        stage2.detail = `${stage2.detail}; resolved vendor count: ${resolveVendors().length}`;
+      } catch {
+        stage2.status = 'fail';
+        stage2.detail = 'in-framework Image2 resolver could not produce a usable vendor entry';
+        stage2.fix = 'Repair IMAGE2_API_KEY and IMAGE2_BASE_URL, then rerun doctor --image2.';
+      }
+    }
+    results.push(apiKey, baseUrl, stage2);
+  }
 
   const allPass = results.every(r => r.status !== 'fail');
   return { results, allPass };
@@ -489,7 +608,7 @@ function runAllChecks() {
  * Success = extractImageRef OR task id (same as client).
  * @returns {Promise<{check:string,status:string,detail:string,fix:string|null}>}
  */
-async function checkImageSmoke() {
+async function checkImageSmoke({ vendors: injectedVendors, fetchImpl = globalThis.fetch } = {}) {
   try {
     const {
       resolveVendors,
@@ -498,14 +617,15 @@ async function checkImageSmoke() {
       DEFAULT_MODEL,
       providerHost,
     } = await import('./image_api_client.mjs');
-    const vendors = resolveVendors();
+    const vendors = injectedVendors ?? resolveVendors();
     const { base_url: base, api_key: key } = vendors[0];
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30_000);
     let resp;
     try {
-      resp = await fetch(`${base}/images/generations`, {
+      resp = await fetchImpl(`${base}/images/generations`, {
         method: 'POST',
+        redirect: 'error',
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
@@ -581,7 +701,12 @@ async function checkImageSmoke() {
  * Does not write .env.
  * @returns {Promise<{check:string,status:string,detail:string,fix:string|null,rows?:object[]}>}
  */
-async function checkProbeVendors() {
+async function checkProbeVendors({
+  vendors: injectedVendors,
+  fetchImpl = globalThis.fetch,
+  log = console.log,
+  timeoutMs = 120_000,
+} = {}) {
   const {
     resolveVendors,
     extractImageRef,
@@ -593,7 +718,7 @@ async function checkProbeVendors() {
 
   let vendors;
   try {
-    vendors = resolveVendors();
+    vendors = injectedVendors ?? resolveVendors();
   } catch (err) {
     return {
       check: 'image_probe_vendors',
@@ -611,7 +736,7 @@ async function checkProbeVendors() {
     const { base_url: base, api_key: key } = vendors[i];
     const idx = i + 1;
     const host = providerHost(base) || 'provider';
-    console.log(`  probing ${idx}/${n} → ${host}`);
+    log(`  probing ${idx}/${n} → ${host}`);
     const started = Date.now();
     let lastHb = started;
     const controller = new AbortController();
@@ -619,15 +744,16 @@ async function checkProbeVendors() {
       const now = Date.now();
       if (now - lastHb >= HEARTBEAT_MS) {
         const elapsedSec = Math.floor((now - started) / 1000);
-        console.log(`  … still waiting vendor=${host} phase=submit elapsed=${elapsedSec}s`);
+        log(`  … still waiting vendor=${host} phase=submit elapsed=${elapsedSec}s`);
         lastHb = now;
       }
     }, Math.min(1_000, HEARTBEAT_MS));
-    const hardTimeout = setTimeout(() => controller.abort(), 120_000);
+    const hardTimeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const resp = await fetch(`${base}/images/generations`, {
+      const resp = await fetchImpl(`${base}/images/generations`, {
         method: 'POST',
+        redirect: 'error',
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
@@ -653,33 +779,33 @@ async function checkProbeVendors() {
           elapsed_s,
           error: `non-JSON (${resp.status})`,
         });
-        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  non-JSON`);
+        log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  non-JSON`);
         continue;
       }
       if (!resp.ok) {
         const err = `http_error:${resp.status}`;
         rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
-        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
+        log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
         continue;
       }
       const syncRef = extractImageRef(data);
       const taskId = extractTaskId(data);
       if (syncRef) {
         rows.push({ base_url: base, ok: true, mode: 'sync', elapsed_s, error: null });
-        console.log(`  [${idx}/${n}] OK    sync  ${elapsed_s}s  ${host}`);
+        log(`  [${idx}/${n}] OK    sync  ${elapsed_s}s  ${host}`);
       } else if (taskId) {
         rows.push({ base_url: base, ok: true, mode: 'async', elapsed_s, error: null });
-        console.log(`  [${idx}/${n}] OK    async  ${elapsed_s}s  ${host}`);
+        log(`  [${idx}/${n}] OK    async  ${elapsed_s}s  ${host}`);
       } else {
         const err = 'missing_image_or_task';
         rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: err });
-        console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
+        log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${err}`);
       }
     } catch (err) {
       const elapsed_s = Math.round(((Date.now() - started) / 1000) * 10) / 10;
       const msg = err?.name === 'AbortError' ? 'timeout' : 'network_error';
       rows.push({ base_url: base, ok: false, mode: 'unknown', elapsed_s, error: msg });
-      console.log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${msg}`);
+      log(`  [${idx}/${n}] FAIL  ${host}  ${elapsed_s}s  ${msg}`);
     } finally {
       clearInterval(timer);
       clearTimeout(hardTimeout);
@@ -688,19 +814,19 @@ async function checkProbeVendors() {
 
   const okRows = rows.filter((r) => r.ok).sort((a, b) => a.elapsed_s - b.elapsed_s);
   const failRows = rows.filter((r) => !r.ok);
-  console.log('');
-  console.log('  --- Summary ---');
-  console.log(`  OK:   ${okRows.map((r) => `${r.base_url} (${r.elapsed_s}s ${r.mode})`).join(', ') || '(none)'}`);
-  console.log(`  FAIL: ${failRows.map((r) => `${r.base_url} (${r.error})`).join(', ') || '(none)'}`);
+  log('');
+  log('  --- Summary ---');
+  log(`  OK:   ${okRows.map((r) => `${r.base_url} (${r.elapsed_s}s ${r.mode})`).join(', ') || '(none)'}`);
+  log(`  FAIL: ${failRows.map((r) => `${r.base_url} (${r.error})`).join(', ') || '(none)'}`);
 
   const anyOk = okRows.length > 0;
   const okList = okRows.map((r) => r.base_url).join(', ');
-  console.log('');
-  console.log('  --- Result ---');
+  log('');
+  log('  --- Result ---');
   if (anyOk) {
-    console.log(`  OK: ${okList}`);
+    log(`  OK: ${okList}`);
   } else {
-    console.log('  FAIL: check IMAGE2_API_KEY and IMAGE2_BASE_URL');
+    log('  FAIL: check IMAGE2_API_KEY and IMAGE2_BASE_URL');
   }
 
   return {
@@ -725,12 +851,13 @@ export {
   probeGitSafetyForTest,
 };
 
-function formatText(results, allPass) {
+function formatText(results, allPass, { image2 = false } = {}) {
   const lines = [];
   const platformName = IS_WINDOWS ? 'Windows' : process.platform;
   lines.push('='.repeat(56));
   lines.push('  PPTMAKER_FRAMEWORK Environment Check');
   lines.push(`  Platform: ${platformName}`);
+  lines.push(`  Mode: ${image2 ? 'base + Image2' : 'base (offline local runtime)'}`);
   lines.push('='.repeat(56));
   lines.push('');
 
@@ -752,7 +879,7 @@ function formatText(results, allPass) {
   const stage2Missing = results.some(r => r.check === 'stage2_generator' && r.status !== 'ok');
 
   if (!foundationOk) {
-    lines.push('  ⛔ FOUNDATION NOT READY — Node.js 18+ and npm must be set up FIRST.');
+    lines.push('  ⛔ FOUNDATION NOT READY — supported Node.js (22/24/26) and npm must be set up FIRST.');
     lines.push('     Fix the [FOUNDATION] items above, then re-run.');
   } else if (allPass) {
     if (warns) {
@@ -774,9 +901,11 @@ function formatText(results, allPass) {
 // --- Main ---
 
 async function main() {
+  const explicitImage2 = process.argv.includes('--image2');
   const wantSmoke = process.argv.includes('--smoke');
   const wantProbe = process.argv.includes('--probe-vendors');
   const wantJson = process.argv.includes('--json');
+  const wantImage2 = explicitImage2 || wantSmoke || wantProbe;
   if (wantJson) setCliOutputMode('json');
 
   if (wantSmoke && wantProbe) {
@@ -798,14 +927,13 @@ async function main() {
     process.exit(1);
   }
 
-  const { results } = runAllChecks();
+  const { results } = await runAllChecks({ includeImage2: wantImage2 });
 
   if (wantSmoke || wantProbe) {
-    const keyOk = results.find((r) => r.check === 'api_key')?.status === 'ok';
-    const urlOk = results.find((r) => r.check === 'image_base_url')?.status === 'ok';
-    if (keyOk && urlOk) {
+    const selectedChecksReady = results.every((result) => result.status !== 'fail');
+    if (selectedChecksReady) {
       if (wantProbe) {
-        results.push(await checkProbeVendors());
+        results.push(await checkProbeVendors({ log: wantJson ? console.error : console.log }));
       } else {
         results.push(await checkImageSmoke());
       }
@@ -813,8 +941,8 @@ async function main() {
       results.push({
         check: wantProbe ? 'image_probe_vendors' : 'image_smoke',
         status: 'fail',
-        detail: 'skipped — api_key or image_base_url missing',
-        fix: 'Set IMAGE2_API_KEY and IMAGE2_BASE_URL, then re-run',
+        detail: 'skipped because base or Image2 presence checks are not ready',
+        fix: 'Repair the failed base/Image2 checks, then re-run after submit confirmation.',
       });
     }
   }
@@ -828,12 +956,13 @@ async function main() {
     checks: results,
     smoke: wantSmoke,
     probeVendors: wantProbe,
+    image2: wantImage2,
   };
   if (wantJson) {
     registerCliJsonReport(report, { schema: CLI_JSON_REPORT_SCHEMAS.ENV_CHECK });
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log(formatText(results, allPass));
+    console.log(formatText(results, allPass, { image2: wantImage2 }));
   }
 
   if (!allPass) {
@@ -853,7 +982,7 @@ async function main() {
           reason: { kind: 'check_failed', actual: result.status, expected: 'ok' },
         })),
         next: createCliNext('repair_environment', {
-          invocation: { program: 'node', args: [__filename, ...(wantJson ? ['--json'] : []), ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])] },
+          invocation: { program: 'node', args: [__filename, ...(wantJson ? ['--json'] : []), ...(explicitImage2 ? ['--image2'] : []), ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])] },
           default: 'Repair the failed environment checks without exposing credential values, then rerun.',
         }),
       },
@@ -872,7 +1001,7 @@ if (isMain) {
   const { installStandaloneFailureEnvelope } = await import("./lib/cli_error.mjs");
   installStandaloneFailureEnvelope({ where: "env-check" });
   if (process.argv.includes("--help")) {
-    console.log("Usage: node env-check.mjs [--json] [--smoke] [--probe-vendors]");
+    console.log("Usage: node env-check.mjs [--json] [--image2] [--smoke] [--probe-vendors]");
     process.exit(0);
   }
   main().catch((err) => {

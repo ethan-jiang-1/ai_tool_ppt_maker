@@ -64,7 +64,7 @@ import {
   STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE,
   BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE,
   // version
-  SLIDE_SPECS_GLOB, OVERRIDES_SUBDIR, GENERATED_SUBDIR, SCRATCH_SUBDIR,
+  SLIDE_SPECS_NAME, SLIDE_SPECS_GLOB, OVERRIDES_SUBDIR, GENERATED_SUBDIR, SCRATCH_SUBDIR,
   // _generated
   GEN_SLIDE_PLAN, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON,
   GEN_IMAGES_SUBDIR, GEN_HEADER_LOCKED_SUBDIR,
@@ -86,6 +86,12 @@ import {
   verifySlideEditPlanHash,
 } from "./lib/slide_document.mjs";
 import { isHeroVisualType } from "./lib/render_policy.mjs";
+import {
+  HTML_FIRST_PIPELINE,
+  HtmlSlideContractError,
+  probeProductionMarker,
+  validateHtmlFirstRun,
+} from "./lib/html_slide_contract.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -154,6 +160,66 @@ function exitUsage(where, message, hint) {
 function validateResolution(where, resolution) {
   if (["1k", "2k", "4k"].includes(resolution)) return;
   exitUsage(where, "Resolution must be 1k, 2k, or 4k.", "Pass --resolution 1k, 2k, or 4k");
+}
+
+async function rejectHtmlFirstDelivery(runDir, where) {
+  const resolved = resolve(runDir);
+  const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
+  const source = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolved);
+  if (!source) return false;
+  const sourceLocator = relative(deckRoot(resolved), source).split(sep).join("/");
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+  const marker = probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME });
+  if (marker.branch === "invalid") {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Leading source frontmatter is invalid.",
+      hint: "Repair the canonical source marker before continuing.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "source_validation",
+        operation: "probe-html-first",
+        source: marker.issues[0]?.source || { path: sourceLocator },
+        issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })),
+        next: createCliNext("edit_source", { default: "Repair leading frontmatter before readiness, credentials, or writes." }),
+      },
+    });
+    return true;
+  }
+  if (marker.branch === HTML_FIRST_PIPELINE && source !== canonicalSource) {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "HTML-first requires the canonical source filename.",
+      hint: "Restore slide-specifications.md and move backup copies under _scratch/.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "source_validation",
+        operation: "select-html-first-source",
+        source: { path: sourceLocator },
+        reason: { kind: "canonical_source_missing", actual: basename(source), expected: SLIDE_SPECS_NAME },
+        next: createCliNext("edit_source", { default: "Restore the exact canonical source before readiness, credentials, or writes." }),
+      },
+    });
+    return true;
+  }
+  if (marker.branch !== HTML_FIRST_PIPELINE) return false;
+  emitCliError({
+    code: CLI_ERROR_CODES.FAILED,
+    message: "HTML-first delivery is unavailable in this change.",
+    hint: "Use ppt_flow validate or canonical unified Stage 1 only.",
+    where,
+    diagnostic: {
+      version: 1,
+      category: "gate",
+      operation: "route-html-first",
+      source: { path: sourceLocator },
+      reason: { kind: "html_first_delivery_unavailable" },
+      next: createCliNext("rerun", { default: "Validate or publish Stage 1 locally; wait for the later HTML renderer before delivery." }),
+    },
+  });
+  return true;
 }
 
 function createGateDiagnostic({ operation, source, issues = [], action = "review", invocation, defaultText }) {
@@ -724,12 +790,13 @@ function buildEnvSearchDirs(dkRoot) {
 // ---------------------------------------------------------------------------
 
 /**
- * doctor — Check Node.js, npm, dependencies, in-framework Stage 2, and credentials.
+ * doctor — Check base local runtime and optional Image2 readiness.
  * Delegates to env-check.mjs as a subprocess.
- * @param {{smoke?: boolean, probeVendors?: boolean}} [opts]
+ * @param {{image2?: boolean, smoke?: boolean, probeVendors?: boolean}} [opts]
  */
-async function commandDoctor({ smoke = false, probeVendors = false } = {}) {
+async function commandDoctor({ image2 = false, smoke = false, probeVendors = false } = {}) {
   const args = [];
+  if (image2) args.push("--image2");
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
   return runNode(ENV_CHECK, args);
@@ -891,6 +958,7 @@ async function commandApproveHeader(runDir, {
   reason = null,
 } = {}) {
   const resolved = resolve(runDir);
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.approve.header")) return 1;
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
     emitFailed("ppt_flow.approve.header", `Cannot approve: ${issues.length} bundle issue(s)`, "Fix structure issues, then re-run approve header");
@@ -1052,6 +1120,7 @@ async function commandStyleMaster(
   { resolution, model, baseUrl = [], force, dryRun, noDeckSystem = false }
 ) {
   const resolved = resolve(runDir);
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.style-master")) return 1;
   const args = ["--run-dir", resolved, "--resolution", resolution];
 
   if (model) args.push("--model", model);
@@ -1075,6 +1144,45 @@ async function commandStyleMaster(
  */
 async function commandValidate(runDir) {
   const resolved = resolve(runDir);
+  const canonicalSpecs = join(resolved, SLIDE_SPECS_NAME);
+  const sourceCandidate = existsSync(canonicalSpecs) ? canonicalSpecs : findSlideSpecs(resolved);
+  if (sourceCandidate) {
+    const marker = probeProductionMarker(readFileSync(sourceCandidate), { source: basename(sourceCandidate) });
+    if (marker.branch === "invalid") {
+      emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: "Leading source frontmatter is invalid.",
+        hint: "Repair the canonical source marker, then rerun validation.",
+        where: "ppt_flow.validate",
+        diagnostic: {
+          version: 1,
+          category: "source_validation",
+          operation: "probe-html-first",
+          source: marker.issues[0]?.source || { path: basename(sourceCandidate) },
+          issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })),
+          next: createCliNext("edit_source", { default: "Repair leading frontmatter before validation." }),
+        },
+      });
+      return 1;
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE && sourceCandidate !== canonicalSpecs) {
+      emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: "HTML-first requires the canonical source filename.",
+        hint: "Restore slide-specifications.md and move backup copies under _scratch/.",
+        where: "ppt_flow.validate",
+        diagnostic: {
+          version: 1,
+          category: "source_validation",
+          operation: "select-html-first-source",
+          source: { path: basename(sourceCandidate) },
+          reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: SLIDE_SPECS_NAME },
+          next: createCliNext("edit_source", { default: "Restore the exact canonical source before validation." }),
+        },
+      });
+      return 1;
+    }
+  }
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
     printStatus(collectStatus(resolved));
@@ -1085,7 +1193,7 @@ async function commandValidate(runDir) {
     );
     return 1;
   }
-  const specs = findSlideSpecs(resolved);
+  const specs = existsSync(canonicalSpecs) ? canonicalSpecs : findSlideSpecs(resolved);
   if (!specs) {
     console.error(`✗ No ${SLIDE_SPECS_GLOB} found in ${resolved}`);
     emitFailed(
@@ -1097,7 +1205,7 @@ async function commandValidate(runDir) {
   }
   const code = await runNode(STAGE1_BUILD_INPUTS, [
     "--validate",
-    "--input",
+    "--spec",
     specs,
   ]);
   if (code !== 0) {
@@ -1129,6 +1237,7 @@ async function commandPilot(
   { only: onlyStr, count, resolution, model, baseUrl, dryRun, forceImages = false }
 ) {
   const resolved = resolve(runDir);
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.pilot")) return 1;
 
   if (count < 1) {
     console.error("✗ --count must be at least 1.");
@@ -1284,6 +1393,7 @@ async function commandBuild(
   { resolution, model, baseUrl, reuseImages, dryRun }
 ) {
   const resolved = resolve(runDir);
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build")) return 1;
   if (!dryRun) {
     const stage1Code = await runNode(UNIFIED_PIPELINE, [
       "--run-dir", resolved, "--stage", "1",
@@ -1357,6 +1467,7 @@ async function commandRefresh(
   { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun }
 ) {
   const resolved = resolve(runDir);
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh")) return 1;
 
   /** @type {string} */
   let stages;
@@ -1608,13 +1719,30 @@ function atomicWriteCurrentSource(path, text) {
   renameSync(temp, path);
 }
 
+function validateProjectedSlideSource(context, projectedText) {
+  const marker = probeProductionMarker(projectedText, { source: context.document.source });
+  if (marker.branch === "invalid") {
+    throw new HtmlSlideContractError("projected leading frontmatter is invalid", marker.issues);
+  }
+  if (marker.branch === HTML_FIRST_PIPELINE) {
+    validateHtmlFirstRun({ runDir: context.runDir, sourceBytes: Buffer.from(projectedText, "utf8") });
+  }
+  return marker.branch;
+}
+
+function projectConfirmedSlideTransaction(context, transaction, expectedHash) {
+  const applied = applySlideEdit(transaction, context.sourceText, {
+    expectedPlanSha256: expectedHash,
+  });
+  validateProjectedSlideSource(context, applied.text);
+  return applied;
+}
+
 function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
   if (readFileSync(context.sourcePath, "utf8") !== context.sourceText) {
     throw new Error("source changed after preview; obtain a fresh preview");
   }
-  const applied = applySlideEdit(transaction, context.sourceText, {
-    expectedPlanSha256: expectedHash,
-  });
+  const applied = projectConfirmedSlideTransaction(context, transaction, expectedHash);
   if (transaction.publication.mode === "current-version") {
     atomicWriteCurrentSource(context.sourcePath, applied.text);
     return {
@@ -1630,8 +1758,17 @@ function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
     versionName: transaction.publication.target_version,
     transformedSource: applied.text,
     expectedSourceSha256: transaction.base_spec_sha256,
-    validateSource: ({ sourcePath }) => {
-      const staged = parseSlideDocument(readFileSync(sourcePath, "utf8"), basename(sourcePath));
+    validateSource: ({ stagingRunDir, sourcePath }) => {
+      const stagedText = readFileSync(sourcePath, "utf8");
+      const stagedMarker = probeProductionMarker(stagedText, { source: SLIDE_SPECS_NAME });
+      if (stagedMarker.branch === "invalid") {
+        throw new HtmlSlideContractError("staged leading frontmatter is invalid", stagedMarker.issues);
+      }
+      if (stagedMarker.branch === HTML_FIRST_PIPELINE) {
+        validateHtmlFirstRun({ runDir: stagingRunDir });
+        return [];
+      }
+      const staged = parseSlideDocument(stagedText, basename(sourcePath));
       return validateSlideDocument(staged).filter((issue) => issue.severity === "ERROR");
     },
   });
@@ -1733,6 +1870,7 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
 
     const operations = slideOperationsFor(subcommand, args, opts);
     const transaction = slideTransaction({ context, operations });
+    projectConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
     if (!opts.apply) {
       renderSlidesResult({ kind: "slide-edit", applied: false, transaction }, opts.json);
       return 0;
@@ -1831,6 +1969,7 @@ async function commandStyleMasterWrapped(
   runDir,
   opts
 ) {
+  if (await rejectHtmlFirstDelivery(resolve(runDir), "ppt_flow.style-master")) return 1;
   const code = await commandStyleMaster(runDir, opts);
   if (code !== 0) {
     emitFailed(
@@ -1881,11 +2020,12 @@ Examples:
   // ---- doctor ----
   program
     .command("doctor")
-    .description("Check Node.js, npm, deps, in-framework Stage 2, and credentials")
-    .option("--smoke", "Live Image2 probe of first vendor (image ref or task_id)")
+    .description("Check offline local runtime and optional Image2 readiness")
+    .option("--image2", "Add offline Image2 presence checks (no provider submit)")
+    .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
     .option(
       "--probe-vendors",
-      "Live probe every IMAGE2 vendor; print channel report (not --smoke)"
+      "Add Image2 presence and live-probe every resolved vendor (not --smoke)"
     )
     .action(async (opts) => {
       if (opts.smoke && opts.probeVendors) {
@@ -1896,6 +2036,7 @@ Examples:
         );
       }
       const code = await commandDoctor({
+        image2: opts.image2 ?? false,
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
       });

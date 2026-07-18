@@ -1,0 +1,62 @@
+name: Runtime readiness
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-platform-runtime:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 22
+          - os: ubuntu-latest
+            node: 24
+          - os: ubuntu-latest
+            node: 26
+          - os: macos-latest
+            node: 24
+          - os: windows-latest
+            node: 24
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install exact package graph
+        run: npm ci
+
+      - name: Install paired Chromium and Linux dependencies
+        if: runner.os == 'Linux'
+        run: npm run setup:chromium:with-deps
+
+      - name: Install paired Chromium
+        if: runner.os != 'Linux'
+        run: npm run setup:chromium
+
+      - name: Record normalized offline runtime evidence
+        run: node tests/ci_html_runtime_evidence.mjs
+
+      - name: Run full regression suite
+        run: npm test
+
+      - name: Run relevant end-to-end suite
+        if: runner.os == 'Linux' && matrix.node == 24
+        run: npm run test:e2e
+
+      - name: Validate OpenSpec change strictly
+        if: runner.os == 'Linux' && matrix.node == 24
+        run: npx --yes @fission-ai/openspec@1.6.0 validate upgrade-html-render-runtime-readiness --strict
+
+      - name: Reject whitespace errors
+        run: git diff --check
