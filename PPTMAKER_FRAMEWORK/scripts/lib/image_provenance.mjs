@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join } from "node:path";
+import { canonicalJson } from "./canonical_json.mjs";
 
 export const IMAGE_MANIFEST_NAME = "_manifest.json";
 export const IMAGE_MANIFEST_VERSION = 1;
@@ -25,15 +26,7 @@ export function sha256File(filePath) {
 }
 
 export function stableJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value).sort().map((key) =>
-      `${JSON.stringify(key)}:${stableJson(value[key])}`
-    ).join(",")}}`;
-  }
-  return JSON.stringify(value);
+  return canonicalJson(value);
 }
 
 export function generationProfile({

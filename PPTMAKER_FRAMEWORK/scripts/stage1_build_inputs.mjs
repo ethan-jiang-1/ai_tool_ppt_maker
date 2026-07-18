@@ -60,6 +60,12 @@ import {
 import { loadAssetManifest, validateAssetManifest } from "./asset_manifest.mjs";
 import { loadDeckSystem } from "./lib/deck_system.mjs";
 import {
+    HTML_FIRST_PIPELINE,
+    HtmlSlideContractError,
+    probeProductionMarker,
+    validateAndBuildHtmlFirstPlan,
+} from "./lib/html_slide_contract.mjs";
+import {
     CANONICAL_RENDER_MODES,
     RENDER_MODE_FULL_PAGE,
     RENDER_MODE_BODY_HEADER_LOCK,
@@ -941,12 +947,17 @@ function parseArgs(argv) {
         deckSystem: null,
         colorPalette: null,
         validate: false,
+        inputFlags: [],
+        specOccurrences: 0,
+        unknown: [],
     };
 
     for (let i = 0; i < argv.length; i++) {
         switch (argv[i]) {
             case "--spec":
             case "--input":
+                args.inputFlags.push(argv[i]);
+                if (argv[i] === "--spec") args.specOccurrences += 1;
                 // Collect all following args until next --flag
                 while (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
                     args.input.push(argv[++i]);
@@ -970,11 +981,115 @@ function parseArgs(argv) {
                 break;
             default:
                 // Ignore unknown flags
+                args.unknown.push(argv[i]);
                 break;
         }
     }
 
     return args;
+}
+
+function emitHtmlFirstUsage(message) {
+    emitCliError({
+        code: CLI_ERROR_CODES.USAGE,
+        message,
+        hint: "Use exactly: --validate --spec <run-dir>/slide-specifications.md",
+        where: "stage1_build_inputs.html-first-arguments",
+        diagnostic: {
+            version: 1,
+            category: "usage",
+            stage: "stage1",
+            operation: "parse-arguments",
+            reason: { kind: "invalid_html_first_arguments" },
+            next: createCliNext("fix_arguments", {
+                invocation: { program: "node", args: [__filename, "--validate", "--spec", "slide-specifications.md"] },
+                default: "Use the single canonical HTML-first validation source and remove aliases or overrides.",
+            }),
+        },
+    });
+}
+
+function emitHtmlFirstFailure(error, where = "stage1_build_inputs.html-first-validation") {
+    const issues = error instanceof HtmlSlideContractError ? error.issues : [];
+    emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: "HTML-first validation failed.",
+        hint: "Repair the named canonical source or local control input, then rerun validation.",
+        where,
+        diagnostic: {
+            version: 1,
+            category: "source_validation",
+            stage: "stage1",
+            operation: "validate-html-first",
+            ...(issues[0]?.source ? { source: issues[0].source } : {}),
+            ...(issues.length ? { issues: issues.map((entry) => ({
+                message: entry.message,
+                ...(entry.subject ? { subject: entry.subject } : {}),
+                ...(entry.source ? { source: entry.source } : {}),
+                reason: { kind: entry.code || entry.kind || "html_first_invalid" },
+            })) } : { reason: { kind: "html_first_invalid" } }),
+            next: createCliNext("edit_source", {
+                default: "Fix the retained HTML-first source/control issues; do not edit _generated artifacts.",
+            }),
+        },
+    });
+}
+
+function handleDirectHtmlFirst(args) {
+    const probes = args.input.map((path) => {
+        try {
+            return { path, result: probeProductionMarker(readFileSync(path), { source: basename(path) }) };
+        } catch {
+            return { path, result: { branch: "legacy", issues: [] } };
+        }
+    });
+    const invalid = probes.find((entry) => entry.result.branch === "invalid");
+    if (invalid) {
+        emitHtmlFirstFailure(new HtmlSlideContractError("invalid leading frontmatter", invalid.result.issues));
+        process.exit(1);
+    }
+    const marked = probes.filter((entry) => entry.result.branch === HTML_FIRST_PIPELINE);
+    if (marked.length === 0) return false;
+    if (!args.validate) {
+        emitCliError({
+            code: CLI_ERROR_CODES.FAILED,
+            message: "Direct HTML-first Stage 1 publication is unavailable.",
+            hint: "Use unified_pipeline.mjs --run-dir <run-dir> --stage 1.",
+            where: "stage1_build_inputs.html-first-publication",
+            diagnostic: {
+                version: 1,
+                category: "gate",
+                stage: "stage1",
+                operation: "publish-html-first",
+                reason: { kind: "html_first_projection_requires_run_dir" },
+                next: createCliNext("rerun", { default: "Use the canonical unified Stage-1 route so the run context and atomic output are authoritative." }),
+            },
+        });
+        process.exit(1);
+    }
+    if (
+        args.input.length !== 1
+        || marked.length !== 1
+        || args.inputFlags.some((flag) => flag !== "--spec")
+        || args.specOccurrences !== 1
+        || args.outDir !== null
+        || args.styleDir !== null
+        || args.deckSystem !== null
+        || args.colorPalette !== null
+        || args.unknown.length > 0
+        || basename(args.input[0]) !== "slide-specifications.md"
+    ) {
+        emitHtmlFirstUsage("HTML-first direct validation accepts one canonical --spec and no aliases, overrides, or unknown options.");
+        process.exit(1);
+    }
+    try {
+        const { plan } = validateAndBuildHtmlFirstPlan({ runDir: dirname(resolve(args.input[0])) });
+        console.log(`✓ HTML-first source passes the complete local contract (${plan.slides.length} slide(s)).`);
+        return true;
+    } catch (error) {
+        emitHtmlFirstFailure(error);
+        process.exit(1);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -990,6 +1105,8 @@ function main() {
         emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Stage 1 requires at least one --spec source file.", hint: "Pass one or more markdown slide specification files.", where: "stage1_build_inputs.arguments", diagnostic: { version: 1, category: "usage", stage: "stage1", operation: "parse-arguments", next: createCliNext("fix_arguments", { invocation: { program: "node", args: [__filename, "--spec", "slide-specifications.md", "--validate"] }, default: "Pass at least one --spec path, then rerun Stage 1." }) } });
         process.exit(1);
     }
+
+    if (handleDirectHtmlFirst(args)) return;
 
     // L3 content gate — validate the spec contract BEFORE anything expensive.
     // Runs on every invocation (so unified_pipeline gets it for free), lists every

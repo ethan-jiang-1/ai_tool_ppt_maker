@@ -1,0 +1,9 @@
+version: 2
+assets:
+  system-layers:
+    path: icons/system-layers.svg
+    type: svg
+    label: System layers
+    description: Passive CSS-free layered-system icon fixture
+    usage_guidance: Use as a local icon-composition fallback without visible text
+    sha256: e1dc0e809d97e45580e044eaa18ae7b6835338d38c1aa4dc5390c4b109533d51

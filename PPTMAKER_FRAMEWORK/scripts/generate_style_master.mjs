@@ -15,7 +15,7 @@ import "./lib/cli_bootstrap.mjs?entry=generate_style_master.mjs";
 import { CLI_ERROR_CODES, createCliNext, emitCliError } from "./lib/cli_error.mjs";
 
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { basename, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 
@@ -28,6 +28,8 @@ import {
   STYLE_MASTER_IMAGE,
   DECK_SYSTEM_FILE,
   IMAGE_TRACE_SUFFIX,
+  SLIDE_SPECS_NAME,
+  findSlideSpecs,
 } from "./bundle_layout.mjs";
 
 import {
@@ -62,6 +64,25 @@ export async function generateStyleMaster({
 }) {
   generateStyleMaster.lastFailure = null;
   const resolvedRunDir = resolve(runDir);
+
+  const canonicalSource = join(resolvedRunDir, SLIDE_SPECS_NAME);
+  const sourceCandidate = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolvedRunDir);
+  if (sourceCandidate) {
+    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+    const marker = probeProductionMarker(readFileSync(sourceCandidate), { source: basename(sourceCandidate) });
+    if (marker.branch === "invalid") {
+      generateStyleMaster.lastFailure = { category: "source_validation", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })) };
+      return 1;
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE && sourceCandidate !== canonicalSource) {
+      generateStyleMaster.lastFailure = { category: "source_validation", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: SLIDE_SPECS_NAME } };
+      return 1;
+    }
+    if (marker.branch === HTML_FIRST_PIPELINE) {
+      generateStyleMaster.lastFailure = { category: "gate", source: { path: SLIDE_SPECS_NAME }, reason: { kind: "html_first_delivery_unavailable" } };
+      return 1;
+    }
+  }
 
   const violations = checkBundle(resolvedRunDir, false);
   if (violations.length > 0) {
