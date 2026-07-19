@@ -8,6 +8,7 @@
   },
   "scripts": {
     "bench:html-catalog": "node tests/benchmarks/html_asset_catalog_worst_case.mjs",
+    "bench:html-delivery": "node tests/benchmarks/html_delivery_acceptance.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.config.mjs",
@@ -17,6 +18,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.68",
     "commander": "^13.1.0",
+    "echarts": "6.1.0",
     "fast-png": "8.0.0",
     "jpeg-js": "0.4.4",
     "jszip": "^3.10.1",

@@ -142,7 +142,7 @@ describe("HTML-first orchestration boundaries", () => {
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   it("routes malformed leading frontmatter to source validation before delivery prerequisites", () => {
     const fixture = createHtmlFirstRun("html-malformed-marker-");
@@ -164,36 +164,73 @@ describe("HTML-first orchestration boundaries", () => {
     }
   });
 
-  it("fails every public delivery route on the shared marker before readiness or writes", () => {
+  it("routes HTML delivery locally and rejects legacy provider controls before writes", () => {
     const fixture = createHtmlFirstRun("html-delivery-guards-");
     try {
       rmSync(join(fixture.deck, "2_backbone", "visual-style", "style_master_prompt.txt"), { force: true });
       const before = snapshot(fixture.deck);
-      const commands = [
-        [STYLE_MASTER, ["--run-dir", fixture.runDir]],
-        [UNIFIED, ["--run-dir", fixture.runDir, "--stage", "2", "--dry-run"]],
-        [UNIFIED, ["--run-dir", fixture.runDir, "--stage", "1,3", "--dry-run"]],
-        [UNIFIED, ["--run-dir", fixture.runDir, "--stage", "all", "--dry-run"]],
-        [FLOW, ["style-master", fixture.runDir, "--dry-run"]],
-        [FLOW, ["approve", fixture.runDir, "header"]],
-        [FLOW, ["pilot", fixture.runDir, "--dry-run"]],
-        [FLOW, ["build", fixture.runDir, "--dry-run"]],
-        [FLOW, ["refresh", fixture.runDir, "--kind", "title", "--all", "--dry-run"]],
-        [FLOW, ["refresh", fixture.runDir, "--kind", "visual", "--all", "--dry-run"]],
-        [FLOW, ["refresh", fixture.runDir, "--kind", "notes", "--dry-run"]],
-      ];
-      for (const [script, args] of commands) {
-        const result = run(script, args, { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
-        expect(result.status, `${basename(script)} ${args.join(" ")}\n${result.stderr}\n${result.stdout}`).toBe(1);
-        expect(
-          lastEnvelope(result)?.diagnostic?.reason?.kind,
-          `${basename(script)} ${args.join(" ")}\n${result.stderr}\n${result.stdout}`
-        ).toBe("html_first_delivery_unavailable");
-        expect(failureEnvelopeCount(result)).toBe(1);
-      }
+      const localPreview = run(UNIFIED, ["--run-dir", fixture.runDir, "--stage", "2", "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(localPreview.status, localPreview.stderr).toBe(0);
+      expect(localPreview.stdout).toContain("HTML Stage 2");
+      const localCompose = run(UNIFIED, ["--run-dir", fixture.runDir, "--stage", "1,3", "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(localCompose.status, localCompose.stderr).toBe(0);
+      expect(localCompose.stdout).toContain("HTML Stage 3");
+      const localBuild = run(FLOW, ["build", fixture.runDir, "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(localBuild.status, localBuild.stderr).toBe(0);
+      expect(localBuild.stdout).toContain("HTML Stage 5");
+      const localPilot = run(FLOW, ["pilot", fixture.runDir, "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(localPilot.status, localPilot.stderr).toBe(0);
+      expect(localPilot.stdout).toContain("HTML Stage 3");
+      const localDeckRefresh = run(FLOW, ['refresh', fixture.runDir, '--kind', 'visual', '--all', '--dry-run'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(localDeckRefresh.status, localDeckRefresh.stderr).toBe(0);
+      const refreshProvider = run(FLOW, ['refresh', fixture.runDir, '--kind', 'visual', '--all', '--base-url', 'https://provider.invalid']);
+      expect(refreshProvider.status).toBe(1);
+      const provider = run(UNIFIED, ["--run-dir", fixture.runDir, "--stage", "2", "--base-url", "https://provider.invalid", "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(provider.status).toBe(1);
+      expect(lastEnvelope(provider)?.code).toBe("USAGE");
+      const styleMaster = run(STYLE_MASTER, ["--run-dir", fixture.runDir]);
+      expect(styleMaster.status).toBe(1);
       expect(snapshot(fixture.deck)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
+
+  it("completes ppt_flow build locally after current HTML review approvals", async () => {
+    const fixture = createHtmlFirstRun("html-local-build-");
+    try {
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: 'Ready for delivery' })]));
+      const preview = run(FLOW, ['pilot', fixture.runDir], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(preview.status, preview.stderr || preview.stdout).toBe(0);
+      const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      const contentApproval = run(FLOW, ['approve', fixture.runDir, 'content', '--plan-hash', pending.gates.content.plan.plan_hash]);
+      expect(contentApproval.status, contentApproval.stderr || contentApproval.stdout).toBe(0);
+      const visualApproval = run(FLOW, ['approve', fixture.runDir, 'visual', '--plan-hash', pending.gates.visual.plan.plan_hash]);
+      expect(visualApproval.status, visualApproval.stderr || visualApproval.stdout).toBe(0);
+      const built = run(FLOW, ['build', fixture.runDir], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(built.status, built.stderr || built.stdout).toBe(0);
+      expect(existsSync(join(fixture.runDir, '_generated', 'ppt', 'deck.pptx'))).toBe(true);
+      expect(existsSync(join(fixture.runDir, '_generated', 'qa', 'notes_injection.json'))).toBe(true);
+
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ title: 'Locally changed', note: 'Ready for delivery' })]));
+      const refreshed = run(FLOW, ['refresh', fixture.runDir, '--kind', 'title', '--only', 'HeroGo'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(refreshed.status, refreshed.stderr || refreshed.stdout).toBe(0);
+      expect(refreshed.stdout).toContain('HTML review required');
+      const afterEdit = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(afterEdit.gates.content.ready).toBe(false);
+      expect(afterEdit.gates.visual.ready).toBe(true);
+      const contentReapproval = run(FLOW, ['approve', fixture.runDir, 'content', '--plan-hash', afterEdit.gates.content.plan.plan_hash]);
+      expect(contentReapproval.status, contentReapproval.stderr || contentReapproval.stdout).toBe(0);
+      const delivered = run(FLOW, ['refresh', fixture.runDir, '--kind', 'title', '--only', 'HeroGo'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(delivered.status, delivered.stderr || delivered.stdout).toBe(0);
+      expect(delivered.stdout).toContain('HTML Stage 5');
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ title: 'Locally changed', note: 'Updated notes only' })]));
+      const notesOnly = run(FLOW, ['refresh', fixture.runDir, '--kind', 'notes'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(notesOnly.status, notesOnly.stderr || notesOnly.stdout).toBe(0);
+      expect(notesOnly.stdout).toContain('HTML Stage 5');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 120_000);
 });

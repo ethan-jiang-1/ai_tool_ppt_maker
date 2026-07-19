@@ -78,9 +78,9 @@ agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时
 
 第一次做**完全不用读下面这些**——跟着 agent 走就行。做完一遍、想理解"为什么这么设计"时再回来:
 
-- `workflow/02-content/00-03` — 为什么叙事优先、怎么找隐喻和公式
-- `workflow/01-visual/00,02,03` — style anchoring 怎么工作
-- `workflow/04-production/00` — 管线哲学和 Header-Lock
+- `workflow/01-content/00-03` — 为什么叙事优先、怎么找隐喻和公式
+- `workflow/02-visual-system/00,02,03` — style anchoring 怎么工作
+- `workflow/03-html-production/00` — 管线哲学和 Header-Lock
 - `charter/CONSTITUTION.md` — 目录结构(宪法)的人读版
 
 ---

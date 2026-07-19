@@ -32,7 +32,7 @@ import "./lib/cli_bootstrap.mjs?entry=unified_pipeline.mjs";
 import { CLI_ERROR_CODES, createCliNext, diagnosticFromError, emitCliError, emitCliProgress, sanitizeCliDiagnostic } from "./lib/cli_error.mjs";
 
 import { existsSync, readFileSync, readdirSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { resolve, join, basename, dirname } from "node:path";
+import { resolve, join, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 
@@ -188,9 +188,7 @@ export async function materializeStructuralVersion({
     const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
     const marker = probeProductionMarker(readFileSync(targetSource), { source: "slide-specifications.md" });
     if (marker.branch === HTML_FIRST_PIPELINE) {
-      const error = new Error("HTML-first delivery is unavailable");
-      error.cliDiagnostic = { version: 1, category: "gate", operation: "structural-materialization", source: { path: "slide-specifications.md" }, reason: { kind: "html_first_delivery_unavailable" }, next: createCliNext("rerun", { default: "Keep the published source version and wait for the later HTML renderer before materialization." }) };
-      throw error;
+      return materializeHtmlStructuralVersion({ sourceDir, targetDir, rebuildLocal });
     }
   }
   if (!await stage1(targetDir, false)) {
@@ -362,6 +360,391 @@ export async function materializeStructuralVersion({
   const receiptPath = join(targetBuild, GEN_QA_SUBDIR, "structural_impact.json");
   writeJsonAtomic(receiptPath, receipt);
   return { ...receipt, receipt_path: receiptPath, materialization_results: results };
+}
+
+function bySlideId(entries = []) {
+  return new Map(entries.map((entry) => [String(entry.slide_id || ""), entry]).filter(([id]) => id));
+}
+
+function orderedIdsFromPlan(plan) {
+  return (plan.slides || []).map((slide) => String(slide.slide_id || slide.id || "")).filter(Boolean);
+}
+
+function mergeHtmlManifestEntries({ previous, produced, orderedIds, expectedFingerprints }) {
+  const byId = new Map();
+  for (const entry of previous?.manifest?.entries || []) {
+    const id = String(entry.slide_id || "");
+    if (orderedIds.includes(id) && entry.composition_variant === "effective" && entry.composition_fingerprint === expectedFingerprints.get(id)) {
+      byId.set(id, entry);
+    }
+  }
+  for (const entry of produced) byId.set(entry.slide_id, entry);
+  return orderedIds.map((id) => byId.get(id)).filter(Boolean);
+}
+
+async function readHtmlManifestsForReuse(sourceDir, targetResetId) {
+  const {
+    HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+    HTML_PAGES_MANIFEST_SCHEMA,
+    htmlOwnerRoot,
+    readHtmlCurrentManifest,
+  } = await import("./lib/html_object_store.mjs");
+  const { inspectHtmlReviewReadiness } = await import("./lib/html_review_evidence.mjs");
+  try {
+    const sourceReadiness = inspectHtmlReviewReadiness(sourceDir);
+    if (sourceReadiness.conflict) return { pages: null, finalSlides: null, reason: sourceReadiness.reason };
+    const pages = readHtmlCurrentManifest(htmlOwnerRoot(sourceDir, "html-pages"), {
+      expectedSchema: HTML_PAGES_MANIFEST_SCHEMA,
+      publicationScope: "canonical-run",
+      htmlProductionResetId: sourceReadiness.html_production_reset_id,
+    });
+    const finalSlides = readHtmlCurrentManifest(htmlOwnerRoot(sourceDir, "final-slides"), {
+      expectedSchema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+      publicationScope: "canonical-run",
+      htmlProductionResetId: sourceReadiness.html_production_reset_id,
+    });
+    return { pages, finalSlides, source_reset_id: sourceReadiness.html_production_reset_id, target_reset_id: targetResetId, reason: null };
+  } catch (error) {
+    return { pages: null, finalSlides: null, reason: error.message };
+  }
+}
+
+async function publishReusableHtmlEntries({
+  runDir,
+  ownerKind,
+  schema,
+  extension,
+  resetId,
+  logicalRunVersion,
+  operation,
+  orderedIds,
+  expectedFingerprints,
+  entries,
+}) {
+  if (entries.length === 0) return null;
+  const {
+    acquireHtmlPublishLock,
+    ensureHtmlOwnerRoot,
+    publishHtmlCurrentManifest,
+    readHtmlCurrentManifest,
+    releaseHtmlPublishLock,
+    writeHtmlObject,
+  } = await import("./lib/html_object_store.mjs");
+  const { canonicalJsonSha256 } = await import("./lib/canonical_json.mjs");
+  const ownerRoot = ensureHtmlOwnerRoot(runDir, ownerKind);
+  const previous = readHtmlCurrentManifest(ownerRoot, {
+    expectedSchema: schema,
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+  });
+  const inputScopeSha256 = canonicalJsonSha256({
+    operation,
+    slide_ids: entries.map((entry) => entry.metadata.slide_id),
+    logical_run_version: logicalRunVersion,
+    html_production_reset_id: resetId,
+  });
+  const lock = acquireHtmlPublishLock({
+    ownerRoot,
+    ownerKind,
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+    inputScopeSha256,
+    priorManifestSha256: previous?.sha256 ?? null,
+  });
+  try {
+    const produced = entries.map((entry) => {
+      const object = writeHtmlObject({ ownerRoot, bytes: entry.bytes, extension, ownerToken: lock.ownerToken });
+      return { ...entry.metadata, path: object.path, sha256: object.sha256 };
+    });
+    const merged = mergeHtmlManifestEntries({ previous, produced, orderedIds, expectedFingerprints });
+    return publishHtmlCurrentManifest({
+      ownerRoot,
+      ownerToken: lock.ownerToken,
+      schema,
+      publicationScope: "canonical-run",
+      htmlProductionResetId: resetId,
+      entries: merged,
+      priorManifestSha256: previous?.sha256 ?? null,
+    });
+  } finally {
+    releaseHtmlPublishLock(lock);
+  }
+}
+
+async function publishHtmlStructuralReviewArtifacts({ runDir, plan, resetId }) {
+  const {
+    HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+    HTML_PAGES_MANIFEST_SCHEMA,
+    htmlOwnerRoot,
+    readHtmlCurrentManifest,
+  } = await import("./lib/html_object_store.mjs");
+  const {
+    publishHtmlDeliveryContactSheet,
+    publishHtmlReviewPlan,
+  } = await import("./lib/html_preview.mjs");
+  const pagesRoot = htmlOwnerRoot(runDir, "html-pages");
+  const finalRoot = htmlOwnerRoot(runDir, "final-slides");
+  const currentPages = readHtmlCurrentManifest(pagesRoot, {
+    expectedSchema: HTML_PAGES_MANIFEST_SCHEMA,
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+  });
+  const currentFinal = readHtmlCurrentManifest(finalRoot, {
+    expectedSchema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+  });
+  const pageById = bySlideId(currentPages?.manifest?.entries || []);
+  const contentPlan = await publishHtmlReviewPlan({
+    runDir,
+    plan,
+    kind: "content",
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+    logicalRunVersion: basename(runDir),
+    compositionVariant: "effective",
+  });
+  const finalIds = new Set((currentFinal?.manifest?.entries || []).map((entry) => entry.slide_id));
+  const complete = orderedIdsFromPlan(plan).every((id) => finalIds.has(id));
+  const reviewComposition = {
+    final_slides: (currentFinal?.manifest?.entries || []).map((entry) => ({
+      slide_id: entry.slide_id,
+      composition_variant: "effective",
+      png_sha256: entry.sha256,
+      html_sha256: entry.html_sha256,
+      review_object_path: relative(runDir, join(finalRoot, ...entry.path.split("/"))).split(sep).join("/"),
+      review_page_object_path: pageById.has(entry.slide_id)
+        ? relative(runDir, join(pagesRoot, ...pageById.get(entry.slide_id).path.split("/"))).split(sep).join("/")
+        : null,
+    })),
+  };
+  const visualPlan = await publishHtmlReviewPlan({
+    runDir,
+    plan,
+    composition: reviewComposition,
+    kind: "visual",
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+    logicalRunVersion: basename(runDir),
+    compositionVariant: "effective",
+    outstanding: complete ? [] : ["incomplete-final-slide-set"],
+  });
+  const contactSheet = complete ? await publishHtmlDeliveryContactSheet({
+    runDir,
+    orderedEntries: currentFinal.manifest.entries.map((entry) => ({
+      slide_id: entry.slide_id,
+      path: join(finalRoot, ...entry.path.split("/")),
+    })),
+    publicationScope: "canonical-run",
+    htmlProductionResetId: resetId,
+    slot: "visual_review",
+    ownerDigest: visualPlan.reviewPlan.plan_hash,
+  }) : null;
+  return { contentPlan, visualPlan, contactSheet, complete };
+}
+
+async function materializeHtmlStructuralVersion({ sourceDir, targetDir, rebuildLocal = true }) {
+  const { validateAndBuildHtmlFirstPlan } = await import("./lib/html_slide_contract.mjs");
+  const { plan: sourcePlan } = validateAndBuildHtmlFirstPlan({ runDir: sourceDir });
+  if (!await stage1(targetDir, false)) {
+    const error = new Error("target HTML Stage 1 failed before structural materialization");
+    error.cliDiagnostic = stage1.lastFailure;
+    throw error;
+  }
+  const root = deckRoot(targetDir);
+  const sourceKey = versionKey(root, sourceDir);
+  const targetKey = versionKey(root, targetDir);
+  const targetBuild = generatedDir(targetDir);
+  const {
+    HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+    HTML_PAGES_MANIFEST_SCHEMA,
+    htmlOwnerRoot,
+  } = await import("./lib/html_object_store.mjs");
+  const {
+    buildHtmlPages,
+    createCanonicalHtmlValidatedRunContext,
+  } = await import("./lib/html_slide_renderer.mjs");
+  const { finalSlideFingerprintV1 } = await import("./lib/render_artifacts.mjs");
+  const { inspectHtmlReviewReadiness } = await import("./lib/html_review_evidence.mjs");
+
+  const targetContext = createCanonicalHtmlValidatedRunContext({ runDir: targetDir });
+  const { plan: targetPlan } = validateAndBuildHtmlFirstPlan({ runDir: targetDir });
+  const targetReadiness = inspectHtmlReviewReadiness(targetDir);
+  if (targetReadiness.conflict) {
+    const error = new Error(`target HTML materialization is blocked: ${targetReadiness.reason}`);
+    error.cliDiagnostic = { version: 1, category: "conflict", operation: "structural-materialization", source: { path: targetDir }, reason: { kind: "html_reset_conflict" }, next: createCliNext("rerun", { default: "Resolve the HTML reset conflict, then rerun local materialization." }) };
+    throw error;
+  }
+  const resetId = targetReadiness.html_production_reset_id;
+  const pagePlan = buildHtmlPages(targetContext, { compositionVariant: "effective", dryRun: false });
+  const orderedIds = orderedIdsFromPlan(targetPlan);
+  const expectedFingerprints = new Map(pagePlan.pages.map((page) => [page.slide_id, page.composition_fingerprint]));
+  const sourceManifests = await readHtmlManifestsForReuse(sourceDir, resetId);
+  const sourcePagesById = bySlideId(sourceManifests.pages?.manifest?.entries || []);
+  const sourceFinalById = bySlideId(sourceManifests.finalSlides?.manifest?.entries || []);
+  const sourcePagesRoot = htmlOwnerRoot(sourceDir, "html-pages");
+  const sourceFinalRoot = htmlOwnerRoot(sourceDir, "final-slides");
+  const reusablePageEntries = [];
+  const reusableFinalEntries = [];
+  const reuseResults = [];
+  const reusablePageIds = new Set();
+  const reusableFinalIds = new Set();
+  for (const page of pagePlan.pages) {
+    const sourcePage = sourcePagesById.get(page.slide_id);
+    if (sourcePage?.composition_variant === "effective" &&
+      sourcePage.composition_fingerprint === page.composition_fingerprint &&
+      sourcePage.html_sha256 === page.html_sha256 &&
+      sourcePage.sha256 === page.html_sha256) {
+      reusablePageIds.add(page.slide_id);
+      reusablePageEntries.push({
+        bytes: readFileSync(join(sourcePagesRoot, ...sourcePage.path.split("/"))),
+        metadata: {
+          slide_id: page.slide_id,
+          artifact_kind: "html-page",
+          composition_variant: "effective",
+          html_sha256: page.html_sha256,
+          composition_fingerprint: page.composition_fingerprint,
+          composition_input_receipt: page.composition_input_receipt,
+        },
+      });
+    }
+    const sourceFinal = sourceFinalById.get(page.slide_id);
+    if (reusablePageIds.has(page.slide_id) &&
+      sourceFinal?.composition_variant === "effective" &&
+      sourceFinal.composition_fingerprint === page.composition_fingerprint &&
+      sourceFinal.html_sha256 === page.html_sha256) {
+      reusableFinalIds.add(page.slide_id);
+      reusableFinalEntries.push({
+        bytes: readFileSync(join(sourceFinalRoot, ...sourceFinal.path.split("/"))),
+        metadata: {
+          slide_id: page.slide_id,
+          artifact_kind: "final-slide",
+          producer: sourceFinal.producer,
+          composition_variant: "effective",
+          html_sha256: page.html_sha256,
+          composition_fingerprint: page.composition_fingerprint,
+          composition_input_receipt: page.composition_input_receipt,
+          final_slide_fingerprint: finalSlideFingerprintV1({
+            producer: sourceFinal.producer,
+            producerPrivateFingerprint: page.composition_fingerprint,
+            byteSha256: sourceFinal.sha256,
+            width: sourceFinal.width,
+            height: sourceFinal.height,
+            mediaProfile: sourceFinal.media_profile,
+          }),
+          width: sourceFinal.width,
+          height: sourceFinal.height,
+          media_profile: sourceFinal.media_profile,
+        },
+      });
+    }
+    reuseResults.push({
+      slide_id: page.slide_id,
+      html_page: reusablePageIds.has(page.slide_id) ? "reused" : "local",
+      final_slide: reusableFinalIds.has(page.slide_id) ? "reused" : "local",
+    });
+  }
+
+  const completedLocalStages = ["stage1"];
+  const pageManifest = await publishReusableHtmlEntries({
+    runDir: targetDir,
+    ownerKind: "html-pages",
+    schema: HTML_PAGES_MANIFEST_SCHEMA,
+    extension: "html",
+    resetId,
+    logicalRunVersion: basename(targetDir),
+    operation: "structural-html-page-reuse",
+    orderedIds,
+    expectedFingerprints,
+    entries: reusablePageEntries,
+  });
+  if (pageManifest) completedLocalStages.push("stage2-html-reuse");
+  const finalManifest = await publishReusableHtmlEntries({
+    runDir: targetDir,
+    ownerKind: "final-slides",
+    schema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA,
+    extension: "png",
+    resetId,
+    logicalRunVersion: basename(targetDir),
+    operation: "structural-html-final-slide-reuse",
+    orderedIds,
+    expectedFingerprints,
+    entries: reusableFinalEntries,
+  });
+  if (finalManifest) completedLocalStages.push("stage3-html-reuse");
+
+  const pageMissingIds = orderedIds.filter((id) => !reusablePageIds.has(id));
+  if (pageMissingIds.length > 0) {
+    if (!await stage2Html(targetDir, { only: pageMissingIds.join(","), dryRun: false })) {
+      const error = new Error("target HTML Stage 2 failed after structural source publication");
+      error.cliDiagnostic = stage2Html.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage2-html");
+  }
+  const finalMissingIds = orderedIds.filter((id) => !reusableFinalIds.has(id));
+  if (finalMissingIds.length > 0) {
+    if (!await stage3Html(targetDir, { only: finalMissingIds.join(","), dryRun: false })) {
+      const error = new Error("target HTML Stage 3 failed after structural source publication");
+      error.cliDiagnostic = stage3Html.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage3-html");
+  }
+  const reviewArtifacts = await publishHtmlStructuralReviewArtifacts({ runDir: targetDir, plan: targetPlan, resetId });
+  completedLocalStages.push("review-plans");
+  if (reviewArtifacts.contactSheet) completedLocalStages.push("visual-review-contact-sheet");
+
+  const readiness = inspectHtmlReviewReadiness(targetDir);
+  const receipt = {
+    schema_version: 1,
+    pipeline: "html-first-v1",
+    source_version: sourceKey,
+    target_version: targetKey,
+    renderer_calls: 0,
+    remote_calls: 0,
+    source_order: orderedIdsFromPlan(sourcePlan),
+    target_order: orderedIds,
+    needs_render: [],
+    needs_local_materialization: [],
+    materialized_ids: orderedIds,
+    reused_html_page_ids: [...reusablePageIds],
+    reused_final_slide_ids: [...reusableFinalIds],
+    locally_composed_ids: orderedIds.filter((id) => !reusableFinalIds.has(id)),
+    reuse_results: reuseResults,
+    source_reuse_status: sourceManifests.reason ? { status: "unavailable", reason: sourceManifests.reason } : { status: "available", html_production_reset_id: sourceManifests.source_reset_id },
+    review_required: !readiness.ready,
+    review: {
+      content_plan_hash: readiness.gates?.content?.plan?.plan_hash || reviewArtifacts.contentPlan.reviewPlan.plan_hash,
+      visual_plan_hash: readiness.gates?.visual?.plan?.plan_hash || reviewArtifacts.visualPlan.reviewPlan.plan_hash,
+      content_ready: Boolean(readiness.gates?.content?.ready),
+      visual_ready: Boolean(readiness.gates?.visual?.ready),
+    },
+    completed_local_stages: completedLocalStages,
+    production_complete: false,
+    generated_at: new Date().toISOString(),
+  };
+
+  if (readiness.ready && rebuildLocal) {
+    if (!await stage4Html(targetDir, { dryRun: false })) {
+      const error = new Error("target HTML Stage 4 failed after structural review approval");
+      error.cliDiagnostic = stage4Html.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage4-html");
+    if (!await stage5Html(targetDir, { dryRun: false })) {
+      const error = new Error("target HTML Stage 5 failed after structural review approval");
+      error.cliDiagnostic = stage5Html.lastFailure;
+      throw error;
+    }
+    completedLocalStages.push("stage5-html");
+    receipt.needs_local_materialization = [];
+    receipt.review_required = false;
+    receipt.production_complete = true;
+  }
+  const receiptPath = join(targetBuild, GEN_QA_SUBDIR, "structural_impact.json");
+  writeJsonAtomic(receiptPath, receipt);
+  return { ...receipt, receipt_path: receiptPath };
 }
 
 /**
@@ -878,6 +1261,68 @@ export async function stage3(runDir, dryRun) {
   }
 }
 
+/** HTML-first local Stage 2 adapter. Provider credentials and legacy paths are never resolved. */
+export async function stage2Html(runDir, { only = null, compositionVariant = 'effective', dryRun = false } = {}) {
+  stage2Html.lastFailure = null;
+  try {
+    const { createCanonicalHtmlValidatedRunContext, buildHtmlPages, publishHtmlPages, resolveHtmlSlideSelectors } = await import('./lib/html_slide_renderer.mjs');
+    const context = createCanonicalHtmlValidatedRunContext({ runDir });
+    const tokens = only ? String(only).split(',').map((token) => token.trim()).filter(Boolean) : [];
+    const request = { ...(tokens.length ? { slideIds: resolveHtmlSlideSelectors(context, tokens) } : {}), compositionVariant, dryRun };
+    const result = dryRun ? buildHtmlPages(context, request) : await publishHtmlPages(context, request);
+    console.log(`  HTML Stage 2: ${result.pages.length} page(s) ${dryRun ? 'planned' : 'published locally'}`);
+    return true;
+  } catch (error) {
+    stage2Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage2', operation: 'render-html', reason: { kind: 'html_render_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair the local structured source/runtime, then rerun HTML Stage 2.' }) };
+    return false;
+  }
+}
+
+/** HTML-first local Stage 3 adapter. */
+export async function stage3Html(runDir, { only = null, compositionVariant = 'effective', dryRun = false } = {}) {
+  stage3Html.lastFailure = null;
+  try {
+    const { createCanonicalHtmlValidatedRunContext, composeHtmlSlidesVerified, publishHtmlFinalSlides, resolveHtmlSlideSelectors } = await import('./lib/html_slide_renderer.mjs');
+    const context = createCanonicalHtmlValidatedRunContext({ runDir });
+    const tokens = only ? String(only).split(',').map((token) => token.trim()).filter(Boolean) : [];
+    const request = { ...(tokens.length ? { slideIds: resolveHtmlSlideSelectors(context, tokens) } : {}), compositionVariant, dryRun };
+    const result = dryRun ? await composeHtmlSlidesVerified(context, request) : await publishHtmlFinalSlides(context, request);
+    console.log(`  HTML Stage 3: ${result.final_slides.length} final slide(s) ${dryRun ? 'planned' : 'verified locally'}`);
+    return true;
+  } catch (error) {
+    stage3Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage3', operation: 'compose-html', reason: { kind: 'html_composition_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair the local HTML page/runtime evidence, then rerun HTML Stage 3.' }) };
+    return false;
+  }
+}
+
+export async function stage4Html(runDir, { dryRun = false } = {}) {
+  stage4Html.lastFailure = null;
+  try {
+    const { buildPptxFromRunDir } = await import('./stage4_build_pptx.mjs');
+    if (dryRun) { console.log('  HTML Stage 4: provider-neutral assembly planned (no PPTX write)'); return true; }
+    const result = await buildPptxFromRunDir(runDir);
+    console.log(`  HTML Stage 4: PPTX ${result.outPath}`);
+    return true;
+  } catch (error) {
+    stage4Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage4', operation: 'assemble-html', reason: { kind: 'html_assembly_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair current HTML final-slide evidence, then rerun Stage 4.' }) };
+    return false;
+  }
+}
+
+export async function stage5Html(runDir, { dryRun = false } = {}) {
+  stage5Html.lastFailure = null;
+  try {
+    if (dryRun) { console.log('  HTML Stage 5: notes injection planned (no PPTX/receipt write)'); return true; }
+    const { injectHtmlNotesFromRunDir } = await import('./stage5_inject_notes.mjs');
+    const result = await injectHtmlNotesFromRunDir(runDir);
+    console.log(`  HTML Stage 5: notes injected ${result.notesInjected}/${result.slideCount}`);
+    return true;
+  } catch (error) {
+    stage5Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage5', operation: 'inject-html-notes', reason: { kind: 'html_notes_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair current HTML PPTX/source lineage, then rerun Stage 5.' }) };
+    return false;
+  }
+}
+
 /**
  * Stage 4: Build PPTX container.
  *
@@ -1228,11 +1673,12 @@ Examples:
           emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first requires the canonical source filename.", hint: "Restore slide-specifications.md and move backup copies under _scratch/.", where: "unified_pipeline.select-html-first-source", diagnostic: { version: 1, category: "source_validation", operation: "select-html-first-source", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: "slide-specifications.md" }, next: createCliNext("edit_source", { default: "Restore exact slide-specifications.md before readiness or stage execution." }) } });
           process.exit(1);
         }
-        if (marker.branch === HTML_FIRST_PIPELINE && stages.some((stage) => stage >= 2)) {
-          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first delivery is unavailable in this change.", hint: "Use validation or canonical unified Stage 1 only.", where: "unified_pipeline.html-first-delivery", diagnostic: { version: 1, category: "gate", operation: "route-html-first", source: { path: "slide-specifications.md" }, reason: { kind: "html_first_delivery_unavailable" }, next: createCliNext("rerun", { default: "Run --stage 1 with or without --dry-run; wait for the later renderer change before delivery." }) } });
-          process.exit(1);
-        }
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+      }
+
+      if (htmlFirst && (process.argv.includes('--base-url') || process.argv.includes('--force-images') || process.argv.includes('--model') || process.argv.includes('--resolution'))) {
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: 'HTML-first local stages do not accept legacy provider or image controls.', hint: 'Remove provider/resolution/force flags and use the canonical local HTML branch.', where: 'unified_pipeline.html-first.arguments', diagnostic: { version: 1, category: 'usage', reason: { kind: 'html_legacy_option_forbidden' }, next: createCliNext('fix_arguments', { default: 'Use only --run-dir, --stage, --only, --dry-run, and --preview for HTML-first.' }) } });
+        process.exit(1);
       }
 
       // Legacy production keeps the existing dotenv search. HTML-first Stage 1
@@ -1246,7 +1692,7 @@ Examples:
 
       /** @type {boolean|string} */
       let readyMode = false;
-      if (stages.includes(2)) {
+      if (stages.includes(2) && !htmlFirst) {
         readyMode = opts.preview ? "preview" : "pipeline";
       }
       if (!validateRunDir(runDir, readyMode)) {
@@ -1274,10 +1720,10 @@ Examples:
       }
 
       // Stage dispatch table
-      const stageImplementations = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5 };
+      const stageImplementations = { 1: stage1, 2: htmlFirst ? stage2Html : stage2, 3: htmlFirst ? stage3Html : stage3, 4: htmlFirst ? stage4Html : stage4, 5: htmlFirst ? stage5Html : stage5 };
       const stageFuncs = {
         1: () => stage1(runDir, opts.dryRun),
-        2: () => stage2(runDir, {
+        2: () => htmlFirst ? stage2Html(runDir, { only: opts.only || null, dryRun: opts.dryRun }) : stage2(runDir, {
           baseUrl: opts.baseUrl || null,
           only: opts.only || null,
           forceImages: opts.forceImages || false,
@@ -1286,9 +1732,9 @@ Examples:
           requireHeaderReview: !opts.preview,
           dryRun: opts.dryRun,
         }),
-        3: () => stage3(runDir, opts.dryRun),
-        4: () => stage4(runDir, opts.dryRun),
-        5: () => stage5(runDir, opts.dryRun),
+        3: () => htmlFirst ? stage3Html(runDir, { only: opts.only || null, dryRun: opts.dryRun }) : stage3(runDir, opts.dryRun),
+        4: () => htmlFirst ? stage4Html(runDir, { dryRun: opts.dryRun }) : stage4(runDir, opts.dryRun),
+        5: () => htmlFirst ? stage5Html(runDir, { dryRun: opts.dryRun }) : stage5(runDir, opts.dryRun),
       };
 
       for (const stageNum of stages) {

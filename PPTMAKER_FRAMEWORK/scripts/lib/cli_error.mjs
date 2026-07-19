@@ -21,7 +21,9 @@ export const EXECUTABLE_INVENTORY = Object.freeze([
   "ppt_flow.mjs",
   "stage1_build_inputs.mjs",
   "stage2_generate_images.mjs",
+  "stage2_render_html.mjs",
   "stage3_lock_headers.mjs",
+  "stage3_compose_slides.mjs",
   "stage4_build_pptx.mjs",
   "stage5_inject_notes.mjs",
   "unified_pipeline.mjs",
@@ -41,6 +43,7 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "new-version",
   "test",
   "state",
+  "migrate-html",
 ]);
 
 export const CLI_DIAGNOSTIC_CATEGORIES = Object.freeze([

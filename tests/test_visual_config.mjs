@@ -42,7 +42,7 @@ describe('visual_config', () => {
 
   it('validates all five HTML-first preset projections without widening legacy output', () => {
     for (const preset of ['clean-clinical', 'corporate-safe', 'dark-executive', 'tech-startup', 'warm-editorial']) {
-      const path = resolve(`PPTMAKER_FRAMEWORK/workflow/01-visual/presets/${preset}/color_palette.json`);
+      const path = resolve(`PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/${preset}/color_palette.json`);
       const legacy = loadVisualConfig(path);
       const views = loadVisualConfigViews(path);
       expect(views.legacy).toEqual(legacy);
@@ -54,8 +54,16 @@ describe('visual_config', () => {
     }
   });
 
+  it('keeps the renderer-neutral authoring template schema-valid', () => {
+    const path = resolve('PPTMAKER_FRAMEWORK/workflow/02-visual-system/template-color-palette.json');
+    const views = loadVisualConfigViews(path);
+    expect(views.data.name).toBe('Visual System Template');
+    expect(views.html_first.canvas).toEqual({ width: 1000, height: 562.5 });
+    expect(views.html_first.geometry.registry).toBe('html-family-geometry-v1');
+  });
+
   it('keeps the visual and style-reference projection allowlists closed and disjoint', () => {
-    const config = loadHtmlVisualConfig(resolve('PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json'));
+    const config = loadHtmlVisualConfig(resolve('PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json'));
     expect(HTML_VISUAL_PROJECTION_V1_PATHS.filter((path) => HTML_STYLE_REFERENCE_PROJECTION_V1_PATHS.includes(path))).toEqual([]);
     expect(buildHtmlStyleReferenceProjectionV1(config)).toEqual({ palette: config.palette, image_language: config.image_language });
     expect(buildHtmlVisualProjectionV1(config, { registrySha256: 'a'.repeat(64), record: { boxes: {}, overlays: [] } })).toEqual({
@@ -71,7 +79,7 @@ describe('visual_config', () => {
   it('rejects duplicate JSON keys on the HTML projection', () => {
     const dir = mkdtempSync(join(tmpdir(), 'html-config-'));
     try {
-      const sourcePath = resolve('PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json');
+      const sourcePath = resolve('PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json');
       const path = join(dir, 'color_palette.json');
       const raw = readFileSync(sourcePath, 'utf8').replace('"background": "#0a1628"', '"background": "#0a1628",\n  "background": "#ffffff"');
       writeFileSync(path, raw);
@@ -84,7 +92,7 @@ describe('visual_config', () => {
   it('rejects invalid UTF-8 and bounded image-language violations without HTML defaults', () => {
     const dir = mkdtempSync(join(tmpdir(), 'html-config-bounds-'));
     try {
-      const sourcePath = resolve('PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json');
+      const sourcePath = resolve('PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json');
       const path = join(dir, 'color_palette.json');
       writeFileSync(path, Buffer.from([0xff]));
       expect(() => loadVisualConfigViews(path)).toThrow(/could not read/i);

@@ -36,7 +36,7 @@ async function writeMinimalPptx(path, slideCount = 1) {
   writeFileSync(path, await zip.generateAsync({ type: "nodebuffer" }));
 }
 
-function writeAssemblyEvidence(run, pptx, ids = ["One"]) {
+function writeAssemblyEvidence(run, pptx, ids = ["One"], schemaVersion = 1) {
   const generated = join(run, "_generated");
   const plan = join(generated, "slide_plan.json");
   const images = join(generated, "header_locked");
@@ -55,15 +55,17 @@ function writeAssemblyEvidence(run, pptx, ids = ["One"]) {
       artifact_kind: "final-slide",
       path: `_generated/header_locked/${id}.png`,
       sha256: sha256File(path),
-      fingerprint: id.repeat(64).slice(0, 64),
+      fingerprint: sha256File(path),
     };
   });
   writeFileSync(join(qa, "pptx_assembly.json"), JSON.stringify({
-    schema_version: 1,
+    schema_version: schemaVersion,
+    ...(schemaVersion === 2 ? { pipeline: "legacy-image2-v1", producer: "legacy-image2-stage3-v1" } : {}),
     slide_plan_path: "_generated/slide_plan.json",
     slide_plan_sha256: sha256File(plan),
     ordered_slide_ids: ids,
-    final_images: finalImages,
+    final_images: schemaVersion === 2 ? finalImages.map((entry) => ({ slide_id: entry.slide_id, artifact_kind: 'final-slide', producer: 'legacy-image2-stage3-v1', final_slide_fingerprint: entry.fingerprint, path: entry.path, sha256: entry.sha256, width: 2000, height: 1125, media_profile: 'legacy-final-slide-v1:test' })) : finalImages,
+    ...(schemaVersion === 2 ? { html_production_reset_id: null, html_delivery_digest: null } : {}),
     pptx_path: `_generated/ppt/${pptx.split("/").at(-1)}`,
     pptx_sha256: sha256File(pptx),
     created_at: new Date().toISOString(),
@@ -115,6 +117,21 @@ describe("stage5_inject_notes", () => {
       expect(existsSync(notesReceiptPath(run))).toBe(true);
       expect(validateNotesReceipt(run)).toMatchObject({ valid: true, reason: "current" });
       expect(existsSync(pptx.replace(/\.pptx$/, ".backup.pptx"))).toBe(true);
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it('publishes notes schema v3 from a markerless common assembly-v2 lineage', async () => {
+    const run = tmpRun('common-v3');
+    try {
+      const pptx = join(run, '_generated', 'ppt', 'deck.pptx');
+      await writeMinimalPptx(pptx);
+      writeFileSync(join(run, 'slide-specifications.md'), '## Slide 1: One\n\n> **SPEAKER NOTE**: hello\n', 'utf8');
+      writeAssemblyEvidence(run, pptx, ['One'], 2);
+      const result = await injectNotesFromRunDir(run);
+      expect(result.receipt).toMatchObject({ schema_version: 3, pipeline: 'legacy-image2-v1', html_production_reset_id: null, html_delivery_digest: null });
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: true, reason: 'current' });
     } finally {
       rmSync(run, { recursive: true, force: true });
     }

@@ -22,6 +22,7 @@ import {
   healState,
   normalizePlaybookStack,
 } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
+import { createHtmlFirstRun } from './helpers/html_first_fixture.mjs';
 
 function tmpDeck(tag) {
   const deck = join(tmpdir(), `deck_state_${tag}_${Date.now()}_${Math.random().toString(16).slice(2)}`);
@@ -30,6 +31,39 @@ function tmpDeck(tag) {
 }
 
 describe('state.yaml yaml library + heal', () => {
+  it('preserves unusable HTML state bytes while requiring explicit replacement', () => {
+    const fixture = createHtmlFirstRun('html-state-replacement-');
+    try {
+      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
+      const broken = Buffer.from('][}{\n');
+      writeFileSync(path, broken);
+      expect(readState(fixture.deck, { purpose: 'observe' })).toMatchObject({
+        replacement_required: true,
+        pipeline: 'html-first-v1',
+      });
+      expect(readFileSync(path)).toEqual(broken);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves HTML state bytes when source and durable pipeline conflict', () => {
+    const fixture = createHtmlFirstRun('html-state-pipeline-conflict-');
+    try {
+      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
+      const state = readState(fixture.deck, { heal: false });
+      state.pipeline = 'legacy-image2-v1';
+      writeState(fixture.deck, state);
+      const conflicting = readFileSync(path);
+      expect(readState(fixture.deck, { purpose: 'observe' })).toMatchObject({
+        replacement_required: true,
+      });
+      expect(readFileSync(path)).toEqual(conflicting);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it('empty playbook_stack round-trips as array', () => {
     const deck = tmpDeck('empty');
     try {
@@ -56,6 +90,7 @@ describe('state.yaml yaml library + heal', () => {
     const deck = tmpDeck('stack');
     try {
       const s = createInitialState('demo', 'keynote', 'dark');
+      s.pipeline = 'html-first-v1';
       s.current_node = 'setup';
       switchPlaybook(s, 'iterate-style');
       writeState(deck, s);
@@ -63,11 +98,11 @@ describe('state.yaml yaml library + heal', () => {
       expect(Array.isArray(loaded.playbook_stack)).toBe(true);
       expect(loaded.playbook_stack).toHaveLength(1);
       expect(loaded.playbook_stack[0].playbook).toBe('create-deck');
-      expect(loaded.playbook_stack[0].current_node).toBe('setup');
+      expect(loaded.playbook_stack[0].current_node).toBe('configure-visual-system');
       expect(loaded.playbook).toBe('iterate-style');
       resumePlaybook(loaded);
       expect(loaded.playbook).toBe('create-deck');
-      expect(loaded.current_node).toBe('setup');
+      expect(loaded.current_node).toBe('configure-visual-system');
       expect(loaded.playbook_stack).toHaveLength(0);
       writeState(deck, loaded);
       const again = readState(deck);
@@ -175,10 +210,11 @@ playbook_stack: {}
     const deck = tmpDeck('waiting');
     try {
       const s = createInitialState('demo', 'keynote', 'dark');
+      s.pipeline = 'html-first-v1';
       s.playbook = 'iterate-style';
-      s.current_node = 'review-gate';
+      s.current_node = 'review-style-system';
       s.nodes = {
-        'review-gate': {
+        'review-style-system': {
           status: 'in_progress',
           waiting_for: 'user:review-style-master',
           note: 'open style master',
@@ -186,11 +222,11 @@ playbook_stack: {}
       };
       writeState(deck, s);
       const loaded = readState(deck);
-      expect(loaded.nodes['review-gate'].waiting_for).toBe('user:review-style-master');
-      expect(loaded.nodes['review-gate'].note).toBe('open style master');
+      expect(loaded.nodes['review-style-system'].waiting_for).toBe('user:review-style-master');
+      expect(loaded.nodes['review-style-system'].note).toBe('open style master');
       const { state: healed, dirty } = healState(JSON.parse(JSON.stringify(loaded)));
-      expect(healed.nodes['review-gate'].waiting_for).toBe('user:review-style-master');
-      expect(healed.nodes['review-gate'].note).toBe('open style master');
+      expect(healed.nodes['review-style-system'].waiting_for).toBe('user:review-style-master');
+      expect(healed.nodes['review-style-system'].note).toBe('open style master');
       expect(dirty).toBe(false);
     } finally {
       rmSync(deck, { recursive: true, force: true });
@@ -201,9 +237,9 @@ playbook_stack: {}
     const { buildResumeCard } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs');
     const s = createDefaultState();
     s.playbook = 'iterate-style';
-    s.current_node = 'review-gate';
+    s.current_node = 'review-style-system';
     s.nodes = {
-      'review-gate': {
+      'review-style-system': {
         status: 'in_progress',
         waiting_for: 'user:review-style-master',
       },
@@ -218,7 +254,7 @@ playbook_stack: {}
     expect(card.workflow_summary).toMatch(/user:review-style-master/);
     expect(card.suggested_next).toBe('waiting:user:review-style-master');
     expect(card.playbook).toBe('iterate-style');
-    expect(card.current_node).toBe('review-gate');
+    expect(card.current_node).toBe('review-style-system');
   });
 
   it('buildResumeCard: artifact heuristics when not waiting', async () => {
@@ -277,12 +313,12 @@ playbook_stack: {}
     };
     const first = healState(legacy).state;
     expect(first.schema_version).toBe(STATE_SCHEMA_VERSION);
-    expect(first.current_node).toBe('verify-text-output');
+    expect(first.current_node).toBe('review-text-delivery');
     expect(first.nodes['verify-output']).toBeUndefined();
-    expect(first.nodes['verify-text-output'].status).toBe('in_progress');
-    expect(first.nodes['verify-text-output'].note).toContain('canonical');
-    expect(first.nodes['verify-text-output'].decision.kind).toBe('agent');
-    expect(first.nodes['verify-text-output'].evidence.old.kind).toBe('agent');
+    expect(first.nodes['review-text-delivery'].status).toBe('in_progress');
+    expect(first.nodes['review-text-delivery'].note).toContain('canonical');
+    expect(first.nodes['review-text-delivery'].decision.kind).toBe('agent');
+    expect(first.nodes['review-text-delivery'].evidence.old.kind).toBe('agent');
     expect(first.gates.content).toBe('pending');
     expect(first.execution_id).toBeTruthy();
     expect(first.playbook_stack[0].controller_nodes).toEqual({});
@@ -317,9 +353,9 @@ playbook_stack: {}
     expect(first.nodes.wave2).toBeUndefined();
     expect(first.nodes['checkpoint-intake'].status).toBe('completed');
     expect(first.nodes['checkpoint-final-review'].status).toBe('in_progress');
-    expect(first.nodes['authoring-slides'].status).toBe('completed');
-    expect(first.nodes['composing-prompts'].status).toBe('pending');
-    expect(first.nodes['producing-deck'].status).toBe('pending');
+    expect(first.nodes['author-structured-content'].status).toBe('completed');
+    expect(first.nodes['preview-content'].status).toBe('pending');
+    expect(first.nodes['produce-html-deck'].status).toBe('pending');
     const second = healState(first).state;
     expect(second).toEqual(first);
   });
@@ -344,20 +380,20 @@ playbook_stack: {}
   it('handles collision where legacy and canonical keys coexist with canonical priority', () => {
     const legacy = {
       playbook: 'create-deck',
-      current_node: 'authoring-slides',
+      current_node: 'author-structured-content',
       started_at: '2026-01-01T00:00:00.000Z',
       nodes: {
         wave0: { status: 'completed', extra_field: 'old-value', evidence: { old: { met: true, kind: 'agent', at: '2026-01-01T00:00:00.000Z' } } },
-        'authoring-slides': { status: 'in_progress' },
+        'author-structured-content': { status: 'in_progress' },
       },
       gates: { content: 'pending', visual: 'pending' },
       deck: { name: 'x' },
     };
     const healed = healState(legacy).state;
     // canonical status wins
-    expect(healed.nodes['authoring-slides'].status).toBe('in_progress');
+    expect(healed.nodes['author-structured-content'].status).toBe('in_progress');
     // legacy-only field is preserved
-    expect(healed.nodes['authoring-slides'].extra_field).toBe('old-value');
+    expect(healed.nodes['author-structured-content'].extra_field).toBe('old-value');
     // legacy key is removed
     expect(healed.nodes.wave0).toBeUndefined();
     // idempotent
@@ -394,10 +430,10 @@ playbook_stack: {}
     expect(entry.current_node).toBe('checkpoint-final-review');
     expect(entry.controller_nodes['checkpoint-intake']).toBeDefined();
     expect(entry.controller_nodes['checkpoint-intake'].status).toBe('completed');
-    expect(entry.controller_nodes['authoring-slides']).toBeDefined();
-    expect(entry.controller_nodes['authoring-slides'].status).toBe('completed');
-    expect(entry.controller_nodes['producing-deck']).toBeDefined();
-    expect(entry.controller_nodes['producing-deck'].status).toBe('pending');
+    expect(entry.controller_nodes['author-structured-content']).toBeDefined();
+    expect(entry.controller_nodes['author-structured-content'].status).toBe('completed');
+    expect(entry.controller_nodes['produce-html-deck']).toBeDefined();
+    expect(entry.controller_nodes['produce-html-deck'].status).toBe('pending');
     expect(entry.controller_nodes.hitl1).toBeUndefined();
     expect(entry.controller_nodes.wave0).toBeUndefined();
     expect(entry.controller_nodes.wave2).toBeUndefined();
@@ -423,18 +459,18 @@ playbook_stack: {}
           execution_started_at: '2026-01-01T00:00:00.000Z',
           controller_nodes: {
             wave0: { status: 'completed', legacy_field: 'from-legacy' },
-            'authoring-slides': { status: 'in_progress' },
+            'author-structured-content': { status: 'in_progress' },
           },
         },
       ],
     };
     const healed = healState(legacy).state;
     const entry = healed.playbook_stack[0];
-    expect(entry.current_node).toBe('authoring-slides');
+    expect(entry.current_node).toBe('author-structured-content');
     // canonical status wins
-    expect(entry.controller_nodes['authoring-slides'].status).toBe('in_progress');
+    expect(entry.controller_nodes['author-structured-content'].status).toBe('in_progress');
     // legacy-only field preserved
-    expect(entry.controller_nodes['authoring-slides'].legacy_field).toBe('from-legacy');
+    expect(entry.controller_nodes['author-structured-content'].legacy_field).toBe('from-legacy');
     // legacy key removed
     expect(entry.controller_nodes.wave0).toBeUndefined();
     // idempotent
@@ -466,10 +502,10 @@ playbook_stack: {}
   it('heal removes controller records outside the active playbook working set', () => {
     const healed = healState({
       playbook: 'iterate-style',
-      current_node: 'review-gate',
+      current_node: 'review-style-system',
       started_at: '2026-07-12T00:00:00.000Z',
       nodes: {
-        'review-gate': { status: 'in_progress' },
+        'review-style-system': { status: 'in_progress' },
         'intake-source': { status: 'completed' },
         'header-review': { by_version: { '3_versions/v1': { status: 'completed' } } },
       },
@@ -477,7 +513,7 @@ playbook_stack: {}
       deck: {},
       playbook_stack: [],
     }).state;
-    expect(healed.nodes['review-gate']).toBeDefined();
+    expect(healed.nodes['review-style-system']).toBeDefined();
     expect(healed.nodes['intake-source']).toBeUndefined();
     expect(healed.nodes['header-review']).toBeDefined();
     expect(healed.diagnostics).toContain('intake-source removed from active iterate-style working set');

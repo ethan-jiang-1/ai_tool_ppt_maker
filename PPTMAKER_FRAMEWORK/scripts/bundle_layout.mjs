@@ -71,7 +71,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from './lib/state.mjs';
+import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from './lib/state.mjs';
+import { HTML_FIRST_PIPELINE, probeProductionMarker } from './lib/production_marker.mjs';
 
 // ---------------------------------------------------------------------------
 // Self-location (self path resolution
@@ -223,6 +224,10 @@ export const GEN_HEADER_LOCKED_SUBDIR = 'header_locked';
 export const GEN_PPT_SUBDIR = 'ppt';
 export const GEN_QA_SUBDIR = 'qa';
 export const GEN_PREVIEW_SUBDIR = 'preview';
+export const GEN_HTML_PRODUCTION_SUBDIR = 'html_production';
+export const GEN_HTML_PAGES_SUBDIR = 'html_pages';
+export const GEN_HTML_FINAL_SLIDES_SUBDIR = 'final_slides';
+export const GEN_HTML_PREVIEW_SUBDIR = 'preview';
 export const IMAGE_TRACE_SUFFIX = '.image-task.json';
 
 // ---------------------------------------------------------------------------
@@ -230,9 +235,9 @@ export const IMAGE_TRACE_SUFFIX = '.image-task.json';
 // ---------------------------------------------------------------------------
 
 export const BACKBONE_FILE_SEEDS = Object.freeze({
-    [BACKBONE_METAPHOR]:    'workflow/02-content/template-core-metaphor.md',
-    [BACKBONE_FORMULA]:     'workflow/02-content/template-core-formula.md',
-    [BACKBONE_CONSTRAINTS]: 'workflow/02-content/template-design-constraints.md',
+    [BACKBONE_METAPHOR]:    'workflow/01-content/template-core-metaphor.md',
+    [BACKBONE_FORMULA]:     'workflow/01-content/template-core-formula.md',
+    [BACKBONE_CONSTRAINTS]: 'workflow/01-content/template-design-constraints.md',
     [BACKBONE_OUTLINE]:     null,
 });
 
@@ -274,7 +279,7 @@ const _ALLOWED_IN_ASSETS = new Set([
 // --- PRESET CATALOGS (the ONE data source for --init preset seeding) -------
 // ---------------------------------------------------------------------------
 
-export const STYLE_PRESETS_DIR = 'workflow/01-visual/presets';
+export const STYLE_PRESETS_DIR = 'workflow/02-visual-system/presets';
 export const STYLE_PRESETS = Object.freeze([
     'clean-clinical', 'corporate-safe', 'dark-executive',
     'tech-startup', 'warm-editorial',
@@ -282,7 +287,7 @@ export const STYLE_PRESETS = Object.freeze([
 
 export const STYLE_PRESET_FILES = Object.freeze([DECK_SYSTEM_FILE, COLOR_PALETTE_FILE]);
 
-export const DECK_TYPE_DIR = 'workflow/02-content/presets/deck-type-templates';
+export const DECK_TYPE_DIR = 'workflow/01-content/presets/deck-type-templates';
 export const DECK_TYPE_TEMPLATES = Object.freeze({
     keynote:  'keynote-template.md',
     pitch:    'pitch-deck-template.md',
@@ -402,6 +407,80 @@ export function normalizeCheckMode(mode = true) {
         `checkBundle mode must be structure|preview|pipeline or boolean; got: ${mode}`);
 }
 
+const _HTML_OWNER_NAMES = new Set([GEN_HTML_PAGES_SUBDIR, GEN_HTML_FINAL_SLIDES_SUBDIR, GEN_HTML_PREVIEW_SUBDIR]);
+const _SHA_OBJECT_RE = /^[0-9a-f]{64}\.(?:html|png)$/;
+const _HTML_OBJECT_TEMP_RE = /^\.object\.[0-9a-f]{64}\.[0-9a-f]{64}\.[a-z0-9]+\.tmp$/;
+const _HTML_MANIFEST_TEMP_RE = /^\.manifest\.[0-9a-f]{64}\.tmp$/;
+const _HTML_PLAN_RE = /^[0-9a-f]{64}\.json$/;
+
+function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
+    const allowed = ownerName === GEN_HTML_PREVIEW_SUBDIR
+        ? new Set(['objects', 'plans', 'manifest.json', '.publish.lock'])
+        : new Set(['objects', 'manifest.json', '.publish.lock']);
+    for (const entry of fs.readdirSync(ownerPath, { withFileTypes: true })) {
+        if (allowed.has(entry.name) || _HTML_MANIFEST_TEMP_RE.test(entry.name)) continue;
+        problems.push(`unexpected '${entry.name}' in HTML production owner ${ownerName}/`);
+    }
+    const objects = path.join(ownerPath, 'objects');
+    if (fs.existsSync(objects) && fs.statSync(objects).isDirectory()) {
+        for (const entry of fs.readdirSync(objects, { withFileTypes: true })) {
+            if (_SHA_OBJECT_RE.test(entry.name) || _HTML_OBJECT_TEMP_RE.test(entry.name)) continue;
+            problems.push(`unexpected '${entry.name}' in HTML immutable objects for ${ownerName}/`);
+        }
+    }
+    const lock = path.join(ownerPath, '.publish.lock');
+    if (fs.existsSync(lock) && fs.statSync(lock).isDirectory()) {
+        for (const entry of fs.readdirSync(lock, { withFileTypes: true })) {
+            if (entry.name !== 'owner.json') problems.push(`unexpected '${entry.name}' in HTML publish lock for ${ownerName}/`);
+        }
+    }
+    const plans = path.join(ownerPath, 'plans');
+    if (ownerName === GEN_HTML_PREVIEW_SUBDIR && fs.existsSync(plans) && fs.statSync(plans).isDirectory()) {
+        for (const entry of fs.readdirSync(plans, { withFileTypes: true })) {
+            if (!_HTML_PLAN_RE.test(entry.name)) problems.push(`unexpected '${entry.name}' in HTML preview plans/`);
+        }
+    }
+}
+
+function _checkHtmlGeneratedTopology(runDir, problems) {
+    const generated = path.join(runDir, GENERATED_SUBDIR);
+    const production = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
+    if (fs.existsSync(production) && fs.statSync(production).isDirectory()) {
+        for (const entry of fs.readdirSync(production, { withFileTypes: true })) {
+            if (!_HTML_OWNER_NAMES.has(entry.name)) problems.push(`unexpected '${entry.name}' in HTML production root`);
+        }
+        for (const ownerName of _HTML_OWNER_NAMES) {
+            const ownerPath = path.join(production, ownerName);
+            if (fs.existsSync(ownerPath) && fs.statSync(ownerPath).isDirectory()) _checkHtmlOwnerTree(ownerPath, ownerName, problems);
+        }
+    }
+    const migration = path.join(runDir, SCRATCH_SUBDIR, 'html-migration');
+    if (fs.existsSync(migration) && fs.statSync(migration).isDirectory()) {
+        const allowed = new Set(['slide-specifications.md', 'overrides', 'projected-run', 'plan.json', 'apply-journal.json']);
+        for (const entry of fs.readdirSync(migration, { withFileTypes: true })) {
+            if (!allowed.has(entry.name)) problems.push(`unexpected '${entry.name}' in html-migration scratch/`);
+        }
+    }
+}
+
+function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
+    const generated = path.join(runDir, GENERATED_SUBDIR);
+    if (!fs.existsSync(generated) || !fs.statSync(generated).isDirectory()) return;
+    if (htmlFirst) {
+        for (const name of [GEN_PROMPTS_SUBDIR, GEN_IMAGES_SUBDIR, GEN_HEADER_LOCKED_SUBDIR, GEN_PREVIEW_SUBDIR]) {
+            const candidate = path.join(generated, name);
+            if (fs.existsSync(candidate)) {
+                problems.push(`legacy generated owner '${name}/' is inapplicable to ${HTML_FIRST_PIPELINE}`);
+            }
+        }
+        return;
+    }
+    const htmlOwner = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
+    if (fs.existsSync(htmlOwner)) {
+        problems.push(`HTML generated owner '${GEN_HTML_PRODUCTION_SUBDIR}/' is inapplicable to markerless legacy production`);
+    }
+}
+
 /**
  * Validate a version dir against the run-bundle constitution.
  * @param {string} runDir
@@ -411,8 +490,6 @@ export function normalizeCheckMode(mode = true) {
  */
 export function checkBundle(runDir, requirePipelineReady = true) {
     const mode = normalizeCheckMode(requirePipelineReady);
-    const needStyle = mode === 'preview' || mode === 'pipeline';
-    const needGates = mode === 'pipeline';
     const problems = [];
 
     if (!fs.existsSync(runDir) || !fs.statSync(runDir).isDirectory()) {
@@ -427,6 +504,24 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     }
 
     const root = deckRoot(runDir);
+    const canonicalSource = path.join(runDir, SLIDE_SPECS_NAME);
+    const sourceCandidate = fs.existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(runDir);
+    let htmlFirst = false;
+    let branchValid = true;
+    if (sourceCandidate) {
+        const marker = probeProductionMarker(fs.readFileSync(sourceCandidate), { source: path.basename(sourceCandidate) });
+        if (marker.branch === 'invalid') {
+            branchValid = false;
+            for (const entry of marker.issues) problems.push(`invalid production marker: ${entry.message}`);
+        } else {
+            htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+            if (htmlFirst && sourceCandidate !== canonicalSource) {
+                problems.push(`HTML-first requires exact canonical source ${SLIDE_SPECS_NAME}; found ${path.basename(sourceCandidate)}`);
+            }
+        }
+    }
+    const needStyle = branchValid && !htmlFirst && (mode === 'preview' || mode === 'pipeline');
+    const needGates = branchValid && !htmlFirst && mode === 'pipeline';
 
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
         if (_ignorable(entry.name)) continue;
@@ -579,6 +674,9 @@ export function checkBundle(runDir, requirePipelineReady = true) {
             }
         }
     }
+
+    _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems);
+    if (htmlFirst) _checkHtmlGeneratedTopology(runDir, problems);
 
     return problems;
 }
@@ -801,6 +899,118 @@ function _writeIfAbsent(filePath, content) {
     }
 }
 
+const _HTML_FIRST_SEEDS = Object.freeze({
+    generic: Object.freeze({ id: 'DeckGo', title: 'State the deck\'s governing idea', visualType: 'Hero statement' }),
+    keynote: Object.freeze({ id: 'KeyGo', title: 'State the keynote\'s consequential idea', visualType: 'Keynote opener' }),
+    pitch: Object.freeze({ id: 'AskGo', title: 'State the venture\'s memorable promise', visualType: 'Pitch opener' }),
+    report: Object.freeze({ id: 'FindGo', title: 'State the report\'s decision-ready finding', visualType: 'Report opener' }),
+    training: Object.freeze({ id: 'TryNow', title: 'State the capability learners will gain', visualType: 'Training opener' }),
+});
+
+const _HTML_FIRST_ASSETS_README = `# HTML-first visual assets
+
+Register optional local assets in \`asset-manifest.yaml\` schema v2 with a stable ID, confined relative path, kind, and exact SHA-256.
+
+- \`svg/\` stores passive SVG assets.
+- \`reference/\` stores registered PNG/JPEG/WebP assets.
+- \`icons/\` stores registered typed-block icons.
+
+Bind registered IDs from structured slide YAML through \`primary_visual.fallback\` or a typed block's \`icon\` field. Do not add legacy \`VISUAL ASSETS\` fields. An empty catalog is valid.
+`;
+
+function _htmlFirstSeedSource(deckType = null) {
+    const seed = _HTML_FIRST_SEEDS[deckType || 'generic'];
+    return `---
+production:
+  pipeline: html-first-v1
+identity:
+  scheme: mnemonic-v1
+---
+
+## Slide 01: \`${seed.id}\`
+
+**VISUAL TYPE**: ${seed.visualType}
+**TITLE**: ${seed.title}
+**CONCEPT**:
+- **MUST communicate**: Replace this starter with one clear, reviewable claim.
+- **MUST NOT**: Add arbitrary HTML, CSS, coordinates, or legacy image prompts.
+
+**SLIDE BODY**:
+\`\`\`yaml
+schema_version: 1
+family: hero
+\`\`\`
+`;
+}
+
+// This is intentionally opt-in until Task 4.9 activates HTML-first defaults.
+export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
+    const created = initBundle(deckDir, frameworkDir, deckType, null);
+    if (style !== null) {
+        if (!STYLE_PRESETS.includes(style)) throw new Error(`unknown style preset ${JSON.stringify(style)}`);
+        const root = frameworkDir || path.dirname(__dirname);
+        const palette = path.join(root, STYLE_PRESETS_DIR, style, COLOR_PALETTE_FILE);
+        if (!fs.existsSync(palette)) throw new Error(`HTML-first style preset is missing ${COLOR_PALETTE_FILE}`);
+        fs.copyFileSync(palette, path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, COLOR_PALETTE_FILE));
+    }
+    fs.writeFileSync(path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME), _htmlFirstSeedSource(deckType), 'utf8');
+    fs.writeFileSync(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE),
+        'version: 2\nassets: {}\n',
+        'utf8'
+    );
+    fs.writeFileSync(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, 'README.md'),
+        _HTML_FIRST_ASSETS_README,
+        'utf8'
+    );
+    const metadataPath = path.join(deckDir, METADATA_FILE);
+    const metadata = fs.readFileSync(metadataPath, 'utf8').replace(/\s*$/, '\n');
+    fs.writeFileSync(
+        metadataPath,
+        `${metadata}` +
+        '# HTML fields below are status mirrors only; authoritative review evidence lives in _state.\n' +
+        'html_content_gate: pending\n' +
+        'html_content_gate_run_version: v1\n' +
+        'html_visual_gate: pending\n' +
+        'html_visual_gate_run_version: v1\n',
+        'utf8'
+    );
+    const state = readState(deckDir);
+    state.pipeline = 'html-first-v1';
+    state.gates.html_content = 'pending';
+    state.gates.html_content_run_version = 'v1';
+    state.gates.html_visual = 'pending';
+    state.gates.html_visual_run_version = 'v1';
+    delete state.nodes['html-production-reset'];
+    writeState(deckDir, state);
+    return [...created, `html-first seed: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`];
+}
+
+// Explicit compatibility scaffold for tests/maintenance of markerless
+// historical decks. New callers should use initBundle, which is HTML-first.
+export function initLegacyBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
+    const created = initBundle(deckDir, frameworkDir, deckType, style);
+    const state = readState(deckDir, { purpose: 'execute' });
+    state.pipeline = 'legacy-image2-first';
+    state.gates = { content: state.gates?.content || 'pending', visual: state.gates?.visual || 'pending' };
+    writeState(deckDir, state);
+    const dest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
+    const legacySource = [
+        '---',
+        'render:',
+        '  default: full-page',
+        '  header-lock: []',
+        '---',
+        '',
+        '# Legacy compatibility source',
+        '# Replace this placeholder through the legacy controller before production.',
+        '',
+    ].join('\n');
+    fs.writeFileSync(dest, legacySource, 'utf8');
+    return [...created, 'legacy-image2-first compatibility scaffold'];
+}
+
 const _DIR_READMES = {
     '.': (
         '# {NAME} — 这个 PPT 项目\n\n' +
@@ -840,11 +1050,10 @@ const _DIR_READMES = {
     [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}`]: (
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
-        '- `style-master-prompt.md` — 生成风格母版图的 prompt(源文件,别丢)\n' +
-        '- `style_master.jpg` — 风格母版图(每页生图时的视觉锚,必须 .jpg)\n' +
-        '- `deck_system.txt` — 文字约束(语言/禁用元素,管线读它)\n' +
-        '- `color_palette.json` — 配色 + 标题字号(管线读它)\n\n' +
-        '**你做什么:** 改配色/风格改这里。锁定后尽量别动——它是「全 deck 长一样」的根源。\n'
+        '- `deck_system.txt` — renderer-neutral visual rules\n' +
+        '- `color_palette.json` — HTML color and typography roles\n' +
+        '- `assets/asset-manifest.yaml` — verified local assets\n\n' +
+        '**你做什么:** 改 token 或资产后重新发布受影响的 HTML review evidence。\n'
     ),
     [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`]: (
         '# 视觉资产 (assets)\n\n' +
@@ -853,7 +1062,7 @@ const _DIR_READMES = {
         '- `svg/` — SVG 矢量资产\n' +
         '- `reference/` — PNG/JPG 参考图\n' +
         '- `icons/` — 图标集\n\n' +
-        '**你做什么:** 添加资产文件到此目录，在 `asset-manifest.yaml` 注册，然后在 slide-specifications.md 中用 `**VISUAL ASSETS**: <id>` 绑定到页。\n' +
+        '**你做什么:** 添加资产文件到此目录，在 `asset-manifest.yaml` 注册，然后从 structured `SLIDE BODY` 的 typed field 或 `primary_visual.fallback` 引用。\n' +
         '**这是可选基础设施:** 不需要资产时忽略此目录即可，管线在无 assets/ 时正常运作。\n'
     ),
     [`${BACKBONE_DIR}/${BACKBONE_MANUSCRIPT_SUBDIR}`]: (
@@ -871,7 +1080,7 @@ const _DIR_READMES = {
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +
         '**你改这两处:**\n' +
-        '- `slide-specifications.md` — 每一页讲什么(标题、要点、画面描述) + 全册 render policy\n' +
+        '- `slide-specifications.md` — 每一页的标题、concept、closed family、typed body 和 notes\n' +
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
         '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
@@ -955,12 +1164,15 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         specsTmpl = path.join(frameworkDir, DECK_TYPE_DIR, DECK_TYPE_TEMPLATES[deckType]);
         specsLabel = `deck-type:${deckType}`;
     } else {
-        specsTmpl = path.join(frameworkDir, 'workflow/02-content/template-slide-specifications.md');
+        specsTmpl = path.join(frameworkDir, 'workflow/01-content/template-slide-specifications.md');
         specsLabel = 'template';
     }
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
-    if (fs.existsSync(specsTmpl) && fs.statSync(specsTmpl).isFile() && !fs.existsSync(specsDest)) {
-        fs.copyFileSync(specsTmpl, specsDest);
+    if (!fs.existsSync(specsDest)) {
+        // Fresh bundles are HTML-first. Keep the checked-in templates as
+        // authoring references, but seed a runnable structured source so init
+        // never leaves an unavailable legacy delivery route active.
+        fs.writeFileSync(specsDest, _htmlFirstSeedSource(deckType), 'utf8');
         log.push(`${specsLabel}: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`);
     }
 
@@ -980,11 +1192,10 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     // Stub asset-manifest.yaml (placeholder — user registers assets here when needed)
     _writeIfAbsent(
         path.join(deckDir, assetsBase, ASSET_MANIFEST_FILE),
-        '# Visual Asset Manifest — SSOT catalog of visual assets.\n' +
-        '# Register each asset file here, then bind to slides with **VISUAL ASSETS**: <id>.\n' +
-        '# This is optional infrastructure — delete this file or leave assets: {} if unused.\n' +
+        '# HTML-first Visual Asset Manifest — optional local asset catalog.\n' +
+        '# Bind registered IDs only through structured body fields.\n' +
         '\n' +
-        'version: 1\n' +
+        'version: 2\n' +
         'assets: {}\n');
     log.push(`asset catalog: ${assetsBase}/${ASSET_MANIFEST_FILE}`);
 
@@ -994,7 +1205,9 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `# Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md\n` +
         `deck_name: ${name}\n` +
         `topic: \naudience: \nlanguage: \none_thing_to_remember: \n` +
-        `content_gate: pending\nvisual_gate: pending\n`);
+        `content_gate: pending\nvisual_gate: pending\n` +
+        `html_content_gate: pending\nhtml_content_gate_run_version: v1\n` +
+        `html_visual_gate: pending\nhtml_visual_gate_run_version: v1\n`);
     _writeIfAbsent(
         path.join(deckDir, AGENT_POINTER_FILE),
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
@@ -1008,66 +1221,40 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),
         `# ${path.basename(deckDir)} — 这个 PPT 项目怎么用\n\n` +
-        `> 当前版本：\`v1\`。先改源文件，再让管线重建；不要直接改 \`_generated/\`。\n\n` +
-        `> 版本：可见 \`vN\` + Structural Versioning Path 是 deck 工作版本权威。Git 仅是可选、用户拥有的 source/control 审计；\`_generated/\` 不是恢复目标。本框架不提供自动 Git source recovery 或默认回退协议；没有用户对命名操作和精确范围的明确授权，Agent 不做 Git mutation。\n\n` +
-        `## 你改哪里\n\n` +
-        `- 每页内容：\`${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}\`\n` +
-        `- 整体主线：\`${BACKBONE_DIR}/${BACKBONE_METAPHOR}\` + \`${BACKBONE_DIR}/${BACKBONE_FORMULA}\`\n` +
-        `- 视觉主干：\`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\`\n` +
-        `- 原始材料：\`${UPSTREAM_DIR}/\`\n\n` +
-        `用户确认内容/视觉闸门后，把 \`${METADATA_FILE}\` 中对应的 ` +
-        `\`content_gate\` / \`visual_gate\` 改为 \`approved\`；若用户明确跳过则写 \`waived\`。` +
-        `Stage 2 会自动检查。\n\n` +
-        `## 当前进度\n\n` +
-        `- 断线 / 清聊天续跑：先跑 \`node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1"\`（整流程 where-am-I），再动手——进度在盘上，不在聊天。\n` +
-        `- Playbook / 闸门进度：看 \`${STATE_DIR}/${STATE_FILE}\`（或同上 \`state\` / \`state --check-gates\`）。\n` +
-        `- 管线产物：看 \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\`——有 \`slide_plan.json\` 表示 Stage 1 完成；` +
-        `有 \`ppt/${name}.pptx\` 表示交付物已生成。\n\n` +
-        `## CLI 失败怎么处理\n\n` +
-        `- 非零退出时，以 stderr 最后一个有效 JSON failure envelope 为控制消息；只在完整支持并校验 \`diagnostic.version\` 后使用结构化字段。\n` +
-        `- 优先看 \`diagnostic.next\`。执行 \`next.invocation\` 时直接传 \`program\` + \`args\`，保持参数边界，不经过 shell。\n` +
-        `- \`requires_human: true\` 必须停下来让人决定；不能把提示文字当作批准。\n` +
-        `- 不猜被省略的 path/id/line/lineage；没有有效末行 envelope 就按外部中断或崩溃处理。\n` +
-        `- 只改 source，再重跑 prerequisite；\`_generated/\` 是派生品，永远不要手改。\n\n` +
-        `## 自留教训\n\n` +
-        `**每次进这个 deck 先看教训（避免重走弯路）：**\n\n` +
+        `> 当前版本：\`v1\`，production pipeline 是 \`html-first-v1\`。只改 source/control；\`_generated/\` 一律由管线重建。\n\n` +
+        `## 工作位置\n\n` +
+        `- 结构化页面：\`${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}\`\n` +
+        `- 视觉系统和本地资产：\`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\`\n` +
+        `- 生产产物：\`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/html_production/\`\n` +
+        `- 执行状态：\`${STATE_DIR}/${STATE_FILE}\`\n\n` +
+        `## HTML-first 流程\n\n` +
+        `1. 写完整 structured source，运行 \`validate\`。\n` +
+        `2. 运行 \`pilot\` 发布本地 HTML content/visual review artifacts。\n` +
+        `3. 用 exact plan hash 审核 content 和 visual；metadata 标量只是镜像。\n` +
+        `4. 运行 \`build\` 生成 contact sheet、PPTX 与 notes。\n` +
+        `5. 展示交付物后只用 \`state --record-delivery-review <decision>\` 记录 final review。\n\n` +
+        `\`state\`/\`status\` 仅观察；遇到 gate journal 或 reset ownership 时遵循 CLI 的 bounded recovery action。` +
+        `结构编辑先 preview，再按 exact plan hash 发布 vNext；target local materialization 后必须重新审核。` +
+        `非零退出时读取 stderr 最后一个有效 JSON failure envelope；执行 diagnostic.next 时传 program\` + \`args，requires_human: true 必须等待人类决定；不猜被省略的 path/id。` +
+        `\`_generated/\` 是派生品，结构 preview 的 plan hash 由 Agent 保存；needs_render 只报告后续成本，结构修改不调用 renderer，失败时走新 preview → 新 vNext → 新 deck。\n\n` +
+        `自留教训写入 \`_lessons/\`，使用 \`lessons.mjs\`；Git 仅是可选、用户拥有的 source/control 审计，\`_generated/\` 不是恢复目标；没有明确授权不做 Git mutation。\n\n` +
         `\`\`\`bash\n` +
-        `node "${frameworkDir}/scripts/lessons.mjs" list ${VERSIONS_DIR}/v1\n` +
-        `\`\`\`\n\n` +
-        `- 遇事自己克服后留下的**非密钥**教训在 \`${LESSONS_DIR}/\`（先读再猜；见 \`${LESSONS_DIR}/README.md\`）。\n` +
-        `- 写新教训：\`node "${frameworkDir}/scripts/lessons.mjs" add ${VERSIONS_DIR}/v1 --title "<slug>"\`\n` +
-        `- 例：Image2 冒烟回执 \`${LESSONS_DIR}/${LESSONS_IMAGE2_PROVEN}\`（试通后才写）。密钥只写 \`.env\`，不要写进 \`${LESSONS_DIR}/\`。\n\n` +
-        `## 从项目根目录运行\n\n` +
-        `依赖在 **repo 根** 用 \`npm install\` 一次装好（\`@napi-rs/canvas\` / \`pptxgenjs\`）。\n\n` +
-        `\`\`\`bash\n` +
-        `# 推荐：统一入口\n` +
         `node "${flowScript}" doctor\n` +
-        `node "${flowScript}" pilot "${deckDir}/${VERSIONS_DIR}/v1" --resolution 2k --force-images\n` +
-        `node "${flowScript}" approve "${deckDir}/${VERSIONS_DIR}/v1" header\n` +
-        `node "${flowScript}" build "${deckDir}/${VERSIONS_DIR}/v1" --resolution 2k --reuse-images\n` +
-        `\n# 等价：直接跑管线（Expert）\n` +
-        `node "${pipelineScript}" --run-dir "${deckDir}/${VERSIONS_DIR}/v1" --stage 1\n` +
-        `# Expert 可直跑 stage 做诊断；正式生产仍须通过上面的 header review gate。\n` +
-        `\n# 结构编辑默认 preview；确认后 Agent 重放同一操作并传 exact plan hash\n` +
-        `node "${flowScript}" slides list "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" state "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" validate "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" pilot "${deckDir}/${VERSIONS_DIR}/v1"\n` +
+        `node "${flowScript}" build "${deckDir}/${VERSIONS_DIR}/v1"\n` +
         `\`\`\`\n\n` +
-        `新 deck 默认 full-page；需要像素级标题位置和稳定清晰文字时，把对应 slide id 加入 specs frontmatter 的 ` +
-        `\`render.header-lock\`。逐页 RENDER MODE 仅作高级 override。full-page header 是尽力稳定，header-lock 才是确定性保证。\n\n` +
-        `1K evidence 不授权 2K；resolution/model/style 任一变化都要用目标 profile 重新 pilot + approve header。\n\n` +
-        `页面 position 只代表当前顺序，正式 slide ID 才跨版本稳定；状态/候选统一显示 position · ID · title。` +
-        `结构 preview 的 plan hash 由 Agent 保存，用户只确认 before/after；stale 时重新 preview。\n\n` +
-        `结构提交与跨版本 materialization 不调用 renderer。只复用 verified raw render；target 本地重建 Stage 3/contact sheet/PPTX/notes。` +
-        `needs_render 只报告后续成本，必须另行获得 Generated Image Rebuild 授权。无法在一版内收敛时使用新 preview → 新 vNext → 新 deck。\n\n` +
-        `用户只需告诉 Agent 想改什么；Agent 负责按 resolved mode 选择最小重跑链。\n`);
+        `Legacy Image2 maintenance is only for markerless historical decks and is not initialized here.\n`);
     log.push(`project files: ${METADATA_FILE}, ${AGENT_POINTER_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
 
     _writeIfAbsent(
         path.join(deckDir, '.env.example'),
-        '# Image2 图像生成凭据（Stage 2 / style-master 需要——没有 key+URL 就生不了图）。\n' +
-        '# 复制本文件为 .env 并填好；管线按 cwd 向上加载 .env（填一次即可）。\n' +
-        '# 这些变量只用于出图，不是 ChatGPT 聊天。\n\n' +
-        'IMAGE2_API_KEY=            # 必填：图像 API key\n' +
-        'IMAGE2_BASE_URL=           # 必填：API 端点，如 https://<relay>/v1\n');
+        '# HTML-first local production does not require provider credentials.\n' +
+        '# Keep secrets out of this run bundle. Markerless legacy maintenance has\n' +
+        '# separate, explicitly authorized Image2 troubleshooting guidance.\n' +
+        '# IMAGE2_API_KEY=            # legacy compatibility only\n' +
+        '# IMAGE2_BASE_URL=           # legacy compatibility only\n');
     _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +
@@ -1080,6 +1267,11 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
 
     if (!fs.existsSync(statePath(deckDir))) {
         const state = createInitialState(name, deckType || '', style || '');
+        state.pipeline = 'html-first-v1';
+        state.gates.html_content = 'pending';
+        state.gates.html_visual = 'pending';
+        state.gates.html_content_run_version = 'v1';
+        state.gates.html_visual_run_version = 'v1';
         setNodeStatus(state, 'instantiation', 'completed');
         writeState(deckDir, state);
         log.push(`state: ${STATE_DIR}/${STATE_FILE}`);
@@ -1138,8 +1330,12 @@ deck_\${NAME}/
     │   │   ├── ${GEN_HEADER_LOCKED_SUBDIR}/{ID.png, _manifest.json}
     │   │   ├── ${GEN_PPT_SUBDIR}/{NAME}.pptx (+ .backup.pptx)
     │   │   ├── ${GEN_QA_SUBDIR}/
-    │   │   └── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg
-    │   └── ${SCRATCH_SUBDIR}/                      ← THIS version temp/bak · not SSOT · deletable (上严下松 leaf)
+    │   │   ├── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg
+    │   │   └── ${GEN_HTML_PRODUCTION_SUBDIR}/              ← HTML-first immutable local production owner
+    │   │       ├── ${GEN_HTML_PAGES_SUBDIR}/{objects/, manifest.json}
+    │   │       ├── ${GEN_HTML_FINAL_SLIDES_SUBDIR}/{objects/, manifest.json}
+    │   │       └── ${GEN_HTML_PREVIEW_SUBDIR}/{objects/, plans/, manifest.json}
+    │   └── ${SCRATCH_SUBDIR}/html-migration/               ← isolated migration candidate/projected-run only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
 }

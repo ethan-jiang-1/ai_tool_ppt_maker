@@ -84,13 +84,13 @@ describe("HTML-first structural versioning", () => {
     }
   }, 20_000);
 
-  it("blocks legacy structural materialization before target Stage 1", async () => {
+  it("rejects a missing structural source before target Stage 1 writes", async () => {
     const fixture = createHtmlFirstRun("html-materialization-guard-");
     try {
       const other = join(fixture.deck, "3_versions", "v2");
       writeFileSync(join(fixture.runDir, "_scratch", "placeholder"), "x");
       await expect(materializeStructuralVersion({ sourceRunDir: other, targetRunDir: fixture.runDir }))
-        .rejects.toMatchObject({ cliDiagnostic: { reason: { kind: "html_first_delivery_unavailable" } } });
+        .rejects.toMatchObject({ code: "ENOENT", path: other });
       expect(existsSync(join(fixture.runDir, "_generated", "slide_plan.json"))).toBe(false);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

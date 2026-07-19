@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +12,7 @@ import {
   parseAllDocuments,
   parseDocument,
 } from "yaml";
+import { HTML_FIRST_PIPELINE, probeProductionMarker } from "./production_marker.mjs";
 import { parseSlideDocument, validateSlideDocument } from "./slide_document.mjs";
 import { normalizeSpokenKey } from "./slide_ids.mjs";
 import { canonicalJsonSha256 } from "./canonical_json.mjs";
@@ -42,7 +43,7 @@ import {
   styleAsset,
 } from "../bundle_layout.mjs";
 
-export const HTML_FIRST_PIPELINE = "html-first-v1";
+export { HTML_FIRST_PIPELINE, probeProductionMarker } from "./production_marker.mjs";
 export const HTML_SLIDE_PLAN_SCHEMA = "pptmaker-html-slide-plan-v1";
 export const HTML_CONTRACT_VERSION = 1;
 export const HTML_SOURCE_SCHEMA_VERSION = 1;
@@ -149,109 +150,6 @@ function yamlAstIssues(document, source, baseLine, { commentsAllowed = false } =
     }
   });
   return issues;
-}
-
-function parseLeadingFrontmatter(sourceText, source) {
-  const text = String(sourceText ?? "");
-  const bom = text.startsWith("\uFEFF") ? "\uFEFF" : "";
-  const body = text.slice(bom.length);
-  if (!body.startsWith("---\n") && !body.startsWith("---\r\n")) {
-    return { present: false, metadata: {}, document: null, issues: [], raw: "" };
-  }
-  const newline = body.startsWith("---\r\n") ? "\r\n" : "\n";
-  const close = body.indexOf(`${newline}---${newline}`, 3 + newline.length);
-  const terminalClose = body.endsWith(`${newline}---`) ? body.length - (newline.length + 3) : -1;
-  const closing = close >= 0 ? close + newline.length : terminalClose;
-  if (closing < 0) {
-    return { present: true, metadata: {}, document: null, raw: "", issues: [issue("unclosed_frontmatter", "leading YAML frontmatter is not closed", { source })] };
-  }
-  const contentStart = 3 + newline.length;
-  const content = body.slice(contentStart, closing);
-  const document = parseDocument(content, {
-    version: "1.2",
-    schema: "core",
-    uniqueKeys: true,
-    merge: false,
-    keepSourceTokens: true,
-  });
-  const issues = [...document.errors, ...document.warnings].map((problem) =>
-    issue("invalid_frontmatter_yaml", problem.message.split("\n")[0], { source, line: 2 })
-  );
-  let metadata = {};
-  if (issues.length === 0) {
-    metadata = document.toJS({ mapAsMap: false }) ?? {};
-    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-      issues.push(issue("invalid_frontmatter_root", "frontmatter root must be a mapping", { source }));
-      metadata = {};
-    }
-  }
-  return {
-    present: true,
-    metadata,
-    document,
-    issues,
-    raw: body.slice(0, closing + 3 + (close >= 0 ? newline.length : 0)),
-  };
-}
-
-function directProductionNodeIssues(frontmatter, source) {
-  const issues = [];
-  if (!frontmatter.document || frontmatter.issues.length > 0) return issues;
-  const root = frontmatter.document.contents;
-  if (!isMap(root)) return issues;
-  const pairs = root.items.filter((pair) => isScalar(pair.key) && pair.key.value === "production");
-  if (pairs.length !== 1) {
-    if (Object.hasOwn(frontmatter.metadata || {}, "production")) {
-      issues.push(issue("invalid_production_marker", "production must be one direct string-keyed mapping", { source }));
-    }
-    return issues;
-  }
-  if (pairs[0].key.anchor || pairs[0].key.tag) {
-    issues.push(issue("invalid_production_key", "production must use a direct untagged string key", { source }));
-  }
-  const production = pairs[0].value;
-  if (!isMap(production) || production.anchor || production.tag) {
-    issues.push(issue("invalid_production_marker", "production must be a direct mapping", { source }));
-    return issues;
-  }
-  for (const pair of production.items) {
-    if (!isScalar(pair.key) || typeof pair.key.value !== "string" || pair.key.anchor || pair.key.tag) {
-      issues.push(issue("invalid_production_key", "production keys must be direct strings", { source }));
-    } else if (pair.key.value !== "pipeline") {
-      issues.push(issue("unknown_production_key", `unknown production key ${JSON.stringify(pair.key.value)}`, { source }));
-    }
-  }
-  const pipelinePairs = production.items.filter((pair) => isScalar(pair.key) && pair.key.value === "pipeline");
-  if (
-    pipelinePairs.length !== 1
-    || !isScalar(pipelinePairs[0].value)
-    || typeof pipelinePairs[0].value.value !== "string"
-    || pipelinePairs[0].value.anchor
-    || pipelinePairs[0].value.tag
-  ) {
-    issues.push(issue("invalid_pipeline_marker", "production.pipeline must be one direct string scalar", { source }));
-  }
-  return issues;
-}
-
-export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
-  const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");
-  const frontmatter = parseLeadingFrontmatter(text, source);
-  if (frontmatter.issues.length > 0) return { branch: "invalid", issues: frontmatter.issues };
-  const directIssues = directProductionNodeIssues(frontmatter, source);
-  if (directIssues.length > 0) return { branch: "invalid", issues: directIssues };
-  if (!Object.hasOwn(frontmatter.metadata, "production")) return { branch: "legacy", issues: [] };
-  const production = frontmatter.metadata.production;
-  if (!production || typeof production !== "object" || Array.isArray(production)) {
-    return { branch: "invalid", issues: [issue("invalid_production_marker", "production must be a mapping", { source })] };
-  }
-  if (production.pipeline !== HTML_FIRST_PIPELINE) {
-    return {
-      branch: "invalid",
-      issues: [issue("unsupported_pipeline_marker", `production.pipeline must equal ${HTML_FIRST_PIPELINE}`, { source, actual: production.pipeline, expected: HTML_FIRST_PIPELINE })],
-    };
-  }
-  return { branch: HTML_FIRST_PIPELINE, issues: [], frontmatter };
 }
 
 function absoluteLine(text, offset) {
@@ -831,14 +729,17 @@ function fontReceiptPaths(preflight) {
 }
 
 function buildReceipts({ runDir, sourcePath, palettePath, assetCatalog, preflight }) {
-  const root = deckRoot(runDir);
+  const root = realpathSync(deckRoot(runDir));
+  const frameworkRoot = realpathSync(FRAMEWORK_DIR);
+  const runPath = (filePath) => relative(root, realpathSync(filePath)).split(sep).join("/");
+  const frameworkPath = (filePath) => relative(frameworkRoot, realpathSync(filePath)).split(sep).join("/");
   const records = [
-    receipt("run", relative(root, sourcePath).split(sep).join("/"), readFileSync(sourcePath)),
-    receipt("run", relative(root, palettePath).split(sep).join("/"), readFileSync(palettePath)),
-    receipt("framework", relative(FRAMEWORK_DIR, resolve(MODULE_DIR, "..", "contracts", "html-family-geometry-v1.json")).split(sep).join("/"), readFileSync(resolve(MODULE_DIR, "..", "contracts", "html-family-geometry-v1.json"))),
+    receipt("run", runPath(sourcePath), readFileSync(sourcePath)),
+    receipt("run", runPath(palettePath), readFileSync(palettePath)),
+    receipt("framework", frameworkPath(resolve(MODULE_DIR, "..", "contracts", "html-family-geometry-v1.json")), readFileSync(resolve(MODULE_DIR, "..", "contracts", "html-family-geometry-v1.json"))),
   ];
-  for (const manifest of assetCatalog.manifests) records.push(receipt("run", relative(root, manifest.path).split(sep).join("/"), Buffer.from(manifest.raw, "utf8")));
-  for (const entry of Object.values(assetCatalog.catalog)) records.push(receipt("run", relative(root, entry.absolute_path).split(sep).join("/"), readFileSync(entry.absolute_path)));
+  for (const manifest of assetCatalog.manifests) records.push(receipt("run", runPath(manifest.path), Buffer.from(manifest.raw, "utf8")));
+  for (const entry of Object.values(assetCatalog.catalog)) records.push(receipt("run", runPath(entry.absolute_path), readFileSync(entry.absolute_path)));
   for (const path of fontReceiptPaths(preflight)) {
     records.push(receipt("framework", `scripts/fonts/${path}`, readFileSync(join(HTML_FONT_ROOT, ...path.split("/")))));
   }
@@ -853,19 +754,20 @@ function buildReceipts({ runDir, sourcePath, palettePath, assetCatalog, prefligh
 }
 
 export function verifyInputReceipts(receipts, { runDir, assetCatalog = null } = {}) {
-  const root = deckRoot(runDir);
+  const root = realpathSync(deckRoot(runDir));
+  const frameworkRoot = realpathSync(FRAMEWORK_DIR);
   const seen = new Set();
   let previousKey = null;
   for (const record of receipts) {
     const pairKey = `${record?.scope}\0${record?.path}`;
     if (!["run", "framework"].includes(record?.scope) || typeof record?.path !== "string" || !record.path || record.path.includes("\\") || record.path.startsWith("/") || record.path.split("/").some((part) => !part || part === "." || part === "..") || !SHA_RE.test(record?.sha256 || "")) {
-      throw new HtmlSlideContractError("invalid input receipt", [issue("invalid_input_receipt", "input receipt must use a safe scope/path and lowercase SHA-256")]);
+      throw new HtmlSlideContractError("invalid input receipt", [issue("invalid_input_receipt", `input receipt must use a safe scope/path and lowercase SHA-256: ${String(record?.scope)}:${String(record?.path)}`)]);
     }
     if (seen.has(pairKey)) throw new HtmlSlideContractError("duplicate input receipt", [issue("duplicate_input_receipt", `duplicate input receipt ${record.scope}:${record.path}`)]);
     if (previousKey != null && pairKey < previousKey) throw new HtmlSlideContractError("unsorted input receipts", [issue("unsorted_input_receipts", "input receipts must be sorted by scope/path in code-unit order")]);
     seen.add(pairKey);
     previousKey = pairKey;
-    const absolute = record.scope === "run" ? resolve(root, ...record.path.split("/")) : resolve(FRAMEWORK_DIR, ...record.path.split("/"));
+    const absolute = record.scope === "run" ? resolve(root, ...record.path.split("/")) : resolve(frameworkRoot, ...record.path.split("/"));
     if (sha256(readFileSync(absolute)) !== record.sha256) throw new HtmlSlideContractError("input receipt drifted", [issue("input_receipt_drift", `input changed before publication: ${record.scope}:${record.path}`)]);
   }
   if (assetCatalog) {
@@ -968,13 +870,19 @@ export function buildHtmlFirstPlan(validated) {
   };
 }
 
-export function validateHtmlFirstRun({ runDir, sourceBytes = null } = {}) {
+export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOverride = null } = {}) {
   const run = resolve(runDir);
   const candidates = readdirSync(run)
     .filter((name) => /^slide-specifications.*\.md$/.test(name))
     .map((name) => join(run, name));
   const sourcePath = assertCanonicalHtmlSourceCandidates(run, candidates);
-  const bytes = sourceBytes == null ? readFileSync(sourcePath) : Buffer.from(sourceBytes);
+  const receiptSourcePath = sourcePathOverride == null ? sourcePath : resolve(sourcePathOverride);
+  const receiptRoot = deckRoot(run);
+  const receiptRel = relative(receiptRoot, receiptSourcePath);
+  if (!receiptRel || receiptRel.startsWith("..") || receiptRel.split(sep).includes("..")) {
+    throw new HtmlSlideContractError("HTML-first source override must be inside the run bundle", [issue("source_override_not_confined", "source override path must be confined to the run bundle", { source: "slide-specifications.md" })]);
+  }
+  const bytes = sourceBytes == null ? readFileSync(receiptSourcePath) : Buffer.from(sourceBytes);
   let sourceText;
   try {
     sourceText = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -984,7 +892,7 @@ export function validateHtmlFirstRun({ runDir, sourceBytes = null } = {}) {
   if (sourceText.includes("\0")) {
     throw new HtmlSlideContractError("HTML-first source contains NUL", [issue("source_nul_forbidden", "slide-specifications.md must not contain NUL", { source: "slide-specifications.md" })]);
   }
-  const sourcePathRelative = relative(deckRoot(run), sourcePath).split(sep).join("/");
+  const sourcePathRelative = relative(receiptRoot, receiptSourcePath).split(sep).join("/");
   const parsed = parseHtmlFirstSource(sourceText, { source: sourcePathRelative });
   const palettePath = styleAsset(run, COLOR_PALETTE_FILE);
   const config = loadVisualConfigViews(palettePath).html_first;
@@ -992,10 +900,11 @@ export function validateHtmlFirstRun({ runDir, sourceBytes = null } = {}) {
   const preflight = buildHtmlSourcePreflight(parsed.slides);
   const geometryRegistry = loadHtmlFamilyGeometryRegistry();
   const geometryRegistrySha256 = htmlFamilyGeometrySemanticSha256(geometryRegistry);
-  const receipts = buildReceipts({ runDir: run, sourcePath, palettePath, assetCatalog, preflight });
+  const receipts = buildReceipts({ runDir: run, sourcePath: receiptSourcePath, palettePath, assetCatalog, preflight });
   return {
     runDir: run,
-    sourcePath,
+    sourcePath: receiptSourcePath,
+    canonicalSourcePath: sourcePath,
     palettePath,
     parsed,
     config,

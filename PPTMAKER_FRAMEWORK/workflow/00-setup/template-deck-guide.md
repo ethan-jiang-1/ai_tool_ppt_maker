@@ -3,7 +3,7 @@ title: Template — Per-Bundle deck-guide.md
 stage: workflow/00-setup
 position: template
 type: template
-summary: 复制到 deck_{NAME}/deck-guide.md。进入 run bundle 后先读它——一屏说清结构、控制流、刷新路径、现在哪一步、怎么跑。人和 agent 都看得懂。
+summary: HTML-first run bundle 的人类入口与 Agent 操作卡；legacy deck 按 marker 路由兼容维护。
 depends_on:
 - charter/CONSTITUTION.md
 - scripts/bundle_layout.mjs
@@ -13,195 +13,76 @@ agent_action: copy_to_bundle
 
 # Template — Per-Bundle deck-guide.md
 
-> **这是模板,不是某个具体项目的 deck-guide。** Phase 0 初始化 run bundle 时:
-> 1. 把下面第一个代码块复制到 `deck_{NAME}/deck-guide.md`,替换 `{{...}}` 占位符。
-> 2. 把第二个代码块同时作为 `deck_{NAME}/AGENTS.md` 与 `deck_{NAME}/CLAUDE.md` 的短指针。
->
-> `deck-guide.md` 有两个读者:**上半部给人**(大白话,新手一进来就知道怎么办),**下半部给 agent**(控制流、刷新路径、命令)。人不会被技术细节淹没,agent 也拿得到执行所需的一切。
-
----
-
-## 复制到 `deck_{NAME}/deck-guide.md`：
+将下面内容写入 `deck_{NAME}/deck-guide.md`，替换 `{{...}}`。`AGENTS.md` 与 `CLAUDE.md` 只需指向它。
 
 ```markdown
-# {{DECK_NAME}} — 这个 PPT 项目怎么用
+# {{DECK_NAME}} — PPT 项目指南
 
-> 这份说明给你(人)看。不用懂目录、不用懂管线、不用写代码。看完你就知道现在能做什么。
+> 当前 run version：`{{CURRENT_VERSION}}`。先改 source，再让管线重建；不要直接改 `_generated/`。
 >
-> **版本与可选 Git**：可见 `vN` + Structural Versioning Path 是 deck 工作版本权威。Git 只是可选、用户拥有的 source/control 审计与比较；`_generated/` 不是恢复目标。本框架不提供自动 Git source recovery 或默认回退协议。没有用户对命名 Git 操作和精确范围的明确授权，Agent 不做 Git mutation。
+> 可见 `vN` + Structural Versioning Path 是 deck 工作版本权威。Git 只是可选、用户拥有的 source/control 审计；本框架不提供自动 Git source recovery，也不把 `_generated/` 当作恢复目标。
 
-## 你在这里
+## 人类只需要知道这些
 
-这是你的 PPT 项目文件夹。它已经搭好了骨架。整个项目分**你改的**和**机器生成的**两部分——你只管前者。
+| 想改什么 | Source owner |
+|---|---|
+| 每页标题、正文、layout family、notes | `3_versions/{{CURRENT_VERSION}}/slide-specifications.md` |
+| 主叙事、公式、设计约束 | `2_backbone/` |
+| palette、字体角色、组件规则、资产 | `2_backbone/visual-style/` |
+| 原始调研 | `1_upstream_raw_material/` |
 
-## 你现在能做什么(改这几个,其它别碰)
+跟 Agent 说“改第 5 页文案”“把这页换成 comparison”“新增风险页”即可。Agent 会把 position 解析为稳定 `slide_id`，选择最小本地刷新路径，并在结构变化前展示 before/after。
 
-| 想改什么 | 打开这个文件 |
-|---------|-------------|
-| **每一页讲什么**(标题、要点、画面描述) | `3_versions/{{CURRENT_VERSION}}/slide-specifications.md` |
-| **核心隐喻 / 公式**(整个 deck 的主线) | `2_backbone/core-metaphor.md` / `core-formula.md` |
-| **视觉风格**(颜色、字体、风格参考图) | `2_backbone/visual-style/` |
-| **调研素材**(往里堆资料,写着发现缺了就加) | `1_upstream_raw_material/` |
-
-**`_generated/` 文件夹别碰**——那是机器生成的成品(图片、PPTX)。你改了上面的源文件,机器会重新生成它。想改 PPT,永远改源文件,不要直接改图片或 PPTX。
-
-## 改完之后,怎么让它更新
-
-跟你的 AI agent 说人话就行,比如:
-- "第 5 页的例子换成特斯拉" → agent 会改源文件、重新生成那一页
-- "颜色太暗了" → agent 会调视觉、重新生成
-- "加一页讲风险" → agent 会插一页、重新生成
-
-你**不需要**自己跑命令。真要自己跑,一条就够(下面"给 agent 的技术细节"里有)。
-
-## 现在做到哪一步了?
-
-- **断线 / 清聊天续跑:** 先跑 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}`（整流程 where-am-I 卡），再动手——进度在盘上，不在聊天
-- **Playbook / 闸门进度:**看 `_state/state.yaml`（或同上 `state` / `state --check-gates`）
-- **管线产物:**看 `3_versions/{{CURRENT_VERSION}}/_generated/` 里有没有东西:
-  - 空的 → 还没生产,跟 agent 说"开始生成"
-  - 有 `ppt/{{OUTPUT_NAME}}.pptx` → 成品好了 ✅,打开看看
-
-## 自留教训（不是进度）
-
-- 遇事自己克服后留下的**非密钥**教训在 `_lessons/`（先读再猜；见 `_lessons/README.md`）
-- 例：Image2 冒烟回执 `_lessons/image2-proven.yaml`（试通后才写；无 API key）。密钥只写 `.env`
-
-## CLI 失败怎么处理
-
-- 非零退出时，以 stderr 最后一个有效 JSON failure envelope 为控制消息；只在完整支持并校验 `diagnostic.version` 后使用结构化字段。
-- 优先看 `diagnostic.next`。执行 `next.invocation` 时直接传 `program` + `args`，保持参数边界，不经过 shell。
-- `requires_human: true` 必须停下来让人决定；不能把提示文字当作批准。
-- 不猜被省略的 path/id/line/lineage；没有有效末行 envelope 就按外部中断或崩溃处理。
-- 只改 source，再重跑 prerequisite；`_generated/` 是派生品，永远不要手改。
-
-## 这个项目的约定
-- **语言**:{{LANGUAGE_POLICY}}
-- **内容禁忌**:{{CONTENT_CONSTRAINTS}}
-- **视觉禁忌**:{{VISUAL_CONSTRAINTS}}
-- **视觉风格**:{{VISUAL_PRESET}}
-
----
----
-
-# 以下给 AI agent:控制流与命令
-
-> 目录结构是宪法,唯一事实源 `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
-> (跑它看树 / `--check deck_{NAME}/3_versions/v1` 校验)。只改 `2_backbone/` 和
-> `3_versions/{{CURRENT_VERSION}}/{slide-specifications.md, overrides/}`;`_generated/` 全是派生品。
-> 可见 `vN` + Structural Versioning Path 是 deck 工作版本权威；Git 只是可选、用户拥有的 source/control 审计。没有用户对命名 Git 操作和精确范围的明确授权，Agent 不做 Git inspection 或 mutation。
-
-## 结构(三层梯度)
-
-```
-{{DECK_NAME}}/
-├── _state/                    ← playbook 执行进度（state.yaml）
-├── _lessons/                 ← 自留教训（遇事克服后留下；先读再猜；不是进度 / 不是密钥）
-├── 1_upstream_raw_material/   ← 源·共享·原始素材(只增)
-├── 2_backbone/               ← 源·共享·主干:隐喻/公式/约束/大纲/讲稿/视觉(默认事实源)
-└── 3_versions/{{CURRENT_VERSION}}/
-    ├── slide-specifications.md ← 源·每页规格 + 全册 render policy(管线入口)
-    ├── overrides/            ← 源·只放这版偏离 backbone 的东西;空=全继承
-    ├── _generated/           ← 派生·别碰·可 rm -rf 重建
-    └── _scratch/             ← 本版临时/bak（上严下松；别丢到 deck 根）
-```
-
-版本只切 `3_versions/`：用 `bundle_layout.mjs --new-version` 创建干净版本，只复制下游源 delta，不复制 `_generated/` / `_scratch/` 内容。改隐喻/视觉主干 = 改 `2_backbone/`（影响全版本），不是开新版本。
-
-## 控制流:五阶段 + 两个 render mode
-
-```
-slide-specifications.md ──(Stage 1)──> _generated/slide_plan.json + page_prompts/
-                                              │
-        每页按 resolved render mode 分两条路:       ▼
-  ┌─ full-page: image-2 画整页(含 Stage 1 注入的准确 header 文字) ─────┐
-  └─ body+header-lock: image-2 只画 body ──> Stage 3 叠 kicker+title ┘
-                            (Stage 2)          (Stage 3,固定像素)
-                                              │
-                        (Stage 4) 打包 PPTX ──> (Stage 5) 注入 speaker notes
-                                              ▼
-                            _generated/ppt/{{OUTPUT_NAME}}.pptx
-```
-
-新 `--init` deck 在 frontmatter 中默认 `render.default: full-page`；`render.header-lock` 点名需要确定性标题的页，逐页 `RENDER MODE` 只做高级 override。没有顶层 `render` 的旧 deck 保持 legacy：显式 mode 优先，否则按 VISUAL TYPE 派生。`render` 内 typo 会 fail-loud；顶层 `renders:` 无法安全猜测纠正，排障看 `render_mode_source`。
-
-full-page header 由图像模型尽力保持稳定，不承诺像素精度；文字清晰度与精确位置必须用 body+header-lock。
-
-## 刷新路径:改了什么 → 刷新哪些产物
-
-| 路径 | 改了 | 逻辑执行 | 耗时 |
-|------|------|---------|------|
-| Header Text & Style Refresh | body+header-lock 的 KICKER/TITLE/SUBTITLE 或 Stage-3-owned header 样式；raw-image contract 不变 | 1,3,4,5 | ~5 min |
-| Generated Image Rebuild | full-page header、body/image prompt/画面，或 mode/safe-zone | 强制所选 2 → review → 3/4/5 | ~5 min/页 |
-| Notes-Only Refresh | speaker notes only | 5 | ~30 sec |
-| Generated Image Rebuild | 视觉主干(backbone) | 重生 style master + `1,2,3,4,5 --force-images` | — |
-
-增/删/重排先走 Structural Versioning Path：用户可以说“第 7 页”或“UX gap 那页”，Agent 用 `ppt_flow slides` 绑定当前 position 与稳定 ID，展示 `position · ID · title` 的 before/after preview，并在用户确认后用同一个 `plan_sha256` 提交干净 vNext。用户不负责抄 hash；stale 时重新 preview。
-
-结构提交与跨版本 materialization 都不调用远端 renderer。只复用 manifest 证明完整的 raw render；Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 只报告后续成本，必须另行取得 Generated Image Rebuild 授权。若一版内无法收敛，按新 preview → 新 vNext → 新 deck 处理。
-
-## 进度对照
-
-| 看哪里 | 说明 |
-|------|------|
-| `_state/state.yaml` | playbook / 会话进度（断线后续跑先看这里 + `ppt_flow state`） |
-| `3_versions/{{CURRENT_VERSION}}/_generated/` 空 | 还没生产 |
-| `slide_plan.json` + `page_prompts/` | Stage 1 完成 |
-| `page_images_full/` | Stage 2 完成 |
-| `header_locked/` | Stage 3 完成 |
-| `ppt/{{OUTPUT_NAME}}.pptx` | 完成 ✅ |
-
-## 自留教训对照（非进度）
-
-| 看哪里 | 说明 |
-|------|------|
-| `_lessons/` | 遇事克服后留下的非密钥教训（先读再猜） |
-| `_lessons/image2-proven.yaml` | Image2 冒烟试通回执（一例；无 key） |
-| `.env` | 密钥与生效 URL（机器加载；不进 `_lessons/`） |
-
-## 命令
+## 看进度
 
 ```bash
-# 全量(跑前会自动 --check 结构)
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage all
-
-# 标题意图先让公共入口按 resolved render mode 分流:
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh \
-  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --kind title --only slide_NN
-
-# 明确重建已有单页图片（raw --only 不会自动 force）:
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs \
-  --run-dir {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}} --stage 1,2,3,4,5 \
-  --only slide_NN --force-images
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
 ```
 
-> 完整方法论见 `PPTMAKER_FRAMEWORK/AGENTS.md`。目录宪法见 `scripts/bundle_layout.mjs`。
+HTML-first 完整路径是 structured source -> local HTML preview -> content/visual review -> contact sheet/PPTX/notes -> final delivery review。它不需要 Image2 key 或 style master。`04-image2-refinement` 当前不可用，也不是交付欠账。
+
+Markerless 历史 deck 会显示 `legacy-image2-first`，继续走 legacy maintenance；不要手动补 HTML marker。
+
+## Agent 控制流
+
+- `production.pipeline` 是最早分支权威。
+- HTML outputs 在 `_generated/html_production/`，QA lineage 在 `_generated/qa/`；全部可重建、不可手改。
+- Preview 可在 gates pending 时运行；Stage 4 必须有当前 reset-bound content/visual evidence。
+- Local Slide Rebuild：单页 header/body/family/fallback。
+- Local Deck Rebuild：visual config/runtime/renderer 影响全册。
+- Notes-Only Refresh：assembly lineage 当前时只跑 Stage 5。
+- Structural Versioning Path：preview + exact hash -> source-only clean vNext -> explicit target-local materialization。
+- HTML structural debt 是 `needs_local_materialization`；legacy remote debt 是 `needs_render`。
+- stable ID 只允许 byte matching，不继承 reset、gate、delivery review 或 node decision。
+
+## 常用命令
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides list \
+  {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
 ```
 
----
+CLI 非零退出时，只消费 stderr 最后一个有效 failure envelope。`requires_human: true` 必须停下取得决定；不要猜 path/hash/token，也不要手修 `_state`、journal、lock 或 `_generated/`。
 
-## 复制到 `deck_{NAME}/AGENTS.md` 与 `deck_{NAME}/CLAUDE.md`（短指针）：
+## 项目约定
+
+- 语言：{{LANGUAGE_POLICY}}
+- 内容禁忌：{{CONTENT_CONSTRAINTS}}
+- 视觉禁忌：{{VISUAL_CONSTRAINTS}}
+- 视觉 preset：{{VISUAL_PRESET}}
+```
+
+短指针：
 
 ```markdown
 # {{DECK_NAME}}
 
-进入这个 run bundle 请先读 [deck-guide.md](deck-guide.md)——它定义源文件所有权、
-CLI 诊断处理、控制流和下一步动作。
+进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。它定义 source ownership、CLI 诊断和下一步。
 ```
-
----
-
-## 填占位符指南
-
-| 占位符 | 填什么 | 来源 |
-|--------|--------|------|
-| `{{DECK_NAME}}` | run bundle 目录名(如 `deck_ev_pitch`) | Phase 0 项目命名 |
-| `{{OUTPUT_NAME}}` | PPTX 文件名 stem（如 `ev_pitch`，去掉 `deck_`） | 由 bundle 名推导 |
-| `{{CURRENT_VERSION}}` | 当前工作版本(如 `v1`) | Phase 0 |
-| `{{LANGUAGE_POLICY}}` | slides / 演讲语言 | Intake 第 4 问 |
-| `{{CONTENT_CONSTRAINTS}}` | 不能出现在 slides 上的东西 | Phase 0.1 |
-| `{{VISUAL_CONSTRAINTS}}` | 视觉禁忌 | Phase 0.1 |
-| `{{VISUAL_PRESET}}` | 选中的视觉预设名 | BOOTSTRAP Step 3.5 |
-
-> 约束项如果用户说"没有",写"无"——不要留空的 `{{...}}`。

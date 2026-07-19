@@ -21,6 +21,7 @@ function makeDeck() {
 function initState(deckDir) {
   const deckName = deckDir.replace(/^.*deck_/, '');
   const state = createInitialState(deckName, 'keynote', 'dark-executive');
+  state.pipeline = 'html-first-v1';
   writeState(deckDir, state);
   return state;
 }
@@ -34,11 +35,12 @@ describe('State Machine: create-deck happy path', () => {
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
   const NODES = [
-    'instantiation', 'checkpoint-intake', 'setup', 'seed-topics',
-    'authoring-slides', 'composing-prompts', 'producing-deck', 'checkpoint-final-review', 'readiness', 'final',
+    'instantiation', 'checkpoint-intake', 'author-structured-content', 'configure-visual-system',
+    'preview-content', 'review-content', 'review-visual', 'produce-html-deck',
+    'checkpoint-final-review', 'readiness', 'final',
   ];
 
-  it('completes all 10 nodes in sequence', () => {
+  it('completes the HTML-first create-deck nodes in sequence', () => {
     const state = initState(deckDir);
 
     for (const node of NODES) {
@@ -82,14 +84,13 @@ describe('State Machine: entry gate reject', () => {
   beforeEach(() => { deckDir = makeDeck(); });
   afterEach(() => { try { rmSync(deckDir, { recursive: true, force: true }); } catch {} });
 
-  it('refuses to start authoring-slides when seed-topics is pending', () => {
+  it('refuses to start visual configuration while structured authoring is pending', () => {
     const state = initState(deckDir);
     setNodeStatus(state, 'instantiation', 'completed');
     setNodeStatus(state, 'checkpoint-intake', 'completed');
-    setNodeStatus(state, 'setup', 'completed');
-    // seed-topics intentionally left pending
+    // author-structured-content intentionally left pending
 
-    const seedStatus = state.nodes['seed-topics']?.status || 'pending';
+    const seedStatus = state.nodes['author-structured-content']?.status || 'pending';
     expect(seedStatus).not.toBe('completed');
   });
 });
@@ -121,7 +122,7 @@ describe('State Machine: rerun branch', () => {
     const state = initState(deckDir);
 
     // Complete all nodes up to checkpoint-final-review
-    for (const node of ['instantiation', 'checkpoint-intake', 'setup', 'seed-topics', 'authoring-slides', 'composing-prompts', 'producing-deck']) {
+    for (const node of ['instantiation', 'checkpoint-intake', 'author-structured-content', 'configure-visual-system', 'preview-content', 'review-content', 'review-visual', 'produce-html-deck']) {
       setNodeStatus(state, node, 'completed');
     }
 
@@ -130,23 +131,23 @@ describe('State Machine: rerun branch', () => {
     writeState(deckDir, state);
 
     // Rerun node
-    setNodeStatus(state, 'rerun', 'completed');
+    setNodeStatus(state, 'repair-html-deck', 'completed');
     writeState(deckDir, state);
 
-    // Back to seed-topics
-    setNodeStatus(state, 'seed-topics', 'completed');
+    // Back to structured authoring
+    setNodeStatus(state, 'author-structured-content', 'completed');
     writeState(deckDir, state);
 
     const final = readState(deckDir);
     expect(final.nodes['checkpoint-final-review'].decision.value).toBe('repair');
-    expect(final.nodes.rerun.status).toBe('completed');
-    expect(final.nodes['seed-topics'].status).toBe('completed');
+    expect(final.nodes['repair-html-deck'].status).toBe('completed');
+    expect(final.nodes['author-structured-content'].status).toBe('completed');
   });
 
   it('routes to readiness when checkpoint-final-review decision is proceed', () => {
     const state = initState(deckDir);
 
-    for (const node of ['instantiation', 'checkpoint-intake', 'setup', 'seed-topics', 'authoring-slides', 'composing-prompts', 'producing-deck']) {
+    for (const node of ['instantiation', 'checkpoint-intake', 'author-structured-content', 'configure-visual-system', 'preview-content', 'review-content', 'review-visual', 'produce-html-deck']) {
       setNodeStatus(state, node, 'completed');
     }
 
@@ -158,7 +159,7 @@ describe('State Machine: rerun branch', () => {
     const final = readState(deckDir);
     expect(final.nodes['checkpoint-final-review'].decision.value).toBe('proceed');
     expect(final.nodes.readiness.status).toBe('completed');
-    // rerun should not exist since it was never needed
+    // repair-html-deck should not exist since it was never needed
   });
 });
 
@@ -206,10 +207,10 @@ describe('State Machine: resume from state', () => {
     const state = initState(deckDir);
 
     // Simulate partial progress
-    for (const node of ['instantiation', 'checkpoint-intake', 'setup']) {
+    for (const node of ['instantiation', 'checkpoint-intake', 'author-structured-content']) {
       setNodeStatus(state, node, 'completed');
     }
-    setNodeStatus(state, 'seed-topics', 'in_progress');
+    setNodeStatus(state, 'configure-visual-system', 'in_progress');
     writeState(deckDir, state);
 
     // "Session ends" — state goes out of scope
@@ -218,18 +219,18 @@ describe('State Machine: resume from state', () => {
 
     // "New session starts" — read state back
     const resumed = readState(deckDir);
-    expect(resumed.current_node).toBe('seed-topics');
+    expect(resumed.current_node).toBe('configure-visual-system');
     expect(resumed.nodes.instantiation.status).toBe('completed');
-    expect(resumed.nodes['seed-topics'].status).toBe('in_progress');
+    expect(resumed.nodes['configure-visual-system'].status).toBe('in_progress');
 
-    // Continue from seed-topics
-    setNodeStatus(resumed, 'seed-topics', 'completed');
-    setNodeStatus(resumed, 'authoring-slides', 'in_progress');
+    // Continue from visual-system configuration
+    setNodeStatus(resumed, 'configure-visual-system', 'completed');
+    setNodeStatus(resumed, 'preview-content', 'in_progress');
     writeState(deckDir, resumed);
 
     const after = readState(deckDir);
-    expect(after.nodes['seed-topics'].status).toBe('completed');
-    expect(after.current_node).toBe('authoring-slides');
+    expect(after.nodes['configure-visual-system'].status).toBe('completed');
+    expect(after.current_node).toBe('preview-content');
   });
 });
 
@@ -273,14 +274,14 @@ describe('State Machine: playbook stack', () => {
 
   it('switchPlaybook pushes, resumePlaybook pops', () => {
     const state = initState(deckDir);
-    setNodeStatus(state, 'authoring-slides', 'in_progress');
+    setNodeStatus(state, 'author-structured-content', 'in_progress');
     switchPlaybook(state, 'edit-text');
     expect(state.playbook).toBe('edit-text');
     expect(state.current_node).toBe('');
     expect(state.playbook_stack.length).toBe(1);
     resumePlaybook(state);
     expect(state.playbook).toBe('create-deck');
-    expect(state.current_node).toBe('authoring-slides');
+    expect(state.current_node).toBe('author-structured-content');
   });
 });
 

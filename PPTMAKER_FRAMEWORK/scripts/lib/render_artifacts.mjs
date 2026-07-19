@@ -1,6 +1,10 @@
 import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { sha256File, stableJson } from "./image_provenance.mjs";
+import { canonicalJsonSha256 } from "./canonical_json.mjs";
+import { decode as decodePng } from "fast-png";
+import { HTML_FINAL_SLIDES_MANIFEST_SCHEMA, htmlOwnerRoot, readHtmlCurrentManifest } from "./html_object_store.mjs";
+import { loadImage } from "@napi-rs/canvas";
 
 export const ARTIFACT_STATUS_VERIFIED = "verified";
 export const ARTIFACT_STATUS_LEGACY_LOCATED = "legacy-located";
@@ -11,6 +15,53 @@ export const RENDER_ENGINE_IMAGE2 = "image2";
 export const ARTIFACT_KIND_RAW_RENDER = "raw-render";
 export const ARTIFACT_KIND_FINAL_SLIDE = "final-slide";
 export const ARTIFACT_MANIFEST_VERSION = 1;
+export const FINAL_SLIDE_CONTRACT_VERSION = 1;
+
+const SHA256_RE = /^[0-9a-f]{64}$/;
+
+export function finalSlideFingerprintV1({ producer, producerPrivateFingerprint, byteSha256, width, height, mediaProfile }) {
+  if (typeof producer !== "string" || !producer || !SHA256_RE.test(producerPrivateFingerprint || "") || !SHA256_RE.test(byteSha256 || "") || !Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0 || typeof mediaProfile !== "string" || !mediaProfile) throw new TypeError("invalid final-slide fingerprint inputs");
+  return canonicalJsonSha256({ schema: "final_slide_fingerprint_v1", contract_version: FINAL_SLIDE_CONTRACT_VERSION, producer, producer_private_fingerprint: producerPrivateFingerprint, byte_sha256: byteSha256, width, height, media_profile: mediaProfile });
+}
+
+export function adaptHtmlFinalSlideManifest({ runDir, ownerRoot, manifest, plan }) {
+  if (!manifest || manifest.schema !== "pptmaker-html-final-slides-manifest-v1" || manifest.publication_scope !== "canonical-run" || !Array.isArray(manifest.entries) || !plan || !Array.isArray(plan.slides)) throw new Error("HTML final-slide adapter received an invalid current manifest or plan");
+  const byId = new Map(manifest.entries.map((entry) => [entry.slide_id, entry]));
+  const adapted = plan.slides.map((slide) => {
+    const source = byId.get(slide.slide_id);
+    if (!source || source.composition_variant !== "effective") throw new Error(`HTML final-slide evidence is missing for ${slide.slide_id}`);
+    const path = resolve(ownerRoot, ...String(source.path || "").split("/"));
+    const relOwner = relative(ownerRoot, path).split(sep).join("/");
+    if (!relOwner.startsWith("objects/") || !existsSync(path) || sha256File(path) !== source.sha256) throw new Error(`HTML final-slide receipt drifted for ${slide.slide_id}`);
+    const png = decodePng(readFileSync(path), { checkCrc: true });
+    if (png.width !== source.width || png.height !== source.height) throw new Error(`HTML final-slide dimensions drifted for ${slide.slide_id}`);
+    const expectedFingerprint = finalSlideFingerprintV1({ producer: source.producer, producerPrivateFingerprint: source.composition_fingerprint, byteSha256: source.sha256, width: source.width, height: source.height, mediaProfile: source.media_profile });
+    if (source.final_slide_fingerprint !== expectedFingerprint) throw new Error(`HTML final-slide fingerprint drifted for ${slide.slide_id}`);
+    return { common: Object.freeze({ slide_id: source.slide_id, artifact_kind: ARTIFACT_KIND_FINAL_SLIDE, producer: source.producer, final_slide_fingerprint: expectedFingerprint, path: relative(runDir, path).split(sep).join("/"), absolute_path: path, sha256: source.sha256, width: source.width, height: source.height, media_profile: source.media_profile }), composition_fingerprint: source.composition_fingerprint };
+  });
+  const htmlDeliveryDigest = canonicalJsonSha256({ schema: "html_delivery_digest_v1", ordered_plan_digest: plan.ordered_plan_digest, slides: adapted.map((entry) => ({ slide_id: entry.common.slide_id, composition_fingerprint: entry.composition_fingerprint, png_sha256: entry.common.sha256 })) });
+  return Object.freeze({ entries: adapted.map((entry) => entry.common), html_delivery_digest: htmlDeliveryDigest });
+}
+
+export function resolveHtmlFinalSlideArtifacts({ runDir, plan, htmlProductionResetId = null }) {
+  const ownerRoot = htmlOwnerRoot(runDir, "final-slides");
+  const current = readHtmlCurrentManifest(ownerRoot, { expectedSchema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, publicationScope: "canonical-run", htmlProductionResetId });
+  if (!current) throw new Error("current HTML final-slide manifest is missing; run local Stage 3 first");
+  return adaptHtmlFinalSlideManifest({ runDir: resolve(runDir), ownerRoot, manifest: current.manifest, plan });
+}
+
+export async function adaptLegacyFinalSlideArtifacts({ runDir, artifacts }) {
+  if (!Array.isArray(artifacts)) throw new TypeError("legacy final-slide adapter requires verified artifacts");
+  const entries = [];
+  for (const artifact of artifacts) {
+    if (artifact.status !== ARTIFACT_STATUS_VERIFIED || artifact.artifact_kind !== ARTIFACT_KIND_FINAL_SLIDE) throw new Error(`legacy final-slide artifact is not verified for ${artifact.slide_id}`);
+    const image = await loadImage(artifact.path);
+    const mediaProfile = `legacy-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
+    const privateFingerprint = canonicalJsonSha256({ fingerprint: artifact.fingerprint, profile: artifact.profile });
+    entries.push(Object.freeze({ slide_id: artifact.slide_id, artifact_kind: ARTIFACT_KIND_FINAL_SLIDE, producer: "legacy-image2-stage3-v1", final_slide_fingerprint: finalSlideFingerprintV1({ producer: "legacy-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile }), path: relative(runDir, artifact.path).split(sep).join("/"), absolute_path: artifact.path, sha256: artifact.byte_sha256, width: image.width, height: image.height, media_profile: mediaProfile }));
+  }
+  return Object.freeze(entries);
+}
 
 export function artifactManifestEntryKey({ slideId, renderEngine, artifactKind }) {
   return `${slideId}::${renderEngine}::${artifactKind}`;

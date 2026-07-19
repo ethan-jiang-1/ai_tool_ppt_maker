@@ -190,7 +190,7 @@ describe("cli_error", () => {
     }
   });
 
-  it("matches the exact 13-command ppt_flow registry", () => {
+  it("matches the exact 14-command ppt_flow registry", () => {
     const source = readFileSync(join(SCRIPTS, "ppt_flow.mjs"), "utf8");
     const commands = [...source.matchAll(/\.command\("([^"]+)"\)/g)].map((match) => match[1]);
     expect(commands).toEqual(PPT_FLOW_COMMAND_INVENTORY);
@@ -212,6 +212,8 @@ describe("cli_error", () => {
         "ppt_flow.mjs": "tests/test_ppt_flow.mjs",
         "stage1_build_inputs.mjs": "tests/test_stage1_build_inputs.mjs",
         "stage2_generate_images.mjs": "tests/test_image_generation.mjs",
+        "stage2_render_html.mjs": "tests/test_html_stage_clis.mjs",
+        "stage3_compose_slides.mjs": "tests/test_html_stage_clis.mjs",
         "stage3_lock_headers.mjs": "tests/test_stage3_lock_headers.mjs",
         "stage4_build_pptx.mjs": "tests/test_stage4_build_pptx.mjs",
         "stage5_inject_notes.mjs": "tests/test_stage5_inject_notes.mjs",
@@ -223,15 +225,19 @@ describe("cli_error", () => {
       json_success: ["env-check.mjs", "ppt_flow.mjs", "lessons.mjs"].includes(entry) ? focused(entry === "env-check.mjs" ? "tests/test_env_check.mjs" : entry === "ppt_flow.mjs" ? "tests/test_ppt_flow.mjs" : "tests/test_lessons.mjs", "documented JSON output") : na("No documented JSON success mode."),
     }]));
     const delegatedCommands = new Set(["doctor", "style-master", "validate", "pilot", "build", "refresh", "test"]);
-    const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => [entry, {
-      help: focused("tests/test_ppt_flow.mjs", "audits help and deterministic usage"),
-      usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/test_ppt_flow.mjs", "audits help and deterministic usage"),
-      contextual: focused("tests/test_ppt_flow.mjs", `ppt_flow ${entry} contextual behavior`),
-      delegated: delegatedCommands.has(entry) ? focused("tests/test_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
-      interruption: focused("tests/test_cli_error.mjs", "handles catchable interruption once"),
-      prose_success: focused("tests/test_ppt_flow.mjs", `ppt_flow ${entry} success`),
-      json_success: ["status", "state"].includes(entry) ? focused("tests/test_ppt_flow.mjs", `${entry} --json`) : na("No documented JSON success mode."),
-    }]));
+    const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => {
+      const commandProbeFile = entry === "migrate-html" ? "tests/test_html_migration.mjs" : "tests/test_ppt_flow.mjs";
+      const commandProbeName = entry === "migrate-html" ? "migrate-html preview/apply/recovery" : `ppt_flow ${entry} contextual behavior`;
+      return [entry, {
+        help: focused("tests/test_ppt_flow.mjs", "audits help and deterministic usage"),
+        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/test_ppt_flow.mjs", "audits help and deterministic usage"),
+        contextual: focused(commandProbeFile, commandProbeName),
+        delegated: delegatedCommands.has(entry) ? focused("tests/test_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
+        interruption: focused("tests/test_cli_error.mjs", "handles catchable interruption once"),
+        prose_success: focused(commandProbeFile, entry === "migrate-html" ? "migrate-html preview/apply/recovery" : `ppt_flow ${entry} success`),
+        json_success: ["status", "state"].includes(entry) ? focused("tests/test_ppt_flow.mjs", `${entry} --json`) : na("No documented JSON success mode."),
+      }];
+    }));
     expect(Object.keys(executableAudit).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());
     expect(Object.keys(commandAudit)).toEqual(PPT_FLOW_COMMAND_INVENTORY);
     for (const record of [...Object.values(executableAudit), ...Object.values(commandAudit)]) {
@@ -466,6 +472,8 @@ describe("cli_error", () => {
       "ppt_flow.mjs": ["nosuch"],
       "stage1_build_inputs.mjs": [],
       "stage2_generate_images.mjs": [],
+      "stage2_render_html.mjs": [],
+      "stage3_compose_slides.mjs": [],
       "stage3_lock_headers.mjs": [],
       "stage4_build_pptx.mjs": [],
       "stage5_inject_notes.mjs": [],

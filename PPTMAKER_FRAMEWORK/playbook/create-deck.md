@@ -1,12 +1,13 @@
 ---
 playbook: create-deck
-description: 从初始化到交付的完整 deck workflow
+description: 从 HTML-first 初始化到本地 contact sheet、PPTX、notes 与 final review
+supported_pipelines: [html-first-v1]
 includes: []
 ---
 
 # Playbook: Create Deck
 
-节点顺序：instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → producing-deck → checkpoint-final-review → readiness/rerun → final。
+新 deck 不询问 renderer，不要求 Image2 key/style master，不创建 Phase-4 state。所有 human gate 都基于当前 reset-bound real artifacts。
 
 ## Nodes
 
@@ -22,11 +23,9 @@ entry: []
 exit: [run_bundle_exists, deck_guide_created]
 ```
 
-**Step 1 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor`。
+**Step 1 — CLI**: Run base `ppt_flow doctor`; do not run Image2 presence/live probes.
 
-**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_<name> --deck-type <type> --style <style>`，不手工复制 preset。
-
-**Step 3 — CLI**: 用 `createInitialState` + `writeState` 写入 schema v2 初始状态。
+**Step 2 — CLI**: Run `ppt_flow init deck_<name> --deck-type <type> --style <style>` and verify the canonical run marker before further writes.
 
 ### checkpoint-intake
 
@@ -36,159 +35,133 @@ lifecycle_phase: 0
 method_module: 00-setup
 requires: [instantiation]
 produces: [confirmed-intake]
+decisions: [proceed, revise]
 entry: []
-exit:
-  - user_evidence:intake-confirmed
-  - user_evidence:direction-confirmed
+exit: [user_decision_recorded, user_evidence:intake-confirmed]
 ```
 
-**Step 1 — MD**: 完成 topic/audience/duration/language/key-takeaway intake，并给出有理由的方向候选。
+**Step 1 — MD**: Confirm topic, audience, duration, language, one thing to remember, content constraints, visual DNA, and success criteria. Do not ask for renderer/provider choice.
 
-**Step 2 — GATE**: 用户确认 intake 和方向后分别记录 user evidence。
+**Step 2 — GATE**: Record the typed decision. `revise` remains here; `proceed` advances.
 
-### setup
+### author-structured-content
 
 ```yaml
-node: setup
-lifecycle_phase: 2
-method_module: 01-visual
+node: author-structured-content
+lifecycle_phase: 1
+method_module: 01-content
 requires: [checkpoint-intake]
-produces: [visual-system, style-master]
+produces: [core-metaphor, core-formula, block-map, structured-slide-source]
+entry: [node_decision:checkpoint-intake:proceed]
+exit: [slide_specs_exists, slide_specs_valid, evidence:structured-content-authored]
+```
+
+**Step 1 — MD**: Author mnemonic IDs, ordered blocks, headers, concepts, one closed family/typed body, fallback, and notes. Accurate body text belongs in `SLIDE BODY`, never `IMAGE PROMPT`.
+
+**Step 2 — CLI**: Run write-free `ppt_flow validate`; repair source/control only, then record `structured-content-authored`.
+
+### configure-visual-system
+
+```yaml
+node: configure-visual-system
+lifecycle_phase: 2
+method_module: 02-visual-system
+requires: [author-structured-content]
+produces: [visual-system, asset-catalog]
 entry: []
-exit:
-  - visual_preset_seeded
-  - style_master_exists
-  - gate_approved:visual
-  - user_evidence:style-master-reviewed
+exit: [visual_preset_seeded, evidence:visual-system-configured]
 ```
 
-**Step 1 — MD**: 读取 `workflow/01-visual/`；确认 medium/preset，生成或迭代 style master。
+**Step 1 — MD**: Configure renderer-neutral palette, bundled typography roles, density, recipes, image language, asset catalog, and forbidden patterns. `color_palette.json` is the single structured truth.
 
-**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir>`。
+**Step 2 — CLI**: Validate the complete run; do not create a style master or provider state.
 
-**Step 3 — GATE**: 必须 open `style_master.jpg`；满意后 `approve <run-dir> visual`、同步 state gate，并记录 `style-master-reviewed`。需要多轮时使用 `switchPlaybook(iterate-style)`。
-
-### seed-topics
+### preview-content
 
 ```yaml
-node: seed-topics
-lifecycle_phase: 1
-method_module: 02-content
-requires: [setup]
-produces: [core-metaphor, core-formula, block-map]
-entry: []
-exit:
-  - gate_approved:content
-  - evidence:topics-generated
-  - user_evidence:block-map-confirmed
-```
-
-**Step 1 — MD**: 读取 `workflow/02-content/`，生成核心隐喻、公式和 Block Map。
-
-**Step 2 — GATE**: 用户确认 Block Map 后批准 content gate；记录 agent/user evidence。
-
-### authoring-slides
-
-```yaml
-node: authoring-slides
-lifecycle_phase: 1
-method_module: 02-content
-requires: [seed-topics]
-produces: [slide-specifications-l1-l2-l4]
-entry: [gate_approved:content, gate_approved:visual]
-exit:
-  - slide_specs_exists
-  - evidence:l1-l2-l4-complete
-  - evidence:sources-collected
-```
-
-**Step 1 — MD**: 为每页完成 L1 Meta、L2 Concept、L4 Speaker Note；L3 保持明确占位。
-
-**Step 2 — MD**: 收集并标注所需来源，记录 `l1-l2-l4-complete` 与 `sources-collected`（kind `agent`）。
-
-### composing-prompts
-
-```yaml
-node: composing-prompts
-lifecycle_phase: 2.7
-method_module: 03-prompts
-requires: [authoring-slides]
-produces: [validated-slide-specifications]
-entry: []
-exit:
-  - slide_specs_valid
-  - evidence:l3-prompts-filled
-```
-
-**Step 1 — MD**: 读取 `workflow/03-prompts/`，依据锁定的 visual system 填完所有 L3 IMAGE PROMPT。
-
-**Step 2 — CLI**: 运行 Stage 1 使用的同一 validation contract，ERROR 清零后记录 `l3-prompts-filled`（kind `agent`）。
-
-### producing-deck
-
-```yaml
-node: producing-deck
+node: preview-content
 lifecycle_phase: 3
-method_module: 04-production
-requires: [composing-prompts]
-produces: [page-images, reviewed-header-evidence, final-pptx, notes-receipt]
-entry: [gate_approved:content, gate_approved:visual]
-exit:
-  - pptx_generated
-  - speaker_notes_injected
-  - header_review_current
+method_module: 03-html-production
+requires: [configure-visual-system]
+produces: [html-content-review-plan]
+entry: []
+exit: [evidence:content-preview-current]
 ```
 
-**Step 1 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot <run-dir> --resolution 2k --force-images`。
+**Step 1 — CLI**: Run `ppt_flow pilot <run-dir>` to publish production-equivalent local content/visual review artifacts while gates are pending.
 
-**Step 2 — GATE**: Open contact sheet，审查 full-page header；运行 `approve <run-dir> header`，partial coverage 必须补足。
+**Step 2 — MD**: Open the exact content review projection; show complete order, headers, body/fallback semantics, and outstanding items.
 
-**Step 3 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --resolution 2k --reuse-images`，完成 Stage 3/4/5。
+### review-content
+
+```yaml
+node: review-content
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [preview-content]
+produces: [html-content-review]
+decisions: [approve, revise, waive]
+entry: []
+exit: [user_decision_recorded, gate_approved:content]
+```
+
+**Step 1 — GATE**: For approve/waive, call `ppt_flow approve <run-dir> content --plan-hash <current-hash>`; waiver requires a durable normalized reason. `revise` returns to source authoring.
+
+### review-visual
+
+```yaml
+node: review-visual
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [review-content]
+produces: [html-visual-review]
+decisions: [approve, revise, waive]
+entry: []
+exit: [user_decision_recorded, gate_approved:visual]
+```
+
+**Step 1 — MD**: Open the current local visual contact sheet and every outstanding recipe/page representative, including forced fallback where a selected asset hides it.
+
+**Step 2 — GATE**: Publish only with `approve <run-dir> visual --plan-hash <current-hash>`; waiver requires a reason. `revise` returns to the owning content/visual-system node.
+
+### produce-html-deck
+
+```yaml
+node: produce-html-deck
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [review-visual]
+produces: [delivery-contact-sheet, final-pptx, notes-receipt]
+entry: [gate_approved:content, gate_approved:visual]
+exit: [pptx_generated, speaker_notes_injected, evidence:html-delivery-current]
+```
+
+**Step 1 — CLI**: Run `ppt_flow build <run-dir>`. It recovers only eligible same-host dead gate journals, then executes local Stages 1-5 with no provider options.
+
+**Step 2 — MD**: If status reports a journal/reset conflict, follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
 
 ### checkpoint-final-review
 
 ```yaml
 node: checkpoint-final-review
-lifecycle_phase: 4
-method_module: 05-iteration
-requires: [producing-deck]
-produces: [review-decision]
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [produce-html-deck]
+produces: [html-delivery-review]
 decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
 
-**Step 1 — MD**: 用户审阅最终 PPTX；说明 proceed、repair、redirect 三个明确出口。
+**Step 1 — MD**: Open the current delivery contact sheet and verify the produced PPTX plus notes result. Explain the three typed exits.
 
-**Step 2 — GATE**: 用 `setNodeDecision` 记录用户 decision。`redirect` 重置 checkpoint-intake 及其下游；不得伪装成 proceed。
+**Step 2 — GATE**: Use only `ppt_flow state <run-dir> --record-delivery-review <decision> [--reason <text>]`. `repair|redirect` require reason; `proceed` forbids it. This atomically records evidence and the node decision.
 
-### readiness
-
-```yaml
-node: readiness
-lifecycle_phase: 4
-method_module: 05-iteration
-requires: [checkpoint-final-review]
-produces: [delivery-checklist]
-entry: [node_decision:checkpoint-final-review:proceed]
-exit:
-  - pptx_generated
-  - speaker_notes_injected
-  - header_review_current
-  - gate_approved:content
-  - gate_approved:visual
-  - evidence:delivery-checks-passed
-```
-
-**Step 1 — MD**: 检查页数、gates、PPTX、notes receipt、header review 和文件完整性。
-
-**Step 2 — CLI**: 通过后记录 `delivery-checks-passed`（kind `agent`）。
-
-### rerun
+### repair-html-deck
 
 ```yaml
-node: rerun
-lifecycle_phase: 4
+node: repair-html-deck
+lifecycle_phase: 5
 method_module: 05-iteration
 requires: [checkpoint-final-review]
 produces: [completed-repair]
@@ -196,22 +169,32 @@ entry: [node_decision:checkpoint-final-review:repair]
 exit: [evidence:repair-completed]
 ```
 
-**Step 1 — MD**: 按反馈选择 edit-text/edit-visual/edit-notes/restructure-slides，并用 `switchPlaybook` 进入嵌套执行。
+**Step 1 — MD**: Classify the durable repair reason and switch to exact `edit-text|edit-visual|edit-notes|restructure-slides`; resume here after completion and return to production/final review.
 
-**Step 2 — CLI**: 子 playbook 完成并 `resumePlaybook` 后记录 `repair-completed`（kind `agent`），再重置并返回 checkpoint-final-review。
+### readiness
+
+```yaml
+node: readiness
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [checkpoint-final-review]
+produces: [delivery-checklist]
+entry: [node_decision:checkpoint-final-review:proceed]
+exit: [pptx_generated, speaker_notes_injected, gate_approved:content, gate_approved:visual, evidence:delivery-checks-passed]
+```
+
+**Step 1 — CLI**: Inspect current reset-bound gates, delivery digest, contact sheet, assembly-v2, notes-v3, and delivery review. Do not require Phase 4.
 
 ### final
 
 ```yaml
 node: final
-lifecycle_phase: 4
-method_module: 05-iteration
+lifecycle_phase: 3
+method_module: 03-html-production
 requires: [readiness]
 produces: [delivered-deck]
 entry: []
 exit: [evidence:deck-delivered]
 ```
 
-**Step 1 — MD**: 交付最终 PPTX、说明版本和可迭代入口。
-
-**Step 2 — CLI**: 记录 `deck-delivered`（kind `agent`）并持久化完成状态。
+**Step 1 — MD**: Deliver the current PPTX/version and local iteration routes. A current `proceed` is complete with no refinement debt.

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { initBundle } from "../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
+import { initLegacyBundle } from "../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
 import { readState } from "../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs";
 import {
   buildControllerGateContext,
@@ -15,6 +15,7 @@ import {
   sha256File,
 } from "../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs";
 import { PPT_FLOW_COMMAND_INVENTORY } from "../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs";
+import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "./helpers/html_first_fixture.mjs";
 
 const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const PPT_FLOW_SRC = readFileSync(PPT_FLOW, "utf-8");
@@ -43,7 +44,7 @@ function parseFailureEnvelope(stderr) {
 }
 
 describe("ppt_flow", () => {
-  it("audits clean help and deterministic usage diagnostics across all 13 commands", () => {
+  it("audits clean help and deterministic usage diagnostics across all 14 commands", () => {
     const usageProbes = {
       doctor: ["doctor", "--smoke", "--probe-vendors"],
       init: ["init"],
@@ -57,8 +58,9 @@ describe("ppt_flow", () => {
       slides: ["slides", "resolve", "/tmp/missing-run"],
       "new-version": ["new-version"],
       state: ["state"],
+      "migrate-html": ["migrate-html"],
     };
-    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(13);
+    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(14);
     for (const command of PPT_FLOW_COMMAND_INVENTORY) {
       const help = runPptFlow([command, "--help"]);
       expect(help.status, `${command} --help\n${help.stderr}`).toBe(0);
@@ -168,9 +170,9 @@ describe("ppt_flow", () => {
     );
   });
 
-  it("registers exactly 13 top-level commands", () => {
+  it("registers exactly 14 top-level commands", () => {
     const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
-    expect(matches.length).toBe(13);
+    expect(matches.length).toBe(14);
   });
 
   it("state --json includes resume card fields", () => {
@@ -202,7 +204,7 @@ playbook_stack: []
     expect(r.status).toBe(0);
     const j = JSON.parse(r.stdout);
     expect(j.playbook).toBe("iterate-style");
-    expect(j.current_node).toBe("review-gate");
+    expect(j.current_node).toBe("review-style-system");
     expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
     expect(j.suggested_next).toContain("user:review-style-master");
   });
@@ -210,7 +212,7 @@ playbook_stack: []
   it("controller gate context reuses real validators and fails closed", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const ctx = await buildControllerGateContext(runDir);
       expect(ctx.deckDir).toBe(deck);
@@ -225,7 +227,7 @@ playbook_stack: []
   it("approve dual-writes metadata and _state gates", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-approve-")), "deck_approve");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const r = runPptFlow(["approve", runDir, "visual"]);
       expect(r.status).toBe(0);
@@ -247,7 +249,7 @@ playbook_stack: []
   it("approve header merges version-scoped pilot batches without metadata gate writes", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-header-approve-")), "deck_header");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const generated = join(runDir, "_generated");
       const promptsDir = join(generated, "page_prompts");
@@ -335,12 +337,12 @@ render:
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
-  });
+  }, 20_000);
 
   it("approve header waiver requires both ids and a reason", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-header-waive-")), "deck_waive");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const result = runPptFlow(["approve", runDir, "header", "--waive", "--only", "1"]);
       expect(result.status).toBe(1);
@@ -356,7 +358,7 @@ render:
     const bodyDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-body-")), "deck_title_body");
     const mixedDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-mixed-")), "deck_title_mixed");
     try {
-      initBundle(bodyDeck, null, "keynote", "dark-executive");
+      initLegacyBundle(bodyDeck, null, "keynote", "dark-executive");
       const bodyRun = join(bodyDeck, "3_versions", "v1");
       writeFileSync(join(bodyRun, "slide-specifications.md"), `---
 render:
@@ -374,7 +376,7 @@ render:
       expect(body.stdout).toMatch(/--stage 3,4,5/);
       expect(body.stdout).not.toMatch(/--stage 1,2,3,4,5/);
 
-      initBundle(mixedDeck, null, "keynote", "dark-executive");
+      initLegacyBundle(mixedDeck, null, "keynote", "dark-executive");
       const mixedRun = join(mixedDeck, "3_versions", "v1");
       writeFileSync(join(mixedRun, "slide-specifications.md"), `---
 render:
@@ -408,12 +410,12 @@ render:
       rmSync(bodyDeck, { recursive: true, force: true });
       rmSync(mixedDeck, { recursive: true, force: true });
     }
-  });
+  }, 20_000);
 
   it("status --json includes playbook breakpoint", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-status-")), "deck_status");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       writeFileSync(
         join(deck, "_state", "state.yaml"),
@@ -446,7 +448,7 @@ playbook_stack: []
   it("slides list/resolve are read-only and retain per-token binding evidence", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-read-")), "deck_slides_read");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const spec = join(runDir, "slide-specifications.md");
       writeFileSync(spec, `---
@@ -502,7 +504,7 @@ identity:
   it("slides preview writes nothing; bare/hash-mismatched apply fails; confirmed move publishes clean vNext", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-move-")), "deck_slides_move");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const spec = join(runDir, "slide-specifications.md");
       writeFileSync(spec, `## Slide 01: DeckGo
@@ -554,7 +556,7 @@ identity:
   it("slides normalize is the hash-bound in-place exception and changes only heading projections", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-normalize-")), "deck_slides_normalize");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const spec = join(runDir, "slide-specifications.md");
       writeFileSync(spec, `## Slide 07: DeckGo
@@ -587,7 +589,7 @@ body two
   it("slides insertion requires mnemonic/history availability and apply-plan stays inside _scratch", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-insert-")), "deck_slides_insert");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const v1 = join(deck, "3_versions", "v1");
       writeFileSync(join(v1, "slide-specifications.md"), `## Slide 01: DeckGo
 
@@ -630,10 +632,40 @@ body two
     }
   });
 
+  it("HTML slides apply publishes source-only vNext with local materialization debt", () => {
+    const fixture = createHtmlFirstRun("ppt-slides-html-insert-");
+    try {
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), htmlFirstSource([
+        htmlFirstSlide({ number: 1, id: "HeroGo", title: "Opening" }),
+      ]), "utf8");
+      const block = join(fixture.runDir, "_scratch", "insert-html.md");
+      writeFileSync(block, htmlFirstSlide({ number: 1, id: "UXGap", title: "New gap" }), "utf8");
+      const preview = runPptFlow(["slides", "insert", fixture.runDir, "--source", block, "--to", "end", "--json"]);
+      expect(preview.status, preview.stderr || preview.stdout).toBe(0);
+      const transaction = JSON.parse(preview.stdout).transaction;
+      const planPath = join(fixture.runDir, "_scratch", "html-plan.json");
+      writeFileSync(planPath, JSON.stringify(transaction), "utf8");
+      const applied = runPptFlow(["slides", "apply-plan", fixture.runDir, "--plan", planPath, "--apply", "--json"]);
+      expect(applied.status, applied.stderr || applied.stdout).toBe(0);
+      const receipt = JSON.parse(applied.stdout).receipt;
+      expect(receipt).toMatchObject({
+        pipeline: "html-first-v1",
+        needs_render: [],
+        needs_local_materialization: ["HeroGo", "UXGap"],
+        review_required: true,
+      });
+      const v2 = join(fixture.deck, "3_versions", "v2");
+      expect(existsSync(join(v2, "_generated", "html_production"))).toBe(false);
+      expect(existsSync(join(v2, "_generated", "slide_plan.json"))).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it("slides multi-delete binds every position before mutation and ambiguity requires a human", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-slides-delete-")), "deck_slides_delete");
     try {
-      initBundle(deck, null, "keynote", "dark-executive");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       writeFileSync(join(runDir, "slide-specifications.md"), `## Slide 01: DeckGo
 

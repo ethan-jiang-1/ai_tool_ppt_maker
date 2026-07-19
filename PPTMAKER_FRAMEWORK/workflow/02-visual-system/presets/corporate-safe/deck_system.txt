@@ -1,0 +1,10 @@
+# Deck System Contract — Corporate Safe
+# Renderer-neutral natural-language constraints. Structured values live in color_palette.json.
+
+LANGUAGE: English by default; Hans is allowed only when required and bundled coverage verifies.
+DECK TYPE: Formal corporate presentation. Every claim must be defensible in a boardroom.
+BACKGROUND: White #ffffff with subtle #f8fafc panels. No dark, colored, or gradient background.
+COLOR: #1e40af primary, #0f172a text, #475569 secondary, #059669 positive, #dc2626 only for real risk.
+TEXT: Accurate header/body/table/chart text is compositor-owned. Under 45 words, max 5 body zones, no paragraphs or decorative microcopy.
+COMPONENTS: Structured cards, comparison, clean tables, simple bar/line charts, restrained callout. No neon, stock art, playful decoration, logos, watermark, or page number.
+TONE: Professional, measured, evidence-based, never salesy.

@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCanvas } from '@napi-rs/canvas';
-import { createVersion, initBundle } from '../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
+import { createVersion, initLegacyBundle } from '../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
 import {
   materializeStructuralVersion,
   stage1,
@@ -23,6 +23,7 @@ import {
 } from '../PPTMAKER_FRAMEWORK/scripts/lib/header_review.mjs';
 import { DEFAULT_CONFIG } from '../PPTMAKER_FRAMEWORK/scripts/visual_config.mjs';
 import { createDefaultState, readState, writeState } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
+import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from './helpers/html_first_fixture.mjs';
 
 const UP = 'PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs';
 
@@ -56,7 +57,7 @@ describe('unified_pipeline', () => {
   it('preserves Stage issues while rebuilding the parent rerun action', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-diagnostic-')), 'deck_pipeline');
     try {
-      initBundle(deck, null, 'keynote', 'dark-executive');
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
       const runDir = join(deck, '3_versions', 'v1');
       const spec = join(runDir, 'slide-specifications.md');
       writeFileSync(spec, `## Slide 01: s01\n\n**VISUAL TYPE**: Framework\n**RENDER MODE**: unsupported\n**TITLE**: A title\n`, 'utf8');
@@ -84,7 +85,7 @@ describe('unified_pipeline', () => {
   it('turns production readiness into a human-owned gate action', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-gate-')), 'deck_pipeline_gate');
     try {
-      initBundle(deck, null, 'keynote', 'dark-executive');
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
       const runDir = join(deck, '3_versions', 'v1');
       writeFileSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'), 'style', 'utf8');
       const result = spawnSync('node', [UP, '--run-dir', runDir, '--stage', '2', '--dry-run'], { encoding: 'utf8', timeout: 10000 });
@@ -100,7 +101,7 @@ describe('unified_pipeline', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-structural-')), 'deck_pipeline_structural');
     const originalFetch = globalThis.fetch;
     try {
-      initBundle(deck, null, 'keynote', 'dark-executive');
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
       const source = join(deck, '3_versions', 'v1');
       const style = join(deck, '2_backbone', 'visual-style', 'style_master.jpg');
       writeFileSync(style, 'stable-style', 'utf8');
@@ -300,4 +301,72 @@ describe('unified_pipeline', () => {
       rmSync(deck, { recursive: true, force: true });
     }
   });
+
+  it('materializes HTML structural targets locally without inheriting source approvals or Image2 output', async () => {
+    const fixture = createHtmlFirstRun('pipeline-html-structural-');
+    try {
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([
+        htmlFirstSlide({ number: 1, id: 'HeroGo', title: 'Opening', note: 'Opening note' }),
+        htmlFirstSlide({ number: 2, id: 'UXGap', title: 'Friction', note: 'Friction note' }),
+      ]));
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      expect(await (await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs')).stage2Html(fixture.runDir, { dryRun: false })).toBe(true);
+      expect(await (await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs')).stage3Html(fixture.runDir, { dryRun: false })).toBe(true);
+
+      const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
+      const sourceReadiness = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: sourceReadiness.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: sourceReadiness.gates.visual.plan.plan_hash, status: 'approved' });
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).ready).toBe(true);
+
+      const target = createVersion(fixture.runDir, 'v2');
+      writeFileSync(join(target, 'slide-specifications.md'), htmlFirstSource([
+        htmlFirstSlide({ number: 1, id: 'UXGap', title: 'Friction', note: 'Friction note' }),
+        htmlFirstSlide({ number: 2, id: 'HeroGo', title: 'Opening', note: 'Opening note' }),
+      ]));
+      const result = await materializeStructuralVersion({ sourceRunDir: fixture.runDir, targetRunDir: target });
+      expect(result).toMatchObject({
+        pipeline: 'html-first-v1',
+        renderer_calls: 0,
+        remote_calls: 0,
+        source_order: ['HeroGo', 'UXGap'],
+        target_order: ['UXGap', 'HeroGo'],
+        needs_render: [],
+        needs_local_materialization: [],
+        materialized_ids: ['UXGap', 'HeroGo'],
+        review_required: true,
+        production_complete: false,
+      });
+      expect(result.reused_html_page_ids.sort()).toEqual(['HeroGo', 'UXGap']);
+      expect(result.reused_final_slide_ids.sort()).toEqual(['HeroGo', 'UXGap']);
+      expect(existsSync(join(target, '_generated', 'html_production', 'html_pages', 'manifest.json'))).toBe(true);
+      expect(existsSync(join(target, '_generated', 'html_production', 'final_slides', 'manifest.json'))).toBe(true);
+      expect(existsSync(join(target, '_generated', 'html_production', 'preview', 'manifest.json'))).toBe(true);
+      expect(existsSync(join(target, '_generated', 'ppt', 'deck.pptx'))).toBe(false);
+      expect(existsSync(join(target, '_generated', 'qa', 'pptx_assembly.json'))).toBe(false);
+      expect(existsSync(join(target, '_generated', 'page_images_full'))).toBe(false);
+      expect(existsSync(join(target, '_generated', 'header_locked'))).toBe(false);
+
+      const targetReadiness = review.inspectHtmlReviewReadiness(target);
+      expect(targetReadiness.ready).toBe(false);
+      expect(targetReadiness.gates.content.ready).toBe(false);
+      expect(targetReadiness.gates.visual.ready).toBe(false);
+      const targetState = readState(fixture.deck);
+      expect(targetState.nodes['html-content-review'].by_version['3_versions/v1']).toBeDefined();
+      expect(targetState.nodes['html-content-review'].by_version['3_versions/v2']).toBeUndefined();
+
+      const sourceFinal = JSON.parse(readFileSync(join(fixture.runDir, '_generated', 'html_production', 'final_slides', 'manifest.json'), 'utf8'));
+      const targetFinal = JSON.parse(readFileSync(join(target, '_generated', 'html_production', 'final_slides', 'manifest.json'), 'utf8'));
+      expect(targetFinal.html_production_reset_id).toBe(null);
+      expect(targetFinal.entries.map((entry) => entry.slide_id)).toEqual(['UXGap', 'HeroGo']);
+      for (const entry of targetFinal.entries) {
+        const sourceEntry = sourceFinal.entries.find((candidate) => candidate.slide_id === entry.slide_id);
+        expect(sourceEntry.sha256).toBe(entry.sha256);
+        expect(entry.path).toMatch(/^objects\//);
+      }
+      expect(JSON.parse(readFileSync(result.receipt_path, 'utf8')).review_required).toBe(true);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 120_000);
 });

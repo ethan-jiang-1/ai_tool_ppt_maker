@@ -192,4 +192,4 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
 | 常见错误 | `reference/anti-patterns.md` |
 | 术语 | `reference/glossary.md` |
 | 人类 Quick Start | `reference/quick-start.md` |
-| 方法论深挖 | `workflow/01-visual/`–`workflow/05-iteration/` 各模块 README |
+| 方法论深挖 | `workflow/02-visual-system/`–`workflow/05-iteration/` 各模块 README |

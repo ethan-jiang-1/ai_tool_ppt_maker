@@ -4,31 +4,32 @@ Define the producer contract for every registered direct Node CLI under `PPTMAKE
 ## Requirements
 ### Requirement: CLI surface preserves command names
 
-The `ppt_flow` CLI SHALL expose **13** commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, and `slides`. Arguments and flags for the original twelve commands SHALL remain compatible.
+The `ppt_flow` CLI SHALL expose exactly **14** top-level commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and `migrate-html`. Arguments and flags for the original thirteen commands SHALL remain compatible except where this change defines an earlier pipeline-specific rejection. `migrate-html` SHALL expose closed `preview` and `apply` operations and SHALL not mutate a source version in place.
 
-#### Scenario: Agent runs ppt_flow init
+#### Scenario: Help lists the complete surface
 
-- **WHEN** Agent runs `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_demo --deck-type keynote --style dark-executive`
-- **THEN** a run bundle is created at `deck_demo/` with the three-tier structure, preset templates seeded, metadata initialized
+- **WHEN** `ppt_flow --help` runs
+- **THEN** all 14 command names, including `state`, `slides`, and `migrate-html`, are listed once
 
-#### Scenario: help lists state
+#### Scenario: Existing init invocation remains valid
 
-- **WHEN** Agent runs `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs --help`
-- **THEN** the help output includes the `state` command
-
-#### Scenario: help lists slides
-
-- **WHEN** Agent runs `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs --help`
-- **THEN** the help output includes the `slides` command group
+- **WHEN** Agent runs `ppt_flow init deck_demo --deck-type keynote --style dark-executive`
+- **THEN** a run bundle is created using the current HTML-first default contract
 
 ### Requirement: ppt_flow delegates to capability scripts
 
-`ppt_flow.mjs` SHALL delegate to `bundle_layout.mjs`, `unified_pipeline.mjs`, `generate_style_master.mjs`, and `env-check.mjs` as appropriate for each command.
+`ppt_flow.mjs` SHALL delegate bundle management, environment checks, state, slide transactions, HTML migration, and the selected production branch to their owning capability scripts. It SHALL route HTML Stage 2/3 through the registered HTML renderer/compositor CLIs and markerless production through the legacy adapter. It SHALL keep orchestration/renderer logic out of the command router and SHALL probe the canonical marker before branch-specific readiness or option handling.
 
-#### Scenario: Command routes to its capability script
+#### Scenario: HTML build routes to the HTML adapter
 
-- **WHEN** Agent runs `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run_dir>`
-- **THEN** `ppt_flow.mjs` delegates the work to `generate_style_master.mjs` rather than implementing style-master generation inline
+- **WHEN** a marked run invokes `ppt_flow build`
+- **THEN** `ppt_flow` delegates through unified orchestration to the HTML Stage-2/3 capability scripts
+- **AND** does not delegate to style-master or Image2 generation
+
+#### Scenario: Legacy style command retains its owner
+
+- **WHEN** a markerless run invokes `ppt_flow style-master`
+- **THEN** `ppt_flow` delegates to `generate_style_master.mjs` rather than implementing it inline
 
 ### Requirement: Uses commander for CLI
 
@@ -117,37 +118,33 @@ Successful paths, including `--help` and successful command completion, SHALL NO
 
 ### Requirement: Pilot uses preview readiness and does not waive gates
 
-`ppt_flow.mjs pilot` SHALL treat readiness as **preview** (structure + style master): it SHALL NOT require metadata `content_gate`/`visual_gate` to be `approved`/`waived`, and SHALL NOT write `waived` or otherwise mutate gate fields. When invoking Stage 2, pilot SHALL pass `unified_pipeline --preview` so the child process uses the same readiness. Full `build` and non-preview Stage 2 SHALL continue to use pipeline readiness (gates required).
+`ppt_flow pilot` SHALL classify the run before readiness. For markerless legacy, preview readiness SHALL remain structure plus style master, gates SHALL not be required or mutated, and Stage 2 SHALL receive `--preview`. For `html-first-v1`, pilot SHALL require structure plus valid local HTML source/runtime inputs but no style master and no approved gates; it SHALL compose production-equivalent review artifacts only and SHALL not publish Stage 4/PPTX. Neither branch SHALL write `waived` to unlock preview. Full build SHALL require that branch's current authoritative gate evidence.
 
-#### Scenario: Pilot runs while gates are pending
+#### Scenario: HTML preview runs while gates are pending
 
-- **WHEN** metadata gates are `pending`
-- **AND** style master exists and structure is valid
-- **AND** Agent runs `ppt_flow.mjs pilot <run_dir>`
-- **THEN** pilot proceeds (including Stage 2 under `--preview`)
-- **AND** metadata gate fields remain `pending`
+- **WHEN** a valid HTML-first run has pending content/visual gates
+- **THEN** pilot produces review evidence without style master or provider setup
+- **AND** Stage 4 remains blocked
 
-#### Scenario: Build / non-preview Stage 2 still blocked
+#### Scenario: Legacy preview behavior remains compatible
 
-- **WHEN** gates are `pending`
-- **AND** Agent runs `ppt_flow.mjs build` or `unified_pipeline --stage 2` without `--preview`
-- **THEN** the command fails for gate readiness
-- **AND** prior pilot success is not treated as approval
+- **WHEN** a markerless run has a style master and pending gates
+- **THEN** pilot may run legacy Stage 2 under preview readiness
+- **AND** does not mutate gate fields
 
 ### Requirement: Pilot accepts --force-images and skips by default
 
-`ppt_flow.mjs pilot` SHALL expose `--force-images`. Without it, pilot SHALL NOT pass force into Stage 2 (existing pilot images are skipped). With it, selected pilot images regenerate.
+`ppt_flow pilot` SHALL retain `--force-images` for markerless legacy decks: without it existing current pilot images are skipped, and with it selected legacy images regenerate. For `html-first-v1`, `--force-images` SHALL fail with `USAGE` before readiness/writes because HTML preview freshness is fingerprint-driven; callers SHALL use the HTML preview/rebuild selector rather than a provider-generation flag.
 
-#### Scenario: Default pilot skips existing images
+#### Scenario: Legacy pilot skips existing images by default
 
-- **WHEN** pilot target images already exist
-- **AND** pilot runs without `--force-images`
-- **THEN** Stage 2 skips those files
+- **WHEN** markerless pilot images exist and pilot runs without `--force-images`
+- **THEN** legacy Stage 2 skips those current files
 
-#### Scenario: Pilot --force-images regenerates
+#### Scenario: HTML pilot receives force-images
 
-- **WHEN** `pilot … --force-images` runs
-- **THEN** Stage 2 regenerates the pilot selection
+- **WHEN** a marked HTML-first run invokes pilot with `--force-images`
+- **THEN** the command fails before writes/provider setup with the HTML preview next action
 
 ### Requirement: --only accepts friendly slide selectors
 
@@ -220,137 +217,183 @@ Successful paths, including `--help` and successful command completion, SHALL NO
 
 ### Requirement: state prints a where-am-I resume card
 
-`ppt_flow.mjs state` human output and successful `--json` output SHALL present a **where-am-I** resume card for whole-session recovery (not playbook name alone). The card SHALL include: active `playbook`, `current_node`, current node status, optional `waiting_for` / `note` (when set on the current node), `_state` gates, `playbook_stack` (possibly empty), a non-empty `workflow_summary` (short human-readable whole-workflow position; default Chinese), and a non-empty `suggested_next`. Card construction SHALL live in `state.mjs` as `buildResumeCard(state, statusSnapshot?)` (or equivalent exported helper) so `status` can reuse it. Heuristics for `workflow_summary` / `suggested_next` SHALL follow the change design (waiting-first; optional status snapshot for artifacts) and SHALL NOT mutate state. The CLI SHALL resolve the deck root via `deckRoot(resolve(runDir))`. Successful `--json` SHALL expose `workflow_summary` and `suggested_next` as **top-level** string fields on the printed object (in addition to normal state fields). The CLI command count remains **12**.
+`ppt_flow.mjs state` human output and successful `--json` output SHALL retain the whole-session where-am-I card and SHALL classify the canonical production marker before state interpretation. The card SHALL expose non-empty `workflow_summary` and `suggested_next`, exact `pipeline`, and `state_present`. When durable state exists it SHALL retain active `playbook`, `current_node`, current-node status, optional `waiting_for`/`note`, gates, and `playbook_stack`. For a historical markerless deck without state it SHALL expose legacy-maintenance ownership through a non-persisted compatibility card, leave absent execution fields explicitly null/not-active, and SHALL not create `_state/state.yaml`. When the exact migration target receipt exists but its source execution handoff is absent, state/status SHALL expose `migration_handoff_pending: true`, source/target version, and resume guidance without writing or leaking receipt SHAs/paths; all other outputs use false/null.
 
-#### Scenario: Human state output names playbook and node
+`state --recover-gate-journal <owner-token>` SHALL be a closed HTML-only repair operation requiring the exact token previously shown by plain state/status. `state --record-delivery-review <proceed|repair|redirect> [--reason <text>]` SHALL be the only public publication route for `html-delivery-review`; it SHALL derive current evidence through the deep module, require reason for repair/redirect, forbid it for proceed, and accept no evidence override. Both operations SHALL be mutually exclusive with `--json`, `--check-gates`, and each other and SHALL emit no ordinary resume card until their transaction completes. Markerless runs SHALL reject both before writes with branch-inapplicable guidance.
 
-- **WHEN** Agent runs `ppt_flow.mjs state <runDir>` on an in-progress deck
-- **THEN** stdout identifies the active playbook and current_node
-- **AND** includes a workflow summary and suggested next action
+For HTML-first, human output and top-level JSON `html_reviews` SHALL expose the exact bounded snapshot: content/visual objects with `decision: pending|approved|waived` and `freshness: current|stale|missing|invalid`; content `review_required` boolean; visual sorted `outstanding_recipe_keys` and `outstanding_slide_ids`; delivery with `freshness: current|stale|missing|invalid`, `decision: null|proceed|repair|redirect`, and `reason_present` boolean; reset with `status: absent|deletion-pending|complete`, `ownership: none|active|waiting|recoverable|uncertain|invalid`, and nullable `retry_after_ms`; and journal `status: absent|active|uncertain|recoverable-abort|recoverable-mirror|recoverable-cleanup|recoverable-reset-yield|invalid|forbidden` plus optional `owner_token` of exactly 64 lowercase hex when non-absent. Plain state/status SHALL not expose reset IDs/tokens, claim timestamps, bound SHAs/paths/raw owner data, or perform recovery. For markerless compatibility, `html_reviews` SHALL be null and pipeline SHALL be exact `legacy-image2-first`; HTML uses exact `html-first-v1`.
 
-#### Scenario: JSON state dump carries suggested_next and workflow_summary
+Suggested-next SHALL be waiting-first, then journal conflict/repair, then owning stale/missing review or delivery action, and SHALL never present unavailable Phase 4 as required debt after complete delivery. Card construction SHALL remain in the shared state module so `status` consumes the same semantics without mutating state. Deck resolution SHALL use `deckRoot(resolve(runDir))`. The complete CLI surface SHALL remain exactly 14 commands.
 
-- **WHEN** Agent runs `ppt_flow.mjs state <runDir> --json`
-- **THEN** the JSON object includes non-empty top-level `suggested_next` and `workflow_summary` strings
+#### Scenario: HTML resume card exposes outstanding review
 
-#### Scenario: waiting_for shapes suggested_next
+- **WHEN** an HTML-first run has current content approval but stale page evidence for two slides
+- **THEN** state output identifies the HTML pipeline and the two sorted outstanding slide IDs
+- **AND** suggested-next names the visual-review path rather than Image2 refinement
 
-- **WHEN** the current node has `waiting_for: user:review-style-master`
-- **AND** Agent runs `ppt_flow.mjs state <runDir> --json`
-- **THEN** `suggested_next` includes that waiting_for token (e.g. prefixed with `waiting:`)
-- **AND** `workflow_summary` indicates a human-wait / review blockage
+#### Scenario: Complete HTML card omits Phase-4 debt
 
-#### Scenario: state resolves deck via deckRoot
+- **WHEN** current delivery, notes, gates, and `html-delivery-review: proceed` verify
+- **THEN** workflow summary reports a complete deliverable
+- **AND** suggested-next does not require lifecycle 4 or create optional-refinement state
 
-- **WHEN** Agent runs `ppt_flow.mjs state` with a version runDir under `3_versions/v1`
-- **THEN** state is read via `deckRoot(resolve(runDir))` (same resolver path family as `status` / `approve`, not an unresolved one-off `join(runDir, '..', '..')`)
+#### Scenario: Markerless state card does not seed execution
+
+- **WHEN** `state` inspects a historical markerless deck without `_state/state.yaml`
+- **THEN** output identifies markerless legacy-maintenance ownership and `state_present: false`
+- **AND** no state file is written and no active node is fabricated
+
+#### Scenario: Interrupted journal is observable but not healed by plain state
+
+- **WHEN** plain state sees new authoritative state with the old metadata mirror
+- **THEN** `html_reviews.journal.status` is `recoverable-mirror`
+- **AND** state emits no journal or metadata write
+
+#### Scenario: Cross-host journal is explicitly recovered
+
+- **WHEN** the Controller has shown an uncertain journal, obtained human confirmation that its owner stopped, and invokes `state --recover-gate-journal` with the exact current token after 300000 ms
+- **THEN** CLI applies only the exact recovery matrix and exits with bounded recovered/blocked status
+- **AND** it does not create a content/visual decision
+
+#### Scenario: Recovery token is stale or owner is active
+
+- **WHEN** the token mismatches, journal changed, minimum age is unmet, or same-host PID is active
+- **THEN** recovery fails with `CONFLICT` or repair-required evidence and changes no store
+
+#### Scenario: Uncertain owner diagnostic requires a human
+
+- **WHEN** state/check-gates/build cannot automatically recover an uncertain journal
+- **THEN** the producer-owned next action marks human confirmation required and carries the opaque token for the Controller
+- **AND** does not tell the human to edit `_state` or invent approval
+
+#### Scenario: Delivery review decision is recorded
+
+- **WHEN** the Controller invokes `state --record-delivery-review repair --reason <text>` after showing current delivery
+- **THEN** the command publishes one current evidence-bound repair decision
+- **AND** status remains incomplete and routes to the owning repair node
+
+#### Scenario: Delivery review targets legacy run
+
+- **WHEN** markerless state receives `--record-delivery-review`
+- **THEN** it fails before state writes and points to legacy controller review semantics
+
+#### Scenario: Waiting state remains first
+
+- **WHEN** durable state has a non-empty current-node `waiting_for`
+- **THEN** `suggested_next` surfaces that wait before artifact-based heuristics
+
+#### Scenario: State resolves deck via deckRoot
+
+- **WHEN** Agent supplies a version run directory under `3_versions/vN`
+- **THEN** state resolves the deck through `deckRoot(resolve(runDir))`
 
 ### Requirement: status surfaces playbook position and lesson count
 
-`ppt_flow.mjs status` human output SHALL include a compact Playbook section with at least active `playbook` and `current_node` from `_state` (via `readState` with default heal). Successful `status --json` SHALL include `playbook` and `current_node` fields on the JSON object. If `_state` is missing and heal seeds a default, status SHALL still report the seeded position rather than omitting those fields silently. Status MAY also print or JSON-include `workflow_summary` by calling the same resume-card helper with a status snapshot.
+`ppt_flow.mjs status` SHALL classify the canonical marker before reading branch-specific state/artifacts and SHALL reuse the same non-mutating resume-card projection and exact `html_reviews` enums as `state`. With durable state, human and JSON output SHALL retain `playbook` and `current_node`; an HTML-first run SHALL additionally expose the same `pipeline`, `state_present`, freshness/outstanding coverage, journal status, delivery-review decision, workflow summary, and completion semantics. A historical markerless deck without state SHALL report `state_present: false` and legacy-maintenance ownership without healing/seeding `_state`; it SHALL not silently claim an active playbook/node. A complete current HTML delivery SHALL be complete without any Phase-4 record or action.
 
-`ppt_flow.mjs status` human output SHALL also include a `Lessons` line showing the count of lesson files in `deck_*/_lessons/` (excluding `README.md`). When lessons exist, the line SHALL display the count and a hint to run `lessons.mjs list` to review them. When no lessons exist, the line SHALL display "none." Status `--json` SHALL include a `lessons_count` integer field. The lesson count SHALL be collected by reading the `_lessons/` directory; it SHALL NOT require `lessons.mjs` as a subprocess.
+Status SHALL retain the `Lessons` line and JSON `lessons_count`, counting files in deck-root `_lessons/` except `README.md` without invoking `lessons.mjs` as a subprocess. Missing/empty means zero/`none`; positive counts retain the review hint.
 
-#### Scenario: status shows lesson count when lessons exist
+#### Scenario: Status shows lesson count when lessons exist
 
-- **WHEN** Agent runs `ppt_flow.mjs status <runDir>` on a deck with 2 lesson files
-- **THEN** human output includes "Lessons: 2 (run `lessons.mjs list` to review)"
-- **AND** `status --json` includes `"lessons_count": 2`
+- **WHEN** Agent runs status on a deck with two lesson files excluding README
+- **THEN** human output shows `Lessons: 2` with the review hint
+- **AND** JSON includes `lessons_count: 2`
 
-#### Scenario: status shows no lessons
+#### Scenario: Status shows no lessons
 
-- **WHEN** Agent runs `ppt_flow.mjs status <runDir>` on a deck with no `_lessons/` or an empty one
-- **THEN** human output includes "Lessons: none"
-- **AND** `status --json` includes `"lessons_count": 0`
+- **WHEN** `_lessons/` is absent or contains no counted files
+- **THEN** human output shows `Lessons: none`
+- **AND** JSON includes `lessons_count: 0`
 
-#### Scenario: status shows playbook breakpoint
+#### Scenario: Status shows durable playbook position
 
-- **WHEN** Agent runs `ppt_flow.mjs status <runDir>` on a deck with `_state/state.yaml`
-- **THEN** human output mentions the active playbook and current_node
+- **WHEN** a run has usable `_state/state.yaml`
+- **THEN** human and JSON output include its active playbook and current node
 
-#### Scenario: status JSON includes playbook fields
+#### Scenario: HTML status exposes evidence freshness
 
-- **WHEN** Agent runs `ppt_flow.mjs status <runDir> --json` on a deck with `_state/state.yaml`
-- **THEN** the JSON includes `playbook` and `current_node`
+- **WHEN** an HTML run has stale content, one uncovered recipe key, and no delivery review
+- **THEN** status exposes each condition through the shared HTML review projection
+- **AND** does not reduce them to metadata scalar gate values
+
+#### Scenario: Markerless status is non-writing
+
+- **WHEN** a historical markerless deck lacks `_state/state.yaml`
+- **THEN** status reports legacy compatibility without creating state or inventing an execution pointer
 
 ### Requirement: approve dual-writes metadata and _state gates
 
-`ppt_flow.mjs approve <runDir> <gate>` SHALL set the corresponding `content_gate` or `visual_gate` in `project-metadata.yaml` **and** set `_state.gates.<gate>` to the same value (`approved` or `waived`) via `writeState` on the deck root. Pipeline readiness MAY continue to read metadata; session resume and `state --check-gates` SHALL see matching `_state` gates after approve. Command count remains 12.
+`ppt_flow approve <runDir> <gate>` SHALL classify the run before validating approval evidence. For markerless legacy, existing metadata `content_gate|visual_gate` and `_state.gates.content|visual` compatibility writes/reads SHALL remain and HTML approval SHALL never overwrite them. For `html-first-v1`, content and visual approval/waiver SHALL require no reset pending plus the exact current-reset hash of an `approvable: true` plan covering every outstanding evidence item; scoped/incomplete/pre-reset plans SHALL fail and list missing/stale evidence. Successful publication SHALL write one version-scoped/current-reset `html-content-review` or `html-visual-review` record under authoritative `_state`, update only `_state.gates.html_content|html_visual` plus matching `_state.gates.html_content_run_version|html_visual_run_version`, then update only metadata `html_content_gate|html_visual_gate` plus matching `html_content_gate_run_version|html_visual_gate_run_version` through the recoverable journal protocol. These HTML fields are compatibility/status mirrors; they SHALL use status `pending|approved|waived`, exact normalized run version, and SHALL never satisfy legacy or HTML readiness by themselves. A waiver SHALL require a reason accepted by the shared 1024-byte `normalizeHumanReason` rule and the same complete current-reset plan. Ambiguous or unrecoverable partial writes SHALL fail closed.
 
-#### Scenario: approve visual syncs _state gates
+#### Scenario: HTML visual approval binds current evidence
 
-- **WHEN** Agent runs `ppt_flow.mjs approve <runDir> visual`
-- **THEN** `project-metadata.yaml` has `visual_gate: approved`
-- **AND** `_state/state.yaml` has `gates.visual: approved`
+- **WHEN** Agent approves visual with the exact current HTML review-plan hash
+- **THEN** authoritative current-version visual evidence is published before mirrors are synchronized
+- **AND** the record binds current preview/fingerprint evidence
 
-#### Scenario: approve --waive syncs both stores
+#### Scenario: HTML waiver omits a reason
 
-- **WHEN** Agent runs `ppt_flow.mjs approve <runDir> content --waive`
-- **THEN** metadata `content_gate` is `waived`
-- **AND** `_state.gates.content` is `waived`
+- **WHEN** Agent requests an HTML gate waiver without an explicit reason
+- **THEN** approval fails without changing authoritative evidence or mirrors
+
+#### Scenario: HTML scoped plan is incomplete
+
+- **WHEN** approval supplies a current hash whose plan is non-approvable because other evidence is outstanding
+- **THEN** approval fails, identifies the missing IDs/coverage, and writes neither state nor mirrors
+
+#### Scenario: Legacy approval remains compatible
+
+- **WHEN** Agent approves a markerless legacy gate
+- **THEN** existing metadata and `_state.gates` values remain synchronized
+
+#### Scenario: HTML approval coexists with approved legacy version
+
+- **WHEN** one deck has markerless legacy gate scalars and an HTML version is approved
+- **THEN** HTML publication changes only `html_*` mirror fields and authoritative HTML evidence
+- **AND** legacy `content_gate|visual_gate` plus `_state.gates.content|visual` remain byte-semantically unchanged
 
 ### Requirement: Title refresh routes by the affected slides' resolved modes
 
-`ppt_flow refresh --kind title` SHALL remain available and SHALL accept the existing selector forms `--only <ids>` and `--all` for title changes. It SHALL refresh Stage 1 from current source before routing. If `--only` is provided, standard slide-id resolution SHALL determine affected slides; `--all` means all slides. With neither selector, the command SHALL preserve the selector-free Header Text & Style Refresh behavior only when every slide is `body+header-lock`; on a mixed/full-page deck it SHALL fail with a usage envelope asking the caller to specify affected ids or `--all`.
+`ppt_flow refresh --kind title` SHALL classify the canonical marker and retain `--only <ids>|--all` selector semantics. For HTML-first, header text is renderer-owned visible content: the command SHALL refresh Stage 1, locally rebuild affected HTML/final-slide review output, validate overflow, stale content approval when its fingerprint changes, and preserve visual approval when the page visual dependency fingerprint is unchanged. It SHALL reject legacy force/reuse/profile options. It SHALL not publish Stage 4 until current content/visual evidence exists; after exact content review, repeating or continuing the controller path SHALL rebuild ordered delivery without remote work. For markerless legacy, existing render-mode routing, selector-free body-lock restriction, `TITLE_REVIEW_REQUIRED`, force-pilot/header evidence, and reviewed-image reuse SHALL remain.
 
-When all affected slides are `body+header-lock`, title refresh SHALL complete Header Text & Style Refresh through Stages 3,4,5 without Stage 2. When any affected slide is `full-page`, the command SHALL require Generated Image Rebuild and current header-review/accepted-risk evidence for those changed ids. If evidence is absent or stale, it SHALL fail with code `TITLE_REVIEW_REQUIRED`, list the affected full-page ids, and provide an exact `ppt_flow pilot <run-dir> --only <ids> --force-images` hint; it SHALL NOT emit a final PPTX. After pilot regeneration and review create current evidence, repeating the title refresh SHALL reuse those images and run Stages 3,4,5 without regenerating them again.
+#### Scenario: HTML title changes
 
-The English names describe logical refresh paths only. They SHALL NOT become CLI arguments, output enums, or replacements for the existing `--kind title|visual|notes` surface.
+- **WHEN** one marked slide title changes
+- **THEN** local review pixels are rebuilt, content evidence becomes stale, and visual evidence remains current if visual dependencies are unchanged
+- **AND** no Image2/header-review route is selected
 
-#### Scenario: Body-lock title refresh uses Header Text & Style Refresh
-- **WHEN** all selected title changes resolve to `body+header-lock`
-- **THEN** refresh runs Stage 1 followed by Stages 3, 4, and 5 and does not run Stage 2
+#### Scenario: Legacy full-page title changes
 
-#### Scenario: Full-page title refresh requires review first
-- **WHEN** a selected title change resolves to `full-page` and has no current review evidence
-- **THEN** refresh fails with `TITLE_REVIEW_REQUIRED`, lists that id, and does not assemble a final PPTX
-- **AND** its next invocation selects that id and includes `--force-images`
-
-#### Scenario: Reviewed full-page title refresh completes without a second image generation
-- **WHEN** the affected full-page image was regenerated by pilot and current review evidence exists
-- **THEN** repeating refresh reuses the reviewed image and completes Stages 3, 4, and 5
-
-#### Scenario: Mixed deck without selector fails safely
-- **WHEN** title refresh is invoked without `--only` or `--all` and the deck contains a full-page slide
-- **THEN** the CLI asks for explicit affected ids rather than regenerating every full-page slide or silently using Header Text & Style Refresh
+- **WHEN** a markerless selected title belongs to full-page and lacks current header review
+- **THEN** existing `TITLE_REVIEW_REQUIRED` and exact force-pilot action remain
 
 ### Requirement: Existing approve command records header review evidence
 
-The existing `ppt_flow approve` command SHALL accept `header` as an additional gate argument without adding a new top-level command. `approve <run-dir> header` SHALL read the current pilot subset/artifacts, recompute current source/config header inputs, verify the pilot images exist and have current raw-image generation provenance, then persist review evidence and history under `_state/state.yaml` `nodes.header-review.by_version[<normalized version-relative run-dir>]`. Evidence SHALL be usable only for that version. It SHALL NOT modify `project-metadata.yaml` content/visual gates or add `_state.gates.header`.
+`ppt_flow approve <run-dir> header` SHALL be explicitly markerless-legacy-only. For markerless runs it SHALL retain current pilot/provenance checks, version-scoped `nodes.header-review.by_version`, matching-profile merge/partial coverage, stale rejection, and ID-plus-reason waiver behavior without changing content/visual metadata gates. For HTML-first, it SHALL fail before readiness/artifact/state writes with branch-inapplicable guidance to `approve ... visual --plan-hash`; HTML evidence SHALL never enter `header-review`.
 
-Multiple approvals for the same version SHALL merge reviewed ids and image hashes only when fingerprint and generation profile match. A partial approval MAY be persisted with that version record's status `in_progress` and SHALL report remaining coverage/changed ids; that record becomes `completed` only when baseline content coverage and every changed full-page id are reviewed or specifically accepted. Other version records SHALL remain unchanged. A new fingerprint/profile SHALL not inherit prior reviewed ids.
+#### Scenario: Legacy partial header batches merge
 
-`approve <run-dir> header --waive` SHALL require both `--only <ids>` and a non-empty `--reason <text>`. It SHALL bind those named accepted-risk ids and symptoms to the current fingerprint. Header approval failures SHALL use the standard JSON envelope and SHALL never suggest hand-editing `_state`.
+- **WHEN** two markerless current pilot batches have matching fingerprint/profile
+- **THEN** their reviewed IDs merge under the same version record
 
-#### Scenario: Approve current pilot header review
-- **WHEN** current pilot artifacts exist and match current source/config
-- **THEN** `approve <run-dir> header` persists or merges reviewed ids, snapshot, image hashes, and fingerprint for that version without changing content/visual gates
+#### Scenario: HTML run approves header
 
-#### Scenario: Partial batches merge until coverage completes
-- **WHEN** two current pilot batches for the same version use the same fingerprint/profile
-- **THEN** their approved ids merge
-- **AND** the header-review node remains `in_progress` until all required coverage is satisfied, then becomes `completed`
-
-#### Scenario: Version evidence cannot cross versions
-- **WHEN** v1 has completed header evidence and v2 has none
-- **THEN** v2 production remains blocked and does not reuse v1 evidence
-
-#### Scenario: Stale pilot cannot be approved
-- **WHEN** source/config changed after the pilot artifacts were generated
-- **THEN** header approval fails and asks for pilot regeneration
-
-#### Scenario: Risk acceptance is specific
-- **WHEN** header waive omits ids or reason
-- **THEN** the CLI fails with a usage envelope
-- **AND** a valid waive records only the named ids/reason against the current fingerprint
+- **WHEN** a marked run invokes `approve ... header`
+- **THEN** CLI writes no legacy evidence and points to the current HTML visual review path
 
 ### Requirement: Build preserves reviewed full-page images
 
-When current header evidence binds reviewed or accepted full-page image hashes, `ppt_flow build` SHALL reject its default force-regeneration behavior for those ids. The failure hint SHALL direct the caller to `build --reuse-images` when the requested profile matches, or to rerun pilot at the target resolution/model/style and approve header again. `--reuse-images` SHALL still generate missing/unreviewed images while preserving matching reviewed images.
+For markerless legacy, current header evidence SHALL retain reviewed/accepted full-page image preservation: default force conflicts with reviewed bytes, `build --reuse-images` preserves matching reviewed images and generates only missing/unreviewed ones, and profile drift requires new pilot/review. For HTML-first, currentness SHALL come from effective composition fingerprints/manifests; `--reuse-images`, legacy resolution/model/provider options, and reviewed legacy image evidence SHALL be rejected before writes. HTML build SHALL reuse current immutable effective objects automatically and SHALL never treat review-only forced-fallback bytes as delivery.
 
-#### Scenario: Reviewed production build uses reuse
-- **WHEN** header evidence matches the requested production profile and reviewed images are current
-- **THEN** `build --reuse-images` preserves those images and generates any missing others
+#### Scenario: Legacy reviewed build uses reuse
+
+- **WHEN** markerless header evidence/profile/images are current
+- **THEN** `build --reuse-images` preserves those images and fills only missing legacy output
+
+#### Scenario: HTML build receives reuse-images
+
+- **WHEN** a marked run invokes build with `--reuse-images`
+- **THEN** the command rejects the legacy-only option before production writes
 
 ### Requirement: Supported standalone CLIs obey the failure envelope constitution
 
@@ -390,12 +433,12 @@ Every executable SHALL expose `--help`, exit zero for help, and list its support
 
 ### Requirement: CLI envelope tests cover the registered executable inventory
 
-The test suite SHALL maintain an explicit registered inventory of these eleven executable `.mjs` entry points: `bundle_layout.mjs`, `env-check.mjs`, `generate_style_master.mjs`, `make_contact_sheet.mjs`, `ppt_flow.mjs`, `stage1_build_inputs.mjs`, `stage2_generate_images.mjs`, `stage3_lock_headers.mjs`, `stage4_build_pptx.mjs`, `stage5_inject_notes.mjs`, and `unified_pipeline.mjs`. It SHALL compare the registry with direct-entry guards and probe at least one deterministic failure path for each executable. A new executable SHALL fail the inventory test until its failure-envelope behavior is covered.
+The test suite SHALL maintain the exact registered inventory of **thirteen** executable `.mjs` entries: existing `bundle_layout.mjs`, `env-check.mjs`, `generate_style_master.mjs`, `make_contact_sheet.mjs`, `ppt_flow.mjs`, `stage1_build_inputs.mjs`, `stage2_generate_images.mjs`, `stage3_lock_headers.mjs`, `stage4_build_pptx.mjs`, `stage5_inject_notes.mjs`, and `unified_pipeline.mjs`, plus `stage2_render_html.mjs` and `stage3_compose_slides.mjs`. It SHALL compare this set with direct-entry guards/shebangs and probe help plus deterministic failure-envelope behavior for every entry. Libraries SHALL remain excluded; any inventory drift SHALL fail with exact names.
 
-#### Scenario: New standalone script lacks envelope coverage
+#### Scenario: HTML compositor lacks a failure probe
 
-- **WHEN** a new documented executable is added under `scripts/` without a registered failure probe
-- **THEN** the CLI contract test fails and names the uncovered script
+- **WHEN** `stage3_compose_slides.mjs` is executable but absent from the inventory tests
+- **THEN** the CLI contract suite fails and names it
 
 ### Requirement: Delegated failures expose one parent envelope
 
@@ -588,24 +631,12 @@ For a legacy or prose-only child, `ppt_flow` SHALL emit a safe minimal delegated
 
 ### Requirement: The complete ppt_flow command surface has return-audit coverage
 
-The command-return registry SHALL cover exactly the 13 commands registered by `ppt_flow.mjs`: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, and `slides`. Each command SHALL register every applicable return category or an explicit not-applicable reason. Every `slides` subcommand SHALL be covered by command-specific success, usage, source-validation, conflict, stale-base, and commit return tests as applicable. A new, removed, or renamed command or subcommand SHALL fail the set comparison.
+The command-return registry SHALL cover exactly the 14 registered top-level commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and `migrate-html`. Every command/subcommand/closed repair or evidence operation SHALL register applicable success/usage/validation/gate/conflict/stale/commit/internal return categories or an explicit not-applicable reason. `state --recover-gate-journal` SHALL cover mutual-exclusion/invalid-token/too-young/token-drift/active-owner/forbidden-SHA/successful-abort/mirror-complete/cleanup/exact-reset-yield returns and prove no approval creation. `state --record-delivery-review` SHALL cover invalid decision, required/forbidden reason combinations, reason control/UTF-8-size validation, markerless rejection, missing/stale/current evidence, journal/reset conflict, each typed decision success, and unsupported evidence overrides. `refresh --kind reset-html-production` SHALL cover explicit-versus-default flag detection, exact-version confirmation, markerless/unusable-state/gate-journal/reset-CAS/metadata-CAS/unsafe-owner conflicts, gate-journal race yield, new reset, live/waiting/dead/uncertain/invalid owner matrices at exact 60000/300000-ms boundaries, competing takeover CAS, same-reset resume, idempotent completed retry only without current-epoch authority, absent-owner no-reset-needed versus authority-loss epoch rotation, deletion failure with retained fence, and successful completion without approval creation. `slides` SHALL retain its operation-specific audit; `migrate-html preview|apply` SHALL cover complete/degraded preview, exact mode/hash acknowledgement, drift, decline, apply-journal mutual exclusion, automatic/confirmed recovery age-token-owner matrices, absent-target owned cleanup/full rerender, exact-target idempotent completion, conflicting target/foreign path denial, and zero-provider failures. Set mismatch SHALL fail.
 
-#### Scenario: Registered and audited commands differ
+#### Scenario: Migrate command is not audited
 
-- **WHEN** commands registered before `parseAsync` are compared with the audit registry
-- **THEN** the test fails on every missing or stale command name
-
-#### Scenario: Slides subcommand lacks return coverage
-
-- **WHEN** a `slides` subcommand is registered without applicable return cases or explicit not-applicable reasons
-- **THEN** the return audit fails and names that subcommand
-
-#### Scenario: Contextual gate failure guides MD
-
-- **WHEN** a command is blocked by a known gate or review condition
-- **THEN** the diagnostic identifies the gate/affected ids when known
-- **AND** `next.action` and `next.requires_human` distinguish rerun from human decision
-- **AND** `next.invocation` supplies the preferred argument-safe `ppt_flow` invocation when known
+- **WHEN** `migrate-html` is registered without preview/apply return cases
+- **THEN** return audit fails and names the missing command/subcommands
 
 ### Requirement: Active documented CLI examples use real flags
 
@@ -738,4 +769,142 @@ The direct `env-check.mjs` CLI SHALL append the advisory `git` record to the alr
 - **WHEN** delegated `env-check --image2` exits non-zero because credentials are missing
 - **THEN** `ppt_flow doctor` preserves the existing delegated failure/envelope behavior
 - **AND** stderr contains no API key value or provider body
+
+### Requirement: HTML renderer and compositor CLIs are registered envelope-compliant executables
+
+Direct `stage2_render_html.mjs` and `stage3_compose_slides.mjs` SHALL be Node ESM registered executables whose production interface accepts exactly required `--run-dir <vN>`, optional shared `--only <selectors>`, exact `--variant effective|forced-fallback`, and `--dry-run` in addition to side-effect-free `--help`. `effective` SHALL be the explicit default only when the flag is absent; review orchestration SHALL pass `forced-fallback` explicitly. The CLIs SHALL derive canonical plan/control/object/manifest paths internally from the validated run and SHALL accept no arbitrary input/output/manifest path, provider/base-url/model/style-master, browser channel/executable, or package-root override. They SHALL provide deterministic stdout and the existing one-final-JSON failure envelope. Diagnostics SHALL identify bounded slide/field/box/artifact/runtime phases without absolute paths, raw HTML, source prose, browser stack, or asset bytes.
+
+#### Scenario: Renderer CLI help is audited
+
+- **WHEN** executable inventory runs `--help`
+- **THEN** each CLI exits zero without creating files or launching Chromium
+
+#### Scenario: Caller attempts an arbitrary output manifest
+
+- **WHEN** either direct CLI receives `--output`, `--manifest`, or another unsupported path override
+- **THEN** it returns `USAGE` before validated-run creation or writes
+
+#### Scenario: Pixel overflow fails
+
+- **WHEN** direct composition detects overflow
+- **THEN** stderr ends with one `FAILED` envelope carrying slide/field/measurement evidence and a local source/layout repair action
+
+#### Scenario: Direct forced fallback is review-only
+
+- **WHEN** a direct renderer/compositor invocation uses `--variant forced-fallback`
+- **THEN** it may publish verified immutable review objects and deterministic receipts
+- **AND** it does not replace HTML-page/final-slide delivery manifests or claim a current preview plan
+
+#### Scenario: Direct dry-run writes nothing
+
+- **WHEN** either direct CLI uses `--dry-run`
+- **THEN** it publishes no object, manifest, plan, lock residue, or generated directory
+
+### Requirement: Public HTML build and refresh commands route without provider flags
+
+`ppt_flow validate`, preview, build, status, approve, slides, and refresh SHALL probe the source marker before branch-specific argument/readiness handling. HTML-first build SHALL use the local Stages 1-5 adapter. HTML refresh SHALL expose Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, structural materialization, and the exceptional full generated-owner recovery through existing command ownership or explicit closed `--kind` values; it SHALL reject legacy provider/model/resolution/style-master/`--force-images`/`--reuse-images` flags and never delegate to legacy image generation/style-master/header approval. Markerless behavior and flags remain backward compatible.
+
+The only public canonical full-reset syntax SHALL be `ppt_flow refresh <run-dir> --kind reset-html-production --confirm-run-version <vN>`. It SHALL require exact normalized version equality and invoke the state-owned `resetHtmlProduction` interface with no caller-supplied reset/owner ID, path, lock, or manifest. This kind SHALL be mutually exclusive with explicitly supplied `--only`, `--all`, `--dry-run`, `--resolution`, `--provider`, `--base-url`, `--model`, every style/style-master option, force/reuse image flags, and every other refresh-kind-specific override. Parser defaults SHALL not count as supplied options or flow into reset; `--confirm-run-version` SHALL be rejected for every non-reset kind. Unsupported combinations SHALL return `USAGE` before state or filesystem writes. Markerless runs SHALL reject the kind as branch-inapplicable.
+
+For a new reset the command SHALL atomically install its owner claim. For pending reset, a live same-host owner SHALL return `CONFLICT`; a dead same-host owner younger than 60000 ms SHALL return a bounded retry-after conflict; same-host proven-dead age at least 60000 ms MAY be claimed automatically; valid cross-host/PID-uncertain ownership younger than 300000 ms SHALL remain blocked, and at/after 300000 ms MAY be claimed only after the Controller's explicit no-active-writer confirmation represented by this exact destructive route. Invalid ownership SHALL fail closed. Every takeover SHALL retain the semantic reset ID and use state CAS to install a fresh internal owner claim before deletion. Success SHALL report only normalized run version, whether the transaction was `started|resumed|already-complete`, and that local rebuild plus fresh content/visual/final review is required; it SHALL not expose reset/owner IDs, old evidence hashes, or claim rebuild completion.
+
+An absent generated owner SHALL not by itself make reset valid. When no current-reset authoritative review/delivery or HTML Stage-4/5 receipt exists, reset SHALL return branch-appropriate no-reset-needed guidance and ordinary preview may rebuild. When such authority exists, reset SHALL rotate a new epoch and complete with deletion already satisfied. Likewise `complete + owner absent` is `already-complete` only before any authority is published in that completed epoch; if authority was later published and the owner then disappeared, the command SHALL start a new reset rather than return idempotent success.
+
+#### Scenario: HTML build without credentials
+
+- **WHEN** a valid gated HTML-first run invokes `ppt_flow build`
+- **THEN** it completes local delivery without reading Image2 environment variables
+
+#### Scenario: Legacy-only flag targets HTML
+
+- **WHEN** an HTML refresh/build receives `--force-images`, provider URL, or style-master option
+- **THEN** CLI returns `USAGE` before remote prerequisite resolution or writes
+
+#### Scenario: Reset confirmation names the wrong version
+
+- **WHEN** `--confirm-run-version` does not exactly equal the canonical target version
+- **THEN** refresh returns `USAGE` without state, metadata, or generated-owner mutation
+
+#### Scenario: Reset resumes after deletion crash
+
+- **WHEN** the target version already has `html-production-reset.status: deletion_pending`
+- **THEN** the command continues that reset ID through mirror/deletion/completion and reports `resumed`
+
+#### Scenario: Explicit parser defaults do not fake a flag conflict
+
+- **WHEN** reset is invoked without a user-supplied resolution/provider/style option but the command parser has defaults for ordinary refresh
+- **THEN** those defaults do not enter reset validation or the reset interface
+
+#### Scenario: Live reset owner blocks a second command
+
+- **WHEN** a second reset command observes a proven-live same-host owner
+- **THEN** it returns `CONFLICT` without changing ownership, metadata, generated bytes, or completion status
+
+#### Scenario: Reset is retried after completion
+
+- **WHEN** the same version has a complete reset, no canonical generated owner, and no authority bound to that completed reset ID
+- **THEN** the command reports `already-complete` without rotating state or writing files
+
+#### Scenario: Completed epoch loses its rebuilt owner
+
+- **WHEN** a complete reset ID later has current approvals/delivery evidence but its generated owner is absent
+- **THEN** the confirmed command starts a new reset epoch and does not report `already-complete`
+
+### Requirement: HTML content and visual approval are exact-evidence-hash bound
+
+The public content and visual approval paths SHALL accept a required exact review-plan hash for HTML-first runs and SHALL verify current reset ID plus content projection or preview manifest/bytes/receipts before writing pipeline-specific gate evidence. A waiver SHALL also require an explicit reason. A `deletion_pending` reset SHALL return `CONFLICT`; a pre-reset plan hash SHALL be stale even when rebuilt raw artifacts are byte-identical. Legacy visual/header approval syntax and evidence remain isolated. A stale/missing hash SHALL fail with a human-review next action and no gate mutation.
+
+#### Scenario: User approves current HTML preview
+
+- **WHEN** the supplied review-plan hash matches current shown artifacts
+- **THEN** `approve ... visual` records current `html-visual-review` evidence and visual gate status
+
+#### Scenario: Preview changed after showing
+
+- **WHEN** the supplied hash no longer matches current source/config/artifacts
+- **THEN** approval fails without changing the gate
+
+#### Scenario: Reviewed content changes
+
+- **WHEN** the ordered content fingerprint no longer matches the supplied content review hash
+- **THEN** content approval fails without changing authoritative evidence or mirrors
+
+### Requirement: Legacy-to-HTML migration has preview and exact apply commands
+
+`ppt_flow migrate-html <run-dir> preview` SHALL validate a version-local candidate transaction, render the complete proposed HTML deck/contact sheet, and emit exact `old_side_mode: verified-current|degraded-missing|degraded-stale`, anticipated target version, and exact plan hash without publishing a version. Only `verified-current` may include old pixels. Degraded modes SHALL show diagnosis/placeholder, no stale pixels/parity claim, and a separately authorized legacy-maintenance next action; preview itself SHALL succeed locally. Normal `ppt_flow migrate-html <run-dir> apply --plan-hash <sha> --old-side-mode <mode>` SHALL accept only the current exact hash/mode after human acknowledgement and an exact active source `migrate-import` apply execution, bind that execution ID into journal/target receipt, recheck target/input/evidence, and publish only when hidden-target ordered composition/final PNG/contact-sheet SHAs exactly match preview. Closed recovery form `ppt_flow migrate-html <run-dir> apply --recover-journal <owner-token>` SHALL be mutually exclusive with plan/mode flags, require exact 64-lowercase-hex token plus the human-confirmed/age/active-owner rules, and apply only the bounded migration-apply recovery matrix. A recoverable/uncertain journal SHALL be reported with opaque token; the Agent carries it without requiring user transcription. Preview, normal apply, and recovery SHALL make zero provider calls; unknown/legacy-generation/evidence/path flags SHALL be usage errors.
+
+#### Scenario: Migration preview runs
+
+- **WHEN** an Agent has prepared a complete candidate under canonical migration scratch
+- **THEN** preview emits source/comparison evidence and a plan hash while the visible version set remains unchanged
+
+#### Scenario: Bare migration apply is rejected
+
+- **WHEN** apply omits or mismatches the exact plan hash
+- **THEN** CLI fails before hidden staging or visible version publication
+
+#### Scenario: Migration apply has no matching active execution
+
+- **WHEN** normal apply finds no exact source `migrate-import` execution bound to the confirmed plan/mode
+- **THEN** it fails before journal/reservation/staging creation and points to the controller entry
+
+#### Scenario: Migration recovery flags are mixed
+
+- **WHEN** apply receives `--recover-journal` together with plan hash or old-side mode
+- **THEN** it returns `USAGE` before journal/staging/target mutation
+
+#### Scenario: Cross-host migration recovery is confirmed
+
+- **WHEN** the Controller supplies the exact old-enough token after the human confirms no migration apply is active
+- **THEN** apply performs only the bound recovery matrix and creates no review approval
+
+### Requirement: HTML and workflow migration diagnostics remain producer-owned
+
+New reason kinds for renderer preparation, browser measurement, manifest drift, visual-review staleness, pipeline ownership, and state replacement SHALL be emitted only by the responsible JS producer through `cli_error.mjs`. MD/node specs SHALL consume category/reason/next semantics without copying the full envelope schema or interpreting shell prose.
+
+#### Scenario: Browser error crosses ppt_flow boundary
+
+- **WHEN** a delegated renderer fails
+- **THEN** `ppt_flow` preserves one normalized actionable parent diagnostic
+- **AND** does not append raw child stderr or a second JSON envelope
 

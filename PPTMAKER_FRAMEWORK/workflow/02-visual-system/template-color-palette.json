@@ -1,0 +1,342 @@
+{
+  "name": "Visual System Template",
+  "description": "Schema-valid renderer-neutral starting point for a new HTML-first deck visual system.",
+  "background": "#ffffff",
+  "canvas": {
+    "width_px": 1672,
+    "height_px": 941
+  },
+  "body_layout": {
+    "content_top_gap_px": 30,
+    "content_bottom_px": 780,
+    "callout_top_px": 805,
+    "callout_bottom_px": 900,
+    "no_callout_bottom_px": 890
+  },
+  "colors": {
+    "panel_card": {
+      "hex": "#f1f5f9",
+      "role": "Card and panel backgrounds"
+    },
+    "primary_text": {
+      "hex": "#1e293b",
+      "role": "Body text, titles"
+    },
+    "secondary_text": {
+      "hex": "#64748b",
+      "role": "Secondary text, labels"
+    },
+    "positive_accent": {
+      "hex": "#0d9488",
+      "role": "Growth data, positive outcomes, KPI numbers"
+    },
+    "emphasis": {
+      "hex": "#0284c7",
+      "role": "Emphasized text, icons, connector lines"
+    },
+    "warning": {
+      "hex": "#d97706",
+      "role": "Risk/warning signals only — use sparingly"
+    },
+    "divider": {
+      "hex": "#e2e8f0",
+      "role": "Dividers, subtle borders"
+    },
+    "kicker": {
+      "hex": "#475569",
+      "role": "HTML slide kicker"
+    },
+    "subtitle": {
+      "hex": "#64748b",
+      "role": "HTML slide subtitle"
+    }
+  },
+  "header_lock": {
+    "body_header_safe_zone": 260,
+    "opener_safe_zone": 390,
+    "position": {
+      "left_px": 46,
+      "right_margin_px": 58,
+      "kicker_y_px": 24,
+      "title_y_px": 58,
+      "subtitle_gap_px": 8,
+      "title_line_height_px": 52,
+      "subtitle_line_height_px": 31
+    },
+    "fonts": {
+      "kicker": {
+        "family": "Source Sans Pro",
+        "weight": "Semibold",
+        "size_px": 22,
+        "color": "#475569"
+      },
+      "title": {
+        "family": "Source Sans Pro",
+        "weight": "Bold",
+        "size_px": 46,
+        "color": "#1e293b"
+      },
+      "subtitle": {
+        "family": "Source Sans Pro",
+        "weight": "Regular",
+        "size_px": 27,
+        "color": "#64748b"
+      }
+    }
+  },
+  "forbidden": [
+    "dark backgrounds",
+    "neon colors",
+    "stock photos",
+    "logos",
+    "watermarks",
+    "page numbers"
+  ],
+  "best_for": [
+    "healthcare",
+    "life sciences",
+    "consulting reports",
+    "research",
+    "training",
+    "data-driven keynotes"
+  ],
+  "avoid_for": [
+    "creative brand stories",
+    "pitch decks",
+    "emotional/human topics"
+  ],
+  "html_first": {
+    "schema_version": 1,
+    "canvas": {
+      "width": 1000,
+      "height": 562.5
+    },
+    "palette": {
+      "background": "background",
+      "surface": "colors.panel_card.hex",
+      "text": "colors.primary_text.hex",
+      "muted_text": "colors.secondary_text.hex",
+      "accent": "colors.emphasis.hex",
+      "accent_secondary": "colors.positive_accent.hex",
+      "accent_tertiary": "colors.warning.hex",
+      "divider": "colors.divider.hex"
+    },
+    "typography": {
+      "kicker": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 16,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "title": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 30,
+        "line_height": 1.1,
+        "color": "palette.text"
+      },
+      "subtitle": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 18,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "body": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 20,
+        "line_height": 1.25,
+        "color": "palette.text"
+      },
+      "label": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 16,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "card_value": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 28,
+        "line_height": 1,
+        "color": "palette.accent"
+      },
+      "metric": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 36,
+        "line_height": 1,
+        "color": "palette.accent"
+      },
+      "quote": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 26,
+        "line_height": 1.2,
+        "color": "palette.text"
+      },
+      "caption": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 16,
+        "line_height": 1.25,
+        "color": "palette.muted_text"
+      },
+      "callout": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 18,
+        "line_height": 1.2,
+        "color": "palette.text"
+      }
+    },
+    "spacing": {
+      "xs": 8,
+      "sm": 12,
+      "md": 20,
+      "lg": 32,
+      "xl": 48,
+      "page_x": 48,
+      "content_top": 150,
+      "content_bottom_no_callout": 74.5,
+      "page_bottom_with_callout": 46.5
+    },
+    "components": {
+      "text_block": {
+        "field_gap": 12,
+        "bullet_gap": 8
+      },
+      "card": {
+        "radius": 16,
+        "padding": 20,
+        "field_gap": 12,
+        "border_width": 1,
+        "background": "palette.surface",
+        "border": "palette.divider"
+      },
+      "metric": {
+        "padding": 20,
+        "field_gap": 10
+      },
+      "step": {
+        "padding": 12,
+        "field_gap": 10,
+        "connector_width": 2,
+        "connector": "palette.divider"
+      },
+      "quote": {
+        "field_gap": 12
+      },
+      "chart": {
+        "axis": "palette.muted_text",
+        "grid": "palette.divider",
+        "series": [
+          "palette.accent",
+          "palette.accent_secondary",
+          "palette.accent_tertiary",
+          "palette.muted_text"
+        ],
+        "stroke_width": 3,
+        "plot_padding": {
+          "top": 20,
+          "right": 20,
+          "bottom": 44,
+          "left": 52
+        },
+        "legend_position": "top",
+        "legend_gap": 12,
+        "bar_orientation": "vertical",
+        "bar_mode": "grouped",
+        "line_curve": "linear",
+        "area_stacked": false
+      },
+      "icon": {
+        "size": 32,
+        "stroke_width": 2,
+        "color": "palette.accent"
+      },
+      "icon_composition": {
+        "inset_ratio": 0.12,
+        "gap": 16,
+        "max_cell_ratio": 0.62
+      },
+      "callout": {
+        "padding_x": 24,
+        "padding_y": 8,
+        "radius": 12,
+        "background": "palette.surface",
+        "border": "palette.divider"
+      },
+      "abstract_pattern": {
+        "gradient-field": {
+          "colors": [
+            "palette.background",
+            "palette.accent",
+            "palette.accent_secondary"
+          ],
+          "angle_degrees": 135,
+          "softness": 0.7
+        },
+        "line-grid": {
+          "line": "palette.divider",
+          "accent": "palette.accent",
+          "spacing": 32,
+          "stroke_width": 1
+        },
+        "soft-orbs": {
+          "colors": [
+            "palette.accent",
+            "palette.accent_secondary"
+          ],
+          "count": 3,
+          "blur": 48,
+          "opacity": 0.35
+        }
+      }
+    },
+    "image_language": {
+      "medium": "clinical editorial vector diagrams and restrained data visualization",
+      "material": "matte white paper with restrained teal and blue accents",
+      "lighting": "soft diffuse daylight with no dramatic glow",
+      "texture": "nearly textureless with subtle paper grain",
+      "composition": "precise grid, generous whitespace, evidence-first hierarchy",
+      "avoid": "forbidden"
+    },
+    "geometry": {
+      "registry": "html-family-geometry-v1"
+    }
+  }
+}

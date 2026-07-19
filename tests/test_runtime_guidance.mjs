@@ -9,7 +9,7 @@ import {
 
 const BOOTSTRAP = readFileSync('PPTMAKER_FRAMEWORK/BOOTSTRAP.md', 'utf8');
 const NODE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/02-nodejs-environment.md', 'utf8');
-const IMAGE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/03-tool-selection.md', 'utf8');
+const IMAGE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/03-runtime-and-tools.md', 'utf8');
 const PROBE_PLAYBOOK = readFileSync('PPTMAKER_FRAMEWORK/playbook/probe-image-channels.md', 'utf8');
 const ZERO_READY = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/00-zero-to-ready.md', 'utf8');
 const QUICK_START = readFileSync('PPTMAKER_FRAMEWORK/reference/quick-start.md', 'utf8');

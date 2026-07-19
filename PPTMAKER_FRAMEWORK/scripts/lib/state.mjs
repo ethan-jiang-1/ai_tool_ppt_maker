@@ -19,7 +19,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { parseDocument, stringify } from "yaml";
 import {
@@ -30,14 +30,15 @@ import {
   validatePlaybookIndex,
 } from "./md_controller_reader.mjs";
 import { validateNotesReceipt } from "./notes_receipt.mjs";
+import { HTML_FIRST_PIPELINE, probeProductionMarker } from "./production_marker.mjs";
 
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
 export const HISTORY_FILE = "history.jsonl";
-export const STATE_SCHEMA_VERSION = 2;
+export const STATE_SCHEMA_VERSION = 3;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review"]);
+export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset"]);
 
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
@@ -66,21 +67,16 @@ export const STATE_DIR_README = `\
 `;
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
-const NODE_ALIASES = Object.freeze({
-  "create-deck": Object.freeze({
-    "hitl1": "checkpoint-intake",
-    "hitl2": "checkpoint-final-review",
-    "wave0": "authoring-slides",
-    "wave1": "composing-prompts",
-    "wave2": "producing-deck",
-  }),
-  "edit-text": Object.freeze({ "verify-output": "verify-text-output" }),
-  "edit-visual": Object.freeze({ "verify-output": "verify-visual-output" }),
-});
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "playbook");
+const STATE_MIGRATION_MAP = JSON.parse(readFileSync(join(DEFAULT_PLAYBOOK_DIR, "state-migration-map-v3.json"), "utf8"));
+const LEGACY_PIPELINE = "legacy-image2-first";
+const GATE_JOURNAL_FILE = "gate-approval-journal.json";
+const SHA256_RE = /^[0-9a-f]{64}$/;
+const VERSION_RE = /^v[1-9][0-9]*$/;
 
 function nowIso() { return new Date().toISOString(); }
 function newExecutionId() { return `exec-${randomUUID()}`; }
+function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
 function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
@@ -206,45 +202,37 @@ function normalizeNodeRecord(record, nodeId, executionId, migrationTime, state) 
   return rec;
 }
 
-function applyNodeAliases(state) {
-  // Top-level aliases
-  const aliases = NODE_ALIASES[state.playbook] || {};
+function migrationDefinition(pipeline, playbook) {
+  return STATE_MIGRATION_MAP?.pipelines?.[pipeline]?.playbooks?.[playbook] || null;
+}
 
-  // Pointer migration (decoupled from record existence)
-  for (const [legacyId, canonicalId] of Object.entries(aliases)) {
-    if (state.current_node === legacyId) {
-      state.current_node = canonicalId;
-      appendDiagnostic(state, `${legacyId} current_node migrated to ${canonicalId} for ${state.playbook}`);
-    }
+function migrateControllerSnapshot(rootState, snapshot, pipeline, { stack = false } = {}) {
+  const definition = migrationDefinition(pipeline, snapshot.playbook);
+  if (!definition) return;
+  const sourcePlaybook = snapshot.playbook;
+  const records = stack ? snapshot.controller_nodes : snapshot.nodes;
+  const aliases = definition.nodes || {};
+  const recognized = Boolean(snapshot.current_node && aliases[snapshot.current_node]) ||
+    Object.keys(records || {}).some((id) => aliases[id] && aliases[id] !== id);
+  if (!recognized) return;
+  if (snapshot.current_node && aliases[snapshot.current_node] && aliases[snapshot.current_node] !== snapshot.current_node) {
+    const prior = snapshot.current_node;
+    snapshot.current_node = aliases[prior];
+    appendDiagnostic(rootState, `${stack ? "playbook_stack entry " : ""}${sourcePlaybook}: ${prior} current_node migrated to ${snapshot.current_node}`);
   }
-
-  // Record migration with mergeMissing (canonical wins, missing fields filled from legacy)
   for (const [legacyId, canonicalId] of Object.entries(aliases)) {
-    if (!state.nodes?.[legacyId]) continue;
-    state.nodes[canonicalId] = mergeMissing(state.nodes[canonicalId], state.nodes[legacyId]);
-    delete state.nodes[legacyId];
-    appendDiagnostic(state, `${legacyId} nodes key migrated to ${canonicalId} for ${state.playbook}`);
+    if (!records?.[legacyId] || legacyId === canonicalId) continue;
+    records[canonicalId] = mergeMissing(records[canonicalId], records[legacyId]);
+    delete records[legacyId];
+    appendDiagnostic(rootState, `${stack ? "playbook_stack entry " : ""}${sourcePlaybook}: ${legacyId} migrated to ${canonicalId}`);
   }
+  snapshot.playbook = definition.target_playbook;
+}
 
-  // Playbook stack entry aliases
+function applyNodeAliases(state, pipeline) {
+  migrateControllerSnapshot(state, state, pipeline);
   for (const entry of state.playbook_stack || []) {
-    const stackAliases = NODE_ALIASES[entry.playbook] || {};
-
-    // Pointer migration for stack entry
-    for (const [legacyId, canonicalId] of Object.entries(stackAliases)) {
-      if (entry.current_node === legacyId) {
-        entry.current_node = canonicalId;
-        appendDiagnostic(state, `playbook_stack entry ${entry.playbook}: ${legacyId} current_node migrated to ${canonicalId}`);
-      }
-    }
-
-    // Controller nodes key migration for stack entry
-    for (const [legacyId, canonicalId] of Object.entries(stackAliases)) {
-      if (!entry.controller_nodes?.[legacyId]) continue;
-      entry.controller_nodes[canonicalId] = mergeMissing(entry.controller_nodes[canonicalId], entry.controller_nodes[legacyId]);
-      delete entry.controller_nodes[legacyId];
-      appendDiagnostic(state, `playbook_stack entry ${entry.playbook}: ${legacyId} controller_nodes key migrated to ${canonicalId}`);
-    }
+    migrateControllerSnapshot(state, entry, pipeline, { stack: true });
   }
 }
 
@@ -268,7 +256,7 @@ function restrictActiveWorkingSet(state) {
   }
 }
 
-export function healState(raw) {
+export function healState(raw, opts = {}) {
   const state = isPlainObject(raw) ? deepClone(raw) : {};
   const before = JSON.stringify(state);
   const migrationTime = isoOr(state.updated_at, isoOr(state.started_at, nowIso()));
@@ -291,7 +279,9 @@ export function healState(raw) {
   normalizePlaybookStack(state, migrationTime);
 
   // Phase 2: alias — migrate legacy node IDs (top-level + playbook_stack entries)
-  applyNodeAliases(state);
+  const pipeline = opts.pipeline || state.pipeline || state.deck?.pipeline || HTML_FIRST_PIPELINE;
+  state.pipeline = pipeline;
+  applyNodeAliases(state, pipeline);
 
   if (state.playbook) {
     if (typeof state.execution_id !== "string" || !state.execution_id) state.execution_id = newExecutionId();
@@ -311,7 +301,7 @@ export function healState(raw) {
     if (isReservedNode(id)) continue;
     state.nodes[id] = normalizeNodeRecord(record, id, state.execution_id, migrationTime, state);
   }
-  for (const gate of ["content", "visual"]) {
+  for (const gate of ["content", "visual", "html_content", "html_visual"]) {
     if (!GATE_STATUSES.includes(state.gates[gate])) {
       if (state.gates[gate] != null) appendDiagnostic(state, `gate ${gate} healed to pending`);
       state.gates[gate] = "pending";
@@ -335,15 +325,174 @@ function seedFromBroken(rawText) {
 export function statePath(deckDir) { return join(deckDir, STATE_DIR, STATE_FILE); }
 export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_FILE); }
 
+function detectDeckPipeline(deckDir, state = {}) {
+  const explicit = state?.pipeline || state?.deck?.pipeline;
+  if ([HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) return explicit;
+  const versionsDir = join(deckDir, "3_versions");
+  let versions = [];
+  try {
+    versions = readdirSync(versionsDir)
+      .filter((name) => /^v[1-9][0-9]*$/.test(name))
+      .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
+  } catch {
+    versions = [];
+  }
+  const preferred = state?.run_version || state?.deck?.run_version;
+  if (typeof preferred === "string" && versions.includes(preferred)) {
+    versions = [preferred, ...versions.filter((name) => name !== preferred)];
+  }
+  for (const version of versions) {
+    const source = join(versionsDir, version, "slide-specifications.md");
+    if (!existsSync(source)) continue;
+    try {
+      const marker = probeProductionMarker(readFileSync(source), { source: "slide-specifications.md" });
+      if (marker.branch === HTML_FIRST_PIPELINE) return HTML_FIRST_PIPELINE;
+      if (marker.branch === "legacy") return LEGACY_PIPELINE;
+    } catch {
+      return LEGACY_PIPELINE;
+    }
+  }
+  if (state?.playbook) {
+    try {
+      const controller = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR).controllers.get(state.playbook);
+      if (controller?.supportedPipelines?.length === 1) return controller.supportedPipelines[0];
+    } catch { /* use markerless compatibility fallback */ }
+  }
+  return LEGACY_PIPELINE;
+}
+
+function classifyDeckPipeline(deckDir, state = {}) {
+  const explicit = state?.pipeline || state?.deck?.pipeline || null;
+  const versionsDir = join(deckDir, "3_versions");
+  let markerPipeline = null;
+  let markerIssue = null;
+  let sources = [];
+  try {
+    sources = readdirSync(versionsDir)
+      .filter((name) => /^v[1-9][0-9]*$/.test(name) && existsSync(join(versionsDir, name, "slide-specifications.md")))
+      .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
+  } catch { /* an empty historical deck remains legacy-compatible */ }
+  for (const version of sources) {
+    try {
+      const marker = probeProductionMarker(readFileSync(join(versionsDir, version, "slide-specifications.md")), { source: "slide-specifications.md" });
+      const observed = marker.branch === HTML_FIRST_PIPELINE ? HTML_FIRST_PIPELINE : marker.branch === "legacy" ? LEGACY_PIPELINE : null;
+      if (!observed) { markerIssue = "invalid canonical production marker"; break; }
+      if (markerPipeline && markerPipeline !== observed) {
+        const migrationWorkspace = state?.playbook === "migrate-import" || existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "html_migration.json"));
+        if (!migrationWorkspace) { markerIssue = "conflicting production pipelines across versions"; break; }
+        markerPipeline = state?.pipeline || observed;
+        continue;
+      }
+      markerPipeline = observed;
+    } catch { markerIssue = "unreadable canonical production marker"; break; }
+  }
+  if (explicit && ![HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) markerIssue ||= "unknown persisted pipeline";
+  if (explicit && markerPipeline && explicit !== markerPipeline) {
+    // initBundle historically seeds a legacy state before an opt-in HTML
+    // source is authored. That pristine handoff is the only permitted
+    // legacy-to-HTML inference; an active legacy execution remains a
+    // replacement-required conflict.
+    const controllerIds = Object.keys(state?.nodes || {}).filter((id) => !isReservedNode(id));
+    const pristineSeed = explicit === LEGACY_PIPELINE && markerPipeline === HTML_FIRST_PIPELINE &&
+      state?.playbook === "create-deck" && controllerIds.every((id) => id === "instantiation") &&
+      controllerIds.every((id) => ["completed", "skipped"].includes(state.nodes[id]?.status));
+    const migrationSource = state?.playbook === "migrate-import";
+    if (!pristineSeed && !migrationSource) markerIssue ||= "persisted pipeline conflicts with canonical source";
+  }
+  return { pipeline: markerPipeline || explicit || detectDeckPipeline(deckDir, state), issue: markerIssue };
+}
+
+function migrationHandoffReceipt(deckDir, state) {
+  if (state?.playbook !== "migrate-import" || !state.execution_id) return null;
+  const current = state.nodes?.[state.current_node];
+  if (!current || current.status !== "in_progress") return null;
+  const sourceExecutionId = current.migration_source_execution_id || current.source_execution_id || state.migration_source_execution_id || state.execution_id;
+  const planHash = current.migration_plan_hash || current.plan_hash || state.migration_plan_hash || state.plan_hash;
+  const mode = current.old_side_mode || state.old_side_mode;
+  if (typeof sourceExecutionId !== "string" || !sourceExecutionId || !SHA256_RE.test(planHash || "") || !["verified-current", "degraded-missing", "degraded-stale"].includes(mode)) return null;
+  const versionsDir = join(deckDir, "3_versions");
+  let versions = [];
+  try { versions = readdirSync(versionsDir).filter((name) => VERSION_RE.test(name)); } catch { return null; }
+  for (const targetVersion of versions) {
+    const path = join(versionsDir, targetVersion, "_generated", "qa", "html_migration.json");
+    if (!existsSync(path)) continue;
+    try {
+      const receipt = JSON.parse(readFileSync(path, "utf8"));
+      if (receipt.source_execution_id !== sourceExecutionId || receipt.plan_hash !== planHash || receipt.target_version !== targetVersion || receipt.old_side_mode !== mode) continue;
+      return { path, receipt, targetVersion, sourceExecutionId, planHash, mode };
+    } catch { /* malformed receipt is not a handoff */ }
+  }
+  return null;
+}
+
+export function inspectMigrationHandoff(deckDir, state = null) {
+  const current = state || readState(deckDir, { purpose: "observe", heal: false });
+  const handoff = migrationHandoffReceipt(deckDir, current);
+  if (!handoff) return null;
+  return Object.freeze({
+    code: "migration_handoff_pending",
+    source_version: handoff.receipt.source_version,
+    target_version: handoff.targetVersion,
+    suggested_next: "resume migration-target-review",
+  });
+}
+
+export function completeMigrationHandoff(deckDir, { targetVersion } = {}) {
+  const state = readState(deckDir, { purpose: "execute", heal: false });
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: migration source state is unusable");
+  const handoff = migrationHandoffReceipt(deckDir, state);
+  if (!handoff || (targetVersion && targetVersion !== handoff.targetVersion)) throw new Error("replacement_required: migration handoff receipt/state mismatch");
+  const next = structuredClone(state);
+  next.playbook = "migrate-import";
+  next.current_node = "migration-target-review";
+  next.execution_id = newExecutionId();
+  next.execution_started_at = nowIso();
+  next.nodes = preserveReservedNodes(next.nodes);
+  next.nodes["migration-target-review"] = { status: "in_progress", execution_id: next.execution_id, migration_source_execution_id: handoff.sourceExecutionId, migration_plan_hash: handoff.planHash, old_side_mode: handoff.mode, target_version: handoff.targetVersion };
+  next.run_version = handoff.targetVersion;
+  next.pipeline = HTML_FIRST_PIPELINE;
+  next.gates.html_content = "pending";
+  next.gates.html_visual = "pending";
+  next.gates.html_content_run_version = handoff.targetVersion;
+  next.gates.html_visual_run_version = handoff.targetVersion;
+  writeState(deckDir, next, { expectedStateSha: sha256(readFileSync(statePath(deckDir))) });
+  return Object.freeze({ status: "handoff-complete", target_version: handoff.targetVersion, current_node: next.current_node });
+}
+
+function replacementRequired(reason, pipeline = null) {
+  return Object.freeze({
+    replacement_required: true,
+    code: "replacement_required",
+    pipeline,
+    reason: String(reason),
+    durable_state_present: false,
+  });
+}
+
 export function readState(deckDir, opts = {}) {
   const shouldHeal = opts.heal !== false;
+  const purpose = opts.purpose || "execute";
+  if (!["observe", "execute"].includes(purpose)) throw new TypeError("state read purpose must be observe or execute");
   const path = statePath(deckDir);
-  if (!existsSync(path)) return createDefaultState();
+  if (!existsSync(path)) {
+    const classification = classifyDeckPipeline(deckDir);
+    if (classification.issue || classification.pipeline === HTML_FIRST_PIPELINE) {
+      return replacementRequired(classification.issue || "HTML-first run is missing authoritative state", classification.pipeline);
+    }
+    const projection = createDefaultState();
+    projection.durable_state_present = false;
+    return projection;
+  }
   let raw;
   try {
     raw = readFileSync(path, "utf8");
   } catch (error) {
-    if (!shouldHeal) return { corrupted: true, errors: [error.message] };
+    const classification = classifyDeckPipeline(deckDir);
+    if (!shouldHeal || purpose === "observe" || classification.pipeline === HTML_FIRST_PIPELINE) {
+      return classification.pipeline === HTML_FIRST_PIPELINE
+        ? replacementRequired("HTML-first state cannot be read without replacing authoritative evidence", classification.pipeline)
+        : { corrupted: true, errors: [error.message] };
+    }
     const seeded = createDefaultState();
     writeState(deckDir, seeded);
     seeded._healed = true;
@@ -351,7 +500,12 @@ export function readState(deckDir, opts = {}) {
   }
   const parsed = parseStateYaml(raw);
   if (!parsed.ok) {
-    if (!shouldHeal) return { corrupted: true, errors: parsed.errors };
+    const classification = classifyDeckPipeline(deckDir);
+    if (!shouldHeal || purpose === "observe" || classification.pipeline === HTML_FIRST_PIPELINE) {
+      return classification.pipeline === HTML_FIRST_PIPELINE
+        ? replacementRequired("HTML-first state is not safely parseable", classification.pipeline)
+        : { corrupted: true, errors: parsed.errors };
+    }
     const broken = `${path}.broken.${Date.now()}`;
     try { renameSync(path, broken); } catch { /* best effort */ }
     const seeded = seedFromBroken(raw);
@@ -360,13 +514,25 @@ export function readState(deckDir, opts = {}) {
     seeded._healed = true;
     return seeded;
   }
+  const classification = classifyDeckPipeline(deckDir, parsed.value);
+  if (classification.issue) return replacementRequired(classification.issue, classification.pipeline);
   if (!shouldHeal) return parsed.value;
-  const { state, dirty } = healState(parsed.value);
+  const { state, dirty } = healState(parsed.value, {
+    pipeline: opts.pipeline || classification.pipeline,
+  });
   if (dirty || parsed.hadErrors) {
-    writeState(deckDir, state);
+    const journalPresent = existsSync(join(deckDir, STATE_DIR, GATE_JOURNAL_FILE));
+    if (journalPresent) {
+      if (purpose === "execute") throw new Error("CONFLICT: gate approval journal fences state healing");
+      state._heal_pending = true;
+      state.durable_state_present = true;
+      return state;
+    }
+    writeState(deckDir, state, { expectedStateSha: sha256(Buffer.from(raw)) });
     try { appendHistory(deckDir, { type: "state_healed", reason: dirty ? "schema" : "parse_errors" }); } catch { /* optional */ }
     state._healed = true;
   }
+  state.durable_state_present = true;
   return state;
 }
 
@@ -395,21 +561,74 @@ function cleanStaleTemps(dir) {
   } catch { /* optional */ }
 }
 
-export function writeState(deckDir, state) {
+export function prepareStateWrite(state, { updatedAt = nowIso() } = {}) {
   const { _healed, ...persist } = state;
+  delete persist._heal_pending;
+  delete persist.durable_state_present;
   persist.schema_version = STATE_SCHEMA_VERSION;
-  persist.updated_at = nowIso();
+  persist.updated_at = updatedAt;
   normalizePlaybookStack(persist, persist.updated_at);
-  ensureStateDirHints(deckDir);
+  const bytes = Buffer.from(STATE_YAML_HEADER + stringifyStateYaml(persist), "utf8");
+  return Object.freeze({ persist, bytes, sha256: sha256(bytes), updatedAt });
+}
+
+function readJournalSnapshot(deckDir) {
+  const path = join(deckDir, STATE_DIR, GATE_JOURNAL_FILE);
+  if (!existsSync(path)) return { path, bytes: null, record: null };
+  const bytes = readFileSync(path);
+  let record;
+  try { record = JSON.parse(bytes.toString("utf8")); } catch { throw new Error("CONFLICT: gate approval journal is invalid"); }
+  return { path, bytes, record };
+}
+
+function currentResetRecordFromBytes(bytes) {
+  if (!bytes?.length) return null;
+  const parsed = parseStateYaml(bytes.toString("utf8"));
+  if (!parsed.ok) return null;
+  const records = parsed.value?.nodes?.["html-production-reset"]?.by_version;
+  if (!isPlainObject(records)) return null;
+  return Object.values(records).find((record) => record?.status === "deletion_pending") || null;
+}
+
+export function writeState(deckDir, state, opts = {}) {
+  const expectedStateSha = opts.expectedStateSha ?? null;
+  if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
   const path = statePath(deckDir);
+  const oldBytes = existsSync(path) ? readFileSync(path) : Buffer.alloc(0);
+  const oldSha = sha256(oldBytes);
+  if (expectedStateSha !== null && oldSha !== expectedStateSha) throw new Error("CONFLICT: state precondition changed");
+  const journal = readJournalSnapshot(deckDir);
+  if (journal.record) {
+    if (!opts.journalOwnerToken || opts.journalOwnerToken !== journal.record.owner_token) throw new Error("CONFLICT: gate approval journal fences state writes");
+  }
+  const currentReset = currentResetRecordFromBytes(oldBytes);
+  if (currentReset && opts.resetOwnerToken !== currentReset.owner_token) throw new Error("CONFLICT: HTML production reset fences state writes");
+  const prepared = prepareStateWrite(state, { updatedAt: opts.updatedAt || nowIso() });
+  if (journal.record && prepared.sha256 !== journal.record.new_state_sha256) throw new Error("CONFLICT: journal owner attempted unbound state bytes");
+  const candidateReset = state?.nodes?.["html-production-reset"]?.by_version
+    ? Object.values(state.nodes["html-production-reset"].by_version).find((record) => record?.status === "deletion_pending")
+    : null;
+  if (!currentReset && candidateReset && opts.resetOwnerToken !== candidateReset.owner_token) throw new Error("CONFLICT: reset start requires its exact owner token");
+  ensureStateDirHints(deckDir);
   const dir = dirname(path);
   mkdirSync(dir, { recursive: true });
   cleanStaleTemps(dir);
   const temp = join(dir, `.${STATE_FILE}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
-  writeFileSync(temp, STATE_YAML_HEADER + stringifyStateYaml(persist), "utf8");
-  renameSync(temp, path);
+  writeFileSync(temp, prepared.bytes);
+  try {
+    const currentBytes = existsSync(path) ? readFileSync(path) : Buffer.alloc(0);
+    if (sha256(currentBytes) !== oldSha) throw new Error("CONFLICT: state changed before commit");
+    const currentJournal = readJournalSnapshot(deckDir);
+    if (Boolean(currentJournal.record) !== Boolean(journal.record) || (journal.bytes && !currentJournal.bytes?.equals(journal.bytes))) throw new Error("CONFLICT: gate approval journal changed before state commit");
+    const resetNow = currentResetRecordFromBytes(currentBytes);
+    if (resetNow && opts.resetOwnerToken !== resetNow.owner_token) throw new Error("CONFLICT: HTML production reset ownership changed before state commit");
+    renameSync(temp, path);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
   state.schema_version = STATE_SCHEMA_VERSION;
-  state.updated_at = persist.updated_at;
+  state.updated_at = prepared.persist.updated_at;
   cleanStaleTemps(dir);
 }
 
@@ -495,6 +714,7 @@ export function setNodeStatus(state, name, status, extra = {}) {
   if (!NODE_STATUSES.includes(status)) throw new Error(`invalid node status: ${status}`);
   const previous = activeRecord(state, name) || {};
   const record = { ...previous, ...extra, status, execution_id: state.execution_id };
+  record.evidence = isPlainObject(record.evidence) ? record.evidence : {};
   const now = nowIso();
   if (status === "in_progress") {
     record.started = now;
@@ -614,6 +834,7 @@ export function resumePlaybook(state) {
 export function createDefaultState() {
   return {
     schema_version: STATE_SCHEMA_VERSION,
+    pipeline: LEGACY_PIPELINE,
     playbook: "",
     current_node: "",
     execution_id: "",
@@ -621,7 +842,7 @@ export function createDefaultState() {
     started_at: "",
     updated_at: "",
     nodes: {},
-    gates: { content: "pending", visual: "pending" },
+    gates: { content: "pending", visual: "pending", html_content: "pending", html_visual: "pending" },
     deck: { name: "", type: "", style: "" },
     playbook_stack: [],
   };
@@ -647,7 +868,7 @@ export function validateState(state) {
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
     if (node?.status === "in_progress" && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
   }
-  for (const gate of ["content", "visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
+  for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
   return { valid: errors.length === 0, errors };
 }
 

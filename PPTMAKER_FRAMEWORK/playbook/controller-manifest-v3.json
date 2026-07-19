@@ -1,0 +1,46 @@
+{
+  "schema": "pptmaker-controller-manifest-v3",
+  "shared_nodes": ["classify-change"],
+  "controllers": {
+    "create-deck": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["instantiation", "checkpoint-intake", "author-structured-content", "configure-visual-system", "preview-content", "review-content", "review-visual", "produce-html-deck", "checkpoint-final-review", "repair-html-deck", "readiness", "final"]
+    },
+    "edit-notes": {
+      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "nodes": ["classify-change", "refresh-speaker-notes", "verify-speaker-notes"]
+    },
+    "edit-text": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["classify-change", "rebuild-text-slides", "review-text-delivery"]
+    },
+    "edit-visual": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["classify-change", "rebuild-visual-evidence", "approve-visual-evidence"]
+    },
+    "iterate-style": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["define-style-change", "update-visual-system", "review-style-system"]
+    },
+    "legacy-image2-maintenance": {
+      "supported_pipelines": ["legacy-image2-first"],
+      "nodes": ["classify-change", "inspect-legacy-evidence", "authorize-legacy-generation", "run-legacy-maintenance", "verify-legacy-maintenance"]
+    },
+    "migrate-import": {
+      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "nodes": ["intake-migration", "map-migration-inputs", "preview-html-migration", "confirm-html-migration", "apply-html-migration", "migration-target-review"]
+    },
+    "probe-image-channels": {
+      "supported_pipelines": ["legacy-image2-first"],
+      "nodes": ["intake", "run-probe", "show-report", "confirm-write"]
+    },
+    "quick-preview": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["validate-preview-source", "compose-local-preview", "review-local-preview"]
+    },
+    "restructure-slides": {
+      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "nodes": ["classify-change", "publish-structural-version", "materialize-structural-target", "review-structural-target", "verify-structural-delivery"]
+    }
+  }
+}

@@ -1,0 +1,345 @@
+{
+  "name": "Dark Executive",
+  "description": "Deep navy background with cyan/electric blue accents. Precision, modern, executive. T10 battle-tested.",
+  "background": "#0a1628",
+  "canvas": {
+    "width_px": 1672,
+    "height_px": 941
+  },
+  "body_layout": {
+    "content_top_gap_px": 30,
+    "content_bottom_px": 780,
+    "callout_top_px": 805,
+    "callout_bottom_px": 900,
+    "no_callout_bottom_px": 890
+  },
+  "colors": {
+    "panel_card": {
+      "hex": "#1e3a5f",
+      "role": "Card and panel backgrounds"
+    },
+    "positive_accent": {
+      "hex": "#06b6d4",
+      "role": "Growth data, positive outcomes, KPI numbers"
+    },
+    "emphasis": {
+      "hex": "#3b82f6",
+      "role": "Emphasized text, icons, connector lines"
+    },
+    "data_analysis": {
+      "hex": "#0d9488",
+      "role": "Analysis blocks, flow diagram nodes"
+    },
+    "primary_text": {
+      "hex": "#f4f8fc",
+      "role": "Body text, titles"
+    },
+    "secondary_text": {
+      "hex": "#94a3b8",
+      "role": "Secondary text, labels"
+    },
+    "muted": {
+      "hex": "#475569",
+      "role": "De-emphasized info, watermark effect"
+    },
+    "kicker": {
+      "hex": "#becbda",
+      "role": "HTML slide kicker"
+    },
+    "subtitle": {
+      "hex": "#a4b8cc",
+      "role": "HTML slide subtitle"
+    }
+  },
+  "header_lock": {
+    "body_header_safe_zone": 260,
+    "opener_safe_zone": 390,
+    "position": {
+      "left_px": 46,
+      "right_margin_px": 58,
+      "kicker_y_px": 24,
+      "title_y_px": 58,
+      "subtitle_gap_px": 8,
+      "title_line_height_px": 52,
+      "subtitle_line_height_px": 31
+    },
+    "fonts": {
+      "kicker": {
+        "family": "Source Sans Pro",
+        "weight": "Semibold",
+        "size_px": 22,
+        "color": "#becbda"
+      },
+      "title": {
+        "family": "Source Sans Pro",
+        "weight": "Bold",
+        "size_px": 46,
+        "color": "#f4f8fc"
+      },
+      "subtitle": {
+        "family": "Source Sans Pro",
+        "weight": "Regular",
+        "size_px": 27,
+        "color": "#a4b8cc"
+      }
+    }
+  },
+  "forbidden": [
+    "warm tones",
+    "red",
+    "orange",
+    "yellow",
+    "gold",
+    "stock photos",
+    "logos",
+    "watermarks",
+    "page numbers"
+  ],
+  "best_for": [
+    "strategy keynote",
+    "executive briefing",
+    "manufacturing",
+    "deep tech",
+    "B2B"
+  ],
+  "avoid_for": [
+    "consumer brand stories",
+    "training",
+    "healthcare",
+    "warm/emotional topics"
+  ],
+  "html_first": {
+    "schema_version": 1,
+    "canvas": {
+      "width": 1000,
+      "height": 562.5
+    },
+    "palette": {
+      "background": "background",
+      "surface": "colors.panel_card.hex",
+      "text": "colors.primary_text.hex",
+      "muted_text": "colors.secondary_text.hex",
+      "accent": "colors.emphasis.hex",
+      "accent_secondary": "colors.positive_accent.hex",
+      "accent_tertiary": "colors.data_analysis.hex",
+      "divider": "colors.muted.hex"
+    },
+    "typography": {
+      "kicker": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 16,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "title": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 30,
+        "line_height": 1.1,
+        "color": "palette.text"
+      },
+      "subtitle": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 18,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "body": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 20,
+        "line_height": 1.25,
+        "color": "palette.text"
+      },
+      "label": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 16,
+        "line_height": 1.2,
+        "color": "palette.muted_text"
+      },
+      "card_value": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 28,
+        "line_height": 1,
+        "color": "palette.accent"
+      },
+      "metric": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 700,
+        "size": 36,
+        "line_height": 1,
+        "color": "palette.accent"
+      },
+      "quote": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 26,
+        "line_height": 1.2,
+        "color": "palette.text"
+      },
+      "caption": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 400,
+        "size": 16,
+        "line_height": 1.25,
+        "color": "palette.muted_text"
+      },
+      "callout": {
+        "families": [
+          "Source Sans 3",
+          "Noto Sans SC"
+        ],
+        "weight": 600,
+        "size": 18,
+        "line_height": 1.2,
+        "color": "palette.text"
+      }
+    },
+    "spacing": {
+      "xs": 8,
+      "sm": 12,
+      "md": 20,
+      "lg": 32,
+      "xl": 48,
+      "page_x": 48,
+      "content_top": 150,
+      "content_bottom_no_callout": 74.5,
+      "page_bottom_with_callout": 46.5
+    },
+    "components": {
+      "text_block": {
+        "field_gap": 12,
+        "bullet_gap": 8
+      },
+      "card": {
+        "radius": 16,
+        "padding": 20,
+        "field_gap": 12,
+        "border_width": 1,
+        "background": "palette.surface",
+        "border": "palette.divider"
+      },
+      "metric": {
+        "padding": 20,
+        "field_gap": 10
+      },
+      "step": {
+        "padding": 12,
+        "field_gap": 10,
+        "connector_width": 2,
+        "connector": "palette.divider"
+      },
+      "quote": {
+        "field_gap": 12
+      },
+      "chart": {
+        "axis": "palette.muted_text",
+        "grid": "palette.divider",
+        "series": [
+          "palette.accent",
+          "palette.accent_secondary",
+          "palette.accent_tertiary",
+          "palette.muted_text"
+        ],
+        "stroke_width": 3,
+        "plot_padding": {
+          "top": 20,
+          "right": 20,
+          "bottom": 44,
+          "left": 52
+        },
+        "legend_position": "top",
+        "legend_gap": 12,
+        "bar_orientation": "vertical",
+        "bar_mode": "grouped",
+        "line_curve": "linear",
+        "area_stacked": false
+      },
+      "icon": {
+        "size": 32,
+        "stroke_width": 2,
+        "color": "palette.accent"
+      },
+      "icon_composition": {
+        "inset_ratio": 0.12,
+        "gap": 16,
+        "max_cell_ratio": 0.62
+      },
+      "callout": {
+        "padding_x": 24,
+        "padding_y": 8,
+        "radius": 12,
+        "background": "palette.surface",
+        "border": "palette.divider"
+      },
+      "abstract_pattern": {
+        "gradient-field": {
+          "colors": [
+            "palette.background",
+            "palette.accent",
+            "palette.accent_secondary"
+          ],
+          "angle_degrees": 135,
+          "softness": 0.7
+        },
+        "line-grid": {
+          "line": "palette.divider",
+          "accent": "palette.accent",
+          "spacing": 32,
+          "stroke_width": 1
+        },
+        "soft-orbs": {
+          "colors": [
+            "palette.accent",
+            "palette.accent_secondary"
+          ],
+          "count": 3,
+          "blur": 48,
+          "opacity": 0.35
+        }
+      }
+    },
+    "image_language": {
+      "medium": "cinematic dark-interface information design with crisp vector forms",
+      "material": "deep navy glass, brushed metal, and luminous cyan-blue accents",
+      "lighting": "controlled edge lighting and restrained cool glow",
+      "texture": "fine technical grain without noisy particles",
+      "composition": "high-contrast focal hierarchy, disciplined asymmetry, generous negative space",
+      "avoid": "forbidden"
+    },
+    "geometry": {
+      "registry": "html-family-geometry-v1"
+    }
+  }
+}

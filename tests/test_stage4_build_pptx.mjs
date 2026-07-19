@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { diagnosticFromError } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 import { createCanvas } from '@napi-rs/canvas';
 import { sha256File } from '../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs';
+import { createHtmlFirstRun } from './helpers/html_first_fixture.mjs';
 
 const S4 = 'PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs';
 
@@ -80,8 +81,10 @@ describe('stage4_build_pptx', () => {
 
       expect(result.slideCount).toBe(2);
       expect(existsSync(out)).toBe(true);
+      expect(result.receipt).toMatchObject({ schema_version: 2, pipeline: 'legacy-image2-v1', html_production_reset_id: null, html_delivery_digest: null });
       expect(result.receipt.ordered_slide_ids).toEqual(['AICost', 'UXGap']);
       expect(result.receipt.final_images.map((image) => image.slide_id)).toEqual(['AICost', 'UXGap']);
+      expect(result.receipt.final_images.every((image) => image.artifact_kind === 'final-slide' && /^[0-9a-f]{64}$/.test(image.final_slide_fingerprint))).toBe(true);
       expect(result.receipt.pptx_sha256).toBe(sha256File(out));
       expect(JSON.parse(readFileSync(result.receiptPath, 'utf8'))).toEqual(result.receipt);
     } finally {
@@ -104,6 +107,66 @@ describe('stage4_build_pptx', () => {
       expect(existsSync(join(generated, 'qa', 'pptx_assembly.json'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('assembles canonical HTML final-slide manifest through the provider-neutral adapter', async () => {
+    const fixture = createHtmlFirstRun('stage4-html-');
+    try {
+      const { createCanonicalHtmlValidatedRunContext, publishHtmlComposition } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_renderer.mjs');
+      const context = createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      const { stage1 } = await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      await publishHtmlComposition(context, {});
+      const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
+      const { buildPptxFromRunDir } = await import('../PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs');
+      const result = await buildPptxFromRunDir(fixture.runDir);
+      expect(result.slideCount).toBe(1);
+      expect(result.receipt.schema_version).toBe(2);
+      expect(result.receipt.pipeline).toBe('html-first-v1');
+      expect(result.receipt.html_delivery_digest).toMatch(/^[0-9a-f]{64}$/);
+      expect(result.receipt.final_images[0]).toMatchObject({ artifact_kind: 'final-slide', producer: 'html-compositor-v1', width: 2000, height: 1125, media_profile: 'html-capture-v1' });
+      expect(result.receipt.final_images[0].final_slide_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      expect(result.receipt.final_images[0]).not.toHaveProperty('composition_fingerprint');
+      expect(result.contactSheet.published).toBe(true);
+      const store = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_object_store.mjs');
+      const preview = store.readHtmlPreviewManifest(store.htmlOwnerRoot(fixture.runDir, 'preview'), { publicationScope: 'canonical-run', htmlProductionResetId: null, logicalRunVersion: 'v1' });
+      expect(preview.manifest.contact_sheets.visual_review).not.toBeNull();
+      expect(preview.manifest.contact_sheets.delivery).not.toBeNull();
+      expect(existsSync(result.outPath)).toBe(true);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('blocks canonical HTML assembly until both authoritative review records are current', async () => {
+    const fixture = createHtmlFirstRun('stage4-html-gates-');
+    try {
+      const { stage1 } = await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      const renderer = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_renderer.mjs');
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const { buildPptxFromRunDir } = await import('../PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs');
+      await expect(buildPptxFromRunDir(fixture.runDir)).rejects.toThrow(/authoritative content\/visual review/);
+      expect(existsSync(join(fixture.runDir, '_generated', 'ppt', 'deck.pptx'))).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('rejects legacy artifact flags when the slide plan belongs to HTML-first', () => {
+    const fixture = createHtmlFirstRun('stage4-html-artifact-mode-');
+    try {
+      const out = join(fixture.runDir, '_generated', 'ppt', 'bypass.pptx');
+      const result = spawnSync('node', [S4, '--images', join(fixture.runDir, '_generated', 'header_locked'), '--slide-plan', join(fixture.runDir, '_generated', 'slide_plan.json'), '--out', out], { encoding: 'utf8' });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('legacy artifact mode cannot target an HTML-first run');
+      expect(existsSync(out)).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 });

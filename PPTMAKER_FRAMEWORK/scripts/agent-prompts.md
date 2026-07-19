@@ -38,7 +38,7 @@ Format: One bullet per fact, with source. Be specific — numbers over narrative
 
 ## 2. Metaphor Generation Prompt
 
-**用途**：基于用户 topic 和 "最想让人记住的一件事"，生成 2-3 个候选隐喻。参考 `workflow/02-content/presets/metaphor-catalog.md` 做模式匹配。
+**用途**：基于用户 topic 和 "最想让人记住的一件事"，生成 2-3 个候选隐喻。参考 `workflow/01-content/presets/metaphor-catalog.md` 做模式匹配。
 
 **模板**：
 ```
@@ -57,7 +57,7 @@ Constraints:
 - Must be visualizable (not abstract — something you can draw)
 - Must create tension (not just "X is important")
 
-Reference the metaphor catalog in PPTMAKER_FRAMEWORK/workflow/02-content/presets/metaphor-catalog.md
+Reference the metaphor catalog in PPTMAKER_FRAMEWORK/workflow/01-content/presets/metaphor-catalog.md
 for patterns. Match against the user's industry and topic.
 ```
 
@@ -88,7 +88,7 @@ Available presets:
 4. Tech Startup — deep purple, neon cyan/magenta accents. Bold, energetic, memorable.
 5. Corporate Safe — white, corporate blue, gray. Professional, trustworthy, timeless.
 
-Reference each preset's README in PPTMAKER_FRAMEWORK/workflow/01-visual/presets/ for full details.
+Reference each preset's README in PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/ for full details.
 ```
 
 **变量**：`{TOPIC}`, `{AUDIENCE}`, `{DECK_TYPE}`

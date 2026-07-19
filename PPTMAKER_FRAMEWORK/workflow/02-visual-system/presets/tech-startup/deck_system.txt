@@ -1,0 +1,10 @@
+# Deck System Contract — Tech Startup
+# Renderer-neutral natural-language constraints. Structured values live in color_palette.json.
+
+LANGUAGE: English by default; Hans is allowed only when required and bundled coverage verifies.
+DECK TYPE: Pitch deck or product launch. Every slide drives toward one decision or action.
+BACKGROUND: Deep purple #1a0a2e with #2d1b4e panels. No light corporate background.
+COLOR: #00f5d4 accent/KPI, #f72585 emphasis, #7209b7 data, #e0e0e0 text.
+TEXT: Accurate words are structured and compositor-owned. Under 28 words, max 3 body zones, oversized KPI, no paragraph or fake UI.
+COMPONENTS: Sparse hero, KPI, flow, comparison, bold geometric icons. Avoid decorative glow, gradient blobs, stock art, logos, watermark, and page number.
+TONE: Bold, energetic, distinctive, still readable and evidence-led.
