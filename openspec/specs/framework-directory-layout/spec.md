@@ -115,11 +115,11 @@ The file `PPTMAKER_FRAMEWORK/workflow/00-setup/README.md` SHALL be updated to re
 
 ### Requirement: env-check script is accessible from scripts/
 
-The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/env-check.mjs`. It SHALL function correctly from this location, with internal font search paths updated to reflect the new directory structure.
+The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs`. It SHALL function correctly from this location, with internal font search paths updated to reflect the new directory structure.
 
 #### Scenario: Env check runs from new location
 
-- **WHEN** `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` is run
+- **WHEN** `node PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` is run
 - **THEN** it checks fonts from `scripts/fonts/` (not `06_reference_scripts/fonts/`)
 - **AND** outputs READY/NOT READY correctly
 

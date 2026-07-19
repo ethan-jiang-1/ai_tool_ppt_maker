@@ -15,7 +15,7 @@
 - [x] 2.2 `git mv PPTMAKER_FRAMEWORK/automation/agent_prompts.md PPTMAKER_FRAMEWORK/scripts/agent-prompts.md`
 - [x] 2.3 `git mv PPTMAKER_FRAMEWORK/automation/change-classifier.md PPTMAKER_FRAMEWORK/scripts/change-classifier.md`
 - [x] 2.4 `rmdir PPTMAKER_FRAMEWORK/automation/`
-- [x] 2.5 `git mv PPTMAKER_FRAMEWORK/workflow/00-setup/00-env-check.mjs PPTMAKER_FRAMEWORK/scripts/env-check.mjs`
+- [x] 2.5 `git mv PPTMAKER_FRAMEWORK/workflow/00-setup/00-env-check.mjs PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs`
 - [x] 2.6 创建 `scripts/README.md` — 脚本清单, 每个脚本的用途/输入/输出
 
 ## 3. 提取 reference/
@@ -68,10 +68,10 @@
 ## 8. 验证
 
 - [x] 8.1 根只有 4 个子目录: `ls -d PPTMAKER_FRAMEWORK/*/ | wc -l` = 4
-- [x] 8.2 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --self-check` 通过
-- [x] 8.3 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` 打印完整权威树
+- [x] 8.2 `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --self-check` 通过
+- [x] 8.3 `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` 打印完整权威树
 - [x] 8.4 `npm test` 全部通过
 - [x] 8.5 `grep -r "06_reference_scripts\|00_project_setup\|automation/" PPTMAKER_FRAMEWORK/` 零残留 (VERSION_LOG 历史引用除外)
 - [x] 8.6 `grep -r "01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" PPTMAKER_FRAMEWORK/` 零残留
 - [x] 8.7 `grep -r "06_reference_scripts\|00_project_setup\|automation/\|01_visual_style_master\|02_content_design\|03_image_prompts\|04_production_pipeline\|05_iteration" openspec/specs/` 零残留
-- [x] 8.8 `node PPTMAKER_FRAMEWORK/scripts/env-check.mjs` 正常运行
+- [x] 8.8 `node PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` 正常运行

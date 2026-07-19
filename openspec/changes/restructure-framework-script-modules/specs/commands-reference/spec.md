@@ -19,11 +19,34 @@
 
 `COMMANDS.md` and `05-iteration/change-classifier.md` SHALL retain the shared structural UX: resolve every position selector against one pre-edit snapshot; display `position + slide_id + title`; keep formal ID stable; preview before mutation; bind apply to canonical plan hash carried by the Agent; route list/resolve/normalize/move/delete/insert/multi-operation through `ppt_flow slides`; never hand-edit or copy `_generated/`; and retain the existing version/deck/Git escape-ladder constraints. The script relocation SHALL NOT change any structural command or transaction behavior.
 
-#### Scenario: User asks to move slide five to slide two
+Structural source publication SHALL be renderer-free for both pipelines. For HTML-first, its receipt SHALL report `needs_local_materialization`; a later explicit target-local materializer verifies/copies target-owned immutable objects or composes missing/stale IDs locally, then rebuilds review/delivery with zero provider calls. For markerless legacy, verified expensive raw renders MAY be materialized and missing/unproven IDs SHALL remain `needs_render` for a separately authorized Generated Image Rebuild. Guidance SHALL never label HTML-local work as remote render debt or copy a source-version manifest path into the target.
 
-- **WHEN** the Agent classifies the request using the Phase 5 classifier
-- **THEN** it resolves position 5 to the current stable `slide_id`
-- **AND** previews an exact hash-bound transaction before apply
+#### Scenario: HTML insert reports local materialization
+
+- **WHEN** a confirmed HTML-first structural transaction inserts a valid slide
+- **THEN** the new source version reports that ID under `needs_local_materialization`
+- **AND** a later explicit local materializer owns composition/review/delivery without remote authorization
+
+#### Scenario: Legacy insert reports remote render debt
+
+- **WHEN** a confirmed markerless transaction inserts an ID without verified raw render evidence
+- **THEN** the source version reports that ID under `needs_render`
+- **AND** requests separate authorization before Generated Image Rebuild
+
+#### Scenario: Reorder resolves one snapshot
+
+- **WHEN** a user deletes or moves multiple current positions
+- **THEN** every selector resolves before mutation and the exact before/after ID order is previewed
+
+#### Scenario: Major reframing remains a deck decision
+
+- **WHEN** audience, objective, or narrative materially changes
+- **THEN** guidance may recommend a new deck rather than forcing the work into vNext
+
+#### Scenario: Git remains outside structural authority
+
+- **WHEN** Git is absent or a user separately asks about source history
+- **THEN** normal source repair/version paths remain available and no generic Git mutation is chosen automatically
 
 #### Scenario: Path migration does not alter the public command
 

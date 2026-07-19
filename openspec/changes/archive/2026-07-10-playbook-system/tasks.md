@@ -40,7 +40,7 @@
 
 ## 6. 验证
 
-- [x] 6.1 `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --self-check` 通过
+- [x] 6.1 `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --self-check` 通过
 - [x] 6.2 `npm test` 全部通过
 - [x] 6.3 全量创建 playbook: node scripts/bundle_layout.mjs --init → 检查 state 文件生成了 initial state
 - [x] 6.4 迭代 playbook: 验证 entry gate 不满足时 CLI 拒绝执行, exit gate 不满足时 Agent 不能标记 completed

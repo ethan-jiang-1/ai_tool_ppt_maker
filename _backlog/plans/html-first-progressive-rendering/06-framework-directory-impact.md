@@ -301,6 +301,7 @@ PPTMAKER_FRAMEWORK/
     │   ├── stage3_compose_slides.mjs
     │   ├── stage4_build_pptx.mjs
     │   ├── stage5_inject_notes.mjs
+    │   ├── unified_pipeline.mjs
     │   └── internal/                renderer/runtime/object/review/artifact/notes implementation
     ├── 04-image2-refinement/
     │   └── README.md                 Change 4 仍 unavailable；Change 5 才加入 executable/module
@@ -313,21 +314,25 @@ PPTMAKER_FRAMEWORK/
     │   ├── cli/                      envelope/bootstrap/progress
     │   ├── run-bundle/               layout、marker、coherence
     │   ├── state/                    state/controller/evidence primitives
-    │   └── identity/                 canonical bytes、receipts、common artifact identity
-    ├── contracts/                    versioned JSON/evidence contracts and generators
+    │   └── identity/                 public canonical facade、byte hash、receipts、provider-neutral final-slide records
+    ├── contracts/                    canonical core、versioned source/evidence contracts、generators、architecture registry/checker
     ├── fonts/                        bundled licensed font resources
     └── fixtures/                     checked-in runtime/golden fixtures
 ```
 
 这里的 `index.mjs` 是 phase module 的 interface，不是把私有函数逐个 re-export 的 barrel。每个 interface 必须隐藏本 phase 的路径、receipt、runtime 和 transaction 细节；调用方与测试通过同一个 seam。`internal/` 只是一条可见的“不得跨 phase import”标记，内部仍应按真实职责分组，不能成为新的平铺垃圾场。
 
+本节只记录大计划中的架构决策摘要；Change 4 的 exact public shared set、Phase adjacency、executable inventory、contract interface 和 checker 规则以 `openspec/changes/restructure-framework-script-modules/` 为权威，不在 backlog 复制第二份完整 schema。
+
 Change 4 必须锁定并机器检查以下 import direction：
 
-- `ppt_flow.mjs` 只依赖 phase `index.mjs` 与 `shared/cli`，不直接进入任何 `internal/`。
+- `ppt_flow.mjs` 作为 composition root，按 command/marker 选择性加载 phase `index.mjs` 与声明过的 public shared interface（`shared/cli`、`shared/run-bundle`、`shared/state`），不直接进入任何 phase/shared `internal/`。`init/new-version/state/status` 不得为了回避其真实 shared owner 而经无关 phase 制造浅转发。
 - `shared/` 不依赖 00-05 phase；phase 可以依赖分类后的 shared module。
-- Phase 3 只通过 Phase 1/2 的 interface 消费 structured content 与 visual system；Phase 4 只通过 Phase 1/2/3 interface 消费完整 HTML deck；Phase 5 只通过 owning phase interface 发起 rebuild/migration/legacy maintenance。
+- Change 4 的 exact Phase adjacency 为 `00->{}`、`01->{}`、`02->{}`、`03->{00,01,02}`、`05->{01,02,03}`；Phase 4 无 graph node。Phase 0 不依赖 Phase 5，Phase 5 发起本地生产只进入 Phase 3 interface。
 - 任何 phase 不得 import 另一 phase 的 `internal/`、CLI 文件或物理 artifact path constant。
-- legacy Image2 transport 物理位于 `05-iteration/legacy-image2/`；Change 5 的 modern Image2 adapter 物理位于 `04-image2-refinement/`，两者不能共享业务 implementation，只能共同依赖明确的外部 transport port。
+- legacy Image2 transport/provenance/manifest/materialization 物理位于 `05-iteration/legacy-image2/`，不是 shared identity。Change 5 的 modern Image2 adapter/transport port 物理位于 `04-image2-refinement/`；Change 4 不提前创建 shared provider port，也不让两者共享业务 implementation。
+- 只有五个 cross-owner process adapter：root `ppt_flow.mjs`、Phase 0 `env-check.mjs`、Phase 3 `unified_pipeline.mjs`、`stage1_build_inputs.mjs`、`stage4_build_pptx.mjs`；它们只进入 public Phase/shared interface。其他 direct CLI 进入自己的 Phase interface。
+- Phase interface import 本身必须无 bootstrap、process exit、顶层生产写、browser/provider 初始化；doctor、HTML-local、markerless 三类命令用 load-closure probe 证明未选中的 heavy/provider implementation 不会被加载。
 - 根目录不保留旧路径 shim 集合。若 canonical direct executable 路径发生 breaking change，Change 4 必须原子更新 `cli-surface`、COMMANDS/BOOTSTRAP/AGENTS、executable inventory、diagnostic invocation、tests 和所有 active links。
 
 Change 4 不是“移动文件后保留原有测试再叠一层 wrapper”。旧的内部文件级测试应由 phase interface 测试替代；只有 versioned pure contract/golden 与真实外部 adapter 测试继续保留。迁移后的 architecture self-check 必须枚举根文件白名单、六个 phase 目录、每个 `index.mjs`、禁止的跨 phase internal imports、direct executable inventory 和零 `scripts/lib/`。
@@ -353,16 +358,17 @@ tests_e2e/
 ├── 03-html-production/
 ├── 04-image2-refinement/     Change 5 才加入付费精修旅程
 ├── 05-iteration/
+├── shared/                   state / run-bundle 用户旅程
 └── helpers/
 ```
 
 一一对应指 ownership 可双向定位，不要求每个私有 `.mjs` 都机械配一个同名测试文件：
 
 - `scripts/<phase>/index.mjs` 的 interface/golden/integration tests 必须位于 `tests/<phase>/`；该 phase 的纯内部 contract 测试也只能位于同目录。
-- 跨 phase E2E 按“最终对用户结果负责的 phase”归档：fresh HTML delivery 属于 `tests_e2e/03-html-production/`，structural/migration/legacy maintenance 属于 `tests_e2e/05-iteration/`，future paid refinement 属于 `tests_e2e/04-image2-refinement/`。
+- 跨 owner E2E 按“最终对用户结果负责的 owner”归档：fresh HTML delivery 属于 `tests_e2e/03-html-production/`，structural/migration/legacy maintenance 属于 `tests_e2e/05-iteration/`，state/lessons 属于 `tests_e2e/shared/{state,run-bundle}/`，future paid refinement 属于 `tests_e2e/04-image2-refinement/`。
 - `tests/shared/` 只验证真正跨 phase 的 shared module；不能成为无法归类测试的新垃圾场。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、fake adapter 和临时目录，不复制 production parser/state/fingerprint 逻辑。
 - `tests/`、`tests_e2e/` 根目录不得保留 `test_*.mjs` 业务文件；Vitest config、CLI audit 和 docs coherence 必须递归发现新层次并检查 source/test ownership map 完整。
-- Change 4 必须生成并验证一份 machine-readable source-to-test ownership manifest，至少覆盖每个 phase interface、direct executable、shared interface、对应 unit/integration suite 和拥有其用户旅程的 E2E suite；缺失、多 owner 或旧平铺路径均 fail closed。
+- Change 4 必须生成并验证一份 machine-readable source-to-test ownership manifest，至少覆盖每个 phase interface、direct executable、public shared interface、executable/architecture/canonical/source-AST/review-projection contract interface、对应 unit/integration suite 和拥有其用户旅程的 E2E suite；缺失、多 owner 或旧平铺路径均 fail closed。
 
 后续 design 应保持两个主要领域 interface，并允许 Change 4 在不扩大调用面前提下按当前实现深化名称：
 

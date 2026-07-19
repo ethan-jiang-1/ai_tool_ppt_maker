@@ -14,7 +14,7 @@ Define the framework's constitutional and entry layer: the `PPTMAKER_FRAMEWORK/c
 
 ### Requirement: CONSTITUTION.md declares bundle_layout.mjs as the single source of truth
 
-`charter/CONSTITUTION.md` SHALL explicitly state that `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` is the single authoritative source for the run bundle directory structure. It SHALL contain a human-readable snapshot of the canonical tree, and SHALL state that the code authority takes precedence over any snapshot.
+`charter/CONSTITUTION.md` SHALL explicitly state that `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` is the single authoritative source for the run bundle directory structure. It SHALL contain a human-readable snapshot of the canonical tree, and SHALL state that the code authority takes precedence over any snapshot.
 
 #### Scenario: Human reads constitution to understand directory layout
 

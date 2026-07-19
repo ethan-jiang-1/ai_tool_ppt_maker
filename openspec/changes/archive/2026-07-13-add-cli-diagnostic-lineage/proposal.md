@@ -28,7 +28,7 @@ The current JSON failure envelope lets MD Controllers detect that a CLI failed, 
 
 ## Impact
 
-- Affected code: `PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs`; the 11 current direct executables under `PPTMAKER_FRAMEWORK/scripts/`; child-process handling in `ppt_flow.mjs`; orchestration/error propagation in `unified_pipeline.mjs`; and run-bundle control-file production in `bundle_layout.mjs`.
+- Affected code: `PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs`; the 11 current direct executables under `PPTMAKER_FRAMEWORK/scripts/`; child-process handling in `ppt_flow.mjs`; orchestration/error propagation in `unified_pipeline.mjs`; and run-bundle control-file production in `bundle_layout.mjs`.
 - Affected tests: `tests/test_cli_error.mjs` plus focused Stage 1-5, environment, bundle-layout, style-master, contact-sheet, pipeline, and `ppt_flow` tests.
 - Affected agent-discovery and governing docs: repository-root `AGENTS.md`, generated run-bundle `AGENTS.md` / `deck-guide.md`, producer-owned `workflow/00-setup/template-deck-guide.md`, `scripts/README.md`, the `cli_error.mjs` and MD-controller module headers, `charter/CONSTITUTION.md`, `NODE-SPEC.md`, `AGENT_CONTRACT.md`, and active command/runtime references that describe the minimal envelope.
 - This is a framework-maintenance change to framework source. It does not authorize a deck-production Agent to mutate the soft bundle at runtime, and it never requires hand-editing run-bundle `_generated/` artifacts.

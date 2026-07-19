@@ -2,7 +2,7 @@
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildHtmlFamilyGeometryRegistry } from "../lib/html_family_geometry.mjs";
+import { buildHtmlFamilyGeometryRegistry } from "../02-visual-system/internal/html_family_geometry.mjs";
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const target = join(directory, "html-family-geometry-v1.json");

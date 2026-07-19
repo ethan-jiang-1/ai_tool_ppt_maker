@@ -74,7 +74,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --check deck_NAME/3_versions/v1
 ```
 
 > **Next**: `charter/CONSTITUTION.md` — 精确目录合同与 owner 边界。

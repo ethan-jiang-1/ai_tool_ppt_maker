@@ -1,6 +1,6 @@
 ## 1. Core CLI Tool (lessons-management)
 
-- [x] 1.1 Create `PPTMAKER_FRAMEWORK/scripts/lessons.mjs` with Node.js built-ins only (no external dependencies). Import `deckRoot`, `LESSONS_DIR` from `bundle_layout.mjs`. Implement hand-rolled argv parser for `list`, `add`, `check`, `search` subcommands. Follow `bundle_layout.mjs` CLI pattern (shebang, ESM imports, `_main()` entry).
+- [x] 1.1 Create `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs` with Node.js built-ins only (no external dependencies). Import `deckRoot`, `LESSONS_DIR` from `bundle_layout.mjs`. Implement hand-rolled argv parser for `list`, `add`, `check`, `search` subcommands. Follow `bundle_layout.mjs` CLI pattern (shebang, ESM imports, `_main()` entry).
 - [x] 1.2 Implement `list <runDir>` subcommand: resolve deck root, read `_lessons/`, list `.md`/`.yaml` files (exclude `README.md`), extract first heading or frontmatter as summary, print count. Support `--json` for machine-readable output.
 - [x] 1.3 Implement `add <runDir> --title <slug>` subcommand: create `_lessons/<title>.md` with 4-question template pre-filled, refuse to overwrite existing files, create `_lessons/` dir if absent.
 - [x] 1.4 Implement `check <runDir>` subcommand: print a prominent reminder listing lesson files when they exist, or "No lessons yet" when empty. Exit 0 in both cases.
@@ -33,10 +33,10 @@
 
 ## 6. Validation
 
-- [x] 6.1 Run `node PPTMAKER_FRAMEWORK/scripts/lessons.mjs list deck_ai_sdlc_keynote/3_versions/v1` — verify it shows 2 lessons with summaries.
-- [x] 6.2 Run `node PPTMAKER_FRAMEWORK/scripts/lessons.mjs add <test_runDir> --title "test-lesson"` — should create file with template; verify content.
-- [x] 6.3 Run `node PPTMAKER_FRAMEWORK/scripts/lessons.mjs search deck_ai_sdlc_keynote/3_versions/v1 vendor` — verify it finds `vendor-reliability.md`.
+- [x] 6.1 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs list deck_ai_sdlc_keynote/3_versions/v1` — verify it shows 2 lessons with summaries.
+- [x] 6.2 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs add <test_runDir> --title "test-lesson"` — should create file with template; verify content.
+- [x] 6.3 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs search deck_ai_sdlc_keynote/3_versions/v1 vendor` — verify it finds `vendor-reliability.md`.
 - [x] 6.4 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v1` — verify the `Lessons: 2` line appears.
 - [x] 6.5 Run `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs status deck_ai_sdlc_keynote/3_versions/v1 --json` — verify `lessons_count: 2` in JSON output.
 - [x] 6.6 Run `npm test` — verify all existing tests pass.
-- [x] 6.7 Run `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --self-check` — verify SSOT consistency.
+- [x] 6.7 Run `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --self-check` — verify SSOT consistency.

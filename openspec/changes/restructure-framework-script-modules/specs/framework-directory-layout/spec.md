@@ -1,8 +1,18 @@
 ## MODIFIED Requirements
 
+### Requirement: Reference documents are under reference/
+
+`quick-start.md`, `glossary.md`, `anti-patterns.md`, `version-log.md`, and the cross-Phase `agent-prompts.md` appendix SHALL be located under `PPTMAKER_FRAMEWORK/reference/`. They SHALL remain lookup documents, not executable script or Phase-interface assets.
+
+#### Scenario: Human looks up glossary or prompt templates
+
+- **WHEN** a human needs a glossary or reusable Agent prompt template
+- **THEN** they find it under `reference/`
+- **AND** no cross-Phase prompt appendix is loaded from the scripts root
+
 ### Requirement: All executable scripts are under scripts/
 
-All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts/` and SHALL follow the delegated ownership tree defined by `framework-script-layout`. The scripts root SHALL keep only the canonical `ppt_flow.mjs` executable; other registered direct executables SHALL live at their owning Phase or categorized shared paths. `contracts/`, `fonts/`, and `fixtures/` SHALL remain resource roots under `scripts/`; `agent-prompts.md` SHALL live under `01-content/`; and `change-classifier.md` SHALL live under `05-iteration/`.
+All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts/` and SHALL follow the delegated ownership tree defined by `framework-script-layout`. The scripts root SHALL keep only the canonical `ppt_flow.mjs` executable; other registered direct executables SHALL live at their owning Phase or categorized shared paths. `contracts/`, `fonts/`, and `fixtures/` SHALL remain resource roots under `scripts/`; the mixed cross-Phase `agent-prompts.md` appendix SHALL move to `PPTMAKER_FRAMEWORK/reference/agent-prompts.md`; and `change-classifier.md` SHALL live under `scripts/05-iteration/`.
 
 #### Scenario: Agent runs the canonical pipeline entry
 

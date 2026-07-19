@@ -6,7 +6,7 @@ import {
   HTML_COMPONENTS_SPEC,
   HTML_SPACING_SPEC,
   htmlTypographySource,
-} from "../lib/html_visual_tokens.mjs";
+} from "../02-visual-system/internal/html_visual_tokens.mjs";
 
 const FRAMEWORK = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const PRESETS = resolve(FRAMEWORK, "workflow", "01-visual", "presets");

@@ -77,7 +77,7 @@ openspec/specs/       — main specs（规范性需求）
 - `PPTMAKER_FRAMEWORK/playbook/create-deck.md` — 主变更（~20 处：node 声明、heading、requires、流程行、body 文字）
 - `PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md` — 6 处示例 node ID
 - `PPTMAKER_FRAMEWORK/COMMANDS.md` — 1 处路由文字
-- `PPTMAKER_FRAMEWORK/scripts/lib/state.mjs` — NODE_ALIASES 新增 5 条映射 + `applyNodeAliases()` 扩展覆盖 `playbook_stack`
+- `PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs` — NODE_ALIASES 新增 5 条映射 + `applyNodeAliases()` 扩展覆盖 `playbook_stack`
 
 **openspec/specs/（3 个 MD，通过 delta spec 更新）：**
 - `openspec/specs/playbook-execution/spec.md` — 1 处：create-deck 节点列表枚举

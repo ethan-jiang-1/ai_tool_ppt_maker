@@ -22,7 +22,7 @@ Header review gate 被建成守门员（检查→拒绝→报错），而不是�
 ## Impact
 
 - `PPTMAKER_FRAMEWORK/scripts/lib/header_review.mjs` — 四个函数重构
-- `PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs` — Stage 2/4 gate 适配
+- `PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs` — Stage 2/4 gate 适配
 - `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs` — build/refresh 适配
 - `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md` — 新增 Rule 12
 - `PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md` — state schema 更新

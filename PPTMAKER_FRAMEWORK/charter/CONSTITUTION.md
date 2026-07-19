@@ -1,6 +1,6 @@
 # 宪法: Run Bundle 目录结构 + 运行时
 
-> **目录权威源**: `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`
+> **目录权威源**: `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs`
 >
 > **运行时权威源**: 本节「运行时宪法」+ `openspec/config.yaml` 技术栈条款 + `charter/AGENT_CONTRACT.md` 铁律。
 >
@@ -150,7 +150,7 @@ deck_{NAME}/
 ## 初始化
 
 ```
-node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_<name> \
+node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --init deck_<name> \
   [--deck-type keynote|pitch|report|training] \
   [--style dark-executive|clean-clinical|corporate-safe|tech-startup|warm-editorial]
 ```

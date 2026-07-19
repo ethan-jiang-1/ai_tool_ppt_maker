@@ -1,5 +1,26 @@
 ## MODIFIED Requirements
 
+### Requirement: CONSTITUTION.md declares bundle_layout.mjs as the single source of truth
+
+`charter/CONSTITUTION.md` SHALL explicitly state that `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` is the single authoritative source for the run-bundle directory structure. It SHALL contain a human-readable snapshot of the canonical tree and SHALL state that the code authority takes precedence over any snapshot.
+
+#### Scenario: Human reads constitution to understand directory layout
+
+- **WHEN** a human opens `charter/CONSTITUTION.md`
+- **THEN** they see a clear declaration that the relocated `bundle_layout.mjs` is the SSOT
+- **AND** they see the canonical directory tree generated from `renderTree()`
+- **AND** they see the three-tier gradient explanation and override precedence rules
+
+### Requirement: Reference documents are in reference/ directory
+
+`quick-start.md`, `glossary.md`, `anti-patterns.md`, `version-log.md`, and the cross-Phase `agent-prompts.md` appendix SHALL be located in `PPTMAKER_FRAMEWORK/reference/`. These are pure lookup appendices, not entry points or executable script ownership.
+
+#### Scenario: Human looks for reference material
+
+- **WHEN** a human navigates to `reference/`
+- **THEN** they find the four canonical appendices and `agent-prompts.md`
+- **AND** no prompt appendix remains under `scripts/`
+
 ### Requirement: Framework root subdirectories follow type-based organization
 
 The `PPTMAKER_FRAMEWORK/` root SHALL contain exactly five subdirectories: `workflow/` (methodology), `scripts/` (Node implementation), `charter/` (constitution), `reference/` (appendices), and `playbook/` (workflow controllers). Phase-numbered directories SHALL NOT exist at framework root. Within `scripts/`, Node ownership SHALL mirror the established `00-setup` through `05-iteration` lifecycle through the interfaces and import rules owned by `framework-script-layout`; this nested organization SHALL NOT add another framework-root directory or change MD Controller ownership.

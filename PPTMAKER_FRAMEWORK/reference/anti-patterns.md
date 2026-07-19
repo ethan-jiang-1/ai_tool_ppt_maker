@@ -133,8 +133,8 @@ run bundle 的目录结构是这个框架的**宪法**——它不是建议,是�
 
 **修复**：结构的唯一事实源是 `scripts/bundle_layout.mjs`。
 - 不自创目录名、不把生成物乱放、不新造 prompt 文件格式。
-- 不确定就查:`node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs`(打印权威树)。
-- 校验一个 bundle 合不合规:`node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check deck_{NAME}/3_versions/v1`。管线每次运行前也会自动 check,结构不对直接拒绝。
+- 不确定就查:`node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs`(打印权威树)。
+- 校验一个 bundle 合不合规:`node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --check deck_{NAME}/3_versions/v1`。管线每次运行前也会自动 check,结构不对直接拒绝。
 - 只有两处是你手改的源:`2_backbone/`(主干)和 `3_versions/v{n}/`(这版的 slide 规格 + overrides)。其余全是 `_generated/` 派生品,绝不手动放。
 
 参见 `charter/CONSTITUTION.md` 和 `scripts/bundle_layout.mjs`。

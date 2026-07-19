@@ -36,7 +36,7 @@ This capability SHALL NOT define a second directory ontology. Conformity of `dec
 
 #### Scenario: Canonical tree lists _state
 
-- **WHEN** Agent inspects `renderTree()` output (including `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` with no mode flags)
+- **WHEN** Agent inspects `renderTree()` output (including `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` with no mode flags)
 - **THEN** the tree text includes `_state`
 
 #### Scenario: _state README mentions clear-context resume
