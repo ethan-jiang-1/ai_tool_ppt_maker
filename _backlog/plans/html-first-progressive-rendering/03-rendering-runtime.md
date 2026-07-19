@@ -17,7 +17,7 @@
 
 `deck_system.txt` 继续描述自然语言约束与禁忌。`style_master.jpg` 不再是基础 readiness 条件，只在 Image2 精修阶段作为参考。
 
-为避免跨版本复用过时的 Image2 style reference，Change 2 同时定义 renderer-neutral 的 `style_reference_contract_fingerprint`。它只覆盖 visual config 中影响无文字图像色彩、材质、明暗和构图语言的 versioned token allowlist；`deck_system.txt` 仍是 Agent 解释的自然语言约束，JS 不解析或 hash 任意 prose。若自然语言视觉方向实质改变，Agent 必须同步更新相应结构化 visual tokens，和正文语义改变时同步更新 visual brief 使用同一纪律。fingerprint 不覆盖 slide 文案、family/slot geometry、provider profile 或已有 style-reference bytes。Change 4 生成 style reference 时把该 fingerprint 和 output SHA 写入 asset provenance。future Image2 plan 只有在 provenance fingerprint 等于 current contract 时才把它视为 current；否则保留 source asset，但把新的 setup attempt 和成本列入计划。这个 freshness 只控制未来候选生成，不让既有 accepted page asset 失效。
+为避免跨版本复用过时的 Image2 style reference，Change 2 同时定义 renderer-neutral 的 `style_reference_contract_fingerprint`。它只覆盖 visual config 中影响无文字图像色彩、材质、明暗和构图语言的 versioned token allowlist；`deck_system.txt` 仍是 Agent 解释的自然语言约束，JS 不解析或 hash 任意 prose。若自然语言视觉方向实质改变，Agent 必须同步更新相应结构化 visual tokens，和正文语义改变时同步更新 visual brief 使用同一纪律。fingerprint 不覆盖 slide 文案、family/slot geometry、provider profile 或已有 style-reference bytes。Change 5 生成 style reference 时把该 fingerprint 和 output SHA 写入 asset provenance。future Image2 plan 只有在 provenance fingerprint 等于 current contract 时才把它视为 current；否则保留 source asset，但把新的 setup attempt 和成本列入计划。这个 freshness 只控制未来候选生成，不让既有 accepted page asset 失效。
 
 ## HTML renderer profile
 

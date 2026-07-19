@@ -80,7 +80,7 @@ Image2 相关目录是 lazy optional：fresh HTML-first deck 和从未选择专�
 
 接受 Image2 候选后必须把它提升为版本 override source asset；否则 `_generated/` 可删宪法与“用户已经付费并接受”会冲突。style-reference setup 产物归 `overrides/visual-style/assets/refined/image2/style-reference/`，accepted page visual 归 `.../visual-slots/`；composition 和 generation 都只通过 resolved asset catalog 消费它们，不直接依赖目录名。
 
-style reference 使用 manifest 保留逻辑 ID `image2-style-reference-current` 唯一选择当前 source asset，不按目录 mtime、文件名排序或 state 猜测。该 ID 由 Change 4 保留为 framework-managed version-override entry；backbone 或用户普通 asset 不得声明它，resolver 也要求 resolved origin 为 current version override。该 entry 指向完整 SHA 文件，并在 provenance 记录 output SHA、生成输入摘要和 `created_for_style_reference_contract`。新 setup 原子替换这个 manifest binding；旧 SHA 文件可以作为未引用版本历史保留。catalog 可以正常解析历史普通 asset，但 Image2 plan 只有在 current binding 的 contract fingerprint 匹配时才可复用它。HTML composition 从不解析这个保留 ID，因此它缺失或 stale 不影响完整 HTML 成品；binding 存在但 origin、文件或 SHA 损坏时只阻断 Image2 plan，并要求显式 source repair。
+style reference 使用 manifest 保留逻辑 ID `image2-style-reference-current` 唯一选择当前 source asset，不按目录 mtime、文件名排序或 state 猜测。该 ID 由 Change 5 保留为 framework-managed version-override entry；backbone 或用户普通 asset 不得声明它，resolver 也要求 resolved origin 为 current version override。该 entry 指向完整 SHA 文件，并在 provenance 记录 output SHA、生成输入摘要和 `created_for_style_reference_contract`。新 setup 原子替换这个 manifest binding；旧 SHA 文件可以作为未引用版本历史保留。catalog 可以正常解析历史普通 asset，但 Image2 plan 只有在 current binding 的 contract fingerprint 匹配时才可复用它。HTML composition 从不解析这个保留 ID，因此它缺失或 stale 不影响完整 HTML 成品；binding 存在但 origin、文件或 SHA 损坏时只阻断 Image2 plan，并要求显式 source repair。
 
 ## Asset catalog 合并
 

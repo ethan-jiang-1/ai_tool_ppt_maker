@@ -1,17 +1,17 @@
 # 专题 07: OpenSpec 路线与验收
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 架构已锁定；Change 1/2 已完成并归档；Change 3 多轮打磨完成、apply-ready，尚未进入 Apply | 更新: 2026-07-18
+> 状态: 架构已锁定；Change 1/2/3 已完成、同步 main specs 并归档；scripts/tests 架构迁移作为 Change 4；Image2 refinement 顺延为 Change 5 | 更新: 2026-07-20
 
-## 为什么是四个 Change
+## 为什么修订为五个 Change
 
 | 方案 | 判断 | 原因 |
 |---|---|---|
-| 3 个 | 太少 | runtime 外部事实、结构化 source contract、完整产品切片会被迫至少两项揉成巨型 change，难以独立验证或回退 |
-| **4 个** | **采用** | runtime、content contract、HTML-first complete delivery、paid refinement 各有独立完成线和明确下游消费者 |
-| 5 个 | 太多 | 只能把 Change 3 的 renderer/default workflow 或 Change 4 的 cost transaction/UX 硬拆，归档后会留下用户无法完整使用的中间态 |
+| 4 个 | 太少 | Change 3 落地后 `scripts/` 已有 17 个根 `.mjs` 与 31 个平铺 `lib/*.mjs`；若把目录/interface/test 迁移塞进 paid refinement，会同时改变代码所有权和远端业务语义，无法独立审查或回退 |
+| **5 个** | **采用** | runtime、content contract、HTML-first complete delivery、scripts/tests architecture、paid refinement 各有独立完成线；Change 4 可严格保持行为不变，Change 5 只消费已归档的 module seam |
+| 6 个 | 太多 | 再拆 unit-test migration、E2E migration 或 Image2 cost transaction/UX 会制造只有半套 source/test ownership 或不可完整使用的归档点 |
 
-四个是能保持每个 change 可独立 review、apply、archive 的最小数量。以后某一 change 实施时若暴露未知风险，优先在该 change 内用 spike/task 管理；只有其完成线本身被证伪，才回写本 plan 重新切割，不能为了文件数量好看机械加 change。
+最初的四-change 判断建立在 Change 3 尚未实施时；当时无法从真实依赖图证明 scripts 平铺会成为 Change 5 的风险。Change 3 归档后的代码形状提供了新证据，因此本计划按执行纪律显式修订为五个，而不是把结构债务静默塞进下一 change。以后若再暴露未知风险，仍优先在 owning change 内用 spike/task 管理；只有独立完成线被证伪，才回写本 plan 重新切割。
 
 ## Change 实施追踪
 
@@ -19,8 +19,9 @@
 |---|---|---|---|---|---|
 | 1 `upgrade-html-render-runtime-readiness` | [x] | [x] | [x] | [x] | [x] |
 | 2 `add-structured-html-slide-contract` | [x] | [x] | [x] | [x] | [x] |
-| 3 `deliver-html-first-decks` | [x] | [x] | [ ] | [ ] | [ ] |
-| 4 `add-image2-visual-slot-refinement` | [ ] | [ ] | [ ] | [ ] | [ ] |
+| 3 `deliver-html-first-decks` | [x] | [x] | [x] | [x] | [x] |
+| 4 `restructure-framework-script-modules` | [ ] | [ ] | [ ] | [ ] | [ ] |
+| 5 `add-image2-visual-slot-refinement` | [ ] | [ ] | [ ] | [ ] | [ ] |
 
 勾选纪律：只有对应动作已经完成且其强制校验通过才可标记 `[x]`；`Review` 指 proposal/design/specs/tasks 已经过质量审查并达到 apply-ready；`Validate` 指实现后的 targeted/full tests 与 strict OpenSpec validation 全部通过；`Sync + Archive` 必须在 delta specs 同步 main specs 且 change 正式归档后一起勾选。任一步失败或返工时保持未勾选，并在该 change 的 artifacts/tasks 中记录阻塞，不用聊天状态代替此表。
 
@@ -28,7 +29,11 @@
 
 `openspec/changes/archive/2026-07-18-add-structured-html-slide-contract/` 已完成 Change 2 的多轮 Review、Apply、完整回归/结构 E2E/依赖与范围审计、main-spec 同步和归档。它交付 renderer-neutral structured slide plan、10-family/68-variant geometry、严格 source/config/catalog/font/fallback/selection/fingerprint 合同和 validation-only authoring guidance，未引入浏览器渲染、PPTX/default workflow 或 Image2 refinement。
 
-`openspec/changes/deliver-html-first-decks/` 已生成 Change 3 proposal、design、16 个 capability delta specs 和 39 个 apply tasks。多轮系统性 Review 已补齐 environment/contact-sheet/notes capability、content/visual gate authority、immutable raw-byte-addressed publication、scope/reset-bound schemas、render variant、安全/国际化边界、零远端迁移降级语义、marker-first state/status/check-gates、历史 markerless non-writing compatibility、complete HTML 无 Phase-4 debt、gate/reset/migration crash recovery、single-owner takeover、unexpected generated-owner loss non-resurrection，以及 target reset-null structural/migration handoff；并反向修复 main-spec 中残留的 Image2 Stage-2、style-master/`needs_render`、旧 preview path 和 Change-2 delivery-unavailable 语义。Change 3 当前 apply-ready，Apply/Validate/Archive 尚未开始。
+`openspec/changes/archive/2026-07-20-deliver-html-first-decks/` 已完成 Change 3 的 Apply、验证、main-spec 同步和归档。它交付了 deterministic HTML renderer、provider-neutral Stage 4、notes v3、HTML review/reset/delivery evidence、fresh HTML-first init、workflow/playbook/state-v3 迁移、显式 legacy-to-HTML migration，以及 markerless legacy 兼容路径。最终验证包括 `454/454` unit、`33/33` E2E、doctor、benchmarks、dependency audit、bundle self-check 和 strict OpenSpec；16 个 capability delta specs 的 124 个 requirement blocks 已同步至 main specs。Change 4 是 planning checkpoint 通过后的下一个 change；Change 5 在 Change 4 归档后才引入可选 Image2 refinement。
+
+### Change 4 前 planning checkpoint
+
+本次从四个 change 修订为五个、`scripts/` 与测试树目标形状、phase interface/import graph 和 source-to-test ownership 规则，必须先作为 planning-only diff 完成人工 Review 并 check in。该提交之前不得运行 `openspec propose`、创建 `openspec/changes/restructure-framework-script-modules/`、移动 JS/tests 或改变 CLI path。Review 若修改目标树或 seam，先回写本专题和总控并重新做计划一致性审计；planning commit 完成后才进入 Change 4 Propose。
 
 ## Change 1: `upgrade-html-render-runtime-readiness`
 
@@ -41,7 +46,7 @@
 - 全仓 Node.js engine floor 从 18 升到 `>=22`，Change 1 profile 支持 `22.x` / `24.x` / `26.x`，保持 ESM/无 build step。
 - 引入 pinned Playwright library/Chromium 安装与 cache 合同；render 时禁止下载。
 - 选择并随框架分发许可清楚的 Latin + Simplified-Chinese (`Hans`) WOFF2 字体，加入 required-font/coverage smoke；不宣称完整 Traditional Chinese/Japanese/Korean coverage。
-- `env-check`/doctor 输出 base readiness 与 Image2 environment readiness 两组结果；plan/authorization 属于 Change 4 的 transaction gate，不进入 doctor。
+- `env-check`/doctor 输出 base readiness 与 Image2 environment readiness 两组结果；plan/authorization 属于 Change 5 的 transaction gate，不进入 doctor。
 - legacy Image2-first build 仍在其实际执行入口强制检查 credentials/style master；base doctor 不再让新手被这些条件阻断。
 - BOOTSTRAP 仅更新环境事实和分层诊断，不提前宣称 HTML workflow 已可用。
 
@@ -89,7 +94,7 @@ Change 1 的 fixture viewport 不得改写 legacy deck/preset 的现有 `1672x94
 - 新 top-level `production.pipeline: html-first-v1` marker；与 legacy `render.default/header-lock` 分支互斥。
 - `SLIDE BODY` fenced YAML parser/serializer、schema version、round-trip 与 source diagnostics。
 - 10 个 layout family 的 discriminated union、typed blocks、容量、slot geometry、fallback 和 overflow preflight。
-- `primary_visual`、`selection` 与 renderer-neutral `visual_contract_fingerprint` 合同；Image2-specific `generation_fingerprint` 延后到 Change 4。
+- `primary_visual`、`selection` 与 renderer-neutral `visual_contract_fingerprint` 合同；Image2-specific `generation_fingerprint` 延后到 Change 5。
 - renderer-neutral visual config 扩展：body typography、spacing、cards、charts、callout、family geometry。
 - backbone + version override asset manifest 按 asset ID 合并，并让 resolver 保留每条 entry 的来源层级。
 - 测试 fixture 与 opt-in authoring guidance 可以显式写 HTML-first source，但 production create-deck/template 默认尚不切换。
@@ -179,11 +184,58 @@ Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 
 - 已有 HTML/legacy deck 的 `_state` 经确定性 heal 后保留可映射进度并可续跑；不可映射执行要求人类确认 replacement，不静默重置。
 - targeted tests、全量 `npm test`、相关 `tests_e2e`、bundle self-check 和 OpenSpec strict validation 通过。
 
-## Change 4: `add-image2-visual-slot-refinement`
+## Change 4: `restructure-framework-script-modules`
 
 ### 目的
 
-在不破坏 HTML 完整成品的前提下，增加一个透明、可授权、可逐页回退的 Image2 visual-slot 资产升级闭环。这是最后一个 change，不再拆 UX 与 runtime；普通 HTML/local iteration 不属于本 change。
+在加入 Phase 4 付费业务前，把 `PPTMAKER_FRAMEWORK/scripts/`、`tests/` 和 `tests_e2e/` 从依赖文件名记忆的平铺结构迁移为可从物理路径识别 lifecycle/capability ownership 的 module tree。该 change 只改变代码导航、module seam、direct executable 路径和测试归属，不改变任何 deck、CLI envelope、artifact、state、gate、reset、migration 或 legacy 行为。
+
+### 包含
+
+- `scripts/` 根只保留 `ppt_flow.mjs` canonical front controller、README 和资源/ownership 目录；移除平铺 direct scripts 与万能 `lib/`。
+- 建立 `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration` 六个 script phase 目录；每个 active phase 以 `index.mjs` 暴露一个小 interface，私有 implementation 不可被其他 phase 直接 import。
+- 建立分类 `shared/cli|run-bundle|state|identity`、`contracts/`、`fonts/`、`fixtures/`，并以机器检查禁止 shared 反向依赖 phase、跨 phase internal import 和物理 artifact-path knowledge 泄漏。
+- 将 legacy whole-page Image2 物理归入 `05-iteration/legacy-image2/`；`04-image2-refinement/` 在本 change 仍为 README-only/non-executable，禁止 modern Image2 command/node/adapter。
+- 原子更新 direct executable paths、`ppt_flow` delegation、diagnostic invocation、CLI inventory、COMMANDS/BOOTSTRAP/AGENTS/scripts README、workflow links 和 OpenSpec path authority；不留旧路径 shim 集合。
+- `tests/` 与 `tests_e2e/` 镜像同一组 00-05/shared/contracts ownership；unit/integration 以 phase interface 为主测试面，E2E 按最终旅程 owner 归档，helpers 不复制 production 规则。
+- 增加 machine-readable source-to-test ownership manifest、root whitelist、phase-interface inventory、import-direction audit、old-path audit 和 recursive Vitest discovery。
+
+### 不包含
+
+- Image2 visual-slot recommendation、plan、authorization、candidate、promotion、cleanup 或任何 provider submit。
+- 新 slide/source/state/artifact schema、run-bundle path、CLI command 或用户工作流。
+- 借目录迁移重写业务算法、改变 output bytes/fingerprint/timestamp contract，或为每个私有文件制造一层 pass-through wrapper。
+
+### 依赖与交付接口
+
+- 依赖已归档 Change 3 的完整 HTML/legacy behavior 和测试基线。
+- 归档后交付可由 Change 5 消费的稳定 phase interfaces、外部 transport port 位置、direct executable inventory 和 source/test ownership map。
+- Change 5 只能在 `04-image2-refinement/` interface 内新增 modern Image2 implementation；不得把业务重新堆回 root、`shared/` 或 `05-iteration/legacy-image2/`。
+
+### OpenSpec 落地包
+
+| 包 | 内容 | 主要 spec 归属 |
+|---|---|---|
+| 4A Script directory contract | exact root/00-05/shared/contracts/fonts/fixtures tree、root whitelist、零 `scripts/lib/`、phase ownership vocabulary | 新增 `framework-script-layout`；修改 `framework-directory-layout` |
+| 4B Deep module seams | phase `index.mjs` interfaces、private implementation、allowed import graph、external transport port、no cross-phase internal imports | `framework-script-layout`；修改相关 capability interface/path specs |
+| 4C CLI/path migration | canonical root front controller、moved direct executables、delegation/diagnostic inventory、全部 active docs/commands path 更新 | 修改 `cli-surface`、`commands-reference`、`bootstrap-env-guidance` |
+| 4D Mirrored test ownership | `tests/`/`tests_e2e/` 00-05/shared/contracts tree、source-to-test manifest、recursive discovery、interface-first replacement | `framework-script-layout`；修改 repository verification contracts |
+| 4E Behavior-preserving cutover | atomic moves/import rewrites、legacy/HTML isolation、no Phase-4 execution、focused/full/E2E/benchmark/doctor/self-check equivalence | 修改 `pipeline-orchestration`、`playbook-execution`、`framework-charter` |
+
+### 完成标准
+
+- `scripts/`、`tests/`、`tests_e2e/` 的顶层 ownership 可一一对应；不存在 root 平铺业务文件、`scripts/lib/`、root `test_*.mjs` 或旧 direct path 引用。
+- 每个 active phase 有唯一 `index.mjs` interface；调用方和主要测试从该 interface 进入。删除 phase module 会让复杂度回到 callers，而不是只删除一层 pass-through。
+- architecture checker 拒绝 shared -> phase、phase -> foreign internal、modern/legacy Image2 crossover、未登记 executable、source/test owner 缺失/多 owner 和 Phase-4 executable。
+- moved CLI 的 help、成功返回、失败 envelope、exit code、secret redaction 和 child invocation 与迁移前 contract 一致；`ppt_flow.mjs` 仍是用户唯一需要记忆的 front controller。
+- HTML fresh delivery、local rebuild/reset/review、structural/migration、markerless legacy、doctor、benchmarks、bundle self-check、docs coherence、full unit/integration 和 E2E 全部通过；除明确批准的 canonical path 字段外，artifact bytes/fingerprints/state receipts 不因目录迁移改变。
+- `git diff --check`、strict change/all OpenSpec validation、旧路径/flat-layout audit 和 source-to-test manifest audit 全部通过。
+
+## Change 5: `add-image2-visual-slot-refinement`
+
+### 目的
+
+在不破坏 HTML 完整成品的前提下，基于 Change 4 已归档的 Phase-4 script interface 增加一个透明、可授权、可逐页回退的 Image2 visual-slot 资产升级闭环。这是最后一个 change，不再拆 UX 与 runtime；普通 HTML/local iteration 不属于本 change。
 
 ### 包含
 
@@ -203,18 +255,18 @@ Change 3 虽跨 JS 与 MD，但只有一条完成线：fresh init 在零 Image2 
 
 ### 依赖与交付接口
 
-- 依赖 Change 3 已交付的完整 HTML deck、compose interface、final-slide assembly 和默认 workflow。
+- 依赖 Change 3 已交付的完整 HTML deck、compose interface、final-slide assembly 和默认 workflow，以及 Change 4 已归档的 scripts/tests module tree、external transport port 和 import-direction contract。
 - 归档后整个总计划完成；后续能力只能作为新的 plan/change 扩展。
 
 ### OpenSpec 落地包
 
 | 包 | 内容 | 主要 spec 归属 |
 |---|---|---|
-| 4A Recommendation/authorization | HTML 交付后的 2-4 页建议、canonical plan、所有计费 attempt、style-reference contract freshness、setup 单列、exact-plan `image2 authorize` 与 version-scoped evidence | 新增 `visual-slot-refinement`；修改相关 playbook/`node-specification` |
-| 4B Cost-safe generation | persisted random attempt IDs、setup-output dependency、generation fingerprint finalization、submit state machine、partial failure、`unknown-submit` 人工处置 | `visual-slot-refinement`；修改 `image-generation`、`cli-surface` |
-| 4C Review artifacts | 独立 `image2_refinement` candidate manifest、output SHA、同 prompt 多结果、同 geometry/crop 的 comparison preview、逐页 review state | `visual-slot-refinement`；修改 `run-bundle-layout` |
-| 4D Promotion/recovery | setup 与 accepted-candidate write-ahead journals、framework-reserved current style-reference binding、version asset 原子提升、source selection commit、use-html、幂等恢复、state evidence | `visual-slot-refinement`；修改 `visual-asset-management`、`content-parsing`、`node-specification` |
-| 4E Closeout/UX | Image2 派生区内每页至多一个 recent-rejected 像素 + provenance、hash-bound cleanup、首次 Image2 onboarding、COMMANDS/BOOTSTRAP/playbooks；独立 legacy maintenance controller/reference | `visual-slot-refinement`；修改 `commands-reference`、`framework-charter`、`bootstrap-env-guidance` |
+| 5A Recommendation/authorization | HTML 交付后的 2-4 页建议、canonical plan、所有计费 attempt、style-reference contract freshness、setup 单列、exact-plan `image2 authorize` 与 version-scoped evidence | 新增 `visual-slot-refinement`；修改相关 playbook/`node-specification` |
+| 5B Cost-safe generation | persisted random attempt IDs、setup-output dependency、generation fingerprint finalization、submit state machine、partial failure、`unknown-submit` 人工处置 | `visual-slot-refinement`；修改 `image-generation`、`cli-surface` |
+| 5C Review artifacts | 独立 `image2_refinement` candidate manifest、output SHA、同 prompt 多结果、同 geometry/crop 的 comparison preview、逐页 review state | `visual-slot-refinement`；修改 `run-bundle-layout` |
+| 5D Promotion/recovery | setup 与 accepted-candidate write-ahead journals、framework-reserved current style-reference binding、version asset 原子提升、source selection commit、use-html、幂等恢复、state evidence | `visual-slot-refinement`；修改 `visual-asset-management`、`content-parsing`、`node-specification` |
+| 5E Closeout/UX | Image2 派生区内每页至多一个 recent-rejected 像素 + provenance、hash-bound cleanup、首次 Image2 onboarding、COMMANDS/BOOTSTRAP/playbooks；独立 legacy maintenance controller/reference | `visual-slot-refinement`；修改 `commands-reference`、`framework-charter`、`bootstrap-env-guidance` |
 
 Image2 provider 是 true external dependency：remote transport 以注入 adapter 只置于显式 `image2` generation module 内部，测试使用 fake adapter，并通过 CLI receipt 验证 observable behavior。普通 `composeSlide/build` 和 HTML/local iteration 不持有这个 adapter；provider task schema 也不得泄漏成 Stage 4 或 slide source 的调用知识。
 
@@ -235,20 +287,21 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 
 ## 跨 Change Test Matrix
 
-| 场景 | Ch1 | Ch2 | Ch3 | Ch4 |
-|---|---:|---:|---:|---:|
-| Node/Chromium/font readiness | owner | consume | E2E | consume |
-| Structured body/family/overflow | - | owner | render | consume |
-| 无 Image2 完整交付 | prerequisite | prerequisite | owner | preserve |
-| Legacy Image2-first 兼容 | readiness | parser | owner | preserve |
-| Stable ID/reorder/notes | - | fingerprint | owner | preserve |
-| Workflow dirs/Phase/node enums | - | - | owner | preserve |
-| Run-bundle HTML/Image2 artifact separation | - | asset contract | owner | owner |
-| Playbook routing and legacy isolation | - | - | owner | owner |
-| HTML-first gates/local refresh | - | contract | owner | preserve |
-| Cost authorization/exactly-once | - | - | - | owner |
-| Candidate review/promotion/cleanup | - | selection contract | composition prerequisite | owner |
-| Selection applicability vs asset integrity | - | owner | enforce | promotion E2E |
+| 场景 | Ch1 | Ch2 | Ch3 | Ch4 | Ch5 |
+|---|---:|---:|---:|---:|---:|
+| Node/Chromium/font readiness | owner | consume | E2E | path-preserve | consume |
+| Structured body/family/overflow | - | owner | render | interface-preserve | consume |
+| 无 Image2 完整交付 | prerequisite | prerequisite | owner | preserve | preserve |
+| Legacy Image2-first 兼容 | readiness | parser | owner | path-preserve | preserve |
+| Stable ID/reorder/notes | - | fingerprint | owner | preserve | preserve |
+| Workflow dirs/Phase/node enums | - | - | owner | preserve | preserve |
+| Scripts/tests ownership tree | - | - | baseline | owner | consume |
+| Run-bundle HTML/Image2 artifact separation | - | asset contract | owner | path-preserve | owner |
+| Playbook routing and legacy isolation | - | - | owner | path-preserve | owner |
+| HTML-first gates/local refresh | - | contract | owner | preserve | preserve |
+| Cost authorization/exactly-once | - | - | - | port-only | owner |
+| Candidate review/promotion/cleanup | - | selection contract | composition prerequisite | no feature | owner |
+| Selection applicability vs asset integrity | - | owner | enforce | preserve | promotion E2E |
 
 ## 五条端到端验收路径
 
@@ -271,7 +324,8 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 | Change 1 | 固定 Node/browser/font runtime 可安装、可诊断；legacy 行为未回归 | 还不能从 slide source 渲染 HTML deck，也没有 Image2 visual-slot workflow |
 | Change 2 | opt-in HTML-first source 可 parse/validate，family、fallback、selection resolution 和 merged catalog 可独立测试 | create-deck 默认仍未切换；没有 browser composition/PPTX complete path |
 | Change 3 | fresh user 无 Image2 可完整交付；workflow/playbook/run-bundle/state 已迁入最终 ownership；legacy 有独立维护入口；Phase 4 只有 README-only unavailable stub 且不进入 active node index | Phase 4 visual-slot refinement 明确 unavailable，不能显示可点击/可执行的专业升级 |
-| Change 4 | 付费 plan、generation、review、promotion、fallback、cleanup 与恢复完整闭环 | 不支持多 slot、整页 Image2、自动重试或未授权扩 scope |
+| Change 4 | scripts/tests ownership 可导航、phase interfaces/import graph 稳定、行为保持不变；不新增 Image2 能力 | 不声称已提供 Phase 4 executable |
+| Change 5 | 付费 plan、generation、review、promotion、fallback、cleanup 与恢复完整闭环 | 不支持多 slot、整页 Image2、自动重试或未授权扩 scope |
 
 任何 change 若只能靠后一个未归档 change 才通过其本行完成定义，就必须回到 proposal 重新切 scope，不能用 future task 掩盖不可用中间态。
 
@@ -281,6 +335,7 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 |---|---|
 | 结构化 body 过重 | v1 固定 10 个 families 和 typed blocks；用户不手写 |
 | Ch3 跨 JS + MD 较大 | 它是唯一有意的垂直切片；以“无 Image2 完整交付”E2E 为单一完成线 |
+| Ch4 退化为移动文件或 wrapper 堆叠 | 以 phase interface、import-direction checker、source-to-test ownership manifest 和行为等价测试为完成线；禁止旧路径 shim 集合与新万能 `internal/`/`shared/` 垃圾场 |
 | Image2 候选占磁盘 | 候选留在 version-owned `image2_refinement/`；accepted 提升为 source asset，rejected 由显式 cleanup plan 处理，不写入 upstream material |
 | runtime 与字体跨平台漂移 | pinned Chromium + bundled licensed fonts + strict verification |
 | state/manifest/source 漂移 | 各自只拥有 authorization、provenance、selection；fingerprint + receipt + recovery 验证 |
@@ -297,6 +352,6 @@ Image2 provider 是 true external dependency：remote transport 以注入 adapte
 
 ## 执行纪律
 
-每个 change 单独 propose、review、apply、validate、archive。后一个 change 只依赖已经归档并同步到 main specs 的行为，不能依赖聊天或未落地的未来 interface。四个 change 的 proposal/design/tasks 必须逐项覆盖本文件对应的“包含、完成标准”，若延期必须回写本 plan，不能在 change 中静默删项。
+每个 change 单独 propose、review、apply、validate、archive。后一个 change 只依赖已经归档并同步到 main specs 的行为，不能依赖聊天或未落地的未来 interface。五个 change 的 proposal/design/tasks 必须逐项覆盖本文件对应的“包含、完成标准”；Change 4 必须把 source/test ownership 和 import graph 写成可验证 artifact，Change 5 必须消费它而不是重新创建平铺 adapter。若延期必须回写本 plan，不能在 change 中静默删项。
 
 `PPTMAKER_FRAMEWORK/` 的目录和逐文件迁移必须同时遵守 [`06-framework-directory-impact.md`](06-framework-directory-impact.md)。Change 3 的 workflow rename 必须原子更新 active cross-references 和 node schema，不能留下两套活跃方法论。

@@ -122,7 +122,7 @@ resolution 顺序固定为：没有 selection -> `fallback`；有 selection 先�
 
 在上述 selection resolution 之前，Stage 1 无条件验证结构化 fallback：recipe enum/version 必须受支持，所引用 asset/icon 必须在 merged catalog 中登记、可读且 byte SHA 可计算。即使 selection 当前为 `selected` 也不能跳过，因为 fallback 是 HTML-only 完成交付和未来 stale recovery 的 source contract。fallback 损坏属于 slide source/control error，统一阻断 parse/build/vNext publication；它不借用 `broken` selection 状态，也不能靠当前 accepted asset 暂时遮蔽。
 
-Image2 特有输入另形成 `generation_fingerprint = visual_contract_fingerprint + derived prompt + provider profile + style-reference SHA + declared reference-asset SHAs`；它用于候选 provenance 和去重，不决定已经由用户接受的正式像素是否继续生效。改变 provider profile/style reference 只影响下一次生成；改变被 dependency projection 声明为影响构图或画面语义的 renderer-neutral visual tokens 会改变 visual contract，并使旧 selection stale。这样 Change 2 可以在没有 Image2 配置时独立完成，Change 4 再实现生成合同。
+Image2 特有输入另形成 `generation_fingerprint = visual_contract_fingerprint + derived prompt + provider profile + style-reference SHA + declared reference-asset SHAs`；它用于候选 provenance 和去重，不决定已经由用户接受的正式像素是否继续生效。改变 provider profile/style reference 只影响下一次生成；改变被 dependency projection 声明为影响构图或画面语义的 renderer-neutral visual tokens 会改变 visual contract，并使旧 selection stale。这样 Change 2 可以在没有 Image2 配置时独立完成，Change 5 再基于 Change 4 已归档的 Phase-4 module interface 实现生成合同。
 
 ## Overflow 策略
 
