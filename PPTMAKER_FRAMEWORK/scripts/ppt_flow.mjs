@@ -2603,7 +2603,6 @@ Examples:
         if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
       }
-      if (process.env.PPTMAKER_DEBUG_ENTRY === "1") process.stderr.write(`STATE ${JSON.stringify({ resolved, canonicalSource, exists: existsSync(canonicalSource), htmlFirst, recordDeliveryReview: opts.recordDeliveryReview })}\n`);
       const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
@@ -2642,15 +2641,13 @@ Examples:
           return;
         }
         try {
-          if (process.env.PPTMAKER_DEBUG_ENTRY === "1") process.stderr.write(`DELIVERY before-import\n`);
           const { publishHtmlDeliveryDecision } = await import("./shared/state/html_review_evidence.mjs");
-          if (process.env.PPTMAKER_DEBUG_ENTRY === "1") process.stderr.write(`DELIVERY after-import\n`);
           const result = publishHtmlDeliveryDecision(resolved, { decision: opts.recordDeliveryReview, reason: opts.reason });
-          if (process.env.PPTMAKER_DEBUG_ENTRY === "1") process.stderr.write(`DELIVERY after-publish ${JSON.stringify(result)}\n`);
           console.log(JSON.stringify({ operation: "record-delivery-review", ...result }));
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.record-delivery-review", error.message, "Show the current contact sheet/PPTX/notes evidence and retry the exact final-review decision.");
+          process.exitCode = 1;
           return;
         }
       }
@@ -2866,7 +2863,6 @@ const isMain =
     (basename(invokedPath) === "ppt_flow.mjs" && existsSync(invokedPath)));
 
 if (isMain) {
-  if (process.env.PPTMAKER_DEBUG_ENTRY === "1") process.stderr.write(`ENTRY ${JSON.stringify({ invokedPath, __filename_main, isMain, argv: process.argv })}\n`);
   const { installStandaloneFailureEnvelope } = await import("./shared/cli/cli_error.mjs");
   installStandaloneFailureEnvelope({ where: "ppt_flow.main" });
   await main().catch((err) => {

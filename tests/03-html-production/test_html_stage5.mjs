@@ -42,9 +42,8 @@ describe('HTML Stage 5 notes lineage', () => {
       const reviewResult = spawnSync('node', [
         'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'state', fixture.runDir,
         '--record-delivery-review', 'proceed',
-      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000, env: { ...process.env, PPTMAKER_DEBUG_ENTRY: '1' } });
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
       expect(reviewResult.status, reviewResult.stderr || reviewResult.stdout).toBe(0);
-      console.log('DELIVERY_RESULT', JSON.stringify(reviewResult));
       const reviewed = readState(fixture.deck, { heal: false });
       const delivery = reviewed.nodes['html-delivery-review'].by_version['3_versions/v1'];
       expect(delivery).toMatchObject({ schema: 'pptmaker-html-delivery-review-v1', decision: 'proceed', reason: null, run_version: 'v1' });

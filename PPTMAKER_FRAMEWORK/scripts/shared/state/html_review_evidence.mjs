@@ -502,7 +502,7 @@ export function publishHtmlDeliveryDecision(runDir, { decision, reason = null } 
   const currentPlan = validateAndBuildHtmlFirstPlan({ runDir: context.run }).plan;
   const evidence = deliveryEvidence(context, reset.id, currentPlan);
   if (!evidence.valid) throw new Error(`HTML delivery evidence is missing or stale: ${evidence.reason}`);
-  const index = buildPlaybookIndex(resolve(dirname(new URL(import.meta.url).pathname), '..', '..', 'playbook'));
+  const index = buildPlaybookIndex(resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', 'playbook'));
   const declaration = resolveNode(index, snapshot.state.playbook, snapshot.state.current_node);
   if (!declaration || !declaration.decisions.includes(decision)) throw new Error('current controller node does not declare this delivery decision');
   const active = snapshot.state.nodes?.[snapshot.state.current_node];
