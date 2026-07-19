@@ -17,6 +17,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.68",
     "commander": "^13.1.0",
+    "echarts": "6.1.0",
     "fast-png": "8.0.0",
     "jpeg-js": "0.4.4",
     "jszip": "^3.10.1",

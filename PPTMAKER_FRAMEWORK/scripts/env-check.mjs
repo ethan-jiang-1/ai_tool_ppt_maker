@@ -37,7 +37,7 @@ const IS_WINDOWS = process.platform === 'win32';
 
 export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
-  'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
+  'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'stage2_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
@@ -402,9 +402,11 @@ function discoverNpmPackages(start = process.cwd()) {
     { importName: 'pptxgenjs', pkg: 'pptxgenjs', required: true },
     { importName: 'commander', pkg: 'commander', required: true },
     { importName: 'playwright', pkg: 'playwright', required: true, exactVersion: HTML_RUNTIME_PROFILE.playwrightVersion },
+    { importName: 'echarts', pkg: 'echarts', required: true, exactVersion: '6.1.0' },
   ];
 
   let playwright = null;
+  let echarts = null;
   const checks = pkgs.map(({ importName, pkg, required, exactVersion }) => {
     const nm = findPackageInAncestorNodeModules(importName, start);
     const packageRoot = nm ? join(nm, ...importName.split('/')) : null;
@@ -420,6 +422,9 @@ function discoverNpmPackages(start = process.cwd()) {
     if (pkg === 'playwright' && present) {
       playwright = { root: packageRoot, version: installedVersion };
     }
+    if (pkg === 'echarts' && present) {
+      echarts = { root: packageRoot, version: installedVersion };
+    }
     return {
       check: pkg,
       status: ok ? 'ok' : (required ? 'fail' : 'warn'),
@@ -429,7 +434,7 @@ function discoverNpmPackages(start = process.cwd()) {
       fix: ok ? null : 'Run `npm install` in the project root to restore package/lock alignment.',
     };
   });
-  return { checks, playwright };
+  return { checks, playwright, echarts };
 }
 
 function checkNpmPackages(start = process.cwd()) {

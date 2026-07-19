@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { diagnosticFromError } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 import { createCanvas } from '@napi-rs/canvas';
 import { sha256File } from '../PPTMAKER_FRAMEWORK/scripts/lib/image_provenance.mjs';
+import { createHtmlFirstRun } from './helpers/html_first_fixture.mjs';
 
 const S4 = 'PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs';
 
@@ -106,4 +107,51 @@ describe('stage4_build_pptx', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('assembles canonical HTML final-slide manifest through the provider-neutral adapter', async () => {
+    const fixture = createHtmlFirstRun('stage4-html-');
+    try {
+      const { createCanonicalHtmlValidatedRunContext, publishHtmlComposition } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_renderer.mjs');
+      const context = createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      const { stage1 } = await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      await publishHtmlComposition(context, {});
+      const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
+      const { buildPptxFromRunDir } = await import('../PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs');
+      const result = await buildPptxFromRunDir(fixture.runDir);
+      expect(result.slideCount).toBe(1);
+      expect(result.receipt.schema_version).toBe(2);
+      expect(result.receipt.pipeline).toBe('html-first-v1');
+      expect(result.receipt.html_delivery_digest).toMatch(/^[0-9a-f]{64}$/);
+      expect(result.receipt.final_images[0]).toMatchObject({ artifact_kind: 'final-slide', producer: 'html-compositor-v1', width: 2000, height: 1125, media_profile: 'html-capture-v1' });
+      expect(result.receipt.final_images[0].final_slide_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      expect(result.receipt.final_images[0]).not.toHaveProperty('composition_fingerprint');
+      expect(result.contactSheet.published).toBe(true);
+      const store = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_object_store.mjs');
+      const preview = store.readHtmlPreviewManifest(store.htmlOwnerRoot(fixture.runDir, 'preview'), { publicationScope: 'canonical-run', htmlProductionResetId: null, logicalRunVersion: 'v1' });
+      expect(preview.manifest.contact_sheets.visual_review).not.toBeNull();
+      expect(preview.manifest.contact_sheets.delivery).not.toBeNull();
+      expect(existsSync(result.outPath)).toBe(true);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('blocks canonical HTML assembly until both authoritative review records are current', async () => {
+    const fixture = createHtmlFirstRun('stage4-html-gates-');
+    try {
+      const { stage1 } = await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      const renderer = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_renderer.mjs');
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const { buildPptxFromRunDir } = await import('../PPTMAKER_FRAMEWORK/scripts/stage4_build_pptx.mjs');
+      await expect(buildPptxFromRunDir(fixture.runDir)).rejects.toThrow(/authoritative content\/visual review/);
+      expect(existsSync(join(fixture.runDir, '_generated', 'ppt', 'deck.pptx'))).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

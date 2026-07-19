@@ -22,7 +22,7 @@ import "./lib/cli_bootstrap.mjs?entry=stage5_inject_notes.mjs";
 import { CLI_ERROR_CODES, attachCliDiagnostic, createCliNext, diagnosticFromError, emitCliError } from "./lib/cli_error.mjs";
 
 import { copyFileSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { Command } from "commander";
@@ -38,12 +38,14 @@ import {
 } from "./bundle_layout.mjs";
 import {
   buildNotesReceipt,
+  buildHtmlNotesReceipt,
   notesReceiptPath,
   validateNotesRerunInputLineage,
   validatePptxAssemblyReceipt,
   writeNotesReceiptAtomic,
 } from "./lib/notes_receipt.mjs";
 import { parseSlideDocument } from "./lib/slide_document.mjs";
+import { probeProductionMarker, validateAndBuildHtmlFirstPlan, HTML_FIRST_PIPELINE } from "./lib/html_slide_contract.mjs";
 
 // ---------------------------------------------------------------------------
 // XML helpers
@@ -517,6 +519,34 @@ export async function injectNotesFromRunDir(runDir) {
     });
   }
   return { ...result, receipt, inputFile, pptxFile };
+}
+
+export async function injectHtmlNotesFromRunDir(runDir) {
+  const resolvedRun = resolve(runDir);
+  const source = join(resolvedRun, 'slide-specifications.md');
+  const marker = probeProductionMarker(readFileSync(source));
+  if (marker.branch !== HTML_FIRST_PIPELINE) throw new Error('HTML notes route requires production.pipeline html-first-v1');
+  const { plan } = validateAndBuildHtmlFirstPlan({ runDir: resolvedRun });
+  const orderedSlideIds = plan.slides.map((slide) => slide.slide_id);
+  const planPath = join(generatedDir(resolvedRun), GEN_SLIDE_PLAN);
+  if (!existsSync(planPath)) throw new Error('HTML Stage 5 requires current slide_plan.json; run Stage 1 first');
+  const currentPlan = JSON.parse(readFileSync(planPath, 'utf8'));
+  if (currentPlan.ordered_plan_digest !== plan.ordered_plan_digest) throw new Error('HTML Stage 5 slide_plan.json is stale; rerun Stage 1');
+  const records = extractNoteRecordsFromMarkdown([source]);
+  const byId = new Map(records.map((record) => [record.slide_id, record.note]));
+  if (records.length !== orderedSlideIds.length || orderedSlideIds.some((id) => !byId.has(id))) throw new Error('HTML notes do not cover the current ordered slide IDs');
+  const pptDir = join(generatedDir(resolvedRun), GEN_PPT_SUBDIR);
+  const pptx = readdirSync(pptDir).filter((name) => name.endsWith('.pptx') && !name.endsWith('.backup.pptx')).map((name) => join(pptDir, name));
+  if (pptx.length !== 1) throw new Error('HTML Stage 5 requires exactly one current PPTX');
+  const assembly = validatePptxAssemblyReceipt(resolvedRun, { requireCurrentPptx: true, expectedOrderedIds: orderedSlideIds });
+  const rerun = assembly.valid ? null : validateNotesRerunInputLineage(resolvedRun, { pptxPath: pptx[0], planPath, orderedSlideIds });
+  const lineage = assembly.valid ? assembly : rerun?.assembly;
+  if (!lineage?.valid || (!assembly.valid && !rerun?.valid)) throw new Error(`HTML Stage 5 cannot prove current assembly lineage: ${assembly.reason}; rerun: ${rerun?.reason || 'unavailable'}`);
+  const result = await injectNotes({ pptx: pptx[0], notes: orderedSlideIds.map((id) => byId.get(id) || '') });
+  const receiptPath = notesReceiptPath(resolvedRun);
+  const receipt = buildHtmlNotesReceipt({ runDir: resolvedRun, inputPath: source, planPath, pptxPath: pptx[0], orderedSlideIds, slideCount: result.slideCount, notesInjected: result.notesInjected, assembly: lineage, predecessor: rerun?.valid ? rerun : null });
+  writeNotesReceiptAtomic(resolvedRun, receipt);
+  return { ...result, receipt, receiptPath };
 }
 
 // ---------------------------------------------------------------------------

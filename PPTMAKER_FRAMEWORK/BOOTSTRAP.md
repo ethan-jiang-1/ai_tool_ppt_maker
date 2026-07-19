@@ -155,13 +155,23 @@ npm run setup:chromium
 
 Linux/CI 仅在明确允许安装系统依赖时用 `npm run setup:chromium:with-deps`。doctor 只检查并启动已安装的配对 Chromium，绝不自动安装、联网下载或回退到系统 Chrome/Edge。自定义 cache/proxy 见 [02-nodejs-environment.md](workflow/00-setup/02-nodejs-environment.md)。
 
+### echarts
+
+HTML-first 图表 SSR 需要直接依赖 `echarts@6.1.0`，并锁定其传递依赖 `zrender@6.1.0`。该检查是 base READY 的硬门槛；不要在 deck 或环境中安装另一个版本，也不要用浏览器端 ECharts、CDN 或系统全局包替代。修复方式是在 package.json 所在的项目根运行一次：
+
+```bash
+npm install
+```
+
+doctor 会从当前目录向上找到 canonical package root/version，并把这份发现结果交给 HTML runtime；它不会联网下载或静默选择 shadow package。生产 HTML 图表使用 Node-side SVG SSR，浏览器页不加载 ECharts runtime。依赖许可证分别为 Apache-2.0（ECharts）和 BSD-3-Clause（zrender），证据见 `PPTMAKER_FRAMEWORK/scripts/contracts/html-echarts-runtime-evidence-v1.json`。
+
 ### html_fonts
 
 HTML runtime 的 Source Sans 3 与 Noto Sans SC WOFF2、CSS、inventory 和许可证已经随 framework 放在 `PPTMAKER_FRAMEWORK/scripts/fonts/`。用户不安装系统字体，也不需要联网下载字体。失败时恢复完整的 `PPTMAKER_FRAMEWORK` 包；不要用系统字体掩盖缺失或 digest 错误。
 
 ### html_runtime_smoke
 
-先修复 `playwright`、`chromium` 和 `html_fonts`，再重跑默认 doctor。该 smoke 使用固定本地 HTML、固定双语 sentinel 和零网络 Chromium；它不下载任何资源，也不声称任意实际 deck 已完成字符覆盖或 overflow 检查。
+先修复 `playwright`、`chromium` 和 `html_fonts`，再重跑默认 doctor。该 smoke 使用固定本地 HTML、固定双语 sentinel 和零网络 Chromium；它不下载任何资源，也不声称任意实际 deck 已完成字符覆盖或 overflow 检查。生产捕获使用同一配对 runtime 的 `1000 x 562.5` CSS 画布、DSF 2；当前 Chromium 原生 fractional clip 的实测输出为 `2000 x 1126`，因此必须执行已验证的 `fast-png` 固定末行裁剪重编码得到精确 `2000 x 1125`，不得用系统浏览器、rounding 或不稳定 raw bytes 替代。证据见 `PPTMAKER_FRAMEWORK/scripts/contracts/html-capture-runtime-evidence-v1.json`。
 
 ### git
 

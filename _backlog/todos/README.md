@@ -19,9 +19,9 @@
 
 | # | 文件 | 优先级 | 简述 | 阻塞 / 备注 |
 |---|------|--------|------|-------------|
-| — | — | — | — | — |
+| 1 | `todo-model-aligned-prompt-tension.md` | 中 | prompt 松紧度随模型能力「水涨船高」：结构硬约束要守住，表现指令别过度束缚强模型 | 等 HTML-first 落地后做 prompt 松紧度审计 |
 
-_无活跃 todo。原 `todo-dual-render-pipeline.md` 已升级为 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md)。_
+_原 `todo-dual-render-pipeline.md` 已升级为 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md)。_
 
 ---
 

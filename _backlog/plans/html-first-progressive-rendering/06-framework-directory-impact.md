@@ -1,7 +1,7 @@
 # 专题 06: PPTMAKER_FRAMEWORK 目录影响
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 架构已锁定 | 更新: 2026-07-17
+> 状态: 架构已锁定 | 更新: 2026-07-18
 
 ## 这份文档回答什么
 
@@ -55,7 +55,7 @@
 
 任何实现若让同一用户意图同时匹配两行，或让普通 HTML/local 行触达 Image2 adapter，即为 ownership 错误。
 
-已有 deck 的断线续跑不能因 framework 目录改名而丢失。state heal 必须确定性映射仍存在的 playbook/current-node/module 引用，保留 completed evidence、human waits、execution identity 和 reserved records；若旧执行拓扑无法无歧义映射，必须返回需要人类确认的 replacement/restart 诊断，不能静默清空进度或假装 completed。legacy deck 即使不迁移内容，也必须能在新 framework 下 `ppt_flow state/status` 并继续其兼容维护路径。
+已有 deck 的断线续跑不能因 framework 目录改名而丢失。state heal 必须确定性映射仍存在的 playbook/current-node/module 引用，保留 completed evidence、human waits、execution identity 和 reserved records；若旧执行拓扑无法无歧义映射，必须返回需要人类确认的 replacement/restart 诊断，不能静默清空进度或假装 completed。legacy deck 即使不迁移内容，也必须能在新 framework 下 `ppt_flow state/status` 并继续其兼容维护路径；历史 markerless deck 若本来没有 `_state`，只读 state/status/check 不得为了展示而创建执行记录，显式进入 legacy controller 时才初始化 durable state。
 
 ```text
 PPTMAKER_FRAMEWORK/workflow/
@@ -155,7 +155,13 @@ HTML-first 的 `visual` gate 只阻断最终 PPTX publication，不阻断零远�
 
 gate evidence 记录 pipeline marker、`visual_system_fingerprint`、已覆盖的 family/geometry、代表页 IDs 和当时展示的 preview SHAs。`visual_system_fingerprint` 覆盖 visual config、renderer/runtime profile、family registry、CSS/abstract recipe/chart/compositor versions，以及 gate 代表页实际消费的 renderer-neutral fallback asset SHAs；versioned canonicalization 由 JS 拥有。preview SHA 是“用户看过什么”的审计证据，不直接参与 freshness。
 
-以下变化使全册 visual gate stale：visual config、renderer/runtime/family/recipe/compositor 版本改变，或出现尚未覆盖的新 family/geometry。普通 header/body 文案变化只需重新通过 schema/pixel overflow 和本地 composition，不重新索要整册视觉批准。只影响某些页面的 fallback/source asset byte 变化也不把它伪装成纯文字改动：classifier 走 Local Slide/Deck Rebuild，展示受影响页面实物，并在同一 version-scoped、pipeline-specific `visual` gate record 的 `page_reviews[slide_id]` 下记录 current composition fingerprint、preview SHA、reviewed asset SHAs 和时间；它不新增第三个 gate key，也不要求重批未受影响 family 的整册 gate。若该页当前为 `selected`，review 必须显式强制 composition 使用 fallback variant 并将 variant 标入 evidence，不能拿 accepted 图遮住本次 fallback 改动。对应页面再次变化时只使自己的 page review stale。accepted selection 的 asset byte 变化不是可审核的普通更新，而是 SHA integrity failure，必须通过正式 source transaction 修复。legacy evidence 不得被 HTML-first 分支接受，反之亦然。
+以下变化使全册 visual gate stale：visual config、renderer/runtime/family registry/recipe/compositor 版本改变，或出现尚未覆盖的新 `component_recipe_key_v1`（family、geometry、typed/chart kind/count/formatter/legend discriminator、primary-visual/fallback recipe kind）。普通 header/body/label 文案变化只需重新通过 content/schema/pixel overflow 和本地 composition，不重新索要视觉批准。global system fingerprint 与 page dependency 严格分离：全局变化重审每个 current recipe key 的代表页，不因 page fingerprint 重复 global 输入而逐页 stale。只影响某些页面的 chart numeric shape、fallback/source/selected/inline-icon asset byte、visual resolution 或已覆盖 recipe key 变化时，classifier 展示受影响页面，并在 `page_reviews[slide_id]` 下记录排除 global/ordinary-copy/notes/position 的 `page_visual_dependency_fingerprint_v1`，同时保留 shown effective/forced-fallback composition/preview SHA 作 audit。它不新增第三个 gate key，也不要求重批未受影响 coverage。当前为 `selected` 时必须强制 identity 独立的 forced-fallback variant，不能拿 accepted 图代审。accepted selection byte 变化是 SHA integrity failure，必须正式修复。legacy evidence 与 HTML evidence 双向隔离。
+
+`ppt_flow state --check-gates` 必须先分类 pipeline：HTML 只接受当前 version-scoped content/visual records、当前 nullable HTML-production reset ID、完整可批准 plan/audit bytes、fresh fingerprints 和已完成恢复的 journal；HTML 只写独立 `html_content_gate|html_visual_gate` + run-version metadata 与 `_state.gates.html_*` status mirrors，绝不覆盖 markerless 既有 `content_gate|visual_gate` / `_state.gates.content|visual`，任何 mirror 都不能让 HTML 单独通过。markerless 只读自己的既有 scalar gate 语义并忽略 `html_*`。`html-delivery-review` 绑定同一 reset ID，影响 completion/resume 但不是第三个 gate。plain state/status 只报告 journal/reset，不恢复写；state/status 必须列出 HTML content/visual/delivery freshness、reset status 与 outstanding recipe key/page IDs；当前 HTML 已完成时不得显示 Change 3 尚不可用的 Phase 4 为欠账。
+
+上述读取/写入不得散落在 `approve`、`checkBundle`、state/status、refresh 和 Stage 4：Change 3 用单一 deep module 暴露 read-only `inspectHtmlReviewReadiness(runDir)`、显式 `recoverHtmlGatePublication(runDir,{confirmedOwnerToken})`、`publishHtmlGateDecision(...)`、`publishHtmlDeliveryDecision(...)`、`resetHtmlProduction(runDir,{confirmedRunVersion})`，内部独占 canonical path/version/reset/owner ID、fingerprint、immutable evidence、journal recovery、timestamp/SHA 与 exact generated-owner 推导。plain state/status/checkBundle 只 inspect；build/check-gates/gate publication 明确做同机死亡 60 秒自动 recover 后再检查；跨机/不确定 journal 只能由 human-confirmed exact token 在 5 分钟后恢复。confirmed canonical whole-owner reset 只能走 `refresh --kind reset-html-production --confirm-run-version <vN>`：先以 expected-state CAS 写入 `html-production-reset: deletion_pending`、旋转语义 reset ID 并安装独立 owner token/host/PID/claim time、使匹配 HTML mirrors pending并形成写栅栏，再删除完整 owner，最后将同一 ID 标为 complete；live owner 不可覆盖，同机 dead 60 秒后一个 CAS claimant 自动接管，跨机/PID-uncertain 5 分钟后只能 human-confirmed 接管，竞争 claimant 必须让给单一 owner；崩溃重跑继续同一 reset ID，complete+owner absent 幂等成功。若 reset 与 journal creation 竞争，只允许“old state + exact reset-pending projection、old/pending-only metadata、gate new state 从未出现”这一种 third-state 清理 journal，其余第三 SHA 仍 fail closed；所有 HTML state writer 在 rename 前重查 expected SHA/reset fence。调用方不得传 metadata mirrors、state records、manifest path、reset/owner ID 或 digest 作为替代真相，测试也跨同一 interface。
+
+五个 public interface 均为同步、本地文件系统、零 browser/provider，保留现有同步 `checkBundle`。为避免 `bundle_layout` 与 HTML contract 的静态循环，唯一 evaluator 放在 internal core：`bundle_layout` 用自己 SSOT constants/resolvers 构造 trusted context，public facade 也通过这些 exports 构造同一 context；core/context 不暴露给 orchestration，外部调用方不能注入路径或预制 snapshot。canonical manifests/plans/receipts 与 gate/delivery records 绑定 current nullable reset ID，review-plan hash 包含它，但 raw HTML/PNG/contact-sheet 和 composition/final-slide/delivery identity 不包含它；因此字节可安全复用，reset 前授权却绝不会复活。若 generated owner 意外缺失但当前 reset ID 已有 gate/delivery/Stage-4/5 authority，直接重建必须先旋转 reset ID；owner 缺失且无当前 authority 才可视为普通首次/未批准 preview 重建。
 
 ## `workflow/` 逐文件处置
 
@@ -246,7 +252,7 @@ Change 3 起，change classifier 先读取 `production.pipeline`，再选择所�
 | 单页 header/body/family/fallback | Local Slide Rebuild：parse/validate -> HTML render -> compose -> affected-page review -> contact sheet/PPTX；零远端；纯文字不重批整册 visual gate，family/asset 变化按上文刷新相应 evidence | 保持 Header Text & Style Refresh / Generated Image Rebuild 分流 |
 | deck visual config | Local Deck Rebuild：使受影响 HTML/final-slide 失效，先出代表页 visual gate，再本地全量 | 保持 style master -> pilot -> Generated Image Rebuild |
 | notes only | Notes-Only Refresh | Notes-Only Refresh |
-| 增删重排 | Structural Versioning Path -> target-local HTML rebuild；零远端 | 保持当前 structural materialization/`needs_render` 语义 |
+| 增删重排 | Structural Versioning Path source publication -> `needs_local_materialization` -> target-local HTML rebuild；零远端 | 保持当前 structural materialization/`needs_render` 远端授权语义 |
 | 已接受主视觉后的普通文字/layout 变化 | 若 visual contract 仍匹配则本地重合成；不匹配则 stale 并回退 HTML，不自动生成 | 不适用 |
 | 用户明确要求新的专业主视觉 | Phase 4 新 Image2 plan/authorization | legacy Generated Image Rebuild，除非先显式迁移 deck |
 

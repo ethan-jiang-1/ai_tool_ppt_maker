@@ -223,6 +223,10 @@ export const GEN_HEADER_LOCKED_SUBDIR = 'header_locked';
 export const GEN_PPT_SUBDIR = 'ppt';
 export const GEN_QA_SUBDIR = 'qa';
 export const GEN_PREVIEW_SUBDIR = 'preview';
+export const GEN_HTML_PRODUCTION_SUBDIR = 'html_production';
+export const GEN_HTML_PAGES_SUBDIR = 'html_pages';
+export const GEN_HTML_FINAL_SLIDES_SUBDIR = 'final_slides';
+export const GEN_HTML_PREVIEW_SUBDIR = 'preview';
 export const IMAGE_TRACE_SUFFIX = '.image-task.json';
 
 // ---------------------------------------------------------------------------

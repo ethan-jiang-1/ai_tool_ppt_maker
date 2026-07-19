@@ -8,13 +8,14 @@ import {
   checkNode,
   checkNpmPackages,
   checkProbeVendors,
+  discoverNpmPackages,
   findPackageInAncestorNodeModules,
   probeGitSafetyForTest,
 } from '../PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
 import { parseCliErrorLine } from '../PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/env-check.mjs';
-const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
+const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright', 'echarts'];
 
 function runCheck(args = '') {
   try {
@@ -33,8 +34,8 @@ function stubPackages(nmDir) {
   for (const pkg of REQUIRED) {
     const root = join(nmDir, ...pkg.split('/'));
     mkdirSync(root, { recursive: true });
-    if (pkg === 'playwright') {
-      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'playwright', version: '1.61.1' }));
+    if (pkg === 'playwright' || pkg === 'echarts') {
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: pkg, version: pkg === 'playwright' ? '1.61.1' : '6.1.0' }));
     }
   }
 }
@@ -475,6 +476,20 @@ describe('env-check deps walk-up', () => {
       const playwright = checkNpmPackages(root).find((check) => check.check === 'playwright');
       expect(playwright).toMatchObject({ status: 'fail' });
       expect(playwright.detail).toMatch(/does not match 1\.61\.1/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('fails a present but mismatched ECharts package and exposes the exact root handoff', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-echarts-drift-'));
+    try {
+      const nm = join(root, 'node_modules');
+      stubPackages(nm);
+      writeFileSync(join(nm, 'echarts', 'package.json'), JSON.stringify({ name: 'echarts', version: '6.0.0' }));
+      const discovered = discoverNpmPackages(root);
+      expect(discovered.checks.find((check) => check.check === 'echarts')).toMatchObject({ status: 'fail' });
+      expect(discovered.echarts).toEqual({ root: join(nm, 'echarts'), version: '6.0.0' });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

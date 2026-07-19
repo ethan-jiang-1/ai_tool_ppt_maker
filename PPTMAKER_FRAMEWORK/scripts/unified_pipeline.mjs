@@ -878,6 +878,68 @@ export async function stage3(runDir, dryRun) {
   }
 }
 
+/** HTML-first local Stage 2 adapter. Provider credentials and legacy paths are never resolved. */
+export async function stage2Html(runDir, { only = null, compositionVariant = 'effective', dryRun = false } = {}) {
+  stage2Html.lastFailure = null;
+  try {
+    const { createCanonicalHtmlValidatedRunContext, buildHtmlPages, publishHtmlPages, resolveHtmlSlideSelectors } = await import('./lib/html_slide_renderer.mjs');
+    const context = createCanonicalHtmlValidatedRunContext({ runDir });
+    const tokens = only ? String(only).split(',').map((token) => token.trim()).filter(Boolean) : [];
+    const request = { ...(tokens.length ? { slideIds: resolveHtmlSlideSelectors(context, tokens) } : {}), compositionVariant, dryRun };
+    const result = dryRun ? buildHtmlPages(context, request) : await publishHtmlPages(context, request);
+    console.log(`  HTML Stage 2: ${result.pages.length} page(s) ${dryRun ? 'planned' : 'published locally'}`);
+    return true;
+  } catch (error) {
+    stage2Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage2', operation: 'render-html', reason: { kind: 'html_render_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair the local structured source/runtime, then rerun HTML Stage 2.' }) };
+    return false;
+  }
+}
+
+/** HTML-first local Stage 3 adapter. */
+export async function stage3Html(runDir, { only = null, compositionVariant = 'effective', dryRun = false } = {}) {
+  stage3Html.lastFailure = null;
+  try {
+    const { createCanonicalHtmlValidatedRunContext, composeHtmlSlidesVerified, publishHtmlFinalSlides, resolveHtmlSlideSelectors } = await import('./lib/html_slide_renderer.mjs');
+    const context = createCanonicalHtmlValidatedRunContext({ runDir });
+    const tokens = only ? String(only).split(',').map((token) => token.trim()).filter(Boolean) : [];
+    const request = { ...(tokens.length ? { slideIds: resolveHtmlSlideSelectors(context, tokens) } : {}), compositionVariant, dryRun };
+    const result = dryRun ? await composeHtmlSlidesVerified(context, request) : await publishHtmlFinalSlides(context, request);
+    console.log(`  HTML Stage 3: ${result.final_slides.length} final slide(s) ${dryRun ? 'planned' : 'verified locally'}`);
+    return true;
+  } catch (error) {
+    stage3Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage3', operation: 'compose-html', reason: { kind: 'html_composition_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair the local HTML page/runtime evidence, then rerun HTML Stage 3.' }) };
+    return false;
+  }
+}
+
+export async function stage4Html(runDir, { dryRun = false } = {}) {
+  stage4Html.lastFailure = null;
+  try {
+    const { buildPptxFromRunDir } = await import('./stage4_build_pptx.mjs');
+    if (dryRun) { console.log('  HTML Stage 4: provider-neutral assembly planned (no PPTX write)'); return true; }
+    const result = await buildPptxFromRunDir(runDir);
+    console.log(`  HTML Stage 4: PPTX ${result.outPath}`);
+    return true;
+  } catch (error) {
+    stage4Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage4', operation: 'assemble-html', reason: { kind: 'html_assembly_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair current HTML final-slide evidence, then rerun Stage 4.' }) };
+    return false;
+  }
+}
+
+export async function stage5Html(runDir, { dryRun = false } = {}) {
+  stage5Html.lastFailure = null;
+  try {
+    if (dryRun) { console.log('  HTML Stage 5: notes injection planned (no PPTX/receipt write)'); return true; }
+    const { injectHtmlNotesFromRunDir } = await import('./stage5_inject_notes.mjs');
+    const result = await injectHtmlNotesFromRunDir(runDir);
+    console.log(`  HTML Stage 5: notes injected ${result.notesInjected}/${result.slideCount}`);
+    return true;
+  } catch (error) {
+    stage5Html.lastFailure = diagnosticFromError(error) || { version: 1, category: 'artifact', stage: 'stage5', operation: 'inject-html-notes', reason: { kind: 'html_notes_failed' }, next: createCliNext('repair_prerequisite', { default: 'Repair current HTML PPTX/source lineage, then rerun Stage 5.' }) };
+    return false;
+  }
+}
+
 /**
  * Stage 4: Build PPTX container.
  *
@@ -1228,11 +1290,12 @@ Examples:
           emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first requires the canonical source filename.", hint: "Restore slide-specifications.md and move backup copies under _scratch/.", where: "unified_pipeline.select-html-first-source", diagnostic: { version: 1, category: "source_validation", operation: "select-html-first-source", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: "slide-specifications.md" }, next: createCliNext("edit_source", { default: "Restore exact slide-specifications.md before readiness or stage execution." }) } });
           process.exit(1);
         }
-        if (marker.branch === HTML_FIRST_PIPELINE && stages.some((stage) => stage >= 2)) {
-          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first delivery is unavailable in this change.", hint: "Use validation or canonical unified Stage 1 only.", where: "unified_pipeline.html-first-delivery", diagnostic: { version: 1, category: "gate", operation: "route-html-first", source: { path: "slide-specifications.md" }, reason: { kind: "html_first_delivery_unavailable" }, next: createCliNext("rerun", { default: "Run --stage 1 with or without --dry-run; wait for the later renderer change before delivery." }) } });
-          process.exit(1);
-        }
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+      }
+
+      if (htmlFirst && (process.argv.includes('--base-url') || process.argv.includes('--force-images') || process.argv.includes('--model') || process.argv.includes('--resolution'))) {
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: 'HTML-first local stages do not accept legacy provider or image controls.', hint: 'Remove provider/resolution/force flags and use the canonical local HTML branch.', where: 'unified_pipeline.html-first.arguments', diagnostic: { version: 1, category: 'usage', reason: { kind: 'html_legacy_option_forbidden' }, next: createCliNext('fix_arguments', { default: 'Use only --run-dir, --stage, --only, --dry-run, and --preview for HTML-first.' }) } });
+        process.exit(1);
       }
 
       // Legacy production keeps the existing dotenv search. HTML-first Stage 1
@@ -1246,7 +1309,7 @@ Examples:
 
       /** @type {boolean|string} */
       let readyMode = false;
-      if (stages.includes(2)) {
+      if (stages.includes(2) && !htmlFirst) {
         readyMode = opts.preview ? "preview" : "pipeline";
       }
       if (!validateRunDir(runDir, readyMode)) {
@@ -1274,10 +1337,10 @@ Examples:
       }
 
       // Stage dispatch table
-      const stageImplementations = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5 };
+      const stageImplementations = { 1: stage1, 2: htmlFirst ? stage2Html : stage2, 3: htmlFirst ? stage3Html : stage3, 4: htmlFirst ? stage4Html : stage4, 5: htmlFirst ? stage5Html : stage5 };
       const stageFuncs = {
         1: () => stage1(runDir, opts.dryRun),
-        2: () => stage2(runDir, {
+        2: () => htmlFirst ? stage2Html(runDir, { only: opts.only || null, dryRun: opts.dryRun }) : stage2(runDir, {
           baseUrl: opts.baseUrl || null,
           only: opts.only || null,
           forceImages: opts.forceImages || false,
@@ -1286,9 +1349,9 @@ Examples:
           requireHeaderReview: !opts.preview,
           dryRun: opts.dryRun,
         }),
-        3: () => stage3(runDir, opts.dryRun),
-        4: () => stage4(runDir, opts.dryRun),
-        5: () => stage5(runDir, opts.dryRun),
+        3: () => htmlFirst ? stage3Html(runDir, { only: opts.only || null, dryRun: opts.dryRun }) : stage3(runDir, opts.dryRun),
+        4: () => htmlFirst ? stage4Html(runDir, { dryRun: opts.dryRun }) : stage4(runDir, opts.dryRun),
+        5: () => htmlFirst ? stage5Html(runDir, { dryRun: opts.dryRun }) : stage5(runDir, opts.dryRun),
       };
 
       for (const stageNum of stages) {

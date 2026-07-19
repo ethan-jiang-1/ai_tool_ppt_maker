@@ -162,7 +162,7 @@ function validateResolution(where, resolution) {
   exitUsage(where, "Resolution must be 1k, 2k, or 4k.", "Pass --resolution 1k, 2k, or 4k");
 }
 
-async function rejectHtmlFirstDelivery(runDir, where) {
+async function rejectHtmlFirstDelivery(runDir, where, { allowHtml = false } = {}) {
   const resolved = resolve(runDir);
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
   const source = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolved);
@@ -205,18 +205,19 @@ async function rejectHtmlFirstDelivery(runDir, where) {
     return true;
   }
   if (marker.branch !== HTML_FIRST_PIPELINE) return false;
+  if (allowHtml) return false;
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
-    message: "HTML-first delivery is unavailable in this change.",
-    hint: "Use ppt_flow validate or canonical unified Stage 1 only.",
+    message: "This legacy-only command is not applicable to HTML-first production.",
+    hint: "Use the local HTML preview/review/build route for this run.",
     where,
     diagnostic: {
       version: 1,
       category: "gate",
       operation: "route-html-first",
       source: { path: sourceLocator },
-      reason: { kind: "html_first_delivery_unavailable" },
-      next: createCliNext("rerun", { default: "Validate or publish Stage 1 locally; wait for the later HTML renderer before delivery." }),
+      reason: { kind: "html_legacy_command_inapplicable" },
+      next: createCliNext("rerun", { default: "Use the matching HTML-first local command and review flow." }),
     },
   });
   return true;
@@ -909,7 +910,7 @@ async function commandStatus(runDir, { json: asJson }) {
  * @param {string} gate - "content" or "visual".
  * @param {boolean} waive
  */
-async function commandApprove(runDir, gate, { waive }) {
+async function commandApprove(runDir, gate, { waive, planHash = null, reason = null }) {
   const resolved = resolve(runDir);
   const issues = checkBundle(resolved, false);
   if (issues.length > 0) {
@@ -925,6 +926,25 @@ async function commandApprove(runDir, gate, { waive }) {
   }
   const value = waive ? "waived" : "approved";
   const root = deckRoot(resolved);
+  const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
+  if (existsSync(canonicalSource)) {
+    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+    const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
+    if (marker.branch === HTML_FIRST_PIPELINE) {
+      if (!planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
+      if (waive && !String(reason || "").trim()) return emitUsage("ppt_flow.approve", "HTML waiver requires --reason", "Pass a bounded human reason with --waive --reason");
+      try {
+        const { publishHtmlGateDecision } = await import("./lib/html_review_evidence.mjs");
+        const result = publishHtmlGateDecision(resolved, { gate, planHash, status: value, waiverReason: reason });
+        console.log(`✓ html-${gate}-review: ${value} (${result.review_plan_hash})`);
+        return 0;
+      } catch (error) {
+        emitFailed("ppt_flow.approve.html", error.message, "Regenerate the complete current HTML review plan and approve its exact hash");
+        return 1;
+      }
+    }
+  }
+  if (planHash || reason) return emitUsage("ppt_flow.approve", "--plan-hash/--reason are HTML review controls", "Remove HTML-only controls for markerless legacy approval");
   const metadata = join(root, METADATA_FILE);
   updateGate(metadata, gate, value);
 
@@ -1393,7 +1413,17 @@ async function commandBuild(
   { resolution, model, baseUrl, reuseImages, dryRun }
 ) {
   const resolved = resolve(runDir);
-  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build")) return 1;
+  if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build", { allowHtml: true })) return 1;
+  const source = join(resolved, SLIDE_SPECS_NAME);
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+  const htmlFirst = existsSync(source) && probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
+  if (htmlFirst) {
+    const args = ["--run-dir", resolved, "--stage", "all"];
+    if (dryRun) args.push("--dry-run");
+    const code = await runNode(UNIFIED_PIPELINE, args);
+    if (code !== 0) emitFailed("ppt_flow.build", `HTML build exited ${code}`, "Resolve current HTML source/review evidence, then rerun build");
+    return code;
+  }
   if (!dryRun) {
     const stage1Code = await runNode(UNIFIED_PIPELINE, [
       "--run-dir", resolved, "--stage", "1",
@@ -1464,9 +1494,24 @@ async function commandBuild(
  */
 async function commandRefresh(
   runDir,
-  { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun }
+  { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun, confirmRunVersion = null, legacyControlsExplicit = false }
 ) {
   const resolved = resolve(runDir);
+  if (kind === "reset-html-production") {
+    if (onlyStr || allSlides || dryRun || baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.refresh.reset-html-production", "reset-html-production accepts only --confirm-run-version", "Remove selectors/dry-run/provider/resolution controls and confirm the exact vN");
+    if (!confirmRunVersion) return emitUsage("ppt_flow.refresh.reset-html-production", "--confirm-run-version is required", "Pass the exact target run version, for example --confirm-run-version v1");
+    if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh.reset-html-production", { allowHtml: true })) return 1;
+    try {
+      const { resetHtmlProduction } = await import("./lib/html_review_evidence.mjs");
+      const result = resetHtmlProduction(resolved, { confirmedRunVersion: confirmRunVersion });
+      console.log(`✓ HTML production reset ${result.status}: ${result.run_version}`);
+      return 0;
+    } catch (error) {
+      emitFailed("ppt_flow.refresh.reset-html-production", error.message, "Resolve active ownership/state conflicts and retry the exact confirmed reset");
+      return 1;
+    }
+  }
+  if (confirmRunVersion) return emitUsage("ppt_flow.refresh", "--confirm-run-version applies only to reset-html-production", "Remove the confirmation flag or select --kind reset-html-production");
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh")) return 1;
 
   /** @type {string} */
@@ -2093,6 +2138,7 @@ Examples:
     .option("--waive", "Record an explicit user decision to skip this gate")
     .option("--only <ids>", "For header risk acceptance: comma-separated slide IDs")
     .option("--reason <text>", "For header risk acceptance: persisted symptom/reason")
+    .option("--plan-hash <hash>", "Exact current HTML content/visual review plan hash")
     .action(async (runDir, gate, opts) => {
       if (!["content", "visual", "header"].includes(gate)) {
         exitUsage("ppt_flow.approve.gate", 'gate must be "content", "visual", or "header".', 'Pass "content", "visual", or "header" as the gate argument');
@@ -2103,7 +2149,7 @@ Examples:
             only: opts.only || null,
             reason: opts.reason || null,
           })
-        : await commandApprove(runDir, gate, { waive: opts.waive ?? false });
+        : await commandApprove(runDir, gate, { waive: opts.waive ?? false, planHash: opts.planHash || null, reason: opts.reason || null });
       process.exit(code);
     });
 
@@ -2217,9 +2263,10 @@ Examples:
     .option("--resolution <res>", "Image resolution", "2k")
     .option("--base-url <url>", "Override API base URL for Stage 2")
     .option("--dry-run", "Print what would be executed")
+    .option("--confirm-run-version <vN>", "Exact run version confirmation for reset-html-production")
     .action(async (runDir, opts) => {
-      if (!["title", "visual", "notes"].includes(opts.kind)) {
-        exitUsage("ppt_flow.refresh.kind", "--kind must be title, visual, or notes.", "Pass --kind title, visual, or notes");
+      if (!["title", "visual", "notes", "reset-html-production"].includes(opts.kind)) {
+        exitUsage("ppt_flow.refresh.kind", "--kind must be title, visual, notes, or reset-html-production.", "Pass a supported refresh kind");
       }
       validateResolution("ppt_flow.refresh.resolution", opts.resolution);
       const code = await commandRefresh(runDir, {
@@ -2229,6 +2276,8 @@ Examples:
         resolution: opts.resolution,
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
+        confirmRunVersion: opts.confirmRunVersion || null,
+        legacyControlsExplicit: process.argv.includes("--resolution"),
       });
       process.exit(code);
     });
@@ -2324,6 +2373,22 @@ Examples:
       } = await import("./lib/state.mjs");
       const resolved = resolve(runDir);
       const deckDir = deckRoot(resolved);
+      const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
+      let htmlFirst = false;
+      if (existsSync(canonicalSource)) {
+        const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./lib/html_slide_contract.mjs");
+        const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
+        if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
+        htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+      }
+      if (opts.checkGates && htmlFirst) {
+        const { inspectHtmlReviewReadiness, recoverHtmlGatePublication } = await import("./lib/html_review_evidence.mjs");
+        recoverHtmlGatePublication(resolved);
+        const readiness = inspectHtmlReviewReadiness(resolved);
+        if (readiness.ready) { console.log("HTML gates OK"); process.exit(0); }
+        const pending = ["content", "visual"].filter((gate) => !readiness.gates?.[gate]?.ready);
+        exitCliError({ code: readiness.conflict ? CLI_ERROR_CODES.FAILED : CLI_ERROR_CODES.GATE_BLOCKED, message: readiness.reason, hint: `Pending HTML review: ${pending.join(", ") || "reset/recovery conflict"}.`, where: "ppt_flow.state.check-html-gates", diagnostic: createGateDiagnostic({ operation: "check-html-gates", source: resolved, issues: pending.map((gate) => ({ message: "authoritative HTML review is pending or stale", subject: { kind: "gate", id: gate }, reason: { kind: "approval_required" } })), defaultText: "Regenerate current HTML review plans and record explicit decisions before Stage 4." }) }, 1);
+      }
       const s = readState(deckDir);
       if (s.corrupted) {
         console.error("State corrupted:", s.errors);

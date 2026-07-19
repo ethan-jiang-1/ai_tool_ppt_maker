@@ -34,10 +34,10 @@ import { validateNotesReceipt } from "./notes_receipt.mjs";
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
 export const HISTORY_FILE = "history.jsonl";
-export const STATE_SCHEMA_VERSION = 2;
+export const STATE_SCHEMA_VERSION = 3;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review"]);
+export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset"]);
 
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
@@ -311,7 +311,7 @@ export function healState(raw) {
     if (isReservedNode(id)) continue;
     state.nodes[id] = normalizeNodeRecord(record, id, state.execution_id, migrationTime, state);
   }
-  for (const gate of ["content", "visual"]) {
+  for (const gate of ["content", "visual", "html_content", "html_visual"]) {
     if (!GATE_STATUSES.includes(state.gates[gate])) {
       if (state.gates[gate] != null) appendDiagnostic(state, `gate ${gate} healed to pending`);
       state.gates[gate] = "pending";
@@ -621,7 +621,7 @@ export function createDefaultState() {
     started_at: "",
     updated_at: "",
     nodes: {},
-    gates: { content: "pending", visual: "pending" },
+    gates: { content: "pending", visual: "pending", html_content: "pending", html_visual: "pending" },
     deck: { name: "", type: "", style: "" },
     playbook_stack: [],
   };
@@ -647,7 +647,7 @@ export function validateState(state) {
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
     if (node?.status === "in_progress" && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
   }
-  for (const gate of ["content", "visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
+  for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
   return { valid: errors.length === 0, errors };
 }
 

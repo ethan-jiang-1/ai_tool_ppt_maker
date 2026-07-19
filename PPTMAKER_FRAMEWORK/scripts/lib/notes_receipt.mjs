@@ -12,8 +12,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 export const NOTES_RECEIPT_VERSION = 2;
+export const HTML_NOTES_RECEIPT_VERSION = 3;
 export const NOTES_RECEIPT_RELATIVE_PATH = join("_generated", "qa", "notes_injection.json");
 export const PPTX_ASSEMBLY_RELATIVE_PATH = join("_generated", "qa", "pptx_assembly.json");
+const SHA256_RE = /^[0-9a-f]{64}$/;
 
 export function notesReceiptPath(runDir) {
   return join(runDir, NOTES_RECEIPT_RELATIVE_PATH);
@@ -102,7 +104,7 @@ export function validatePptxAssemblyReceipt(runDir, {
   const { receipt, error, path } = readAssemblyReceipt(runDir);
   if (error) return { valid: false, reason: error, receipt: null, path };
   try {
-    if (receipt.schema_version !== 1) throw new Error(`unsupported assembly schema ${receipt.schema_version}`);
+    if (![1, 2].includes(receipt.schema_version)) throw new Error(`unsupported assembly schema ${receipt.schema_version}`);
     if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length < 1) {
       throw new Error("assembly ordered_slide_ids are missing");
     }
@@ -127,6 +129,14 @@ export function validatePptxAssemblyReceipt(runDir, {
       if (sha256File(imagePath) !== image.sha256) {
         throw new Error(`assembly final image hash is stale for ${image.slide_id}`);
       }
+      if (receipt.schema_version === 2) {
+        if (image.artifact_kind !== "final-slide" || typeof image.producer !== "string" || !image.producer || !SHA256_RE.test(image.final_slide_fingerprint || "") || !Number.isInteger(image.width) || image.width <= 0 || !Number.isInteger(image.height) || image.height <= 0 || typeof image.media_profile !== "string" || !image.media_profile) throw new Error(`assembly common final-slide evidence is invalid for ${image.slide_id}`);
+      }
+    }
+    if (receipt.schema_version === 2) {
+      const html = receipt.pipeline === "html-first-v1";
+      if (html && ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || ""))) throw new Error("HTML assembly reset/delivery lineage is invalid");
+      if (!html && (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null)) throw new Error("legacy assembly cannot carry HTML reset/delivery lineage");
     }
     if (requireCurrentPptx && sha256File(pptxPath) !== receipt.pptx_sha256) {
       throw new Error("assembled PPTX hash is stale");
@@ -174,6 +184,20 @@ function validateV2Shape(receipt) {
   if (!receipt.root_assembly || typeof receipt.root_assembly !== "object") {
     throw new Error("root assembly lineage is missing");
   }
+}
+
+function validateV3Shape(receipt) {
+  if (receipt.schema_version !== HTML_NOTES_RECEIPT_VERSION || receipt.pipeline !== "html-first-v1" || typeof receipt.producer !== "string" || !receipt.producer) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
+  if (!Number.isInteger(receipt.slide_count) || receipt.slide_count < 1 || receipt.notes_injected !== receipt.slide_count) throw new Error("invalid HTML notes counts");
+  if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length !== receipt.slide_count || new Set(receipt.ordered_slide_ids).size !== receipt.ordered_slide_ids.length) throw new Error("invalid HTML notes ordered IDs");
+  if ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || "")) throw new Error("invalid HTML notes reset/delivery lineage");
+  if (!receipt.root_assembly || typeof receipt.root_assembly !== "object" || receipt.root_assembly.schema_version !== 2) throw new Error("HTML root assembly lineage is missing");
+  if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) throw new Error("invalid created_at");
+}
+
+function validateKnownShape(receipt) {
+  if (receipt?.schema_version === HTML_NOTES_RECEIPT_VERSION) validateV3Shape(receipt);
+  else validateV2Shape(receipt);
 }
 
 function validateRootAssembly(runDir, receipt) {
@@ -235,6 +259,40 @@ export function buildNotesReceipt({
   };
 }
 
+export function buildHtmlNotesReceipt({ runDir, inputPath, planPath, pptxPath, orderedSlideIds, slideCount, notesInjected, assembly, predecessor = null }) {
+  if (!assembly?.valid || assembly.receipt?.schema_version !== 2 || assembly.receipt.pipeline !== "html-first-v1") throw new Error("HTML notes require a current schema-v2 HTML assembly");
+  if (!Number.isInteger(slideCount) || slideCount < 1 || notesInjected !== slideCount || !sameArray(orderedSlideIds, assembly.orderedIds)) throw new Error("HTML notes IDs/counts must match current assembly");
+  return {
+    schema_version: HTML_NOTES_RECEIPT_VERSION,
+    pipeline: "html-first-v1",
+    producer: assembly.receipt.producer,
+    input_path: normalizedRelative(runDir, inputPath),
+    input_sha256: sha256File(inputPath),
+    slide_plan_path: normalizedRelative(runDir, planPath),
+    slide_plan_sha256: sha256File(planPath),
+    pptx_path: normalizedRelative(runDir, pptxPath),
+    pptx_sha256: sha256File(pptxPath),
+    ordered_slide_ids: [...orderedSlideIds],
+    slide_count: slideCount,
+    notes_injected: notesInjected,
+    html_production_reset_id: assembly.receipt.html_production_reset_id,
+    html_delivery_digest: assembly.receipt.html_delivery_digest,
+    root_assembly: {
+      schema_version: 2,
+      receipt_path: normalizedRelative(runDir, assembly.receiptPath),
+      receipt_sha256: assembly.receiptSha256,
+      slide_plan_sha256: assembly.receipt.slide_plan_sha256,
+      ordered_slide_ids: [...assembly.orderedIds],
+      assembled_pptx_path: assembly.receipt.pptx_path,
+      assembled_pptx_sha256: assembly.receipt.pptx_sha256,
+      html_production_reset_id: assembly.receipt.html_production_reset_id,
+      html_delivery_digest: assembly.receipt.html_delivery_digest,
+    },
+    predecessor: predecessor ? { receipt_schema_version: predecessor.receipt.schema_version, receipt_sha256: predecessor.receiptSha256, input_pptx_sha256: predecessor.inputPptxSha256 } : null,
+    created_at: new Date().toISOString(),
+  };
+}
+
 export function writeNotesReceiptAtomic(runDir, receipt) {
   const path = notesReceiptPath(runDir);
   const dir = dirname(path);
@@ -251,7 +309,7 @@ export function validateNotesCompletionReceipt(runDir) {
   const hint = "Rerun Stage 5 through unified_pipeline/ppt_flow for the current run directory";
   if (error) return { valid: false, reason: error, hint, receipt: null };
   try {
-    validateV2Shape(receipt);
+    validateKnownShape(receipt);
     const inputPath = resolveContainedExisting(runDir, receipt.input_path);
     const planPath = resolveContainedExisting(runDir, receipt.slide_plan_path);
     const pptxPath = resolveContainedExisting(runDir, receipt.pptx_path);
@@ -260,7 +318,8 @@ export function validateNotesCompletionReceipt(runDir) {
     if (sha256File(pptxPath) !== receipt.pptx_sha256) throw new Error("PPTX hash is stale");
     const planIds = orderedIdsFromPlan(planPath);
     if (!sameArray(planIds, receipt.ordered_slide_ids)) throw new Error("ordered IDs differ from current slide plan");
-    validateRootAssembly(runDir, receipt);
+    const assembly = validateRootAssembly(runDir, receipt);
+    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== "html-first-v1" || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("HTML notes assembly reset/delivery lineage differs");
     return { valid: true, reason: "current", hint: "", receipt, inputPath, planPath, pptxPath };
   } catch (validationError) {
     return { valid: false, reason: validationError.message, hint, receipt };
@@ -280,7 +339,7 @@ export function validateNotesRerunInputLineage(runDir, {
   const hint = "Re-establish Stage 4 assembly lineage before rerunning Stage 5";
   if (error) return { valid: false, reason: error, hint, receipt: null };
   try {
-    validateV2Shape(receipt);
+    validateKnownShape(receipt);
     const currentPptx = pptxPath || resolveContainedExisting(runDir, receipt.pptx_path);
     const currentPlan = planPath || resolveContainedExisting(runDir, receipt.slide_plan_path);
     // Explicit caller paths must still be contained.
@@ -294,6 +353,7 @@ export function validateNotesRerunInputLineage(runDir, {
       throw new Error("requested ordered IDs differ from prior notes lineage");
     }
     const assembly = validateRootAssembly(runDir, receipt);
+    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== "html-first-v1" || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("HTML notes rerun reset/delivery lineage differs");
     return {
       valid: true,
       reason: "current rerun input lineage",
