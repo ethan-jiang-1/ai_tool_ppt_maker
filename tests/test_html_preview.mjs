@@ -18,7 +18,7 @@ describe('HTML preview review-plan contract', () => {
       const manifest = readHtmlPreviewManifest(htmlOwnerRoot(fixture.runDir, 'preview'), { publicationScope: 'canonical-run', htmlProductionResetId: null, logicalRunVersion: 'v1' });
       expect(manifest.manifest.review_plans.content.path).toBe(`plans/${result.reviewPlan.plan_hash}.json`);
       expect(manifest.manifest.review_plans.visual).toBeNull();
-      expect(buildHtmlReviewPlan({ plan, kind: 'visual', logicalRunVersion: 'v1' })).toMatchObject({ approvable: false, outstanding: ['artifact:HeroGo'] });
+      expect(buildHtmlReviewPlan({ plan, kind: 'visual', logicalRunVersion: 'v1' })).toMatchObject({ approvable: false, outstanding: ['effective:HeroGo'], coverage: { complete: false } });
       expect(() => buildHtmlReviewPlan({ plan, kind: 'content', logicalRunVersion: 'v1', publicationScope: 'migration-preview', htmlProductionResetId: 'a'.repeat(64) })).toThrow(/null reset/);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

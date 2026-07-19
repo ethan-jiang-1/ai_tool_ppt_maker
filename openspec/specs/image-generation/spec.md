@@ -8,42 +8,30 @@ No external agent skills. No Python. No bash.
 ## Requirements
 ### Requirement: Stage 2 is implemented inside the framework
 
-Stage 2 SHALL be implemented by Node ESM modules under `PPTMAKER_FRAMEWORK/scripts/`. The unified pipeline SHALL call these modules directly, not discover external skills.
+Image2 generation SHALL remain an in-framework Node ESM capability under `PPTMAKER_FRAMEWORK/scripts/`, with `resolveVendors`, `stage2_generate_images.mjs`, `image_api_client.mjs`, and its existing submit/poll/download/error contract. It SHALL be the Stage-2 implementation only for the markerless legacy branch. Unified/public orchestration SHALL probe the canonical production marker before stage dispatch, option validation, credential/style-reference resolution, or writes: markerless Stage 2 delegates to the Image2 generator, while `html-first-v1` Stage 2 delegates to `stage2_render_html.mjs` and SHALL not import or initialize the Image2 adapter.
 
-Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors`) into a single `{ base_url, api_key }` entry. The key is `IMAGE2_API_KEY`; the base URL is `IMAGE2_BASE_URL`, with CLI `--base-url` taking priority. These variables are for **image generation only**, not chat LLMs. Missing key or URL SHALL produce a clear error naming the missing variable.
+Direct legacy Image2 invocation and markerless public routes SHALL retain `IMAGE2_API_KEY`, `IMAGE2_BASE_URL`, and direct legacy `--base-url` semantics. HTML public/direct renderer routes SHALL reject provider/base-url/model/style-reference options before readiness or writes. Missing credentials and provider failures SHALL retain the existing secret-safe Image2 diagnostics only when the legacy generator is actually selected.
 
-`generateOneImage` SHALL submit the image request, poll if async, and save the result. On failure it SHALL throw an `ImageProviderError` with host, reason, and HTTP status where known. Sync vs async SHALL remain one thin post-submit branch: if `extractImageRef` yields an image, save it; else if a task id exists, poll; else fail that attempt. Output shapes (`url`, `b64_json`, poll-embedded URL) SHALL continue through one extract helper.
+#### Scenario: Markerless Stage 2 uses Image2
 
-#### Scenario: Pipeline uses in-framework generator
+- **WHEN** unified pipeline selects Stage 2 for a markerless legacy run
+- **THEN** it delegates to `stage2_generate_images.mjs` with existing Image2 resolution
 
-- **WHEN** `unified_pipeline.mjs --stage 2` runs
-- **THEN** Stage 2 uses `stage2_generate_images.mjs` with Image2-resolved credentials
+#### Scenario: HTML Stage 2 uses local renderer
 
-#### Scenario: Missing base URL fails at resolve time
+- **WHEN** unified pipeline selects Stage 2 for an `html-first-v1` run
+- **THEN** it delegates to `stage2_render_html.mjs`
+- **AND** does not resolve credentials, style master, provider URL, or Image2 modules
 
-- **WHEN** Stage 2 runs with `IMAGE2_API_KEY` set but no `IMAGE2_BASE_URL`
-- **THEN** resolution fails naming `IMAGE2_BASE_URL`
+#### Scenario: HTML receives legacy base-url override
 
-#### Scenario: CLI --base-url overrides IMAGE2_BASE_URL
+- **WHEN** an HTML public build/preview receives `--base-url`
+- **THEN** it returns `USAGE` before renderer/provider readiness or writes
 
-- **WHEN** `--base-url https://custom.example/v1` is passed and `IMAGE2_API_KEY` is set
-- **THEN** the custom URL is used instead of `IMAGE2_BASE_URL`
+#### Scenario: Legacy provider behavior remains compatible
 
-#### Scenario: Missing API key fails at resolve time
-
-- **WHEN** Stage 2 runs with `IMAGE2_BASE_URL` set but no `IMAGE2_API_KEY`
-- **THEN** resolution fails naming `IMAGE2_API_KEY`
-
-#### Scenario: Provider failure surfaces host and reason
-
-- **WHEN** the image provider returns an error
-- **THEN** the `ImageProviderError` includes host, reason, and HTTP status where known
-- **AND** no credential values or raw response bodies appear in the error
-
-#### Scenario: Sync submit success without task_id
-
-- **WHEN** submit returns an extractable image ref and no task id
-- **THEN** the client saves the image without polling
+- **WHEN** the markerless generator receives sync output, async task output, or a provider failure
+- **THEN** it retains the existing shared extract/poll/save or secret-safe `ImageProviderError` behavior
 
 ### Requirement: Submit and poll accept data-array response envelopes
 
@@ -61,7 +49,7 @@ Image credentials SHALL be resolved by a single SSOT helper (`resolveVendors`) i
 
 ### Requirement: Image2 smoke, persist secrets to .env, lessons to _lessons/
 
-Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-tool-selection.md`) SHALL require the Agent to verify `IMAGE2_API_KEY` and `IMAGE2_BASE_URL` through offline `doctor --image2` before offering a live diagnostic. `doctor --smoke` SHALL be the cheap first-vendor channel diagnostic; entry docs SHALL disclose its one expected provider submit and obtain human confirmation before invocation. `style-master ... --force --resolution 1k` SHALL NOT be presented as an interchangeable channel-health probe because it creates a real production reference asset.
+Framework entry docs (`BOOTSTRAP.md` and Image2 SSOT `workflow/00-setup/03-runtime-and-tools.md`) SHALL require the Agent to verify `IMAGE2_API_KEY` and `IMAGE2_BASE_URL` through offline `doctor --image2` before offering a live diagnostic. `doctor --smoke` SHALL be the cheap first-vendor channel diagnostic; entry docs SHALL disclose its one expected provider submit and obtain human confirmation before invocation. `style-master ... --force --resolution 1k` SHALL NOT be presented as an interchangeable channel-health probe because it creates a real production reference asset.
 
 When image-path symptoms persist, entry docs SHALL offer channel体检 in plain language. Before `doctor --probe-vendors`, they SHALL disclose the locally resolved vendor count and one submit per vendor and obtain confirmation. Declining either live probe SHALL make zero provider submits and SHALL NOT invalidate offline readiness evidence. Probe success SHALL prove channel health only and SHALL NOT authorize later production work.
 
@@ -87,7 +75,7 @@ Entry docs SHALL describe `_lessons/` as the general retained-lessons surface an
 
 #### Scenario: Persist docs name _lessons as general surface
 
-- **WHEN** an Agent follows BOOTSTRAP or `03-tool-selection` after a successful confirmed smoke
+- **WHEN** an Agent follows BOOTSTRAP or `03-runtime-and-tools` after a successful confirmed smoke
 - **THEN** those docs offer the non-secret receipt under `_lessons/` as one lesson among possible lessons, not under `_state/` or as chat-only
 - **AND** they do not describe `_lessons/` as an Image2-only directory
 
@@ -99,13 +87,34 @@ Entry docs SHALL describe `_lessons/` as the general retained-lessons surface an
 
 ### Requirement: Contact sheet is in-framework
 
-After image generation, the pipeline SHALL produce a contact sheet using
-`make_contact_sheet.mjs` (`@napi-rs/canvas`), not an external skill.
+Contact-sheet production SHALL remain in-framework using `make_contact_sheet.mjs` and `@napi-rs/canvas`, never an external skill. For HTML-first final-slide delivery/review, orchestration SHALL pass plan-ordered common verified final-slide entries to a provider-neutral builder that does not understand a private render engine/manifest. For markerless legacy Stage 2, the existing raw-image contact-sheet interface and timing SHALL remain unchanged; it SHALL not be reclassified as provider-neutral final-slide evidence.
 
-#### Scenario: Contact sheet written under preview/
+For markerless legacy Stage 2, the existing contact sheet SHALL remain under `_generated/preview/` with its existing raw provenance. For canonical `html-first-v1`, production/review contact-sheet objects and current manifest SHALL be under `_generated/html_production/preview/`; migration comparison sheets SHALL remain under the projected-run scratch owner. HTML production SHALL not write the legacy preview path as authority. Each HTML sheet entry/receipt SHALL bind exact `publication_scope`, nullable `html_production_reset_id` (current for canonical, null for migration preview), ordered IDs, final-slide fingerprints/SHAs, composition variants, dimensions/profile, and delivery or review digest. The rendered contact-sheet image bytes SHALL exclude publication scope, reset ID, and physical workspace path so migration preview and hidden canonical rerender can have the same SHA. Only canonical current-reset effective variants may enter an authoritative delivery contact sheet; forced-fallback variants are permitted only in explicitly labeled review evidence, and migration-preview sheets may satisfy only their hash-bound comparison transaction.
 
-- **WHEN** Stage 2 completes successfully
-- **THEN** a JPEG contact sheet is written under `_generated/preview/`
+HTML contact-sheet publication SHALL update only `pptmaker-html-preview-manifest-v1` slot `contact_sheets.visual_review` or `contact_sheets.delivery` as applicable, through the same-scope/reset preview owner's atomic merge/revalidation. It SHALL not overwrite `review_plans.content|visual`, and it SHALL clear any carried slot whose referenced bytes/inputs/scope/reset ID no longer verify. Consumers SHALL not infer currentness from an object file, the other contact-sheet slot, a pre-reset slot, or a migration-preview manifest.
+
+#### Scenario: Legacy Stage 2 completes
+
+- **WHEN** markerless legacy image generation completes successfully
+- **THEN** its JPEG contact sheet remains under `_generated/preview/`
+
+#### Scenario: HTML final slides complete
+
+- **WHEN** current effective HTML final slides exist for the ordered plan
+- **THEN** the provider-neutral builder publishes the delivery contact sheet under `_generated/html_production/preview/`
+- **AND** no legacy Stage-2 directory or provider interface is required
+
+#### Scenario: Forced-fallback review sheet is requested
+
+- **WHEN** selected pages require fallback review
+- **THEN** their forced-fallback objects may appear only in a review-labeled contact sheet and evidence digest
+- **AND** that sheet cannot satisfy delivery readiness
+
+#### Scenario: Delivery and visual-review sheets coexist
+
+- **WHEN** both remain fresh after delivery-sheet publication
+- **THEN** preview manifest retains separate current references for review and delivery
+- **AND** each consumer resolves only its owning slot
 
 ### Requirement: No external skill dependency
 

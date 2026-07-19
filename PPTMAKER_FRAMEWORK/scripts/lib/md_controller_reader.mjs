@@ -19,16 +19,23 @@ import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse } from "yaml";
 
-export const LIFECYCLE_PHASES = Object.freeze(["0", "1", "2", "2.7", "3", "4"]);
+export const LIFECYCLE_PHASES = Object.freeze(["0", "1", "2", "3", "4", "5"]);
 export const METHOD_MODULES = Object.freeze([
   "00-setup",
-  "01-visual",
-  "02-content",
-  "03-prompts",
-  "04-production",
+  "01-content",
+  "02-visual-system",
+  "03-html-production",
+  "04-image2-refinement",
   "05-iteration",
 ]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review"]);
+export const RESERVED_NODE_IDS = Object.freeze([
+  "header-review",
+  "html-content-review",
+  "html-visual-review",
+  "html-delivery-review",
+  "html-production-reset",
+]);
+export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "legacy-image2-first"]);
 
 const DETERMINISTIC_CONDITIONS = new Set([
   "run_bundle_exists",
@@ -97,6 +104,7 @@ export function parseControllerFile(filePath) {
   const errors = fm.error ? [fm.error] : [];
   const playbook = fm.data.playbook == null ? "" : String(fm.data.playbook);
   const includes = asStringArray(fm.data.includes);
+  const supportedPipelines = asStringArray(fm.data.supported_pipelines);
   const nodes = [];
 
   if (fm.data.node) {
@@ -141,6 +149,7 @@ export function parseControllerFile(filePath) {
     source: filePath,
     playbook,
     includes,
+    supportedPipelines,
     nodes,
     errors,
   };
@@ -211,6 +220,9 @@ function validateNodeShape(node, errors) {
   if (!METHOD_MODULES.includes(node.methodModule)) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
   }
+  if (node.lifecyclePhase === "4" || node.methodModule === "04-image2-refinement") {
+    addError(errors, node, "unavailable-phase", "Change 3 does not permit executable Phase 4 / 04-image2-refinement nodes");
+  }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
   }
@@ -274,6 +286,18 @@ export function validatePlaybookIndex(index) {
   }
 
   for (const controller of index.controllers.values()) {
+    if (controller.supportedPipelines.length === 0) {
+      errors.push({ rule: "supported-pipelines", source: controller.source, line: 1, message: "controller must declare supported_pipelines" });
+    }
+    for (const pipeline of controller.supportedPipelines) {
+      if (!SUPPORTED_PIPELINES.includes(pipeline)) {
+        errors.push({ rule: "supported-pipelines", source: controller.source, line: 1, message: `unsupported pipeline ${pipeline}` });
+      }
+    }
+    if (controller.playbook === "legacy-image2-maintenance" &&
+        (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "legacy-image2-first")) {
+      errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "legacy-image2-maintenance must be markerless-only" });
+    }
     const available = new Map();
     for (const include of controller.includes) {
       const shared = index.shared.get(include);

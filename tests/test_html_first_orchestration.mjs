@@ -178,6 +178,13 @@ describe("HTML-first orchestration boundaries", () => {
       const localBuild = run(FLOW, ["build", fixture.runDir, "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
       expect(localBuild.status, localBuild.stderr).toBe(0);
       expect(localBuild.stdout).toContain("HTML Stage 5");
+      const localPilot = run(FLOW, ["pilot", fixture.runDir, "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
+      expect(localPilot.status, localPilot.stderr).toBe(0);
+      expect(localPilot.stdout).toContain("HTML Stage 3");
+      const localDeckRefresh = run(FLOW, ['refresh', fixture.runDir, '--kind', 'visual', '--all', '--dry-run'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(localDeckRefresh.status, localDeckRefresh.stderr).toBe(0);
+      const refreshProvider = run(FLOW, ['refresh', fixture.runDir, '--kind', 'visual', '--all', '--base-url', 'https://provider.invalid']);
+      expect(refreshProvider.status).toBe(1);
       const provider = run(UNIFIED, ["--run-dir", fixture.runDir, "--stage", "2", "--base-url", "https://provider.invalid", "--dry-run"], { OPENAI_API_KEY: "", GEMINI_API_KEY: "" });
       expect(provider.status).toBe(1);
       expect(lastEnvelope(provider)?.code).toBe("USAGE");
@@ -193,7 +200,7 @@ describe("HTML-first orchestration boundaries", () => {
     const fixture = createHtmlFirstRun("html-local-build-");
     try {
       writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: 'Ready for delivery' })]));
-      const preview = run(UNIFIED, ['--run-dir', fixture.runDir, '--stage', '1,2,3'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      const preview = run(FLOW, ['pilot', fixture.runDir], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
       expect(preview.status, preview.stderr || preview.stdout).toBe(0);
       const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
       const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
@@ -205,6 +212,23 @@ describe("HTML-first orchestration boundaries", () => {
       expect(built.status, built.stderr || built.stdout).toBe(0);
       expect(existsSync(join(fixture.runDir, '_generated', 'ppt', 'deck.pptx'))).toBe(true);
       expect(existsSync(join(fixture.runDir, '_generated', 'qa', 'notes_injection.json'))).toBe(true);
+
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ title: 'Locally changed', note: 'Ready for delivery' })]));
+      const refreshed = run(FLOW, ['refresh', fixture.runDir, '--kind', 'title', '--only', 'HeroGo'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(refreshed.status, refreshed.stderr || refreshed.stdout).toBe(0);
+      expect(refreshed.stdout).toContain('HTML review required');
+      const afterEdit = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(afterEdit.gates.content.ready).toBe(false);
+      expect(afterEdit.gates.visual.ready).toBe(true);
+      const contentReapproval = run(FLOW, ['approve', fixture.runDir, 'content', '--plan-hash', afterEdit.gates.content.plan.plan_hash]);
+      expect(contentReapproval.status, contentReapproval.stderr || contentReapproval.stdout).toBe(0);
+      const delivered = run(FLOW, ['refresh', fixture.runDir, '--kind', 'title', '--only', 'HeroGo'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(delivered.status, delivered.stderr || delivered.stdout).toBe(0);
+      expect(delivered.stdout).toContain('HTML Stage 5');
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ title: 'Locally changed', note: 'Updated notes only' })]));
+      const notesOnly = run(FLOW, ['refresh', fixture.runDir, '--kind', 'notes'], { OPENAI_API_KEY: '', GEMINI_API_KEY: '' });
+      expect(notesOnly.status, notesOnly.stderr || notesOnly.stdout).toBe(0);
+      expect(notesOnly.stdout).toContain('HTML Stage 5');
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

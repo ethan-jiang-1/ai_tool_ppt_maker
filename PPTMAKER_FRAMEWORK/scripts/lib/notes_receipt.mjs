@@ -187,10 +187,12 @@ function validateV2Shape(receipt) {
 }
 
 function validateV3Shape(receipt) {
-  if (receipt.schema_version !== HTML_NOTES_RECEIPT_VERSION || receipt.pipeline !== "html-first-v1" || typeof receipt.producer !== "string" || !receipt.producer) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
+  if (receipt.schema_version !== HTML_NOTES_RECEIPT_VERSION || !["html-first-v1", "legacy-image2-v1"].includes(receipt.pipeline) || typeof receipt.producer !== "string" || !receipt.producer) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
   if (!Number.isInteger(receipt.slide_count) || receipt.slide_count < 1 || receipt.notes_injected !== receipt.slide_count) throw new Error("invalid HTML notes counts");
   if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length !== receipt.slide_count || new Set(receipt.ordered_slide_ids).size !== receipt.ordered_slide_ids.length) throw new Error("invalid HTML notes ordered IDs");
-  if ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || "")) throw new Error("invalid HTML notes reset/delivery lineage");
+  if (receipt.pipeline === "html-first-v1") {
+    if ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || "")) throw new Error("invalid HTML notes reset/delivery lineage");
+  } else if (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null) throw new Error("legacy notes cannot carry HTML reset/delivery lineage");
   if (!receipt.root_assembly || typeof receipt.root_assembly !== "object" || receipt.root_assembly.schema_version !== 2) throw new Error("HTML root assembly lineage is missing");
   if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) throw new Error("invalid created_at");
 }
@@ -232,6 +234,21 @@ export function buildNotesReceipt({
   if (!Number.isInteger(slideCount) || slideCount < 1) throw new Error("slide_count must be a positive integer");
   if (!Number.isInteger(notesInjected) || notesInjected !== slideCount) throw new Error("notes_injected must equal slide_count");
   if (!sameArray(orderedSlideIds, assembly?.orderedIds)) throw new Error("notes IDs must match root assembly IDs");
+  if (assembly.receipt.schema_version === 2) {
+    return {
+      schema_version: HTML_NOTES_RECEIPT_VERSION,
+      pipeline: assembly.receipt.pipeline,
+      producer: assembly.receipt.producer,
+      input_path: normalizedRelative(runDir, inputPath), input_sha256: sha256File(inputPath),
+      slide_plan_path: normalizedRelative(runDir, planPath), slide_plan_sha256: sha256File(planPath),
+      pptx_path: normalizedRelative(runDir, pptxPath), pptx_sha256: sha256File(pptxPath),
+      ordered_slide_ids: [...orderedSlideIds], slide_count: slideCount, notes_injected: notesInjected,
+      html_production_reset_id: null, html_delivery_digest: null,
+      root_assembly: { schema_version: 2, receipt_path: normalizedRelative(runDir, assembly.receiptPath), receipt_sha256: assembly.receiptSha256, slide_plan_sha256: assembly.receipt.slide_plan_sha256, ordered_slide_ids: [...assembly.orderedIds], assembled_pptx_path: assembly.receipt.pptx_path, assembled_pptx_sha256: assembly.receipt.pptx_sha256, html_production_reset_id: null, html_delivery_digest: null },
+      predecessor: predecessor ? { receipt_schema_version: predecessor.receipt.schema_version, receipt_sha256: predecessor.receiptSha256, input_pptx_sha256: predecessor.inputPptxSha256 } : null,
+      created_at: new Date().toISOString(),
+    };
+  }
   return {
     schema_version: NOTES_RECEIPT_VERSION,
     input_path: normalizedRelative(runDir, inputPath),
@@ -319,7 +336,7 @@ export function validateNotesCompletionReceipt(runDir) {
     const planIds = orderedIdsFromPlan(planPath);
     if (!sameArray(planIds, receipt.ordered_slide_ids)) throw new Error("ordered IDs differ from current slide plan");
     const assembly = validateRootAssembly(runDir, receipt);
-    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== "html-first-v1" || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("HTML notes assembly reset/delivery lineage differs");
+    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== receipt.pipeline || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("v3 notes assembly reset/delivery lineage differs");
     return { valid: true, reason: "current", hint: "", receipt, inputPath, planPath, pptxPath };
   } catch (validationError) {
     return { valid: false, reason: validationError.message, hint, receipt };
@@ -353,7 +370,7 @@ export function validateNotesRerunInputLineage(runDir, {
       throw new Error("requested ordered IDs differ from prior notes lineage");
     }
     const assembly = validateRootAssembly(runDir, receipt);
-    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== "html-first-v1" || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("HTML notes rerun reset/delivery lineage differs");
+    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && (assembly.receipt.pipeline !== receipt.pipeline || assembly.receipt.html_production_reset_id !== receipt.html_production_reset_id || assembly.receipt.html_delivery_digest !== receipt.html_delivery_digest)) throw new Error("v3 notes rerun reset/delivery lineage differs");
     return {
       valid: true,
       reason: "current rerun input lineage",

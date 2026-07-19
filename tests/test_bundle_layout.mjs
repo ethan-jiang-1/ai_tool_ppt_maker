@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import {
   initBundle,
+  initLegacyBundle,
+  initHtmlFirstBundle,
   renderTree,
   selfCheck,
   checkBundle,
@@ -24,8 +26,10 @@ import {
   STATE_FILE,
   STATE_DIR_README,
 } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
+import { validateHtmlFirstRun } from '../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_contract.mjs';
 
 const BUNDLE = 'PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs';
+const PPT_FLOW = 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs';
 const TEST_DECK = join(tmpdir(), `deck_test_${Date.now()}`);
 
 function run(cmd) {
@@ -46,7 +50,61 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
-  it('all init templates seed full-page policy without per-slide mode requirements', () => {
+  it('seeds HTML-first runs by default and keeps legacy scaffolding explicit', () => {
+    const legacy = join(tmpdir(), `deck_legacy_seed_${Date.now()}`);
+    try {
+      for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
+        const deck = join(tmpdir(), `deck_html_seed_${deckType || 'generic'}_${Date.now()}`);
+        try {
+          initHtmlFirstBundle(deck, null, deckType, 'dark-executive');
+          const runDir = join(deck, '3_versions', 'v1');
+          const htmlSource = readFileSync(join(runDir, 'slide-specifications.md'), 'utf8');
+          expect(htmlSource).toContain('pipeline: html-first-v1');
+          expect(htmlSource).toContain('scheme: mnemonic-v1');
+          expect(htmlSource).not.toMatch(/^render:|\*\*(?:RENDER MODE|IMAGE PROMPT|VISUAL ASSETS)\*\*/m);
+          expect(() => validateHtmlFirstRun({ runDir })).not.toThrow();
+          expect(readFileSync(join(deck, '2_backbone', 'visual-style', 'assets', 'asset-manifest.yaml'), 'utf8')).toBe('version: 2\nassets: {}\n');
+          const assetsReadme = readFileSync(join(deck, '2_backbone', 'visual-style', 'assets', 'README.md'), 'utf8');
+          expect(assetsReadme).toContain('primary_visual.fallback');
+          expect(assetsReadme).toContain('typed block');
+          expect(assetsReadme).toContain('SHA-256');
+          expect(assetsReadme).not.toContain('**VISUAL ASSETS**');
+          const metadata = readFileSync(join(deck, 'project-metadata.yaml'), 'utf8');
+          expect(metadata).toContain('content_gate: pending');
+          expect(metadata).toContain('visual_gate: pending');
+          expect(metadata).toContain('html_content_gate: pending');
+          expect(metadata).toContain('html_content_gate_run_version: v1');
+          expect(metadata).toContain('html_visual_gate: pending');
+          expect(metadata).toContain('html_visual_gate_run_version: v1');
+          expect(metadata).not.toContain('html_run_version:');
+          const state = readState(deck);
+          expect(state.gates).toMatchObject({
+            content: 'pending',
+            visual: 'pending',
+            html_content: 'pending',
+            html_content_run_version: 'v1',
+            html_visual: 'pending',
+            html_visual_run_version: 'v1',
+          });
+          expect(state.nodes['html-production-reset']).toBeUndefined();
+          expect(existsSync(join(deck, '_state', 'README.md'))).toBe(true);
+          expect(existsSync(join(deck, '_lessons', 'README.md'))).toBe(true);
+          expect(existsSync(join(runDir, '_generated', 'html_production'))).toBe(false);
+          expect(existsSync(join(runDir, '_generated', 'page_prompts'))).toBe(false);
+          expect(existsSync(join(runDir, '_generated', 'raw_images'))).toBe(false);
+          expect(existsSync(join(runDir, '_generated', 'final_slides'))).toBe(false);
+          expect(existsSync(join(runDir, '_scratch', 'image2_refinement'))).toBe(false);
+          expect(existsSync(join(runDir, '_generated', 'image2_refinement'))).toBe(false);
+          expect(existsSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'))).toBe(false);
+        } finally { rmSync(deck, { recursive: true, force: true }); }
+      }
+      initLegacyBundle(legacy, null, 'keynote', 'dark-executive');
+      expect(readFileSync(join(legacy, '3_versions', 'v1', 'slide-specifications.md'), 'utf8')).not.toContain('pipeline: html-first-v1');
+    } finally {
+      rmSync(legacy, { recursive: true, force: true });
+    }
+  });
+  it('all init templates seed a valid HTML-first structured starter', () => {
     for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
       const deck = join(tmpdir(), `deck_render_policy_${deckType || 'generic'}_${Date.now()}`);
       try {
@@ -55,9 +113,9 @@ describe('bundle_layout', () => {
           join(deck, '3_versions', 'v1', 'slide-specifications.md'),
           'utf-8'
         );
-        expect(specs).toMatch(/render:\s*\n\s+default: full-page\s*\n\s+header-lock: \[\]/);
+        expect(specs).toContain('pipeline: html-first-v1');
         expect(specs).toMatch(/identity:\s*\n\s+scheme: mnemonic-v1/);
-        expect(specs).not.toMatch(/加显式 `RENDER MODE`|每页声明 RENDER MODE/);
+        expect(specs).not.toMatch(/\*\*(?:RENDER MODE|IMAGE PROMPT|VISUAL ASSETS)\*\*/);
       } finally {
         rmSync(deck, { recursive: true, force: true });
       }
@@ -246,6 +304,77 @@ describe('bundle_layout', () => {
     }
   });
 
+  it('preserves historical markerless catalogs and absent optional scaffolding without mutation', () => {
+    for (const catalogMode of ['absent', 'v1']) {
+      const deck = join(tmpdir(), `deck_legacy_catalog_${catalogMode}_${Date.now()}`);
+      try {
+        initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+        const v1 = join(deck, '3_versions', 'v1');
+        const assets = join(deck, '2_backbone', 'visual-style', 'assets');
+        rmSync(join(deck, '_state'), { recursive: true, force: true });
+        if (catalogMode === 'absent') rmSync(assets, { recursive: true, force: true });
+        const catalogPath = join(assets, 'asset-manifest.yaml');
+        const beforeCatalog = existsSync(catalogPath) ? readFileSync(catalogPath) : null;
+        expect(checkBundle(v1, false)).toEqual([]);
+        const status = spawnSync('node', [PPT_FLOW, 'status', v1, '--json'], { encoding: 'utf8', timeout: 15_000 });
+        expect(status.status, status.stderr || status.stdout).toBe(0);
+        expect(JSON.parse(status.stdout)).toMatchObject({ pipeline: 'legacy-image2-first', state_present: false, html_reviews: null });
+        expect(existsSync(join(deck, '_state'))).toBe(false);
+        expect(existsSync(catalogPath) ? readFileSync(catalogPath) : null).toEqual(beforeCatalog);
+      } finally {
+        rmSync(deck, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('rejects opposite-branch generated owners instead of treating them as readiness', () => {
+    const htmlDeck = join(tmpdir(), `deck_html_opposite_${Date.now()}`);
+    const legacyDeck = join(tmpdir(), `deck_legacy_opposite_${Date.now()}`);
+    try {
+      initHtmlFirstBundle(htmlDeck, null, 'keynote', 'dark-executive');
+      const htmlRun = join(htmlDeck, '3_versions', 'v1');
+      mkdirSync(join(htmlRun, '_generated', 'page_images_full'), { recursive: true });
+      writeFileSync(join(htmlRun, '_generated', 'page_images_full', 'KeyGo.png'), 'not-authority');
+      const htmlIssues = checkBundle(htmlRun, false);
+      expect(htmlIssues).toContain("legacy generated owner 'page_images_full/' is inapplicable to html-first-v1");
+      const htmlStatus = spawnSync('node', [PPT_FLOW, 'status', htmlRun, '--json'], { encoding: 'utf8', timeout: 15_000 });
+      expect(htmlStatus.status).toBe(1);
+      expect(JSON.parse(htmlStatus.stdout)).toMatchObject({ pipeline: 'html-first-v1', raw_images: 0, content_gate: 'pending', visual_gate: 'pending' });
+
+      initLegacyBundle(legacyDeck, null, 'keynote', 'dark-executive');
+      const legacyRun = join(legacyDeck, '3_versions', 'v1');
+      mkdirSync(join(legacyRun, '_generated', 'html_production', 'final_slides', 'objects'), { recursive: true });
+      expect(checkBundle(legacyRun, false)).toContain(
+        "HTML generated owner 'html_production/' is inapplicable to markerless legacy production"
+      );
+    } finally {
+      rmSync(htmlDeck, { recursive: true, force: true });
+      rmSync(legacyDeck, { recursive: true, force: true });
+    }
+  });
+
+  it('validates HTML production and migration scratch immediate ownership', () => {
+    const deck = join(tmpdir(), `deck_html_layout_${Date.now()}`);
+    try {
+      initHtmlFirstBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      const production = join(v1, '_generated', 'html_production');
+      mkdirSync(join(production, 'html_pages', 'objects'), { recursive: true });
+      mkdirSync(join(production, 'final_slides', 'objects'), { recursive: true });
+      mkdirSync(join(production, 'preview', 'plans'), { recursive: true });
+      writeFileSync(join(production, 'preview', 'plans', `${'a'.repeat(64)}.json`), '{}');
+      mkdirSync(join(v1, '_scratch', 'html-migration', 'projected-run'), { recursive: true });
+      expect(checkBundle(v1, false)).toEqual([]);
+      writeFileSync(join(production, 'rogue-owner'), 'x');
+      writeFileSync(join(production, 'preview', 'plans', 'rogue.json'), '{}');
+      const issues = checkBundle(v1, false);
+      expect(issues.some((issue) => issue.includes('rogue-owner') && issue.includes('HTML production root'))).toBe(true);
+      expect(issues.some((issue) => issue.includes('rogue.json') && issue.includes('HTML preview plans'))).toBe(true);
+    } finally {
+      rmSync(deck, { recursive: true, force: true });
+    }
+  });
+
   it('publishes structural versions from owned hidden staging without copying generated bytes', () => {
     const deck = join(tmpdir(), `deck_structural_publish_${Date.now()}`);
     try {
@@ -389,8 +518,8 @@ describe('state discoverability', () => {
       expect(yaml2.startsWith('#')).toBe(true);
       expect(existsSync(join(deck, STATE_DIR, 'README.md'))).toBe(true);
       const loaded = readState(deck);
-      expect(loaded.current_node).toBe('authoring-slides');
-      expect(loaded.playbook).toBe('create-deck');
+      expect(loaded.current_node).toBe('inspect-legacy-evidence');
+      expect(loaded.playbook).toBe('legacy-image2-maintenance');
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

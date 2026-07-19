@@ -1,52 +1,47 @@
 ---
 playbook: edit-text
-description: 文本修改——KICKER/TITLE/SUBTITLE，按 resolved render mode 路由
+description: HTML header/body/callout copy 的 Local Slide Rebuild
+supported_pipelines: [html-first-v1]
 includes: [classify-change]
 ---
 
-# Playbook: 文本修改
-
-MD Controller 是流程真相源；本 controller 只处理 KICKER/TITLE/SUBTITLE 意图，并由 `ppt_flow refresh --kind title` 按 resolved render mode 选择 Header Text & Style Refresh 或 Generated Image Rebuild。body label、KPI、card/chart text、案例和数据等 image-owned 内容转交 `edit-visual`。
+# Playbook: Edit Text
 
 ## Nodes
 
 ### classify-change (shared)
 
-读取 shared node，持久化变更类型和明确 slide scope。
+Probe pipeline first and resolve exact stable IDs. Family or chart-shape changes route to visual/layout ownership; structure routes to `restructure-slides`.
 
-### stage-text
+### rebuild-text-slides
 
 ```yaml
-node: stage-text
-lifecycle_phase: 4
+node: rebuild-text-slides
+lifecycle_phase: 5
 method_module: 05-iteration
 requires: [classify-change]
-produces: [updated-slide, updated-pptx]
+produces: [updated-source, local-review-artifacts]
 entry: [slide_specs_exists]
-exit:
-  - pptx_generated
-  - speaker_notes_injected
-  - header_review_current
+exit: [slide_specs_valid, evidence:text-slides-rebuilt]
 ```
 
-**Step 1 — MD**: 修改所选 slide 的 KICKER/TITLE/SUBTITLE 源字段，不编辑 `_generated/`。
+**Step 1 — MD**: Edit header/body/callout source only. Preserve stable IDs and notes; never edit HTML/PNG/PPTX.
 
-**Step 2 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <slide-ids>`。`body+header-lock` 通过 Header Text & Style Refresh 自动走 1,3,4,5；`full-page` 需要 Generated Image Rebuild，返回 `TITLE_REVIEW_REQUIRED` 时只对所选页运行 2K `pilot --only <ids> --force-images`。
+**Step 2 — CLI**: Run scoped HTML refresh/local Stage 1-3. Content approval becomes stale when its projection changes; ordinary copy keeps visual approval only when page visual dependency remains current.
 
-**Step 3 — GATE**: Open pilot/contact sheet；确认后运行 `approve <run-dir> header`，再用同 profile `build --reuse-images`，不得进行第二次图片生成。
-
-### verify-text-output
+### review-text-delivery
 
 ```yaml
-node: verify-text-output
-lifecycle_phase: 4
+node: review-text-delivery
+lifecycle_phase: 5
 method_module: 05-iteration
-requires: [stage-text]
-produces: [verified-slide]
+requires: [rebuild-text-slides]
+produces: [verified-text-change]
+decisions: [proceed, repair, redirect]
 entry: []
-exit: [user_evidence:text-change-verified]
+exit: [user_decision_recorded, user_evidence:text-change-verified]
 ```
 
-**Step 1 — MD**: Open 最终 PPTX，检查所选页文字、render mode 和未选页均正确。
+**Step 1 — MD**: Open affected preview and inspect exact text, font, wrap, overflow, family geometry, and unchanged-page isolation. Publish any stale content/visual plan-hash review, then build and repeat final delivery review.
 
-**Step 2 — GATE**: 用户确认后记录 `text-change-verified`（kind `user`）并完成节点。
+**Step 2 — GATE**: Record user verification only after the current PPTX/notes and delivery review are current.

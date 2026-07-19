@@ -3,7 +3,7 @@ title: 00 — The Run Bundle Concept
 stage: workflow/00-setup
 position: "01 of 05"
 type: concept
-summary: 概念定义。Agent 内化此概念作为后续所有操作的基础。
+summary: 定义 soft bundle、run bundle、HTML-first source 与 rebuildable delivery ownership。
 depends_on:
 - workflow/00-setup/README.md
 feeds_into:
@@ -15,74 +15,66 @@ agent_action: internalize
 
 ← [README](README.md) | [Next →](../../charter/CONSTITUTION.md)
 
-## Soft Bundle vs Run Bundle
-
-这个体系里有两个 "bundle"：
+## Soft Bundle 与 Run Bundle
 
 | | Soft Bundle | Run Bundle |
-|---|------------|------------|
-| **是什么** | `PPTMAKER_FRAMEWORK/` — 方法论知识库 | 你为具体项目创建的文件系统实例 |
-| **包含** | 方法论文件、模板、参考案例 | 项目产出物：设计文档、图片、JSON、PPTX |
-| **谁读** | Agent 和人类——学习 "怎么做" | Agent——作为执行环境 |
-| **版本管理** | Git 追踪方法论演进 | `bundle_layout.mjs --new-version ...` 创建干净下游快照 |
-| **变不变** | 稳定——方法论缓慢演进 | 持续变——每个项目不同，每个版本不同 |
+|---|---|---|
+| 是什么 | `PPTMAKER_FRAMEWORK/` 方法论与生产工具 | 一个具体 `deck_{NAME}/` 项目 |
+| 谁拥有 | framework 维护者 | 用户拥有内容，Agent 拥有过程 |
+| 怎么变 | Git 追踪 framework 演进 | 可见 `vN` + Structural Versioning Path |
+| 什么是源 | workflow、charter、scripts、reference、playbook | upstream、backbone、version source/control |
+| 什么可重建 | 不适用 | 每个版本的 `_generated/` 与 `_scratch/` |
 
-当你开始一个 PPT 项目时：
-1. Agent 读取 soft bundle（学方法论）
-2. Agent 创建 run bundle（按 `charter/CONSTITUTION.md` 建目录结构）
-3. Agent 在 run bundle 中执行所有工作（设计、生产、迭代）
+Agent 先读 soft bundle，再通过 `ppt_flow init` 创建 run bundle，之后只在用户指定的 run bundle 中工作。`deck_*` 与 `dpt_*` 是生产数据，不是 framework 源码。
 
-## 为什么文件系统就是 Run Bundle
+## 三层 source ownership
 
-传统 workflow 工具（Jenkins、Airflow、Notion）把流程状态存在数据库里。但文件系统有原生答案：
-
-| 你需要做的 | 文件系统怎么支持 |
-|-----------|----------------|
-| 创建新项目 | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --init deck_{NAME}`（一条命令搭全,不手动 mkdir） |
-| 看当前进度 | `ls 3_versions/v1/_generated/page_images_full/` — 生成了几张图 |
-| 版本快照 | `bundle_layout.mjs --new-version deck_X/3_versions/v1` — 只复制源 delta，随时 `diff -r` |
-| 重跑某个阶段 | `node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir ... --stage N` |
-| 检查中间产物 | 打开 `page_images_full/03_xxx.png` — 直接看图 |
-| 回访已有版本 | 保留所有可见 `vN`；小修复当前源，同方向大改建 clean vNext，受众/主叙事分叉时另建 deck |
-| 源文件审计（可选） | 用户拥有的 Git history 可比较 source/control 变化；不替代 `vN` |
-
-**关键差异**：不需要启动服务器。不需要配置 YAML。不需要学习新工具。文件系统就是 agent 的原生操作环境。
-
-## Run Bundle 的生命周期
-
-```
-创建（Phase 0）
-  │  mkdir + 复制模板
-  ↓
-设计（Phase 1-2）
-  │  写 slide-specifications.md + visual-style.md
-  │  生成 style_master.jpg
-  ↓
-生产（Phase 3）
-  │  Stage 1-5 管线执行
-  │  产出 page_images_full/*.png → header_locked/*.png → ppt/*.pptx
-  ↓
-迭代（Phase 4）
-  │  按失效产物选择 Header Text & Style / Generated Image / Notes-Only 刷新
-  │  增删重排先用 Structural Versioning Path 创建干净版本，再刷新受影响页
-  ↓
-归档
-   │  保留最终版本目录
-   │  交付 / 按用户自己的流程归档（Git checkpoint 仅在用户选择且明确授权时）
+```text
+deck_{NAME}/
+├── 1_upstream_raw_material/       shared raw source
+├── 2_backbone/                    shared narrative and visual system
+└── 3_versions/vN/                 one visible downstream source snapshot
+    ├── slide-specifications.md    structured slide source
+    ├── overrides/                 version-local source/control deltas
+    ├── _generated/                rebuildable delivery artifacts
+    └── _scratch/                  deletable transaction workspace
 ```
 
-每个阶段在文件系统中有**可见的痕迹**——不是数据库里的状态字段，是你可以 `ls` 看到的实际文件。
+HTML-first 的唯一页面源是 `slide-specifications.md` 中的稳定 `slide_id`、header、`CONCEPT`、typed `SLIDE BODY`、fallback 与 speaker notes。视觉真相来自合并后的 `color_palette.json`、family geometry、asset catalog 与本地字体。准确正文不藏在 prompt 中。
 
-## Agent 在 Run Bundle 中怎么工作
+`_generated/html_production/` 保存本地 HTML page、verified final slide、review plan/contact sheet 与 current manifest；`_generated/qa/` 保存 assembly/notes lineage。它们都是管线所有的派生物，绝不手改。普通 HTML create/preview/build 不创建 Image2 candidate、authorization、style master 或 refinement 目录。
 
-1. **进入项目目录** → 读 `CLAUDE.md`（项目级操作指南）
-2. **看目录结构** → 知道当前在哪个阶段（有 `slide_plan.json` = Stage 1 已完成，有 `page_images_full/` = Stage 2 已完成...）
-3. **读上游产出** → 知道下一步需要什么输入
-4. **执行** → 写文件、跑脚本
-5. **Gate check** → 检查产出物是否符合预期
+Markerless 历史 deck 仍是 `legacy-image2-first`，沿独立兼容路径维护；不能因为打开了新 framework 就补 marker 或搬运 HTML evidence。
 
-**Agent 不需要问 "现在做到哪了？"**——`ls` 一下目录就有答案。
+## 生命周期
 
----
+```text
+Phase 0  setup and local readiness
+Phase 1  structured content and family selection
+Phase 2  renderer-neutral visual system and real local preview
+Phase 3  local HTML Stage 1-5, contact sheet, PPTX, notes, final review
+Phase 4  optional Image2 refinement, unavailable in this change
+Phase 5  local iteration or explicit legacy maintenance
+```
 
-> **Next**: `charter/CONSTITUTION.md` — 项目目录的精确模板，每个子目录放什么、为什么。
+Phase 3 已产生完整交付物。Phase 4 不是完成条件，也没有 active command/controller。
+
+## 进度与身份
+
+- 先用 `ppt_flow state <run-dir>` 查看 durable workflow state、review freshness 与下一步；不要用聊天记忆代替磁盘状态。
+- `slide_id` 是跨版本身份，`position` 只属于当前快照。
+- 结构编辑先 preview，再以 exact plan hash 发布 clean vNext；source publication 不渲染。
+- HTML target 后续显式本地 materialize，报告 `needs_local_materialization`；legacy 才报告需要远端授权的 `needs_render`。
+- Git 是用户可选的 source/control 审计，不替代 `vN`，也不恢复 `_generated/`。
+
+## 常用入口
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check deck_NAME/3_versions/v1
+```
+
+> **Next**: `charter/CONSTITUTION.md` — 精确目录合同与 owner 边界。

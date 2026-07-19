@@ -125,6 +125,29 @@ function ownerAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (error) { return error?.code === 'EPERM'; }
 }
 
+// Kept private to the publication protocol, but reused by adjacent owner
+// protocols so host/PID/age recovery decisions cannot drift.
+export function classifyHtmlOwnerLiveness({ host: recordHost, pid, created_at_epoch_ms: createdAt } = {}, { now = nowMs(), host = hostname() } = {}) {
+  if (typeof recordHost !== 'string' || !recordHost || !Number.isInteger(pid) || pid <= 0 || !Number.isFinite(createdAt)) {
+    return Object.freeze({ status: 'invalid', reason: 'owner record is incomplete' });
+  }
+  const age = now - createdAt;
+  if (!Number.isFinite(age) || age < 0) return Object.freeze({ status: 'invalid', reason: 'owner record clock data is invalid' });
+  const sameHost = recordHost === host;
+  if (sameHost && ownerAlive(pid)) return Object.freeze({ status: 'active', age_ms: age });
+  if (sameHost && age < PUBLISH_LOCK_AUTO_RECOVERY_MIN_AGE_MS) {
+    return Object.freeze({ status: 'waiting', age_ms: age, retry_after_ms: PUBLISH_LOCK_AUTO_RECOVERY_MIN_AGE_MS - age });
+  }
+  return Object.freeze({ status: sameHost ? 'recoverable' : 'uncertain', age_ms: age });
+}
+
+export function classifyHtmlPublishLock(ownerRoot, { now = nowMs(), host = hostname() } = {}) {
+  let lock;
+  try { lock = readHtmlPublishLock(ownerRoot); } catch (error) { return Object.freeze({ status: 'invalid', reason: error.message, lock: null }); }
+  if (!lock) return Object.freeze({ status: 'absent', lock: null });
+  return Object.freeze({ ...classifyHtmlOwnerLiveness(lock.record, { now, host }), lock });
+}
+
 export function recoverHtmlPublishLock(ownerRoot, { now = nowMs(), confirmedOwnerToken = null, host = hostname() } = {}) {
   const lock = readHtmlPublishLock(ownerRoot);
   if (!lock) return { status: 'absent' };
@@ -202,14 +225,15 @@ export function publishHtmlPreviewManifest({ ownerRoot, ownerToken, publicationS
   const path = join(ownerRoot, 'manifest.json'); const prior = existsSync(path) ? sha256(readFileSync(path)) : null;
   if (prior !== priorManifestSha256) throw new Error('HTML preview manifest CAS mismatch');
   const previous = prior == null ? null : readHtmlPreviewManifest(ownerRoot, { publicationScope, htmlProductionResetId, logicalRunVersion });
+  const slotValue = (section, name) => Object.hasOwn(slots?.[section] || {}, name) ? slots[section][name] : previous?.manifest?.[section]?.[name] ?? null;
   const merged = {
     schema: HTML_PREVIEW_MANIFEST_SCHEMA,
     publication_scope: publicationScope,
     html_production_reset_id: htmlProductionResetId,
     pipeline: 'html-first-v1',
     logical_run_version: logicalRunVersion,
-    review_plans: { content: slots.review_plans?.content ?? previous?.manifest.review_plans.content ?? null, visual: slots.review_plans?.visual ?? previous?.manifest.review_plans.visual ?? null },
-    contact_sheets: { visual_review: slots.contact_sheets?.visual_review ?? previous?.manifest.contact_sheets.visual_review ?? null, delivery: slots.contact_sheets?.delivery ?? previous?.manifest.contact_sheets.delivery ?? null },
+    review_plans: { content: slotValue('review_plans', 'content'), visual: slotValue('review_plans', 'visual') },
+    contact_sheets: { visual_review: slotValue('contact_sheets', 'visual_review'), delivery: slotValue('contact_sheets', 'delivery') },
   };
   for (const [slot, reference] of Object.entries({ 'review_plans.content': merged.review_plans.content, 'review_plans.visual': merged.review_plans.visual, 'contact_sheets.visual_review': merged.contact_sheets.visual_review, 'contact_sheets.delivery': merged.contact_sheets.delivery })) validatePreviewReference(ownerRoot, reference, slot);
   const temp = join(ownerRoot, `.manifest.${ownerToken}.tmp`); writeFileSync(temp, `${JSON.stringify(merged)}\n`, { flag: 'wx', mode: 0o600 });

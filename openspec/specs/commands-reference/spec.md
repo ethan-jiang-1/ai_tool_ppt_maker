@@ -14,87 +14,69 @@ Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that
 
 ### Requirement: COMMANDS.md covers full-deck creation
 
-COMMANDS.md SHALL document the entry path for creating a new PPT from scratch: the user says "帮我做一个PPT" and the agent follows BOOTSTRAP → Phase 0 (init) → Phase 1 (content design) → Phase 2 (visual style) → Phase 3 (production pipeline).
+COMMANDS.md SHALL route "帮我做一个PPT" through BOOTSTRAP -> Phase 0 setup -> Phase 1 structured content -> Phase 2 visual system/real preview gate -> Phase 3 HTML production/contact sheet/PPTX/notes. It SHALL state that new decks default to `html-first-v1`, require no renderer choice/Image2 key/style master, and may finish after Phase 3. It SHALL not expose an executable modern Phase-4 refinement route in Change 3.
 
-#### Scenario: First-time user wants to create a PPT
+#### Scenario: First-time user creates a PPT
 
-- **WHEN** user says "帮我做一个关于AI的PPT"
-- **THEN** COMMANDS.md shows the path starts at BOOTSTRAP and walks through all phases
+- **WHEN** the user requests a new deck
+- **THEN** COMMANDS routes to `create-deck` and the complete local HTML path
+- **AND** never asks them to choose a render engine
 
 ### Requirement: COMMANDS.md covers refresh and structural paths
 
-COMMANDS.md SHALL document user intents with concrete Chinese-language examples and descriptive playbook routes. It SHALL NOT require the user to choose an editing-chain letter or know a slide ID before speaking. Agent-facing explanation SHALL distinguish the three English canonical refresh paths from the outer Structural Versioning Path and SHALL show that pages can be referenced by current position or a stable, voice-friendly mnemonic:
+COMMANDS.md SHALL first branch by `production.pipeline`. HTML-first examples SHALL route slide text/body/family/fallback edits to Local Slide Rebuild, global visual-config changes to Local Deck Rebuild, notes to Notes-Only Refresh, and add/delete/reorder to preview/hash-bound Structural Versioning Path followed by target-local rebuild. Markerless examples SHALL retain the existing legacy refresh routes. Users MAY refer to pages by current position or spoken mnemonic and SHALL not need to know internal path names.
 
-| User says (example) | Intent route | Resolved execution explanation | Est. time |
-|---------------------|-------------|--------------------------------|-----------|
-| "第5页标题不够有力" | `edit-text` | Stage 1 resolves Header Text & Style Refresh or Generated Image Rebuild by render mode | ~5 min or ~5 min/page |
-| "把 UX gap 那页标题收紧" | `edit-text` | Resolve the mnemonic to its formal ID, then choose refresh by render mode | ~5 min or ~5 min/page |
-| "第8页的图重新生成一张" | `edit-visual` | Generated Image Rebuild for the selected page | ~5 min/page |
-| "备注改一下" | `edit-notes` | Notes-Only Refresh | ~30 sec |
-| "删掉第5页和第11页" | `restructure-slides` | Snapshot-resolved preview, hash-bound confirmation, Structural Versioning Path, then local rebuild from verified raw renders | usually no remote render |
-| "把 ID fix 放到 AI cost 后面" | `restructure-slides` | Spoken mnemonic resolution, preview/hash-bound apply, then local order-dependent rebuild | usually no remote render |
-| "加一页案例" | `restructure-slides` | Agent proposes a stable mnemonic; preview/confirm Structural Versioning Path; report `needs_render`, then explicitly rebuild the inserted page | per inserted/changed slides |
+#### Scenario: HTML title or body changes
 
-#### Scenario: User asks to change a slide's visual style
+- **WHEN** a user edits visible content on one HTML-first slide
+- **THEN** COMMANDS routes to local slide composition/delivery without remote generation
 
-- **WHEN** user says "第8页的图重新生成一张"
-- **THEN** COMMANDS.md routes to `edit-visual`
-- **AND** agent-facing guidance identifies Generated Image Rebuild, selected forced regeneration, and required review
+#### Scenario: HTML visual system changes
 
-#### Scenario: User asks for a full color palette change
+- **WHEN** a user requests a full palette/system change
+- **THEN** COMMANDS routes to representative local preview/visual gate then Local Deck Rebuild
+- **AND** does not prescribe style master or Image2 pilot
 
-- **WHEN** user says "全部换成蓝色系"
-- **THEN** COMMANDS.md shows this requires `--force-images` for all slides, suggests pilot of 3 slides first
+#### Scenario: User adds or reorders a slide
 
-#### Scenario: User asks to add a slide
+- **WHEN** the user changes the slide set/order
+- **THEN** COMMANDS routes to identity-aware structural preview/confirm/new-version and target-local rebuild
 
-- **WHEN** user says "加一页案例"
-- **THEN** COMMANDS.md routes to `restructure-slides` and a preview-first Structural Versioning Path before generated-image rebuilding
-- **AND** explains that the Agent proposes a short stable mnemonic, structure apply makes no remote call, and only reported `needs_render` IDs need explicit expensive work
-- **AND** does not classify the addition as a peer Generated Image Rebuild-only change
+#### Scenario: Markerless user regenerates a visual
 
-#### Scenario: User reorders by spoken mnemonic
-
-- **WHEN** user says "把 ID fix 放到 AI cost 后面"
-- **THEN** COMMANDS.md routes to `restructure-slides`, resolves both mnemonic selectors, and shows a before/after preview
-- **AND** does not require `@`, exact capitalization, or a random-code spelling
+- **WHEN** the deck is legacy and the user requests a whole-page image rebuild
+- **THEN** COMMANDS routes to `legacy-image2-maintenance` with existing force/review rules
 
 ### Requirement: COMMANDS.md explains how the agent classifies requests
 
-COMMANDS.md SHALL briefly explain the ordered decision logic: (1) does the change alter the slide set/order and therefore require Structural Versioning Path; (2) which component owns the changed content and which downstream artifact is stale; (3) how many slides are affected; (4) whether pilot/review is required. It SHALL NOT classify solely from the surface nouns text/visual/notes.
+COMMANDS.md SHALL explain ordered classification: (1) probe `production.pipeline`; (2) detect structural change; (3) identify source owner/stale artifacts and page/deck scope; (4) determine required real-artifact review; (5) determine whether the selected explicit legacy path has a remote cost. HTML-first ordinary create/edit/build SHALL always remain local; a vague wish to "make it better" SHALL not create a provider plan or authorization.
 
-#### Scenario: Human understands the agent's reasoning
+#### Scenario: Human predicts the route
 
-- **WHEN** a human reads the classification section of COMMANDS.md
-- **THEN** they understand that the agent resolves ownership and impact before executing
-- **AND** they can predict why two text-looking changes may use different refresh paths
+- **WHEN** a human reads the classification section
+- **THEN** they can predict different HTML versus legacy handling for similar words
+- **AND** understand why ordinary HTML visual work is still zero-remote
 
 ### Requirement: COMMANDS.md covers iteration feedback patterns
 
-COMMANDS.md SHALL document common iteration feedback beyond simple single-slide edits. Content reframe may affect backbone; case or data changes SHALL be routed by where the content is owned; vague aesthetic feedback maps to visual direction and may require style-master regeneration.
+COMMANDS.md SHALL classify iteration feedback by pipeline and source owner before choosing a refresh path. For HTML-first, content reframe MAY return to backbone/structured content; KPI/card/chart-label/case/callout changes SHALL update their structured fields and use Local Slide Rebuild; global palette/typography/spacing/visual-direction feedback SHALL offer 2-3 renderer-neutral preset/system alternatives and use representative preview plus Local Deck Rebuild. Ordinary HTML aesthetic feedback SHALL not prescribe style-master regeneration, Image2 credentials, or remote cost. For markerless legacy, generated-body data, header-lock ownership, safe-zone/render-mode changes, vague visual direction, style-master iteration, and Generated Image Rebuild SHALL retain their current meanings.
 
-#### Scenario: User changes generated body data
+#### Scenario: HTML chart copy or KPI changes
 
-- **WHEN** the user asks to update KPI values, card text, chart labels, cases, or other text burned into generated images
-- **THEN** COMMANDS.md routes through Generated Image Rebuild for affected pages
-- **AND** does not describe the request as Header Text & Style Refresh merely because the user changed words or numbers
+- **WHEN** authored HTML-first KPI values, card text, chart labels, or cases change
+- **THEN** COMMANDS routes to structured source plus local affected-slide composition
+- **AND** does not describe text as necessarily burned into a remote image
 
-#### Scenario: User changes only header text or overlay style
+#### Scenario: HTML visual direction is vague
 
-- **WHEN** the user changes KICKER/TITLE/SUBTITLE or Stage-3-owned header font/color/position settings on a resolved `body+header-lock` slide
-- **THEN** the resolved execution path is Header Text & Style Refresh without Stage 2
+- **WHEN** an HTML-first user says the whole deck is not premium enough
+- **THEN** the Agent offers renderer-neutral system/preset alternatives and local representative previews
+- **AND** creates no style master, provider plan, or authorization
 
-#### Scenario: User changes the header safe zone
+#### Scenario: Legacy generated body data changes
 
-- **WHEN** the user changes header safe-zone height, render mode, or another setting that changes the raw-image contract
-- **THEN** the resolved execution path is Generated Image Rebuild
-- **AND** the change is not classified as Header Text & Style Refresh merely because it concerns the header
-
-#### Scenario: User gives vague aesthetic feedback
-
-- **WHEN** user says "整体感觉不够高端"
-- **THEN** COMMANDS.md shows this maps to visual direction change
-- **AND** agent will suggest 2-3 alternative visual presets before regenerating anything
+- **WHEN** markerless generated-image body data changes
+- **THEN** COMMANDS retains the legacy Generated Image Rebuild and review path
 
 ### Requirement: COMMANDS.md complements but does not duplicate scripts/change-classifier.md
 
@@ -108,78 +90,73 @@ COMMANDS.md SHALL be the human-facing interface. `scripts/change-classifier.md` 
 
 ### Requirement: Title-edit intents route by resolved render mode
 
-`COMMANDS.md` and its target playbooks SHALL treat a request to change KICKER, TITLE, or SUBTITLE as an intent that requires Stage 1 resolution before selecting the refresh path. The routing table MAY initially name the `edit-text` controller, but that controller SHALL invoke `ppt_flow refresh --kind title` so centralized runtime logic inspects `layout_contract.render_mode`: resolved `body+header-lock` uses Header Text & Style Refresh; resolved `full-page` uses Generated Image Rebuild with selected regeneration and header-review obligations.
+Title-edit routing SHALL first classify the pipeline. For HTML-first source, KICKER/TITLE/SUBTITLE are renderer-owned visible source and SHALL use Local Slide Rebuild for selected IDs, with browser overflow validation and affected delivery rebuild; render mode SHALL not be consulted. For markerless legacy source, existing `ppt_flow refresh --kind title` resolution remains: `body+header-lock` uses Header Text & Style Refresh and `full-page` uses Generated Image Rebuild with force/review.
 
-#### Scenario: Natural-language title edit targets a body-lock slide
+#### Scenario: HTML title edit is local
 
-- **WHEN** the user asks to change a title and the selected slide resolves to `body+header-lock`
-- **THEN** the text-edit controller uses `ppt_flow refresh --kind title` for the selected slide
-- **AND** the runtime uses Stage 1 followed by Stages 3,4,5 without regenerating the image
+- **WHEN** a selected HTML-first title changes
+- **THEN** the slide is locally recomposed and verified
+- **AND** no Image2 or legacy header-review evidence is required
 
-#### Scenario: Natural-language title edit targets a full-page slide
+#### Scenario: Legacy title edit retains render-aware behavior
 
-- **WHEN** the user asks to change a title and the selected slide resolves to `full-page`
-- **THEN** the runtime reports `TITLE_REVIEW_REQUIRED` until current reviewed evidence exists
-- **AND** the agent regenerates only the affected image with forced image generation
-- **AND** obtains current header review evidence before completing the build
-
-#### Scenario: Mixed title edit requires explicit scope
-
-- **WHEN** a title-edit request affects both render modes and no slide scope is provided
-- **THEN** routing fails safely with a request for affected slide selection
-- **AND** does not silently apply Header Text & Style Refresh to the full-page slides
+- **WHEN** a markerless title edit resolves a legacy render mode
+- **THEN** the existing header-text versus generated-image path remains selected
 
 ### Requirement: Structural command guidance is preview-first and identity-aware
 
-COMMANDS.md and `scripts/change-classifier.md` SHALL explain the structural UX using the same concepts: current `position` is convenient but snapshot-scoped; formal `slide_id` remains stable across reordering; the combined display is `position + slide_id + title`; all position selectors in one request resolve before any edit; and a mutating structure operation requires preview followed by explicit apply bound to the preview's canonical plan hash. The Agent SHALL carry that hash; user-facing guidance SHALL not ask the user to type or pronounce it. Guidance SHALL route deterministic list, resolution, normalization, move, delete, insert, and multi-operation work through `ppt_flow slides` rather than instructing the Agent to split/reorder Markdown with ad hoc edits.
+COMMANDS.md and `scripts/change-classifier.md` SHALL retain the shared structural UX: resolve every position selector against one pre-edit snapshot; display `position + slide_id + title`; keep formal ID stable; preview before mutation; bind apply to canonical plan hash carried by the Agent; route list/resolve/normalize/move/delete/insert/multi-operation through `ppt_flow slides`; never hand-edit or copy `_generated/`; and retain the existing version/deck/Git escape-ladder constraints.
 
-The reference SHALL explain that reorder/delete-only normally materialize verified expensive raw renders and rebuild Stage 3 and later cheap outputs locally, while inserted or unproven IDs are reported as `needs_render` and follow an explicit Generated Image Rebuild only after authorization. Structural apply/materialization SHALL be documented as renderer-free. It SHALL retain the rule that `_generated/` is never hand-edited or manually copied between versions.
+Structural source publication SHALL be renderer-free for both pipelines. For HTML-first, its receipt SHALL report `needs_local_materialization`; a later explicit target-local materializer verifies/copies target-owned immutable objects or composes missing/stale IDs locally, then rebuilds review/delivery with zero provider calls. For markerless legacy, verified expensive raw renders MAY be materialized and missing/unproven IDs SHALL remain `needs_render` for a separately authorized Generated Image Rebuild. Guidance SHALL never label HTML-local work as remote render debt or copy a source-version manifest path into the target.
 
-The reference SHALL document the escape ladder: heading-only current-version repair; same-deck clean vNext; explicit missing-render rebuild in vNext; and a new-deck recommendation when audience, objective, or narrative materially changes. Git MAY be recommended separately as a user-owned source/control audit and comparison aid, but SHALL not replace run-bundle versions, become a PPT creation prerequisite, become a second ordering source, or be presented as a framework-provided in-place rollback command. This change SHALL not add a Git-history reader, source-content comparison, `git checkout`/`git restore` fallback, framework-owned source-file replacement, recovery receipt, or new source-recovery playbook. If a user asks to undo an accidental source edit with Git, guidance may explain that Git history belongs to the user-owned repository and that an Agent needs separate explicit authorization for any named Git operation and scope; it SHALL not choose or prescribe a generic recovery command as the default. After such independent authorization, the general Agent authorization rule applies, but this change still supplies no framework recovery protocol.
+#### Scenario: HTML insert reports local materialization
 
-#### Scenario: User deletes two page numbers
+- **WHEN** a confirmed HTML-first structural transaction inserts a valid slide
+- **THEN** the new source version reports that ID under `needs_local_materialization`
+- **AND** a later explicit local materializer owns composition/review/delivery without remote authorization
 
-- **WHEN** the user says "删掉第3页和第7页"
-- **THEN** guidance says both positions are resolved from the same pre-edit snapshot and previewed together
-- **AND** does not describe two sequential deletions whose second position can shift
+#### Scenario: Legacy insert reports remote render debt
 
-#### Scenario: User asks why page number and ID both appear
+- **WHEN** a confirmed markerless transaction inserts an ID without verified raw render evidence
+- **THEN** the source version reports that ID under `needs_render`
+- **AND** requests separate authorization before Generated Image Rebuild
 
-- **WHEN** a human reads the structural editing section
-- **THEN** they learn that position supports current conversational order while ID preserves page identity across versions
-- **AND** they are not told that a compound value such as `07_UXGap` is the primary key
+#### Scenario: Reorder resolves one snapshot
 
-#### Scenario: Reorder-only scope is explained accurately
+- **WHEN** a user deletes or moves multiple current positions
+- **THEN** every selector resolves before mutation and the exact before/after ID order is previewed
 
-- **WHEN** guidance describes moving unchanged pages
-- **THEN** it says verified expensive raw renders are retained while Stage 3/contact sheet/PPTX/notes are rebuilt locally
-- **AND** it does not prescribe remote regeneration for every shifted page
+#### Scenario: Major reframing remains a deck decision
 
-#### Scenario: User confirms structure but not render cost
+- **WHEN** audience, objective, or narrative materially changes
+- **THEN** guidance may recommend a new deck rather than forcing the work into vNext
 
-- **WHEN** an insertion preview is authorized and the resulting receipt reports `needs_render`
-- **THEN** guidance treats the source vNext as successfully published but production as incomplete
-- **AND** requests separate authorization before remote Generated Image Rebuild
+#### Scenario: Git remains outside structural authority
 
-#### Scenario: Major reframing is not forced into vNext
+- **WHEN** Git is absent or a user separately asks about source history
+- **THEN** normal source repair/version paths remain available and no generic Git mutation is chosen automatically
 
-- **WHEN** the requested work materially changes audience, objective, or narrative
-- **THEN** guidance recommends considering a new deck instead of presenting vNext as the only route
+### Requirement: COMMANDS documents explicit legacy migration without automatic conversion
 
-#### Scenario: Deck-version request preserves visible versions
+COMMANDS SHALL route a user's explicit migration choice to an Agent-authored clean-vNext candidate, complete proposed local HTML deck/contact sheet, exact `verified-current|degraded-missing|degraded-stale` old-side mode, exact mode/hash confirmation, and atomic apply. Only verified-current mode may show old pixels. It SHALL state that degraded modes show diagnosis/placeholder rather than stale bytes, never trigger migration provider calls or a parity claim, and offer separately authorized legacy maintenance when needed. It SHALL preserve the legacy version on decline and never claim prompts can be converted automatically.
 
-- **WHEN** a user asks to revisit a prior deck version such as `v2`
-- **THEN** guidance preserves all visible version directories and evaluates the current source/version context through the existing escape ladder
-- **AND** it does not prescribe deleting `vN`, copying `vN` over another visible version, or treating a Git checkout as a deck-version replacement
+#### Scenario: User asks to migrate an old deck
 
-#### Scenario: Source-history request is not overpromised
+- **WHEN** a markerless deck user explicitly requests HTML migration
+- **THEN** COMMANDS requires complete proposed output plus explicit current-old or degraded-old comparison confirmation before new-version publication
+- **AND** preserves the old version as a valid fallback
 
-- **WHEN** a user asks to undo an accidental source edit using Git history
-- **THEN** guidance keeps the request distinct from a visible deck-version change and states that this change adds no automated history reader, framework source replacement, or default recovery command
-- **AND** it does not autonomously choose or prescribe a generic `git restore`, `git checkout`, reset, clean, or source-file mutation before the user separately authorizes the named operation and scope
+### Requirement: COMMANDS.md documents closed HTML recovery without manual deletion
 
-#### Scenario: Git absence does not block normal correction
+COMMANDS.md SHALL distinguish ordinary local refresh from exceptional recovery. For a recoverable/uncertain gate journal it SHALL route only through the state-owned journal recovery command and its human-confirmation/age rules. For a confirmed canonical publication-owner reset it SHALL show only `ppt_flow refresh <run-dir> --kind reset-html-production --confirm-run-version <vN>`, explain that all canonical HTML generated review/delivery evidence is deleted and old approvals become stale, and require no-active-writer/reader confirmation before the Controller invokes it. It SHALL explain pending reset ownership `active|waiting|recoverable|uncertain|invalid`, the 60000/300000-ms takeover floors, and that successful reset still requires local rebuild plus new content/visual/final review. It SHALL never instruct users to delete a lock/tree manually, edit `_state`, transcribe reset/owner IDs, or combine reset with selectors/dry-run/provider/render/style overrides.
 
-- **WHEN** a user has no Git executable, no worktree, or no first commit
-- **THEN** guidance keeps normal source correction, Structural Versioning Path, and the repair/vNext/new-deck escape ladder available
-- **AND** it does not characterize Git as a required workflow gate
+#### Scenario: User asks how to clear an uncertain canonical lock
+
+- **WHEN** COMMANDS classifies the conflict as canonical HTML publication ownership
+- **THEN** it presents the exact confirmed reset route and its rebuild/re-review consequence
+- **AND** does not suggest removing `.publish.lock` or generated children individually
+
+#### Scenario: Reset owner is still active
+
+- **WHEN** state/status reports a live reset owner
+- **THEN** COMMANDS tells the Agent to wait rather than invoke another reset or override the owner

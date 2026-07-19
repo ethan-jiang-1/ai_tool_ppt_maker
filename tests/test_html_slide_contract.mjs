@@ -392,7 +392,7 @@ describe("resolved HTML-first plan", () => {
       const deck = join(temp, "deck_fixture"); const runDir = join(deck, "3_versions", "v1");
       const styleDir = join(deck, "2_backbone", "visual-style"); const assetsDir = join(styleDir, "assets");
       mkdirSync(join(assetsDir, "icons"), { recursive: true }); mkdirSync(runDir, { recursive: true });
-      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
+      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
       copyFileSync(resolve("tests/fixtures/html-first-v1/source/slide-specifications.md"), join(runDir, "slide-specifications.md"));
       copyFileSync(resolve("tests/fixtures/html-first-v1/catalog/asset-manifest.yaml"), join(assetsDir, "asset-manifest.yaml"));
       copyFileSync(resolve("tests/fixtures/html-first-v1/catalog/icons/system-layers.svg"), join(assetsDir, "icons", "system-layers.svg"));
@@ -417,7 +417,7 @@ describe("resolved HTML-first plan", () => {
       mkdirSync(styleDir, { recursive: true });
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       copyFileSync(
-        resolve("PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json"),
+        resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"),
         join(styleDir, "color_palette.json")
       );
       const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir });
@@ -457,7 +457,7 @@ describe("resolved HTML-first plan", () => {
       const runDir = join(deck, "3_versions", "v1");
       const styleDir = join(deck, "2_backbone", "visual-style");
       mkdirSync(runDir, { recursive: true }); mkdirSync(styleDir, { recursive: true });
-      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
+      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
       const block = (position, id, statement) => `## Slide ${String(position).padStart(2, "0")}: \`${id}\`
 **VISUAL TYPE**: Content
 **TITLE**: ${id}
@@ -494,7 +494,7 @@ hero_statement: ${statement}
       const deck = join(temp, "deck_contract"); const runDir = join(deck, "3_versions", "v1");
       const styleDir = join(deck, "2_backbone", "visual-style"); const assetsDir = join(styleDir, "assets");
       mkdirSync(runDir, { recursive: true }); mkdirSync(assetsDir, { recursive: true });
-      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
+      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
       const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>');
       const digest = createHash("sha256").update(svg).digest("hex");
       mkdirSync(join(assetsDir, "svg"), { recursive: true });
@@ -560,7 +560,7 @@ primary_visual:
       const deck = join(temp, "deck_contract"); const runDir = join(deck, "3_versions", "v1");
       const styleDir = join(deck, "2_backbone", "visual-style"); const palettePath = join(styleDir, "color_palette.json");
       mkdirSync(runDir, { recursive: true }); mkdirSync(styleDir, { recursive: true });
-      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json"), palettePath);
+      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"), palettePath);
       const specPath = join(runDir, "slide-specifications.md");
       const withVisual = (brief = "A text-free field", recipe = "line-grid") => source(`schema_version: 1
 family: hero

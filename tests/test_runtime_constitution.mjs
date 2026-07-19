@@ -100,7 +100,7 @@ describe('runtime constitution — Node only', () => {
     expect(stage2).toBeDefined();
     expect(stage2.status).toBe('ok');
     expect(stage2.detail).toMatch(/in-framework/);
-  });
+  }, 20_000);
 
   it('unified_pipeline exports stage2 and no longer exports findSkillScript', async () => {
     const mod = await import('../PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs');

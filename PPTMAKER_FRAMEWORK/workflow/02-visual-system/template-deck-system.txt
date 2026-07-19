@@ -1,0 +1,34 @@
+# Deck System Contract — {{STYLE_NAME}}
+# Renderer-neutral natural-language constraints.
+# Structured palette, typography roles, geometry and recipes live in color_palette.json.
+
+LANGUAGE: {{LANGUAGE_POLICY}}
+DECK TYPE: {{DECK_TYPE_AND_AUDIENCE}}
+VISUAL NORTH STAR: {{ONE_SENTENCE_PRODUCT_OR_CONTEXT_DNA}}
+
+BACKGROUND: {{BACKGROUND_RULES}}
+COLOR SEMANTICS: {{ROLE_TO_COLOR_MEANING}}
+TYPOGRAPHY: Accurate header/body/chart text is owned by structured source, bundled fonts and the HTML compositor.
+TEXT DENSITY: {{WORD_AND_ZONE_LIMITS}}
+
+COMPONENT RULES:
+- {{FAMILY_OR_COMPONENT_RULE_1}}
+- {{FAMILY_OR_COMPONENT_RULE_2}}
+- {{CHART_OR_ASSET_RULE}}
+- {{CALLOUT_RULE}}
+
+FALLBACK LANGUAGE:
+- Prefer {{ABSTRACT_PATTERN_OR_ICON_COMPOSITION}}
+- When a selected asset is absent/stale, the structured fallback must remain useful and reviewable
+- Do not invent arbitrary HTML, CSS, coordinates, overlays, or undeclared visual slots
+
+FORBIDDEN:
+- {{VISUAL_ANTI_PATTERN_1}}
+- {{VISUAL_ANTI_PATTERN_2}}
+- stock art, fake UI, watermark, page number, illegible microtext
+- provider-generated whole-page text or a style master as a new-deck prerequisite
+
+TONE: {{TONE_WORDS}}
+
+# Validate color_palette.json and structured source, then review actual local HTML representative pages.
+# This file complements the structured visual config; it never overrides it or creates a second theme truth.

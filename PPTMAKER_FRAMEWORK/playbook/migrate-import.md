@@ -1,115 +1,106 @@
 ---
 playbook: migrate-import
-description: 迁移/导入已有 deck，强制可见检查与 gates
+description: 导入素材、整理旧 bundle，或将 markerless deck 显式迁移为 clean HTML vNext
+supported_pipelines: [html-first-v1, legacy-image2-first]
 includes: []
 ---
 
-# Playbook: 迁移 / 导入
+# Playbook: Migrate / Import
 
 ## Nodes
 
-### intake-source
+### intake-migration
 
 ```yaml
-node: intake-source
+node: intake-migration
 lifecycle_phase: 0
 method_module: 00-setup
 requires: []
 produces: [migration-plan]
-decisions: [A, B, C]
+decisions: [new-import, align-bundle, html-vnext, stop]
 entry: []
-exit:
-  - user_decision_recorded
-  - user_evidence:success-criteria-confirmed
+exit: [user_decision_recorded, user_evidence:success-criteria-confirmed]
 ```
 
-**Step 1 — MD**: 确认源、目标和 A 新 init / B 原地升三层 / C 素材导入三种策略。
+**Step 1 — MD**: Inventory source/target/pipeline and explain each reversible strategy. `html-vnext` never mutates the markerless source version.
 
-**Step 2 — GATE**: 用户选择 A/B/C 并确认成功标准后，记录 decision 和 `success-criteria-confirmed`。
+**Step 2 — GATE**: Record exact strategy and success criteria before copy, scratch render, or version publication.
 
-### align-bundle
+### map-migration-inputs
 
 ```yaml
-node: align-bundle
+node: map-migration-inputs
 lifecycle_phase: 0
 method_module: 00-setup
-requires: [intake-source]
-produces: [aligned-run-bundle]
+requires: [intake-migration]
+produces: [source-control-asset-map]
 entry: []
-exit:
-  - run_bundle_exists
-  - evidence:bundle-layout-validated
+exit: [evidence:assets-mapped, user_evidence:mapping-confirmed]
 ```
 
-**Step 1 — CLI**: A/C 使用 `ppt_flow init`；B 使用 `bundle_layout.mjs --check <run-dir> --structure-only`。成功后记录 `bundle-layout-validated`（kind `cli`）。
+**Step 1 — MD**: Show source/control/asset mapping. Generated legacy images remain comparison evidence, never HTML target source.
 
-### inventory-map
+**Step 2 — GATE**: Confirm the map; do not infer structured body from legacy prompt prose.
+
+### preview-html-migration
 
 ```yaml
-node: inventory-map
-lifecycle_phase: 0
-method_module: 00-setup
-requires: [align-bundle]
-produces: [asset-map]
+node: preview-html-migration
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [map-migration-inputs]
+produces: [html-migration-plan, proposed-contact-sheet]
 entry: []
-exit:
-  - evidence:assets-mapped
-  - user_evidence:mapping-confirmed
+exit: [evidence:migration-preview-current]
 ```
 
-**Step 1 — MD**: 展示源资产到 canonical path 的映射；禁止把 `_generated/` 当源。
+**Step 1 — MD**: Author a complete candidate under `_scratch/html-migration/projected-run/`, preserving valid IDs/spoken keys/notes and using complete HTML source/control/assets.
 
-**Step 2 — GATE**: 用户确认映射后搬运，并记录 agent/user evidence。
+**Step 2 — CLI**: Run `ppt_flow migrate-html <source-run-dir> preview`. Show exact `old_side_mode`, anticipated target, source diff, complete proposed contact sheet, and plan hash. Degraded old-side modes show no stale/missing pixels or parity claim.
 
-### early-show
+### confirm-html-migration
 
 ```yaml
-node: early-show
-lifecycle_phase: 0
-method_module: 00-setup
-requires: [inventory-map]
-produces: [first-visible-win]
+node: confirm-html-migration
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [preview-html-migration]
+produces: [migration-apply-decision]
+decisions: [apply, revise, decline]
 entry: []
-exit: [user_evidence:artifact-reviewed]
+exit: [user_decision_recorded]
 ```
 
-**Step 1 — MD**: Open style master、样张、旧 PPT 首页或 canonical tree 中最有信息量的可见产物。
+**Step 1 — GATE**: Bind the user's decision to the exact mode/hash. `revise` rebuilds the candidate/preview; `decline` publishes nothing.
 
-**Step 2 — GATE**: 用户实际看过后记录 `artifact-reviewed`；有图却只文字描述不得完成。
-
-### reaffirm-gates
+### apply-html-migration
 
 ```yaml
-node: reaffirm-gates
-lifecycle_phase: 0
-method_module: 00-setup
-requires: [early-show]
-produces: [reaffirmed-gates]
-entry: []
-exit:
-  - gate_approved:content
-  - gate_approved:visual
-  - user_evidence:gates-reaffirmed
+node: apply-html-migration
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [confirm-html-migration]
+produces: [clean-html-target]
+entry: [node_decision:confirm-html-migration:apply]
+exit: [evidence:migration-target-published]
 ```
 
-**Step 1 — MD**: Open content source和 style master；让用户重新确认方向。
+**Step 1 — CLI**: With this exact active source execution, run `migrate-html apply --plan-hash <hash> --old-side-mode <mode>`. The hidden target rerenders canonical reset-null output and must match preview before no-replace publication.
 
-**Step 2 — CLI**: 运行 `ppt_flow approve <run-dir> content|visual` 并同步 state gates。
+**Step 2 — MD**: On apply journal conflict, use only its owner/age/token recovery action. Same-host dead after 60s may recover automatically; cross-host/uncertain after 5m requires explicit human no-active-process confirmation and exact token. Never delete journal/reservation/staging manually; absent-target recovery performs owned cleanup and full rerender.
 
-**Step 3 — GATE**: 记录 `gates-reaffirmed`；视觉需迭代时使用 `switchPlaybook(iterate-style)`。
-
-### handoff
+### migration-target-review
 
 ```yaml
-node: handoff
-lifecycle_phase: 0
-method_module: 00-setup
-requires: [reaffirm-gates]
-produces: [next-action]
+node: migration-target-review
+lifecycle_phase: 3
+method_module: 03-html-production
+requires: [apply-html-migration]
+produces: [target-review-continuation]
 entry: []
-exit: [evidence:handoff-recorded]
+exit: [evidence:migration-handoff-completed]
 ```
 
-**Step 1 — MD**: 推荐 quick-preview 或 production 的明确下一步和预计耗时。
+**Step 1 — CLI**: Complete the exact receipt-bound state handoff from source migration execution to target HTML continuation. A crash before handoff is observed as non-writing `migration_handoff_pending`; mismatch is replacement-required.
 
-**Step 2 — CLI**: 记录 `handoff-recorded`（kind `agent`）。
+**Step 2 — MD**: Target starts reset-null with content/visual/delivery reviews pending. Open target artifacts, publish new gates, build, and perform final review; no source approval is inherited.

@@ -81,8 +81,10 @@ describe('stage4_build_pptx', () => {
 
       expect(result.slideCount).toBe(2);
       expect(existsSync(out)).toBe(true);
+      expect(result.receipt).toMatchObject({ schema_version: 2, pipeline: 'legacy-image2-v1', html_production_reset_id: null, html_delivery_digest: null });
       expect(result.receipt.ordered_slide_ids).toEqual(['AICost', 'UXGap']);
       expect(result.receipt.final_images.map((image) => image.slide_id)).toEqual(['AICost', 'UXGap']);
+      expect(result.receipt.final_images.every((image) => image.artifact_kind === 'final-slide' && /^[0-9a-f]{64}$/.test(image.final_slide_fingerprint))).toBe(true);
       expect(result.receipt.pptx_sha256).toBe(sha256File(out));
       expect(JSON.parse(readFileSync(result.receiptPath, 'utf8'))).toEqual(result.receipt);
     } finally {
@@ -154,4 +156,17 @@ describe('stage4_build_pptx', () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   }, 60_000);
+
+  it('rejects legacy artifact flags when the slide plan belongs to HTML-first', () => {
+    const fixture = createHtmlFirstRun('stage4-html-artifact-mode-');
+    try {
+      const out = join(fixture.runDir, '_generated', 'ppt', 'bypass.pptx');
+      const result = spawnSync('node', [S4, '--images', join(fixture.runDir, '_generated', 'header_locked'), '--slide-plan', join(fixture.runDir, '_generated', 'slide_plan.json'), '--out', out], { encoding: 'utf8' });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('legacy artifact mode cannot target an HTML-first run');
+      expect(existsSync(out)).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
 });

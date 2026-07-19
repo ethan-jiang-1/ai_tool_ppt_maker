@@ -1,36 +1,21 @@
 ## Purpose
 
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It SHALL contain labeled sections for every base `env-check.mjs` check, with user-profile-aware fix instructions that are copy-pasteable by beginners. External file references SHALL be marked as human-only background reading. The BOOTSTRAP gate behavior (FOUNDATION NOT READY / NOT READY / △ warning) SHALL be preserved. Image2 first-time credential setup SHALL be self-contained in BOOTSTRAP without duplicating the full API contract from `03-tool-selection.md`. BOOTSTRAP sections SHALL stay in sync with `env-check.mjs` check names.
+Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It SHALL contain labeled sections for every base `env-check.mjs` check, with user-profile-aware fix instructions that are copy-pasteable by beginners. External file references SHALL be marked as human-only background reading. The BOOTSTRAP gate behavior (FOUNDATION NOT READY / NOT READY / △ warning) SHALL be preserved. Image2 first-time credential setup SHALL be self-contained in BOOTSTRAP without duplicating the full API contract from `03-runtime-and-tools.md`. BOOTSTRAP sections SHALL stay in sync with `env-check.mjs` check names.
 ## Requirements
 ### Requirement: BOOTSTRAP Step 1 contains a failure-to-fix section for every base doctor check
 
-BOOTSTRAP.md Step 1 SHALL contain labeled sections using each stable base `env-check.mjs` check name as the identifier. Each section SHALL provide Agent-ready remediation instructions, and the Agent SHALL be able to map a base doctor failure to a beginner-safe fix without reading another file. The covered base names SHALL include at minimum `nodejs`, `npm`, `@napi-rs/canvas`, `pptxgenjs`, `commander`, `playwright`, `chromium`, `html_fonts`, `html_runtime_smoke`, `fonts`, `disk_space`, and `git` while those checks remain in base output.
+BOOTSTRAP Step 1 SHALL contain a labeled failure-to-fix section for every stable default env-check name, including Node/npm/packages, exact `playwright@1.61.1`, exact direct `echarts@6.1.0`, paired Chromium, bundled HTML fonts, offline runtime smoke, framework files, and advisory Git where present. Each blocking section SHALL explain required versus found state, provide a copy-pasteable local repair, and rerun base doctor. Exact ECharts repair SHALL direct lockfile-aligned project-root installation and SHALL not suggest CDN/browser script use. Image2-only checks SHALL remain in the explicitly optional legacy subsection and SHALL not affect base READY.
 
-Image2-only checks (`api_key`, `image_base_url`, `stage2_generator`, `image_smoke`, `image_probe_vendors`) SHALL be grouped in a clearly optional Image2 subsection and SHALL NOT be presented as requirements for base READY. The subsection SHALL still permit direct mapping from an explicit `doctor --image2`, `--smoke`, or `--probe-vendors` failure.
+#### Scenario: ECharts is missing or mismatched
 
-#### Scenario: Agent matches doctor failure to fix via section header
+- **WHEN** base doctor reports the ECharts check failed
+- **THEN** BOOTSTRAP provides an exact `echarts@6.1.0` project-root/lockfile repair and rerun command
+- **AND** does not route to provider credentials or remote chart loading
 
-- **WHEN** `ppt_flow.mjs doctor` reports `✗ nodejs: [FOUNDATION] fail`
-- **AND** the Agent reads BOOTSTRAP.md Step 1
-- **THEN** the Agent finds a section headed `### nodejs` with concrete supported-Node installation/upgrade commands for macOS, Linux, and Windows, naming `22.x`/`24.x`/`26.x` and recommending current LTS `24.x` for a fresh install
-- **AND** the Agent presents the appropriate platform-specific commands without reading another file
+#### Scenario: Image2 is absent for a fresh deck
 
-#### Scenario: Multiple failures are each matched
-
-- **WHEN** base doctor reports `✗ chromium: fail` and `✗ html_fonts: fail`
-- **THEN** BOOTSTRAP provides a browser-install command under `### chromium` and framework-asset repair guidance under `### html_fonts`
-- **AND** it does not tell the user to configure Image2 for either failure
-
-#### Scenario: Missing npm packages resolved by one command
-
-- **WHEN** doctor reports missing `@napi-rs/canvas`, `pptxgenjs`, `commander`, and `playwright`
-- **THEN** each check name has a matching section but the Agent consolidates them into one `npm install` action in the repository root
-
-#### Scenario: Explicit Image2 failures remain discoverable
-
-- **WHEN** `doctor --image2` reports `api_key` and `image_base_url` failures
-- **THEN** the Agent finds both names in the optional Image2 subsection
-- **AND** explains that they block only the selected Image2 path, not base local readiness
+- **WHEN** every base check passes but optional Image2 configuration is absent
+- **THEN** BOOTSTRAP proceeds with HTML-first creation
 
 ### Requirement: Fix instructions are user-profile-aware
 
@@ -105,49 +90,40 @@ Step 1 SHALL distinguish gate scope. FOUNDATION NOT READY (Node.js or npm missin
 
 ### Requirement: Image2 first-time credential setup is self-contained in BOOTSTRAP
 
-BOOTSTRAP.md Step 1 SHALL contain sufficient optional guidance for first-time Image2 credential setup when the user chooses or reaches an Image2-dependent action: what to ask for (`IMAGE2_API_KEY` and `IMAGE2_BASE_URL`), where to write it (`.env` in deck root or repo root), how to verify presence offline (`doctor --image2`), how to offer the existing first-vendor live probe (`doctor --smoke`), and how to record non-key lessons in `_lessons/`. It SHALL explicitly say that Image2 configuration is not required for base doctor. Before any live flag, guidance SHALL require the Agent to disclose the expected provider-submit count and obtain human confirmation; successful channel diagnosis SHALL NOT be described as page-generation authorization.
+BOOTSTRAP Step 1 SHALL state that fresh HTML-first create/preview/build/local iteration requires only base HTML readiness and SHALL not solicit `IMAGE2_API_KEY`, `IMAGE2_BASE_URL`, a style master, or a live provider probe. During Change 3, modern HTML visual-slot refinement is unavailable and BOOTSTRAP SHALL not advertise a runnable `image2` workflow.
 
-BOOTSTRAP SHALL NOT duplicate the full Image2 API contract (submit/poll/download protocol, vendor resolution, async task lifecycle, or full `--probe-vendors` troubleshooting), which remains in `03-tool-selection.md`. When a live probe fails, BOOTSTRAP SHALL point to that advanced reference rather than inlining it.
+When and only when an existing markerless deck is classified into `legacy-image2-maintenance`, BOOTSTRAP or the linked legacy reference SHALL provide the existing optional credential presence/live-probe guidance: `.env` location, `doctor --image2`, disclosed-submit confirmation before live flags, and non-secret lesson capture. It SHALL not describe channel diagnosis as page-generation authorization or duplicate the full provider protocol.
 
-#### Scenario: Base setup does not solicit credentials
+#### Scenario: Fresh user starts an HTML deck
 
-- **WHEN** a new user is only repairing default doctor
-- **THEN** BOOTSTRAP does not ask for `IMAGE2_API_KEY` or `IMAGE2_BASE_URL`
-- **AND** identifies Image2 setup as a later optional/dependency-triggered action
+- **WHEN** base doctor is ready and the user creates a new deck
+- **THEN** BOOTSTRAP proceeds without asking for Image2 credentials or live probes
 
-#### Scenario: First-time credential setup is self-contained
+#### Scenario: Legacy deck requires Image2 maintenance
 
-- **WHEN** the user chooses an Image2-dependent path for the first time
-- **THEN** the Agent can configure `.env` and run offline `doctor --image2` using only BOOTSTRAP Step 1
-- **AND** can offer `doctor --smoke` only after disclosing its one expected submit and obtaining confirmation
+- **WHEN** a markerless deck enters its explicit compatibility controller
+- **THEN** the Agent can discover offline credential checks and optional confirmed live diagnostics
+- **AND** no guidance is applied to the HTML path
 
-#### Scenario: User declines the optional live probe
+#### Scenario: Modern refinement is not yet available
 
-- **WHEN** Image2 presence is ready but the user declines the disclosed `doctor --smoke` provider submit
-- **THEN** the Agent does not invoke the live flag
-- **AND** does not reinterpret the decline as base or Image2-presence failure
+- **WHEN** a user asks for professional Image2 visual-slot refinement during Change 3
+- **THEN** BOOTSTRAP states it is unavailable rather than offering executable steps or commands
 
-#### Scenario: Smoke failure points to advanced reference
+#### Scenario: User declines a legacy live probe
 
-- **WHEN** `doctor --smoke` fails after `.env` is configured
-- **THEN** BOOTSTRAP points to `03-tool-selection.md` for channel probing and advanced provider troubleshooting
-- **AND** does not inline the full provider protocol
-
-#### Scenario: Agent records non-key lessons in _lessons/
-
-- **WHEN** the Agent overcomes an Image2 environment issue through trial and error
-- **THEN** the Agent records only the non-key takeaway in `deck_*/_lessons/`
-- **AND** no API key is written to the lesson
+- **WHEN** the user declines the disclosed provider submit
+- **THEN** no live flag runs and base HTML readiness remains unaffected
 
 ### Requirement: External file references are for human readers only, not required for agents
 
-BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `workflow/00-setup/02-nodejs-environment.md`, and `workflow/00-setup/03-tool-selection.md`. These references SHALL be explicitly marked as human background reading (labeled "给人类读者的背景阅读" or similar), and the Agent SHALL NOT be required to read them to guide a user through environment repair. The BOOTSTRAP text SHALL make clear to the Agent that the inline sections are sufficient and external files are not part of the remediation path.
+BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `workflow/00-setup/02-nodejs-environment.md`, and `workflow/00-setup/03-runtime-and-tools.md`. These references SHALL be explicitly marked as human background reading (labeled "给人类读者的背景阅读" or similar), and the Agent SHALL NOT be required to read them to guide a user through environment repair. The BOOTSTRAP text SHALL make clear to the Agent that the inline sections are sufficient and external files are not part of the remediation path.
 
 #### Scenario: Agent completes env fix without external files
 
 - **WHEN** the Agent successfully guides a user through all failing doctor checks
 - **THEN** the Agent has done so using only the inline sections in BOOTSTRAP.md Step 1
-- **AND** has not read `00-zero-to-ready.md`, `02-nodejs-environment.md`, or `03-tool-selection.md`
+- **AND** has not read `00-zero-to-ready.md`, `02-nodejs-environment.md`, or `03-runtime-and-tools.md`
 
 #### Scenario: External reference is clearly marked for humans
 
@@ -157,24 +133,17 @@ BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `work
 
 ### Requirement: BOOTSTRAP stays in sync with env-check check names
 
-When `env-check.mjs` adds a stable base check name, BOOTSTRAP.md Step 1 SHALL add a corresponding labeled base section in the same change. When env-check adds an Image2-only check name, BOOTSTRAP SHALL add it to the clearly optional Image2 subsection rather than the base checklist. The base BOOTSTRAP section-name set SHALL be a superset of default env-check names, and the Image2 subsection SHALL cover names emitted only by `--image2`, `--smoke`, or `--probe-vendors`.
+When `env-check.mjs` adds or changes a stable base check name, BOOTSTRAP Step 1 SHALL update the matching labeled base repair in the same change. Exact ECharts SHALL be a base check and repair alongside Playwright/Chromium/fonts. Checks emitted only by `--image2`, `--smoke`, or `--probe-vendors` SHALL remain under optional legacy Image2 readiness. `env-check` remains the check-name/ownership authority; prose SHALL be updated to match its owning readiness group.
 
-#### Scenario: New env-check item requires BOOTSTRAP section
+#### Scenario: Base ECharts check is added
 
-- **WHEN** a developer adds a new stable default check
-- **THEN** a matching base section with executable remediation is added to BOOTSTRAP Step 1 in the same change
+- **WHEN** the stable default report includes exact ECharts readiness
+- **THEN** BOOTSTRAP's base section set includes the same named check and executable remediation
 
-#### Scenario: Image2-only item does not become a base prerequisite
+#### Scenario: Image2-only check appears
 
 - **WHEN** a check is emitted only in Image2 mode
-- **THEN** its BOOTSTRAP section appears under optional Image2 readiness
-- **AND** it is not listed as a requirement for default doctor READY
-
-#### Scenario: env-check is the authority
-
-- **WHEN** there is a discrepancy between env-check check names and BOOTSTRAP sections
-- **THEN** env-check is the check-name authority
-- **AND** BOOTSTRAP is updated in the owning readiness group rather than renaming the producer to fit prose
+- **THEN** it is absent from the base prerequisite list and documented only in the optional legacy subsection
 
 ### Requirement: BOOTSTRAP provides optional, scope-honest Git startup guidance
 
@@ -223,4 +192,14 @@ The Agent and framework SHALL NOT automatically initialize a repository, stage f
 - **WHEN** a user declines installation, initialization, or a checkpoint
 - **THEN** the Agent continues the applicable deck workflow after existing hard gates pass
 - **AND** it does not frame the decision as skipping Structural Versioning Path or source validation
+
+### Requirement: BOOTSTRAP repairs the complete local HTML delivery prerequisites
+
+BOOTSTRAP SHALL map every base doctor/package/runtime/font/browser failure, including exact ECharts, to copy-pasteable local repair guidance and SHALL explain that per-run source/config/catalog/overflow failures are repaired through `ppt_flow validate` or HTML preview diagnostics rather than environment credentials. It SHALL route the Agent from BOOTSTRAP into final `00-setup` and the pipeline-specific playbook.
+
+#### Scenario: Runtime is ready but a slide overflows
+
+- **WHEN** doctor passes and HTML composition reports pixel overflow
+- **THEN** BOOTSTRAP/controller treats it as a run source/layout repair
+- **AND** does not ask for Image2 or reinstall the browser
 

@@ -35,10 +35,10 @@ const GIT_GUIDANCE_CORPUS = [
   "PPTMAKER_FRAMEWORK/workflow/00-setup/04-conventions.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/README.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md",
-  "PPTMAKER_FRAMEWORK/workflow/01-visual/04-iterate-review-lock.md",
-  "PPTMAKER_FRAMEWORK/workflow/04-production/05-stage-5-inject-speaker-notes.md",
+  "PPTMAKER_FRAMEWORK/workflow/02-visual-system/04-validate-the-html-system.md",
+  "PPTMAKER_FRAMEWORK/workflow/03-html-production/05-stage-5-inject-speaker-notes.md",
   "PPTMAKER_FRAMEWORK/workflow/05-iteration/README.md",
-  "PPTMAKER_FRAMEWORK/workflow/05-iteration/02-style-iteration-workflow.md",
+  "PPTMAKER_FRAMEWORK/workflow/05-iteration/02-visual-system-iteration.md",
   "PPTMAKER_FRAMEWORK/reference/glossary.md",
 ];
 
@@ -127,11 +127,11 @@ describe("framework documentation coherence", () => {
       expect(text, file).toMatch(/plan_sha256|plan hash/i);
       expect(text, file).toMatch(/needs_render/);
     }
-    const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/02-content/template-slide-specifications.md", "utf8");
+    const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/01-content/template-slide-specifications.md", "utf8");
     expect(template).toMatch(/identity:\s*\n\s+scheme: mnemonic-v1/);
     expect(template).toMatch(/SUBJECT \+ MOVE/);
     expect(template).toMatch(/5–8/);
-    expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("13 个命令");
+    expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("14 个命令");
   });
 
   it("keeps optional Git guidance aligned with visible deck versions", () => {

@@ -18,47 +18,31 @@ Define how the five production stages are orchestrated: the whole pipeline runs 
 
 ### Requirement: Unified pipeline supports semantic refresh paths
 
-The unified pipeline entry point (`unified_pipeline.mjs`) SHALL continue to support the Stage subsets used by three English canonical refresh paths: Header Text & Style Refresh resolves source in Stage 1 and completes Stages 3,4,5 without Stage 2 when only KICKER/TITLE/SUBTITLE text or Stage-3-owned overlay styling is stale and the raw-image contract is unchanged; Generated Image Rebuild covers Stages 1,2,3,4,5 as a logical workflow with actual selected image regeneration and required review; Notes-Only Refresh uses Stage 5 only. The former Chain A/B/C labels are compatibility aliases, not CLI values or machine identifiers.
+`unified_pipeline.mjs` SHALL classify the canonical production marker before resolving semantic refresh behavior. For `html-first-v1`, it SHALL support Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the post-publication materialization portion of Structural Versioning using local structured plan/HTML/composition/delivery ownership; it SHALL not consult render mode, style master, `--force-images`, or provider authorization. For markerless legacy, Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, force semantics, reviewed-image reuse, and former Chain aliases SHALL remain compatible. Structural Versioning Path remains outer to both branch-specific refresh sets and SHALL not become a CLI enum.
 
-Generated Image Rebuild SHALL preserve the existing force semantics: raw `unified_pipeline --only <ids>` limits Stage 2 scope but does not imply force, so intentional rebuilding of existing selected images SHALL include `--force-images`. A public `ppt_flow refresh --kind visual` request MAY add force for its explicitly selected/all scope. For reviewed full-page title changes, Stage 2 MAY occur in a pilot command and final Stages 3,4,5 MAY reuse the reviewed image; the path SHALL NOT require one literal all-stage invocation.
+#### Scenario: HTML visible copy changes
 
-#### Scenario: Header Text & Style Refresh skips image regeneration
+- **WHEN** one marked slide's header/body copy changes
+- **THEN** Local Slide Rebuild runs local affected composition/delivery and no provider path
 
-- **WHEN** a resolved `body+header-lock` header change follows Header Text & Style Refresh
-- **THEN** Stage 1 refreshes the plan and Stages 3,4,5 complete without Stage 2
-- **AND** pipeline completes in under 5 minutes for a standard deck
+#### Scenario: Legacy raw image must regenerate
 
-#### Scenario: Safe-zone change is not a header-only refresh
-
-- **WHEN** a header safe-zone or render-mode change alters the raw-image prompt contract
-- **THEN** the affected slide uses Generated Image Rebuild rather than Header Text & Style Refresh
-
-#### Scenario: Raw selected image rebuild requires force
-
-- **WHEN** an existing selected image must be intentionally regenerated through raw `unified_pipeline`
-- **THEN** the invocation includes both `--only <ids>` and `--force-images`
-- **AND** `--only` by itself remains a scope selector rather than a regeneration request
-
-#### Scenario: Reviewed full-page title rebuild is multi-command
-
-- **WHEN** a full-page title change requires new reviewed image evidence
-- **THEN** selected Stage 2 regeneration MAY run through pilot with `--force-images`
-- **AND** final assembly reuses the reviewed image without a second image generation
-
-#### Scenario: Canonical names are not CLI values
-
-- **WHEN** maintainers update help or guidance for refresh paths
-- **THEN** they do not add `--chain`, canonical-name arguments, or a new machine-readable path enum
+- **WHEN** a markerless selected image is intentionally rebuilt
+- **THEN** existing `--only` scope plus `--force-images` semantics remain
 
 ### Requirement: Unified pipeline orchestrates stages
 
-`unified_pipeline.mjs` SHALL delegate to individual stage scripts, load credentials from `.env`, and support `--dry-run`, `--force-images`, `--only <id>`, and Stage 2 via in-framework `stage2_generate_images.mjs` + `make_contact_sheet.mjs`.
+`unified_pipeline.mjs` SHALL probe the canonical marker and delegate each stage to the selected complete branch adapter. It SHALL support shared `--dry-run` and slide selection without embedding stage implementations. The HTML adapter SHALL use structured Stage 1, HTML page Stage 2, local compositor Stage 3, common final-slide Stage 4, and Stage 5 notes without loading `.env`, provider credentials, style master, or legacy generator/contact-sheet code. The markerless adapter SHALL retain `.env`/Image2 Stage 2, legacy contact sheet, header-lock Stage 3, and existing relevant `--force-images` behavior. Dry-run SHALL describe only the selected branch and remain write/remote-free.
 
-#### Scenario: Dry run reports stages without executing them
+#### Scenario: HTML dry run is credential-free
 
-- **WHEN** `node unified_pipeline.mjs --stage all --dry-run` is run
-- **THEN** the orchestrator reports the stage scripts it would invoke and the credentials it would load from `.env`
-- **AND** no stage is actually executed
+- **WHEN** a marked run invokes any dry-run stage selection
+- **THEN** the plan names only local HTML stages and does not load Image2 environment configuration
+
+#### Scenario: Legacy Stage 2 delegates in-framework
+
+- **WHEN** a markerless run selects Stage 2
+- **THEN** orchestration retains `stage2_generate_images.mjs` plus legacy `make_contact_sheet.mjs` ownership
 
 ### Requirement: Shared slide-id resolution for --only
 
@@ -87,264 +71,152 @@ Generated Image Rebuild SHALL preserve the existing force semantics: raw `unifie
 
 ### Requirement: --preview uses preview readiness for Stage 2
 
-When Stage 2 is included, `unified_pipeline.mjs` SHALL validate with **pipeline** readiness by default, and with **preview** readiness when `--preview` is set (style master required; metadata gates not required). `--preview` SHALL NOT mutate gate fields.
+When Stage 2 is selected, orchestration SHALL classify the run before readiness. HTML preview SHALL require valid structure/source/catalog/base local runtime but no style master or approved gates, publish review-only page/final-slide/preview evidence, and not publish Stage 4. HTML non-preview delivery SHALL require current authoritative HTML content/visual evidence. Markerless preview SHALL retain structure plus style master without metadata-gate approval; markerless non-preview Stage 2 SHALL retain pipeline readiness. `--preview` SHALL not waive or mutate either branch's gates.
 
-#### Scenario: Stage 2 with --preview while gates pending
+#### Scenario: HTML Stage 2 preview runs with pending gates
 
-- **WHEN** metadata gates are `pending`
-- **AND** style master exists
-- **AND** `unified_pipeline … --stage 2 --preview` runs
-- **THEN** validation passes the gate check
-- **AND** Stage 2 may proceed
+- **WHEN** a valid marked run selects Stage 2 with `--preview`
+- **THEN** local review composition proceeds without style master or metadata approval
 
-#### Scenario: Stage 2 without --preview still needs gates
+#### Scenario: Legacy preview remains compatible
 
-- **WHEN** metadata gates are `pending`
-- **AND** `unified_pipeline … --stage 2` runs without `--preview`
-- **THEN** validation fails with a gate-related error
+- **WHEN** a markerless run has style master and pending metadata gates
+- **THEN** Stage 2 with `--preview` may proceed while non-preview remains blocked
 
 ### Requirement: Stage 2 regenerates only when --force-images is set
 
-Stage 2 SHALL skip existing image files unless `--force-images` is set. Presence of `--only` SHALL NOT by itself force regeneration.
+For markerless legacy Stage 2, existing image files SHALL be skipped unless `--force-images` is set; `--only` remains scope, not force. For HTML Stage 2, `--force-images` SHALL be rejected before writes and currentness SHALL be decided solely by validated composition input receipts/fingerprints and explicit slide scope. A stale/missing selected HTML page SHALL rebuild locally; a current matching page SHALL be reusable without a force flag.
 
-#### Scenario: --only without force skips existing files
+#### Scenario: Legacy only without force skips
 
-- **WHEN** `--only <id>` is set, the image file exists, and `--force-images` is absent
-- **THEN** Stage 2 skips that file and does not call the image API for it
+- **WHEN** markerless Stage 2 receives `--only` for an existing current image without force
+- **THEN** it skips provider generation
 
-#### Scenario: --force-images regenerates selection
+#### Scenario: HTML Stage 2 receives force-images
 
-- **WHEN** `--force-images` is set with or without `--only`
-- **THEN** selected existing images are regenerated
+- **WHEN** a marked run supplies `--force-images`
+- **THEN** the branch rejects the legacy-only option before publication
 
 ### Requirement: Automatic pilot selection covers content full-page header risk
 
-`ppt_flow pilot` automatic selection SHALL classify a full-page slide as hero or content using the same shared VISUAL TYPE canonicalization helper as Stage 1, not merely its `render_mode`. When at least one content full-page slide exists and `count >= 1`, the selected ids SHALL include at least one. When at least two content full-page slides exist and `count >= 2`, the selected ids SHALL include at least two so cross-page header consistency can be reviewed. Remaining capacity SHALL cover opener/closer and other render modes using deterministic, deduplicated selection. Explicit `--only` SHALL remain authoritative and SHALL NOT have slides silently added by the CLI.
+Automatic pilot selection SHALL be pipeline-specific and deterministic. For markerless legacy, it SHALL retain shared VISUAL TYPE canonicalization, content full-page sampling counts, opener/closer coverage, deduplication, and exact explicit `--only`. For HTML-first, it SHALL sort canonical component-recipe hashes and choose the code-unit-smallest current stable ID per key plus stale affected pages; reorder alone SHALL not change representatives. Every representative shows effective output and also forced-fallback when current selection hides fallback. Explicit `--only` SHALL remain authoritative, but an incomplete scoped plan SHALL report uncovered required review and remain non-approvable rather than silently add IDs.
 
-#### Scenario: Default pilot samples two content full-page pages
-- **WHEN** a deck has at least two content full-page slides and automatic pilot runs with the default count of three
-- **THEN** two selected ids are content full-page slides
-- **AND** the remaining id is selected deterministically from the other representative classes
+#### Scenario: HTML automatic preview covers new geometry
 
-#### Scenario: Count one prioritizes the changed risk
-- **WHEN** a deck has a content full-page slide and automatic pilot runs with `--count 1`
-- **THEN** that one selected slide is content full-page
+- **WHEN** a marked plan introduces an uncovered family/geometry key
+- **THEN** automatic preview includes a deterministic representative before visual approval
 
-#### Scenario: Explicit only remains exact
-- **WHEN** the caller supplies valid `--only` ids
-- **THEN** the CLI uses exactly those ids and does not append content full-page slides
+#### Scenario: Legacy content full-page sampling remains
+
+- **WHEN** a markerless deck has at least two content full-page slides and default pilot runs
+- **THEN** existing two-page content-risk sampling remains
 
 ### Requirement: Header review gate guides per-slide
 
-Gate SHALL 以 per-slide 粒度检查 full-page 标题。输出 SHALL 为 MD Controller 可消费的结构体。纯 full-page deck SHALL 自动放行。`--only` SHALL 限缩检查范围。
+The header-review gate SHALL be explicitly markerless-legacy-only and retain per-slide full-page header fingerprints, `--only` scope, generation-profile/image-byte checks, actionable pilot commands, and pure-full-page applicability semantics. A marked HTML-first run SHALL reject this gate as branch-inapplicable before state mutation and route to HTML content/visual review. HTML title/visual changes SHALL never be authorized by `header-review`.
 
-#### Scenario: Single slide title change — MD gets actionable command
+#### Scenario: Legacy reviewed title bytes drift
 
-- **WHEN** s05 的 title 从 "传统开发" 改为 "软件优先"，其余 24 页不变
-- **THEN** `changed: [{id: "s05", field: "title", was: "传统开发", now: "软件优先"}]`
-- **AND** `action: "node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \"{runDir}\" --only s05"`
-- **AND** 不阻塞其余 24 页
+- **WHEN** a markerless reviewed full-page PNG no longer matches its manifest
+- **THEN** header review identifies the affected ID and existing force/review action
 
-#### Scenario: Pure full-page deck skips
+#### Scenario: HTML run invokes header gate
 
-- **WHEN** deck 无 body+header-lock slide
-- **THEN** `applicable: false`
-
-#### Scenario: --only limits scope
-
-- **WHEN** `--only s05,s07` 传入
-- **THEN** 仅检查 s05 和 s07
-
-#### Scenario: No changes — silent pass
-
-- **WHEN** 所有 full-page slide 与上次 review 一致
-- **THEN** `ok: true`
-
-#### Scenario: More than 5 slides changed — full pilot
-
-- **WHEN** 6 页标题发生变化
-- **THEN** `action` 不含 `--only`，指向全量 pilot
-
-#### Scenario: End-to-end — title change to resolution
-
-- **WHEN** 用户改 s05/s07 标题后 build
-- **THEN** gate → `ok: false` + `action: pilot --only s05,s07`
-- **AND** MD 执行 pilot → approve → gate 重检（第二次 build）→ `ok: true` → 继续
-
-#### Scenario: Stage 4 image bytes mismatch on single slide
-
-- **WHEN** Stage 4 `requireCurrentImages` 检查发现 s05 的 PNG 文件 SHA-256 与 manifest 不匹配
-- **THEN** `changed: [{id: "s05", field: "image", was: null, now: null}]`
-- **AND** `action` 引导 `--force-images --only s05` + pilot
-
-#### Scenario: Missing header_snapshot in state
-
-- **WHEN** slide 有 `status` 但缺 `header_snapshot`
-- **THEN** `changed` 中 `was: null`，建议 pilot 确认
-
-#### Scenario: Visual type change detected
-
-- **WHEN** s05 的 visual_type 从 "Content Page" 改为 "Title / Opener"，标题文字未变
-- **THEN** fingerprint 不匹配 → `changed: [{id: "s05", field: "visual_type", was: "Content Page", now: "Title / Opener"}]`
-
-#### Scenario: Generation profile mismatch
-
-- **WHEN** 当前 build 请求 2k resolution 但上次 review 用 1k
-- **THEN** gate 返回所有 content full-page slide 为 `changed`
-- **AND** `hint` 说明 profile 不匹配，需重新 pilot
+- **WHEN** a marked run requests legacy header review
+- **THEN** it fails with the HTML visual-review route and writes no legacy evidence
 
 ### Requirement: Gate output is MD-controller-friendly
 
-返回结构 SHALL 始终包含全部 6 个字段。`ok: true` 时 `changed: []`, `action: null`, `hint: null`。`ok: false` 时 `changed` 非空、`action` 为可执行命令、`hint` 为人话解释。MD 遇无 `format` 字段 → 旧代码 → 放行。
+Legacy header-gate output SHALL retain its exact six-field format and compatibility behavior for old callers. HTML content/visual review planning SHALL use its own versioned schema with exact pipeline/run version, evidence kind, review-plan hash, status, bounded changed IDs/dependencies, and structured human next action; it SHALL not impersonate the legacy six-field header format. Both schemas SHALL be bounded, deterministic, and branch-labeled so MD Controllers do not parse prose or accept cross-pipeline evidence.
 
-#### Scenario: Gate passes — null action
+#### Scenario: Legacy header gate passes
 
-- **WHEN** 没有 slide 需要 review
-- **THEN** `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}`
+- **WHEN** no markerless slide needs header review
+- **THEN** the existing `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}` remains valid
 
-#### Scenario: Gate fails — MD gets command
+#### Scenario: HTML review plan is emitted
 
-- **WHEN** s05 title 变了
-- **THEN** `{ok: false, changed: [{s05,...}], action: "node ... pilot \"{runDir}\" --only s05", hint: "..."}`
-
-#### Scenario: Non-existent slide in --only
-
-- **WHEN** `--only s99` 且 s99 不在 plan 中
-- **THEN** `ok: true`, `hint: "s99 not found in slide plan"`
+- **WHEN** HTML content or visual evidence is stale
+- **THEN** output identifies the HTML review schema/hash and cannot be consumed as header approval
 
 ### Requirement: buildHeaderReviewInputs produces per-slide fingerprints
 
-`buildHeaderReviewInputs()` SHALL 为每页 full-page slide 独立计算 fingerprint + `hasBodyHeaderLockSlides: boolean`。
+`buildHeaderReviewInputs()` SHALL remain a markerless-legacy helper that computes each full-page header fingerprint and `hasBodyHeaderLockSlides`; it SHALL reject or remain unreachable for HTML-first. HTML review SHALL use `content_review_fingerprint_v1`, `visual_system_fingerprint_v1`, and `page_visual_dependency_fingerprint_v1` from their owning modules rather than extend the legacy helper.
 
-#### Scenario: Per-slide fingerprint varies independently
+#### Scenario: HTML branch reaches legacy helper
 
-- **WHEN** s05 的 title 改变但 s06 不变
-- **THEN** `slideFingerprints["s05"]` 改变，`slideFingerprints["s06"]` 不变
-
-#### Scenario: hasBodyHeaderLockSlides reflects deck composition
-
-- **WHEN** deck 有 `body+header-lock` slide → `hasBodyHeaderLockSlides: true`
-- **WHEN** deck 全部 `full-page` → `hasBodyHeaderLockSlides: false`
+- **WHEN** marked orchestration attempts to build legacy header inputs
+- **THEN** branch isolation fails the operation before evidence publication
 
 ### Requirement: mergeHeaderReviewRecord stores per-slide state
 
-`mergeHeaderReviewRecord()` SHALL 写入 `header_snapshot` + `fingerprint` + `status`。SHALL 自动清理 plan 中不存在的 slide 条目。首次 body+header-lock 引入时所有无 record 的 full-page slide → `status: "changed"`。
+`mergeHeaderReviewRecord()` SHALL remain markerless-legacy-only and retain snapshot/fingerprint/status merge plus deleted-ID cleanup. It SHALL write only version-scoped `header-review` evidence. HTML content/visual records SHALL be written through their separate journaled authority and SHALL never be merged into or initialized from header-review records.
 
-#### Scenario: Reviewed slide gets snapshot stored
+#### Scenario: Legacy slide is deleted
 
-- **WHEN** 用户 approve s05 的 pilot
-- **THEN** `slides.s05.header_snapshot` 保存当前 kicker/title/subtitle
-- **AND** `slides.s05.status` 变为 `reviewed`
+- **WHEN** a markerless reviewed ID leaves the plan
+- **THEN** the legacy merge removes its per-slide header record as before
 
-#### Scenario: Deleted slide is cleaned up
+#### Scenario: HTML evidence is supplied to legacy merge
 
-- **WHEN** slide plan 中不再包含 s05
-- **AND** `mergeHeaderReviewRecord` 被调用
-- **THEN** state 中 `slides.s05` 条目被移除
+- **WHEN** a caller supplies an HTML review record
+- **THEN** the helper rejects it without mutating either evidence store
 
 ### Requirement: changedFullPageIds supports per-slide state
 
-`changedFullPageIds()` SHALL 接受可选 `slideStates` 参数。有 per-slide state → 读 `status === "changed"`；无 state（首次 pilot）→ fallback 到全局 snapshot diff。
+`changedFullPageIds()` SHALL remain a markerless-legacy helper: with per-slide state it reads `status === changed`, and without it falls back to the legacy global snapshot diff. HTML orchestration SHALL not call it; affected HTML pages SHALL derive from composition/content/visual dependency fingerprints and current manifest evidence.
 
-#### Scenario: Per-slide state used when available
+#### Scenario: Legacy state is absent
 
-- **WHEN** `slideStates` 含 `{c1: {status: "changed"}}`
-- **THEN** 返回 `["c1"]`
+- **WHEN** markerless pilot has no per-slide state
+- **THEN** the existing snapshot fallback remains available
 
-#### Scenario: Fallback to snapshot diff when no state
+#### Scenario: HTML local rebuild computes scope
 
-- **WHEN** `slideStates` 为 null
-- **THEN** 使用全局 `previousSnapshot` vs `currentSnapshot` diff
+- **WHEN** a marked slide dependency changes
+- **THEN** scope comes from HTML fingerprints rather than full-page header state
 
 ### Requirement: Structural refresh impact is computed by stable identity
 
-After a structural edit creates a target version, orchestration SHALL compare source and target slide plans by formal `slide_id` and classify each ID as retained, inserted, deleted, reordered, or content/profile changed. Position changes alone SHALL invalidate only cheap local outputs such as slide plan projections, prompt twins, Stage 3 final/header-lock output, contact sheets, PPTX assembly, and notes injection. They SHALL NOT invalidate an expensive raw-render fingerprint.
+After structural source publication, orchestration SHALL compare source/target by stable ID and classify retained/inserted/deleted/reordered/content-or-profile changes. For HTML-first, the impact SHALL report target current positions, IDs/titles, matching or stale composition input receipts, target-owned reuse eligibility, required local stages/reviews, and zero remote work. Reorder alone SHALL preserve slide-local HTML/final bytes and invalidate ordered delivery; inserted/stale IDs SHALL be locally composable, not `needs_render` remote debt. For markerless legacy, existing raw-render verification/materialization, cheap Stage-3/delivery invalidation, `verified|legacy-located`, `needs_render`, and review semantics SHALL remain.
 
-The impact report SHALL expose current position, stable ID, title, retained/materialized raw artifacts, missing or stale artifacts, `verified` versus `legacy-located` status, required local stages, `needs_render`, and any human review requirement. Deleted IDs SHALL not be assembled into the target while the source version and its artifacts remain unchanged.
+#### Scenario: HTML reorder is locally reusable
 
-#### Scenario: Reorder-only impact is cheap
+- **WHEN** a marked target only reorders unchanged IDs
+- **THEN** impact preserves their composition bytes and schedules target-owned ordered delivery
 
-- **WHEN** source and target contain the same formal IDs and semantic inputs but in a different order
-- **THEN** orchestration classifies all pages as retained/reordered
-- **AND** schedules order-dependent outputs without marking raw renders stale
+#### Scenario: Legacy insert retains needs-render semantics
 
-#### Scenario: Insert isolates expensive work
-
-- **WHEN** the target adds one new formal ID and leaves every retained slide's semantic inputs unchanged
-- **THEN** orchestration marks only the new ID as missing a raw render
-- **AND** retained IDs remain eligible for verified materialization
+- **WHEN** a markerless target inserts an ID without verified raw render
+- **THEN** only that ID appears under legacy `needs_render`
 
 ### Requirement: Structural versions materialize only verified expensive raw renders
 
-Orchestration SHALL materialize an artifact from the source version into the target only through the shared render-artifact resolver and the owning Stage's manifest rules. Cross-version materialization in this change SHALL be limited to expensive `raw-render` artifacts. A retained raw render SHALL require matching stable ID, engine, artifact kind, generation fingerprint/profile, and verified source-byte SHA. A `legacy-located` file without complete proof SHALL NOT qualify. Successful materialization SHALL atomically copy bytes into the target and write target-owned manifest entries with source-version lineage. Stage 3 final/header-lock output, contact sheet/QA, PPTX, and notes SHALL be rebuilt locally in the target rather than copied across versions. Any failed or missing raw check SHALL report the ID under `needs_render` without guessing from filenames or reading the source version as a runtime fallback.
+Materialization SHALL remain target-owned and branch-specific. Markerless legacy SHALL retain shared resolver checks for stable ID, engine, raw-render kind, generation profile/fingerprint, source-byte SHA, exclusion of `legacy-located`, target copy/manifests, locally rebuilt Stage 3+, `needs_render`, and verified non-waiver header evidence rules. HTML-first MAY reuse prior immutable HTML/final-slide bytes only after source-only target publication, recomputed target composition fingerprints/membership, exact path/SHA/profile/receipt verification, and copy into target-owned objects/manifests; it SHALL never copy preview/gate/PPTX/notes truth or point across versions. Unverifiable HTML bytes SHALL recompose locally and SHALL not become remote debt.
 
-Header-review evidence MAY be re-established in the target's version-scoped state only when it is a verified per-slide approval and stable ID, generation profile, and reviewed raw-image SHA all match verified current inputs. The target record SHALL identify source-version lineage and SHALL satisfy the existing current-version review contract only after publication in the target. Waivers, `legacy-located` evidence, and unverified source-version evidence SHALL remain unusable.
+#### Scenario: HTML retained object verifies
 
-#### Scenario: Verified retained raw render becomes target-owned
+- **WHEN** a retained marked slide's target fingerprint and prior immutable receipt match
+- **THEN** bytes become target-owned and ordered outputs rebuild locally
 
-- **WHEN** a retained slide passes every raw-render kind, engine, fingerprint/profile, and byte-hash check
-- **THEN** orchestration materializes its raw bytes and current manifest entry into the target version
-- **AND** Stage 3 and all later cheap stages rebuild from that target-owned raw entry
+#### Scenario: Legacy located-only raw file remains unusable
 
-#### Scenario: One retained slide has stale provenance
-
-- **WHEN** one source raw artifact's bytes do not match its recorded SHA while all other retained IDs verify
-- **THEN** only that ID is excluded from materialization and appears under `needs_render`
-- **AND** verified unrelated IDs remain reusable
-
-#### Scenario: Legacy-located file does not prove reuse
-
-- **WHEN** a compatibility adapter locates a retained PNG but cannot prove its current raw-render fingerprint and bytes
-- **THEN** orchestration does not materialize it as current
-- **AND** reports the retained ID under `needs_render` without making a remote call
-
-#### Scenario: Cheap final artifact is rebuilt locally
-
-- **WHEN** a retained raw render is materialized into a reordered target
-- **THEN** target Stage 3 reruns and publishes a target-owned final manifest
-- **AND** no prior-version Stage 3 final file is copied as the current target output
-
-#### Scenario: Header evidence is re-established, not borrowed
-
-- **WHEN** source-version review evidence and all bound fingerprints and image bytes verify for a retained target slide
-- **THEN** orchestration may publish equivalent target-version evidence with source lineage
-- **AND** the target does not directly treat the source-version record as current
-
-#### Scenario: Waiver is not carried forward
-
-- **WHEN** the source version proceeded through a waiver rather than a verified per-slide approval
-- **THEN** orchestration does not establish target review evidence from that waiver
-- **AND** the target remains subject to its normal review contract
+- **WHEN** a markerless adapter cannot prove raw-render fingerprint/bytes
+- **THEN** it remains `needs_render` and is not materialized
 
 ### Requirement: Structural materialization never silently invokes remote rendering
 
-Structural apply, structural impact analysis, and cross-version materialization SHALL never invoke Image2 or any future remote renderer. They SHALL materialize verified raw renders, rebuild cheap local stages where prerequisites exist, and return every missing/stale selected-engine raw artifact as `needs_render`. The Agent SHALL invoke Generated Image Rebuild only through an explicit subsequent refresh after the relevant cost/scope is authorized. A structural or materialization code path with any remote renderer call SHALL fail integration tests.
+Structural source apply and impact analysis SHALL invoke no renderer. Subsequent explicit materialization SHALL never invoke a remote renderer. HTML-first materialization MAY reuse verified target-owned bytes or run the local HTML renderer/compositor for missing/stale IDs, then rebuild local delivery. Markerless materialization SHALL retain verified raw reuse and report missing/stale IDs as `needs_render`; only a separately authorized Generated Image Rebuild may call Image2. Reorder/delete-only work with verifiable inputs SHALL complete target-local delivery with zero remote calls in both branches.
 
-For reorder/delete-only work whose retained raw renders all verify, the explicit local production path SHALL complete Stage 1, raw materialization, Stage 3, order-dependent QA/contact-sheet work, Stage 4, and Stage 5 with zero remote calls. If any retained raw render cannot be proven, the source vNext remains valid but production stops with `needs_render` rather than quietly spending quota.
+#### Scenario: HTML insert composes locally after publication
 
-#### Scenario: Reorder-only makes zero renderer calls
+- **WHEN** a marked target adds one valid slide and explicit materialization runs
+- **THEN** only required local HTML composition plus ordered delivery runs with zero remote calls
 
-- **WHEN** all retained artifacts verify after a reorder-only edit
-- **THEN** Stage 3, target PPTX, and notes are rebuilt locally in current order
-- **AND** no Image2 or future HTML remote render request is made
+#### Scenario: Legacy insert does not spend quota
 
-#### Scenario: Delete-only makes zero renderer calls
-
-- **WHEN** a page is deleted and every remaining ID has verified artifacts
-- **THEN** the deleted ID is omitted from target assembly
-- **AND** no retained slide is remotely rerendered
-
-#### Scenario: Insert reports missing render before any renderer call
-
-- **WHEN** exactly one inserted ID lacks its selected-engine artifact and all retained IDs verify
-- **THEN** structural apply/materialization reports exactly that ID under `needs_render`
-- **AND** makes zero remote calls until an explicit Generated Image Rebuild is invoked
-
-#### Scenario: Explicit rebuild scopes the remote call
-
-- **WHEN** the Agent subsequently invokes an authorized Generated Image Rebuild for the one `needs_render` ID
-- **THEN** the selected renderer is called only for that ID
-- **AND** retained verified raw renders remain untouched
+- **WHEN** a markerless target lacks one raw render
+- **THEN** materialization reports that ID and waits for explicit remote rebuild authorization
 
 ### Requirement: Order-dependent views display position and stable identity
 
@@ -405,90 +277,192 @@ Local-only Stage subsets, dry runs, Structural Versioning materialization from v
 
 ### Requirement: HTML-first source validation is available before HTML-first production
 
-Change 2 SHALL expose exactly three general-purpose, Stage-1-equivalent write-free HTML-first validation routes: `ppt_flow.mjs validate <run-dir>`, `stage1_build_inputs.mjs --validate --spec <run-dir>/slide-specifications.md`, and `unified_pipeline.mjs --run-dir <run-dir> --stage 1 --dry-run`. Edit-specific structural preview may invoke the same local validation core only as part of a concrete source transaction under `slide-identity-and-ordering`; it is not a fourth general validation entry, cannot publish a plan, and cannot substitute alternate run/config/catalog inputs. Direct HTML-first validation SHALL accept exactly that one canonical `--spec` and SHALL reject additional specs plus `--out`, `--style-dir`, `--color-palette`, or `--deck-system` overrides through the existing usage envelope, so validation and publication cannot resolve different control inputs. The sole generated-artifact publication route SHALL be literal `unified_pipeline.mjs --run-dir <run-dir> --stage 1` without `--dry-run`; it atomically rebuilds only the existing structured `_generated/slide_plan.json` projection without legacy prompt files. All HTML-first validation and canonical Stage-1 routes SHALL run without dotenv search, provider/model/style-reference prerequisite resolution, or remote-call setup. A non-validation direct `stage1_build_inputs.mjs` invocation that detects the marker SHALL fail with existing code `FAILED`, category `gate`, and `reason.kind: html_first_projection_requires_run_dir`, directing the caller to the canonical unified Stage-1 route rather than honoring arbitrary `--out` as a second publication authority.
+The three write-free validation routes from Change 2 SHALL remain: `ppt_flow validate <run-dir>`, direct Stage-1 `--validate --spec <canonical-source>`, and unified Stage-1 `--dry-run`. Their single canonical-source/no-alternate-control/legacy-alias restrictions, write-free behavior, receipt validation, and direct arbitrary-output rejection SHALL remain unchanged.
 
-For a marked source, the direct validator SHALL reject the legacy `--input` alias, repeated/combined `--spec` values, and every unknown option with the existing `USAGE` envelope before reading alternate control inputs. The markerless branch SHALL retain the existing `--input` alias, multi-input behavior, and legacy option compatibility.
+For a valid `production.pipeline: html-first-v1` run, canonical unified Stage 1 SHALL publish only the structured plan; HTML Stage 2 SHALL publish self-contained pages; HTML Stage 3 SHALL publish measured verified final slides and preview evidence; Stage 4 SHALL consume provider-neutral final slides; Stage 5 SHALL inject notes. HTML preview/build/refresh/materialization SHALL run without dotenv, credentials, style master, provider/model setup, legacy prompt files, header lock, or any remote-call adapter. The temporary `html_first_delivery_unavailable` failure SHALL no longer apply to supported HTML preview/build/refresh/structural-materialization paths. Direct legacy style-master/header approval commands SHALL remain inapplicable to HTML-first runs with a branch-specific diagnostic rather than becoming HTML prerequisites.
 
-Until a later owning change installs the HTML renderer and provider-neutral delivery path, direct `generate_style_master.mjs --run-dir <run-dir>`, `ppt_flow style-master`, `ppt_flow approve <run-dir> header`, public pilot, build, every refresh kind, and any `unified_pipeline --stage` selection containing legacy Stage 2-5 SHALL perform a shared leading-frontmatter marker probe before run readiness, dotenv/credential/provider-prerequisite resolution, implicit Stage-1 refresh, output/state writes, or any selected stage. They SHALL fail through the existing CLI envelope code `FAILED` with diagnostic category `gate` and `reason.kind: html_first_delivery_unavailable`. The diagnostic SHALL use `cli_error.mjs`, direct maintainers to validation/canonical Stage 1 only, and SHALL not suggest removing the marker or silently use the legacy pipeline. Malformed leading frontmatter SHALL flow to the normal write-free source-validation diagnostic before those prerequisites rather than be treated as a legacy omission. Standalone Stage 2-5 CLIs consume explicit artifact arguments rather than a run-directory source and are unchanged; this change does not claim they can infer a source marker they are not given. Content/visual gate approval and structural source preview/apply remain governed by their existing non-delivery authorities.
-
-The existing structural source preview/apply path MAY operate on HTML-first source under `slide-identity-and-ordering`, but legacy cross-version raw-render materialization SHALL detect an HTML-first target and return the same unavailable-delivery reason before target Stage 1, prompt lookup, artifact copy, state write, or local Stage 3-5 work. Source publication and production materialization remain separate authorizations.
+The markerless branch SHALL retain legacy options, style-master/readiness guards, whole-page Stage 2, Stage-3 header behavior, pilot/header review, refresh paths, and standalone artifact interfaces. Malformed markers SHALL fail before either branch's readiness or writes. Branches SHALL not consume each other's manifests, gates, generated directories, or prerequisites.
 
 #### Scenario: Structured source validates locally
 
-- **WHEN** a valid HTML-first source runs the explicit parse/validate path
-- **THEN** schema, family, capacity/font, asset, selection, and fingerprint validation can complete locally
-- **AND** zero remote calls or production images are created
+- **WHEN** a valid HTML-first source runs any explicit validation route
+- **THEN** contract validation completes with zero writes and zero remote setup
 
-#### Scenario: Stage 1-only projection is the sole write-enabled path
+#### Scenario: HTML-first canonical Stage 1 remains the sole plan writer
 
-- **WHEN** canonical `unified_pipeline --run-dir <run-dir> --stage 1` without `--dry-run` processes a valid HTML-first source
-- **THEN** it atomically rebuilds only the existing `slide_plan.json` projection
-- **AND** it writes no legacy prompt manifest/twins or downstream artifacts
+- **WHEN** canonical unified Stage 1 processes a valid HTML-first run
+- **THEN** it atomically rebuilds only `_generated/slide_plan.json`
+- **AND** direct Stage 1 still cannot publish to an arbitrary output
 
-#### Scenario: Stage 1 dry-run is validation-only
+#### Scenario: HTML-first complete build succeeds locally
 
-- **WHEN** `unified_pipeline --run-dir <run-dir> --stage 1 --dry-run` processes an HTML-first source
-- **THEN** it performs the same local source/config/catalog/font/fingerprint validation without publishing a temp or final plan
-- **AND** every source, control, generated, and state byte remains unchanged
+- **WHEN** content/visual gate requirements are current and the user runs build on a valid HTML-first deck
+- **THEN** Stages 1-5 publish current HTML pages, final slides, contact sheet, PPTX, and notes
+- **AND** no Image2 credential/style-master/provider prerequisite is resolved
 
-#### Scenario: Direct Stage 1 cannot publish to an arbitrary output
+#### Scenario: HTML-first stage dry-run remains write-free
 
-- **WHEN** non-validation `stage1_build_inputs.mjs` receives an HTML-first canonical source plus any `--out`
-- **THEN** it returns `html_first_projection_requires_run_dir` before creating the output path
-- **AND** only the canonical unified Stage-1 route can publish `_generated/slide_plan.json`
+- **WHEN** any supported HTML-first stage selection uses `--dry-run`
+- **THEN** orchestration validates and reports the planned local work without publishing generated/state bytes
 
-#### Scenario: Direct validation cannot substitute control inputs
+#### Scenario: Invalid or drifted stage preserves prior artifacts
 
-- **WHEN** direct Stage-1 `--validate` detects HTML-first source and also receives a second spec or any explicit output/style/palette/deck-system path
-- **THEN** it returns the existing usage envelope before resolving alternate control bytes
-- **AND** the canonical source's run context remains the only validation authority
+- **WHEN** HTML source/control/runtime input validation or a pre-publish receipt recheck fails
+- **THEN** the prior plan/page/final/delivery artifacts remain intact
+- **AND** no newly created generated directory is left current
 
-#### Scenario: HTML-first validation does not accept legacy aliases or unknown flags
+#### Scenario: Legacy style/header command targets HTML-first
 
-- **WHEN** a marked source is passed to direct Stage 1 with `--input` or an unknown option
-- **THEN** it returns the existing `USAGE` envelope before source/config/catalog resolution
-- **AND** markerless legacy invocations retain their existing alias and option behavior
-
-#### Scenario: Invalid Stage 1 leaves the prior projection intact
-
-- **WHEN** canonical write-enabled unified Stage 1 fails source, config, catalog, or fingerprint validation
-- **THEN** any prior `slide_plan.json` bytes remain unchanged and no temp file remains published
-- **AND** when `_generated/` did not exist before the invocation, the failed attempt does not create the directory or any other generated/state path
-- **AND** the failure uses the existing source/artifact diagnostic authority
-
-#### Scenario: Input drift before atomic publish aborts
-
-- **WHEN** source, effective palette, geometry-registry bytes, any verified font-authority input, either manifest, or any validated manifest asset changes after Stage 1 reads it but before final `slide_plan.json` rename, or an asset no longer passes the same realpath/regular-file confinement check
-- **THEN** Stage 1 detects the input-receipt mismatch and fails without replacing the prior plan
-- **AND** it leaves the pre-existing generated directory/file set unchanged apart from cleanup of its own hidden temp path
-- **AND** the next action is a clean Stage-1 rerun rather than publishing mixed-snapshot evidence
-
-#### Scenario: Build fails before legacy Stage 2
-
-- **WHEN** a user invokes pilot, build, or production refresh on an HTML-first source during Change 2
-- **THEN** orchestration emits the existing `FAILED` envelope with reason `html_first_delivery_unavailable` before readiness, implicit Stage 1, dotenv/Image2/style-reference resolution, or any stage
-- **AND** no legacy prompt, provider submit, screenshot, PPTX, or production state is created or changed
-
-#### Scenario: Dry-run does not imply HTML-first delivery availability
-
-- **WHEN** `unified_pipeline --run-dir <html-first-run> --stage <selection>` contains any of Stages 2-5 and also uses `--dry-run`
-- **THEN** it returns the same unavailable-delivery diagnostic before stage planning
-- **AND** it does not advertise the legacy stages as a viable future route for that source branch
-
-#### Scenario: Legacy style/header preparation is unavailable for the branch
-
-- **WHEN** direct `generate_style_master.mjs`, `ppt_flow style-master`, or `ppt_flow approve <run-dir> header` targets an HTML-first source
-- **THEN** it returns `html_first_delivery_unavailable` before Stage 1, Image2/style-reference/header-review prerequisites, metadata writes, or generated writes
-- **AND** content/visual approval remains a separate existing human-control action rather than proof of delivery readiness
-
-#### Scenario: Structural source edit does not enter legacy materialization
-
-- **WHEN** an HTML-first structural apply has published a valid target version and legacy structural materialization is requested for it
-- **THEN** materialization returns `html_first_delivery_unavailable` before Stage 1 or generated/state writes
-- **AND** the already-published source version remains valid and unchanged
+- **WHEN** `style-master` or legacy header approval targets an HTML-first run
+- **THEN** it fails before provider/readiness/writes with a branch-inapplicable diagnostic
+- **AND** points to HTML visual preview/gate rather than removing the marker
 
 #### Scenario: Legacy production remains unchanged
 
-- **WHEN** a source has no HTML-first pipeline marker
-- **THEN** existing pilot/build/refresh routing and prerequisites remain unchanged
+- **WHEN** a source has no HTML-first marker
+- **THEN** existing legacy pilot/build/refresh behavior and prerequisites remain selected
+- **AND** HTML manifests or gates cannot authorize it
+
+### Requirement: HTML-first preview, gates, build, and local refresh have explicit ordering
+
+HTML-first orchestration SHALL allow content validation and local preview before visual approval. Final PPTX publication SHALL require no reset transaction pending plus authoritative, current-version/current-reset-ID `html-content-review` and `html-visual-review` evidence whose fingerprints/evidence match the current run; metadata gate mirrors alone SHALL not authorize it. HTML preview/final-slide composition used for review MAY run with gates pending but not while canonical reset is `deletion_pending`. Each review plan SHALL list all current outstanding evidence and be `approvable: true` only when shown content/visual artifacts cover that complete set; scoped/incomplete plans cannot approve or waive the gate. Review requests SHALL declare exact `effective|forced-fallback` composition variant; only effective objects SHALL enter delivery manifests and Stage 4. Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning materialization SHALL compute the smallest stale set from source ownership and current manifest/fingerprint evidence. No local path SHALL create or invoke Image2 refinement.
+
+#### Scenario: Visual gate reviews production-equivalent pixels
+
+- **WHEN** an HTML visual gate is pending
+- **THEN** orchestration may create representative pages/final slides/contact sheet through the production compositor
+- **AND** blocks final PPTX publication until human approval is recorded
+
+#### Scenario: Ordinary copy edit is local
+
+- **WHEN** one slide's visible copy changes without global visual-system or fallback changes
+- **THEN** Local Slide Rebuild recomposes that slide and downstream delivery locally
+- **AND** does not stale the whole-deck visual approval
+- **AND** stales content approval when the reviewed content fingerprint changes
+
+#### Scenario: Global visual config change requires representative review
+
+- **WHEN** an HTML visual-system fingerprint changes
+- **THEN** Local Deck Rebuild produces one deterministic current representative for every current component recipe key before full delivery
+- **AND** the previous HTML visual gate cannot authorize Stage 4
+
+#### Scenario: Metadata says approved without current HTML evidence
+
+- **WHEN** metadata gate scalars are approved but current-version HTML gate records are missing or stale
+- **THEN** preview may run but Stage 4 remains blocked
+
+#### Scenario: Forced fallback is composed for review
+
+- **WHEN** a selected-current slide needs fallback review
+- **THEN** preview explicitly composes the forced-fallback variant
+- **AND** delivery continues to resolve only the effective variant
+
+### Requirement: HTML review plans are immutable current artifacts
+
+Content and visual review planning SHALL serialize immutable canonical JSON under the scope-owned `html_production/preview/plans/<plan-hash>.json` and publish current references only through the atomic preview manifest. The plan hash SHALL cover canonical bytes excluding its own hash field. Every plan SHALL bind exact `schema: pptmaker-html-review-plan-v1`, `publication_scope: canonical-run|migration-preview`, nullable `html_production_reset_id` (current state value for canonical, null for migration preview), pipeline, normalized logical run version, `kind: content|visual`, `approvable`, current fingerprints/outstanding evidence, exact input receipts, and referenced artifact confined paths/SHAs. Content plans SHALL include the complete ordered human-reviewed projection. Visual plans SHALL include system coverage, page visual dependencies, and shown effective/forced-fallback preview references. Scoped plans missing any outstanding evidence SHALL set `approvable: false` and list it. Ordinary approval SHALL resolve only a `canonical-run` plan referenced by a same-reset `canonical-run` current preview manifest and revalidate reset ID/plan/artifact bytes/receipts; migration-preview plans remain comparison evidence even if internally complete. Failure diagnostics SHALL not echo authored content.
+
+The schema-closed `preview/manifest.json` SHALL contain exact `schema: pptmaker-html-preview-manifest-v1`, `publication_scope: canonical-run|migration-preview`, nullable `html_production_reset_id` (current state value for canonical, null for migration preview), pipeline/logical run version, plus independent nullable current references `review_plans.content`, `review_plans.visual`, `contact_sheets.visual_review`, and `contact_sheets.delivery`. Each non-null reference SHALL bind confined path, SHA-256, owning plan/review/delivery digest, and applicable composition variants of the same scope/reset epoch. One atomic owner commit SHALL revalidate and preserve unaffected current references, clear every stale/deleted/incompatible or cross-scope/cross-reset carried reference, and update only the intended slots. Approval SHALL use only the matching canonical/current-reset `review_plans.<gate>` slot; final delivery review SHALL use only canonical/current-reset `contact_sheets.delivery`.
+
+#### Scenario: Content plan survives process exit
+
+- **WHEN** content review planning completes
+- **THEN** the exact shown projection and plan hash are recoverable from current confined files
+
+#### Scenario: Referenced preview changes
+
+- **WHEN** a visual plan's referenced image bytes no longer match
+- **THEN** approval fails stale and publishes no gate evidence
+
+#### Scenario: Old plan remains as immutable storage
+
+- **WHEN** a newer preview manifest replaces the current plan reference
+- **THEN** the old plan cannot be approved even if its object file remains
+
+#### Scenario: Migration plan is complete but non-authoritative
+
+- **WHEN** a migration-preview review plan is internally complete and approvable
+- **THEN** ordinary `approve` rejects its scope and publishes no target-version gate evidence
+
+#### Scenario: Content and visual plans coexist
+
+- **WHEN** a current content plan is followed by visual-plan publication with unchanged content inputs
+- **THEN** one preview manifest retains both independently verified current plan references
+
+#### Scenario: Delivery sheet update preserves current review refs
+
+- **WHEN** delivery contact sheet publishes and current review plan inputs remain fresh
+- **THEN** only `contact_sheets.delivery` changes and current plan slots remain valid
+
+#### Scenario: Carried visual plan becomes stale during content update
+
+- **WHEN** content-plan publication discovers the carried visual plan no longer verifies
+- **THEN** the same manifest commit clears the visual slot rather than preserving false current evidence
+
+### Requirement: HTML and legacy production adapters remain mutually isolated
+
+Every public run-dir entry SHALL probe the canonical marker before branch-specific readiness. The HTML adapter SHALL reject legacy prompt/render/header artifacts as authority; the legacy adapter SHALL not infer HTML from structured-looking prose or consume HTML production manifests. Provider-call spies and exact directory diffs SHALL prove that HTML create/preview/build/refresh/structural operations never touch the legacy remote path or Image2 refinement partitions.
+
+#### Scenario: HTML deck has legacy generated files
+
+- **WHEN** stale legacy prompt/image/header directories coexist with a marked source
+- **THEN** HTML orchestration ignores them as production authority
+- **AND** consumes only structured-plan and HTML-production evidence
+
+#### Scenario: Markerless deck has HTML generated files
+
+- **WHEN** a markerless legacy run contains stray HTML-production bytes
+- **THEN** legacy orchestration does not use them to satisfy production or review gates
+
+### Requirement: Legacy-to-HTML migration comparison is complete and zero-remote
+
+Migration preview SHALL always validate and locally render the complete proposed HTML deck and contact sheet through the same renderer seam using a framework-issued `migration-preview` context rooted only at the current transaction's `_scratch/html-migration/projected-run/`. It SHALL emit exact `old_side_mode: verified-current|degraded-missing|degraded-stale`. `verified-current` SHALL require one current common-adaptable legacy final-slide per current plan ID and SHALL build the old comparison sheet locally from those entries. A legacy Stage-2 raw contact sheet alone SHALL not qualify. Degraded modes SHALL display a final-slide evidence diagnosis/placeholder, SHALL not display stale bytes or claim visual parity, and SHALL offer a separately authorized legacy-maintenance next action; migration SHALL still complete preview with zero provider calls. Scratch renderer manifests/contact sheets SHALL be comparison evidence only and SHALL not become the legacy run's or anticipated target's canonical current pointers.
+
+The canonical plan hash SHALL bind base/candidate source-control-asset receipts, anticipated visible target version, old-side mode/evidence, ordered proposed composition fingerprints/final PNG SHAs, and proposed contact-sheet SHA while excluding scratch/hidden absolute paths. Apply SHALL require explicit human acknowledgement of that exact hash/mode, recheck every precondition, construct a fresh `canonical-run` context for the hidden real target, rerender without copying scratch generated bytes, and require exact equality of its ordered composition fingerprints/final PNG SHAs/contact-sheet SHA before visible publication. Any target-name/input/evidence/output drift SHALL abort without a visible version and require a new preview. Migration SHALL remain distinct from ordinary structural publication. Publication of the target SHALL carry no content/visual approval or delivery-review decision; its locally current HTML/final/contact-sheet artifacts remain reviewable inputs, and canonical Stage 4 remains blocked until target-version human gates are recorded.
+
+#### Scenario: Current legacy contact sheet exists
+
+- **WHEN** migration finds verified current legacy final slides/contact sheet
+- **THEN** preview compares them with the complete proposed HTML contact sheet
+- **AND** makes zero provider calls
+
+#### Scenario: Legacy pixels are missing
+
+- **WHEN** no current verified legacy visual evidence exists
+- **THEN** migration emits `degraded-missing`, shows no old pixels, and neither regenerates legacy images nor claims parity
+- **AND** offers separately authorized legacy maintenance without blocking review of the complete proposal
+
+#### Scenario: Hidden target pixels differ from preview
+
+- **WHEN** target rerender produces any different composition fingerprint, final PNG SHA, or contact-sheet SHA
+- **THEN** apply publishes no visible version and requires a new preview
+
+#### Scenario: Scratch preview evidence is offered to canonical build
+
+- **WHEN** a caller tries to satisfy target gates or Stage 4 with migration-preview manifests or receipts
+- **THEN** scope validation rejects them before canonical writes
+- **AND** target review evidence remains pending until the visible target is reviewed
+
+### Requirement: HTML structural materialization reuses only target-owned verified objects
+
+Structural source publication SHALL remain source-only, renderer-free, and provider-free. A later explicit target-local HTML materialization MAY reuse an unchanged prior page/final-slide object only after recomputing the target composition fingerprint and verifying prior path/SHA/profile/receipt evidence. Reused bytes SHALL be copied or linked through a confined verified transaction into target-owned immutable object paths, and target-owned manifests SHALL reference only target-version paths and bind the target version's current reset ID (initially null unless that target itself was reset). Fingerprint mismatch or unverifiable bytes SHALL require local recomposition after source publication, never remote rendering during publication.
+
+Byte reuse SHALL NOT copy, relabel, or synthesize version-scoped `html-production-reset`, `html-content-review`, `html-visual-review`, metadata approval mirrors, `html-delivery-review`, or final-review node decisions. The target SHALL retain historical source-version records only as history and SHALL begin with target reset ID null plus content/visual/delivery freshness pending/missing. The explicit materialization controller SHALL first publish target Stage-1/2/3 objects, target-owned reset-null content/visual review plans, and production-equivalent review/contact-sheet artifacts, then return a typed `review_required` continuation while Stage 4/5/PPTX/notes remain absent or stale. After the target-version gates are recorded, the same controller path SHALL revalidate target inputs and continue locally through order-dependent delivery contact sheet, Stage 4, Stage 5, and final review. This applies even to reorder-only targets: unchanged per-slide pixels may be reused, but ordered content/delivery semantics and human authorization are not inherited.
+
+#### Scenario: Pure reorder materializes locally
+
+- **WHEN** unchanged slides are reordered into an authorized target version
+- **THEN** source publication performs no rendering and the later materializer reuses matching bytes into target ownership
+- **AND** publishes target review-ready artifacts before gates, then rebuilds target PPTX/notes order only after target approvals
+
+#### Scenario: Pure reorder has approved source-version gates
+
+- **WHEN** an HTML target is materialized from a source version whose content/visual reviews were current
+- **THEN** target pixels may be reused but target-version reviews remain pending until exact target plans are approved
+- **AND** source-version evidence cannot authorize target Stage 4
+
+#### Scenario: Materialization reaches the target gate boundary
+
+- **WHEN** target Stage 1-3 and exact review plans are current but target gates are pending
+- **THEN** the controller returns `review_required` with no target Stage-4/5 publication
+- **AND** post-approval continuation remains local and reuses the same target-owned evidence
 

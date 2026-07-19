@@ -308,7 +308,7 @@ describe('stage1_build_inputs', () => {
       const runDir = join(deck, '3_versions', 'v1');
       const style = join(deck, '2_backbone', 'visual-style');
       mkdirSync(runDir, { recursive: true }); mkdirSync(style, { recursive: true });
-      copyFileSync(resolve('PPTMAKER_FRAMEWORK/workflow/01-visual/presets/dark-executive/color_palette.json'), join(style, 'color_palette.json'));
+      copyFileSync(resolve('PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json'), join(style, 'color_palette.json'));
       const path = join(runDir, 'slide-specifications.md');
       writeFileSync(path, `---
 production:

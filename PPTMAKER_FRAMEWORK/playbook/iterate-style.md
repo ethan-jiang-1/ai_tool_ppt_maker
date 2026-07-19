@@ -1,74 +1,59 @@
 ---
 playbook: iterate-style
-description: 视觉方向打磨——迭代 style master 后 LOCK
+description: renderer-neutral visual system 的 Local Deck Rebuild
+supported_pipelines: [html-first-v1]
 includes: []
 ---
 
-# Playbook: 视觉方向打磨
+# Playbook: Iterate Style
 
 ## Nodes
 
-### start-iterate
+### define-style-change
 
 ```yaml
-node: start-iterate
+node: define-style-change
 lifecycle_phase: 2
-method_module: 01-visual
+method_module: 02-visual-system
 requires: []
-produces: [iteration-goals]
+produces: [style-iteration-goals]
 entry: []
 exit: [user_evidence:iteration-goals-confirmed]
 ```
 
-**Step 1 — MD**: Open 当前 style master/prompt，明确用户最不满意的 1–3 个维度。
+**Step 1 — MD**: Open current real HTML representative pages and identify 1-3 concrete problems in palette, typography roles, spacing, density, recipe, image language, or asset policy.
 
-**Step 2 — GATE**: 用户确认目标后记录 `iteration-goals-confirmed`（kind `user`）。
+**Step 2 — GATE**: Confirm goals and affected scope. Do not offer style-master generation or modern Image2 refinement.
 
-### tweak-prompt
+### update-visual-system
 
 ```yaml
-node: tweak-prompt
+node: update-visual-system
 lifecycle_phase: 2
-method_module: 01-visual
-requires: [start-iterate]
-produces: [style-master-prompt]
+method_module: 02-visual-system
+requires: [define-style-change]
+produces: [updated-visual-config]
 entry: []
-exit: [evidence:style-prompt-updated]
+exit: [evidence:visual-system-updated]
 ```
 
-**Step 1 — MD**: 大改前备份源 prompt；修改 `style-master-prompt.md`，不手改生成图。
+**Step 1 — MD**: Edit the single structured visual config and natural-language constraints; preserve schema and asset integrity.
 
-**Step 2 — CLI**: 记录 `style-prompt-updated`（kind `agent`）。
+**Step 2 — CLI**: Validate, run Local Deck Rebuild, and publish a complete current visual review plan/contact sheet.
 
-### generate
-
-```yaml
-node: generate
-lifecycle_phase: 2
-method_module: 01-visual
-requires: [tweak-prompt]
-produces: [style-master]
-entry: []
-exit:
-  - style_master_exists
-  - evidence:style-master-generated
-```
-
-**Step 1 — CLI**: 运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master <run-dir> --force --resolution 1k`；成功后记录 `style-master-generated`（kind `cli`）。
-
-### review-gate
+### review-style-system
 
 ```yaml
-node: review-gate
+node: review-style-system
 lifecycle_phase: 2
-method_module: 01-visual
-requires: [generate]
-produces: [visual-gate-decision]
+method_module: 02-visual-system
+requires: [update-visual-system]
+produces: [visual-system-decision]
 decisions: [approve, retry, reject]
 entry: []
 exit: [user_decision_recorded]
 ```
 
-**Step 1 — MD**: 必须 open `style_master.jpg`，不得只描述。
+**Step 1 — MD**: Open all required representatives and forced fallbacks; never approve from token prose alone.
 
-**Step 2 — GATE**: `approve` → `approve visual` + state gate；`retry` → reset tweak/generate/review；`reject` → 返回 medium/preset 选择。用 `setNodeDecision` 记录用户选择。
+**Step 2 — GATE**: `approve` publishes the exact visual plan hash; `retry` returns to update; `reject` returns to DNA/preset selection. Current delivery must then be rebuilt and re-reviewed.

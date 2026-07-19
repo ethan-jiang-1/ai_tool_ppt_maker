@@ -4,163 +4,117 @@ Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an
 ## Requirements
 ### Requirement: playbook/ directory contains the registered MD controllers
 
-`PPTMAKER_FRAMEWORK/playbook/` SHALL contain **ten** files: nine MD Controllers (`create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, `restructure-slides.md`, `iterate-style.md`, `quick-preview.md`, `migrate-import.md`, `probe-image-channels.md`) plus one shared node file `classify-change.md`. Each MD Controller SHALL be self-contained and define an ordered sequence of nodes; `classify-change.md` is a shared node (`shared: true`) referenced by the chain playbooks via `includes:`.
+`PPTMAKER_FRAMEWORK/playbook/` SHALL contain ten active ordered MD Controllers—`create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, `restructure-slides.md`, `iterate-style.md`, `quick-preview.md`, `migrate-import.md`, `probe-image-channels.md`, and `legacy-image2-maintenance.md`—plus shared node `classify-change.md`. `legacy-image2-maintenance` SHALL serve only markerless decks and SHALL use lifecycle Phase 5/module `05-iteration`; `probe-image-channels` remains an off-path Phase-0 diagnostic switch. Change 3 SHALL NOT register `image2-refine` or any modern Phase-4 controller/node.
 
-#### Scenario: Agent lists available playbooks
+#### Scenario: Agent lists available controllers
 
-- **WHEN** Agent lists `PPTMAKER_FRAMEWORK/playbook/`
-- **THEN** it sees nine MD Controllers plus the shared node `classify-change.md`
-- **AND** those controllers include `probe-image-channels.md`
+- **WHEN** the playbook index is built
+- **THEN** it contains the ten ordered controllers and one shared classifier
+- **AND** includes legacy maintenance and provider probing but no modern refinement controller
+
+#### Scenario: HTML deck selects legacy controller
+
+- **WHEN** an HTML-first run attempts to enter `legacy-image2-maintenance`
+- **THEN** entry validation fails with a pipeline-ownership diagnostic
 
 ### Requirement: create-deck playbook covers complete deck creation
 
-`create-deck.md` SHALL define the complete workflow for creating a new PPT from scratch. It SHALL use 11 nodes: instantiation, checkpoint-intake, setup, seed-topics, authoring-slides, composing-prompts, producing-deck, checkpoint-final-review, readiness, rerun, final. Node order SHALL be: instantiation → checkpoint-intake → setup → seed-topics → authoring-slides → composing-prompts → producing-deck → checkpoint-final-review → (rerun → seed-topics | readiness → final).
+`create-deck.md` SHALL define a complete HTML-first workflow from init/intake through structured content, local visual-system preview, content/visual human gates, production, evidence-bound final review, readiness, and completion. Its production node SHALL publish current HTML pages/final slides/contact sheet/PPTX/notes without Image2 prerequisites. Before `checkpoint-final-review` records `proceed|repair|redirect`, the Controller SHALL show current contact sheet plus PPTX/notes result and JS SHALL bind the decision to current version-scoped `html-delivery-review` evidence. The playbook SHALL complete only on current `proceed` and SHALL not leave an optional/unavailable Phase-4 node pending. Repair/rerun decisions SHALL return to the owning content, visual-system, or production node rather than a prompt/style-master stage.
 
 #### Scenario: User says "帮我做一个PPT"
 
-- **WHEN** user requests a new PPT
-- **THEN** COMMANDS.md routes to playbook `create-deck`
-- **AND** Agent starts executing from node `instantiation`
+- **WHEN** COMMANDS routes a fresh request to `create-deck`
+- **THEN** execution begins at instantiation and follows the HTML-complete path
+- **AND** can reach completed with no provider credentials or style master
+
+#### Scenario: User finishes after delivery
+
+- **WHEN** final review accepts current PPTX/notes
+- **THEN** the create execution completes with no pending Image2 node, plan, or authorization
+
+#### Scenario: Delivery changes after final review
+
+- **WHEN** contact sheet, assembly, PPTX, or notes evidence changes after `proceed`
+- **THEN** the prior decision is stale and completion returns to current final review
 
 ### Requirement: Iteration playbooks resolve semantic paths
 
-`edit-text.md`, `edit-visual.md`, `edit-notes.md`, and `restructure-slides.md` SHALL each define a shortened workflow for iterative changes. Each SHALL begin with change classification and end with an intent-specific, globally unique verification node. Playbook names SHALL describe user intent; resolved render mode, content ownership, stale artifacts, and structural scope SHALL determine execution.
+`edit-text`, `edit-visual`, `edit-notes`, and `restructure-slides` SHALL begin with shared pipeline-first classification and end with intent-specific verification. For HTML-first runs, visible copy/body/family/fallback edits SHALL use Local Slide Rebuild; visual-config changes SHALL use Local Deck Rebuild with representative preview; notes-only changes SHALL use Stage 5; structure changes SHALL use preview/hash-bound clean vNext and target-local rebuild. These paths SHALL not use render mode, style master, provider adapters, or remote authorization.
 
-The text-edit controller SHALL be limited to structured KICKER/TITLE/SUBTITLE intent and use the public `ppt_flow refresh --kind title` path. Resolved `body+header-lock` SHALL use Header Text & Style Refresh without Stage 2. Resolved `full-page` SHALL use Generated Image Rebuild with selected forced image regeneration, pilot/header review evidence, and reviewed-image reuse for final assembly. Generated body labels, KPI/card/chart text, cases, and other image-owned content SHALL NOT be routed through header text editing.
+For markerless runs, compatible controllers SHALL switch to `legacy-image2-maintenance` or retain existing legacy refresh semantics. Structural Versioning Path remains outer to both branches and SHALL not be presented as a fourth peer refresh.
 
-Header Text & Style Refresh MAY also cover Stage-3-owned font, color, position, line-height, spacing, and text-width changes when the existing raw-image safe-zone contract remains valid. Header safe-zone height, render-mode switches, and any other raw-image contract change SHALL use Generated Image Rebuild.
+#### Scenario: HTML title or body edit
 
-`restructure-slides.md` SHALL enter Structural Versioning Path for add/delete/reorder: create a clean downstream version first, update structure/source there, then rebuild affected slides through the applicable refresh path(s). Structural Versioning Path SHALL NOT be presented as a fourth peer artifact-refresh path.
+- **WHEN** one HTML-first slide's visible content changes
+- **THEN** the controller invokes local slide rebuild and verifies current pixels/delivery
 
-#### Scenario: User requests a title change
+#### Scenario: HTML visual-system edit
 
-- **WHEN** user says "第5页标题改一下"
-- **AND** Stage 1 resolves slide 5 as `body+header-lock`
-- **THEN** COMMANDS.md routes through change classification to the text-edit controller
-- **AND** the controller invokes `ppt_flow refresh --kind title` for the selected slide
-- **AND** Agent completes Header Text & Style Refresh and verifies the output
+- **WHEN** global renderer-neutral visual config changes
+- **THEN** the controller shows representative production-compositor output before local deck rebuild
 
-#### Scenario: User requests a full-page title change
+#### Scenario: Notes-only edit
 
-- **WHEN** user says "第5页标题改一下"
-- **AND** Stage 1 resolves slide 5 as `full-page`
-- **THEN** `ppt_flow refresh --kind title` reports the current full-page review requirement instead of silently using Header Text & Style Refresh
-- **AND** Agent performs Generated Image Rebuild for the selected image, reviews/approves current header evidence, then completes refresh/build without a second image generation
+- **WHEN** only speaker notes change and assembly lineage is current
+- **THEN** the controller runs Notes-Only Refresh without recomposition
 
-#### Scenario: User requests a generated body-text change
+#### Scenario: Markerless visual rebuild
 
-- **WHEN** user changes a KPI, card label, chart label, case, or other content burned into the generated image
-- **THEN** change classification selects the generated-image/visual controller and Generated Image Rebuild
-- **AND** it does not send unsupported body fields to `edit-text`
-
-#### Scenario: User changes header overlay styling only
-
-- **WHEN** header font, color, position, spacing, or line-height changes without changing the raw-image contract
-- **THEN** the affected `body+header-lock` slides use Header Text & Style Refresh without Stage 2
-
-#### Scenario: User changes header safe-zone geometry
-
-- **WHEN** a safe-zone or render-mode change alters the Stage 2 prompt/image contract
-- **THEN** the affected slides use Generated Image Rebuild with required force and review
-
-#### Scenario: User requests a visual redesign
-
-- **WHEN** user says "换个配色"
-- **THEN** COMMANDS.md routes to playbook `edit-visual`
-- **AND** Agent runs the existing three-slide representative pilot before full regeneration
-
-#### Scenario: User requests a structural addition
-
-- **WHEN** user asks to add a slide
-- **THEN** `restructure-slides` creates a clean new version before editing the slide set
-- **AND** the new/affected slides subsequently use their resolved refresh paths
-
-#### Scenario: User requests notes only
-
-- **WHEN** only speaker notes change
-- **THEN** `edit-notes` uses Notes-Only Refresh through Stage 5
-- **AND** existing image/header evidence remains unchanged
+- **WHEN** a legacy deck needs whole-page regeneration
+- **THEN** the controller switches to legacy maintenance with existing force/review/prerequisite behavior
 
 ### Requirement: COMMANDS.md is a routing table
 
-`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL map natural-language user intents to playbook names. Each row SHALL include: example user input, target playbook, and any entry parameters. Agent SHALL read COMMANDS.md to classify user intent, then read the target playbook to execute. COMMANDS.md SHALL include an **探索 & 预览** section (pre-commitment style/pilot) and a **旁路 / 迁移** section—placed between explore and post-PPTX iteration—that routes migrate/import-existing-deck intents to `migrate-import`. Explore intents route to `iterate-style` / `quick-preview` and SHALL NOT route to post-PPTX `edit-visual`. Migrate/import intents SHALL NOT be handled by silently improvising outside a playbook, and SHALL NOT skip interaction-rhythm obligations (show, checkpoints, gates).
+`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL remain the natural-language-to-controller routing table with examples, target controller, entry parameters, and sections for exploration/preview, migration/import, optional Image2 channel diagnosis, resume, and post-delivery iteration. Every deck-scoped route SHALL classify the canonical pipeline before controller branch semantics. HTML visual-direction/preview intent SHALL enter the local renderer-neutral `iterate-style`/`quick-preview` behavior; an explicit legacy style-master phrase SHALL not create a style master for an HTML deck. Markerless visual/style intent may enter legacy maintenance. Image-channel symptom/direct-probe examples SHALL route to `probe-image-channels` only for an Image2-dependent legacy action and SHALL not diagnose local HTML rendering as a provider problem.
 
-COMMANDS.md SHALL also include an **环境 / 画画通道** section, placed between the **旁路 / 迁移** and **迭代打磨** sections, that routes channel-health intents to `probe-image-channels`. That section SHALL list **multiple** example phrasings spanning direct asks and **symptom language** (so users need not know the playbook or `doctor --probe-vendors` flag names), including at least: which drawing/image channel works; try image API vendors; image gen 502 / relay down; cannot generate images; switch drawing provider; which vendor is faster.
+Resume examples SHALL run state/status first. Durable state resumes its active compatible controller/current node after reporting whole-workflow position; a historical markerless deck without state receives the read-only legacy-maintenance projection and initializes execution only after the user continues; a complete HTML run is not restarted or assigned Phase-4 debt. Migration/import SHALL route through `migrate-import` and retain its show/hash/mode gates.
 
-COMMANDS.md SHALL also include a **续跑 / 做到哪了** section (or equivalent rows in Agent 路由逻辑) that routes continue / where-am-I / disconnected-session intents to the **session resume ritual** (read `_state` + artifacts via `ppt_flow state`/`status`, explain whole-workflow position in plain language, load the **active** playbook at `current_node`) — NOT to restart `create-deck` from its first node, and NOT to answer with playbook filename alone. Example phrasings SHALL include at least: continue / pick up where we left off; where did we leave off; cleared the chat, continue; disconnected / came back, what was I doing. The Agent 路由逻辑 SHALL state: when `_state/state.yaml` shows in-progress work for an existing `deck_*`, continue from `current_node` after reporting workflow position; only a confirmed greenfield request starts a playbook at its first node.
+#### Scenario: Fresh HTML user asks for visual exploration
 
-#### Scenario: Agent routes user request to correct playbook
+- **WHEN** an HTML-first user asks to try several visual directions
+- **THEN** COMMANDS routes to local renderer-neutral exploration/preview
+- **AND** does not require a style master or provider channel
 
-- **WHEN** user says "第8页的图重新生成"
-- **THEN** Agent reads COMMANDS.md, classifies as `edit-visual`, and loads `playbook/edit-visual.md`
+#### Scenario: Legacy user asks to iterate style master
 
-#### Scenario: Agent routes style iteration explore intent
+- **WHEN** a markerless deck user explicitly asks to refine its style master
+- **THEN** COMMANDS routes to the legacy-compatible controller and existing review obligations
 
-- **WHEN** user says "先定视觉方向，反复打磨 style master"
-- **THEN** Agent reads COMMANDS.md, classifies as `iterate-style`, and loads `playbook/iterate-style.md`
+#### Scenario: HTML browser failure is not an Image2 symptom
 
-#### Scenario: Agent routes quick preview intent
+- **WHEN** HTML composition fails locally without a provider/API diagnostic
+- **THEN** COMMANDS routes to local source/runtime repair rather than `probe-image-channels`
 
-- **WHEN** user says "内容有了，先出 3 页典型页看看效果"
-- **THEN** Agent reads COMMANDS.md, classifies as `quick-preview`, and loads `playbook/quick-preview.md`
+#### Scenario: Durable execution resumes at current node
 
-#### Scenario: Agent routes migrate intent
+- **WHEN** state contains compatible in-progress execution
+- **THEN** the Agent reports position and resumes that controller/node instead of restarting create-deck
 
-- **WHEN** user says "把已有的 deck 迁到新框架"
-- **THEN** Agent reads COMMANDS.md, classifies as `migrate-import`, and loads `playbook/migrate-import.md`
+#### Scenario: Markerless deck without state resumes compatibly
 
-#### Scenario: Migrate must not skip playbook
-
-- **WHEN** user asks to import or upgrade an existing deck into the framework tree
-- **THEN** Agent loads `migrate-import` rather than improvising a silent file move with no show/gates
-
-#### Scenario: Agent routes symptom language to channel probe
-
-- **WHEN** user says "出图老是 502" or "画画通道是不是挂了"
-- **THEN** Agent reads COMMANDS.md, classifies as `probe-image-channels`, and loads that playbook
-
-#### Scenario: Agent routes direct channel-health ask
-
-- **WHEN** user says "哪个画画通道是通的"
-- **THEN** Agent loads `probe-image-channels`
-
-#### Scenario: Agent routes continue intent to resume ritual
-
-- **WHEN** user says "接着做" or "上次做到哪了" or "清了聊天继续" or "断线了，我做到哪了"
-- **AND** an existing `deck_*` has in-progress `_state`
-- **THEN** Agent follows the session resume ritual, reports whole-workflow position, and continues the active playbook at `current_node`
-- **AND** does not restart `create-deck` from its first node
+- **WHEN** an old markerless deck has no durable execution state
+- **THEN** the Agent reports legacy-maintenance ownership without writing state until explicit continuation
 
 ### Requirement: Existing-deck sessions start with whole-workflow resume ritual
 
-When the user points at an existing `deck_*`, asks where they left off, or returns after disconnect/clear-context, the agent SHALL run the **session resume ritual** **before** greenfield intake or restarting a playbook from its first node: (1) `ppt_flow state` and `ppt_flow status` (pointer + artifacts/gates), (2) read playbook pointer plus optional `waiting_for`, (3) explain **whole-workflow position** in plain language — prefer the resume card’s `workflow_summary` / `suggested_next` (execution point + artifact/gate situation — not playbook filename alone), (4) load `playbook/<name>.md` and continue at `current_node` after `checkEntry`, (5) confirm continuation. This ritual is **not** a new playbook. Conversation context alone SHALL NOT be treated as progress truth. Explicit user confirmation is required before discarding in-progress state to restart from scratch.
+Existing-deck sessions SHALL still run `ppt_flow state` and `ppt_flow status`, inspect pointer/wait/artifact/gate evidence, explain whole-workflow position, load the resolved controller/current node, check entry, and confirm continuation before replacing incomplete work. State heal SHALL first classify the source pipeline and migrate known old controller/node/module references to the new HTML or legacy ownership. Conversation context SHALL not override state. If mapping is ambiguous, the resume card SHALL require a human choice of replacement/restart and SHALL preserve the original state until that choice is recorded.
 
-A known truth-aligned example for manual verification is `deck_ai_sdlc_keynote` (playbook `iterate-style`, node `review-gate`, `waiting_for: user:review-style-master`) — agents SHALL treat such a deck as session resume, not greenfield intake; after ritual the next human step is typically open style master → LOCK / RETRY / BACK.
+#### Scenario: Old markerless execution resumes after directory migration
 
-#### Scenario: Cleared chat resumes from current_node
+- **WHEN** a legacy state points to an old create/production node
+- **THEN** heal maps it to the declared legacy-maintenance continuation with preserved evidence/wait
+- **AND** the Agent does not restart greenfield HTML intake
 
-- **WHEN** a new agent session is given only a path to an in-progress `deck_*`
-- **THEN** the agent runs `ppt_flow state` (or equivalent `readState`) and continues at `current_node`
-- **AND** does not re-run greenfield intake as the default
+#### Scenario: HTML-marked execution resumes locally
 
-#### Scenario: Novice asks where they left off
+- **WHEN** an HTML-first deck has an old but unambiguous controller pointer
+- **THEN** heal maps it to the corresponding final Phase/module node and continues locally
 
-- **WHEN** user asks "我原来做到哪儿了" after a disconnect
-- **AND** the deck has in-progress `_state`
-- **THEN** the agent reports a plain-language whole-workflow position (pointer + waiting/artifacts as relevant)
-- **AND** offers to continue from that point
+#### Scenario: In-progress replacement remains human-owned
 
-#### Scenario: Restart from scratch requires confirmation
-
-- **WHEN** `_state` shows in-progress work
-- **AND** the user asks to start the deck over
-- **THEN** the agent confirms before overwriting or resetting playbook progress
-
-#### Scenario: Truth-aligned keynote deck resumes at review-gate
-
-- **WHEN** Agent opens `deck_ai_sdlc_keynote` after a cleared session and `_state` points at `iterate-style` / `review-gate`
-- **THEN** the agent continues that playbook/node (e.g. open style master / LOCK path)
-- **AND** does not restart `migrate-import` or `create-deck` from the first node
+- **WHEN** the old topology has no one-to-one semantic mapping
+- **THEN** no state is cleared or guessed
+- **AND** the user must confirm a replacement/restart action
 
 ### Requirement: State file is created on playbook start
 
@@ -181,76 +135,48 @@ When a playbook begins execution, `_state/state.yaml` SHALL be created (if it do
 
 ### Requirement: Gates are enforced at node boundaries
 
-No node SHALL transition to `completed` until its exit gate conditions are met. Gates that require human judgment (the `content` and `visual` gates, tracked under `gates` in `_state/state.yaml`, with pipeline readiness also reflected in `project-metadata.yaml` `content_gate`/`visual_gate`) SHALL remain `pending` until the human explicitly approves or waives them (via Agent conversation or `scripts/ppt_flow.mjs approve`).
+No node SHALL transition to completed until its exit conditions are met. Human content/visual decisions SHALL remain pending until explicit approval or waiver; waiver SHALL include a reason. For HTML-first runs, the Controller SHALL present the exact ordered content projection before content approval and production-equivalent representative/affected-page artifacts before visual approval. JS SHALL require current version-scoped `html-content-review` and `html-visual-review` evidence for Stage 4; metadata mirrors alone SHALL not satisfy the gates. HTML preview composition MAY run while gates are pending and SHALL not waive them. For markerless legacy, existing style-master/pilot/header artifact presentation, metadata readiness, and preview-versus-production semantics SHALL remain compatible. No branch's evidence SHALL satisfy the other branch.
 
-For **production** image generation (full `build`, or `unified_pipeline` Stage 2 **without** `--preview`), CLI validation SHALL require metadata gates `approved` or `waived` (pipeline readiness via `checkBundle`). For **preview** generation (`ppt_flow pilot` and Stage 2 **with** `--preview`), CLI validation SHALL require style master but SHALL NOT require gates approved/waived, and SHALL NOT write `waived` to unlock preview.
+#### Scenario: HTML preview is available before approval
 
-For playbook nodes that review visual artifacts (style master, pilot contact sheet, and equivalent)—including `create-deck` setup, `iterate-style` review-gate, `quick-preview` review-preview, and `edit-visual` pilot review—the agent SHALL present/open the artifact to the user before treating the human judgment as satisfied. Description alone SHALL NOT complete the gate when the file exists.
+- **WHEN** HTML gates are pending but source/runtime checks pass
+- **THEN** the Controller may show current preview artifacts
+- **AND** cannot complete delivery or infer approval from successful rendering
 
-#### Scenario: Production Stage 2 blocked by pending visual gate
+#### Scenario: HTML content changes after review
 
-- **WHEN** Agent attempts full `build` or non-preview Stage 2 while a required metadata gate is `pending`
-- **THEN** the CLI refuses with a gate-related failure
+- **WHEN** the ordered reviewed content fingerprint changes
+- **THEN** the content gate becomes stale and its owning node cannot complete
 
-#### Scenario: Preview Stage 2 allowed while gates pending
+#### Scenario: Legacy preview remains compatible
 
-- **WHEN** Agent runs `ppt_flow pilot` (or Stage 2 with `--preview`) while metadata gates are `pending`
-- **AND** style master exists
-- **THEN** the CLI allows generation for the preview subset
-- **AND** does not mutate gate fields to `waived`
-
-#### Scenario: Visual review gate requires show
-
-- **WHEN** a playbook review node is evaluating `style_master.jpg` or a pilot contact sheet that exists on disk
-- **THEN** the agent opens or presents that artifact to the user before recording approval
-- **AND** does not mark the gate approved based only on a textual description of the image
+- **WHEN** a markerless deck has a style master and pending gates
+- **THEN** pilot preview may run without waiving gates
 
 ### Requirement: Explore playbooks cover pre-commitment style and pilot preview
 
-`iterate-style.md` SHALL define a loop for iterating the style master before full production lock: read/tweak prompt → generate via existing `ppt_flow.mjs style-master` at 1k while iterating → human review with open image → RETRY, BACK, or LOCK. On LOCK it SHALL approve the visual gate via existing approve flow and MAY regenerate at 2k; if entered via playbook stack from `create-deck`, it SHALL resume the prior playbook afterward. It SHALL record iteration `round` in node status extra when available and SHOULD advise a direction change or accept when round ≥ 5.
+Pre-commitment exploration SHALL remain conversation-only and write-free until the user authorizes a deck/change path. For HTML-first creation, quick preview SHALL route to structured content plus local production-equivalent HTML preview, require no style master/provider credentials, and show content/visual artifacts before the matching human decisions. For markerless legacy maintenance, existing style exploration and pilot preview semantics SHALL remain available only through the legacy branch. Explore controllers SHALL not advertise executable modern Image2 refinement during Change 3.
 
-`quick-preview.md` SHALL define validate → `ppt_flow.mjs pilot` → human review of the contact sheet (open required) with PROCEED / RETRY / BACK exits. It SHALL allow pilot while content/visual gates are still `pending` (preview ≠ approved). It SHALL NOT instruct the agent to `--waive` gates merely to unlock pilot. It SHALL note that full `build` / non-preview Stage 2 remain blocked until gates are `approved` or explicitly `waived`. Neither explore playbook SHALL require new CLI commands beyond existing `ppt_flow` flags (`pilot --force-images`, `doctor --smoke` as optional). Recommended ordering: lock visual (optionally via `iterate-style`) before committing to full `build`; `quick-preview` MAY run earlier for look-and-feel sampling when style master exists.
+#### Scenario: Fresh user requests a quick visual sample
 
-#### Scenario: User iterates style master
-
-- **WHEN** user wants to refine visual direction before locking
-- **THEN** Agent loads `iterate-style` and runs generate/review until LOCK or BACK
-- **AND** uses existing `style-master` / `approve` CLI rather than ad-hoc scripts
-
-#### Scenario: Quick preview without waiving gates
-
-- **WHEN** content or visual gate is still pending and user wants a 3-page look
-- **AND** style master exists
-- **THEN** Agent loads `quick-preview`, runs validate and pilot without writing `waived`
-- **AND** presents the contact sheet
-- **AND** does not treat the preview as content/visual approval for full build
-
-#### Scenario: Full build still needs gates after preview
-
-- **WHEN** gates remain pending after a successful quick-preview
-- **THEN** Agent MUST NOT run full `build` until approve or explicit waive
+- **WHEN** the new deck uses the HTML-first default
+- **THEN** quick preview produces local HTML compositor evidence
+- **AND** does not create style-master or Image2 authority
 
 ### Requirement: Migrate-import playbook guards off-path UX
 
-`migrate-import.md` SHALL define an ordered workflow for bringing an existing deck or assets into a constitutional run bundle with nodes: `intake-source` (offer concrete migration strategies A/B/C for user recognition), `align-bundle`, `inventory-map` (mapping table confirmed before moves; visible checkpoints), `early-show` (open an existing visual when available, else degraded show), `reaffirm-gates` (show content outline/specs and visual artifacts before approve; dual-write metadata and `_state` gates; may `switchPlaybook` to `iterate-style`), and `handoff` (to `quick-preview` or `build` without silent long Stage-2). It SHALL NOT require new CLI commands. Supporting methodology SHALL live at `workflow/00-setup/05-migrate-import-existing-deck.md`. BOOTSTRAP SHALL point migrate/import intents at this playbook.
+`migrate-import` SHALL distinguish import normalization, ordinary structural versioning, and explicit legacy-to-HTML migration before writes. HTML migration SHALL require a complete Agent-authored structured candidate, a complete proposed HTML deck/contact sheet, exact plan hash/old-side mode, and human confirmation. The old side SHALL use only current verified legacy evidence in `verified-current`; missing/stale evidence SHALL deterministically use `degraded-missing|degraded-stale` with diagnosis/placeholder, no old pixels/provider call/parity claim, and an optional separately authorized legacy-maintenance next action. The controller SHALL not infer structured bodies from prompts, mutate the legacy version, carry authorization, or treat ordinary structural publication as a migration renderer. If apply reports a cross-host/uncertain migration journal, the Controller SHALL explain the exact target/staging risk, obtain confirmation that no migration apply is active, retain the opaque token internally, and invoke only `apply --recover-journal <token>` after the 300000-ms floor; a decline makes zero writes. Same-host proven-active ownership is never overridden.
 
-#### Scenario: Early show required during migrate
+#### Scenario: Legacy comparison evidence is stale
 
-- **WHEN** Agent executes the early-show node and a `style_master.jpg` or equivalent visual exists
-- **THEN** the agent opens or presents that file to the user before continuing
-- **AND** does not mark the node complete based only on a textual description
+- **WHEN** migration preview has no current verified old-side pixels
+- **THEN** the Controller presents the exact degraded mode with no old pixels and may offer separately authorized legacy maintenance
+- **AND** does not silently regenerate old images
 
-#### Scenario: Gates reaffirmed after migrate map
+#### Scenario: User declines uncertain migration recovery
 
-- **WHEN** inventory mapping is complete and gates need approval or re-lock
-- **THEN** the agent opens content specs/outline and visual artifacts before approve
-- **AND** updates gates via existing `approve` plus `_state` setGate
-- **AND** may switch to `iterate-style` if the visual direction is unsatisfactory
-
-#### Scenario: Intake offers A/B/C strategies
-
-- **WHEN** Agent starts `intake-source`
-- **THEN** the user is offered strategies A (new init + copy in), B (in-place upgrade to three-tier), and C (loose assets into new bundle), with a recommendation
+- **WHEN** apply-journal ownership cannot be proven stopped and the human declines confirmation
+- **THEN** the controller leaves journal/reservation/staging/visible versions unchanged
 
 ### Requirement: probe-image-channels playbook runs doctor channel体检
 
@@ -308,24 +234,23 @@ When Image2 path symptoms appear — doctor image checks failing, `doctor --smok
 
 ### Requirement: Long image-generation nodes stay observable to the user
 
-Playbooks that invoke long image generation — at minimum style-master / pilot / Stage 2 nodes in `iterate-style.md`, `quick-preview.md`, and `create-deck.md` (and `build` paths that run Stage 2), plus the probe run in `probe-image-channels.md` — SHALL treat CLI stdout progress as the user-visible wait contract. The agent SHALL:
+Every long-running production/diagnostic node SHALL use registered CLI progress as the user-visible wait contract. HTML render/composition/build nodes SHALL report bounded phase plus slide `i/N` progress without exposing source prose/HTML/paths; markerless style-master/pilot/Stage-2 nodes SHALL retain submit/poll heartbeat, `i/N`, and attempts-summary behavior; `probe-image-channels` SHALL retain `probing i/N`. When expected duration exceeds the foreground tool budget, the Controller SHALL use background/equivalent execution, periodically read progress, and relay meaningful updates. Prolonged silence is a diagnostic signal. On non-zero exit the Controller SHALL surface the final normalized envelope, not say only to keep waiting. No path SHALL invent a daemon or durable in-flight task state.
 
-1. When a job is expected to exceed the foreground tool-timeout budget, run it in the **background** (or equivalent) and periodically tail/read progress.
-2. Relay CLI heartbeats / `i/N` / `probing i/N` to the user. Prolonged silence SHALL be treated as a problem signal (AGENT_CONTRACT §11).
-3. On non-zero exit, surface the CLI JSON envelope and any vendor **attempts summary** without "just wait" cover-ups.
+#### Scenario: HTML deck composition is observable
 
-Playbooks SHALL NOT invent a live status daemon or new `_state` fields for in-flight API tasks.
+- **WHEN** a multi-slide local composition exceeds the foreground budget
+- **THEN** the Controller relays bounded render/compose slide progress until completion or failure
+- **AND** does not route the delay to provider/channel diagnosis
 
-#### Scenario: Pilot generation is not a silent foreground wait
+#### Scenario: Legacy pilot remains observable
 
-- **WHEN** the agent runs a multi-slide pilot image generation expected to take minutes
-- **THEN** the playbook/agent procedure requires background (or equivalent non-silent) execution with periodic progress relay to the user
+- **WHEN** markerless pilot generation takes minutes
+- **THEN** the Controller relays existing provider heartbeats and slide progress through background/equivalent execution
 
-#### Scenario: Image failure exposes attempts not a vague wait message
+#### Scenario: Failure is not covered by a wait message
 
-- **WHEN** Stage 2 or style-master exits non-zero after vendor failover exhaustion
-- **THEN** the agent presents the structured failure (envelope and/or attempts summary) to the user
-- **AND** does not only say to keep waiting without diagnosis
+- **WHEN** either branch exits non-zero
+- **THEN** the Controller surfaces the producer-owned final diagnostic and owning repair path
 
 ### Requirement: Shared nodes are referenced via includes
 
@@ -339,12 +264,17 @@ A playbook SHALL be able to reference a shared node via `includes: [<node-name>]
 
 ### Requirement: State file coexists with project-metadata.yaml
 
-`_state/state.yaml` SHALL coexist with the existing `project-metadata.yaml` in the run bundle root. The state file SHALL track execution progress (playbook, current_node, per-node status, playbook gates). The metadata file SHALL continue to track static configuration (deck_name, topic, audience, and pipeline gate fields). Scaffolded `_state/README.md` and the metadata template comment SHALL briefly document this coexistence so agents do not treat the two files as duplicates or merge them casually.
+`_state/state.yaml` SHALL continue to own playbook executions, nodes, decisions, waits, gates, and the version-scoped HTML production reset transaction while `project-metadata.yaml` owns durable project configuration/status fields. For markerless legacy, existing `content_gate|visual_gate` and `_state.gates.content|visual` mirroring/readiness behavior SHALL remain. For HTML-first, version-scoped content/visual review records in `_state` SHALL be authoritative; only disjoint `html_content_gate|html_visual_gate` plus run-version metadata fields and `_state.gates.html_*` fields are compatibility/status mirrors. HTML publication SHALL never overwrite legacy mirrors. Gate dual-write SHALL use the recoverable journal protocol; full canonical reset SHALL use its state-first `deletion_pending|complete` transaction and never a caller-managed delete sequence. Plain state/status SHALL only report interrupted journal/reset state; build/check-gates/gate publication may perform tokenless same-host-dead gate-journal recovery but SHALL not complete a reset, and cross-host/uncertain journal repair requires the explicit human-confirmed token route. No observation or mirror alone creates approval.
 
-#### Scenario: Both files exist after init
+#### Scenario: Metadata and HTML state disagree
 
-- **WHEN** a run bundle is initialized
-- **THEN** `deck_<name>/` contains both `project-metadata.yaml` (static config) and `_state/state.yaml` (execution state)
+- **WHEN** metadata says approved but current-version `_state` evidence is absent or stale
+- **THEN** status reports the inconsistency and HTML delivery remains blocked
+
+#### Scenario: Plain state sees recoverable mirror interruption
+
+- **WHEN** authoritative HTML state is new and HTML metadata mirror remains old
+- **THEN** state reports the recovery status without writing metadata or removing the journal
 
 ### Requirement: Version-scoped backups go under _scratch
 
@@ -364,75 +294,54 @@ When an agent (or playbook step) creates a disposable backup or draft of version
 
 ### Requirement: Unsure placement triggers GREP of Where Map before inventing paths
 
-When an agent does not know where a file belongs, it SHALL search the soft bundle for canonical placement tokens and consult `PPTMAKER_FRAMEWORK/reference/glossary.md` Where Map (owned by `run-bundle-layout`) **before** creating a new directory name or writing to the deck root. Agents SHALL prefer Where Map paths over improvised names. `checkBundle` enforcement (`run-bundle-management`) remains; GREP does not replace the check.
+When file placement is uncertain, the Controller SHALL search canonical tokens and consult the run-bundle Where Map before creating a path. It SHALL respect pipeline ownership: HTML contact-sheet/review evidence resolves under `_generated/html_production/preview/`; markerless pilot/contact sheet remains `_generated/preview/`; `style_master.jpg` is legacy-only; version temp belongs under `_scratch/`; progress under `_state/`; lessons under `_lessons/`. It SHALL not create deck-root `_tmp`/backup directories or place generated evidence under the other pipeline's owner. `checkBundle` remains enforcement authority.
 
-#### Scenario: Agent greps before inventing temp dir
+#### Scenario: HTML preview placement is resolved
 
-- **WHEN** Agent needs a place for a version-scoped `.bak` and is unsure of policy
-- **THEN** Agent searches for `_scratch` (or opens glossary Where Map)
-- **AND** writes under `3_versions/v{n}/_scratch/` rather than inventing `deck_*/_tmp/`
+- **WHEN** Agent searches `contact_sheet` or `pilot` for an HTML-first run
+- **THEN** the Where Map routes to `_generated/html_production/preview/`
 
-#### Scenario: Agent routes pilot preview via known token
+#### Scenario: Legacy preview placement is preserved
 
-- **WHEN** Agent looks for where pilot / 小样 / contact sheet lives
-- **THEN** Agent can resolve via `contact_sheet` or `pilot` to `_generated/preview/`
-- **AND** does not treat deck-root litter as the preview home
+- **WHEN** the same search is for a markerless run
+- **THEN** it routes to legacy `_generated/preview/`
+
+#### Scenario: Temporary source backup is placed narrowly
+
+- **WHEN** Agent needs a version-scoped backup
+- **THEN** it uses `3_versions/vN/_scratch/` rather than inventing a deck-root directory
 
 ### Requirement: Pilot review gates content full-page header quality before full build
 
-When a deck contains content `full-page` slides, a pilot used to approve full build SHALL review at least one such slide, and at least two when the deck contains two or more, so cross-page consistency is observable. Automatic selection is governed by `pipeline-orchestration`; when explicit `--only` selection does not provide the required coverage, the Agent SHALL run an additional pilot subset before approval rather than silently treating the gate as satisfied. During contact-sheet review, the Agent SHALL explicitly inspect header text accuracy/completeness, readability, position, size, fixed left alignment, cross-page consistency, and body overlap. If a defect is visible, the Agent SHALL identify the affected slide and recommend adding that slide to `render.header-lock`; it SHALL NOT modify policy without user confirmation. After confirmation, the affected image SHALL be regenerated through Generated Image Rebuild with forced image regeneration and reviewed again. The visual review SHALL NOT be treated as passed, and full build SHALL NOT proceed, until the defect is resolved or the user explicitly accepts the documented risk.
+Pilot review SHALL classify the pipeline before selecting evidence. For markerless legacy, it SHALL retain content, full-page/header quality, selected pilot IDs, provenance, and force-image review behavior. For HTML-first, it SHALL show the exact content projection and production-equivalent effective preview plus forced-fallback pages when required, bind decisions to current review-plan hashes, and require neither style-master nor header-lock review. Successful preview SHALL not itself authorize full build; current authoritative content and visual evidence SHALL.
 
-If the user explicitly accepts an unresolved header risk, the Agent SHALL persist the affected slide ids and accepted symptoms in the version Change Log or playbook state extra. Header-lock SHALL be proposed for a slide that deviates from the configured target; a request to change the target geometry across the deck SHALL instead be classified as a visual-config change with the corresponding broader rerun.
+#### Scenario: HTML preview succeeds but is not approved
 
-After each reviewed pilot batch, the Agent SHALL run `ppt_flow approve <run-dir> header`. The command persists/merges `reviewed_content_full_page_ids`, `reviewed_changed_full_page_ids`, per-slide image hashes and `full_page_header_snapshot`, a deterministic `header_review_fingerprint`, and accepted-risk ids/symptoms under the current version's `nodes.header-review.by_version` record. The fingerprint SHALL cover all current full-page slides and shared content header geometry. If coverage remains incomplete, the Agent SHALL follow the CLI's remaining-coverage output and run another pilot batch; it SHALL not treat an `in_progress` record as approval. Before full build it SHALL require the current version record to be completed and current even when the ordinary visual gate is already `approved`. For accepted risk the Agent SHALL use `approve header --waive --only <ids> --reason <text>`. It SHALL NOT instruct the user to hand-edit `_state`.
-
-#### Scenario: Manual pilot selection cannot bypass coverage
-- **WHEN** a deck has at least two content full-page slides but explicit `--only` pilot selection contains fewer than two
-- **THEN** the Agent runs an additional content full-page pilot subset before treating visual review as passed
-
-#### Scenario: Header drift blocks silent progression
-- **WHEN** pilot review shows an inaccurate, blurry, displaced, inconsistently sized, misaligned, or body-overlapping content header
-- **THEN** the Agent shows and names the issue and proposes header-lock for the affected slide
-- **AND** does not silently approve the visual review or start full build
-
-#### Scenario: Confirmed remedy uses Generated Image Rebuild
-- **WHEN** the user approves upgrading an affected full-page slide to header-lock
-- **THEN** the Agent updates the policy, regenerates that slide image with `--force-images`, and repeats visual review
-
-#### Scenario: Existing visual approval does not bypass stale header evidence
-- **WHEN** the visual gate is already approved but content full-page header evidence is absent or its fingerprint no longer matches
-- **THEN** the playbook does not start full build until the required pages are regenerated and reviewed
-
-#### Scenario: Notes change preserves header evidence
-- **WHEN** only speaker notes change after a valid header review
-- **THEN** the existing header-review fingerprint remains usable
+- **WHEN** compositor output is current but the user has not approved or waived both gates
+- **THEN** full build remains blocked
 
 ### Requirement: Registered playbooks pass machine validation
 
-Every registered MD Controller and shared node SHALL pass the canonical node-specification validator before the framework test suite succeeds. The normalized registry SHALL contain nine ordered controllers, one shared node, and forty globally unique nodes, including a new terminal `verify-restructure-output` node. Validation SHALL cover node parsing, global uniqueness, ordered requirements, includes, condition catalog coverage, declared decision values, and impossible self-entry gates.
+Every active controller/shared node SHALL pass the canonical node-specification validator. A checked-in normative manifest SHALL bind the expected controller/shared-node inventory, globally unique IDs, exact order, pipeline ownership, lifecycle/module values, includes/requires, conditions, decisions, and absence of Phase-4 execution. Validation SHALL not rely on a stale hard-coded count alone.
 
-#### Scenario: Current controller set validates
+#### Scenario: Final controller set validates
 
-- **WHEN** the framework playbook validation test indexes `PPTMAKER_FRAMEWORK/playbook/`
-- **THEN** all registered controllers and the shared node parse successfully
-- **AND** no duplicate node IDs, missing requirements, unknown conditions, or impossible gates are reported
-- **AND** their node order, metadata, dependencies, decisions, and conditions match the normative design manifest
-
-#### Scenario: Restructure workflow ends in verification
-
-- **WHEN** `restructure-slides` completes affected regeneration
-- **THEN** it proceeds to globally unique node `verify-restructure-output`
-- **AND** requires current user evidence that the structure change is correct before the playbook completes
+- **WHEN** the framework indexes all active playbooks
+- **THEN** the normalized graph matches the checked-in manifest with no duplicates, missing references, cycles, unknown conditions, impossible gates, or ownership conflicts
 
 ### Requirement: Playbook lifecycle and methodology metadata are explicit
 
-Every playbook node SHALL declare both its end-to-end lifecycle position and its methodology module using the canonical fields from `node-specification`. Controllers SHALL NOT use a single numeric `phase` field to mean a workflow directory.
+Every registered node SHALL declare lifecycle Phase `0|1|2|3|4|5` and one exact final method module `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`. Phase 3 nodes own complete HTML delivery. Change 3's active index SHALL contain no lifecycle-4 or module-`04-image2-refinement` executable node. Legacy whole-page maintenance SHALL be Phase 5/module `05-iteration`, and provider channel probing SHALL remain Phase 0/module `00-setup`.
 
-#### Scenario: Production node is unambiguous
+#### Scenario: HTML production node is unambiguous
 
 - **WHEN** Agent inspects the create-deck production node
-- **THEN** it declares `lifecycle_phase: 3` and `method_module: 04-production`
-- **AND** no reader must infer the meaning of `phase: 04`
+- **THEN** it declares lifecycle Phase 3 and method module `03-html-production`
+
+#### Scenario: Unavailable Phase 4 is registered accidentally
+
+- **WHEN** a Change-3 active node declares lifecycle 4 or module `04-image2-refinement`
+- **THEN** playbook validation fails
 
 ### Requirement: Legacy duplicate node state remains resumable
 
@@ -446,83 +355,79 @@ When a known duplicate node ID is renamed to a unique intent-specific ID, the st
 
 ### Requirement: Resume cards use the active playbook model
 
-Human and JSON output from `ppt_flow state` SHALL use the canonical active playbook index to calculate complete pending-node lists and eligible next nodes. A unique eligible next node SHALL produce a specific suggestion. Multiple eligible branch nodes SHALL be reported as candidates without automatic selection. Existing `waiting_for` remains the highest-priority next action.
+When durable execution state exists, human and JSON resume cards SHALL use the canonical pipeline-compatible active playbook index to calculate pending nodes and eligible successors. `waiting_for` remains highest priority; exactly one eligible successor is suggested; multiple eligible branches remain explicit candidates. HTML artifact/review freshness SHALL be evaluated before suggesting a downstream production/completion node, and a current complete HTML delivery SHALL not gain a synthetic Phase-4 successor. For a historical markerless deck without durable state, state/status SHALL use the read-only legacy compatibility projection and SHALL not run active-node calculation or fabricate an execution; explicit legacy controller entry initializes state and then uses the canonical index.
 
-#### Scenario: Unique next node is suggested
+#### Scenario: Unique current successor is suggested
 
-- **WHEN** the current node is completed and exactly one downstream node has all requirements satisfied
-- **THEN** `suggested_next` names that node
-- **AND** Pending includes later nodes that do not yet have state records
+- **WHEN** durable current-pipeline state has one eligible downstream node and no wait/freshness block
+- **THEN** suggested-next names that node and later absent nodes remain pending
 
 #### Scenario: Branch requires a decision
 
-- **WHEN** two downstream branch nodes are eligible after a review node
-- **THEN** the resume card lists both candidates
-- **AND** does not silently choose one
+- **WHEN** two downstream branch nodes are eligible
+- **THEN** both remain candidates and neither is auto-selected
 
-#### Scenario: Waiting state remains authoritative
+#### Scenario: HTML evidence blocks structural eligibility
 
-- **WHEN** the current node has `waiting_for`
-- **THEN** `suggested_next` remains the waiting action even if another node appears structurally eligible
+- **WHEN** graph conditions appear complete but current HTML review/delivery evidence is stale
+- **THEN** suggested-next names the owning review/repair action before a downstream completion node
+
+#### Scenario: Markerless compatibility card has no active graph
+
+- **WHEN** a historical markerless deck lacks state
+- **THEN** its resume card identifies legacy-maintenance ownership without pending-node invention or disk write
 
 ### Requirement: Restructure controller executes one previewed slide transaction
 
-`restructure-slides.md` SHALL translate add, delete, reorder, normalization, and combined structure intent into the shared `ppt_flow slides` transaction path. Before any structural mutation, the controller SHALL obtain and show a preview containing resolved formal IDs, `position + slide_id + title` before/after order, target version boundary, refresh impact, and semantic-reference warnings. It SHALL retain the preview's canonical `plan_sha256` internally and wait for explicit user authorization before applying a membership or order change; the user SHALL not need to handle the hash. It SHALL NOT manually split, reorder, or renumber the canonical Markdown outside that deterministic transaction.
+`restructure-slides.md` SHALL translate add/delete/reorder/normalize/multi-operation intent into one shared `ppt_flow slides` transaction. Before mutation it SHALL show resolved formal IDs, snapshot-bound `position + slide_id + title` before/after order, anticipated target version, pipeline-specific deterministic impact, and semantic-reference warnings; retain the canonical plan hash internally; wait for explicit authorization; and apply only the same base/hash-bound plan. It SHALL not manually split/reorder/renumber canonical Markdown. Heading-only normalization remains the documented atomic current-version exception; stale base/hash or selector ambiguity returns to preview.
 
-After authorization, the controller SHALL apply the exact same base-hash- and plan-hash-bound transaction to create the next version, consume its edit receipt, and semantically resolve reported prose-reference warnings. Structural apply and materialization SHALL make no remote calls. The controller SHALL rebuild cheap target-local stages from verified raw inputs, and SHALL treat `needs_render` as an incomplete-production report requiring a separately authorized Generated Image Rebuild. Heading-only normalization MAY use the documented atomic current-version exception. A stale base, changed plan hash, or ambiguous selector SHALL return to preview/confirmation rather than auto-rebase or guess.
+Structural apply SHALL publish only validated source/control vNext and make no renderer/provider/generated publication. For HTML-first, the receipt's `needs_local_materialization` SHALL lead to a separate explicit target-local materializer that reuses only revalidated target-owned immutable bytes or locally composes missing/stale IDs, then completes current review/delivery. For markerless legacy, verified raw inputs may be materialized locally while `needs_render` remains incomplete remote work requiring separate cost authorization. Both branches SHALL semantically repair reported prose references and finish by verifying actual target PPTX/order/IDs/notes with the user.
 
-#### Scenario: Reorder is previewed before version creation
+#### Scenario: HTML structure apply remains source-only
 
-- **WHEN** a user asks to move the current seventh page after the current third page
-- **THEN** `restructure-slides` resolves both positions in one pre-edit snapshot and shows the formal-ID before/after preview
-- **AND** retains the preview plan hash for the later apply
-- **AND** creates no version until the user authorizes that transaction
+- **WHEN** an authorized HTML-first insert/reorder/delete transaction applies
+- **THEN** visible vNext contains validated source/control and reports `needs_local_materialization`
+- **AND** no HTML manifest, browser, or provider is invoked during source publication
 
-#### Scenario: Applied receipt limits expensive work
+#### Scenario: HTML materialization is separately local
 
-- **WHEN** a confirmed reorder-only transaction reports all retained raw renders verified
-- **THEN** the controller rebuilds Stage 3 and later cheap outputs in the created version
-- **AND** does not route unchanged retained slides through remote Generated Image Rebuild
+- **WHEN** the Agent explicitly materializes the published HTML target
+- **THEN** verified reusable bytes become target-owned and missing/stale IDs compose locally
+- **AND** the controller completes required review/delivery without remote authorization
 
-#### Scenario: Unproven render pauses before remote cost
+#### Scenario: Legacy unproven render pauses before cost
 
-- **WHEN** structural apply succeeds but its receipt reports one or more `needs_render` IDs
-- **THEN** the controller reports the published source version and incomplete production scope separately
-- **AND** does not invoke a remote renderer until the user has authorized the material rebuild cost
+- **WHEN** a markerless source apply reports `needs_render`
+- **THEN** the source version remains published but remote material work waits for separate authorization
 
-#### Scenario: Insert requires Agent-owned mnemonic
+#### Scenario: Plan drift returns to preview
 
-- **WHEN** a user requests a new slide
-- **THEN** the Agent authors its content and pronounceable two-block formal ID before preview
-- **AND** the deterministic CLI validates the ID without inventing one
-
-#### Scenario: Reference warning blocks premature completion
-
-- **WHEN** the edit receipt identifies natural-language page-number references requiring review
-- **THEN** the controller inspects and semantically updates the target-version source as needed
-- **AND** does not mark structure verification complete from numeric normalization alone
-
-#### Scenario: Plan hash mismatch returns to preview
-
-- **WHEN** the transaction available at apply no longer has the hash shown before authorization
-- **THEN** the controller obtains and shows a fresh preview
-- **AND** does not issue a bare apply or reinterpret the original page numbers
+- **WHEN** base or plan hash differs at apply time
+- **THEN** the controller shows a new preview and does not reinterpret original positions
 
 ### Requirement: Restructure controller uses the version and deck escape ladder
 
-`restructure-slides.md` SHALL guide the Agent through the narrowest truthful scope: heading-only projection repair in the current version; same-deck clean vNext for membership/order changes; explicit rebuild of unproven raw renders in that vNext; and recommendation of a new deck when audience, objective, or narrative materially changes. It SHALL not require every request to be preserved in one source version or even one deck. Deterministic technical routing remains Agent-owned; the controller SHALL ask the user only when accepting material remote cost, discarding or materially changing content, or deciding whether the work is a genuinely new deck.
+`restructure-slides.md` SHALL guide the narrowest truthful scope: heading-only projection repair in the current version; same-deck clean vNext for membership/order changes; pipeline-specific explicit materialization in vNext; and a new-deck recommendation when audience/objective/narrative materially changes. HTML materialization is local and uses `needs_local_materialization`; markerless unproven raw work uses `needs_render` and separate remote-cost authorization. The Controller SHALL not ask the user to choose technical commit/materialization strategy, but SHALL ask before material remote cost, discarding/materially changing content, or changing deck identity.
 
 #### Scenario: Same narrative stays in vNext
 
-- **WHEN** pages are added, deleted, or reordered while audience and narrative remain continuous
-- **THEN** the controller uses the same deck's Structural Versioning Path
-- **AND** does not ask the user to choose a technical commit strategy
+- **WHEN** pages change while audience and narrative remain continuous
+- **THEN** the Controller uses the same deck's Structural Versioning Path without delegating technical strategy to the user
+
+#### Scenario: HTML vNext needs local bytes
+
+- **WHEN** an HTML receipt reports `needs_local_materialization`
+- **THEN** the Controller runs the explicit local target materializer without asking for provider authorization
+
+#### Scenario: Legacy vNext needs remote bytes
+
+- **WHEN** a markerless receipt reports `needs_render`
+- **THEN** the Controller separates published source success from later remote-cost authorization
 
 #### Scenario: New audience warrants a new deck
 
-- **WHEN** the requested revision changes the audience and narrative enough that the old deck identity is misleading
-- **THEN** the controller recommends a new deck with a concise reason
-- **AND** waits for the user's product decision before creating it
+- **WHEN** the revision would make the prior deck identity misleading
+- **THEN** the Controller explains and asks the product decision before creating a new deck
 
 ### Requirement: Structural verification is identity-aware
 
@@ -539,4 +444,102 @@ The restructure controller's final verification SHALL inspect the target PPTX an
 - **WHEN** an unchanged page appears at a new target position
 - **THEN** verification reports its new position and unchanged formal ID
 - **AND** does not treat the heading-number change as an ID migration
+
+### Requirement: HTML recovery overrides are explicitly human-confirmed and narrowly scoped
+
+When plain state/status reports a cross-host/uncertain gate journal, the Controller SHALL explain that another process or machine may still own the transaction, retain the opaque owner token internally, and ask the human to confirm that no other deck process is active before invoking `state --recover-gate-journal <token>`. The human SHALL not need to type/read the token. Decline or uncertainty SHALL make zero writes. Successful recovery SHALL be described only as transaction repair, never new content/visual approval.
+
+When a canonical HTML publication lock cannot be automatically reclaimed, the Controller SHALL first ensure the gate journal is absent/resolved, identify the exact target run and consequence that all canonical HTML generated review/delivery evidence will be rebuilt, and obtain explicit confirmation that no canonical writer/reader must be preserved. It SHALL then invoke only `ppt_flow refresh <run-dir> --kind reset-html-production --confirm-run-version <vN>` and consume its producer-owned `started|resumed|already-complete` result; it SHALL not delete generated paths, edit reset state/mirrors, or invent a reset ID itself. After successful reset it SHALL run a clean local canonical rebuild, show new reset-bound content/visual plans and delivery artifacts, and obtain new decisions even when all raw bytes/fingerprints are identical. When the conflict is confined to a migration-preview owner, it SHALL first resolve/clear any migration apply journal through its own matrix, then explain that the whole current migration scratch transaction/candidate/comparison/plan will be discarded, obtain confirmation that no migration writer/reader must be preserved, and delete only that source run's `_scratch/html-migration/` before starting a new preview. It SHALL not delete a single lock, cherry-pick objects, mix the two recovery scopes, touch canonical source/control/legacy generated owners, hand-edit state, or imply prior canonical gate/final-review evidence remains current after canonical reset.
+
+If state/status already reports `html-production-reset: deletion-pending`, the Controller SHALL first resolve any concurrently surviving gate journal through its own matrix, then follow the reset's bounded ownership classification rather than start a second deletion: `active` waits for the live owner, `waiting` reports the remaining age floor, `recoverable` may rerun the exact-version command for automatic same-host takeover, `uncertain` requires the 300000-ms floor plus explicit confirmation that no reset process/machine remains active before rerun, and `invalid` fails closed to state repair. It SHALL never ask the human to transcribe reset/owner IDs, never override a proven-live owner, and never claim that a pending reset has rebuilt artifacts.
+
+#### Scenario: User declines journal recovery
+
+- **WHEN** the Controller cannot prove a cross-host owner stopped and the user declines confirmation
+- **THEN** it leaves journal/state/metadata unchanged and remains blocked
+
+#### Scenario: Agent carries owner token
+
+- **WHEN** the user confirms no other deck process is active
+- **THEN** the Agent supplies the exact status token to the closed recovery flag without asking the user to transcribe it
+
+#### Scenario: Full generated reset is confirmed
+
+- **WHEN** an uncertain publication lock persists, no gate journal exists, and the user accepts full HTML evidence rebuild
+- **THEN** the Controller calls the closed reset command with the exact run version before a clean local rebuild
+- **AND** the state-owned reset epoch makes prior HTML gates/delivery review stale until new evidence is reviewed
+
+#### Scenario: Full generated reset stops after invalidation
+
+- **WHEN** the reset command reports a retained `deletion_pending` fence after deletion failure
+- **THEN** the Controller reports the exact retry action and does not start rendering, approval, delivery review, or manual cleanup
+
+#### Scenario: Another reset owner is still live
+
+- **WHEN** status classifies a pending canonical reset owner as `active`
+- **THEN** the Controller waits/reports ownership and does not invoke another reset or delete generated paths
+
+#### Scenario: Cross-host reset takeover is confirmed
+
+- **WHEN** a valid pending reset is `uncertain`, at least 300000 ms old, and the human confirms no reset process remains active
+- **THEN** the Controller invokes the same exact-version reset command and lets the module claim/resume the existing reset ID
+
+#### Scenario: Migration scratch reset is confirmed
+
+- **WHEN** an uncertain migration-preview lock persists and the user accepts abandoning that transaction
+- **THEN** only the owning `_scratch/html-migration/` transaction is deleted before candidate/preview reconstruction
+- **AND** canonical production/state/reviews are not changed
+
+### Requirement: HTML content and visual review are human gates over exact evidence
+
+The MD Controller SHALL show the exact ordered content projection before content approval and hash-bound representative or affected-page preview artifacts before visual approval. It SHALL force fallback composition for a page-local fallback review even when a selected asset is current, report which family/geometry/assets were reviewed, and never infer approval from successful rendering. JS SHALL reject stale reset IDs, content fingerprints, plan hashes, or bytes; after full canonical reset the Controller SHALL show the rebuilt reset-bound plan rather than reuse a remembered pre-reset hash.
+
+#### Scenario: Preview changed before approval
+
+- **WHEN** source/config/renderer/asset evidence changes after the user viewed a preview
+- **THEN** approval fails as stale and the Controller shows a new current preview
+
+### Requirement: HTML final review is bound to current delivery evidence
+
+Every HTML controller that can publish a new contact sheet/PPTX/notes SHALL finish through current `html-delivery-review`. The Controller SHALL show current delivery artifacts, record exact typed decision `proceed|repair|redirect`, require and persist a concise reason for repair/redirect, and route them before completion. JS SHALL bind/validate the decision against current nullable HTML-production reset ID, HTML delivery digest, contact-sheet SHA, assembly-v2/PPTX SHA, and notes-v3 receipt/PPTX SHA. Conversation memory, a pre-reset decision, or a prior execution's node completion SHALL not substitute for current evidence. Markerless legacy final-review behavior remains under its existing controller/state semantics.
+
+After obtaining the decision, the Controller SHALL invoke `ppt_flow state <run-dir> --record-delivery-review <decision>` plus `--reason <text>` only for repair/redirect and consume its producer-owned result. That one call SHALL atomically record system evidence and the current final-review node decision; the Controller SHALL not call `setNodeDecision` again, hand-edit state, call the JS module through ad-hoc code, or pass digest/SHA/path arguments. Repair reason SHALL enter shared pipeline-first classification and its owning repair node. Create-deck redirect SHALL reset to `checkpoint-intake` and downstream current-execution records; iteration redirect SHALL ask for exact target `edit-text|edit-visual|edit-notes|restructure-slides|create-deck|stop` before switching. `stop` persists `waiting_for: user:resume-or-replace`; HTML redirect SHALL reject legacy maintenance. A conflict/stale result SHALL return to current status/artifact presentation rather than record the conversation alone.
+
+#### Scenario: Local notes refresh completes technically
+
+- **WHEN** Stage 5 publishes current notes after an HTML notes edit
+- **THEN** the edit controller still shows the current result and records a new evidence-bound delivery decision before completion
+
+#### Scenario: Prior execution said proceed
+
+- **WHEN** a new HTML delivery digest differs from the prior reviewed digest
+- **THEN** the prior decision cannot complete the current controller
+
+#### Scenario: Controller persists proceed through public state route
+
+- **WHEN** the user accepts the current shown delivery
+- **THEN** the Controller calls the closed state evidence operation with `proceed`
+- **AND** completion relies on the resulting evidence-referenced node decision, not chat memory or a second write
+
+#### Scenario: Redirect does not guess a controller
+
+- **WHEN** the user rejects current delivery and asks to take a different direction
+- **THEN** the Controller records redirect plus reason, remains incomplete, and follows create-deck re-intake or the exact iteration target prompt
+- **AND** does not infer or switch controller solely from prose
+
+### Requirement: Legacy migration is a separate human-confirmed controller path
+
+`migrate-import` or its explicit migration branch SHALL require Agent-authored structured candidate controls, render the complete proposed HTML deck, present source implications/proposed contact sheet/exact old-side mode, and obtain exact-plan/mode confirmation before publish. It SHALL show old pixels only from verified current legacy evidence; missing/stale evidence SHALL use the exact degraded mode with diagnosis/placeholder and no parity claim while optionally offering separate maintenance. Decline SHALL leave the legacy version/controller usable. Apply crash recovery SHALL never bless partial staging: it either cleans exact owned hidden paths and fully rerenders or verifies an already published exact target and completes idempotently. After exact apply/recovery success, the Controller SHALL consume the in-target success receipt and use one normal atomic state transition to complete the source migration execution and start target HTML node `migration-target-review`; that node obtains target-version content/visual gates before Stage 4/5/final review. If target publication succeeded but the state transition did not, resume SHALL follow non-writing `migration_handoff_pending` and perform the same handoff, not restart migration or copy approval. Migration, recovery, and handoff make zero provider calls.
+
+#### Scenario: User declines migrated comparison
+
+- **WHEN** the user is not satisfied with the proposed HTML deck
+- **THEN** no new version becomes visible
+- **AND** legacy maintenance remains available
+
+#### Scenario: Target published but handoff write crashed
+
+- **WHEN** resume sees the exact target receipt and source migration execution without handoff
+- **THEN** it records the one atomic source-complete/target-continuation transition
+- **AND** target reviews remain pending
 

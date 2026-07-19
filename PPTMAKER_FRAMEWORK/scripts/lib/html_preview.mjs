@@ -32,9 +32,16 @@ export function buildHtmlReviewPlan({ plan, composition = null, kind, publicatio
   if (typeof logicalRunVersion !== 'string' || !logicalRunVersion) throw new TypeError('review plan logical run version is required');
   if (!['effective', 'forced-fallback'].includes(compositionVariant)) throw new TypeError('review plan composition variant is invalid');
   const shown = composition?.final_slides || composition?.pages || [];
-  const artifactRefs = shown.map((entry) => ({ slide_id: entry.slide_id, composition_variant: entry.composition_variant || compositionVariant, sha256: entry.png_sha256 || entry.html_sha256 || null }));
-  const shownById = new Set(artifactRefs.filter((entry) => /^[0-9a-f]{64}$/.test(entry.sha256 || '')).map((entry) => entry.slide_id));
-  const missingArtifacts = kind === 'visual' ? plan.slides.map((slide) => slide.slide_id).filter((slideId) => !shownById.has(slideId)).map((slideId) => `artifact:${slideId}`) : [];
+  const artifactRefs = shown.map((entry) => ({ slide_id: entry.slide_id, composition_variant: entry.composition_variant || compositionVariant, path: entry.review_object_path || null, sha256: entry.png_sha256 || entry.html_sha256 || null, page_path: entry.review_page_object_path || null, page_sha256: entry.html_sha256 || null }));
+  const validArtifacts = artifactRefs.filter((entry) => /^[0-9a-f]{64}$/.test(entry.sha256 || ''));
+  const shownEffective = new Set(validArtifacts.filter((entry) => entry.composition_variant === 'effective').map((entry) => entry.slide_id));
+  const shownForced = new Set(validArtifacts.filter((entry) => entry.composition_variant === 'forced-fallback').map((entry) => entry.slide_id));
+  const compositionVariants = [...new Set(artifactRefs.map((entry) => entry.composition_variant))].sort();
+  const requiredForced = plan.slides.filter((slide) => slide.visual_resolution?.effective === 'selected').map((slide) => slide.slide_id);
+  const missingArtifacts = kind === 'visual' ? [
+    ...plan.slides.map((slide) => slide.slide_id).filter((slideId) => !shownEffective.has(slideId)).map((slideId) => `effective:${slideId}`),
+    ...requiredForced.filter((slideId) => !shownForced.has(slideId)).map((slideId) => `forced-fallback:${slideId}`),
+  ] : [];
   const allOutstanding = [...new Set([...outstanding, ...missingArtifacts])].sort();
   const body = {
     schema: HTML_REVIEW_PLAN_SCHEMA,
@@ -49,9 +56,12 @@ export function buildHtmlReviewPlan({ plan, composition = null, kind, publicatio
     source_sha256: plan.source_sha256,
     ordered_plan_digest: plan.ordered_plan_digest,
     composition_variant: compositionVariant,
+    composition_variants: compositionVariants,
     content_projection: kind === 'content' ? reviewProjection(plan) : null,
+    content_fingerprint: kind === 'content' ? canonicalJsonSha256({ schema: 'content_review_fingerprint_v1', projection: reviewProjection(plan) }) : null,
     visual_system_fingerprint: kind === 'visual' ? plan.style_reference_contract_fingerprint : null,
-    page_visual_dependencies: kind === 'visual' ? plan.slides.map((slide) => ({ slide_id: slide.slide_id, visual_contract_fingerprint: slide.visual_contract_fingerprint, composition_fingerprint: slide.visual_contract_fingerprint })) : [],
+    page_visual_dependencies: kind === 'visual' ? plan.slides.map((slide) => ({ slide_id: slide.slide_id, visual_contract_fingerprint: slide.visual_contract_fingerprint, component_recipe_hash: canonicalJsonSha256({ family: slide.family, geometry: slide.geometry }) })).sort((left, right) => left.slide_id < right.slide_id ? -1 : left.slide_id > right.slide_id ? 1 : 0) : [],
+    coverage: kind === 'visual' ? { required_effective_slide_ids: plan.slides.map((slide) => slide.slide_id), required_forced_fallback_slide_ids: requiredForced, shown_effective_slide_ids: [...shownEffective].sort(), shown_forced_fallback_slide_ids: [...shownForced].sort(), complete: allOutstanding.length === 0 } : null,
     shown_artifacts: artifactRefs,
   };
   const planHash = canonicalJsonSha256(body);
@@ -77,8 +87,11 @@ export async function publishHtmlReviewPlan({ runDir, plan, composition = null, 
   const ownerRoot = ensureHtmlOwnerRoot(runDir, 'preview'); const previous = readHtmlPreviewManifest(ownerRoot, { publicationScope, htmlProductionResetId, logicalRunVersion });
   const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'preview', publicationScope, htmlProductionResetId, inputScopeSha256: reviewPlan.plan_hash, priorManifestSha256: previous?.sha256 ?? null });
   try {
-    const slot = { path: `plans/${reviewPlan.plan_hash}.json`, sha256: stored.sha256, owner: `html-review-plan-${kind}-v1`, owner_digest: reviewPlan.plan_hash, composition_variants: [compositionVariant] };
-    const manifest = publishHtmlPreviewManifest({ ownerRoot, ownerToken: lock.ownerToken, publicationScope, htmlProductionResetId, logicalRunVersion, slots: { review_plans: { [kind]: slot } }, priorManifestSha256: previous?.sha256 ?? null });
+    const slot = { path: `plans/${reviewPlan.plan_hash}.json`, sha256: stored.sha256, owner: `html-review-plan-${kind}-v1`, owner_digest: reviewPlan.plan_hash, composition_variants: reviewPlan.composition_variants };
+    const slots = kind === 'content'
+      ? { review_plans: { content: slot, visual: null }, contact_sheets: { visual_review: null, delivery: null } }
+      : { review_plans: { visual: slot }, contact_sheets: { delivery: null } };
+    const manifest = publishHtmlPreviewManifest({ ownerRoot, ownerToken: lock.ownerToken, publicationScope, htmlProductionResetId, logicalRunVersion, slots, priorManifestSha256: previous?.sha256 ?? null });
     return Object.freeze({ reviewPlan, stored, published: true, manifest });
   } finally { releaseHtmlPublishLock(lock); }
 }
@@ -95,15 +108,16 @@ export async function buildHtmlContactSheet({ orderedEntries, columns = 4 } = {}
   return Object.freeze({ bytes: canvas.toBuffer('image/png'), width: canvas.width, height: canvas.height, sha256: sha256(canvas.toBuffer('image/png')), ordered_slide_ids: orderedEntries.map((entry) => entry.slide_id) });
 }
 
-export async function publishHtmlDeliveryContactSheet({ runDir, orderedEntries, publicationScope = 'canonical-run', htmlProductionResetId = null, slot = 'delivery', ownerDigest = null, dryRun = false } = {}) {
+export async function publishHtmlDeliveryContactSheet({ runDir, orderedEntries, publicationScope = 'canonical-run', htmlProductionResetId = null, logicalRunVersion = basename(runDir), slot = 'delivery', ownerDigest = null, dryRun = false } = {}) {
   if (!['visual_review', 'delivery'].includes(slot)) throw new TypeError('HTML contact sheet slot must be visual_review or delivery');
   const sheet = await buildHtmlContactSheet({ orderedEntries });
   if (dryRun) return Object.freeze({ ...sheet, published: false, dry_run: true });
-  const ownerRoot = ensureHtmlOwnerRoot(runDir, 'preview'); const logicalRunVersion = basename(runDir); const previous = readHtmlPreviewManifest(ownerRoot, { publicationScope, htmlProductionResetId, logicalRunVersion });
+  const ownerRoot = ensureHtmlOwnerRoot(runDir, 'preview'); const previous = readHtmlPreviewManifest(ownerRoot, { publicationScope, htmlProductionResetId, logicalRunVersion });
   const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'preview', publicationScope, htmlProductionResetId, inputScopeSha256: sha256(JSON.stringify({ ordered_slide_ids: sheet.ordered_slide_ids, output_sha256: sheet.sha256 })), priorManifestSha256: previous?.sha256 ?? null });
   try {
     const object = writeHtmlObject({ ownerRoot, bytes: sheet.bytes, extension: 'png', ownerToken: lock.ownerToken });
-    const manifest = publishHtmlPreviewManifest({ ownerRoot, ownerToken: lock.ownerToken, publicationScope, htmlProductionResetId, logicalRunVersion, slots: { contact_sheets: { [slot]: { path: object.path, sha256: object.sha256, owner: `html-${slot.replace('_', '-')}-contact-sheet-v1`, owner_digest: ownerDigest || sheet.sha256, composition_variants: ['effective'] } } }, priorManifestSha256: previous?.sha256 ?? null });
+    const contactSlots = { [slot]: { path: object.path, sha256: object.sha256, owner: `html-${slot.replace('_', '-')}-contact-sheet-v1`, owner_digest: ownerDigest || sheet.sha256, composition_variants: ['effective'] }, ...(slot === 'visual_review' ? { delivery: null } : {}) };
+    const manifest = publishHtmlPreviewManifest({ ownerRoot, ownerToken: lock.ownerToken, publicationScope, htmlProductionResetId, logicalRunVersion, slots: { contact_sheets: contactSlots }, priorManifestSha256: previous?.sha256 ?? null });
     return Object.freeze({ ...sheet, published: true, manifest });
   } finally { releaseHtmlPublishLock(lock); }
 }

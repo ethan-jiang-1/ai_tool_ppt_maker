@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import JSZip from 'jszip';
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from './helpers/html_first_fixture.mjs';
+import { readState, writeState } from '../PPTMAKER_FRAMEWORK/scripts/lib/state.mjs';
 
 async function approveHtmlReview(runDir) {
   const review = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
@@ -32,6 +34,24 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(receipt.html_delivery_digest).toMatch(/^[0-9a-f]{64}$/);
       const { validateNotesCompletionReceipt } = await import('../PPTMAKER_FRAMEWORK/scripts/lib/notes_receipt.mjs');
       expect(validateNotesCompletionReceipt(fixture.runDir)).toMatchObject({ valid: true, reason: 'current' });
+      const state = readState(fixture.deck);
+      state.playbook = 'create-deck';
+      state.current_node = 'checkpoint-final-review';
+      state.nodes['checkpoint-final-review'] = { status: 'in_progress', execution_id: state.execution_id, evidence: {} };
+      writeState(fixture.deck, state);
+      const reviewResult = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'state', fixture.runDir,
+        '--record-delivery-review', 'proceed',
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
+      expect(reviewResult.status, reviewResult.stderr || reviewResult.stdout).toBe(0);
+      const reviewed = readState(fixture.deck, { heal: false });
+      const delivery = reviewed.nodes['html-delivery-review'].by_version['3_versions/v1'];
+      expect(delivery).toMatchObject({ schema: 'pptmaker-html-delivery-review-v1', decision: 'proceed', reason: null, run_version: 'v1' });
+      expect(reviewed.nodes['checkpoint-final-review'].decision).toMatchObject({ value: 'proceed', kind: 'user', evidence_ref: { node_id: 'html-delivery-review', version_key: '3_versions/v1' } });
+      const reviewApi = await import('../PPTMAKER_FRAMEWORK/scripts/lib/html_review_evidence.mjs');
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'current', decision: 'proceed' });
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: 'Changed after delivery review' })]));
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'stale', decision: 'proceed' });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

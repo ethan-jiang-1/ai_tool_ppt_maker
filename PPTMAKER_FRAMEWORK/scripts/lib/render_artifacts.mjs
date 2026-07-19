@@ -4,6 +4,7 @@ import { sha256File, stableJson } from "./image_provenance.mjs";
 import { canonicalJsonSha256 } from "./canonical_json.mjs";
 import { decode as decodePng } from "fast-png";
 import { HTML_FINAL_SLIDES_MANIFEST_SCHEMA, htmlOwnerRoot, readHtmlCurrentManifest } from "./html_object_store.mjs";
+import { loadImage } from "@napi-rs/canvas";
 
 export const ARTIFACT_STATUS_VERIFIED = "verified";
 export const ARTIFACT_STATUS_LEGACY_LOCATED = "legacy-located";
@@ -47,6 +48,19 @@ export function resolveHtmlFinalSlideArtifacts({ runDir, plan, htmlProductionRes
   const current = readHtmlCurrentManifest(ownerRoot, { expectedSchema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, publicationScope: "canonical-run", htmlProductionResetId });
   if (!current) throw new Error("current HTML final-slide manifest is missing; run local Stage 3 first");
   return adaptHtmlFinalSlideManifest({ runDir: resolve(runDir), ownerRoot, manifest: current.manifest, plan });
+}
+
+export async function adaptLegacyFinalSlideArtifacts({ runDir, artifacts }) {
+  if (!Array.isArray(artifacts)) throw new TypeError("legacy final-slide adapter requires verified artifacts");
+  const entries = [];
+  for (const artifact of artifacts) {
+    if (artifact.status !== ARTIFACT_STATUS_VERIFIED || artifact.artifact_kind !== ARTIFACT_KIND_FINAL_SLIDE) throw new Error(`legacy final-slide artifact is not verified for ${artifact.slide_id}`);
+    const image = await loadImage(artifact.path);
+    const mediaProfile = `legacy-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
+    const privateFingerprint = canonicalJsonSha256({ fingerprint: artifact.fingerprint, profile: artifact.profile });
+    entries.push(Object.freeze({ slide_id: artifact.slide_id, artifact_kind: ARTIFACT_KIND_FINAL_SLIDE, producer: "legacy-image2-stage3-v1", final_slide_fingerprint: finalSlideFingerprintV1({ producer: "legacy-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile }), path: relative(runDir, artifact.path).split(sep).join("/"), absolute_path: artifact.path, sha256: artifact.byte_sha256, width: image.width, height: image.height, media_profile: mediaProfile }));
+  }
+  return Object.freeze(entries);
 }
 
 export function artifactManifestEntryKey({ slideId, renderEngine, artifactKind }) {

@@ -25,42 +25,31 @@ The env check SHALL verify at startup that Node.js belongs to the checked-in sup
 
 ### Requirement: npm and dependency check
 
-The env check SHALL verify npm is available. It SHALL verify that the hard-required packages `@napi-rs/canvas`, `pptxgenjs`, `commander`, and exact `playwright@1.61.1` are each present by walking **upward from `process.cwd()`** (the same upward-search strategy used for `.env` loading) and checking for `node_modules/<package>` under each ancestor. Presence MAY be determined by filesystem checks, but Playwright version verification SHALL use installed package metadata after its path is found. The resolved Playwright package root/version SHALL be passed into `html-render-runtime`, which SHALL load that exact installation rather than repeating a bare/module-relative package lookup. The checker SHALL NOT stop at the first ancestor that merely contains a `node_modules` directory if a required package path is missing there — it SHALL continue upward (Node-like). If no ancestor yields a required package, that check SHALL fail and instruct the user to run `npm install` in the project root (the directory that owns `package.json` / `node_modules`). A present but non-matching Playwright version SHALL fail with lockfile-alignment guidance.
+The env check SHALL verify npm is available. It SHALL verify that hard-required packages `@napi-rs/canvas`, `pptxgenjs`, `commander`, exact `playwright@1.61.1`, and exact direct `echarts@6.1.0` are each present by walking upward from `process.cwd()` and checking `node_modules/<package>` under every ancestor until found. It SHALL NOT stop at the first incomplete `node_modules`. Exact versions SHALL be read from the discovered package metadata. A missing package or version mismatch SHALL fail with project-root `npm install`/lockfile-alignment guidance.
+
+The discovered Playwright and ECharts package roots/versions SHALL be passed in the validated runtime profile to `html-render-runtime` and `html-slide-rendering`. Those modules SHALL load the exact discovered installations and SHALL NOT repeat bare or module-relative resolution. A nearer shadow copy SHALL not satisfy, replace, or influence the inspected profile.
 
 #### Scenario: Dependencies installed at project root while cwd is a deck
 
-- **WHEN** `node_modules` with the required packages exists at a parent of `process.cwd()` (for example repo root)
-- **AND** the checker is invoked with `cwd` set to a child deck directory that has no local `node_modules`
-- **THEN** the dependency checks for `@napi-rs/canvas`, `pptxgenjs`, `commander`, and `playwright` report status `ok`
+- **WHEN** all required packages exist at a parent of a child deck cwd
+- **THEN** every dependency check, including exact Playwright and ECharts, reports `ok`
 
-#### Scenario: Dependencies missing
+#### Scenario: ECharts version drifts
 
-- **WHEN** no ancestor of `process.cwd()` contains `node_modules/<package>` for a required package
-- **THEN** that dependency check reports failure
-- **AND** the fix text instructs the user to run `npm install` in the project root
+- **WHEN** discovered ECharts is not exactly `6.1.0`
+- **THEN** the dependency check fails and base readiness is NOT READY
+- **AND** renderer production cannot proceed with the mismatched package
 
-#### Scenario: Dependencies at cwd still work
+#### Scenario: Shadow ECharts exists near the renderer
 
-- **WHEN** `node_modules` with the required packages exists directly in `process.cwd()`
-- **THEN** `@napi-rs/canvas`, `pptxgenjs`, `commander`, and exact `playwright@1.61.1` are verified as present
+- **WHEN** cwd discovery selects exact `echarts@6.1.0` but a different copy is resolvable relative to the renderer module
+- **THEN** chart generation uses only the discovered exact package root
+- **AND** the shadow copy cannot satisfy or replace the inspected profile
 
 #### Scenario: Empty local node_modules does not block parent packages
 
-- **WHEN** `process.cwd()` contains an empty or incomplete `node_modules`
-- **AND** a parent directory contains `node_modules` with the required packages
-- **THEN** the dependency checks for those packages still report status `ok`
-
-#### Scenario: Playwright version drifts from the runtime profile
-
-- **WHEN** a `playwright` package is found but its version is not `1.61.1`
-- **THEN** the `playwright` check fails
-- **AND** the checker does not continue with an unpaired browser profile
-
-#### Scenario: A shadow Playwright copy exists near the runtime module
-
-- **WHEN** cwd ancestor discovery selects exact `playwright@1.61.1` but a different Playwright copy is resolvable relative to the framework runtime module
-- **THEN** runtime inspection and launch use only the discovered exact package root
-- **AND** the shadow copy cannot satisfy or replace the inspected profile
+- **WHEN** the cwd has an incomplete `node_modules` and a parent has every required package
+- **THEN** upward discovery continues and the parent packages are verified
 
 ### Requirement: API key verification
 
@@ -304,28 +293,26 @@ The `git` check SHALL participate in the existing text and direct `env-check --j
 
 ### Requirement: Environment check separates base and Image2 readiness modes
 
-`env-check.mjs` SHALL resolve one readiness mode per invocation. An invocation without `--image2`, `--smoke`, or `--probe-vendors` SHALL run base checks only. `--image2` SHALL run base checks plus Image2 presence checks and SHALL remain offline. `--smoke` and `--probe-vendors` SHALL each imply Image2 mode and SHALL retain their live-probe behavior after presence checks pass. `--smoke` and `--probe-vendors` SHALL remain mutually exclusive; either MAY be combined with redundant `--image2`.
+`env-check.mjs` SHALL resolve one readiness mode per invocation. An invocation without `--image2`, `--smoke`, or `--probe-vendors` SHALL run base checks only. `--image2` SHALL run base checks plus Image2 presence checks and remain offline. `--smoke` and `--probe-vendors` SHALL imply Image2 mode, remain mutually exclusive, and retain their live-probe behavior after presence checks pass.
 
-Base checks SHALL include the Node/npm/package foundation, existing local framework dependencies and advisory checks, the exact Playwright package, matching installed Chromium, distributed HTML-font integrity/coverage, and fixed offline runtime smoke. Base checks SHALL omit `api_key`, `image_base_url`, and `stage2_generator`. Missing Image2 configuration SHALL therefore not change base READY or its exit status.
+Base checks SHALL include Node/npm, required local framework packages including exact `playwright@1.61.1` and exact direct `echarts@6.1.0`, matching installed Chromium, distributed HTML-font integrity/coverage, fixed offline browser smoke, and advisory checks. Base checks SHALL omit `api_key`, `image_base_url`, and `stage2_generator`. Missing or mismatched ECharts SHALL make base readiness NOT READY; missing Image2 configuration SHALL not.
 
 #### Scenario: New user has no Image2 configuration
 
-- **WHEN** all local/base requirements pass and neither `IMAGE2_API_KEY` nor `IMAGE2_BASE_URL` is set
-- **AND** env-check runs without an Image2 flag
-- **THEN** the report omits Image2 presence checks, ends in READY, and exits 0
+- **WHEN** all local/base requirements including exact ECharts pass and no Image2 configuration exists
+- **THEN** default env-check ends READY and exits 0
+
+#### Scenario: Required ECharts is missing
+
+- **WHEN** exact local ECharts cannot be discovered
+- **THEN** default env-check ends NOT READY with a base dependency repair
+- **AND** no browser or renderer work is attempted with an unknown chart runtime
 
 #### Scenario: Explicit Image2 presence mode
 
 - **WHEN** env-check runs with `--image2`
 - **THEN** it runs all base checks plus `api_key`, `image_base_url`, and `stage2_generator`
-- **AND** it reports the resolved vendor count without exposing endpoint or secret values
-- **AND** it makes no Image2 network call
-
-#### Scenario: Legacy live flag implies Image2 mode
-
-- **WHEN** env-check runs with `--smoke` or `--probe-vendors` without `--image2`
-- **THEN** it first runs the same Image2 presence checks as `--image2`
-- **AND** existing invocations remain valid
+- **AND** makes no Image2 network call
 
 ### Requirement: HTML browser and font checks are blocking base checks
 

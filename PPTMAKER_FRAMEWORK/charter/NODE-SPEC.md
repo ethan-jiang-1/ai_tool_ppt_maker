@@ -4,8 +4,8 @@
 
 ## 规范层级
 
-- **Lifecycle Phase**：`0 → 1/2 → 2.7 → 3 → 4`
-- **Method Module**：`00-setup`、`01-visual`、`02-content`、`03-prompts`、`04-production`、`05-iteration`
+- **Lifecycle Phase**：`0 → 1 → 2 → 3 → [4 optional/unavailable] → 5`
+- **Method Module**：`00-setup`、`01-content`、`02-visual-system`、`03-html-production`、`04-image2-refinement`、`05-iteration`
 - **Pipeline Stage**：生产脚本 Stage 1–5
 - **Playbook Node**：MD Controller 中的有序执行节点
 
@@ -13,13 +13,13 @@
 
 ## Node 声明
 
-有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`。
+有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`。Change 3 active index 不注册可执行 lifecycle 4/module `04-image2-refinement`。
 
 ```yaml
-node: authoring-slides
+node: author-structured-content
 lifecycle_phase: 1
-method_module: 02-content
-requires: [seed-topics]
+method_module: 01-content
+requires: [checkpoint-intake]
 entry: []
 exit:
   - slide_specs_exists
@@ -45,21 +45,22 @@ produces: [slide-specifications]
 
 禁止 `CLI/State` 等混合标签；需要分别落成 CLI 与 MD/GATE step。
 
-## State Schema v2
+## State Schema v3
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/lib/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按顺序 heal v1→v2，且二次读取幂等。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/lib/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，且二次读取幂等。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
 
 ```yaml
-schema_version: 2
+schema_version: 3
+pipeline: html-first-v1
 playbook: create-deck
-current_node: authoring-slides
+current_node: author-structured-content
 execution_id: exec-...
 execution_started_at: 2026-07-12T06:00:00.000Z
 started_at: 2026-07-12T05:00:00.000Z   # 整个 workflow 的稳定开始时间
 updated_at: 2026-07-12T06:20:00.000Z
 
 nodes:
-  authoring-slides:
+  author-structured-content:
     status: in_progress
     execution_id: exec-...
     evidence:
@@ -89,7 +90,7 @@ playbook_stack:
 
 ### Execution working set
 
-顶层 `nodes` 只包含当前 execution 的 controller working set，加上独立 freshness contract 管理的系统保留记录（目前为 `header-review`）。controller record、evidence 与 decision 都必须匹配当前 `execution_id`；旧 execution 不能授权新 execution。
+顶层 `nodes` 只包含当前 execution 的 controller working set，加上独立 freshness contract 管理的系统保留记录（`header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`）。controller record、evidence 与 decision 都必须匹配当前 `execution_id`；旧 execution 不能授权新 execution。HTML records 只能存在于 `nodes[reserved_id].by_version["3_versions/vN"]`，并绑定 normalized `run_version` 与 nullable current reset ID。
 
 - `startPlaybook`：顶层启动新 execution；清理旧 controller records，保留系统记录。未完成 execution 只有显式 `{replace:true}` 才能替换；stack 非空时禁止调用。
 - `switchPlaybook`：把 parent 的 `{playbook,current_node,execution_id,execution_started_at,controller_nodes}` 深拷贝进 stack，再创建干净 child execution。
@@ -125,7 +126,7 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 - MD 按引用消费 `slides` preview、edit receipt 与 structural impact receipt，并在内存/state note 中保留确认过的 `plan_sha256`；用户只确认 before/after，不负责抄写或管理 hash。
 - Apply 必须重放同一个 preview 并传 exact hash。stale base/hash mismatch 时重新生成 preview；禁止替旧计划 rebase、猜测新 selector 或在 `_generated/` 补状态。
 - `requires_human:true`、selector ambiguity、正文页码 warning 或新增内容/成本选择必须停下。其他确定性冲突由 Agent 修复或重新 preview。
-- Structural apply/materialization 是 renderer-free 授权域；receipt 的 `needs_render` 只说明后续昂贵工作，不自动授权 Stage 2。Generated Image Rebuild 必须是用户知情后的独立调用。
+- Structural apply/materialization 是 renderer-free 授权域；HTML receipt 的 `needs_local_materialization` 只说明后续本地工作，legacy receipt 的 `needs_render` 才表示后续昂贵工作。Generated Image Rebuild 必须是用户知情后的独立调用。
 - 结构变化若无法在一个版本内清晰收敛，consumer 使用逃生阶梯：新 preview → 新 vNext → 新 deck。新 deck 适用于受众、主叙事或设计系统已经分叉，不用于逃避普通小改。
 
 ## State API
@@ -154,6 +155,10 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 | `pptx_generated` | filesystem | `_generated/ppt/` 恰有当前非 backup PPTX 产物 |
 | `speaker_notes_injected` | receipt | 校验 `_generated/qa/notes_injection.json` schema v1、contained paths、当前 input/PPTX SHA-256 与 count equality |
 | `header_review_current` | header review contract | 按当前 profile 与 execution classification scope 检查 relevant `full-page` IDs 的 reviewed hashes/fingerprint；无 relevant full-page 时才 vacuous pass |
+| `html_content_review_current` | HTML review evidence | 当前 run version/reset 的完整 approvable content plan 与 fingerprint 证据 |
+| `html_visual_review_current` | HTML review evidence | 当前 recipe coverage、page dependencies、effective/forced artifacts 与 approvable visual plan |
+| `html_delivery_current` | HTML delivery evidence | current contact sheet、assembly-v2、notes-v3、delivery digest 与 accepted final review |
+| `html_reset_clear` | HTML reset fence | 无 `deletion_pending` reset，或当前 owner 已完成显式 reset transaction |
 
 ### State/gate condition families
 
@@ -195,9 +200,9 @@ produces: [slide-specifications]
 
 # authoring-slides: Foundation Shared Reference
 
-**Step 1 — MD**: 读 `workflow/02-content/04-create-content-assets.md`，完成 L1/L2/L4 与来源收集。
+**Step 1 — MD**: 读 `workflow/01-content/05-create-content-assets.md`，完成 L1/L2/L4 与来源收集。
 
 **Step 2 — CLI**: 用 `setNodeEvidence` 记录 `l1-l2-l4-complete` 与 `sources-collected`，再 `writeState`。
 ````
 
-Registry validator 必须对 9 个有序 controllers、1 个 shared node、40 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。
+Registry validator 必须对 checked-in `playbook/controller-manifest-v3.json` 声明的 10 个有序 controllers、1 个 shared node、43 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、supported pipeline ownership、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。

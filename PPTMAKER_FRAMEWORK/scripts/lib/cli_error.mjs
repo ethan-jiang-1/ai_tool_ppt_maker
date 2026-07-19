@@ -43,6 +43,7 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "new-version",
   "test",
   "state",
+  "migrate-html",
 ]);
 
 export const CLI_DIAGNOSTIC_CATEGORIES = Object.freeze([

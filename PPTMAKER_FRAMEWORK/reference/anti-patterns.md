@@ -38,7 +38,7 @@ agent_action: internalize
 
 **修复**：IMAGE PROMPT 是**空间执行指令**，不是文学作品。结构：Layout 分区 → Zone 描述 → 颜色语义 → 精确文字 → Anti-patterns。把最重要的信息（y 坐标、颜色 hex、文字 wording）放最前面。
 
-参见 `workflow/03-prompts/02-prompt-structure-and-patterns.md`。
+参见 `reference/legacy-image2-first-maintenance.md`。
 
 ---
 
@@ -58,7 +58,7 @@ agent_action: internalize
 | Generated Image Rebuild | full-page header、body/image prompt/画面，或 mode/safe-zone | 1 → 强制所选 2 → review → 3/4/5 | ~5 min/page |
 | Notes-Only Refresh | Speaker notes only | 5 only | ~30 sec |
 
-参见 `workflow/04-production/00-the-pipeline-philosophy.md`。
+参见 `workflow/03-html-production/00-the-pipeline-philosophy.md`。
 
 ---
 
@@ -91,7 +91,7 @@ agent_action: internalize
 - **改 backbone ≠ 新版本**：改核心隐喻/公式/视觉主干,是改 `2_backbone/` 里的文件——它**影响所有版本**,不是开新版本。判据:"这个改动只属于这一版,还是属于整个 deck?"
 - 小改动（改标题文字、改 speaker note）直接在当前版本改。
 
-参见 `workflow/02-content/05-iterate-with-version-discipline.md`（"什么是一个版本"）和 `workflow/00-setup/04-conventions.md`。
+参见 `workflow/01-content/06-iterate-with-version-discipline.md`（"什么是一个版本"）和 `workflow/00-setup/04-conventions.md`。
 
 ---
 
@@ -117,9 +117,9 @@ agent_action: internalize
 
 **症状**：到第 12 张 slide 时发现 accent color 在某些布局中太刺眼——但 style master 已经锁了。改 style master = 前面 11 张全部重新生图。
 
-**修复**：用 `workflow/01-visual/04-iterate-review-lock.md` 里的 checklist 系统性审查。做一张 contact sheet 把 style master 和几张代表性 slides 放在一起对比。**Path A（95%+ pass）→ Lock。Path B（80-95%）→ 微调。Path C（<80%）→ 回到设计。** 不在 Path A 不要 lock。
+**修复**：用 `workflow/02-visual-system/04-validate-the-html-system.md` 里的 checklist 系统性审查。做一张 contact sheet 把 style master 和几张代表性 slides 放在一起对比。**Path A（95%+ pass）→ Lock。Path B（80-95%）→ 微调。Path C（<80%）→ 回到设计。** 不在 Path A 不要 lock。
 
-参见 `workflow/01-visual/04-iterate-review-lock.md`。
+参见 `workflow/02-visual-system/04-validate-the-html-system.md`。
 
 ---
 

@@ -1,0 +1,65 @@
+{
+  "schema": "pptmaker-html-delivery-acceptance-v1",
+  "measured_on": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v22.23.1",
+    "playwright": "1.61.1",
+    "echarts": "6.1.0"
+  },
+  "deck": {
+    "slides": 3,
+    "raster_bytes": 19366188,
+    "serialized_page_bytes": [
+      26259910,
+      501327,
+      442474
+    ]
+  },
+  "limits": {
+    "serialized_page_bytes": 67108864,
+    "exact_limit_accepted": true,
+    "over_limit_rejected": true,
+    "page_timeout_ms": 30000,
+    "deck_timeout_ms": 120000,
+    "deck_timeout_formula": "30000 + 30000 * selected_slide_count"
+  },
+  "fresh": {
+    "elapsed_ms": 6989.7,
+    "peak_rss_bytes": 738312192,
+    "disk_bytes": 28081984,
+    "files": 12,
+    "page_entries": 3,
+    "final_entries": 3,
+    "composition_input_receipts": 6,
+    "review_plan_slots": 2,
+    "contact_sheet_slots": 1
+  },
+  "repeated_rebuild": {
+    "elapsed_ms": 5382.6,
+    "peak_rss_bytes": 753385472,
+    "disk_growth_bytes": 0,
+    "byte_identical": true
+  },
+  "reset_rebuild": {
+    "elapsed_ms": 5546.8,
+    "peak_rss_bytes": 783204352,
+    "disk_growth_from_fresh_bytes": 310,
+    "byte_identical": true,
+    "prior_approval_resurrected": false,
+    "reset_status": "started"
+  },
+  "deterministic_outputs": {
+    "html_delivery_digest": "5ad16b821d443fb0851d6869f6ee28b794d5bc7a14135c4662b042ea53d0394d",
+    "page_html_shas": [
+      "6e1d06dbef2fda3ae24b6eafe69e0837071844660acf6f4fcc47ba480a45ea35",
+      "cc6456bba6650ce7b23e4d52cfc76ab8841a16aa2ad1e4a23e8bfbb14f933ea6",
+      "0c10712cf84a96bd82e4019451f15eb71ad93d19ddecae58009d6783073f82f5"
+    ],
+    "final_png_shas": [
+      "d06fceb5cce53ea912e744c2856d7a0c7673161316f096be2296140d4edf41a8",
+      "b4c0a9928eb2adac6100edb75cec03bd81ed2a1019aef6eb7d7682f14f8bb17e",
+      "e310401e7fc2202ab5f1d027a32270b37dce31634d864ce4ca06ca894ad5871d"
+    ]
+  }
+}

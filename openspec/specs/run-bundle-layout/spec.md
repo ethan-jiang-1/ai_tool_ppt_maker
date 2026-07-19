@@ -8,31 +8,28 @@ Machine authority for tree text and path constants: `PPTMAKER_FRAMEWORK/scripts/
 ## Requirements
 ### Requirement: Canonical run-bundle tree and directory roles
 
-A conformant run bundle SHALL be rooted at `deck_{NAME}/` and SHALL include: `1_upstream_raw_material/` (shared raw materials), `2_backbone/` (shared metaphor/formula/constraints/outline/manuscript/visual-style), `3_versions/v{n}/` as the version leaf (`--run-dir`) holding `slide-specifications.md`, `overrides/`, `_generated/`, and `_scratch/`, plus deck-root `_state/` (playbook progress) and `_lessons/` (non-secret retained lessons).
+A conformant run bundle SHALL remain rooted at `deck_{NAME}/` with `1_upstream_raw_material/`, `2_backbone/`, `3_versions/v{n}/` as `--run-dir`, deck-root `_state/`, and `_lessons/`. `_state/` SHALL allow durable `state.yaml`/README plus transient `gate-approval-journal.json` owned only by recoverable gate publication; the journal's absence is normal and its presence never independently proves approval. A version SHALL contain source `slide-specifications.md`, `overrides/`, rebuildable `_generated/`, and deletable `_scratch/`.
 
-Directory roles SHALL include at least:
+For HTML-first runs, `_generated/html_production/` SHALL own `html_pages/`, `final_slides/`, and `preview/`; each SHALL contain an `objects/` directory for immutable raw-byte-SHA-addressed bytes, one `manifest.json` as its current-set pointer, and MAY transiently contain exclusive `.publish.lock/owner.json`, `.manifest.<64hex-owner-token>.tmp`, plus object-directory `.object.<64hex-owner-token>.<64hex-byte-sha>.tmp`. No other lock/temp child is valid. Their exact manifest schemas SHALL be `pptmaker-html-pages-manifest-v1`, `pptmaker-html-final-slides-manifest-v1`, and `pptmaker-html-preview-manifest-v1` respectively. Canonical current manifests/locks and `pptmaker-html-review-plan-v1` preview plans SHALL bind the state-owned nullable HTML-production reset ID; migration-preview equivalents use null. `preview/` SHALL additionally contain immutable canonical `plans/<review-plan-hash>.json`; its manifest SHALL hold independent current slots for content/visual plans and visual-review/delivery contact sheets rather than one overloaded pointer. Object/plan paths are rebuildable and non-current unless referenced by the owning manifest. Normal Change-3 publication SHALL not delete unreferenced final objects/plans; no garbage-collection interface is introduced. `_generated/qa/` SHALL own assembly/notes receipts plus optional exact `html_migration.json` only on a clean migrated target; HTML assembly/notes receipts bind the current reset ID, while `html_migration.json` is publication/handoff provenance and never completion authority. Optional Image2 refinement physical partitions are reserved as lazy paths: `_scratch/image2_refinement/`, `_generated/image2_refinement/`, and accepted source assets under `overrides/visual-style/assets/refined/image2/{style-reference,visual-slots}/`; their absence is conformant and Change 3 SHALL NOT create them. `1_upstream_raw_material/` SHALL NOT accept generated/rejected Image2 history.
 
-- `deck_{NAME}/` — run bundle root (strictest layer)
-- `3_versions/v{n}/` — `--run-dir` (not the deck root)
-- `_scratch/` — version-local temp / `.bak` / drafts; not SSOT; deletable
-- `_generated/` — pipeline derived; never hand-edit; rebuildable
-- `2_backbone/visual-style/style_master.jpg` — shared visual anchor
-- `_generated/preview/*contact_sheet*` — pilot / 小样 preview
-- `_state/` — playbook progress
-- `_lessons/` — non-secret hard-won notes
+Legacy `style_master.jpg`, prompt/image/header directories, and their manifests remain compatibility-owned and SHALL not be required or created by new HTML-first init/build. `bundle_layout.mjs` `renderTree()` SHALL describe the pipeline-specific and lazy roles without presenting generated paths as source truth.
 
-`bundle_layout.mjs` `renderTree()` SHALL list these first-class paths (including version `_scratch/`) as the machine-authoritative tree text.
+#### Scenario: Fresh HTML run tree is complete without Image2
 
-#### Scenario: renderTree lists version _scratch
+- **WHEN** a fresh HTML-first deck completes build
+- **THEN** it has structured source, HTML production pages/final slides/preview, PPTX/notes receipts, state, and lessons
+- **AND** no Image2 scratch/generated/accepted directory is required or created
 
-- **WHEN** Agent inspects `renderTree()` output
-- **THEN** the tree text includes `_scratch/` under the version directory
+#### Scenario: --run-dir remains the version leaf
 
-#### Scenario: --run-dir is not the deck root
+- **WHEN** a path is documented or validated as `--run-dir`
+- **THEN** it resolves to `deck_*/3_versions/v{n}/` rather than the deck root
 
-- **WHEN** glossary or entry docs define `--run-dir`
-- **THEN** the path is `deck_*/3_versions/v{n}/`
-- **AND** it is distinguished from `deck_*/`
+#### Scenario: Legacy deck remains conformant
+
+- **WHEN** a markerless deck retains its style master and legacy generated directories
+- **THEN** bundle validation recognizes them through the legacy compatibility shape
+- **AND** does not require HTML migration
 
 ### Requirement: Structure gradient upper-strict lower-loose
 
@@ -46,18 +43,24 @@ Run-bundle layout SHALL follow **stricter toward the root, looser toward the lea
 
 ### Requirement: Glossary Where Map is the GREP placement index
 
-`PPTMAKER_FRAMEWORK/reference/glossary.md` SHALL provide a **Where Map** section discoverable via `rg` on canonical tokens. The map SHALL use columns for term, path, means, and do-not. Definition headings for placement objects SHALL use the exact searchable token as heading text (for example `### _scratch/`, `### style_master.jpg`, `### --run-dir`). The map SHALL include at least: `run bundle`, `soft bundle`, `--run-dir`, `_scratch/`, `_generated/`, `style_master.jpg`, `contact_sheet` / `pilot`, `_state/`, `_lessons/`. An also-search line MAY map colloquial aliases (`bak`, `temp`, `小样`, `style master`) to canonical tokens. `_scratch/` SHALL be defined as the official version-local temp outlet. `--run-dir` SHALL be distinguished from run bundle.
+`PPTMAKER_FRAMEWORK/reference/glossary.md` SHALL retain a GREP-friendly Where Map with term/path/meaning/do-not fields and exact searchable headings/tokens for at least run bundle, soft bundle, `--run-dir`, `_scratch/`, `_generated/`, `html_production`, `style_master.jpg`, `contact_sheet`/pilot, `_state/`, and `_lessons/`. It SHALL distinguish deck root from version run-dir and source/control from rebuildable/deletable outputs.
 
-#### Scenario: rg _scratch hits Where Map definition
+Placement entries SHALL be pipeline-specific: HTML pages/final slides/review/delivery contact sheets/plans belong under version-local `_generated/html_production/`; markerless contact sheets remain `_generated/preview/`; `style_master.jpg` is markerless legacy compatibility only; Image2-refinement paths are unavailable/lazy in Change 3. The map SHALL not direct manual edits/copies into `_generated/`, cross-version manifest references, or HTML evidence into legacy paths.
 
-- **WHEN** Agent searches for `_scratch` under `PPTMAKER_FRAMEWORK/`
-- **THEN** `reference/glossary.md` contains a Where Map row and/or `### _scratch/` stating path `3_versions/v{n}/_scratch/`
+#### Scenario: Agent searches HTML contact sheet
 
-#### Scenario: run bundle distinguished from --run-dir in glossary
+- **WHEN** Agent greps `contact_sheet` for an HTML-first run
+- **THEN** the Where Map identifies `_generated/html_production/preview/` and its owning manifest
 
-- **WHEN** Agent reads glossary entries for `run bundle` and `--run-dir`
-- **THEN** run bundle is `deck_{NAME}/` and `--run-dir` is `3_versions/v{n}/`
-- **AND** the text states they are not the same path
+#### Scenario: Agent searches legacy style master
+
+- **WHEN** Agent greps `style_master.jpg`
+- **THEN** the entry labels it markerless legacy-only rather than a new-deck prerequisite
+
+#### Scenario: Run bundle and run-dir remain distinct
+
+- **WHEN** Agent reads both definitions
+- **THEN** run bundle is `deck_NAME/` and `--run-dir` is `3_versions/vN/`
 
 ### Requirement: Run-bundle root admits an agent-agnostic generated entry control
 
@@ -121,31 +124,31 @@ The canonical `2_backbone/visual-style/` directory MAY contain an `assets/` subd
 
 ### Requirement: Structured source control remains inside the existing run-bundle topology
 
-Opt-in HTML-first source SHALL remain the canonical `3_versions/vN/slide-specifications.md`. Shared assets/v2 catalog SHALL remain under `2_backbone/visual-style/assets/`; sparse version assets/v2 catalog SHALL remain under `3_versions/vN/overrides/visual-style/assets/`. Every plan/diagnostic `run` path SHALL be a normalized POSIX path relative to this deck/run-bundle root, never an absolute path or a version-relative `../../` traversal. `bundle_layout.mjs` SHALL apply the existing canonical assets-entry whitelist to both layers while permitting the sparse version subtree; manifest semantics and byte integrity remain owned by `visual-asset-management`. The existing physical slide-block order SHALL remain the sole order source. This change SHALL not add another source/control directory, write HTML pages/screenshots/PPTX, or add Image2 refinement directories.
+HTML-first source SHALL remain canonical `3_versions/vN/slide-specifications.md`; shared/sparse assets and v2 catalogs SHALL remain under backbone/version-override `visual-style/assets/`; physical slide-block order SHALL remain sole source order. Every plan/diagnostic/receipt/generated-manifest path SHALL be normalized POSIX and confined relative to its owning deck/run version, never absolute, traversal-based, or cross-version. Asset whitelist and byte integrity SHALL retain their existing owners.
 
-#### Scenario: Structured source uses canonical version paths
+`ppt_flow validate`, direct Stage-1 validation, and unified Stage-1 dry-run SHALL remain write-free. Canonical write-enabled Stage 1 SHALL publish only `_generated/slide_plan.json`. Change-3 HTML Stages 2-5 MAY publish only the canonical rebuildable HTML-production/QA/PPTX outputs and state evidence defined by their owning capabilities; they SHALL add no source/control directory and no Image2 refinement path. Legacy branch outputs remain isolated.
 
-- **WHEN** a run bundle opts into `html-first-v1`
-- **THEN** its structured source remains under the canonical version source/control locations
-- **AND** bundle self-check accepts the layout without a new top-level directory
+#### Scenario: HTML source uses canonical version paths
 
-#### Scenario: Sparse version assets use the canonical assets shape
+- **WHEN** a run uses `html-first-v1`
+- **THEN** source/control remain in the existing version/backbone/override locations
+- **AND** derived HTML output remains under version-local `_generated/html_production/`
 
-- **WHEN** a version-local v2 manifest and registered bytes live under `overrides/visual-style/assets/`
-- **THEN** bundle self-check applies the same allowed immediate asset entries as the backbone assets directory
-- **AND** it does not treat an unregistered same-path file as an override authority
+#### Scenario: Validation remains write-free
 
-#### Scenario: Generated outputs remain absent
+- **WHEN** any general HTML validation route runs
+- **THEN** source, generated, state, and migration bytes remain unchanged
 
-- **WHEN** `ppt_flow validate` validates the structured contract before Change 3
-- **THEN** no generated file or directory is created or changed
-- **AND** no legacy page prompt, `_generated/html_production`, screenshot, PPTX, or Image2 candidate output is created
+#### Scenario: Stage 1 writes only the projection
 
-#### Scenario: Stage 1-only writes one rebuildable projection
+- **WHEN** canonical write-enabled Stage 1 succeeds
+- **THEN** it atomically replaces only `_generated/slide_plan.json`
 
-- **WHEN** canonical `unified_pipeline --run-dir <run-dir> --stage 1` without `--dry-run` processes a valid structured contract
-- **THEN** it atomically replaces only the existing `_generated/slide_plan.json` projection
-- **AND** it creates no legacy page prompt/twin or downstream production output
+#### Scenario: HTML production paths are confined
+
+- **WHEN** Stages 2-5 publish HTML delivery
+- **THEN** every object/manifest/receipt path is target-run-owned and confined
+- **AND** no Image2 candidate/refinement directory is created
 
 ### Requirement: Derived contract artifacts are rebuildable
 
@@ -156,4 +159,32 @@ Any resolved plan, merged catalog, diagnostic, or fingerprint evidence produced 
 - **WHEN** a derived structured-plan receipt is deleted
 - **THEN** the next canonical write-enabled unified Stage 1 rebuilds it from canonical source/control/framework inputs
 - **AND** no source or slide order is lost
+
+### Requirement: HTML production and Image2 refinement partitions cannot be confused
+
+Bundle validation SHALL apply distinct immediate-entry whitelists and ownership labels to HTML production, Image2 scratch/generated, and accepted override assets. HTML current manifests may reference only confined objects under their own run-version HTML-production owner plus canonical source/control/framework receipts; target manifests SHALL not reference another version's objects. Image2 paths SHALL remain unavailable/lazy in Change 3 and SHALL not satisfy HTML final-slide, gate, assembly, or notes evidence.
+
+#### Scenario: Candidate appears under HTML production
+
+- **WHEN** an Image2 candidate/plan/authorization-shaped file appears under `_generated/html_production/`
+- **THEN** bundle self-check reports an ownership violation
+
+#### Scenario: HTML build has no refinement directories
+
+- **WHEN** a user finishes after HTML delivery
+- **THEN** the run remains conformant with all reserved Image2 directories absent
+
+### Requirement: Legacy migration scratch is temporary and version-local
+
+An explicit migration preview MAY use `_scratch/html-migration/` for candidate source/control, comparison artifacts, the hash-bound plan, and exact transient `apply-journal.json`. Its exact renderer workspace SHALL be `_scratch/html-migration/projected-run/`, with transaction-owned source/control/assets, scratch `_generated/slide_plan.json`, and scratch `_generated/html_production/` using the normal private object/manifest shapes but `publication_scope: migration-preview`. The workspace SHALL be version-local, confined, deletable, excluded from source truth, and never accepted by normal preview/build/gates/state/assembly/notes/completion conditions. Direct renderer CLIs SHALL not accept it as `--run-dir`; only the closed migration validator/orchestrator may issue its opaque render context. Apply SHALL publish only a clean new version, SHALL rerender its hidden canonical target, and SHALL not copy scratch generated objects/manifests/locks/receipts into that target. While a valid/uncertain apply journal exists, no whole migration-scratch reset may delete it; the apply recovery matrix owns its resolution first.
+
+#### Scenario: Migration preview is abandoned
+
+- **WHEN** the user declines a migration comparison
+- **THEN** deleting `_scratch/html-migration/` loses no source, version, gate, or production truth
+
+#### Scenario: Scratch manifest is placed under canonical HTML production
+
+- **WHEN** a `publication_scope: migration-preview` manifest or receipt appears under a visible version's canonical `_generated/html_production/`
+- **THEN** bundle validation reports an ownership violation
 

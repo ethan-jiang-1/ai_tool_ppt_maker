@@ -4,7 +4,7 @@
  *
  * Stage 1: Parse human-authored markdown slide specs into machine-readable JSON.
  *
- * Reads one or more markdown files in the four-layer slide spec format (workflow/02-content),
+ * Reads one or more markdown files in the four-layer slide spec format (workflow/01-content),
  * produces the artifacts consumed by downstream stages:
  *
  *     slide_plan.json               — per-slide metadata: id, kicker, headline, layout contract
@@ -820,7 +820,7 @@ export function parseSlides(mdPaths, finalRules, assetManifest = null) {
                 `${mdPath} 看起来还是空模板(含 [PLACEHOLDER] 占位符)。\n` +
                 `  请先填内容:打开它,把每张 slide 的 VISUAL TYPE / KICKER / TITLE / ` +
                 `IMAGE PROMPT 换成你的真实内容(删掉所有 [PLACEHOLDER] 和 [INSTRUCTION] 注释),再跑管线。\n` +
-                `  例子见 workflow/02-content/example-deck-brief-mini.md。`
+                `  例子见 workflow/01-content/example-deck-brief-mini.md。`
             );
         }
 

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { rmSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHtmlFirstRun, htmlFirstSource, htmlFirstSlide } from './helpers/html_first_fixture.mjs';
 import {
+  COMPOSE_DECK_BASE_TIMEOUT_MS,
+  COMPOSE_PAGE_TIMEOUT_MS,
+  HTML_PAGE_MAX_BYTES,
   buildHtmlPages,
+  composeDeckTimeoutMs,
   composeHtmlSlides,
   composeHtmlSlidesVerified,
   publishHtmlComposition,
@@ -16,6 +20,14 @@ import {
 } from '../PPTMAKER_FRAMEWORK/scripts/lib/html_slide_renderer.mjs';
 
 describe('opaque HTML slide renderer seam', () => {
+  it('exposes the exact serialized-page and composition timeout profile', () => {
+    expect(HTML_PAGE_MAX_BYTES).toBe(64 * 1024 * 1024);
+    expect(COMPOSE_PAGE_TIMEOUT_MS).toBe(30_000);
+    expect(COMPOSE_DECK_BASE_TIMEOUT_MS).toBe(30_000);
+    expect(composeDeckTimeoutMs(3)).toBe(120_000);
+    expect(() => composeDeckTimeoutMs(-1)).toThrow(/non-negative/);
+  });
+
   it('issues only an opaque canonical context and builds a self-contained escaped page', () => {
     const fixture = createHtmlFirstRun('renderer-context-');
     try {
@@ -152,6 +164,60 @@ describe('opaque HTML slide renderer seam', () => {
     }
   }, 60_000);
 
+  it('proves ECharts text uses bundled fonts during verified composition', async () => {
+    const fixture = createHtmlFirstRun('renderer-chart-font-');
+    try {
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([
+        htmlFirstSlide({
+          id: 'DataGo',
+          title: 'Chart fonts',
+          body: `schema_version: 1
+family: data
+chart:
+  kind: bar
+  categories: [Alpha, Beta]
+  series:
+    - name: Current
+      values: [3, 7]
+  value_format:
+    kind: number
+    decimals: 0
+  legend: auto
+`,
+        }),
+      ]));
+      const context = createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      const result = await publishHtmlComposition(context, {});
+      expect(result.final_slides[0].capture.fonts['DataGo:chart:latin'].fonts[0]).toMatchObject({
+        familyName: 'SourceSans3VF',
+        isCustomFont: true,
+      });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('prepares forced-fallback review objects without changing delivery manifests', async () => {
+    const fixture = createHtmlFirstRun('renderer-forced-review-');
+    try {
+      const context = createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      await publishHtmlComposition(context, {});
+      const pagesManifest = join(fixture.runDir, '_generated', 'html_production', 'html_pages', 'manifest.json');
+      const finalManifest = join(fixture.runDir, '_generated', 'html_production', 'final_slides', 'manifest.json');
+      const beforePages = readFileSync(pagesManifest); const beforeFinal = readFileSync(finalManifest);
+      const forced = await publishHtmlComposition(context, { compositionVariant: 'forced-fallback' });
+      expect(forced.published).toBe(false);
+      expect(forced.review_objects.pages[0].path).toMatch(/html_pages\/objects/);
+      expect(forced.review_objects.final_slides[0].path).toMatch(/final_slides\/objects/);
+      expect(forced.review_plan.reviewPlan.composition_variants).toEqual(['effective', 'forced-fallback']);
+      expect(forced.review_plan.reviewPlan.shown_artifacts.find((entry) => entry.composition_variant === 'forced-fallback')).toMatchObject({ path: forced.review_objects.final_slides[0].path, page_path: forced.review_objects.pages[0].path });
+      expect(readFileSync(pagesManifest)).toEqual(beforePages);
+      expect(readFileSync(finalManifest)).toEqual(beforeFinal);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   it('merges scoped rebuilds in current plan order and evicts deleted IDs', async () => {
     const fixture = createHtmlFirstRun('renderer-scoped-publish-');
     try {
@@ -165,6 +231,16 @@ describe('opaque HTML slide renderer seam', () => {
       const partial = await publishHtmlComposition(scoped, { slideIds: ['BetaGo'] });
       expect(partial.manifests[0].manifest.entries.map((entry) => entry.slide_id)).toEqual(['AlphaGo', 'BetaGo']);
       expect(partial.manifests[1].manifest.entries.map((entry) => entry.slide_id)).toEqual(['AlphaGo', 'BetaGo']);
+
+      const palettePath = join(fixture.deck, '2_backbone', 'visual-style', 'color_palette.json');
+      const palette = JSON.parse(readFileSync(palettePath, 'utf8'));
+      palette.colors.emphasis.hex = '#2563eb';
+      writeFileSync(palettePath, `${JSON.stringify(palette, null, 2)}\n`);
+      const globalDrift = createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      const incomplete = await publishHtmlComposition(globalDrift, { slideIds: ['BetaGo'] });
+      expect(incomplete.manifests[0].manifest.entries.map((entry) => entry.slide_id)).toEqual(['BetaGo']);
+      expect(incomplete.manifests[1].manifest.entries.map((entry) => entry.slide_id)).toEqual(['BetaGo']);
+      expect(incomplete.incomplete_slide_ids).toEqual(['AlphaGo']);
 
       writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([
         htmlFirstSlide({ number: 1, id: 'BetaGo', title: 'Beta' }),

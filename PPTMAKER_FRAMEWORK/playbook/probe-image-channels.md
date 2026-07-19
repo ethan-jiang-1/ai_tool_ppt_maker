@@ -1,6 +1,7 @@
 ---
 playbook: probe-image-channels
 description: 离线数清 Image2 通道，披露提交次数并确认后逐家探测
+supported_pipelines: [legacy-image2-first]
 includes: []
 ---
 

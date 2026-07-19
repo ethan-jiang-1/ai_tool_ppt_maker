@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import './lib/cli_bootstrap.mjs?entry=stage3_compose_slides.mjs';
+import "./lib/cli_bootstrap.mjs?entry=stage3_compose_slides.mjs";
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLI_ERROR_CODES, createCliNext, emitCliError } from './lib/cli_error.mjs';

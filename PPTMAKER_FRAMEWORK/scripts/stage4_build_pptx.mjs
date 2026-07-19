@@ -38,6 +38,7 @@ import {
   ARTIFACT_KIND_FINAL_SLIDE,
   ARTIFACT_STATUS_VERIFIED,
   RENDER_ENGINE_IMAGE2,
+  adaptLegacyFinalSlideArtifacts,
   resolveHtmlFinalSlideArtifacts,
   readArtifactManifest,
   resolveRenderArtifact,
@@ -56,7 +57,7 @@ const SLIDE_HEIGHT_IN = 7.5;
 
 /** Image extensions recognised as slide images. */
 const IMG_EXTS = new Set([".png", ".jpg", ".jpeg"]);
-export const PPTX_ASSEMBLY_RECEIPT_VERSION = 1;
+export const PPTX_ASSEMBLY_RECEIPT_VERSION = 2;
 export const PPTX_ASSEMBLY_HTML_RECEIPT_VERSION = 2;
 export const PPTX_ASSEMBLY_RECEIPT_NAME = "pptx_assembly.json";
 
@@ -72,14 +73,18 @@ function runRelativePath(runDir, path) {
   return relative(runDir, path).split(sep).join("/");
 }
 
-export function pptxAssemblyReceiptPath({ images, out }) {
+export function pptxAssemblyReceiptPath({ images, slidePlan, out }) {
   const generated = dirname(resolve(images));
   const runDir = dirname(generated);
+  const canonical = resolve(images) === join(generated, GEN_HEADER_LOCKED_SUBDIR)
+    && resolve(slidePlan) === join(generated, GEN_SLIDE_PLAN)
+    && dirname(resolve(out)) === join(generated, GEN_PPT_SUBDIR);
   return {
     generated,
     runDir,
-    path: join(generated, GEN_QA_SUBDIR, PPTX_ASSEMBLY_RECEIPT_NAME),
+    path: canonical ? join(generated, GEN_QA_SUBDIR, PPTX_ASSEMBLY_RECEIPT_NAME) : null,
     outPath: resolve(out),
+    canonical,
   };
 }
 
@@ -143,8 +148,10 @@ function matchSlideImage(imgDir, slideId) {
  * @returns {Promise<{slideCount: number, outPath: string}>}
  */
 export async function buildPptx({ images, slidePlan, out, title = "Presentation" }) {
-  const receiptLocation = pptxAssemblyReceiptPath({ images, out });
-  rmSync(receiptLocation.path, { force: true });
+  const receiptLocation = pptxAssemblyReceiptPath({ images, slidePlan, out });
+  const planGenerated = dirname(resolve(slidePlan)); const candidateRun = dirname(planGenerated); const candidateSource = join(candidateRun, 'slide-specifications.md');
+  if (basename(planGenerated) === '_generated' && existsSync(candidateSource) && (await import('./lib/html_slide_contract.mjs')).probeProductionMarker(readFileSync(candidateSource)).branch === HTML_FIRST_PIPELINE) throw new Error('USAGE: legacy artifact mode cannot target an HTML-first run; use --run-dir');
+  if (receiptLocation.path) rmSync(receiptLocation.path, { force: true });
   // ---- load slide plan -----------------------------------------------------
   let planData;
   try {
@@ -230,6 +237,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
     });
   }
 
+  const commonFinalSlides = await adaptLegacyFinalSlideArtifacts({ runDir: receiptLocation.runDir, artifacts: resolved });
+
   // ---- build PPTX ----------------------------------------------------------
   const pres = new PptxGenJS();
 
@@ -240,7 +249,7 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i];
-    const imgPath = resolved[i].path;
+    const imgPath = commonFinalSlides[i].absolute_path;
     const slideId = slide.slide_id || slide.id;
 
     const pptSlide = pres.addSlide();
@@ -274,22 +283,19 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   const receipt = {
     schema_version: PPTX_ASSEMBLY_RECEIPT_VERSION,
+    pipeline: 'legacy-image2-v1',
+    producer: 'legacy-image2-stage3-v1',
     slide_plan_path: runRelativePath(receiptLocation.runDir, resolve(slidePlan)),
     slide_plan_sha256: sha256File(slidePlan),
     ordered_slide_ids: slides.map((slide) => slide.slide_id || slide.id),
-    final_images: resolved.map((artifact) => ({
-      slide_id: artifact.slide_id,
-      render_engine: artifact.render_engine,
-      artifact_kind: artifact.artifact_kind,
-      path: runRelativePath(receiptLocation.runDir, artifact.path),
-      sha256: artifact.byte_sha256,
-      fingerprint: artifact.fingerprint,
-    })),
+    final_images: commonFinalSlides.map(({ absolute_path: _absolutePath, ...entry }) => entry),
+    html_production_reset_id: null,
+    html_delivery_digest: null,
     pptx_path: runRelativePath(receiptLocation.runDir, outPath),
     pptx_sha256: sha256File(outPath),
     created_at: new Date().toISOString(),
   };
-  writeJsonAtomic(receiptLocation.path, receipt);
+  if (receiptLocation.path) writeJsonAtomic(receiptLocation.path, receipt);
 
   console.error(`\n--- Stage 4 complete ---`);
   console.error(`PPTX: ${outPath}  (${slides.length} slides)`);
@@ -374,18 +380,19 @@ export async function main(argv = process.argv) {
       } catch (err) {
         console.error(`✗ ${err.message}`);
         const structured = diagnosticFromError(err);
+        const usage = String(err.message || '').startsWith('USAGE:');
         emitCliError({
-          code: String(err.message || '').startsWith('USAGE:') ? CLI_ERROR_CODES.USAGE : CLI_ERROR_CODES.FAILED,
-          message: "Stage 4 could not assemble the PPTX from the selected slide artifacts.",
+          code: usage ? CLI_ERROR_CODES.USAGE : CLI_ERROR_CODES.FAILED,
+          message: usage ? String(err.message).slice('USAGE:'.length).trim() : "Stage 4 could not assemble the PPTX from the selected slide artifacts.",
           hint: "Restore a one-to-one slide plan and header-locked image set, then rerun Stage 4.",
           where: "stage4_build_pptx.main",
           diagnostic: structured || {
             version: 1,
-            category: "artifact",
+            category: usage ? "usage" : "artifact",
             stage: "stage4",
             operation: "build-pptx",
             source: { path: opts.slidePlan },
-            reason: { kind: "missing_ambiguous_or_invalid_slide_image" },
+            reason: { kind: usage && String(err.message).includes('HTML-first') ? "html_legacy_artifact_mode_forbidden" : "missing_ambiguous_or_invalid_slide_image" },
             lineage: [
               { kind: "derived", path: opts.slidePlan, stage: "stage1" },
               { kind: "derived", path: opts.images, stage: "stage3" },

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalJson } from './canonical_json.mjs';
 import { canonicalJsonSha256 } from './canonical_json.mjs';
@@ -18,9 +18,13 @@ import { acquireHtmlPublishLock, ensureHtmlOwnerRoot, htmlOwnerRoot, publishHtml
 import { publishHtmlDeliveryContactSheet, publishHtmlReviewPlan } from './html_preview.mjs';
 import { finalSlideFingerprintV1 } from './render_artifacts.mjs';
 import { inspectHtmlReviewReadiness } from './html_review_evidence.mjs';
+import { SCRATCH_SUBDIR } from '../bundle_layout.mjs';
 
 export const HTML_RENDERER_VERSION = 'html-renderer-v1';
 export const HTML_COMPOSITOR_VERSION = 'html-compositor-v1';
+export const HTML_PAGE_MAX_BYTES = 64 * 1024 * 1024;
+export const COMPOSE_PAGE_TIMEOUT_MS = 30_000;
+export const COMPOSE_DECK_BASE_TIMEOUT_MS = 30_000;
 export const HTML_PUBLICATION_SCOPES = Object.freeze(new Set(['canonical-run', 'migration-preview']));
 export const HTML_COMPOSITION_VARIANTS = Object.freeze(new Set(['effective', 'forced-fallback']));
 
@@ -30,6 +34,15 @@ const REQUEST_KEYS = new Set(['slideIds', 'compositionVariant', 'dryRun']);
 const HEADER_KEYS = new Set(['kicker', 'title', 'subtitle']);
 
 function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
+export function composeDeckTimeoutMs(selectedSlideCount) {
+  if (!Number.isSafeInteger(selectedSlideCount) || selectedSlideCount < 0) throw new TypeError('selectedSlideCount must be a non-negative safe integer');
+  return COMPOSE_DECK_BASE_TIMEOUT_MS + COMPOSE_PAGE_TIMEOUT_MS * selectedSlideCount;
+}
+export function assertSerializedHtmlWithinLimit(html, slideId = 'unknown') {
+  const bytes = Buffer.byteLength(String(html), 'utf8');
+  if (bytes > HTML_PAGE_MAX_BYTES) throw new Error(`serialized HTML page exceeds 64 MiB for ${slideId}`);
+  return bytes;
+}
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
@@ -119,15 +132,33 @@ function pageFontRoles(slide, page) {
     else bodyValues.push([key, textValue(value)]);
   }
   bodyValues.forEach(([key, value]) => values.set(`${slide.slide_id}:${key}`, value));
-  if (slide.body?.chart) values.set(`${slide.slide_id}:chart`, [
-    ...slide.body.chart.categories,
-    ...slide.body.chart.series.flatMap((entry) => [entry.name, ...entry.values]),
-  ].join(' '));
-  return page.leaf_markers.filter((marker) => values.has(marker)).map((marker) => ({
+  const roles = page.leaf_markers.filter((marker) => values.has(marker)).map((marker) => ({
     name: marker,
     selector: `[data-pm-leaf="${marker.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"]`,
     platformFamilies: platformFamiliesForText(values.get(marker)),
   }));
+  if (slide.body?.chart) {
+    const chartValues = [
+      ...slide.body.chart.categories,
+      ...slide.body.chart.series.map((entry) => entry.name),
+    ];
+    const kinds = new Set(['latin']);
+    for (const value of chartValues) {
+      const families = platformFamiliesForText(value);
+      kinds.add(families.length > 1 ? 'mixed' : families[0] === 'Noto Sans SC Thin' ? 'han' : 'latin');
+    }
+    for (const kind of kinds) {
+      roles.push({
+        name: `${slide.slide_id}:chart:${kind}`,
+        selector: `[data-pm-leaf="${slide.slide_id}:chart"] [data-pm-chart-font="${kind}"]`,
+        platformFamilies: kind === 'mixed'
+          ? ['SourceSans3VF', 'Noto Sans SC Thin']
+          : kind === 'han' ? ['Noto Sans SC Thin'] : ['SourceSans3VF'],
+        svg: true,
+      });
+    }
+  }
+  return roles;
 }
 
 function chartOption(slide, theme) {
@@ -161,7 +192,13 @@ function renderChart(context, slide) {
     fieldPath: 'body.chart',
     occurrence: 0,
   });
-  const svg = rendered.svg.replaceAll('font-family:sans-serif', "font-family:'Source Sans 3','Noto Sans SC'");
+  const svg = rendered.svg
+    .replace(/font-family\s*:\s*sans-serif/g, "font-family:'Source Sans 3','Noto Sans SC'")
+    .replace(/<text\b([^>]*)>([^<]*)<\/text>/g, (whole, attributes, content) => {
+      const families = platformFamiliesForText(content);
+      const kind = families.length > 1 ? 'mixed' : families[0] === 'Noto Sans SC Thin' ? 'han' : 'latin';
+      return `<text${attributes} data-pm-chart-font="${kind}">${content}</text>`;
+    });
   validateEchartsSvg(svg);
   const marker = `${slide.slide_id}:chart`;
   return { html: `<div class="pm-box pm-chart" data-pm-box="chart" data-pm-leaf="${escapeHtml(marker)}" style="${boxStyle(box)}">${svg}</div>`, leaves: [marker] };
@@ -226,7 +263,7 @@ function renderPage(context, slide, variant) {
   const css = `html,body{margin:0;padding:0;width:1000px;height:563px;overflow:hidden;background:${palette.background};} [data-pptmaker-slide]{position:relative;width:1000px;height:562.5px;overflow:hidden;background:${palette.background};color:${palette.text};font-family:'Source Sans 3','Noto Sans SC';font-synthesis:none;line-break:strict;hyphens:none;} .pm-box{position:absolute;box-sizing:border-box;overflow:hidden;overflow-wrap:normal;white-space:pre-wrap;word-break:normal;font-synthesis:none;hyphens:none;} .pm-kicker{font:600 16px/1.2 'Source Sans 3','Noto Sans SC';color:${palette.muted_text};}.pm-title{font:700 30px/1.1 'Source Sans 3','Noto Sans SC';color:${palette.text};}.pm-subtitle{font:400 18px/1.2 'Source Sans 3','Noto Sans SC';color:${palette.muted_text};}.pm-body{font:400 20px/1.25 'Source Sans 3','Noto Sans SC';color:${palette.text};}.pm-callout{font:600 18px/1.2 'Source Sans 3','Noto Sans SC';color:${palette.text};background:${theme.components.callout.background};border:1px solid ${theme.components.callout.border};padding:${theme.components.callout.padding_y}px ${theme.components.callout.padding_x}px;border-radius:${theme.components.callout.radius}px;}.pm-visual{display:flex;align-items:center;justify-content:center;}.pm-visual img,.pm-visual .pm-svg{max-width:100%;max-height:100%;}.pm-pattern{display:block;width:100%;height:100%;}.pm-pattern-gradient-field{background:linear-gradient(135deg,${palette.background},${palette.accent},${palette.accent_secondary});}.pm-pattern-line-grid{background-color:${palette.background};background-image:linear-gradient(${palette.divider} 1px,transparent 1px),linear-gradient(90deg,${palette.divider} 1px,transparent 1px);background-size:32px 32px;}.pm-pattern-soft-orbs{background:radial-gradient(circle at 25% 35%,${palette.accent},transparent 42%),radial-gradient(circle at 75% 65%,${palette.accent_secondary},transparent 42%),${palette.background};}`;
   const csp = "default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:; frame-src 'none'; child-src 'none'; connect-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to 'none';";
   const html = `<!doctype html><html lang="und"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><style>${fontCss(context, slide)}${css}</style></head><body><main data-pptmaker-slide data-pm-slide-id="${escapeHtml(slide.slide_id)}" data-pm-composition-variant="${variant}">${headerHtml}${body.html.join('')}${visual.html}${callout}</main></body></html>`;
-  if (Buffer.byteLength(html, 'utf8') > 64 * 1024 * 1024) throw new Error(`serialized HTML page exceeds 64 MiB for ${slide.slide_id}`);
+  assertSerializedHtmlWithinLimit(html, slide.slide_id);
   return Object.freeze({ slide_id: slide.slide_id, composition_variant: variant, effective_visual_state: slide.visual_resolution?.state ?? null, html, html_sha256: sha256(Buffer.from(html)), leaf_markers: leaves });
 }
 
@@ -313,25 +350,56 @@ function contextRecord(context) {
   return record;
 }
 
+function publicationRunDir(record) { return record.publicationRunDir || record.validated.runDir; }
+function receiptRunDir(record) { return record.receiptRunDir || record.validated.runDir; }
+function logicalRunVersion(record) { return record.logicalRunVersion || basename(publicationRunDir(record)); }
+function assertResetStable(record, phase) {
+  if (record.publicationScope === 'migration-preview' || record.skipResetInspection) {
+    if (record.htmlProductionResetId !== null) throw new Error(`CONFLICT: migration-preview reset changed before ${phase}`);
+    return Object.freeze({ html_production_reset_id: null, conflict: false });
+  }
+  const snapshot = inspectHtmlReviewReadiness(publicationRunDir(record));
+  if (snapshot.conflict || snapshot.html_production_reset_id !== record.htmlProductionResetId) {
+    throw new Error(`CONFLICT: HTML production reset changed before ${phase}`);
+  }
+  return snapshot;
+}
+
 export function createCanonicalHtmlValidatedRunContext(options = {}) {
-  if (!plainObject(options) || Object.keys(options).some((key) => !new Set(['runDir', 'sourceBytes']).has(key))) throw new TypeError('canonical renderer context options are closed');
-  const { runDir, sourceBytes = null } = options;
+  if (!plainObject(options) || Object.keys(options).some((key) => !new Set(['runDir', 'sourceBytes', 'logicalRunVersion', 'allowHiddenRunDir']).has(key))) throw new TypeError('canonical renderer context options are closed');
+  const { runDir, sourceBytes = null, logicalRunVersion: explicitLogicalRunVersion = null, allowHiddenRunDir = false } = options;
   const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir, sourceBytes });
   verifyInputReceipts(validated.receipts, { runDir: validated.runDir, assetCatalog: validated.assetCatalog });
   const context = Object.freeze({});
   const discovered = discoverNpmPackages(FRAMEWORK_ROOT);
   if (!discovered.echarts || discovered.echarts.version !== '6.1.0') throw new Error('exact ECharts 6.1.0 must be discovered before renderer context issuance');
   if (!discovered.playwright) throw new Error('paired Playwright must be discovered before renderer context issuance');
-  const resetSnapshot = inspectHtmlReviewReadiness(validated.runDir);
+  const normalizedRunVersion = basename(validated.runDir);
+  const hiddenPublication = allowHiddenRunDir || !/^v[1-9][0-9]*$/.test(normalizedRunVersion);
+  if (hiddenPublication && !allowHiddenRunDir) throw new TypeError('canonical renderer context requires a normalized vN run directory');
+  if (hiddenPublication && typeof explicitLogicalRunVersion !== 'string') throw new TypeError('hidden canonical renderer contexts require an explicit logical run version');
+  const resetSnapshot = hiddenPublication ? Object.freeze({ html_production_reset_id: null, conflict: false }) : inspectHtmlReviewReadiness(validated.runDir);
   if (resetSnapshot.conflict) throw new Error(`CONFLICT: ${resetSnapshot.reason}`);
-  CONTEXTS.set(context, Object.freeze({ validated, plan, publicationScope: 'canonical-run', htmlProductionResetId: resetSnapshot.html_production_reset_id, echarts: discovered.echarts, playwright: discovered.playwright }));
+  CONTEXTS.set(context, Object.freeze({ validated, plan, publicationRunDir: validated.runDir, receiptRunDir: validated.runDir, logicalRunVersion: explicitLogicalRunVersion || normalizedRunVersion, publicationScope: 'canonical-run', htmlProductionResetId: resetSnapshot.html_production_reset_id, skipResetInspection: hiddenPublication, echarts: discovered.echarts, playwright: discovered.playwright }));
   return context;
 }
 
-function createMigrationPreviewHtmlValidatedRunContext(validated, plan, { htmlProductionResetId = null } = {}) {
-  if (!validated || !plan || htmlProductionResetId !== null) throw new TypeError('migration preview contexts require validated projected inputs and a null reset ID');
+export function createMigrationPreviewHtmlValidatedRunContext(options = {}) {
+  const allowed = new Set(['sourceRunDir', 'publicationRunDir', 'candidateSourcePath', 'logicalRunVersion']);
+  if (!plainObject(options) || Object.keys(options).some((key) => !allowed.has(key))) throw new TypeError('migration preview renderer context options are closed');
+  const sourceRunDir = resolve(options.sourceRunDir || '');
+  const publication = resolve(options.publicationRunDir || '');
+  const candidateSourcePath = resolve(options.candidateSourcePath || '');
+  const expectedPublication = resolve(sourceRunDir, SCRATCH_SUBDIR, 'html-migration', 'projected-run');
+  const expectedCandidate = resolve(sourceRunDir, SCRATCH_SUBDIR, 'html-migration', 'slide-specifications.md');
+  if (publication !== expectedPublication || candidateSourcePath !== expectedCandidate) throw new TypeError('migration preview context paths must use the canonical html-migration scratch transaction');
+  const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir, sourcePathOverride: candidateSourcePath });
+  verifyInputReceipts(validated.receipts, { runDir: sourceRunDir, assetCatalog: validated.assetCatalog });
+  const discovered = discoverNpmPackages(FRAMEWORK_ROOT);
+  if (!discovered.echarts || discovered.echarts.version !== '6.1.0') throw new Error('exact ECharts 6.1.0 must be discovered before renderer context issuance');
+  if (!discovered.playwright) throw new Error('paired Playwright must be discovered before renderer context issuance');
   const context = Object.freeze({});
-  CONTEXTS.set(context, Object.freeze({ validated, plan, publicationScope: 'migration-preview', htmlProductionResetId: null }));
+  CONTEXTS.set(context, Object.freeze({ validated, plan, publicationRunDir: publication, receiptRunDir: sourceRunDir, logicalRunVersion: options.logicalRunVersion || basename(publication), publicationScope: 'migration-preview', htmlProductionResetId: null, skipResetInspection: true, echarts: discovered.echarts, playwright: discovered.playwright }));
   return context;
 }
 
@@ -370,11 +438,15 @@ export async function composeHtmlSlidesVerified(validatedRun, request = {}) {
   if (!runtimeEvidence.ok) throw new Error(`paired HTML runtime is not ready: ${runtimeEvidence.error || 'unknown failure'}`);
   const byId = new Map(record.plan.slides.map((slide) => [slide.slide_id, slide]));
   const finalSlides = [];
+  const deckDeadline = Date.now() + composeDeckTimeoutMs(pagesResult.pages.length);
   for (const page of pagesResult.pages) {
+    const remainingMs = deckDeadline - Date.now();
+    if (remainingMs <= 0) throw new Error(`HTML composition timed out before ${page.slide_id}`);
     const slide = byId.get(page.slide_id);
     const capture = await captureHtmlPng({
       runtimeEvidence,
       html: page.html,
+      timeoutMs: Math.min(COMPOSE_PAGE_TIMEOUT_MS, remainingMs),
       expectedLeafMarkers: page.leaf_markers,
       fontRoles: pageFontRoles(slide, page),
       probeForbiddenRoutes: true,
@@ -403,22 +475,37 @@ export async function composeHtmlSlidesVerified(validatedRun, request = {}) {
 }
 
 function publishOwnerEntries(record, { ownerKind, schema, entries, extension, operation }) {
-  const resetBeforeLock = inspectHtmlReviewReadiness(record.validated.runDir);
-  if (resetBeforeLock.conflict || resetBeforeLock.html_production_reset_id !== record.htmlProductionResetId) throw new Error('CONFLICT: HTML production reset changed before publication lock');
-  const ownerRoot = ensureHtmlOwnerRoot(record.validated.runDir, ownerKind);
+  assertResetStable(record, 'publication lock');
+  const runDir = publicationRunDir(record);
+  const ownerRoot = ensureHtmlOwnerRoot(runDir, ownerKind);
   const previous = readHtmlCurrentManifest(ownerRoot, { expectedSchema: schema, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId });
   const scopeInput = canonicalJsonSha256({ operation, slide_ids: entries.map((entry) => entry.metadata.slide_id), reset_id: record.htmlProductionResetId });
   const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, inputScopeSha256: scopeInput, priorManifestSha256: previous?.sha256 ?? null });
   try {
-    verifyInputReceipts(record.validated.receipts, { runDir: record.validated.runDir, assetCatalog: record.validated.assetCatalog });
+    verifyInputReceipts(record.validated.receipts, { runDir: receiptRunDir(record), assetCatalog: record.validated.assetCatalog });
     const objects = entries.map((entry) => writeHtmlObject({ ownerRoot, bytes: entry.bytes, extension, ownerToken: lock.ownerToken }));
     const producedEntries = entries.map((entry, index) => ({ ...entry.metadata, path: objects[index].path, sha256: objects[index].sha256 }));
     const expectedFingerprints = new Map(record.plan.slides.map((slide) => [slide.slide_id, canonicalJsonSha256(compositionProjection(record, slide, 'effective'))]));
     const manifestEntries = mergeCurrentEntries({ previous, produced: producedEntries, orderedSlideIds: record.plan.slides.map((slide) => slide.slide_id), expectedFingerprints });
-    verifyInputReceipts(record.validated.receipts, { runDir: record.validated.runDir, assetCatalog: record.validated.assetCatalog });
-    const resetBeforeCommit = inspectHtmlReviewReadiness(record.validated.runDir);
-    if (resetBeforeCommit.conflict || resetBeforeCommit.html_production_reset_id !== record.htmlProductionResetId) throw new Error('CONFLICT: HTML production reset changed before manifest commit');
+    verifyInputReceipts(record.validated.receipts, { runDir: receiptRunDir(record), assetCatalog: record.validated.assetCatalog });
+    assertResetStable(record, 'manifest commit');
     return publishHtmlCurrentManifest({ ownerRoot, ownerToken: lock.ownerToken, schema, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, entries: manifestEntries, priorManifestSha256: previous?.sha256 ?? null });
+  } finally { releaseHtmlPublishLock(lock); }
+}
+
+function prepareReviewOnlyObjects(record, { ownerKind, schema, entries, extension, operation }) {
+  assertResetStable(record, 'review-object preparation');
+  const runDir = publicationRunDir(record);
+  const ownerRoot = ensureHtmlOwnerRoot(runDir, ownerKind);
+  const previous = readHtmlCurrentManifest(ownerRoot, { expectedSchema: schema, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId });
+  const inputScopeSha256 = canonicalJsonSha256({ operation, slide_ids: entries.map((entry) => entry.slide_id), composition_variant: 'forced-fallback', reset_id: record.htmlProductionResetId });
+  const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, inputScopeSha256, priorManifestSha256: previous?.sha256 ?? null });
+  try {
+    verifyInputReceipts(record.validated.receipts, { runDir: receiptRunDir(record), assetCatalog: record.validated.assetCatalog });
+    return entries.map((entry) => {
+      const object = writeHtmlObject({ ownerRoot, bytes: entry.bytes, extension, ownerToken: lock.ownerToken });
+      return Object.freeze({ slide_id: entry.slide_id, path: relative(runDir, join(ownerRoot, ...object.path.split('/'))).split('\\').join('/'), sha256: object.sha256 });
+    });
   } finally { releaseHtmlPublishLock(lock); }
 }
 
@@ -431,7 +518,7 @@ export async function publishHtmlPages(validatedRun, request = {}) {
     ownerKind: 'html-pages', schema: HTML_PAGES_MANIFEST_SCHEMA, extension: 'html', operation: 'publish-html-pages',
     entries: pagesResult.pages.map((page) => ({ bytes: Buffer.from(page.html), metadata: { slide_id: page.slide_id, artifact_kind: 'html-page', composition_variant: page.composition_variant, html_sha256: page.html_sha256, composition_fingerprint: page.composition_fingerprint, composition_input_receipt: page.composition_input_receipt } })),
   });
-  const reviewPlan = await publishHtmlReviewPlan({ runDir: record.validated.runDir, plan: record.plan, composition: pagesResult, kind: 'content', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, compositionVariant: normalized.compositionVariant });
+  const reviewPlan = await publishHtmlReviewPlan({ runDir: publicationRunDir(record), plan: record.plan, composition: pagesResult, kind: 'content', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, logicalRunVersion: logicalRunVersion(record), compositionVariant: normalized.compositionVariant });
   const currentIds = new Set(manifest.manifest.entries.map((entry) => entry.slide_id));
   return Object.freeze({ ...pagesResult, published: true, manifests: [manifest], incomplete_slide_ids: record.plan.slides.map((slide) => slide.slide_id).filter((slideId) => !currentIds.has(slideId)), review_plan: reviewPlan });
 }
@@ -441,10 +528,21 @@ export async function publishHtmlFinalSlides(validatedRun, request = {}) {
   const composed = await composeHtmlSlidesVerified(validatedRun, normalized);
   if (normalized.dryRun) return composed;
   if (normalized.compositionVariant === 'forced-fallback') {
-    const reviewPlan = await publishHtmlReviewPlan({ runDir: record.validated.runDir, plan: record.plan, composition: composed, kind: 'visual', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, compositionVariant: normalized.compositionVariant });
-    return Object.freeze({ ...composed, published: false, reason: 'forced-fallback-review-only', review_plan: reviewPlan });
+    const pageObjects = prepareReviewOnlyObjects(record, { ownerKind: 'html-pages', schema: HTML_PAGES_MANIFEST_SCHEMA, extension: 'html', operation: 'prepare-forced-fallback-pages', entries: composed.pages.map((page) => ({ slide_id: page.slide_id, bytes: Buffer.from(page.html) })) });
+    const finalObjects = prepareReviewOnlyObjects(record, { ownerKind: 'final-slides', schema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, extension: 'png', operation: 'prepare-forced-fallback-final-slides', entries: composed.final_slides.map((slide) => ({ slide_id: slide.slide_id, bytes: slide.capture.bytes })) });
+    const pagesById = new Map(pageObjects.map((entry) => [entry.slide_id, entry])); const finalById = new Map(finalObjects.map((entry) => [entry.slide_id, entry]));
+    const runDir = publicationRunDir(record);
+    const currentFinal = readHtmlCurrentManifest(htmlOwnerRoot(runDir, 'final-slides'), { expectedSchema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId });
+    const currentPages = readHtmlCurrentManifest(htmlOwnerRoot(runDir, 'html-pages'), { expectedSchema: HTML_PAGES_MANIFEST_SCHEMA, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId });
+    const pageEntryById = new Map((currentPages?.manifest.entries || []).map((entry) => [entry.slide_id, entry]));
+    const effective = (currentFinal?.manifest.entries || []).map((entry) => ({ slide_id: entry.slide_id, composition_variant: 'effective', png_sha256: entry.sha256, html_sha256: entry.html_sha256, review_object_path: relative(runDir, join(htmlOwnerRoot(runDir, 'final-slides'), ...entry.path.split('/'))).split('\\').join('/'), review_page_object_path: pageEntryById.has(entry.slide_id) ? relative(runDir, join(htmlOwnerRoot(runDir, 'html-pages'), ...pageEntryById.get(entry.slide_id).path.split('/'))).split('\\').join('/') : null }));
+    const forced = composed.final_slides.map((slide) => ({ ...slide, review_object_path: finalById.get(slide.slide_id).path, review_page_object_path: pagesById.get(slide.slide_id).path }));
+    const reviewComposition = { ...composed, final_slides: [...effective, ...forced] };
+    const reviewPlan = await publishHtmlReviewPlan({ runDir, plan: record.plan, composition: reviewComposition, kind: 'visual', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, logicalRunVersion: logicalRunVersion(record), compositionVariant: normalized.compositionVariant });
+    return Object.freeze({ ...reviewComposition, published: false, reason: 'forced-fallback-review-only', review_objects: { pages: pageObjects, final_slides: finalObjects }, review_plan: reviewPlan });
   }
-  const pagesRoot = htmlOwnerRoot(record.validated.runDir, 'html-pages');
+  const runDir = publicationRunDir(record);
+  const pagesRoot = htmlOwnerRoot(runDir, 'html-pages');
   const currentPages = readHtmlCurrentManifest(pagesRoot, { expectedSchema: HTML_PAGES_MANIFEST_SCHEMA, publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId });
   if (!currentPages) throw new Error('current HTML page manifest is missing; run Stage 2 first');
   const pageById = new Map(currentPages.manifest.entries.map((entry) => [entry.slide_id, entry]));
@@ -456,10 +554,12 @@ export async function publishHtmlFinalSlides(validatedRun, request = {}) {
     ownerKind: 'final-slides', schema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, extension: 'png', operation: 'publish-html-final-slides',
     entries: composed.final_slides.map((slide) => ({ bytes: slide.capture.bytes, metadata: { slide_id: slide.slide_id, artifact_kind: 'final-slide', producer: slide.producer, composition_variant: slide.composition_variant, html_sha256: slide.html_sha256, composition_fingerprint: slide.composition_fingerprint, composition_input_receipt: slide.composition_input_receipt, final_slide_fingerprint: finalSlideFingerprintV1({ producer: slide.producer, producerPrivateFingerprint: slide.composition_fingerprint, byteSha256: slide.png_sha256, width: slide.width, height: slide.height, mediaProfile: slide.media_profile }), width: slide.width, height: slide.height, media_profile: slide.media_profile } })),
   });
-  const finalRoot = htmlOwnerRoot(record.validated.runDir, 'final-slides');
+  const finalRoot = htmlOwnerRoot(runDir, 'final-slides');
   const complete = manifest.manifest.entries.length === record.plan.slides.length;
-  const reviewPlan = await publishHtmlReviewPlan({ runDir: record.validated.runDir, plan: record.plan, composition: composed, kind: 'visual', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, compositionVariant: normalized.compositionVariant, outstanding: complete ? [] : ['incomplete-final-slide-set'] });
-  const contactSheet = complete ? await publishHtmlDeliveryContactSheet({ runDir: record.validated.runDir, orderedEntries: manifest.manifest.entries.map((entry) => ({ slide_id: entry.slide_id, path: join(finalRoot, ...entry.path.split('/')) })), publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, slot: 'visual_review', ownerDigest: reviewPlan.reviewPlan.plan_hash }) : null;
+  const currentPageById = new Map(currentPages.manifest.entries.map((entry) => [entry.slide_id, entry]));
+  const reviewComposition = { ...composed, final_slides: manifest.manifest.entries.map((entry) => ({ slide_id: entry.slide_id, composition_variant: 'effective', png_sha256: entry.sha256, html_sha256: entry.html_sha256, review_object_path: relative(runDir, join(finalRoot, ...entry.path.split('/'))).split('\\').join('/'), review_page_object_path: currentPageById.has(entry.slide_id) ? relative(runDir, join(pagesRoot, ...currentPageById.get(entry.slide_id).path.split('/'))).split('\\').join('/') : null })) };
+  const reviewPlan = await publishHtmlReviewPlan({ runDir, plan: record.plan, composition: reviewComposition, kind: 'visual', publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, logicalRunVersion: logicalRunVersion(record), compositionVariant: normalized.compositionVariant, outstanding: complete ? [] : ['incomplete-final-slide-set'] });
+  const contactSheet = complete ? await publishHtmlDeliveryContactSheet({ runDir, orderedEntries: manifest.manifest.entries.map((entry) => ({ slide_id: entry.slide_id, path: join(finalRoot, ...entry.path.split('/')) })), publicationScope: record.publicationScope, htmlProductionResetId: record.htmlProductionResetId, logicalRunVersion: logicalRunVersion(record), slot: 'visual_review', ownerDigest: reviewPlan.reviewPlan.plan_hash }) : null;
   const currentIds = new Set(manifest.manifest.entries.map((entry) => entry.slide_id));
   return Object.freeze({ ...composed, published: true, manifests: [manifest], incomplete_slide_ids: record.plan.slides.map((slide) => slide.slide_id).filter((slideId) => !currentIds.has(slideId)), contact_sheet: contactSheet, review_plan: reviewPlan });
 }

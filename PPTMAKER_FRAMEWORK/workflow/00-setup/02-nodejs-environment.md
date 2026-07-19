@@ -91,6 +91,6 @@ IMAGE2_BASE_URL=https://你的-relay/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2
 ```
 
-任何 `--smoke` 或 `--probe-vendors` live probe 都会产生 provider submit，必须先披露次数并取得用户确认。完整契约见 `03-tool-selection.md`。
+任何 `--smoke` 或 `--probe-vendors` live probe 都会产生 provider submit，必须先披露次数并取得用户确认。完整契约见 `03-runtime-and-tools.md`。
 
 管线会从调用目录向上寻找 `.env`；不需要每次重复设置。

@@ -46,32 +46,23 @@ This capability SHALL NOT define a second directory ontology. Conformity of `dec
 
 ### Requirement: Control-file templates mention _state
 
-The `deck-guide.md` body seeded by `initBundle` SHALL mention `_state/state.yaml` as the place to inspect playbook / session progress (in addition to any `_generated/` artifact hints) and SHALL note that cleared-context / disconnect resume starts with `ppt_flow state` (whole-workflow where-am-I, not chat memory). The framework copy at `workflow/00-setup/template-deck-guide.md` SHALL likewise mention `_state/state.yaml` in its progress guidance so Expert/manual paths do not contradict init. The deck-root `README.md` template SHALL list `_state/` alongside the three-tier directories. The `project-metadata.yaml` template SHALL include a leading comment stating that pipeline gate fields live in metadata while playbook progress/gates live under `_state/` (field names and values SHALL remain unchanged).
+The seeded `deck-guide.md`, framework `workflow/00-setup/template-deck-guide.md`, and root README SHALL identify `_state/state.yaml` as whole-workflow resume/progress authority and shall keep `_lessons` distinct. `project-metadata.yaml` SHALL explain the disjoint mirror fields: legacy readiness retains existing `content_gate|visual_gate`; HTML status uses `html_content_gate|html_visual_gate` plus exact `*_run_version`, while authoritative HTML content/visual evidence lives in version-scoped `_state` records and metadata alone cannot authorize delivery. HTML approval never overwrites legacy scalar fields. Cleared-context resume SHALL start with `ppt_flow state`. Templates SHALL continue to carry the diagnostic-consumer and generated-artifact ownership guidance already required by the main spec.
 
-#### Scenario: New deck-guide references state file
+#### Scenario: Fresh HTML metadata explains gate authority
 
-- **WHEN** a new bundle is initialized
-- **THEN** `deck-guide.md` contains the path `_state/state.yaml`
+- **WHEN** init seeds `project-metadata.yaml` and `deck-guide.md`
+- **THEN** they point to `_state` for HTML gate evidence/resume
+- **AND** do not describe metadata scalars as sufficient HTML delivery proof
 
-#### Scenario: Framework template-deck-guide mentions _state
+#### Scenario: Legacy metadata remains compatible
 
-- **WHEN** a developer opens `PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md`
-- **THEN** it contains the path `_state/state.yaml`
+- **WHEN** a markerless deck is checked or resumed
+- **THEN** existing legacy metadata gate behavior is not silently reinterpreted
 
-#### Scenario: New root README lists _state
+#### Scenario: Deck contains legacy and HTML versions
 
-- **WHEN** a new bundle is initialized
-- **THEN** the deck-root `README.md` mentions `_state/`
-
-#### Scenario: New metadata comments point at _state
-
-- **WHEN** a new bundle is initialized
-- **THEN** `project-metadata.yaml` contains a `#` comment that mentions `_state`
-
-#### Scenario: Deck-guide mentions resume via ppt_flow state
-
-- **WHEN** a developer opens the seeded `deck-guide.md` or framework `template-deck-guide.md`
-- **THEN** it mentions `ppt_flow state` (or `state.yaml`) as the clear-context recovery entry
+- **WHEN** HTML approval updates deck-root metadata mirrors
+- **THEN** legacy scalar fields remain unchanged and markerless checks ignore all `html_*` fields
 
 ### Requirement: Run bundle includes _lessons/ with purpose-stated README
 
@@ -131,26 +122,28 @@ Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `ren
 
 ### Requirement: checkBundle supports preview vs pipeline readiness
 
-`bundle_layout.mjs` `checkBundle` SHALL support three readiness levels:
+`checkBundle` SHALL retain its synchronous violation-array interface, `structure|preview|pipeline` readiness and boolean aliases, and classify the canonical production marker before branch-specific checks. Markerless legacy preview SHALL require structure plus `style_master.jpg` and no approved gates; legacy pipeline SHALL additionally require compatible metadata gates. HTML preview SHALL require structure, valid HTML source/control/catalog, base local renderer readiness, and no `deletion_pending` reset but SHALL NOT require a style master or approved gates. HTML pipeline SHALL additionally consume the same read-only HTML-review evaluator through a bundle-layout-owned trusted context and require current-reset authoritative version-scoped content/visual evidence; metadata mirrors alone SHALL not satisfy it. Direct readiness checks SHALL not create artifacts, mutate gate/reset evidence/mirrors, recover a journal, claim/complete a reset, start async work, or load browser/provider code. Owning build/approval/check-gates orchestration MAY call the separate gate recovery interface before invoking `checkBundle`; only the explicit reset command may claim/complete reset.
 
-1. **structure** — canonical dirs/control files only (today's `requirePipelineReady=false`)
-2. **preview** — structure plus `style_master.jpg` present; SHALL NOT require metadata `content_gate` / `visual_gate` to be approved or waived
-3. **pipeline** — preview plus metadata gates ∈ {`approved`, `waived`} (today's `requirePipelineReady=true`)
+#### Scenario: HTML preview has no style master
 
-Boolean `true`/`false` MAY remain as aliases for `pipeline`/`structure`. Callers that need style master without gates SHALL use `preview` (not `pipeline`).
+- **WHEN** a structurally valid HTML-first run with local runtime readiness invokes preview check
+- **THEN** absence of `style_master.jpg` is not a violation
+- **AND** pending gates do not block review composition
 
-#### Scenario: Preview ready with pending gates
+#### Scenario: HTML pipeline has only metadata approval
 
-- **WHEN** `checkBundle(runDir, 'preview')` (or equivalent) runs
-- **AND** style master exists
-- **AND** metadata gates are still `pending`
-- **THEN** no gate-related violations are returned
+- **WHEN** metadata gates say approved but current `_state` HTML evidence is absent
+- **THEN** pipeline readiness fails closed
 
-#### Scenario: Pipeline ready still requires gates
+#### Scenario: HTML preview is checked during reset deletion
 
-- **WHEN** `checkBundle(runDir, 'pipeline')` or `checkBundle(runDir, true)` runs
-- **AND** a metadata gate is `pending`
-- **THEN** a gate-related violation is returned
+- **WHEN** authoritative state contains `html-production-reset.status: deletion_pending`
+- **THEN** preview and pipeline readiness both report the reset conflict without claiming ownership or writing files
+
+#### Scenario: Legacy preview remains style-master based
+
+- **WHEN** a markerless run has structure, style master, and pending gates
+- **THEN** legacy preview readiness passes while legacy pipeline readiness remains blocked
 
 ### Requirement: Version directory includes _scratch for temp backups
 
@@ -200,12 +193,12 @@ Init-seeded `_DIR_READMES` SHALL surface `run-bundle-layout` placement tokens be
 
 ### Requirement: Golden sample first-look READMEs match current seeds
 
-`deck_ai_sdlc_keynote/README.md` and `deck_ai_sdlc_keynote/3_versions/v1/README.md` SHALL be refreshed to match current init-seed placement maps (including `_scratch/`), because `_writeIfAbsent` does not update stale READMEs.
+Seed/first-look coherence SHALL be proven from checked-in framework test fixtures produced in temporary directories, not production `deck_*` or `dpt_*` data. Tests SHALL compare current root/version README and deck-guide seeds across generic init plus every active deck-type template (`keynote`, `pitch`, `report`, and `training`) and SHALL cover `_scratch`, `_state`, HTML-first defaults, and current placement maps. Existing production run bundles SHALL not be hand-edited or required as test inputs.
 
-#### Scenario: Keynote root README mentions _scratch
+#### Scenario: Seed coherence suite runs without production decks
 
-- **WHEN** Agent opens `deck_ai_sdlc_keynote/README.md`
-- **THEN** the file mentions `_scratch` as the version temp outlet
+- **WHEN** the test workspace contains no `deck_*` or `dpt_*` production data
+- **THEN** fresh generic and four deck-type fixtures prove current first-look seeds
 
 ### Requirement: Init produces the run-bundle Agent diagnostic entry
 
@@ -236,33 +229,24 @@ The producer SHALL be the durable fix. Tests SHALL initialize a fresh temporary 
 
 ### Requirement: Init creates assets directory skeleton with stub manifest
 
-`initBundle()` SHALL create the `assets/` subdirectory under `2_backbone/visual-style/` with four entries: `svg/`, `reference/`, `icons/` subdirectories and a stub `asset-manifest.yaml`. The stub manifest SHALL contain `version: 1` and `assets: {}`. A README file SHALL be written into the `assets/` directory explaining its purpose (visual asset catalog) and usage (add asset files, register in manifest, bind to slides with `**VISUAL ASSETS**`).
+`initBundle()` SHALL create `2_backbone/visual-style/assets/` with `svg/`, `reference/`, and `icons/` directories, README, and an empty HTML-first v2 `asset-manifest.yaml` containing exactly `version: 2` and `assets: {}`. The README SHALL explain v2 ID/SHA registration and binding through structured `primary_visual.fallback` or typed-block icon IDs; it SHALL NOT direct new decks to legacy `VISUAL ASSETS` fields. The directory remains optional for old decks, and a markerless legacy deck with no assets directory or a present v1 manifest SHALL remain valid under legacy semantics.
 
-The `assets/` directory is **optional infrastructure** — `checkBundle()` SHALL NOT require it, and the pipeline SHALL operate correctly when it is absent. Old decks created before this feature SHALL continue to pass validation without it. `--new-version` SHALL copy any existing `overrides/visual-style/assets/` but SHALL NOT require it.
-
-#### Scenario: Init creates assets skeleton
+#### Scenario: Fresh init creates v2 catalog skeleton
 
 - **WHEN** `initBundle()` scaffolds a new deck
-- **THEN** `2_backbone/visual-style/assets/` exists
-- **AND** `2_backbone/visual-style/assets/asset-manifest.yaml` exists with `version: 1` and `assets: {}`
-- **AND** `2_backbone/visual-style/assets/svg/`, `reference/`, and `icons/` directories exist
+- **THEN** the assets directories and empty version-2 manifest exist
+- **AND** the README describes structured asset-ID binding
 
-#### Scenario: Init writes assets README
+#### Scenario: Old deck without assets remains valid
 
-- **WHEN** `initBundle()` scaffolds a new deck
-- **THEN** `2_backbone/visual-style/assets/README.md` exists
-- **AND** the README mentions `asset-manifest.yaml` and `**VISUAL ASSETS**`
+- **WHEN** a legacy deck predates the asset directory
+- **THEN** structure validation does not require one
 
-#### Scenario: Init log mentions asset catalog creation
+#### Scenario: Legacy v1 manifest is not silently upgraded
 
-- **WHEN** `initBundle()` scaffolds a new deck
-- **THEN** the returned log array includes an entry for the asset catalog path
-
-#### Scenario: Old deck without assets directory passes validation
-
-- **WHEN** `checkBundle()` validates a deck created before this feature (no `assets/` directory)
-- **THEN** validation passes without error
-- **AND** the absence of `assets/` is not reported as a problem
+- **WHEN** an existing markerless deck has a v1 manifest
+- **THEN** init/check/heal preserves its legacy meaning
+- **AND** does not rewrite it without an explicit migration transaction
 
 ### Requirement: Structural versions are prepared invisibly and published atomically
 
@@ -320,14 +304,19 @@ If reservation, staging creation, transformed-source writing, validation, or fin
 
 ### Requirement: Structural version publication is source-only and renderer-free
 
-The structural-version publication interface SHALL operate only on run-bundle source/control scaffolding and deterministic local validation. It SHALL NOT invoke Stage 2, Image2, a future HTML renderer, or any other remote renderer, and SHALL NOT materialize prior `_generated/` bytes. Verified raw-render materialization and all production stages belong to the subsequent orchestration path. The structural caller MAY include a deterministic `needs_render` impact in its own receipt, but that impact SHALL NOT broaden this interface into a refresh executor.
+The structural-version publication interface SHALL operate only on run-bundle source/control scaffolding and deterministic local validation. It SHALL NOT invoke Stage 2, Image2, HTML rendering/composition, any provider, materialize generated bytes, or copy/relabel any reset/gate/delivery-review/node-decision authorization. Its deterministic impact SHALL report HTML-first `needs_local_materialization` separately from markerless legacy `needs_render` remote debt and SHALL act on neither. For HTML runs, a subsequent explicit orchestration materialization MAY reuse verified prior immutable bytes only after target fingerprint/receipt validation and SHALL copy them into target-owned objects/manifests bound to the target current reset ID (initially null); no cross-version path/evidence/reset reference or renderer/provider call belongs to source publication. The materializer SHALL create exact target Stage-1/2/3 reset-null review plans/artifacts, return `review_required`, and leave Stage 4/5/delivery review pending; a post-approval continuation then rebuilds canonical delivery/PPTX/notes locally.
 
-#### Scenario: Inserted page does not spend render quota during publication
+#### Scenario: Reordered HTML target is published source-only
 
-- **WHEN** a valid structural target inserts a slide whose raw render does not exist
-- **THEN** run-bundle management still publishes the valid source-only target
-- **AND** makes zero remote renderer calls
-- **AND** leaves render authorization to an explicit subsequent refresh
+- **WHEN** an authorized structural transaction reorders unchanged HTML slides
+- **THEN** source publication creates the target without rendering or generated-byte reuse
+- **AND** a later explicit materializer owns verified target-local reuse and delivery rebuild
+
+#### Scenario: Structural target does not inherit approval
+
+- **WHEN** the source HTML version has current review records and the target is published/materialized
+- **THEN** those records and any source reset epoch remain historical for the source version and are not copied into target authority
+- **AND** target Stage 4 waits for target-version review plans and decisions
 
 ### Requirement: Fresh run bundles seed an optional Git safety boundary
 
@@ -366,3 +355,76 @@ The init, ordinary new-version, and structural-version publication authorities S
 - **WHEN** an existing bundle has a `deck-guide.md` from an earlier seed
 - **AND** init, doctor, pipeline, or structural publication runs
 - **THEN** that guide is not overwritten as an incidental Git-safety update
+
+### Requirement: Fresh init defaults to a locally deliverable HTML-first source
+
+Both `bundle_layout --init` and `ppt_flow init`, including generic init and every active deck-type template (`keynote`, `pitch`, `report`, and `training`), SHALL seed canonical `3_versions/v1/slide-specifications.md` authoring controls with `production.pipeline: html-first-v1`, `identity.scheme: mnemonic-v1`, the exact structured-body/family guidance owned by `html-slide-contract`, and no legacy top-level `render`, `RENDER MODE`, `IMAGE PROMPT`, or `VISUAL ASSETS`. The seeded visual configuration SHALL include a valid `html_first` projection. Deck-root metadata/state SHALL seed HTML mirrors as `pending` with exact run version `v1` in the new `html_*` fields while retaining existing legacy scalar fields as pending compatibility fields; reset ID SHALL be null by absence and init SHALL not seed an `html-production-reset` record. Neither mirror family authorizes delivery. Init SHALL not create style master, page prompts, legacy image/header outputs, HTML production outputs, or Image2 refinement paths/state.
+
+#### Scenario: Fresh init selects HTML without asking for renderer
+
+- **WHEN** a user initializes a new run bundle
+- **THEN** its canonical source explicitly selects `html-first-v1`
+- **AND** subsequent intake does not need to choose a render engine
+
+#### Scenario: Fresh init separates gate mirrors
+
+- **WHEN** HTML-first v1 metadata/state is seeded
+- **THEN** `html_*` mirrors are pending and bound to v1 while legacy gate fields remain separate pending compatibility fields
+
+#### Scenario: Init remains write-bounded
+
+- **WHEN** init completes
+- **THEN** it has written only canonical source/control/state/lesson scaffolding
+- **AND** no generated production or provider artifact exists
+
+### Requirement: Bundle checks are pipeline-aware without mutating existing decks
+
+`checkBundle()` SHALL inspect the canonical source marker before applying pipeline-specific required/forbidden generated and control rules. Structure-only checks SHALL remain tolerant of absent state/assets on historical decks as already specified. Check/heal SHALL never insert a marker, rewrite legacy source, create generated directories, or migrate a deck merely to make validation pass.
+
+#### Scenario: Existing markerless deck is checked
+
+- **WHEN** a legacy deck is validated after the default switch
+- **THEN** legacy-compatible structure rules apply
+- **AND** no HTML marker or directory is created
+
+### Requirement: Explicit legacy-to-HTML migration publishes a clean version atomically
+
+Run-bundle management SHALL expose a preview/apply transaction that accepts a complete version-local candidate source/control delta, materializes the exact isolated `_scratch/html-migration/projected-run/` candidate workspace, validates its scratch Stage-1 plan, and renders the complete proposed HTML deck locally through a framework-issued `migration-preview` context. It SHALL produce a source diff/proposed contact sheet/exact plan hash plus `old_side_mode: verified-current|degraded-missing|degraded-stale`. `verified-current` requires a complete current common-adaptable legacy final-slide set and a locally built comparison sheet; a Stage-2 raw sheet alone is insufficient. Missing/stale final-slide evidence SHALL produce a diagnosis/placeholder with no old pixels, provider calls, or parity claim and MAY point to separately authorized legacy maintenance. Scratch publication SHALL not mutate or satisfy legacy/canonical current manifests, gates, state, assembly, notes, or completion.
+
+The plan SHALL bind base/candidate receipts, anticipated target version, old-side mode/evidence, and ordered proposed composition/final PNG/contact-sheet SHAs. Confirmed apply SHALL require the current deck-root state to have the exact active source-version `migrate-import` apply execution whose declared plan hash/mode equal the human acknowledgement; missing/unrelated/mismatched execution fails before the apply journal. It SHALL use the existing run-bundle target-reservation/no-replace same-parent publication authority. Before any reservation/staging creation it SHALL generate a cryptographically random 64-lowercase-hex owner token, derive exact confined reservation/staging basenames from the anticipated target plus that token, and atomically create complete `_scratch/html-migration/apply-journal.json` containing exactly `schema: pptmaker-html-migration-apply-journal-v1`, `owner_token`, normalized host, positive PID, exact `created_at_epoch_ms`, source execution ID, source/anticipated-target versions, plan hash, old-side mode, and those basenames. The journal SHALL not require a later field-population rewrite. Only that owner may create/clean the exact hidden paths. Apply SHALL recheck unchanged journal bytes and ownership immediately before reservation creation, staging creation, each staged publication transaction, success-receipt write, and final rename. It SHALL recheck every plan/input/target precondition, copy only authorized source/control/assets into hidden vNext, construct a fresh `canonical-run` context with target reset ID null by absence regardless of any source-version reset history, revalidate/rerender the real target without copying scratch generated bytes, and write exact target `_generated/qa/html_migration.json` with `schema: pptmaker-html-migration-success-v1`, pipeline/publication scope, source execution ID/version, target version, plan hash/mode, source/control receipt set, ordered composition fingerprints/final PNG SHAs, contact-sheet SHA, and timestamp. That receipt SHALL prove only migration publication/handoff and SHALL NOT satisfy reset, content/visual gates, assembly, notes, delivery review, or completion. Apply SHALL require exact proposed-output equality, then publish through one same-parent visible-directory rename that cannot replace a target. Target collision or any input/evidence/output drift SHALL publish no visible version and require a new preview. It SHALL not modify the legacy version, infer structured bodies from prompts, copy legacy generated artifacts or migration-preview objects/manifests/receipts, inherit reset/provider/gate/delivery-review authorization, or invoke legacy generation. The visible target MAY contain its newly rerendered canonical HTML/final/contact-sheet artifacts, but Stage 4/completion SHALL remain blocked until its own content/visual reviews are recorded.
+
+The apply journal SHALL be an exclusive fence for that migration transaction. A second preview/apply or migration-scratch reset SHALL return `CONFLICT` while it exists. Normal success SHALL remove the owned reservation then journal only after visible target/receipt verification. Recovery without a token SHALL require the exact host, proven-dead PID, and age at least `MIGRATION_APPLY_AUTO_RECOVERY_MIN_AGE_MS = 60000`. Cross-host/otherwise uncertain recovery SHALL require prior human confirmation that no migration apply is active, the exact journal token, and age at least `MIGRATION_APPLY_EXPLICIT_RECOVERY_MIN_AGE_MS = 300000`; a proven-active same-host PID remains non-overridable. Token/age/journal/path drift or an unconfined/foreign reservation/staging fails closed.
+
+Recovery SHALL use actual filesystem state rather than journal phase as truth. If the visible target is absent, it may remove only the exact token-owned hidden staging/reservation and journal, then restart apply from current plan/preconditions and rerender fully; it SHALL never continue from partial generated bytes. If the visible target exists, recovery SHALL remove nothing from it and succeed idempotently only when exact `_generated/qa/html_migration.json`, source/control receipts, canonical output SHAs, target version, plan hash, mode, and source execution ID all match the journal; it may then remove only the owned reservation/journal. Any existing target mismatch, target without exact receipt, foreign hidden path, or third state returns `CONFLICT` for inspection. Recovery never creates approval/review evidence.
+
+#### Scenario: User accepts the complete comparison
+
+- **WHEN** preview produced a current exact plan and the user confirms its hash
+- **THEN** apply publishes one clean HTML-first vNext with newly rerendered canonical HTML/final/contact-sheet artifacts and pending target-version reviews
+- **AND** leaves the legacy version unchanged
+
+#### Scenario: Candidate or control drifts after preview
+
+- **WHEN** any candidate/source/control/asset receipt changes before apply
+- **THEN** apply fails without a visible new version
+- **AND** requires a new preview and human comparison
+
+#### Scenario: Apply crashes before visible publication
+
+- **WHEN** the owner is proven dead and the visible target is absent
+- **THEN** recovery removes only its exact journal-bound staging/reservation, reruns from current preconditions, and never reuses partial generated bytes
+
+#### Scenario: Journal changes before final rename
+
+- **WHEN** apply-journal bytes or ownership no longer match after staging succeeds
+- **THEN** final publication aborts without exposing the target or cleaning foreign paths
+
+#### Scenario: Apply crashes after visible publication
+
+- **WHEN** the target exists with the exact in-target success receipt and outputs but journal cleanup did not finish
+- **THEN** recovery verifies it and returns idempotent success without replacing or rerendering the target
+
+#### Scenario: Recovery finds a conflicting target
+
+- **WHEN** the anticipated visible target exists without the exact bound receipt/output lineage
+- **THEN** recovery leaves target/staging/journal unchanged and returns `CONFLICT`
