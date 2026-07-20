@@ -105,7 +105,7 @@ entry: []
 exit: [user_decision_recorded, gate_approved:content]
 ```
 
-**Step 1 — GATE**: For approve/waive, call `ppt_flow approve <run-dir> content --plan-hash <current-hash>`; waiver requires a durable normalized reason. `revise` returns to source authoring.
+**Step 1 — GATE**: Show the changed/current content projection, recommend `pilot` plus exact approval first, and offer a reasoned waiver only for a reversible evidence risk. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the protected invariant and use the producer-owned recovery route. `revise` returns to source authoring.
 
 ### review-visual
 
@@ -122,7 +122,7 @@ exit: [user_decision_recorded, gate_approved:visual]
 
 **Step 1 — MD**: Open the current local visual contact sheet and every outstanding recipe/page representative, including forced fallback where a selected asset hides it.
 
-**Step 2 — GATE**: Publish only with `approve <run-dir> visual --plan-hash <current-hash>`; waiver requires a reason. `revise` returns to the owning content/visual-system node.
+**Step 2 — GATE**: Show changed recipe/page evidence, recommend the current preview plus exact approval, and offer a reasoned waiver only for a reversible evidence gap. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the protected invariant and use the producer-owned recovery route. `revise` returns to the owning content/visual-system node.
 
 ### produce-html-deck
 
@@ -138,7 +138,7 @@ exit: [pptx_generated, speaker_notes_injected, evidence:html-delivery-current]
 
 **Step 1 — CLI**: Run `ppt_flow build <run-dir>`. It recovers only eligible same-host dead gate journals, then executes local Stages 1-5 with no provider options.
 
-**Step 2 — MD**: If status reports a journal/reset conflict, follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
+**Step 2 — MD**: If a quality gate is stale, show what changed, recommend current preview plus exact approval, then present the owner-provided reasoned continuation only when it is reversible. If status reports a journal/reset conflict, explain the protected identity/concurrency invariant and follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
 
 ### checkpoint-final-review
 
@@ -155,7 +155,7 @@ exit: [user_decision_recorded]
 
 **Step 1 — MD**: Open the current delivery contact sheet and verify the produced PPTX plus notes result. Explain the three typed exits.
 
-**Step 2 — GATE**: Use only `ppt_flow state <run-dir> --record-delivery-review <decision> [--reason <text>]`. `repair|redirect` require reason; `proceed` forbids it. This atomically records evidence and the node decision.
+**Step 2 — GATE**: Recommend rebuilding/reviewing missing lineage first. When reviewable target artifacts are current but lineage is incomplete, show the explicit reasoned continuation; it remains an evidence waiver rather than approval. Missing reviewable target bytes, unsafe identity, active writer, or corrupted state is a hard stop. Use only the owner command to record the decision; never hand-edit state.
 
 ### repair-html-deck
 

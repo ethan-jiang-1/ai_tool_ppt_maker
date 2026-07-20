@@ -23,7 +23,7 @@ entry: [html_first_marked, html_delivery_review_current]
 exit: [evidence:image2-refinement-plan-current]
 ```
 
-**Step 1 — CLI**: Inspect the current HTML delivery and recommend 2–4 stable slide IDs, one no-text visual slot per page, and the separately counted setup/page attempts.
+**Step 1 — CLI**: Inspect the current HTML delivery and recommend 2–4 stable slide IDs, one no-text visual slot per page, and the separately counted setup/page attempts. If delivery evidence is incomplete but final-slide identity is safe, present an offline reasoned planning continuation; it never authorizes a provider call.
 
 **Step 2 — MD**: Show the exact deterministic plan hash and total expected remote attempts. No provider call occurs at recommendation time.
 
@@ -54,7 +54,7 @@ entry: [html_first_marked, html_delivery_review_current, node_decision:authorize
 exit: [evidence:image2-refinement-candidates-current]
 ```
 
-**Step 1 — CLI**: Submit only persisted planned attempts through the injected modern adapter; reconcile `unknown-submit` by attempt ID and never blindly retry.
+**Step 1 — CLI**: Submit only persisted planned attempts through the injected modern adapter; reconcile `unknown-submit` by attempt ID and never blindly retry. Missing authorization, request identity drift, or an uncertain remote submit is a protected hard boundary, not a force path.
 
 **Step 2 — MD**: Inspect each immutable candidate and same-geometry review comparison.
 

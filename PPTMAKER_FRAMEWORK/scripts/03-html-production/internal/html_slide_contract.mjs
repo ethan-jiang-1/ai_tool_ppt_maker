@@ -15,6 +15,7 @@ import {
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { normalizeSpokenKey, parseSlideDocument, validateSlideDocument } from "../../01-content/index.mjs";
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
+import { projectHtmlSlideBodyV1 } from "../../contracts/html_review_projection.mjs";
 import {
   HTML_FAMILY_GEOMETRY_ID,
   htmlFamilyGeometrySemanticSha256,
@@ -516,10 +517,6 @@ export function buildHtmlSourcePreflight(slides, { fontRoot = HTML_FONT_ROOT } =
   return { inventory, inventory_path: inventoryPath, inventory_sha256: inventorySha256, results };
 }
 
-function bodyProjection(sourceBody) {
-  return Object.fromEntries(Object.entries(sourceBody).filter(([key]) => !["schema_version", "family", "callout", "primary_visual"].includes(key)));
-}
-
 export function resolveHtmlChartLegend(legend, seriesCount) {
   return legend === "auto" ? (seriesCount > 1 ? "show" : "hide") : legend;
 }
@@ -540,14 +537,7 @@ export function formatHtmlChartValue(value, valueFormat) {
 }
 
 function rendererBodyProjection(sourceBody) {
-  const body = bodyProjection(sourceBody);
-  if (sourceBody.family === "data" && body.chart) {
-    body.chart = {
-      ...body.chart,
-      legend: resolveHtmlChartLegend(body.chart.legend, body.chart.series.length),
-    };
-  }
-  return body;
+  return projectHtmlSlideBodyV1(sourceBody);
 }
 
 export function semanticContentFingerprint(slide) {
@@ -558,7 +548,7 @@ export function semanticContentFingerprint(slide) {
     slide_id: slide.block.slide_id,
     header: slide.header,
     family: slide.source_body.family,
-    body: bodyProjection(slide.source_body),
+    body: projectHtmlSlideBodyV1(slide.source_body),
     callout: slide.source_body.callout ?? null,
   });
 }
@@ -692,7 +682,7 @@ function referencedAssetIds(slide) {
     else if (Array.isArray(value)) value.forEach((item) => scan(item));
     else if (value && typeof value === "object") for (const [childKey, item] of Object.entries(value)) scan(item, childKey);
   };
-  scan(bodyProjection(slide.source_body));
+  scan(projectHtmlSlideBodyV1(slide.source_body));
   const visual = slide.source_body.primary_visual;
   if (visual?.fallback?.asset_id) ids.add(visual.fallback.asset_id);
   for (const id of visual?.fallback?.asset_ids || []) ids.add(id);
@@ -707,7 +697,7 @@ function inlineIconIds(slide) {
     else if (Array.isArray(value)) value.forEach((item) => scan(item));
     else if (value && typeof value === "object") for (const [childKey, item] of Object.entries(value)) scan(item, childKey);
   };
-  scan(bodyProjection(slide.source_body));
+  scan(projectHtmlSlideBodyV1(slide.source_body));
   return [...ids];
 }
 

@@ -45,7 +45,21 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(reviewResult.status, reviewResult.stderr || reviewResult.stdout).toBe(0);
       const reviewed = readState(fixture.deck, { heal: false });
       const delivery = reviewed.nodes['html-delivery-review'].by_version['3_versions/v1'];
-      expect(delivery).toMatchObject({ schema: 'pptmaker-html-delivery-review-v1', decision: 'proceed', reason: null, run_version: 'v1' });
+      expect(delivery).toMatchObject({
+        schema: 'pptmaker-html-delivery-review-v2',
+        decision: 'proceed',
+        reason: null,
+        run_version: 'v1',
+        evidence_complete: true,
+        waived_checks: [],
+      });
+      expect(Object.keys(delivery).sort()).toEqual([
+        'schema', 'pipeline', 'run_version', 'html_production_reset_id', 'html_delivery_digest',
+        'contact_sheet_manifest_path', 'contact_sheet_manifest_sha256', 'contact_sheet_path', 'contact_sheet_sha256',
+        'assembly_receipt_path', 'assembly_receipt_sha256', 'pptx_path', 'pptx_sha256',
+        'notes_receipt_path', 'notes_receipt_sha256', 'decision', 'reason', 'evidence_complete',
+        'waived_checks', 'decided_at',
+      ].sort());
       expect(reviewed.nodes['checkpoint-final-review'].decision).toMatchObject({ value: 'proceed', kind: 'user', evidence_ref: { node_id: 'html-delivery-review', version_key: '3_versions/v1' } });
       const reviewApi = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
       expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'current', decision: 'proceed' });

@@ -261,8 +261,8 @@ export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
   const mainSpec = join(root, "openspec/specs/cli-surface/spec.md");
   if (existsSync(mainSpec)) {
     const purpose = readFileSync(mainSpec, "utf8").split("## Requirements", 1)[0];
-    if (!/every registered direct Node CLI/i.test(purpose) || !/14-command/i.test(purpose)) {
-      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 14-command ppt_flow surface"));
+    if (!/every registered direct Node CLI/i.test(purpose) || !/15-command/i.test(purpose)) {
+      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 15-command ppt_flow surface"));
     }
   }
   return issues;

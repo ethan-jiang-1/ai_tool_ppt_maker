@@ -3,7 +3,16 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { authorizePlan, buildPlan, loadRefinementOperations, transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import {
+  REFINEMENT_AUTHORIZATION_SCHEMA_V1,
+  REFINEMENT_AUTHORIZATION_SCHEMA_V2,
+  REFINEMENT_PLAN_SCHEMA_V1,
+  REFINEMENT_PLAN_SCHEMA_V2,
+  authorizePlan,
+  buildPlan,
+  loadRefinementOperations,
+  transitionAttempt,
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
 import { createVersion, initHtmlFirstBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { encode as encodePng } from "fast-png";
 import { htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
@@ -95,6 +104,15 @@ describe("Phase 4 refinement contracts", () => {
     const second = buildPlan({ ...input, slides: [...input.slides].reverse() });
     expect(first.plan_hash).toBe(second.plan_hash);
     expect(authorizePlan(first).attempts.map((attempt) => attempt.attempt_id)).not.toEqual(authorizePlan(first).attempts.map((attempt) => attempt.attempt_id));
+  });
+  it("writes new refinement plans and authorizations as v2 while rebuilding v1", () => {
+    const current = buildPlan(input);
+    expect(current.schema).toBe(REFINEMENT_PLAN_SCHEMA_V2);
+    expect(authorizePlan(current, "auth-v2").schema).toBe(REFINEMENT_AUTHORIZATION_SCHEMA_V2);
+
+    const legacy = buildPlan({ ...input, schema: REFINEMENT_PLAN_SCHEMA_V1 });
+    expect(legacy.schema).toBe(REFINEMENT_PLAN_SCHEMA_V1);
+    expect(authorizePlan(legacy, "auth-v1").schema).toBe(REFINEMENT_AUTHORIZATION_SCHEMA_V1);
   });
   it("requires a SHA-256 profile fingerprint before planning", () => {
     expect(() => buildPlan({ ...input, profile_fingerprint: "profile-v1" })).toThrow(/lowercase SHA-256/);

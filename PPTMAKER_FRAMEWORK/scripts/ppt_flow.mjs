@@ -506,8 +506,13 @@ async function enrichStatusWithState(status, runDir) {
     status.workflow_summary = `Optional Image2 refinement is ${status.image2_refinement.status}`;
     status.suggested_next = status.image2_refinement.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
   } else if (status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
-    status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-    status.suggested_next = "complete:html-delivery";
+    if (status.html_reviews.delivery.evidence_complete === false) {
+      status.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
+      status.suggested_next = "repair:html-delivery-lineage";
+    } else {
+      status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
+      status.suggested_next = "complete:html-delivery";
+    }
   }
   return status;
 }
@@ -1002,15 +1007,16 @@ async function commandApprove(runDir, gate, { waive, planHash = null, reason = n
     const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
     const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
     if (marker.branch === HTML_FIRST_PIPELINE) {
-      if (!planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
+      if (!waive && !planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
       if (waive && !String(reason || "").trim()) return emitUsage("ppt_flow.approve", "HTML waiver requires --reason", "Pass a bounded human reason with --waive --reason");
+      if (!waive && reason != null) return emitUsage("ppt_flow.approve", "ordinary HTML approval does not accept --reason", "Use --waive --reason only for an explicit continuation");
       try {
         const { publishHtmlGateDecision } = await import("./shared/state/html_review_evidence.mjs");
         const result = publishHtmlGateDecision(resolved, { gate, planHash, status: value, waiverReason: reason });
-        console.log(`✓ html-${gate}-review: ${value} (${result.review_plan_hash})`);
+        console.log(`✓ html-${gate}-review: ${value} (${result.review_plan_hash || "current computable projection"})`);
         return 0;
       } catch (error) {
-        emitFailed("ppt_flow.approve.html", error.message, "Regenerate the complete current HTML review plan and approve its exact hash");
+        emitFailed("ppt_flow.approve.html", error.message, waive ? "Repair the shown review evidence, or retry the explicit waiver with the current source identity." : "Regenerate the complete current HTML review plan and approve its exact hash");
         return 1;
       }
     }
@@ -1503,11 +1509,11 @@ async function commandPilot(
  * Delegates to unified_pipeline.mjs --stage all.
  *
  * @param {string} runDir
- * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean}} opts
+ * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean, force?: boolean, reason?: string|null}} opts
  */
 async function commandBuild(
   runDir,
-  { resolution, model, baseUrl, reuseImages, dryRun }
+  { resolution, model, baseUrl, reuseImages, dryRun, force = false, reason = null }
 ) {
   const resolved = resolve(runDir);
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build", { allowHtml: true })) return 1;
@@ -1515,12 +1521,50 @@ async function commandBuild(
   const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const htmlFirst = existsSync(source) && probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
   if (htmlFirst) {
+    if (force && !String(reason || "").trim()) return emitUsage("ppt_flow.build.html", "HTML build --force requires --reason", "Provide a bounded human reason for the explicit gate waiver.");
+    if (!force && reason != null) return emitUsage("ppt_flow.build.html", "--reason applies only with HTML build --force", "Remove --reason or add --force for an explicit continuation.");
+    let forceNotNeeded = false;
+    if (force) {
+      const { inspectHtmlReviewReadiness, publishHtmlGateDecision } = await import("./shared/state/html_review_evidence.mjs");
+      const before = inspectHtmlReviewReadiness(resolved);
+      if (before.conflict) {
+        emitFailed("ppt_flow.build.html", before.reason, "Resolve the producer-owned journal or reset conflict before building.");
+        return 1;
+      }
+      const pending = ["content", "visual"].filter((gate) => !before.gates?.[gate]?.ready);
+      forceNotNeeded = pending.length === 0;
+      if (dryRun) {
+        console.log(JSON.stringify({
+          operation: "build",
+          dry_run: true,
+          force_not_needed: forceNotNeeded,
+          prospective_waivers: pending,
+          stages: ["1", "2", "3", "4", "5"],
+        }));
+        return 0;
+      }
+      for (const gate of pending) {
+        try {
+          publishHtmlGateDecision(resolved, { gate, status: "waived", waiverReason: reason });
+        } catch (error) {
+          emitFailed("ppt_flow.build.html", error.message, "Repair the current source/identity conflict before retrying the explicit continuation.");
+          return 1;
+        }
+      }
+      const after = inspectHtmlReviewReadiness(resolved);
+      if (!after.ready) {
+        emitFailed("ppt_flow.build.html", after.reason, "Repair or publish the remaining current gate decision before local assembly.");
+        return 1;
+      }
+      if (forceNotNeeded) console.log(JSON.stringify({ operation: "build", force_not_needed: true }));
+    }
     const args = ["--run-dir", resolved, "--stage", "all"];
     if (dryRun) args.push("--dry-run");
     const code = await runNode(UNIFIED_PIPELINE, args);
     if (code !== 0) emitFailed("ppt_flow.build", `HTML build exited ${code}`, "Resolve current HTML source/review evidence, then rerun build");
     return code;
   }
+  if (force || reason != null) return emitUsage("ppt_flow.build", "--force/--reason are HTML-first continuation controls", "Remove them for markerless builds.");
   if (!dryRun) {
     const stage1Code = await runNode(UNIFIED_PIPELINE, [
       "--run-dir", resolved, "--stage", "1",
@@ -2321,12 +2365,27 @@ async function commandImage2(operation, runDir, opts = {}) {
   if (!allowed.has(operation)) return emitUsage("ppt_flow.image2.operation", `unknown image2 operation ${JSON.stringify(operation)}`, `Use one of: plan, authorize, generate, accept, use-html, cleanup, unknown-submit`);
   const resolved = await resolveImage2Run(runDir, `ppt_flow.image2.${operation}`);
   if (!resolved) return 1;
+  if (opts.force && operation !== "plan") {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--force applies only to image2 plan", "Use --force --reason only for an explicit offline prerequisite waiver.");
+  }
+  if (!opts.force && opts.reason != null) {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--reason applies only to image2 plan --force", "Remove --reason or add --force to an offline plan continuation.");
+  }
+  if (operation === "plan" && opts.force && !String(opts.reason || "").trim()) {
+    return emitUsage("ppt_flow.image2.plan", "image2 plan --force requires --reason", "Provide a bounded human reason for the explicit delivery prerequisite waiver.");
+  }
   try {
     const ops = await import("./04-image2-refinement/index.mjs");
     const slides = opts.slides ? String(opts.slides).split(",").map((id) => id.trim()).filter(Boolean).map((slide_id) => ({ slide_id, slot: opts.slot || "primary_visual" })) : null;
     let result;
     if (operation === "plan") {
-      result = await ops.createRefinementPlan({ runDir: resolved, slides, profileFingerprint: opts.profile || null });
+      result = await ops.createRefinementPlan({
+        runDir: resolved,
+        slides,
+        profileFingerprint: opts.profile || null,
+        force: opts.force === true,
+        reason: opts.reason || null,
+      });
     } else if (operation === "authorize") {
       if (!opts.planHash) return emitUsage("ppt_flow.image2.authorize", "--plan-hash is required", "Pass the exact deterministic hash printed by image2 plan");
       result = await ops.authorizeRefinement({ runDir: resolved, planHash: opts.planHash });
@@ -2347,8 +2406,11 @@ async function commandImage2(operation, runDir, opts = {}) {
       else if (opts.decision === "retain") result = await ops.reconcileRefinementAttempt({ runDir: resolved, attemptId: opts.attemptId });
       else result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: opts.decision, candidateId: opts.candidateId || null });
     }
-    if (opts.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(JSON.stringify(result));
+    const output = operation === "plan"
+      ? { ...result, force_not_needed: result.force_not_needed === true }
+      : result;
+    if (opts.json) console.log(JSON.stringify(output, null, 2));
+    else console.log(JSON.stringify(output));
     return 0;
   } catch (error) {
     const stale = /STALE|stale|drift/i.test(error.message || "");
@@ -2572,6 +2634,8 @@ Examples:
       "--reuse-images",
       "Reuse existing Stage-2 images instead of refreshing at final resolution"
     )
+    .option("--force", "Explicitly waive reversible pending HTML gate evidence")
+    .option("--reason <text>", "Bounded human reason required with HTML --force")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       validateResolution("ppt_flow.build.resolution", opts.resolution);
@@ -2581,6 +2645,8 @@ Examples:
         baseUrl: opts.baseUrl || null,
         reuseImages: opts.reuseImages ?? false,
         dryRun: opts.dryRun ?? false,
+        force: opts.force ?? false,
+        reason: opts.reason || null,
       });
       process.exit(code);
     });
@@ -2701,9 +2767,11 @@ Examples:
     .argument("<runDir>", "Path to version directory")
     .option("--json", "JSON output")
     .option("--check-gates", "Verify gates for Stage 2 readiness")
+    .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--recover-gate-journal <ownerToken>", "Explicitly recover an abandoned HTML gate journal")
     .option("--record-delivery-review <decision>", "Record HTML delivery review: proceed, repair, or redirect")
-    .option("--reason <text>", "Durable reason for repair/redirect")
+    .option("--force", "Explicitly continue a reversible HTML evidence risk")
+    .option("--reason <text>", "Durable reason for waiver, repair, redirect, or forced proceed")
     .action(async (runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const {
@@ -2723,18 +2791,54 @@ Examples:
         if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
       }
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
+        process.exitCode = 1;
         return;
       }
-      if (specialOperations > 0 && !htmlFirst) {
+      if (opts.force && !opts.recordDeliveryReview) {
+        emitUsage("ppt_flow.state", "--force applies only to --record-delivery-review proceed", "Use --force together with proceed and a bounded --reason.");
+        process.exitCode = 1;
+        return;
+      }
+      if ((opts.recoverGateJournal || opts.recordDeliveryReview) && !htmlFirst) {
         emitUsage("ppt_flow.state", "HTML state operations are branch-inapplicable for markerless decks", "Use the legacy controller/status path for a markerless deck.");
+        process.exitCode = 1;
+        return;
+      }
+      if (opts.validateState) {
+        // This closed diagnostic operation always returns its bounded report,
+        // including when the failure envelope makes the process exit non-zero.
+        setCliOutputMode("json");
+        const { validateStateReadOnly } = await import("./shared/state/state.mjs");
+        const result = validateStateReadOnly(deckDir, { runDir: resolved });
+        const report = { operation: "validate-state", ...result };
+        registerCliJsonReport(report);
+        console.log(JSON.stringify(report));
+        if (!result.valid) {
+          emitCliError({
+            code: CLI_ERROR_CODES.STATE_CORRUPTED,
+            message: "State validation found bounded record or evidence mismatches.",
+            hint: "Use the reported field paths to rebuild artifacts or repair the owning state record through its public workflow.",
+            where: "ppt_flow.state.validate-state",
+            diagnostic: {
+              version: 1,
+              category: "artifact",
+              operation: "validate-state",
+              reason: { kind: "state_validation_failed" },
+              issues: result.issues,
+              next: createCliNext("repair_prerequisite", { default: "Repair the named state or evidence prerequisite, then validate again." }),
+            },
+          });
+          process.exitCode = 1;
+        }
         return;
       }
       if (opts.recoverGateJournal) {
         if (!/^[0-9a-f]{64}$/.test(opts.recoverGateJournal)) {
           emitUsage("ppt_flow.state.recover-gate-journal", "--recover-gate-journal requires a 64-lowercase-hex owner token", "Use the exact opaque token shown by plain state/status.");
+          process.exitCode = 1;
           return;
         }
         try {
@@ -2744,25 +2848,39 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.recover-gate-journal", error.message, "Confirm that the exact journal owner stopped and retry after the required recovery age.");
+          process.exitCode = 1;
           return;
         }
       }
       if (opts.recordDeliveryReview) {
         if (!new Set(["proceed", "repair", "redirect"]).has(opts.recordDeliveryReview)) {
           emitUsage("ppt_flow.state.record-delivery-review", "delivery decision must be proceed, repair, or redirect", "Choose one of the declared final-review decisions.");
+          process.exitCode = 1;
           return;
         }
-        if (opts.recordDeliveryReview === "proceed" && opts.reason != null) {
+        if (opts.force && opts.recordDeliveryReview !== "proceed") {
+          emitUsage("ppt_flow.state.record-delivery-review", "--force is valid only with proceed", "Use --force --reason only for an explicit proceed continuation.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.recordDeliveryReview === "proceed" && !opts.force && opts.reason != null) {
           emitUsage("ppt_flow.state.record-delivery-review", "proceed forbids --reason", "Remove --reason for a proceed decision.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.recordDeliveryReview === "proceed" && opts.force && !String(opts.reason || "").trim()) {
+          emitUsage("ppt_flow.state.record-delivery-review", "forced proceed requires --reason", "Provide a bounded durable reason for the evidence waiver.");
+          process.exitCode = 1;
           return;
         }
         if (["repair", "redirect"].includes(opts.recordDeliveryReview) && !String(opts.reason || "").trim()) {
           emitUsage("ppt_flow.state.record-delivery-review", `${opts.recordDeliveryReview} requires --reason`, "Provide a bounded durable human reason.");
+          process.exitCode = 1;
           return;
         }
         try {
           const { publishHtmlDeliveryDecision } = await import("./shared/state/html_review_evidence.mjs");
-          const result = publishHtmlDeliveryDecision(resolved, { decision: opts.recordDeliveryReview, reason: opts.reason });
+          const result = publishHtmlDeliveryDecision(resolved, { decision: opts.recordDeliveryReview, reason: opts.reason, force: opts.force === true });
           console.log(JSON.stringify({ operation: "record-delivery-review", ...result }));
           return;
         } catch (error) {
@@ -2905,8 +3023,13 @@ Examples:
           report.workflow_summary = `Optional Image2 refinement is ${refinementProjection.status}`;
           report.suggested_next = refinementProjection.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
         } else if (htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
-          report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-          report.suggested_next = "complete:html-delivery";
+          if (htmlReviews.delivery.evidence_complete === false) {
+            report.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
+            report.suggested_next = "repair:html-delivery-lineage";
+          } else {
+            report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
+            report.suggested_next = "complete:html-delivery";
+          }
         }
         registerCliJsonReport(report);
         console.log(JSON.stringify(report, null, 2));
@@ -2970,6 +3093,8 @@ Examples:
     .option("--candidate-id <id>", "Immutable candidate ID")
     .option("--review-hash <hash>", "Exact cleanup review-set hash")
     .option("--decision <decision>", "Unknown-submit decision: retain or abandon")
+    .option("--force", "Explicitly waive an incomplete HTML delivery prerequisite for offline planning")
+    .option("--reason <text>", "Bounded human reason required with image2 plan --force")
     .option("--dry-run", "Show cleanup scope without deleting derived evidence")
     .option("--json", "Output one machine-readable success report")
     .addHelpText("after", "\nClosed operations:\n  plan -> authorize -> generate -> accept|use-html -> cleanup\n  unknown-submit --decision retain|abandon\nNo operation submits before exact human authorization.\n")

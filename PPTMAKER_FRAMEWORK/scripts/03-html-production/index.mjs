@@ -28,6 +28,18 @@ export async function composeHtmlSlides(runDir, options = {}) {
   return module.composeHtmlSlides(runDir, options);
 }
 
+/**
+ * Resolve the currently published Stage-3 final-slide set through its owner
+ * manifest. This stays local/provider-free and gives downstream optional
+ * workflows one audited delivery digest rather than a synthetic status hash.
+ */
+export async function resolveCurrentHtmlFinalSlideDelivery(runDir, { htmlProductionResetId = null } = {}) {
+  const contract = await import("./internal/html_slide_contract.mjs");
+  const artifacts = await import("./internal/final_slide_artifacts.mjs");
+  const { plan } = contract.validateAndBuildHtmlFirstPlan({ runDir });
+  return artifacts.resolveHtmlFinalSlideArtifacts({ runDir, plan, htmlProductionResetId });
+}
+
 /** Provider-free local recomposition seam used after a Phase-4 source change. */
 export async function recomposeHtmlSlidesLocally(runDir, options = {}) {
   const module = await import("./internal/application.mjs");

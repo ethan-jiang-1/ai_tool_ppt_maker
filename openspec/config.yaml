@@ -88,6 +88,27 @@ context: |-
 
   Config 只固定协议边界，不复制 producer 或 consumer 的详细 schema。
 
+  ## Human-centered gates
+
+  Gate/readiness/validation/diagnostic/override work follows
+  `openspec/policies/human-centered-gates.md`. Classify each observable outcome
+  as `guide`, `confirm`, or `hard-stop`; explain the invariant for every hard
+  stop. An explicit continuation publishes a version-scoped waiver with a human
+  reason. It never silently ignores a pending gate, becomes approval, or implies
+  complete evidence. Runtime record and CLI schemas remain in their capability
+  specifications.
+
+  ## Agent assistance and control paths
+
+  Controller, state, recovery, deterministic-check, and diagnostic changes
+  also follow `openspec/policies/agent-assistance-and-control.md`. Keep the
+  human at genuinely semantic/risk/authority decisions, let the Agent perform
+  authorized mechanical work, and keep runtime truth with its existing owner.
+  Prefer one direct evaluator, bounded prerequisite-first diagnostics, and an
+  explicit same-check recovery path over added modes, duplicate validators,
+  inferred intent, or parallel state. This policy is guidance only; runtime
+  schemas and permissions remain in their owning capability specifications.
+
   ## Capability 注册表
 
   Capability 是 proposal → delta specs → main specs 的稳定归属边界。名称使用 kebab-case，
@@ -195,6 +216,14 @@ rules:
     - >-
       Run-bundle production 才需要按 change-classifier 说明 Structural Versioning Path、refresh path、
       Gate 与生成物影响；framework maintenance 不得把 deck_* 生产对象当框架源码或测试夹具。
+    - >-
+      涉及 gate、readiness、validation、diagnostic 或 override 时，必须引用
+      `openspec/policies/human-centered-gates.md`，说明 guide/confirm/hard-stop 结果、
+      confirm 所需的人类原因，以及每个 hard-stop 保护的不变量；不得复制 runtime schema。
+    - >-
+      涉及 controller handoff、Agent 自动执行、state/recovery、deterministic check 或 diagnostic
+      control path 时，必须引用 `openspec/policies/agent-assistance-and-control.md`：说明直接
+      authority、真正需要人类的最小决定、Agent 可继续执行的机械工作，以及避免或合并的重复控制。
 
   specs:
     - >-
@@ -214,6 +243,14 @@ rules:
     - >-
       目录、render mode、source/derived 等领域术语必须使用本 context 的 canonical 含义；
       framework-directory-layout 与 run-bundle-layout 不得混称。
+    - >-
+      Gate-sensitive requirement 必须区分可自动修复的 guide、可被 reasoned waiver 继续的
+      confirm、以及不可绕过的 hard-stop。waiver 必须保持 version-scoped、可审计，且绝不能
+      被表述为 approval 或 evidence-complete。
+    - >-
+      涉及 deterministic control path 的 requirement 必须指定 owning source of record，并复用
+      已有 evaluator 或解释为什么不能复用；前置 authority/identity 失败时必须短路派生症状，
+      而非新增 competing pass/fail projection。
 
   design:
     - >-
@@ -230,6 +267,13 @@ rules:
     - >-
       涉及兼容、状态或持久化时说明 migration、heal、幂等与回退；涉及生成物时说明失效与重建路径，
       不把手工修改派生产物作为方案。
+    - >-
+      涉及 gate/readiness/validation/diagnostic/override 的 design 必须说明每种结果的
+      guide/confirm/hard-stop 分类、确认记录的 owner，以及 hard-stop 的恢复路径；不得把
+      force/waive 设计成越过 identity、integrity、security、authorization 或 recovery 边界。
+    - >-
+      新增 state、validator、recovery branch 或 controller step 时，Design 必须说明 owner、
+      writer/reader、失效规则、最近合法下一动作，以及替代、删除或避免的重复控制复杂度。
 
   tasks:
     - >-
@@ -247,3 +291,9 @@ rules:
     - >-
       只有 run-bundle production 任务才标注 refresh path、--force-images、--only 或 --new-version；
       任何任务都不得要求手工编辑 _generated/。
+    - >-
+      Gate-sensitive task 必须包含推荐修复、显式 continuation、hard-stop invariant 和其测试；
+      continuation 只能发布 owner-owned version-scoped waiver，不能静默放行或伪造 approval。
+    - >-
+      修改 deterministic control path 的任务必须包含 focused negative coverage，证明前置失败
+      短路、诊断有界、state 不会写错 owner，并验证修复后回到同一 checkpoint。

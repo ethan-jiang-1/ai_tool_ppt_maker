@@ -12,6 +12,7 @@ import {
   GEN_HTML_PAGES_SUBDIR,
   GEN_HTML_PREVIEW_SUBDIR,
   GEN_HTML_PRODUCTION_SUBDIR,
+  GEN_PPT_SUBDIR,
   GEN_SLIDE_PLAN,
   METADATA_FILE,
   deckRoot,
@@ -36,6 +37,7 @@ function trustedContext(runDir) {
     root,
     metadataFile: join(root, METADATA_FILE),
     planPath: join(run, GENERATED_SUBDIR, GEN_SLIDE_PLAN),
+    canonicalPptxPath: join(run, GENERATED_SUBDIR, GEN_PPT_SUBDIR, "deck.pptx"),
     htmlProductionRoot: production,
     htmlOwnerRoot(ownerKind) {
       if (!names[ownerKind]) throw new Error(`unsupported HTML owner kind ${ownerKind}`);

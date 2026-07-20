@@ -22,6 +22,8 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --jso
 
 HTML build/pilot/refresh 不接受 provider/model/resolution/style-master/force/reuse image flags。`pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
 
+Gate response always starts with the recommended repair: show the changed bounded evidence, rebuild or review the current artifact, then publish the exact current decision. A reversible evidence/process risk may expose a reasoned, version-scoped waiver; it remains `waived`, not `approved`, and evidence completeness is reported separately. Plan/reset identity drift, active journals, corrupted state, unsafe paths/bytes, and provider authorization are hard stops: use the producer-owned recovery action rather than editing state or forcing through.
+
 Final delivery review 唯一 publisher（closed state subcommand syntax）：
 
 <!-- coherence:pseudocode reason="state evidence subcommand is parsed by ppt_flow state, not a top-level option" -->

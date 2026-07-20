@@ -6,14 +6,20 @@ import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
  * pure data constructors/validators; filesystem and provider work lives in
  * the other private modules.
  */
-export const REFINEMENT_PLAN_SCHEMA = "pptmaker-image2-refinement-plan-v1";
-export const REFINEMENT_AUTHORIZATION_SCHEMA = "pptmaker-image2-refinement-authorization-v1";
+export const REFINEMENT_PLAN_SCHEMA_V1 = "pptmaker-image2-refinement-plan-v1";
+export const REFINEMENT_PLAN_SCHEMA_V2 = "pptmaker-image2-refinement-plan-v2";
+export const REFINEMENT_PLAN_SCHEMA = REFINEMENT_PLAN_SCHEMA_V2;
+export const REFINEMENT_AUTHORIZATION_SCHEMA_V1 = "pptmaker-image2-refinement-authorization-v1";
+export const REFINEMENT_AUTHORIZATION_SCHEMA_V2 = "pptmaker-image2-refinement-authorization-v2";
+export const REFINEMENT_AUTHORIZATION_SCHEMA = REFINEMENT_AUTHORIZATION_SCHEMA_V2;
 export const REFINEMENT_ATTEMPT_SCHEMA = "pptmaker-image2-refinement-attempt-v1";
 export const REFINEMENT_CANDIDATE_SCHEMA = "pptmaker-image2-refinement-candidate-v1";
 export const REFINEMENT_REVIEW_SCHEMA = "pptmaker-image2-refinement-review-v1";
 export const REFINEMENT_PROVENANCE_SCHEMA = "pptmaker-image2-refinement-provenance-v1";
 export const REFINEMENT_PROMOTION_JOURNAL_SCHEMA = "pptmaker-image2-refinement-promotion-journal-v1";
-export const REFINEMENT_STATE_SCHEMA = "pptmaker-image2-refinement-state-v1";
+export const REFINEMENT_STATE_SCHEMA_V1 = "pptmaker-image2-refinement-state-v1";
+export const REFINEMENT_STATE_SCHEMA_V2 = "pptmaker-image2-refinement-state-v2";
+export const REFINEMENT_STATE_SCHEMA = REFINEMENT_STATE_SCHEMA_V2;
 
 export const ATTEMPT_STATES = Object.freeze([
   "planned",
@@ -31,6 +37,9 @@ const VERSION_RE = /^v[1-9][0-9]*$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const FINGERPRINT_RE = /^[A-Za-z0-9_-]{1,256}$/;
 const SECRET_KEY_RE = /(?:key|token|secret|password|authorization|credential|prompt_body|response_body)/i;
+const WAIVED_CHECK_CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
+const WAIVED_CHECK_SUBJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const WAIVED_CHECK_SUBJECT_KINDS = new Set(["gate", "slide", "recipe", "artifact", "receipt"]);
 
 export class RefinementContractError extends Error {
   constructor(message, code = "invalid_refinement_contract", details = undefined) {
@@ -50,6 +59,73 @@ export function sha256(value) {
 export function isSha256(value) { return SHA256_RE.test(String(value || "")); }
 export function isSafeRefinementId(value) { return typeof value === "string" && SAFE_ID_RE.test(value); }
 export function isNormalizedVersion(value) { return VERSION_RE.test(String(value || "")); }
+
+/** Shared durable waiver shape used by HTML delivery and optional Phase 4. */
+export function canonicalWaivedChecks(value) {
+  if (!Array.isArray(value) || value.length > 64) {
+    throw new RefinementContractError("waived_checks must contain at most 64 entries", "invalid_prerequisite");
+  }
+  const checks = value.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || Object.keys(entry).length !== 2 || !Object.hasOwn(entry, "code") || !Object.hasOwn(entry, "subject") || !WAIVED_CHECK_CODE_RE.test(entry.code || "")) {
+      throw new RefinementContractError("waived_checks entry is invalid", "invalid_prerequisite");
+    }
+    if (entry.subject === null) return { code: entry.code, subject: null };
+    if (!entry.subject || typeof entry.subject !== "object" || Array.isArray(entry.subject) || Object.keys(entry.subject).length !== 2 || !WAIVED_CHECK_SUBJECT_KINDS.has(entry.subject.kind) || !WAIVED_CHECK_SUBJECT_ID_RE.test(entry.subject.id || "")) {
+      throw new RefinementContractError("waived_checks subject is invalid", "invalid_prerequisite");
+    }
+    return { code: entry.code, subject: { kind: entry.subject.kind, id: entry.subject.id } };
+  }).sort((left, right) => {
+    const leftKey = `${left.code}\u0000${left.subject?.kind || ""}\u0000${left.subject?.id || ""}`;
+    const rightKey = `${right.code}\u0000${right.subject?.kind || ""}\u0000${right.subject?.id || ""}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  if (checks.some((entry, index) => index > 0 && canonicalJson(entry) === canonicalJson(checks[index - 1]))) {
+    throw new RefinementContractError("waived_checks must be duplicate-free", "invalid_prerequisite");
+  }
+  return Object.freeze(checks.map((entry) => Object.freeze({ code: entry.code, subject: entry.subject ? Object.freeze(entry.subject) : null })));
+}
+
+export function normalizePrerequisiteWaiver(value) {
+  object(value, "prerequisite waiver");
+  const keys = ["reason", "waived_checks", "run_version", "html_production_reset_id", "html_delivery_digest", "recorded_at"];
+  rejectUnknown(value, new Set(keys), "prerequisite waiver");
+  if (Object.keys(value).length !== keys.length || keys.some((key) => !Object.hasOwn(value, key))) {
+    throw new RefinementContractError("prerequisite waiver must use its exact field set", "invalid_prerequisite");
+  }
+  const reason = requiredString(value.reason, "prerequisite waiver reason", { max: 1024 });
+  const checks = canonicalWaivedChecks(value.waived_checks);
+  if (!checks.length || canonicalJson(checks) !== canonicalJson(value.waived_checks)) {
+    throw new RefinementContractError("prerequisite waiver checks must be non-empty and canonical", "invalid_prerequisite");
+  }
+  const runVersion = requiredString(value.run_version, "prerequisite waiver run_version");
+  if (!VERSION_RE.test(runVersion)) throw new RefinementContractError("prerequisite waiver run_version must be normalized vN", "invalid_prerequisite");
+  if (value.html_production_reset_id !== null && !SHA256_RE.test(value.html_production_reset_id || "")) {
+    throw new RefinementContractError("prerequisite waiver reset ID must be null or SHA-256", "invalid_prerequisite");
+  }
+  const deliveryDigest = shaFingerprint(value.html_delivery_digest, "prerequisite waiver delivery digest");
+  if (typeof value.recorded_at !== "string" || !value.recorded_at || Number.isNaN(Date.parse(value.recorded_at))) {
+    throw new RefinementContractError("prerequisite waiver recorded_at must be UTC ISO-8601", "invalid_prerequisite");
+  }
+  return Object.freeze({
+    reason,
+    waived_checks: checks,
+    run_version: runVersion,
+    html_production_reset_id: value.html_production_reset_id,
+    html_delivery_digest: deliveryDigest,
+    recorded_at: value.recorded_at,
+  });
+}
+
+export function prerequisiteWaiverFingerprint(value) {
+  const waiver = normalizePrerequisiteWaiver(value);
+  return sha256({
+    reason: waiver.reason,
+    waived_checks: waiver.waived_checks,
+    run_version: waiver.run_version,
+    html_production_reset_id: waiver.html_production_reset_id,
+    html_delivery_digest: waiver.html_delivery_digest,
+  });
+}
 
 function object(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -126,9 +202,13 @@ export function validatePlanInput(input) {
     "profile_fingerprint", "profileFingerprint", "style_reference_status",
     "styleReferenceStatus", "slides", "marked_html_first", "markedHtmlFirst",
     "delivery_review", "deliveryReview", "eligibility", "setup_attempts", "page_attempts",
-    "plan_hash", "total_attempts",
+    "plan_hash", "total_attempts", "prerequisite_waiver_fingerprint", "prerequisiteWaiverFingerprint",
   ]);
   rejectUnknown(input, allowed, "plan input");
+  const schema = input.schema == null ? REFINEMENT_PLAN_SCHEMA : String(input.schema);
+  if (![REFINEMENT_PLAN_SCHEMA_V1, REFINEMENT_PLAN_SCHEMA_V2].includes(schema)) {
+    throw new RefinementContractError("refinement plan schema is invalid", "invalid_plan");
+  }
   const slides = Array.isArray(input.slides) ? input.slides : [];
   if (slides.length < 2 || slides.length > 4) throw new RefinementContractError("refinement requires 2 to 4 slides", "invalid_scope");
   const normalizedSlides = slides.map(cloneSlide);
@@ -147,23 +227,33 @@ export function validatePlanInput(input) {
   if (marked != null && marked !== true) throw new RefinementContractError("modern refinement requires a marked HTML-first run", "ineligible_pipeline");
   const delivery = input.delivery_review ?? input.deliveryReview;
   if (delivery != null && delivery !== "proceed") throw new RefinementContractError("current html-delivery-review: proceed is required", "ineligible_delivery");
+  const prerequisiteWaiverFingerprint = input.prerequisite_waiver_fingerprint ?? input.prerequisiteWaiverFingerprint ?? null;
+  if (schema === REFINEMENT_PLAN_SCHEMA_V1 && prerequisiteWaiverFingerprint !== null) {
+    throw new RefinementContractError("v1 refinement plans cannot bind a prerequisite waiver", "invalid_plan");
+  }
+  if (prerequisiteWaiverFingerprint !== null && !SHA256_RE.test(prerequisiteWaiverFingerprint || "")) {
+    throw new RefinementContractError("prerequisite_waiver_fingerprint must be lowercase SHA-256 or null", "invalid_prerequisite");
+  }
   return Object.freeze({
-    schema: REFINEMENT_PLAN_SCHEMA,
+    schema,
     run_version: runVersion,
     delivery_digest: fingerprint(input.delivery_digest ?? input.deliveryDigest, "delivery_digest"),
     profile_fingerprint: shaFingerprint(input.profile_fingerprint ?? input.profileFingerprint, "profile_fingerprint"),
     style_reference_status: styleStatus,
     slides: normalizedSlides.sort((a, b) => a.slide_id.localeCompare(b.slide_id)),
+    ...(schema === REFINEMENT_PLAN_SCHEMA_V2 ? { prerequisite_waiver_fingerprint: prerequisiteWaiverFingerprint } : {}),
   });
 }
 
 export function canonicalPlanPayload(plan) {
   const normalized = validatePlanInput({
+    schema: plan.schema,
     run_version: plan.run_version,
     delivery_digest: plan.delivery_digest,
     profile_fingerprint: plan.profile_fingerprint,
     style_reference_status: plan.style_reference_status,
     slides: plan.slides,
+    ...(plan.schema === REFINEMENT_PLAN_SCHEMA_V2 ? { prerequisite_waiver_fingerprint: plan.prerequisite_waiver_fingerprint ?? null } : {}),
   });
   const setupAttempts = plan.setup_attempts ?? (normalized.style_reference_status === "current" ? 0 : 1);
   const pageAttempts = plan.page_attempts ?? normalized.slides.length;
@@ -185,6 +275,7 @@ export function buildPlan(input) {
     slides: plan.slides,
     setup_attempts: plan.setup_attempts,
     page_attempts: plan.page_attempts,
+    ...(plan.schema === REFINEMENT_PLAN_SCHEMA_V2 ? { prerequisite_waiver_fingerprint: plan.prerequisite_waiver_fingerprint } : {}),
   });
   return Object.freeze({ ...plan, plan_hash });
 }
@@ -213,7 +304,9 @@ export function authorizePlan(planInput, authorizationId = randomId("auth"), { n
   if (plan.setup_attempts) attempts.push({ attempt_id: randomId("attempt"), kind: "style-reference", state: "planned" });
   for (const slide of plan.slides) attempts.push({ attempt_id: randomId("attempt"), kind: "slot", slide_id: slide.slide_id, slot: slide.slot, state: "planned" });
   return Object.freeze({
-    schema: REFINEMENT_AUTHORIZATION_SCHEMA,
+    schema: plan.schema === REFINEMENT_PLAN_SCHEMA_V1
+      ? REFINEMENT_AUTHORIZATION_SCHEMA_V1
+      : REFINEMENT_AUTHORIZATION_SCHEMA_V2,
     authorization_id: authId,
     plan_hash: plan.plan_hash,
     state: "authorized",

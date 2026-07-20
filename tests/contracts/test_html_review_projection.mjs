@@ -4,6 +4,7 @@ import {
   buildHtmlReviewPlan,
   htmlContentReviewProjectionV1,
   htmlPageVisualDependenciesV1,
+  projectHtmlSlideBodyV1,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/html_review_projection.mjs";
 import { buildHtmlReviewPlan as buildPhase3ReviewPlan } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_preview.mjs";
 
@@ -73,5 +74,48 @@ describe("HTML source AST and review projections", () => {
   it("keeps the Phase 3 publisher byte-contract on the pure implementation", () => {
     const options = { plan, kind: "content", logicalRunVersion: "v1" };
     expect(buildPhase3ReviewPlan(options)).toEqual(buildHtmlReviewPlan(options));
+  });
+
+  it("uses one canonical body projection for callout and primary-visual slides (BUG-018)", () => {
+    const rawBody = {
+      schema_version: 1,
+      family: "data",
+      chart: {
+        kind: "bar",
+        legend: "auto",
+        series: [{ name: "Actual", values: [1, 2] }, { name: "Plan", values: [2, 3] }],
+      },
+      callout: "Keep this separate from body.",
+      primary_visual: { placement: "right", brief: "Not part of the body." },
+    };
+
+    expect(projectHtmlSlideBodyV1(rawBody)).toEqual({
+      chart: {
+        kind: "bar",
+        legend: "show",
+        series: [{ name: "Actual", values: [1, 2] }, { name: "Plan", values: [2, 3] }],
+      },
+    });
+
+    const rawPlan = buildHtmlReviewPlan({
+      plan: { ...plan, slides: [{ ...slide, family: "data", body: rawBody, callout: rawBody.callout, primary_visual: rawBody.primary_visual }] },
+      kind: "content",
+      logicalRunVersion: "v1",
+    });
+    const normalizedPlan = buildHtmlReviewPlan({
+      plan: {
+        ...plan,
+        slides: [{
+          ...slide,
+          family: "data",
+          body: projectHtmlSlideBodyV1(rawBody),
+          callout: rawBody.callout,
+          primary_visual: rawBody.primary_visual,
+        }],
+      },
+      kind: "content",
+      logicalRunVersion: "v1",
+    });
+    expect(rawPlan.content_fingerprint).toBe(normalizedPlan.content_fingerprint);
   });
 });

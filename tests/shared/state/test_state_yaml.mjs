@@ -25,6 +25,8 @@ import {
   projectImage2RefinementState,
   readImage2RefinementState,
   writeImage2RefinementState,
+  IMAGE2_REFINEMENT_STATE_SCHEMA_V1,
+  IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 import { createHtmlFirstRun } from '../../helpers/html_first_fixture.mjs';
 
@@ -43,6 +45,32 @@ describe('state.yaml yaml library + heal', () => {
       expect(writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: createHash('sha256').update(before).digest('hex') })).toEqual(record);
       expect(readImage2RefinementState(readState(fixture.deck), 'v1')).toEqual(record);
       expect(() => writeImage2RefinementState(fixture.deck, 'v1', { ...record, extra: true })).toThrow(/invalid/);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  });
+
+  it('reads v1 and v2 refinement records without observation migration', () => {
+    const fixture = createHtmlFirstRun('image2-refinement-v2-reader-');
+    try {
+      const stateFile = join(fixture.deck, STATE_DIR, STATE_FILE);
+      const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V1, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
+      writeImage2RefinementState(fixture.deck, 'v1', legacy);
+      const legacyBytes = readFileSync(stateFile);
+      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(legacy);
+      expect(readFileSync(stateFile)).toEqual(legacyBytes);
+
+      const current = {
+        schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
+        run_version: 'v1',
+        plan: null,
+        authorization: null,
+        attempts: {},
+        reviews: {},
+        prerequisite_waiver: null,
+      };
+      writeImage2RefinementState(fixture.deck, 'v1', current);
+      const currentBytes = readFileSync(stateFile);
+      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(current);
+      expect(readFileSync(stateFile)).toEqual(currentBytes);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   });
   it('projects every bounded refinement status and human-action boundary', () => {

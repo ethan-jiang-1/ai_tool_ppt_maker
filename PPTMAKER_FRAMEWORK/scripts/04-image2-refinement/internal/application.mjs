@@ -8,7 +8,10 @@ import {
   ATTEMPT_STATES,
   authorizePlan,
   buildPlan,
+  canonicalWaivedChecks,
   createCandidateRecord,
+  normalizePrerequisiteWaiver,
+  prerequisiteWaiverFingerprint,
   createReviewRecord,
   safeProfileFingerprint,
   sha256,
@@ -74,7 +77,7 @@ async function styleReferenceStatus(runDir) {
   } catch { return "stale"; }
 }
 
-async function currentEligibility(runDir, { allowRefinementStale = false } = {}) {
+async function currentEligibility(runDir, { allowIncompleteDelivery = false } = {}) {
   const run = resolve(runDir);
   const version = assertRunVersion(run);
   if (!existsSync(sourcePath(run))) throw new Error("refinement requires canonical slide-specifications.md");
@@ -85,9 +88,84 @@ async function currentEligibility(runDir, { allowRefinementStale = false } = {})
   const review = evidence.inspectHtmlReviewReadiness(run);
   const deliveryProceed = review.delivery?.decision === "proceed";
   const deliveryCurrent = review.delivery?.freshness === "current";
-  if ((!deliveryCurrent && !(allowRefinementStale && deliveryProceed)) || !deliveryProceed) throw new Error("current html-delivery-review: proceed is required before refinement");
-  const deliveryDigest = review._delivery_evidence?.html_delivery_digest || sha256({ run_version: version, review: { decision: review.delivery.decision, freshness: review.delivery.freshness } });
-  return Object.freeze({ run, run_version: version, marked_html_first: true, delivery_review: "proceed", delivery_digest: deliveryDigest, review });
+  const deliveryComplete = deliveryCurrent && deliveryProceed && review.delivery?.evidence_complete === true;
+  if (["repair", "redirect"].includes(review.delivery?.decision)) {
+    throw new Error("current html-delivery-review repair or redirect must be resolved before refinement");
+  }
+  if (!deliveryComplete && !allowIncompleteDelivery) {
+    throw new Error("current html-delivery-review: proceed with complete evidence is required before refinement");
+  }
+  const finalSlides = await p3.resolveCurrentHtmlFinalSlideDelivery(run, {
+    htmlProductionResetId: review.html_production_reset_id,
+  });
+  if (!SHA_RE.test(finalSlides?.html_delivery_digest || "")) {
+    throw new Error("current Phase-3 final-slide delivery digest is unavailable");
+  }
+  return Object.freeze({
+    run,
+    run_version: version,
+    marked_html_first: true,
+    delivery_review: deliveryProceed ? "proceed" : null,
+    delivery_digest: finalSlides.html_delivery_digest,
+    html_production_reset_id: review.html_production_reset_id,
+    delivery_complete: deliveryComplete,
+    review,
+  });
+}
+
+function deliveryPrerequisiteChecks(review) {
+  const candidates = [
+    ...(review?._delivery_evidence?.waived_checks || []),
+    ...(review?.delivery?.waived_checks || []),
+  ];
+  if (!candidates.length) {
+    if (review?.delivery?.decision !== "proceed") {
+      candidates.push({ code: "delivery_proceed_missing", subject: { kind: "gate", id: "delivery" } });
+    }
+    if (review?.delivery?.freshness !== "current") {
+      candidates.push({ code: "delivery_review_stale", subject: { kind: "gate", id: "delivery" } });
+    }
+    if (review?.delivery?.evidence_complete !== true) {
+      candidates.push({ code: "delivery_evidence_incomplete", subject: { kind: "gate", id: "delivery" } });
+    }
+  }
+  return canonicalWaivedChecks(candidates);
+}
+
+async function createPrerequisiteWaiver(eligible, reason) {
+  const { normalizeHumanReason } = await import("../../shared/state/html_review_evidence.mjs");
+  const waiver = normalizePrerequisiteWaiver({
+    reason: normalizeHumanReason(reason),
+    waived_checks: deliveryPrerequisiteChecks(eligible.review),
+    run_version: eligible.run_version,
+    html_production_reset_id: eligible.html_production_reset_id,
+    html_delivery_digest: eligible.delivery_digest,
+    recorded_at: nowIso(),
+  });
+  return waiver;
+}
+
+function validatePrerequisiteWaiverForEligibility(waiver, fingerprint, eligible) {
+  const normalized = normalizePrerequisiteWaiver(waiver);
+  if (prerequisiteWaiverFingerprint(normalized) !== fingerprint ||
+      normalized.run_version !== eligible.run_version ||
+      normalized.html_production_reset_id !== eligible.html_production_reset_id ||
+      normalized.html_delivery_digest !== eligible.delivery_digest) {
+    throw new Error("STALE: delivery prerequisite waiver no longer matches the current final-slide identity");
+  }
+  return normalized;
+}
+
+async function currentEligibilityForRecord(runDir, record, { requireComplete = false } = {}) {
+  const fingerprint = record?.plan?.prerequisite_waiver_fingerprint || null;
+  const eligible = await currentEligibility(runDir, {
+    allowIncompleteDelivery: Boolean(fingerprint) || !requireComplete,
+  });
+  if (fingerprint) {
+    if (!record?.prerequisite_waiver) throw new Error("STALE: plan-bound delivery prerequisite waiver is missing");
+    validatePrerequisiteWaiverForEligibility(record.prerequisite_waiver, fingerprint, eligible);
+  }
+  return eligible;
 }
 
 function defaultRecord(runVersion) {
@@ -98,6 +176,7 @@ function defaultRecord(runVersion) {
     authorization: null,
     attempts: {},
     reviews: {},
+    prerequisite_waiver: null,
   };
 }
 
@@ -149,8 +228,30 @@ function attemptValue(auth, item, plan) {
 }
 
 /** Return a recommendation without creating lazy refinement directories. */
-export async function recommendRefinement({ runDir, slides = null, profile = null, profileFingerprint = null } = {}) {
-  const eligible = await currentEligibility(runDir);
+export async function recommendRefinement({
+  runDir,
+  slides = null,
+  profile = null,
+  profileFingerprint = null,
+  force = false,
+  reason = null,
+  prerequisiteWaiver = null,
+} = {}) {
+  const eligible = await currentEligibility(runDir, {
+    allowIncompleteDelivery: force === true || prerequisiteWaiver !== null,
+  });
+  let waiver = null;
+  let forceNotNeeded = false;
+  if (prerequisiteWaiver !== null) {
+    const fingerprint = prerequisiteWaiverFingerprint(prerequisiteWaiver);
+    waiver = validatePrerequisiteWaiverForEligibility(prerequisiteWaiver, fingerprint, eligible);
+  } else if (force === true && !eligible.delivery_complete) {
+    waiver = await createPrerequisiteWaiver(eligible, reason);
+  } else if (force === true) {
+    const { normalizeHumanReason } = await import("../../shared/state/html_review_evidence.mjs");
+    normalizeHumanReason(reason);
+    forceNotNeeded = true;
+  }
   const p3 = await phase3();
   const { plan: htmlPlan } = p3.validateAndBuildHtmlFirstPlan({ runDir: eligible.run });
   const sourceSlides = htmlPlan.slides.filter((slide) => slide.primary_visual && slide.geometry?.boxes?.primary_visual).map((slide) => ({ slide_id: slide.slide_id, slot: "primary_visual", visual_contract_fingerprint: slide.visual_contract_fingerprint }));
@@ -172,8 +273,16 @@ export async function recommendRefinement({ runDir, slides = null, profile = nul
     marked_html_first: true,
     delivery_review: "proceed",
     slides: selected,
+    prerequisite_waiver_fingerprint: waiver ? prerequisiteWaiverFingerprint(waiver) : null,
   });
-  return Object.freeze({ recommendation: true, eligible_slides: sourceSlides, plan, expected_attempts: plan.total_attempts });
+  return Object.freeze({
+    recommendation: true,
+    eligible_slides: sourceSlides,
+    plan,
+    expected_attempts: plan.total_attempts,
+    prerequisite_waiver: waiver,
+    force_not_needed: forceNotNeeded,
+  });
 }
 
 /** Build and persist one exact plan after recommendation has been accepted. */
@@ -196,8 +305,17 @@ export async function createRefinementPlan(input = {}) {
   ensureRefinementDerivedRoots(input.runDir);
   const planPath = refinementPaths(input.runDir).plan;
   writeRefinementPlan(input.runDir, recommendation.plan, { expectedSha256: readVersionFileSha(planPath) });
-  updateRecord(input.runDir, (record) => ({ ...record, plan: recommendation.plan, authorization: null, attempts: {}, reviews: {} }));
-  return recommendation.plan;
+  updateRecord(input.runDir, () => ({
+    ...defaultRecord(recommendation.plan.run_version),
+    plan: recommendation.plan,
+    prerequisite_waiver: recommendation.prerequisite_waiver,
+  }));
+  const result = { ...recommendation.plan };
+  Object.defineProperty(result, "force_not_needed", {
+    value: recommendation.force_not_needed,
+    enumerable: false,
+  });
+  return Object.freeze(result);
 }
 
 export function planRefinement(input) {
@@ -208,8 +326,8 @@ export function planRefinement(input) {
 }
 
 export async function authorizeRefinement({ runDir, plan = null, planHash = null, authorizationId = null } = {}) {
-  const eligible = await currentEligibility(runDir);
-  const stored = readRefinementPlan(eligible.run);
+  const { record: existingRecord } = readRecord(runDir);
+  const stored = readRefinementPlan(runDir);
   if (!stored) throw new Error("refinement plan is missing; run image2 plan first");
   const storedExact = buildPlan(stored);
   if (stored.plan_hash !== storedExact.plan_hash) throw new Error("STALE: persisted refinement plan is not canonical; obtain a fresh plan");
@@ -217,10 +335,18 @@ export async function authorizeRefinement({ runDir, plan = null, planHash = null
   if (plan && (plan.plan_hash !== storedExact.plan_hash || canonicalJson(plan) !== canonicalJson(stored))) {
     throw new Error("STALE: supplied plan is not the exact persisted recommendation");
   }
+  if (!existingRecord.plan || existingRecord.plan.plan_hash !== storedExact.plan_hash) {
+    throw new Error("STALE: authoritative refinement state does not bind the persisted plan");
+  }
   const exact = storedExact;
-  const current = await recommendRefinement({ runDir: eligible.run, slides: exact.slides, profileFingerprint: exact.profile_fingerprint });
+  const eligible = await currentEligibilityForRecord(runDir, existingRecord, { requireComplete: true });
+  const current = await recommendRefinement({
+    runDir: eligible.run,
+    slides: exact.slides,
+    profileFingerprint: exact.profile_fingerprint,
+    prerequisiteWaiver: exact.prerequisite_waiver_fingerprint ? existingRecord.prerequisite_waiver : null,
+  });
   if (current.plan.plan_hash !== exact.plan_hash) throw new Error("STALE: current HTML delivery/profile/visual binding differs from the plan");
-  const existingRecord = readRecord(eligible.run).record;
   if (existingRecord.authorization) throw new Error("CONFLICT: refinement authorization is single-use; create a fresh plan before another authorization");
   const authorization = authorizePlan(exact, authorizationId || undefined);
   const attempts = Object.fromEntries(authorization.attempts.map((item) => {
@@ -320,8 +446,8 @@ async function promoteStyleReferenceResult({ runDir, runVersion, record, attempt
 }
 
 export async function generateRefinement({ runDir, attemptId = null, transport, adapter = null } = {}) {
-  const eligible = await currentEligibility(runDir);
-  const { record } = readRecord(eligible.run);
+  const { record } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, record);
   if (!record.plan || !record.authorization) throw new Error("refinement authorization is required before generation");
   const attempt = findAttempt(record, attemptId);
   if (!attempt) throw new Error("attempt is missing or already terminal");
@@ -390,8 +516,8 @@ export async function generateRefinement({ runDir, attemptId = null, transport, 
 }
 
 export async function reconcileRefinementAttempt({ runDir, attemptId, transport, adapter = null } = {}) {
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
-  const { record } = readRecord(eligible.run);
+  const { record } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, record);
   const attempt = findAttempt(record, attemptId);
   if (!attempt || !["submitting", "unknown-submit"].includes(attempt.state)) throw new Error("only submitting or unknown-submit attempts can be reconciled");
   const tx = transport || adapter;
@@ -443,8 +569,8 @@ export async function reconcileRefinementAttempt({ runDir, attemptId, transport,
 
 export async function resolveUnknownSubmit({ runDir, attemptId, decision, candidateId = null } = {}) {
   validateUnknownSubmitDecision(decision);
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
-  const { record } = readRecord(eligible.run);
+  const { record } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, record);
   const attempt = findAttempt(record, attemptId);
   if (!attempt || attempt.state !== "unknown-submit") throw new Error("unknown-submit attempt is missing or already resolved");
   let next;
@@ -461,7 +587,8 @@ export async function resolveUnknownSubmit({ runDir, attemptId, decision, candid
 }
 
 export async function composeCandidateReview({ runDir, candidateId, compose = null } = {}) {
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
+  const { record: storedRecord } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, storedRecord);
   const candidate = readCandidate(eligible.run, candidateId);
   if (!candidate) throw new Error("candidate is missing");
   const metadata = candidate.metadata;
@@ -489,8 +616,8 @@ export async function composeCandidateReview({ runDir, candidateId, compose = nu
 }
 
 export async function useHtmlRefinement({ runDir, slideId, candidateId } = {}) {
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
-  const { record } = readRecord(eligible.run);
+  const { record } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, record);
   const prior = record.reviews?.[slideId];
   if (!prior || !prior.comparison_sha256 || (candidateId && prior.candidate_id !== candidateId)) throw new Error("current candidate review is required");
   const candidate = readCandidate(eligible.run, prior.candidate_id);
@@ -502,9 +629,9 @@ export async function useHtmlRefinement({ runDir, slideId, candidateId } = {}) {
 }
 
 export async function acceptRefinementCandidate({ runDir, slideId, candidateId, stateUpdatedAt = nowIso(), localRecompose = null } = {}) {
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
+  const { state, record } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, record);
   assertPromotionFencesClear(eligible.run);
-  const { state, record } = readRecord(eligible.run);
   const review = record.reviews?.[slideId];
   if (!review || !review.comparison_sha256 || review.candidate_id !== candidateId || review.decision !== "pending") throw new Error("candidate must have a current pending review before accept");
   const candidate = readCandidate(eligible.run, candidateId);
@@ -546,7 +673,8 @@ function parseProvenance(path) {
 }
 
 export async function cleanupRefinementEvidence({ runDir, expectedReviewSha256 = null, dryRun = false } = {}) {
-  await currentEligibility(runDir, { allowRefinementStale: true });
+  const { record } = readRecord(runDir);
+  await currentEligibilityForRecord(runDir, record);
   return cleanupRefinement(runDir, { expectedReviewSha256, dryRun });
 }
 
@@ -597,10 +725,11 @@ export async function enterRefinementController({ runDir } = {}) {
 }
 
 export async function completeRefinementController({ runDir } = {}) {
-  const eligible = await currentEligibility(runDir, { allowRefinementStale: true });
+  const { record: storedRecord } = readRecord(runDir);
+  const eligible = await currentEligibilityForRecord(runDir, storedRecord);
   const root = deckRoot(eligible.run);
   const state = readState(root, { purpose: "execute", heal: false });
-  const record = readRecord(eligible.run).record;
+  const record = storedRecord;
   const reviews = Object.values(record.reviews || {});
   const selectedIds = new Set(record.plan?.slides?.map((slide) => slide.slide_id) || []);
   const reviewedIds = new Set(reviews.map((review) => review.slide_id));

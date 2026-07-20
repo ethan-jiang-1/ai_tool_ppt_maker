@@ -26,7 +26,10 @@ import {
   statePath,
   writeState,
 } from '../state.mjs';
-import { buildHtmlReviewPlan } from '../../../contracts/html_review_projection.mjs';
+import {
+  buildHtmlReviewPlan,
+  htmlReviewCurrentProjectionV1,
+} from '../../../contracts/html_review_projection.mjs';
 import {
   assemblyReceiptPath,
   notesReceiptPath,
@@ -41,9 +44,14 @@ const GATES = new Set(['content', 'visual']);
 const DECISIONS = new Set(['proceed', 'repair', 'redirect']);
 const JOURNAL_SCHEMA = 'pptmaker-html-gate-approval-journal-v1';
 const RESET_SCHEMA = 'pptmaker-html-production-reset-v1';
-const GATE_SCHEMA = 'pptmaker-html-gate-review-v1';
-const DELIVERY_SCHEMA = 'pptmaker-html-delivery-review-v1';
+const GATE_SCHEMA_V1 = 'pptmaker-html-gate-review-v1';
+const GATE_SCHEMA_V2 = 'pptmaker-html-gate-review-v2';
+const DELIVERY_SCHEMA_V1 = 'pptmaker-html-delivery-review-v1';
+const DELIVERY_SCHEMA_V2 = 'pptmaker-html-delivery-review-v2';
 const JOURNAL_FILE = 'gate-approval-journal.json';
+const WAIVED_CHECK_CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
+const WAIVED_CHECK_SUBJECT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const WAIVED_CHECK_SUBJECT_KINDS = new Set(['gate', 'slide', 'recipe', 'artifact', 'receipt']);
 export const GATE_JOURNAL_AUTO_RECOVERY_MIN_AGE_MS = 60_000;
 export const GATE_JOURNAL_EXPLICIT_RECOVERY_MIN_AGE_MS = 300_000;
 export const RESET_AUTO_RECOVERY_MIN_AGE_MS = 60_000;
@@ -75,6 +83,7 @@ function versionContext(trusted) {
     versionKey: `3_versions/${runVersion}`,
     stateFile: statePath(root),
     metadataFile: trusted.metadataFile,
+    canonicalPptxPath: trusted.canonicalPptxPath,
     journalFile: join(root, '_state', JOURNAL_FILE),
     htmlProductionRoot: trusted.htmlProductionRoot,
     htmlOwnerRoot: trusted.htmlOwnerRoot,
@@ -87,9 +96,97 @@ function loadCurrentHtmlPlan(runDir, planPath) {
   return parseHtmlSourceAstV1({ sourceBytes: readFileSync(sourcePath), planBytes: readFileSync(planPath) }).plan;
 }
 
+function rawVersionRecord(state, id, context) {
+  return state?.nodes?.[id]?.by_version?.[context.versionKey] || null;
+}
+
 function versionRecord(state, id, context) {
-  const record = state?.nodes?.[id]?.by_version?.[context.versionKey] || null;
+  const record = rawVersionRecord(state, id, context);
   return record?.run_version === context.runVersion ? record : null;
+}
+
+function canonicalWaivedChecks(value) {
+  if (!Array.isArray(value) || value.length > 64) return null;
+  const checks = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || Object.keys(entry).length !== 2 || !Object.hasOwn(entry, 'code') || !Object.hasOwn(entry, 'subject') || !WAIVED_CHECK_CODE_RE.test(entry.code || '')) return null;
+    let subject = null;
+    if (entry.subject !== null) {
+      if (!entry.subject || typeof entry.subject !== 'object' || Array.isArray(entry.subject) || Object.keys(entry.subject).length !== 2 || !WAIVED_CHECK_SUBJECT_KINDS.has(entry.subject.kind) || !WAIVED_CHECK_SUBJECT_ID_RE.test(entry.subject.id || '')) return null;
+      subject = { kind: entry.subject.kind, id: entry.subject.id };
+    }
+    checks.push({ code: entry.code, subject });
+  }
+  const sorted = checks.sort((left, right) => {
+    const leftKey = `${left.code}\u0000${left.subject?.kind || ''}\u0000${left.subject?.id || ''}`;
+    const rightKey = `${right.code}\u0000${right.subject?.kind || ''}\u0000${right.subject?.id || ''}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  if (sorted.some((entry, index) => index > 0 && canonicalJsonSha256(entry) === canonicalJsonSha256(sorted[index - 1]))) return null;
+  return Object.freeze(sorted.map((entry) => Object.freeze({ code: entry.code, subject: entry.subject ? Object.freeze(entry.subject) : null })));
+}
+
+function waivedCheck(code, subject = null) {
+  return { code, subject };
+}
+
+function boundedWaivedChecksFromPlan(gate, planResult) {
+  const checks = [];
+  for (const outstanding of planResult?.plan?.outstanding || []) {
+    const [prefix, subject] = String(outstanding).split(':', 2);
+    if (['effective', 'forced-fallback'].includes(prefix) && WAIVED_CHECK_SUBJECT_ID_RE.test(subject || '')) {
+      checks.push(waivedCheck('shown_artifact_missing', { kind: 'slide', id: subject }));
+    } else if (prefix === 'incomplete-final-slide-set') {
+      checks.push(waivedCheck('composition_incomplete', { kind: 'gate', id: gate }));
+    } else {
+      checks.push(waivedCheck('review_evidence_incomplete', { kind: 'gate', id: gate }));
+    }
+  }
+  for (const item of planResult?.mismatches || []) {
+    const subject = item.slide_id && WAIVED_CHECK_SUBJECT_ID_RE.test(item.slide_id)
+      ? { kind: 'slide', id: item.slide_id }
+      : { kind: 'gate', id: gate };
+    checks.push(waivedCheck(item.path?.startsWith('shown_artifacts') ? 'artifact_currentness' : 'review_projection_stale', subject));
+  }
+  if (!checks.length) checks.push(waivedCheck('review_evidence_incomplete', { kind: 'gate', id: gate }));
+  const normalized = canonicalWaivedChecks(checks);
+  if (!normalized) throw new Error('failed to construct bounded waiver checks');
+  return normalized;
+}
+
+function gateRecordEvidenceKeys(gate) {
+  return gate === 'content'
+    ? ['content_review_fingerprint', 'ordered_plan_digest']
+    : ['visual_system_fingerprint', 'component_recipe_coverage', 'page_visual_dependencies', 'shown_artifacts'];
+}
+
+function normalizeGateRecord(record, gate, context) {
+  if (!record || typeof record !== 'object' || Array.isArray(record) || record.gate !== gate || record.pipeline !== HTML_FIRST_PIPELINE || record.run_version !== context.runVersion || record.html_production_reset_id === undefined || !['approved', 'waived'].includes(record.status)) return null;
+  const common = ['schema', 'gate', 'pipeline', 'run_version', 'status', 'waiver_reason', 'review_plan_hash', 'html_production_reset_id'];
+  const audit = gateRecordEvidenceKeys(gate);
+  if (record.schema === GATE_SCHEMA_V1) {
+    const keys = [...common, ...audit, 'decided_at'];
+    if (!exactKeys(record, keys) || (record.status === 'approved' ? record.waiver_reason !== null : typeof record.waiver_reason !== 'string' || !record.waiver_reason) || !SHA_RE.test(record.review_plan_hash || '')) return null;
+    return Object.freeze({ record, schema: 1, evidence_complete: true, waived_checks: Object.freeze([]) });
+  }
+  if (record.schema !== GATE_SCHEMA_V2) return null;
+  const keys = [...common, 'evidence_complete', 'waived_checks', ...audit, 'decided_at'];
+  const checks = canonicalWaivedChecks(record.waived_checks);
+  if (!checks) return null;
+  const invalidApproved = record.status === 'approved' && (
+    record.waiver_reason !== null ||
+    record.evidence_complete !== true ||
+    checks.length !== 0 ||
+    !SHA_RE.test(record.review_plan_hash || '')
+  );
+  const invalidWaived = record.status === 'waived' && (
+    typeof record.waiver_reason !== 'string' ||
+    !record.waiver_reason ||
+    (record.evidence_complete === false && checks.length === 0) ||
+    (record.review_plan_hash !== null && !SHA_RE.test(record.review_plan_hash || ''))
+  );
+  if (!exactKeys(record, keys) || typeof record.evidence_complete !== 'boolean' || invalidApproved || invalidWaived) return null;
+  return Object.freeze({ record, schema: 2, evidence_complete: record.evidence_complete, waived_checks: checks });
 }
 
 function validResetRecord(record, context) {
@@ -123,34 +220,184 @@ function readStateSnapshot(context, { purpose = 'observe', heal = true } = {}) {
   return { state, bytes, sha256: sha256(bytes) };
 }
 
-function readCurrentPlan(ownerRoot, reference, expectedKind, currentPlan, expectedResetId, expectedVersion) {
-  if (!reference) return { valid: false, reason: 'missing current review plan', plan: null };
-  if (typeof reference.path !== 'string' || !reference.path.startsWith('plans/')) return { valid: false, reason: 'review plan path is invalid', plan: null };
+function mismatchSummary(value) {
+  if (value == null) return 'null';
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'number') return Number.isFinite(value) ? 'number' : 'non-finite';
+  if (typeof value === 'string') return SHA_RE.test(value) ? `sha256:${value.slice(0, 12)}` : 'string';
+  if (Array.isArray(value)) return `array:${value.length}`;
+  return typeof value === 'object' ? `object:${Object.keys(value).length}` : typeof value;
+}
+
+function mismatch(path, expected, actual, { kind = 'gate', slideId = null, recipeKey = null } = {}) {
+  return Object.freeze({
+    path,
+    kind,
+    expected: mismatchSummary(expected),
+    actual: mismatchSummary(actual),
+    ...(slideId ? { slide_id: slideId } : {}),
+    ...(recipeKey ? { recipe_key: recipeKey } : {}),
+    next_action: 'rerun_local_review',
+  });
+}
+
+function invalidPlan(reason, plan = null, mismatches = []) {
+  return { valid: false, reason, plan, mismatches: Object.freeze(mismatches) };
+}
+
+function resolveConfinedRunArtifact(context, value, field, ownerKind) {
+  if (typeof value !== 'string' || !value || value.includes('\\') || value.startsWith('/') || value.split('/').some((part) => !part || part === '.' || part === '..')) {
+    throw new Error(`${field} is not a confined relative path`);
+  }
+  const ownerRoot = resolve(context.htmlOwnerRoot(ownerKind));
+  const path = [resolve(context.run, ...value.split('/')), resolve(ownerRoot, ...value.split('/'))].find((candidate) => {
+    const local = relative(ownerRoot, candidate).split(sep).join('/');
+    return local.startsWith('objects/');
+  });
+  if (!path) throw new Error(`${field} is outside its HTML owner`);
+  const stat = lstatSync(path);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${field} is not a regular owner object`);
+  return path;
+}
+
+function resolveVisualComposition(context, reviewPlan) {
+  if (!Array.isArray(reviewPlan.shown_artifacts)) {
+    return { valid: false, composition: null, mismatches: [mismatch('shown_artifacts', 'array', reviewPlan.shown_artifacts)] };
+  }
+  const entries = [];
+  const mismatches = [];
+  for (const entry of reviewPlan.shown_artifacts) {
+    const slideId = typeof entry?.slide_id === 'string' ? entry.slide_id : null;
+    const variant = entry?.composition_variant;
+    if (!slideId || !['effective', 'forced-fallback'].includes(variant)) {
+      mismatches.push(mismatch('shown_artifacts[]', 'slide_id + composition_variant', entry, { kind: 'slide', slideId }));
+      continue;
+    }
+    for (const [field, declared, ownerKind] of [
+      ['path', entry.path, 'final-slides'],
+      ['page_path', entry.page_path, 'html-pages'],
+    ]) {
+      const declaredSha = field === 'path' ? entry.sha256 : entry.page_sha256;
+      if (field === 'page_path' && declared === null && declaredSha === null) continue;
+      if (!SHA_RE.test(declaredSha || '')) {
+        mismatches.push(mismatch(`shown_artifacts.${field}.sha256`, 'sha256', declaredSha, { kind: 'artifact', slideId }));
+        continue;
+      }
+      let path;
+      try { path = resolveConfinedRunArtifact(context, declared, `shown_artifacts.${field}`, ownerKind); }
+      catch { mismatches.push(mismatch(`shown_artifacts.${field}`, 'confined path', declared, { kind: 'artifact', slideId })); continue; }
+      if (!existsSync(path)) {
+        mismatches.push(mismatch(`shown_artifacts.${field}`, 'present file', null, { kind: 'artifact', slideId }));
+        continue;
+      }
+      const actualSha = sha256(readFileSync(path));
+      if (actualSha !== declaredSha) {
+        mismatches.push(mismatch(`shown_artifacts.${field}.sha256`, declaredSha, actualSha, { kind: 'artifact', slideId }));
+      }
+    }
+    entries.push({
+      slide_id: slideId,
+      composition_variant: variant,
+      png_sha256: entry.sha256,
+      html_sha256: entry.page_sha256,
+      review_object_path: entry.path,
+      review_page_object_path: entry.page_path,
+    });
+  }
+  return { valid: mismatches.length === 0, composition: { final_slides: entries }, mismatches };
+}
+
+function reviewProjectionMismatches(actual, expected) {
+  const mismatches = [];
+  const keys = [...new Set([...Object.keys(actual), ...Object.keys(expected)])].sort();
+  for (const key of keys) {
+    if (canonicalJsonSha256(actual[key]) !== canonicalJsonSha256(expected[key])) {
+      mismatches.push(mismatch(`review_projection.${key}`, expected[key], actual[key]));
+    }
+  }
+  return mismatches;
+}
+
+function readCurrentPlan(context, ownerRoot, reference, expectedKind, currentPlan, expectedResetId, expectedVersion, { requireComplete = true } = {}) {
+  if (!reference) return invalidPlan('missing current review plan');
+  if (typeof reference.path !== 'string' || !reference.path.startsWith('plans/') || reference.path.includes('\\') || reference.path.split('/').some((part) => !part || part === '.' || part === '..')) {
+    return invalidPlan('review plan path is invalid');
+  }
   const path = join(ownerRoot, ...reference.path.split('/'));
-  if (!existsSync(path)) return { valid: false, reason: 'current review plan bytes are missing', plan: null };
+  if (!existsSync(path)) return invalidPlan('current review plan bytes are missing');
   let plan;
-  try { plan = JSON.parse(readFileSync(path, 'utf8')); } catch { return { valid: false, reason: 'current review plan JSON is invalid', plan: null }; }
+  try { plan = JSON.parse(readFileSync(path, 'utf8')); } catch { return invalidPlan('current review plan JSON is invalid'); }
   const { plan_hash: planHash, ...hashBody } = plan;
   if (plan.schema !== 'pptmaker-html-review-plan-v1' || plan.kind !== expectedKind ||
       planHash !== canonicalJsonSha256(hashBody) || planHash !== basename(reference.path, '.json') ||
       plan.pipeline !== HTML_FIRST_PIPELINE || plan.publication_scope !== 'canonical-run' ||
       plan.html_production_reset_id !== expectedResetId || plan.logical_run_version !== expectedVersion) {
-    return { valid: false, reason: 'current review plan hash/schema/scope/reset is invalid', plan };
+    return invalidPlan('current review plan hash/schema/scope/reset is invalid', plan);
   }
+  const compositionResult = expectedKind === 'visual'
+    ? resolveVisualComposition(context, plan)
+    : { valid: true, composition: null, mismatches: [] };
+  if (!compositionResult.valid) return invalidPlan('shown composition evidence is missing or stale', plan, compositionResult.mismatches);
   const expected = buildHtmlReviewPlan({
     plan: currentPlan,
+    composition: compositionResult.composition,
     kind: expectedKind,
     publicationScope: 'canonical-run',
     htmlProductionResetId: expectedResetId,
     logicalRunVersion: expectedVersion,
+    compositionVariant: plan.composition_variant,
   });
-  const projectionCurrent = expectedKind === 'content'
-    ? plan.content_fingerprint === expected.content_fingerprint && plan.ordered_plan_digest === currentPlan.ordered_plan_digest
-    : plan.visual_system_fingerprint === expected.visual_system_fingerprint &&
-      canonicalJsonSha256(plan.page_visual_dependencies) === canonicalJsonSha256(expected.page_visual_dependencies);
-  if (!projectionCurrent) return { valid: false, reason: 'current review plan inputs are stale', plan };
-  if (plan.approvable !== true || !Array.isArray(plan.outstanding) || plan.outstanding.length !== 0) return { valid: false, reason: 'current review plan is incomplete', plan };
-  return { valid: true, reason: 'current', plan, path };
+  const projectionMismatches = reviewProjectionMismatches(
+    htmlReviewCurrentProjectionV1(plan),
+    htmlReviewCurrentProjectionV1(expected),
+  );
+  if (projectionMismatches.length) return invalidPlan('current review plan inputs are stale', plan, projectionMismatches);
+  const evidenceComplete = plan.approvable === true && Array.isArray(plan.outstanding) && plan.outstanding.length === 0;
+  if (requireComplete && !evidenceComplete) return invalidPlan('current review plan is incomplete', plan, [mismatch('approvable', true, plan.approvable)]);
+  return { valid: true, reason: evidenceComplete ? 'current' : 'current-incomplete', plan, path, composition: compositionResult.composition, evidence_complete: evidenceComplete, mismatches: Object.freeze([]) };
+}
+
+function resolveCurrentReviewInputs(context, trustedContext, snapshot, gate, { reference = null, requireComplete = true } = {}) {
+  if (!GATES.has(gate)) throw new TypeError('current review input gate is invalid');
+  const reset = currentReset(snapshot.state, context);
+  const currentPlan = loadCurrentHtmlPlan(context.run, trustedContext.planPath);
+  const ownerRoot = context.htmlOwnerRoot('preview');
+  const previewManifest = readHtmlPreviewManifest(ownerRoot, {
+    publicationScope: 'canonical-run',
+    htmlProductionResetId: reset.id,
+    logicalRunVersion: context.runVersion,
+  });
+  const planReference = reference || previewManifest?.manifest.review_plans?.[gate] || null;
+  const planResult = readCurrentPlan(context, ownerRoot, planReference, gate, currentPlan, reset.id, context.runVersion, { requireComplete });
+  return Object.freeze({ reset, currentPlan, ownerRoot, previewManifest, planReference, planResult });
+}
+
+function currentGateAudit(currentPlan, gate, resetId, runVersion) {
+  return buildHtmlReviewPlan({
+    plan: currentPlan,
+    kind: gate,
+    publicationScope: 'canonical-run',
+    htmlProductionResetId: resetId,
+    logicalRunVersion: runVersion,
+  });
+}
+
+function gateAuditMatches(record, audit, gate) {
+  if (gate === 'content') {
+    return record.content_review_fingerprint === audit.content_fingerprint &&
+      record.ordered_plan_digest === audit.ordered_plan_digest;
+  }
+  return record.visual_system_fingerprint === audit.visual_system_fingerprint &&
+    canonicalJsonSha256(record.page_visual_dependencies) === canonicalJsonSha256(audit.page_visual_dependencies);
+}
+
+function gateRecordCurrent(normalized, approvedPlan, currentPlan, gate, resetId, runVersion) {
+  if (!normalized || normalized.record.html_production_reset_id !== resetId) return false;
+  if (normalized.record.status === 'approved' || normalized.evidence_complete) {
+    return Boolean(approvedPlan?.valid && gateAuditMatches(normalized.record, currentGateAudit(currentPlan, gate, resetId, runVersion), gate));
+  }
+  return normalized.record.status === 'waived' &&
+    gateAuditMatches(normalized.record, currentGateAudit(currentPlan, gate, resetId, runVersion), gate);
 }
 
 function metadataBytes(context) {
@@ -263,57 +510,119 @@ function publicReset(reset, { now = Date.now() } = {}) {
 }
 
 function deliveryEvidence(context, resetId, currentPlan) {
+  const checks = [];
+  const evidence = {
+    valid: false,
+    reviewable: false,
+    evidence_complete: false,
+    html_delivery_digest: null,
+    contact_sheet_manifest_path: null,
+    contact_sheet_manifest_sha256: null,
+    contact_sheet_path: null,
+    contact_sheet_sha256: null,
+    assembly_receipt_path: null,
+    assembly_receipt_sha256: null,
+    pptx_path: null,
+    pptx_sha256: null,
+    notes_receipt_path: null,
+    notes_receipt_sha256: null,
+  };
+  let finalSlides;
   try {
-    const finalSlides = resolveHtmlFinalSlideArtifacts({ runDir: context.run, ownerRoot: context.htmlOwnerRoot('final-slides'), plan: currentPlan, htmlProductionResetId: resetId });
-    const previewRoot = context.htmlOwnerRoot('preview');
-    const preview = readHtmlPreviewManifest(previewRoot, { publicationScope: 'canonical-run', htmlProductionResetId: resetId, logicalRunVersion: context.runVersion });
-    const contact = preview?.manifest?.contact_sheets?.delivery;
-    if (!contact || contact.owner_digest !== finalSlides.html_delivery_digest) throw new Error('current HTML delivery contact sheet is missing or stale');
-    const assembly = validatePptxAssemblyReceipt(context.run, { requireCurrentPptx: false, expectedOrderedIds: currentPlan.slides.map((slide) => slide.slide_id) });
-    if (!assembly.valid || assembly.receipt.schema_version !== 2 || assembly.receipt.pipeline !== HTML_FIRST_PIPELINE ||
-        assembly.receipt.html_production_reset_id !== resetId || assembly.receipt.html_delivery_digest !== finalSlides.html_delivery_digest) {
-      throw new Error(assembly.reason || 'HTML assembly-v2 lineage is stale');
+    finalSlides = resolveHtmlFinalSlideArtifacts({ runDir: context.run, ownerRoot: context.htmlOwnerRoot('final-slides'), plan: currentPlan, htmlProductionResetId: resetId });
+    evidence.html_delivery_digest = finalSlides.html_delivery_digest;
+  } catch {
+    checks.push(waivedCheck('final_slide_lineage_missing', { kind: 'artifact', id: 'final-slides' }));
+  }
+  if (finalSlides) {
+    try {
+      const previewRoot = context.htmlOwnerRoot('preview');
+      const preview = readHtmlPreviewManifest(previewRoot, { publicationScope: 'canonical-run', htmlProductionResetId: resetId, logicalRunVersion: context.runVersion });
+      const contact = preview?.manifest?.contact_sheets?.delivery;
+      if (!contact || contact.owner_digest !== finalSlides.html_delivery_digest) throw new Error('delivery contact does not match current final slides');
+      const contactPath = join(previewRoot, ...contact.path.split('/'));
+      evidence.contact_sheet_manifest_path = relativePath(context.run, preview.path);
+      evidence.contact_sheet_manifest_sha256 = preview.sha256;
+      evidence.contact_sheet_path = relativePath(context.run, contactPath);
+      evidence.contact_sheet_sha256 = contact.sha256;
+    } catch {
+      checks.push(waivedCheck('delivery_contact_sheet_missing', { kind: 'artifact', id: 'delivery-contact-sheet' }));
     }
-    const notes = validateNotesCompletionReceipt(context.run);
-    if (!notes.valid || notes.receipt.schema_version !== 3 || notes.receipt.pipeline !== HTML_FIRST_PIPELINE ||
-        notes.receipt.html_production_reset_id !== resetId || notes.receipt.html_delivery_digest !== finalSlides.html_delivery_digest) {
-      throw new Error(notes.reason || 'HTML notes-v3 lineage is stale');
+  }
+  const orderedIds = currentPlan.slides.map((slide) => slide.slide_id);
+  const assemblyLineage = validatePptxAssemblyReceipt(context.run, { requireCurrentPptx: false, expectedOrderedIds: orderedIds });
+  const assemblyCurrent = validatePptxAssemblyReceipt(context.run, { requireCurrentPptx: true, expectedOrderedIds: orderedIds });
+  const assemblyMatches = assemblyLineage.valid && assemblyLineage.receipt.schema_version === 2 && assemblyLineage.receipt.pipeline === HTML_FIRST_PIPELINE &&
+    assemblyLineage.receipt.html_production_reset_id === resetId && assemblyLineage.receipt.html_delivery_digest === evidence.html_delivery_digest;
+  if (assemblyMatches) {
+    evidence.assembly_receipt_path = relativePath(context.run, assemblyReceiptPath(context.run));
+    evidence.assembly_receipt_sha256 = sha256File(assemblyReceiptPath(context.run));
+    if (assemblyCurrent.valid) {
+      evidence.pptx_path = relativePath(context.run, assemblyCurrent.pptxPath);
+      evidence.pptx_sha256 = sha256File(assemblyCurrent.pptxPath);
     }
-    const contactPath = join(previewRoot, ...contact.path.split('/'));
-    return {
-      valid: true,
-      html_delivery_digest: finalSlides.html_delivery_digest,
-      contact_sheet_manifest_path: relativePath(context.run, preview.path),
-      contact_sheet_manifest_sha256: preview.sha256,
-      contact_sheet_path: relativePath(context.run, contactPath),
-      contact_sheet_sha256: contact.sha256,
-      assembly_receipt_path: relativePath(context.run, assemblyReceiptPath(context.run)),
-      assembly_receipt_sha256: sha256File(assemblyReceiptPath(context.run)),
-      pptx_sha256: notes.receipt.pptx_sha256,
-      notes_receipt_path: relativePath(context.run, notesReceiptPath(context.run)),
-      notes_receipt_sha256: sha256File(notesReceiptPath(context.run)),
-    };
-  } catch (error) { return { valid: false, reason: error.message }; }
+  } else {
+    checks.push(waivedCheck('assembly_lineage_missing', { kind: 'receipt', id: 'assembly-v2' }));
+  }
+  const notes = validateNotesCompletionReceipt(context.run);
+  const notesMatches = notes.valid && notes.receipt.schema_version === 3 && notes.receipt.pipeline === HTML_FIRST_PIPELINE &&
+    notes.receipt.html_production_reset_id === resetId && notes.receipt.html_delivery_digest === evidence.html_delivery_digest;
+  if (notesMatches) {
+    evidence.notes_receipt_path = relativePath(context.run, notesReceiptPath(context.run));
+    evidence.notes_receipt_sha256 = sha256File(notesReceiptPath(context.run));
+    evidence.pptx_path = relativePath(context.run, notes.pptxPath);
+    evidence.pptx_sha256 = notes.receipt.pptx_sha256;
+  } else {
+    checks.push(waivedCheck('notes_lineage_missing', { kind: 'receipt', id: 'notes-v3' }));
+  }
+  if (!evidence.pptx_path && typeof context.canonicalPptxPath === 'string' && existsSync(context.canonicalPptxPath)) {
+    evidence.pptx_path = relativePath(context.run, context.canonicalPptxPath);
+    evidence.pptx_sha256 = sha256File(context.canonicalPptxPath);
+  }
+  evidence.reviewable = Boolean(evidence.html_delivery_digest && evidence.contact_sheet_path && evidence.contact_sheet_sha256 && evidence.pptx_path && evidence.pptx_sha256);
+  evidence.evidence_complete = Boolean(evidence.reviewable && evidence.assembly_receipt_path && evidence.assembly_receipt_sha256 && evidence.notes_receipt_path && evidence.notes_receipt_sha256);
+  evidence.valid = evidence.evidence_complete;
+  evidence.waived_checks = evidence.evidence_complete ? Object.freeze([]) : (canonicalWaivedChecks(checks) || Object.freeze([waivedCheck('delivery_lineage_incomplete', { kind: 'gate', id: 'delivery' })]));
+  evidence.reason = evidence.evidence_complete ? 'current' : evidence.reviewable ? 'delivery lineage is incomplete' : 'reviewable delivery artifacts are missing or stale';
+  return evidence;
 }
 
-function deliveryRecordCurrent(record, evidence, resetId, context) {
-  if (!record || !evidence.valid) return false;
-  const fixed = ['schema', 'pipeline', 'run_version', 'html_production_reset_id', 'html_delivery_digest',
+function normalizeDeliveryRecord(record, resetId, context) {
+  if (!record || typeof record !== 'object' || Array.isArray(record) || record.pipeline !== HTML_FIRST_PIPELINE || record.run_version !== context.runVersion || record.html_production_reset_id !== resetId || !DECISIONS.has(record.decision)) return null;
+  const v1 = ['schema', 'pipeline', 'run_version', 'html_production_reset_id', 'html_delivery_digest',
     'contact_sheet_manifest_path', 'contact_sheet_manifest_sha256', 'contact_sheet_path', 'contact_sheet_sha256',
     'assembly_receipt_path', 'assembly_receipt_sha256', 'pptx_sha256', 'notes_receipt_path',
     'notes_receipt_sha256', 'decision', 'reason', 'decided_at'];
-  return exactKeys(record, fixed) && record.schema === DELIVERY_SCHEMA && record.pipeline === HTML_FIRST_PIPELINE &&
-    record.run_version === context.runVersion && record.html_production_reset_id === resetId &&
-    DECISIONS.has(record.decision) && ((record.decision === 'proceed' && record.reason === null) ||
-      (record.decision !== 'proceed' && typeof record.reason === 'string' && record.reason)) &&
-    fixed.filter((key) => key.endsWith('_sha256') || key === 'html_delivery_digest').every((key) => record[key] === evidence[key]) &&
-    record.contact_sheet_manifest_path === evidence.contact_sheet_manifest_path && record.contact_sheet_path === evidence.contact_sheet_path &&
-    record.assembly_receipt_path === evidence.assembly_receipt_path && record.notes_receipt_path === evidence.notes_receipt_path;
+  if (record.schema === DELIVERY_SCHEMA_V1) {
+    if (!exactKeys(record, v1) || (record.decision === 'proceed' ? record.reason !== null : typeof record.reason !== 'string' || !record.reason)) return null;
+    return Object.freeze({ record, schema: 1, evidence_complete: true, waived_checks: Object.freeze([]) });
+  }
+  const v2 = [...v1, 'pptx_path', 'evidence_complete', 'waived_checks'];
+  const checks = canonicalWaivedChecks(record.waived_checks);
+  if (!checks) return null;
+  if (record.schema !== DELIVERY_SCHEMA_V2 || !exactKeys(record, v2) || typeof record.evidence_complete !== 'boolean' ||
+      ((record.decision === 'repair' || record.decision === 'redirect') && (typeof record.reason !== 'string' || !record.reason || !record.evidence_complete)) ||
+      (record.decision === 'proceed' && ((record.reason !== null && (typeof record.reason !== 'string' || !record.reason)) || (!record.evidence_complete && (typeof record.reason !== 'string' || !record.reason || checks.length === 0)))) ||
+      (record.evidence_complete && checks.length !== 0) || !record.pptx_path || !SHA_RE.test(record.pptx_sha256 || '')) return null;
+  return Object.freeze({ record, schema: 2, evidence_complete: record.evidence_complete, waived_checks: checks });
+}
+
+function deliveryRecordCurrent(normalized, evidence) {
+  if (!normalized) return false;
+  const record = normalized.record;
+  const always = ['html_delivery_digest', 'contact_sheet_manifest_path', 'contact_sheet_manifest_sha256', 'contact_sheet_path', 'contact_sheet_sha256', 'pptx_path', 'pptx_sha256'];
+  if (!evidence.reviewable || always.some((key) => record[key] !== evidence[key])) return false;
+  if (normalized.evidence_complete) {
+    return evidence.evidence_complete && ['assembly_receipt_path', 'assembly_receipt_sha256', 'notes_receipt_path', 'notes_receipt_sha256'].every((key) => record[key] === evidence[key]);
+  }
+  return record.decision === 'proceed' && ['assembly_receipt_path', 'assembly_receipt_sha256', 'notes_receipt_path', 'notes_receipt_sha256'].every((key) => record[key] === null || record[key] === evidence[key]);
 }
 
 export function normalizeHumanReason(reason) {
-  const value = String(reason ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!value || Buffer.byteLength(value, 'utf8') > 1024) throw new Error('human reason must be non-empty and at most 1024 UTF-8 bytes');
+  const value = String(reason ?? '').replace(/\r\n?/g, '\n').trim();
+  if (!value) throw new Error('human reason must be non-empty');
+  if (/[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) throw new Error('human reason contains a forbidden control character');
+  if (Buffer.byteLength(value, 'utf8') > 1024) throw new Error('human reason exceeds 1024 UTF-8 bytes');
   return value;
 }
 
@@ -326,9 +635,9 @@ export function inspectHtmlReviewReadiness(trustedContext) {
     pipeline: HTML_FIRST_PIPELINE,
     run_version: context.runVersion,
     state_present: true,
-    content: { decision: 'pending', freshness: 'missing', review_required: true },
-    visual: { decision: 'pending', freshness: 'missing', outstanding_recipe_keys: [], outstanding_slide_ids: [] },
-    delivery: { freshness: 'missing', decision: null, reason_present: false },
+    content: { decision: 'pending', freshness: 'missing', review_required: true, evidence_complete: null, waived_checks: [] },
+    visual: { decision: 'pending', freshness: 'missing', outstanding_recipe_keys: [], outstanding_slide_ids: [], evidence_complete: null, waived_checks: [] },
+    delivery: { freshness: 'missing', decision: null, reason_present: false, evidence_complete: null, waived_checks: [] },
     reset: publicReset(reset),
     journal: publicJournal(journal),
   };
@@ -337,44 +646,65 @@ export function inspectHtmlReviewReadiness(trustedContext) {
   let previewManifest = null;
   if (reset.status !== 'deletion_pending') {
     try {
-      currentPlan = loadCurrentHtmlPlan(context.run, trustedContext.planPath);
-      const ownerRoot = context.htmlOwnerRoot('preview');
-      previewManifest = readHtmlPreviewManifest(ownerRoot, { publicationScope: 'canonical-run', htmlProductionResetId: reset.id, logicalRunVersion: context.runVersion });
+      const inputs = {};
       for (const gate of GATES) {
-        const planResult = readCurrentPlan(ownerRoot, previewManifest?.manifest.review_plans?.[gate], gate, currentPlan, reset.id, context.runVersion);
-        const record = versionRecord(snapshot.state, `html-${gate}-review`, context);
+        const input = resolveCurrentReviewInputs(context, trustedContext, snapshot, gate);
+        inputs[gate] = input;
+        currentPlan ||= input.currentPlan;
+        previewManifest ||= input.previewManifest;
+        const planResult = input.planResult;
+        const rawRecord = rawVersionRecord(snapshot.state, `html-${gate}-review`, context);
+        const normalizedRecord = normalizeGateRecord(rawRecord, gate, context);
+        const record = normalizedRecord?.record || null;
         const approvedPlan = SHA_RE.test(record?.review_plan_hash || '')
-          ? readCurrentPlan(ownerRoot, { path: `plans/${record.review_plan_hash}.json` }, gate, currentPlan, reset.id, context.runVersion)
+          ? resolveCurrentReviewInputs(context, trustedContext, snapshot, gate, {
+            reference: { path: `plans/${record.review_plan_hash}.json` },
+          }).planResult
           : { valid: false };
-        const recordCurrent = Boolean(record && record.schema === GATE_SCHEMA && record.gate === gate && record.pipeline === HTML_FIRST_PIPELINE &&
-          record.run_version === context.runVersion && record.html_production_reset_id === reset.id && ['approved', 'waived'].includes(record.status) && approvedPlan.valid);
-        gates[gate] = Object.freeze({ ready: recordCurrent, plan: planResult.plan, plan_reason: planResult.reason, record: recordCurrent ? record : null });
+        const recordCurrent = gateRecordCurrent(normalizedRecord, approvedPlan, input.currentPlan, gate, reset.id, context.runVersion);
+        gates[gate] = Object.freeze({
+          ready: recordCurrent,
+          plan: planResult.plan,
+          plan_reason: planResult.reason,
+          mismatches: planResult.mismatches || [],
+          record: recordCurrent ? record : null,
+        });
         publicView[gate].decision = record?.status === 'approved' || record?.status === 'waived' ? record.status : 'pending';
-        publicView[gate].freshness = recordCurrent ? 'current' : record ? 'stale' : planResult.plan ? 'missing' : 'missing';
+        publicView[gate].freshness = recordCurrent ? 'current' : rawRecord ? (normalizedRecord ? 'stale' : 'invalid') : planResult.plan ? 'missing' : 'missing';
+        publicView[gate].evidence_complete = normalizedRecord?.schema === 1 && !recordCurrent
+          ? null
+          : normalizedRecord?.evidence_complete ?? null;
+        publicView[gate].waived_checks = normalizedRecord?.record.status === 'waived' ? [...normalizedRecord.waived_checks] : [];
       }
       publicView.content.review_required = publicView.content.freshness !== 'current';
-      const outstanding = previewManifest?.manifest.review_plans?.visual
-        ? readCurrentPlan(ownerRoot, previewManifest.manifest.review_plans.visual, 'visual', currentPlan, reset.id, context.runVersion).plan?.outstanding || []
-        : [];
+      const outstanding = inputs.visual?.planResult.plan?.outstanding || [];
       publicView.visual.outstanding_recipe_keys = [...new Set(outstanding.filter((item) => SHA_RE.test(item)))].sort();
       publicView.visual.outstanding_slide_ids = [...new Set(outstanding.map((item) => String(item).split(':').at(-1)).filter((item) => currentPlan.slides.some((slide) => slide.slide_id === item)))].sort();
       const evidence = deliveryEvidence(context, reset.id, currentPlan);
-      const deliveryRecord = versionRecord(snapshot.state, 'html-delivery-review', context);
-      const deliveryCurrent = deliveryRecordCurrent(deliveryRecord, evidence, reset.id, context);
+      const rawDeliveryRecord = rawVersionRecord(snapshot.state, 'html-delivery-review', context);
+      const normalizedDeliveryRecord = normalizeDeliveryRecord(rawDeliveryRecord, reset.id, context);
+      const deliveryRecord = normalizedDeliveryRecord?.record || null;
+      const deliveryCurrent = deliveryRecordCurrent(normalizedDeliveryRecord, evidence);
       publicView.delivery = {
-        freshness: deliveryCurrent ? 'current' : deliveryRecord ? 'stale' : evidence.valid ? 'missing' : 'missing',
+        freshness: deliveryCurrent ? 'current' : rawDeliveryRecord ? (normalizedDeliveryRecord ? 'stale' : 'invalid') : evidence.reviewable ? 'missing' : 'missing',
         decision: deliveryRecord && DECISIONS.has(deliveryRecord.decision) ? deliveryRecord.decision : null,
         reason_present: Boolean(deliveryRecord?.reason),
+        evidence_complete: normalizedDeliveryRecord?.schema === 1 && !deliveryCurrent
+          ? null
+          : normalizedDeliveryRecord?.evidence_complete ?? null,
+        waived_checks: deliveryRecord?.decision === 'proceed' && !normalizedDeliveryRecord?.evidence_complete ? [...normalizedDeliveryRecord.waived_checks] : [],
       };
       Object.defineProperty(publicView, '_delivery_evidence', { value: evidence, enumerable: false });
     } catch (error) {
       Object.defineProperty(publicView, '_inspection_error', { value: error.message, enumerable: false });
-      const deliveryRecord = versionRecord(snapshot.state, 'html-delivery-review', context);
+      const deliveryRecord = rawVersionRecord(snapshot.state, 'html-delivery-review', context);
       if (deliveryRecord) {
         publicView.delivery = {
           freshness: 'stale',
           decision: DECISIONS.has(deliveryRecord.decision) ? deliveryRecord.decision : null,
           reason_present: Boolean(deliveryRecord.reason),
+          evidence_complete: null,
+          waived_checks: [],
         };
       }
     }
@@ -432,19 +762,37 @@ export function recoverHtmlGatePublication(trustedContext, { confirmedOwnerToken
 }
 
 export function publishHtmlGateDecision(trustedContext, { gate, planHash, status, waiverReason = null } = {}) {
-  if (!GATES.has(gate) || !SHA_RE.test(planHash || '') || !['approved', 'waived'].includes(status)) throw new TypeError('invalid HTML gate decision');
+  if (!GATES.has(gate) || !['approved', 'waived'].includes(status) ||
+      (planHash != null && !SHA_RE.test(planHash))) throw new TypeError('invalid HTML gate decision');
   const reason = status === 'waived' ? normalizeHumanReason(waiverReason) : null;
-  if (status === 'approved' && waiverReason != null) throw new Error('approved HTML gate cannot carry a waiver reason');
+  if (status === 'approved' && (waiverReason != null || !SHA_RE.test(planHash || ''))) throw new Error('approved HTML gate requires an exact plan hash and no waiver reason');
   const context = versionContext(trustedContext);
   recoverHtmlGatePublication(trustedContext);
   const snapshot = readStateSnapshot(context, { purpose: 'execute', heal: true });
   const reset = currentReset(snapshot.state, context);
   if (reset.status === 'deletion_pending') throw new Error('CONFLICT: HTML production reset is deletion_pending');
-  const currentPlan = loadCurrentHtmlPlan(context.run, trustedContext.planPath);
-  const ownerRoot = context.htmlOwnerRoot('preview');
-  const manifest = readHtmlPreviewManifest(ownerRoot, { publicationScope: 'canonical-run', htmlProductionResetId: reset.id, logicalRunVersion: context.runVersion });
-  const planResult = readCurrentPlan(ownerRoot, manifest?.manifest.review_plans?.[gate], gate, currentPlan, reset.id, context.runVersion);
-  if (!planResult.valid || planResult.plan.plan_hash !== planHash) throw new Error(`HTML ${gate} review plan is missing, stale, or incomplete`);
+  const existingRecord = rawVersionRecord(snapshot.state, `html-${gate}-review`, context);
+  if (existingRecord && !normalizeGateRecord(existingRecord, gate, context)) {
+    throw new Error(`current HTML ${gate} review record is invalid or ambiguous`);
+  }
+  const inputs = resolveCurrentReviewInputs(context, trustedContext, snapshot, gate, { requireComplete: status === 'approved' });
+  const planResult = inputs.planResult;
+  if (status === 'approved' && (!planResult.valid || planResult.plan.plan_hash !== planHash)) {
+    throw new Error(`HTML ${gate} review plan is missing, stale, or incomplete`);
+  }
+  if (status === 'waived' && planHash != null && (!planResult.valid || planResult.plan?.plan_hash !== planHash)) {
+    throw new Error(`HTML ${gate} supplied waiver plan hash is missing, stale, or mismatched`);
+  }
+  const evidenceComplete = status === 'approved' || (planResult.valid && planResult.evidence_complete === true);
+  const waivedChecks = status === 'waived'
+    ? (evidenceComplete ? Object.freeze([]) : boundedWaivedChecksFromPlan(gate, planResult))
+    : Object.freeze([]);
+  const audit = planResult.plan || currentGateAudit(inputs.currentPlan, gate, reset.id, context.runVersion);
+  const reviewPlanHash = status === 'approved'
+    ? planHash
+    : evidenceComplete
+      ? planResult.plan?.plan_hash || null
+      : planHash || null;
   const decidedAt = nowIso();
   const nextState = structuredClone(snapshot.state);
   delete nextState.durable_state_present;
@@ -454,22 +802,24 @@ export function publishHtmlGateDecision(trustedContext, { gate, planHash, status
   const id = `html-${gate}-review`;
   const existing = nextState.nodes[id]?.by_version || {};
   nextState.nodes[id] = { by_version: { ...existing, [context.versionKey]: {
-    schema: GATE_SCHEMA,
+    schema: GATE_SCHEMA_V2,
     gate,
     pipeline: HTML_FIRST_PIPELINE,
     run_version: context.runVersion,
     status,
     waiver_reason: reason,
-    review_plan_hash: planHash,
+    review_plan_hash: reviewPlanHash,
     html_production_reset_id: reset.id,
+    evidence_complete: evidenceComplete,
+    waived_checks: [...waivedChecks],
     ...(gate === 'content' ? {
-      content_review_fingerprint: planResult.plan.content_fingerprint,
-      ordered_plan_digest: planResult.plan.ordered_plan_digest,
+      content_review_fingerprint: audit.content_fingerprint,
+      ordered_plan_digest: audit.ordered_plan_digest,
     } : {
-      visual_system_fingerprint: planResult.plan.visual_system_fingerprint,
-      component_recipe_coverage: planResult.plan.coverage,
-      page_visual_dependencies: planResult.plan.page_visual_dependencies,
-      shown_artifacts: planResult.plan.shown_artifacts,
+      visual_system_fingerprint: audit.visual_system_fingerprint,
+      component_recipe_coverage: audit.coverage,
+      page_visual_dependencies: audit.page_visual_dependencies,
+      shown_artifacts: audit.shown_artifacts,
     }),
     decided_at: decidedAt,
   } } };
@@ -502,21 +852,29 @@ export function publishHtmlGateDecision(trustedContext, { gate, planHash, status
     writeMetadataCas(context, newMetadata, sha256(oldMetadata));
     removeJournal(context, journalBytes);
   } catch (error) { throw error; }
-  return Object.freeze({ gate, status, review_plan_hash: planHash, run_version: context.runVersion, html_production_reset_id: reset.id });
+  return Object.freeze({ gate, status, review_plan_hash: reviewPlanHash, run_version: context.runVersion, html_production_reset_id: reset.id, evidence_complete: evidenceComplete, waived_checks: waivedChecks });
 }
 
-export function publishHtmlDeliveryDecision(trustedContext, { decision, reason = null } = {}) {
+export function publishHtmlDeliveryDecision(trustedContext, { decision, reason = null, force = false } = {}) {
   if (!DECISIONS.has(decision)) throw new TypeError('delivery decision must be proceed, repair, or redirect');
-  const normalizedReason = decision === 'proceed' ? null : normalizeHumanReason(reason);
-  if (decision === 'proceed' && reason != null) throw new Error('proceed delivery decision cannot carry a reason');
+  if (typeof force !== 'boolean' || (force && decision !== 'proceed')) throw new Error('force is only valid for a proceed delivery decision');
+  const normalizedReason = decision === 'proceed'
+    ? (force ? normalizeHumanReason(reason) : null)
+    : normalizeHumanReason(reason);
+  if (decision === 'proceed' && !force && reason != null) throw new Error('proceed delivery decision cannot carry a reason without force');
   const context = versionContext(trustedContext);
   if (readJournal(context)) throw new Error('CONFLICT: gate approval journal fences delivery review');
   const snapshot = readStateSnapshot(context, { purpose: 'execute', heal: true });
   const reset = currentReset(snapshot.state, context);
   if (reset.status === 'deletion_pending') throw new Error('CONFLICT: HTML production reset is deletion_pending');
+  const existingRecord = rawVersionRecord(snapshot.state, 'html-delivery-review', context);
+  if (existingRecord && !normalizeDeliveryRecord(existingRecord, reset.id, context)) {
+    throw new Error('current HTML delivery review record is invalid or ambiguous');
+  }
   const currentPlan = loadCurrentHtmlPlan(context.run, trustedContext.planPath);
   const evidence = deliveryEvidence(context, reset.id, currentPlan);
-  if (!evidence.valid) throw new Error(`HTML delivery evidence is missing or stale: ${evidence.reason}`);
+  if ((decision !== 'proceed' || !force) && !evidence.valid) throw new Error(`HTML delivery evidence is missing or stale: ${evidence.reason}`);
+  if (force && !evidence.reviewable) throw new Error(`HTML delivery reviewable artifacts are missing or stale: ${evidence.reason}`);
   const index = buildPlaybookIndex(resolve(dirname(new URL(import.meta.url).pathname), '..', '..', '..', '..', 'playbook'));
   const declaration = resolveNode(index, snapshot.state.playbook, snapshot.state.current_node);
   if (!declaration || !declaration.decisions.includes(decision)) throw new Error('current controller node does not declare this delivery decision');
@@ -527,16 +885,27 @@ export function publishHtmlDeliveryDecision(trustedContext, { decision, reason =
   delete nextState.durable_state_present;
   const prior = nextState.nodes?.['html-delivery-review']?.by_version || {};
   const deliveryRecord = {
-    schema: DELIVERY_SCHEMA,
+    schema: DELIVERY_SCHEMA_V2,
     pipeline: HTML_FIRST_PIPELINE,
     run_version: context.runVersion,
     html_production_reset_id: reset.id,
-    ...evidence,
+    html_delivery_digest: evidence.html_delivery_digest,
+    contact_sheet_manifest_path: evidence.contact_sheet_manifest_path,
+    contact_sheet_manifest_sha256: evidence.contact_sheet_manifest_sha256,
+    contact_sheet_path: evidence.contact_sheet_path,
+    contact_sheet_sha256: evidence.contact_sheet_sha256,
+    assembly_receipt_path: evidence.assembly_receipt_path,
+    assembly_receipt_sha256: evidence.assembly_receipt_sha256,
+    pptx_path: evidence.pptx_path,
+    pptx_sha256: evidence.pptx_sha256,
+    notes_receipt_path: evidence.notes_receipt_path,
+    notes_receipt_sha256: evidence.notes_receipt_sha256,
     decision,
     reason: normalizedReason,
+    evidence_complete: evidence.evidence_complete,
+    waived_checks: force && !evidence.evidence_complete ? [...evidence.waived_checks] : [],
     decided_at: decidedAt,
   };
-  delete deliveryRecord.valid;
   nextState.nodes ||= {};
   nextState.nodes['html-delivery-review'] = { by_version: { ...prior, [context.versionKey]: deliveryRecord } };
   nextState.nodes[nextState.current_node] = {
@@ -560,7 +929,13 @@ export function publishHtmlDeliveryDecision(trustedContext, { decision, reason =
     nextState.nodes[nextState.current_node].waiting_for = 'user:select-redirect-target';
   }
   writeState(context.root, nextState, { expectedStateSha: snapshot.sha256, updatedAt: decidedAt });
-  return Object.freeze({ decision, run_version: context.runVersion, freshness: 'current' });
+  return Object.freeze({
+    decision,
+    run_version: context.runVersion,
+    freshness: 'current',
+    evidence_complete: deliveryRecord.evidence_complete,
+    waived_checks: Object.freeze([...deliveryRecord.waived_checks]),
+  });
 }
 
 function hasCurrentAuthority(context, state, resetId) {

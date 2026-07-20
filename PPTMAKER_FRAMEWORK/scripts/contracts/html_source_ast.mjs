@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
+import { projectHtmlSlideBodyV1 } from "./html_review_projection.mjs";
 
 export const HTML_SOURCE_AST_SCHEMA = "pptmaker-html-source-ast-v1";
 export const HTML_SLIDE_PLAN_SCHEMA = "pptmaker-html-slide-plan-v1";
@@ -43,8 +44,7 @@ export function parseHtmlSourceAstV1({ sourceBytes, planBytes }) {
     const structured = parse(yaml);
     if (!structured || typeof structured !== "object" || Array.isArray(structured)) throw new Error(`current HTML source body is invalid for ${slideId}`);
     const family = structured.family;
-    const body = Object.fromEntries(Object.entries(structured).filter(([key]) => !["schema_version", "family", "callout", "primary_visual"].includes(key)));
-    if (family === "data" && body.chart?.legend === "auto") body.chart = { ...body.chart, legend: (body.chart.series || []).length > 1 ? "show" : "hide" };
+    const body = projectHtmlSlideBodyV1(structured);
     return {
       ...plan.slides[index],
       position: index + 1,

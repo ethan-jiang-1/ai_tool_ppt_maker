@@ -147,6 +147,8 @@ pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，�
 
 Gate 被触发时，必须给 MD Controller 三样东西：① 什么变了（具体到 slide id + 字段）；② 可执行命令（MD 直接跑）；③ 默认路径（不确定时怎么办）。能在代码层自动修的（格式、fingerprint 清理）直接修好继续。必须人来判断的（视觉质量、标题措辞）给候选 + 推荐。永远不让用户面对一堵墙。
 
+每个 gate 还必须明确其结果：`guide` 是可安全自动修复的建议；`confirm` 是可逆的质量或流程风险，先给推荐修复，再由人以简短原因选择显式 continuation；`hard-stop` 保护 version/reset/plan identity、state/byte/path integrity、并发 writer、provider authorization 或 recoverability。hard-stop 不提供强制绕过。continuation 写入当前版本的 `waived` 决定，永远不是 `approved`，也不代表 evidence complete。完整规则见 `openspec/policies/human-centered-gates.md`。
+
 ---
 
 ## 一页速查：统一入口

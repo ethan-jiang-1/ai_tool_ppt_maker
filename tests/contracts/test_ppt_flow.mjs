@@ -14,7 +14,8 @@ import {
   generationProfile,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
-import { IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
+import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
+import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
@@ -193,6 +194,26 @@ describe("ppt_flow", () => {
     delete missing.promotion_recovery;
     const broken = { ...PPT_FLOW_RETURN_AUDIT, commands: { ...PPT_FLOW_RETURN_AUDIT.commands, image2: missing } };
     expect(validateCliReturnAudit(broken, PPT_FLOW_COMMAND_INVENTORY)).toMatchObject({ valid: false, errors: [expect.stringMatching(/promotion_recovery/)] });
+
+    expect(CONTINUATION_RETURN_CASES).toMatchObject({
+      approve: expect.arrayContaining(["normal_approval", "guide_current_review_required", "waiver_incomplete_evidence", "conflict_plan_identity", "secret_safe_diagnostic"]),
+      build: expect.arrayContaining(["normal_current_evidence", "guide_repair_recommended", "waiver_force", "conflict_journal_or_reset", "secret_safe_diagnostic"]),
+      state_validate: expect.arrayContaining(["normal_read_only_validation", "guide_safe_repair", "conflict_invalid_authority", "secret_safe_diagnostic"]),
+      delivery_review: expect.arrayContaining(["normal_proceed", "guide_rebuild_lineage", "waiver_forced_proceed", "conflict_review_identity", "secret_safe_diagnostic"]),
+      image2_plan: expect.arrayContaining(["normal_offline_plan", "guide_delivery_repair", "waiver_force_prerequisite", "conflict_delivery_identity", "secret_safe_diagnostic"]),
+      image2_generate: expect.arrayContaining(["normal_authorized_submit", "guide_credentials_required", "conflict_request_or_attempt_identity", "secret_safe_diagnostic"]),
+      image2_unknown_submit: expect.arrayContaining(["normal_retain_or_abandon", "guide_reconciliation_required", "conflict_persisted_attempt_identity", "secret_safe_diagnostic"]),
+    });
+    const missingContinuation = {
+      ...PPT_FLOW_RETURN_AUDIT,
+      commands: {
+        ...PPT_FLOW_RETURN_AUDIT.commands,
+        continuations: { ...PPT_FLOW_RETURN_AUDIT.commands.continuations, build: ["normal_current_evidence"] },
+      },
+    };
+    const invalidAudit = validateCliReturnAudit(missingContinuation, PPT_FLOW_COMMAND_INVENTORY);
+    expect(invalidAudit.valid).toBe(false);
+    expect(invalidAudit.errors).toContain("build is missing waiver_force continuation return case");
   });
 
   it("rejects markerless Image2 before creating modern state", () => {
@@ -275,6 +296,232 @@ playbook_stack: []
     expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
     expect(j.suggested_next).toContain("user:review-style-master");
   });
+
+  it("state --validate-state is read-only and reports canonical version-key drift", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-state-validate-");
+    try {
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const validBefore = readFileSync(statePath);
+      const valid = runPptFlow(["state", fixture.runDir, "--validate-state"]);
+      expect(valid.status, valid.stderr).toBe(0);
+      expect(JSON.parse(valid.stdout)).toMatchObject({ operation: "validate-state", valid: true, issues: [] });
+      expect(readFileSync(statePath)).toEqual(validBefore);
+
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      const records = state.nodes["html-delivery-review"].by_version;
+      records.v1 = records["3_versions/v1"];
+      delete records["3_versions/v1"];
+      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+      writeState(fixture.deck, state);
+      const invalidBefore = readFileSync(statePath);
+      const invalid = runPptFlow(["state", fixture.runDir, "--validate-state"]);
+      expect(invalid.status).toBe(1);
+      const report = JSON.parse(invalid.stdout);
+      expect(report).toMatchObject({ operation: "validate-state", valid: false });
+      expect(report.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: "nodes.html-delivery-review.by_version.v1", expected: "canonical 3_versions/vN key" }),
+      ]));
+      expect(parseFailureEnvelope(invalid.stderr)).toMatchObject({ code: "STATE_CORRUPTED" });
+      expect(readFileSync(statePath)).toEqual(invalidBefore);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120000);
+
+  it("state --validate-state reports bounded delivery SHA differences without mutating state", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-state-validate-delivery-");
+    try {
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      const delivery = state.nodes["html-delivery-review"].by_version["3_versions/v1"];
+      delivery.contact_sheet_sha256 = "f".repeat(64);
+      delivery.run_version = "v2";
+      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+      writeState(fixture.deck, state);
+      const before = readFileSync(statePath);
+
+      const result = runPptFlow(["state", fixture.runDir, "--validate-state"]);
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(report).toMatchObject({ operation: "validate-state", valid: false });
+      expect(report.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          path: "nodes.html-delivery-review.by_version.3_versions/v1.contact_sheet_path_sha256",
+          expected: "sha256:ffffffffffff",
+          kind: "reference",
+        }),
+        expect.objectContaining({
+          path: "nodes.html-delivery-review.by_version.3_versions/v1.run_version",
+          expected: "v1",
+          actual: "v2",
+          kind: "record",
+        }),
+      ]));
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120000);
+
+  it("state --validate-state reports malformed YAML shapes instead of healing them", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-state-validate-shape-");
+    try {
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const malformed = Buffer.from("schema_version: 3\nnodes: null\ngates: null\n", "utf8");
+      writeFileSync(statePath, malformed);
+
+      const result = runPptFlow(["state", fixture.runDir, "--validate-state"]);
+      expect(result.status).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(report).toMatchObject({ operation: "validate-state", valid: false });
+      expect(report.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: "state", kind: "state" }),
+      ]));
+      expect(readFileSync(statePath)).toEqual(malformed);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120000);
+
+  it("HTML approve requires an exact hash and permits a reasoned waiver without one", async () => {
+    const fixture = createHtmlFirstRun("ppt-approve-html-");
+    try {
+      const { stage1 } = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs");
+      const renderer = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs");
+      const review = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs");
+      await stage1(fixture.runDir, false);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const initialState = readFileSync(statePath);
+
+      const missingHash = runPptFlow(["approve", fixture.runDir, "content"]);
+      expect(missingHash.status).toBe(1);
+      expect(parseFailureEnvelope(missingHash.stderr).code).toBe("USAGE");
+      expect(readFileSync(statePath)).toEqual(initialState);
+
+      const wrongHash = runPptFlow(["approve", fixture.runDir, "content", "--plan-hash", "f".repeat(64)]);
+      expect(wrongHash.status).toBe(1);
+      expect(readFileSync(statePath)).toEqual(initialState);
+
+      const approved = runPptFlow(["approve", fixture.runDir, "content", "--plan-hash", pending.gates.content.plan.plan_hash]);
+      expect(approved.status, approved.stderr).toBe(0);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({ decision: "approved", freshness: "current", evidence_complete: true });
+
+      const beforeWaiver = readFileSync(statePath);
+      const missingReason = runPptFlow(["approve", fixture.runDir, "visual", "--waive"]);
+      expect(missingReason.status).toBe(1);
+      expect(parseFailureEnvelope(missingReason.stderr).code).toBe("USAGE");
+      expect(readFileSync(statePath)).toEqual(beforeWaiver);
+
+      const wrongWaiverHash = runPptFlow(["approve", fixture.runDir, "visual", "--waive", "--reason", "Use the current projection.", "--plan-hash", "e".repeat(64)]);
+      expect(wrongWaiverHash.status).toBe(1);
+      expect(readFileSync(statePath)).toEqual(beforeWaiver);
+
+      const waived = runPptFlow(["approve", fixture.runDir, "visual", "--waive", "--reason", "Use the current projection."]);
+      expect(waived.status, waived.stderr).toBe(0);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).visual).toMatchObject({ decision: "waived", freshness: "current", evidence_complete: true, waived_checks: [] });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 60000);
+
+  it("HTML build --force publishes only needed waivers and keeps dry-run read-only", async () => {
+    const fixture = createHtmlFirstRun("ppt-build-force-");
+    try {
+      const { stage1 } = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs");
+      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), htmlFirstSource([
+        htmlFirstSlide({ note: "A valid note keeps this continuation test focused on gate evidence." }),
+      ]));
+      await stage1(fixture.runDir, false);
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const beforeDryRun = readFileSync(statePath);
+
+      const missingReason = runPptFlow(["build", fixture.runDir, "--force"]);
+      expect(missingReason.status).toBe(1);
+      expect(parseFailureEnvelope(missingReason.stderr).code).toBe("USAGE");
+      expect(readFileSync(statePath)).toEqual(beforeDryRun);
+
+      const dryRun = runPptFlow(["build", fixture.runDir, "--force", "--reason", "Proceed with local delivery while review artifacts are rebuilt.", "--dry-run"]);
+      expect(dryRun.status, dryRun.stderr).toBe(0);
+      expect(JSON.parse(dryRun.stdout)).toMatchObject({ operation: "build", dry_run: true, force_not_needed: false, prospective_waivers: ["content", "visual"] });
+      expect(readFileSync(statePath)).toEqual(beforeDryRun);
+
+      const built = runPptFlow(["build", fixture.runDir, "--force", "--reason", "Proceed with local delivery while review artifacts are rebuilt."], { timeout: 60000 });
+      expect(built.status, built.stderr).toBe(0);
+      const waivedState = readState(fixture.deck, { purpose: "observe", heal: false });
+      expect(waivedState.nodes["html-content-review"].by_version["3_versions/v1"]).toMatchObject({ status: "waived", evidence_complete: false });
+      expect(waivedState.nodes["html-visual-review"].by_version["3_versions/v1"]).toMatchObject({ status: "waived", evidence_complete: false });
+      expect(existsSync(join(fixture.runDir, "_generated", "image2_refinement"))).toBe(false);
+
+      const gateBytes = Buffer.from(JSON.stringify({
+        content: waivedState.nodes["html-content-review"].by_version["3_versions/v1"],
+        visual: waivedState.nodes["html-visual-review"].by_version["3_versions/v1"],
+      }));
+      const unnecessary = runPptFlow(["build", fixture.runDir, "--force", "--reason", "A reason is still required when force is unnecessary."], { timeout: 60000 });
+      expect(unnecessary.status, unnecessary.stderr).toBe(0);
+      expect(unnecessary.stdout).toContain('"force_not_needed":true');
+      const after = readState(fixture.deck, { purpose: "observe", heal: false });
+      expect(Buffer.from(JSON.stringify({
+        content: after.nodes["html-content-review"].by_version["3_versions/v1"],
+        visual: after.nodes["html-visual-review"].by_version["3_versions/v1"],
+      }))).toEqual(gateBytes);
+
+      const partial = createHtmlFirstRun("ppt-build-force-partial-");
+      try {
+        await stage1(partial.runDir, false);
+        const partialState = readState(partial.deck, { purpose: "observe", heal: false });
+        partialState.nodes["html-visual-review"] = { by_version: { "3_versions/v1": { schema: "invalid" } } };
+        writeState(partial.deck, partialState);
+        const blocked = runPptFlow(["build", partial.runDir, "--force", "--reason", "Do not start assembly after a partial waiver."], { timeout: 30000 });
+        expect(blocked.status).toBe(1);
+        expect(existsSync(join(partial.runDir, "_generated", "ppt"))).toBe(false);
+      } finally { rmSync(partial.root, { recursive: true, force: true }); }
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 180000);
+
+  it("forced delivery review requires a reason and binds only reviewable current artifacts", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-delivery-force-cli-");
+    try {
+      const receiptPath = assemblyReceiptPath(fixture.runDir);
+      const assemblyReceipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+      assemblyReceipt.html_delivery_digest = "f".repeat(64);
+      writeFileSync(receiptPath, `${JSON.stringify(assemblyReceipt, null, 2)}\n`);
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const before = readFileSync(statePath);
+
+      const ordinary = runPptFlow(["state", fixture.runDir, "--record-delivery-review", "proceed"]);
+      expect(ordinary.status).toBe(1);
+      expect(parseFailureEnvelope(ordinary.stderr)).toMatchObject({ code: "FAILED" });
+      expect(readFileSync(statePath)).toEqual(before);
+
+      const missingReason = runPptFlow(["state", fixture.runDir, "--record-delivery-review", "proceed", "--force"]);
+      expect(missingReason.status).toBe(1);
+      expect(parseFailureEnvelope(missingReason.stderr)).toMatchObject({ code: "USAGE" });
+      expect(readFileSync(statePath)).toEqual(before);
+
+      const forced = runPptFlow([
+        "state", fixture.runDir, "--record-delivery-review", "proceed", "--force",
+        "--reason", "The current PPTX and contact sheet are reviewable while assembly lineage is rebuilt.",
+      ]);
+      expect(forced.status, forced.stderr).toBe(0);
+      expect(JSON.parse(forced.stdout)).toMatchObject({
+        operation: "record-delivery-review",
+        decision: "proceed",
+        freshness: "current",
+        evidence_complete: false,
+      });
+      const record = readState(fixture.deck, { purpose: "observe", heal: false })
+        .nodes["html-delivery-review"].by_version["3_versions/v1"];
+      expect(record).toMatchObject({
+        schema: "pptmaker-html-delivery-review-v2",
+        decision: "proceed",
+        evidence_complete: false,
+        assembly_receipt_path: null,
+      });
+      expect(record.waived_checks.length).toBeGreaterThan(0);
+
+      const invalidCombination = runPptFlow([
+        "state", fixture.runDir, "--record-delivery-review", "repair", "--force",
+        "--reason", "This combination is invalid.",
+      ]);
+      expect(invalidCombination.status).toBe(1);
+      expect(parseFailureEnvelope(invalidCombination.stderr)).toMatchObject({ code: "USAGE" });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120000);
 
   it("controller gate context reuses real validators and fails closed", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");
