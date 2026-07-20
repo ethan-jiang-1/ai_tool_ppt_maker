@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-17 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-21 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-（当前无活跃 plan）
+- [HTML-first 缺陷收敛与人本 Gate 宪法](html-first-recovery-change-plan.md) — 将 BUG-014～032 收敛为 3 个 OpenSpec change，并建立“引导优先、知情可继续、必要才硬阻止”的 Gate 政策
 
 **Next available plan ID: CLS-009**（移入 `_closed_plans/` 时分配；CLS-001…008 已用）
 

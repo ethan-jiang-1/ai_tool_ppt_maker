@@ -9,3 +9,8 @@ language: "slides：中文为主（英文仅专有名词与英文引语）；演
 one_thing_to_remember: "软件是先行样本，你的行业也在同一条信息加工链上——外面都变了，你打算怎么变？"
 content_gate: waived
 visual_gate: approved
+# HTML-first gates (active for v2)
+html_content_gate: waived
+html_content_gate_run_version: v2
+html_visual_gate: waived
+html_visual_gate_run_version: v2

@@ -45,7 +45,7 @@ render:
 
 ---
 
-## Slide Specifications（每页四层规格）
+## 每页四层规格（Slide Specifications）
 
 ---
 

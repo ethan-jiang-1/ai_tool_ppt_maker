@@ -1,6 +1,20 @@
 # deck_ai_sdlc_keynote — 迁移说明（人写 · 不在 `_generated/`）
 
-从旧框架布局迁入现行三层树（`1_upstream` / `2_backbone` / `3_versions/v1`）。
+## 2026-07-20: legacy-image2-first → html-first-v1 (v2)
+
+从 markerless Image2 pipeline 迁移到 html-first-v1。v1 保留为只读历史版本。
+
+- 创建 `3_versions/v2/` — 干净的 HTML-first target version
+- `slide-specifications.md` 重写：移除全部 IMAGE PROMPT，新增 mnemonic-v1 slide_id + 结构化 SLIDE BODY YAML（25 页）
+- `color_palette.json` 新增 `html_first` 段（palette/typography/spacing/components/image_language）
+- `_state/state.yaml` 重置为 html-first-v1 初始状态
+- `deck-guide.md` / `CLAUDE.md` / `project-metadata.yaml` 更新为 HTML-first 入口
+- `2_backbone/visual-style/assets/` 新建（空 v2 catalog）
+- `agent-portrayal.md` 从 `2_backbone/` 移至 `1_upstream_raw_material/`（不在 backbone 白名单内）
+- `.env.example` 更新（HTML-first 无需 provider credentials）
+- `ppt_flow validate 3_versions/v2` 通过（25 slides，完整 html-first-v1 合约）
+
+## 历史（2026-07-11 — v1 markerless → 三层树）
 
 ## 已对齐
 

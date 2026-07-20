@@ -9,3 +9,4 @@
 {"type":"state_healed","reason":"schema","at":"2026-07-12T08:37:29.229Z"}
 {"type":"header_review_approved","version":"3_versions/v1","ids":["s03_why_software_first","s04_one_tool_two_modes","s01_cover"],"fingerprint":"6e95900d55173ee65b445dce9890bbc715cd92bb3a1d4026b45702fe83383177","status":"completed","at":"2026-07-12T09:18:25.729Z"}
 {"type":"header_review_approved","version":"3_versions/v1","ids":["s07_deer_valley_engelberg"],"fingerprint":"1d871449d54faa453e6d18f21097a540733001451d14bd48fb9f063f47d6d3c8","status":"in_progress","at":"2026-07-12T15:18:54.021Z"}
+{"type":"state_healed","reason":"schema","at":"2026-07-20T15:49:11.555Z"}

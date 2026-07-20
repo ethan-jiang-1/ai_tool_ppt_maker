@@ -1,0 +1,15 @@
+# Image2 试通回执（proven lesson · 非密钥）
+# 规矩：只记"哪条通道通了/怎么通的"，密钥永远只在 .env。
+# 用途：下次进 deck 先读这里，别从零猜 endpoint。
+
+proven_at: 2026-07-11
+via: env            # 凭据来自 repo 根 .env（IMAGE2_API_KEY + IMAGE2_BASE_URL）
+model: gpt-image-2
+resolution_tested: 1k    # pilot 3 页用 1k 验证；全量正式建议 2k
+
+# 单通道（IMAGE2_BASE_URL）
+url: https://s.lconai.com/v1
+
+notes: |
+  - 每页出图 ~1-4 min（素描风 + style_master 参考）；22 页全量 2k 预计 ~1h 量级。
+  - style_master.jpg 已锁（custom-sketch-etching），Stage 2 每页都以它为画风参考。

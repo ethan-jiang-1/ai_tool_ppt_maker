@@ -1,70 +1,61 @@
-# deck_ai_sdlc_keynote — 这个 PPT 项目怎么用
+# ai_sdlc_keynote — PPT 项目指南
 
-> 当前版本：`v1`。先改源文件，再让管线重建；不要直接改 `_generated/`。
-> 本 deck 已从旧框架迁入现行三层树。迁移说明见 [MIGRATION.md](MIGRATION.md)。
-> 2026-07-12 已同步新版 render/provenance/header-review 数据契约；旧派生缓存已移入 `3_versions/v1/_scratch/framework-sync-2026-07-12/`，不再视为 current。
+> 当前 run version：`v2`。先改 source，再让管线重建；不要直接改 `_generated/`。
+>
+> 可见 `vN` + Structural Versioning Path 是 deck 工作版本权威。Git 只是可选、用户拥有的 source/control 审计；本框架不提供自动 Git source recovery，也不把 `_generated/` 当作恢复目标。
 
-## 你改哪里
+## 人类只需要知道这些
 
-- 每页内容：`3_versions/v1/slide-specifications.md`
-- 整体主线：`2_backbone/core-metaphor.md` + `2_backbone/core-formula.md`
-- 视觉主干：`2_backbone/visual-style/`
-- 原始材料：`1_upstream_raw_material/`
+| 想改什么 | Source owner |
+|---|---|
+| 每页标题、正文、layout family、notes | `3_versions/v2/slide-specifications.md` |
+| 主叙事、公式、设计约束 | `2_backbone/` |
+| palette、字体角色、组件规则、资产 | `2_backbone/visual-style/` |
+| 原始调研 | `1_upstream_raw_material/` |
 
-## 闸门（双写）
+跟 Agent 说"改第 5 页文案""把这页换成 comparison""新增风险页"即可。Agent 会把 position 解析为稳定 `slide_id`，选择最小本地刷新路径，并在结构变化前展示 before/after。
 
-用户确认内容/视觉后：
-
-1. **Pipeline gates**（Stage 2 检查）：`project-metadata.yaml` 的 `content_gate` / `visual_gate`
-2. **Playbook gates**：`_state/state.yaml` 的 `gates.content` / `gates.visual`
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 content
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 visual
-```
-
-**当前选择（迁移真相）：** content / visual 均为 **`waived`**（metadata 与 `_state` 已对齐）。交付物是迁移备份 + 部分重生，**不是**在现行 `iterate-style` 下重新 LOCK 的视觉。要当真锁定：open `style_master.jpg` → review-gate **LOCK** → `approve visual`。
-
-## 当前进度
-
-- **临时/备份（上严下松）：** `3_versions/v1/_scratch/` — slidespec `.bak` 等只放这里，禁止 deck 根
-- **断线 / 清聊天续跑：** 先跑下面 `state`（整流程 where-am-I：Summary + Next），再动手——进度在盘上，不在聊天
-- **Playbook / 闸门**：`ppt_flow state deck_ai_sdlc_keynote/3_versions/v1`
-  - 活跃：`iterate-style` @ `review-gate`（`waiting_for: user:review-style-master`）
-  - `2_backbone/visual-style/style_master.jpg` **在盘**
-  - migrate-import 已 handoff；清上下文后续跑，勿绿场重开
-  - 下一步人审：open style master → LOCK / RETRY / BACK
-- **管线产物**（`3_versions/v1/_generated/`；该目录 gitignore，以磁盘为准）：
-  - `slide_plan.json` + `page_prompts/` — 由当前框架重建（**25** 页）
-  - `page_images_full/` / `header_locked/` / `ppt/` — 已重新生成（25 页，2K，含 `_manifest.json` provenance + header-review evidence）
-  - 旧 25 张 raw/locked 图片、PPTX、contact sheets 与旧 prompts 已备份到版本 `_scratch/framework-sync-2026-07-12/`
-  - 详见 [MIGRATION.md](MIGRATION.md)
-
-## 新框架同步后的生产前置
-
-- 当前 25 张旧图混合 `1k`/`2k`，且没有 `_manifest.json`，不能被新版 Stage 2 当作可验证缓存复用。
-- 25 页 IMAGE PROMPT 已逐页清理：保留 body 文案/数据/构图，移除重复的结构化 KICKER/TITLE/SUBTITLE 及 header 位置指令；Stage 1 审计为 0 个 exact-text 重复。
-- 下一步仍先完成 `iterate-style` 的 style master review。LOCK 后直接用目标 production profile 跑 `pilot` → open review → `approve <run-dir> header` → `build --reuse-images`。
-
-## 自留教训（非进度）
-
-- `_lessons/`（先读再猜）。例：冒烟后写 `image2-proven.yaml`（无 key）。密钥只写 `.env`。
-
-## 从项目根目录运行
-
-依赖在 **repo 根** `npm install` 一次。
+## 看进度
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_ai_sdlc_keynote/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_ai_sdlc_keynote/3_versions/v1 --resolution 2k --force-images
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_versions/v1 header
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_ai_sdlc_keynote/3_versions/v1 --resolution 2k --reuse-images
-
-# Expert
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_ai_sdlc_keynote/3_versions/v1 --stage 1
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir deck_ai_sdlc_keynote/3_versions/v1 --stage 2 --resolution 2k --force-images
-node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --new-version deck_ai_sdlc_keynote/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
+  deck_ai_sdlc_keynote/3_versions/v2
 ```
 
-用户只需告诉 Agent 想改什么；Agent 负责选择最小重跑链。
+HTML-first 完整路径是 structured source → local HTML preview → content/visual review → contact sheet/PPTX/notes → final delivery review。它不需要 Image2 key 或 style master。完成交付后可显式选择 `04-image2-refinement` 做 2–4 页 visual-slot 精修；不选择就没有 Phase-4 欠账。
+
+v1 是 markerless 历史版本（`legacy-image2-first`），保留为只读参考。
+
+## Agent 控制流
+
+- `production.pipeline` 是最早分支权威。
+- HTML outputs 在 `_generated/html_production/`，QA lineage 在 `_generated/qa/`；全部可重建、不可手改。
+- Preview 可在 gates pending 时运行；Stage 4 必须有当前 reset-bound content/visual evidence。
+- Local Slide Rebuild：单页 header/body/family/fallback。
+- Local Deck Rebuild：visual config/runtime/renderer 影响全册。
+- Notes-Only Refresh：assembly lineage 当前时只跑 Stage 5。
+- Structural Versioning Path：preview + exact hash → source-only clean vNext → explicit target-local materialization。
+- HTML structural debt 是 `needs_local_materialization`；legacy remote debt 是 `needs_render`。
+- stable ID 只允许 byte matching，不继承 reset、gate、delivery review 或 node decision。
+
+## 常用命令
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate \
+  deck_ai_sdlc_keynote/3_versions/v2
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot \
+  deck_ai_sdlc_keynote/3_versions/v2
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build \
+  deck_ai_sdlc_keynote/3_versions/v2
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides list \
+  deck_ai_sdlc_keynote/3_versions/v2
+```
+
+CLI 非零退出时，只消费 stderr 最后一个有效 failure envelope。`requires_human: true` 必须停下取得决定；不要猜 path/hash/token，也不要手修 `_state`、journal、lock 或 `_generated/`。
+
+## 项目约定
+
+- 语言：slides 中文为主（英文仅专有名词与英文引语）；演讲中文（可切换英文）
+- 内容禁忌：无
+- 视觉禁忌：禁止 photography / 3D / stock / clip-art / blue / green / neon
+- 视觉 preset：custom（基于 warm-editorial，sketch/etching on cream paper）
