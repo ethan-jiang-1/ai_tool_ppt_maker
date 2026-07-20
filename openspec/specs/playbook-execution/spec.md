@@ -4,7 +4,7 @@ Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an
 ## Requirements
 ### Requirement: playbook/ directory contains the registered MD controllers
 
-`PPTMAKER_FRAMEWORK/playbook/` SHALL contain ten active ordered MD Controllers—`create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, `restructure-slides.md`, `iterate-style.md`, `quick-preview.md`, `migrate-import.md`, `probe-image-channels.md`, and `legacy-image2-maintenance.md`—plus shared node `classify-change.md`. `legacy-image2-maintenance` SHALL serve only markerless decks and SHALL use lifecycle Phase 5/module `05-iteration`; `probe-image-channels` remains an off-path Phase-0 diagnostic switch. Change 3 SHALL NOT register `image2-refine` or any modern Phase-4 controller/node.
+`PPTMAKER_FRAMEWORK/playbook/` SHALL contain ten active ordered MD Controllers—`create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, `restructure-slides.md`, `iterate-style.md`, `quick-preview.md`, `migrate-import.md`, `probe-image-channels.md`, and `legacy-image2-maintenance.md`—plus shared node `classify-change.md`. `legacy-image2-maintenance` SHALL serve only markerless decks and SHALL use lifecycle Phase 5/module `05-iteration`; `probe-image-channels` remains an off-path Phase-0 diagnostic switch. Change 4 SHALL NOT register `image2-refine` or any modern Phase-4 controller/node; its script directory remains README-only/non-executable.
 
 #### Scenario: Agent lists available controllers
 

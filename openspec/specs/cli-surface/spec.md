@@ -18,7 +18,7 @@ The `ppt_flow` CLI SHALL expose exactly **14** top-level commands: `doctor`, `in
 
 ### Requirement: ppt_flow delegates to capability scripts
 
-`ppt_flow.mjs` SHALL delegate bundle management, environment checks, state, slide transactions, HTML migration, and the selected production branch to their owning capability scripts. It SHALL route HTML Stage 2/3 through the registered HTML renderer/compositor CLIs and markerless production through the legacy adapter. It SHALL keep orchestration/renderer logic out of the command router and SHALL probe the canonical marker before branch-specific readiness or option handling.
+`ppt_flow.mjs` SHALL delegate bundle management, environment checks, state, slide transactions, HTML migration, and the selected production branch to owning Phase interfaces or categorized shared CLI adapters. It SHALL route HTML Stage 1-5 through the Phase-3 interface and markerless production/maintenance through the Phase-5 legacy adapter. It SHALL keep orchestration/renderer logic out of the command router, probe the canonical marker before branch-specific readiness or option handling, and import no Phase private path or direct executable.
 
 #### Scenario: HTML build routes to the HTML adapter
 

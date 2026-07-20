@@ -32,7 +32,7 @@ The removed active directories `01-visual/`, `02-content/`, `03-prompts/`, and `
 
 ### Requirement: All executable scripts are under scripts/
 
-All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts/`. This includes `bundle_layout.mjs`, `ppt_flow.mjs`, `unified_pipeline.mjs`, all stage scripts, `visual_config.mjs`, `generate_style_master.mjs`, and `env-check.mjs`. The `fonts/` directory, `agent-prompts.md`, and `change-classifier.md` SHALL also be in this directory.
+All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts/` and follow the ownership tree defined by `framework-script-layout`. The root retains only `ppt_flow.mjs`; other registered direct executables live at their numbered-Phase or categorized shared owner path. `contracts/`, `fonts/`, and `fixtures/` remain resource roots; `agent-prompts.md` lives in `reference/`, and `change-classifier.md` lives under `scripts/05-iteration/`.
 
 #### Scenario: Agent runs a pipeline script
 
@@ -41,7 +41,7 @@ All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts
 
 ### Requirement: Reference documents are under reference/
 
-`quick-start.md`, `glossary.md`, `anti-patterns.md`, and `version-log.md` SHALL be located under `PPTMAKER_FRAMEWORK/reference/`.
+`quick-start.md`, `glossary.md`, `anti-patterns.md`, `version-log.md`, and cross-Phase `agent-prompts.md` SHALL be located under `PPTMAKER_FRAMEWORK/reference/` as lookup documents rather than executable or interface assets.
 
 #### Scenario: Human looks up glossary
 
@@ -59,7 +59,7 @@ All `.mjs` production scripts SHALL be located under `PPTMAKER_FRAMEWORK/scripts
 
 ### Requirement: scripts/README.md exists
 
-`PPTMAKER_FRAMEWORK/scripts/README.md` SHALL exist as the script inventory, listing each script's purpose, inputs, outputs, and dependencies.
+`PPTMAKER_FRAMEWORK/scripts/README.md` SHALL be an ownership-oriented inventory documenting the exact Phase/shared tree, each Phase interface, registered direct executable paths, allowed import direction, source-to-test ownership manifest, and stable root entrypoint. It SHALL point to `cli-surface` rather than duplicate diagnostic schema.
 
 #### Scenario: Agent surveys available tools
 
@@ -115,7 +115,7 @@ The file `PPTMAKER_FRAMEWORK/workflow/00-setup/README.md` SHALL be updated to re
 
 ### Requirement: env-check script is accessible from scripts/
 
-The environment check script SHALL be located at `PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs`. It SHALL function correctly from this location, with internal font search paths updated to reflect the new directory structure.
+The environment check direct executable SHALL be located at `PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` and exposed through the Phase-0 interface. It SHALL resolve its package/runtime/fixture/font resources through the ownership tree; `ppt_flow doctor` remains the normal user-facing invocation.
 
 #### Scenario: Env check runs from new location
 

@@ -4,13 +4,20 @@ Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a z
 ## Requirements
 ### Requirement: Zero-dependency runtime check
 
-`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. It SHALL remain runnable with Node.js built-ins before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed `html-render-runtime` implementation only after package presence checks establish that npm dependencies exist; a missing dependency SHALL be reported as a normal check failure rather than causing module-load failure at startup.
+`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a Phase nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed HTML runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
+
+Base runtime/font inspection is owned by the import-safe Phase-0 interface, which SHALL NOT import Phase 5. The direct adapter and root doctor may lazily call Phase 5's public provider diagnostic only after Phase-0 prerequisites pass and an Image2 mode is explicitly selected. Base mode SHALL not load Phase-3 renderer internals or Phase-5/provider implementation.
 
 #### Scenario: Run without node_modules
 
 - **WHEN** `node scripts/00-setup/env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** the script executes and emits actionable missing-package results
 - **AND** it does not fail during top-level module loading
+
+#### Scenario: Base mode does not initialize legacy provider
+
+- **WHEN** direct Phase-0 env-check runs without an Image2 flag
+- **THEN** no Phase-5 provider or credential implementation is loaded while local HTML readiness remains checkable
 
 ### Requirement: Node.js version gate
 

@@ -2,6 +2,15 @@
 
 Define the framework's constitutional and entry layer: the charter documents, five-root soft bundle, reference appendices including `agent-prompts.md`, and stable ownership navigation. The run-bundle SSOT is `scripts/shared/run-bundle/bundle_layout.mjs`.
 ## Requirements
+### Requirement: Charter makes source and test ownership navigable
+
+Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/`, `tests/`, and `tests_e2e/` share Phase vocabulary while retaining different roles. It SHALL direct maintainers to the owning Phase `index.mjs` and mirrored test owner, and forbid cross-Phase private imports, generic `scripts/lib/`, and business rules in test helpers.
+
+#### Scenario: Coding Agent changes a Phase 3 behavior
+
+- **WHEN** maintenance guidance is followed for a Phase-3 behavior change
+- **THEN** it directs the Agent to the Phase interface, private implementation, and mirrored Phase-3 tests rather than a new flat script or test
+
 ### Requirement: Charter directory exists with exactly four files
 
 `PPTMAKER_FRAMEWORK/charter/` SHALL exist as a subdirectory containing exactly four files: CONSTITUTION.md, WORKFLOW.md, AGENT_CONTRACT.md, and NODE-SPEC.md. No other files SHALL be placed in this directory.
