@@ -1,0 +1,11 @@
+{"type":"state_healed","reason":"schema","at":"2026-07-11T03:15:35.309Z"}
+{"type":"truth_align","reason":"align-sdlc-keynote-deck","playbook":"iterate-style","current_node":"review-gate","gates":"waived/waived","at":"2026-07-11T08:21:46.165Z"}
+{"type":"truth_align","note":"Synced _state README + state.yaml header to post-session-resume framework; pointer unchanged (iterate-style@review-gate)","source":"direct-migrate","at":"2026-07-11T09:05:10.533Z"}
+{"type":"framework_data_sync","version":"3_versions/v1","source_slides":25,"old_outputs_backup":"3_versions/v1/_scratch/framework-sync-2026-07-12","legacy_prompt_header_duplicates":24,"next":"review style master, clean legacy header prompt duplication, then target-profile pilot/header approval/build --reuse-images","at":"2026-07-12T04:35:44.677Z"}
+{"type":"legacy_prompt_cleanup","version":"3_versions/v1","slides":25,"exact_header_repeats":0,"render_mode_source":"policy:default","hero_ids":["s01_cover","s02_opening","s05_the_map","s16_sdlc_to_bpm_bridge","s25_what_will_you_do"],"next":"review style master, then target-profile pilot/header approval/build --reuse-images","at":"2026-07-12T04:47:43.051Z"}
+{"type":"state_healed","reason":"schema","at":"2026-07-12T07:12:00.943Z"}
+{"type":"state_healed","reason":"schema","at":"2026-07-12T07:17:31.082Z"}
+{"type":"gate_set","gate":"visual","value":"approved","source":"ppt_flow.approve","at":"2026-07-12T07:53:50.998Z"}
+{"type":"state_healed","reason":"schema","at":"2026-07-12T08:37:29.229Z"}
+{"type":"header_review_approved","version":"3_versions/v1","ids":["s03_why_software_first","s04_one_tool_two_modes","s01_cover"],"fingerprint":"6e95900d55173ee65b445dce9890bbc715cd92bb3a1d4026b45702fe83383177","status":"completed","at":"2026-07-12T09:18:25.729Z"}
+{"type":"header_review_approved","version":"3_versions/v1","ids":["s07_deer_valley_engelberg"],"fingerprint":"1d871449d54faa453e6d18f21097a540733001451d14bd48fb9f063f47d6d3c8","status":"in_progress","at":"2026-07-12T15:18:54.021Z"}
