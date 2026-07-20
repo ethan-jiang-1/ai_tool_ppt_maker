@@ -343,6 +343,8 @@ The v1 contract SHALL classify every consumed field as follows; implementation S
 
 The parser/serializer SHALL use the shared slide-document interface. A parse/serialize no-op SHALL preserve every source byte, including raw `SLIDE BODY` fence formatting. A semantic body edit SHALL rewrite only that slide's owned YAML content; an explicit per-slide canonicalization SHALL have the same write boundary. Canonical YAML SHALL build a schema-ordered plain object and use the pinned `yaml` package with equivalent options `{indent: 2, indentSeq: true, lineWidth: 0, blockQuote: "literal", simpleKeys: true}`. Before emission, every string scalar matching the forbidden timestamp-like grammar SHALL be assigned YAML double-quoted scalar style so canonical output always revalidates; other ambiguity quoting remains owned by pinned `yaml@2.9.0`. Root keys SHALL be ordered `schema_version`, `family`, non-visual family fields in registry order, optional `callout`, then allowed/required `primary_visual`; nested keys follow their schema order, collections use block style, multiline strings use literal block style, anchors/tags are absent, and the surrounding document's newline convention is retained. Leading frontmatter, preamble, headers, `CONCEPT`, speaker notes, epilogue, fence label/open/close lines, and unrelated slide blocks SHALL remain byte-preserved. Structural move/delete/insert behavior and heading/reference writes remain owned separately by `slide-identity-and-ordering`.
 
+The parser/serializer SHALL additionally expose a public Phase-3 selection-binding transaction. Given a validated run, stable slide ID, registered asset ID, exact current visual-contract fingerprint, and measured output SHA, it SHALL update only that slide's owned `primary_visual.selection` to the existing closed binding shape and serialize through the canonical source path. It SHALL reject missing primary visual, arbitrary YAML/path input, caller-supplied geometry, or an asset not currently registered by the effective catalog. Phase 4 may invoke it only as a bound promotion step and SHALL not parse or edit `slide-specifications.md` directly.
+
 #### Scenario: No-op round trip is byte-identical
 
 - **WHEN** a valid structured source is parsed and serialized without an edit
@@ -354,3 +356,8 @@ The parser/serializer SHALL use the shared slide-document interface. A parse/ser
 - **THEN** only that slide's owned YAML content changes
 - **AND** other Markdown and notes remain byte-identical
 
+#### Scenario: Refinement binds an accepted asset
+
+- **WHEN** the Phase-3 transaction receives a registered candidate asset and current visual contract
+- **THEN** only the target slide's owned selection binding changes
+- **AND** all non-owned Markdown, other slide blocks, and geometry remain unchanged

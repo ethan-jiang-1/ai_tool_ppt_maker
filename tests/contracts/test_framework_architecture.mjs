@@ -168,13 +168,13 @@ describe("framework architecture contract", () => {
       return result.stderr;
     };
     const base = trace("PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs", ["doctor", "--help"]);
-    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|05-iteration)\//);
+    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration)\//);
     expect(base).not.toMatch(/(?:image_api_client|html_slide_renderer|@napi-rs\/canvas|fast-png)/);
 
     const html = trace("PPTMAKER_FRAMEWORK/scripts/03-html-production/stage2_render_html.mjs", ["--help"]);
-    expect(html).not.toMatch(/scripts\/05-iteration\/legacy-image2|image_api_client/);
+    expect(html).not.toMatch(/scripts\/(?:04-image2-refinement|05-iteration\/legacy-image2)|image_api_client/);
 
     const markerless = trace("PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs", ["--help"]);
-    expect(markerless).not.toMatch(/html_slide_renderer|html_render_runtime/);
+    expect(markerless).not.toMatch(/04-image2-refinement|html_slide_renderer|html_render_runtime/);
   }, 60_000);
 });

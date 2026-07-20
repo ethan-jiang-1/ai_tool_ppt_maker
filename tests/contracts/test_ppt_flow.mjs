@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initLegacyBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readImage2RefinementState, readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import {
   buildControllerGateContext,
   selectPilotSlideIds,
@@ -14,8 +14,9 @@ import {
   generationProfile,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
-import { PPT_FLOW_COMMAND_INVENTORY } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
+import { IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
+import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
 const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const PPT_FLOW_SRC = readFileSync(PPT_FLOW, "utf-8");
@@ -175,6 +176,71 @@ describe("ppt_flow", () => {
     const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
     expect(matches.length).toBe(15);
   });
+
+  it("keeps the return audit exact for all commands and Image2 cases", () => {
+    expect(validateCliReturnAudit(PPT_FLOW_RETURN_AUDIT, PPT_FLOW_COMMAND_INVENTORY)).toEqual({ valid: true, errors: [] });
+    expect(IMAGE2_RETURN_CASES).toEqual([
+      "markerless",
+      "current_delivery",
+      "plan_authorization_drift",
+      "duplicate_attempt",
+      "unknown_submit",
+      "candidate_identity",
+      "promotion_recovery",
+      "cleanup_ambiguity",
+    ]);
+    const missing = { ...PPT_FLOW_RETURN_AUDIT.commands.image2 };
+    delete missing.promotion_recovery;
+    const broken = { ...PPT_FLOW_RETURN_AUDIT, commands: { ...PPT_FLOW_RETURN_AUDIT.commands, image2: missing } };
+    expect(validateCliReturnAudit(broken, PPT_FLOW_COMMAND_INVENTORY)).toMatchObject({ valid: false, errors: [expect.stringMatching(/promotion_recovery/)] });
+  });
+
+  it("rejects markerless Image2 before creating modern state", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-image2-markerless-"));
+    const deck = join(root, "deck_legacy");
+    try {
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const result = runPptFlow(["image2", "plan", runDir, "--profile", "a".repeat(64), "--json"]);
+      expect(result.status).toBe(1);
+      expect(parseFailureEnvelope(result.stderr)).toMatchObject({
+        where: "ppt_flow.image2.plan",
+        diagnostic: { category: "gate", reason: { kind: "modern_legacy_ownership_conflict" } },
+      });
+      expect(existsSync(join(runDir, "_generated", "image2_refinement"))).toBe(false);
+      expect(existsSync(join(runDir, "_scratch", "image2_refinement"))).toBe(false);
+      expect(readImage2RefinementState(readState(deck), "v1")).toBeNull();
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("routes current HTML Image2 plan/authorization and preserves an unconfigured attempt", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-");
+    try {
+      const legacy = runPptFlow(["style-master", fixture.runDir]);
+      expect(legacy.status).toBe(1);
+      expect(parseFailureEnvelope(legacy.stderr).message).toMatch(/HTML-first|not applicable/i);
+
+      const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      expect(plan).toMatchObject({ run_version: "v1", total_attempts: 3 });
+      expect(plan.plan_hash).toMatch(/^[0-9a-f]{64}$/);
+
+      const stale = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", "f".repeat(64), "--json"]);
+      expect(stale.status).toBe(1);
+      expect(parseFailureEnvelope(stale.stderr)).toMatchObject({ code: "GATE_BLOCKED", diagnostic: { category: "gate" } });
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").authorization).toBeNull();
+
+      const authorized = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", plan.plan_hash, "--json"]);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      const authorization = JSON.parse(authorized.stdout);
+      const setup = authorization.authorization.attempts.find((attempt) => attempt.kind === "style-reference");
+      const unconfigured = runPptFlow(["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--json"]);
+      expect(unconfigured.status).toBe(1);
+      expect(parseFailureEnvelope(unconfigured.stderr)).toMatchObject({ code: "FAILED", diagnostic: { category: "provider" } });
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[setup.attempt_id].state).toBe("planned");
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
 
   it("state --json includes resume card fields", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));

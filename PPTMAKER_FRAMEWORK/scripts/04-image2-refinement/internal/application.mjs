@@ -186,7 +186,12 @@ export async function createRefinementPlan(input = {}) {
       (attempt.state === "unknown-submit" && !attempt.unknown_submit_resolution)
     );
     const pendingReview = Object.values(current.reviews || {}).some((review) => review.decision === "pending");
-    if (unresolvedAttempt || pendingReview) throw new Error("CONFLICT: current refinement authorization/review must be resolved before a fresh plan");
+    const unreviewedCandidate = Object.values(current.attempts || {}).some((attempt) => {
+      if (attempt.kind !== "slot" || attempt.state !== "submitted" || !attempt.candidate_id) return false;
+      const review = Object.values(current.reviews || {}).find((entry) => entry.candidate_id === attempt.candidate_id);
+      return !review || !["accept", "use-html"].includes(review.decision);
+    });
+    if (unresolvedAttempt || pendingReview || unreviewedCandidate) throw new Error("CONFLICT: current refinement authorization/review must be resolved before a fresh plan");
   }
   ensureRefinementDerivedRoots(input.runDir);
   const planPath = refinementPaths(input.runDir).plan;
@@ -325,14 +330,10 @@ export async function generateRefinement({ runDir, attemptId = null, transport, 
     const setup = Object.values(record.attempts || {}).find((entry) => entry.kind === "style-reference");
     if (setup && (setup.state !== "submitted" || setup.promotion_status !== "committed")) throw new Error(`style-reference setup dependency is ${setup.state}${setup.promotion_status === "pending" ? "/promotion-pending" : ""}; page generation is blocked`);
   }
+  const tx = transport || adapter;
+  if (!tx || typeof tx.submitAttempt !== "function") throw new Error("modern refinement transport must be injected after authorization");
   const nextSubmitting = transitionAttempt(attempt, "submitting");
   await persistAttempt(eligible.run, nextSubmitting);
-  const tx = transport || adapter;
-  if (!tx || typeof tx.submitAttempt !== "function") {
-    const failed = transitionAttempt(nextSubmitting, "failed", { failure_code: "provider_unconfigured" });
-    await persistAttempt(eligible.run, failed);
-    throw new Error("modern refinement transport must be injected after authorization");
-  }
   const request = { attempt_id: attempt.attempt_id, authorization_id: record.authorization.authorization_id, plan_hash: record.plan.plan_hash, kind: attempt.kind, slide_id: attempt.slide_id || null, slot: attempt.slot || null };
   let result;
   try {
@@ -417,7 +418,12 @@ export async function reconcileRefinementAttempt({ runDir, attemptId, transport,
     return Object.freeze({ attempt: failed, requires_human: false, partial_failure: true });
   }
   if (result.status !== "submitted") throw new Error("provider reconciliation did not prove a submitted result");
-  if (attempt.kind === "slot" && !result.bytes) return Object.freeze({ attempt, requires_human: true, reason: "reconciled submission has no candidate bytes" });
+  if (!result.bytes) {
+    const reason = attempt.kind === "style-reference"
+      ? "reconciled style-reference submission has no bytes"
+      : "reconciled submission has no candidate bytes";
+    return Object.freeze({ attempt, requires_human: true, reason });
+  }
   let candidate = null;
   if (result.bytes && attempt.kind === "slot") {
     const candidateId = result.candidate_id || `candidate-${attempt.attempt_id}`;
@@ -428,7 +434,6 @@ export async function reconcileRefinementAttempt({ runDir, attemptId, transport,
   await persistAttempt(eligible.run, submitted);
   let completedAttempt = submitted;
   if (attempt.kind === "style-reference") {
-    if (!result.bytes) return Object.freeze({ attempt: submitted, requires_human: true, reason: "reconciled style-reference submission has no bytes" });
     await promoteStyleReferenceResult({ runDir: eligible.run, runVersion: eligible.run_version, record, attempt, result, submitted });
     completedAttempt = readRecord(eligible.run).record.attempts[attempt.attempt_id];
     writeAttemptRecord(eligible.run, completedAttempt);
@@ -648,6 +653,19 @@ export async function recoverRefinementPromotion({ runDir, prepared = null, sele
   const current = snapshot();
   const isOld = (key) => current[key] === journal.old[key];
   const isNext = (key) => current[key] === journal.next[key];
+  const recoveryOrder = journal.kind === "style-reference"
+    ? ["asset_manifest_sha256", "provenance_sha256", "state_sha256"]
+    : ["asset_manifest_sha256", "slide_specifications_sha256", "provenance_sha256", "state_sha256"];
+  if (journal.kind === "style-reference" && (journal.old.slide_specifications_sha256 !== journal.next.slide_specifications_sha256 || current.slide_specifications_sha256 !== journal.old.slide_specifications_sha256)) {
+    throw new Error("CONFLICT: refinement promotion changed an unowned source SHA");
+  }
+  const recoveryStates = recoveryOrder.map((key) => isOld(key) ? "old" : isNext(key) ? "next" : "other");
+  if (recoveryStates.includes("other")) throw new Error("CONFLICT: refinement promotion journal does not match an exact bound transaction state");
+  let committedPrefix = 0;
+  while (committedPrefix < recoveryStates.length && recoveryStates[committedPrefix] === "next") committedPrefix += 1;
+  if (recoveryStates.some((state, index) => index < committedPrefix ? state !== "next" : state !== "old")) {
+    throw new Error("CONFLICT: refinement promotion journal has an ambiguous commit ordering");
+  }
   const assertBoundProgress = (key, expected) => {
     const actual = snapshot()[key];
     if (actual !== expected) throw new Error(`CONFLICT: recovery ${key} is not journal-bound`);
@@ -707,6 +725,10 @@ export async function recoverRefinementPromotion({ runDir, prepared = null, sele
     if (attemptRecord) writeAttemptRecord(runDir, attemptRecord);
   }
   if (result.status === "committed" && journal.kind === "visual-slot" && selection) {
+    const recoveredReview = readRecord(runDir).record.reviews?.[selection.slideId];
+    if (recoveredReview?.candidate_id === journal.candidate_id && recoveredReview.decision === "accept") {
+      writeJsonAtomic(candidatePaths(runDir, journal.candidate_id).comparison_metadata, recoveredReview);
+    }
     try {
       const p3Local = await phase3();
       enriched = { ...result, recomposed: await p3Local.recomposeHtmlSlidesLocally(resolve(runDir), { slideIds: [selection.slideId] }) };

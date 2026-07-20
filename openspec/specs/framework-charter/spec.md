@@ -51,13 +51,13 @@ Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/
 
 ### Requirement: WORKFLOW.md describes the complete agent process
 
-`charter/WORKFLOW.md` SHALL document lifecycle `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`, with Phase name, purpose, gate, Agent/human ownership, and the fact that Phase 3 delivers a complete contact sheet/PPTX/notes. Phase 4 SHALL be described as an optional professional upgrade that is unavailable in Change 3 and is not required for completion. The workflow SHALL document HTML-first Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the outer Structural Versioning Path; markerless legacy decks SHALL use the compatibility maintenance route with Header Text & Style Refresh / Generated Image Rebuild / Notes-Only Refresh. Structural Versioning Path SHALL not be presented as a peer refresh.
+`charter/WORKFLOW.md` SHALL document lifecycle `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`, with Phase name, purpose, gate, Agent/human ownership, and the fact that Phase 3 delivers a complete contact sheet/PPTX/notes. Phase 4 SHALL be described as optional post-delivery professional visual-slot refinement that requires explicit human cost authorization and per-page adoption, is never a completion gate, and is distinct from Phase-5 legacy whole-page maintenance. The workflow SHALL document HTML-first Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the outer Structural Versioning Path; markerless legacy decks SHALL use the compatibility maintenance route with Header Text & Style Refresh / Generated Image Rebuild / Notes-Only Refresh. Structural Versioning Path SHALL not be presented as a peer refresh.
 
 #### Scenario: Agent understands the complete default path
 
 - **WHEN** an Agent reads `charter/WORKFLOW.md`
 - **THEN** it understands that fresh decks complete at HTML Phase 3 without Image2
-- **AND** can distinguish local HTML maintenance, optional unavailable Phase 4, and legacy maintenance
+- **AND** can distinguish local HTML maintenance, optional authorized Phase 4, and legacy maintenance
 
 ### Requirement: AGENT_CONTRACT.md is in charter directory
 
@@ -259,7 +259,7 @@ Active framework documents and `openspec/config.yaml` SHALL distinguish four hie
 
 ### Requirement: Active constitutional guidance matches current runtime behavior
 
-All active root, charter, workflow, reference, playbook, scripts README, template guidance, and OpenSpec context SHALL agree that new decks default to `html-first-v1`; structured content and visual config render locally through HTML pages/final slides; real HTML artifacts precede visual approval; Stage 4 consumes provider-neutral verified final slides; notes follow stable IDs/order; ordinary HTML maintenance is local; and modern Image2 refinement is unavailable. Markerless decks SHALL be described only through explicit legacy maintenance/migration guidance. No active new-deck path SHALL require style master, Image2 credentials, whole-page prompt generation, render-mode intake, or remote regeneration.
+All active root, charter, workflow, reference, playbook, scripts README, template guidance, and OpenSpec context SHALL agree that new decks default to `html-first-v1`; structured content and visual config render locally through HTML pages/final slides; real HTML artifacts precede visual approval; Stage 4 consumes provider-neutral verified final slides; notes follow stable IDs/order; ordinary HTML maintenance is local; and optional modern refinement is available only after current delivery through explicit authorization as no-text visual-slot work. Markerless decks SHALL be described only through explicit legacy maintenance/migration guidance. No active new-deck path SHALL require style master, Image2 credentials, whole-page prompt generation, render-mode intake, or remote regeneration.
 
 #### Scenario: New-deck guidance requires Image2
 
@@ -368,10 +368,15 @@ The guidance SHALL preserve the source/derived boundary: `_generated/` remains r
 
 ### Requirement: Framework ownership separates complete HTML delivery from future refinement
 
-The Constitution and Agent Contract SHALL state that MD Controller/human review owns the decision to approve content/visual output and whether to consider a later professional upgrade; JS owns deterministic HTML rendering/evidence; no provider adapter belongs to ordinary create/build/iteration. Completing HTML delivery SHALL be a terminal valid user outcome with no pending refinement node or false incomplete state.
+The Constitution and Agent Contract SHALL state that MD Controller/human review owns content/visual approval, whether to consider optional professional refinement, exact remote-cost authorization, and per-page adoption; JS owns deterministic HTML rendering/evidence and Phase-4 enforcement of authorized provider/provenance boundaries. No provider adapter belongs to ordinary create/build/iteration. Completing HTML delivery SHALL be a terminal valid user outcome with no refinement node, plan, authorization, or false incomplete state until the user explicitly enters Phase 4. Active guidance SHALL place complete HTML delivery under Phase 3, optional no-text visual-slot refinement under Phase 4, and markerless whole-page maintenance under Phase 5. Phase 4 SHALL not be described as a renderer choice, a new-deck requirement, or a whole-page generator.
 
 #### Scenario: User ends after PPTX delivery
 
-- **WHEN** HTML PPTX/notes are current and the user declines or is not offered unavailable refinement
+- **WHEN** HTML PPTX/notes are current and the user declines or does not enter refinement
 - **THEN** the workflow is complete
 - **AND** state has no pending Image2 execution or authorization
+
+#### Scenario: Maintainer searches for Image2 ownership
+
+- **WHEN** active charter guidance distinguishes modern refinement from legacy maintenance
+- **THEN** visual-slot work points to Phase 4 and legacy whole-page behavior points to Phase 5

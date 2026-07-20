@@ -22,6 +22,7 @@ import {
   STATE_SCHEMA_VERSION,
   healState,
   normalizePlaybookStack,
+  projectImage2RefinementState,
   readImage2RefinementState,
   writeImage2RefinementState,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
@@ -43,6 +44,24 @@ describe('state.yaml yaml library + heal', () => {
       expect(readImage2RefinementState(readState(fixture.deck), 'v1')).toEqual(record);
       expect(() => writeImage2RefinementState(fixture.deck, 'v1', { ...record, extra: true })).toThrow(/invalid/);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  });
+  it('projects every bounded refinement status and human-action boundary', () => {
+    const plan = { plan_hash: 'a'.repeat(64) };
+    const authorization = { authorization_id: 'auth-one', plan_hash: plan.plan_hash, used: false };
+    const attempt = (state, extra = {}) => ({ attempt_id: 'attempt-one', kind: 'slot', slide_id: 'AlphaGo', state, ...extra });
+    const review = (decision) => ({ slide_id: 'AlphaGo', candidate_id: 'candidate-one', decision });
+    const project = ({ plan: currentPlan = plan, authorization: currentAuthorization = authorization, attempts = {}, reviews = {} } = {}) => {
+      const state = createDefaultState();
+      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': { schema: 'pptmaker-image2-refinement-state-v1', run_version: 'v1', plan: currentPlan, authorization: currentAuthorization, attempts, reviews } } };
+      return projectImage2RefinementState(state, 'v1');
+    };
+    expect(project({ plan: null, authorization: null })).toMatchObject({ status: 'planned', human_action_required: true });
+    expect(project({ authorization: null })).toMatchObject({ status: 'awaiting-authorization', human_action_required: true });
+    expect(project({ attempts: { 'attempt-one': attempt('planned') } })).toMatchObject({ status: 'in-progress', human_action_required: false });
+    expect(project({ attempts: { 'attempt-one': attempt('unknown-submit') } })).toMatchObject({ status: 'unknown-submit', human_action_required: true });
+    expect(project({ attempts: { 'attempt-one': attempt('failed', { failure_code: 'provider_failure' }) } })).toMatchObject({ status: 'failed', human_action_required: true });
+    expect(project({ attempts: { 'attempt-one': attempt('submitted') }, reviews: { AlphaGo: review('pending') } })).toMatchObject({ status: 'review-pending', human_action_required: true });
+    expect(project({ attempts: { 'attempt-one': attempt('submitted') }, reviews: { AlphaGo: review('use-html') } })).toMatchObject({ status: 'complete', human_action_required: false });
   });
   it('preserves unusable HTML state bytes while requiring explicit replacement', () => {
     const fixture = createHtmlFirstRun('html-state-replacement-');

@@ -13,7 +13,7 @@ Define the Node — the atomic unit of playbook execution — and its governing 
 
 ### Requirement: Node frontmatter defines entry and exit gates
 
-Every registered node SHALL declare globally unique kebab-case `node`, `lifecycle_phase` in exact set `0|1|2|3|4|5`, `method_module` in exact set `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`, ordered `requires`, deterministic `entry`, and `exit`; routing gates SHALL declare unique allowed decisions. Fenced controller YAML and standalone shared-node frontmatter remain the only forms. Legacy single `phase` and removed module names `01-visual|02-content|03-prompts|04-production` SHALL fail validation with migration guidance. During Change 3, the active index SHALL reject any executable lifecycle-4/module-`04-image2-refinement` node.
+Every registered node SHALL declare globally unique kebab-case `node`, `lifecycle_phase` in exact set `0|1|2|3|4|5`, `method_module` in exact set `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`, ordered `requires`, deterministic `entry`, and `exit`; routing gates SHALL declare unique allowed decisions. Fenced controller YAML and standalone shared-node frontmatter remain the only forms. Legacy single `phase` and removed module names `01-visual|02-content|03-prompts|04-production` SHALL fail validation with migration guidance. The active index SHALL permit lifecycle 4/module `04-image2-refinement` only for nodes owned by `image2-refine`, whose entry requires a marked run and current `html-delivery-review: proceed`; all other controllers reject that lifecycle/module.
 
 #### Scenario: Production node uses final metadata
 
@@ -25,16 +25,18 @@ Every registered node SHALL declare globally unique kebab-case `node`, `lifecycl
 - **WHEN** a node declares `method_module: 04-production`
 - **THEN** validation fails and names `03-html-production` as the final owner
 
-#### Scenario: Phase-4 execution appears too early
+#### Scenario: Unowned Phase 4 node is registered
 
-- **WHEN** a Change-3 active playbook registers lifecycle 4
-- **THEN** validation fails because the directory is README-only unavailable
+- **WHEN** a controller other than `image2-refine` declares lifecycle 4
+- **THEN** validation fails with an ownership diagnostic
 
 ### Requirement: State file is YAML at run bundle root
 
 Every new or actively executing run bundle SHALL contain deck-root `_state/` with durable `state.yaml` (single truth source for execution pointer and authoritative HTML gate evidence); append-only reference-only `history.jsonl` SHALL remain allowed and created on demand. Historical markerless decks MAY lack `_state/` during structure-only check/status compatibility; ordinary check/status SHALL not create it. Entering an explicit legacy controller/resume uses the existing state initialization authority. `state.yaml` SHALL retain active playbook, current node, per-node status, gate decisions/evidence, stack, waits/notes, and deck metadata. `readState`, `appendHistory`, and `readHistory` SHALL retain their existing ownership; `history.jsonl` SHALL not participate in automatic recovery.
 
-Reserved system evidence SHALL reuse the existing state shape rather than add another top-level container. `RESERVED_NODE_IDS` SHALL be exactly `header-review`, `html-content-review`, `html-visual-review`, `html-delivery-review`, and `html-production-reset`. Each HTML reserved record SHALL live only at `nodes[reserved_id].by_version["3_versions/<vN>"]`; its internal `run_version` and all state/metadata mirror companions SHALL use normalized `<vN>`. Reserved records SHALL remain excluded from controller working-set/status transitions, and state migration SHALL preserve other version keys. A record stored under a mismatched key/run-version pair is invalid and SHALL not be selected by current-version readiness.
+Reserved system evidence SHALL reuse the existing state shape rather than add another top-level container. `RESERVED_NODE_IDS` SHALL be exactly `header-review`, `html-content-review`, `html-visual-review`, `html-delivery-review`, `html-production-reset`, and `image2-refinement`. Each reserved record SHALL live only at `nodes[reserved_id].by_version["3_versions/<vN>"]`; its internal `run_version` and all state/metadata mirror companions SHALL use normalized `<vN>`. Reserved records SHALL remain excluded from controller working-set/status transitions, and state migration SHALL preserve other version keys. A record stored under a mismatched key/run-version pair is invalid and SHALL not be selected by current-version readiness. `image2-refinement` is the sole authority for its exact authorization, attempts, reviews, and safe human decisions, and creates no new top-level container or `_state` file.
+
+Existing gate-approval journal exclusivity, HTML reset fences, read-only observation, and recovery rules remain unchanged. Refinement promotion SHALL reject active gate/reset fences and use expected-state CAS; its separate scratch journal is not a state authority. Promotion stales prior delivery review, so completion requires a new current final-review decision.
 
 The only additional allowed file SHALL be transient `_state/gate-approval-journal.json`, owned exclusively by recoverable gate approval. Its absence is normal. Its presence SHALL not independently satisfy a gate. Journal creation SHALL be exclusive and publish canonical JSON containing exactly `schema: pptmaker-html-gate-approval-journal-v1`, opaque `owner_token` (full 64 lowercase hex SHA-256 of canonical owner/run/transaction fields), normalized `owner_host`, positive `owner_pid`, exact `created_at_epoch_ms`, normalized `run_version: vN`, and four 64-lowercase-hex fields `old_state_sha256`, `new_state_sha256`, `old_metadata_sha256`, and `new_metadata_sha256`; no extra evidence/path field is accepted. Precondition SHAs SHALL be rechecked before each commit. While any journal exists, it SHALL be an exclusive write fence for `_state/state.yaml` and metadata gate mirrors: only the matching transaction owner may publish the exact bound new state/mirror. Ordinary node transitions, state-heal rewrites, delivery-review publication, another approval, and unrelated metadata-gate writes SHALL return `CONFLICT` without mutation. Plain observe reads SHALL report journal state without rewriting a healable file. Gate approval SHALL canonicalize/heal state before exclusive journal creation, never after.
 
@@ -92,6 +94,16 @@ For a cross-host/otherwise uncertain abandoned journal, automatic recovery is fo
 
 - **WHEN** recovery sees old state SHA and new metadata SHA
 - **THEN** it fails closed as a forbidden transition and does not infer state approval
+
+#### Scenario: HTML delivery is complete without refinement
+
+- **WHEN** state/status reads current HTML delivery with no refinement record
+- **THEN** it reports completion without Phase-4 debt
+
+#### Scenario: Refinement promotion races a gate journal
+
+- **WHEN** an accept operation observes an active gate-approval journal
+- **THEN** it returns conflict before source or state mutation
 
 ### Requirement: Node status has exactly five valid states
 
@@ -1123,12 +1135,17 @@ When HTML Stage 1-5 receipts, content/visual gates, and `html-delivery-review: p
 
 ### Requirement: Playbook index reserves final system evidence and enforces pipeline ownership
 
-The canonical index/state reserved-ID registry SHALL reserve exactly `header-review`, `html-content-review`, `html-visual-review`, `html-delivery-review`, and `html-production-reset`, validate controller-level supported pipeline declarations, reject cross-pipeline entry conditions, and verify that Change-3 active nodes do not target unavailable Phase 4. None of those IDs may be declared as a controller node.
+The canonical index/state reserved-ID registry SHALL reserve the six IDs above, validate controller pipeline declarations, reject cross-pipeline entry conditions, and ensure no reserved ID is declared as a controller node. Only nodes in `image2-refine` may declare Phase 4/module `04-image2-refinement`; they require current HTML delivery evidence. Legacy maintenance continues to reject HTML-first runs.
 
 #### Scenario: Controller declares reserved review node
 
-- **WHEN** a playbook declares `node: html-content-review`, `html-visual-review`, `html-delivery-review`, or `html-production-reset`
+- **WHEN** a playbook declares `node: html-content-review`, `html-visual-review`, `html-delivery-review`, `html-production-reset`, or `image2-refinement`
 - **THEN** validation fails because the ID is system evidence
+
+#### Scenario: Controller declares reserved refinement evidence
+
+- **WHEN** a playbook declares `node: image2-refinement`
+- **THEN** validation fails because it is system evidence
 
 #### Scenario: Legacy controller allows HTML pipeline
 

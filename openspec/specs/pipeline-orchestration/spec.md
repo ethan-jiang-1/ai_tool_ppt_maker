@@ -44,6 +44,15 @@ Define marker-first orchestration through `scripts/03-html-production/unified_pi
 - **WHEN** a markerless run selects Stage 2
 - **THEN** orchestration retains `stage2_generate_images.mjs` plus legacy `make_contact_sheet.mjs` ownership
 
+### Requirement: Refinement recomposes through public local HTML operations
+
+Refinement SHALL call a public Phase-3 review-only composition operation to create candidate comparisons in resolved slot geometry; only after successful accept or explicit fallback decision may it call public local recomposition/evidence operations for affected slides. Promotion SHALL not claim a current delivery until ordinary final-review evidence is renewed. Normal Stage orchestration SHALL remain provider-free and shall not discover or execute pending refinement attempts.
+
+#### Scenario: Accepted candidate is promoted
+
+- **WHEN** acceptance commits a current source asset
+- **THEN** final-slide delivery is locally recomposed without a provider call
+
 ### Requirement: Shared slide-id resolution for --only
 
 `unified_pipeline.mjs` SHALL resolve every `--only` token through the shared selector contract owned by `slide-identity-and-ordering`, also used by `ppt_flow`: exact current formal ID, spoken key, explicit 1-based position, unique case-insensitive title fragment, then supported legacy-prefix fallback. It SHALL resolve all tokens against one current `slide_plan.json` snapshot and preserve per-token bindings with `matched_by`; after that, this caller MAY deduplicate repeated formal IDs for stage execution. Ambiguous or unknown tokens SHALL fail and list bounded available `position + slide_id + title` tuples; approximate matches SHALL NOT be selected automatically.

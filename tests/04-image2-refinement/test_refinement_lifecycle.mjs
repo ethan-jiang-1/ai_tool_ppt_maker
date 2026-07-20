@@ -1,25 +1,48 @@
 import { describe, expect, it } from "vitest";
 import { encode as encodePng } from "fast-png";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { initHtmlFirstBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { buildPlan, authorizePlan, transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import { buildPlan, authorizePlan, loadRefinementOperations, transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
 import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
 import { createCandidateRecord, sha256 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/contracts.mjs";
-import { ensureRefinementDerivedRoots, persistCandidate, writeCandidateComparison, listReviews, refinementReviewDigest, cleanupRefinement } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/storage.mjs";
+import { candidatePaths, ensureRefinementDerivedRoots, persistCandidate, writeCandidateComparison, listReviews, refinementReviewDigest, cleanupRefinement } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/storage.mjs";
+import { projectImage2RefinementState, readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
 const png = Buffer.from(encodePng({ width: 1, height: 1, data: new Uint8Array([20, 30, 40, 255]), channels: 4, depth: 8 }));
 const planInput = {
   run_version: "v1",
   delivery_digest: "d".repeat(64),
-  profile_fingerprint: "p".repeat(64),
+  profile_fingerprint: "c".repeat(64),
   style_reference_status: "current",
   slides: [
     { slide_id: "Alpha", slot: "primary_visual", visual_contract_fingerprint: "a".repeat(64) },
     { slide_id: "Bravo", slot: "primary_visual", visual_contract_fingerprint: "b".repeat(64) },
   ],
 };
+
+async function createAuthorizedRun(prefix) {
+  const fixture = await createCurrentHtmlDelivery(prefix);
+  const operations = await loadRefinementOperations();
+  const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
+  const authorization = await operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-test" });
+  return { ...fixture, operations, plan, authorization, attempts: Object.values(authorization.attempts) };
+}
+
+function setAttemptSubmitting(fixture, attemptId) {
+  const state = readState(fixture.deck, { purpose: "execute" });
+  const record = readImage2RefinementState(state, "v1");
+  record.authorization = { ...record.authorization, used: true, used_at: "2026-07-20T00:00:00.000Z" };
+  record.attempts[attemptId] = transitionAttempt(record.attempts[attemptId], "submitting", { updated_at: "2026-07-20T00:00:00.000Z" });
+  writeImage2RefinementState(fixture.deck, "v1", record);
+  return record.attempts[attemptId];
+}
+
+function submittedBytes(request) {
+  return { status: "submitted", bytes: png, media: "image/png", width: 1, height: 1, provider_request_id: `provider-${request.attempt_id}`, receipt: { provider_request_id: `provider-${request.attempt_id}` } };
+}
 
 describe("Phase 4 lifecycle boundaries", () => {
   it("keeps random authorization/attempt identity outside the deterministic hash", () => {
@@ -65,4 +88,202 @@ describe("Phase 4 lifecycle boundaries", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("cleanup rejects ambiguous review ordering", () => {
+    const root = mkdtempSync(join(tmpdir(), "image2-cleanup-ordering-"));
+    const deck = join(root, "deck_cleanup");
+    try {
+      initHtmlFirstBundle(deck, null, "keynote", "dark-executive");
+      const run = join(deck, "3_versions", "v1");
+      const at = "2026-01-01T00:00:00.000Z";
+      for (const id of ["candidate-one", "candidate-two"]) {
+        const candidate = createCandidateRecord({ candidate_id: id, attempt_id: `attempt-${id}`, authorization_id: "auth-one", plan_hash: "a".repeat(64), run_version: "v1", slide_id: "Alpha", slot: "primary_visual", sha256: sha256(png), profile_fingerprint: "b".repeat(64), created_at: at });
+        persistCandidate(run, candidate, png);
+        writeCandidateComparison(run, id, `<html>${id}</html>`, { schema: "pptmaker-image2-refinement-review-v1", run_version: "v1", slide_id: "Alpha", slot: "primary_visual", candidate_id: id, candidate_sha256: candidate.sha256, decision: "use-html", reviewed_at: at, created_at: at });
+      }
+      const digest = refinementReviewDigest(listReviews(run));
+      expect(() => cleanupRefinement(run, { expectedReviewSha256: digest })).toThrow(/duplicate timestamps/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("cleanup rejects SHA-mismatched candidate bytes", () => {
+    const root = mkdtempSync(join(tmpdir(), "image2-cleanup-sha-"));
+    const deck = join(root, "deck_cleanup");
+    try {
+      initHtmlFirstBundle(deck, null, "keynote", "dark-executive");
+      const run = join(deck, "3_versions", "v1");
+      const at = "2026-01-01T00:00:00.000Z";
+      const candidate = createCandidateRecord({ candidate_id: "candidate-one", attempt_id: "attempt-one", authorization_id: "auth-one", plan_hash: "a".repeat(64), run_version: "v1", slide_id: "Alpha", slot: "primary_visual", sha256: sha256(png), profile_fingerprint: "b".repeat(64), created_at: at });
+      persistCandidate(run, candidate, png);
+      writeCandidateComparison(run, candidate.candidate_id, "<html>candidate</html>", { schema: "pptmaker-image2-refinement-review-v1", run_version: "v1", slide_id: "Alpha", slot: "primary_visual", candidate_id: candidate.candidate_id, candidate_sha256: candidate.sha256, decision: "use-html", reviewed_at: at, created_at: at });
+      const digest = refinementReviewDigest(listReviews(run));
+      writeFileSync(candidatePaths(run, candidate.candidate_id).bytes, Buffer.from("tampered"));
+      expect(() => cleanupRefinement(run, { expectedReviewSha256: digest })).toThrow(/SHA-mismatched/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("recommendation and decline keep the optional path lazy", async () => {
+    const fixture = await createCurrentHtmlDelivery("image2-lazy-decline-");
+    try {
+      const operations = await loadRefinementOperations();
+      const paths = operations.refinementPaths(fixture.runDir);
+      expect(existsSync(paths.generated)).toBe(false);
+      expect(existsSync(paths.scratch)).toBe(false);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+      const recommendation = await operations.recommendRefinement({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
+      expect(recommendation.plan.slides.map((slide) => slide.slide_id)).toEqual(["AlphaGo", "BravoGo"]);
+      expect(recommendation.expected_attempts).toBe(3);
+      expect(existsSync(paths.generated)).toBe(false);
+      expect(existsSync(paths.scratch)).toBe(false);
+      expect(await operations.declineRefinement({ runDir: fixture.runDir })).toMatchObject({ declined: true, provider_calls: 0 });
+      expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("authorization rejects stale hashes, scope changes, and reuse before submit", async () => {
+    const fixture = await createCurrentHtmlDelivery("image2-stale-authorization-");
+    try {
+      const operations = await loadRefinementOperations();
+      const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
+      const transport = createFakeRefinementTransport({ onSubmit: async () => { throw new Error("authorization must not submit"); } });
+      await expect(operations.authorizeRefinement({ runDir: fixture.runDir, planHash: "f".repeat(64) })).rejects.toThrow(/exact persisted plan hash/);
+      await expect(operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, plan: { ...plan, profile_fingerprint: "b".repeat(64) } })).rejects.toThrow(/exact persisted recommendation/);
+      const authorized = await operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-once" });
+      expect(authorized.authorization.used).toBe(false);
+      await expect(operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash })).rejects.toThrow(/single-use/);
+      expect(transport.submitCount).toBe(0);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("blocks page submission before or after a failed style-reference setup", async () => {
+    const fixture = await createAuthorizedRun("image2-setup-failure-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const page = fixture.attempts.find((attempt) => attempt.kind === "slot");
+      const transport = createFakeRefinementTransport({ onSubmit: async () => ({ status: "failed", failure_code: "setup_failed", receipt: { provider_request_id: "provider-setup" } }) });
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: page.attempt_id, transport })).rejects.toThrow(/setup dependency is planned/);
+      expect(transport.submitCount).toBe(0);
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id })).rejects.toThrow(/transport must be injected/);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[setup.attempt_id].state).toBe("planned");
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport })).rejects.toThrow(/provider reported a failed/);
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: page.attempt_id, transport })).rejects.toThrow(/setup dependency is failed/);
+      expect(transport.submitCount).toBe(1);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[page.attempt_id].state).toBe("planned");
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("reconciles a persisted submitting attempt without any resubmit", async () => {
+    const fixture = await createAuthorizedRun("image2-submit-recovery-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      setAttemptSubmitting(fixture, setup.attempt_id);
+      const unknown = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id });
+      expect(unknown).toMatchObject({ requires_human: true, attempt: { state: "unknown-submit" } });
+
+      const missingBytes = createFakeRefinementTransport({ onReconcile: async () => ({ status: "submitted", receipt: { provider_request_id: "provider-style" } }) });
+      const stillUnknown = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport: missingBytes });
+      expect(stillUnknown).toMatchObject({ requires_human: true, attempt: { state: "unknown-submit" } });
+
+      const proven = createFakeRefinementTransport({ onReconcile: async (request) => submittedBytes(request) });
+      const reconciled = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport: proven });
+      expect(reconciled.attempt).toMatchObject({ state: "submitted", promotion_status: "committed" });
+      expect(missingBytes.submitCount + proven.submitCount).toBe(0);
+      expect(missingBytes.reconcileCount + proven.reconcileCount).toBe(2);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("preserves a successful page candidate across a partial failure", async () => {
+    const fixture = await createAuthorizedRun("image2-partial-failure-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const alpha = fixture.attempts.find((attempt) => attempt.slide_id === "AlphaGo");
+      const bravo = fixture.attempts.find((attempt) => attempt.slide_id === "BravoGo");
+      const transport = createFakeRefinementTransport({ onSubmit: async (request) => request.slide_id === "AlphaGo" ? { status: "failed", failure_code: "page_failed" } : submittedBytes(request) });
+      await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport });
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: alpha.attempt_id, transport })).rejects.toThrow(/provider reported a failed/);
+      const success = await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: bravo.attempt_id, transport });
+      expect(success.candidate.slide_id).toBe("BravoGo");
+      expect(transport.submitCount).toBe(3);
+      const record = readImage2RefinementState(readState(fixture.deck), "v1");
+      expect(record.attempts[alpha.attempt_id].state).toBe("failed");
+      expect(record.attempts[bravo.attempt_id].state).toBe("submitted");
+      await expect(fixture.operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) })).rejects.toThrow(/authorization\/review must be resolved/);
+      await fixture.operations.composeCandidateReview({ runDir: fixture.runDir, candidateId: success.candidate.candidate_id });
+      await fixture.operations.useHtmlRefinement({ runDir: fixture.runDir, slideId: "BravoGo", candidateId: success.candidate.candidate_id });
+      expect((await fixture.operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) })).plan_hash).toMatch(/^[0-9a-f]{64}$/);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("keeps unknown-submit retain and abandon terminal without retry", async () => {
+    const fixture = await createAuthorizedRun("image2-unknown-decisions-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const pages = fixture.attempts.filter((attempt) => attempt.kind === "slot");
+      const transport = createFakeRefinementTransport({ onSubmit: async (request) => {
+        if (request.kind === "style-reference") return submittedBytes(request);
+        throw Object.assign(new Error("submit outcome unavailable"), { code: "ETIMEDOUT" });
+      } });
+      await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport });
+      const firstUnknown = await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: pages[0].attempt_id, transport });
+      expect(firstUnknown.attempt.state).toBe("unknown-submit");
+      const candidate = createCandidateRecord({ candidate_id: "candidate-retained", attempt_id: pages[0].attempt_id, authorization_id: fixture.authorization.authorization.authorization_id, plan_hash: fixture.plan.plan_hash, run_version: "v1", slide_id: pages[0].slide_id, slot: pages[0].slot, sha256: sha256(png), profile_fingerprint: fixture.plan.profile_fingerprint });
+      persistCandidate(fixture.runDir, candidate, png);
+      const retained = await fixture.operations.resolveUnknownSubmit({ runDir: fixture.runDir, attemptId: pages[0].attempt_id, decision: "retain", candidateId: candidate.candidate_id });
+      expect(retained.attempt).toMatchObject({ state: "submitted", unknown_submit_resolution: "retain", candidate_id: candidate.candidate_id });
+
+      const secondUnknown = await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: pages[1].attempt_id, transport });
+      expect(secondUnknown.attempt.state).toBe("unknown-submit");
+      const abandoned = await fixture.operations.resolveUnknownSubmit({ runDir: fixture.runDir, attemptId: pages[1].attempt_id, decision: "abandon" });
+      expect(abandoned).toMatchObject({ replacement_requires_new_authorization: true, attempt: { state: "unknown-submit", unknown_submit_resolution: "abandon" } });
+      await expect(fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: pages[1].attempt_id, transport })).rejects.toThrow(/duplicate or stale/);
+      await expect(fixture.operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) })).rejects.toThrow(/authorization\/review must be resolved/);
+      await fixture.operations.composeCandidateReview({ runDir: fixture.runDir, candidateId: candidate.candidate_id });
+      await fixture.operations.useHtmlRefinement({ runDir: fixture.runDir, slideId: candidate.slide_id, candidateId: candidate.candidate_id });
+      expect((await fixture.operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) })).plan_hash).toMatch(/^[0-9a-f]{64}$/);
+      expect(transport.submitCount).toBe(3);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("controller completion and decline both resume the parent without pending debt", async () => {
+    const completed = await createCurrentHtmlDelivery("image2-controller-complete-");
+    try {
+      const operations = await loadRefinementOperations();
+      expect(await operations.enterRefinementController({ runDir: completed.runDir })).toMatchObject({ entered: true, playbook: "image2-refine" });
+      const plan = await operations.createRefinementPlan({ runDir: completed.runDir, profileFingerprint: "a".repeat(64) });
+      const authorization = await operations.authorizeRefinement({ runDir: completed.runDir, planHash: plan.plan_hash, authorizationId: "auth-controller" });
+      const transport = createFakeRefinementTransport({ onSubmit: async (request) => submittedBytes(request) });
+      const candidates = [];
+      for (const attempt of authorization.authorization.attempts) {
+        const result = await operations.generateRefinement({ runDir: completed.runDir, attemptId: attempt.attempt_id, transport });
+        if (result.candidate) candidates.push(result.candidate);
+      }
+      for (const candidate of candidates) {
+        await operations.composeCandidateReview({ runDir: completed.runDir, candidateId: candidate.candidate_id });
+        await operations.useHtmlRefinement({ runDir: completed.runDir, slideId: candidate.slide_id, candidateId: candidate.candidate_id });
+      }
+      expect(await operations.completeRefinementController({ runDir: completed.runDir })).toMatchObject({ complete: true, playbook: "create-deck", requires_final_review: false });
+      const resumed = readState(completed.deck);
+      expect(resumed).toMatchObject({ playbook: "create-deck", current_node: "checkpoint-final-review" });
+      expect(projectImage2RefinementState(resumed, "v1")).toMatchObject({ status: "complete", human_action_required: false });
+    } finally { rmSync(completed.root, { recursive: true, force: true }); }
+
+    const declined = await createCurrentHtmlDelivery("image2-controller-decline-");
+    try {
+      const operations = await loadRefinementOperations();
+      await operations.enterRefinementController({ runDir: declined.runDir });
+      await operations.createRefinementPlan({ runDir: declined.runDir, profileFingerprint: "a".repeat(64) });
+      const paths = operations.refinementPaths(declined.runDir);
+      expect(existsSync(paths.generated)).toBe(true);
+      expect(await operations.declineRefinement({ runDir: declined.runDir })).toMatchObject({ declined: true, provider_calls: 0 });
+      const resumed = readState(declined.deck);
+      expect(resumed).toMatchObject({ playbook: "create-deck", current_node: "checkpoint-final-review" });
+      expect(readImage2RefinementState(resumed, "v1")).toBeNull();
+      expect(existsSync(paths.generated)).toBe(false);
+      expect(existsSync(paths.scratch)).toBe(false);
+    } finally { rmSync(declined.root, { recursive: true, force: true }); }
+  }, 180_000);
 });

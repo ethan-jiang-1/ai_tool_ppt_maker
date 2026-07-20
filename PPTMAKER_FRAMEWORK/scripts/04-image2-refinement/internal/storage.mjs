@@ -291,7 +291,10 @@ export function createPromotionJournal(runDir, record) {
   };
   for (const [key, value] of Object.entries(current)) if (value !== record.old[key]) throw new Error(`CONFLICT: refinement ${key} precondition changed`);
   if (existsSync(paths.journal)) throw new Error("CONFLICT: refinement promotion journal already exists");
-  atomicWrite(paths.journal, Buffer.from(`${canonicalJson(record)}\n`, "utf8"));
+  // Preserve the already-validated recovery payload's insertion order. YAML
+  // serialization is order-sensitive, and its exact bytes are bound by the
+  // journal's next SHAs for restart recovery.
+  atomicWrite(paths.journal, Buffer.from(`${JSON.stringify(record)}\n`, "utf8"));
   return Object.freeze({ path: paths.journal, transaction_id: record.transaction_id });
 }
 
@@ -311,7 +314,7 @@ export function updatePromotionJournal(runDir, patch, { expectedPhase = null } =
   const next = { ...current, ...patch };
   validatePromotionJournal(next, paths);
   if (readPromotionJournal(runDir)?.transaction_id !== current.transaction_id) throw new Error("CONFLICT: refinement promotion journal changed");
-  atomicWrite(paths.journal, Buffer.from(`${canonicalJson(next)}\n`, "utf8"));
+  atomicWrite(paths.journal, Buffer.from(`${JSON.stringify(next)}\n`, "utf8"));
   return Object.freeze(next);
 }
 

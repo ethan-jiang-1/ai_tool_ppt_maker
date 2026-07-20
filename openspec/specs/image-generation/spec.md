@@ -33,6 +33,15 @@ Direct legacy Image2 invocation and markerless public routes SHALL retain `IMAGE
 - **WHEN** the markerless generator receives sync output, async task output, or a provider failure
 - **THEN** it retains the existing shared extract/poll/save or secret-safe `ImageProviderError` behavior
 
+### Requirement: Modern visual-slot transport is isolated from legacy generation
+
+Modern Image2 submission SHALL live only behind the Phase-4 private transport adapter and consume persisted authorized attempt IDs. It SHALL emit secret-safe typed receipts suitable for reconciliation and SHALL not change or be imported by markerless whole-page generation.
+
+#### Scenario: HTML build runs normally
+
+- **WHEN** ordinary HTML build or local refresh runs
+- **THEN** no modern transport or provider credential loader is initialized
+
 ### Requirement: Submit and poll accept data-array response envelopes
 
 `image_api_client.mjs` SHALL extract submit `task_id` from object and array `data` envelopes, including `{ code, data: [ { task_id, status } ] }`, consistent with result's `data[0]` handling (closes BUG-008). Poll status SHALL read top-level or unwrapped `data` so array envelopes are not stuck as unknown. Unit tests SHALL cover array submit and object regression.
@@ -365,4 +374,3 @@ When orchestration requests reuse from a source version, Stage 2 SHALL expose en
 - **WHEN** the source PNG bytes differ from the recorded image SHA
 - **THEN** cross-version materialization refuses that entry
 - **AND** the target reports the ID as `needs_render` without a remote call
-

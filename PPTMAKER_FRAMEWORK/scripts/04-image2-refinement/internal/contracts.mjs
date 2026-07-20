@@ -82,6 +82,12 @@ function fingerprint(value, label, { required = false } = {}) {
   return value;
 }
 
+function shaFingerprint(value, label) {
+  const normalized = requiredString(value, label);
+  if (!SHA256_RE.test(normalized)) throw new RefinementContractError(`${label} must be lowercase SHA-256`, "invalid_fingerprint");
+  return normalized;
+}
+
 function cloneSlide(slide) {
   object(slide, "slide selection");
   const slideId = requiredString(slide.slide_id ?? slide.slideId, "slide_id", { id: true });
@@ -145,7 +151,7 @@ export function validatePlanInput(input) {
     schema: REFINEMENT_PLAN_SCHEMA,
     run_version: runVersion,
     delivery_digest: fingerprint(input.delivery_digest ?? input.deliveryDigest, "delivery_digest"),
-    profile_fingerprint: fingerprint(input.profile_fingerprint ?? input.profileFingerprint, "profile_fingerprint"),
+    profile_fingerprint: shaFingerprint(input.profile_fingerprint ?? input.profileFingerprint, "profile_fingerprint"),
     style_reference_status: styleStatus,
     slides: normalizedSlides.sort((a, b) => a.slide_id.localeCompare(b.slide_id)),
   });
@@ -270,7 +276,7 @@ export function createCandidateRecord(input) {
     media: ["image/png", "image/jpeg"].includes(input.media) ? input.media : "image/png",
     width: Number.isSafeInteger(input.width) && input.width > 0 ? input.width : null,
     height: Number.isSafeInteger(input.height) && input.height > 0 ? input.height : null,
-    profile_fingerprint: fingerprint(input.profile_fingerprint, "candidate.profile_fingerprint"),
+    profile_fingerprint: shaFingerprint(input.profile_fingerprint, "candidate.profile_fingerprint"),
     created_at: requiredString(input.created_at || new Date().toISOString(), "candidate.created_at"),
   };
   if (!isNormalizedVersion(candidate.run_version)) throw new RefinementContractError("candidate run_version must be normalized vN", "invalid_candidate");
@@ -316,7 +322,7 @@ export function createReviewRecord(input) {
 }
 
 export function safeProfileFingerprint(profile) {
-  if (typeof profile === "string") return fingerprint(profile, "profile_fingerprint", { required: true });
+  if (typeof profile === "string") return shaFingerprint(profile, "profile_fingerprint");
   object(profile, "profile");
   const safe = Object.fromEntries(Object.entries(profile).filter(([key]) => !SECRET_KEY_RE.test(key)).map(([key, value]) => [key, typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null ? value : String(value)]));
   return sha256(safe);

@@ -110,6 +110,8 @@ Define the visual asset catalog system: `asset-manifest.yaml` as SSOT for named 
 
 The HTML-first asset resolver SHALL read optional `version: 2` manifest `2_backbone/visual-style/assets/asset-manifest.yaml` first and optionally merge the sparse `version: 2` manifest `3_versions/vN/overrides/visual-style/assets/asset-manifest.yaml` by stable asset ID. V2 manifests SHALL parse as exactly one YAML 1.2 core-schema mapping with unique string keys. Directives/document markers, multiple documents, aliases/anchors, merge keys, any explicit tag, non-JSON scalar objects, and duplicate keys SHALL fail, while ordinary comments MAY remain human guidance; parser semantics SHALL use the same pinned `yaml@2.9.0` version/core/unique-key authority as structured slide YAML. The v2 root SHALL contain exactly `version` and `assets`; `assets` SHALL be a mapping of at most 512 entries keyed by exact existing grammar `^[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*$`, with IDs at most 64 ASCII characters. Each asset entry SHALL contain exactly the existing `path`, `type`, `label`, `description`, and `usage_guidance` fields plus required lowercase 64-hex `sha256`; `type` remains `svg|png|jpg`. `path` SHALL be at most 240 UTF-8 bytes; `label`, `description`, and `usage_guidance` SHALL be at most 80, 400, and 600 graphemes respectively; each string SHALL be non-empty after ECMAScript `trim()`. A version entry MAY add a new ID or replace one backbone ID, and the effective merged catalog SHALL contain at most 512 distinct IDs. Each effective entry SHALL retain `origin: backbone|version`, its declaring manifest's run-bundle-root-relative path, an origin-relative asset path, exact raster/SVG media evidence, declared SHA, and measured SHA. Position or array index SHALL never be asset identity. If both manifests are absent, the effective HTML-first catalog is empty and validation succeeds only when no source/config asset ID is referenced. The legacy loader's existing positive-version/forward-compatible field behavior and override-first path resolution SHALL remain unchanged for legacy pipeline markers.
 
+In addition to existing `svg/`, `reference/`, and `icons/` roots, a v2 entry MAY use only the Phase-4-owned `refined/image2/style-reference/` or `refined/image2/visual-slots/` root; no other new asset subdirectory is valid. The v2 catalog SHALL additionally expose a bounded Phase-2 public registration transaction that accepts a validated target run, a caller-supplied stable asset ID and approved raster bytes plus bounded descriptive metadata, writes the asset beneath one of those exact version override refined roots, and atomically adds or replaces exactly that v2 manifest entry with its measured SHA. It SHALL reject caller-supplied paths, manifest documents, origin, SHA, unsupported media, or arbitrary override writes. Phase 4 may call this public operation only within its bound promotion journal and SHALL not parse or edit the manifest itself.
+
 #### Scenario: Version override replaces one asset ID
 
 - **WHEN** a version override declares the same asset ID as a backbone entry and passes path/metadata/SHA validation
@@ -121,6 +123,17 @@ The HTML-first asset resolver SHALL read optional `version: 2` manifest `2_backb
 - **WHEN** a valid sparse version manifest declares an ID absent from the backbone manifest
 - **THEN** the effective catalog adds that ID with `origin: version`
 - **AND** no backbone manifest edit is required for the version-local asset
+
+#### Scenario: Refinement registers an accepted candidate
+
+- **WHEN** Phase 4 passes a validated candidate value and target asset ID to Phase 2
+- **THEN** the canonical version asset and exact manifest entry are committed with measured SHA
+- **AND** no candidate-derived path or provider metadata enters the manifest
+
+#### Scenario: Registration requests an arbitrary asset root
+
+- **WHEN** a caller requests a refined asset path outside the two canonical Phase-4 roots
+- **THEN** the transaction rejects it before writing bytes or a manifest
 
 #### Scenario: Invalid version entry is rejected
 
