@@ -1,7 +1,16 @@
 ## Purpose
 
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It SHALL contain labeled sections for every base `env-check.mjs` check, with user-profile-aware fix instructions that are copy-pasteable by beginners. External file references SHALL be marked as human-only background reading. The BOOTSTRAP gate behavior (FOUNDATION NOT READY / NOT READY / △ warning) SHALL be preserved. Image2 first-time credential setup SHALL be self-contained in BOOTSTRAP without duplicating the full API contract from `03-runtime-and-tools.md`. BOOTSTRAP sections SHALL stay in sync with `env-check.mjs` check names.
+Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local HTML readiness through `scripts/00-setup/env-check.mjs`, optional legacy Image2 readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
+### Requirement: BOOTSTRAP uses the Phase 0 environment interface
+
+BOOTSTRAP SHALL present `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` as the canonical normal environment command after dependencies are installed. It SHALL document `node PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` as the registered pre-install recovery checker when Commander or another npm dependency is unavailable, then return to root doctor guidance. The old flat env-check path SHALL not appear. The relocation preserves base/Image2 modes, check names, repair guidance, gate scope, and beginner behavior.
+
+#### Scenario: Commander is not installed yet
+
+- **WHEN** BOOTSTRAP diagnoses a missing npm dependency before root CLI can load
+- **THEN** it gives the direct Phase-0 recovery invocation and returns to root doctor after repair
+
 ### Requirement: BOOTSTRAP Step 1 contains a failure-to-fix section for every base doctor check
 
 BOOTSTRAP Step 1 SHALL contain a labeled failure-to-fix section for every stable default env-check name, including Node/npm/packages, exact `playwright@1.61.1`, exact direct `echarts@6.1.0`, paired Chromium, bundled HTML fonts, offline runtime smoke, framework files, and advisory Git where present. Each blocking section SHALL explain required versus found state, provide a copy-pasteable local repair, and rerun base doctor. Exact ECharts repair SHALL direct lockfile-aligned project-root installation and SHALL not suggest CDN/browser script use. Image2-only checks SHALL remain in the explicitly optional legacy subsection and SHALL not affect base READY.
@@ -202,4 +211,3 @@ BOOTSTRAP SHALL map every base doctor/package/runtime/font/browser failure, incl
 - **WHEN** doctor passes and HTML composition reports pixel overflow
 - **THEN** BOOTSTRAP/controller treats it as a run source/layout repair
 - **AND** does not ask for Image2 or reinstall the browser
-

@@ -26,7 +26,7 @@ _无。_
 
 | 影响面 | 说明 |
 |--------|------|
-| `PPTMAKER_FRAMEWORK/scripts/env-check.mjs` | `checkNpmPackages` + 共享 walk-up + export |
+| `PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` | `checkNpmPackages` + 共享 walk-up + export |
 | `openspec/specs/environment-check` | archive 时 sync |
 | `tests/test_env_check.mjs` | 增加 walk-up 回归 |
 | `_backlog/bugs/BUG-006` | 归档 |

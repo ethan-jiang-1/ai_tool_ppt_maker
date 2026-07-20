@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs";
+import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 
 export function htmlFirstSlide({
   number = 1,

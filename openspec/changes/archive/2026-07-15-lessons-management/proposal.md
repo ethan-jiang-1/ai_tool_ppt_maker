@@ -25,7 +25,7 @@ The gap is that `_lessons/` is **passive infrastructure** — a directory with a
 
 ## Impact
 
-- **New file**: `PPTMAKER_FRAMEWORK/scripts/lessons.mjs` — zero new dependencies, uses Node.js built-ins only (same pattern as `bundle_layout.mjs`)
+- **New file**: `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs` — zero new dependencies, uses Node.js built-ins only (same pattern as `bundle_layout.mjs`)
 - **Modified files**: `ppt_flow.mjs`, `BOOTSTRAP.md`, `AGENTS.md`, `AGENT_CONTRACT.md`, `bundle_layout.mjs`
 - **Tests**: New unit tests in `tests/` for `lessons.mjs`; existing tests in `tests/test_bundle_layout.mjs` should continue to pass (only README template text changes)
 - **Compatibility**: Fully backward-compatible. `lessons.mjs` is additive — existing decks with or without `_lessons/` continue to work. No migration required.

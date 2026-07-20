@@ -1,12 +1,12 @@
 ## Purpose
 
-Provide the CLI operational surface for the `_lessons/` self-retained lessons mechanism in run bundles. The `lessons.mjs` tool enables agents to list, add, search, and check lessons — making the agentic memory loop (probe → overcome → retain → read-before-guess) operationally effective rather than dependent on the agent's memory.
+Provide the CLI operational surface at `scripts/shared/run-bundle/lessons.mjs` for the `_lessons/` self-retained lessons mechanism in run bundles.
 
 ## Requirements
 
 ### Requirement: lessons.mjs CLI lists lessons in a run bundle
 
-`PPTMAKER_FRAMEWORK/scripts/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
+`PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
 
 The tool SHALL:
 - Accept a run directory (e.g., `deck_*/3_versions/v1`) as its argument

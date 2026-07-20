@@ -162,7 +162,7 @@ exit: [structure_ok]
 ```
 
 **Step 1 — MD**: 心跳——告知用户正在对齐结构。
-**Step 2 — CLI**: 策略 A/C → `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_<NAME> --deck-type … --style …`；策略 B → `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check <run-dir> --structure-only`。缺目录按宪法补，不自创结构。
+**Step 2 — CLI**: 策略 A/C → `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_<NAME> --deck-type … --style …`；策略 B → `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --check <run-dir> --structure-only`。缺目录按宪法补，不自创结构。
 
 ### inventory-map
 → 盘点与映射

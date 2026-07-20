@@ -32,7 +32,7 @@ None.
 
 ## Impact
 
-- Affected runtime code: `PPTMAKER_FRAMEWORK/scripts/lib/state.mjs`, Stage 5 receipt handling, standalone CLI entry points under `PPTMAKER_FRAMEWORK/scripts/`, and shared validation/error helpers.
+- Affected runtime code: `PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs`, Stage 5 receipt handling, standalone CLI entry points under `PPTMAKER_FRAMEWORK/scripts/`, and shared validation/error helpers.
 - Affected controller content: `PPTMAKER_FRAMEWORK/playbook/*.md`, including one new terminal verification node inside `restructure-slides.md`, and the gate-condition catalog in `charter/NODE-SPEC.md`.
 - Affected documentation: framework root/charter/reference/workflow/script READMEs, active production and iteration methodology, templates, and `openspec/config.yaml` context that currently preserves obsolete assumptions.
 - Affected tests: state/playbook execution tests, CLI error tests, documentation consistency tests, and new whole-framework coherence fixtures.

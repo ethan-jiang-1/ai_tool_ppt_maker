@@ -1,17 +1,17 @@
 # 专题 06: PPTMAKER_FRAMEWORK 目录影响
 
 > 总控: [`../html-first-progressive-rendering.md`](../html-first-progressive-rendering.md)
-> 状态: 架构已锁定 | 更新: 2026-07-18
+> 状态: workflow/playbook 迁移已由 Change 3 落地；scripts 层次迁移新增为 Change 4；Image2 refinement 顺延为 Change 5 | 更新: 2026-07-20
 
 ## 这份文档回答什么
 
-这份文档回答两件必须同时成立的事：总计划落地后 `PPTMAKER_FRAMEWORK/` 尤其是 `workflow/` / `playbook/` 会变成什么样，以及它们如何指向 [04-run-bundle-and-artifacts.md](04-run-bundle-and-artifacts.md) 定义的 HTML/Image2 物理分区。
+这份文档回答三件必须同时成立的事：总计划落地后 `PPTMAKER_FRAMEWORK/` 的 `workflow/` / `playbook/` 会变成什么样，`scripts/` 与 `tests/` / `tests_e2e/` 如何用可一一定位的物理层次表达同一组 lifecycle/capability ownership，以及它们如何指向 [04-run-bundle-and-artifacts.md](04-run-bundle-and-artifacts.md) 定义的 HTML/Image2 物理分区。
 
 - 这里画的是 framework soft bundle，不是 `deck_*` run bundle。
 - 本计划阶段不移动 framework 文件；实际 rename/rewrite 必须进入对应 OpenSpec change。
 - framework 根仍严格保持 5 个子目录：`workflow/`、`scripts/`、`charter/`、`reference/`、`playbook/`。不会新增第六个根目录。
 - run bundle 仍保持 `1_upstream_raw_material/` → `2_backbone/` → `3_versions/vN/` 三层本体论；本文件不把 run-bundle 目录定义复制进 framework。
-- 目标树中的公开方法文档名称和职责在本计划锁定；`scripts/lib/` 内部文件名可在各 change design 中微调，但不得改变本页规定的模块 interface 和所有权。
+- 目标树中的公开方法文档、script phase interface、import direction 和职责在本计划锁定；phase 私有实现文件名可在 Change 4 design 中微调，但不得恢复万能 `scripts/lib/` 或改变本页规定的 module interface 和所有权。
 
 ## 一眼看懂
 
@@ -40,7 +40,7 @@
 
 ## 最终 `workflow/` 目标树
 
-`workflow/` 的目录形状在 Change 3 一次迁移到最终六目录；Change 4 只激活并补全可选 Image2 refinement 内容。目录编号同时成为 Lifecycle Phase 与 `method_module` 顺序，不再维护“Method Module 编号与 Lifecycle Phase 编号不同”的双重解释。
+`workflow/` 的目录形状已在 Change 3 一次迁移到最终六目录；Change 4 只迁移 `scripts/` 的代码所有权层次，不激活任何 Image2 refinement；Change 5 才激活并补全可选 Image2 refinement 内容。目录编号同时成为 Lifecycle Phase 与 `method_module` 顺序，不再维护“Method Module 编号与 Lifecycle Phase 编号不同”的双重解释。
 
 目标 lifecycle 为 `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`：Phase 3 已经交付完整 PPTX；Phase 4 只有用户明确选择 Image2 专业升级时进入；Phase 5 可从 HTML 成品或采用 Image2 asset 后的成品开始迭代。Change 3 必须同步迁移 `node-specification` 的 `lifecycle_phase`/`method_module` enum、全部 playbook node frontmatter、validator fixture 和既有 `_state` 的续跑解释。
 
@@ -230,7 +230,7 @@ gate evidence 记录 pipeline marker、`visual_system_fingerprint`、已覆盖�
 | `03-stage-3-lock-headers-deterministically.md` | 改为 final-slide composition；HTML 拥有所有准确文字 |
 | `04-stage-4-build-the-pptx-container.md` | 保留，改为只消费 verified provider-neutral `final-slide` |
 | `05-stage-5-inject-speaker-notes.md` | 保留，继续按 stable ID + current order 注入 |
-| `reference-pipeline-scripts.md` | Change 3 更新 HTML/local CLI 和 legacy compatibility；Change 4 才加入实际可用的 `image2` CLI |
+| `reference-pipeline-scripts.md` | Change 3 更新 HTML/local CLI 和 legacy compatibility；Change 4 更新迁移后的 canonical script paths；Change 5 才加入实际可用的 `image2` CLI |
 
 ### `05-iteration/`
 
@@ -240,7 +240,7 @@ gate evidence 记录 pipeline marker、`visual_system_fingerprint`、已覆盖�
 | `01-content-iteration-workflow.md` | 改为 content + family，普通变化全部本地重合成 |
 | `02-style-iteration-workflow.md` | 改为 renderer-neutral visual config；style reference 变化归 refinement |
 | `03-pipeline-change-workflow.md` | 改为 structural versioning + artifact invalidation 路径 |
-| 新文件 `04-image2-refinement-iteration.md` | Change 4 新增；明确 Image2 retry/new candidate 必须新 plan 和授权，HTML/local iteration 仍走本地路径；Change 3 不创建可执行内容 |
+| 新文件 `04-image2-refinement-iteration.md` | Change 5 新增；明确 Image2 retry/new candidate 必须新 plan 和授权，HTML/local iteration 仍走本地路径；Change 3/4 不创建可执行内容 |
 | `04-end-to-end-walkthrough.md` | 顺延为 `05-...`，展示 novice stop 与 professional continue 两条结尾 |
 
 ## 迭代与刷新分类
@@ -282,22 +282,95 @@ PPTMAKER_FRAMEWORK/
 │   ├── legacy-image2-maintenance.md [新] 仅 legacy pipeline 的 whole-page Image2 兼容维护
 │   └── classify-change.md       [改] 先 pipeline marker，再结构/所有权/失效，最后判断是否需远端
 └── scripts/
-    ├── env-check.mjs            [改] base 与 `--image2` readiness 分层
-    ├── stage1_build_inputs.mjs  [改] structured plan + legacy branch
-    ├── stage2_render_html.mjs   [新] deterministic HTML page renderer
-    ├── stage2_generate_images.mjs [留] 仅 legacy whole-page Image2，不进 HTML-first build/image2 workflow
-    ├── stage3_compose_slides.mjs  [新] local final-slide composition
-    ├── stage3_lock_headers.mjs  [留] legacy compatibility
-    ├── stage4_build_pptx.mjs    [改] provider-neutral final-slide consumer
-    ├── unified_pipeline.mjs     [改] 以 `production.pipeline` 选择完整分支
-    ├── ppt_flow.mjs             [改] `image2` 子命令；普通 build/refresh 不持有远端 adapter
-    ├── asset_manifest.mjs       [改] per-ID layered catalog
-    ├── visual_config.mjs        [改] renderer-neutral schema
-    ├── fonts/                   [改] bundled licensed Latin + Simplified-Chinese WOFF2
-    └── lib/                     [改/新] structured slide、layout family、HTML composition、refinement transaction 深模块
+    ├── README.md
+    ├── ppt_flow.mjs                 唯一 canonical root front controller
+    ├── 00-setup/
+    │   ├── index.mjs                Phase 0 interface
+    │   ├── env-check.mjs
+    │   └── internal/                runtime/package/font readiness implementation
+    ├── 01-content/
+    │   ├── index.mjs                structured source/identity interface
+    │   └── internal/                slide document、ID、source contract implementation
+    ├── 02-visual-system/
+    │   ├── index.mjs                visual config/catalog/family interface
+    │   └── internal/                tokens、assets、geometry、component registry implementation
+    ├── 03-html-production/
+    │   ├── index.mjs                complete local Stages 1-5 interface
+    │   ├── stage1_build_inputs.mjs
+    │   ├── stage2_render_html.mjs
+    │   ├── stage3_compose_slides.mjs
+    │   ├── stage4_build_pptx.mjs
+    │   ├── stage5_inject_notes.mjs
+    │   ├── unified_pipeline.mjs
+    │   └── internal/                renderer/runtime/object/review/artifact/notes implementation
+    ├── 04-image2-refinement/
+    │   └── README.md                 Change 4 仍 unavailable；Change 5 才加入 executable/module
+    ├── 05-iteration/
+    │   ├── index.mjs                local maintenance/version/migration/legacy interface
+    │   ├── structural/
+    │   ├── migration/
+    │   └── legacy-image2/            old whole-page generation/header-lock maintenance
+    ├── shared/
+    │   ├── cli/                      envelope/bootstrap/progress
+    │   ├── run-bundle/               layout、marker、coherence
+    │   ├── state/                    state/controller/evidence primitives
+    │   └── identity/                 public canonical facade、byte hash、receipts、provider-neutral final-slide records
+    ├── contracts/                    canonical core、versioned source/evidence contracts、generators、architecture registry/checker
+    ├── fonts/                        bundled licensed font resources
+    └── fixtures/                     checked-in runtime/golden fixtures
 ```
 
-`scripts/lib/` 不按每个小步骤暴露一层 wrapper。后续 design 应保持两个主要外部 interface：
+这里的 `index.mjs` 是 phase module 的 interface，不是把私有函数逐个 re-export 的 barrel。每个 interface 必须隐藏本 phase 的路径、receipt、runtime 和 transaction 细节；调用方与测试通过同一个 seam。`internal/` 只是一条可见的“不得跨 phase import”标记，内部仍应按真实职责分组，不能成为新的平铺垃圾场。
+
+本节只记录大计划中的架构决策摘要；Change 4 的 exact public shared set、Phase adjacency、executable inventory、contract interface 和 checker 规则以 `openspec/changes/restructure-framework-script-modules/` 为权威，不在 backlog 复制第二份完整 schema。
+
+Change 4 必须锁定并机器检查以下 import direction：
+
+- `ppt_flow.mjs` 作为 composition root，按 command/marker 选择性加载 phase `index.mjs` 与声明过的 public shared interface（`shared/cli`、`shared/run-bundle`、`shared/state`），不直接进入任何 phase/shared `internal/`。`init/new-version/state/status` 不得为了回避其真实 shared owner 而经无关 phase 制造浅转发。
+- `shared/` 不依赖 00-05 phase；phase 可以依赖分类后的 shared module。
+- Change 4 的 exact Phase adjacency 为 `00->{}`、`01->{}`、`02->{}`、`03->{00,01,02}`、`05->{01,02,03}`；Phase 4 无 graph node。Phase 0 不依赖 Phase 5，Phase 5 发起本地生产只进入 Phase 3 interface。
+- 任何 phase 不得 import 另一 phase 的 `internal/`、CLI 文件或物理 artifact path constant。
+- legacy Image2 transport/provenance/manifest/materialization 物理位于 `05-iteration/legacy-image2/`，不是 shared identity。Change 5 的 modern Image2 adapter/transport port 物理位于 `04-image2-refinement/`；Change 4 不提前创建 shared provider port，也不让两者共享业务 implementation。
+- 只有五个 cross-owner process adapter：root `ppt_flow.mjs`、Phase 0 `env-check.mjs`、Phase 3 `unified_pipeline.mjs`、`stage1_build_inputs.mjs`、`stage4_build_pptx.mjs`；它们只进入 public Phase/shared interface。其他 direct CLI 进入自己的 Phase interface。
+- Phase interface import 本身必须无 bootstrap、process exit、顶层生产写、browser/provider 初始化；doctor、HTML-local、markerless 三类命令用 load-closure probe 证明未选中的 heavy/provider implementation 不会被加载。
+- 根目录不保留旧路径 shim 集合。若 canonical direct executable 路径发生 breaking change，Change 4 必须原子更新 `cli-surface`、COMMANDS/BOOTSTRAP/AGENTS、executable inventory、diagnostic invocation、tests 和所有 active links。
+
+Change 4 不是“移动文件后保留原有测试再叠一层 wrapper”。旧的内部文件级测试应由 phase interface 测试替代；只有 versioned pure contract/golden 与真实外部 adapter 测试继续保留。迁移后的 architecture self-check 必须枚举根文件白名单、六个 phase 目录、每个 `index.mjs`、禁止的跨 phase internal imports、direct executable inventory 和零 `scripts/lib/`。
+
+`tests/` 和 `tests_e2e/` 必须与 scripts ownership 同步迁移，目标顶层如下：
+
+```text
+tests/
+├── 00-setup/
+├── 01-content/
+├── 02-visual-system/
+├── 03-html-production/
+├── 04-image2-refinement/     Change 4 仅 README/absence contract
+├── 05-iteration/
+├── shared/
+├── contracts/
+└── helpers/                  只放 fixture builders；不得实现业务规则
+
+tests_e2e/
+├── 00-setup/
+├── 01-content/
+├── 02-visual-system/
+├── 03-html-production/
+├── 04-image2-refinement/     Change 5 才加入付费精修旅程
+├── 05-iteration/
+├── shared/                   state / run-bundle 用户旅程
+└── helpers/
+```
+
+一一对应指 ownership 可双向定位，不要求每个私有 `.mjs` 都机械配一个同名测试文件：
+
+- `scripts/<phase>/index.mjs` 的 interface/golden/integration tests 必须位于 `tests/<phase>/`；该 phase 的纯内部 contract 测试也只能位于同目录。
+- 跨 owner E2E 按“最终对用户结果负责的 owner”归档：fresh HTML delivery 属于 `tests_e2e/03-html-production/`，structural/migration/legacy maintenance 属于 `tests_e2e/05-iteration/`，state/lessons 属于 `tests_e2e/shared/{state,run-bundle}/`，future paid refinement 属于 `tests_e2e/04-image2-refinement/`。
+- `tests/shared/` 只验证真正跨 phase 的 shared module；不能成为无法归类测试的新垃圾场。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、fake adapter 和临时目录，不复制 production parser/state/fingerprint 逻辑。
+- `tests/`、`tests_e2e/` 根目录不得保留 `test_*.mjs` 业务文件；Vitest config、CLI audit 和 docs coherence 必须递归发现新层次并检查 source/test ownership map 完整。
+- Change 4 必须生成并验证一份 machine-readable source-to-test ownership manifest，至少覆盖每个 phase interface、direct executable、public shared interface、executable/architecture/canonical/source-AST/review-projection contract interface、对应 unit/integration suite 和拥有其用户旅程的 E2E suite；缺失、多 owner 或旧平铺路径均 fail closed。
+
+后续 design 应保持两个主要领域 interface，并允许 Change 4 在不扩大调用面前提下按当前实现深化名称：
 
 ```text
 parseAndResolveSlideDocument(source, resolved_config, resolved_assets)
@@ -309,20 +382,21 @@ composeSlide(structured_plan, resolved_assets, runtime_profile)
 
 远端 Image2 transport 不进入 `composeSlide`。它只由显式、已授权的 Image2 generation interface 调用；该 interface 可以复用 `image_api_client.mjs` 的 transport/extract 能力，但 Image2 visual-slot refinement 不是新 Stage 2，也不借用 legacy whole-page Stage 2 的业务 interface。
 
-## 四个 Change 分别动哪里
+## 五个 Change 分别动哪里
 
 | Change | `workflow/` 变化 | framework 其他主要变化 |
 |---|---|---|
 | 1 `upgrade-html-render-runtime-readiness` | 只更新 `00-setup/` 的 Node/browser/font/readiness 事实；不重排目录 | `BOOTSTRAP`、doctor、fonts、runtime profile |
 | 2 `add-structured-html-slide-contract` | 在当前 `02-content/` 先落 structured body/family authoring；尚不切默认 workflow | parser、visual config、asset catalog interfaces |
 | 3 `deliver-html-first-decks` | 原子迁移为最终六目录和 Phase 0-5 enum；迁移既有 state 续跑解释；新 `03-html-production/` 只拥有 HTML 完整交付；legacy whole-page Image2 进入独立兼容 playbook/reference | HTML renderer、composition、Stage 4、node/playbook/state schema、init/template、create/edit playbooks |
-| 4 `add-image2-visual-slot-refinement` | 激活并补全 `04-image2-refinement/` 的推荐、授权、候选、review、promotion、cleanup，更新 Phase 5 Image2 refinement iteration | `image2` CLI/state/provider adapter/promotion/cleanup/playbook |
+| 4 `restructure-framework-script-modules` | workflow/playbook lifecycle 不变；只更新所有 active script links 和 executable paths | 将平铺 root/`lib/` 迁入 00-05 phase modules 与分类 `shared/`；建立 phase interface/import checker；不新增 Image2 execution |
+| 5 `add-image2-visual-slot-refinement` | 激活并补全 `04-image2-refinement/` 的推荐、授权、候选、review、promotion、cleanup，更新 Phase 5 Image2 refinement iteration | 在已归档的 Phase-4 script module 内加入 `image2` CLI/state/provider adapter/promotion/cleanup/playbook |
 
 每个 change 归档时，`workflow/README.md`、`charter/WORKFLOW.md`、`AGENTS.md` 和 active playbook 必须准确描述当时已经可用的系统，不能提前宣传下一 change 才实现的路径。
 
 ### Change 3 归档后的可用树
 
-Change 3 已经切换新用户的 HTML-first 完整流程并完成目录/schema 迁移，但 Change 4 尚未交付 visual-slot refinement：
+Change 3 已经切换新用户的 HTML-first 完整流程并完成 workflow/schema 迁移，但 Change 4 scripts 架构迁移和 Change 5 visual-slot refinement 尚未交付：
 
 ```text
 workflow/
@@ -334,7 +408,11 @@ workflow/
 └── 05-iteration/      active: HTML/local maintenance; Image2 iteration remains explicit/not available
 ```
 
-这个归档点必须可用且自洽：新用户可以完整交付，旧 deck 通过独立 `legacy-image2-maintenance` 兼容入口维护。为了让 Phase/module enum 和顶层目录一次迁移到最终形状，Change 3 创建 `04-image2-refinement/README.md`，但 README 只能明确写“本版本尚不可用、不是完成交付的 gate”，不得包含可执行步骤、controller link 或命令。Change 3 的 active playbook index、status 和 next-node calculation 不注册 Phase 4 execution。Change 4 才填充该目录其余文件、注册 `image2-refine` nodes/CLI 并移除 unavailable 标记，不再进行第二次目录或 enum 迁移。
+这个归档点必须可用且自洽：新用户可以完整交付，旧 deck 通过独立 `legacy-image2-maintenance` 兼容入口维护。为了让 Phase/module enum 和顶层目录一次迁移到最终形状，Change 3 创建 `workflow/04-image2-refinement/README.md`，但 README 只能明确写“本版本尚不可用、不是完成交付的 gate”，不得包含可执行步骤、controller link 或命令。Change 4 只建立对应的 script ownership 目录并保持 README-only/non-executable；active playbook index、status 和 next-node calculation 仍不注册 Phase 4 execution。Change 5 才填充 workflow/script Phase 4、注册 `image2-refine` nodes/CLI 并移除 unavailable 标记，不再进行第二次 lifecycle enum 迁移。
+
+### Change 4 归档后的 scripts 可用树
+
+Change 4 归档时，所有 Change-3 行为、CLI envelopes、artifact bytes/fingerprints、state/gate/reset/migration semantics 和 markerless legacy behavior 必须保持兼容；改变的是代码导航与 module seam，不是产品行为。归档点必须满足：根目录只剩 `ppt_flow.mjs` 这一个 canonical front controller、`README.md` 和非执行资源目录；00/01/02/03/05 phase interface 可从目录直接发现；04 只有 unavailable README；`shared/` 无 phase 反向依赖；仓库不存在 `scripts/lib/`、旧 direct path 引用或跨 phase `internal/` import。
 
 ## 最终阅读体验
 
@@ -353,7 +431,7 @@ workflow/
 
 ## Playbook 路由与用户可见边界
 
-`workflow/` 是方法论阅读面，`playbook/` 是 MD Controller 的执行面；两者必须用同一组 ownership 名称。Change 3/4 之后，Controller 的最小路由应是：
+`workflow/` 是方法论阅读面，`playbook/` 是 MD Controller 的执行面，`scripts/` 是 JS implementation 面；三者必须用同一组 ownership 名称。Change 3/4/5 之后，Controller 的最小路由应是：
 
 ```text
 production.pipeline = html-first-v1
@@ -380,5 +458,5 @@ production.pipeline = legacy-image2-first
 - `ppt_flow image2 ...` 必须验证 `production.pipeline: html-first-v1`；legacy deck fail closed 并由 `legacy-image2-maintenance` 使用既有 pilot/build 路径，两个 Image2 模型不能交叉调用。
 - `image2-refine` controller nodes 使用 `lifecycle_phase: 4` / `method_module: 04-image2-refinement`；这不是普通 iteration 的别名。
 - `legacy-image2-maintenance` 只服务没有 `html-first-v1` marker 的旧 deck；不得被新 deck 的默认入口引用。它是兼容维护，nodes 使用 `lifecycle_phase: 5` / `method_module: 05-iteration`，不伪装成新的 visual-slot Phase 4。
-- `probe-image-channels` 保持独立的 off-path 环境诊断 playbook，nodes 继续使用 `lifecycle_phase: 0` / `method_module: 00-setup`；它不是 modern Phase 4 execution，也不属于 HTML production path。modern `image2-refine` 与 `legacy-image2-maintenance` 需要体检时都通过 playbook switch 进入并返回，调用方不得复制 probe nodes 或把诊断 submit 当成页面授权。这样 Change 3 可以保留 legacy 诊断而不注册 modern Phase 4，Change 4 也只消费既有 helper。
+- `probe-image-channels` 保持独立的 off-path 环境诊断 playbook，nodes 继续使用 `lifecycle_phase: 0` / `method_module: 00-setup`；它不是 modern Phase 4 execution，也不属于 HTML production path。modern `image2-refine` 与 `legacy-image2-maintenance` 需要体检时都通过 playbook switch 进入并返回，调用方不得复制 probe nodes 或把诊断 submit 当成页面授权。这样 Change 3 可以保留 legacy 诊断，Change 4 只迁移 helper ownership 而不注册 modern Phase 4，Change 5 再消费该 interface。
 - `_state` 的 reserved record 使用明确的 `image2-refinement` 名称；HTML/local progress、Image2 authorization 和 legacy execution 不得共用一个模糊的 `refinement` 状态。

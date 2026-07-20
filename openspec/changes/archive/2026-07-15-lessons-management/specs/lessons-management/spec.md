@@ -2,7 +2,7 @@
 
 ### Requirement: lessons.mjs CLI lists lessons in a run bundle
 
-`PPTMAKER_FRAMEWORK/scripts/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
+`PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
 
 The tool SHALL:
 - Accept a run directory (e.g., `deck_*/3_versions/v1`) as its argument

@@ -96,7 +96,7 @@ MD Controller 体系通过 `playbook/*.md` 中的 YAML frontmatter + Markdown bo
 PPTMAKER_FRAMEWORK/playbook/create-deck.md       — node 声明、requires、流程行
 PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md          — 示例 node ID
 PPTMAKER_FRAMEWORK/COMMANDS.md                   — 路由文字
-PPTMAKER_FRAMEWORK/scripts/lib/state.mjs         — NODE_ALIASES + applyNodeAliases 扩展
+PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs         — NODE_ALIASES + applyNodeAliases 扩展
 
 层面 2 — Main specs（3 个 MD，通过 delta spec）
 openspec/specs/playbook-execution/spec.md

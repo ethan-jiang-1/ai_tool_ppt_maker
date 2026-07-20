@@ -110,30 +110,30 @@ context: |-
 
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
-  | `content-parsing` | Stage 1：Markdown → slide plan / prompts / source validation | `stage1_build_inputs.mjs` |
-  | `image-generation` | Stage 2：框架内 Node 图像生成与 contact sheet | `stage2_generate_images.mjs`, `make_contact_sheet.mjs`, `image_api_client.mjs` |
-  | `header-lock` | Stage 3：确定性 kicker/title/subtitle 叠加 | `stage3_lock_headers.mjs` |
-  | `pptx-assembly` | Stage 4：最终图片 → PPTX | `stage4_build_pptx.mjs` |
-  | `notes-injection` | Stage 5：Speaker notes 注入与 receipt | `stage5_inject_notes.mjs` |
+  | `content-parsing` | Stage 1：Markdown → slide plan / prompts / source validation | `scripts/03-html-production/stage1_build_inputs.mjs` |
+  | `image-generation` | Stage 2：框架内 Node 图像生成与 contact sheet | `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs`, `scripts/05-iteration/legacy-image2/make_contact_sheet.mjs`, `scripts/05-iteration/legacy-image2/internal/image_api_client.mjs` |
+  | `header-lock` | Stage 3：确定性 kicker/title/subtitle 叠加 | `scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs` |
+  | `pptx-assembly` | Stage 4：最终图片 → PPTX | `scripts/03-html-production/stage4_build_pptx.mjs` |
+  | `notes-injection` | Stage 5：Speaker notes 注入与 receipt | `scripts/03-html-production/stage5_inject_notes.mjs` |
 
   ### 编排与视觉能力
 
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
-  | `pipeline-orchestration` | Stage 编排、preview/build 与 refresh paths | `unified_pipeline.mjs` |
-  | `visual-config` | Stage 1/3 共享视觉配置 | `visual_config.mjs` |
-  | `style-master-generation` | Style master 生成与视觉约束注入 | `generate_style_master.mjs` |
-  | `visual-asset-management` | Asset manifest、路径解析与资产指纹 | `asset_manifest.mjs` |
-  | `lessons-management` | `_lessons/` CLI 操作面（list/add/check/search） | `lessons.mjs` |
+  | `pipeline-orchestration` | Stage 编排、preview/build 与 refresh paths | `scripts/03-html-production/unified_pipeline.mjs` |
+  | `visual-config` | Stage 1/3 共享视觉配置 | `scripts/02-visual-system/index.mjs` |
+  | `style-master-generation` | Style master 生成与视觉约束注入 | `scripts/05-iteration/legacy-image2/generate_style_master.mjs` |
+  | `visual-asset-management` | Asset manifest、路径解析与资产指纹 | `scripts/02-visual-system/index.mjs` |
+  | `lessons-management` | `_lessons/` CLI 操作面（list/add/check/search） | `scripts/shared/run-bundle/lessons.mjs` |
 
   ### 交互与执行协议
 
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
-  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/change-classifier.md` |
-  | `cli-surface` | Registered direct CLI 的输出、诊断与 delegation 契约 | `scripts/lib/cli_error.mjs`, `ppt_flow.mjs` |
-  | `node-specification` | Node、State Schema、Gate condition 与 CLI consumer 协议 | `charter/NODE-SPEC.md` |
-  | `playbook-execution` | MD Controller、Entry/Exit Gate 与执行状态 | `playbook/*.md`, `scripts/lib/md_controller_reader.mjs`, `scripts/lib/state.mjs` |
+  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/05-iteration/change-classifier.md` |
+  | `cli-surface` | Registered direct CLI 的输出、诊断与 delegation 契约 | `scripts/shared/cli/cli_error.mjs`, `scripts/ppt_flow.mjs` |
+  | `node-specification` | Node、State Schema、Gate condition 与 CLI consumer 协议 | `charter/NODE-SPEC.md`, `scripts/shared/state/state.mjs` |
+  | `playbook-execution` | MD Controller、Entry/Exit Gate 与执行状态 | `playbook/*.md`, `scripts/shared/state/md_controller_reader.mjs`, `scripts/shared/state/state.mjs` |
 
   ## Workflow 术语与生产语义
 

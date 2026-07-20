@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how the five production stages are orchestrated: the whole pipeline runs on the Node.js 18+ runtime as directly-runnable ESM (`.mjs`, no build step), and the `unified_pipeline.mjs` entry point supports the Stage subsets used by Header Text & Style Refresh, Generated Image Rebuild, and Notes-Only Refresh; loads credentials from `.env`; and offers `--dry-run`, `--force-images`, and `--only <id>` while running Stage 2 via in-framework `stage2_generate_images.mjs` (no external skills). This capability guarantees that full builds and targeted edits share one orchestrator, so an iteration refreshes only the artifacts it actually invalidated.
+Define marker-first orchestration through `scripts/03-html-production/unified_pipeline.mjs` on the checked-in supported Node runtime. It delegates HTML delivery to Phase 3 and markerless legacy Image2 work to Phase 5, preserving targeted refresh paths without making Image2 a base requirement.
 ## Requirements
 ### Requirement: Pipeline runs on Node.js runtime
 
@@ -465,4 +465,3 @@ Byte reuse SHALL NOT copy, relabel, or synthesize version-scoped `html-productio
 - **WHEN** target Stage 1-3 and exact review plans are current but target gates are pending
 - **THEN** the controller returns `review_required` with no target Stage-4/5 publication
 - **AND** post-approval continuation remains local and reuses the same target-owned evidence
-

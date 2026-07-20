@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/lib/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
+Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/shared/state/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
 ## Requirements
 ### Requirement: NODE-SPEC.md exists in charter directory
 
@@ -200,7 +200,7 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 ### Requirement: CONDITIONS registry is implemented in state.mjs
 
-`scripts/lib/state.mjs` SHALL export a `CONDITIONS` object mapping each standard condition name to an executable check function. Parameterized conditions (e.g., `node_completed:<name>`) SHALL be supported via function factories.
+`scripts/shared/state/state.mjs` SHALL export a `CONDITIONS` object mapping each standard condition name to an executable check function. Parameterized conditions (e.g., `node_completed:<name>`) SHALL be supported via function factories.
 
 #### Scenario: Condition is checked
 
@@ -480,7 +480,7 @@ Playbook CLI steps that invoke `ppt_flow.mjs` SHALL treat a non-zero exit as act
 
 ### Requirement: state.yaml carries a discoverability header on every write
 
-`writeState(deckDir, state)` SHALL write `state.yaml` as a UTF-8 file whose leading lines are `#` comments that identify the file as playbook execution state and point readers to `charter/NODE-SPEC.md` and `scripts/lib/state.mjs` (and MAY mention `ppt_flow state`). The header text SHALL be defined once in `state.mjs` and SHALL be re-emitted on every successful write so it is not lost when the YAML body is regenerated from the in-memory object. The YAML parse path used by `readState` SHALL ignore `#` comment lines (library parse and/or strip-before-parse).
+`writeState(deckDir, state)` SHALL write `state.yaml` as a UTF-8 file whose leading lines are `#` comments that identify the file as playbook execution state and point readers to `charter/NODE-SPEC.md` and `scripts/shared/state/state.mjs` (and MAY mention `ppt_flow state`). The header text SHALL be defined once in `state.mjs` and SHALL be re-emitted on every successful write so it is not lost when the YAML body is regenerated from the in-memory object. The YAML parse path used by `readState` SHALL ignore `#` comment lines (library parse and/or strip-before-parse).
 
 #### Scenario: Header survives rewrite
 
@@ -517,7 +517,7 @@ Safe, one-to-one field normalization and schema-v3 migration MAY atomically rewr
 
 ### Requirement: State YAML parse/stringify uses a maintained YAML library
 
-`scripts/lib/state.mjs` SHALL use the npm `yaml` package for production `_state/state.yaml` I/O. **Read** SHALL use tolerant `parseDocument` options (at minimum `strict: false`, and duplicate keys not fatal) then schema healing — analogous in intent to JSON `jsonrepair`. **Write** SHALL emit only `stringify` output plus the existing `#` header. Hand-written mini-YAML SHALL NOT remain the authority for production state I/O.
+`scripts/shared/state/state.mjs` SHALL use the npm `yaml` package for production `_state/state.yaml` I/O. **Read** SHALL use tolerant `parseDocument` options (at minimum `strict: false`, and duplicate keys not fatal) then schema healing — analogous in intent to JSON `jsonrepair`. **Write** SHALL emit only `stringify` output plus the existing `#` header. Hand-written mini-YAML SHALL NOT remain the authority for production state I/O.
 
 #### Scenario: Round-trip encoding matches stack semantics
 
@@ -544,7 +544,7 @@ Safe, one-to-one field normalization and schema-v3 migration MAY atomically rewr
 
 #### Scenario: State module does not import bundle_layout
 
-- **WHEN** a developer inspects `scripts/lib/state.mjs` imports
+- **WHEN** a developer inspects `scripts/shared/state/state.mjs` imports
 - **THEN** it does not import `bundle_layout.mjs`
 
 ### Requirement: Playbook index validates references and impossible gates
@@ -759,7 +759,7 @@ MD SHALL interpret lineage as ordered evidence from editable origin toward the o
 
 An Agent entering a newly initialized run bundle SHALL encounter a generated root `AGENTS.md`/`CLAUDE.md` route to `deck-guide.md`. The guide SHALL explain the consumer essentials without referencing repo-only OpenSpec paths: parse the final failure envelope, use supported structured `diagnostic.next`, preserve invocation argument boundaries, stop when `requires_human` is true, do not guess omitted lineage, and never hand-edit `_generated/`.
 
-Repository-maintenance discovery for MD implementation SHALL also be present in root `AGENTS.md` and short headers of `scripts/lib/md_controller_reader.mjs` and `state.mjs`, pointing to `node-specification` and active deltas without duplicating field schema.
+Repository-maintenance discovery for MD implementation SHALL also be present in root `AGENTS.md` and short headers of `scripts/shared/state/md_controller_reader.mjs` and `state.mjs`, pointing to `node-specification` and active deltas without duplicating field schema.
 
 #### Scenario: New run bundle receives a CLI failure
 
@@ -867,7 +867,7 @@ MD SHALL use the structural escape ladder without getting trapped in one version
 
 ### Requirement: HTML review readiness has one deep module interface
 
-`scripts/lib/html_review_evidence.mjs` (or an equivalently named single owner) SHALL expose exactly the orchestration-level interfaces `inspectHtmlReviewReadiness(runDir)`, `recoverHtmlGatePublication(runDir, { confirmedOwnerToken } = {})`, `publishHtmlGateDecision(runDir, { gate, planHash, status, waiverReason })`, `publishHtmlDeliveryDecision(runDir, { decision, reason })`, and `resetHtmlProduction(runDir, { confirmedRunVersion })`. It SHALL canonicalize the run/version, classify the marker, resolve immutable plan/artifact bytes, compute current content/system/recipe/page/delivery fingerprints, and own all evidence/journal/reset publication internally. Callers SHALL not pass metadata gates, state records, manifest paths, fingerprints, reset IDs, timestamps, or SHAs as alternate truth. `confirmedOwnerToken` SHALL be accepted only by the explicit human-confirmed CLI route; normal build/check-gates/publication calls SHALL omit it. `confirmedRunVersion` SHALL be accepted only by the closed full-reset CLI route and SHALL exactly equal the normalized target version. Delivery reason SHALL follow the exact decision rules above and be stored for resume, not used as evidence/fingerprint input.
+`scripts/shared/state/html_review_evidence.mjs` (or an equivalently named single owner) SHALL expose exactly the orchestration-level interfaces `inspectHtmlReviewReadiness(runDir)`, `recoverHtmlGatePublication(runDir, { confirmedOwnerToken } = {})`, `publishHtmlGateDecision(runDir, { gate, planHash, status, waiverReason })`, `publishHtmlDeliveryDecision(runDir, { decision, reason })`, and `resetHtmlProduction(runDir, { confirmedRunVersion })`. It SHALL canonicalize the run/version, classify the marker, resolve immutable plan/artifact bytes, compute current content/system/recipe/page/delivery fingerprints, and own all evidence/journal/reset publication internally. Callers SHALL not pass metadata gates, state records, manifest paths, fingerprints, reset IDs, timestamps, or SHAs as alternate truth. `confirmedOwnerToken` SHALL be accepted only by the explicit human-confirmed CLI route; normal build/check-gates/publication calls SHALL omit it. `confirmedRunVersion` SHALL be accepted only by the closed full-reset CLI route and SHALL exactly equal the normalized target version. Delivery reason SHALL follow the exact decision rules above and be stored for resume, not used as evidence/fingerprint input.
 
 The module SHALL own one `normalizeHumanReason` rule for gate-waiver and delivery repair/redirect reasons: normalize CRLF/CR to LF, trim leading/trailing Unicode whitespace, preserve remaining Unicode scalars without normalization, reject NUL and C0 controls except LF/TAB, require non-empty, and cap serialized UTF-8 at 1024 bytes. Failure diagnostics SHALL report only invalid/missing/too-long classification and SHALL not echo reason text.
 

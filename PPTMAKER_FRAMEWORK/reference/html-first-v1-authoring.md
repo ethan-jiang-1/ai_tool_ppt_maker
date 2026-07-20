@@ -10,14 +10,14 @@ The three general write-free validation routes are:
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate <run-dir>
-node PPTMAKER_FRAMEWORK/scripts/stage1_build_inputs.mjs --validate --spec <run-dir>/slide-specifications.md
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <run-dir> --stage 1 --dry-run
+node PPTMAKER_FRAMEWORK/scripts/03-html-production/stage1_build_inputs.mjs --validate --spec <run-dir>/slide-specifications.md
+node PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs --run-dir <run-dir> --stage 1 --dry-run
 ```
 
 Only literal unified Stage 1 without `--dry-run` may publish the rebuildable `_generated/slide_plan.json`:
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/unified_pipeline.mjs --run-dir <run-dir> --stage 1
+node PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs --run-dir <run-dir> --stage 1
 ```
 
 Do not pass `--input`, a second `--spec`, `--out`, `--style-dir`, `--color-palette`, or `--deck-system` for marked direct validation. HTML-first controls always resolve from the canonical run context.

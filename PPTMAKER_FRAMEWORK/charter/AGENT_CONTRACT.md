@@ -27,7 +27,7 @@ agent_action: read_first
 
 ## 2. 目录是宪法
 
-结构唯一事实源：`scripts/bundle_layout.mjs`。
+结构唯一事实源：`scripts/shared/run-bundle/bundle_layout.mjs`。
 - 创建：`--init deck_{NAME} --deck-type … --style …`（禁止手动 mkdir/cp 拼骨架）
 - 校验：`--check … --structure-only`（Phase 0）/ 管线跑前自动全量 check
 - 不自创目录、不把生成物乱放
@@ -81,8 +81,8 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 **唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
 
-官方 Stage 2：`unified_pipeline.mjs` → `scripts/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
-Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
+官方 Stage 2：`unified_pipeline.mjs` → `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
+Style master：`scripts/05-iteration/legacy-image2/generate_style_master.mjs` → `image_api_client.mjs`。
 不发现 `.claude/skills` / `.agents/skills`。
 
 **CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出唯一 JSON envelope，并用受支持的 `diagnostic` 交付 JS 已知的 source/artifact lineage 与安全 `next`。MD 只使用完整校验的版本；`requires_human:true` 必须停下，`program`/`args` 保持参数边界，未知证据不猜，`_generated/` 不手改。producer 细则见 capability `cli-surface`，consumer 语义见 `charter/NODE-SPEC.md`。
@@ -100,7 +100,7 @@ Style master：`scripts/generate_style_master.mjs` → `image_api_client.mjs`。
 | Notes-Only Refresh | speaker notes only | Stage 5 | ~30 sec |
 | Structural Versioning Path | 增/删/重排 slide | stable-ID preview → 用户确认 before/after → exact `plan_sha256` 提交干净 vNext → verified raw-only materialization → 本地重建 | 按范围 |
 
-标题是否需要 Stage 2 取决于 resolved mode：`body+header-lock` 使用 Header Text & Style Refresh；`full-page` 使用 Generated Image Rebuild。后者的 raw `unified_pipeline --only <id>` 只限定范围，不会自动重生已有图片，必须同时使用 `--force-images`；公共 `ppt_flow refresh --kind visual --only <id>` 会为明确范围加 force。分类见 `scripts/change-classifier.md`。
+标题是否需要 Stage 2 取决于 resolved mode：`body+header-lock` 使用 Header Text & Style Refresh；`full-page` 使用 Generated Image Rebuild。后者的 raw `unified_pipeline --only <id>` 只限定范围，不会自动重生已有图片，必须同时使用 `--force-images`；公共 `ppt_flow refresh --kind visual --only <id>` 会为明确范围加 force。分类见 `scripts/05-iteration/change-classifier.md`。
 
 结构 preview 的 hash 由 Agent 保留，用户只确认变化。stale source/hash mismatch 必须重新 preview，不 rebase。Structural apply、impact 与 materialization 不得调用远端 renderer；只有 manifest 证明完整的 raw render 可以跨版本物化，Stage 3/contact sheet/PPTX/notes 在目标本地重建。`needs_render` 只报告后续成本，不能把结构授权扩张为生图授权。若一版内无法清晰收敛，按新 preview → 新 vNext → 新 deck 升级；受众、主叙事或设计系统分叉时直接建议新 deck。
 
@@ -188,7 +188,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
 | 需要时 | 打开 |
 |--------|------|
 | Phase 逐步怎么做 | `AGENTS.md` 对应 Phase 节 |
-| 改动分类 | `scripts/change-classifier.md` |
+| 改动分类 | `scripts/05-iteration/change-classifier.md` |
 | 常见错误 | `reference/anti-patterns.md` |
 | 术语 | `reference/glossary.md` |
 | 人类 Quick Start | `reference/quick-start.md` |

@@ -1,0 +1,161 @@
+{
+  "schema": "pptmaker-source-test-ownership-v1",
+  "owners": [
+    {
+      "owner": "00-setup",
+      "interfaces": ["00-setup/index.mjs"],
+      "executables": ["00-setup/env-check.mjs"],
+      "unit_integration": [
+        "tests/00-setup/test_env_check.mjs",
+        "tests/00-setup/test_html_fonts.mjs",
+        "tests/00-setup/test_html_runtime_profile.mjs",
+        "tests/00-setup/test_html_runtime_smoke.mjs",
+        "tests/00-setup/test_runtime_guidance.mjs"
+      ],
+      "e2e": []
+    },
+    {
+      "owner": "01-content",
+      "interfaces": ["01-content/index.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/01-content/test_slide_document.mjs",
+        "tests/01-content/test_slide_ids.mjs"
+      ],
+      "e2e": []
+    },
+    {
+      "owner": "02-visual-system",
+      "interfaces": ["02-visual-system/index.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/02-visual-system/test_html_asset_catalog.mjs",
+        "tests/02-visual-system/test_html_chart_svg.mjs",
+        "tests/02-visual-system/test_html_component_registry.mjs",
+        "tests/02-visual-system/test_visual_config.mjs"
+      ],
+      "e2e": []
+    },
+    {
+      "owner": "03-html-production",
+      "interfaces": ["03-html-production/index.mjs"],
+      "executables": [
+        "03-html-production/stage1_build_inputs.mjs",
+        "03-html-production/stage2_render_html.mjs",
+        "03-html-production/stage3_compose_slides.mjs",
+        "03-html-production/stage4_build_pptx.mjs",
+        "03-html-production/stage5_inject_notes.mjs",
+        "03-html-production/unified_pipeline.mjs"
+      ],
+      "unit_integration": [
+        "tests/03-html-production/test_html_first_orchestration.mjs",
+        "tests/03-html-production/test_html_object_store.mjs",
+        "tests/03-html-production/test_html_preview.mjs",
+        "tests/03-html-production/test_html_render_runtime.mjs",
+        "tests/03-html-production/test_html_slide_contract.mjs",
+        "tests/03-html-production/test_html_slide_renderer.mjs",
+        "tests/03-html-production/test_html_stage5.mjs",
+        "tests/03-html-production/test_html_stage_clis.mjs",
+        "tests/03-html-production/test_stage1_build_inputs.mjs",
+        "tests/03-html-production/test_stage4_build_pptx.mjs",
+        "tests/03-html-production/test_stage5_inject_notes.mjs",
+        "tests/03-html-production/test_unified_pipeline.mjs"
+      ],
+      "e2e": ["tests_e2e/03-html-production/test-html-first-flow.mjs"]
+    },
+    {
+      "owner": "05-iteration",
+      "interfaces": ["05-iteration/index.mjs"],
+      "executables": [
+        "05-iteration/legacy-image2/generate_style_master.mjs",
+        "05-iteration/legacy-image2/make_contact_sheet.mjs",
+        "05-iteration/legacy-image2/stage2_generate_images.mjs",
+        "05-iteration/legacy-image2/stage3_lock_headers.mjs"
+      ],
+      "unit_integration": [
+        "tests/05-iteration/test_generate_style_master.mjs",
+        "tests/05-iteration/test_header_review.mjs",
+        "tests/05-iteration/test_html_first_structural.mjs",
+        "tests/05-iteration/test_html_migration.mjs",
+        "tests/05-iteration/test_image_generation.mjs",
+        "tests/05-iteration/test_render_artifacts.mjs",
+        "tests/05-iteration/test_stage3_lock_headers.mjs",
+        "tests/05-iteration/test_structural_reuse.mjs"
+      ],
+      "e2e": ["tests_e2e/05-iteration/test-structural-slide-flow.mjs"]
+    },
+    {
+      "owner": "contracts",
+      "interfaces": [
+        "contracts/canonical_json.mjs",
+        "contracts/executable_inventory.mjs",
+        "contracts/framework_architecture.mjs",
+        "contracts/html_review_projection.mjs",
+        "contracts/html_source_ast.mjs"
+      ],
+      "executables": ["ppt_flow.mjs"],
+      "unit_integration": [
+        "tests/contracts/test_docs_consistency.mjs",
+        "tests/contracts/test_framework_architecture.mjs",
+        "tests/contracts/test_geometry_contracts.mjs",
+        "tests/contracts/test_html_review_projection.mjs",
+        "tests/contracts/test_ppt_flow.mjs",
+        "tests/contracts/test_runtime_constitution.mjs"
+      ],
+      "e2e": []
+    },
+    {
+      "owner": "shared/cli",
+      "interfaces": [
+        "shared/cli/cli_bootstrap.mjs",
+        "shared/cli/cli_error.mjs"
+      ],
+      "executables": [],
+      "unit_integration": ["tests/shared/cli/test_cli_error.mjs"],
+      "e2e": []
+    },
+    {
+      "owner": "shared/identity",
+      "interfaces": [
+        "shared/identity/byte_hash.mjs",
+        "shared/identity/canonical_json.mjs",
+        "shared/identity/notes_receipt.mjs",
+        "shared/identity/render_artifacts.mjs"
+      ],
+      "executables": [],
+      "unit_integration": ["tests/shared/identity/test_render_artifacts.mjs"],
+      "e2e": []
+    },
+    {
+      "owner": "shared/run-bundle",
+      "interfaces": [
+        "shared/run-bundle/bundle_layout.mjs",
+        "shared/run-bundle/production_marker.mjs"
+      ],
+      "executables": [
+        "shared/run-bundle/bundle_layout.mjs",
+        "shared/run-bundle/lessons.mjs"
+      ],
+      "unit_integration": [
+        "tests/shared/run-bundle/test_bundle_layout.mjs",
+        "tests/shared/run-bundle/test_lessons.mjs"
+      ],
+      "e2e": ["tests_e2e/shared/run-bundle/test-lessons-flow.mjs"]
+    },
+    {
+      "owner": "shared/state",
+      "interfaces": [
+        "shared/state/html_review_evidence.mjs",
+        "shared/state/md_controller_reader.mjs",
+        "shared/state/state.mjs"
+      ],
+      "executables": [],
+      "unit_integration": [
+        "tests/shared/state/test_html_review_evidence.mjs",
+        "tests/shared/state/test_md_controller_reader.mjs",
+        "tests/shared/state/test_state_yaml.mjs"
+      ],
+      "e2e": ["tests_e2e/shared/state/test-state-machine.mjs"]
+    }
+  ]
+}

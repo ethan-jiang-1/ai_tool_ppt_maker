@@ -76,7 +76,7 @@ authorization record/write 继续由 state API 拥有，不塞入 generation mod
 - output byte SHA
 - generation time
 
-candidate manifest 只拥有生成 provenance，不拥有 review status。authorization、reviewed/accepted/rejected 和 attempt consumption 都由 `_state/state.yaml` 的 version-scoped reserved record `image2-refinement.by_version[version_key]` 管理。Change 4 必须把 `image2-refinement` 加入 `RESERVED_NODE_IDS`、state schema validation/heal 和 controller-node collision tests；它和 `header-review` 一样跨 top-level playbook execution 保留，但有独立 freshness contract。删除 slide/version 后旧 record 可留作 cost audit，只有显式 state maintenance 才可压缩；它绝不能阻止其他版本 build。即使 record 经 heal 丢失，source selection + resolved 正式资产仍足以本地重建，state 不是 accepted asset 的第二份权威。
+candidate manifest 只拥有生成 provenance，不拥有 review status。authorization、reviewed/accepted/rejected 和 attempt consumption 都由 `_state/state.yaml` 的 version-scoped reserved record `image2-refinement.by_version[version_key]` 管理。Change 5 必须把 `image2-refinement` 加入 `RESERVED_NODE_IDS`、state schema validation/heal 和 controller-node collision tests；它和 `header-review` 一样跨 top-level playbook execution 保留，但有独立 freshness contract。删除 slide/version 后旧 record 可留作 cost audit，只有显式 state maintenance 才可压缩；它绝不能阻止其他版本 build。即使 record 经 heal 丢失，source selection + resolved 正式资产仍足以本地重建，state 不是 accepted asset 的第二份权威。
 
 同一 generation fingerprint 下不同 output SHA 的候选必须共存，不互相覆盖。
 

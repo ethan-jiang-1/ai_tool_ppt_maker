@@ -1,16 +1,23 @@
 ## Purpose
 
-Define the pre-flight environment check (`scripts/env-check.mjs`) that verifies a machine is ready to run the pipeline: a zero-dependency script (Node.js built-ins only) that gates the Node.js version (>= 18), npm and the hard-required packages (`@napi-rs/canvas`, `pptxgenjs`, `commander`), the Image2 API key (`IMAGE2_API_KEY`), and a hard-required image API base URL (`IMAGE2_BASE_URL`), then emits a structured READY / NOT READY report with a matching exit code. This capability guarantees that setup problems are diagnosed with actionable messages before the pipeline runs, and that the check itself never requires `npm install` to execute.
+Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local HTML readiness, and explicitly selected optional legacy Image2 modes. It emits an actionable structured readiness report without requiring `npm install` to start.
 ## Requirements
 ### Requirement: Zero-dependency runtime check
 
-`scripts/env-check.mjs` SHALL have zero static npm dependencies. It SHALL remain runnable with Node.js built-ins before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed `html-render-runtime` implementation only after package presence checks establish that npm dependencies exist; a missing dependency SHALL be reported as a normal check failure rather than causing module-load failure at startup.
+`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a Phase nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed HTML runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
+
+Base runtime/font inspection is owned by the import-safe Phase-0 interface, which SHALL NOT import Phase 5. The direct adapter and root doctor may lazily call Phase 5's public provider diagnostic only after Phase-0 prerequisites pass and an Image2 mode is explicitly selected. Base mode SHALL not load Phase-3 renderer internals or Phase-5/provider implementation.
 
 #### Scenario: Run without node_modules
 
-- **WHEN** `node scripts/env-check.mjs` runs in a fresh directory with no `node_modules/`
+- **WHEN** `node scripts/00-setup/env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** the script executes and emits actionable missing-package results
 - **AND** it does not fail during top-level module loading
+
+#### Scenario: Base mode does not initialize legacy provider
+
+- **WHEN** direct Phase-0 env-check runs without an Image2 flag
+- **THEN** no Phase-5 provider or credential implementation is loaded while local HTML readiness remains checkable
 
 ### Requirement: Node.js version gate
 
@@ -221,7 +228,7 @@ The env check SHALL output a structured report with per-check status and an over
 
 ### Requirement: Git safety observation is advisory, bounded, and scope-honest
 
-`scripts/env-check.mjs` SHALL include one stable base check named `git`, implemented with Node.js built-ins and no npm dependency. The check SHALL observe only the process current working directory; its production child runner SHALL fix `cwd` to `process.cwd()`, use `shell: false` with ignored stdin, and expose no caller-controlled cwd/path input. Its public text SHALL describe that scope without emitting the directory path and SHALL NOT claim that a future or separately located run bundle is protected, tracked, clean, or recoverable.
+`scripts/00-setup/env-check.mjs` SHALL include one stable base check named `git`, implemented with Node.js built-ins and no npm dependency. The check SHALL observe only the process current working directory; its production child runner SHALL fix `cwd` to `process.cwd()`, use `shell: false` with ignored stdin, and expose no caller-controlled cwd/path input. Its public text SHALL describe that scope without emitting the directory path and SHALL NOT claim that a future or separately located run bundle is protected, tracked, clean, or recoverable.
 
 The probe SHALL use only a fixed, argument-safe sequence: a bounded `git --version` with a conservative one-line parse that accepts exactly `git version <major>.<minor>.<patch>` plus only the optional `.windows.<number>` or ` (Apple Git-<number>)` suffix; after a recognized version succeeds, a bounded `git rev-parse --is-inside-work-tree`; and only after literal `true`, a bounded `git rev-parse --verify --quiet HEAD^{commit}` accepting only a 40- or 64-hex object identifier. Each invocation SHALL use `shell: false`, ignored stdin, a 2-second timeout, and Node `maxBuffer` of 4 KiB per captured stdout/stderr stream. Only a quiet no-stdout/no-stderr `rc=1` HEAD verification result MAY be normalized as no-verifiable-HEAD; every other nonzero/timeout/permission/malformed result is unavailable. The child environment SHALL be allowlisted enough to preserve platform-required executable discovery while omitting framework credentials and removing inherited `GIT_*` overrides (case-insensitively on Windows); on Windows it SHALL forward at most one canonicalized `PATH`/`Path` key. It SHALL set `LC_ALL=C` and `LANG=C` on every platform, plus framework-owned `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_CONFIG_NOSYSTEM=1`, and `GIT_CONFIG_GLOBAL` to Node's platform null device so global/system Git configuration and replacement refs do not affect the probe. The implementation SHALL not invoke shell parsing, `git status`, `git log`, `git diff`, `git remote`, `git config`, or any Git mutation command.
 
@@ -340,4 +347,3 @@ After npm package presence succeeds, env-check SHALL dynamically enter the runti
 - **WHEN** base readiness succeeds without a run-dir
 - **THEN** its font result is scoped to the fixed sentinel corpus
 - **AND** it does not assert that arbitrary slide source will fit or has complete glyph coverage
-

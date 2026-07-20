@@ -1,6 +1,6 @@
 # Node 规格宪法
 
-> 本文定义 MD Controller 的 Playbook Node、state schema 与 gate 条件。`playbook/*.md` 是工作流内容、节点顺序与声明的唯一真相源；`scripts/lib/md_controller_reader.mjs` 只负责读取、解析、索引和校验，不定义、生成、修改或执行 playbook。
+> 本文定义 MD Controller 的 Playbook Node、state schema 与 gate 条件。`playbook/*.md` 是工作流内容、节点顺序与声明的唯一真相源；`scripts/shared/state/md_controller_reader.mjs` 只负责读取、解析、索引和校验，不定义、生成、修改或执行 playbook。
 
 ## 规范层级
 
@@ -47,7 +47,7 @@ produces: [slide-specifications]
 
 ## State Schema v3
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/lib/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，且二次读取幂等。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，且二次读取幂等。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
 
 ```yaml
 schema_version: 3

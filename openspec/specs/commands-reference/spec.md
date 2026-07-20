@@ -1,6 +1,6 @@
 ## Purpose
 
-Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that maps natural-language user requests to intent routes and ownership-aware execution. It covers the full-deck creation path (BOOTSTRAP → Phases 0–3), the three artifact-refresh paths plus the outer Structural Versioning Path, the agent's request-classification logic, and common iteration-feedback patterns. This capability guarantees that a human can discover — in under 60 seconds — what to say and roughly how long each change takes, while the detailed decision tree stays in `scripts/change-classifier.md` and is not duplicated here.
+Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that maps natural-language user requests to intent routes and ownership-aware execution. It covers the full-deck creation path (BOOTSTRAP → Phases 0–3), the three artifact-refresh paths plus the outer Structural Versioning Path, the agent's request-classification logic, and common iteration-feedback patterns. This capability guarantees that a human can discover — in under 60 seconds — what to say and roughly how long each change takes, while the detailed decision tree stays in `scripts/05-iteration/change-classifier.md` and is not duplicated here.
 ## Requirements
 ### Requirement: COMMANDS.md exists at framework root
 
@@ -78,9 +78,9 @@ COMMANDS.md SHALL classify iteration feedback by pipeline and source owner befor
 - **WHEN** markerless generated-image body data changes
 - **THEN** COMMANDS retains the legacy Generated Image Rebuild and review path
 
-### Requirement: COMMANDS.md complements but does not duplicate scripts/change-classifier.md
+### Requirement: COMMANDS.md complements but does not duplicate scripts/05-iteration/change-classifier.md
 
-COMMANDS.md SHALL be the human-facing interface. `scripts/change-classifier.md` SHALL remain as the agent's detailed decision tree. COMMANDS.md SHALL be concise (no nested decision trees), use natural language examples, and be scannable in under 60 seconds.
+COMMANDS.md SHALL be the human-facing interface. `scripts/05-iteration/change-classifier.md` SHALL remain as the agent's detailed decision tree. COMMANDS.md SHALL be concise (no nested decision trees), use natural language examples, and be scannable in under 60 seconds.
 
 #### Scenario: Human scans COMMANDS.md quickly
 
@@ -105,7 +105,7 @@ Title-edit routing SHALL first classify the pipeline. For HTML-first source, KIC
 
 ### Requirement: Structural command guidance is preview-first and identity-aware
 
-COMMANDS.md and `scripts/change-classifier.md` SHALL retain the shared structural UX: resolve every position selector against one pre-edit snapshot; display `position + slide_id + title`; keep formal ID stable; preview before mutation; bind apply to canonical plan hash carried by the Agent; route list/resolve/normalize/move/delete/insert/multi-operation through `ppt_flow slides`; never hand-edit or copy `_generated/`; and retain the existing version/deck/Git escape-ladder constraints.
+COMMANDS.md and `scripts/05-iteration/change-classifier.md` SHALL retain the shared structural UX: resolve every position selector against one pre-edit snapshot; display `position + slide_id + title`; keep formal ID stable; preview before mutation; bind apply to canonical plan hash carried by the Agent; route list/resolve/normalize/move/delete/insert/multi-operation through `ppt_flow slides`; never hand-edit or copy `_generated/`; and retain the existing version/deck/Git escape-ladder constraints.
 
 Structural source publication SHALL be renderer-free for both pipelines. For HTML-first, its receipt SHALL report `needs_local_materialization`; a later explicit target-local materializer verifies/copies target-owned immutable objects or composes missing/stale IDs locally, then rebuilds review/delivery with zero provider calls. For markerless legacy, verified expensive raw renders MAY be materialized and missing/unproven IDs SHALL remain `needs_render` for a separately authorized Generated Image Rebuild. Guidance SHALL never label HTML-local work as remote render debt or copy a source-version manifest path into the target.
 

@@ -4,7 +4,7 @@ Define the canonical **run bundle** (`deck_{NAME}/`) directory ontology: three-t
 
 Counterpart to `framework-directory-layout` (soft bundle `PPTMAKER_FRAMEWORK/` only). Do not merge the two.
 
-Machine authority for tree text and path constants: `PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` (`renderTree()`). CLI scaffold/validate behavior is owned by `run-bundle-management` on the same module.
+Machine authority for tree text and path constants: `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` (`renderTree()`). CLI scaffold/validate behavior is owned by `run-bundle-management` on the same module.
 
 ## ADDED Requirements
 

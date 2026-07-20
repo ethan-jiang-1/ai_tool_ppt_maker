@@ -1,0 +1,45 @@
+export {
+  IDENTITY_SCHEME_MNEMONIC_V1,
+  SlideDocumentError,
+  applySlideEdit,
+  canonicalSlideEditJson,
+  computeSlideEditPlanSha256,
+  parseSlideDocument,
+  planSlideEdit,
+  serializeSlideDocument,
+  sha256SlideSource,
+  validateSlideDocument,
+  validateSlideDocuments,
+  verifySlideEditPlanHash,
+} from "./internal/slide_document.mjs";
+
+export {
+  SlideIdentityError,
+  SlideSelectorError,
+  buildSlideIdReservation,
+  classifySlideId,
+  formatAvailableSlideIds,
+  formatSlideCandidate,
+  isLegacySlideId,
+  isMnemonicSlideId,
+  normalizeSpokenKey,
+  parseMnemonicSlideId,
+  resolveSlideBindings,
+  resolveSlideIds,
+  validateNewSlideId,
+} from "./internal/slide_ids.mjs";
+
+export {
+  CANONICAL_RENDER_MODES,
+  RENDER_MODE_BODY_HEADER_LOCK,
+  RENDER_MODE_FULL_PAGE,
+  RenderPolicyError,
+  determineRenderMode,
+  isBracketPlaceholder,
+  isHeroVisualType,
+  normalizeRenderMode,
+  normalizeVisualType,
+  parseLeadingFrontmatter,
+  presentHeaderText,
+  validatePolicySlideIds,
+} from "./internal/render_policy.mjs";
