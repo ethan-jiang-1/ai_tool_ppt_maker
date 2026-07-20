@@ -22,11 +22,11 @@ HTML paths never load provider credentials, style master, Image2 adapter, or leg
 
 ## Lifecycle and gates
 
-`0 setup -> 1 content -> 2 visual system -> 3 HTML delivery -> [4 optional/unavailable] -> 5 iteration`。
+`0 setup -> 1 content -> 2 visual system -> 3 HTML delivery -> [4 optional/authorized] -> 5 iteration`。
 
 Phase 2 visual approval is based on real local representative pages/contact sheets. Phase 3 publishes current contact sheet, assembly-v2, notes-v3 and final delivery review. A complete accepted HTML deck has no Phase-4 debt.
 
-HTML authoritative evidence is version-scoped under reserved state nodes `html-content-review`, `html-visual-review`, `html-delivery-review`, `html-production-reset`; metadata `html_*` fields are mirrors only. Plain status is read-only. Gate journals and reset fences recover only through their owning interfaces.
+HTML authoritative evidence is version-scoped under reserved state nodes `html-content-review`, `html-visual-review`, `html-delivery-review`, `html-production-reset`; optional Phase-4 execution is version-scoped under reserved `image2-refinement`. Metadata `html_*` fields are mirrors only. Plain status is read-only. Gate journals and reset fences recover only through their owning interfaces.
 
 ## Source and identity
 

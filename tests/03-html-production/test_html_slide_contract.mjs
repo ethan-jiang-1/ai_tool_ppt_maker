@@ -22,6 +22,7 @@ import {
   validateStructuredBody,
   verifyInputReceipts,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_contract.mjs";
+import { bindHtmlPrimaryVisualSelection } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs";
 import {
   buildHtmlFamilyGeometryRegistry,
   htmlFamilyGeometrySemanticSha256,
@@ -386,6 +387,35 @@ describe("source grapheme and Unicode preflight", () => {
 });
 
 describe("resolved HTML-first plan", () => {
+  it("binds one registered visual selection through the public source transaction", () => {
+    const temp = mkdtempSync(join(tmpdir(), "html-selection-binding-"));
+    try {
+      const deck = join(temp, "deck_contract"); const runDir = join(deck, "3_versions", "v1");
+      const styleDir = join(deck, "2_backbone", "visual-style"); const assetsDir = join(styleDir, "assets");
+      mkdirSync(join(assetsDir, "svg"), { recursive: true }); mkdirSync(runDir, { recursive: true });
+      copyFileSync(resolve("PPTMAKER_FRAMEWORK/workflow/02-visual-system/presets/dark-executive/color_palette.json"), join(styleDir, "color_palette.json"));
+      const bytes = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>');
+      const digest = createHash("sha256").update(bytes).digest("hex");
+      writeFileSync(join(assetsDir, "svg", "visual.svg"), bytes);
+      writeFileSync(join(assetsDir, "asset-manifest.yaml"), [
+        "version: 2", "assets:", "  visual_main:", "    path: svg/visual.svg", "    type: svg",
+        "    label: visual", "    description: public transaction fixture", "    usage_guidance: use locally", `    sha256: ${digest}`, "",
+      ].join(String.fromCharCode(10)));
+      const specPath = join(runDir, "slide-specifications.md");
+      writeFileSync(specPath, source([
+        "schema_version: 1", "family: hero", "primary_visual:", "  placement: full-bleed", "  brief: A text-free field",
+        "  fit: cover", "  focal_point: [0.5, 0.5]", "  fallback:", "    kind: asset", "    asset_id: visual_main", "  selection: null", "",
+      ].join(String.fromCharCode(10))));
+      const fingerprint = validateAndBuildHtmlFirstPlan({ runDir }).plan.slides[0].visual_contract_fingerprint;
+      const result = bindHtmlPrimaryVisualSelection({ runDir, slideId: "HeroGo", assetId: "visual_main", visualContractFingerprint: fingerprint, outputSha256: digest });
+      expect(result.selection).toEqual({ asset_id: "visual_main", accepted_for: fingerprint, output_sha256: digest });
+      expect(validateAndBuildHtmlFirstPlan({ runDir }).plan.slides[0].visual_resolution).toMatchObject({ state: "selected", effective: "selected" });
+      expect(() => bindHtmlPrimaryVisualSelection({ runDir, slideId: "HeroGo", assetId: "visual_main", visualContractFingerprint: "a".repeat(64), outputSha256: digest })).toThrow(/stale/);
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
+    }
+  });
+
   it("validates the checked-in authoring source and catalog fixture", () => {
     const temp = mkdtempSync(join(tmpdir(), "html-authoring-fixture-"));
     try {

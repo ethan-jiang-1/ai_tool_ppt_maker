@@ -31,6 +31,14 @@ Ordinary copy does not stale the global visual system when page dependencies are
 
 Use Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path only under `legacy-image2-maintenance`. A legacy `needs_render` report describes remote cost; it does not authorize provider work. A new explicit generation decision must bind IDs/profile/count.
 
+## Optional HTML-first refinement
+
+After `html-delivery-review: proceed`, the user may explicitly select the
+`image2-refine` controller. It is bounded to 2–4 stable IDs and one no-text
+visual slot per page. Plan/authorize/generate/review/promotion are separate
+steps; a declined refinement leaves the HTML delivery complete. This route never
+uses the legacy whole-page renderer and never runs during ordinary HTML edits.
+
 ## Structural and migration rules
 
 Display `position · slide_id · title`, bind every selector to one current snapshot, and preview before apply. Keep exact `plan_sha256`; bare/stale/hash-drift apply fails and must re-preview. Source apply is renderer-free. HTML target-local materialization copies only matching target-owned bytes and never copies reset/gate/delivery/node authority.

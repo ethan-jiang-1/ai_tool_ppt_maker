@@ -1,6 +1,6 @@
 # COMMANDS — Public routing
 
-`ppt_flow` 顶层命令固定为 14 个：`doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, `migrate-html`。
+`ppt_flow` 顶层命令固定为 15 个：`doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, `migrate-html`, `image2`。
 
 ## Pipeline-first rule
 
@@ -45,7 +45,13 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> \
 
 HTML-first 的 Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 与 Structural Versioning Path 是正式路径。Legacy deck 的 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path 保持兼容。标题/小问题修当前版本；同一方向的大改发布 clean vNext；结构 apply 本身零远端。
 
-HTML structural output 报 `needs_local_materialization`；legacy output 报 `needs_render`。`needs_render` 只报告成本，不能自动扩大远端授权。用户若要专业 Image2 visual-slot refinement，Change 3 没有 executable route，应明确告知 unavailable。
+HTML structural output 报 `needs_local_materialization`；legacy output 报 `needs_render`。`needs_render` 只报告成本，不能自动扩大远端授权。用户若要专业 Image2 visual-slot refinement，必须在当前 HTML delivery review 为 `proceed` 后显式使用封闭的 `image2 plan|authorize|generate|accept|use-html|cleanup|unknown-submit` 路由；它不是 renderer 选择，也不会自动开始远端工作。
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize deck_NAME/3_versions/v1 --plan-hash <sha256>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate deck_NAME/3_versions/v1 --attempt-id <id>
+```
 
 ## Structural and migration
 

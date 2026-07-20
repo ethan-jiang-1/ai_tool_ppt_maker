@@ -28,6 +28,21 @@ export async function composeHtmlSlides(runDir, options = {}) {
   return module.composeHtmlSlides(runDir, options);
 }
 
+/** Provider-free local recomposition seam used after a Phase-4 source change. */
+export async function recomposeHtmlSlidesLocally(runDir, options = {}) {
+  const module = await import("./internal/application.mjs");
+  // Accepted Phase-4 source assets must rebuild the ordinary final-slide
+  // evidence locally. This seam deliberately uses the public compositor and
+  // never reaches a provider transport.
+  const planned = await module.buildHtmlPlan(runDir, { dryRun: false });
+  if (planned !== true) throw new Error("local recomposition could not publish the current HTML plan");
+  const pages = await module.renderHtmlPages(runDir, { ...options, dryRun: false });
+  const final = await module.composeHtmlSlides(runDir, { ...options, dryRun: false });
+  return { ...final, pages: pages.pages, provider_calls: 0 };
+}
+
+export const recomposeHtmlSlides = recomposeHtmlSlidesLocally;
+
 export async function buildPresentation(runDir, options = {}) {
   const module = await import("./internal/application.mjs");
   return module.buildPresentation(runDir, options);
@@ -69,6 +84,8 @@ export async function validateProductionHeaderReview(runDir, options = {}) {
 }
 
 export {
+  bindHtmlPrimaryVisualSelection,
+  prepareHtmlPrimaryVisualSelection,
   HTML_FIRST_PIPELINE,
   HtmlSlideContractError,
   probeProductionMarker,
@@ -78,6 +95,8 @@ export {
 export {
   createCanonicalHtmlValidatedRunContext,
   createMigrationPreviewHtmlValidatedRunContext,
+  composeHtmlVisualSlotCandidate,
+  composeReviewOnlyVisualSlotCandidate,
   publishHtmlComposition,
 } from "./internal/html_slide_renderer.mjs";
 export {

@@ -16,7 +16,7 @@ Search this file before inventing a path. Framework source remains the five dire
 | `contact_sheet` | HTML: `html_production/preview/`; legacy: `_generated/preview/` | real visual evidence; inspect before approval |
 | `style_master.jpg` | markerless legacy compatibility only | not a new HTML prerequisite |
 | `legacy-image2-first-maintenance` | framework `reference/` + `playbook/` | isolated markerless whole-page maintenance |
-| Image2 refinement | reserved lazy paths under `_scratch/image2_refinement/` and `_generated/image2_refinement/` | unavailable in Change 3; never create for ordinary HTML deck |
+| Image2 refinement | lazy source/derived/scratch partitions owned by Phase 4 | optional after current HTML delivery and exact authorization; never create for ordinary HTML work |
 | `needs_local_materialization` | HTML structural receipt | target-local work, zero remote |
 | `needs_render` | markerless structural receipt | remote cost report only, not authorization |
 | `slide_id` | source block heading / plan | stable cross-version identity |

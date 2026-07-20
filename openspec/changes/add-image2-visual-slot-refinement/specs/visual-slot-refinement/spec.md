@@ -31,3 +31,13 @@ Style-reference setup SHALL be a separately counted plan attempt whose successfu
 #### Scenario: Structural vNext is published
 - **WHEN** a clean target version is created from a refined source version
 - **THEN** it re-evaluates source applicability without copying candidate or authorization state and makes no remote call
+
+### Requirement: Refinement provenance and promotion recovery are canonical
+
+The only refinement-specific version-source provenance file SHALL be `overrides/visual-style/image2-refinement.yaml` with schema `pptmaker-image2-refinement-provenance-v1`. It SHALL bind the current style-reference and accepted slots by stable asset ID, selection `accepted_for`/output SHA, accepted candidate SHA, safe profile fingerprint, plan hash, and authorization/attempt IDs; it SHALL contain no credential, prompt body, provider response body, or absolute path. It SHALL not replace the v2 asset manifest or `primary_visual.selection` authority.
+
+Accept SHALL first reject an active gate-approval journal or pending HTML-production reset, then use one exclusive canonical journal in `_scratch/image2_refinement/` that binds the old/new SHA of source provenance, asset manifest, slide specifications, and state plus the exact candidate and target asset ID. Its state commit SHALL use expected-state CAS. Recovery SHALL wait for those existing state fences to clear, then either finish exactly the bound source/state commits or fail closed; it SHALL not scan directories, choose a candidate by recency, create another provider attempt, or delete accepted source bytes.
+
+#### Scenario: Promotion crashes after source write
+- **WHEN** recovery finds the journal with bound new source bytes and old state bytes
+- **THEN** it validates all bound SHAs, completes only the planned state/local-recomposition transition, and never submits another provider request

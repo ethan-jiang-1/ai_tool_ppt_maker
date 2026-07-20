@@ -160,6 +160,11 @@ export const ASSET_MANIFEST_FILE = 'asset-manifest.yaml';
 export const ASSET_SVG_SUBDIR = 'svg';
 export const ASSET_REFERENCE_SUBDIR = 'reference';
 export const ASSET_ICONS_SUBDIR = 'icons';
+export const ASSET_REFINED_SUBDIR = 'refined';
+export const IMAGE2_REFINEMENT_ASSET_SUBDIR = 'image2';
+export const IMAGE2_REFINEMENT_STYLE_REFERENCE_ASSET_SUBDIR = 'style-reference';
+export const IMAGE2_REFINEMENT_VISUAL_SLOT_ASSET_SUBDIR = 'visual-slots';
+export const IMAGE2_REFINEMENT_PROVENANCE_FILE = 'image2-refinement.yaml';
 
 // ---------------------------------------------------------------------------
 // --- Inside a version dir (deck_<name>/3_versions/vN) ----------------------
@@ -230,6 +235,24 @@ export const GEN_HTML_PAGES_SUBDIR = 'html_pages';
 export const GEN_HTML_FINAL_SLIDES_SUBDIR = 'final_slides';
 export const GEN_HTML_PREVIEW_SUBDIR = 'preview';
 export const IMAGE_TRACE_SUFFIX = '.image-task.json';
+export const GEN_IMAGE2_REFINEMENT_SUBDIR = 'image2_refinement';
+export const GEN_IMAGE2_REFINEMENT_CANDIDATES_SUBDIR = 'candidates';
+export const GEN_IMAGE2_REFINEMENT_COMPARISONS_SUBDIR = 'comparisons';
+export const GEN_IMAGE2_REFINEMENT_ATTEMPTS_SUBDIR = 'attempts';
+export const SCRATCH_IMAGE2_REFINEMENT_SUBDIR = 'image2_refinement';
+export const SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR = 'journals';
+export const IMAGE2_REFINEMENT_PATHS = Object.freeze({
+    generated: `${GENERATED_SUBDIR}/${GEN_IMAGE2_REFINEMENT_SUBDIR}`,
+    candidates: `${GENERATED_SUBDIR}/${GEN_IMAGE2_REFINEMENT_SUBDIR}/${GEN_IMAGE2_REFINEMENT_CANDIDATES_SUBDIR}`,
+    comparisons: `${GENERATED_SUBDIR}/${GEN_IMAGE2_REFINEMENT_SUBDIR}/${GEN_IMAGE2_REFINEMENT_COMPARISONS_SUBDIR}`,
+    attempts: `${GENERATED_SUBDIR}/${GEN_IMAGE2_REFINEMENT_SUBDIR}/${GEN_IMAGE2_REFINEMENT_ATTEMPTS_SUBDIR}`,
+    scratch: `${SCRATCH_SUBDIR}/${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}`,
+    journals: `${SCRATCH_SUBDIR}/${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/${SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR}`,
+    provenance: `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${IMAGE2_REFINEMENT_PROVENANCE_FILE}`,
+    refined_assets: `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/${ASSET_REFINED_SUBDIR}/${IMAGE2_REFINEMENT_ASSET_SUBDIR}`,
+    style_reference_assets: `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/${ASSET_REFINED_SUBDIR}/${IMAGE2_REFINEMENT_ASSET_SUBDIR}/${IMAGE2_REFINEMENT_STYLE_REFERENCE_ASSET_SUBDIR}`,
+    visual_slot_assets: `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/${ASSET_REFINED_SUBDIR}/${IMAGE2_REFINEMENT_ASSET_SUBDIR}/${IMAGE2_REFINEMENT_VISUAL_SLOT_ASSET_SUBDIR}`,
+});
 
 // ---------------------------------------------------------------------------
 // --- CANONICAL STRUCTURE (the ONE data source) -----------------------------
@@ -265,6 +288,7 @@ const _ALLOWED_IN_VISUAL_STYLE = new Set([
     ...VISUAL_STYLE_FILES,
     ...VISUAL_STYLE_OPTIONAL,
     BACKBONE_ASSETS_SUBDIR,
+    IMAGE2_REFINEMENT_PROVENANCE_FILE,
     'README.md',
 ]);
 
@@ -273,6 +297,7 @@ const _ALLOWED_IN_ASSETS = new Set([
     ASSET_SVG_SUBDIR,
     ASSET_REFERENCE_SUBDIR,
     ASSET_ICONS_SUBDIR,
+    ASSET_REFINED_SUBDIR,
     'README.md',
 ]);
 
@@ -334,6 +359,12 @@ export function resolveAssetPath(runDir, relpath) {
 
 export function generatedDir(runDir) {
     return path.join(runDir, GENERATED_SUBDIR);
+}
+
+export function image2RefinementPaths(runDir) {
+    const root = path.resolve(runDir);
+    if (!isVersionDir(root)) throw new Error(`image2 refinement paths require a version directory (got ${root})`);
+    return Object.freeze(Object.fromEntries(Object.entries(IMAGE2_REFINEMENT_PATHS).map(([key, relativePath]) => [key, path.join(root, ...relativePath.split('/'))])));
 }
 
 export function findSlideSpecs(runDir) {
@@ -432,6 +463,80 @@ const _SHA_OBJECT_RE = /^[0-9a-f]{64}\.(?:html|png)$/;
 const _HTML_OBJECT_TEMP_RE = /^\.object\.[0-9a-f]{64}\.[0-9a-f]{64}\.[a-z0-9]+\.tmp$/;
 const _HTML_MANIFEST_TEMP_RE = /^\.manifest\.[0-9a-f]{64}\.tmp$/;
 const _HTML_PLAN_RE = /^[0-9a-f]{64}\.json$/;
+
+function _checkRefinedImage2Assets(assetsPath, label, problems) {
+    const refined = path.join(assetsPath, ASSET_REFINED_SUBDIR);
+    if (!fs.existsSync(refined) || !fs.statSync(refined).isDirectory()) return;
+    for (const entry of fs.readdirSync(refined, { withFileTypes: true })) {
+        if (entry.name !== IMAGE2_REFINEMENT_ASSET_SUBDIR) {
+            problems.push(`unexpected '${entry.name}' in ${label}/${ASSET_REFINED_SUBDIR}/ — only ${IMAGE2_REFINEMENT_ASSET_SUBDIR}/ is canonical`);
+        }
+    }
+    const image2 = path.join(refined, IMAGE2_REFINEMENT_ASSET_SUBDIR);
+    if (!fs.existsSync(image2) || !fs.statSync(image2).isDirectory()) return;
+    const allowed = new Set([IMAGE2_REFINEMENT_STYLE_REFERENCE_ASSET_SUBDIR, IMAGE2_REFINEMENT_VISUAL_SLOT_ASSET_SUBDIR]);
+    for (const entry of fs.readdirSync(image2, { withFileTypes: true })) {
+        if (!allowed.has(entry.name) || !entry.isDirectory()) {
+            problems.push(`unexpected '${entry.name}' in ${label}/${ASSET_REFINED_SUBDIR}/${IMAGE2_REFINEMENT_ASSET_SUBDIR}/ — only style-reference/ and visual-slots/ directories are canonical`);
+        }
+    }
+    for (const name of allowed) {
+        const destination = path.join(image2, name);
+        if (!fs.existsSync(destination) || !fs.statSync(destination).isDirectory()) continue;
+        for (const entry of fs.readdirSync(destination, { withFileTypes: true })) {
+            if (!entry.isFile()) problems.push(`unexpected '${entry.name}' in ${label}/${ASSET_REFINED_SUBDIR}/${IMAGE2_REFINEMENT_ASSET_SUBDIR}/${name}/ — accepted refinement assets must be files`);
+            else if (!/^[A-Za-z][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*\.(?:png|jpg)$/.test(entry.name)) problems.push(`unexpected refinement asset filename '${entry.name}' — use a stable ID with .png or .jpg`);
+        }
+    }
+}
+
+function _checkImage2RefinementPartitions(runDir, htmlFirst, problems) {
+    const generated = path.join(runDir, GENERATED_SUBDIR, GEN_IMAGE2_REFINEMENT_SUBDIR);
+    const scratch = path.join(runDir, SCRATCH_SUBDIR, SCRATCH_IMAGE2_REFINEMENT_SUBDIR);
+    if (!htmlFirst) {
+        if (fs.existsSync(generated)) problems.push(`modern refinement generated owner '${GEN_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
+        if (fs.existsSync(scratch)) problems.push(`modern refinement scratch owner '${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
+        return;
+    }
+    if (fs.existsSync(generated) && fs.statSync(generated).isDirectory()) {
+        const allowed = new Set([
+            GEN_IMAGE2_REFINEMENT_CANDIDATES_SUBDIR,
+            GEN_IMAGE2_REFINEMENT_COMPARISONS_SUBDIR,
+            GEN_IMAGE2_REFINEMENT_ATTEMPTS_SUBDIR,
+        ]);
+        for (const entry of fs.readdirSync(generated, { withFileTypes: true })) {
+            if (!allowed.has(entry.name) || !entry.isDirectory()) {
+                problems.push(`unexpected '${entry.name}' in modern refinement derived owner ${GEN_IMAGE2_REFINEMENT_SUBDIR}/`);
+            }
+        }
+        const safeId = '[A-Za-z][A-Za-z0-9_-]{0,127}';
+        const ownedFiles = new Map([
+            [GEN_IMAGE2_REFINEMENT_CANDIDATES_SUBDIR, new RegExp(`^${safeId}\\.(?:json|png|jpg)$`)],
+            [GEN_IMAGE2_REFINEMENT_COMPARISONS_SUBDIR, new RegExp(`^${safeId}\\.(?:json|html)$`)],
+            [GEN_IMAGE2_REFINEMENT_ATTEMPTS_SUBDIR, new RegExp(`^(?:plan|authorization|${safeId})\\.json$`)],
+        ]);
+        for (const [owner, pattern] of ownedFiles) {
+            const directory = path.join(generated, owner);
+            if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) continue;
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+                if (!entry.isFile() || !pattern.test(entry.name)) problems.push(`unexpected '${entry.name}' in modern refinement ${owner}/`);
+            }
+        }
+    }
+    if (fs.existsSync(scratch) && fs.statSync(scratch).isDirectory()) {
+        for (const entry of fs.readdirSync(scratch, { withFileTypes: true })) {
+            if (entry.name !== SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR || !entry.isDirectory()) {
+                problems.push(`unexpected '${entry.name}' in modern refinement scratch owner ${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/ — only journals/ is canonical`);
+            }
+        }
+        const journals = path.join(scratch, SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR);
+        if (fs.existsSync(journals) && fs.statSync(journals).isDirectory()) {
+            for (const entry of fs.readdirSync(journals, { withFileTypes: true })) {
+                if (!entry.isFile() || entry.name !== 'promotion.json') problems.push(`unexpected '${entry.name}' in modern refinement journals/ — only promotion.json is canonical`);
+            }
+        }
+    }
+}
 
 function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
     const allowed = ownerName === GEN_HTML_PREVIEW_SUBDIR
@@ -640,7 +745,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     if (fs.existsSync(vsPath) && fs.statSync(vsPath).isDirectory()) {
         for (const entry of fs.readdirSync(vsPath, { withFileTypes: true })) {
             if (_ignorable(entry.name)) continue;
-            if (!_ALLOWED_IN_VISUAL_STYLE.has(entry.name)) {
+            if (!_ALLOWED_IN_VISUAL_STYLE.has(entry.name) || entry.name === IMAGE2_REFINEMENT_PROVENANCE_FILE) {
                 problems.push(
                     `unexpected '${entry.name}' in ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ — ` +
                     `not canonical. Allowed: ${[..._ALLOWED_IN_VISUAL_STYLE].sort().join(', ')}`);
@@ -651,7 +756,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         if (fs.existsSync(assetsPath) && fs.statSync(assetsPath).isDirectory()) {
             for (const entry of fs.readdirSync(assetsPath, { withFileTypes: true })) {
                 if (_ignorable(entry.name)) continue;
-                if (!_ALLOWED_IN_ASSETS.has(entry.name)) {
+                if (!_ALLOWED_IN_ASSETS.has(entry.name) || entry.name === ASSET_REFINED_SUBDIR) {
                     problems.push(
                         `unexpected '${entry.name}' in ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}/ — ` +
                         `not canonical. Allowed: ${[..._ALLOWED_IN_ASSETS].sort().join(', ')}`);
@@ -675,7 +780,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         if (fs.existsSync(overrideStyle) && fs.statSync(overrideStyle).isDirectory()) {
             for (const entry of fs.readdirSync(overrideStyle, { withFileTypes: true })) {
                 if (_ignorable(entry.name)) continue;
-                if (!_ALLOWED_IN_VISUAL_STYLE.has(entry.name)) {
+                if (!_ALLOWED_IN_VISUAL_STYLE.has(entry.name) || (entry.name === IMAGE2_REFINEMENT_PROVENANCE_FILE && !entry.isFile())) {
                     problems.push(
                         `unexpected '${entry.name}' in ${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/ — ` +
                         `not a canonical visual-style asset`);
@@ -691,11 +796,13 @@ export function checkBundle(runDir, requirePipelineReady = true) {
                             `not canonical. Allowed: ${[..._ALLOWED_IN_ASSETS].sort().join(', ')}`);
                     }
                 }
+                _checkRefinedImage2Assets(overrideAssets, `${OVERRIDES_SUBDIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`, problems);
             }
         }
     }
 
     _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems);
+    _checkImage2RefinementPartitions(runDir, htmlFirst, problems);
     if (htmlFirst) _checkHtmlGeneratedTopology(runDir, problems);
     if (htmlFirst && mode === 'pipeline') {
         try {

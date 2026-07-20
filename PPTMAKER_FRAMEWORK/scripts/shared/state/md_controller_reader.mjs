@@ -34,6 +34,7 @@ export const RESERVED_NODE_IDS = Object.freeze([
   "html-visual-review",
   "html-delivery-review",
   "html-production-reset",
+  "image2-refinement",
 ]);
 export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "legacy-image2-first"]);
 
@@ -47,6 +48,8 @@ const DETERMINISTIC_CONDITIONS = new Set([
   "pptx_generated",
   "speaker_notes_injected",
   "header_review_current",
+  "html_first_marked",
+  "html_delivery_review_current",
 ]);
 
 function lineNumber(text, offset) {
@@ -220,9 +223,9 @@ function validateNodeShape(node, errors) {
   if (!METHOD_MODULES.includes(node.methodModule)) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
   }
-  if (node.lifecyclePhase === "4" || node.methodModule === "04-image2-refinement") {
-    addError(errors, node, "unavailable-phase", "Change 3 does not permit executable Phase 4 / 04-image2-refinement nodes");
-  }
+  const phase4 = node.lifecyclePhase === "4" || node.methodModule === "04-image2-refinement";
+  if (phase4 && node.playbook !== "image2-refine") addError(errors, node, "phase4-ownership", "only image2-refine may own lifecycle 4 / 04-image2-refinement nodes");
+  if (node.playbook === "image2-refine" && (node.lifecyclePhase !== "4" || node.methodModule !== "04-image2-refinement")) addError(errors, node, "phase4-ownership", "image2-refine nodes must declare lifecycle 4 and method_module 04-image2-refinement");
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
   }
@@ -298,6 +301,10 @@ export function validatePlaybookIndex(index) {
         (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "legacy-image2-first")) {
       errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "legacy-image2-maintenance must be markerless-only" });
     }
+    if (controller.playbook === "image2-refine" &&
+        (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "html-first-v1")) {
+      errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "image2-refine must be HTML-first-only" });
+    }
     const available = new Map();
     for (const include of controller.includes) {
       const shared = index.shared.get(include);
@@ -317,6 +324,11 @@ export function validatePlaybookIndex(index) {
         else if (!seen.has(required)) addError(errors, node, "requires-order", `${required} must appear before ${node.id}`);
       }
       validateConditions(node, errors, available);
+      if (controller.playbook === "image2-refine" && node.lifecyclePhase === "4") {
+        if (!node.entry.includes("html_first_marked") || !node.entry.includes("html_delivery_review_current")) {
+          addError(errors, node, "phase4-entry", "Phase 4 entry requires html_first_marked and html_delivery_review_current");
+        }
+      }
       seen.add(node.id);
     }
 

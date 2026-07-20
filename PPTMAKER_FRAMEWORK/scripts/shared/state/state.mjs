@@ -38,7 +38,8 @@ export const HISTORY_FILE = "history.jsonl";
 export const STATE_SCHEMA_VERSION = 3;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset"]);
+export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]);
+export const IMAGE2_REFINEMENT_STATE_SCHEMA = "pptmaker-image2-refinement-state-v1";
 
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
@@ -89,6 +90,85 @@ function isoOr(value, fallback) {
 function appendDiagnostic(state, message) {
   if (!Array.isArray(state.diagnostics)) state.diagnostics = [];
   if (!state.diagnostics.includes(message)) state.diagnostics.push(message);
+}
+
+function refinementVersionKey(runVersion) {
+  if (!VERSION_RE.test(String(runVersion || ""))) throw new TypeError("runVersion must be normalized vN");
+  return `3_versions/${runVersion}`;
+}
+
+function validRefinementRecord(record, runVersion) {
+  if (!isPlainObject(record) || record.schema !== IMAGE2_REFINEMENT_STATE_SCHEMA || record.run_version !== runVersion) return false;
+  const keys = ["schema", "run_version", "plan", "authorization", "attempts", "reviews"];
+  if (Object.keys(record).length !== keys.length || keys.some((key) => !Object.hasOwn(record, key))) return false;
+  return (record.plan === null || isPlainObject(record.plan)) && (record.authorization === null || isPlainObject(record.authorization)) && isPlainObject(record.attempts) && isPlainObject(record.reviews) && Object.keys(record.attempts).every((id) => /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id)) && Object.keys(record.reviews).every((id) => typeof id === "string" && id.trim() !== "");
+}
+
+export function readImage2RefinementState(state, runVersion) {
+  const container = state?.nodes?.["image2-refinement"];
+  if (container != null && (!isPlainObject(container) || Object.keys(container).some((key) => key !== "by_version") || !isPlainObject(container.by_version))) throw new Error("image2 refinement reserved record must contain only by_version");
+  const records = container?.by_version || {};
+  for (const key of Object.keys(records)) if (!/^3_versions\/v[1-9][0-9]*$/.test(key)) throw new Error("image2 refinement state contains a mismatched version key");
+  const record = records[refinementVersionKey(runVersion)] || null;
+  if (record === null) return null;
+  if (!validRefinementRecord(record, runVersion)) throw new Error("image2 refinement state record is invalid");
+  return structuredClone(record);
+}
+
+/** Safe consumer projection for status/MD controllers; raw receipts and IDs
+ * remain in the reserved record and are never exposed as mutable authority. */
+export function projectImage2RefinementState(state, runVersion) {
+  const record = readImage2RefinementState(state, runVersion);
+  if (!record) return Object.freeze({ present: false, status: "absent", authorization: null, attempts: [], reviews: [] });
+  const attempts = Object.values(record.attempts).map((attempt) => Object.freeze({
+    attempt_id: attempt.attempt_id,
+    kind: attempt.kind,
+    slide_id: attempt.slide_id || null,
+    state: attempt.state,
+    promotion_status: attempt.promotion_status || null,
+    failure_code: attempt.failure_code || null,
+    unknown_submit_resolution: attempt.unknown_submit_resolution || null,
+    requires_human: attempt.state === "unknown-submit",
+  })).sort((a, b) => a.attempt_id.localeCompare(b.attempt_id));
+  const reviews = Object.values(record.reviews).map((review) => Object.freeze({ slide_id: review.slide_id, candidate_id: review.candidate_id, decision: review.decision, current: review.decision !== "pending" })).sort((a, b) => a.slide_id.localeCompare(b.slide_id));
+  const hasUnknown = attempts.some((attempt) => attempt.state === "unknown-submit" && !attempt.unknown_submit_resolution);
+  const hasFailure = attempts.some((attempt) => attempt.state === "failed");
+  const hasResolvedUnknown = attempts.some((attempt) => attempt.state === "unknown-submit" && attempt.unknown_submit_resolution);
+  const pendingReview = reviews.some((review) => review.decision === "pending");
+  const status = !record.plan
+    ? "planned"
+    : !record.authorization
+      ? "awaiting-authorization"
+      : hasUnknown
+        ? "unknown-submit"
+        : pendingReview
+          ? "review-pending"
+          : hasFailure || hasResolvedUnknown
+            ? "failed"
+            : attempts.some((attempt) => ["planned", "submitting"].includes(attempt.state) || attempt.promotion_status === "pending")
+              ? "in-progress"
+              : "complete";
+  return Object.freeze({
+    present: true,
+    status,
+    plan_hash: record.plan?.plan_hash || null,
+    authorization: record.authorization ? Object.freeze({ authorization_id: record.authorization.authorization_id, plan_hash: record.authorization.plan_hash, used: record.authorization.used === true }) : null,
+    attempts: Object.freeze(attempts),
+    reviews: Object.freeze(reviews),
+    human_action_required: hasUnknown || hasFailure || hasResolvedUnknown || pendingReview || !record.authorization || !record.plan,
+  });
+}
+
+export function writeImage2RefinementState(deckDir, runVersion, record, { expectedStateSha = null, expectedStateSha256 = null } = {}) {
+  if (!validRefinementRecord(record, runVersion)) throw new TypeError("image2 refinement state record is invalid");
+  const state = readState(deckDir, { purpose: "execute", heal: false });
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
+  state.nodes ||= {};
+  const prior = state.nodes["image2-refinement"]?.by_version || {};
+  state.nodes["image2-refinement"] = { by_version: { ...prior, [refinementVersionKey(runVersion)]: structuredClone(record) } };
+  const expected = expectedStateSha256 || expectedStateSha;
+  writeState(deckDir, state, { ...(expected ? { expectedStateSha: expected } : {}) });
+  return readImage2RefinementState(state, runVersion);
 }
 function mergeMissing(canonical, legacy) {
   const out = isPlainObject(canonical) ? canonical : {};
@@ -688,6 +768,15 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   else if (current_node) suggested_next = `advance-or-inspect:${playbook}/${current_node}`;
   else suggested_next = "inspect:run ppt_flow state|status";
 
+  if (playbook === "image2-refine") {
+    const version = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
+    const refinement = version ? (() => { try { return projectImage2RefinementState(state, version); } catch { return null; } })() : null;
+    if (refinement?.status === "unknown-submit") suggested_next = "human:resolve-unknown-submit";
+    else if (refinement?.status === "review-pending") suggested_next = "human:review-image2-refinement";
+    else if (refinement?.status === "complete") suggested_next = "complete:image2-refinement-await-final-html-review";
+    else if (!refinement?.present) suggested_next = "start:image2-refine/plan";
+  }
+
   const activeNodeIds = controller?.index ? controllerNodeIds(controller.index, playbook) : undefined;
   return {
     playbook,
@@ -868,6 +957,17 @@ export function validateState(state) {
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
     if (node?.status === "in_progress" && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
   }
+  if (state.nodes?.["image2-refinement"] !== undefined) {
+    const byVersion = state.nodes["image2-refinement"]?.by_version;
+    if (!isPlainObject(byVersion)) errors.push("image2-refinement must contain by_version");
+    else {
+      for (const key of Object.keys(byVersion)) {
+        const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
+        if (!match) errors.push(`invalid image2-refinement version key ${key}`);
+        else if (!validRefinementRecord(byVersion[key], match[1])) errors.push(`invalid image2-refinement record ${key}`);
+      }
+    }
+  }
   for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
   return { valid: errors.length === 0, errors };
 }
@@ -893,6 +993,8 @@ export const CONDITIONS = {
   },
   speaker_notes_injected: (_state, ctx) => validateNotesReceipt(ctx.runDir || "").valid,
   header_review_current: (_state, ctx) => typeof ctx.headerReviewCurrent === "function" ? Boolean(ctx.headerReviewCurrent()) : ctx.headerReviewCurrent === true,
+  html_first_marked: (_state, ctx) => typeof ctx.htmlFirstMarked === "function" ? Boolean(ctx.htmlFirstMarked()) : ctx.htmlFirstMarked === true,
+  html_delivery_review_current: (_state, ctx) => typeof ctx.htmlDeliveryReviewCurrent === "function" ? Boolean(ctx.htmlDeliveryReviewCurrent()) : ctx.htmlDeliveryReviewCurrent === true,
 };
 
 function resolveCondition(condition, node, state, ctx) {
@@ -943,14 +1045,18 @@ function readValidatedNode(nodeName, playbookDir, state) {
 }
 
 export function checkEntry(nodeName, playbookDir, state, ctx = {}) {
-  const { node, validation } = readValidatedNode(nodeName, playbookDir, state);
+  const { node, validation, index } = readValidatedNode(nodeName, playbookDir, state);
   if (!node) return { pass: false, missing: [], unknown: validation.errors.map((error) => error.message || String(error)) };
+  const controller = index.controllers.get(state?.playbook);
+  if (ctx.pipeline && controller && !controller.supportedPipelines.includes(ctx.pipeline)) return { pass: false, missing: [`pipeline:${ctx.pipeline}`], unknown: [`controller ${state.playbook} does not own ${ctx.pipeline}`] };
   const required = node.requires.map((id) => `node_done:${id}`);
   return checkConditions([...required, ...node.entry], node, state, ctx);
 }
 export function checkExit(nodeName, playbookDir, state, ctx = {}) {
-  const { node, validation } = readValidatedNode(nodeName, playbookDir, state);
+  const { node, validation, index } = readValidatedNode(nodeName, playbookDir, state);
   if (!node) return { pass: false, missing: [], unknown: validation.errors.map((error) => error.message || String(error)) };
+  const controller = index.controllers.get(state?.playbook);
+  if (ctx.pipeline && controller && !controller.supportedPipelines.includes(ctx.pipeline)) return { pass: false, missing: [`pipeline:${ctx.pipeline}`], unknown: [`controller ${state.playbook} does not own ${ctx.pipeline}`] };
   return checkConditions(node.exit, node, state, ctx);
 }
 export function getMissingConditions(nodeName, playbookDir, state, ctx = {}) {

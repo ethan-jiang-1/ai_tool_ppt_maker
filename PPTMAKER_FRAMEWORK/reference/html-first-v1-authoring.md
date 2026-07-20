@@ -85,11 +85,10 @@ Selection is intentionally two-pass:
 
 Fallback integrity is always checked first. Valid selected bytes with a different `accepted_for` are `stale` and use fallback; missing or digest-invalid selected bytes are `broken` and block publication.
 
-## Structural edits and unavailable production routes
+## Structural edits and isolated production routes
 
 `ppt_flow slides` preview validates projected source bytes against the current run's effective palette/catalog/font controls. Apply copies version-owned source/overrides to a hidden staged vNext and validates that real staged run before rename. Preview/apply are remote-free and do not publish `_generated/slide_plan.json`.
 
-Until the renderer-owning change lands, style-master, header approval, pilot, build, every refresh kind, unified selections containing Stages 2–5 (including dry-run), and legacy structural materialization fail with `html_first_delivery_unavailable`. Do not remove the marker to route the structured source through the legacy prompt pipeline.
+HTML-first preview, build, local refresh, notes, and structural materialization remain local and provider-free. Legacy style-master/whole-page generation stays branch-inapplicable, while optional modern visual-slot refinement uses only `ppt_flow image2` after current delivery and exact authorization. Do not remove the marker to route structured source through the legacy prompt pipeline.
 
 After a material `VISUAL TYPE`, `MUST communicate`/`MUST NOT`, primary-visual brief, or geometry change, review and re-bind affected selections. After a material global visual-direction change, update the structured `html_first.image_language` tokens and propagate the changed intent into affected slide concept/brief fields where human review says the page contract changed; do not rely on free-form `deck_system.txt` prose to enter fingerprints implicitly.
-

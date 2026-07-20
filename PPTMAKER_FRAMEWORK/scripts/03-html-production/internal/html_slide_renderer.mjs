@@ -425,6 +425,71 @@ export function composeHtmlSlides(validatedRun, request = {}) {
   return Object.freeze({ ...pages, compositor: HTML_COMPOSITOR_VERSION, final_slides: pages.pages.map((page) => Object.freeze({ slide_id: page.slide_id, composition_variant: page.composition_variant, html_sha256: page.html_sha256, page })) });
 }
 
+/**
+ * Compose a Phase-4 candidate for review only.  The candidate is an in-memory
+ * value and is never looked up by path or added to a delivery manifest.  The
+ * existing HTML plan supplies the slot geometry/crop, so callers cannot forge
+ * a comparison box that differs from eventual local recomposition.
+ */
+export function composeHtmlVisualSlotCandidate(validatedRun, request = {}) {
+  const record = contextRecord(validatedRun);
+  const allowed = new Set(['slideId', 'slot', 'candidateId', 'candidateSha256', 'bytes', 'media', 'mediaEvidence']);
+  if (!plainObject(request) || Object.keys(request).some((key) => !allowed.has(key))) throw new TypeError('candidate composition request contains an unsupported key');
+  const slideId = request.slideId;
+  const slot = request.slot || 'primary_visual';
+  const candidateId = request.candidateId;
+  if (typeof slideId !== 'string' || !slideId.trim()) throw new TypeError('candidate composition slideId is required');
+  if (typeof slot !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,95}$/.test(slot)) throw new TypeError('candidate composition slot is invalid');
+  if (typeof candidateId !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(candidateId)) throw new TypeError('candidate composition candidateId is invalid');
+  if (!Buffer.isBuffer(request.bytes) && !(request.bytes instanceof Uint8Array)) throw new TypeError('candidate composition accepts in-memory raster bytes only');
+  const bytes = Buffer.from(request.bytes);
+  const candidateSha256 = request.candidateSha256;
+  if (!/^[0-9a-f]{64}$/.test(candidateSha256 || '') || sha256(bytes) !== candidateSha256) throw new TypeError('candidate composition SHA binding is invalid');
+  const media = request.media || request.mediaEvidence?.media || 'image/png';
+  if (request.mediaEvidence != null) {
+    if (!plainObject(request.mediaEvidence) || Object.keys(request.mediaEvidence).some((key) => !['media', 'width', 'height', 'bytes'].includes(key))) throw new TypeError('candidate media evidence is bounded and may not contain paths/provider fields');
+    if (request.media && request.mediaEvidence.media && request.media !== request.mediaEvidence.media) throw new TypeError('candidate media evidence conflicts with the declared media');
+  }
+  const type = media === 'image/jpeg' ? 'jpg' : media === 'image/png' ? 'png' : null;
+  if (!type) throw new TypeError('candidate composition media must be image/png or image/jpeg');
+  const evidence = validateHtmlAssetBytes(bytes, { assetId: candidateId, type });
+  for (const key of ['width', 'height', 'bytes']) {
+    if (request.mediaEvidence?.[key] != null && request.mediaEvidence[key] !== evidence[key]) throw new TypeError(`candidate media evidence ${key} does not match decoded bytes`);
+  }
+  const slide = selectedSlides(record, assertRequest({ slideIds: [slideId] }))[0];
+  const box = slide.geometry?.boxes?.[slot];
+  if (!box || !Array.isArray(box) || box.length !== 4) throw new Error(`candidate slot ${slot} is not a resolved visual slot on ${slideId}`);
+  if (['kicker', 'title', 'subtitle', 'body', 'callout', 'chart'].includes(slot)) throw new Error(`candidate slot ${slot} is not a no-text visual slot`);
+  assertResetStable(record, 'candidate composition');
+  const base = renderPage(record, slide, 'effective');
+  const mediaType = type === 'jpg' ? 'image/jpeg' : 'image/png';
+  const candidateMarkup = `<img alt="" data-pm-refinement-candidate="${escapeHtml(candidateId)}" src="data:${mediaType};base64,${bytes.toString('base64')}" style="width:100%;height:100%;object-fit:cover;">`;
+  const escapedSlot = slot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const boxPattern = new RegExp(`(<div class="pm-box pm-[^"]*" data-pm-box="${escapedSlot}"[^>]*>)[\\s\\S]*?(</div>)`);
+  const html = base.html.replace(boxPattern, `$1${candidateMarkup}$2`);
+  if (html === base.html) throw new Error(`candidate slot ${slot} could not be composed`);
+  assertSerializedHtmlWithinLimit(html, slideId);
+  return Object.freeze({
+    review_only: true,
+    current_delivery_unchanged: true,
+    publication_scope: record.publicationScope,
+    run_version: logicalRunVersion(record),
+    slide_id: slideId,
+    slot,
+    candidate_id: candidateId,
+    candidate_sha256: candidateSha256,
+    media: mediaType,
+    media_evidence: Object.freeze({ width: evidence.width, height: evidence.height, bytes: evidence.bytes }),
+    geometry: Object.freeze({ box: [...box], crop: 'cover' }),
+    base_html_sha256: base.html_sha256,
+    html_sha256: sha256(Buffer.from(html)),
+    html,
+    leaf_markers: Object.freeze([...base.leaf_markers, `${slideId}:refinement:${slot}`]),
+  });
+}
+
+export const composeReviewOnlyVisualSlotCandidate = composeHtmlVisualSlotCandidate;
+
 export async function composeHtmlSlidesVerified(validatedRun, request = {}) {
   const record = contextRecord(validatedRun); const normalized = assertRequest(request);
   const pagesResult = buildHtmlPages(validatedRun, normalized);

@@ -44,7 +44,7 @@ function parseFailureEnvelope(stderr) {
 }
 
 describe("ppt_flow", () => {
-  it("audits clean help and deterministic usage diagnostics across all 14 commands", () => {
+  it("audits clean help and deterministic usage diagnostics across all 15 commands", () => {
     const usageProbes = {
       doctor: ["doctor", "--smoke", "--probe-vendors"],
       init: ["init"],
@@ -59,8 +59,9 @@ describe("ppt_flow", () => {
       "new-version": ["new-version"],
       state: ["state"],
       "migrate-html": ["migrate-html"],
+      image2: ["image2", "plan"],
     };
-    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(14);
+    expect(PPT_FLOW_COMMAND_INVENTORY).toHaveLength(15);
     for (const command of PPT_FLOW_COMMAND_INVENTORY) {
       const help = runPptFlow([command, "--help"]);
       expect(help.status, `${command} --help\n${help.stderr}`).toBe(0);
@@ -170,9 +171,9 @@ describe("ppt_flow", () => {
     );
   });
 
-  it("registers exactly 14 top-level commands", () => {
+  it("registers exactly 15 top-level commands", () => {
     const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
-    expect(matches.length).toBe(14);
+    expect(matches.length).toBe(15);
   });
 
   it("state --json includes resume card fields", () => {

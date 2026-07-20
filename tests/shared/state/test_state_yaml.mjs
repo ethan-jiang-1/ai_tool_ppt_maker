@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import {
   STATE_DIR,
   STATE_FILE,
@@ -21,6 +22,8 @@ import {
   STATE_SCHEMA_VERSION,
   healState,
   normalizePlaybookStack,
+  readImage2RefinementState,
+  writeImage2RefinementState,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 import { createHtmlFirstRun } from '../../helpers/html_first_fixture.mjs';
 
@@ -31,6 +34,16 @@ function tmpDeck(tag) {
 }
 
 describe('state.yaml yaml library + heal', () => {
+  it('stores refinement evidence only as a version-scoped reserved record', () => {
+    const fixture = createHtmlFirstRun('image2-refinement-state-');
+    try {
+      const before = readFileSync(join(fixture.deck, STATE_DIR, STATE_FILE));
+      const record = { schema: 'pptmaker-image2-refinement-state-v1', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
+      expect(writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: createHash('sha256').update(before).digest('hex') })).toEqual(record);
+      expect(readImage2RefinementState(readState(fixture.deck), 'v1')).toEqual(record);
+      expect(() => writeImage2RefinementState(fixture.deck, 'v1', { ...record, extra: true })).toThrow(/invalid/);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  });
   it('preserves unusable HTML state bytes while requiring explicit replacement', () => {
     const fixture = createHtmlFirstRun('html-state-replacement-');
     try {

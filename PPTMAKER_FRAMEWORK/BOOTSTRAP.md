@@ -49,9 +49,19 @@ Git 对做 PPT **可选但推荐**，只作为用户拥有的 source/control aud
 
 source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不是 Git checkout，也不是 `_generated/`。用户若明确授权 Git，必须给出命名操作和精确范围；普通 checkpoint 授权不包含 inspection。不要在项目根或 framework 内 `git init`，不得嵌套 `git init`。
 
+## Optional Phase-4 refinement
+
+After the current HTML delivery review is `proceed`, the user may choose a
+professional visual upgrade. The Agent recommends at most 2–4 no-text visual
+slots and shows the exact setup/page attempt count and deterministic plan hash.
+Only an explicit authorization of that hash can create provider attempts. A
+decline is a complete HTML outcome and creates no refinement state. Credentials
+and live diagnostics are discussed only after this choice; `doctor --image2`
+is an offline presence check and never authorizes production.
+
 ## Legacy compatibility
 
-Markerless deck 由 `reference/legacy-image2-first-maintenance.md` / `playbook/legacy-image2-maintenance.md` 负责；Image2 checks/live probes 只在用户选择 legacy remote action 后运行。
+Markerless deck 由 `reference/legacy-image2-first-maintenance.md` / `playbook/legacy-image2-maintenance.md` 负责；它与现代 Phase 4 visual-slot refinement 互斥。Image2 checks/live probes 只在用户选择相应 remote action 后运行。
 
 ## Runtime check map
 

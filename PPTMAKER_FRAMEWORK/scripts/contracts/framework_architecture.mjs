@@ -7,6 +7,7 @@ export const ACTIVE_PHASES = Object.freeze([
   "01-content",
   "02-visual-system",
   "03-html-production",
+  "04-image2-refinement",
   "05-iteration",
 ]);
 
@@ -15,6 +16,7 @@ export const PHASE_ADJACENCY = Object.freeze({
   "01-content": Object.freeze([]),
   "02-visual-system": Object.freeze([]),
   "03-html-production": Object.freeze(["00-setup", "01-content", "02-visual-system"]),
+  "04-image2-refinement": Object.freeze(["02-visual-system", "03-html-production"]),
   "05-iteration": Object.freeze(["01-content", "02-visual-system", "03-html-production"]),
 });
 
@@ -193,11 +195,16 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   for (const name of FORBIDDEN_GENERIC_ROOTS) if (rootEntries.has(name)) addIssue(issues, "generic-root", name, "forbidden generic scripts root");
   if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "legacy-lib", "lib", "scripts/lib is forbidden");
   for (const phase of ACTIVE_PHASES) if (!scriptFiles.has(`${phase}/index.mjs`)) addIssue(issues, "missing-phase-interface", `${phase}/index.mjs`, "active Phase interface is missing");
-  for (const path of scriptFiles.keys()) if (path.startsWith("04-image2-refinement/") && path.endsWith(".mjs")) addIssue(issues, "phase4-runtime", path, "Phase 4 must remain README-only");
+  for (const path of scriptFiles.keys()) {
+    if (path.startsWith("04-image2-refinement/") && path.endsWith(".mjs") && !path.startsWith("04-image2-refinement/internal/") && path !== "04-image2-refinement/index.mjs") {
+      addIssue(issues, "phase4-public-surface", path, "Phase 4 exposes only index.mjs; implementation stays private");
+    }
+  }
   for (const path of scriptFiles.keys()) if (/^(?:asset_manifest|bundle_layout|env-check|generate_style_master|image_api_client|lessons|make_contact_sheet|stage[1-5]_|unified_pipeline|visual_config)\.mjs$/.test(path)) addIssue(issues, "old-flat-path", path, "old flat business path is forbidden");
   for (const [importer, source] of scriptFiles) {
     for (const specifier of collectLiteralImports(source)) validateImportEdge(scriptFiles, importer, resolveLocalImport(importer, specifier), issues);
     if (/04-image2-refinement/.test(source) && importer.startsWith("05-iteration/legacy-image2/")) addIssue(issues, "legacy-modern-image2-edge", importer, "legacy Image2 must not import modern Phase 4");
+    if (importer.startsWith("03-html-production/") && /04-image2-refinement\/internal/.test(source)) addIssue(issues, "html-modern-image2-edge", importer, "HTML Phase 3 must not import modern private transport");
   }
   const detected = [...scriptFiles].filter(([path, source]) => path.endsWith(".mjs") && !DIRECT_ENTRY_EXCEPTIONS.has(path) && hasDirectEntryIndicator(source)).map(([path]) => path).sort();
   const expected = [...EXECUTABLE_INVENTORY].sort();
@@ -217,6 +224,17 @@ function walk(root, current = root, output = {}) {
     else output[normalized(relative(root, path))] = readFileSync(path, "utf8");
   }
   return output;
+}
+
+/** Public diagnostic seam used by ownership/CI checks; it is read-only and
+ * recursively discovers nested Phase/test owners. */
+export function discoverRecursiveFiles(root) {
+  return walk(resolve(root));
+}
+
+export function validateSourceTestOwnership(repoRoot = process.cwd()) {
+  const result = validateRepositoryArchitecture(repoRoot);
+  return Object.freeze({ ok: result.ok, issues: result.issues.filter((issue) => ["ownership-schema", "ownership-order", "missing-owned-test", "unowned-test", "test-owner-directory", "duplicate-test-owner", "missing-interface-owner", "executable-owner-union"].includes(issue.code)) });
 }
 
 export function validateRepositoryArchitecture(repoRoot = process.cwd()) {

@@ -22,6 +22,10 @@
       "supported_pipelines": ["html-first-v1"],
       "nodes": ["define-style-change", "update-visual-system", "review-style-system"]
     },
+    "image2-refine": {
+      "supported_pipelines": ["html-first-v1"],
+      "nodes": ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement", "review-image2-refinement"]
+    },
     "legacy-image2-maintenance": {
       "supported_pipelines": ["legacy-image2-first"],
       "nodes": ["classify-change", "inspect-legacy-evidence", "authorize-legacy-generation", "run-legacy-maintenance", "verify-legacy-maintenance"]

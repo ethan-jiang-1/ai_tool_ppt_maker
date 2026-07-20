@@ -6,8 +6,8 @@
  * This is the default human/agent entry point. It delegates to the structural SSOT
  * and production orchestrator instead of duplicating their logic.
  *
- * 14 commands: doctor, init, status, approve, style-master, validate, pilot,
- *              build, refresh, slides, new-version, test, state, migrate-html
+ * 15 commands: doctor, init, status, approve, style-master, validate, pilot,
+ *              build, refresh, slides, new-version, test, state, migrate-html, image2
  *
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
@@ -458,7 +458,7 @@ function collectStatus(runDir) {
  * @param {string} runDir
  */
 async function enrichStatusWithState(status, runDir) {
-  const { readState, buildResumeCard, statePath } = await import("./shared/state/state.mjs");
+  const { readState, buildResumeCard, statePath, projectImage2RefinementState } = await import("./shared/state/state.mjs");
   const root = deckRoot(runDir);
   status.state_present = existsSync(statePath(root));
   const s = readState(root, { heal: false });
@@ -467,6 +467,12 @@ async function enrichStatusWithState(status, runDir) {
     status.current_node = "";
     status.state_corrupted = true;
     return status;
+  }
+  try {
+    const version = basename(resolve(runDir));
+    status.image2_refinement = projectImage2RefinementState(s, version);
+  } catch (error) {
+    status.image2_refinement = { present: false, status: "invalid", reason: error.message };
   }
   if (status.pipeline === HTML_FIRST_PIPELINE) {
     try {
@@ -495,7 +501,11 @@ async function enrichStatusWithState(status, runDir) {
   status.current_node = card.current_node;
   status.workflow_summary = card.workflow_summary;
   status.suggested_next = card.suggested_next;
-  if (status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
+  const activeRefinement = status.image2_refinement?.present && status.image2_refinement.status !== "complete";
+  if (activeRefinement) {
+    status.workflow_summary = `Optional Image2 refinement is ${status.image2_refinement.status}`;
+    status.suggested_next = status.image2_refinement.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
+  } else if (status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
     status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
     status.suggested_next = "complete:html-delivery";
   }
@@ -530,12 +540,33 @@ export async function buildControllerGateContext(runDir) {
     headerReviewCurrent = false;
   }
 
+  let htmlFirstMarked = false;
+  let htmlDeliveryReviewCurrent = false;
+  try {
+    const p3 = await import("./03-html-production/index.mjs");
+    if (specPath) {
+      const marker = p3.probeProductionMarker(readFileSync(specPath), { source: "slide-specifications.md" });
+      htmlFirstMarked = marker.branch === HTML_FIRST_PIPELINE;
+      if (htmlFirstMarked) {
+        const review = (await import("./shared/state/html_review_evidence.mjs")).inspectHtmlReviewReadiness(resolved);
+        htmlDeliveryReviewCurrent = review.delivery?.freshness === "current" && review.delivery?.decision === "proceed";
+      }
+    }
+  } catch {
+    htmlFirstMarked = false;
+    htmlDeliveryReviewCurrent = false;
+  }
+
   return {
     deckDir: deckRoot(resolved),
     runDir: resolved,
+    runVersion: basename(resolved),
+    pipeline: htmlFirstMarked ? HTML_FIRST_PIPELINE : LEGACY_PIPELINE,
     frameworkDir: FRAMEWORK_DIR,
     slideSpecsValid,
     headerReviewCurrent,
+    htmlFirstMarked,
+    htmlDeliveryReviewCurrent,
   };
 }
 
@@ -579,6 +610,7 @@ function printStatus(status) {
   } else if (status.html_reviews) {
     console.log(`  HTML reviews:  ${status.html_reviews.ready ? "current" : status.html_reviews.reason}`);
   }
+  if (status.image2_refinement?.present) console.log(`  Image2 refine: ${status.image2_refinement.status}`);
   console.log(
     `  Lessons:       ${status.lessons_count > 0 ? `${status.lessons_count} (run \`lessons.mjs list\` to review)` : "none"}`
   );
@@ -2251,6 +2283,86 @@ async function commandBuildWrapped(runDir, opts) {
   return commandBuild(runDir, opts);
 }
 
+async function resolveImage2Run(runDir, where) {
+  const resolved = resolve(runDir || "");
+  const source = join(resolved, SLIDE_SPECS_NAME);
+  if (!existsSync(source)) {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Modern Image2 refinement requires a marked HTML-first run.",
+      hint: "Use the optional image2 route only after current HTML delivery review; markerless decks remain legacy maintenance.",
+      where,
+      diagnostic: { version: 1, category: "gate", operation: "image2-ownership", source: { path: source }, reason: { kind: "html_first_marker_required" }, next: createCliNext("review", { requiresHuman: true, default: "Open the current HTML-first run and complete delivery review before entering optional refinement." }) },
+    });
+    return null;
+  }
+  try {
+    const p3 = await import("./03-html-production/index.mjs");
+    const marker = p3.probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME });
+    if (marker.branch !== HTML_FIRST_PIPELINE) {
+      emitCliError({
+        code: CLI_ERROR_CODES.FAILED,
+        message: "ppt_flow image2 is not applicable to markerless legacy decks.",
+        hint: "Use the legacy-image2-maintenance route for markerless whole-page maintenance.",
+        where,
+        diagnostic: { version: 1, category: "gate", operation: "image2-markerless-rejected", source: { path: source }, reason: { kind: "modern_legacy_ownership_conflict" }, next: createCliNext("rerun", { default: "Select the legacy maintenance command for this markerless run." }) },
+      });
+      return null;
+    }
+    return resolved;
+  } catch (error) {
+    emitFailed(where, error.message, "Repair the canonical HTML-first marker, then retry the optional refinement command");
+    return null;
+  }
+}
+
+async function commandImage2(operation, runDir, opts = {}) {
+  const allowed = new Set(["plan", "authorize", "generate", "accept", "use-html", "cleanup", "unknown-submit", "resolve-unknown-submit"]);
+  if (!allowed.has(operation)) return emitUsage("ppt_flow.image2.operation", `unknown image2 operation ${JSON.stringify(operation)}`, `Use one of: plan, authorize, generate, accept, use-html, cleanup, unknown-submit`);
+  const resolved = await resolveImage2Run(runDir, `ppt_flow.image2.${operation}`);
+  if (!resolved) return 1;
+  try {
+    const ops = await import("./04-image2-refinement/index.mjs");
+    const slides = opts.slides ? String(opts.slides).split(",").map((id) => id.trim()).filter(Boolean).map((slide_id) => ({ slide_id, slot: opts.slot || "primary_visual" })) : null;
+    let result;
+    if (operation === "plan") {
+      result = await ops.createRefinementPlan({ runDir: resolved, slides, profileFingerprint: opts.profile || null });
+    } else if (operation === "authorize") {
+      if (!opts.planHash) return emitUsage("ppt_flow.image2.authorize", "--plan-hash is required", "Pass the exact deterministic hash printed by image2 plan");
+      result = await ops.authorizeRefinement({ runDir: resolved, planHash: opts.planHash });
+    } else if (operation === "generate") {
+      if (!opts.attemptId) return emitUsage("ppt_flow.image2.generate", "--attempt-id is required", "Pass one persisted planned attempt ID; retries require a new plan");
+      result = await ops.generateRefinement({ runDir: resolved, attemptId: opts.attemptId });
+    } else if (operation === "accept") {
+      if (!opts.slideId || !opts.candidateId) return emitUsage("ppt_flow.image2.accept", "--slide-id and --candidate-id are required", "Pass the exact reviewed page and immutable candidate ID");
+      result = await ops.acceptRefinementCandidate({ runDir: resolved, slideId: opts.slideId, candidateId: opts.candidateId });
+    } else if (operation === "use-html") {
+      if (!opts.slideId) return emitUsage("ppt_flow.image2.use-html", "--slide-id is required", "Pass the exact reviewed page ID");
+      result = await ops.useHtmlRefinement({ runDir: resolved, slideId: opts.slideId, candidateId: opts.candidateId || null });
+    } else if (operation === "cleanup") {
+      result = await ops.cleanupRefinementEvidence({ runDir: resolved, expectedReviewSha256: opts.reviewHash || null, dryRun: opts.dryRun === true });
+    } else {
+      if (!opts.attemptId || !opts.decision) return emitUsage(`ppt_flow.image2.${operation}`, "--attempt-id and --decision are required", "Resolve an unknown-submit attempt with --decision retain or abandon");
+      if (opts.decision === "retain" && opts.candidateId) result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: "retain", candidateId: opts.candidateId });
+      else if (opts.decision === "retain") result = await ops.reconcileRefinementAttempt({ runDir: resolved, attemptId: opts.attemptId });
+      else result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: opts.decision, candidateId: opts.candidateId || null });
+    }
+    if (opts.json) console.log(JSON.stringify(result, null, 2));
+    else console.log(JSON.stringify(result));
+    return 0;
+  } catch (error) {
+    const stale = /STALE|stale|drift/i.test(error.message || "");
+    emitCliError({
+      code: stale ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
+      message: error.message || "Image2 refinement failed.",
+      hint: stale ? "Re-run image2 plan and authorize the exact current hash; do not retry a chargeable attempt." : "Inspect the retained Phase-4 state and follow the safe human-action diagnostic.",
+      where: `ppt_flow.image2.${operation}`,
+      diagnostic: { version: 1, category: stale ? "gate" : "provider", operation: `image2-${operation}`, source: { path: resolved }, reason: { kind: stale ? "stale_plan_or_source" : "refinement_operation_failed" }, next: createCliNext(stale ? "review" : "inspect", { requiresHuman: stale, default: stale ? "Obtain a fresh plan hash and explicit authorization." : "Inspect the exact attempt/candidate state before taking another action." }) },
+    });
+    return 1;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // CLI — commander setup
 // ---------------------------------------------------------------------------
@@ -2282,6 +2394,7 @@ Examples:
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
   ppt_flow.mjs state deck_mydeck/3_versions/v1 --check-gates
+  ppt_flow.mjs image2 plan deck_mydeck/3_versions/v1
 `
     );
 
@@ -2598,6 +2711,7 @@ Examples:
         isGateApproved,
         buildResumeCard,
         statePath,
+        projectImage2RefinementState,
       } = await import("./shared/state/state.mjs");
       const resolved = resolve(runDir);
       const deckDir = deckRoot(resolved);
@@ -2767,11 +2881,16 @@ Examples:
             htmlReviews = { pipeline: HTML_FIRST_PIPELINE, state_present: true, content: { decision: "pending", freshness: "invalid", review_required: true }, visual: { decision: "pending", freshness: "invalid", outstanding_recipe_keys: [], outstanding_slide_ids: [] }, delivery: { freshness: "invalid", decision: null, reason_present: false }, reset: { status: "absent", ownership: "none", retry_after_ms: null }, journal: { status: "invalid" } };
           }
         }
+        const refinementProjection = (() => {
+          try { return projectImage2RefinementState(s, basename(resolved)); }
+          catch (error) { return { present: false, status: "invalid", reason: error.message }; }
+        })();
         const report = {
           ...s,
           pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "legacy-image2-first"),
           state_present: existsSync(statePath(deckDir)),
           html_reviews: htmlReviews,
+          image2_refinement: refinementProjection,
           ...(migrationHandoff ? { migration_handoff: migrationHandoff } : {}),
           node_status: indexedCard.node_status,
           waiting_for: indexedCard.waiting_for,
@@ -2782,7 +2901,10 @@ Examples:
           workflow_summary: indexedCard.workflow_summary,
           suggested_next: indexedCard.suggested_next,
         };
-        if (htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
+        if (refinementProjection.present && refinementProjection.status !== "complete") {
+          report.workflow_summary = `Optional Image2 refinement is ${refinementProjection.status}`;
+          report.suggested_next = refinementProjection.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
+        } else if (htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
           report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
           report.suggested_next = "complete:html-delivery";
         }
@@ -2830,6 +2952,30 @@ Examples:
         oldSideMode: opts.oldSideMode || null,
         recoverJournal: opts.recoverJournal || null,
       });
+      process.exit(code);
+    });
+
+  // ---- image2 (closed optional Phase-4 command family) ----
+  program
+    .command("image2")
+    .description("Optional authorized HTML-first visual-slot refinement")
+    .argument("<operation>", "plan, authorize, generate, accept, use-html, cleanup, or unknown-submit")
+    .argument("<run_dir>", "Path to marked HTML-first version dir")
+    .option("--slides <ids>", "Comma-separated stable slide IDs for plan")
+    .option("--slot <slot>", "One no-text visual slot (default primary_visual)", "primary_visual")
+    .option("--profile <fingerprint>", "Safe provider profile fingerprint")
+    .option("--plan-hash <hash>", "Exact deterministic plan hash")
+    .option("--attempt-id <id>", "Persisted setup/page attempt ID")
+    .option("--slide-id <id>", "Stable slide ID for review/promotion")
+    .option("--candidate-id <id>", "Immutable candidate ID")
+    .option("--review-hash <hash>", "Exact cleanup review-set hash")
+    .option("--decision <decision>", "Unknown-submit decision: retain or abandon")
+    .option("--dry-run", "Show cleanup scope without deleting derived evidence")
+    .option("--json", "Output one machine-readable success report")
+    .addHelpText("after", "\nClosed operations:\n  plan -> authorize -> generate -> accept|use-html -> cleanup\n  unknown-submit --decision retain|abandon\nNo operation submits before exact human authorization.\n")
+    .action(async (operation, runDir, opts) => {
+      if (opts.json) setCliOutputMode("json");
+      const code = await commandImage2(operation, runDir, opts);
       process.exit(code);
     });
 
