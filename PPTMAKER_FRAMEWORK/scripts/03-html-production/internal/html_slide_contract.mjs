@@ -13,30 +13,29 @@ import {
   parseDocument,
 } from "yaml";
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
-import { parseSlideDocument, validateSlideDocument } from "../../01-content/internal/slide_document.mjs";
-import { normalizeSpokenKey } from "../../01-content/internal/slide_ids.mjs";
+import { normalizeSpokenKey, parseSlideDocument, validateSlideDocument } from "../../01-content/index.mjs";
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 import {
   HTML_FAMILY_GEOMETRY_ID,
   htmlFamilyGeometrySemanticSha256,
   loadHtmlFamilyGeometryRegistry,
-} from "../../02-visual-system/internal/html_family_geometry.mjs";
+} from "../../02-visual-system/index.mjs";
 import {
   HTML_FONT_ROOT,
   buildFontInventory,
   parseUnicodeRanges,
   verifyHtmlFontBundle,
-} from "../../00-setup/internal/html_fonts.mjs";
+} from "../../00-setup/index.mjs";
 import {
   assetEvidence,
   loadHtmlAssetCatalog,
   validateHtmlAssetBytes,
-} from "../../02-visual-system/internal/html_asset_catalog.mjs";
+} from "../../02-visual-system/index.mjs";
 import {
   buildHtmlStyleReferenceProjectionV1,
   buildHtmlVisualProjectionV1,
   loadVisualConfigViews,
-} from "../../02-visual-system/internal/visual_config.mjs";
+} from "../../02-visual-system/index.mjs";
 import {
   COLOR_PALETTE_FILE,
   deckRoot,

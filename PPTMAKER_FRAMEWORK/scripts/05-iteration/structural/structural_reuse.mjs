@@ -1,4 +1,4 @@
-import { stableJson } from "../legacy-image2/internal/image_provenance.mjs";
+import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
 import { ARTIFACT_STATUS_VERIFIED } from "../../shared/identity/render_artifacts.mjs";
 import { sameGenerationProfile } from "../legacy-image2/internal/header_review.mjs";
 
@@ -87,7 +87,7 @@ export function computeStructuralImpact({
     const targetProfile = mapValue(targetProfiles, id) ?? null;
     const profileChanged = Boolean(
       before && after && sourceProfile != null && targetProfile != null &&
-      stableJson(sourceProfile) !== stableJson(targetProfile)
+      canonicalJson(sourceProfile) !== canonicalJson(targetProfile)
     );
     if (profileChanged) classifications.push("profile-changed");
 

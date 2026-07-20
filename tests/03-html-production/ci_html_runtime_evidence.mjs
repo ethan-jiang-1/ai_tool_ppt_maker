@@ -1,4 +1,4 @@
-import { discoverNpmPackages } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
+import { discoverNpmPackages } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
 import {
   inspectHtmlRuntime,
   runHtmlRuntimeSmoke,

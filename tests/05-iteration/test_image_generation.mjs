@@ -413,7 +413,7 @@ describe('stage2_generate_images', () => {
       'utf-8'
     );
 
-    const { generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
     const result = await generateImages({
       promptJson: prompts,
       outDir,
@@ -434,7 +434,7 @@ describe('stage2_generate_images', () => {
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
       { id: 'b', out: '02_b.png', prompt: 'prompt b' },
     ] }), 'utf-8');
-    const { generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
 
     mockSyncGeneration();
     const first = await generateImages({
@@ -494,7 +494,7 @@ describe('stage2_generate_images', () => {
     writeFileSync(prompts, JSON.stringify({ slides: [
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
     ] }), 'utf-8');
-    const { generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
     mockSyncGeneration();
     await generateImages({
       promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
@@ -528,7 +528,7 @@ describe('stage2_generate_images', () => {
     writeFileSync(prompts, JSON.stringify({ slides: [
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
     ] }), 'utf-8');
-    const { generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
     mockSyncGeneration();
     await generateImages({
       promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
@@ -591,8 +591,8 @@ describe('image provenance fingerprints', () => {
         buildImageManifestEntry,
         generationProfile,
         inspectImageProvenance,
-        sha256Bytes,
       } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs');
+      const { sha256Bytes } = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs');
       const base = generationProfile({
         styleReferenceSha256: sha256Bytes('style-a'),
         resolution: '1k',
@@ -653,8 +653,8 @@ describe('make_contact_sheet', () => {
       'utf-8'
     );
     const out = join(dir, 'sheet.jpg');
-    const { makeContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/make_contact_sheet.mjs');
-    const result = await makeContactSheet({
+    const { buildLegacyContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const result = await buildLegacyContactSheet({
       imageDir: imgDir,
       promptJson: prompts,
       out,
@@ -677,11 +677,11 @@ describe('make_contact_sheet', () => {
       { id: 'b', out: '02_b.png', prompt: 'b' },
     ] }), 'utf8');
     const out = join(dir, 'sheet.jpg');
-    const { makeContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/make_contact_sheet.mjs');
+    const { buildLegacyContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
     const { diagnosticFromError } = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs');
     let error;
     try {
-      await makeContactSheet({ imageDir: imgDir, promptJson: prompts, out, columns: 2 });
+      await buildLegacyContactSheet({ imageDir: imgDir, promptJson: prompts, out, columns: 2 });
     } catch (caught) {
       error = caught;
     }

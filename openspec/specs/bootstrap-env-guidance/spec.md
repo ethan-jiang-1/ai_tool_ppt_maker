@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It SHALL contain labeled sections for every base `env-check.mjs` check, with user-profile-aware fix instructions that are copy-pasteable by beginners. External file references SHALL be marked as human-only background reading. The BOOTSTRAP gate behavior (FOUNDATION NOT READY / NOT READY / △ warning) SHALL be preserved. Image2 first-time credential setup SHALL be self-contained in BOOTSTRAP without duplicating the full API contract from `03-runtime-and-tools.md`. BOOTSTRAP sections SHALL stay in sync with `env-check.mjs` check names.
+Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local HTML readiness through `scripts/00-setup/env-check.mjs`, optional legacy Image2 readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
 ### Requirement: BOOTSTRAP Step 1 contains a failure-to-fix section for every base doctor check
 
@@ -202,4 +202,3 @@ BOOTSTRAP SHALL map every base doctor/package/runtime/font/browser failure, incl
 - **WHEN** doctor passes and HTML composition reports pixel overflow
 - **THEN** BOOTSTRAP/controller treats it as a run source/layout repair
 - **AND** does not ask for Image2 or reinstall the browser
-

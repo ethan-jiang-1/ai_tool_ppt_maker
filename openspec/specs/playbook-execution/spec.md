@@ -1,6 +1,6 @@
 ## Purpose
 
-Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an agent through a deck's lifecycle: the registered playbook files (nine MD Controllers plus the shared `classify-change.md` node, including explore playbooks `iterate-style` / `quick-preview`, the off-path `migrate-import` playbook, and channel-health `probe-image-channels`), the 11-node `create-deck` creation flow and shortened iteration workflows, intent routing via `COMMANDS.md`, ownership-aware refresh-path resolution, state initialization on playbook start, gate enforcement at node boundaries (including show-before-approve for visual reviews), and shared-node reuse via `includes:`. This capability guarantees that user intent maps to exactly one playbook, that human-judgment gates (content and visual) block progression until explicitly approved or waived, and that execution state lives in `_state/state.yaml` alongside the static `project-metadata.yaml`.
+Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
 ## Requirements
 ### Requirement: playbook/ directory contains the registered MD controllers
 
@@ -542,4 +542,3 @@ After obtaining the decision, the Controller SHALL invoke `ppt_flow state <run-d
 - **WHEN** resume sees the exact target receipt and source migration execution without handoff
 - **THEN** it records the one atomic source-complete/target-continuation transition
 - **AND** target reviews remain pending
-

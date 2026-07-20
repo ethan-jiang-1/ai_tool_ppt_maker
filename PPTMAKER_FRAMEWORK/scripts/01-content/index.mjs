@@ -1,24 +1,45 @@
-export async function parseStructuredSlideDocument(...args) {
-  const module = await import("./internal/slide_document.mjs");
-  return module.parseSlideDocument(...args);
-}
+export {
+  IDENTITY_SCHEME_MNEMONIC_V1,
+  SlideDocumentError,
+  applySlideEdit,
+  canonicalSlideEditJson,
+  computeSlideEditPlanSha256,
+  parseSlideDocument,
+  planSlideEdit,
+  serializeSlideDocument,
+  sha256SlideSource,
+  validateSlideDocument,
+  validateSlideDocuments,
+  verifySlideEditPlanHash,
+} from "./internal/slide_document.mjs";
 
-export async function validateStructuredSlideDocument(...args) {
-  const module = await import("./internal/slide_document.mjs");
-  return module.validateSlideDocument(...args);
-}
+export {
+  SlideIdentityError,
+  SlideSelectorError,
+  buildSlideIdReservation,
+  classifySlideId,
+  formatAvailableSlideIds,
+  formatSlideCandidate,
+  isLegacySlideId,
+  isMnemonicSlideId,
+  normalizeSpokenKey,
+  parseMnemonicSlideId,
+  resolveSlideBindings,
+  resolveSlideIds,
+  validateNewSlideId,
+} from "./internal/slide_ids.mjs";
 
-export async function resolveSlideIdentityBindings(...args) {
-  const module = await import("./internal/slide_ids.mjs");
-  return module.resolveSlideBindings(...args);
-}
-
-export async function resolveSlideIdentities(...args) {
-  const module = await import("./internal/slide_ids.mjs");
-  return module.resolveSlideIds(...args);
-}
-
-export async function inspectRenderPolicy(...args) {
-  const module = await import("./internal/render_policy.mjs");
-  return module.parseRenderPolicy(...args);
-}
+export {
+  CANONICAL_RENDER_MODES,
+  RENDER_MODE_BODY_HEADER_LOCK,
+  RENDER_MODE_FULL_PAGE,
+  RenderPolicyError,
+  determineRenderMode,
+  isBracketPlaceholder,
+  isHeroVisualType,
+  normalizeRenderMode,
+  normalizeVisualType,
+  parseLeadingFrontmatter,
+  presentHeaderText,
+  validatePolicySlideIds,
+} from "./internal/render_policy.mjs";

@@ -54,13 +54,13 @@ import {
   deckRoot, backboneDir, styleAsset, assetsDir, generatedDir,
   findSlideSpecs, deckName, checkBundle, loadDotenv,
 } from "../shared/run-bundle/bundle_layout.mjs";
-import { loadAssetManifest, validateAssetManifest, resolveAssetFile } from "../02-visual-system/internal/asset_manifest.mjs";
-import { resolveSlideIds } from "../01-content/internal/slide_ids.mjs";
+import { resolveSlideIds } from "../01-content/index.mjs";
+import { loadAssetManifest, resolveAssetFile, validateAssetManifest } from "../02-visual-system/index.mjs";
 import {
   carryForwardHeaderReview,
   computeStructuralImpact,
-} from "../05-iteration/structural/structural_reuse.mjs";
-import { versionKey } from "../05-iteration/legacy-image2/internal/header_review.mjs";
+  versionKey,
+} from "../05-iteration/index.mjs";
 
 // --- Configuration -----------------------------------------------------------
 
@@ -138,9 +138,8 @@ function writeHtmlPlanAtomic(runDir, path, value, verify) {
 async function targetGenerationProfiles(runDir, prompts, { resolution, model }) {
   const {
     generationProfile,
-    sha256Bytes,
-    sha256File,
-  } = await import("../05-iteration/legacy-image2/internal/image_provenance.mjs");
+  } = await import("../05-iteration/index.mjs");
+  const { sha256Bytes, sha256File } = await import("../shared/identity/byte_hash.mjs");
   const styleReferenceSha256 = sha256File(styleAsset(runDir, STYLE_MASTER_IMAGE));
   let manifest = null;
   try { manifest = loadAssetManifest(assetsDir(runDir)); } catch { /* optional */ }
@@ -221,13 +220,13 @@ export async function materializeStructuralVersion({
     materializeVerifiedRawImage,
     publishMaterializedRawImages,
     readImageManifest,
-  } = await import("../05-iteration/legacy-image2/internal/image_provenance.mjs");
+  } = await import("../05-iteration/index.mjs");
   const {
     ARTIFACT_KIND_RAW_RENDER,
     ARTIFACT_STATUS_VERIFIED,
     RENDER_ENGINE_IMAGE2,
-    resolveRenderArtifact,
   } = await import("../shared/identity/render_artifacts.mjs");
+  const { resolveRenderArtifact } = await import("../05-iteration/index.mjs");
   const sourceManifestRead = readImageManifest(sourceImages);
   const sourceIds = new Set(sourcePlan.map((slide) => String(slide.slide_id || slide.id || "")));
   const results = [];
@@ -282,8 +281,8 @@ export async function materializeStructuralVersion({
   const {
     HEADER_REVIEW_NODE,
     buildHeaderReviewInputs,
-  } = await import("../05-iteration/legacy-image2/internal/header_review.mjs");
-  const { loadVisualConfig, DEFAULT_CONFIG } = await import("../02-visual-system/internal/visual_config.mjs");
+  } = await import("../05-iteration/index.mjs");
+  const { loadVisualConfig, DEFAULT_CONFIG } = await import("../02-visual-system/index.mjs");
   const palettePath = styleAsset(targetDir, COLOR_PALETTE_FILE);
   const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
   const state = readState(root);
@@ -325,8 +324,8 @@ export async function materializeStructuralVersion({
       throw error;
     }
     completedLocalStages.push("stage3");
-    const { makeContactSheet } = await import("../05-iteration/legacy-image2/make_contact_sheet.mjs");
-    await makeContactSheet({
+    const { buildLegacyContactSheet } = await import("../05-iteration/index.mjs");
+    await buildLegacyContactSheet({
       imageDir: join(targetBuild, GEN_IMAGES_SUBDIR),
       promptJson: targetPromptsPath,
       out: join(targetBuild, GEN_PREVIEW_SUBDIR, "contact_sheet.jpg"),
@@ -907,8 +906,8 @@ export async function stage1(runDir, dryRun, { beforeHtmlFirstPublish = null } =
 
   // Use the Node.js ESM port's parseSlides function programmatically.
   // This avoids spawning a subprocess for a stage we have natively.
-  const { parseSlides, configureVisualConfig, validateSpecRecords } = await import("./stage1_build_inputs.mjs");
-  const { loadVisualConfig } = await import("../02-visual-system/internal/visual_config.mjs");
+  const { parseSlides, configureVisualConfig, validateSpecRecords } = await import("./internal/stage1_inputs.mjs");
+  const { loadVisualConfig } = await import("../02-visual-system/index.mjs");
 
   const deckSystemPath = styleAsset(runDir, DECK_SYSTEM_FILE);
   const palettePath = styleAsset(runDir, COLOR_PALETTE_FILE);
@@ -936,7 +935,7 @@ export async function stage1(runDir, dryRun, { beforeHtmlFirstPublish = null } =
       return failStage(stage1, { version: 1, category: "artifact", stage: "stage1", operation: "load-visual-config", source: { path: palettePath }, reason: { kind: "invalid_visual_config" }, next: createCliNext("repair_prerequisite", { inspect: [{ path: palettePath }], default: "Repair the visual configuration source, then rerun Stage 1." }) });
     }
   } else {
-    const { DEFAULT_CONFIG } = await import("../02-visual-system/internal/visual_config.mjs");
+    const { DEFAULT_CONFIG } = await import("../02-visual-system/index.mjs");
     configureVisualConfig(DEFAULT_CONFIG);
   }
 
@@ -1004,7 +1003,7 @@ export async function stage1(runDir, dryRun, { beforeHtmlFirstPublish = null } =
 /**
  * Stage 2: Generate images with style anchoring (in-framework Node).
  *
- * Uses scripts/stage2_generate_images.mjs + make_contact_sheet.mjs.
+ * Uses scripts/05-iteration/legacy-image2/stage2_generate_images.mjs + make_contact_sheet.mjs.
  * Credentials: IMAGE2_API_KEY / IMAGE2_BASE_URL.
  *
  * @param {string} runDir
@@ -1084,7 +1083,7 @@ export async function stage2(runDir, {
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`  Stage: Stage 2: Generate Images`);
-  console.log(`  Generator: scripts/stage2_generate_images.mjs (in-framework)`);
+  console.log(`  Generator: scripts/05-iteration/legacy-image2/stage2_generate_images.mjs (in-framework)`);
   console.log(`${"=".repeat(60)}\n`);
 
   if (dryRun) {
@@ -1108,8 +1107,8 @@ export async function stage2(runDir, {
       // Manifest may not exist or be invalid — optional, no hard error
     }
 
-    const { buildImageFailureDiagnostic, generateImages } = await import("../05-iteration/legacy-image2/stage2_generate_images.mjs");
-    const result = await generateImages({
+    const { buildLegacyImageFailureDiagnostic, generateLegacyImages } = await import("../05-iteration/index.mjs");
+    const result = await generateLegacyImages({
       promptJson: promptsFile,
       outDir,
       styleReference: styleMaster,
@@ -1124,7 +1123,7 @@ export async function stage2(runDir, {
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
-      return failStage(stage2, buildImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
+      return failStage(stage2, await buildLegacyImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
     }
     // Post-generation provenance check — per-slide profiles replace the old batch validateImageProvenance
     const promptData = loadJson(promptsFile);
@@ -1132,7 +1131,7 @@ export async function stage2(runDir, {
     const provenanceSlides = (promptData.slides || []).filter(
       (slide) => !selectedSet || selectedSet.has(slide.id)
     );
-    const { inspectImageProvenance, readImageManifest, provenanceRepairHint } = await import("../05-iteration/legacy-image2/internal/image_provenance.mjs");
+    const { inspectImageProvenance, readImageManifest, provenanceRepairHint } = await import("../05-iteration/index.mjs");
     const { manifest: provManifest, error: provManifestError } = readImageManifest(outDir);
     const stale = [];
     for (const slide of provenanceSlides) {
@@ -1176,8 +1175,8 @@ export async function stage2(runDir, {
   console.log(`${"=".repeat(60)}\n`);
 
   try {
-    const { makeContactSheet } = await import("../05-iteration/legacy-image2/make_contact_sheet.mjs");
-    await makeContactSheet({
+    const { buildLegacyContactSheet } = await import("../05-iteration/index.mjs");
+    await buildLegacyContactSheet({
       imageDir: outDir,
       promptJson: contactPrompts,
       out: join(previewDir, contactName),
@@ -1246,8 +1245,8 @@ export async function stage3(runDir, dryRun) {
   }
 
   try {
-    const { lockHeaders } = await import("../05-iteration/legacy-image2/stage3_lock_headers.mjs");
-    await lockHeaders({
+    const { lockLegacyHeaders } = await import("../05-iteration/index.mjs");
+    await lockLegacyHeaders({
       images: imagesDir,
       slidePlan,
       out: outDir,
@@ -1298,9 +1297,9 @@ export async function stage3Html(runDir, { only = null, compositionVariant = 'ef
 export async function stage4Html(runDir, { dryRun = false } = {}) {
   stage4Html.lastFailure = null;
   try {
-    const { buildPptxFromRunDir } = await import('./stage4_build_pptx.mjs');
     if (dryRun) { console.log('  HTML Stage 4: provider-neutral assembly planned (no PPTX write)'); return true; }
-    const result = await buildPptxFromRunDir(runDir);
+    const { buildPresentation } = await import('./index.mjs');
+    const result = await buildPresentation(runDir);
     console.log(`  HTML Stage 4: PPTX ${result.outPath}`);
     return true;
   } catch (error) {
@@ -1313,8 +1312,8 @@ export async function stage5Html(runDir, { dryRun = false } = {}) {
   stage5Html.lastFailure = null;
   try {
     if (dryRun) { console.log('  HTML Stage 5: notes injection planned (no PPTX/receipt write)'); return true; }
-    const { injectHtmlNotesFromRunDir } = await import('./stage5_inject_notes.mjs');
-    const result = await injectHtmlNotesFromRunDir(runDir);
+    const { injectSpeakerNotes } = await import('./index.mjs');
+    const result = await injectSpeakerNotes(runDir);
     console.log(`  HTML Stage 5: notes injected ${result.notesInjected}/${result.slideCount}`);
     return true;
   } catch (error) {
@@ -1387,14 +1386,8 @@ export async function stage4(runDir, dryRun) {
   }
 
   try {
-    // Programmatic call — no subprocess needed for the Node-native stage
-    const { buildPptx } = await import("./stage4_build_pptx.mjs");
-    await buildPptx({
-      images: imagesDir,
-      slidePlan,
-      out: pptxPath,
-      title,
-    });
+    const { buildLegacyPresentation } = await import("../05-iteration/index.mjs");
+    await buildLegacyPresentation({ runDir, images: imagesDir, slidePlan, out: pptxPath, title });
     console.log(`\n  ✓ Stage 4: Build PPTX completed successfully.`);
     return true;
   } catch (err) {
@@ -1418,14 +1411,14 @@ export async function validateProductionHeaderReview(runDir, {
   }
   const slides = loadJson(planPath).slides || [];
   const palettePath = styleAsset(runDir, COLOR_PALETTE_FILE);
-  const { loadVisualConfig, DEFAULT_CONFIG } = await import("../02-visual-system/internal/visual_config.mjs");
+  const { loadVisualConfig, DEFAULT_CONFIG } = await import("../02-visual-system/index.mjs");
   const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
   const {
     buildHeaderReviewInputs,
     HEADER_REVIEW_NODE,
     validateHeaderReviewRecord,
     versionKey,
-  } = await import("../05-iteration/legacy-image2/internal/header_review.mjs");
+  } = await import("../05-iteration/index.mjs");
   const inputs = buildHeaderReviewInputs(slides, visualConfig);
   const root = deckRoot(runDir);
   const { readState } = await import("../shared/state/state.mjs");
@@ -1436,7 +1429,8 @@ export async function validateProductionHeaderReview(runDir, {
   const profileResolution = resolution || record?.generation_profile?.resolution || null;
   const profileModel = model || record?.generation_profile?.model || null;
   if (profileResolution && profileModel) {
-    const { generationProfile, sha256File } = await import("../05-iteration/legacy-image2/internal/image_provenance.mjs");
+    const { generationProfile } = await import("../05-iteration/index.mjs");
+    const { sha256File } = await import("../shared/identity/byte_hash.mjs");
     const styleMaster = styleAsset(runDir, STYLE_MASTER_IMAGE);
     targetProfile = generationProfile({
       styleReferenceSha256: sha256File(styleMaster),
@@ -1458,7 +1452,8 @@ export async function validateProductionHeaderReview(runDir, {
     const promptsPath = join(buildDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON);
     const prompts = existsSync(promptsPath) ? loadJson(promptsPath).slides || [] : [];
     const promptById = new Map(prompts.map((slide) => [slide.id, slide]));
-    const { generationFingerprint, readImageManifest, sha256File } = await import("../05-iteration/legacy-image2/internal/image_provenance.mjs");
+    const { generationFingerprint, readImageManifest } = await import("../05-iteration/index.mjs");
+    const { sha256File } = await import("../shared/identity/byte_hash.mjs");
     const imagesDir = join(buildDir, GEN_IMAGES_SUBDIR);
     const { manifest, error: manifestError } = readImageManifest(imagesDir);
     const imageChanged = [];
@@ -1547,8 +1542,8 @@ export async function stage5(runDir, dryRun) {
   }
 
   try {
-    const { injectNotesFromRunDir } = await import("./stage5_inject_notes.mjs");
-    const result = await injectNotesFromRunDir(runDir);
+    const { injectLegacySpeakerNotes } = await import("./index.mjs");
+    const result = await injectLegacySpeakerNotes(runDir);
 
     console.log(`\n  ✓ Stage 5: Inject Notes completed successfully.`);
     console.log(`  Notes injected: ${result.notesInjected}/${result.slideCount} slides`);

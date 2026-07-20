@@ -3,7 +3,7 @@ import "../shared/cli/cli_bootstrap.mjs?entry=03-html-production/stage2_render_h
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLI_ERROR_CODES, createCliNext, emitCliError } from '../shared/cli/cli_error.mjs';
-import { buildHtmlPages, createCanonicalHtmlValidatedRunContext, publishHtmlPages, resolveHtmlSlideSelectors } from './internal/html_slide_renderer.mjs';
+import { renderHtmlPages } from './index.mjs';
 
 function parseArgs(argv) {
   const options = { slideIds: [] }; const allowed = new Set(['--run-dir', '--only', '--variant', '--dry-run', '--help']);
@@ -20,9 +20,7 @@ function parseArgs(argv) {
 export async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) { console.log('Usage: node stage2_render_html.mjs --run-dir <vN> [--only <slide-id>] [--variant effective|forced-fallback] [--dry-run]'); return; }
-  const context = createCanonicalHtmlValidatedRunContext({ runDir: resolve(options.runDir) });
-  const request = { ...(options.slideIds.length ? { slideIds: resolveHtmlSlideSelectors(context, options.slideIds) } : {}), ...(options.compositionVariant ? { compositionVariant: options.compositionVariant } : {}), ...(options.dryRun ? { dryRun: true } : {}) };
-  const result = options.dryRun ? buildHtmlPages(context, request) : await publishHtmlPages(context, request);
+  const result = await renderHtmlPages(resolve(options.runDir), options);
   console.log(JSON.stringify({ ok: true, stage: 'stage2', dry_run: Boolean(options.dryRun), publication_scope: result.publication_scope, pages: result.pages.map(({ slide_id, html_sha256, composition_fingerprint }) => ({ slide_id, html_sha256, composition_fingerprint })) }));
   return result;
 }

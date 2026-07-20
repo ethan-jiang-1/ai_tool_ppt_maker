@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCanvas } from '@napi-rs/canvas';
 import { initLegacyBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
-import { generateStyleMaster } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/generate_style_master.mjs';
+import { generateLegacyStyleMaster } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs';
 import { loadDeckSystem } from '../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/deck_system.mjs';
 
 function tinyPngB64() {
@@ -45,8 +45,8 @@ function mockImageApi(onSubmit) {
 
 describe('generate_style_master', () => {
   it('module exports expected functions', async () => {
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/generate_style_master.mjs');
-    expect(mod.generateStyleMaster).toBeTypeOf('function');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    expect(mod.generateLegacyStyleMaster).toBeTypeOf('function');
   });
 
   it('emits a structured source diagnostic for an invalid run bundle', () => {
@@ -94,7 +94,7 @@ describe('style master deck_system injection', () => {
   });
 
   it('dry-run succeeds with deck_system present', async () => {
-    const code = await generateStyleMaster({ runDir: v1, dryRun: true });
+    const code = await generateLegacyStyleMaster({ runDir: v1, dryRun: true });
     expect(code).toBe(0);
   });
 
@@ -105,7 +105,7 @@ describe('style master deck_system injection', () => {
       sentPrompt = body.prompt;
     });
 
-    const code = await generateStyleMaster({
+    const code = await generateLegacyStyleMaster({
       runDir: v1,
       force: true,
       resolution: '1k',
@@ -122,7 +122,7 @@ describe('style master deck_system injection', () => {
       sentPrompt = body.prompt;
     });
 
-    const code = await generateStyleMaster({
+    const code = await generateLegacyStyleMaster({
       runDir: v1,
       force: true,
       resolution: '1k',
@@ -140,7 +140,7 @@ describe('style master deck_system injection', () => {
     delete process.env.IMAGE2_BASE_URL;
     globalThis.fetch = vi.fn(async () => { throw new Error('no-op style master must not submit'); });
 
-    const code = await generateStyleMaster({ runDir: v1, force: false });
+    const code = await generateLegacyStyleMaster({ runDir: v1, force: false });
     expect(code).toBe(0);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });

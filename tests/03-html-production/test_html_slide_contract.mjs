@@ -4,7 +4,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { canonicalJson } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/canonical_json.mjs";
-import { stableJson } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { canonicalJson as stableJson } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { canonicalSlideEditJson, parseSlideDocument } from "../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_document.mjs";
 import {
   buildHtmlSourcePreflight,

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { decode as decodePng, encode as encodePng } from 'fast-png';
-import { HTML_RUNTIME_PROFILE, launchPinnedChromium } from '../../00-setup/internal/html_runtime.mjs';
+import { HTML_RUNTIME_PROFILE, launchPinnedChromium } from '../../00-setup/index.mjs';
 
 export const HTML_CAPTURE_PROFILE = Object.freeze({
   id: 'html-capture-v1',

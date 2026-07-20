@@ -8,7 +8,7 @@ import {
   parseSlides,
   validateSpecRecords,
   validateSpecs,
-} from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage1_build_inputs.mjs';
+} from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/stage1_inputs.mjs';
 import { parseCliErrorLine } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
 import { DEFAULT_CONFIG } from '../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/visual_config.mjs';
 

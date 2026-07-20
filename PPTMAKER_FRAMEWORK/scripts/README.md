@@ -1,27 +1,156 @@
-# Scripts — Capability ownership
+# Scripts — Phase ownership map
 
-All scripts are Node.js 22+ ESM. The public `ppt_flow` surface has 14 commands (14 个命令); the executable inventory has 13 direct `.mjs` entries, including `stage2_render_html.mjs` and `stage3_compose_slides.mjs`.
+`PPTMAKER_FRAMEWORK/scripts/` 是框架的 Node.js ESM 生产代码树。它与 `workflow/00`–`05` 使用同一套 Phase 词汇，但职责不同：workflow 解释方法，scripts 实现可执行管线，`tests/` 和 `tests_e2e/` 镜像验证 owner。
 
-CLI producer envelope and return categories are specified by `openspec/specs/cli-surface/spec.md`; this README only points to that authority and does not copy its schema.
+日常入口只有一个：
 
-| Capability | HTML-first owner | Legacy owner |
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>
+```
+
+维护者需要直接运行某个 adapter 时，必须使用下文列出的 canonical owner path。旧的 root flat paths 和 `scripts/lib/` 已删除，不提供兼容 shim。
+
+## Exact tree
+
+```text
+scripts/
+├── README.md
+├── ppt_flow.mjs
+├── 00-setup/
+│   ├── index.mjs
+│   ├── env-check.mjs
+│   └── internal/
+├── 01-content/
+│   ├── index.mjs
+│   └── internal/
+├── 02-visual-system/
+│   ├── index.mjs
+│   └── internal/
+├── 03-html-production/
+│   ├── index.mjs
+│   ├── stage1_build_inputs.mjs
+│   ├── stage2_render_html.mjs
+│   ├── stage3_compose_slides.mjs
+│   ├── stage4_build_pptx.mjs
+│   ├── stage5_inject_notes.mjs
+│   ├── unified_pipeline.mjs
+│   └── internal/
+├── 04-image2-refinement/
+│   └── README.md
+├── 05-iteration/
+│   ├── index.mjs
+│   ├── change-classifier.md
+│   ├── structural/
+│   ├── migration/
+│   ├── legacy-image2/
+│   │   ├── generate_style_master.mjs
+│   │   ├── make_contact_sheet.mjs
+│   │   ├── stage2_generate_images.mjs
+│   │   ├── stage3_lock_headers.mjs
+│   │   └── internal/
+│   └── internal/
+├── shared/
+│   ├── cli/
+│   ├── run-bundle/
+│   ├── state/
+│   └── identity/
+├── contracts/
+├── fonts/
+└── fixtures/
+```
+
+根目录白名单只有 `README.md`、`ppt_flow.mjs`、六个 numbered Phase 目录、`shared/`、`contracts/`、`fonts/` 和 `fixtures/`。Phase 4 在本 change 中明确 unavailable：只有 README，没有 `index.mjs`、CLI、provider transport 或 runtime import。
+
+## Deep Phase interfaces
+
+每个 active Phase 只暴露一个 import-safe `index.mjs`。外部 caller 依赖 cohesive operation，不依赖 owner 的 `internal/` 文件、物理 artifact path 或 CLI bootstrap。
+
+| Interface | Owner responsibility | Allowed consumers |
 |---|---|---|
-| Stage 1 | `stage1_build_inputs.mjs` structured projection | same script legacy branch |
-| Stage 2 | `stage2_render_html.mjs` self-contained HTML pages | `stage2_generate_images.mjs` whole-page Image2 |
-| Stage 3 | `stage3_compose_slides.mjs` measured PNG final slides | `stage3_lock_headers.mjs` header compatibility |
-| Stage 4 | `stage4_build_pptx.mjs` provider-neutral final-slide adapter | same CLI legacy artifact mode |
-| Stage 5 | `stage5_inject_notes.mjs` notes-v3 | markerless notes compatibility |
-| orchestration | `unified_pipeline.mjs`, `ppt_flow.mjs` branch adapters | isolated legacy adapter |
+| `00-setup/index.mjs` | provider-free base/package/browser/font/runtime readiness | root doctor、env-check adapter、Phase 3 |
+| `01-content/index.mjs` | structured source、slide identity、selector、render policy | Phase 3、Phase 5 |
+| `02-visual-system/index.mjs` | visual config、asset catalog、components、tokens、geometry | Phase 3、Phase 5 |
+| `03-html-production/index.mjs` | HTML validate/preview/build/refresh、Stage 1–5 local production | root、Phase 5 |
+| `05-iteration/index.mjs` | structural versioning、migration、local iteration、markerless legacy maintenance | root |
 
-HTML direct CLIs accept only canonical `--run-dir`, optional `--only`, explicit `--variant`, `--dry-run`, and `--help`; they derive all paths internally. They never load provider credentials or browser/package overrides.
+Importing an interface must not parse arguments, install a CLI transaction, exit the process, write production files, launch Chromium, initialize a provider, or eagerly load heavy operation-specific implementation. Operation boundaries use string-literal dynamic imports so static architecture checks can resolve the edge.
 
-## Deep seams
+## Public shared interfaces
 
-- `html_slide_renderer.mjs`: opaque validated-run page/composition seam.
-- `html_object_store.mjs`: raw-byte-SHA objects and current manifests/locks.
-- `html_preview.mjs`: reset-bound review plans/contact sheets.
-- `html_review_evidence.mjs`: inspect/recover/publish gate/delivery/reset seam.
-- `render_artifacts.mjs`: provider-neutral final-slide contract.
-- `state.mjs` + `md_controller_reader.mjs`: schema-v3 state, controller manifest and migration map.
+Only these paths are cross-owner public interfaces:
 
-Do not expose private paths, reset/owner IDs, browser internals, provider data, or source prose in diagnostics. `_generated/` and `_scratch/` are rebuildable/transactional, never hand-edited.
+- `shared/cli/cli_bootstrap.mjs`
+- `shared/cli/cli_error.mjs`
+- `shared/run-bundle/bundle_layout.mjs`
+- `shared/run-bundle/production_marker.mjs`
+- `shared/state/state.mjs`
+- `shared/state/md_controller_reader.mjs`
+- `shared/state/html_review_evidence.mjs`
+- `shared/identity/canonical_json.mjs`
+- `shared/identity/byte_hash.mjs`
+- `shared/identity/notes_receipt.mjs`
+- `shared/identity/render_artifacts.mjs`
+
+其他 shared 文件是 private。唯一允许的 shared internal collaboration 是 `shared/run-bundle/bundle_layout.mjs` 和 `shared/state/html_review_evidence.mjs` 访问 `shared/state/internal/html_review_evidence_core.mjs`；没有目录级或 pattern 级豁免。`shared/run-bundle/lessons.mjs` 是 direct CLI adapter，不是跨 owner library interface。
+
+## Fourteen direct executables
+
+Canonical registry 位于 `contracts/executable_inventory.mjs`。路径必须是相对 `scripts/` 的 POSIX path，不能退化为 basename。
+
+1. `ppt_flow.mjs`
+2. `00-setup/env-check.mjs`
+3. `03-html-production/stage1_build_inputs.mjs`
+4. `03-html-production/stage2_render_html.mjs`
+5. `03-html-production/stage3_compose_slides.mjs`
+6. `03-html-production/stage4_build_pptx.mjs`
+7. `03-html-production/stage5_inject_notes.mjs`
+8. `03-html-production/unified_pipeline.mjs`
+9. `05-iteration/legacy-image2/generate_style_master.mjs`
+10. `05-iteration/legacy-image2/make_contact_sheet.mjs`
+11. `05-iteration/legacy-image2/stage2_generate_images.mjs`
+12. `05-iteration/legacy-image2/stage3_lock_headers.mjs`
+13. `shared/run-bundle/bundle_layout.mjs`
+14. `shared/run-bundle/lessons.mjs`
+
+普通 direct Phase CLI 必须是 owning `index.mjs` 上的薄 adapter。仅以下五个 process seam 可协调多个 public owner：`ppt_flow.mjs`、`00-setup/env-check.mjs`、`03-html-production/unified_pipeline.mjs`、`03-html-production/stage1_build_inputs.mjs`、`03-html-production/stage4_build_pptx.mjs`。它们仍不得 import foreign private implementation。
+
+## Import direction
+
+```text
+ppt_flow -> active Phase index + declared public shared interfaces
+Phase    -> own private + public shared + contracts + allowlisted foreign Phase index
+shared   -> public shared + contracts
+contracts -> contract-owned modules + exact external parser leaves
+```
+
+Exact foreign-Phase adjacency：
+
+```text
+00-setup            -> {}
+01-content          -> {}
+02-visual-system    -> {}
+03-html-production  -> {00-setup, 01-content, 02-visual-system}
+05-iteration        -> {01-content, 02-visual-system, 03-html-production}
+```
+
+Phase 4 没有 graph node。`shared/` 不能 import numbered Phase；Phase 不能 import foreign `internal/` 或 foreign executable；contracts 不能反向 import Phase/shared production implementation。Legacy Image2 只能存在于 `05-iteration/legacy-image2/`，不能 import future Phase 4。
+
+## Source-to-test ownership
+
+测试树使用相同 owner vocabulary：
+
+```text
+tests/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinement,05-iteration,shared,contracts,helpers}
+tests_e2e/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinement,05-iteration,shared,helpers}
+```
+
+Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、14 个 executable、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。
+
+## Verification authorities
+
+- CLI envelope、diagnostic、return category：`openspec/specs/cli-surface/spec.md`
+- 目录、interface、import graph、manifest：`openspec/specs/framework-script-layout/spec.md` 和 active change delta
+- Static enforcement：`contracts/framework_architecture.mjs`
+- Default regression：`npm test`
+
+不要在本 README 复制 CLI producer schema；这里负责 ownership 和导航。不要手改 `_generated/`，也不要把 `deck_*` / `dpt_*` 当 framework test fixture。

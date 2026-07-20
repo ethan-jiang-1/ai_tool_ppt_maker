@@ -127,7 +127,8 @@ function validateImportEdge(files, importer, target, issues) {
     return;
   }
   if (fromPhase && toPhase && fromPhase !== toPhase) {
-    if (!PHASE_ADJACENCY[fromPhase].includes(toPhase)) addIssue(issues, "phase-adjacency", importer, `${fromPhase} may not import ${toPhase}`);
+    const processAdapterPublicEdge = CROSS_OWNER_PROCESS_ADAPTERS.includes(importer) && target === `${toPhase}/index.mjs`;
+    if (!processAdapterPublicEdge && !PHASE_ADJACENCY[fromPhase].includes(toPhase)) addIssue(issues, "phase-adjacency", importer, `${fromPhase} may not import ${toPhase}`);
     if (target !== `${toPhase}/index.mjs`) addIssue(issues, "foreign-phase-private-import", importer, `foreign Phase import must target ${toPhase}/index.mjs`);
   }
   if (fromPhase && target.startsWith("shared/") && target !== SHARED_CORE && !PUBLIC_SHARED_INTERFACES.includes(target)) {
@@ -149,6 +150,8 @@ function validateManifest(files, manifest, issues, { requireCompleteManifest }) 
   const owners = manifest.owners.map((entry) => entry.owner);
   if (owners.join("\n") !== [...owners].sort().join("\n")) addIssue(issues, "ownership-order", "tests/contracts/source-test-ownership-v1.json", "owners must be sorted");
   for (const entry of manifest.owners) {
+    const unitPrefix = `tests/${entry.owner}/`;
+    const e2ePrefix = `tests_e2e/${entry.owner}/`;
     for (const field of ["interfaces", "executables", "unit_integration", "e2e"]) {
       if (!Array.isArray(entry[field])) { addIssue(issues, "ownership-field", entry.owner || "unknown", `${field} must be an array`); continue; }
       if (entry[field].join("\n") !== [...entry[field]].sort().join("\n")) addIssue(issues, "ownership-order", entry.owner || "unknown", `${field} must be sorted`);
@@ -166,12 +169,18 @@ function validateManifest(files, manifest, issues, { requireCompleteManifest }) 
       seenTests.set(path, entry.owner);
       if (!files.has(path)) addIssue(issues, "missing-owned-test", path, `owned test does not exist for ${entry.owner}`);
     }
+    for (const path of entry.unit_integration || []) if (!path.startsWith(unitPrefix)) addIssue(issues, "test-owner-directory", path, `unit/integration owner ${entry.owner} requires ${unitPrefix}`);
+    for (const path of entry.e2e || []) if (!path.startsWith(e2ePrefix)) addIssue(issues, "test-owner-directory", path, `E2E owner ${entry.owner} requires ${e2ePrefix}`);
   }
   if (requireCompleteManifest) {
     for (const path of REQUIRED_MANIFEST_INTERFACES) if (!seenInterfaces.has(path)) addIssue(issues, "missing-interface-owner", path, "required interface has no owner");
     const actual = [...seenExecutables.keys()].sort();
     const expected = [...EXECUTABLE_INVENTORY].sort();
     if (actual.join("\n") !== expected.join("\n")) addIssue(issues, "executable-owner-union", "tests/contracts/source-test-ownership-v1.json", `manifest executable union [${actual.join(", ")}] differs from canonical registry [${expected.join(", ")}]`);
+    for (const path of files.keys()) {
+      if (/^tests\/.*\/test[_-].*\.mjs$/.test(path) && !seenTests.has(path)) addIssue(issues, "unowned-test", path, "recursive unit/integration suite has no manifest owner");
+      if (/^tests_e2e\/.*\/test[_-].*\.mjs$/.test(path) && !seenTests.has(path)) addIssue(issues, "unowned-test", path, "recursive E2E suite has no manifest owner");
+    }
   }
 }
 

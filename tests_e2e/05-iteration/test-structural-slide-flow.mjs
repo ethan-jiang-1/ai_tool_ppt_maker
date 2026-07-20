@@ -20,14 +20,14 @@ import {
   stage4,
   stage5,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs";
-import { makeContactSheet } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/make_contact_sheet.mjs";
+import { buildLegacyContactSheet as makeContactSheet } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs";
 import {
   buildImageManifestEntry,
   generationProfile,
   readImageManifest,
-  sha256File,
   writeImageManifestAtomic,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import {
   buildHeaderReviewInputs,
   mergeHeaderReviewRecord,
@@ -248,7 +248,7 @@ describe("stable slide identity structural E2E", () => {
         };
       };
       process.env.IMAGE2_API_KEY = "insert-e2e-key";
-      const { generateImages } = await import("../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs");
+      const { generateLegacyImages: generateImages } = await import("../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs");
       const generated = join(v2, "_generated");
       const rawBefore = readImageManifest(join(generated, "page_images_full")).manifest;
       const explicit = await generateImages({

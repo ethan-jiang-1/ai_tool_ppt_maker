@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
@@ -10,24 +9,13 @@ import {
 } from "node:fs";
 import { basename, join } from "node:path";
 import { canonicalJson } from "../../../contracts/canonical_json.mjs";
+import { sha256Bytes, sha256File } from "../../../shared/identity/byte_hash.mjs";
 
 export const IMAGE_MANIFEST_NAME = "_manifest.json";
 export const IMAGE_MANIFEST_VERSION = 1;
 export const DEFAULT_IMAGE_SIZE = "16:9";
 export const IMAGE2_RENDER_ENGINE = "image2";
 export const RAW_RENDER_ARTIFACT_KIND = "raw-render";
-
-export function sha256Bytes(value) {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-export function sha256File(filePath) {
-  return sha256Bytes(readFileSync(filePath));
-}
-
-export function stableJson(value) {
-  return canonicalJson(value);
-}
 
 export function generationProfile({
   styleReferenceSha256,
@@ -53,7 +41,7 @@ export function generationProfile({
 }
 
 export function generationFingerprint({ prompt, profile }) {
-  return sha256Bytes(stableJson({
+  return sha256Bytes(canonicalJson({
     prompt: String(prompt),
     profile,
   }));

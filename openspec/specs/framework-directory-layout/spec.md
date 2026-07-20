@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the canonical directory layout of `PPTMAKER_FRAMEWORK/` after consolidation: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with all Phase methodology under `workflow/`, all executable scripts under `scripts/`, all lookup appendices under `reference/`, and all workflow controllers under `playbook/`. This capability guarantees that legacy paths (`automation/`, `06_reference_scripts/`, Phase-numbered root dirs) no longer exist and that every cross-reference resolves to the new structure. It describes only the soft bundle `PPTMAKER_FRAMEWORK/`; run-bundle (`deck_*`) folder ontology — three tiers, `_scratch/`, `_generated/` version leaves, structure gradient — is owned by capability `run-bundle-layout` and SHALL NOT be extended here.
+Define the canonical directory layout of `PPTMAKER_FRAMEWORK/`: a type-based, five-subdirectory root (`workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`) with Phase methodology under `workflow/`, delegated Phase/shared code under `scripts/`, lookup appendices including `reference/agent-prompts.md` under `reference/`, and workflow controllers under `playbook/`. This capability describes only the soft bundle; run-bundle ontology is owned by `run-bundle-layout`.
 ## Requirements
 ### Requirement: Framework root has exactly five subdirectories
 
@@ -185,4 +185,3 @@ The active fonts README SHALL distinguish required HTML-runtime WOFF2 assets fro
 
 - **WHEN** an existing legacy deck is classified
 - **THEN** the dedicated reference/controller remains discoverable without pretending to be modern Phase 4
-

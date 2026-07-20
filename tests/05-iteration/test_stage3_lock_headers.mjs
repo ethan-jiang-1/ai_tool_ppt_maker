@@ -7,8 +7,8 @@ import { createCanvas } from '@napi-rs/canvas';
 import { diagnosticFromError } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
 import {
   generationFingerprint,
-  sha256File,
 } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs';
+import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
 
 function png(path, width = 40, height = 24) {
   const canvas = createCanvas(width, height);
@@ -39,7 +39,7 @@ describe('stage3_lock_headers', () => {
 
   it('uses resolved mode only, independent of render_mode_source', async () => {
     const { contractRenderMode } = await import(
-      '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs'
+      '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/header_lock.mjs'
     );
     for (const source of [
       'explicit',
@@ -67,10 +67,10 @@ describe('stage3_lock_headers', () => {
       writeFileSync(join(images, '01_s1.png'), 'a');
       writeFileSync(join(images, '02_s1.jpg'), 'b');
       writeFileSync(plan, JSON.stringify({ slides: [{ id: 's1' }, { id: 's2' }] }), 'utf8');
-      const { lockHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs');
+      const { lockLegacyHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
       let error;
       try {
-        await lockHeaders({ images, slidePlan: plan, out });
+        await lockLegacyHeaders({ images, slidePlan: plan, out });
       } catch (caught) {
         error = caught;
       }
@@ -111,8 +111,8 @@ describe('stage3_lock_headers', () => {
         { id: 'UXGap', slide_id: 'UXGap', position: 1, kicker: 'K', headline: 'Gap', layout_contract: { render_mode: 'body+header-lock' } },
         { id: 'PPTGo', slide_id: 'PPTGo', position: 2, headline: 'Go', layout_contract: { render_mode: 'full-page' } },
       ] }), 'utf8');
-      const { lockHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs');
-      await lockHeaders({ images, slidePlan: plan, out });
+      const { lockLegacyHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+      await lockLegacyHeaders({ images, slidePlan: plan, out });
 
       expect(readFileSync(join(out, 'UXGap.png')).length).toBeGreaterThan(0);
       expect(readFileSync(join(out, 'PPTGo.png')).length).toBeGreaterThan(0);
@@ -151,8 +151,8 @@ describe('stage3_lock_headers', () => {
       writeFileSync(plan, JSON.stringify({ slides: [
         { id: 's07_problem', layout_contract: { render_mode: 'full-page' } },
       ] }), 'utf8');
-      const { lockHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs');
-      await expect(lockHeaders({ images, slidePlan: plan, out })).rejects.toThrow(/not provenance-verified/i);
+      const { lockLegacyHeaders } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+      await expect(lockLegacyHeaders({ images, slidePlan: plan, out })).rejects.toThrow(/not provenance-verified/i);
       expect(() => readFileSync(join(out, 's07_problem.png'))).toThrow();
     } finally {
       rmSync(root, { recursive: true, force: true });

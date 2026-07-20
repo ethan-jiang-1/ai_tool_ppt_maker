@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the producer contract for every registered direct Node CLI under `PPTMAKER_FRAMEWORK/scripts/`: entry discovery, output transactions, success and JSON channels, bounded actionable failure diagnostics with source/artifact lineage, secret-safe provider and child boundaries, and exhaustive return auditing. It also defines `ppt_flow.mjs` as the fixed 12-command unified entry point, preserving command compatibility and delegated capability routing.
+Define the producer contract for every registered direct Node CLI under `PPTMAKER_FRAMEWORK/scripts/`: entry discovery, output transactions, success and JSON channels, bounded actionable failure diagnostics, secret-safe boundaries, and exhaustive return auditing. It defines `ppt_flow.mjs` as the fixed 14-command unified entry point.
 ## Requirements
 ### Requirement: CLI surface preserves command names
 
@@ -907,4 +907,3 @@ New reason kinds for renderer preparation, browser measurement, manifest drift, 
 - **WHEN** a delegated renderer fails
 - **THEN** `ppt_flow` preserves one normalized actionable parent diagnostic
 - **AND** does not append raw child stderr or a second JSON envelope
-

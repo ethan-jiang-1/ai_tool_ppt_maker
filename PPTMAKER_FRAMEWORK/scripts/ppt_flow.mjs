@@ -77,22 +77,24 @@ import {
   // init / check / create
   initBundle, checkBundle, createVersion, nextVersionName, publishStructuralVersion,
 } from "./shared/run-bundle/bundle_layout.mjs";
-import { resolveSlideBindings, resolveSlideIds, formatAvailableSlideIds, formatSlideCandidate } from "./01-content/internal/slide_ids.mjs";
-import {
+const directRootEntry = process.argv[1] ? resolve(process.argv[1]) === __filename : false;
+const rootCommand = directRootEntry ? process.argv[2] : null;
+const contentApi = !directRootEntry || !["doctor", "--help", "-h", undefined].includes(rootCommand)
+  ? await import("./01-content/index.mjs")
+  : Object.create(null);
+const {
   applySlideEdit,
+  formatAvailableSlideIds,
+  formatSlideCandidate,
+  isHeroVisualType,
   parseSlideDocument,
   planSlideEdit,
+  resolveSlideBindings,
+  resolveSlideIds,
   validateSlideDocument,
   verifySlideEditPlanHash,
-} from "./01-content/internal/slide_document.mjs";
-import { isHeroVisualType } from "./01-content/internal/render_policy.mjs";
-import {
-  HTML_FIRST_PIPELINE,
-  HtmlSlideContractError,
-  probeProductionMarker,
-  validateHtmlFirstRun,
-} from "./03-html-production/internal/html_slide_contract.mjs";
-import { LEGACY_PIPELINE } from "./shared/run-bundle/production_marker.mjs";
+} = contentApi;
+import { HTML_FIRST_PIPELINE, LEGACY_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -169,7 +171,7 @@ async function rejectHtmlFirstDelivery(runDir, where, { allowHtml = false } = {}
   const source = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolved);
   if (!source) return false;
   const sourceLocator = relative(deckRoot(resolved), source).split(sep).join("/");
-  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const marker = probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME });
   if (marker.branch === "invalid") {
     emitCliError({
@@ -511,8 +513,8 @@ export async function buildControllerGateContext(runDir) {
   let slideSpecsValid = false;
   if (specPath) {
     try {
-      const { validateSpecs } = await import("./03-html-production/stage1_build_inputs.mjs");
-      slideSpecsValid = !validateSpecs([specPath]).some((problem) => problem.startsWith("ERROR:"));
+      const { validateLegacySpecs } = await import("./03-html-production/index.mjs");
+      slideSpecsValid = !(await validateLegacySpecs([specPath])).some((problem) => problem.startsWith("ERROR:"));
     } catch {
       slideSpecsValid = false;
     }
@@ -520,8 +522,8 @@ export async function buildControllerGateContext(runDir) {
 
   let headerReviewCurrent = false;
   try {
-    const { validateProductionHeaderReview } = await import("./03-html-production/unified_pipeline.mjs");
-    headerReviewCurrent = (await validateProductionHeaderReview(resolved, {
+      const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
+      headerReviewCurrent = (await inspectLegacyHeaderReview(resolved, {
       requireCurrentImages: true,
     })).ok;
   } catch {
@@ -965,7 +967,7 @@ async function commandApprove(runDir, gate, { waive, planHash = null, reason = n
   const root = deckRoot(resolved);
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
   if (existsSync(canonicalSource)) {
-    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+    const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
     const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
     if (marker.branch === HTML_FIRST_PIPELINE) {
       if (!planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
@@ -1080,7 +1082,7 @@ async function commandApproveHeader(runDir, {
       join(genDir, GEN_PROMPTS_SUBDIR, GEN_PROMPTS_JSON),
       "utf-8"
     )).slides || [];
-    const { loadVisualConfig, DEFAULT_CONFIG } = await import("./02-visual-system/internal/visual_config.mjs");
+    const { loadVisualConfig, DEFAULT_CONFIG } = await import("./02-visual-system/index.mjs");
     const palettePath = styleAsset(resolved, COLOR_PALETTE_FILE);
     const visualConfig = existsSync(palettePath) ? loadVisualConfig(palettePath) : DEFAULT_CONFIG;
     const {
@@ -1089,7 +1091,7 @@ async function commandApproveHeader(runDir, {
       HEADER_REVIEW_NODE,
       mergeHeaderReviewRecord,
       versionKey,
-    } = await import("./05-iteration/legacy-image2/internal/header_review.mjs");
+    } = await import("./05-iteration/index.mjs");
     const inputs = buildHeaderReviewInputs(plan, visualConfig);
     const root = deckRoot(resolved);
     const { readState, writeState, appendHistory } = await import("./shared/state/state.mjs");
@@ -1097,7 +1099,7 @@ async function commandApproveHeader(runDir, {
     if (state.corrupted) throw new Error("state is corrupted");
     const key = versionKey(root, resolved);
     const previousRecord = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[key] || null;
-    const { changedFullPageIds } = await import("./05-iteration/legacy-image2/internal/header_review.mjs");
+    const { changedFullPageIds } = await import("./05-iteration/index.mjs");
     const changedIds = previousRecord?.slides
       ? changedFullPageIds({}, {}, previousRecord.slides)  // per-slide state
       : previousRecord?.full_page_header_snapshot
@@ -1113,7 +1115,7 @@ async function commandApproveHeader(runDir, {
       selectedIds: selectedReviewIds,
       prompts,
       imagesDir: join(genDir, GEN_IMAGES_SUBDIR),
-      currentStyleReferenceSha256: (await import("./05-iteration/legacy-image2/internal/image_provenance.mjs")).sha256File(
+      currentStyleReferenceSha256: (await import("./shared/identity/byte_hash.mjs")).sha256File(
         styleAsset(resolved, STYLE_MASTER_IMAGE)
       ),
     });
@@ -1296,7 +1298,7 @@ async function commandPilot(
   const resolved = resolve(runDir);
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.pilot", { allowHtml: true })) return 1;
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
-  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const htmlFirst = existsSync(canonicalSource) && probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
   if (htmlFirst) {
     if (forceImages || baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.pilot.html", "HTML preview does not accept provider/model/resolution/force controls", "Use only --only and --dry-run for local HTML preview");
@@ -1306,7 +1308,7 @@ async function commandPilot(
     const code = await runNode(UNIFIED_PIPELINE, args);
     if (code !== 0) { emitFailed("ppt_flow.pilot.html", `HTML preview exited ${code}`, "Repair current local HTML source/runtime evidence and rerun preview"); return code; }
     if (!dryRun) {
-      const { plan } = (await import("./03-html-production/internal/html_slide_contract.mjs")).validateAndBuildHtmlFirstPlan({ runDir: resolved });
+      const { plan } = (await import("./03-html-production/index.mjs")).validateAndBuildHtmlFirstPlan({ runDir: resolved });
       const requested = onlyStr ? new Set(onlyStr.split(",").map((value) => value.trim()).filter(Boolean)) : null;
       const forcedIds = plan.slides.filter((slide) => slide.visual_resolution?.effective === "selected" && (!requested || requested.has(slide.slide_id))).map((slide) => slide.slide_id);
       if (forcedIds.length > 0) {
@@ -1478,7 +1480,7 @@ async function commandBuild(
   const resolved = resolve(runDir);
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build", { allowHtml: true })) return 1;
   const source = join(resolved, SLIDE_SPECS_NAME);
-  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const htmlFirst = existsSync(source) && probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
   if (htmlFirst) {
     const args = ["--run-dir", resolved, "--stage", "all"];
@@ -1495,8 +1497,8 @@ async function commandBuild(
       emitFailed("ppt_flow.build", `Stage 1 exited ${stage1Code}`, "Fix current source/config errors, then rerun build");
       return 1;
     }
-    const { validateProductionHeaderReview } = await import("./03-html-production/unified_pipeline.mjs");
-    const review = await validateProductionHeaderReview(resolved, {
+    const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
+    const review = await inspectLegacyHeaderReview(resolved, {
       resolution,
       model,
       forceImages: !reuseImages,
@@ -1577,7 +1579,7 @@ async function commandRefresh(
   if (confirmRunVersion) return emitUsage("ppt_flow.refresh", "--confirm-run-version applies only to reset-html-production", "Remove the confirmation flag or select --kind reset-html-production");
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh", { allowHtml: true })) return 1;
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
-  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+  const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const htmlFirst = existsSync(canonicalSource) && probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
   if (htmlFirst) {
     if (baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.refresh.html", "HTML refresh does not accept provider/resolution controls", "Remove legacy image options and use local HTML refresh");
@@ -1663,8 +1665,8 @@ async function commandRefresh(
       plan.some((slide) => slide.id === id && slide.layout_contract?.render_mode === "full-page")
     );
     if (fullPageAffected.length > 0) {
-      const { validateProductionHeaderReview } = await import("./03-html-production/unified_pipeline.mjs");
-      const review = await validateProductionHeaderReview(resolved, { onlyIds: fullPageAffected });
+      const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
+      const review = await inspectLegacyHeaderReview(resolved, { onlyIds: fullPageAffected });
       if (!review.ok) {
         emitCliError({
           code: CLI_ERROR_CODES.TITLE_REVIEW_REQUIRED,
@@ -1873,30 +1875,33 @@ function atomicWriteCurrentSource(path, text) {
   renameSync(temp, path);
 }
 
-function validateProjectedSlideSource(context, projectedText) {
+async function validateProjectedSlideSource(context, projectedText) {
   const marker = probeProductionMarker(projectedText, { source: context.document.source });
   if (marker.branch === "invalid") {
-    throw new HtmlSlideContractError("projected leading frontmatter is invalid", marker.issues);
+    const error = new Error("projected leading frontmatter is invalid");
+    error.issues = marker.issues;
+    throw error;
   }
   if (marker.branch === HTML_FIRST_PIPELINE) {
-    validateHtmlFirstRun({ runDir: context.runDir, sourceBytes: Buffer.from(projectedText, "utf8") });
+    const { validateHtmlRun } = await import("./03-html-production/index.mjs");
+    await validateHtmlRun({ runDir: context.runDir, sourceBytes: Buffer.from(projectedText, "utf8") });
   }
   return marker.branch;
 }
 
-function projectConfirmedSlideTransaction(context, transaction, expectedHash) {
+async function projectConfirmedSlideTransaction(context, transaction, expectedHash) {
   const applied = applySlideEdit(transaction, context.sourceText, {
     expectedPlanSha256: expectedHash,
   });
-  validateProjectedSlideSource(context, applied.text);
+  await validateProjectedSlideSource(context, applied.text);
   return applied;
 }
 
-function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
+async function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
   if (readFileSync(context.sourcePath, "utf8") !== context.sourceText) {
     throw new Error("source changed after preview; obtain a fresh preview");
   }
-  const applied = projectConfirmedSlideTransaction(context, transaction, expectedHash);
+  const applied = await projectConfirmedSlideTransaction(context, transaction, expectedHash);
   if (transaction.publication.mode === "current-version") {
     atomicWriteCurrentSource(context.sourcePath, applied.text);
     return {
@@ -1916,10 +1921,11 @@ function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
       const stagedText = readFileSync(sourcePath, "utf8");
       const stagedMarker = probeProductionMarker(stagedText, { source: SLIDE_SPECS_NAME });
       if (stagedMarker.branch === "invalid") {
-        throw new HtmlSlideContractError("staged leading frontmatter is invalid", stagedMarker.issues);
+        const error = new Error("staged leading frontmatter is invalid");
+        error.issues = stagedMarker.issues;
+        throw error;
       }
       if (stagedMarker.branch === HTML_FIRST_PIPELINE) {
-        validateHtmlFirstRun({ runDir: stagingRunDir });
         return [];
       }
       const staged = parseSlideDocument(stagedText, basename(sourcePath));
@@ -2026,20 +2032,20 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
       if (opts.planSha256 && opts.planSha256 !== transaction.plan_sha256) {
         throw new Error("--plan-sha256 differs from persisted slide plan");
       }
-      const result = applyConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
+      const result = await applyConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
       renderSlidesResult(result, opts.json);
       return 0;
     }
 
     const operations = slideOperationsFor(subcommand, args, opts);
     const transaction = slideTransaction({ context, operations });
-    projectConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
+    await projectConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
     if (!opts.apply) {
       renderSlidesResult({ kind: "slide-edit", applied: false, transaction }, opts.json);
       return 0;
     }
     ensureConfirmedApply(opts, transaction);
-    const result = applyConfirmedSlideTransaction(context, transaction, opts.planSha256);
+    const result = await applyConfirmedSlideTransaction(context, transaction, opts.planSha256);
     renderSlidesResult(result, opts.json);
     return 0;
   } catch (error) {
@@ -2098,7 +2104,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
-      const { previewHtmlMigration } = await import("./05-iteration/migration/html_migration.mjs");
+      const { previewHtmlMigration } = await import("./05-iteration/index.mjs");
       const result = await previewHtmlMigration(resolved);
       renderMigrationResult(result);
       return 0;
@@ -2128,7 +2134,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
-      const { recoverHtmlMigrationApply } = await import("./05-iteration/migration/html_migration.mjs");
+      const { recoverHtmlMigrationApply } = await import("./05-iteration/index.mjs");
       const result = await recoverHtmlMigrationApply(resolved, { recoverJournalToken: opts.recoverJournal });
       renderMigrationResult(result);
       return 0;
@@ -2164,7 +2170,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
     );
   }
   try {
-    const { applyHtmlMigration } = await import("./05-iteration/migration/html_migration.mjs");
+    const { applyHtmlMigration } = await import("./05-iteration/index.mjs");
     const result = await applyHtmlMigration(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
     renderMigrationResult(result);
     return 0;
@@ -2598,7 +2604,7 @@ Examples:
       const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
       let htmlFirst = false;
       if (existsSync(canonicalSource)) {
-        const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/internal/html_slide_contract.mjs");
+        const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
         const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
         if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;

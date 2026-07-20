@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "bench:html-catalog": "node tests/benchmarks/html_asset_catalog_worst_case.mjs",
-    "bench:html-delivery": "node tests/benchmarks/html_delivery_acceptance.mjs",
+    "bench:html-catalog": "node tests/03-html-production/benchmarks/html_asset_catalog_worst_case.mjs",
+    "bench:html-delivery": "node tests/03-html-production/benchmarks/html_delivery_acceptance.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run --config vitest.e2e.config.mjs",

@@ -5,10 +5,19 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { diagnosticFromError } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
 import { createCanvas } from '@napi-rs/canvas';
-import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs';
+import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
 import { createHtmlFirstRun } from '../helpers/html_first_fixture.mjs';
+import { buildLegacyPresentation, buildPresentation } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs';
+import { resolveLegacyFinalSlides } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs';
 
 const S4 = 'PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs';
+
+async function buildLegacy(options) {
+  const plan = JSON.parse(readFileSync(options.slidePlan, 'utf8'));
+  const runDir = join(options.images, '..', '..');
+  const legacySlides = await resolveLegacyFinalSlides({ runDir, directory: options.images, slides: plan.slides || [] });
+  return buildLegacyPresentation({ ...options, legacySlides });
+}
 
 describe('stage4_build_pptx', () => {
   it('rejects missing inputs', () => {
@@ -27,10 +36,9 @@ describe('stage4_build_pptx', () => {
     try {
       mkdirSync(images, { recursive: true });
       writeFileSync(plan, JSON.stringify({ slides: [{ id: 's1' }, { id: 's2' }] }), 'utf8');
-      const { buildPptx } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
       let error;
       try {
-        await buildPptx({ images, slidePlan: plan, out });
+        await buildLegacy({ images, slidePlan: plan, out });
       } catch (caught) {
         error = caught;
       }
@@ -76,8 +84,7 @@ describe('stage4_build_pptx', () => {
         { id: 'AICost', slide_id: 'AICost', position: 1 },
         { id: 'UXGap', slide_id: 'UXGap', position: 2 },
       ] }), 'utf8');
-      const { buildPptx } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      const result = await buildPptx({ images, slidePlan: plan, out });
+      const result = await buildLegacy({ images, slidePlan: plan, out });
 
       expect(result.slideCount).toBe(2);
       expect(existsSync(out)).toBe(true);
@@ -102,8 +109,7 @@ describe('stage4_build_pptx', () => {
       mkdirSync(images, { recursive: true });
       writeFileSync(join(images, '07_s07_problem.png'), 'legacy final');
       writeFileSync(plan, JSON.stringify({ slides: [{ id: 's07_problem' }] }), 'utf8');
-      const { buildPptx } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      await expect(buildPptx({ images, slidePlan: plan, out })).rejects.toThrow(/legacy-located/i);
+      await expect(buildLegacy({ images, slidePlan: plan, out })).rejects.toThrow(/legacy-located/i);
       expect(existsSync(join(generated, 'qa', 'pptx_assembly.json'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -122,8 +128,7 @@ describe('stage4_build_pptx', () => {
       const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
       review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
       review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
-      const { buildPptxFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      const result = await buildPptxFromRunDir(fixture.runDir);
+      const result = await buildPresentation(fixture.runDir);
       expect(result.slideCount).toBe(1);
       expect(result.receipt.schema_version).toBe(2);
       expect(result.receipt.pipeline).toBe('html-first-v1');
@@ -149,8 +154,7 @@ describe('stage4_build_pptx', () => {
       expect(await stage1(fixture.runDir, false)).toBe(true);
       const renderer = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
       await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
-      const { buildPptxFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      await expect(buildPptxFromRunDir(fixture.runDir)).rejects.toThrow(/authoritative content\/visual review/);
+      await expect(buildPresentation(fixture.runDir)).rejects.toThrow(/authoritative content\/visual review/);
       expect(existsSync(join(fixture.runDir, '_generated', 'ppt', 'deck.pptx'))).toBe(false);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

@@ -13,7 +13,7 @@ import {
     HTML_COMPONENTS_SPEC,
     HTML_SPACING_SPEC,
     HTML_TYPOGRAPHY_SPEC,
-} from "./html_visual_tokens.mjs";
+} from "../../contracts/html_visual_tokens.mjs";
 
 // ---------------------------------------------------------------------------
 // Error class

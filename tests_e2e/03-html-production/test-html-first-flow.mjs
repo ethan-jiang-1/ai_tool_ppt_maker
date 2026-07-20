@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { htmlFirstSlide, htmlFirstSource } from '../tests/helpers/html_first_fixture.mjs';
+import { htmlFirstSlide, htmlFirstSource } from '../../tests/helpers/html_first_fixture.mjs';
 import { inspectHtmlReviewReadiness } from '../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs';
 import { readState, writeState } from '../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 

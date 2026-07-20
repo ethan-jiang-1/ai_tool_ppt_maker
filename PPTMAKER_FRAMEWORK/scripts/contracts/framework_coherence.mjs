@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
 
 export const DOC_EXCEPTIONS = Object.freeze({
   "PPTMAKER_FRAMEWORK/reference/version-log.md": "historical migration record",
@@ -10,7 +11,7 @@ export const COMPATIBILITY_REGISTRIES = Object.freeze({
   "openspec/config.yaml": "repository planning context",
   "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md": "process constitution compatibility table",
   "PPTMAKER_FRAMEWORK/reference/glossary.md": "terminology compatibility registry",
-  "PPTMAKER_FRAMEWORK/scripts/change-classifier.md": "agent classification compatibility table",
+  "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md": "agent classification compatibility table",
   "openspec/specs/framework-charter/spec.md": "governing terminology requirement",
   "openspec/specs/pipeline-orchestration/spec.md": "governing pipeline terminology requirement",
 });
@@ -207,14 +208,18 @@ export function validateDocumentedCommands(commands, scriptsDir) {
     const scriptName = scriptToken?.split("/").at(-1);
     if (!scriptName?.endsWith(".mjs")) continue;
     if (/[*?]/.test(scriptName)) continue;
-    const scriptPath = join(scriptsDir, scriptName);
-    if (!existsSync(scriptPath)) {
-      issues.push(issue(item.file, item.line, "command-script", `unknown script ${scriptName}`, "use a current script under PPTMAKER_FRAMEWORK/scripts"));
+    const scriptRelative = normalizeExecutablePath(String(scriptToken)
+      .replace(/^\.\//, "")
+      .replace(/^PPTMAKER_FRAMEWORK\/scripts\//, "")
+      .replace(/^scripts\//, ""));
+    const scriptPath = join(scriptsDir, scriptRelative);
+    if (!EXECUTABLE_INVENTORY.includes(scriptRelative) || !existsSync(scriptPath)) {
+      issues.push(issue(item.file, item.line, "command-script", `unknown script ${scriptRelative || scriptName}`, "use a canonical path from contracts/executable_inventory.mjs"));
       continue;
     }
     let helpArgs = [scriptPath, "--help"];
     let optionStart = 2;
-    if (scriptName === "ppt_flow.mjs" && tokens[2] && !tokens[2].startsWith("-") && !tokens[2].startsWith("<")) {
+    if (scriptRelative === "ppt_flow.mjs" && tokens[2] && !tokens[2].startsWith("-") && !tokens[2].startsWith("<")) {
       helpArgs = [scriptPath, tokens[2], "--help"];
       optionStart = 3;
     }
@@ -256,8 +261,8 @@ export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
   const mainSpec = join(root, "openspec/specs/cli-surface/spec.md");
   if (existsSync(mainSpec)) {
     const purpose = readFileSync(mainSpec, "utf8").split("## Requirements", 1)[0];
-    if (!/every registered direct Node CLI/i.test(purpose) || !/12-command/i.test(purpose)) {
-      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 12-command ppt_flow surface"));
+    if (!/every registered direct Node CLI/i.test(purpose) || !/14-command/i.test(purpose)) {
+      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 14-command ppt_flow surface"));
     }
   }
   return issues;

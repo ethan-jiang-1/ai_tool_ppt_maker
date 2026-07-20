@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the framework's constitutional and entry layer: the `PPTMAKER_FRAMEWORK/charter/` directory and its four governing documents (CONSTITUTION.md, WORKFLOW.md, AGENT_CONTRACT.md, NODE-SPEC.md), together with the clean top-level entry surface — exactly five root markdown files, five type-based subdirectories, and the pure-lookup appendices relocated to `reference/`. This capability guarantees that an agent or human entering the framework finds a stable, unambiguous set of entry points and a single authoritative declaration (`bundle_layout.mjs` as the SSOT for run-bundle structure), with governing documents cleanly separated from reference material. AGENT_CONTRACT includes behavioral iron laws (including interaction rhythm); BOOTSTRAP requires showing visual artifacts before related gates.
+Define the framework's constitutional and entry layer: the charter documents, five-root soft bundle, reference appendices including `agent-prompts.md`, and stable ownership navigation. The run-bundle SSOT is `scripts/shared/run-bundle/bundle_layout.mjs`.
 ## Requirements
 ### Requirement: Charter directory exists with exactly four files
 
@@ -272,7 +272,7 @@ All active root, charter, workflow, reference, playbook, scripts README, templat
 
 For HTML-first decks, the canonical maintenance names SHALL be Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path. For markerless legacy decks, Header Text & Style Refresh and Generated Image Rebuild remain canonical compatibility terms alongside Notes-Only Refresh and Structural Versioning Path. The classifier/glossary/WORKFLOW/OpenSpec context SHALL define both vocabularies under an explicit `production.pipeline` branch; active operational guidance SHALL not mix them.
 
-Former Chain A/B/C/Structural aliases MAY appear only in the narrow compatibility registries already governed by this capability and SHALL be locally paired with their legacy canonical names. Chinese prose MAY add explanatory glosses but SHALL not create additional formal path names.
+Former Chain A (Header Text & Style Refresh), Chain B (Generated Image Rebuild), Chain C (Notes-Only Refresh), and Structural (Structural Versioning Path) aliases MAY appear only in the narrow compatibility registries already governed by this capability and SHALL be locally paired with their legacy canonical names. Chinese prose MAY add explanatory glosses but SHALL not create additional formal path names.
 
 #### Scenario: Maintainer classifies an HTML edit
 

@@ -63,7 +63,7 @@ export const STATE_DIR_README = `\
 
 **Schema 权威:** \`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md\`。
 
-**不要手改:** 优先使用 \`scripts/lib/state.mjs\` / \`ppt_flow\`；读取时会迁移并修复可安全修复的旧 schema。
+**不要手改:** 优先使用 \`scripts/shared/state/state.mjs\` / \`ppt_flow\`；读取时会迁移并修复可安全修复的旧 schema。
 `;
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };

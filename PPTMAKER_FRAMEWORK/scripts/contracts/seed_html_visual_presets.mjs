@@ -1,15 +1,8 @@
-#!/usr/bin/env node
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   HTML_COMPONENTS_SPEC,
   HTML_SPACING_SPEC,
   htmlTypographySource,
-} from "../02-visual-system/internal/html_visual_tokens.mjs";
-
-const FRAMEWORK = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const PRESETS = resolve(FRAMEWORK, "workflow", "01-visual", "presets");
+} from "./html_visual_tokens.mjs";
 
 const records = {
   "clean-clinical": {
@@ -36,9 +29,10 @@ const records = {
 
 const paletteKeys = ["background", "surface", "text", "muted_text", "accent", "accent_secondary", "accent_tertiary", "divider"];
 const languageKeys = ["medium", "material", "lighting", "texture", "composition"];
-for (const [name, record] of Object.entries(records)) {
-  const path = resolve(PRESETS, name, "color_palette.json");
-  const data = JSON.parse(readFileSync(path, "utf8"));
+export function seedHtmlVisualPreset(name, palette) {
+  const record = records[name];
+  if (!record) throw new Error(`unknown HTML visual preset ${name}`);
+  const data = structuredClone(palette);
   data.html_first = {
     schema_version: 1,
     canvas: { width: 1000, height: 562.5 },
@@ -49,5 +43,9 @@ for (const [name, record] of Object.entries(records)) {
     image_language: { ...Object.fromEntries(languageKeys.map((key, index) => [key, record.language[index]])), avoid: "forbidden" },
     geometry: { registry: "html-family-geometry-v1" },
   };
-  writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf8");
+  return data;
+}
+
+export function seedHtmlVisualPresetBytes(name, palette) {
+  return `${JSON.stringify(seedHtmlVisualPreset(name, palette), null, 2)}\n`;
 }

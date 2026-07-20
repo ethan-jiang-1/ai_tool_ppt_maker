@@ -12,8 +12,8 @@ import {
 import {
   generationFingerprint,
   generationProfile,
-  sha256File,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import { PPT_FLOW_COMMAND_INVENTORY } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
 

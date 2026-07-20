@@ -8,8 +8,9 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { sha256File } from "./byte_hash.mjs";
 
 export const NOTES_RECEIPT_VERSION = 2;
 export const HTML_NOTES_RECEIPT_VERSION = 3;
@@ -23,10 +24,6 @@ export function notesReceiptPath(runDir) {
 
 export function assemblyReceiptPath(runDir) {
   return join(runDir, PPTX_ASSEMBLY_RELATIVE_PATH);
-}
-
-export function sha256File(filePath) {
-  return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
 function normalizedRelative(runDir, filePath) {

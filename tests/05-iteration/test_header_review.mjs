@@ -3,7 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DEFAULT_CONFIG } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/visual_config.mjs";
-import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import {
   generationFingerprint,
   generationProfile,

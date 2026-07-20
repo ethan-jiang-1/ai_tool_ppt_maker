@@ -20,11 +20,13 @@ import {
   HTML_PAGE_MAX_BYTES,
   COMPOSE_PAGE_TIMEOUT_MS,
   assertSerializedHtmlWithinLimit,
-  buildHtmlPages,
   composeDeckTimeoutMs,
-  createCanonicalHtmlValidatedRunContext,
-  publishHtmlComposition,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs";
+import {
+  buildHtmlPlan,
+  composeHtmlSlides,
+  renderHtmlPages,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs";
 import {
   inspectHtmlReviewReadiness,
   publishHtmlGateDecision,
@@ -149,14 +151,14 @@ async function measuredComposition(runDir) {
   }, 20);
   const started = performance.now();
   try {
-    const context = createCanonicalHtmlValidatedRunContext({ runDir });
-    const pages = buildHtmlPages(context, {});
-    const result = await publishHtmlComposition(context, {});
+    await buildHtmlPlan(runDir);
+    const pages = await renderHtmlPages(runDir);
+    const result = await composeHtmlSlides(runDir);
     return {
       elapsed_ms: Math.round((performance.now() - started) * 10) / 10,
       peak_rss_bytes: peakRssBytes,
       serialized_page_bytes: pages.pages.map((page) => Buffer.byteLength(page.html, "utf8")),
-      html_delivery_digest: result.html_delivery_digest,
+      html_delivery_digest: result.html_delivery_digest || null,
     };
   } finally {
     clearInterval(sampler);

@@ -72,6 +72,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
+import { inspectHtmlReviewReadiness as inspectHtmlReviewReadinessCore } from '../state/internal/html_review_evidence_core.mjs';
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from './production_marker.mjs';
 
 // ---------------------------------------------------------------------------
@@ -407,6 +408,25 @@ export function normalizeCheckMode(mode = true) {
         `checkBundle mode must be structure|preview|pipeline or boolean; got: ${mode}`);
 }
 
+function htmlReviewTrustedContext(runDir) {
+    const run = path.resolve(runDir);
+    const root = deckRoot(run);
+    const production = path.join(run, GENERATED_SUBDIR, GEN_HTML_PRODUCTION_SUBDIR);
+    const names = { 'html-pages': GEN_HTML_PAGES_SUBDIR, 'final-slides': GEN_HTML_FINAL_SLIDES_SUBDIR, preview: GEN_HTML_PREVIEW_SUBDIR };
+    return Object.freeze({
+        schema: 'pptmaker-html-review-trusted-context-v1',
+        run,
+        root,
+        metadataFile: path.join(root, METADATA_FILE),
+        planPath: path.join(run, GENERATED_SUBDIR, GEN_SLIDE_PLAN),
+        htmlProductionRoot: production,
+        htmlOwnerRoot(ownerKind) {
+            if (!names[ownerKind]) throw new Error(`unsupported HTML owner kind ${ownerKind}`);
+            return path.join(production, names[ownerKind]);
+        },
+    });
+}
+
 const _HTML_OWNER_NAMES = new Set([GEN_HTML_PAGES_SUBDIR, GEN_HTML_FINAL_SLIDES_SUBDIR, GEN_HTML_PREVIEW_SUBDIR]);
 const _SHA_OBJECT_RE = /^[0-9a-f]{64}\.(?:html|png)$/;
 const _HTML_OBJECT_TEMP_RE = /^\.object\.[0-9a-f]{64}\.[0-9a-f]{64}\.[a-z0-9]+\.tmp$/;
@@ -677,6 +697,14 @@ export function checkBundle(runDir, requirePipelineReady = true) {
 
     _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems);
     if (htmlFirst) _checkHtmlGeneratedTopology(runDir, problems);
+    if (htmlFirst && mode === 'pipeline') {
+        try {
+            const readiness = inspectHtmlReviewReadinessCore(htmlReviewTrustedContext(runDir));
+            if (!readiness.ready) problems.push(`HTML review readiness is blocked: ${readiness.reason}`);
+        } catch (error) {
+            problems.push(`HTML review readiness is invalid: ${error.message}`);
+        }
+    }
 
     return problems;
 }
@@ -1216,7 +1244,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         path.join(deckDir, POINTER_FILE),
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
         `它定义源文件所有权、CLI 诊断处理和下一步动作。\n`);
-    const pipelineScript = path.join(frameworkDir, 'scripts/unified_pipeline.mjs');
+    const pipelineScript = path.join(frameworkDir, 'scripts/03-html-production/unified_pipeline.mjs');
     const flowScript = path.join(frameworkDir, 'scripts/ppt_flow.mjs');
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),

@@ -14,9 +14,9 @@ import {
   buildImageManifestEntry,
   generationProfile,
   readImageManifest,
-  sha256File,
   writeImageManifestAtomic,
 } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs';
+import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
 import {
   buildHeaderReviewInputs,
   mergeHeaderReviewRecord,
@@ -234,7 +234,7 @@ describe('unified_pipeline', () => {
       };
       const explicitPreviousKey = process.env.IMAGE2_API_KEY;
       process.env.IMAGE2_API_KEY = 'structural-explicit-refresh-test';
-      const { generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs');
+      const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
       const explicit = await generateImages({
         promptJson: join(target, '_generated', 'page_prompts', '_prompts.json'),
         outDir: targetImages,

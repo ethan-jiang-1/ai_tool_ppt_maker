@@ -5,7 +5,7 @@ import {
   BASE_CHECK_NAMES,
   IMAGE2_CHECK_NAMES,
   LIVE_CHECK_NAMES,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
+} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
 
 const BOOTSTRAP = readFileSync('PPTMAKER_FRAMEWORK/BOOTSTRAP.md', 'utf8');
 const NODE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/02-nodejs-environment.md', 'utf8');

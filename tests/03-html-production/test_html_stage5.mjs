@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import JSZip from 'jszip';
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from '../helpers/html_first_fixture.mjs';
 import { readState, writeState } from '../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
+import { buildPresentation, injectSpeakerNotes } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs';
 
 async function approveHtmlReview(runDir) {
   const review = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
@@ -24,10 +25,8 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(await stage1(fixture.runDir, false)).toBe(true);
       await publishHtmlComposition(context, {});
       await approveHtmlReview(fixture.runDir);
-      const { buildPptxFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      await buildPptxFromRunDir(fixture.runDir);
-      const { injectHtmlNotesFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage5_inject_notes.mjs');
-      const result = await injectHtmlNotesFromRunDir(fixture.runDir);
+      await buildPresentation(fixture.runDir);
+      const result = await injectSpeakerNotes(fixture.runDir);
       expect(result.notesInjected).toBe(1);
       const receipt = JSON.parse(readFileSync(result.receiptPath, 'utf8'));
       expect(receipt).toMatchObject({ schema_version: 3, pipeline: 'html-first-v1', ordered_slide_ids: ['HeroGo'], html_production_reset_id: null, notes_injected: 1, slide_count: 1 });
@@ -67,13 +66,11 @@ describe('HTML Stage 5 notes lineage', () => {
       ]);
       const pipeline = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
       const renderer = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
-      const stage4 = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      const stage5 = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage5_inject_notes.mjs');
       expect(await pipeline.stage1(fixture.runDir, false)).toBe(true);
       await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
       await approveHtmlReview(fixture.runDir);
-      await stage4.buildPptxFromRunDir(fixture.runDir);
-      await stage5.injectHtmlNotesFromRunDir(fixture.runDir);
+      await buildPresentation(fixture.runDir);
+      await injectSpeakerNotes(fixture.runDir);
 
       source([
         htmlFirstSlide({ number: 1, id: 'BetaGo', title: 'Beta', note: 'Note Beta' }),
@@ -82,8 +79,8 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(await pipeline.stage1(fixture.runDir, false)).toBe(true);
       await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
       await approveHtmlReview(fixture.runDir);
-      const built = await stage4.buildPptxFromRunDir(fixture.runDir);
-      await stage5.injectHtmlNotesFromRunDir(fixture.runDir);
+      const built = await buildPresentation(fixture.runDir);
+      await injectSpeakerNotes(fixture.runDir);
       const zip = await JSZip.loadAsync(readFileSync(built.outPath));
       expect(await zip.file('ppt/notesSlides/notesSlide1.xml').async('text')).toContain('Note Beta');
       expect(await zip.file('ppt/notesSlides/notesSlide2.xml').async('text')).toContain('Note Alpha');
@@ -102,10 +99,8 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(await stage1(fixture.runDir, false)).toBe(true);
       await publishHtmlComposition(context, {});
       await approveHtmlReview(fixture.runDir);
-      const { buildPptxFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs');
-      await buildPptxFromRunDir(fixture.runDir);
-      const { injectHtmlNotesFromRunDir } = await import('../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage5_inject_notes.mjs');
-      await expect(injectHtmlNotesFromRunDir(fixture.runDir)).rejects.toThrow(/missing SPEAKER NOTE/);
+      await buildPresentation(fixture.runDir);
+      await expect(injectSpeakerNotes(fixture.runDir)).rejects.toThrow(/missing SPEAKER NOTE/);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

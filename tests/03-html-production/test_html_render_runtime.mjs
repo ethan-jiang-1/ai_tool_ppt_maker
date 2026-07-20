@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { discoverNpmPackages } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
+import { discoverNpmPackages } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
 import { inspectHtmlRuntime } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_runtime.mjs';
 import { captureHtmlPng, HTML_CAPTURE_PROFILE } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_render_runtime.mjs';
 

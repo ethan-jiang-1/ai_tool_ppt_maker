@@ -5,14 +5,13 @@ import {
   isHeroVisualType,
   normalizeVisualType,
   presentHeaderText,
-} from "../../../01-content/internal/render_policy.mjs";
+} from "../../../01-content/index.mjs";
 import {
   readImageManifest,
   generationFingerprint,
-  sha256Bytes,
-  sha256File,
-  stableJson,
 } from "./image_provenance.mjs";
+import { canonicalJson } from "../../../shared/identity/canonical_json.mjs";
+import { sha256Bytes, sha256File } from "../../../shared/identity/byte_hash.mjs";
 
 export const HEADER_REVIEW_NODE = "header-review";
 
@@ -61,13 +60,13 @@ export function buildHeaderReviewInputs(slides, visualConfig) {
   };
   // Per-slide fingerprints for state comparison
   for (const id of Object.keys(fullPageHeaderSnapshot)) {
-    slideFingerprints[id] = sha256Bytes(stableJson({
+    slideFingerprints[id] = sha256Bytes(canonicalJson({
       ...fullPageHeaderSnapshot[id],
       content_header_geometry: geometry,
     }));
   }
   // Global fingerprint retained for changedFullPageIds fallback (first pilot, no per-slide state)
-  const fingerprint = sha256Bytes(stableJson({
+  const fingerprint = sha256Bytes(canonicalJson({
     full_page_header_snapshot: fullPageHeaderSnapshot,
     content_header_geometry: geometry,
   }));
@@ -100,7 +99,7 @@ export function requiredContentReviewCount(contentFullPageIds) {
 }
 
 export function sameGenerationProfile(a, b) {
-  return Boolean(a && b && stableJson(a) === stableJson(b));
+  return Boolean(a && b && canonicalJson(a) === canonicalJson(b));
 }
 
 export function collectPilotProvenance({

@@ -6,7 +6,7 @@ type: template
 summary: HTML-first run bundle 的人类入口与 Agent 操作卡；legacy deck 按 marker 路由兼容维护。
 depends_on:
 - charter/CONSTITUTION.md
-- scripts/bundle_layout.mjs
+- scripts/shared/run-bundle/bundle_layout.mjs
 feeds_into: []
 agent_action: copy_to_bundle
 ---

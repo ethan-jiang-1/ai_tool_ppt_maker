@@ -1,6 +1,6 @@
 ## Purpose
 
-Provide the CLI operational surface for the `_lessons/` self-retained lessons mechanism in run bundles. The `lessons.mjs` tool enables agents to list, add, search, and check lessons — making the agentic memory loop (probe → overcome → retain → read-before-guess) operationally effective rather than dependent on the agent's memory.
+Provide the CLI operational surface at `scripts/shared/run-bundle/lessons.mjs` for the `_lessons/` self-retained lessons mechanism in run bundles.
 
 ## Requirements
 

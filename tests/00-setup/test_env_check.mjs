@@ -11,7 +11,7 @@ import {
   discoverNpmPackages,
   findPackageInAncestorNodeModules,
   probeGitSafetyForTest,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
+} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
 import { parseCliErrorLine } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
@@ -537,7 +537,7 @@ describe('env-check Image2 base URL hard fail', () => {
     try {
       process.env.IMAGE2_API_KEY = 'test-key';
       const { checkApiKey } = await import(
-        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs'
+        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
       );
       const key = checkApiKey();
       expect(key.status).toBe('ok');
@@ -553,7 +553,7 @@ describe('env-check Image2 base URL hard fail', () => {
     try {
       process.env.IMAGE2_BASE_URL = 'https://example.test/v1';
       const { checkBaseUrl } = await import(
-        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs'
+        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
       );
       const url = checkBaseUrl();
       expect(url.status).toBe('ok');
@@ -578,7 +578,7 @@ describe('env-check --smoke', () => {
       json: async () => ({ error: 'unauthorized' }),
     });
     try {
-      const { checkImageSmoke } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs');
+      const { checkImageSmoke } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs');
       const r = await checkImageSmoke();
       expect(r.check).toBe('image_smoke');
       expect(r.status).toBe('fail');
@@ -643,7 +643,7 @@ describe('env-check --probe-vendors', () => {
       };
     };
     try {
-      const { checkProbeVendors } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs');
+      const { checkProbeVendors } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs');
       const r = await checkProbeVendors();
       expect(r.check).toBe('image_probe_vendors');
       expect(r.status).toBe('ok');

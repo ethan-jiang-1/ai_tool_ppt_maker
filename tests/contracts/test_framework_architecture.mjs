@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/executable_inventory.mjs";
 import {
@@ -7,6 +8,7 @@ import {
   PUBLIC_SHARED_INTERFACES,
   collectLiteralImports,
   validateArchitectureSnapshot,
+  validateRepositoryArchitecture,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_architecture.mjs";
 
 const REQUIRED_CONTRACTS = [
@@ -147,4 +149,31 @@ describe("framework architecture contract", () => {
       expect(imports.filter((specifier) => !specifier.startsWith(".") && !specifier.startsWith("node:")), path).toEqual([]);
     }
   });
+
+  it("enforces the final architecture against the real repository tree", () => {
+    const result = validateRepositoryArchitecture(process.cwd());
+    expect(result.issues, result.issues.map((issue) => `${issue.code}: ${issue.path} ${issue.message}`).join("\n")).toEqual([]);
+  });
+
+  it("keeps base, HTML-local, and markerless-provider load closures selective", () => {
+    const trace = (script, args) => {
+      const result = spawnSync(process.execPath, [script, ...args], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: { ...process.env, NODE_DEBUG: "esm" },
+        timeout: 30_000,
+      });
+      expect(result.status, result.stderr).toBe(0);
+      return result.stderr;
+    };
+    const base = trace("PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs", ["doctor", "--help"]);
+    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|05-iteration)\//);
+    expect(base).not.toMatch(/(?:image_api_client|html_slide_renderer|@napi-rs\/canvas|fast-png)/);
+
+    const html = trace("PPTMAKER_FRAMEWORK/scripts/03-html-production/stage2_render_html.mjs", ["--help"]);
+    expect(html).not.toMatch(/scripts\/05-iteration\/legacy-image2|image_api_client/);
+
+    const markerless = trace("PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs", ["--help"]);
+    expect(markerless).not.toMatch(/html_slide_renderer|html_render_runtime/);
+  }, 60_000);
 });

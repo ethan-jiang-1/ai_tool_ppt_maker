@@ -3,12 +3,22 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, s
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { canonicalJson, canonicalJsonSha256 } from '../../contracts/canonical_json.mjs';
 import { checkBundle, deckRoot, findSlideSpecs, nextVersionName, SCRATCH_SUBDIR, GEN_QA_SUBDIR, checkStagedVersion } from '../../shared/run-bundle/bundle_layout.mjs';
-import { probeProductionMarker, validateAndBuildHtmlFirstPlan } from '../../03-html-production/internal/html_slide_contract.mjs';
-import { createCanonicalHtmlValidatedRunContext, createMigrationPreviewHtmlValidatedRunContext, publishHtmlComposition } from '../../03-html-production/internal/html_slide_renderer.mjs';
-import { classifyHtmlOwnerLiveness, htmlOwnerRoot, readHtmlCurrentManifest, readHtmlPreviewManifest } from '../../03-html-production/internal/html_object_store.mjs';
-import { publishHtmlDeliveryContactSheet } from '../../03-html-production/internal/html_preview.mjs';
+import {
+  buildHtmlPlan,
+  classifyHtmlOwnerLiveness,
+  createCanonicalHtmlValidatedRunContext,
+  createMigrationPreviewHtmlValidatedRunContext,
+  htmlOwnerRoot,
+  probeProductionMarker,
+  publishHtmlComposition,
+  publishHtmlDeliveryContactSheet,
+  readHtmlCurrentManifest,
+  readHtmlPreviewManifest,
+  validateAndBuildHtmlFirstPlan,
+} from '../../03-html-production/index.mjs';
 import { readState } from '../../shared/state/state.mjs';
-import { ARTIFACT_KIND_FINAL_SLIDE, ARTIFACT_STATUS_VERIFIED, RENDER_ENGINE_IMAGE2, readArtifactManifest, resolveRenderArtifact } from '../../shared/identity/render_artifacts.mjs';
+import { ARTIFACT_KIND_FINAL_SLIDE, ARTIFACT_STATUS_VERIFIED, RENDER_ENGINE_IMAGE2 } from '../../shared/identity/render_artifacts.mjs';
+import { readArtifactManifest, resolveRenderArtifact } from '../legacy-image2/internal/render_artifacts.mjs';
 
 const MIGRATION_DIR = 'html-migration';
 const MIGRATION_CANDIDATE_SOURCE = 'slide-specifications.md';
@@ -461,8 +471,7 @@ async function renderCanonicalTarget(sourceRunDir, targetVersion, token, expecte
   try {
     const stagedIssues = checkStagedVersion(hidden.staging);
     if (stagedIssues.length > 0) throw new Error(`hidden canonical migration target is invalid: ${stagedIssues.join('; ')}`);
-    const stage1 = await import('../../03-html-production/unified_pipeline.mjs').then((mod) => mod.stage1);
-    if (!await stage1(hidden.staging, false)) throw new Error('hidden canonical stage 1 failed');
+    if (!await buildHtmlPlan(hidden.staging, { dryRun: false })) throw new Error('hidden canonical stage 1 failed');
     const context = createCanonicalHtmlValidatedRunContext({ runDir: hidden.staging, logicalRunVersion: targetVersion, allowHiddenRunDir: true });
     const rendered = await publishHtmlComposition(context, {});
     const finalRoot = htmlOwnerRoot(hidden.staging, 'final-slides');
@@ -595,8 +604,7 @@ export async function applyHtmlMigration(runDir, { planHash = null, oldSideMode 
     const stagedIssues = checkStagedVersion(staging);
     if (stagedIssues.length > 0) throw new Error(`hidden migration target is invalid: ${stagedIssues.join('; ')}`);
     if (sha256(readFileSync(journalFile)) !== sha256(Buffer.from(`${canonicalJson(journal)}\n`))) throw new Error('migration journal bytes changed before staging');
-    const stage1 = await import('../../03-html-production/unified_pipeline.mjs').then((mod) => mod.stage1);
-    if (!await stage1(staging, false)) throw new Error('hidden canonical Stage 1 failed');
+    if (!await buildHtmlPlan(staging, { dryRun: false })) throw new Error('hidden canonical Stage 1 failed');
     if (sha256(readFileSync(journalFile)) !== sha256(Buffer.from(`${canonicalJson(journal)}\n`))) throw new Error('migration journal bytes changed before canonical rerender');
     const canonicalContext = createCanonicalHtmlValidatedRunContext({ runDir: staging, logicalRunVersion: targetVersion, allowHiddenRunDir: true });
     const rendered = await publishHtmlComposition(canonicalContext, {});

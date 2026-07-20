@@ -30,7 +30,7 @@ const GIT_GUIDANCE_CORPUS = [
   "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
   "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
   "PPTMAKER_FRAMEWORK/COMMANDS.md",
-  "PPTMAKER_FRAMEWORK/scripts/change-classifier.md",
+  "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/00-run-bundle-concept.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/04-conventions.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/README.md",
@@ -119,7 +119,7 @@ describe("framework documentation coherence", () => {
       "PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md",
       "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
       "PPTMAKER_FRAMEWORK/COMMANDS.md",
-      "PPTMAKER_FRAMEWORK/scripts/change-classifier.md",
+      "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md",
     ].map((file) => [file, readFileSync(file, "utf8")]);
     for (const [file, text] of docs) {
       expect(text, file).toMatch(/position/);
@@ -131,7 +131,7 @@ describe("framework documentation coherence", () => {
     expect(template).toMatch(/identity:\s*\n\s+scheme: mnemonic-v1/);
     expect(template).toMatch(/SUBJECT \+ MOVE/);
     expect(template).toMatch(/5–8/);
-    expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("14 个命令");
+    expect(readFileSync("PPTMAKER_FRAMEWORK/scripts/README.md", "utf8")).toContain("Fourteen direct executables");
   });
 
   it("keeps optional Git guidance aligned with visible deck versions", () => {

@@ -51,7 +51,7 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 | **先修后问** | MD/Agent 发现坏 state / 坏压模 → 先 heal 或重写合法文件再继续；禁止把「去修语法」当作小白的下一步 |
 | **真不可恢复才回执** | 仍走 CLI JSON envelope（见上节）；可恢复的格式问题应先修再走 |
 
-样板实现：`scripts/lib/state.mjs` 对 `_state/state.yaml`。同一原则可扩到其他压模，但不要求一次做完。
+样板实现：`scripts/shared/state/state.mjs` 对 `_state/state.yaml`。同一原则可扩到其他压模，但不要求一次做完。
 
 权威交叉引用：`charter/NODE-SPEC.md`（SAFETY）· `charter/AGENT_CONTRACT.md` §7 · capability `node-specification` / `framework-charter`。
 

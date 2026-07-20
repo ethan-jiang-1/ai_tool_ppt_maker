@@ -7,7 +7,7 @@ import JSZip from "jszip";
 import {
   injectNotes,
   injectNotesFromRunDir,
-} from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/stage5_inject_notes.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/notes_injection.mjs";
 import {
   notesReceiptPath,
   validateNotesCompletionReceipt,
@@ -16,7 +16,7 @@ import {
   writeNotesReceiptAtomic,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
 import { diagnosticFromError } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
-import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 
 const S5 = "PPTMAKER_FRAMEWORK/scripts/03-html-production/stage5_inject_notes.mjs";
 
