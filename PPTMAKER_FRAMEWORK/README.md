@@ -6,7 +6,7 @@ AI 驱动的 PPT framework soft bundle。Agent 负责读取方法、做内容判
 
 ```text
 PPTMAKER_FRAMEWORK/
-├── workflow/   00-setup -> 01-content -> 02-visual-system -> 03-html-production -> [04 unavailable] -> 05-iteration
+├── workflow/   00-setup -> 01-content -> 02-visual-system -> 03-html-production -> [04 optional] -> 05-iteration
 ├── scripts/    Node ESM CLI 与 capability modules
 ├── charter/    目录、生命周期、node/state 宪法
 ├── reference/  glossary、anti-pattern、legacy compatibility
@@ -22,11 +22,11 @@ PPTMAKER_FRAMEWORK/
 1 structured content and closed layout families
 2 renderer-neutral visual system
 3 HTML Stage 1-5 -> contact sheet/PPTX/notes -> final review
-4 optional Image2 refinement (unavailable in Change 3)
+4 optional authorized Image2 visual-slot refinement
 5 HTML/local iteration or markerless legacy maintenance
 ```
 
-新 deck 的目标 pipeline 是 `html-first-v1`：无需 renderer choice、Image2 key 或 style master；真实 HTML preview 先于 content/visual approval，Stage 4/5 只消费 reset-bound verified final-slide evidence。Phase 4 没有 active command/controller，也不是完成欠账。
+新 deck 的目标 pipeline 是 `html-first-v1`：无需 renderer choice、Image2 key 或 style master；真实 HTML preview 先于 content/visual approval，Stage 4/5 只消费 reset-bound verified final-slide evidence。Phase 4 是交付后的可选、授权 visual-slot upgrade，不是完成欠账或新 deck gate。
 
 Markerless deck 保持 `legacy-image2-first`，所有 whole-page style/prompt/pilot/provider 语义只在 `reference/legacy-image2-first-maintenance.md` 与 `playbook/legacy-image2-maintenance.md` 中出现。两个 pipeline 不共享 gate、manifest、reset、receipt 或 approval。
 

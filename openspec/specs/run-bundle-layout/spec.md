@@ -10,7 +10,7 @@ Machine authority for tree text and path constants: `PPTMAKER_FRAMEWORK/scripts/
 
 A conformant run bundle SHALL remain rooted at `deck_{NAME}/` with `1_upstream_raw_material/`, `2_backbone/`, `3_versions/v{n}/` as `--run-dir`, deck-root `_state/`, and `_lessons/`. `_state/` SHALL allow durable `state.yaml`/README plus transient `gate-approval-journal.json` owned only by recoverable gate publication; the journal's absence is normal and its presence never independently proves approval. A version SHALL contain source `slide-specifications.md`, `overrides/`, rebuildable `_generated/`, and deletable `_scratch/`.
 
-For HTML-first runs, `_generated/html_production/` SHALL own `html_pages/`, `final_slides/`, and `preview/`; each SHALL contain an `objects/` directory for immutable raw-byte-SHA-addressed bytes, one `manifest.json` as its current-set pointer, and MAY transiently contain exclusive `.publish.lock/owner.json`, `.manifest.<64hex-owner-token>.tmp`, plus object-directory `.object.<64hex-owner-token>.<64hex-byte-sha>.tmp`. No other lock/temp child is valid. Their exact manifest schemas SHALL be `pptmaker-html-pages-manifest-v1`, `pptmaker-html-final-slides-manifest-v1`, and `pptmaker-html-preview-manifest-v1` respectively. Canonical current manifests/locks and `pptmaker-html-review-plan-v1` preview plans SHALL bind the state-owned nullable HTML-production reset ID; migration-preview equivalents use null. `preview/` SHALL additionally contain immutable canonical `plans/<review-plan-hash>.json`; its manifest SHALL hold independent current slots for content/visual plans and visual-review/delivery contact sheets rather than one overloaded pointer. Object/plan paths are rebuildable and non-current unless referenced by the owning manifest. Normal Change-3 publication SHALL not delete unreferenced final objects/plans; no garbage-collection interface is introduced. `_generated/qa/` SHALL own assembly/notes receipts plus optional exact `html_migration.json` only on a clean migrated target; HTML assembly/notes receipts bind the current reset ID, while `html_migration.json` is publication/handoff provenance and never completion authority. Optional Image2 refinement physical partitions are reserved as lazy paths: `_scratch/image2_refinement/`, `_generated/image2_refinement/`, and accepted source assets under `overrides/visual-style/assets/refined/image2/{style-reference,visual-slots}/`; their absence is conformant and Change 3 SHALL NOT create them. `1_upstream_raw_material/` SHALL NOT accept generated/rejected Image2 history.
+For HTML-first runs, `_generated/html_production/` SHALL own `html_pages/`, `final_slides/`, and `preview/`; each SHALL contain an `objects/` directory for immutable raw-byte-SHA-addressed bytes, one `manifest.json` as its current-set pointer, and MAY transiently contain exclusive `.publish.lock/owner.json`, `.manifest.<64hex-owner-token>.tmp`, plus object-directory `.object.<64hex-owner-token>.<64hex-byte-sha>.tmp`. No other lock/temp child is valid. Their exact manifest schemas SHALL be `pptmaker-html-pages-manifest-v1`, `pptmaker-html-final-slides-manifest-v1`, and `pptmaker-html-preview-manifest-v1` respectively. Canonical current manifests/locks and `pptmaker-html-review-plan-v1` preview plans SHALL bind the state-owned nullable HTML-production reset ID; migration-preview equivalents use null. `preview/` SHALL additionally contain immutable canonical `plans/<review-plan-hash>.json`; its manifest SHALL hold independent current slots for content/visual plans and visual-review/delivery contact sheets rather than one overloaded pointer. Object/plan paths are rebuildable and non-current unless referenced by the owning manifest. Normal publication SHALL not delete unreferenced final objects/plans; no garbage-collection interface is introduced. `_generated/qa/` SHALL own assembly/notes receipts plus optional exact `html_migration.json` only on a clean migrated target; HTML assembly/notes receipts bind the current reset ID, while `html_migration.json` is publication/handoff provenance and never completion authority. For marked HTML-first versions, modern refinement is lazy: accepted style-reference and visual-slot bytes live only at `overrides/visual-style/assets/refined/image2/{style-reference,visual-slots}/`; the only refinement source-control file is `overrides/visual-style/image2-refinement.yaml`; candidates/comparisons/attempt evidence live only at `_generated/image2_refinement/`; and the exclusive promotion journal lives only at `_scratch/image2_refinement/`. These paths are absent until explicit refinement, never satisfy HTML delivery evidence, and rejected/generated history never enters `1_upstream_raw_material/`.
 
 Legacy `style_master.jpg`, prompt/image/header directories, and their manifests remain compatibility-owned and SHALL not be required or created by new HTML-first init/build. `bundle_layout.mjs` `renderTree()` SHALL describe the pipeline-specific and lazy roles without presenting generated paths as source truth.
 
@@ -45,7 +45,7 @@ Run-bundle layout SHALL follow **stricter toward the root, looser toward the lea
 
 `PPTMAKER_FRAMEWORK/reference/glossary.md` SHALL retain a GREP-friendly Where Map with term/path/meaning/do-not fields and exact searchable headings/tokens for at least run bundle, soft bundle, `--run-dir`, `_scratch/`, `_generated/`, `html_production`, `style_master.jpg`, `contact_sheet`/pilot, `_state/`, and `_lessons/`. It SHALL distinguish deck root from version run-dir and source/control from rebuildable/deletable outputs.
 
-Placement entries SHALL be pipeline-specific: HTML pages/final slides/review/delivery contact sheets/plans belong under version-local `_generated/html_production/`; markerless contact sheets remain `_generated/preview/`; `style_master.jpg` is markerless legacy compatibility only; Image2-refinement paths are unavailable/lazy in Change 3. The map SHALL not direct manual edits/copies into `_generated/`, cross-version manifest references, or HTML evidence into legacy paths.
+Placement entries SHALL be pipeline-specific: HTML pages/final slides/review/delivery contact sheets/plans belong under version-local `_generated/html_production/`; markerless contact sheets remain `_generated/preview/`; `style_master.jpg` is markerless legacy compatibility only; Image2-refinement paths are optional/lazy after explicit authorization. The map SHALL not direct manual edits/copies into `_generated/`, cross-version manifest references, or HTML evidence into legacy paths.
 
 #### Scenario: Agent searches HTML contact sheet
 
@@ -84,6 +84,8 @@ Legacy run bundles without `AGENTS.md` SHALL remain structurally valid. A manual
 
 The canonical `2_backbone/visual-style/` directory MAY contain an `assets/` subdirectory. When present, it SHALL contain `asset-manifest.yaml`, `svg/`, `reference/`, and `icons/`. `renderTree()` SHALL include this subtree in its output regardless of whether a given deck has populated it — the tree describes the canonical structure, not runtime state. The whitelist `_ALLOWED_IN_VISUAL_STYLE` SHALL include `assets` as an allowed entry so that decks with assets pass validation. A new whitelist `_ALLOWED_IN_ASSETS` SHALL define the allowed contents of the `assets/` directory. Decks without an `assets/` directory SHALL pass `checkBundle()` without error — the directory is optional infrastructure.
 
+For a version override, `_ALLOWED_IN_VISUAL_STYLE` SHALL additionally admit exactly `assets/` and `image2-refinement.yaml`; no other refinement control file is valid. `image2-refinement.yaml` is lazy and is not an asset-manifest entry.
+
 #### Scenario: renderTree shows assets directory
 
 - **WHEN** Agent inspects `renderTree()` output
@@ -106,6 +108,11 @@ The canonical `2_backbone/visual-style/` directory MAY contain an `assets/` subd
 
 - **WHEN** a run bundle has a manually created unexpected file in `visual-style/assets/`
 - **THEN** `checkBundle()` reports it as an unexpected entry
+
+#### Scenario: Refinement provenance is whitelisted narrowly
+
+- **WHEN** a refined version contains `overrides/visual-style/image2-refinement.yaml`
+- **THEN** it passes structure validation while an alternate provenance filename fails
 
 ### Requirement: Path resolvers provide assets directory access
 
@@ -162,7 +169,7 @@ Any resolved plan, merged catalog, diagnostic, or fingerprint evidence produced 
 
 ### Requirement: HTML production and Image2 refinement partitions cannot be confused
 
-Bundle validation SHALL apply distinct immediate-entry whitelists and ownership labels to HTML production, Image2 scratch/generated, and accepted override assets. HTML current manifests may reference only confined objects under their own run-version HTML-production owner plus canonical source/control/framework receipts; target manifests SHALL not reference another version's objects. Image2 paths SHALL remain unavailable/lazy in Change 3 and SHALL not satisfy HTML final-slide, gate, assembly, or notes evidence.
+Bundle validation SHALL apply distinct immediate-entry whitelists and ownership labels to HTML production, Phase-4 generated/scratch partitions, and accepted override assets. HTML current manifests may reference only their own final-slide objects plus canonical source/control receipts; Phase-4 candidates and journals SHALL never be current HTML manifests, gate, assembly, notes, or delivery evidence.
 
 #### Scenario: Candidate appears under HTML production
 
@@ -187,4 +194,3 @@ An explicit migration preview MAY use `_scratch/html-migration/` for candidate s
 
 - **WHEN** a `publication_scope: migration-preview` manifest or receipt appears under a visible version's canonical `_generated/html_production/`
 - **THEN** bundle validation reports an ownership violation
-

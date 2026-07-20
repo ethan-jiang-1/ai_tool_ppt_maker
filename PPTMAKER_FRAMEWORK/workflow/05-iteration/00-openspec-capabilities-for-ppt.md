@@ -44,4 +44,4 @@ agent_action: internalize
 - 一个具体 deck 的普通 source edit：在 run bundle 内按上述路径执行，不为 typo 或单页文案机械创建 framework proposal。
 - 结构变化无论大小都 preview + exact plan hash，因为它改变 source snapshot 身份。
 
-禁止把 HTML layout 改写成 `IMAGE PROMPT` 微调，也禁止把 Phase 4 当普通 refresh。现代 Image2 refinement 当前没有 executable workflow。
+禁止把 HTML layout 改写成 `IMAGE PROMPT` 微调，也禁止把 Phase 4 当普通 refresh。现代 Image2 refinement 只能走交付后的 `image2-refine` 授权 workflow；普通 HTML refresh 不加载 provider。

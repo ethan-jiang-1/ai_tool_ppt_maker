@@ -4,13 +4,12 @@ Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an
 ## Requirements
 ### Requirement: playbook/ directory contains the registered MD controllers
 
-`PPTMAKER_FRAMEWORK/playbook/` SHALL contain ten active ordered MD Controllers—`create-deck.md`, `edit-text.md`, `edit-visual.md`, `edit-notes.md`, `restructure-slides.md`, `iterate-style.md`, `quick-preview.md`, `migrate-import.md`, `probe-image-channels.md`, and `legacy-image2-maintenance.md`—plus shared node `classify-change.md`. `legacy-image2-maintenance` SHALL serve only markerless decks and SHALL use lifecycle Phase 5/module `05-iteration`; `probe-image-channels` remains an off-path Phase-0 diagnostic switch. Change 4 SHALL NOT register `image2-refine` or any modern Phase-4 controller/node; its script directory remains README-only/non-executable.
+`PPTMAKER_FRAMEWORK/playbook/` SHALL contain eleven active ordered MD Controllers: the existing ten controllers plus `image2-refine.md`, and shared node `classify-change.md`. `legacy-image2-maintenance` remains markerless Phase 5; `probe-image-channels` remains Phase 0. `image2-refine` SHALL serve only a marked HTML-first run with current `html-delivery-review: proceed`, and SHALL not be entered by fresh create, ordinary local iteration, or markerless maintenance.
 
 #### Scenario: Agent lists available controllers
 
 - **WHEN** the playbook index is built
-- **THEN** it contains the ten ordered controllers and one shared classifier
-- **AND** includes legacy maintenance and provider probing but no modern refinement controller
+- **THEN** it contains eleven ordered controllers, including optional modern refinement and legacy maintenance as distinct owners
 
 #### Scenario: HTML deck selects legacy controller
 
@@ -155,7 +154,7 @@ No node SHALL transition to completed until its exit conditions are met. Human c
 
 ### Requirement: Explore playbooks cover pre-commitment style and pilot preview
 
-Pre-commitment exploration SHALL remain conversation-only and write-free until the user authorizes a deck/change path. For HTML-first creation, quick preview SHALL route to structured content plus local production-equivalent HTML preview, require no style master/provider credentials, and show content/visual artifacts before the matching human decisions. For markerless legacy maintenance, existing style exploration and pilot preview semantics SHALL remain available only through the legacy branch. Explore controllers SHALL not advertise executable modern Image2 refinement during Change 3.
+Pre-commitment exploration SHALL remain conversation-only and write-free until the user authorizes a deck/change path. For HTML-first creation, quick preview SHALL route to structured content plus local production-equivalent HTML preview, require no style master/provider credentials, and show content/visual artifacts before the matching human decisions. For markerless legacy maintenance, existing style exploration and pilot preview semantics SHALL remain available only through the legacy branch. Explore controllers SHALL not advertise modern Image2 refinement before current HTML delivery and explicit entry into its dedicated controller.
 
 #### Scenario: Fresh user requests a quick visual sample
 
@@ -322,7 +321,7 @@ Pilot review SHALL classify the pipeline before selecting evidence. For markerle
 
 ### Requirement: Registered playbooks pass machine validation
 
-Every active controller/shared node SHALL pass the canonical node-specification validator. A checked-in normative manifest SHALL bind the expected controller/shared-node inventory, globally unique IDs, exact order, pipeline ownership, lifecycle/module values, includes/requires, conditions, decisions, and absence of Phase-4 execution. Validation SHALL not rely on a stale hard-coded count alone.
+Every active controller/shared node SHALL pass the canonical node-specification validator. A checked-in normative manifest SHALL bind the expected controller/shared-node inventory, globally unique IDs, exact order, pipeline ownership, lifecycle/module values, includes/requires, conditions, decisions, and Phase-4 ownership only by `image2-refine`. Validation SHALL not rely on a stale hard-coded count alone.
 
 #### Scenario: Final controller set validates
 
@@ -331,17 +330,22 @@ Every active controller/shared node SHALL pass the canonical node-specification 
 
 ### Requirement: Playbook lifecycle and methodology metadata are explicit
 
-Every registered node SHALL declare lifecycle Phase `0|1|2|3|4|5` and one exact final method module `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`. Phase 3 nodes own complete HTML delivery. Change 3's active index SHALL contain no lifecycle-4 or module-`04-image2-refinement` executable node. Legacy whole-page maintenance SHALL be Phase 5/module `05-iteration`, and provider channel probing SHALL remain Phase 0/module `00-setup`.
+Every registered node SHALL declare lifecycle Phase `0|1|2|3|4|5` and one exact final method module `00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`. Phase 3 owns complete HTML delivery; Phase 4 owns only the optional `image2-refine` lifecycle after current delivery; Phase 5 owns legacy whole-page maintenance; provider channel probing remains Phase 0. No other controller/node may declare Phase 4 or import its private transport.
 
 #### Scenario: HTML production node is unambiguous
 
 - **WHEN** Agent inspects the create-deck production node
 - **THEN** it declares lifecycle Phase 3 and method module `03-html-production`
 
-#### Scenario: Unavailable Phase 4 is registered accidentally
+#### Scenario: Optional refinement node is unambiguous
 
-- **WHEN** a Change-3 active node declares lifecycle 4 or module `04-image2-refinement`
-- **THEN** playbook validation fails
+- **WHEN** the controller index inspects an `image2-refine` execution node
+- **THEN** it declares lifecycle 4/module `04-image2-refinement` and requires current HTML delivery evidence
+
+#### Scenario: Legacy route keeps its owner
+
+- **WHEN** the graph resolves markerless maintenance
+- **THEN** it remains Phase 5 and does not enter modern refinement
 
 ### Requirement: Legacy duplicate node state remains resumable
 

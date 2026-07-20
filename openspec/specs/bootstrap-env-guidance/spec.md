@@ -99,7 +99,7 @@ Step 1 SHALL distinguish gate scope. FOUNDATION NOT READY (Node.js or npm missin
 
 ### Requirement: Image2 first-time credential setup is self-contained in BOOTSTRAP
 
-BOOTSTRAP Step 1 SHALL state that fresh HTML-first create/preview/build/local iteration requires only base HTML readiness and SHALL not solicit `IMAGE2_API_KEY`, `IMAGE2_BASE_URL`, a style master, or a live provider probe. During Change 3, modern HTML visual-slot refinement is unavailable and BOOTSTRAP SHALL not advertise a runnable `image2` workflow.
+BOOTSTRAP Step 1 SHALL state that fresh HTML-first create/preview/build/local iteration requires only base HTML readiness and SHALL not solicit Image2 credentials. After a current HTML delivery, an explicit human choice to enter optional Phase-4 visual-slot refinement SHALL receive bounded credential-presence guidance, offline `doctor --image2`, and the exact-plan authorization explanation; live diagnostics still require disclosed confirmation and do not authorize production. Markerless legacy maintenance retains its separate guidance. BOOTSTRAP SHALL not present modern refinement as a new-deck gate, whole-page renderer, or automatic workflow.
 
 When and only when an existing markerless deck is classified into `legacy-image2-maintenance`, BOOTSTRAP or the linked legacy reference SHALL provide the existing optional credential presence/live-probe guidance: `.env` location, `doctor --image2`, disclosed-submit confirmation before live flags, and non-secret lesson capture. It SHALL not describe channel diagnosis as page-generation authorization or duplicate the full provider protocol.
 
@@ -114,10 +114,10 @@ When and only when an existing markerless deck is classified into `legacy-image2
 - **THEN** the Agent can discover offline credential checks and optional confirmed live diagnostics
 - **AND** no guidance is applied to the HTML path
 
-#### Scenario: Modern refinement is not yet available
+#### Scenario: User elects optional refinement
 
-- **WHEN** a user asks for professional Image2 visual-slot refinement during Change 3
-- **THEN** BOOTSTRAP states it is unavailable rather than offering executable steps or commands
+- **WHEN** current HTML delivery leads the user to choose Phase 4
+- **THEN** BOOTSTRAP explains its optional authorization boundary before any credential-dependent action
 
 #### Scenario: User declines a legacy live probe
 

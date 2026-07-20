@@ -25,6 +25,9 @@ export {
   HtmlAssetCatalogError,
   assetEvidence,
   loadHtmlAssetCatalog,
+  commitPreparedRefinedHtmlAssetRegistration,
+  prepareRefinedHtmlAssetRegistration,
+  registerRefinedHtmlAsset,
   validateHtmlAssetBytes,
 } from "./internal/html_asset_catalog.mjs";
 export {

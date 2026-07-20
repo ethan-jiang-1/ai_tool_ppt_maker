@@ -64,6 +64,19 @@
       "e2e": ["tests_e2e/03-html-production/test-html-first-flow.mjs"]
     },
     {
+      "owner": "04-image2-refinement",
+      "interfaces": ["04-image2-refinement/index.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/04-image2-refinement/test_refinement_contracts.mjs",
+        "tests/04-image2-refinement/test_refinement_lifecycle.mjs"
+      ],
+      "e2e": [
+        "tests_e2e/04-image2-refinement/test-image2-lifecycle.mjs",
+        "tests_e2e/04-image2-refinement/test-refinement-flow.mjs"
+      ]
+    },
+    {
       "owner": "05-iteration",
       "interfaces": ["05-iteration/index.mjs"],
       "executables": [
@@ -88,6 +101,7 @@
       "owner": "contracts",
       "interfaces": [
         "contracts/canonical_json.mjs",
+        "contracts/cli_return_audit.mjs",
         "contracts/executable_inventory.mjs",
         "contracts/framework_architecture.mjs",
         "contracts/html_review_projection.mjs",

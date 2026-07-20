@@ -29,7 +29,7 @@ function ownerFor(path) {
 function canonicalSnapshot() {
   const files = {
     "README.md": "target tree",
-    "04-image2-refinement/README.md": "unavailable",
+    "04-image2-refinement/README.md": "optional refinement",
     "shared/state/internal/html_review_evidence_core.mjs": "export const evaluate = () => ({});",
   };
   const interfaces = [
@@ -77,17 +77,18 @@ describe("framework architecture contract", () => {
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
   });
 
-  it("pins the exact acyclic Phase adjacency and excludes Phase 4", () => {
+  it("pins the exact acyclic Phase adjacency including the bounded Phase 4", () => {
     expect(PHASE_ADJACENCY).toEqual({
       "00-setup": [],
       "01-content": [],
       "02-visual-system": [],
       "03-html-production": ["00-setup", "01-content", "02-visual-system"],
+      "04-image2-refinement": ["02-visual-system", "03-html-production"],
       "05-iteration": ["01-content", "02-visual-system", "03-html-production"],
     });
     const snapshot = canonicalSnapshot();
-    snapshot.files["04-image2-refinement/index.mjs"] = "export {};";
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("phase4-runtime");
+    snapshot.files["04-image2-refinement/cli.mjs"] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("phase4-public-surface");
   });
 
   it("rejects old paths, scripts/lib, generic roots, and root business dumping", () => {
@@ -167,13 +168,13 @@ describe("framework architecture contract", () => {
       return result.stderr;
     };
     const base = trace("PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs", ["doctor", "--help"]);
-    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|05-iteration)\//);
+    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration)\//);
     expect(base).not.toMatch(/(?:image_api_client|html_slide_renderer|@napi-rs\/canvas|fast-png)/);
 
     const html = trace("PPTMAKER_FRAMEWORK/scripts/03-html-production/stage2_render_html.mjs", ["--help"]);
-    expect(html).not.toMatch(/scripts\/05-iteration\/legacy-image2|image_api_client/);
+    expect(html).not.toMatch(/scripts\/(?:04-image2-refinement|05-iteration\/legacy-image2)|image_api_client/);
 
     const markerless = trace("PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs", ["--help"]);
-    expect(markerless).not.toMatch(/html_slide_renderer|html_render_runtime/);
+    expect(markerless).not.toMatch(/04-image2-refinement|html_slide_renderer|html_render_runtime/);
   }, 60_000);
 });

@@ -26,7 +26,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-005](slide-identity-and-sequence-editing.md) | 2026-07-17 | `slide-identity-and-sequence-editing.md` | 稳定 5–6 字母双语义 mnemonic slide ID + derived position + 事务化增删重排 + ID-keyed artifact resolution；由 `add-stable-slide-identity-and-order-editing` change 吸收 |
 | [CLS-006](visual-asset-system.md) | 2026-07-14 | `visual-asset-system.md` | 视觉管线 Asset 概念：SVG/位图/图标按约定目录存放，manifest 注册，`**VISUAL ASSETS**` 绑定 |
 | [CLS-007](image2-multi-vendor-architecture.md) | 2026-07-16 | `image2-multi-vendor-architecture.md` | Image2 多 vendor = 多组 (base_url,key) 顺序试 + failover；同步/异步一个薄分支 |
+| [CLS-008](html-first-progressive-rendering.md) | 2026-07-20 | `html-first-progressive-rendering.md` | HTML-first 渐进式渲染总控设计；5 个 Change（1-4 已归档，5 已提案），架构锁定决策全部落地 |
 
-**Next available plan ID: CLS-008**
+**Next available plan ID: CLS-009**
 
 > 相关 OpenSpec changes 已 archive。无活跃 plan。

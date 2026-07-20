@@ -4,7 +4,7 @@
 
 ## 规范层级
 
-- **Lifecycle Phase**：`0 → 1 → 2 → 3 → [4 optional/unavailable] → 5`
+- **Lifecycle Phase**：`0 → 1 → 2 → 3 → [4 optional/authorized] → 5`
 - **Method Module**：`00-setup`、`01-content`、`02-visual-system`、`03-html-production`、`04-image2-refinement`、`05-iteration`
 - **Pipeline Stage**：生产脚本 Stage 1–5
 - **Playbook Node**：MD Controller 中的有序执行节点
@@ -13,7 +13,7 @@
 
 ## Node 声明
 
-有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`。Change 3 active index 不注册可执行 lifecycle 4/module `04-image2-refinement`。
+有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`、`image2-refinement`。只有 `image2-refine` controller 可声明 lifecycle 4/module `04-image2-refinement`，且 entry 必须要求 marked HTML-first 与 current delivery review。
 
 ```yaml
 node: author-structured-content

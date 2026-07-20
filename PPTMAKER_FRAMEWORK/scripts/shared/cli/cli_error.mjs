@@ -3,6 +3,7 @@
  * openspec/specs/cli-surface/spec.md plus any active cli-surface delta.
  */
 import { EXECUTABLE_INVENTORY } from "../../contracts/executable_inventory.mjs";
+export { CLI_RETURN_AUDIT_SCHEMA, IMAGE2_RETURN_CASES, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../contracts/cli_return_audit.mjs";
 export { EXECUTABLE_INVENTORY } from "../../contracts/executable_inventory.mjs";
 
 export const CLI_ERROR_CODES = Object.freeze({
@@ -29,6 +30,7 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "test",
   "state",
   "migrate-html",
+  "image2",
 ]);
 
 export const CLI_DIAGNOSTIC_CATEGORIES = Object.freeze([

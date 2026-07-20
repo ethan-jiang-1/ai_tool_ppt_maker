@@ -14,13 +14,22 @@ Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that
 
 ### Requirement: COMMANDS.md covers full-deck creation
 
-COMMANDS.md SHALL route "帮我做一个PPT" through BOOTSTRAP -> Phase 0 setup -> Phase 1 structured content -> Phase 2 visual system/real preview gate -> Phase 3 HTML production/contact sheet/PPTX/notes. It SHALL state that new decks default to `html-first-v1`, require no renderer choice/Image2 key/style master, and may finish after Phase 3. It SHALL not expose an executable modern Phase-4 refinement route in Change 3.
+COMMANDS.md SHALL route "帮我做一个PPT" through BOOTSTRAP -> Phase 0 setup -> Phase 1 structured content -> Phase 2 visual system/real preview gate -> Phase 3 HTML production/contact sheet/PPTX/notes. It SHALL state that new decks default to `html-first-v1`, require no renderer choice/Image2 key/style master, and may finish after Phase 3. A post-delivery professional visual upgrade SHALL remain optional, cost-authorized visual-slot work rather than a renderer selection or whole-page replacement.
 
 #### Scenario: First-time user creates a PPT
 
 - **WHEN** the user requests a new deck
 - **THEN** COMMANDS routes to `create-deck` and the complete local HTML path
 - **AND** never asks them to choose a render engine
+
+### Requirement: Commands describe refinement as optional visual-slot work
+
+COMMANDS SHALL route an explicit post-delivery professional visual upgrade to the Phase-4 controller, disclose that it is optional and cost-authorized, and preserve the immediate HTML-complete exit. It SHALL not present Image2 as a renderer selection or whole-page replacement.
+
+#### Scenario: User asks for a professional upgrade
+
+- **WHEN** a completed HTML deck has candidate visual value
+- **THEN** guidance offers recommendation and exact authorization rather than starting provider work
 
 ### Requirement: COMMANDS.md covers refresh and structural paths
 

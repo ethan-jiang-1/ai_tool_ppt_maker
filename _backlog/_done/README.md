@@ -27,7 +27,7 @@ _done/
 | `_fixed_bugs/` | 13 | BUG-014 |
 | `_suspened_bugs/` | 0 | — |
 | `_done_todos/` | 1 | DONE-002 |
-| `_closed_plans/` | 7 | CLS-008 |
+| `_closed_plans/` | 8 | CLS-009 |
 
 _（已修复 bug：BUG-001…BUG-013。已关闭 plan：CLS-001…CLS-005。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 

@@ -40,7 +40,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state \
   {{DECK_NAME}}/3_versions/{{CURRENT_VERSION}}
 ```
 
-HTML-first 完整路径是 structured source -> local HTML preview -> content/visual review -> contact sheet/PPTX/notes -> final delivery review。它不需要 Image2 key 或 style master。`04-image2-refinement` 当前不可用，也不是交付欠账。
+HTML-first 完整路径是 structured source -> local HTML preview -> content/visual review -> contact sheet/PPTX/notes -> final delivery review。它不需要 Image2 key 或 style master。完成交付后可显式选择 `04-image2-refinement` 做 2–4 页 visual-slot 精修；不选择就没有 Phase-4 欠账。
 
 Markerless 历史 deck 会显示 `legacy-image2-first`，继续走 legacy maintenance；不要手动补 HTML marker。
 

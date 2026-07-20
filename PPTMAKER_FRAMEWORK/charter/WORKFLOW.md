@@ -7,11 +7,11 @@
 1 content    narrative, blocks, stable IDs, closed families, structured body
 2 visual     renderer-neutral tokens, assets, fonts, recipes, real preview gate
 3 production local HTML Stages 1-5, delivery contact sheet, PPTX, notes, final review
-4 refinement optional professional Image2 upgrade, unavailable in Change 3
+4 refinement optional authorized no-text visual-slot Image2 upgrade after HTML delivery
 5 iteration  local HTML changes, structural versions, or isolated legacy maintenance
 ```
 
-Phase 3 delivers a complete usable deck. Phase 4 is not a gate, not a required node, and has no active command/controller in this change.
+Phase 3 delivers a complete usable deck. Phase 4 is not a gate or required node; the optional `image2-refine` controller is entered only after current delivery review and exact human authorization.
 
 ## Ownership map
 

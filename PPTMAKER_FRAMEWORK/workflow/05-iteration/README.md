@@ -14,6 +14,6 @@ Classify `production.pipeline` first, then choose the smallest source-owned refr
 - Notes only: Notes-Only Refresh.
 - Insert/delete/reorder: Structural Versioning Path, source-only publication, then target-local materialization and target reviews.
 
-Stable IDs permit byte matching, not inherited reset epochs or human approval. Never edit `_generated/`, copy cross-version authority, or call a provider from an ordinary HTML iteration. Modern Image2 refinement is unavailable. Markerless decks retain the compatibility paths in `../../reference/legacy-image2-first-maintenance.md`.
+Stable IDs permit byte matching, not inherited reset epochs or human approval. Never edit `_generated/`, copy cross-version authority, or call a provider from an ordinary HTML iteration. Modern Image2 refinement remains a separate optional Phase-4 authorization flow after current delivery. Markerless decks retain the compatibility paths in `../../reference/legacy-image2-first-maintenance.md`.
 
-The files in this directory cover content/layout, visual-system, structural, and end-to-end local iteration. `04-image2-refinement` is intentionally absent until its owning change.
+The files in this directory cover content/layout, visual-system, structural, and end-to-end local iteration. Optional modern refinement is owned exclusively by `04-image2-refinement`, not Phase 5.

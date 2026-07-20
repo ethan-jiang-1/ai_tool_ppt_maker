@@ -53,11 +53,11 @@ Phase 0  setup and local readiness
 Phase 1  structured content and family selection
 Phase 2  renderer-neutral visual system and real local preview
 Phase 3  local HTML Stage 1-5, contact sheet, PPTX, notes, final review
-Phase 4  optional Image2 refinement, unavailable in this change
+Phase 4  optional authorized Image2 visual-slot refinement after HTML delivery
 Phase 5  local iteration or explicit legacy maintenance
 ```
 
-Phase 3 已产生完整交付物。Phase 4 不是完成条件，也没有 active command/controller。
+Phase 3 已产生完整交付物。Phase 4 不是完成条件；只有用户明确选择并授权时才进入 `image2-refine` controller。
 
 ## 进度与身份
 

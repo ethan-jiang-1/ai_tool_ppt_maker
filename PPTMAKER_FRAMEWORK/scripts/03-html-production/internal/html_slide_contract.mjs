@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, realpathSync } from "node:fs";
+import { readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1005,6 +1005,61 @@ export function serializeStructuredBodyEdit(sourceText, slideId, nextBody, optio
   const start = slide.structured_range.yaml_start;
   const end = slide.structured_range.yaml_end;
   return String(sourceText).slice(0, start) + yaml + String(sourceText).slice(end);
+}
+
+function atomicWriteSource(path, text) {
+  const temporary = join(dirname(path), `.${basename(path)}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`);
+  writeFileSync(temporary, text, { encoding: "utf8", flag: "wx" });
+  renameSync(temporary, path);
+}
+
+/**
+ * Bind one existing primary visual to a currently registered asset. This is the
+ * only source-writing seam Phase 4 may use for accepted visual-slot promotion.
+ */
+export function prepareHtmlPrimaryVisualSelection(request) {
+  if (!request || typeof request !== "object" || Array.isArray(request)) throw new HtmlSlideContractError("selection binding request must be an object");
+  const allowed = new Set(["runDir", "slideId", "assetId", "visualContractFingerprint", "outputSha256"]);
+  for (const key of Object.keys(request)) if (!allowed.has(key)) throw new HtmlSlideContractError(`selection binding does not accept ${key}`);
+  const { runDir, slideId, assetId, visualContractFingerprint: expectedFingerprint, outputSha256 } = request;
+  if (typeof runDir !== "string" || !runDir.trim()) throw new HtmlSlideContractError("selection binding runDir is required");
+  if (typeof slideId !== "string" || !slideId) throw new HtmlSlideContractError("selection binding slideId is required");
+  if (!ASSET_ID_RE.test(assetId || "")) throw new HtmlSlideContractError("selection binding assetId is invalid");
+  if (!SHA_RE.test(expectedFingerprint || "") || !SHA_RE.test(outputSha256 || "")) throw new HtmlSlideContractError("selection binding requires SHA-256 visual fingerprint and output SHA");
+
+  const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir });
+  const plannedSlide = plan.slides.find((slide) => slide.slide_id === slideId);
+  if (!plannedSlide) throw new HtmlSlideContractError(`unknown slide ${slideId}`);
+  if (!plannedSlide.primary_visual) throw new HtmlSlideContractError(`slide ${slideId} has no primary visual`);
+  if (plannedSlide.visual_contract_fingerprint !== expectedFingerprint) throw new HtmlSlideContractError("selection binding visual contract is stale");
+  const sourceSlide = validated.parsed.slides.find((slide) => slide.block.slide_id === slideId);
+  const nextBody = structuredClone(sourceSlide.source_body);
+  nextBody.primary_visual.selection = { asset_id: assetId, accepted_for: expectedFingerprint, output_sha256: outputSha256 };
+  const sourceText = validated.parsed.document.source_text;
+  const nextSource = serializeStructuredBodyEdit(sourceText, slideId, nextBody, { source: validated.parsed.document.source });
+  return Object.freeze({
+    source_path: validated.sourcePath,
+    old_source_sha256: sha256(Buffer.from(sourceText, "utf8")),
+    next_source_sha256: sha256(Buffer.from(nextSource, "utf8")),
+    next_source: nextSource,
+    slide_id: slideId,
+    selection: nextBody.primary_visual.selection,
+  });
+}
+
+export function bindHtmlPrimaryVisualSelection(request) {
+  const prepared = prepareHtmlPrimaryVisualSelection(request);
+  const { validated } = validateAndBuildHtmlFirstPlan({ runDir: request.runDir });
+  const entry = validated.assetCatalog.catalog[request.assetId];
+  if (!entry) throw new HtmlSlideContractError(`asset ${request.assetId} is not registered`);
+  if (entry.measured_sha256 !== request.outputSha256) throw new HtmlSlideContractError("selection binding output SHA differs from registered asset bytes");
+  if (readFileSync(prepared.source_path, "utf8") !== validated.parsed.document.source_text) throw new HtmlSlideContractError("slide source changed before selection binding");
+  atomicWriteSource(prepared.source_path, prepared.next_source);
+  return {
+    slide_id: prepared.slide_id,
+    selection: prepared.selection,
+    source_sha256: prepared.next_source_sha256,
+  };
 }
 
 function validateTextBlock(value, path, issues, context, limits = {}) {

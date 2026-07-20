@@ -47,11 +47,12 @@ agent_action: read_first
 ## 4. Phase 顺序与闸门
 
 ```
-0 初始化 → 1 内容 → 2 视觉 → 2.7 回填 L3 → 3 生产 → 4 迭代
+0 初始化 → 1 内容 → 2 视觉 → 2.7 回填 L3 → 3 HTML 生产 → （可选）4 visual-slot refinement → 5 迭代
 ```
 
 - Phase 1 与 2 可交换，**不可跳过**
 - Phase 3 必须在 1+2 **都锁定**后启动
+- Phase 4 只在当前 HTML delivery review 为 `proceed` 且用户授权精确 plan hash 后进入；它不是完成 gate。每页独立 `accept` 或 `use-html`，普通 HTML 路径始终 provider-free。
 - 每个 Phase 结束等用户确认，并把 `project-metadata.yaml` 对应 gate 写成 `approved`。Stage 2 会确认 gate 状态——不满足时引导用户完成，不硬堵。用户坚持跳过 → 提醒返工成本，将状态明确写成 `waived`
 - **教训捕获：** 解决任何经过 3+ 次尝试才搞定的错误之后，主动问一句 "Worth writing a lesson to `_lessons/`？" 在每个 Phase gate 确认前，检查有没有值得留下但还没写的教训。用 `lessons.mjs add <runDir> --title "<slug>"` 捕获。规矩见 `_lessons/README.md`。
 

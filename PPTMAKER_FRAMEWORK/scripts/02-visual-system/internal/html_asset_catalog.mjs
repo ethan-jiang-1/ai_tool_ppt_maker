@@ -1,15 +1,19 @@
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  mkdirSync,
+  renameSync,
   readFileSync,
   realpathSync,
+  rmSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
-import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { decode as decodePng } from "fast-png";
 import jpeg from "jpeg-js";
 import { SaxesParser } from "saxes";
-import { isAlias, isMap, isScalar, parseAllDocuments } from "yaml";
+import { Document, isAlias, isMap, isScalar, parseAllDocuments } from "yaml";
 
 export const HTML_ASSET_MANIFEST_VERSION = 2;
 export const HTML_ASSET_ID_RE = /^[a-z][a-z0-9_]*(?:-[a-z0-9_]+)*$/;
@@ -26,6 +30,10 @@ const LOCAL_FRAGMENT_RE = /^#[A-Za-z_][A-Za-z0-9_.:-]*$/;
 const URL_FRAGMENT_RE = /^url\(#[A-Za-z_][A-Za-z0-9_.:-]*\)$/;
 const ACTIVE_ELEMENTS = new Set(["script", "foreignObject", "style", "animate", "animateMotion", "animateTransform", "set", "discard"]);
 const CANONICAL_ASSET_SUBDIRS = new Set(["svg", "reference", "icons"]);
+const REFINED_ASSET_ROOTS = Object.freeze({
+  "style-reference": ["refined", "image2", "style-reference"],
+  "visual-slots": ["refined", "image2", "visual-slots"],
+});
 
 export class HtmlAssetCatalogError extends Error {
   constructor(message, issues = []) {
@@ -89,7 +97,11 @@ function confinedAssetPath(assetsDir, relpath, assetId) {
   }
   const parts = relpath.split("/");
   if (parts.some((part) => !part || part === "." || part === "..")) fail("asset_path_invalid", `asset ${assetId} path contains an invalid segment`, { asset_id: assetId });
-  if (parts.length < 2 || !CANONICAL_ASSET_SUBDIRS.has(parts[0])) fail("asset_path_invalid", `asset ${assetId} path must live under svg/, reference/, or icons/`, { asset_id: assetId });
+  const isLegacyRoot = parts.length >= 2 && CANONICAL_ASSET_SUBDIRS.has(parts[0]);
+  const isRefinedRoot = Object.values(REFINED_ASSET_ROOTS).some((root) =>
+    parts.length === root.length + 1 && root.every((segment, index) => parts[index] === segment)
+  );
+  if (!isLegacyRoot && !isRefinedRoot) fail("asset_path_invalid", `asset ${assetId} path must live under svg/, reference/, icons/, refined/image2/style-reference/, or refined/image2/visual-slots/`, { asset_id: assetId });
   const root = resolve(assetsDir);
   const lexical = resolve(root, ...parts);
   const lexicalRel = relative(root, lexical);
@@ -300,6 +312,134 @@ export function loadHtmlAssetCatalog(runDir) {
   const totalBytes = Object.values(sorted).reduce((sum, entry) => sum + entry.media.bytes, 0);
   if (totalBytes > MAX_CATALOG_BYTES) fail("catalog_bytes_exceeded", "effective catalog exceeds 512 MiB", { actual: totalBytes, expected: MAX_CATALOG_BYTES });
   return { catalog: sorted, manifests, total_bytes: totalBytes, run_root: runRoot };
+}
+
+function atomicWrite(path, bytes) {
+  const directory = dirname(path);
+  mkdirSync(directory, { recursive: true });
+  const temporary = join(directory, `.${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2)}.tmp`);
+  try {
+    writeFileSync(temporary, bytes, { flag: "wx" });
+    renameSync(temporary, path);
+  } catch (error) {
+    try { rmSync(temporary, { force: true }); } catch { /* preserve the original error */ }
+    throw error;
+  }
+}
+
+function assertDirectoryWithin(root, directory, field) {
+  const realRoot = realpathSync(root);
+  const realDirectory = realpathSync(directory);
+  const relation = relative(realRoot, realDirectory);
+  if (relation.startsWith(`..${sep}`) || relation === ".." || isAbsolute(relation)) {
+    fail("asset_path_escape", `${field} escapes its version run directory`);
+  }
+}
+
+function prepareConfinedWrite(run, assetsDir, path) {
+  if (!existsSync(run) || !statSync(run).isDirectory()) fail("invalid_run_dir", "asset registration runDir must be an existing directory");
+  mkdirSync(assetsDir, { recursive: true });
+  assertDirectoryWithin(run, assetsDir, "asset directory");
+  mkdirSync(dirname(path), { recursive: true });
+  assertDirectoryWithin(assetsDir, dirname(path), "asset destination");
+}
+
+function assertRegistrationRequest(request) {
+  if (!request || typeof request !== "object" || Array.isArray(request)) fail("invalid_registration", "asset registration request must be an object");
+  const allowed = new Set(["runDir", "assetId", "bytes", "target", "metadata"]);
+  for (const key of Object.keys(request)) if (!allowed.has(key)) fail("invalid_registration", `asset registration does not accept ${key}`, { field: key });
+  if (typeof request.runDir !== "string" || !request.runDir.trim()) fail("invalid_registration", "runDir is required");
+  if (!HTML_ASSET_ID_RE.test(request.assetId || "") || request.assetId.length > 64) fail("invalid_asset_id", "asset registration requires a stable asset ID", { asset_id: request.assetId });
+  if (!Object.hasOwn(REFINED_ASSET_ROOTS, request.target)) fail("invalid_refined_asset_root", "asset registration target must be style-reference or visual-slots");
+  if (!Buffer.isBuffer(request.bytes) && !(request.bytes instanceof Uint8Array)) fail("invalid_asset_bytes", "asset registration bytes must be a Buffer or Uint8Array", { asset_id: request.assetId });
+  const metadata = request.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) fail("invalid_asset_metadata", "asset registration metadata must be an object", { asset_id: request.assetId });
+  const metadataKeys = ["label", "description", "usage_guidance"];
+  if (Object.keys(metadata).length !== metadataKeys.length || metadataKeys.some((key) => !Object.hasOwn(metadata, key))) fail("invalid_asset_metadata", "asset registration metadata fields are label, description, usage_guidance", { asset_id: request.assetId });
+  validateString(metadata.label, `${request.assetId}.label`, 80);
+  validateString(metadata.description, `${request.assetId}.description`, 400);
+  validateString(metadata.usage_guidance, `${request.assetId}.usage_guidance`, 600);
+  return { ...request, bytes: Buffer.from(request.bytes) };
+}
+
+function refinedRasterEvidence(bytes, assetId) {
+  for (const type of ["png", "jpg"]) {
+    try { return { type, media: validateHtmlAssetBytes(bytes, { assetId, type }) }; }
+    catch (error) {
+      if (!(error instanceof HtmlAssetCatalogError)) throw error;
+    }
+  }
+  fail("unsupported_refinement_raster", `asset ${assetId} must be a valid PNG or JPEG raster`, { asset_id: assetId });
+}
+
+function canonicalManifestText(assets) {
+  const document = new Document({
+    version: 2,
+    assets: Object.fromEntries(Object.entries(assets).sort(([left], [right]) => left.localeCompare(right))),
+  }, { version: "1.2", schema: "core", indent: 2, lineWidth: 0, simpleKeys: true });
+  return document.toString({ indent: 2, lineWidth: 0, simpleKeys: true });
+}
+
+/**
+ * Register a Phase-4 accepted raster in the version catalog. The caller selects
+ * only one of the two closed refinement destinations; path, media type, and SHA
+ * are all derived from the validated bytes here.
+ */
+export function prepareRefinedHtmlAssetRegistration(request) {
+  const { runDir, assetId, bytes, target, metadata } = assertRegistrationRequest(request);
+  const run = resolve(runDir);
+  const { type, media } = refinedRasterEvidence(bytes, assetId);
+  const assetsDir = join(run, "overrides", "visual-style", "assets");
+  const manifestPath = join(assetsDir, "asset-manifest.yaml");
+  prepareConfinedWrite(run, assetsDir, manifestPath);
+  const existingManifest = existsSync(manifestPath) ? parseManifest(manifestPath).value : { version: 2, assets: {} };
+  // Validate the complete current catalog before writing a replacement entry.
+  const current = loadHtmlAssetCatalog(run);
+  const currentEntry = current.catalog[assetId];
+  const nextCount = Object.keys(current.catalog).length + (currentEntry ? 0 : 1);
+  if (nextCount > 512) fail("catalog_too_large", "effective catalog contains more than 512 entries");
+  const nextBytes = current.total_bytes - (currentEntry?.media.bytes ?? 0) + media.bytes;
+  if (nextBytes > MAX_CATALOG_BYTES) fail("catalog_bytes_exceeded", "effective catalog exceeds 512 MiB", { actual: nextBytes, expected: MAX_CATALOG_BYTES });
+
+  const relativePath = [...REFINED_ASSET_ROOTS[target], `${assetId}.${type}`].join("/");
+  const entry = {
+    path: relativePath,
+    type,
+    label: metadata.label,
+    description: metadata.description,
+    usage_guidance: metadata.usage_guidance,
+    sha256: sha256(bytes),
+  };
+  const nextAssets = { ...existingManifest.assets, [assetId]: entry };
+  const assetPath = join(assetsDir, relativePath);
+  prepareConfinedWrite(run, assetsDir, assetPath);
+  const manifestBytes = Buffer.from(canonicalManifestText(nextAssets), "utf8");
+  return Object.freeze({
+    run_dir: run,
+    asset_id: assetId,
+    asset_path: assetPath,
+    manifest_path: manifestPath,
+    asset_bytes: bytes,
+    manifest_bytes: manifestBytes,
+    old_manifest_sha256: existsSync(manifestPath) ? sha256(readFileSync(manifestPath)) : sha256(Buffer.alloc(0)),
+    next_manifest_sha256: sha256(manifestBytes),
+    evidence: { ...assetEvidence({ origin: "version", manifest_path: relative(resolve(run, "..", ".."), manifestPath).split(sep).join("/"), path: relativePath, type, label: metadata.label, description: metadata.description, usage_guidance: metadata.usage_guidance, media, declared_sha256: entry.sha256, measured_sha256: entry.sha256 }, assetId) },
+  });
+}
+
+export function commitPreparedRefinedHtmlAssetRegistration(prepared) {
+  if (!prepared || typeof prepared !== "object" || !Buffer.isBuffer(prepared.asset_bytes) || !Buffer.isBuffer(prepared.manifest_bytes) || !SHA_RE.test(prepared.old_manifest_sha256 || "")) fail("invalid_registration", "prepared asset registration is invalid");
+  if ((existsSync(prepared.manifest_path) ? sha256(readFileSync(prepared.manifest_path)) : sha256(Buffer.alloc(0))) !== prepared.old_manifest_sha256) fail("registration_conflict", "asset manifest changed before registration commit");
+  atomicWrite(prepared.asset_path, prepared.asset_bytes);
+  atomicWrite(prepared.manifest_path, prepared.manifest_bytes);
+  const registered = loadHtmlAssetCatalog(prepared.run_dir).catalog[prepared.asset_id];
+  return assetEvidence(registered, prepared.asset_id);
+}
+
+export function registerRefinedHtmlAsset(request) {
+  const prepared = prepareRefinedHtmlAssetRegistration(request);
+  const registered = commitPreparedRefinedHtmlAssetRegistration(prepared);
+  return registered;
 }
 
 export function assetEvidence(entry, assetId) {

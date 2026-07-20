@@ -9,6 +9,7 @@ import {
   loadHtmlAssetCatalog,
   validateHtmlAssetBytes,
 } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/html_asset_catalog.mjs";
+import { registerRefinedHtmlAsset } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
 import { checkBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -169,6 +170,61 @@ assets:
 
       writeFileSync(join(version, "rogue.svg"), svg());
       expect(checkBundle(fixture.runDir, false)).toEqual(expect.arrayContaining([expect.stringMatching(/rogue\.svg.*not canonical/)]));
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("registers an accepted raster only under a closed refined root", () => {
+    const fixture = runFixture();
+    try {
+      const bytes = Buffer.from(encodePng({ width: 1, height: 1, data: new Uint8Array([255, 0, 0, 255]), channels: 4, depth: 8 }));
+      const registered = registerRefinedHtmlAsset({
+        runDir: fixture.runDir,
+        assetId: "refined_main",
+        bytes,
+        target: "visual-slots",
+        metadata: { label: "Refined main visual", description: "Accepted visual-slot fixture", usage_guidance: "Use for the matching primary visual only" },
+      });
+      expect(registered).toMatchObject({
+        origin: "version",
+        path: "refined/image2/visual-slots/refined_main.png",
+        type: "png",
+        measured_sha256: hash(bytes),
+      });
+      expect(loadHtmlAssetCatalog(fixture.runDir).catalog.refined_main.measured_sha256).toBe(hash(bytes));
+      expect(() => registerRefinedHtmlAsset({
+        runDir: fixture.runDir,
+        assetId: "refined_other",
+        bytes,
+        target: "../../escape",
+        metadata: { label: "Other", description: "Rejected target", usage_guidance: "Never used" },
+      })).toThrow(/style-reference or visual-slots/);
+      expect(() => registerRefinedHtmlAsset({
+        runDir: fixture.runDir,
+        assetId: "refined_path",
+        bytes,
+        target: "visual-slots",
+        path: "svg/forbidden.png",
+        metadata: { label: "Path", description: "Rejected path", usage_guidance: "Never used" },
+      })).toThrow(/does not accept path/);
+
+      const escaped = runFixture();
+      try {
+        const outside = join(escaped.root, "outside-assets");
+        mkdirSync(join(escaped.runDir, "overrides", "visual-style"), { recursive: true });
+        mkdirSync(outside, { recursive: true });
+        symlinkSync(outside, join(escaped.runDir, "overrides", "visual-style", "assets"));
+        expect(() => registerRefinedHtmlAsset({
+          runDir: escaped.runDir,
+          assetId: "refined_escape",
+          bytes,
+          target: "visual-slots",
+          metadata: { label: "Escape", description: "Escaped directory", usage_guidance: "Never used" },
+        })).toThrow(/escapes its version run directory/);
+      } finally {
+        rmSync(escaped.root, { recursive: true, force: true });
+      }
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

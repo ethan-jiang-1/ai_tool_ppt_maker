@@ -42,11 +42,28 @@ describe("MD Controller reader characterization", () => {
       for (const id of ids) {
         const node = index.nodesById.get(id);
         expect(node, `${playbook}/${id}`).toBeDefined();
-        expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|5)$/);
-        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|03-html-production|05-iteration)$/);
+        expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|4|5)$/);
+        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration)$/);
         expect(node.steps.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("registers one HTML-only Phase-4 controller with exact current-delivery entry gates", () => {
+    const index = buildPlaybookIndex(PLAYBOOK_DIR);
+    expect(index.controllers.size).toBe(11);
+    const controller = index.controllers.get("image2-refine");
+    expect(controller.supportedPipelines).toEqual(["html-first-v1"]);
+    expect(controller.nodes.map((node) => node.id)).toEqual([
+      "recommend-image2-refinement",
+      "authorize-image2-refinement",
+      "execute-image2-refinement",
+      "review-image2-refinement",
+    ]);
+    for (const node of controller.nodes) {
+      expect(node).toMatchObject({ playbook: "image2-refine", lifecyclePhase: "4", methodModule: "04-image2-refinement" });
+    }
+    expect(controller.nodes[0].entry).toEqual(["html_first_marked", "html_delivery_review_current"]);
   });
 
   it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {
@@ -62,6 +79,7 @@ describe("MD Controller reader characterization", () => {
       expect(result.errors.some((error) => error.rule === "decision-value")).toBe(true);
       expect(result.errors.some((error) => error.rule === "self-entry")).toBe(true);
       expect(result.errors.some((error) => error.rule === "legacy-phase")).toBe(true);
+      expect(result.errors.some((error) => error.rule === "phase4-ownership")).toBe(true);
       expect(result.errors.some((error) => error.rule === "duplicate-id")).toBe(true);
       expect(result.errors.some((error) => error.rule === "steps")).toBe(true);
     } finally {

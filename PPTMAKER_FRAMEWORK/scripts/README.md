@@ -36,7 +36,9 @@ scripts/
 │   ├── unified_pipeline.mjs
 │   └── internal/
 ├── 04-image2-refinement/
-│   └── README.md
+│   ├── index.mjs
+│   ├── README.md
+│   └── internal/             # contracts, persistence, injected transport
 ├── 05-iteration/
 │   ├── index.mjs
 │   ├── change-classifier.md
@@ -59,7 +61,7 @@ scripts/
 └── fixtures/
 ```
 
-根目录白名单只有 `README.md`、`ppt_flow.mjs`、六个 numbered Phase 目录、`shared/`、`contracts/`、`fonts/` 和 `fixtures/`。Phase 4 在本 change 中明确 unavailable：只有 README，没有 `index.mjs`、CLI、provider transport 或 runtime import。
+根目录白名单只有 `README.md`、`ppt_flow.mjs`、六个 numbered Phase 目录、`shared/`、`contracts/`、`fonts/` 和 `fixtures/`。Phase 4 只通过 `index.mjs` 暴露 optional visual-slot interface；CLI 仍只从 root `ppt_flow image2` 进入，provider transport 保持 private injectable。
 
 ## Deep Phase interfaces
 
@@ -133,7 +135,7 @@ Exact foreign-Phase adjacency：
 05-iteration        -> {01-content, 02-visual-system, 03-html-production}
 ```
 
-Phase 4 没有 graph node。`shared/` 不能 import numbered Phase；Phase 不能 import foreign `internal/` 或 foreign executable；contracts 不能反向 import Phase/shared production implementation。Legacy Image2 只能存在于 `05-iteration/legacy-image2/`，不能 import future Phase 4。
+Phase 4 只由 `image2-refine` controller 拥有，且必须在 current HTML delivery review 后显式授权。`shared/` 不能 import numbered Phase；Phase 不能 import foreign `internal/` 或 foreign executable；contracts 不能反向 import Phase/shared production implementation。Legacy Image2 只能存在于 `05-iteration/legacy-image2/`，不能 import modern Phase 4。
 
 ## Source-to-test ownership
 
@@ -144,7 +146,7 @@ tests/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinem
 tests_e2e/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinement,05-iteration,shared,helpers}
 ```
 
-Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、14 个 executable、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。
+Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、15 个顶层 command surface 及其 direct executable union、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。
 
 ## Verification authorities
 
