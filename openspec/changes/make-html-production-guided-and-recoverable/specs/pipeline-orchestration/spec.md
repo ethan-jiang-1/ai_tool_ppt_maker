@@ -1,34 +1,23 @@
-## REMOVED Requirements
+## MODIFIED Requirements
 
 ### Requirement: HTML-first preview, gates, build, and local refresh have explicit ordering
-
-**Reason**: The previous ordering treated every incomplete quality plan as an unconditional Stage-4
-block and did not define an auditable user continuation path.
-
-**Migration**: Preview remains available before approval; ordinary build still requires approved or
-waived current gate evidence. A user-forced build publishes current version-scoped waivers through
-the existing gate authority, while identity, source validity, reset, journal, and CAS checks remain
-non-overridable.
-
-### Requirement: HTML review plans are immutable current artifacts
-
-**Reason**: Pilot and `readCurrentPlan` used different body projections, and visual reconstruction
-discarded composition evidence, making valid plans permanently stale.
-
-**Migration**: Keep immutable canonical plan objects and manifest references. Centralize the projection
-builder and pass the published composition evidence into every revalidation path.
-
-## ADDED Requirements
-
-### Requirement: HTML review readiness is guide-first with safe continuation
 
 HTML-first orchestration SHALL compute stale ownership from deterministic content, visual-system,
 page-visual, notes, delivery, and structural projections. It SHALL present a human-readable recommended
 repair and an explicit continuation when the issue is reversible evidence/process risk. `build --force
 --reason` SHALL publish current gate waivers through the existing gate publication authority before
 local assembly; it SHALL not mutate approved evidence into approval, invoke Image2, or bypass reset,
-journal, CAS, source-parse, or bundle-structure checks. Notes-only changes SHALL not stale content or
-visual review projections.
+journal, CAS, source-parse, or bundle-structure checks. Final PPTX publication SHALL require no reset
+transaction pending plus authoritative current-version/current-reset `html-content-review` and
+`html-visual-review` decisions whose recorded projections and evidence are current; a current explicit
+waiver may satisfy the decision requirement while status still reports incomplete evidence. Metadata
+gate mirrors alone SHALL not authorize delivery. HTML preview/final-slide composition MAY run while
+gates are pending but not while canonical reset is `deletion_pending`. Review requests SHALL declare
+the exact `effective|forced-fallback` composition variant; only effective objects enter delivery
+manifests and Stage 4. Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural
+Versioning materialization SHALL compute the smallest stale set from source ownership and current
+manifest/fingerprint evidence. No local path SHALL create or invoke Image2 refinement. Notes-only
+changes SHALL not stale content or visual review projections.
 
 #### Scenario: Pilot plan is approved after revalidation
 
@@ -46,13 +35,122 @@ visual review projections.
 
 - **WHEN** current source and reset identity are valid but content/visual evidence is pending or incomplete
 - **THEN** orchestration records a bounded current waiver with reason and proceeds with local build
-- **AND** status exposes waived decision and incomplete evidence
+- **AND** status exposes the waived decision and independently computed evidence completeness
+
+#### Scenario: Forced build is unnecessary
+
+- **WHEN** both current HTML gates already satisfy readiness and the user invokes `build --force --reason`
+- **THEN** orchestration records no new waiver and reports `force_not_needed`
+- **AND** local build proceeds through the ordinary current-evidence path
+
+#### Scenario: Forced build is dry-run
+
+- **WHEN** a user invokes `build --force --reason --dry-run`
+- **THEN** orchestration reports the prospective waiver/check set and local build plan
+- **AND** it writes no state, metadata, or generated artifact
 
 #### Scenario: Unsafe identity remains a hard stop
 
 - **WHEN** a plan hash, reset, journal, CAS precondition, or source version is ambiguous or mismatched
 - **THEN** orchestration returns a conflict/stale diagnostic
 - **AND** `--force` does not write or render
+
+#### Scenario: Visual gate reviews production-equivalent pixels
+
+- **WHEN** an HTML visual gate is pending
+- **THEN** orchestration may create representative pages/final slides/contact sheet through the production compositor
+- **AND** final PPTX publication requires an approved or explicitly waived current gate decision
+
+#### Scenario: Ordinary copy edit is local
+
+- **WHEN** one slide's visible copy changes without global visual-system or fallback changes
+- **THEN** Local Slide Rebuild recomposes that slide and downstream delivery locally
+- **AND** it does not stale unrelated visual-system approval
+- **AND** it stales content approval when the reviewed content fingerprint changes
+
+#### Scenario: Global visual config change requires representative review
+
+- **WHEN** an HTML visual-system fingerprint changes
+- **THEN** Local Deck Rebuild produces current representatives for every current component recipe key before full delivery
+- **AND** the previous visual gate cannot authorize Stage 4
+
+#### Scenario: Metadata says approved without current HTML evidence
+
+- **WHEN** metadata gate scalars are approved but current-version HTML gate records are missing or stale
+- **THEN** preview may run but Stage 4 remains blocked
+
+#### Scenario: Forced fallback is composed for review
+
+- **WHEN** a selected-current slide needs fallback review
+- **THEN** preview explicitly composes the forced-fallback variant
+- **AND** delivery continues to resolve only the effective variant
+
+### Requirement: HTML review plans are immutable current artifacts
+
+Content and visual review planning SHALL serialize immutable canonical JSON under the scope-owned
+`html_production/preview/plans/<plan-hash>.json` and publish current references only through the atomic
+preview manifest. The plan hash SHALL cover canonical bytes excluding its own hash field. Every plan
+SHALL bind exact `schema: pptmaker-html-review-plan-v1`, `publication_scope:
+canonical-run|migration-preview`, nullable `html_production_reset_id` (current state value for canonical,
+null for migration preview), pipeline, normalized logical run version, `kind: content|visual`,
+`approvable`, current fingerprints/outstanding evidence, exact input receipts, and referenced artifact
+confined paths/SHAs. Content plans SHALL include the complete ordered human-reviewed projection. Visual
+plans SHALL include system coverage, page visual dependencies, and shown effective/forced-fallback
+preview references. Scoped plans missing any outstanding evidence SHALL set `approvable: false` and
+list it; they cannot publish approval but remain eligible for an explicit waiver after the current
+source/reset/version projection is verified. Ordinary approval SHALL resolve only a `canonical-run`
+plan referenced by a same-reset `canonical-run` current preview manifest and revalidate reset
+ID/plan/artifact bytes/receipts. Migration-preview plans remain comparison evidence even if internally
+complete. Failure diagnostics SHALL not echo authored content.
+
+The schema-closed `preview/manifest.json` SHALL contain exact `schema:
+pptmaker-html-preview-manifest-v1`, `publication_scope: canonical-run|migration-preview`, nullable
+`html_production_reset_id` (current state value for canonical, null for migration preview),
+pipeline/logical run version, plus independent nullable current references `review_plans.content`,
+`review_plans.visual`, `contact_sheets.visual_review`, and `contact_sheets.delivery`. Each non-null
+reference SHALL bind confined path, SHA-256, owning plan/review/delivery digest, and applicable
+composition variants of the same scope/reset epoch. One atomic owner commit SHALL revalidate and
+preserve unaffected current references, clear every stale/deleted/incompatible or
+cross-scope/cross-reset carried reference, and update only the intended slots. Approval SHALL use only
+the matching canonical/current-reset `review_plans.<gate>` slot; final delivery review SHALL use only
+canonical/current-reset `contact_sheets.delivery`.
+
+#### Scenario: Content plan survives process exit
+
+- **WHEN** content review planning completes
+- **THEN** the exact shown projection and plan hash are recoverable from current confined files
+
+#### Scenario: Referenced preview changes
+
+- **WHEN** a visual plan's referenced image bytes no longer match
+- **THEN** approval fails stale and publishes no gate evidence
+
+#### Scenario: Old plan remains as immutable storage
+
+- **WHEN** a newer preview manifest replaces the current plan reference
+- **THEN** the old plan cannot be approved even if its object file remains
+
+#### Scenario: Migration plan is complete but non-authoritative
+
+- **WHEN** a migration-preview review plan is internally complete and approvable
+- **THEN** ordinary approval rejects its scope and publishes no target-version gate evidence
+
+#### Scenario: Content and visual plans coexist
+
+- **WHEN** a current content plan is followed by visual-plan publication with unchanged content inputs
+- **THEN** one preview manifest retains both independently verified current plan references
+
+#### Scenario: Delivery sheet update preserves current review refs
+
+- **WHEN** delivery contact sheet publishes and current review plan inputs remain fresh
+- **THEN** only `contact_sheets.delivery` changes and current plan slots remain valid
+
+#### Scenario: Carried visual plan becomes stale during content update
+
+- **WHEN** content-plan publication discovers the carried visual plan no longer verifies
+- **THEN** the same manifest commit clears the visual slot rather than preserving false current evidence
+
+## ADDED Requirements
 
 ### Requirement: Review projections separate notes from visual/content ownership
 

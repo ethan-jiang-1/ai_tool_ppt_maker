@@ -35,7 +35,7 @@ the human owns the decision to repair or waive a reversible risk.
 
 - Removing human gates or automatically waiving them.
 - Allowing invalid/ambiguous source, state, plan hashes, reset epochs, paths, or active transactions.
-- Treating waiver as approval or complete evidence.
+- Treating waiver as approval or inferring evidence completeness from the waiver decision.
 - Adding a top-level override store, a second readiness authority, or authorization only in history.
 - Changing markerless legacy production behavior.
 - Triggering provider work from HTML Phase 3, build force, preview, or offline refinement planning.
@@ -105,8 +105,8 @@ Exact-key records gain fields, so writers will use versioned record schemas:
 
 - `pptmaker-html-gate-review-v2`;
 - `pptmaker-html-delivery-review-v2`;
-- `pptmaker-image2-refinement-state-v2` only when a prerequisite waiver is present or a v2 record is
-  otherwise written.
+- `pptmaker-image2-refinement-state-v2` for every newly created refinement plan/authorization after
+  this change.
 
 The state file remains schema v3. Reserved IDs and canonical keys remain:
 
@@ -116,15 +116,40 @@ The state file remains schema v3. Reserved IDs and canonical keys remain:
 - `by_version["3_versions/vN"]`.
 
 Gate v2 adds closed fields `evidence_complete: boolean` and bounded `waived_checks`; approved records
-require complete evidence, null reason, and exact plan audit. Waived records require a reason, current
-projection/reset/version identity, and at least one waived check when evidence is incomplete. The
-review-plan hash is nullable only for incomplete waiver basis; when present it must verify and match any
-caller-supplied hash.
+require complete evidence, null reason, and exact plan audit. Waived records require a reason and current
+projection/reset/version identity. A complete but intentionally waived review has
+`evidence_complete: true` and an empty `waived_checks`; an incomplete waiver has
+`evidence_complete: false` and at least one waived check. The review-plan hash is nullable only for
+incomplete waiver basis; when present it must verify and match any caller-supplied hash.
+
+`waived_checks` is a canonical, duplicate-free array capped at 64 entries. Each entry contains only a
+check code matching `[a-z][a-z0-9_]{0,63}` and optional `kind/id` subject, where `kind` is one of
+`gate|slide|recipe|artifact|receipt` and `id` matches `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`. It never
+stores authored prose, reason text, absolute paths, prompts, provider bodies, or secrets. This is durable
+audit state, not a copy of the CLI diagnostic envelope.
 
 Delivery v2 binds every reviewable artifact actually present plus `evidence_complete`, `waived_checks`,
-and the reason required for forced proceed. It never invents a path/SHA for a missing artifact.
-Refinement v2 stores a bounded `prerequisite_waiver` inside its existing version record; it is not
-delivery evidence and cannot complete refinement.
+and the reason required for forced proceed. It retains the v1 delivery field names as an exact closed
+key set and adds only `pptx_path`, `evidence_complete`, and `waived_checks`; missing lineage values
+remain explicit nulls only when represented by a waived check, while reviewable PPTX/contact-sheet paths
+and SHAs are always concrete. It never invents a path/SHA for a missing artifact.
+
+Forced delivery does not accept or scan for a caller-selected PPTX. It resolves the HTML Stage-4
+canonical PPTX output through the existing assembly/layout owner and resolves the delivery contact sheet
+only from the current canonical preview-manifest delivery slot for the same reset/version. It confines
+both paths and hashes their current bytes. Missing assembly/notes receipts may be waived; missing or
+ambiguous reviewable bytes may not.
+Refinement state v2 stores plan v2 plus a bounded nullable `prerequisite_waiver` inside its existing
+version record; it is not delivery evidence and cannot complete refinement. Existing v1 refinement
+records remain readable and are not rewritten by observation. Any new plan replaces the current
+version's resolved refinement working record with v2 only after existing unresolved attempts/reviews
+have passed the current conflict checks.
+
+`prerequisite_waiver` has exact fields `reason`, canonical `waived_checks`, `run_version`, nullable
+`html_production_reset_id`, `html_delivery_digest`, and `recorded_at`. Its checks reuse the bounded safe
+audit-entry shape owned by `node-specification`. The offline plan does not duplicate reason text; it binds
+`prerequisite_waiver_fingerprint`, computed from normalized reason, checks, run/reset identity, and the
+current delivery digest. Authorization revalidates the authoritative state waiver and fingerprint.
 
 Readers accept existing v1 records. Because v1 gate waivers required a complete current plan, a valid
 v1 current record is projected as `evidence_complete: true` with no waived checks. New writes use v2.
@@ -149,17 +174,30 @@ The command publishes a waiver only for unresolved content/visual gates, in dete
 visual order through the existing journal/CAS publisher. It re-inspects both gates before invoking local
 build. A crash between publications leaves at most one visible waiver and no build; rerun safely
 publishes the remaining decision. Source/bundle/reset/journal/CAS failures remain hard stops.
+If both gates are already current, force records no waiver and proceeds normally with an explicit
+`force_not_needed` result. With `--dry-run`, it returns the prospective waiver/check set and local build
+plan without publishing decisions or artifacts.
 
 #### `state --record-delivery-review proceed --force --reason`
 
 Normal proceed still forbids a reason and requires complete current delivery evidence. Forced proceed
 requires a reason and at least reviewable current PPTX plus contact sheet identity; it records missing or
-stale lineage checks in delivery v2. Repair/redirect semantics stay unchanged.
+stale lineage checks in delivery v2. When those reviewable artifacts and the current target identity are
+valid, the user's `proceed` decision may complete the HTML delivery workflow even with
+`evidence_complete: false`; status/resume must show the evidence waiver separately and recommend repair.
+Missing reviewable artifacts remain a hard stop. Repair/redirect semantics stay unchanged.
 
 #### `image2 plan --force --reason`
 
-Normal planning requires current delivery proceed. Forced planning requires current identifiable HTML
-final-slide/slot inputs and stores a prerequisite waiver in refinement v2. It remains offline.
+Normal planning requires current delivery proceed with complete evidence. Forced planning requires
+current identifiable HTML final-slide/slot inputs and stores a prerequisite waiver in refinement v2 when delivery is missing or
+incomplete; an explicit current `repair|redirect` decision remains owned by its controller and is not
+silently overridden. It remains offline.
+For either route, `delivery_digest` comes from the Phase-3 public current final-slide resolver and its
+verified ordered manifest, never from a synthetic status hash. The forced route also binds that digest
+and current reset/version into the prerequisite waiver before writing the plan.
+If `--force --reason` is supplied while normal complete delivery eligibility already holds, planning
+creates an ordinary plan, stores no prerequisite waiver, and reports `force_not_needed`.
 Authorization rejects stale plan/waiver inputs; generation still requires credentials and authorization;
 promotion/final completion still requires current final review.
 
@@ -189,13 +227,63 @@ command must not mutate the evidence it is diagnosing.
 Credential/endpoint resolution will be factored into a shared import-safe resolver used by legacy
 `resolveVendors` and the Phase-4 CLI adapter; provider payload/submission logic stays separate by owner.
 Phase 4 exposes a public lazy factory from `index.mjs`; root `ppt_flow` calls it only for `generate` or
-reconcile operations, then injects the returned transport into the existing application API. HTML Phase
-3 never imports or initializes it.
+the existing `unknown-submit --decision retain` reconciliation operation with resolved
+credentials/config, then injects the returned transport into the
+existing application API. The generate operation passes its current provider-neutral request to the
+transport submit method; reconciliation passes only persisted provider/attempt identity. HTML Phase
+3 never imports or initializes it. The transport implementation remains private, so this uses the
+existing `framework-script-layout` public-Phase-interface rule and does not change that capability.
+`unknown-submit --decision abandon` remains provider-free.
 
-The first implementation task is a contract spike against checked-in/fake Image2 relay fixtures to
-confirm submit, poll/result, cancellation/timeout, and provider-request-ID reconciliation shapes for
-style-reference and visual-slot attempts. If the relay cannot reconcile by persisted attempt/provider
-request identity, design/specs must be updated before live implementation; blind retry is forbidden.
+The current application request contains identities but not enough material to submit a useful image.
+Therefore the refinement plan becomes `pptmaker-image2-refinement-plan-v2` and binds a
+`request_contract_version` plus per-attempt `request_fingerprint`. Before authorization and again before
+submission, Phase 4 materializes a provider-neutral `RefinementSubmitRequestV1` from the current
+validated HTML plan: stable slide/slot identity, text-free `primary_visual.brief`, structured concept
+constraints, resolved slot geometry, style/profile contract, and verified reference bytes with SHA-256
+bindings (or an explicitly supported provider-neutral reference kind that does not require bytes). The
+provider adapter may turn that in-memory request into its endpoint payload. Reconciliation uses the
+persisted provider request identity and attempt binding; it does not reconstruct or persist prompt/body
+material. Prompt/body text and provider response bodies are never persisted in state or receipts. A changed request fingerprint
+is stale and requires a new plan/authorization; it is never silently regenerated at charge time. The
+request contract identifier is `pptmaker-refinement-submit-request-v1`; each fingerprint is a lowercase
+SHA-256 of the canonical deterministic request-material projection defined below.
+
+`RefinementSubmitRequestV1` is an in-memory, closed request with a transport envelope plus deterministic
+material. The envelope contains `attempt_id`, `authorization_id`, and `plan_hash`. The material contains
+`request_contract_version`, `kind` (`style-reference|slot`), nullable `slide_id`, nullable `slot`, the
+text-free `visual_brief`/structured concept constraints selected from the HTML plan, nullable for a
+`style-reference` attempt, resolved slot `geometry` (required for `slot`, null for `style-reference`),
+the resolved `profile_contract`, and `references`. Each reference contains a safe role, media type,
+SHA-256, and bytes when the provider upload requires them.
+
+The `request_fingerprint` is SHA-256 over canonical deterministic material with references projected to
+role/media/SHA only. It excludes the fingerprint itself, inline reference bytes, and the random or
+derived transport envelope (`attempt_id`, `authorization_id`, `plan_hash`). Plan v2 binds fingerprints
+by deterministic attempt role (`style-reference` or slide/slot); authorization copies the matching
+fingerprint onto each newly allocated attempt. Submission validates the envelope separately, verifies
+reference bytes against their bound SHAs, and recomputes the same material fingerprint before the
+attempt enters `submitting`. This avoids a plan-hash cycle while preserving exact charge-time freshness.
+The request object is never written to state, plan, receipt, or diagnostic; only its contract version,
+fingerprint, and safe envelope identities are durable.
+
+Plan v2 also persists the closed, provider-neutral `profile_contract` used to materialize that request:
+`{schema: "pptmaker-image2-visual-slot-profile-v1", mode: "visual-slot", profile_fingerprint}`.
+`profile_fingerprint` is the existing 64-hex opaque profile identity accepted by the CLI/API; unknown
+keys and provider credentials are rejected. The adapter resolves only its fixed provider-neutral
+visual-slot defaults, so generation does not pretend to reconstruct model/size/resolution values that
+were not provided by the existing contract.
+Reference bytes are resolved through the current HTML asset/style-reference manifest owner, confined to
+the run bundle, and rehashed at plan, authorization, and submit boundaries. The CLI cannot inject an
+arbitrary reference path or replace a bound SHA.
+
+The first implementation task is a contract spike against checked-in/fake Image2 relay fixtures. The
+accepted transport contract is deliberately closed: synchronous bytes returned by submit are terminal;
+an asynchronous response must expose a stable task/provider request ID for polling/reconciliation; a
+timeout or accepted response without such an ID is persisted as `unknown-submit` and is never retried.
+The same rules apply to style-reference and visual-slot attempts. A fixture that violates this contract
+is an unsupported relay and remains unavailable to the adapter; it does not trigger a second implicit
+transport protocol.
 
 No new dependency is expected. Node `fetch`, the existing credential authority, bounded receipts, and
 fake transport tests remain sufficient.
@@ -203,7 +291,7 @@ fake transport tests remain sufficient.
 Alternative considered: make the CLI import `04-image2-refinement/internal/transport.mjs` directly.
 Rejected because it violates the Phase public-interface boundary. Alternative considered: reuse the
 legacy whole-page generator wholesale. Rejected because modern refinement owns different attempt,
-candidate, and reconciliation semantics.
+candidate, request, and reconciliation semantics.
 
 ### 8. Speaker-note parsing stays in the shared document model
 
@@ -231,6 +319,15 @@ matching remain delegated to `parseSlideDocument`; no second slide-heading parse
 - **[Risk] Change breadth hides partial completion** -> Tasks and acceptance map each covered bug to a
   requirement/test; the change cannot archive until the vertical lifecycle and CLI transport pass.
 
+## Baseline Verification Note
+
+At proposal time, `npm test` reaches 499 passing tests and two failures in
+`tests/contracts/test_docs_consistency.mjs`. Both failures have the same independent cause:
+`PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs` still validates the obsolete
+14-command/purpose hint while the authoritative `cli-surface` main spec and CLI expose 15 commands.
+Task 1.6 owns that mechanical alignment; it is not evidence of a new lifecycle regression.
+The existing E2E baseline passes all 40 tests across six files.
+
 ## Migration Plan
 
 1. Add governance policy/config rules and characterize BUG-016/018/019/023/030 with failing contract
@@ -247,8 +344,10 @@ Rollback before v2 writers is code-only. After v2 records exist, rollback must r
 compatibility parser or restore the forward version; no task rewrites state back to v1. Generated HTML,
 PPTX, and refinement candidates remain derived and are rebuilt through their owners, never hand-edited.
 
-## Open Questions
+## Resolved Compatibility Assumption
 
-- Does every supported Image2 relay expose a stable provider request/task identifier that can reconcile
-  both style-reference and visual-slot attempts? The compatibility spike must answer this before the
-  live adapter task; an unsupported relay remains `unknown-submit` and cannot be retried automatically.
+The adapter supports only the closed fake-fixture contract above. Synchronous responses are accepted
+only when image bytes are present; asynchronous responses are accepted only with a stable provider/task
+identifier. A relay that cannot satisfy either shape is reported as an unsupported provider prerequisite,
+not guessed or retried. This keeps apply implementation deterministic while leaving provider onboarding
+explicit and bounded.

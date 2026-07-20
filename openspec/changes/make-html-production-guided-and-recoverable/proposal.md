@@ -19,8 +19,9 @@ unauthorized provider work.
   drift (BUG-016, BUG-018, BUG-019).
 - Keep approval, build, delivery review, and Image2 continuation on one version-scoped state
   authority. Add explicit `--waive` / `--force --reason` paths for reversible evidence risks;
-  publish `decision: waived` with the failed checks and current source/reset/version identity,
-  never as `approved` or complete evidence (BUG-017, BUG-020).
+  publish gate `status: waived` (reported to callers as `decision: waived`) with the failed checks and
+  current source/reset/version identity, never as `approved`; evidence completeness remains an independently computed fact (BUG-017,
+  BUG-020).
 - Separate identity freshness from evidence completeness in HTML readiness/status. Reuse the
   existing reserved nodes and publication/CAS fences; do not add a second top-level readiness
   authority or let a force path bypass journal/reset/CAS protections.
@@ -31,8 +32,9 @@ unauthorized provider work.
   delivery-record, SHA, path, expected/actual, and stale-plan mismatches (BUG-024, BUG-027,
   BUG-029, BUG-031).
 - Provide a CLI-owned Phase-4 transport adapter using the existing Image2 credential and endpoint
-  authority, while preserving explicit plan authorization, chargeable-attempt persistence, and
-  safe reconciliation (BUG-021).
+  authority. Materialize a provider-neutral request from the authorized current HTML plan and bind
+  its fingerprint into plan/attempt freshness; preserve explicit authorization, chargeable-attempt
+  persistence, and safe reconciliation (BUG-021).
 - Add the project-level OpenSpec gate policy at
   `openspec/policies/human-centered-gates.md` and wire its concise principles into
   `openspec/config.yaml`, so future gate/readiness changes must specify guide, confirm, and
@@ -53,6 +55,8 @@ None.
   non-overridable safety boundaries.
 - `cli-surface`: add/align waiver, force, state-validation, and Phase-4 transport command
   behavior, diagnostics, JSON envelopes, and return-audit coverage.
+- `commands-reference`: document guide-first repair/continuation choices and the optional offline
+  Phase-4 planning route without presenting Image2 as a renderer choice.
 - `node-specification`: extend version-scoped HTML gate/delivery evidence to distinguish approved,
   waived, identity freshness, evidence completeness, and auditable waived checks without creating
   a second state authority.
@@ -70,12 +74,14 @@ None.
 ## Impact
 
 - **Framework source:** `PPTMAKER_FRAMEWORK/charter/`, `PPTMAKER_FRAMEWORK/playbook/`,
+  `PPTMAKER_FRAMEWORK/COMMANDS.md`,
+  `PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs`,
   `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs`, HTML review/state contracts, notes injection, and
   Phase-4 refinement adapter modules.
 - **OpenSpec governance:** new `openspec/policies/human-centered-gates.md`, updated
   `openspec/config.yaml`, and deltas for the capabilities above.
 - **CLI surface:** `approve`, `build`, `state --validate-state`,
-  `state --record-delivery-review`, and `image2 plan`/`authorize`/`generate` behavior and
+  `state --record-delivery-review`, and `image2 plan`/`authorize`/`generate`/`unknown-submit` behavior and
   diagnostics.
 - **State and compatibility:** existing `3_versions/vN` keys, reserved node ownership, atomic
   gate journal, reset fences, exact plan hashes, and legacy markerless routes remain compatible;

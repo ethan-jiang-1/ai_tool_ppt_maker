@@ -127,12 +127,13 @@ projection，但任何调用方显式传入且不匹配的 hash 都必须 hard s
 
 所有 waiver/override 都复用现有 reserved node 与其 publication/CAS authority，不新增顶层 state
 container、第二份 readiness 真相或只存在于 history 的授权。Current waiver 可以满足相应 continuation
-条件，但必须保留 `decision: waived`、`evidence_complete: false` 和具体 `waived_checks`；后续 source/
-reset/version 漂移照常使它 stale。
+条件，但必须保留 `decision/status: waived`，并独立记录 `evidence_complete` 与具体 `waived_checks`：
+证据不完整时为 `false` 且 checks 非空，证据完整但用户仍选择 waiver 时可为 `true` 且 checks 为空；
+后续 source/reset/version 漂移照常使它 stale。
 
 - build、delivery-review、Image2 plan 对可逆证据风险提供上述可审计 continuation；identity-current
-  waiver 可以继续，但不能伪造 `approved` 或 `evidence_complete: true`。State 记录当时失败项、当前
-  source/reset/version 身份和用户 reason；
+  waiver 可以继续，但不能伪造 `approved` 或从 waiver 决定推断证据完整性。State 记录当时失败项、
+  当前 source/reset/version 身份和用户 reason；
 - 把 source 身份拆成 deterministic projections：`content_review_fingerprint_v1` / visual
   projection 排除 speaker notes，`notes_source_fingerprint_v1` 只覆盖 notes，结构/recipe/source
   变化仍使对应 content/visual owner stale。不能继续用一个 raw `source_sha256` 让 notes-only 修改

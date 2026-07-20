@@ -6,7 +6,8 @@ The framework charter SHALL define gates as user-guidance surfaces. A gate resul
 an automatically repairable guide, a reversible risk requiring explicit human confirmation, and a
 hard stop protecting identity, integrity, security, authorization, or recoverability. Quality and
 workflow evidence SHALL be waivable only through a named, reasoned, version-scoped decision; a waiver
-SHALL never be represented as approval or complete evidence. The charter SHALL point maintainers to
+SHALL never be represented as approval and SHALL NOT imply that evidence is complete. Evidence
+completeness SHALL be computed and reported independently. The charter SHALL point maintainers to
 `openspec/policies/human-centered-gates.md`, and `openspec/config.yaml` SHALL require gate-sensitive
 changes to record the same classification without copying runtime schemas.
 
