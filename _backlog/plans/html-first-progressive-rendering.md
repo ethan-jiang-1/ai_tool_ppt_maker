@@ -1,6 +1,6 @@
 # Plan: HTML-first 渐进式渲染
 
-> 类型: 总控设计 | 状态: 架构已锁定；Change 1/2/3 已完成、同步 main specs 并归档；scripts 架构迁移作为 Change 4，Image2 refinement 顺延为 Change 5 | 更新: 2026-07-20
+> 类型: 总控设计 | 状态: 架构已锁定；Change 1/2/3/4 已完成、同步 main specs、归档并提交；Image2 visual-slot refinement 是 Change 5 | 更新: 2026-07-20
 > 上游: [`slide-identity-and-sequence-editing`](../_done/_closed_plans/slide-identity-and-sequence-editing.md)（已落地并归档）
 > 专题目录: [`html-first-progressive-rendering/`](html-first-progressive-rendering/)
 > 原始记录: 由 `_backlog/todos/todo-dual-render-pipeline.md` 升级、改名而来
@@ -87,8 +87,8 @@ stable slide_id + derived position + artifact provenance
 | 1 | `upgrade-html-render-runtime-readiness` | 已归档 | 固定 Node/browser/font runtime 可安装、可诊断，base/Image2 readiness 分层且 legacy 行为不回归 |
 | 2 | `add-structured-html-slide-contract` | 已归档 | 新 schema、families、visual config、asset merge 可独立验证 |
 | 3 | `deliver-html-first-decks` | 已归档 | HTML renderer、assembly、新 deck 默认、基础 UX 与 legacy migration 一次形成可交付垂直切片 |
-| 4 | `restructure-framework-script-modules` | 等待本次 planning Review + check in | `scripts/` 形成可导航的 00-05 ownership 层次、深 module seam、稳定入口和可执行 import 规则，行为保持不变 |
-| 5 | `add-image2-visual-slot-refinement` | 等待 Change 4 | 授权、候选、逐页采用/回退、promotion、provenance 与专业 UX 闭环 |
+| 4 | `restructure-framework-script-modules` | 已归档并提交 (`fff87df`) | `scripts/` 已形成可导航的 00-05 ownership 层次、深 module seam、稳定入口和可执行 import 规则；54/54 tasks 完成，主规格已同步，行为验证通过 |
+| 5 | `add-image2-visual-slot-refinement` | 下一步：propose | 授权、候选、逐页采用/回退、promotion、provenance 与专业 UX 闭环；仅可选 visual slot，不引入新 deck 的整页 Image2 |
 
 每个 change 单独 propose、review、apply、validate、archive。前一个 change 归档并同步 main specs 后，才开始下一个；五个 change 不得反向合成一个巨型 change。新增 Change 4 是 Change 3 实施后暴露的结构性前置工作：若把 scripts 迁移塞进付费 refinement，会同时改变代码所有权与远端业务语义，无法形成可审查的独立完成线。每个 change 的具体任务包、影响 capability 和独立完成线见最后一篇 [`07-delivery-roadmap-and-verification.md`](html-first-progressive-rendering/07-delivery-roadmap-and-verification.md)。
 
@@ -111,6 +111,6 @@ stable slide_id + derived position + artifact provenance
 
 ## 当前下一步
 
-产品与 run-bundle 架构已经稳定：selection applicability / asset integrity / generation provenance 已分层，五条端到端路径与前三个归档点已验证，workflow/playbook/run-bundle/state/CLI ownership 已统一。Change 3 实施后确认 `scripts/` 仍以 17 个根 `.mjs` 加 31 个平铺 `lib/*.mjs` 表达实现，目录本身不能让后来维护者或 Agent 看出 lifecycle/capability ownership；继续加入 Phase 4 会扩大误接线风险。
+产品与 run-bundle 架构已经稳定：selection applicability / asset integrity / generation provenance 已分层，五条端到端路径与四个归档点已验证，workflow/playbook/run-bundle/state/CLI ownership 已统一。Change 4 已完成 scripts/tests 的无行为迁移：根目录收敛为稳定入口与导航，00-05 Phase 目录、受约束 shared/contracts 依赖、路径限定的 executable inventory、source-to-test ownership manifest 与递归测试发现均已落地；54/54 tasks 完成，并通过完整单元、E2E、doctor、benchmark、bundle、CLI、文档和 OpenSpec 严格验证。
 
-Change 1/2/3 均已完成 Apply、验证、main-spec 同步和归档。当前下一步不是立即创建 Change 4，而是 review 本次五-change/scripts-tests 计划修订，修正意见后将规划文件 check in。只有该 planning checkpoint 已 review 并提交，才对 Change 4 `restructure-framework-script-modules` 建立 proposal；Change 4 只完成无行为变化的 scripts/tests 架构迁移、入口稳定和依赖方向检查。只有 Change 4 同步归档后，才开始 Change 5 `add-image2-visual-slot-refinement`。
+当前下一步是为 Change 5 `add-image2-visual-slot-refinement` 建立 OpenSpec proposal。proposal 必须以本计划的锁定产品边界为前提：新 deck 先完成可交付 HTML；Image2 只生成每页至多一个无文字 visual-slot 候选；所有远端调用均以批次 scope、预计调用数和用户明确授权为前置；候选逐页采用或保留 HTML；accepted asset promotion 为 version source asset 并绑定 visual contract fingerprint。不得把 legacy whole-page Image2 maintenance 混入 Change 5，也不得将 Phase 4 变成新 deck 的必经门或整页 renderer。
