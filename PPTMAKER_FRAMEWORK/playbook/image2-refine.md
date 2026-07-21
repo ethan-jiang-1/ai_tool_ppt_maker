@@ -1,7 +1,8 @@
 ---
 playbook: image2-refine
-description: HTML-first 交付后的可选、逐页授权 Image2 visual-slot refinement
+description: html-then-image2 完成所要求的、逐页授权 Image2 visual-slot refinement
 supported_pipelines: [html-first-v1]
+supported_production_modes: [html-then-image2]
 includes: []
 ---
 
