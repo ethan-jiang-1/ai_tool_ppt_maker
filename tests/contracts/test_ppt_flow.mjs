@@ -292,7 +292,7 @@ describe("ppt_flow", () => {
       expect(result.status).toBe(1);
       expect(parseFailureEnvelope(result.stderr)).toMatchObject({
         where: "ppt_flow.image2.plan",
-        diagnostic: { category: "gate", reason: { kind: "modern_legacy_ownership_conflict" } },
+        diagnostic: { category: "gate", reason: { kind: "image2_refinement_not_applicable" } },
       });
       expect(existsSync(join(runDir, "_generated", "image2_refinement"))).toBe(false);
       expect(existsSync(join(runDir, "_scratch", "image2_refinement"))).toBe(false);
@@ -301,11 +301,12 @@ describe("ppt_flow", () => {
   });
 
   it("routes current HTML Image2 plan/authorization and preserves an unconfigured attempt", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-");
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-", { mode: "html-then-image2" });
     try {
       const legacy = runPptFlow(["style-master", fixture.runDir]);
-      expect(legacy.status).toBe(1);
-      expect(parseFailureEnvelope(legacy.stderr).message).toMatch(/HTML-first|not applicable/i);
+      expect(legacy.status, legacy.stderr).toBe(0);
+      const guide = JSON.parse(legacy.stdout);
+      expect(guide).toMatchObject({ operation: "style-master", available: false, reason: "reserved-html-adapter" });
 
       const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
       expect(planned.status, planned.stderr).toBe(0);
@@ -335,7 +336,7 @@ describe("ppt_flow", () => {
   }, 120_000);
 
   it("reaches the modern transport from the authorized CLI generate route", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-relay-");
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-relay-", { mode: "html-then-image2" });
     let relay = null;
     try {
       const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
@@ -695,7 +696,7 @@ playbook_stack: []
 
   it("validates continuation option combinations with one usage envelope", async () => {
     const htmlFixture = createHtmlFirstRun("ppt-continuation-usage-build-");
-    const deliveryFixture = await createCurrentHtmlDelivery("ppt-continuation-usage-state-");
+    const deliveryFixture = await createCurrentHtmlDelivery("ppt-continuation-usage-state-", { mode: "html-then-image2" });
     try {
       const cases = [
         {
@@ -749,7 +750,7 @@ playbook_stack: []
   });
 
   it("image2 plan --force records only a bound offline prerequisite waiver", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-force-plan-");
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-force-plan-", { mode: "html-then-image2" });
     try {
       const receiptPath = assemblyReceiptPath(fixture.runDir);
       const assemblyReceipt = JSON.parse(readFileSync(receiptPath, "utf8"));
@@ -790,7 +791,7 @@ playbook_stack: []
   }, 120000);
 
   it("image2 unknown-submit abandon remains provider-free when credentials are absent", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-abandon-offline-");
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-abandon-offline-", { mode: "html-then-image2" });
     try {
       const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
       const plan = await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
@@ -1336,5 +1337,36 @@ describe("pilot selector", () => {
     const a = selectPilotSlideIds(noContent, 3);
     expect(a).toEqual(selectPilotSlideIds(noContent, 3));
     expect(new Set(a).size).toBe(a.length);
+  });
+
+  it("state production-mode operations route through the closed CLI grammar", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-pmode-cli-"));
+    try {
+      const deck = join(root, "deck_pmode_cli");
+      const initResult = runPptFlow(["init", deck, "--deck-type", "keynote", "--style", "dark-executive", "--mode", "html-only"]);
+      expect(initResult.status, initResult.stderr).toBe(0);
+      const runDir = join(deck, "3_versions", "v1");
+
+      // Invalid mode is a one-envelope USAGE failure with zero writes.
+      const bad = runPptFlow(["state", runDir, "--set-production-mode", "html"]);
+      expect(bad.status).not.toBe(0);
+
+      // Same-pipeline transition succeeds and updates authoritative state.
+      const ok = runPptFlow(["state", runDir, "--set-production-mode", "html-then-image2"]);
+      expect(ok.status, ok.stderr).toBe(0);
+      const state = readState(deck, { purpose: "execute", heal: false });
+      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-then-image2" });
+
+      // Cross-pipeline request fails closed without mutating state.
+      const cross = runPptFlow(["state", runDir, "--set-production-mode", "image2-only"]);
+      expect(cross.status).not.toBe(0);
+      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-then-image2" });
+
+      // Mirror repair succeeds and clears drift.
+      const mirror = runPptFlow(["state", runDir, "--repair-production-mode-mirror"]);
+      expect(mirror.status, mirror.stderr).toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

@@ -800,7 +800,7 @@ export function publishHtmlGateDecision(trustedContext, { gate, planHash, status
   const decidedAt = nowIso();
   const nextState = structuredClone(snapshot.state);
   delete nextState.durable_state_present;
-  nextState.schema_version = 3;
+  nextState.schema_version = 4;
   nextState.nodes ||= {};
   nextState.gates ||= {};
   const id = `html-${gate}-review`;

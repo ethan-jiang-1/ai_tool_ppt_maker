@@ -160,7 +160,8 @@
       ],
       "unit_integration": [
         "tests/shared/run-bundle/test_bundle_layout.mjs",
-        "tests/shared/run-bundle/test_lessons.mjs"
+        "tests/shared/run-bundle/test_lessons.mjs",
+        "tests/shared/run-bundle/test_production_mode.mjs"
       ],
       "e2e": ["tests_e2e/shared/run-bundle/test-lessons-flow.mjs"]
     },
@@ -175,6 +176,8 @@
       "unit_integration": [
         "tests/shared/state/test_html_review_evidence.mjs",
         "tests/shared/state/test_md_controller_reader.mjs",
+        "tests/shared/state/test_production_mode_index.mjs",
+        "tests/shared/state/test_production_mode_state.mjs",
         "tests/shared/state/test_state_yaml.mjs"
       ],
       "e2e": ["tests_e2e/shared/state/test-state-machine.mjs"]

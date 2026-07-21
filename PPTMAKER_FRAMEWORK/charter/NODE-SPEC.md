@@ -45,13 +45,17 @@ produces: [slide-specifications]
 
 禁止 `CLI/State` 等混合标签；需要分别落成 CLI 与 MD/GATE step。
 
-## State Schema v3
+## State Schema v4
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，且二次读取幂等。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，再在 v3→v4 边界为每个可见 version 用 canonical marker probe 填充 `production_mode.by_version`（`html-first-v1 -> html-only`，markerless `legacy -> image2-only`），且二次读取幂等。post-v4 缺失/非法 mode 视为 corruption，fail closed 而非重新推断。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
 
 ```yaml
-schema_version: 3
-pipeline: html-first-v1
+schema_version: 4
+pipeline: html-first-v1            # actual-pipeline 兼容投影；不再是路由权威
+production_mode:                   # v4：每 version 的权威生产意图（路由 SSOT）
+  by_version:
+    3_versions/v1:
+      mode: image2-only            # html-only | html-then-image2 | image2-only
 playbook: create-deck
 current_node: author-structured-content
 execution_id: exec-...
@@ -108,6 +112,22 @@ Evidence 形状：`{met:true, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string
 Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
 
 用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。legacy boolean/scalar 只可保守迁移为 `kind: agent`，绝不能伪造用户批准。
+
+## Production Mode (v4 SSOT)
+
+每个 canonical run version 的生产意图由 `_state/state.yaml` 的 `production_mode.by_version["3_versions/vN"].mode` 唯一记录，封闭词表为 `html-only`、`html-then-image2`、`image2-only`。`project-metadata.yaml` 的 `production_mode`/`production_mode_run_version` 仅是非权威镜像；缺失或漂移时 status 报告可修复 drift，但绝不能用 metadata 覆盖 state。
+
+封闭映射（由 `scripts/shared/run-bundle/production_mode.mjs` 单一拥有，调用方不得私存映射表）：
+
+| mode | pipeline | page authority | refinement | style-master |
+|------|----------|----------------|------------|--------------|
+| `html-only` | `html-first-v1` | html | disabled | reserved-html-adapter |
+| `html-then-image2` | `html-first-v1` | html | required | reserved-html-adapter |
+| `image2-only` | `legacy-image2-first` | image2 | not-applicable | current |
+
+`legacy-image2-first` 是 markerless whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 跨管道切换返回 `transition_required`，不就地改写。
+
+Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `production_modes`（其子集）。canonical index 按权威 mode 计算 active node 集：inapplicable node 不标 `skipped`、不删记录，只是不在 active 工作集内。`skipped` 仍只表示显式人工 bypass。
 
 ## CLI ⇔ MD 协议
 

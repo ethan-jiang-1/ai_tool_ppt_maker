@@ -4,7 +4,15 @@
 
 ## Pipeline-first rule
 
-先读取 canonical `slide-specifications.md` 的 `production.pipeline`，再处理 branch-specific flags/readiness/writes。
+先读取每个 canonical run version 的权威 `production_mode.by_version["3_versions/vN"].mode`（state SSOT），再用 canonical `slide-specifications.md` 的 `production.pipeline` 作为该 version 的实际 renderer 合同，最后处理 branch-specific flags/readiness/writes。`project-metadata.yaml` 的 `production_mode` 只是非权威镜像。
+
+封闭三模式（`scripts/shared/run-bundle/production_mode.mjs` 单一拥有映射）：
+
+- `html-only` → `html-first-v1` / html / refinement disabled / reserved HTML style-master seam。本地完成，零 provider。
+- `html-then-image2` → `html-first-v1` / html / refinement required（经 `image2-refine` 生命周期）/ reserved HTML seam。
+- `image2-only` → `legacy-image2-first`（markerless whole-page 规范名，不写 frontmatter）/ image2 / refinement not-applicable / current in-framework style master。
+
+`html-only <-> html-then-image2` 同管道原子切换；`html-* <-> image2-only` 跨管道返回 `transition_required`（留给 versioned transition）。新 deck 省略 `--mode` 默认 `image2-only`。
 
 - `html-first-v1`: local HTML Stage 1-5；header/body/KPI/card/chart/callout 均由 HTML renderer/compositor 拥有；不查看 render mode、style master 或 Image2 配置。
 - markerless `legacy-image2-first`: 保持 legacy pilot/header/build/provider controls；详情只在 legacy maintenance reference。
@@ -12,12 +20,17 @@
 ## Common commands
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor                       # common+HTML；--mode image2-only 跳过 HTML runtime
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive [--mode html-only|html-then-image2|image2-only]
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --json
+# production-mode authority (same-pipeline transition / mirror repair / version registration / image2 final review)
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --set-production-mode html-only|html-then-image2
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --repair-production-mode-mirror
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <target-run-dir> --register-production-mode-from <source-run-dir>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-image2-delivery-review proceed|repair|redirect [--reason "<text>"]
 ```
 
 HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/reuse image flags；HTML `build` accepts only its explicit local `--force --reason` continuation and never provider controls. `pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。

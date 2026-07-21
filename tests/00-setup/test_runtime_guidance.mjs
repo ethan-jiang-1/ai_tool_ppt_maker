@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   BASE_CHECK_NAMES,
+  COMMON_CHECK_NAMES,
   IMAGE2_CHECK_NAMES,
   LIVE_CHECK_NAMES,
 } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
@@ -40,8 +41,10 @@ describe('runtime and diagnostic guidance coherence', () => {
     const base = runDoctorJson();
     const image2 = runDoctorJson(['--image2']);
     expect(base.checks.map(({ check }) => check)).toEqual(BASE_CHECK_NAMES);
+    // --image2 (and image2-only) selects common+Image2 and excludes the HTML
+    // browser/chart/font runtime, so Image2-primary is not blocked by HTML.
     expect(image2.checks.map(({ check }) => check)).toEqual([
-      ...BASE_CHECK_NAMES,
+      ...COMMON_CHECK_NAMES,
       ...IMAGE2_CHECK_NAMES,
     ]);
     for (const name of [...BASE_CHECK_NAMES, ...IMAGE2_CHECK_NAMES, ...LIVE_CHECK_NAMES]) {

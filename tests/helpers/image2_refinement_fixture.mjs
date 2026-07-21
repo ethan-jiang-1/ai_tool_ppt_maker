@@ -16,7 +16,7 @@ primary_visual:
   selection: null
 `;
 
-export async function createCurrentHtmlDelivery(prefix = "image2-current-delivery-") {
+export async function createCurrentHtmlDelivery(prefix = "image2-current-delivery-", { mode = "html-only" } = {}) {
   const fixture = createHtmlFirstRun(prefix);
   writeFileSync(join(fixture.runDir, "slide-specifications.md"), htmlFirstSource([
     htmlFirstSlide({ number: 1, id: "AlphaGo", title: "Alpha", note: "Alpha note", body: visualBody("Alpha visual") }),
@@ -39,6 +39,7 @@ export async function createCurrentHtmlDelivery(prefix = "image2-current-deliver
 
   const state = stateApi.readState(fixture.deck);
   state.playbook = "create-deck";
+  state.production_mode.by_version["3_versions/v1"] = { mode };
   state.current_node = "checkpoint-final-review";
   state.nodes["checkpoint-final-review"] = { status: "in_progress", execution_id: state.execution_id, evidence: {} };
   stateApi.writeState(fixture.deck, state);

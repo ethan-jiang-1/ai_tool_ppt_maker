@@ -10,13 +10,15 @@
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-only   # 跳过 HTML-only Playwright/Chromium/ECharts/font 检查
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1   # 按该 version 的权威 mode 选择 profile
 ```
 
-默认检查 Node、Playwright/paired Chromium、bundled Source Sans 3/Noto Sans SC、ECharts 6.1.0 与 HTML runtime smoke。它不要求 `IMAGE2_API_KEY`/`IMAGE2_BASE_URL`，不发 provider submit，不安装/下载 runtime 或字体，也不回退到系统 Chrome。base 未就绪时先修复环境。
+无 selector 默认 common+HTML（Node、Playwright/paired Chromium、bundled Source Sans 3/Noto Sans SC、ECharts 6.1.0 与 HTML runtime smoke）。`image2-only`（或兼容 `--image2`）选择 common+Image2：不加载 HTML runtime，只查 credentials/endpoint/in-framework generator。`html-then-image2` 仍按 common+HTML blocking，Image2 presence 推迟到它的显式 refinement boundary。`--smoke|--probe-vendors` 仍是显式 live 选择，且必须先披露并确认。base 未就绪时先修复环境；`html-only` 是零 provider 本地路径。
 
-## Step 2 — Fresh HTML-first intake
+## Step 2 — Fresh intake (production mode)
 
-`ppt_flow init` 的目标合同是 `production.pipeline: html-first-v1`、`identity.scheme: mnemonic-v1`、structured source、empty v2 asset catalog、separate HTML mirrors/state scaffolding。普通 init 的默认切换由 OpenSpec Task 4.9 原子完成；在切换前不要把 candidate seed 当成当前入口。
+`ppt_flow init` 省略 `--mode` 时默认 `image2-only`（whole-page Image2 first-class 路径）；`--mode html-only|html-then-image2` 选择 HTML 路径。每个 version 的权威生产意图记录在 `_state/state.yaml` 的 `production_mode.by_version`，`project-metadata.yaml` 只是非权威镜像。目标合同保持 `identity.scheme: mnemonic-v1`、structured source、empty asset catalog、separate state scaffolding。Init 不创建 style master、generated output、refinement state 或 provider attempt。
 
 Intake 只问 topic、audience、language、one thing to remember、content constraints、visual DNA 与 preset。不要询问 renderer、style master 或 provider key。
 
