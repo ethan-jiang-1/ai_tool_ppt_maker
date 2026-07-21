@@ -4,10 +4,13 @@
 
 The public `style-master` route SHALL consume the canonical production policy before invoking an
 implementation. For `image2-only`, it SHALL delegate to the current in-framework Image2 style-master
-generator with its existing credential, trace, and deck-system behavior. For either HTML mode, the
+generator with its existing credential, trace, and deck-system behavior, but only after a first-class
+Controller has recorded the current scoped human authorization when a provider submit is actually
+needed. A current no-op/reuse path requires no provider authorization. For either HTML mode, the
 policy SHALL expose a reserved HTML adapter seam; until an HTML adapter exists, the command SHALL
 return typed `capability_not_available` guidance with a local next action and SHALL create no
 `style_master.jpg`, provider request, or legacy control artifact.
+That HTML result SHALL be a successful `guide` (`available: false`), not a hard failure.
 
 The mode contract SHALL NOT specify style master as permanently forbidden for HTML and SHALL NOT
 require a future HTML adapter to reuse the Image2 image artifact, prompt shape, or provider semantics.

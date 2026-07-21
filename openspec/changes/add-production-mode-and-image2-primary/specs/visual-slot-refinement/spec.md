@@ -1,11 +1,19 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Refinement is optional, bounded, and authorization-gated`
+- TO: `### Requirement: Refinement is mode-scoped, bounded, and authorization-gated`
+
 ## MODIFIED Requirements
 
-### Requirement: Refinement is optional, bounded, and authorization-gated
+### Requirement: Refinement is mode-scoped, bounded, and authorization-gated
 
-Only a marked HTML-first run whose authoritative production mode is `html-only` or
-`html-then-image2` and whose current final-slide/slot assets are identifiable SHALL be eligible for
-planning. Refinement SHALL be optional for `html-only`, required for `html-then-image2` completion, and
-not applicable to `image2-only`; whole-page Image2 production SHALL use normal pilot/build instead.
+Only a marked HTML-first run whose authoritative production mode is `html-then-image2` and whose
+current final-slide/slot assets are identifiable SHALL be eligible for a new planning/authorization/
+generation/review operation. Refinement SHALL be disabled for `html-only`, required for
+`html-then-image2` completion, and not applicable to `image2-only`; whole-page Image2 production SHALL
+use normal pilot/build instead. Switching from `html-then-image2` to `html-only` SHALL retain all prior
+refinement records and accepted source assets but SHALL block new lifecycle work until the mode switches
+back.
 Normal `image2 plan` SHALL still require current `html-delivery-review: proceed` with complete evidence;
 an explicit `image2 plan --force --reason` MAY record a version-scoped delivery-prerequisite waiver
 when that decision is missing or incomplete; a current `repair|redirect` decision remains a hard stop
@@ -45,18 +53,32 @@ reason/checks/run/reset/delivery identity. The delivery digest SHALL come from t
 current final-slide resolver and verified ordered manifest, never a synthetic status hash.
 Authorization SHALL revalidate that authoritative waiver/fingerprint before allocating attempts.
 
-The Agent SHALL retain the existing 2-4 slide bound and one named no-text visual slot per slide, show
-the setup/page attempt count, and obtain exact plan-hash authorization. Authorization SHALL allocate
+The Agent SHALL select 2-4 slides when the current deck has at least two eligible slides; a one-slide
+deck SHALL select its one eligible slide rather than become impossible to complete. Each selected slide
+retains one named no-text visual slot. The Agent SHALL show the setup/page attempt count and obtain exact
+plan-hash authorization. Authorization SHALL allocate
 single-use random IDs without changing the deterministic plan hash. Scope expansion, retry, stale
 request/profile/binding, or new version SHALL require a fresh plan and authorization. Changing from
 `html-then-image2` to `html-only` SHALL retain every existing plan, attempt, candidate, review, promoted
 source asset, and provenance while removing only the completion obligation; changing back SHALL
 revalidate freshness before using that work.
 
-#### Scenario: User ends after html-only delivery
+#### Scenario: User ends after HTML delivery
 
-- **WHEN** an `html-only` user declines optional refinement
+- **WHEN** an `html-only` user ends after current HTML delivery
 - **THEN** the HTML delivery remains complete and no refinement plan, authorization, pending node, or lazy derived directory is created
+
+#### Scenario: HTML-only requests new refinement
+
+- **WHEN** an `html-only` run invokes modern refinement planning
+- **THEN** the operation returns typed mode-disabled guidance to switch to `html-then-image2`
+- **AND** it creates no plan, authorization, provider attempt, or derived directory
+
+#### Scenario: Required refinement has one eligible slide
+
+- **WHEN** a one-slide `html-then-image2` deck has one valid no-text visual slot
+- **THEN** planning selects that one slide and retains all exact authorization/review boundaries
+- **AND** completion does not require inventing a second slide
 
 #### Scenario: Required mode has no refinement
 
@@ -110,3 +132,4 @@ revalidate freshness before using that work.
 
 - **WHEN** a version with current or partial refinement changes to `html-only`
 - **THEN** all attributable refinement work remains available while status removes required-refinement debt
+- **AND** no new refinement operation is eligible until the mode changes back
