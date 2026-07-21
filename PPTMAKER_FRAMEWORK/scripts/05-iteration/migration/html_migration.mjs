@@ -2,12 +2,15 @@ import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, copyFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { canonicalJson, canonicalJsonSha256 } from '../../contracts/canonical_json.mjs';
-import { checkBundle, deckRoot, findSlideSpecs, nextVersionName, SCRATCH_SUBDIR, GEN_QA_SUBDIR, checkStagedVersion } from '../../shared/run-bundle/bundle_layout.mjs';
+import { checkBundle, deckRoot, findSlideSpecs, nextVersionName, SCRATCH_SUBDIR, GEN_QA_SUBDIR, checkStagedVersion, styleAsset } from '../../shared/run-bundle/bundle_layout.mjs';
+import { isMnemonicSlideId, parseSlideDocument, validateSlideDocument } from '../../01-content/index.mjs';
+import { buildHtmlMigrationPaletteProjection, listHtmlMigrationPresets } from '../../02-visual-system/index.mjs';
 import {
   buildHtmlPlan,
   classifyHtmlOwnerLiveness,
   createCanonicalHtmlValidatedRunContext,
   createMigrationPreviewHtmlValidatedRunContext,
+  HtmlSlideContractError,
   htmlOwnerRoot,
   probeProductionMarker,
   publishHtmlComposition,
@@ -29,9 +32,28 @@ const MIGRATION_PREVIEW_SCHEMA = 'pptmaker-html-migration-preview-v1';
 const MIGRATION_APPLY_REPORT_SCHEMA = 'pptmaker-html-migration-apply-report-v1';
 const MIGRATION_JOURNAL_SCHEMA = 'pptmaker-html-migration-apply-journal-v1';
 const MIGRATION_SUCCESS_SCHEMA = 'pptmaker-html-migration-success-v1';
+const MIGRATION_PREPARATION_SCHEMA = 'pptmaker-html-migration-preparation-v1';
+const MIGRATION_AUTHORING_CONTEXT_SCHEMA = 'pptmaker-html-migration-authoring-context-v1';
+const MIGRATION_AUTHORING_CHECKLIST_SCHEMA = 'pptmaker-html-migration-authoring-checklist-v1';
 const AUTO_RECOVERY_MS = 60_000;
 const EXPLICIT_RECOVERY_MS = 300_000;
 const HEX_RE = /^[0-9a-f]{64}$/;
+const CANDIDATE_ENTRIES = new Set([
+  MIGRATION_CANDIDATE_SOURCE,
+  'overrides',
+  'preparation.json',
+  'authoring-context.json',
+  'authoring-checklist.json',
+  '_generated',
+]);
+const HARD_CANDIDATE_ISSUE_CODES = new Set([
+  'invalid_identity_marker',
+  'unknown_identity_key',
+  'invalid_mnemonic_id',
+  'duplicate_slide_id',
+  'duplicate_spoken_key',
+  'noncanonical_heading_position',
+]);
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
@@ -46,6 +68,10 @@ function migrationRoot(runDir) {
 }
 
 function candidateSourcePath(runDir) {
+  return join(projectedRunPath(runDir), MIGRATION_CANDIDATE_SOURCE);
+}
+
+function looseCandidateSourcePath(runDir) {
   return join(migrationRoot(runDir), MIGRATION_CANDIDATE_SOURCE);
 }
 
@@ -107,6 +133,20 @@ function writeCanonicalJsonNoReplace(path, value) {
   return writeCanonicalJson(path, value, { replace: false });
 }
 
+function writeTextNoReplace(path, value) {
+  ensureDir(dirname(path));
+  const temp = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
+  writeFileSync(temp, value, { flag: 'wx', mode: 0o600 });
+  try {
+    if (existsSync(path)) throw new Error(`conflict at ${path}`);
+    renameSync(temp, path);
+  } catch (error) {
+    if (existsSync(temp)) rmSync(temp, { force: true });
+    throw error;
+  }
+  return path;
+}
+
 function readJson(path, label) {
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
@@ -148,12 +188,274 @@ function diffSlideSummaries(basePlan, candidatePlan) {
   });
 }
 
-function validateCandidatePresence(runDir) {
-  const path = candidateSourcePath(runDir);
-  if (!existsSync(path)) {
-    throw new Error('missing migration candidate source in _scratch/html-migration/slide-specifications.md');
+function isSystemEntry(name) {
+  return name === '.DS_Store';
+}
+
+function candidatePaths(runDir) {
+  const root = projectedRunPath(runDir);
+  return Object.freeze({
+    root,
+    source: join(root, MIGRATION_CANDIDATE_SOURCE),
+    overrides: join(root, 'overrides'),
+    palette: join(root, 'overrides', 'visual-style', 'color_palette.json'),
+    assets: join(root, 'overrides', 'visual-style', 'assets'),
+    generated: join(root, '_generated'),
+    preparation: join(root, 'preparation.json'),
+    authoringContext: join(root, 'authoring-context.json'),
+    authoringChecklist: join(root, 'authoring-checklist.json'),
+  });
+}
+
+function inspectCandidateRoot(root) {
+  if (!existsSync(root)) return Object.freeze({ exists: false, entries: [] });
+  const rootStat = statSync(root);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error('migration candidate root must be a regular directory');
+  const entries = readdirSync(root, { withFileTypes: true }).filter((entry) => !isSystemEntry(entry.name));
+  for (const entry of entries) {
+    if (!CANDIDATE_ENTRIES.has(entry.name)) throw new Error(`unexpected '${entry.name}' in migration projected candidate`);
+    if (entry.isSymbolicLink()) throw new Error(`migration candidate cannot contain symlink '${entry.name}'`);
   }
-  return path;
+  return Object.freeze({ exists: true, entries });
+}
+
+function boundedLegacyField(body, field, max = 500) {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = String(body).match(new RegExp(`^\\*\\*${escaped}\\*\\*:[ \\t]*(.*?)[ \\t]*$`, 'm'));
+  if (!match || !match[1].trim()) return null;
+  return [...match[1].trim()].slice(0, max).join('');
+}
+
+function allMnemonicIds(document) {
+  return document.slides.length > 0 && document.slides.every((slide) => isMnemonicSlideId(slide.slide_id));
+}
+
+function scaffoldSourceFromLegacy(document) {
+  const identity = allMnemonicIds(document) ? 'identity:\n  scheme: mnemonic-v1\n' : '';
+  const slides = document.slides.map((slide) => {
+    const visualType = boundedLegacyField(slide.body, 'VISUAL TYPE') || '(authoring required)';
+    const title = boundedLegacyField(slide.body, 'TITLE') || '(authoring required)';
+    return `## Slide ${slide.heading_number_token}: \`${slide.slide_id}\`
+
+**VISUAL TYPE**: ${visualType}
+**TITLE**: ${title}
+**CONCEPT**:
+- **MUST communicate**: (authoring required)
+- **MUST NOT**: (authoring required)
+
+**SLIDE BODY**:
+\`\`\`yaml
+schema_version: 1
+family: authoring-required
+\`\`\`
+`;
+  });
+  return `---
+production:
+  pipeline: html-first-v1
+${identity}---
+
+${slides.join('\n')}`;
+}
+
+function buildAuthoringContext(document) {
+  return {
+    schema: MIGRATION_AUTHORING_CONTEXT_SCHEMA,
+    slides: document.slides.map((slide) => ({
+      slide_id: slide.slide_id,
+      heading_number: slide.heading_number_token,
+      ...(boundedLegacyField(slide.body, 'IMAGE PROMPT') == null
+        ? {}
+        : { legacy_image_prompt_reference: boundedLegacyField(slide.body, 'IMAGE PROMPT') }),
+    })),
+  };
+}
+
+function buildAuthoringChecklist(document) {
+  return {
+    schema: MIGRATION_AUTHORING_CHECKLIST_SCHEMA,
+    slides: document.slides.map((slide) => ({
+      slide_id: slide.slide_id,
+      required_fields: ['CONCEPT.MUST communicate', 'CONCEPT.MUST NOT', 'SLIDE BODY'],
+    })),
+  };
+}
+
+function preparationInput(runDir, sourcePath, preset, projection) {
+  const palettePath = styleAsset(runDir, 'color_palette.json');
+  if (!existsSync(palettePath) || !statSync(palettePath).isFile() || statSync(palettePath).isSymbolicLink()) {
+    throw new Error('migration source palette must be a regular file');
+  }
+  return Object.freeze({
+    source: {
+      path: migrationRelativePath(runDir, sourcePath),
+      sha256: sha256(readFileSync(sourcePath)),
+    },
+    preset,
+    inherited_palette: {
+      path: migrationRelativePath(runDir, palettePath),
+      sha256: sha256(readFileSync(palettePath)),
+    },
+    inherited_asset_receipts: inheritedAssetReceipts(runDir),
+    palette_provenance: projection.provenance,
+  });
+}
+
+function inheritedAssetReceipts(runDir) {
+  const roots = [
+    join(deckRoot(runDir), '2_backbone', 'visual-style', 'assets'),
+    join(resolve(runDir), 'overrides', 'visual-style', 'assets'),
+  ];
+  const receipts = [];
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    const visit = (directory) => {
+      const stat = statSync(directory);
+      if (stat.isSymbolicLink()) throw new Error('migration inherited assets cannot contain symlinks');
+      for (const entry of readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+        const path = join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error('migration inherited assets cannot contain symlinks');
+        if (entry.isDirectory()) visit(path);
+        else if (entry.isFile()) receipts.push({ path: migrationRelativePath(runDir, path), sha256: sha256(readFileSync(path)) });
+      }
+    };
+    visit(root);
+  }
+  return receipts.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function existingLooseCandidate(runDir) {
+  const path = looseCandidateSourcePath(runDir);
+  if (!existsSync(path)) return null;
+  const stat = statSync(path);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('legacy loose migration candidate must be a regular file');
+  return Object.freeze({ path, bytes: readFileSync(path), sha256: sha256(readFileSync(path)) });
+}
+
+function readMatchingPreparation(paths, input) {
+  if (!existsSync(paths.preparation)) return false;
+  const record = readJson(paths.preparation, 'migration preparation receipt');
+  if (record?.schema !== MIGRATION_PREPARATION_SCHEMA || !record.input) return false;
+  return canonicalJsonSha256(record.input) === canonicalJsonSha256(input);
+}
+
+function assertMarkerlessPreparationSource(sourcePath, runDir) {
+  const sourceBytes = readFileSync(sourcePath);
+  const marker = probeProductionMarker(sourceBytes, { source: migrationRelativePath(runDir, sourcePath) });
+  if (marker.branch === 'invalid') throw new Error('migration source marker is invalid');
+  if (marker.branch !== 'legacy') throw new Error('migrate-html prepare accepts only a markerless source version');
+  const document = parseSlideDocument(sourceBytes.toString('utf8'), migrationRelativePath(runDir, sourcePath));
+  const issues = validateSlideDocument(document).filter((issue) => issue.severity === 'ERROR');
+  if (issues.length > 0) throw new Error(`migration source is invalid: ${issues.map((issue) => issue.code).join(', ')}`);
+  return document;
+}
+
+export function prepareHtmlMigration(runDir, { preset } = {}) {
+  const sourceRunDir = resolve(runDir);
+  if (typeof preset !== 'string' || !preset) throw new TypeError('prepare requires a shipped preset name');
+  if (existsSync(journalPath(sourceRunDir))) throw new Error('CONFLICT: migration apply journal already exists');
+  const sourcePath = findSlideSpecs(sourceRunDir);
+  if (!sourcePath) throw new Error('migration source version has no slide specifications');
+  const document = assertMarkerlessPreparationSource(sourcePath, sourceRunDir);
+  const inheritedPalettePath = styleAsset(sourceRunDir, 'color_palette.json');
+  const projection = buildHtmlMigrationPaletteProjection({ preset, legacyPalettePath: inheritedPalettePath });
+  const input = preparationInput(sourceRunDir, sourcePath, preset, projection);
+  const paths = candidatePaths(sourceRunDir);
+  const root = inspectCandidateRoot(paths.root);
+  const loose = existingLooseCandidate(sourceRunDir);
+
+  if (root.exists && root.entries.length > 0) {
+    if (readMatchingPreparation(paths, input)) {
+      return Object.freeze({
+        schema: MIGRATION_PREPARATION_SCHEMA,
+        status: 'prepared-idempotent',
+        source_version: basename(sourceRunDir),
+        projected_run: migrationRelativePath(sourceRunDir, paths.root),
+        preset,
+        checklist: buildAuthoringChecklist(document),
+        available_presets: listHtmlMigrationPresets(),
+      });
+    }
+    throw new Error('CONFLICT: existing projected migration candidate has different preparation inputs');
+  }
+
+  ensureDir(paths.root);
+  ensureDir(paths.overrides);
+  ensureDir(paths.assets);
+  ensureDir(paths.generated);
+  writeTextNoReplace(paths.source, loose == null ? scaffoldSourceFromLegacy(document) : loose.bytes);
+  writeCanonicalJsonNoReplace(paths.palette, projection.palette);
+  writeTextNoReplace(join(paths.assets, 'asset-manifest.yaml'), 'version: 2\nassets: {}\n');
+  writeCanonicalJsonNoReplace(paths.authoringContext, buildAuthoringContext(document));
+  const checklist = buildAuthoringChecklist(document);
+  writeCanonicalJsonNoReplace(paths.authoringChecklist, checklist);
+  writeCanonicalJsonNoReplace(paths.preparation, {
+    schema: MIGRATION_PREPARATION_SCHEMA,
+    input,
+    candidate_source: {
+      path: migrationRelativePath(sourceRunDir, paths.source),
+      sha256: sha256(readFileSync(paths.source)),
+      ...(loose == null ? {} : { imported_from_legacy_loose_candidate: migrationRelativePath(sourceRunDir, loose.path), legacy_loose_candidate_sha256: loose.sha256 }),
+    },
+    candidate_palette: {
+      path: migrationRelativePath(sourceRunDir, paths.palette),
+      sha256: sha256(readFileSync(paths.palette)),
+    },
+  });
+
+  return Object.freeze({
+    schema: MIGRATION_PREPARATION_SCHEMA,
+    status: loose == null ? 'prepared' : 'prepared-loose-candidate-imported',
+    source_version: basename(sourceRunDir),
+    projected_run: migrationRelativePath(sourceRunDir, paths.root),
+    preset,
+    checklist,
+    available_presets: listHtmlMigrationPresets(),
+  });
+}
+
+export function resolveMigrationCandidate(runDir, { requireComplete = true } = {}) {
+  const sourceRunDir = resolve(runDir);
+  const root = projectedRunPath(sourceRunDir);
+  const rootInfo = inspectCandidateRoot(root);
+  if (!rootInfo.exists) {
+    return Object.freeze({ status: 'preparation_required', root, source_path: candidateSourcePath(sourceRunDir) });
+  }
+  const sourcePath = candidateSourcePath(sourceRunDir);
+  if (!existsSync(sourcePath)) {
+    return Object.freeze({ status: 'authoring_required', root, source_path: sourcePath, missing: ['slide-specifications.md'] });
+  }
+  if (!statSync(sourcePath).isFile() || statSync(sourcePath).isSymbolicLink()) throw new Error('migration candidate source must be a regular file');
+  let result;
+  try {
+    result = validateAndBuildHtmlFirstPlan({
+      runDir: sourceRunDir,
+      sourcePathOverride: sourcePath,
+      migrationCandidateRoot: root,
+    });
+  } catch (error) {
+    if (!(error instanceof HtmlSlideContractError)) throw error;
+    if ((error.issues || []).some((issue) => HARD_CANDIDATE_ISSUE_CODES.has(issue.code))) throw error;
+    const missing = [...new Set((error.issues || []).map((issue) => `${issue.subject?.id || issue.slideId || 'source'}:${issue.subject?.field || issue.field || issue.code}`))].slice(0, 16);
+    return Object.freeze({ status: 'authoring_required', root, source_path: sourcePath, missing, issues: error.issues || [] });
+  }
+  return Object.freeze({
+    status: 'complete',
+    root,
+    source_path: sourcePath,
+    overrides_path: join(root, 'overrides'),
+    ...(requireComplete ? { validated: result.validated, plan: result.plan } : {}),
+  });
+}
+
+function validateCandidatePresence(runDir) {
+  const candidate = resolveMigrationCandidate(runDir);
+  if (candidate.status !== 'complete') {
+    throw new Error(candidate.status === 'preparation_required'
+      ? 'missing migration candidate source in _scratch/html-migration/projected-run/slide-specifications.md'
+      : 'migration candidate authoring is incomplete');
+  }
+  return candidate.source_path;
 }
 
 function validatePreviewPlanShape(plan, planHash) {
@@ -199,13 +501,15 @@ function activeMigrationExecution(runDir, expectedPlanHash, expectedMode) {
   const state = readState(deckRoot(runDir), { heal: false });
   if (state?.corrupted) throw new Error('migration source state is unreadable');
   if (state.playbook !== 'migrate-import' || !state.execution_id) throw new Error('exact active source migrate-import apply execution is required');
-  const current = state.nodes?.[state.current_node] || null;
+  if (state.current_node !== 'apply-html-migration') throw new Error('exact active source migrate-import apply execution is required');
+  const current = state.nodes?.['apply-html-migration'] || null;
   if (!current || current.execution_id !== state.execution_id || current.status !== 'in_progress') throw new Error('exact active source migrate-import apply execution is required');
-  const declaredPlanHash = current.migration_plan_hash || current.plan_hash || state.migration_plan_hash || state.plan_hash;
-  const declaredMode = current.old_side_mode || current.migration_old_side_mode || state.old_side_mode || state.migration_old_side_mode;
+  const declaredPlanHash = current.migration_plan_hash;
+  const declaredMode = current.old_side_mode;
   if (!HEX_RE.test(declaredPlanHash || '') || !['verified-current', 'degraded-missing', 'degraded-stale'].includes(declaredMode || '')) {
     throw new Error('exact active source migrate-import apply execution is required');
   }
+  if (current.migration_source_version !== basename(resolve(runDir))) throw new Error('exact active source migrate-import apply execution is required');
   if (declaredPlanHash !== expectedPlanHash || declaredMode !== expectedMode) throw new Error('active migration execution does not match the confirmed plan hash/mode');
   return { state, executionId: state.execution_id, nodeId: state.current_node, node: current, planHash: declaredPlanHash, oldSideMode: declaredMode };
 }
@@ -218,8 +522,10 @@ function buildSourceEvidence(sourceRunDir) {
   const baseResult = marker.branch === 'html-first-v1'
     ? validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir })
     : null;
-  const candidatePath = validateCandidatePresence(sourceRunDir);
-  const candidateResult = validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir, sourcePathOverride: candidatePath });
+  const resolvedCandidate = resolveMigrationCandidate(sourceRunDir);
+  if (resolvedCandidate.status !== 'complete') throw new Error('migration candidate is not ready');
+  const candidatePath = resolvedCandidate.source_path;
+  const candidateResult = { validated: resolvedCandidate.validated, plan: resolvedCandidate.plan };
   const base = baseResult
     ? { ...baseResult.validated, plan: baseResult.plan, pipeline: 'html-first-v1' }
     : {
@@ -323,7 +629,7 @@ async function renderPreviewWorkspace(sourceRunDir) {
   const candidatePath = validateCandidatePresence(sourceRunDir);
   const targetVersion = nextVersionName(sourceRunDir);
   const projectedRun = projectedRunPath(sourceRunDir);
-  rmSync(projectedRun, { recursive: true, force: true });
+  rmSync(join(projectedRun, '_generated'), { recursive: true, force: true });
   ensureDir(projectedRun);
   const evidence = buildSourceEvidence(sourceRunDir);
   const oldSide = legacyOldSideEvidence(sourceRunDir, evidence.candidate.plan);
@@ -441,7 +747,7 @@ function createHiddenTargetRun(sourceRunDir, targetVersion, token) {
   const candidatePath = validateCandidatePresence(sourceRunDir);
   copyFileSync(candidatePath, join(staging, MIGRATION_CANDIDATE_SOURCE));
   const baseOverrides = join(sourceRunDir, 'overrides');
-  const candidateOverrides = join(migrationRoot(sourceRunDir), 'overrides');
+  const candidateOverrides = join(projectedRunPath(sourceRunDir), 'overrides');
   copyTree(baseOverrides, join(staging, 'overrides'));
   copyTree(candidateOverrides, join(staging, 'overrides'));
   ensureDir(join(staging, '_generated'));
@@ -516,18 +822,63 @@ function writeSuccessReceipt(targetRunDir, sourceVersion, targetVersion, plan, t
   return { receipt, receiptPath };
 }
 
+export function inspectHtmlMigrationConfirmation(runDir, { planHash, oldSideMode } = {}) {
+  const sourceRunDir = resolve(runDir);
+  if (!HEX_RE.test(planHash || '')) throw new TypeError('plan hash must be a 64-lowercase-hex SHA-256');
+  if (!['verified-current', 'degraded-missing', 'degraded-stale'].includes(oldSideMode || '')) throw new TypeError('old-side mode must be verified-current, degraded-missing, or degraded-stale');
+  const sourcePath = findSlideSpecs(sourceRunDir);
+  if (!sourcePath) throw new Error('migration source version has no slide specifications');
+  if (probeProductionMarker(readFileSync(sourcePath), { source: migrationRelativePath(sourceRunDir, sourcePath) }).branch !== 'legacy') {
+    throw new Error('migration confirmation accepts only a markerless source version');
+  }
+  if (existsSync(journalPath(sourceRunDir))) throw new Error('CONFLICT: migration apply journal already exists');
+  const path = planPath(sourceRunDir);
+  if (!existsSync(path)) throw new Error('migration preview plan is missing; run preview first');
+  const plan = readJson(path, 'migration preview plan');
+  validatePreviewPlanShape(plan, plan.plan_hash);
+  if (plan.plan_hash !== planHash || plan.old_side_mode !== oldSideMode) throw new Error('migration confirmation does not match the current preview hash/mode');
+  const evidence = buildSourceEvidence(sourceRunDir);
+  assertPreviewInputsCurrent(plan, evidence);
+  const oldSide = legacyOldSideEvidence(sourceRunDir, evidence.candidate.plan);
+  if (oldSide.mode !== plan.old_side_mode || canonicalJsonSha256(oldSide.evidence) !== canonicalJsonSha256(plan.old_side_evidence)) {
+    throw new Error('migration old-side evidence changed after preview');
+  }
+  return Object.freeze({
+    source_version: basename(sourceRunDir),
+    target_version: plan.target_version,
+    plan_hash: plan.plan_hash,
+    old_side_mode: plan.old_side_mode,
+    base_receipts: plan.base_receipts,
+    candidate_receipts: plan.candidate_receipts,
+  });
+}
+
 export async function previewHtmlMigration(runDir) {
   const sourceRunDir = resolve(runDir);
   const structureIssues = checkBundle(sourceRunDir, false);
   if (structureIssues.length > 0) throw new Error(`source version is invalid: ${structureIssues.join('; ')}`);
-  validateCandidatePresence(sourceRunDir);
   if (existsSync(journalPath(sourceRunDir))) throw new Error('CONFLICT: migration apply journal already exists');
+  const candidate = resolveMigrationCandidate(sourceRunDir);
+  if (candidate.status !== 'complete') {
+    const prepared = candidate.status === 'authoring_required';
+    return Object.freeze({
+      schema: 'pptmaker-html-migration-guide-v1',
+      status: candidate.status,
+      source_version: basename(sourceRunDir),
+      projected_run: migrationRelativePath(sourceRunDir, candidate.root),
+      candidate_source: migrationRelativePath(sourceRunDir, candidate.source_path),
+      available_presets: listHtmlMigrationPresets(),
+      next_action: prepared
+        ? 'Complete the listed structured candidate fields, then rerun migrate-html preview.'
+        : `ppt_flow migrate-html ${sourceRunDir} prepare --preset <${listHtmlMigrationPresets().join('|')}>`,
+      ...(prepared ? { missing: candidate.missing || [] } : {}),
+    });
+  }
   return renderPreviewWorkspace(sourceRunDir);
 }
 
 export async function applyHtmlMigration(runDir, { planHash = null, oldSideMode = null, recoverJournalToken = null } = {}) {
   const sourceRunDir = resolve(runDir);
-  const sourceScratchRoot = migrationRoot(sourceRunDir);
   const planFile = planPath(sourceRunDir);
   if (!existsSync(planFile)) throw new Error('migration preview plan is missing; run preview first');
   const plan = readJson(planFile, 'migration preview plan');
@@ -595,7 +946,7 @@ export async function applyHtmlMigration(runDir, { planHash = null, oldSideMode 
     mkdirSync(staging);
     copyFileSync(candidatePath, join(staging, MIGRATION_CANDIDATE_SOURCE));
     copyTree(join(sourceRunDir, 'overrides'), join(staging, 'overrides'));
-    copyTree(join(sourceScratchRoot, 'overrides'), join(staging, 'overrides'));
+    copyTree(join(projectedRunPath(sourceRunDir), 'overrides'), join(staging, 'overrides'));
     ensureDir(join(staging, '_generated'));
     ensureDir(join(staging, '_scratch'));
     writeFileSync(join(staging, '_generated', 'README.md'), '# generated\n', 'utf8');

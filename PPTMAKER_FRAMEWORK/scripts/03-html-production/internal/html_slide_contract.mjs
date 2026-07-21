@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +36,7 @@ import {
   buildHtmlStyleReferenceProjectionV1,
   buildHtmlVisualProjectionV1,
   loadVisualConfigViews,
+  validateHtmlMigrationPalette,
 } from "../../02-visual-system/index.mjs";
 import {
   COLOR_PALETTE_FILE,
@@ -743,7 +744,7 @@ function buildReceipts({ runDir, sourcePath, palettePath, assetCatalog, prefligh
   return records;
 }
 
-export function verifyInputReceipts(receipts, { runDir, assetCatalog = null } = {}) {
+export function verifyInputReceipts(receipts, { runDir, assetCatalog = null, candidateOverridesDir = null } = {}) {
   const root = realpathSync(deckRoot(runDir));
   const frameworkRoot = realpathSync(FRAMEWORK_DIR);
   const seen = new Set();
@@ -761,7 +762,7 @@ export function verifyInputReceipts(receipts, { runDir, assetCatalog = null } = 
     if (sha256(readFileSync(absolute)) !== record.sha256) throw new HtmlSlideContractError("input receipt drifted", [issue("input_receipt_drift", `input changed before publication: ${record.scope}:${record.path}`)]);
   }
   if (assetCatalog) {
-    const reloaded = loadHtmlAssetCatalog(runDir);
+    const reloaded = loadHtmlAssetCatalog(runDir, { candidateOverridesDir });
     const expected = Object.fromEntries(Object.entries(assetCatalog.catalog).map(([id, entry]) => [id, {
       origin: entry.origin,
       manifest_path: entry.manifest_path,
@@ -860,7 +861,25 @@ export function buildHtmlFirstPlan(validated) {
   };
 }
 
-export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOverride = null } = {}) {
+function candidateOverrideRoot(runDir, candidateRoot) {
+  if (candidateRoot == null) return null;
+  if (!existsSync(candidateRoot)) {
+    throw new HtmlSlideContractError("migration candidate root is missing", [issue("candidate_root_missing", "migration candidate root is missing")]);
+  }
+  const root = realpathSync(candidateRoot);
+  const deck = realpathSync(deckRoot(runDir));
+  const relation = relative(deck, root);
+  if (!relation || relation.startsWith(`..${sep}`) || relation === "..") {
+    throw new HtmlSlideContractError("migration candidate root must be confined to the deck", [issue("candidate_root_not_confined", "migration candidate root must be confined to the deck root")]);
+  }
+  const expected = join(resolve(runDir), "_scratch", "html-migration", "projected-run");
+  if (!existsSync(expected) || root !== realpathSync(expected)) {
+    throw new HtmlSlideContractError("migration candidate root is not canonical", [issue("candidate_root_not_canonical", "migration candidate root must be the canonical projected-run")]);
+  }
+  return root;
+}
+
+export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOverride = null, migrationCandidateRoot = null } = {}) {
   const run = resolve(runDir);
   const candidates = readdirSync(run)
     .filter((name) => /^slide-specifications.*\.md$/.test(name))
@@ -884,15 +903,20 @@ export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOve
   }
   const sourcePathRelative = relative(receiptRoot, receiptSourcePath).split(sep).join("/");
   const parsed = parseHtmlFirstSource(sourceText, { source: sourcePathRelative });
-  const palettePath = styleAsset(run, COLOR_PALETTE_FILE);
-  const config = loadVisualConfigViews(palettePath).html_first;
-  const assetCatalog = loadHtmlAssetCatalog(run);
+  const candidateRoot = candidateOverrideRoot(run, migrationCandidateRoot);
+  const candidatePalettePath = candidateRoot == null ? null : join(candidateRoot, "overrides", "visual-style", COLOR_PALETTE_FILE);
+  const palettePath = candidatePalettePath && existsSync(candidatePalettePath) ? candidatePalettePath : styleAsset(run, COLOR_PALETTE_FILE);
+  const config = (candidatePalettePath && existsSync(candidatePalettePath)
+    ? validateHtmlMigrationPalette(palettePath)
+    : loadVisualConfigViews(palettePath)).html_first;
+  const assetCatalog = loadHtmlAssetCatalog(run, { candidateOverridesDir: candidateRoot == null ? null : join(candidateRoot, "overrides") });
   const preflight = buildHtmlSourcePreflight(parsed.slides);
   const geometryRegistry = loadHtmlFamilyGeometryRegistry();
   const geometryRegistrySha256 = htmlFamilyGeometrySemanticSha256(geometryRegistry);
   const receipts = buildReceipts({ runDir: run, sourcePath: receiptSourcePath, palettePath, assetCatalog, preflight });
   return {
     runDir: run,
+    ...(candidateRoot == null ? {} : { migrationCandidateRoot: candidateRoot }),
     sourcePath: receiptSourcePath,
     canonicalSourcePath: sourcePath,
     palettePath,

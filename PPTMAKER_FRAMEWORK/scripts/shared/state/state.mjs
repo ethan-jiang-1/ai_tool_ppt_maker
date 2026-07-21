@@ -744,6 +744,81 @@ export function writeState(deckDir, state, opts = {}) {
   cleanStaleTemps(dir);
 }
 
+/**
+ * Atomically turns one current migration preview confirmation into the only
+ * apply record. Receipt inspection remains delegated to the migration owner.
+ */
+export async function confirmHtmlMigrationApply(sourceRunDir, { planHash, oldSideMode } = {}) {
+  if (!SHA256_RE.test(planHash || "")) throw new TypeError("plan hash must be a 64-lowercase-hex SHA-256");
+  if (!["verified-current", "degraded-missing", "degraded-stale"].includes(oldSideMode || "")) {
+    throw new TypeError("old-side mode must be verified-current, degraded-missing, or degraded-stale");
+  }
+  const runDir = resolve(sourceRunDir);
+  const sourcePath = join(runDir, "slide-specifications.md");
+  if (!existsSync(sourcePath)) throw new Error("migration source version has no slide specifications");
+  const marker = probeProductionMarker(readFileSync(sourcePath), { source: "slide-specifications.md" });
+  if (marker.branch !== "legacy") throw new Error("migration confirmation accepts only a markerless source version");
+
+  const deckDir = resolve(runDir, "..", "..");
+  const current = readState(deckDir, { purpose: "execute", heal: false });
+  if (current?.replacement_required || current?.corrupted) throw new Error("migration source state is unusable");
+  if (current.playbook !== "migrate-import" || !current.execution_id) throw new Error("active migrate-import confirmation execution is required");
+  const executionId = current.execution_id;
+  const confirmed = current.nodes?.["confirm-html-migration"];
+  const preview = current.nodes?.["preview-html-migration"];
+  const activeApply = current.nodes?.["apply-html-migration"];
+  const sourceVersion = basename(runDir);
+
+  const migration = await import("../../05-iteration/migration/html_migration.mjs");
+  const inspection = migration.inspectHtmlMigrationConfirmation(runDir, { planHash, oldSideMode });
+  if (inspection.source_version !== sourceVersion) throw new Error("migration confirmation source version drifted");
+
+  if (
+    current.current_node === "apply-html-migration" &&
+    activeApply?.status === "in_progress" &&
+    activeApply.execution_id === executionId &&
+    activeApply.migration_plan_hash === planHash &&
+    activeApply.old_side_mode === oldSideMode &&
+    activeApply.migration_source_version === sourceVersion
+  ) {
+    return Object.freeze({ status: "idempotent", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
+  }
+
+  if (
+    current.current_node !== "confirm-html-migration" ||
+    confirmed?.status !== "in_progress" ||
+    confirmed.execution_id !== executionId ||
+    preview?.status !== "completed" ||
+    preview.execution_id !== executionId ||
+    preview.migration_plan_hash !== planHash ||
+    preview.old_side_mode !== oldSideMode
+  ) {
+    throw new Error("active migrate-import confirmation execution is required");
+  }
+
+  const next = structuredClone(current);
+  const at = nowIso();
+  next.nodes["confirm-html-migration"] = {
+    ...next.nodes["confirm-html-migration"],
+    status: "completed",
+    execution_id: executionId,
+    decision: { value: "apply", kind: "user", at },
+    completed: at,
+  };
+  next.nodes["apply-html-migration"] = {
+    status: "in_progress",
+    execution_id: executionId,
+    migration_plan_hash: planHash,
+    old_side_mode: oldSideMode,
+    migration_source_version: sourceVersion,
+    started: at,
+  };
+  next.current_node = "apply-html-migration";
+  const expectedStateSha = sha256(readFileSync(statePath(deckDir)));
+  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  return Object.freeze({ status: "confirmed", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
+}
+
 function activeRecord(state, name) {
   const record = state?.nodes?.[name];
   if (!isPlainObject(record) || isReservedNode(name)) return record || null;

@@ -17,7 +17,7 @@ import {
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
-import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
+import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, MIGRATION_CONFIRMATION_RETURN_CASES, MIGRATION_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
@@ -253,6 +253,9 @@ describe("ppt_flow", () => {
       "promotion_recovery",
       "cleanup_ambiguity",
     ]);
+    expect(MIGRATION_RETURN_CASES).toContain("prepare_success");
+    expect(MIGRATION_RETURN_CASES).toContain("preview_preparation_guide");
+    expect(MIGRATION_CONFIRMATION_RETURN_CASES).toContain("atomic_success");
     const missing = { ...PPT_FLOW_RETURN_AUDIT.commands.image2 };
     delete missing.promotion_recovery;
     const broken = { ...PPT_FLOW_RETURN_AUDIT, commands: { ...PPT_FLOW_RETURN_AUDIT.commands, image2: missing } };

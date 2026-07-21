@@ -3,14 +3,17 @@ export {
   HTML_STYLE_REFERENCE_PROJECTION_V1_PATHS,
   HTML_VISUAL_PROJECTION_V1_PATHS,
   VisualConfigError,
+  buildHtmlMigrationPaletteProjection,
   buildHtmlStyleReferenceProjectionV1,
   buildHtmlVisualProjectionV1,
   hexToRgba,
+  listHtmlMigrationPresets,
   loadHtmlVisualConfig,
   loadVisualConfig,
   loadVisualConfigViews,
   parseHtmlVisualConfig,
   parseVisualConfig,
+  validateHtmlMigrationPalette,
 } from "./internal/visual_config.mjs";
 
 export {

@@ -14,6 +14,7 @@ export const SLIDE_EDIT_SCHEMA_VERSION = 1;
 export const IDENTITY_SCHEME_MNEMONIC_V1 = "mnemonic-v1";
 
 const SLIDE_LIKE_HEADING_RE = /^##[ \t]+Slide\b/i;
+const NUMERIC_SLIDE_LIKE_HEADING_RE = /^##[ \t]+Slide\b.*(?:^|[^A-Za-z0-9])\d+(?:$|[^A-Za-z0-9])/i;
 const LEVEL_TWO_HEADING_RE = /^##(?:[ \t]+|$)/;
 const FORMAL_SLIDE_HEADING_PATTERNS = [
   /^##[ \t]+Slide[ \t]+(\d+)[ \t]*([:：\-–—])[ \t]*`([^`]*)`[ \t]*$/,
@@ -249,7 +250,10 @@ export function parseSlideDocument(text, source = "slide-specifications.md") {
       headings.push({ line, heading });
       continue;
     }
-    if (SLIDE_LIKE_HEADING_RE.test(line.content)) {
+    const malformedSlideCandidate = slideListStarted
+      ? SLIDE_LIKE_HEADING_RE.test(line.content)
+      : NUMERIC_SLIDE_LIKE_HEADING_RE.test(line.content);
+    if (malformedSlideCandidate) {
       const issue = {
         severity: "ERROR",
         code: "malformed_slide_heading",

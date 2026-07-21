@@ -386,10 +386,10 @@ export function createMigrationPreviewHtmlValidatedRunContext(options = {}) {
   const publication = resolve(options.publicationRunDir || '');
   const candidateSourcePath = resolve(options.candidateSourcePath || '');
   const expectedPublication = resolve(sourceRunDir, SCRATCH_SUBDIR, 'html-migration', 'projected-run');
-  const expectedCandidate = resolve(sourceRunDir, SCRATCH_SUBDIR, 'html-migration', 'slide-specifications.md');
+  const expectedCandidate = resolve(expectedPublication, 'slide-specifications.md');
   if (publication !== expectedPublication || candidateSourcePath !== expectedCandidate) throw new TypeError('migration preview context paths must use the canonical html-migration scratch transaction');
-  const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir, sourcePathOverride: candidateSourcePath });
-  verifyInputReceipts(validated.receipts, { runDir: sourceRunDir, assetCatalog: validated.assetCatalog });
+  const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir, sourcePathOverride: candidateSourcePath, migrationCandidateRoot: publication });
+  verifyInputReceipts(validated.receipts, { runDir: sourceRunDir, assetCatalog: validated.assetCatalog, candidateOverridesDir: join(publication, 'overrides') });
   const discovered = discoverRuntimePackages(FRAMEWORK_ROOT);
   if (!discovered.echarts || discovered.echarts.version !== '6.1.0') throw new Error('exact ECharts 6.1.0 must be discovered before renderer context issuance');
   if (!discovered.playwright) throw new Error('paired Playwright must be discovered before renderer context issuance');
