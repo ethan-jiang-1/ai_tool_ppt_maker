@@ -196,7 +196,7 @@ complete CLI surface SHALL remain exactly 15 top-level commands.
 - **THEN** the command publishes one current evidence-bound repair decision
 - **AND** status remains incomplete and routes to the owning repair node
 
-#### Scenario: Delivery continuation targets legacy run
+#### Scenario: Delivery review targets legacy run
 
 - **WHEN** markerless state receives `--record-delivery-review`
 - **THEN** it fails before state writes and points to legacy controller review semantics

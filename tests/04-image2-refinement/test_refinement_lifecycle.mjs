@@ -49,11 +49,14 @@ async function createAuthorizedRun(prefix) {
   return { ...fixture, operations, plan, authorization, attempts: Object.values(authorization.attempts) };
 }
 
-function setAttemptSubmitting(fixture, attemptId) {
+function setAttemptSubmitting(fixture, attemptId, providerRequestId = null) {
   const state = readState(fixture.deck, { purpose: "execute" });
   const record = readImage2RefinementState(state, "v1");
   record.authorization = { ...record.authorization, used: true, used_at: "2026-07-20T00:00:00.000Z" };
-  record.attempts[attemptId] = transitionAttempt(record.attempts[attemptId], "submitting", { updated_at: "2026-07-20T00:00:00.000Z" });
+  record.attempts[attemptId] = transitionAttempt(record.attempts[attemptId], "submitting", {
+    updated_at: "2026-07-20T00:00:00.000Z",
+    ...(providerRequestId ? { provider_request_id: providerRequestId } : {}),
+  });
   writeImage2RefinementState(fixture.deck, "v1", record);
   return record.attempts[attemptId];
 }
@@ -118,13 +121,45 @@ describe("Phase 4 lifecycle boundaries", () => {
       });
 
       const resolved = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: slot.attempt_id, transport });
-      expect(reconciledRequest).toMatchObject({
+      expect(reconciledRequest).toEqual({
         attempt_id: slot.attempt_id,
+        authorization_id: fixture.authorization.authorization.authorization_id,
+        plan_hash: fixture.plan.plan_hash,
         provider_request_id: "task-slot-persisted-001",
       });
       expect(resolved.attempt).toMatchObject({ state: "submitted", provider_request_id: "task-slot-persisted-001" });
       expect(transport.submitCount).toBe(2);
       expect(transport.reconcileCount).toBe(1);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("verifies current request material before initializing a lazy generation transport", async () => {
+    const fixture = await createAuthorizedRun("image2-lazy-transport-boundary-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const state = readState(fixture.deck, { purpose: "execute" });
+      const record = readImage2RefinementState(state, "v1");
+      record.attempts[setup.attempt_id] = {
+        ...record.attempts[setup.attempt_id],
+        request_fingerprint: "f".repeat(64),
+      };
+      writeImage2RefinementState(fixture.deck, "v1", record);
+
+      let factoryCalls = 0;
+      await expect(fixture.operations.generateRefinement({
+        runDir: fixture.runDir,
+        attemptId: setup.attempt_id,
+        transportFactory: async () => {
+          factoryCalls += 1;
+          return createFakeRefinementTransport({ onSubmit: async (request) => submittedBytes(request) });
+        },
+      })).rejects.toThrow(/request fingerprint is stale/);
+
+      expect(factoryCalls).toBe(0);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[setup.attempt_id]).toMatchObject({
+        state: "planned",
+        request_fingerprint: "f".repeat(64),
+      });
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 
@@ -439,23 +474,73 @@ describe("Phase 4 lifecycle boundaries", () => {
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 
-  it("reconciles a persisted submitting attempt without any resubmit", async () => {
+  it("reconciles a provider-identified submitting attempt without any resubmit", async () => {
     const fixture = await createAuthorizedRun("image2-submit-recovery-");
     try {
       const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
-      setAttemptSubmitting(fixture, setup.attempt_id);
+      const providerRequestId = "provider-style-persisted-001";
+      setAttemptSubmitting(fixture, setup.attempt_id, providerRequestId);
       const unknown = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id });
-      expect(unknown).toMatchObject({ requires_human: true, attempt: { state: "unknown-submit" } });
+      expect(unknown).toMatchObject({
+        requires_human: true,
+        attempt: { state: "unknown-submit", provider_request_id: providerRequestId },
+      });
 
-      const missingBytes = createFakeRefinementTransport({ onReconcile: async () => ({ status: "submitted", receipt: { provider_request_id: "provider-style" } }) });
+      const missingBytes = createFakeRefinementTransport({ onReconcile: async (request) => ({
+        status: "submitted",
+        provider_request_id: request.provider_request_id,
+        receipt: { provider_request_id: request.provider_request_id },
+      }) });
       const stillUnknown = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport: missingBytes });
       expect(stillUnknown).toMatchObject({ requires_human: true, attempt: { state: "unknown-submit" } });
 
-      const proven = createFakeRefinementTransport({ onReconcile: async (request) => submittedBytes(request) });
+      const proven = createFakeRefinementTransport({ onReconcile: async (request) => ({
+        ...submittedBytes(request),
+        provider_request_id: request.provider_request_id,
+        receipt: { provider_request_id: request.provider_request_id },
+      }) });
       const reconciled = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport: proven });
       expect(reconciled.attempt).toMatchObject({ state: "submitted", promotion_status: "committed" });
       expect(missingBytes.submitCount + proven.submitCount).toBe(0);
       expect(missingBytes.reconcileCount + proven.reconcileCount).toBe(2);
+      expect([...missingBytes.calls.reconcile, ...proven.calls.reconcile]).toEqual([
+        {
+          attempt_id: setup.attempt_id,
+          authorization_id: fixture.authorization.authorization.authorization_id,
+          plan_hash: fixture.plan.plan_hash,
+          provider_request_id: providerRequestId,
+        },
+        {
+          attempt_id: setup.attempt_id,
+          authorization_id: fixture.authorization.authorization.authorization_id,
+          plan_hash: fixture.plan.plan_hash,
+          provider_request_id: providerRequestId,
+        },
+      ]);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("does not initialize a reconciliation transport without persisted provider identity", async () => {
+    const fixture = await createAuthorizedRun("image2-reconcile-identity-boundary-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      setAttemptSubmitting(fixture, setup.attempt_id);
+      let factoryCalls = 0;
+
+      const result = await fixture.operations.reconcileRefinementAttempt({
+        runDir: fixture.runDir,
+        attemptId: setup.attempt_id,
+        transportFactory: async () => {
+          factoryCalls += 1;
+          return createFakeRefinementTransport({ onReconcile: async () => submittedBytes(setup) });
+        },
+      });
+
+      expect(result).toMatchObject({
+        requires_human: true,
+        attempt: { state: "unknown-submit", failure_code: "provider_request_identity_unavailable" },
+      });
+      expect(factoryCalls).toBe(0);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 

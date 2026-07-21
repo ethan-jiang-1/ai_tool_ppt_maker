@@ -481,7 +481,26 @@ async function promoteStyleReferenceResult({ runDir, runVersion, record, attempt
   }
 }
 
-export async function generateRefinement({ runDir, attemptId = null, transport, adapter = null } = {}) {
+async function resolveGenerationTransport({ transport, adapter, transportFactory } = {}) {
+  if (transport || adapter) return transport || adapter;
+  if (transportFactory != null && typeof transportFactory !== "function") {
+    throw new Error("modern refinement transport factory must be a function");
+  }
+  return transportFactory ? transportFactory() : null;
+}
+
+function reconciliationEnvelope(attempt) {
+  const providerRequestId = persistedProviderRequestId(attempt?.provider_request_id);
+  if (!providerRequestId) return null;
+  return Object.freeze({
+    attempt_id: attempt.attempt_id,
+    authorization_id: attempt.authorization_id,
+    plan_hash: attempt.plan_hash,
+    provider_request_id: providerRequestId,
+  });
+}
+
+export async function generateRefinement({ runDir, attemptId = null, transport, adapter = null, transportFactory = null } = {}) {
   const { record } = readRecord(runDir);
   const eligible = await currentEligibilityForRecord(runDir, record);
   if (!record.plan || !record.authorization) throw new Error("refinement authorization is required before generation");
@@ -504,7 +523,9 @@ export async function generateRefinement({ runDir, attemptId = null, transport, 
     authorizationId: record.authorization.authorization_id,
     planHash: record.plan.plan_hash,
   });
-  const tx = transport || adapter;
+  // This is the charge boundary: resolve the remote adapter only after the
+  // current material, inline reference bytes, and role-bound fingerprint pass.
+  const tx = await resolveGenerationTransport({ transport, adapter, transportFactory });
   if (!tx || typeof tx.submitAttempt !== "function") throw new Error("modern refinement transport must be injected after authorization");
   const nextSubmitting = transitionAttempt(attempt, "submitting");
   await persistAttempt(eligible.run, nextSubmitting);
@@ -576,12 +597,21 @@ export async function generateRefinement({ runDir, attemptId = null, transport, 
   }
 }
 
-export async function reconcileRefinementAttempt({ runDir, attemptId, transport, adapter = null } = {}) {
+export async function reconcileRefinementAttempt({ runDir, attemptId, transport, adapter = null, transportFactory = null } = {}) {
   const { record } = readRecord(runDir);
   const eligible = await currentEligibilityForRecord(runDir, record);
   const attempt = findAttempt(record, attemptId);
   if (!attempt || !["submitting", "unknown-submit"].includes(attempt.state)) throw new Error("only submitting or unknown-submit attempts can be reconciled");
-  const tx = transport || adapter;
+  const persistedAttempt = reconciliationEnvelope(attempt);
+  if (!persistedAttempt) {
+    if (attempt.state === "submitting") {
+      const unknown = transitionAttempt(attempt, "unknown-submit", { failure_code: "provider_request_identity_unavailable" });
+      await persistAttempt(eligible.run, unknown);
+      return Object.freeze({ attempt: unknown, requires_human: true });
+    }
+    return Object.freeze({ attempt, requires_human: true, reason: "persisted provider request identity is unavailable" });
+  }
+  const tx = await resolveGenerationTransport({ transport, adapter, transportFactory });
   if (!tx || typeof tx.reconcileAttempt !== "function") {
     if (attempt.state === "submitting") {
       const unknown = transitionAttempt(attempt, "unknown-submit", { failure_code: "reconciliation_unavailable" });
@@ -590,7 +620,9 @@ export async function reconcileRefinementAttempt({ runDir, attemptId, transport,
     }
     throw new Error("reconciliation transport is unavailable");
   }
-  const result = await tx.reconcileAttempt({ ...attempt });
+  // Reconciliation is deliberately identity-only. It never rematerializes the
+  // provider request or reads visual brief/reference bytes from the plan.
+  const result = await tx.reconcileAttempt(persistedAttempt);
   if (!result || result.status === "unknown-submit") {
     if (attempt.state === "submitting") {
       const unknown = transitionAttempt(attempt, "unknown-submit", {

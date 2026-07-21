@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  createRefinementTransport,
   createRelayCompatibilityTransport,
   materializeRelaySubmitRequest,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
@@ -93,6 +94,7 @@ describe("public modern transport factory", () => {
     const output = await transport.submitAttempt(modernRequest());
     expect(output).toMatchObject({ status: "submitted", provider_request_id: "request-modern-sync-001" });
     expect(output.bytes.toString("utf8")).toBe("modern-bytes");
+    expect(output.receipt).toEqual({ provider_request_id: "request-modern-sync-001", transport_phase: "submit" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0][0]).toBe("https://relay.example.test/v1/images/generations");
     expect(fetchImpl.mock.calls[0][1]).toMatchObject({
@@ -152,6 +154,20 @@ describe("public modern transport factory", () => {
     await expect(createModernRefinementTransport({
       credentials: { base_url: "https://relay.example.test/v1", api_key: "" },
     })).rejects.toMatchObject({ code: "provider_configuration_unavailable" });
+  });
+
+  it("keeps provider failures bounded when an adapter reports sensitive text", async () => {
+    const transport = createRefinementTransport({
+      submit: async () => {
+        throw new Error("API_KEY_SENTINEL response_body=PROVIDER_BODY_SENTINEL");
+      },
+      reconcile: async () => null,
+    });
+
+    const error = await transport.submitAttempt(modernRequest()).catch((value) => value);
+    expect(error).toMatchObject({ code: "provider_failure", message: "Image2 provider submit failed" });
+    expect(String(error.message)).not.toContain("API_KEY_SENTINEL");
+    expect(String(error.message)).not.toContain("PROVIDER_BODY_SENTINEL");
   });
 });
 

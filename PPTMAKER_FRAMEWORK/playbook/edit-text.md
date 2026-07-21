@@ -42,6 +42,6 @@ entry: []
 exit: [user_decision_recorded, user_evidence:text-change-verified]
 ```
 
-**Step 1 — MD**: Open affected preview and inspect exact text, font, wrap, overflow, family geometry, and unchanged-page isolation. Publish any stale content/visual plan-hash review, then build and repeat final delivery review.
+**Step 1 — MD**: Open affected preview and inspect exact text, font, wrap, overflow, family geometry, and unchanged-page isolation. Read `state <run-dir> --json`, run its producer-owned `html_resume_guidance.recommended_command` for every stale content/visual review, and present its continuation only with a human reason. Then build and repeat final delivery review.
 
-**Step 2 — GATE**: Record user verification only after the current PPTX/notes and delivery review are current.
+**Step 2 — GATE**: Record user verification only after the current PPTX/notes and delivery review are current through `state --record-delivery-review`. A forced `proceed --force --reason` records an evidence waiver, not complete lineage; no conversation-only verification or hand-edited state is valid.

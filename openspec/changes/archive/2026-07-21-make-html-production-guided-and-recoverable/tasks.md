@@ -48,20 +48,32 @@
 - [x] 6.1 (`image-generation`, `visual-slot-refinement`) Complete the provider compatibility spike against checked-in fake relay fixtures: prove deterministic request materialization, synchronous bytes, async task IDs/poll/result, provider request IDs, timeout, failed submit, and unknown-submit reconciliation for both style-reference and slot attempts. The fixed contract is: bytes returned from submit are terminal; async responses must expose a stable task/provider ID; timeout or accepted-without-ID becomes `unknown-submit` and is never retried.
 - [x] 6.2 (`image-generation`) After the spike, extract an import-safe shared Image2 credential/base-URL resolver used by legacy resolution and the modern CLI adapter without duplicating secret parsing or changing legacy behavior.
 - [x] 6.3 (`visual-slot-refinement`) Persist the closed `profile_contract` and existing opaque profile fingerprint in plan v2; add `request_contract_version: pptmaker-refinement-submit-request-v1` and deterministic role-bound 64-hex request-material fingerprints; exclude random authorization/attempt IDs, plan hash, and inline bytes from the fingerprint, copy the matching fingerprint onto allocated attempts, and expose a lazy public Phase-4 transport factory from `index.mjs` that accepts resolved credentials/config and returns a transport whose submit method consumes the current provider-neutral request with fixed visual-slot defaults; importing Phase 4 remains side-effect-free.
-- [ ] 6.4 (`cli-surface`, `visual-slot-refinement`) Wire `image2 generate` to materialize, SHA-verify references, and match the current plan-bound request fingerprint before the attempt enters `submitting` or the public transport is called; wire existing `image2 unknown-submit --decision retain` to persisted provider-request/attempt identity without reconstructing prompt/body material; prove `--decision abandon` remains provider-free; keep HTML Phase 3 and preview/pilot free of transport initialization.
-- [ ] 6.5 (`image-generation`, `visual-slot-refinement`) Add tests for missing credentials, secret-safe provider errors, typed receipts, unknown-submit persistence, no blind retries, and BUG-021 CLI reachability.
+- [x] 6.4 (`cli-surface`, `visual-slot-refinement`) Wire `image2 generate` to materialize, SHA-verify references, and match the current plan-bound request fingerprint before the attempt enters `submitting` or the public transport is called; wire existing `image2 unknown-submit --decision retain` to persisted provider-request/attempt identity without reconstructing prompt/body material; prove `--decision abandon` remains provider-free; keep HTML Phase 3 and preview/pilot free of transport initialization.
+- [x] 6.5 (`image-generation`, `visual-slot-refinement`) Add tests for missing credentials, secret-safe provider errors, typed receipts, unknown-submit persistence, no blind retries, and BUG-021 CLI reachability.
 
 ## 7. Controller and Documentation Consumers
 
-- [ ] 7.1 (`playbook-execution`) Update gate nodes and resume cards to consume producer-owned guide/waiver/hard-stop diagnostics, show recommended and continuation commands, and never hand-edit state or infer approval from conversation.
-- [ ] 7.2 (`playbook-execution`, `framework-charter`, `commands-reference`) Update HTML create/iteration/final-review playbooks and `COMMANDS.md` for `--force --reason`, `state --validate-state`, waiver status, and the distinction between current waiver and complete delivery evidence.
-- [ ] 7.3 (`cli-surface`, `node-specification`) Document the v2 gate/delivery record shape, canonical version key, validation output, and safe repair actions without requiring users to construct records manually.
-- [ ] 7.4 (`image-generation`, `visual-slot-refinement`) Document that Phase-4 plan is optional/offline, authorization is still explicit, credentials are loaded only at generate or `unknown-submit --decision retain` reconciliation, abandon remains offline, and modern transport is not a legacy whole-page route.
+- [x] 7.1 (`playbook-execution`) Update gate nodes and resume cards to consume producer-owned guide/waiver/hard-stop diagnostics, show recommended and continuation commands, and never hand-edit state or infer approval from conversation.
+- [x] 7.2 (`playbook-execution`, `framework-charter`, `commands-reference`) Update HTML create/iteration/final-review playbooks and `COMMANDS.md` for `--force --reason`, `state --validate-state`, waiver status, and the distinction between current waiver and complete delivery evidence.
+- [x] 7.3 (`cli-surface`, `node-specification`) Document the v2 gate/delivery record shape, canonical version key, validation output, and safe repair actions without requiring users to construct records manually.
+- [x] 7.4 (`image-generation`, `visual-slot-refinement`) Document that Phase-4 plan is optional/offline, authorization is still explicit, credentials are loaded only at generate or `unknown-submit --decision retain` reconciliation, abandon remains offline, and modern transport is not a legacy whole-page route.
 
 ## 8. Verification and Release Readiness
 
-- [ ] 8.1 Run targeted contract, state, CLI, notes, and fake-transport tests for every scenario in the delta specs; record any baseline failure by exact test name and independent cause.
-- [ ] 8.2 Run the HTML-first fixture end to end from pilot through approve/waive, local build, delivery review, optional offline Image2 plan, authorized fake generate, and `unknown-submit` reconciliation without a real provider submit.
-- [ ] 8.3 Run `npm test` and `npm run test:e2e`; verify legacy markerless approval, pilot, notes, and Image2 behavior remains compatible.
-- [ ] 8.4 Run `openspec validate make-html-production-guided-and-recoverable --strict`, verify CLI return-audit completeness, and review all JSON diagnostics for bounded secret-safe output.
-- [ ] 8.5 Confirm no task edits `_generated/` manually, no deck production data is used as a framework fixture, and no provider call occurs in preview/pilot/build-force/offline-plan paths.
+> **Verification checkpoint (2026-07-21):** Task 8.3 passed under the controlled
+> two-worker configuration: `npm test` completed with `48` files / `558` tests,
+> and `npm run test:e2e` completed with `6` files / `41` tests. The first E2E
+> run exposed one obsolete assertion for a non-executable internal repair token;
+> the test now verifies the producer-owned executable recovery command and the
+> full E2E suite passes. Task 8.4 also passed: strict OpenSpec validation,
+> the exact CLI return audit, and `42` CLI diagnostic/relay safety tests all
+> completed successfully. Task 8.5 also passed: no changed path is under
+> `deck_*`, `dpt_*`, or `_generated/`; provider-free boundary tests cover
+> preview/pilot, forced local build, and offline planning; the lazy transport
+> is reachable only from authorized generate or retained reconciliation.
+
+- [x] 8.1 Run targeted contract, state, CLI, notes, and fake-transport tests for every scenario in the delta specs; record any baseline failure by exact test name and independent cause.
+- [x] 8.2 Run the HTML-first fixture end to end from pilot through approve/waive, local build, delivery review, optional offline Image2 plan, authorized fake generate, and `unknown-submit` reconciliation without a real provider submit.
+- [x] 8.3 Run `npm test` and `npm run test:e2e`; verify legacy markerless approval, pilot, notes, and Image2 behavior remains compatible.
+- [x] 8.4 Run `openspec validate make-html-production-guided-and-recoverable --strict`, verify CLI return-audit completeness, and review all JSON diagnostics for bounded secret-safe output.
+- [x] 8.5 Confirm no task edits `_generated/` manually, no deck production data is used as a framework fixture, and no provider call occurs in preview/pilot/build-force/offline-plan paths.

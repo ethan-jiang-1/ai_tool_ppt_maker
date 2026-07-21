@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { encode as encodePng } from "fast-png";
 import { initLegacyBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readImage2RefinementState, readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
 import {
   buildControllerGateContext,
   selectPilotSlideIds,
@@ -34,8 +36,69 @@ function runPptFlow(args, opts = {}) {
   return spawnSync("node", [PPT_FLOW, ...args], {
     encoding: "utf-8",
     timeout: opts.timeout ?? 15000,
-    env: process.env,
+    env: { ...process.env, ...(opts.env || {}) },
   });
+}
+
+async function startFakeImage2Relay() {
+  const root = mkdtempSync(join(tmpdir(), "ppt-image2-relay-"));
+  const script = join(root, "relay.mjs");
+  const bytes = Buffer.from(encodePng({
+    width: 1,
+    height: 1,
+    data: new Uint8Array([20, 30, 40, 255]),
+    channels: 4,
+    depth: 8,
+  })).toString("base64");
+  writeFileSync(script, `
+import { createServer } from "node:http";
+const response = ${JSON.stringify({
+  status: "completed",
+  provider_request_id: "fake-cli-request-001",
+  bytes_base64: bytes,
+  media: "image/png",
+  width: 1,
+  height: 1,
+})};
+const server = createServer((request, reply) => {
+  request.resume();
+  request.on("end", () => {
+    reply.writeHead(200, { "Content-Type": "application/json" });
+    reply.end(JSON.stringify(response));
+  });
+});
+server.listen(0, "127.0.0.1", () => process.stdout.write(String(server.address().port) + "\\n"));
+const stop = () => server.close(() => process.exit(0));
+process.on("SIGTERM", stop);
+process.on("SIGINT", stop);
+`);
+  const child = spawn(process.execPath, [script], { stdio: ["ignore", "pipe", "pipe"] });
+  const port = await new Promise((resolvePort, rejectPort) => {
+    const timeout = setTimeout(() => rejectPort(new Error("fake Image2 relay did not start")), 5_000);
+    let stderr = "";
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      rejectPort(error);
+    });
+    child.stdout.once("data", (chunk) => {
+      clearTimeout(timeout);
+      const value = Number.parseInt(chunk.toString().trim(), 10);
+      if (Number.isSafeInteger(value) && value > 0) resolvePort(value);
+      else rejectPort(new Error(`fake Image2 relay reported an invalid port: ${stderr}`));
+    });
+    child.once("exit", (code) => {
+      clearTimeout(timeout);
+      rejectPort(new Error(`fake Image2 relay exited before listening (${code}): ${stderr}`));
+    });
+  });
+  return {
+    baseUrl: `http://127.0.0.1:${port}/v1`,
+    stop() {
+      if (child.exitCode === null) child.kill("SIGTERM");
+      rmSync(root, { recursive: true, force: true });
+    },
+  };
 }
 
 function parseFailureEnvelope(stderr) {
@@ -256,12 +319,51 @@ describe("ppt_flow", () => {
       expect(authorized.status, authorized.stderr).toBe(0);
       const authorization = JSON.parse(authorized.stdout);
       const setup = authorization.authorization.attempts.find((attempt) => attempt.kind === "style-reference");
-      const unconfigured = runPptFlow(["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--json"]);
+      const unconfigured = runPptFlow(
+        ["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--json"],
+        // Prevent a developer's shell credentials from turning this missing-
+        // configuration contract into a live provider call.
+        { env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" } },
+      );
       expect(unconfigured.status).toBe(1);
       expect(parseFailureEnvelope(unconfigured.stderr)).toMatchObject({ code: "FAILED", diagnostic: { category: "provider" } });
       expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[setup.attempt_id].state).toBe("planned");
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
+
+  it("reaches the modern transport from the authorized CLI generate route", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-relay-");
+    let relay = null;
+    try {
+      const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const authorized = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", plan.plan_hash, "--json"]);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      const setup = JSON.parse(authorized.stdout).authorization.attempts.find((attempt) => attempt.kind === "style-reference");
+      relay = await startFakeImage2Relay();
+
+      const generated = runPptFlow(
+        ["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--base-url", relay.baseUrl, "--json"],
+        {
+          env: { IMAGE2_API_KEY: "cli-relay-key", IMAGE2_BASE_URL: "" },
+          timeout: 120_000,
+        },
+      );
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        attempt: {
+          attempt_id: setup.attempt_id,
+          state: "submitted",
+          provider_request_id: "fake-cli-request-001",
+          promotion_status: "committed",
+        },
+      });
+    } finally {
+      relay?.stop();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 180_000);
 
   it("state --json includes resume card fields", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));
@@ -296,6 +398,71 @@ playbook_stack: []
     expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
     expect(j.suggested_next).toContain("user:review-style-master");
   });
+
+  it("state resume guidance consumes current HTML evidence without mutating it", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-html-resume-guidance-");
+    try {
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      delete state.nodes["html-visual-review"].by_version["3_versions/v1"];
+      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+      writeState(fixture.deck, state);
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const before = readFileSync(statePath);
+
+      const result = runPptFlow(["state", fixture.runDir, "--json"]);
+      expect(result.status, result.stderr).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.html_reviews.visual).toMatchObject({ decision: "pending", freshness: "missing" });
+      expect(report.html_resume_guidance).toMatchObject({
+        schema: "pptmaker-html-resume-guidance-v1",
+        outcome: "confirm",
+        subject: "visual-review",
+        continuation_command: expect.stringContaining("--waive --reason"),
+      });
+      expect(report.html_resume_guidance.recommended_command).toContain("approve");
+      expect(report.suggested_next).toBe(report.html_resume_guidance.recommended_command);
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("keeps producer HTML resume guidance ahead of optional Image2 work", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-");
+    try {
+      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
+      await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      delete state.nodes["html-visual-review"].by_version["3_versions/v1"];
+      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+      writeState(fixture.deck, state);
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const before = readFileSync(statePath);
+
+      const stateResult = runPptFlow(["state", fixture.runDir, "--json"]);
+      expect(stateResult.status, stateResult.stderr).toBe(0);
+      const report = JSON.parse(stateResult.stdout);
+      expect(report.image2_refinement).toMatchObject({ present: true });
+      expect(report.html_resume_guidance).toMatchObject({
+        outcome: "confirm",
+        subject: "visual-review",
+        continuation_command: expect.stringContaining("--waive --reason"),
+      });
+      expect(report.suggested_next).toBe(report.html_resume_guidance.recommended_command);
+      expect(report.suggested_next).not.toMatch(/image2-refinement/);
+
+      const humanState = runPptFlow(["state", fixture.runDir]);
+      expect(humanState.status, humanState.stderr).toBe(0);
+      expect(humanState.stdout).toContain("Gate guidance:");
+      expect(humanState.stdout).toContain("Continuation:");
+
+      const status = runPptFlow(["status", fixture.runDir]);
+      expect(status.status, status.stderr).toBe(0);
+      expect(status.stdout).toContain("Gate guidance:");
+      expect(status.stdout).toContain("Recommended:");
+      expect(status.stdout).toContain("Continuation:");
+      expect(status.stdout).not.toMatch(/Generate style master/);
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 180_000);
 
   it("state --validate-state is read-only and reports canonical version-key drift", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-state-validate-");
@@ -618,6 +785,37 @@ playbook_stack: []
       expect(parseFailureEnvelope(badOperation.stderr)).toMatchObject({ code: "USAGE" });
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120000);
+
+  it("image2 unknown-submit abandon remains provider-free when credentials are absent", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-abandon-offline-");
+    try {
+      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
+      const plan = await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
+      await phase4.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-abandon-offline" });
+      const record = readImage2RefinementState(readState(fixture.deck), "v1");
+      const attempt = Object.values(record.attempts).find((entry) => entry.kind === "style-reference");
+      const submitting = transitionAttempt(attempt, "submitting", { updated_at: "2026-07-21T00:00:00.000Z" });
+      record.attempts[attempt.attempt_id] = transitionAttempt(submitting, "unknown-submit", {
+        provider_request_id: "task-abandon-offline-001",
+        failure_code: "unknown-submit",
+        updated_at: "2026-07-21T00:00:01.000Z",
+      });
+      writeImage2RefinementState(fixture.deck, "v1", record);
+
+      const result = runPptFlow([
+        "image2", "unknown-submit", fixture.runDir,
+        "--attempt-id", attempt.attempt_id,
+        "--decision", "abandon",
+        "--json",
+      ], { env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" }, timeout: 120_000 });
+
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        replacement_requires_new_authorization: true,
+        attempt: { attempt_id: attempt.attempt_id, state: "unknown-submit", unknown_submit_resolution: "abandon" },
+      });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 180_000);
 
   it("controller gate context reuses real validators and fails closed", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");

@@ -779,6 +779,7 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   const note = nodeRec.note ? String(nodeRec.note) : null;
   const gates = { ...(state?.gates || {}) };
   const playbook_stack = Array.isArray(state?.playbook_stack) ? deepClone(state.playbook_stack) : [];
+  const html_resume_guidance = statusSnapshot?.html_resume_guidance || null;
   const execLabel = `${playbook || "（未初始化）"} / ${current_node || "（未初始化）"}`;
   let workflow_summary;
   if (waiting_for) workflow_summary = `卡在等人：${waiting_for}（${execLabel}）`;
@@ -800,7 +801,15 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   else if (current_node) suggested_next = `advance-or-inspect:${playbook}/${current_node}`;
   else suggested_next = "inspect:run ppt_flow state|status";
 
-  if (playbook === "image2-refine") {
+  // CLI owns the structured HTML review projection and commands. The shared
+  // card only consumes that producer output, preserving a waiting human's
+  // priority and never constructing a waiver or state mutation itself.
+  if (!waiting_for && html_resume_guidance?.recommended_command) {
+    workflow_summary = html_resume_guidance.summary || workflow_summary;
+    suggested_next = html_resume_guidance.recommended_command;
+  }
+
+  if (playbook === "image2-refine" && !html_resume_guidance?.recommended_command) {
     const version = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
     const refinement = version ? (() => { try { return projectImage2RefinementState(state, version); } catch { return null; } })() : null;
     if (refinement?.status === "unknown-submit") suggested_next = "human:resolve-unknown-submit";
@@ -817,6 +826,7 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
     waiting_for,
     note,
     gates,
+    html_resume_guidance,
     playbook_stack,
     completed_nodes: activeNodeIds ? getCompletedNodes(state, activeNodeIds) : getCompletedNodes(state),
     pending_nodes: activeNodeIds ? getPendingNodes(state, activeNodeIds) : getPendingNodes(state),

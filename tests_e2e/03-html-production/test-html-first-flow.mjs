@@ -180,16 +180,23 @@ describe('fresh HTML-first delivery E2E', () => {
 
       const status = flow(['status', runDir, '--json'], 30_000);
       expect(status.status, status.stderr || status.stdout).toBe(0);
-      expect(JSON.parse(status.stdout)).toMatchObject({
+      const statusReport = JSON.parse(status.stdout);
+      expect(statusReport).toMatchObject({
         pipeline: 'html-first-v1',
-        workflow_summary: 'HTML delivery accepted with incomplete lineage evidence',
-        suggested_next: 'repair:html-delivery-lineage',
+        workflow_summary: 'HTML delivery is accepted with incomplete lineage evidence; repair remains recommended',
+        html_resume_guidance: {
+          outcome: 'guide',
+          subject: 'delivery-review',
+          evidence_complete: false,
+        },
         html_reviews: {
           content: { decision: 'waived', freshness: 'current' },
           visual: { decision: 'waived', freshness: 'current' },
           delivery: { decision: 'proceed', freshness: 'current', evidence_complete: false },
         },
       });
+      expect(statusReport.suggested_next).toBe(statusReport.html_resume_guidance.recommended_command);
+      expect(statusReport.suggested_next).toContain('ppt_flow.mjs build');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

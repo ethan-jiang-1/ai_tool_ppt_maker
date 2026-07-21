@@ -340,6 +340,25 @@ playbook_stack: {}
     expect(done.workflow_summary).toMatch(/PPTX/);
   });
 
+  it('buildResumeCard: producer HTML guidance stays ahead of optional Image2 routing', async () => {
+    const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+    const s = createDefaultState();
+    s.playbook = 'image2-refine';
+    s.current_node = 'recommend-image2-refinement';
+    s.nodes = { 'recommend-image2-refinement': { status: 'in_progress' } };
+    const guidance = {
+      summary: 'HTML visual review needs an explicit decision',
+      recommended_command: 'node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve "/tmp/deck/3_versions/v1" visual --plan-hash abc',
+      continuation_command: 'node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve "/tmp/deck/3_versions/v1" visual --waive --reason "<human reason>"',
+    };
+
+    const card = buildResumeCard(s, { html_resume_guidance: guidance }, { ctx: { runVersion: 'v1' } });
+
+    expect(card.workflow_summary).toBe(guidance.summary);
+    expect(card.suggested_next).toBe(guidance.recommended_command);
+    expect(card.html_resume_guidance).toBe(guidance);
+  });
+
   it('rejects invalid node/gate enum writes without mutation', () => {
     const s = createInitialState('demo', 'keynote', 'dark');
     expect(() => setNodeStatus(s, 'authoring-slides', 'done')).toThrow(/invalid node status/);

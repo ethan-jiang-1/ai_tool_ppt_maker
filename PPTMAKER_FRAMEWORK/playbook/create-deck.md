@@ -105,7 +105,7 @@ entry: []
 exit: [user_decision_recorded, gate_approved:content]
 ```
 
-**Step 1 — GATE**: Show the changed/current content projection, recommend `pilot` plus exact approval first, and offer a reasoned waiver only for a reversible evidence risk. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the protected invariant and use the producer-owned recovery route. `revise` returns to source authoring.
+**Step 1 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `html_resume_guidance` plus the changed/current content projection. Run its `recommended_command` for the normal repair/approval path; offer its `continuation_command` only after the human supplies the bounded reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and do not offer `--waive`/`--force`. `revise` returns to source authoring. Never hand-edit state or infer approval from rendered pages.
 
 ### review-visual
 
@@ -122,7 +122,7 @@ exit: [user_decision_recorded, gate_approved:visual]
 
 **Step 1 — MD**: Open the current local visual contact sheet and every outstanding recipe/page representative, including forced fallback where a selected asset hides it.
 
-**Step 2 — GATE**: Show changed recipe/page evidence, recommend the current preview plus exact approval, and offer a reasoned waiver only for a reversible evidence gap. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the protected invariant and use the producer-owned recovery route. `revise` returns to the owning content/visual-system node.
+**Step 2 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `html_resume_guidance` with the local contact sheet, forced fallback, and bounded outstanding coverage. Run the producer's exact recommended command; present the nullable continuation only for a reversible evidence gap and a supplied reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and use its recovery route. `revise` returns to the owning content/visual-system node; rendering never implies approval.
 
 ### produce-html-deck
 
@@ -138,7 +138,7 @@ exit: [pptx_generated, speaker_notes_injected, evidence:html-delivery-current]
 
 **Step 1 — CLI**: Run `ppt_flow build <run-dir>`. It recovers only eligible same-host dead gate journals, then executes local Stages 1-5 with no provider options.
 
-**Step 2 — MD**: If a quality gate is stale, show what changed, recommend current preview plus exact approval, then present the owner-provided reasoned continuation only when it is reversible. If status reports a journal/reset conflict, explain the protected identity/concurrency invariant and follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
+**Step 2 — MD**: If a quality gate is stale, show `html_resume_guidance`, run its recommended preview/approval command, then present its continuation only when it is reversible and the human supplies a reason. A user may explicitly choose `build --force --reason` only through the public CLI; it deterministically publishes only required waivers before local build and never calls a provider. If status reports a journal/reset conflict, explain the protected identity/concurrency invariant and follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
 
 ### checkpoint-final-review
 
@@ -155,7 +155,7 @@ exit: [user_decision_recorded]
 
 **Step 1 — MD**: Open the current delivery contact sheet and verify the produced PPTX plus notes result. Explain the three typed exits.
 
-**Step 2 — GATE**: Recommend rebuilding/reviewing missing lineage first. When reviewable target artifacts are current but lineage is incomplete, show the explicit reasoned continuation; it remains an evidence waiver rather than approval. Missing reviewable target bytes, unsafe identity, active writer, or corrupted state is a hard stop. Use only the owner command to record the decision; never hand-edit state.
+**Step 2 — GATE**: Use only `ppt_flow state <run-dir> --record-delivery-review proceed|repair|redirect` to record the typed final decision. Recommend rebuilding/reviewing missing lineage first. When reviewable target artifacts are current but lineage is incomplete, present `proceed --force --reason` as the explicit evidence continuation; it remains an evidence waiver rather than approval or complete lineage. Missing reviewable target bytes, unsafe identity, active writer, or corrupted state is a hard stop. Do not call `setNodeDecision` afterward, hand-edit state, or infer final acceptance from conversation.
 
 ### repair-html-deck
 
@@ -183,7 +183,7 @@ entry: [node_decision:checkpoint-final-review:proceed]
 exit: [pptx_generated, speaker_notes_injected, gate_approved:content, gate_approved:visual, evidence:delivery-checks-passed]
 ```
 
-**Step 1 — CLI**: Inspect current reset-bound gates, delivery digest, contact sheet, assembly-v2, notes-v3, and delivery review. Do not require Phase 4.
+**Step 1 — CLI**: Inspect `ppt_flow state <run-dir> --json` for current reset-bound gates, delivery digest, contact sheet, assembly-v2, notes-v3, delivery review, and independent `evidence_complete` / `waived_checks`. A current forced `proceed` is accepted delivery with a recommended lineage repair; do not require Phase 4.
 
 ### final
 

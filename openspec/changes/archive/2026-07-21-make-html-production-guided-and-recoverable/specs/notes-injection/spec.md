@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Multiline speaker-note blockquotes tolerate blank quote lines
 

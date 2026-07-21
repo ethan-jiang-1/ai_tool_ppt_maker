@@ -217,13 +217,51 @@ Successful paths, including `--help` and successful command completion, SHALL NO
 
 ### Requirement: state prints a where-am-I resume card
 
-`ppt_flow.mjs state` human output and successful `--json` output SHALL retain the whole-session where-am-I card and SHALL classify the canonical production marker before state interpretation. The card SHALL expose non-empty `workflow_summary` and `suggested_next`, exact `pipeline`, and `state_present`. When durable state exists it SHALL retain active `playbook`, `current_node`, current-node status, optional `waiting_for`/`note`, gates, and `playbook_stack`. For a historical markerless deck without state it SHALL expose legacy-maintenance ownership through a non-persisted compatibility card, leave absent execution fields explicitly null/not-active, and SHALL not create `_state/state.yaml`. When the exact migration target receipt exists but its source execution handoff is absent, state/status SHALL expose `migration_handoff_pending: true`, source/target version, and resume guidance without writing or leaking receipt SHAs/paths; all other outputs use false/null.
+`ppt_flow.mjs state` human output and successful `--json` output SHALL retain the whole-session
+where-am-I card and SHALL classify the canonical production marker before state interpretation. The card
+SHALL expose non-empty `workflow_summary` and `suggested_next`, exact `pipeline`, and `state_present`.
+When durable state exists it SHALL retain active `playbook`, `current_node`, current-node status,
+optional `waiting_for`/`note`, gates, and `playbook_stack`. For a historical markerless deck without
+state it SHALL expose legacy-maintenance ownership through a non-persisted compatibility card, leave
+absent execution fields explicitly null/not-active, and SHALL not create `_state/state.yaml`. When the
+exact migration target receipt exists but its source execution handoff is absent, state/status SHALL
+expose `migration_handoff_pending: true`, source/target version, and resume guidance without writing or
+leaking receipt SHAs/paths; all other outputs use false/null.
 
-`state --recover-gate-journal <owner-token>` SHALL be a closed HTML-only repair operation requiring the exact token previously shown by plain state/status. `state --record-delivery-review <proceed|repair|redirect> [--reason <text>]` SHALL be the only public publication route for `html-delivery-review`; it SHALL derive current evidence through the deep module, require reason for repair/redirect, forbid it for proceed, and accept no evidence override. Both operations SHALL be mutually exclusive with `--json`, `--check-gates`, and each other and SHALL emit no ordinary resume card until their transaction completes. Markerless runs SHALL reject both before writes with branch-inapplicable guidance.
+`state --recover-gate-journal <owner-token>` SHALL be a closed HTML-only repair operation requiring the
+exact token previously shown by plain state/status. `state --record-delivery-review
+<proceed|repair|redirect> [--reason <text>]` SHALL be the only public publication route for
+`html-delivery-review`; it SHALL derive current evidence through the deep module, require a reason for
+`repair|redirect`, forbid a reason for normal `proceed`, and accept `--force --reason` for a current
+reviewable PPTX/contact-sheet proceed with an evidence waiver. Both operations SHALL be mutually
+exclusive with `--json`, `--check-gates`, and each other and SHALL emit no ordinary resume card until
+their transaction completes. Markerless runs SHALL reject both before writes with branch-inapplicable
+guidance.
 
-For HTML-first, human output and top-level JSON `html_reviews` SHALL expose the exact bounded snapshot: content/visual objects with `decision: pending|approved|waived` and `freshness: current|stale|missing|invalid`; content `review_required` boolean; visual sorted `outstanding_recipe_keys` and `outstanding_slide_ids`; delivery with `freshness: current|stale|missing|invalid`, `decision: null|proceed|repair|redirect`, and `reason_present` boolean; reset with `status: absent|deletion-pending|complete`, `ownership: none|active|waiting|recoverable|uncertain|invalid`, and nullable `retry_after_ms`; and journal `status: absent|active|uncertain|recoverable-abort|recoverable-mirror|recoverable-cleanup|recoverable-reset-yield|invalid|forbidden` plus optional `owner_token` of exactly 64 lowercase hex when non-absent. Plain state/status SHALL not expose reset IDs/tokens, claim timestamps, bound SHAs/paths/raw owner data, or perform recovery. For markerless compatibility, `html_reviews` SHALL be null and pipeline SHALL be exact `legacy-image2-first`; HTML uses exact `html-first-v1`.
+For HTML-first, human output and top-level JSON `html_reviews` SHALL expose the exact bounded snapshot:
+content/visual objects with `decision: pending|approved|waived` and
+`freshness: current|stale|missing|invalid`, plus independent `evidence_complete` and bounded
+`waived_checks`; content `review_required` boolean; visual sorted `outstanding_recipe_keys` and
+`outstanding_slide_ids`; delivery with `freshness: current|stale|missing|invalid`,
+`decision: null|proceed|repair|redirect`, `reason_present` boolean, independent
+`evidence_complete`, and bounded `waived_checks`; reset with `status:
+absent|deletion-pending|complete`, `ownership:
+none|active|waiting|recoverable|uncertain|invalid`, and nullable `retry_after_ms`; and journal
+`status: absent|active|uncertain|recoverable-abort|recoverable-mirror|recoverable-cleanup|recoverable-reset-yield|invalid|forbidden`
+plus optional `owner_token` of exactly 64 lowercase hex when non-absent. Plain state/status SHALL not
+expose reset IDs/tokens, claim timestamps, bound SHAs/paths/raw owner data, or perform recovery. For
+markerless compatibility, `html_reviews` SHALL be null and pipeline SHALL be exact
+`legacy-image2-first`; HTML uses exact `html-first-v1`.
 
-Suggested-next SHALL be waiting-first, then journal conflict/repair, then owning stale/missing review or delivery action, and SHALL never present unavailable Phase 4 as required debt after complete delivery. Card construction SHALL remain in the shared state module so `status` consumes the same semantics without mutating state. Deck resolution SHALL use `deckRoot(resolve(runDir))`. The complete CLI surface SHALL remain exactly 15 commands.
+For content, visual, and delivery, `evidence_complete` SHALL be `true|false|null`: null means no valid
+record can establish completeness. `waived_checks` SHALL be the record's canonical list or an empty
+array when no valid waiver record exists; it SHALL not be synthesized from a diagnostic.
+
+Suggested-next SHALL be waiting-first, then journal conflict/repair, then owning stale/missing review
+or delivery action, and SHALL never present unavailable Phase 4 as required debt after a current user
+accepted delivery. Card construction SHALL remain in the shared state module so `status` consumes the
+same semantics without mutating state. Deck resolution SHALL use `deckRoot(resolve(runDir))`. The
+complete CLI surface SHALL remain exactly 15 top-level commands.
 
 #### Scenario: HTML resume card exposes outstanding review
 
@@ -236,6 +274,12 @@ Suggested-next SHALL be waiting-first, then journal conflict/repair, then owning
 - **WHEN** current delivery, notes, gates, and `html-delivery-review: proceed` verify
 - **THEN** workflow summary reports a complete deliverable
 - **AND** suggested-next does not require lifecycle 4 or create optional-refinement state
+
+#### Scenario: Forced delivery card remains transparent
+
+- **WHEN** current target PPTX/contact sheet support forced `proceed` but lineage evidence is incomplete
+- **THEN** the card reports current user acceptance with `evidence_complete: false` and bounded `waived_checks`
+- **AND** suggested-next recommends repair without fabricating a missing receipt
 
 #### Scenario: Markerless state card does not seed execution
 
@@ -264,7 +308,7 @@ Suggested-next SHALL be waiting-first, then journal conflict/repair, then owning
 
 - **WHEN** state/check-gates/build cannot automatically recover an uncertain journal
 - **THEN** the producer-owned next action marks human confirmation required and carries the opaque token for the Controller
-- **AND** does not tell the human to edit `_state` or invent approval
+- **AND** it does not tell the human to edit `_state` or invent approval
 
 #### Scenario: Delivery review decision is recorded
 
@@ -323,7 +367,23 @@ Status SHALL retain the `Lessons` line and JSON `lessons_count`, counting files 
 
 ### Requirement: approve dual-writes metadata and _state gates
 
-`ppt_flow approve <runDir> <gate>` SHALL classify the run before validating approval evidence. For markerless legacy, existing metadata `content_gate|visual_gate` and `_state.gates.content|visual` compatibility writes/reads SHALL remain and HTML approval SHALL never overwrite them. For `html-first-v1`, content and visual approval/waiver SHALL require no reset pending plus the exact current-reset hash of an `approvable: true` plan covering every outstanding evidence item; scoped/incomplete/pre-reset plans SHALL fail and list missing/stale evidence. Successful publication SHALL write one version-scoped/current-reset `html-content-review` or `html-visual-review` record under authoritative `_state`, update only `_state.gates.html_content|html_visual` plus matching `_state.gates.html_content_run_version|html_visual_run_version`, then update only metadata `html_content_gate|html_visual_gate` plus matching `html_content_gate_run_version|html_visual_gate_run_version` through the recoverable journal protocol. These HTML fields are compatibility/status mirrors; they SHALL use status `pending|approved|waived`, exact normalized run version, and SHALL never satisfy legacy or HTML readiness by themselves. A waiver SHALL require a reason accepted by the shared 1024-byte `normalizeHumanReason` rule and the same complete current-reset plan. Ambiguous or unrecoverable partial writes SHALL fail closed.
+`ppt_flow approve <runDir> <gate>` SHALL classify the run before validating approval evidence. For
+markerless legacy, existing metadata `content_gate|visual_gate` and `_state.gates.content|visual`
+compatibility writes/reads SHALL remain and HTML approval SHALL never overwrite them. For
+`html-first-v1`, ordinary content and visual approval SHALL require no reset pending plus the exact
+current-reset hash of an `approvable: true` plan covering every outstanding evidence item; scoped,
+incomplete, or pre-reset plans SHALL fail and list missing/stale evidence. An explicit
+`--waive --reason` MAY instead bind the current computable source/projection/reset/version identity when
+the plan is missing or incomplete; it SHALL publish `status: waived`, bounded `waived_checks`, and
+independent `evidence_complete`, and any supplied hash SHALL match exactly. Successful publication
+SHALL write one version-scoped/current-reset `html-content-review` or `html-visual-review` record under
+authoritative `_state`, update only `_state.gates.html_content|html_visual` plus matching
+`_state.gates.html_content_run_version|html_visual_run_version`, then update only metadata
+`html_content_gate|html_visual_gate` plus matching run-version fields through the recoverable journal
+protocol. These HTML fields are compatibility/status mirrors; they SHALL use status
+`pending|approved|waived`, exact normalized run version, and SHALL never satisfy legacy or HTML
+readiness by themselves. A waiver SHALL require a reason accepted by the shared 1024-byte
+`normalizeHumanReason` rule. Ambiguous or unrecoverable partial writes SHALL fail closed.
 
 #### Scenario: HTML visual approval binds current evidence
 
@@ -338,8 +398,14 @@ Status SHALL retain the `Lessons` line and JSON `lessons_count`, counting files 
 
 #### Scenario: HTML scoped plan is incomplete
 
-- **WHEN** approval supplies a current hash whose plan is non-approvable because other evidence is outstanding
+- **WHEN** ordinary approval supplies a current hash whose plan is non-approvable because other evidence is outstanding
 - **THEN** approval fails, identifies the missing IDs/coverage, and writes neither state nor mirrors
+
+#### Scenario: HTML incomplete plan is explicitly waived
+
+- **WHEN** current source/reset/version identity is valid and Agent supplies `--waive --reason` for that incomplete plan
+- **THEN** the gate publishes `status: waived` with bounded failed checks
+- **AND** readiness reports the waiver decision separately from evidence completeness
 
 #### Scenario: Legacy approval remains compatible
 
@@ -857,12 +923,35 @@ An absent generated owner SHALL not by itself make reset valid. When no current-
 
 ### Requirement: HTML content and visual approval are exact-evidence-hash bound
 
-The public content and visual approval paths SHALL accept a required exact review-plan hash for HTML-first runs and SHALL verify current reset ID plus content projection or preview manifest/bytes/receipts before writing pipeline-specific gate evidence. A waiver SHALL also require an explicit reason. A `deletion_pending` reset SHALL return `CONFLICT`; a pre-reset plan hash SHALL be stale even when rebuilt raw artifacts are byte-identical. Legacy visual/header approval syntax and evidence remain isolated. A stale/missing hash SHALL fail with a human-review next action and no gate mutation.
+The public `approve <run-dir> content|visual` command SHALL require an exact current plan hash for
+`approved`. `--waive --reason` SHALL accept a missing/incomplete quality plan only when the canonical
+HTML source parses and current run version/reset identity is known. It SHALL publish through the same
+gate owner/journal/CAS authority with gate `status: waived`, a bounded reason, and a bounded
+`waived_checks` list. `evidence_complete` SHALL reflect the actual evidence: it MAY be true for a
+complete intentional waiver and SHALL be false when checks are missing. A caller-supplied non-matching
+plan hash SHALL return `CONFLICT` or `GATE_BLOCKED` without mutation. HTML legacy gate fields SHALL
+remain untouched. A `deletion_pending` reset SHALL return `CONFLICT`; a pre-reset plan hash SHALL be
+stale even when rebuilt raw artifacts are byte-identical. Legacy visual/header approval syntax and
+evidence SHALL remain isolated. A stale or missing hash on ordinary approval SHALL fail with a
+human-review next action and no gate mutation.
 
 #### Scenario: User approves current HTML preview
 
-- **WHEN** the supplied review-plan hash matches current shown artifacts
-- **THEN** `approve ... visual` records current `html-visual-review` evidence and visual gate status
+- **WHEN** content or visual approval receives the exact current plan hash and complete evidence
+- **THEN** the command records gate `status: approved` and returns `decision: approved` with `evidence_complete: true`
+- **AND** the result uses the current reset/version-bound review record
+
+#### Scenario: Incomplete evidence is explicitly waived
+
+- **WHEN** the source parses, current identity is known, and the user supplies `--waive --reason`
+- **THEN** the command records a current version-scoped `status: waived` gate and returns its failed checks
+- **AND** readiness distinguishes the waiver decision from independently computed evidence completeness
+
+#### Scenario: User supplies a wrong hash
+
+- **WHEN** a caller passes a non-matching explicit plan hash
+- **THEN** the command returns a bounded mismatch diagnostic with expected/actual lineage
+- **AND** it writes no gate, mirror, or waiver record
 
 #### Scenario: Preview changed after showing
 
@@ -912,3 +1001,56 @@ New reason kinds for renderer preparation, browser measurement, manifest drift, 
 - **WHEN** a delegated renderer fails
 - **THEN** `ppt_flow` preserves one normalized actionable parent diagnostic
 - **AND** does not append raw child stderr or a second JSON envelope
+
+### Requirement: CLI continuation controls are registered and auditable
+
+`build`, `state --record-delivery-review proceed`, and `image2 plan` SHALL expose the explicitly
+reasoned continuation controls defined by their owners. `--force --reason` SHALL never silently
+submit to a provider, create a second state authority, or bypass active journal/reset/CAS fences.
+Each successful continuation SHALL return a structured result that identifies the decision (`waived`
+or evidence waiver), identity freshness, evidence completeness, and the bounded waived checks. Each
+failure SHALL use the existing single stderr JSON envelope and secret-safe diagnostic contract.
+
+#### Scenario: Build continues after a user waiver
+
+- **WHEN** content/visual evidence is pending or stale and the user invokes `build --force --reason <text>`
+- **THEN** the command publishes current gate waivers through the gate authority and continues local assembly
+- **AND** it does not publish approval or falsely claim evidence completeness
+
+#### Scenario: Build force dry-run is non-writing
+
+- **WHEN** `build --force --reason <text> --dry-run` is invoked
+- **THEN** the success result lists prospective gate decisions and local stages
+- **AND** no gate, metadata mirror, or generated artifact is written
+
+#### Scenario: Delivery continuation lacks reviewable artifacts
+
+- **WHEN** delivery review has no PPTX/contact sheet that the user could inspect
+- **THEN** `state --record-delivery-review proceed --force` returns a hard-stop diagnostic
+- **AND** it does not create a delivery decision
+
+#### Scenario: Image2 planning is forced without delivery proceed
+
+- **WHEN** current HTML/final-slide/slot identity exists but delivery review is not current
+- **THEN** `image2 plan --force --reason <text>` creates only an offline plan with a prerequisite waiver
+- **AND** authorization and provider generation remain separate explicit steps
+
+### Requirement: State validation is a registered read-only operation
+
+`ppt_flow state <run-dir> --validate-state` SHALL validate the authoritative state and referenced
+evidence without mutating files by default. It SHALL report unknown/missing/extra keys, canonical
+version-key errors, SHA format or on-disk reference mismatches, and delivery-record field differences
+with bounded expected/actual paths. It SHALL provide a producer-owned normalize/repair next action
+without requiring a novice to hand-edit YAML.
+
+#### Scenario: State contains an intuitive but noncanonical version key
+
+- **WHEN** a record is stored under `v2` instead of `3_versions/v2`
+- **THEN** validation reports the exact key and canonical replacement
+- **AND** the read-only command does not silently rewrite the state
+
+#### Scenario: Delivery record has one wrong SHA
+
+- **WHEN** a delivery record SHA differs from the referenced file
+- **THEN** validation reports the field path plus bounded expected and actual values
+- **AND** normal state observation remains non-mutating

@@ -7,6 +7,18 @@ export const RELAY_SUBMIT_REQUEST_SCHEMA_V1 = "pptmaker-image2-relay-submit-v1";
 const SAFE_PROVIDER_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const ASYNC_RELAY_STATUSES = new Set(["accepted", "queued", "pending", "processing", "submitted", "completed", "success", "succeeded"]);
 const FAILED_RELAY_STATUSES = new Set(["failed", "failure", "error", "rejected"]);
+const SAFE_TRANSPORT_ERROR_CODES = new Set([
+  "invalid_request",
+  "invalid_attempt",
+  "invalid_authorization",
+  "invalid_transport",
+  "invalid_provider_receipt",
+  "provider_configuration_unavailable",
+  "provider_failure",
+  "reconciliation_failure",
+  "unsupported_provider_response",
+]);
+const SENSITIVE_PROVIDER_TEXT_RE = /(?:api[_ -]?key|authorization|bearer|credential|password|prompt|response[_ -]?body|secret|token)/i;
 
 export class RefinementTransportError extends Error {
   constructor(message, code = "provider_failure", details = undefined) {
@@ -49,6 +61,15 @@ function safeTransportResult(result, request) {
   return Object.freeze(out);
 }
 
+function safeProviderError(error, fallback, fallbackCode) {
+  const message = typeof error?.message === "string" ? error.message.trim() : "";
+  const safeMessage = message && message.length <= 320 && !SENSITIVE_PROVIDER_TEXT_RE.test(message)
+    ? message
+    : fallback;
+  const code = SAFE_TRANSPORT_ERROR_CODES.has(error?.code) ? error.code : fallbackCode;
+  return new RefinementTransportError(safeMessage, code);
+}
+
 /** Injectable boundary used by the application.  No provider module is loaded here. */
 export function createRefinementTransport({ submit, reconcile, name = "injected" } = {}) {
   if (typeof submit !== "function" || typeof reconcile !== "function") throw new RefinementTransportError("transport requires submit and reconcile functions", "invalid_transport");
@@ -58,9 +79,10 @@ export function createRefinementTransport({ submit, reconcile, name = "injected"
       const normalized = assertAttempt(request);
       try { return safeTransportResult(await submit(normalized), normalized); }
       catch (error) {
-        if (error instanceof RefinementTransportError) throw error;
-        if (error?.code === "unknown-submit" || error?.unknownSubmit || error?.code === "ETIMEDOUT") throw new RefinementTransportError(error.message || "provider submit outcome is unknown", "unknown-submit");
-        throw new RefinementTransportError(error.message || "provider submit failed", "provider_failure");
+        if (error?.code === "unknown-submit" || error?.unknownSubmit || error?.code === "ETIMEDOUT") {
+          throw new RefinementTransportError("Image2 provider submit outcome is unknown", "unknown-submit");
+        }
+        throw safeProviderError(error, "Image2 provider submit failed", "provider_failure");
       }
     },
     async reconcileAttempt(attempt) {
@@ -72,7 +94,7 @@ export function createRefinementTransport({ submit, reconcile, name = "injected"
         return Object.freeze({ ...typed, status: typed.status === "submitted" ? "submitted" : typed.status });
       } catch (error) {
         if (error instanceof RefinementTransportError && error.code === "unknown-submit") return Object.freeze({ status: "unknown-submit", attempt_id: normalized.attempt_id, receipt: null });
-        throw new RefinementTransportError(error.message || "provider reconciliation failed", "reconciliation_failure");
+        throw safeProviderError(error, "Image2 provider reconciliation failed", "reconciliation_failure");
       }
     },
   });

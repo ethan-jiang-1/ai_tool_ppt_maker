@@ -338,10 +338,10 @@ bug 卡片流程移动其覆盖的 bug；全部归档且 main specs 同步后关
 `tasks.md` 为准。任何 checkbox 只能在对应验证完成后勾选，不能用代码已编辑或
 测试尚未运行替代完成。
 
-- [ ] **Change 1 - `make-html-production-guided-and-recoverable`**: **进行中**。当前
-  `33/44` 项已勾选；`6.1` relay compatibility spike、`6.2` shared Image2 credential/base-URL
-  resolver、`6.3` plan-v2 request contract 和 lazy transport factory 已完成验证，当前焦点为 `6.4`
-  generate/reconciliation 的 request identity boundary。继续完成、验证并归档本 change，才允许启动 Change 2。
+- [ ] **Change 1 - `make-html-production-guided-and-recoverable`**: **进行中，任务已完成**。
+  当前 `44/44` 项已勾选；`npm test`（48 files / 558 tests）、`npm run test:e2e`（6 files / 41
+  tests）、strict OpenSpec validation、CLI return-audit/secret-safe diagnostics 与 provider-boundary
+  audit 均已通过。下一步仅为 main spec sync 和 archive；在两步完成前，仍不得启动 Change 2。
 - [ ] **Change 2 - `complete-markerless-html-migration`**: **等待** Change 1 的严格
   验证、main spec 同步和归档完成后启动。
 - [ ] **Change 3 - `expand-html-visual-language-and-review`**: **等待** Change 2 的严格
