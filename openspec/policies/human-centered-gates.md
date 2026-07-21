@@ -36,3 +36,9 @@ response instead presents the invariant and its safe recovery action.
 `agent-assistance-and-control.md` governs how a controller, checker, and
 recovery path should be shaped. It does not change this policy's outcome
 classification, waiver semantics, or protected invariants.
+
+For a change that invokes both policies, apply them in this order: classify
+the outcome and non-bypassable invariant here; shape the direct control and
+recovery path in `agent-assistance-and-control.md`; then use the owning
+capability specification for the concrete command, state, and permission
+contract.

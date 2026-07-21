@@ -8,6 +8,7 @@ import { acquireHtmlPublishLock, htmlOwnerRoot, releaseHtmlPublishLock } from '.
 import { assemblyReceiptPath } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs';
 import { createHash } from 'node:crypto';
 import { createCurrentHtmlDelivery } from '../../helpers/image2_refinement_fixture.mjs';
+import { HTML_STALE_OWNERSHIP_MATRIX_V1 } from '../../../PPTMAKER_FRAMEWORK/scripts/contracts/html_review_projection.mjs';
 
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 
@@ -555,4 +556,103 @@ describe('HTML authoritative review evidence', () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
+
+  it('keeps content review current when only visual-system ownership changes', async () => {
+    const fixture = createHtmlFirstRun('html-review-content-owner-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
+
+      const palettePath = join(fixture.deck, '2_backbone', 'visual-style', 'color_palette.json');
+      const palette = JSON.parse(readFileSync(palettePath, 'utf8'));
+      palette.html_first.image_language.medium = `${palette.html_first.image_language.medium} refined`;
+      writeFileSync(palettePath, `${JSON.stringify(palette, null, 2)}\n`, 'utf8');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+
+      const changed = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(changed.content).toMatchObject({ decision: 'approved', freshness: 'current' });
+      expect(changed.visual.freshness).toBe('stale');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('maps each HTML-first stale owner to its smallest refresh path', async () => {
+    const cases = [
+      {
+        key: 'notes_only',
+        refreshPath: 'Notes-Only Refresh',
+        staleOwners: ['notes', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('Alpha note', 'Alpha note revised'), 'utf8'),
+        freshness: { content: 'current', visual: 'current' },
+      },
+      {
+        key: 'visible_copy',
+        refreshPath: 'Local Slide Rebuild',
+        staleOwners: ['content', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('**TITLE**: Alpha', '**TITLE**: Alpha revised'), 'utf8'),
+        freshness: { content: 'stale', visual: 'current' },
+      },
+      {
+        key: 'visual_system_or_recipe',
+        refreshPath: 'Local Deck Rebuild',
+        staleOwners: ['visual', 'delivery'],
+        mutate: async ({ fixture, pipeline }) => {
+          const palettePath = join(fixture.deck, '2_backbone', 'visual-style', 'color_palette.json');
+          const palette = JSON.parse(readFileSync(palettePath, 'utf8'));
+          palette.html_first.image_language.medium = `${palette.html_first.image_language.medium} refreshed`;
+          writeFileSync(palettePath, `${JSON.stringify(palette, null, 2)}\n`, 'utf8');
+          expect(await pipeline.stage1(fixture.runDir, false)).toBe(true);
+        },
+        freshness: { content: 'current', visual: 'stale' },
+      },
+      {
+        key: 'fallback_or_asset',
+        refreshPath: 'Local Slide Rebuild',
+        staleOwners: ['content', 'visual', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('recipe: line-grid', 'recipe: soft-orbs'), 'utf8'),
+        freshness: { content: 'stale', visual: 'stale' },
+      },
+      {
+        key: 'structural',
+        refreshPath: 'Structural Versioning Path',
+        staleOwners: ['content', 'visual', 'notes', 'delivery'],
+        mutate: async ({ sourcePath }) => {
+          const source = readFileSync(sourcePath, 'utf8');
+          const first = source.indexOf('## Slide 01');
+          const second = source.indexOf('## Slide 02');
+          const prefix = source.slice(0, first);
+          const alpha = source.slice(first, second).replace('## Slide 01', '## Slide 02');
+          const bravo = source.slice(second).replace('## Slide 02', '## Slide 01');
+          writeFileSync(sourcePath, `${prefix}${bravo}\n${alpha}`, 'utf8');
+        },
+        freshness: { content: 'missing', visual: 'missing' },
+        deliveryFreshness: 'stale',
+      },
+    ];
+
+    for (const entry of cases) {
+      const fixture = await createCurrentHtmlDelivery(`html-stale-matrix-${entry.key}-`);
+      try {
+        const pipeline = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+        const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+        const sourcePath = join(fixture.runDir, 'slide-specifications.md');
+        expect(HTML_STALE_OWNERSHIP_MATRIX_V1[entry.key].refresh_path).toBe(entry.refreshPath);
+        expect(HTML_STALE_OWNERSHIP_MATRIX_V1[entry.key].stale_owners).toEqual(entry.staleOwners);
+        await entry.mutate({ fixture, pipeline, sourcePath });
+        const readiness = review.inspectHtmlReviewReadiness(fixture.runDir);
+        expect(readiness.content.freshness, entry.key).toBe(entry.freshness.content);
+        expect(readiness.visual.freshness, entry.key).toBe(entry.freshness.visual);
+        expect(readiness.delivery.freshness, entry.key).toBe(entry.deliveryFreshness ?? 'stale');
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  }, 180_000);
 });

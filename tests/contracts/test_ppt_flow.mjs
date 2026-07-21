@@ -523,6 +523,102 @@ playbook_stack: []
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120000);
 
+  it("validates continuation option combinations with one usage envelope", async () => {
+    const htmlFixture = createHtmlFirstRun("ppt-continuation-usage-build-");
+    const deliveryFixture = await createCurrentHtmlDelivery("ppt-continuation-usage-state-");
+    try {
+      const cases = [
+        {
+          result: runPptFlow(["build", htmlFixture.runDir, "--reason", "A reason without force is invalid." ]),
+          where: "ppt_flow.build.html",
+        },
+        {
+          result: runPptFlow(["state", deliveryFixture.runDir, "--force"]),
+          where: "ppt_flow.state",
+        },
+        {
+          result: runPptFlow(["state", deliveryFixture.runDir, "--reason", "A state reason needs a delivery decision." ]),
+          where: "ppt_flow.state",
+        },
+        {
+          result: runPptFlow(["state", deliveryFixture.runDir, "--validate-state", "--json"]),
+          where: "ppt_flow.state",
+        },
+        {
+          result: runPptFlow(["image2", "plan", deliveryFixture.runDir, "--profile", "a".repeat(64), "--reason", "A plan reason needs force." ]),
+          where: "ppt_flow.image2.plan",
+        },
+        {
+          result: runPptFlow(["image2", "generate", deliveryFixture.runDir, "--force"]),
+          where: "ppt_flow.image2.generate",
+        },
+      ];
+      for (const { result, where } of cases) {
+        expect(result.status, result.stderr).toBe(1);
+        expect((result.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
+        expect(parseFailureEnvelope(result.stderr)).toMatchObject({ code: "USAGE", where });
+      }
+    } finally {
+      rmSync(htmlFixture.root, { recursive: true, force: true });
+      rmSync(deliveryFixture.root, { recursive: true, force: true });
+    }
+  }, 120000);
+
+  it("documents the constrained continuation controls in Commander help", () => {
+    const approve = runPptFlow(["approve", "--help"]);
+    const build = runPptFlow(["build", "--help"]);
+    const state = runPptFlow(["state", "--help"]);
+    const image2 = runPptFlow(["image2", "--help"]);
+    for (const result of [approve, build, state, image2]) expect(result.status, result.stderr).toBe(0);
+    expect(approve.stdout).toMatch(/HTML --waive.*header risk acceptance/is);
+    expect(build.stdout).toMatch(/--force.*waive reversible pending HTML gate evidence/is);
+    expect(state.stdout).toMatch(/--record-delivery-review.*proceed/is);
+    expect(state.stdout).toMatch(/--reason.*forced\s+proceed/is);
+    expect(image2.stdout).toMatch(/--force.*offline planning/is);
+    expect(image2.stdout).toMatch(/--reason.*image2 plan\s+--force/is);
+  });
+
+  it("image2 plan --force records only a bound offline prerequisite waiver", async () => {
+    const fixture = await createCurrentHtmlDelivery("ppt-image2-force-plan-");
+    try {
+      const receiptPath = assemblyReceiptPath(fixture.runDir);
+      const assemblyReceipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+      assemblyReceipt.html_delivery_digest = "f".repeat(64);
+      writeFileSync(receiptPath, `${JSON.stringify(assemblyReceipt, null, 2)}\n`);
+      const profile = "a".repeat(64);
+
+      const ordinary = runPptFlow(["image2", "plan", fixture.runDir, "--profile", profile]);
+      expect(ordinary.status).toBe(1);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+
+      const missingReason = runPptFlow(["image2", "plan", fixture.runDir, "--profile", profile, "--force"]);
+      expect(missingReason.status).toBe(1);
+      expect(parseFailureEnvelope(missingReason.stderr)).toMatchObject({ code: "USAGE" });
+
+      const forced = runPptFlow([
+        "image2", "plan", fixture.runDir, "--profile", profile, "--force",
+        "--reason", "The current final-slide identity is sufficient for an offline refinement plan.",
+      ]);
+      expect(forced.status, forced.stderr).toBe(0);
+      const report = JSON.parse(forced.stdout);
+      expect(report).toMatchObject({
+        schema: "pptmaker-image2-refinement-plan-v2",
+        force_not_needed: false,
+        prerequisite_waiver_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      const record = readImage2RefinementState(readState(fixture.deck), "v1");
+      expect(record.prerequisite_waiver).toMatchObject({
+        run_version: "v1",
+        html_delivery_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(record.plan.prerequisite_waiver_fingerprint).toBe(report.prerequisite_waiver_fingerprint);
+
+      const badOperation = runPptFlow(["image2", "authorize", fixture.runDir, "--force"]);
+      expect(badOperation.status).toBe(1);
+      expect(parseFailureEnvelope(badOperation.stderr)).toMatchObject({ code: "USAGE" });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120000);
+
   it("controller gate context reuses real validators and fails closed", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");
     try {

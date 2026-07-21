@@ -35,10 +35,14 @@ unauthorized provider work.
   authority. Materialize a provider-neutral request from the authorized current HTML plan and bind
   its fingerprint into plan/attempt freshness; preserve explicit authorization, chargeable-attempt
   persistence, and safe reconciliation (BUG-021).
-- Add the project-level OpenSpec gate policy at
-  `openspec/policies/human-centered-gates.md` and wire its concise principles into
-  `openspec/config.yaml`, so future gate/readiness changes must specify guide, confirm, and
-  hard-stop behavior.
+- Put durable OpenSpec governance in
+  `openspec/policies/human-centered-gates.md` and
+  `openspec/policies/agent-assistance-and-control.md`, then wire their concise
+  division into `openspec/config.yaml`. A change-local research note may explain
+  a decision, but cannot be the lasting authority after the change is archived.
+  Future gate/readiness changes must specify guide, confirm, and hard-stop
+  behavior; controller/recovery changes must preserve direct ownership and an
+  explicit legal path.
 
 The change does not remove gates, make invalid source/state continue, invent approval evidence,
 edit generated artifacts by hand, or make `--force` submit to a provider.
@@ -78,8 +82,9 @@ None.
   `PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs`,
   `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs`, HTML review/state contracts, notes injection, and
   Phase-4 refinement adapter modules.
-- **OpenSpec governance:** new `openspec/policies/human-centered-gates.md`, updated
-  `openspec/config.yaml`, and deltas for the capabilities above.
+- **OpenSpec governance:** durable `openspec/policies/human-centered-gates.md` and
+  `openspec/policies/agent-assistance-and-control.md`, updated `openspec/config.yaml`,
+  and deltas for the capabilities above.
 - **CLI surface:** `approve`, `build`, `state --validate-state`,
   `state --record-delivery-review`, and `image2 plan`/`authorize`/`generate`/`unknown-submit` behavior and
   diagnostics.

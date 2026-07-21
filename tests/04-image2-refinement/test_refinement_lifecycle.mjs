@@ -24,6 +24,16 @@ const planInput = {
   run_version: "v1",
   delivery_digest: "d".repeat(64),
   profile_fingerprint: "c".repeat(64),
+  profile_contract: {
+    schema: "pptmaker-image2-visual-slot-profile-v1",
+    mode: "visual-slot",
+    profile_fingerprint: "c".repeat(64),
+  },
+  request_contract_version: "pptmaker-refinement-submit-request-v1",
+  request_fingerprints: [
+    { role: "slot:Alpha:primary_visual", kind: "slot", slide_id: "Alpha", slot: "primary_visual", request_fingerprint: "d".repeat(64) },
+    { role: "slot:Bravo:primary_visual", kind: "slot", slide_id: "Bravo", slot: "primary_visual", request_fingerprint: "e".repeat(64) },
+  ],
   style_reference_status: "current",
   slides: [
     { slide_id: "Alpha", slot: "primary_visual", visual_contract_fingerprint: "a".repeat(64) },
@@ -74,6 +84,49 @@ describe("Phase 4 lifecycle boundaries", () => {
     expect(transport.submitCount).toBe(1);
     expect(result.receipt).toEqual({ provider_request_id: "p-1" });
   });
+
+  it("persists provider request identity through unknown-submit reconciliation without a resubmit", async () => {
+    const fixture = await createAuthorizedRun("image2-provider-id-");
+    try {
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const slot = fixture.attempts.find((attempt) => attempt.kind === "slot");
+      let reconciledRequest = null;
+      const transport = createFakeRefinementTransport({
+        onSubmit: async (request) => request.kind === "style-reference"
+          ? submittedBytes(request)
+          : {
+              status: "unknown-submit",
+              provider_request_id: "task-slot-persisted-001",
+              receipt: { provider_request_id: "task-slot-persisted-001" },
+            },
+        onReconcile: async (request) => {
+          reconciledRequest = request;
+          return {
+            ...submittedBytes(request),
+            provider_request_id: request.provider_request_id,
+            receipt: { provider_request_id: request.provider_request_id },
+          };
+        },
+      });
+
+      await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport });
+      const unknown = await fixture.operations.generateRefinement({ runDir: fixture.runDir, attemptId: slot.attempt_id, transport });
+      expect(unknown.attempt).toMatchObject({ state: "unknown-submit", provider_request_id: "task-slot-persisted-001" });
+      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[slot.attempt_id]).toMatchObject({
+        state: "unknown-submit",
+        provider_request_id: "task-slot-persisted-001",
+      });
+
+      const resolved = await fixture.operations.reconcileRefinementAttempt({ runDir: fixture.runDir, attemptId: slot.attempt_id, transport });
+      expect(reconciledRequest).toMatchObject({
+        attempt_id: slot.attempt_id,
+        provider_request_id: "task-slot-persisted-001",
+      });
+      expect(resolved.attempt).toMatchObject({ state: "submitted", provider_request_id: "task-slot-persisted-001" });
+      expect(transport.submitCount).toBe(2);
+      expect(transport.reconcileCount).toBe(1);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
 
   it("cleanup is hash-bound and retains one rejected candidate per slide", () => {
     const root = mkdtempSync(join(tmpdir(), "image2-cleanup-"));
@@ -238,6 +291,80 @@ describe("Phase 4 lifecycle boundaries", () => {
       const paths = operations.refinementPaths(fixture.runDir);
       expect(existsSync(paths.generated)).toBe(false);
       expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("permits exact candidate review and promotion after a forced prerequisite waiver", async () => {
+    const fixture = await createCurrentHtmlDelivery("image2-force-promote-");
+    try {
+      const operations = await loadRefinementOperations();
+      await operations.enterRefinementController({ runDir: fixture.runDir });
+      const receiptPath = assemblyReceiptPath(fixture.runDir);
+      const assembly = JSON.parse(readFileSync(receiptPath, "utf8"));
+      assembly.html_delivery_digest = "f".repeat(64);
+      writeFileSync(receiptPath, `${JSON.stringify(assembly, null, 2)}\n`);
+      const plan = await operations.createRefinementPlan({
+        runDir: fixture.runDir,
+        profileFingerprint: "a".repeat(64),
+        force: true,
+        reason: "The current final-slide identity is sufficient for this authorized visual-slot review.",
+      });
+      const authorization = await operations.authorizeRefinement({
+        runDir: fixture.runDir,
+        planHash: plan.plan_hash,
+        authorizationId: "auth-force-promote",
+      });
+      const setup = Object.values(authorization.attempts).find((attempt) => attempt.kind === "style-reference");
+      const alpha = Object.values(authorization.attempts).find((attempt) => attempt.slide_id === "AlphaGo");
+      const bravo = Object.values(authorization.attempts).find((attempt) => attempt.slide_id === "BravoGo");
+      const transport = createFakeRefinementTransport({ onSubmit: async (request) => submittedBytes(request) });
+      await operations.generateRefinement({ runDir: fixture.runDir, attemptId: setup.attempt_id, transport });
+      const generated = await operations.generateRefinement({ runDir: fixture.runDir, attemptId: alpha.attempt_id, transport });
+      const alternate = await operations.generateRefinement({ runDir: fixture.runDir, attemptId: bravo.attempt_id, transport });
+      const review = await operations.composeCandidateReview({ runDir: fixture.runDir, candidateId: generated.candidate.candidate_id });
+      expect(review.review.decision).toBe("pending");
+      await operations.composeCandidateReview({ runDir: fixture.runDir, candidateId: alternate.candidate.candidate_id });
+      await operations.useHtmlRefinement({
+        runDir: fixture.runDir,
+        slideId: alternate.candidate.slide_id,
+        candidateId: alternate.candidate.candidate_id,
+      });
+      const accepted = await operations.acceptRefinementCandidate({
+        runDir: fixture.runDir,
+        slideId: "AlphaGo",
+        candidateId: generated.candidate.candidate_id,
+      });
+      expect(accepted).toMatchObject({ provider_calls: 0, requires_final_review: true });
+      const htmlReview = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs");
+      expect(htmlReview.inspectHtmlReviewReadiness(fixture.runDir).delivery.freshness).not.toBe("current");
+      await expect(operations.completeRefinementController({ runDir: fixture.runDir })).resolves.toMatchObject({
+        complete: true,
+        playbook: "create-deck",
+        requires_final_review: true,
+      });
+      expect(readState(fixture.deck)).toMatchObject({
+        playbook: "create-deck",
+        current_node: "checkpoint-final-review",
+      });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("blocks ordinary authorized generation when complete delivery evidence becomes stale", async () => {
+    const fixture = await createAuthorizedRun("image2-normal-delivery-stale-");
+    try {
+      const receiptPath = assemblyReceiptPath(fixture.runDir);
+      const assembly = JSON.parse(readFileSync(receiptPath, "utf8"));
+      assembly.html_delivery_digest = "f".repeat(64);
+      writeFileSync(receiptPath, `${JSON.stringify(assembly, null, 2)}\n`);
+      const setup = fixture.attempts.find((attempt) => attempt.kind === "style-reference");
+      const transport = createFakeRefinementTransport({ onSubmit: async (request) => submittedBytes(request) });
+
+      await expect(fixture.operations.generateRefinement({
+        runDir: fixture.runDir,
+        attemptId: setup.attempt_id,
+        transport,
+      })).rejects.toThrow(/complete evidence is required/);
+      expect(transport.submitCount).toBe(0);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 

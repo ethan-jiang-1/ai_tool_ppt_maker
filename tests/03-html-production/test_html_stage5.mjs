@@ -63,8 +63,42 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(reviewed.nodes['checkpoint-final-review'].decision).toMatchObject({ value: 'proceed', kind: 'user', evidence_ref: { node_id: 'html-delivery-review', version_key: '3_versions/v1' } });
       const reviewApi = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
       expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'current', decision: 'proceed' });
-      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: 'Changed after delivery review' })]));
-      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'stale', decision: 'proceed' });
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: null })]).replace(
+        '**SLIDE BODY**:\n```yaml\nschema_version: 1\nfamily: hero\n```\n',
+        '**SLIDE BODY**:\n```yaml\nschema_version: 1\nfamily: hero\n```\n> **SPEAKER NOTE**\n>\n> Changed after delivery review\n',
+      ));
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir)).toMatchObject({
+        content: { freshness: 'current' },
+        visual: { freshness: 'current' },
+        delivery: { freshness: 'stale', decision: 'proceed' },
+      });
+
+      const notesRefresh = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'refresh', fixture.runDir,
+        '--kind', 'notes',
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
+      expect(notesRefresh.status, notesRefresh.stderr || notesRefresh.stdout).toBe(0);
+      const refreshedReceipt = JSON.parse(readFileSync(join(fixture.runDir, '_generated', 'qa', 'notes_injection.json'), 'utf8'));
+      expect(refreshedReceipt.notes_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      const refreshedState = readState(fixture.deck);
+      refreshedState.playbook = 'create-deck';
+      refreshedState.current_node = 'checkpoint-final-review';
+      refreshedState.nodes['checkpoint-final-review'] = {
+        status: 'in_progress',
+        execution_id: refreshedState.execution_id,
+        evidence: {},
+      };
+      writeState(fixture.deck, refreshedState);
+      const renewedReview = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'state', fixture.runDir,
+        '--record-delivery-review', 'proceed',
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
+      expect(renewedReview.status, renewedReview.stderr || renewedReview.stdout).toBe(0);
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir)).toMatchObject({
+        content: { freshness: 'current' },
+        visual: { freshness: 'current' },
+        delivery: { freshness: 'current', decision: 'proceed' },
+      });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

@@ -108,6 +108,10 @@ context: |-
   explicit same-check recovery path over added modes, duplicate validators,
   inferred intent, or parallel state. This policy is guidance only; runtime
   schemas and permissions remain in their owning capability specifications.
+  When both policies apply, the gate policy alone classifies the outcome,
+  waiver semantics, and protected invariant; the control policy alone shapes
+  the direct source/evaluator/handoff/recovery path; capability specifications
+  alone define concrete commands, record fields, and permissions.
 
   ## Capability 注册表
 

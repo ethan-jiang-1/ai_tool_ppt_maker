@@ -28,6 +28,13 @@ export {
   recommendRefinementSlides,
   safeProfileFingerprint,
   sha256,
+  createProfileContract,
+  normalizeProfileContract,
+  normalizeRefinementRequestMaterial,
+  refinementAttemptRole,
+  refinementRequestFingerprint,
+  requestFingerprintForAttempt,
+  verifyRefinementRequestReferences,
   transitionAttempt,
   validateAttempt,
   validatePlanInput,
@@ -36,6 +43,31 @@ export {
 export async function loadRefinementOperations() {
   return import("./internal/application.mjs");
 }
+
+/**
+ * The only public live-provider factory. Imports stay side-effect-free; the
+ * private relay protocol is loaded only after the CLI resolves credentials at
+ * the generate/reconciliation boundary.
+ */
+export async function createModernRefinementTransport({ credentials, config = {}, ...options } = {}) {
+  const resolved = credentials || options.credentials || options;
+  const baseUrl = resolved?.base_url ?? resolved?.baseUrl;
+  const apiKey = resolved?.api_key ?? resolved?.apiKey;
+  const [{ createRelayProtocolTransport }, { materializeVisualSlotRelayBody }] = await Promise.all([
+    import("./internal/relay_protocol.mjs"),
+    import("./internal/provider_request.mjs"),
+  ]);
+  return createRelayProtocolTransport({
+    baseUrl,
+    apiKey,
+    fetchImpl: config.fetchImpl ?? options.fetchImpl,
+    timeoutMs: config.timeoutMs ?? options.timeoutMs,
+    name: config.name ?? options.name ?? "modern-image2-visual-slot",
+    materializeSubmitBody: materializeVisualSlotRelayBody,
+  });
+}
+
+export const createPhase4Transport = createModernRefinementTransport;
 
 async function operations() { return loadRefinementOperations(); }
 export async function recommendRefinement(...args) { return (await operations()).recommendRefinement(...args); }

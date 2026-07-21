@@ -2360,6 +2360,18 @@ async function resolveImage2Run(runDir, where) {
   }
 }
 
+async function createImage2CliTransport(runDir, baseUrl = null) {
+  // Credential resolution is deliberately at the remote boundary. Offline
+  // planning/authorization and abandon decisions must never touch it.
+  loadDotenv(...buildEnvSearchDirs(deckRoot(runDir)));
+  const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+  const credentials = resolveImage2Credentials({
+    extraBaseUrls: baseUrl ? [baseUrl] : [],
+  });
+  const phase4 = await import("./04-image2-refinement/index.mjs");
+  return phase4.createModernRefinementTransport({ credentials });
+}
+
 async function commandImage2(operation, runDir, opts = {}) {
   const allowed = new Set(["plan", "authorize", "generate", "accept", "use-html", "cleanup", "unknown-submit", "resolve-unknown-submit"]);
   if (!allowed.has(operation)) return emitUsage("ppt_flow.image2.operation", `unknown image2 operation ${JSON.stringify(operation)}`, `Use one of: plan, authorize, generate, accept, use-html, cleanup, unknown-submit`);
@@ -2367,6 +2379,10 @@ async function commandImage2(operation, runDir, opts = {}) {
   if (!resolved) return 1;
   if (opts.force && operation !== "plan") {
     return emitUsage(`ppt_flow.image2.${operation}`, "--force applies only to image2 plan", "Use --force --reason only for an explicit offline prerequisite waiver.");
+  }
+  const remoteReconciliation = ["unknown-submit", "resolve-unknown-submit"].includes(operation) && opts.decision === "retain" && !opts.candidateId;
+  if (opts.baseUrl && operation !== "generate" && !remoteReconciliation) {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--base-url applies only to provider generation or retain reconciliation", "Use --base-url only when the command will initialize the authorized provider transport.");
   }
   if (!opts.force && opts.reason != null) {
     return emitUsage(`ppt_flow.image2.${operation}`, "--reason applies only to image2 plan --force", "Remove --reason or add --force to an offline plan continuation.");
@@ -2391,7 +2407,8 @@ async function commandImage2(operation, runDir, opts = {}) {
       result = await ops.authorizeRefinement({ runDir: resolved, planHash: opts.planHash });
     } else if (operation === "generate") {
       if (!opts.attemptId) return emitUsage("ppt_flow.image2.generate", "--attempt-id is required", "Pass one persisted planned attempt ID; retries require a new plan");
-      result = await ops.generateRefinement({ runDir: resolved, attemptId: opts.attemptId });
+      const transport = await createImage2CliTransport(resolved, opts.baseUrl || null);
+      result = await ops.generateRefinement({ runDir: resolved, attemptId: opts.attemptId, transport });
     } else if (operation === "accept") {
       if (!opts.slideId || !opts.candidateId) return emitUsage("ppt_flow.image2.accept", "--slide-id and --candidate-id are required", "Pass the exact reviewed page and immutable candidate ID");
       result = await ops.acceptRefinementCandidate({ runDir: resolved, slideId: opts.slideId, candidateId: opts.candidateId });
@@ -2403,7 +2420,10 @@ async function commandImage2(operation, runDir, opts = {}) {
     } else {
       if (!opts.attemptId || !opts.decision) return emitUsage(`ppt_flow.image2.${operation}`, "--attempt-id and --decision are required", "Resolve an unknown-submit attempt with --decision retain or abandon");
       if (opts.decision === "retain" && opts.candidateId) result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: "retain", candidateId: opts.candidateId });
-      else if (opts.decision === "retain") result = await ops.reconcileRefinementAttempt({ runDir: resolved, attemptId: opts.attemptId });
+      else if (opts.decision === "retain") {
+        const transport = await createImage2CliTransport(resolved, opts.baseUrl || null);
+        result = await ops.reconcileRefinementAttempt({ runDir: resolved, attemptId: opts.attemptId, transport });
+      }
       else result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: opts.decision, candidateId: opts.candidateId || null });
     }
     const output = operation === "plan"
@@ -2535,7 +2555,7 @@ Examples:
     .argument("<gate>", "Gate to approve: content, visual, or header")
     .option("--waive", "Record an explicit user decision to skip this gate")
     .option("--only <ids>", "For header risk acceptance: comma-separated slide IDs")
-    .option("--reason <text>", "For header risk acceptance: persisted symptom/reason")
+    .option("--reason <text>", "For HTML --waive or header risk acceptance: persisted human reason")
     .option("--plan-hash <hash>", "Exact current HTML content/visual review plan hash")
     .action(async (runDir, gate, opts) => {
       if (!["content", "visual", "header"].includes(gate)) {
@@ -2770,8 +2790,8 @@ Examples:
     .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--recover-gate-journal <ownerToken>", "Explicitly recover an abandoned HTML gate journal")
     .option("--record-delivery-review <decision>", "Record HTML delivery review: proceed, repair, or redirect")
-    .option("--force", "Explicitly continue a reversible HTML evidence risk")
-    .option("--reason <text>", "Durable reason for waiver, repair, redirect, or forced proceed")
+    .option("--force", "For --record-delivery-review proceed: waive a reversible HTML evidence risk")
+    .option("--reason <text>", "Required for repair/redirect and forced proceed decisions")
     .action(async (runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const {
@@ -2799,6 +2819,11 @@ Examples:
       }
       if (opts.force && !opts.recordDeliveryReview) {
         emitUsage("ppt_flow.state", "--force applies only to --record-delivery-review proceed", "Use --force together with proceed and a bounded --reason.");
+        process.exitCode = 1;
+        return;
+      }
+      if (opts.reason != null && !opts.recordDeliveryReview) {
+        emitUsage("ppt_flow.state", "--reason applies only to --record-delivery-review", "Use --reason with repair, redirect, or a forced proceed decision.");
         process.exitCode = 1;
         return;
       }
@@ -3087,6 +3112,7 @@ Examples:
     .option("--slides <ids>", "Comma-separated stable slide IDs for plan")
     .option("--slot <slot>", "One no-text visual slot (default primary_visual)", "primary_visual")
     .option("--profile <fingerprint>", "Safe provider profile fingerprint")
+    .option("--base-url <url>", "Override the Image2 provider base URL for generate/reconciliation")
     .option("--plan-hash <hash>", "Exact deterministic plan hash")
     .option("--attempt-id <id>", "Persisted setup/page attempt ID")
     .option("--slide-id <id>", "Stable slide ID for review/promotion")

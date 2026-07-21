@@ -384,8 +384,9 @@ function currentGateAudit(currentPlan, gate, resetId, runVersion) {
 
 function gateAuditMatches(record, audit, gate) {
   if (gate === 'content') {
-    return record.content_review_fingerprint === audit.content_fingerprint &&
-      record.ordered_plan_digest === audit.ordered_plan_digest;
+    // The ordered plan digest remains provenance on the record, but includes
+    // visual/runtime ownership that must not stale a content-only decision.
+    return record.content_review_fingerprint === audit.content_fingerprint;
   }
   return record.visual_system_fingerprint === audit.visual_system_fingerprint &&
     canonicalJsonSha256(record.page_visual_dependencies) === canonicalJsonSha256(audit.page_visual_dependencies);
@@ -684,7 +685,10 @@ export function inspectHtmlReviewReadiness(trustedContext) {
       const rawDeliveryRecord = rawVersionRecord(snapshot.state, 'html-delivery-review', context);
       const normalizedDeliveryRecord = normalizeDeliveryRecord(rawDeliveryRecord, reset.id, context);
       const deliveryRecord = normalizedDeliveryRecord?.record || null;
-      const deliveryCurrent = deliveryRecordCurrent(normalizedDeliveryRecord, evidence);
+      // Delivery cannot remain current when either upstream owner requires its
+      // own local rebuild, but notes-only edits retain those owner decisions.
+      const ownerEvidenceCurrent = Boolean(gates.content?.ready && gates.visual?.ready);
+      const deliveryCurrent = ownerEvidenceCurrent && deliveryRecordCurrent(normalizedDeliveryRecord, evidence);
       publicView.delivery = {
         freshness: deliveryCurrent ? 'current' : rawDeliveryRecord ? (normalizedDeliveryRecord ? 'stale' : 'invalid') : evidence.reviewable ? 'missing' : 'missing',
         decision: deliveryRecord && DECISIONS.has(deliveryRecord.decision) ? deliveryRecord.decision : null,

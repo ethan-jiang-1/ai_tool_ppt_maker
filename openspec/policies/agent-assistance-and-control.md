@@ -32,6 +32,19 @@ When both policies apply, first use the gate policy to determine the outcome
 and protected invariant. Then use this policy to keep the implementation and
 feedback path direct, bounded, and owned by the existing runtime authority.
 
+## Ownership Matrix
+
+Each question has one policy owner. The policies constrain implementation but
+do not replace the capability specification or executable contract that owns
+the concrete runtime behavior.
+
+| Question | Policy owner | Boundary |
+| --- | --- | --- |
+| Is this a `guide`, `confirm`, or `hard-stop`? Which invariant is protected? | `human-centered-gates.md` | This policy cannot recategorize the outcome. |
+| May a person continue, and what does that continuation mean? | `human-centered-gates.md` | A capability spec defines the concrete validation and persistence rules. |
+| Which source, evaluator, actor handoff, diagnostic, and recovery path establish the result? | This policy | The chosen path must remain inside the gate policy's allowed outcome. |
+| Which flags, record fields, byte checks, and permissions implement the result? | Owning capability specification and executable contract | Neither policy creates a runtime schema, mutation permission, or bypass. |
+
 ## Responsibility Boundary
 
 - The human decides new content meaning, reversible risk acceptance, and any

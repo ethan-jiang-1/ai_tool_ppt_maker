@@ -60,6 +60,31 @@ Charter and capability specs. This avoids a second CLI/state schema in governanc
 Alternative considered: put the full policy only in `config.yaml`. Rejected because the config would
 become a large duplicate authority and artifact instructions would become harder to audit.
 
+### 1a. Durable policy placement and single-owner boundary
+
+A change-local research note can preserve why an idea was considered, but it is
+not a lasting governance input: archive moves it out of the active change
+context, and `openspec/config.yaml` does not load it for later work. Adapted
+guidance that must survive archive therefore belongs under `openspec/policies/`.
+
+The two durable policies have non-overlapping policy authority:
+
+- `human-centered-gates.md` classifies `guide`, `confirm`, and `hard-stop`,
+  defines waiver meaning, and names non-bypassable invariants.
+- `agent-assistance-and-control.md` shapes the legal path after that
+  classification: direct source of truth, evaluator reuse, human/Agent/runtime
+  handoff, bounded diagnostic, durable-state discipline, and recovery.
+- Capability specifications and executable contracts remain the only owners of
+  concrete commands, record schemas, byte validation, and permissions.
+
+For an overlapping change, classify the outcome first, then design the control
+path, then implement it through the owning capability. Neither policy can
+create a force path, record field, or permission by itself.
+
+Alternative considered: retain the adapted guidance only beside this change.
+Rejected because it would become archival rationale rather than an active rule
+for the next change.
+
 ### 2. One deep review-input resolver
 
 Introduce one internal resolver owned by the HTML review/evidence module. Given trusted run context and

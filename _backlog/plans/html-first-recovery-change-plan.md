@@ -1,11 +1,12 @@
 # Plan: HTML-first 缺陷收敛与人本 Gate 宪法
 
-> 类型: 设计 / 分析 | 更新: 2026-07-21
+> 类型: 设计 / 分析 | 更新: 2026-07-21 | 执行方式: 严格串行
 
 ## 背景 / 现状
 
-本计划覆盖 `_backlog/bugs/` 中 BUG-014 至 BUG-032 共 19 个活跃缺陷。当前没有 active
-OpenSpec change。问题并非 19 个孤立补丁，而是三条相互关联的产品链路：
+本计划覆盖 `_backlog/bugs/` 中 BUG-014 至 BUG-032 共 19 个活跃缺陷。当前唯一 active
+OpenSpec change 是 Change 1 `make-html-production-guided-and-recoverable`。问题并非 19 个孤立补丁，
+而是三条相互关联的产品链路：
 
 1. HTML-first 从 pilot、review、build、delivery 到可选 Image2 的生产链会意外硬阻塞；
 2. markerless 到 HTML-first 的文档承诺与实际工具入口不一致；
@@ -74,6 +75,7 @@ identity freshness 与 evidence completeness，使“当前版本上的 waiver�
 | 层 | 责任 |
 |---|---|
 | `openspec/policies/human-centered-gates.md` | 维护 change 时如何判断 gate 姿态 |
+| `openspec/policies/agent-assistance-and-control.md` | 维护已分类 gate 的事实来源、evaluator 复用、人/Agent/runtime 交接与恢复路径，不重判 gate 结果 |
 | `openspec/config.yaml` | 把该判断注入 OpenSpec artifact 指令 |
 | `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md` | 生产 Agent 面向用户的行为宪法 |
 | `cli-surface` / `node-specification` / 各 capability spec | 可测试的 CLI、state、consumer 行为 |
@@ -260,18 +262,19 @@ deterministic render 不回归。
 ```text
 Change 1: policy + lifecycle correctness + override
        |
-       +----------> Change 2: migration closure
+       v  (strict validation + main-spec sync + archive)
+Change 2: migration closure
        |
-       `----------> Change 3: visual language + review index
+       v  (strict validation + main-spec sync + archive)
+Change 3: visual language + review index
 ```
 
-先做 Change 1，因为 016–021 会阻断后两个 change 的可信端到端验收。Change 2 与 Change 3 在契约
-上可独立：迁移工具生成规范化 structured source，不推断视觉 family；视觉 grammar 应以 additive
-方式演进。Change 2 可在 Change 1 的 contract 完成后优先交付 P0 migration；Change 3 的 grammar
-spike 可以并行，但实现和 migration fixture 的最终基线必须使用已归档的 main specs。
+先做 Change 1，因为 016-021 会阻断后两个 change 的可信端到端验收。Change 2 与 Change 3 的契约
+可以独立，但执行不能并行：Change 2 只能在 Change 1 已归档的 main specs 上开始；Change 3 只能在
+Change 2 已归档后开始。这样每次回归、状态迁移与归档都只有一个明确的责任边界。
 
 每个 change 都先 `openspec propose` 生成 proposal/specs/design/tasks，严格校验后才 apply；不在一个
-change 尚未归档时让后续 change 复制其尚未成为 main spec 的契约。
+change 尚未归档时让后续 change 复制其尚未成为 main spec 的契约，也不提前实现后续 change 的代码。
 
 ## 验证与完成判据
 
@@ -320,7 +323,7 @@ change 尚未归档时让后续 change 复制其尚未成为 main spec 的契约
 
 ## 落地关联
 
-计划对应后续三个 OpenSpec change：
+计划对应上述严格串行的三个 OpenSpec change；其完成状态以本文件文末的“执行队列 Checklist”为准：
 
 1. `make-html-production-guided-and-recoverable`
 2. `complete-markerless-html-migration`
@@ -328,3 +331,27 @@ change 尚未归档时让后续 change 复制其尚未成为 main spec 的契约
 
 本计划本身不实现 bug、不修改 framework、不触碰现有 `deck_*` 生产数据。每个 change 完成后按
 bug 卡片流程移动其覆盖的 bug；全部归档且 main specs 同步后关闭本 plan。
+
+## 执行队列 Checklist
+
+本文件是跨 change 的唯一执行队列；每个 active change 内的细粒度进度以其
+`tasks.md` 为准。任何 checkbox 只能在对应验证完成后勾选，不能用代码已编辑或
+测试尚未运行替代完成。
+
+- [ ] **Change 1 - `make-html-production-guided-and-recoverable`**: **进行中**。当前
+  `33/44` 项已勾选；`6.1` relay compatibility spike、`6.2` shared Image2 credential/base-URL
+  resolver、`6.3` plan-v2 request contract 和 lazy transport factory 已完成验证，当前焦点为 `6.4`
+  generate/reconciliation 的 request identity boundary。继续完成、验证并归档本 change，才允许启动 Change 2。
+- [ ] **Change 2 - `complete-markerless-html-migration`**: **等待** Change 1 的严格
+  验证、main spec 同步和归档完成后启动。
+- [ ] **Change 3 - `expand-html-visual-language-and-review`**: **等待** Change 2 的严格
+  验证、main spec 同步和归档完成后启动。
+
+执行规则：
+
+1. 同一时刻只允许一个 active OpenSpec change；不得为后续 change 做实现、spec 修改或
+   预先勾选任务。
+2. 当前 change 的每个已完成 task 在验证通过后立即更新其 `tasks.md`；阶段完成、验证
+   阶段和归档完成时同步更新本 checklist。
+3. 一个 change 只有在严格校验、全量测试、main spec 同步和 archive 都完成后，才可勾选；
+   下一项随即成为唯一 active change。

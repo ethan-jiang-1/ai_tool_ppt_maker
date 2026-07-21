@@ -8,6 +8,15 @@ export const HTML_REVIEW_BODY_EXCLUDED_FIELDS = Object.freeze([
   "primary_visual",
 ]);
 
+/** Smallest HTML-first repair path for each independently owned stale set. */
+export const HTML_STALE_OWNERSHIP_MATRIX_V1 = Object.freeze({
+  notes_only: Object.freeze({ refresh_path: "Notes-Only Refresh", stale_owners: Object.freeze(["notes", "delivery"]) }),
+  visible_copy: Object.freeze({ refresh_path: "Local Slide Rebuild", stale_owners: Object.freeze(["content", "delivery"]) }),
+  visual_system_or_recipe: Object.freeze({ refresh_path: "Local Deck Rebuild", stale_owners: Object.freeze(["visual", "delivery"]) }),
+  fallback_or_asset: Object.freeze({ refresh_path: "Local Slide Rebuild", stale_owners: Object.freeze(["content", "visual", "delivery"]) }),
+  structural: Object.freeze({ refresh_path: "Structural Versioning Path", stale_owners: Object.freeze(["content", "visual", "notes", "delivery"]) }),
+});
+
 /**
  * Renderer and review plans share this source-body projection. It omits fields
  * owned by other render surfaces and normalizes the data-chart legend exactly
@@ -86,7 +95,17 @@ export function htmlPageVisualDependenciesV1(plan) {
   return plan.slides.map((slide) => ({
     slide_id: slide.slide_id,
     visual_contract_fingerprint: slide.visual_contract_fingerprint,
-    component_recipe_hash: canonicalJsonSha256({ family: slide.family, geometry: slide.geometry }),
+    component_recipe_hash: canonicalJsonSha256({
+      family: slide.family,
+      geometry: slide.geometry,
+      primary_visual: slide.primary_visual == null ? null : {
+        placement: slide.primary_visual.placement ?? null,
+        fit: slide.primary_visual.fit ?? null,
+        focal_point: slide.primary_visual.focal_point ?? null,
+        fallback: slide.primary_visual.fallback ?? null,
+        selection: slide.primary_visual.selection ?? null,
+      },
+    }),
   })).sort((left, right) => left.slide_id < right.slide_id ? -1 : left.slide_id > right.slide_id ? 1 : 0);
 }
 

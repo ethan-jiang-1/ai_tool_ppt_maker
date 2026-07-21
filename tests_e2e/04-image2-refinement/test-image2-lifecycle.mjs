@@ -20,6 +20,17 @@ describe("modern Image2 refinement journey boundary", () => {
       run_version: "v1",
       delivery_digest: "d".repeat(64),
       profile_fingerprint: "c".repeat(64),
+      profile_contract: {
+        schema: "pptmaker-image2-visual-slot-profile-v1",
+        mode: "visual-slot",
+        profile_fingerprint: "c".repeat(64),
+      },
+      request_contract_version: "pptmaker-refinement-submit-request-v1",
+      request_fingerprints: [
+        { role: "style-reference", kind: "style-reference", slide_id: null, slot: null, request_fingerprint: "d".repeat(64) },
+        { role: "slot:Alpha:primary_visual", kind: "slot", slide_id: "Alpha", slot: "primary_visual", request_fingerprint: "e".repeat(64) },
+        { role: "slot:Bravo:primary_visual", kind: "slot", slide_id: "Bravo", slot: "primary_visual", request_fingerprint: "f".repeat(64) },
+      ],
       style_reference_status: "missing",
       slides: [
         { slide_id: "Alpha", slot: "primary_visual" },
