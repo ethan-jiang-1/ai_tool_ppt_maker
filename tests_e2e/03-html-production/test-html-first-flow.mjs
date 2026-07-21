@@ -62,7 +62,7 @@ describe('fresh HTML-first delivery E2E', () => {
     const deck = join(root, 'deck_html_e2e');
     const runDir = join(deck, '3_versions', 'v1');
     try {
-      const init = flow(['init', deck, '--deck-type', 'keynote', '--style', 'dark-executive'], 30_000);
+      const init = flow(['init', deck, '--deck-type', 'keynote', '--style', 'dark-executive', '--mode', 'html-only'], 30_000);
       expect(init.status, init.stderr || init.stdout).toBe(0);
       expect(readFileSync(join(runDir, 'slide-specifications.md'), 'utf8')).toContain('pipeline: html-first-v1');
       writeFileSync(join(runDir, 'slide-specifications.md'), htmlFirstSource([
