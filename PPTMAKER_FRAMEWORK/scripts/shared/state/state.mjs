@@ -26,6 +26,7 @@ import { parseDocument, stringify } from "yaml";
 import {
   buildPlaybookIndex,
   controllerNodeIds,
+  controllerActiveNodeIds,
   eligibleNextNodes,
   resolveNode,
   validatePlaybookIndex,
@@ -1343,9 +1344,14 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
     else if (!refinement?.present) suggested_next = "start:image2-refine/plan";
   }
 
-  const activeNodeIds = controller?.index ? controllerNodeIds(controller.index, playbook) : undefined;
   const modeRunVersion = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
   const production_mode = modeRunVersion ? projectModeCard(state, modeRunVersion) : null;
+  const resolvedMode = production_mode?.resolvable ? production_mode.mode : null;
+  // Derive the active node set from the exact authoritative mode when resolvable
+  // (mode-filtered working set); otherwise fall back to the full controller set.
+  const activeNodeIds = controller?.index
+    ? (resolvedMode ? controllerActiveNodeIds(controller.index, playbook, resolvedMode) : controllerNodeIds(controller.index, playbook))
+    : undefined;
   return {
     playbook,
     current_node,
