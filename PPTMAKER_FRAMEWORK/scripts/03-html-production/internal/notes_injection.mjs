@@ -41,6 +41,10 @@ import {
   validatePptxAssemblyReceipt,
   writeNotesReceiptAtomic,
 } from "../../shared/identity/notes_receipt.mjs";
+import {
+  htmlNotesProjectionFromSourceAstV1,
+  normalizeHtmlSpeakerNoteV1,
+} from "../../contracts/html_source_ast.mjs";
 import { parseSlideDocument } from "../../01-content/index.mjs";
 import { probeProductionMarker, validateAndBuildHtmlFirstPlan, HTML_FIRST_PIPELINE } from "./html_slide_contract.mjs";
 
@@ -191,27 +195,24 @@ export function extractNotesFromMarkdown(mdPaths) {
 /** Parse notes with formal ID evidence through the shared document model. */
 export function extractNoteRecordsFromMarkdown(mdPaths) {
   const records = [];
-
   for (const mdPath of mdPaths) {
-    const text = readFileSync(mdPath, "utf-8");
-    const document = parseSlideDocument(text, mdPath);
+    const document = parseSlideDocument(readFileSync(mdPath, "utf8"), mdPath);
     for (const block of document.slides) {
+      const lines = block.body.replace(/\r\n?/g, "\n").split("\n");
       let note = "";
-
-      // Format B: inline colon-separated — > **SPEAKER NOTE**: content
-      const mB = block.body.match(/> \*\*SPEAKER NOTE\*\*:\s*(.+)$/m);
-      if (mB) {
-        note = mB[1].trim();
-      } else {
-        // Format A: multi-line blockquote — > **SPEAKER NOTE**\n> content...
-        const mA = block.body.match(/> \*\*SPEAKER NOTE\*\*\s*\r?\n((?:> .+(?:\r?\n|$))+)/m);
-        if (mA) {
-          note = mA[1]
-            .replace(/^> ?/gm, "")
-            .trim();
+      for (let index = 0; index < lines.length; index += 1) {
+        const inline = /^>[ \t]*\*\*SPEAKER NOTE\*\*:[ \t]*(.*)$/.exec(lines[index]);
+        if (inline) { note = normalizeHtmlSpeakerNoteV1(inline[1]); break; }
+        if (!/^>[ \t]*\*\*SPEAKER NOTE\*\*[ \t]*$/.test(lines[index])) continue;
+        const quoted = [];
+        for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+          const quote = /^>[ \t]?(.*)$/.exec(lines[cursor]);
+          if (!quote) break;
+          quoted.push(quote[1]);
         }
+        note = normalizeHtmlSpeakerNoteV1(quoted.join("\n"));
+        break;
       }
-
       records.push({
         slide_id: block.slide_id,
         note,
@@ -466,7 +467,8 @@ export async function injectNotesFromRunDir(runDir) {
       next: createCliNext("edit_source", { inspect: [{ path: inputFile }, { path: planPath }], default: "Make source note IDs exactly match the current slide plan, then rerun Stage 5." }),
     });
   }
-  const notes = orderedSlideIds.map((id) => notesById.get(id).note);
+  const orderedNoteRecords = orderedSlideIds.map((id) => notesById.get(id));
+  const notes = orderedNoteRecords.map((record) => record.note);
   const assembly = validatePptxAssemblyReceipt(runDir, {
     requireCurrentPptx: true,
     expectedOrderedIds: orderedSlideIds,
@@ -530,7 +532,7 @@ export async function injectHtmlNotesFromRunDir(runDir) {
   const currentPlan = JSON.parse(readFileSync(planPath, 'utf8'));
   if (currentPlan.ordered_plan_digest !== plan.ordered_plan_digest) throw new Error('HTML Stage 5 slide_plan.json is stale; rerun Stage 1');
   const records = extractNoteRecordsFromMarkdown([source]);
-  const byId = new Map(records.map((record) => [record.slide_id, record.note]));
+  const byId = new Map(records.map((record) => [record.slide_id, record]));
   if (records.length !== orderedSlideIds.length || orderedSlideIds.some((id) => !byId.has(id))) throw new Error('HTML notes do not cover the current ordered slide IDs');
   const pptDir = join(generatedDir(resolvedRun), GEN_PPT_SUBDIR);
   const pptx = readdirSync(pptDir).filter((name) => name.endsWith('.pptx') && !name.endsWith('.backup.pptx')).map((name) => join(pptDir, name));
@@ -539,9 +541,11 @@ export async function injectHtmlNotesFromRunDir(runDir) {
   const rerun = assembly.valid ? null : validateNotesRerunInputLineage(resolvedRun, { pptxPath: pptx[0], planPath, orderedSlideIds });
   const lineage = assembly.valid ? assembly : rerun?.assembly;
   if (!lineage?.valid || (!assembly.valid && !rerun?.valid)) throw new Error(`HTML Stage 5 cannot prove current assembly lineage: ${assembly.reason}; rerun: ${rerun?.reason || 'unavailable'}`);
-  const result = await injectNotes({ pptx: pptx[0], notes: orderedSlideIds.map((id) => byId.get(id) || '') });
+  const orderedNoteRecords = orderedSlideIds.map((id) => byId.get(id)).filter(Boolean);
+  const result = await injectNotes({ pptx: pptx[0], notes: orderedNoteRecords.map((record) => record.note) });
   const receiptPath = notesReceiptPath(resolvedRun);
-  const receipt = buildHtmlNotesReceipt({ runDir: resolvedRun, inputPath: source, planPath, pptxPath: pptx[0], orderedSlideIds, slideCount: result.slideCount, notesInjected: result.notesInjected, assembly: lineage, predecessor: rerun?.valid ? rerun : null });
+  const notesFingerprint = htmlNotesProjectionFromSourceAstV1({ sourceBytes: readFileSync(source), planBytes: readFileSync(planPath) }).fingerprint;
+  const receipt = buildHtmlNotesReceipt({ runDir: resolvedRun, inputPath: source, planPath, pptxPath: pptx[0], orderedSlideIds, slideCount: result.slideCount, notesInjected: result.notesInjected, assembly: lineage, predecessor: rerun?.valid ? rerun : null, notesFingerprint });
   writeNotesReceiptAtomic(resolvedRun, receipt);
   return { ...result, receipt, receiptPath };
 }

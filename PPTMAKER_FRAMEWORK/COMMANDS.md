@@ -20,17 +20,58 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --json
 ```
 
-HTML build/pilot/refresh 不接受 provider/model/resolution/style-master/force/reuse image flags。`pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
+HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/reuse image flags；HTML `build` accepts only its explicit local `--force --reason` continuation and never provider controls. `pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
+
+Gate response always starts with the recommended repair: show the changed bounded evidence, rebuild or review the current artifact, then publish the exact current decision. A reversible evidence/process risk may expose a reasoned, version-scoped waiver; it remains `waived`, not `approved`, and evidence completeness is reported separately. Plan/reset identity drift, active journals, corrupted state, unsafe paths/bytes, and provider authorization are hard stops: use the producer-owned recovery action rather than editing state or forcing through.
+
+For an HTML run, `state <run-dir> --json` is the controller-facing resume surface. Its bounded `html_resume_guidance` names the outcome (`guide|confirm|hard-stop`), one recommended command, an optional reasoned continuation, the protected invariant for a hard stop, and independent `evidence_complete`. Run the displayed command verbatim; do not reconstruct a review record, infer approval from render output, or copy a reason into state yourself.
+
+## HTML Continuations And State
+
+Normal content/visual approval consumes the exact current plan hash. An explicit waiver is a separate user-owned decision and never upgrades to approval:
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> content --plan-hash <current-hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> visual --waive --reason "<human reason>"
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --force --reason "<human reason>"
+```
+
+`build --force` publishes only any still-needed content/visual waivers, rechecks both gates, and then performs local assembly. It never starts an Image2 provider call. A successful force output may say `force_not_needed`; that means the current normal evidence already sufficed and no waiver was written.
+
+The version-scoped HTML records live only under canonical keys such as
+`nodes.html-content-review.by_version["3_versions/vN"]`,
+`nodes.html-visual-review.by_version["3_versions/vN"]`, and
+`nodes.html-delivery-review.by_version["3_versions/vN"]`. New gate records use
+`pptmaker-html-gate-review-v2`; their closed fields bind pipeline, gate, run/reset identity,
+status, plan/audit evidence, `evidence_complete`, canonical `waived_checks`, and the decision time.
+New delivery records use `pptmaker-html-delivery-review-v2`; they bind current delivery/PPTX/contact-sheet
+identity plus the required lineage receipt references, typed decision/reason, `evidence_complete`,
+canonical `waived_checks`, and decision time. These are implementation-owned records: users inspect
+them through state output but never construct or patch them manually.
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --validate-state
+```
+
+Validation is read-only. It reports bounded field paths, expected/actual summaries, closed-key or
+canonical-version-key violations, confined paths, and SHA mismatches; it does not heal, seed, rewrite,
+or choose a repair. Follow the producer's recommended public repair command.
 
 Final delivery review 唯一 publisher（closed state subcommand syntax）：
-
-<!-- coherence:pseudocode reason="state evidence subcommand is parsed by ppt_flow state, not a top-level option" -->
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review proceed
 ```
 
-The same closed form accepts `repair --reason "..."` or `redirect --reason "..."`.
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review repair --reason "<human reason>"
+```
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review proceed --force --reason "<human reason>"
+```
+
+Normal `proceed` requires complete current evidence and carries no reason. `repair` / `redirect` require a reason. Forced `proceed` is only available when current reviewable PPTX and contact-sheet bytes exist; it records an evidence waiver for incomplete lineage, remains visibly distinct from complete evidence, and does not invent missing paths or hashes.
 
 Reset 唯一入口：
 
@@ -52,6 +93,13 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize deck_NAME/3_versions/v1 --plan-hash <sha256>
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate deck_NAME/3_versions/v1 --attempt-id <id>
 ```
+
+`image2 plan` is optional and offline. When complete delivery evidence is unavailable but current
+final-slide/slot identity is safe, `image2 plan <run-dir> --force --reason "<human reason>"` records
+only a prerequisite waiver and still cannot submit, promote, or complete the deck. `authorize` remains
+an exact plan-hash decision. Credentials and the modern transport are loaded only by `generate`, or by
+`unknown-submit --decision retain` when remote reconciliation is requested; `unknown-submit --decision abandon`
+stays provider-free. Reconciliation consumes the persisted provider request identity, not a rebuilt prompt/body.
 
 ## Structural and migration
 

@@ -11,6 +11,7 @@ import {
 import { randomBytes } from "node:crypto";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { sha256File } from "./byte_hash.mjs";
+import { htmlNotesProjectionFromSourceAstV1 } from "../../contracts/html_source_ast.mjs";
 
 export const NOTES_RECEIPT_VERSION = 2;
 export const HTML_NOTES_RECEIPT_VERSION = 3;
@@ -191,6 +192,7 @@ function validateV3Shape(receipt) {
     if ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || "")) throw new Error("invalid HTML notes reset/delivery lineage");
   } else if (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null) throw new Error("legacy notes cannot carry HTML reset/delivery lineage");
   if (!receipt.root_assembly || typeof receipt.root_assembly !== "object" || receipt.root_assembly.schema_version !== 2) throw new Error("HTML root assembly lineage is missing");
+  if (receipt.notes_fingerprint !== undefined && !SHA256_RE.test(receipt.notes_fingerprint || "")) throw new Error("invalid notes_fingerprint");
   if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) throw new Error("invalid created_at");
 }
 
@@ -227,16 +229,19 @@ export function buildNotesReceipt({
   notesInjected,
   assembly,
   predecessor = null,
+  notesFingerprint = null,
 }) {
   if (!Number.isInteger(slideCount) || slideCount < 1) throw new Error("slide_count must be a positive integer");
   if (!Number.isInteger(notesInjected) || notesInjected !== slideCount) throw new Error("notes_injected must equal slide_count");
   if (!sameArray(orderedSlideIds, assembly?.orderedIds)) throw new Error("notes IDs must match root assembly IDs");
+  if (notesFingerprint !== null && !SHA256_RE.test(notesFingerprint)) throw new Error("notes_fingerprint must be a SHA-256");
   if (assembly.receipt.schema_version === 2) {
     return {
       schema_version: HTML_NOTES_RECEIPT_VERSION,
       pipeline: assembly.receipt.pipeline,
       producer: assembly.receipt.producer,
       input_path: normalizedRelative(runDir, inputPath), input_sha256: sha256File(inputPath),
+      ...(notesFingerprint ? { notes_fingerprint: notesFingerprint } : {}),
       slide_plan_path: normalizedRelative(runDir, planPath), slide_plan_sha256: sha256File(planPath),
       pptx_path: normalizedRelative(runDir, pptxPath), pptx_sha256: sha256File(pptxPath),
       ordered_slide_ids: [...orderedSlideIds], slide_count: slideCount, notes_injected: notesInjected,
@@ -273,15 +278,17 @@ export function buildNotesReceipt({
   };
 }
 
-export function buildHtmlNotesReceipt({ runDir, inputPath, planPath, pptxPath, orderedSlideIds, slideCount, notesInjected, assembly, predecessor = null }) {
+export function buildHtmlNotesReceipt({ runDir, inputPath, planPath, pptxPath, orderedSlideIds, slideCount, notesInjected, assembly, predecessor = null, notesFingerprint = null }) {
   if (!assembly?.valid || assembly.receipt?.schema_version !== 2 || assembly.receipt.pipeline !== "html-first-v1") throw new Error("HTML notes require a current schema-v2 HTML assembly");
   if (!Number.isInteger(slideCount) || slideCount < 1 || notesInjected !== slideCount || !sameArray(orderedSlideIds, assembly.orderedIds)) throw new Error("HTML notes IDs/counts must match current assembly");
+  if (!SHA256_RE.test(notesFingerprint || "")) throw new Error("HTML notes require a notes_fingerprint");
   return {
     schema_version: HTML_NOTES_RECEIPT_VERSION,
     pipeline: "html-first-v1",
     producer: assembly.receipt.producer,
     input_path: normalizedRelative(runDir, inputPath),
     input_sha256: sha256File(inputPath),
+    notes_fingerprint: notesFingerprint,
     slide_plan_path: normalizedRelative(runDir, planPath),
     slide_plan_sha256: sha256File(planPath),
     pptx_path: normalizedRelative(runDir, pptxPath),
@@ -327,7 +334,16 @@ export function validateNotesCompletionReceipt(runDir) {
     const inputPath = resolveContainedExisting(runDir, receipt.input_path);
     const planPath = resolveContainedExisting(runDir, receipt.slide_plan_path);
     const pptxPath = resolveContainedExisting(runDir, receipt.pptx_path);
-    if (sha256File(inputPath) !== receipt.input_sha256) throw new Error("slide specification hash is stale");
+    if (receipt.schema_version === HTML_NOTES_RECEIPT_VERSION && receipt.notes_fingerprint !== undefined) {
+      if (htmlNotesProjectionFromSourceAstV1({
+        sourceBytes: readFileSync(inputPath),
+        planBytes: readFileSync(planPath),
+      }).fingerprint !== receipt.notes_fingerprint) {
+        throw new Error("speaker notes projection is stale");
+      }
+    } else if (sha256File(inputPath) !== receipt.input_sha256) {
+      throw new Error("slide specification hash is stale");
+    }
     if (sha256File(planPath) !== receipt.slide_plan_sha256) throw new Error("slide plan hash is stale");
     if (sha256File(pptxPath) !== receipt.pptx_sha256) throw new Error("PPTX hash is stale");
     const planIds = orderedIdsFromPlan(planPath);

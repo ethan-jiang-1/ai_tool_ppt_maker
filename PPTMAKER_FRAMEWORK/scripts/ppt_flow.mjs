@@ -452,6 +452,165 @@ function collectStatus(runDir) {
   };
 }
 
+const HTML_RESUME_GUIDANCE_SCHEMA = "pptmaker-html-resume-guidance-v1";
+const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
+
+function flowRunArgument(runDir) {
+  return JSON.stringify(resolve(runDir));
+}
+
+function htmlResumeGuidance({
+  outcome,
+  subject,
+  summary,
+  recommendedCommand,
+  continuationCommand = null,
+  protectedInvariant = null,
+  evidenceComplete = null,
+}) {
+  return Object.freeze({
+    schema: HTML_RESUME_GUIDANCE_SCHEMA,
+    outcome,
+    subject,
+    summary,
+    recommended_command: recommendedCommand,
+    continuation_command: continuationCommand,
+    protected_invariant: protectedInvariant,
+    evidence_complete: evidenceComplete,
+  });
+}
+
+/**
+ * Produce the bounded controller guidance that resume cards consume. It uses
+ * only the authoritative readiness projection; controllers never infer a
+ * waiver or mutate state from conversation text.
+ */
+export function buildHtmlResumeGuidance(runDir, reviews) {
+  if (!reviews || typeof reviews !== "object") return null;
+  const run = flowRunArgument(runDir);
+  const command = (suffix) => `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs ${suffix}`;
+  const stateInspect = command(`state ${run} --json`);
+  const reset = reviews.reset || {};
+  const journal = reviews.journal || {};
+  if (journal.status && journal.status !== "absent") {
+    const recoverable = String(journal.status).startsWith("recoverable-");
+    return htmlResumeGuidance({
+      outcome: "hard-stop",
+      subject: "gate-journal",
+      summary: "HTML gate publication is waiting for its authoritative journal recovery path",
+      recommendedCommand: recoverable
+        ? command(`state ${run} --recover-gate-journal <owner-token>`)
+        : stateInspect,
+      protectedInvariant: "single-writer gate publication and current version identity",
+    });
+  }
+  if (reset.status === "deletion-pending") {
+    return htmlResumeGuidance({
+      outcome: "hard-stop",
+      subject: "html-production-reset",
+      summary: "HTML production reset is still owned by an active or recoverable transaction",
+      recommendedCommand: stateInspect,
+      protectedInvariant: "canonical production-owner reset integrity",
+    });
+  }
+
+  for (const gate of ["content", "visual"]) {
+    const view = reviews[gate] || {};
+    const plan = reviews.gates?.[gate]?.plan || null;
+    if (view.freshness === "invalid") {
+      return htmlResumeGuidance({
+        outcome: "hard-stop",
+        subject: `${gate}-review`,
+        summary: `HTML ${gate} review state is invalid and must be repaired through its owning validator`,
+        recommendedCommand: command(`state ${run} --validate-state`),
+        protectedInvariant: "version-scoped review record and artifact integrity",
+        evidenceComplete: view.evidence_complete ?? null,
+      });
+    }
+    if (view.freshness === "current" && view.decision === "waived" && view.evidence_complete === false) {
+      return htmlResumeGuidance({
+        outcome: "guide",
+        subject: `${gate}-review`,
+        summary: `HTML ${gate} evidence is currently waived; repair remains recommended before the next delivery review`,
+        recommendedCommand: command(`pilot ${run}`),
+        evidenceComplete: false,
+      });
+    }
+    if (view.freshness !== "current") {
+      const planHash = typeof plan?.plan_hash === "string" && SHA256_HEX_RE.test(plan.plan_hash)
+        ? plan.plan_hash
+        : null;
+      const exactApproval = planHash && plan?.approvable === true
+        ? command(`approve ${run} ${gate} --plan-hash ${planHash}`)
+        : command(`pilot ${run}`);
+      return htmlResumeGuidance({
+        outcome: "confirm",
+        subject: `${gate}-review`,
+        summary: `HTML ${gate} review is ${view.freshness || "missing"}; review the current local evidence before continuing`,
+        recommendedCommand: exactApproval,
+        continuationCommand: command(`approve ${run} ${gate} --waive --reason "<human reason>"`),
+        evidenceComplete: view.evidence_complete ?? null,
+      });
+    }
+  }
+
+  const delivery = reviews.delivery || {};
+  if (delivery.freshness === "invalid") {
+    return htmlResumeGuidance({
+      outcome: "hard-stop",
+      subject: "delivery-review",
+      summary: "HTML delivery review state is invalid and must be repaired through its owning validator",
+      recommendedCommand: command(`state ${run} --validate-state`),
+      protectedInvariant: "reviewable delivery artifact and state-record integrity",
+      evidenceComplete: delivery.evidence_complete ?? null,
+    });
+  }
+  if (delivery.freshness === "current" && delivery.decision === "proceed" && delivery.evidence_complete === false) {
+    return htmlResumeGuidance({
+      outcome: "guide",
+      subject: "delivery-review",
+      summary: "HTML delivery is accepted with incomplete lineage evidence; repair remains recommended",
+      recommendedCommand: command(`build ${run}`),
+      evidenceComplete: false,
+    });
+  }
+  if (delivery.freshness !== "current" || delivery.decision !== "proceed") {
+    const reviewable = reviews._delivery_evidence?.reviewable === true;
+    if (["repair", "redirect"].includes(delivery.decision) && delivery.freshness === "current") {
+      return htmlResumeGuidance({
+        outcome: "guide",
+        subject: "delivery-review",
+        summary: `HTML delivery review is currently ${delivery.decision}; follow the owning repair or redirect route`,
+        recommendedCommand: stateInspect,
+        evidenceComplete: delivery.evidence_complete ?? null,
+      });
+    }
+    return htmlResumeGuidance({
+      outcome: reviewable ? "confirm" : "guide",
+      subject: "delivery-review",
+      summary: reviewable
+        ? "Current HTML delivery artifacts need an explicit final review decision"
+        : "HTML delivery artifacts need a local rebuild before final review",
+      recommendedCommand: reviewable
+        ? command(`state ${run} --record-delivery-review proceed`)
+        : command(`build ${run}`),
+      continuationCommand: reviewable
+        ? command(`state ${run} --record-delivery-review proceed --force --reason "<human reason>"`)
+        : null,
+      evidenceComplete: delivery.evidence_complete ?? null,
+    });
+  }
+  return null;
+}
+
+function printHtmlResumeGuidance(guidance, prefix = "") {
+  if (!guidance?.recommended_command) return;
+  console.log(`${prefix}Gate posture: ${guidance.outcome} (${guidance.subject})`);
+  console.log(`${prefix}Recommended: ${guidance.recommended_command}`);
+  if (guidance.continuation_command) console.log(`${prefix}Continuation: ${guidance.continuation_command}`);
+  if (guidance.protected_invariant) console.log(`${prefix}Protected invariant: ${guidance.protected_invariant}`);
+}
+
 /**
  * Attach playbook breakpoint + optional workflow_summary onto a status object.
  * @param {object} status
@@ -478,15 +637,24 @@ async function enrichStatusWithState(status, runDir) {
     try {
       const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
       status.html_reviews = inspectHtmlReviewReadiness(runDir);
+      status.html_resume_guidance = buildHtmlResumeGuidance(runDir, status.html_reviews);
       status.content_gate = status.html_reviews.gates?.content?.record?.status || "pending";
       status.visual_gate = status.html_reviews.gates?.visual?.record?.status || "pending";
     } catch (error) {
       status.html_reviews = { ready: false, conflict: false, reason: error.message, gates: {} };
+      status.html_resume_guidance = htmlResumeGuidance({
+        outcome: "hard-stop",
+        subject: "html-review-state",
+        summary: "HTML review state could not be inspected through its authoritative owner",
+        recommendedCommand: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state ${flowRunArgument(runDir)} --validate-state`,
+        protectedInvariant: "authoritative HTML review state integrity",
+      });
       status.content_gate = "pending";
       status.visual_gate = "pending";
     }
   } else {
     status.html_reviews = null;
+    status.html_resume_guidance = null;
   }
   const card = buildResumeCard(s, {
     style_master: status.style_master,
@@ -496,18 +664,24 @@ async function enrichStatusWithState(status, runDir) {
     pilot_preview: status.pilot_preview,
     content_gate: status.content_gate,
     visual_gate: status.visual_gate,
+    html_resume_guidance: status.html_resume_guidance,
   });
   status.playbook = card.playbook;
   status.current_node = card.current_node;
   status.workflow_summary = card.workflow_summary;
   status.suggested_next = card.suggested_next;
   const activeRefinement = status.image2_refinement?.present && status.image2_refinement.status !== "complete";
-  if (activeRefinement) {
+  if (activeRefinement && !card.waiting_for && !status.html_resume_guidance?.recommended_command) {
     status.workflow_summary = `Optional Image2 refinement is ${status.image2_refinement.status}`;
     status.suggested_next = status.image2_refinement.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
-  } else if (status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
-    status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-    status.suggested_next = "complete:html-delivery";
+  } else if (!status.html_resume_guidance && status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
+    if (status.html_reviews.delivery.evidence_complete === false) {
+      status.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
+      status.suggested_next = "repair:html-delivery-lineage";
+    } else {
+      status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
+      status.suggested_next = "complete:html-delivery";
+    }
   }
   return status;
 }
@@ -621,6 +795,19 @@ function printStatus(status) {
       console.log(`  - ${issue}`);
     }
     return;
+  }
+
+  if (status.pipeline === HTML_FIRST_PIPELINE) {
+    if (status.html_resume_guidance?.recommended_command) {
+      console.log("\nGate guidance:");
+      printHtmlResumeGuidance(status.html_resume_guidance, "  ");
+      return;
+    }
+    if (status.suggested_next) {
+      console.log("\nNext:");
+      console.log(`  - ${status.suggested_next}`);
+      return;
+    }
   }
 
   /** @type {string[]} */
@@ -1002,15 +1189,16 @@ async function commandApprove(runDir, gate, { waive, planHash = null, reason = n
     const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
     const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
     if (marker.branch === HTML_FIRST_PIPELINE) {
-      if (!planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
+      if (!waive && !planHash) return emitUsage("ppt_flow.approve", "HTML approval requires --plan-hash", "Pass the exact current review plan hash shown by HTML preview/status");
       if (waive && !String(reason || "").trim()) return emitUsage("ppt_flow.approve", "HTML waiver requires --reason", "Pass a bounded human reason with --waive --reason");
+      if (!waive && reason != null) return emitUsage("ppt_flow.approve", "ordinary HTML approval does not accept --reason", "Use --waive --reason only for an explicit continuation");
       try {
         const { publishHtmlGateDecision } = await import("./shared/state/html_review_evidence.mjs");
         const result = publishHtmlGateDecision(resolved, { gate, planHash, status: value, waiverReason: reason });
-        console.log(`✓ html-${gate}-review: ${value} (${result.review_plan_hash})`);
+        console.log(`✓ html-${gate}-review: ${value} (${result.review_plan_hash || "current computable projection"})`);
         return 0;
       } catch (error) {
-        emitFailed("ppt_flow.approve.html", error.message, "Regenerate the complete current HTML review plan and approve its exact hash");
+        emitFailed("ppt_flow.approve.html", error.message, waive ? "Repair the shown review evidence, or retry the explicit waiver with the current source identity." : "Regenerate the complete current HTML review plan and approve its exact hash");
         return 1;
       }
     }
@@ -1503,11 +1691,11 @@ async function commandPilot(
  * Delegates to unified_pipeline.mjs --stage all.
  *
  * @param {string} runDir
- * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean}} opts
+ * @param {{resolution: string, model: string, baseUrl: string|null, reuseImages: boolean, dryRun: boolean, force?: boolean, reason?: string|null}} opts
  */
 async function commandBuild(
   runDir,
-  { resolution, model, baseUrl, reuseImages, dryRun }
+  { resolution, model, baseUrl, reuseImages, dryRun, force = false, reason = null }
 ) {
   const resolved = resolve(runDir);
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build", { allowHtml: true })) return 1;
@@ -1515,12 +1703,50 @@ async function commandBuild(
   const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
   const htmlFirst = existsSync(source) && probeProductionMarker(readFileSync(source), { source: SLIDE_SPECS_NAME }).branch === HTML_FIRST_PIPELINE;
   if (htmlFirst) {
+    if (force && !String(reason || "").trim()) return emitUsage("ppt_flow.build.html", "HTML build --force requires --reason", "Provide a bounded human reason for the explicit gate waiver.");
+    if (!force && reason != null) return emitUsage("ppt_flow.build.html", "--reason applies only with HTML build --force", "Remove --reason or add --force for an explicit continuation.");
+    let forceNotNeeded = false;
+    if (force) {
+      const { inspectHtmlReviewReadiness, publishHtmlGateDecision } = await import("./shared/state/html_review_evidence.mjs");
+      const before = inspectHtmlReviewReadiness(resolved);
+      if (before.conflict) {
+        emitFailed("ppt_flow.build.html", before.reason, "Resolve the producer-owned journal or reset conflict before building.");
+        return 1;
+      }
+      const pending = ["content", "visual"].filter((gate) => !before.gates?.[gate]?.ready);
+      forceNotNeeded = pending.length === 0;
+      if (dryRun) {
+        console.log(JSON.stringify({
+          operation: "build",
+          dry_run: true,
+          force_not_needed: forceNotNeeded,
+          prospective_waivers: pending,
+          stages: ["1", "2", "3", "4", "5"],
+        }));
+        return 0;
+      }
+      for (const gate of pending) {
+        try {
+          publishHtmlGateDecision(resolved, { gate, status: "waived", waiverReason: reason });
+        } catch (error) {
+          emitFailed("ppt_flow.build.html", error.message, "Repair the current source/identity conflict before retrying the explicit continuation.");
+          return 1;
+        }
+      }
+      const after = inspectHtmlReviewReadiness(resolved);
+      if (!after.ready) {
+        emitFailed("ppt_flow.build.html", after.reason, "Repair or publish the remaining current gate decision before local assembly.");
+        return 1;
+      }
+      if (forceNotNeeded) console.log(JSON.stringify({ operation: "build", force_not_needed: true }));
+    }
     const args = ["--run-dir", resolved, "--stage", "all"];
     if (dryRun) args.push("--dry-run");
     const code = await runNode(UNIFIED_PIPELINE, args);
     if (code !== 0) emitFailed("ppt_flow.build", `HTML build exited ${code}`, "Resolve current HTML source/review evidence, then rerun build");
     return code;
   }
+  if (force || reason != null) return emitUsage("ppt_flow.build", "--force/--reason are HTML-first continuation controls", "Remove them for markerless builds.");
   if (!dryRun) {
     const stage1Code = await runNode(UNIFIED_PIPELINE, [
       "--run-dir", resolved, "--stage", "1",
@@ -2316,23 +2542,58 @@ async function resolveImage2Run(runDir, where) {
   }
 }
 
+async function createImage2CliTransport(runDir, baseUrl = null) {
+  // Credential resolution is deliberately at the remote boundary. Offline
+  // planning/authorization and abandon decisions must never touch it.
+  loadDotenv(...buildEnvSearchDirs(deckRoot(runDir)));
+  const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+  const credentials = resolveImage2Credentials({
+    extraBaseUrls: baseUrl ? [baseUrl] : [],
+  });
+  const phase4 = await import("./04-image2-refinement/index.mjs");
+  return phase4.createModernRefinementTransport({ credentials });
+}
+
 async function commandImage2(operation, runDir, opts = {}) {
   const allowed = new Set(["plan", "authorize", "generate", "accept", "use-html", "cleanup", "unknown-submit", "resolve-unknown-submit"]);
   if (!allowed.has(operation)) return emitUsage("ppt_flow.image2.operation", `unknown image2 operation ${JSON.stringify(operation)}`, `Use one of: plan, authorize, generate, accept, use-html, cleanup, unknown-submit`);
   const resolved = await resolveImage2Run(runDir, `ppt_flow.image2.${operation}`);
   if (!resolved) return 1;
+  if (opts.force && operation !== "plan") {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--force applies only to image2 plan", "Use --force --reason only for an explicit offline prerequisite waiver.");
+  }
+  const remoteReconciliation = ["unknown-submit", "resolve-unknown-submit"].includes(operation) && opts.decision === "retain" && !opts.candidateId;
+  if (opts.baseUrl && operation !== "generate" && !remoteReconciliation) {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--base-url applies only to provider generation or retain reconciliation", "Use --base-url only when the command will initialize the authorized provider transport.");
+  }
+  if (!opts.force && opts.reason != null) {
+    return emitUsage(`ppt_flow.image2.${operation}`, "--reason applies only to image2 plan --force", "Remove --reason or add --force to an offline plan continuation.");
+  }
+  if (operation === "plan" && opts.force && !String(opts.reason || "").trim()) {
+    return emitUsage("ppt_flow.image2.plan", "image2 plan --force requires --reason", "Provide a bounded human reason for the explicit delivery prerequisite waiver.");
+  }
   try {
     const ops = await import("./04-image2-refinement/index.mjs");
     const slides = opts.slides ? String(opts.slides).split(",").map((id) => id.trim()).filter(Boolean).map((slide_id) => ({ slide_id, slot: opts.slot || "primary_visual" })) : null;
     let result;
     if (operation === "plan") {
-      result = await ops.createRefinementPlan({ runDir: resolved, slides, profileFingerprint: opts.profile || null });
+      result = await ops.createRefinementPlan({
+        runDir: resolved,
+        slides,
+        profileFingerprint: opts.profile || null,
+        force: opts.force === true,
+        reason: opts.reason || null,
+      });
     } else if (operation === "authorize") {
       if (!opts.planHash) return emitUsage("ppt_flow.image2.authorize", "--plan-hash is required", "Pass the exact deterministic hash printed by image2 plan");
       result = await ops.authorizeRefinement({ runDir: resolved, planHash: opts.planHash });
     } else if (operation === "generate") {
       if (!opts.attemptId) return emitUsage("ppt_flow.image2.generate", "--attempt-id is required", "Pass one persisted planned attempt ID; retries require a new plan");
-      result = await ops.generateRefinement({ runDir: resolved, attemptId: opts.attemptId });
+      result = await ops.generateRefinement({
+        runDir: resolved,
+        attemptId: opts.attemptId,
+        transportFactory: () => createImage2CliTransport(resolved, opts.baseUrl || null),
+      });
     } else if (operation === "accept") {
       if (!opts.slideId || !opts.candidateId) return emitUsage("ppt_flow.image2.accept", "--slide-id and --candidate-id are required", "Pass the exact reviewed page and immutable candidate ID");
       result = await ops.acceptRefinementCandidate({ runDir: resolved, slideId: opts.slideId, candidateId: opts.candidateId });
@@ -2344,11 +2605,20 @@ async function commandImage2(operation, runDir, opts = {}) {
     } else {
       if (!opts.attemptId || !opts.decision) return emitUsage(`ppt_flow.image2.${operation}`, "--attempt-id and --decision are required", "Resolve an unknown-submit attempt with --decision retain or abandon");
       if (opts.decision === "retain" && opts.candidateId) result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: "retain", candidateId: opts.candidateId });
-      else if (opts.decision === "retain") result = await ops.reconcileRefinementAttempt({ runDir: resolved, attemptId: opts.attemptId });
+      else if (opts.decision === "retain") {
+        result = await ops.reconcileRefinementAttempt({
+          runDir: resolved,
+          attemptId: opts.attemptId,
+          transportFactory: () => createImage2CliTransport(resolved, opts.baseUrl || null),
+        });
+      }
       else result = await ops.resolveUnknownSubmit({ runDir: resolved, attemptId: opts.attemptId, decision: opts.decision, candidateId: opts.candidateId || null });
     }
-    if (opts.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(JSON.stringify(result));
+    const output = operation === "plan"
+      ? { ...result, force_not_needed: result.force_not_needed === true }
+      : result;
+    if (opts.json) console.log(JSON.stringify(output, null, 2));
+    else console.log(JSON.stringify(output));
     return 0;
   } catch (error) {
     const stale = /STALE|stale|drift/i.test(error.message || "");
@@ -2473,7 +2743,7 @@ Examples:
     .argument("<gate>", "Gate to approve: content, visual, or header")
     .option("--waive", "Record an explicit user decision to skip this gate")
     .option("--only <ids>", "For header risk acceptance: comma-separated slide IDs")
-    .option("--reason <text>", "For header risk acceptance: persisted symptom/reason")
+    .option("--reason <text>", "For HTML --waive or header risk acceptance: persisted human reason")
     .option("--plan-hash <hash>", "Exact current HTML content/visual review plan hash")
     .action(async (runDir, gate, opts) => {
       if (!["content", "visual", "header"].includes(gate)) {
@@ -2572,6 +2842,8 @@ Examples:
       "--reuse-images",
       "Reuse existing Stage-2 images instead of refreshing at final resolution"
     )
+    .option("--force", "Explicitly waive reversible pending HTML gate evidence")
+    .option("--reason <text>", "Bounded human reason required with HTML --force")
     .option("--dry-run", "Print what would be executed")
     .action(async (runDir, opts) => {
       validateResolution("ppt_flow.build.resolution", opts.resolution);
@@ -2581,6 +2853,8 @@ Examples:
         baseUrl: opts.baseUrl || null,
         reuseImages: opts.reuseImages ?? false,
         dryRun: opts.dryRun ?? false,
+        force: opts.force ?? false,
+        reason: opts.reason || null,
       });
       process.exit(code);
     });
@@ -2701,9 +2975,11 @@ Examples:
     .argument("<runDir>", "Path to version directory")
     .option("--json", "JSON output")
     .option("--check-gates", "Verify gates for Stage 2 readiness")
+    .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--recover-gate-journal <ownerToken>", "Explicitly recover an abandoned HTML gate journal")
     .option("--record-delivery-review <decision>", "Record HTML delivery review: proceed, repair, or redirect")
-    .option("--reason <text>", "Durable reason for repair/redirect")
+    .option("--force", "For --record-delivery-review proceed: waive a reversible HTML evidence risk")
+    .option("--reason <text>", "Required for repair/redirect and forced proceed decisions")
     .action(async (runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const {
@@ -2723,18 +2999,59 @@ Examples:
         if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
       }
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
+        process.exitCode = 1;
         return;
       }
-      if (specialOperations > 0 && !htmlFirst) {
+      if (opts.force && !opts.recordDeliveryReview) {
+        emitUsage("ppt_flow.state", "--force applies only to --record-delivery-review proceed", "Use --force together with proceed and a bounded --reason.");
+        process.exitCode = 1;
+        return;
+      }
+      if (opts.reason != null && !opts.recordDeliveryReview) {
+        emitUsage("ppt_flow.state", "--reason applies only to --record-delivery-review", "Use --reason with repair, redirect, or a forced proceed decision.");
+        process.exitCode = 1;
+        return;
+      }
+      if ((opts.recoverGateJournal || opts.recordDeliveryReview) && !htmlFirst) {
         emitUsage("ppt_flow.state", "HTML state operations are branch-inapplicable for markerless decks", "Use the legacy controller/status path for a markerless deck.");
+        process.exitCode = 1;
+        return;
+      }
+      if (opts.validateState) {
+        // This closed diagnostic operation always returns its bounded report,
+        // including when the failure envelope makes the process exit non-zero.
+        setCliOutputMode("json");
+        const { validateStateReadOnly } = await import("./shared/state/state.mjs");
+        const result = validateStateReadOnly(deckDir, { runDir: resolved });
+        const report = { operation: "validate-state", ...result };
+        registerCliJsonReport(report);
+        console.log(JSON.stringify(report));
+        if (!result.valid) {
+          emitCliError({
+            code: CLI_ERROR_CODES.STATE_CORRUPTED,
+            message: "State validation found bounded record or evidence mismatches.",
+            hint: "Use the reported field paths to rebuild artifacts or repair the owning state record through its public workflow.",
+            where: "ppt_flow.state.validate-state",
+            diagnostic: {
+              version: 1,
+              category: "artifact",
+              operation: "validate-state",
+              reason: { kind: "state_validation_failed" },
+              issues: result.issues,
+              next: createCliNext("repair_prerequisite", { default: "Repair the named state or evidence prerequisite, then validate again." }),
+            },
+          });
+          process.exitCode = 1;
+        }
         return;
       }
       if (opts.recoverGateJournal) {
         if (!/^[0-9a-f]{64}$/.test(opts.recoverGateJournal)) {
           emitUsage("ppt_flow.state.recover-gate-journal", "--recover-gate-journal requires a 64-lowercase-hex owner token", "Use the exact opaque token shown by plain state/status.");
+          process.exitCode = 1;
           return;
         }
         try {
@@ -2744,25 +3061,39 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.recover-gate-journal", error.message, "Confirm that the exact journal owner stopped and retry after the required recovery age.");
+          process.exitCode = 1;
           return;
         }
       }
       if (opts.recordDeliveryReview) {
         if (!new Set(["proceed", "repair", "redirect"]).has(opts.recordDeliveryReview)) {
           emitUsage("ppt_flow.state.record-delivery-review", "delivery decision must be proceed, repair, or redirect", "Choose one of the declared final-review decisions.");
+          process.exitCode = 1;
           return;
         }
-        if (opts.recordDeliveryReview === "proceed" && opts.reason != null) {
+        if (opts.force && opts.recordDeliveryReview !== "proceed") {
+          emitUsage("ppt_flow.state.record-delivery-review", "--force is valid only with proceed", "Use --force --reason only for an explicit proceed continuation.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.recordDeliveryReview === "proceed" && !opts.force && opts.reason != null) {
           emitUsage("ppt_flow.state.record-delivery-review", "proceed forbids --reason", "Remove --reason for a proceed decision.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.recordDeliveryReview === "proceed" && opts.force && !String(opts.reason || "").trim()) {
+          emitUsage("ppt_flow.state.record-delivery-review", "forced proceed requires --reason", "Provide a bounded durable reason for the evidence waiver.");
+          process.exitCode = 1;
           return;
         }
         if (["repair", "redirect"].includes(opts.recordDeliveryReview) && !String(opts.reason || "").trim()) {
           emitUsage("ppt_flow.state.record-delivery-review", `${opts.recordDeliveryReview} requires --reason`, "Provide a bounded durable human reason.");
+          process.exitCode = 1;
           return;
         }
         try {
           const { publishHtmlDeliveryDecision } = await import("./shared/state/html_review_evidence.mjs");
-          const result = publishHtmlDeliveryDecision(resolved, { decision: opts.recordDeliveryReview, reason: opts.reason });
+          const result = publishHtmlDeliveryDecision(resolved, { decision: opts.recordDeliveryReview, reason: opts.reason, force: opts.force === true });
           console.log(JSON.stringify({ operation: "record-delivery-review", ...result }));
           return;
         } catch (error) {
@@ -2862,6 +3193,25 @@ Examples:
       } catch {
         statusSnapshot = null;
       }
+      let htmlReviews = null;
+      let htmlResume = null;
+      if (htmlFirst) {
+        try {
+          const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
+          htmlReviews = inspectHtmlReviewReadiness(resolved);
+          htmlResume = buildHtmlResumeGuidance(resolved, htmlReviews);
+        } catch {
+          htmlReviews = { pipeline: HTML_FIRST_PIPELINE, state_present: true, content: { decision: "pending", freshness: "invalid", review_required: true }, visual: { decision: "pending", freshness: "invalid", outstanding_recipe_keys: [], outstanding_slide_ids: [] }, delivery: { freshness: "invalid", decision: null, reason_present: false }, reset: { status: "absent", ownership: "none", retry_after_ms: null }, journal: { status: "invalid" } };
+          htmlResume = htmlResumeGuidance({
+            outcome: "hard-stop",
+            subject: "html-review-state",
+            summary: "HTML review state could not be inspected through its authoritative owner",
+            recommendedCommand: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state ${flowRunArgument(resolved)} --validate-state`,
+            protectedInvariant: "authoritative HTML review state integrity",
+          });
+        }
+      }
+      if (statusSnapshot) statusSnapshot.html_resume_guidance = htmlResume;
       const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
       const controllerIndex = buildPlaybookIndex(join(FRAMEWORK_DIR, "playbook"));
       const controllerCtx = await buildControllerGateContext(resolved);
@@ -2872,15 +3222,6 @@ Examples:
 
       if (opts.json) {
         if (healed) s.healed = true;
-        let htmlReviews = null;
-        if (htmlFirst) {
-          try {
-            const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
-            htmlReviews = inspectHtmlReviewReadiness(resolved);
-          } catch (error) {
-            htmlReviews = { pipeline: HTML_FIRST_PIPELINE, state_present: true, content: { decision: "pending", freshness: "invalid", review_required: true }, visual: { decision: "pending", freshness: "invalid", outstanding_recipe_keys: [], outstanding_slide_ids: [] }, delivery: { freshness: "invalid", decision: null, reason_present: false }, reset: { status: "absent", ownership: "none", retry_after_ms: null }, journal: { status: "invalid" } };
-          }
-        }
         const refinementProjection = (() => {
           try { return projectImage2RefinementState(s, basename(resolved)); }
           catch (error) { return { present: false, status: "invalid", reason: error.message }; }
@@ -2890,6 +3231,7 @@ Examples:
           pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "legacy-image2-first"),
           state_present: existsSync(statePath(deckDir)),
           html_reviews: htmlReviews,
+          html_resume_guidance: htmlResume,
           image2_refinement: refinementProjection,
           ...(migrationHandoff ? { migration_handoff: migrationHandoff } : {}),
           node_status: indexedCard.node_status,
@@ -2901,12 +3243,17 @@ Examples:
           workflow_summary: indexedCard.workflow_summary,
           suggested_next: indexedCard.suggested_next,
         };
-        if (refinementProjection.present && refinementProjection.status !== "complete") {
+        if (refinementProjection.present && refinementProjection.status !== "complete" && !indexedCard.waiting_for && !htmlResume?.recommended_command) {
           report.workflow_summary = `Optional Image2 refinement is ${refinementProjection.status}`;
           report.suggested_next = refinementProjection.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
-        } else if (htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
-          report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-          report.suggested_next = "complete:html-delivery";
+        } else if (!htmlResume && htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
+          if (htmlReviews.delivery.evidence_complete === false) {
+            report.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
+            report.suggested_next = "repair:html-delivery-lineage";
+          } else {
+            report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
+            report.suggested_next = "complete:html-delivery";
+          }
         }
         registerCliJsonReport(report);
         console.log(JSON.stringify(report, null, 2));
@@ -2931,6 +3278,10 @@ Examples:
       );
       console.log("Summary:  " + indexedCard.workflow_summary);
       console.log("Next:     " + indexedCard.suggested_next);
+      if (htmlResume?.recommended_command) {
+        console.log("Gate guidance:");
+        printHtmlResumeGuidance(htmlResume, "  ");
+      }
       if (migrationHandoff) console.log(`Migration: ${migrationHandoff.code} (${migrationHandoff.source_version} -> ${migrationHandoff.target_version})`);
     });
 
@@ -2964,12 +3315,15 @@ Examples:
     .option("--slides <ids>", "Comma-separated stable slide IDs for plan")
     .option("--slot <slot>", "One no-text visual slot (default primary_visual)", "primary_visual")
     .option("--profile <fingerprint>", "Safe provider profile fingerprint")
+    .option("--base-url <url>", "Override the Image2 provider base URL for generate/reconciliation")
     .option("--plan-hash <hash>", "Exact deterministic plan hash")
     .option("--attempt-id <id>", "Persisted setup/page attempt ID")
     .option("--slide-id <id>", "Stable slide ID for review/promotion")
     .option("--candidate-id <id>", "Immutable candidate ID")
     .option("--review-hash <hash>", "Exact cleanup review-set hash")
     .option("--decision <decision>", "Unknown-submit decision: retain or abandon")
+    .option("--force", "Explicitly waive an incomplete HTML delivery prerequisite for offline planning")
+    .option("--reason <text>", "Bounded human reason required with image2 plan --force")
     .option("--dry-run", "Show cleanup scope without deleting derived evidence")
     .option("--json", "Output one machine-readable success report")
     .addHelpText("after", "\nClosed operations:\n  plan -> authorize -> generate -> accept|use-html -> cleanup\n  unknown-submit --decision retain|abandon\nNo operation submits before exact human authorization.\n")

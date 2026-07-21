@@ -18,6 +18,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, basename } from "node:path";
 import { emitCliProgress } from "../../../shared/cli/cli_error.mjs";
+import { resolveImage2Vendors } from "../../../shared/image2/credentials.mjs";
 
 export const DEFAULT_MODEL = "gpt-image-2";
 export const MAX_WAIT_MS = 600_000;
@@ -85,24 +86,6 @@ function _isRetryableError(err) {
   return false;
 }
 
-/** @param {string} u @returns {string} */
-function normalizeBaseUrl(u) {
-  const raw = String(u).trim();
-  if (!raw) return "";
-  const parsed = new URL(raw);
-  if (parsed.username || parsed.password) {
-    throw new Error("Image provider URL must not contain credentials");
-  }
-  parsed.search = "";
-  parsed.hash = "";
-  return parsed.toString().replace(/\/+$/, "");
-}
-
-/** @returns {string} */
-function resolveKey() {
-  return process.env.IMAGE2_API_KEY || "";
-}
-
 /**
  * Single-vendor credential resolution.
  * CLI --base-url overrides IMAGE2_BASE_URL.
@@ -110,28 +93,7 @@ function resolveKey() {
  * @returns {{ base_url: string, api_key: string }[]}
  */
 export function resolveVendors(extraBaseUrls = []) {
-  const key = resolveKey();
-  if (!key) {
-    throw new Error(
-      "IMAGE2_API_KEY is not set. Put it in deck .env or export it."
-    );
-  }
-
-  let baseUrl = "";
-  // CLI --base-url takes priority
-  if (extraBaseUrls && extraBaseUrls.length > 0) {
-    baseUrl = String(extraBaseUrls[0]).trim();
-  }
-  if (!baseUrl) {
-    baseUrl = (process.env.IMAGE2_BASE_URL || "").trim();
-  }
-  if (!baseUrl) {
-    throw new Error(
-      "No image API base URL. Set IMAGE2_BASE_URL or use --base-url."
-    );
-  }
-
-  return [{ base_url: normalizeBaseUrl(baseUrl), api_key: key }];
+  return resolveImage2Vendors(extraBaseUrls);
 }
 
 /** @returns {string} first resolved vendor key (compat wrapper) */

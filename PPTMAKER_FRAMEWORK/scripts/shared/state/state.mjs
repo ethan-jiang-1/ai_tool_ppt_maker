@@ -11,6 +11,7 @@
 import {
   appendFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -18,7 +19,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { parseDocument, stringify } from "yaml";
@@ -39,7 +40,9 @@ export const STATE_SCHEMA_VERSION = 3;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
 export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]);
-export const IMAGE2_REFINEMENT_STATE_SCHEMA = "pptmaker-image2-refinement-state-v1";
+export const IMAGE2_REFINEMENT_STATE_SCHEMA_V1 = "pptmaker-image2-refinement-state-v1";
+export const IMAGE2_REFINEMENT_STATE_SCHEMA_V2 = "pptmaker-image2-refinement-state-v2";
+export const IMAGE2_REFINEMENT_STATE_SCHEMA = IMAGE2_REFINEMENT_STATE_SCHEMA_V2;
 
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
@@ -97,11 +100,40 @@ function refinementVersionKey(runVersion) {
   return `3_versions/${runVersion}`;
 }
 
+function validCanonicalWaivedChecks(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 64) return false;
+  let prior = null;
+  for (const entry of value) {
+    if (!isPlainObject(entry) || !hasExactKeys(entry, ["code", "subject"]) || !/^[a-z][a-z0-9_]{0,63}$/.test(entry.code || "")) return false;
+    if (entry.subject !== null && (!isPlainObject(entry.subject) || !hasExactKeys(entry.subject, ["kind", "id"]) || !["gate", "slide", "recipe", "artifact", "receipt"].includes(entry.subject.kind) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(entry.subject.id || ""))) return false;
+    const key = `${entry.code}\u0000${entry.subject?.kind || ""}\u0000${entry.subject?.id || ""}`;
+    if (prior !== null && prior >= key) return false;
+    prior = key;
+  }
+  return true;
+}
+
+function validPrerequisiteWaiver(value, runVersion) {
+  if (!hasExactKeys(value, ["reason", "waived_checks", "run_version", "html_production_reset_id", "html_delivery_digest", "recorded_at"])) return false;
+  return typeof value.reason === "string" && value.reason.trim() === value.reason && value.reason.length > 0 && Buffer.byteLength(value.reason, "utf8") <= 1024 &&
+    validCanonicalWaivedChecks(value.waived_checks) && value.run_version === runVersion &&
+    (value.html_production_reset_id === null || SHA256_RE.test(value.html_production_reset_id || "")) &&
+    SHA256_RE.test(value.html_delivery_digest || "") && typeof value.recorded_at === "string" && !Number.isNaN(Date.parse(value.recorded_at));
+}
+
 function validRefinementRecord(record, runVersion) {
-  if (!isPlainObject(record) || record.schema !== IMAGE2_REFINEMENT_STATE_SCHEMA || record.run_version !== runVersion) return false;
-  const keys = ["schema", "run_version", "plan", "authorization", "attempts", "reviews"];
+  if (!isPlainObject(record) || ![IMAGE2_REFINEMENT_STATE_SCHEMA_V1, IMAGE2_REFINEMENT_STATE_SCHEMA_V2].includes(record.schema) || record.run_version !== runVersion) return false;
+  const keys = record.schema === IMAGE2_REFINEMENT_STATE_SCHEMA_V2
+    ? ["schema", "run_version", "plan", "authorization", "attempts", "reviews", "prerequisite_waiver"]
+    : ["schema", "run_version", "plan", "authorization", "attempts", "reviews"];
   if (Object.keys(record).length !== keys.length || keys.some((key) => !Object.hasOwn(record, key))) return false;
-  return (record.plan === null || isPlainObject(record.plan)) && (record.authorization === null || isPlainObject(record.authorization)) && isPlainObject(record.attempts) && isPlainObject(record.reviews) && Object.keys(record.attempts).every((id) => /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id)) && Object.keys(record.reviews).every((id) => typeof id === "string" && id.trim() !== "");
+  return (record.plan === null || isPlainObject(record.plan)) &&
+    (record.authorization === null || isPlainObject(record.authorization)) &&
+    isPlainObject(record.attempts) &&
+    isPlainObject(record.reviews) &&
+    (record.schema === IMAGE2_REFINEMENT_STATE_SCHEMA_V1 || record.prerequisite_waiver === null || validPrerequisiteWaiver(record.prerequisite_waiver, runVersion)) &&
+    Object.keys(record.attempts).every((id) => /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id)) &&
+    Object.keys(record.reviews).every((id) => typeof id === "string" && id.trim() !== "");
 }
 
 export function readImage2RefinementState(state, runVersion) {
@@ -747,6 +779,7 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   const note = nodeRec.note ? String(nodeRec.note) : null;
   const gates = { ...(state?.gates || {}) };
   const playbook_stack = Array.isArray(state?.playbook_stack) ? deepClone(state.playbook_stack) : [];
+  const html_resume_guidance = statusSnapshot?.html_resume_guidance || null;
   const execLabel = `${playbook || "（未初始化）"} / ${current_node || "（未初始化）"}`;
   let workflow_summary;
   if (waiting_for) workflow_summary = `卡在等人：${waiting_for}（${execLabel}）`;
@@ -768,7 +801,15 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   else if (current_node) suggested_next = `advance-or-inspect:${playbook}/${current_node}`;
   else suggested_next = "inspect:run ppt_flow state|status";
 
-  if (playbook === "image2-refine") {
+  // CLI owns the structured HTML review projection and commands. The shared
+  // card only consumes that producer output, preserving a waiting human's
+  // priority and never constructing a waiver or state mutation itself.
+  if (!waiting_for && html_resume_guidance?.recommended_command) {
+    workflow_summary = html_resume_guidance.summary || workflow_summary;
+    suggested_next = html_resume_guidance.recommended_command;
+  }
+
+  if (playbook === "image2-refine" && !html_resume_guidance?.recommended_command) {
     const version = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
     const refinement = version ? (() => { try { return projectImage2RefinementState(state, version); } catch { return null; } })() : null;
     if (refinement?.status === "unknown-submit") suggested_next = "human:resolve-unknown-submit";
@@ -785,6 +826,7 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
     waiting_for,
     note,
     gates,
+    html_resume_guidance,
     playbook_stack,
     completed_nodes: activeNodeIds ? getCompletedNodes(state, activeNodeIds) : getCompletedNodes(state),
     pending_nodes: activeNodeIds ? getPendingNodes(state, activeNodeIds) : getPendingNodes(state),
@@ -949,16 +991,18 @@ export function validateState(state) {
   if (!isPlainObject(state)) return { valid: false, errors: ["state is null"] };
   if (state.corrupted) return { valid: false, errors: state.errors || ["corrupted"] };
   if (state.schema_version !== STATE_SCHEMA_VERSION) errors.push(`unsupported schema_version ${state.schema_version}`);
+  const nodes = isPlainObject(state.nodes) ? state.nodes : {};
+  const gates = isPlainObject(state.gates) ? state.gates : {};
   if (!isPlainObject(state.nodes)) errors.push("missing nodes");
   if (!isPlainObject(state.gates)) errors.push("missing gates");
   if (state.playbook && (!state.execution_id || !state.execution_started_at)) errors.push("active playbook missing execution fields");
-  for (const [name, node] of controllerEntries(state.nodes)) {
+  for (const [name, node] of controllerEntries(nodes)) {
     if (!NODE_STATUSES.includes(node?.status)) errors.push(`invalid status for ${name}`);
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
     if (node?.status === "in_progress" && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
   }
-  if (state.nodes?.["image2-refinement"] !== undefined) {
-    const byVersion = state.nodes["image2-refinement"]?.by_version;
+  if (nodes["image2-refinement"] !== undefined) {
+    const byVersion = nodes["image2-refinement"]?.by_version;
     if (!isPlainObject(byVersion)) errors.push("image2-refinement must contain by_version");
     else {
       for (const key of Object.keys(byVersion)) {
@@ -968,8 +1012,296 @@ export function validateState(state) {
       }
     }
   }
-  for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(state.gates?.[gate])) errors.push(`invalid gate ${gate}`);
+  for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
   return { valid: errors.length === 0, errors };
+}
+
+function stateIssue(path, expected, actual, kind = "state", next_action = "repair_state") {
+  return Object.freeze({
+    path,
+    expected: expected == null ? "null" : String(expected).slice(0, 128),
+    actual: actual == null ? "null" : String(actual).slice(0, 128),
+    kind,
+    next_action,
+  });
+}
+
+function hasExactKeys(value, keys) {
+  return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function versionFromReservedKey(key) {
+  return /^3_versions\/(v[1-9][0-9]*)$/.exec(key)?.[1] || null;
+}
+
+function validIsoTimestamp(value) {
+  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
+}
+
+function validNullableSha256(value) {
+  return value === null || (typeof value === "string" && SHA256_RE.test(value));
+}
+
+function validateReservedRecordIdentity(record, key, recordPath, issues) {
+  const runVersion = versionFromReservedKey(key);
+  if (!runVersion) {
+    issues.push(stateIssue(recordPath, "canonical 3_versions/vN key", "noncanonical", "record"));
+    return null;
+  }
+  if (!isPlainObject(record)) {
+    issues.push(stateIssue(recordPath, "mapping record", typeof record, "record"));
+    return null;
+  }
+  if (record.run_version !== runVersion) {
+    issues.push(stateIssue(`${recordPath}.run_version`, runVersion, record.run_version, "record"));
+  }
+  return runVersion;
+}
+
+function validateWaivedChecksReadOnly(value, path, issues) {
+  if (!Array.isArray(value) || value.length > 64) {
+    issues.push(stateIssue(path, "0..64 canonical checks", Array.isArray(value) ? `array:${value.length}` : typeof value, "record"));
+    return false;
+  }
+  let allValid = true;
+  let prior = null;
+  for (const entry of value) {
+    const entryValid = isPlainObject(entry) && hasExactKeys(entry, ["code", "subject"]) && /^[a-z][a-z0-9_]{0,63}$/.test(entry.code || "") &&
+      (entry.subject === null || (isPlainObject(entry.subject) && hasExactKeys(entry.subject, ["kind", "id"]) && ["gate", "slide", "recipe", "artifact", "receipt"].includes(entry.subject.kind) && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(entry.subject.id || "")));
+    if (!entryValid) {
+      issues.push(stateIssue(path, "canonical waived check", "invalid", "record"));
+      allValid = false;
+      continue;
+    }
+    const key = `${entry.code}\u0000${entry.subject?.kind || ""}\u0000${entry.subject?.id || ""}`;
+    if (prior !== null && prior >= key) {
+      issues.push(stateIssue(path, "sorted duplicate-free checks", "noncanonical", "record"));
+      allValid = false;
+    }
+    prior = key;
+  }
+  return allValid;
+}
+
+function hasWaivedSubject(checks, kind, id) {
+  return Array.isArray(checks) && checks.some((entry) => entry?.subject?.kind === kind && entry.subject.id === id);
+}
+
+function validateReferencePairShape(record, pathKey, shaKey, recordPath, issues, { required = false } = {}) {
+  const pathValue = record[pathKey];
+  const shaValue = record[shaKey];
+  if (pathValue === null && shaValue === null) {
+    if (required) issues.push(stateIssue(`${recordPath}.${pathKey}`, "path plus sha256", "missing", "record"));
+    return false;
+  }
+  if (typeof pathValue !== "string" || !pathValue || typeof shaValue !== "string" || !SHA256_RE.test(shaValue)) {
+    issues.push(stateIssue(`${recordPath}.${pathKey}`, "path plus sha256", "missing-or-invalid", "record"));
+    return false;
+  }
+  return true;
+}
+
+function validateHtmlGateRecordReadOnly(id, record, key, recordPath, issues) {
+  const gate = id === "html-content-review" ? "content" : "visual";
+  const audit = gate === "content"
+    ? ["content_review_fingerprint", "ordered_plan_digest"]
+    : ["visual_system_fingerprint", "component_recipe_coverage", "page_visual_dependencies", "shown_artifacts"];
+  const common = ["schema", "gate", "pipeline", "run_version", "status", "waiver_reason", "review_plan_hash", "html_production_reset_id"];
+  const v1 = [...common, ...audit, "decided_at"];
+  const v2 = [...common, "evidence_complete", "waived_checks", ...audit, "decided_at"];
+  const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
+  if (!runVersion) return;
+  if (record.schema === "pptmaker-html-gate-review-v1") {
+    if (!hasExactKeys(record, v1)) issues.push(stateIssue(recordPath, "closed gate v1 record", "unknown-or-missing-key", "record"));
+  } else if (record.schema === "pptmaker-html-gate-review-v2") {
+    if (!hasExactKeys(record, v2)) issues.push(stateIssue(recordPath, "closed gate v2 record", "unknown-or-missing-key", "record"));
+  } else {
+    issues.push(stateIssue(`${recordPath}.schema`, "supported gate record schema", record.schema || "missing", "record"));
+    return;
+  }
+  if (record.gate !== gate) issues.push(stateIssue(`${recordPath}.gate`, gate, record.gate, "record"));
+  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
+  if (!["approved", "waived"].includes(record.status)) issues.push(stateIssue(`${recordPath}.status`, "approved|waived", record.status, "record"));
+  if (!validNullableSha256(record.html_production_reset_id)) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "null or sha256", "invalid", "record"));
+  if (!validIsoTimestamp(record.decided_at)) issues.push(stateIssue(`${recordPath}.decided_at`, "UTC ISO-8601", "invalid", "record"));
+  const hasPlanHash = typeof record.review_plan_hash === "string" && SHA256_RE.test(record.review_plan_hash);
+  if (record.schema === "pptmaker-html-gate-review-v1") {
+    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256", "missing-or-invalid", "record"));
+    if (record.status === "approved" && record.waiver_reason !== null) issues.push(stateIssue(`${recordPath}.waiver_reason`, "null for approved", "present", "record"));
+    if (record.status === "waived" && (typeof record.waiver_reason !== "string" || !record.waiver_reason)) issues.push(stateIssue(`${recordPath}.waiver_reason`, "non-empty waiver reason", "missing-or-invalid", "record"));
+    return;
+  }
+  const checksValid = validateWaivedChecksReadOnly(record.waived_checks, `${recordPath}.waived_checks`, issues);
+  const checks = Array.isArray(record.waived_checks) ? record.waived_checks : [];
+  if (typeof record.evidence_complete !== "boolean") issues.push(stateIssue(`${recordPath}.evidence_complete`, "boolean", typeof record.evidence_complete, "record"));
+  if (record.status === "approved") {
+    if (record.waiver_reason !== null) issues.push(stateIssue(`${recordPath}.waiver_reason`, "null for approved", "present", "record"));
+    if (record.evidence_complete !== true) issues.push(stateIssue(`${recordPath}.evidence_complete`, "true for approved", record.evidence_complete, "record"));
+    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for approved", `array:${checks.length}`, "record"));
+    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256 for approved", "missing-or-invalid", "record"));
+    return;
+  }
+  if (typeof record.waiver_reason !== "string" || !record.waiver_reason) issues.push(stateIssue(`${recordPath}.waiver_reason`, "non-empty waiver reason", "missing-or-invalid", "record"));
+  if (record.evidence_complete === true) {
+    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for complete waiver", `array:${checks.length}`, "record"));
+    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256 for complete waiver", "missing-or-invalid", "record"));
+  } else if (record.evidence_complete === false) {
+    if (checks.length === 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "non-empty canonical checks", `array:${checks.length}`, "record"));
+    if (record.review_plan_hash !== null && !hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "null or sha256 for incomplete waiver", "invalid", "record"));
+  }
+}
+
+function validateHtmlDeliveryRecordReadOnly(record, key, recordPath, issues) {
+  const v1 = ["schema", "pipeline", "run_version", "html_production_reset_id", "html_delivery_digest", "contact_sheet_manifest_path", "contact_sheet_manifest_sha256", "contact_sheet_path", "contact_sheet_sha256", "assembly_receipt_path", "assembly_receipt_sha256", "pptx_sha256", "notes_receipt_path", "notes_receipt_sha256", "decision", "reason", "decided_at"];
+  const v2 = [...v1, "pptx_path", "evidence_complete", "waived_checks"];
+  const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
+  if (!runVersion) return;
+  const isV1 = record.schema === "pptmaker-html-delivery-review-v1";
+  const isV2 = record.schema === "pptmaker-html-delivery-review-v2";
+  if (isV1) {
+    if (!hasExactKeys(record, v1)) issues.push(stateIssue(recordPath, "closed delivery v1 record", "unknown-or-missing-key", "record"));
+  } else if (isV2) {
+    if (!hasExactKeys(record, v2)) issues.push(stateIssue(recordPath, "closed delivery v2 record", "unknown-or-missing-key", "record"));
+  } else {
+    issues.push(stateIssue(`${recordPath}.schema`, "supported delivery record schema", record.schema || "missing", "record"));
+    return;
+  }
+  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
+  if (!validNullableSha256(record.html_production_reset_id)) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "null or sha256", "invalid", "record"));
+  if (!SHA256_RE.test(record.html_delivery_digest || "")) issues.push(stateIssue(`${recordPath}.html_delivery_digest`, "sha256", "missing-or-invalid", "record"));
+  if (!["proceed", "repair", "redirect"].includes(record.decision)) issues.push(stateIssue(`${recordPath}.decision`, "proceed|repair|redirect", record.decision, "record"));
+  if (!validIsoTimestamp(record.decided_at)) issues.push(stateIssue(`${recordPath}.decided_at`, "UTC ISO-8601", "invalid", "record"));
+  const complete = isV1 || record.evidence_complete === true;
+  const requiredLineage = complete;
+  validateReferencePairShape(record, "contact_sheet_manifest_path", "contact_sheet_manifest_sha256", recordPath, issues, { required: true });
+  validateReferencePairShape(record, "contact_sheet_path", "contact_sheet_sha256", recordPath, issues, { required: true });
+  const assemblyPresent = validateReferencePairShape(record, "assembly_receipt_path", "assembly_receipt_sha256", recordPath, issues, { required: requiredLineage });
+  const notesPresent = validateReferencePairShape(record, "notes_receipt_path", "notes_receipt_sha256", recordPath, issues, { required: requiredLineage });
+  if (!SHA256_RE.test(record.pptx_sha256 || "")) issues.push(stateIssue(`${recordPath}.pptx_sha256`, "sha256", "missing-or-invalid", "record"));
+  if (isV1) {
+    if (record.decision === "proceed" && record.reason !== null) issues.push(stateIssue(`${recordPath}.reason`, "null for normal proceed", "present", "record"));
+    if (["repair", "redirect"].includes(record.decision) && (typeof record.reason !== "string" || !record.reason)) issues.push(stateIssue(`${recordPath}.reason`, "non-empty repair/redirect reason", "missing-or-invalid", "record"));
+    return;
+  }
+  const pptxPresent = validateReferencePairShape(record, "pptx_path", "pptx_sha256", recordPath, issues, { required: true });
+  const checksValid = validateWaivedChecksReadOnly(record.waived_checks, `${recordPath}.waived_checks`, issues);
+  const checks = Array.isArray(record.waived_checks) ? record.waived_checks : [];
+  if (typeof record.evidence_complete !== "boolean") issues.push(stateIssue(`${recordPath}.evidence_complete`, "boolean", typeof record.evidence_complete, "record"));
+  if (record.evidence_complete === true) {
+    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for complete evidence", `array:${checks.length}`, "record"));
+    if (!assemblyPresent || !notesPresent || !pptxPresent) issues.push(stateIssue(recordPath, "complete delivery artifact set", "incomplete", "record"));
+  } else if (record.evidence_complete === false) {
+    if (record.decision !== "proceed") issues.push(stateIssue(`${recordPath}.decision`, "proceed for incomplete evidence", record.decision, "record"));
+    if (typeof record.reason !== "string" || !record.reason) issues.push(stateIssue(`${recordPath}.reason`, "non-empty forced-proceed reason", "missing-or-invalid", "record"));
+    if (checks.length === 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "non-empty canonical checks", `array:${checks.length}`, "record"));
+    if (!assemblyPresent && !hasWaivedSubject(checks, "receipt", "assembly-v2")) issues.push(stateIssue(`${recordPath}.assembly_receipt_path`, "waived assembly-v2 receipt", "uncovered-null", "record"));
+    if (!notesPresent && !hasWaivedSubject(checks, "receipt", "notes-v3")) issues.push(stateIssue(`${recordPath}.notes_receipt_path`, "waived notes-v3 receipt", "uncovered-null", "record"));
+  }
+  if (["repair", "redirect"].includes(record.decision) && (typeof record.reason !== "string" || !record.reason)) issues.push(stateIssue(`${recordPath}.reason`, "non-empty repair/redirect reason", "missing-or-invalid", "record"));
+}
+
+function validateHtmlResetRecordReadOnly(record, key, recordPath, issues) {
+  const keys = ["schema", "pipeline", "run_version", "html_production_reset_id", "status", "started_at", "completed_at", "owner_token", "owner_host", "owner_pid", "owner_claimed_at_epoch_ms"];
+  if (!validateReservedRecordIdentity(record, key, recordPath, issues)) return;
+  if (!hasExactKeys(record, keys)) issues.push(stateIssue(recordPath, "closed HTML reset record", "unknown-or-missing-key", "record"));
+  if (record.schema !== "pptmaker-html-production-reset-v1") issues.push(stateIssue(`${recordPath}.schema`, "pptmaker-html-production-reset-v1", record.schema || "missing", "record"));
+  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
+  if (!SHA256_RE.test(record.html_production_reset_id || "")) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "sha256", "missing-or-invalid", "record"));
+  if (!SHA256_RE.test(record.owner_token || "")) issues.push(stateIssue(`${recordPath}.owner_token`, "sha256", "missing-or-invalid", "record"));
+  if (!["deletion_pending", "complete"].includes(record.status)) issues.push(stateIssue(`${recordPath}.status`, "deletion_pending|complete", record.status, "record"));
+  if (!validIsoTimestamp(record.started_at)) issues.push(stateIssue(`${recordPath}.started_at`, "UTC ISO-8601", "invalid", "record"));
+  if (record.status === "deletion_pending" ? record.completed_at !== null : !validIsoTimestamp(record.completed_at)) issues.push(stateIssue(`${recordPath}.completed_at`, record.status === "deletion_pending" ? "null" : "UTC ISO-8601", "invalid", "record"));
+}
+
+function validateConfinedReferenceReadOnly(runDir, pathValue, shaValue, pathField, issues) {
+  if (pathValue === null && shaValue === null) return;
+  if (typeof pathValue !== "string" || !pathValue || typeof shaValue !== "string" || !SHA256_RE.test(shaValue)) {
+    issues.push(stateIssue(pathField, "confined path plus sha256", "missing-or-invalid", "reference"));
+    return;
+  }
+  if (!runDir) return;
+  const root = resolve(runDir);
+  if (pathValue.includes("\\") || pathValue.startsWith("/") || pathValue.split("/").some((part) => !part || part === "." || part === "..")) {
+    issues.push(stateIssue(pathField, "confined run-relative path", "invalid-path", "reference"));
+    return;
+  }
+  const absolute = resolve(root, pathValue);
+  const rel = relative(root, absolute);
+  if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
+    issues.push(stateIssue(pathField, "confined run-relative path", "escaping-path", "reference"));
+    return;
+  }
+  if (!existsSync(absolute)) {
+    issues.push(stateIssue(pathField, "existing referenced file", "missing", "reference", "rebuild_or_repair"));
+    return;
+  }
+  let stat;
+  try { stat = lstatSync(absolute); } catch {
+    issues.push(stateIssue(pathField, "regular referenced file", "unreadable", "reference", "rebuild_or_repair"));
+    return;
+  }
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    issues.push(stateIssue(pathField, "regular confined file", stat.isSymbolicLink() ? "symbolic-link" : "not-file", "reference", "rebuild_or_repair"));
+    return;
+  }
+  const actual = sha256(readFileSync(absolute));
+  if (actual !== shaValue) issues.push(stateIssue(`${pathField}_sha256`, `sha256:${shaValue.slice(0, 12)}`, `sha256:${actual.slice(0, 12)}`, "reference", "rebuild_or_repair"));
+}
+
+/**
+ * Validate persisted bytes without calling readState/heal/writeState. This is
+ * intentionally diagnostic-only so a corrupted record cannot be changed by
+ * observing it through the public CLI.
+ */
+export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
+  const path = statePath(deckDir);
+  const issues = [];
+  if (!existsSync(path)) return Object.freeze({ valid: false, issues: Object.freeze([stateIssue("state.yaml", "existing state file", "missing", "state", "initialize_or_restore_state")]) });
+  const bytes = readFileSync(path);
+  const parsed = parseStateYaml(bytes.toString("utf8"));
+  if (!parsed.ok) return Object.freeze({ valid: false, issues: Object.freeze(parsed.errors.slice(0, 20).map(() => stateIssue("state.yaml", "valid YAML mapping", "parse-error", "yaml", "repair_state"))) });
+  if (parsed.hadErrors) issues.push(stateIssue("state.yaml", "unambiguous YAML", "parser-diagnostics", "yaml", "repair_state"));
+  const state = parsed.value;
+  const topLevel = ["schema_version", "pipeline", "playbook", "current_node", "execution_id", "execution_started_at", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
+  for (const key of Object.keys(state)) if (!topLevel.includes(key)) issues.push(stateIssue(key, "known top-level state key", "unknown", "state"));
+  for (const error of validateState(state).errors.slice(0, 20)) issues.push(stateIssue("state", "valid schema-v3 invariant", error, "state"));
+
+  const nodes = state.nodes;
+  if (isPlainObject(nodes)) {
+    for (const id of ["html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]) {
+      const container = nodes[id];
+      if (container == null) continue;
+      if (!hasExactKeys(container, ["by_version"]) || !isPlainObject(container.by_version)) {
+        issues.push(stateIssue(`nodes.${id}`, "by_version-only reserved record", "invalid", "record"));
+        continue;
+      }
+      for (const [key, record] of Object.entries(container.by_version)) {
+        const recordPath = `nodes.${id}.by_version.${key}`;
+        if (["html-content-review", "html-visual-review"].includes(id)) {
+          validateHtmlGateRecordReadOnly(id, record, key, recordPath, issues);
+        } else if (id === "html-delivery-review") {
+          validateHtmlDeliveryRecordReadOnly(record, key, recordPath, issues);
+          if (isPlainObject(record)) {
+            validateConfinedReferenceReadOnly(runDir, record.contact_sheet_manifest_path, record.contact_sheet_manifest_sha256, `${recordPath}.contact_sheet_manifest_path`, issues);
+            validateConfinedReferenceReadOnly(runDir, record.contact_sheet_path, record.contact_sheet_sha256, `${recordPath}.contact_sheet_path`, issues);
+            validateConfinedReferenceReadOnly(runDir, record.assembly_receipt_path, record.assembly_receipt_sha256, `${recordPath}.assembly_receipt_path`, issues);
+            validateConfinedReferenceReadOnly(runDir, record.notes_receipt_path, record.notes_receipt_sha256, `${recordPath}.notes_receipt_path`, issues);
+            if (record.schema === "pptmaker-html-delivery-review-v2") {
+              validateConfinedReferenceReadOnly(runDir, record.pptx_path, record.pptx_sha256, `${recordPath}.pptx_path`, issues);
+            }
+          }
+        } else if (id === "html-production-reset") {
+          validateHtmlResetRecordReadOnly(record, key, recordPath, issues);
+        } else if (id === "image2-refinement") {
+          const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
+          if (runVersion && !validRefinementRecord(record, runVersion)) {
+            issues.push(stateIssue(recordPath, "closed image2 refinement v1/v2 record", "unknown-or-invalid", "record"));
+          }
+        }
+      }
+    }
+  }
+  return Object.freeze({ valid: issues.length === 0, issues: Object.freeze(issues.slice(0, 64)) });
 }
 
 function currentEvidence(state, nodeId, key, userOnly = false) {

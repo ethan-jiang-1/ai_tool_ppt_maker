@@ -45,12 +45,60 @@ describe('HTML Stage 5 notes lineage', () => {
       expect(reviewResult.status, reviewResult.stderr || reviewResult.stdout).toBe(0);
       const reviewed = readState(fixture.deck, { heal: false });
       const delivery = reviewed.nodes['html-delivery-review'].by_version['3_versions/v1'];
-      expect(delivery).toMatchObject({ schema: 'pptmaker-html-delivery-review-v1', decision: 'proceed', reason: null, run_version: 'v1' });
+      expect(delivery).toMatchObject({
+        schema: 'pptmaker-html-delivery-review-v2',
+        decision: 'proceed',
+        reason: null,
+        run_version: 'v1',
+        evidence_complete: true,
+        waived_checks: [],
+      });
+      expect(Object.keys(delivery).sort()).toEqual([
+        'schema', 'pipeline', 'run_version', 'html_production_reset_id', 'html_delivery_digest',
+        'contact_sheet_manifest_path', 'contact_sheet_manifest_sha256', 'contact_sheet_path', 'contact_sheet_sha256',
+        'assembly_receipt_path', 'assembly_receipt_sha256', 'pptx_path', 'pptx_sha256',
+        'notes_receipt_path', 'notes_receipt_sha256', 'decision', 'reason', 'evidence_complete',
+        'waived_checks', 'decided_at',
+      ].sort());
       expect(reviewed.nodes['checkpoint-final-review'].decision).toMatchObject({ value: 'proceed', kind: 'user', evidence_ref: { node_id: 'html-delivery-review', version_key: '3_versions/v1' } });
       const reviewApi = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
       expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'current', decision: 'proceed' });
-      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: 'Changed after delivery review' })]));
-      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({ freshness: 'stale', decision: 'proceed' });
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([htmlFirstSlide({ note: null })]).replace(
+        '**SLIDE BODY**:\n```yaml\nschema_version: 1\nfamily: hero\n```\n',
+        '**SLIDE BODY**:\n```yaml\nschema_version: 1\nfamily: hero\n```\n> **SPEAKER NOTE**\n>\n> Changed after delivery review\n',
+      ));
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir)).toMatchObject({
+        content: { freshness: 'current' },
+        visual: { freshness: 'current' },
+        delivery: { freshness: 'stale', decision: 'proceed' },
+      });
+
+      const notesRefresh = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'refresh', fixture.runDir,
+        '--kind', 'notes',
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
+      expect(notesRefresh.status, notesRefresh.stderr || notesRefresh.stdout).toBe(0);
+      const refreshedReceipt = JSON.parse(readFileSync(join(fixture.runDir, '_generated', 'qa', 'notes_injection.json'), 'utf8'));
+      expect(refreshedReceipt.notes_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+      const refreshedState = readState(fixture.deck);
+      refreshedState.playbook = 'create-deck';
+      refreshedState.current_node = 'checkpoint-final-review';
+      refreshedState.nodes['checkpoint-final-review'] = {
+        status: 'in_progress',
+        execution_id: refreshedState.execution_id,
+        evidence: {},
+      };
+      writeState(fixture.deck, refreshedState);
+      const renewedReview = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'state', fixture.runDir,
+        '--record-delivery-review', 'proceed',
+      ], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
+      expect(renewedReview.status, renewedReview.stderr || renewedReview.stdout).toBe(0);
+      expect(reviewApi.inspectHtmlReviewReadiness(fixture.runDir)).toMatchObject({
+        content: { freshness: 'current' },
+        visual: { freshness: 'current' },
+        delivery: { freshness: 'current', decision: 'proceed' },
+      });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

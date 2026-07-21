@@ -5,7 +5,10 @@ import { spawnSync } from 'node:child_process';
 import { hostname } from 'node:os';
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from '../../helpers/html_first_fixture.mjs';
 import { acquireHtmlPublishLock, htmlOwnerRoot, releaseHtmlPublishLock } from '../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_object_store.mjs';
+import { assemblyReceiptPath } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs';
 import { createHash } from 'node:crypto';
+import { createCurrentHtmlDelivery } from '../../helpers/image2_refinement_fixture.mjs';
+import { HTML_STALE_OWNERSHIP_MATRIX_V1 } from '../../../PPTMAKER_FRAMEWORK/scripts/contracts/html_review_projection.mjs';
 
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 
@@ -37,7 +40,7 @@ function writeGateJournal(fixture, {
 }
 
 describe('HTML authoritative review evidence', () => {
-  it('keeps inspection read-only and stales exact-plan approvals after source drift', async () => {
+  it('approves exact pilot hashes immediately and stales them after source drift (BUG-016)', async () => {
     const fixture = createHtmlFirstRun('html-review-evidence-');
     try {
       const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
@@ -64,6 +67,340 @@ describe('HTML authoritative review evidence', () => {
       expect(changed.ready).toBe(false);
       expect(changed.gates.content.ready).toBe(false);
       expect(changed.gates.visual.ready).toBe(true);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('writes v2 gate waivers and rejects ambiguous v1 records without mutation', async () => {
+    const fixture = createHtmlFirstRun('html-review-v1-v2-gate-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      await stage1(fixture.runDir, false);
+
+      const waived = review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'content',
+        status: 'waived',
+        waiverReason: 'Proceed with the current source while review artifacts are rebuilt.',
+      });
+      expect(waived).toMatchObject({ status: 'waived', evidence_complete: false });
+      expect(waived.waived_checks).toHaveLength(1);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({
+        decision: 'waived',
+        freshness: 'current',
+        evidence_complete: false,
+      });
+
+      const state = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      const v2 = state.nodes['html-content-review'].by_version['3_versions/v1'];
+      const { evidence_complete, waived_checks, ...v1 } = v2;
+      v1.schema = 'pptmaker-html-gate-review-v1';
+      v1.status = 'approved';
+      v1.waiver_reason = null;
+      v1.review_plan_hash = null;
+      state.nodes['html-content-review'].by_version['3_versions/v1'] = v1;
+      stateApi.writeState(fixture.deck, state);
+
+      const before = readFileSync(join(fixture.deck, '_state', 'state.yaml'));
+      const observed = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(observed.content).toMatchObject({ freshness: 'invalid', evidence_complete: null });
+      expect(readFileSync(join(fixture.deck, '_state', 'state.yaml'))).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('projects a valid current v1 gate record as complete without rewriting it', async () => {
+    const fixture = createHtmlFirstRun('html-review-v1-reader-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      await stage1(fixture.runDir, false);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+
+      const state = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      const v2 = state.nodes['html-content-review'].by_version['3_versions/v1'];
+      const { evidence_complete, waived_checks, ...v1 } = v2;
+      v1.schema = 'pptmaker-html-gate-review-v1';
+      state.nodes['html-content-review'].by_version['3_versions/v1'] = v1;
+      stateApi.writeState(fixture.deck, state);
+
+      const path = join(fixture.deck, '_state', 'state.yaml');
+      const before = readFileSync(path);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({
+        decision: 'approved',
+        freshness: 'current',
+        evidence_complete: true,
+        waived_checks: [],
+      });
+      expect(readFileSync(path)).toEqual(before);
+      writeFileSync(join(fixture.runDir, 'slide-specifications.md'), htmlFirstSource([
+        htmlFirstSlide({ title: 'Changed after the v1 review' }),
+      ]), 'utf8');
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({
+        decision: 'approved',
+        freshness: 'stale',
+        evidence_complete: null,
+        waived_checks: [],
+      });
+      expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('writes v2 gate records while retaining valid v1 read compatibility', async () => {
+    const fixture = createHtmlFirstRun('html-review-v2-reader-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      await stage1(fixture.runDir, false);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'content',
+        planHash: pending.gates.content.plan.plan_hash,
+        status: 'approved',
+      });
+
+      const state = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      const versionKey = '3_versions/v1';
+      const v2 = state.nodes['html-content-review'].by_version[versionKey];
+      expect(v2).toMatchObject({
+        schema: 'pptmaker-html-gate-review-v2',
+        status: 'approved',
+        evidence_complete: true,
+        waived_checks: [],
+      });
+
+      const legacy = { ...v2, schema: 'pptmaker-html-gate-review-v1' };
+      delete legacy.evidence_complete;
+      delete legacy.waived_checks;
+      state.nodes['html-content-review'].by_version[versionKey] = legacy;
+      stateApi.writeState(fixture.deck, state);
+      const statePath = join(fixture.deck, '_state', 'state.yaml');
+      const before = readFileSync(statePath);
+      const inspected = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(inspected.content).toMatchObject({
+        decision: 'approved',
+        freshness: 'current',
+        evidence_complete: true,
+        waived_checks: [],
+      });
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 60_000);
+
+  it('fails closed on a malformed current v2 gate record without replacing it', async () => {
+    const fixture = createHtmlFirstRun('html-review-malformed-v2-gate-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      await stage1(fixture.runDir, false);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'content',
+        planHash: pending.gates.content.plan.plan_hash,
+        status: 'approved',
+      });
+
+      const state = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      state.nodes['html-content-review'].by_version['3_versions/v1'].waived_checks = null;
+      stateApi.writeState(fixture.deck, state);
+      const statePath = join(fixture.deck, '_state', 'state.yaml');
+      const before = readFileSync(statePath);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({
+        freshness: 'invalid',
+        evidence_complete: null,
+      });
+      expect(readFileSync(statePath)).toEqual(before);
+      expect(() => review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'content',
+        status: 'waived',
+        waiverReason: 'The malformed record must be repaired before a new decision is published.',
+      })).toThrow(/current HTML content review record is invalid or ambiguous/);
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 60_000);
+
+  it('fails closed on a malformed current v2 delivery record without replacing it', async () => {
+    const fixture = await createCurrentHtmlDelivery('html-review-malformed-v2-delivery-');
+    try {
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      const state = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      state.nodes['html-delivery-review'].by_version['3_versions/v1'].waived_checks = null;
+      stateApi.writeState(fixture.deck, state);
+      const statePath = join(fixture.deck, '_state', 'state.yaml');
+      const before = readFileSync(statePath);
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).delivery).toMatchObject({
+        freshness: 'invalid',
+        evidence_complete: null,
+      });
+      expect(readFileSync(statePath)).toEqual(before);
+      expect(() => review.publishHtmlDeliveryDecision(fixture.runDir, { decision: 'proceed' }))
+        .toThrow(/current HTML delivery review record is invalid or ambiguous/);
+      expect(readFileSync(statePath)).toEqual(before);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it('publishes an incomplete gate waiver through the existing authority without changing legacy mirrors', async () => {
+    const fixture = createHtmlFirstRun('html-review-waiver-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      await stage1(fixture.runDir, false);
+      const statePath = join(fixture.deck, '_state', 'state.yaml');
+      const metadataPath = join(fixture.deck, 'project-metadata.yaml');
+      const beforeState = readFileSync(statePath);
+      const beforeMetadata = readFileSync(metadataPath, 'utf8');
+      const beforeLegacy = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false }).gates;
+
+      expect(() => review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'visual',
+        planHash: 'a'.repeat(64),
+        status: 'waived',
+        waiverReason: 'The visual preview will be repaired after this local milestone.',
+      })).toThrow(/supplied waiver plan hash/);
+      expect(readFileSync(statePath)).toEqual(beforeState);
+
+      const result = review.publishHtmlGateDecision(fixture.runDir, {
+        gate: 'visual',
+        status: 'waived',
+        waiverReason: 'The visual preview will be repaired after this local milestone.',
+      });
+      expect(result).toMatchObject({ gate: 'visual', status: 'waived', evidence_complete: false });
+      expect(result.waived_checks.length).toBeGreaterThan(0);
+      const stored = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false })
+        .nodes['html-visual-review'].by_version['3_versions/v1'];
+      expect(stored).toMatchObject({
+        schema: 'pptmaker-html-gate-review-v2',
+        status: 'waived',
+        evidence_complete: false,
+        review_plan_hash: null,
+      });
+      expect(stored.waived_checks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: expect.any(String), subject: expect.anything() }),
+      ]));
+      expect(JSON.stringify(stored.waived_checks)).not.toContain('The visual preview');
+      expect(JSON.stringify(stored.waived_checks)).not.toContain(fixture.root);
+      const afterState = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false });
+      expect(afterState.gates.content).toBe(beforeLegacy.content);
+      expect(afterState.gates.visual).toBe(beforeLegacy.visual);
+      const legacyLines = (text) => text.match(/^(?:content_gate|visual_gate):.*$/gm);
+      expect(legacyLines(readFileSync(metadataPath, 'utf8'))).toEqual(legacyLines(beforeMetadata));
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).visual).toMatchObject({
+        decision: 'waived',
+        freshness: 'current',
+        evidence_complete: false,
+      });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 60_000);
+
+  it('records a forced v2 delivery evidence waiver only for reviewable current artifacts', async () => {
+    const fixture = await createCurrentHtmlDelivery('html-delivery-force-');
+    try {
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      const stateApi = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
+      const receiptPath = assemblyReceiptPath(fixture.runDir);
+      const assemblyReceipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+      assemblyReceipt.html_delivery_digest = 'f'.repeat(64);
+      writeFileSync(receiptPath, `${JSON.stringify(assemblyReceipt, null, 2)}\n`);
+      const statePath = join(fixture.deck, '_state', 'state.yaml');
+      const before = readFileSync(statePath);
+      expect(() => review.publishHtmlDeliveryDecision(fixture.runDir, { decision: 'proceed' })).toThrow(/delivery evidence is missing or stale/);
+      expect(readFileSync(statePath)).toEqual(before);
+
+      const result = review.publishHtmlDeliveryDecision(fixture.runDir, {
+        decision: 'proceed',
+        force: true,
+        reason: 'The generated PPTX and contact sheet are reviewable while assembly lineage is rebuilt.',
+      });
+      expect(result).toMatchObject({ decision: 'proceed', freshness: 'current', evidence_complete: false });
+      expect(result.waived_checks.length).toBeGreaterThan(0);
+      const record = stateApi.readState(fixture.deck, { purpose: 'observe', heal: false })
+        .nodes['html-delivery-review'].by_version['3_versions/v1'];
+      expect(record).toMatchObject({
+        schema: 'pptmaker-html-delivery-review-v2',
+        decision: 'proceed',
+        evidence_complete: false,
+        assembly_receipt_path: null,
+        assembly_receipt_sha256: null,
+      });
+      expect(record.pptx_path).toMatch(/^_generated\//);
+      expect(record.contact_sheet_path).toMatch(/^_generated\//);
+      expect(record.waived_checks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: expect.any(String), subject: expect.anything() }),
+      ]));
+      const snapshot = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(snapshot.delivery).toMatchObject({
+        decision: 'proceed',
+        freshness: 'current',
+        evidence_complete: false,
+      });
+      expect(snapshot.delivery.waived_checks.length).toBeGreaterThan(0);
+      expect(stateApi.validateStateReadOnly(fixture.deck, { runDir: fixture.runDir }))
+        .toMatchObject({ valid: true, issues: [] });
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it('reconstructs and SHA-verifies shown composition evidence before treating visual approval as current (BUG-019)', async () => {
+    const fixture = createHtmlFirstRun('html-review-composition-reload-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      await stage1(fixture.runDir, false);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
+      expect(review.inspectHtmlReviewReadiness(fixture.runDir).visual.freshness).toBe('current');
+
+      const plan = pending.gates.visual.plan;
+      const shown = plan.shown_artifacts.find((entry) => entry.composition_variant === 'effective' && entry.path);
+      const path = join(fixture.runDir, shown.path);
+      const original = readFileSync(path);
+      writeFileSync(path, Buffer.concat([original, Buffer.from('corrupt')])) ;
+
+      const stale = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(stale.ready).toBe(false);
+      expect(stale.visual.freshness).toBe('stale');
+      expect(stale.gates.visual.mismatches).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          path: 'shown_artifacts.path.sha256',
+          kind: 'artifact',
+          slide_id: 'HeroGo',
+          next_action: 'rerun_local_review',
+        }),
+      ]));
+      for (const issue of stale.gates.visual.mismatches) {
+        expect(JSON.stringify(issue)).not.toContain('Hello');
+        expect(JSON.stringify(issue)).not.toContain('SPEAKER NOTE');
+      }
+      expect(stale.gates.visual.mismatches).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          path: 'shown_artifacts.path.sha256',
+          kind: 'artifact',
+          slide_id: shown.slide_id,
+          next_action: 'rerun_local_review',
+        }),
+      ]));
+      expect(JSON.stringify(stale.gates.visual.mismatches)).not.toContain('corrupt');
+      expect(JSON.stringify(stale.gates.visual.mismatches)).not.toContain(fixture.root);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -219,4 +556,103 @@ describe('HTML authoritative review evidence', () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
+
+  it('keeps content review current when only visual-system ownership changes', async () => {
+    const fixture = createHtmlFirstRun('html-review-content-owner-');
+    try {
+      const { stage1 } = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+      const renderer = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs');
+      const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
+      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'content', planHash: pending.gates.content.plan.plan_hash, status: 'approved' });
+      review.publishHtmlGateDecision(fixture.runDir, { gate: 'visual', planHash: pending.gates.visual.plan.plan_hash, status: 'approved' });
+
+      const palettePath = join(fixture.deck, '2_backbone', 'visual-style', 'color_palette.json');
+      const palette = JSON.parse(readFileSync(palettePath, 'utf8'));
+      palette.html_first.image_language.medium = `${palette.html_first.image_language.medium} refined`;
+      writeFileSync(palettePath, `${JSON.stringify(palette, null, 2)}\n`, 'utf8');
+      expect(await stage1(fixture.runDir, false)).toBe(true);
+
+      const changed = review.inspectHtmlReviewReadiness(fixture.runDir);
+      expect(changed.content).toMatchObject({ decision: 'approved', freshness: 'current' });
+      expect(changed.visual.freshness).toBe('stale');
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it('maps each HTML-first stale owner to its smallest refresh path', async () => {
+    const cases = [
+      {
+        key: 'notes_only',
+        refreshPath: 'Notes-Only Refresh',
+        staleOwners: ['notes', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('Alpha note', 'Alpha note revised'), 'utf8'),
+        freshness: { content: 'current', visual: 'current' },
+      },
+      {
+        key: 'visible_copy',
+        refreshPath: 'Local Slide Rebuild',
+        staleOwners: ['content', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('**TITLE**: Alpha', '**TITLE**: Alpha revised'), 'utf8'),
+        freshness: { content: 'stale', visual: 'current' },
+      },
+      {
+        key: 'visual_system_or_recipe',
+        refreshPath: 'Local Deck Rebuild',
+        staleOwners: ['visual', 'delivery'],
+        mutate: async ({ fixture, pipeline }) => {
+          const palettePath = join(fixture.deck, '2_backbone', 'visual-style', 'color_palette.json');
+          const palette = JSON.parse(readFileSync(palettePath, 'utf8'));
+          palette.html_first.image_language.medium = `${palette.html_first.image_language.medium} refreshed`;
+          writeFileSync(palettePath, `${JSON.stringify(palette, null, 2)}\n`, 'utf8');
+          expect(await pipeline.stage1(fixture.runDir, false)).toBe(true);
+        },
+        freshness: { content: 'current', visual: 'stale' },
+      },
+      {
+        key: 'fallback_or_asset',
+        refreshPath: 'Local Slide Rebuild',
+        staleOwners: ['content', 'visual', 'delivery'],
+        mutate: async ({ sourcePath }) => writeFileSync(sourcePath, readFileSync(sourcePath, 'utf8').replace('recipe: line-grid', 'recipe: soft-orbs'), 'utf8'),
+        freshness: { content: 'stale', visual: 'stale' },
+      },
+      {
+        key: 'structural',
+        refreshPath: 'Structural Versioning Path',
+        staleOwners: ['content', 'visual', 'notes', 'delivery'],
+        mutate: async ({ sourcePath }) => {
+          const source = readFileSync(sourcePath, 'utf8');
+          const first = source.indexOf('## Slide 01');
+          const second = source.indexOf('## Slide 02');
+          const prefix = source.slice(0, first);
+          const alpha = source.slice(first, second).replace('## Slide 01', '## Slide 02');
+          const bravo = source.slice(second).replace('## Slide 02', '## Slide 01');
+          writeFileSync(sourcePath, `${prefix}${bravo}\n${alpha}`, 'utf8');
+        },
+        freshness: { content: 'missing', visual: 'missing' },
+        deliveryFreshness: 'stale',
+      },
+    ];
+
+    for (const entry of cases) {
+      const fixture = await createCurrentHtmlDelivery(`html-stale-matrix-${entry.key}-`);
+      try {
+        const pipeline = await import('../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs');
+        const review = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs');
+        const sourcePath = join(fixture.runDir, 'slide-specifications.md');
+        expect(HTML_STALE_OWNERSHIP_MATRIX_V1[entry.key].refresh_path).toBe(entry.refreshPath);
+        expect(HTML_STALE_OWNERSHIP_MATRIX_V1[entry.key].stale_owners).toEqual(entry.staleOwners);
+        await entry.mutate({ fixture, pipeline, sourcePath });
+        const readiness = review.inspectHtmlReviewReadiness(fixture.runDir);
+        expect(readiness.content.freshness, entry.key).toBe(entry.freshness.content);
+        expect(readiness.visual.freshness, entry.key).toBe(entry.freshness.visual);
+        expect(readiness.delivery.freshness, entry.key).toBe(entry.deliveryFreshness ?? 'stale');
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  }, 180_000);
 });

@@ -69,7 +69,8 @@
       "executables": [],
       "unit_integration": [
         "tests/04-image2-refinement/test_refinement_contracts.mjs",
-        "tests/04-image2-refinement/test_refinement_lifecycle.mjs"
+        "tests/04-image2-refinement/test_refinement_lifecycle.mjs",
+        "tests/04-image2-refinement/test_relay_compatibility.mjs"
       ],
       "e2e": [
         "tests_e2e/04-image2-refinement/test-image2-lifecycle.mjs",
@@ -138,6 +139,13 @@
       ],
       "executables": [],
       "unit_integration": ["tests/shared/identity/test_render_artifacts.mjs"],
+      "e2e": []
+    },
+    {
+      "owner": "shared/image2",
+      "interfaces": ["shared/image2/credentials.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/shared/image2/test_credentials.mjs"],
       "e2e": []
     },
     {

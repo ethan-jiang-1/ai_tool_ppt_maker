@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import JSZip from "jszip";
 import {
+  extractNoteRecordsFromMarkdown,
   injectNotes,
   injectNotesFromRunDir,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/notes_injection.mjs";
@@ -241,6 +242,66 @@ describe("stage5_inject_notes", () => {
       writeFileSync(pptx, Buffer.concat([readFileSync(pptx), Buffer.from('tamper')]));
       expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: false });
       expect(validateNotesRerunInputLineage(run)).toMatchObject({ valid: false });
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it("normalizes blank multiline quote paragraphs while retaining legacy receipt behavior", async () => {
+    const run = tmpRun("notes-projection");
+    try {
+      const pptx = join(run, "_generated", "ppt", "deck.pptx");
+      const spec = join(run, "slide-specifications.md");
+      await writeMinimalPptx(pptx);
+      writeFileSync(spec, [
+        "## Slide 1: One",
+        "",
+        "> **SPEAKER NOTE**",
+        ">",
+        "> First paragraph.",
+        ">",
+        "> Second paragraph.",
+        "",
+      ].join("\n"), "utf8");
+      writeAssemblyEvidence(run, pptx, ["One"], 2);
+
+      expect(extractNoteRecordsFromMarkdown([spec])).toMatchObject([
+        { slide_id: "One", note: "First paragraph.\n\nSecond paragraph." },
+      ]);
+      const result = await injectNotesFromRunDir(run);
+      expect(result.receipt.notes_fingerprint).toBeUndefined();
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: true });
+
+      writeFileSync(spec, `${readFileSync(spec, "utf8")}Human-only planning prose.\n`, "utf8");
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: false });
+
+      writeFileSync(spec, readFileSync(spec, "utf8").replace("Second paragraph.", "Changed paragraph."), "utf8");
+      expect(validateNotesCompletionReceipt(run)).toMatchObject({ valid: false });
+
+      writeFileSync(spec, "## Slide 1: One\n\n> **SPEAKER NOTE**\n>\n>   \n", "utf8");
+      expect(extractNoteRecordsFromMarkdown([spec])).toMatchObject([{ slide_id: "One", note: "" }]);
+    } finally {
+      rmSync(run, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a blank-only multiline speaker note before changing the PPTX", async () => {
+    const run = tmpRun("blank-multiline");
+    try {
+      const pptx = join(run, "_generated", "ppt", "deck.pptx");
+      await writeMinimalPptx(pptx);
+      writeFileSync(join(run, "slide-specifications.md"), [
+        "## Slide 1: One",
+        "",
+        "> **SPEAKER NOTE**",
+        ">",
+        ">   ",
+        "",
+      ].join("\n"), "utf8");
+      writeAssemblyEvidence(run, pptx);
+      const before = readFileSync(pptx);
+      await expect(injectNotesFromRunDir(run)).rejects.toThrow(/missing SPEAKER NOTE/);
+      expect(readFileSync(pptx)).toEqual(before);
     } finally {
       rmSync(run, { recursive: true, force: true });
     }

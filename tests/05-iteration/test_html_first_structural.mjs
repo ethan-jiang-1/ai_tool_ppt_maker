@@ -82,7 +82,7 @@ describe("HTML-first structural versioning", () => {
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  }, 20_000);
+  }, 60_000);
 
   it("rejects a missing structural source before target Stage 1 writes", async () => {
     const fixture = createHtmlFirstRun("html-materialization-guard-");

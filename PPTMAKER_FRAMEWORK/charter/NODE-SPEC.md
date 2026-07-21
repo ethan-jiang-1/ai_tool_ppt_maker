@@ -117,6 +117,8 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 - MD 仅在完整支持并校验 `diagnostic.version` 后使用 structured evidence；legacy/unsupported/malformed nested data 退回 top-level summary。非零但无有效末行 envelope 按外部中断/崩溃处理，不从 partial output 猜原因。
 - `diagnostic.next.requires_human:true` 必须停下交给人；自动 invocation 直接传 `program`/`args` 且 `shell:false`。不发明省略的 path/id/line/cause/approval；lineage 是证据，不是修改所有 artifact 的许可，`_generated/` 永不手改。
 - parent-wrapped failure 以 parent code/where/next 为控制权，保留的 child source/subject/reason/lineage/issues 仅作因果证据；不寻找第二个 child envelope，不执行被丢弃的 child next。
+- HTML controller resume 先消费 `ppt_flow state <run-dir> --json` 的 bounded `html_resume_guidance`。它给出 `guide|confirm|hard-stop`、recommended command、nullable continuation command、protected invariant 和 independent evidence completeness；Controller 直接执行显示的 owner command，不从 prose 推断 approval/waiver，也不手写 record。
+- HTML final review 只调用 `ppt_flow state <run-dir> --record-delivery-review proceed|repair|redirect`；不再调用 `setNodeDecision` 做第二次写入。`proceed --force --reason` 仅在 producer 表明 reviewable artifacts 已当前时可作为 evidence continuation；`state --validate-state` 是只读检查，不能自动 heal、seed 或修复 state。
 - 新 run bundle 通过根 `AGENTS.md` / `CLAUDE.md` → `deck-guide.md` 发现这些 consumer 规则。
 - State 写入：只改本动作负责的字段；temp 文件必须与 `_state/state.yaml` 同目录，再 atomic rename。
 

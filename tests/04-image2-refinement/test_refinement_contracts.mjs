@@ -3,7 +3,18 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { authorizePlan, buildPlan, loadRefinementOperations, transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import {
+  REFINEMENT_AUTHORIZATION_SCHEMA_V1,
+  REFINEMENT_AUTHORIZATION_SCHEMA_V2,
+  REFINEMENT_PLAN_SCHEMA_V1,
+  REFINEMENT_PLAN_SCHEMA_V2,
+  authorizePlan,
+  buildPlan,
+  loadRefinementOperations,
+  refinementRequestFingerprint,
+  transitionAttempt,
+  verifyRefinementRequestReferences,
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
 import { createVersion, initHtmlFirstBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { encode as encodePng } from "fast-png";
 import { htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
@@ -11,7 +22,15 @@ import { bindHtmlPrimaryVisualSelection, validateAndBuildHtmlFirstPlan } from ".
 import { commitPreparedRefinedHtmlAssetRegistration } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
 import { prepareStateWrite, readImage2RefinementState, readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
-const input = { run_version: "v1", delivery_digest: "d".repeat(64), profile_fingerprint: "c".repeat(64), style_reference_status: "missing", slides: [
+const input = { run_version: "v1", delivery_digest: "d".repeat(64), profile_fingerprint: "c".repeat(64), profile_contract: {
+  schema: "pptmaker-image2-visual-slot-profile-v1",
+  mode: "visual-slot",
+  profile_fingerprint: "c".repeat(64),
+}, request_contract_version: "pptmaker-refinement-submit-request-v1", request_fingerprints: [
+  { role: "style-reference", kind: "style-reference", slide_id: null, slot: null, request_fingerprint: "d".repeat(64) },
+  { role: "slot:Alpha:right", kind: "slot", slide_id: "Alpha", slot: "right", request_fingerprint: "e".repeat(64) },
+  { role: "slot:Bravo:left", kind: "slot", slide_id: "Bravo", slot: "left", request_fingerprint: "f".repeat(64) },
+], style_reference_status: "missing", slides: [
   { slide_id: "Alpha", slot: "right", visual_contract_fingerprint: "a".repeat(64) },
   { slide_id: "Bravo", slot: "left", visual_contract_fingerprint: "b".repeat(64) },
 ] };
@@ -95,6 +114,65 @@ describe("Phase 4 refinement contracts", () => {
     const second = buildPlan({ ...input, slides: [...input.slides].reverse() });
     expect(first.plan_hash).toBe(second.plan_hash);
     expect(authorizePlan(first).attempts.map((attempt) => attempt.attempt_id)).not.toEqual(authorizePlan(first).attempts.map((attempt) => attempt.attempt_id));
+  });
+  it("writes new refinement plans and authorizations as v2 while rebuilding v1", () => {
+    const current = buildPlan(input);
+    expect(current.schema).toBe(REFINEMENT_PLAN_SCHEMA_V2);
+    expect(authorizePlan(current, "auth-v2").schema).toBe(REFINEMENT_AUTHORIZATION_SCHEMA_V2);
+
+    const legacy = buildPlan({ ...input, schema: REFINEMENT_PLAN_SCHEMA_V1 });
+    expect(legacy.schema).toBe(REFINEMENT_PLAN_SCHEMA_V1);
+    expect(authorizePlan(legacy, "auth-v1").schema).toBe(REFINEMENT_AUTHORIZATION_SCHEMA_V1);
+  });
+
+  it("keeps the v2 profile and role-bound request fingerprints closed and copied to attempts", () => {
+    const plan = buildPlan(input);
+    expect(plan.profile_contract).toEqual({
+      schema: "pptmaker-image2-visual-slot-profile-v1",
+      mode: "visual-slot",
+      profile_fingerprint: "c".repeat(64),
+    });
+    expect(() => buildPlan({
+      ...input,
+      profile_contract: { ...input.profile_contract, model: "not-allowed" },
+    })).toThrow(/closed visual-slot schema/);
+
+    const authorization = authorizePlan(plan, "auth-request-bindings");
+    for (const attempt of authorization.attempts) {
+      const role = attempt.kind === "style-reference"
+        ? "style-reference"
+        : `slot:${attempt.slide_id}:${attempt.slot}`;
+      expect(attempt.request_fingerprint).toBe(
+        plan.request_fingerprints.find((binding) => binding.role === role).request_fingerprint,
+      );
+    }
+  });
+
+  it("excludes inline reference bytes from the fingerprint but verifies them before submit", () => {
+    const bytes = Buffer.from("reference-one");
+    const material = {
+      request_contract_version: "pptmaker-refinement-submit-request-v1",
+      kind: "slot",
+      slide_id: "Alpha",
+      slot: "right",
+      visual_brief: "A no-text visual relationship",
+      concept: { must_communicate: "Relationship", must_not: "No text" },
+      geometry: { x: 1, y: 2, width: 3, height: 4 },
+      profile_contract: input.profile_contract,
+      references: [{
+        role: "fallback-asset",
+        kind: "asset",
+        media: "image/png",
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        bytes,
+      }],
+    };
+    const tampered = {
+      ...material,
+      references: [{ ...material.references[0], bytes: Buffer.from("reference-two") }],
+    };
+    expect(refinementRequestFingerprint(tampered)).toBe(refinementRequestFingerprint(material));
+    expect(() => verifyRefinementRequestReferences(tampered)).toThrow(/bound SHA-256/);
   });
   it("requires a SHA-256 profile fingerprint before planning", () => {
     expect(() => buildPlan({ ...input, profile_fingerprint: "profile-v1" })).toThrow(/lowercase SHA-256/);

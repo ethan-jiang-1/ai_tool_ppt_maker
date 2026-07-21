@@ -42,6 +42,6 @@ entry: []
 exit: [user_decision_recorded, user_evidence:notes-verified]
 ```
 
-**Step 1 — MD**: Verify Presenter View order by stable ID. HTML notes changes stale prior final delivery review, so show current delivery and record a new typed decision.
+**Step 1 — MD**: Verify Presenter View order by stable ID. HTML notes changes stale prior final delivery review, so show current delivery and record a new typed decision only through `ppt_flow state <run-dir> --record-delivery-review proceed|repair|redirect`.
 
-**Step 2 — GATE**: Record verification only after the current notes receipt and final review are bound.
+**Step 2 — GATE**: Record verification only after the current notes receipt and final review are bound. Use `state --json` / `html_resume_guidance` for the owner repair path; `proceed --force --reason` is available only when reviewable target bytes are current and remains an evidence waiver, not an inferred approval.

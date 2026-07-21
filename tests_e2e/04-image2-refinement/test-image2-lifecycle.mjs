@@ -20,6 +20,17 @@ describe("modern Image2 refinement journey boundary", () => {
       run_version: "v1",
       delivery_digest: "d".repeat(64),
       profile_fingerprint: "c".repeat(64),
+      profile_contract: {
+        schema: "pptmaker-image2-visual-slot-profile-v1",
+        mode: "visual-slot",
+        profile_fingerprint: "c".repeat(64),
+      },
+      request_contract_version: "pptmaker-refinement-submit-request-v1",
+      request_fingerprints: [
+        { role: "style-reference", kind: "style-reference", slide_id: null, slot: null, request_fingerprint: "d".repeat(64) },
+        { role: "slot:Alpha:primary_visual", kind: "slot", slide_id: "Alpha", slot: "primary_visual", request_fingerprint: "e".repeat(64) },
+        { role: "slot:Bravo:primary_visual", kind: "slot", slide_id: "Bravo", slot: "primary_visual", request_fingerprint: "f".repeat(64) },
+      ],
       style_reference_status: "missing",
       slides: [
         { slide_id: "Alpha", slot: "primary_visual" },
@@ -72,6 +83,18 @@ describe("modern Image2 refinement journey boundary", () => {
       const rebuilt = await p3.recomposeHtmlSlidesLocally(fixture.runDir);
       expect(rebuilt.provider_calls).toBe(0);
       expect(rebuilt.final_slides).toHaveLength(2);
+      const renderer = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs");
+      const reviewContext = renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir });
+      await renderer.publishHtmlComposition(reviewContext, {});
+      const selectedIds = validateAndBuildHtmlFirstPlan({ runDir: fixture.runDir }).plan.slides
+        .filter((slide) => slide.visual_resolution?.effective === "selected")
+        .map((slide) => slide.slide_id);
+      if (selectedIds.length) {
+        await renderer.publishHtmlComposition(reviewContext, {
+          compositionVariant: "forced-fallback",
+          slideIds: selectedIds,
+        });
+      }
       const renewed = review.inspectHtmlReviewReadiness(fixture.runDir);
       if (!renewed.gates.content.ready) review.publishHtmlGateDecision(fixture.runDir, { gate: "content", planHash: renewed.gates.content.plan.plan_hash, status: "approved" });
       if (!renewed.gates.visual.ready) review.publishHtmlGateDecision(fixture.runDir, { gate: "visual", planHash: renewed.gates.visual.plan.plan_hash, status: "approved" });

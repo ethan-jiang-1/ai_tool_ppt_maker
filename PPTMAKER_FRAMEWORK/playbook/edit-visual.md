@@ -44,4 +44,4 @@ exit: [user_decision_recorded, gate_approved:visual]
 
 **Step 1 — MD**: Open every outstanding real artifact and explain affected coverage/scope.
 
-**Step 2 — GATE**: Publish exact current visual plan hash; waiver needs reason. After approval, build locally and perform a new final delivery review.
+**Step 2 — GATE**: Read `state <run-dir> --json` and publish the exact current visual plan hash only through its producer-owned command. A waiver needs a human reason and remains `waived` with independent `evidence_complete`; never treat the refreshed contact sheet as approval. After the gate decision, build locally and record a new final delivery review through `state --record-delivery-review`.
