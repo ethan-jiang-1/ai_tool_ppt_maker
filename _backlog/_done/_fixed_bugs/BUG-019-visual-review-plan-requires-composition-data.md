@@ -1,6 +1,6 @@
 # BUG-019: visual review plan 在缺少 composition data 时 approvable=false，阻塞 gate approval
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 `buildHtmlReviewPlan` 对 visual kind 会检查 `shown_artifacts`（来自 `composition.final_slides`）。
@@ -20,5 +20,6 @@
 4. plan.approvable !== true → `plan_reason: incomplete`
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 `readCurrentPlan` 应从 preview/final_slides manifest 读取 composition 数据并传入
 `buildHtmlReviewPlan`。

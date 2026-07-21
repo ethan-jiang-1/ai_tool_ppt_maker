@@ -1,6 +1,6 @@
 # BUG-030: 修改 slide-specifications.md 后所有已批准的 gate/plan 静默失效
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 完成 pilot → 修复 plan → 手工写入 gate records → content/visual ready = true 后，
@@ -25,5 +25,6 @@ gate approval 将 `source_sha256` 纳入 `currentPlan` → `ordered_plan_digest`
 4. 没有任何 CLI 输出告知此变化
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 - 区分 "structural change"（影响 layout）和 "cosmetic change"（只影响 notes）
 - 或至少在 state/status 输出中标注 "source modified since last approval"

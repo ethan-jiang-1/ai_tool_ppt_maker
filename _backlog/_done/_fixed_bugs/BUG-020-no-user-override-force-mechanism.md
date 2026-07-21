@@ -1,6 +1,6 @@
 # BUG-020: 框架缺少 user-override 机制，gate 不通过时无法强制继续
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 html-first-v1 deck 在 gate approval / delivery review 不通过时，框架没有任何 `--force` 或
@@ -43,5 +43,6 @@ html-first-v1 deck 在 gate approval / delivery review 不通过时，框架没�
 3. 用户只能手工修改 state.yaml 和 manifest — 极度脆弱且不可维护
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 影响范围横跨 `ppt_flow.mjs` 的 approve/build/image2/state 四个命令。
 建议作为横切关注点统一实现 `--force` 机制。

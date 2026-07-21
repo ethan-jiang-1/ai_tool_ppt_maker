@@ -1,6 +1,6 @@
 # BUG-028: markerless → html-first 迁移全过程无自动化工具
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 将一个 markerless（legacy-image2-first）deck 迁移到 html-first-v1 需要以下手工步骤，
@@ -31,4 +31,5 @@ Agent 需要手工完成所有 slide body YAML 创作、palette 迁移、state �
 3. 每步都需手工操作，反复试错
 
 ## 修复关联
+已由 OpenSpec change `complete-markerless-html-migration` 修复并归档。
 依赖 BUG-016～022 修复后，提供端到端 `ppt_flow migrate-legacy <run-dir>` 命令。

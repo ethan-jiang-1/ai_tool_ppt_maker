@@ -1,6 +1,6 @@
 # BUG-032: `ppt_flow migrate-html` 对真实 markerless deck 从未走通过
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 框架文档 `05-migrate-import-existing-deck.md` 和 playbook `migrate-import.md` 描述了
@@ -21,5 +21,6 @@ markerless → html clean vNext 迁移路径，但 `ppt_flow migrate-html previe
 3. 失败
 
 ## 修复关联
+已由 OpenSpec change `complete-markerless-html-migration` 修复并归档。
 要么提供 `migrate-html` 的实际可用实现，要么从文档中移除该路径声明。
 当前状态会给用户（和 Agent）错误的期待。

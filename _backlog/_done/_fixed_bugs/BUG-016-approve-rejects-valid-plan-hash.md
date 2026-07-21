@@ -1,6 +1,6 @@
 # BUG-016: `ppt_flow approve` 拒绝有效的 plan-hash，报 "missing, stale, or incomplete"
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 html-first-v1 deck 在 pilot 成功后立即执行 `ppt_flow approve <run-dir> content --plan-hash <hash>`，
@@ -26,4 +26,5 @@ plan 文件之间存在不匹配。具体触发条件待定位，可能原因：
 4. `ppt_flow approve <run-dir> content --plan-hash <hash>` → 报错
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 待定。

@@ -1,6 +1,6 @@
 # BUG-027: delivery record 的 17 个必须字段无文档，手工构造几乎不可能
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 `deliveryRecordCurrent` 通过 `exactKeys` 强制要求 delivery record 恰好包含 17 个字段：
@@ -29,6 +29,7 @@ notes_receipt_path, notes_receipt_sha256, decision, reason, decided_at
 3. 需逐个字段 debug + 对比 evidence 值
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 - 公开 delivery record schema 文档
 - `deliveryRecordCurrent` 返回具体不匹配字段
 - 或提供 `ppt_flow state --record-delivery-review proceed --force` 绕过

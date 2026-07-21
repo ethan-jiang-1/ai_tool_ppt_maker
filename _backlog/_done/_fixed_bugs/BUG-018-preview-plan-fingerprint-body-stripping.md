@@ -1,6 +1,6 @@
 # BUG-018: preview plan 的 content_fingerprint 与 readCurrentPlan 重建值永不匹配（body 剥离差异）
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 pilot 生成的 preview review plan JSON 的 `content_fingerprint` 与 `readCurrentPlan` 内部
@@ -30,5 +30,6 @@ body 中**保留**这些字段。
 4. `readCurrentPlan` 重建 expected plan → content_fingerprint 不匹配 → `plan_reason: stale`
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 两条路径的 body 序列化必须一致。要么 `rendererBodyProjection` 提前剥离那些字段，
 要么 `parseHtmlSourceAstV1` 不再剥离，要么 `htmlContentReviewProjectionV1` 排除 body。

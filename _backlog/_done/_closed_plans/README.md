@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-07-17 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-07-21 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -27,7 +27,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-006](visual-asset-system.md) | 2026-07-14 | `visual-asset-system.md` | 视觉管线 Asset 概念：SVG/位图/图标按约定目录存放，manifest 注册，`**VISUAL ASSETS**` 绑定 |
 | [CLS-007](image2-multi-vendor-architecture.md) | 2026-07-16 | `image2-multi-vendor-architecture.md` | Image2 多 vendor = 多组 (base_url,key) 顺序试 + failover；同步/异步一个薄分支 |
 | [CLS-008](html-first-progressive-rendering.md) | 2026-07-20 | `html-first-progressive-rendering.md` | HTML-first 渐进式渲染总控设计；5 个 Change（1-4 已归档，5 已提案），架构锁定决策全部落地 |
+| [CLS-009](html-first-recovery-change-plan.md) | 2026-07-21 | `html-first-recovery-change-plan.md` | 完成 guided/recoverable lifecycle 与 markerless migration；未实施的 HTML 视觉质量范围释放给未来重新规划 |
 
-**Next available plan ID: CLS-009**
+**Next available plan ID: CLS-010**
 
-> 相关 OpenSpec changes 已 archive。无活跃 plan。
+> 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
