@@ -1,13 +1,14 @@
 # Plan: HTML-first 缺陷收敛与人本 Gate 宪法
 
-> 类型: 设计 / 分析 | 更新: 2026-07-21 | 执行方式: 严格串行
+> 类型: 设计 / 分析 | 更新: 2026-07-21 | 状态: 已关闭 | 执行方式: 严格串行
 
 ## 背景 / 现状
 
 本计划覆盖 `_backlog/bugs/` 中 BUG-014 至 BUG-032 共 19 个活跃缺陷。Change 1
 `make-html-production-guided-and-recoverable` 与 Change 2
-`complete-markerless-html-migration` 均已完成、同步 main specs 并归档；当前没有 active
-OpenSpec change。剩余工作为 Change 3 `expand-html-visual-language-and-review`。问题并非 19 个孤立补丁，
+`complete-markerless-html-migration` 均已完成、同步 main specs 并归档。原拟 Change 3
+`expand-html-visual-language-and-review` 未实施，并从本计划释放；BUG-014/015 保持活跃，等待基于当前
+发行目标重新规划。本文件只保留已完成工作的历史决策，不再作为执行队列。问题并非 19 个孤立补丁，
 而是三条相互关联的产品链路：
 
 1. HTML-first 从 pilot、review、build、delivery 到可选 Image2 的生产链会意外硬阻塞；
@@ -270,7 +271,7 @@ Change 1: policy + lifecycle correctness + override
 Change 2: migration closure
        |
        v  (strict validation + main-spec sync + archive)
-Change 3: visual language + review index (next)
+Change 3: visual language + review index (scope released for replanning)
 ```
 
 先做 Change 1，因为 016-021 会阻断后两个 change 的可信端到端验收。Change 2 与 Change 3 的契约
@@ -327,14 +328,14 @@ change 尚未归档时让后续 change 复制其尚未成为 main spec 的契约
 
 ## 落地关联
 
-计划对应上述严格串行的三个 OpenSpec change；其完成状态以本文件文末的“执行队列 Checklist”为准：
+计划最终落地两个 OpenSpec change，并释放第三项范围重新规划：
 
 1. `make-html-production-guided-and-recoverable`
 2. `complete-markerless-html-migration`
-3. `expand-html-visual-language-and-review`
+3. `expand-html-visual-language-and-review`（未创建；BUG-014/015 保持活跃）
 
-本计划本身不实现 bug、不修改 framework、不触碰现有 `deck_*` 生产数据。每个 change 完成后按
-bug 卡片流程移动其覆盖的 bug；全部归档且 main specs 同步后关闭本 plan。
+本计划本身不实现 bug、不修改 framework、不触碰现有 `deck_*` 生产数据。Change 1/2 覆盖的
+bug 已随实现归档；未实施的 HTML 质量范围不继承本计划的旧排序或方案约束。
 
 ## 执行队列 Checklist
 
@@ -354,10 +355,8 @@ bug 卡片流程移动其覆盖的 bug；全部归档且 main specs 同步后关
   `git diff --check` 均已通过。12 个 capability main specs 已同步，归档位于
   `openspec/changes/archive/2026-07-21-complete-markerless-html-migration/`；实现提交为
   `35b082f`，归档与漏同步 main specs 的提交为 `3d64886`。
-- [ ] **Change 3 - `expand-html-visual-language-and-review`**: **下一项，尚未启动**。
-  Change 2 的严格验证、main spec 同步和归档前置条件已满足，且当前没有 active OpenSpec
-  change。下一步先以 `openspec propose` 创建 proposal、design、capability delta specs 与 tasks，
-  再进入实现；在这些 artifacts 经严格校验前，不做 Change 3 的 framework 实现或 spec 修改。
+- [x] **Change 3 范围释放**: `expand-html-visual-language-and-review` 未创建、未实施，也不冒充完成。
+  BUG-014/015 保持活跃；后续 HTML 质量工作从用户当前发行目标重新设计，不继承本计划的执行顺序。
 
 执行规则：
 

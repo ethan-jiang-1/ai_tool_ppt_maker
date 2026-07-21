@@ -1,6 +1,6 @@
 # BUG-025: macOS .DS_Store 文件未在 _generated/ 相关的 ignorable 规则中处理
 
-> 严重级别: P2 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 在 Finder 中浏览 `_generated/html_production/` 后，macOS 自动创建 `.DS_Store` 文件。
@@ -21,5 +21,6 @@ unexpected '.DS_Store' in HTML production owner html_pages/
 3. 报 DS_Store 违规
 
 ## 修复关联
+已由 OpenSpec change `complete-markerless-html-migration` 修复并归档。
 - `checkHtmlGeneratedTopology` 及其子函数应在遍历时调用 `_ignorable`
 - 或在 `.gitignore` 中已有 `.DS_Store` 规则的基础上，确保 bundle check 也读取 gitignore

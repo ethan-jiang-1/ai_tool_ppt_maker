@@ -17,10 +17,9 @@
 
 ## 活跃列表
 
-- [HTML-first 缺陷收敛与人本 Gate 宪法](html-first-recovery-change-plan.md) — 将 BUG-014～032 收敛为 3 个 OpenSpec change，并建立“引导优先、知情可继续、必要才硬阻止”的 Gate 政策
-- [三模式生产系统](production-mode-system.md) — 定义 `html-only`、`html-then-image2`、`image2-only` 的 deck 级生产模式、状态权威和 CLI 路由；尚未创建 OpenSpec change，优先级需在启动前与 Change 3 对齐
+- [三模式生产系统](production-mode-system.md) — 当前思考输入；目标是让 Image2 主生产路径先在新 flow 中可发行，HTML 质量范围待下一轮重新规划
 
-**Next available plan ID: CLS-009**（移入 `_closed_plans/` 时分配；CLS-001…008 已用）
+**Next available plan ID: CLS-010**（移入 `_closed_plans/` 时分配；CLS-001…009 已用）
 
 ---
 

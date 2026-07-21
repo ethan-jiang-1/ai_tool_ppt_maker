@@ -1,6 +1,6 @@
 # BUG-021: Phase 4 Image2 transport 需要代码注入，CLI 无法使用
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 `ppt_flow image2 plan` → `authorize` 均成功，但 `generate` 报错：
@@ -22,6 +22,7 @@ Phase 4 Image2 refinement 的 transport 设计为 `createRefinementTransport({ s
 3. `ppt_flow image2 generate v2 --attempt-id <id>` → ❌ transport must be injected
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 两个方向：
 A. 让 CLI 支持从 `.env` 加载 IMAGE2 凭据并自动构建 transport（对齐 legacy pipeline）
 B. 提供 `--provider` / `--base-url` CLI 参数显式传入凭据

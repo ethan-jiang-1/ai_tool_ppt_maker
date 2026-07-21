@@ -1,6 +1,6 @@
 # BUG-029: 框架错误信息不给 expected vs actual，调试需读源码
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 框架在以下场景报错时只给结果不给原因：
@@ -22,6 +22,7 @@
 任一 html-first 校验失败 → 错误信息无法定位具体差异 → 必须读框架源码找 spec 常量
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 所有 strict comparison 校验失败时应输出：
 - 期望值（expected）
 - 实际值（actual）

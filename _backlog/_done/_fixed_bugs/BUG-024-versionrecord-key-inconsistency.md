@@ -1,6 +1,6 @@
 # BUG-024: versionRecord 的 versionKey 与用户直觉不一致（`3_versions/v2` vs `v2`）
 
-> 严重级别: P2 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 手工写入 state.yaml 的 gate/delivery record 时，自然使用 `v2` 作为 by_version key。
@@ -30,6 +30,7 @@ html-content-review:
 3. `ppt_flow state` 显示 gate 仍为 pending，无任何错误提示
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 - 方案 A：`versionKey` 改为 `v2`（与 runVersion 一致），向后兼容两种格式
 - 方案 B：`versionRecord` 查找失败时 emit warning
 - 方案 C：文档化 versionKey 格式

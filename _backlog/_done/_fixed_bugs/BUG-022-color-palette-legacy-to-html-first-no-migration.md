@@ -1,6 +1,6 @@
 # BUG-022: color_palette.json 从 legacy 迁移到 html-first 无工具，手工迁移需精确匹配 8 个 schema
 
-> 严重级别: P1 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 legacy markerless deck 的 `color_palette.json` 缺少 `html_first` 段。手工迁移时需逐一满足：
@@ -27,6 +27,7 @@ legacy markerless deck 的 `color_palette.json` 缺少 `html_first` 段。手工
 3. 反复遇到 schema version 不匹配 → 逐步修正 → 下一个字段又不匹配
 
 ## 修复关联
+已由 OpenSpec change `complete-markerless-html-migration` 修复并归档。
 - 提供 `ppt_flow migrate-palette` 命令，基于最接近的 preset 生成 html_first 段
 - 或提供 `ppt_flow init-palette --preset warm-editorial` 保留旧字段但覆盖 html_first
 - `VisualConfigError` 应输出期望值 vs 实际值的 diff

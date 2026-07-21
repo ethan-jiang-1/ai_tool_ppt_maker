@@ -1,6 +1,6 @@
 # BUG-026: slide heading 解析器将 "## Slide Specifications" 等 section header 匹配为 slide
 
-> 严重级别: P2 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 v1 slide-specifications.md 中有 `## Slide Specifications（每页四层规格）` 作为文档 section
@@ -19,5 +19,6 @@ malformed slide heading at line 48; expected ## Slide NN: `slide_id`
 3. 报 malformed slide heading
 
 ## 修复关联
+已由 OpenSpec change `complete-markerless-html-migration` 修复并归档。
 - 严格匹配 `## Slide \d+:` 格式（slide heading 必须包含数字编号）
 - 或在 frontmatter 之后、第一个 `## Slide \d+:` 之前的内容视为 preamble，不解析为 slide

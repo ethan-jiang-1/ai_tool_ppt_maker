@@ -1,6 +1,6 @@
 # BUG-023: SPEAKER NOTE 中 blockquote 空行导致 Stage 5 解析失败
 
-> 严重级别: P2 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 Stage 5（notes injection）对所有 25 页报 "speaker note content is missing"。
@@ -24,5 +24,6 @@ notes_injection.mjs 的 Format A 正则要求 note header 后的每一行都以 
 3. `ppt_flow build` → Stage 5 报 "speaker note content is missing"
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 - 正则改为允许空行：`((?:> .*(?:\r?\n|$))+)`（`.*` 代替 `.+`）
 - 或支持 `> **SPEAKER NOTE**\n>\n> content` 格式

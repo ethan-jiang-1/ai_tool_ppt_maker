@@ -1,6 +1,6 @@
 # BUG-031: state.yaml 无校验工具，手工修改后只能靠试错发现错误
 
-> 严重级别: P2 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P2 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 手工修改 state.yaml 时，以下错误均无校验：
@@ -21,6 +21,7 @@
 3. 无任何 CLI 提示 "unknown version key v2, expected 3_versions/v2"
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 - `ppt_flow state --validate-state` 校验 state.yaml 结构和引用完整性
 - `readState` 对 unrecognized keys 至少 emit warning
 - 或在关键 record lookup 失败时打印 diagnostic

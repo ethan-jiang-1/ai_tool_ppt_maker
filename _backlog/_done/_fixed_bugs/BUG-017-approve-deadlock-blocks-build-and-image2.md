@@ -1,6 +1,6 @@
 # BUG-017: `ppt_flow build` html-first 被 gate approval 死锁，无法到达 Phase 4 Image2
 
-> 严重级别: P0 | 发现: 2026-07-21 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-07-21 | 状态: 已修复 (2026-07-21)
 
 ## 症状
 html-first-v1 deck 要进入 Phase 4 Image2 refinement，必须先完成 delivery review。
@@ -22,4 +22,5 @@ gate 审批链存在单点阻塞：BUG-016 导致 approve 不可用 → build �
 5. image2 plan 被拒（requires delivery review: proceed）
 
 ## 修复关联
+已由 OpenSpec change `make-html-production-guided-and-recoverable` 修复并归档。
 依赖 BUG-016 修复。
