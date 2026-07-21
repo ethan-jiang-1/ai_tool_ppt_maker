@@ -39,6 +39,7 @@ None.
 - `environment-check`: Separate common, HTML, and Image2 readiness profiles so each production mode is blocked only by prerequisites it actually uses, while retaining explicit offline/live probe boundaries.
 - `style-master-generation`: Make the current Image2 style-master implementation mode-aware and retain a typed extension seam for a future HTML adapter.
 - `visual-slot-refinement`: Keep modern slot refinement isolated to HTML-first source, disabled for `html-only`, and required for `html-then-image2` completion without deleting historical work or weakening authorization/promotion controls.
+- `framework-charter`: Replace the obsolete constitutional claim that every new deck defaults to HTML-first with the three-mode SSOT, `image2-only` release default, mode-scoped readiness/authorization, and preserved future HTML path.
 
 ## Impact
 

@@ -448,7 +448,7 @@ valid. No prerequisite waiver authorizes provider generation.
 #### Scenario: Agent lists available controllers
 
 - **WHEN** the playbook index is built
-- **THEN** it contains the registered controllers with Image2-primary create, optional/required modern refinement, and historical maintenance as distinct ownership paths
+- **THEN** it contains the registered controllers with Image2-primary create, disabled/required modern refinement by HTML mode, and historical maintenance as distinct ownership paths
 
 #### Scenario: Image2-primary selects legacy-only controller
 

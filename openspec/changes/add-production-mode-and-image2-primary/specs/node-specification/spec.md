@@ -176,7 +176,7 @@ The MD Controller SHALL show the resolved artifacts and obtain the human decisio
 `ppt_flow state <run-dir> --record-image2-delivery-review <decision> [--reason <text>]`. Normal `proceed`
 requires complete current evidence; this change adds no Image2 final-review force/waiver. `repair` and
 `redirect` require a bounded reason and leave completion false. This operation SHALL reject HTML modes;
-the existing HTML-only delivery-review operation remains unchanged. Historical
+the existing HTML-pipeline delivery-review operation remains unchanged and serves both HTML modes. Historical
 markerless maintenance without a first-class create execution retains its accepted compatibility
 final-review semantics.
 

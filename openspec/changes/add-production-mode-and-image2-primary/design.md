@@ -200,7 +200,8 @@ rederives that scope before transport; drift returns to the same gate. Proven ze
 work requires no authorization. Final review uses separate
 `state --record-image2-delivery-review`, which derives and binds current header/contact-sheet/PPTX/notes
 evidence to the active node and exposes no force continuation. The existing HTML delivery-review command
-remains HTML-only. Historical `legacy-image2-maintenance` remains for compatibility/off-path work.
+remains HTML-pipeline-only and serves both HTML modes. Historical `legacy-image2-maintenance` remains for
+compatibility/off-path work.
 
 Alternative considered: create three largely duplicated create controllers. Rejected because their
 intake, final review, state, and iteration contracts would drift. Alternative considered: route
