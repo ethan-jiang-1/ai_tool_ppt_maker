@@ -43,7 +43,7 @@ uses the legacy whole-page renderer and never runs during ordinary HTML edits.
 
 Display `position · slide_id · title`, bind every selector to one current snapshot, and preview before apply. Keep exact `plan_sha256`; bare/stale/hash-drift apply fails and must re-preview. Source apply is renderer-free. HTML target-local materialization copies only matching target-owned bytes and never copies reset/gate/delivery/node authority.
 
-`migrate-html preview/apply` is a separate hash-bound transaction. It requires complete Agent-authored structured source, exact old-side mode/hash, active `migrate-import` execution, journal recovery rules, hidden-target rerender equality, and zero provider calls. Prompt prose is never parsed into family/layout/body.
+`migrate-html prepare -> Agent authoring -> preview -> state confirmation -> apply` is a separate hash-bound transaction. Preparation is isolated and zero-provider; a preview guide is not comparison evidence. Complete preview requires exact old-side mode/hash, the Controller-owned confirmation creates the active `migrate-import` apply execution, and apply keeps journal recovery/hidden-target rerender equality. Prompt prose is never parsed into family/layout/body.
 
 ## Communication
 

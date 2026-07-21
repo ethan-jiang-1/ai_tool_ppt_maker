@@ -103,6 +103,16 @@ stays provider-free. Reconciliation consumes the persisted provider request iden
 
 ## Structural and migration
 
-`slides` preview 必须绑定 position · stable ID · title、before/after 与 exact `plan_sha256`；apply 只发布 source/control vNext。`migrate-html preview/apply` 绑定 candidate/base receipts、old-side mode/hash、active source execution、journal token 与 hidden-target output equality；preview/apply/recovery 全部 zero-provider。
+`slides` preview 必须绑定 position · stable ID · title、before/after 与 exact `plan_sha256`；apply 只发布 source/control vNext。markerless migration 的唯一顺序是：
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs migrate-html <source-run-dir> prepare --preset <shipped-preset>
+# Agent 完成 projected candidate 的 structured fields 后：
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs migrate-html <source-run-dir> preview
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --confirm-migration-apply --plan-hash <sha> --old-side-mode <mode>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs migrate-html <source-run-dir> apply --plan-hash <sha> --old-side-mode <mode>
+```
+
+`prepare` 只写 version-local `projected-run/` scaffold、palette 和 authoring checklist；不会读取 provider credential 或改写 source/state/visible version。bare `preview` 返回 `preparation_required` guide，未完成 candidate 返回 `authoring_required` guide，二者都不是 comparison evidence 且不会写入。complete preview/apply/recovery 绑定 candidate/base receipts、old-side mode/hash、active source execution、journal token 与 hidden-target output equality，且全程 zero-provider。`verified-current` 才能显示旧侧像素；degraded mode 只给诊断/placeholder。不要手改 `_generated/`、state、journal 或 lock。
 
 Git history reader、自动 source replacement、`git checkout`/`git restore` fallback 都不属于本框架。只有用户明确授权命名 Git 操作和用户给定范围时，Agent 才能协助。

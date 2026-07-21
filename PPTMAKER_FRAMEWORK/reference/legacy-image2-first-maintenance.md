@@ -6,4 +6,4 @@ Classify the marker before readiness or provider setup. Legacy preview requires 
 
 Use the existing legacy commands documented by `ppt_flow --help`: `style-master`, `pilot`, `approve ... header`, `build`, and legacy refresh paths. Keep generated files under the legacy version-owned `_generated/` directories and never treat `_generated/html_production/` as legacy authority.
 
-Migration to HTML is opt-in through `migrate-html preview/apply`, produces a clean vNext after exact comparison confirmation, and never rewrites the legacy version or infers structured bodies from prompts.
+Migration to HTML is opt-in through `migrate-html prepare --preset <name>`, Agent-authored structured candidate fields, complete `migrate-html preview`, Controller-owned `state --confirm-migration-apply`, then exact `migrate-html apply`. Preparation and guides are zero-provider and preserve the legacy version; they never infer structured bodies from prompts or require manual edits to `_generated/`, state, journals, or locks.

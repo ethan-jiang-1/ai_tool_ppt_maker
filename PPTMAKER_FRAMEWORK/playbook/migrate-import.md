@@ -54,9 +54,11 @@ entry: []
 exit: [evidence:migration-preview-current]
 ```
 
-**Step 1 — MD**: Author a complete candidate under `_scratch/html-migration/projected-run/`, preserving valid IDs/spoken keys/notes and using complete HTML source/control/assets.
+**Step 1 — CLI**: Select an authorized shipped preset and run `ppt_flow migrate-html <source-run-dir> prepare --preset <name>`. Show its projected candidate/checklist; `preparation_required` and `authoring_required` are guides, not comparison evidence. Prepare and guide handling are zero-provider.
 
-**Step 2 — CLI**: Run `ppt_flow migrate-html <source-run-dir> preview`. Show exact `old_side_mode`, anticipated target, source diff, complete proposed contact sheet, and plan hash. Degraded old-side modes show no stale/missing pixels or parity claim.
+**Step 2 — MD**: Agent authors the complete structured candidate from legacy material, preserving valid IDs/spoken keys/notes. Never infer a structured body from IMAGE PROMPT prose or ask the human to construct deterministic palette/control files.
+
+**Step 3 — CLI**: Run `ppt_flow migrate-html <source-run-dir> preview`. Re-run only after a guide's named authoring work is complete. Show exact `old_side_mode`, anticipated target, source diff, complete proposed contact sheet, and plan hash. Degraded old-side modes show no stale/missing pixels or parity claim.
 
 ### confirm-html-migration
 
@@ -71,7 +73,9 @@ entry: []
 exit: [user_decision_recorded]
 ```
 
-**Step 1 — GATE**: Bind the user's decision to the exact mode/hash. `revise` rebuilds the candidate/preview; `decline` publishes nothing.
+**Step 1 — GATE**: Bind the user's decision to the exact current mode/hash only after complete preview evidence. `revise` rebuilds the candidate/preview; `decline` publishes nothing.
+
+**Step 2 — CLI**: For `apply`, run `ppt_flow state <source-run-dir> --confirm-migration-apply --plan-hash <sha> --old-side-mode <mode>`. This state-owned transition is the only publisher of the active apply record; do not hand-edit state.
 
 ### apply-html-migration
 
@@ -85,7 +89,7 @@ entry: [node_decision:confirm-html-migration:apply]
 exit: [evidence:migration-target-published]
 ```
 
-**Step 1 — CLI**: With this exact active source execution, run `migrate-html apply --plan-hash <hash> --old-side-mode <mode>`. The hidden target rerenders canonical reset-null output and must match preview before no-replace publication.
+**Step 1 — CLI**: Only after confirmation creates this exact active source execution, run `migrate-html apply --plan-hash <hash> --old-side-mode <mode>`. The hidden target rerenders canonical reset-null output and must match preview before no-replace publication.
 
 **Step 2 — MD**: On apply journal conflict, use only its owner/age/token recovery action. Same-host dead after 60s may recover automatically; cross-host/uncertain after 5m requires explicit human no-active-process confirmation and exact token. Never delete journal/reservation/staging manually; absent-target recovery performs owned cleanup and full rerender.
 

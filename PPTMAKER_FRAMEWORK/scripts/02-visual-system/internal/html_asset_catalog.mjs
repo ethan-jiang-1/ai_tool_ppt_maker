@@ -9,7 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { decode as decodePng } from "fast-png";
 import jpeg from "jpeg-js";
 import { SaxesParser } from "saxes";
@@ -251,7 +251,7 @@ export function validateHtmlAssetBytes(bytes, { assetId, type, iconContext = fal
   fail("unsupported_asset_type", `asset ${assetId} type is unsupported`, { asset_id: assetId });
 }
 
-function validateManifestEntries(manifest, { assetsDir, manifestPath, origin, runRoot }) {
+function validateManifestEntries(manifest, { assetsDir, manifestPath, origin, migration_origin = null, runRoot }) {
   const entries = {};
   const ids = Object.keys(manifest.value.assets);
   if (ids.length > 512) fail("catalog_too_large", `${manifestPath} contains more than 512 entries`, { path: manifestPath });
@@ -275,6 +275,7 @@ function validateManifestEntries(manifest, { assetsDir, manifestPath, origin, ru
     const media = validateHtmlAssetBytes(bytes, { assetId, type: entry.type });
     entries[assetId] = {
       origin,
+      ...(migration_origin ? { migration_origin } : {}),
       manifest_path: relative(runRoot, manifestPath).split(sep).join("/"),
       path: entry.path,
       type: entry.type,
@@ -291,20 +292,31 @@ function validateManifestEntries(manifest, { assetsDir, manifestPath, origin, ru
   return entries;
 }
 
-export function loadHtmlAssetCatalog(runDir) {
+export function loadHtmlAssetCatalog(runDir, { candidateOverridesDir = null } = {}) {
   const run = resolve(runDir);
   const runRoot = resolve(run, "..", "..");
   const layers = [
     { origin: "backbone", assetsDir: join(runRoot, "2_backbone", "visual-style", "assets") },
     { origin: "version", assetsDir: join(run, "overrides", "visual-style", "assets") },
   ];
+  if (candidateOverridesDir != null) {
+    const projected = join(run, "_scratch", "html-migration", "projected-run");
+    const expected = existsSync(projected) ? join(realpathSync(projected), "overrides") : resolve(projected, "overrides");
+    const candidateRoot = existsSync(candidateOverridesDir)
+      ? realpathSync(candidateOverridesDir)
+      : join(realpathSync(dirname(candidateOverridesDir)), basename(candidateOverridesDir));
+    if (candidateRoot !== expected) {
+      fail("candidate_overlay_escape", "migration candidate overrides must use the canonical projected-run path");
+    }
+    layers.push({ origin: "version", migration_origin: "candidate", assetsDir: join(candidateRoot, "visual-style", "assets") });
+  }
   const catalog = {};
   const manifests = [];
   for (const layer of layers) {
     const manifestPath = join(layer.assetsDir, "asset-manifest.yaml");
     if (!existsSync(manifestPath)) continue;
     const manifest = parseManifest(manifestPath);
-    manifests.push({ origin: layer.origin, path: manifestPath, raw: manifest.raw });
+    manifests.push({ origin: layer.origin, ...(layer.migration_origin ? { migration_origin: layer.migration_origin } : {}), path: manifestPath, raw: manifest.raw });
     Object.assign(catalog, validateManifestEntries(manifest, { ...layer, manifestPath, runRoot }));
   }
   const sorted = Object.fromEntries(Object.entries(catalog).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0));

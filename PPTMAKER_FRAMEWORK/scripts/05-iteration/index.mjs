@@ -37,6 +37,11 @@ export async function previewHtmlMigration(runDir) {
   return module.previewHtmlMigration(runDir);
 }
 
+export async function prepareHtmlMigration(runDir, options = {}) {
+  const module = await import("./migration/html_migration.mjs");
+  return module.prepareHtmlMigration(runDir, options);
+}
+
 export async function applyHtmlMigration(runDir, options = {}) {
   const module = await import("./migration/html_migration.mjs");
   return module.applyHtmlMigration(runDir, options);

@@ -62,6 +62,27 @@ describe("HTML-first v2 asset catalog", () => {
     }
   });
 
+  it("accepts a confined migration candidate as a private final overlay", () => {
+    const fixture = runFixture();
+    try {
+      writeLayer(join(fixture.deck, "2_backbone", "visual-style", "assets"), {
+        icon_main: { path: "svg/main.svg", bytes: svg("#111") },
+      });
+      writeLayer(join(fixture.runDir, "overrides", "visual-style", "assets"), {
+        icon_main: { path: "svg/version.svg", bytes: svg("#222") },
+      });
+      const candidate = join(fixture.runDir, "_scratch", "html-migration", "projected-run", "overrides");
+      writeLayer(join(candidate, "visual-style", "assets"), {
+        icon_main: { path: "svg/candidate.svg", bytes: svg("#333") },
+      });
+      const result = loadHtmlAssetCatalog(fixture.runDir, { candidateOverridesDir: candidate });
+      expect(result.catalog.icon_main).toMatchObject({ origin: "version", migration_origin: "candidate", path: "svg/candidate.svg" });
+      expect(() => loadHtmlAssetCatalog(fixture.runDir, { candidateOverridesDir: join(fixture.root, "outside") })).toThrow(/canonical/);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects unused digest-invalid entries", () => {
     const fixture = runFixture();
     try {

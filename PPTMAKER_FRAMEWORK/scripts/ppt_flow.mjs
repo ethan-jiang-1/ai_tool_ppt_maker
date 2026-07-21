@@ -2083,6 +2083,7 @@ function renderMigrationResult(result) {
   console.log(`✓ Migration ${result.status || "complete"}`);
   console.log(`source_version: ${result.source_version || "(unknown)"}`);
   console.log(`target_version: ${result.target_version || "(unknown)"}`);
+  if (result.preset) console.log(`preset: ${result.preset}`);
   if (result.plan_hash) console.log(`plan_hash: ${result.plan_hash}`);
   if (result.old_side_mode) console.log(`old_side_mode: ${result.old_side_mode}`);
   if (result.projected_run) console.log(`projected_run: ${result.projected_run}`);
@@ -2092,6 +2093,10 @@ function renderMigrationResult(result) {
   if (result.contact_sheet_sha) console.log(`contact_sheet_sha: ${result.contact_sheet_sha}`);
   if (result.html_delivery_digest) console.log(`html_delivery_digest: ${result.html_delivery_digest}`);
   if (result.recovery_mode) console.log(`recovery_mode: ${result.recovery_mode}`);
+  if (result.checklist?.slides) console.log(`authoring_slides: ${result.checklist.slides.map((slide) => slide.slide_id).join(",")}`);
+  if (result.available_presets) console.log(`available_presets: ${result.available_presets.join(",")}`);
+  if (result.missing?.length) console.log(`missing: ${result.missing.join(",")}`);
+  if (result.next_action) console.log(`next_action: ${result.next_action}`);
 }
 
 function collectDeckHistoryIds(runDir) {
@@ -2350,14 +2355,50 @@ const MIGRATION_PLAN_SHA_RE = /^[0-9a-f]{64}$/;
 
 async function commandMigrateHtml(runDir, operation, opts = {}) {
   const resolved = resolve(runDir);
-  if (!["preview", "apply"].includes(operation)) {
-    return emitUsage("ppt_flow.migrate-html.operation", 'operation must be "preview" or "apply".', "Pass preview or apply after the run directory");
+  if (!["prepare", "preview", "apply"].includes(operation)) {
+    return emitUsage("ppt_flow.migrate-html.operation", 'operation must be "prepare", "preview", or "apply".', "Pass prepare, preview, or apply after the run directory");
   }
-  if (operation === "preview") {
+  if (operation === "prepare") {
     if (opts.planHash || opts.oldSideMode || opts.recoverJournal) {
       return emitUsage(
+        "ppt_flow.migrate-html.prepare",
+        "prepare accepts only --preset.",
+        "Pass one shipped preset and no preview, apply, or recovery flags"
+      );
+    }
+    if (!opts.preset) {
+      return emitUsage(
+        "ppt_flow.migrate-html.prepare",
+        "prepare requires --preset <name>.",
+        `Use one shipped preset: ${STYLE_PRESETS_SORTED().join(", ")}`
+      );
+    }
+    if (!STYLE_PRESETS.includes(opts.preset)) {
+      return emitUsage(
+        "ppt_flow.migrate-html.prepare.preset",
+        `unknown migration preset ${JSON.stringify(opts.preset)}.`,
+        `Use one shipped preset: ${STYLE_PRESETS_SORTED().join(", ")}`
+      );
+    }
+    try {
+      const { prepareHtmlMigration } = await import("./05-iteration/index.mjs");
+      const result = await prepareHtmlMigration(resolved, { preset: opts.preset });
+      renderMigrationResult(result);
+      return 0;
+    } catch (error) {
+      emitFailed(
+        "ppt_flow.migrate-html.prepare",
+        error.message,
+        "Resolve the markerless source or candidate-input conflict, then rerun prepare with the same preset"
+      );
+      return 1;
+    }
+  }
+  if (operation === "preview") {
+    if (opts.preset || opts.planHash || opts.oldSideMode || opts.recoverJournal) {
+      return emitUsage(
         "ppt_flow.migrate-html.preview",
-        "preview accepts no apply or recovery flags.",
+        "preview accepts no prepare, apply, or recovery flags.",
         "Use preview by itself, then run apply with the exact plan hash and old-side mode"
       );
     }
@@ -2376,6 +2417,13 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
     }
   }
 
+  if (opts.preset) {
+    return emitUsage(
+      "ppt_flow.migrate-html.apply",
+      "apply does not accept --preset.",
+      "Run prepare with --preset before preview; apply accepts only its exact confirmation flags"
+    );
+  }
   if (opts.recoverJournal) {
     if (opts.planHash || opts.oldSideMode) {
       return emitUsage(
@@ -2660,6 +2708,7 @@ Examples:
   ppt_flow.mjs slides list deck_mydeck/3_versions/v1
   ppt_flow.mjs slides move deck_mydeck/3_versions/v1 7 --after 3
   ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 preview
+  ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 prepare --preset dark-executive
   ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 apply --plan-hash <sha> --old-side-mode degraded-missing
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
@@ -2978,6 +3027,9 @@ Examples:
     .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--recover-gate-journal <ownerToken>", "Explicitly recover an abandoned HTML gate journal")
     .option("--record-delivery-review <decision>", "Record HTML delivery review: proceed, repair, or redirect")
+    .option("--confirm-migration-apply", "Confirm the exact current markerless migration preview for apply")
+    .option("--plan-hash <hash>", "Exact migration preview plan hash for --confirm-migration-apply")
+    .option("--old-side-mode <mode>", "Exact migration old-side mode for --confirm-migration-apply")
     .option("--force", "For --record-delivery-review proceed: waive a reversible HTML evidence risk")
     .option("--reason <text>", "Required for repair/redirect and forced proceed decisions")
     .action(async (runDir, opts) => {
@@ -2988,6 +3040,7 @@ Examples:
         buildResumeCard,
         statePath,
         projectImage2RefinementState,
+        confirmHtmlMigrationApply,
       } = await import("./shared/state/state.mjs");
       const resolved = resolve(runDir);
       const deckDir = deckRoot(resolved);
@@ -2999,7 +3052,7 @@ Examples:
         if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
       }
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + Number(Boolean(opts.confirmMigrationApply));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
         process.exitCode = 1;
@@ -3015,10 +3068,41 @@ Examples:
         process.exitCode = 1;
         return;
       }
+      if ((opts.planHash || opts.oldSideMode) && !opts.confirmMigrationApply) {
+        emitUsage("ppt_flow.state", "--plan-hash and --old-side-mode apply only to --confirm-migration-apply", "Use both exact values with the closed migration confirmation operation.");
+        process.exitCode = 1;
+        return;
+      }
       if ((opts.recoverGateJournal || opts.recordDeliveryReview) && !htmlFirst) {
         emitUsage("ppt_flow.state", "HTML state operations are branch-inapplicable for markerless decks", "Use the legacy controller/status path for a markerless deck.");
         process.exitCode = 1;
         return;
+      }
+      if (opts.confirmMigrationApply) {
+        if (htmlFirst) {
+          emitUsage("ppt_flow.state.confirm-migration-apply", "migration confirmation accepts only a markerless source version", "Run this operation against the markerless source run after its complete migration preview.");
+          process.exitCode = 1;
+          return;
+        }
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
+          emitUsage("ppt_flow.state.confirm-migration-apply", "--plan-hash must be the exact 64-lowercase-hex migration preview hash", "Copy the exact plan hash from the current complete preview.");
+          process.exitCode = 1;
+          return;
+        }
+        if (!MIGRATION_OLD_SIDE_MODES.has(opts.oldSideMode || "")) {
+          emitUsage("ppt_flow.state.confirm-migration-apply", "--old-side-mode must be verified-current, degraded-missing, or degraded-stale", "Copy the exact old-side mode from the current complete preview.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const result = await confirmHtmlMigrationApply(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
+          console.log(JSON.stringify({ operation: "confirm-migration-apply", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.confirm-migration-apply", error.message, "Obtain a fresh complete preview, keep the active migration confirmation node unchanged, and retry the exact hash/mode.");
+          process.exitCode = 1;
+          return;
+        }
       }
       if (opts.validateState) {
         // This closed diagnostic operation always returns its bounded report,
@@ -3288,9 +3372,10 @@ Examples:
   // ---- migrate-html ----
   program
     .command("migrate-html")
-    .description("Preview or apply an explicit HTML migration transaction")
+    .description("Prepare, preview, or apply an explicit HTML migration transaction")
     .argument("<run_dir>", "Path to source version dir")
-    .argument("<operation>", "preview or apply")
+    .argument("<operation>", "prepare, preview, or apply")
+    .option("--preset <name>", "Shipped visual preset for prepare")
     .option("--plan-hash <hash>", "Exact preview plan hash for apply")
     .option(
       "--old-side-mode <mode>",
@@ -3299,6 +3384,7 @@ Examples:
     .option("--recover-journal <owner-token>", "Recover a prior apply journal with the exact owner token")
     .action(async (runDir, operation, opts) => {
       const code = await commandMigrateHtml(runDir, operation, {
+        preset: opts.preset || null,
         planHash: opts.planHash || null,
         oldSideMode: opts.oldSideMode || null,
         recoverJournal: opts.recoverJournal || null,

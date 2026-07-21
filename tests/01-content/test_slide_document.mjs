@@ -7,6 +7,7 @@ import {
   serializeSlideDocument,
   sha256SlideSource,
   validateSlideDocument,
+  validateSlideDocuments,
   verifySlideEditPlanHash,
 } from '../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_document.mjs';
 
@@ -51,6 +52,34 @@ describe('parseSlideDocument', () => {
     expect(document.epilogue.raw).toContain('- moved a page');
   });
 
+  it('preserves unnumbered Slide section prose as preamble before the first exact slide', () => {
+    const text = source({
+      preamble: '# Deck\n\n## Slide Specifications\n\nAuthoring notes.\n\n## Slide Map\n\n- opening\n\n',
+      slides: [block(1, 'DeckGo', 'Opening')],
+    });
+    const document = parseSlideDocument(text);
+    expect(document.preamble.raw).toContain('## Slide Specifications');
+    expect(document.preamble.raw).toContain('## Slide Map');
+    expect(document.slides).toHaveLength(1);
+    expect(document.slides[0].position).toBe(1);
+  });
+
+  it('rejects a malformed numeric slide heading before the first exact slide', () => {
+    const text = source({
+      preamble: '# Deck\n\n## Slide 01\n\nTypo.\n\n',
+      slides: [block(1, 'DeckGo', 'Opening')],
+    });
+    expect(() => parseSlideDocument(text, 'spec.md')).toThrow(/malformed slide heading/i);
+  });
+
+  it('rejects a malformed numeric slide heading after the slide region begins', () => {
+    const text = source({
+      slides: [block(1, 'DeckGo', 'Opening')],
+      epilogue: '## Slide 02\n\nTypo.\n',
+    });
+    expect(() => parseSlideDocument(text, 'spec.md')).toThrow(/malformed slide heading/i);
+  });
+
   it('blocks malformed slide-like headings instead of treating them as epilogue', () => {
     const text = source({
       slides: [block(1, 'DeckGo', 'Opening')],
@@ -61,6 +90,18 @@ describe('parseSlideDocument', () => {
 });
 
 describe('validateSlideDocument', () => {
+  it('keeps heading continuity local for compatible legacy multi-input documents', () => {
+    const first = parseSlideDocument(source({
+      slides: [block(1, 's01_legacy', 'First'), block(2, 's02_legacy', 'Second')],
+    }), 'first.md');
+    const second = parseSlideDocument(source({
+      slides: [block(1, 's03_legacy', 'Third'), block(2, 's04_legacy', 'Fourth')],
+    }), 'second.md');
+    expect(validateSlideDocuments([first, second])).toEqual([]);
+    const drifted = parseSlideDocument(source({ slides: [block(2, 's01_legacy', 'First')] }));
+    expect(validateSlideDocument(drifted)).toContainEqual(expect.objectContaining({ code: 'noncanonical_heading_position' }));
+  });
+
   it('requires non-empty unique IDs, unique spoken keys, and canonical continuous headings', () => {
     const text = source({
       slides: [

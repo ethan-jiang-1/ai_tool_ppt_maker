@@ -543,12 +543,14 @@ function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
         ? new Set(['objects', 'plans', 'manifest.json', '.publish.lock'])
         : new Set(['objects', 'manifest.json', '.publish.lock']);
     for (const entry of fs.readdirSync(ownerPath, { withFileTypes: true })) {
+        if (_isHtmlMigrationSystemEntry(entry.name)) continue;
         if (allowed.has(entry.name) || _HTML_MANIFEST_TEMP_RE.test(entry.name)) continue;
         problems.push(`unexpected '${entry.name}' in HTML production owner ${ownerName}/`);
     }
     const objects = path.join(ownerPath, 'objects');
     if (fs.existsSync(objects) && fs.statSync(objects).isDirectory()) {
         for (const entry of fs.readdirSync(objects, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
             if (_SHA_OBJECT_RE.test(entry.name) || _HTML_OBJECT_TEMP_RE.test(entry.name)) continue;
             problems.push(`unexpected '${entry.name}' in HTML immutable objects for ${ownerName}/`);
         }
@@ -556,13 +558,41 @@ function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
     const lock = path.join(ownerPath, '.publish.lock');
     if (fs.existsSync(lock) && fs.statSync(lock).isDirectory()) {
         for (const entry of fs.readdirSync(lock, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
             if (entry.name !== 'owner.json') problems.push(`unexpected '${entry.name}' in HTML publish lock for ${ownerName}/`);
         }
     }
     const plans = path.join(ownerPath, 'plans');
     if (ownerName === GEN_HTML_PREVIEW_SUBDIR && fs.existsSync(plans) && fs.statSync(plans).isDirectory()) {
         for (const entry of fs.readdirSync(plans, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
             if (!_HTML_PLAN_RE.test(entry.name)) problems.push(`unexpected '${entry.name}' in HTML preview plans/`);
+        }
+    }
+}
+
+function _isHtmlMigrationSystemEntry(name) {
+    return name === '.DS_Store';
+}
+
+function _checkProjectedMigrationCandidate(projected, problems) {
+    const expected = new Map([
+        ['slide-specifications.md', 'file'],
+        ['overrides', 'directory'],
+        ['preparation.json', 'file'],
+        ['authoring-context.json', 'file'],
+        ['authoring-checklist.json', 'file'],
+        ['_generated', 'directory'],
+    ]);
+    for (const entry of fs.readdirSync(projected, { withFileTypes: true })) {
+        if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+        const kind = expected.get(entry.name);
+        if (!kind) {
+            problems.push(`unexpected '${entry.name}' in migration projected candidate`);
+            continue;
+        }
+        if ((kind === 'file' && !entry.isFile()) || (kind === 'directory' && !entry.isDirectory())) {
+            problems.push(`migration projected candidate '${entry.name}' must be a ${kind}`);
         }
     }
 }
@@ -572,6 +602,7 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
     const production = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
     if (fs.existsSync(production) && fs.statSync(production).isDirectory()) {
         for (const entry of fs.readdirSync(production, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
             if (!_HTML_OWNER_NAMES.has(entry.name)) problems.push(`unexpected '${entry.name}' in HTML production root`);
         }
         for (const ownerName of _HTML_OWNER_NAMES) {
@@ -583,7 +614,12 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
     if (fs.existsSync(migration) && fs.statSync(migration).isDirectory()) {
         const allowed = new Set(['slide-specifications.md', 'overrides', 'projected-run', 'plan.json', 'apply-journal.json']);
         for (const entry of fs.readdirSync(migration, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
             if (!allowed.has(entry.name)) problems.push(`unexpected '${entry.name}' in html-migration scratch/`);
+        }
+        const projected = path.join(migration, 'projected-run');
+        if (fs.existsSync(projected) && fs.statSync(projected).isDirectory()) {
+            _checkProjectedMigrationCandidate(projected, problems);
         }
     }
 }

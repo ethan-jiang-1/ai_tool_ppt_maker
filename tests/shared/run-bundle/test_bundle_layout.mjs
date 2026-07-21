@@ -364,12 +364,20 @@ describe('bundle_layout', () => {
       mkdirSync(join(production, 'preview', 'plans'), { recursive: true });
       writeFileSync(join(production, 'preview', 'plans', `${'a'.repeat(64)}.json`), '{}');
       mkdirSync(join(v1, '_scratch', 'html-migration', 'projected-run'), { recursive: true });
+      writeFileSync(join(production, '.DS_Store'), 'finder');
+      writeFileSync(join(v1, '_scratch', 'html-migration', '.DS_Store'), 'finder');
       expect(checkBundle(v1, false)).toEqual([]);
       writeFileSync(join(production, 'rogue-owner'), 'x');
       writeFileSync(join(production, 'preview', 'plans', 'rogue.json'), '{}');
+      writeFileSync(join(v1, '_scratch', 'html-migration', '.foreign-cache'), 'x');
+      writeFileSync(join(v1, '_scratch', 'html-migration', 'projected-run', 'foreign-support.json'), '{}');
+      writeFileSync(join(v1, '_scratch', 'html-migration', 'projected-run', 'apply-journal.json'), '{}');
       const issues = checkBundle(v1, false);
       expect(issues.some((issue) => issue.includes('rogue-owner') && issue.includes('HTML production root'))).toBe(true);
       expect(issues.some((issue) => issue.includes('rogue.json') && issue.includes('HTML preview plans'))).toBe(true);
+      expect(issues.some((issue) => issue.includes('.foreign-cache') && issue.includes('html-migration scratch'))).toBe(true);
+      expect(issues.some((issue) => issue.includes('foreign-support.json') && issue.includes('migration projected candidate'))).toBe(true);
+      expect(issues.some((issue) => issue.includes('apply-journal.json') && issue.includes('migration projected candidate'))).toBe(true);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }

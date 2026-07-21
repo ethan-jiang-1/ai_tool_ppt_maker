@@ -170,6 +170,28 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("命名 Git 操作和用户给定范围");
   });
 
+  it("keeps every migration entry point on the closed prepare-to-confirmation path", () => {
+    const files = [
+      "PPTMAKER_FRAMEWORK/COMMANDS.md",
+      "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
+      "PPTMAKER_FRAMEWORK/workflow/00-setup/05-migrate-import-existing-deck.md",
+      "PPTMAKER_FRAMEWORK/reference/legacy-image2-first-maintenance.md",
+      "PPTMAKER_FRAMEWORK/playbook/migrate-import.md",
+    ];
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      const prepare = text.indexOf("prepare --preset");
+      const preview = text.indexOf("preview", prepare + 1);
+      const confirm = text.indexOf("confirm-migration-apply");
+      const apply = text.lastIndexOf("apply");
+      expect(prepare, file).toBeGreaterThan(-1);
+      expect(preview, file).toBeGreaterThan(prepare);
+      expect(confirm, file).toBeGreaterThan(preview);
+      expect(apply, file).toBeGreaterThan(confirm);
+      expect(text, file).toMatch(/zero.provider|零 provider/i);
+    }
+  });
+
   it("the complete active framework has no coherence violations", () => {
     const issues = scanFrameworkCoherence();
     expect(issues, issues.map((item) => `${item.file}:${item.line} [${item.rule}] ${item.message} -> ${item.hint}`).join("\n")).toEqual([]);
