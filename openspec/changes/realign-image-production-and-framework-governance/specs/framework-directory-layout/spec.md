@@ -12,8 +12,12 @@ canonical production mode and declared direct dependencies.
 
 The removed active directories `01-visual/`, `02-content/`, `03-prompts/`, `04-production/`, and
 `04-image2-refinement/` SHALL not remain as aliases or duplicate methodology trees. Retired Image
-Production paths may remain only as exact entries in the canonical legacy-token exception inventory,
-which names the token/path, reason, owner, public-compatibility status, and removal trigger.
+Production paths may remain only as exact entries in the canonical
+`scripts/contracts/framework_coherence.mjs` legacy-token exception registry, which names the token,
+file/path, reason, owner, public-compatibility status, and
+`retire_by: change:<name>|release:<version>|not-applicable:<protected-invariant>`. Architecture and
+coherence validation SHALL consume that one registry and reject a broad, malformed, or undocumented
+exception.
 
 #### Scenario: Agent finds Image Production methodology
 - **WHEN** Agent needs whole-page or visual-slot Image Production guidance
@@ -30,7 +34,12 @@ which names the token/path, reason, owner, public-compatibility status, and remo
 ### Requirement: Active Image Production layout has one family root
 Active framework layout SHALL contain `04-image-production` and SHALL not retain
 `04-image2-refinement` as an active module. Historical tokens may remain only in an exception
-inventory naming token, path, reason, owner, public-compatibility status, and removal trigger.
+registry naming token, file/path, reason, owner, public-compatibility status, and `retire_by`.
+
+#### Scenario: Markerless pipeline token is retained
+- **WHEN** coherence encounters normalized internal token `legacy-image2-first`
+- **THEN** it accepts the one exact registry entry whose `retire_by` names its protected pipeline invariant
+- **AND** it does not treat the token as an active module path or workflow legality rule
 
 #### Scenario: Active tree is inspected
 - **WHEN** architecture validation inspects the framework tree

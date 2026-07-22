@@ -19,6 +19,11 @@ or prerequisite rule.
 - **THEN** its whole-page node declares `04-image-production` and is legal without HTML delivery
 - **AND** it does not route through compatibility maintenance
 
+#### Scenario: Markerless compatibility retains only its router
+- **WHEN** the graph resolves historical markerless maintenance
+- **THEN** it retains Phase-5 compatibility routing and delegates to the whole-page public adapter
+- **AND** it does not retain a Phase-5 whole-page implementation owner
+
 ## ADDED Requirements
 
 ### Requirement: Playbook adapter entry uses mode and dependency predicates

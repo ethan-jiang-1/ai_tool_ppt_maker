@@ -45,6 +45,20 @@ journals bind the complete pre/post state bytes: recovery completes only the alr
 never performs a fresh compatibility migration. Active attempts, promotion recovery, provenance, and
 final review remain governed by their existing direct owners.
 
+This is a record-level migration: top-level `state.yaml` schema version remains 5 and ordinary
+observation/heal does not upgrade a record. Therefore a full rollback to a pre-change binary is safe
+only before that exact-version record first mutates. After migration, operational rollback SHALL use a
+rollback release that retains the current dual reader or perform owner-scoped forward recovery; it SHALL
+not restore an old binary against a migrated state or hand-edit user state.
+
+The `adapter` discriminator is owned and written only by the state owner through that same mutation
+helper. Its readers are the unified visual-slot projection, status/state, workflow inspection, and
+state validators; it is fresh only for its exact `run_version`, invalidates the whole current record
+when it differs from `visual-slot`, and disappears only with the terminal exact-version decline. A
+malformed or conflicting dual record is a `hard-stop`: it protects attributable version-scoped state
+integrity and returns the existing state-corruption/replacement protocol's one `repair_state` action.
+That protocol preserves bytes and reruns validation; it is not a generic state editor or a provider path.
+
 ### D4 - Governance needs a failure story
 **Owner: framework charter.** The canonical `tests/contracts/framework-governance-ledger-v1.json`
 records every audited blocking framework rule with source, protected invariant, concrete failure story,
@@ -52,6 +66,12 @@ direct owner, nearest recovery action, classification, and retain/remove/advisor
 remaining blocking architecture rule states its protected invariant and nearest owner action. Rules
 without one are removed or advisory. Import direction, private-boundary, provider-isolation, and
 production-data rules remain blocking.
+
+**Exception source: framework coherence.** Retired-token exceptions extend the existing exported
+registry in `scripts/contracts/framework_coherence.mjs`, rather than creating another JSON authority.
+Each exact entry records token, file/path, reason, owner, public-compatibility status, and
+`retire_by: change:<name>|release:<version>|not-applicable:<protected-invariant>`; architecture and
+coherence checks consume this one source and reject broad or malformed entries.
 
 ## Risks / Trade-offs
 
@@ -69,4 +89,6 @@ production-data rules remain blocking.
 2. Land adapter relocation with public behavior parity, then remove old paths.
 3. Add dual-read/CAS visual-slot record migration and compatibility fixtures.
 4. Update docs/specs/governance only after behavior passes focused and full regression.
-5. Rollback restores the prior implementation; no user state is hand-edited or migrated backward.
+5. Before an exact-version record migrates, a full implementation rollback is safe. Afterwards, use a
+   compatibility rollback release or owner-scoped forward recovery; no user state is hand-edited or
+   migrated backward.

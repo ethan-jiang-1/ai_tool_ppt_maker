@@ -78,10 +78,11 @@ iteration/compatibility journeys remain Phase 5. Root business test files are fo
 The deterministic network-free `contracts/framework_architecture.mjs` check SHALL enforce the root
 whitelist, interfaces, Image Production ownership/isolation, import graph, executable registry,
 recursive tests, ownership manifest, canonical path-token ownership, the exact legacy-token exception
-inventory, and absence of retired active paths/`scripts/lib/`. It is tested through repository tests,
-not registered as a CLI, uses only framework/test roots, and never reads `deck_*` or `dpt_*`. Default
-verification also includes temporary/synthetic load-closure probes for base doctor, an HTML-local
-command, and whole-page provider selection. No transition bypass is permitted.
+registry exported by `contracts/framework_coherence.mjs`, and absence of retired active
+paths/`scripts/lib/`. It is tested through repository tests, not registered as a CLI, uses only
+framework/test roots, and never reads `deck_*` or `dpt_*`. Default verification also includes
+temporary/synthetic load-closure probes for base doctor, an HTML-local command, and whole-page provider
+selection. No transition bypass is permitted.
 
 #### Scenario: Architecture drifts after a script is added
 - **WHEN** a maintainer adds an unowned root script or cross-Phase private import

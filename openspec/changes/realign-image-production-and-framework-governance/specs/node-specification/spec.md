@@ -17,6 +17,23 @@ and current HTML inputs, while whole-page entry requires `image2-only` and its o
 - **THEN** it declares method module `04-image-production`
 - **AND** validation does not require HTML delivery merely because the node is in module 04
 
+#### Scenario: HTML production node retains its metadata
+- **WHEN** the HTML production node is indexed
+- **THEN** it resolves to lifecycle 3/module `03-html-production`
+
+#### Scenario: Retired module remains in active frontmatter
+- **WHEN** a node declares `method_module: 04-image2-refinement`
+- **THEN** validation fails and names `04-image-production` as the current module
+
+#### Scenario: Unowned Image Production node is registered
+- **WHEN** a node declares module `04-image-production` without a declared Image Production adapter role
+- **THEN** validation fails with an ownership diagnostic
+
+#### Scenario: Visual-slot plan starts from an explicit prerequisite waiver
+- **WHEN** visual-slot work has a current prerequisite waiver and valid HTML final-slide/slot inputs
+- **THEN** entry validation permits only the offline planning node
+- **AND** authorization and provider generation remain separate exit requirements
+
 ### Requirement: Playbook index reserves final system evidence and enforces pipeline ownership
 The canonical index/state reserved-ID registry SHALL retain the six final-system IDs with
 `image-production` replacing `image2-refinement`, validate controller pipeline plus closed
@@ -53,11 +70,14 @@ Reserved system evidence SHALL retain six active IDs: `header-review`, `html-con
 Each active record SHALL live only at `nodes[reserved_id].by_version["3_versions/<vN>"]`; its internal
 `run_version` and all state/metadata mirror companions SHALL use normalized `<vN>`. The historical
 `image2-refinement` container is accepted only as the visual-slot compatibility read defined by the
-Image Production migration requirement; it is never a new-write target and remains outside controller
-working sets. Production mode SHALL use its dedicated top-level state-owned map rather than masquerading
-as a reserved node. The Image Production visual-slot record remains the sole authority for its plan,
-attempts, candidate reviews, promotions, and safe human decisions; whole-page state and controller-node
-decisions SHALL not duplicate it.
+Image Production migration requirement; it is never a new-write target. The state owner SHALL expose
+separate active and legacy-reserved ID sets: active writes/validation use the six active IDs, while every
+decoder, controller-entry filter, validation projection, and state-shape validator treats
+`image2-refinement` as a read-only legacy-reserved ID rather than an ordinary controller node. Production
+mode SHALL use its dedicated top-level state-owned map rather than masquerading as a reserved node. The
+Image Production visual-slot record remains the sole authority for its plan, attempts, candidate
+reviews, promotions, and safe human decisions; whole-page state and controller-node decisions SHALL not
+duplicate it.
 
 Existing gate-journal exclusivity, reset fences, reserved-record ownership, refinement promotion CAS,
 read-only observation, and recovery rules remain unchanged. The only additional allowed transient file
@@ -88,10 +108,52 @@ phase, or completion authority.
 - **THEN** compatibility remains valid and no state file is created
 - **AND** explicit controller entry creates schema v4 and an authoritative per-version mode before execution
 
+#### Scenario: Agent resumes without a gate transaction
+- **WHEN** no approval is in progress
+- **THEN** `_state/state.yaml` and any on-demand `history.jsonl` retain their normal read/resume semantics
+- **AND** the journal is absent
+
+#### Scenario: Two gate approvals start concurrently
+- **WHEN** a second approval observes an existing journal or changed precondition SHA
+- **THEN** it recovers the first transaction or fails closed before writing its own evidence
+- **AND** cannot overwrite a concurrent gate decision
+
+#### Scenario: Plain status sees healable state plus journal
+- **WHEN** observe-mode status sees a healable state defect while a journal exists
+- **THEN** it reports both conditions without rewriting state
+- **AND** recovery/repair occurs through the journal owner path first
+
+#### Scenario: Invalid journal is present
+- **WHEN** journal schema, version, path, or SHA evidence is invalid
+- **THEN** state read/status reports deterministic repair-required evidence
+- **AND** neither metadata nor the journal is treated as gate approval
+
+#### Scenario: Cross-host journal requires human-confirmed token
+- **WHEN** a journal owner is another host and remains older than 300000 ms
+- **THEN** plain status reports `uncertain` plus its opaque owner token without writing
+- **AND** only exact token recovery after human confirmation may apply the normal matrix
+
+#### Scenario: Crash occurs before state publication
+- **WHEN** recovery sees both stores at their journal-bound old SHAs
+- **THEN** it removes the uncommitted journal and leaves the gate pending
+
+#### Scenario: Metadata-first pair appears
+- **WHEN** recovery sees old state SHA and new metadata SHA
+- **THEN** it fails closed as a forbidden transition and does not infer state approval
+
+#### Scenario: HTML delivery is complete without visual-slot work
+- **WHEN** state/status reads current `html-only` delivery with no visual-slot record
+- **THEN** it reports completion without Image Production debt
+
 #### Scenario: Legacy visual-slot record remains observable
 - **WHEN** a valid exact-version `nodes.image2-refinement` record exists with no active Image Production record
 - **THEN** state observation obtains only the defined visual-slot compatibility projection
 - **AND** it does not write the legacy record or treat it as a controller working-set node
+
+#### Scenario: Legacy record is filtered before controller validation
+- **WHEN** a legacy visual-slot record is present while an active controller execution is validated
+- **THEN** controller-entry and execution-binding validation exclude the legacy-reserved ID
+- **AND** it is validated only through the historical visual-slot record contract
 
 #### Scenario: Node transition races gate approval
 - **WHEN** an ordinary `writeState` or Image Production migration attempts a state mutation while a gate journal exists
@@ -112,15 +174,24 @@ using canonical structural equality. A current record SHALL also validate exact 
 `pptmaker-image-production-state-v1`, `adapter: visual-slot`, and no keys other than `schema`,
 `adapter`, `run_version`, `plan`, `authorization`, `attempts`, `reviews`, and
 `prerequisite_waiver`. A malformed record or disagreement between old and new projections SHALL fail
-closed with the state-owner repair action and SHALL perform no mutation or provider work. Observation is
-non-mutating.
+closed with protected invariant `attributable version-scoped visual-slot state integrity`, the existing
+state-corruption/replacement protocol's one `repair_state` action, and no mutation or provider work.
+That action SHALL preserve current bytes and rerun the state-owner validation/replacement checkpoint; it
+SHALL NOT expose a generic record editor, conflict winner selector, force, or provider path. Observation
+is non-mutating.
 
 The first non-deletion state-owner visual-slot mutation SHALL atomically write the current record and
 remove only the old exact-version record under the existing expected-state/CAS boundary, preserving
 other versions. A terminal deletion SHALL remove both exact-version records in that same CAS write and
 SHALL NOT create an empty current record. Promotion journal creation and recovery SHALL bind the complete
 pre/post state bytes; recovery may finish only the already-bound mutation and SHALL NOT initiate a
-compatibility migration.
+compatibility migration. This record-level change SHALL retain top-level state schema version 5 and
+SHALL NOT rewrite either record during observation/heal. A pre-change binary is unsupported after a
+record migrates: operational rollback SHALL use a release retaining the dual reader or owner-scoped
+forward recovery, never generic state restoration or hand editing. The state owner is the sole writer
+of `adapter`; unified visual-slot projection, status/state, workflow inspection, and state validation
+are its readers. It is fresh only for its exact `run_version`, invalidates the current record when it is
+not `visual-slot`, and is removed only when terminal decline removes that exact-version record.
 
 #### Scenario: Conflicting dual records
 - **WHEN** old and new records disagree for an exact version
@@ -137,7 +208,17 @@ compatibility migration.
 - **THEN** state observation returns the state-owner repair hard-stop
 - **AND** it does not fall back to or mutate the historical record
 
+#### Scenario: Dual records conflict
+- **WHEN** old and new records have different normalized exact-version payloads
+- **THEN** inspection returns only the `repair_state` hard-stop for attributable visual-slot state integrity
+- **AND** it preserves both records and performs no provider work or conflict-winner selection
+
 #### Scenario: Legacy promotion journal is recovered
 - **WHEN** a promotion journal binds pre/post state bytes across the record migration boundary
 - **THEN** recovery verifies and completes only its bound post-state bytes
 - **AND** it does not re-read compatibility records to synthesize a new transaction
+
+#### Scenario: Migrated record needs operational rollback
+- **WHEN** an exact-version record has migrated and a deployment rollback is required
+- **THEN** the rollback release retains the dual state reader or the owner performs forward recovery
+- **AND** the system does not run a pre-change binary or hand-edit the record
