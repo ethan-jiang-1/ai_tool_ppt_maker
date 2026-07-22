@@ -23,7 +23,19 @@ agent_action: read_first
 `BOOTSTRAP.md`（环境 + intake）→ 本文件 → 按 Phase 执行时再翻 `AGENTS.md` 对应章节。
 不要跳过 BOOTSTRAP 直接临场发挥目录。
 
-**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 CLI 返回的 `html_resume_guidance`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
+**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。显式已知 `<run-dir>` 时，先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 CLI 返回的 `html_resume_guidance`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
+
+**continuation card entry（无已知 run-dir 时）：** 只支持 repository-agent session 能读取原始
+`deck-guide.md` 的本地路径，或用户明确给出的可读 deck-root 路径。按以下顺序、全程零写执行：
+
+1. 验证 card 是常规文件，并验证它的 deck-root controls；card 的 parent 就是唯一 deck root。
+2. 读取 card 内 init 写入的 `framework_relation`，从 deck root 解析并直接验证 framework root。relation 无效或 deck 被移动时，只请求一个明确、可读的 framework root 后再直接验证；不猜测附近目录。
+3. 只通过 state owner 的 observe/no-heal read 和 `resolveContinuationTargetVersion` 读取 selector：active `run_version` 优先；否则使用 `continuation_target_version`。不得用第二个 YAML parser 解析、验证、heal 或解释 state 的其余字段。selector 成功后形成唯一 `<deck-root>/3_versions/vN`。
+4. 仅在 exact run 已知后，运行 `bundle_layout --check <run-dir> --structure-only`，再运行该 framework root 的 `ppt_flow state <run-dir> --json` 与 `status`，然后才按用户的自然语言请求路由。
+
+这不是新的 CLI，也不是 attachment provenance validator。`--check` 只校验 exact version 的结构，既不从 deck root 选版本，也不验证上传来源。普通 byte-only chat upload 没有可读本地路径，不受支持；请求明确可读 deck-root path，**不要**要求用户重新上传相同 bytes。当 relation、selector 或 structure 无效，或 state 缺失/markerless 而无法选中唯一 run 时，返回 bounded no-write `guide`：请求一个明确 `vN`/run path（relation 问题则请求 framework root）。不得枚举版本、按名称/时间/路径搜索、用重新上传建立 provenance、重开 terminal work，或把聊天请求当 approval。terminal deck 仍可只读检查，但只转向既有 rerun / new-version / new-deck 路径。
+
+Attachment-host integration harness 不属于本仓库；此合同不声称 generic chat attachment 可以成功解析。
 
 ## 2. 目录是宪法
 

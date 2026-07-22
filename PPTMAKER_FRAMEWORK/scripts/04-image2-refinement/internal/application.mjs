@@ -818,6 +818,9 @@ export async function declineRefinement({ runDir } = {}) {
       next.playbook = "";
       next.execution_id = "";
       next.execution_started_at = "";
+      // Terminal handoff retains the exact visible run for continuation-card
+      // inspection after the active execution binding is intentionally cleared.
+      next.continuation_target_version = paths.run_version;
     }
   }
   writeState(root, next, { expectedStateSha: readVersionFileSha(paths.state) });

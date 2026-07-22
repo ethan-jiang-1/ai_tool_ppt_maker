@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { encode as encodePng } from "fast-png";
-import { initLegacyBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initHtmlFirstBundle, initLegacyBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
 import {
@@ -373,8 +373,7 @@ describe("ppt_flow", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));
     const deck = join(root, "deck_resume");
     const runDir = join(deck, "3_versions", "v1");
-    mkdirSync(join(deck, "_state"), { recursive: true });
-    mkdirSync(runDir, { recursive: true });
+    initHtmlFirstBundle(deck, null, "keynote", "dark-executive");
     writeFileSync(
       join(deck, "_state", "state.yaml"),
       `playbook: iterate-style
@@ -399,8 +398,9 @@ playbook_stack: []
     const j = JSON.parse(r.stdout);
     expect(j.playbook).toBe("iterate-style");
     expect(j.current_node).toBe("review-style-system");
-    expect(j.workflow_summary).toMatch(/等人|waiting|review/i);
-    expect(j.suggested_next).toContain("user:review-style-master");
+    expect(j.waiting_for).toBe("user:review-style-master");
+    expect(typeof j.workflow_summary).toBe("string");
+    expect(typeof j.suggested_next).toBe("string");
   });
 
   it("state resume guidance consumes current HTML evidence without mutating it", async () => {

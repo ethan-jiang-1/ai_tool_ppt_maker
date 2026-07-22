@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { join, relative, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import {
@@ -29,6 +29,9 @@ import {
 import { validateHtmlFirstRun } from '../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_contract.mjs';
 import { DEFAULT_INIT_MODE } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 
+const FRAMEWORK_ROOT = resolve('PPTMAKER_FRAMEWORK');
+const GUIDE_TEMPLATE = 'PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md';
+
 const BUNDLE = 'PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 const PPT_FLOW = 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs';
 const TEST_DECK = join(tmpdir(), `deck_test_${Date.now()}`);
@@ -51,6 +54,57 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
+  it('seeds one mode-neutral continuation card across modes and deck types', () => {
+    for (const mode of ['image2-only', 'html-only', 'html-then-image2']) {
+      for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
+        const deck = join(tmpdir(), `deck_continuation_${mode}_${deckType || 'generic'}_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+        try {
+          initBundle(deck, FRAMEWORK_ROOT, deckType, null, { mode });
+          const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf8');
+          expect(guide).toContain('Continue this deck');
+          expect(guide).toContain(`deck identity: \`${deck.split('/').pop()}\``);
+          const relation = (relative(resolve(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
+          expect(guide).toContain(`framework_relation: \`${relation}\``);
+          expect(guide).toContain('_state/state.yaml');
+          expect(guide).toContain('ppt_flow state`/`status');
+          expect(guide).not.toMatch(/html-first-v1|current (?:version|pipeline|node)|next action|gate status|digest/i);
+        } finally { rmSync(deck, { recursive: true, force: true }); }
+      }
+    }
+    const template = readFileSync(GUIDE_TEMPLATE, 'utf8');
+    expect(template).toContain('continuation_card.mjs');
+    expect(template).toContain('{{CONTINUATION_CARD_BLOCK}}');
+  });
+
+  it('measures framework_relation for an external legal deck path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'continuation-external-'));
+    const deck = join(root, 'deck_external_relation');
+    try {
+      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
+      const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf8');
+      const expectedRelation = (relative(resolve(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
+      expect(guide).toContain('framework_relation: `');
+      expect(guide).not.toContain('framework_relation: `../PPTMAKER_FRAMEWORK`');
+      expect(guide).toContain(`framework_relation: \`${expectedRelation}\``);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it('keeps structure-only checks exact-version and zero-write', () => {
+    const deck = join(tmpdir(), `deck_structure_only_${Date.now()}`);
+    try {
+      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
+      const runDir = join(deck, '3_versions', 'v1');
+      const guideBefore = readFileSync(join(deck, 'deck-guide.md'));
+      const stateBefore = readFileSync(join(deck, '_state', 'state.yaml'));
+      const exact = spawnSync('node', [BUNDLE, '--check', runDir, '--structure-only'], { encoding: 'utf8', timeout: 15_000 });
+      expect(exact.status, exact.stderr || exact.stdout).toBe(0);
+      const root = spawnSync('node', [BUNDLE, '--check', deck, '--structure-only'], { encoding: 'utf8', timeout: 15_000 });
+      expect(root.status).not.toBe(0);
+      expect(`${root.stderr}\n${root.stdout}`).toContain('--run-dir must be a version dir');
+      expect(readFileSync(join(deck, 'deck-guide.md'))).toEqual(guideBefore);
+      expect(readFileSync(join(deck, '_state', 'state.yaml'))).toEqual(stateBefore);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
   it('seeds HTML-first runs by default and keeps legacy scaffolding explicit', () => {
     const legacy = join(tmpdir(), `deck_legacy_seed_${Date.now()}`);
     try {
@@ -193,18 +247,20 @@ describe('bundle_layout', () => {
       const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
       expect(agents).toContain('[deck-guide.md](deck-guide.md)');
       expect(claude).toContain('[deck-guide.md](deck-guide.md)');
-      expect(guide).toContain('stderr 最后一个有效 JSON failure envelope');
-      expect(guide).toContain('program` + `args');
-      expect(guide).toContain('requires_human: true');
-      expect(guide).toContain('不猜被省略');
-      expect(guide).toContain('`_generated/` 是派生品');
-      expect(guide).toContain('plan hash 由 Agent 保存');
-      expect(guide).toContain('needs_render 只报告后续成本');
-      expect(guide).toContain('新 preview → 新 vNext → 新 deck');
-      expect(guide).toContain('不调用 renderer');
+      expect(agents).toContain('state/status');
+      expect(claude).toContain('state/status');
+      expect(guide).toContain('PPT continuation card');
+      expect(guide).toContain('readable local path');
+      expect(guide).toContain('framework_relation:');
+      expect(guide).toContain('_state/state.yaml');
+      expect(guide).toContain('ppt_flow state`/`status');
+      expect(guide).toContain('`_generated/` is derived output');
+      expect(guide).not.toContain('html-first-v1');
+      expect(guide).not.toContain('当前版本');
+      expect(guide).not.toContain('next action');
       expect(checkBundle(join(deck, '3_versions', 'v1'), false)).toEqual([]);
       expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_state/');
-      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_lessons/');
+      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('deck-guide.md');
       expect(
         readFileSync(join(deck, 'project-metadata.yaml'), 'utf-8')
       ).toMatch(/#.*_state/);
@@ -217,12 +273,6 @@ describe('bundle_layout', () => {
       expect(lessonsReadme).toContain('遇到什么');
       expect(lessonsReadme).toContain('怎么试的');
       expect(readFileSync(join(deck, '.env.example'), 'utf-8')).toContain('IMAGE2_API_KEY');
-      const guideContent = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
-      expect(guideContent).toContain('_lessons/');
-      expect(guideContent).toContain('lessons.mjs');
-      expect(guideContent).toContain('Git 仅是可选、用户拥有的 source/control 审计');
-      expect(guideContent).toContain('`_generated/` 不是恢复目标');
-      expect(guideContent).toContain('不做 Git mutation');
       expect(existsSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'))).toBe(true);
       expect(readFileSync(join(deck, '3_versions', 'v1', '_scratch', 'README.md'), 'utf-8')).toMatch(
         /上严下松|_scratch/

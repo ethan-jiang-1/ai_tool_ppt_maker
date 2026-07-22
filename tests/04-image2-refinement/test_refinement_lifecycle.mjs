@@ -15,7 +15,7 @@ import {
 import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
 import { createCandidateRecord, sha256 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/contracts.mjs";
 import { candidatePaths, ensureRefinementDerivedRoots, persistCandidate, writeCandidateComparison, listReviews, refinementReviewDigest, cleanupRefinement } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/storage.mjs";
-import { projectImage2RefinementState, readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { projectImage2RefinementState, readImage2RefinementState, readState, startPlaybook, writeImage2RefinementState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
 import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
@@ -252,6 +252,21 @@ describe("Phase 4 lifecycle boundaries", () => {
       expect(existsSync(paths.scratch)).toBe(false);
       expect(await operations.declineRefinement({ runDir: fixture.runDir })).toMatchObject({ declined: true, provider_calls: 0 });
       expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
+
+  it("terminal refinement handoff retains its exact continuation target", async () => {
+    const fixture = await createCurrentHtmlDelivery("image2-terminal-continuation-", { mode: "html-then-image2" });
+    try {
+      const state = readState(fixture.deck, { purpose: "execute", heal: false });
+      startPlaybook(state, "image2-refine", { replace: true, runVersion: "v1" });
+      writeState(fixture.deck, state);
+      const operations = await loadRefinementOperations();
+      expect(await operations.declineRefinement({ runDir: fixture.runDir })).toMatchObject({ declined: true });
+      expect(readState(fixture.deck, { purpose: "observe", heal: false })).toMatchObject({
+        playbook: "",
+        continuation_target_version: "v1",
+      });
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 

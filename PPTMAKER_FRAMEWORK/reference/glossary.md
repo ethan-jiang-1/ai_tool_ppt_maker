@@ -7,6 +7,7 @@ Search this file before inventing a path. Framework source remains the five dire
 | Term | Canonical path | Meaning / do not |
 |---|---|---|
 | run bundle | `deck_NAME/` | user project root; do not create under framework |
+| continuation card | `deck_NAME/deck-guide.md` | static path-capable resume entry; state/status owns current workflow |
 | `--run-dir` | `deck_NAME/3_versions/vN/` | version leaf, not deck root |
 | `slide-specifications.md` | `<run-dir>/slide-specifications.md` | structured source; exact visible body lives in `SLIDE BODY` |
 | `_state/` | deck root `_state/` | state.yaml, history, gate journal; do not hand-edit |

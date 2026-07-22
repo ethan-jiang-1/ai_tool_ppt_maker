@@ -4,7 +4,7 @@
 
 ## Step 0 — Read the contract
 
-读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户指定了 deck，先进入该版本目录并读它的 `deck-guide.md`。
+读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户给出原始 `deck-guide.md` 的可读本地路径或 deck root，按 `AGENT_CONTRACT.md` §1 的 path-capable continuation entry；generic byte-only chat attachment 不受支持。
 
 ## Step 1 — Base readiness
 
