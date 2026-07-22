@@ -28,7 +28,14 @@ _Avoid_: Git commit, framework release
 A rendered representation of one Slide Identity for a specific render engine and artifact kind under a particular content fingerprint.
 _Avoid_: Slide, page position
 
+**HTML Production**:
+The production family that composes final pages locally from structured HTML source. It is parallel to Image Production; it is not a prerequisite for every Deck.
+_Avoid_: The only production path
+
+**Image Production**:
+The production family that uses an image model to create either a whole-page final Render Artifact or a reviewed visual-slot asset. Whole-page Image Production owns final page pixels; visual-slot Image Production supplies an asset to HTML Production and does not own the final page.
+_Avoid_: Refinement as the umbrella name, a synonym for provider authorization, or a required post-HTML phase
+
 **Needs Render**:
 A production state in which a required Render Artifact is missing or cannot be proven current; it reports unfinished work without authorizing remote rendering.
 _Avoid_: Render permission, structural failure
-
