@@ -5,6 +5,13 @@ into a second runtime authority. It applies when an OpenSpec change touches a
 controller handoff, deterministic check, CLI recovery path, state record, or
 diagnostic used to decide what happens next.
 
+The cross-cutting complexity rule is defined by
+`openspec/policies/simple-reliable-control.md`: quality control must be simpler
+than the work it validates. This policy applies that rule to responsibility
+handoff, direct authority, evaluator reuse, diagnostics, durable state, and
+recovery. If a proposed control layer cannot show net simplification, prefer
+deletion, reuse, tolerant parsing, or a shorter feedback path.
+
 ## Authority
 
 This policy is guidance beneath `AGENTS.md`, `openspec/config.yaml`, accepted
