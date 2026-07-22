@@ -4,8 +4,7 @@
 
 ## 已接受的运行时基线
 
-`add-production-mode-and-image2-primary` 与
-`add-versioned-production-mode-transitions` 已归档。后续 change 必须将下列事实视为既有 direct owner：
+后续 change 必须将下列事实视为既有 direct owner：
 
 | 事实 | 当前 owner | 简化时不可做的事 |
 |---|---|---|
@@ -19,14 +18,11 @@
 这解释了为何“控制面减法”不是放松 gate：要减少的是重复 evaluator、opaque diagnostic 与用户手动
 拼接的步骤，而不是删除上述 authority。
 
-## Policy 作为 review 准则
+## 执行原则
 
-三份 policy 均是 guidance，具体 schema 与命令仍属于 accepted capability specs：
-
-1. 先由 `human-centered-gates` 判定 `guide`、`confirm` 或 `hard-stop`，并保留 protected invariant。
-2. 再由 `agent-assistance-and-control` 约束 source、evaluator、Agent/human handoff 和 recovery。
-3. 最后以 `simple-reliable-control` 检查是否减少了控制复杂度：direct fact -> one check -> earliest root
-   cause -> one legal action -> rerun。
+1. `guide`、`confirm` 和 `hard-stop` 保持原有的 protected invariant；身份、完整性、授权和恢复不可 waiver。
+2. source、evaluator、Agent/human handoff 与 recovery 各自只保留一个 direct owner。
+3. 控制面必须收敛为：direct fact -> one check -> earliest root cause -> one primary action -> rerun。
 
 任何 proposed field、validator、retry、controller step 或 command 都必须说明删除/合并的重复控制；
 不能只因未来可能方便恢复而增加另一层 state。
@@ -48,16 +44,14 @@ family：
 
 `visual-slot refinement` 可作为第二个 adapter 的窄术语保留；`image2-only` 与
 `legacy-image2-first` 也可在 mode/pipeline compatibility contract 中保留。它们不能再命名活动
-workflow Phase、顶层 capability 或主入口说明。Change 2 必须在 implementation 与 main specs 同步后才
-删除旧主概念，不能以全局字符串替换破坏历史 deck 读写或 archive 记录。
+workflow Phase、顶层 capability 或主入口说明。Change 3 必须在 implementation 与 main specs 同步后才
+删除旧主概念，不能以全局字符串替换破坏历史 run-bundle 读写 contract。
 
 ## Legacy Image2 轻量迭代探针
 
-当前未跟踪的
-[`BUG-016-legacy-image2-lightweight-iteration-blocked.md`](../../bugs/BUG-016-legacy-image2-lightweight-iteration-blocked.md)
-应在登记时改为 BUG-033，因为 BUG-016 已在 `_done/_fixed_bugs` 中占用。它描述一个已交付 markerless
-deck 修改一页 KICKER/图片时，落入 bundle layout、mode routing、authorization、provenance、image discovery
-和 assembly 多重阻断的场景。
+[`BUG-033-legacy-image2-lightweight-iteration-blocked.md`](../../bugs/BUG-033-legacy-image2-lightweight-iteration-blocked.md)
+描述一个已交付 markerless deck 修改一页 KICKER/图片时，落入 bundle layout、mode routing、authorization、
+provenance、image discovery 和 assembly 多重阻断的场景。
 
 这是 Change 1 的重要输入，但目前是 report，不是已验证根因。最小 fixture 必须分别记录以下 direct
 fact，且不得手写 state/authorization/receipt：
@@ -65,7 +59,7 @@ fact，且不得手写 state/authorization/receipt：
 | 声称的阻断 | 当前已知事实 | Change 1 要验证的问题 |
 |---|---|---|
 | `agent-portrayal.md` 被 layout 拒绝 | layout allowlist 是 bundle owner 的契约 | 该文件是否在当前 canonical location/shape 下仍被拒绝，最早 layout diagnostic 是什么 |
-| metadata 缺 mode 导致 `MODE_MISSING` | 当前 mode policy 读取 exact state `by_version`，metadata 是镜像 | fixture 是否真的缺 exact state record；不能把 metadata 缺失误判成 mode authority 缺失 |
+| metadata 缺 mode 导致 `MODE_MISSING` | exact state `production_mode.by_version` 是 authority，metadata 只是镜像 | fixture 是否真的缺 exact state record；不能把 metadata 缺失误判成 mode authority 缺失 |
 | 单页重出需要授权 | remote submit 必须保留 scope-bound authorization | selected slide 的 existing authorization path 是否给出一个 bounded owner action，而不是需要手写 state |
 | KICKER 变化导致 provenance stale | source/prompt 变化可能合法地失效 rendered bytes | 哪个 source field 影响哪个 artifact；reuse 是否在 owner 确认 current 后本地完成 |
 | 两种 image filename 造成 ambiguous/missing | discovered artifact naming 属于 render/assembly owner | canonical naming/reconciliation owner 是否一致，并能给出唯一 repair |

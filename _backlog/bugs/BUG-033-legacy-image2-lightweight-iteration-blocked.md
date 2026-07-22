@@ -1,4 +1,4 @@
-# BUG-016: legacy-image2 pipeline 单页迭代路径过度阻塞
+# BUG-033: legacy-image2 pipeline 单页迭代路径过度阻塞
 
 > 严重级别: P1 | 发现: 2026-07-22 | 状态: 活跃
 
@@ -12,7 +12,7 @@
 5. **page_images_full 双命名冲突** — `NN_sNN_name.png` 和 `sNN_name.png` 并存时 Stage 3 报「ambiguous images」；只有一种时可能报「missing image」。缺少清晰的 canonical 命名策略。
 6. **PPTX 组装被管线阻断** — Stage 3-5 在这些校验下持续失败，最终只能绕过管线，用 pptxgenjs 直接拿 `header_locked/` 的26张 PNG 手动拼 PPTX。
 
-## 根因
+## 待验证归因
 管线围绕「全量生产」设计，假设每次都从零跑完整流程，provenance 校验、授权门禁、目录宪法一应俱全。但对实际迭代场景——「已有26页交付物，改1页文案、出1页新图、重新拼 PPTX」——没有预留低摩擦的最小重跑链。
 
 具体缺失：
