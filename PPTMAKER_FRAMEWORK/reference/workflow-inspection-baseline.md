@@ -24,6 +24,11 @@ assembly. It does not hand-write state, authorization, receipt, PPTX, or
 `_generated/` bytes. A non-reproduced claim is recorded as non-reproduced; it
 does not justify a bypass, force flag, or metadata fallback.
 
+| Probe fixture | Earliest direct diagnostic | Durable/file diff before repair | Human decision | Canonical owner repair | Same-check rerun |
+| --- | --- | --- | --- | --- | --- |
+| One-slide `createHtmlFirstRun` HTML-first run | `html-review/content-review-missing` | none during observation | approve or waive the content gate with the current owner-issued plan hash | `publishHtmlGateDecision(... content, approved)` | `html-review/visual-review-missing`; source bytes unchanged and only owner-published state/history evidence changes |
+| Mode, selected-slide authorization, provenance, artifact reconciliation, canonical assembly | not reached while the content gate is the earliest prerequisite | none | none | none; no bypass introduced | recorded as prerequisite-short-circuited, not claimed as independently reproduced |
+
 ## Observation Invariants
 
 - Status and state use the same canonical inspection projection when their

@@ -336,7 +336,7 @@ entry: []
 exit: [user_decision_recorded, gate_approved:content]
 ```
 
-**Step 1 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `html_resume_guidance` plus the changed/current content projection. Run its `recommended_command` for the normal repair/approval path; offer its `continuation_command` only after the human supplies the bounded reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and do not offer `--waive`/`--force`. `revise` returns to source authoring. Never hand-edit state or infer approval from rendered pages.
+**Step 1 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `workflow_inspection.primary_action` plus the changed/current content projection. Run the owner-issued action for the normal repair/approval path; offer `workflow_inspection.continuation` only after the human supplies the bounded reason. `html_resume_guidance` is compatibility display only. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and do not offer `--waive`/`--force`. `revise` returns to source authoring. Never hand-edit state or infer approval from rendered pages.
 
 ### review-visual
 
@@ -354,7 +354,7 @@ exit: [user_decision_recorded, gate_approved:visual]
 
 **Step 1 — MD**: Open the current local visual contact sheet and every outstanding recipe/page representative, including forced fallback where a selected asset hides it.
 
-**Step 2 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `html_resume_guidance` with the local contact sheet, forced fallback, and bounded outstanding coverage. Run the producer's exact recommended command; present the nullable continuation only for a reversible evidence gap and a supplied reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and use its recovery route. `revise` returns to the owning content/visual-system node; rendering never implies approval.
+**Step 2 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `workflow_inspection.primary_action` with the local contact sheet, forced fallback, and bounded outstanding coverage. Run the producer's owner-issued action; present `workflow_inspection.continuation` only for a reversible evidence gap and a supplied reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and use its recovery route. `revise` returns to the owning content/visual-system node; rendering never implies approval.
 
 ### produce-html-deck
 
@@ -371,7 +371,7 @@ exit: [pptx_generated, speaker_notes_injected, evidence:html-delivery-current]
 
 **Step 1 — CLI**: Run `ppt_flow build <run-dir>`. It recovers only eligible same-host dead gate journals, then executes local Stages 1-5 with no provider options.
 
-**Step 2 — MD**: If a quality gate is stale, show `html_resume_guidance`, run its recommended preview/approval command, then present its continuation only when it is reversible and the human supplies a reason. A user may explicitly choose `build --force --reason` only through the public CLI; it deterministically publishes only required waivers before local build and never calls a provider. If status reports a journal/reset conflict, explain the protected identity/concurrency invariant and follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
+**Step 2 — MD**: If a quality gate is stale, show `workflow_inspection.primary_action`, run its owner-issued preview/approval action, then present `workflow_inspection.continuation` only when it is reversible and the human supplies a reason. A user may explicitly choose `build --force --reason` only through the public CLI; it deterministically publishes only required waivers before local build and never calls a provider. If status reports a journal/reset conflict, explain the protected identity/concurrency invariant and follow its producer-owned action. For an uncertain abandoned gate journal, obtain explicit no-active-writer confirmation and use the exact shown token with `state --recover-gate-journal`. For canonical whole-owner recovery, call only `refresh --kind reset-html-production --confirm-run-version <vN>` and handle `started|resumed|already-complete`; never delete paths/state manually. A reset always returns to fresh preview/content/visual/final review, even when bytes repeat.
 
 ### checkpoint-final-review
 

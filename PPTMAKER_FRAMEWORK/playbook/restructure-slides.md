@@ -61,8 +61,8 @@ exit: [user_decision_recorded]
 **Step 1 — MD**: Open target ordered content plan and visual artifacts, including inserted/changed pages and recipe/page coverage.
 
 **Step 2 — GATE**: Read target `state <run-dir> --json` and consume its producer-owned
-`html_resume_guidance`: publish only the shown exact current plan-hash decision, and show a
-continuation only when the producer classifies it `confirm` and the human supplies its reason.
+`workflow_inspection.primary_action`: publish only the shown exact current plan-hash decision, and show
+`workflow_inspection.continuation` only when the producer classifies it `confirm` and the human supplies its reason.
 `revise` creates a new structural preview/version rather than patching the published target
 transaction. Drift, reset, journal, and transaction conflicts are hard stops; never repair them
 by hand-editing state or reusing source-version evidence.

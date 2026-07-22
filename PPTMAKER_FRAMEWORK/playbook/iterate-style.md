@@ -56,4 +56,4 @@ exit: [user_decision_recorded]
 
 **Step 1 — MD**: Open all required representatives and forced fallbacks; never approve from token prose alone.
 
-**Step 2 — GATE**: Read `state <run-dir> --json`; its `html_resume_guidance` supplies the exact current visual approval command or the bounded reasoned continuation. `approve` publishes the exact visual plan hash; `retry` returns to update; `reject` returns to DNA/preset selection. A continuation stays `waived` and reports completeness separately. Current delivery must then be rebuilt and re-reviewed through the public final-review state command.
+**Step 2 — GATE**: Read `state <run-dir> --json`; its `workflow_inspection.primary_action` supplies the exact current visual approval command and `workflow_inspection.continuation` supplies any bounded reasoned continuation. `html_resume_guidance` is compatibility display only. `approve` publishes the exact visual plan hash; `retry` returns to update; `reject` returns to DNA/preset selection. A continuation stays `waived` and reports completeness separately. Current delivery must then be rebuilt and re-reviewed through the public final-review state command.

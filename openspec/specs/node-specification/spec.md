@@ -751,11 +751,16 @@ normalized non-empty reason for `repair|redirect` or forced `proceed`, forbid a 
 complete current contact-sheet/assembly-v2/notes-v3 evidence. Forced proceed SHALL require current
 target-version PPTX and contact-sheet bytes and MAY waive missing/stale lineage evidence; missing
 reviewable artifacts, ambiguous target identity, unsafe paths, invalid state, or concurrency conflicts
-remain hard stops. `repair|redirect` SHALL retain their complete-current-evidence requirement. Existing usable state SHALL use the normal heal path, including only unambiguous
-schema-v3 migration. A historical markerless deck with no `_state/state.yaml` SHALL be inspected through
-a non-persisted legacy compatibility projection; state/status/check-gates SHALL not seed a file merely
-to report it. A marked HTML run with missing, ambiguous, or unusable authoritative state SHALL fail
-closed with the producer-owned state-repair/replacement diagnostic rather than fall back to metadata.
+remain hard stops. `repair|redirect` SHALL retain their complete-current-evidence requirement. Plain
+`state`, `state --json`, and the shared status inspection SHALL call `readState` with
+`purpose: observe, heal: false` together with the existing `validateStateReadOnly` diagnostic path; a
+repairable state SHALL remain unmodified and return its owner action.
+Existing execution and closed mutation commands retain only their already-owned execute/heal behavior,
+including unambiguous schema-v3 migration. A historical markerless deck with no `_state/state.yaml`
+SHALL be inspected through a non-persisted legacy compatibility projection; state/status/check-gates
+SHALL not seed a file merely to report it. A marked HTML run with missing, ambiguous, or unusable
+authoritative state SHALL fail closed with the producer-owned state-repair/replacement diagnostic rather
+than fall back to metadata.
 
 For markerless legacy, `--check-gates` SHALL retain the existing scalar `isGateApproved` compatibility
 semantics and exit behavior using only legacy metadata `content_gate|visual_gate` and
@@ -806,6 +811,12 @@ waiting-first semantics and existing optional node fields/stack/gates remain whe
 - **WHEN** a markerless historical deck has no `_state/state.yaml` and Agent runs state, status, or check-gates
 - **THEN** legacy compatibility semantics are reported without creating `_state/state.yaml`
 - **AND** explicit controller entry remains the authority that initializes durable execution state
+
+#### Scenario: Repairable state remains unchanged during plain observation
+
+- **WHEN** plain state, state JSON, or status observes a state that execution could heal
+- **THEN** observation returns the owning repair action without changing state, history, metadata, or generated artifacts
+- **AND** only a later owner-authorized execution path may perform the defined heal
 
 #### Scenario: Complete HTML state has no refinement debt
 
@@ -2054,3 +2065,25 @@ or token alone SHALL not authorize takeover.
 - **WHEN** a cross-pipeline transition is confirmed while the source has ordinary parent entries in `playbook_stack`
 - **THEN** the transition replaces the resumable stack with one suspension entry that captures the active source execution and complete ordered parent stack
 - **AND** a no-target recovery restores that complete source controller context without losing or reordering a parent frame
+
+### Requirement: Raw state observation nests workflow inspection without replacement
+The state observation protocol SHALL retain the exact parsed durable-state document only as `durable_state`, plus independently readable schema, recovery, and debug card output. It SHALL NOT duplicate raw durable-state keys at top level. `workflow_inspection` SHALL be an additional nested projection and SHALL NOT become a state record, cache, migration target, or substitute for raw state; it SHALL NOT overwrite a `durable_state` field. Resume-card/status consumers SHALL use its primary action and observations rather than independently synthesizing mode, gate, recovery, or completion readiness.
+
+#### Scenario: Raw state remains inspectable beside workflow projection
+- **WHEN** Agent requests `state <runDir> --json` for a durable run
+- **THEN** the response retains `durable_state`, recovery/card fields, and nested `workflow_inspection`
+- **AND** no raw field is replaced by a derived inspection verdict
+
+#### Scenario: Compatibility state remains observable
+- **WHEN** a markerless historical run has no durable state
+- **THEN** state exposes its existing compatibility/raw-state absence context with workflow inspection
+- **AND** observation does not fabricate an active execution record
+
+### Requirement: State mutation revalidates direct facts after observation
+State-owned transition, gate, journal, reset, and recovery mutations SHALL continue to perform their existing direct-fact and CAS checks at write time. A workflow inspection result SHALL be consumed only as observation; it SHALL not satisfy an identity, receipt, provenance, authorization, journal, or CAS precondition.
+
+#### Scenario: Journal changes after inspection
+- **WHEN** a journal owner or state byte changes after a workflow inspection is produced
+- **THEN** the subsequent state mutation revalidates the current journal and CAS facts
+- **AND** it fails or follows the existing owner recovery path when they no longer match
+

@@ -539,11 +539,6 @@ function collectStatus(runDir) {
 }
 
 const HTML_RESUME_GUIDANCE_SCHEMA = "pptmaker-html-resume-guidance-v1";
-const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
-
-function flowRunArgument(runDir) {
-  return JSON.stringify(resolve(runDir));
-}
 
 function htmlResumeGuidance({
   outcome,
@@ -566,129 +561,6 @@ function htmlResumeGuidance({
   });
 }
 
-/**
- * Produce the bounded controller guidance that resume cards consume. It uses
- * only the authoritative readiness projection; controllers never infer a
- * waiver or mutate state from conversation text.
- */
-export function buildHtmlResumeGuidance(runDir, reviews) {
-  if (!reviews || typeof reviews !== "object") return null;
-  const run = flowRunArgument(runDir);
-  const command = (suffix) => `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs ${suffix}`;
-  const stateInspect = command(`state ${run} --json`);
-  const reset = reviews.reset || {};
-  const journal = reviews.journal || {};
-  if (journal.status && journal.status !== "absent") {
-    const recoverable = String(journal.status).startsWith("recoverable-");
-    return htmlResumeGuidance({
-      outcome: "hard-stop",
-      subject: "gate-journal",
-      summary: "HTML gate publication is waiting for its authoritative journal recovery path",
-      recommendedCommand: recoverable
-        ? command(`state ${run} --recover-gate-journal <owner-token>`)
-        : stateInspect,
-      protectedInvariant: "single-writer gate publication and current version identity",
-    });
-  }
-  if (reset.status === "deletion-pending") {
-    return htmlResumeGuidance({
-      outcome: "hard-stop",
-      subject: "html-production-reset",
-      summary: "HTML production reset is still owned by an active or recoverable transaction",
-      recommendedCommand: stateInspect,
-      protectedInvariant: "canonical production-owner reset integrity",
-    });
-  }
-
-  for (const gate of ["content", "visual"]) {
-    const view = reviews[gate] || {};
-    const plan = reviews.gates?.[gate]?.plan || null;
-    if (view.freshness === "invalid") {
-      return htmlResumeGuidance({
-        outcome: "hard-stop",
-        subject: `${gate}-review`,
-        summary: `HTML ${gate} review state is invalid and must be repaired through its owning validator`,
-        recommendedCommand: command(`state ${run} --validate-state`),
-        protectedInvariant: "version-scoped review record and artifact integrity",
-        evidenceComplete: view.evidence_complete ?? null,
-      });
-    }
-    if (view.freshness === "current" && view.decision === "waived" && view.evidence_complete === false) {
-      return htmlResumeGuidance({
-        outcome: "guide",
-        subject: `${gate}-review`,
-        summary: `HTML ${gate} evidence is currently waived; repair remains recommended before the next delivery review`,
-        recommendedCommand: command(`pilot ${run}`),
-        evidenceComplete: false,
-      });
-    }
-    if (view.freshness !== "current") {
-      const planHash = typeof plan?.plan_hash === "string" && SHA256_HEX_RE.test(plan.plan_hash)
-        ? plan.plan_hash
-        : null;
-      const exactApproval = planHash && plan?.approvable === true
-        ? command(`approve ${run} ${gate} --plan-hash ${planHash}`)
-        : command(`pilot ${run}`);
-      return htmlResumeGuidance({
-        outcome: "confirm",
-        subject: `${gate}-review`,
-        summary: `HTML ${gate} review is ${view.freshness || "missing"}; review the current local evidence before continuing`,
-        recommendedCommand: exactApproval,
-        continuationCommand: command(`approve ${run} ${gate} --waive --reason "<human reason>"`),
-        evidenceComplete: view.evidence_complete ?? null,
-      });
-    }
-  }
-
-  const delivery = reviews.delivery || {};
-  if (delivery.freshness === "invalid") {
-    return htmlResumeGuidance({
-      outcome: "hard-stop",
-      subject: "delivery-review",
-      summary: "HTML delivery review state is invalid and must be repaired through its owning validator",
-      recommendedCommand: command(`state ${run} --validate-state`),
-      protectedInvariant: "reviewable delivery artifact and state-record integrity",
-      evidenceComplete: delivery.evidence_complete ?? null,
-    });
-  }
-  if (delivery.freshness === "current" && delivery.decision === "proceed" && delivery.evidence_complete === false) {
-    return htmlResumeGuidance({
-      outcome: "guide",
-      subject: "delivery-review",
-      summary: "HTML delivery is accepted with incomplete lineage evidence; repair remains recommended",
-      recommendedCommand: command(`build ${run}`),
-      evidenceComplete: false,
-    });
-  }
-  if (delivery.freshness !== "current" || delivery.decision !== "proceed") {
-    const reviewable = reviews._delivery_evidence?.reviewable === true;
-    if (["repair", "redirect"].includes(delivery.decision) && delivery.freshness === "current") {
-      return htmlResumeGuidance({
-        outcome: "guide",
-        subject: "delivery-review",
-        summary: `HTML delivery review is currently ${delivery.decision}; follow the owning repair or redirect route`,
-        recommendedCommand: stateInspect,
-        evidenceComplete: delivery.evidence_complete ?? null,
-      });
-    }
-    return htmlResumeGuidance({
-      outcome: reviewable ? "confirm" : "guide",
-      subject: "delivery-review",
-      summary: reviewable
-        ? "Current HTML delivery artifacts need an explicit final review decision"
-        : "HTML delivery artifacts need a local rebuild before final review",
-      recommendedCommand: reviewable
-        ? command(`state ${run} --record-delivery-review proceed`)
-        : command(`build ${run}`),
-      continuationCommand: reviewable
-        ? command(`state ${run} --record-delivery-review proceed --force --reason "<human reason>"`)
-        : null,
-      evidenceComplete: delivery.evidence_complete ?? null,
-    });
-  }
-  return null;
-}
-
 function printHtmlResumeGuidance(guidance, prefix = "") {
   if (!guidance?.recommended_command) return;
   console.log(`${prefix}Gate posture: ${guidance.outcome} (${guidance.subject})`);
@@ -703,18 +575,19 @@ function workflowInspectionGuidance(inspection) {
   return htmlResumeGuidance({
     outcome: inspection.posture,
     subject: inspection.root_cause?.kind || primary.action_id,
-    summary: primary.display_label,
-    recommendedCommand: primary.display_label,
+    summary: primary.summary || primary.display_label,
+    recommendedCommand: primary.compatibility_command || primary.display_label,
     continuationCommand: inspection.continuation?.display_label || null,
     protectedInvariant: inspection.protected_invariant || null,
+    evidenceComplete: primary.evidence_complete ?? null,
   });
 }
 
 function applyWorkflowInspectionCompatibility(target, inspection) {
   target.workflow_inspection = inspection;
   const primary = inspection.primary_action;
-  target.workflow_summary = primary.display_label || primary.action_id;
-  target.suggested_next = primary.display_label || `${primary.owner}:${primary.action_id}`;
+  target.workflow_summary = primary.summary || primary.display_label || primary.action_id;
+  target.suggested_next = primary.compatibility_command || primary.display_label || `${primary.owner}:${primary.action_id}`;
   target.html_resume_guidance = workflowInspectionGuidance(inspection);
 }
 
@@ -759,18 +632,12 @@ async function enrichStatusWithState(status, runDir, route = null) {
     try {
       const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
       status.html_reviews = inspectHtmlReviewReadiness(runDir);
-      status.html_resume_guidance = buildHtmlResumeGuidance(runDir, status.html_reviews);
+      status.html_resume_guidance = null;
       status.content_gate = status.html_reviews.gates?.content?.record?.status || "pending";
       status.visual_gate = status.html_reviews.gates?.visual?.record?.status || "pending";
     } catch (error) {
       status.html_reviews = { ready: false, conflict: false, reason: error.message, gates: {} };
-      status.html_resume_guidance = htmlResumeGuidance({
-        outcome: "hard-stop",
-        subject: "html-review-state",
-        summary: "HTML review state could not be inspected through its authoritative owner",
-        recommendedCommand: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state ${flowRunArgument(runDir)} --validate-state`,
-        protectedInvariant: "authoritative HTML review state integrity",
-      });
+      status.html_resume_guidance = null;
       status.content_gate = "pending";
       status.visual_gate = "pending";
     }
@@ -3687,16 +3554,8 @@ Examples:
         try {
           const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
           htmlReviews = inspectHtmlReviewReadiness(resolved);
-          htmlResume = buildHtmlResumeGuidance(resolved, htmlReviews);
         } catch {
           htmlReviews = { pipeline: HTML_FIRST_PIPELINE, state_present: true, content: { decision: "pending", freshness: "invalid", review_required: true }, visual: { decision: "pending", freshness: "invalid", outstanding_recipe_keys: [], outstanding_slide_ids: [] }, delivery: { freshness: "invalid", decision: null, reason_present: false }, reset: { status: "absent", ownership: "none", retry_after_ms: null }, journal: { status: "invalid" } };
-          htmlResume = htmlResumeGuidance({
-            outcome: "hard-stop",
-            subject: "html-review-state",
-            summary: "HTML review state could not be inspected through its authoritative owner",
-            recommendedCommand: `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state ${flowRunArgument(resolved)} --validate-state`,
-            protectedInvariant: "authoritative HTML review state integrity",
-          });
         }
       }
       if (statusSnapshot) statusSnapshot.html_resume_guidance = htmlResume;
@@ -3710,8 +3569,8 @@ Examples:
       const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
       const workflowInspection = inspectWorkflow({ runDir: resolved });
       const inspectionGuidance = workflowInspectionGuidance(workflowInspection);
-      const inspectionSummary = workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
-      const inspectionNext = workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
+      const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
+      const inspectionNext = workflowInspection.primary_action.compatibility_command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
       if (opts.json) {
         const refinementProjection = (() => {

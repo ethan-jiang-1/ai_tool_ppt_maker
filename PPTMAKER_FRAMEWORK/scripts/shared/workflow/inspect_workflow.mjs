@@ -36,13 +36,16 @@ export function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
-function action(owner, actionId, kind, requiresHuman = false, displayLabel = null) {
+function action(owner, actionId, kind, requiresHuman = false, displayLabel = null, { summary = null, compatibilityCommand = null, evidenceComplete = null } = {}) {
   return Object.freeze({
     owner,
     action_id: actionId,
     kind,
     requires_human: requiresHuman,
     ...(displayLabel ? { display_label: displayLabel } : {}),
+    ...(summary ? { summary } : {}),
+    ...(compatibilityCommand ? { compatibility_command: compatibilityCommand } : {}),
+    ...(evidenceComplete !== null ? { evidence_complete: evidenceComplete } : {}),
   });
 }
 
@@ -62,6 +65,21 @@ function result({ checkpoint, posture, rootCause = null, primaryAction, observat
 
 function rootCause(owner, kind, detail = null) {
   return Object.freeze({ owner, kind, ...(detail == null ? {} : { detail }) });
+}
+
+function isOwnerIssuedIntent(intent) {
+  if (!intent || typeof intent !== "object" || Array.isArray(intent)) return false;
+  const keys = Object.keys(intent).sort();
+  return keys.join("\n") === ["action_id", "owner", "schema"].join("\n") &&
+    intent.schema === "pptmaker-workflow-observation-intent-v1" &&
+    ["html-review", "image2-refinement"].includes(intent.owner) &&
+    intent.action_id === "resume";
+}
+
+function intentApplies(intent, facts) {
+  if (intent == null) return true;
+  if (intent.owner === "html-review") return facts.pipeline === HTML_FIRST_PIPELINE;
+  return facts.mode?.ok === true && facts.mode.mode === "html-then-image2";
 }
 
 function readIdentity(path) {
@@ -134,6 +152,16 @@ function htmlAction(runDir, review) {
         continuation: action("html-review", `waive-${gate}-review`, "review", true, command(`approve ${run} ${gate} --waive --reason "<human reason>"`)),
       };
     }
+    if (view.decision === "waived" && view.evidence_complete === false) {
+      return {
+        posture: "guide",
+        rootCause: rootCause("html-review", `${gate}-review-waived`),
+        primaryAction: action("html-review", `repair-${gate}-review`, "continue", false, `Repair waived ${gate} review evidence before the next delivery review.`, {
+          compatibilityCommand: command(`pilot ${run}`),
+          evidenceComplete: false,
+        }),
+      };
+    }
   }
   const delivery = review.delivery || {};
   if (delivery.freshness === "invalid") {
@@ -142,6 +170,18 @@ function htmlAction(runDir, review) {
       rootCause: rootCause("html-review", "delivery-review-invalid"),
       primaryAction: action("state", "validate-state", "repair", false, command(`state ${run} --validate-state`)),
       protectedInvariant: "reviewable delivery artifact and state-record integrity",
+    };
+  }
+  if (delivery.freshness === "current" && delivery.decision === "proceed" && delivery.evidence_complete === false) {
+    const summary = "HTML delivery is accepted with incomplete lineage evidence; repair remains recommended";
+    return {
+      posture: "guide",
+      rootCause: rootCause("html-review", "delivery-review-incomplete-lineage"),
+      primaryAction: action("html-review", "repair-delivery-lineage", "continue", false, summary, {
+        summary,
+        compatibilityCommand: command(`build ${run}`),
+        evidenceComplete: false,
+      }),
     };
   }
   if (delivery.freshness !== "current" || delivery.decision !== "proceed") {
@@ -164,10 +204,9 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
   const resolved = resolve(runDir || "");
   const deckDir = deckRoot(resolved);
   const intent = requestedIntent == null ? null : requestedIntent;
-  const invalidIntent = intent !== null && (!intent || typeof intent !== "object" || Array.isArray(intent));
+  const invalidIntent = intent !== null && !isOwnerIssuedIntent(intent);
 
-  const facts = () => {
-    const layoutIssues = checkBundle(resolved, false);
+  const facts = (layoutIssues) => {
     const validation = validateStateReadOnly(deckDir, { runDir: resolved });
     const adapter = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
     const mode = adapter.ok
@@ -191,18 +230,37 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     return { layoutIssues, validation, mode, state, review, refinement, pipeline, markerlessCompatibility, completion };
   };
 
-  const initial = facts();
+  const initialLayoutIssues = checkBundle(resolved, false);
+  if (initialLayoutIssues.length > 0) {
+    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pipeline: null };
+    const initialCheckpoint = snapshot(resolved, deckDir, initial);
+    const finalLayoutIssues = checkBundle(resolved, false);
+    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pipeline: null };
+    const finalCheckpoint = snapshot(resolved, deckDir, final);
+    if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
+      return result({
+        checkpoint: finalCheckpoint,
+        posture: "guide",
+        rootCause: rootCause("workflow-inspection", "checkpoint-changed", "run-bundle-layout"),
+        primaryAction: action("workflow-inspection", "refresh-workflow-inspection", "continue", false, "Refresh workflow inspection after the bundle layout changed."),
+        evidenceSummary: { pipeline: null, mode: null },
+      });
+    }
+    return result({
+      checkpoint: initialCheckpoint,
+      posture: "hard-stop",
+      rootCause: rootCause("run-bundle-layout", "layout-invalid", initialLayoutIssues[0]),
+      primaryAction: action("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle layout issue."),
+      protectedInvariant: "canonical run-bundle structure and path ownership",
+      evidenceSummary: { pipeline: null, mode: null },
+    });
+  }
+
+  const initial = facts(initialLayoutIssues);
   const initialCheckpoint = snapshot(resolved, deckDir, initial);
   const observations = [];
   let selected;
-  if (initial.layoutIssues.length > 0) {
-    selected = {
-      posture: "hard-stop",
-      rootCause: rootCause("run-bundle-layout", "layout-invalid", initial.layoutIssues[0]),
-      primaryAction: action("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle layout issue."),
-      protectedInvariant: "canonical run-bundle structure and path ownership",
-    };
-  } else if (invalidIntent) {
+  if (invalidIntent) {
     selected = {
       posture: "guide",
       rootCause: rootCause("workflow-inspection", "requested-intent-invalid"),
@@ -221,6 +279,12 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       rootCause: rootCause("production-mode", initial.mode.code || "mode-unavailable"),
       primaryAction: action("production-mode", "repair-production-mode", "repair", false, "Repair or register the exact run production mode."),
       protectedInvariant: "exact version-scoped mode and source pipeline authority",
+    };
+  } else if (!intentApplies(intent, initial)) {
+    selected = {
+      posture: "guide",
+      rootCause: rootCause("workflow-inspection", "requested-intent-inapplicable", intent.owner),
+      primaryAction: action("workflow-inspection", "inspect-current-run", "continue", false, "Inspect the exact current run with an applicable owner intent."),
     };
   } else if (initial.review?.error) {
     selected = {
@@ -242,10 +306,43 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     };
   }
   if (!selected && initial.refinement && initial.refinement.status !== "complete") {
+    if (initial.refinement.status === "unknown-submit") {
+      selected = {
+        posture: "hard-stop",
+        rootCause: rootCause("image2-refinement", "unknown-submit"),
+        primaryAction: action("image2-refinement", "resolve-unknown-submit", "recover", true, "human:resolve-unknown-submit"),
+        protectedInvariant: "an uncertain provider submission must be reconciled before another submission",
+      };
+    } else if (initial.refinement.status === "awaiting-authorization") {
+      selected = {
+        posture: "confirm",
+        rootCause: rootCause("image2-refinement", "authorization-missing"),
+        primaryAction: action("image2-refinement", "authorize-refinement", "review", true, "human:authorize-image2-refinement"),
+      };
+    } else if (initial.refinement.status === "review-pending") {
+      selected = {
+        posture: "confirm",
+        rootCause: rootCause("image2-refinement", "candidate-review-pending"),
+        primaryAction: action("image2-refinement", "review-refinement-candidate", "review", true, "human:review-image2-refinement"),
+      };
+    } else if (initial.refinement.status === "failed") {
+      selected = {
+        posture: "guide",
+        rootCause: rootCause("image2-refinement", "attempt-recovery-required"),
+        primaryAction: action("image2-refinement", "recover-refinement-attempt", "recover", false, "continue:image2-refinement-recovery"),
+      };
+    }
+  }
+  if (!selected && initial.refinement && initial.refinement.status !== "complete") {
+    const display = !initial.refinement.present
+      ? "start:image2-refine/plan"
+      : initial.refinement.human_action_required
+        ? "human:review-image2-refinement"
+        : "continue:image2-refinement";
     selected = {
       posture: initial.refinement.human_action_required ? "confirm" : "guide",
       rootCause: rootCause("image2-refinement", initial.refinement.status),
-      primaryAction: action("image2-refinement", "continue-refinement", initial.refinement.human_action_required ? "review" : "continue", initial.refinement.human_action_required, "Continue the owning visual-slot refinement workflow."),
+      primaryAction: action("image2-refinement", "continue-refinement", initial.refinement.human_action_required ? "review" : "continue", initial.refinement.human_action_required, display),
     };
   }
   if (!selected && initial.completion?.ok && initial.completion.complete === false) {
@@ -257,14 +354,20 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     };
   }
   if (!selected) {
+    const display = initial.mode.ok && ["html-only", "html-then-image2"].includes(initial.mode.mode)
+      ? "complete:html-delivery"
+      : "complete:current-workflow";
     selected = {
       posture: "ready",
-      primaryAction: action("workflow-inspection", "complete-current-workflow", "complete", false, "Current workflow checkpoint is complete."),
+      primaryAction: action("workflow-inspection", "complete-current-workflow", "complete", false, display),
     };
   }
 
   if (initial.validation.valid === false && initial.mode.ok === false) observations.push({ owner: "production-mode", kind: initial.mode.code || "mode-unavailable" });
-  const finalFacts = facts();
+  if (initial.refinement && initial.refinement.status !== "complete" && selected.rootCause?.owner !== "image2-refinement") {
+    observations.push({ owner: "image2-refinement", kind: initial.refinement.status });
+  }
+  const finalFacts = facts(checkBundle(resolved, false));
   const finalCheckpoint = snapshot(resolved, deckDir, finalFacts);
   if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
     const changed = Object.keys(initialCheckpoint).find((key) => initialCheckpoint[key] !== finalCheckpoint[key]) || "direct-fact";
