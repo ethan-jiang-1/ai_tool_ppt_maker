@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-- [Agent 工作流控制面的减法重构](agent-workflow-simplification.md) — 审视 policy 后的控制面简化路线；先统一 next-action authority，再退休双轨 node FSM、深化 interface 并削减结构治理
+- [Agent 工作流控制面的减法重构](agent-workflow-simplification.md) — 基于已归档 production-mode 系统的三项控制面简化路线：统一 inspection、收敛 node-control/interface 并迁移为并列的 Image Production、最后简化治理
 
 **Next available plan ID: CLS-011**（移入 `_closed_plans/` 时分配；CLS-001…010 已用）
 
