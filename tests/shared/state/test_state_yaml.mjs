@@ -296,7 +296,7 @@ playbook_stack: {}
     }
   });
 
-  it('buildResumeCard: waiting_for shapes summary and suggested_next', async () => {
+  it('buildResumeCard: waiting_for remains contextual rather than selecting an action', async () => {
     const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
     const s = createDefaultState();
     s.playbook = 'iterate-style';
@@ -318,14 +318,14 @@ playbook_stack: {}
       expected_slides: 22,
       pptx: ['deck.pptx'],
     });
-    expect(card.workflow_summary).toMatch(/等人/);
-    expect(card.workflow_summary).toMatch(/user:review-style-master/);
-    expect(card.suggested_next).toBe('waiting:user:review-style-master');
+    expect(card.workflow_summary).toMatch(/执行点/);
+    expect(card.suggested_next).toBe('inspect:workflow-inspection');
+    expect(card.waiting_for).toBe('user:review-style-master');
     expect(card.playbook).toBe('iterate-style');
     expect(card.current_node).toBe('review-style-system');
   });
 
-  it('buildResumeCard: artifact heuristics when not waiting', async () => {
+  it('buildResumeCard: artifacts do not choose the next action', async () => {
     const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
     const s = createDefaultState();
     s.playbook = 'create-deck';
@@ -340,18 +340,18 @@ playbook_stack: {}
       expected_slides: 22,
       pptx: [],
     });
-    expect(mid.workflow_summary).toMatch(/页图/);
-    expect(mid.suggested_next).toBe('continue:create-deck/wave3');
+    expect(mid.workflow_summary).toMatch(/执行点/);
+    expect(mid.suggested_next).toBe('inspect:workflow-inspection');
     const done = buildResumeCard(s, {
       style_master: true,
       raw_images: 22,
       expected_slides: 22,
       pptx: ['deck.pptx'],
     });
-    expect(done.workflow_summary).toMatch(/PPTX/);
+    expect(done.workflow_summary).toMatch(/执行点/);
   });
 
-  it('buildResumeCard: producer HTML guidance stays ahead of optional Image2 routing', async () => {
+  it('buildResumeCard: legacy HTML guidance cannot replace inspection', async () => {
     const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
     const s = createDefaultState();
     s.playbook = 'image2-refine';
@@ -368,9 +368,9 @@ playbook_stack: {}
 
     const card = buildResumeCard(s, { html_resume_guidance: guidance }, { ctx: { runVersion: 'v1' } });
 
-    expect(card.workflow_summary).toBe(guidance.summary);
-    expect(card.suggested_next).toBe(guidance.recommended_command);
-    expect(card.html_resume_guidance).toBe(guidance);
+    expect(card.workflow_summary).toMatch(/执行点/);
+    expect(card.suggested_next).toBe('inspect:workflow-inspection');
+    expect(card).not.toHaveProperty('html_resume_guidance');
   });
 
   it('rejects invalid node/gate enum writes without mutation', () => {

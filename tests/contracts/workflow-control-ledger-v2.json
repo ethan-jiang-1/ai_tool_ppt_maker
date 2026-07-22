@@ -1,0 +1,71 @@
+{
+  "schema": "pptmaker-workflow-control-ledger-v2",
+  "entries": [
+    {
+      "id": "execution-cursor",
+      "surface": "durable",
+      "direct_owner": "state",
+      "writer": ["state execution transition owners"],
+      "readers": ["workflow-inspection", "resume card"],
+      "invalidation": "state CAS write or exact run-version change",
+      "reconstructibility": "no",
+      "decision": "retain-direct",
+      "replacement_tests": ["tests/shared/workflow/test_workflow_inspection.mjs"]
+    },
+    {
+      "id": "resume-card-action-evaluator",
+      "surface": "derived",
+      "direct_owner": "workflow-inspection",
+      "writer": [],
+      "readers": ["ppt_flow state", "ppt_flow status"],
+      "invalidation": "any inspection checkpoint change",
+      "reconstructibility": "yes",
+      "decision": "retire-reader",
+      "replacement_tests": ["tests/shared/state/test_state_yaml.mjs", "tests/contracts/test_workflow_inspection_cli.mjs"]
+    },
+    {
+      "id": "eligible-candidates",
+      "surface": "derived",
+      "direct_owner": "state",
+      "writer": [],
+      "readers": ["state/status diagnostic output"],
+      "invalidation": "state, index, or production-mode change",
+      "reconstructibility": "yes",
+      "decision": "retain-diagnostic",
+      "replacement_tests": ["tests/shared/state/test_state_yaml.mjs"]
+    },
+    {
+      "id": "workflow-summary",
+      "surface": "derived",
+      "direct_owner": "workflow-inspection",
+      "writer": [],
+      "readers": ["state/status human and JSON output"],
+      "invalidation": "any inspection checkpoint change",
+      "reconstructibility": "yes",
+      "decision": "retain-display",
+      "replacement_tests": ["tests/contracts/test_workflow_inspection_cli.mjs"]
+    },
+    {
+      "id": "suggested-next",
+      "surface": "derived",
+      "direct_owner": "workflow-inspection",
+      "writer": [],
+      "readers": ["state/status human and JSON output"],
+      "invalidation": "any inspection checkpoint change",
+      "reconstructibility": "yes",
+      "decision": "retain-display",
+      "replacement_tests": ["tests/contracts/test_workflow_inspection_cli.mjs"]
+    },
+    {
+      "id": "html-resume-guidance",
+      "surface": "derived",
+      "direct_owner": "ppt_flow",
+      "writer": [],
+      "readers": ["legacy state/status consumers"],
+      "invalidation": "any inspection checkpoint change",
+      "reconstructibility": "yes",
+      "decision": "retire-reader",
+      "replacement_tests": ["tests/contracts/test_ppt_flow.mjs"]
+    }
+  ]
+}

@@ -130,6 +130,22 @@ describe("workflow inspection", () => {
     }
   });
 
+  it("uses one non-mutating wait action from the execution cursor", async () => {
+    const fixture = await createCurrentHtmlDelivery("workflow-inspect-wait-");
+    try {
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      state.nodes[state.current_node] = { ...state.nodes[state.current_node], waiting_for: "user:confirm-delivery" };
+      writeState(fixture.deck, state);
+      expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "state", kind: "waiting-for-human" },
+        primary_action: { owner: "state", action_id: "wait-for-human", kind: "continue", requires_human: true },
+      });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
   it("keeps required visual-slot refinement as html-then-image2 debt", async () => {
     const fixture = await createCurrentHtmlDelivery("workflow-inspect-refinement-", { mode: "html-then-image2" });
     try {

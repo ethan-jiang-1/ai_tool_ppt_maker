@@ -2,6 +2,12 @@
 
 Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/shared/state/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
 ## Requirements
+
+### Requirement: Generic workflow control retires only with ledger proof
+
+The state owner SHALL stop new writes of a generic node/control fact only after the canonical `tests/contracts/workflow-control-ledger-v2.json` identifies its direct owner, writer, readers, invalidation/freshness rule, reconstructibility, removal/retention decision, and replacement test. The file SHALL declare schema `pptmaker-workflow-control-ledger-v2`; every entry SHALL have a stable ID, `surface: durable|derived`, and a recognized decision. `PPTMAKER_FRAMEWORK/reference/workflow-inspection-ledger.md` SHALL explain the same decisions but shall not supersede the JSON ledger.
+
+The execution cursor (`playbook`, `current_node`, execution/version binding, and current-node `waiting_for`) SHALL remain a direct state-owned durable record, not a retirement candidate.
 ### Requirement: Production mode is authoritative per run version
 
 Deck-root `_state/state.yaml` SHALL contain the only routing authority for production intent under

@@ -2148,7 +2148,7 @@ function nodeIsActiveForController(index, controller, nodeId, state, ctx = {}) {
   return !mode || controllerActiveNodeIds(index, controller.playbook, mode).includes(nodeId);
 }
 
-export function buildResumeCard(state, statusSnapshot = null, controller = null) {
+export function buildResumeCard(state, _statusSnapshot = null, controller = null) {
   const selected = controller?.ctx || {};
   const executionMismatch = selectedExecutionMismatch(state, selected);
   if (executionMismatch) {
@@ -2159,7 +2159,6 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
       waiting_for: null,
       note: null,
       gates: {},
-      html_resume_guidance: null,
       playbook_stack: [],
       completed_nodes: [],
       pending_nodes: [],
@@ -2178,15 +2177,8 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   const note = nodeRec.note ? String(nodeRec.note) : null;
   const gates = { ...(state?.gates || {}) };
   const playbook_stack = Array.isArray(state?.playbook_stack) ? deepClone(state.playbook_stack) : [];
-  const html_resume_guidance = statusSnapshot?.html_resume_guidance || null;
   const execLabel = `${playbook || "（未初始化）"} / ${current_node || "（未初始化）"}`;
-  let workflow_summary;
-  if (waiting_for) workflow_summary = `卡在等人：${waiting_for}（${execLabel}）`;
-  else if (statusSnapshot && !statusSnapshot.style_master) workflow_summary = `视觉母版未就绪（${execLabel}）`;
-  else if (statusSnapshot && statusSnapshot.style_master && Number(statusSnapshot.expected_slides) > 0 && Number(statusSnapshot.raw_images) < Number(statusSnapshot.expected_slides)) {
-    workflow_summary = `生产页图进行中 ${statusSnapshot.raw_images}/${statusSnapshot.expected_slides}（执行点 ${execLabel}）`;
-  } else if (statusSnapshot && Array.isArray(statusSnapshot.pptx) && statusSnapshot.pptx.length > 0) workflow_summary = `已有交付 PPTX，可迭代（执行点 ${execLabel}）`;
-  else workflow_summary = `执行点：${execLabel}`;
+  const workflow_summary = `执行点：${execLabel}`;
 
   const modeRunVersion = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
   const production_mode = modeRunVersion ? projectModeCard(state, modeRunVersion) : null;
@@ -2198,41 +2190,7 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
   if (controller?.index && playbook) {
     eligible_candidates = getEligibleNextNodes(controller.index, playbook, state, controllerCtx);
   }
-  let suggested_next;
-  if (waiting_for) suggested_next = `waiting:${waiting_for}`;
-  else if (node_status === "in_progress") suggested_next = `continue:${playbook}/${current_node}`;
-  else if (eligible_candidates.length === 1) suggested_next = `start:${playbook}/${eligible_candidates[0]}`;
-  else if (eligible_candidates.length > 1) suggested_next = `choose:${eligible_candidates.join(",")}`;
-  else if (current_node) suggested_next = `advance-or-inspect:${playbook}/${current_node}`;
-  else suggested_next = "inspect:run ppt_flow state|status";
-
-  // CLI owns the structured HTML review projection and commands. The shared
-  // card only consumes that producer output, preserving a waiting human's
-  // priority and never constructing a waiver or state mutation itself.
-  if (!waiting_for && html_resume_guidance?.recommended_command) {
-    workflow_summary = html_resume_guidance.summary || workflow_summary;
-    suggested_next = html_resume_guidance.recommended_command;
-  }
-
-  if (!waiting_for && !html_resume_guidance?.recommended_command && resolvedMode === "html-then-image2") {
-    const version = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
-    const refinement = version ? (() => { try { return projectImage2RefinementState(state, version); } catch { return null; } })() : null;
-    if (refinement?.status !== "complete") {
-      workflow_summary = `Required Image2 refinement is ${refinement?.status || "not-started"}`;
-      suggested_next = refinement?.present
-        ? (refinement.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement")
-        : "start:image2-refine/plan";
-    }
-  }
-
-  if (playbook === "image2-refine" && !html_resume_guidance?.recommended_command) {
-    const version = controller?.ctx?.runVersion || controller?.ctx?.run_version || null;
-    const refinement = version ? (() => { try { return projectImage2RefinementState(state, version); } catch { return null; } })() : null;
-    if (refinement?.status === "unknown-submit") suggested_next = "human:resolve-unknown-submit";
-    else if (refinement?.status === "review-pending") suggested_next = "human:review-image2-refinement";
-    else if (refinement?.status === "complete") suggested_next = "complete:image2-refinement-await-final-html-review";
-    else if (!refinement?.present) suggested_next = "start:image2-refine/plan";
-  }
+  const suggested_next = "inspect:workflow-inspection";
 
   // Derive the active node set from the exact authoritative mode when resolvable
   // (mode-filtered working set); otherwise fall back to the full controller set.
@@ -2246,7 +2204,6 @@ export function buildResumeCard(state, statusSnapshot = null, controller = null)
     waiting_for,
     note,
     gates,
-    html_resume_guidance,
     playbook_stack,
     completed_nodes: activeNodeIds ? getCompletedNodes(state, activeNodeIds) : getCompletedNodes(state),
     pending_nodes: activeNodeIds ? getPendingNodes(state, activeNodeIds) : getPendingNodes(state),

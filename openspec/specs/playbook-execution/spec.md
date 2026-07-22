@@ -2,6 +2,10 @@
 
 Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
 ## Requirements
+
+### Requirement: Playbook controller delegates workflow control to inspection
+
+After it has resolved a semantic intent and exact run, the MD Controller SHALL use the workflow-entry inspection result for resume, small refresh, structural change, and recovery observation/routing. Greenfield creation SHALL first use the direct `init` entry, then consume inspection only after the exact run exists. The Controller SHALL retain intent interpretation, creative work, human communication, and playbook sequencing, but SHALL not reconstruct direct-owner mode/gate/recovery rules or turn a resume action into a substitute for a requested mutation.
 ### Requirement: Controller routing follows production mode before pipeline behavior
 
 Every fresh, resume, and iteration controller SHALL obtain the exact version-scoped production policy
@@ -977,4 +981,3 @@ For fresh, resume, and iteration observation, the MD Controller SHALL obtain wor
 - **WHEN** workflow inspection reports a hard-stop
 - **THEN** the Controller explains the protected invariant and routes through the owner recovery action
 - **AND** it does not offer force, waive, source-marker replacement, or state editing
-
