@@ -58,6 +58,45 @@ describe("production-mode index declarations (1.8)", () => {
     expect(result.valid).toBe(true);
   });
 
+  it("models distinct first-class Image2, local HTML, and required-refinement create-deck branches", () => {
+    const index = buildPlaybookIndex(LIVE_PLAYBOOK_DIR);
+    const htmlOnly = new Set(controllerActiveNodeIds(index, "create-deck", "html-only"));
+    const htmlThenImage2 = new Set(controllerActiveNodeIds(index, "create-deck", "html-then-image2"));
+    const image2Only = new Set(controllerActiveNodeIds(index, "create-deck", "image2-only"));
+
+    for (const node of [
+      "author-structured-content",
+      "produce-html-deck",
+      "checkpoint-final-review",
+      "readiness",
+      "final",
+    ]) {
+      expect(htmlOnly.has(node)).toBe(true);
+    }
+    expect(htmlOnly.has("handoff-to-image2-refinement")).toBe(false);
+    expect(htmlOnly.has("author-whole-page-content")).toBe(false);
+
+    expect(htmlThenImage2.has("produce-html-deck")).toBe(true);
+    expect(htmlThenImage2.has("handoff-to-image2-refinement")).toBe(true);
+    expect(htmlThenImage2.has("readiness")).toBe(false);
+    expect(htmlThenImage2.has("final")).toBe(false);
+
+    for (const node of [
+      "author-whole-page-content",
+      "generate-image2-style-master",
+      "pilot-image2-pages",
+      "checkpoint-image2-final-review",
+      "final-image2",
+    ]) {
+      expect(image2Only.has(node)).toBe(true);
+    }
+    expect(image2Only.has("produce-html-deck")).toBe(false);
+    expect(image2Only.has("handoff-to-image2-refinement")).toBe(false);
+    expect(controllerActiveNodeIds(index, "image2-refine", "html-only")).toEqual([]);
+    expect(controllerActiveNodeIds(index, "image2-refine", "image2-only")).toEqual([]);
+    expect(controllerActiveNodeIds(index, "image2-refine", "html-then-image2")).toHaveLength(4);
+  });
+
   it("controllerSupportedModes derives from pipelines when undeclared", () => {
     const html = buildFixture("derive-html", { playbook: "c-html", pipelines: ["html-first-v1"], nodes: [{ id: "n1" }] });
     expect(controllerSupportedModes(html.controllers.get("c-html")).sort()).toEqual(["html-only", "html-then-image2"]);

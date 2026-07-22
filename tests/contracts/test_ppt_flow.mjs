@@ -430,7 +430,7 @@ playbook_stack: []
   }, 120_000);
 
   it("keeps producer HTML resume guidance ahead of optional Image2 work", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-");
+    const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-", { mode: "html-then-image2" });
     try {
       const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
       await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
@@ -1031,11 +1031,22 @@ render:
       const runDir = join(deck, "3_versions", "v1");
       writeFileSync(
         join(deck, "_state", "state.yaml"),
-        `playbook: create-deck
+        `schema_version: 4
+pipeline: legacy-image2-first
+production_mode:
+  by_version:
+    3_versions/v1:
+      mode: image2-only
+playbook: create-deck
 current_node: checkpoint-intake
+execution_id: status-exec
+execution_started_at: 2024-01-01T00:00:00.000Z
+started_at: 2024-01-01T00:00:00.000Z
+updated_at: 2024-01-01T00:00:00.000Z
 nodes:
   checkpoint-intake:
     status: in_progress
+    execution_id: status-exec
 gates:
   content: pending
   visual: pending
@@ -1365,6 +1376,139 @@ describe("pilot selector", () => {
       // Mirror repair succeeds and clears drift.
       const mirror = runPptFlow(["state", runDir, "--repair-production-mode-mirror"]);
       expect(mirror.status, mirror.stderr).toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("default init is image2-only and status/doctor reflect the mode", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-image2-default-"));
+    try {
+      const deck = join(root, "deck_image2_default");
+      const initResult = runPptFlow(["init", deck, "--deck-type", "keynote", "--style", "dark-executive"]);
+      expect(initResult.status, initResult.stderr).toBe(0);
+      expect(initResult.stdout).toContain("production_mode: image2-only");
+      const runDir = join(deck, "3_versions", "v1");
+
+      const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
+      expect(source).not.toContain("pipeline: html-first-v1");
+      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-only" });
+
+      const stateJson = runPptFlow(["state", runDir, "--json"]);
+      const card = JSON.parse(stateJson.stdout);
+      expect(card.production_mode).toMatchObject({ resolvable: true, mode: "image2-only" });
+
+      const doctor = runPptFlow(["doctor", "--mode", "image2-only"]);
+      expect(doctor.status, doctor.stderr).toBe(0);
+
+      const before = readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"];
+      const cross = runPptFlow(["state", runDir, "--set-production-mode", "html-only"]);
+      expect(cross.status).not.toBe(0);
+      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"]).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on mode/source drift before root or direct adapter work", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-mode-route-drift-"));
+    try {
+      const deck = join(root, "deck_mode_route_drift");
+      const initialized = runPptFlow(["init", deck, "--deck-type", "keynote", "--style", "dark-executive"]);
+      expect(initialized.status, initialized.stderr).toBe(0);
+      const runDir = join(deck, "3_versions", "v1");
+      const sourcePath = join(runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, "---\nproduction:\n  pipeline: html-first-v1\n---\n\n## Slide 01: `RouteUp`\n", "utf8");
+
+      const beforeState = readFileSync(join(deck, "_state", "state.yaml"));
+      const pilot = runPptFlow(["pilot", runDir, "--dry-run"]);
+      expect(pilot.status).not.toBe(0);
+      expect(parseFailureEnvelope(pilot.stderr)).toMatchObject({
+        code: "FAILED",
+        where: "ppt_flow.pilot.identity",
+        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+      });
+      expect((pilot.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
+      expect(existsSync(join(runDir, "_generated", "slide_plan.json"))).toBe(false);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(beforeState);
+
+      const doctor = runPptFlow(["doctor", "--run-dir", runDir]);
+      expect(doctor.status).not.toBe(0);
+      expect(parseFailureEnvelope(doctor.stderr)).toMatchObject({
+        code: "FAILED",
+        where: "ppt_flow.doctor.run-dir",
+        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+      });
+      expect((doctor.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
+
+      const direct = spawnSync("node", [
+        "PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs",
+        "--run-dir", runDir,
+        "--stage", "1",
+        "--dry-run",
+      ], { encoding: "utf8", timeout: 15000, env: process.env });
+      expect(direct.status).not.toBe(0);
+      expect(parseFailureEnvelope(direct.stderr)).toMatchObject({
+        code: "FAILED",
+        where: "unified_pipeline.production-adapter",
+        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+      });
+      expect((direct.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
+      expect(existsSync(join(runDir, "_generated", "slide_plan.json"))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("requires first-class Image2 authorization only at a real provider boundary", () => {
+    const root = mkdtempSync(join(tmpdir(), "ppt-image2-authorization-"));
+    try {
+      const deck = join(root, "deck_image2_authorization");
+      initLegacyBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const styleMaster = join(deck, "2_backbone", "visual-style", "style_master.jpg");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style-master-prompt.md"), "first-class style prompt", "utf8");
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+render:
+  default: full-page
+  header-lock: []
+---
+
+## Slide 01 — \`PilotGo\`
+**VISUAL TYPE**: Framework
+**KICKER**: PILOT
+**TITLE**: First-class authorization boundary
+**IMAGE PROMPT**: Create a clear, full-page framework with one focal idea and readable labels.
+`, "utf8");
+
+      const missingStyleAuthorization = runPptFlow(["style-master", runDir], {
+        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
+      });
+      expect(missingStyleAuthorization.status).not.toBe(0);
+      expect(parseFailureEnvelope(missingStyleAuthorization.stderr)).toMatchObject({
+        code: "FAILED",
+        diagnostic: { category: "gate" },
+      });
+      expect(existsSync(styleMaster)).toBe(false);
+
+      // Proven local reuse stays provider-free: the adapter returns before
+      // credential/authorization lookup when its current style bytes exist.
+      writeFileSync(styleMaster, "current-style-bytes", "utf8");
+      const reusedStyle = runPptFlow(["style-master", runDir], {
+        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
+      });
+      expect(reusedStyle.status, reusedStyle.stderr).toBe(0);
+
+      const pilot = runPptFlow(["pilot", runDir, "--count", "1"], {
+        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
+        timeout: 30000,
+      });
+      expect(pilot.status).not.toBe(0);
+      expect(parseFailureEnvelope(pilot.stderr)).toMatchObject({
+        code: "FAILED",
+        diagnostic: { category: "gate" },
+      });
+      expect(existsSync(join(runDir, "_generated", "page_images_full"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

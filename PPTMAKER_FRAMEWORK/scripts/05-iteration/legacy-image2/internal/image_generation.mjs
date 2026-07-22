@@ -48,6 +48,7 @@ const IMAGE_GENERATION_CLI = "PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-ima
  * @param {boolean} [opts.promptIsFinal]
  * @param {string[]} [opts.baseUrl]
  * @param {boolean} [opts.dryRun]
+ * @param {(scope: {selectedIds: string[], maxSubmissions: number}) => Promise<void>|void} [opts.beforeSubmit]
  * @returns {Promise<{generated:number, skipped:number, errors:string[],failures:object[]}>}
  */
 export async function generateImages({
@@ -62,6 +63,7 @@ export async function generateImages({
   baseUrl = [],
   dryRun = false,
   assetResolver = null,
+  beforeSubmit = null,
 } = {}) {
   if (!existsSync(promptJson)) {
     throw new Error(`Prompt JSON not found: ${promptJson}`);
@@ -77,7 +79,6 @@ export async function generateImages({
   }
 
   const onlySet = only.length > 0 ? new Set(only) : null;
-  mkdirSync(outDir, { recursive: true });
   const styleReferenceSha256 = sha256File(styleReference);
   // Shared profile params (without per-slide assetRefs)
   const sharedProfileParams = { styleReferenceSha256, resolution, model, semanticOptions: { size: "16:9", n: 1 } };
@@ -103,6 +104,65 @@ export async function generateImages({
     return true;
   });
   const total = workSlides.length;
+  const selectedIds = workSlides.map((slide) => String(slide.slide_id || slide.id));
+
+  // Determine the actual remote batch before calling the authorization
+  // boundary. Current provenance can materialize/reuse locally, while a stale
+  // existing file is an artifact error; neither belongs in a provider scope.
+  // This preflight is read-only and mirrors the per-slide profile projection
+  // below so the Controller sees the exact IDs/count that can submit.
+  const submissionIds = [];
+  if (!dryRun && typeof beforeSubmit === "function") {
+    for (const slide of workSlides) {
+      const slideId = String(slide.slide_id || slide.id);
+      const outName = slide.slide_id ? `${slideId}.png` : (slide.out || `${slideId}.png`);
+      const outPath = join(outDir, outName);
+      const prompt = String(slide.prompt || "").trim();
+      if (!prompt) continue;
+
+      let assetRefs = {};
+      if (assetResolver && slide.asset_ids && slide.asset_ids.length > 0) {
+        const hashes = {};
+        for (const assetId of slide.asset_ids) {
+          const filePath = assetResolver(assetId);
+          if (!filePath || !existsSync(filePath)) continue;
+          try { hashes[assetId] = sha256File(filePath); } catch { /* The main pass reports asset details. */ }
+        }
+        if (Object.keys(hashes).length > 0) {
+          const ids = Object.keys(hashes).sort();
+          assetRefs = {
+            aggregate_sha256: sha256Bytes(ids.map((id) => hashes[id]).join("")),
+            asset_count: ids.length,
+            assets: hashes,
+          };
+        }
+      }
+      if (force) {
+        submissionIds.push(slideId);
+        continue;
+      }
+      const profile = generationProfile({ ...sharedProfileParams, assetRefs });
+      const provenance = inspectImageProvenance({
+        slide: { ...slide, prompt },
+        outDir,
+        manifest,
+        manifestError,
+        profile,
+      });
+      if (!provenance.current && !existsSync(outPath)) submissionIds.push(slideId);
+    }
+  }
+  let submitAuthorizationPromise = null;
+  const requireSubmitAuthorization = async () => {
+    if (typeof beforeSubmit !== "function") return;
+    if (!submitAuthorizationPromise) {
+      submitAuthorizationPromise = Promise.resolve().then(() => beforeSubmit(Object.freeze({
+        selectedIds: [...submissionIds],
+        maxSubmissions: submissionIds.length,
+      })));
+    }
+    await submitAuthorizationPromise;
+  };
   let index = 0;
 
   for (const slide of workSlides) {
@@ -170,6 +230,7 @@ export async function generateImages({
       });
       if (provenance.current) {
         if (provenance.imagePath !== outPath) {
+          mkdirSync(outDir, { recursive: true });
           copyFileSync(provenance.imagePath, outPath);
           manifest.slides[slideId] = {
             ...provenance.entry,
@@ -202,14 +263,17 @@ export async function generateImages({
       }
     }
 
-    if (force && Object.hasOwn(manifest.slides, slideId)) {
-      delete manifest.slides[slideId];
-      writeImageManifestAtomic(outDir, manifest);
-      manifestError = null;
-    }
-
-    emitCliProgress("item_start", { stage: "stage2", index, total, id: slideId });
     try {
+      // The authorization callback is intentionally at the last possible
+      // boundary: current provenance/reuse never calls it, while missing or
+      // forced bytes cannot mutate a manifest or initialize transport first.
+      await requireSubmitAuthorization();
+      if (force && Object.hasOwn(manifest.slides, slideId)) {
+        delete manifest.slides[slideId];
+        writeImageManifestAtomic(outDir, manifest);
+        manifestError = null;
+      }
+      emitCliProgress("item_start", { stage: "stage2", index, total, id: slideId });
       // Resolve per-slide asset reference paths
       const additionalRefPaths = [];
       if (assetResolver && slide.asset_ids && slide.asset_ids.length > 0) {
@@ -254,15 +318,21 @@ export async function generateImages({
       failures.push({
         slideId,
         outPath,
-        category: err instanceof ImageSubmitPrerequisiteError
+        category: err?.image2Authorization
+          ? "gate"
+          : err instanceof ImageSubmitPrerequisiteError
           ? "environment"
           : err instanceof ImageProviderError ? "provider" : "artifact",
-        reason: err instanceof ImageSubmitPrerequisiteError
+        reason: err?.image2Authorization
+          ? { kind: "provider_authorization_required", code: err.image2Authorization.code }
+          : err instanceof ImageSubmitPrerequisiteError
           ? { kind: err.reason }
           : err instanceof ImageProviderError
           ? { kind: err.reason || "provider_generation_failed", ...(err.status !== null ? { actual: err.status } : {}) }
           : { kind: "image_generation_failed" },
-        message: err instanceof ImageSubmitPrerequisiteError
+        message: err?.image2Authorization
+          ? "current first-class Image2 provider authorization is required before submit"
+          : err instanceof ImageSubmitPrerequisiteError
           ? "Image2 submission prerequisites are unavailable for the selected slide"
           : err instanceof ImageProviderError ? "image provider failed for selected slide" : "slide image artifact could not be produced",
       });
@@ -275,13 +345,13 @@ export async function generateImages({
   if (errors.length > 0) {
     for (const e of errors) console.log(`  ${e}`);
   }
-  return { generated, skipped, errors, failures, profiles, selectedIds: workSlides.map((slide) => slide.slide_id || slide.id) };
+  return { generated, skipped, errors, failures, profiles, selectedIds };
 }
 
 export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styleReference, resolution, selectedIds = [] }) {
   const categories = new Set(failures.map((failure) => failure.category));
   const category = categories.size === 1 ? [...categories][0] : "artifact";
-  const action = ["environment", "provider"].includes(category) ? "repair_environment" : "repair_prerequisite";
+  const action = category === "gate" ? "review" : ["environment", "provider"].includes(category) ? "repair_environment" : "repair_prerequisite";
   return {
     version: 1,
     category,

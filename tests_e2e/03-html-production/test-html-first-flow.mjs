@@ -65,6 +65,8 @@ describe('fresh HTML-first delivery E2E', () => {
       const init = flow(['init', deck, '--deck-type', 'keynote', '--style', 'dark-executive', '--mode', 'html-only'], 30_000);
       expect(init.status, init.stderr || init.stdout).toBe(0);
       expect(readFileSync(join(runDir, 'slide-specifications.md'), 'utf8')).toContain('pipeline: html-first-v1');
+      expect(readState(deck, { purpose: 'execute', heal: false }).production_mode.by_version['3_versions/v1'])
+        .toEqual({ mode: 'html-only' });
       writeFileSync(join(runDir, 'slide-specifications.md'), htmlFirstSource([
         htmlFirstSlide({ id: 'StartGo', title: 'A complete local deck', note: 'Stable presenter note.' }),
       ]), 'utf8');
@@ -91,6 +93,7 @@ describe('fresh HTML-first delivery E2E', () => {
       const status = flow(['status', runDir, '--json'], 30_000);
       expect(status.status, status.stderr || status.stdout).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({
+        production_mode: { mode: 'html-only' },
         pipeline: 'html-first-v1',
         suggested_next: 'complete:html-delivery',
         html_reviews: { delivery: { freshness: 'current', decision: 'proceed' } },
@@ -110,7 +113,7 @@ describe('fresh HTML-first delivery E2E', () => {
     const deck = join(root, 'deck_html_guided_recovery');
     const runDir = join(deck, '3_versions', 'v1');
     try {
-      expect(flow(['init', deck, '--deck-type', 'keynote', '--style', 'dark-executive'], 30_000).status).toBe(0);
+      expect(flow(['init', deck, '--deck-type', 'keynote', '--style', 'dark-executive', '--mode', 'html-only'], 30_000).status).toBe(0);
       writeFileSync(join(runDir, 'slide-specifications.md'), htmlFirstSource([
         htmlFirstSlide({ id: 'GuideGo', title: 'Guided recovery', note: 'A stable note for the final review.' }),
       ]), 'utf8');

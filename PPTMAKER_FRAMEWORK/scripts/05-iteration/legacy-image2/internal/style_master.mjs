@@ -36,6 +36,7 @@ import {
   ImageSubmitPrerequisiteError,
 } from "./image_api_client.mjs";
 import { loadDeckSystem } from "../../../02-visual-system/index.mjs";
+import { sha256File } from "../../../shared/identity/byte_hash.mjs";
 
 /**
  * @param {object} opts
@@ -60,6 +61,8 @@ export async function generateStyleMaster({
   generateStyleMaster.lastFailure = null;
   const resolvedRunDir = resolve(runDir);
 
+  // Source identity is the earliest useful diagnostic: a malformed marker or
+  // an HTML backup cannot be reclassified through structure/mode routing.
   const canonicalSource = join(resolvedRunDir, SLIDE_SPECS_NAME);
   const sourceCandidate = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(resolvedRunDir);
   if (sourceCandidate) {
@@ -73,17 +76,40 @@ export async function generateStyleMaster({
       generateStyleMaster.lastFailure = { category: "source_validation", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: SLIDE_SPECS_NAME } };
       return 1;
     }
-    if (marker.branch === HTML_FIRST_PIPELINE) {
-      generateStyleMaster.lastFailure = { category: "gate", source: { path: SLIDE_SPECS_NAME }, reason: { kind: "html_first_delivery_unavailable" } };
-      return 1;
-    }
   }
 
+  // Structure remains the first generic local prerequisite after source
+  // identity is established. A missing/corrupt run has no mode to route yet.
   const violations = checkBundle(resolvedRunDir, false);
   if (violations.length > 0) {
     console.error("✗ Bundle structure is not valid:");
     for (const v of violations) console.error(`  - ${v}`);
     generateStyleMaster.lastFailure = { category: "structure", issues: violations.map((message) => ({ message, source: { path: resolvedRunDir } })), source: { path: resolvedRunDir } };
+    return 1;
+  }
+
+  // This executable is a whole-page Image2 adapter. Resolve the exact
+  // state-owned mode before inspecting source/provider inputs so direct entry
+  // cannot silently select itself for an HTML or drifted run.
+  const { resolveRunProductionAdapter } = await import("../../../shared/state/state.mjs");
+  const route = resolveRunProductionAdapter(deckRoot(resolvedRunDir), {
+    runDir: resolvedRunDir,
+    purpose: "observe",
+  });
+  if (!route.ok) {
+    generateStyleMaster.lastFailure = {
+      category: "gate",
+      source: { path: resolvedRunDir },
+      reason: { kind: route.code === "transition_required" ? "mode_source_mismatch" : "production_mode_unavailable" },
+    };
+    return 1;
+  }
+  if (route.adapter !== "whole-page-image2") {
+    generateStyleMaster.lastFailure = {
+      category: "gate",
+      source: { path: resolvedRunDir },
+      reason: { kind: "html_style_master_adapter_reserved" },
+    };
     return 1;
   }
 
@@ -93,18 +119,6 @@ export async function generateStyleMaster({
     generateStyleMaster.lastFailure = { category: "artifact", source: { path: promptPath }, reason: { kind: "missing_source_prompt" } };
     return 1;
   }
-
-  const dkRoot = deckRoot(resolvedRunDir);
-  const cwd = process.cwd();
-  const searchDirs = [dkRoot, cwd];
-  let p = cwd;
-  while (p) {
-    const parent = dirname(p);
-    if (parent === p) break;
-    if (!searchDirs.includes(parent)) searchDirs.push(parent);
-    p = parent;
-  }
-  loadDotenv(...searchDirs);
 
   // Keep the CLI override unresolved. The shared submit guard resolves
   // transport only when the existing style master cannot be reused.
@@ -136,6 +150,49 @@ export async function generateStyleMaster({
   if (dryRun) {
     console.log(`[DRY RUN] Would generate style master → ${outPath}`);
     return 0;
+  }
+
+  const needsProviderSubmit = force || !existsSync(outPath);
+  if (needsProviderSubmit && route.mode === "image2-only") {
+    const { image2AuthorizationProfileFingerprint, inspectImage2ProviderAuthorization } = await import("../../../shared/state/state.mjs");
+    const profileFingerprint = image2AuthorizationProfileFingerprint({
+      operation: "style-master",
+      profile: {
+        model,
+        resolution,
+        style_prompt_sha256: sha256File(promptPath),
+        deck_system_sha256: !noDeckSystem && existsSync(deckSystemPath) ? sha256File(deckSystemPath) : null,
+      },
+    });
+    const authorization = inspectImage2ProviderAuthorization(deckRoot(resolvedRunDir), {
+      runDir: resolvedRunDir,
+      operation: "style-master",
+      scope: { role: "style-master" },
+      profileFingerprint,
+      maxSubmissions: 1,
+    });
+    if (!authorization.ok) {
+      generateStyleMaster.lastFailure = {
+        category: "gate",
+        source: { path: resolvedRunDir },
+        reason: { kind: "provider_authorization_required", code: authorization.code },
+      };
+      return 1;
+    }
+  }
+
+  if (needsProviderSubmit) {
+    const dkRoot = deckRoot(resolvedRunDir);
+    const cwd = process.cwd();
+    const searchDirs = [dkRoot, cwd];
+    let p = cwd;
+    while (p) {
+      const parent = dirname(p);
+      if (parent === p) break;
+      if (!searchDirs.includes(parent)) searchDirs.push(parent);
+      p = parent;
+    }
+    loadDotenv(...searchDirs);
   }
 
   try {

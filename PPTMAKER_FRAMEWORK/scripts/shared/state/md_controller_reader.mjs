@@ -126,6 +126,7 @@ function normalizeNode(raw, meta) {
     produces: asStringArray(raw?.produces),
     decisions: asStringArray(raw?.decisions),
     productionModes: asStringArray(raw?.production_modes),
+    modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
     shared: raw?.shared === true,
     raw,
     ...meta,
@@ -386,6 +387,10 @@ export function validatePlaybookIndex(index) {
       for (const required of node.requires) {
         if (!available.has(required)) addError(errors, node, "requires", `unknown required node ${required}`);
         else if (!seen.has(required)) addError(errors, node, "requires-order", `${required} must appear before ${node.id}`);
+      }
+      if (node.modeTransitionHandoff != null) {
+        if (!node.modeTransitionHandoff) addError(errors, node, "mode-transition-handoff", "mode_transition_handoff must be a non-empty node id");
+        else if (!available.has(node.modeTransitionHandoff)) addError(errors, node, "mode-transition-handoff", `unknown handoff node ${node.modeTransitionHandoff}`);
       }
       validateConditions(node, errors, available);
       if (controller.playbook === "image2-refine" && node.lifecyclePhase === "4") {

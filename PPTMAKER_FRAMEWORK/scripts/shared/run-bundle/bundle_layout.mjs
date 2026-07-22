@@ -76,6 +76,10 @@ import { inspectHtmlReviewReadiness as inspectHtmlReviewReadinessCore } from '..
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from './production_marker.mjs';
 import { PRODUCTION_MODES, productionPolicyForMode } from './production_mode.mjs';
 
+// Production-mode policy is consumed by the root CLI through this public
+// run-bundle interface; the policy module itself remains an internal detail.
+export { PRODUCTION_MODES, productionPolicyForMode };
+
 /**
  * Production mode assumed when `ppt_flow init` omits `--mode`. New decks default
  * to first-class `image2-only` production (whole-page Image2). Explicit

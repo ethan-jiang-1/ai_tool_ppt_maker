@@ -7,6 +7,13 @@ import { createCanvas } from '@napi-rs/canvas';
 import { initLegacyBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 import { generateLegacyStyleMaster } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs';
 import { loadDeckSystem } from '../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/deck_system.mjs';
+import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
+import {
+  image2AuthorizationProfileFingerprint,
+  readState,
+  recordImage2ProviderAuthorization,
+  writeState,
+} from '../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 
 function tinyPngB64() {
   const canvas = createCanvas(8, 8);
@@ -88,6 +95,31 @@ describe('style master deck_system injection', () => {
     rmSync(deck, { recursive: true, force: true });
   });
 
+  function authorizeStyleMaster({ resolution = '2k', noDeckSystem = false } = {}) {
+    const state = readState(deck, { purpose: 'execute', heal: false });
+    state.playbook = 'create-deck';
+    state.execution_id = 'exec-style-master';
+    state.execution_started_at = '2024-01-01T00:00:00.000Z';
+    writeState(deck, state);
+    const promptPath = join(deck, '2_backbone', 'visual-style', 'style-master-prompt.md');
+    const deckSystemPath = join(deck, '2_backbone', 'visual-style', 'deck_system.txt');
+    recordImage2ProviderAuthorization(deck, {
+      runVersion: 'v1',
+      operation: 'style-master',
+      scope: { role: 'style-master' },
+      profileFingerprint: image2AuthorizationProfileFingerprint({
+        operation: 'style-master',
+        profile: {
+          model: 'gpt-image-2',
+          resolution,
+          style_prompt_sha256: sha256File(promptPath),
+          deck_system_sha256: noDeckSystem ? null : sha256File(deckSystemPath),
+        },
+      }),
+      maxSubmissions: 1,
+    });
+  }
+
   it('loadDeckSystem reads file', () => {
     const text = loadDeckSystem(join(deck, '2_backbone', 'visual-style', 'deck_system.txt'));
     expect(text).toContain('FORBIDDEN');
@@ -105,6 +137,7 @@ describe('style master deck_system injection', () => {
       sentPrompt = body.prompt;
     });
 
+    authorizeStyleMaster({ resolution: '1k' });
     const code = await generateLegacyStyleMaster({
       runDir: v1,
       force: true,
@@ -122,6 +155,7 @@ describe('style master deck_system injection', () => {
       sentPrompt = body.prompt;
     });
 
+    authorizeStyleMaster({ resolution: '1k', noDeckSystem: true });
     const code = await generateLegacyStyleMaster({
       runDir: v1,
       force: true,
