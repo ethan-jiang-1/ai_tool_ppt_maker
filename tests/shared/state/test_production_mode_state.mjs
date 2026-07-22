@@ -26,6 +26,13 @@ import {
   inspectImage2ProviderAuthorization,
   image2AuthorizationProfileFingerprint,
   registerProductionModeFromSource,
+  recordHtmlMigrationConfirmation,
+  confirmProductionModeTransition,
+  restoreProductionModeTransitionSource,
+  recordProductionModeTransitionRecoveryConfirmation,
+  verifyProductionModeTransitionRecoveryConfirmation,
+  completeProductionModeTransitionHandoff,
+  resumePlaybook,
   checkEntry,
   checkExit,
   getEligibleNextNodes,
@@ -86,11 +93,11 @@ function writeSource(deckDir, version, marker) {
   writeFileSync(join(runDir, "slide-specifications.md"), `${frontmatter}## Slide 01: \`HeroGo\`\n`, "utf8");
 }
 
-describe("schema v4 production-mode container (1.2)", () => {
-  it("createDefaultState ships schema v4 with an empty production_mode map", () => {
+describe("schema v5 production-mode container (1.2)", () => {
+  it("createDefaultState ships schema v5 with an empty production_mode map", () => {
     const s = createDefaultState();
-    expect(STATE_SCHEMA_VERSION).toBe(4);
-    expect(s.schema_version).toBe(4);
+    expect(STATE_SCHEMA_VERSION).toBe(5);
+    expect(s.schema_version).toBe(5);
     expect(s.production_mode).toEqual({ by_version: {} });
     // state.pipeline remains as a compatibility projection.
     expect(typeof s.pipeline).toBe("string");
@@ -104,7 +111,7 @@ describe("schema v4 production-mode container (1.2)", () => {
       s.production_mode.by_version["3_versions/v2"] = { mode: "html-then-image2" };
       writeState(deck, s);
       const readBack = readState(deck, { purpose: "execute" });
-      expect(readBack.schema_version).toBe(4);
+      expect(readBack.schema_version).toBe(5);
       expect(readBack.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-only" });
       expect(readBack.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "html-then-image2" });
     } finally { rmSync(deck, { recursive: true, force: true }); }
@@ -147,16 +154,50 @@ describe("schema v4 production-mode container (1.2)", () => {
       expect(readFileSync(statePath(deck))).toEqual(before);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
+
+  it("read-only state access refuses a selected run that differs from active execution", () => {
+    const deck = tmpDeck("readonly-run-mismatch");
+    try {
+      const state = createDefaultState();
+      state.deck = { name: "t", type: "keynote", style: "x" };
+      state.playbook = "create-deck";
+      state.current_node = "instantiation";
+      state.execution_id = "exec-readonly";
+      state.execution_started_at = "2024-01-01T00:00:00.000Z";
+      state.run_version = "v1";
+      state.nodes.instantiation = { status: "in_progress", execution_id: state.execution_id, run_version: "v1" };
+      writeState(deck, state);
+      const result = readState(deck, { purpose: "observe", heal: false, runDir: join(deck, "3_versions", "v2") });
+      expect(result).toMatchObject({ code: "execution_run_version_mismatch", requested_run_version: "v2", active_run_version: "v1" });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("read-only validation refuses a selected run that differs from active execution", () => {
+    const deck = tmpDeck("validate-readonly-run-mismatch");
+    try {
+      const state = createDefaultState();
+      state.playbook = "create-deck";
+      state.current_node = "instantiation";
+      state.execution_id = "exec-validation";
+      state.execution_started_at = "2024-01-01T00:00:00.000Z";
+      state.run_version = "v1";
+      state.nodes.instantiation = { status: "in_progress", execution_id: state.execution_id, run_version: "v1" };
+      writeState(deck, state);
+      const result = validateStateReadOnly(deck, { runDir: join(deck, "3_versions", "v2") });
+      expect(result.valid).toBe(false);
+      expect(result.issues).toContainEqual(expect.objectContaining({ path: "run_version", kind: "execution" }));
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
 });
 
-describe("v3->v4 production-mode migration (1.3)", () => {
+describe("pre-v5 production-mode migration (1.3)", () => {
   it("migrates an html-first version to html-only", () => {
     const deck = tmpDeck("mig-html");
     try {
       writeRawState(deck, v3State({ pipeline: "html-first-v1" }));
       writeSource(deck, "v1", "html");
       const state = readState(deck, { purpose: "execute" });
-      expect(state.schema_version).toBe(4);
+      expect(state.schema_version).toBe(5);
       expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
@@ -175,16 +216,82 @@ describe("v3->v4 production-mode migration (1.3)", () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
-  it("handles mixed-pipeline versions with per-version modes", () => {
+  it("preserves ambiguous multi-version v4 execution bytes for explicit replacement", () => {
     const deck = tmpDeck("mig-mixed");
     try {
       // A migration workspace allows conflicting markers across versions.
       writeRawState(deck, { ...v3State({ pipeline: "legacy-image2-first" }), playbook: "migrate-import" });
       writeSource(deck, "v1", "legacy");
       writeSource(deck, "v2", "html");
+      const before = readFileSync(statePath(deck));
       const state = readState(deck, { purpose: "execute" });
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-only" });
-      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "html-only" });
+      expect(state).toMatchObject({ replacement_required: true, code: "replacement_required" });
+      expect(readFileSync(statePath(deck))).toEqual(before);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("binds an exact legacy apply source despite multiple visible versions", () => {
+    const deck = tmpDeck("mig-legacy-apply");
+    try {
+      writeRawState(deck, {
+        ...v3State({ pipeline: "legacy-image2-first" }),
+        schema_version: 4,
+        playbook: "migrate-import",
+        current_node: "apply-html-migration",
+        nodes: {
+          "apply-html-migration": {
+            status: "in_progress",
+            execution_id: "exec-test",
+            migration_source_version: "v1",
+            migration_plan_hash: "a".repeat(64),
+            old_side_mode: "verified-current",
+          },
+        },
+      });
+      writeSource(deck, "v1", "legacy");
+      writeSource(deck, "v2", "html");
+      const state = readState(deck, { purpose: "execute" });
+      expect(state.run_version).toBe("v1");
+      expect(state.nodes["apply-html-migration"]).toMatchObject({ execution_id: "exec-test", run_version: "v1", migration_source_version: "v1" });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("binds a multi-version legacy confirmation only through its exact closed write", () => {
+    const deck = tmpDeck("mig-legacy-confirmation");
+    try {
+      const planHash = "b".repeat(64);
+      writeRawState(deck, {
+        ...v3State({ pipeline: "legacy-image2-first" }),
+        schema_version: 4,
+        playbook: "migrate-import",
+        current_node: "confirm-html-migration",
+        nodes: {
+          "preview-html-migration": {
+            status: "completed",
+            execution_id: "exec-test",
+            migration_plan_hash: planHash,
+            old_side_mode: "verified-current",
+          },
+          "confirm-html-migration": { status: "in_progress", execution_id: "exec-test" },
+        },
+      });
+      writeSource(deck, "v1", "legacy");
+      writeSource(deck, "v2", "html");
+      const before = readFileSync(statePath(deck));
+      expect(readState(deck, { purpose: "observe", runDir: join(deck, "3_versions", "v1") })).toMatchObject({ replacement_required: true });
+      expect(readFileSync(statePath(deck))).toEqual(before);
+
+      const result = recordHtmlMigrationConfirmation(join(deck, "3_versions", "v1"), {
+        planHash,
+        oldSideMode: "verified-current",
+        inspection: { source_version: "v1", target_version: "v2", plan_hash: planHash, old_side_mode: "verified-current" },
+      });
+      expect(result).toMatchObject({ status: "confirmed", source_version: "v1", current_node: "apply-html-migration" });
+      const state = readState(deck, { purpose: "execute", heal: false, runDir: join(deck, "3_versions", "v1") });
+      expect(state.schema_version).toBe(5);
+      expect(state.run_version).toBe("v1");
+      expect(state.nodes["preview-html-migration"].run_version).toBe("v1");
+      expect(state.nodes["apply-html-migration"]).toMatchObject({ execution_id: "exec-test", run_version: "v1", migration_plan_hash: planHash });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -198,7 +305,7 @@ describe("v3->v4 production-mode migration (1.3)", () => {
       const bytesAfterFirst = readFileSync(statePath(deck));
       const second = readState(deck, { purpose: "execute" });
       expect(second.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
-      // Second read heals a now-v4 file without changing it.
+      // Second read observes a now-v5 file without changing it.
       expect(readFileSync(statePath(deck))).toEqual(bytesAfterFirst);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
@@ -256,6 +363,151 @@ describe("v3->v4 production-mode migration (1.3)", () => {
       expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-then-image2" });
       // state.pipeline remains as the actual-pipeline compatibility projection.
       expect(state.pipeline).toBe("html-first-v1");
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+});
+
+describe("state-owned cross-pipeline transition checkpoint (1.2)", () => {
+  const intake = Object.freeze({
+    topic: "Target topic",
+    audience: "Target audience",
+    duration: "20 minutes",
+    language: "en",
+    takeaway: "Target takeaway",
+    content_constraints: "No copied source prose",
+    visual_dna: "Target controls",
+    success_criteria: "Target criteria",
+  });
+
+  function transitionState(deck) {
+    const state = createDefaultState();
+    state.playbook = "create-deck";
+    state.current_node = "author-whole-page-content";
+    state.execution_id = "exec-source";
+    state.execution_started_at = "2024-01-01T00:00:00.000Z";
+    state.run_version = "v1";
+    state.pipeline = "legacy-image2-first";
+    state.nodes["author-whole-page-content"] = { status: "in_progress", execution_id: "exec-source", run_version: "v1", evidence: { source: { met: true, kind: "user", at: "2024-01-01T00:00:00.000Z" } } };
+    state.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
+    writeSource(deck, "v1", "legacy");
+    writeState(deck, state);
+    return state;
+  }
+
+  it("captures one non-resumable source suspension only after exact confirmation", () => {
+    const deck = tmpDeck("transition-confirm");
+    try {
+      transitionState(deck);
+      const planHash = "c".repeat(64);
+      const candidateReceiptSha256 = "d".repeat(64);
+      const targetIntakeSha256 = sha(JSON.stringify(Object.fromEntries(Object.keys(intake).sort().map((key) => [key, intake[key]]))));
+      const confirmed = confirmProductionModeTransition(deck, {
+        sourceRunVersion: "v1",
+        targetRunVersion: "v2",
+        targetMode: "html-only",
+        planHash,
+        candidateReceiptSha256,
+        targetIntake: intake,
+        targetIntakeSha256,
+      });
+      expect(confirmed).toMatchObject({ status: "confirmed", source_version: "v1", target_version: "v2", target_mode: "html-only" });
+      const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
+      expect(state.playbook).toBe("migrate-import");
+      expect(state.current_node).toBe("apply-production-mode-transition");
+      expect(state.nodes["apply-production-mode-transition"]).toMatchObject({
+        status: "in_progress",
+        transition_plan_hash: planHash,
+        transition_source_execution_id: "exec-source",
+        transition_target_version: "v2",
+      });
+      expect(state.nodes["apply-production-mode-transition"].migration_plan_hash).toBeUndefined();
+      expect(state.playbook_stack).toHaveLength(1);
+      expect(state.playbook_stack[0]).toMatchObject({ disposition: "transition-suspended", source_run_version: "v1", target_run_version: "v2" });
+      expect(() => resumePlaybook(state, { runVersion: "v1" })).toThrow(/non-resumable/);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("restores the exact source execution only while the anticipated target is absent", () => {
+    const deck = tmpDeck("transition-restore");
+    try {
+      transitionState(deck);
+      const planHash = "e".repeat(64);
+      confirmProductionModeTransition(deck, {
+        sourceRunVersion: "v1", targetRunVersion: "v2", targetMode: "html-only", planHash,
+        candidateReceiptSha256: "f".repeat(64), targetIntake: intake,
+        targetIntakeSha256: sha(JSON.stringify(Object.fromEntries(Object.keys(intake).sort().map((key) => [key, intake[key]])))),
+      });
+      const restored = restoreProductionModeTransitionSource(deck, { sourceRunVersion: "v1", planHash });
+      expect(restored.status).toBe("source_restored");
+      const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
+      expect(state).toMatchObject({ playbook: "create-deck", current_node: "author-whole-page-content", execution_id: "exec-source", run_version: "v1" });
+      expect(state.nodes["author-whole-page-content"].evidence.source).toMatchObject({ kind: "user", met: true });
+      expect(state.production_mode.by_version).toEqual({ "3_versions/v1": { mode: "image2-only" } });
+      expect(state.nodes["apply-production-mode-transition"]).toBeUndefined();
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("binds uncertain-owner confirmation to journal bytes without persisting its token", () => {
+    const deck = tmpDeck("transition-uncertain-confirmation");
+    try {
+      transitionState(deck);
+      const planHash = "1".repeat(64);
+      const ownerToken = "2".repeat(64);
+      confirmProductionModeTransition(deck, {
+        sourceRunVersion: "v1", targetRunVersion: "v2", targetMode: "html-only", planHash,
+        candidateReceiptSha256: "3".repeat(64), targetIntake: intake,
+        targetIntakeSha256: sha(JSON.stringify(Object.fromEntries(Object.keys(intake).sort().map((key) => [key, intake[key]])))),
+      });
+      const journalPath = join(deck, "3_versions", "v1", "_scratch", "production-mode-transition", "apply-journal.json");
+      mkdirSync(dirname(journalPath), { recursive: true });
+      writeFileSync(journalPath, JSON.stringify({
+        schema: "pptmaker-production-mode-transition-apply-journal-v1",
+        owner_token: ownerToken,
+        owner_host: "other-host",
+        owner_pid: 123,
+        claimed_at_epoch_ms: Date.now() - 300001,
+        plan_hash: planHash,
+        source_execution_id: "exec-source",
+        source_version: "v1",
+        target_version: "v2",
+        target_mode: "html-only",
+        target_pipeline: "html-first-v1",
+      }));
+      const recorded = recordProductionModeTransitionRecoveryConfirmation(deck, { sourceRunVersion: "v1", planHash, ownerToken });
+      expect(recorded).toMatchObject({ status: "recorded", source_version: "v1", target_version: "v2", plan_hash: planHash });
+      expect(JSON.stringify(readState(deck, { purpose: "observe", heal: false, runVersion: "v1" }))).not.toContain(ownerToken);
+      expect(verifyProductionModeTransitionRecoveryConfirmation(deck, { sourceRunVersion: "v1", planHash, ownerToken })).toMatchObject({ ok: true });
+      writeFileSync(journalPath, `${readFileSync(journalPath, "utf8")} `);
+      expect(verifyProductionModeTransitionRecoveryConfirmation(deck, { sourceRunVersion: "v1", planHash, ownerToken })).toMatchObject({ ok: false, code: "TRANSITION_RECOVERY_CONFIRMATION_REQUIRED" });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("registers a receipt-bound target baseline without copying source controller authority", () => {
+    const deck = tmpDeck("transition-handoff");
+    try {
+      transitionState(deck);
+      const planHash = "4".repeat(64);
+      const candidateReceiptSha256 = "5".repeat(64);
+      const targetIntakeSha256 = sha(JSON.stringify(Object.fromEntries(Object.keys(intake).sort().map((key) => [key, intake[key]]))));
+      confirmProductionModeTransition(deck, { sourceRunVersion: "v1", targetRunVersion: "v2", targetMode: "html-only", planHash, candidateReceiptSha256, targetIntake: intake, targetIntakeSha256 });
+      writeSource(deck, "v2", "html");
+      writeFileSync(join(deck, "deck-guide.md"), "# guide\n");
+      mkdirSync(join(deck, "3_versions", "v2", "overrides", "visual-style"), { recursive: true });
+      writeFileSync(join(deck, "3_versions", "v2", "overrides", "visual-style", "color_palette.json"), "{}");
+      const fingerprint = "6".repeat(64);
+      const receiptPath = join(deck, "3_versions", "v2", "_generated", "qa", "production_mode_transition.json");
+      mkdirSync(dirname(receiptPath), { recursive: true });
+      writeFileSync(receiptPath, JSON.stringify({ schema: "pptmaker-production-mode-transition-success-v1", plan_hash: planHash, source_execution_id: "exec-source", source_version: "v1", target_version: "v2", target_mode: "html-only", target_pipeline: "html-first-v1", candidate_receipt_sha256: candidateReceiptSha256, target_intake_sha256: targetIntakeSha256, source_control_fingerprint: fingerprint }));
+      const result = completeProductionModeTransitionHandoff(deck, { sourceRunVersion: "v1", planHash });
+      expect(result).toMatchObject({ status: "handoff-complete", target_version: "v2", current_node: "preview-content" });
+      const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v2" });
+      expect(state).toMatchObject({ playbook: "create-deck", run_version: "v2", current_node: "preview-content" });
+      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "html-only" });
+      expect(state.nodes["checkpoint-intake"].decision).toMatchObject({ value: "proceed", kind: "user" });
+      expect(state.nodes["author-structured-content"].transition_baseline.source_control_fingerprint).toBe(fingerprint);
+      expect(state.nodes["author-whole-page-content"]).toBeUndefined();
+      expect(state.nodes["html-delivery-review"]).toBeUndefined();
+      expect(state.playbook_stack).toEqual([]);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 });
@@ -443,9 +695,10 @@ describe("same-pipeline production-mode transition (1.5)", () => {
       state.playbook = "create-deck";
       state.execution_id = "exec-handoff";
       state.execution_started_at = "2024-01-01T00:00:00.000Z";
+      state.run_version = "v1";
       state.current_node = "readiness";
-      state.nodes.readiness = { status: "in_progress", execution_id: state.execution_id, evidence: { delivery: { met: true, kind: "cli", at: "2024-01-01T00:00:00.000Z" } } };
-      state.nodes["handoff-to-image2-refinement"] = { status: "pending", execution_id: state.execution_id };
+      state.nodes.readiness = { status: "in_progress", execution_id: state.execution_id, run_version: "v1", evidence: { delivery: { met: true, kind: "cli", at: "2024-01-01T00:00:00.000Z" } } };
+      state.nodes["handoff-to-image2-refinement"] = { status: "pending", execution_id: state.execution_id, run_version: "v1" };
       writeState(deck, state);
 
       const enabled = transitionProductionMode(deck, { runVersion: "v1", toMode: "html-then-image2", expectedStateSha: stateSha(deck) });
@@ -482,8 +735,9 @@ describe("mode-filtered controller execution (4.2)", () => {
     const state = createDefaultState();
     state.playbook = "create-deck";
     state.execution_id = "exec-filter";
+    state.run_version = "v1";
     state.production_mode.by_version["3_versions/v1"] = { mode: "html-only" };
-    state.nodes["author-whole-page-content"] = { status: "pending", execution_id: state.execution_id };
+    state.nodes["author-whole-page-content"] = { status: "pending", execution_id: state.execution_id, run_version: "v1" };
 
     const entry = checkEntry("author-whole-page-content", playbookDir, state, { runVersion: "v1" });
     const exit = checkExit("author-whole-page-content", playbookDir, state, { runVersion: "v1" });
@@ -498,6 +752,26 @@ describe("mode-filtered controller execution (4.2)", () => {
     expect(state.nodes["author-whole-page-content"].status).toBe("pending");
   });
 
+  it("fails closed before projecting another run's active controller progress", () => {
+    const state = createDefaultState();
+    state.playbook = "create-deck";
+    state.current_node = "checkpoint-intake";
+    state.execution_id = "exec-v2";
+    state.execution_started_at = "2024-01-01T00:00:00.000Z";
+    state.run_version = "v2";
+    state.nodes["checkpoint-intake"] = { status: "in_progress", execution_id: "exec-v2", run_version: "v2", waiting_for: "user:confirm" };
+    const index = buildPlaybookIndex(playbookDir);
+    const ctx = { runVersion: "v1" };
+    expect(checkEntry("checkpoint-intake", playbookDir, state, ctx)).toMatchObject({ pass: false, unknown: ["execution_run_version_mismatch"] });
+    expect(getEligibleNextNodes(index, "create-deck", state, ctx)).toEqual([]);
+    expect(buildResumeCard(state, null, { index, ctx })).toMatchObject({
+      code: "execution_run_version_mismatch",
+      current_node: "",
+      node_status: "",
+      eligible_candidates: [],
+    });
+  });
+
   it("returns the final HTML handoff when a completed html-only branch changes mode", () => {
     const deck = seedV4Deck("tr-final-handoff", { mode: "html-only", marker: "html", pipeline: "html-first-v1" });
     try {
@@ -506,8 +780,9 @@ describe("mode-filtered controller execution (4.2)", () => {
       state.execution_id = "exec-final";
       state.execution_started_at = "2024-01-01T00:00:00.000Z";
       state.current_node = "final";
-      state.nodes.final = { status: "completed", execution_id: state.execution_id };
-      state.nodes.readiness = { status: "completed", execution_id: state.execution_id };
+      state.run_version = "v1";
+      state.nodes.final = { status: "completed", execution_id: state.execution_id, run_version: "v1" };
+      state.nodes.readiness = { status: "completed", execution_id: state.execution_id, run_version: "v1" };
       writeState(deck, state);
       const result = transitionProductionMode(deck, { runVersion: "v1", toMode: "html-then-image2", expectedStateSha: sha(readFileSync(statePath(deck))) });
       expect(result).toMatchObject({ ok: true, handoff: { from_node: "final", to_node: "handoff-to-image2-refinement" } });
@@ -662,9 +937,10 @@ function seedImage2Deck(tag, { withArtifacts = true } = {}) {
   state.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
   state.playbook = "create-deck";
   state.execution_id = "exec-img";
+  state.run_version = "v1";
   state.execution_started_at = "2024-01-01T00:00:00.000Z";
   state.current_node = "checkpoint-image2-final-review";
-  state.nodes["checkpoint-image2-final-review"] = { status: "in_progress", execution_id: state.execution_id };
+  state.nodes["checkpoint-image2-final-review"] = { status: "in_progress", execution_id: state.execution_id, run_version: "v1" };
   state.nodes["header-review"] = { by_version: { "3_versions/v1": { schema: "pptmaker-header-review-v1", run_version: "v1", snapshots: {} } } };
   writeState(deck, state);
   const runDir = join(deck, "3_versions", "v1");
@@ -750,7 +1026,7 @@ describe("first-class Image2 delivery review + provider authorization (1.9)", ()
     try {
       const state = readState(deck, { purpose: "execute", heal: false });
       state.current_node = "produce-image2-deck";
-      state.nodes["produce-image2-deck"] = { status: "in_progress", execution_id: state.execution_id };
+      state.nodes["produce-image2-deck"] = { status: "in_progress", execution_id: state.execution_id, run_version: "v1" };
       writeState(deck, state);
       const before = readFileSync(statePath(deck));
       expect(() => recordImage2DeliveryReview(deck, { runVersion: "v1", decision: "proceed", expectedStateSha: stateSha(deck) })).toThrow(/final-review node/);

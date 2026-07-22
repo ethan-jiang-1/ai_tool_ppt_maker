@@ -646,6 +646,24 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
     }
 }
 
+function _checkProductionModeTransitionScratch(runDir, problems) {
+    const transition = path.join(runDir, SCRATCH_SUBDIR, 'production-mode-transition');
+    if (fs.existsSync(transition) && fs.statSync(transition).isDirectory()) {
+        const allowed = new Map([['candidate-run', 'directory'], ['plan.json', 'file'], ['apply-journal.json', 'file']]);
+        for (const entry of fs.readdirSync(transition, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            const kind = allowed.get(entry.name);
+            if (!kind) {
+                problems.push(`unexpected '${entry.name}' in production-mode-transition scratch/`);
+                continue;
+            }
+            if ((kind === 'file' && !entry.isFile()) || (kind === 'directory' && !entry.isDirectory())) {
+                problems.push(`production-mode-transition scratch '${entry.name}' must be a ${kind}`);
+            }
+        }
+    }
+}
+
 function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR);
     if (!fs.existsSync(generated) || !fs.statSync(generated).isDirectory()) return;
@@ -860,6 +878,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     }
 
     _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems);
+    _checkProductionModeTransitionScratch(runDir, problems);
     _checkImage2RefinementPartitions(runDir, htmlFirst, problems);
     if (htmlFirst) _checkHtmlGeneratedTopology(runDir, problems);
     if (htmlFirst && mode === 'pipeline') {

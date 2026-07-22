@@ -3,7 +3,7 @@ title: Slide Specifications — AI 时代的信息加工变革 (v1)
 stage: workflow/02-content
 position: downstream
 type: slide-specifications
-summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 25 页。
+summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 26 页。
 depends_on:
 - workflow/02-content/03-specify-slides-multi-layer.md
 - workflow/02-content/02-build-narrative-arc-blocks.md
@@ -35,9 +35,9 @@ render:
 | Block C: 组织的连锁反应 | 中层危机 + 两种极端裁法各展开一页 | 组织会怎么变?谁最危险? | 13–15 | Three-Tier Split、Block 一刀切、Cloudflare 精准置换 |
 | 中转: 换挡 | 软件→传统企业的叙事枢纽,软件是先行样本 | 这跟我的行业有什么关系? | 16 | SDLC↔BPM 同一条链 |
 | Block D: BPM = SDLC 孪生 | 建立 SDLC↔BPM 同构,证明软件不是特例 | 这跟传统企业有什么关系? | 17–19 | Dagstuhl Manifesto、Framed Autonomy、四层架构 |
-| Block E: 案例 | 用真实 production 案例证明不是 demo | 真有传统企业在做吗? | 20–21 | Allianz（保险理赔 agentic 重构）+ Maersk（航运流程情报先行）|
-| Block F: 罗马军团散了 | 拔高到组织理论,给出"人是信息瓶颈"核心论点 | 金字塔为什么存在?还需要吗? | 22–23 | 信息瓶颈论、Builder/Seller/Measurer |
-| Block G: 没有结论,只有问题 | SDLC/BPM 收敛 + 行动号召 | 这一切说明什么?我该怎么办? | 24–25 | 两条河收敛、开放问题收尾 |
+| Block E: 案例 | 用真实 production 案例证明不是 demo | 真有传统企业在做吗? | 20–22 | Allianz（保险理赔 agentic 重构）+ Maersk（航运流程情报先行）+ 若羽臣（中国电商，开源+节流双引擎）|
+| Block F: 罗马军团散了 | 拔高到组织理论,给出"人是信息瓶颈"核心论点 | 金字塔为什么存在?还需要吗? | 23–24 | 信息瓶颈论、Builder/Seller/Measurer |
+| Block G: 没有结论,只有问题 | SDLC/BPM 收敛 + 行动号召 | 这一切说明什么?我该怎么办? | 25–26 | 两条河收敛、开放问题收尾 |
 
 ### 叙事弧线
 
@@ -907,7 +907,73 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 22: `s22_roman_legion`
+## Slide 22: `s22_ruoyuchen_dual_engine`
+
+**VISUAL TYPE**: Impact / Evidence
+
+
+**KICKER**: 开源 + 节流
+
+**TITLE**: 若羽臣：AI不只是省。更是长。
+
+**SUBTITLE**: A股上市电商代运营商。两年内从「帮别人卖货」变成「自己拥有18亿品牌收入」。
+
+**CONCEPT**:
+- **MUST communicate**: AI对企业的价值不只是「省人提效」（节流），更是「增收扩盘」（开源）。若羽臣用AI同时驱动两条线——左边节流：200+数字员工接管客服/营销/运营执行层，内容效率↑5x、研发周期-60%；右边开源：AI内容生成→短视频1万条/天、广告投放ROI+18%、GEO新流量渠道、三大自有品牌矩阵——结果是营收34.32亿(+94%)、自有品牌18.13亿(+262%)、毛利率59.8%(+15pp)。AI不是「省成本的工具」，是「收入增长的放大器」。
+- **MUST NOT**: 不要把若羽臣说成AI技术公司——研发费用率仅0.95%，AI是接入使用不是自研。不要把「开源」说成AI单方面驱动——是人的战略判断（选赛道/锁原料/全渠道）+AI的执行放大。不要回避文章原有的审慎判断——在底部加一行小字诚实注脚。
+- **Bridge from previous**: Allianz和Maersk展示了欧洲传统企业两条AI落地路径。若羽臣展示中国样本——更重要的是，它把AI讲完整了：不只省钱，更是赚钱。
+- **Bridge to next**: 三家非科技公司，三个不同行业，同一个结论——企业核心流程在被AI重写。退一步问：为什么组织结构两千年没变过？下一页。
+- **Content structure**: 左右双栏对比构图。左栏「节流」：AI替代执行层——200+数字员工（客服/营销/运营）、内容效率↑5x、研发周期-60%、清洁原料成本-15%——amber标注「省」。右栏「开源」：AI驱动增长——短视频1万条/天、广告ROI+18%、GEO新流量渠道、三大自有品牌（绽家10.69亿/斐萃6.96亿/纽益倍）——amber标注「长」。双栏底部汇聚于一行大字结果：营收34.32亿(+94%) · 自有品牌18.13亿(+262%) · 毛利率59.8%(+15pp)。右上角手绘羽毛印章。底部小字诚实注脚。
+
+**IMAGE PROMPT**:
+```
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. SPLIT COMPARISON layout — two columns side by side, converging at the bottom into a unified result.
+
+LEFT COLUMN (~42%): Labeled 节流 in amber at the top. A hand-drawn card showing AI taking over execution-layer work. Sketch elements: a row of small amber-glass agent figures (use Agent visual spec — neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer internal network visible) at workstations doing customer service, marketing ops, content generation. Medium Chinese points stacked vertically:
+• 200+ 数字员工：客服、营销、运营
+• 内容效率 ↑5x
+• 研发周期 −60%
+• 清洁原料成本 −15%
+A small amber badge at bottom of card: 省.
+
+RIGHT COLUMN (~42%): Labeled 开源 in amber at the top. A hand-drawn card showing AI driving revenue growth. Sketch elements: three product bottles/packages rising like growth bars — 绽家 (home cleaning), 斐萃 (oral anti-aging), 纽益倍 (health) — with rising amber arrows beside them. Small content-creation symbols (video play button, ad targeting crosshair, search magnifier). Medium Chinese points stacked vertically:
+• 短视频 1 万条/天
+• 广告 ROI +18%
+• GEO 新流量渠道
+• 三大自有品牌矩阵
+A small amber badge at bottom of card: 长.
+
+BETWEEN the two columns, a thin vertical sepia divider line with a small amber node in the center.
+
+BOTTOM (~20%): Both columns converge into a single amber-highlighted RESULT band drawn as a hand-drawn banner/card spanning the width. Three key metrics in medium-large Chinese with amber numbers:
+营收 34.32 亿 (+94%)  ·  自有品牌 18.13 亿 (+262%)  ·  毛利率 59.8% (+15pp)
+
+TOP-RIGHT corner: a small hand-drawn feather stamp (呼应「若羽臣」的「羽」) in faded sepia ink — like a subtle wax seal, not a photograph. Very minimal, 2-3 simple strokes suggesting a feather quill.
+
+BOTTOM small footnote in smaller sepia (but not tiny — medium-readable): 研发费用率仅 0.95%，AI 是接入使用非自研。人的战略判断（选赛道/锁原料/全渠道）+ AI 执行放大。
+
+One amber line below the result banner: AI 不只是省。更是长。
+
+Keep Chinese medium-or-large throughout. No blue. No logos other than the feather stamp.
+```
+
+> **SPEAKER NOTE**
+>
+> **Narrative flow:**
+> 前两页看了欧洲两个传统巨头——Allianz直建agentic、Maersk情报先行。若羽臣是第三个案例，也是唯一一个中国样本。但这页不只是「再来一个案例」——它把AI的价值讲完整了。我们经常讲AI是「省人提效」——200+数字员工、内容效率5x、研发周期-60%，这都没错。但若羽臣真正值得看的是另一边：AI怎么帮它**长**。短视频1万条/天、广告ROI+18%、GEO新流量——这些不是省钱，是创造增量收入。结果：营收+94%、自有品牌+262%、毛利率从44%拉到60%。一个电商代运营商，两年内从「帮别人卖货」变成「自己拥有18亿品牌收入」——AI是增长放大器，不只是成本削减器。诚实说一句：研发费用率仅0.95%，AI是接入使用不是自研。核心竞争力仍然是人的战略判断——选什么赛道、锁什么原料、怎么铺渠道。AI是让这些判断执行得更快、更便宜、规模更大。开源+节流，两条线缺一不可。
+>
+> **Terms:**
+> — 节流: AI替代执行层工作，降低运营成本（内容生成、客服、研发）
+> — 开源: AI驱动收入增长（内容营销规模、广告效率、新渠道、新产品）
+> — 自有品牌: 若羽臣从代运营转型为品牌商的核心资产——绽家（高端家清，10.69亿）、斐萃（口服抗衰，6.96亿）、纽益倍（大众健康）
+> — GEO: 生成引擎优化——让内容被AI模型收录为优选语料，获取AI驱动的搜索流量
+>
+> **Takeaway:**
+> AI不只是省成本的工具——若羽臣用AI同时驱动节流（效率↑）和开源（收入↑），两年内从代运营商变成18亿自有品牌收入。三家传统企业，三个行业，同一个结论：核心流程在被AI重写。
+
+
+---
+## Slide 23: `s23_roman_legion`
 
 **VISUAL TYPE**: Concept Split
 
@@ -921,7 +987,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **CONCEPT**:
 - **MUST communicate**: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）——这是**纵向瓶颈**。还有一层**横向瓶颈**：人是窄专家，知识有边界。律师不懂工程，工程师不懂财务，所以组织必须切成部门，流程必须在不同专家之间接力。每一个接力点——翻译、对齐、确认——都是摩擦。层级 + 部门墙，不是「效率最高」，是人在两种约束下的不得已：沟通带宽有限，且知识边界固定。两千年没变过——罗马军团 Legatus → Centurion → Decurion → Legionary，指挥链一模一样；现代企业加上部门墙，横向纵向都是同一套逻辑。AI 同时打破两层：① 它是通才——没有职业边界，跨领域一步直通；② 它沟通成本接近零——瞬时对齐，不需要层层中转。还记得 Slide 05 吗——「以前给你换工具，这次给你一个搭档」。搭档能拆金字塔，不是因为更强，是因为这两个特质正好打在金字塔存在的两个理由上。纯做上传下达的中层 + 纯做跨边界搬运的流程环节，存在的理由一起消失了。Block 已在试——Dorsey 砍掉中间层，CEO 直接管 6000 人。不是理论，已经在发生。
 - **MUST NOT**: 不要把罗马军团画成「古代落后、现代先进」——关键是**结构一模一样**，令人不安。不要让金字塔「倒塌」——是中间层被一道琥珀涟漪轻轻淡化，不是灾难，是重构。不要暗示所有中层都会消失——淡化的是「纯搬运」的层级，不是所有管理者。
-- **Bridge from previous**: 从案例拔高到组织理论——两家传统企业之外，退一步看：为什么会有金字塔？答案藏在两千年前。
+- **Bridge from previous**: 从案例拔高到组织理论——三家传统企业之外，退一步看：为什么会有金字塔？答案藏在两千年前。
 - **Bridge to next**: 中层若只做搬运就没用了——那到底该怎么重新分类岗位？下一页 Builder/Seller/Measurer。
 - **Content structure**: 上半部文字为主（约 55%），五行递进要点（管理版 Dunbar 数 → 层级链条 → 不是效率最高是不得已 → 罗马军团同构 → AI 打破前提）。下半部三栏对比（约 45%）：左栏=罗马军团金字塔（Legatus → Centurion → Decurion → Legionary，手绘士兵小人，钢笔线条古迹感）；中栏=现代企业金字塔（CEO → VP → Director → Manager → IC，西装小人，跟左边**完全一样的结构**，灰色 sepia，中间写「2000 年，同一套逻辑」）；右栏=同一个金字塔轮廓被一道琥珀涟漪从中间轻轻淡化——所有纯搬运的中间层变半透明，只留下顶层和底层清晰，顶层和底层之间出现一条细的琥珀色直连线（Agent 直连），右下角标注「Block 已在试：CEO 直接管 6000 人」。
 
@@ -949,7 +1015,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 23: `s23_measurers_not_builders`
+## Slide 24: `s24_measurers_not_builders`
 
 **VISUAL TYPE**: Impact / Evidence
 
@@ -986,7 +1052,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 24: `s24_convergence`
+## Slide 25: `s25_convergence`
 
 **VISUAL TYPE**: Concept Split
 
@@ -1023,7 +1089,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 
 ---
 
-## Slide 25: `s25_what_will_you_do`
+## Slide 26: `s26_what_will_you_do`
 
 **VISUAL TYPE**: Closer
 
@@ -1066,6 +1132,7 @@ Design a finished 16:9 keynote CLOSER slide, sketch/etching aesthetic but MINIMA
 
 | Date | Change Type | Slide(s) | What Changed | Why |
 |------|-------------|----------|-------------|-----|
+| 2026-07-22 | Content | 22 (new) + renumber | 新增 Slide 22 若羽臣「开源+节流」双线案例（左右对比构图：左栏AI节流/右栏AI开源→底部统一结果），原 Slide 22–25 顺延为 23–26；Block Map 同步更新 | 补全中国案例视角，把AI价值从「省人提效」扩展到「增收扩盘」，与 Allianz/Maersk 形成三案例对照 |
 | 2026-07-12 | Content | 18 | Slide 18 重写：IMAGE PROMPT 从「无差别 AI 小人框内移动+人形框外扶框边」改为「框内两个性格鲜明的 Agent——左边安静写代码/文档（在想在写），右边狂野连接设备/调动资源（在搭在连）——框是沙盒不是笼子」；SUBTITLE/CONCEPT/SPEAKER NOTE 同步更新 | 原版把框内 Agent 画成无差别群体，未体现「不同 Agent 不同性格、框让它们各展所长」的洞察 |
 | 2026-07-12 | Content | 22 | Slide 22 重写：IMAGE PROMPT 从「右下角单一金字塔+琥珀涟漪」改为三栏对比构图（左=罗马军团 LEGATUS→CENTURION→DECURION→LEGIONARY / 中=现代企业 CEO→VP→DIRECTOR→MANAGER→IC 完全同构 / 右=同一金字塔中间层被琥珀涟漪淡化→AGENT 直连）；SUBTITLE/CONCEPT/SPEAKER NOTE 同步补全「2000 年同一套逻辑」叙事 | 原版画面偏弱——只说「金字塔是信息瓶颈的产物」但没让观众看到罗马军团和现代企业真的是同一个结构 |
 | 2026-07-12 | Content | 05-06 | Slide 05+06 双双重写，情绪从「失去/崩塌」翻为「获得+挑战」：Slide 05 从「前提被挖」改为「多了一个搭档——超级能干，但人还不会配合」（工具升级→伙伴关系）；Slide 06 从「地基裂了楼要塌」改为「旧地图只管人独自走，新地图还在画」；两页 IMAGE PROMPT 同步替换 | 原版两页情绪偏悲观（地基裂、前提挖），新版保持挑战的真实感但不拍成灾难 |

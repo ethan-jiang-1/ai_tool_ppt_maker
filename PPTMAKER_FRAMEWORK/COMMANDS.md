@@ -12,7 +12,7 @@
 - `html-then-image2` → `html-first-v1` / html / refinement required（经 `image2-refine` 生命周期）/ reserved HTML seam。
 - `image2-only` → `legacy-image2-first`（markerless whole-page 规范名，不写 frontmatter）/ image2 / refinement not-applicable / current in-framework style master。
 
-`html-only <-> html-then-image2` 同管道原子切换；`html-* <-> image2-only` 跨管道返回 `transition_required`（留给 versioned transition）。新 deck 省略 `--mode` 默认 `image2-only`。
+`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 不就地改写，而是走 state-owned clean-vNext production-mode transition。它保留 source version 与全部 source work，先显式 author target source/control 和 target intake，再 preview、确认、发布、receipt-bound handoff。新 deck 省略 `--mode` 默认 `image2-only`。
 
 - `html-first-v1`: local HTML Stage 1-5；header/body/KPI/card/chart/callout 均由 HTML renderer/compositor 拥有；不查看 render mode、style master 或 Image2 配置。
 - markerless `legacy-image2-first`: 保持 legacy pilot/header/build/provider controls；详情只在 legacy maintenance reference。
@@ -31,7 +31,14 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --set-production-mo
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --repair-production-mode-mirror
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <target-run-dir> --register-production-mode-from <source-run-dir>
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-image2-delivery-review proceed|repair|redirect [--reason "<text>"]
+# cross-pipeline page-authority transition (no current-version mode mutation)
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --prepare-production-mode-transition html-only|html-then-image2|image2-only
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --preview-production-mode-transition
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --confirm-production-mode-transition --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --apply-production-mode-transition --plan-hash <hash>
 ```
+
+The transition candidate is confined to `_scratch/production-mode-transition/candidate-run/`. The Agent authors its target `slide-specifications.md`, complete target intake, and target visual control there; it may preserve only the source formal identity/order ledger. An HTML target reports `needs_local_materialization` and follows the existing runnable HTML contract, not a new score, parity review, or visual-quality promise. An Image2 target reports `needs_render` and enters normal style-master authorization, provider, review, and final-delivery controls only after target handoff. A visible receipt waiting for registration is recovered with `state --recover-production-mode-transition`; an old uncertain journal additionally requires the state-owned `--confirm-production-mode-transition-recovery <owner-token>` record.
 
 HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/reuse image flags；HTML `build` accepts only its explicit local `--force --reason` continuation and never provider controls. `pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
 
@@ -116,7 +123,7 @@ stays provider-free. Reconciliation consumes the persisted provider request iden
 
 ## Structural and migration
 
-`slides` preview 必须绑定 position · stable ID · title、before/after 与 exact `plan_sha256`；apply 只发布 source/control vNext。markerless migration 的唯一顺序是：
+`slides` preview 必须绑定 position · stable ID · title、before/after 与 exact `plan_sha256`；apply 只发布 source/control vNext。Page authority changes use the production-mode transition above. HTML-quality-only requests remain normal HTML iteration work and never create a transition candidate. Historical markerless-to-HTML migration remains completion-only for its exact pre-existing checkpoint; its historical sequence is：
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs migrate-html <source-run-dir> prepare --preset <shipped-preset>

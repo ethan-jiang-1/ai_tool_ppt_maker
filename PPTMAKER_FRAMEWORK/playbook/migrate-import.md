@@ -108,3 +108,19 @@ exit: [evidence:migration-handoff-completed]
 **Step 1 — CLI**: Complete the exact receipt-bound state handoff from source migration execution to target HTML continuation. A crash before handoff is observed as non-writing `migration_handoff_pending`; mismatch is replacement-required.
 
 **Step 2 — MD**: Target starts reset-null with content/visual/delivery reviews pending. Open target artifacts, publish new gates, build, and perform final review; no source approval is inherited.
+
+### apply-production-mode-transition
+
+```yaml
+node: apply-production-mode-transition
+lifecycle_phase: 3
+method_module: 05-iteration
+requires: []
+produces: [versioned-production-mode-target]
+entry: [transition_apply_current]
+exit: [transition_publish_or_recovery_recorded]
+```
+
+**Step 1 — CLI**: Use only the closed production-mode transition apply, recovery-confirmation, or recovery command bound to the exact confirmed plan hash.
+
+**Step 2 — MD**: A publication or recovery hard-stop remains in progress. Only receipt-bound target registration/handoff or no-target source restoration replaces this execution.

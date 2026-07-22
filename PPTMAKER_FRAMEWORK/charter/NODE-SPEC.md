@@ -113,7 +113,7 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 
 用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。legacy boolean/scalar 只可保守迁移为 `kind: agent`，绝不能伪造用户批准。
 
-## Production Mode (v4 SSOT)
+## Production Mode (v5 SSOT)
 
 每个 canonical run version 的生产意图由 `_state/state.yaml` 的 `production_mode.by_version["3_versions/vN"].mode` 唯一记录，封闭词表为 `html-only`、`html-then-image2`、`image2-only`。`project-metadata.yaml` 的 `production_mode`/`production_mode_run_version` 仅是非权威镜像；缺失或漂移时 status 报告可修复 drift，但绝不能用 metadata 覆盖 state。
 
@@ -125,7 +125,7 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 | `html-then-image2` | `html-first-v1` | html | required | reserved-html-adapter |
 | `image2-only` | `legacy-image2-first` | image2 | not-applicable | current |
 
-`legacy-image2-first` 是 markerless whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 跨管道切换返回 `transition_required`，不就地改写。
+`legacy-image2-first` 是 markerless whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
 
 Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `production_modes`（其子集）。canonical index 按权威 mode 计算 active node 集：inapplicable node 不标 `skipped`、不删记录，只是不在 active 工作集内。`skipped` 仍只表示显式人工 bypass。
 
@@ -227,4 +227,4 @@ produces: [slide-specifications]
 **Step 2 — CLI**: 用 `setNodeEvidence` 记录 `l1-l2-l4-complete` 与 `sources-collected`，再 `writeState`。
 ````
 
-Registry validator 必须对 checked-in `playbook/controller-manifest-v3.json` 声明的 10 个有序 controllers、1 个 shared node、43 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、supported pipeline ownership、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。
+Registry validator 必须对 checked-in `playbook/controller-manifest-v3.json` 声明的 11 个有序 controllers、1 个 shared node、44 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、supported pipeline ownership、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。

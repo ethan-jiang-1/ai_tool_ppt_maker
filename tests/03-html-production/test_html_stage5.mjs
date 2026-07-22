@@ -36,7 +36,7 @@ describe('HTML Stage 5 notes lineage', () => {
       const state = readState(fixture.deck);
       state.playbook = 'create-deck';
       state.current_node = 'checkpoint-final-review';
-      state.nodes['checkpoint-final-review'] = { status: 'in_progress', execution_id: state.execution_id, evidence: {} };
+      state.nodes['checkpoint-final-review'] = { status: 'in_progress', execution_id: state.execution_id, run_version: 'v1', evidence: {} };
       writeState(fixture.deck, state);
       const reviewResult = spawnSync('node', [
         'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs', 'state', fixture.runDir,
@@ -86,6 +86,7 @@ describe('HTML Stage 5 notes lineage', () => {
       refreshedState.nodes['checkpoint-final-review'] = {
         status: 'in_progress',
         execution_id: refreshedState.execution_id,
+        run_version: 'v1',
         evidence: {},
       };
       writeState(fixture.deck, refreshedState);

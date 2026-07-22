@@ -212,9 +212,10 @@ function currentReset(state, context) {
 }
 
 function readStateSnapshot(context, { purpose = 'observe', heal = true } = {}) {
-  const state = readState(context.root, { purpose, heal });
+  const state = readState(context.root, { purpose, heal, runVersion: context.runVersion });
   if (state?.replacement_required) throw new Error(`replacement_required: ${state.reason}`);
   if (state?.corrupted) throw new Error('HTML review state is unreadable');
+  if (state?.execution_run_version_mismatch) throw new Error('execution_run_version_mismatch: HTML review state belongs to another run version');
   if (!existsSync(context.stateFile)) throw new Error('replacement_required: HTML authoritative state is missing');
   const bytes = readFileSync(context.stateFile);
   return { state, bytes, sha256: sha256(bytes) };
@@ -925,9 +926,9 @@ export function publishHtmlDeliveryDecision(trustedContext, { decision, reason =
   if (decision === 'redirect' && nextState.playbook === 'create-deck') {
     for (const [nodeId, node] of Object.entries(nextState.nodes)) {
       if (nodeId.startsWith('html-') || nodeId === 'header-review' || nodeId === 'instantiation' || nodeId === 'checkpoint-intake' || nodeId === 'checkpoint-final-review') continue;
-      if (node?.execution_id === nextState.execution_id) nextState.nodes[nodeId] = { status: 'pending', execution_id: nextState.execution_id, evidence: {} };
+      if (node?.execution_id === nextState.execution_id) nextState.nodes[nodeId] = { status: 'pending', execution_id: nextState.execution_id, run_version: context.runVersion, evidence: {} };
     }
-    nextState.nodes['checkpoint-intake'] = { status: 'in_progress', execution_id: nextState.execution_id, evidence: {}, waiting_for: 'user:confirm-intake-after-redirect', started: decidedAt };
+    nextState.nodes['checkpoint-intake'] = { status: 'in_progress', execution_id: nextState.execution_id, run_version: context.runVersion, evidence: {}, waiting_for: 'user:confirm-intake-after-redirect', started: decidedAt };
     nextState.current_node = 'checkpoint-intake';
   } else if (decision === 'redirect') {
     nextState.nodes[nextState.current_node].waiting_for = 'user:select-redirect-target';

@@ -1,45 +1,15 @@
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
-# API: PPTMAKER_FRAMEWORK/scripts/lib/state.mjs
+# API: PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: schema_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
 # Heal: readState defaults to tolerant parse + schema migration/repair
-playbook: iterate-style
+playbook: legacy-image2-maintenance
 current_node: ""
 started_at: 2026-07-11T01:11:51.522Z
-updated_at: 2026-07-12T15:45:09.176Z
+updated_at: 2026-07-22T07:47:02.287Z
 nodes:
-  start-iterate:
-    status: completed
-    completed: 2026-07-11T08:21:46.152Z
-    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
-    evidence: {}
-  tweak-prompt:
-    status: completed
-    completed: 2026-07-11T08:21:46.159Z
-    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
-    evidence: {}
-  generate:
-    status: completed
-    completed: 2026-07-11T08:21:46.159Z
-    round: 1
-    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
-    evidence: {}
-  review-gate:
-    status: completed
-    started: 2026-07-11T08:26:59.852Z
-    completed: 2026-07-12T07:55:00.000Z
-    decision:
-      value: approve
-      kind: agent
-      at: 2026-07-12T07:55:00.000Z
-    note: "User reviewed style_master.jpg and LOCKed. Visual gate approved in both
-      project-metadata.yaml and _state. Ready for Phase 3 production: pilot →
-      approve header → build --reuse-images."
-    round: 1
-    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
-    evidence: {}
   header-review:
     status: completed
     reviewed_content_full_page_ids:
@@ -369,15 +339,45 @@ nodes:
     missing_content_review_count: 0
     missing_changed_full_page_ids: []
     updated_at: 2026-07-12T15:45:09.160Z
+  inspect-legacy-evidence:
+    status: completed
+    completed: 2026-07-11T08:21:46.152Z
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
+    run_version: v1
+  run-legacy-maintenance:
+    status: completed
+    completed: 2026-07-11T08:21:46.159Z
+    round: 1
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
+    run_version: v1
+  verify-legacy-maintenance:
+    status: completed
+    started: 2026-07-11T08:26:59.852Z
+    completed: 2026-07-12T07:55:00.000Z
+    decision:
+      value: approve
+      kind: agent
+      at: 2026-07-12T07:55:00.000Z
+    note: "User reviewed style_master.jpg and LOCKed. Visual gate approved in both
+      project-metadata.yaml and _state. Ready for Phase 3 production: pilot →
+      approve header → build --reuse-images."
+    round: 1
+    execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+    evidence: {}
+    run_version: v1
 gates:
   content: waived
   visual: approved
+  html_content: pending
+  html_visual: pending
 deck:
   name: ai_sdlc_keynote
   type: keynote
   style: custom-sketch-etching
 playbook_stack: []
-schema_version: 2
+schema_version: 5
 execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
 execution_started_at: 2026-07-11T01:11:51.522Z
 diagnostics:
@@ -389,3 +389,28 @@ diagnostics:
   - handoff removed from active iterate-style working set
   - review-gate.evidence.user_decision was invalid and removed
   - review-gate.decision migrated from scalar with agent provenance
+  - "iterate-style: start-iterate migrated to inspect-legacy-evidence"
+  - "iterate-style: tweak-prompt migrated to inspect-legacy-evidence"
+  - "iterate-style: generate migrated to run-legacy-maintenance"
+  - "iterate-style: review-gate migrated to verify-legacy-maintenance"
+  - production_mode.3_versions/v1 migrated from legacy source marker ->
+    image2-only
+production_mode:
+  by_version:
+    3_versions/v1:
+      mode: image2-only
+pipeline: legacy-image2-first
+run_version: v1
+image2_provider_authorization:
+  by_version:
+    3_versions/v1:
+      schema: pptmaker-image2-provider-authorization-v1
+      run_version: v1
+      operation: build
+      scope:
+        slide_ids:
+          - s22_ruoyuchen_dual_engine
+      profile_fingerprint: f45d8f5ba0b96aa79c2ad498d4e2f7a71ba5e2180d8848ff9e2588430d162903
+      max_submissions: 1
+      execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
+      decided_at: 2026-07-22T08:00:12.203Z

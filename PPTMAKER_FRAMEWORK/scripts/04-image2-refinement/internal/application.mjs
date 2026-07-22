@@ -210,15 +210,16 @@ function defaultRecord(runVersion) {
 function readRecord(runDir, { observe = false } = {}) {
   const run = resolve(runDir);
   const version = assertRunVersion(run);
-  const state = readState(deckRoot(run), { purpose: observe ? "observe" : "execute", heal: false });
+  const state = readState(deckRoot(run), { purpose: observe ? "observe" : "execute", heal: false, runVersion: version });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
   return { state, record: readImage2RefinementState(state, version) || defaultRecord(version), version };
 }
 
 function commitRecord(runDir, record, { expectedStateSha, updatedAt = nowIso() } = {}) {
   const run = resolve(runDir);
-  const state = readState(deckRoot(run), { purpose: "execute", heal: false });
+  const state = readState(deckRoot(run), { purpose: "execute", heal: false, runVersion: record.run_version });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
+  if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: refinement state belongs to another run version");
   const next = clone(state);
   next.nodes ||= {};
   const prior = next.nodes["image2-refinement"]?.by_version || {};
@@ -432,7 +433,7 @@ async function promoteStyleReferenceResult({ runDir, runVersion, record, attempt
   const styleAssetId = "refined-style-reference";
   // The attempt is already persisted as submitted. Promotion must carry that
   // latest state forward instead of committing the pre-submit copy.
-  const currentState = readState(deckRoot(runDir), { purpose: "execute", heal: false });
+  const currentState = readState(deckRoot(runDir), { purpose: "execute", heal: false, runDir });
   const nextState = clone(currentState);
   const versionRecord = nextState.nodes?.["image2-refinement"]?.by_version?.[`3_versions/${runVersion}`];
   if (!versionRecord?.attempts?.[attempt.attempt_id]) throw new Error("submitted style-reference attempt is missing from state");
@@ -800,7 +801,7 @@ export async function declineRefinement({ runDir } = {}) {
     for (const dir of [paths.generated, paths.scratch]) if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
     return Object.freeze({ declined: true, provider_calls: 0 });
   }
-  const state = readState(root, { purpose: "execute", heal: false });
+  const state = readState(root, { purpose: "execute", heal: false, runDir: run });
   const next = clone(state);
   const byVersion = { ...(next.nodes?.["image2-refinement"]?.by_version || {}) };
   delete byVersion[`3_versions/${paths.run_version}`];
@@ -811,7 +812,7 @@ export async function declineRefinement({ runDir } = {}) {
   }
   if (next.playbook === "image2-refine") {
     const { resumePlaybook } = await import("../../shared/state/state.mjs");
-    if (Array.isArray(next.playbook_stack) && next.playbook_stack.length) resumePlaybook(next);
+    if (Array.isArray(next.playbook_stack) && next.playbook_stack.length) resumePlaybook(next, { runVersion: paths.run_version });
     else {
       next.current_node = "";
       next.playbook = "";
@@ -827,13 +828,13 @@ export async function declineRefinement({ runDir } = {}) {
 export async function enterRefinementController({ runDir } = {}) {
   const eligible = await currentEligibility(runDir);
   const root = deckRoot(eligible.run);
-  const state = readState(root, { purpose: "execute", heal: false });
+  const state = readState(root, { purpose: "execute", heal: false, runDir: eligible.run });
   if (state.playbook !== "image2-refine") {
     const { switchPlaybook } = await import("../../shared/state/state.mjs");
-    switchPlaybook(state, "image2-refine");
+    switchPlaybook(state, "image2-refine", { runVersion: eligible.run_version });
   }
   state.current_node = "recommend-image2-refinement";
-  state.nodes["recommend-image2-refinement"] = { status: "in_progress", execution_id: state.execution_id, evidence: {} };
+  state.nodes["recommend-image2-refinement"] = { status: "in_progress", execution_id: state.execution_id, run_version: eligible.run_version, evidence: {} };
   writeState(root, state, { expectedStateSha: readVersionFileSha(refinementPaths(eligible.run).state) });
   return Object.freeze({ entered: true, playbook: "image2-refine", current_node: state.current_node, run_version: eligible.run_version });
 }
@@ -844,7 +845,7 @@ export async function completeRefinementController({ runDir } = {}) {
   // only the handoff to final review; provider-facing operations stay strict.
   const eligible = await currentEligibilityForRecord(runDir, storedRecord, { allowPostPromotionStaleDelivery: true });
   const root = deckRoot(eligible.run);
-  const state = readState(root, { purpose: "execute", heal: false });
+  const state = readState(root, { purpose: "execute", heal: false, runDir: eligible.run });
   const record = storedRecord;
   const reviews = Object.values(record.reviews || {});
   const selectedIds = new Set(record.plan?.slides?.map((slide) => slide.slide_id) || []);
@@ -866,13 +867,13 @@ export async function completeRefinementController({ runDir } = {}) {
 
   if (state.playbook === "image2-refine") {
     for (const nodeId of ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement"]) {
-      state.nodes[nodeId] = { ...(state.nodes[nodeId] || {}), status: "completed", execution_id: state.execution_id, evidence: { ...(state.nodes[nodeId]?.evidence || {}), [`${nodeId}-current`]: { met: true, kind: "agent", at: nowIso() } } };
+      state.nodes[nodeId] = { ...(state.nodes[nodeId] || {}), status: "completed", execution_id: state.execution_id, run_version: eligible.run_version, evidence: { ...(state.nodes[nodeId]?.evidence || {}), [`${nodeId}-current`]: { met: true, kind: "agent", at: nowIso() } } };
     }
-    state.nodes["review-image2-refinement"] = { status: "completed", execution_id: state.execution_id, evidence: { "image2-refinement-review": { met: true, kind: "agent", at: nowIso() } } };
+    state.nodes["review-image2-refinement"] = { status: "completed", execution_id: state.execution_id, run_version: eligible.run_version, evidence: { "image2-refinement-review": { met: true, kind: "agent", at: nowIso() } } };
     state.current_node = "review-image2-refinement";
     if (Array.isArray(state.playbook_stack) && state.playbook_stack.length) {
       const { resumePlaybook } = await import("../../shared/state/state.mjs");
-      resumePlaybook(state);
+      resumePlaybook(state, { runVersion: eligible.run_version });
     }
   }
   writeState(root, state, { expectedStateSha: readVersionFileSha(refinementPaths(eligible.run).state) });

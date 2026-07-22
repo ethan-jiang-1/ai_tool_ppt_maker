@@ -384,6 +384,21 @@ describe('bundle_layout', () => {
     }
   });
 
+  it('keeps production-mode-transition scratch isolated and closed', () => {
+    const deck = join(tmpdir(), `deck_transition_layout_${Date.now()}`);
+    try {
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      const scratch = join(v1, '_scratch', 'production-mode-transition');
+      mkdirSync(join(scratch, 'candidate-run'), { recursive: true });
+      writeFileSync(join(scratch, 'plan.json'), '{}');
+      writeFileSync(join(scratch, 'apply-journal.json'), '{}');
+      expect(checkBundle(v1, false)).toEqual([]);
+      writeFileSync(join(scratch, 'legacy-plan.json'), '{}');
+      expect(checkBundle(v1, false)).toContain("unexpected 'legacy-plan.json' in production-mode-transition scratch/");
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
   it('keeps modern refinement source, derived, and scratch partitions lazy and closed', () => {
     const deck = join(tmpdir(), `deck_refinement_layout_${Date.now()}`);
     try {

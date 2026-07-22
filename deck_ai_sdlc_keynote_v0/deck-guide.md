@@ -35,15 +35,15 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve deck_ai_sdlc_keynote/3_vers
   - migrate-import 已 handoff；清上下文后续跑，勿绿场重开
   - 下一步人审：open style master → LOCK / RETRY / BACK
 - **管线产物**（`3_versions/v1/_generated/`；该目录 gitignore，以磁盘为准）：
-  - `slide_plan.json` + `page_prompts/` — 由当前框架重建（**25** 页）
-  - `page_images_full/` / `header_locked/` / `ppt/` — 已重新生成（25 页，2K，含 `_manifest.json` provenance + header-review evidence）
+  - `slide_plan.json` + `page_prompts/` — 由当前框架重建（**26** 页）
+  - `page_images_full/` / `header_locked/` / `ppt/` — 已重新生成（26 页，2K，含 `_manifest.json` provenance + header-review evidence）
   - 旧 25 张 raw/locked 图片、PPTX、contact sheets 与旧 prompts 已备份到版本 `_scratch/framework-sync-2026-07-12/`
   - 详见 [MIGRATION.md](MIGRATION.md)
 
 ## 新框架同步后的生产前置
 
 - 当前 25 张旧图混合 `1k`/`2k`，且没有 `_manifest.json`，不能被新版 Stage 2 当作可验证缓存复用。
-- 25 页 IMAGE PROMPT 已逐页清理：保留 body 文案/数据/构图，移除重复的结构化 KICKER/TITLE/SUBTITLE 及 header 位置指令；Stage 1 审计为 0 个 exact-text 重复。
+- 26 页 IMAGE PROMPT 已逐页清理：保留 body 文案/数据/构图，移除重复的结构化 KICKER/TITLE/SUBTITLE 及 header 位置指令；Stage 1 审计为 0 个 exact-text 重复。
 - 下一步仍先完成 `iterate-style` 的 style master review。LOCK 后直接用目标 production profile 跑 `pilot` → open review → `approve <run-dir> header` → `build --reuse-images`。
 
 ## 自留教训（非进度）

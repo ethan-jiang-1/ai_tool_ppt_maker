@@ -21,6 +21,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 import { parseDocument, stringify } from "yaml";
 import {
@@ -37,7 +38,7 @@ import { canonicalVersionKey, classifyProductionModeTransition, inspectProductio
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
 export const HISTORY_FILE = "history.jsonl";
-export const STATE_SCHEMA_VERSION = 4;
+export const STATE_SCHEMA_VERSION = 5;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
 export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]);
@@ -78,6 +79,11 @@ const LEGACY_PIPELINE = "legacy-image2-first";
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
+const LEGACY_MIGRATION_OLD_SIDE_MODES = new Set(["verified-current", "degraded-missing", "degraded-stale"]);
+const TRANSITION_SUSPENSION_SCHEMA = "pptmaker-production-mode-transition-suspension-v1";
+const TRANSITION_APPLY_NODE = "apply-production-mode-transition";
+const TRANSITION_INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
+const TRANSITION_UNCERTAIN_RECOVERY_AGE_MS = 300000;
 
 function nowIso() { return new Date().toISOString(); }
 function newExecutionId() { return `exec-${randomUUID()}`; }
@@ -94,6 +100,205 @@ function isoOr(value, fallback) {
 function appendDiagnostic(state, message) {
   if (!Array.isArray(state.diagnostics)) state.diagnostics = [];
   if (!state.diagnostics.includes(message)) state.diagnostics.push(message);
+}
+
+function isTransitionSuspensionFrame(frame) {
+  return isPlainObject(frame) && frame.schema === TRANSITION_SUSPENSION_SCHEMA && frame.disposition === "transition-suspended";
+}
+
+function isTransitionPipeline(value) {
+  return value === HTML_FIRST_PIPELINE || value === LEGACY_PIPELINE;
+}
+
+function validTransitionIntake(value) {
+  return isPlainObject(value) &&
+    Object.keys(value).length === TRANSITION_INTAKE_FIELDS.length &&
+    TRANSITION_INTAKE_FIELDS.every((field) => typeof value[field] === "string" && value[field].trim().length > 0);
+}
+
+function activeTransitionRecord(state) {
+  if (state?.playbook !== "migrate-import" || state?.current_node !== TRANSITION_APPLY_NODE || !state?.execution_id) return null;
+  const record = state.nodes?.[TRANSITION_APPLY_NODE];
+  if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id || record.run_version !== state.run_version) return null;
+  const required = [
+    "transition_plan_hash", "transition_candidate_receipt_sha256", "transition_target_intake_sha256",
+  ];
+  if (!required.every((key) => SHA256_RE.test(record[key] || ""))) return null;
+  if (typeof record.transition_source_execution_id !== "string" || !record.transition_source_execution_id ||
+    record.transition_source_version !== state.run_version ||
+    !isProductionMode(record.transition_source_mode) ||
+    !isTransitionPipeline(record.transition_source_pipeline) ||
+    !normalizeRunVersion(record.transition_target_version) ||
+    !isProductionMode(record.transition_target_mode) ||
+    !isTransitionPipeline(record.transition_target_pipeline)) return null;
+  return record;
+}
+
+function selectedRunVersion({ runVersion, runDir } = {}) {
+  return normalizeRunVersion(runVersion ?? runDir);
+}
+
+function visibleRunVersions(deckDir) {
+  if (!deckDir) return [];
+  try {
+    return readdirSync(join(deckDir, "3_versions"))
+      .filter((name) => VERSION_RE.test(name))
+      .sort((left, right) => Number(left.slice(1)) - Number(right.slice(1)));
+  } catch {
+    return [];
+  }
+}
+
+function legacyApplySourceVersion(state) {
+  if (state?.playbook !== "migrate-import" || state?.current_node !== "apply-html-migration" || !state?.execution_id) return null;
+  const record = state.nodes?.["apply-html-migration"];
+  if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id) return null;
+  const sourceVersion = normalizeRunVersion(record.migration_source_version);
+  if (!sourceVersion || !SHA256_RE.test(record.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(record.old_side_mode)) return null;
+  return sourceVersion;
+}
+
+function legacyConfirmationSourceVersion(state, selected) {
+  const selectedVersion = selectedRunVersion(selected);
+  if (!selectedVersion || state?.playbook !== "migrate-import" || state?.current_node !== "confirm-html-migration" || !state?.execution_id) return null;
+  const confirmation = state.nodes?.["confirm-html-migration"];
+  const preview = state.nodes?.["preview-html-migration"];
+  if (!isPlainObject(confirmation) || confirmation.status !== "in_progress" || confirmation.execution_id !== state.execution_id) return null;
+  if (!isPlainObject(preview) || preview.status !== "completed" || preview.execution_id !== state.execution_id) return null;
+  if (!SHA256_RE.test(preview.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(preview.old_side_mode)) return null;
+  return selectedVersion;
+}
+
+function resolveV5RunBinding(state, deckDir) {
+  if (!state?.playbook) return Object.freeze({ ok: true, run_version: null });
+  const persisted = normalizeRunVersion(state.run_version);
+  if (persisted) return Object.freeze({ ok: true, run_version: persisted, source: "persisted" });
+  const legacy = legacyApplySourceVersion(state);
+  if (legacy) return Object.freeze({ ok: true, run_version: legacy, source: "legacy-apply" });
+  const visible = visibleRunVersions(deckDir);
+  if (visible.length === 1) return Object.freeze({ ok: true, run_version: visible[0], source: "visible-topology" });
+  // A v4 active execution has no version identity to bind when its run
+  // directory is absent. Choosing v1 here would make an invocation-order
+  // guess durable, so preserve the bytes for the explicit repair route.
+  if (visible.length === 0) {
+    // A malformed pre-v4 shell without an execution ID is not a recoverable
+    // controller execution. Preserve the long-standing repair behavior for
+    // that bootstrap shape only; it cannot apply to v4 or to any execution
+    // that has an identity capable of being routed to the wrong run.
+    const sourceSchema = Number.isInteger(state?.schema_version) ? state.schema_version : 0;
+    if (sourceSchema < 4 && !state?.execution_id) {
+      return Object.freeze({ ok: true, run_version: "v1", source: "pre-v4-unbound-bootstrap" });
+    }
+    return Object.freeze({ ok: false, reason: "active execution has no persisted run_version and no visible run version" });
+  }
+  return Object.freeze({ ok: false, reason: "active execution has no persisted run_version and visible topology is ambiguous" });
+}
+
+function ordinaryFrameBindingErrors(frame, label) {
+  const errors = [];
+  const frameRunVersion = normalizeRunVersion(frame?.run_version);
+  if (!frameRunVersion) return [`${label} missing canonical run_version`];
+  if (!isPlainObject(frame?.controller_nodes)) return [`${label} missing controller_nodes`];
+  for (const [name, record] of Object.entries(frame.controller_nodes)) {
+    if (!isPlainObject(record) || record.execution_id !== frame.execution_id || record.run_version !== frameRunVersion) {
+      errors.push(`${label} run_version mismatch for ${name}`);
+    }
+  }
+  return errors;
+}
+
+function transitionSuspensionErrors(state, frame, index) {
+  const label = `playbook_stack[${index}]`;
+  const keys = [
+    "schema", "disposition", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "controller_nodes",
+    "source_run_version", "source_mode", "source_pipeline", "target_run_version", "target_mode", "target_pipeline", "transition_plan_hash", "parent_stack",
+  ];
+  const errors = [];
+  if (!Object.keys(frame).every((key) => keys.includes(key)) || !keys.every((key) => Object.hasOwn(frame, key))) {
+    errors.push(`${label} has invalid transition suspension keys`);
+  }
+  if (frame.schema !== TRANSITION_SUSPENSION_SCHEMA || frame.disposition !== "transition-suspended") errors.push(`${label} is not a closed transition suspension`);
+  errors.push(...ordinaryFrameBindingErrors(frame, label));
+  if (frame.source_run_version !== frame.run_version || !normalizeRunVersion(frame.source_run_version)) errors.push(`${label} source run_version mismatch`);
+  if (!isProductionMode(frame.source_mode) || !isTransitionPipeline(frame.source_pipeline) || productionPolicyForMode(frame.source_mode).pipeline !== frame.source_pipeline) errors.push(`${label} source mode/pipeline mismatch`);
+  if (!normalizeRunVersion(frame.target_run_version) || !isProductionMode(frame.target_mode) || !isTransitionPipeline(frame.target_pipeline) || productionPolicyForMode(frame.target_mode).pipeline !== frame.target_pipeline) errors.push(`${label} target mode/pipeline mismatch`);
+  if (frame.source_run_version === frame.target_run_version || frame.source_pipeline === frame.target_pipeline) errors.push(`${label} is not cross-pipeline`);
+  if (!SHA256_RE.test(frame.transition_plan_hash || "")) errors.push(`${label} transition plan hash is invalid`);
+  if (!Array.isArray(frame.parent_stack) || frame.parent_stack.some(isTransitionSuspensionFrame)) errors.push(`${label} has invalid suspended parent stack`);
+  else frame.parent_stack.forEach((parent, parentIndex) => errors.push(...ordinaryFrameBindingErrors(parent, `${label}.parent_stack[${parentIndex}]`)));
+  const sourceMode = state?.production_mode?.by_version?.[canonicalVersionKey(frame.source_run_version)]?.mode;
+  if (sourceMode !== frame.source_mode) errors.push(`${label} source mode disagrees with authoritative state`);
+  const apply = activeTransitionRecord(state);
+  if (!apply || apply.transition_source_execution_id !== frame.execution_id || apply.transition_source_version !== frame.source_run_version ||
+    apply.transition_target_version !== frame.target_run_version || apply.transition_plan_hash !== frame.transition_plan_hash) {
+    errors.push(`${label} does not match the active transition record`);
+  }
+  return errors;
+}
+
+function executionBindingErrors(state) {
+  const errors = [];
+  const activeRunVersion = normalizeRunVersion(state?.run_version);
+  if (state?.playbook) {
+    if (!activeRunVersion) errors.push("active execution missing canonical run_version");
+    for (const [name, record] of controllerEntries(state.nodes)) {
+      if (!isPlainObject(record) || record.execution_id !== state.execution_id) {
+        errors.push(`execution mismatch for ${name}`);
+        continue;
+      }
+      if (!activeRunVersion || record.run_version !== activeRunVersion) errors.push(`run_version mismatch for ${name}`);
+    }
+  } else if (state?.run_version) {
+    errors.push("inactive state must not retain run_version");
+  }
+  if (!Array.isArray(state?.playbook_stack)) return errors;
+  const suspensions = state.playbook_stack.filter(isTransitionSuspensionFrame);
+  if (suspensions.length > 0 && (suspensions.length !== 1 || state.playbook_stack.length !== 1)) errors.push("transition suspension must be the only stack frame");
+  for (const [index, frame] of state.playbook_stack.entries()) {
+    if (isTransitionSuspensionFrame(frame)) errors.push(...transitionSuspensionErrors(state, frame, index));
+    else errors.push(...ordinaryFrameBindingErrors(frame, `playbook_stack[${index}]`));
+  }
+  return errors;
+}
+
+function bindOrdinaryStackFrames(state, runVersion) {
+  if (!runVersion || !Array.isArray(state.playbook_stack)) return;
+  for (const frame of state.playbook_stack) {
+    if (!isPlainObject(frame) || !isPlainObject(frame.controller_nodes)) continue;
+    frame.run_version = runVersion;
+    for (const record of Object.values(frame.controller_nodes)) {
+      if (isPlainObject(record)) record.run_version = runVersion;
+    }
+  }
+}
+
+function executionRunVersionMismatch(state, { runVersion, runDir } = {}) {
+  const requested = selectedRunVersion({ runVersion, runDir });
+  if (!requested || !state?.playbook) return null;
+  const active = normalizeRunVersion(state.run_version);
+  if (!active) return Object.freeze({ code: "execution_run_version_mismatch", requested_run_version: requested, active_run_version: null });
+  if (active !== requested) return Object.freeze({ code: "execution_run_version_mismatch", requested_run_version: requested, active_run_version: active });
+  return null;
+}
+
+function selectedExecutionMismatch(state, selected = {}) {
+  const mismatch = executionRunVersionMismatch(state, selected);
+  if (mismatch) return mismatch;
+  if (state?.playbook && !normalizeRunVersion(state.run_version)) {
+    return Object.freeze({ code: "execution_run_version_mismatch", requested_run_version: selectedRunVersion(selected), active_run_version: null });
+  }
+  return null;
+}
+
+function requireExecutionRunVersion(state, { runVersion, runDir } = {}) {
+  if (!state?.playbook) return null;
+  const active = normalizeRunVersion(state.run_version);
+  if (!active) throw new Error("execution_run_version_mismatch: active execution has no canonical run_version");
+  const requested = selectedRunVersion({ runVersion, runDir });
+  if (requested && requested !== active) {
+    throw new Error(`execution_run_version_mismatch: active=${active} requested=${requested}`);
+  }
+  return active;
 }
 
 function refinementVersionKey(runVersion) {
@@ -194,8 +399,9 @@ export function projectImage2RefinementState(state, runVersion) {
 
 export function writeImage2RefinementState(deckDir, runVersion, record, { expectedStateSha = null, expectedStateSha256 = null } = {}) {
   if (!validRefinementRecord(record, runVersion)) throw new TypeError("image2 refinement state record is invalid");
-  const state = readState(deckDir, { purpose: "execute", heal: false });
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
+  if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: refinement state belongs to another run version");
   state.nodes ||= {};
   const prior = state.nodes["image2-refinement"]?.by_version || {};
   state.nodes["image2-refinement"] = { by_version: { ...prior, [refinementVersionKey(runVersion)]: structuredClone(record) } };
@@ -246,18 +452,31 @@ export function normalizePlaybookStack(state, migrationTime = nowIso()) {
   state.playbook_stack = state.playbook_stack
     .filter(isPlainObject)
     .map((entry, index) => {
+      // A transition suspension is schema-closed and non-resumable. Preserve
+      // its bytes for the validator and state-owned terminal operations; do
+      // not coerce it into an ordinary parent frame during a read/heal cycle.
+      if (isTransitionSuspensionFrame(entry)) return deepClone(entry);
       const legacySnapshot = !isPlainObject(entry.controller_nodes);
+      const runVersion = normalizeRunVersion(entry.run_version);
       const normalized = {
         playbook: entry.playbook == null ? "" : String(entry.playbook),
         current_node: entry.current_node == null ? "" : String(entry.current_node),
         execution_id: typeof entry.execution_id === "string" && entry.execution_id ? entry.execution_id : newExecutionId(),
         execution_started_at: isoOr(entry.execution_started_at, migrationTime),
+        run_version: runVersion || "",
         controller_nodes: legacySnapshot ? {} : deepClone(entry.controller_nodes),
       };
-      if (legacySnapshot) normalized.diagnostic = `legacy stack entry ${index} had no recoverable controller snapshot`;
-      else if (entry.diagnostic != null) normalized.diagnostic = String(entry.diagnostic);
+      // Keep an already-persisted diagnostic stable across an observation/heal
+      // round trip. In particular, do not replace the original reason a legacy
+      // frame was rejected merely because its normalized snapshot is now empty.
+      if (entry.diagnostic != null) normalized.diagnostic = String(entry.diagnostic);
+      else if (legacySnapshot) normalized.diagnostic = `legacy stack entry ${index} had no recoverable controller snapshot`;
+      else if (!runVersion) normalized.diagnostic = `legacy stack entry ${index} had no provable run_version`;
       for (const rec of Object.values(normalized.controller_nodes)) {
-        if (isPlainObject(rec)) rec.execution_id = normalized.execution_id;
+        if (isPlainObject(rec)) {
+          rec.execution_id = normalized.execution_id;
+          if (runVersion) rec.run_version = runVersion;
+        }
       }
       return normalized;
     });
@@ -296,7 +515,7 @@ function normalizeEvidence(record, migrationTime, state, nodeId) {
   }
 }
 
-function normalizeNodeRecord(record, nodeId, executionId, migrationTime, state) {
+function normalizeNodeRecord(record, nodeId, executionId, runVersion, migrationTime, state) {
   const rec = isPlainObject(record) ? record : {};
   if (!NODE_STATUSES.includes(rec.status)) {
     if (rec.status != null) appendDiagnostic(state, `${nodeId}.status ${JSON.stringify(rec.status)} healed to pending`);
@@ -306,6 +525,7 @@ function normalizeNodeRecord(record, nodeId, executionId, migrationTime, state) 
   if (rec.waiting_for != null) rec.waiting_for = String(rec.waiting_for);
   if (rec.note != null) rec.note = String(rec.note);
   if (executionId) rec.execution_id = executionId;
+  if (runVersion) rec.run_version = runVersion;
   if (["pending", "in_progress"].includes(rec.status)) delete rec.completed;
   if (rec.status === "completed") {
     delete rec.failed_reason;
@@ -354,6 +574,10 @@ function restrictActiveWorkingSet(state) {
   try {
     const index = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR);
     const allowed = new Set(controllerNodeIds(index, state.playbook));
+    // The transition node is state-owned. It is intentionally admitted here
+    // before controller declarations are updated so an observation/heal cannot
+    // erase an already-confirmed recoverable transaction.
+    if (activeTransitionRecord(state)) allowed.add(TRANSITION_APPLY_NODE);
     if (allowed.size === 0) return;
     for (const [id] of controllerEntries(state.nodes)) {
       if (allowed.has(id)) continue;
@@ -376,7 +600,8 @@ export function healState(raw, opts = {}) {
   // v3->v4 boundary detection: production-mode records are inferred from source
   // markers ONLY when migrating from a pre-v4 schema. A post-v4 missing mode is
   // corruption and must fail closed rather than be re-inferred.
-  const migratingFromPreV4 = typeof raw?.schema_version !== "number" || raw.schema_version < STATE_SCHEMA_VERSION;
+  const rawSchemaVersion = typeof raw?.schema_version === "number" ? raw.schema_version : 0;
+  const migratingFromPreV4 = rawSchemaVersion < 4;
 
   state.schema_version = STATE_SCHEMA_VERSION;
   state.playbook = typeof state.playbook === "string" ? state.playbook : "";
@@ -412,12 +637,29 @@ export function healState(raw, opts = {}) {
     state.current_node = "";
   }
 
+  // v4->v5 gives every active execution an exact version identity. A legacy
+  // in-flight HTML migration carries a closed source-version field which is
+  // stronger than visible-version topology; every other migration requires one
+  // persisted version or exactly one visible version.
+  const binding = opts.runVersionBinding || resolveV5RunBinding(state, opts.deckDir);
+  const upgradingToV5 = rawSchemaVersion < STATE_SCHEMA_VERSION;
+  const boundRunVersion = binding.ok ? binding.run_version : null;
+  if (state.playbook && !boundRunVersion) {
+    state.run_version = "";
+    appendDiagnostic(state, "active execution has no unambiguous run_version; explicit replacement or repair required");
+  } else if (state.playbook && upgradingToV5) {
+    state.run_version = boundRunVersion;
+  } else {
+    if (!state.playbook) delete state.run_version;
+  }
+  if (upgradingToV5) bindOrdinaryStackFrames(state, boundRunVersion);
+
   // Phase 3: restrict — validate migrated current_node against playbook index
   restrictActiveWorkingSet(state);
 
   for (const [id, record] of Object.entries(state.nodes)) {
     if (isReservedNode(id)) continue;
-    state.nodes[id] = normalizeNodeRecord(record, id, state.execution_id, migrationTime, state);
+    state.nodes[id] = normalizeNodeRecord(record, id, state.execution_id, upgradingToV5 ? boundRunVersion : null, migrationTime, state);
   }
   for (const gate of ["content", "visual", "html_content", "html_visual"]) {
     if (!GATE_STATUSES.includes(state.gates[gate])) {
@@ -487,6 +729,9 @@ function detectDeckPipeline(deckDir, state = {}) {
 function classifyDeckPipeline(deckDir, state = {}) {
   const explicit = state?.pipeline || state?.deck?.pipeline || null;
   const versionsDir = join(deckDir, "3_versions");
+  const activeTransitionTarget = normalizeRunVersion(state?.run_version);
+  const completedTransitionTarget = activeTransitionTarget &&
+    existsSync(join(versionsDir, activeTransitionTarget, "_generated", "qa", "production_mode_transition.json"));
   let markerPipeline = null;
   let markerIssue = null;
   let sources = [];
@@ -502,7 +747,10 @@ function classifyDeckPipeline(deckDir, state = {}) {
       if (!observed) { markerIssue = "invalid canonical production marker"; break; }
       if (markerPipeline && markerPipeline !== observed) {
         const migrationWorkspace = state?.playbook === "migrate-import" || existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "html_migration.json"));
-        if (!migrationWorkspace) { markerIssue = "conflicting production pipelines across versions"; break; }
+        const registeredMode = state?.production_mode?.by_version?.[canonicalVersionKey(version)]?.mode;
+        const registeredCrossPipeline = isProductionMode(registeredMode) && productionPolicyForMode(registeredMode).pipeline === observed &&
+          existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "production_mode_transition.json"));
+        if (!migrationWorkspace && !registeredCrossPipeline && !completedTransitionTarget) { markerIssue = "conflicting production pipelines across versions"; break; }
         markerPipeline = state?.pipeline || observed;
         continue;
       }
@@ -571,7 +819,7 @@ export function completeMigrationHandoff(deckDir, { targetVersion } = {}) {
   next.execution_id = newExecutionId();
   next.execution_started_at = nowIso();
   next.nodes = preserveReservedNodes(next.nodes);
-  next.nodes["migration-target-review"] = { status: "in_progress", execution_id: next.execution_id, migration_source_execution_id: handoff.sourceExecutionId, migration_plan_hash: handoff.planHash, old_side_mode: handoff.mode, target_version: handoff.targetVersion };
+  next.nodes["migration-target-review"] = { status: "in_progress", execution_id: next.execution_id, run_version: handoff.targetVersion, migration_source_execution_id: handoff.sourceExecutionId, migration_plan_hash: handoff.planHash, old_side_mode: handoff.mode, target_version: handoff.targetVersion };
   next.run_version = handoff.targetVersion;
   next.pipeline = HTML_FIRST_PIPELINE;
   // The bounded legacy-to-HTML migration registers its successfully published
@@ -641,10 +889,11 @@ function metadataMirrorDrift(mirror, runVersion, authoritativeMode) {
 export function inspectRunProductionMode(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID", runDir, runVersion });
-  const state = readState(deckDir, { purpose, heal: false });
+  const state = readState(deckDir, { purpose, heal: false, runVersion: exactVersion });
   if (state?.replacement_required || state?.corrupted) {
     return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion, state });
   }
+  if (state?.execution_run_version_mismatch) return Object.freeze({ ok: false, ...state, run_version: exactVersion });
   const sourceMarker = probeSourceMarkerForVersion(deckDir, exactVersion);
   if (sourceMarker.ok === false) {
     return Object.freeze({ ok: false, code: sourceMarker.code, run_version: exactVersion, marker: sourceMarker });
@@ -772,6 +1021,8 @@ export function transitionProductionMode(deckDir, { runVersion, runDir, toMode, 
   const versionKey = canonicalVersionKey(exactVersion);
   const state = readState(deckDir, { purpose: "execute", heal: false });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: production-mode transition state is unavailable");
+  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
+  if (executionMismatch) return Object.freeze({ ok: false, ...executionMismatch });
   const byVersion = isPlainObject(state.production_mode?.by_version) ? state.production_mode.by_version : null;
   const currentRecord = byVersion?.[versionKey];
   const fromMode = isPlainObject(currentRecord) && hasExactKeys(currentRecord, ["mode"]) && isProductionMode(currentRecord.mode) ? currentRecord.mode : null;
@@ -867,6 +1118,8 @@ export function registerProductionModeFromSource(deckDir, { sourceRunVersion, so
   if (sourceVersion === targetVersion) throw new TypeError("source and target versions must differ");
   const state = readState(deckDir, { purpose: "execute", heal: false });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: registration state is unavailable");
+  const executionMismatch = selectedExecutionMismatch(state, { runVersion: sourceVersion });
+  if (executionMismatch) return Object.freeze({ ok: false, ...executionMismatch });
   const sourceKey = canonicalVersionKey(sourceVersion);
   const targetKey = canonicalVersionKey(targetVersion);
   const byVersion = isPlainObject(state.production_mode?.by_version) ? state.production_mode.by_version : null;
@@ -1045,6 +1298,8 @@ export function recordImage2DeliveryReview(deckDir, { runVersion, runDir, decisi
   if (inspection.mode !== "image2-only") throw new Error("image2 delivery review is first-class image2-only; HTML modes use the HTML delivery review");
   const state = readState(deckDir, { purpose: "execute", heal: false });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: image2 delivery review state is unavailable");
+  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
+  if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
   if (state.playbook !== "create-deck" || !state.execution_id || state.current_node !== IMAGE2_FINAL_REVIEW_NODE) {
     throw new Error("active first-class Image2 final-review node is required");
   }
@@ -1092,6 +1347,7 @@ export function recordImage2DeliveryReview(deckDir, { runVersion, runDir, decisi
     ...next.nodes[IMAGE2_FINAL_REVIEW_NODE],
     status: "completed",
     execution_id: next.execution_id,
+    run_version: exactVersion,
     decision: { value: decision, kind: "user", at },
     image2_delivery_review: {
       run_version: exactVersion,
@@ -1126,6 +1382,8 @@ export function recordImage2ProviderAuthorization(deckDir, { runVersion, runDir,
   if (inspection.mode !== "image2-only") throw new Error("image2 provider authorization is first-class image2-only");
   const state = readState(deckDir, { purpose: "execute", heal: false });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: image2 authorization state is unavailable");
+  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
+  if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
   const record = {
     schema: IMAGE2_PROVIDER_AUTHORIZATION_SCHEMA,
     run_version: exactVersion,
@@ -1226,11 +1484,29 @@ export function readState(deckDir, opts = {}) {
   }
   const classification = classifyDeckPipeline(deckDir, parsed.value);
   if (classification.issue) return replacementRequired(classification.issue, classification.pipeline);
-  if (!shouldHeal) return parsed.value;
+  const rawBinding = resolveV5RunBinding(parsed.value, deckDir);
+  // The only pre-v5 exception is deliberately private to the closed legacy
+  // confirmation writer below. It receives unhealed bytes solely so it can
+  // re-inspect the exact source, preview, hash, and mode before one atomic
+  // v5-binding write. Ordinary reads remain replacement-required.
+  const pendingLegacyConfirmation = !rawBinding.ok && opts.allowLegacyConfirmation === true
+    ? legacyConfirmationSourceVersion(parsed.value, opts)
+    : null;
+  if (!rawBinding.ok && !pendingLegacyConfirmation) return replacementRequired(rawBinding.reason, classification.pipeline);
+  if (pendingLegacyConfirmation && shouldHeal) {
+    return replacementRequired("legacy confirmation must be completed through its closed confirmation operation", classification.pipeline);
+  }
+  if (!shouldHeal) {
+    const mismatch = selectedExecutionMismatch(parsed.value, opts);
+    return mismatch ? Object.freeze({ ...parsed.value, ...mismatch }) : parsed.value;
+  }
   const { state, dirty } = healState(parsed.value, {
     pipeline: opts.pipeline || classification.pipeline,
     deckDir,
+    runVersionBinding: rawBinding,
   });
+  const bindingErrors = executionBindingErrors(state);
+  if (bindingErrors.length > 0) return replacementRequired(bindingErrors[0], classification.pipeline);
   if (dirty || parsed.hadErrors) {
     const journalPresent = existsSync(join(deckDir, STATE_DIR, GATE_JOURNAL_FILE));
     if (journalPresent) {
@@ -1244,7 +1520,8 @@ export function readState(deckDir, opts = {}) {
     state._healed = true;
   }
   state.durable_state_present = true;
-  return state;
+  const mismatch = selectedExecutionMismatch(state, opts);
+  return mismatch ? Object.freeze({ ...state, ...mismatch }) : state;
 }
 
 export function appendHistory(deckDir, event) {
@@ -1314,6 +1591,8 @@ export function writeState(deckDir, state, opts = {}) {
   }
   const currentReset = currentResetRecordFromBytes(oldBytes);
   if (currentReset && opts.resetOwnerToken !== currentReset.owner_token) throw new Error("CONFLICT: HTML production reset fences state writes");
+  const bindingErrors = executionBindingErrors(state);
+  if (bindingErrors.length > 0) throw new Error(`execution_run_version_mismatch: ${bindingErrors[0]}`);
   const prepared = prepareStateWrite(state, { updatedAt: opts.updatedAt || nowIso() });
   if (journal.record && prepared.sha256 !== journal.record.new_state_sha256) throw new Error("CONFLICT: journal owner attempted unbound state bytes");
   const candidateReset = state?.nodes?.["html-production-reset"]?.by_version
@@ -1360,8 +1639,10 @@ export function recordHtmlMigrationConfirmation(sourceRunDir, { planHash, oldSid
   if (marker.branch !== "legacy") throw new Error("migration confirmation accepts only a markerless source version");
 
   const deckDir = resolve(runDir, "..", "..");
-  const current = readState(deckDir, { purpose: "execute", heal: false });
+  const current = readState(deckDir, { purpose: "execute", heal: false, runDir, allowLegacyConfirmation: true });
   if (current?.replacement_required || current?.corrupted) throw new Error("migration source state is unusable");
+  const historicalBinding = legacyConfirmationSourceVersion(current, { runDir });
+  if (current?.execution_run_version_mismatch && !historicalBinding) throw new Error("replacement_required: migration confirmation run binding is unavailable");
   if (current.playbook !== "migrate-import" || !current.execution_id) throw new Error("active migrate-import confirmation execution is required");
   const executionId = current.execution_id;
   const confirmed = current.nodes?.["confirm-html-migration"];
@@ -1402,31 +1683,390 @@ export function recordHtmlMigrationConfirmation(sourceRunDir, { planHash, oldSid
 
   const next = structuredClone(current);
   const at = nowIso();
+  next.schema_version = STATE_SCHEMA_VERSION;
+  next.run_version = sourceVersion;
   next.nodes["confirm-html-migration"] = {
     ...next.nodes["confirm-html-migration"],
     status: "completed",
     execution_id: executionId,
+    run_version: sourceVersion,
     decision: { value: "apply", kind: "user", at },
     completed: at,
+  };
+  next.nodes["preview-html-migration"] = {
+    ...next.nodes["preview-html-migration"],
+    execution_id: executionId,
+    run_version: sourceVersion,
   };
   next.nodes["apply-html-migration"] = {
     status: "in_progress",
     execution_id: executionId,
+    run_version: sourceVersion,
     migration_plan_hash: planHash,
     old_side_mode: oldSideMode,
     migration_source_version: sourceVersion,
     started: at,
   };
   next.current_node = "apply-html-migration";
+  bindOrdinaryStackFrames(next, sourceVersion);
   const expectedStateSha = sha256(readFileSync(statePath(deckDir)));
   writeState(deckDir, next, { expectedStateSha, updatedAt: at });
   return Object.freeze({ status: "confirmed", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
+}
+
+/**
+ * Capture a confirmed cross-pipeline preview as the sole active transition.
+ * Candidate preparation and preview deliberately live outside state; this is
+ * the first pointer-changing operation and is fenced by the exact source
+ * state bytes and all preview receipts.
+ */
+export function confirmProductionModeTransition(deckDir, {
+  sourceRunVersion,
+  sourceRunDir,
+  targetRunVersion,
+  targetMode,
+  planHash,
+  candidateReceiptSha256,
+  targetIntake,
+  targetIntakeSha256,
+  expectedStateSha = null,
+} = {}) {
+  const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
+  const targetVersion = normalizeRunVersion(targetRunVersion);
+  if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) throw new TypeError("transition source and target must be distinct canonical run versions");
+  if (!isProductionMode(targetMode) || !SHA256_RE.test(planHash || "") || !SHA256_RE.test(candidateReceiptSha256 || "")) {
+    throw new TypeError("transition mode, plan hash, and candidate receipt must be exact");
+  }
+  if (!validTransitionIntake(targetIntake)) throw new TypeError("transition target intake must contain every explicit intake field");
+  const intakeSha = sha256(Buffer.from(stableStringify(targetIntake)));
+  if (!SHA256_RE.test(targetIntakeSha256 || "") || targetIntakeSha256 !== intakeSha) throw new Error("transition target intake digest is stale or invalid");
+  if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
+
+  const versions = visibleRunVersions(deckDir);
+  const expectedTarget = `v${(versions.reduce((highest, version) => Math.max(highest, Number(version.slice(1))), 0) + 1)}`;
+  if (targetVersion !== expectedTarget) throw new Error(`transition target must be anticipated ${expectedTarget}`);
+  if (existsSync(join(deckDir, "3_versions", targetVersion))) throw new Error("transition target version already exists");
+
+  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition source state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
+  if (!current.playbook || !current.execution_id || current.run_version !== sourceVersion) throw new Error("active source execution is required");
+  if (current.playbook === "migrate-import" && current.current_node === TRANSITION_APPLY_NODE) throw new Error("transition apply is already active");
+  if (current.playbook_stack.some(isTransitionSuspensionFrame)) throw new Error("transition suspension is already active");
+  const sourceMode = current.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)]?.mode;
+  if (!isProductionMode(sourceMode)) throw new Error("transition source has no authoritative production mode");
+  const sourcePolicy = productionPolicyForMode(sourceMode);
+  const targetPolicy = productionPolicyForMode(targetMode);
+  if (sourcePolicy.pipeline === targetPolicy.pipeline) throw new Error("same-pipeline mode changes must use the in-place transition");
+  if (current.production_mode?.by_version?.[canonicalVersionKey(targetVersion)]) throw new Error("transition target mode already exists");
+
+  const sourceBytes = readFileSync(statePath(deckDir));
+  const sourceStateSha = sha256(sourceBytes);
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition source state precondition changed");
+  const frame = {
+    schema: TRANSITION_SUSPENSION_SCHEMA,
+    disposition: "transition-suspended",
+    playbook: current.playbook,
+    current_node: current.current_node,
+    execution_id: current.execution_id,
+    execution_started_at: current.execution_started_at,
+    run_version: sourceVersion,
+    controller_nodes: Object.fromEntries(controllerEntries(current.nodes).map(([id, record]) => [id, deepClone(record)])),
+    source_run_version: sourceVersion,
+    source_mode: sourceMode,
+    source_pipeline: sourcePolicy.pipeline,
+    target_run_version: targetVersion,
+    target_mode: targetMode,
+    target_pipeline: targetPolicy.pipeline,
+    transition_plan_hash: planHash,
+    parent_stack: deepClone(current.playbook_stack),
+  };
+  const at = nowIso();
+  const transitionExecutionId = newExecutionId();
+  const next = structuredClone(current);
+  next.schema_version = STATE_SCHEMA_VERSION;
+  next.playbook = "migrate-import";
+  next.current_node = TRANSITION_APPLY_NODE;
+  next.execution_id = transitionExecutionId;
+  next.execution_started_at = at;
+  next.run_version = sourceVersion;
+  next.pipeline = sourcePolicy.pipeline;
+  next.nodes = preserveReservedNodes(current.nodes);
+  next.nodes[TRANSITION_APPLY_NODE] = {
+    status: "in_progress",
+    execution_id: transitionExecutionId,
+    run_version: sourceVersion,
+    transition_plan_hash: planHash,
+    transition_candidate_receipt_sha256: candidateReceiptSha256,
+    transition_target_intake: structuredClone(targetIntake),
+    transition_target_intake_sha256: targetIntakeSha256,
+    transition_confirmation: { kind: "user", decision: "proceed", at },
+    transition_source_execution_id: frame.execution_id,
+    transition_source_version: sourceVersion,
+    transition_source_mode: sourceMode,
+    transition_source_pipeline: sourcePolicy.pipeline,
+    transition_target_version: targetVersion,
+    transition_target_mode: targetMode,
+    transition_target_pipeline: targetPolicy.pipeline,
+    started: at,
+  };
+  next.playbook_stack = [frame];
+  writeState(deckDir, next, { expectedStateSha: sourceStateSha, updatedAt: at });
+  appendHistory(deckDir, {
+    type: "production_mode_transition_confirmed",
+    source_execution_id: frame.execution_id,
+    source_version: sourceVersion,
+    source_mode: sourceMode,
+    target_version: targetVersion,
+    target_mode: targetMode,
+    plan_hash: planHash,
+    candidate_receipt_sha256: candidateReceiptSha256,
+    at,
+  });
+  return Object.freeze({
+    status: "confirmed",
+    source_version: sourceVersion,
+    source_execution_id: frame.execution_id,
+    target_version: targetVersion,
+    target_mode: targetMode,
+    target_pipeline: targetPolicy.pipeline,
+    plan_hash: planHash,
+    transition_execution_id: transitionExecutionId,
+  });
+}
+
+/** Restore the exact captured source only when no anticipated target exists. */
+export function restoreProductionModeTransitionSource(deckDir, { sourceRunVersion, planHash, expectedStateSha = null } = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion);
+  if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
+  if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
+  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
+  const record = activeTransitionRecord(current);
+  const frame = current.playbook_stack?.[0];
+  if (!record || !isTransitionSuspensionFrame(frame) || frame.source_run_version !== sourceVersion || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) {
+    throw new Error("active transition checkpoint is missing or drifted");
+  }
+  if (existsSync(join(deckDir, "3_versions", record.transition_target_version))) throw new Error("CONFLICT: transition target is visible and must be registered or inspected");
+  const sourceBytes = readFileSync(statePath(deckDir));
+  const sourceStateSha = sha256(sourceBytes);
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition state precondition changed");
+  const next = structuredClone(current);
+  next.playbook = frame.playbook;
+  next.current_node = frame.current_node;
+  next.execution_id = frame.execution_id;
+  next.execution_started_at = frame.execution_started_at;
+  next.run_version = frame.run_version;
+  next.pipeline = frame.source_pipeline;
+  next.nodes = { ...deepClone(frame.controller_nodes), ...preserveReservedNodes(current.nodes) };
+  next.playbook_stack = deepClone(frame.parent_stack);
+  writeState(deckDir, next, { expectedStateSha: sourceStateSha });
+  appendHistory(deckDir, {
+    type: "production_mode_transition_source_restored",
+    source_execution_id: frame.execution_id,
+    source_version: sourceVersion,
+    target_version: record.transition_target_version,
+    plan_hash: planHash,
+  });
+  return Object.freeze({ status: "source_restored", source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash });
+}
+
+function transitionJournalSnapshot(deckDir, record, ownerToken) {
+  if (!SHA256_RE.test(ownerToken || "")) throw new TypeError("transition recovery owner token must be a lowercase SHA-256");
+  const path = join(deckDir, "3_versions", record.transition_source_version, "_scratch", "production-mode-transition", "apply-journal.json");
+  if (!existsSync(path)) throw new Error("transition apply journal is missing");
+  const bytes = readFileSync(path);
+  let journal;
+  try { journal = JSON.parse(bytes.toString("utf8")); } catch { throw new Error("transition apply journal is invalid"); }
+  const claimedAt = Number(journal?.claimed_at_epoch_ms);
+  if (!isPlainObject(journal) || journal.schema !== "pptmaker-production-mode-transition-apply-journal-v1" ||
+    journal.owner_token !== ownerToken || !SHA256_RE.test(journal.owner_token) ||
+    typeof journal.owner_host !== "string" || !journal.owner_host || !Number.isInteger(journal.owner_pid) || journal.owner_pid <= 0 ||
+    !Number.isFinite(claimedAt) || claimedAt <= 0 || journal.plan_hash !== record.transition_plan_hash ||
+    journal.source_execution_id !== record.transition_source_execution_id || journal.source_version !== record.transition_source_version ||
+    journal.target_version !== record.transition_target_version || journal.target_mode !== record.transition_target_mode || journal.target_pipeline !== record.transition_target_pipeline) {
+    throw new Error("transition apply journal does not match the active checkpoint");
+  }
+  return Object.freeze({ path, bytes, sha256: sha256(bytes), journal, age_ms: Math.max(0, Date.now() - claimedAt) });
+}
+
+/**
+ * Persist the human no-active-apply statement for one exact uncertain journal.
+ * The token is only compared in memory and is intentionally absent from both
+ * state and return values.
+ */
+export function recordProductionModeTransitionRecoveryConfirmation(deckDir, {
+  sourceRunVersion,
+  planHash,
+  ownerToken,
+  expectedStateSha = null,
+} = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion);
+  if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
+  if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
+  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
+  const record = activeTransitionRecord(current);
+  if (!record || record.transition_plan_hash !== planHash) throw new Error("active transition checkpoint is missing or drifted");
+  const snapshot = transitionJournalSnapshot(deckDir, record, ownerToken);
+  if (snapshot.journal.owner_host.trim().toLowerCase() === hostname().trim().toLowerCase()) throw new Error("transition journal is same-host; uncertain-owner confirmation is inapplicable");
+  if (snapshot.age_ms < TRANSITION_UNCERTAIN_RECOVERY_AGE_MS) throw new Error("transition journal is not old enough for uncertain-owner recovery confirmation");
+  const sourceBytes = readFileSync(statePath(deckDir));
+  const sourceStateSha = sha256(sourceBytes);
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition state precondition changed");
+  const at = nowIso();
+  const next = structuredClone(current);
+  next.nodes[TRANSITION_APPLY_NODE] = {
+    ...next.nodes[TRANSITION_APPLY_NODE],
+    transition_recovery_confirmation: {
+      kind: "user",
+      decision: "no-active-apply",
+      source_execution_id: record.transition_source_execution_id,
+      source_version: record.transition_source_version,
+      target_version: record.transition_target_version,
+      plan_hash: record.transition_plan_hash,
+      journal_sha256: snapshot.sha256,
+      confirmed_at: at,
+    },
+  };
+  writeState(deckDir, next, { expectedStateSha: sourceStateSha, updatedAt: at });
+  return Object.freeze({
+    status: "recorded",
+    source_version: record.transition_source_version,
+    target_version: record.transition_target_version,
+    plan_hash: record.transition_plan_hash,
+    journal_sha256: snapshot.sha256,
+  });
+}
+
+/**
+ * Closed public recovery-confirmation form. The caller supplies only the
+ * uncertain journal token; the state owner derives the active plan binding.
+ */
+export function recordActiveProductionModeTransitionRecoveryConfirmation(deckDir, {
+  sourceRunVersion,
+  ownerToken,
+} = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion);
+  if (!sourceVersion) throw new TypeError("transition source version is required");
+  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
+  const record = activeTransitionRecord(current);
+  if (!record) throw new Error("active transition checkpoint is missing or drifted");
+  return recordProductionModeTransitionRecoveryConfirmation(deckDir, {
+    sourceRunVersion: sourceVersion,
+    planHash: record.transition_plan_hash,
+    ownerToken,
+    expectedStateSha: sha256(readFileSync(statePath(deckDir))),
+  });
+}
+
+/** Re-inspect the durable journal before an uncertain-owner takeover. */
+export function verifyProductionModeTransitionRecoveryConfirmation(deckDir, { sourceRunVersion, planHash, ownerToken } = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion);
+  if (!sourceVersion || !SHA256_RE.test(planHash || "")) return Object.freeze({ ok: false, code: "TRANSITION_RECOVERY_INPUT_INVALID" });
+  const current = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted || current?.execution_run_version_mismatch) return Object.freeze({ ok: false, code: current?.code || "TRANSITION_STATE_UNAVAILABLE" });
+  const record = activeTransitionRecord(current);
+  if (!record || record.transition_plan_hash !== planHash) return Object.freeze({ ok: false, code: "TRANSITION_CHECKPOINT_DRIFT" });
+  let snapshot;
+  try { snapshot = transitionJournalSnapshot(deckDir, record, ownerToken); } catch { return Object.freeze({ ok: false, code: "TRANSITION_JOURNAL_DRIFT" }); }
+  const confirmation = record.transition_recovery_confirmation;
+  const matches = isPlainObject(confirmation) && confirmation.kind === "user" && confirmation.decision === "no-active-apply" &&
+    confirmation.source_execution_id === record.transition_source_execution_id && confirmation.source_version === record.transition_source_version &&
+    confirmation.target_version === record.transition_target_version && confirmation.plan_hash === record.transition_plan_hash &&
+    confirmation.journal_sha256 === snapshot.sha256 && validIsoTimestamp(confirmation.confirmed_at);
+  if (!matches) return Object.freeze({ ok: false, code: "TRANSITION_RECOVERY_CONFIRMATION_REQUIRED" });
+  if (snapshot.journal.owner_host.trim().toLowerCase() === hostname().trim().toLowerCase() || snapshot.age_ms < TRANSITION_UNCERTAIN_RECOVERY_AGE_MS) return Object.freeze({ ok: false, code: "TRANSITION_JOURNAL_NOT_UNCERTAIN_OR_OLD" });
+  return Object.freeze({ ok: true, source_version: record.transition_source_version, target_version: record.transition_target_version, plan_hash: record.transition_plan_hash, journal_sha256: snapshot.sha256 });
+}
+
+/** Complete the only terminal cross-pipeline path after a target-local receipt. */
+export function completeProductionModeTransitionHandoff(deckDir, {
+  sourceRunVersion,
+  planHash,
+  receiptSha256 = null,
+  sourceControlFingerprint = null,
+  expectedStateSha = null,
+} = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion);
+  if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
+  if (receiptSha256 !== null && !SHA256_RE.test(receiptSha256)) throw new TypeError("receiptSha256 must be a lowercase SHA-256");
+  if (sourceControlFingerprint !== null && !SHA256_RE.test(sourceControlFingerprint)) throw new TypeError("sourceControlFingerprint must be a lowercase SHA-256");
+  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
+  const record = activeTransitionRecord(current);
+  const frame = current.playbook_stack?.[0];
+  if (!record || !isTransitionSuspensionFrame(frame) || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) throw new Error("active transition checkpoint is missing or drifted");
+  const targetDir = join(deckDir, "3_versions", record.transition_target_version);
+  const receiptPath = join(targetDir, "_generated", "qa", "production_mode_transition.json");
+  if (!existsSync(targetDir) || !existsSync(receiptPath)) throw new Error("mode_registration_required: transition target receipt is not visible");
+  const receiptBytes = readFileSync(receiptPath);
+  const actualReceiptSha = sha256(receiptBytes);
+  if (receiptSha256 && receiptSha256 !== actualReceiptSha) throw new Error("transition target receipt changed");
+  let receipt;
+  try { receipt = JSON.parse(receiptBytes.toString("utf8")); } catch { throw new Error("transition target receipt is invalid"); }
+  if (!isPlainObject(receipt) || receipt.schema !== "pptmaker-production-mode-transition-success-v1" ||
+    receipt.plan_hash !== planHash || receipt.source_execution_id !== record.transition_source_execution_id ||
+    receipt.source_version !== sourceVersion || receipt.target_version !== record.transition_target_version ||
+    receipt.target_mode !== record.transition_target_mode || receipt.target_pipeline !== record.transition_target_pipeline ||
+    receipt.candidate_receipt_sha256 !== record.transition_candidate_receipt_sha256 ||
+    receipt.target_intake_sha256 !== record.transition_target_intake_sha256 || !SHA256_RE.test(receipt.source_control_fingerprint || "")) {
+    throw new Error("transition target receipt does not match the active checkpoint");
+  }
+  if (sourceControlFingerprint && sourceControlFingerprint !== receipt.source_control_fingerprint) throw new Error("transition source/control fingerprint changed");
+  const marker = probeSourceMarkerForVersion(deckDir, record.transition_target_version);
+  const targetPipeline = pipelineFromSourceMarker(marker);
+  if (!targetPipeline?.ok || targetPipeline.pipeline !== record.transition_target_pipeline) throw new Error("transition target marker does not match selected mode");
+  const required = [join(deckDir, "deck-guide.md"), join(targetDir, "slide-specifications.md"), join(targetDir, "overrides", "visual-style", "color_palette.json")];
+  if (required.some((path) => !existsSync(path))) throw new Error("transition target baseline prerequisites are incomplete");
+  const stateBytes = readFileSync(statePath(deckDir));
+  const stateSha = sha256(stateBytes);
+  if (expectedStateSha && expectedStateSha !== stateSha) throw new Error("CONFLICT: transition state precondition changed");
+  const at = nowIso();
+  const targetExecutionId = newExecutionId();
+  const baseline = { target_execution_id: targetExecutionId, target_run_version: record.transition_target_version, plan_hash: planHash, success_receipt_sha256: actualReceiptSha, source_control_fingerprint: receipt.source_control_fingerprint };
+  const authorNode = record.transition_target_mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
+  const configureNode = record.transition_target_mode === "image2-only" ? "configure-whole-page-visual-system" : "configure-visual-system";
+  const nextNode = record.transition_target_mode === "image2-only" ? "authorize-image2-style-master" : "preview-content";
+  const next = structuredClone(current);
+  next.playbook = "create-deck";
+  next.current_node = nextNode;
+  next.execution_id = targetExecutionId;
+  next.execution_started_at = at;
+  next.run_version = record.transition_target_version;
+  next.pipeline = record.transition_target_pipeline;
+  ensureProductionModeContainer(next);
+  const existingTargetMode = next.production_mode.by_version[canonicalVersionKey(record.transition_target_version)]?.mode;
+  if (existingTargetMode && existingTargetMode !== record.transition_target_mode) throw new Error("CONFLICT: transition target mode conflicts with receipt");
+  next.production_mode.by_version[canonicalVersionKey(record.transition_target_version)] = { mode: record.transition_target_mode };
+  next.nodes = preserveReservedNodes(current.nodes);
+  next.nodes.instantiation = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, transition_baseline: baseline };
+  next.nodes["checkpoint-intake"] = {
+    status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at,
+    decision: { value: "proceed", kind: "user", at }, evidence: { "intake-confirmed": { met: true, kind: "user", at, note: record.transition_target_intake_sha256 } },
+    transition_baseline: { ...baseline, target_intake_sha256: record.transition_target_intake_sha256 },
+  };
+  for (const [nodeId, evidenceKey] of [[authorNode, authorNode === "author-whole-page-content" ? "whole-page-content-authored" : "structured-content-authored"], [configureNode, configureNode === "configure-whole-page-visual-system" ? "whole-page-visual-system-configured" : "visual-system-configured"]]) {
+    next.nodes[nodeId] = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, evidence: { [evidenceKey]: { met: true, kind: "agent", at, note: receipt.source_control_fingerprint } }, transition_baseline: baseline };
+  }
+  next.playbook_stack = [];
+  writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: at });
+  appendHistory(deckDir, { type: "production_mode_transition_source_archived", source_execution_id: frame.execution_id, source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  appendHistory(deckDir, { type: "production_mode_transition_handoff", target_execution_id: targetExecutionId, source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  return Object.freeze({ status: "handoff-complete", source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, current_node: nextNode, receipt_sha256: actualReceiptSha });
 }
 
 function activeRecord(state, name) {
   const record = state?.nodes?.[name];
   if (!isPlainObject(record) || isReservedNode(name)) return record || null;
   if (!state.execution_id || record.execution_id !== state.execution_id) return null;
+  const activeRunVersion = normalizeRunVersion(state.run_version);
+  if (!activeRunVersion || record.run_version !== activeRunVersion) return null;
   return record;
 }
 
@@ -1465,6 +2105,27 @@ function nodeIsActiveForController(index, controller, nodeId, state, ctx = {}) {
 }
 
 export function buildResumeCard(state, statusSnapshot = null, controller = null) {
+  const selected = controller?.ctx || {};
+  const executionMismatch = selectedExecutionMismatch(state, selected);
+  if (executionMismatch) {
+    return {
+      playbook: "",
+      current_node: "",
+      node_status: "",
+      waiting_for: null,
+      note: null,
+      gates: {},
+      html_resume_guidance: null,
+      playbook_stack: [],
+      completed_nodes: [],
+      pending_nodes: [],
+      eligible_candidates: [],
+      workflow_summary: "execution_run_version_mismatch",
+      suggested_next: "repair:execution_run_version_mismatch",
+      production_mode: null,
+      ...executionMismatch,
+    };
+  }
   const playbook = state?.playbook == null ? "" : String(state.playbook);
   const current_node = state?.current_node == null ? "" : String(state.current_node);
   const nodeRec = state?.nodes?.[current_node] || {};
@@ -1640,15 +2301,18 @@ export function projectModeCompletion(state, { runVersion } = {}) {
   return Object.freeze({ ok: true, mode, policy, complete: missing.length === 0, missing });
 }
 
-function requireActiveExecution(state) {
+function requireActiveExecution(state, selected = {}) {
   if (!state?.playbook || !state?.execution_id) throw new Error("active playbook execution required");
+  return requireExecutionRunVersion(state, selected);
 }
 
-export function setNodeStatus(state, name, status, extra = {}) {
-  requireActiveExecution(state);
+export function setNodeStatus(state, name, status, extra = {}, selected = {}) {
+  const activeRunVersion = requireActiveExecution(state, selected);
   if (!NODE_STATUSES.includes(status)) throw new Error(`invalid node status: ${status}`);
   const previous = activeRecord(state, name) || {};
+  if (extra.run_version != null && extra.run_version !== activeRunVersion) throw new Error("execution_run_version_mismatch: node record run_version differs from active execution");
   const record = { ...previous, ...extra, status, execution_id: state.execution_id };
+  record.run_version = activeRunVersion;
   record.evidence = isPlainObject(record.evidence) ? record.evidence : {};
   const now = nowIso();
   if (status === "in_progress") {
@@ -1671,13 +2335,13 @@ export function setNodeStatus(state, name, status, extra = {}) {
   return state;
 }
 
-export function resetNode(state, name) {
-  requireActiveExecution(state);
+export function resetNode(state, name, selected = {}) {
+  const activeRunVersion = requireActiveExecution(state, selected);
   state.nodes ||= {};
-  state.nodes[name] = { status: "pending", execution_id: state.execution_id };
+  state.nodes[name] = { status: "pending", execution_id: state.execution_id, run_version: activeRunVersion };
   return state;
 }
-export function skipNode(state, name, reason = "") { return setNodeStatus(state, name, "skipped", { skip_reason: String(reason) }); }
+export function skipNode(state, name, reason = "", selected = {}) { return setNodeStatus(state, name, "skipped", { skip_reason: String(reason) }, selected); }
 export function setGate(state, name, status) {
   if (!GATE_STATUSES.includes(status)) throw new Error(`invalid gate status: ${status}`);
   state.gates ||= {};
@@ -1688,29 +2352,31 @@ export function setGate(state, name, status) {
 function validateEvidenceKind(kind) {
   if (!["user", "agent", "cli"].includes(kind)) throw new Error(`invalid evidence kind: ${kind}`);
 }
-export function setNodeEvidence(state, nodeId, key, { kind, note } = {}) {
-  requireActiveExecution(state);
+export function setNodeEvidence(state, nodeId, key, { kind, note } = {}, selected = {}) {
+  const activeRunVersion = requireActiveExecution(state, selected);
   validateEvidenceKind(kind);
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key || "")) throw new Error(`invalid evidence key: ${key}`);
   state.nodes ||= {};
-  const record = activeRecord(state, nodeId) || { status: "in_progress", execution_id: state.execution_id };
+  const record = activeRecord(state, nodeId) || { status: "in_progress", execution_id: state.execution_id, run_version: activeRunVersion };
   record.evidence ||= {};
   record.evidence[key] = { met: true, kind, at: nowIso(), ...(note == null ? {} : { note: String(note) }) };
   record.execution_id = state.execution_id;
+  record.run_version = activeRunVersion;
   state.nodes[nodeId] = record;
   state.current_node = nodeId;
   return state;
 }
-export function setNodeDecision(state, nodeId, value, { kind, note } = {}, playbookIndex) {
-  requireActiveExecution(state);
+export function setNodeDecision(state, nodeId, value, { kind, note } = {}, playbookIndex, selected = {}) {
+  const activeRunVersion = requireActiveExecution(state, selected);
   validateEvidenceKind(kind);
   const declaration = playbookIndex ? resolveNode(playbookIndex, state.playbook, nodeId) : null;
   if (!declaration) throw new Error(`unknown node declaration: ${state.playbook}/${nodeId}`);
   if (!declaration.decisions.includes(String(value))) throw new Error(`invalid decision ${value}; allowed: ${declaration.decisions.join(", ")}`);
   state.nodes ||= {};
-  const record = activeRecord(state, nodeId) || { status: "in_progress", execution_id: state.execution_id };
+  const record = activeRecord(state, nodeId) || { status: "in_progress", execution_id: state.execution_id, run_version: activeRunVersion };
   record.decision = { value: String(value), kind, at: nowIso(), ...(note == null ? {} : { note: String(note) }) };
   record.execution_id = state.execution_id;
+  record.run_version = activeRunVersion;
   state.nodes[nodeId] = record;
   state.current_node = nodeId;
   return state;
@@ -1720,29 +2386,36 @@ function preserveReservedNodes(nodes = {}) { return Object.fromEntries(reservedE
 function activeExecutionIncomplete(state) {
   return controllerEntries(state?.nodes).some(([, rec]) => !["completed", "skipped"].includes(rec?.status));
 }
-export function startPlaybook(state, playbook, { replace = false } = {}) {
+export function startPlaybook(state, playbook, { replace = false, runVersion, runDir } = {}) {
   normalizePlaybookStack(state);
   if (state.playbook_stack.length > 0) throw new Error("cannot start a top-level playbook while playbook_stack is non-empty; use switchPlaybook");
   if (state.playbook && activeExecutionIncomplete(state) && !replace) throw new Error("active playbook execution is incomplete; pass replace:true to replace it");
+  if (state.playbook) requireExecutionRunVersion(state, { runVersion, runDir });
+  const exactRunVersion = selectedRunVersion({ runVersion, runDir }) || normalizeRunVersion(state.run_version) || "v1";
   const now = nowIso();
   state.schema_version = STATE_SCHEMA_VERSION;
   state.playbook = String(playbook);
   state.current_node = "";
   state.execution_id = newExecutionId();
   state.execution_started_at = now;
+  state.run_version = exactRunVersion;
   if (!state.started_at) state.started_at = now;
   state.nodes = preserveReservedNodes(state.nodes);
   return state;
 }
-export function switchPlaybook(state, newPlaybook) {
-  requireActiveExecution(state);
+export function switchPlaybook(state, newPlaybook, selected = {}) {
+  const activeRunVersion = requireActiveExecution(state, selected);
   normalizePlaybookStack(state);
+  if (state.playbook_stack.some(isTransitionSuspensionFrame)) {
+    throw new Error("transition suspension is non-resumable; use the closed transition apply or recovery operation");
+  }
   const snapshot = Object.fromEntries(controllerEntries(state.nodes).map(([id, rec]) => [id, deepClone(rec)]));
   state.playbook_stack.push({
     playbook: state.playbook,
     current_node: state.current_node,
     execution_id: state.execution_id,
     execution_started_at: state.execution_started_at,
+    run_version: activeRunVersion,
     controller_nodes: snapshot,
   });
   const reserved = preserveReservedNodes(state.nodes);
@@ -1750,18 +2423,24 @@ export function switchPlaybook(state, newPlaybook) {
   state.current_node = "";
   state.execution_id = newExecutionId();
   state.execution_started_at = nowIso();
+  state.run_version = activeRunVersion;
   state.nodes = reserved;
   return state;
 }
-export function resumePlaybook(state) {
+export function resumePlaybook(state, selected = {}) {
+  requireExecutionRunVersion(state, selected);
   normalizePlaybookStack(state);
   if (state.playbook_stack.length === 0) return state;
+  if (state.playbook_stack.some(isTransitionSuspensionFrame)) {
+    throw new Error("transition suspension is non-resumable; use the closed transition apply or recovery operation");
+  }
   const reserved = preserveReservedNodes(state.nodes);
   const parent = state.playbook_stack.pop();
   state.playbook = parent.playbook;
   state.current_node = parent.current_node;
   state.execution_id = parent.execution_id;
   state.execution_started_at = parent.execution_started_at;
+  state.run_version = parent.run_version;
   state.nodes = { ...deepClone(parent.controller_nodes), ...reserved };
   return state;
 }
@@ -1775,6 +2454,7 @@ export function createDefaultState() {
     current_node: "",
     execution_id: "",
     execution_started_at: "",
+    run_version: "",
     started_at: "",
     updated_at: "",
     nodes: {},
@@ -1786,7 +2466,7 @@ export function createDefaultState() {
 export function createInitialState(deckName, deckType, style) {
   const state = createDefaultState();
   state.deck = { name: String(deckName || ""), type: String(deckType || ""), style: String(style || "") };
-  startPlaybook(state, "create-deck");
+  startPlaybook(state, "create-deck", { runVersion: "v1" });
   state.current_node = "instantiation";
   return state;
 }
@@ -1801,6 +2481,7 @@ export function validateState(state) {
   if (!isPlainObject(state.nodes)) errors.push("missing nodes");
   if (!isPlainObject(state.gates)) errors.push("missing gates");
   if (state.playbook && (!state.execution_id || !state.execution_started_at)) errors.push("active playbook missing execution fields");
+  errors.push(...executionBindingErrors(state));
   for (const [name, node] of controllerEntries(nodes)) {
     if (!NODE_STATUSES.includes(node?.status)) errors.push(`invalid status for ${name}`);
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
@@ -2181,9 +2862,19 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
   if (!parsed.ok) return Object.freeze({ valid: false, issues: Object.freeze(parsed.errors.slice(0, 20).map(() => stateIssue("state.yaml", "valid YAML mapping", "parse-error", "yaml", "repair_state"))) });
   if (parsed.hadErrors) issues.push(stateIssue("state.yaml", "unambiguous YAML", "parser-diagnostics", "yaml", "repair_state"));
   const state = parsed.value;
-  const topLevel = ["schema_version", "pipeline", "production_mode", "image2_delivery_review", "image2_provider_authorization", "playbook", "current_node", "execution_id", "execution_started_at", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
+  const selectedMismatch = selectedExecutionMismatch(state, { runDir });
+  if (selectedMismatch) {
+    issues.push(stateIssue(
+      "run_version",
+      selectedMismatch.requested_run_version,
+      selectedMismatch.active_run_version || "missing",
+      "execution",
+      "select_active_run_version",
+    ));
+  }
+  const topLevel = ["schema_version", "pipeline", "production_mode", "image2_delivery_review", "image2_provider_authorization", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
   for (const key of Object.keys(state)) if (!topLevel.includes(key)) issues.push(stateIssue(key, "known top-level state key", "unknown", "state"));
-  for (const error of validateState(state).errors.slice(0, 20)) issues.push(stateIssue("state", "valid schema-v4 invariant", error, "state"));
+  for (const error of validateState(state).errors.slice(0, 20)) issues.push(stateIssue("state", "valid schema-v5 invariant", error, "state"));
   validateProductionModeReadOnly(state, issues);
   validateImage2MapsReadOnly(state, issues);
 
@@ -2248,6 +2939,16 @@ export const CONDITIONS = {
   header_review_current: (_state, ctx) => typeof ctx.headerReviewCurrent === "function" ? Boolean(ctx.headerReviewCurrent()) : ctx.headerReviewCurrent === true,
   html_first_marked: (_state, ctx) => typeof ctx.htmlFirstMarked === "function" ? Boolean(ctx.htmlFirstMarked()) : ctx.htmlFirstMarked === true,
   html_delivery_review_current: (_state, ctx) => typeof ctx.htmlDeliveryReviewCurrent === "function" ? Boolean(ctx.htmlDeliveryReviewCurrent()) : ctx.htmlDeliveryReviewCurrent === true,
+  transition_apply_current: (state, ctx) => {
+    const record = activeTransitionRecord(state);
+    const frame = state?.playbook_stack?.[0];
+    return Boolean(record && isTransitionSuspensionFrame(frame) && selectedRunVersion(ctx) === record.transition_source_version &&
+      frame.execution_id === record.transition_source_execution_id && frame.transition_plan_hash === record.transition_plan_hash);
+  },
+  // Terminal transition finalization replaces the active execution rather than
+  // exposing a generally-completable node, so no ordinary controller check can
+  // make this exit true.
+  transition_publish_or_recovery_recorded: () => false,
 };
 
 function resolveCondition(condition, node, state, ctx) {
@@ -2298,6 +2999,8 @@ function readValidatedNode(nodeName, playbookDir, state) {
 }
 
 export function checkEntry(nodeName, playbookDir, state, ctx = {}) {
+  const executionMismatch = selectedExecutionMismatch(state, ctx);
+  if (executionMismatch) return { pass: false, missing: [], unknown: [executionMismatch.code] };
   const { node, validation, index } = readValidatedNode(nodeName, playbookDir, state);
   if (!node) return { pass: false, missing: [], unknown: validation.errors.map((error) => error.message || String(error)) };
   const controller = index.controllers.get(state?.playbook);
@@ -2309,6 +3012,8 @@ export function checkEntry(nodeName, playbookDir, state, ctx = {}) {
   return checkConditions([...required, ...node.entry], node, state, ctx);
 }
 export function checkExit(nodeName, playbookDir, state, ctx = {}) {
+  const executionMismatch = selectedExecutionMismatch(state, ctx);
+  if (executionMismatch) return { pass: false, missing: [], unknown: [executionMismatch.code] };
   const { node, validation, index } = readValidatedNode(nodeName, playbookDir, state);
   if (!node) return { pass: false, missing: [], unknown: validation.errors.map((error) => error.message || String(error)) };
   const controller = index.controllers.get(state?.playbook);
@@ -2323,14 +3028,15 @@ export function getMissingConditions(nodeName, playbookDir, state, ctx = {}) {
   return [...result.missing, ...result.unknown];
 }
 export function getEligibleNextNodes(index, playbook, state, ctx = {}) {
+  if (selectedExecutionMismatch(state, ctx)) return [];
   const controller = index.controllers.get(playbook);
   const mode = modeForControllerContext(state, ctx);
   const ids = controller && mode
     ? controllerActiveNodeIds(index, playbook, mode)
     : controllerNodeIds(index, playbook);
   return ids.filter((id) => {
-    const record = state?.nodes?.[id];
-    if (record && record.execution_id === state.execution_id && ["completed", "skipped", "in_progress"].includes(record.status)) return false;
+    const record = activeRecord(state, id);
+    if (record && ["completed", "skipped", "in_progress"].includes(record.status)) return false;
     return checkEntry(id, index.playbookDir, state, ctx).pass;
   });
 }
