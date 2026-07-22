@@ -697,6 +697,27 @@ function printHtmlResumeGuidance(guidance, prefix = "") {
   if (guidance.protected_invariant) console.log(`${prefix}Protected invariant: ${guidance.protected_invariant}`);
 }
 
+function workflowInspectionGuidance(inspection) {
+  const primary = inspection?.primary_action;
+  if (!primary || primary.kind === "complete" || !primary.display_label) return null;
+  return htmlResumeGuidance({
+    outcome: inspection.posture,
+    subject: inspection.root_cause?.kind || primary.action_id,
+    summary: primary.display_label,
+    recommendedCommand: primary.display_label,
+    continuationCommand: inspection.continuation?.display_label || null,
+    protectedInvariant: inspection.protected_invariant || null,
+  });
+}
+
+function applyWorkflowInspectionCompatibility(target, inspection) {
+  target.workflow_inspection = inspection;
+  const primary = inspection.primary_action;
+  target.workflow_summary = primary.display_label || primary.action_id;
+  target.suggested_next = primary.display_label || `${primary.owner}:${primary.action_id}`;
+  target.html_resume_guidance = workflowInspectionGuidance(inspection);
+}
+
 /**
  * Attach playbook breakpoint + optional workflow_summary onto a status object.
  * @param {object} status
@@ -709,7 +730,7 @@ async function enrichStatusWithState(status, runDir, route = null) {
   // Status must project the exact run-bound execution. This also performs the
   // ordered schema migration when a pre-v5 state has one unambiguous visible
   // version; returning the raw v4 working set would hide the breakpoint.
-  const s = readState(root, { runDir });
+  const s = readState(root, { purpose: "observe", heal: false, runDir });
   if (s.corrupted) {
     status.playbook = "";
     status.current_node = "";
@@ -775,25 +796,8 @@ async function enrichStatusWithState(status, runDir, route = null) {
   });
   status.playbook = card.playbook;
   status.current_node = card.current_node;
-  status.workflow_summary = card.workflow_summary;
-  status.suggested_next = card.suggested_next;
-  const refinementRequired = modeInspection.mode === "html-then-image2";
-  const activeRefinement = refinementRequired && status.image2_refinement?.status !== "complete";
-  if (activeRefinement && !card.waiting_for && !status.html_resume_guidance?.recommended_command) {
-    const refinement = status.image2_refinement;
-    status.workflow_summary = `Required Image2 refinement is ${refinement?.status || "not-started"}`;
-    status.suggested_next = refinement?.present
-      ? (refinement.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement")
-      : "start:image2-refine/plan";
-  } else if (!status.html_resume_guidance && (!refinementRequired || status.image2_refinement?.status === "complete") && status.html_reviews?.content?.freshness === "current" && status.html_reviews?.visual?.freshness === "current" && status.html_reviews?.delivery?.freshness === "current" && status.html_reviews?.delivery?.decision === "proceed") {
-    if (status.html_reviews.delivery.evidence_complete === false) {
-      status.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
-      status.suggested_next = "repair:html-delivery-lineage";
-    } else {
-      status.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-      status.suggested_next = "complete:html-delivery";
-    }
-  }
+  const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
+  applyWorkflowInspectionCompatibility(status, inspectWorkflow({ runDir }));
   return status;
 }
 
@@ -3703,43 +3707,39 @@ Examples:
         index: controllerIndex,
         ctx: controllerCtx,
       });
+      const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
+      const workflowInspection = inspectWorkflow({ runDir: resolved });
+      const inspectionGuidance = workflowInspectionGuidance(workflowInspection);
+      const inspectionSummary = workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
+      const inspectionNext = workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
       if (opts.json) {
-        if (healed) s.healed = true;
         const refinementProjection = (() => {
           try { return projectImage2RefinementState(s, basename(resolved)); }
           catch (error) { return { present: false, status: "invalid", reason: error.message }; }
         })();
         const report = {
-          ...s,
+          durable_state: s,
           production_mode: indexedCard.production_mode,
           pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "legacy-image2-first"),
           state_present: existsSync(statePath(deckDir)),
           html_reviews: htmlReviews,
-          html_resume_guidance: htmlResume,
+          html_resume_guidance: inspectionGuidance,
           image2_refinement: refinementProjection,
           ...(migrationHandoff ? { migration_handoff: migrationHandoff } : {}),
+          playbook: indexedCard.playbook,
+          current_node: indexedCard.current_node,
+          gates: indexedCard.gates,
           node_status: indexedCard.node_status,
           waiting_for: indexedCard.waiting_for,
           note: indexedCard.note,
           completed_nodes: indexedCard.completed_nodes,
           pending_nodes: indexedCard.pending_nodes,
           eligible_candidates: indexedCard.eligible_candidates,
-          workflow_summary: indexedCard.workflow_summary,
-          suggested_next: indexedCard.suggested_next,
+          workflow_summary: inspectionSummary,
+          suggested_next: inspectionNext,
+          workflow_inspection: workflowInspection,
         };
-        if (refinementProjection.present && refinementProjection.status !== "complete" && !indexedCard.waiting_for && !htmlResume?.recommended_command) {
-          report.workflow_summary = `Optional Image2 refinement is ${refinementProjection.status}`;
-          report.suggested_next = refinementProjection.human_action_required ? "human:review-image2-refinement" : "continue:image2-refinement";
-        } else if (!htmlResume && htmlReviews?.content?.freshness === "current" && htmlReviews?.visual?.freshness === "current" && htmlReviews?.delivery?.freshness === "current" && htmlReviews?.delivery?.decision === "proceed") {
-          if (htmlReviews.delivery.evidence_complete === false) {
-            report.workflow_summary = "HTML delivery accepted with incomplete lineage evidence";
-            report.suggested_next = "repair:html-delivery-lineage";
-          } else {
-            report.workflow_summary = "HTML delivery complete: current PPTX, notes, gates, and final review";
-            report.suggested_next = "complete:html-delivery";
-          }
-        }
         registerCliJsonReport(report);
         console.log(JSON.stringify(report, null, 2));
         return;
@@ -3761,11 +3761,11 @@ Examples:
           " visual=" +
           (s.gates?.visual || "pending")
       );
-      console.log("Summary:  " + indexedCard.workflow_summary);
-      console.log("Next:     " + indexedCard.suggested_next);
-      if (htmlResume?.recommended_command) {
+      console.log("Summary:  " + inspectionSummary);
+      console.log("Next:     " + inspectionNext);
+      if (inspectionGuidance?.recommended_command) {
         console.log("Gate guidance:");
-        printHtmlResumeGuidance(htmlResume, "  ");
+        printHtmlResumeGuidance(inspectionGuidance, "  ");
       }
       if (migrationHandoff) console.log(`Migration: ${migrationHandoff.code} (${migrationHandoff.source_version} -> ${migrationHandoff.target_version})`);
     });

@@ -13,8 +13,10 @@ import {
 } from "../run-bundle/bundle_layout.mjs";
 import {
   inspectRunProductionMode,
+  projectModeCompletion,
   projectImage2RefinementState,
   readState,
+  resolveRunProductionAdapter,
   statePath,
   validateStateReadOnly,
 } from "../state/state.mjs";
@@ -167,7 +169,11 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
   const facts = () => {
     const layoutIssues = checkBundle(resolved, false);
     const validation = validateStateReadOnly(deckDir, { runDir: resolved });
-    const mode = inspectRunProductionMode(deckDir, { runDir: resolved, purpose: "observe" });
+    const adapter = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
+    const mode = adapter.ok
+      ? { ok: true, mode: adapter.mode, policy: adapter.policy, compatibility: adapter.compatibility }
+      : inspectRunProductionMode(deckDir, { runDir: resolved, purpose: "observe" });
+    const markerlessCompatibility = adapter.ok && adapter.compatibility != null && !existsSync(statePath(deckDir));
     const state = readState(deckDir, { purpose: "observe", heal: false, runDir: resolved });
     const source = findSlideSpecs(resolved);
     const pipeline = source && existsSync(sourcePath(resolved))
@@ -181,7 +187,8 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     if (mode.ok && mode.mode === "html-then-image2") {
       try { refinement = projectImage2RefinementState(state, basename(resolved)); } catch (error) { refinement = { status: "invalid", reason: error.message || String(error) }; }
     }
-    return { layoutIssues, validation, mode, state, review, refinement, pipeline };
+    const completion = mode.ok && mode.mode ? projectModeCompletion(state, { runVersion: basename(resolved) }) : null;
+    return { layoutIssues, validation, mode, state, review, refinement, pipeline, markerlessCompatibility, completion };
   };
 
   const initial = facts();
@@ -201,7 +208,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       rootCause: rootCause("workflow-inspection", "requested-intent-invalid"),
       primaryAction: action("workflow-inspection", "inspect-current-run", "continue", false, "Inspect the current run without an intent descriptor."),
     };
-  } else if (!initial.validation.valid) {
+  } else if (!initial.validation.valid && !initial.markerlessCompatibility) {
     selected = {
       posture: "hard-stop",
       rootCause: rootCause("state", "state-validation", initial.validation.issues[0]?.path || "state.yaml"),
@@ -241,6 +248,14 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       primaryAction: action("image2-refinement", "continue-refinement", initial.refinement.human_action_required ? "review" : "continue", initial.refinement.human_action_required, "Continue the owning visual-slot refinement workflow."),
     };
   }
+  if (!selected && initial.completion?.ok && initial.completion.complete === false) {
+    const missing = initial.completion.missing[0];
+    selected = {
+      posture: "guide",
+      rootCause: rootCause(missing.owner, missing.action),
+      primaryAction: action(missing.owner, missing.action, "continue", false, `Continue the ${missing.owner} owner workflow.`),
+    };
+  }
   if (!selected) {
     selected = {
       posture: "ready",
@@ -275,6 +290,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       mode: initial.mode.ok ? initial.mode.mode : null,
       html_review_ready: initial.review?.ready ?? null,
       refinement_status: initial.refinement?.status ?? null,
+      complete: initial.completion?.complete ?? null,
     },
   });
 }
