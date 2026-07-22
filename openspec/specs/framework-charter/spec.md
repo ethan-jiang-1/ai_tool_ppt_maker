@@ -516,3 +516,29 @@ Image2-primary quality, provenance, authorization, and final-review requirements
 
 - **WHEN** active documentation describes an HTML-to-Image2 transition
 - **THEN** it preserves the normal Image2 pilot/review/authorization boundary after target publication
+
+### Requirement: AGENT_CONTRACT defines portable run-bundle entry
+
+`AGENT_CONTRACT.md` SHALL define `RUN_BUNDLE.md` as the portable entry for a local
+repository-agent session. It SHALL direct the Agent to the one run-bundle-management locator
+module for static card proof, without duplicating its parser, filesystem checks, candidate order,
+or failure codes. The Agent SHALL resolve card bytes with only optional original-card or
+human-explicit deck/framework paths, then use the state owner's observe/no-heal selector (active
+`run_version` first, otherwise `continuation_target_version`) before the existing exact-run
+structure check and state/status. It SHALL not use cwd, scans, enumeration, deck names, or recency
+to infer a path.
+
+Every locator failure is a bounded zero-write guide. Card bytes do not select a run, change state,
+reopen terminal work, or establish remote-chat capability. Deck-only relocation may retain a
+verified direct framework root; framework-only relocation may use the recorded relation while the
+declared deck remains verified; a double relocation requires an explicit framework root.
+
+#### Scenario: Card bytes locate an accessible local bundle
+- **WHEN** an Agent receives `RUN_BUNDLE.md` bytes and can access its declared local roots
+- **THEN** it resolves and verifies those roots before state inspection
+- **AND** it derives one exact run without requiring the user to know framework paths
+
+#### Scenario: Stale locator has bounded recovery
+- **WHEN** an absolute root is stale and no verified fallback is available
+- **THEN** the Agent requests exactly the missing deck or framework root
+- **AND** it does not scan, heal, re-upload, or infer a replacement

@@ -23,7 +23,22 @@ agent_action: read_first
 `BOOTSTRAP.md`（环境 + intake）→ 本文件 → 按 Phase 执行时再翻 `AGENTS.md` 对应章节。
 不要跳过 BOOTSTRAP 直接临场发挥目录。
 
-**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 CLI 返回的 `html_resume_guidance`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
+**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。显式已知 `<run-dir>` 时，先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 CLI 返回的 `html_resume_guidance`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
+
+**RUN_BUNDLE locator entry（无已知 run-dir 时）：** 用户可以给出 `RUN_BUNDLE.md` bytes；原始
+card 的可读本地路径只是 deck relocation 的受控 fallback，不是前提。按以下顺序、全程零写执行：
+
+1. 调用 `scripts/shared/run-bundle/run_bundle_locator.mjs` 的 locator resolver。它只接受 card
+   bytes，以及可选 original-card path 或人类明确给出的 deck/framework root；不以 cwd、目录枚举、名称或时间猜路径。
+2. resolver 成功后，只通过 state owner 的 observe/no-heal read 和
+   `resolveContinuationTargetVersion` 读取 selector：active `run_version` 优先；否则使用
+   `continuation_target_version`。不得用第二个 YAML parser 解析、验证、heal 或解释 state 的其余字段。selector 成功后形成唯一 `<deck-root>/3_versions/vN`。
+3. 仅在 exact run 已知后，运行 `bundle_layout --check <run-dir> --structure-only`，再运行该
+   framework root 的 `ppt_flow state <run-dir> --json` 与 `status`，然后才按用户的自然语言请求路由。
+
+这不是新的 CLI，也不是 attachment provenance validator。`--check` 只校验 exact version 的结构，既不从 deck root 选版本，也不验证上传来源。resolver 的 `guide` 是零写：`*_unavailable` / `*_unverified` 时只请求命名的 explicit root 或本地修复；`*_conflict` 时请求当前 `RUN_BUNDLE.md` 或修复冲突 card/root 后重新解析，不能拿另一条路径覆盖。不得搜索、重上传建立 provenance、重开 terminal work，或把聊天请求当 approval。terminal deck 仍可只读检查，但只转向既有 rerun / new-version / new-deck 路径。host 无法访问 card 声明的本地 roots 时必须请求所需 root；generic remote-chat attachment integration 不在本框架范围。
+
+Attachment-host integration harness 不属于本仓库；此合同不声称 generic chat attachment 可以成功解析。
 
 ## 2. 目录是宪法
 
@@ -88,7 +103,7 @@ Style master：`scripts/05-iteration/legacy-image2/generate_style_master.mjs` �
 
 **CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出唯一 JSON envelope，并用受支持的 `diagnostic` 交付 JS 已知的 source/artifact lineage 与安全 `next`。MD 只使用完整校验的版本；`requires_human:true` 必须停下，`program`/`args` 保持参数边界，未知证据不猜，`_generated/` 不手改。producer 细则见 capability `cli-surface`，consumer 语义见 `charter/NODE-SPEC.md`。
 
-新建 run bundle 的 `AGENTS.md` / `CLAUDE.md` 都指向 `deck-guide.md`，运行时 Agent 从 guide 获取同一套 consumer essentials，不依赖 repo-only OpenSpec 路径。
+新建 run bundle 的 `AGENTS.md` / `CLAUDE.md` 都先指向 `RUN_BUNDLE.md` 再指向 `deck-guide.md`；运行时 Agent 从 guide 获取同一套 consumer essentials，不依赖 repo-only OpenSpec 路径。
 
 **坏 state / 坏压模：先 heal 或重写合法文件再继续。** 禁止把 YAML/JSON 语法题甩给用户。见 `charter/CONSTITUTION.md`「MD↔JS 互补健壮性」。
 

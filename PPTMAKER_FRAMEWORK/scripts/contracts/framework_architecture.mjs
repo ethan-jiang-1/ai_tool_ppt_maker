@@ -33,6 +33,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/identity/notes_receipt.mjs",
   "shared/identity/render_artifacts.mjs",
   "shared/image2/credentials.mjs",
+  "shared/workflow/inspect_workflow.mjs",
 ]);
 
 export const CROSS_OWNER_PROCESS_ADAPTERS = Object.freeze([

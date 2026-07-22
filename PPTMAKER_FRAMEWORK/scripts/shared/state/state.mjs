@@ -149,6 +149,40 @@ function visibleRunVersions(deckDir) {
   }
 }
 
+function exactContinuationTargetVersion(value) {
+  return typeof value === "string" && VERSION_RE.test(value) ? value : null;
+}
+
+function continuationTargetVisibilityError(state, deckDir) {
+  const value = state?.continuation_target_version;
+  if (value == null || value === "") return null;
+  const target = exactContinuationTargetVersion(value);
+  if (!target) return "continuation_target_version must be a normalized vN";
+  if (!visibleRunVersions(deckDir).includes(target)) {
+    return `continuation_target_version ${target} is not a visible canonical version`;
+  }
+  return null;
+}
+
+/**
+ * Resolve the one state-owned run a continuation card may inspect. This is a
+ * read-only selector: active execution identity wins, otherwise the durable
+ * inactive target must name an exact visible version. Callers must guide on a
+ * failed result; they must not enumerate or infer a replacement.
+ */
+export function resolveContinuationTargetVersion(state, deckDir) {
+  const active = state?.playbook ? exactContinuationTargetVersion(state.run_version) : null;
+  if (state?.playbook && !active) {
+    return Object.freeze({ ok: false, reason: "active execution has no normalized run_version" });
+  }
+  const target = active || exactContinuationTargetVersion(state?.continuation_target_version);
+  if (!target) return Object.freeze({ ok: false, reason: "continuation target is missing or malformed" });
+  if (!visibleRunVersions(deckDir).includes(target)) {
+    return Object.freeze({ ok: false, reason: `continuation target ${target} is not visible` });
+  }
+  return Object.freeze({ ok: true, run_version: target, source: active ? "active-run-version" : "continuation-target" });
+}
+
 function legacyApplySourceVersion(state) {
   if (state?.playbook !== "migrate-import" || state?.current_node !== "apply-html-migration" || !state?.execution_id) return null;
   const record = state.nodes?.["apply-html-migration"];
@@ -1135,8 +1169,12 @@ export function registerProductionModeFromSource(deckDir, { sourceRunVersion, so
   }
   const existingTarget = byVersion?.[targetKey];
   if (isPlainObject(existingTarget) && hasExactKeys(existingTarget, ["mode"]) && isProductionMode(existingTarget.mode)) {
-    if (existingTarget.mode === sourceMode) return Object.freeze({ ok: true, status: "already-current", target_version: targetVersion, mode: sourceMode });
-    return Object.freeze({ ok: false, code: "TARGET_MODE_CONFLICT", target_version: targetVersion, existing: existingTarget.mode, expected: sourceMode });
+    if (existingTarget.mode === sourceMode && state.continuation_target_version === targetVersion) {
+      return Object.freeze({ ok: true, status: "already-current", target_version: targetVersion, mode: sourceMode });
+    }
+    if (existingTarget.mode !== sourceMode) {
+      return Object.freeze({ ok: false, code: "TARGET_MODE_CONFLICT", target_version: targetVersion, existing: existingTarget.mode, expected: sourceMode });
+    }
   }
   const next = structuredClone(state);
   delete next.durable_state_present;
@@ -1144,10 +1182,14 @@ export function registerProductionModeFromSource(deckDir, { sourceRunVersion, so
   delete next._heal_pending;
   next.schema_version = STATE_SCHEMA_VERSION;
   ensureProductionModeContainer(next);
-  next.production_mode.by_version[targetKey] = { mode: sourceMode };
+  if (!existingTarget) next.production_mode.by_version[targetKey] = { mode: sourceMode };
+  // This publication owner is the only same-pipeline version creator. The
+  // target directory and canonical source were verified above, so bind the
+  // inactive continuation selector in the same CAS-protected state commit.
+  next.continuation_target_version = targetVersion;
   writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
   appendHistory(deckDir, { type: "production_mode_registration", run_version: targetVersion, mode: sourceMode, source_version: sourceVersion, source: "same-pipeline-version", at: nowIso() });
-  return Object.freeze({ ok: true, status: "registered", target_version: targetVersion, source_version: sourceVersion, mode: sourceMode });
+  return Object.freeze({ ok: true, status: existingTarget ? "already-current" : "registered", target_version: targetVersion, source_version: sourceVersion, mode: sourceMode });
 }
 
 export const IMAGE2_DELIVERY_REVIEW_SCHEMA = "pptmaker-image2-delivery-review-v1";
@@ -1593,6 +1635,8 @@ export function writeState(deckDir, state, opts = {}) {
   if (currentReset && opts.resetOwnerToken !== currentReset.owner_token) throw new Error("CONFLICT: HTML production reset fences state writes");
   const bindingErrors = executionBindingErrors(state);
   if (bindingErrors.length > 0) throw new Error(`execution_run_version_mismatch: ${bindingErrors[0]}`);
+  const continuationTargetError = continuationTargetVisibilityError(state, deckDir);
+  if (continuationTargetError) throw new Error(`continuation_target_invalid: ${continuationTargetError}`);
   const prepared = prepareStateWrite(state, { updatedAt: opts.updatedAt || nowIso() });
   if (journal.record && prepared.sha256 !== journal.record.new_state_sha256) throw new Error("CONFLICT: journal owner attempted unbound state bytes");
   const candidateReset = state?.nodes?.["html-production-reset"]?.by_version
@@ -2455,6 +2499,7 @@ export function createDefaultState() {
     execution_id: "",
     execution_started_at: "",
     run_version: "",
+    continuation_target_version: "",
     started_at: "",
     updated_at: "",
     nodes: {},
@@ -2481,6 +2526,9 @@ export function validateState(state) {
   if (!isPlainObject(state.nodes)) errors.push("missing nodes");
   if (!isPlainObject(state.gates)) errors.push("missing gates");
   if (state.playbook && (!state.execution_id || !state.execution_started_at)) errors.push("active playbook missing execution fields");
+  if (state.continuation_target_version != null && state.continuation_target_version !== "" && !exactContinuationTargetVersion(state.continuation_target_version)) {
+    errors.push("continuation_target_version must be a normalized vN");
+  }
   errors.push(...executionBindingErrors(state));
   for (const [name, node] of controllerEntries(nodes)) {
     if (!NODE_STATUSES.includes(node?.status)) errors.push(`invalid status for ${name}`);
@@ -2872,9 +2920,13 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
       "select_active_run_version",
     ));
   }
-  const topLevel = ["schema_version", "pipeline", "production_mode", "image2_delivery_review", "image2_provider_authorization", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
+  const topLevel = ["schema_version", "pipeline", "production_mode", "image2_delivery_review", "image2_provider_authorization", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "continuation_target_version", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
   for (const key of Object.keys(state)) if (!topLevel.includes(key)) issues.push(stateIssue(key, "known top-level state key", "unknown", "state"));
   for (const error of validateState(state).errors.slice(0, 20)) issues.push(stateIssue("state", "valid schema-v5 invariant", error, "state"));
+  const continuationTargetError = continuationTargetVisibilityError(state, deckDir);
+  if (continuationTargetError) {
+    issues.push(stateIssue("continuation_target_version", "normalized visible canonical vN", state.continuation_target_version || "missing", "state", "guide_explicit_run"));
+  }
   validateProductionModeReadOnly(state, issues);
   validateImage2MapsReadOnly(state, issues);
 

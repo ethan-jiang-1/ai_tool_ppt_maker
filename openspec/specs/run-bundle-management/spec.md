@@ -262,14 +262,24 @@ run bundles SHALL not be hand-edited or required as test inputs.
 
 ### Requirement: Init produces the run-bundle Agent diagnostic entry
 
-`bundle_layout.mjs#initBundle` and therefore `ppt_flow init` SHALL generate deck-root `AGENTS.md` and `CLAUDE.md` as short pointers to `deck-guide.md`. The generated guide SHALL include the runtime consumer essentials owned by `node-specification`: parse the final CLI failure envelope; use supported structured `diagnostic.next`; preserve `program`/`args` boundaries; stop on `requires_human:true`; do not invent omitted lineage; edit source and rerun rather than hand-editing `_generated/`. The producer-owned `workflow/00-setup/template-deck-guide.md` SHALL carry the same essentials so the manual/Expert seed and `initBundle` output do not contradict each other.
+`bundle_layout.mjs#initBundle` and therefore `ppt_flow init` SHALL generate deck-root
+`AGENTS.md` and `CLAUDE.md` as short pointers first to `RUN_BUNDLE.md` for local location and
+then to `deck-guide.md` for operating rules. The generated root `README.md` SHALL tell a human to
+give `RUN_BUNDLE.md` to a local repository Agent. The generated guide SHALL include the runtime
+consumer essentials owned by `node-specification`: parse the final CLI failure envelope; use
+supported structured `diagnostic.next`; preserve `program`/`args` boundaries; stop on
+`requires_human:true`; do not invent omitted lineage; edit source and rerun rather than
+hand-editing `_generated/`. The producer-owned `workflow/00-setup/template-deck-guide.md` SHALL
+carry the same essentials and retain its operating-guide role so the manual/Expert seed and
+`initBundle` output do not contradict each other.
 
 The producer SHALL be the durable fix. Tests SHALL initialize a fresh temporary deck and assert all generated files and structure validity. Existing golden or user run bundles, including `deck_ai_sdlc_keynote`, SHALL NOT be hand-edited as part of this change. This change SHALL NOT alter the root/version README placement-map seeds. Because scaffold writes are create-if-absent, legacy bundles MAY gain the new control only through an explicit future migration/repair operation, not an incidental pipeline run.
 
 #### Scenario: Fresh init is discoverable to agent-agnostic runtimes
 
 - **WHEN** `initBundle` creates a temporary deck
-- **THEN** root `AGENTS.md` and `CLAUDE.md` both route to `deck-guide.md`
+- **THEN** root `AGENTS.md` and `CLAUDE.md` both route to `RUN_BUNDLE.md` then `deck-guide.md`
+- **AND** the README identifies `RUN_BUNDLE.md` as the human handoff file
 - **AND** the guide contains diagnostic consumer essentials
 - **AND** the framework `template-deck-guide.md` expresses the same essentials
 - **AND** `--check --structure-only` passes
@@ -688,6 +698,53 @@ authority only through the post-publication state handoff described by `node-spe
 - **WHEN** a transition apply journal is valid but cross-host or otherwise owner-uncertain
 - **THEN** recovery remains blocked until its exact token is at least 300000 ms old and the state owner records matching journal-digest-bound no-active-apply confirmation
 - **AND** it does not delete, replace, or register a target before those conditions hold
+
+### Requirement: Init creates an optional portable run-bundle locator
+
+`initBundle` and `ppt_flow init` SHALL create `<deck-root>/RUN_BUNDLE.md` only if it is absent.
+The producer SHALL write a closed `pptmaker-run-bundle-v1` record containing distinct canonical
+physical absolute deck/framework roots and a normalized POSIX relation measured between them.
+Before any deck write, init SHALL canonicalize and verify the framework sentinels used by locator
+resolution. The body SHALL state the local-path/privacy limitation and that state/status owns
+current workflow facts. The manifest SHALL contain no live mode/version/node/gate/digest/command
+or authority. Cards and guides remain create-if-absent; ordinary check/status/build never rewrite
+them, and exact-run structure checks do not select a deck or version.
+
+#### Scenario: External deck receives direct local anchors
+- **WHEN** init creates a legal `deck_*` outside the framework tree
+- **THEN** `RUN_BUNDLE.md` names that exact physical deck/framework root and measured relation
+- **AND** it is not hard-coded to a sibling path
+
+#### Scenario: Init cannot prove its framework root
+- **WHEN** init receives a framework path that cannot be canonicalized or lacks a required sentinel
+- **THEN** init fails before it creates any deck file
+- **AND** it creates no partial locator manifest
+
+### Requirement: Locator resolution is one static deep module
+
+`run_bundle_locator.mjs` SHALL own zero-write static proof of `RUN_BUNDLE.md` bytes. It accepts
+only manifest text plus optional original-card and human-explicit deck/framework paths, and returns
+either canonical deck/framework paths with bounded source labels or a bounded guide code. It SHALL
+parse only one closed four-scalar-field record; reject duplicate/aliased/extra/unknown/noncanonical
+fields; compare root cards by canonical record; require regular non-symlink cards; delegate root
+controls to `bundle_layout.mjs`; and verify regular `ppt_flow`, layout, and state sentinels. It
+SHALL not read state, select or enumerate versions, structure-check, write, add a CLI, or search.
+
+Candidate order is declared deck, then original-card parent only after declared unavailability,
+then an explicit deck root. A conflicting root card stops resolution. With the declared deck,
+direct framework and relation roots must agree when both verify; relation is the automatic fallback
+only for a stale direct root. With a recovered deck, relation is not reinterpreted: use a verified
+direct or explicit framework root. Conflicts require a current card or repair and a fresh call.
+
+#### Scenario: Byte-only card resolves from unrelated working directory
+- **WHEN** an Agent passes only manifest bytes while the declared local roots are accessible
+- **THEN** the module returns those verified physical directories
+- **AND** it neither observes state nor discovers paths outside explicit candidates
+
+#### Scenario: Card record conflicts with a present declared root
+- **WHEN** the declared deck path is accessible but its root card has a different canonical record
+- **THEN** the module returns a bounded deck-root conflict guide
+- **AND** it does not continue through another candidate in the same invocation
 
 ### Requirement: Transition candidates are directional authored contracts
 

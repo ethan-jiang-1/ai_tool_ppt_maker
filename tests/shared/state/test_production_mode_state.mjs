@@ -10,6 +10,7 @@ import {
   createDefaultState,
   readState,
   writeState,
+  resolveContinuationTargetVersion,
   healState,
   validateState,
   validateStateReadOnly,
@@ -1116,6 +1117,23 @@ describe("same-pipeline version mode registration (2.5)", () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
+  it("rejects a stale publication CAS before it can replace the target selector", () => {
+    const deck = seedImage2Deck("reg-stale-cas");
+    try {
+      writeVersionSource(deck, "v2", "legacy");
+      const staleSha = sha(readFileSync(statePath(deck)));
+      const concurrent = readState(deck, { purpose: "execute", heal: false });
+      concurrent.gates.content = "approved";
+      writeState(deck, concurrent);
+      expect(() => registerProductionModeFromSource(deck, {
+        sourceRunVersion: "v1",
+        targetRunVersion: "v2",
+        expectedStateSha: staleSha,
+      })).toThrow(/state precondition changed/);
+      expect(readState(deck, { purpose: "observe", heal: false }).continuation_target_version).not.toBe("v2");
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
   it("respects the deck-wide marker-consistency guard (cross-pipeline markers make state unavailable)", () => {
     const deck = seedImage2Deck("reg-mismatch");
     try {
@@ -1158,8 +1176,51 @@ describe("same-pipeline version mode registration (2.5)", () => {
     try {
       const v1 = join(deck, "3_versions", "v1");
       const v2 = createVersion(v1);
-      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-only" });
+      const state = readState(deck, { purpose: "execute", heal: false });
+      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-only" });
+      expect(state.continuation_target_version).toBe("v2");
       expect(v2).toMatch(/v2$/);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+});
+
+describe("continuation target selector", () => {
+  it("prefers active run_version and resolves terminal state through the visible target", () => {
+    const deck = seedImage2Deck("selector-precedence");
+    try {
+      writeVersionSource(deck, "v2", "legacy");
+      const active = readState(deck, { purpose: "execute", heal: false });
+      active.continuation_target_version = "v2";
+      writeState(deck, active);
+      expect(resolveContinuationTargetVersion(active, deck)).toEqual({ ok: true, run_version: "v1", source: "active-run-version" });
+
+      const terminal = createDefaultState();
+      terminal.pipeline = "legacy-image2-first";
+      terminal.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
+      terminal.production_mode.by_version["3_versions/v2"] = { mode: "image2-only" };
+      terminal.continuation_target_version = "v2";
+      writeState(deck, terminal);
+      const observed = readState(deck, { purpose: "observe", heal: false });
+      expect(resolveContinuationTargetVersion(observed, deck)).toEqual({ ok: true, run_version: "v2", source: "continuation-target" });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it("rejects malformed or stale target writes and leaves plain observation unchanged", () => {
+    const deck = seedImage2Deck("selector-negative");
+    try {
+      const state = readState(deck, { purpose: "execute", heal: false });
+      state.continuation_target_version = "3_versions/v1";
+      expect(() => writeState(deck, state)).toThrow(/continuation_target_invalid/);
+      state.continuation_target_version = "v9";
+      expect(() => writeState(deck, state)).toThrow(/continuation_target_invalid/);
+
+      const terminal = createDefaultState();
+      terminal.pipeline = "legacy-image2-first";
+      terminal.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
+      writeState(deck, terminal);
+      const before = readFileSync(statePath(deck));
+      expect(resolveContinuationTargetVersion(readState(deck, { purpose: "observe", heal: false }), deck)).toMatchObject({ ok: false });
+      expect(readFileSync(statePath(deck))).toEqual(before);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 });

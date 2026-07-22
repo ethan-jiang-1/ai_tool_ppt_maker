@@ -153,8 +153,9 @@ describe("framework documentation coherence", () => {
     expect(contract).toContain("`_generated/` 始终是可重建派生品");
 
     const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md", "utf8");
-    expect(template).toContain("Git 只是可选、用户拥有的 source/control 审计");
-    expect(template).toContain("自动 Git source recovery");
+    expect(template).toContain("RUN_BUNDLE.md");
+    expect(template).toContain("operating guide");
+    expect(template).not.toContain("continuation_card.mjs");
 
     for (const file of GIT_GUIDANCE_CORPUS) {
       const text = readFileSync(file, "utf8");
@@ -168,6 +169,21 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
     expect(commands).toContain("Git history reader");
     expect(commands).toContain("命名 Git 操作和用户给定范围");
+  });
+
+  it("documents only the bounded local run-bundle locator entry", () => {
+    const contract = readFileSync("PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md", "utf8");
+    expect(contract).toContain("RUN_BUNDLE locator entry");
+    expect(contract).toContain("run_bundle_locator.mjs");
+    expect(contract).toContain("resolveContinuationTargetVersion");
+    expect(contract).toContain("bundle_layout --check <run-dir> --structure-only");
+    expect(contract).toContain("另一条路径覆盖");
+    expect(contract).toContain("不得用第二个 YAML parser");
+    expect(contract).toContain("terminal deck");
+    expect(contract).toContain("generic remote-chat attachment integration");
+    const bootstrap = readFileSync("PPTMAKER_FRAMEWORK/BOOTSTRAP.md", "utf8");
+    expect(bootstrap).toContain("RUN_BUNDLE.md");
+    expect(bootstrap).toContain("generic remote-chat attachment integration 不受支持");
   });
 
   it("keeps every migration entry point on the closed prepare-to-confirmation path", () => {

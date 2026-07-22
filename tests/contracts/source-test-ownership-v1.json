@@ -121,7 +121,8 @@
         "tests/contracts/test_geometry_contracts.mjs",
         "tests/contracts/test_html_review_projection.mjs",
         "tests/contracts/test_ppt_flow.mjs",
-        "tests/contracts/test_runtime_constitution.mjs"
+        "tests/contracts/test_runtime_constitution.mjs",
+        "tests/contracts/test_workflow_inspection_cli.mjs"
       ],
       "e2e": []
     },
@@ -187,6 +188,16 @@
         "tests/shared/state/test_state_yaml.mjs"
       ],
       "e2e": ["tests_e2e/shared/state/test-state-machine.mjs"]
+    },
+    {
+      "owner": "shared/workflow",
+      "interfaces": ["shared/workflow/inspect_workflow.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/shared/workflow/test_workflow_inspection.mjs",
+        "tests/shared/workflow/test_workflow_inspection_drift.mjs"
+      ],
+      "e2e": ["tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs"]
     }
   ]
 }

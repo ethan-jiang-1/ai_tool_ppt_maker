@@ -53,6 +53,6 @@ exit: [user_decision_recorded]
 **Step 1 — MD**: Open the exact content projection and real visual contact sheet. Show outstanding recipe keys/pages and effective/forced fallback evidence.
 
 **Step 2 — GATE**: Record the routing decision. `proceed` means return to the owning controller
-to consume current producer-owned `html_resume_guidance` and publish exact plan-hash gates; quick
+to consume current producer-owned `workflow_inspection.primary_action` and publish exact plan-hash gates; quick
 preview itself never waives/approves them or treats successful rendering as approval. A hard-stop
 diagnostic returns to its owner; it is not an invitation to edit state or infer a missing decision.
