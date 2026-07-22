@@ -22,7 +22,7 @@ agent_action: navigate
 1. **你说个大概**——想做什么 PPT、给谁看、多长时间。哪怕只有个模糊想法也行。
 2. **agent 跟你反复聊,帮你想清楚**——它会给你 2-3 个隐喻候选让你选、推荐视觉风格让你挑、把你的想法整理成骨架。**你做选择题,不做问答题。**
 3. **想清楚了,它才开始搭框架**——建目录、写规格、生成图片、打包成 PPTX。这一步你基本不用管。
-4. **搭完后,框架里留了一份 continuation card**(`deck-guide.md`)——带原始本地路径交给 repository Agent，并直接说你想怎么改；当前进度由 state/status 读取。
+4. **搭完后,项目根会有一份 `RUN_BUNDLE.md`**——把它交给能访问本地文件的 repository Agent，并直接说你想怎么改；它会定位 deck/framework，再从 state/status 读取当前进度。
 
 **关键:前三步是"想清楚",第 3 步才是"生产"。别急着生产——想清楚了再搭,能省掉大量返工。**
 
@@ -66,10 +66,9 @@ agent 会从环境检查开始,然后问你 5 个选择题(类型、听众、时
 
 ## 搭完之后:框架里有给你的说明书
 
-生产完成后,你的项目目录(`deck_{NAME}/`)里会有一个 **`deck-guide.md`** continuation card——它绑定该 deck 的静态身份和 framework relation。把有可读本地路径的原始文件交给 repository Agent，并说你想改什么；Agent 每次从 state/status 获得当前进度。
-- 下一步可以做什么
+生产完成后,你的项目目录(`deck_{NAME}/`)根有一份 **`RUN_BUNDLE.md`**。把它交给能访问 card 所列本地路径的 repository Agent，并说你想改什么；Agent 先定位 deck/framework，再从 state/status 获得当前进度。`deck-guide.md` 是定位完成后的项目操作说明。
 
-**这份说明是给你(人)看的,不是给机器看的。** 一进去不会不知所措。
+**你不需要记 framework 或数据目录。** `RUN_BUNDLE.md` 就是交给 Agent 的那一份入口文件。
 
 ## 想深入了解方法论?(可选,不是必需)
 

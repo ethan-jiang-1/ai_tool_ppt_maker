@@ -45,7 +45,7 @@ HTML structural receipt 使用 `needs_local_materialization`；legacy receipt �
 
 1. 读 [`BOOTSTRAP.md`](BOOTSTRAP.md) 与 [`charter/AGENT_CONTRACT.md`](charter/AGENT_CONTRACT.md)。
 2. 用 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` 检查 base local readiness。
-3. 做具体 deck 时读指定 run bundle 的 `deck-guide.md`，不要在 framework 根创建产物。
+3. 做具体 deck 时先交给 Agent 指定 run bundle 的 `RUN_BUNDLE.md` 定位，再读 `deck-guide.md` 操作；不要在 framework 根创建产物。
 4. 改 framework 时读 `openspec/` 当前 change 与任务清单。
 
 Git 只是可选、用户拥有的 source/control 审计与比较层。可见 `vN` + Structural Versioning Path 才是 deck 工作版本权威；没有用户对命名 Git 操作和精确范围的明确授权，Agent 不检查 Git 状态或执行 Git mutation。

@@ -15,9 +15,10 @@
  * --------------------------------------------------------------------------------
  *
  *     deck_<name>/                       the deck (one evolving entity)
+ *     ├── RUN_BUNDLE.md                  portable local locator for a new session
  *     ├── deck-guide.md                  read-first control-flow doc (human + agent)
- *     ├── AGENTS.md                      agent-agnostic pointer to deck-guide.md
- *     ├── CLAUDE.md                      Claude pointer to deck-guide.md (auto-load)
+ *     ├── AGENTS.md                      agent-agnostic pointer: locator then guide
+ *     ├── CLAUDE.md                      Claude pointer: locator then guide (auto-load)
  *     ├── project-metadata.yaml          topic / audience / language / north-star
  *     ├── _state/                        playbook execution progress (state.yaml; history.jsonl on demand)
  *     ├── _lessons/                      retained lessons after probe/overcome (read-before-guess; not secrets / not progress)
@@ -75,7 +76,7 @@ import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, ST
 import { inspectHtmlReviewReadiness as inspectHtmlReviewReadinessCore } from '../state/internal/html_review_evidence_core.mjs';
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from './production_marker.mjs';
 import { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
-import { normalizedFrameworkRelation, renderRunBundle, RUN_BUNDLE_FILE } from './continuation_card.mjs';
+import { canonicalFrameworkRoot, normalizedFrameworkRelation, renderRunBundle } from './run_bundle_locator.mjs';
 
 // Production-mode policy is consumed by the root CLI through this public
 // run-bundle interface; the policy module itself remains an internal detail.
@@ -112,7 +113,7 @@ export const BACKBONE_DIR = '2_backbone';
 export const VERSIONS_DIR = '3_versions';
 
 export const GUIDE_FILE = 'deck-guide.md';
-export { RUN_BUNDLE_FILE };
+export const RUN_BUNDLE_FILE = 'RUN_BUNDLE.md';
 export const AGENT_POINTER_FILE = 'AGENTS.md';
 export const POINTER_FILE = 'CLAUDE.md';
 export const METADATA_FILE = 'project-metadata.yaml';
@@ -713,6 +714,52 @@ function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
 }
 
 /**
+ * Validate deck-root controls without reading state or selecting a version.
+ * This is shared by exact-run structure validation and portable locator proof.
+ * @param {string} root
+ * @returns {string[]}
+ */
+export function checkDeckRootControls(root) {
+    const problems = [];
+    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+        return [`deck root not found: ${root}`];
+    }
+
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (_ignorable(entry.name)) continue;
+        if (!DECK_ROOT_ALLOWED.has(entry.name)) {
+            problems.push(
+                `unexpected '${entry.name}' at deck root — root is the strictest layer (上严下松). ` +
+                `Allowed: ${[...DECK_ROOT_ALLOWED].sort().join(', ')}. ` +
+                `Version temp/bak → ${VERSIONS_DIR}/v{n}/${SCRATCH_SUBDIR}/; do not litter the deck root.`
+            );
+        }
+    }
+
+    for (const requiredFile of [GUIDE_FILE, POINTER_FILE, METADATA_FILE]) {
+        const filePath = path.join(root, requiredFile);
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+            problems.push(`missing deck root control file: ${requiredFile}`);
+        }
+    }
+    const upstreamPath = path.join(root, UPSTREAM_DIR);
+    if (!fs.existsSync(upstreamPath) || !fs.statSync(upstreamPath).isDirectory()) {
+        problems.push(`missing shared upstream dir: ${UPSTREAM_DIR}/`);
+    }
+    const backbonePath = path.join(root, BACKBONE_DIR);
+    if (!fs.existsSync(backbonePath) || !fs.statSync(backbonePath).isDirectory()) {
+        problems.push(`missing shared midstream dir: ${BACKBONE_DIR}/ (at deck root ${root})`);
+    }
+    const visualStylePath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
+    if (!fs.existsSync(visualStylePath) || !fs.statSync(visualStylePath).isDirectory()) {
+        problems.push(
+            `missing canonical ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ dir ` +
+            `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
+    }
+    return problems;
+}
+
+/**
  * Validate a version dir against the run-bundle constitution.
  * @param {string} runDir
  * @param {boolean|string} [requirePipelineReady=true] - `true`/`'pipeline'`,
@@ -754,38 +801,9 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     const needStyle = branchValid && !htmlFirst && (mode === 'preview' || mode === 'pipeline');
     const needGates = branchValid && !htmlFirst && mode === 'pipeline';
 
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-        if (_ignorable(entry.name)) continue;
-        if (!DECK_ROOT_ALLOWED.has(entry.name)) {
-            problems.push(
-                `unexpected '${entry.name}' at deck root — root is the strictest layer (上严下松). ` +
-                `Allowed: ${[...DECK_ROOT_ALLOWED].sort().join(', ')}. ` +
-                `Version temp/bak → ${VERSIONS_DIR}/v{n}/${SCRATCH_SUBDIR}/; do not litter the deck root.`
-            );
-        }
-    }
-
-    for (const requiredFile of [GUIDE_FILE, POINTER_FILE, METADATA_FILE]) {
-        const fp = path.join(root, requiredFile);
-        if (!fs.existsSync(fp) || !fs.statSync(fp).isFile()) {
-            problems.push(`missing deck root control file: ${requiredFile}`);
-        }
-    }
-    const upstreamPath = path.join(root, UPSTREAM_DIR);
-    if (!fs.existsSync(upstreamPath) || !fs.statSync(upstreamPath).isDirectory()) {
-        problems.push(`missing shared upstream dir: ${UPSTREAM_DIR}/`);
-    }
-
+    problems.push(...checkDeckRootControls(root));
     const bbPath = path.join(root, BACKBONE_DIR);
-    if (!fs.existsSync(bbPath) || !fs.statSync(bbPath).isDirectory()) {
-        problems.push(`missing shared midstream dir: ${BACKBONE_DIR}/ (at deck root ${root})`);
-    }
     const vsPath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
-    if (!fs.existsSync(vsPath) || !fs.statSync(vsPath).isDirectory()) {
-        problems.push(
-            `missing canonical ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/ dir ` +
-            `(check spelling — it must be exactly '${BACKBONE_STYLE_SUBDIR}')`);
-    }
     if (needStyle && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
         problems.push(
             `missing ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${STYLE_MASTER_IMAGE} ` +
@@ -1361,10 +1379,55 @@ const _DIR_READMES = {
     [`${VERSIONS_DIR}/v1/${SCRATCH_SUBDIR}`]: SCRATCH_DIR_README,
 };
 
+function renderDeckGuide(deckName) {
+    return `# ${deckName} - PPT operating guide
+
+Use [RUN_BUNDLE.md](RUN_BUNDLE.md) to locate this bundle in a new local Agent session. This
+guide defines source ownership and operating rules after the bundle is located; current run,
+production mode, node, gates, and recovery actions always come from state/status.
+
+## Source ownership
+
+| What changes | Owner |
+|---|---|
+| Slide text, structure, layout family, and notes | \`${VERSIONS_DIR}/vN/${SLIDE_SPECS_NAME}\` |
+| Narrative, formula, and design constraints | \`${BACKBONE_DIR}/\` |
+| Visual system and local assets | \`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\` |
+| Research material | \`${UPSTREAM_DIR}/\` |
+
+Never hand-edit \`${VERSIONS_DIR}/vN/${GENERATED_SUBDIR}/\`; edit its source and rerun the
+owning path. Put version-local temporary work only in \`${VERSIONS_DIR}/vN/${SCRATCH_SUBDIR}/\`.
+
+## Operating rules
+
+- Start every resumed session with the exact run selected by state, then inspect state/status.
+- Classify edits as Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or
+  Structural Versioning Path. Structural edits require preview plus the exact plan hash before
+  publication; materialization never grants remote-render authorization.
+- Keep \`slide_id\` as stable cross-version identity. A position is only the current snapshot.
+- Capture reusable non-secret lessons in \`${LESSONS_DIR}/\`; execution progress belongs in
+  \`${STATE_DIR}/${STATE_FILE}\` and is never hand-edited.
+
+## CLI diagnostic contract
+
+For a non-zero CLI result, consume only the final valid JSON failure envelope on stderr. Use a
+supported \`diagnostic.next\` with its \`program\` and \`args\` kept as separate arguments. Stop
+when \`requires_human: true\`; do not guess omitted lineage, repair state/journals/locks by hand,
+or treat a chat request as approval.
+
+Git is optional and user-owned. Visible \`vN\` remains the work-version authority, and
+\`${GENERATED_SUBDIR}/\` is never a recovery target. Do not perform a Git mutation without the
+user's explicit authorization for its named operation and exact scope.
+`;
+}
+
 export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
     if (frameworkDir === null) {
         frameworkDir = path.resolve(__dirname, '..', '..', '..');
     }
+    // A locator must never be seeded from a guessed or partial framework root.
+    // Do this before any deck write so an invalid framework path leaves no scaffold behind.
+    frameworkDir = canonicalFrameworkRoot(frameworkDir);
     if (deckType !== null && !(deckType in DECK_TYPE_TEMPLATES)) {
         throw new Error(
             `unknown deck-type ${JSON.stringify(deckType)}. ` +
@@ -1399,6 +1462,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         const d = rel === '.' ? deckDir : path.join(deckDir, rel);
         fs.mkdirSync(d, { recursive: true });
     }
+    const canonicalDeckRoot = fs.realpathSync.native(deckDir);
 
     for (const [rel, body] of Object.entries(_DIR_READMES)) {
         const d = rel === '.' ? deckDir : path.join(deckDir, rel);
@@ -1482,25 +1546,18 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         path.join(deckDir, POINTER_FILE),
         `# ${name}\n\n先读 [RUN_BUNDLE.md](RUN_BUNDLE.md) 定位本 deck 与 framework，` +
         `再读 [deck-guide.md](deck-guide.md) 获取操作规则。\n`);
-    const frameworkRelation = normalizedFrameworkRelation(deckDir, frameworkDir, path);
+    const frameworkRelation = normalizedFrameworkRelation(canonicalDeckRoot, frameworkDir);
     _writeIfAbsent(
         path.join(deckDir, RUN_BUNDLE_FILE),
         renderRunBundle({
             deckName: path.basename(deckDir),
-            deckRoot: path.resolve(deckDir),
-            frameworkRoot: path.resolve(frameworkDir),
+            deckRoot: canonicalDeckRoot,
+            frameworkRoot: frameworkDir,
             frameworkRelation,
         }));
     _writeIfAbsent(
         path.join(deckDir, GUIDE_FILE),
-        `# ${path.basename(deckDir)} - PPT operating guide\n\n` +
-        `Use \`RUN_BUNDLE.md\` to locate this bundle in a new chat. This guide defines source ownership and operating rules once the bundle is located.\n\n` +
-        `- Structured slides: \`${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}\`\n` +
-        `- Shared visual system: \`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/\`\n` +
-        `- Execution state: \`${STATE_DIR}/${STATE_FILE}\`\n` +
-        `- Generated artifacts: \`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}/\` (never edit directly)\n\n` +
-        `Current run, mode, position, and recovery command come from \`ppt_flow state\`/\`status\`; do not infer them from this guide. ` +
-        `CLI failure diagnostics remain bounded: consume the final JSON failure envelope, preserve program/args boundaries, and stop for requires_human.\n`);
+        renderDeckGuide(path.basename(deckDir)));
     log.push(`project files: ${RUN_BUNDLE_FILE}, ${METADATA_FILE}, ${AGENT_POINTER_FILE}, ${POINTER_FILE}, ${GUIDE_FILE}`);
 
     _writeIfAbsent(

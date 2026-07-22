@@ -1,9 +1,9 @@
 ---
-title: Template — Per-Bundle deck-guide.md
+title: Template - Per-Bundle deck-guide.md
 stage: workflow/00-setup
 position: template
 type: template
-summary: 可移植 continuation card 的静态模板；当前工作流只由 state/status 给出。
+summary: Run bundle operating guide. Local location belongs to RUN_BUNDLE.md; current workflow belongs to state/status.
 depends_on:
 - charter/CONSTITUTION.md
 - scripts/shared/run-bundle/bundle_layout.mjs
@@ -11,20 +11,49 @@ feeds_into: []
 agent_action: copy_to_bundle
 ---
 
-# Template — Per-Bundle deck-guide.md
+# Template - Per-Bundle deck-guide.md
 
-`deck-guide.md` 的 continuation block 只有一个 producer：
-`scripts/shared/run-bundle/continuation_card.mjs`。`initBundle` 使用它生成实际 card；
-`AGENTS.md`、`CLAUDE.md` 与根 `README.md` 只需指向该 card。
-
-```markdown
-{{CONTINUATION_CARD_BLOCK}}
-```
-
-短指针：
+`deck-guide.md` is the operating guide inside a located run bundle. It is not a continuation
+card. `RUN_BUNDLE.md` carries static local locator information; state/status owns the current run
+and workflow facts. `AGENTS.md` and `CLAUDE.md` point to the locator first, then this guide.
 
 ```markdown
-# {{DECK_NAME}}
+# {{DECK_NAME}} - PPT operating guide
 
-Read [deck-guide.md](deck-guide.md) for the static continuation entry. Current workflow is state/status-owned.
+Use `RUN_BUNDLE.md` to locate this bundle in a new local Agent session. This
+guide defines source ownership and operating rules after the bundle is located; current run,
+production mode, node, gates, and recovery actions always come from state/status.
+
+## Source ownership
+
+| What changes | Owner |
+|---|---|
+| Slide text, structure, layout family, and notes | `3_versions/vN/slide-specifications.md` |
+| Narrative, formula, and design constraints | `2_backbone/` |
+| Visual system and local assets | `2_backbone/visual-style/` |
+| Research material | `1_upstream_raw_material/` |
+
+Never hand-edit `3_versions/vN/_generated/`; edit its source and rerun the owning path. Put
+version-local temporary work only in `3_versions/vN/_scratch/`.
+
+## Operating rules
+
+- Start every resumed session with the exact run selected by state, then inspect state/status.
+- Classify edits as Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or
+  Structural Versioning Path. Structural edits require preview plus the exact plan hash before
+  publication; materialization never grants remote-render authorization.
+- Keep `slide_id` as stable cross-version identity. A position is only the current snapshot.
+- Capture reusable non-secret lessons in `_lessons/`; execution progress belongs in
+  `_state/state.yaml` and is never hand-edited.
+
+## CLI diagnostic contract
+
+For a non-zero CLI result, consume only the final valid JSON failure envelope on stderr. Use a
+supported `diagnostic.next` with its `program` and `args` kept as separate arguments. Stop when
+`requires_human: true`; do not guess omitted lineage, repair state/journals/locks by hand, or
+treat a chat request as approval.
+
+Git is optional and user-owned. Visible `vN` remains the work-version authority, and
+`_generated/` is never a recovery target. Do not perform a Git mutation without the user's
+explicit authorization for its named operation and exact scope.
 ```

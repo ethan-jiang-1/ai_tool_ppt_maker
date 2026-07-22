@@ -153,8 +153,9 @@ describe("framework documentation coherence", () => {
     expect(contract).toContain("`_generated/` 始终是可重建派生品");
 
     const template = readFileSync("PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md", "utf8");
-    expect(template).toContain("continuation_card.mjs");
-    expect(template).toContain("{{CONTINUATION_CARD_BLOCK}}");
+    expect(template).toContain("RUN_BUNDLE.md");
+    expect(template).toContain("operating guide");
+    expect(template).not.toContain("continuation_card.mjs");
 
     for (const file of GIT_GUIDANCE_CORPUS) {
       const text = readFileSync(file, "utf8");
@@ -170,20 +171,19 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("命名 Git 操作和用户给定范围");
   });
 
-  it("documents only the bounded path-capable continuation entry", () => {
+  it("documents only the bounded local run-bundle locator entry", () => {
     const contract = readFileSync("PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md", "utf8");
-    expect(contract).toContain("continuation card entry");
+    expect(contract).toContain("RUN_BUNDLE locator entry");
+    expect(contract).toContain("run_bundle_locator.mjs");
     expect(contract).toContain("resolveContinuationTargetVersion");
     expect(contract).toContain("bundle_layout --check <run-dir> --structure-only");
-    expect(contract).toContain("byte-only chat upload");
-    expect(contract).toContain("不得枚举版本");
+    expect(contract).toContain("另一条路径覆盖");
     expect(contract).toContain("不得用第二个 YAML parser");
     expect(contract).toContain("terminal deck");
-    expect(contract).toContain("Attachment-host integration harness 不属于本仓库");
-    expect(contract).toContain("不声称 generic chat attachment 可以成功解析");
+    expect(contract).toContain("generic remote-chat attachment integration");
     const bootstrap = readFileSync("PPTMAKER_FRAMEWORK/BOOTSTRAP.md", "utf8");
-    expect(bootstrap).toContain("path-capable continuation entry");
-    expect(bootstrap).toContain("generic byte-only chat attachment 不受支持");
+    expect(bootstrap).toContain("RUN_BUNDLE.md");
+    expect(bootstrap).toContain("generic remote-chat attachment integration 不受支持");
   });
 
   it("keeps every migration entry point on the closed prepare-to-confirmation path", () => {

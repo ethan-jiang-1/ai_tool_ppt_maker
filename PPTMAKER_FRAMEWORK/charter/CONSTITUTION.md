@@ -90,8 +90,10 @@ Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts
 
 ```
 deck_{NAME}/
-├── deck-guide.md                     ← read first: structure + workflow + edit chains
-├── CLAUDE.md                         ← 1-line pointer to deck-guide.md (auto-load)
+├── RUN_BUNDLE.md                     ← portable local locator for a new Agent session
+├── deck-guide.md                     ← operating guide after the bundle is located
+├── AGENTS.md                         ← pointer: locator then guide
+├── CLAUDE.md                         ← pointer: locator then guide (auto-load)
 ├── project-metadata.yaml
 ├── _state/                           ← playbook execution progress (not material)
 │   ├── state.yaml                    ← truth source (atomic write)

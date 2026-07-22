@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, realpathSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -16,8 +16,11 @@ import {
   publishStructuralVersion,
   AGENT_POINTER_FILE,
   LESSONS_DIR,
+  RUN_BUNDLE_FILE,
+  checkDeckRootControls,
   SCRATCH_SUBDIR,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
+import { parseRunBundleManifest } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/run_bundle_locator.mjs';
 import {
   writeState,
   readState,
@@ -54,26 +57,30 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
-  it('seeds one mode-neutral continuation card across modes and deck types', () => {
+  it('seeds one mode-neutral locator and operating guide across modes and deck types', () => {
     for (const mode of ['image2-only', 'html-only', 'html-then-image2']) {
       for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
         const deck = join(tmpdir(), `deck_continuation_${mode}_${deckType || 'generic'}_${Date.now()}_${Math.random().toString(16).slice(2)}`);
         try {
           initBundle(deck, FRAMEWORK_ROOT, deckType, null, { mode });
+          const manifest = parseRunBundleManifest(readFileSync(join(deck, RUN_BUNDLE_FILE), 'utf8'));
           const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf8');
-          expect(guide).toContain('Continue this deck');
-          expect(guide).toContain(`deck identity: \`${deck.split('/').pop()}\``);
-          const relation = (relative(resolve(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
-          expect(guide).toContain(`framework_relation: \`${relation}\``);
+          expect(manifest.deck_root).toBe(realpathSync.native(deck));
+          expect(manifest.framework_root).toBe(FRAMEWORK_ROOT);
+          const relation = relative(realpathSync.native(deck), FRAMEWORK_ROOT).split(sep).join('/');
+          expect(manifest.framework_relation).toBe(relation);
+          expect(guide).toContain('## Source ownership');
+          expect(guide).toContain('RUN_BUNDLE.md');
           expect(guide).toContain('_state/state.yaml');
-          expect(guide).toContain('ppt_flow state`/`status');
-          expect(guide).not.toMatch(/html-first-v1|current (?:version|pipeline|node)|next action|gate status|digest/i);
+          expect(guide).toContain('requires_human: true');
+          expect(guide).not.toMatch(/framework_relation|current (?:version|pipeline|node)|next action|gate status|digest/i);
         } finally { rmSync(deck, { recursive: true, force: true }); }
       }
     }
     const template = readFileSync(GUIDE_TEMPLATE, 'utf8');
-    expect(template).toContain('continuation_card.mjs');
-    expect(template).toContain('{{CONTINUATION_CARD_BLOCK}}');
+    expect(template).toContain('operating guide');
+    expect(template).toContain('RUN_BUNDLE.md');
+    expect(template).not.toContain('continuation_card.mjs');
   });
 
   it('measures framework_relation for an external legal deck path', () => {
@@ -81,11 +88,10 @@ describe('bundle_layout', () => {
     const deck = join(root, 'deck_external_relation');
     try {
       initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
-      const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf8');
-      const expectedRelation = (relative(resolve(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
-      expect(guide).toContain('framework_relation: `');
-      expect(guide).not.toContain('framework_relation: `../PPTMAKER_FRAMEWORK`');
-      expect(guide).toContain(`framework_relation: \`${expectedRelation}\``);
+      const manifest = parseRunBundleManifest(readFileSync(join(deck, RUN_BUNDLE_FILE), 'utf8'));
+      const expectedRelation = (relative(realpathSync.native(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
+      expect(manifest.framework_relation).not.toBe('../PPTMAKER_FRAMEWORK');
+      expect(manifest.framework_relation).toBe(expectedRelation);
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
@@ -94,14 +100,14 @@ describe('bundle_layout', () => {
     try {
       initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
       const runDir = join(deck, '3_versions', 'v1');
-      const guideBefore = readFileSync(join(deck, 'deck-guide.md'));
+      const cardBefore = readFileSync(join(deck, RUN_BUNDLE_FILE));
       const stateBefore = readFileSync(join(deck, '_state', 'state.yaml'));
       const exact = spawnSync('node', [BUNDLE, '--check', runDir, '--structure-only'], { encoding: 'utf8', timeout: 15_000 });
       expect(exact.status, exact.stderr || exact.stdout).toBe(0);
       const root = spawnSync('node', [BUNDLE, '--check', deck, '--structure-only'], { encoding: 'utf8', timeout: 15_000 });
       expect(root.status).not.toBe(0);
       expect(`${root.stderr}\n${root.stdout}`).toContain('--run-dir must be a version dir');
-      expect(readFileSync(join(deck, 'deck-guide.md'))).toEqual(guideBefore);
+      expect(readFileSync(join(deck, RUN_BUNDLE_FILE))).toEqual(cardBefore);
       expect(readFileSync(join(deck, '_state', 'state.yaml'))).toEqual(stateBefore);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
@@ -247,20 +253,19 @@ describe('bundle_layout', () => {
       const guide = readFileSync(join(deck, 'deck-guide.md'), 'utf-8');
       expect(agents).toContain('[deck-guide.md](deck-guide.md)');
       expect(claude).toContain('[deck-guide.md](deck-guide.md)');
-      expect(agents).toContain('state/status');
-      expect(claude).toContain('state/status');
-      expect(guide).toContain('PPT continuation card');
-      expect(guide).toContain('readable local path');
-      expect(guide).toContain('framework_relation:');
+      expect(agents).toContain('[RUN_BUNDLE.md](RUN_BUNDLE.md)');
+      expect(claude).toContain('[RUN_BUNDLE.md](RUN_BUNDLE.md)');
+      expect(guide).toContain('## Source ownership');
+      expect(guide).toContain('RUN_BUNDLE.md');
       expect(guide).toContain('_state/state.yaml');
-      expect(guide).toContain('ppt_flow state`/`status');
-      expect(guide).toContain('`_generated/` is derived output');
+      expect(guide).toContain('diagnostic.next');
+      expect(guide).toContain('Never hand-edit');
       expect(guide).not.toContain('html-first-v1');
       expect(guide).not.toContain('当前版本');
       expect(guide).not.toContain('next action');
       expect(checkBundle(join(deck, '3_versions', 'v1'), false)).toEqual([]);
-      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('_state/');
-      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('deck-guide.md');
+      expect(readFileSync(join(deck, 'README.md'), 'utf-8')).toContain('RUN_BUNDLE.md');
+      expect(checkDeckRootControls(deck)).toEqual([]);
       expect(
         readFileSync(join(deck, 'project-metadata.yaml'), 'utf-8')
       ).toMatch(/#.*_state/);
