@@ -1,7 +1,9 @@
 ## ADDED Requirements
 
 ### Requirement: Workflow inspection provides a versioned read-only projection
-The framework SHALL provide `inspectWorkflow({ runDir, requestedIntent? })` as the sole shared observation composition interface for workflow readiness. It SHALL return `schema: "pptmaker-workflow-inspection-v1"`, an exact run/version `checkpoint`, `posture`, nullable `root_cause`, exactly one `primary_action`, ordered `observations`, nullable `continuation`, nullable `protected_invariant`, and attributable `evidence_summary`. `requestedIntent` SHALL scope only which legal path is inspected; it SHALL NOT authorize an operation, mutate a record, or change production mode/pipeline selection.
+The framework SHALL provide `inspectWorkflow({ runDir, requestedIntent? })` as the sole shared observation composition interface for workflow readiness. It SHALL return `schema: "pptmaker-workflow-inspection-v1"`, a `checkpoint` containing the exact run/version and every direct-fact identity used for the verdict, `posture`, nullable `root_cause`, exactly one typed `primary_action`, ordered `observations`, nullable `continuation`, nullable `protected_invariant`, and attributable `evidence_summary`. `checkpoint` SHALL contain only stable direct-fact identities and SHALL NOT contain wall-clock time, process identity, random values, command names, or presentation data. `primary_action` SHALL contain `owner`, `action_id`, `kind: continue|repair|review|recover|complete`, and `requires_human`; it MAY contain only owner-issued structured invocation data or a bounded display label. `kind: complete` SHALL represent a terminal ready checkpoint and SHALL not contain a mutation invocation.
+
+`requestedIntent` SHALL be nullable or an owner-issued normalized observation descriptor for the exact current controller/adapter. It SHALL NOT be a public free-form command, mode override, authorization request, or second playbook. An absent descriptor SHALL inspect the exact current run's resume path. An absent, malformed, or inapplicable descriptor SHALL return the owning selection/repair action without guessing a route. It SHALL NOT authorize an operation, mutate a record, or change production mode/pipeline selection.
 
 #### Scenario: Inspection returns a stable ready projection
 - **WHEN** all direct-owner prerequisites for a requested canonical path are current
@@ -13,18 +15,43 @@ The framework SHALL provide `inspectWorkflow({ runDir, requestedIntent? })` as t
 - **THEN** inspection returns the authorization owner's bounded prerequisite action
 - **AND** it does not submit a provider operation or infer an authorization
 
+#### Scenario: Complete path has an explicit terminal action
+- **WHEN** all direct-owner prerequisites are current and the selected path has no following mutation
+- **THEN** inspection returns exactly one `primary_action` with `kind: complete`
+- **AND** it does not manufacture a command or a continuation
+
+#### Scenario: Stable checkpoint has no presentation entropy
+- **WHEN** two consumers read unchanged direct facts through different command presentations
+- **THEN** their checkpoints contain no timestamp, process, random, command, or display-only field
+- **AND** their canonical projection bytes remain equal
+
 ### Requirement: Inspection reuses direct owners and short-circuits prerequisites
-Inspection SHALL obtain mode/source, state/recovery, artifact/review, authorization, transaction, and provenance facts from their existing direct owners. It SHALL evaluate failed prerequisites before dependent implications and expose the earliest bounded blocking owner/fact as `root_cause`. It SHALL provide exactly one nearest legal `primary_action`; independent non-primary facts SHALL remain ordered observations and SHALL NOT be emitted as competing recovery actions.
+Inspection SHALL obtain run-bundle layout/canonical-path, mode/source, state/recovery, artifact/review, applicable authorization, transaction, and provenance facts from their existing direct owners. State observation SHALL combine `readState` with `purpose: observe, heal: false` and `validateStateReadOnly`; it SHALL map a bounded validator issue to the existing state-owner repair/replacement action without healing or rewriting the state. Inspection SHALL evaluate layout/canonical-path, then identity/schema/recovery, then selected-path prerequisites before dependent implications and expose the earliest bounded blocking owner/fact as `root_cause`. It SHALL inspect authorization only when the selected direct owner declares it applicable; it SHALL not probe unrelated provider operations. It SHALL provide exactly one nearest legal `primary_action`; independent non-primary facts SHALL remain ordered observations and SHALL NOT be emitted as competing recovery actions.
 
 #### Scenario: Invalid state precedes stale downstream review
 - **WHEN** authoritative state is invalid and a downstream review is also stale
 - **THEN** inspection reports the state owner's repair action as the primary action
 - **AND** it retains the stale review only as a non-primary observation
 
+#### Scenario: Layout failure precedes workflow implications
+- **WHEN** the run-bundle layout owner rejects a canonical-path or required-layout fact and later workflow facts are also stale
+- **THEN** inspection returns the layout owner's repair action as the primary action
+- **AND** it does not attempt state, authorization, or provider recovery
+
+#### Scenario: Repairable state is reported without a heal
+- **WHEN** persisted state has a bounded defect detected by `validateStateReadOnly` that an execute path could heal
+- **THEN** inspection returns the state owner's repair action as the primary action
+- **AND** it leaves the state, history, metadata, and generated artifacts unchanged
+
 #### Scenario: Human choice remains owned by the gate
 - **WHEN** a current gate owner exposes an allowed reasoned continuation
 - **THEN** inspection reports its normal primary action and the bounded continuation
 - **AND** it does not create a continuation for a hard-stop or infer a waiver
+
+#### Scenario: Multiple controller candidates do not become an action menu
+- **WHEN** more than one controller branch is technically eligible but no gate owner requires a human semantic choice
+- **THEN** inspection returns one controller-owned routing primary action
+- **AND** it does not expose competing branch actions as continuations
 
 ### Requirement: Inspection is observation-only and not an authority
 Inspection SHALL perform zero state, history, metadata, generated-artifact, receipt, authorization, or source writes; it SHALL make zero network or provider calls; it SHALL not cache a verdict, heal state, migrate schema, or recover a journal. A repairable direct fact SHALL be reported with the owning repair action. Mutation owners SHALL revalidate their direct source/CAS/authorization/receipt facts immediately before a write or submit and SHALL NOT trust an earlier inspection as authorization or proof of freshness.
@@ -38,6 +65,17 @@ Inspection SHALL perform zero state, history, metadata, generated-artifact, rece
 - **WHEN** a source, receipt, authorization, or CAS value changes after inspection returns
 - **THEN** the mutation owner rechecks the changed direct fact before mutation
 - **AND** the earlier projection cannot make the mutation proceed
+
+#### Scenario: Same checkpoint has canonical projection bytes
+- **WHEN** status and state observe identical direct-fact identities without a write or remote call between them
+- **THEN** inspection produces identical canonical serialized projection bytes for both consumers
+- **AND** a changed checkpoint causes a new projection rather than cached reuse
+
+#### Scenario: Direct facts change while inspection is composing
+- **WHEN** a participating direct-fact identity changes during inspection
+- **THEN** inspection discards the mixed verdict and returns `posture: "guide"` with one read-only `workflow-inspection` / `refresh-workflow-inspection` / `continue` primary action
+- **AND** its root cause names the changed direct owner and its action requires no human decision
+- **AND** it does not retry in a loop, acquire a lock, write a cache, or mutate an owner record
 
 ### Requirement: Inspection preserves protected gate boundaries
 Inspection SHALL use the owning gate's `guide`, `confirm`, or `hard-stop` classification. A confirmable result SHALL expose only the owner-provided continuation that requires a human reason. A hard-stop SHALL include the protected invariant and the safe owner recovery action; it SHALL NOT expose force, waive, metadata fallback, state bypass, or implicit retry as a continuation.
