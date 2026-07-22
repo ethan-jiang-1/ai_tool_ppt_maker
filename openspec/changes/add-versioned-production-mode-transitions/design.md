@@ -56,10 +56,74 @@ request target mode
 ```
 
 The transaction binds the active source execution, source run/mode/pipeline, anticipated target version,
-candidate receipts, target mode/pipeline, and plan hash.  It reuses the existing state/history writer and
-mode-inspection evaluator rather than adding a deck-global transition scalar, a second journal, or a
-second success store.  A stale state/candidate/plan or changed source pipeline hard-stops before any
-reservation or target write; the nearest recovery is the same prepare/preview checkpoint.
+candidate receipts, target mode/pipeline, and plan hash.  `prepare` and `preview` invoke the selected
+candidate adapter through the closed state CLI surface, but do not move the active controller pointer or
+write state.  Candidate work exists only under the source version's dedicated transition scratch owner;
+it is not a state checkpoint.  Thus a human decline is represented by not confirming an exact preview and
+leaves the source execution byte-for-byte current.  Only `confirm` CAS-captures the complete source
+execution and makes the transition's `migrate-import` execution active for apply/recovery.
+
+That capture uses the existing `playbook_stack`, extended with one schema-closed transition-suspension
+frame.  Confirmation moves the complete source controller context into that one frame: its active source
+execution and its complete ordered ordinary parent stack.  The active transition replaces that source
+context, so the suspended frame is the sole stack entry rather than a duplicate layered over resumable
+parents.  It also binds source run version, authoritative mode/pipeline, anticipated target version, and
+confirmed plan hash.  These copied routing values are audit bindings, never a second mode authority;
+`production_mode.by_version` remains the only mode SSOT.  The frame is non-resumable: generic
+`resumePlaybook()` never revives it, and later target work cannot overwrite it.  It exists only while the
+transition is active.  On successful registration, state atomically appends an exact receipt-linked source
+execution archive to reference-only history, removes the suspension frame, and starts a fresh top-level
+target execution.  If recovery proves no visible target, the state owner removes only its active
+transition execution and restores the complete captured source context before requiring a fresh preview.
+It reuses the existing state/history writer and the transition adapter's one owned journal and target
+success receipt, rather than adding a deck-global transition scalar, second journal, or second success
+store.  A stale state/candidate/plan or changed source pipeline hard-stops before any reservation or target
+write.
+
+The same release advances controller state to schema v5 and gives every execution an exact version
+identity.  The top-level active context has normalized `run_version`; every ordinary controller record and
+ordinary parent frame repeats that same value, and a transition-suspension frame retains the source value
+for both its captured active context and every captured parent.  Generic start/switch/resume may operate
+only within one version.  The transition handoff is the sole operation that atomically retires the
+source-bound context and starts a target-bound vNext context.  A run-scoped observer or writer first
+compares its `<run-dir>` version to this binding.  A mismatch returns only typed
+`execution_run_version_mismatch` guidance; it neither shows the other version's controller card nor
+evaluates gates, resumes, or writes it.  State-v4 migration binds the active execution only when an exact
+persisted `run_version` or a one-visible-version topology proves the identity.  Otherwise it preserves
+bytes and returns the existing replacement/repair action rather than choosing a version from invocation
+order.
+
+The transition branch adds its own `migrate-import` node identities and closed state fields:
+`apply-production-mode-transition` is the only active transition node after confirmation and carries the
+exact `transition_plan_hash`, source execution ID/version, target mode/version, and selected pipeline.
+It does not reuse `apply-html-migration`, `migration_plan_hash`, or `old_side_mode`; those remain owned by
+the historical compatibility path.  The state owner, not a generic node writer, creates this record.
+Recovery and final handoff consume that exact active record plus the transition receipt, then either
+restore source or initialize target.  This lets one controller contain two explicit branches without
+sharing authorization fields, receipts, journals, or recovery semantics.
+
+For an old-enough cross-host or owner-uncertain apply journal, recovery has a deliberate two-step human
+boundary.  The Controller first presents the producer's journal/plan/target identity and obtains a human
+statement that no apply is active.  It then invokes one closed state form that CAS-writes a
+`transition_recovery_confirmation` on the active transition record.  The closed record stores
+`kind: user`, `decision: no-active-apply`, source execution/version, target version, plan hash, and the
+SHA-256 of the exact journal bytes, but never retains or emits the raw owner token.  Recovery consumes it
+only if the same token still validates that same journal and all bindings still match.  Any journal byte,
+owner, plan, source execution, target, or state change invalidates it; a conversation or a token alone
+never authorizes takeover.
+
+The closed `state` forms are the public transition protocol.  `migrate-html` retains only its historical
+compatibility purpose and SHALL return typed transition guidance before candidate/state/target mutation
+when invoked on a durable mode-governed cross-pipeline source; it cannot become an alternate
+prepare/preview/confirm/apply/recover route.  There is one completion-only compatibility exception so
+this release does not strand an already active legacy migration during the v4-to-v5 upgrade: the state
+owner may finish an exact legacy `confirm-html-migration` checkpoint after re-inspecting its selected
+source/preview/hash/mode, or an exact `apply-html-migration` checkpoint whose execution ID, source
+version, hash, and mode agree and whose journal or receipt, when present, agrees.  That exception admits no fresh prepare/preview, no
+alternate source version, and no general transition registration; it ends only in its existing
+receipt-bound legacy HTML handoff.  Both controller branches remain named `migrate-import`, but their
+candidate adapters use the transition scratch owner and target-mode selection rather than the legacy
+HTML-migration command's comparison contract.
 
 Alternative considered: let `state --set-production-mode` create a new version implicitly.  Rejected
 because a state operation would then own source authoring, publication, and recovery without an exact
@@ -73,9 +137,15 @@ to prove the current contract can execute, but that output is deterministic oper
 quality score or visual-parity gate.
 
 For HTML-to-Image2, the Controller/Agent authors a canonical markerless whole-page candidate with the
-normal source controls.  The system never derives prompts, render modes, visual assets, or Image2 quality
-evidence from HTML source or pixels.  Preview is offline and source/control-bound; it reports later
-`needs_render` and the existing Image2 authorization boundary rather than submitting a provider request.
+normal source controls.  In either direction, preparation may issue only an identity ledger containing
+formal slide IDs, spoken-key reservation, and current order so cross-version identity stays continuous.
+It may show source material as read-only authoring context, but it never copies source prose, notes,
+prompts, render modes, visual assets, metadata/history values, pixels, or generated artifacts into target
+source.  The Agent must explicitly author every renderer-owned target field: HTML narrative/body and
+control fields for an HTML target; whole-page narrative/prompt/render/asset/profile fields for an Image2
+target.  This makes the resulting candidate target-owned source rather than a conversion by inference.
+Preview is offline and source/control-bound; an Image2 preview reports later `needs_render` and the
+existing authorization boundary rather than submitting a provider request.
 
 Alternative considered: convert HTML structured fields automatically into Image2 prompts.  Rejected
 because both page authorities have different authored contracts and the inferred result would be neither
@@ -91,9 +161,25 @@ cross-pipeline target.
 
 The source version stays byte- and state-authoritative.  The target does not inherit source approval,
 delivery review, provider authorization, refinement records, reset epoch, generated objects, or node
-completion.  HTML targets retain target-local existing delivery/review work; Image2 targets enter normal
-first-class pilot/build/review/authorization flow.  This preserves Image2 quality requirements while
-keeping HTML quality criteria exactly where they already are.
+completion.  After verified registration, the sole cross-pipeline target handoff starts a new
+`create-deck` execution at its first normal unfinished target node: `preview-content` for either HTML
+mode, or `authorize-image2-style-master` for `image2-only`.  It does not rerun bundle init.  The handoff
+first creates a fresh target execution plus mode-specific baseline records only after rechecking each
+original node exit against the visible target.  The plan has a separately hashed, explicitly authored
+target-intake object containing the normal `checkpoint-intake` fields (topic, audience, duration,
+language, takeaway, content constraints, visual DNA, success criteria).  The transition confirmation is
+the target user's `proceed`/`intake-confirmed` decision for that exact object, not a source decision.
+Handoff writes new target records as follows: `instantiation` only after target run-bundle/guide checks;
+`checkpoint-intake` with that new user decision/evidence; the mode-specific author node only after target
+source validation and new target-authored evidence; and the matching configuration node only after its
+target control/palette check and new target configuration evidence.  Every completed baseline record
+contains a closed target-only `transition_baseline` binding of target run version, execution ID, plan hash,
+success-receipt SHA, source/control fingerprint, and (where applicable) target-intake digest.  No source
+controller record is copied.  It does not
+create a target gate, review, delivery decision, provider authorization, refinement record, or final
+completion.  HTML targets therefore rebuild their own current review/delivery evidence, while Image2
+targets enter normal first-class style-master/pilot/build/review/authorization flow.  This preserves
+Image2 quality requirements while keeping HTML quality criteria exactly where they already are.
 
 Alternative considered: copy current source artifacts to make vNext appear complete.  Rejected because
 it makes a pipeline conversion erase provenance and allows unreviewed target output to inherit delivery
@@ -103,15 +189,34 @@ authority.
 
 The Controller records a declared CAS-bound handoff only after target mode registration succeeds.  It
 does not mark source nodes complete or skipped, delete retained work, or synthesize target completion.
-The target starts the mode-compatible controller at its declared transition entry with pending
-target-owned evidence; source execution remains inspectable history.  A decline leaves both source mode
-and current pointer unchanged.
+The target starts its mode-compatible normal first unfinished node after the target-owned baseline handoff:
+`preview-content` for HTML or `authorize-image2-style-master` for Image2.  State removes the temporary
+source suspension from the resumable stack only after recording its receipt-linked history record, so
+later normal nested work cannot accidentally resume the source.  A decline before confirmation leaves both
+source mode and current pointer unchanged.  A post-confirmation failure retains the bounded transition
+checkpoint; successful no-target recovery restores that same complete source context before a fresh
+preview.
 
-An owned transition journal fences concurrent prepare/apply/recovery operations.  Recovery uses the
-actual visible target and bound receipt/bytes as truth: no visible target permits cleanup and a fresh
-preview; a fully matching visible target permits idempotent registration/handoff; any conflict remains
-a hard-stop for inspection.  This folds transition recovery into existing target-reservation and state
-CAS patterns instead of adding parallel recovery rules.
+One adapter-owned transition journal fences concurrent prepare/apply/recovery operations.  The closed
+recovery form distinguishes an absent target from a visible one: an absent target permits only owned
+cleanup, source-pointer restoration, and a fresh preview; a fully matching visible target permits only
+idempotent registration/handoff; any conflict remains a hard-stop for inspection.  This folds transition
+recovery into existing target-reservation and state CAS patterns instead of adding parallel recovery
+rules.  A live same-host owner is never overridden.  A proven-dead same-host owner younger than 60000 ms
+remains a retry conflict and may be recovered automatically at or after 60000 ms; a cross-host or
+otherwise uncertain owner requires the exact opaque journal token, age at least 300000 ms, and explicit
+human confirmation that no transition apply is active.  A visible target needs no journal takeover: its
+receipt-bound registration/handoff recovery is non-destructive and idempotent.  No recovery deletes a
+visible target, source, or generated owner manually.
+
+`transition_publish_or_recovery_recorded` is not a general controller-completion hook.  It is an
+implementation-internal, state-owner exit guard that becomes true only within one terminal atomic
+finalization: matching target receipt plus target-mode registration and baseline handoff, or proven
+no-target cleanup plus source restoration.  A receipt before registration, any journal/recovery
+hard-stop, missing uncertain-owner confirmation, stale input, or target conflict leaves the transition
+execution and its apply node in progress with its typed recovery action.  Finalization replaces the active
+source transition context with a target context or restores the captured source context; it never marks
+the transition node completed for generic controller advancement.
 
 ### 5. Separate operational validity from quality evaluation
 
@@ -140,16 +245,33 @@ owning next action; they do not report inferred visual shortcomings as a transit
   runnable source/receipt contract and current human-owned delivery process; add no new score, parity,
   style, or quality validator.
 - **[Risk] Two controllers compete for one state pointer.** → Let state own the CAS-bound declared
-  handoff and validate active mode/pipeline before either controller starts work.
+  handoff; bind every controller execution and stack frame to exactly one run version; retain the complete
+  source context in a non-resumable, run-bound stack frame only while the transaction is active; archive
+  and remove it on success; and start a fresh target execution only after registration.
+- **[Risk] A candidate silently becomes a cross-pipeline conversion.** → Limit preparation to identity
+  continuity, require explicit target-owned fields, and test that no source prose/notes/prompt/pixel or
+  generated value populates a target candidate.
+- **[Risk] A target baseline fakes a human intake or source completion.** → Hash explicit target intake
+  into the confirmation, re-record it as target-only user evidence, recheck every original node exit, and
+  write only fresh target baseline records with closed receipt/source-control bindings.
+- **[Risk] An uncertain-journal takeover relies on chat memory.** → Make a state-owned, journal-digest-
+  bound user confirmation a mandatory, invalidatable precursor to recovery.
+- **[Risk] State-v5 makes a historical markerless source mode-governed mid-migration.** → Admit only an
+  exact persisted legacy confirmation/apply checkpoint through its existing closed continuation, derive
+  its source version only from verified checkpoint data, and reject all fresh legacy preparation/preview.
+- **[Risk] A recoverable transition failure advances a controller node.** → Make transition exit success
+  exclusive to state-owned terminal finalization; retain every non-terminal publish/recovery state as an
+  in-progress checkpoint with typed recovery guidance.
 
 ## Migration Plan
 
-1. Add state/CLI transaction inspection and exact source/target candidate contracts behind unit tests;
+1. Advance state to v5 with exact execution-version binding and migration/validation tests; then add
+   state/CLI transaction inspection and exact source/target candidate contracts behind unit tests;
    preserve the current cross-pipeline refusal until the full transaction is available.
 2. Generalize the current Image2-to-HTML migration to a target-mode parameter while retaining its
    no-replace and recovery contract; add the offline HTML-to-Image2 candidate path.
-3. Wire controller guidance, handoff/resume, natural-language routing, and active guidance to the new
-   transition owner.
+3. Wire controller guidance, manifest/migration-map/node constitution, handoff/resume, natural-language
+   routing, and active guidance to the new transition owner.
 4. Add integration and mocked-provider E2E coverage for both directions, decline/failure/recovery, and
    target-local evidence; verify no HTML-quality scoring or Image2 preview submit is introduced.
 5. Run focused suites, full unit/E2E tests, CLI return audits, docs consistency checks, and strict

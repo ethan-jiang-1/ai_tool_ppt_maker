@@ -3,11 +3,45 @@
 ### Requirement: Cross-pipeline transitions publish only clean target versions
 
 Run-bundle management SHALL materialize a cross-pipeline target only from confined, explicitly authored
-candidate source/control inputs under the source version's transition scratch owner.  Preview SHALL bind
-candidate and inherited backbone receipts, source/target versions and modes, expected pipeline markers,
-and the target's deterministic impact.  Apply SHALL revalidate those inputs, use the existing
+candidate source/control inputs under the source version's transition scratch owner.  Preparation MAY
+generate only the source's stable identity/order ledger; it SHALL not copy or derive renderer-owned target
+source/control from opposite-pipeline prose, notes, prompts, render modes, visual assets,
+metadata/history, pixels, or generated artifacts. Preview SHALL bind candidate and inherited backbone
+receipts, source/target versions and modes, expected pipeline markers, the digest of explicitly authored
+target-intake fields, and the target's deterministic impact. Apply SHALL revalidate those inputs, use the existing
 same-parent reservation/no-replace publication authority, write an exact target transition receipt, and
 leave the source version untouched.
+
+The general transition adapter SHALL use `_scratch/production-mode-transition/` as its sole source-local
+candidate/plan/journal owner, with exactly `candidate-run/`, `plan.json`, and `apply-journal.json` as
+immediate entries. The candidate root is the only writable candidate source/control tree. `plan.json` is
+the only `pptmaker-production-mode-transition-preview-v1` preview, and `apply-journal.json` is the only
+`pptmaker-production-mode-transition-apply-journal-v1` journal. Its post-publication success receipt
+SHALL be target-local `_generated/qa/production_mode_transition.json`, contain
+`pptmaker-production-mode-transition-success-v1`, and be the only visible-target registration/handoff
+authority. Existing `_scratch/html-migration/` remains owned by the historical
+legacy-to-HTML compatibility adapter; neither adapter may read, adopt, delete, or use the other's candidate,
+plan, journal, generated output, or receipt as authority.  A mode-governed cross-pipeline request SHALL
+use only the general transition adapter.
+
+The transition owner SHALL use exact closed artifacts: `pptmaker-production-mode-transition-preview-v1`,
+`pptmaker-production-mode-transition-apply-journal-v1`, and
+`pptmaker-production-mode-transition-success-v1`.  Its preview plan hash covers the source execution
+identity, source/target versions/modes/pipelines, candidate and inherited control receipts, expected
+target marker, and direction-specific deterministic impact.  The journal binds that hash, exact source
+execution/version, target identity/mode/pipeline, opaque 64-lowercase-hex owner token, normalized host,
+positive PID, age timestamp, and exact confined reservation/staging basenames. The success receipt binds
+the same relationship, target source/control proof, and target-intake digest; it is the only post-publication registration/handoff
+authority.  It SHALL not use the historical HTML-migration artifact schemas or paths.
+
+An active/proven-live same-host journal is non-overridable.  A proven-dead same-host journal younger than
+60000 ms returns a retry conflict and may be automatically recovered at or after that age.  A valid
+cross-host or otherwise uncertain journal may be recovered only with its exact owner token, at age at
+    least 300000 ms, after the Controller persists the state owner's exact journal-digest-bound human
+    no-active-apply confirmation.
+Malformed, unconfined, foreign, mismatched, or stale journal inputs fail closed.  Recovery never replaces
+a visible target: it either completes exact receipt-bound registration/handoff, cleans only an absent
+owned target transaction then restores source, or hard-stops for inspection.
 
 For an HTML target, current renderer validation/materialization proves the existing contract can run; it
 SHALL NOT impose a new HTML quality score, visual-parity requirement, style-master, or aesthetic retry.
@@ -37,15 +71,62 @@ authority only through the post-publication state handoff described by `node-spe
 - **WHEN** the target name already exists or any bound candidate/input receipt differs at apply time
 - **THEN** publication creates no replacement target and the source version remains unchanged
 
+#### Scenario: Transition scratch is isolated from legacy migration scratch
+
+- **WHEN** a source contains historical HTML-migration scratch while a production-mode transition is prepared
+- **THEN** the transition reads and writes only `_scratch/production-mode-transition/`
+- **AND** it neither adopts the legacy candidate nor treats its plan, journal, or derived artifacts as transition evidence
+
+#### Scenario: Uncertain transition journal needs explicit human confirmation
+
+- **WHEN** a transition apply journal is valid but cross-host or otherwise owner-uncertain
+- **THEN** recovery remains blocked until its exact token is at least 300000 ms old and the state owner records matching journal-digest-bound no-active-apply confirmation
+- **AND** it does not delete, replace, or register a target before those conditions hold
+
 ### Requirement: Transition candidates are directional authored contracts
 
 The Image2-to-HTML candidate SHALL use the existing structured HTML candidate/override ownership.
 The HTML-to-Image2 candidate SHALL use the canonical markerless whole-page source ownership.  Neither
-direction SHALL derive the other candidate from source prose, prompts, rendered pixels, generated files,
-metadata mirrors, or history.  Incomplete candidate feedback SHALL be a bounded `guide` naming missing
-authored fields; it SHALL not discard candidate work or fabricate source.
+direction SHALL derive renderer-owned target fields from source prose, notes, prompts, render modes,
+visual assets, rendered pixels, generated files, metadata mirrors, or history.  Preparation MAY preserve
+only formal slide identity, spoken-key reservation, and order as a non-authoritative continuity ledger;
+every target narrative/body/control field remains explicit candidate authoring.  Incomplete candidate
+feedback SHALL be a bounded `guide` naming missing authored fields; it SHALL not discard candidate work
+or fabricate source.
 
 #### Scenario: HTML source lacks an Image2 prompt
 
 - **WHEN** an HTML-to-Image2 candidate has no explicit whole-page authoring input for a slide
 - **THEN** preview names that candidate field as the next authoring action and does not infer it from HTML output
+
+## MODIFIED Requirements
+
+### Requirement: Version publication completes only after production-mode registration
+
+`createVersion`, Structural Versioning publication, and every other same-pipeline visible-version
+authority SHALL carry exact source and target run identities into the state-owned registration interface.
+They SHALL not report a fully usable target until registration succeeds or returns already-current.
+Same-pipeline publication remains source/control-only and renderer/provider-free; registration adds only
+the target mode record and its display mirror, never source approvals, node completion, generated bytes,
+or refinement work. If same-pipeline publication succeeds but registration is interrupted, the visible
+target SHALL remain intact and publication/status SHALL expose bounded `mode_registration_required` with
+the exact source/target repair. Rerunning that repair SHALL verify target visibility, same-deck
+relationship, unchanged source mode, matching marker-probe pipeline, and any existing target record before
+CAS. It SHALL not delete or replace a visible target.
+
+A verified general cross-pipeline transition is the sole additional narrow exception. It publishes through
+its own exact candidate/plan/journal/success-receipt contract, then invokes only the transition state
+owner's receipt-bound selected-mode registration and target-baseline handoff. It SHALL not use generic
+same-pipeline registration, infer target mode from the marker, or report ordinary target production-ready
+before registration/handoff succeeds. If this registration is interrupted, the visible target remains
+intact and status exposes one exact transition recovery checkpoint. The checkpoint revalidates
+source/target versions, selected mode, marker, success receipt, confirmed source execution, and expected
+state; it completes the exact handoff idempotently or fails closed. Historical legacy-to-HTML migration
+supplies explicit `html-only` only after its exact success receipt; no other cross-pipeline publication
+gains registration authority.
+
+#### Scenario: Cross-pipeline publication waits for the selected-mode handoff
+
+- **WHEN** a confirmed transition has atomically made vNext visible but the process stops before selected target-mode registration
+- **THEN** the visible target is retained with transition-owned `mode_registration_required`
+- **AND** ordinary target adapters do not run until exact receipt-bound recovery registers and hands off the target
