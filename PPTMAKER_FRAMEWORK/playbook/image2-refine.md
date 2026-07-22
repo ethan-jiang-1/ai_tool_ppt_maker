@@ -29,8 +29,7 @@ exit: [evidence:image2-refinement-plan-current]
 
 **Step 1 — CLI**: Read `state <run-dir> --json` and consume
 `workflow_inspection.primary_action` before refinement planning; use its bounded
-`continuation` only after the required human reason. `html_resume_guidance` is compatibility
-display only. Then recommend 2–4 stable slide IDs, one no-text visual slot per page, and the
+`continuation` only after the required human reason. Then recommend 2–4 stable slide IDs, one no-text visual slot per page, and the
 separately counted setup/page attempts. `image2 plan` is always offline. If delivery evidence is
 incomplete but final-slide identity is safe, show the owner-issued repair before the explicit
 `image2 plan <run-dir> --force --reason "<human reason>"` continuation; it records only a

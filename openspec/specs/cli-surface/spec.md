@@ -1513,3 +1513,15 @@ Plain `status`, `status --json`, `state`, and `state --json` SHALL consume the r
 - **THEN** it reports the owner-provided recovery primary action
 - **AND** it does not claim, recover, or modify the journal
 
+### Requirement: CLI routing does not duplicate workflow evaluation
+
+`ppt_flow` SHALL parse arguments, dispatch every mutating command through its closed grammar to the selected direct owner, and emit the existing CLI envelope. `status` and non-mutating `state` observation SHALL obtain caller-facing workflow guidance from inspection. A mutating command MAY return its direct owner's gate/recovery result, but SHALL NOT replace the requested operation with an inspection resume action or add a second mode/gate/recovery evaluator or result schema.
+
+#### Scenario: Pending resume does not redirect a direct operation
+- **WHEN** inspection reports a primary action that differs from a requested mutating CLI operation
+- **THEN** `ppt_flow` dispatches the requested operation only to its direct owner
+- **AND** it does not execute, synthesize, or advertise the inspection action as an alternate command
+
+### Requirement: Resume-card action displays derive from one inspection projection
+
+`state` and `status` SHALL retain non-empty public `workflow_summary` and `suggested_next` fields, but each SHALL be a display adaptation of the same `workflow_inspection.primary_action` in that response. `eligible_candidates` MAY remain as a bounded diagnostic field, but SHALL not select a route, override the primary action, or expose an alternate mutation command. The shared state card retains raw cursor context but SHALL not independently evaluate a resume/next action.

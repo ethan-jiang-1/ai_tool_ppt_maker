@@ -23,7 +23,7 @@ agent_action: read_first
 `BOOTSTRAP.md`（环境 + intake）→ 本文件 → 按 Phase 执行时再翻 `AGENTS.md` 对应章节。
 不要跳过 BOOTSTRAP 直接临场发挥目录。
 
-**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。显式已知 `<run-dir>` 时，先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 CLI 返回的 `html_resume_guidance`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
+**已有 `deck_*` / 断线 / 清聊天：** 进度在**磁盘**——`_state/state.yaml` 是执行指针 SSOT，整流程 where-am-I 再配合 `ppt_flow status` / 产物。聊天上下文不是进度真相。显式已知 `<run-dir>` 时，先跑 session resume（`ppt_flow state <run-dir> --json` + `status` → 人话汇报 → 从 `current_node` 续），并消费 `workflow_inspection.primary_action` 与 owner-issued `continuation`；再决定是否绿场 intake。节点决策只能由拥有该动作的 public CLI 写入；Agent 不手改 `_state`、不把对话当 approval，等人时只通过 owning route 持久化 `waiting_for` / `note`。
 
 **RUN_BUNDLE locator entry（无已知 run-dir 时）：** 用户可以给出 `RUN_BUNDLE.md` bytes；原始
 card 的可读本地路径只是 deck relocation 的受控 fallback，不是前提。按以下顺序、全程零写执行：
@@ -162,7 +162,7 @@ pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，�
 
 Gate 被触发时，必须给 MD Controller 三样东西：① 什么变了（具体到 slide id + 字段）；② 可执行命令（MD 直接跑）；③ 默认路径（不确定时怎么办）。能在代码层自动修的（格式、fingerprint 清理）直接修好继续。必须人来判断的（视觉质量、标题措辞）给候选 + 推荐。永远不让用户面对一堵墙。
 
-每个 gate 还必须明确其结果：`guide` 是可安全自动修复的建议；`confirm` 是可逆的质量或流程风险，先给推荐修复，再由人以简短原因选择显式 continuation；`hard-stop` 保护 version/reset/plan identity、state/byte/path integrity、并发 writer、provider authorization 或 recoverability。hard-stop 不提供强制绕过。continuation 写入当前版本的 `waived` 决定，永远不是 `approved`，也不代表 evidence complete。对 HTML run，先消费 `state --json` 的 `html_resume_guidance.recommended_command` / `continuation_command`；`state --validate-state` 只读，repair 仍走 producer 指定的 public command。完整规则见 `openspec/policies/human-centered-gates.md`。
+每个 gate 还必须明确其结果：`guide` 是可安全自动修复的建议；`confirm` 是可逆的质量或流程风险，先给推荐修复，再由人以简短原因选择显式 continuation；`hard-stop` 保护 version/reset/plan identity、state/byte/path integrity、并发 writer、provider authorization 或 recoverability。hard-stop 不提供强制绕过。continuation 写入当前版本的 `waived` 决定，永远不是 `approved`，也不代表 evidence complete。对 exact run，先消费 `state --json.workflow_inspection.primary_action` 与 owner-issued continuation；`state --validate-state` 只读，repair 仍走 producer 指定的 public command。完整规则见 `openspec/policies/human-centered-gates.md`。
 
 ---
 

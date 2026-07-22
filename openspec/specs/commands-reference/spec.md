@@ -2,6 +2,15 @@
 
 Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the human-facing command reference that maps natural-language user requests to intent routes and ownership-aware execution. It covers the full-deck creation path (BOOTSTRAP → Phases 0–3), the three artifact-refresh paths plus the outer Structural Versioning Path, the agent's request-classification logic, and common iteration-feedback patterns. This capability guarantees that a human can discover — in under 60 seconds — what to say and roughly how long each change takes, while the detailed decision tree stays in `scripts/05-iteration/change-classifier.md` and is not duplicated here.
 ## Requirements
+
+### Requirement: COMMANDS resume guidance names the inspection control input
+
+For a known exact run, `COMMANDS.md` SHALL direct resume and gate guidance to `state --json.workflow_inspection.primary_action` and the owner-issued `continuation`. It SHALL distinguish these read-only observation inputs from the direct public CLI command that performs a mutation.
+
+#### Scenario: Human resumes an existing deck
+- **WHEN** a human or Agent follows COMMANDS guidance for an existing exact run
+- **THEN** it obtains the current inspection action before selecting the owner mutation route
+- **AND** it does not infer a route from a compatibility summary or rendered artifact
 ### Requirement: COMMANDS.md exists at framework root
 
 `PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL exist as a human-readable command reference. It SHALL map natural-language user requests to the agent actions that fulfill them.

@@ -1,8 +1,9 @@
 # Workflow Inspection Ledger
 
-This ledger records the direct owners that `workflow_inspection` reads during
-Change 1. It is review evidence for control simplification, not a runtime
-registry or a mutation authority.
+This document explains the direct owners that `workflow_inspection` reads. The
+machine-checkable Change-2 source of truth is
+`tests/contracts/workflow-control-ledger-v2.json`; this document is review
+evidence, not a runtime registry or a mutation authority.
 
 | Fact / durable field | Direct owner | Writer | Readers | Freshness / invalidation | Reconstructible | Change 2 removal path |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -20,12 +21,12 @@ registry or a mutation authority.
 
 ## Compatibility Adapters
 
-Only these Change-1 adapters remain: `html_resume_guidance`,
-`workflow_summary`, `suggested_next`, and `eligible_candidates`. They are
-derived from inspection/direct owner evidence. Their supported readers are
-status/state human and JSON output plus current playbook guidance; Change 2
-may retire a reader only after this ledger has a direct replacement and no
-supported caller relies on the adapter.
+Change 2 retains the execution cursor (`playbook`, `current_node`, execution
+and version binding, and `waiting_for`) as direct state-owned durable context.
+It retains `workflow_summary` and `suggested_next` only as display adapters of
+the current inspection action. `eligible_candidates` is a diagnostic list and
+cannot select an action. `html_resume_guidance` is retired; controllers consume
+`workflow_inspection.primary_action` and its bounded continuation instead.
 
 ## Protected Boundaries
 

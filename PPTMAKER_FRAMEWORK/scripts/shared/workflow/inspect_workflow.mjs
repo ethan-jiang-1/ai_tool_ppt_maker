@@ -196,6 +196,38 @@ function htmlAction(runDir, review) {
   return null;
 }
 
+function cursorAction(state) {
+  const playbook = typeof state?.playbook === "string" ? state.playbook : "";
+  const currentNode = typeof state?.current_node === "string" ? state.current_node : "";
+  const node = currentNode ? state?.nodes?.[currentNode] : null;
+  const waitingFor = typeof node?.waiting_for === "string" && node.waiting_for.trim()
+    ? node.waiting_for.trim()
+    : null;
+
+  if (waitingFor) {
+    return {
+      posture: "confirm",
+      rootCause: rootCause("state", "waiting-for-human", waitingFor),
+      primaryAction: action("state", "wait-for-human", "continue", true, `waiting:${waitingFor}`),
+    };
+  }
+  if (playbook && currentNode && node?.status === "in_progress") {
+    return {
+      posture: "guide",
+      rootCause: rootCause("playbook-controller", "node-in-progress", `${playbook}/${currentNode}`),
+      primaryAction: action("playbook-controller", "resume-current-node", "continue", false, `continue:${playbook}/${currentNode}`),
+    };
+  }
+  if (playbook) {
+    return {
+      posture: "guide",
+      rootCause: rootCause("playbook-controller", "route-current-execution", currentNode || playbook),
+      primaryAction: action("playbook-controller", "select-controller-route", "continue", false, `route:${playbook}`),
+    };
+  }
+  return null;
+}
+
 /**
  * Compose direct-owner observations. It intentionally has no writer, cache,
  * provider, or controller-routing dependency.
@@ -345,6 +377,8 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       primaryAction: action("image2-refinement", "continue-refinement", initial.refinement.human_action_required ? "review" : "continue", initial.refinement.human_action_required, display),
     };
   }
+  const cursor = cursorAction(initial.state);
+  if (!selected && cursor?.primaryAction.action_id === "wait-for-human") selected = cursor;
   if (!selected && initial.completion?.ok && initial.completion.complete === false) {
     const missing = initial.completion.missing[0];
     selected = {
@@ -353,6 +387,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       primaryAction: action(missing.owner, missing.action, "continue", false, `Continue the ${missing.owner} owner workflow.`),
     };
   }
+  if (!selected && initial.completion?.complete !== true) selected = cursor;
   if (!selected) {
     const display = initial.mode.ok && ["html-only", "html-then-image2"].includes(initial.mode.mode)
       ? "complete:html-delivery"

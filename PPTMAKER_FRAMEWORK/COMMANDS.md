@@ -44,7 +44,7 @@ HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/
 
 Gate response always starts with the recommended repair: show the changed bounded evidence, rebuild or review the current artifact, then publish the exact current decision. A reversible evidence/process risk may expose a reasoned, version-scoped waiver; it remains `waived`, not `approved`, and evidence completeness is reported separately. Plan/reset identity drift, active journals, corrupted state, unsafe paths/bytes, and provider authorization are hard stops: use the producer-owned recovery action rather than editing state or forcing through.
 
-For an HTML run, `state <run-dir> --json` is the controller-facing resume surface. Its bounded `html_resume_guidance` names the outcome (`guide|confirm|hard-stop`), one recommended command, an optional reasoned continuation, the protected invariant for a hard stop, and independent `evidence_complete`. Run the displayed command verbatim; do not reconstruct a review record, infer approval from render output, or copy a reason into state yourself.
+For an exact run, `state <run-dir> --json` is the controller-facing resume surface. Consume `workflow_inspection.primary_action` and its bounded `continuation`; use the direct owner CLI only for the selected mutation. Do not reconstruct a review record, infer approval from render output, or copy a reason into state yourself.
 
 ## HTML Continuations And State
 

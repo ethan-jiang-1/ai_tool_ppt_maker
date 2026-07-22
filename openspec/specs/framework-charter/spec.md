@@ -2,6 +2,10 @@
 
 Define the framework's constitutional and entry layer: the charter documents, five-root soft bundle, reference appendices including `agent-prompts.md`, and stable ownership navigation. The run-bundle SSOT is `scripts/shared/run-bundle/bundle_layout.mjs`.
 ## Requirements
+
+### Requirement: Agent resume protocol consumes workflow inspection
+
+`AGENT_CONTRACT.md` and `NODE-SPEC.md` SHALL direct an Agent that has resolved an exact run to consume `state --json.workflow_inspection.primary_action` and its owner-issued `continuation` for resume and gate guidance. They SHALL preserve `_state/state.yaml` as the execution-pointer SSOT and the direct-owner public CLI as the sole mutation route. `workflow_summary`, `suggested_next`, and `eligible_candidates` are non-authoritative display projections and SHALL NOT be the Agent's control input.
 ### Requirement: Charter makes source and test ownership navigable
 
 Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/`, `tests/`, and `tests_e2e/` share Phase vocabulary while retaining different roles. It SHALL direct maintainers to the owning Phase `index.mjs` and mirrored test owner, and forbid cross-Phase private imports, generic `scripts/lib/`, and business rules in test helpers.

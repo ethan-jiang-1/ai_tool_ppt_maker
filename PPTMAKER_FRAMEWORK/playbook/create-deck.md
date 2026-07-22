@@ -336,7 +336,7 @@ entry: []
 exit: [user_decision_recorded, gate_approved:content]
 ```
 
-**Step 1 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `workflow_inspection.primary_action` plus the changed/current content projection. Run the owner-issued action for the normal repair/approval path; offer `workflow_inspection.continuation` only after the human supplies the bounded reason. `html_resume_guidance` is compatibility display only. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and do not offer `--waive`/`--force`. `revise` returns to source authoring. Never hand-edit state or infer approval from rendered pages.
+**Step 1 — GATE**: Read `ppt_flow state <run-dir> --json` and present its `workflow_inspection.primary_action` plus the changed/current content projection. Run the owner-issued action for the normal repair/approval path; offer `workflow_inspection.continuation` only after the human supplies the bounded reason. A wrong plan/reset identity, active journal, unsafe state, or missing source is a hard stop: explain the producer-provided invariant and do not offer `--waive`/`--force`. `revise` returns to source authoring. Never hand-edit state or infer approval from rendered pages.
 
 ### review-visual
 

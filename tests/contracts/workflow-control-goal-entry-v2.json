@@ -1,0 +1,13 @@
+{
+  "schema": "pptmaker-workflow-goal-entry-v2",
+  "entries": [
+    { "goal": "greenfield-init", "entry": "ppt_flow init", "owner": "init", "inspection": false },
+    { "goal": "exact-run-resume", "entry": "workflow_inspection", "owner": "workflow-inspection", "inspection": true },
+    { "goal": "local-refresh", "entry": "ppt_flow refresh", "owner": "refresh", "inspection": false },
+    { "goal": "structural-versioning", "entry": "ppt_flow slides", "owner": "slides", "inspection": false },
+    { "goal": "recovery", "entry": "owner recovery CLI", "owner": "direct-owner", "inspection": false },
+    { "goal": "html-then-image2-refinement", "entry": "ppt_flow image2", "owner": "image2-refinement", "inspection": false },
+    { "goal": "image2-only-production", "entry": "ppt_flow pilot/build", "owner": "whole-page-image2", "inspection": false },
+    { "goal": "markerless-maintenance", "entry": "ppt_flow refresh", "owner": "legacy-maintenance", "inspection": false }
+  ]
+}

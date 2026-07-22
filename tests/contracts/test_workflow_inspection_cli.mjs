@@ -29,6 +29,10 @@ describe("workflow inspection CLI projection", () => {
       expect(stateReport).not.toHaveProperty("nodes");
       expect(stateReport.workflow_summary).toBe(stateReport.workflow_inspection.primary_action.display_label);
       expect(statusReport.workflow_summary).toBe(statusReport.workflow_inspection.primary_action.display_label);
+      expect(stateReport.suggested_next).toBe(stateReport.workflow_inspection.primary_action.display_label);
+      expect(statusReport.suggested_next).toBe(statusReport.workflow_inspection.primary_action.display_label);
+      expect(stateReport).not.toHaveProperty("html_resume_guidance");
+      expect(statusReport).not.toHaveProperty("html_resume_guidance");
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

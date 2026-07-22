@@ -538,57 +538,11 @@ function collectStatus(runDir) {
   };
 }
 
-const HTML_RESUME_GUIDANCE_SCHEMA = "pptmaker-html-resume-guidance-v1";
-
-function htmlResumeGuidance({
-  outcome,
-  subject,
-  summary,
-  recommendedCommand,
-  continuationCommand = null,
-  protectedInvariant = null,
-  evidenceComplete = null,
-}) {
-  return Object.freeze({
-    schema: HTML_RESUME_GUIDANCE_SCHEMA,
-    outcome,
-    subject,
-    summary,
-    recommended_command: recommendedCommand,
-    continuation_command: continuationCommand,
-    protected_invariant: protectedInvariant,
-    evidence_complete: evidenceComplete,
-  });
-}
-
-function printHtmlResumeGuidance(guidance, prefix = "") {
-  if (!guidance?.recommended_command) return;
-  console.log(`${prefix}Gate posture: ${guidance.outcome} (${guidance.subject})`);
-  console.log(`${prefix}Recommended: ${guidance.recommended_command}`);
-  if (guidance.continuation_command) console.log(`${prefix}Continuation: ${guidance.continuation_command}`);
-  if (guidance.protected_invariant) console.log(`${prefix}Protected invariant: ${guidance.protected_invariant}`);
-}
-
-function workflowInspectionGuidance(inspection) {
-  const primary = inspection?.primary_action;
-  if (!primary || primary.kind === "complete" || !primary.display_label) return null;
-  return htmlResumeGuidance({
-    outcome: inspection.posture,
-    subject: inspection.root_cause?.kind || primary.action_id,
-    summary: primary.summary || primary.display_label,
-    recommendedCommand: primary.compatibility_command || primary.display_label,
-    continuationCommand: inspection.continuation?.display_label || null,
-    protectedInvariant: inspection.protected_invariant || null,
-    evidenceComplete: primary.evidence_complete ?? null,
-  });
-}
-
 function applyWorkflowInspectionCompatibility(target, inspection) {
   target.workflow_inspection = inspection;
   const primary = inspection.primary_action;
   target.workflow_summary = primary.summary || primary.display_label || primary.action_id;
   target.suggested_next = primary.compatibility_command || primary.display_label || `${primary.owner}:${primary.action_id}`;
-  target.html_resume_guidance = workflowInspectionGuidance(inspection);
 }
 
 /**
@@ -632,18 +586,15 @@ async function enrichStatusWithState(status, runDir, route = null) {
     try {
       const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
       status.html_reviews = inspectHtmlReviewReadiness(runDir);
-      status.html_resume_guidance = null;
       status.content_gate = status.html_reviews.gates?.content?.record?.status || "pending";
       status.visual_gate = status.html_reviews.gates?.visual?.record?.status || "pending";
     } catch (error) {
       status.html_reviews = { ready: false, conflict: false, reason: error.message, gates: {} };
-      status.html_resume_guidance = null;
       status.content_gate = "pending";
       status.visual_gate = "pending";
     }
   } else {
     status.html_reviews = null;
-    status.html_resume_guidance = null;
   }
   const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
   const controllerCtx = await buildControllerGateContext(runDir);
@@ -656,7 +607,6 @@ async function enrichStatusWithState(status, runDir, route = null) {
     pilot_preview: status.pilot_preview,
     content_gate: status.content_gate,
     visual_gate: status.visual_gate,
-    html_resume_guidance: status.html_resume_guidance,
   }, {
     index: buildPlaybookIndex(join(FRAMEWORK_DIR, "playbook")),
     ctx: controllerCtx,
@@ -780,11 +730,6 @@ function printStatus(status) {
   }
 
   if (status.pipeline === HTML_FIRST_PIPELINE) {
-    if (status.html_resume_guidance?.recommended_command) {
-      console.log("\nGate guidance:");
-      printHtmlResumeGuidance(status.html_resume_guidance, "  ");
-      return;
-    }
     if (status.suggested_next) {
       console.log("\nNext:");
       console.log(`  - ${status.suggested_next}`);
@@ -3549,7 +3494,6 @@ Examples:
         statusSnapshot = null;
       }
       let htmlReviews = null;
-      let htmlResume = null;
       if (htmlFirst) {
         try {
           const { inspectHtmlReviewReadiness } = await import("./shared/state/html_review_evidence.mjs");
@@ -3558,7 +3502,6 @@ Examples:
           htmlReviews = { pipeline: HTML_FIRST_PIPELINE, state_present: true, content: { decision: "pending", freshness: "invalid", review_required: true }, visual: { decision: "pending", freshness: "invalid", outstanding_recipe_keys: [], outstanding_slide_ids: [] }, delivery: { freshness: "invalid", decision: null, reason_present: false }, reset: { status: "absent", ownership: "none", retry_after_ms: null }, journal: { status: "invalid" } };
         }
       }
-      if (statusSnapshot) statusSnapshot.html_resume_guidance = htmlResume;
       const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
       const controllerIndex = buildPlaybookIndex(join(FRAMEWORK_DIR, "playbook"));
       const controllerCtx = await buildControllerGateContext(resolved);
@@ -3568,7 +3511,6 @@ Examples:
       });
       const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
       const workflowInspection = inspectWorkflow({ runDir: resolved });
-      const inspectionGuidance = workflowInspectionGuidance(workflowInspection);
       const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
       const inspectionNext = workflowInspection.primary_action.compatibility_command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
@@ -3583,7 +3525,6 @@ Examples:
           pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "legacy-image2-first"),
           state_present: existsSync(statePath(deckDir)),
           html_reviews: htmlReviews,
-          html_resume_guidance: inspectionGuidance,
           image2_refinement: refinementProjection,
           ...(migrationHandoff ? { migration_handoff: migrationHandoff } : {}),
           playbook: indexedCard.playbook,
@@ -3622,10 +3563,6 @@ Examples:
       );
       console.log("Summary:  " + inspectionSummary);
       console.log("Next:     " + inspectionNext);
-      if (inspectionGuidance?.recommended_command) {
-        console.log("Gate guidance:");
-        printHtmlResumeGuidance(inspectionGuidance, "  ");
-      }
       if (migrationHandoff) console.log(`Migration: ${migrationHandoff.code} (${migrationHandoff.source_version} -> ${migrationHandoff.target_version})`);
     });
 

@@ -403,7 +403,7 @@ playbook_stack: []
     expect(typeof j.suggested_next).toBe("string");
   });
 
-  it("state resume guidance consumes current HTML evidence without mutating it", async () => {
+  it("state inspection consumes current HTML evidence without mutating it", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-html-resume-guidance-");
     try {
       const state = readState(fixture.deck, { purpose: "observe", heal: false });
@@ -417,19 +417,18 @@ playbook_stack: []
       expect(result.status, result.stderr).toBe(0);
       const report = JSON.parse(result.stdout);
       expect(report.html_reviews.visual).toMatchObject({ decision: "pending", freshness: "missing" });
-      expect(report.html_resume_guidance).toMatchObject({
-        schema: "pptmaker-html-resume-guidance-v1",
-        outcome: "confirm",
-        subject: "visual-review",
-        continuation_command: expect.stringContaining("--waive --reason"),
+      expect(report.workflow_inspection).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "html-review", kind: "visual-review-missing" },
+        primary_action: { action_id: "review-visual" },
       });
-      expect(report.html_resume_guidance.recommended_command).toContain("approve");
-      expect(report.suggested_next).toBe(report.html_resume_guidance.recommended_command);
+      expect(report).not.toHaveProperty("html_resume_guidance");
+      expect(report.suggested_next).toBe(report.workflow_inspection.primary_action.display_label);
       expect(readFileSync(statePath)).toEqual(before);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 
-  it("keeps producer HTML resume guidance ahead of optional Image2 work", async () => {
+  it("keeps inspection HTML action ahead of optional Image2 work", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-", { mode: "html-then-image2" });
     try {
       const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
@@ -445,25 +444,14 @@ playbook_stack: []
       expect(stateResult.status, stateResult.stderr).toBe(0);
       const report = JSON.parse(stateResult.stdout);
       expect(report.image2_refinement).toMatchObject({ present: true });
-      expect(report.html_resume_guidance).toMatchObject({
-        outcome: "confirm",
-        subject: "visual-review",
-        continuation_command: expect.stringContaining("--waive --reason"),
+      expect(report.workflow_inspection).toMatchObject({
+        root_cause: { owner: "html-review", kind: "visual-review-missing" },
+        primary_action: { action_id: "review-visual" },
       });
-      expect(report.suggested_next).toBe(report.html_resume_guidance.recommended_command);
+      expect(report).not.toHaveProperty("html_resume_guidance");
+      expect(report.suggested_next).toBe(report.workflow_inspection.primary_action.display_label);
       expect(report.suggested_next).not.toMatch(/image2-refinement/);
 
-      const humanState = runPptFlow(["state", fixture.runDir]);
-      expect(humanState.status, humanState.stderr).toBe(0);
-      expect(humanState.stdout).toContain("Gate guidance:");
-      expect(humanState.stdout).toContain("Continuation:");
-
-      const status = runPptFlow(["status", fixture.runDir]);
-      expect(status.status, status.stderr).toBe(0);
-      expect(status.stdout).toContain("Gate guidance:");
-      expect(status.stdout).toContain("Recommended:");
-      expect(status.stdout).toContain("Continuation:");
-      expect(status.stdout).not.toMatch(/Generate style master/);
       expect(readFileSync(statePath)).toEqual(before);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 180_000);
