@@ -300,12 +300,15 @@ export function loadHtmlAssetCatalog(runDir, { candidateOverridesDir = null } = 
     { origin: "version", assetsDir: join(run, "overrides", "visual-style", "assets") },
   ];
   if (candidateOverridesDir != null) {
-    const projected = join(run, "_scratch", "html-migration", "projected-run");
-    const expected = existsSync(projected) ? join(realpathSync(projected), "overrides") : resolve(projected, "overrides");
+    const candidateRoots = [
+      join(run, "_scratch", "html-migration", "projected-run"),
+      join(run, "_scratch", "production-mode-transition", "candidate-run"),
+    ];
+    const expectedRoots = candidateRoots.map((root) => existsSync(root) ? join(realpathSync(root), "overrides") : resolve(root, "overrides"));
     const candidateRoot = existsSync(candidateOverridesDir)
       ? realpathSync(candidateOverridesDir)
       : join(realpathSync(dirname(candidateOverridesDir)), basename(candidateOverridesDir));
-    if (candidateRoot !== expected) {
+    if (!expectedRoots.includes(candidateRoot)) {
       fail("candidate_overlay_escape", "migration candidate overrides must use the canonical projected-run path");
     }
     layers.push({ origin: "version", migration_origin: "candidate", assetsDir: join(candidateRoot, "visual-style", "assets") });

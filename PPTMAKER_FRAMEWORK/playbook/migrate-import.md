@@ -121,6 +121,6 @@ entry: [transition_apply_current]
 exit: [transition_publish_or_recovery_recorded]
 ```
 
-**Step 1 — CLI**: Use only the closed production-mode transition apply, recovery-confirmation, or recovery command bound to the exact confirmed plan hash.
+**Step 1 — CLI**: Show the selected target mode and exact confirmed plan hash, then use only `state --apply-production-mode-transition --plan-hash <hash>`, the closed recovery-confirmation, or closed recovery form.
 
 **Step 2 — MD**: A publication or recovery hard-stop remains in progress. Only receipt-bound target registration/handoff or no-target source restoration replaces this execution.

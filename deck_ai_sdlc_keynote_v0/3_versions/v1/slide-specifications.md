@@ -719,9 +719,9 @@ Design a finished 16:9 keynote TRANSITION slide, sketch/etching aesthetic but MI
 **VISUAL TYPE**: Framework
 
 
-**KICKER**: 你们公司也在加工信息
+**KICKER**: 信息加工，不止软件
 
-**TITLE**: 软件有 SDLC。你们公司有 BPM。两条完全同构的信息加工链。
+**TITLE**: 软件有 SDLC。企业有 BPM。两条完全同构的信息加工链。
 
 **CONCEPT**:
 - **MUST communicate**: 企业业务处理(BPM)与软件开发(SDLC)是完全同构的信息加工链:需求→…→代码 对应 业务信息→…→决策。方法论演进平行(瀑布→敏捷→AI-SDLC vs 泰勒→BPR→BPM→Agentic BPM)。BPM 有 40 年学术传承(1980s MIT → 2026 Dagstuhl),18 位作者发表 Agentic BPM Manifesto,核心概念 Framed Autonomy。
@@ -833,7 +833,7 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 **VISUAL TYPE**: Impact / Evidence
 
 
-**KICKER**: 唯一有独立第三方验证
+**KICKER**: 先跑通，再铺开
 
 **TITLE**: Allianz「Project Nemo」——不是高举高打，是从最窄处跑通，再铺开。
 
@@ -842,11 +842,11 @@ Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper 
 - **MUST NOT**: 不要说成"全理赔 -80%"——-80% 只限"食品变质 <AUD$500"这一窄类目，车险/健康险扩展仍是意向。不要说成"AI 替代理赔员"——人升格为签核者。
 - **Bridge from previous**: 承接四层重构——用一个证据最扎实的真实案例把落地讲透。
 - **Bridge to next**: 海外如此，中国呢？下一页中国案例。
-- **Content structure**: 单案例深讲（非 2x2）。一侧一个克制的"AI 理赔班组"意象：planner「舵」居中，向外发散连到 3 个命名专才 agent（核 / 察 / 算），每个是独立的琥珀光晕搭档轮廓，不是无差别节点；其中一个 agent 后一个人形在"盖章/签核"。另一侧文字主舞台：公司一行介绍 + 两个带标号的突出点（① 结果：数天→数小时/-80%、人升为签核者；② 打法：刻意缩窄先验证、再铺开）。底部小字诚实注脚（-80% 仅限窄类目 + 独立佐证来源）。全程土色系，不用蓝。
+- **Content structure**: 单案例深讲（非 2x2）。一侧一个克制的"AI 理赔班组"意象：planner「舵」居中，向外发散连到 3 个命名专才 agent（核 / 察 / 算）。全部4个（舵+核+察+算）均为 Agent 琥珀光晕搭档轮廓，不是无差别节点；只有「核」身后站一个人类理赔员在盖章/签核（human-in-the-loop）。另一侧文字主舞台：公司一行介绍 + 两个带标号的突出点（① 结果：数天→数小时/-80%、人升为签核者；② 打法：刻意缩窄先验证、再铺开）。底部小字诚实注脚（-80% 仅限窄类目 + 独立佐证来源）。全程土色系，不用蓝。
 
 **IMAGE PROMPT**:
 ```
-Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent「舵」指挥 3 个专才 agent「核」「察」「算」。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure「舵」, radiating thin sepia lines to THREE distinct named agent figures: 「核」(underwriting check), 「察」(fraud screen), 「算」(claim calc). ALL agents use the Agent visual spec: neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible, soft amber edge glow. Each agent is a distinct partner, not a generic node — individual, named, each with their own posture. Behind ONE agent stands a human figure stamping / signing (human-in-the-loop). Behind ONE agent stands a human figure stamping / signing (human-in-the-loop). Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. In the TOP-RIGHT corner, a small hand-drawn sketch of the Allianz eagle logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
+Design a finished 16:9 keynote slide image in sketch/etching style. Cream paper #F5F0EB, sepia ink #2D1B11, amber #D97706. A SINGLE deep case study, NOT a grid of panels. At the top of the body area, render one short medium Chinese intro line: 安联，全球最大保险集团之一——传统金融巨头，不是科技公司。 Then TWO clearly numbered blocks of medium-Chinese text with generous spacing. Block ①（结果）: 澳洲「食品变质理赔」：1 个 planner agent「舵」指挥 3 个专才 agent「核」「察」「算」。 处理时间 数天 → 数小时，砍掉 80%。 理赔员没被裁——从逐单处理者，升格为审 AI 结果、签字负责的签核者。 Block ②（打法）: 首席转型官 Maria Janssen："We scoped it intentionally（我们是刻意缩窄的）。" 巨头没有全面铺 AI——先挑一个又窄又高频、金额小、边界清楚的场景跑通、被独立第三方验证，再向外铺开。 ILLUSTRATION (restrained, ONE side or corner only, ~30%): a small "AI claims crew" motif — one central planner figure「舵」in the middle, radiating thin sepia lines to THREE distinct specialist agent figures: 「核」(underwriting check), 「察」(fraud screen), 「算」(claim calc). ALL FOUR figures (舵 + 核 + 察 + 算) are AI agents — use the Agent visual spec for every one: neutral androgynous amber-glass silhouette, NO clothing/features/gender, 4-layer construction with internal topological network visible, soft amber edge glow. Each agent is a distinct partner with its own posture and name label — not generic interchangeable nodes. ONLY behind「核」(underwriting check) stands ONE human figure — the 理赔员 (claims adjuster) — holding a stamp/seal, signing off on the AI's work (human-in-the-loop). NO human behind 舵, 察, or 算 — only agents there. Keep it minimal and clean, lots of empty cream space, do NOT fill the frame. In the TOP-RIGHT corner, a small hand-drawn sketch of the Allianz eagle logo in faded sepia ink — like a stamped seal, subtle, not a photograph — matching the sketch aesthetic. Bottom small-print honest footnote (smaller sepia text): -80% 仅限「食品变质 <AUD$500」这一窄类目，非全理赔；独立佐证：insuranceNEWS.com.au + Evident AI Use Case Tracker。 Keep Chinese medium-or-large and clean; only tiny tags may be English. No blue.
 ```
 
 > **SPEAKER NOTE**

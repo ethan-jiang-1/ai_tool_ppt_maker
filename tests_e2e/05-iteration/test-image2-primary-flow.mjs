@@ -77,12 +77,20 @@ function setActiveNode(deck, node) {
   state.playbook = "create-deck";
   state.execution_id = "exec-image2-primary-e2e";
   state.execution_started_at = "2026-07-22T00:00:00.000Z";
+  state.run_version = "v1";
   state.current_node = node;
   state.nodes ||= {};
+  for (const record of Object.values(state.nodes)) {
+    if (record && typeof record === "object" && !record.by_version) {
+      record.execution_id = state.execution_id;
+      record.run_version = state.run_version;
+    }
+  }
   state.nodes[node] = {
     ...state.nodes[node],
     status: "in_progress",
     execution_id: state.execution_id,
+    run_version: state.run_version,
   };
   writeState(deck, state);
 }

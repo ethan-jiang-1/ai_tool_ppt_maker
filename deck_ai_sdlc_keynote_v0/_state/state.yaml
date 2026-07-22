@@ -409,8 +409,8 @@ image2_provider_authorization:
       operation: build
       scope:
         slide_ids:
-          - s22_ruoyuchen_dual_engine
+          - s20_allianz_nemo
       profile_fingerprint: f45d8f5ba0b96aa79c2ad498d4e2f7a71ba5e2180d8848ff9e2588430d162903
       max_submissions: 1
       execution_id: exec-58f9ce7f-a689-4bf2-8fdd-dc5970cb5702
-      decided_at: 2026-07-22T08:00:12.203Z
+      decided_at: 2026-07-22T11:10:18.749Z

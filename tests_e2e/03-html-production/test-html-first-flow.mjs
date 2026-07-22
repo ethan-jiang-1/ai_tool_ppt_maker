@@ -86,7 +86,7 @@ describe('fresh HTML-first delivery E2E', () => {
       const state = readState(deck);
       state.playbook = 'create-deck';
       state.current_node = 'checkpoint-final-review';
-      state.nodes['checkpoint-final-review'] = { status: 'in_progress', execution_id: state.execution_id, evidence: {} };
+      state.nodes['checkpoint-final-review'] = { status: 'in_progress', execution_id: state.execution_id, run_version: state.run_version, evidence: {} };
       writeState(deck, state);
       const decision = flow(['state', runDir, '--record-delivery-review', 'proceed'], 30_000);
       expect(decision.status, decision.stderr || decision.stdout).toBe(0);
@@ -164,6 +164,7 @@ describe('fresh HTML-first delivery E2E', () => {
       waivedState.nodes['checkpoint-final-review'] = {
         status: 'in_progress',
         execution_id: waivedState.execution_id,
+        run_version: waivedState.run_version,
         evidence: {},
       };
       writeState(deck, waivedState);

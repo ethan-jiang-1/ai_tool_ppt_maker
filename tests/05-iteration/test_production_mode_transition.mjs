@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -15,6 +16,14 @@ import {
   previewProductionModeTransition,
   recoverProductionModeTransition,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/migration/production_mode_transition.mjs";
+import { htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
+import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+
+const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+
+function runFlow(args) {
+  return spawnSync("node", [FLOW, ...args], { cwd: process.cwd(), encoding: "utf8", timeout: 30_000 });
+}
 
 const intake = Object.freeze({
   topic: "Target topic",
@@ -33,7 +42,9 @@ function source(marker = "legacy") {
 }
 
 function transitionFixture({ sourceMarker = "legacy", sourceMode = "image2-only" } = {}) {
-  const deck = mkdtempSync(join(tmpdir(), "deck_production_mode_transition_"));
+  const root = mkdtempSync(join(tmpdir(), "production_mode_transition_"));
+  const deck = join(root, "deck_production_mode_transition");
+  initBundle(deck, null, "keynote", "dark-executive", { mode: sourceMode });
   const runDir = join(deck, "3_versions", "v1");
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(deck, "deck-guide.md"), "# guide\n");
@@ -58,9 +69,9 @@ function transitionFixture({ sourceMarker = "legacy", sourceMode = "image2-only"
 function authorHtmlCandidate(runDir) {
   const candidate = join(runDir, "_scratch", "production-mode-transition", "candidate-run");
   writeFileSync(join(candidate, "target-intake.json"), JSON.stringify(intake));
-  writeFileSync(join(candidate, "slide-specifications.md"), source("html"));
+  writeFileSync(join(candidate, "slide-specifications.md"), htmlFirstSource([htmlFirstSlide({ id: "HeroGo", title: "Explicit target source" })]));
   mkdirSync(join(candidate, "overrides", "visual-style"), { recursive: true });
-  writeFileSync(join(candidate, "overrides", "visual-style", "color_palette.json"), "{}\n");
+  copyFileSync(join(runDir, "..", "..", "2_backbone", "visual-style", "color_palette.json"), join(candidate, "overrides", "visual-style", "color_palette.json"));
 }
 
 function authorImage2Candidate(runDir) {
@@ -72,6 +83,32 @@ function authorImage2Candidate(runDir) {
 }
 
 describe("production-mode transition adapter", () => {
+  it("keeps the state CLI transition grammar mutually exclusive and hash-bound", () => {
+    const fixture = transitionFixture();
+    try {
+      const mixed = runFlow(["state", fixture.runDir, "--prepare-production-mode-transition", "html-only", "--preview-production-mode-transition"]);
+      expect(mixed.status).toBe(1);
+      expect(JSON.parse(mixed.stderr.trim().split(/\r?\n/).filter(Boolean).at(-1))).toMatchObject({ code: "USAGE", where: "ppt_flow.state" });
+      expect(existsSync(join(fixture.runDir, "_scratch", "production-mode-transition", "candidate-run"))).toBe(false);
+
+      const prepared = runFlow(["state", fixture.runDir, "--prepare-production-mode-transition", "html-only"]);
+      expect(prepared.status, prepared.stderr).toBe(0);
+      expect(JSON.parse(prepared.stdout)).toMatchObject({ operation: "prepare-production-mode-transition", target_mode: "html-only" });
+      authorHtmlCandidate(fixture.runDir);
+      const preview = runFlow(["state", fixture.runDir, "--preview-production-mode-transition"]);
+      expect(preview.status, preview.stderr).toBe(0);
+      const previewRecord = JSON.parse(preview.stdout);
+      expect(previewRecord).toMatchObject({ operation: "preview-production-mode-transition", target_mode: "html-only" });
+      const confirm = runFlow(["state", fixture.runDir, "--confirm-production-mode-transition", "--plan-hash", previewRecord.plan_hash]);
+      expect(confirm.status, confirm.stderr).toBe(0);
+      const apply = runFlow(["state", fixture.runDir, "--apply-production-mode-transition", "--plan-hash", previewRecord.plan_hash]);
+      expect(apply.status, apply.stderr).toBe(0);
+      expect(JSON.parse(apply.stdout)).toMatchObject({ operation: "apply-production-mode-transition", target_version: "v2", needs_local_materialization: true });
+    } finally {
+      rmSync(fixture.deck, { recursive: true, force: true });
+    }
+  });
+
   it("publishes an Image2-to-HTML target from only authored candidate inputs", () => {
     const fixture = transitionFixture();
     try {
@@ -88,7 +125,7 @@ describe("production-mode transition adapter", () => {
       const result = applyProductionModeTransition(fixture.runDir, { planHash: preview.plan_hash });
       expect(result).toMatchObject({ status: "handoff-complete", target_version: "v2", current_node: "preview-content", needs_local_materialization: true });
       const target = join(fixture.deck, "3_versions", "v2");
-      expect(readFileSync(join(target, "slide-specifications.md"), "utf8")).toEqual(source("html"));
+      expect(readFileSync(join(target, "slide-specifications.md"), "utf8")).toContain("pipeline: html-first-v1");
       expect(existsSync(join(target, "_generated", "qa", "production_mode_transition.json"))).toBe(true);
       expect(existsSync(join(target, "_generated", "html_production"))).toBe(false);
       expect(readFileSync(join(fixture.runDir, "slide-specifications.md"))).toEqual(sourceBefore);

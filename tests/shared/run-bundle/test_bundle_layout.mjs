@@ -399,6 +399,26 @@ describe('bundle_layout', () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
+  it('accepts only a target-local closed production-mode transition receipt', () => {
+    const deck = join(tmpdir(), `deck_transition_receipt_${Date.now()}`);
+    try {
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      const v1 = join(deck, '3_versions', 'v1');
+      const receipt = join(v1, '_generated', 'qa', 'production_mode_transition.json');
+      mkdirSync(join(v1, '_generated', 'qa'), { recursive: true });
+      writeFileSync(receipt, '{}');
+      expect(checkBundle(v1, false)).toContain('production-mode transition receipt has an invalid closed schema or target binding');
+      writeFileSync(receipt, JSON.stringify({
+        schema: 'pptmaker-production-mode-transition-success-v1',
+        source_execution_id: 'exec-source', source_version: 'v2', target_version: 'v1',
+        target_mode: 'image2-only', target_pipeline: 'legacy-image2-first',
+        plan_hash: 'a'.repeat(64), candidate_receipt_sha256: 'b'.repeat(64),
+        target_intake_sha256: 'c'.repeat(64), source_control_fingerprint: 'd'.repeat(64),
+      }));
+      expect(checkBundle(v1, false)).toEqual([]);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
   it('keeps modern refinement source, derived, and scratch partitions lazy and closed', () => {
     const deck = join(tmpdir(), `deck_refinement_layout_${Date.now()}`);
     try {

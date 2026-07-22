@@ -18,9 +18,16 @@ import { createHash, randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import { checkStagedVersion, checkBundle, nextVersionName } from "../../shared/run-bundle/bundle_layout.mjs";
-import { probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
-import { canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../../shared/run-bundle/production_mode.mjs";
+import { HtmlSlideContractError, probeProductionMarker, validateAndBuildHtmlFirstPlan } from "../../03-html-production/index.mjs";
+import {
+  canonicalVersionKey,
+  checkStagedVersion,
+  isProductionMode,
+  nextVersionName,
+  normalizeRunVersion,
+  pipelineFromSourceMarker,
+  productionPolicyForMode,
+} from "../../shared/run-bundle/bundle_layout.mjs";
 import {
   completeProductionModeTransitionHandoff,
   confirmProductionModeTransition,
@@ -219,6 +226,25 @@ function candidateState(source) {
     return Object.freeze({ status: "authoring_required", paths, missing: ["overrides/visual-style/color_palette.json"] });
   }
   const controls = recursivelyReceiptedFiles(paths.candidate, source.sourceRunDir);
+  let htmlContractReceiptSha256 = null;
+  if (target.target_pipeline === "html-first-v1") {
+    try {
+      const contract = validateAndBuildHtmlFirstPlan({
+        runDir: source.sourceRunDir,
+        sourcePathOverride: paths.source,
+        migrationCandidateRoot: paths.candidate,
+      });
+      htmlContractReceiptSha256 = sha256(canonicalBytes({
+        source_sha256: contract.plan.source_sha256,
+        ordered_plan_digest: contract.plan.ordered_plan_digest,
+        input_receipts: contract.plan.input_receipts,
+      }));
+    } catch (error) {
+      if (!(error instanceof HtmlSlideContractError)) throw error;
+      const missing = [...new Set((error.issues || []).map((issue) => `html-contract:${issue.code || issue.message}`))].slice(0, 16);
+      return Object.freeze({ status: "authoring_required", paths, missing: missing.length > 0 ? missing : ["html contract"] });
+    }
+  }
   const candidateReceipt = sha256(canonicalBytes({ source_version: source.sourceVersion, target_mode: target.target_mode, controls }));
   return Object.freeze({
     status: "complete",
@@ -232,6 +258,7 @@ function candidateState(source) {
     controls,
     candidateReceiptSha256: candidateReceipt,
     identityLedgerSha256: sha256(readFileSync(paths.ledger)),
+    htmlContractReceiptSha256,
   });
 }
 
@@ -254,6 +281,7 @@ function previewPlan(source, candidate, { executionId = source.state.execution_i
     candidate_source_sha256: candidate.candidateSourceSha256,
     candidate_control_receipts: candidate.controls,
     identity_ledger_sha256: candidate.identityLedgerSha256,
+    ...(candidate.htmlContractReceiptSha256 ? { html_contract_receipt_sha256: candidate.htmlContractReceiptSha256 } : {}),
     target_intake_sha256: candidate.intakeSha256,
     deterministic_impact: {
       target_slide_count: sourceIdentityLedger(candidate.candidateBytes).length,

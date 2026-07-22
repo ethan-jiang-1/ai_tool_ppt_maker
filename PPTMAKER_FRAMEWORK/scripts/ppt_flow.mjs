@@ -2520,7 +2520,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
   // A durable mode-governed source has exactly one public cross-pipeline
   // protocol. Historical migration can only finish an already-active exact
   // checkpoint; it can never prepare or preview a competing candidate.
-  try {
+  const assertLegacyMigrationRoute = async () => {
     const { readState } = await import("./shared/state/state.mjs");
     const sourceVersion = basename(resolved);
     const state = readState(deckRoot(resolved), { purpose: "observe", heal: false, runVersion: sourceVersion });
@@ -2529,17 +2529,9 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       ["confirm-html-migration", "apply-html-migration", "migration-target-review"].includes(state?.current_node) &&
       state?.run_version === sourceVersion;
     if (durableMode && (operation !== "apply" || !legacyCheckpoint)) {
-      emitFailed(
-        `ppt_flow.migrate-html.${operation}.transition-required`,
-        "mode-governed cross-pipeline requests must use the closed production-mode transition protocol",
-        "Use state --prepare-production-mode-transition, --preview-production-mode-transition, then confirm the exact plan hash."
-      );
-      return 1;
+      throw new Error("mode-governed cross-pipeline requests must use the closed production-mode transition protocol");
     }
-  } catch (error) {
-    emitFailed("ppt_flow.migrate-html.transition-routing", error.message, "Resolve authoritative state before selecting a legacy migration continuation or a production-mode transition.");
-    return 1;
-  }
+  };
   if (operation === "prepare") {
     if (opts.planHash || opts.oldSideMode || opts.recoverJournal) {
       return emitUsage(
@@ -2563,6 +2555,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { prepareHtmlMigration } = await import("./05-iteration/index.mjs");
       const result = await prepareHtmlMigration(resolved, { preset: opts.preset });
       renderMigrationResult(result);
@@ -2585,6 +2578,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { previewHtmlMigration } = await import("./05-iteration/index.mjs");
       const result = await previewHtmlMigration(resolved);
       renderMigrationResult(result);
@@ -2622,6 +2616,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { recoverHtmlMigrationApply } = await import("./05-iteration/index.mjs");
       const result = await recoverHtmlMigrationApply(resolved, { recoverJournalToken: opts.recoverJournal });
       renderMigrationResult(result);
@@ -2658,6 +2653,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
     );
   }
   try {
+    await assertLegacyMigrationRoute();
     const { applyHtmlMigration } = await import("./05-iteration/index.mjs");
     const result = await applyHtmlMigration(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
     renderMigrationResult(result);

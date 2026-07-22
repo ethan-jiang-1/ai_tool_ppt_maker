@@ -205,23 +205,29 @@ fabricates a suspension frame.
 - **AND** nested execution evidence does not replace parent execution evidence
 - **AND** the popped stack entry is removed
 
-#### Scenario: Empty playbook stack survives write/read
+#### Scenario: Empty playbook_stack survives write/read
 
 - **WHEN** a state with `playbook_stack: []` is written and read
 - **THEN** it remains an empty array
 - **AND** ordinary switch can push a six-field entry with an object snapshot
 
-#### Scenario: Non-empty ordinary stack survives write/read
+#### Scenario: Non-empty playbook_stack survives write/read
 
 - **WHEN** a stack contains `{playbook: "create-deck", current_node: "setup", execution_id: "exec-parent", execution_started_at: "2026-07-12T00:00:00Z", run_version: "v1", controller_nodes: {...}}`
 - **THEN** write/read preserves all five strings, the deep controller snapshot, and array order
 - **AND** resume restores that exact execution context
 
-#### Scenario: Legacy stack entry remains safe
+#### Scenario: Legacy stack entry is migrated
 
 - **WHEN** a pre-v5 stack entry lacks execution fields, snapshot, or provable run version
 - **THEN** migration keeps only a safe blocking snapshot or returns the explicit repair/replacement action with a diagnostic
 - **AND** resume never attributes one legacy shared-node record to multiple executions or versions
+
+#### Scenario: Legacy non-array stack is normalized
+
+- **WHEN** a pre-v5 state has `playbook_stack: {}`
+- **THEN** migration normalizes it to an empty array or returns the explicit repair/replacement action with a diagnostic
+- **AND** switch/resume helpers do not throw or infer execution/version ownership
 
 #### Scenario: Nested shared node does not overwrite parent
 
@@ -262,17 +268,17 @@ the versioned transaction above: explicit target candidate, exact preview/confir
 verified target-mode registration, and declared handoff.  No `--force`, waiver, metadata mirror, source
 marker, generated artifact, or history record may turn an in-place request into a conversion.
 
-#### Scenario: Same-pipeline required refinement is enabled
+#### Scenario: Required refinement is enabled
 
 - **WHEN** the exact current HTML version changes from `html-only` to `html-then-image2`
 - **THEN** status revalidates retained refinement evidence without making a provider request
 
-#### Scenario: Same-pipeline required refinement is disabled
+#### Scenario: Required refinement is disabled
 
 - **WHEN** the exact current HTML version changes from `html-then-image2` to `html-only`
 - **THEN** refinement completion debt is removed while every attributable refinement record remains intact
 
-#### Scenario: In-place cross-pipeline setter is refused
+#### Scenario: Cross-pipeline transition is requested
 
 - **WHEN** a caller uses the same-version mode setter to request `image2-only` from an HTML mode
 - **THEN** it returns transition guidance with zero state/source/generated mutation
@@ -309,13 +315,19 @@ CAS, or relationship conflict. Historical legacy-to-HTML migration remains its b
 register `html-only` only after its exact target success receipt; no other cross-pipeline registration is
 permitted.
 
-#### Scenario: Transition target registration is exact and idempotent
+#### Scenario: Structural target inherits mode
+
+- **WHEN** a source-only vNext publication produces a verified same-pipeline target from `html-then-image2`
+- **THEN** the state owner records `html-then-image2` under the exact target version
+- **AND** it does not copy source refinement or approval evidence
+
+#### Scenario: Publication stops before mode registration
 
 - **WHEN** an exact confirmed transition has already published a matching target but its registration CAS was interrupted
 - **THEN** recovery verifies the exact receipt/source execution/marker/mode relationship and registers only the selected target mode or reports already-current
 - **AND** it does not call the same-pipeline registration command or copy source evidence
 
-#### Scenario: A generic cross-pipeline registration is rejected
+#### Scenario: Registration relationship is ambiguous
 
 - **WHEN** a caller supplies a cross-pipeline source/target pair outside a verified transition receipt and active transition checkpoint
 - **THEN** state fails before modifying either mode record, metadata, source, target, or controller pointer
@@ -373,34 +385,50 @@ handoff.  A new mode-governed cross-pipeline request, a mismatched execution/sou
 missing checkpoint SHALL fail closed with general production-mode-transition guidance; it SHALL not create
 legacy state, alter the active execution, or become a substitute for the new transition transaction.
 
-#### Scenario: A v4 execution has one visible version
+#### Scenario: V2 HTML state gains final metadata
 
 - **WHEN** schema-v4 state has an active execution and the deck has only visible `v1`
 - **THEN** heal writes schema 5 with active records and ordinary stack frames bound to `v1`
 - **AND** a second heal is byte-stable apart from its diagnostic policy
 
-#### Scenario: A v4 execution has ambiguous versions
+#### Scenario: Ambiguous migration preserves original state
 
 - **WHEN** schema-v4 state has active controller work but no persisted run version and multiple visible versions
 - **THEN** read returns the explicit replacement/repair action without changing bytes or guessing a binding
 
-#### Scenario: Historical HTML state retains final metadata semantics
+#### Scenario: V2 HTML scalar gates were approved
 
 - **WHEN** valid schema-v2 HTML-first state has a one-to-one node mapping and approved scalar content/visual values but no exact HTML review records
 - **THEN** migration preserves completed/skipped evidence, waits, and scalar audit/mirror values while leaving authoritative HTML reviews pending
 - **AND** Stage 4 remains blocked until current review evidence is recorded
 
-#### Scenario: Historical markerless execution remains compatible
+#### Scenario: V2 markerless production becomes legacy maintenance
 
 - **WHEN** an in-progress markerless deck points to an old whole-page production node
 - **THEN** migration records `image2-only` for the proven exact version and rebinds it only to declared compatibility maintenance
 - **AND** a fresh first-class Image2 execution is not redirected through maintenance
 
-#### Scenario: Legacy migration published before handoff
+#### Scenario: Stack migration preserves suspended execution
+
+- **WHEN** old stack frames contain renamed playbooks, nodes, modules, or one exact provable run version
+- **THEN** every unambiguous ordinary frame maps with its execution/controller evidence intact
+- **AND** an ambiguous frame remains safely blocked without fabricating a transition suspension
+
+#### Scenario: Incomplete execution is not silently replaced
+
+- **WHEN** the active execution is incomplete and no explicit replacement authorization exists
+- **THEN** starting another top-level controller fails without clearing it or guessing a run version
+
+#### Scenario: Migration published before state handoff
 
 - **WHEN** an exact legacy migration target receipt exists but active source migration has not recorded handoff or target mode
 - **THEN** state/status reports the bounded handoff/registration action without rewriting state
 - **AND** resume may atomically complete the source execution, register target `html-only`, and start `migration-target-review` bound to the target version
+
+#### Scenario: Migration receipt does not match active execution
+
+- **WHEN** a target receipt plan, mode, source execution, or run version differs from deck-root state
+- **THEN** no handoff or production mode is inferred and the original state remains unchanged
 
 #### Scenario: Schema upgrade preserves an exact legacy apply recovery
 
@@ -426,13 +454,13 @@ the same playbook again therefore begins with its nodes pending. Nested same-ver
 `switchPlaybook`/`resumePlaybook` isolate child records by snapshotting and restoring the parent working
 set. Reserved system evidence remains excluded and uses its own freshness contract.
 
-#### Scenario: Repeated same-version run reclassifies
+#### Scenario: Repeated edit-text run reclassifies
 
 - **WHEN** one `edit-text` execution completed `classify-change` and a new `edit-text` execution starts for the same run
 - **THEN** the old classification record does not satisfy the new execution's `requires`
 - **AND** classification runs again
 
-#### Scenario: Prior execution evidence cannot satisfy exit
+#### Scenario: Evidence from prior execution does not satisfy exit
 
 - **WHEN** a previous same-version visual-review execution recorded user evidence and a new execution reaches that node ID
 - **THEN** prior evidence does not satisfy the new node exit

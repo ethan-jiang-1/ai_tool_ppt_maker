@@ -872,8 +872,11 @@ function candidateOverrideRoot(runDir, candidateRoot) {
   if (!relation || relation.startsWith(`..${sep}`) || relation === "..") {
     throw new HtmlSlideContractError("migration candidate root must be confined to the deck", [issue("candidate_root_not_confined", "migration candidate root must be confined to the deck root")]);
   }
-  const expected = join(resolve(runDir), "_scratch", "html-migration", "projected-run");
-  if (!existsSync(expected) || root !== realpathSync(expected)) {
+  const expectedRoots = [
+    join(resolve(runDir), "_scratch", "html-migration", "projected-run"),
+    join(resolve(runDir), "_scratch", "production-mode-transition", "candidate-run"),
+  ];
+  if (!expectedRoots.some((expected) => existsSync(expected) && root === realpathSync(expected))) {
     throw new HtmlSlideContractError("migration candidate root is not canonical", [issue("candidate_root_not_canonical", "migration candidate root must be the canonical projected-run")]);
   }
   return root;

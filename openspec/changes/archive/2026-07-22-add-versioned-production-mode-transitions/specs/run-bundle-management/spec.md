@@ -125,6 +125,23 @@ state; it completes the exact handoff idempotently or fails closed. Historical l
 supplies explicit `html-only` only after its exact success receipt; no other cross-pipeline publication
 gains registration authority.
 
+#### Scenario: Clean same-pipeline vNext is registered
+
+- **WHEN** Structural Versioning publishes a verified markerless target from an `image2-only` source
+- **THEN** target mode is registered as `image2-only` before the operation reports the target production-ready
+- **AND** the markerless source remains markerless
+
+#### Scenario: Registration is interrupted after publication
+
+- **WHEN** the target is visible but state CAS did not commit its mode
+- **THEN** the target is preserved and ordinary production stops at `mode_registration_required`
+- **AND** the Agent reruns the same owner-mediated registration without human mode selection
+
+#### Scenario: Registration conflicts
+
+- **WHEN** a visible target has a conflicting mode or no provable source relationship
+- **THEN** run-bundle management fails closed without replacing target or changing source/state
+
 #### Scenario: Cross-pipeline publication waits for the selected-mode handoff
 
 - **WHEN** a confirmed transition has atomically made vNext visible but the process stops before selected target-mode registration

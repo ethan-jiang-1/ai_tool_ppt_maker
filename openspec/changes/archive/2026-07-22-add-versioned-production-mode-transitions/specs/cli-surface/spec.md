@@ -152,3 +152,35 @@ every new success and non-zero path without copying the diagnostic schema into M
 - **WHEN** a caller invokes `state --register-production-mode-from` for source and target with different pipelines
 - **THEN** the command rejects before state, metadata, source, or target mutation
 - **AND** only the exact confirmed transition handoff may register the selected target mode
+
+#### Scenario: Init omits mode
+
+- **WHEN** `ppt_flow init` is called without `--mode`
+- **THEN** stdout reports `image2-only`, its whole-page pipeline, and the Image2-primary next action
+
+#### Scenario: Invalid mode is supplied
+
+- **WHEN** init or a mode transition receives an unknown mode
+- **THEN** CLI returns `USAGE` through the registered diagnostic envelope before creating or changing a bundle
+
+#### Scenario: Same-pipeline transition succeeds
+
+- **WHEN** the exact run changes from `html-only` to `html-then-image2` with current expected state
+- **THEN** CLI reports the old/new mode and unchanged `html-first-v1` pipeline
+- **AND** it does not submit provider work
+
+#### Scenario: Cross-pipeline transition is deferred
+
+- **WHEN** the exact run requests `image2-only` from an HTML mode
+- **THEN** CLI reports typed versioned-transition guidance and makes no state/source/generated mutation
+
+#### Scenario: Published target registration is retried
+
+- **WHEN** the exact same-pipeline target is visible but its prior mode registration was interrupted
+- **THEN** `state --register-production-mode-from` commits or reports the already-current target record idempotently
+- **AND** it does not copy source gates, node completion, or generated evidence
+
+#### Scenario: State operation flags are mixed
+
+- **WHEN** a caller combines mode transition, mirror repair, registration, JSON, gate, or delivery-review forms
+- **THEN** CLI returns `USAGE` before state, metadata, source, or target mutation

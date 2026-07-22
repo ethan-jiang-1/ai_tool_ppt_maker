@@ -45,14 +45,14 @@ produces: [slide-specifications]
 
 禁止 `CLI/State` 等混合标签；需要分别落成 CLI 与 MD/GATE step。
 
-## State Schema v4
+## State Schema v5
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3，再在 v3→v4 边界为每个可见 version 用 canonical marker probe 填充 `production_mode.by_version`（`html-first-v1 -> html-only`，markerless `legacy -> image2-only`），且二次读取幂等。post-v4 缺失/非法 mode 视为 corruption，fail closed 而非重新推断。缺失/冲突 marker 或无法一对一映射的旧 node 必须返回 `replacement_required`，保留原 bytes；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3→v4，再在 v4→v5 为 active execution、ordinary node record 与 ordinary stack frame 写入同一个 exact `run_version`。只有 persisted binding、单一 visible version，或严格匹配的历史 legacy apply checkpoint 能完成该 binding；歧义保留原 bytes 并返回 `replacement_required`。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。缺失/冲突 marker 或无法一对一映射的旧 node 必须 fail closed；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
 
 ```yaml
-schema_version: 4
+schema_version: 5
 pipeline: html-first-v1            # actual-pipeline 兼容投影；不再是路由权威
-production_mode:                   # v4：每 version 的权威生产意图（路由 SSOT）
+production_mode:                   # 每 version 的权威生产意图（路由 SSOT）
   by_version:
     3_versions/v1:
       mode: image2-only            # html-only | html-then-image2 | image2-only
@@ -60,6 +60,7 @@ playbook: create-deck
 current_node: author-structured-content
 execution_id: exec-...
 execution_started_at: 2026-07-12T06:00:00.000Z
+run_version: v1                    # v5：active execution 的唯一 exact version binding
 started_at: 2026-07-12T05:00:00.000Z   # 整个 workflow 的稳定开始时间
 updated_at: 2026-07-12T06:20:00.000Z
 
@@ -181,6 +182,8 @@ Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `
 | `html_visual_review_current` | HTML review evidence | 当前 recipe coverage、page dependencies、effective/forced artifacts 与 approvable visual plan |
 | `html_delivery_current` | HTML delivery evidence | current contact sheet、assembly-v2、notes-v3、delivery digest 与 accepted final review |
 | `html_reset_clear` | HTML reset fence | 无 `deletion_pending` reset，或当前 owner 已完成显式 reset transaction |
+| `transition_apply_current` | state-owned transition checkpoint | exact selected source run、active `migrate-import/apply-production-mode-transition`、closed source/target/plan/candidate binding 与唯一 non-resumable suspension 都匹配；只可作 entry |
+| `transition_publish_or_recovery_recorded` | state-owned terminal finalization | 仅在 atomic target receipt/registration/baseline handoff 或 verified no-target source restoration 中成立；普通 node completion、publication-only 与 recovery hard-stop 都不通过；只可作 exit |
 
 ### State/gate condition families
 
