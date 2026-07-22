@@ -44,14 +44,14 @@ frontmatter，也不再是活动 Phase/capability 名称。
   `02-visual-system` 进入；visual-slot adapter 只能在 HTML delivery 后进入；`05-iteration` 只分类并调用
   当前 adapter，不拥有 production implementation。
 - visual-slot 的历史 `nodes["image2-refinement"]` record 是显式 compatibility wire。新写入迁移为
-  Image Production record，state owner 以一次 CAS 同时写新 record/删除旧 record；观察路径 dual-read，双 record
-  不一致 fail closed。旧 reader 保留到未来明确的 run-bundle compatibility retirement，不在这三个 change 中凭
-  时间猜测删除。
+  `nodes["image-production"].by_version["3_versions/vN"]` 的 `adapter: visual-slot` record，state owner 以一次
+  CAS 同时写新 record/删除旧 record；观察路径 dual-read，双 record 不一致 fail closed。旧 reader 保留到未来明确的
+  run-bundle compatibility retirement，不在这三个 change 中凭时间猜测删除。
 
 ## 三项 Change
 
 | 顺序 | Change | 目的 |
-|---|---|---|---|
+|---|---|---|
 | 1 | `unify-workflow-inspection` | 建当前事实 ledger、最小复现与只读 inspection result，让所有观察面消费同一 evaluator。 |
 | 2 | `simplify-workflow-control-and-interfaces` | 在 Change 1 证明可重建事实后，完成 generic node control 的退休与 deep Interface cutover；保持现有 Image2 物理 owner 不动。 |
 | 3 | `realign-image-production-and-framework-governance` | 在控制面稳定后，迁移 Image Production graph/目录/兼容 record，并以 protected-invariant 收束治理、文档与测试。 |
@@ -71,10 +71,6 @@ Change 1 只建立无副作用的事实 projection。Change 2 只改变 workflow
 - Agent、Markdown、status 和 metadata 都不成为第二 authority。
 - `guide|confirm|hard-stop` 保留既有的身份、完整性、授权和恢复边界；hard-stop 不以 force/waive 绕过。
 
-Change 3 处理 graph、目录、adapter ownership、compatibility record、main specs 与 active guidance。
-`legacy-image2-first` 保留为 markerless pipeline wire vocabulary；`image2-only` 保持 production-mode authority；
-两者都不得继续充当活动 Phase/capability 的主概念。BUG-033 的每条归因必须用不手改 state 的最小 fixture 验证。
-
 ## 文档地图
 
 - [当前基线与探针](agent-workflow-simplification/01-current-baseline.md)：运行时 owner、术语和 BUG-033
@@ -82,7 +78,7 @@ Change 3 处理 graph、目录、adapter ownership、compatibility record、main
 - [三项 Change 路线](agent-workflow-simplification/02-three-change-route.md)：每项的 scope、删除目标、
   Interface/seam 和退出条件。
 - [边界与验收](agent-workflow-simplification/03-guardrails-and-validation.md)：protected invariants、
-  验证矩阵、风险、量化指标和 proposal admission。
+  验证矩阵、风险和量化指标。
 
 ## 非目标
 

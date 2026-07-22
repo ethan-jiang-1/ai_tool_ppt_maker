@@ -14,8 +14,8 @@
 8. Source pipeline 与 version-scoped production intent 继续各自有清晰 owner。
 9. HTML Production 与 Image Production 是并列 family；whole-page 和 visual-slot adapter 不混淆 final-page
    authority、授权 scope、provenance 或 completion。
-10. `workflow_inspection` 是 zero-write/zero-network projection；它不能替代 raw durable state、直接 owner 或
-    mutation-time revalidation。
+10. `workflow_inspection` 使用 `pptmaker-workflow-inspection-v1`，是 zero-write/zero-network projection；它不能
+    替代 raw durable state、直接 owner 或 mutation-time revalidation。
 
 ## Proposal 验收
 
@@ -29,7 +29,7 @@
 | 每个 failure 的最近合法动作？ | 一个有序 `primary_action`；hard-stop 说明不变量与恢复路径 |
 | 怎么证明没有破坏有效工作？ | focused negative + same-check rerun + wrong-owner no-mutation test |
 | 观察输出是否兼容？ | `status --json` 与 `state --json` 的 `workflow_inspection` 相同，raw state 字段仍可读，observe 零写入/零网络 |
-| Image Production record 如何迁移？ | old-only/new-only/一致 dual-record/冲突 dual-record、active attempt 与 promotion recovery 均有 CAS-negative tests |
+| Image Production record 如何迁移？ | old-only/new-only/一致 dual-record/冲突 dual-record，及 `adapter: visual-slot`/schema/active attempt/promotion recovery 均有 CAS-negative tests |
 | 如何清除旧主概念？ | active main specs/entry docs 的术语清单，以及仅限 compatibility/migration 的明确例外 |
 
 `confirm` 仍需要明确的人类理由；`hard-stop` 不接受 force/waive 绕过。Inspection result 是 projection，
@@ -51,7 +51,7 @@
 | Structural versioning | preview/hash/apply/vNext/materialization 仍 exact |
 | Migration/transition | candidate、confirmation、publication、mode-registration recovery 不被 generic path 绕过 |
 | crash/restart | stale hash、CAS race、journal/reset、unknown submit、missing auth fail closed |
-| Legacy Image2 probe | 单页变更的 earliest root cause、canonical repair 与同一 build checkpoint 重跑 |
+| BUG-033 单页迭代 | 单页变更的 earliest root cause、canonical repair 与同一 build checkpoint 重跑 |
 
 ## 量化基线
 
@@ -63,7 +63,7 @@ Change 1 记录 baseline，后续以 journey 指标验收，不以总行数为�
 - durable field：100% 有 owner/writer/reader/freshness/invalidation/removal。
 - generic node evidence/decision：删除，或每个保留项有真实 production caller。
 - 每个用户目标进入的 workflow seam：目标 1；其后的 direct-owner mutation 不计为 caller 重新拼接协议。
-- legacy probe：无手写 state/authorization/receipt/assembly 的成功路径，或明确保留的 hard-stop。
+- BUG-033：无手写 state/authorization/receipt/assembly 的成功路径，或明确保留的 hard-stop。
 
 ## 风险与缓解
 

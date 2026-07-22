@@ -1,8 +1,7 @@
 # 三项 Change 路线
 
-返回 [主计划](../agent-workflow-simplification.md)。每一项在前项归档、main specs 同步与回归后才可创建。
-三个 change 的边界是诊断边界，不是按文件夹或行数切分：每项必须能独立说明“此前正确的行为仍为何正确、
-此项新增或删除了什么、失败时应看哪个 owner”。
+返回 [主计划](../agent-workflow-simplification.md)。每一项在前项完成、main specs 同步与回归后才可创建。
+三个 change 的边界是诊断边界，不是按文件夹或行数切分：每项必须能独立说明外部行为合同、改动范围和失败 owner。
 
 ## Change 1: `unify-workflow-inspection`
 
@@ -13,6 +12,7 @@ artifact/review、authorization、transaction 和 recovery owners，却不成为
 Interface 是稳定的 workflow projection，而不是 state 的复制或一个隐藏的 state machine：
 
 ```text
+schema              pptmaker-workflow-inspection-v1
 checkpoint          exact run/version and observed direct-fact identities
 posture             ready | guide | confirm | hard-stop
 root_cause          first bounded owner/fact that prevents the requested path
@@ -25,7 +25,7 @@ evidence_summary    attributable artifact/review summary, never mutable authorit
 
 `primary_action` means a single next step in the dependency order, not a promise that a multi-gate journey
 has only one future action. `observations` retains diagnostic evidence and nonblocking repair hints; a
-choice is exposed only when the gate policy actually gives a human a choice.
+choice is exposed only when the gate owner actually gives a human a choice.
 
 观察输出的 compatibility contract 固定如下：
 
@@ -81,8 +81,8 @@ transition 继续由既有 direct owner 持有，不属于 generic-control 删�
 为避免一个大迁移无从诊断，Change 2 在同一 OpenSpec change 内必须按以下 checkpoint 顺序提交并各自通过
 focused regression；后一个 checkpoint 不通过，不进入下一个：
 
-1. **Projection cutover**：所有 observe consumer 使用 Change 1 的 `workflow_inspection`，generic state 仍按
-   原方式写入；比较新旧 canonical journey 的 posture/root/action。
+1. **Workflow-entry cutover**：controller 与 CLI routing 读取 Change 1 的 `workflow_inspection`，不再从 generic
+   node state 自行拼装 mode/gate/recovery；generic state 仍按原方式写入，观察输出 contract 保持不变。
 2. **Writer retirement**：ledger 已证明可重建的 generic record 停止新写；已存在的受支持 record 只读兼容，
    direct owner 继续写自己的 authoritative record。每次 write 仍经 CAS/journal。
 3. **Reader removal or explicit retention**：只有 ledger 证明某 reader 无受支持 caller 后才删除；否则将其列为
@@ -129,7 +129,8 @@ dependency predicates 决定 entry/resume；它不得从目录号或 `lifecycle_
    break 必须在 executable inventory、docs、diagnostics 和 tests 中显式列出。
 2. **Durable-record and terminology cutover**：历史 visual-slot
    `nodes["image2-refinement"].by_version[...]` 以旧 schema 只读；首次成功的 state-owner mutation 将其规范化为
-   新 Image Production visual-slot record，并在同一次 CAS state write 删除旧 record。observe 路径 new-first/
+   新 `nodes["image-production"].by_version[...]` record，且 record 必须有 `adapter: visual-slot` 和
+   `schema: pptmaker-image-production-state-v1`；同一次 CAS state write 删除旧 record。observe 路径 new-first/
    old-fallback dual-read；两份 record 同时存在且语义不一致时 fail closed，promotion journal/active attempt/recovery
    均保持原子性。旧 reader 是有 owner 的 historical compatibility contract，直到未来明确停止支持旧 run bundle
    schema 的 change；本计划不设任意日期删除它。`image2-only` authorization、whole-page provenance 和 final
@@ -157,7 +158,6 @@ blocking rule 有 failure story；完整 tests 继续覆盖所有 protected inva
 
 ## 串行原因
 
-Change 1 建立无副作用的 observation seam，给 Change 2 的删除决策提供证据。Change 2 改写 workflow control 和
-caller Interface，但冻结 Image Production 的 physical/durable wire，因此任何回归可归因到 control cutover。
-Change 3 在该 seam 已稳定后再改 graph、目录和 compatibility record，随后才删治理噪音。三个 change 各有一个
-可比较的外部行为合同，既保留诊断能力，也不额外支付 proposal/apply/archive 成本。
+Change 1 建立无副作用的 observation seam。Change 2 改写 workflow control 和 caller Interface，但冻结 Image
+Production 的 physical/durable wire，因此任何回归可归因到 control cutover。Change 3 再改 graph、目录和
+compatibility record，随后收束治理。三个 change 各有一个可比较的外部行为合同。

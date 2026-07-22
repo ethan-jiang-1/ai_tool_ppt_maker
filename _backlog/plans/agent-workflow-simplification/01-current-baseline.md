@@ -2,7 +2,7 @@
 
 返回 [主计划](../agent-workflow-simplification.md)。
 
-## 已接受的运行时基线
+## 运行时事实
 
 后续 change 必须将下列事实视为既有 direct owner：
 

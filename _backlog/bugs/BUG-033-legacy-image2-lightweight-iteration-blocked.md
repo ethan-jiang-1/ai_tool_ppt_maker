@@ -20,7 +20,7 @@
 2. **provenance 容忍度** — `_manifest.json` 的 `generation_fingerprint` 基于完整 prompt + metadata 哈希，KICKER 改动引发全量失效。没有 prompt 结构感知的 diff 机制。
 3. **文件命名约定** — `page_images_full/` 同时存在两种命名方式（`NN_sNN_name.png` / `sNN_name.png`），Stage 3 对两种格式的发现逻辑不一致。
 
-## 复现
+## 待验证复现
 1. 对一个已完成 `build` 的 legacy-image2 deck（26页），修改1页的 KICKER
 2. `ppt_flow build --reuse-images`
 3. Stage 1 通过，Stage 2 拒绝——需要 authorization、provenance stale
