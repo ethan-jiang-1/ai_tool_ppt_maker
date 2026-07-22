@@ -27,6 +27,7 @@ import {
   STATE_DIR_README,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 import { validateHtmlFirstRun } from '../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_contract.mjs';
+import { DEFAULT_INIT_MODE } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 
 const BUNDLE = 'PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 const PPT_FLOW = 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs';
@@ -108,7 +109,7 @@ describe('bundle_layout', () => {
     for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
       const deck = join(tmpdir(), `deck_render_policy_${deckType || 'generic'}_${Date.now()}`);
       try {
-        initBundle(deck, null, deckType, null);
+        initBundle(deck, null, deckType, null, { mode: 'html-only' });
         const specs = readFileSync(
           join(deck, '3_versions', 'v1', 'slide-specifications.md'),
           'utf-8'
@@ -605,5 +606,80 @@ describe('version _scratch (上严下松)', () => {
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
+  });
+});
+
+describe('mode-aware init seeds (2.1, 2.3)', () => {
+  function initFor(mode) {
+    const deck = join(tmpdir(), `deck_mode_${mode || 'default'}_${Date.now()}`);
+    initBundle(deck, null, 'keynote', 'dark-executive', mode ? { mode } : {});
+    return deck;
+  }
+  function source(deck) {
+    return readFileSync(join(deck, '3_versions', 'v1', 'slide-specifications.md'), 'utf8');
+  }
+
+  it('defaults to DEFAULT_INIT_MODE (image2-only release default)', () => {
+    expect(DEFAULT_INIT_MODE).toBe('image2-only');
+    const deck = initFor(null);
+    try {
+      expect(source(deck)).not.toContain('pipeline: html-first-v1');
+      expect(source(deck)).toContain('default: full-page');
+      const state = readState(deck);
+      expect(state.production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
+      expect(state.pipeline).toBe('legacy-image2-first');
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it('html-only / html-then-image2 seed the explicit html-first-v1 marker and mode', () => {
+    for (const mode of ['html-only', 'html-then-image2']) {
+      const deck = initFor(mode);
+      try {
+        const src = source(deck);
+        expect(src).toContain('pipeline: html-first-v1');
+        expect(src).toContain('scheme: mnemonic-v1');
+        expect(readState(deck).production_mode.by_version['3_versions/v1']).toEqual({ mode });
+      } finally { rmSync(deck, { recursive: true, force: true }); }
+    }
+  });
+
+  it('image2-only seeds the markerless whole-page source and no pipeline marker', () => {
+    const deck = initFor('image2-only');
+    try {
+      const src = source(deck);
+      expect(src).toContain('scheme: mnemonic-v1');
+      expect(src).toContain('default: full-page');
+      expect(src).not.toMatch(/production:\s*\n\s*pipeline:/);
+      const state = readState(deck);
+      expect(state.production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
+      expect(state.pipeline).toBe('legacy-image2-first');
+      // No style master, generated output, or provider attempt is created.
+      expect(existsSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'))).toBe(false);
+      expect(existsSync(join(deck, '3_versions', 'v1', '_generated', 'page_images_full'))).toBe(false);
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it('metadata mirrors the seeded production mode as non-authoritative', () => {
+    const deck = initFor('image2-only');
+    try {
+      const metadata = readFileSync(join(deck, 'project-metadata.yaml'), 'utf8');
+      expect(metadata).toContain('production_mode: image2-only');
+      expect(metadata).toContain('production_mode_run_version: v1');
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
+  it('an invalid mode is rejected before any filesystem creation', () => {
+    const deck = join(tmpdir(), `deck_bad_mode_${Date.now()}`);
+    expect(() => initBundle(deck, null, 'keynote', 'dark-executive', { mode: 'html' })).toThrow(/production mode/);
+    expect(existsSync(deck)).toBe(false);
+  });
+
+  it('initLegacyBundle delegates to the image2-only seed (markerless)', () => {
+    const deck = join(tmpdir(), `deck_legacy_delegated_${Date.now()}`);
+    try {
+      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      expect(source(deck)).not.toContain('pipeline: html-first-v1');
+      expect(readState(deck).production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 });

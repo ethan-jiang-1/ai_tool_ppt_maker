@@ -55,7 +55,7 @@ import {
 } from "./storage.mjs";
 import { createFakeRefinementTransport, createModernRefinementTransport, createRefinementTransport } from "./transport.mjs";
 import { deckRoot } from "../../shared/run-bundle/bundle_layout.mjs";
-import { prepareStateWrite, readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../shared/state/state.mjs";
+import { inspectRunProductionMode, prepareStateWrite, readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../shared/state/state.mjs";
 
 const SHA_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
@@ -92,6 +92,14 @@ async function styleReferenceStatus(runDir) {
 async function currentEligibility(runDir, { allowIncompleteDelivery = false } = {}) {
   const run = resolve(runDir);
   const version = assertRunVersion(run);
+  const production = inspectRunProductionMode(deckRoot(run), { runDir: run, purpose: "execute" });
+  if (!production.ok) throw new Error(`refinement production mode is unavailable: ${production.code}`);
+  if (production.mode === "html-only") {
+    throw new Error("modern refinement is disabled for html-only; switch to html-then-image2 through the state owner first");
+  }
+  if (production.mode !== "html-then-image2") {
+    throw new Error("modern refinement is only available for html-then-image2 marked HTML-first runs");
+  }
   if (!existsSync(sourcePath(run))) throw new Error("refinement requires canonical slide-specifications.md");
   const p3 = await phase3();
   const marker = p3.probeProductionMarker(readFileSync(sourcePath(run)), { source: "slide-specifications.md" });
@@ -842,6 +850,20 @@ export async function completeRefinementController({ runDir } = {}) {
   const selectedIds = new Set(record.plan?.slides?.map((slide) => slide.slide_id) || []);
   const reviewedIds = new Set(reviews.map((review) => review.slide_id));
   if (!record.plan || reviewedIds.size !== selectedIds.size || [...selectedIds].some((id) => !reviewedIds.has(id)) || reviews.some((review) => !["accept", "use-html"].includes(review.decision))) throw new Error("refinement reviews are incomplete");
+
+  // A required refinement lifecycle always returns through a fresh HTML final
+  // review. Accepted candidates already invalidate delivery through local
+  // recomposition; use-html decisions leave pixels intact, so remove the old
+  // final-review evidence explicitly rather than allowing it to satisfy the
+  // post-refinement completion boundary.
+  const deliveryByVersion = state.nodes?.["html-delivery-review"]?.by_version;
+  const deliveryKey = `3_versions/${eligible.run_version}`;
+  if (deliveryByVersion && Object.hasOwn(deliveryByVersion, deliveryKey)) {
+    const nextDelivery = { ...deliveryByVersion };
+    delete nextDelivery[deliveryKey];
+    state.nodes["html-delivery-review"] = { by_version: nextDelivery };
+  }
+
   if (state.playbook === "image2-refine") {
     for (const nodeId of ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement"]) {
       state.nodes[nodeId] = { ...(state.nodes[nodeId] || {}), status: "completed", execution_id: state.execution_id, evidence: { ...(state.nodes[nodeId]?.evidence || {}), [`${nodeId}-current`]: { met: true, kind: "agent", at: nowIso() } } };
@@ -854,7 +876,7 @@ export async function completeRefinementController({ runDir } = {}) {
     }
   }
   writeState(root, state, { expectedStateSha: readVersionFileSha(refinementPaths(eligible.run).state) });
-  return Object.freeze({ complete: true, completed_playbook: "image2-refine", requires_final_review: !eligible.delivery_complete, playbook: state.playbook });
+  return Object.freeze({ complete: true, completed_playbook: "image2-refine", requires_final_review: true, playbook: state.playbook });
 }
 
 export async function recoverRefinementPromotion({ runDir, prepared = null, selection = null, nextState = null, stateUpdatedAt = nowIso() } = {}) {

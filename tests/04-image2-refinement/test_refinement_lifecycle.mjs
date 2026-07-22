@@ -42,7 +42,7 @@ const planInput = {
 };
 
 async function createAuthorizedRun(prefix) {
-  const fixture = await createCurrentHtmlDelivery(prefix);
+  const fixture = await createCurrentHtmlDelivery(prefix, { mode: "html-then-image2" });
   const operations = await loadRefinementOperations();
   const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
   const authorization = await operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-test" });
@@ -80,6 +80,21 @@ describe("Phase 4 lifecycle boundaries", () => {
     const unknown = transitionAttempt(transitionAttempt(planned, "submitting"), "unknown-submit");
     expect(() => transitionAttempt(unknown, "submitting")).toThrow(/not allowed/);
   });
+
+  it("rejects direct refinement work in html-only without creating derived state", async () => {
+    const fixture = await createCurrentHtmlDelivery("image2-html-only-disabled-");
+    try {
+      const operations = await loadRefinementOperations();
+      const paths = operations.refinementPaths(fixture.runDir);
+      await expect(operations.createRefinementPlan({
+        runDir: fixture.runDir,
+        profileFingerprint: "a".repeat(64),
+      })).rejects.toThrow(/disabled for html-only/);
+      expect(existsSync(paths.generated)).toBe(false);
+      expect(existsSync(paths.scratch)).toBe(false);
+      expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  }, 120_000);
 
   it("fake transport records exactly one submit and keeps receipts secret-safe", async () => {
     const transport = createFakeRefinementTransport({ onSubmit: async () => ({ status: "submitted", receipt: { provider_request_id: "p-1", api_key: "sentinel" } }) });
@@ -223,7 +238,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   });
 
   it("recommendation and decline keep the optional path lazy", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-lazy-decline-");
+    const fixture = await createCurrentHtmlDelivery("image2-lazy-decline-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       const paths = operations.refinementPaths(fixture.runDir);
@@ -241,7 +256,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("requires complete delivery normally and records a plan-bound forced prerequisite waiver", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-forced-prerequisite-");
+    const fixture = await createCurrentHtmlDelivery("image2-forced-prerequisite-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       const ordinaryForce = await operations.createRefinementPlan({
@@ -309,7 +324,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("does not let a forced offline plan override a current delivery repair decision", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-force-repair-");
+    const fixture = await createCurrentHtmlDelivery("image2-force-repair-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       const review = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs");
@@ -330,7 +345,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("permits exact candidate review and promotion after a forced prerequisite waiver", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-force-promote-");
+    const fixture = await createCurrentHtmlDelivery("image2-force-promote-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       await operations.enterRefinementController({ runDir: fixture.runDir });
@@ -404,7 +419,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("authorization rejects stale hashes, scope changes, and reuse before submit", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-stale-authorization-");
+    const fixture = await createCurrentHtmlDelivery("image2-stale-authorization-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
@@ -430,7 +445,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("keeps unresolved v1 refinement work authoritative until it is resolved", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-v1-conflict-");
+    const fixture = await createCurrentHtmlDelivery("image2-v1-conflict-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       const recommendation = await operations.recommendRefinement({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
@@ -597,7 +612,7 @@ describe("Phase 4 lifecycle boundaries", () => {
   }, 120_000);
 
   it("controller completion and decline both resume the parent without pending debt", async () => {
-    const completed = await createCurrentHtmlDelivery("image2-controller-complete-");
+    const completed = await createCurrentHtmlDelivery("image2-controller-complete-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       expect(await operations.enterRefinementController({ runDir: completed.runDir })).toMatchObject({ entered: true, playbook: "image2-refine" });
@@ -613,13 +628,14 @@ describe("Phase 4 lifecycle boundaries", () => {
         await operations.composeCandidateReview({ runDir: completed.runDir, candidateId: candidate.candidate_id });
         await operations.useHtmlRefinement({ runDir: completed.runDir, slideId: candidate.slide_id, candidateId: candidate.candidate_id });
       }
-      expect(await operations.completeRefinementController({ runDir: completed.runDir })).toMatchObject({ complete: true, playbook: "create-deck", requires_final_review: false });
+      expect(await operations.completeRefinementController({ runDir: completed.runDir })).toMatchObject({ complete: true, playbook: "create-deck", requires_final_review: true });
       const resumed = readState(completed.deck);
       expect(resumed).toMatchObject({ playbook: "create-deck", current_node: "checkpoint-final-review" });
       expect(projectImage2RefinementState(resumed, "v1")).toMatchObject({ status: "complete", human_action_required: false });
+      expect(resumed.nodes["html-delivery-review"]?.by_version?.["3_versions/v1"] ?? null).toBeNull();
     } finally { rmSync(completed.root, { recursive: true, force: true }); }
 
-    const declined = await createCurrentHtmlDelivery("image2-controller-decline-");
+    const declined = await createCurrentHtmlDelivery("image2-controller-decline-", { mode: "html-then-image2" });
     try {
       const operations = await loadRefinementOperations();
       await operations.enterRefinementController({ runDir: declined.runDir });

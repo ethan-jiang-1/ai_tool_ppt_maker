@@ -54,6 +54,7 @@ import {
   deckRoot, backboneDir, styleAsset, assetsDir, generatedDir,
   findSlideSpecs, deckName, checkBundle, loadDotenv,
 } from "../shared/run-bundle/bundle_layout.mjs";
+import { HTML_FIRST_PIPELINE } from "../shared/run-bundle/production_marker.mjs";
 import { resolveSlideIds } from "../01-content/index.mjs";
 import { loadAssetManifest, resolveAssetFile, validateAssetManifest } from "../02-visual-system/index.mjs";
 import {
@@ -61,6 +62,7 @@ import {
   computeStructuralImpact,
   versionKey,
 } from "../05-iteration/index.mjs";
+import { resolveRunProductionAdapter } from "../shared/state/state.mjs";
 
 // --- Configuration -----------------------------------------------------------
 
@@ -1013,6 +1015,7 @@ export async function stage1(runDir, dryRun, { beforeHtmlFirstPublish = null } =
  * @param {string} [resolution]
  * @param {string} [model]
  * @param {boolean} [dryRun]
+ * @param {"pilot"|"build"|"refresh"} [authorizationOperation]
  * @returns {Promise<boolean>}
  */
 export async function stage2(runDir, {
@@ -1023,6 +1026,7 @@ export async function stage2(runDir, {
   model = "gpt-image-2",
   requireHeaderReview = false,
   dryRun = false,
+  authorizationOperation = "build",
 } = {}) {
   stage2.lastFailure = null;
   const buildDir = generatedDir(runDir);
@@ -1039,9 +1043,6 @@ export async function stage2(runDir, {
   }
 
   const outDir = join(buildDir, GEN_IMAGES_SUBDIR);
-  if (!dryRun) {
-    mkdirSync(outDir, { recursive: true });
-  }
 
   if (requireHeaderReview && !dryRun) {
     const review = await validateProductionHeaderReview(runDir, {
@@ -1080,6 +1081,43 @@ export async function stage2(runDir, {
   // Keep the optional CLI URL unresolved until generateOneImage reaches an
   // actual remote submit. Current-provenance reuse must not touch transport.
   const baseUrls = baseUrl ? [baseUrl] : [];
+
+  let beforeSubmit = null;
+  try {
+    const { resolveRunProductionAdapter, image2AuthorizationProfileFingerprint, inspectImage2ProviderAuthorization } = await import("../shared/state/state.mjs");
+    const route = resolveRunProductionAdapter(deckRoot(runDir), { runDir, purpose: "observe" });
+    if (!route.ok) {
+      return failStage(stage2, { version: 1, category: "gate", stage: "stage2", operation: "resolve-production-adapter", source: { path: runDir }, reason: { kind: route.code === "transition_required" ? "mode_source_mismatch" : "production_mode_unavailable" }, next: createCliNext("repair_prerequisite", { requiresHuman: route.code === "transition_required", default: "Resolve the exact production-mode identity before Image2 Stage 2." }) });
+    }
+    if (route.mode === "image2-only") {
+      const { sha256File } = await import("../shared/identity/byte_hash.mjs");
+      const profileFingerprint = image2AuthorizationProfileFingerprint({
+        operation: authorizationOperation,
+        profile: {
+          model,
+          resolution,
+          size: "16:9",
+          n: 1,
+          style_reference_sha256: sha256File(styleMaster),
+        },
+      });
+      beforeSubmit = async ({ selectedIds: scopedIds, maxSubmissions }) => {
+        const authorization = inspectImage2ProviderAuthorization(deckRoot(runDir), {
+          runDir,
+          operation: authorizationOperation,
+          scope: { slide_ids: scopedIds },
+          profileFingerprint,
+          maxSubmissions,
+        });
+        if (authorization.ok) return;
+        const error = new Error(`Image2 provider authorization is required before submit: ${authorization.code}`);
+        error.image2Authorization = authorization;
+        throw error;
+      };
+    }
+  } catch (error) {
+    return failStage(stage2, { version: 1, category: "gate", stage: "stage2", operation: "authorize-provider", source: { path: runDir }, reason: { kind: "provider_authorization_unavailable" }, next: createCliNext("repair_prerequisite", { requiresHuman: true, default: "Record a current scoped Image2 provider authorization before submitting this batch." }) });
+  }
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`  Stage: Stage 2: Generate Images`);
@@ -1120,6 +1158,7 @@ export async function stage2(runDir, {
       baseUrl: baseUrls,
       dryRun: false,
       assetResolver,
+      beforeSubmit,
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
@@ -1656,9 +1695,9 @@ Examples:
 
       const canonicalSource = join(runDir, "slide-specifications.md");
       const sourceCandidate = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(runDir);
-      let htmlFirst = false;
+      let sourceMarker = null;
       if (sourceCandidate) {
-        const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./internal/html_slide_contract.mjs");
+        const { probeProductionMarker } = await import("./internal/html_slide_contract.mjs");
         const marker = probeProductionMarker(readFileSync(sourceCandidate), { source: basename(sourceCandidate) });
         if (marker.branch === "invalid") {
           emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker, then rerun.", where: "unified_pipeline.probe-html-first", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: "slide-specifications.md" }, issues: marker.issues.map((entry) => ({ message: entry.message, source: entry.source, reason: { kind: entry.code || "invalid_pipeline_marker" } })), next: createCliNext("edit_source", { default: "Repair leading frontmatter before readiness or stage execution." }) } });
@@ -1668,7 +1707,39 @@ Examples:
           emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "HTML-first requires the canonical source filename.", hint: "Restore slide-specifications.md and move backup copies under _scratch/.", where: "unified_pipeline.select-html-first-source", diagnostic: { version: 1, category: "source_validation", operation: "select-html-first-source", source: { path: basename(sourceCandidate) }, reason: { kind: "canonical_source_missing", actual: basename(sourceCandidate), expected: "slide-specifications.md" }, next: createCliNext("edit_source", { default: "Restore exact slide-specifications.md before readiness or stage execution." }) } });
           process.exit(1);
         }
-        htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
+        sourceMarker = marker;
+      }
+
+      const route = resolveRunProductionAdapter(deckRoot(runDir), { runDir, purpose: "observe" });
+      if (!route.ok) {
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: `Production adapter cannot resolve the exact run identity: ${route.code}.`,
+          hint: route.code === "transition_required"
+            ? "Resolve the mode/source mismatch through the versioned transition path before running stages."
+            : "Initialize, migrate, or register the exact run version's production mode before running stages.",
+          where: "unified_pipeline.production-adapter",
+          diagnostic: {
+            version: 1,
+            category: "gate",
+            operation: "resolve-production-adapter",
+            source: { path: runDir },
+            reason: { kind: route.code === "transition_required" ? "mode_source_mismatch" : "production_mode_unavailable" },
+            next: createCliNext("repair_prerequisite", {
+              requiresHuman: route.code === "transition_required",
+              default: "Resolve the exact production-mode identity before stage dispatch.",
+            }),
+          },
+        });
+        process.exit(1);
+      }
+
+      const htmlFirst = route.adapter === "html";
+      if (sourceMarker) {
+        if (htmlFirst !== (sourceMarker.branch === HTML_FIRST_PIPELINE)) {
+          emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "The verified production adapter and source marker disagree.", hint: "Repair the mode/source relationship before running any stage.", where: "unified_pipeline.production-adapter", diagnostic: { version: 1, category: "gate", operation: "verify-production-adapter", source: { path: basename(sourceCandidate) }, reason: { kind: "mode_source_mismatch" }, next: createCliNext("repair_prerequisite", { requiresHuman: true, default: "Repair the exact run's production-mode and source relationship before stage dispatch." }) } });
+          process.exit(1);
+        }
       }
 
       if (htmlFirst && (process.argv.includes('--base-url') || process.argv.includes('--force-images') || process.argv.includes('--model') || process.argv.includes('--resolution'))) {
@@ -1715,6 +1786,9 @@ Examples:
       }
 
       // Stage dispatch table
+      const image2Operation = ["pilot", "build", "refresh"].includes(process.env.PPTMAKER_IMAGE2_OPERATION)
+        ? process.env.PPTMAKER_IMAGE2_OPERATION
+        : opts.preview ? "pilot" : "build";
       const stageImplementations = { 1: stage1, 2: htmlFirst ? stage2Html : stage2, 3: htmlFirst ? stage3Html : stage3, 4: htmlFirst ? stage4Html : stage4, 5: htmlFirst ? stage5Html : stage5 };
       const stageFuncs = {
         1: () => stage1(runDir, opts.dryRun),
@@ -1726,6 +1800,7 @@ Examples:
           model: opts.model || "gpt-image-2",
           requireHeaderReview: !opts.preview,
           dryRun: opts.dryRun,
+          authorizationOperation: image2Operation,
         }),
         3: () => htmlFirst ? stage3Html(runDir, { only: opts.only || null, dryRun: opts.dryRun }) : stage3(runDir, opts.dryRun),
         4: () => htmlFirst ? stage4Html(runDir, { dryRun: opts.dryRun }) : stage4(runDir, opts.dryRun),

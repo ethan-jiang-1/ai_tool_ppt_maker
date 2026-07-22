@@ -36,7 +36,7 @@ ${slides.join("\n")}`;
 export function createHtmlFirstRun(prefix = "html-first-run-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, "deck_html_first");
-  initBundle(deck, null, "keynote", "dark-executive");
+  initBundle(deck, null, "keynote", "dark-executive", { mode: "html-only" });
   const runDir = join(deck, "3_versions", "v1");
   writeFileSync(join(runDir, "slide-specifications.md"), htmlFirstSource(), "utf8");
   const assetsDir = join(deck, "2_backbone", "visual-style", "assets");

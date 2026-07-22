@@ -1,13 +1,16 @@
 ---
 playbook: image2-refine
-description: HTML-first 交付后的可选、逐页授权 Image2 visual-slot refinement
+description: html-then-image2 完成所要求的、逐页授权 Image2 visual-slot refinement
 supported_pipelines: [html-first-v1]
+supported_production_modes: [html-then-image2]
 includes: []
 ---
 
 # Playbook: Image2 Visual-Slot Refinement
 
-这是可选的 Phase 4 专业升级。它只处理已经完成当前 HTML 交付审阅的标记版；用户不进入此 controller 时，HTML 交付本身就是完整结果。Phase 4 不是 legacy whole-page renderer，也不改变 HTML Phase 3 的 local/provider-free ownership。
+这是 `html-then-image2` 的必需 Phase 4 完成路径，不是可选升级。它只处理已有 current HTML delivery review 的 marked HTML-first run；`html-only` 的新 refinement 请求必须先原子切换到 `html-then-image2`，`image2-only` 则使用 normal whole-page pilot/build，永不进入本 controller。Phase 4 不是 legacy whole-page renderer，也不改变 HTML Phase 3 的 local/provider-free ownership。
+
+切回 `html-only` 时保留 plan、attempt、candidate、accepted source asset、provenance 与 review，只移除 completion debt；切回 `html-then-image2` 后重新验证其 freshness。一个 eligible slide 的 deck 选择这一页本身，不因 2–4 的通常批量建议而无法完成。
 
 ## Nodes
 
@@ -17,6 +20,7 @@ includes: []
 node: recommend-image2-refinement
 lifecycle_phase: 4
 method_module: 04-image2-refinement
+production_modes: [html-then-image2]
 requires: []
 produces: [image2-refinement-plan]
 entry: [html_first_marked, html_delivery_review_current]
@@ -39,6 +43,7 @@ hard-stop guidance result remains ahead of optional refinement.
 node: authorize-image2-refinement
 lifecycle_phase: 4
 method_module: 04-image2-refinement
+production_modes: [html-then-image2]
 requires: [recommend-image2-refinement]
 decisions: [authorize, decline]
 produces: [image2-refinement-authorization]
@@ -54,6 +59,7 @@ exit: [user_decision_recorded]
 node: execute-image2-refinement
 lifecycle_phase: 4
 method_module: 04-image2-refinement
+production_modes: [html-then-image2]
 requires: [authorize-image2-refinement]
 produces: [image2-refinement-candidates]
 entry: [html_first_marked, html_delivery_review_current, node_decision:authorize-image2-refinement:authorize]
@@ -76,6 +82,7 @@ or hand-edited attempt substitutes for exact provider authorization.
 node: review-image2-refinement
 lifecycle_phase: 4
 method_module: 04-image2-refinement
+production_modes: [html-then-image2]
 requires: [execute-image2-refinement]
 decisions: [accept, use-html, decline]
 produces: [image2-refinement-review]

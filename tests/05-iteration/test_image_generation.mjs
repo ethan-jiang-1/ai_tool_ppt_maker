@@ -486,6 +486,88 @@ describe('stage2_generate_images', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
+  it('checks first-class authorization only before a genuine provider submit', async () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'prompt a' },
+    ] }), 'utf-8');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+
+    const denied = new Error('authorization missing');
+    denied.image2Authorization = { code: 'AUTHORIZATION_MISSING' };
+    const deniedResult = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      beforeSubmit: async () => { throw denied; },
+    });
+    expect(deniedResult.failures).toMatchObject([
+      { category: 'gate', reason: { kind: 'provider_authorization_required', code: 'AUTHORIZATION_MISSING' } },
+    ]);
+    expect(existsSync(outDir)).toBe(false);
+
+    let authorizationCalls = 0;
+    mockSyncGeneration();
+    const generated = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      baseUrl: ['https://api.example.test/v1'],
+      beforeSubmit: async ({ selectedIds, maxSubmissions }) => {
+        authorizationCalls += 1;
+        expect(selectedIds).toEqual(['a']);
+        expect(maxSubmissions).toBe(1);
+      },
+    });
+    expect(generated).toMatchObject({ generated: 1, errors: [] });
+    expect(authorizationCalls).toBe(1);
+
+    const reused = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      beforeSubmit: async () => { throw new Error('reuse must not request authorization'); },
+    });
+    expect(reused).toMatchObject({ generated: 0, skipped: 1, errors: [] });
+  });
+
+  it('authorizes only the missing subset of a mixed reuse and submit batch', async () => {
+    const prompts = join(dir, '_prompts.json');
+    const style = join(dir, 'style_master.jpg');
+    const outDir = join(dir, 'out');
+    tinyPng(style);
+    writeFileSync(prompts, JSON.stringify({ slides: [
+      { id: 'a', out: '01_a.png', prompt: 'prompt a' },
+      { id: 'b', out: '02_b.png', prompt: 'prompt b' },
+    ] }), 'utf-8');
+    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+
+    mockSyncGeneration();
+    await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      only: ['a'],
+      force: true,
+      baseUrl: ['https://api.example.test/v1'],
+    });
+
+    let authorizationScope = null;
+    mockSyncGeneration();
+    const mixed = await generateImages({
+      promptJson: prompts,
+      outDir,
+      styleReference: style,
+      baseUrl: ['https://api.example.test/v1'],
+      beforeSubmit: async (scope) => { authorizationScope = scope; },
+    });
+    expect(mixed).toMatchObject({ generated: 1, skipped: 1, errors: [] });
+    expect(authorizationScope).toEqual({ selectedIds: ['b'], maxSubmissions: 1 });
+  });
+
   it('fails loudly instead of reusing stale prompt or corrupt manifest', async () => {
     const prompts = join(dir, '_prompts.json');
     const style = join(dir, 'style_master.jpg');

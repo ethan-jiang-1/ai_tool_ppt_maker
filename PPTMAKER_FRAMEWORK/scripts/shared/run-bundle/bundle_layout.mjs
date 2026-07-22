@@ -71,9 +71,31 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
+import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath, registerProductionModeFromSource } from '../state/state.mjs';
 import { inspectHtmlReviewReadiness as inspectHtmlReviewReadinessCore } from '../state/internal/html_review_evidence_core.mjs';
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from './production_marker.mjs';
+import { PRODUCTION_MODES, productionPolicyForMode } from './production_mode.mjs';
+
+// Production-mode policy is consumed by the root CLI through this public
+// run-bundle interface; the policy module itself remains an internal detail.
+export { PRODUCTION_MODES, productionPolicyForMode };
+
+/**
+ * Production mode assumed when `ppt_flow init` omits `--mode`. New decks default
+ * to first-class `image2-only` production (whole-page Image2). Explicit
+ * `--mode html-only|html-then-image2` selects an HTML path.
+ */
+export const DEFAULT_INIT_MODE = 'image2-only';
+const LEGACY_PIPELINE = 'legacy-image2-first';
+
+function validateInitMode(mode) {
+    if (!PRODUCTION_MODES.includes(mode)) {
+        throw new Error(
+            `unknown production mode ${JSON.stringify(mode)}. ` +
+            `Allowed: ${[...PRODUCTION_MODES].sort().join(', ')}`);
+    }
+    return mode;
+}
 
 // ---------------------------------------------------------------------------
 // Self-location (self path resolution
@@ -936,6 +958,17 @@ export function createVersion(sourceRunDir, versionName = null) {
     }
 
     _seedCleanVersion(sourceRunDir, target, versionName);
+    // After the target is visible, register its production mode idempotently
+    // from the source's authoritative record (same pipeline — the clean seed
+    // copies the source marker). Best-effort: a pre-mode deck or unavailable
+    // state leaves the target visible and production reports
+    // mode_registration_required rather than failing version creation.
+    try {
+        registerProductionModeFromSource(path.dirname(path.dirname(sourceRunDir)), {
+            sourceRunVersion: path.basename(sourceRunDir),
+            targetRunVersion: versionName,
+        });
+    } catch { /* best-effort registration; target remains visible */ }
     return target;
 }
 
@@ -1044,6 +1077,16 @@ export function publishStructuralVersion({
         fs.rmSync(reservation, { recursive: true, force: true });
         reservationOwned = false;
         targetOwned = false;
+        // After the target is visible, register its mode idempotently from the
+        // source. Best-effort and outside the cleanup window: a registration
+        // failure leaves the published target intact and production reports
+        // mode_registration_required rather than deleting or republishing it.
+        try {
+            registerProductionModeFromSource(path.dirname(parent), {
+                sourceRunVersion: path.basename(sourceRunDir),
+                targetRunVersion: versionName,
+            });
+        } catch { /* best-effort registration; published target preserved */ }
         return { source: sourceRunDir, target, version_name: versionName, published: true };
     } catch (error) {
         if (stagingOwned) fs.rmSync(staging, { recursive: true, force: true });
@@ -1114,9 +1157,50 @@ family: hero
 `;
 }
 
-// This is intentionally opt-in until Task 4.9 activates HTML-first defaults.
+/**
+ * Canonical markerless whole-page Image2 starter source. It carries
+ * `identity.scheme: mnemonic-v1` and a whole-page render default but NO
+ * `production.pipeline` marker — the markerless branch is the source contract
+ * for the `image2-only` production mode. This is the seed adapter for the
+ * first-class Image2 create path; it is not "create HTML then rewrite".
+ */
+function _wholePageSeedSource(deckType = null) {
+    const seed = _HTML_FIRST_SEEDS[deckType || 'generic'];
+    return `---
+identity:
+  scheme: mnemonic-v1
+render:
+  default: full-page
+---
+
+## Slide 01: \`${seed.id}\`
+
+**VISUAL TYPE**: ${seed.visualType}
+**TITLE**: ${seed.title}
+**CONCEPT**:
+- **MUST communicate**: Replace this starter with one clear, reviewable claim.
+- **MUST NOT**: Invent a production.pipeline marker; the markerless whole-page
+  branch is the source contract for image2-only production.
+
+**SLIDE BODY**:
+\`\`\`yaml
+schema_version: 1
+family: hero
+\`\`\`
+`;
+}
+
+/** Source text + label for a production mode's canonical v1 seed. */
+function _seedSourceForMode(mode, deckType) {
+    if (mode === 'image2-only') return { source: _wholePageSeedSource(deckType), label: 'image2-only whole-page' };
+    return { source: _htmlFirstSeedSource(deckType), label: 'html-first' };
+}
+
+// Thin explicit HTML-first helper for tests/old callers. It delegates to the
+// mode-aware initBundle (html-only) and adds only the HTML-specific asset
+// catalog. Source, state, and metadata mirrors are owned by initBundle.
 export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
-    const created = initBundle(deckDir, frameworkDir, deckType, null);
+    const created = initBundle(deckDir, frameworkDir, deckType, null, { mode: 'html-only' });
     if (style !== null) {
         if (!STYLE_PRESETS.includes(style)) throw new Error(`unknown style preset ${JSON.stringify(style)}`);
         const root = frameworkDir || path.resolve(__dirname, '..', '..', '..');
@@ -1124,7 +1208,6 @@ export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = nul
         if (!fs.existsSync(palette)) throw new Error(`HTML-first style preset is missing ${COLOR_PALETTE_FILE}`);
         fs.copyFileSync(palette, path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, COLOR_PALETTE_FILE));
     }
-    fs.writeFileSync(path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME), _htmlFirstSeedSource(deckType), 'utf8');
     fs.writeFileSync(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_MANIFEST_FILE),
         'version: 2\nassets: {}\n',
@@ -1135,50 +1218,14 @@ export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = nul
         _HTML_FIRST_ASSETS_README,
         'utf8'
     );
-    const metadataPath = path.join(deckDir, METADATA_FILE);
-    const metadata = fs.readFileSync(metadataPath, 'utf8').replace(/\s*$/, '\n');
-    fs.writeFileSync(
-        metadataPath,
-        `${metadata}` +
-        '# HTML fields below are status mirrors only; authoritative review evidence lives in _state.\n' +
-        'html_content_gate: pending\n' +
-        'html_content_gate_run_version: v1\n' +
-        'html_visual_gate: pending\n' +
-        'html_visual_gate_run_version: v1\n',
-        'utf8'
-    );
-    const state = readState(deckDir);
-    state.pipeline = 'html-first-v1';
-    state.gates.html_content = 'pending';
-    state.gates.html_content_run_version = 'v1';
-    state.gates.html_visual = 'pending';
-    state.gates.html_visual_run_version = 'v1';
-    delete state.nodes['html-production-reset'];
-    writeState(deckDir, state);
     return [...created, `html-first seed: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`];
 }
 
-// Explicit compatibility scaffold for tests/maintenance of markerless
-// historical decks. New callers should use initBundle, which is HTML-first.
+// Explicit compatibility scaffold for markerless historical decks. It delegates
+// to the mode-aware initBundle (image2-only) so the markerless whole-page seed,
+// state, and mirror are owned once, not recreated by hand.
 export function initLegacyBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
-    const created = initBundle(deckDir, frameworkDir, deckType, style);
-    const state = readState(deckDir, { purpose: 'execute' });
-    state.pipeline = 'legacy-image2-first';
-    state.gates = { content: state.gates?.content || 'pending', visual: state.gates?.visual || 'pending' };
-    writeState(deckDir, state);
-    const dest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
-    const legacySource = [
-        '---',
-        'render:',
-        '  default: full-page',
-        '  header-lock: []',
-        '---',
-        '',
-        '# Legacy compatibility source',
-        '# Replace this placeholder through the legacy controller before production.',
-        '',
-    ].join('\n');
-    fs.writeFileSync(dest, legacySource, 'utf8');
+    const created = initBundle(deckDir, frameworkDir, deckType, style, { mode: 'image2-only' });
     return [...created, 'legacy-image2-first compatibility scaffold'];
 }
 
@@ -1275,7 +1322,7 @@ const _DIR_READMES = {
     [`${VERSIONS_DIR}/v1/${SCRATCH_SUBDIR}`]: SCRATCH_DIR_README,
 };
 
-export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
+export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
     if (frameworkDir === null) {
         frameworkDir = path.resolve(__dirname, '..', '..', '..');
     }
@@ -1289,6 +1336,11 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
             `unknown style preset ${JSON.stringify(style)}. ` +
             `Allowed: ${[...STYLE_PRESETS].sort().join(', ')}`);
     }
+    // Validate the production-mode enum BEFORE any filesystem creation so an
+    // invalid `init --mode` is a zero-write USAGE failure.
+    const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
+    const modePolicy = productionPolicyForMode(mode);
+    const derivedPipeline = modePolicy.pipeline;
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
@@ -1340,11 +1392,13 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     }
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
     if (!fs.existsSync(specsDest)) {
-        // Fresh bundles are HTML-first. Keep the checked-in templates as
-        // authoring references, but seed a runnable structured source so init
-        // never leaves an unavailable legacy delivery route active.
-        fs.writeFileSync(specsDest, _htmlFirstSeedSource(deckType), 'utf8');
-        log.push(`${specsLabel}: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`);
+        // Seed the canonical v1 source for the selected production mode. HTML
+        // modes seed the explicit html-first-v1 marker; image2-only seeds the
+        // canonical markerless whole-page branch. The mode adapter is selected
+        // directly here, never "create HTML then rewrite".
+        const seed = _seedSourceForMode(mode, deckType);
+        fs.writeFileSync(specsDest, seed.source, 'utf8');
+        log.push(`${specsLabel} (${seed.label}): ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`);
     }
 
     if (style) {
@@ -1378,7 +1432,9 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         `topic: \naudience: \nlanguage: \none_thing_to_remember: \n` +
         `content_gate: pending\nvisual_gate: pending\n` +
         `html_content_gate: pending\nhtml_content_gate_run_version: v1\n` +
-        `html_visual_gate: pending\nhtml_visual_gate_run_version: v1\n`);
+        `html_visual_gate: pending\nhtml_visual_gate_run_version: v1\n` +
+        `# production_mode is a non-authoritative mirror; _state/state.yaml is the routing authority.\n` +
+        `production_mode: ${mode}\nproduction_mode_run_version: v1\n`);
     _writeIfAbsent(
         path.join(deckDir, AGENT_POINTER_FILE),
         `# ${name}\n\n进入这个 run bundle 先读 [deck-guide.md](deck-guide.md)。` +
@@ -1438,14 +1494,20 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
 
     if (!fs.existsSync(statePath(deckDir))) {
         const state = createInitialState(name, deckType || '', style || '');
-        state.pipeline = 'html-first-v1';
-        state.gates.html_content = 'pending';
-        state.gates.html_visual = 'pending';
-        state.gates.html_content_run_version = 'v1';
-        state.gates.html_visual_run_version = 'v1';
+        state.pipeline = derivedPipeline;
+        state.production_mode.by_version['3_versions/v1'] = { mode };
+        if (derivedPipeline === HTML_FIRST_PIPELINE) {
+            state.gates.html_content = 'pending';
+            state.gates.html_visual = 'pending';
+            state.gates.html_content_run_version = 'v1';
+            state.gates.html_visual_run_version = 'v1';
+        } else {
+            state.gates.content = 'pending';
+            state.gates.visual = 'pending';
+        }
         setNodeStatus(state, 'instantiation', 'completed');
         writeState(deckDir, state);
-        log.push(`state: ${STATE_DIR}/${STATE_FILE}`);
+        log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
     }
 
     return log;

@@ -52,6 +52,18 @@ export async function recoverHtmlMigrationApply(runDir, options = {}) {
   return module.recoverHtmlMigrationApply(runDir, options);
 }
 
+/**
+ * Phase 5 owns preview-receipt inspection; shared state owns only the
+ * resulting controller CAS write. Keeping this adapter here prevents a
+ * shared-to-phase dependency while preserving the public root CLI boundary.
+ */
+export async function confirmHtmlMigrationApply(runDir, options = {}) {
+  const migration = await import("./migration/html_migration.mjs");
+  const inspection = migration.inspectHtmlMigrationConfirmation(runDir, options);
+  const { recordHtmlMigrationConfirmation } = await import("../shared/state/state.mjs");
+  return recordHtmlMigrationConfirmation(runDir, { ...options, inspection });
+}
+
 export async function inspectLegacyHeaderReview(runDir, options = {}) {
   const module = await import("./internal/application.mjs");
   return module.inspectLegacyHeaderReview(runDir, options);

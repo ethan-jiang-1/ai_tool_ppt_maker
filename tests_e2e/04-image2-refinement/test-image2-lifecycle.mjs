@@ -51,7 +51,7 @@ describe("modern Image2 refinement journey boundary", () => {
   });
 
   it("runs the authorized fake-provider lifecycle and promotes locally", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-full-lifecycle-");
+    const fixture = await createCurrentHtmlDelivery("image2-full-lifecycle-", { mode: "html-then-image2" });
     try {
       const review = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs");
 
@@ -109,7 +109,7 @@ describe("modern Image2 refinement journey boundary", () => {
   }, 120_000);
 
   it("recovers an asset-only promotion in a fresh process without another submit", async () => {
-    const fixture = await createCurrentHtmlDelivery("image2-interrupted-promotion-");
+    const fixture = await createCurrentHtmlDelivery("image2-interrupted-promotion-", { mode: "html-then-image2" });
     try {
       const ops = await loadRefinementOperations();
       const plan = await ops.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });

@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse } from "yaml";
+import { PRODUCTION_MODES, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 
 export const LIFECYCLE_PHASES = Object.freeze(["0", "1", "2", "3", "4", "5"]);
 export const METHOD_MODULES = Object.freeze([
@@ -37,6 +38,35 @@ export const RESERVED_NODE_IDS = Object.freeze([
   "image2-refinement",
 ]);
 export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "legacy-image2-first"]);
+export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
+
+/** Derived renderer pipeline for a valid production mode (null for invalid). */
+function derivedPipelineForMode(mode) {
+  const policy = productionPolicyForMode(mode);
+  return policy.ok ? policy.pipeline : null;
+}
+
+/**
+ * Effective supported production modes for a controller: the declared
+ * supported_production_modes when present, otherwise every mode whose derived
+ * pipeline is in the controller's supported_pipelines.
+ */
+export function controllerSupportedModes(controller) {
+  if (!controller) return [];
+  const declared = controller.supportedProductionModes;
+  if (declared.length > 0) return declared;
+  const pipelines = new Set(controller.supportedPipelines);
+  return PRODUCTION_MODES.filter((mode) => pipelines.has(derivedPipelineForMode(mode)));
+}
+
+/** True when a node is active under the exact mode given its controller scope. */
+export function nodeAppliesToMode(node, supportedModes, mode) {
+  if (!node) return false;
+  if (!Array.isArray(supportedModes) || !supportedModes.includes(mode)) return false;
+  const nodeModes = node.productionModes;
+  if (!nodeModes || nodeModes.length === 0) return true; // no restriction -> all supported modes
+  return nodeModes.includes(mode);
+}
 
 const DETERMINISTIC_CONDITIONS = new Set([
   "run_bundle_exists",
@@ -95,6 +125,8 @@ function normalizeNode(raw, meta) {
     exit: asStringArray(raw?.exit),
     produces: asStringArray(raw?.produces),
     decisions: asStringArray(raw?.decisions),
+    productionModes: asStringArray(raw?.production_modes),
+    modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
     shared: raw?.shared === true,
     raw,
     ...meta,
@@ -108,6 +140,7 @@ export function parseControllerFile(filePath) {
   const playbook = fm.data.playbook == null ? "" : String(fm.data.playbook);
   const includes = asStringArray(fm.data.includes);
   const supportedPipelines = asStringArray(fm.data.supported_pipelines);
+  const supportedProductionModes = asStringArray(fm.data.supported_production_modes);
   const nodes = [];
 
   if (fm.data.node) {
@@ -153,6 +186,7 @@ export function parseControllerFile(filePath) {
     playbook,
     includes,
     supportedPipelines,
+    supportedProductionModes,
     nodes,
     errors,
   };
@@ -305,6 +339,25 @@ export function validatePlaybookIndex(index) {
         (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "html-first-v1")) {
       errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "image2-refine must be HTML-first-only" });
     }
+    // Production-mode declarations: closed vocabulary, compatible with the
+    // controller's supported_pipelines, and node modes must stay within the
+    // controller's effective supported modes.
+    if (controller.supportedProductionModes.length > 0) {
+      if (new Set(controller.supportedProductionModes).size !== controller.supportedProductionModes.length) {
+        errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: "supported_production_modes must be unique" });
+      }
+      for (const mode of controller.supportedProductionModes) {
+        if (!SUPPORTED_PRODUCTION_MODES.includes(mode)) {
+          errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: `unsupported production mode ${mode}` });
+          continue;
+        }
+        const derived = derivedPipelineForMode(mode);
+        if (!controller.supportedPipelines.includes(derived)) {
+          errors.push({ rule: "supported-production-modes", source: controller.source, line: 1, message: `production mode ${mode} is incompatible with supported_pipelines` });
+        }
+      }
+    }
+    const effectiveModes = controllerSupportedModes(controller);
     const available = new Map();
     for (const include of controller.includes) {
       const shared = index.shared.get(include);
@@ -319,9 +372,25 @@ export function validatePlaybookIndex(index) {
     const seen = new Set(controller.includes);
     for (const node of controller.nodes) {
       validateNodeShape(node, errors);
+      if (node.productionModes.length > 0) {
+        if (new Set(node.productionModes).size !== node.productionModes.length) {
+          addError(errors, node, "production-modes", "production_modes must be unique");
+        }
+        for (const mode of node.productionModes) {
+          if (!SUPPORTED_PRODUCTION_MODES.includes(mode)) {
+            addError(errors, node, "production-modes", `unsupported production mode ${mode}`);
+          } else if (!effectiveModes.includes(mode)) {
+            addError(errors, node, "production-modes", `production mode ${mode} is outside controller ownership`);
+          }
+        }
+      }
       for (const required of node.requires) {
         if (!available.has(required)) addError(errors, node, "requires", `unknown required node ${required}`);
         else if (!seen.has(required)) addError(errors, node, "requires-order", `${required} must appear before ${node.id}`);
+      }
+      if (node.modeTransitionHandoff != null) {
+        if (!node.modeTransitionHandoff) addError(errors, node, "mode-transition-handoff", "mode_transition_handoff must be a non-empty node id");
+        else if (!available.has(node.modeTransitionHandoff)) addError(errors, node, "mode-transition-handoff", `unknown handoff node ${node.modeTransitionHandoff}`);
       }
       validateConditions(node, errors, available);
       if (controller.playbook === "image2-refine" && node.lifecyclePhase === "4") {
@@ -365,6 +434,28 @@ export function controllerNodeIds(index, playbook) {
   const controller = index.controllers.get(playbook);
   if (!controller) return [];
   return [...controller.includes, ...controller.nodes.map((node) => node.id)];
+}
+
+/**
+ * Mode-filtered active node IDs for a controller under the exact authoritative
+ * production mode. Includes apply when they have no mode restriction; nodes
+ * apply when their production_modes (defaulting to all supported modes) contain
+ * the mode. Inapplicable nodes are simply absent — never marked skipped.
+ */
+export function controllerActiveNodeIds(index, playbook, mode) {
+  const controller = index.controllers.get(playbook);
+  if (!controller) return [];
+  const supportedModes = controllerSupportedModes(controller);
+  if (mode && !supportedModes.includes(mode)) return [];
+  const active = [];
+  for (const include of controller.includes) {
+    const shared = index.shared.get(include);
+    if (!mode || nodeAppliesToMode(shared, supportedModes, mode)) active.push(include);
+  }
+  for (const node of controller.nodes) {
+    if (!mode || nodeAppliesToMode(node, supportedModes, mode)) active.push(node.id);
+  }
+  return active;
 }
 
 export function resolveNode(index, playbook, nodeId) {

@@ -13,6 +13,8 @@ agent_action: classify_changes
 
 # Change Classifier
 
+> 先按权威 `production_mode.by_version["3_versions/vN"].mode` 分类，再按 verified pipeline。`html-only` 现代细化（modern refinement）被禁用（typed guidance，零写入）；`html-then-image2` 细化是完成要求；`image2-only` 用 whole-page pilot/build，不走 modern visual-slot 细化，且 whole-page 工作不是 legacy-only maintenance。Structural Versioning Path 仍是增删重排的正式路径，不在这三个 refresh 路径之内。
+
 Probe the canonical `production.pipeline` before interpreting flags, render mode, readiness, or writing. Then resolve source owner and stale evidence.
 
 ## HTML-first routes

@@ -34,12 +34,20 @@ const __dirname = dirname(__filename);
 const ENV_CHECK_CLI = 'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
 const IS_WINDOWS = process.platform === 'win32';
 
+export const COMMON_CHECK_NAMES = Object.freeze([
+  'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'fonts', 'disk_space', 'git',
+]);
+export const HTML_CHECK_NAMES = Object.freeze(['playwright', 'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke']);
+export const HTML_PACKAGE_CHECK_NAMES = Object.freeze(['playwright', 'echarts']);
+// BASE_CHECK_NAMES is intentionally in runtime-emission order (not common-first)
+// so the emitted check stream matches documented/expected ordering.
 export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
   'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'stage2_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
+export const DOCTOR_MODES = Object.freeze(['html-only', 'html-then-image2', 'image2-only']);
 
 // --- Helpers ---
 
@@ -536,32 +544,41 @@ function providerDiagnostics(value) {
   return value || fallbackProviderDiagnostics();
 }
 
-async function runAllChecks({ includeImage2 = false, start = process.cwd(), providerApi = null } = {}) {
+async function runAllChecks({ includeImage2 = false, profile = 'common+html', start = process.cwd(), providerApi = null } = {}) {
   // Load .env from cwd/parents first (same walk-up helper as deps)
   for (const p of walkUpDirs(start)) {
     if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
   }
 
+  const includeHtml = profile === 'common+html';
   const node = checkNode();
   const npm = checkNpm();
   const packages = discoverNpmPackages(start);
+  // The Image2 profile excludes HTML-only package checks (playwright/echarts)
+  // and the HTML runtime so Image2-primary is not blocked by the HTML browser/
+  // chart/font runtime it does not use.
+  const packageChecks = includeHtml
+    ? packages.checks
+    : packages.checks.filter((check) => !HTML_PACKAGE_CHECK_NAMES.includes(check.check));
   const results = [
     node,
     npm,
-    ...packages.checks,
+    ...packageChecks,
     checkFonts(),
     checkDiskSpaceSync(),
     checkGitSafety(),
   ];
 
-  const npmBackedReady = node.status === 'ok'
-    && npm.status === 'ok'
-    && packages.checks.every((check) => check.status === 'ok')
-    && packages.playwright?.version === HTML_RUNTIME_PROFILE.playwrightVersion;
-  const runtimeChecks = npmBackedReady
-    ? await checkHtmlRuntime(packages.playwright)
-    : unavailableHtmlRuntimeChecks('npm-backed prerequisites are not ready');
-  results.splice(2 + packages.checks.length, 0, ...runtimeChecks);
+  if (includeHtml) {
+    const npmBackedReady = node.status === 'ok'
+      && npm.status === 'ok'
+      && packages.checks.every((check) => check.status === 'ok')
+      && packages.playwright?.version === HTML_RUNTIME_PROFILE.playwrightVersion;
+    const runtimeChecks = npmBackedReady
+      ? await checkHtmlRuntime(packages.playwright)
+      : unavailableHtmlRuntimeChecks('npm-backed prerequisites are not ready');
+    results.splice(2 + packageChecks.length, 0, ...runtimeChecks);
+  }
 
   if (includeImage2) {
     const apiKey = checkApiKey();
@@ -871,13 +888,50 @@ function formatText(results, allPass, { image2 = false } = {}) {
 
 // --- Main ---
 
+function argValue(argv, flag) {
+  const i = argv.indexOf(flag);
+  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
+}
+
+function emitEnvCheckUsage(message, hint) {
+  console.error(`Usage: ${message}`);
+  emitCliError({
+    code: CLI_ERROR_CODES.USAGE,
+    message,
+    hint,
+    where: 'env-check.arguments',
+    diagnostic: {
+      version: 1,
+      category: 'usage',
+      operation: 'parse-arguments',
+      next: createCliNext('fix_arguments', { default: hint }),
+    },
+  });
+}
+
 export async function runEnvCheckCli(argv = process.argv, { providerApi = null } = {}) {
   const explicitImage2 = argv.includes('--image2');
   const wantSmoke = argv.includes('--smoke');
   const wantProbe = argv.includes('--probe-vendors');
   const wantJson = argv.includes('--json');
-  const wantImage2 = explicitImage2 || wantSmoke || wantProbe;
+  const mode = argValue(argv, '--mode');
   if (wantJson) setCliOutputMode('json');
+
+  if (explicitImage2 && mode) {
+    emitEnvCheckUsage('--image2 is mutually exclusive with --mode', 'Use --mode <mode> (or let doctor resolve --run-dir) instead of the compatibility --image2 flag.');
+    process.exit(1);
+  }
+  if (mode != null && !DOCTOR_MODES.includes(mode)) {
+    emitEnvCheckUsage(`unknown --mode ${JSON.stringify(mode)}`, `Allowed: ${DOCTOR_MODES.join(', ')}.`);
+    process.exit(1);
+  }
+
+  // Profile selection: HTML modes (and the no-selector default) run common+HTML;
+  // image2-only (and the compatibility --image2 flag) run common+Image2 with no
+  // HTML browser/chart/font runtime, so Image2-primary is not blocked by HTML.
+  let profile = 'common+html';
+  if (explicitImage2 || mode === 'image2-only') profile = 'common';
+  let wantImage2 = explicitImage2 || wantSmoke || wantProbe || mode === 'image2-only';
 
   if (wantSmoke && wantProbe) {
     console.error(
@@ -898,7 +952,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     process.exit(1);
   }
 
-  const { results } = await runAllChecks({ includeImage2: wantImage2, providerApi });
+  const { results } = await runAllChecks({ includeImage2: wantImage2, profile, providerApi });
 
   if (wantSmoke || wantProbe) {
     const selectedChecksReady = results.every((result) => result.status !== 'fail');
@@ -928,6 +982,8 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     smoke: wantSmoke,
     probeVendors: wantProbe,
     image2: wantImage2,
+    profile,
+    mode: mode || (explicitImage2 ? 'image2-only' : null),
   };
   if (wantJson) {
     registerCliJsonReport(report, { schema: CLI_JSON_REPORT_SCHEMAS.ENV_CHECK });

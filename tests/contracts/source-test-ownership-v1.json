@@ -73,6 +73,7 @@
         "tests/04-image2-refinement/test_relay_compatibility.mjs"
       ],
       "e2e": [
+        "tests_e2e/04-image2-refinement/test-html-then-image2-completion.mjs",
         "tests_e2e/04-image2-refinement/test-image2-lifecycle.mjs",
         "tests_e2e/04-image2-refinement/test-refinement-flow.mjs"
       ]
@@ -96,7 +97,10 @@
         "tests/05-iteration/test_stage3_lock_headers.mjs",
         "tests/05-iteration/test_structural_reuse.mjs"
       ],
-      "e2e": ["tests_e2e/05-iteration/test-structural-slide-flow.mjs"]
+      "e2e": [
+        "tests_e2e/05-iteration/test-image2-primary-flow.mjs",
+        "tests_e2e/05-iteration/test-structural-slide-flow.mjs"
+      ]
     },
     {
       "owner": "contracts",
@@ -160,7 +164,8 @@
       ],
       "unit_integration": [
         "tests/shared/run-bundle/test_bundle_layout.mjs",
-        "tests/shared/run-bundle/test_lessons.mjs"
+        "tests/shared/run-bundle/test_lessons.mjs",
+        "tests/shared/run-bundle/test_production_mode.mjs"
       ],
       "e2e": ["tests_e2e/shared/run-bundle/test-lessons-flow.mjs"]
     },
@@ -175,6 +180,8 @@
       "unit_integration": [
         "tests/shared/state/test_html_review_evidence.mjs",
         "tests/shared/state/test_md_controller_reader.mjs",
+        "tests/shared/state/test_production_mode_index.mjs",
+        "tests/shared/state/test_production_mode_state.mjs",
         "tests/shared/state/test_state_yaml.mjs"
       ],
       "e2e": ["tests_e2e/shared/state/test-state-machine.mjs"]

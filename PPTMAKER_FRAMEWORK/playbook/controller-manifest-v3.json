@@ -3,8 +3,8 @@
   "shared_nodes": ["classify-change"],
   "controllers": {
     "create-deck": {
-      "supported_pipelines": ["html-first-v1"],
-      "nodes": ["instantiation", "checkpoint-intake", "author-structured-content", "configure-visual-system", "preview-content", "review-content", "review-visual", "produce-html-deck", "checkpoint-final-review", "repair-html-deck", "readiness", "final"]
+      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "nodes": ["instantiation", "checkpoint-intake", "author-structured-content", "configure-visual-system", "author-whole-page-content", "configure-whole-page-visual-system", "authorize-image2-style-master", "generate-image2-style-master", "pilot-image2-pages", "review-image2-content", "review-image2-visual", "review-image2-header", "authorize-image2-build", "produce-image2-deck", "checkpoint-image2-final-review", "repair-image2-deck", "image2-readiness", "final-image2", "preview-content", "review-content", "review-visual", "produce-html-deck", "checkpoint-final-review", "handoff-to-image2-refinement", "repair-html-deck", "readiness", "final"]
     },
     "edit-notes": {
       "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
