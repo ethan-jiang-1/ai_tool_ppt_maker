@@ -1,13 +1,16 @@
 ---
 playbook: create-deck
-description: 从 HTML-first 初始化到本地 contact sheet、PPTX、notes 与 final review
+description: HTML 生产模式的本地 create 流程（html-only / html-then-image2）到 contact sheet、PPTX、notes 与 final review
 supported_pipelines: [html-first-v1]
+supported_production_modes: [html-only, html-then-image2]
 includes: []
 ---
 
-# Playbook: Create Deck
+# Playbook: Create Deck (HTML 生产模式)
 
-新 deck 不询问 renderer，不要求 Image2 key/style master，不创建 Phase-4 state。所有 human gate 都基于当前 reset-bound real artifacts。
+本 controller 拥有 `html-only` 与 `html-then-image2` 的 create 流程（pipeline `html-first-v1`）。`image2-only`（markerless whole-page）是独立的 first-class 生产路径，不经过这些 HTML 节点；切换 mode 用 `state <run> --set-production-mode`，跨管道切换返回 `transition_required`。
+
+`html-only` 是零 provider 本地完成路径；`html-then-image2` 在 HTML 交付后把 refinement 作为完成要求，handoff/return 经过 `image2-refine` controller。新 deck 不询问 renderer，不要求 Image2 key/style master（HTML 模式下），不创建 Phase-4 state。所有 human gate 都基于当前 reset-bound real artifacts。
 
 ## Nodes
 
