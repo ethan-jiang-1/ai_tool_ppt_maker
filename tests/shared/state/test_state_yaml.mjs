@@ -273,9 +273,12 @@ playbook_stack: {}
       s.pipeline = 'html-first-v1';
       s.playbook = 'iterate-style';
       s.current_node = 'review-style-system';
+      s.run_version = 'v1';
       s.nodes = {
         'review-style-system': {
           status: 'in_progress',
+          execution_id: s.execution_id,
+          run_version: 'v1',
           waiting_for: 'user:review-style-master',
           note: 'open style master',
         },
@@ -298,9 +301,14 @@ playbook_stack: {}
     const s = createDefaultState();
     s.playbook = 'iterate-style';
     s.current_node = 'review-style-system';
+    s.execution_id = 'exec-card-waiting';
+    s.execution_started_at = '2024-01-01T00:00:00.000Z';
+    s.run_version = 'v1';
     s.nodes = {
       'review-style-system': {
         status: 'in_progress',
+        execution_id: s.execution_id,
+        run_version: 'v1',
         waiting_for: 'user:review-style-master',
       },
     };
@@ -322,7 +330,10 @@ playbook_stack: {}
     const s = createDefaultState();
     s.playbook = 'create-deck';
     s.current_node = 'wave3';
-    s.nodes = { wave3: { status: 'in_progress' } };
+    s.execution_id = 'exec-card-heuristic';
+    s.execution_started_at = '2024-01-01T00:00:00.000Z';
+    s.run_version = 'v1';
+    s.nodes = { wave3: { status: 'in_progress', execution_id: s.execution_id, run_version: 'v1' } };
     const mid = buildResumeCard(s, {
       style_master: true,
       raw_images: 3,
@@ -345,7 +356,10 @@ playbook_stack: {}
     const s = createDefaultState();
     s.playbook = 'image2-refine';
     s.current_node = 'recommend-image2-refinement';
-    s.nodes = { 'recommend-image2-refinement': { status: 'in_progress' } };
+    s.execution_id = 'exec-card-guidance';
+    s.execution_started_at = '2024-01-01T00:00:00.000Z';
+    s.run_version = 'v1';
+    s.nodes = { 'recommend-image2-refinement': { status: 'in_progress', execution_id: s.execution_id, run_version: 'v1' } };
     const guidance = {
       summary: 'HTML visual review needs an explicit decision',
       recommended_command: 'node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve "/tmp/deck/3_versions/v1" visual --plan-hash abc',

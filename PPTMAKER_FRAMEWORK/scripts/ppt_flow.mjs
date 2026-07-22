@@ -706,7 +706,10 @@ async function enrichStatusWithState(status, runDir, route = null) {
   const { readState, buildResumeCard, statePath, projectImage2RefinementState, inspectRunProductionMode } = await import("./shared/state/state.mjs");
   const root = deckRoot(runDir);
   status.state_present = existsSync(statePath(root));
-  const s = readState(root, { heal: false });
+  // Status must project the exact run-bound execution. This also performs the
+  // ordered schema migration when a pre-v5 state has one unambiguous visible
+  // version; returning the raw v4 working set would hide the breakpoint.
+  const s = readState(root, { runDir });
   if (s.corrupted) {
     status.playbook = "";
     status.current_node = "";
@@ -2514,6 +2517,21 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
   if (!["prepare", "preview", "apply"].includes(operation)) {
     return emitUsage("ppt_flow.migrate-html.operation", 'operation must be "prepare", "preview", or "apply".', "Pass prepare, preview, or apply after the run directory");
   }
+  // A durable mode-governed source has exactly one public cross-pipeline
+  // protocol. Historical migration can only finish an already-active exact
+  // checkpoint; it can never prepare or preview a competing candidate.
+  const assertLegacyMigrationRoute = async () => {
+    const { readState } = await import("./shared/state/state.mjs");
+    const sourceVersion = basename(resolved);
+    const state = readState(deckRoot(resolved), { purpose: "observe", heal: false, runVersion: sourceVersion });
+    const durableMode = state?.production_mode?.by_version?.[`3_versions/${sourceVersion}`]?.mode;
+    const legacyCheckpoint = state?.playbook === "migrate-import" &&
+      ["confirm-html-migration", "apply-html-migration", "migration-target-review"].includes(state?.current_node) &&
+      state?.run_version === sourceVersion;
+    if (durableMode && (operation !== "apply" || !legacyCheckpoint)) {
+      throw new Error("mode-governed cross-pipeline requests must use the closed production-mode transition protocol");
+    }
+  };
   if (operation === "prepare") {
     if (opts.planHash || opts.oldSideMode || opts.recoverJournal) {
       return emitUsage(
@@ -2537,6 +2555,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { prepareHtmlMigration } = await import("./05-iteration/index.mjs");
       const result = await prepareHtmlMigration(resolved, { preset: opts.preset });
       renderMigrationResult(result);
@@ -2559,6 +2578,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { previewHtmlMigration } = await import("./05-iteration/index.mjs");
       const result = await previewHtmlMigration(resolved);
       renderMigrationResult(result);
@@ -2596,6 +2616,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
       );
     }
     try {
+      await assertLegacyMigrationRoute();
       const { recoverHtmlMigrationApply } = await import("./05-iteration/index.mjs");
       const result = await recoverHtmlMigrationApply(resolved, { recoverJournalToken: opts.recoverJournal });
       renderMigrationResult(result);
@@ -2632,6 +2653,7 @@ async function commandMigrateHtml(runDir, operation, opts = {}) {
     );
   }
   try {
+    await assertLegacyMigrationRoute();
     const { applyHtmlMigration } = await import("./05-iteration/index.mjs");
     const result = await applyHtmlMigration(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
     renderMigrationResult(result);
@@ -3216,6 +3238,12 @@ Examples:
     .option("--confirm-migration-apply", "Confirm the exact current markerless migration preview for apply")
     .option("--plan-hash <hash>", "Exact migration preview plan hash for --confirm-migration-apply")
     .option("--old-side-mode <mode>", "Exact migration old-side mode for --confirm-migration-apply")
+    .option("--prepare-production-mode-transition <mode>", "Prepare a cross-pipeline target candidate")
+    .option("--preview-production-mode-transition", "Preview the prepared cross-pipeline target candidate")
+    .option("--confirm-production-mode-transition", "Confirm the exact cross-pipeline target preview")
+    .option("--apply-production-mode-transition", "Publish and hand off an exact confirmed cross-pipeline transition")
+    .option("--confirm-production-mode-transition-recovery <ownerToken>", "Record an exact old-enough uncertain transition-journal confirmation")
+    .option("--recover-production-mode-transition [ownerToken]", "Recover an exact transition journal or visible target")
     .option("--force", "For --record-delivery-review proceed: waive a reversible HTML evidence risk")
     .option("--reason <text>", "Required for repair/redirect and forced proceed decisions")
     .option("--set-production-mode <mode>", "Set the exact run version's production mode (same-pipeline html-only<->html-then-image2)")
@@ -3227,7 +3255,8 @@ Examples:
       // Validate the closed state grammar before resolving a run, importing a
       // state owner, or probing source. Mixed forms must be a zero-read/zero-
       // write USAGE failure.
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + Number(Boolean(opts.confirmMigrationApply)) + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview));
+      const transitionOperations = Number(Boolean(opts.prepareProductionModeTransition)) + Number(Boolean(opts.previewProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransition)) + Number(Boolean(opts.applyProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransitionRecovery)) + Number(Boolean(opts.recoverProductionModeTransition));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + Number(Boolean(opts.confirmMigrationApply)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
         process.exitCode = 1;
@@ -3243,8 +3272,8 @@ Examples:
         process.exitCode = 1;
         return;
       }
-      if ((opts.planHash || opts.oldSideMode) && !opts.confirmMigrationApply) {
-        emitUsage("ppt_flow.state", "--plan-hash and --old-side-mode apply only to --confirm-migration-apply", "Use both exact values with the closed migration confirmation operation.");
+      if ((opts.planHash || opts.oldSideMode) && !opts.confirmMigrationApply && !opts.confirmProductionModeTransition && !opts.applyProductionModeTransition) {
+        emitUsage("ppt_flow.state", "--plan-hash applies only to a closed migration or production-mode-transition confirmation/apply", "Use the exact preview hash with one closed confirmation or apply operation.");
         process.exitCode = 1;
         return;
       }
@@ -3293,6 +3322,107 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.confirm-migration-apply", error.message, "Obtain a fresh complete preview, keep the active migration confirmation node unchanged, and retry the exact hash/mode.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.prepareProductionModeTransition) {
+        if (!PRODUCTION_MODES.includes(opts.prepareProductionModeTransition)) {
+          emitUsage("ppt_flow.state.prepare-production-mode-transition", `target mode must be one of ${[...PRODUCTION_MODES].join(", ")}`, "Choose the target page-authority mode before authoring its candidate.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { prepareProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const result = await prepareProductionModeTransition(resolved, { targetMode: opts.prepareProductionModeTransition });
+          console.log(JSON.stringify({ operation: "prepare-production-mode-transition", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.prepare-production-mode-transition", error.message, "Resolve the selected source mode or candidate ownership conflict, then retry the closed prepare operation.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.previewProductionModeTransition) {
+        try {
+          const { previewProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const result = await previewProductionModeTransition(resolved);
+          console.log(JSON.stringify({ operation: "preview-production-mode-transition", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.preview-production-mode-transition", error.message, "Complete the target-owned candidate fields or prepare a fresh transition preview.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.confirmProductionModeTransition) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "") || opts.oldSideMode) {
+          emitUsage("ppt_flow.state.confirm-production-mode-transition", "confirmation requires only --plan-hash <64-lowercase-hex>", "Copy the exact production-mode transition preview hash.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { confirmProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const result = await confirmProductionModeTransition(resolved, { planHash: opts.planHash });
+          console.log(JSON.stringify({ operation: "confirm-production-mode-transition", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.confirm-production-mode-transition", error.message, "Reinspect the unchanged source and candidate, then confirm only the exact current transition preview.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.applyProductionModeTransition) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "") || opts.oldSideMode) {
+          emitUsage("ppt_flow.state.apply-production-mode-transition", "apply requires only --plan-hash <64-lowercase-hex>", "Apply only the exact confirmed production-mode transition hash.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { applyProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const result = await applyProductionModeTransition(resolved, { planHash: opts.planHash });
+          console.log(JSON.stringify({ operation: "apply-production-mode-transition", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.apply-production-mode-transition", error.message, "Use the exact active transition checkpoint or its closed recovery operation; do not edit state or generated artifacts manually.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.confirmProductionModeTransitionRecovery) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.confirmProductionModeTransitionRecovery)) {
+          emitUsage("ppt_flow.state.confirm-production-mode-transition-recovery", "--confirm-production-mode-transition-recovery requires a 64-lowercase-hex owner token", "Use the exact opaque token from the uncertain-owner recovery diagnostic.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { recordActiveProductionModeTransitionRecoveryConfirmation } = await import("./shared/state/state.mjs");
+          const result = recordActiveProductionModeTransitionRecoveryConfirmation(deckDir, {
+            sourceRunVersion: basename(resolved),
+            ownerToken: opts.confirmProductionModeTransitionRecovery,
+          });
+          console.log(JSON.stringify({ operation: "confirm-production-mode-transition-recovery", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.confirm-production-mode-transition-recovery", error.message, "Re-inspect the exact active transition journal and retry only its matching owner token after the required age.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.recoverProductionModeTransition) {
+        const ownerToken = opts.recoverProductionModeTransition === true ? null : opts.recoverProductionModeTransition;
+        if (ownerToken !== null && !MIGRATION_PLAN_SHA_RE.test(ownerToken)) {
+          emitUsage("ppt_flow.state.recover-production-mode-transition", "recovery owner token must be a 64-lowercase-hex token", "Pass no token for an exact visible target or the exact token for an uncertain journal.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { recoverProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const result = await recoverProductionModeTransition(resolved, { ownerToken });
+          console.log(JSON.stringify({ operation: "recover-production-mode-transition", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.recover-production-mode-transition", error.message, "Follow the producer-owned journal or visible-target recovery checkpoint without replacing source work.");
           process.exitCode = 1;
           return;
         }

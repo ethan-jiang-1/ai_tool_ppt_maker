@@ -113,6 +113,17 @@ context: |-
   the direct source/evaluator/handoff/recovery path; capability specifications
   alone define concrete commands, record fields, and permissions.
 
+  ## Simple reliable control
+
+  All new or modified quality-control paths also follow
+  `openspec/policies/simple-reliable-control.md`. Quality control SHALL be
+  simpler than the work it validates: prefer one direct truth path, prerequisite
+  short-circuiting, bounded root-cause feedback, explicit same-check recovery,
+  and focused negative tests. Any new blocking rule, state, validator, retry,
+  fallback, or recovery layer must show what duplicate complexity it removes or
+  consolidates; otherwise reduce scope or make the rule advisory. This policy
+  is charter-level guidance and does not define runtime schemas or permissions.
+
   ## Capability 注册表
 
   Capability 是 proposal → delta specs → main specs 的稳定归属边界。名称使用 kebab-case，
@@ -228,6 +239,11 @@ rules:
       涉及 controller handoff、Agent 自动执行、state/recovery、deterministic check 或 diagnostic
       control path 时，必须引用 `openspec/policies/agent-assistance-and-control.md`：说明直接
       authority、真正需要人类的最小决定、Agent 可继续执行的机械工作，以及避免或合并的重复控制。
+    - >-
+      涉及任何新的或修改后的质量控制路径时，必须引用
+      `openspec/policies/simple-reliable-control.md`：说明最短正确闭环、前置失败短路、唯一最近动作、
+      以及新增 blocking rule/state/validator/retry/fallback/recovery 所删除或合并的复杂度；
+      无法说明净简化时应缩 scope 或降为 advisory。
 
   specs:
     - >-
@@ -255,6 +271,9 @@ rules:
       涉及 deterministic control path 的 requirement 必须指定 owning source of record，并复用
       已有 evaluator 或解释为什么不能复用；前置 authority/identity 失败时必须短路派生症状，
       而非新增 competing pass/fail projection。
+    - >-
+      质量控制 requirement 必须保持比被验证工作更简单：primary diagnostic 只返回最小可修复根因和
+      一个最近合法动作；无法可靠判断时 fail closed 或显式 unknown，不得依赖隐式 fallback。
 
   design:
     - >-
@@ -278,6 +297,9 @@ rules:
     - >-
       新增 state、validator、recovery branch 或 controller step 时，Design 必须说明 owner、
       writer/reader、失效规则、最近合法下一动作，以及替代、删除或避免的重复控制复杂度。
+    - >-
+      Design 新增任何质量控制层时必须应用 `simple-reliable-control.md` 的 complexity burden：
+      说明 direct fact、现有 checkpoint 的不足、被删除或合并的逻辑、唯一失败动作和 focused negative test。
 
   tasks:
     - >-

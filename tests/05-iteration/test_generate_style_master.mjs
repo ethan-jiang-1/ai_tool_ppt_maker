@@ -100,6 +100,13 @@ describe('style master deck_system injection', () => {
     state.playbook = 'create-deck';
     state.execution_id = 'exec-style-master';
     state.execution_started_at = '2024-01-01T00:00:00.000Z';
+    state.run_version = 'v1';
+    for (const record of Object.values(state.nodes)) {
+      if (record && typeof record === 'object' && !record.by_version) {
+        record.execution_id = state.execution_id;
+        record.run_version = state.run_version;
+      }
+    }
     writeState(deck, state);
     const promptPath = join(deck, '2_backbone', 'visual-style', 'style-master-prompt.md');
     const deckSystemPath = join(deck, '2_backbone', 'visual-style', 'deck_system.txt');

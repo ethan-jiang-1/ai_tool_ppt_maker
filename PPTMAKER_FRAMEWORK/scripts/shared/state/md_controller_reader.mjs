@@ -80,6 +80,8 @@ const DETERMINISTIC_CONDITIONS = new Set([
   "header_review_current",
   "html_first_marked",
   "html_delivery_review_current",
+  "transition_apply_current",
+  "transition_publish_or_recovery_recorded",
 ]);
 
 function lineNumber(text, offset) {

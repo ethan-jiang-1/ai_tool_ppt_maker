@@ -32,7 +32,7 @@
     },
     "migrate-import": {
       "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
-      "nodes": ["intake-migration", "map-migration-inputs", "preview-html-migration", "confirm-html-migration", "apply-html-migration", "migration-target-review"]
+      "nodes": ["intake-migration", "map-migration-inputs", "preview-html-migration", "confirm-html-migration", "apply-html-migration", "migration-target-review", "apply-production-mode-transition"]
     },
     "probe-image-channels": {
       "supported_pipelines": ["legacy-image2-first"],

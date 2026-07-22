@@ -93,12 +93,14 @@
         "tests/05-iteration/test_html_first_structural.mjs",
         "tests/05-iteration/test_html_migration.mjs",
         "tests/05-iteration/test_image_generation.mjs",
+        "tests/05-iteration/test_production_mode_transition.mjs",
         "tests/05-iteration/test_render_artifacts.mjs",
         "tests/05-iteration/test_stage3_lock_headers.mjs",
         "tests/05-iteration/test_structural_reuse.mjs"
       ],
       "e2e": [
         "tests_e2e/05-iteration/test-image2-primary-flow.mjs",
+        "tests_e2e/05-iteration/test-production-mode-transition-flow.mjs",
         "tests_e2e/05-iteration/test-structural-slide-flow.mjs"
       ]
     },

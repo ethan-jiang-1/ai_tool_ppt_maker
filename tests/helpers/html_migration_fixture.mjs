@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -24,6 +24,9 @@ export function createMarkerlessMigrationFixture(prefix = "markerless-migration-
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, "deck_markerless");
   initBundle(deck, null, "keynote", "dark-executive");
+  // This fixture represents a historical markerless source before durable
+  // mode authority. Fresh durable sources use production-mode-transition.
+  rmSync(join(deck, "_state", "state.yaml"), { force: true });
   const runDir = join(deck, "3_versions", "v1");
   writeFileSync(join(runDir, "slide-specifications.md"), markerlessMigrationSource(), "utf8");
   const assetsDir = join(deck, "2_backbone", "visual-style", "assets");

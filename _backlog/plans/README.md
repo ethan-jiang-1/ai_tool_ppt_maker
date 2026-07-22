@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-21 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-22 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [三模式生产系统](production-mode-system.md) — 当前思考输入；目标是让 Image2 主生产路径先在新 flow 中可发行，HTML 质量范围待下一轮重新规划
+- [Agent 工作流控制面的减法重构](agent-workflow-simplification.md) — 审视 policy 后的控制面简化路线；先统一 next-action authority，再退休双轨 node FSM、深化 interface 并削减结构治理
 
-**Next available plan ID: CLS-010**（移入 `_closed_plans/` 时分配；CLS-001…009 已用）
+**Next available plan ID: CLS-011**（移入 `_closed_plans/` 时分配；CLS-001…010 已用）
 
 ---
 

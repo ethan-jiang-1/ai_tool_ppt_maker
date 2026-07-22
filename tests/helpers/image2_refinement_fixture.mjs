@@ -41,7 +41,7 @@ export async function createCurrentHtmlDelivery(prefix = "image2-current-deliver
   state.playbook = "create-deck";
   state.production_mode.by_version["3_versions/v1"] = { mode };
   state.current_node = "checkpoint-final-review";
-  state.nodes["checkpoint-final-review"] = { status: "in_progress", execution_id: state.execution_id, evidence: {} };
+  state.nodes["checkpoint-final-review"] = { status: "in_progress", execution_id: state.execution_id, run_version: "v1", evidence: {} };
   stateApi.writeState(fixture.deck, state);
   review.publishHtmlDeliveryDecision(fixture.runDir, { decision: "proceed" });
   return fixture;

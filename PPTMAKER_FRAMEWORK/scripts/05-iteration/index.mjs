@@ -52,6 +52,31 @@ export async function recoverHtmlMigrationApply(runDir, options = {}) {
   return module.recoverHtmlMigrationApply(runDir, options);
 }
 
+export async function prepareProductionModeTransition(runDir, options = {}) {
+  const module = await import("./migration/production_mode_transition.mjs");
+  return module.prepareProductionModeTransition(runDir, options);
+}
+
+export async function previewProductionModeTransition(runDir) {
+  const module = await import("./migration/production_mode_transition.mjs");
+  return module.previewProductionModeTransition(runDir);
+}
+
+export async function confirmProductionModeTransition(runDir, options = {}) {
+  const module = await import("./migration/production_mode_transition.mjs");
+  return module.confirmPreparedProductionModeTransition(runDir, options);
+}
+
+export async function applyProductionModeTransition(runDir, options = {}) {
+  const module = await import("./migration/production_mode_transition.mjs");
+  return module.applyProductionModeTransition(runDir, options);
+}
+
+export async function recoverProductionModeTransition(runDir, options = {}) {
+  const module = await import("./migration/production_mode_transition.mjs");
+  return module.recoverProductionModeTransition(runDir, options);
+}
+
 /**
  * Phase 5 owns preview-receipt inspection; shared state owns only the
  * resulting controller CAS write. Keeping this adapter here prevents a

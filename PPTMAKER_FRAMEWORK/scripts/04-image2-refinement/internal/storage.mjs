@@ -232,7 +232,7 @@ export function assertPromotionFencesClear(runDir) {
   const paths = refinementPaths(runDir);
   const root = deckRoot(paths.run);
   if (existsSync(join(root, "_state", "gate-approval-journal.json"))) throw new Error("CONFLICT: gate approval journal fences refinement promotion");
-  const state = readState(root, { purpose: "observe", heal: false });
+  const state = readState(root, { purpose: "observe", heal: false, runVersion: paths.run_version });
   const reset = state?.nodes?.["html-production-reset"]?.by_version?.[`3_versions/${paths.run_version}`];
   if (reset?.status === "deletion_pending") throw new Error("CONFLICT: HTML production reset fences refinement promotion");
 }
@@ -281,7 +281,7 @@ function validatePromotionJournal(record, paths) {
 export function createPromotionJournal(runDir, record) {
   const paths = refinementPaths(runDir);
   validatePromotionJournal(record, paths);
-  const state = readState(deckRoot(paths.run), { purpose: "execute", heal: false });
+  const state = readState(deckRoot(paths.run), { purpose: "execute", heal: false, runVersion: paths.run_version });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
   const current = {
     asset_manifest_sha256: readVersionFileSha(paths.asset_manifest),

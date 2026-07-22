@@ -74,11 +74,11 @@ import { fileURLToPath } from 'node:url';
 import { readState, writeState, setNodeStatus, createInitialState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath, registerProductionModeFromSource } from '../state/state.mjs';
 import { inspectHtmlReviewReadiness as inspectHtmlReviewReadinessCore } from '../state/internal/html_review_evidence_core.mjs';
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from './production_marker.mjs';
-import { PRODUCTION_MODES, productionPolicyForMode } from './production_mode.mjs';
+import { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
 
 // Production-mode policy is consumed by the root CLI through this public
 // run-bundle interface; the policy module itself remains an internal detail.
-export { PRODUCTION_MODES, productionPolicyForMode };
+export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode };
 
 /**
  * Production mode assumed when `ppt_flow init` omits `--mode`. New decks default
@@ -646,6 +646,51 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
     }
 }
 
+function _checkProductionModeTransitionScratch(runDir, problems) {
+    const transition = path.join(runDir, SCRATCH_SUBDIR, 'production-mode-transition');
+    if (fs.existsSync(transition) && fs.statSync(transition).isDirectory()) {
+        const allowed = new Map([['candidate-run', 'directory'], ['plan.json', 'file'], ['apply-journal.json', 'file']]);
+        for (const entry of fs.readdirSync(transition, { withFileTypes: true })) {
+            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            const kind = allowed.get(entry.name);
+            if (!kind) {
+                problems.push(`unexpected '${entry.name}' in production-mode-transition scratch/`);
+                continue;
+            }
+            if ((kind === 'file' && !entry.isFile()) || (kind === 'directory' && !entry.isDirectory())) {
+                problems.push(`production-mode-transition scratch '${entry.name}' must be a ${kind}`);
+            }
+        }
+    }
+}
+
+function _checkProductionModeTransitionReceipt(runDir, problems) {
+    const receipt = path.join(runDir, GENERATED_SUBDIR, GEN_QA_SUBDIR, 'production_mode_transition.json');
+    if (!fs.existsSync(receipt)) return;
+    if (!fs.statSync(receipt).isFile()) {
+        problems.push('production-mode transition receipt must be a file under _generated/qa/');
+        return;
+    }
+    try {
+        const value = JSON.parse(fs.readFileSync(receipt, 'utf8'));
+        const targetVersion = path.basename(runDir);
+        const exact = value && typeof value === 'object' && !Array.isArray(value) &&
+            value.schema === 'pptmaker-production-mode-transition-success-v1' &&
+            typeof value.plan_hash === 'string' && /^[0-9a-f]{64}$/.test(value.plan_hash) &&
+            typeof value.source_execution_id === 'string' && value.source_execution_id &&
+            typeof value.source_version === 'string' && /^v[1-9][0-9]*$/.test(value.source_version) &&
+            value.target_version === targetVersion &&
+            isProductionMode(value.target_mode) &&
+            productionPolicyForMode(value.target_mode).pipeline === value.target_pipeline &&
+            typeof value.candidate_receipt_sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.candidate_receipt_sha256) &&
+            typeof value.target_intake_sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.target_intake_sha256) &&
+            typeof value.source_control_fingerprint === 'string' && /^[0-9a-f]{64}$/.test(value.source_control_fingerprint);
+        if (!exact) problems.push('production-mode transition receipt has an invalid closed schema or target binding');
+    } catch {
+        problems.push('production-mode transition receipt is invalid JSON');
+    }
+}
+
 function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR);
     if (!fs.existsSync(generated) || !fs.statSync(generated).isDirectory()) return;
@@ -860,6 +905,8 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     }
 
     _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems);
+    _checkProductionModeTransitionScratch(runDir, problems);
+    _checkProductionModeTransitionReceipt(runDir, problems);
     _checkImage2RefinementPartitions(runDir, htmlFirst, problems);
     if (htmlFirst) _checkHtmlGeneratedTopology(runDir, problems);
     if (htmlFirst && mode === 'pipeline') {

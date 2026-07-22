@@ -8,7 +8,7 @@ includes: []
 
 # Playbook: Create Deck
 
-本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。`image2-only` 是 markerless whole-page 的 first-class 生产路径，不进入 compatibility-only `legacy-image2-maintenance`；`html-only` 与 `html-then-image2` 使用 `html-first-v1` 的本地 HTML 路径。跨 pipeline 改 mode 不编辑当前 version，而是返回 versioned-transition guidance。
+本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。`image2-only` 是 markerless whole-page 的 first-class 生产路径，不进入 compatibility-only `legacy-image2-maintenance`；`html-only` 与 `html-then-image2` 使用 `html-first-v1` 的本地 HTML 路径。跨 pipeline 改 mode 不编辑当前 version；`migrate-import` 的 state-owned versioned transition 保留 source、author target-owned candidate、确认 exact plan，并在 verified handoff 后从此 controller 的 target baseline 继续。
 
 `image2-only` 默认选择 normal whole-page style-master, pilot, content/visual/header review, build, PPTX, notes, evidence-bound final review；每个实际 provider submit 前单独展示并记录 exact operation/scope/profile/count authorization。已证明的 zero-submit reuse/local work 不虚构授权。`html-only` 是 zero-provider 本地完成路径；`html-then-image2` 在 HTML final review 后进入必需的 `image2-refine` handoff，再回到新的 final review。所有质量 gate 基于当前真实 artifact；init、doctor、probe 和旧批次都不是 provider authorization。
 
