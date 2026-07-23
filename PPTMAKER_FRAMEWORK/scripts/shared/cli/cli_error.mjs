@@ -515,7 +515,10 @@ export function setCliOutputMode(mode) {
 }
 
 function sanitizeReportValue(value, depth = 0) {
-  if (depth > 8) throw new Error("CLI JSON report is too deeply nested");
+  // State observation composes bounded workflow, review, and visual-slot
+  // projections. A missing review can add one diagnostic layer without making
+  // the report unsafe; the byte cap remains the public output boundary.
+  if (depth > 12) throw new Error("CLI JSON report is too deeply nested");
   if (value === null || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value))) return value;
   if (typeof value === "string") {
     if (SECRETISH_RE.test(value) || value.length > CLI_BOUNDS.pathChars) throw new Error("CLI JSON report contains unsafe text");

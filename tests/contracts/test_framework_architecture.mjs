@@ -29,7 +29,7 @@ function ownerFor(path) {
 function canonicalSnapshot() {
   const files = {
     "README.md": "target tree",
-    "04-image2-refinement/README.md": "optional refinement",
+    "04-image-production/README.md": "optional refinement",
     "shared/state/internal/html_review_evidence_core.mjs": "export const evaluate = () => ({});",
   };
   const interfaces = [
@@ -83,11 +83,11 @@ describe("framework architecture contract", () => {
       "01-content": [],
       "02-visual-system": [],
       "03-html-production": ["00-setup", "01-content", "02-visual-system"],
-      "04-image2-refinement": ["02-visual-system", "03-html-production"],
-      "05-iteration": ["01-content", "02-visual-system", "03-html-production"],
+      "04-image-production": ["01-content", "02-visual-system", "03-html-production"],
+      "05-iteration": ["01-content", "02-visual-system", "03-html-production", "04-image-production"],
     });
     const snapshot = canonicalSnapshot();
-    snapshot.files["04-image2-refinement/cli.mjs"] = "export {};";
+    snapshot.files["04-image-production/cli.mjs"] = "export {};";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("phase4-public-surface");
   });
 
@@ -109,19 +109,19 @@ describe("framework architecture contract", () => {
     ]);
   });
 
-  it("rejects forbidden Phase, shared, core, and legacy/modern Image2 edges", () => {
+  it("rejects forbidden Phase, shared, core, and cross-adapter private edges", () => {
     const cases = [
       ["00-setup/index.mjs", `import "../05-iteration/index.mjs";`, "phase-adjacency"],
       ["03-html-production/index.mjs", `import "../01-content/internal/private.mjs";`, "foreign-phase-private-import"],
       ["shared/state/state.mjs", `import "../../03-html-production/index.mjs";`, "shared-phase-import"],
       ["shared/identity/byte_hash.mjs", `import "../state/internal/html_review_evidence_core.mjs";`, "review-core-importer"],
-      ["05-iteration/legacy-image2/internal/provider.mjs", `import "../../../04-image2-refinement/index.mjs";`, "legacy-modern-image2-edge"],
+      ["04-image-production/whole-page/internal/provider.mjs", `import "../../visual-slot/internal/transport.mjs";`, "cross-adapter-private-import"],
     ];
     for (const [path, source, code] of cases) {
       const snapshot = canonicalSnapshot();
       snapshot.files[path] = source;
       if (source.includes("private.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
-      if (path.includes("provider.mjs")) snapshot.files["04-image2-refinement/index.mjs"] = "export {};";
+      if (path.includes("provider.mjs")) snapshot.files["04-image-production/visual-slot/internal/transport.mjs"] = "export {};";
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${code}`).toContain(code);
     }
   });
@@ -168,13 +168,13 @@ describe("framework architecture contract", () => {
       return result.stderr;
     };
     const base = trace("PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs", ["doctor", "--help"]);
-    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration)\//);
+    expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|04-image-production|05-iteration)\//);
     expect(base).not.toMatch(/(?:image_api_client|html_slide_renderer|@napi-rs\/canvas|fast-png)/);
 
     const html = trace("PPTMAKER_FRAMEWORK/scripts/03-html-production/stage2_render_html.mjs", ["--help"]);
-    expect(html).not.toMatch(/scripts\/(?:04-image2-refinement|05-iteration\/legacy-image2)|image_api_client/);
+    expect(html).not.toMatch(/scripts\/(?:04-image-production|05-iteration\/legacy-image2)|image_api_client/);
 
-    const markerless = trace("PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs", ["--help"]);
-    expect(markerless).not.toMatch(/04-image2-refinement|html_slide_renderer|html_render_runtime/);
+    const markerless = trace("PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage2_generate_images.mjs", ["--help"]);
+    expect(markerless).not.toMatch(/visual-slot|html_slide_renderer|html_render_runtime/);
   }, 60_000);
 });

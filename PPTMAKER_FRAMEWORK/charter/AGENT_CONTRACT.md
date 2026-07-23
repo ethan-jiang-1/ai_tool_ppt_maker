@@ -97,8 +97,8 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 **唯一运行时：Node.js ESM。** 禁止 Python / bash / 外部 skill 作为生产路径（跨平台会断）。
 
-官方 Stage 2：`unified_pipeline.mjs` → `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
-Style master：`scripts/05-iteration/legacy-image2/generate_style_master.mjs` → `image_api_client.mjs`。
+官方 Stage 2：`unified_pipeline.mjs` → `scripts/04-image-production/whole-page/stage2_generate_images.mjs` + `make_contact_sheet.mjs`（均在框架内）。
+Style master：`scripts/04-image-production/whole-page/generate_style_master.mjs` → `image_api_client.mjs`。
 不发现 `.claude/skills` / `.agents/skills`。
 
 **CLI 硬失败**：非零 exit **之外**必须向 **stderr 最后一个非空行**输出唯一 JSON envelope，并用受支持的 `diagnostic` 交付 JS 已知的 source/artifact lineage 与安全 `next`。MD 只使用完整校验的版本；`requires_human:true` 必须停下，`program`/`args` 保持参数边界，未知证据不猜，`_generated/` 不手改。producer 细则见 capability `cli-surface`，consumer 语义见 `charter/NODE-SPEC.md`。

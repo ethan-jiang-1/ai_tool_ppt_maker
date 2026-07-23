@@ -188,18 +188,14 @@ describe('fresh HTML-first delivery E2E', () => {
       expect(statusReport).toMatchObject({
         pipeline: 'html-first-v1',
         workflow_summary: 'HTML delivery is accepted with incomplete lineage evidence; repair remains recommended',
-        html_resume_guidance: {
-          outcome: 'guide',
-          subject: 'delivery-review',
-          evidence_complete: false,
-        },
         html_reviews: {
           content: { decision: 'waived', freshness: 'current' },
           visual: { decision: 'waived', freshness: 'current' },
           delivery: { decision: 'proceed', freshness: 'current', evidence_complete: false },
         },
       });
-      expect(statusReport.suggested_next).toBe(statusReport.html_resume_guidance.recommended_command);
+      expect(statusReport).not.toHaveProperty('html_resume_guidance');
+      expect(statusReport.workflow_inspection.primary_action.display_label).toBe(statusReport.workflow_summary);
       expect(statusReport.suggested_next).toContain('ppt_flow.mjs build');
     } finally {
       rmSync(root, { recursive: true, force: true });

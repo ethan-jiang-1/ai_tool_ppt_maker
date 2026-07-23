@@ -263,15 +263,11 @@ authorization semantics.
 
 Every registered node SHALL declare globally unique kebab-case `node`, `lifecycle_phase` in exact set
 `0|1|2|3|4|5`, `method_module` in exact set
-`00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`, ordered
+`00-setup|01-content|02-visual-system|03-html-production|04-image-production|05-iteration`, ordered
 `requires`, deterministic `entry`, and `exit`; routing gates SHALL declare unique allowed decisions.
 Fenced controller YAML and standalone shared-node frontmatter remain the only forms. Legacy single
 `phase` and removed module names `01-visual|02-content|03-prompts|04-production` SHALL fail validation
-with migration guidance. The active index SHALL permit lifecycle 4/module `04-image2-refinement` only
-for nodes owned by `image2-refine`. Its controller entry SHALL require a marked HTML-first run with
-identifiable current final-slide/slot inputs; normal planning additionally requires current
-`html-delivery-review: proceed` with complete evidence, while forced planning must publish the explicit Phase-4 prerequisite
-waiver before authorization nodes become eligible. All other controllers reject that lifecycle/module.
+with migration guidance. Nodes owned by `04-image-production` SHALL declare `adapter: whole-page|visual-slot`. Visual-slot belongs to `image2-refine`, requires `html-then-image2`, and requires marked current HTML delivery before provider work. Whole-page belongs to `image2-only` create work and has no HTML-delivery prerequisite. Module number alone SHALL create neither scheduling nor a prerequisite.
 
 #### Scenario: Production node uses final metadata
 
@@ -1866,12 +1862,7 @@ attributable bytes.
 
 The canonical index/state reserved-ID registry SHALL retain the six IDs defined by the main state
 contract, validate controller pipeline plus closed production-mode declarations, reject incompatible
-mode/pipeline entry conditions, and ensure no reserved ID is declared as a controller node. Only nodes
-in `image2-refine` may declare Phase 4/module `04-image2-refinement`; entry requires
-`html-then-image2` with identifiable current HTML final-slide/slot inputs and its existing delivery or
-prerequisite-waiver evidence. First-class `image2-only` whole-page nodes remain Phase 5 and may be
-active under `create-deck`/ordinary iteration, while `legacy-image2-maintenance` remains compatibility-
-only and rejects both HTML modes and fresh first-class Image2 ownership.
+mode/pipeline entry conditions, and ensure no reserved ID is declared as a controller node. Image Production nodes require an explicit adapter role: `visual-slot` belongs to `image2-refine` and requires `html-then-image2` plus current delivery, while `whole-page` belongs to `image2-only` create work without HTML delivery. `legacy-image2-maintenance` remains compatibility-only and rejects both HTML modes and fresh first-class Image2 ownership.
 
 #### Scenario: Controller declares reserved review node
 

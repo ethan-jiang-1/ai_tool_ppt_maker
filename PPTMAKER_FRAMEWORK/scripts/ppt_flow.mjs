@@ -102,9 +102,9 @@ import { HTML_FIRST_PIPELINE, LEGACY_PIPELINE, probeProductionMarker } from "./s
 // ---------------------------------------------------------------------------
 
 const UNIFIED_PIPELINE = join(REFERENCE_SCRIPTS_DIR, "03-html-production", "unified_pipeline.mjs");
-const GENERATE_STYLE_MASTER = join(REFERENCE_SCRIPTS_DIR, "05-iteration", "legacy-image2", "generate_style_master.mjs");
+const GENERATE_STYLE_MASTER = join(REFERENCE_SCRIPTS_DIR, "04-image-production", "whole-page", "generate_style_master.mjs");
 const STAGE1_BUILD_INPUTS = join(REFERENCE_SCRIPTS_DIR, "03-html-production", "stage1_build_inputs.mjs");
-const STAGE3_LOCK_HEADERS = join(REFERENCE_SCRIPTS_DIR, "05-iteration", "legacy-image2", "stage3_lock_headers.mjs");
+const STAGE3_LOCK_HEADERS = join(REFERENCE_SCRIPTS_DIR, "04-image-production", "whole-page", "stage3_lock_headers.mjs");
 const ENV_CHECK = join(FRAMEWORK_DIR, "scripts", "00-setup", "env-check.mjs");
 
 const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
@@ -926,7 +926,7 @@ async function renderPilotHeaders(runDir, selectedIds, dryRun) {
   }
 
   // Contact sheet (in-framework)
-  const MAKE_CONTACT_SHEET = join(REFERENCE_SCRIPTS_DIR, "05-iteration", "legacy-image2", "make_contact_sheet.mjs");
+  const MAKE_CONTACT_SHEET = join(REFERENCE_SCRIPTS_DIR, "04-image-production", "whole-page", "make_contact_sheet.mjs");
   const contactArgs = [
     "--image-dir",
     pilotImages,
@@ -2601,7 +2601,7 @@ async function createImage2CliTransport(runDir, baseUrl = null) {
   const credentials = resolveImage2Credentials({
     extraBaseUrls: baseUrl ? [baseUrl] : [],
   });
-  const phase4 = await import("./04-image2-refinement/index.mjs");
+  const phase4 = await import("./04-image-production/index.mjs");
   return phase4.createModernRefinementTransport({ credentials });
 }
 
@@ -2624,7 +2624,7 @@ async function commandImage2(operation, runDir, opts = {}) {
     return emitUsage("ppt_flow.image2.plan", "image2 plan --force requires --reason", "Provide a bounded human reason for the explicit delivery prerequisite waiver.");
   }
   try {
-    const ops = await import("./04-image2-refinement/index.mjs");
+    const ops = await import("./04-image-production/index.mjs");
     const slides = opts.slides ? String(opts.slides).split(",").map((id) => id.trim()).filter(Boolean).map((slide_id) => ({ slide_id, slot: opts.slot || "primary_visual" })) : null;
     let result;
     if (operation === "plan") {

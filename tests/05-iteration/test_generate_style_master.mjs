@@ -59,7 +59,7 @@ describe('generate_style_master', () => {
   it('emits a structured source diagnostic for an invalid run bundle', () => {
     const missing = join(tmpdir(), `deck_missing_style_${Date.now()}`, '3_versions', 'v1');
     const result = spawnSync('node', [
-      'PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/generate_style_master.mjs',
+      'PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/generate_style_master.mjs',
       '--run-dir', missing,
       '--dry-run',
     ], { encoding: 'utf8', timeout: 10000 });

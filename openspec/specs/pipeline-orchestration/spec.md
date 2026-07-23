@@ -1,6 +1,6 @@
 ## Purpose
 
-Define marker-first orchestration through `scripts/03-html-production/unified_pipeline.mjs` on the checked-in supported Node runtime. It delegates HTML delivery to Phase 3 and markerless legacy Image2 work to Phase 5, preserving targeted refresh paths without making Image2 a base requirement.
+Define marker-first orchestration through `scripts/03-html-production/unified_pipeline.mjs` on the checked-in supported Node runtime. It delegates HTML delivery to Phase 3 and whole-page Image Production to the public Phase-4 adapter, while Phase 5 retains markerless compatibility routing and targeted iteration paths.
 ## Requirements
 ### Requirement: One production policy dispatches every normal adapter operation
 

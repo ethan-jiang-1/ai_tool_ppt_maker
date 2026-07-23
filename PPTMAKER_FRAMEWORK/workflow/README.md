@@ -8,7 +8,7 @@ The active lifecycle and method-module order are identical: `0 -> 1 -> 2 -> 3 ->
 | 1 | `01-content/` | Structured narrative, stable IDs, families, typed bodies |
 | 2 | `02-visual-system/` | Renderer-neutral visual tokens and local assets |
 | 3 | `03-html-production/` | Reviewed HTML pages, final slides, PPTX, notes, delivery review |
-| 4 | `04-image2-refinement/` | Optional authorized post-delivery visual-slot refinement |
+| 4 | `04-image-production/` | Optional authorized post-delivery visual-slot refinement |
 | 5 | `05-iteration/` | Local content, visual, notes, and structural maintenance |
 
 HTML-first maintenance terms:

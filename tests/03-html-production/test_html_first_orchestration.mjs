@@ -18,7 +18,7 @@ import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/
 const STAGE1 = "PPTMAKER_FRAMEWORK/scripts/03-html-production/stage1_build_inputs.mjs";
 const UNIFIED = "PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs";
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
-const STYLE_MASTER = "PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/generate_style_master.mjs";
+const STYLE_MASTER = "PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/generate_style_master.mjs";
 
 function run(script, args, env = {}) {
   return spawnSync("node", [script, ...args], {

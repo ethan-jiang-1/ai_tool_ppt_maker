@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { encode as encodePng } from "fast-png";
 import { initHtmlFirstBundle, initLegacyBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import {
   buildControllerGateContext,
   selectPilotSlideIds,
@@ -14,7 +14,7 @@ import {
 import {
   generationFingerprint,
   generationProfile,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
 import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, MIGRATION_CONFIRMATION_RETURN_CASES, MIGRATION_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
@@ -431,7 +431,7 @@ playbook_stack: []
   it("keeps inspection HTML action ahead of optional Image2 work", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-", { mode: "html-then-image2" });
     try {
-      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
+      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs");
       await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
       const state = readState(fixture.deck, { purpose: "observe", heal: false });
       delete state.nodes["html-visual-review"].by_version["3_versions/v1"];
@@ -781,7 +781,7 @@ playbook_stack: []
   it("image2 unknown-submit abandon remains provider-free when credentials are absent", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-image2-abandon-offline-", { mode: "html-then-image2" });
     try {
-      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs");
+      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs");
       const plan = await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
       await phase4.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-abandon-offline" });
       const record = readImage2RefinementState(readState(fixture.deck), "v1");

@@ -36,7 +36,7 @@ describe('image_api_client', () => {
   it('resolveVendors returns single vendor from IMAGE2_API_KEY + IMAGE2_BASE_URL', async () => {
     process.env.IMAGE2_API_KEY = 'img2-key';
     process.env.IMAGE2_BASE_URL = 'https://image2.test/v1';
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(mod.resolveVendors()).toEqual([
       { base_url: 'https://image2.test/v1', api_key: 'img2-key' },
     ]);
@@ -45,7 +45,7 @@ describe('image_api_client', () => {
   it('resolveApiKey and resolveBaseUrls delegate to resolveVendors', async () => {
     process.env.IMAGE2_API_KEY = 'img2-key';
     process.env.IMAGE2_BASE_URL = 'https://image2.test/v1';
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(mod.resolveApiKey()).toBe('img2-key');
     expect(mod.resolveBaseUrls()).toEqual(['https://image2.test/v1']);
   });
@@ -53,26 +53,26 @@ describe('image_api_client', () => {
   it('CLI --base-url overrides IMAGE2_BASE_URL', async () => {
     process.env.IMAGE2_API_KEY = 'img2-key';
     process.env.IMAGE2_BASE_URL = 'https://image2.test/v1';
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(mod.resolveBaseUrls(['https://cli.test/v1'])).toEqual(['https://cli.test/v1']);
   });
 
   it('throws when IMAGE2_API_KEY is missing', async () => {
     delete process.env.IMAGE2_API_KEY;
     process.env.IMAGE2_BASE_URL = 'https://image2.test/v1';
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(() => mod.resolveVendors()).toThrow(/IMAGE2_API_KEY/);
   });
 
   it('throws when IMAGE2_BASE_URL is missing', async () => {
     delete process.env.IMAGE2_BASE_URL;
     process.env.IMAGE2_API_KEY = 'img2-key';
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(() => mod.resolveVendors()).toThrow(/IMAGE2_BASE_URL/);
   });
 
   it('unwrapDataRecord reads array and object data envelopes', async () => {
-    const { unwrapDataRecord } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { unwrapDataRecord } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     expect(unwrapDataRecord({ code: 200, data: [{ task_id: 'task_abc', status: 'submitted' }] }).task_id).toBe('task_abc');
     expect(unwrapDataRecord({ data: { task_id: 'task_obj' } }).task_id).toBe('task_obj');
     expect(unwrapDataRecord({ task_id: 'task_top' }).task_id).toBe('task_top');
@@ -80,7 +80,7 @@ describe('image_api_client', () => {
 
   it('fixtures cover submit array and poll-embedded extractImageRef', async () => {
     const { unwrapDataRecord, extractImageRef } = await import(
-      '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs'
+      '../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs'
     );
     const submit = JSON.parse(
       readFileSync(join('tests/fixtures/image-api/submit-data-array.json'), 'utf-8')
@@ -136,7 +136,7 @@ describe('image_api_client', () => {
       throw new Error(`unexpected fetch ${u}`);
     });
 
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const outPath = join(ROOT, 'arr.png');
     const trace = await generateOneImage({
       prompt: 'array envelope',
@@ -188,7 +188,7 @@ describe('image_api_client', () => {
       throw new Error(`unexpected fetch ${u}`);
     });
 
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const outPath = join(ROOT, 'slide.png');
     const tracePath = join(ROOT, 'slide.image-task.json');
     const stylePath = join(ROOT, 'style.jpg');
@@ -220,7 +220,7 @@ describe('image_api_client', () => {
     globalThis.fetch = vi.fn(async () => {
       throw new Error('fetch should not be called');
     });
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const result = await generateOneImage({
       prompt: 'x',
       outPath,
@@ -235,7 +235,7 @@ describe('image_api_client', () => {
     const {
       generateOneImage,
       ImageSubmitPrerequisiteError,
-    } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const transportResolver = vi.fn(() => [
       { base_url: 'https://guard.example/v1', api_key: 'guard-key' },
     ]);
@@ -288,7 +288,7 @@ describe('image_api_client', () => {
   });
 
   it('permits style-master submit without a prior style reference', async () => {
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const transportResolver = vi.fn(() => [
       { base_url: 'https://style.example/v1', api_key: 'style-key' },
     ]);
@@ -336,7 +336,7 @@ describe('image_api_client', () => {
       }
       throw new Error(`unexpected fetch ${url}`);
     });
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     const outPath = join(ROOT, 'retry.png');
     const tracePath = join(ROOT, 'retry.json');
     const trace = await generateOneImage({
@@ -357,7 +357,7 @@ describe('image_api_client', () => {
       text: async () => JSON.stringify({ error: 'down' }),
       headers: { get: () => 'application/json' },
     }));
-    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_api_client.mjs');
+    const { generateOneImage } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_api_client.mjs');
     await expect(
       generateOneImage({
         prompt: 'x',
@@ -648,7 +648,7 @@ describe('stage2_generate_images', () => {
       { id: 'b', out: '02_b.png', prompt: '' },
     ] }), 'utf8');
     const result = spawnSync('node', [
-      'PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs',
+      'PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage2_generate_images.mjs',
       '--prompt-json', prompts,
       '--out-dir', outDir,
       '--style-reference', style,
@@ -673,7 +673,7 @@ describe('image provenance fingerprints', () => {
         buildImageManifestEntry,
         generationProfile,
         inspectImageProvenance,
-      } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs');
+      } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs');
       const { sha256Bytes } = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs');
       const base = generationProfile({
         styleReferenceSha256: sha256Bytes('style-a'),
