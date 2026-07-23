@@ -423,10 +423,10 @@ function checkStage2Generator() {
     status: ok ? 'ok' : 'fail',
     detail: ok
       ? 'in-framework (stage2_generate_images.mjs + make_contact_sheet.mjs)'
-      : 'missing in-framework Stage 2 scripts under PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/',
+      : 'missing in-framework Stage 2 scripts under PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/',
     fix: ok ? null : (
       'Stage 2 must ship inside the framework as Node ESM.\n' +
-      '  Expected: scripts/05-iteration/legacy-image2/stage2_generate_images.mjs, make_contact_sheet.mjs, image_api_client.mjs\n' +
+      '  Expected: scripts/04-image-production/whole-page/stage2_generate_images.mjs, make_contact_sheet.mjs, image_api_client.mjs\n' +
       '  External skills / Python / bash are not allowed.\n' +
       '  Then re-run: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor'
     ),
@@ -878,7 +878,7 @@ function formatText(results, allPass, { image2 = false } = {}) {
     }
   } else if (stage2Missing) {
     lines.push('  ✗  NOT READY — in-framework Stage 2 scripts missing (hard requirement).');
-    lines.push('     Restore scripts/05-iteration/legacy-image2/stage2_generate_images.mjs (+ contact sheet + image client), then re-run doctor.');
+    lines.push('     Restore scripts/04-image-production/whole-page/stage2_generate_images.mjs (+ contact sheet + image client), then re-run doctor.');
   } else {
     lines.push('  ✗  NOT READY — foundation is fine, but a hard requirement failed. Fix those and re-run.');
   }

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
-import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
+import { canonicalJson } from "../../../shared/identity/canonical_json.mjs";
 import {
   REFINEMENT_PLAN_SCHEMA_V2,
   REFINEMENT_STATE_SCHEMA,
@@ -54,8 +54,17 @@ import {
   writeRefinementProvenance,
 } from "./storage.mjs";
 import { createFakeRefinementTransport, createModernRefinementTransport, createRefinementTransport } from "./transport.mjs";
-import { deckRoot } from "../../shared/run-bundle/bundle_layout.mjs";
-import { inspectRunProductionMode, prepareStateWrite, readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../shared/state/state.mjs";
+import { deckRoot } from "../../../shared/run-bundle/bundle_layout.mjs";
+import {
+  inspectRunProductionMode,
+  prepareStateWrite,
+  readImageProductionState,
+  readState,
+  removeImageProductionStateRecord,
+  replaceImageProductionStateRecord,
+  writeImage2RefinementState,
+  writeState,
+} from "../../../shared/state/state.mjs";
 
 const SHA_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
@@ -74,8 +83,8 @@ function assertRunVersion(runDir) {
   return value;
 }
 
-async function phase3() { return import("../../03-html-production/index.mjs"); }
-async function phase2() { return import("../../02-visual-system/index.mjs"); }
+async function phase3() { return import("../../../03-html-production/index.mjs"); }
+async function phase2() { return import("../../../02-visual-system/index.mjs"); }
 
 async function styleReferenceStatus(runDir) {
   const paths = refinementPaths(runDir);
@@ -104,7 +113,7 @@ async function currentEligibility(runDir, { allowIncompleteDelivery = false } = 
   const p3 = await phase3();
   const marker = p3.probeProductionMarker(readFileSync(sourcePath(run)), { source: "slide-specifications.md" });
   if (marker.branch !== "html-first-v1") throw new Error("modern refinement is only available for marked HTML-first runs");
-  const evidence = await import("../../shared/state/html_review_evidence.mjs");
+  const evidence = await import("../../../shared/state/html_review_evidence.mjs");
   const review = evidence.inspectHtmlReviewReadiness(run);
   const deliveryProceed = review.delivery?.decision === "proceed";
   const deliveryCurrent = review.delivery?.freshness === "current";
@@ -153,7 +162,7 @@ function deliveryPrerequisiteChecks(review) {
 }
 
 async function createPrerequisiteWaiver(eligible, reason) {
-  const { normalizeHumanReason } = await import("../../shared/state/html_review_evidence.mjs");
+  const { normalizeHumanReason } = await import("../../../shared/state/html_review_evidence.mjs");
   const waiver = normalizePrerequisiteWaiver({
     reason: normalizeHumanReason(reason),
     waived_checks: deliveryPrerequisiteChecks(eligible.review),
@@ -212,20 +221,12 @@ function readRecord(runDir, { observe = false } = {}) {
   const version = assertRunVersion(run);
   const state = readState(deckRoot(run), { purpose: observe ? "observe" : "execute", heal: false, runVersion: version });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
-  return { state, record: readImage2RefinementState(state, version) || defaultRecord(version), version };
+  return { state, record: readImageProductionState(state, version) || defaultRecord(version), version };
 }
 
 function commitRecord(runDir, record, { expectedStateSha, updatedAt = nowIso() } = {}) {
   const run = resolve(runDir);
-  const state = readState(deckRoot(run), { purpose: "execute", heal: false, runVersion: record.run_version });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
-  if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: refinement state belongs to another run version");
-  const next = clone(state);
-  next.nodes ||= {};
-  const prior = next.nodes["image2-refinement"]?.by_version || {};
-  next.nodes["image2-refinement"] = { by_version: { ...prior, [`3_versions/${record.run_version}`]: clone(record) } };
-  writeState(deckRoot(run), next, { expectedStateSha, updatedAt });
-  return record;
+  return writeImage2RefinementState(deckRoot(run), record.run_version, record, { expectedStateSha, updatedAt });
 }
 
 function updateRecord(runDir, mutate) {
@@ -277,7 +278,7 @@ export async function recommendRefinement({
   } else if (force === true && !eligible.delivery_complete) {
     waiver = await createPrerequisiteWaiver(eligible, reason);
   } else if (force === true) {
-    const { normalizeHumanReason } = await import("../../shared/state/html_review_evidence.mjs");
+    const { normalizeHumanReason } = await import("../../../shared/state/html_review_evidence.mjs");
     normalizeHumanReason(reason);
     forceNotNeeded = true;
   }
@@ -435,9 +436,16 @@ async function promoteStyleReferenceResult({ runDir, runVersion, record, attempt
   // latest state forward instead of committing the pre-submit copy.
   const currentState = readState(deckRoot(runDir), { purpose: "execute", heal: false, runDir });
   const nextState = clone(currentState);
-  const versionRecord = nextState.nodes?.["image2-refinement"]?.by_version?.[`3_versions/${runVersion}`];
+  const versionRecord = readImageProductionState(nextState, runVersion);
   if (!versionRecord?.attempts?.[attempt.attempt_id]) throw new Error("submitted style-reference attempt is missing from state");
-  versionRecord.attempts[attempt.attempt_id] = { ...versionRecord.attempts[attempt.attempt_id], promotion_status: "committed", updated_at: nowIso() };
+  const nextRecord = {
+    ...versionRecord,
+    attempts: {
+      ...versionRecord.attempts,
+      [attempt.attempt_id]: { ...versionRecord.attempts[attempt.attempt_id], promotion_status: "committed", updated_at: nowIso() },
+    },
+  };
+  replaceImageProductionStateRecord(nextState, runVersion, nextRecord);
   const provenancePath = refinementPaths(runDir).provenance;
   const priorProvenance = existsSync(provenancePath)
     ? parseProvenance(provenancePath)
@@ -765,9 +773,7 @@ export async function acceptRefinementCandidate({ runDir, slideId, candidateId, 
   const provenance = { ...existing, accepted_slots: { ...(existing.accepted_slots || {}), [slideId]: binding } };
   const nextRecord = { ...record, reviews: { ...record.reviews, [slideId]: createReviewRecord({ ...review, decision: "accept", reviewed_at: stateUpdatedAt }) } };
   const nextState = clone(state);
-  nextState.nodes ||= {};
-  const prior = nextState.nodes["image2-refinement"]?.by_version || {};
-  nextState.nodes["image2-refinement"] = { by_version: { ...prior, [`3_versions/${eligible.run_version}`]: nextRecord } };
+  replaceImageProductionStateRecord(nextState, eligible.run_version, nextRecord);
   const nextStateSha256 = prepareStateWrite(nextState, { updatedAt: stateUpdatedAt }).sha256;
   const prepared = await prepareVisualSlotPromotion({ registration: { runDir: eligible.run, assetId, bytes: candidate.bytes, target: "visual-slots", metadata: { label: `Refined ${slideId}`, description: "Accepted Image2 visual-slot candidate", usage_guidance: "Use only in the bound HTML visual slot" } }, selection: { runDir: eligible.run, slideId, assetId, visualContractFingerprint: target.visual_contract_fingerprint, outputSha256: candidate.metadata.sha256 }, provenance, nextStateSha256 });
   const journal = { schema: "pptmaker-image2-refinement-promotion-journal-v1", transaction_id: `tx-${candidateId}`, run_version: eligible.run_version, kind: "visual-slot", candidate_id: candidateId, target_asset_id: assetId, old: prepared.old, next: prepared.next, phase: "prepared" };
@@ -803,21 +809,19 @@ export async function declineRefinement({ runDir } = {}) {
   }
   const state = readState(root, { purpose: "execute", heal: false, runDir: run });
   const next = clone(state);
-  const byVersion = { ...(next.nodes?.["image2-refinement"]?.by_version || {}) };
-  delete byVersion[`3_versions/${paths.run_version}`];
-  if (Object.keys(byVersion).length) next.nodes["image2-refinement"] = { by_version: byVersion };
-  else if (next.nodes) delete next.nodes["image2-refinement"];
+  removeImageProductionStateRecord(next, paths.run_version);
   for (const nodeId of ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement", "review-image2-refinement"]) {
     if (next.nodes) delete next.nodes[nodeId];
   }
   if (next.playbook === "image2-refine") {
-    const { resumePlaybook } = await import("../../shared/state/state.mjs");
+    const { resumePlaybook } = await import("../../../shared/state/state.mjs");
     if (Array.isArray(next.playbook_stack) && next.playbook_stack.length) resumePlaybook(next, { runVersion: paths.run_version });
     else {
       next.current_node = "";
       next.playbook = "";
       next.execution_id = "";
       next.execution_started_at = "";
+      next.run_version = "";
       // Terminal handoff retains the exact visible run for continuation-card
       // inspection after the active execution binding is intentionally cleared.
       next.continuation_target_version = paths.run_version;
@@ -833,7 +837,7 @@ export async function enterRefinementController({ runDir } = {}) {
   const root = deckRoot(eligible.run);
   const state = readState(root, { purpose: "execute", heal: false, runDir: eligible.run });
   if (state.playbook !== "image2-refine") {
-    const { switchPlaybook } = await import("../../shared/state/state.mjs");
+    const { switchPlaybook } = await import("../../../shared/state/state.mjs");
     switchPlaybook(state, "image2-refine", { runVersion: eligible.run_version });
   }
   state.current_node = "recommend-image2-refinement";
@@ -875,7 +879,7 @@ export async function completeRefinementController({ runDir } = {}) {
     state.nodes["review-image2-refinement"] = { status: "completed", execution_id: state.execution_id, run_version: eligible.run_version, evidence: { "image2-refinement-review": { met: true, kind: "agent", at: nowIso() } } };
     state.current_node = "review-image2-refinement";
     if (Array.isArray(state.playbook_stack) && state.playbook_stack.length) {
-      const { resumePlaybook } = await import("../../shared/state/state.mjs");
+      const { resumePlaybook } = await import("../../../shared/state/state.mjs");
       resumePlaybook(state, { runVersion: eligible.run_version });
     }
   }

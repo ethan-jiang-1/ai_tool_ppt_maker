@@ -11,10 +11,10 @@ import {
   loadRefinementOperations,
   prerequisiteWaiverFingerprint,
   transitionAttempt,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
-import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
-import { createCandidateRecord, sha256 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/contracts.mjs";
-import { candidatePaths, ensureRefinementDerivedRoots, persistCandidate, writeCandidateComparison, listReviews, refinementReviewDigest, cleanupRefinement } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/storage.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
+import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/transport.mjs";
+import { createCandidateRecord, sha256 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/contracts.mjs";
+import { candidatePaths, ensureRefinementDerivedRoots, persistCandidate, writeCandidateComparison, listReviews, refinementReviewDigest, cleanupRefinement } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/storage.mjs";
 import { projectImage2RefinementState, readImage2RefinementState, readState, startPlaybook, writeImage2RefinementState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
 import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
@@ -310,7 +310,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       expect(forced.prerequisite_waiver_fingerprint).toMatch(/^[0-9a-f]{64}$/);
       const record = readImage2RefinementState(readState(fixture.deck), "v1");
       expect(record).toMatchObject({
-        schema: "pptmaker-image2-refinement-state-v2",
+        schema: "pptmaker-image-production-state-v1",
         plan: {
           schema: "pptmaker-image2-refinement-plan-v2",
           plan_hash: forced.plan_hash,
@@ -440,7 +440,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
       const planned = readImage2RefinementState(readState(fixture.deck), "v1");
       expect(planned).toMatchObject({
-        schema: "pptmaker-image2-refinement-state-v2",
+        schema: "pptmaker-image-production-state-v1",
         plan: { schema: "pptmaker-image2-refinement-plan-v2", plan_hash: plan.plan_hash },
         prerequisite_waiver: null,
       });
@@ -450,7 +450,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       const authorized = await operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-once" });
       const persisted = readImage2RefinementState(readState(fixture.deck), "v1");
       expect(persisted).toMatchObject({
-        schema: "pptmaker-image2-refinement-state-v2",
+        schema: "pptmaker-image-production-state-v1",
         authorization: { schema: "pptmaker-image2-refinement-authorization-v2", authorization_id: "auth-once" },
       });
       expect(authorized.authorization.used).toBe(false);
@@ -467,7 +467,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       const legacyPlan = buildPlan({ ...recommendation.plan, schema: REFINEMENT_PLAN_SCHEMA_V1 });
       const legacyAuthorization = authorizePlan(legacyPlan, "legacy-auth");
       writeImage2RefinementState(fixture.deck, "v1", {
-        schema: "pptmaker-image2-refinement-state-v1",
+        schema: "pptmaker-image-production-state-v1",
         run_version: "v1",
         plan: legacyPlan,
         authorization: legacyAuthorization,

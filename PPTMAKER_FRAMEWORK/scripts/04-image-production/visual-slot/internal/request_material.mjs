@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { loadHtmlAssetCatalog } from "../../02-visual-system/index.mjs";
+import { loadHtmlAssetCatalog } from "../../../02-visual-system/index.mjs";
 import {
   REFINEMENT_REQUEST_CONTRACT_VERSION_V1,
   RefinementContractError,

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import "../../shared/cli/cli_bootstrap.mjs?entry=05-iteration/legacy-image2/generate_style_master.mjs";
+import "../../shared/cli/cli_bootstrap.mjs?entry=04-image-production/whole-page/generate_style_master.mjs";
 import { runLegacyStyleMasterCli } from "../index.mjs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

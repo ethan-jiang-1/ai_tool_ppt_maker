@@ -6,11 +6,11 @@ import {
   createRefinementTransport,
   createRelayCompatibilityTransport,
   materializeRelaySubmitRequest,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/transport.mjs";
 import {
   createModernRefinementTransport,
   refinementRequestFingerprint,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 
 const fixture = (name) => JSON.parse(readFileSync(join("tests", "fixtures", "image2-relay", name), "utf8"));
 

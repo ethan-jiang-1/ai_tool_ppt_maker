@@ -597,11 +597,12 @@ Every active controller/shared node SHALL pass the canonical node-specification 
 ### Requirement: Playbook lifecycle and methodology metadata are explicit
 
 Every registered node SHALL declare lifecycle Phase `0|1|2|3|4|5` and one exact final method module
-`00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration`. Phase 3
-owns complete HTML delivery; Phase 4 owns only `image2-refine`, disabled for `html-only` and required by
-the `html-then-image2` completion policy; Phase 5 retains whole-page Image2 implementation/maintenance
-nodes and MAY be entered by the first-class `image2-only` create/iteration controller. Provider channel
-probing remains Phase 0. No other controller/node may declare Phase 4 or import its private transport.
+`00-setup|01-content|02-visual-system|03-html-production|04-image-production|05-iteration`. Phase 3
+owns complete HTML delivery. Image Production owns explicit `visual-slot` and `whole-page` adapters:
+visual-slot is disabled for `html-only`, required by `html-then-image2` completion, and requires current
+HTML delivery; whole-page is legal only for `image2-only` and retains direct authorization/final-review
+owners. Phase 5 owns iteration and compatibility routing, not Image Production implementation. Provider
+channel probing remains Phase 0.
 
 #### Scenario: HTML production node is unambiguous
 
@@ -611,7 +612,7 @@ probing remains Phase 0. No other controller/node may declare Phase 4 or import 
 #### Scenario: Optional refinement node is unambiguous
 
 - **WHEN** the controller index inspects `image2-refine`
-- **THEN** it declares lifecycle 4/module `04-image2-refinement`, requires `html-then-image2`, and preserves disabled html-only work without executing it
+- **THEN** it declares lifecycle 4/module `04-image-production`, requires `html-then-image2`, and preserves disabled html-only work without executing it
 
 #### Scenario: Legacy route keeps its owner
 

@@ -19,7 +19,8 @@ includes: []
 ```yaml
 node: recommend-image2-refinement
 lifecycle_phase: 4
-method_module: 04-image2-refinement
+method_module: 04-image-production
+adapter: visual-slot
 production_modes: [html-then-image2]
 requires: []
 produces: [image2-refinement-plan]
@@ -43,7 +44,8 @@ hard-stop remains ahead of optional refinement and retains its protected invaria
 ```yaml
 node: authorize-image2-refinement
 lifecycle_phase: 4
-method_module: 04-image2-refinement
+method_module: 04-image-production
+adapter: visual-slot
 production_modes: [html-then-image2]
 requires: [recommend-image2-refinement]
 decisions: [authorize, decline]
@@ -59,7 +61,8 @@ exit: [user_decision_recorded]
 ```yaml
 node: execute-image2-refinement
 lifecycle_phase: 4
-method_module: 04-image2-refinement
+method_module: 04-image-production
+adapter: visual-slot
 production_modes: [html-then-image2]
 requires: [authorize-image2-refinement]
 produces: [image2-refinement-candidates]
@@ -82,7 +85,8 @@ or hand-edited attempt substitutes for exact provider authorization.
 ```yaml
 node: review-image2-refinement
 lifecycle_phase: 4
-method_module: 04-image2-refinement
+method_module: 04-image-production
+adapter: visual-slot
 production_modes: [html-then-image2]
 requires: [execute-image2-refinement]
 decisions: [accept, use-html, decline]

@@ -8,7 +8,7 @@ import { createHtmlFirstRun } from "../../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../../helpers/image2_refinement_fixture.mjs";
 import { createMarkerlessMigrationFixture } from "../../helpers/html_migration_fixture.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { loadRefinementOperations, transitionAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import { loadRefinementOperations, transitionAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import { inspectHtmlReviewReadiness, publishHtmlDeliveryDecision, publishHtmlGateDecision } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs";
 import { readImage2RefinementState, readState, recordImage2DeliveryReview, transitionProductionMode, writeImage2RefinementState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import {

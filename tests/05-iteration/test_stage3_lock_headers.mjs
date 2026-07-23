@@ -7,7 +7,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { diagnosticFromError } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
 import {
   generationFingerprint,
-} from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs';
+} from '../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs';
 import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
 
 function png(path, width = 40, height = 24) {
@@ -33,13 +33,13 @@ function rawEntry(id, path) {
 
 describe('stage3_lock_headers', () => {
   it('module exists and is importable', async () => {
-    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs');
+    const mod = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage3_lock_headers.mjs');
     expect(mod).toBeDefined();
   });
 
   it('uses resolved mode only, independent of render_mode_source', async () => {
     const { contractRenderMode } = await import(
-      '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/header_lock.mjs'
+      '../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/header_lock.mjs'
     );
     for (const source of [
       'explicit',
@@ -80,7 +80,7 @@ describe('stage3_lock_headers', () => {
       ]);
 
       const result = spawnSync('node', [
-        'PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs',
+        'PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage3_lock_headers.mjs',
         '--images', images, '--slide-plan', plan, '--out', out,
       ], { encoding: 'utf8', timeout: 10000 });
       expect(result.status).toBe(1);

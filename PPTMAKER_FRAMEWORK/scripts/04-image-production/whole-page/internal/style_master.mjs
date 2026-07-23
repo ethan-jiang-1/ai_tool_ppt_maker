@@ -145,7 +145,7 @@ export async function generateStyleMaster({
 
   console.log(`Prompt: ${promptPath}`);
   console.log(`Output: ${outPath}`);
-  console.log(`Generator: scripts/05-iteration/legacy-image2/internal/image_api_client.mjs (in-framework)`);
+  console.log(`Generator: scripts/04-image-production/whole-page/internal/image_api_client.mjs (in-framework)`);
 
   if (dryRun) {
     console.log(`[DRY RUN] Would generate style master → ${outPath}`);
@@ -222,7 +222,7 @@ export async function generateStyleMaster({
 /**
  * @param {string[]} [argv]
  */
-export async function runStyleMasterCli(argv = process.argv, { executablePath = "PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/generate_style_master.mjs" } = {}) {
+export async function runStyleMasterCli(argv = process.argv, { executablePath = "PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/generate_style_master.mjs" } = {}) {
   const program = new Command();
   program
     .name("generate_style_master.mjs")

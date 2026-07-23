@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildPlan, createReviewRecord, loadRefinementOperations } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
-import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
-import { listReviews, readCandidate, refinementReviewDigest } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/storage.mjs";
+import { buildPlan, createReviewRecord, loadRefinementOperations } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
+import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/transport.mjs";
+import { listReviews, readCandidate, refinementReviewDigest } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/storage.mjs";
 import { encode as encodePng } from "fast-png";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -12,7 +12,7 @@ import { parse as parseYaml } from "yaml";
 import { createCurrentHtmlDelivery } from "../../tests/helpers/image2_refinement_fixture.mjs";
 import { buildPresentation, injectSpeakerNotes, validateAndBuildHtmlFirstPlan } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs";
 import { commitPreparedRefinedHtmlAssetRegistration } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
-import { prepareStateWrite, readImage2RefinementState, readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { prepareStateWrite, readImage2RefinementState, readState, replaceImageProductionStateRecord } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 describe("modern Image2 refinement journey boundary", () => {
   it("plans a bounded 2-4 page scope and exposes no provider call", async () => {
@@ -136,7 +136,7 @@ describe("modern Image2 refinement journey boundary", () => {
       const stateUpdatedAt = "2026-07-20T00:00:00.000Z";
       const nextRecord = { ...record, reviews: { ...record.reviews, [selected.metadata.slide_id]: createReviewRecord({ ...record.reviews[selected.metadata.slide_id], decision: "accept", reviewed_at: stateUpdatedAt }) } };
       const nextState = structuredClone(state);
-      nextState.nodes["image2-refinement"].by_version["3_versions/v1"] = nextRecord;
+      replaceImageProductionStateRecord(nextState, "v1", nextRecord);
       const preparedState = prepareStateWrite(nextState, { updatedAt: stateUpdatedAt });
       const registration = { runDir: fixture.runDir, assetId, bytes: selected.bytes, target: "visual-slots", metadata: { label: `Refined ${selected.metadata.slide_id}`, description: "Accepted interrupted Image2 candidate", usage_guidance: "Use only in the bound HTML visual slot" } };
       const selection = { runDir: fixture.runDir, slideId: selected.metadata.slide_id, assetId, visualContractFingerprint: target.visual_contract_fingerprint, outputSha256: selected.metadata.sha256 };
@@ -163,7 +163,7 @@ describe("modern Image2 refinement journey boundary", () => {
       ops.createPromotionJournal(fixture.runDir, journal);
       commitPreparedRefinedHtmlAssetRegistration(prepared.asset);
 
-      const entryUrl = pathToFileURL(resolve("PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs")).href;
+      const entryUrl = pathToFileURL(resolve("PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs")).href;
       const recoveryScript = `const api = await import(${JSON.stringify(entryUrl)}); const result = await api.recoverRefinementPromotion({ runDir: process.argv[1] }); console.log(JSON.stringify({ status: result.status, transaction_id: result.transaction_id, provider_calls: result.recomposed?.provider_calls ?? result.recompose?.provider_calls ?? null }));`;
       const recoveredProcess = spawnSync(process.execPath, ["--input-type=module", "--eval", recoveryScript, fixture.runDir], { cwd: process.cwd(), encoding: "utf8", timeout: 120_000 });
       expect(recoveredProcess.status, recoveredProcess.stderr).toBe(0);

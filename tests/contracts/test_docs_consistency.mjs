@@ -8,6 +8,7 @@ import {
   validateDocumentedCommands,
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
+  validateLegacyTokenExceptions,
   validatePseudocodeMarkers,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs";
 
@@ -56,7 +57,8 @@ describe("framework documentation coherence", () => {
     expect(scanSemanticDrift("openspec/config.yaml", "分类参照: PPTMAKER_FRAMEWORK/automation/change-classifier.md").some((item) => item.rule === "old-path")).toBe(true);
     expect(scanSemanticDrift("doc.md", "Stage 2 不依赖 .claude/skills")).toEqual([]);
     expect(validateExceptionMap({ "PPTMAKER_FRAMEWORK/workflow/": "broad" })).toHaveLength(1);
-    const commands = extractNodeCommands("doc.md", "```bash\nnode PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs --run-dir x\n```");
+    expect(validateLegacyTokenExceptions([{ token: "image2-*", file: "PPTMAKER_FRAMEWORK/", reason: "broad", owner: "bad", public_compatibility: true, retire_by: "later" }]).length).toBeGreaterThan(0);
+    const commands = extractNodeCommands("doc.md", "```bash\nnode PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage3_lock_headers.mjs --run-dir x\n```");
     expect(validateDocumentedCommands(commands, "PPTMAKER_FRAMEWORK/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
   });
 

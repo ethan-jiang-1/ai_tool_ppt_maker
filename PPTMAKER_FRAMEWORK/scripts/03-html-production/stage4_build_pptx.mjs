@@ -21,7 +21,7 @@ async function runStage4(opts) {
     const runDir = resolve(opts.runDir);
     return await classifyRun(runDir) === HTML_FIRST_PIPELINE
       ? buildPresentation(runDir, { title: opts.title })
-      : (await import("../05-iteration/index.mjs")).buildLegacyPresentation({ runDir, title: opts.title });
+      : (await import("../04-image-production/index.mjs")).buildLegacyPresentation({ runDir, title: opts.title });
   }
   if (!opts.images || !opts.slidePlan || !opts.out) throw new Error("USAGE: legacy mode requires --images, --slide-plan, and --out");
   const planGenerated = dirname(resolve(opts.slidePlan));
@@ -29,7 +29,7 @@ async function runStage4(opts) {
   if (basename(planGenerated) === "_generated" && existsSync(candidateSource) && probeProductionMarker(readFileSync(candidateSource)).branch === HTML_FIRST_PIPELINE) {
     throw new Error("USAGE: legacy artifact mode cannot target an HTML-first run; use --run-dir");
   }
-  const phase5 = await import("../05-iteration/index.mjs");
+  const phase5 = await import("../04-image-production/index.mjs");
   const plan = JSON.parse(readFileSync(opts.slidePlan, "utf8"));
   const legacySlides = await phase5.resolveLegacyFinalSlides({
     runDir: dirname(dirname(resolve(opts.images))),

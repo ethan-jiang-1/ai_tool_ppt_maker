@@ -7,7 +7,7 @@ import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byt
 import {
   generationFingerprint,
   generationProfile,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
 import { writeState, createDefaultState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { validateProductionHeaderReview } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs";
 import {
@@ -16,7 +16,7 @@ import {
   mergeHeaderReviewRecord,
   validateHeaderReviewRecord,
   versionKey,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/header_review.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/header_review.mjs";
 
 function slide(id, visualType, title, mode = "full-page") {
   return {

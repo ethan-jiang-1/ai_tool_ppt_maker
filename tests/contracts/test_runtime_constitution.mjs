@@ -25,10 +25,10 @@ describe('runtime constitution — Node only', () => {
 
   it('required in-framework Stage 2 modules exist', () => {
     for (const f of [
-      '05-iteration/legacy-image2/stage2_generate_images.mjs',
-      '05-iteration/legacy-image2/make_contact_sheet.mjs',
-      '05-iteration/legacy-image2/internal/image_api_client.mjs',
-      '05-iteration/legacy-image2/generate_style_master.mjs',
+      '04-image-production/whole-page/stage2_generate_images.mjs',
+      '04-image-production/whole-page/make_contact_sheet.mjs',
+      '04-image-production/whole-page/internal/image_api_client.mjs',
+      '04-image-production/whole-page/generate_style_master.mjs',
     ]) {
       expect(existsSync(join(SCRIPTS, f)), `missing ${f}`).toBe(true);
     }
@@ -41,14 +41,14 @@ describe('runtime constitution — Node only', () => {
       .map((path) => relative(SCRIPTS, path).replaceAll('\\', '/'))
       .sort();
     expect([...EXECUTABLE_INVENTORY].sort()).toEqual(direct);
-    expect(readFileSync(join(SCRIPTS, '05-iteration/legacy-image2/internal/image_api_client.mjs'), 'utf8')).not.toMatch(/^#!/);
+    expect(readFileSync(join(SCRIPTS, '04-image-production/whole-page/internal/image_api_client.mjs'), 'utf8')).not.toMatch(/^#!/);
   });
 
   it('pipeline/orchestrator code does not discover external skills', () => {
     const files = [
       '03-html-production/unified_pipeline.mjs',
       'ppt_flow.mjs',
-      '05-iteration/legacy-image2/generate_style_master.mjs',
+      '04-image-production/whole-page/generate_style_master.mjs',
       '00-setup/env-check.mjs',
     ].map((f) => join(SCRIPTS, f));
     for (const f of files) {

@@ -4,8 +4,8 @@ import { createHash } from "node:crypto";
 import { rmSync } from "node:fs";
 import { encode as encodePng } from "fast-png";
 import { createCurrentHtmlDelivery } from "../../tests/helpers/image2_refinement_fixture.mjs";
-import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/internal/transport.mjs";
-import { loadRefinementOperations } from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+import { createFakeRefinementTransport } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/internal/transport.mjs";
+import { loadRefinementOperations } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import {
   readImage2RefinementState,
   readState,

@@ -1,0 +1,19 @@
+{
+  "schema": "pptmaker-image-production-relocation-baseline-v1",
+  "pre_move_commit": "9075b6ea7b02e61d683e9a6ba71a9b0a402e2441",
+  "pre_move_objects": {
+    "ppt_flow": "50234a53c3c0c9a14d08a7c60d516570ef9a2a2a",
+    "visual_slot_interface": "a55320c23d6f81bd0088900363ddfcb4565532fa"
+  },
+  "direct_executable_replacements": {
+    "05-iteration/legacy-image2/generate_style_master.mjs": "04-image-production/whole-page/generate_style_master.mjs",
+    "05-iteration/legacy-image2/make_contact_sheet.mjs": "04-image-production/whole-page/make_contact_sheet.mjs",
+    "05-iteration/legacy-image2/stage2_generate_images.mjs": "04-image-production/whole-page/stage2_generate_images.mjs",
+    "05-iteration/legacy-image2/stage3_lock_headers.mjs": "04-image-production/whole-page/stage3_lock_headers.mjs"
+  },
+  "public_compatibility": {
+    "ppt_flow_top_level_commands": 15,
+    "workflow_inspection_owner": "image2-refinement",
+    "workflow_inspection_actions": ["resume", "authorize-refinement", "continue-refinement"]
+  }
+}

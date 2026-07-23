@@ -34,7 +34,7 @@ import {
 } from "./image_provenance.mjs";
 import { sha256Bytes, sha256File } from "../../../shared/identity/byte_hash.mjs";
 
-const IMAGE_GENERATION_CLI = "PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage2_generate_images.mjs";
+const IMAGE_GENERATION_CLI = "PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage2_generate_images.mjs";
 
 /**
  * @param {object} opts

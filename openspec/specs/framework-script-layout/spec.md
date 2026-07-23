@@ -15,7 +15,7 @@ Define the canonical ownership, dependency, executable, and test layout for `PPT
 
 ### Requirement: Active Phases expose deep module interfaces
 
-Each active Phase `00-setup`, `01-content`, `02-visual-system`, `03-html-production`, `04-image2-refinement`, and `05-iteration` SHALL expose exactly one import-safe `index.mjs` interface. Callers and integration tests SHALL use that interface rather than private physical paths. Importing one SHALL not bootstrap a CLI, parse arguments, write production data, launch a browser, initialize a provider, or eagerly load operation-specific implementation. Root `ppt_flow.mjs` SHALL select interfaces by command/marker. Phase 4 SHALL own only the modern authorized visual-slot capability and its private injectable transport; it adds no standalone executable. The Phase-4 interface SHALL not be imported by shared modules, Phase-3 ordinary HTML delivery, or Phase-5 legacy implementation.
+Each active Phase `00-setup`, `01-content`, `02-visual-system`, `03-html-production`, `04-image-production`, and `05-iteration` SHALL expose exactly one import-safe `index.mjs` interface. Image Production SHALL additionally expose `whole-page` and `visual-slot` public adapters. Callers and integration tests SHALL use those interfaces rather than private physical paths. Importing one SHALL not bootstrap a CLI, parse arguments, write production data, launch a browser, initialize a provider, or eagerly load operation-specific implementation. Root `ppt_flow.mjs` SHALL select interfaces by canonical mode/direct evidence. Whole-page direct executables live under its adapter; visual-slot keeps its private injectable transport. Shared modules and foreign adapters SHALL not import either adapter's private implementation.
 
 Phase 0 owns local readiness and remains provider-free. Its direct adapter and root doctor may lazily invoke Phase 5's public provider diagnostic only after prerequisites and explicit Image2-mode selection. Phase 5 migration SHALL use Phase 3 public migration operations.
 
@@ -26,7 +26,7 @@ Phase 0 owns local readiness and remains provider-free. Its direct adapter and r
 
 ### Requirement: Module imports follow the allowed direction
 
-Architecture validation SHALL parse repository-local static, re-export, and string-literal dynamic ESM edges. Root may import active Phase interfaces and declared public shared CLI/run-bundle/state interfaces. A Phase may import its own implementation, public shared interfaces, versioned contracts, and only these foreign Phase interfaces: `00-setup -> {}`, `01-content -> {}`, `02-visual-system -> {}`, `03-html-production -> {00-setup,01-content,02-visual-system}`, `04-image2-refinement -> {02-visual-system,03-html-production}`, and `05-iteration -> {01-content,02-visual-system,03-html-production}`.
+Architecture validation SHALL parse repository-local static, re-export, and string-literal dynamic ESM edges. Root may import active Phase interfaces and declared public shared CLI/run-bundle/state interfaces. A Phase may import its own implementation, public shared interfaces, versioned contracts, and only these foreign Phase interfaces: `00-setup -> {}`, `01-content -> {}`, `02-visual-system -> {}`, `03-html-production -> {00-setup,01-content,02-visual-system}`, `04-image-production -> {01-content,02-visual-system,03-html-production}`, and `05-iteration -> {01-content,02-visual-system,03-html-production,04-image-production}`.
 
 Shared modules SHALL not import a Phase. Phases SHALL not import another Phase's private implementation, direct executable, or artifact-path constant. The exact cross-owner process adapters are root `ppt_flow.mjs`, `00-setup/env-check.mjs`, and Phase-3 `unified_pipeline.mjs`, `stage1_build_inputs.mjs`, and `stage4_build_pptx.mjs`; each may coordinate only through public interfaces. Contracts remain Phase-free. Canonical JSON lives in `contracts/canonical_json.mjs`, with a shared facade delegating to it; shared identity stays provider-neutral and does not discover, read, or write branch-owned manifests.
 
@@ -37,12 +37,12 @@ Shared modules SHALL not import a Phase. Phases SHALL not import another Phase's
 
 #### Scenario: Refinement reaches legacy private generation
 
-- **WHEN** architecture validation finds Phase 4 importing `05-iteration/legacy-image2/`
+- **WHEN** architecture validation finds Phase 4 importing `04-image-production/whole-page/`
 - **THEN** it rejects the ownership crossover
 
 ### Requirement: Legacy and future Image2 ownership remain isolated
 
-Markerless whole-page Image2 generation, style-master, contact-sheet, and header-lock maintenance SHALL remain under `05-iteration/legacy-image2/`. Modern Phase 4 SHALL own only authorized no-text visual-slot refinement and SHALL never become an ordinary HTML renderer or whole-page generator. HTML Phase 3/local iteration SHALL not import or initialize either provider implementation.
+Whole-page Image2 generation, style-master, contact-sheet, and header-lock implementation SHALL live under `04-image-production/whole-page/`; `05-iteration` retains routing/migration/compatibility only. Visual-slot refinement remains a distinct adapter and SHALL never become an ordinary HTML renderer. HTML Phase 3/local iteration SHALL not import or initialize either provider implementation.
 
 #### Scenario: HTML production imports modern transport
 
@@ -70,7 +70,7 @@ The canonical `contracts/executable_inventory.mjs` registry SHALL contain the fi
 #### Scenario: Modern refinement journey is classified
 
 - **WHEN** a public authorized refinement journey is located
-- **THEN** it belongs under `tests_e2e/04-image2-refinement/` and is not duplicated under Phase 5
+- **THEN** it belongs under `tests_e2e/04-image-production/` and is not duplicated under Phase 5
 
 ### Requirement: Source-to-test ownership is machine-readable
 

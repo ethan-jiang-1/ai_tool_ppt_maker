@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-22 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-07-23 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -15,15 +15,16 @@
 
 ## 活跃列表
 
-### P1（重要 — 3 个）
+### P1（重要 — 4 个）
 
 - **[BUG-014](BUG-014-html-objects-unnavigable-sha256-filenames.md)** — HTML 产物 SHA256 文件名无法按 slide_id 定位
 - **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — html-first 渲染以文字排版为主，缺乏视觉表达能力
 - **[BUG-033](BUG-033-legacy-image2-lightweight-iteration-blocked.md)** — markerless deck 的单页 Image2 迭代被多个控制面诊断连续阻断
+- **[BUG-034](BUG-034-full-suite-runner-lacks-completable-observable-exit.md)** — 全量 unit/integration suite 缺少可完成、可观察的退出契约
 
 ---
 
-**Next available bug ID: BUG-034**
+**Next available bug ID: BUG-035**
 
 ## 类别分布
 
@@ -31,6 +32,7 @@
 |---|---|---|
 | 渲染/视觉 | 2 | 014, 015 |
 | 生产/迭代 | 1 | 033 |
+| 测试基础设施 | 1 | 034 |
 
 ---
 

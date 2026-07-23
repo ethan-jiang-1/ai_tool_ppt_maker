@@ -26,12 +26,12 @@ import {
   generationProfile,
   readImageManifest,
   writeImageManifestAtomic,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import {
   buildHeaderReviewInputs,
   mergeHeaderReviewRecord,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/header_review.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/header_review.mjs";
 import { DEFAULT_CONFIG } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/visual_config.mjs";
 import { createDefaultState, readState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 

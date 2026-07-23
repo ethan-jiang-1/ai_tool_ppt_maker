@@ -21,7 +21,7 @@ import {
 } from '../../03-html-production/index.mjs';
 import { readState } from '../../shared/state/state.mjs';
 import { ARTIFACT_KIND_FINAL_SLIDE, ARTIFACT_STATUS_VERIFIED, RENDER_ENGINE_IMAGE2 } from '../../shared/identity/render_artifacts.mjs';
-import { readArtifactManifest, resolveRenderArtifact } from '../legacy-image2/internal/render_artifacts.mjs';
+import { readArtifactManifest, resolveRenderArtifact } from '../../04-image-production/index.mjs';
 
 const MIGRATION_DIR = 'html-migration';
 const MIGRATION_CANDIDATE_SOURCE = 'slide-specifications.md';

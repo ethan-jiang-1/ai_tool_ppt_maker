@@ -14,7 +14,7 @@ Define the canonical directory layout of `PPTMAKER_FRAMEWORK/`: a type-based, fi
 
 ### Requirement: Phase directories are under workflow/
 
-All six active/final Phase methodology directories SHALL be located under `PPTMAKER_FRAMEWORK/workflow/` with exact names `00-setup/`, `01-content/`, `02-visual-system/`, `03-html-production/`, `04-image2-refinement/`, and `05-iteration/`. Lifecycle Phase and `method_module` numbering SHALL align with those names. In Change 3, `04-image2-refinement/` SHALL contain only a README that states the capability is unavailable, optional after complete HTML delivery, and not an active gate/controller/command; no other Phase-4 workflow file SHALL exist until an owning later change.
+All six active/final Phase methodology directories SHALL be located under `PPTMAKER_FRAMEWORK/workflow/` with exact names `00-setup/`, `01-content/`, `02-visual-system/`, `03-html-production/`, `04-image-production/`, and `05-iteration/`. `04-image-production/` is the active Image Production family: `whole-page` is legal only for `image2-only`, while `visual-slot` is legal only for `html-then-image2` after current HTML delivery. Lifecycle/module metadata classifies ownership and does not schedule either adapter.
 
 The removed active directories `01-visual/`, `02-content/`, `03-prompts/`, and `04-production/` SHALL not remain as aliases or duplicate methodology trees. Legacy whole-page Image2 maintenance SHALL live under `reference/` and `playbook/`, not under the active Phase tree.
 
@@ -24,11 +24,11 @@ The removed active directories `01-visual/`, `02-content/`, `03-prompts/`, and `
 - **THEN** it reads `workflow/01-content/` and `workflow/03-html-production/`
 - **AND** does not encounter a second active legacy path
 
-#### Scenario: Phase 4 is visible but unavailable
+#### Scenario: Image Production is visible and adapter-owned
 
-- **WHEN** Agent opens `workflow/04-image2-refinement/` after Change 3
-- **THEN** only the unavailable README exists
-- **AND** no active node/controller link claims refinement can execute
+- **WHEN** Agent opens `workflow/04-image-production/`
+- **THEN** it finds the active Image Production methodology
+- **AND** it does not find a retired Image2-refinement alias
 
 ### Requirement: All executable scripts are under scripts/
 

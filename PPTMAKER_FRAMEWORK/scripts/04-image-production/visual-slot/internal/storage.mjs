@@ -2,9 +2,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { Document, parse as parseYaml } from "yaml";
-import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
-import { deckRoot, IMAGE2_REFINEMENT_PROVENANCE_FILE, SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR, SCRATCH_IMAGE2_REFINEMENT_SUBDIR } from "../../shared/run-bundle/bundle_layout.mjs";
-import { readState, statePath, writeState } from "../../shared/state/state.mjs";
+import { canonicalJson } from "../../../shared/identity/canonical_json.mjs";
+import { deckRoot, IMAGE2_REFINEMENT_PROVENANCE_FILE, SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR, SCRATCH_IMAGE2_REFINEMENT_SUBDIR } from "../../../shared/run-bundle/bundle_layout.mjs";
+import { readState, statePath, writeState } from "../../../shared/state/state.mjs";
 import {
   REFINEMENT_CANDIDATE_SCHEMA,
   REFINEMENT_PROMOTION_JOURNAL_SCHEMA as CONTRACT_PROMOTION_SCHEMA,

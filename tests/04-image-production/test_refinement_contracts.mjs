@@ -14,7 +14,7 @@ import {
   refinementRequestFingerprint,
   transitionAttempt,
   verifyRefinementRequestReferences,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image2-refinement/index.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import { createVersion, initHtmlFirstBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { encode as encodePng } from "fast-png";
 import { htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";

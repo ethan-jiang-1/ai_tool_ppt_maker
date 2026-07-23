@@ -64,28 +64,28 @@
       "e2e": ["tests_e2e/03-html-production/test-html-first-flow.mjs"]
     },
     {
-      "owner": "04-image2-refinement",
-      "interfaces": ["04-image2-refinement/index.mjs"],
+      "owner": "04-image-production",
+      "interfaces": ["04-image-production/index.mjs"],
       "executables": [],
       "unit_integration": [
-        "tests/04-image2-refinement/test_refinement_contracts.mjs",
-        "tests/04-image2-refinement/test_refinement_lifecycle.mjs",
-        "tests/04-image2-refinement/test_relay_compatibility.mjs"
+        "tests/04-image-production/test_refinement_contracts.mjs",
+        "tests/04-image-production/test_refinement_lifecycle.mjs",
+        "tests/04-image-production/test_relay_compatibility.mjs"
       ],
       "e2e": [
-        "tests_e2e/04-image2-refinement/test-html-then-image2-completion.mjs",
-        "tests_e2e/04-image2-refinement/test-image2-lifecycle.mjs",
-        "tests_e2e/04-image2-refinement/test-refinement-flow.mjs"
+        "tests_e2e/04-image-production/test-html-then-image2-completion.mjs",
+        "tests_e2e/04-image-production/test-image2-lifecycle.mjs",
+        "tests_e2e/04-image-production/test-refinement-flow.mjs"
       ]
     },
     {
       "owner": "05-iteration",
       "interfaces": ["05-iteration/index.mjs"],
       "executables": [
-        "05-iteration/legacy-image2/generate_style_master.mjs",
-        "05-iteration/legacy-image2/make_contact_sheet.mjs",
-        "05-iteration/legacy-image2/stage2_generate_images.mjs",
-        "05-iteration/legacy-image2/stage3_lock_headers.mjs"
+        "04-image-production/whole-page/generate_style_master.mjs",
+        "04-image-production/whole-page/make_contact_sheet.mjs",
+        "04-image-production/whole-page/stage2_generate_images.mjs",
+        "04-image-production/whole-page/stage3_lock_headers.mjs"
       ],
       "unit_integration": [
         "tests/05-iteration/test_generate_style_master.mjs",
@@ -115,13 +115,16 @@
         "contracts/html_source_ast.mjs"
       ],
       "executables": ["ppt_flow.mjs"],
-      "unit_integration": [
-        "tests/contracts/test_docs_consistency.mjs",
-        "tests/contracts/test_framework_architecture.mjs",
-        "tests/contracts/test_geometry_contracts.mjs",
-        "tests/contracts/test_html_review_projection.mjs",
+    "unit_integration": [
+      "tests/contracts/test_docs_consistency.mjs",
+      "tests/contracts/test_framework_architecture.mjs",
+      "tests/contracts/test_framework_governance_ledger.mjs",
+      "tests/contracts/test_geometry_contracts.mjs",
+      "tests/contracts/test_html_review_projection.mjs",
+      "tests/contracts/test_image_production_relocation_baseline.mjs",
         "tests/contracts/test_ppt_flow.mjs",
         "tests/contracts/test_runtime_constitution.mjs",
+        "tests/contracts/test_workflow_control_ledger.mjs",
         "tests/contracts/test_workflow_inspection_cli.mjs"
       ],
       "e2e": []
@@ -168,7 +171,8 @@
       "unit_integration": [
         "tests/shared/run-bundle/test_bundle_layout.mjs",
         "tests/shared/run-bundle/test_lessons.mjs",
-        "tests/shared/run-bundle/test_production_mode.mjs"
+        "tests/shared/run-bundle/test_production_mode.mjs",
+        "tests/shared/run-bundle/test_run_bundle_locator.mjs"
       ],
       "e2e": ["tests_e2e/shared/run-bundle/test-lessons-flow.mjs"]
     },

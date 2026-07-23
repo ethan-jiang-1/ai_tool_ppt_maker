@@ -119,8 +119,9 @@ exit: [visual_preset_seeded, evidence:whole-page-visual-system-configured]
 
 ```yaml
 node: authorize-image2-style-master
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [configure-whole-page-visual-system]
 produces: [image2-style-master-authorization]
@@ -135,8 +136,9 @@ exit: [user_decision_recorded]
 
 ```yaml
 node: generate-image2-style-master
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [authorize-image2-style-master]
 produces: [style-master]
@@ -150,8 +152,9 @@ exit: [style_master_exists]
 
 ```yaml
 node: pilot-image2-pages
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [generate-image2-style-master]
 produces: [image2-pilot, pilot-contact-sheet]
@@ -167,8 +170,9 @@ exit: [evidence:image2-pilot-current]
 
 ```yaml
 node: review-image2-content
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [pilot-image2-pages]
 produces: [image2-content-review]
@@ -183,8 +187,9 @@ exit: [user_decision_recorded, gate_approved:content]
 
 ```yaml
 node: review-image2-visual
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [review-image2-content]
 produces: [image2-visual-review]
@@ -199,8 +204,9 @@ exit: [user_decision_recorded, gate_approved:visual]
 
 ```yaml
 node: review-image2-header
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [review-image2-visual]
 produces: [header-review]
@@ -215,8 +221,9 @@ exit: [user_decision_recorded, header_review_current]
 
 ```yaml
 node: authorize-image2-build
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [review-image2-header]
 produces: [image2-build-authorization]
@@ -231,8 +238,9 @@ exit: [user_decision_recorded]
 
 ```yaml
 node: produce-image2-deck
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [authorize-image2-build]
 produces: [whole-page-contact-sheet, final-pptx, notes-receipt]
@@ -246,8 +254,9 @@ exit: [pptx_generated, speaker_notes_injected, evidence:image2-delivery-current]
 
 ```yaml
 node: checkpoint-image2-final-review
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [produce-image2-deck]
 produces: [image2-delivery-review]
@@ -264,8 +273,9 @@ exit: [user_decision_recorded]
 
 ```yaml
 node: repair-image2-deck
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [checkpoint-image2-final-review]
 produces: [completed-image2-repair]
@@ -279,8 +289,9 @@ exit: [evidence:image2-repair-completed]
 
 ```yaml
 node: image2-readiness
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [checkpoint-image2-final-review]
 produces: [image2-delivery-checklist]
@@ -294,8 +305,9 @@ exit: [pptx_generated, speaker_notes_injected, header_review_current, evidence:i
 
 ```yaml
 node: final-image2
-lifecycle_phase: 5
-method_module: 05-iteration
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: whole-page
 production_modes: [image2-only]
 requires: [image2-readiness]
 produces: [delivered-image2-deck]

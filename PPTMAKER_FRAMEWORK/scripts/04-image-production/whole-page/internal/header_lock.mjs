@@ -87,7 +87,7 @@ import { sha256Bytes, sha256File } from "../../../shared/identity/byte_hash.mjs"
 
 const RENDER_MODE_FULL_PAGE = "full-page";
 const RENDER_MODE_BODY_HEADER_LOCK = "body+header-lock";
-const HEADER_LOCK_CLI = "PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs";
+const HEADER_LOCK_CLI = "PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage3_lock_headers.mjs";
 const CANONICAL_RENDER_MODES = new Set([
   RENDER_MODE_FULL_PAGE,
   RENDER_MODE_BODY_HEADER_LOCK,

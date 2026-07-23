@@ -14,42 +14,42 @@ export async function runLegacyProduction(runDir, options = {}) {
 }
 
 export async function generateLegacyImages(options) {
-  const module = await import("../legacy-image2/internal/image_generation.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.generateImages(options);
 }
 
 export async function generateLegacyStyleMaster(options) {
-  const module = await import("../legacy-image2/internal/style_master.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.generateStyleMaster(options);
 }
 
 export async function runLegacyStyleMasterCli(argv, options) {
-  const module = await import("../legacy-image2/internal/style_master.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.runStyleMasterCli(argv, options);
 }
 
 export async function buildLegacyImageFailureDiagnostic(options) {
-  const module = await import("../legacy-image2/internal/image_generation.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.buildImageFailureDiagnostic(options);
 }
 
 export async function runLegacyImageGenerationCli(argv) {
-  const module = await import("../legacy-image2/internal/image_generation.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.runLegacyImageGenerationCli(argv);
 }
 
 export async function buildLegacyContactSheet(options) {
-  const module = await import("../legacy-image2/internal/contact_sheet.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.makeContactSheet(options);
 }
 
 export async function runLegacyContactSheetCli(argv) {
-  const module = await import("../legacy-image2/internal/contact_sheet.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.runContactSheetCli(argv);
 }
 
 export async function lockLegacyHeaders(options) {
-  const module = await import("../legacy-image2/internal/header_lock.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.lockHeaders(options);
 }
 
@@ -58,12 +58,12 @@ export async function runLegacyHeaderLockCli(argv) {
     console.log("Usage: node stage3_lock_headers.mjs --images <dir> --slide-plan <file> --out <dir> [--style-dir <dir>] [--color-palette <file>]");
     return;
   }
-  const module = await import("../legacy-image2/internal/header_lock.mjs");
+  const module = await import("../../04-image-production/index.mjs");
   return module.runHeaderLockCli(argv);
 }
 
 export async function resolveLegacyFinalSlides({ runDir, directory, slides }) {
-  const artifacts = await import("../legacy-image2/internal/render_artifacts.mjs");
+  const artifacts = await import("../../04-image-production/index.mjs");
   const identity = await import("../../shared/identity/render_artifacts.mjs");
   const { join } = await import("node:path");
   const { manifest, error: manifestError } = artifacts.readArtifactManifest(join(directory, "_manifest.json"));

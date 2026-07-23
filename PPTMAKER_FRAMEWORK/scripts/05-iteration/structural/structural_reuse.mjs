@@ -1,6 +1,6 @@
 import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
 import { ARTIFACT_STATUS_VERIFIED } from "../../shared/identity/render_artifacts.mjs";
-import { sameGenerationProfile } from "../legacy-image2/internal/header_review.mjs";
+import { sameGenerationProfile } from "../../04-image-production/index.mjs";
 
 export const STRUCTURAL_LOCAL_STAGES = Object.freeze([
   "stage1",

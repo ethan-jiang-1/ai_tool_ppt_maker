@@ -35,21 +35,15 @@ scripts/
 │   ├── stage5_inject_notes.mjs
 │   ├── unified_pipeline.mjs
 │   └── internal/
-├── 04-image2-refinement/
+├── 04-image-production/
 │   ├── index.mjs
-│   ├── README.md
-│   └── internal/             # contracts, persistence, injected transport
+│   ├── whole-page/           # direct whole-page CLIs and lazy provider adapter
+│   └── visual-slot/          # HTML-dependent visual-slot adapter and private transport
 ├── 05-iteration/
 │   ├── index.mjs
 │   ├── change-classifier.md
 │   ├── structural/
 │   ├── migration/
-│   ├── legacy-image2/
-│   │   ├── generate_style_master.mjs
-│   │   ├── make_contact_sheet.mjs
-│   │   ├── stage2_generate_images.mjs
-│   │   ├── stage3_lock_headers.mjs
-│   │   └── internal/
 │   └── internal/
 ├── shared/
 │   ├── cli/
@@ -61,7 +55,7 @@ scripts/
 └── fixtures/
 ```
 
-根目录白名单只有 `README.md`、`ppt_flow.mjs`、六个 numbered Phase 目录、`shared/`、`contracts/`、`fonts/` 和 `fixtures/`。Phase 4 只通过 `index.mjs` 暴露 optional visual-slot interface；CLI 仍只从 root `ppt_flow image2` 进入，provider transport 保持 private injectable。
+根目录白名单只有 `README.md`、`ppt_flow.mjs`、六个 numbered Phase 目录、`shared/`、`contracts/`、`fonts/` 和 `fixtures/`。Image Production 只通过 family/adaptor `index.mjs` 暴露 whole-page 与 visual-slot interfaces；CLI 仍只从 root `ppt_flow image2` 进入，provider transport 保持 private injectable。
 
 ## Deep Phase interfaces
 
@@ -73,6 +67,7 @@ scripts/
 | `01-content/index.mjs` | structured source、slide identity、selector、render policy | Phase 3、Phase 5 |
 | `02-visual-system/index.mjs` | visual config、asset catalog、components、tokens、geometry | Phase 3、Phase 5 |
 | `03-html-production/index.mjs` | HTML validate/preview/build/refresh、Stage 1–5 local production | root、Phase 5 |
+| `04-image-production/index.mjs` | whole-page and visual-slot public adapters | root、Phase 3、Phase 5 |
 | `05-iteration/index.mjs` | structural versioning、migration、local iteration、markerless legacy maintenance | root |
 
 Importing an interface must not parse arguments, install a CLI transaction, exit the process, write production files, launch Chromium, initialize a provider, or eagerly load heavy operation-specific implementation. Operation boundaries use string-literal dynamic imports so static architecture checks can resolve the edge.
@@ -107,10 +102,10 @@ Canonical registry 位于 `contracts/executable_inventory.mjs`。路径必须是
 6. `03-html-production/stage4_build_pptx.mjs`
 7. `03-html-production/stage5_inject_notes.mjs`
 8. `03-html-production/unified_pipeline.mjs`
-9. `05-iteration/legacy-image2/generate_style_master.mjs`
-10. `05-iteration/legacy-image2/make_contact_sheet.mjs`
-11. `05-iteration/legacy-image2/stage2_generate_images.mjs`
-12. `05-iteration/legacy-image2/stage3_lock_headers.mjs`
+9. `04-image-production/whole-page/generate_style_master.mjs`
+10. `04-image-production/whole-page/make_contact_sheet.mjs`
+11. `04-image-production/whole-page/stage2_generate_images.mjs`
+12. `04-image-production/whole-page/stage3_lock_headers.mjs`
 13. `shared/run-bundle/bundle_layout.mjs`
 14. `shared/run-bundle/lessons.mjs`
 
@@ -132,18 +127,19 @@ Exact foreign-Phase adjacency：
 01-content          -> {}
 02-visual-system    -> {}
 03-html-production  -> {00-setup, 01-content, 02-visual-system}
-05-iteration        -> {01-content, 02-visual-system, 03-html-production}
+04-image-production -> {01-content, 02-visual-system, 03-html-production}
+05-iteration        -> {01-content, 02-visual-system, 03-html-production, 04-image-production}
 ```
 
-Phase 4 只由 `image2-refine` controller 拥有，且必须在 current HTML delivery review 后显式授权。`shared/` 不能 import numbered Phase；Phase 不能 import foreign `internal/` 或 foreign executable；contracts 不能反向 import Phase/shared production implementation。Legacy Image2 只能存在于 `05-iteration/legacy-image2/`，不能 import modern Phase 4。
+Image Production 的 `visual-slot` adapter 只由 `image2-refine` controller 在 current HTML delivery review 后显式授权；`whole-page` adapter 由 `image2-only` create-deck nodes 使用，且不需要 HTML delivery。`shared/` 不能 import numbered Phase；Phase 不能 import foreign `internal/` 或 foreign executable；contracts 不能反向 import Phase/shared production implementation。两个 adapter 不得跨入对方的 private transport。
 
 ## Source-to-test ownership
 
 测试树使用相同 owner vocabulary：
 
 ```text
-tests/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinement,05-iteration,shared,contracts,helpers}
-tests_e2e/{00-setup,01-content,02-visual-system,03-html-production,04-image2-refinement,05-iteration,shared,helpers}
+tests/{00-setup,01-content,02-visual-system,03-html-production,04-image-production,05-iteration,shared,contracts,helpers}
+tests_e2e/{00-setup,01-content,02-visual-system,03-html-production,04-image-production,05-iteration,shared,helpers}
 ```
 
 Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、15 个顶层 command surface 及其 direct executable union、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。

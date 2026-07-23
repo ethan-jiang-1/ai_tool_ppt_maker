@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sanitizeReceipt, RefinementContractError, isSafeRefinementId } from "./contracts.mjs";
-import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
+import { canonicalJson } from "../../../shared/identity/canonical_json.mjs";
 
 export const RELAY_SUBMIT_REQUEST_SCHEMA_V1 = "pptmaker-image2-relay-submit-v1";
 

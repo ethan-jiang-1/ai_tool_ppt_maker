@@ -1,5 +1,5 @@
 ---
-stage: workflow/04-image2-refinement
+stage: workflow/04-image-production
 status: active-optional
 ---
 

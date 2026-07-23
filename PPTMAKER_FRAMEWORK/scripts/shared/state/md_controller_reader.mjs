@@ -26,7 +26,7 @@ export const METHOD_MODULES = Object.freeze([
   "01-content",
   "02-visual-system",
   "03-html-production",
-  "04-image2-refinement",
+  "04-image-production",
   "05-iteration",
 ]);
 export const RESERVED_NODE_IDS = Object.freeze([
@@ -35,7 +35,7 @@ export const RESERVED_NODE_IDS = Object.freeze([
   "html-visual-review",
   "html-delivery-review",
   "html-production-reset",
-  "image2-refinement",
+  "image-production",
 ]);
 export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "legacy-image2-first"]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
@@ -128,6 +128,7 @@ function normalizeNode(raw, meta) {
     produces: asStringArray(raw?.produces),
     decisions: asStringArray(raw?.decisions),
     productionModes: asStringArray(raw?.production_modes),
+    adapter: raw?.adapter == null ? null : String(raw.adapter),
     modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
     shared: raw?.shared === true,
     raw,
@@ -259,9 +260,19 @@ function validateNodeShape(node, errors) {
   if (!METHOD_MODULES.includes(node.methodModule)) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
   }
-  const phase4 = node.lifecyclePhase === "4" || node.methodModule === "04-image2-refinement";
-  if (phase4 && node.playbook !== "image2-refine") addError(errors, node, "phase4-ownership", "only image2-refine may own lifecycle 4 / 04-image2-refinement nodes");
-  if (node.playbook === "image2-refine" && (node.lifecyclePhase !== "4" || node.methodModule !== "04-image2-refinement")) addError(errors, node, "phase4-ownership", "image2-refine nodes must declare lifecycle 4 and method_module 04-image2-refinement");
+  const imageProduction = node.methodModule === "04-image-production";
+  if (node.lifecyclePhase === "4" && !imageProduction) addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production");
+  if (imageProduction && !["whole-page", "visual-slot"].includes(node.adapter)) addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: whole-page|visual-slot");
+  if (!imageProduction && node.adapter != null) addError(errors, node, "image-production-adapter", "only 04-image-production nodes may declare an adapter");
+  if (node.adapter === "visual-slot" && (node.playbook !== "image2-refine" || node.productionModes.join("\n") !== "html-then-image2")) {
+    addError(errors, node, "image-production-adapter", "visual-slot is owned by image2-refine and requires html-then-image2");
+  }
+  if (node.adapter === "whole-page" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-only")) {
+    addError(errors, node, "image-production-adapter", "whole-page is owned by create-deck and requires image2-only");
+  }
+  if (node.playbook === "image2-refine" && (node.lifecyclePhase !== "4" || node.methodModule !== "04-image-production" || node.adapter !== "visual-slot")) {
+    addError(errors, node, "phase4-ownership", "image2-refine nodes must declare lifecycle 4, 04-image-production, and visual-slot");
+  }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
   }

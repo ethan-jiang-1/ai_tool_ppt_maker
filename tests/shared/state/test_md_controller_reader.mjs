@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import {
   buildPlaybookIndex,
   controllerNodeIds,
+  nodeAppliesToMode,
   parseControllerFile,
   validatePlaybookIndex,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/md_controller_reader.mjs";
@@ -43,7 +44,7 @@ describe("MD Controller reader characterization", () => {
         const node = index.nodesById.get(id);
         expect(node, `${playbook}/${id}`).toBeDefined();
         expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|4|5)$/);
-        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|03-html-production|04-image2-refinement|05-iteration)$/);
+        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|03-html-production|04-image-production|05-iteration)$/);
         expect(node.steps.length).toBeGreaterThan(0);
       }
     }
@@ -61,9 +62,23 @@ describe("MD Controller reader characterization", () => {
       "review-image2-refinement",
     ]);
     for (const node of controller.nodes) {
-      expect(node).toMatchObject({ playbook: "image2-refine", lifecyclePhase: "4", methodModule: "04-image2-refinement" });
+      expect(node).toMatchObject({ playbook: "image2-refine", lifecyclePhase: "4", methodModule: "04-image-production" });
     }
     expect(controller.nodes[0].entry).toEqual(["html_first_marked", "html_delivery_review_current"]);
+  });
+
+  it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
+    const index = buildPlaybookIndex(PLAYBOOK_DIR);
+    const wholePage = index.nodesById.get("generate-image2-style-master");
+    const visualSlot = index.nodesById.get("recommend-image2-refinement");
+    const createDeck = index.controllers.get("create-deck");
+    const refinement = index.controllers.get("image2-refine");
+    expect(wholePage).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "whole-page", productionModes: ["image2-only"] });
+    expect(visualSlot).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "visual-slot", productionModes: ["html-then-image2"] });
+    expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "image2-only")).toBe(true);
+    expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "html-then-image2")).toBe(false);
+    expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "html-then-image2")).toBe(true);
+    expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "image2-only")).toBe(false);
   });
 
   it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {

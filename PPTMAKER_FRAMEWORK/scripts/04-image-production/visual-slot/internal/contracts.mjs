@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
+import { canonicalJson } from "../../../shared/identity/canonical_json.mjs";
 
 /**
  * Phase 4 is deliberately contract-heavy.  The values in this module are

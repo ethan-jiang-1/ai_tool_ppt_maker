@@ -41,7 +41,9 @@ export const HISTORY_FILE = "history.jsonl";
 export const STATE_SCHEMA_VERSION = 5;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]);
+export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image-production"]);
+export const LEGACY_RESERVED_NODE_IDS = Object.freeze(["image2-refinement"]);
+export const IMAGE_PRODUCTION_STATE_SCHEMA_V1 = "pptmaker-image-production-state-v1";
 export const IMAGE2_REFINEMENT_STATE_SCHEMA_V1 = "pptmaker-image2-refinement-state-v1";
 export const IMAGE2_REFINEMENT_STATE_SCHEMA_V2 = "pptmaker-image2-refinement-state-v2";
 export const IMAGE2_REFINEMENT_STATE_SCHEMA = IMAGE2_REFINEMENT_STATE_SCHEMA_V2;
@@ -90,7 +92,7 @@ function newExecutionId() { return `exec-${randomUUID()}`; }
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function deepClone(value) { return value == null ? value : structuredClone(value); }
 function isPlainObject(value) { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
-function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id); }
+function isReservedNode(id) { return RESERVED_NODE_IDS.includes(id) || LEGACY_RESERVED_NODE_IDS.includes(id); }
 function controllerEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => !isReservedNode(id)); }
 function reservedEntries(nodes = {}) { return Object.entries(nodes).filter(([id]) => isReservedNode(id)); }
 function isoOr(value, fallback) {
@@ -376,21 +378,103 @@ function validRefinementRecord(record, runVersion) {
     Object.keys(record.reviews).every((id) => typeof id === "string" && id.trim() !== "");
 }
 
-export function readImage2RefinementState(state, runVersion) {
-  const container = state?.nodes?.["image2-refinement"];
-  if (container != null && (!isPlainObject(container) || Object.keys(container).some((key) => key !== "by_version") || !isPlainObject(container.by_version))) throw new Error("image2 refinement reserved record must contain only by_version");
-  const records = container?.by_version || {};
-  for (const key of Object.keys(records)) if (!/^3_versions\/v[1-9][0-9]*$/.test(key)) throw new Error("image2 refinement state contains a mismatched version key");
-  const record = records[refinementVersionKey(runVersion)] || null;
-  if (record === null) return null;
-  if (!validRefinementRecord(record, runVersion)) throw new Error("image2 refinement state record is invalid");
-  return structuredClone(record);
+function validImageProductionRecord(record, runVersion) {
+  if (!isPlainObject(record) || record.schema !== IMAGE_PRODUCTION_STATE_SCHEMA_V1 || record.adapter !== "visual-slot" ||
+    !hasExactKeys(record, ["schema", "adapter", "run_version", "plan", "authorization", "attempts", "reviews", "prerequisite_waiver"])) return false;
+  const legacyShape = {
+    schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
+    run_version: record.run_version,
+    plan: record.plan,
+    authorization: record.authorization,
+    attempts: record.attempts,
+    reviews: record.reviews,
+    prerequisite_waiver: record.prerequisite_waiver,
+  };
+  return validRefinementRecord(legacyShape, runVersion);
+}
+function refinementProjection(record) {
+  if (!record) return null;
+  return {
+    run_version: record.run_version,
+    plan: record.plan,
+    authorization: record.authorization,
+    attempts: record.attempts,
+    reviews: record.reviews,
+    prerequisite_waiver: record.prerequisite_waiver ?? null,
+  };
+}
+function equalRefinementRecords(left, right) { return JSON.stringify(refinementProjection(left)) === JSON.stringify(refinementProjection(right)); }
+function readReservedContainer(state, id, label) {
+  const container = state?.nodes?.[id];
+  if (container != null && (!isPlainObject(container) || !hasExactKeys(container, ["by_version"]) || !isPlainObject(container.by_version))) throw new Error(`${label} reserved record must contain only by_version`);
+  return container?.by_version || {};
+}
+export function readImageProductionState(state, runVersion) {
+  const key = refinementVersionKey(runVersion);
+  const current = readReservedContainer(state, "image-production", "image production")[key] || null;
+  const legacy = readReservedContainer(state, "image2-refinement", "image2 refinement")[key] || null;
+  if (current && !validImageProductionRecord(current, runVersion)) throw new Error("image production state record is invalid");
+  if (legacy && !validRefinementRecord(legacy, runVersion)) throw new Error("image2 refinement state record is invalid");
+  if (current && legacy && !equalRefinementRecords(current, legacy)) throw new Error("image production state conflict requires repair_state");
+  if (!current && !legacy) return null;
+  const selected = current || legacy;
+  return structuredClone({ ...selected, ...(current ? {} : { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: "visual-slot", prerequisite_waiver: selected.prerequisite_waiver ?? null }) });
+}
+export function readImage2RefinementState(state, runVersion) { return readImageProductionState(state, runVersion); }
+
+function normalizedImageProductionRecord(record) {
+  return {
+    schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1,
+    adapter: "visual-slot",
+    run_version: record.run_version,
+    plan: record.plan,
+    authorization: record.authorization,
+    attempts: record.attempts,
+    reviews: record.reviews,
+    prerequisite_waiver: record.prerequisite_waiver ?? null,
+  };
+}
+
+/** Apply the one authoritative visual-slot migration to an already selected
+ * expected-state candidate. Callers persist this object through writeState's
+ * CAS boundary (or a promotion journal bound to its exact bytes). */
+export function replaceImageProductionStateRecord(state, runVersion, record) {
+  if (!validRefinementRecord(record, runVersion) && !validImageProductionRecord(record, runVersion)) {
+    throw new TypeError("image production state record is invalid");
+  }
+  const normalized = normalizedImageProductionRecord(record);
+  if (!validImageProductionRecord(normalized, runVersion)) throw new TypeError("image production state record is invalid");
+  if (!isPlainObject(state)) throw new TypeError("state must be an object");
+  state.nodes ||= {};
+  const key = refinementVersionKey(runVersion);
+  const current = { ...(state.nodes["image-production"]?.by_version || {}) };
+  current[key] = structuredClone(normalized);
+  state.nodes["image-production"] = { by_version: current };
+  const legacy = { ...(state.nodes["image2-refinement"]?.by_version || {}) };
+  delete legacy[key];
+  if (Object.keys(legacy).length) state.nodes["image2-refinement"] = { by_version: legacy };
+  else delete state.nodes["image2-refinement"];
+  return state;
+}
+
+/** Terminal visual-slot decline removes both compatibility representations for
+ * precisely one version without creating a replacement record. */
+export function removeImageProductionStateRecord(state, runVersion) {
+  if (!isPlainObject(state)) throw new TypeError("state must be an object");
+  const key = refinementVersionKey(runVersion);
+  for (const id of ["image-production", "image2-refinement"]) {
+    const byVersion = { ...(state.nodes?.[id]?.by_version || {}) };
+    delete byVersion[key];
+    if (Object.keys(byVersion).length) state.nodes[id] = { by_version: byVersion };
+    else if (state.nodes) delete state.nodes[id];
+  }
+  return state;
 }
 
 /** Safe consumer projection for status/MD controllers; raw receipts and IDs
  * remain in the reserved record and are never exposed as mutable authority. */
 export function projectImage2RefinementState(state, runVersion) {
-  const record = readImage2RefinementState(state, runVersion);
+  const record = readImageProductionState(state, runVersion);
   if (!record) return Object.freeze({ present: false, status: "absent", authorization: null, attempts: [], reviews: [] });
   const attempts = Object.values(record.attempts).map((attempt) => Object.freeze({
     attempt_id: attempt.attempt_id,
@@ -432,16 +516,13 @@ export function projectImage2RefinementState(state, runVersion) {
 }
 
 export function writeImage2RefinementState(deckDir, runVersion, record, { expectedStateSha = null, expectedStateSha256 = null } = {}) {
-  if (!validRefinementRecord(record, runVersion)) throw new TypeError("image2 refinement state record is invalid");
   const state = readState(deckDir, { purpose: "execute", heal: false, runVersion });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
   if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: refinement state belongs to another run version");
-  state.nodes ||= {};
-  const prior = state.nodes["image2-refinement"]?.by_version || {};
-  state.nodes["image2-refinement"] = { by_version: { ...prior, [refinementVersionKey(runVersion)]: structuredClone(record) } };
+  replaceImageProductionStateRecord(state, runVersion, record);
   const expected = expectedStateSha256 || expectedStateSha;
   writeState(deckDir, state, { ...(expected ? { expectedStateSha: expected } : {}) });
-  return readImage2RefinementState(state, runVersion);
+  return readImageProductionState(state, runVersion);
 }
 function mergeMissing(canonical, legacy) {
   const out = isPlainObject(canonical) ? canonical : {};
@@ -2503,6 +2584,26 @@ export function validateState(state) {
       }
     }
   }
+  if (nodes["image-production"] !== undefined) {
+    const byVersion = nodes["image-production"]?.by_version;
+    if (!isPlainObject(byVersion)) errors.push("image-production must contain by_version");
+    else for (const key of Object.keys(byVersion)) {
+      const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
+      if (!match) errors.push(`invalid image-production version key ${key}`);
+      else if (!validImageProductionRecord(byVersion[key], match[1])) errors.push(`invalid image-production record ${key}`);
+    }
+  }
+  const imageProductionVersions = new Set();
+  for (const id of ["image2-refinement", "image-production"]) {
+    for (const key of Object.keys(nodes[id]?.by_version || {})) {
+      const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
+      if (match) imageProductionVersions.add(match[1]);
+    }
+  }
+  for (const runVersion of imageProductionVersions) {
+    try { readImageProductionState(state, runVersion); }
+    catch (error) { errors.push(`image production ${runVersion} requires repair_state: ${error.message}`); }
+  }
   for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
   validateProductionModeStructure(state, errors);
   validateImage2MapsStructure(state, errors);
@@ -2889,7 +2990,7 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
 
   const nodes = state.nodes;
   if (isPlainObject(nodes)) {
-    for (const id of ["html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement"]) {
+    for (const id of ["html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement", "image-production"]) {
       const container = nodes[id];
       if (container == null) continue;
       if (!hasExactKeys(container, ["by_version"]) || !isPlainObject(container.by_version)) {
@@ -2913,12 +3014,25 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
           }
         } else if (id === "html-production-reset") {
           validateHtmlResetRecordReadOnly(record, key, recordPath, issues);
-        } else if (id === "image2-refinement") {
+        } else if (id === "image2-refinement" || id === "image-production") {
           const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
-          if (runVersion && !validRefinementRecord(record, runVersion)) {
-            issues.push(stateIssue(recordPath, "closed image2 refinement v1/v2 record", "unknown-or-invalid", "record"));
+          if (runVersion && !(id === "image2-refinement" ? validRefinementRecord(record, runVersion) : validImageProductionRecord(record, runVersion))) {
+            issues.push(stateIssue(recordPath, id === "image2-refinement" ? "closed image2 refinement v1/v2 record" : "closed image production visual-slot record", "unknown-or-invalid", "record"));
           }
         }
+      }
+    }
+    const imageProductionVersions = new Set();
+    for (const id of ["image2-refinement", "image-production"]) {
+      for (const key of Object.keys(nodes[id]?.by_version || {})) {
+        const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
+        if (match) imageProductionVersions.add(match[1]);
+      }
+    }
+    for (const runVersion of imageProductionVersions) {
+      try { readImageProductionState(state, runVersion); }
+      catch (error) {
+        issues.push(stateIssue(`nodes.image-production.by_version.3_versions/${runVersion}`, "equal valid visual-slot records", error.message, "record", "repair_state"));
       }
     }
   }

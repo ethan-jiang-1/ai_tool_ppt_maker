@@ -27,6 +27,9 @@ import {
   writeImage2RefinementState,
   IMAGE2_REFINEMENT_STATE_SCHEMA_V1,
   IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
+  IMAGE_PRODUCTION_STATE_SCHEMA_V1,
+  removeImageProductionStateRecord,
+  validateStateReadOnly,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 import { createHtmlFirstRun } from '../../helpers/html_first_fixture.mjs';
 
@@ -42,8 +45,12 @@ describe('state.yaml yaml library + heal', () => {
     try {
       const before = readFileSync(join(fixture.deck, STATE_DIR, STATE_FILE));
       const record = { schema: 'pptmaker-image2-refinement-state-v1', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
-      expect(writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: createHash('sha256').update(before).digest('hex') })).toEqual(record);
-      expect(readImage2RefinementState(readState(fixture.deck), 'v1')).toEqual(record);
+      const expected = { ...record, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', prerequisite_waiver: null };
+      expect(writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: createHash('sha256').update(before).digest('hex') })).toEqual(expected);
+      const state = readState(fixture.deck);
+      expect(readImage2RefinementState(state, 'v1')).toEqual(expected);
+      expect(state.nodes['image-production'].by_version['3_versions/v1']).toEqual(expected);
+      expect(state.nodes['image2-refinement']).toBeUndefined();
       expect(() => writeImage2RefinementState(fixture.deck, 'v1', { ...record, extra: true })).toThrow(/invalid/);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   });
@@ -53,9 +60,11 @@ describe('state.yaml yaml library + heal', () => {
     try {
       const stateFile = join(fixture.deck, STATE_DIR, STATE_FILE);
       const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V1, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
-      writeImage2RefinementState(fixture.deck, 'v1', legacy);
+      const legacyState = readState(fixture.deck, { heal: false });
+      legacyState.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy } };
+      writeState(fixture.deck, legacyState);
       const legacyBytes = readFileSync(stateFile);
-      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(legacy);
+      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual({ ...legacy, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', prerequisite_waiver: null });
       expect(readFileSync(stateFile)).toEqual(legacyBytes);
 
       const current = {
@@ -69,8 +78,66 @@ describe('state.yaml yaml library + heal', () => {
       };
       writeImage2RefinementState(fixture.deck, 'v1', current);
       const currentBytes = readFileSync(stateFile);
-      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(current);
+      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual({ ...current, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot' });
       expect(readFileSync(stateFile)).toEqual(currentBytes);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  });
+  it('accepts equal dual records without observation mutation and rejects conflicts or a wrong adapter', () => {
+    const fixture = createHtmlFirstRun('image-production-dual-reader-');
+    try {
+      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
+      const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
+      const current = { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
+      const state = readState(fixture.deck, { heal: false });
+      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy } };
+      state.nodes['image-production'] = { by_version: { '3_versions/v1': current } };
+      writeState(fixture.deck, state);
+      const equalBytes = readFileSync(path);
+      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(current);
+      expect(readFileSync(path)).toEqual(equalBytes);
+
+      const conflicting = readState(fixture.deck, { heal: false });
+      conflicting.nodes['image-production'].by_version['3_versions/v1'] = { ...current, reviews: { AlphaGo: { decision: 'pending' } } };
+      writeFileSync(path, `${JSON.stringify(conflicting, null, 2)}\n`);
+      const conflictBytes = readFileSync(path);
+      expect(() => readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toThrow(/conflict requires repair_state/);
+      expect(readFileSync(path)).toEqual(conflictBytes);
+
+      conflicting.nodes['image-production'].by_version['3_versions/v1'] = { ...current, adapter: 'whole-page' };
+      writeFileSync(path, `${JSON.stringify(conflicting, null, 2)}\n`);
+      expect(() => readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toThrow(/invalid/);
+    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+  });
+  it('removes both exact-version compatibility records on terminal decline without a replacement', () => {
+    const state = createDefaultState();
+    const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
+    const current = { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
+    state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy, '3_versions/v2': { ...legacy, run_version: 'v2' } } };
+    state.nodes['image-production'] = { by_version: { '3_versions/v1': current } };
+    removeImageProductionStateRecord(state, 'v1');
+    expect(state.nodes['image-production']).toBeUndefined();
+    expect(state.nodes['image2-refinement'].by_version).toEqual({ '3_versions/v2': { ...legacy, run_version: 'v2' } });
+  });
+  it('preserves bytes for repair_state and rejects a stale visual-slot CAS precondition', () => {
+    const fixture = createHtmlFirstRun('image-production-cas-repair-');
+    try {
+      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
+      const record = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
+      const state = readState(fixture.deck, { heal: false });
+      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': record } };
+      writeState(fixture.deck, state);
+      const beforeCas = readFileSync(path);
+      expect(() => writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: 'f'.repeat(64) })).toThrow(/precondition changed/);
+      expect(readFileSync(path)).toEqual(beforeCas);
+
+      const malformed = readState(fixture.deck, { heal: false });
+      malformed.nodes['image-production'] = { by_version: { '3_versions/v1': { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'whole-page', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null } } };
+      writeFileSync(path, `${JSON.stringify(malformed, null, 2)}\n`);
+      const preserved = readFileSync(path);
+      const report = validateStateReadOnly(fixture.deck, { runDir: fixture.runDir });
+      expect(report.valid).toBe(false);
+      expect(report.issues).toEqual(expect.arrayContaining([expect.objectContaining({ next_action: 'repair_state' })]));
+      expect(readFileSync(path)).toEqual(preserved);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   });
   it('projects every bounded refinement status and human-action boundary', () => {

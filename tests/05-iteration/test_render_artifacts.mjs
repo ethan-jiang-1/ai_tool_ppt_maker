@@ -8,8 +8,8 @@ import {
   RENDER_ENGINE_IMAGE2,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/render_artifacts.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
-import { resolveRenderArtifact } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/render_artifacts.mjs";
-import { generationFingerprint, materializeVerifiedRawImage, publishMaterializedRawImages, readImageManifest } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/legacy-image2/internal/image_provenance.mjs";
+import { resolveRenderArtifact } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/render_artifacts.mjs";
+import { generationFingerprint, materializeVerifiedRawImage, publishMaterializedRawImages, readImageManifest } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
 
 const profile = { model: "image2", resolution: "1k" };
 const fixture = () => { const root = join(tmpdir(), `render-artifact-${process.pid}-${Date.now()}-${Math.random()}`); mkdirSync(root, { recursive: true }); return root; };
