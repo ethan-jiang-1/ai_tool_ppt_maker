@@ -49,7 +49,7 @@ workflow Phase、顶层 capability 或主入口说明。Change 3 必须在 imple
 
 ## Legacy Image2 轻量迭代探针
 
-[`BUG-033-legacy-image2-lightweight-iteration-blocked.md`](../../bugs/BUG-033-legacy-image2-lightweight-iteration-blocked.md)
+[`BUG-033-legacy-image2-lightweight-iteration-blocked.md`](../../../bugs/BUG-033-legacy-image2-lightweight-iteration-blocked.md)
 描述一个已交付 markerless deck 修改一页 KICKER/图片时，落入 bundle layout、mode routing、authorization、
 provenance、image discovery 和 assembly 多重阻断的场景。
 
