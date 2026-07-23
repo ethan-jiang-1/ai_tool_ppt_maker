@@ -1,6 +1,6 @@
 {
   "name": "ppkmaker-framework",
-  "version": "0.15.0",
+  "version": "0.22.0",
   "description": "Agent-driven PPT generation pipeline — production scripts (Node.js ESM)",
   "type": "module",
   "engines": {
@@ -9,9 +9,11 @@
   "scripts": {
     "bench:html-catalog": "node tests/03-html-production/benchmarks/html_asset_catalog_worst_case.mjs",
     "bench:html-delivery": "node tests/03-html-production/benchmarks/html_delivery_acceptance.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "vitest run --config vitest.e2e.config.mjs",
+    "test": "node tests/contracts/run_development_verification.mjs",
+    "test:sweep": "vitest run",
+    "test:focused": "node tests/contracts/run_selected_verification.mjs focused",
+    "test:render": "node tests/contracts/run_selected_verification.mjs render",
+    "test:e2e": "node tests/contracts/run_selected_verification.mjs journey",
     "setup:chromium": "playwright install chromium",
     "setup:chromium:with-deps": "playwright install --with-deps chromium"
   },

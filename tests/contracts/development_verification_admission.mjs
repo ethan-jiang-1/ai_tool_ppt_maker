@@ -55,11 +55,24 @@ function tokenize(source, start = 0, end = source.length) {
     }
     throw new Error("unterminated template literal");
   };
+  const readRegex = () => {
+    i += 1;
+    let inClass = false;
+    while (i < end) {
+      const ch = source[i++];
+      if (ch === "\\") { i += 1; continue; }
+      if (ch === "[") inClass = true;
+      else if (ch === "]") inClass = false;
+      else if (ch === "/" && !inClass) { while (i < end && /[A-Za-z]/.test(source[i])) i += 1; return; }
+    }
+    throw new Error("unterminated regular expression");
+  };
   while (i < end) {
     const ch = source[i];
     if (whitespace.test(ch)) { i += 1; continue; }
     if (ch === "/" && source[i + 1] === "/") { i += 2; while (i < end && source[i] !== "\n") i += 1; continue; }
     if (ch === "/" && source[i + 1] === "*") { const close = source.indexOf("*/", i + 2); if (close < 0) throw new Error("unterminated comment"); i = close + 2; continue; }
+    if (ch === "/" && (!out.length || /^(?:\(|\[|\{|=|:|,|;|!|&&|\|\||\?|return)$/.test(out.at(-1)?.value || ""))) { readRegex(); continue; }
     if (ch === "'" || ch === '"') { out.push(token("string", readString(ch))); continue; }
     if (ch === "`") { readTemplate(); continue; }
     if (identStart.test(ch)) { let value = ch; i += 1; while (i < end && ident.test(source[i])) value += source[i++]; out.push(token("id", value)); continue; }
@@ -74,18 +87,23 @@ function statementEnd(tokens, index) {
   return index;
 }
 
-export function collectStaticSpecifiers(source) {
+export function collectStaticSpecifiers(source, { prohibitRuntimeSurfaces = true } = {}) {
   let tokens;
   try { tokens = tokenize(source); } catch (error) { return fail("unclassifiable-syntax", error.message, "use literal static ESM imports only"); }
   const specifiers = [];
   for (let i = 0; i < tokens.length; i += 1) {
     const current = tokens[i];
-    if (current.type === "id" && ["require", "createRequire", "fetch", "WebSocket"].includes(current.value)) return fail("prohibited-surface", `${current.value} is not permitted in core`, "move this dependency to an opt-in tier");
+    if (prohibitRuntimeSurfaces && current.type === "id" && ["require", "createRequire", "fetch", "WebSocket"].includes(current.value)) return fail("prohibited-surface", `${current.value} is not permitted in core`, "move this dependency to an opt-in tier");
     if (current.type !== "id" || (current.value !== "import" && current.value !== "export")) continue;
     const next = tokens[i + 1];
     if (current.value === "import") {
       if (!next || next.value === "(") return fail("dynamic-import", "dynamic import is not permitted in core", "use one literal static import or move the test to an opt-in tier");
-      if (next.type === "string") { specifiers.push(next.value); i += 1; continue; }
+      if (next.value === "." && tokens[i + 2]?.value === "meta") { i += 2; continue; }
+      if (next.type === "string") {
+        const end = statementEnd(tokens, i + 2);
+        if (tokens.slice(i + 2, end).some((item) => item.value === "assert" || item.value === "with")) return fail("import-attributes", "import attributes are not permitted in core", "remove import attributes from the core closure");
+        specifiers.push(next.value); i = end; continue;
+      }
       let from = -1;
       const end = statementEnd(tokens, i + 1);
       for (let cursor = i + 1; cursor < end; cursor += 1) if (tokens[cursor].value === "from") { from = cursor; break; }

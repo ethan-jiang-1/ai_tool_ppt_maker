@@ -14,6 +14,7 @@ const REQUIRED_CONTRACTS = [
   "contracts/canonical_json.mjs",
   "contracts/executable_inventory.mjs",
   "contracts/framework_architecture.mjs",
+  "contracts/framework_document_command_audit.mjs",
   "contracts/framework_static_coherence.mjs",
   "contracts/html_source_ast.mjs",
   "contracts/html_review_projection.mjs",

@@ -111,23 +111,30 @@
         "contracts/cli_return_audit.mjs",
         "contracts/executable_inventory.mjs",
         "contracts/framework_architecture.mjs",
+        "contracts/framework_document_command_audit.mjs",
         "contracts/framework_static_coherence.mjs",
         "contracts/html_review_projection.mjs",
         "contracts/html_source_ast.mjs"
       ],
       "executables": ["ppt_flow.mjs"],
     "unit_integration": [
+      "tests/contracts/fixtures/development-verification/test_mock_admitted_entry.mjs",
+      "tests/contracts/fixtures/development-verification/test_mock_out_of_root.mjs",
+      "tests/contracts/fixtures/development-verification/test_mock_prohibited_direct.mjs",
+      "tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs",
+      "tests/contracts/test_development_verification_admission.mjs",
       "tests/contracts/test_docs_consistency.mjs",
       "tests/contracts/test_framework_architecture.mjs",
-      "tests/contracts/test_framework_load_closure.mjs",
-      "tests/contracts/test_development_verification_admission.mjs",
       "tests/contracts/test_framework_governance_ledger.mjs",
+      "tests/contracts/test_framework_load_closure.mjs",
       "tests/contracts/test_geometry_contracts.mjs",
       "tests/contracts/test_html_review_projection.mjs",
       "tests/contracts/test_image_production_relocation_baseline.mjs",
+      "tests/contracts/test_mock_development_verification_runner.mjs",
+      "tests/contracts/test_mock_selected_verification.mjs",
         "tests/contracts/test_ppt_flow.mjs",
         "tests/contracts/test_runtime_constitution.mjs",
-        "tests/contracts/test_workflow_control_ledger.mjs",
+      "tests/contracts/test_workflow_control_ledger.mjs",
         "tests/contracts/test_workflow_inspection_cli.mjs"
       ],
       "e2e": []
@@ -204,7 +211,10 @@
         "tests/shared/workflow/test_workflow_inspection.mjs",
         "tests/shared/workflow/test_workflow_inspection_drift.mjs"
       ],
-      "e2e": ["tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs"]
+      "e2e": [
+        "tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs",
+        "tests_e2e/shared/workflow/test_mock_selected_journey.mjs"
+      ]
     }
   ]
 }

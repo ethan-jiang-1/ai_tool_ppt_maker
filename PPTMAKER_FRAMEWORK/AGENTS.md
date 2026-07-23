@@ -46,3 +46,9 @@ Legacy: Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh
 Consume the last valid CLI failure envelope and follow `diagnostic.next`; `requires_human: true` stops for a decision. Never guess omitted path/id/hash/token, manually repair `_state`, delete a lock/journal, or edit `_generated/`.
 
 Git 对做 PPT **可选但推荐** only as a user-owned source/control audit. This invocation's directory is not confirmed as a worktree unless the user explicitly authorizes inspection; there may be no verifiable Git history checkpoint. Do not run `git init` inside a project root or framework, and do not treat Git as recovery authority.
+
+## Framework maintenance verification
+
+For framework changes, run `npm test` first. This is the bounded, dependency-free core checkpoint and it reports one final JSON result; it is not release coverage. `invalid_inventory` means repair the inventory or dependency boundary, `unavailable` means restore local Vitest, `failed` means repair the named core assertion, and `timed_out` means reduce or demote the selected core work. Each is a hard stop for claiming core evidence: do not retry, widen workers, or substitute another tier.
+
+Then select the minimum affected opt-in evidence: `npm run test:focused -- <tests/.../test_*.mjs>` for one non-visual seam, `npm run test:render -- <tests/.../test_*.mjs>` for one visual-engine seam, and at most one `npm run test:e2e -- <tests_e2e/.../test_mock_*.mjs>` mocked journey. `npm run test:sweep` is explicit unit/integration sampling. Browser, HTML compositor, Canvas/PPTX/ECharts, provider, load-closure, journey, and sweep work are diagnostics or release sampling, never default completion evidence; no broad E2E command is available.

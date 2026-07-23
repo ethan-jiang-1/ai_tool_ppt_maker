@@ -20,6 +20,109 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.22.0 — Bounded Development Verification（2026-07-23）
+
+**代号**：One bounded checkpoint
+
+> 默认验证从无界全量 Vitest sweep 收敛为受清单、依赖闭包和 60 秒总预算约束的核心检查；重型 render、闭包和 E2E 证据改为显式单路径诊断。
+
+### 变了什么
+
+1. `npm test` 改为 Node-owned core verifier：只执行版本化 inventory，先静态审计纯 Node import closure，再输出唯一 JSON 最终回执。
+2. 新增固定 60 秒预算、5 秒 preflight、50 秒 child execution、5 秒 owned shutdown，以及 `invalid_inventory`、`unavailable`、`failed`、`timed_out` hard-stop 结果。
+3. 新增 `test:sweep`、单路径 `test:focused` / `test:render` 和单个 mock journey `test:e2e`；移除 broad `test:watch` 与 E2E 默认 sweep。
+4. 架构静态检查与 subprocess load-closure probes 拆分；legacy-token 静态契约不再引入 `node:child_process`。
+5. `framework-script-layout` 主规格同步新增 core 依赖准入、受控 runner、mock artifact 命名与 opt-in evidence 要求，并归档 change `bound-development-verification`。
+
+---
+
+## v0.21.0 — Workflow Control And Image Production Realignment（2026-07-23）
+
+**代号**：Clear ownership
+
+> 把 workflow inspection、continuation、控制接口与 Image Production 的物理所有权收敛到可恢复、可解释的边界。
+
+### 变了什么
+
+1. 新增 workflow inspection：CLI `status` / `state` 输出可恢复的当前动作、直接 owner 路由和最小 continuation。
+2. 增加 portable run-bundle locator 与 continuation card，避免会话恢复依赖目录猜测或全局扫描。
+3. 简化 Agent/MD 控制接口，保留 guide/confirm/hard-stop 的直接职责与可审计恢复路径。
+4. 将 whole-page 与 visual-slot 统一到 `04-image-production/` adapter family；退休旧 `04-image2-refinement` 与 `05-iteration/legacy-image2` 物理路径，同时保留公共 CLI 行为。
+
+---
+
+## v0.20.0 — Versioned Production Modes（2026-07-22）
+
+**代号**：Three explicit modes
+
+> 生产意图成为 version-scoped state：`html-only`、`html-then-image2` 与 `image2-only` 不再由派生产物或 metadata 猜测。
+
+### 变了什么
+
+1. `production_mode.by_version` 成为唯一运行时路由权威；init、doctor、status、build、refresh 与 state 按模式选择受限 adapter。
+2. 新 deck 默认 `image2-only`，但保留零 provider 的 `html-only` 与授权后的 `html-then-image2` 路径。
+3. 支持同一 pipeline 的原子 mode 切换，并以 preview、确认、receipt 和 clean-vNext 实现跨 pipeline transition。
+4. 模式专属 readiness、授权、evidence 与 controller working set 分离，既不删除历史工作，也不把无关节点伪装成完成。
+
+---
+
+## v0.19.0 — Guided HTML Recovery And Image2 Refinement（2026-07-21）
+
+**代号**：Recoverable delivery
+
+> HTML-first 与 Image2 refinement 获得 version-scoped evidence、明确授权和可恢复的端到端控制流。
+
+### 变了什么
+
+1. 完成 HTML content/visual/delivery evidence、状态校验、producer-owned diagnostics 与 reset/journal recovery。
+2. 引入独立的 visual-slot Image2 transport、plan/authorize/generate/accept 生命周期和 provider request provenance。
+3. 完成 markerless legacy-to-HTML clean-vNext migration：比较、确认和 apply 全程 zero-provider，且不在原版本就地切换 pipeline。
+4. 改进 gate guidance、waiver 与 MD controller 路由，保持用户决策、CLI mutation owner 和 hard-stop 边界分离。
+
+---
+
+## v0.18.0 — HTML-First Delivery（2026-07-20）
+
+**代号**：Local complete path
+
+> 新建 HTML-first deck 从 structured source 到可审阅 contact sheet、PPTX 和 notes 成为完整的本地可交付路径。
+
+### 变了什么
+
+1. 实现 deterministic HTML page composition、local Chromium/font/runtime guards、ECharts SVG、verified final-slide 与 Stage 4 plan-ordered assembly。
+2. HTML 生产产物、fingerprint、receipt、contact sheet 与 delivery review 都成为 version-owned、可重建 evidence。
+3. HTML refresh、notes-only、structural materialization 和 legacy-to-HTML migration 使用明确的 local rebuild/zero-remote 边界。
+4. framework 目录、playbook、workflow 与 charter 同步迁移到完整 HTML-first 生命周期，同时保留 markerless legacy compatibility。
+
+---
+
+## v0.17.0 — Stable Slide Identity And HTML Foundations（2026-07-16 至 2026-07-18）
+
+**代号**：Identity before position
+
+> 页面身份从当前位置中分离，并为后续 HTML-first 交付建立本地 runtime 与 structured contract。
+
+### 变了什么
+
+1. 引入 mnemonic-v1 BlockCase `slide_id` 与 derived `position`；新增 preview-first structural transaction、plan hash、clean-vNext 与 ID-keyed artifact/notes/provenance。
+2. 增加本地 HTML runtime readiness、Chromium/font 检查和 structured HTML slide contract，关闭网络与布局漂移的早期失败面。
+3. 将 structural reuse、PPTX assembly、notes injection 和 stage output 按稳定 ID 对齐，避免插页、删页和重排破坏身份。
+4. 增加可选 Git safety guidance，明确 Git 仅是用户授权的 source/control 审计，不是 run-bundle 的运行时权威。
+
+---
+
+## v0.16.0 — Lessons Management（2026-07-15）
+
+**代号**：Remember the hard-won path
+
+> `_lessons/` 从被动目录提升为 Agent 可检索、可写入且在 status 中可见的运行知识面。
+
+### 变了什么
+
+1. 新增 `lessons.mjs` 的 list/add/check/search 操作，并纳入 `ppt_flow status` 与 deck guide。
+2. BOOTSTRAP、AGENT_CONTRACT、AGENTS 与模板将 deck entry、phase transition 和故障恢复中的 lesson retrieval/capture 变成明确工作流。
+3. lessons 管理保持 run-bundle 局部、Node-only 和向后兼容，不要求迁移既有 deck。
+
 ## v0.15.0 — Visual Asset System（2026-07-14）
 
 **代号**：Multi-reference image support

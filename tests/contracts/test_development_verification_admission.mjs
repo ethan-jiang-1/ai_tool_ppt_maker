@@ -21,7 +21,7 @@ describe("development verification core admission", () => {
     expect(validateInventoryData(null).code).toBe("inventory-shape");
     expect(validateInventoryData({ schema: INVENTORY_SCHEMA, budget_ms: 60000, entries: [] }).code).toBe("inventory-shape");
     expect(validateInventoryData(validInventory([VALID_ENTRY, VALID_ENTRY])).code).toBe("inventory-entries");
-    expect(validateInventoryData(validInventory([VALID_ENTRY, "tests/contracts/fixtures/development-verification/test_mock_admitted_entry.mjs"])).code).toBe("inventory-entries");
+    expect(validateInventoryData(validInventory(["tests/contracts/test_framework_architecture.mjs", VALID_ENTRY])).code).toBe("inventory-entries");
     expect(auditInventoryObject(validInventory(["tests/contracts/missing_test.mjs"])).code).toBe("entry-path");
     expect(auditInventoryObject(validInventory(["../tests/contracts/test_escape.mjs"])).code).toBe("entry-path");
     expect(auditInventoryObject(validInventory(["tests/contracts/fixture.mjs"])).code).toBe("entry-path");
@@ -38,6 +38,7 @@ describe("development verification core admission", () => {
     const source = `// import "ignored"\nconst prose = "export * from 'ignored'";\nimport "./a.mjs";\nimport name from "./b.mjs";\nexport { name } from "./c.mjs";\nexport * from "./d.mjs";\nexport * as ns from "./e.mjs";\nexport const value = 1; export { value };`;
     expect(collectStaticSpecifiers(source)).toEqual({ ok: true, specifiers: ["./a.mjs", "./b.mjs", "./c.mjs", "./d.mjs", "./e.mjs"] });
     expect(collectStaticSpecifiers("const text = `prose ${import('./bad.mjs')}`;").code).toBe("dynamic-import");
+    expect(collectStaticSpecifiers("import './a.mjs' with { type: 'json' };").code).toBe("import-attributes");
   });
 
   it("rejects prohibited or unclassifiable boundaries before a test child could start", () => {
@@ -58,7 +59,7 @@ describe("development verification core admission", () => {
       }
     }
     expect(auditInventoryObject(validInventory(["tests/contracts/fixtures/development-verification/test_mock_prohibited_direct.mjs"])).code).toBe("prohibited-surface");
-    expect(auditInventoryObject(validInventory(["tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs"])).code).toBe("prohibited-surface");
+    expect(auditInventoryObject(validInventory(["tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs"])).code).toBe("prohibited-node");
     expect(auditInventoryObject(validInventory(["tests/contracts/fixtures/development-verification/test_mock_out_of_root.mjs"])).code).toBe("local-root");
   });
 });
