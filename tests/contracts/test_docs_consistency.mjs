@@ -5,12 +5,12 @@ import {
   scanFrameworkCoherence,
   scanMarkdownLinks,
   scanSemanticDrift,
-  validateDocumentedCommands,
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
   validateLegacyTokenExceptions,
   validatePseudocodeMarkers,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs";
+import { validateDocumentedCommands } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_document_command_audit.mjs";
 
 const CRITICAL_FILES = [
   "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
