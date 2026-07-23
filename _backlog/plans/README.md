@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-22 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-23 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-- [Agent 工作流控制面的减法重构](agent-workflow-simplification.md) — 基于已归档 production-mode 系统的三项控制面简化路线：统一 inspection、收敛 node-control/interface 并迁移为并列的 Image Production、最后简化治理
+目前无活跃 plan。
 
-**Next available plan ID: CLS-011**（移入 `_closed_plans/` 时分配；CLS-001…010 已用）
+**Next available plan ID: CLS-012**（移入 `_closed_plans/` 时分配；CLS-001…011 已用）
 
 ---
 

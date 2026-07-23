@@ -20,11 +20,17 @@ EOF
 # 4. 跟 Agent 说: "我要做一个 PPT"
 ```
 
-## 回归测试
+## 开发验证
 
 ```bash
-npm test
+npm test                                                    # bounded dependency-free core
+npm run test:focused -- tests/contracts/test_framework_load_closure.mjs
+npm run test:render -- tests/03-html-production/test_html_slide_renderer.mjs
+npm run test:e2e -- tests_e2e/shared/workflow/test_mock_selected_journey.mjs
+npm run test:sweep                                          # explicit unit/integration sampling
 ```
+
+`npm test` is the protected development checkpoint, not release certification. It runs only the checked-in core inventory and prints one final JSON result. When it reports `invalid_inventory`, `unavailable`, `failed`, or `timed_out`, stop and repair that nearest cause before claiming core evidence. Renderer, browser, provider, load-closure, journey, and sweep checks are opt-in diagnostics or deliberate release sampling; select only the affected focused/render seam and at most one mocked journey. Do not use a broad E2E command.
 
 ## 项目结构
 

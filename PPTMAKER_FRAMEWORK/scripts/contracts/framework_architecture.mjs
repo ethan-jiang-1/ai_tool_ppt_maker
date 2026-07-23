@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
-import { LEGACY_TOKEN_EXCEPTIONS, validateLegacyTokenExceptions } from "./framework_coherence.mjs";
+import { LEGACY_TOKEN_EXCEPTIONS, validateLegacyTokenExceptions } from "./framework_static_coherence.mjs";
 
 export const ACTIVE_PHASES = Object.freeze([
   "00-setup",
@@ -66,6 +66,8 @@ const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   "contracts/canonical_json.mjs",
   "contracts/executable_inventory.mjs",
   "contracts/framework_architecture.mjs",
+  "contracts/framework_document_command_audit.mjs",
+  "contracts/framework_static_coherence.mjs",
   "contracts/html_source_ast.mjs",
   "contracts/html_review_projection.mjs",
 ]);

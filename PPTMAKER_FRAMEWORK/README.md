@@ -1,4 +1,9 @@
-# PPTMAKER_FRAMEWORK
+---
+title: PPTMAKER_FRAMEWORK
+version: 0.22.0
+---
+
+# PPTMAKER_FRAMEWORK · v0.22.0
 
 AI 驱动的 PPT framework soft bundle。Agent 负责读取方法、做内容判断、执行本地生产与响应迭代；人拥有内容、视觉验收和远端成本授权。
 
