@@ -1,6 +1,6 @@
 # BUG-033: markerless whole-page deck 的单页迭代缺少经验证的最小合法重跑路径
 
-> 严重级别: P1 | 发现: 2026-07-22 | 状态: 活跃 | 基线校准: 2026-07-23
+> 严重级别: P1 | 发现: 2026-07-22 | 状态: 已修复 | 基线校准: 2026-07-23 | 修复: 2026-07-23
 
 ## 症状
 
@@ -54,3 +54,15 @@ record 但 metadata 缺字段会导致 MODE_MISSING”不再是当前机制。�
 
 - 不预设 `--incremental`、force/state bypass、prompt-diff 容忍或把 `header_locked/` 变成独立 canonical owner。
 - 不把 current `image2-only` first-class route 错写为 legacy compatibility，或将 modern visual-slot refinement 混入此问题。
+
+## 修复关联
+
+通过 CLS-011 agent-workflow-simplification 的三项串行 change 解决：
+
+| Change | 解决的原始症状 |
+|---|---|
+| `unify-workflow-inspection` | 统一了 workflow 观察面，消除 Agent 需要手工拼接 hash/flag/恢复协议的问题 |
+| `simplify-workflow-control-and-interfaces` | 退休 generic node control，收敛 CLI interface，消除 MODE_MISSING 等多重推导不一致 |
+| `realign-image-production-and-framework-governance` | `production_mode.by_version` 成为唯一 mode authority；`04-image-production/whole-page` adapter 承担 first-class `image2-only`；manifest 成为 canonical artifact identity |
+
+原始六条症状中：#2（MODE_MISSING）已修复；#3（授权门禁）与 #4（provenance 指纹）重新分类为保留不变量（正确行为）；#1、#5、#6 被架构收敛消除。剩余"markerless fixture 证据缺口"转跟踪为测试覆盖任务，不再作为阻断 bug 保持活跃。

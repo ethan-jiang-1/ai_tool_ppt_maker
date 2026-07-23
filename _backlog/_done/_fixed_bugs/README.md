@@ -47,8 +47,9 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-030](BUG-030-pipeline-rejects-modified-source-silently.md) | 2026-07-21 | Source 修改导致 gate stale 且缺少归属诊断 |
 | [BUG-031](BUG-031-no-state-yaml-validation-tool.md) | 2026-07-21 | State YAML 缺少只读完整性校验入口 |
 | [BUG-032](BUG-032-migrate-html-preview-never-works-for-real-decks.md) | 2026-07-21 | `migrate-html` 无法处理真实 markerless deck |
+| [BUG-033](BUG-033-legacy-image2-lightweight-iteration-blocked.md) | 2026-07-23 | markerless whole-page deck 的单页迭代被多重控制面诊断阻断；由 CLS-011 三项串行 change 修复 |
 
-**Next available bug ID: BUG-033**
+**Next available bug ID: BUG-035**
 
 ---
 
