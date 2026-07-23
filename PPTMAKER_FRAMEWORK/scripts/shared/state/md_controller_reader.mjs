@@ -37,7 +37,7 @@ export const RESERVED_NODE_IDS = Object.freeze([
   "html-production-reset",
   "image-production",
 ]);
-export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "legacy-image2-first"]);
+export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "whole-page-image2-v1"]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
 
 /** Derived renderer pipeline for a valid production mode (null for invalid). */
@@ -343,10 +343,6 @@ export function validatePlaybookIndex(index) {
       if (!SUPPORTED_PIPELINES.includes(pipeline)) {
         errors.push({ rule: "supported-pipelines", source: controller.source, line: 1, message: `unsupported pipeline ${pipeline}` });
       }
-    }
-    if (controller.playbook === "legacy-image2-maintenance" &&
-        (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "legacy-image2-first")) {
-      errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "legacy-image2-maintenance must be markerless-only" });
     }
     if (controller.playbook === "image2-refine" &&
         (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "html-first-v1")) {

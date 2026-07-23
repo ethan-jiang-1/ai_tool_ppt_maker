@@ -54,4 +54,4 @@ agent_action: reference
 1. Fix source, never `_generated/`.
 2. Rebuild the smallest stale owner: Local Slide, Local Deck, Notes-Only, or Structural Versioning.
 3. Show real artifacts before human decisions; metadata scalar 不是 HTML gate authority。
-4. HTML iteration 零 provider。Markerless legacy 的远端重建另走兼容维护与明确授权。
+4. HTML iteration 零 provider。Explicit whole-page legacy 的远端重建另走兼容维护与明确授权。

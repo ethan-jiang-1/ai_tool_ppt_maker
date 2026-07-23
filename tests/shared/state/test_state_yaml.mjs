@@ -179,7 +179,7 @@ describe('state.yaml yaml library + heal', () => {
     try {
       const path = join(fixture.deck, STATE_DIR, STATE_FILE);
       const state = readState(fixture.deck, { heal: false });
-      state.pipeline = 'legacy-image2-v1';
+      state.pipeline = 'whole-page-image2-v1';
       writeState(fixture.deck, state);
       const conflicting = readFileSync(path);
       expect(readState(fixture.deck, { purpose: 'observe' })).toMatchObject({

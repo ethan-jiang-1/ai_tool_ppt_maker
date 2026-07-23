@@ -2,7 +2,7 @@
 export const CLI_RETURN_AUDIT_SCHEMA = "pptmaker-cli-return-audit-v1";
 export const CLI_RETURN_CATEGORIES = Object.freeze(["help", "usage", "validation", "gate", "conflict", "stale", "commit", "internal"]);
 export const IMAGE2_RETURN_CASES = Object.freeze([
-  "markerless",
+  "whole_page",
   "current_delivery",
   "plan_authorization_drift",
   "duplicate_attempt",
@@ -10,25 +10,6 @@ export const IMAGE2_RETURN_CASES = Object.freeze([
   "candidate_identity",
   "promotion_recovery",
   "cleanup_ambiguity",
-]);
-export const MIGRATION_RETURN_CASES = Object.freeze([
-  "prepare_success",
-  "prepare_idempotency",
-  "prepare_usage",
-  "prepare_conflict",
-  "preview_preparation_guide",
-  "preview_authoring_guide",
-  "preview_complete_or_degraded",
-  "apply_receipt_drift",
-  "apply_recovery",
-  "zero_provider",
-]);
-export const MIGRATION_CONFIRMATION_RETURN_CASES = Object.freeze([
-  "usage",
-  "wrong_execution_or_node",
-  "stale_preview_or_receipt",
-  "atomic_success",
-  "idempotent_retry",
 ]);
 export const PRODUCTION_MODE_TRANSITION_RETURN_CASES = Object.freeze([
   "prepare_offline",
@@ -124,16 +105,11 @@ export const PPT_FLOW_RETURN_AUDIT = Object.freeze({
     test: all,
     state: Object.freeze({
       ...all,
-      ...Object.fromEntries(MIGRATION_CONFIRMATION_RETURN_CASES.map((name) => ["migration_confirmation_" + name, "case:" + name])),
       ...Object.fromEntries(PRODUCTION_MODE_TRANSITION_RETURN_CASES.map((name) => ["production_mode_transition_" + name, "case:" + name])),
-    }),
-    "migrate-html": Object.freeze({
-      ...all,
-      ...Object.fromEntries(MIGRATION_RETURN_CASES.map((name) => [name, "case:" + name])),
     }),
     image2: Object.freeze({
       ...all,
-      markerless: "case:ownership",
+      whole_page: "case:ownership",
       current_delivery: "case:current-html-delivery",
       plan_authorization_drift: "case:exact-plan",
       duplicate_attempt: "case:duplicate",
@@ -159,14 +135,7 @@ export function validateCliReturnAudit(audit = PPT_FLOW_RETURN_AUDIT, expectedCo
     if (command === "image2") {
       for (const operation of IMAGE2_RETURN_CASES) if (typeof record[operation] !== "string" || !record[operation]) errors.push(`image2 is missing ${operation} return case`);
     }
-    if (command === "migrate-html") {
-      for (const operation of MIGRATION_RETURN_CASES) if (typeof record[operation] !== "string" || !record[operation]) errors.push(`migrate-html is missing ${operation} return case`);
-    }
     if (command === "state") {
-      for (const operation of MIGRATION_CONFIRMATION_RETURN_CASES) {
-        const key = `migration_confirmation_${operation}`;
-        if (typeof record[key] !== "string" || !record[key]) errors.push(`state is missing ${key} return case`);
-      }
       for (const operation of PRODUCTION_MODE_TRANSITION_RETURN_CASES) {
         const key = `production_mode_transition_${operation}`;
         if (typeof record[key] !== "string" || !record[key]) errors.push(`state is missing ${key} return case`);

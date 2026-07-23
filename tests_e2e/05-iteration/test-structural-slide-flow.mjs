@@ -294,7 +294,7 @@ describe("stable slide identity structural E2E", () => {
     }
   });
 
-  it("keeps markerless legacy IDs and distinguishes proven from merely located bytes", async () => {
+  it("keeps explicit whole-page legacy IDs and distinguishes proven from merely located bytes", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "legacy-e2e-")), "deck_legacy_e2e");
     const originalFetch = globalThis.fetch;
     try {

@@ -44,7 +44,7 @@ HTML-first 的唯一页面源是 `slide-specifications.md` 中的稳定 `slide_i
 
 `_generated/html_production/` 保存本地 HTML page、verified final slide、review plan/contact sheet 与 current manifest；`_generated/qa/` 保存 assembly/notes lineage。它们都是管线所有的派生物，绝不手改。普通 HTML create/preview/build 不创建 Image2 candidate、authorization、style master 或 refinement 目录。
 
-Markerless 历史 deck 仍是 `legacy-image2-first`，沿独立兼容路径维护；不能因为打开了新 framework 就补 marker 或搬运 HTML evidence。
+Explicit whole-page 历史 deck 仍是 `whole-page-image2-v1`，沿独立兼容路径维护；不能因为打开了新 framework 就补 marker 或搬运 HTML evidence。
 
 ## 生命周期
 

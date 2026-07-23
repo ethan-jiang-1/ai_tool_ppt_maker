@@ -431,7 +431,7 @@ function identityMarkerIssues(document) {
 }
 
 /**
- * Validate source invariants. Markerless sources keep legacy read compatibility;
+ * Validate source invariants. Explicit whole-page sources keep legacy read compatibility;
  * mnemonic-v1 is an assertion that every current ID follows the strict syntax.
  */
 export function validateSlideDocument(document, { historyIds = [] } = {}) {

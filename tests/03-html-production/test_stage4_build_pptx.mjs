@@ -88,7 +88,7 @@ describe('stage4_build_pptx', () => {
 
       expect(result.slideCount).toBe(2);
       expect(existsSync(out)).toBe(true);
-      expect(result.receipt).toMatchObject({ schema_version: 2, pipeline: 'legacy-image2-v1', html_production_reset_id: null, html_delivery_digest: null });
+      expect(result.receipt).toMatchObject({ schema_version: 2, pipeline: 'whole-page-image2-v1', html_production_reset_id: null, html_delivery_digest: null });
       expect(result.receipt.ordered_slide_ids).toEqual(['AICost', 'UXGap']);
       expect(result.receipt.final_images.map((image) => image.slide_id)).toEqual(['AICost', 'UXGap']);
       expect(result.receipt.final_images.every((image) => image.artifact_kind === 'final-slide' && /^[0-9a-f]{64}$/.test(image.final_slide_fingerprint))).toBe(true);

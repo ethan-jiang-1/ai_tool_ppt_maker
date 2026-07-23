@@ -4,7 +4,7 @@ import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCanvas } from '@napi-rs/canvas';
-import { initLegacyBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
+import { initWholePageBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 import { generateLegacyStyleMaster } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs';
 import { loadDeckSystem } from '../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/deck_system.mjs';
 import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
@@ -78,7 +78,7 @@ describe('style master deck_system injection', () => {
 
   beforeEach(() => {
     deck = join(tmpdir(), `deck_sm_${Date.now()}`);
-    initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+    initWholePageBundle(deck, null, 'keynote', 'dark-executive');
     v1 = join(deck, '3_versions', 'v1');
     const vs = join(deck, '2_backbone', 'visual-style');
     writeFileSync(join(vs, 'style-master-prompt.md'), 'STYLE PROMPT ONLY\n');

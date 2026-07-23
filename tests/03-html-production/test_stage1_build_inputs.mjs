@@ -264,7 +264,7 @@ describe('stage1_build_inputs', () => {
     }));
   });
 
-  it('accepts markerless legacy IDs and validates every mnemonic-native ID', () => {
+  it('accepts explicit whole-page legacy IDs and validates every mnemonic-native ID', () => {
     const legacy = specFile(slide('s07_problem'));
     expect(validateSpecRecords([legacy]).filter((record) => record.severity === 'ERROR')).toEqual([]);
     expect(parseSlides([legacy]).plan[0]).toMatchObject({

@@ -1,7 +1,7 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
 export const HTML_FIRST_PIPELINE = "html-first-v1";
-export const LEGACY_PIPELINE = "legacy-image2-first";
+export const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
 
 function markerIssue(code, message, { source, line = 1, actual, expected } = {}) {
   return {
@@ -109,20 +109,25 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
   if (frontmatter.issues.length > 0) return { branch: "invalid", issues: frontmatter.issues };
   const directIssues = directProductionNodeIssues(frontmatter, source);
   if (directIssues.length > 0) return { branch: "invalid", issues: directIssues };
-  if (!Object.hasOwn(frontmatter.metadata, "production")) return { branch: "legacy", issues: [] };
+  if (!Object.hasOwn(frontmatter.metadata, "production")) {
+    return {
+      branch: "invalid",
+      issues: [markerIssue("missing_production_marker", "production.pipeline must explicitly select a supported pipeline", { source })],
+    };
+  }
   const production = frontmatter.metadata.production;
   if (!production || typeof production !== "object" || Array.isArray(production)) {
     return { branch: "invalid", issues: [markerIssue("invalid_production_marker", "production must be a mapping", { source })] };
   }
-  if (production.pipeline !== HTML_FIRST_PIPELINE) {
+  if (![HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE].includes(production.pipeline)) {
     return {
       branch: "invalid",
       issues: [markerIssue("unsupported_pipeline_marker", `production.pipeline must equal ${HTML_FIRST_PIPELINE}`, {
         source,
         actual: production.pipeline,
-        expected: HTML_FIRST_PIPELINE,
+        expected: `${HTML_FIRST_PIPELINE}|${WHOLE_PAGE_IMAGE2_PIPELINE}`,
       })],
     };
   }
-  return { branch: HTML_FIRST_PIPELINE, issues: [], frontmatter };
+  return { branch: production.pipeline, issues: [], frontmatter };
 }

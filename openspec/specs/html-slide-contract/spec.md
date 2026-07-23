@@ -390,6 +390,6 @@ Preparation SHALL preserve every retained formal slide ID verbatim. It SHALL add
 
 #### Scenario: Legacy identity remains stable through preparation
 
-- **WHEN** a markerless source has retained stable IDs that do not all satisfy `mnemonic-v1`
+- **WHEN** a explicit whole-page source has retained stable IDs that do not all satisfy `mnemonic-v1`
 - **THEN** preparation preserves those IDs and omits the mnemonic marker
 - **AND** it does not rewrite IDs merely to make the candidate parse

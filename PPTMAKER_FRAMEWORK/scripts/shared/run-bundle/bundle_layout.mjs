@@ -88,7 +88,7 @@ export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVe
  * `--mode html-only|html-then-image2` selects an HTML path.
  */
 export const DEFAULT_INIT_MODE = 'image2-only';
-const LEGACY_PIPELINE = 'legacy-image2-first';
+const WHOLE_PAGE_IMAGE2_PIPELINE = 'whole-page-image2-v1';
 
 function validateInitMode(mode) {
     if (!PRODUCTION_MODES.includes(mode)) {
@@ -520,8 +520,8 @@ function _checkImage2RefinementPartitions(runDir, htmlFirst, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR, GEN_IMAGE2_REFINEMENT_SUBDIR);
     const scratch = path.join(runDir, SCRATCH_SUBDIR, SCRATCH_IMAGE2_REFINEMENT_SUBDIR);
     if (!htmlFirst) {
-        if (fs.existsSync(generated)) problems.push(`modern refinement generated owner '${GEN_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
-        if (fs.existsSync(scratch)) problems.push(`modern refinement scratch owner '${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
+        if (fs.existsSync(generated)) problems.push(`modern refinement generated owner '${GEN_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to whole-page Image2 production`);
+        if (fs.existsSync(scratch)) problems.push(`modern refinement scratch owner '${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to whole-page Image2 production`);
         return;
     }
     if (fs.existsSync(generated) && fs.statSync(generated).isDirectory()) {
@@ -709,7 +709,7 @@ function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
     }
     const htmlOwner = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
     if (fs.existsSync(htmlOwner)) {
-        problems.push(`HTML generated owner '${GEN_HTML_PRODUCTION_SUBDIR}/' is inapplicable to markerless legacy production`);
+        problems.push(`HTML generated owner '${GEN_HTML_PRODUCTION_SUBDIR}/' is inapplicable to whole-page Image2 production`);
     }
 }
 
@@ -1226,17 +1226,17 @@ family: hero
 }
 
 /**
- * Canonical markerless whole-page Image2 starter source. It carries
- * `identity.scheme: mnemonic-v1` and a whole-page render default but NO
- * `production.pipeline` marker — the markerless branch is the source contract
- * for the `image2-only` production mode. This is the seed adapter for the
- * first-class Image2 create path; it is not "create HTML then rewrite".
+ * Canonical explicit whole-page Image2 starter source. It carries
+ * `identity.scheme: mnemonic-v1`, the whole-page pipeline marker, and a
+ * whole-page render default for `image2-only` production.
  */
 function _wholePageSeedSource(deckType = null) {
     const seed = _HTML_FIRST_SEEDS[deckType || 'generic'];
     return `---
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: full-page
 ---
@@ -1247,8 +1247,8 @@ render:
 **TITLE**: ${seed.title}
 **CONCEPT**:
 - **MUST communicate**: Replace this starter with one clear, reviewable claim.
-- **MUST NOT**: Invent a production.pipeline marker; the markerless whole-page
-  branch is the source contract for image2-only production.
+- **MUST NOT**: Change the explicit production pipeline without an intentional
+  cross-pipeline transition.
 
 **SLIDE BODY**:
 \`\`\`yaml
@@ -1289,12 +1289,11 @@ export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = nul
     return [...created, `html-first seed: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`];
 }
 
-// Explicit compatibility scaffold for markerless historical decks. It delegates
-// to the mode-aware initBundle (image2-only) so the markerless whole-page seed,
-// state, and mirror are owned once, not recreated by hand.
-export function initLegacyBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
+// Whole-page initialization delegates to the mode-aware initializer so source,
+// state, and metadata mirror are owned once.
+export function initWholePageBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
     const created = initBundle(deckDir, frameworkDir, deckType, style, { mode: 'image2-only' });
-    return [...created, 'legacy-image2-first compatibility scaffold'];
+    return [...created, 'whole-page-image2-v1 scaffold'];
 }
 
 const _DIR_READMES = {
@@ -1496,8 +1495,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
     if (!fs.existsSync(specsDest)) {
         // Seed the canonical v1 source for the selected production mode. HTML
-        // modes seed the explicit html-first-v1 marker; image2-only seeds the
-        // canonical markerless whole-page branch. The mode adapter is selected
+        // modes seed their explicit canonical pipeline marker. The mode adapter is selected
         // directly here, never "create HTML then rewrite".
         const seed = _seedSourceForMode(mode, deckType);
         fs.writeFileSync(specsDest, seed.source, 'utf8');
@@ -1563,10 +1561,10 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     _writeIfAbsent(
         path.join(deckDir, '.env.example'),
         '# HTML-first local production does not require provider credentials.\n' +
-        '# Keep secrets out of this run bundle. Markerless legacy maintenance has\n' +
-        '# separate, explicitly authorized Image2 troubleshooting guidance.\n' +
-        '# IMAGE2_API_KEY=            # legacy compatibility only\n' +
-        '# IMAGE2_BASE_URL=           # legacy compatibility only\n');
+        '# Keep secrets out of this run bundle. Image2 actions require explicit\n' +
+        '# authorization and provider configuration.\n' +
+        '# IMAGE2_API_KEY=\n' +
+        '# IMAGE2_BASE_URL=\n');
     _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +

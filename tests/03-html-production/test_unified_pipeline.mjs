@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCanvas } from '@napi-rs/canvas';
-import { createVersion, initLegacyBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
+import { createVersion, initWholePageBundle } from '../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 import {
   materializeStructuralVersion,
   stage1,
@@ -57,7 +57,7 @@ describe('unified_pipeline', () => {
   it('preserves Stage issues while rebuilding the parent rerun action', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-diagnostic-')), 'deck_pipeline');
     try {
-      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      initWholePageBundle(deck, null, 'keynote', 'dark-executive');
       const runDir = join(deck, '3_versions', 'v1');
       const spec = join(runDir, 'slide-specifications.md');
       writeFileSync(spec, `## Slide 01: s01\n\n**VISUAL TYPE**: Framework\n**RENDER MODE**: unsupported\n**TITLE**: A title\n`, 'utf8');
@@ -85,7 +85,7 @@ describe('unified_pipeline', () => {
   it('turns production readiness into a human-owned gate action', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-gate-')), 'deck_pipeline_gate');
     try {
-      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      initWholePageBundle(deck, null, 'keynote', 'dark-executive');
       const runDir = join(deck, '3_versions', 'v1');
       writeFileSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'), 'style', 'utf8');
       const result = spawnSync('node', [UP, '--run-dir', runDir, '--stage', '2', '--dry-run'], { encoding: 'utf8', timeout: 10000 });
@@ -101,7 +101,7 @@ describe('unified_pipeline', () => {
     const deck = join(mkdtempSync(join(tmpdir(), 'pipeline-structural-')), 'deck_pipeline_structural');
     const originalFetch = globalThis.fetch;
     try {
-      initLegacyBundle(deck, null, 'keynote', 'dark-executive');
+      initWholePageBundle(deck, null, 'keynote', 'dark-executive');
       const source = join(deck, '3_versions', 'v1');
       const style = join(deck, '2_backbone', 'visual-style', 'style_master.jpg');
       writeFileSync(style, 'stable-style', 'utf8');

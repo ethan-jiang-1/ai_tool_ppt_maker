@@ -77,11 +77,10 @@ export const STATE_DIR_README = `\
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 const STATE_MIGRATION_MAP = JSON.parse(readFileSync(join(DEFAULT_PLAYBOOK_DIR, "state-migration-map-v3.json"), "utf8"));
-const LEGACY_PIPELINE = "legacy-image2-first";
+const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
-const LEGACY_MIGRATION_OLD_SIDE_MODES = new Set(["verified-current", "degraded-missing", "degraded-stale"]);
 const TRANSITION_SUSPENSION_SCHEMA = "pptmaker-production-mode-transition-suspension-v1";
 const TRANSITION_APPLY_NODE = "apply-production-mode-transition";
 const TRANSITION_INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
@@ -109,7 +108,7 @@ function isTransitionSuspensionFrame(frame) {
 }
 
 function isTransitionPipeline(value) {
-  return value === HTML_FIRST_PIPELINE || value === LEGACY_PIPELINE;
+  return value === HTML_FIRST_PIPELINE || value === WHOLE_PAGE_IMAGE2_PIPELINE;
 }
 
 function validTransitionIntake(value) {
@@ -185,32 +184,10 @@ export function resolveContinuationTargetVersion(state, deckDir) {
   return Object.freeze({ ok: true, run_version: target, source: active ? "active-run-version" : "continuation-target" });
 }
 
-function legacyApplySourceVersion(state) {
-  if (state?.playbook !== "migrate-import" || state?.current_node !== "apply-html-migration" || !state?.execution_id) return null;
-  const record = state.nodes?.["apply-html-migration"];
-  if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id) return null;
-  const sourceVersion = normalizeRunVersion(record.migration_source_version);
-  if (!sourceVersion || !SHA256_RE.test(record.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(record.old_side_mode)) return null;
-  return sourceVersion;
-}
-
-function legacyConfirmationSourceVersion(state, selected) {
-  const selectedVersion = selectedRunVersion(selected);
-  if (!selectedVersion || state?.playbook !== "migrate-import" || state?.current_node !== "confirm-html-migration" || !state?.execution_id) return null;
-  const confirmation = state.nodes?.["confirm-html-migration"];
-  const preview = state.nodes?.["preview-html-migration"];
-  if (!isPlainObject(confirmation) || confirmation.status !== "in_progress" || confirmation.execution_id !== state.execution_id) return null;
-  if (!isPlainObject(preview) || preview.status !== "completed" || preview.execution_id !== state.execution_id) return null;
-  if (!SHA256_RE.test(preview.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(preview.old_side_mode)) return null;
-  return selectedVersion;
-}
-
 function resolveV5RunBinding(state, deckDir) {
   if (!state?.playbook) return Object.freeze({ ok: true, run_version: null });
   const persisted = normalizeRunVersion(state.run_version);
   if (persisted) return Object.freeze({ ok: true, run_version: persisted, source: "persisted" });
-  const legacy = legacyApplySourceVersion(state);
-  if (legacy) return Object.freeze({ ok: true, run_version: legacy, source: "legacy-apply" });
   const visible = visibleRunVersions(deckDir);
   if (visible.length === 1) return Object.freeze({ ok: true, run_version: visible[0], source: "visible-topology" });
   // A v4 active execution has no version identity to bind when its run
@@ -807,7 +784,7 @@ export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_F
 
 function detectDeckPipeline(deckDir, state = {}) {
   const explicit = state?.pipeline || state?.deck?.pipeline;
-  if ([HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) return explicit;
+  if ([HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE].includes(explicit)) return explicit;
   const versionsDir = join(deckDir, "3_versions");
   let versions = [];
   try {
@@ -826,25 +803,23 @@ function detectDeckPipeline(deckDir, state = {}) {
     if (!existsSync(source)) continue;
     try {
       const marker = probeProductionMarker(readFileSync(source), { source: "slide-specifications.md" });
-      if (marker.branch === HTML_FIRST_PIPELINE) return HTML_FIRST_PIPELINE;
-      if (marker.branch === "legacy") return LEGACY_PIPELINE;
-    } catch {
-      return LEGACY_PIPELINE;
-    }
+      if ([HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE].includes(marker.branch)) return marker.branch;
+    } catch { /* continue to the next explicit source */ }
   }
   if (state?.playbook) {
     try {
       const controller = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR).controllers.get(state.playbook);
       if (controller?.supportedPipelines?.length === 1) return controller.supportedPipelines[0];
-    } catch { /* use markerless compatibility fallback */ }
+    } catch { /* controller metadata is only a final explicit fallback */ }
   }
-  return LEGACY_PIPELINE;
+  return null;
 }
 
 function classifyDeckPipeline(deckDir, state = {}) {
   const explicit = state?.pipeline || state?.deck?.pipeline || null;
   const versionsDir = join(deckDir, "3_versions");
-  const activeTransitionTarget = normalizeRunVersion(state?.run_version);
+  const activeTransition = activeTransitionRecord(state);
+  const activeTransitionTarget = normalizeRunVersion(activeTransition?.transition_target_version);
   const completedTransitionTarget = activeTransitionTarget &&
     existsSync(join(versionsDir, activeTransitionTarget, "_generated", "qa", "production_mode_transition.json"));
   let markerPipeline = null;
@@ -854,101 +829,29 @@ function classifyDeckPipeline(deckDir, state = {}) {
     sources = readdirSync(versionsDir)
       .filter((name) => /^v[1-9][0-9]*$/.test(name) && existsSync(join(versionsDir, name, "slide-specifications.md")))
       .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
-  } catch { /* an empty historical deck remains legacy-compatible */ }
+  } catch { /* no source versions are available */ }
   for (const version of sources) {
     try {
       const marker = probeProductionMarker(readFileSync(join(versionsDir, version, "slide-specifications.md")), { source: "slide-specifications.md" });
-      const observed = marker.branch === HTML_FIRST_PIPELINE ? HTML_FIRST_PIPELINE : marker.branch === "legacy" ? LEGACY_PIPELINE : null;
+      const observed = [HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE].includes(marker.branch) ? marker.branch : null;
       if (!observed) { markerIssue = "invalid canonical production marker"; break; }
       if (markerPipeline && markerPipeline !== observed) {
-        const migrationWorkspace = state?.playbook === "migrate-import" || existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "html_migration.json"));
         const registeredMode = state?.production_mode?.by_version?.[canonicalVersionKey(version)]?.mode;
         const registeredCrossPipeline = isProductionMode(registeredMode) && productionPolicyForMode(registeredMode).pipeline === observed &&
           existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "production_mode_transition.json"));
-        if (!migrationWorkspace && !registeredCrossPipeline && !completedTransitionTarget) { markerIssue = "conflicting production pipelines across versions"; break; }
+        const activeTargetMatches = completedTransitionTarget && activeTransitionTarget === version;
+        if (!registeredCrossPipeline && !activeTargetMatches) { markerIssue = "conflicting production pipelines across versions"; break; }
         markerPipeline = state?.pipeline || observed;
         continue;
       }
       markerPipeline = observed;
     } catch { markerIssue = "unreadable canonical production marker"; break; }
   }
-  if (explicit && ![HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) markerIssue ||= "unknown persisted pipeline";
-  if (explicit && markerPipeline && explicit !== markerPipeline) {
-    // initBundle historically seeds a legacy state before an opt-in HTML
-    // source is authored. That pristine handoff is the only permitted
-    // legacy-to-HTML inference; an active legacy execution remains a
-    // replacement-required conflict.
-    const controllerIds = Object.keys(state?.nodes || {}).filter((id) => !isReservedNode(id));
-    const pristineSeed = explicit === LEGACY_PIPELINE && markerPipeline === HTML_FIRST_PIPELINE &&
-      state?.playbook === "create-deck" && controllerIds.every((id) => id === "instantiation") &&
-      controllerIds.every((id) => ["completed", "skipped"].includes(state.nodes[id]?.status));
-    const migrationSource = state?.playbook === "migrate-import";
-    if (!pristineSeed && !migrationSource) markerIssue ||= "persisted pipeline conflicts with canonical source";
+  if (explicit && ![HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE].includes(explicit)) markerIssue ||= "unknown persisted pipeline";
+  if (explicit && markerPipeline && explicit !== markerPipeline && !completedTransitionTarget) {
+    markerIssue ||= "persisted pipeline conflicts with canonical source";
   }
   return { pipeline: markerPipeline || explicit || detectDeckPipeline(deckDir, state), issue: markerIssue };
-}
-
-function migrationHandoffReceipt(deckDir, state) {
-  if (state?.playbook !== "migrate-import" || !state.execution_id) return null;
-  const current = state.nodes?.[state.current_node];
-  if (!current || current.status !== "in_progress") return null;
-  const sourceExecutionId = current.migration_source_execution_id || current.source_execution_id || state.migration_source_execution_id || state.execution_id;
-  const planHash = current.migration_plan_hash || current.plan_hash || state.migration_plan_hash || state.plan_hash;
-  const mode = current.old_side_mode || state.old_side_mode;
-  if (typeof sourceExecutionId !== "string" || !sourceExecutionId || !SHA256_RE.test(planHash || "") || !["verified-current", "degraded-missing", "degraded-stale"].includes(mode)) return null;
-  const versionsDir = join(deckDir, "3_versions");
-  let versions = [];
-  try { versions = readdirSync(versionsDir).filter((name) => VERSION_RE.test(name)); } catch { return null; }
-  for (const targetVersion of versions) {
-    const path = join(versionsDir, targetVersion, "_generated", "qa", "html_migration.json");
-    if (!existsSync(path)) continue;
-    try {
-      const receipt = JSON.parse(readFileSync(path, "utf8"));
-      if (receipt.source_execution_id !== sourceExecutionId || receipt.plan_hash !== planHash || receipt.target_version !== targetVersion || receipt.old_side_mode !== mode) continue;
-      return { path, receipt, targetVersion, sourceExecutionId, planHash, mode };
-    } catch { /* malformed receipt is not a handoff */ }
-  }
-  return null;
-}
-
-export function inspectMigrationHandoff(deckDir, state = null) {
-  const current = state || readState(deckDir, { purpose: "observe", heal: false });
-  const handoff = migrationHandoffReceipt(deckDir, current);
-  if (!handoff) return null;
-  return Object.freeze({
-    code: "migration_handoff_pending",
-    source_version: handoff.receipt.source_version,
-    target_version: handoff.targetVersion,
-    suggested_next: "resume migration-target-review",
-  });
-}
-
-export function completeMigrationHandoff(deckDir, { targetVersion } = {}) {
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: migration source state is unusable");
-  const handoff = migrationHandoffReceipt(deckDir, state);
-  if (!handoff || (targetVersion && targetVersion !== handoff.targetVersion)) throw new Error("replacement_required: migration handoff receipt/state mismatch");
-  const next = structuredClone(state);
-  next.playbook = "migrate-import";
-  next.current_node = "migration-target-review";
-  next.execution_id = newExecutionId();
-  next.execution_started_at = nowIso();
-  next.nodes = preserveReservedNodes(next.nodes);
-  next.nodes["migration-target-review"] = { status: "in_progress", execution_id: next.execution_id, run_version: handoff.targetVersion, migration_source_execution_id: handoff.sourceExecutionId, migration_plan_hash: handoff.planHash, old_side_mode: handoff.mode, target_version: handoff.targetVersion };
-  next.run_version = handoff.targetVersion;
-  next.pipeline = HTML_FIRST_PIPELINE;
-  // The bounded legacy-to-HTML migration registers its successfully published
-  // HTML target as html-only through the state owner — not a general cross-
-  // pipeline switch. The source version's mode is left untouched.
-  ensureProductionModeContainer(next);
-  next.production_mode.by_version[canonicalVersionKey(handoff.targetVersion)] = { mode: "html-only" };
-  next.gates.html_content = "pending";
-  next.gates.html_visual = "pending";
-  next.gates.html_content_run_version = handoff.targetVersion;
-  next.gates.html_visual_run_version = handoff.targetVersion;
-  writeState(deckDir, next, { expectedStateSha: sha256(readFileSync(statePath(deckDir))) });
-  appendHistory(deckDir, { type: "production_mode_registration", run_version: handoff.targetVersion, mode: "html-only", source: "legacy-to-html-migration", at: nowIso() });
-  return Object.freeze({ status: "handoff-complete", target_version: handoff.targetVersion, current_node: next.current_node, registered_mode: "html-only" });
 }
 
 function replacementRequired(reason, pipeline = null) {
@@ -1042,9 +945,7 @@ export function inspectRunProductionMode(deckDir, { runVersion, runDir, purpose 
  * that agrees with the source marker before any adapter, readiness, provider,
  * or generated-artifact work begins.
  *
- * A markerless run with no durable state is the sole compatibility exception.
- * It remains explicitly labelled historical compatibility rather than being
- * upgraded, written, or presented as first-class `image2-only` authority.
+ * Every supported run has an explicit source marker and an authoritative mode.
  */
 export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
@@ -1064,31 +965,6 @@ export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpo
       compatibility: null,
       inspection,
     });
-  }
-
-  // Historical markerless decks can still be inspected and maintained without
-  // creating state. This exception is intentionally narrow: a durable state
-  // with a missing/corrupt v4 record never falls back to marker inference.
-  if (!existsSync(statePath(deckDir))) {
-    const marker = probeSourceMarkerForVersion(deckDir, exactVersion);
-    const pipeline = marker.ok === false ? marker : pipelineFromSourceMarker(marker);
-    if (pipeline.ok && pipeline.pipeline === LEGACY_PIPELINE) {
-      const policy = productionPolicyForMode("image2-only");
-      return Object.freeze({
-        ok: true,
-        run_version: exactVersion,
-        mode: null,
-        policy,
-        adapter: "whole-page-image2",
-        compatibility: "historical-markerless",
-        inspection: Object.freeze({
-          ok: false,
-          code: inspection.code,
-          source_branch: pipeline.branch,
-          source_pipeline: pipeline.pipeline,
-        }),
-      });
-    }
   }
 
   return Object.freeze({ ok: false, ...inspection });
@@ -1608,17 +1484,7 @@ export function readState(deckDir, opts = {}) {
   const classification = classifyDeckPipeline(deckDir, parsed.value);
   if (classification.issue) return replacementRequired(classification.issue, classification.pipeline);
   const rawBinding = resolveV5RunBinding(parsed.value, deckDir);
-  // The only pre-v5 exception is deliberately private to the closed legacy
-  // confirmation writer below. It receives unhealed bytes solely so it can
-  // re-inspect the exact source, preview, hash, and mode before one atomic
-  // v5-binding write. Ordinary reads remain replacement-required.
-  const pendingLegacyConfirmation = !rawBinding.ok && opts.allowLegacyConfirmation === true
-    ? legacyConfirmationSourceVersion(parsed.value, opts)
-    : null;
-  if (!rawBinding.ok && !pendingLegacyConfirmation) return replacementRequired(rawBinding.reason, classification.pipeline);
-  if (pendingLegacyConfirmation && shouldHeal) {
-    return replacementRequired("legacy confirmation must be completed through its closed confirmation operation", classification.pipeline);
-  }
+  if (!rawBinding.ok) return replacementRequired(rawBinding.reason, classification.pipeline);
   if (!shouldHeal) {
     const mismatch = selectedExecutionMismatch(parsed.value, opts);
     return mismatch ? Object.freeze({ ...parsed.value, ...mismatch }) : parsed.value;
@@ -1745,98 +1611,6 @@ export function writeState(deckDir, state, opts = {}) {
   state.schema_version = STATE_SCHEMA_VERSION;
   state.updated_at = prepared.persist.updated_at;
   cleanStaleTemps(dir);
-}
-
-/**
- * Atomically turns one current migration preview confirmation into the only
- * apply record after the Phase-5 migration owner has verified the exact
- * preview receipt. Shared state intentionally does not import a Phase module.
- */
-export function recordHtmlMigrationConfirmation(sourceRunDir, { planHash, oldSideMode, inspection } = {}) {
-  if (!SHA256_RE.test(planHash || "")) throw new TypeError("plan hash must be a 64-lowercase-hex SHA-256");
-  if (!["verified-current", "degraded-missing", "degraded-stale"].includes(oldSideMode || "")) {
-    throw new TypeError("old-side mode must be verified-current, degraded-missing, or degraded-stale");
-  }
-  const runDir = resolve(sourceRunDir);
-  const sourcePath = join(runDir, "slide-specifications.md");
-  if (!existsSync(sourcePath)) throw new Error("migration source version has no slide specifications");
-  const marker = probeProductionMarker(readFileSync(sourcePath), { source: "slide-specifications.md" });
-  if (marker.branch !== "legacy") throw new Error("migration confirmation accepts only a markerless source version");
-
-  const deckDir = resolve(runDir, "..", "..");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runDir, allowLegacyConfirmation: true });
-  if (current?.replacement_required || current?.corrupted) throw new Error("migration source state is unusable");
-  const historicalBinding = legacyConfirmationSourceVersion(current, { runDir });
-  if (current?.execution_run_version_mismatch && !historicalBinding) throw new Error("replacement_required: migration confirmation run binding is unavailable");
-  if (current.playbook !== "migrate-import" || !current.execution_id) throw new Error("active migrate-import confirmation execution is required");
-  const executionId = current.execution_id;
-  const confirmed = current.nodes?.["confirm-html-migration"];
-  const preview = current.nodes?.["preview-html-migration"];
-  const activeApply = current.nodes?.["apply-html-migration"];
-  const sourceVersion = basename(runDir);
-
-  if (!isPlainObject(inspection) ||
-    inspection.source_version !== sourceVersion ||
-    inspection.plan_hash !== planHash ||
-    inspection.old_side_mode !== oldSideMode ||
-    normalizeRunVersion(inspection.target_version) !== inspection.target_version) {
-    throw new Error("migration confirmation inspection is missing or drifted");
-  }
-
-  if (
-    current.current_node === "apply-html-migration" &&
-    activeApply?.status === "in_progress" &&
-    activeApply.execution_id === executionId &&
-    activeApply.migration_plan_hash === planHash &&
-    activeApply.old_side_mode === oldSideMode &&
-    activeApply.migration_source_version === sourceVersion
-  ) {
-    return Object.freeze({ status: "idempotent", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
-  }
-
-  if (
-    current.current_node !== "confirm-html-migration" ||
-    confirmed?.status !== "in_progress" ||
-    confirmed.execution_id !== executionId ||
-    preview?.status !== "completed" ||
-    preview.execution_id !== executionId ||
-    preview.migration_plan_hash !== planHash ||
-    preview.old_side_mode !== oldSideMode
-  ) {
-    throw new Error("active migrate-import confirmation execution is required");
-  }
-
-  const next = structuredClone(current);
-  const at = nowIso();
-  next.schema_version = STATE_SCHEMA_VERSION;
-  next.run_version = sourceVersion;
-  next.nodes["confirm-html-migration"] = {
-    ...next.nodes["confirm-html-migration"],
-    status: "completed",
-    execution_id: executionId,
-    run_version: sourceVersion,
-    decision: { value: "apply", kind: "user", at },
-    completed: at,
-  };
-  next.nodes["preview-html-migration"] = {
-    ...next.nodes["preview-html-migration"],
-    execution_id: executionId,
-    run_version: sourceVersion,
-  };
-  next.nodes["apply-html-migration"] = {
-    status: "in_progress",
-    execution_id: executionId,
-    run_version: sourceVersion,
-    migration_plan_hash: planHash,
-    old_side_mode: oldSideMode,
-    migration_source_version: sourceVersion,
-    started: at,
-  };
-  next.current_node = "apply-html-migration";
-  bindOrdinaryStackFrames(next, sourceVersion);
-  const expectedStateSha = sha256(readFileSync(statePath(deckDir)));
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
-  return Object.freeze({ status: "confirmed", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
 }
 
 /**
@@ -2530,7 +2304,7 @@ export function resumePlaybook(state, selected = {}) {
 export function createDefaultState() {
   return {
     schema_version: STATE_SCHEMA_VERSION,
-    pipeline: LEGACY_PIPELINE,
+    pipeline: WHOLE_PAGE_IMAGE2_PIPELINE,
     production_mode: { by_version: {} },
     playbook: "",
     current_node: "",
@@ -2702,7 +2476,7 @@ function validateImage2MapsReadOnly(state, issues) {
 /**
  * v3->v4 boundary migration: for each visible version, populate a MISSING
  * production-mode record from its canonical source marker (html-first-v1 ->
- * html-only, markerless legacy -> image2-only). Pure over markers only;
+ * html-only, explicit whole-page legacy -> image2-only). Pure over markers only;
  * refinement/metadata/history/generated bytes never influence it. Idempotent:
  * a valid existing record is never rewritten. Invalid markers leave the record
  * absent so later inspection/validation fails closed. This runs ONLY when

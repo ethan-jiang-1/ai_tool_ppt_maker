@@ -30,7 +30,7 @@ function setup({ sourceMarker, sourceMode }) {
   const runDir = join(deck, "3_versions", "v1");
   writeFileSync(join(runDir, "slide-specifications.md"), source(sourceMarker));
   const state = createDefaultState();
-  state.pipeline = sourceMarker === "html" ? "html-first-v1" : "legacy-image2-first";
+  state.pipeline = sourceMarker === "html" ? "html-first-v1" : "whole-page-image2-v1";
   state.playbook = "create-deck";
   state.current_node = sourceMode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
   state.execution_id = "exec-source";

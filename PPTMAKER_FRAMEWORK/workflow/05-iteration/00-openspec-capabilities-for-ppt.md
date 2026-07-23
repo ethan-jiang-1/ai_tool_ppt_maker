@@ -34,9 +34,9 @@ agent_action: internalize
 
 普通 copy 不重新批准全册 visual system，但必须重新做 schema、font、overflow 与 composition checks。chart numeric shape、asset byte、selection/fallback 或 family recipe 改变时，只让对应 page/coverage stale。
 
-## Markerless legacy
+## Explicit whole-page legacy
 
-保持 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path。Generated Image Rebuild 是远端成本，必须单独授权。详细 ownership 见 `../../reference/legacy-image2-first-maintenance.md`。
+保持 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path。Generated Image Rebuild 是远端成本，必须单独授权。详细 ownership 见 `playbook/create-deck.md`。
 
 ## OpenSpec 何时介入
 

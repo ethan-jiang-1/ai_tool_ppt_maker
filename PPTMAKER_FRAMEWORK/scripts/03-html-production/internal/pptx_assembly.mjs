@@ -268,8 +268,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   const receipt = {
     schema_version: PPTX_ASSEMBLY_RECEIPT_VERSION,
-    pipeline: 'legacy-image2-v1',
-    producer: 'legacy-image2-stage3-v1',
+    pipeline: 'whole-page-image2-v1',
+    producer: 'whole-page-image2-stage3-v1',
     slide_plan_path: runRelativePath(receiptLocation.runDir, resolve(slidePlan)),
     slide_plan_sha256: sha256File(slidePlan),
     ordered_slide_ids: slides.map((slide) => slide.slide_id || slide.id),

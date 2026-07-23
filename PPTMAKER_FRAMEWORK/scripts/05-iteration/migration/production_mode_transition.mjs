@@ -286,7 +286,7 @@ function previewPlan(source, candidate, { executionId = source.state.execution_i
     deterministic_impact: {
       target_slide_count: sourceIdentityLedger(candidate.candidateBytes).length,
       needs_local_materialization: candidate.targetPipeline === "html-first-v1",
-      needs_render: candidate.targetPipeline === "legacy-image2-first",
+      needs_render: candidate.targetPipeline === "whole-page-image2-v1",
     },
   };
   return Object.freeze({ ...plan, plan_hash: sha256(canonicalBytes(plan)) });

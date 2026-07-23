@@ -174,14 +174,14 @@ The active fonts README SHALL distinguish required HTML-runtime WOFF2 assets fro
 
 ### Requirement: Legacy maintenance has isolated framework ownership
 
-`PPTMAKER_FRAMEWORK/reference/legacy-image2-first-maintenance.md` SHALL own human/Agent methodology for markerless style-master, whole-page prompt, pilot/review, production, and refresh compatibility. `PPTMAKER_FRAMEWORK/playbook/legacy-image2-maintenance.md` SHALL own its controller route. New-deck active workflow pages SHALL link to legacy maintenance only from explicit existing-deck classification/migration guidance.
+`PPTMAKER_FRAMEWORK/playbook/create-deck.md` SHALL own human/Agent methodology for explicit whole-page style-master, whole-page prompt, pilot/review, production, and refresh compatibility. `PPTMAKER_FRAMEWORK/playbook/create-deck.md` SHALL own its controller route. New-deck active workflow pages SHALL link to legacy maintenance only from explicit existing-deck classification/migration guidance.
 
 #### Scenario: New deck follows active method tree
 
 - **WHEN** a fresh HTML-first deck is created
 - **THEN** no active Phase 1-3 step routes through the legacy maintenance reference
 
-#### Scenario: Markerless deck needs maintenance
+#### Scenario: Explicit whole-page deck needs maintenance
 
 - **WHEN** an existing legacy deck is classified
 - **THEN** the dedicated reference/controller remains discoverable without pretending to be modern Phase 4

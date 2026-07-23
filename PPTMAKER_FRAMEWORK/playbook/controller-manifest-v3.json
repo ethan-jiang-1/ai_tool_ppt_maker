@@ -3,11 +3,11 @@
   "shared_nodes": ["classify-change"],
   "controllers": {
     "create-deck": {
-      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
       "nodes": ["instantiation", "checkpoint-intake", "author-structured-content", "configure-visual-system", "author-whole-page-content", "configure-whole-page-visual-system", "authorize-image2-style-master", "generate-image2-style-master", "pilot-image2-pages", "review-image2-content", "review-image2-visual", "review-image2-header", "authorize-image2-build", "produce-image2-deck", "checkpoint-image2-final-review", "repair-image2-deck", "image2-readiness", "final-image2", "preview-content", "review-content", "review-visual", "produce-html-deck", "checkpoint-final-review", "handoff-to-image2-refinement", "repair-html-deck", "readiness", "final"]
     },
     "edit-notes": {
-      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
       "nodes": ["classify-change", "refresh-speaker-notes", "verify-speaker-notes"]
     },
     "edit-text": {
@@ -26,16 +26,12 @@
       "supported_pipelines": ["html-first-v1"],
       "nodes": ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement", "review-image2-refinement"]
     },
-    "legacy-image2-maintenance": {
-      "supported_pipelines": ["legacy-image2-first"],
-      "nodes": ["classify-change", "inspect-legacy-evidence", "authorize-legacy-generation", "run-legacy-maintenance", "verify-legacy-maintenance"]
-    },
     "migrate-import": {
-      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
-      "nodes": ["intake-migration", "map-migration-inputs", "preview-html-migration", "confirm-html-migration", "apply-html-migration", "migration-target-review", "apply-production-mode-transition"]
+      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
+      "nodes": ["apply-production-mode-transition"]
     },
     "probe-image-channels": {
-      "supported_pipelines": ["legacy-image2-first"],
+      "supported_pipelines": ["whole-page-image2-v1"],
       "nodes": ["intake", "run-probe", "show-report", "confirm-write"]
     },
     "quick-preview": {
@@ -43,7 +39,7 @@
       "nodes": ["validate-preview-source", "compose-local-preview", "review-local-preview"]
     },
     "restructure-slides": {
-      "supported_pipelines": ["html-first-v1", "legacy-image2-first"],
+      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
       "nodes": ["classify-change", "publish-structural-version", "materialize-structural-target", "review-structural-target", "verify-structural-delivery"]
     }
   }

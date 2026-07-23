@@ -86,7 +86,7 @@ visual-config changes to Local Deck Rebuild, notes to Notes-Only Refresh, and ad
 preview/hash-bound Structural Versioning Path followed by target-local rebuild. `html-then-image2`
 guidance SHALL additionally report refinement freshness after affected HTML changes. `image2-only`
 examples SHALL route whole-page Generated Image Rebuild, header-owned refresh, and notes through the
-existing whole-page adapter without labeling a new deck as legacy maintenance. Historical markerless
+existing whole-page adapter without labeling a new deck as legacy maintenance. Historical explicit whole-page
 compatibility remains supported. Users MAY refer to pages by current position or spoken mnemonic and
 SHALL not need internal path names. Every published same-pipeline target SHALL complete state-owned mode
 registration before normal target production; interrupted registration routes to its exact mechanical
@@ -108,7 +108,7 @@ repair rather than mode inference.
 - **WHEN** the user changes the slide set/order
 - **THEN** COMMANDS routes to identity-aware structural preview/confirm/new-version and target materialization
 
-#### Scenario: Markerless user regenerates a visual
+#### Scenario: Explicit whole-page user regenerates a visual
 
 - **WHEN** an `image2-only` deck needs a whole-page rebuild
 - **THEN** COMMANDS routes through normal mode-owned refresh with existing force/review rules
@@ -141,8 +141,8 @@ refinement freshness, while an `html-only` refinement request SHALL first offer 
 
 For `image2-only`, generated-body data, header-lock ownership, safe-zone/render-mode changes, vague
 visual direction, style-master iteration, and Generated Image Rebuild SHALL retain their current
-whole-page meanings through the normal first-class route. A historical pre-mode markerless deck SHALL
-retain the same artifact behavior through its compatibility route, without making "markerless" a
+whole-page meanings through the normal first-class route. A historical pre-mode explicit whole-page deck SHALL
+retain the same artifact behavior through its compatibility route, without making "explicit whole-page" a
 synonym for legacy in new-deck guidance.
 
 #### Scenario: HTML chart copy or KPI changes
@@ -159,7 +159,7 @@ synonym for legacy in new-deck guidance.
 
 #### Scenario: Legacy generated body data changes
 
-- **WHEN** generated-image body data changes in a historical pre-mode markerless deck
+- **WHEN** generated-image body data changes in a historical pre-mode explicit whole-page deck
 - **THEN** COMMANDS retains the compatibility Generated Image Rebuild and review path
 
 #### Scenario: Image2-primary generated body data changes
@@ -183,10 +183,10 @@ Title-edit routing SHALL first resolve the exact version's production mode, veri
 then consult render mode only for whole-page Image2 source. For either HTML mode,
 KICKER/TITLE/SUBTITLE are renderer-owned visible source and SHALL use Local Slide Rebuild for selected
 IDs, with browser overflow validation and affected delivery rebuild; render mode SHALL not be
-consulted. For `image2-only` and historical markerless compatibility source, existing
+consulted. For `image2-only` and historical explicit whole-page compatibility source, existing
 `ppt_flow refresh --kind title` resolution remains: `body+header-lock` uses Header Text & Style Refresh
 and `full-page` uses Generated Image Rebuild with force/review. First-class `image2-only` SHALL use its
-normal route rather than `legacy-image2-maintenance`.
+normal route rather than `create-deck`.
 
 #### Scenario: HTML title edit is local
 
@@ -196,7 +196,7 @@ normal route rather than `legacy-image2-maintenance`.
 
 #### Scenario: Legacy title edit retains render-aware behavior
 
-- **WHEN** a historical markerless title edit resolves a whole-page render mode
+- **WHEN** a historical explicit whole-page title edit resolves a whole-page render mode
 - **THEN** the existing header-text versus generated-image path remains selected
 
 #### Scenario: Image2-primary title edit retains render-aware behavior
@@ -208,7 +208,7 @@ normal route rather than `legacy-image2-maintenance`.
 
 COMMANDS.md and `scripts/05-iteration/change-classifier.md` SHALL retain the shared structural UX: resolve every position selector against one pre-edit snapshot; display `position + slide_id + title`; keep formal ID stable; preview before mutation; bind apply to canonical plan hash carried by the Agent; route list/resolve/normalize/move/delete/insert/multi-operation through `ppt_flow slides`; never hand-edit or copy `_generated/`; and retain the existing version/deck/Git escape-ladder constraints.
 
-Structural source publication SHALL be renderer-free for both pipelines. For HTML-first, its receipt SHALL report `needs_local_materialization`; a later explicit target-local materializer verifies/copies target-owned immutable objects or composes missing/stale IDs locally, then rebuilds review/delivery with zero provider calls. For markerless legacy, verified expensive raw renders MAY be materialized and missing/unproven IDs SHALL remain `needs_render` for a separately authorized Generated Image Rebuild. Guidance SHALL never label HTML-local work as remote render debt or copy a source-version manifest path into the target.
+Structural source publication SHALL be renderer-free for both pipelines. For HTML-first, its receipt SHALL report `needs_local_materialization`; a later explicit target-local materializer verifies/copies target-owned immutable objects or composes missing/stale IDs locally, then rebuilds review/delivery with zero provider calls. For explicit whole-page legacy, verified expensive raw renders MAY be materialized and missing/unproven IDs SHALL remain `needs_render` for a separately authorized Generated Image Rebuild. Guidance SHALL never label HTML-local work as remote render debt or copy a source-version manifest path into the target.
 
 #### Scenario: HTML insert reports local materialization
 
@@ -218,7 +218,7 @@ Structural source publication SHALL be renderer-free for both pipelines. For HTM
 
 #### Scenario: Legacy insert reports remote render debt
 
-- **WHEN** a confirmed markerless transaction inserts an ID without verified raw render evidence
+- **WHEN** a confirmed explicit whole-page transaction inserts an ID without verified raw render evidence
 - **THEN** the source version reports that ID under `needs_render`
 - **AND** requests separate authorization before Generated Image Rebuild
 
@@ -239,15 +239,15 @@ Structural source publication SHALL be renderer-free for both pipelines. For HTM
 
 ### Requirement: COMMANDS documents explicit legacy migration without automatic conversion
 
-COMMANDS SHALL route a user's explicit migration choice to `migrate-import`, where the Agent selects an existing preset from the user's authorized visual direction and runs `ppt_flow migrate-html <source-run-dir> prepare --preset <name>`. It SHALL explain that prepare creates only the isolated projected candidate, deterministic control/asset scaffold, palette, and per-slide checklist; the Agent then authors every structured `SLIDE BODY` and other semantic fields before preview. COMMANDS SHALL not claim that prompt prose was automatically converted or that the user must hand-create deterministic palette/state/asset files.
+COMMANDS SHALL route a user's explicit migration choice to `migrate-import`, where the Agent selects an existing preset from the user's authorized visual direction and runs `ppt_flow production-mode-transition <source-run-dir> prepare --preset <name>`. It SHALL explain that prepare creates only the isolated projected candidate, deterministic control/asset scaffold, palette, and per-slide checklist; the Agent then authors every structured `SLIDE BODY` and other semantic fields before preview. COMMANDS SHALL not claim that prompt prose was automatically converted or that the user must hand-create deterministic palette/state/asset files.
 
-COMMANDS SHALL describe `migrate-html preview` as a read-only guide when preparation or authoring is incomplete, followed by a complete proposed local HTML deck/contact sheet, exact `verified-current|degraded-missing|degraded-stale` old-side mode, exact mode/hash confirmation, Controller-owned atomic confirmation binding, and apply when the candidate is complete. Only verified-current mode may show old pixels. It SHALL state that degraded modes show diagnosis/placeholder rather than stale bytes, never trigger migration provider calls or a parity claim, and offer separately authorized legacy maintenance when needed. It SHALL preserve the legacy version on decline, preserve authored candidate work during guide responses, and never direct a user to edit `_generated/`, state, a journal, or a lock manually.
+COMMANDS SHALL describe `production-mode-transition preview` as a read-only guide when preparation or authoring is incomplete, followed by a complete proposed local HTML deck/contact sheet, exact `verified-current|degraded-missing|degraded-stale` old-side mode, exact mode/hash confirmation, Controller-owned atomic confirmation binding, and apply when the candidate is complete. Only verified-current mode may show old pixels. It SHALL state that degraded modes show diagnosis/placeholder rather than stale bytes, never trigger migration provider calls or a parity claim, and offer separately authorized legacy maintenance when needed. It SHALL preserve the legacy version on decline, preserve authored candidate work during guide responses, and never direct a user to edit `_generated/`, state, a journal, or a lock manually.
 
 The migration statements in `BOOTSTRAP.md`, the migrate/import workflow guide, and the legacy-maintenance reference SHALL use the same closed order: prepare, Agent authoring, complete preview, human confirmation through the Controller-owned state transition, then apply/recovery. They SHALL not reduce the path to `preview/apply`, imply that the user manually enters a state record, or present the confirmation binding as an optional source of authority.
 
 #### Scenario: User asks to migrate an old deck
 
-- **WHEN** a markerless deck user explicitly requests HTML migration
+- **WHEN** a explicit whole-page deck user explicitly requests HTML migration
 - **THEN** COMMANDS routes through prepare, Agent authoring, complete proposed output, and explicit current-old or degraded-old comparison confirmation before new-version publication
 - **AND** preserves the old version as a valid fallback
 

@@ -182,18 +182,18 @@ authorization semantics.
 
 The `ppt_flow` CLI SHALL continue to expose exactly 15 top-level commands: `doctor`, `init`, `status`,
 `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`,
-`slides`, `migrate-html`, and `image2`. Existing arguments remain compatible except for the declared
+`slides`, `production-mode-transition`, and `image2`. Existing arguments remain compatible except for the declared
 omitted-init default change to `image2-only` and the added production-mode selectors/closed state
 operations. `image2` SHALL expose only closed `plan`, `authorize`, `generate`, `accept`, `use-html`,
 `cleanup`, and unknown-submit resolution operations for `html-then-image2`; it is the sole modern
 visual-slot refinement CLI entry and SHALL not become the whole-page Image2 entry for `image2-only`.
-`migrate-html` SHALL expose only closed `prepare`, `preview`, and `apply` operations and SHALL not mutate
+`production-mode-transition` SHALL expose only closed `prepare`, `preview`, and `apply` operations and SHALL not mutate
 a source version in place.
 
 `state` SHALL retain controller-owned migration confirmation and add only the closed production-mode,
 mirror-repair, version-registration, and Image2-primary final-review operations specified by this
-change. None is a new top-level command, a fourth `migrate-html` operation, or a generic state editor.
-Migration confirmation remains exact `--confirm-migration-apply --plan-hash <hash> --old-side-mode
+change. None is a new top-level command, a fourth `production-mode-transition` operation, or a generic state editor.
+Migration confirmation remains exact `--confirm-production-mode-transition --plan-hash <hash> --old-side-mode
 <verified-current|degraded-missing|degraded-stale>`.
 
 #### Scenario: Help lists the complete surface
@@ -208,13 +208,13 @@ Migration confirmation remains exact `--confirm-migration-apply --plan-hash <has
 
 #### Scenario: Migration preparation is advertised without adding a top-level command
 
-- **WHEN** Agent reads `ppt_flow migrate-html --help`
+- **WHEN** Agent reads `ppt_flow production-mode-transition --help`
 - **THEN** help lists `prepare --preset <name>`, `preview`, and `apply` as the closed migration operations
 - **AND** the top-level command inventory remains 15
 
 ### Requirement: ppt_flow delegates to capability scripts
 
-`ppt_flow.mjs` SHALL delegate bundle management, environment checks, state, slide transactions, HTML migration, and the selected production branch to owning Phase interfaces or categorized shared CLI adapters. It SHALL route HTML Stage 1-5 through the Phase-3 interface and markerless production/maintenance through the Phase-5 legacy adapter. It SHALL keep orchestration/renderer logic out of the command router, probe the canonical marker before branch-specific readiness or option handling, and import no Phase private path or direct executable.
+`ppt_flow.mjs` SHALL delegate bundle management, environment checks, state, slide transactions, HTML migration, and the selected production branch to owning Phase interfaces or categorized shared CLI adapters. It SHALL route HTML Stage 1-5 through the Phase-3 interface and explicit whole-page production/maintenance through the Phase-5 legacy adapter. It SHALL keep orchestration/renderer logic out of the command router, probe the canonical marker before branch-specific readiness or option handling, and import no Phase private path or direct executable.
 
 #### Scenario: HTML build routes to the HTML adapter
 
@@ -224,7 +224,7 @@ Migration confirmation remains exact `--confirm-migration-apply --plan-hash <has
 
 #### Scenario: Legacy style command retains its owner
 
-- **WHEN** a markerless run invokes `ppt_flow style-master`
+- **WHEN** a explicit whole-page run invokes `ppt_flow style-master`
 - **THEN** `ppt_flow` delegates to `generate_style_master.mjs` rather than implementing it inline
 
 ### Requirement: Uses commander for CLI
@@ -315,7 +315,7 @@ Successful paths, including `--help` and successful command completion, SHALL NO
 ### Requirement: Pilot uses preview readiness and does not waive gates
 
 `ppt_flow pilot` SHALL resolve authoritative production mode and verify source pipeline before
-readiness. For first-class `image2-only` and historical markerless compatibility, preview readiness
+readiness. For first-class `image2-only` and historical explicit whole-page compatibility, preview readiness
 SHALL remain structure plus current style master, content/visual gates SHALL not be required or mutated,
 and whole-page Stage 2 SHALL receive `--preview`. A first-class operation that will submit provider work
 also requires its current scoped authorization; proven zero-submit reuse does not. For both HTML modes,
@@ -332,7 +332,7 @@ adapter's current authoritative gate evidence.
 
 #### Scenario: Legacy preview behavior remains compatible
 
-- **WHEN** a historical markerless run has a style master and pending gates
+- **WHEN** a historical explicit whole-page run has a style master and pending gates
 - **THEN** pilot may run whole-page Stage 2 under compatibility preview readiness
 - **AND** does not mutate gate fields
 
@@ -343,7 +343,7 @@ adapter's current authoritative gate evidence.
 
 ### Requirement: Pilot accepts --force-images and skips by default
 
-`ppt_flow pilot` SHALL retain `--force-images` for first-class `image2-only` and historical markerless
+`ppt_flow pilot` SHALL retain `--force-images` for first-class `image2-only` and historical explicit whole-page
 compatibility: without it, current pilot images are skipped; with it, selected whole-page images
 regenerate under the applicable authorization/review contract. For either HTML mode, `--force-images`
 SHALL fail with `USAGE` before readiness/writes because HTML preview freshness is fingerprint-driven;
@@ -351,7 +351,7 @@ callers SHALL use the HTML preview/rebuild selector instead of a provider-genera
 
 #### Scenario: Legacy pilot skips existing images by default
 
-- **WHEN** historical markerless pilot images exist and pilot runs without `--force-images`
+- **WHEN** historical explicit whole-page pilot images exist and pilot runs without `--force-images`
 - **THEN** whole-page Stage 2 skips those current files
 
 #### Scenario: HTML pilot receives force-images
@@ -441,7 +441,7 @@ pipeline. The card SHALL expose non-empty `workflow_summary` and `suggested_next
 `production_mode`, exact normalized `pipeline`, mode/source consistency, and `state_present`. When
 durable state exists it SHALL retain active `playbook`, `current_node`, current-node status, optional
 `waiting_for`/`note`, gates, and `playbook_stack`, and SHALL evaluate pending/completion only against the
-mode-filtered active node set. For a historical markerless deck without state it SHALL expose
+mode-filtered active node set. For a historical explicit whole-page deck without state it SHALL expose
 `production_mode: null`, the read-only compatibility projection, legacy-maintenance ownership, and
 `state_present: false`; it SHALL leave execution fields null/not-active and create no state. The bounded
 non-writing migration-handoff projection remains unchanged.
@@ -499,9 +499,9 @@ through `deckRoot(resolve(runDir))`, and the top-level command count remains 15.
 - **THEN** the card reports current user acceptance with `evidence_complete: false` and bounded `waived_checks`
 - **AND** suggested-next recommends repair without fabricating a missing receipt
 
-#### Scenario: Markerless state card does not seed execution
+#### Scenario: Explicit whole-page state card does not seed execution
 
-- **WHEN** `state` inspects a historical markerless deck without `_state/state.yaml`
+- **WHEN** `state` inspects a historical explicit whole-page deck without `_state/state.yaml`
 - **THEN** output identifies the compatibility projection, null mode, legacy-maintenance ownership, and `state_present: false`
 - **AND** no state file is written and no active node is fabricated
 
@@ -536,7 +536,7 @@ through `deckRoot(resolve(runDir))`, and the top-level command count remains 15.
 
 #### Scenario: Delivery review targets legacy run
 
-- **WHEN** a historical markerless compatibility run receives `--record-delivery-review`
+- **WHEN** a historical explicit whole-page compatibility run receives `--record-delivery-review`
 - **THEN** it fails before state writes and points to its whole-page controller review semantics
 
 #### Scenario: Waiting state remains first
@@ -567,7 +567,7 @@ production mode, normalized pipeline, active playbook/current node, mode-filtere
 nearest owning action. Both HTML modes SHALL expose existing `html_reviews`; `html-only` can complete
 without Phase 4, while `html-then-image2` remains incomplete until current refinement and renewed final
 review. First-class `image2-only` SHALL expose whole-page gate/header/delivery/final-review facts without
-HTML/refinement debt. A historical markerless deck without state SHALL report compatibility and
+HTML/refinement debt. A historical explicit whole-page deck without state SHALL report compatibility and
 `state_present: false` without healing/seeding state or inventing an execution.
 
 Status SHALL retain the `Lessons` line and JSON `lessons_count`, counting files in deck-root `_lessons/`
@@ -597,9 +597,9 @@ positive counts retain the review hint.
 - **THEN** status exposes each condition through the shared HTML review projection
 - **AND** does not reduce them to metadata scalar gate values
 
-#### Scenario: Markerless status is non-writing
+#### Scenario: Explicit whole-page status is non-writing
 
-- **WHEN** a historical markerless deck lacks `_state/state.yaml`
+- **WHEN** a historical explicit whole-page deck lacks `_state/state.yaml`
 - **THEN** status reports legacy compatibility without creating state or inventing an execution pointer
 
 #### Scenario: Image2-primary status is mode-owned
@@ -610,7 +610,7 @@ positive counts retain the review hint.
 ### Requirement: approve dual-writes metadata and _state gates
 
 `ppt_flow approve <runDir> <gate>` SHALL resolve production mode and verify pipeline before validating
-approval evidence. For first-class `image2-only` and historical markerless compatibility, existing
+approval evidence. For first-class `image2-only` and historical explicit whole-page compatibility, existing
 metadata `content_gate|visual_gate` and `_state.gates.content|visual` writes/reads SHALL remain and HTML
 approval SHALL never overwrite them. For both HTML modes, ordinary content/visual approval SHALL require
 no reset pending plus the exact current-reset hash of an `approvable: true` plan covering every
@@ -648,7 +648,7 @@ unrecoverable partial writes fail closed.
 
 #### Scenario: Legacy approval remains compatible
 
-- **WHEN** Agent approves a historical markerless gate
+- **WHEN** Agent approves a historical explicit whole-page gate
 - **THEN** existing metadata and `_state.gates` values remain synchronized
 
 #### Scenario: HTML approval coexists with approved legacy version
@@ -681,7 +681,7 @@ SHALL remain.
 
 #### Scenario: Legacy full-page title changes
 
-- **WHEN** a historical markerless selected title belongs to full-page and lacks current header review
+- **WHEN** a historical explicit whole-page selected title belongs to full-page and lacks current header review
 - **THEN** existing `TITLE_REVIEW_REQUIRED` and exact force-pilot action remain
 
 #### Scenario: Image2-primary title uses render mode
@@ -692,7 +692,7 @@ SHALL remain.
 ### Requirement: Existing approve command records header review evidence
 
 `ppt_flow approve <run-dir> header` SHALL be whole-page-Image2-only: it applies to first-class
-`image2-only` and historical markerless compatibility and retains current pilot/provenance checks,
+`image2-only` and historical explicit whole-page compatibility and retains current pilot/provenance checks,
 version-scoped `nodes.header-review.by_version`, matching-profile merge/partial coverage, stale
 rejection, and ID-plus-reason waiver behavior without changing content/visual metadata gates. For both
 HTML modes it SHALL fail before readiness/artifact/state writes with branch-inapplicable guidance to
@@ -700,7 +700,7 @@ HTML modes it SHALL fail before readiness/artifact/state writes with branch-inap
 
 #### Scenario: Legacy partial header batches merge
 
-- **WHEN** two historical markerless current pilot batches have matching fingerprint/profile
+- **WHEN** two historical explicit whole-page current pilot batches have matching fingerprint/profile
 - **THEN** their reviewed IDs merge under the same version record
 
 #### Scenario: HTML run approves header
@@ -715,7 +715,7 @@ HTML modes it SHALL fail before readiness/artifact/state writes with branch-inap
 
 ### Requirement: Build preserves reviewed full-page images
 
-For first-class `image2-only` and historical markerless compatibility, current header evidence SHALL
+For first-class `image2-only` and historical explicit whole-page compatibility, current header evidence SHALL
 retain reviewed/accepted full-page preservation: default force conflicts with reviewed bytes,
 `build --reuse-images` preserves matching reviewed images and generates only missing/unreviewed ones,
 and profile drift requires new pilot/review. Any actual first-class submit also requires exact current
@@ -727,7 +727,7 @@ delivery.
 
 #### Scenario: Legacy reviewed build uses reuse
 
-- **WHEN** historical markerless header evidence/profile/images are current
+- **WHEN** historical explicit whole-page header evidence/profile/images are current
 - **THEN** `build --reuse-images` preserves those images and fills only missing whole-page output
 
 #### Scenario: HTML build receives reuse-images
@@ -976,11 +976,11 @@ For a legacy or prose-only child, `ppt_flow` SHALL emit a safe minimal delegated
 
 ### Requirement: The complete ppt_flow command surface has return-audit coverage
 
-The command-return registry SHALL cover exactly the 15 registered top-level commands, including `image2`. Every command/subcommand/closed repair or evidence operation SHALL register applicable success/usage/validation/gate/conflict/stale/commit/internal return categories or an explicit not-applicable reason. `state --recover-gate-journal` SHALL cover mutual-exclusion/invalid-token/too-young/token-drift/active-owner/forbidden-SHA/successful-abort/mirror-complete/cleanup/exact-reset-yield returns and prove no approval creation. `state --record-delivery-review` SHALL cover invalid decision, required/forbidden reason combinations, reason control/UTF-8-size validation, markerless rejection, missing/stale/current evidence, journal/reset conflict, each typed decision success, and unsupported evidence overrides. `refresh --kind reset-html-production` SHALL cover explicit-versus-default flag detection, exact-version confirmation, markerless/unusable-state/gate-journal/reset-CAS/metadata-CAS/unsafe-owner conflicts, gate-journal race yield, new reset, live/waiting/dead/uncertain/invalid owner matrices at exact 60000/300000-ms boundaries, competing takeover CAS, same-reset resume, idempotent completed retry only without current-epoch authority, absent-owner no-reset-needed versus authority-loss epoch rotation, deletion failure with retained fence, and successful completion without approval creation. `slides` SHALL retain its operation-specific audit; `migrate-html preview|apply` SHALL cover complete/degraded preview, exact mode/hash acknowledgement, drift, decline, apply-journal mutual exclusion, automatic/confirmed recovery age-token-owner matrices, absent-target owned cleanup/full rerender, exact-target idempotent completion, conflicting target/foreign path denial, and zero-provider failures. Its closed refinement operations SHALL audit help, markerless rejection, current-delivery eligibility, plan/authorization drift, duplicate or unknown attempt handling, candidate identity, promotion conflict/recovery, cleanup ambiguity, and success; every applicable category shall have an explicit case or not-applicable reason. Set mismatch SHALL fail.
+The command-return registry SHALL cover exactly the 15 registered top-level commands, including `image2`. Every command/subcommand/closed repair or evidence operation SHALL register applicable success/usage/validation/gate/conflict/stale/commit/internal return categories or an explicit not-applicable reason. `state --recover-gate-journal` SHALL cover mutual-exclusion/invalid-token/too-young/token-drift/active-owner/forbidden-SHA/successful-abort/mirror-complete/cleanup/exact-reset-yield returns and prove no approval creation. `state --record-delivery-review` SHALL cover invalid decision, required/forbidden reason combinations, reason control/UTF-8-size validation, explicit whole-page rejection, missing/stale/current evidence, journal/reset conflict, each typed decision success, and unsupported evidence overrides. `refresh --kind reset-html-production` SHALL cover explicit-versus-default flag detection, exact-version confirmation, explicit whole-page/unusable-state/gate-journal/reset-CAS/metadata-CAS/unsafe-owner conflicts, gate-journal race yield, new reset, live/waiting/dead/uncertain/invalid owner matrices at exact 60000/300000-ms boundaries, competing takeover CAS, same-reset resume, idempotent completed retry only without current-epoch authority, absent-owner no-reset-needed versus authority-loss epoch rotation, deletion failure with retained fence, and successful completion without approval creation. `slides` SHALL retain its operation-specific audit; `production-mode-transition preview|apply` SHALL cover complete/degraded preview, exact mode/hash acknowledgement, drift, decline, apply-journal mutual exclusion, automatic/confirmed recovery age-token-owner matrices, absent-target owned cleanup/full rerender, exact-target idempotent completion, conflicting target/foreign path denial, and zero-provider failures. Its closed refinement operations SHALL audit help, explicit whole-page rejection, current-delivery eligibility, plan/authorization drift, duplicate or unknown attempt handling, candidate identity, promotion conflict/recovery, cleanup ambiguity, and success; every applicable category shall have an explicit case or not-applicable reason. Set mismatch SHALL fail.
 
 #### Scenario: Migrate command is not audited
 
-- **WHEN** `migrate-html` is registered without preview/apply return cases
+- **WHEN** `production-mode-transition` is registered without preview/apply return cases
 - **THEN** return audit fails and names the missing command/subcommands
 
 #### Scenario: Image2 command is not audited
@@ -1152,9 +1152,9 @@ Direct `stage2_render_html.mjs` and `stage3_compose_slides.mjs` SHALL be Node ES
 
 ### Requirement: Public HTML build and refresh commands route without provider flags
 
-`ppt_flow validate`, preview, build, status, approve, slides, and refresh SHALL probe the source marker before branch-specific argument/readiness handling. HTML-first build SHALL use the local Stages 1-5 adapter. HTML refresh SHALL expose Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, structural materialization, and the exceptional full generated-owner recovery through existing command ownership or explicit closed `--kind` values; it SHALL reject legacy provider/model/resolution/style-master/`--force-images`/`--reuse-images` flags and never delegate to legacy image generation/style-master/header approval. Markerless behavior and flags remain backward compatible.
+`ppt_flow validate`, preview, build, status, approve, slides, and refresh SHALL probe the source marker before branch-specific argument/readiness handling. HTML-first build SHALL use the local Stages 1-5 adapter. HTML refresh SHALL expose Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, structural materialization, and the exceptional full generated-owner recovery through existing command ownership or explicit closed `--kind` values; it SHALL reject legacy provider/model/resolution/style-master/`--force-images`/`--reuse-images` flags and never delegate to legacy image generation/style-master/header approval. Explicit whole-page behavior and flags remain backward compatible.
 
-The only public canonical full-reset syntax SHALL be `ppt_flow refresh <run-dir> --kind reset-html-production --confirm-run-version <vN>`. It SHALL require exact normalized version equality and invoke the state-owned `resetHtmlProduction` interface with no caller-supplied reset/owner ID, path, lock, or manifest. This kind SHALL be mutually exclusive with explicitly supplied `--only`, `--all`, `--dry-run`, `--resolution`, `--provider`, `--base-url`, `--model`, every style/style-master option, force/reuse image flags, and every other refresh-kind-specific override. Parser defaults SHALL not count as supplied options or flow into reset; `--confirm-run-version` SHALL be rejected for every non-reset kind. Unsupported combinations SHALL return `USAGE` before state or filesystem writes. Markerless runs SHALL reject the kind as branch-inapplicable.
+The only public canonical full-reset syntax SHALL be `ppt_flow refresh <run-dir> --kind reset-html-production --confirm-run-version <vN>`. It SHALL require exact normalized version equality and invoke the state-owned `resetHtmlProduction` interface with no caller-supplied reset/owner ID, path, lock, or manifest. This kind SHALL be mutually exclusive with explicitly supplied `--only`, `--all`, `--dry-run`, `--resolution`, `--provider`, `--base-url`, `--model`, every style/style-master option, force/reuse image flags, and every other refresh-kind-specific override. Parser defaults SHALL not count as supplied options or flow into reset; `--confirm-run-version` SHALL be rejected for every non-reset kind. Unsupported combinations SHALL return `USAGE` before state or filesystem writes. Explicit whole-page runs SHALL reject the kind as branch-inapplicable.
 
 For a new reset the command SHALL atomically install its owner claim. For pending reset, a live same-host owner SHALL return `CONFLICT`; a dead same-host owner younger than 60000 ms SHALL return a bounded retry-after conflict; same-host proven-dead age at least 60000 ms MAY be claimed automatically; valid cross-host/PID-uncertain ownership younger than 300000 ms SHALL remain blocked, and at/after 300000 ms MAY be claimed only after the Controller's explicit no-active-writer confirmation represented by this exact destructive route. Invalid ownership SHALL fail closed. Every takeover SHALL retain the semantic reset ID and use state CAS to install a fresh internal owner claim before deletion. Success SHALL report only normalized run version, whether the transaction was `started|resumed|already-complete`, and that local rebuild plus fresh content/visual/final review is required; it SHALL not expose reset/owner IDs, old evidence hashes, or claim rebuild completion.
 
@@ -1244,22 +1244,22 @@ human-review next action and no gate mutation.
 
 ### Requirement: Legacy-to-HTML migration has preview and exact apply commands
 
-`ppt_flow migrate-html <run-dir> prepare --preset <name>` SHALL accept only a shipped preset name and a markerless source version. It SHALL resolve the source through the migration owner, create or verify the complete candidate scaffold only under `_scratch/html-migration/projected-run/`, and return its bounded authoring checklist and candidate location. The candidate source and sparse overrides SHALL be the only writable migration inputs; source-version overrides and deck-root backbone controls are inherited read-only through the closed resolver. Prepare SHALL not modify the source slide specifications, source controls, deck-root state/metadata, visible version set, or provider state, and it SHALL not read provider credentials. A matching existing preparation SHALL be idempotent; an existing authored candidate whose source receipt, effective inherited input receipt, or preset conflicts SHALL return `CONFLICT` before overwriting it. An existing loose migration candidate may be read only by this explicit preparation compatibility path and shall never be made authoritative by preview.
+`ppt_flow production-mode-transition <run-dir> prepare --preset <name>` SHALL accept only a shipped preset name and a explicit whole-page source version. It SHALL resolve the source through the migration owner, create or verify the complete candidate scaffold only under `_scratch/html-migration/projected-run/`, and return its bounded authoring checklist and candidate location. The candidate source and sparse overrides SHALL be the only writable migration inputs; source-version overrides and deck-root backbone controls are inherited read-only through the closed resolver. Prepare SHALL not modify the source slide specifications, source controls, deck-root state/metadata, visible version set, or provider state, and it SHALL not read provider credentials. A matching existing preparation SHALL be idempotent; an existing authored candidate whose source receipt, effective inherited input receipt, or preset conflicts SHALL return `CONFLICT` before overwriting it. An existing loose migration candidate may be read only by this explicit preparation compatibility path and shall never be made authoritative by preview.
 
-`ppt_flow migrate-html <run-dir> preview` SHALL first resolve the same projected candidate without writing. For a valid markerless source with no candidate it SHALL return a successful `preparation_required` guide that contains the closed prepare syntax, available preset names, and candidate location; for a prepared but incomplete candidate it SHALL return a successful `authoring_required` guide with bounded slide/field work. Neither guide SHALL create a candidate, plan hash, rendered comparison, source mutation, or visible version. A malformed source, unsafe/colliding candidate, unresolved identity, or active transaction owner SHALL remain a hard failure through the existing producer-owned diagnostic. A complete candidate SHALL validate a version-local transaction, render the complete proposed HTML deck/contact sheet, and emit exact `old_side_mode: verified-current|degraded-missing|degraded-stale`, anticipated target version, and exact plan hash without publishing a version. Only `verified-current` may include old pixels. Degraded modes SHALL show diagnosis/placeholder, no stale pixels/parity claim, and a separately authorized legacy-maintenance next action; complete preview SHALL succeed locally.
+`ppt_flow production-mode-transition <run-dir> preview` SHALL first resolve the same projected candidate without writing. For a valid explicit whole-page source with no candidate it SHALL return a successful `preparation_required` guide that contains the closed prepare syntax, available preset names, and candidate location; for a prepared but incomplete candidate it SHALL return a successful `authoring_required` guide with bounded slide/field work. Neither guide SHALL create a candidate, plan hash, rendered comparison, source mutation, or visible version. A malformed source, unsafe/colliding candidate, unresolved identity, or active transaction owner SHALL remain a hard failure through the existing producer-owned diagnostic. A complete candidate SHALL validate a version-local transaction, render the complete proposed HTML deck/contact sheet, and emit exact `old_side_mode: verified-current|degraded-missing|degraded-stale`, anticipated target version, and exact plan hash without publishing a version. Only `verified-current` may include old pixels. Degraded modes SHALL show diagnosis/placeholder, no stale pixels/parity claim, and a separately authorized legacy-maintenance next action; complete preview SHALL succeed locally.
 
-Before normal apply, the Controller SHALL call `ppt_flow state <source-run-dir> --confirm-migration-apply --plan-hash <sha> --old-side-mode <mode>` only after the human accepts the exact current preview. That operation SHALL use the state owner's receipt-aware confirmation transition and return a bounded confirmation result; it SHALL not create a target, invoke a provider, or accept a marked HTML source. Normal `ppt_flow migrate-html <run-dir> apply --plan-hash <sha> --old-side-mode <mode>` SHALL accept only the current exact hash/mode and that exact active source `migrate-import` `apply-html-migration` execution, bind that execution ID into journal/target receipt, recheck target/input/evidence, and publish only when hidden-target ordered composition/final PNG/contact-sheet SHAs exactly match preview. Closed recovery form `ppt_flow migrate-html <run-dir> apply --recover-journal <owner-token>` SHALL be mutually exclusive with plan/mode flags, require exact 64-lowercase-hex token plus the human-confirmed/age/active-owner rules, and apply only the bounded migration-apply recovery matrix. A recoverable/uncertain journal SHALL be reported with opaque token; the Agent carries it without requiring user transcription. Prepare, preview, normal apply, and recovery SHALL make zero provider calls; unknown/legacy-generation/evidence/path flags, invalid operation-specific flag combinations, and a missing prepare preset SHALL be usage errors before writes.
+Before normal apply, the Controller SHALL call `ppt_flow state <source-run-dir> --confirm-production-mode-transition --plan-hash <sha> --old-side-mode <mode>` only after the human accepts the exact current preview. That operation SHALL use the state owner's receipt-aware confirmation transition and return a bounded confirmation result; it SHALL not create a target, invoke a provider, or accept a marked HTML source. Normal `ppt_flow production-mode-transition <run-dir> apply --plan-hash <sha> --old-side-mode <mode>` SHALL accept only the current exact hash/mode and that exact active source `migrate-import` `apply-html-migration` execution, bind that execution ID into journal/target receipt, recheck target/input/evidence, and publish only when hidden-target ordered composition/final PNG/contact-sheet SHAs exactly match preview. Closed recovery form `ppt_flow production-mode-transition <run-dir> apply --recover-journal <owner-token>` SHALL be mutually exclusive with plan/mode flags, require exact 64-lowercase-hex token plus the human-confirmed/age/active-owner rules, and apply only the bounded migration-apply recovery matrix. A recoverable/uncertain journal SHALL be reported with opaque token; the Agent carries it without requiring user transcription. Prepare, preview, normal apply, and recovery SHALL make zero provider calls; unknown/legacy-generation/evidence/path flags, invalid operation-specific flag combinations, and a missing prepare preset SHALL be usage errors before writes.
 
 #### Scenario: Preparation creates only an isolated candidate
 
-- **WHEN** an Agent runs `migrate-html <markerless-run> prepare --preset dark-executive`
+- **WHEN** an Agent runs `production-mode-transition <explicit whole-page-run> prepare --preset dark-executive`
 - **THEN** the result identifies a prepared projected candidate and its authoring checklist
 - **AND** directory diff shows writes only below that run's `_scratch/html-migration/projected-run/`
 - **AND** no source version, visible vNext, state/metadata authority, provider request, or credential lookup is created
 
-#### Scenario: Preview guides a bare markerless source
+#### Scenario: Preview guides a bare explicit whole-page source
 
-- **WHEN** a valid markerless run with no projected candidate invokes `migrate-html preview`
+- **WHEN** a valid explicit whole-page run with no projected candidate invokes `production-mode-transition preview`
 - **THEN** it returns `preparation_required` with the exact prepare grammar and bounded preset/candidate guidance
 - **AND** it does not silently call prepare or emit a plan hash
 
@@ -1402,13 +1402,13 @@ validity and may emit current renderer evidence, but SHALL not report an HTML qu
 parity verdict, or quality retry action.  Confirmation is a `confirm` gate on the exact mode/hash;
 missing authority, stale inputs, conflict, or invalid provenance is a hard-stop before writes.
 
-`ppt_flow migrate-html` SHALL retain its historical compatibility grammar but SHALL reject a source with
+`ppt_flow production-mode-transition` SHALL retain its historical compatibility grammar but SHALL reject a source with
 durable authoritative production-mode state before preparing or previewing a cross-pipeline candidate, and
 direct the Controller to the closed state transition protocol.  It SHALL not alias, partially invoke, or
 recover a mode transition.  The only narrow compatibility continuation is an exact historical
-legacy-to-HTML checkpoint: `state --confirm-migration-apply` MAY finish an active
+legacy-to-HTML checkpoint: `state --confirm-production-mode-transition` MAY finish an active
 `migrate-import/confirm-html-migration` checkpoint only after its exact preview inspection proves the
-selected source version/hash/mode, and `migrate-html apply` (including `--recover-journal`) MAY finish only
+selected source version/hash/mode, and `production-mode-transition apply` (including `--recover-journal`) MAY finish only
 an active `migrate-import/apply-html-migration` record whose execution ID, `migration_source_version`,
 plan hash, and old-side mode agree and whose journal or success receipt, when present, also agrees.  That
 exception creates no new legacy candidate or preview, accepts no alternate source version, and may use
@@ -1455,15 +1455,15 @@ checkpoints SHALL use the closed state transition protocol.
 
 #### Scenario: Existing migration command cannot fork the protocol
 
-- **WHEN** a mode-governed Image2 source without an exact active legacy migration checkpoint invokes `migrate-html prepare`, `preview`, or `apply`
+- **WHEN** a mode-governed Image2 source without an exact active legacy migration checkpoint invokes `production-mode-transition prepare`, `preview`, or `apply`
 - **THEN** CLI returns transition guidance before candidate, state, journal, or visible-target mutation
 - **AND** it names the closed `state` transition checkpoint rather than performing a partial legacy migration
 
 #### Scenario: Upgraded legacy checkpoint may finish but cannot start another migration
 
-- **WHEN** a markerless source has an exact pre-existing `migrate-import` legacy confirmation or apply checkpoint and schema-v5 mode state is installed
-- **THEN** its matching `state --confirm-migration-apply`, `migrate-html apply`, or owner-scoped `migrate-html apply --recover-journal` continuation remains available
-- **AND** `migrate-html prepare` or `preview`, a mismatched plan/source/execution, or a new durable-mode request returns transition guidance before mutation
+- **WHEN** a explicit whole-page source has an exact pre-existing `migrate-import` legacy confirmation or apply checkpoint and schema-v5 mode state is installed
+- **THEN** its matching `state --confirm-production-mode-transition`, `production-mode-transition apply`, or owner-scoped `production-mode-transition apply --recover-journal` continuation remains available
+- **AND** `production-mode-transition prepare` or `preview`, a mismatched plan/source/execution, or a new durable-mode request returns transition guidance before mutation
 
 #### Scenario: Confirm creates only the transition branch record
 
@@ -1525,3 +1525,8 @@ Plain `status`, `status --json`, `state`, and `state --json` SHALL consume the r
 ### Requirement: Resume-card action displays derive from one inspection projection
 
 `state` and `status` SHALL retain non-empty public `workflow_summary` and `suggested_next` fields, but each SHALL be a display adaptation of the same `workflow_inspection.primary_action` in that response. `eligible_candidates` MAY remain as a bounded diagnostic field, but SHALL not select a route, override the primary action, or expose an alternate mutation command. The shared state card retains raw cursor context but SHALL not independently evaluate a resume/next action.
+
+#### Scenario: State and status display the same primary action
+- **WHEN** `state` and `status` render a response for the same workflow-inspection projection
+- **THEN** each derives its public resume-card action from that response's `primary_action`
+- **AND** neither display field or eligible candidate selects an alternate route

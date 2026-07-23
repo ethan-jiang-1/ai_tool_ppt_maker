@@ -19,7 +19,7 @@ Phase 3 delivers a complete usable deck. Phase 4 is not a gate or required node;
 |---|---|---|---|
 | fresh HTML deck | create-deck / quick-preview | `_generated/html_production/` | no |
 | HTML text/visual/notes/structure iteration | edit-* / iterate-style / restructure-slides | source + local HTML outputs | no |
-| legacy whole-page maintenance | legacy-image2-maintenance | legacy generated paths | explicit |
+| legacy whole-page maintenance | create-deck | legacy generated paths | explicit |
 | clean legacy-to-HTML migration | migrate-import | `_scratch/html-migration/` then clean vNext | no |
 
 ## Gates and completion

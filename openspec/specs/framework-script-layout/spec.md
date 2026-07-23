@@ -186,7 +186,7 @@ The package surface SHALL be exact: `npm test` runs core; `npm run test:sweep` r
 
 The deterministic network-free `contracts/framework_architecture.mjs` check SHALL enforce the root whitelist, interfaces, Phase-4 ownership/isolation, import graph, Image2 isolation, executable registry, recursive tests, ownership manifest, canonical path-token ownership, and absence of old paths/`scripts/lib/`. It is tested through repository tests, not registered as a CLI, uses only framework/test roots, and never reads `deck_*` or `dpt_*`. The legacy-token registry and validator it consumes SHALL reside in a static-only contract module with no `node:child_process` dependency; subprocess documentation-command auditing SHALL remain in a separate opt-in module. Its static repository check SHALL be an eligible core entry only when it satisfies the core admission rule.
 
-Temporary/synthetic subprocess load-closure probes for base doctor, an HTML-local command, and markerless provider selection SHALL be split from `tests/contracts/test_framework_architecture.mjs` into one explicit focused-only diagnostic entry. They SHALL use exact selected test paths, temporary/synthetic inputs, and forbidden-module sentinels; they prove command-selective closure but SHALL not be loaded by `npm test`. No transition bypass is permitted.
+Temporary/synthetic subprocess load-closure probes for base doctor, an HTML-local command, and explicit whole-page provider selection SHALL be split from `tests/contracts/test_framework_architecture.mjs` into one explicit focused-only diagnostic entry. They SHALL use exact selected test paths, temporary/synthetic inputs, and forbidden-module sentinels; they prove command-selective closure but SHALL not be loaded by `npm test`. No transition bypass is permitted.
 
 #### Scenario: Architecture drifts after a script is added
 
@@ -200,7 +200,7 @@ Temporary/synthetic subprocess load-closure probes for base doctor, an HTML-loca
 - **AND** core admission finds no `node:child_process` edge before Vitest starts
 
 #### Scenario: Load-closure diagnostic is explicitly selected
-- **WHEN** a maintainer explicitly selects the HTML-local or markerless-provider load-closure diagnostic
+- **WHEN** a maintainer explicitly selects the HTML-local or explicit whole-page-provider load-closure diagnostic
 - **THEN** only that one probe runs with its forbidden-module sentinels
 - **AND** it does not expand to browser, provider, all-E2E, or sweep verification
 
@@ -215,7 +215,7 @@ Every new test entry, fixture, or harness introduced by framework-script-layout 
 
 ### Requirement: Directory migration preserves observable behavior
 
-The migration SHALL preserve `ppt_flow` commands/options/exits, stdout/stderr envelopes and diagnostics, artifact bytes/fingerprints, state/gate/reset/migration semantics, receipts, and markerless legacy behavior. Canonical repository-relative direct executable paths are the sole intentional compatibility break.
+The migration SHALL preserve `ppt_flow` commands/options/exits, stdout/stderr envelopes and diagnostics, artifact bytes/fingerprints, state/gate/reset/migration semantics, receipts, and explicit whole-page legacy behavior. Canonical repository-relative direct executable paths are the sole intentional compatibility break.
 
 #### Scenario: Public regressions run after migration
 

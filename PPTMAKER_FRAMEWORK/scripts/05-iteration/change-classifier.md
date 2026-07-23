@@ -31,9 +31,9 @@ Probe the canonical `production.pipeline` before interpreting flags, render mode
 
 Ordinary copy does not stale the global visual system when page dependencies are unchanged, but browser font/overflow/composition checks always rerun. Selected visual changes retain forced-fallback review. Stable IDs authorize byte matching only.
 
-## Markerless legacy routes
+## Explicit whole-page legacy routes
 
-Use Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path only under `legacy-image2-maintenance`. A legacy `needs_render` report describes remote cost; it does not authorize provider work. A new explicit generation decision must bind IDs/profile/count.
+Use Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path only under `create-deck`. A legacy `needs_render` report describes remote cost; it does not authorize provider work. A new explicit generation decision must bind IDs/profile/count.
 
 ## Optional HTML-first refinement
 
@@ -47,7 +47,7 @@ uses the legacy whole-page renderer and never runs during ordinary HTML edits.
 
 Display `position · slide_id · title`, bind every selector to one current snapshot, and preview before apply. Keep exact `plan_sha256`; bare/stale/hash-drift apply fails and must re-preview. Source apply is renderer-free. HTML target-local materialization copies only matching target-owned bytes and never copies reset/gate/delivery/node authority.
 
-Historical `migrate-html prepare -> Agent authoring -> preview -> state confirmation -> apply` is a separate completion-only compatibility transaction. It is unavailable for a new durable mode-governed page-authority request. The general production-mode transition prepares a distinct `production-mode-transition` candidate and does not parse source prose, notes, prompts, pixels, generated artifacts, metadata, or history into target authoring. Its HTML-to-Image2 preview is offline and provider-free; its Image2-to-HTML target proves only the existing runnable contract.
+Historical `production-mode-transition prepare -> Agent authoring -> preview -> state confirmation -> apply` is a separate completion-only compatibility transaction. It is unavailable for a new durable mode-governed page-authority request. The general production-mode transition prepares a distinct `production-mode-transition` candidate and does not parse source prose, notes, prompts, pixels, generated artifacts, metadata, or history into target authoring. Its HTML-to-Image2 preview is offline and provider-free; its Image2-to-HTML target proves only the existing runnable contract.
 
 ## Communication
 

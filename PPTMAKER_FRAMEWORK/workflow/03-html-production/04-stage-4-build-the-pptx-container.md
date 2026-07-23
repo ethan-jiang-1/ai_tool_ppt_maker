@@ -10,4 +10,4 @@ feeds_into:
 
 Consume exactly one verified provider-neutral `final-slide` per current plan ID in plan order. Do not glob filenames or inspect producer-private HTML/Image2 schemas. HTML delivery requires current reset-bound content/visual review evidence and effective-only final slides.
 
-Publish assembly schema v2 atomically with ordered IDs, final-slide fingerprints/SHAs, PPTX SHA, delivery digest, and current HTML reset ID. Markerless legacy uses its explicit artifact adapter and cannot bypass an HTML gate through artifact mode.
+Publish assembly schema v2 atomically with ordered IDs, final-slide fingerprints/SHAs, PPTX SHA, delivery digest, and current HTML reset ID. Explicit whole-page legacy uses its explicit artifact adapter and cannot bypass an HTML gate through artifact mode.

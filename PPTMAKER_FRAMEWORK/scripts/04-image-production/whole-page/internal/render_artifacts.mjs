@@ -123,9 +123,9 @@ export async function adaptLegacyFinalSlideArtifacts({ runDir, artifacts }) {
     const bytes = readFileSync(artifact.path);
     verifyCallerSuppliedBytes({ bytes, declaredSha256: artifact.byte_sha256 });
     const image = await loadImage(bytes);
-    const mediaProfile = `legacy-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
+    const mediaProfile = `whole-page-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
     const privateFingerprint = canonicalJsonSha256({ fingerprint: artifact.fingerprint, profile: artifact.profile });
-    entries.push(normalizeFinalSlideRecord({ slideId: artifact.slide_id, producer: "legacy-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile, path: relative(runDir, artifact.path).split(sep).join("/"), absolutePath: artifact.path }));
+    entries.push(normalizeFinalSlideRecord({ slideId: artifact.slide_id, producer: "whole-page-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile, path: relative(runDir, artifact.path).split(sep).join("/"), absolutePath: artifact.path }));
   }
   return Object.freeze(entries);
 }

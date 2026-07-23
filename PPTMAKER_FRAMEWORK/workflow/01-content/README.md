@@ -23,4 +23,4 @@ Read in order:
 6. `05-create-content-assets.md`
 7. `06-iterate-with-version-discipline.md`
 
-Use the templates and `presets/` as authoring aids. Exact schema/capacity diagnostics come from `ppt_flow validate`; repair source, never `_generated/`. Whole-page prompt authoring is legacy-only and lives in `../../reference/legacy-image2-first-maintenance.md`.
+Use the templates and `presets/` as authoring aids. Exact schema/capacity diagnostics come from `ppt_flow validate`; repair source, never `_generated/`. Whole-page prompt authoring is legacy-only and lives in `playbook/create-deck.md`.

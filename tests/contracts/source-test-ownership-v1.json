@@ -91,7 +91,7 @@
         "tests/05-iteration/test_generate_style_master.mjs",
         "tests/05-iteration/test_header_review.mjs",
         "tests/05-iteration/test_html_first_structural.mjs",
-        "tests/05-iteration/test_html_migration.mjs",
+        "tests/05-iteration/test_production_mode_transition.mjs",
         "tests/05-iteration/test_image_generation.mjs",
         "tests/05-iteration/test_production_mode_transition.mjs",
         "tests/05-iteration/test_render_artifacts.mjs",

@@ -134,7 +134,7 @@ export function validatePptxAssemblyReceipt(runDir, {
     if (receipt.schema_version === 2) {
       const html = receipt.pipeline === "html-first-v1";
       if (html && ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || ""))) throw new Error("HTML assembly reset/delivery lineage is invalid");
-      if (!html && (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null)) throw new Error("legacy assembly cannot carry HTML reset/delivery lineage");
+      if (!html && (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null)) throw new Error("whole-page assembly cannot carry HTML reset/delivery lineage");
     }
     if (requireCurrentPptx && sha256File(pptxPath) !== receipt.pptx_sha256) {
       throw new Error("assembled PPTX hash is stale");
@@ -185,12 +185,12 @@ function validateV2Shape(receipt) {
 }
 
 function validateV3Shape(receipt) {
-  if (receipt.schema_version !== HTML_NOTES_RECEIPT_VERSION || !["html-first-v1", "legacy-image2-v1"].includes(receipt.pipeline) || typeof receipt.producer !== "string" || !receipt.producer) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
+  if (receipt.schema_version !== HTML_NOTES_RECEIPT_VERSION || !["html-first-v1", "whole-page-image2-v1"].includes(receipt.pipeline) || typeof receipt.producer !== "string" || !receipt.producer) throw new Error(`unsupported receipt schema ${receipt.schema_version}`);
   if (!Number.isInteger(receipt.slide_count) || receipt.slide_count < 1 || receipt.notes_injected !== receipt.slide_count) throw new Error("invalid HTML notes counts");
   if (!Array.isArray(receipt.ordered_slide_ids) || receipt.ordered_slide_ids.length !== receipt.slide_count || new Set(receipt.ordered_slide_ids).size !== receipt.ordered_slide_ids.length) throw new Error("invalid HTML notes ordered IDs");
   if (receipt.pipeline === "html-first-v1") {
     if ((receipt.html_production_reset_id !== null && !SHA256_RE.test(receipt.html_production_reset_id || "")) || !SHA256_RE.test(receipt.html_delivery_digest || "")) throw new Error("invalid HTML notes reset/delivery lineage");
-  } else if (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null) throw new Error("legacy notes cannot carry HTML reset/delivery lineage");
+  } else if (receipt.html_production_reset_id !== null || receipt.html_delivery_digest !== null) throw new Error("whole-page notes cannot carry HTML reset/delivery lineage");
   if (!receipt.root_assembly || typeof receipt.root_assembly !== "object" || receipt.root_assembly.schema_version !== 2) throw new Error("HTML root assembly lineage is missing");
   if (receipt.notes_fingerprint !== undefined && !SHA256_RE.test(receipt.notes_fingerprint || "")) throw new Error("invalid notes_fingerprint");
   if (typeof receipt.created_at !== "string" || Number.isNaN(Date.parse(receipt.created_at))) throw new Error("invalid created_at");

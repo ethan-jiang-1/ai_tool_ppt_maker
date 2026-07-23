@@ -6,6 +6,13 @@ Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an
 ### Requirement: Playbook controller delegates workflow control to inspection
 
 After it has resolved a semantic intent and exact run, the MD Controller SHALL use the workflow-entry inspection result for resume, small refresh, structural change, and recovery observation/routing. Greenfield creation SHALL first use the direct `init` entry, then consume inspection only after the exact run exists. The Controller SHALL retain intent interpretation, creative work, human communication, and playbook sequencing, but SHALL not reconstruct direct-owner mode/gate/recovery rules or turn a resume action into a substitute for a requested mutation.
+
+#### Scenario: Existing-run Controller delegates observation
+
+- **WHEN** a Controller has resolved an exact run for resume, refresh, structural change, or recovery observation
+- **THEN** it uses the workflow-entry inspection result for workflow control
+- **AND** it retains the requested mutation with its direct owner rather than substituting a resume action
+
 ### Requirement: Controller routing follows production mode before pipeline behavior
 
 Every fresh, resume, and iteration controller SHALL obtain the exact version-scoped production policy
@@ -43,8 +50,8 @@ authorization in the active node. Reuse/no-submit paths SHALL not ask for a fict
 `PPTMAKER_FRAMEWORK/playbook/` SHALL contain the existing eleven active ordered MD Controllers plus
 shared node `classify-change.md`; this change adds mode branches, not another controller. Historical
 compatibility remains available through
-`legacy-image2-maintenance`; `probe-image-channels` remains Phase 0. The `create-deck` controller SHALL
-declare mode-aware paths for both `html-first-v1` and `legacy-image2-first` rather than treating a new
+`create-deck`; `probe-image-channels` remains Phase 0. The `create-deck` controller SHALL
+declare mode-aware paths for both `html-first-v1` and `whole-page-image2-v1` rather than treating a new
 Image2-primary run as legacy maintenance. `image2-refine` SHALL serve only a marked HTML-first run.
 
 For `html-only`, new entry to `image2-refine` is mode-disabled; the Controller SHALL offer the atomic
@@ -67,7 +74,7 @@ valid. No prerequisite waiver authorizes provider generation.
 
 #### Scenario: HTML deck selects legacy controller
 
-- **WHEN** either HTML mode attempts to enter `legacy-image2-maintenance`
+- **WHEN** either HTML mode attempts to enter `create-deck`
 - **THEN** entry validation fails with a pipeline/mode-ownership diagnostic
 
 #### Scenario: HTML-then-Image2 reaches refinement
@@ -158,8 +165,8 @@ same-pipeline switch to `html-then-image2` before refinement entry.
 
 For `image2-only`, compatible iteration controllers SHALL retain the ordinary whole-page Image2
 refresh, render-mode, style-master, force/review, and provider-authorization semantics without
-reclassifying the run as historical maintenance. Only a pre-mode historical markerless deck SHALL use
-the read-only compatibility projection and `legacy-image2-maintenance` continuation. Structural
+reclassifying the run as historical maintenance. Only a pre-mode historical explicit whole-page deck SHALL use
+the read-only compatibility projection and `create-deck` continuation. Structural
 Versioning Path remains outer to all mode branches and SHALL not be presented as a fourth peer refresh.
 
 #### Scenario: HTML title or body edit
@@ -177,7 +184,7 @@ Versioning Path remains outer to all mode branches and SHALL not be presented as
 - **WHEN** only speaker notes change and assembly lineage is current
 - **THEN** the controller runs Notes-Only Refresh without recomposition
 
-#### Scenario: Markerless visual rebuild
+#### Scenario: Explicit whole-page visual rebuild
 
 - **WHEN** an `image2-only` run needs whole-page regeneration
 - **THEN** the controller uses its ordinary whole-page route with existing force/review/prerequisite behavior
@@ -197,13 +204,13 @@ the authoritative production mode before verifying pipeline and selecting contro
 visual-direction/preview intent SHALL enter local renderer-neutral `iterate-style`/`quick-preview`
 behavior; an explicit whole-page style-master phrase SHALL not create a style master for an HTML deck.
 An `html-only` refinement request SHALL first route to the mode switch. First-class `image2-only`
-visual/style intent SHALL enter the ordinary whole-page create/iteration route. Historical markerless
-decks without state alone SHALL enter the compatibility projection and `legacy-image2-maintenance`.
+visual/style intent SHALL enter the ordinary whole-page create/iteration route. Historical explicit whole-page
+decks without state alone SHALL enter the compatibility projection and `create-deck`.
 Image-channel symptom/direct-probe examples SHALL route to `probe-image-channels` only for a selected
 Image2-dependent operation and SHALL not diagnose local HTML rendering as a provider problem.
 
 Resume examples SHALL run state/status first. Durable state resumes its active compatible
-controller/current node after reporting whole-workflow position; a historical markerless deck without
+controller/current node after reporting whole-workflow position; a historical explicit whole-page deck without
 state receives the read-only compatibility projection and initializes execution only after the user
 continues; a complete `html-only` run is not restarted or assigned refinement debt. Migration/import
 SHALL route through `migrate-import` and retain its show/hash/mode gates.
@@ -216,7 +223,7 @@ SHALL route through `migrate-import` and retain its show/hash/mode gates.
 
 #### Scenario: Legacy user asks to iterate style master
 
-- **WHEN** a historical pre-mode markerless deck user explicitly asks to refine its style master
+- **WHEN** a historical pre-mode explicit whole-page deck user explicitly asks to refine its style master
 - **THEN** COMMANDS routes to the legacy-compatible controller and existing review obligations
 
 #### Scenario: HTML browser failure is not an Image2 symptom
@@ -229,9 +236,9 @@ SHALL route through `migrate-import` and retain its show/hash/mode gates.
 - **WHEN** state contains compatible in-progress execution
 - **THEN** the Agent reports position and resumes that controller/node instead of restarting create-deck
 
-#### Scenario: Markerless deck without state resumes compatibly
+#### Scenario: Explicit whole-page deck without state resumes compatibly
 
-- **WHEN** an old markerless deck has no durable execution state
+- **WHEN** an old explicit whole-page deck has no durable execution state
 - **THEN** the Agent reports legacy-maintenance ownership without writing state until explicit continuation
 
 #### Scenario: First-class Image2 visual intent stays first class
@@ -246,12 +253,12 @@ pointer/wait/artifact/gate evidence, explain whole-workflow position, load the r
 node, check entry, and confirm continuation before replacing incomplete work. State heal SHALL run the
 bounded schema migration and known controller/node/module migration, then resolve authoritative mode
 before verifying source-pipeline ownership. A durable first-class `image2-only` execution SHALL resume
-its normal whole-page controller; only a historical pre-mode markerless execution SHALL map to declared
+its normal whole-page controller; only a historical pre-mode explicit whole-page execution SHALL map to declared
 compatibility maintenance. Conversation context and generated artifacts SHALL not override state. If a
 mapping is ambiguous, the resume card SHALL require the existing human-owned replacement/restart choice
 and preserve original state until that decision is recorded.
 
-#### Scenario: Old markerless execution resumes after directory migration
+#### Scenario: Old explicit whole-page execution resumes after directory migration
 
 - **WHEN** a historical state points to an old whole-page create/production node
 - **THEN** heal records its version mode and maps execution to declared compatibility maintenance with preserved evidence/wait
@@ -297,7 +304,7 @@ implies approval.
 For both HTML modes, preview MAY run while gates are pending; the Controller SHALL show exact ordered
 content and production-equivalent representative/affected-page artifacts. JS SHALL require current
 version-scoped HTML content/visual approval or declared waiver before Stage 4; metadata mirrors alone
-never satisfy it. For first-class `image2-only` and historical markerless compatibility, existing
+never satisfy it. For first-class `image2-only` and historical explicit whole-page compatibility, existing
 whole-page style-master/pilot/header artifact presentation, scalar readiness, and preview-versus-build
 semantics remain. A first-class provider authorization is separate from quality gates, and neither
 branch's evidence satisfies the other.
@@ -315,7 +322,7 @@ branch's evidence satisfies the other.
 
 #### Scenario: Legacy preview remains compatible
 
-- **WHEN** a historical markerless deck has a style master and pending gates
+- **WHEN** a historical explicit whole-page deck has a style master and pending gates
 - **THEN** pilot preview may run without waiving gates
 
 #### Scenario: Content evidence is stale
@@ -354,7 +361,7 @@ deck/change path. After mode selection, HTML-mode quick preview SHALL route to s
 local production-equivalent HTML evidence with no whole-page style-master/provider requirement.
 `image2-only` exploration SHALL route to first-class whole-page style/pilot semantics and SHALL disclose
 readiness, exact chargeable scope, and authorization before any provider submit; it SHALL not be labeled
-historical maintenance or modern visual-slot refinement. Historical markerless compatibility retains
+historical maintenance or modern visual-slot refinement. Historical explicit whole-page compatibility retains
 its existing exploration through the compatibility branch. Explore controllers SHALL advertise modern
 visual-slot refinement only for `html-then-image2` at its declared post-delivery lifecycle.
 
@@ -377,7 +384,7 @@ HTML migration SHALL require a complete Agent-authored structured candidate, a c
 
 #### Scenario: Agent receives a preparation-to-authoring handoff
 
-- **WHEN** a markerless user selects explicit HTML migration and preparation succeeds
+- **WHEN** a explicit whole-page user selects explicit HTML migration and preparation succeeds
 - **THEN** the Controller presents the candidate checklist and returns semantic slide-body authoring to the Agent
 - **AND** it does not claim IMAGE PROMPT text was converted automatically
 
@@ -470,7 +477,7 @@ non-zero exit surfaces the normalized envelope. No path invents a daemon or dura
 
 #### Scenario: Legacy pilot remains observable
 
-- **WHEN** historical markerless pilot generation takes minutes
+- **WHEN** historical explicit whole-page pilot generation takes minutes
 - **THEN** the Controller relays existing provider heartbeats and slide progress through background/equivalent execution
 
 #### Scenario: Failure is not covered by a wait message
@@ -555,7 +562,7 @@ remains enforcement authority.
 
 #### Scenario: Legacy preview placement is preserved
 
-- **WHEN** the same search is for a whole-page Image2 run or historical markerless compatibility deck
+- **WHEN** the same search is for a whole-page Image2 run or historical explicit whole-page compatibility deck
 - **THEN** it routes to `_generated/preview/`
 
 #### Scenario: Temporary source backup is placed narrowly
@@ -616,7 +623,7 @@ channel probing remains Phase 0.
 
 #### Scenario: Legacy route keeps its owner
 
-- **WHEN** the graph resolves historical markerless maintenance or first-class `image2-only` production
+- **WHEN** the graph resolves historical explicit whole-page maintenance or first-class `image2-only` production
 - **THEN** whole-page implementation nodes retain Phase 5 ownership without entering modern refinement
 
 ### Requirement: Legacy duplicate node state remains resumable
@@ -637,7 +644,7 @@ mode-and-pipeline-compatible active playbook index to calculate pending nodes an
 branches remain explicit candidates. Artifact/review freshness SHALL be evaluated through the shared
 mode policy before suggesting production/completion. A current complete `html-only` delivery SHALL not
 gain a refinement successor; a current `html-then-image2` delivery SHALL expose required refinement;
-an `image2-only` run SHALL expose only whole-page completion work. Historical markerless decks without
+an `image2-only` run SHALL expose only whole-page completion work. Historical explicit whole-page decks without
 durable mode/state SHALL use the one-time migration/compatibility projection and SHALL not fabricate an
 execution during observation.
 
@@ -661,9 +668,9 @@ execution during observation.
 - **WHEN** current HTML delivery belongs to `html-then-image2` and refinement is missing
 - **THEN** suggested-next names the owning refinement step before completion
 
-#### Scenario: Markerless compatibility card has no active graph
+#### Scenario: Explicit whole-page compatibility card has no active graph
 
-- **WHEN** a historical markerless deck lacks durable state
+- **WHEN** a historical explicit whole-page deck lacks durable state
 - **THEN** its observation identifies migration/whole-page ownership without pending-node invention or disk write
 
 ### Requirement: Restructure controller executes one previewed slide transaction
@@ -698,7 +705,7 @@ verify actual target PPTX/order/IDs/notes with the user.
 
 #### Scenario: Legacy unproven render pauses before cost
 
-- **WHEN** a historical markerless source apply reports `needs_render`
+- **WHEN** a historical explicit whole-page source apply reports `needs_render`
 - **THEN** the source version remains published but remote material work waits for separate authorization
 
 #### Scenario: Plan drift returns to preview
@@ -733,7 +740,7 @@ cost, discarding/materially changing content, or changing deck identity.
 
 #### Scenario: Legacy vNext needs remote bytes
 
-- **WHEN** a historical markerless receipt reports `needs_render`
+- **WHEN** a historical explicit whole-page receipt reports `needs_render`
 - **THEN** the Controller separates published source success from later remote-cost authorization
 
 #### Scenario: New audience warrants a new deck
@@ -824,7 +831,7 @@ decision `proceed|repair|redirect`, require and persist a concise reason for rep
 proceed, and route the decision before completion. JS SHALL bind/validate the decision against current
 nullable HTML-production reset ID, HTML delivery digest, every reviewable artifact actually present,
 and every lineage receipt required by the selected decision mode. Conversation memory, a pre-reset
-decision, or a prior execution's node completion SHALL not substitute for current evidence. Markerless
+decision, or a prior execution's node completion SHALL not substitute for current evidence. Explicit whole-page
 legacy final-review behavior remains under its existing controller/state semantics.
 
 After obtaining the decision, the Controller SHALL invoke `ppt_flow state <run-dir>
@@ -961,7 +968,7 @@ Image2 target progress uses the normal first-class Image2 review and authorizati
 
 #### Scenario: Legacy migration remains completion-only after mode upgrade
 
-- **WHEN** an upgraded markerless source has an exact active legacy migration confirmation or apply checkpoint
+- **WHEN** an upgraded explicit whole-page source has an exact active legacy migration confirmation or apply checkpoint
 - **THEN** the Controller presents only its matching confirmation, apply/recovery, or receipt-bound handoff action
 - **AND** it routes a new candidate/preview request to the general versioned transition branch
 

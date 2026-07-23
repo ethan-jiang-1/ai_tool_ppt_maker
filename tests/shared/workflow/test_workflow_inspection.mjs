@@ -6,7 +6,6 @@ import { createHash } from "node:crypto";
 
 import { createHtmlFirstRun } from "../../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../../helpers/image2_refinement_fixture.mjs";
-import { createMarkerlessMigrationFixture } from "../../helpers/html_migration_fixture.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { loadRefinementOperations, transitionAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import { inspectHtmlReviewReadiness, publishHtmlDeliveryDecision, publishHtmlGateDecision } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs";
@@ -247,18 +246,6 @@ describe("workflow inspection", () => {
         expectedStateSha,
       })).toThrow(/image2-only/);
       expect(readFileSync(statePath)).toEqual(before);
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  });
-
-  it("keeps markerless compatibility state absent and non-writing", () => {
-    const fixture = createMarkerlessMigrationFixture("workflow-inspect-markerless-");
-    try {
-      const before = treeSnapshot(fixture.deck);
-      const result = inspectWorkflow({ runDir: fixture.runDir });
-      expect(result.evidence_summary).toMatchObject({ pipeline: "legacy-image2-first", mode: null });
-      expect(treeSnapshot(fixture.deck)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

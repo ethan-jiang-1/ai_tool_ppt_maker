@@ -171,6 +171,8 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
     expect(commands).toContain("Git history reader");
     expect(commands).toContain("命名 Git 操作和用户给定范围");
+    expect(commands).toContain("新 deck 走正常的 pilot/header/build/provider controls");
+    expect(commands).toContain("并保有 durable state");
   });
 
   it("documents only the bounded local run-bundle locator entry", () => {
@@ -188,25 +190,16 @@ describe("framework documentation coherence", () => {
     expect(bootstrap).toContain("generic remote-chat attachment integration 不受支持");
   });
 
-  it("keeps every migration entry point on the closed prepare-to-confirmation path", () => {
+  it("documents the state-owned production-mode transition", () => {
     const files = [
       "PPTMAKER_FRAMEWORK/COMMANDS.md",
-      "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
       "PPTMAKER_FRAMEWORK/workflow/00-setup/05-migrate-import-existing-deck.md",
-      "PPTMAKER_FRAMEWORK/reference/legacy-image2-first-maintenance.md",
       "PPTMAKER_FRAMEWORK/playbook/migrate-import.md",
     ];
     for (const file of files) {
       const text = readFileSync(file, "utf8");
-      const prepare = text.indexOf("prepare --preset");
-      const preview = text.indexOf("preview", prepare + 1);
-      const confirm = text.indexOf("confirm-migration-apply");
-      const apply = text.lastIndexOf("apply");
-      expect(prepare, file).toBeGreaterThan(-1);
-      expect(preview, file).toBeGreaterThan(prepare);
-      expect(confirm, file).toBeGreaterThan(preview);
-      expect(apply, file).toBeGreaterThan(confirm);
-      expect(text, file).toMatch(/zero.provider|零 provider/i);
+      expect(text, file).toContain("production-mode-transition");
+      expect(text, file).not.toMatch(/migrate-html|confirm-migration-apply|whole-page-image2-v1-maintenance/);
     }
   });
 

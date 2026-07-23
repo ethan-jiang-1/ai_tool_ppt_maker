@@ -68,7 +68,7 @@ scripts/
 | `02-visual-system/index.mjs` | visual config、asset catalog、components、tokens、geometry | Phase 3、Phase 5 |
 | `03-html-production/index.mjs` | HTML validate/preview/build/refresh、Stage 1–5 local production | root、Phase 5 |
 | `04-image-production/index.mjs` | whole-page and visual-slot public adapters | root、Phase 3、Phase 5 |
-| `05-iteration/index.mjs` | structural versioning、migration、local iteration、markerless legacy maintenance | root |
+| `05-iteration/index.mjs` | structural versioning、migration、local iteration、explicit whole-page legacy maintenance | root |
 
 Importing an interface must not parse arguments, install a CLI transaction, exit the process, write production files, launch Chromium, initialize a provider, or eagerly load heavy operation-specific implementation. Operation boundaries use string-literal dynamic imports so static architecture checks can resolve the edge.
 

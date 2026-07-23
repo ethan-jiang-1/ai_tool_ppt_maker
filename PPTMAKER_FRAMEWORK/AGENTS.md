@@ -15,7 +15,7 @@ Probe `production.pipeline` before readiness or writes:
 
 ```text
 html-first-v1  -> structured source -> HTML pages -> measured final slides -> PPTX -> notes
-markerless     -> legacy source -> whole-page Image2 -> legacy header lock -> PPTX -> notes
+explicit whole-page     -> legacy source -> whole-page Image2 -> legacy header lock -> PPTX -> notes
 ```
 
 HTML paths never load provider credentials, style master, Image2 adapter, or legacy render mode. Legacy paths never satisfy HTML gate/delivery evidence. New HTML work never creates Image2 refinement directories.

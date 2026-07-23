@@ -100,10 +100,10 @@
         }
       }
     },
-    "legacy-image2-first": {
+    "whole-page-image2-v1": {
       "playbooks": {
         "create-deck": {
-          "target_playbook": "legacy-image2-maintenance",
+          "target_playbook": "create-deck",
           "nodes": {
             "setup": "inspect-legacy-evidence",
             "seed-topics": "inspect-legacy-evidence",
@@ -122,7 +122,7 @@
           }
         },
         "edit-text": {
-          "target_playbook": "legacy-image2-maintenance",
+          "target_playbook": "create-deck",
           "nodes": {
             "classify-change": "classify-change",
             "stage-text": "run-legacy-maintenance",
@@ -131,7 +131,7 @@
           }
         },
         "edit-visual": {
-          "target_playbook": "legacy-image2-maintenance",
+          "target_playbook": "create-deck",
           "nodes": {
             "classify-change": "classify-change",
             "pilot": "run-legacy-maintenance",
@@ -142,7 +142,7 @@
           }
         },
         "iterate-style": {
-          "target_playbook": "legacy-image2-maintenance",
+          "target_playbook": "create-deck",
           "nodes": {
             "start-iterate": "inspect-legacy-evidence",
             "tweak-prompt": "inspect-legacy-evidence",
@@ -151,7 +151,7 @@
           }
         },
         "quick-preview": {
-          "target_playbook": "legacy-image2-maintenance",
+          "target_playbook": "create-deck",
           "nodes": {
             "validate-ready": "inspect-legacy-evidence",
             "pilot-generate": "run-legacy-maintenance",
@@ -187,8 +187,8 @@
             "confirm-write": "confirm-write"
           }
         },
-        "legacy-image2-maintenance": {
-          "target_playbook": "legacy-image2-maintenance",
+        "create-deck": {
+          "target_playbook": "create-deck",
           "nodes": {
             "inspect-legacy-evidence": "inspect-legacy-evidence",
             "authorize-legacy-generation": "authorize-legacy-generation",

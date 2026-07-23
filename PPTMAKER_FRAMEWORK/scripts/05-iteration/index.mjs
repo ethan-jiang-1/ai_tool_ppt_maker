@@ -27,31 +27,6 @@ export async function materializeStructuralChange(options) {
   return module.materializeStructuralChange(options);
 }
 
-export async function migrateHtmlRun(options) {
-  const module = await import("./migration/html_migration.mjs");
-  return module.migrateHtmlRun(options);
-}
-
-export async function previewHtmlMigration(runDir) {
-  const module = await import("./migration/html_migration.mjs");
-  return module.previewHtmlMigration(runDir);
-}
-
-export async function prepareHtmlMigration(runDir, options = {}) {
-  const module = await import("./migration/html_migration.mjs");
-  return module.prepareHtmlMigration(runDir, options);
-}
-
-export async function applyHtmlMigration(runDir, options = {}) {
-  const module = await import("./migration/html_migration.mjs");
-  return module.applyHtmlMigration(runDir, options);
-}
-
-export async function recoverHtmlMigrationApply(runDir, options = {}) {
-  const module = await import("./migration/html_migration.mjs");
-  return module.recoverHtmlMigrationApply(runDir, options);
-}
-
 export async function prepareProductionModeTransition(runDir, options = {}) {
   const module = await import("./migration/production_mode_transition.mjs");
   return module.prepareProductionModeTransition(runDir, options);
@@ -75,18 +50,6 @@ export async function applyProductionModeTransition(runDir, options = {}) {
 export async function recoverProductionModeTransition(runDir, options = {}) {
   const module = await import("./migration/production_mode_transition.mjs");
   return module.recoverProductionModeTransition(runDir, options);
-}
-
-/**
- * Phase 5 owns preview-receipt inspection; shared state owns only the
- * resulting controller CAS write. Keeping this adapter here prevents a
- * shared-to-phase dependency while preserving the public root CLI boundary.
- */
-export async function confirmHtmlMigrationApply(runDir, options = {}) {
-  const migration = await import("./migration/html_migration.mjs");
-  const inspection = migration.inspectHtmlMigrationConfirmation(runDir, options);
-  const { recordHtmlMigrationConfirmation } = await import("../shared/state/state.mjs");
-  return recordHtmlMigrationConfirmation(runDir, { ...options, inspection });
 }
 
 export async function inspectLegacyHeaderReview(runDir, options = {}) {

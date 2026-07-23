@@ -217,7 +217,7 @@ render:
       expect(status.status, status.stderr || status.stdout).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({
         production_mode: { mode: "image2-only" },
-        pipeline: "legacy-image2-first",
+        pipeline: "whole-page-image2-v1",
       });
 
       const state = readState(deck, { purpose: "execute", heal: false });

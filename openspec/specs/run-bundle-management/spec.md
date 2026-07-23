@@ -28,9 +28,9 @@ gains registration authority.
 
 #### Scenario: Clean same-pipeline vNext is registered
 
-- **WHEN** Structural Versioning publishes a verified markerless target from an `image2-only` source
+- **WHEN** Structural Versioning publishes a verified explicit whole-page target from an `image2-only` source
 - **THEN** target mode is registered as `image2-only` before the operation reports the target production-ready
-- **AND** the markerless source remains markerless
+- **AND** the explicit whole-page source remains explicit whole-page
 
 #### Scenario: Registration is interrupted after publication
 
@@ -111,13 +111,13 @@ HTML approval SHALL not overwrite whole-page scalar fields. Cleared-context resu
 
 #### Scenario: Legacy metadata remains compatible
 
-- **WHEN** a historical markerless deck is checked or resumed
+- **WHEN** a historical explicit whole-page deck is checked or resumed
 - **THEN** existing whole-page metadata gate behavior is not silently reinterpreted as HTML or mode authority
 
 #### Scenario: Deck contains legacy and HTML versions
 
 - **WHEN** HTML approval updates deck-root metadata mirrors
-- **THEN** whole-page scalar fields remain unchanged and markerless checks ignore all `html_*` fields
+- **THEN** whole-page scalar fields remain unchanged and explicit whole-page checks ignore all `html_*` fields
 
 ### Requirement: Run bundle includes _lessons/ with purpose-stated README
 
@@ -177,7 +177,7 @@ Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `ren
 
 ### Requirement: checkBundle supports preview vs pipeline readiness
 
-`checkBundle` SHALL retain its synchronous violation-array interface, `structure|preview|pipeline` readiness and boolean aliases, and classify the canonical production marker before branch-specific checks. Markerless legacy preview SHALL require structure plus `style_master.jpg` and no approved gates; legacy pipeline SHALL additionally require compatible metadata gates. HTML preview SHALL require structure, valid HTML source/control/catalog, base local renderer readiness, and no `deletion_pending` reset but SHALL NOT require a style master or approved gates. HTML pipeline SHALL additionally consume the same read-only HTML-review evaluator through a bundle-layout-owned trusted context and require current-reset authoritative version-scoped content/visual evidence; metadata mirrors alone SHALL not satisfy it. Direct readiness checks SHALL not create artifacts, mutate gate/reset evidence/mirrors, recover a journal, claim/complete a reset, start async work, or load browser/provider code. Owning build/approval/check-gates orchestration MAY call the separate gate recovery interface before invoking `checkBundle`; only the explicit reset command may claim/complete reset.
+`checkBundle` SHALL retain its synchronous violation-array interface, `structure|preview|pipeline` readiness and boolean aliases, and classify the canonical production marker before branch-specific checks. Explicit whole-page legacy preview SHALL require structure plus `style_master.jpg` and no approved gates; legacy pipeline SHALL additionally require compatible metadata gates. HTML preview SHALL require structure, valid HTML source/control/catalog, base local renderer readiness, and no `deletion_pending` reset but SHALL NOT require a style master or approved gates. HTML pipeline SHALL additionally consume the same read-only HTML-review evaluator through a bundle-layout-owned trusted context and require current-reset authoritative version-scoped content/visual evidence; metadata mirrors alone SHALL not satisfy it. Direct readiness checks SHALL not create artifacts, mutate gate/reset evidence/mirrors, recover a journal, claim/complete a reset, start async work, or load browser/provider code. Owning build/approval/check-gates orchestration MAY call the separate gate recovery interface before invoking `checkBundle`; only the explicit reset command may claim/complete reset.
 
 #### Scenario: HTML preview has no style master
 
@@ -197,7 +197,7 @@ Constants SHALL be `LESSONS_DIR` / `LESSONS_DIR_README` (not `LEARNING_*`). `ren
 
 #### Scenario: Legacy preview remains style-master based
 
-- **WHEN** a markerless run has structure, style master, and pending gates
+- **WHEN** a explicit whole-page run has structure, style master, and pending gates
 - **THEN** legacy preview readiness passes while legacy pipeline readiness remains blocked
 
 ### Requirement: Version directory includes _scratch for temp backups
@@ -305,7 +305,7 @@ for every mode. The README SHALL explain that structured ID/SHA binding through
 `primary_visual.fallback` or typed-block icons is owned by HTML source, while `image2-only` keeps its
 existing whole-page `VISUAL ASSETS` source contract; neither form becomes authority for the other
 adapter. This common empty catalog does not select HTML or create a generated/provider artifact. The
-directory remains optional for historical decks, and an existing markerless v1 manifest retains its
+directory remains optional for historical decks, and an existing explicit whole-page v1 manifest retains its
 whole-page meaning without silent upgrade.
 
 #### Scenario: Fresh init creates v2 catalog skeleton
@@ -321,7 +321,7 @@ whole-page meaning without silent upgrade.
 
 #### Scenario: Legacy v1 manifest is not silently upgraded
 
-- **WHEN** an existing markerless deck has a v1 manifest
+- **WHEN** an existing explicit whole-page deck has a v1 manifest
 - **THEN** init/check/heal preserves its whole-page meaning
 - **AND** does not rewrite it without an explicit migration transaction
 
@@ -452,9 +452,9 @@ template (`keynote`, `pitch`, `report`, and `training`), SHALL accept one exact 
 `html-only|html-then-image2|image2-only` and SHALL default an omitted mode to `image2-only`.
 They SHALL seed canonical `3_versions/v1/slide-specifications.md` whose marker-probe branch matches the
 mode: both HTML modes use explicit `production.pipeline: html-first-v1`, and `image2-only` uses the
-existing canonical markerless whole-page source contract. Init SHALL NOT write
-`production.pipeline: legacy-image2-first`; that string is the normalized pipeline name for the
-markerless branch, not a valid source marker. Every new source SHALL use
+existing canonical explicit whole-page whole-page source contract. Init SHALL NOT write
+`production.pipeline: whole-page-image2-v1`; that string is the normalized pipeline name for the
+explicit whole-page branch, not a valid source marker. Every new source SHALL use
 `identity.scheme: mnemonic-v1`.
 
 HTML seeds SHALL retain the exact structured-body/family guidance owned by `html-slide-contract`, no
@@ -472,7 +472,7 @@ modern refinement state.
 #### Scenario: Fresh init uses the release default
 
 - **WHEN** a user initializes a new run bundle without `--mode`
-- **THEN** v1 state records `image2-only` and source uses its matching canonical markerless contract
+- **THEN** v1 state records `image2-only` and source uses its matching canonical explicit whole-page contract
 - **AND** the result reports mode, pipeline, and Image2-primary next action
 
 #### Scenario: User explicitly selects html-only
@@ -510,10 +510,10 @@ modern refinement state.
 canonical source marker before applying adapter-specific required/forbidden generated and control rules.
 Structure-only checks SHALL remain tolerant of absent state/assets on historical decks as already
 specified. Check/heal SHALL never insert a source marker, infer or write a missing post-v4 mode, rewrite
-markerless source, create generated directories, or migrate a deck merely to make validation pass.
+explicit whole-page source, create generated directories, or migrate a deck merely to make validation pass.
 Mode/source drift and an unregistered visible target SHALL return the owning state repair action.
 
-#### Scenario: Existing markerless deck is checked
+#### Scenario: Existing explicit whole-page deck is checked
 
 - **WHEN** a historical deck is validated after the default switch
 - **THEN** whole-page-compatible structure rules apply without fabricating first-class execution state
@@ -527,11 +527,11 @@ The plan SHALL bind the existing canonical sorted `base_receipts` and `candidate
 
 It SHALL use the existing run-bundle target-reservation/no-replace same-parent publication authority. Before any reservation/staging creation it SHALL generate a cryptographically random 64-lowercase-hex owner token, derive exact confined reservation/staging basenames from the anticipated target plus that token, and atomically create complete `_scratch/html-migration/apply-journal.json` containing exactly `schema: pptmaker-html-migration-apply-journal-v1`, `owner_token`, normalized host, positive PID, exact `created_at_epoch_ms`, source execution ID, source/anticipated-target versions, plan hash, old-side mode, and those basenames. The journal SHALL not require a later field-population rewrite. Only that owner may create/clean the exact hidden paths. Apply SHALL recheck unchanged journal bytes and ownership immediately before reservation creation, staging creation, each staged publication transaction, success-receipt write, and final rename.
 
-Apply SHALL construct the hidden target from the same inherited source-version/backbone inputs, copy only the revalidated candidate `slide-specifications.md` and sparse `overrides/`, construct a fresh `canonical-run` context with target reset ID null by absence regardless of any source-version reset history, and revalidate/rerender the real target without copying the legacy source tree or migration-preview generated bytes. It SHALL write exact target `_generated/qa/html_migration.json` with `schema: pptmaker-html-migration-success-v1`, pipeline/publication scope, source execution ID/version, target version, plan hash/mode, the same canonical base/candidate receipt arrays, ordered composition fingerprints/final PNG SHAs, contact-sheet SHA, and timestamp. That receipt SHALL prove only migration publication/handoff and SHALL NOT satisfy reset, content/visual gates, assembly, notes, delivery review, or completion. Apply SHALL require exact proposed-output equality, then publish through one same-parent visible-directory rename that cannot replace a target. Target collision or any input/evidence/output drift SHALL publish no visible version. It SHALL not modify the legacy version, infer structured bodies from prompts, copy legacy or migration-preview generated artifacts/manifests/receipts, inherit reset/provider/gate/delivery-review authorization, or invoke legacy generation. The visible target MAY contain its newly rerendered canonical HTML/final/contact-sheet artifacts, but Stage 4/completion SHALL remain blocked until its own content/visual reviews are recorded.
+Apply SHALL construct the hidden target from the same inherited source-version/backbone inputs, copy only the revalidated candidate `slide-specifications.md` and sparse `overrides/`, construct a fresh `canonical-run` context with target reset ID null by absence regardless of any source-version reset history, and revalidate/rerender the real target without copying the legacy source tree or migration-preview generated bytes. It SHALL write exact target `_generated/qa/production_mode_transition.json` with `schema: pptmaker-html-migration-success-v1`, pipeline/publication scope, source execution ID/version, target version, plan hash/mode, the same canonical base/candidate receipt arrays, ordered composition fingerprints/final PNG SHAs, contact-sheet SHA, and timestamp. That receipt SHALL prove only migration publication/handoff and SHALL NOT satisfy reset, content/visual gates, assembly, notes, delivery review, or completion. Apply SHALL require exact proposed-output equality, then publish through one same-parent visible-directory rename that cannot replace a target. Target collision or any input/evidence/output drift SHALL publish no visible version. It SHALL not modify the legacy version, infer structured bodies from prompts, copy legacy or migration-preview generated artifacts/manifests/receipts, inherit reset/provider/gate/delivery-review authorization, or invoke legacy generation. The visible target MAY contain its newly rerendered canonical HTML/final/contact-sheet artifacts, but Stage 4/completion SHALL remain blocked until its own content/visual reviews are recorded.
 
 The apply journal SHALL be an exclusive fence for that migration transaction. A second preview/apply or migration-scratch reset SHALL return `CONFLICT` while it exists. Normal success SHALL remove the owned reservation then journal only after visible target/receipt verification. Recovery without a token SHALL require the exact host, proven-dead PID, and age at least `MIGRATION_APPLY_AUTO_RECOVERY_MIN_AGE_MS = 60000`. Cross-host/otherwise uncertain recovery SHALL require prior human confirmation that no migration apply is active, the exact journal token, and age at least `MIGRATION_APPLY_EXPLICIT_RECOVERY_MIN_AGE_MS = 300000`; a proven-active same-host PID remains non-overridable. Token/age/journal/path drift or an unconfined/foreign reservation/staging fails closed.
 
-Recovery SHALL use actual filesystem state rather than journal phase as truth. If the visible target is absent, it may remove only the exact token-owned hidden staging/reservation and journal, then restart apply from current plan/preconditions and rerender fully; it SHALL never continue from partial generated bytes. If the visible target exists, recovery SHALL remove nothing from it and succeed idempotently only when exact `_generated/qa/html_migration.json`, complete receipts, canonical output SHAs, target version, plan hash, mode, and source execution ID all match the journal; it may then remove only the owned reservation/journal. Any existing target mismatch, target without exact receipt, foreign hidden path, or third state returns `CONFLICT` for inspection. Recovery never creates approval/review evidence.
+Recovery SHALL use actual filesystem state rather than journal phase as truth. If the visible target is absent, it may remove only the exact token-owned hidden staging/reservation and journal, then restart apply from current plan/preconditions and rerender fully; it SHALL never continue from partial generated bytes. If the visible target exists, recovery SHALL remove nothing from it and succeed idempotently only when exact `_generated/qa/production_mode_transition.json`, complete receipts, canonical output SHAs, target version, plan hash, mode, and source execution ID all match the journal; it may then remove only the owned reservation/journal. Any existing target mismatch, target without exact receipt, foreign hidden path, or third state returns `CONFLICT` for inspection. Recovery never creates approval/review evidence.
 
 #### Scenario: User accepts the complete comparison
 
@@ -573,13 +573,13 @@ Recovery SHALL use actual filesystem state rather than journal phase as truth. I
 
 ### Requirement: Migration preparation confines its projected candidate
 
-Run-bundle management SHALL recognize `_scratch/html-migration/projected-run/` as the only location written by migration preparation. Its non-derived entries SHALL be exactly `slide-specifications.md`, `overrides/`, `preparation.json`, `authoring-context.json`, and `authoring-checklist.json`; `_generated/` is its only derived owner. The candidate inherits source-version overrides and deck-root backbone controls read-only through the candidate resolver. Preparation SHALL not create a loose candidate source, write the markerless source version, modify deck-root state/metadata, or reserve/publish a visible target. The existing migration preview/apply authority SHALL consume the candidate only through its confined resolver and receipt set.
+Run-bundle management SHALL recognize `_scratch/html-migration/projected-run/` as the only location written by migration preparation. Its non-derived entries SHALL be exactly `slide-specifications.md`, `overrides/`, `preparation.json`, `authoring-context.json`, and `authoring-checklist.json`; `_generated/` is its only derived owner. The candidate inherits source-version overrides and deck-root backbone controls read-only through the candidate resolver. Preparation SHALL not create a loose candidate source, write the explicit whole-page source version, modify deck-root state/metadata, or reserve/publish a visible target. The existing migration preview/apply authority SHALL consume the candidate only through its confined resolver and receipt set.
 
 When an old loose scratch candidate is present, only an explicit prepare may read it for compatibility and may copy it into an empty projected candidate. Preview/check SHALL not silently adopt, move, or delete it. Preview SHALL recompute readiness from candidate source/overrides rather than treat support JSON as proof. Target staging SHALL copy only revalidated candidate `slide-specifications.md` and `overrides/`. A projected candidate with conflicting authored inputs, an unconfined path, a symlink escape, or an active migration apply journal SHALL fail closed before candidate replacement or target staging. Candidate support JSON and derived `_generated/` output remain rebuildable or advisory and cannot satisfy canonical target approvals, state, or delivery facts.
 
 #### Scenario: First preparation leaves the source version untouched
 
-- **WHEN** a valid markerless run is prepared for HTML migration
+- **WHEN** a valid explicit whole-page run is prepared for HTML migration
 - **THEN** all created candidate source/override files are descendants of `_scratch/html-migration/projected-run/`
 - **AND** the source specifications, source controls, deck-root state/metadata, and visible `3_versions/vN` set are unchanged
 
@@ -661,14 +661,14 @@ owned target transaction then restores source, or hard-stops for inspection.
 
 For an HTML target, current renderer validation/materialization proves the existing contract can run; it
 SHALL NOT impose a new HTML quality score, visual-parity requirement, style-master, or aesthetic retry.
-For an Image2 target, publication SHALL create only canonical markerless source/control state and
+For an Image2 target, publication SHALL create only canonical explicit whole-page source/control state and
 report `needs_render`; it SHALL NOT invoke a provider or copy HTML output.  The target receives mode
 authority only through the post-publication state handoff described by `node-specification`.
 
 #### Scenario: HTML source becomes an Image2 target
 
 - **WHEN** a confirmed HTML-to-Image2 candidate is published
-- **THEN** vNext contains only the authored markerless target source/control shape and pending target work
+- **THEN** vNext contains only the authored explicit whole-page target source/control shape and pending target work
 - **AND** no HTML generated bytes, review, provider authorization, or completion record is copied
 
 #### Scenario: Image2 source becomes an HTML target
@@ -749,7 +749,7 @@ direct or explicit framework root. Conflicts require a current card or repair an
 ### Requirement: Transition candidates are directional authored contracts
 
 The Image2-to-HTML candidate SHALL use the existing structured HTML candidate/override ownership.
-The HTML-to-Image2 candidate SHALL use the canonical markerless whole-page source ownership.  Neither
+The HTML-to-Image2 candidate SHALL use the canonical explicit whole-page whole-page source ownership.  Neither
 direction SHALL derive renderer-owned target fields from source prose, notes, prompts, render modes,
 visual assets, rendered pixels, generated files, metadata mirrors, or history.  Preparation MAY preserve
 only formal slide identity, spoken-key reservation, and order as a non-authoritative continuity ledger;

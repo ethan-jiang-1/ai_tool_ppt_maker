@@ -159,7 +159,7 @@ For `html-only`, BOOTSTRAP SHALL proceed after common/HTML readiness without sol
 explicit later refinement request first receives the mode switch to `html-then-image2`, then the
 existing exact-plan authorization explanation. For
 `image2-only`, guidance SHALL describe whole-page Image2 as the primary renderer reached through normal
-pilot/build, not modern visual-slot refinement. Historical markerless compatibility MAY retain its
+pilot/build, not modern visual-slot refinement. Historical explicit whole-page compatibility MAY retain its
 maintenance label, but uses the same bounded credential authority.
 
 #### Scenario: Fresh user starts an Image2-primary deck
@@ -185,7 +185,7 @@ maintenance label, but uses the same bounded credential authority.
 
 #### Scenario: Legacy deck requires Image2 maintenance
 
-- **WHEN** a historical markerless deck enters explicit compatibility maintenance
+- **WHEN** a historical explicit whole-page deck enters explicit compatibility maintenance
 - **THEN** the Agent can discover the same scoped offline setup without relabeling the new primary flow as legacy
 
 #### Scenario: User declines a legacy live probe

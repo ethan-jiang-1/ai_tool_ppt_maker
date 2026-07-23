@@ -1,6 +1,6 @@
 ## Context
 
-The audit began as a proposal to rename the internal `legacy-image2-first` pipeline label. Reading the resolver and its consumers showed that the label participates in marker normalization, controller ownership, transition identity, CLI/status projections, and receipt compatibility. The framework already documents `image2-only` as a first-class mode and explicitly confines historical maintenance to old markerless work without durable state.
+The audit began as a proposal to rename the internal `legacy-image2-first` pipeline label. Reading the resolver and its consumers showed that the label participates in marker normalization, controller ownership, transition identity, CLI/status projections, and receipt compatibility. The framework already documents `image2-only` as a first-class mode; retaining a state-absent route would make that model internally contradictory.
 
 The concrete defect is instead structural: five main specs fail `openspec validate --all`. The failure is mechanical and local, but it undermines the role of the entire specification set as a trustworthy maintenance input.
 
@@ -11,19 +11,19 @@ The concrete defect is instead structural: five main specs fail `openspec valida
 - Restore complete structural validity for every checked-in main spec.
 - Make validation an explicit OpenSpec/framework-maintenance check.
 - Preserve current requirements while adding only the scenarios needed to make their behavior executable.
-- Correct only demonstrably false active-path wording found by a bounded terminology audit.
+- Replace the supported whole-page protocol with explicit current terminology and remove old routing rather than carrying aliases.
 
 **Non-Goals:**
 
-- Do not rename `legacy-image2-first`, add an adapter vocabulary, or migrate state, source, receipts, controller ownership, or CLI fields.
+- Do not provide a compatibility alias, persisted-data migration, or fallback reader for removed whole-page protocol values.
 - Do not create a new governance capability for a responsibility already owned by framework verification and charter maintenance.
 - Do not change deck workflow, provider authorization, gates, or generated-artifact behavior.
 
 ## Decisions
 
-### 1. Preserve the existing pipeline protocol
+### 1. Remove the legacy pipeline protocol
 
-`legacy-image2-first` remains the current normalized code protocol. Active guidance must continue to describe `image2-only` as first-class whole-page production, while technical protocol references remain precise. A future protocol rename is a separate cross-cutting change, not a prose cleanup.
+`whole-page-image2-v1` becomes the only whole-page pipeline value. `image2-only` sources explicitly declare `production.pipeline: whole-page-image2-v1`; the state resolver, controller registry, transitions, receipts, CLI, and tests use the same value. `legacy-image2-first`, markerless source detection, legacy maintenance controllers, and legacy receipt readers are removed with no alias or migration path.
 
 ### 2. Repair invalid requirements in place
 
@@ -33,21 +33,21 @@ Each invalid main requirement receives a `MODIFIED` delta containing its complet
 
 The repository has no locally declared OpenSpec executable. `openspec validate --all` therefore remains an explicit OpenSpec/framework-maintenance command required before implementation and archive, rather than becoming an `npm test` dependency on an environment-global CLI. This change repairs the current validator failures; it does not create a duplicate parser or alter package-test admission.
 
-### 4. Audit terminology without presuming a rename
+### 4. Delete compatibility rather than preserving it
 
-The implementation searches active new-run documentation and requirements for claims that `image2-only` is compatibility-only. Each hit is classified as current behavior, historical compatibility, or ambiguous. Only false current-path wording is edited. This protects existing source/receipt contracts from a broad find-and-replace.
+The implementation performs an exact token inventory for `legacy-image2-first`, markerless pipeline detection, legacy-maintenance routes, and legacy receipt schemas. Each owned occurrence is replaced with the explicit current protocol or deleted with its compatibility branch. An old run is not repaired, inferred, or migrated: it is outside the supported framework contract.
 
 ## Risks / Trade-offs
 
 - [A shortened MODIFIED block could delete valid detail on archive] -> Copy the full original requirement and all existing scenarios before adding one scenario; review the generated main-spec diff before archive.
 - [A global OpenSpec CLI could make package tests environment-dependent] -> Keep validation as an explicit OpenSpec command, not a package-test dependency.
-- [Terminology audit could become a protocol rename by stealth] -> Reject changes to code protocol values, serialized fields, and source markers in this change.
+- [Breaking removal can leave a token in an owner branch] -> Use a complete token inventory and reject legacy/markerless input with focused negative tests.
 
 ## Migration Plan
 
 1. Capture baseline validator failures.
 2. Add scenarios and the workflow-inspection purpose without changing their existing semantics.
-3. Audit active guidance against actual code policy; correct only proven wording drift.
-4. Run complete spec validation, focused documentation verification where applicable, and the existing core suite.
+3. Replace source, state, routing, receipt, and documentation protocol values; remove compatibility branches.
+4. Run token-negative, source/state/CLI/controller, documentation, and complete validation suites.
 
-No persisted-data migration or rollback is required because this change writes no run-bundle protocol value.
+No persisted-data migration or rollback is provided. Existing markerless/legacy run bundles are intentionally unsupported after this change.

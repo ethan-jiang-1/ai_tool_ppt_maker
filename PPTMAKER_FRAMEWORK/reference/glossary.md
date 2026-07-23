@@ -16,18 +16,18 @@ Search this file before inventing a path. Framework source remains the five dire
 | `_generated/` | `<run-dir>/_generated/` | rebuildable derived artifacts; never source or manual edit |
 | `html_production` | `<run-dir>/_generated/html_production/` | HTML pages/final slides/preview objects, plans, manifests |
 | `contact_sheet` | HTML: `html_production/preview/`; legacy: `_generated/preview/` | real visual evidence; inspect before approval |
-| `style_master.jpg` | markerless legacy compatibility only | not a new HTML prerequisite |
-| `legacy-image2-first-maintenance` | framework `reference/` + `playbook/` | isolated markerless whole-page maintenance |
+| `style_master.jpg` | explicit whole-page legacy compatibility only | not a new HTML prerequisite |
+| `create-deck` | framework `reference/` + `playbook/` | isolated explicit whole-page whole-page maintenance |
 | Image2 refinement | lazy source/derived/scratch partitions owned by Phase 4 | optional after current HTML delivery and exact authorization; never create for ordinary HTML work |
 | `needs_local_materialization` | HTML structural receipt | target-local work, zero remote |
-| `needs_render` | markerless structural receipt | remote cost report only, not authorization |
+| `needs_render` | explicit whole-page structural receipt | remote cost report only, not authorization |
 | `slide_id` | source block heading / plan | stable cross-version identity |
 | `position` | current plan projection | current order only; never artifact identity |
 | `plan_sha256` | `_scratch` preview/apply receipt | exact structural confirmation; stale means re-preview |
 
 ## Pipeline terms
 
-`html-first-v1` means local structured HTML production. `legacy-image2-first` means markerless compatibility. They do not share gates, manifests, reset epochs, receipts, or node decisions.
+`html-first-v1` means local structured HTML production. `whole-page-image2-v1` means explicit whole-page compatibility. They do not share gates, manifests, reset epochs, receipts, or node decisions.
 
 `Header Text & Style Refresh`, `Generated Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path` are controlled refresh vocabulary. HTML uses the first only as a conceptual legacy mapping; actual HTML routes are Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path.
 

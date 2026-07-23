@@ -217,7 +217,7 @@ When the reserved top-level `identity` key is present, it SHALL be a mapping who
 
 - **WHEN** source frontmatter declares an identity scheme other than a supported value
 - **THEN** Stage 1 fails with the scheme and source location
-- **AND** does not reinterpret the source as markerless legacy input
+- **AND** does not reinterpret the source as explicit whole-page legacy input
 
 #### Scenario: Slide-named preamble stays prose
 
@@ -259,7 +259,7 @@ Stage 1 SHALL recognize a leading direct `production` mapping whose only v1 key 
 
 The canonical HTML-first branch SHALL accept exactly one input file, the run directory's `slide-specifications.md`, and SHALL resolve config/catalog/framework inputs from that run context rather than direct Stage-1 path overrides. Existing standalone multi-input/alternate-control-path behavior remains legacy-only in Change 2; mixing marked and unmarked inputs, passing multiple marked inputs, or supplying an alternate HTML-first style/config/deck-system/output path SHALL fail before merging identities/positions or resolving a plan.
 
-For a canonical run directory, the exact `slide-specifications.md` file is the only eligible HTML-first source. If any sibling matching the legacy `slide-specifications*.md` pattern is present (including a backup or comparison copy), the HTML-first adapter SHALL fail with a bounded multiple-source diagnostic instead of allowing `findSlideSpecs()`-style lexicographic selection. The markerless legacy branch MAY retain its existing first-file/multi-input behavior.
+For a canonical run directory, the exact `slide-specifications.md` file is the only eligible HTML-first source. If any sibling matching the legacy `slide-specifications*.md` pattern is present (including a backup or comparison copy), the HTML-first adapter SHALL fail with a bounded multiple-source diagnostic instead of allowing `findSlideSpecs()`-style lexicographic selection. The explicit whole-page legacy branch MAY retain its existing first-file/multi-input behavior.
 
 #### Scenario: Marker selects structured parsing
 
@@ -290,7 +290,7 @@ For a canonical run directory, the exact `slide-specifications.md` file is the o
 - **WHEN** the canonical run directory contains marked `slide-specifications.md` and any additional `slide-specifications*.md` file
 - **THEN** validation fails with the canonical-source and sibling paths
 - **AND** it does not select the lexicographically first file or merge backup content
-- **AND** markerless legacy source selection remains unchanged
+- **AND** explicit whole-page legacy source selection remains unchanged
 
 ### Requirement: HTML-first source diagnostics identify owned fields
 

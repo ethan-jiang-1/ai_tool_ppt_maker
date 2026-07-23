@@ -11,13 +11,13 @@ No external agent skills. No Python. No bash.
 Image2 generation SHALL remain an in-framework Node ESM capability under
 `PPTMAKER_FRAMEWORK/scripts/`, with `resolveVendors`, `stage2_generate_images.mjs`,
 `image_api_client.mjs`, and its existing submit/poll/download/error contract. It SHALL be the Stage-2
-implementation for the whole-page `legacy-image2-first` pipeline, whether reached through a first-class
-`image2-only` production controller or historical markerless compatibility. Unified/public
+implementation for the whole-page `whole-page-image2-v1` pipeline, whether reached through a first-class
+`image2-only` production controller or historical explicit whole-page compatibility. Unified/public
 orchestration SHALL resolve canonical production mode and verify the source marker before stage
 dispatch, option validation, credential/style-reference resolution, or writes: `image2-only` delegates
 to the whole-page generator, while either HTML mode delegates HTML Stage 2 to
 `stage2_render_html.mjs` and SHALL not import or initialize the whole-page adapter.
-`legacy-image2-first` SHALL remain the normalized pipeline label for a markerless source; generation
+`whole-page-image2-v1` SHALL remain the normalized pipeline label for a explicit whole-page source; generation
 SHALL not require or create that value as `production.pipeline` frontmatter.
 
 Direct whole-page Image2 invocation and public `image2-only` routes SHALL retain `IMAGE2_API_KEY`,
@@ -33,9 +33,9 @@ or explicit provider authorization boundaries.
 - **WHEN** unified pipeline selects Stage 2 for a consistent `image2-only` run
 - **THEN** it delegates to `stage2_generate_images.mjs` with existing Image2 resolution and provenance
 
-#### Scenario: Markerless Stage 2 uses Image2
+#### Scenario: Explicit whole-page Stage 2 uses Image2
 
-- **WHEN** a migrated historical markerless run resolves to `image2-only`
+- **WHEN** a migrated historical explicit whole-page run resolves to `image2-only`
 - **THEN** its existing whole-page generator behavior and source artifacts remain valid
 
 #### Scenario: HTML Stage 2 uses local renderer
@@ -56,7 +56,7 @@ or explicit provider authorization boundaries.
 
 ### Requirement: Modern visual-slot transport is isolated from legacy generation
 
-Modern Image2 submission SHALL live only behind the Phase-4 private transport adapter and consume persisted authorized attempt IDs. It SHALL emit secret-safe typed receipts suitable for reconciliation and SHALL not change or be imported by markerless whole-page generation.
+Modern Image2 submission SHALL live only behind the Phase-4 private transport adapter and consume persisted authorized attempt IDs. It SHALL emit secret-safe typed receipts suitable for reconciliation and SHALL not change or be imported by explicit whole-page whole-page generation.
 
 #### Scenario: HTML build runs normally
 
@@ -196,7 +196,7 @@ Entry docs SHALL describe `_lessons/` as the general retained-lessons surface an
 Contact-sheet production SHALL remain in-framework using `make_contact_sheet.mjs` and
 `@napi-rs/canvas`, never an external skill. For HTML-mode final-slide delivery/review, orchestration
 SHALL pass plan-ordered common verified final-slide entries to the provider-neutral builder that does
-not understand a private renderer manifest. For first-class `image2-only` and historical markerless
+not understand a private renderer manifest. For first-class `image2-only` and historical explicit whole-page
 compatibility, the existing whole-page raw-image contact-sheet interface and timing SHALL remain
 unchanged; it SHALL not be reclassified as provider-neutral HTML final-slide evidence.
 
@@ -220,7 +220,7 @@ HTML manifest.
 
 #### Scenario: Legacy Stage 2 completes
 
-- **WHEN** historical markerless image generation completes successfully
+- **WHEN** historical explicit whole-page image generation completes successfully
 - **THEN** its JPEG contact sheet remains under `_generated/preview/`
 
 #### Scenario: HTML final slides complete

@@ -10,4 +10,4 @@ Use `ppt_flow.mjs` or `unified_pipeline.mjs` for public orchestration.
 | 4 | `stage4_build_pptx.mjs` | provider-neutral PPTX assembly v2 |
 | 5 | `stage5_inject_notes.mjs` | stable-ID notes and receipt v3 |
 
-The HTML branch accepts no provider/browser/package/path overrides. Markerless legacy retains `stage2_generate_images.mjs` and `stage3_lock_headers.mjs` behind its branch adapter; those scripts are not HTML prerequisites.
+The HTML branch accepts no provider/browser/package/path overrides. Explicit whole-page legacy retains `stage2_generate_images.mjs` and `stage3_lock_headers.mjs` behind its branch adapter; those scripts are not HTML prerequisites.

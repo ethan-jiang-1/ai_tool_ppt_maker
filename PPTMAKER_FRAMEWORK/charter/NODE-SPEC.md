@@ -47,7 +47,7 @@ produces: [slide-specifications]
 
 ## State Schema v5
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3→v4，再在 v4→v5 为 active execution、ordinary node record 与 ordinary stack frame 写入同一个 exact `run_version`。只有 persisted binding、单一 visible version，或严格匹配的历史 legacy apply checkpoint 能完成该 binding；歧义保留原 bytes 并返回 `replacement_required`。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。缺失/冲突 marker 或无法一对一映射的旧 node 必须 fail closed；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3→v4，再在 v4→v5 为 active execution、ordinary node record 与 ordinary stack frame 写入同一个 exact `run_version`。只有 persisted binding、单一 visible version，或严格匹配的历史 legacy apply checkpoint 能完成该 binding；歧义保留原 bytes 并返回 `replacement_required`。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。缺失/冲突 marker 或无法一对一映射的旧 node 必须 fail closed；explicit whole-page 旧生产只映射到 `create-deck`，HTML work 只映射到 HTML controllers。
 
 ```yaml
 schema_version: 5
@@ -124,9 +124,9 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 |------|----------|----------------|------------|--------------|
 | `html-only` | `html-first-v1` | html | disabled | reserved-html-adapter |
 | `html-then-image2` | `html-first-v1` | html | required | reserved-html-adapter |
-| `image2-only` | `legacy-image2-first` | image2 | not-applicable | current |
+| `image2-only` | `whole-page-image2-v1` | image2 | not-applicable | current |
 
-`legacy-image2-first` 是 markerless whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
+`whole-page-image2-v1` 是 explicit whole-page whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
 
 Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `production_modes`（其子集）。canonical index 按权威 mode 计算 active node 集：inapplicable node 不标 `skipped`、不删记录，只是不在 active 工作集内。`skipped` 仍只表示显式人工 bypass。
 

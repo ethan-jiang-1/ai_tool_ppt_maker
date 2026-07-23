@@ -110,7 +110,7 @@ The same visual-config owner SHALL validate prepared/candidate palettes for prep
 
 #### Scenario: Known preset seeds a valid candidate palette
 
-- **WHEN** preparation receives a valid markerless palette and a shipped preset name
+- **WHEN** preparation receives a valid explicit whole-page palette and a shipped preset name
 - **THEN** it writes a deterministic HTML-first candidate palette with recorded preset/legacy-token provenance
 - **AND** repeated preparation with identical inputs yields the same validated projection
 
