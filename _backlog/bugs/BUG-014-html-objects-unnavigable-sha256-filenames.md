@@ -1,28 +1,44 @@
-# BUG-014: HTML 产物文件名为 SHA256 hash，无法按 slide_id 定位
+# BUG-014: HTML 审阅面缺少由 slide_id 驱动的直接定位入口
 
-> 严重级别: P1 | 发现: 2026-07-20 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-20 | 状态: 活跃 | 基线校准: 2026-07-23
 
 ## 症状
-`_generated/html_production/html_pages/objects/` 和 `final_slides/objects/` 下的 HTML/PNG
-文件全部以 SHA256 hash 命名（如 `a660cf3...69d6.html`）。审阅者打开目录后完全无法知道哪个
-文件对应哪页幻灯片——必须去读 `manifest.json` 才能做映射。
 
-每次 review 都要手工查 manifest → 找 hash → 找到文件，这在 25 页 deck 里已经是严重摩擦，
-在更大 deck 里不可接受。
+HTML Production 的 `html_pages/objects/` 与 `final_slides/objects/` 是 raw-byte SHA-256 的 immutable
+object store。直接浏览这些目录不能按 `slide_id` 找页，但这本身是正确的 CAS 边界，不能通过改 object
+文件名来修复。
 
-## 根因
-Content-addressable storage（CAS）设计正确地将 SHA256 作为 immutable object 的主键，
-但缺少一个**人类可读的索引层**。manifest.json 有映射（`slide_id → html_sha256`），但没有
-被渲染成可点击的 review 入口页。
+当前 `preview/` manifest 已分别持有 content/visual review plan 和 visual-review/delivery contact-sheet
+slots，HTML build 也会发布 contact sheet。因此“pilot 后没有 preview/contact sheet”的旧复现不再准确。
+剩余问题是：人或 Agent 想从一个 stable `slide_id` 直接定位当前 HTML/final-slide 审阅对象时，仍需理解私有
+manifest/object path；contact sheet 适合整体审阅，不是逐页 locator contract。
 
-`_generated/html_production/preview/` 目录存在但 pilot 后未产出 contact sheet 式的
-slide_id → 文件导航。
+## 当前根因
 
-## 复现
-1. 跑 `ppt_flow pilot <run-dir>`
-2. 打开 `_generated/html_production/html_pages/objects/`
-3. 看到 25 个 SHA256 文件名，无法区分哪页是哪页
+缺的是 review-facing locator，不是 CAS、manifest 或 final-slide ownership 的错误。现有 manifest 是唯一 current-set
+pointer；任何新入口都必须从该 owner 读取并按 current plan order 输出，不能复制第二份 artifact mapping，也不能让
+SHA 文件名、目录 glob 或 position 重新成为 identity authority。
 
-## 修复关联
-待定。预期方向：pilot 后自动在 `preview/` 生成 `index.html`（slide_id 列表 + 链接到对应
-HTML page）或至少生成一个 `slide_map.json`（human-readable: `{slide_id: filename}`）。
+## 最小验证
+
+1. 用两个不同 `slide_id` 发布 HTML page/final-slide manifest 与 review/contact-sheet slots。
+2. 审阅入口必须返回每个 current `slide_id` 的可打开/可展示目标、artifact kind、current manifest identity 和
+   plan order。
+3. 旧 object、forced-fallback object、非 current manifest entry 或 position-only lookup 必须不可被该入口误选。
+
+验证应是 manifest/locator contract test，不启动浏览器、HTML compositor、Canvas 或 PPTX。
+
+## 修复方向
+
+新增一个由 preview/final-slide owner 生成或只读导出的 slide locator（具体载体待定，可为 review index、CLI JSON
+view 或受控页面）。它必须：
+
+- 以 `slide_id` 为键、以 current owning manifest 为唯一来源；
+- 显示 visual-review/delivery contact-sheet 的现有整体入口，并提供单页 current artifact 的受控定位；
+- 把 SHA/object path 保留为 receipt/provenance，不把它暴露成用户必须手工拼接的导航协议；
+- 在纯 Node contract test 中覆盖 current/stale/forced-fallback/missing 的选择规则。
+
+## 非目标
+
+- 不重命名 CAS object，不创建 `slide_id -> SHA` 的第二 durable authority，不手改 `_generated/`。
+- 不把浏览器截图或完整 HTML render suite 设为该问题的开发态默认验证。
