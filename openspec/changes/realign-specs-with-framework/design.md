@@ -1,53 +1,85 @@
 ## Context
 
-The audit began as a proposal to rename the internal `legacy-image2-first` pipeline label. Reading the resolver and its consumers showed that the label participates in marker normalization, controller ownership, transition identity, CLI/status projections, and receipt compatibility. The framework already documents `image2-only` as a first-class mode; retaining a state-absent route would make that model internally contradictory.
+The change began with five mechanically invalid main specifications and a proposed rename of `legacy-image2-first`. Repository inspection showed that the old name was not isolated prose: markerless source detection, state healing, Controller ownership, CLI/status projections, transition identity, receipts, documentation, and fixtures all encoded a compatibility model. A partial implementation then replaced many tokens without completing the owning contracts, leaving syntactically broken tests, stale registries, contradictory main specs, and new phrases such as "explicit whole-page legacy compatibility" that preserved the obsolete concept under different words.
 
-The concrete defect is instead structural: five main specs fail `openspec validate --all`. The failure is mechanical and local, but it undermines the role of the entire specification set as a trustworthy maintenance input.
+The intended product model is simpler. Both supported pipelines are explicit and current. A new or supported whole-page run always has durable mode state, uses normal `create-deck` ownership, and never enters a legacy-maintenance route. Cross-pipeline page-authority changes are clean-vNext state transactions, not source-to-HTML migration.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Restore complete structural validity for every checked-in main spec.
-- Make validation an explicit OpenSpec/framework-maintenance check.
-- Preserve current requirements while adding only the scenarios needed to make their behavior executable.
-- Replace the supported whole-page protocol with explicit current terminology and remove old routing rather than carrying aliases.
+- Restore structural validity for every checked-in main spec and preserve the still-valid behavior of repaired requirements.
+- Make the current source, state, Controller, CLI, receipt, and documentation model internally consistent.
+- Remove obsolete whole-page compatibility semantics rather than renaming their prose.
+- Give future coding Agents one canonical vocabulary and a mechanically enforceable retired-token boundary.
+- Keep verification proportional: exact static/token/inventory checks plus focused behavior tests, core, sweep, and affected E2E journeys.
 
 **Non-Goals:**
 
-- Do not provide a compatibility alias, persisted-data migration, or fallback reader for removed whole-page protocol values.
-- Do not create a new governance capability for a responsibility already owned by framework verification and charter maintenance.
-- Do not change deck workflow, provider authorization, gates, or generated-artifact behavior.
+- Do not provide aliases, persisted-data migration, markerless fallback, legacy receipt readers, or historical Controller continuation for removed whole-page protocols.
+- Do not modify or use `deck_*`, `dpt_*`, or generated production artifacts as migration fixtures.
+- Do not remove unrelated compatibility that still has an owning current requirement, such as generic diagnostic-envelope or schema readers; such uses require a narrow recorded exception and cannot label current whole-page work.
+- Do not add a new governance capability for terminology; existing capability owners and framework verification own the change.
 
 ## Decisions
 
-### 1. Remove the legacy pipeline protocol
+### 1. Use one canonical vocabulary at each layer
 
-`whole-page-image2-v1` becomes the only whole-page pipeline value. `image2-only` sources explicitly declare `production.pipeline: whole-page-image2-v1`; the state resolver, controller registry, transitions, receipts, CLI, and tests use the same value. `legacy-image2-first`, markerless source detection, legacy maintenance controllers, and legacy receipt readers are removed with no alias or migration path.
+| Layer | Canonical current term |
+|---|---|
+| User production mode | `image2-only` |
+| Whole-page pipeline | `whole-page-image2-v1` |
+| Normal whole-page Controller | `create-deck` |
+| Cross-pipeline Controller | `production-mode-transition` |
+| Cross-pipeline public entry | `ppt_flow state --*-production-mode-transition` |
+| Whole-page implementation | `04-image-production/whole-page` |
 
-### 2. Repair invalid requirements in place
+Active guidance may say "whole-page Image2" descriptively. It must not call the current route legacy, compatibility-only, maintenance-only, markerless, or a downgrade. The exact retired identities include `legacy-image2-first`, `legacy-image2-maintenance`, `legacy-image2-first-maintenance`, `LEGACY_PIPELINE`, `initLegacyBundle`, marker branch `legacy`, `migrate-html`, `confirm-html-migration`, `apply-html-migration`, `preview-html-migration`, `_scratch/html-migration`, and legacy-maintenance node/owner IDs.
 
-Each invalid main requirement receives a `MODIFIED` delta containing its complete existing behavior plus one scenario. This is replacement, not an added competing rule. `workflow-inspection` also receives its real Purpose during implementation because Purpose lies outside OpenSpec delta requirement operations.
+The word `legacy` is not globally forbidden. Archived changes, explicit negative-test input, and unrelated compatibility contracts may retain it when their owning requirement explains the compatibility. Those exceptions must not route, classify, or describe current whole-page work.
 
-### 3. Keep OpenSpec validation outside package core verification
+### 2. Make source and state identity explicit and closed
 
-The repository has no locally declared OpenSpec executable. `openspec validate --all` therefore remains an explicit OpenSpec/framework-maintenance command required before implementation and archive, rather than becoming an `npm test` dependency on an environment-global CLI. This change repairs the current validator failures; it does not create a duplicate parser or alter package-test admission.
+The source parser accepts only direct scalar `production.pipeline: html-first-v1|whole-page-image2-v1`. Missing, malformed, indirect, retired, or unknown values fail closed with a bounded diagnostic naming both supported values. The only valid source/mode pairs are `whole-page-image2-v1` with `image2-only`, and `html-first-v1` with `html-only|html-then-image2`; every other pair is source/state drift and fails before Controller, journal, staging, or target mutation. Init writes the selected source marker and exact durable production-mode record. State/status/check paths do not infer a mode from missing metadata, generated bytes, Controller history, or directory shape and do not synthesize state for an unsupported old run.
 
-### 4. Delete compatibility rather than preserving it
+### 3. Keep exactly one normal route and one transition route
 
-The implementation performs an exact token inventory for `legacy-image2-first`, markerless pipeline detection, legacy-maintenance routes, and legacy receipt schemas. Each owned occurrence is replaced with the explicit current protocol or deleted with its compatibility branch. An old run is not repaired, inferred, or migrated: it is outside the supported framework contract.
+`create-deck` owns new and continuing `image2-only` work, including style master, pilot, content/visual/header review, build, PPTX, notes, and final review. Deleted legacy-maintenance Controllers and their state-migration aliases have no replacement reader.
+
+Cross-pipeline work uses the existing state-owned clean-vNext transaction. `ppt_flow` has exactly 14 top-level commands; there is no top-level `migrate-html` or `production-mode-transition` command. The transition Controller/file/state identity is renamed from `migrate-import` to `production-mode-transition`, because this change promises no persisted compatibility and the old name no longer describes its responsibility. Candidate and journal ownership remains under `_scratch/production-mode-transition/` and the existing transition receipt family.
+
+### 4. Remove compatibility requirements instead of adding competing rules
+
+Every main requirement that authorizes markerless parsing, state-absent whole-page observation, legacy maintenance, old HTML-migration commands/nodes/scratch, or old receipt lineage receives a complete `MODIFIED` delta or an explicit `REMOVED` delta with reason and current replacement. Adding a new current requirement beside an old compatibility requirement is insufficient.
+
+Main specs are synchronized only from coherent delta operations. Terminology-only edits in a main spec still require the owning capability delta when the old wording is normative or changes how an Agent selects a path. The final synchronized diff must contain no contradictory current and retired requirements.
+
+Before that preview, the specs artifact must contain deltas for the still-missing proposal capabilities: `bootstrap-env-guidance`, `environment-check`, `framework-directory-layout`, `framework-script-layout`, `header-lock`, `html-slide-contract`, `html-slide-rendering`, `slide-identity-and-ordering`, `visual-asset-management`, and `visual-config`. Existing delta files must also modify every remaining requirement in their capability that still authorizes a retired scratch, Controller, receipt, or compatibility route.
+
+### 5. Treat token checks as a backstop, not the semantic proof
+
+The terminology check scans active framework guidance, main specs, code identifiers, Controller/state registries, fixtures, and tests. It rejects exact retired identities and malformed replacement phrases such as `whole-page whole-page`. A small allowlist may cover archived/history text, negative-test literals, or unrelated explicitly owned compatibility, with owner and reason.
+
+Behavior tests independently prove that missing/retired markers fail, no compatibility state or Controller is inferred, current whole-page creation succeeds, state-owned transitions remain offline until their later production boundary, and deleted public commands/controllers are absent. This prevents a token-only rename from passing.
+
+### 6. Repair invalid requirements in place and keep OpenSpec validation explicit
+
+Each structurally invalid main requirement keeps its complete still-valid behavior and scenarios while gaining the missing scenario. `workflow-inspection` receives its real Purpose. `openspec validate --all` and strict change validation remain explicit maintenance checks rather than package-test dependencies on a global executable.
 
 ## Risks / Trade-offs
 
-- [A shortened MODIFIED block could delete valid detail on archive] -> Copy the full original requirement and all existing scenarios before adding one scenario; review the generated main-spec diff before archive.
-- [A global OpenSpec CLI could make package tests environment-dependent] -> Keep validation as an explicit OpenSpec command, not a package-test dependency.
-- [Breaking removal can leave a token in an owner branch] -> Use a complete token inventory and reject legacy/markerless input with focused negative tests.
+- [A shortened MODIFIED block deletes valid behavior on sync] -> Copy every still-valid scenario and inspect the merged main-spec diff before archive.
+- [A broad word ban damages unrelated compatibility contracts] -> Ban exact retired identities and current whole-page misuse; require narrow owned exceptions for other uses.
+- [Mechanical prose replacement breaks code or creates nonsense] -> Use identifier-aware edits plus JS parse/import checks and phrase-level negative scans.
+- [Removing old Controllers leaves registries pointing at nonexistent nodes] -> Update Controller manifests, state migration maps, workflow ledgers, executable/return audits, source-test ownership, and relocation baselines as one inventory task.
+- [Fixture failures obscure runtime defects] -> Convert canonical fixtures to explicit markers first, then evaluate remaining source/state/transition failures.
 
 ## Migration Plan
 
-1. Capture baseline validator failures.
-2. Add scenarios and the workflow-inspection purpose without changing their existing semantics.
-3. Replace source, state, routing, receipt, and documentation protocol values; remove compatibility branches.
-4. Run token-negative, source/state/CLI/controller, documentation, and complete validation suites.
+1. Complete capability deltas, including `MODIFIED`/`REMOVED` operations for every conflicting main requirement, and preview the synchronized main-spec result.
+2. Finish explicit source/init/state behavior and remove all markerless/legacy readers.
+3. Rename current Controller/path/state ownership and remove old maintenance/migration commands, nodes, scratch, receipts, aliases, and registries.
+4. Reconcile Agent-facing guidance and tests against the canonical vocabulary and exact 14-command surface.
+5. Run parse/import checks, retired-token and inventory checks, focused source/state/CLI/Controller/receipt tests, core, sweep, affected E2E, and complete OpenSpec validation.
 
-No persisted-data migration or rollback is provided. Existing markerless/legacy run bundles are intentionally unsupported after this change.
+There is no persisted-data migration or rollback. Existing markerless/legacy run bundles are intentionally unsupported after this change and must be recreated through a current explicit init path.

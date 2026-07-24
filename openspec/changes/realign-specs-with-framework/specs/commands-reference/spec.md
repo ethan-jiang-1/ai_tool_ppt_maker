@@ -16,3 +16,10 @@ COMMANDS.md SHALL route "帮我做一个PPT" through BOOTSTRAP, explicit/default
 - **WHEN** COMMANDS names an `image2-only` deck
 - **THEN** it identifies `whole-page-image2-v1` as that source's explicit pipeline
 - **AND** it routes cross-pipeline work only through the current `state --*-production-mode-transition` operations
+
+## REMOVED Requirements
+
+### Requirement: COMMANDS documents explicit legacy migration without automatic conversion
+**Reason**: The historical migration Controller, command, comparison modes, and compatibility guidance are removed rather than relabeled.
+
+**Migration**: COMMANDS routes a valid current run through the state-owned production-mode transition and routes unsupported old runs to recreation.
