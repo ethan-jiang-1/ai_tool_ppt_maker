@@ -34,3 +34,66 @@ For `html-first-v1`, Stage 1 SHALL retain the existing single canonical `slide-s
 - **WHEN** a canonical HTML run contains `slide-specifications.md` plus another matching sibling
 - **THEN** validation fails with the canonical and sibling paths
 - **AND** it does not select a file lexicographically
+
+### Requirement: Render policy requires an explicit current pipeline
+Stage 1 SHALL parse leading YAML only when it begins at the start of `slide-specifications.md` through a
+structured YAML parser. Current source frontmatter SHALL contain the direct `production.pipeline` scalar
+required by the source contract; missing, indirect, duplicate, retired, malformed, or unknown values
+fail before render-policy or slide parsing. Unrelated current top-level keys remain preserved. A
+whole-page-image2-v1 source MAY contain the closed `render` mapping with only `default` and
+`header-lock`: `default` is `full-page` or `body+header-lock` and defaults to `full-page` when omitted;
+`header-lock` defaults to an empty array. Exception IDs SHALL be trimmed, non-empty, unique after
+trimming, present in the file, and unambiguous. An HTML-first source SHALL reject the mapping before a
+plan is published. Markdown separators after leading frontmatter remain body content. Multiple inputs
+retain separate frontmatter policy scope, but html-first remains a single canonical source.
+
+#### Scenario: Current whole-page frontmatter contains render policy
+- **WHEN** a whole-page-image2-v1 source contains current metadata plus a valid render mapping
+- **THEN** Stage 1 reads the marker and render policy without discarding unrelated current metadata
+- **AND** strips only the leading frontmatter block before splitting slides
+
+#### Scenario: Invalid marker or policy fails loudly
+- **WHEN** leading YAML has duplicate keys, an invalid production pipeline, an unknown render key, invalid render type/mode, or invalid exception IDs
+- **THEN** validation fails with the marker or policy problem and affected ID
+- **AND** ppt_flow emits its standard JSON failure envelope
+
+#### Scenario: HTML source rejects whole-page render policy
+- **WHEN** an html-first-v1 source declares top-level render policy
+- **THEN** validation fails before structured-plan publication
+- **AND** it does not reinterpret the source as whole-page work
+
+### Requirement: Current whole-page render mode resolves from explicit policy
+For a current whole-page-image2-v1 source, Stage 1 SHALL resolve each slide through per-slide explicit
+RENDER MODE, then render.header-lock exception, then hero guard, then render.default. It SHALL record
+render_mode_source as explicit, policy:exception, derived:hero_type, or policy:default. The absent
+render-key visual-type fallback is retired: an otherwise current whole-page source receives its explicit
+empty/default policy semantics, and a missing/invalid source marker fails before mode resolution. HTML
+sources own their visible layout through the structured renderer and SHALL not use this resolver.
+
+#### Scenario: Initialized policy defaults content pages to full-page
+- **WHEN** current whole-page frontmatter contains render.default full-page and a non-hero slide has no explicit mode or exception
+- **THEN** it resolves to full-page with source policy:default and header_safe_zone 0
+
+#### Scenario: Present render mapping may omit default
+- **WHEN** current whole-page frontmatter contains render with an empty header-lock list
+- **THEN** its effective default is full-page with source policy:default
+
+#### Scenario: Exception locks one policy page
+- **WHEN** a valid current policy lists a slide ID under header-lock and that slide has no explicit mode
+- **THEN** it resolves to body+header-lock with source policy:exception and configured header safe zone
+
+#### Scenario: Explicit mode wins in the current whole-page branch
+- **WHEN** a current whole-page slide declares a valid per-slide RENDER MODE
+- **THEN** that mode wins over policy, exception, and hero guard with source explicit
+
+#### Scenario: Retired markerless mode resolution is unavailable
+- **WHEN** a source lacks a current production marker and has only visual-type/renders hints
+- **THEN** Stage 1 fails before mode resolution and does not derive a current whole-page route
+
+## RENAMED Requirements
+
+- FROM: `### Requirement: Render policy extends the existing YAML frontmatter with an explicit legacy boundary`
+- TO: `### Requirement: Render policy requires an explicit current pipeline`
+
+- FROM: `### Requirement: Render mode uses distinct policy and legacy resolution branches`
+- TO: `### Requirement: Current whole-page render mode resolves from explicit policy`

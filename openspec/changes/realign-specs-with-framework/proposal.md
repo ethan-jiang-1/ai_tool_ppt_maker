@@ -9,9 +9,9 @@ The project is early enough to remove that false history instead of preserving a
 - Repair every structurally invalid main requirement without dropping existing valid behavior or scenarios.
 - Replace the placeholder `workflow-inspection` purpose and make complete OpenSpec validation an explicit maintenance check.
 - **BREAKING** Replace `legacy-image2-first` and markerless whole-page detection with explicit `production.pipeline: whole-page-image2-v1`.
-- **BREAKING** Remove legacy whole-page maintenance Controllers, state projections, readers, receipts, fixtures, and compatibility routing. Existing markerless/legacy run bundles are unsupported and must be recreated.
+- **BREAKING** Remove legacy whole-page maintenance Controllers, semantic state-migration readers, fallback projections, receipts, fixtures, and compatibility routing. Existing markerless/legacy run bundles are unsupported and must be recreated; a usable current schema-5 record retains lossless, fence-aware canonicalization, while an unsafe record receives one owner-issued typed next action rather than a hand-edited YAML request.
 - **BREAKING** Remove the top-level `migrate-html`/historical HTML-migration path. Keep exactly 14 public `ppt_flow` commands and expose cross-pipeline work only through the closed `state --*-production-mode-transition` operations.
-- Rename the remaining transition Controller and ownership vocabulary from `migrate-import`/migration terminology to `production-mode-transition`; retain import terminology only where an actual external-deck import capability still exists.
+- Rename and re-home the remaining transition Controller and ownership vocabulary from `migrate-import`/the Phase-5 migration adapter to the state-owned `production-mode-transition`; retain import terminology only where an actual external-deck import capability still exists.
 - Establish a bounded retired-token policy for active Agent-facing docs, specs, code identifiers, registries, fixtures, and tests. Unrelated schema/diagnostic compatibility may remain only through an explicit narrow exception.
 
 ## Capabilities
@@ -48,6 +48,6 @@ None.
 
 ## Impact
 
-This is intentionally breaking framework repository maintenance across `PPTMAKER_FRAMEWORK/`, `openspec/`, `tests/`, and `tests_e2e/`. It changes source and persisted protocol values, Controller/state identities, CLI inventory, receipt validation, documentation, registries, and fixtures. It does not migrate or edit `deck_*`, `dpt_*`, or `_generated/` production data.
+This is intentionally breaking framework repository maintenance across `PPTMAKER_FRAMEWORK/`, `openspec/`, `tests/`, and `tests_e2e/`. It changes source and persisted protocol values, the state read/heal boundary, Controller/state identities, CLI inventory, receipt validation, documentation, registries, and fixtures. It does not migrate or edit `deck_*`, `dpt_*`, or `_generated/` production data.
 
 OpenSpec validation remains a framework-maintenance hard-stop rather than an `npm test` dependency on an environment-global CLI. Repository verification must additionally prove semantic removal, parse/import validity, current source/state behavior, and the exact public CLI/Controller inventories.

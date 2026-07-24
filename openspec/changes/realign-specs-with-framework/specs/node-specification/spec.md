@@ -86,18 +86,421 @@ Automatic gate-journal recovery SHALL still require exact same host, proven-dead
 - **WHEN** an accept operation observes an active gate-approval journal
 - **THEN** it returns conflict before source or state mutation
 
+### Requirement: State schema is explicitly versioned and repairs only current records
+`state.yaml` for every supported actively executing run SHALL use schema version 5 while preserving whole-workflow timing, execution identities, controller working sets, stack semantics, typed records, atomic writes, and reserved system records. A supported state SHALL bind one exact current source/mode pair and its exact normalized run version. Read or execute MAY perform only lossless canonicalization of an already supported schema-5 record when every affected field has a one-to-one meaning and no gate, reset, or transition fence is active. It SHALL not infer a source, mode, controller, run version, execution binding, or review evidence from metadata, generated artifacts, invocation order, source preference, or directory topology.
+
+A pre-current, retired, identity-invalid, or evidence-unpreservable schema/state protocol is unsupported. State/status observation SHALL return a diagnostic carrying one bounded owner-issued typed next action without changing bytes, and execution SHALL fail before Controller entry, journal, staging, target publication, or provider work. It SHALL not map an old maintenance/HTML-migration checkpoint, source-to-HTML receipt, or historical controller record into a current execution. A valid current v5 record shall never be re-inferred from source or derived artifacts. Starting a new top-level execution still requires the existing explicit replacement authorization when a current execution is incomplete and preserves reserved records.
+
+#### Scenario: Current state remains durable
+- **WHEN** a schema-5 state has an exact supported source/mode pair and normalized active execution version
+- **THEN** state retains its current execution, stack, decisions, waits, gates, reset/refinement evidence, and reserved records
+- **AND** canonical observation does not invent a second routing authority
+
+#### Scenario: Prior state protocol is encountered
+- **WHEN** state/status reads a schema or controller protocol outside the current supported contract
+- **THEN** it returns one bounded owner-issued typed next action without rewriting the state bytes
+- **AND** it does not create a mode record, execution, compatibility projection, or transition checkpoint
+
+#### Scenario: Historical state rejection is byte-preserving
+- **WHEN** a schema-4-or-earlier state, a `migrate-import` execution, or a topology-only execution binding is supplied to observe or execute
+- **THEN** the state owner rejects it before `healState`, alias mapping, marker inference, or default-state creation
+- **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories remain byte-identical
+
+#### Scenario: Source or mode is inconsistent
+- **WHEN** a schema-5 state has a missing, malformed, or mismatched source/mode fact
+- **THEN** observation and execution fail before Controller, journal, staging, or target mutation
+- **AND** no metadata or generated artifact is used to repair the relationship
+
+#### Scenario: Incomplete current execution is protected
+- **WHEN** a supported current execution is incomplete and no explicit replacement authorization exists
+- **THEN** starting another top-level Controller fails without clearing or repurposing the execution
+
+#### Scenario: Canonicalization would cross a protected fence
+- **WHEN** a requested canonicalization encounters a gate, reset, or transition write fence
+- **THEN** state leaves the original bytes unchanged and returns the owning recovery action
+
+### Requirement: state.mjs SAFETY — heal before blaming the user
+`readState` SHALL retain tolerant YAML parsing and deterministic canonical repair for a usable current schema-5 record, but SHALL classify source marker, schema, exact run version, durable mode, and Controller identity before any repair write. Its closed purpose SHALL remain `observe|execute`; `state`, `status`, checks, and validation SHALL use `observe` and make no state/history/metadata/generated/provider write. An owner-authorized execution path MAY atomically canonicalize only a current-v5 record whose changed fields have one-to-one meaning, preserve the exact execution/evidence relationship, and are not fenced by a gate journal, reset, or transition.
+
+A pre-current schema, topology-only execution binding, retired Controller/node identity, markerless/retired source, or impossible source/mode pair SHALL never be transformed into a current state, mode, Controller, or transition checkpoint. It SHALL return one bounded owner-issued typed next action with the raw state/history bytes intact. A current explicit run whose bytes cannot preserve its current execution/evidence SHALL similarly return the state owner's one bounded typed next action; the Controller SHALL carry that action without asking a person to hand-edit YAML or inventing a continuation from generated artifacts, metadata, history, or source preference.
+
+#### Scenario: Current state repairs through its owner
+- **WHEN** an owner-authorized execution reads a consistent schema-5 state with a one-to-one malformed status or formatting defect
+- **THEN** it preserves the execution/evidence bindings and writes the canonical repaired state
+- **AND** it reports the repair without treating it as human approval or a new route
+
+#### Scenario: Plain observation does not heal
+- **WHEN** `state`, `status`, or validation observes a current state that its owning execution could safely repair
+- **THEN** it returns the bounded owner-issued repair action without writing state, history, metadata, or generated artifacts
+
+#### Scenario: Historical state is not compatibility-migrated
+- **WHEN** a pre-current state, topology-only binding, or `migrate-import`/old-node identity is supplied
+- **THEN** observation and execution reject it without alias migration, source/mode inference, or state replacement
+- **AND** the returned recreation action does not require the user to edit raw YAML
+
+#### Scenario: Current state cannot preserve evidence
+- **WHEN** a current explicit run has state bytes that cannot establish a preserveable current execution/evidence object
+- **THEN** state returns its one bounded owner-issued typed next action and preserves the original bytes during observation
+- **AND** it does not create a default execution, reuse generated evidence, or silently resume work
+
+### Requirement: Node frontmatter defines entry and exit gates
+Every registered node SHALL declare globally unique kebab-case `node`, lifecycle phase in the exact set `0|1|2|3|4|5`, method module in the exact set `00-setup|01-content|02-visual-system|03-html-production|04-image-production|05-iteration`, ordered `requires`, deterministic `entry`, and `exit`; routing gates SHALL declare unique allowed decisions. Fenced controller YAML and standalone shared-node frontmatter remain the only forms. A retired single `phase` field or removed module name `01-visual|02-content|03-prompts|04-production` SHALL fail validation with a bounded current-metadata diagnostic; validation SHALL not create an alias, mutate source, or prescribe a persisted-state migration.
+
+Nodes owned by `04-image-production` SHALL declare `adapter: whole-page|visual-slot`. Visual-slot belongs to `image2-refine`, requires `html-then-image2`, and requires marked current HTML delivery before provider work. Whole-page belongs to `image2-only` `create-deck` work and has no HTML-delivery prerequisite. Module number alone SHALL create neither scheduling nor a prerequisite.
+
+#### Scenario: Production node uses final metadata
+- **WHEN** the HTML production node is indexed
+- **THEN** it resolves to lifecycle 3/module `03-html-production`
+
+#### Scenario: Removed module remains in active frontmatter
+- **WHEN** a node declares `method_module: 04-production`
+- **THEN** validation fails and names the current metadata fields
+- **AND** it does not offer a migration or rewrite the frontmatter
+
+#### Scenario: Unowned Phase 4 node is registered
+- **WHEN** a controller other than `image2-refine` declares lifecycle 4
+- **THEN** validation fails with an ownership diagnostic
+
+#### Scenario: Phase 4 plan starts from an explicit prerequisite waiver
+- **WHEN** `image2-refine` has a current prerequisite waiver and valid HTML final-slide/slot inputs
+- **THEN** entry validation permits the offline planning node
+- **AND** authorization and provider generation remain separate exit requirements
+
+### Requirement: Node completion and branch decisions use typed records
+Evidence-backed conditions SHALL use records shaped as `{met:true, kind:"user"|"agent"|"cli", at:<ISO-8601>, note?:<string>}` under the controller node's current execution. Decisions SHALL use `{value:<non-empty string>, kind:"user"|"agent"|"cli", at:<ISO-8601>, note?:<string>}`. `evidence:<key>` SHALL accept any valid kind on the current node exit. `user_evidence:<key>` SHALL require `kind: user`. `decision_recorded` and `user_decision_recorded` SHALL validate the corresponding current-node decision. `node_evidence:<node>:<key>` and `node_decision:<node>:<value>` SHALL read only a declared required upstream node that is completed in the same execution; a skipped predecessor SHALL not supply branch evidence. The state API SHALL expose validating `setNodeEvidence` and `setNodeDecision` helpers; `setNodeDecision` SHALL resolve the exact declaration from the supplied canonical playbook index and reject values outside that node's `decisions` enum. Durable persistence remains governed by `writeState`. Free-form prose conditions SHALL NOT silently pass.
+
+An owner-authorized canonicalization MAY convert a scalar decision only in a current schema-5 record with a direct current execution/node binding, one-to-one value meaning, and no gate/reset/transition fence. It SHALL record `kind: agent`, report the repair, and never satisfy a user-only branch. A pre-current schema, retired Controller/node, topology-only binding, or unpreservable decision record SHALL hard-stop before scalar conversion, aliasing, or write.
+
+#### Scenario: Unrecorded user review blocks exit
+- **WHEN** a visual review node declares `user_evidence:user-reviewed-artifact`
+- **AND** no matching evidence is persisted under that node
+- **THEN** `checkExit` returns that condition in `missing`
+
+#### Scenario: Persisted user review satisfies exit
+- **WHEN** the agent opens the artifact, receives the user decision, and records evidence with `met: true`, `kind: user`, and `at`
+- **THEN** the matching user-evidence condition passes on a fresh state read
+
+#### Scenario: CLI completion evidence satisfies exit
+- **WHEN** a probe node records `probe-finished` with `kind: cli` after exit zero
+- **THEN** `evidence:probe-finished` passes
+- **AND** `user_evidence:probe-finished` would not pass
+
+#### Scenario: Typed user decision selects a branch
+- **WHEN** a review node records `{value: "proceed", kind: "user", at: <ISO-8601>}` and completes in the active execution
+- **THEN** its `user_decision_recorded` exit condition passes
+- **AND** a required downstream `node_decision:<review-node>:proceed` entry condition passes
+
+#### Scenario: Runtime decision value is misspelled
+- **WHEN** `setNodeDecision` receives `proceeed` for a node declaring `decisions: [proceed, repair]`
+- **THEN** it throws without mutating the node record
+- **AND** the node cannot complete through `decision_recorded`
+
+#### Scenario: Current scalar decision retains non-user provenance
+- **WHEN** an owner-authorized execution canonicalizes a current-v5 scalar decision with a one-to-one declared value
+- **THEN** it records `kind: agent` under the same current execution
+- **AND** it does not satisfy a user-authorized downstream branch
+
+#### Scenario: Historical scalar decision is not normalized
+- **WHEN** a pre-current, retired, topology-only, or evidence-unpreservable record contains a scalar decision
+- **THEN** state hard-stops before conversion and preserves the original bytes during observation
+
+### Requirement: Cross-pipeline production-mode transitions are versioned state transactions
+The state owner SHALL expose one CAS-bound transition transaction for an exact supported source run whose authoritative mode/pipeline differs from a requested target mode/pipeline. The transaction SHALL bind the source execution/version/mode/pipeline, anticipated clean target version, target mode/pipeline, confined candidate receipts, exact plan hash, explicitly authored target-intake object and digest, and the existing target-user `transition_confirmation` decision. The named confirmation command is an exact plan-hash transaction commit of that selected target intake, not a policy `confirm` gate or risk waiver. It SHALL use the active Controller execution and existing atomic state writer; it SHALL NOT create a deck-global transition authority, a second mode map, or a new reserved evidence node.
+
+Prepare/preview SHALL not write state or replace the source execution. Only the exact plan-hash commit SHALL CAS-capture the complete source Controller context into the existing `playbook_stack` and activate the bounded `production-mode-transition/apply-production-mode-transition` execution. A cross-pipeline suspension frame SHALL be the sole active stack entry while the transaction runs and SHALL contain the active source execution plus its complete ordered pre-existing ordinary parent stack, exact source run version/mode/pipeline, anticipated target version, exact plan hash, and a closed `transition-suspended` disposition. Those copied values are receipt bindings only: the source and target `production_mode.by_version` records remain the sole routing authority.
+
+On verified target registration, state SHALL append an exact receipt-linked source execution archive to reference-only history, remove the temporary suspension frame, and start a fresh target `create-deck` execution through a closed target-baseline handoff. That handoff SHALL write only new target records required by the existing dependency graph: `instantiation`, `checkpoint-intake`, the mode-specific author/configuration nodes, and the exact target-intake decision/evidence binding. It SHALL then set the active node to `preview-content` for HTML or `authorize-image2-style-master` for Image2. It SHALL not invoke init, copy source Controller records, or create a target gate, review, delivery decision, provider authorization, refinement record, or final completion. If owned recovery proves no target became visible, state SHALL remove only the active transition execution and restore the complete captured source Controller context before requiring a fresh preview.
+
+The only transition active-node record SHALL be `production-mode-transition/apply-production-mode-transition`. Its schema-closed fields SHALL bind the exact plan hash, source execution ID/version, source mode/pipeline, target version/mode/pipeline, transition-candidate receipt digest, valid `transition_target_intake` object/digest pair, and exact `transition_confirmation: { kind: "user", decision: "proceed", at: <valid ISO-8601> }`. The confirmation command SHALL atomically create that record only after revalidating the preview. Before apply, recovery, registration, or handoff, the state owner SHALL revalidate the complete decision tuple; an absent, malformed, or mismatched tuple hard-stops before journal, reservation, staging, target, or provider mutation. It SHALL carry neither a `reason` nor `waived`/continuation semantics, and target handoff SHALL map the recorded decision time into the new target `checkpoint-intake` decision/evidence rather than inventing a later user decision. Apply, recovery, and registration/handoff SHALL consume only that record plus the exact transition plan/receipt. They SHALL not reuse or write a retired migration node, old-side mode, source-migration field, or HTML-migration receipt authority.
+
+The source version's mode, source, generated work, approvals, delivery review, refinement work, and existing history events SHALL remain unchanged through prepare, preview, decline, stale confirmation, collision, and failed apply. A visible target receives its authoritative mode only after the state owner verifies the target marker and exact transition success receipt. Target records SHALL not inherit source review, provider authorization, reset, completion, or generated evidence. `transition_apply_current` is entry-only and passes only for the exact active current transition record and bindings. `transition_publish_or_recovery_recorded` is exit-only and passes only inside atomic terminal finalization with a matching target receipt plus completed selected-mode registration and target handoff, or a verified no-visible-target recovery that restored the source. Generic node completion, CLI prose, a visible target without completed handoff, or a retired record SHALL never satisfy either condition.
+
+For an old-enough cross-host or owner-uncertain journal, recovery takeover SHALL require a separate closed `no-active-apply` fact attestation that binds the exact opaque token and journal bytes, source execution/version, target version, and plan hash. It remains inside the recovery `hard-stop`, not a policy `confirm` or waiver: it carries no risk reason, cannot waive a live/uncertain writer, and does not establish target-intake approval. Journal, plan, source/target identity, or state-CAS drift invalidates that attestation. A human conversation, stale attestation, or token alone SHALL not authorize takeover.
+
+#### Scenario: Transition preparation preserves the source
+- **WHEN** an `html-only` or `html-then-image2` source prepares an `image2-only` target
+- **THEN** transition scratch records only candidate work and state/source nodes/generated tree remain unchanged
+
+#### Scenario: Stale confirmation is rejected
+- **WHEN** a source mode, candidate receipt, anticipated target, or expected state identity changes after preview
+- **THEN** confirmation or apply fails before target reservation/publication and directs the Controller to a fresh preview
+
+#### Scenario: Visible target receives distinct authority
+- **WHEN** a confirmed transaction publishes a verified target with its matching marker and receipt
+- **THEN** state registers only the target version's selected mode and declared Controller handoff
+- **AND** source approvals, provider authority, and completion remain source-version history
+
+#### Scenario: Recovery sees an ambiguous target
+- **WHEN** recovery finds a visible target without the exact transition receipt or with a conflicting target mode
+- **THEN** it hard-stops without deleting or rewriting either version and names the state-owned inspection/recovery action
+
+#### Scenario: Transition-active state retains a source execution without resuming it
+- **WHEN** a confirmed cross-pipeline transaction is applying or awaiting recovery
+- **THEN** the source Controller-node snapshot remains in a run-bound `transition-suspended` stack frame
+- **AND** generic resume cannot select it
+
+#### Scenario: Completed handoff archives the source before target work
+- **WHEN** a confirmed cross-pipeline transaction publishes, registers, and hands off its target
+- **THEN** state creates only receipt-bound target baseline records and starts `preview-content` for HTML or `authorize-image2-style-master` for Image2
+- **AND** no baseline record is byte-copied from the source execution or contains source execution authority
+
+#### Scenario: A caller targets a different execution version
+- **WHEN** active state is bound to `v2` and state, resume, or a node writer is invoked for `v1`
+- **THEN** it reports `execution_run_version_mismatch` without exposing v2's Controller progress or changing state
+
+#### Scenario: Uncertain recovery attestation cannot be replayed
+- **WHEN** an uncertain-owner no-active-apply attestation was recorded and the journal bytes, plan, source execution, or target identity changes
+- **THEN** recovery rejects it before takeover and requires a new exact inspection and fact attestation
+- **AND** it does not treat the prior attestation as a waiver or force path
+
+#### Scenario: Transition apply entry cannot be forged
+- **WHEN** an ordinary or retired Controller execution reaches `apply-production-mode-transition`
+- **THEN** `transition_apply_current` fails unless the exact state-owned production-mode confirmation is active for the selected source version
+
+#### Scenario: Transition apply exit requires durable outcome
+- **WHEN** an apply command prints success but no matching transition success receipt, completed selected-mode registration, and target handoff were atomically persisted
+- **THEN** `transition_publish_or_recovery_recorded` fails and the active apply node remains in progress
+
+#### Scenario: Terminal finalization replaces rather than completes apply
+- **WHEN** state atomically completes verified target registration and baseline handoff, or proves no target and restores the captured source
+- **THEN** it respectively starts the target execution or restores the source execution without a completed transition apply node
+- **AND** the terminal outcome cannot be replayed as generic Controller completion
+
+
+### Requirement: Production mode is authoritative per run version
+Deck-root _state/state.yaml SHALL contain the sole routing authority under production_mode.by_version["3_versions/<vN>"].mode. The exact permitted modes are html-only, html-then-image2, and image2-only; every read SHALL resolve the caller's exact canonical run_dir, not a deck-global current value. The state owner alone may create a fresh mode at init, register a verified target, or mutate a supported current record through expected-state CAS. A mode is valid only with its direct source pair: whole-page-image2-v1 / image2-only or html-first-v1 / html-only|html-then-image2.
+
+Metadata may mirror only a recently presented mode and normalized version. It never supplies a missing mode, overrides state, satisfies readiness, or repairs source/state drift. Missing, malformed, retired, or mismatched source/state identity SHALL stop ordinary production before Controller, artifact, or provider work and return one bounded owner-issued typed next action. State observation SHALL not populate a mode from a marker, metadata, history, generated bytes, or topology.
+
+#### Scenario: Exact version mode is inspected
+- **WHEN** a command targets 3_versions/v2 while v1 and v2 have different current records
+- **THEN** the evaluator returns only v2's authoritative mode and policy
+- **AND** no deck-global mirror changes the result
+
+#### Scenario: Missing mode has no reader migration
+- **WHEN** a version has a current-looking marker but no exact durable mode record
+- **THEN** state reports the bounded source/state action without writing a mode
+- **AND** it does not inspect metadata, history, or generated bytes for a substitute
+
+### Requirement: Published versions receive mode through an explicit state handoff
+Every same-pipeline visible-version publication SHALL invoke state-owned idempotent registration after the target becomes visible and before it reports complete. Registration SHALL accept exact source and target runs, verify the source's authoritative mode, direct target marker/pipeline, same-deck relationship, expected target identity, and any existing record, then CAS-write only the target mode and display mirror. It SHALL not copy metadata, Controller completion, gates, refinement candidates, or generated evidence. Interrupted registration leaves the target intact and returns exact mechanical mode_registration_required recovery without a human mode choice.
+
+The current cross-pipeline production-mode transition is the only additional registration path. It must verify the exact target success receipt, source execution, candidate/plan, target marker/pipeline, selected target mode, target identity, and expected state before the selected-mode registration and target-baseline handoff. Historical migration receipts, marker-only targets, and source history SHALL never register a mode; they return one non-writing owner-issued typed next action.
+
+#### Scenario: Structural target inherits only its mode
+- **WHEN** a current source-only same-pipeline vNext is published from html-then-image2
+- **THEN** state records html-then-image2 for the exact target after verification
+- **AND** it does not copy source refinement, approval, or generated evidence
+
+#### Scenario: Historical receipt cannot hand off a target
+- **WHEN** a visible target is accompanied only by a retired transition receipt
+- **THEN** registration stops before mode, mirror, Controller, or target mutation
+- **AND** it names the bounded current-protocol action
+
+### Requirement: Image2-primary final review binds current delivery evidence
+For a durable first-class image2-only create-deck execution, the state owner SHALL record the final review node's typed proceed|repair|redirect decision only after it resolves the exact normalized run version, current whole-page content/visual decisions, version-scoped header review, ordered final contact sheet, PPTX, and notes receipt. Node evidence SHALL bind confined paths, current SHA-256 values, and active execution ID; callers shall not supply lineage fields. Any bound artifact, header evidence, version, execution, source marker, or durable mode change SHALL stale the decision.
+
+The MD Controller SHALL show the resolved artifacts and invoke only the owned record-image2-delivery-review state operation. Normal proceed requires complete current evidence; this operation has no force or waiver. It rejects HTML and unsupported historical protocols before any decision write. No maintenance-controller or compatibility final-review projection is retained.
+
+#### Scenario: Current Image2 final review proceeds
+- **WHEN** the Controller shows current whole-page contact sheet, PPTX, notes, and gate/header evidence
+- **THEN** state atomically records the evidence-bound decision for the active image2-only execution
+- **AND** status may use it for completion
+
+#### Scenario: Historical whole-page artifacts are insufficient
+- **WHEN** a run lacks a current supported state/source/execution identity
+- **THEN** final-review recording fails before writing a decision
+- **AND** it does not create a compatibility completion record
+
+### Requirement: Image2-primary provider authorization is current and scoped
+Before a durable first-class whole-page operation submits provider work, the state owner SHALL persist the active Controller node's typed human authorization bound to exact normalized run version, operation style-master|pilot|build|refresh, sorted stable slide IDs or style-master role, safe generation-profile fingerprint, positive maximum submission count, active execution ID, and decision time. Init, mode selection, doctor/live probe, content/visual/header approval, a prior operation, and conversation text never create authorization.
+
+Immediately before transport initialization, CLI SHALL rederive operation, scope, profile, count, source marker, mode, and execution and require the exact current authorization. Drift or expansion hard-stops before submission and returns to the same authorization checkpoint. Proven zero-submit reuse does not require or consume authorization. Unsupported historical state/source/control data cannot use an older maintenance authorization; it returns one bounded owner-issued typed next action without provider work.
+
+#### Scenario: Authorized pilot scope matches
+- **WHEN** a human authorizes the shown current Image2 pilot IDs, profile, and count
+- **THEN** CLI may submit no more than that exact scope
+
+#### Scenario: Historical authorization cannot submit
+- **WHEN** a record has only a historical Controller or provider-authorization shape
+- **THEN** CLI stops before credential lookup or transport initialization
+- **AND** it does not reinterpret that record as current authorization
+
+### Requirement: Playbook stack preserves position during switching
+_state/state.yaml SHALL contain a playbook_stack YAML array for deep parent-execution snapshots. Ordinary resumable entries use playbook, current_node, execution_id, execution_started_at, run_version, and controller_nodes, where every contained Controller record binds the same run version. writeState and readState SHALL round-trip that array. switchPlaybook() pushes the six-field snapshot, preserves reserved system records, clears the active Controller set, and starts nested work for the same exact version; resumePlaybook() restores that snapshot and retains latest reserved records.
+
+Only the current cross-pipeline transaction may add the closed transition-suspended extension defined by its own requirement. Unknown keys, invalid versions/modes/pipelines/hashes, a source mode that disagrees with authoritative state, malformed embedded frames, more than one suspension, or any generic resume of a suspension SHALL fail closed. A pre-current or incomplete stack record is not normalized into a resumable execution: observation returns one bounded owner-issued typed next action with original bytes intact, and no read/heal operation fabricates a suspension.
+
+#### Scenario: Ordinary nested work remains resumable
+- **WHEN** an ordinary same-version iteration Controller finishes
+- **THEN** resumePlaybook() restores the exact six-field parent snapshot
+- **AND** it does not infer transition-only identity
+
+#### Scenario: Historical stack cannot be promoted
+- **WHEN** a stack entry lacks an execution snapshot or provable current run version
+- **THEN** state returns bounded unsupported-protocol guidance without writing it
+- **AND** resume does not attribute shared-node evidence to a guessed execution
+
+
+### Requirement: State writes are atomic
+writeState(deckDir, state, { journalOwnerToken, expectedStateSha } = {}) SHALL retain a unique same-directory temporary write plus atomic rename and ignore stale temporary siblings as truth. Every mutation of a supported current state SHALL use the exact expected-state SHA from which its output was derived; no whole-page exception may omit it. The writer SHALL verify that SHA before temporary creation and immediately before rename. With a gate journal present, a missing/mismatched token returns CONFLICT before temporary creation; a matching token is valid only for its journal-bound canonical output SHA. During html-production-reset.status: deletion_pending, every non-reset writer returns CONFLICT and only the reset owner's closed internal transition may act.
+
+Immediately before rename, every writer SHALL recheck journal bytes/absence, current-state SHA, reset status/ID/owner token, and current supported source/state identity. Any mismatch removes only its own temporary file and leaves durable state unchanged. Unsupported historical records are never write targets for writeState; their caller receives one non-writing owner-issued typed next action.
+
+#### Scenario: Current writer races a gate journal
+- **WHEN** an ordinary node transition lacks the exact journal token while a journal exists
+- **THEN** it returns CONFLICT before creating a temp file or changing state
+
+#### Scenario: Historical state is not atomically rewritten into current form
+- **WHEN** a pre-current or retired state protocol reaches a write path
+- **THEN** the path stops before temp creation and leaves original bytes untouched
+
+### Requirement: CLI exposes state via ppt_flow state command
+ppt_flow state <runDir>, --json, and --check-gates SHALL remain observation-first operations. They SHALL resolve the canonical deck/run version, classify the direct source marker and durable state, and call readState with purpose observe and heal false plus read-only validation. A repairable current record returns the owner-issued action without writes. Missing, retired, malformed, or mismatched state/source identity returns a bounded non-writing protocol diagnostic; it does not seed state, infer mode, select a Controller, or use generated artifacts as a resume substitute.
+
+Closed current mutation forms, including gate-journal recovery, HTML delivery decision, Image2 delivery review, and production-mode-transition operations, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No legacy migration command, old-side mode, historical Controller identity, or receipt is accepted by this command surface.
+
+#### Scenario: Plain state observes a repairable current record
+- **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable schema-5 defect
+- **THEN** it reports the owner action without changing state, history, metadata, or generated output
+
+#### Scenario: Plain state sees an unsupported protocol
+- **WHEN** the run has a pre-current state or absent/retired marker
+- **THEN** it returns a bounded diagnostic without creating a state file or active execution
+
+### Requirement: State YAML parse/stringify uses a maintained YAML library
+scripts/shared/state/state.mjs SHALL use the npm yaml package for _state/state.yaml I/O. Read uses tolerant parseDocument options needed to classify syntactic defects; write emits only canonical stringify output plus the existing # header. A successful parse does not authorize a write. Observation remains byte-preserving. An owner-authorized execute path may stringify a usable current schema-5 record only after its source/mode/Controller identity and one-to-one repair are verified and all fences permit the write. Pre-current, ambiguous, or evidence-unpreservable input returns one bounded owner-issued typed next action without writeback.
+
+#### Scenario: Current canonicalization uses the YAML library
+- **WHEN** an owner-authorized current schema-5 record has a one-to-one formatting defect
+- **THEN** the repaired output uses library stringify and retains its execution/evidence bindings
+
+#### Scenario: Tolerant parse does not migrate old state
+- **WHEN** a historical state parses but lacks current identity
+- **THEN** observation preserves bytes and returns the bounded unsupported-protocol action
+
+### Requirement: writeState ensures _state README exists
+state.mjs SHALL export the canonical _state/README.md body used by bundle scaffolding and SHALL not import bundle_layout.mjs. When an authorized write to a supported current state occurs, writeState SHALL ensure _state/README.md exists using that body. Observation, structure checking, and an unsupported historical state SHALL not create the README as an incidental repair or compatibility upgrade.
+
+#### Scenario: Current state write creates its missing README
+- **WHEN** an authorized current state write finds no _state/README.md
+- **THEN** it writes the canonical discoverability README together with the allowed state operation
+
+#### Scenario: Historical observation does not scaffold README
+- **WHEN** an unsupported bundle is inspected without a state README
+- **THEN** no README is created and the diagnostic remains non-writing
+
+### Requirement: Gate status writes and heals enforce the catalog
+Content and visual gate status SHALL be exactly pending, approved, or waived; setGate rejects all other values. An owner-authorized current schema-5 repair may normalize a one-to-one invalid gate scalar to pending while preserving a diagnostic note and all current execution/evidence bindings. Observation never performs that repair. A pre-current or ambiguous gate record cannot be normalized into current authority and returns one bounded owner-issued typed next action.
+
+#### Scenario: Invalid current gate blocks production
+- **WHEN** a current schema-5 record contains visual: yes with otherwise provable one-to-one meaning
+- **THEN** the authorized owner may normalize it to pending
+- **AND** production remains blocked until a current explicit decision
+
+#### Scenario: Old gate shape is not promoted
+- **WHEN** an unsupported historical state contains a scalar gate value
+- **THEN** observation and execution do not rewrite it into current approval or pending evidence
+
+
+### Requirement: HTML content and visual gate evidence is versioned and pipeline-specific
+State SHALL reserve html-content-review and html-visual-review in addition to the current whole-page header-review. New HTML gate writes SHALL use pptmaker-html-gate-review-v2, be scoped under nodes[reserved_id].by_version["3_versions/<vN>"], and retain the existing exact gate, pipeline, normalized version, reset ID, review-plan, decision, waiver, and freshness constraints. HTML state evidence remains authoritative for HTML readiness.
+
+HTML status mirrors use only _state.gates.html_content|html_visual and metadata html_content_gate|html_visual_gate, each with exact run-version companions. Current whole-page Image2 owns _state.gates.content|visual and metadata content_gate|visual_gate; neither family may satisfy the other pipeline or authorize delivery by scalar alone. Historical mirror fields are diagnostic input only and shall not be rewritten or used to resume an unsupported protocol.
+
+#### Scenario: Gate mirror families remain disjoint
+- **WHEN** HTML publication records its current content/visual display mirrors
+- **THEN** it does not mutate whole-page Image2 mirrors
+- **AND** neither family independently authorizes Stage 4 or current delivery
+
+#### Scenario: Historical mirrors cannot create current reviews
+- **WHEN** a historical bundle contains only scalar content/visual metadata
+- **THEN** state does not fabricate HTML or whole-page current review records
+
+### Requirement: State and status expose mode-aware complete delivery
+State SHALL retain version-scoped html-delivery-review system evidence with its existing current schema, reset-ID, exact artifact/receipt, decision, waiver, and freshness contract. Current html-only completion requires current HTML Stage 1-5 receipts, content/visual decisions, and html-delivery-review: proceed without refinement debt. Current html-then-image2 also requires the current refinement lifecycle and post-refinement delivery review. A current image2-only create-deck execution completes only with current whole-page content/visual/header, assembly, notes, and its evidence-bound Image2 final review; it does not require HTML evidence.
+
+Status SHALL separately expose mode, pipeline consistency, identity freshness, decision, evidence completeness, and nearest owning action. A missing/retired source/state/Controller protocol has no completion projection, even if old artifacts or metadata appear complete. A human quality waiver never satisfies missing identity, provider authorization, or attributable bytes.
+
+#### Scenario: Current Image2 delivery is complete
+- **WHEN** current whole-page gates, PPTX, notes, and evidence-bound final review exist for image2-only
+- **THEN** status reports completion without HTML or visual-slot refinement debt
+
+#### Scenario: Historical delivery has no completion projection
+- **WHEN** only historical whole-page artifacts or maintenance records are present
+- **THEN** status returns the bounded protocol action rather than accepted completion
+
+### Requirement: Playbook index reserves final system evidence and enforces pipeline ownership
+The canonical index/state reserved-ID registry SHALL retain the six IDs defined by the state contract, validate Controller pipeline plus closed production-mode declarations, reject incompatible mode/pipeline entry conditions, and prevent a reserved ID from being declared as a Controller node. Image Production nodes require an explicit adapter role: visual-slot belongs to image2-refine and requires html-then-image2 plus current HTML delivery; whole-page belongs to image2-only create-deck work without HTML delivery. create-deck is the normal current Controller for supported whole-page work, not a compatibility-only route.
+
+Retired maintenance or migration Controllers/nodes are invalid index identities. They cannot be entered, aliased, or used to satisfy a dependency; state reports bounded unsupported-protocol guidance before a Controller write.
+
+#### Scenario: Current Image2 uses whole-page nodes
+- **WHEN** the index resolves a consistent image2-only create-deck execution
+- **THEN** it activates its declared whole-page nodes without Phase-4 refinement
+
+#### Scenario: Retired Controller identity is rejected
+- **WHEN** an index or state record names an old maintenance or migration Controller
+- **THEN** validation fails before route selection or state mutation
+
+### Requirement: Raw state observation nests workflow inspection without replacement
+The state observation protocol SHALL retain the exact parsed durable-state document only as durable_state, plus independently readable schema, recovery, and debug-card output. It SHALL not duplicate raw durable-state keys at top level. workflow_inspection is an additional nested projection, not a state record, cache, migration target, or substitute for raw state, and it shall not overwrite durable_state. Resume-card/status consumers use its primary action and observations rather than synthesizing mode, gate, recovery, or completion readiness.
+
+When a source/state protocol is absent, pre-current, retired, or otherwise unsupported, observation SHALL expose the raw absence/classification context and one bounded owner-issued typed next action without fabricating an active execution, mode, or compatibility projection.
+
+#### Scenario: Raw state remains inspectable beside workflow projection
+- **WHEN** an Agent requests state <runDir> --json for a durable current run
+- **THEN** the response retains durable_state, recovery/card fields, and nested workflow_inspection
+- **AND** no raw field is replaced by a derived inspection verdict
+
+#### Scenario: Unsupported state remains observable
+- **WHEN** an older whole-page run has no durable state or a retired protocol
+- **THEN** observation exposes its raw absence/classification context with workflow inspection
+- **AND** it does not fabricate an active execution or compatibility route
+
 ## ADDED Requirements
 
-### Requirement: Transition execution uses current Controller identity
-Cross-pipeline confirmation SHALL create only a `production-mode-transition/apply-production-mode-transition` execution bound to the exact source run, target mode/intake, candidate receipts, target version, and plan hash. State migration/healing SHALL not map old maintenance or HTML-migration Controller/node identities into current work, and old identifiers SHALL not authorize confirmation, apply, recovery, or handoff.
+### Requirement: State recovery returns one direct owner action
+The existing state owner SHALL be the sole evaluator for a source/state recovery result. `state`, `status`, validation, Controller routing, and mutation preconditions SHALL consume its direct classification of the selected source marker, durable state bytes/schema, exact run version, production mode, execution identity, and applicable fence/journal facts; they SHALL not compose a second result from Markdown, cards, metadata, generated artifacts, history, or conversation. This requirement adds no state field, command, cache, recovery alias, or alternate writer.
 
-#### Scenario: Exact transition is confirmed
-- **WHEN** the human confirms the current state-owned transition preview
+A current schema-5 record with a one-to-one, fence-clear canonical defect is a `guide`: only its owner-authorized execution may repair it and rerun the same checkpoint, while observation reports that exact action without writing. A current exact transition preview whose target intake is selected is an ordinary state-transaction commit outside the `guide`/`confirm`/`hard-stop` gate classification: its sole commit is the exact plan hash, and its existing `transition_confirmation` records the target user's `proceed` decision rather than a waiver. It accepts no risk reason or continuation and cannot waive source identity, integrity, CAS, journal, receipt, or provider authorization. Missing, retired, malformed, mismatched, pre-current, evidence-unpreservable, journal-ambiguous, or CAS-ambiguous direct facts are a `hard-stop`: the owner SHALL preserve protected bytes, name the invariant, and return exactly one owner-selected typed next action from those facts. For CLI-facing diagnostics, the CLI producer alone maps that classification to its existing `next` contract; state does not add an action enum, recovery route, or alternate writer. A Controller or person SHALL not turn a hard-stop into a force, state edit, inferred route, or generic choice menu.
+
+#### Scenario: Deterministic current repair remains a guide
+- **WHEN** the state owner observes a current-v5 record with one fence-clear canonical defect
+- **THEN** observation returns the one owner repair action without writing
+- **AND** the authorized owner repairs and reruns that same checkpoint without human risk acceptance
+
+#### Scenario: Unsupported identity is a hard-stop
+- **WHEN** source/state identity or evidence preservation cannot be established from direct facts
+- **THEN** the result names the protected invariant and one owner-selected non-writing next action
+- **AND** no Controller, card, conversation, or generated artifact can add an alternative continuation
+
+#### Scenario: Exact transition commit preserves target decision
+- **WHEN** a current transition preview has selected target intake and its target-user decision
+- **THEN** the result presents only the exact plan-bound transaction commit, not a risk continuation
+- **AND** the state owner validates the target-intake/digest/decision tuple before any later transition mutation
+- **AND** that commit cannot bypass identity, CAS, journal, receipt, or provider-authorization checks
+
+### Requirement: Transition execution uses current Controller identity
+Cross-pipeline exact plan commit SHALL create only a `production-mode-transition/apply-production-mode-transition` execution bound to the exact source run, target mode/intake, target-user decision, candidate receipts, target version, and plan hash. State migration/healing SHALL not map old maintenance or HTML-migration Controller/node identities into current work, and old identifiers SHALL not authorize commit, apply, recovery, or handoff.
+
+#### Scenario: Exact transition is committed
+- **WHEN** the target user has selected the current state-owned transition preview and the Controller commits its exact plan hash
 - **THEN** one atomic state write suspends the source execution and starts the bound current transition apply node
 
 #### Scenario: Retired execution identity is supplied
 - **WHEN** state contains an old maintenance or HTML-migration Controller/node identity
 - **THEN** transition entry fails before state, journal, staging, or target writes
+
+#### Scenario: Historical transition identity cannot resume
+- **WHEN** a state record names `migrate-import` or any old transition node
+- **THEN** state/status returns the bounded unsupported-protocol action without renaming or resuming it
+- **AND** the record cannot become `production-mode-transition` through a read or repair path
+
+## RENAMED Requirements
+
+- FROM: `### Requirement: State schema is explicitly versioned and migrated`
+- TO: `### Requirement: State schema is explicitly versioned and repairs only current records`
 
 ## REMOVED Requirements
 
