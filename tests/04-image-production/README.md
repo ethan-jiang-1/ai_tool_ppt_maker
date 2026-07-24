@@ -1,3 +1,4 @@
-# Phase 4 absence contract
+# Phase 4 Image Production tests
 
-Change 4 tests only that modern Image2 refinement remains unavailable.
+Whole-page Image2 generation, provenance, header review, and the public
+`whole-page` adapter are owned here alongside visual-slot refinement.

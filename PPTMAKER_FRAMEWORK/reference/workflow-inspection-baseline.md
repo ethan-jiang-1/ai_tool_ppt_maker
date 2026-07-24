@@ -12,7 +12,7 @@ Each journey consumes direct owners through one read-only inspection result.
 | Small refresh | source, receipt/provenance, selected owner | only if owner requires | stale owner rebuild | 0 / 0 |
 | Structural versioning | slide identity/order, structural transaction | exact preview/hash confirmation | preview or transaction recovery | 0 / 0 |
 | Visual-slot refinement | current HTML delivery, refinement record | authorization/candidate review | refinement owner action | 0 / 0 |
-| Migration / transition | transition state, exact plan/receipt | confirmation | transition owner action | 0 / 0 |
+| Production-mode transition | transition state, exact plan/receipt | target-intake plan commit | transition owner action | 0 / 0 |
 | Crash / restart | journal/reset/attempt owner | uncertain-owner confirmation | recovery owner action | 0 / 0 |
 
 ## BUG-033 Probe Discipline

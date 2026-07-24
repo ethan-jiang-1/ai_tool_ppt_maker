@@ -1,7 +1,7 @@
 ---
 playbook: restructure-slides
 description: source-only clean vNext 与 pipeline-specific materialization
-supported_pipelines: [html-first-v1, legacy-image2-first]
+supported_pipelines: [html-first-v1, whole-page-image2-v1]
 includes: [classify-change]
 ---
 
@@ -82,6 +82,6 @@ exit: [user_decision_recorded, user_evidence:structure-change-verified]
 
 **Step 1 — CLI**: Continue target delivery through local contact sheet, Stage 4, Stage 5, and final review. Provider call count and Image2 write set must be zero.
 
-**Step 2 — MD**: Verify target order/membership, notes-by-ID, receipts, target-owned manifests, and unchanged source version. Markerless legacy instead keeps `needs_render`; any Generated Image Rebuild requires separate remote authorization through legacy maintenance.
+**Step 2 — MD**: Verify target order/membership, notes-by-ID, receipts, target-owned manifests, and unchanged source version. Whole-page Image2 instead keeps `needs_render`; any Generated Image Rebuild requires separate remote authorization through `create-deck`.
 
 **Step 3 — GATE**: Record verification only after the target final delivery review is current.

@@ -52,7 +52,9 @@ describe("MD Controller reader characterization", () => {
 
   it("registers one HTML-only Phase-4 controller with exact current-delivery entry gates", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    expect(index.controllers.size).toBe(11);
+    expect(index.controllers.size).toBe(10);
+    expect(index.controllers.has("production-mode-transition")).toBe(true);
+    expect(index.controllers.has(["migrate", "import"].join("-"))).toBe(false);
     const controller = index.controllers.get("image2-refine");
     expect(controller.supportedPipelines).toEqual(["html-first-v1"]);
     expect(controller.nodes.map((node) => node.id)).toEqual([

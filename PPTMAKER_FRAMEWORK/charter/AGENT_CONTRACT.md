@@ -89,7 +89,7 @@ Phase 1 跑 `stage1 --validate` 一定失败（L3 还是占位）——别在 Ph
 
 不要写 `image_direct` / `normal`（旧词；输入端仍兼容，输出与文档禁止再用）。
 
-新 `--init` deck 在 `slide-specifications.md` frontmatter 中使用 `render.default: full-page`；逐页 `RENDER MODE` 只是高级 override。没有顶层 `render` 的旧 deck 保持 legacy VISUAL TYPE 派生。`render` 内未知键会 fail-loud；顶层误写成 `renders:` 无法在不破坏 legacy 兼容的前提下猜测纠正，排障查看 `layout_contract.render_mode_source`。
+新 `--init` deck 在 `slide-specifications.md` frontmatter 中使用显式 `production.pipeline`；`whole-page-image2-v1` 再使用 `render.default: full-page`，逐页 `RENDER MODE` 只是高级 override。缺少当前 marker 的 source 不会从 VISUAL TYPE 推导管线或 render mode。`render` 内未知键会 fail-loud；顶层误写成 `renders:` 不会被猜测纠正，排障查看 `layout_contract.render_mode_source`。
 
 每页同时有稳定 `slide_id` 和派生 `position`。用户可说“第 7 页”或“UX gap 那页”，Agent 必须解析为当前快照中的 `07 · UXGap · title`；顺序变化后用 ID 继续追踪，不能把旧页码当永久身份。新 deck 使用 `identity.scheme: mnemonic-v1`；Agent 命名 5–8 个 ASCII 字母、恰好两个 BlockCase 语义块，优先 5–6 个字母，不让用户编随机 token。
 
@@ -162,7 +162,7 @@ pre-key 尚无图：可用 preset/母版 prompt 降级展示；一旦出图，�
 
 Gate 被触发时，必须给 MD Controller 三样东西：① 什么变了（具体到 slide id + 字段）；② 可执行命令（MD 直接跑）；③ 默认路径（不确定时怎么办）。能在代码层自动修的（格式、fingerprint 清理）直接修好继续。必须人来判断的（视觉质量、标题措辞）给候选 + 推荐。永远不让用户面对一堵墙。
 
-每个 gate 还必须明确其结果：`guide` 是可安全自动修复的建议；`confirm` 是可逆的质量或流程风险，先给推荐修复，再由人以简短原因选择显式 continuation；`hard-stop` 保护 version/reset/plan identity、state/byte/path integrity、并发 writer、provider authorization 或 recoverability。hard-stop 不提供强制绕过。continuation 写入当前版本的 `waived` 决定，永远不是 `approved`，也不代表 evidence complete。对 exact run，先消费 `state --json.workflow_inspection.primary_action` 与 owner-issued continuation；`state --validate-state` 只读，repair 仍走 producer 指定的 public command。完整规则见 `openspec/policies/human-centered-gates.md`。
+每个 gate 还必须明确其结果：`guide` 是可安全自动修复的建议；`confirm` 是可逆的质量或流程风险，先给推荐修复，再由人以简短原因选择显式 continuation；`hard-stop` 保护 version/reset/plan identity、state/byte/path integrity、并发 writer、provider authorization 或 recoverability。hard-stop 不提供强制绕过。continuation 写入当前版本的 `waived` 决定，永远不是 `approved`，也不代表 evidence complete。`--confirm-production-mode-transition --plan-hash` 是另一类 exact transaction commit：它仅记录显式 target intake 的用户 `proceed`，不是本段的 `confirm`，没有 reason/waiver/continuation，也不接受 `--force`。对 exact run，先消费 `state --json.workflow_inspection.primary_action` 与 owner-issued continuation；`state --validate-state` 只读，repair 仍走 producer 指定的 public command。完整规则见 `openspec/policies/human-centered-gates.md`。
 
 ---
 

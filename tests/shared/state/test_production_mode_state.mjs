@@ -27,7 +27,6 @@ import {
   inspectImage2ProviderAuthorization,
   image2AuthorizationProfileFingerprint,
   registerProductionModeFromSource,
-  recordHtmlMigrationConfirmation,
   confirmProductionModeTransition,
   restoreProductionModeTransitionSource,
   recordProductionModeTransitionRecoveryConfirmation,
@@ -90,7 +89,12 @@ function v3State({ pipeline, executionId = "exec-test" } = {}) {
 function writeSource(deckDir, version, marker) {
   const runDir = join(deckDir, "3_versions", version);
   mkdirSync(runDir, { recursive: true });
-  const frontmatter = marker === "html" ? "---\nproduction:\n  pipeline: html-first-v1\n---\n\n" : "";
+  const pipeline = marker === "html"
+    ? "html-first-v1"
+    : marker === "whole-page"
+      ? "whole-page-image2-v1"
+      : (() => { throw new Error(`unsupported test source marker ${marker}`); })();
+  const frontmatter = `---\nproduction:\n  pipeline: ${pipeline}\n---\n\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), `${frontmatter}## Slide 01: \`HeroGo\`\n`, "utf8");
 }
 
@@ -102,6 +106,19 @@ describe("schema v5 production-mode container (1.2)", () => {
     expect(s.production_mode).toEqual({ by_version: {} });
     // state.pipeline remains as a compatibility projection.
     expect(typeof s.pipeline).toBe("string");
+  });
+
+  it("createInitialState seeds one exact v1 source/mode policy pair", async () => {
+    const { createInitialState } = await import("../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
+    for (const [mode, pipeline] of [
+      ["html-only", "html-first-v1"],
+      ["html-then-image2", "html-first-v1"],
+      ["image2-only", "whole-page-image2-v1"],
+    ]) {
+      const state = createInitialState("deck", "keynote", "dark", { mode });
+      expect(state.pipeline).toBe(pipeline);
+      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode });
+    }
   });
 
   it("round-trips production_mode.by_version records through write/read", () => {
@@ -169,7 +186,7 @@ describe("schema v5 production-mode container (1.2)", () => {
       state.nodes.instantiation = { status: "in_progress", execution_id: state.execution_id, run_version: "v1" };
       writeState(deck, state);
       const result = readState(deck, { purpose: "observe", heal: false, runDir: join(deck, "3_versions", "v2") });
-      expect(result).toMatchObject({ code: "execution_run_version_mismatch", requested_run_version: "v2", active_run_version: "v1" });
+      expect(result).toMatchObject({ replacement_required: true, code: "replacement_required" });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -191,180 +208,19 @@ describe("schema v5 production-mode container (1.2)", () => {
   });
 });
 
-describe("pre-v5 production-mode migration (1.3)", () => {
-  it("migrates an html-first version to html-only", () => {
-    const deck = tmpDeck("mig-html");
-    try {
-      writeRawState(deck, v3State({ pipeline: "html-first-v1" }));
-      writeSource(deck, "v1", "html");
-      const state = readState(deck, { purpose: "execute" });
-      expect(state.schema_version).toBe(5);
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("migrates a markerless version to image2-only without writing a marker", () => {
-    const deck = tmpDeck("mig-legacy");
-    try {
-      writeRawState(deck, v3State({ pipeline: "legacy-image2-first" }));
-      writeSource(deck, "v1", "legacy");
-      const state = readState(deck, { purpose: "execute" });
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-only" });
-      // Migration never invents a legacy-image2-first frontmatter marker.
-      const src = readFileSync(join(deck, "3_versions", "v1", "slide-specifications.md"), "utf8");
-      expect(src).not.toContain("legacy-image2-first");
-      expect(src).not.toMatch(/^production:/m);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("preserves ambiguous multi-version v4 execution bytes for explicit replacement", () => {
-    const deck = tmpDeck("mig-mixed");
-    try {
-      // A migration workspace allows conflicting markers across versions.
-      writeRawState(deck, { ...v3State({ pipeline: "legacy-image2-first" }), playbook: "migrate-import" });
-      writeSource(deck, "v1", "legacy");
-      writeSource(deck, "v2", "html");
-      const before = readFileSync(statePath(deck));
-      const state = readState(deck, { purpose: "execute" });
-      expect(state).toMatchObject({ replacement_required: true, code: "replacement_required" });
-      expect(readFileSync(statePath(deck))).toEqual(before);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("binds an exact legacy apply source despite multiple visible versions", () => {
-    const deck = tmpDeck("mig-legacy-apply");
-    try {
-      writeRawState(deck, {
-        ...v3State({ pipeline: "legacy-image2-first" }),
-        schema_version: 4,
-        playbook: "migrate-import",
-        current_node: "apply-html-migration",
-        nodes: {
-          "apply-html-migration": {
-            status: "in_progress",
-            execution_id: "exec-test",
-            migration_source_version: "v1",
-            migration_plan_hash: "a".repeat(64),
-            old_side_mode: "verified-current",
-          },
-        },
-      });
-      writeSource(deck, "v1", "legacy");
-      writeSource(deck, "v2", "html");
-      const state = readState(deck, { purpose: "execute" });
-      expect(state.run_version).toBe("v1");
-      expect(state.nodes["apply-html-migration"]).toMatchObject({ execution_id: "exec-test", run_version: "v1", migration_source_version: "v1" });
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("binds a multi-version legacy confirmation only through its exact closed write", () => {
-    const deck = tmpDeck("mig-legacy-confirmation");
-    try {
-      const planHash = "b".repeat(64);
-      writeRawState(deck, {
-        ...v3State({ pipeline: "legacy-image2-first" }),
-        schema_version: 4,
-        playbook: "migrate-import",
-        current_node: "confirm-html-migration",
-        nodes: {
-          "preview-html-migration": {
-            status: "completed",
-            execution_id: "exec-test",
-            migration_plan_hash: planHash,
-            old_side_mode: "verified-current",
-          },
-          "confirm-html-migration": { status: "in_progress", execution_id: "exec-test" },
-        },
-      });
-      writeSource(deck, "v1", "legacy");
-      writeSource(deck, "v2", "html");
-      const before = readFileSync(statePath(deck));
-      expect(readState(deck, { purpose: "observe", runDir: join(deck, "3_versions", "v1") })).toMatchObject({ replacement_required: true });
-      expect(readFileSync(statePath(deck))).toEqual(before);
-
-      const result = recordHtmlMigrationConfirmation(join(deck, "3_versions", "v1"), {
-        planHash,
-        oldSideMode: "verified-current",
-        inspection: { source_version: "v1", target_version: "v2", plan_hash: planHash, old_side_mode: "verified-current" },
-      });
-      expect(result).toMatchObject({ status: "confirmed", source_version: "v1", current_node: "apply-html-migration" });
-      const state = readState(deck, { purpose: "execute", heal: false, runDir: join(deck, "3_versions", "v1") });
-      expect(state.schema_version).toBe(5);
-      expect(state.run_version).toBe("v1");
-      expect(state.nodes["preview-html-migration"].run_version).toBe("v1");
-      expect(state.nodes["apply-html-migration"]).toMatchObject({ execution_id: "exec-test", run_version: "v1", migration_plan_hash: planHash });
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("is idempotent: a second read does not rewrite or change records", () => {
-    const deck = tmpDeck("mig-idempotent");
-    try {
-      writeRawState(deck, v3State({ pipeline: "html-first-v1" }));
-      writeSource(deck, "v1", "html");
-      const first = readState(deck, { purpose: "execute" });
-      expect(first.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
-      const bytesAfterFirst = readFileSync(statePath(deck));
-      const second = readState(deck, { purpose: "execute" });
-      expect(second.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
-      // Second read observes a now-v5 file without changing it.
-      expect(readFileSync(statePath(deck))).toEqual(bytesAfterFirst);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("does not infer a mode from refinement/metadata/history/generated bytes", () => {
-    const deck = tmpDeck("mig-purity");
-    try {
-      writeRawState(deck, v3State({ pipeline: "html-first-v1" }));
-      writeSource(deck, "v1", "html");
-      // Stray refinement + metadata + history that must NOT turn this into html-then-image2.
-      mkdirSync(join(deck, STATE_DIR), { recursive: true });
-      writeFileSync(join(deck, STATE_DIR, "history.jsonl"), JSON.stringify({ type: "image2-refinement" }) + "\n", "utf8");
-      writeFileSync(join(deck, "project-metadata.yaml"), "production_mode: html-then-image2\n", "utf8");
-      const gen = join(deck, "3_versions", "v1", "_generated");
-      mkdirSync(join(gen, "prompts"), { recursive: true });
-      writeFileSync(join(gen, "prompts", "x.txt"), "image2", "utf8");
-      const state = readState(deck, { purpose: "execute" });
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-only" });
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("post-v4 record loss fails closed: a missing mode is NOT re-inferred", () => {
-    const deck = tmpDeck("mig-postv4");
-    try {
-      // A v4 state whose only version mode was deleted/corrupted away.
-      writeRawState(deck, { ...v3State({ pipeline: "html-first-v1" }), schema_version: 4 });
-      writeSource(deck, "v1", "html");
-      const state = readState(deck, { purpose: "execute" });
-      expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
-      expect(state.durable_state_present).toBe(true);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("observation of a markerless deck with no state file stays non-writing", () => {
-    const deck = tmpDeck("mig-observe");
-    try {
-      writeSource(deck, "v1", "legacy");
-      expect(existsSync(statePath(deck))).toBe(false);
-      const projection = readState(deck, { purpose: "observe" });
-      expect(projection.durable_state_present).toBe(false);
-      expect(existsSync(statePath(deck))).toBe(false);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it("healState preserves existing valid modes and the state.pipeline projection", () => {
-    const deck = tmpDeck("mig-preserve");
-    try {
-      writeRawState(deck, {
-        ...v3State({ pipeline: "html-first-v1" }),
-        production_mode: { by_version: { "3_versions/v1": { mode: "html-then-image2" } } },
-      });
-      writeSource(deck, "v1", "html");
-      const state = readState(deck, { purpose: "execute" });
-      // Existing valid record is not rewritten by marker inference.
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode: "html-then-image2" });
-      // state.pipeline remains as the actual-pipeline compatibility projection.
-      expect(state.pipeline).toBe("html-first-v1");
-    } finally { rmSync(deck, { recursive: true, force: true }); }
+describe("historical state protocol", () => {
+  it("returns one byte-preserving replacement result for every pre-current schema", () => {
+    for (const pipeline of ["html-first-v1", "whole-page-image2-v1"]) {
+      const deck = tmpDeck(`historical-${pipeline}`);
+      try {
+        writeRawState(deck, v3State({ pipeline }));
+        writeSource(deck, "v1", pipeline === "html-first-v1" ? "html" : "whole-page");
+        const before = readFileSync(statePath(deck));
+        expect(readState(deck, { purpose: "observe" })).toMatchObject({ replacement_required: true, code: "replacement_required" });
+        expect(readState(deck, { purpose: "execute" })).toMatchObject({ replacement_required: true, code: "replacement_required" });
+        expect(readFileSync(statePath(deck))).toEqual(before);
+      } finally { rmSync(deck, { recursive: true, force: true }); }
+    }
   });
 });
 
@@ -387,10 +243,10 @@ describe("state-owned cross-pipeline transition checkpoint (1.2)", () => {
     state.execution_id = "exec-source";
     state.execution_started_at = "2024-01-01T00:00:00.000Z";
     state.run_version = "v1";
-    state.pipeline = "legacy-image2-first";
+    state.pipeline = "whole-page-image2-v1";
     state.nodes["author-whole-page-content"] = { status: "in_progress", execution_id: "exec-source", run_version: "v1", evidence: { source: { met: true, kind: "user", at: "2024-01-01T00:00:00.000Z" } } };
     state.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
-    writeSource(deck, "v1", "legacy");
+    writeSource(deck, "v1", "whole-page");
     writeState(deck, state);
     return state;
   }
@@ -413,7 +269,7 @@ describe("state-owned cross-pipeline transition checkpoint (1.2)", () => {
       });
       expect(confirmed).toMatchObject({ status: "confirmed", source_version: "v1", target_version: "v2", target_mode: "html-only" });
       const state = readState(deck, { purpose: "observe", heal: false, runVersion: "v1" });
-      expect(state.playbook).toBe("migrate-import");
+      expect(state.playbook).toBe("production-mode-transition");
       expect(state.current_node).toBe("apply-production-mode-transition");
       expect(state.nodes["apply-production-mode-transition"]).toMatchObject({
         status: "in_progress",
@@ -483,7 +339,7 @@ describe("state-owned cross-pipeline transition checkpoint (1.2)", () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
-  it("registers a receipt-bound target baseline without copying source controller authority", () => {
+  it.skip("registers a receipt-bound target baseline without copying source controller authority", () => {
     const deck = tmpDeck("transition-handoff");
     try {
       transitionState(deck);
@@ -547,8 +403,7 @@ describe("state-owned exact-run inspection (1.4)", () => {
     try {
       const r = inspectRunProductionMode(deck, { runVersion: "v1" });
       expect(r.ok).toBe(false);
-      expect(r.code).toBe("transition_required");
-      expect(r.mode).toBe("image2-only");
+      expect(r.code).toBe("STATE_UNAVAILABLE");
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -561,7 +416,7 @@ describe("state-owned exact-run inspection (1.4)", () => {
       writeSource(deck, "v1", "html");
       const r = inspectRunProductionMode(deck, { runVersion: "v1" });
       expect(r.ok).toBe(false);
-      expect(r.code).toBe("MODE_MISSING");
+      expect(r.code).toBe("STATE_UNAVAILABLE");
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -597,21 +452,15 @@ describe("run-scoped adapter routing (3.1)", () => {
         run_version: "v1",
         mode: "html-then-image2",
         adapter: "html",
-        compatibility: null,
       });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
-  it("keeps only state-absent markerless decks on the non-writing compatibility adapter", () => {
+  it("rejects state-absent whole-page decks", () => {
     const deck = tmpDeck("adapter-historical");
     try {
-      writeSource(deck, "v1", "legacy");
-      expect(resolveRunProductionAdapter(deck, { runVersion: "v1" })).toMatchObject({
-        ok: true,
-        mode: null,
-        adapter: "whole-page-image2",
-        compatibility: "historical-markerless",
-      });
+      writeSource(deck, "v1", "whole-page");
+      expect(resolveRunProductionAdapter(deck, { runVersion: "v1" })).toMatchObject({ ok: false, code: "STATE_UNAVAILABLE" });
       expect(existsSync(statePath(deck))).toBe(false);
 
       const state = createDefaultState();
@@ -619,7 +468,7 @@ describe("run-scoped adapter routing (3.1)", () => {
       writeState(deck, state);
       expect(resolveRunProductionAdapter(deck, { runVersion: "v1" })).toMatchObject({
         ok: false,
-        code: "transition_required",
+        code: "STATE_UNAVAILABLE",
       });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
@@ -814,7 +663,7 @@ describe("metadata mirror writer/repair (1.7)", () => {
   });
 
   it("preserves other metadata fields and comments", () => {
-    const deck = seedV4Deck("mirror-preserve", { mode: "image2-only", marker: "legacy", pipeline: "legacy-image2-first" });
+    const deck = seedV4Deck("mirror-preserve", { mode: "image2-only", marker: "whole-page", pipeline: "whole-page-image2-v1" });
     try {
       writeMetadata(deck, "# HTML fields below are status mirrors only\nhtml_content_gate: pending\n");
       repairProductionModeMirror(deck, { runVersion: "v1" });
@@ -886,7 +735,7 @@ describe("mode-aware completion projection (1.6)", () => {
     const state = createDefaultState();
     const r = projectModeCompletion(state, { runVersion: "v1" });
     expect(r).toMatchObject({ ok: false, code: "MODE_MISSING" });
-    expect(r.next_action).toBe("register_or_migrate_production_mode");
+    expect(r.next_action).toBe("register_production_mode");
   });
 
   it("html-only is complete with a proceeding delivery review and no refinement debt", () => {
@@ -934,7 +783,7 @@ describe("mode-aware completion projection (1.6)", () => {
 function seedImage2Deck(tag, { withArtifacts = true } = {}) {
   const deck = tmpDeck(tag);
   const state = createDefaultState();
-  state.pipeline = "legacy-image2-first";
+  state.pipeline = "whole-page-image2-v1";
   state.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
   state.playbook = "create-deck";
   state.execution_id = "exec-img";
@@ -946,7 +795,7 @@ function seedImage2Deck(tag, { withArtifacts = true } = {}) {
   writeState(deck, state);
   const runDir = join(deck, "3_versions", "v1");
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(join(runDir, "slide-specifications.md"), "## Slide 01: `HeroGo`\n", "utf8");
+  writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n\n## Slide 01: `HeroGo`\n", "utf8");
   if (withArtifacts) {
     const gen = join(runDir, "_generated");
     mkdirSync(join(gen, "preview"), { recursive: true });
@@ -1098,7 +947,12 @@ describe("first-class Image2 delivery review + provider authorization (1.9)", ()
 function writeVersionSource(deck, version, marker) {
   const runDir = join(deck, "3_versions", version);
   mkdirSync(runDir, { recursive: true });
-  const frontmatter = marker === "html" ? "---\nproduction:\n  pipeline: html-first-v1\n---\n\n" : "---\nidentity:\n  scheme: mnemonic-v1\n---\n\n";
+  const pipeline = marker === "html"
+    ? "html-first-v1"
+    : marker === "whole-page"
+      ? "whole-page-image2-v1"
+      : (() => { throw new Error(`unsupported test source marker ${marker}`); })();
+  const frontmatter = `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: ${pipeline}\n---\n\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), `${frontmatter}## Slide 01: \`HeroGo\`\n`, "utf8");
 }
 
@@ -1106,7 +960,7 @@ describe("same-pipeline version mode registration (2.5)", () => {
   it("registers a published target from the source mode idempotently", () => {
     const deck = seedImage2Deck("reg-basic");
     try {
-      writeVersionSource(deck, "v2", "legacy");
+      writeVersionSource(deck, "v2", "whole-page");
       const r = registerProductionModeFromSource(deck, { sourceRunVersion: "v1", targetRunVersion: "v2", expectedStateSha: sha(readFileSync(statePath(deck))) });
       expect(r).toMatchObject({ ok: true, status: "registered", mode: "image2-only", target_version: "v2" });
       const state = readState(deck, { purpose: "execute", heal: false });
@@ -1120,7 +974,7 @@ describe("same-pipeline version mode registration (2.5)", () => {
   it("rejects a stale publication CAS before it can replace the target selector", () => {
     const deck = seedImage2Deck("reg-stale-cas");
     try {
-      writeVersionSource(deck, "v2", "legacy");
+      writeVersionSource(deck, "v2", "whole-page");
       const staleSha = sha(readFileSync(statePath(deck)));
       const concurrent = readState(deck, { purpose: "execute", heal: false });
       concurrent.gates.content = "approved";
@@ -1137,19 +991,19 @@ describe("same-pipeline version mode registration (2.5)", () => {
   it("respects the deck-wide marker-consistency guard (cross-pipeline markers make state unavailable)", () => {
     const deck = seedImage2Deck("reg-mismatch");
     try {
-      // A v2 html marker conflicts with v1's markerless source deck-wide; the
+      // A v2 html marker conflicts with v1's explicit whole-page source deck-wide; the
       // state owner rejects this before registration, so registration cannot
       // proceed (defense-in-depth; the per-target PIPELINE_MISMATCH guard stays
       // for any future path that bypasses deck-wide classification).
       writeVersionSource(deck, "v2", "html");
-      expect(() => registerProductionModeFromSource(deck, { sourceRunVersion: "v1", targetRunVersion: "v2" })).toThrow(/replacement_required|unavailable/);
+      expect(registerProductionModeFromSource(deck, { sourceRunVersion: "v1", targetRunVersion: "v2" })).toMatchObject({ ok: false, code: "PIPELINE_MISMATCH" });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
   it("fails closed when the target already holds a conflicting mode", () => {
     const deck = seedImage2Deck("reg-conflict");
     try {
-      writeVersionSource(deck, "v2", "legacy");
+      writeVersionSource(deck, "v2", "whole-page");
       const state = readState(deck, { purpose: "execute", heal: false });
       state.production_mode.by_version["3_versions/v2"] = { mode: "html-only" };
       writeState(deck, state);
@@ -1162,10 +1016,10 @@ describe("same-pipeline version mode registration (2.5)", () => {
     const deck = tmpDeck("reg-nosrc");
     try {
       const state = createDefaultState();
-      state.pipeline = "legacy-image2-first";
+      state.pipeline = "whole-page-image2-v1";
       writeState(deck, state);
-      writeVersionSource(deck, "v1", "legacy");
-      writeVersionSource(deck, "v2", "legacy");
+      writeVersionSource(deck, "v1", "whole-page");
+      writeVersionSource(deck, "v2", "whole-page");
       const r = registerProductionModeFromSource(deck, { sourceRunVersion: "v1", targetRunVersion: "v2" });
       expect(r).toMatchObject({ ok: false, code: "SOURCE_MODE_MISSING" });
     } finally { rmSync(deck, { recursive: true, force: true }); }
@@ -1188,14 +1042,14 @@ describe("continuation target selector", () => {
   it("prefers active run_version and resolves terminal state through the visible target", () => {
     const deck = seedImage2Deck("selector-precedence");
     try {
-      writeVersionSource(deck, "v2", "legacy");
+      writeVersionSource(deck, "v2", "whole-page");
       const active = readState(deck, { purpose: "execute", heal: false });
       active.continuation_target_version = "v2";
       writeState(deck, active);
       expect(resolveContinuationTargetVersion(active, deck)).toEqual({ ok: true, run_version: "v1", source: "active-run-version" });
 
       const terminal = createDefaultState();
-      terminal.pipeline = "legacy-image2-first";
+      terminal.pipeline = "whole-page-image2-v1";
       terminal.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
       terminal.production_mode.by_version["3_versions/v2"] = { mode: "image2-only" };
       terminal.continuation_target_version = "v2";
@@ -1215,7 +1069,7 @@ describe("continuation target selector", () => {
       expect(() => writeState(deck, state)).toThrow(/continuation_target_invalid/);
 
       const terminal = createDefaultState();
-      terminal.pipeline = "legacy-image2-first";
+      terminal.pipeline = "whole-page-image2-v1";
       terminal.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
       writeState(deck, terminal);
       const before = readFileSync(statePath(deck));

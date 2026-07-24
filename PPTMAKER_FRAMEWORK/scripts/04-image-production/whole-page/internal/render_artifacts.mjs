@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
-import { basename, extname, join, relative, resolve, sep } from "node:path";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { basename, join, relative, sep } from "node:path";
 import { loadImage } from "@napi-rs/canvas";
 import { canonicalJson, canonicalJsonSha256 } from "../../../shared/identity/canonical_json.mjs";
 import { sha256File } from "../../../shared/identity/byte_hash.mjs";
@@ -7,9 +7,9 @@ import {
   ARTIFACT_KIND_FINAL_SLIDE,
   ARTIFACT_MANIFEST_VERSION,
   ARTIFACT_STATUS_AMBIGUOUS,
-  ARTIFACT_STATUS_LEGACY_LOCATED,
   ARTIFACT_STATUS_MISSING,
   ARTIFACT_STATUS_VERIFIED,
+  WHOLE_PAGE_ARTIFACT_PIPELINE,
   artifactIdentity,
   artifactManifestEntryKey,
   normalizeFinalSlideRecord,
@@ -18,8 +18,7 @@ import {
 
 function normalizeManifestEntries(manifest) {
   const entries = [];
-  if (!manifest || typeof manifest !== "object") return entries;
-  if (Array.isArray(manifest.artifacts)) entries.push(...manifest.artifacts.filter((entry) => entry && typeof entry === "object"));
+  if (!isCurrentWholePageManifest(manifest)) return entries;
   if (manifest.entries && typeof manifest.entries === "object" && !Array.isArray(manifest.entries)) {
     entries.push(...Object.values(manifest.entries).filter((entry) => entry && typeof entry === "object"));
   }
@@ -32,6 +31,17 @@ function normalizeManifestEntries(manifest) {
   return entries;
 }
 
+function isCurrentWholePageManifest(manifest) {
+  return Boolean(
+    manifest
+    && typeof manifest === "object"
+    && manifest.version === ARTIFACT_MANIFEST_VERSION
+    && manifest.pipeline === WHOLE_PAGE_ARTIFACT_PIPELINE
+    && ((manifest.entries && typeof manifest.entries === "object" && !Array.isArray(manifest.entries))
+      || (manifest.slides && typeof manifest.slides === "object" && !Array.isArray(manifest.slides))),
+  );
+}
+
 const entryEngine = (entry, fallback) => entry.render_engine || entry.engine || fallback || null;
 const entryKind = (entry, fallback) => entry.artifact_kind || entry.kind || fallback || null;
 const entryFingerprint = (entry) => entry.fingerprint || entry.generation_fingerprint || entry.header_fingerprint || null;
@@ -39,24 +49,16 @@ const entryProfile = (entry) => entry.generation_profile || entry.profile || nul
 const entryOutputSha = (entry) => entry.output_sha256 || entry.image_sha256 || entry.final_sha256 || null;
 const profileMatches = (actual, expected) => expected == null || (actual != null && canonicalJson(actual) === canonicalJson(expected));
 
-function legacyCandidates(directory, slideId) {
-  if (!existsSync(directory)) return [];
-  const escaped = String(slideId).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`^(?:\\d+[_-])?${escaped}$`, "i");
-  try {
-    return readdirSync(directory, { withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .filter((entry) => [".png", ".jpg", ".jpeg", ".webp"].includes(extname(entry.name).toLowerCase()))
-      .filter((entry) => pattern.test(basename(entry.name, extname(entry.name))))
-      .map((entry) => join(directory, entry.name))
-      .sort();
-  } catch {
-    return [];
-  }
-}
-
-export function resolveRenderArtifact({ directory, manifest, manifestError = null, slideId, renderEngine, artifactKind, fingerprint = null, profile = null, defaultEngine = null, defaultKind = null, allowLegacyLocate = true }) {
+export function resolveRenderArtifact({ directory, manifest, manifestError = null, slideId, renderEngine, artifactKind, fingerprint = null, profile = null, defaultEngine = null, defaultKind = null }) {
   const identity = artifactIdentity({ slideId, renderEngine, artifactKind, fingerprint });
+  if (manifestError || !isCurrentWholePageManifest(manifest)) {
+    return {
+      ...identity,
+      status: ARTIFACT_STATUS_MISSING,
+      reason: manifestError || "current whole-page artifact manifest is missing or invalid",
+      candidates: [],
+    };
+  }
   const entries = normalizeManifestEntries(manifest).filter((entry) =>
     String(entry.slide_id || "") === String(slideId) &&
     entryEngine(entry, defaultEngine) === renderEngine &&
@@ -67,7 +69,11 @@ export function resolveRenderArtifact({ directory, manifest, manifestError = nul
   if (matching.length === 1 && !manifestError) {
     const entry = matching[0];
     const output = entry.output || entry.path;
-    const path = output ? (resolve(output) === output ? output : join(directory, output)) : null;
+    const stableOutput = `${slideId}.png`;
+    if (output !== stableOutput || basename(output) !== stableOutput) {
+      return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: "manifest output is not stable ID-addressed", entry, candidates: [] };
+    }
+    const path = join(directory, output);
     if (path && existsSync(path)) {
       let actualSha;
       try { actualSha = sha256File(path); } catch (error) { return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: `artifact unreadable: ${error.message}`, entry, path }; }
@@ -77,19 +83,11 @@ export function resolveRenderArtifact({ directory, manifest, manifestError = nul
       if (expectedSha && expectedSha === actualSha && declaredFingerprint && declaredProfile) {
         return { ...identity, status: ARTIFACT_STATUS_VERIFIED, path, output: basename(path), byte_sha256: actualSha, fingerprint: declaredFingerprint, profile: declaredProfile, entry };
       }
-      if (expectedSha && expectedSha === actualSha && (!declaredFingerprint || !declaredProfile)) {
-        return { ...identity, status: ARTIFACT_STATUS_LEGACY_LOCATED, reason: !declaredFingerprint ? "manifest fingerprint lineage is missing" : "manifest profile lineage is missing", path, candidates: [path], entry, actual_sha256: actualSha };
-      }
       return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: expectedSha ? "artifact SHA-256 mismatch" : "manifest byte SHA-256 missing", path, entry, actual_sha256: actualSha };
     }
     return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: "manifest output is missing", entry, path };
   }
-  if (allowLegacyLocate) {
-    const candidates = legacyCandidates(directory, slideId);
-    if (candidates.length === 1) return { ...identity, status: ARTIFACT_STATUS_LEGACY_LOCATED, reason: manifestError || (entries.length > 0 ? "manifest evidence does not match the requested artifact" : "artifact located without provenance proof"), path: candidates[0], candidates };
-    if (candidates.length > 1) return { ...identity, status: ARTIFACT_STATUS_AMBIGUOUS, reason: "multiple legacy artifact files are locatable without unique provenance", candidates };
-  }
-  return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: manifestError || (entries.length > 0 ? "manifest fingerprint or profile does not match" : "manifest entry missing"), candidates: [] };
+  return { ...identity, status: ARTIFACT_STATUS_MISSING, reason: entries.length > 0 ? "manifest fingerprint or profile does not match" : "manifest entry missing", candidates: [] };
 }
 
 export function indexRenderArtifacts(manifest, { defaultEngine = null, defaultKind = null } = {}) {
@@ -104,7 +102,13 @@ export function indexRenderArtifacts(manifest, { defaultEngine = null, defaultKi
 
 export function readArtifactManifest(path) {
   if (!existsSync(path)) return { manifest: null, error: `manifest missing: ${path}` };
-  try { return { manifest: JSON.parse(readFileSync(path, "utf8")), error: null }; }
+  try {
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    if (!isCurrentWholePageManifest(manifest) || !manifest.entries || Array.isArray(manifest.entries)) {
+      return { manifest: null, error: `invalid current whole-page artifact manifest: ${path}` };
+    }
+    return { manifest, error: null };
+  }
   catch (error) { return { manifest: null, error: `corrupt manifest ${path}: ${error.message}` }; }
 }
 
@@ -115,17 +119,17 @@ export function writeArtifactManifestAtomic(path, manifest) {
   return path;
 }
 
-export async function adaptLegacyFinalSlideArtifacts({ runDir, artifacts }) {
-  if (!Array.isArray(artifacts)) throw new TypeError("legacy final-slide adapter requires verified artifacts");
+export async function adaptWholePageFinalSlideArtifacts({ runDir, artifacts }) {
+  if (!Array.isArray(artifacts)) throw new TypeError("whole-page final-slide adapter requires verified artifacts");
   const entries = [];
   for (const artifact of artifacts) {
-    if (artifact.status !== ARTIFACT_STATUS_VERIFIED || artifact.artifact_kind !== ARTIFACT_KIND_FINAL_SLIDE) throw new Error(`legacy final-slide artifact is not verified for ${artifact.slide_id}`);
+    if (artifact.status !== ARTIFACT_STATUS_VERIFIED || artifact.artifact_kind !== ARTIFACT_KIND_FINAL_SLIDE) throw new Error(`whole-page final-slide artifact is not verified for ${artifact.slide_id}`);
     const bytes = readFileSync(artifact.path);
     verifyCallerSuppliedBytes({ bytes, declaredSha256: artifact.byte_sha256 });
     const image = await loadImage(bytes);
-    const mediaProfile = `legacy-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
+    const mediaProfile = `whole-page-final-slide-v1:${canonicalJsonSha256({ profile: artifact.profile, width: image.width, height: image.height })}`;
     const privateFingerprint = canonicalJsonSha256({ fingerprint: artifact.fingerprint, profile: artifact.profile });
-    entries.push(normalizeFinalSlideRecord({ slideId: artifact.slide_id, producer: "legacy-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile, path: relative(runDir, artifact.path).split(sep).join("/"), absolutePath: artifact.path }));
+    entries.push(normalizeFinalSlideRecord({ slideId: artifact.slide_id, producer: "whole-page-image2-stage3-v1", producerPrivateFingerprint: privateFingerprint, byteSha256: artifact.byte_sha256, width: image.width, height: image.height, mediaProfile, path: relative(runDir, artifact.path).split(sep).join("/"), absolutePath: artifact.path }));
   }
   return Object.freeze(entries);
 }

@@ -25,4 +25,4 @@ Start from `template-color-palette.json` or a checked-in preset. Keep
 `2_backbone/visual-style/color_palette.json` as the single human-owned visual
 configuration source.
 
-Visual approval is based on real local HTML compositor output and contact-sheet evidence. After complete HTML delivery, modern Image2 refinement is an optional separately authorized visual-slot upgrade; markerless historical style-master work uses `../../reference/legacy-image2-first-maintenance.md`.
+Visual approval is based on real local HTML compositor output and contact-sheet evidence. After complete HTML delivery, modern Image2 refinement is an optional separately authorized visual-slot upgrade; explicit whole-page historical style-master work uses `playbook/create-deck.md`.

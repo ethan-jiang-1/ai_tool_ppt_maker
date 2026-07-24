@@ -26,49 +26,60 @@ The Stage 1 script SHALL be `stage1_build_inputs.mjs`, runnable with `node stage
 - **WHEN** `node stage1_build_inputs.mjs <run_dir>` is run directly
 - **THEN** it parses `slide-specifications.md` and writes `slide_plan.json` and `page_prompts/_prompts.json` without requiring the orchestrator
 
-### Requirement: Render policy extends the existing YAML frontmatter with an explicit legacy boundary
+### Requirement: Render policy requires an explicit current pipeline
+Stage 1 SHALL parse leading YAML only when it begins at the start of `slide-specifications.md` through a
+structured YAML parser. Current source frontmatter SHALL contain the direct `production.pipeline` scalar
+required by the source contract; missing, indirect, duplicate, retired, malformed, or unknown values
+fail before render-policy or slide parsing. Unrelated current top-level keys remain preserved. A
+whole-page-image2-v1 source MAY contain the closed `render` mapping with only `default` and
+`header-lock`: `default` is `full-page` or `body+header-lock` and defaults to `full-page` when omitted;
+`header-lock` defaults to an empty array. Exception IDs SHALL be trimmed, non-empty, unique after
+trimming, present in the file, and unambiguous. An HTML-first source SHALL reject the mapping before a
+plan is published. Markdown separators after leading frontmatter remain body content. Multiple inputs
+retain separate frontmatter policy scope, but html-first remains a single canonical source.
 
-Stage 1 SHALL parse an optional YAML frontmatter block only when it begins at the start of `slide-specifications.md`, using a structured YAML parser. A file without leading frontmatter SHALL remain valid and have no `render` key. Stage 1 SHALL preserve and tolerate unrelated top-level keys while consuming an optional closed `render` mapping whose only allowed keys are `default` and `header-lock`. A present mapping SHALL accept `default` (`full-page` or `body+header-lock`, defaulting to `full-page` when omitted) and `header-lock` (an array defaulting to empty). Exception ids SHALL be trimmed, non-empty, unique after trimming, present in the file, and unambiguous; an id matching duplicate slide blocks SHALL be rejected. Markdown `---` separators after the leading frontmatter SHALL remain body content. Malformed leading YAML, duplicate YAML keys, an unknown render key, invalid type/mode, or an empty/duplicate/unknown/ambiguous exception id SHALL fail loudly with a specific error. When invoked through `ppt_flow`, the orchestrator SHALL retain its standard JSON failure envelope contract.
+#### Scenario: Current whole-page frontmatter contains render policy
+- **WHEN** a whole-page-image2-v1 source contains current metadata plus a valid render mapping
+- **THEN** Stage 1 reads the marker and render policy without discarding unrelated current metadata
+- **AND** strips only the leading frontmatter block before splitting slides
 
-When Stage 1 is invoked with multiple input files, each file's leading frontmatter SHALL apply only to the slide blocks from that file, and exception ids SHALL be validated within that file; policy state SHALL NOT leak between inputs.
+#### Scenario: Invalid marker or policy fails loudly
+- **WHEN** leading YAML has duplicate keys, an invalid production pipeline, an unknown render key, invalid render type/mode, or invalid exception IDs
+- **THEN** validation fails with the marker or policy problem and affected ID
+- **AND** ppt_flow emits its standard JSON failure envelope
 
-#### Scenario: Existing frontmatter keys coexist with render policy
-- **WHEN** a slide specification frontmatter contains existing metadata keys plus a valid `render` mapping
-- **THEN** Stage 1 reads the render policy without rejecting or discarding the unrelated keys
-- **AND** strips the single frontmatter block before splitting slide blocks
+#### Scenario: HTML source rejects whole-page render policy
+- **WHEN** an html-first-v1 source declares top-level render policy
+- **THEN** validation fails before structured-plan publication
+- **AND** it does not reinterpret the source as whole-page work
 
-#### Scenario: Invalid policy fails loudly
-- **WHEN** leading YAML has duplicate keys, `render` contains an unknown key such as `header_lock`, `render.default` has an unsupported value, or `render.header-lock` has the wrong type or invalid ids
-- **THEN** validation fails and identifies every policy problem and affected id
-- **AND** `ppt_flow` emits its standard JSON failure envelope on failure
-
-#### Scenario: Multiple standalone inputs keep policies scoped
-- **WHEN** Stage 1 receives two input files with different or absent render policies
-- **THEN** each file's slides resolve only against that file's policy and exception ids
-
-### Requirement: Render mode uses distinct policy and legacy resolution branches
-
-When the top-level `render` key is present, Stage 1 SHALL resolve each slide through: per-slide explicit `RENDER MODE` > `render.header-lock` exception > hero guard > `render.default`. When the entire `render` key is absent, Stage 1 SHALL preserve legacy resolution: per-slide explicit `RENDER MODE` > VISUAL TYPE derivation. Absence of `render` SHALL NOT also mean a new full-page policy. Every result SHALL record `render_mode_source` as `explicit`, `policy:exception`, `derived:hero_type`, `policy:default`, or `derived:visual_type`.
+### Requirement: Current whole-page render mode resolves from explicit policy
+For a current whole-page-image2-v1 source, Stage 1 SHALL resolve each slide through per-slide explicit
+RENDER MODE, then render.header-lock exception, then hero guard, then render.default. It SHALL record
+render_mode_source as explicit, policy:exception, derived:hero_type, or policy:default. The absent
+render-key visual-type fallback is retired: an otherwise current whole-page source receives its explicit
+empty/default policy semantics, and a missing/invalid source marker fails before mode resolution. HTML
+sources own their visible layout through the structured renderer and SHALL not use this resolver.
 
 #### Scenario: Initialized policy defaults content pages to full-page
-- **WHEN** frontmatter contains `render.default: full-page` and a non-hero slide has no explicit mode or exception
-- **THEN** it resolves to `full-page` with source `policy:default` and `header_safe_zone: 0`
+- **WHEN** current whole-page frontmatter contains render.default full-page and a non-hero slide has no explicit mode or exception
+- **THEN** it resolves to full-page with source policy:default and header_safe_zone 0
 
 #### Scenario: Present render mapping may omit default
-- **WHEN** frontmatter contains `render: { header-lock: [] }`
-- **THEN** its effective default is `full-page` with source `policy:default`
-
-#### Scenario: Legacy deck preserves VISUAL TYPE behavior
-- **WHEN** the entire top-level `render` key is absent and the slide has no explicit mode
-- **THEN** opener/divider/closer derive to `full-page`, other slides derive to `body+header-lock`, and source is `derived:visual_type`
+- **WHEN** current whole-page frontmatter contains render with an empty header-lock list
+- **THEN** its effective default is full-page with source policy:default
 
 #### Scenario: Exception locks one policy page
-- **WHEN** a valid policy lists a slide id under `header-lock` and that slide has no explicit mode
-- **THEN** it resolves to `body+header-lock` with source `policy:exception` and configured header safe zone
+- **WHEN** a valid current policy lists a slide ID under header-lock and that slide has no explicit mode
+- **THEN** it resolves to body+header-lock with source policy:exception and configured header safe zone
 
-#### Scenario: Explicit mode wins in both branches
-- **WHEN** a slide declares a valid per-slide `RENDER MODE`
-- **THEN** that mode wins over policy, exception, hero guard, and legacy derivation with source `explicit`
+#### Scenario: Explicit mode wins in the current whole-page branch
+- **WHEN** a current whole-page slide declares a valid per-slide RENDER MODE
+- **THEN** that mode wins over policy, exception, and hero guard with source explicit
+
+#### Scenario: Retired markerless mode resolution is unavailable
+- **WHEN** a source lacks a current production marker and has only visual-type/renders hints
+- **THEN** Stage 1 fails before mode resolution and does not derive a current whole-page route
 
 ### Requirement: Hero guard operates on canonicalized VISUAL TYPE values
 
@@ -217,7 +228,7 @@ When the reserved top-level `identity` key is present, it SHALL be a mapping who
 
 - **WHEN** source frontmatter declares an identity scheme other than a supported value
 - **THEN** Stage 1 fails with the scheme and source location
-- **AND** does not reinterpret the source as markerless legacy input
+- **AND** does not reinterpret the source as a current whole-page input
 
 #### Scenario: Slide-named preamble stays prose
 
@@ -254,43 +265,39 @@ Stage 1 SHALL exclude physical position, heading number, source block order, and
 - **AND** only order-dependent cheap projections are rebuilt
 
 ### Requirement: Content parsing gates the opt-in HTML-first branch
+Stage 1 SHALL accept only a leading direct `production` mapping whose sole v1 key is the direct string scalar `pipeline` with value `html-first-v1` or `whole-page-image2-v1`. Missing, malformed, indirect, duplicate, retired, or unknown pipeline markers SHALL fail before branch-specific parsing and SHALL report both supported values. Anchors, aliases, merges, and explicit tags SHALL not synthesize either node.
 
-Stage 1 SHALL recognize a leading direct `production` mapping whose only v1 key is direct string scalar `pipeline` and whose supported direct string value is `html-first-v1`; anchors, aliases, merges, or explicit tags SHALL not synthesize either node, while unrelated existing top-level frontmatter keys remain governed by their owning capabilities. In that branch it SHALL delegate exactly one unindented `**SLIDE BODY**:` + immediately adjacent unindented `yaml` fence per slide to `html-slide-contract`. The fence is the sole parsed authority for visible body/callout values; repeated explanatory prose outside it remains byte-preserved human guidance and SHALL NOT be parsed as a second body. HTML-first source SHALL reject the legacy top-level `render` mapping and per-slide `RENDER MODE`, `IMAGE PROMPT`, and `VISUAL ASSETS` fields, because those would introduce competing layout/body/asset truths. Legacy sources with no `production` key SHALL retain their existing parser and output behavior. A duplicate top-level `production`, present malformed/non-mapping/indirect `production`, unsupported/missing/duplicate/indirect `production.pipeline`, unknown `production` key, or mixed branch SHALL fail loudly rather than be reclassified as legacy.
+For `html-first-v1`, Stage 1 SHALL retain the existing single canonical `slide-specifications.md` input and structured-body contract: exactly one unindented `**SLIDE BODY**:` plus adjacent `yaml` fence per slide, no competing top-level `render` mapping or `RENDER MODE`/`IMAGE PROMPT`/`VISUAL ASSETS` fields, and no alternate marked input or path override. For `whole-page-image2-v1`, Stage 1 SHALL use the current whole-page plan/prompt contract without treating the source as markerless or as a fallback branch. It SHALL not infer either pipeline from filenames, sibling files, generated bytes, or prior state.
 
-The canonical HTML-first branch SHALL accept exactly one input file, the run directory's `slide-specifications.md`, and SHALL resolve config/catalog/framework inputs from that run context rather than direct Stage-1 path overrides. Existing standalone multi-input/alternate-control-path behavior remains legacy-only in Change 2; mixing marked and unmarked inputs, passing multiple marked inputs, or supplying an alternate HTML-first style/config/deck-system/output path SHALL fail before merging identities/positions or resolving a plan.
-
-For a canonical run directory, the exact `slide-specifications.md` file is the only eligible HTML-first source. If any sibling matching the legacy `slide-specifications*.md` pattern is present (including a backup or comparison copy), the HTML-first adapter SHALL fail with a bounded multiple-source diagnostic instead of allowing `findSlideSpecs()`-style lexicographic selection. The markerless legacy branch MAY retain its existing first-file/multi-input behavior.
-
-#### Scenario: Marker selects structured parsing
-
+#### Scenario: HTML marker selects structured parsing
 - **WHEN** leading source metadata declares `production.pipeline: html-first-v1`
-- **THEN** Stage 1 emits the structured plan contract into the existing rebuildable `slide_plan.json` projection
-- **AND** it does not emit legacy page prompts or treat free-form prompt prose as source truth
+- **THEN** Stage 1 emits the structured plan contract into the rebuildable `slide_plan.json` projection
+- **AND** it does not emit whole-page prompts or parse free-form prompt prose as body truth
 
-#### Scenario: Marker omission preserves legacy behavior
+#### Scenario: Whole-page marker selects current prompt parsing
+- **WHEN** leading source metadata declares `production.pipeline: whole-page-image2-v1`
+- **THEN** Stage 1 emits the current whole-page plan/prompt contract
+- **AND** it preserves the explicit marker without invoking a compatibility reader
 
-- **WHEN** a source omits the marker
-- **THEN** Stage 1 preserves the existing legacy plan/prompt behavior
-- **AND** it does not add HTML-first fields implicitly
+#### Scenario: Marker omission fails closed
+- **WHEN** a source omits `production.pipeline`
+- **THEN** Stage 1 reports the missing marker and both supported values
+- **AND** it does not select or write a pipeline
 
-#### Scenario: Mixed legacy and HTML-first controls fail
-
+#### Scenario: Mixed HTML and whole-page controls fail
 - **WHEN** an HTML-first source also declares top-level `render` or a slide contains `IMAGE PROMPT`, `RENDER MODE`, or `VISUAL ASSETS`
 - **THEN** Stage 1 fails with the conflicting field and source location
-- **AND** it does not guess a migration or enter legacy Stage 2
+- **AND** it does not guess a transition or enter whole-page Stage 2
 
 #### Scenario: HTML-first does not merge standalone inputs
-
 - **WHEN** Stage 1 receives multiple inputs and any input declares `html-first-v1`
 - **THEN** validation fails with the single canonical source requirement
-- **AND** legacy multi-input behavior remains unchanged when every input is unmarked
+- **AND** it does not merge identities or positions
 
 #### Scenario: HTML-first does not select a backup source
-
-- **WHEN** the canonical run directory contains marked `slide-specifications.md` and any additional `slide-specifications*.md` file
-- **THEN** validation fails with the canonical-source and sibling paths
-- **AND** it does not select the lexicographically first file or merge backup content
-- **AND** markerless legacy source selection remains unchanged
+- **WHEN** a canonical HTML run contains `slide-specifications.md` plus another matching sibling
+- **THEN** validation fails with the canonical and sibling paths
+- **AND** it does not select a file lexicographically
 
 ### Requirement: HTML-first source diagnostics identify owned fields
 

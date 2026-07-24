@@ -186,7 +186,7 @@ export function buildSlideIdReservation(ids = []) {
 }
 
 /**
- * Validate an ID supplied by a creation/insertion path. Existing markerless
+ * Validate an ID supplied by a creation/insertion path. Existing explicit whole-page
  * legacy IDs do not pass through this function during ordinary deck reads.
  */
 export function validateNewSlideId(

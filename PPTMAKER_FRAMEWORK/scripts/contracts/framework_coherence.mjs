@@ -1,10 +1,22 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
-import { LEGACY_TOKEN_EXCEPTIONS, validateLegacyTokenExceptions } from "./framework_static_coherence.mjs";
+import {
+  LEGACY_TOKEN_EXCEPTIONS,
+  RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS,
+  scanRetiredWholePageTerms,
+  validateLegacyTokenExceptions,
+  validateRetiredWholePageTokenExceptions,
+} from "./framework_static_coherence.mjs";
 import { validateDocumentedCommands } from "./framework_document_command_audit.mjs";
 
-export { LEGACY_TOKEN_EXCEPTIONS, validateLegacyTokenExceptions } from "./framework_static_coherence.mjs";
+export {
+  LEGACY_TOKEN_EXCEPTIONS,
+  RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS,
+  scanRetiredWholePageTerms,
+  validateLegacyTokenExceptions,
+  validateRetiredWholePageTokenExceptions,
+} from "./framework_static_coherence.mjs";
 
 export const DOC_EXCEPTIONS = Object.freeze({
   "PPTMAKER_FRAMEWORK/reference/version-log.md": "historical migration record",
@@ -42,7 +54,7 @@ function lineAt(text, offset) { return text.slice(0, offset).split("\n").length;
 function issue(file, line, rule, message, hint) { return { file, line, rule, message, hint }; }
 
 export function validateExceptionMap(exceptions = DOC_EXCEPTIONS, linkExceptions = LINK_EXCEPTIONS) {
-  const issues = [...validateLegacyTokenExceptions()];
+  const issues = [...validateLegacyTokenExceptions(), ...validateRetiredWholePageTokenExceptions()];
   for (const [file, reason] of Object.entries(exceptions)) {
     if (/[*?]|\/$/.test(file)) issues.push(issue(file, 1, "exception-scope", "broad exception is forbidden", "name one exact file"));
     if (!String(reason).trim()) issues.push(issue(file, 1, "exception-reason", "exception reason is empty", "provide a concrete historical/template reason"));
@@ -221,8 +233,8 @@ export function validateDiagnosticAuthorityPointers({ root = "." } = {}) {
   const mainSpec = join(root, "openspec/specs/cli-surface/spec.md");
   if (existsSync(mainSpec)) {
     const purpose = readFileSync(mainSpec, "utf8").split("## Requirements", 1)[0];
-    if (!/every registered direct Node CLI/i.test(purpose) || !/15-command/i.test(purpose)) {
-      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 15-command ppt_flow surface"));
+    if (!/every registered direct Node CLI/i.test(purpose) || !/14-command/i.test(purpose)) {
+      issues.push(issue("openspec/specs/cli-surface/spec.md", 1, "diagnostic-authority", "Purpose is not global while retaining ppt_flow scope", "name all direct CLIs and the fixed 14-command ppt_flow surface"));
     }
   }
   return issues;
@@ -232,10 +244,12 @@ export function scanFrameworkCoherence({ root = "PPTMAKER_FRAMEWORK", exceptions
   const issues = [...validateExceptionMap(exceptions, linkExceptions), ...validateDiagnosticAuthorityPointers()];
   const markdown = walk(root).filter((file) => file.endsWith(".md"));
   const scriptsDir = join(root, "scripts");
+  const activeSurfaceFiles = {};
   for (const file of markdown) {
     const normalized = normalize(file).split("\\").join("/");
     if (exceptions[normalized]) continue;
     const text = readFileSync(file, "utf8");
+    activeSurfaceFiles[normalized] = text;
     issues.push(...scanMarkdownLinks(file, text, linkExceptions));
     issues.push(...scanSemanticDrift(file, text));
     issues.push(...validatePseudocodeMarkers(file, text));
@@ -247,7 +261,15 @@ export function scanFrameworkCoherence({ root = "PPTMAKER_FRAMEWORK", exceptions
   }
   for (const file of Object.keys(COMPATIBILITY_REGISTRIES).filter((file) => file.startsWith("openspec/specs/"))) {
     if (!existsSync(file)) continue;
-    issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
+    const text = readFileSync(file, "utf8");
+    activeSurfaceFiles[file] = text;
+    issues.push(...scanSemanticDrift(file, text));
   }
+  if (existsSync("openspec/specs")) {
+    for (const file of walk("openspec/specs").filter((path) => path.endsWith(".md"))) {
+      activeSurfaceFiles[normalize(file).split("\\").join("/")] = readFileSync(file, "utf8");
+    }
+  }
+  issues.push(...scanRetiredWholePageTerms(activeSurfaceFiles));
   return issues;
 }

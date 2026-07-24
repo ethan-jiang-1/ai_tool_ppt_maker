@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { EXECUTABLE_INVENTORY, normalizeExecutablePath } from "./executable_inventory.mjs";
-import { LEGACY_TOKEN_EXCEPTIONS, validateLegacyTokenExceptions } from "./framework_static_coherence.mjs";
+import {
+  LEGACY_TOKEN_EXCEPTIONS,
+  scanRetiredWholePageTerms,
+  validateLegacyTokenExceptions,
+  validateRetiredWholePageTokenExceptions,
+} from "./framework_static_coherence.mjs";
 
 export const ACTIVE_PHASES = Object.freeze([
   "00-setup",
@@ -29,6 +34,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
   "shared/state/html_review_evidence.mjs",
+  "shared/state/production_mode_transition.mjs",
   "shared/identity/canonical_json.mjs",
   "shared/identity/byte_hash.mjs",
   "shared/identity/notes_receipt.mjs",
@@ -205,6 +211,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   const files = new Map(Object.entries(inputFiles instanceof Map ? Object.fromEntries(inputFiles) : inputFiles).map(([path, value]) => [normalized(path), String(value)]));
   const issues = [];
   for (const legacyIssue of validateLegacyTokenExceptions(LEGACY_TOKEN_EXCEPTIONS)) addIssue(issues, legacyIssue.rule, legacyIssue.file, legacyIssue.message);
+  for (const retiredIssue of validateRetiredWholePageTokenExceptions()) addIssue(issues, retiredIssue.rule, retiredIssue.file, retiredIssue.message);
   const scriptFiles = new Map([...files].filter(([path]) => !path.startsWith("tests/") && !path.startsWith("tests_e2e/")));
   const rootEntries = new Set([...scriptFiles].map(([path]) => path.split("/")[0]));
   for (const entry of rootEntries) if (!ROOT_WHITELIST.has(entry)) addIssue(issues, "root-whitelist", entry, "unexpected scripts-root entry");
@@ -260,5 +267,15 @@ export function validateRepositoryArchitecture(repoRoot = process.cwd()) {
     for (const [path, source] of Object.entries(walk(absolute))) files[`${testRoot}/${path}`] = source;
   }
   const manifest = JSON.parse(files["tests/contracts/source-test-ownership-v1.json"] || readFileSync(resolve(repoRoot, "tests/contracts/source-test-ownership-v1.json"), "utf8"));
-  return validateArchitectureSnapshot({ files, manifest });
+  const result = validateArchitectureSnapshot({ files, manifest });
+  const activeSurfaceFiles = {};
+  for (const [path, source] of Object.entries(files)) {
+    const activePath = path.startsWith("tests/") || path.startsWith("tests_e2e/")
+      ? path
+      : `PPTMAKER_FRAMEWORK/scripts/${path}`;
+    activeSurfaceFiles[activePath] = source;
+  }
+  const retiredIssues = scanRetiredWholePageTerms(activeSurfaceFiles)
+    .map((entry) => ({ code: entry.rule, path: entry.file, message: entry.message }));
+  return Object.freeze({ ...result, ok: result.ok && retiredIssues.length === 0, issues: [...result.issues, ...retiredIssues] });
 }

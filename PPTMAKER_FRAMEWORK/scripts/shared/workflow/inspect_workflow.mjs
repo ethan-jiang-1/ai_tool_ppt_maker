@@ -4,7 +4,7 @@ import { basename, join, resolve } from "node:path";
 
 import {
   HTML_FIRST_PIPELINE,
-  LEGACY_PIPELINE,
+  WHOLE_PAGE_IMAGE2_PIPELINE,
 } from "../run-bundle/production_marker.mjs";
 import {
   checkBundle,
@@ -36,7 +36,7 @@ export function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
-function action(owner, actionId, kind, requiresHuman = false, displayLabel = null, { summary = null, compatibilityCommand = null, evidenceComplete = null } = {}) {
+function action(owner, actionId, kind, requiresHuman = false, displayLabel = null, { summary = null, command = null, evidenceComplete = null } = {}) {
   return Object.freeze({
     owner,
     action_id: actionId,
@@ -44,7 +44,7 @@ function action(owner, actionId, kind, requiresHuman = false, displayLabel = nul
     requires_human: requiresHuman,
     ...(displayLabel ? { display_label: displayLabel } : {}),
     ...(summary ? { summary } : {}),
-    ...(compatibilityCommand ? { compatibility_command: compatibilityCommand } : {}),
+    ...(command ? { command } : {}),
     ...(evidenceComplete !== null ? { evidence_complete: evidenceComplete } : {}),
   });
 }
@@ -157,7 +157,7 @@ function htmlAction(runDir, review) {
         posture: "guide",
         rootCause: rootCause("html-review", `${gate}-review-waived`),
         primaryAction: action("html-review", `repair-${gate}-review`, "continue", false, `Repair waived ${gate} review evidence before the next delivery review.`, {
-          compatibilityCommand: command(`pilot ${run}`),
+          command: command(`pilot ${run}`),
           evidenceComplete: false,
         }),
       };
@@ -179,7 +179,7 @@ function htmlAction(runDir, review) {
       rootCause: rootCause("html-review", "delivery-review-incomplete-lineage"),
       primaryAction: action("html-review", "repair-delivery-lineage", "continue", false, summary, {
         summary,
-        compatibilityCommand: command(`build ${run}`),
+        command: command(`build ${run}`),
         evidenceComplete: false,
       }),
     };
@@ -242,9 +242,8 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     const validation = validateStateReadOnly(deckDir, { runDir: resolved });
     const adapter = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
     const mode = adapter.ok
-      ? { ok: true, mode: adapter.mode, policy: adapter.policy, compatibility: adapter.compatibility }
+      ? { ok: true, mode: adapter.mode, policy: adapter.policy }
       : inspectRunProductionMode(deckDir, { runDir: resolved, purpose: "observe" });
-    const markerlessCompatibility = adapter.ok && adapter.compatibility != null && !existsSync(statePath(deckDir));
     const state = readState(deckDir, { purpose: "observe", heal: false, runDir: resolved });
     const source = findSlideSpecs(resolved);
     const pipeline = source && existsSync(sourcePath(resolved))
@@ -259,7 +258,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       try { refinement = projectImage2RefinementState(state, basename(resolved)); } catch (error) { refinement = { status: "invalid", reason: error.message || String(error) }; }
     }
     const completion = mode.ok && mode.mode ? projectModeCompletion(state, { runVersion: basename(resolved) }) : null;
-    return { layoutIssues, validation, mode, state, review, refinement, pipeline, markerlessCompatibility, completion };
+    return { layoutIssues, validation, mode, state, review, refinement, pipeline, completion };
   };
 
   const initialLayoutIssues = checkBundle(resolved, false);
@@ -298,7 +297,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       rootCause: rootCause("workflow-inspection", "requested-intent-invalid"),
       primaryAction: action("workflow-inspection", "inspect-current-run", "continue", false, "Inspect the current run without an intent descriptor."),
     };
-  } else if (!initial.validation.valid && !initial.markerlessCompatibility) {
+  } else if (!initial.validation.valid) {
     selected = {
       posture: "hard-stop",
       rootCause: rootCause("state", "state-validation", initial.validation.issues[0]?.path || "state.yaml"),
@@ -424,7 +423,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     continuation: selected.continuation || null,
     protectedInvariant: selected.protectedInvariant || null,
     evidenceSummary: {
-      pipeline: initial.pipeline || LEGACY_PIPELINE,
+      pipeline: initial.pipeline || WHOLE_PAGE_IMAGE2_PIPELINE,
       mode: initial.mode.ok ? initial.mode.mode : null,
       html_review_ready: initial.review?.ready ?? null,
       refinement_status: initial.refinement?.status ?? null,

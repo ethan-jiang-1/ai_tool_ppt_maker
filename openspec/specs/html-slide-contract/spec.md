@@ -4,29 +4,24 @@
 TBD - created by archiving change add-structured-html-slide-contract. Update Purpose after archive.
 ## Requirements
 ### Requirement: HTML-first source produces one validated structured slide plan
-
-The opt-in `production.pipeline: html-first-v1` source branch SHALL require a valid UTF-8 source file with no NUL byte and exactly one structured body inside every slide block. `source_sha256` SHALL hash the exact source file bytes. The exact field grammar SHALL be an unindented `**SLIDE BODY**:` line immediately followed by an unindented ```` ```yaml ```` opener, YAML content, and an unindented ```` ``` ```` closer; the label/opener/closer lines are case-sensitive and contain no leading or trailing whitespace. Blank lines, prose, another info string, an indented fence, or more than one such field SHALL not be guessed as the owned body. Each YAML root SHALL be a mapping containing `schema_version: 1`, one registered `family`, that family's root fields, optional `callout`, and only the visual fields permitted by that family. It SHALL NOT repeat slide ID, position, Markdown header fields, concept, or notes. `KICKER`, `TITLE`, optional `SUBTITLE`, `CONCEPT`, and speaker notes SHALL remain owned by the surrounding Markdown slide block. The structured fence SHALL be the sole parsed authority for visible body/callout values; literal repetition in surrounding human prose is preserved but does not become a second contract input. Unsupported schema versions, missing/duplicate bodies, unknown fields, or conflicting legacy fields SHALL fail before a plan is published.
+The opt-in `production.pipeline: html-first-v1` source branch SHALL require a valid UTF-8 source file with no NUL byte and exactly one structured body inside every slide block. `source_sha256` SHALL hash the exact source file bytes. The exact field grammar SHALL be an unindented `**SLIDE BODY**:` line immediately followed by an unindented ```` ```yaml ```` opener, YAML content, and an unindented ```` ``` ```` closer; the label/opener/closer lines are case-sensitive and contain no leading or trailing whitespace. Blank lines, prose, another info string, an indented fence, or more than one such field SHALL not be guessed as the owned body. Each YAML root SHALL be a mapping containing `schema_version: 1`, one registered `family`, that family's root fields, optional `callout`, and only the visual fields permitted by that family. It SHALL NOT repeat slide ID, position, Markdown header fields, concept, or notes. `KICKER`, `TITLE`, optional `SUBTITLE`, `CONCEPT`, and speaker notes SHALL remain owned by the surrounding Markdown slide block. The structured fence SHALL be the sole parsed authority for visible body/callout values; literal repetition in surrounding human prose is preserved but does not become a second contract input. Unsupported schema versions, missing/duplicate bodies, unknown fields, or conflicting whole-page controls SHALL fail before a plan is published.
 
 #### Scenario: Every structured slide parses
-
 - **WHEN** a source declares `production.pipeline: html-first-v1` and every slide contains exactly one valid `SLIDE BODY` fence
 - **THEN** parsing emits one versioned structured plan containing stable IDs, current positions, header/body content, family records, and source locators
 - **AND** no browser, Image2 provider, or PPTX stage is invoked
 
 #### Scenario: Missing one slide body fails the source
-
 - **WHEN** one HTML-first slide omits its `SLIDE BODY` fence or contains two fences
 - **THEN** parsing fails with that slide ID and fence location evidence
 - **AND** no partial plan is published
 
-#### Scenario: Legacy source remains outside the branch
-
-- **WHEN** a source has no HTML-first pipeline marker
-- **THEN** existing legacy Stage 1 parsing remains selected
+#### Scenario: Whole-page source remains outside the HTML branch
+- **WHEN** a source declares `production.pipeline: whole-page-image2-v1`
+- **THEN** the current whole-page Stage-1 contract remains selected
 - **AND** HTML-first fields are not inferred from prompt prose
 
 #### Scenario: Near-miss body syntax is not inferred
-
 - **WHEN** an HTML-first slide uses `SLIDE BODY` prose, a `json` fence, an indented fence, or a blank line between the field label and YAML opener
 - **THEN** validation reports the missing exact body grammar for that slide
 - **AND** it does not scan another code block and reinterpret it as source truth
@@ -362,34 +357,10 @@ The parser/serializer SHALL additionally expose a public Phase-3 selection-bindi
 - **THEN** only the target slide's owned selection binding changes
 - **AND** all non-owned Markdown, other slide blocks, and geometry remain unchanged
 
-### Requirement: Migration candidate inputs are a closed receipt-bound overlay
+### Requirement: HTML and whole-page source contracts are disjoint
+The HTML contract SHALL accept only a canonical `html-first-v1` source and SHALL not validate, project, or convert a `whole-page-image2-v1` source into structured HTML inputs. A current whole-page source SHALL remain owned by its explicit whole-page plan/prompt contract; the HTML contract SHALL not provide a scratch overlay, fallback marker reader, or publication context for it.
 
-The HTML contract SHALL expose one migration-candidate validation entry reachable only from the closed migration adapter. It SHALL accept the current source run plus its exact confined `_scratch/html-migration/projected-run/` candidate root, not caller-supplied source, palette, asset, or publication paths. The candidate source is authoritative for proposed slide content; effective visual inputs use the ordered precedence `candidate overrides > source-version overrides > deck-root backbone`. The candidate root may supply only the normal version-local override shapes already owned by run-bundle layout; it SHALL not emulate a deck root, supply metadata/state, or alter normal public HTML validation.
-
-The entry SHALL use the same parser, structured-body validator, visual-config validator, asset-catalog validator, preflight, and plan builder as canonical HTML validation. It SHALL return one normalized receipt projection, serialized through the existing canonical sorted `base_receipts` and `candidate_receipts` arrays, covering candidate source/overrides and every inherited source-version/backbone input that influenced the plan, with paths confined relative to the real deck root. Revalidation SHALL reject an arbitrary candidate root, a symlink escape, receipt drift, or a forged overlay before renderer context issuance. It SHALL not create a second plan/freshness authority.
-
-Preparation SHALL preserve every retained formal slide ID verbatim. It SHALL add `identity.scheme: mnemonic-v1` only when all retained IDs already satisfy that scheme; otherwise the candidate omits that marker and retains compatible legacy identity validation. Legacy `IMAGE PROMPT` fields SHALL not appear in the candidate structured source. Any retained prompt reference is authoring-only support and SHALL not enter the structured plan, receipt-derived visible contract, or staged target.
-
-#### Scenario: Candidate palette shadows inherited controls
-
-- **WHEN** a prepared candidate has `overrides/visual-style/color_palette.json`
-- **THEN** migration validation uses that palette ahead of a source-version override and backbone palette
-- **AND** the receipt set binds every selected candidate and inherited control input
-
-#### Scenario: Candidate asset overlay is receipt-bound
-
-- **WHEN** a candidate sparse asset override adds or replaces one referenced asset ID
-- **THEN** the structured plan resolves that candidate asset ahead of inherited catalogs
-- **AND** its manifest and bytes are included in the candidate validation receipts
-
-#### Scenario: Arbitrary migration input path is rejected
-
-- **WHEN** a caller attempts to validate a source, palette, asset, or candidate root outside the exact migration projected root
-- **THEN** validation fails before source-plan or renderer publication
-- **AND** no alternate public validation path is created
-
-#### Scenario: Legacy identity remains stable through preparation
-
-- **WHEN** a markerless source has retained stable IDs that do not all satisfy `mnemonic-v1`
-- **THEN** preparation preserves those IDs and omits the mnemonic marker
-- **AND** it does not rewrite IDs merely to make the candidate parse
+#### Scenario: Whole-page source reaches the HTML contract
+- **WHEN** a source declares `production.pipeline: whole-page-image2-v1`
+- **THEN** the HTML contract rejects it before structured-plan or renderer-context creation
+- **AND** it names the whole-page contract as the owning route

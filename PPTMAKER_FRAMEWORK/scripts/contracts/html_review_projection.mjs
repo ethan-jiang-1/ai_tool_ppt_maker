@@ -112,8 +112,7 @@ export function htmlPageVisualDependenciesV1(plan) {
 export function buildHtmlReviewPlan({ plan, composition = null, kind, publicationScope = "canonical-run", htmlProductionResetId = null, logicalRunVersion, outstanding = [], compositionVariant = "effective" } = {}) {
   if (!plan || !Array.isArray(plan.slides)) throw new TypeError("review plan requires a validated HTML plan");
   if (!["content", "visual"].includes(kind)) throw new TypeError("review plan kind must be content or visual");
-  if (!["canonical-run", "migration-preview"].includes(publicationScope)) throw new TypeError("review plan publication scope is invalid");
-  if (publicationScope === "migration-preview" && htmlProductionResetId !== null) throw new TypeError("migration-preview review plans require a null reset ID");
+  if (publicationScope !== "canonical-run") throw new TypeError("review plan publication scope is invalid");
   if (typeof logicalRunVersion !== "string" || !logicalRunVersion) throw new TypeError("review plan logical run version is required");
   if (!["effective", "forced-fallback"].includes(compositionVariant)) throw new TypeError("review plan composition variant is invalid");
   const shown = composition?.final_slides || composition?.pages || [];

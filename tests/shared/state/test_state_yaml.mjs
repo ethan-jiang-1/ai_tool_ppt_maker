@@ -1,748 +1,316 @@
-import { describe, it, expect } from 'vitest';
-import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
 import {
+  HISTORY_FILE,
   STATE_DIR,
   STATE_FILE,
-  createDefaultState,
-  createInitialState,
-  writeState,
-  readState,
-  switchPlaybook,
-  resumePlaybook,
-  startPlaybook,
-  setNodeStatus,
-  setGate,
-  setNodeEvidence,
-  getNodeStatus,
-  getPendingNodes,
-  isPlaybookComplete,
   STATE_SCHEMA_VERSION,
   healState,
-  normalizePlaybookStack,
-  projectImage2RefinementState,
-  readImage2RefinementState,
-  writeImage2RefinementState,
-  IMAGE2_REFINEMENT_STATE_SCHEMA_V1,
-  IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
-  IMAGE_PRODUCTION_STATE_SCHEMA_V1,
-  removeImageProductionStateRecord,
+  parseStateYaml,
+  readState,
+  statePath,
   validateStateReadOnly,
+  writeImage2RefinementState,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs';
 import { createHtmlFirstRun } from '../../helpers/html_first_fixture.mjs';
 
-function tmpDeck(tag) {
-  const deck = join(tmpdir(), `deck_state_${tag}_${Date.now()}_${Math.random().toString(16).slice(2)}`);
-  mkdirSync(join(deck, STATE_DIR), { recursive: true });
-  return deck;
+const FLOW = 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs';
+
+function runFlow(args) {
+  return spawnSync('node', [FLOW, ...args], { cwd: process.cwd(), encoding: 'utf8', timeout: 30_000 });
 }
 
-describe('state.yaml yaml library + heal', () => {
-  it('stores refinement evidence only as a version-scoped reserved record', () => {
-    const fixture = createHtmlFirstRun('image2-refinement-state-');
+function digest(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function parsedState(path) {
+  const parsed = parseStateYaml(readFileSync(path, 'utf8'));
+  if (!parsed.ok) throw new Error('fixture state must parse');
+  return parsed.value;
+}
+
+function stateAndHistory(fixture) {
+  const state = statePath(fixture.deck);
+  const history = join(fixture.deck, STATE_DIR, HISTORY_FILE);
+  mkdirSync(join(fixture.deck, STATE_DIR), { recursive: true });
+  writeFileSync(history, '{"type":"preserved-test"}\n');
+  return { state, history, stateBytes: readFileSync(state), historyBytes: readFileSync(history) };
+}
+
+function lastCliEnvelope(result) {
+  return JSON.parse(result.stderr.trim().split(/\r?\n/).filter(Boolean).at(-1));
+}
+
+function assertHistoricalCliHardStop(result) {
+  expect(result.status).toBeGreaterThan(0);
+  const envelope = lastCliEnvelope(result);
+  expect(envelope.diagnostic).toMatchObject({
+    version: 1,
+    next: { action: 'repair_prerequisite' },
+  });
+  expect(envelope.diagnostic.next.action).not.toBe('report_internal');
+  expect(envelope.diagnostic).not.toHaveProperty('actions');
+  return envelope;
+}
+
+function assertNoHistoricalExecutionWrites(fixture, before) {
+  expect(digest(readFileSync(before.state))).toBe(digest(before.stateBytes));
+  expect(digest(readFileSync(before.history))).toBe(digest(before.historyBytes));
+  expect(existsSync(join(fixture.runDir, '_scratch', 'production-mode-transition', 'apply-journal.json'))).toBe(false);
+  expect(existsSync(join(fixture.deck, '3_versions', 'v2'))).toBe(false);
+  expect(existsSync(join(fixture.deck, '3_versions', '.v2.production-mode-transition-reservation-' + 'a'.repeat(64)))).toBe(false);
+  expect(existsSync(join(fixture.deck, '3_versions', '.v2.production-mode-transition-staging-' + 'a'.repeat(64)))).toBe(false);
+}
+
+function expectHistoricalHardStop(fixture, mutate) {
+  const before = stateAndHistory(fixture);
+  mutate(before.state);
+  const corruptedStateBytes = readFileSync(before.state);
+  const corruptedHistoryBytes = readFileSync(before.history);
+
+  const observed = readState(fixture.deck, { purpose: 'observe', runVersion: 'v1' });
+  expect(observed).toMatchObject({ replacement_required: true, code: 'replacement_required' });
+  expect(observed.durable_state_present).toBe(false);
+  expect(readFileSync(before.state)).toEqual(corruptedStateBytes);
+  expect(readFileSync(before.history)).toEqual(corruptedHistoryBytes);
+
+  expect(() => writeImage2RefinementState(fixture.deck, 'v1', {
+    schema: 'pptmaker-image2-refinement-state-v2',
+    run_version: 'v1',
+    plan: null,
+    authorization: null,
+    attempts: {},
+    reviews: {},
+    prerequisite_waiver: null,
+  })).toThrow(/replacement_required/);
+  expect(readFileSync(before.state)).toEqual(corruptedStateBytes);
+  expect(readFileSync(before.history)).toEqual(corruptedHistoryBytes);
+  return { before, observed };
+}
+
+describe('state.yaml current-schema read boundary', () => {
+  it('reads current v5 state without observation mutation', () => {
+    const fixture = createHtmlFirstRun('current-state-read-');
     try {
-      const before = readFileSync(join(fixture.deck, STATE_DIR, STATE_FILE));
-      const record = { schema: 'pptmaker-image2-refinement-state-v1', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
-      const expected = { ...record, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', prerequisite_waiver: null };
-      expect(writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: createHash('sha256').update(before).digest('hex') })).toEqual(expected);
-      const state = readState(fixture.deck);
-      expect(readImage2RefinementState(state, 'v1')).toEqual(expected);
-      expect(state.nodes['image-production'].by_version['3_versions/v1']).toEqual(expected);
-      expect(state.nodes['image2-refinement']).toBeUndefined();
-      expect(() => writeImage2RefinementState(fixture.deck, 'v1', { ...record, extra: true })).toThrow(/invalid/);
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+      const { state, history, stateBytes, historyBytes } = stateAndHistory(fixture);
+      const observed = readState(fixture.deck, { purpose: 'observe', runVersion: 'v1' });
+      expect(observed.schema_version).toBe(STATE_SCHEMA_VERSION);
+      expect(observed.durable_state_present).toBe(true);
+      expect(readFileSync(state)).toEqual(stateBytes);
+      expect(readFileSync(history)).toEqual(historyBytes);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
   });
 
-  it('reads v1 and v2 refinement records without observation migration', () => {
-    const fixture = createHtmlFirstRun('image2-refinement-v2-reader-');
+  it('rejects malformed state bytes without inventing a pipeline or replacement state', () => {
+    const fixture = createHtmlFirstRun('malformed-state-');
     try {
-      const stateFile = join(fixture.deck, STATE_DIR, STATE_FILE);
-      const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V1, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {} };
-      const legacyState = readState(fixture.deck, { heal: false });
-      legacyState.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy } };
-      writeState(fixture.deck, legacyState);
-      const legacyBytes = readFileSync(stateFile);
-      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual({ ...legacy, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', prerequisite_waiver: null });
-      expect(readFileSync(stateFile)).toEqual(legacyBytes);
-
-      const current = {
-        schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
-        run_version: 'v1',
-        plan: null,
-        authorization: null,
-        attempts: {},
-        reviews: {},
-        prerequisite_waiver: null,
-      };
-      writeImage2RefinementState(fixture.deck, 'v1', current);
-      const currentBytes = readFileSync(stateFile);
-      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual({ ...current, schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot' });
-      expect(readFileSync(stateFile)).toEqual(currentBytes);
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+      const { observed } = expectHistoricalHardStop(fixture, (state) => writeFileSync(state, '][}{\n'));
+      expect(observed.pipeline).toBeNull();
+      expect(observed.reason).toMatch(/not safely parseable/);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
   });
-  it('accepts equal dual records without observation mutation and rejects conflicts or a wrong adapter', () => {
-    const fixture = createHtmlFirstRun('image-production-dual-reader-');
+
+  it('rejects pre-current schema bytes instead of migrating controller or mode identity', () => {
+    const fixture = createHtmlFirstRun('precurrent-state-');
     try {
-      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
-      const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
-      const current = { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
-      const state = readState(fixture.deck, { heal: false });
-      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy } };
-      state.nodes['image-production'] = { by_version: { '3_versions/v1': current } };
-      writeState(fixture.deck, state);
-      const equalBytes = readFileSync(path);
-      expect(readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toEqual(current);
-      expect(readFileSync(path)).toEqual(equalBytes);
-
-      const conflicting = readState(fixture.deck, { heal: false });
-      conflicting.nodes['image-production'].by_version['3_versions/v1'] = { ...current, reviews: { AlphaGo: { decision: 'pending' } } };
-      writeFileSync(path, `${JSON.stringify(conflicting, null, 2)}\n`);
-      const conflictBytes = readFileSync(path);
-      expect(() => readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toThrow(/conflict requires repair_state/);
-      expect(readFileSync(path)).toEqual(conflictBytes);
-
-      conflicting.nodes['image-production'].by_version['3_versions/v1'] = { ...current, adapter: 'whole-page' };
-      writeFileSync(path, `${JSON.stringify(conflicting, null, 2)}\n`);
-      expect(() => readImage2RefinementState(readState(fixture.deck, { purpose: 'observe' }), 'v1')).toThrow(/invalid/);
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+      const { observed } = expectHistoricalHardStop(fixture, (state) => {
+        const current = parsedState(state);
+        current.schema_version = STATE_SCHEMA_VERSION - 1;
+        current.current_node = 'hitl2';
+        writeFileSync(state, `${JSON.stringify(current, null, 2)}\n`);
+      });
+      expect(observed.reason).toMatch(/unsupported state schema_version/);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
   });
-  it('removes both exact-version compatibility records on terminal decline without a replacement', () => {
-    const state = createDefaultState();
-    const legacy = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
-    const current = { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'visual-slot', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
-    state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': legacy, '3_versions/v2': { ...legacy, run_version: 'v2' } } };
-    state.nodes['image-production'] = { by_version: { '3_versions/v1': current } };
-    removeImageProductionStateRecord(state, 'v1');
-    expect(state.nodes['image-production']).toBeUndefined();
-    expect(state.nodes['image2-refinement'].by_version).toEqual({ '3_versions/v2': { ...legacy, run_version: 'v2' } });
-  });
-  it('preserves bytes for repair_state and rejects a stale visual-slot CAS precondition', () => {
-    const fixture = createHtmlFirstRun('image-production-cas-repair-');
+
+  it('rejects topology-only active version identity without selecting a visible version', () => {
+    const fixture = createHtmlFirstRun('topology-only-state-');
     try {
-      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
-      const record = { schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2, run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null };
-      const state = readState(fixture.deck, { heal: false });
-      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': record } };
-      writeState(fixture.deck, state);
-      const beforeCas = readFileSync(path);
-      expect(() => writeImage2RefinementState(fixture.deck, 'v1', record, { expectedStateSha: 'f'.repeat(64) })).toThrow(/precondition changed/);
-      expect(readFileSync(path)).toEqual(beforeCas);
+      const { observed } = expectHistoricalHardStop(fixture, (state) => {
+        const current = parsedState(state);
+        delete current.run_version;
+        writeFileSync(state, `${JSON.stringify(current, null, 2)}\n`);
+      });
+      expect(observed.reason).toMatch(/active execution missing canonical run_version/);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
 
-      const malformed = readState(fixture.deck, { heal: false });
-      malformed.nodes['image-production'] = { by_version: { '3_versions/v1': { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: 'whole-page', run_version: 'v1', plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null } } };
-      writeFileSync(path, `${JSON.stringify(malformed, null, 2)}\n`);
-      const preserved = readFileSync(path);
+  it('rejects missing source markers without using controller or filesystem topology as fallback', () => {
+    const fixture = createHtmlFirstRun('markerless-state-');
+    try {
+      const { observed } = expectHistoricalHardStop(fixture, () => {
+        writeFileSync(join(fixture.runDir, 'slide-specifications.md'), '# Slides\n');
+      });
+      expect(observed.reason).toMatch(/source\/state identity is unsupported/);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps historical marker, schema, topology, and retired Controller inputs byte-preserving across CLI observation and execution', () => {
+    const cases = [
+      {
+        name: 'missing marker',
+        mutate: (fixture) => writeFileSync(join(fixture.runDir, 'slide-specifications.md'), '# Slides\n'),
+      },
+      {
+        name: 'retired marker',
+        mutate: (fixture) => writeFileSync(join(fixture.runDir, 'slide-specifications.md'), '---\nproduction:\n  pipeline: legacy-image2-first\n---\n\n# Slides\n'),
+      },
+      {
+        name: 'pre-current schema',
+        mutate: (_fixture, state) => { state.schema_version = STATE_SCHEMA_VERSION - 1; },
+      },
+      {
+        name: 'topology-only version',
+        mutate: (_fixture, state) => { delete state.run_version; },
+      },
+      {
+        name: 'retired Controller',
+        mutate: (_fixture, state) => {
+          state.playbook = 'migrate-import';
+          state.current_node = 'apply-migrate-import';
+          state.nodes = {
+            'apply-migrate-import': {
+              status: 'in_progress',
+              execution_id: state.execution_id,
+              run_version: 'v1',
+            },
+          };
+        },
+      },
+      {
+        name: 'retired node identity',
+        mutate: (_fixture, state) => {
+          state.current_node = 'migrate-html-receipt';
+          state.nodes = {
+            'migrate-html-receipt': {
+              status: 'in_progress',
+              execution_id: state.execution_id,
+              run_version: 'v1',
+            },
+          };
+        },
+      },
+    ];
+
+    for (const entry of cases) {
+      const fixture = createHtmlFirstRun(`historical-${entry.name.replaceAll(' ', '-')}-`);
+      try {
+        const before = stateAndHistory(fixture);
+        const state = parsedState(before.state);
+        entry.mutate(fixture, state);
+        if (entry.name !== 'missing marker' && entry.name !== 'retired marker') {
+          writeFileSync(before.state, `${JSON.stringify(state, null, 2)}\n`);
+        }
+        before.stateBytes = readFileSync(before.state);
+        before.historyBytes = readFileSync(before.history);
+
+        const observed = runFlow(['state', fixture.runDir, '--json']);
+        const observationEnvelope = assertHistoricalCliHardStop(observed);
+        expect(observationEnvelope.diagnostic.next.default).toContain('fresh current run');
+        assertNoHistoricalExecutionWrites(fixture, before);
+
+        const execution = runFlow(['state', fixture.runDir, '--set-production-mode', 'html-then-image2']);
+        const executionEnvelope = assertHistoricalCliHardStop(execution);
+        expect(executionEnvelope.diagnostic.next.default).toContain('fresh explicit ppt_flow init');
+        expect(executionEnvelope.diagnostic.next.default).not.toMatch(/edit.*yaml/i);
+        assertNoHistoricalExecutionWrites(fixture, before);
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it('keeps the direct helper non-promoting for compatibility consumers', () => {
+    const raw = { schema_version: 4, current_node: 'hitl2' };
+    const result = healState(raw);
+    expect(result).toEqual({ state: raw, dirty: false });
+    expect(result.state).not.toBe(raw);
+  });
+
+  it('reports current malformed records read-only without changing their bytes', () => {
+    const fixture = createHtmlFirstRun('current-invalid-readonly-');
+    try {
+      const { state, history } = stateAndHistory(fixture);
+      const current = parsedState(state);
+      current.production_mode.by_version['3_versions/v1'] = { mode: 'not-a-mode' };
+      writeFileSync(state, `${JSON.stringify(current, null, 2)}\n`);
+      const stateBefore = readFileSync(state);
+      const historyBefore = readFileSync(history);
       const report = validateStateReadOnly(fixture.deck, { runDir: fixture.runDir });
       expect(report.valid).toBe(false);
-      expect(report.issues).toEqual(expect.arrayContaining([expect.objectContaining({ next_action: 'repair_state' })]));
-      expect(readFileSync(path)).toEqual(preserved);
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  });
-  it('projects every bounded refinement status and human-action boundary', () => {
-    const plan = { plan_hash: 'a'.repeat(64) };
-    const authorization = { authorization_id: 'auth-one', plan_hash: plan.plan_hash, used: false };
-    const attempt = (state, extra = {}) => ({ attempt_id: 'attempt-one', kind: 'slot', slide_id: 'AlphaGo', state, ...extra });
-    const review = (decision) => ({ slide_id: 'AlphaGo', candidate_id: 'candidate-one', decision });
-    const project = ({ plan: currentPlan = plan, authorization: currentAuthorization = authorization, attempts = {}, reviews = {} } = {}) => {
-      const state = createDefaultState();
-      state.nodes['image2-refinement'] = { by_version: { '3_versions/v1': { schema: 'pptmaker-image2-refinement-state-v1', run_version: 'v1', plan: currentPlan, authorization: currentAuthorization, attempts, reviews } } };
-      return projectImage2RefinementState(state, 'v1');
-    };
-    expect(project({ plan: null, authorization: null })).toMatchObject({ status: 'planned', human_action_required: true });
-    expect(project({ authorization: null })).toMatchObject({ status: 'awaiting-authorization', human_action_required: true });
-    expect(project({ attempts: { 'attempt-one': attempt('planned') } })).toMatchObject({ status: 'in-progress', human_action_required: false });
-    expect(project({ attempts: { 'attempt-one': attempt('unknown-submit') } })).toMatchObject({ status: 'unknown-submit', human_action_required: true });
-    expect(project({ attempts: { 'attempt-one': attempt('failed', { failure_code: 'provider_failure' }) } })).toMatchObject({ status: 'failed', human_action_required: true });
-    expect(project({ attempts: { 'attempt-one': attempt('submitted') }, reviews: { AlphaGo: review('pending') } })).toMatchObject({ status: 'review-pending', human_action_required: true });
-    expect(project({ attempts: { 'attempt-one': attempt('submitted') }, reviews: { AlphaGo: review('use-html') } })).toMatchObject({ status: 'complete', human_action_required: false });
-  });
-  it('preserves unusable HTML state bytes while requiring explicit replacement', () => {
-    const fixture = createHtmlFirstRun('html-state-replacement-');
-    try {
-      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
-      const broken = Buffer.from('][}{\n');
-      writeFileSync(path, broken);
-      expect(readState(fixture.deck, { purpose: 'observe' })).toMatchObject({
-        replacement_required: true,
-        pipeline: 'html-first-v1',
-      });
-      expect(readFileSync(path)).toEqual(broken);
+      expect(report.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ next_action: 'repair_state' }),
+      ]));
+      expect(digest(readFileSync(state))).toBe(digest(stateBefore));
+      expect(digest(readFileSync(history))).toBe(digest(historyBefore));
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
-  it('preserves HTML state bytes when source and durable pipeline conflict', () => {
-    const fixture = createHtmlFirstRun('html-state-pipeline-conflict-');
+  it('repairs one current v5 gate scalar only through an execution read', () => {
+    const fixture = createHtmlFirstRun('current-v5-owner-repair-');
     try {
-      const path = join(fixture.deck, STATE_DIR, STATE_FILE);
-      const state = readState(fixture.deck, { heal: false });
-      state.pipeline = 'legacy-image2-v1';
-      writeState(fixture.deck, state);
-      const conflicting = readFileSync(path);
-      expect(readState(fixture.deck, { purpose: 'observe' })).toMatchObject({
-        replacement_required: true,
-      });
-      expect(readFileSync(path)).toEqual(conflicting);
+      const { state, history } = stateAndHistory(fixture);
+      const current = parsedState(state);
+      current.gates.content = 'legacy-pending';
+      writeFileSync(state, `${JSON.stringify(current, null, 2)}\n`);
+      const stateBefore = readFileSync(state);
+      const historyBefore = readFileSync(history);
+
+      const observed = readState(fixture.deck, { purpose: 'observe', runVersion: 'v1' });
+      expect(observed).toMatchObject({ replacement_required: true, current_repair_required: true });
+      expect(readFileSync(state)).toEqual(stateBefore);
+      expect(readFileSync(history)).toEqual(historyBefore);
+
+      const repaired = readState(fixture.deck, { purpose: 'execute', runVersion: 'v1' });
+      expect(repaired.state_repaired).toEqual({ field: 'gates.content', from: 'legacy-pending', to: 'pending' });
+      expect(repaired.gates.content).toBe('pending');
+      expect(readFileSync(state)).not.toEqual(stateBefore);
+      expect(readFileSync(history)).toEqual(historyBefore);
+      expect(parsedState(state).gates.content).toBe('pending');
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
-  it('empty playbook_stack round-trips as array', () => {
-    const deck = tmpDeck('empty');
+  it('hard-stops an unrecoverable current v5 record without raw-YAML guidance', () => {
+    const fixture = createHtmlFirstRun('current-v5-unrecoverable-');
     try {
-      const s = createDefaultState();
-      expect(Array.isArray(s.playbook_stack)).toBe(true);
-      expect(s.playbook_stack).toHaveLength(0);
-      writeState(deck, s);
-      const body = readFileSync(join(deck, STATE_DIR, STATE_FILE), 'utf-8');
-      expect(body.startsWith('#')).toBe(true);
-      expect(body).toMatch(/playbook_stack:\s*\[\]/);
-      const loaded = readState(deck);
-      expect(Array.isArray(loaded.playbook_stack)).toBe(true);
-      expect(loaded.playbook_stack).toHaveLength(0);
-      expect(() => switchPlaybook(loaded, 'iterate-style')).toThrow(/active playbook/);
-      startPlaybook(loaded, 'create-deck');
-      expect(() => switchPlaybook(loaded, 'iterate-style')).not.toThrow();
-      expect(loaded.playbook_stack).toHaveLength(1);
+      const { state, history } = stateAndHistory(fixture);
+      const current = parsedState(state);
+      current.production_mode.by_version['3_versions/v1'] = { mode: 'not-a-mode' };
+      writeFileSync(state, `${JSON.stringify(current, null, 2)}\n`);
+      const stateBefore = readFileSync(state);
+      const historyBefore = readFileSync(history);
+
+      const observed = readState(fixture.deck, { purpose: 'observe', runVersion: 'v1' });
+      expect(observed).toMatchObject({ replacement_required: true });
+      expect(observed.current_repair_required).not.toBe(true);
+      expect(readFileSync(state)).toEqual(stateBefore);
+      expect(readFileSync(history)).toEqual(historyBefore);
+
+      const execution = runFlow(['state', fixture.runDir, '--set-production-mode', 'html-then-image2']);
+      const envelope = assertHistoricalCliHardStop(execution);
+      expect(envelope.diagnostic.next.default).not.toMatch(/edit.*yaml/i);
+      expect(readFileSync(state)).toEqual(stateBefore);
+      expect(readFileSync(history)).toEqual(historyBefore);
     } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('non-empty playbook_stack round-trips object entries', () => {
-    const deck = tmpDeck('stack');
-    try {
-      const s = createInitialState('demo', 'keynote', 'dark');
-      s.pipeline = 'html-first-v1';
-      s.current_node = 'setup';
-      switchPlaybook(s, 'iterate-style');
-      writeState(deck, s);
-      const loaded = readState(deck);
-      expect(Array.isArray(loaded.playbook_stack)).toBe(true);
-      expect(loaded.playbook_stack).toHaveLength(1);
-      expect(loaded.playbook_stack[0].playbook).toBe('create-deck');
-      expect(loaded.playbook_stack[0].current_node).toBe('configure-visual-system');
-      expect(loaded.playbook).toBe('iterate-style');
-      resumePlaybook(loaded);
-      expect(loaded.playbook).toBe('create-deck');
-      expect(loaded.current_node).toBe('configure-visual-system');
-      expect(loaded.playbook_stack).toHaveLength(0);
-      writeState(deck, loaded);
-      const again = readState(deck);
-      expect(again.playbook).toBe('create-deck');
-      expect(Array.isArray(again.playbook_stack)).toBe(true);
-      expect(again.playbook_stack).toHaveLength(0);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('legacy playbook_stack: {} is healed and rewritten', () => {
-    const deck = tmpDeck('legacy');
-    try {
-      const dirty = `\
-# header
-playbook: create-deck
-current_node: setup
-nodes: {}
-gates:
-  content: pending
-  visual: pending
-deck:
-  name: x
-  type: keynote
-  style: dark
-playbook_stack: {}
-`;
-      writeFileSync(join(deck, STATE_DIR, STATE_FILE), dirty, 'utf-8');
-      const loaded = readState(deck);
-      expect(loaded.corrupted).toBeFalsy();
-      expect(Array.isArray(loaded.playbook_stack)).toBe(true);
-      expect(loaded.playbook_stack).toHaveLength(0);
-      expect(loaded._healed).toBe(true);
-      const body = readFileSync(join(deck, STATE_DIR, STATE_FILE), 'utf-8');
-      expect(body).toMatch(/playbook_stack:\s*\[\]/);
-      expect(() => switchPlaybook(loaded, 'iterate-style')).not.toThrow();
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('unparseable YAML is backed up and seeded usable', () => {
-    const deck = tmpDeck('broken');
-    try {
-      // Truly unparseable for `yaml` parseDocument (not merely warn-and-recover)
-      writeFileSync(join(deck, STATE_DIR, STATE_FILE), '][}{', 'utf-8');
-      const loaded = readState(deck);
-      expect(loaded.corrupted).toBeFalsy();
-      expect(typeof loaded.playbook).toBe('string');
-      expect(Array.isArray(loaded.playbook_stack)).toBe(true);
-      expect(existsSync(join(deck, STATE_DIR, STATE_FILE))).toBe(true);
-      const backups = readdirSync(join(deck, STATE_DIR)).filter((f) =>
-        f.startsWith(`${STATE_FILE}.broken.`)
-      );
-      expect(backups.length).toBeGreaterThanOrEqual(1);
-      const strict = readState(deck, { heal: false });
-      expect(strict.corrupted).toBeFalsy();
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('parse-with-errors still heals to usable mapping and rewrites', () => {
-    const deck = tmpDeck('warn');
-    try {
-      writeFileSync(
-        join(deck, STATE_DIR, STATE_FILE),
-        'playbook: [\n  this is not: valid: yaml :::\n',
-        'utf-8'
-      );
-      const loaded = readState(deck);
-      expect(loaded.corrupted).toBeFalsy();
-      expect(typeof loaded.playbook).toBe('string');
-      expect(Array.isArray(loaded.playbook_stack)).toBe(true);
-      expect(loaded._healed).toBe(true);
-      const body = readFileSync(join(deck, STATE_DIR, STATE_FILE), 'utf-8');
-      expect(body.startsWith('#')).toBe(true);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('heal:false still exposes corruption for diagnostics', () => {
-    const deck = tmpDeck('strict');
-    try {
-      writeFileSync(join(deck, STATE_DIR, STATE_FILE), '][}{', 'utf-8');
-      const loaded = readState(deck, { heal: false });
-      expect(loaded.corrupted).toBe(true);
-      expect(Array.isArray(loaded.errors)).toBe(true);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('healState + normalizePlaybookStack are idempotent on clean state', () => {
-    const s = createInitialState('a', 'pitch', 'x');
-    const { state, dirty } = healState(s);
-    expect(dirty).toBe(false);
-    normalizePlaybookStack(state);
-    expect(Array.isArray(state.playbook_stack)).toBe(true);
-  });
-
-  it('waiting_for survives heal round-trip', () => {
-    const deck = tmpDeck('waiting');
-    try {
-      const s = createInitialState('demo', 'keynote', 'dark');
-      s.pipeline = 'html-first-v1';
-      s.playbook = 'iterate-style';
-      s.current_node = 'review-style-system';
-      s.run_version = 'v1';
-      s.nodes = {
-        'review-style-system': {
-          status: 'in_progress',
-          execution_id: s.execution_id,
-          run_version: 'v1',
-          waiting_for: 'user:review-style-master',
-          note: 'open style master',
-        },
-      };
-      writeState(deck, s);
-      const loaded = readState(deck);
-      expect(loaded.nodes['review-style-system'].waiting_for).toBe('user:review-style-master');
-      expect(loaded.nodes['review-style-system'].note).toBe('open style master');
-      const { state: healed, dirty } = healState(JSON.parse(JSON.stringify(loaded)));
-      expect(healed.nodes['review-style-system'].waiting_for).toBe('user:review-style-master');
-      expect(healed.nodes['review-style-system'].note).toBe('open style master');
-      expect(dirty).toBe(false);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it('buildResumeCard: waiting_for remains contextual rather than selecting an action', async () => {
-    const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
-    const s = createDefaultState();
-    s.playbook = 'iterate-style';
-    s.current_node = 'review-style-system';
-    s.execution_id = 'exec-card-waiting';
-    s.execution_started_at = '2024-01-01T00:00:00.000Z';
-    s.run_version = 'v1';
-    s.nodes = {
-      'review-style-system': {
-        status: 'in_progress',
-        execution_id: s.execution_id,
-        run_version: 'v1',
-        waiting_for: 'user:review-style-master',
-      },
-    };
-    const card = buildResumeCard(s, {
-      style_master: true,
-      raw_images: 3,
-      expected_slides: 22,
-      pptx: ['deck.pptx'],
-    });
-    expect(card.workflow_summary).toMatch(/执行点/);
-    expect(card.suggested_next).toBe('inspect:workflow-inspection');
-    expect(card.waiting_for).toBe('user:review-style-master');
-    expect(card.playbook).toBe('iterate-style');
-    expect(card.current_node).toBe('review-style-system');
-  });
-
-  it('buildResumeCard: artifacts do not choose the next action', async () => {
-    const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
-    const s = createDefaultState();
-    s.playbook = 'create-deck';
-    s.current_node = 'wave3';
-    s.execution_id = 'exec-card-heuristic';
-    s.execution_started_at = '2024-01-01T00:00:00.000Z';
-    s.run_version = 'v1';
-    s.nodes = { wave3: { status: 'in_progress', execution_id: s.execution_id, run_version: 'v1' } };
-    const mid = buildResumeCard(s, {
-      style_master: true,
-      raw_images: 3,
-      expected_slides: 22,
-      pptx: [],
-    });
-    expect(mid.workflow_summary).toMatch(/执行点/);
-    expect(mid.suggested_next).toBe('inspect:workflow-inspection');
-    const done = buildResumeCard(s, {
-      style_master: true,
-      raw_images: 22,
-      expected_slides: 22,
-      pptx: ['deck.pptx'],
-    });
-    expect(done.workflow_summary).toMatch(/执行点/);
-  });
-
-  it('buildResumeCard: legacy HTML guidance cannot replace inspection', async () => {
-    const { buildResumeCard } = await import('../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs');
-    const s = createDefaultState();
-    s.playbook = 'image2-refine';
-    s.current_node = 'recommend-image2-refinement';
-    s.execution_id = 'exec-card-guidance';
-    s.execution_started_at = '2024-01-01T00:00:00.000Z';
-    s.run_version = 'v1';
-    s.nodes = { 'recommend-image2-refinement': { status: 'in_progress', execution_id: s.execution_id, run_version: 'v1' } };
-    const guidance = {
-      summary: 'HTML visual review needs an explicit decision',
-      recommended_command: 'node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve "/tmp/deck/3_versions/v1" visual --plan-hash abc',
-      continuation_command: 'node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve "/tmp/deck/3_versions/v1" visual --waive --reason "<human reason>"',
-    };
-
-    const card = buildResumeCard(s, { html_resume_guidance: guidance }, { ctx: { runVersion: 'v1' } });
-
-    expect(card.workflow_summary).toMatch(/执行点/);
-    expect(card.suggested_next).toBe('inspect:workflow-inspection');
-    expect(card).not.toHaveProperty('html_resume_guidance');
-  });
-
-  it('rejects invalid node/gate enum writes without mutation', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    expect(() => setNodeStatus(s, 'authoring-slides', 'done')).toThrow(/invalid node status/);
-    expect(s.nodes['authoring-slides']).toBeUndefined();
-    expect(() => setGate(s, 'visual', 'done')).toThrow(/invalid gate status/);
-    expect(s.gates.visual).toBe('pending');
-  });
-
-  it('cleans incompatible timestamps when a completed node restarts', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    setNodeStatus(s, 'authoring-slides', 'completed', { failed_reason: 'old' });
-    expect(s.nodes['authoring-slides'].completed).toBeTruthy();
-    expect(s.nodes['authoring-slides'].failed_reason).toBeUndefined();
-    setNodeStatus(s, 'authoring-slides', 'in_progress');
-    expect(s.nodes['authoring-slides'].completed).toBeUndefined();
-    expect(s.nodes['authoring-slides'].started).toBeTruthy();
-  });
-
-  it('migrates legacy schema, decisions, aliases, gates, and execution fields idempotently', () => {
-    const legacy = {
-      playbook: 'edit-text',
-      current_node: 'verify-output',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        'verify-output': { status: 'done', decision: 'proceed', evidence: { old: true } },
-        'verify-text-output': { status: 'in_progress', note: 'canonical' },
-      },
-      gates: { content: 'yes', visual: 'approved' },
-      deck: { name: 'x' },
-      playbook_stack: [{ playbook: 'create-deck', current_node: 'hitl2' }],
-    };
-    const first = healState(legacy).state;
-    expect(first.schema_version).toBe(STATE_SCHEMA_VERSION);
-    expect(first.current_node).toBe('review-text-delivery');
-    expect(first.nodes['verify-output']).toBeUndefined();
-    expect(first.nodes['review-text-delivery'].status).toBe('in_progress');
-    expect(first.nodes['review-text-delivery'].note).toContain('canonical');
-    expect(first.nodes['review-text-delivery'].decision.kind).toBe('agent');
-    expect(first.nodes['review-text-delivery'].evidence.old.kind).toBe('agent');
-    expect(first.gates.content).toBe('pending');
-    expect(first.execution_id).toBeTruthy();
-    expect(first.playbook_stack[0].controller_nodes).toEqual({});
-    expect(first.playbook_stack[0].diagnostic).toMatch(/legacy stack/);
-    const second = healState(first).state;
-    expect(second.execution_id).toBe(first.execution_id);
-    expect(second.playbook_stack[0].execution_id).toBe(first.playbook_stack[0].execution_id);
-    expect(second).toEqual(first);
-  });
-
-  it('migrates all five create-deck legacy node IDs to canonical names', () => {
-    const legacy = {
-      playbook: 'create-deck',
-      current_node: 'hitl2',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        hitl1: { status: 'completed' },
-        hitl2: { status: 'in_progress' },
-        wave0: { status: 'completed', evidence: { 'sources-collected': { met: true, kind: 'agent', at: '2026-01-01T00:00:00.000Z' } } },
-        wave1: { status: 'pending' },
-        wave2: { status: 'pending' },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-    };
-    const first = healState(legacy).state;
-    expect(first.current_node).toBe('checkpoint-final-review');
-    expect(first.nodes.hitl1).toBeUndefined();
-    expect(first.nodes.hitl2).toBeUndefined();
-    expect(first.nodes.wave0).toBeUndefined();
-    expect(first.nodes.wave1).toBeUndefined();
-    expect(first.nodes.wave2).toBeUndefined();
-    expect(first.nodes['checkpoint-intake'].status).toBe('completed');
-    expect(first.nodes['checkpoint-final-review'].status).toBe('in_progress');
-    expect(first.nodes['author-structured-content'].status).toBe('completed');
-    expect(first.nodes['preview-content'].status).toBe('pending');
-    expect(first.nodes['produce-html-deck'].status).toBe('pending');
-    const second = healState(first).state;
-    expect(second).toEqual(first);
-  });
-
-  it('migrates pointer-only current_node without a node record', () => {
-    const legacy = {
-      playbook: 'create-deck',
-      current_node: 'hitl2',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {},
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-    };
-    const healed = healState(legacy).state;
-    expect(healed.current_node).toBe('checkpoint-final-review');
-    // current_node should survive restrictActiveWorkingSet because it's a valid canonical ID
-    expect(healed.current_node).not.toBe('');
-    const second = healState(healed).state;
-    expect(second.current_node).toBe('checkpoint-final-review');
-  });
-
-  it('handles collision where legacy and canonical keys coexist with canonical priority', () => {
-    const legacy = {
-      playbook: 'create-deck',
-      current_node: 'author-structured-content',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        wave0: { status: 'completed', extra_field: 'old-value', evidence: { old: { met: true, kind: 'agent', at: '2026-01-01T00:00:00.000Z' } } },
-        'author-structured-content': { status: 'in_progress' },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-    };
-    const healed = healState(legacy).state;
-    // canonical status wins
-    expect(healed.nodes['author-structured-content'].status).toBe('in_progress');
-    // legacy-only field is preserved
-    expect(healed.nodes['author-structured-content'].extra_field).toBe('old-value');
-    // legacy key is removed
-    expect(healed.nodes.wave0).toBeUndefined();
-    // idempotent
-    const second = healState(healed).state;
-    expect(second).toEqual(healed);
-  });
-
-  it('migrates playbook_stack entry legacy node IDs', () => {
-    const legacy = {
-      playbook: 'edit-text',
-      current_node: 'classify-change',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        'classify-change': { status: 'in_progress' },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-      playbook_stack: [
-        {
-          playbook: 'create-deck',
-          current_node: 'hitl2',
-          execution_id: 'exec-parent',
-          execution_started_at: '2026-01-01T00:00:00.000Z',
-          controller_nodes: {
-            hitl1: { status: 'completed' },
-            wave0: { status: 'completed' },
-            wave2: { status: 'pending' },
-          },
-        },
-      ],
-    };
-    const healed = healState(legacy).state;
-    const entry = healed.playbook_stack[0];
-    expect(entry.current_node).toBe('checkpoint-final-review');
-    expect(entry.controller_nodes['checkpoint-intake']).toBeDefined();
-    expect(entry.controller_nodes['checkpoint-intake'].status).toBe('completed');
-    expect(entry.controller_nodes['author-structured-content']).toBeDefined();
-    expect(entry.controller_nodes['author-structured-content'].status).toBe('completed');
-    expect(entry.controller_nodes['produce-html-deck']).toBeDefined();
-    expect(entry.controller_nodes['produce-html-deck'].status).toBe('pending');
-    expect(entry.controller_nodes.hitl1).toBeUndefined();
-    expect(entry.controller_nodes.wave0).toBeUndefined();
-    expect(entry.controller_nodes.wave2).toBeUndefined();
-    // top-level nodes unaffected (different playbook)
-    expect(healed.nodes['classify-change']).toBeDefined();
-  });
-
-  it('handles stack collision with canonical priority for controller_nodes', () => {
-    const legacy = {
-      playbook: 'edit-text',
-      current_node: 'classify-change',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        'classify-change': { status: 'in_progress' },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-      playbook_stack: [
-        {
-          playbook: 'create-deck',
-          current_node: 'wave0',
-          execution_id: 'exec-parent',
-          execution_started_at: '2026-01-01T00:00:00.000Z',
-          controller_nodes: {
-            wave0: { status: 'completed', legacy_field: 'from-legacy' },
-            'author-structured-content': { status: 'in_progress' },
-          },
-        },
-      ],
-    };
-    const healed = healState(legacy).state;
-    const entry = healed.playbook_stack[0];
-    expect(entry.current_node).toBe('author-structured-content');
-    // canonical status wins
-    expect(entry.controller_nodes['author-structured-content'].status).toBe('in_progress');
-    // legacy-only field preserved
-    expect(entry.controller_nodes['author-structured-content'].legacy_field).toBe('from-legacy');
-    // legacy key removed
-    expect(entry.controller_nodes.wave0).toBeUndefined();
-    // idempotent
-    const second = healState(healed).state;
-    expect(second).toEqual(healed);
-  });
-
-  it('records create-deck rename migration messages in diagnostics', () => {
-    const legacy = {
-      playbook: 'create-deck',
-      current_node: 'hitl2',
-      started_at: '2026-01-01T00:00:00.000Z',
-      nodes: {
-        hitl1: { status: 'completed' },
-        wave0: { status: 'completed' },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: { name: 'x' },
-    };
-    const healed = healState(legacy).state;
-    expect(Array.isArray(healed.diagnostics)).toBe(true);
-    const diags = healed.diagnostics.join('\n');
-    expect(diags).toMatch(/create-deck/);
-    expect(diags).toMatch(/migrated/);
-    // pointer migration message
-    expect(diags).toMatch(/hitl2.*current_node.*checkpoint-final-review/);
-  });
-
-  it('heal removes controller records outside the active playbook working set', () => {
-    const healed = healState({
-      playbook: 'iterate-style',
-      current_node: 'review-style-system',
-      started_at: '2026-07-12T00:00:00.000Z',
-      nodes: {
-        'review-style-system': { status: 'in_progress' },
-        'intake-source': { status: 'completed' },
-        'header-review': { by_version: { '3_versions/v1': { status: 'completed' } } },
-      },
-      gates: { content: 'pending', visual: 'pending' },
-      deck: {},
-      playbook_stack: [],
-    }).state;
-    expect(healed.nodes['review-style-system']).toBeDefined();
-    expect(healed.nodes['intake-source']).toBeUndefined();
-    expect(healed.nodes['header-review']).toBeDefined();
-    expect(healed.diagnostics).toContain('intake-source removed from active iterate-style working set');
-  });
-
-  it('isolates repeated executions while preserving reserved system evidence', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    setNodeStatus(s, 'instantiation', 'completed');
-    s.nodes['header-review'] = { by_version: { v1: { status: 'completed' } } };
-    const workflowStarted = s.started_at;
-    startPlaybook(s, 'edit-text');
-    expect(s.started_at).toBe(workflowStarted);
-    expect(s.nodes.instantiation).toBeUndefined();
-    expect(s.nodes['header-review']).toBeDefined();
-    expect(getNodeStatus(s, 'classify-change')).toBe('pending');
-  });
-
-  it('requires explicit replacement for an incomplete top-level execution', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    setNodeStatus(s, 'instantiation', 'in_progress');
-    expect(() => startPlaybook(s, 'edit-text')).toThrow(/incomplete/);
-    const oldId = s.execution_id;
-    startPlaybook(s, 'edit-text', { replace: true });
-    expect(s.execution_id).not.toBe(oldId);
-    expect(s.nodes.instantiation).toBeUndefined();
-  });
-
-  it('snapshots parent controller records across nested shared-node reuse', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    s.playbook = 'edit-text';
-    setNodeStatus(s, 'classify-change', 'completed');
-    setNodeEvidence(s, 'classify-change', 'change-classified', { kind: 'agent' });
-    const parentId = s.execution_id;
-    const parentEvidence = structuredClone(s.nodes['classify-change'].evidence);
-    switchPlaybook(s, 'edit-visual');
-    expect(s.nodes['classify-change']).toBeUndefined();
-    setNodeStatus(s, 'classify-change', 'completed');
-    setNodeEvidence(s, 'classify-change', 'playbook-selected', { kind: 'agent' });
-    expect(s.nodes['classify-change'].execution_id).not.toBe(parentId);
-    resumePlaybook(s);
-    expect(s.execution_id).toBe(parentId);
-    expect(s.nodes['classify-change'].evidence).toEqual(parentEvidence);
-    expect(s.playbook_stack).toEqual([]);
-  });
-
-  it('controller-aware queries include unwritten nodes and ignore reserved records', () => {
-    const s = createInitialState('demo', 'keynote', 'dark');
-    setNodeStatus(s, 'instantiation', 'completed');
-    s.nodes['header-review'] = { status: 'in_progress' };
-    const ids = ['instantiation', 'checkpoint-intake', 'setup'];
-    expect(getPendingNodes(s, ids)).toEqual(['checkpoint-intake', 'setup']);
-    expect(isPlaybookComplete(s, ids)).toBe(false);
-    setNodeStatus(s, 'checkpoint-intake', 'skipped');
-    setNodeStatus(s, 'setup', 'completed');
-    expect(isPlaybookComplete(s, ids)).toBe(true);
-  });
-
-  it('writes state through a same-directory temp and leaves no stale sibling', () => {
-    const deck = tmpDeck('atomic');
-    try {
-      const stale = join(deck, STATE_DIR, `.${STATE_FILE}.tmp-stale`);
-      writeFileSync(stale, 'stale', 'utf8');
-      const s = createInitialState('demo', 'keynote', 'dark');
-      writeState(deck, s);
-      const names = readdirSync(join(deck, STATE_DIR));
-      expect(names).toContain(STATE_FILE);
-      expect(names.some((name) => name.startsWith(`.${STATE_FILE}.tmp-`))).toBe(false);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
+      rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 });

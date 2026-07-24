@@ -5,12 +5,8 @@
  * Creates a 16:9 PPTX with one full-bleed image per slide. No editable text objects
  * — the PPTX is a media container; all content is in the images.
  *
- * Usage:
- *   node stage4_build_pptx.mjs \
- *       --images header_locked/ \
- *       --slide-plan slide_plan.json \
- *       --out ppt/deck.pptx \
- *       --title "My Presentation"
+ * The direct executable accepts one canonical --run-dir. The public pipeline
+ * adapters resolve current Stage-3 provenance before reaching this assembler.
  *
  * Dependencies: pptxgenjs
  *
@@ -19,8 +15,8 @@
 
 import { attachCliDiagnostic, createCliNext } from "../../shared/cli/cli_error.mjs";
 
-import { existsSync, readFileSync, readdirSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { resolve, basename, extname, dirname, join, relative, sep } from "node:path";
+import { existsSync, readFileSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { resolve, basename, dirname, join, relative, sep } from "node:path";
 import PptxGenJS from "pptxgenjs";
 
 import {
@@ -34,6 +30,7 @@ import {
   ARTIFACT_KIND_FINAL_SLIDE,
   ARTIFACT_STATUS_VERIFIED,
   RENDER_ENGINE_IMAGE2,
+  WHOLE_PAGE_ARTIFACT_PIPELINE,
 } from "../../shared/identity/render_artifacts.mjs";
 import { sha256File } from "../../shared/identity/byte_hash.mjs";
 import { HTML_FIRST_PIPELINE, validateAndBuildHtmlFirstPlan } from "./html_slide_contract.mjs";
@@ -48,8 +45,6 @@ import { publishHtmlDeliveryContactSheet } from "./html_preview.mjs";
 const SLIDE_WIDTH_IN = 13.333;
 const SLIDE_HEIGHT_IN = 7.5;
 
-/** Image extensions recognised as slide images. */
-const IMG_EXTS = new Set([".png", ".jpg", ".jpeg"]);
 export const PPTX_ASSEMBLY_RECEIPT_VERSION = 2;
 export const PPTX_ASSEMBLY_HTML_RECEIPT_VERSION = 2;
 export const PPTX_ASSEMBLY_RECEIPT_NAME = "pptx_assembly.json";
@@ -81,57 +76,8 @@ export function pptxAssemblyReceiptPath({ images, slidePlan, out }) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Image matching — anchored to prevent substring cross-hits
-// ---------------------------------------------------------------------------
-
 /**
- * Escape a string for use in a literal regex.
- * @param {string} s
- * @returns {string}
- */
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Images matching a slide id under the canonical NN_<id> (or bare <id>) naming
- * — ANCHORED and sorted. An unanchored substring match cross-hits ids like 's1'
- * onto '10_s10.png'; anchoring the id to the stem's end prevents wrong-image builds.
- *
- * Matches the slide-id regex:  r"^(\d+_)?{re.escape(slide_id)}$"
- *
- * @param {string} imgDir - Directory containing Stage 3 header-locked images.
- * @param {string} slideId - The slide identifier (e.g. "opener", "s1", "closer").
- * @returns {string[]} Sorted array of absolute file paths.
- */
-function matchSlideImage(imgDir, slideId) {
-  const pat = new RegExp(`^(\\d+_)?${escapeRegex(slideId)}$`);
-  const results = [];
-  let entries;
-  try {
-    entries = readdirSync(imgDir);
-  } catch {
-    return results;
-  }
-  for (const name of entries) {
-    const ext = extname(name).toLowerCase();
-    if (!IMG_EXTS.has(ext)) continue;
-    const stem = basename(name, ext);
-    if (pat.test(stem)) {
-      results.push(resolve(imgDir, name));
-    }
-  }
-  results.sort();
-  return results;
-}
-
-// ---------------------------------------------------------------------------
-// Programmatic API
-// ---------------------------------------------------------------------------
-
-/**
- * Build a 16:9 .pptx from a set of header-locked slide images.
+ * Build a 16:9 .pptx from current whole-page final-slide provenance.
  *
  * @param {object} opts
  * @param {string} opts.images    - Directory containing Stage 3 header-locked PNGs.
@@ -140,10 +86,11 @@ function matchSlideImage(imgDir, slideId) {
  * @param {string} [opts.title]   - Deck title (metadata only).
  * @returns {Promise<{slideCount: number, outPath: string}>}
  */
-export async function buildPptx({ images, slidePlan, out, title = "Presentation", legacySlides }) {
+export async function assembleWholePagePptx({ runDir, images, slidePlan, out, title = "Presentation", finalSlides }) {
   const receiptLocation = pptxAssemblyReceiptPath({ images, slidePlan, out });
-  const planGenerated = dirname(resolve(slidePlan)); const candidateRun = dirname(planGenerated); const candidateSource = join(candidateRun, 'slide-specifications.md');
-  if (basename(planGenerated) === '_generated' && existsSync(candidateSource) && (await import('./html_slide_contract.mjs')).probeProductionMarker(readFileSync(candidateSource)).branch === HTML_FIRST_PIPELINE) throw new Error('USAGE: legacy artifact mode cannot target an HTML-first run; use --run-dir');
+  if (!receiptLocation.canonical || resolve(runDir) !== receiptLocation.runDir) {
+    throw new TypeError("whole-page PPTX assembly requires canonical run-owned Stage 1, Stage 3, and output paths");
+  }
   if (receiptLocation.path) rmSync(receiptLocation.path, { force: true });
   // ---- load slide plan -----------------------------------------------------
   let planData;
@@ -169,21 +116,19 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
   const imgDir = resolve(images);
   const resolved = [];
   const problems = [];
-  if (!legacySlides || !Array.isArray(legacySlides.resolved)) throw new TypeError("legacy final-slide resolution must be supplied by Phase 5");
+  if (!finalSlides || !Array.isArray(finalSlides.resolved) || !Array.isArray(finalSlides.entries)) {
+    throw new TypeError("whole-page final-slide resolution must be supplied by the whole-page adapter");
+  }
   for (let index = 0; index < slides.length; index += 1) {
     const slide = slides[index];
     const sid = slide.slide_id || slide.id;
     const engine = slide.render_engine || planData.render_engine || RENDER_ENGINE_IMAGE2;
-    const artifact = legacySlides.resolved[index];
+    const artifact = finalSlides.resolved[index];
     if (artifact.status !== ARTIFACT_STATUS_VERIFIED) {
       problems.push({
         slideId: sid,
         engine,
-        reason: artifact.status === "legacy-located"
-          ? "legacy_located_image"
-          : artifact.status === "ambiguous"
-            ? "ambiguous_images"
-            : "missing_image",
+        reason: artifact.status === "ambiguous" ? "ambiguous_images" : "missing_image",
         hits: artifact.candidates || (artifact.path ? [artifact.path] : []),
         artifact,
       });
@@ -196,10 +141,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
     throw attachCliDiagnostic(new Error(
       `✗ Stage 4 cannot build the deck — ${problems.length} image problem(s):\n` +
         problems.map((problem) => problem.reason === "missing_image"
-          ? `  - no verified final-slide for ${JSON.stringify(problem.slideId)} (${problem.engine})`
-          : problem.reason === "legacy_located_image"
-            ? `  - final image for ${JSON.stringify(problem.slideId)} is only legacy-located`
-            : `  - ambiguous final images for ${JSON.stringify(problem.slideId)}: ${problem.hits.map((hit) => basename(hit)).join(", ")}`).join("\n") +
+          ? `  - no current verified final-slide for ${JSON.stringify(problem.slideId)} (${problem.engine})`
+          : `  - ambiguous current final-slide entries for ${JSON.stringify(problem.slideId)}: ${problem.hits.map((hit) => basename(hit)).join(", ")}`).join("\n") +
         `\n  Re-run local Stage 3 so every planned ID has one verified final-slide artifact.`
     ), {
       version: 1,
@@ -209,10 +152,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
       source: { path: slidePlan },
       issues: problems.map((problem) => ({
         message: problem.reason === "missing_image"
-          ? "verified final slide image is missing"
-          : problem.reason === "legacy_located_image"
-            ? "final slide image is only legacy-located"
-            : "multiple final slide images are ambiguous",
+          ? "current verified final slide image is missing"
+          : "multiple current final-slide entries are ambiguous",
         subject: { kind: "slide", id: problem.slideId },
         source: { path: problem.hits[0] || imgDir },
         reason: { kind: problem.reason, status: problem.artifact.status, render_engine: problem.engine, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },
@@ -222,7 +163,7 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
     });
   }
 
-  const commonFinalSlides = legacySlides.entries;
+  const commonFinalSlides = finalSlides.entries;
 
   // ---- build PPTX ----------------------------------------------------------
   const pres = new PptxGenJS();
@@ -268,8 +209,8 @@ export async function buildPptx({ images, slidePlan, out, title = "Presentation"
 
   const receipt = {
     schema_version: PPTX_ASSEMBLY_RECEIPT_VERSION,
-    pipeline: 'legacy-image2-v1',
-    producer: 'legacy-image2-stage3-v1',
+    pipeline: WHOLE_PAGE_ARTIFACT_PIPELINE,
+    producer: 'whole-page-image2-stage3-v1',
     slide_plan_path: runRelativePath(receiptLocation.runDir, resolve(slidePlan)),
     slide_plan_sha256: sha256File(slidePlan),
     ordered_slide_ids: slides.map((slide) => slide.slide_id || slide.id),

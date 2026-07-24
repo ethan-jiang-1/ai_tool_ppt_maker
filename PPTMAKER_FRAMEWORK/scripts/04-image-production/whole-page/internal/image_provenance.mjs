@@ -10,9 +10,10 @@ import {
 import { basename, join } from "node:path";
 import { canonicalJson } from "../../../contracts/canonical_json.mjs";
 import { sha256Bytes, sha256File } from "../../../shared/identity/byte_hash.mjs";
+import { WHOLE_PAGE_ARTIFACT_PIPELINE } from "../../../shared/identity/render_artifacts.mjs";
 
 export const IMAGE_MANIFEST_NAME = "_manifest.json";
-export const IMAGE_MANIFEST_VERSION = 1;
+export const IMAGE_MANIFEST_VERSION = 2;
 export const DEFAULT_IMAGE_SIZE = "16:9";
 export const IMAGE2_RENDER_ENGINE = "image2";
 export const RAW_RENDER_ARTIFACT_KIND = "raw-render";
@@ -52,7 +53,23 @@ export function manifestPath(outDir) {
 }
 
 export function emptyImageManifest() {
-  return { version: IMAGE_MANIFEST_VERSION, slides: {} };
+  return {
+    version: IMAGE_MANIFEST_VERSION,
+    pipeline: WHOLE_PAGE_ARTIFACT_PIPELINE,
+    slides: {},
+  };
+}
+
+function isCurrentImageManifest(manifest) {
+  return Boolean(
+    manifest
+    && typeof manifest === "object"
+    && manifest.version === IMAGE_MANIFEST_VERSION
+    && manifest.pipeline === WHOLE_PAGE_ARTIFACT_PIPELINE
+    && manifest.slides
+    && typeof manifest.slides === "object"
+    && !Array.isArray(manifest.slides),
+  );
 }
 
 export function readImageManifest(outDir) {
@@ -60,10 +77,7 @@ export function readImageManifest(outDir) {
   if (!existsSync(path)) return { manifest: emptyImageManifest(), error: null };
   try {
     const parsed = JSON.parse(readFileSync(path, "utf-8"));
-    if (
-      !parsed || parsed.version !== IMAGE_MANIFEST_VERSION ||
-      !parsed.slides || typeof parsed.slides !== "object" || Array.isArray(parsed.slides)
-    ) {
+    if (!isCurrentImageManifest(parsed)) {
       return { manifest: emptyImageManifest(), error: `invalid manifest schema: ${path}` };
     }
     return { manifest: parsed, error: null };
@@ -89,11 +103,18 @@ export function buildImageManifestEntry({
   imagePath,
   generatedAt = new Date().toISOString(),
 }) {
+  const stableOutput = `${slideId}.png`;
+  if (basename(output) !== stableOutput || output !== stableOutput) {
+    throw new TypeError(`raw-render output for ${slideId} must be ${stableOutput}`);
+  }
+  if (basename(imagePath) !== stableOutput) {
+    throw new TypeError(`raw-render image path for ${slideId} must end in ${stableOutput}`);
+  }
   return {
     slide_id: slideId,
     render_engine: IMAGE2_RENDER_ENGINE,
     artifact_kind: RAW_RENDER_ARTIFACT_KIND,
-    output: basename(output),
+    output: stableOutput,
     generation_fingerprint: generationFingerprint({ prompt, profile }),
     image_sha256: sha256File(imagePath),
     generation_profile: profile,
@@ -113,13 +134,16 @@ export function inspectImageProvenance({
   profile,
 }) {
   const slideId = String(slide.slide_id || slide.id || "");
-  const requestedOutput = slide.out || `${slideId}.png`;
+  const requestedOutput = `${slideId}.png`;
   const expectedFingerprint = generationFingerprint({
     prompt: String(slide.prompt || "").trim(),
     profile,
   });
   if (manifestError) {
     return { current: false, reason: manifestError, imagePath: join(outDir, requestedOutput), expectedFingerprint };
+  }
+  if (!isCurrentImageManifest(manifest)) {
+    return { current: false, reason: "current whole-page manifest is missing or invalid", imagePath: join(outDir, requestedOutput), expectedFingerprint };
   }
   const entry = manifest.slides?.[slideId];
   if (!entry || typeof entry !== "object") {
@@ -132,6 +156,9 @@ export function inspectImageProvenance({
     return { current: false, reason: "manifest artifact identity mismatch", imagePath: join(outDir, entry.output || requestedOutput), expectedFingerprint, entry };
   }
   const entryOutput = entry.output || requestedOutput;
+  if (entryOutput !== requestedOutput || basename(entryOutput) !== requestedOutput) {
+    return { current: false, reason: "manifest output is not stable ID-addressed", imagePath: join(outDir, entryOutput), expectedFingerprint, entry };
+  }
   const imagePath = join(outDir, entryOutput);
   if (!existsSync(imagePath)) {
     return { current: false, reason: "image missing", imagePath, expectedFingerprint, entry };
@@ -151,8 +178,7 @@ export function inspectImageProvenance({
   return {
     current: true,
     imagePath,
-    requestedImagePath: join(outDir, requestedOutput),
-    legacyOutput: basename(entryOutput) !== basename(requestedOutput),
+    requestedImagePath: imagePath,
     expectedFingerprint,
     entry,
     imageSha256,

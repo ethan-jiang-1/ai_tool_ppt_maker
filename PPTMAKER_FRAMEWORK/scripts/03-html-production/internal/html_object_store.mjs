@@ -14,7 +14,7 @@ export const PUBLISH_LOCK_EXPLICIT_RECOVERY_MIN_AGE_MS = 300_000;
 const SHA_RE = /^[0-9a-f]{64}$/;
 const TOKEN_RE = /^[0-9a-f]{64}$/;
 const OWNER_KINDS = new Set(['html-pages', 'final-slides', 'preview']);
-const SCOPES = new Set(['canonical-run', 'migration-preview']);
+const SCOPES = new Set(['canonical-run']);
 
 function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 function randomToken() { return randomBytes(32).toString('hex'); }

@@ -115,7 +115,7 @@ export async function generateImages({
   if (!dryRun && typeof beforeSubmit === "function") {
     for (const slide of workSlides) {
       const slideId = String(slide.slide_id || slide.id);
-      const outName = slide.slide_id ? `${slideId}.png` : (slide.out || `${slideId}.png`);
+      const outName = `${slideId}.png`;
       const outPath = join(outDir, outName);
       const prompt = String(slide.prompt || "").trim();
       if (!prompt) continue;
@@ -168,7 +168,7 @@ export async function generateImages({
   for (const slide of workSlides) {
     index += 1;
     const slideId = slide.slide_id || slide.id;
-    const outName = slide.slide_id ? `${slideId}.png` : (slide.out || `${slideId}.png`);
+    const outName = `${slideId}.png`;
     const outPath = join(outDir, outName);
     const stem = basename(outName, ".png");
     const tracePath = join(outDir, `${stem}${IMAGE_TRACE_SUFFIX}`);
@@ -382,7 +382,7 @@ export function buildImageFailureDiagnostic({ failures, promptJson, outDir, styl
  * @param {string[]} [argv]
  * @returns {Promise<void>}
  */
-export async function runLegacyImageGenerationCli(argv = process.argv) {
+export async function runWholePageImageGenerationCli(argv = process.argv) {
   const program = new Command();
   program
     .name("stage2_generate_images.mjs")

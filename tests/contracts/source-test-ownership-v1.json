@@ -65,22 +65,10 @@
     },
     {
       "owner": "04-image-production",
-      "interfaces": ["04-image-production/index.mjs"],
-      "executables": [],
-      "unit_integration": [
-        "tests/04-image-production/test_refinement_contracts.mjs",
-        "tests/04-image-production/test_refinement_lifecycle.mjs",
-        "tests/04-image-production/test_relay_compatibility.mjs"
+      "interfaces": [
+        "04-image-production/index.mjs",
+        "04-image-production/whole-page/index.mjs"
       ],
-      "e2e": [
-        "tests_e2e/04-image-production/test-html-then-image2-completion.mjs",
-        "tests_e2e/04-image-production/test-image2-lifecycle.mjs",
-        "tests_e2e/04-image-production/test-refinement-flow.mjs"
-      ]
-    },
-    {
-      "owner": "05-iteration",
-      "interfaces": ["05-iteration/index.mjs"],
       "executables": [
         "04-image-production/whole-page/generate_style_master.mjs",
         "04-image-production/whole-page/make_contact_sheet.mjs",
@@ -88,21 +76,31 @@
         "04-image-production/whole-page/stage3_lock_headers.mjs"
       ],
       "unit_integration": [
-        "tests/05-iteration/test_generate_style_master.mjs",
-        "tests/05-iteration/test_header_review.mjs",
-        "tests/05-iteration/test_html_first_structural.mjs",
-        "tests/05-iteration/test_html_migration.mjs",
-        "tests/05-iteration/test_image_generation.mjs",
-        "tests/05-iteration/test_production_mode_transition.mjs",
-        "tests/05-iteration/test_render_artifacts.mjs",
-        "tests/05-iteration/test_stage3_lock_headers.mjs",
-        "tests/05-iteration/test_structural_reuse.mjs"
+        "tests/04-image-production/test_generate_style_master.mjs",
+        "tests/04-image-production/test_header_review.mjs",
+        "tests/04-image-production/test_image_generation.mjs",
+        "tests/04-image-production/test_refinement_contracts.mjs",
+        "tests/04-image-production/test_refinement_lifecycle.mjs",
+        "tests/04-image-production/test_relay_compatibility.mjs",
+        "tests/04-image-production/test_render_artifacts.mjs",
+        "tests/04-image-production/test_stage3_lock_headers.mjs",
+        "tests/04-image-production/test_structural_reuse.mjs"
       ],
       "e2e": [
-        "tests_e2e/05-iteration/test-image2-primary-flow.mjs",
-        "tests_e2e/05-iteration/test-production-mode-transition-flow.mjs",
-        "tests_e2e/05-iteration/test-structural-slide-flow.mjs"
+        "tests_e2e/04-image-production/test-html-then-image2-completion.mjs",
+        "tests_e2e/04-image-production/test-image2-lifecycle.mjs",
+        "tests_e2e/04-image-production/test-image2-primary-flow.mjs",
+        "tests_e2e/04-image-production/test-refinement-flow.mjs"
       ]
+    },
+    {
+      "owner": "05-iteration",
+      "interfaces": ["05-iteration/index.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/05-iteration/test_html_first_structural.mjs"
+      ],
+      "e2e": ["tests_e2e/05-iteration/test-structural-slide-flow.mjs"]
     },
     {
       "owner": "contracts",
@@ -191,6 +189,7 @@
       "interfaces": [
         "shared/state/html_review_evidence.mjs",
         "shared/state/md_controller_reader.mjs",
+        "shared/state/production_mode_transition.mjs",
         "shared/state/state.mjs"
       ],
       "executables": [],
@@ -199,9 +198,13 @@
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_production_mode_index.mjs",
         "tests/shared/state/test_production_mode_state.mjs",
+        "tests/shared/state/test_production_mode_transition.mjs",
         "tests/shared/state/test_state_yaml.mjs"
       ],
-      "e2e": ["tests_e2e/shared/state/test-state-machine.mjs"]
+      "e2e": [
+        "tests_e2e/shared/state/test-production-mode-transition-flow.mjs",
+        "tests_e2e/shared/state/test-state-machine.mjs"
+      ]
     },
     {
       "owner": "shared/workflow",

@@ -39,10 +39,11 @@ export function resolveImageEntries(imageDir, promptJson = null) {
     const data = JSON.parse(readFileSync(promptJson, "utf-8"));
     const slides = data.slides || data.prompts || [];
     for (const slide of slides) {
-      const outName = slide.out || `${slide.id}.png`;
+      const slideId = slide.slide_id || slide.id;
+      const outName = `${slideId}.png`;
       const p = join(imageDir, outName);
       if (existsSync(p)) {
-        entries.push({ id: slide.id || basename(outName, ".png"), label: slide.label || slide.id || basename(outName, ".png"), path: p });
+        entries.push({ id: slideId, label: slide.label || slideId, path: p });
       }
     }
     if (entries.length > 0) return entries;
@@ -107,8 +108,9 @@ export async function makeContactSheet({
     }
     const slides = data.slides || data.prompts || [];
     entries = slides.map((slide) => {
-      const outName = slide.out || `${slide.id}.png`;
-      return { id: slide.id || basename(outName, ".png"), label: slide.label || slide.id || basename(outName, ".png"), path: join(imageDir, outName) };
+      const slideId = slide.slide_id || slide.id;
+      const outName = `${slideId}.png`;
+      return { id: slideId, label: slide.label || slideId, path: join(imageDir, outName) };
     });
     for (const entry of entries) {
       if (!existsSync(entry.path)) failures.push({ ...entry, reason: "missing_image" });

@@ -88,7 +88,7 @@ export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVe
  * `--mode html-only|html-then-image2` selects an HTML path.
  */
 export const DEFAULT_INIT_MODE = 'image2-only';
-const LEGACY_PIPELINE = 'legacy-image2-first';
+const WHOLE_PAGE_IMAGE2_PIPELINE = 'whole-page-image2-v1';
 
 function validateInitMode(mode) {
     if (!PRODUCTION_MODES.includes(mode)) {
@@ -520,8 +520,8 @@ function _checkImage2RefinementPartitions(runDir, htmlFirst, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR, GEN_IMAGE2_REFINEMENT_SUBDIR);
     const scratch = path.join(runDir, SCRATCH_SUBDIR, SCRATCH_IMAGE2_REFINEMENT_SUBDIR);
     if (!htmlFirst) {
-        if (fs.existsSync(generated)) problems.push(`modern refinement generated owner '${GEN_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
-        if (fs.existsSync(scratch)) problems.push(`modern refinement scratch owner '${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to markerless legacy production`);
+        if (fs.existsSync(generated)) problems.push(`modern refinement generated owner '${GEN_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to whole-page Image2 production`);
+        if (fs.existsSync(scratch)) problems.push(`modern refinement scratch owner '${SCRATCH_IMAGE2_REFINEMENT_SUBDIR}/' is inapplicable to whole-page Image2 production`);
         return;
     }
     if (fs.existsSync(generated) && fs.statSync(generated).isDirectory()) {
@@ -569,14 +569,14 @@ function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
         ? new Set(['objects', 'plans', 'manifest.json', '.publish.lock'])
         : new Set(['objects', 'manifest.json', '.publish.lock']);
     for (const entry of fs.readdirSync(ownerPath, { withFileTypes: true })) {
-        if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+        if (_isMacOsSystemEntry(entry.name)) continue;
         if (allowed.has(entry.name) || _HTML_MANIFEST_TEMP_RE.test(entry.name)) continue;
         problems.push(`unexpected '${entry.name}' in HTML production owner ${ownerName}/`);
     }
     const objects = path.join(ownerPath, 'objects');
     if (fs.existsSync(objects) && fs.statSync(objects).isDirectory()) {
         for (const entry of fs.readdirSync(objects, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            if (_isMacOsSystemEntry(entry.name)) continue;
             if (_SHA_OBJECT_RE.test(entry.name) || _HTML_OBJECT_TEMP_RE.test(entry.name)) continue;
             problems.push(`unexpected '${entry.name}' in HTML immutable objects for ${ownerName}/`);
         }
@@ -584,43 +584,21 @@ function _checkHtmlOwnerTree(ownerPath, ownerName, problems) {
     const lock = path.join(ownerPath, '.publish.lock');
     if (fs.existsSync(lock) && fs.statSync(lock).isDirectory()) {
         for (const entry of fs.readdirSync(lock, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            if (_isMacOsSystemEntry(entry.name)) continue;
             if (entry.name !== 'owner.json') problems.push(`unexpected '${entry.name}' in HTML publish lock for ${ownerName}/`);
         }
     }
     const plans = path.join(ownerPath, 'plans');
     if (ownerName === GEN_HTML_PREVIEW_SUBDIR && fs.existsSync(plans) && fs.statSync(plans).isDirectory()) {
         for (const entry of fs.readdirSync(plans, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            if (_isMacOsSystemEntry(entry.name)) continue;
             if (!_HTML_PLAN_RE.test(entry.name)) problems.push(`unexpected '${entry.name}' in HTML preview plans/`);
         }
     }
 }
 
-function _isHtmlMigrationSystemEntry(name) {
+function _isMacOsSystemEntry(name) {
     return name === '.DS_Store';
-}
-
-function _checkProjectedMigrationCandidate(projected, problems) {
-    const expected = new Map([
-        ['slide-specifications.md', 'file'],
-        ['overrides', 'directory'],
-        ['preparation.json', 'file'],
-        ['authoring-context.json', 'file'],
-        ['authoring-checklist.json', 'file'],
-        ['_generated', 'directory'],
-    ]);
-    for (const entry of fs.readdirSync(projected, { withFileTypes: true })) {
-        if (_isHtmlMigrationSystemEntry(entry.name)) continue;
-        const kind = expected.get(entry.name);
-        if (!kind) {
-            problems.push(`unexpected '${entry.name}' in migration projected candidate`);
-            continue;
-        }
-        if ((kind === 'file' && !entry.isFile()) || (kind === 'directory' && !entry.isDirectory())) {
-            problems.push(`migration projected candidate '${entry.name}' must be a ${kind}`);
-        }
-    }
 }
 
 function _checkHtmlGeneratedTopology(runDir, problems) {
@@ -628,7 +606,7 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
     const production = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
     if (fs.existsSync(production) && fs.statSync(production).isDirectory()) {
         for (const entry of fs.readdirSync(production, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            if (_isMacOsSystemEntry(entry.name)) continue;
             if (!_HTML_OWNER_NAMES.has(entry.name)) problems.push(`unexpected '${entry.name}' in HTML production root`);
         }
         for (const ownerName of _HTML_OWNER_NAMES) {
@@ -636,17 +614,9 @@ function _checkHtmlGeneratedTopology(runDir, problems) {
             if (fs.existsSync(ownerPath) && fs.statSync(ownerPath).isDirectory()) _checkHtmlOwnerTree(ownerPath, ownerName, problems);
         }
     }
-    const migration = path.join(runDir, SCRATCH_SUBDIR, 'html-migration');
-    if (fs.existsSync(migration) && fs.statSync(migration).isDirectory()) {
-        const allowed = new Set(['slide-specifications.md', 'overrides', 'projected-run', 'plan.json', 'apply-journal.json']);
-        for (const entry of fs.readdirSync(migration, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
-            if (!allowed.has(entry.name)) problems.push(`unexpected '${entry.name}' in html-migration scratch/`);
-        }
-        const projected = path.join(migration, 'projected-run');
-        if (fs.existsSync(projected) && fs.statSync(projected).isDirectory()) {
-            _checkProjectedMigrationCandidate(projected, problems);
-        }
+    const retiredScratch = path.join(runDir, SCRATCH_SUBDIR, 'html-migration');
+    if (fs.existsSync(retiredScratch)) {
+        problems.push("retired 'html-migration' scratch is not permitted");
     }
 }
 
@@ -655,7 +625,7 @@ function _checkProductionModeTransitionScratch(runDir, problems) {
     if (fs.existsSync(transition) && fs.statSync(transition).isDirectory()) {
         const allowed = new Map([['candidate-run', 'directory'], ['plan.json', 'file'], ['apply-journal.json', 'file']]);
         for (const entry of fs.readdirSync(transition, { withFileTypes: true })) {
-            if (_isHtmlMigrationSystemEntry(entry.name)) continue;
+            if (_isMacOsSystemEntry(entry.name)) continue;
             const kind = allowed.get(entry.name);
             if (!kind) {
                 problems.push(`unexpected '${entry.name}' in production-mode-transition scratch/`);
@@ -709,7 +679,7 @@ function _checkPipelineGeneratedOwnership(runDir, htmlFirst, problems) {
     }
     const htmlOwner = path.join(generated, GEN_HTML_PRODUCTION_SUBDIR);
     if (fs.existsSync(htmlOwner)) {
-        problems.push(`HTML generated owner '${GEN_HTML_PRODUCTION_SUBDIR}/' is inapplicable to markerless legacy production`);
+        problems.push(`HTML generated owner '${GEN_HTML_PRODUCTION_SUBDIR}/' is inapplicable to whole-page Image2 production`);
     }
 }
 
@@ -1226,17 +1196,17 @@ family: hero
 }
 
 /**
- * Canonical markerless whole-page Image2 starter source. It carries
- * `identity.scheme: mnemonic-v1` and a whole-page render default but NO
- * `production.pipeline` marker — the markerless branch is the source contract
- * for the `image2-only` production mode. This is the seed adapter for the
- * first-class Image2 create path; it is not "create HTML then rewrite".
+ * Canonical explicit whole-page Image2 starter source. It carries
+ * `identity.scheme: mnemonic-v1`, the whole-page pipeline marker, and a
+ * whole-page render default for `image2-only` production.
  */
 function _wholePageSeedSource(deckType = null) {
     const seed = _HTML_FIRST_SEEDS[deckType || 'generic'];
     return `---
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: full-page
 ---
@@ -1247,8 +1217,8 @@ render:
 **TITLE**: ${seed.title}
 **CONCEPT**:
 - **MUST communicate**: Replace this starter with one clear, reviewable claim.
-- **MUST NOT**: Invent a production.pipeline marker; the markerless whole-page
-  branch is the source contract for image2-only production.
+- **MUST NOT**: Change the explicit production pipeline without an intentional
+  cross-pipeline transition.
 
 **SLIDE BODY**:
 \`\`\`yaml
@@ -1289,12 +1259,11 @@ export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = nul
     return [...created, `html-first seed: ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`];
 }
 
-// Explicit compatibility scaffold for markerless historical decks. It delegates
-// to the mode-aware initBundle (image2-only) so the markerless whole-page seed,
-// state, and mirror are owned once, not recreated by hand.
-export function initLegacyBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
+// Whole-page initialization delegates to the mode-aware initializer so source,
+// state, and metadata mirror are owned once.
+export function initWholePageBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
     const created = initBundle(deckDir, frameworkDir, deckType, style, { mode: 'image2-only' });
-    return [...created, 'legacy-image2-first compatibility scaffold'];
+    return [...created, 'whole-page-image2-v1 scaffold'];
 }
 
 const _DIR_READMES = {
@@ -1496,8 +1465,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
     if (!fs.existsSync(specsDest)) {
         // Seed the canonical v1 source for the selected production mode. HTML
-        // modes seed the explicit html-first-v1 marker; image2-only seeds the
-        // canonical markerless whole-page branch. The mode adapter is selected
+        // modes seed their explicit canonical pipeline marker. The mode adapter is selected
         // directly here, never "create HTML then rewrite".
         const seed = _seedSourceForMode(mode, deckType);
         fs.writeFileSync(specsDest, seed.source, 'utf8');
@@ -1563,10 +1531,10 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     _writeIfAbsent(
         path.join(deckDir, '.env.example'),
         '# HTML-first local production does not require provider credentials.\n' +
-        '# Keep secrets out of this run bundle. Markerless legacy maintenance has\n' +
-        '# separate, explicitly authorized Image2 troubleshooting guidance.\n' +
-        '# IMAGE2_API_KEY=            # legacy compatibility only\n' +
-        '# IMAGE2_BASE_URL=           # legacy compatibility only\n');
+        '# Keep secrets out of this run bundle. Image2 actions require explicit\n' +
+        '# authorization and provider configuration.\n' +
+        '# IMAGE2_API_KEY=\n' +
+        '# IMAGE2_BASE_URL=\n');
     _writeIfAbsent(
         path.join(deckDir, '.gitignore'),
         '# secrets — never commit your API key\n.env\n' +
@@ -1578,9 +1546,7 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     log.push('credentials: .env.example, .gitignore');
 
     if (!fs.existsSync(statePath(deckDir))) {
-        const state = createInitialState(name, deckType || '', style || '');
-        state.pipeline = derivedPipeline;
-        state.production_mode.by_version['3_versions/v1'] = { mode };
+        const state = createInitialState(name, deckType || '', style || '', { mode });
         // v1 exists before state is created; bind the durable inactive selector
         // here so terminal card entry never has to infer a version from disk.
         state.continuation_target_version = 'v1';
@@ -1657,7 +1623,7 @@ deck_\${NAME}/
     │   │       ├── ${GEN_HTML_PAGES_SUBDIR}/{objects/, manifest.json}
     │   │       ├── ${GEN_HTML_FINAL_SLIDES_SUBDIR}/{objects/, manifest.json}
     │   │       └── ${GEN_HTML_PREVIEW_SUBDIR}/{objects/, plans/, manifest.json}
-    │   └── ${SCRATCH_SUBDIR}/html-migration/               ← isolated migration candidate/projected-run only
+    │   └── ${SCRATCH_SUBDIR}/production-mode-transition/   ← target-owned cross-pipeline candidate only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
 }

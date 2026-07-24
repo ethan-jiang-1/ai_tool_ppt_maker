@@ -7,10 +7,7 @@
  */
 
 import { readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
-import { STYLE_PRESETS, STYLE_PRESETS_DIR } from "../../shared/run-bundle/bundle_layout.mjs";
 import { HTML_FAMILY_GEOMETRY_ID } from "./html_family_geometry.mjs";
 import {
     HTML_COMPONENTS_SPEC,
@@ -30,8 +27,6 @@ export class VisualConfigError extends Error {
     }
 }
 
-const FRAMEWORK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-
 const HTML_EXACT_KEYS = Object.freeze([
     "schema_version", "canvas", "palette", "typography", "spacing",
     "components", "image_language", "geometry",
@@ -41,8 +36,6 @@ const HTML_PALETTE_KEYS = Object.freeze([
     "background", "surface", "text", "muted_text", "accent",
     "accent_secondary", "accent_tertiary", "divider",
 ]);
-const MIGRATION_PALETTE_DIAGNOSTIC_LIMIT = 24;
-
 export const HTML_VISUAL_PROJECTION_V1_PATHS = Object.freeze([
     "canvas",
     "geometry.registry",
@@ -187,208 +180,6 @@ function parseStrictJsonWithDuplicateAudit(raw, path) {
         throw new VisualConfigError(`could not read ${path}: ${problem.message.split("\n")[0]}`);
     }
     return data;
-}
-
-function safeActualSummary(value) {
-    if (value === null) return "null";
-    if (Array.isArray(value)) return `array(length=${value.length})`;
-    if (typeof value === "string") return `string(length=${[...value].length})`;
-    if (typeof value === "number" || typeof value === "boolean") return typeof value;
-    if (value && typeof value === "object") return `object(keys=${Object.keys(value).sort().slice(0, 8).join(",") || "none"})`;
-    return typeof value;
-}
-
-function diagnosticDifference(differences, path, expected, actual) {
-    if (differences.length >= MIGRATION_PALETTE_DIAGNOSTIC_LIMIT) return;
-    differences.push(Object.freeze({ path, expected, actual: safeActualSummary(actual) }));
-}
-
-function exactDiagnosticKeys(value, expected, path, differences) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        diagnosticDifference(differences, path, `object with keys: ${expected.join(",")}`, value);
-        return false;
-    }
-    const actual = Object.keys(value);
-    const unknown = actual.filter((key) => !expected.includes(key));
-    const missing = expected.filter((key) => !actual.includes(key));
-    if (unknown.length || missing.length) {
-        diagnosticDifference(differences, path, `exact keys: ${expected.join(",")}`, { missing, unknown });
-    }
-    return true;
-}
-
-function sameJson(left, right) {
-    return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function collectHtmlMigrationPaletteDifferences(data) {
-    const differences = [];
-    const html = data?.html_first;
-    if (!exactDiagnosticKeys(html, HTML_EXACT_KEYS, "html_first", differences)) return differences;
-    if (html.schema_version !== 1) diagnosticDifference(differences, "html_first.schema_version", "number(1)", html.schema_version);
-    if (!sameJson(html.canvas, { width: 1000, height: 562.5 })) {
-        diagnosticDifference(differences, "html_first.canvas", "{width:1000,height:562.5}", html.canvas);
-    }
-
-    if (exactDiagnosticKeys(html.palette, HTML_PALETTE_KEYS, "html_first.palette", differences)) {
-        for (const token of HTML_PALETTE_KEYS) {
-            const reference = html.palette[token];
-            if (readPaletteToken(data, reference) == null) {
-                diagnosticDifference(differences, `html_first.palette.${token}`, "reference to an existing #RRGGBB root token", reference);
-            }
-        }
-    }
-
-    if (exactDiagnosticKeys(html.typography, Object.keys(HTML_TYPOGRAPHY_SPEC), "html_first.typography", differences)) {
-        for (const [role, [weight, size, lineHeight, color]] of Object.entries(HTML_TYPOGRAPHY_SPEC)) {
-            const record = html.typography[role];
-            if (!exactDiagnosticKeys(record, ["families", "weight", "size", "line_height", "color"], `html_first.typography.${role}`, differences)) continue;
-            if (!sameJson(record.families, ["Source Sans 3", "Noto Sans SC"])) diagnosticDifference(differences, `html_first.typography.${role}.families`, "[Source Sans 3,Noto Sans SC]", record.families);
-            if (record.weight !== weight) diagnosticDifference(differences, `html_first.typography.${role}.weight`, `number(${weight})`, record.weight);
-            if (record.size !== size) diagnosticDifference(differences, `html_first.typography.${role}.size`, `number(${size})`, record.size);
-            if (record.line_height !== lineHeight) diagnosticDifference(differences, `html_first.typography.${role}.line_height`, `number(${lineHeight})`, record.line_height);
-            if (record.color !== `palette.${color}`) diagnosticDifference(differences, `html_first.typography.${role}.color`, `palette.${color}`, record.color);
-        }
-    }
-
-    if (!sameJson(html.spacing, HTML_SPACING_SPEC)) diagnosticDifference(differences, "html_first.spacing", "HTML spacing schema v1", html.spacing);
-    if (exactDiagnosticKeys(html.components, Object.keys(HTML_COMPONENTS_SPEC), "html_first.components", differences)) {
-        for (const [name, expected] of Object.entries(HTML_COMPONENTS_SPEC)) {
-            if (!sameJson(html.components[name], expected)) diagnosticDifference(differences, `html_first.components.${name}`, "HTML component schema v1", html.components[name]);
-        }
-    }
-
-    if (exactDiagnosticKeys(html.image_language, ["medium", "material", "lighting", "texture", "composition", "avoid"], "html_first.image_language", differences)) {
-        for (const key of ["medium", "material", "lighting", "texture", "composition"]) {
-            const value = html.image_language[key];
-            if (typeof value !== "string" || !value.trim() || /[\r\n]/.test(value) || htmlGraphemes(value) > 200) {
-                diagnosticDifference(differences, `html_first.image_language.${key}`, "non-empty single-line string up to 200 graphemes", value);
-            }
-        }
-        if (html.image_language.avoid !== "forbidden") diagnosticDifference(differences, "html_first.image_language.avoid", "string(forbidden)", html.image_language.avoid);
-    }
-    const forbidden = data?.forbidden;
-    if (!Array.isArray(forbidden) || forbidden.length > 16 || forbidden.some((item) => typeof item !== "string" || !item.trim() || /[\r\n]/.test(item) || htmlGraphemes(item) > 100)) {
-        diagnosticDifference(differences, "forbidden", "array of up to 16 non-empty single-line strings up to 100 graphemes", forbidden);
-    }
-    if (!sameJson(html.geometry, { registry: HTML_FAMILY_GEOMETRY_ID })) {
-        diagnosticDifference(differences, "html_first.geometry", `registry ${HTML_FAMILY_GEOMETRY_ID}`, html.geometry);
-    }
-    return differences;
-}
-
-/**
- * Closed migration-only palette validation with safe, bounded field diagnostics.
- */
-export function validateHtmlMigrationPalette(path) {
-    let raw;
-    try {
-        raw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(path));
-    } catch (error) {
-        throw new VisualConfigError(`migration palette validation failed: ${path}`, {
-            differences: [Object.freeze({ path: "$", expected: "valid UTF-8 strict JSON", actual: "unreadable bytes" })],
-        });
-    }
-    let data;
-    try {
-        data = parseStrictJsonWithDuplicateAudit(raw, path);
-    } catch {
-        throw new VisualConfigError(`migration palette validation failed: ${path}`, {
-            differences: [Object.freeze({ path: "$", expected: "strict JSON with unique keys", actual: "invalid JSON" })],
-        });
-    }
-    const differences = collectHtmlMigrationPaletteDifferences(data);
-    if (differences.length > 0) {
-        const fields = differences.map((entry) => entry.path).join(",");
-        const error = new VisualConfigError(`migration palette validation failed at ${fields}`);
-        error.differences = Object.freeze(differences);
-        throw error;
-    }
-    try {
-        return loadVisualConfigViews(path);
-    } catch (error) {
-        const diagnostic = new VisualConfigError(`migration palette validation failed: ${error.message}`);
-        diagnostic.differences = Object.freeze([Object.freeze({ path: "$", expected: "valid complete visual palette", actual: "legacy root validation failed" })]);
-        throw diagnostic;
-    }
-}
-
-function shippedPresetPalettePath(preset) {
-    if (!STYLE_PRESETS.includes(preset)) {
-        throw new VisualConfigError(`unknown HTML migration preset ${JSON.stringify(preset)}; allowed=${[...STYLE_PRESETS].sort().join(",")}`);
-    }
-    return join(FRAMEWORK_DIR, STYLE_PRESETS_DIR, preset, "color_palette.json");
-}
-
-function paletteReferenceLocation(reference) {
-    if (reference === "background") return ["background"];
-    const match = /^colors\.([a-z0-9_]+)\.hex$/.exec(reference);
-    return match ? ["colors", match[1], "hex"] : null;
-}
-
-function readPaletteToken(data, reference) {
-    const location = paletteReferenceLocation(reference);
-    if (!location) return null;
-    let value = data;
-    for (const key of location) {
-        if (!value || typeof value !== "object" || !Object.hasOwn(value, key)) return null;
-        value = value[key];
-    }
-    return typeof value === "string" && HEX_COLOR_RE.test(value) ? value.toLowerCase() : null;
-}
-
-function writePaletteToken(data, reference, value) {
-    const location = paletteReferenceLocation(reference);
-    if (!location) throw new VisualConfigError(`migration preset has unsupported palette reference ${JSON.stringify(reference)}`);
-    let target = data;
-    for (const key of location.slice(0, -1)) target = target[key];
-    target[location.at(-1)] = value;
-}
-
-export function listHtmlMigrationPresets() {
-    return Object.freeze([...STYLE_PRESETS].sort());
-}
-
-/**
- * Seed a complete HTML-first palette from one shipped preset. Only palette
- * tokens explicitly referenced by that preset may inherit a legacy value.
- */
-export function buildHtmlMigrationPaletteProjection({ preset, legacyPalettePath = null } = {}) {
-    const presetPath = shippedPresetPalettePath(preset);
-    let presetRaw;
-    try {
-        presetRaw = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(presetPath));
-    } catch (error) {
-        throw new VisualConfigError(`could not read migration preset ${JSON.stringify(preset)}: ${error.message}`);
-    }
-    const presetData = parseStrictJsonWithDuplicateAudit(presetRaw, presetPath);
-    parseVisualConfig(presetData);
-    const presetHtml = parseHtmlVisualConfig(presetData);
-    const palette = JSON.parse(JSON.stringify(presetData));
-    const legacyData = legacyPalettePath == null ? null : loadVisualConfigViews(legacyPalettePath).data;
-    const provenance = {};
-
-    for (const [token, reference] of Object.entries(presetData.html_first.palette)) {
-        const legacyValue = legacyData == null ? null : readPaletteToken(legacyData, reference);
-        if (legacyValue != null) {
-            writePaletteToken(palette, reference, legacyValue);
-            provenance[token] = "legacy";
-        } else {
-            provenance[token] = "preset";
-        }
-    }
-
-    // Validate the final complete artifact before a migration writer can stage it.
-    parseVisualConfig(palette);
-    const htmlFirst = parseHtmlVisualConfig(palette);
-    return Object.freeze({
-        preset,
-        preset_path: presetPath,
-        palette,
-        provenance: Object.freeze(provenance),
-        html_first: htmlFirst,
-        preset_html_first: presetHtml,
-    });
 }
 
 export function loadVisualConfigViews(path) {

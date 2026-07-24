@@ -20,7 +20,7 @@ export const HTML_COMPOSITOR_VERSION = 'html-compositor-v1';
 export const HTML_PAGE_MAX_BYTES = 64 * 1024 * 1024;
 export const COMPOSE_PAGE_TIMEOUT_MS = 30_000;
 export const COMPOSE_DECK_BASE_TIMEOUT_MS = 30_000;
-export const HTML_PUBLICATION_SCOPES = Object.freeze(new Set(['canonical-run', 'migration-preview']));
+export const HTML_PUBLICATION_SCOPES = Object.freeze(new Set(['canonical-run']));
 export const HTML_COMPOSITION_VARIANTS = Object.freeze(new Set(['effective', 'forced-fallback']));
 
 const CONTEXTS = new WeakMap();
@@ -349,8 +349,8 @@ function publicationRunDir(record) { return record.publicationRunDir || record.v
 function receiptRunDir(record) { return record.receiptRunDir || record.validated.runDir; }
 function logicalRunVersion(record) { return record.logicalRunVersion || basename(publicationRunDir(record)); }
 function assertResetStable(record, phase) {
-  if (record.publicationScope === 'migration-preview' || record.skipResetInspection) {
-    if (record.htmlProductionResetId !== null) throw new Error(`CONFLICT: migration-preview reset changed before ${phase}`);
+  if (record.skipResetInspection) {
+    if (record.htmlProductionResetId !== null) throw new Error(`CONFLICT: HTML production reset changed before ${phase}`);
     return Object.freeze({ html_production_reset_id: null, conflict: false });
   }
   const snapshot = inspectHtmlReviewReadiness(publicationRunDir(record));
@@ -376,25 +376,6 @@ export function createCanonicalHtmlValidatedRunContext(options = {}) {
   const resetSnapshot = hiddenPublication ? Object.freeze({ html_production_reset_id: null, conflict: false }) : inspectHtmlReviewReadiness(validated.runDir);
   if (resetSnapshot.conflict) throw new Error(`CONFLICT: ${resetSnapshot.reason}`);
   CONTEXTS.set(context, Object.freeze({ validated, plan, publicationRunDir: validated.runDir, receiptRunDir: validated.runDir, logicalRunVersion: explicitLogicalRunVersion || normalizedRunVersion, publicationScope: 'canonical-run', htmlProductionResetId: resetSnapshot.html_production_reset_id, skipResetInspection: hiddenPublication, echarts: discovered.echarts, playwright: discovered.playwright }));
-  return context;
-}
-
-export function createMigrationPreviewHtmlValidatedRunContext(options = {}) {
-  const allowed = new Set(['sourceRunDir', 'publicationRunDir', 'candidateSourcePath', 'logicalRunVersion']);
-  if (!plainObject(options) || Object.keys(options).some((key) => !allowed.has(key))) throw new TypeError('migration preview renderer context options are closed');
-  const sourceRunDir = resolve(options.sourceRunDir || '');
-  const publication = resolve(options.publicationRunDir || '');
-  const candidateSourcePath = resolve(options.candidateSourcePath || '');
-  const expectedPublication = resolve(sourceRunDir, SCRATCH_SUBDIR, 'html-migration', 'projected-run');
-  const expectedCandidate = resolve(expectedPublication, 'slide-specifications.md');
-  if (publication !== expectedPublication || candidateSourcePath !== expectedCandidate) throw new TypeError('migration preview context paths must use the canonical html-migration scratch transaction');
-  const { validated, plan } = validateAndBuildHtmlFirstPlan({ runDir: sourceRunDir, sourcePathOverride: candidateSourcePath, migrationCandidateRoot: publication });
-  verifyInputReceipts(validated.receipts, { runDir: sourceRunDir, assetCatalog: validated.assetCatalog, candidateOverridesDir: join(publication, 'overrides') });
-  const discovered = discoverRuntimePackages(FRAMEWORK_ROOT);
-  if (!discovered.echarts || discovered.echarts.version !== '6.1.0') throw new Error('exact ECharts 6.1.0 must be discovered before renderer context issuance');
-  if (!discovered.playwright) throw new Error('paired Playwright must be discovered before renderer context issuance');
-  const context = Object.freeze({});
-  CONTEXTS.set(context, Object.freeze({ validated, plan, publicationRunDir: publication, receiptRunDir: sourceRunDir, logicalRunVersion: options.logicalRunVersion || basename(publication), publicationScope: 'migration-preview', htmlProductionResetId: null, skipResetInspection: true, echarts: discovered.echarts, playwright: discovered.playwright }));
   return context;
 }
 

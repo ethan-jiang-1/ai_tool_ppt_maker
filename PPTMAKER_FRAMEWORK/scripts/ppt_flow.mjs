@@ -6,8 +6,8 @@
  * This is the default human/agent entry point. It delegates to the structural SSOT
  * and production orchestrator instead of duplicating their logic.
  *
- * 15 commands: doctor, init, status, approve, style-master, validate, pilot,
- *              build, refresh, slides, new-version, test, state, migrate-html, image2
+ * 14 commands: doctor, init, status, approve, style-master, validate, pilot,
+ *              build, refresh, slides, new-version, test, state, image2
  *
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
@@ -95,7 +95,7 @@ const {
   validateSlideDocument,
   verifySlideEditPlanHash,
 } = contentApi;
-import { HTML_FIRST_PIPELINE, LEGACY_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
+import { HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -109,11 +109,21 @@ const ENV_CHECK = join(FRAMEWORK_DIR, "scripts", "00-setup", "env-check.mjs");
 
 const STYLE_PRESETS_SORTED = () => [...STYLE_PRESETS].sort();
 const DECK_TYPES_SORTED = () => Object.keys(DECK_TYPE_TEMPLATES).sort();
+const MIGRATION_PLAN_SHA_RE = /^[0-9a-f]{64}$/;
 
 /** Emit FAILED envelope; caller still returns/exits the numeric code (D13). */
 function emitFailed(where, message, hint = "Inspect the diagnostic evidence before retrying", diagnostic = undefined) {
   const childResult = runNode.lastChildResult;
-  const inferred = diagnostic || (childResult ? buildDelegatedDiagnostic({
+  const historicalReplacement = /\breplacement_required\b/.test(String(message || ""));
+  const inferred = diagnostic || (historicalReplacement ? {
+    version: 1,
+    category: "artifact",
+    operation: where.split(".").at(-1).replaceAll("_", "-"),
+    reason: { kind: "replacement_required" },
+    next: createCliNext("repair_prerequisite", {
+      default: "Preserve the existing bytes and run fresh explicit ppt_flow init; fresh authoring carries no old state, receipt, approval, provider authority, generated artifact, or execution evidence.",
+    }),
+  } : childResult ? buildDelegatedDiagnostic({
     invocation: childResult.invocation,
     childError: childResult.childError,
     operation: where.split(".").at(-1).replaceAll("_", "-"),
@@ -169,9 +179,7 @@ function validateResolution(where, resolution) {
 /**
  * Resolve one exact run to its only permitted production adapter before a
  * command reads generated output, checks readiness, or initializes a provider.
- * The state owner permits a state-absent markerless historical run as the sole
- * explicit compatibility route; all durable missing/mismatched mode records
- * fail closed here.
+ * Every supported run has an explicit source marker and a durable mode record.
  */
 function preflightAdapterSource(resolved, where) {
   const canonicalSource = join(resolved, SLIDE_SPECS_NAME);
@@ -181,6 +189,10 @@ function preflightAdapterSource(resolved, where) {
   const sourceLocator = relative(deckRoot(resolved), source).split(sep).join("/");
   const marker = probeProductionMarker(readFileSync(source), { source: basename(source) });
   if (marker.branch === "invalid") {
+    const unsupportedHistoricalMarker = marker.issues.some((issue) =>
+      ["missing_production_marker", "unsupported_pipeline_marker"].includes(issue.code)
+    );
+    if (unsupportedHistoricalMarker) return false;
     emitCliError({
       code: CLI_ERROR_CODES.FAILED,
       message: "Leading source frontmatter is invalid.",
@@ -226,12 +238,16 @@ async function resolveRunAdapter(runDir, where) {
   if (route.ok) return Object.freeze({ ...route, run_dir: resolved, deck_dir: deckDir });
 
   const code = route.code || "STATE_UNAVAILABLE";
+  const historicalState = route.state?.replacement_required === true && route.state?.current_repair_required !== true;
+  const currentRepair = route.state?.current_repair_required === true;
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
     message: `Production adapter cannot resolve the exact run identity: ${code}.`,
     hint: code === "transition_required"
       ? "Resolve the mode/source mismatch through the versioned transition path before retrying."
-      : "Initialize, migrate, or register the exact run version's production mode before retrying.",
+      : historicalState
+        ? "Preserve unsupported state bytes and start a fresh explicitly initialized current run."
+        : "Initialize or register the exact run version's production mode before retrying.",
     where,
     diagnostic: {
       version: 1,
@@ -243,7 +259,11 @@ async function resolveRunAdapter(runDir, where) {
         requiresHuman: code === "transition_required",
         default: code === "transition_required"
           ? "Repair the authoritative mode/source relationship before selecting an adapter."
-          : "Register or migrate the exact production mode through its state owner, then retry.",
+          : historicalState
+            ? "Preserve the existing bytes and run ppt_flow init for a fresh current run; do not edit or infer a route from unsupported historical state."
+            : currentRepair
+              ? "Retry the owning current-state operation so it can canonicalize the one-to-one defect before continuing."
+              : "Register the exact production mode through its state owner, then retry.",
       }),
     },
   });
@@ -296,7 +316,7 @@ async function rejectHtmlFirstDelivery(runDir, where, { allowHtml = false } = {}
   if (allowHtml) return false;
   emitCliError({
     code: CLI_ERROR_CODES.FAILED,
-    message: "This legacy-only command is not applicable to HTML-first production.",
+    message: "This whole-page-only command is not applicable to HTML-first production.",
     hint: "Use the local HTML preview/review/build route for this run.",
     where,
     diagnostic: {
@@ -304,7 +324,7 @@ async function rejectHtmlFirstDelivery(runDir, where, { allowHtml = false } = {}
       category: "gate",
       operation: "route-html-first",
       source: { path: sourceLocator },
-      reason: { kind: "html_legacy_command_inapplicable" },
+      reason: { kind: "html_whole_page_option_inapplicable" },
       next: createCliNext("rerun", { default: "Use the matching HTML-first local command and review flow." }),
     },
   });
@@ -471,11 +491,11 @@ function collectStatus(runDir) {
   const source = existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(runDir);
   const marker = source
     ? probeProductionMarker(readFileSync(source), { source: basename(source) })
-    : { branch: "legacy", issues: [] };
+    : { branch: "invalid", issues: [] };
   const htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
   const pipeline = marker.branch === "invalid"
     ? "invalid"
-    : htmlFirst ? HTML_FIRST_PIPELINE : LEGACY_PIPELINE;
+    : htmlFirst ? HTML_FIRST_PIPELINE : WHOLE_PAGE_IMAGE2_PIPELINE;
 
   let expected = 0;
   let slideLabels = [];
@@ -538,11 +558,11 @@ function collectStatus(runDir) {
   };
 }
 
-function applyWorkflowInspectionCompatibility(target, inspection) {
+function applyWorkflowInspectionDisplay(target, inspection) {
   target.workflow_inspection = inspection;
   const primary = inspection.primary_action;
   target.workflow_summary = primary.summary || primary.display_label || primary.action_id;
-  target.suggested_next = primary.compatibility_command || primary.display_label || `${primary.owner}:${primary.action_id}`;
+  target.suggested_next = primary.command || primary.display_label || `${primary.owner}:${primary.action_id}`;
 }
 
 /**
@@ -554,24 +574,21 @@ async function enrichStatusWithState(status, runDir, route = null) {
   const { readState, buildResumeCard, statePath, projectImage2RefinementState, inspectRunProductionMode } = await import("./shared/state/state.mjs");
   const root = deckRoot(runDir);
   status.state_present = existsSync(statePath(root));
-  // Status must project the exact run-bound execution. This also performs the
-  // ordered schema migration when a pre-v5 state has one unambiguous visible
-  // version; returning the raw v4 working set would hide the breakpoint.
+  // Status projects only exact, current run-bound authority. Historical state
+  // is a hard-stop and is never upgraded from visible topology.
   const s = readState(root, { purpose: "observe", heal: false, runDir });
-  if (s.corrupted) {
+  if (s.replacement_required) {
     status.playbook = "";
     status.current_node = "";
-    status.state_corrupted = true;
+    status.state_unavailable = true;
     return status;
   }
   const version = basename(resolve(runDir));
   const modeInspection = route?.mode
-    ? { ok: true, mode: route.mode, policy: route.policy, compatibility: route.compatibility }
-    : route?.compatibility
-      ? { ok: true, mode: null, policy: route.policy, compatibility: route.compatibility }
+    ? { ok: true, mode: route.mode, policy: route.policy }
     : inspectRunProductionMode(root, { runDir, purpose: "observe" });
   status.production_mode = modeInspection.ok
-    ? { resolvable: true, mode: modeInspection.mode, policy: modeInspection.policy, ...(modeInspection.compatibility ? { compatibility: modeInspection.compatibility } : {}) }
+    ? { resolvable: true, mode: modeInspection.mode, policy: modeInspection.policy }
     : { resolvable: false, code: modeInspection.code };
   if (modeInspection.mode === "html-then-image2") {
     try {
@@ -614,7 +631,7 @@ async function enrichStatusWithState(status, runDir, route = null) {
   status.playbook = card.playbook;
   status.current_node = card.current_node;
   const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
-  applyWorkflowInspectionCompatibility(status, inspectWorkflow({ runDir }));
+  applyWorkflowInspectionDisplay(status, inspectWorkflow({ runDir }));
   return status;
 }
 
@@ -629,8 +646,8 @@ export async function buildControllerGateContext(runDir) {
   let slideSpecsValid = false;
   if (specPath) {
     try {
-      const { validateLegacySpecs } = await import("./03-html-production/index.mjs");
-      slideSpecsValid = !(await validateLegacySpecs([specPath])).some((problem) => problem.startsWith("ERROR:"));
+      const { validateSlideSpecs } = await import("./03-html-production/index.mjs");
+      slideSpecsValid = !(await validateSlideSpecs([specPath])).some((problem) => problem.startsWith("ERROR:"));
     } catch {
       slideSpecsValid = false;
     }
@@ -638,8 +655,8 @@ export async function buildControllerGateContext(runDir) {
 
   let headerReviewCurrent = false;
   try {
-      const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
-      headerReviewCurrent = (await inspectLegacyHeaderReview(resolved, {
+      const { inspectWholePageHeaderReview } = await import("./04-image-production/index.mjs");
+      headerReviewCurrent = (await inspectWholePageHeaderReview(resolved, {
       requireCurrentImages: true,
     })).ok;
   } catch {
@@ -667,7 +684,7 @@ export async function buildControllerGateContext(runDir) {
     deckDir: deckRoot(resolved),
     runDir: resolved,
     runVersion: basename(resolved),
-    pipeline: htmlFirstMarked ? HTML_FIRST_PIPELINE : LEGACY_PIPELINE,
+    pipeline: htmlFirstMarked ? HTML_FIRST_PIPELINE : WHOLE_PAGE_IMAGE2_PIPELINE,
     frameworkDir: FRAMEWORK_DIR,
     slideSpecsValid,
     headerReviewCurrent,
@@ -1153,27 +1170,41 @@ async function commandApprove(runDir, gate, { waive, planHash = null, reason = n
       return 1;
     }
   }
-  if (planHash || reason) return emitUsage("ppt_flow.approve", "--plan-hash/--reason are HTML review controls", "Remove HTML-only controls for markerless legacy approval");
-  const metadata = join(root, METADATA_FILE);
-  updateGate(metadata, gate, value);
-
+  if (planHash || reason) return emitUsage("ppt_flow.approve", "--plan-hash/--reason are HTML review controls", "Remove HTML-only controls for whole-page Image2 header approval");
   const { readState, writeState, setGate, appendHistory } = await import(
     "./shared/state/state.mjs"
   );
   const s = readState(root);
-  if (!s.corrupted) {
-    setGate(s, gate, value);
-    writeState(root, s);
-    try {
-      appendHistory(root, {
-        type: "gate_set",
-        gate,
-        value,
-        source: "ppt_flow.approve",
-      });
-    } catch {
-      /* history is optional */
-    }
+  if (s.replacement_required) {
+    emitFailed(
+      "ppt_flow.approve.state",
+      "authoritative state uses an unsupported protocol",
+      "Preserve the existing bytes and run fresh explicit ppt_flow init; do not edit or infer a route from unsupported historical state.",
+      {
+        version: 1,
+        category: "artifact",
+        operation: "approve-gate",
+        reason: { kind: "replacement_required" },
+        next: createCliNext("repair_prerequisite", {
+          default: "Preserve the existing bytes and run ppt_flow init for a fresh current run; do not edit or infer a route from unsupported historical state.",
+        }),
+      }
+    );
+    return 1;
+  }
+  const metadata = join(root, METADATA_FILE);
+  updateGate(metadata, gate, value);
+  setGate(s, gate, value);
+  writeState(root, s);
+  try {
+    appendHistory(root, {
+      type: "gate_set",
+      gate,
+      value,
+      source: "ppt_flow.approve",
+    });
+  } catch {
+    /* history is optional */
   }
 
   console.log(`✓ ${gate}_gate: ${value} (${metadata})`);
@@ -1263,7 +1294,7 @@ async function commandApproveHeader(runDir, {
       HEADER_REVIEW_NODE,
       mergeHeaderReviewRecord,
       versionKey,
-    } = await import("./05-iteration/index.mjs");
+    } = await import("./04-image-production/index.mjs");
     const inputs = buildHeaderReviewInputs(plan, visualConfig);
     const root = deckRoot(resolved);
     const { readState, writeState, appendHistory } = await import("./shared/state/state.mjs");
@@ -1271,7 +1302,7 @@ async function commandApproveHeader(runDir, {
     if (state.corrupted) throw new Error("state is corrupted");
     const key = versionKey(root, resolved);
     const previousRecord = state.nodes?.[HEADER_REVIEW_NODE]?.by_version?.[key] || null;
-    const { changedFullPageIds } = await import("./05-iteration/index.mjs");
+    const { changedFullPageIds } = await import("./04-image-production/index.mjs");
     const changedIds = previousRecord?.slides
       ? changedFullPageIds({}, {}, previousRecord.slides)  // per-slide state
       : previousRecord?.full_page_header_snapshot
@@ -1485,14 +1516,14 @@ async function commandValidate(runDir) {
  */
 async function commandPilot(
   runDir,
-  { only: onlyStr, count, resolution, model, baseUrl, dryRun, forceImages = false, legacyControlsExplicit = false }
+  { only: onlyStr, count, resolution, model, baseUrl, dryRun, forceImages = false, wholePageControlsExplicit = false }
 ) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.pilot.identity");
   if (!route) return 1;
   const resolved = route.run_dir;
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.pilot", { allowHtml: true })) return 1;
   if (route.adapter === "html") {
-    if (forceImages || baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.pilot.html", "HTML preview does not accept provider/model/resolution/force controls", "Use only --only and --dry-run for local HTML preview");
+    if (forceImages || baseUrl || wholePageControlsExplicit) return emitUsage("ppt_flow.pilot.html", "HTML preview does not accept provider/model/resolution/force controls", "Use only --only and --dry-run for local HTML preview");
     const args = ["--run-dir", resolved, "--stage", "1,2,3", "--preview"];
     if (onlyStr) args.push("--only", onlyStr);
     if (dryRun) args.push("--dry-run");
@@ -1718,7 +1749,7 @@ async function commandBuild(
     if (code !== 0) emitFailed("ppt_flow.build", `HTML build exited ${code}`, "Resolve current HTML source/review evidence, then rerun build");
     return code;
   }
-  if (force || reason != null) return emitUsage("ppt_flow.build", "--force/--reason are HTML-first continuation controls", "Remove them for markerless builds.");
+  if (force || reason != null) return emitUsage("ppt_flow.build", "--force/--reason are HTML-first continuation controls", "Remove them for explicit whole-page builds.");
   if (!dryRun) {
     const stage1Code = await runNode(UNIFIED_PIPELINE, [
       "--run-dir", resolved, "--stage", "1",
@@ -1727,8 +1758,8 @@ async function commandBuild(
       emitFailed("ppt_flow.build", `Stage 1 exited ${stage1Code}`, "Fix current source/config errors, then rerun build");
       return 1;
     }
-    const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
-    const review = await inspectLegacyHeaderReview(resolved, {
+    const { inspectWholePageHeaderReview } = await import("./04-image-production/index.mjs");
+    const review = await inspectWholePageHeaderReview(resolved, {
       resolution,
       model,
       forceImages: !reuseImages,
@@ -1791,13 +1822,13 @@ async function commandBuild(
  */
 async function commandRefresh(
   runDir,
-  { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun, confirmRunVersion = null, legacyControlsExplicit = false }
+  { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun, confirmRunVersion = null, wholePageControlsExplicit = false }
 ) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.refresh.identity");
   if (!route) return 1;
   const resolved = route.run_dir;
   if (kind === "reset-html-production") {
-    if (onlyStr || allSlides || dryRun || baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.refresh.reset-html-production", "reset-html-production accepts only --confirm-run-version", "Remove selectors/dry-run/provider/resolution controls and confirm the exact vN");
+    if (onlyStr || allSlides || dryRun || baseUrl || wholePageControlsExplicit) return emitUsage("ppt_flow.refresh.reset-html-production", "reset-html-production accepts only --confirm-run-version", "Remove selectors/dry-run/provider/resolution controls and confirm the exact vN");
     if (!confirmRunVersion) return emitUsage("ppt_flow.refresh.reset-html-production", "--confirm-run-version is required", "Pass the exact target run version, for example --confirm-run-version v1");
     if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh.reset-html-production", { allowHtml: true })) return 1;
     try {
@@ -1813,7 +1844,7 @@ async function commandRefresh(
   if (confirmRunVersion) return emitUsage("ppt_flow.refresh", "--confirm-run-version applies only to reset-html-production", "Remove the confirmation flag or select --kind reset-html-production");
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.refresh", { allowHtml: true })) return 1;
   if (route.adapter === "html") {
-    if (baseUrl || legacyControlsExplicit) return emitUsage("ppt_flow.refresh.html", "HTML refresh does not accept provider/resolution controls", "Remove legacy image options and use local HTML refresh");
+    if (baseUrl || wholePageControlsExplicit) return emitUsage("ppt_flow.refresh.html", "HTML refresh does not accept provider/resolution controls", "Remove whole-page image options and use local HTML refresh");
     if (kind === "notes") {
       if (onlyStr || allSlides) return emitUsage("ppt_flow.refresh.html.notes", "Notes-Only Refresh does not accept slide selectors", "Remove --only/--all and rerun notes refresh");
       const args = ["--run-dir", resolved, "--stage", "5"];
@@ -1896,8 +1927,8 @@ async function commandRefresh(
       plan.some((slide) => slide.id === id && slide.layout_contract?.render_mode === "full-page")
     );
     if (fullPageAffected.length > 0) {
-      const { inspectLegacyHeaderReview } = await import("./05-iteration/index.mjs");
-      const review = await inspectLegacyHeaderReview(resolved, { onlyIds: fullPageAffected });
+      const { inspectWholePageHeaderReview } = await import("./04-image-production/index.mjs");
+      const review = await inspectWholePageHeaderReview(resolved, { onlyIds: fullPageAffected });
       if (!review.ok) {
         emitCliError({
           code: CLI_ERROR_CODES.TITLE_REVIEW_REQUIRED,
@@ -2052,26 +2083,6 @@ function renderSlidesResult(result, asJson) {
   if (result.target_run_dir) console.log(`Created: ${result.target_run_dir}`);
   if (result.receipt?.no_op) console.log("No source bytes changed.");
   if (result.transaction.warnings.length > 0) console.log(`Review warnings: ${result.transaction.warnings.length}`);
-}
-
-function renderMigrationResult(result) {
-  console.log(`✓ Migration ${result.status || "complete"}`);
-  console.log(`source_version: ${result.source_version || "(unknown)"}`);
-  console.log(`target_version: ${result.target_version || "(unknown)"}`);
-  if (result.preset) console.log(`preset: ${result.preset}`);
-  if (result.plan_hash) console.log(`plan_hash: ${result.plan_hash}`);
-  if (result.old_side_mode) console.log(`old_side_mode: ${result.old_side_mode}`);
-  if (result.projected_run) console.log(`projected_run: ${result.projected_run}`);
-  if (result.plan_path) console.log(`plan_path: ${result.plan_path}`);
-  if (result.target_run_dir) console.log(`target_run_dir: ${result.target_run_dir}`);
-  if (result.receipt_path) console.log(`receipt_path: ${result.receipt_path}`);
-  if (result.contact_sheet_sha) console.log(`contact_sheet_sha: ${result.contact_sheet_sha}`);
-  if (result.html_delivery_digest) console.log(`html_delivery_digest: ${result.html_delivery_digest}`);
-  if (result.recovery_mode) console.log(`recovery_mode: ${result.recovery_mode}`);
-  if (result.checklist?.slides) console.log(`authoring_slides: ${result.checklist.slides.map((slide) => slide.slide_id).join(",")}`);
-  if (result.available_presets) console.log(`available_presets: ${result.available_presets.join(",")}`);
-  if (result.missing?.length) console.log(`missing: ${result.missing.join(",")}`);
-  if (result.next_action) console.log(`next_action: ${result.next_action}`);
 }
 
 function collectDeckHistoryIds(runDir) {
@@ -2325,165 +2336,6 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
   }
 }
 
-const MIGRATION_OLD_SIDE_MODES = new Set(["verified-current", "degraded-missing", "degraded-stale"]);
-const MIGRATION_PLAN_SHA_RE = /^[0-9a-f]{64}$/;
-
-async function commandMigrateHtml(runDir, operation, opts = {}) {
-  const resolved = resolve(runDir);
-  if (!["prepare", "preview", "apply"].includes(operation)) {
-    return emitUsage("ppt_flow.migrate-html.operation", 'operation must be "prepare", "preview", or "apply".', "Pass prepare, preview, or apply after the run directory");
-  }
-  // A durable mode-governed source has exactly one public cross-pipeline
-  // protocol. Historical migration can only finish an already-active exact
-  // checkpoint; it can never prepare or preview a competing candidate.
-  const assertLegacyMigrationRoute = async () => {
-    const { readState } = await import("./shared/state/state.mjs");
-    const sourceVersion = basename(resolved);
-    const state = readState(deckRoot(resolved), { purpose: "observe", heal: false, runVersion: sourceVersion });
-    const durableMode = state?.production_mode?.by_version?.[`3_versions/${sourceVersion}`]?.mode;
-    const legacyCheckpoint = state?.playbook === "migrate-import" &&
-      ["confirm-html-migration", "apply-html-migration", "migration-target-review"].includes(state?.current_node) &&
-      state?.run_version === sourceVersion;
-    if (durableMode && (operation !== "apply" || !legacyCheckpoint)) {
-      throw new Error("mode-governed cross-pipeline requests must use the closed production-mode transition protocol");
-    }
-  };
-  if (operation === "prepare") {
-    if (opts.planHash || opts.oldSideMode || opts.recoverJournal) {
-      return emitUsage(
-        "ppt_flow.migrate-html.prepare",
-        "prepare accepts only --preset.",
-        "Pass one shipped preset and no preview, apply, or recovery flags"
-      );
-    }
-    if (!opts.preset) {
-      return emitUsage(
-        "ppt_flow.migrate-html.prepare",
-        "prepare requires --preset <name>.",
-        `Use one shipped preset: ${STYLE_PRESETS_SORTED().join(", ")}`
-      );
-    }
-    if (!STYLE_PRESETS.includes(opts.preset)) {
-      return emitUsage(
-        "ppt_flow.migrate-html.prepare.preset",
-        `unknown migration preset ${JSON.stringify(opts.preset)}.`,
-        `Use one shipped preset: ${STYLE_PRESETS_SORTED().join(", ")}`
-      );
-    }
-    try {
-      await assertLegacyMigrationRoute();
-      const { prepareHtmlMigration } = await import("./05-iteration/index.mjs");
-      const result = await prepareHtmlMigration(resolved, { preset: opts.preset });
-      renderMigrationResult(result);
-      return 0;
-    } catch (error) {
-      emitFailed(
-        "ppt_flow.migrate-html.prepare",
-        error.message,
-        "Resolve the markerless source or candidate-input conflict, then rerun prepare with the same preset"
-      );
-      return 1;
-    }
-  }
-  if (operation === "preview") {
-    if (opts.preset || opts.planHash || opts.oldSideMode || opts.recoverJournal) {
-      return emitUsage(
-        "ppt_flow.migrate-html.preview",
-        "preview accepts no prepare, apply, or recovery flags.",
-        "Use preview by itself, then run apply with the exact plan hash and old-side mode"
-      );
-    }
-    try {
-      await assertLegacyMigrationRoute();
-      const { previewHtmlMigration } = await import("./05-iteration/index.mjs");
-      const result = await previewHtmlMigration(resolved);
-      renderMigrationResult(result);
-      return 0;
-    } catch (error) {
-      emitFailed(
-        "ppt_flow.migrate-html.preview",
-        error.message,
-        "Fix the candidate source, scratch workspace, or local HTML evidence, then rerun preview"
-      );
-      return 1;
-    }
-  }
-
-  if (opts.preset) {
-    return emitUsage(
-      "ppt_flow.migrate-html.apply",
-      "apply does not accept --preset.",
-      "Run prepare with --preset before preview; apply accepts only its exact confirmation flags"
-    );
-  }
-  if (opts.recoverJournal) {
-    if (opts.planHash || opts.oldSideMode) {
-      return emitUsage(
-        "ppt_flow.migrate-html.apply",
-        "--recover-journal is mutually exclusive with --plan-hash and --old-side-mode.",
-        "Use recovery by itself with the exact 64-hex owner token"
-      );
-    }
-    if (!MIGRATION_PLAN_SHA_RE.test(opts.recoverJournal)) {
-      return emitUsage(
-        "ppt_flow.migrate-html.apply.recover",
-        "--recover-journal must be the exact 64-lowercase-hex owner token.",
-        "Pass the owner token shown by the migration recovery diagnostic"
-      );
-    }
-    try {
-      await assertLegacyMigrationRoute();
-      const { recoverHtmlMigrationApply } = await import("./05-iteration/index.mjs");
-      const result = await recoverHtmlMigrationApply(resolved, { recoverJournalToken: opts.recoverJournal });
-      renderMigrationResult(result);
-      return 0;
-    } catch (error) {
-      emitFailed(
-        "ppt_flow.migrate-html.apply.recover",
-        error.message,
-        "Fix the journal ownership conflict or wait for the recovery age floor, then retry recovery"
-      );
-      return 1;
-    }
-  }
-
-  if (!opts.planHash || !opts.oldSideMode) {
-    return emitUsage(
-      "ppt_flow.migrate-html.apply",
-      "--plan-hash and --old-side-mode are required for apply.",
-      "Pass the confirmed preview hash and exact old-side mode"
-    );
-  }
-  if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash)) {
-    return emitUsage(
-      "ppt_flow.migrate-html.apply.plan-hash",
-      "--plan-hash must be a 64-lowercase-hex SHA-256.",
-      "Copy the exact preview plan hash"
-    );
-  }
-  if (!MIGRATION_OLD_SIDE_MODES.has(opts.oldSideMode)) {
-    return emitUsage(
-      "ppt_flow.migrate-html.apply.old-side-mode",
-      "--old-side-mode must be verified-current, degraded-missing, or degraded-stale.",
-      "Use the exact mode reported by preview"
-    );
-  }
-  try {
-    await assertLegacyMigrationRoute();
-    const { applyHtmlMigration } = await import("./05-iteration/index.mjs");
-    const result = await applyHtmlMigration(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
-    renderMigrationResult(result);
-    return 0;
-  } catch (error) {
-    emitFailed(
-      "ppt_flow.migrate-html.apply",
-      error.message,
-      "Re-run preview, confirm the exact hash/mode, and repair the active migrate-import execution before applying again"
-    );
-    return 1;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Command: test
 // ---------------------------------------------------------------------------
@@ -2710,9 +2562,6 @@ Examples:
   ppt_flow.mjs refresh deck_mydeck/3_versions/v1 --kind visual --only slide_03
   ppt_flow.mjs slides list deck_mydeck/3_versions/v1
   ppt_flow.mjs slides move deck_mydeck/3_versions/v1 7 --after 3
-  ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 preview
-  ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 prepare --preset dark-executive
-  ppt_flow.mjs migrate-html deck_mydeck/3_versions/v1 apply --plan-hash <sha> --old-side-mode degraded-missing
   ppt_flow.mjs new-version deck_mydeck/3_versions/v1 --name v2
   ppt_flow.mjs test
   ppt_flow.mjs state deck_mydeck/3_versions/v1 --check-gates
@@ -2898,7 +2747,7 @@ Examples:
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
         forceImages: opts.forceImages ?? false,
-        legacyControlsExplicit: process.argv.includes("--resolution") || process.argv.includes("--model"),
+        wholePageControlsExplicit: process.argv.includes("--resolution") || process.argv.includes("--model"),
       });
       process.exit(code);
     });
@@ -2961,7 +2810,7 @@ Examples:
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
         confirmRunVersion: opts.confirmRunVersion || null,
-        legacyControlsExplicit: process.argv.includes("--resolution"),
+        wholePageControlsExplicit: process.argv.includes("--resolution"),
       });
       process.exit(code);
     });
@@ -3051,9 +2900,7 @@ Examples:
     .option("--validate-state", "Validate persisted state and evidence without writing")
     .option("--recover-gate-journal <ownerToken>", "Explicitly recover an abandoned HTML gate journal")
     .option("--record-delivery-review <decision>", "Record HTML delivery review: proceed, repair, or redirect")
-    .option("--confirm-migration-apply", "Confirm the exact current markerless migration preview for apply")
-    .option("--plan-hash <hash>", "Exact migration preview plan hash for --confirm-migration-apply")
-    .option("--old-side-mode <mode>", "Exact migration old-side mode for --confirm-migration-apply")
+    .option("--plan-hash <hash>", "Exact production-mode transition preview plan hash")
     .option("--prepare-production-mode-transition <mode>", "Prepare a cross-pipeline target candidate")
     .option("--preview-production-mode-transition", "Preview the prepared cross-pipeline target candidate")
     .option("--confirm-production-mode-transition", "Confirm the exact cross-pipeline target preview")
@@ -3072,7 +2919,7 @@ Examples:
       // state owner, or probing source. Mixed forms must be a zero-read/zero-
       // write USAGE failure.
       const transitionOperations = Number(Boolean(opts.prepareProductionModeTransition)) + Number(Boolean(opts.previewProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransition)) + Number(Boolean(opts.applyProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransitionRecovery)) + Number(Boolean(opts.recoverProductionModeTransition));
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + Number(Boolean(opts.confirmMigrationApply)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
         process.exitCode = 1;
@@ -3088,8 +2935,8 @@ Examples:
         process.exitCode = 1;
         return;
       }
-      if ((opts.planHash || opts.oldSideMode) && !opts.confirmMigrationApply && !opts.confirmProductionModeTransition && !opts.applyProductionModeTransition) {
-        emitUsage("ppt_flow.state", "--plan-hash applies only to a closed migration or production-mode-transition confirmation/apply", "Use the exact preview hash with one closed confirmation or apply operation.");
+      if (opts.planHash && !opts.confirmProductionModeTransition && !opts.applyProductionModeTransition) {
+        emitUsage("ppt_flow.state", "--plan-hash applies only to production-mode-transition confirmation or apply", "Use the exact preview hash with one closed confirmation or apply operation.");
         process.exitCode = 1;
         return;
       }
@@ -3107,40 +2954,12 @@ Examples:
       if (existsSync(canonicalSource)) {
         const { HTML_FIRST_PIPELINE, probeProductionMarker } = await import("./03-html-production/index.mjs");
         const marker = probeProductionMarker(readFileSync(canonicalSource), { source: SLIDE_SPECS_NAME });
-        if (marker.branch === "invalid") exitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Leading source frontmatter is invalid.", hint: "Repair the canonical source marker before checking state.", where: "ppt_flow.state.probe", diagnostic: { version: 1, category: "source_validation", operation: "probe-html-first", source: marker.issues[0]?.source || { path: SLIDE_SPECS_NAME }, reason: { kind: "invalid_pipeline_marker" }, next: createCliNext("edit_source", { default: "Repair leading frontmatter before state readiness checks." }) } }, 1);
         htmlFirst = marker.branch === HTML_FIRST_PIPELINE;
       }
       if ((opts.recoverGateJournal || opts.recordDeliveryReview) && !htmlFirst) {
-        emitUsage("ppt_flow.state", "HTML state operations are branch-inapplicable for markerless decks", "Use the legacy controller/status path for a markerless deck.");
+        emitUsage("ppt_flow.state", "HTML state operations are inapplicable to whole-page Image2 runs", "Use the matching whole-page production route.");
         process.exitCode = 1;
         return;
-      }
-      if (opts.confirmMigrationApply) {
-        if (htmlFirst) {
-          emitUsage("ppt_flow.state.confirm-migration-apply", "migration confirmation accepts only a markerless source version", "Run this operation against the markerless source run after its complete migration preview.");
-          process.exitCode = 1;
-          return;
-        }
-        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
-          emitUsage("ppt_flow.state.confirm-migration-apply", "--plan-hash must be the exact 64-lowercase-hex migration preview hash", "Copy the exact plan hash from the current complete preview.");
-          process.exitCode = 1;
-          return;
-        }
-        if (!MIGRATION_OLD_SIDE_MODES.has(opts.oldSideMode || "")) {
-          emitUsage("ppt_flow.state.confirm-migration-apply", "--old-side-mode must be verified-current, degraded-missing, or degraded-stale", "Copy the exact old-side mode from the current complete preview.");
-          process.exitCode = 1;
-          return;
-        }
-        try {
-          const { confirmHtmlMigrationApply } = await import("./05-iteration/index.mjs");
-          const result = await confirmHtmlMigrationApply(resolved, { planHash: opts.planHash, oldSideMode: opts.oldSideMode });
-          console.log(JSON.stringify({ operation: "confirm-migration-apply", ...result }));
-          return;
-        } catch (error) {
-          emitFailed("ppt_flow.state.confirm-migration-apply", error.message, "Obtain a fresh complete preview, keep the active migration confirmation node unchanged, and retry the exact hash/mode.");
-          process.exitCode = 1;
-          return;
-        }
       }
       if (opts.prepareProductionModeTransition) {
         if (!PRODUCTION_MODES.includes(opts.prepareProductionModeTransition)) {
@@ -3149,7 +2968,7 @@ Examples:
           return;
         }
         try {
-          const { prepareProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const { prepareProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
           const result = await prepareProductionModeTransition(resolved, { targetMode: opts.prepareProductionModeTransition });
           console.log(JSON.stringify({ operation: "prepare-production-mode-transition", ...result }));
           return;
@@ -3161,7 +2980,7 @@ Examples:
       }
       if (opts.previewProductionModeTransition) {
         try {
-          const { previewProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const { previewProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
           const result = await previewProductionModeTransition(resolved);
           console.log(JSON.stringify({ operation: "preview-production-mode-transition", ...result }));
           return;
@@ -3172,14 +2991,14 @@ Examples:
         }
       }
       if (opts.confirmProductionModeTransition) {
-        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "") || opts.oldSideMode) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
           emitUsage("ppt_flow.state.confirm-production-mode-transition", "confirmation requires only --plan-hash <64-lowercase-hex>", "Copy the exact production-mode transition preview hash.");
           process.exitCode = 1;
           return;
         }
         try {
-          const { confirmProductionModeTransition } = await import("./05-iteration/index.mjs");
-          const result = await confirmProductionModeTransition(resolved, { planHash: opts.planHash });
+          const { confirmPreparedProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await confirmPreparedProductionModeTransition(resolved, { planHash: opts.planHash });
           console.log(JSON.stringify({ operation: "confirm-production-mode-transition", ...result }));
           return;
         } catch (error) {
@@ -3189,13 +3008,13 @@ Examples:
         }
       }
       if (opts.applyProductionModeTransition) {
-        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "") || opts.oldSideMode) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
           emitUsage("ppt_flow.state.apply-production-mode-transition", "apply requires only --plan-hash <64-lowercase-hex>", "Apply only the exact confirmed production-mode transition hash.");
           process.exitCode = 1;
           return;
         }
         try {
-          const { applyProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const { applyProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
           const result = await applyProductionModeTransition(resolved, { planHash: opts.planHash });
           console.log(JSON.stringify({ operation: "apply-production-mode-transition", ...result }));
           return;
@@ -3233,7 +3052,7 @@ Examples:
           return;
         }
         try {
-          const { recoverProductionModeTransition } = await import("./05-iteration/index.mjs");
+          const { recoverProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
           const result = await recoverProductionModeTransition(resolved, { ownerToken });
           console.log(JSON.stringify({ operation: "recover-production-mode-transition", ...result }));
           return;
@@ -3337,7 +3156,7 @@ Examples:
           if (!result.ok) {
             const guidance = result.code === "transition_required"
               ? "Cross-pipeline transitions require a versioned transition (deferred). Use --mode at init or the structural versioning path."
-              : "Register or migrate the exact run version's production mode first.";
+              : "Register the exact current run version's production mode first.";
             emitFailed(`ppt_flow.state.set-production-mode.${result.code}`, `production-mode transition not applied: ${result.code}`, guidance);
             process.exitCode = 1;
             return;
@@ -3412,43 +3231,28 @@ Examples:
       }
       const s = readState(deckDir, { purpose: "observe" });
       if (s.replacement_required) {
-        exitCliError({ code: CLI_ERROR_CODES.STATE_CORRUPTED, message: "Authoritative HTML state requires explicit replacement.", hint: "Preserve the current state bytes and repair or replace the state through the controller migration path.", where: "ppt_flow.state.replacement", diagnostic: { version: 1, category: "artifact", operation: "observe-state", reason: { kind: "replacement_required" }, pipeline: s.pipeline || HTML_FIRST_PIPELINE } }, 2);
-      }
-      if (s.corrupted) {
-        console.error("State corrupted:", s.errors);
-        if (opts.json) registerCliJsonReport(
-          { corrupted: true, error_count: Array.isArray(s.errors) ? s.errors.length : 0 },
-          { schema: CLI_JSON_REPORT_SCHEMAS.STATE_FAILURE }
-        );
-        exitCliError(
-          {
-            code: CLI_ERROR_CODES.STATE_CORRUPTED,
-            message: "State data is corrupted and could not be healed deterministically.",
-            hint: "Inspect or recreate the state source before resuming the workflow.",
-            where: "ppt_flow.state",
-            diagnostic: {
-              version: 1,
-              category: "artifact",
-              operation: "read-state",
-              source: { path: join(deckDir, "_state", "state.yaml") },
-              reason: { kind: "state_corrupted" },
-              next: createCliNext("repair_prerequisite", {
-                inspect: [{ path: join(deckDir, "_state", "state.yaml") }],
-                default: "Repair a healable state file or explicitly recreate state before continuing.",
-              }),
-            },
+        const currentRepair = s.current_repair_required === true;
+        exitCliError({
+          code: CLI_ERROR_CODES.STATE_CORRUPTED,
+          message: currentRepair
+            ? "Authoritative current state has a bounded owner repair."
+            : "Authoritative state uses an unsupported protocol.",
+          hint: currentRepair
+            ? "Retry the owning current-state operation; do not edit YAML or infer a replacement route."
+            : "Preserve its bytes; start a fresh explicitly initialized run instead of editing or inferring a route from unsupported state.",
+          where: "ppt_flow.state.unsupported-protocol",
+          diagnostic: {
+            version: 1,
+            category: "artifact",
+            operation: "observe-state",
+            reason: { kind: currentRepair ? "current_state_repair_required" : "replacement_required" },
+            next: createCliNext("repair_prerequisite", {
+              default: currentRepair
+                ? "Retry the owning current-state operation so it can canonicalize the one-to-one defect; do not edit YAML or infer a route."
+                : "Preserve the existing bytes and run ppt_flow init for a fresh current run; do not edit or infer a route from unsupported historical state.",
+            }),
           },
-          2
-        );
-      }
-      const healed = !!s._healed;
-      if (healed) delete s._healed;
-      let migrationHandoff = null;
-      try {
-        const { inspectMigrationHandoff } = await import("./shared/state/state.mjs");
-        migrationHandoff = inspectMigrationHandoff(deckDir, s);
-      } catch {
-        migrationHandoff = null;
+        }, 2);
       }
       if (opts.checkGates) {
         const c = isGateApproved(s, "content");
@@ -3512,7 +3316,7 @@ Examples:
       const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
       const workflowInspection = inspectWorkflow({ runDir: resolved });
       const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
-      const inspectionNext = workflowInspection.primary_action.compatibility_command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
+      const inspectionNext = workflowInspection.primary_action.command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
       if (opts.json) {
         const refinementProjection = (() => {
@@ -3522,11 +3326,10 @@ Examples:
         const report = {
           durable_state: s,
           production_mode: indexedCard.production_mode,
-          pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "legacy-image2-first"),
+          pipeline: htmlFirst ? HTML_FIRST_PIPELINE : (s.pipeline || "whole-page-image2-v1"),
           state_present: existsSync(statePath(deckDir)),
           html_reviews: htmlReviews,
           image2_refinement: refinementProjection,
-          ...(migrationHandoff ? { migration_handoff: migrationHandoff } : {}),
           playbook: indexedCard.playbook,
           current_node: indexedCard.current_node,
           gates: indexedCard.gates,
@@ -3563,30 +3366,6 @@ Examples:
       );
       console.log("Summary:  " + inspectionSummary);
       console.log("Next:     " + inspectionNext);
-      if (migrationHandoff) console.log(`Migration: ${migrationHandoff.code} (${migrationHandoff.source_version} -> ${migrationHandoff.target_version})`);
-    });
-
-  // ---- migrate-html ----
-  program
-    .command("migrate-html")
-    .description("Prepare, preview, or apply an explicit HTML migration transaction")
-    .argument("<run_dir>", "Path to source version dir")
-    .argument("<operation>", "prepare, preview, or apply")
-    .option("--preset <name>", "Shipped visual preset for prepare")
-    .option("--plan-hash <hash>", "Exact preview plan hash for apply")
-    .option(
-      "--old-side-mode <mode>",
-      "Confirmed old-side mode: verified-current, degraded-missing, or degraded-stale"
-    )
-    .option("--recover-journal <owner-token>", "Recover a prior apply journal with the exact owner token")
-    .action(async (runDir, operation, opts) => {
-      const code = await commandMigrateHtml(runDir, operation, {
-        preset: opts.preset || null,
-        planHash: opts.planHash || null,
-        oldSideMode: opts.oldSideMode || null,
-        recoverJournal: opts.recoverJournal || null,
-      });
-      process.exit(code);
     });
 
   // ---- image2 (closed optional Phase-4 command family) ----

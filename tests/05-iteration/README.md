@@ -1,3 +1,4 @@
 # Phase 5 tests
 
-Structural, migration, classifier, and markerless legacy tests live here.
+Structural versioning and classifier tests live here. Whole-page Image2 adapter
+tests are owned by `tests/04-image-production/`.

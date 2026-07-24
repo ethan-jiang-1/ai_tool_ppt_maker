@@ -62,7 +62,7 @@ describe("HTML-first v2 asset catalog", () => {
     }
   });
 
-  it("accepts a confined migration candidate as a private final overlay", () => {
+  it("rejects a target-candidate overlay request", () => {
     const fixture = runFixture();
     try {
       writeLayer(join(fixture.deck, "2_backbone", "visual-style", "assets"), {
@@ -71,13 +71,12 @@ describe("HTML-first v2 asset catalog", () => {
       writeLayer(join(fixture.runDir, "overrides", "visual-style", "assets"), {
         icon_main: { path: "svg/version.svg", bytes: svg("#222") },
       });
-      const candidate = join(fixture.runDir, "_scratch", "html-migration", "projected-run", "overrides");
+      const candidate = join(fixture.runDir, "_scratch", "production-mode-transition", "candidate-run", "overrides");
       writeLayer(join(candidate, "visual-style", "assets"), {
         icon_main: { path: "svg/candidate.svg", bytes: svg("#333") },
       });
-      const result = loadHtmlAssetCatalog(fixture.runDir, { candidateOverridesDir: candidate });
-      expect(result.catalog.icon_main).toMatchObject({ origin: "version", migration_origin: "candidate", path: "svg/candidate.svg" });
-      expect(() => loadHtmlAssetCatalog(fixture.runDir, { candidateOverridesDir: join(fixture.root, "outside") })).toThrow(/canonical/);
+      expect(() => loadHtmlAssetCatalog(fixture.runDir, { candidateOverridesDir: candidate })).toThrow(/does not accept an overlay/);
+      expect(loadHtmlAssetCatalog(fixture.runDir).catalog.icon_main).toMatchObject({ origin: "version", path: "svg/version.svg" });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

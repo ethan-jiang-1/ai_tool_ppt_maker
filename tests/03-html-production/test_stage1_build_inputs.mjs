@@ -35,7 +35,12 @@ function slide(id, {
 function specFile(content) {
   const dir = mkdtempSync(join(tmpdir(), 'ppt-stage1-'));
   const path = join(dir, 'slide-specifications.md');
-  writeFileSync(path, content, 'utf-8');
+  const source = content.startsWith('---\n')
+    ? content.includes('\nproduction:\n')
+      ? content
+      : content.replace(/^---\n/, '---\nproduction:\n  pipeline: whole-page-image2-v1\n')
+    : `---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n\n${content}`;
+  writeFileSync(path, source, 'utf-8');
   return path;
 }
 
@@ -56,15 +61,15 @@ describe('stage1_build_inputs', () => {
     }
   });
 
-  it('keeps legacy derivation while a present policy defaults content to full-page', () => {
+  it('keeps visual-type derivation internal while an explicit policy defaults content to full-page', () => {
     configureVisualConfig(DEFAULT_CONFIG);
-    const legacy = specFile(slide('legacy_content'));
+    const defaultPolicy = specFile(slide('default_content'));
     const policy = specFile(
       `---\nrender:\n  default: full-page\n  header-lock: []\n---\n` + slide('policy_content')
     );
-    const legacyResult = parseSlides([legacy]);
+    const defaultResult = parseSlides([defaultPolicy]);
     const policyResult = parseSlides([policy]);
-    expect(legacyResult.plan[0].layout_contract).toMatchObject({
+    expect(defaultResult.plan[0].layout_contract).toMatchObject({
       render_mode: 'body+header-lock',
       render_mode_source: 'derived:visual_type',
     });
@@ -147,6 +152,7 @@ describe('stage1_build_inputs', () => {
 
   it('retains structured source, line, slide, field, reason, and aggregate CLI issues', () => {
     const path = specFile(
+      `---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n\n` +
       `## Slide 01: s01\n\n` +
       `**VISUAL TYPE**: Framework\n` +
       `**RENDER MODE**: unsupported-mode\n` +
@@ -159,7 +165,7 @@ describe('stage1_build_inputs', () => {
     const records = validateSpecRecords([path]).filter((record) => record.severity === 'ERROR');
     expect(records.length).toBeGreaterThanOrEqual(3);
     expect(records.find((record) => record.subject.id === 's01' && record.subject.field === 'RENDER MODE')).toMatchObject({
-      source: { path, line: 4 },
+      source: { path, line: 9 },
       reason: { kind: 'invalid_enum', expected: ['full-page', 'body+header-lock'] },
     });
     expect(records.find((record) => record.subject.id === 's02' && record.subject.field === 'TITLE')).toMatchObject({
@@ -171,7 +177,7 @@ describe('stage1_build_inputs', () => {
     const envelope = parseCliErrorLine(result.stderr.trim().split(/\r?\n/).at(-1));
     expect(envelope.diagnostic.category).toBe('source_validation');
     expect(envelope.diagnostic.issues.length).toBe(records.length);
-    expect(envelope.diagnostic.issues.some((issue) => issue.subject?.id === 's01' && issue.source?.line === 4)).toBe(true);
+    expect(envelope.diagnostic.issues.some((issue) => issue.subject?.id === 's01' && issue.source?.line === 9)).toBe(true);
     expect(`${result.stdout}${result.stderr}`).not.toContain('unsupported-mode');
   });
 
@@ -260,11 +266,11 @@ describe('stage1_build_inputs', () => {
     expect(validateSpecRecords([malformed])).toContainEqual(expect.objectContaining({
       severity: 'ERROR',
       reason: expect.objectContaining({ kind: 'malformed_slide_heading' }),
-      source: expect.objectContaining({ line: 8 }),
+      source: expect.objectContaining({ line: 13 }),
     }));
   });
 
-  it('accepts markerless legacy IDs and validates every mnemonic-native ID', () => {
+  it('accepts retained historical IDs and validates every mnemonic-native ID', () => {
     const legacy = specFile(slide('s07_problem'));
     expect(validateSpecRecords([legacy]).filter((record) => record.severity === 'ERROR')).toEqual([]);
     expect(parseSlides([legacy]).plan[0]).toMatchObject({

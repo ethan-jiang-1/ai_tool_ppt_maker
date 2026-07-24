@@ -8,6 +8,6 @@ Fresh HTML-first work requires the base doctor profile: supported Node/npm, proj
 
 Per-run source/config/catalog/overflow failures belong to `ppt_flow validate` or local preview, not credential setup. HTML create, preview, build, and local iteration never load provider credentials.
 
-Image2 checks and live probes are optional legacy diagnostics only. Use them after a markerless deck has routed to `reference/legacy-image2-first-maintenance.md`; a successful probe is not page-generation authorization.
+Image2 checks and live probes are explicit whole-page diagnostics. Use them after an `image2-only` deck has routed to `playbook/create-deck.md`; a successful probe is not page-generation authorization.
 
 Before any live diagnostic, disclose the submit count and obtain explicit confirmation. `doctor --smoke` 提交 **1 次** to the first resolved vendor; `doctor --probe-vendors` 每家 **1 次**. Declining the probe leaves base HTML readiness unaffected.

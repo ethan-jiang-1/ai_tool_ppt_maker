@@ -18,4 +18,4 @@ HTML-first maintenance terms:
 - Notes-Only Refresh for speaker notes.
 - Structural Versioning Path for insert/delete/reorder followed by target-local materialization.
 
-Markerless historical decks are not a second active method tree. They route to `../reference/legacy-image2-first-maintenance.md`. New HTML work never reaches a provider adapter or style-master prerequisite; Phase 4 begins only after current delivery and exact human authorization.
+Explicit whole-page historical decks are not a second active method tree. They route to `playbook/create-deck.md`. New HTML work never reaches a provider adapter or style-master prerequisite; Phase 4 begins only after current delivery and exact human authorization.

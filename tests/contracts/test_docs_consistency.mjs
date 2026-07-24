@@ -4,10 +4,12 @@ import {
   extractNodeCommands,
   scanFrameworkCoherence,
   scanMarkdownLinks,
+  scanRetiredWholePageTerms,
   scanSemanticDrift,
   validateDiagnosticAuthorityPointers,
   validateExceptionMap,
   validateLegacyTokenExceptions,
+  validateRetiredWholePageTokenExceptions,
   validatePseudocodeMarkers,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs";
 import { validateDocumentedCommands } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_document_command_audit.mjs";
@@ -58,8 +60,32 @@ describe("framework documentation coherence", () => {
     expect(scanSemanticDrift("doc.md", "Stage 2 不依赖 .claude/skills")).toEqual([]);
     expect(validateExceptionMap({ "PPTMAKER_FRAMEWORK/workflow/": "broad" })).toHaveLength(1);
     expect(validateLegacyTokenExceptions([{ token: "image2-*", file: "PPTMAKER_FRAMEWORK/", reason: "broad", owner: "bad", public_compatibility: true, retire_by: "later" }]).length).toBeGreaterThan(0);
+    expect(validateRetiredWholePageTokenExceptions([{ token: "not-a-retired-token", file: "tests/contracts/test_docs_consistency.mjs", reason: "bad", owner: "framework-contracts", public_compatibility: false, retire_by: "not-applicable:negative-test" }]).length).toBeGreaterThan(0);
     const commands = extractNodeCommands("doc.md", "```bash\nnode PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage3_lock_headers.mjs --run-dir x\n```");
     expect(validateDocumentedCommands(commands, "PPTMAKER_FRAMEWORK/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
+  });
+
+  it("rejects retired whole-page identities and malformed current labels outside exact exceptions", () => {
+    const file = "PPTMAKER_FRAMEWORK/playbook/example.md";
+    const retiredCommand = ["migrate", "html"].join("-");
+    const retiredLabel = ["legacy", "whole-page", "Image2"].join(" ");
+    const malformedLabel = ["whole-page", "whole-page"].join(" ");
+    expect(scanRetiredWholePageTerms({ [file]: retiredCommand }).map((item) => item.rule)).toContain("retired-whole-page-identity");
+    expect(scanRetiredWholePageTerms({ [file]: retiredLabel }).map((item) => item.rule)).toContain("retired-whole-page-label");
+    expect(scanRetiredWholePageTerms({ [file]: malformedLabel }).map((item) => item.rule)).toContain("malformed-whole-page-label");
+    expect(scanRetiredWholePageTerms(
+      { "tests/contracts/negative.mjs": "migrate-html" },
+      {
+        exceptions: [{
+          token: "migrate-html",
+          file: "tests/contracts/negative.mjs",
+          reason: "bounded negative assertion",
+          owner: "framework-contracts",
+          public_compatibility: false,
+          retire_by: "not-applicable:negative-test",
+        }],
+      },
+    )).toEqual([]);
   });
 
   it("enforces the controlled refresh-path terminology boundary", () => {
@@ -86,7 +112,7 @@ describe("framework documentation coherence", () => {
       "Chain B rebuilds the selected image.",
     ).some((item) => item.rule === "legacy-edit-path")).toBe(true);
     expect(scanSemanticDrift(
-      "PPTMAKER_FRAMEWORK/playbook/migrate-import.md",
+      "PPTMAKER_FRAMEWORK/playbook/production-mode-transition.md",
       "Option A: import source. Option B: preserve layout. Option C: rebuild.",
     )).toEqual([]);
     expect(scanSemanticDrift(
@@ -113,7 +139,7 @@ describe("framework documentation coherence", () => {
 
   it("keeps CLI producer and MD consumer authority routes discoverable", () => {
     const cliSpec = readFileSync("openspec/specs/cli-surface/spec.md", "utf8");
-    expect(cliSpec).toMatch(/fixed 15-command unified entry point/);
+    expect(cliSpec).toMatch(/fixed 14-command unified entry point/);
     expect(validateDiagnosticAuthorityPointers()).toEqual([]);
   });
 
@@ -171,6 +197,8 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
     expect(commands).toContain("Git history reader");
     expect(commands).toContain("命名 Git 操作和用户给定范围");
+    expect(commands).toContain("新 deck 走正常的 pilot/header/build/provider controls");
+    expect(commands).toContain("并保有 durable state");
   });
 
   it("documents only the bounded local run-bundle locator entry", () => {
@@ -188,25 +216,21 @@ describe("framework documentation coherence", () => {
     expect(bootstrap).toContain("generic remote-chat attachment integration 不受支持");
   });
 
-  it("keeps every migration entry point on the closed prepare-to-confirmation path", () => {
+  it("documents the state-owned production-mode transition", () => {
     const files = [
       "PPTMAKER_FRAMEWORK/COMMANDS.md",
-      "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
-      "PPTMAKER_FRAMEWORK/workflow/00-setup/05-migrate-import-existing-deck.md",
-      "PPTMAKER_FRAMEWORK/reference/legacy-image2-first-maintenance.md",
-      "PPTMAKER_FRAMEWORK/playbook/migrate-import.md",
+      "PPTMAKER_FRAMEWORK/workflow/00-setup/05-production-mode-transition.md",
+      "PPTMAKER_FRAMEWORK/playbook/production-mode-transition.md",
+    ];
+    const removedTerms = [
+      ["migrate", "html"].join("-"),
+      ["confirm", "migration", "apply"].join("-"),
+      ["whole-page-image2-v1", "maintenance"].join("-"),
     ];
     for (const file of files) {
       const text = readFileSync(file, "utf8");
-      const prepare = text.indexOf("prepare --preset");
-      const preview = text.indexOf("preview", prepare + 1);
-      const confirm = text.indexOf("confirm-migration-apply");
-      const apply = text.lastIndexOf("apply");
-      expect(prepare, file).toBeGreaterThan(-1);
-      expect(preview, file).toBeGreaterThan(prepare);
-      expect(confirm, file).toBeGreaterThan(preview);
-      expect(apply, file).toBeGreaterThan(confirm);
-      expect(text, file).toMatch(/zero.provider|零 provider/i);
+      expect(text, file).toContain("production-mode-transition");
+      expect(text, file).not.toMatch(new RegExp(removedTerms.join("|")));
     }
   });
 

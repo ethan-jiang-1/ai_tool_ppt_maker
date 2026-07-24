@@ -100,7 +100,7 @@ describe("production-mode index declarations (1.8)", () => {
   it("controllerSupportedModes derives from pipelines when undeclared", () => {
     const html = buildFixture("derive-html", { playbook: "c-html", pipelines: ["html-first-v1"], nodes: [{ id: "n1" }] });
     expect(controllerSupportedModes(html.controllers.get("c-html")).sort()).toEqual(["html-only", "html-then-image2"]);
-    const img = buildFixture("derive-img", { playbook: "c-img", pipelines: ["legacy-image2-first"], nodes: [{ id: "n1" }] });
+    const img = buildFixture("derive-img", { playbook: "c-img", pipelines: ["whole-page-image2-v1"], nodes: [{ id: "n1" }] });
     expect(controllerSupportedModes(img.controllers.get("c-img"))).toEqual(["image2-only"]);
   });
 
@@ -147,7 +147,7 @@ describe("production-mode index declarations (1.8)", () => {
   it("validatePlaybookIndex rejects a mode incompatible with supported_pipelines", () => {
     const dir = fixtureDir("bad-compat");
     try {
-      writeFileSync(join(dir, "c.md"), controllerFile({ playbook: "c", pipelines: ["legacy-image2-first"], modes: ["html-only"], nodes: [{ id: "n1" }] }), "utf8");
+      writeFileSync(join(dir, "c.md"), controllerFile({ playbook: "c", pipelines: ["whole-page-image2-v1"], modes: ["html-only"], nodes: [{ id: "n1" }] }), "utf8");
       const result = validatePlaybookIndex(buildPlaybookIndex(dir));
       expect(result.errors.some((e) => e.rule === "supported-production-modes" && /incompatible/.test(e.message))).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }

@@ -33,7 +33,7 @@ import {
 } from "./md_controller_reader.mjs";
 import { validateNotesReceipt, notesReceiptPath } from "../identity/notes_receipt.mjs";
 import { HTML_FIRST_PIPELINE, probeProductionMarker } from "../run-bundle/production_marker.mjs";
-import { canonicalVersionKey, classifyProductionModeTransition, inspectProductionMode, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionModeFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
+import { canonicalVersionKey, classifyProductionModeTransition, inspectProductionMode, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
@@ -55,7 +55,7 @@ export const STATE_YAML_HEADER = `\
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
 # Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
-# Heal: readState defaults to tolerant parse + schema migration/repair
+# Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported historical state
 `;
 
 export const STATE_DIR_README = `\
@@ -71,21 +71,47 @@ export const STATE_DIR_README = `\
 
 **Schema 权威:** \`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md\`。
 
-**不要手改:** 优先使用 \`scripts/shared/state/state.mjs\` / \`ppt_flow\`；读取时会迁移并修复可安全修复的旧 schema。
+**不要手改:** 优先使用 \`scripts/shared/state/state.mjs\` / \`ppt_flow\`；读取只验证当前 schema-5 权威状态，不会重写、推断或继续不受支持的历史状态。
 `;
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
-const STATE_MIGRATION_MAP = JSON.parse(readFileSync(join(DEFAULT_PLAYBOOK_DIR, "state-migration-map-v3.json"), "utf8"));
-const LEGACY_PIPELINE = "legacy-image2-first";
+const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
-const LEGACY_MIGRATION_OLD_SIDE_MODES = new Set(["verified-current", "degraded-missing", "degraded-stale"]);
 const TRANSITION_SUSPENSION_SCHEMA = "pptmaker-production-mode-transition-suspension-v1";
 const TRANSITION_APPLY_NODE = "apply-production-mode-transition";
 const TRANSITION_INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
 const TRANSITION_UNCERTAIN_RECOVERY_AGE_MS = 300000;
+const TRANSITION_RECORD_KEYS = Object.freeze([
+  "status",
+  "execution_id",
+  "run_version",
+  "transition_plan_hash",
+  "transition_candidate_receipt_sha256",
+  "transition_target_intake",
+  "transition_target_intake_sha256",
+  "transition_confirmation",
+  "transition_source_execution_id",
+  "transition_source_version",
+  "transition_source_mode",
+  "transition_source_pipeline",
+  "transition_target_version",
+  "transition_target_mode",
+  "transition_target_pipeline",
+  "started",
+]);
+const TRANSITION_RECOVERY_CONFIRMATION_KEYS = Object.freeze([
+  "kind",
+  "decision",
+  "source_execution_id",
+  "source_version",
+  "target_version",
+  "plan_hash",
+  "journal_sha256",
+  "confirmed_at",
+]);
 
 function nowIso() { return new Date().toISOString(); }
 function newExecutionId() { return `exec-${randomUUID()}`; }
@@ -99,17 +125,12 @@ function isoOr(value, fallback) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return fallback;
   return value;
 }
-function appendDiagnostic(state, message) {
-  if (!Array.isArray(state.diagnostics)) state.diagnostics = [];
-  if (!state.diagnostics.includes(message)) state.diagnostics.push(message);
-}
-
 function isTransitionSuspensionFrame(frame) {
   return isPlainObject(frame) && frame.schema === TRANSITION_SUSPENSION_SCHEMA && frame.disposition === "transition-suspended";
 }
 
 function isTransitionPipeline(value) {
-  return value === HTML_FIRST_PIPELINE || value === LEGACY_PIPELINE;
+  return value === HTML_FIRST_PIPELINE || value === WHOLE_PAGE_IMAGE2_PIPELINE;
 }
 
 function validTransitionIntake(value) {
@@ -118,14 +139,35 @@ function validTransitionIntake(value) {
     TRANSITION_INTAKE_FIELDS.every((field) => typeof value[field] === "string" && value[field].trim().length > 0);
 }
 
+function validTransitionRecoveryConfirmation(value, record) {
+  return hasExactKeys(value, TRANSITION_RECOVERY_CONFIRMATION_KEYS) &&
+    value.kind === "user" &&
+    value.decision === "no-active-apply" &&
+    value.source_execution_id === record.transition_source_execution_id &&
+    value.source_version === record.transition_source_version &&
+    value.target_version === record.transition_target_version &&
+    value.plan_hash === record.transition_plan_hash &&
+    SHA256_RE.test(value.journal_sha256 || "") &&
+    validIsoTimestamp(value.confirmed_at);
+}
+
 function activeTransitionRecord(state) {
-  if (state?.playbook !== "migrate-import" || state?.current_node !== TRANSITION_APPLY_NODE || !state?.execution_id) return null;
+  if (state?.playbook !== "production-mode-transition" || state?.current_node !== TRANSITION_APPLY_NODE || !state?.execution_id) return null;
   const record = state.nodes?.[TRANSITION_APPLY_NODE];
   if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id || record.run_version !== state.run_version) return null;
+  const recordKeys = Object.keys(record);
+  if (!TRANSITION_RECORD_KEYS.every((key) => Object.hasOwn(record, key)) ||
+    recordKeys.some((key) => !TRANSITION_RECORD_KEYS.includes(key) && key !== "transition_recovery_confirmation")) return null;
   const required = [
     "transition_plan_hash", "transition_candidate_receipt_sha256", "transition_target_intake_sha256",
   ];
   if (!required.every((key) => SHA256_RE.test(record[key] || ""))) return null;
+  if (!validTransitionIntake(record.transition_target_intake) ||
+    sha256(Buffer.from(stableStringify(record.transition_target_intake))) !== record.transition_target_intake_sha256) return null;
+  if (!hasExactKeys(record.transition_confirmation, ["kind", "decision", "at"]) ||
+    record.transition_confirmation.kind !== "user" ||
+    record.transition_confirmation.decision !== "proceed" ||
+    !validIsoTimestamp(record.transition_confirmation.at)) return null;
   if (typeof record.transition_source_execution_id !== "string" || !record.transition_source_execution_id ||
     record.transition_source_version !== state.run_version ||
     !isProductionMode(record.transition_source_mode) ||
@@ -133,7 +175,27 @@ function activeTransitionRecord(state) {
     !normalizeRunVersion(record.transition_target_version) ||
     !isProductionMode(record.transition_target_mode) ||
     !isTransitionPipeline(record.transition_target_pipeline)) return null;
+  if (!validIsoTimestamp(record.started)) return null;
+  if (Object.hasOwn(record, "transition_recovery_confirmation") &&
+    !validTransitionRecoveryConfirmation(record.transition_recovery_confirmation, record)) return null;
   return record;
+}
+
+/**
+ * State-owned read boundary for a confirmed cross-pipeline transaction.
+ * Consumers may inspect the exact tuple, but they cannot reinterpret an
+ * incomplete target-intake confirmation as permission to publish or recover.
+ */
+export function inspectActiveProductionModeTransition(deckDir, { sourceRunVersion, sourceRunDir, purpose = "observe" } = {}) {
+  const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
+  if (!sourceVersion) return Object.freeze({ ok: false, code: "TRANSITION_SOURCE_VERSION_INVALID" });
+  const state = readState(deckDir, { purpose, heal: false, runVersion: sourceVersion });
+  if (state?.replacement_required || state?.execution_run_version_mismatch) {
+    return Object.freeze({ ok: false, code: "TRANSITION_STATE_UNAVAILABLE" });
+  }
+  const record = activeTransitionRecord(state);
+  if (!record) return Object.freeze({ ok: false, code: "TRANSITION_CHECKPOINT_DRIFT" });
+  return Object.freeze({ ok: true, source_version: sourceVersion, state, record: Object.freeze(structuredClone(record)) });
 }
 
 function selectedRunVersion({ runVersion, runDir } = {}) {
@@ -183,51 +245,6 @@ export function resolveContinuationTargetVersion(state, deckDir) {
     return Object.freeze({ ok: false, reason: `continuation target ${target} is not visible` });
   }
   return Object.freeze({ ok: true, run_version: target, source: active ? "active-run-version" : "continuation-target" });
-}
-
-function legacyApplySourceVersion(state) {
-  if (state?.playbook !== "migrate-import" || state?.current_node !== "apply-html-migration" || !state?.execution_id) return null;
-  const record = state.nodes?.["apply-html-migration"];
-  if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id) return null;
-  const sourceVersion = normalizeRunVersion(record.migration_source_version);
-  if (!sourceVersion || !SHA256_RE.test(record.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(record.old_side_mode)) return null;
-  return sourceVersion;
-}
-
-function legacyConfirmationSourceVersion(state, selected) {
-  const selectedVersion = selectedRunVersion(selected);
-  if (!selectedVersion || state?.playbook !== "migrate-import" || state?.current_node !== "confirm-html-migration" || !state?.execution_id) return null;
-  const confirmation = state.nodes?.["confirm-html-migration"];
-  const preview = state.nodes?.["preview-html-migration"];
-  if (!isPlainObject(confirmation) || confirmation.status !== "in_progress" || confirmation.execution_id !== state.execution_id) return null;
-  if (!isPlainObject(preview) || preview.status !== "completed" || preview.execution_id !== state.execution_id) return null;
-  if (!SHA256_RE.test(preview.migration_plan_hash || "") || !LEGACY_MIGRATION_OLD_SIDE_MODES.has(preview.old_side_mode)) return null;
-  return selectedVersion;
-}
-
-function resolveV5RunBinding(state, deckDir) {
-  if (!state?.playbook) return Object.freeze({ ok: true, run_version: null });
-  const persisted = normalizeRunVersion(state.run_version);
-  if (persisted) return Object.freeze({ ok: true, run_version: persisted, source: "persisted" });
-  const legacy = legacyApplySourceVersion(state);
-  if (legacy) return Object.freeze({ ok: true, run_version: legacy, source: "legacy-apply" });
-  const visible = visibleRunVersions(deckDir);
-  if (visible.length === 1) return Object.freeze({ ok: true, run_version: visible[0], source: "visible-topology" });
-  // A v4 active execution has no version identity to bind when its run
-  // directory is absent. Choosing v1 here would make an invocation-order
-  // guess durable, so preserve the bytes for the explicit repair route.
-  if (visible.length === 0) {
-    // A malformed pre-v4 shell without an execution ID is not a recoverable
-    // controller execution. Preserve the long-standing repair behavior for
-    // that bootstrap shape only; it cannot apply to v4 or to any execution
-    // that has an identity capable of being routed to the wrong run.
-    const sourceSchema = Number.isInteger(state?.schema_version) ? state.schema_version : 0;
-    if (sourceSchema < 4 && !state?.execution_id) {
-      return Object.freeze({ ok: true, run_version: "v1", source: "pre-v4-unbound-bootstrap" });
-    }
-    return Object.freeze({ ok: false, reason: "active execution has no persisted run_version and no visible run version" });
-  }
-  return Object.freeze({ ok: false, reason: "active execution has no persisted run_version and visible topology is ambiguous" });
 }
 
 function ordinaryFrameBindingErrors(frame, label) {
@@ -295,17 +312,6 @@ function executionBindingErrors(state) {
     else errors.push(...ordinaryFrameBindingErrors(frame, `playbook_stack[${index}]`));
   }
   return errors;
-}
-
-function bindOrdinaryStackFrames(state, runVersion) {
-  if (!runVersion || !Array.isArray(state.playbook_stack)) return;
-  for (const frame of state.playbook_stack) {
-    if (!isPlainObject(frame) || !isPlainObject(frame.controller_nodes)) continue;
-    frame.run_version = runVersion;
-    for (const record of Object.values(frame.controller_nodes)) {
-      if (isPlainObject(record)) record.run_version = runVersion;
-    }
-  }
 }
 
 function executionRunVersionMismatch(state, { runVersion, runDir } = {}) {
@@ -524,15 +530,6 @@ export function writeImage2RefinementState(deckDir, runVersion, record, { expect
   writeState(deckDir, state, { ...(expected ? { expectedStateSha: expected } : {}) });
   return readImageProductionState(state, runVersion);
 }
-function mergeMissing(canonical, legacy) {
-  const out = isPlainObject(canonical) ? canonical : {};
-  if (!isPlainObject(legacy)) return out;
-  for (const [key, value] of Object.entries(legacy)) {
-    if (out[key] == null) out[key] = deepClone(value);
-  }
-  return out;
-}
-
 export function ensureStateDirHints(deckDir) {
   const dir = join(deckDir, STATE_DIR);
   mkdirSync(dir, { recursive: true });
@@ -598,358 +595,14 @@ export function normalizePlaybookStack(state, migrationTime = nowIso()) {
   return state;
 }
 
-function normalizeEvidence(record, migrationTime, state, nodeId) {
-  if (!isPlainObject(record.evidence)) record.evidence = {};
-  for (const [key, evidence] of Object.entries(record.evidence)) {
-    if (evidence === true) {
-      record.evidence[key] = { met: true, kind: "agent", at: migrationTime };
-      appendDiagnostic(state, `${nodeId}.evidence.${key} migrated from boolean with agent provenance`);
-      continue;
-    }
-    if (!isPlainObject(evidence) || evidence.met !== true || !["user", "agent", "cli"].includes(evidence.kind)) {
-      delete record.evidence[key];
-      appendDiagnostic(state, `${nodeId}.evidence.${key} was invalid and removed`);
-      continue;
-    }
-    evidence.at = isoOr(evidence.at, migrationTime);
-    if (evidence.note != null) evidence.note = String(evidence.note);
-  }
-  if (typeof record.decision === "string" && record.decision.trim()) {
-    record.decision = { value: record.decision.trim(), kind: "agent", at: migrationTime };
-    appendDiagnostic(state, `${nodeId}.decision migrated from scalar with agent provenance`);
-  } else if (record.decision != null) {
-    const d = record.decision;
-    if (!isPlainObject(d) || typeof d.value !== "string" || !d.value.trim() || !["user", "agent", "cli"].includes(d.kind)) {
-      delete record.decision;
-      appendDiagnostic(state, `${nodeId}.decision was invalid and removed`);
-    } else {
-      d.value = d.value.trim();
-      d.at = isoOr(d.at, migrationTime);
-      if (d.note != null) d.note = String(d.note);
-    }
-  }
-}
-
-function normalizeNodeRecord(record, nodeId, executionId, runVersion, migrationTime, state) {
-  const rec = isPlainObject(record) ? record : {};
-  if (!NODE_STATUSES.includes(rec.status)) {
-    if (rec.status != null) appendDiagnostic(state, `${nodeId}.status ${JSON.stringify(rec.status)} healed to pending`);
-    rec.status = "pending";
-    rec.note = [rec.note, "healed invalid status to pending"].filter(Boolean).join("; ");
-  }
-  if (rec.waiting_for != null) rec.waiting_for = String(rec.waiting_for);
-  if (rec.note != null) rec.note = String(rec.note);
-  if (executionId) rec.execution_id = executionId;
-  if (runVersion) rec.run_version = runVersion;
-  if (["pending", "in_progress"].includes(rec.status)) delete rec.completed;
-  if (rec.status === "completed") {
-    delete rec.failed_reason;
-    delete rec.error;
-  }
-  normalizeEvidence(rec, migrationTime, state, nodeId);
-  return rec;
-}
-
-function migrationDefinition(pipeline, playbook) {
-  return STATE_MIGRATION_MAP?.pipelines?.[pipeline]?.playbooks?.[playbook] || null;
-}
-
-function migrateControllerSnapshot(rootState, snapshot, pipeline, { stack = false } = {}) {
-  const definition = migrationDefinition(pipeline, snapshot.playbook);
-  if (!definition) return;
-  const sourcePlaybook = snapshot.playbook;
-  const records = stack ? snapshot.controller_nodes : snapshot.nodes;
-  const aliases = definition.nodes || {};
-  const recognized = Boolean(snapshot.current_node && aliases[snapshot.current_node]) ||
-    Object.keys(records || {}).some((id) => aliases[id] && aliases[id] !== id);
-  if (!recognized) return;
-  if (snapshot.current_node && aliases[snapshot.current_node] && aliases[snapshot.current_node] !== snapshot.current_node) {
-    const prior = snapshot.current_node;
-    snapshot.current_node = aliases[prior];
-    appendDiagnostic(rootState, `${stack ? "playbook_stack entry " : ""}${sourcePlaybook}: ${prior} current_node migrated to ${snapshot.current_node}`);
-  }
-  for (const [legacyId, canonicalId] of Object.entries(aliases)) {
-    if (!records?.[legacyId] || legacyId === canonicalId) continue;
-    records[canonicalId] = mergeMissing(records[canonicalId], records[legacyId]);
-    delete records[legacyId];
-    appendDiagnostic(rootState, `${stack ? "playbook_stack entry " : ""}${sourcePlaybook}: ${legacyId} migrated to ${canonicalId}`);
-  }
-  snapshot.playbook = definition.target_playbook;
-}
-
-function applyNodeAliases(state, pipeline) {
-  migrateControllerSnapshot(state, state, pipeline);
-  for (const entry of state.playbook_stack || []) {
-    migrateControllerSnapshot(state, entry, pipeline, { stack: true });
-  }
-}
-
-function restrictActiveWorkingSet(state) {
-  if (!state.playbook) return;
-  try {
-    const index = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR);
-    const allowed = new Set(controllerNodeIds(index, state.playbook));
-    // The transition node is state-owned. It is intentionally admitted here
-    // before controller declarations are updated so an observation/heal cannot
-    // erase an already-confirmed recoverable transaction.
-    if (activeTransitionRecord(state)) allowed.add(TRANSITION_APPLY_NODE);
-    if (allowed.size === 0) return;
-    for (const [id] of controllerEntries(state.nodes)) {
-      if (allowed.has(id)) continue;
-      delete state.nodes[id];
-      appendDiagnostic(state, `${id} removed from active ${state.playbook} working set`);
-    }
-    if (state.current_node && !allowed.has(state.current_node)) {
-      appendDiagnostic(state, `current_node ${state.current_node} is not declared by ${state.playbook}`);
-      state.current_node = "";
-    }
-  } catch (error) {
-    appendDiagnostic(state, `active working-set validation unavailable: ${error.message || String(error)}`);
-  }
-}
-
-export function healState(raw, opts = {}) {
-  const state = isPlainObject(raw) ? deepClone(raw) : {};
-  const before = JSON.stringify(state);
-  const migrationTime = isoOr(state.updated_at, isoOr(state.started_at, nowIso()));
-  // v3->v4 boundary detection: production-mode records are inferred from source
-  // markers ONLY when migrating from a pre-v4 schema. A post-v4 missing mode is
-  // corruption and must fail closed rather than be re-inferred.
-  const rawSchemaVersion = typeof raw?.schema_version === "number" ? raw.schema_version : 0;
-  const migratingFromPreV4 = rawSchemaVersion < 4;
-
-  state.schema_version = STATE_SCHEMA_VERSION;
-  state.playbook = typeof state.playbook === "string" ? state.playbook : "";
-  state.current_node = typeof state.current_node === "string" ? state.current_node : "";
-  state.started_at = typeof state.started_at === "string" ? state.started_at : "";
-  state.updated_at = typeof state.updated_at === "string" ? state.updated_at : "";
-  state.nodes = isPlainObject(state.nodes) ? state.nodes : {};
-  state.gates = isPlainObject(state.gates) ? state.gates : {};
-  state.deck = isPlainObject(state.deck) ? state.deck : {};
-  ensureProductionModeContainer(state);
-  state.deck = {
-    name: state.deck.name == null ? "" : String(state.deck.name),
-    type: state.deck.type == null ? "" : String(state.deck.type),
-    style: state.deck.style == null ? "" : String(state.deck.style),
-  };
-
-  // Phase 1: normalize — ensure playbook_stack is a clean plain-object array before alias migration
-  normalizePlaybookStack(state, migrationTime);
-
-  // Phase 2: alias — migrate legacy node IDs (top-level + playbook_stack entries)
-  const pipeline = opts.pipeline || state.pipeline || state.deck?.pipeline || HTML_FIRST_PIPELINE;
-  state.pipeline = pipeline;
-  applyNodeAliases(state, pipeline);
-
-  if (state.playbook) {
-    if (typeof state.execution_id !== "string" || !state.execution_id) state.execution_id = newExecutionId();
-    state.execution_started_at = isoOr(state.execution_started_at, isoOr(state.started_at, migrationTime));
-    if (!state.started_at) state.started_at = state.execution_started_at;
-  } else {
-    state.execution_id = "";
-    state.execution_started_at = "";
-    for (const [id] of controllerEntries(state.nodes)) delete state.nodes[id];
-    state.current_node = "";
-  }
-
-  // v4->v5 gives every active execution an exact version identity. A legacy
-  // in-flight HTML migration carries a closed source-version field which is
-  // stronger than visible-version topology; every other migration requires one
-  // persisted version or exactly one visible version.
-  const binding = opts.runVersionBinding || resolveV5RunBinding(state, opts.deckDir);
-  const upgradingToV5 = rawSchemaVersion < STATE_SCHEMA_VERSION;
-  const boundRunVersion = binding.ok ? binding.run_version : null;
-  if (state.playbook && !boundRunVersion) {
-    state.run_version = "";
-    appendDiagnostic(state, "active execution has no unambiguous run_version; explicit replacement or repair required");
-  } else if (state.playbook && upgradingToV5) {
-    state.run_version = boundRunVersion;
-  } else {
-    if (!state.playbook) delete state.run_version;
-  }
-  if (upgradingToV5) bindOrdinaryStackFrames(state, boundRunVersion);
-
-  // Phase 3: restrict — validate migrated current_node against playbook index
-  restrictActiveWorkingSet(state);
-
-  for (const [id, record] of Object.entries(state.nodes)) {
-    if (isReservedNode(id)) continue;
-    state.nodes[id] = normalizeNodeRecord(record, id, state.execution_id, upgradingToV5 ? boundRunVersion : null, migrationTime, state);
-  }
-  for (const gate of ["content", "visual", "html_content", "html_visual"]) {
-    if (!GATE_STATUSES.includes(state.gates[gate])) {
-      if (state.gates[gate] != null) appendDiagnostic(state, `gate ${gate} healed to pending`);
-      state.gates[gate] = "pending";
-    }
-  }
-  for (const entry of state.playbook_stack) {
-    if (entry.diagnostic) appendDiagnostic(state, entry.diagnostic);
-  }
-  // Phase 4 (v3->v4 boundary only): populate missing production-mode records
-  // from the canonical source marker. Pure over markers; never re-runs on v4.
-  if (opts.deckDir && migratingFromPreV4) {
-    migrateProductionModeFromMarkers(state, opts.deckDir);
-  }
-  if (!Array.isArray(state.diagnostics) || state.diagnostics.length === 0) delete state.diagnostics;
-  return { state, dirty: before !== JSON.stringify(state) };
-}
-
-function seedFromBroken(rawText) {
-  const seeded = createDefaultState();
-  const match = /(?:^|\n)deck:\s*\n(?:[ \t]+.*\n)*?[ \t]+name:\s*["']?([^\n"']+)/.exec(rawText)
-    || /(?:^|\n)name:\s*["']?([^\n"']+)/.exec(rawText);
-  if (match) seeded.deck.name = match[1].trim();
-  return seeded;
+/** Historical state is not promotable. Reads validate the durable schema-5
+ * bytes; only an owning execution path may make a current repair. */
+export function healState(raw) {
+  return { state: isPlainObject(raw) ? deepClone(raw) : raw, dirty: false };
 }
 
 export function statePath(deckDir) { return join(deckDir, STATE_DIR, STATE_FILE); }
 export function historyPath(deckDir) { return join(deckDir, STATE_DIR, HISTORY_FILE); }
-
-function detectDeckPipeline(deckDir, state = {}) {
-  const explicit = state?.pipeline || state?.deck?.pipeline;
-  if ([HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) return explicit;
-  const versionsDir = join(deckDir, "3_versions");
-  let versions = [];
-  try {
-    versions = readdirSync(versionsDir)
-      .filter((name) => /^v[1-9][0-9]*$/.test(name))
-      .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
-  } catch {
-    versions = [];
-  }
-  const preferred = state?.run_version || state?.deck?.run_version;
-  if (typeof preferred === "string" && versions.includes(preferred)) {
-    versions = [preferred, ...versions.filter((name) => name !== preferred)];
-  }
-  for (const version of versions) {
-    const source = join(versionsDir, version, "slide-specifications.md");
-    if (!existsSync(source)) continue;
-    try {
-      const marker = probeProductionMarker(readFileSync(source), { source: "slide-specifications.md" });
-      if (marker.branch === HTML_FIRST_PIPELINE) return HTML_FIRST_PIPELINE;
-      if (marker.branch === "legacy") return LEGACY_PIPELINE;
-    } catch {
-      return LEGACY_PIPELINE;
-    }
-  }
-  if (state?.playbook) {
-    try {
-      const controller = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR).controllers.get(state.playbook);
-      if (controller?.supportedPipelines?.length === 1) return controller.supportedPipelines[0];
-    } catch { /* use markerless compatibility fallback */ }
-  }
-  return LEGACY_PIPELINE;
-}
-
-function classifyDeckPipeline(deckDir, state = {}) {
-  const explicit = state?.pipeline || state?.deck?.pipeline || null;
-  const versionsDir = join(deckDir, "3_versions");
-  const activeTransitionTarget = normalizeRunVersion(state?.run_version);
-  const completedTransitionTarget = activeTransitionTarget &&
-    existsSync(join(versionsDir, activeTransitionTarget, "_generated", "qa", "production_mode_transition.json"));
-  let markerPipeline = null;
-  let markerIssue = null;
-  let sources = [];
-  try {
-    sources = readdirSync(versionsDir)
-      .filter((name) => /^v[1-9][0-9]*$/.test(name) && existsSync(join(versionsDir, name, "slide-specifications.md")))
-      .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
-  } catch { /* an empty historical deck remains legacy-compatible */ }
-  for (const version of sources) {
-    try {
-      const marker = probeProductionMarker(readFileSync(join(versionsDir, version, "slide-specifications.md")), { source: "slide-specifications.md" });
-      const observed = marker.branch === HTML_FIRST_PIPELINE ? HTML_FIRST_PIPELINE : marker.branch === "legacy" ? LEGACY_PIPELINE : null;
-      if (!observed) { markerIssue = "invalid canonical production marker"; break; }
-      if (markerPipeline && markerPipeline !== observed) {
-        const migrationWorkspace = state?.playbook === "migrate-import" || existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "html_migration.json"));
-        const registeredMode = state?.production_mode?.by_version?.[canonicalVersionKey(version)]?.mode;
-        const registeredCrossPipeline = isProductionMode(registeredMode) && productionPolicyForMode(registeredMode).pipeline === observed &&
-          existsSync(join(deckDir, "3_versions", version, "_generated", "qa", "production_mode_transition.json"));
-        if (!migrationWorkspace && !registeredCrossPipeline && !completedTransitionTarget) { markerIssue = "conflicting production pipelines across versions"; break; }
-        markerPipeline = state?.pipeline || observed;
-        continue;
-      }
-      markerPipeline = observed;
-    } catch { markerIssue = "unreadable canonical production marker"; break; }
-  }
-  if (explicit && ![HTML_FIRST_PIPELINE, LEGACY_PIPELINE].includes(explicit)) markerIssue ||= "unknown persisted pipeline";
-  if (explicit && markerPipeline && explicit !== markerPipeline) {
-    // initBundle historically seeds a legacy state before an opt-in HTML
-    // source is authored. That pristine handoff is the only permitted
-    // legacy-to-HTML inference; an active legacy execution remains a
-    // replacement-required conflict.
-    const controllerIds = Object.keys(state?.nodes || {}).filter((id) => !isReservedNode(id));
-    const pristineSeed = explicit === LEGACY_PIPELINE && markerPipeline === HTML_FIRST_PIPELINE &&
-      state?.playbook === "create-deck" && controllerIds.every((id) => id === "instantiation") &&
-      controllerIds.every((id) => ["completed", "skipped"].includes(state.nodes[id]?.status));
-    const migrationSource = state?.playbook === "migrate-import";
-    if (!pristineSeed && !migrationSource) markerIssue ||= "persisted pipeline conflicts with canonical source";
-  }
-  return { pipeline: markerPipeline || explicit || detectDeckPipeline(deckDir, state), issue: markerIssue };
-}
-
-function migrationHandoffReceipt(deckDir, state) {
-  if (state?.playbook !== "migrate-import" || !state.execution_id) return null;
-  const current = state.nodes?.[state.current_node];
-  if (!current || current.status !== "in_progress") return null;
-  const sourceExecutionId = current.migration_source_execution_id || current.source_execution_id || state.migration_source_execution_id || state.execution_id;
-  const planHash = current.migration_plan_hash || current.plan_hash || state.migration_plan_hash || state.plan_hash;
-  const mode = current.old_side_mode || state.old_side_mode;
-  if (typeof sourceExecutionId !== "string" || !sourceExecutionId || !SHA256_RE.test(planHash || "") || !["verified-current", "degraded-missing", "degraded-stale"].includes(mode)) return null;
-  const versionsDir = join(deckDir, "3_versions");
-  let versions = [];
-  try { versions = readdirSync(versionsDir).filter((name) => VERSION_RE.test(name)); } catch { return null; }
-  for (const targetVersion of versions) {
-    const path = join(versionsDir, targetVersion, "_generated", "qa", "html_migration.json");
-    if (!existsSync(path)) continue;
-    try {
-      const receipt = JSON.parse(readFileSync(path, "utf8"));
-      if (receipt.source_execution_id !== sourceExecutionId || receipt.plan_hash !== planHash || receipt.target_version !== targetVersion || receipt.old_side_mode !== mode) continue;
-      return { path, receipt, targetVersion, sourceExecutionId, planHash, mode };
-    } catch { /* malformed receipt is not a handoff */ }
-  }
-  return null;
-}
-
-export function inspectMigrationHandoff(deckDir, state = null) {
-  const current = state || readState(deckDir, { purpose: "observe", heal: false });
-  const handoff = migrationHandoffReceipt(deckDir, current);
-  if (!handoff) return null;
-  return Object.freeze({
-    code: "migration_handoff_pending",
-    source_version: handoff.receipt.source_version,
-    target_version: handoff.targetVersion,
-    suggested_next: "resume migration-target-review",
-  });
-}
-
-export function completeMigrationHandoff(deckDir, { targetVersion } = {}) {
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: migration source state is unusable");
-  const handoff = migrationHandoffReceipt(deckDir, state);
-  if (!handoff || (targetVersion && targetVersion !== handoff.targetVersion)) throw new Error("replacement_required: migration handoff receipt/state mismatch");
-  const next = structuredClone(state);
-  next.playbook = "migrate-import";
-  next.current_node = "migration-target-review";
-  next.execution_id = newExecutionId();
-  next.execution_started_at = nowIso();
-  next.nodes = preserveReservedNodes(next.nodes);
-  next.nodes["migration-target-review"] = { status: "in_progress", execution_id: next.execution_id, run_version: handoff.targetVersion, migration_source_execution_id: handoff.sourceExecutionId, migration_plan_hash: handoff.planHash, old_side_mode: handoff.mode, target_version: handoff.targetVersion };
-  next.run_version = handoff.targetVersion;
-  next.pipeline = HTML_FIRST_PIPELINE;
-  // The bounded legacy-to-HTML migration registers its successfully published
-  // HTML target as html-only through the state owner — not a general cross-
-  // pipeline switch. The source version's mode is left untouched.
-  ensureProductionModeContainer(next);
-  next.production_mode.by_version[canonicalVersionKey(handoff.targetVersion)] = { mode: "html-only" };
-  next.gates.html_content = "pending";
-  next.gates.html_visual = "pending";
-  next.gates.html_content_run_version = handoff.targetVersion;
-  next.gates.html_visual_run_version = handoff.targetVersion;
-  writeState(deckDir, next, { expectedStateSha: sha256(readFileSync(statePath(deckDir))) });
-  appendHistory(deckDir, { type: "production_mode_registration", run_version: handoff.targetVersion, mode: "html-only", source: "legacy-to-html-migration", at: nowIso() });
-  return Object.freeze({ status: "handoff-complete", target_version: handoff.targetVersion, current_node: next.current_node, registered_mode: "html-only" });
-}
 
 function replacementRequired(reason, pipeline = null) {
   return Object.freeze({
@@ -959,6 +612,56 @@ function replacementRequired(reason, pipeline = null) {
     reason: String(reason),
     durable_state_present: false,
   });
+}
+
+function currentRepairRequired(reason, pipeline = null) {
+  return Object.freeze({
+    replacement_required: true,
+    current_repair_required: true,
+    code: "replacement_required",
+    pipeline,
+    reason: String(reason),
+    durable_state_present: false,
+  });
+}
+
+function stateRepairFencePresent(deckDir, state) {
+  if (existsSync(join(deckDir, STATE_DIR, GATE_JOURNAL_FILE))) return true;
+  if (state?.playbook === "production-mode-transition" || state?.playbook_stack?.some(isTransitionSuspensionFrame)) return true;
+  const resets = state?.nodes?.["html-production-reset"]?.by_version;
+  return isPlainObject(resets) && Object.values(resets).some((record) => record?.status === "deletion_pending");
+}
+
+function currentOneToOneRepair(state, { deckDir, runVersion, sourceMarker }) {
+  if (!isPlainObject(state) || stateRepairFencePresent(deckDir, state)) return null;
+  if (!isPlainObject(state.gates)) return null;
+  const invalidGates = ["content", "visual", "html_content", "html_visual"]
+    .filter((name) => !GATE_STATUSES.includes(state.gates[name]));
+  if (invalidGates.length !== 1) return null;
+
+  const candidate = deepClone(state);
+  candidate.gates[invalidGates[0]] = "pending";
+  if (!validateState(candidate).valid) return null;
+  const mode = inspectProductionMode({ state: candidate, runVersion, sourceMarker });
+  if (!mode.ok) return null;
+  return Object.freeze({
+    state: candidate,
+    repair: Object.freeze({
+      field: `gates.${invalidGates[0]}`,
+      from: state.gates[invalidGates[0]],
+      to: "pending",
+    }),
+  });
+}
+
+function markStateRepaired(state, repair) {
+  Object.defineProperty(state, "state_repaired", {
+    value: repair,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return state;
 }
 
 function readProductionModeMirror(deckDir) {
@@ -1042,9 +745,7 @@ export function inspectRunProductionMode(deckDir, { runVersion, runDir, purpose 
  * that agrees with the source marker before any adapter, readiness, provider,
  * or generated-artifact work begins.
  *
- * A markerless run with no durable state is the sole compatibility exception.
- * It remains explicitly labelled historical compatibility rather than being
- * upgraded, written, or presented as first-class `image2-only` authority.
+ * Every supported run has an explicit source marker and an authoritative mode.
  */
 export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpose = "observe" } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
@@ -1061,34 +762,8 @@ export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpo
       mode: inspection.mode,
       policy: inspection.policy,
       adapter: inspection.policy.page_authority === "html" ? "html" : "whole-page-image2",
-      compatibility: null,
       inspection,
     });
-  }
-
-  // Historical markerless decks can still be inspected and maintained without
-  // creating state. This exception is intentionally narrow: a durable state
-  // with a missing/corrupt v4 record never falls back to marker inference.
-  if (!existsSync(statePath(deckDir))) {
-    const marker = probeSourceMarkerForVersion(deckDir, exactVersion);
-    const pipeline = marker.ok === false ? marker : pipelineFromSourceMarker(marker);
-    if (pipeline.ok && pipeline.pipeline === LEGACY_PIPELINE) {
-      const policy = productionPolicyForMode("image2-only");
-      return Object.freeze({
-        ok: true,
-        run_version: exactVersion,
-        mode: null,
-        policy,
-        adapter: "whole-page-image2",
-        compatibility: "historical-markerless",
-        inspection: Object.freeze({
-          ok: false,
-          code: inspection.code,
-          source_branch: pipeline.branch,
-          source_pipeline: pipeline.pipeline,
-        }),
-      });
-    }
   }
 
   return Object.freeze({ ok: false, ...inspection });
@@ -1561,89 +1236,63 @@ export function inspectImage2ProviderAuthorization(deckDir, { runVersion, runDir
 }
 
 export function readState(deckDir, opts = {}) {
-  const shouldHeal = opts.heal !== false;
   const purpose = opts.purpose || "execute";
   if (!["observe", "execute"].includes(purpose)) throw new TypeError("state read purpose must be observe or execute");
   const path = statePath(deckDir);
   if (!existsSync(path)) {
-    const classification = classifyDeckPipeline(deckDir);
-    if (classification.issue || classification.pipeline === HTML_FIRST_PIPELINE) {
-      return replacementRequired(classification.issue || "HTML-first run is missing authoritative state", classification.pipeline);
-    }
-    const projection = createDefaultState();
-    projection.durable_state_present = false;
-    return projection;
+    return replacementRequired("authoritative state is missing");
   }
-  let raw;
+  let raw = "";
+  let rawBytes = null;
   try {
-    raw = readFileSync(path, "utf8");
+    rawBytes = readFileSync(path);
+    raw = rawBytes.toString("utf8");
   } catch (error) {
-    const classification = classifyDeckPipeline(deckDir);
-    if (!shouldHeal || purpose === "observe" || classification.pipeline === HTML_FIRST_PIPELINE) {
-      return classification.pipeline === HTML_FIRST_PIPELINE
-        ? replacementRequired("HTML-first state cannot be read without replacing authoritative evidence", classification.pipeline)
-        : { corrupted: true, errors: [error.message] };
-    }
-    const seeded = createDefaultState();
-    writeState(deckDir, seeded);
-    seeded._healed = true;
-    return seeded;
+    return replacementRequired("authoritative state cannot be read");
   }
   const parsed = parseStateYaml(raw);
-  if (!parsed.ok) {
-    const classification = classifyDeckPipeline(deckDir);
-    if (!shouldHeal || purpose === "observe" || classification.pipeline === HTML_FIRST_PIPELINE) {
-      return classification.pipeline === HTML_FIRST_PIPELINE
-        ? replacementRequired("HTML-first state is not safely parseable", classification.pipeline)
-        : { corrupted: true, errors: parsed.errors };
+  if (!parsed.ok || parsed.hadErrors) return replacementRequired("authoritative state is not safely parseable");
+  if (parsed.value.schema_version !== STATE_SCHEMA_VERSION) {
+    return replacementRequired(`unsupported state schema_version ${String(parsed.value.schema_version)}`);
+  }
+  const version = selectedRunVersion(opts) || normalizeRunVersion(parsed.value.run_version);
+  let sourceMarker = null;
+  if (version) {
+    sourceMarker = probeSourceMarkerForVersion(deckDir, version);
+    const markerPipeline = sourceMarker.ok === false ? null : pipelineFromSourceMarker(sourceMarker);
+    if (!markerPipeline?.ok) {
+      return replacementRequired(`source/state identity is unsupported: ${markerPipeline?.code || sourceMarker.code || "marker unavailable"}`);
     }
-    const broken = `${path}.broken.${Date.now()}`;
-    try { renameSync(path, broken); } catch { /* best effort */ }
-    const seeded = seedFromBroken(raw);
-    writeState(deckDir, seeded);
-    try { appendHistory(deckDir, { type: "state_healed", reason: "unparseable", backup: broken }); } catch { /* optional */ }
-    seeded._healed = true;
-    return seeded;
+    // A valid marker belongs to the source owner. The exact mode/pipeline pair
+    // is evaluated by resolveRunProductionAdapter so drift remains visible as a
+    // hard-stop instead of being misclassified as historical state.
+  } else if (parsed.value.playbook) {
+    return replacementRequired("authoritative active state has no exact run version");
   }
-  const classification = classifyDeckPipeline(deckDir, parsed.value);
-  if (classification.issue) return replacementRequired(classification.issue, classification.pipeline);
-  const rawBinding = resolveV5RunBinding(parsed.value, deckDir);
-  // The only pre-v5 exception is deliberately private to the closed legacy
-  // confirmation writer below. It receives unhealed bytes solely so it can
-  // re-inspect the exact source, preview, hash, and mode before one atomic
-  // v5-binding write. Ordinary reads remain replacement-required.
-  const pendingLegacyConfirmation = !rawBinding.ok && opts.allowLegacyConfirmation === true
-    ? legacyConfirmationSourceVersion(parsed.value, opts)
-    : null;
-  if (!rawBinding.ok && !pendingLegacyConfirmation) return replacementRequired(rawBinding.reason, classification.pipeline);
-  if (pendingLegacyConfirmation && shouldHeal) {
-    return replacementRequired("legacy confirmation must be completed through its closed confirmation operation", classification.pipeline);
-  }
-  if (!shouldHeal) {
-    const mismatch = selectedExecutionMismatch(parsed.value, opts);
-    return mismatch ? Object.freeze({ ...parsed.value, ...mismatch }) : parsed.value;
-  }
-  const { state, dirty } = healState(parsed.value, {
-    pipeline: opts.pipeline || classification.pipeline,
-    deckDir,
-    runVersionBinding: rawBinding,
-  });
-  const bindingErrors = executionBindingErrors(state);
-  if (bindingErrors.length > 0) return replacementRequired(bindingErrors[0], classification.pipeline);
-  if (dirty || parsed.hadErrors) {
-    const journalPresent = existsSync(join(deckDir, STATE_DIR, GATE_JOURNAL_FILE));
-    if (journalPresent) {
-      if (purpose === "execute") throw new Error("CONFLICT: gate approval journal fences state healing");
-      state._heal_pending = true;
-      state.durable_state_present = true;
-      return state;
+  const validation = validateState(parsed.value);
+  if (!validation.valid) {
+    const repair = version && sourceMarker ? currentOneToOneRepair(parsed.value, {
+      deckDir,
+      runVersion: version,
+      sourceMarker,
+    }) : null;
+    if (!repair) return replacementRequired(`current state requires owner repair: ${validation.errors[0]}`);
+    if (purpose === "observe") {
+      return currentRepairRequired(`current state has a fence-clear one-to-one repair at ${repair.repair.field}`,
+        pipelineFromSourceMarker(sourceMarker).pipeline);
     }
-    writeState(deckDir, state, { expectedStateSha: sha256(Buffer.from(raw)) });
-    try { appendHistory(deckDir, { type: "state_healed", reason: dirty ? "schema" : "parse_errors" }); } catch { /* optional */ }
-    state._healed = true;
+    try {
+      writeState(deckDir, repair.state, { expectedStateSha: sha256(rawBytes) });
+    } catch {
+      return currentRepairRequired(`current state repair must be retried through its owning execution path at ${repair.repair.field}`,
+        pipelineFromSourceMarker(sourceMarker).pipeline);
+    }
+    const repaired = { ...repair.state, durable_state_present: true };
+    const mismatch = selectedExecutionMismatch(repaired, opts);
+    return markStateRepaired(mismatch ? { ...repaired, ...mismatch } : repaired, repair.repair);
   }
-  state.durable_state_present = true;
-  const mismatch = selectedExecutionMismatch(state, opts);
+  const mismatch = selectedExecutionMismatch(parsed.value, opts);
+  const state = { ...parsed.value, durable_state_present: true };
   return mismatch ? Object.freeze({ ...state, ...mismatch }) : state;
 }
 
@@ -1748,98 +1397,6 @@ export function writeState(deckDir, state, opts = {}) {
 }
 
 /**
- * Atomically turns one current migration preview confirmation into the only
- * apply record after the Phase-5 migration owner has verified the exact
- * preview receipt. Shared state intentionally does not import a Phase module.
- */
-export function recordHtmlMigrationConfirmation(sourceRunDir, { planHash, oldSideMode, inspection } = {}) {
-  if (!SHA256_RE.test(planHash || "")) throw new TypeError("plan hash must be a 64-lowercase-hex SHA-256");
-  if (!["verified-current", "degraded-missing", "degraded-stale"].includes(oldSideMode || "")) {
-    throw new TypeError("old-side mode must be verified-current, degraded-missing, or degraded-stale");
-  }
-  const runDir = resolve(sourceRunDir);
-  const sourcePath = join(runDir, "slide-specifications.md");
-  if (!existsSync(sourcePath)) throw new Error("migration source version has no slide specifications");
-  const marker = probeProductionMarker(readFileSync(sourcePath), { source: "slide-specifications.md" });
-  if (marker.branch !== "legacy") throw new Error("migration confirmation accepts only a markerless source version");
-
-  const deckDir = resolve(runDir, "..", "..");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runDir, allowLegacyConfirmation: true });
-  if (current?.replacement_required || current?.corrupted) throw new Error("migration source state is unusable");
-  const historicalBinding = legacyConfirmationSourceVersion(current, { runDir });
-  if (current?.execution_run_version_mismatch && !historicalBinding) throw new Error("replacement_required: migration confirmation run binding is unavailable");
-  if (current.playbook !== "migrate-import" || !current.execution_id) throw new Error("active migrate-import confirmation execution is required");
-  const executionId = current.execution_id;
-  const confirmed = current.nodes?.["confirm-html-migration"];
-  const preview = current.nodes?.["preview-html-migration"];
-  const activeApply = current.nodes?.["apply-html-migration"];
-  const sourceVersion = basename(runDir);
-
-  if (!isPlainObject(inspection) ||
-    inspection.source_version !== sourceVersion ||
-    inspection.plan_hash !== planHash ||
-    inspection.old_side_mode !== oldSideMode ||
-    normalizeRunVersion(inspection.target_version) !== inspection.target_version) {
-    throw new Error("migration confirmation inspection is missing or drifted");
-  }
-
-  if (
-    current.current_node === "apply-html-migration" &&
-    activeApply?.status === "in_progress" &&
-    activeApply.execution_id === executionId &&
-    activeApply.migration_plan_hash === planHash &&
-    activeApply.old_side_mode === oldSideMode &&
-    activeApply.migration_source_version === sourceVersion
-  ) {
-    return Object.freeze({ status: "idempotent", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
-  }
-
-  if (
-    current.current_node !== "confirm-html-migration" ||
-    confirmed?.status !== "in_progress" ||
-    confirmed.execution_id !== executionId ||
-    preview?.status !== "completed" ||
-    preview.execution_id !== executionId ||
-    preview.migration_plan_hash !== planHash ||
-    preview.old_side_mode !== oldSideMode
-  ) {
-    throw new Error("active migrate-import confirmation execution is required");
-  }
-
-  const next = structuredClone(current);
-  const at = nowIso();
-  next.schema_version = STATE_SCHEMA_VERSION;
-  next.run_version = sourceVersion;
-  next.nodes["confirm-html-migration"] = {
-    ...next.nodes["confirm-html-migration"],
-    status: "completed",
-    execution_id: executionId,
-    run_version: sourceVersion,
-    decision: { value: "apply", kind: "user", at },
-    completed: at,
-  };
-  next.nodes["preview-html-migration"] = {
-    ...next.nodes["preview-html-migration"],
-    execution_id: executionId,
-    run_version: sourceVersion,
-  };
-  next.nodes["apply-html-migration"] = {
-    status: "in_progress",
-    execution_id: executionId,
-    run_version: sourceVersion,
-    migration_plan_hash: planHash,
-    old_side_mode: oldSideMode,
-    migration_source_version: sourceVersion,
-    started: at,
-  };
-  next.current_node = "apply-html-migration";
-  bindOrdinaryStackFrames(next, sourceVersion);
-  const expectedStateSha = sha256(readFileSync(statePath(deckDir)));
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
-  return Object.freeze({ status: "confirmed", source_version: sourceVersion, target_version: inspection.target_version, plan_hash: planHash, old_side_mode: oldSideMode, current_node: "apply-html-migration" });
-}
-
-/**
  * Capture a confirmed cross-pipeline preview as the sole active transition.
  * Candidate preparation and preview deliberately live outside state; this is
  * the first pointer-changing operation and is fenced by the exact source
@@ -1876,7 +1433,7 @@ export function confirmProductionModeTransition(deckDir, {
   if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition source state is unavailable");
   if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
   if (!current.playbook || !current.execution_id || current.run_version !== sourceVersion) throw new Error("active source execution is required");
-  if (current.playbook === "migrate-import" && current.current_node === TRANSITION_APPLY_NODE) throw new Error("transition apply is already active");
+  if (current.playbook === "production-mode-transition" && current.current_node === TRANSITION_APPLY_NODE) throw new Error("transition apply is already active");
   if (current.playbook_stack.some(isTransitionSuspensionFrame)) throw new Error("transition suspension is already active");
   const sourceMode = current.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)]?.mode;
   if (!isProductionMode(sourceMode)) throw new Error("transition source has no authoritative production mode");
@@ -1910,7 +1467,7 @@ export function confirmProductionModeTransition(deckDir, {
   const transitionExecutionId = newExecutionId();
   const next = structuredClone(current);
   next.schema_version = STATE_SCHEMA_VERSION;
-  next.playbook = "migrate-import";
+  next.playbook = "production-mode-transition";
   next.current_node = TRANSITION_APPLY_NODE;
   next.execution_id = transitionExecutionId;
   next.execution_started_at = at;
@@ -2153,6 +1710,7 @@ export function completeProductionModeTransitionHandoff(deckDir, {
   const stateSha = sha256(stateBytes);
   if (expectedStateSha && expectedStateSha !== stateSha) throw new Error("CONFLICT: transition state precondition changed");
   const at = nowIso();
+  const intakeDecisionAt = record.transition_confirmation.at;
   const targetExecutionId = newExecutionId();
   const baseline = { target_execution_id: targetExecutionId, target_run_version: record.transition_target_version, plan_hash: planHash, success_receipt_sha256: actualReceiptSha, source_control_fingerprint: receipt.source_control_fingerprint };
   const authorNode = record.transition_target_mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
@@ -2173,7 +1731,7 @@ export function completeProductionModeTransitionHandoff(deckDir, {
   next.nodes.instantiation = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, transition_baseline: baseline };
   next.nodes["checkpoint-intake"] = {
     status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at,
-    decision: { value: "proceed", kind: "user", at }, evidence: { "intake-confirmed": { met: true, kind: "user", at, note: record.transition_target_intake_sha256 } },
+    decision: { value: "proceed", kind: "user", at: intakeDecisionAt }, evidence: { "intake-confirmed": { met: true, kind: "user", at: intakeDecisionAt, note: record.transition_target_intake_sha256 } },
     transition_baseline: { ...baseline, target_intake_sha256: record.transition_target_intake_sha256 },
   };
   for (const [nodeId, evidenceKey] of [[authorNode, authorNode === "author-whole-page-content" ? "whole-page-content-authored" : "structured-content-authored"], [configureNode, configureNode === "configure-whole-page-visual-system" ? "whole-page-visual-system-configured" : "visual-system-configured"]]) {
@@ -2361,7 +1919,7 @@ export function projectModeCompletion(state, { runVersion } = {}) {
   const versionKey = canonicalVersionKey(exactVersion);
   const record = isPlainObject(state?.production_mode?.by_version) ? state.production_mode.by_version[versionKey] : null;
   const mode = isPlainObject(record) && hasExactKeys(record, ["mode"]) && isProductionMode(record.mode) ? record.mode : null;
-  if (!mode) return Object.freeze({ ok: false, code: "MODE_MISSING", run_version: exactVersion, next_action: "register_or_migrate_production_mode" });
+  if (!mode) return Object.freeze({ ok: false, code: "MODE_MISSING", run_version: exactVersion, next_action: "register_production_mode" });
   const policy = productionPolicyForMode(mode);
   const delivery = readHtmlDeliveryDecision(state, exactVersion);
   const refinement = safeRefinementStatus(state, exactVersion);
@@ -2530,7 +2088,7 @@ export function resumePlaybook(state, selected = {}) {
 export function createDefaultState() {
   return {
     schema_version: STATE_SCHEMA_VERSION,
-    pipeline: LEGACY_PIPELINE,
+    pipeline: WHOLE_PAGE_IMAGE2_PIPELINE,
     production_mode: { by_version: {} },
     playbook: "",
     current_node: "",
@@ -2546,8 +2104,12 @@ export function createDefaultState() {
     playbook_stack: [],
   };
 }
-export function createInitialState(deckName, deckType, style) {
+export function createInitialState(deckName, deckType, style, { mode = "image2-only" } = {}) {
+  const policy = productionPolicyForMode(mode);
+  if (!policy.ok) throw new TypeError("initial state requires a valid production mode");
   const state = createDefaultState();
+  state.pipeline = policy.pipeline;
+  state.production_mode.by_version[canonicalVersionKey("v1")] = { mode: policy.mode };
   state.deck = { name: String(deckName || ""), type: String(deckType || ""), style: String(style || "") };
   startPlaybook(state, "create-deck", { runVersion: "v1" });
   state.current_node = "instantiation";
@@ -2607,7 +2169,53 @@ export function validateState(state) {
   for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
   validateProductionModeStructure(state, errors);
   validateImage2MapsStructure(state, errors);
+  validateCurrentControllerIdentity(state, errors);
   return { valid: errors.length === 0, errors };
+}
+
+function validateControllerFrameIdentity(index, frame, label, errors) {
+  const controller = index.controllers.get(frame?.playbook);
+  if (!controller) {
+    errors.push(`${label} uses retired or unknown Controller ${String(frame?.playbook || "")}`);
+    return;
+  }
+  const nodeIds = new Set(controllerNodeIds(index, controller.playbook));
+  if (!nodeIds.has(frame.current_node)) {
+    errors.push(`${label} uses retired or unknown node ${String(frame.current_node || "")}`);
+  }
+  for (const nodeId of Object.keys(frame.controller_nodes || {})) {
+    if (!nodeIds.has(nodeId)) errors.push(`${label} contains retired or unknown node ${nodeId}`);
+  }
+}
+
+function validateCurrentControllerIdentity(state, errors) {
+  const activeNodes = controllerEntries(state?.nodes || {});
+  if (!state?.playbook) {
+    if (activeNodes.length > 0) errors.push("inactive state retains Controller node identity");
+    return;
+  }
+  let index;
+  try {
+    index = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR);
+  } catch {
+    errors.push("current Controller registry is unavailable");
+    return;
+  }
+  if (!validatePlaybookIndex(index).valid) {
+    errors.push("current Controller registry is invalid");
+    return;
+  }
+  validateControllerFrameIdentity(index, {
+    playbook: state.playbook,
+    current_node: state.current_node,
+    controller_nodes: Object.fromEntries(activeNodes),
+  }, "active state", errors);
+  for (const [indexPosition, frame] of (state.playbook_stack || []).entries()) {
+    validateControllerFrameIdentity(index, frame, `playbook_stack[${indexPosition}]`, errors);
+  }
+  if (state.playbook === "production-mode-transition" && !activeTransitionRecord(state)) {
+    errors.push("active production-mode transition record is malformed or contains retired receipt identity");
+  }
 }
 
 function stateIssue(path, expected, actual, kind = "state", next_action = "repair_state") {
@@ -2624,11 +2232,7 @@ function hasExactKeys(value, keys) {
   return isPlainObject(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
-/**
- * Ensure the production-mode container exists with a plain by_version map. This
- * only normalizes shape; it never infers a mode (see migrateProductionModeFromMarkers
- * for the v3->v4 boundary-only inference).
- */
+/** Ensure the production-mode container exists with a plain by_version map. */
 function ensureProductionModeContainer(state) {
   const prior = isPlainObject(state.production_mode) && isPlainObject(state.production_mode.by_version)
     ? state.production_mode.by_version
@@ -2696,43 +2300,6 @@ function validateImage2MapsReadOnly(state, issues) {
       if (!runVersion) { issues.push(stateIssue(recordPath, "canonical 3_versions/vN key", "noncanonical", "record")); continue; }
       if (!validator(record, runVersion)) issues.push(stateIssue(recordPath, label, "unknown-or-invalid", "record"));
     }
-  }
-}
-
-/**
- * v3->v4 boundary migration: for each visible version, populate a MISSING
- * production-mode record from its canonical source marker (html-first-v1 ->
- * html-only, markerless legacy -> image2-only). Pure over markers only;
- * refinement/metadata/history/generated bytes never influence it. Idempotent:
- * a valid existing record is never rewritten. Invalid markers leave the record
- * absent so later inspection/validation fails closed. This runs ONLY when
- * migrating from a pre-v4 schema; a post-v4 missing mode is corruption and is
- * not re-inferred.
- */
-function migrateProductionModeFromMarkers(state, deckDir) {
-  const byVersion = ensureProductionModeContainer(state);
-  const versionsDir = join(deckDir, "3_versions");
-  let versions = [];
-  try {
-    versions = readdirSync(versionsDir)
-      .filter((name) => VERSION_RE.test(name))
-      .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
-  } catch { return; }
-  for (const version of versions) {
-    const key = canonicalVersionKey(version);
-    if (!key) continue;
-    const existing = byVersion[key];
-    if (isPlainObject(existing) && hasExactKeys(existing, ["mode"]) && isProductionMode(existing.mode)) continue;
-    const source = join(versionsDir, version, "slide-specifications.md");
-    if (!existsSync(source)) continue;
-    let marker;
-    try {
-      marker = probeProductionMarker(readFileSync(source), { source: "slide-specifications.md" });
-    } catch { continue; }
-    const derived = productionModeFromSourceMarker(marker);
-    if (!derived.ok) continue;
-    byVersion[key] = { mode: derived.mode };
-    appendDiagnostic(state, `production_mode.${key} migrated from ${derived.branch} source marker -> ${derived.mode}`);
   }
 }
 

@@ -38,7 +38,7 @@ agent_action: internalize
 
 **修复**：IMAGE PROMPT 是**空间执行指令**，不是文学作品。结构：Layout 分区 → Zone 描述 → 颜色语义 → 精确文字 → Anti-patterns。把最重要的信息（y 坐标、颜色 hex、文字 wording）放最前面。
 
-参见 `reference/legacy-image2-first-maintenance.md`。
+参见 `playbook/create-deck.md`。
 
 ---
 

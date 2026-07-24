@@ -1,16 +1,25 @@
 # workflow-inspection Specification
 
 ## Purpose
-TBD - created by archiving change unify-workflow-inspection. Update Purpose after archive.
+Define the read-only workflow-observation projection that gives MD Controllers and CLI observers one ordered, owner-issued next action for an exact run without reconstructing mode, gate, recovery, or completion policy.
 ## Requirements
 
 ### Requirement: Inspection provides the sole run-scoped observation workflow entry
-
 After Change-1 ledger evidence identifies an exact run, Controller resume/iteration routing and CLI observation (`status` and non-mutating `state`) SHALL obtain their ordered workflow entry from `workflow_inspection.primary_action`. They SHALL not rederive mode, gate, recovery, completion, hash, authorization, or next-action policy from generic node state. Greenfield `init` and every mutating CLI command remain direct-owner entries and SHALL not use this projection to select or replace the requested operation.
 
-### Requirement: Inspection composes one action from the retained execution cursor
+#### Scenario: Controller resumes an existing run
+- **WHEN** a Controller has resolved an exact existing run for resume or iteration
+- **THEN** it consumes `workflow_inspection.primary_action` as its ordered observation input
+- **AND** it does not rebuild mode or recovery policy from generic state fields
 
+### Requirement: Inspection composes one action from the retained execution cursor
 After protected layout, state-integrity, mode, journal, authorization, and recovery prerequisites have selected no earlier action, inspection SHALL read the direct state-owned execution cursor. A current `waiting_for` SHALL produce exactly state-owned `wait-for-human` with `kind: continue`, `requires_human: true`, and no mutation invocation. An in-progress node SHALL produce exactly playbook-controller-owned `resume-current-node` with `kind: continue`; an otherwise eligible controller state SHALL produce exactly playbook-controller-owned `select-controller-route` with `kind: continue`. The latter two actions SHALL carry bounded route data so callers do not reconstruct it from cursor fields, and neither SHALL create an action menu.
+
+#### Scenario: Inspection observes an in-progress node
+- **WHEN** no earlier protected prerequisite blocks an exact run and its current node is in progress
+- **THEN** inspection returns the single playbook-controller-owned `resume-current-node` action
+- **AND** it does not create a competing action menu
+
 ### Requirement: Workflow inspection provides a versioned read-only projection
 The framework SHALL provide `inspectWorkflow({ runDir, requestedIntent? })` as the sole shared observation composition interface for workflow readiness. It SHALL return `schema: "pptmaker-workflow-inspection-v1"`, a `checkpoint` containing the exact run/version and every direct-fact identity used for the verdict, `posture`, nullable `root_cause`, exactly one typed `primary_action`, ordered `observations`, nullable `continuation`, nullable `protected_invariant`, and attributable `evidence_summary`. `checkpoint` SHALL contain only stable direct-fact identities and SHALL NOT contain wall-clock time, process identity, random values, command names, or presentation data. `primary_action` SHALL contain `owner`, `action_id`, `kind: continue|repair|review|recover|complete`, and `requires_human`; it MAY contain only owner-issued structured invocation data or a bounded display label. `kind: complete` SHALL represent a terminal ready checkpoint and SHALL not contain a mutation invocation.
 
@@ -65,28 +74,16 @@ Inspection SHALL obtain run-bundle layout/canonical-path, mode/source, state/rec
 - **AND** it does not expose competing branch actions as continuations
 
 ### Requirement: Inspection is observation-only and not an authority
-Inspection SHALL perform zero state, history, metadata, generated-artifact, receipt, authorization, or source writes; it SHALL make zero network or provider calls; it SHALL not cache a verdict, heal state, migrate schema, or recover a journal. A repairable direct fact SHALL be reported with the owning repair action. Mutation owners SHALL revalidate their direct source/CAS/authorization/receipt facts immediately before a write or submit and SHALL NOT trust an earlier inspection as authorization or proof of freshness.
+Inspection SHALL perform zero state, history, metadata, generated-artifact, receipt, authorization, or source writes; it makes zero network/provider calls and shall not cache a verdict, heal state, migrate schema, or recover a journal. A repairable current direct fact is reported with its owning repair action. Mutation owners revalidate their direct source/CAS/authorization/receipt facts immediately before a write or submit and never treat an earlier inspection as authorization or freshness proof. An unsupported historical protocol remains byte-preserving and produces one bounded owner-issued typed next action, not a compatibility projection.
 
-#### Scenario: Inspection observes a repairable legacy state without healing
-- **WHEN** inspection encounters a state shape that the state owner could heal
-- **THEN** it reports the owner-provided repair action
+#### Scenario: Inspection observes a repairable current state without healing
+- **WHEN** inspection encounters a schema-5 state shape the owner could safely repair
+- **THEN** it reports the owner-provided action
 - **AND** no state, history, or metadata file changes
 
-#### Scenario: A changed fact invalidates prior inspection for mutation
-- **WHEN** a source, receipt, authorization, or CAS value changes after inspection returns
-- **THEN** the mutation owner rechecks the changed direct fact before mutation
-- **AND** the earlier projection cannot make the mutation proceed
-
-#### Scenario: Same checkpoint has canonical projection bytes
-- **WHEN** status and state observe identical direct-fact identities without a write or remote call between them
-- **THEN** inspection produces identical canonical serialized projection bytes for both consumers
-- **AND** a changed checkpoint causes a new projection rather than cached reuse
-
-#### Scenario: Direct facts change while inspection is composing
-- **WHEN** a participating direct-fact identity changes during inspection
-- **THEN** inspection discards the mixed verdict and returns `posture: "guide"` with one read-only `workflow-inspection` / `refresh-workflow-inspection` / `continue` primary action
-- **AND** its root cause names the changed direct owner and its action requires no human decision
-- **AND** it does not retry in a loop, acquire a lock, write a cache, or mutate an owner record
+#### Scenario: Inspection observes unsupported history
+- **WHEN** identity is pre-current, absent, retired, or ambiguous
+- **THEN** it returns the bounded owner action without a route, mode, or execution inference
 
 ### Requirement: Inspection preserves protected gate boundaries
 Inspection SHALL use the owning gate's `guide`, `confirm`, or `hard-stop` classification. A confirmable result SHALL expose only the owner-provided continuation that requires a human reason. A hard-stop SHALL include the protected invariant and the safe owner recovery action; it SHALL NOT expose force, waive, metadata fallback, state bypass, or implicit retry as a continuation.
@@ -97,9 +94,9 @@ Inspection SHALL use the owning gate's `guide`, `confirm`, or `hard-stop` classi
 - **AND** it does not recommend a new submit or force path
 
 ### Requirement: Workflow evidence is ledgered before control retirement
-The framework SHALL maintain a Change-1 durable-field ledger and canonical journey baseline for HTML, Image2-only, HTML-then-Image2, resume, small refresh, structural versioning, visual-slot refinement, migration/recovery, and crash/restart. Each durable field entry SHALL name its direct owner, writer, readers, freshness/invalidation rule, reconstructibility, and removal path. The BUG-033 single-page probe SHALL record actual earliest direct diagnostics and same-check rerun evidence using supported owner interfaces only.
+The framework SHALL maintain a Change-1 durable-field ledger and canonical journey baseline for HTML, image2-only, html-then-image2, resume, small refresh, structural versioning, visual-slot refinement, current production-mode-transition/recovery, and crash/restart. Each durable field entry names its direct owner, writer, readers, freshness/invalidation rule, reconstructibility, and removal path. The BUG-033 single-page probe records actual earliest direct diagnostics and same-check rerun evidence using supported owner interfaces only. Historical migration is not a baseline journey or a route-under-test.
 
 #### Scenario: A claimed BUG-033 blocker is not reproduced
 - **WHEN** the supported minimal fixture does not reproduce a claimed blocker
-- **THEN** the baseline records that result and the observed direct facts
+- **THEN** the baseline records that result and observed direct facts
 - **AND** it does not introduce a bypass, hand-written state, receipt, authorization, or assembled PPTX

@@ -192,7 +192,7 @@ describe("cli_error", () => {
     }
   });
 
-  it("matches the exact 15-command ppt_flow registry", () => {
+  it("matches the exact 14-command ppt_flow registry", () => {
     const source = readFileSync(join(SCRIPTS, "ppt_flow.mjs"), "utf8");
     const commands = [...source.matchAll(/\.command\("([^"]+)"\)/g)].map((match) => match[1]);
     expect(commands).toEqual(PPT_FLOW_COMMAND_INVENTORY);
@@ -208,15 +208,15 @@ describe("cli_error", () => {
       contextual: focused({
         "shared/run-bundle/bundle_layout.mjs": "tests/shared/run-bundle/test_bundle_layout.mjs",
         "00-setup/env-check.mjs": "tests/00-setup/test_env_check.mjs",
-        "04-image-production/whole-page/generate_style_master.mjs": "tests/05-iteration/test_generate_style_master.mjs",
+        "04-image-production/whole-page/generate_style_master.mjs": "tests/04-image-production/test_generate_style_master.mjs",
         "shared/run-bundle/lessons.mjs": "tests/shared/run-bundle/test_lessons.mjs",
-        "04-image-production/whole-page/make_contact_sheet.mjs": "tests/05-iteration/test_image_generation.mjs",
+        "04-image-production/whole-page/make_contact_sheet.mjs": "tests/04-image-production/test_image_generation.mjs",
         "ppt_flow.mjs": "tests/contracts/test_ppt_flow.mjs",
         "03-html-production/stage1_build_inputs.mjs": "tests/03-html-production/test_stage1_build_inputs.mjs",
-        "04-image-production/whole-page/stage2_generate_images.mjs": "tests/05-iteration/test_image_generation.mjs",
+        "04-image-production/whole-page/stage2_generate_images.mjs": "tests/04-image-production/test_image_generation.mjs",
         "03-html-production/stage2_render_html.mjs": "tests/03-html-production/test_html_stage_clis.mjs",
         "03-html-production/stage3_compose_slides.mjs": "tests/03-html-production/test_html_stage_clis.mjs",
-        "04-image-production/whole-page/stage3_lock_headers.mjs": "tests/05-iteration/test_stage3_lock_headers.mjs",
+        "04-image-production/whole-page/stage3_lock_headers.mjs": "tests/04-image-production/test_stage3_lock_headers.mjs",
         "03-html-production/stage4_build_pptx.mjs": "tests/03-html-production/test_stage4_build_pptx.mjs",
         "03-html-production/stage5_inject_notes.mjs": "tests/03-html-production/test_stage5_inject_notes.mjs",
         "03-html-production/unified_pipeline.mjs": "tests/03-html-production/test_unified_pipeline.mjs",
@@ -228,15 +228,15 @@ describe("cli_error", () => {
     }]));
     const delegatedCommands = new Set(["doctor", "style-master", "validate", "pilot", "build", "refresh", "test"]);
     const commandAudit = Object.fromEntries(PPT_FLOW_COMMAND_INVENTORY.map((entry) => {
-      const commandProbeFile = entry === "migrate-html" ? "tests/05-iteration/test_html_migration.mjs" : "tests/contracts/test_ppt_flow.mjs";
-      const commandProbeName = entry === "migrate-html" ? "migrate-html preview/apply/recovery" : `ppt_flow ${entry} contextual behavior`;
+      const commandProbeFile = "tests/contracts/test_ppt_flow.mjs";
+      const commandProbeName = `ppt_flow ${entry} contextual behavior`;
       return [entry, {
         help: focused("tests/contracts/test_ppt_flow.mjs", "audits help and deterministic usage"),
         usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_ppt_flow.mjs", "audits help and deterministic usage"),
         contextual: focused(commandProbeFile, commandProbeName),
         delegated: delegatedCommands.has(entry) ? focused("tests/shared/cli/test_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
         interruption: focused("tests/shared/cli/test_cli_error.mjs", "handles catchable interruption once"),
-        prose_success: focused(commandProbeFile, entry === "migrate-html" ? "migrate-html preview/apply/recovery" : `ppt_flow ${entry} success`),
+        prose_success: focused(commandProbeFile, `ppt_flow ${entry} success`),
         json_success: ["status", "state"].includes(entry) ? focused("tests/contracts/test_ppt_flow.mjs", `${entry} --json`) : na("No documented JSON success mode."),
       }];
     }));
@@ -452,7 +452,7 @@ describe("cli_error", () => {
     const dir = mkdtempSync(join(tmpdir(), "pptmaker-provider-secret-"));
     try {
       const path = join(dir, "provider.mjs");
-      const imageUrl = pathToFileURL(join(SCRIPTS, "05-iteration", "legacy-image2", "internal", "image_api_client.mjs")).href;
+      const imageUrl = pathToFileURL(join(SCRIPTS, "04-image-production", "whole-page", "internal", "image_api_client.mjs")).href;
       const helperUrl = pathToFileURL(join(SCRIPTS, "shared", "cli", "cli_error.mjs")).href;
       writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { generateOneImage } from "${imageUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\nglobalThis.fetch = async () => ({ ok: false, status: 502, text: async () => JSON.stringify({ error: "PROVIDER_BODY_SENTINEL" }) });\ntry { await generateOneImage({ prompt: "PROMPT_SENTINEL", outPath: "${join(dir, "out.png")}", force: true }); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.reason || "provider_failure", actual: error.status || null }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
       const result = spawnSync("node", [path], { encoding: "utf8", timeout: 10000 });

@@ -1,3 +1,3 @@
 # Shared state E2E
 
-State-machine journeys live here.
+State-machine and state-owned production-mode-transition journeys live here.

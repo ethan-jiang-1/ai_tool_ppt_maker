@@ -14,7 +14,7 @@ PPTMAKER_FRAMEWORK/
 ├── workflow/   00-setup -> 01-content -> 02-visual-system -> 03-html-production -> [04 optional] -> 05-iteration
 ├── scripts/    Node ESM CLI 与 capability modules
 ├── charter/    目录、生命周期、node/state 宪法
-├── reference/  glossary、anti-pattern、legacy compatibility
+├── reference/  glossary、anti-pattern、quick-start
 └── playbook/   MD Controllers 与 checked-in controller-manifest-v3.json
 ```
 
@@ -27,24 +27,24 @@ PPTMAKER_FRAMEWORK/
 1 structured content and closed layout families
 2 renderer-neutral visual system
 3 HTML Stage 1-5 -> contact sheet/PPTX/notes -> final review
-4 optional authorized Image2 visual-slot refinement
-5 HTML/local iteration or markerless legacy maintenance
+4 Image Production: whole-page Image2 or authorized visual-slot refinement
+5 local iteration and structural versioning
 ```
 
-新 deck 的目标 pipeline 是 `html-first-v1`：无需 renderer choice、Image2 key 或 style master；真实 HTML preview 先于 content/visual approval，Stage 4/5 只消费 reset-bound verified final-slide evidence。Phase 4 是交付后的可选、授权 visual-slot upgrade，不是完成欠账或新 deck gate。
+新 deck 省略 `--mode` 时使用 `image2-only` / `whole-page-image2-v1`：它通过 `create-deck` 进入正常的 style-master、pilot、header review、build、PPTX、notes 和 final-review 流程。选择 `html-first-v1` 时，真实 HTML preview 先于 content/visual approval，Stage 4/5 只消费 reset-bound verified final-slide evidence。visual-slot refinement 只在 current HTML delivery 后按显式授权进入。
 
-Markerless deck 保持 `legacy-image2-first`，所有 whole-page style/prompt/pilot/provider 语义只在 `reference/legacy-image2-first-maintenance.md` 与 `playbook/legacy-image2-maintenance.md` 中出现。两个 pipeline 不共享 gate、manifest、reset、receipt 或 approval。
+Explicit whole-page deck 使用 `whole-page-image2-v1`，其 style/prompt/pilot/provider 语义由 `playbook/create-deck.md` 的 `image2-only` 路径定义。两个 pipeline 不共享 gate、manifest、reset、receipt 或 approval。
 
 ## Local refresh vocabulary
 
-| Intent | HTML-first owner | Legacy owner |
+| Intent | HTML-first owner | Image2-only owner |
 |---|---|---|
 | 单页文字/family/fallback | Local Slide Rebuild | Header Text & Style Refresh / Generated Image Rebuild |
 | visual config/runtime | Local Deck Rebuild | style/pilot maintenance |
 | notes only | Notes-Only Refresh | Notes-Only Refresh |
 | add/delete/move/reorder | Structural Versioning Path | Structural Versioning Path |
 
-HTML structural receipt 使用 `needs_local_materialization`；legacy receipt 仍可使用 `needs_render`。后者不等于授权，必须单独说明远端成本。
+HTML structural receipt 使用 `needs_local_materialization`；whole-page structural receipt 使用 `needs_render`。后者不等于授权，必须单独说明远端成本。
 
 ## Where to start
 

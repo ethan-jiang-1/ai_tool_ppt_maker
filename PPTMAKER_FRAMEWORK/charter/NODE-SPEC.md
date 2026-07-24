@@ -47,7 +47,7 @@ produces: [slide-specifications]
 
 ## State Schema v5
 
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。默认 read 会按检测到的 `production.pipeline` 依序迁移 v1/v2→v3→v4，再在 v4→v5 为 active execution、ordinary node record 与 ordinary stack frame 写入同一个 exact `run_version`。只有 persisted binding、单一 visible version，或严格匹配的历史 legacy apply checkpoint 能完成该 binding；歧义保留原 bytes 并返回 `replacement_required`。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。缺失/冲突 marker 或无法一对一映射的旧 node 必须 fail closed；markerless 旧生产只映射到 `legacy-image2-maintenance`，HTML work 只映射到 HTML controllers。
+State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。读取先验证 exact schema-5、source marker、run version、mode 与 Controller identity；observation 永不写入、推断或继续不受支持的旧 bytes。可一对一解释的 current-v5 canonical defect 只可由其 owning execution path 在既有 gate/reset/transition fence 后修复；缺失/冲突 marker、pre-current schema、topology-only version identity 或 retired node 保留原 bytes 并以 `replacement_required` 返回一个 owner-issued typed next action。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。
 
 ```yaml
 schema_version: 5
@@ -100,7 +100,7 @@ playbook_stack:
 - `startPlaybook`：顶层启动新 execution；清理旧 controller records，保留系统记录。未完成 execution 只有显式 `{replace:true}` 才能替换；stack 非空时禁止调用。
 - `switchPlaybook`：把 parent 的 `{playbook,current_node,execution_id,execution_started_at,controller_nodes}` 深拷贝进 stack，再创建干净 child execution。
 - `resumePlaybook`：丢弃 child controller working set，恢复五字段 parent snapshot，同时保留最新系统记录。
-- legacy pointer-only stack 无法恢复 provenance 时，heal 成安全阻塞 snapshot，并记录诊断；禁止猜测归属。
+- pre-current pointer-only stack 无法建立 provenance 时保留原 bytes 并 hard-stop；禁止猜测归属。
 
 ### Status enums
 
@@ -112,7 +112,7 @@ Evidence 形状：`{met:true, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string
 
 Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
 
-用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。legacy boolean/scalar 只可保守迁移为 `kind: agent`，绝不能伪造用户批准。
+用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。pre-current boolean/scalar 不能被解释为当前 decision，绝不能伪造用户批准。
 
 ## Production Mode (v5 SSOT)
 
@@ -124,9 +124,9 @@ Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, 
 |------|----------|----------------|------------|--------------|
 | `html-only` | `html-first-v1` | html | disabled | reserved-html-adapter |
 | `html-then-image2` | `html-first-v1` | html | required | reserved-html-adapter |
-| `image2-only` | `legacy-image2-first` | image2 | not-applicable | current |
+| `image2-only` | `whole-page-image2-v1` | image2 | not-applicable | current |
 
-`legacy-image2-first` 是 markerless whole-page 分支的**规范化名称**，绝作为 source frontmatter 写入。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
+`whole-page-image2-v1` 是 `image2-only` 分支在 source frontmatter 中的直接规范化 marker。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
 
 Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `production_modes`（其子集）。canonical index 按权威 mode 计算 active node 集：inapplicable node 不标 `skipped`、不删记录，只是不在 active 工作集内。`skipped` 仍只表示显式人工 bypass。
 
@@ -135,7 +135,7 @@ Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `
 - MD → CLI：先过 entry gate，再执行 CLI step。
 - CLI 成功：exit 0；需要的 durable evidence/state 由负责该动作的调用方写入。
 - CLI 硬失败：非零 exit，以 stderr 最后一个有效 JSON envelope 为控制消息；producer schema、bounds 与发射规则由 capability `cli-surface` 唯一拥有。
-- MD 仅在完整支持并校验 `diagnostic.version` 后使用 structured evidence；legacy/unsupported/malformed nested data 退回 top-level summary。非零但无有效末行 envelope 按外部中断/崩溃处理，不从 partial output 猜原因。
+- MD 仅在完整支持并校验 `diagnostic.version` 后使用 structured evidence；unsupported/malformed nested data 退回 top-level summary。非零但无有效末行 envelope 按外部中断/崩溃处理，不从 partial output 猜原因。
 - `diagnostic.next.requires_human:true` 必须停下交给人；自动 invocation 直接传 `program`/`args` 且 `shell:false`。不发明省略的 path/id/line/cause/approval；lineage 是证据，不是修改所有 artifact 的许可，`_generated/` 永不手改。
 - parent-wrapped failure 以 parent code/where/next 为控制权，保留的 child source/subject/reason/lineage/issues 仅作因果证据；不寻找第二个 child envelope，不执行被丢弃的 child next。
 - Controller resume 先消费 `ppt_flow state <run-dir> --json` 的 `workflow_inspection.primary_action` 与 owner-issued `continuation`。它给出一个有序 owner action、posture、protected invariant 和独立 evidence completeness；Controller 只通过该 owner 的 public CLI 执行 mutation，不从 prose 推断 approval/waiver，也不手写 record。
@@ -149,7 +149,7 @@ Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `
 - MD 按引用消费 `slides` preview、edit receipt 与 structural impact receipt，并在内存/state note 中保留确认过的 `plan_sha256`；用户只确认 before/after，不负责抄写或管理 hash。
 - Apply 必须重放同一个 preview 并传 exact hash。stale base/hash mismatch 时重新生成 preview；禁止替旧计划 rebase、猜测新 selector 或在 `_generated/` 补状态。
 - `requires_human:true`、selector ambiguity、正文页码 warning 或新增内容/成本选择必须停下。其他确定性冲突由 Agent 修复或重新 preview。
-- Structural apply/materialization 是 renderer-free 授权域；HTML receipt 的 `needs_local_materialization` 只说明后续本地工作，legacy receipt 的 `needs_render` 才表示后续昂贵工作。Generated Image Rebuild 必须是用户知情后的独立调用。
+- Structural apply/materialization 是 renderer-free 授权域；HTML receipt 的 `needs_local_materialization` 只说明后续本地工作，whole-page receipt 的 `needs_render` 才表示后续昂贵工作。Generated Image Rebuild 必须是用户知情后的独立调用。
 - 结构变化若无法在一个版本内清晰收敛，consumer 使用逃生阶梯：新 preview → 新 vNext → 新 deck。新 deck 适用于受众、主叙事或设计系统已经分叉，不用于逃避普通小改。
 
 ## State API
@@ -182,7 +182,7 @@ Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `
 | `html_visual_review_current` | HTML review evidence | 当前 recipe coverage、page dependencies、effective/forced artifacts 与 approvable visual plan |
 | `html_delivery_current` | HTML delivery evidence | current contact sheet、assembly-v2、notes-v3、delivery digest 与 accepted final review |
 | `html_reset_clear` | HTML reset fence | 无 `deletion_pending` reset，或当前 owner 已完成显式 reset transaction |
-| `transition_apply_current` | state-owned transition checkpoint | exact selected source run、active `migrate-import/apply-production-mode-transition`、closed source/target/plan/candidate binding 与唯一 non-resumable suspension 都匹配；只可作 entry |
+| `transition_apply_current` | state-owned transition checkpoint | exact selected source run、active `production-mode-transition/apply-production-mode-transition`、closed source/target/plan/candidate binding 与唯一 non-resumable suspension 都匹配；只可作 entry |
 | `transition_publish_or_recovery_recorded` | state-owned terminal finalization | 仅在 atomic target receipt/registration/baseline handoff 或 verified no-target source restoration 中成立；普通 node completion、publication-only 与 recovery hard-stop 都不通过；只可作 exit |
 
 ### State/gate condition families

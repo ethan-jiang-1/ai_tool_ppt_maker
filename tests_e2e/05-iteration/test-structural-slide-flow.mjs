@@ -20,9 +20,10 @@ import {
   stage4,
   stage5,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs";
-import { buildLegacyContactSheet as makeContactSheet } from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs";
+import { buildWholePageContactSheet as makeContactSheet } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs";
 import {
   buildImageManifestEntry,
+  emptyImageManifest,
   generationProfile,
   readImageManifest,
   writeImageManifestAtomic,
@@ -33,7 +34,7 @@ import {
   mergeHeaderReviewRecord,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/header_review.mjs";
 import { DEFAULT_CONFIG } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/visual_config.mjs";
-import { createDefaultState, readState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 
@@ -65,10 +66,10 @@ function slideBlock(slide, position) {
 }
 
 function mnemonicSpec(slides) {
-  return `---\nidentity:\n  scheme: mnemonic-v1\n---\n\n${slides.map((slide, index) => slideBlock(slide, index + 1)).join("\n")}`;
+  return `---\nproduction:\n  pipeline: whole-page-image2-v1\nidentity:\n  scheme: mnemonic-v1\n---\n\n${slides.map((slide, index) => slideBlock(slide, index + 1)).join("\n")}`;
 }
 
-async function seedVerifiedSource(deck, slides, { legacyOutputs = {} } = {}) {
+async function seedVerifiedSource(deck, slides) {
   const runDir = join(deck, "3_versions", "v1");
   const style = join(deck, "2_backbone", "visual-style", "style_master.jpg");
   writePng(style, "#18324a");
@@ -83,9 +84,9 @@ async function seedVerifiedSource(deck, slides, { legacyOutputs = {} } = {}) {
     model: "gpt-image-2",
     semanticOptions: { size: "16:9", n: 1 },
   });
-  const manifest = { version: 1, slides: {} };
+  const manifest = emptyImageManifest();
   for (const [index, prompt] of prompts.entries()) {
-    const output = legacyOutputs[prompt.id] || `${prompt.id}.png`;
+    const output = `${prompt.id}.png`;
     const path = join(images, output);
     writePng(path, `#${String(223344 + index * 111111).slice(0, 6)}`);
     manifest.slides[prompt.id] = buildImageManifestEntry({
@@ -104,7 +105,7 @@ async function seedVerifiedSource(deck, slides, { legacyOutputs = {} } = {}) {
 function installReviewState(deck, source, { reviewed = [], waived = [] } = {}) {
   const plan = JSON.parse(readFileSync(join(source.generated, "slide_plan.json"), "utf8")).slides;
   const inputs = buildHeaderReviewInputs(plan, DEFAULT_CONFIG);
-  const acceptedRisks = Object.fromEntries(waived.map((id) => [id, { reason: "legacy waiver" }]));
+  const acceptedRisks = Object.fromEntries(waived.map((id) => [id, { reason: "review exception" }]));
   const provenanceEntries = Object.fromEntries(
     [...reviewed, ...waived].map((id) => [id, source.manifest.slides[id]])
   );
@@ -115,7 +116,7 @@ function installReviewState(deck, source, { reviewed = [], waived = [] } = {}) {
     profile: source.profile,
     acceptedRisks,
   });
-  const state = createDefaultState();
+  const state = readState(deck, { purpose: "execute", heal: false });
   state.nodes["header-review"] = { by_version: { "3_versions/v1": record } };
   writeState(deck, state);
 }
@@ -248,7 +249,7 @@ describe("stable slide identity structural E2E", () => {
         };
       };
       process.env.IMAGE2_API_KEY = "insert-e2e-key";
-      const { generateLegacyImages: generateImages } = await import("../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs");
+      const { generateWholePageImages: generateImages } = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs");
       const generated = join(v2, "_generated");
       const rawBefore = readImageManifest(join(generated, "page_images_full")).manifest;
       const explicit = await generateImages({
@@ -294,46 +295,49 @@ describe("stable slide identity structural E2E", () => {
     }
   });
 
-  it("keeps markerless legacy IDs and distinguishes proven from merely located bytes", async () => {
-    const deck = join(mkdtempSync(join(tmpdir(), "legacy-e2e-")), "deck_legacy_e2e");
+  it("does not materialize unproven position-prefixed raw bytes", async () => {
+    const deck = join(mkdtempSync(join(tmpdir(), "unproven-artifact-e2e-")), "deck_artifact_e2e");
     const originalFetch = globalThis.fetch;
     try {
       initBundle(deck, null, "keynote", "dark-executive");
-      const legacySlides = [
-        { id: "s07_problem", title: "Legacy problem" },
-        { id: "s08_answer", title: "Legacy answer" },
+      const finalSlides = [
+        { id: "AskGo", title: "Problem" },
+        { id: "PlanGo", title: "Answer" },
       ];
       const v1 = join(deck, "3_versions", "v1");
-      writeFileSync(join(v1, "slide-specifications.md"), legacySlides.map((slide, index) => slideBlock(slide, index + 1)).join("\n"), "utf8");
-      const source = await seedVerifiedSource(deck, legacySlides, {
-        legacyOutputs: { s07_problem: "07_s07_problem.png", s08_answer: "08_s08_answer.png" },
-      });
-      delete source.manifest.slides.s08_answer;
+      writeFileSync(join(v1, "slide-specifications.md"), mnemonicSpec(finalSlides), "utf8");
+      const source = await seedVerifiedSource(deck, finalSlides);
+      delete source.manifest.slides.PlanGo;
+      const unprovenPath = join(source.images, "08_PlanGo.png");
+      writeFileSync(unprovenPath, readFileSync(join(source.images, "PlanGo.png")));
+      rmSync(join(source.images, "PlanGo.png"), { force: true });
       writeImageManifestAtomic(source.images, source.manifest);
 
-      const preview = runSlides(["move", v1, "s08", "--to", "start"]);
+      const preview = runSlides(["move", v1, "PlanGo", "--to", "start"]);
       const applied = runSlides([
-        "move", v1, "s08", "--to", "start", "--apply",
+        "move", v1, "PlanGo", "--to", "start", "--apply",
         "--plan-sha256", preview.transaction.plan_sha256,
       ]);
       const v2 = applied.target_run_dir;
       let rendererCalls = 0;
-      globalThis.fetch = async () => { rendererCalls += 1; throw new Error("legacy path rendered remotely"); };
+      globalThis.fetch = async () => { rendererCalls += 1; throw new Error("artifact path rendered remotely"); };
       const first = await materializeStructuralVersion({ sourceRunDir: v1, targetRunDir: v2 });
       expect(rendererCalls).toBe(0);
-      expect(first.materialized_ids).toEqual(["s07_problem"]);
-      expect(first.needs_render).toEqual(["s08_answer"]);
-      expect(first.slides.find((slide) => slide.slide_id === "s08_answer").artifact.status).toBe("legacy-located");
-      expect(existsSync(join(v2, "_generated", "page_images_full", "s07_problem.png"))).toBe(true);
-      expect(readImageManifest(join(v2, "_generated", "page_images_full")).manifest.slides.s07_problem)
-        .toMatchObject({ materialized_from: { source_output: "07_s07_problem.png" } });
+      expect(first.materialized_ids).toEqual(["AskGo"]);
+      expect(first.needs_render).toEqual(["PlanGo"]);
+      expect(first.slides.find((slide) => slide.slide_id === "PlanGo").artifact.status).toBe("missing");
+      expect(existsSync(join(v2, "_generated", "page_images_full", "AskGo.png"))).toBe(true);
+      expect(readImageManifest(join(v2, "_generated", "page_images_full")).manifest.slides.AskGo)
+        .toMatchObject({ materialized_from: { source_output: "AskGo.png" } });
 
-      source.manifest.slides.s08_answer = buildImageManifestEntry({
-        slideId: "s08_answer",
-        output: "08_s08_answer.png",
-        prompt: source.prompts.find((prompt) => prompt.id === "s08_answer").prompt.trim(),
+      const currentPath = join(source.images, "PlanGo.png");
+      writeFileSync(currentPath, readFileSync(unprovenPath));
+      source.manifest.slides.PlanGo = buildImageManifestEntry({
+        slideId: "PlanGo",
+        output: "PlanGo.png",
+        prompt: source.prompts.find((prompt) => prompt.id === "PlanGo").prompt.trim(),
         profile: source.profile,
-        imagePath: join(source.images, "08_s08_answer.png"),
+        imagePath: currentPath,
       });
       writeImageManifestAtomic(source.images, source.manifest);
       const v3 = join(deck, "3_versions", "v3");
@@ -350,7 +354,7 @@ describe("stable slide identity structural E2E", () => {
       expect(complete.production_complete).toBe(true);
       const assembly = JSON.parse(readFileSync(join(provenTarget, "_generated", "qa", "pptx_assembly.json"), "utf8"));
       const notes = JSON.parse(readFileSync(join(provenTarget, "_generated", "qa", "notes_injection.json"), "utf8"));
-      expect(assembly.ordered_slide_ids).toEqual(["s08_answer", "s07_problem"]);
+      expect(assembly.ordered_slide_ids).toEqual(["PlanGo", "AskGo"]);
       expect(notes.ordered_slide_ids).toEqual(assembly.ordered_slide_ids);
     } finally {
       globalThis.fetch = originalFetch;

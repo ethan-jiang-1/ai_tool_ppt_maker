@@ -413,10 +413,10 @@ export { checkNode, checkNpmPackages, discoverNpmPackages };
 
 function checkStage2Generator() {
   // In-framework Node Stage 2 — no external skills.
-  const legacyRoot = resolve(__dirname, '..', '..', '05-iteration', 'legacy-image2');
-  const scriptPath = join(legacyRoot, 'stage2_generate_images.mjs');
-  const contactPath = join(legacyRoot, 'make_contact_sheet.mjs');
-  const clientPath = join(legacyRoot, 'internal', 'image_api_client.mjs');
+  const wholePageRoot = resolve(__dirname, '..', '..', '04-image-production', 'whole-page');
+  const scriptPath = join(wholePageRoot, 'stage2_generate_images.mjs');
+  const contactPath = join(wholePageRoot, 'make_contact_sheet.mjs');
+  const clientPath = join(wholePageRoot, 'internal', 'image_api_client.mjs');
   const ok = existsSync(scriptPath) && existsSync(contactPath) && existsSync(clientPath);
   return {
     check: 'stage2_generator',

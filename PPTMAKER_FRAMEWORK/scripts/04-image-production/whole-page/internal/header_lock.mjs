@@ -851,63 +851,8 @@ function _drawHeader(imageCanvas, slide) {
   return canvas;
 }
 
-// ---------------------------------------------------------------------------
-// Image file resolution
-// ---------------------------------------------------------------------------
-
-const _IMG_EXTS = new Set([".png", ".jpg", ".jpeg"]);
-
 /**
- * Escape a string for use as a literal in a RegExp.
- * @param {string} s
- * @returns {string}
- */
-function _escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * All images matching a slide id under the canonical NN_<id> (or bare <id>)
- * naming — ANCHORED and sorted. An unanchored substring match (the old
- * `*<id>*.png`) cross-hits ids like 's1' onto '10_s10.png'; this anchors the
- * id to the end of the stem. Returns [] (missing) or possibly >1 (ambiguous);
- * the caller turns either into a loud error instead of silently taking
- * candidates[0].
- *
- * ported helper
- *
- * @param {string} imgDir
- * @param {string} slideId
- * @returns {string[]}
- */
-function _matchSlideImage(imgDir, slideId) {
-  const pat = new RegExp(`^(\\d+_)?${_escapeRegex(slideId)}$`);
-  /** @type {string[]} */
-  const result = [];
-  let entries;
-  try {
-    entries = readdirSync(imgDir, { withFileTypes: true });
-  } catch {
-    return result;
-  }
-  for (const ent of entries) {
-    if (!ent.isFile()) {
-      continue;
-    }
-    const ext = extname(ent.name).toLowerCase();
-    if (!_IMG_EXTS.has(ext)) {
-      continue;
-    }
-    const stem = basename(ent.name, extname(ent.name));
-    if (pat.test(stem)) {
-      result.push(join(imgDir, ent.name));
-    }
-  }
-  return result.sort();
-}
-
-/**
- * Map every slide id to its one image, or ABORT listing all problems.
+ * Map every slide id to its current provenance-verified raw render, or abort.
  *
  * Fail-loud replaces the old "warn and skip": a skipped slide used to silently
  * shrink the deck and shift every downstream speaker note by one. If Stage 2
@@ -945,11 +890,7 @@ function _resolveImages(imgDir, slides) {
     } else {
       problems.push({
         slideId: sid,
-        reason: artifact.status === "legacy-located"
-          ? "legacy_located_image"
-          : artifact.status === "ambiguous"
-            ? "ambiguous_images"
-            : "missing_image",
+        reason: artifact.status === "ambiguous" ? "ambiguous_images" : "missing_image",
         hits: artifact.candidates || (artifact.path ? [artifact.path] : []),
         artifact,
       });
@@ -960,10 +901,8 @@ function _resolveImages(imgDir, slides) {
     throw attachCliDiagnostic(new Error(
       `✗ Stage 3 cannot start — ${problems.length} image problem(s):\n` +
         problems.map((problem) => problem.reason === "missing_image"
-          ? `  - no verified raw-render for slide ${JSON.stringify(problem.slideId)} in ${dirName}/`
-          : problem.reason === "legacy_located_image"
-            ? `  - legacy image for slide ${JSON.stringify(problem.slideId)} is locatable but not provenance-verified: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`
-            : `  - ambiguous images for slide ${JSON.stringify(problem.slideId)}: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`).join("\n") +
+          ? `  - no current verified raw-render for slide ${JSON.stringify(problem.slideId)} in ${dirName}/`
+          : `  - ambiguous current raw-render entries for slide ${JSON.stringify(problem.slideId)}: [${problem.hits.map((hit) => basename(hit)).join(", ")}]`).join("\n") +
         `\n  Stage 2 likely didn't finish. Re-run Stage 2 (e.g. --stage 2) to ` +
         `generate the missing images, then Stage 3. (Building a partial deck would ` +
         `misalign every downstream speaker note.)`,
@@ -975,10 +914,8 @@ function _resolveImages(imgDir, slides) {
       source: { path: imgDir },
       issues: problems.map((problem) => ({
         message: problem.reason === "missing_image"
-          ? "verified raw slide image is missing"
-          : problem.reason === "legacy_located_image"
-            ? "raw slide image is only legacy-located"
-            : "multiple slide images are ambiguous",
+          ? "current verified raw slide image is missing"
+          : "multiple current raw-render entries are ambiguous",
         subject: { kind: "slide", id: problem.slideId },
         source: { path: problem.hits[0] || imgDir },
         reason: { kind: problem.reason, status: problem.artifact.status, ...(problem.hits.length ? { actual: problem.hits.length, expected: 1 } : { expected: 1 }) },

@@ -61,7 +61,7 @@ import {
   carryForwardHeaderReview,
   computeStructuralImpact,
   versionKey,
-} from "../05-iteration/index.mjs";
+} from "../04-image-production/index.mjs";
 import { resolveRunProductionAdapter } from "../shared/state/state.mjs";
 
 // --- Configuration -----------------------------------------------------------
@@ -326,8 +326,8 @@ export async function materializeStructuralVersion({
       throw error;
     }
     completedLocalStages.push("stage3");
-    const { buildLegacyContactSheet } = await import("../04-image-production/index.mjs");
-    await buildLegacyContactSheet({
+    const { buildWholePageContactSheet } = await import("../04-image-production/index.mjs");
+    await buildWholePageContactSheet({
       imageDir: join(targetBuild, GEN_IMAGES_SUBDIR),
       promptJson: targetPromptsPath,
       out: join(targetBuild, GEN_PREVIEW_SUBDIR, "contact_sheet.jpg"),
@@ -1145,8 +1145,8 @@ export async function stage2(runDir, {
       // Manifest may not exist or be invalid — optional, no hard error
     }
 
-    const { buildLegacyImageFailureDiagnostic, generateLegacyImages } = await import("../04-image-production/index.mjs");
-    const result = await generateLegacyImages({
+    const { buildWholePageImageFailureDiagnostic, generateWholePageImages } = await import("../04-image-production/index.mjs");
+    const result = await generateWholePageImages({
       promptJson: promptsFile,
       outDir,
       styleReference: styleMaster,
@@ -1162,7 +1162,7 @@ export async function stage2(runDir, {
     });
     if (result.errors.length > 0) {
       console.log(`\n  ✗ Stage 2: Generate Images FAILED (${result.errors.length} error(s))`);
-      return failStage(stage2, await buildLegacyImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
+      return failStage(stage2, await buildWholePageImageFailureDiagnostic({ failures: result.failures, promptJson: promptsFile, outDir, styleReference: styleMaster, resolution, selectedIds: result.selectedIds }));
     }
     // Post-generation provenance check — per-slide profiles replace the old batch validateImageProvenance
     const promptData = loadJson(promptsFile);
@@ -1214,8 +1214,8 @@ export async function stage2(runDir, {
   console.log(`${"=".repeat(60)}\n`);
 
   try {
-    const { buildLegacyContactSheet } = await import("../04-image-production/index.mjs");
-    await buildLegacyContactSheet({
+    const { buildWholePageContactSheet } = await import("../04-image-production/index.mjs");
+    await buildWholePageContactSheet({
       imageDir: outDir,
       promptJson: contactPrompts,
       out: join(previewDir, contactName),
@@ -1284,8 +1284,8 @@ export async function stage3(runDir, dryRun) {
   }
 
   try {
-    const { lockLegacyHeaders } = await import("../04-image-production/index.mjs");
-    await lockLegacyHeaders({
+    const { lockWholePageHeaders } = await import("../04-image-production/index.mjs");
+    await lockWholePageHeaders({
       images: imagesDir,
       slidePlan,
       out: outDir,
@@ -1425,8 +1425,8 @@ export async function stage4(runDir, dryRun) {
   }
 
   try {
-    const { buildLegacyPresentation } = await import("../04-image-production/index.mjs");
-    await buildLegacyPresentation({ runDir, images: imagesDir, slidePlan, out: pptxPath, title });
+    const { buildWholePagePresentation } = await import("../04-image-production/index.mjs");
+    await buildWholePagePresentation({ runDir, images: imagesDir, slidePlan, out: pptxPath, title });
     console.log(`\n  ✓ Stage 4: Build PPTX completed successfully.`);
     return true;
   } catch (err) {
@@ -1581,8 +1581,8 @@ export async function stage5(runDir, dryRun) {
   }
 
   try {
-    const { injectLegacySpeakerNotes } = await import("./index.mjs");
-    const result = await injectLegacySpeakerNotes(runDir);
+    const { injectWholePageSpeakerNotes } = await import("./index.mjs");
+    const result = await injectWholePageSpeakerNotes(runDir);
 
     console.log(`\n  ✓ Stage 5: Inject Notes completed successfully.`);
     console.log(`  Notes injected: ${result.notesInjected}/${result.slideCount} slides`);
@@ -1717,7 +1717,7 @@ Examples:
           message: `Production adapter cannot resolve the exact run identity: ${route.code}.`,
           hint: route.code === "transition_required"
             ? "Resolve the mode/source mismatch through the versioned transition path before running stages."
-            : "Initialize, migrate, or register the exact run version's production mode before running stages.",
+            : "Initialize a fresh current run or register the exact current production mode before running stages.",
           where: "unified_pipeline.production-adapter",
           diagnostic: {
             version: 1,
@@ -1743,11 +1743,11 @@ Examples:
       }
 
       if (htmlFirst && (process.argv.includes('--base-url') || process.argv.includes('--force-images') || process.argv.includes('--model') || process.argv.includes('--resolution'))) {
-        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: 'HTML-first local stages do not accept legacy provider or image controls.', hint: 'Remove provider/resolution/force flags and use the canonical local HTML branch.', where: 'unified_pipeline.html-first.arguments', diagnostic: { version: 1, category: 'usage', reason: { kind: 'html_legacy_option_forbidden' }, next: createCliNext('fix_arguments', { default: 'Use only --run-dir, --stage, --only, --dry-run, and --preview for HTML-first.' }) } });
+        emitCliError({ code: CLI_ERROR_CODES.USAGE, message: 'HTML-first local stages do not accept whole-page provider or image controls.', hint: 'Remove provider/resolution/force flags and use the canonical local HTML branch.', where: 'unified_pipeline.html-first.arguments', diagnostic: { version: 1, category: 'usage', reason: { kind: 'html_whole_page_option_forbidden' }, next: createCliNext('fix_arguments', { default: 'Use only --run-dir, --stage, --only, --dry-run, and --preview for HTML-first.' }) } });
         process.exit(1);
       }
 
-      // Legacy production keeps the existing dotenv search. HTML-first Stage 1
+      // Whole-page production keeps the provider dotenv search. HTML-first Stage 1
       // deliberately avoids provider/prerequisite setup.
       const dkRoot = deckRoot(runDir);
       if (!htmlFirst) {
