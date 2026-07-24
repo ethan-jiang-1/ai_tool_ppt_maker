@@ -1,5 +1,20 @@
 # deck_ai_sdlc_keynote — 迁移说明（人写 · 不在 `_generated/`）
 
+## 2026-07-25: framework v0.22 alignment — v5 state + RUN_BUNDLE + production_mode
+
+升级 run bundle 以适配当前 PPTMAKER_FRAMEWORK（v0.22.0，包含 production-mode + image2-primary 功能分支）。
+
+**变更清单：**
+
+- **新增 `RUN_BUNDLE.md`**：静态定位入口（deck root + framework root），Agent 进入时最先解析。
+- **新增 `AGENTS.md`**：指向 `RUN_BUNDLE.md` → `deck-guide.md` 的入口链，匹配框架新版 Agent 进入协议。
+- **更新 `CLAUDE.md`**：改为先指向 `RUN_BUNDLE.md` 再指向 `deck-guide.md`。
+- **更新 `_state/state.yaml`**：schema v3 → v5。新增 `production_mode.by_version`（v2 → `html-then-image2`，v1 → `image2-only`）。html-content-review / html-visual-review 记录补充 schema-required 审计字段（`content_review_fingerprint`、`ordered_plan_digest`、`visual_system_fingerprint` 等）。移除已完成迁移的无活跃 playbook 标识，转为 inactive state。
+- **更新 `project-metadata.yaml`**：新增 `production.pipeline: html-first-v1` 与 `production_mode` / `production_mode_run_version` 镜像字段。
+- **更新 `deck-guide.md`**：适配当前框架词汇（production mode、v5 state、RUN_BUNDLE.md 定位、html-then-image2 路径）。
+- **删除 `_generated/` 中的 `fake_contact.jpg`（5 字节占位）**，contact sheet 证据更新为指向实际渲染的 contact sheet PNG。
+- **验证通过**：`--validate-state` 通过，`bundle_layout --check --structure-only` 通过，`ppt_flow validate` 通过（25 slides，完整 html-first-v1 合约）。
+
 ## 2026-07-20: legacy-image2-first → html-first-v1 (v2)
 
 从 markerless Image2 pipeline 迁移到 html-first-v1。v1 保留为只读历史版本。

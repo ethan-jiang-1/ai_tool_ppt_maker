@@ -1,5 +1,6 @@
 # ai_sdlc_keynote — project metadata (static config + pipeline gates)
 # Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md
+# production_mode / production_mode_run_version are non-authoritative mirrors — SSOT is _state/state.yaml production_mode.by_version
 deck_name: ai_sdlc_keynote
 deck_type: keynote
 duration_minutes: 40
@@ -9,6 +10,11 @@ language: "slides：中文为主（英文仅专有名词与英文引语）；演
 one_thing_to_remember: "软件是先行样本，你的行业也在同一条信息加工链上——外面都变了，你打算怎么变？"
 content_gate: waived
 visual_gate: approved
+production:
+  pipeline: html-first-v1
+# production_mode mirror (SSOT: _state/state.yaml)
+production_mode: html-then-image2
+production_mode_run_version: v2
 # HTML-first gates (active for v2)
 html_content_gate: waived
 html_content_gate_run_version: v2
