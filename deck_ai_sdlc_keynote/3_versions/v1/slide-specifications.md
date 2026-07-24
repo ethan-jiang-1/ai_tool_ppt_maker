@@ -3,12 +3,16 @@ title: Slide Specifications — AI 时代的信息加工变革 (v1)
 stage: workflow/02-content
 position: downstream
 type: slide-specifications
-summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 25 页。
+summary: 本 deck 的每页四层规格 + Block Map + render policy。管线入口(Stage 1 解析 `## Slide N` 块)。从 deck_ai_sdlc_keynote 迁移重建 25 页。v1 是 markerless legacy Image2 历史版本，只读保留。
 depends_on:
 - workflow/02-content/03-specify-slides-multi-layer.md
 - workflow/02-content/02-build-narrative-arc-blocks.md
 feeds_into:
 - scripts/stage1_build_inputs.mjs
+production:
+  pipeline: whole-page-image2-v1
+identity:
+  scheme: legacy
 render:
   default: full-page
   header-lock: []

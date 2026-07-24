@@ -2,15 +2,19 @@
 # Schema authority: PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md
 # API: PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
-# Fields: schema_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
+# Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
 # Heal: readState defaults to tolerant parse + schema migration/repair
-schema_version: 3
+schema_version: 5
 pipeline: html-first-v1
-playbook: migrate-import
-current_node: ""
+production_mode:
+  by_version:
+    3_versions/v1:
+      mode: image2-only
+    3_versions/v2:
+      mode: html-then-image2
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-20T19:02:54.862Z
+updated_at: 2026-07-24T00:00:00.000Z
 nodes:
   html-content-review:
     by_version:
@@ -22,6 +26,10 @@ nodes:
         html_production_reset_id: null
         status: waived
         review_plan_hash: dd2126cfb6412e4d80e170826254fe98bbfb1fee741da1e35f641a59a65656f9
+        content_review_fingerprint: null
+        ordered_plan_digest: null
+        decided_at: 2026-07-20T00:00:00.000Z
+        waiver_reason: "Migration from legacy Image2 — content carried forward from v1 to v2 html-first"
   html-visual-review:
     by_version:
       3_versions/v2:
@@ -32,6 +40,12 @@ nodes:
         html_production_reset_id: null
         status: waived
         review_plan_hash: a9bca522f3b3029abd6028711817638e4d061565d287c049f7bdd5247a187206
+        visual_system_fingerprint: null
+        component_recipe_coverage: null
+        page_visual_dependencies: null
+        shown_artifacts: null
+        decided_at: 2026-07-20T00:00:00.000Z
+        waiver_reason: "Migration from legacy Image2 — visual system carried forward from v1 to v2 html-first"
   html-delivery-review:
     by_version:
       3_versions/v2:
@@ -42,8 +56,8 @@ nodes:
         html_delivery_digest: 19ca69954dfed62decfbb4dadb3d3f33a990b1cfa925abf508d2cf82f6f9f49b
         contact_sheet_manifest_path: _generated/html_production/preview/manifest.json
         contact_sheet_manifest_sha256: ae5ad04dcc9310a40bafd22b5e0ad983ba2cdb2aafd2f4d22d945ba7ab1c9c0c
-        contact_sheet_path: _generated/html_production/preview/objects/fake_contact.jpg
-        contact_sheet_sha256: 997890bc85c5796408ceb20b0ca75dabe6fe868136e926d24ad0f36aa424f99d
+        contact_sheet_path: _generated/html_production/preview/objects/3b39038bcb590cacc367cd19e6f081b37c1de6cf5e8462416e568a323a8eb029.png
+        contact_sheet_sha256: 3b39038bcb590cacc367cd19e6f081b37c1de6cf5e8462416e568a323a8eb029
         assembly_receipt_path: _generated/qa/pptx_assembly.json
         assembly_receipt_sha256: 3603d7aa7a92fe81daa50af58dc360bc8e0b71058eebf2c2acb4cb509569148f
         pptx_sha256: c469516f334dc21c364ac3fd2fdd481f6878866efacfb20514759cc19424ce52
@@ -176,4 +190,6 @@ playbook_stack: []
 execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
 execution_started_at: 2026-07-20T00:00:00.000Z
 diagnostics:
+  - "schema healed: v3 → v5 (2026-07-24 framework alignment)"
+  - "production_mode.by_version seeded: v2=html-then-image2, v1=image2-only"
   - instantiation removed from active migrate-import working set
