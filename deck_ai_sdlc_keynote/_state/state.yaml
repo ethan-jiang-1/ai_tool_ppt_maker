@@ -4,7 +4,7 @@
 # CLI: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <runDir> [--json|--check-gates]
 # Fields: schema_version, pipeline, production_mode.by_version, playbook, current_node, execution_id, nodes.*, gates.*, deck.*, playbook_stack
 # MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
-# Heal: readState defaults to tolerant parse + schema migration/repair
+# Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported historical state
 schema_version: 5
 pipeline: html-first-v1
 production_mode:
@@ -13,8 +13,10 @@ production_mode:
       mode: image2-only
     3_versions/v2:
       mode: html-then-image2
+    3_versions/v3:
+      mode: image2-only
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-24T00:00:00.000Z
+updated_at: 2026-07-24T17:40:03.683Z
 nodes:
   html-content-review:
     by_version:
@@ -29,7 +31,7 @@ nodes:
         content_review_fingerprint: null
         ordered_plan_digest: null
         decided_at: 2026-07-20T00:00:00.000Z
-        waiver_reason: "Migration from legacy Image2 — content carried forward from v1 to v2 html-first"
+        waiver_reason: Migration from legacy Image2 — content carried forward from v1 to v2 html-first
   html-visual-review:
     by_version:
       3_versions/v2:
@@ -45,7 +47,7 @@ nodes:
         page_visual_dependencies: null
         shown_artifacts: null
         decided_at: 2026-07-20T00:00:00.000Z
-        waiver_reason: "Migration from legacy Image2 — visual system carried forward from v1 to v2 html-first"
+        waiver_reason: Migration from legacy Image2 — visual system carried forward from v1 to v2 html-first
   html-delivery-review:
     by_version:
       3_versions/v2:
