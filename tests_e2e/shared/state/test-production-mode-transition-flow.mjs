@@ -3,9 +3,9 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { createDefaultState, readState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { htmlFirstSlide, htmlFirstSource } from "../../tests/helpers/html_first_fixture.mjs";
+import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { createDefaultState, readState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { htmlFirstSlide, htmlFirstSource } from "../../../tests/helpers/html_first_fixture.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const intake = {
@@ -15,7 +15,12 @@ const intake = {
 };
 
 function source(marker) {
-  const frontmatter = marker === "html" ? "---\nproduction:\n  pipeline: html-first-v1\n---\n\n" : "";
+  const pipeline = marker === "html"
+    ? "html-first-v1"
+    : marker === "whole-page"
+      ? "whole-page-image2-v1"
+      : (() => { throw new Error(`unsupported test source marker ${marker}`); })();
+  const frontmatter = `---\nproduction:\n  pipeline: ${pipeline}\n---\n\n`;
   return `${frontmatter}## Slide 01: \`HeroGo\`\n\n**TITLE**: Explicit target source\n`;
 }
 
@@ -50,7 +55,7 @@ function authorCandidate(runDir, targetMode) {
     writeFileSync(join(candidate, "slide-specifications.md"), htmlFirstSource([htmlFirstSlide({ id: "HeroGo", title: "Target HTML source" })]));
     copyFileSync(join(runDir, "..", "..", "2_backbone", "visual-style", "color_palette.json"), join(candidate, "overrides", "visual-style", "color_palette.json"));
   } else {
-    writeFileSync(join(candidate, "slide-specifications.md"), source("legacy"));
+    writeFileSync(join(candidate, "slide-specifications.md"), source("whole-page"));
     writeFileSync(join(candidate, "overrides", "visual-style", "color_palette.json"), "{}\n");
   }
 }
@@ -69,9 +74,9 @@ function completeViaCli(fixture, targetMode) {
   return JSON.parse(applied.stdout);
 }
 
-describe("versioned production-mode transition E2E", () => {
+describe("state-owned production-mode transition E2E", () => {
   it("publishes isolated Image2-to-HTML and HTML-to-Image2 targets without a preview provider call", () => {
-    const image2Source = setup({ sourceMarker: "legacy", sourceMode: "image2-only" });
+    const image2Source = setup({ sourceMarker: "whole-page", sourceMode: "image2-only" });
     const htmlSource = setup({ sourceMarker: "html", sourceMode: "html-only" });
     try {
       const html = completeViaCli(image2Source, "html-only");

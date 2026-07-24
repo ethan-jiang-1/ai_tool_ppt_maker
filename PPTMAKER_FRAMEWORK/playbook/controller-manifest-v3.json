@@ -26,7 +26,7 @@
       "supported_pipelines": ["html-first-v1"],
       "nodes": ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement", "review-image2-refinement"]
     },
-    "migrate-import": {
+    "production-mode-transition": {
       "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
       "nodes": ["apply-production-mode-transition"]
     },

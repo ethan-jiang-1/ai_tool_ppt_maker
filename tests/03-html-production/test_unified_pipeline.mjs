@@ -12,6 +12,7 @@ import {
 } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs';
 import {
   buildImageManifestEntry,
+  emptyImageManifest,
   generationProfile,
   readImageManifest,
   writeImageManifestAtomic,
@@ -28,7 +29,7 @@ import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from '../helpers/
 const UP = 'PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs';
 
 function structuralSpec(slides) {
-  return `---\nidentity:\n  scheme: mnemonic-v1\n---\n\n${slides.map((slide, index) => `## Slide ${String(index + 1).padStart(2, '0')}: ${slide.id}\n\n` +
+  return `---\nproduction:\n  pipeline: whole-page-image2-v1\nidentity:\n  scheme: mnemonic-v1\n---\n\n${slides.map((slide, index) => `## Slide ${String(index + 1).padStart(2, '0')}: ${slide.id}\n\n` +
     `**VISUAL TYPE**: ${slide.visualType || 'Framework'}\n` +
     `**RENDER MODE**: ${slide.mode || 'body+header-lock'}\n` +
     `**KICKER**: CONTEXT\n` +
@@ -60,7 +61,7 @@ describe('unified_pipeline', () => {
       initWholePageBundle(deck, null, 'keynote', 'dark-executive');
       const runDir = join(deck, '3_versions', 'v1');
       const spec = join(runDir, 'slide-specifications.md');
-      writeFileSync(spec, `## Slide 01: s01\n\n**VISUAL TYPE**: Framework\n**RENDER MODE**: unsupported\n**TITLE**: A title\n`, 'utf8');
+      writeFileSync(spec, `---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n\n## Slide 01: s01\n\n**VISUAL TYPE**: Framework\n**RENDER MODE**: unsupported\n**TITLE**: A title\n`, 'utf8');
       const result = spawnSync('node', [UP, '--run-dir', runDir, '--stage', '1'], { encoding: 'utf8', timeout: 10000 });
       expect(result.status).toBe(1);
       const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
@@ -74,7 +75,7 @@ describe('unified_pipeline', () => {
       expect(envelope.diagnostic.issues.length).toBeGreaterThanOrEqual(2);
       expect(envelope.diagnostic.issues).toContainEqual(expect.objectContaining({
         subject: { kind: 'slide', id: 's01', field: 'RENDER MODE' },
-        source: { path: spec, line: 4 },
+        source: { path: spec, line: 9 },
       }));
       expect(envelope.diagnostic.next.invocation.args).toEqual([UP.replace('PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs', join(process.cwd(), UP)), '--run-dir', runDir, '--stage', '1', '--resolution', '2k']);
     } finally {
@@ -123,7 +124,7 @@ describe('unified_pipeline', () => {
         model: 'gpt-image-2',
         semanticOptions: { size: '16:9', n: 1 },
       });
-      const manifest = { version: 1, slides: {} };
+      const manifest = emptyImageManifest();
       for (const prompt of sourcePrompts) {
         const imagePath = join(images, `${prompt.id}.png`);
         writeTestPng(imagePath, prompt.id === 'DeckGo' ? '#123456' : prompt.id === 'UXGap' ? '#236789' : '#345678');
@@ -234,7 +235,7 @@ describe('unified_pipeline', () => {
       };
       const explicitPreviousKey = process.env.IMAGE2_API_KEY;
       process.env.IMAGE2_API_KEY = 'structural-explicit-refresh-test';
-      const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+      const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
       const explicit = await generateImages({
         promptJson: join(target, '_generated', 'page_prompts', '_prompts.json'),
         outDir: targetImages,

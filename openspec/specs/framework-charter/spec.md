@@ -4,11 +4,9 @@ Define the framework's constitutional and entry layer: the charter documents, fi
 ## Requirements
 
 ### Requirement: Agent resume protocol consumes workflow inspection
-
 `AGENT_CONTRACT.md` and `NODE-SPEC.md` SHALL direct an Agent that has resolved an exact run to consume `state --json.workflow_inspection.primary_action` and its owner-issued `continuation` for resume and gate guidance. They SHALL preserve `_state/state.yaml` as the execution-pointer SSOT and the direct-owner public CLI as the sole mutation route. `workflow_summary`, `suggested_next`, and `eligible_candidates` are non-authoritative display projections and SHALL NOT be the Agent's control input.
 
 #### Scenario: Agent resumes an exact run
-
 - **WHEN** an Agent has resolved an exact existing run and requests resume or gate guidance
 - **THEN** the Charter directs it to consume `workflow_inspection.primary_action` and its owner-issued continuation
 - **AND** it does not use display projections to select or invoke a mutation
@@ -45,8 +43,9 @@ Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/
 - **AND** they see the override precedence rules
 
 ### Requirement: CONSTITUTION declares MD↔JS complementary robustness
-
 `charter/CONSTITUTION.md` SHALL include a governing section titled approximately **MD↔JS 互补健壮性（Agentic 双轨）**, placed alongside the CLI failure-envelope rules, stating: MD Controllers / agents are smart but fuzzy producers; JS / CLI is the precise contract executor. Production-path format and schema defects (missing punctuation, wrong types, empty mappings where arrays are required, and similar template/state blemishes) SHALL be healed by the precise side when deterministic repair is possible, and/or actively fixed by the MD/agent before continuing. On write-back after heal, on-disk YAML/JSON SHALL be canonical so subsequent MD edits start from a clean template. Presenting "fix the YAML/JSON syntax" as the novice user's primary next step SHALL be forbidden. Irrecoverable failures SHALL still use the structured CLI JSON envelope; recoverable format problems SHALL be repaired first.
+
+For source/state handling, deterministic repair applies only after the state owner establishes an explicit current schema-5 identity, a one-to-one repairable defect, and clear gate/reset/transition fences. Charter, Agent Contract, and bootstrap guidance SHALL distinguish that `guide` from a pre-current, retired, or identity-ambiguous protocol: observation of the latter is a non-writing `hard-stop` that preserves bytes and reports exactly one owner-issued typed next action through the existing owner. Neither the Agent nor a person may choose from a recovery menu, hand-edit state YAML, or manufacture a current Controller continuation from metadata, generated artifacts, history, source preference, or chat context.
 
 #### Scenario: Agent or human reads the constitution for agentic pairing
 
@@ -60,15 +59,25 @@ Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/
 - **THEN** it finds a heal-first bullet for bad state/templates
 - **AND** it is not directed to make the user manually fix YAML punctuation as the default path
 
+#### Scenario: Current state has a repairable defect
+- **WHEN** Agent guidance encounters a current explicit run whose state owner reports a one-to-one repairable schema-5 defect
+- **THEN** it invokes or reports the owner-issued repair path rather than asking the person to edit YAML
+- **AND** it does not treat the repair as approval, completion, or a new execution
+
+#### Scenario: Historical state cannot be promoted by conversation
+- **WHEN** Agent guidance encounters a pre-current or retired state protocol
+- **THEN** it reports one bounded owner-issued typed next action and preserves the state bytes during observation
+- **AND** it does not use chat context, source preference, metadata, or generated artifacts to resume it as current work
+
 ### Requirement: WORKFLOW.md describes the complete agent process
+charter/WORKFLOW.md SHALL document lifecycle 0 -> 1 -> 2 -> 3 -> [4 Image Production] -> 5 with Phase name, purpose, gate, and Agent/human ownership. Phase 3 delivers complete HTML contact-sheet/PPTX/notes. Image Production distinguishes current whole-page image2-only work, owned by create-deck through 04-image-production/whole-page, from post-delivery html-then-image2 visual-slot refinement; only visual-slot requires current HTML delivery and explicit per-page adoption. Phase 5 is iteration and versioned transition support, not a whole-page implementation or a source-to-HTML migration route.
 
-`charter/WORKFLOW.md` SHALL document lifecycle `0 -> 1 -> 2 -> 3 -> [4 Image Production] -> 5`, with Phase name, purpose, gate, Agent/human ownership, and the fact that Phase 3 delivers the complete HTML contact sheet/PPTX/notes. Image Production SHALL distinguish whole-page `image2-only` work from post-delivery `html-then-image2` visual-slot refinement; only visual-slot requires current HTML delivery and explicit per-page adoption. Phase 5 is iteration/migration/compatibility routing, not whole-page implementation. The workflow SHALL document HTML-first Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the outer Structural Versioning Path; explicit whole-page legacy decks SHALL use the compatibility maintenance route with Header Text & Style Refresh / Generated Image Rebuild / Notes-Only Refresh. Structural Versioning Path SHALL not be presented as a peer refresh.
+The workflow SHALL name HTML Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the outer Structural Versioning Path. For current image2-only it SHALL name Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, and Structural Versioning Path. Structural Versioning is not a peer refresh and always publishes source/control before later materialization. Unsupported historical protocols receive a non-writing state-owner hard-stop and one typed next action rather than a maintenance workflow.
 
-#### Scenario: Agent understands the complete default path
-
-- **WHEN** an Agent reads `charter/WORKFLOW.md`
-- **THEN** it understands that fresh decks complete at HTML Phase 3 without Image2
-- **AND** can distinguish local HTML maintenance, optional authorized Phase 4, and legacy maintenance
+#### Scenario: Agent understands the current complete paths
+- **WHEN** an Agent reads charter/WORKFLOW.md
+- **THEN** it can distinguish complete HTML delivery, optional authorized visual-slot refinement, and current Image2-primary production
+- **AND** it is not offered a legacy maintenance or source-migration route
 
 ### Requirement: AGENT_CONTRACT.md is in charter directory
 
@@ -95,19 +104,12 @@ Active framework guidance SHALL explain that `workflow/`, `playbook/`, `scripts/
 - **AND** to resume from `current_node` rather than trusting chat memory alone
 
 ### Requirement: BOOTSTRAP requires showing artifacts before visual gates
+BOOTSTRAP and the Agent Contract SHALL require the Agent to show exact pipeline-owned artifacts before recording human gates. For HTML-first, content approval follows the ordered human-reviewed content projection and visual approval follows production-equivalent representative or affected-page preview/contact-sheet evidence; selected-current fallback review visibly uses its forced-fallback variant. For a current whole-page image2-only run, the Agent shows its current style-master, pilot, content/visual, and header artifacts required by the owning review path. Successful generation, prose description, metadata scalar, or an artifact from the other pipeline never counts as approval. Every gate binds the shown current evidence hash and remains human-owned.
 
-BOOTSTRAP and the Agent Contract SHALL require the Agent to show the exact pipeline-owned artifacts before recording human gates. For HTML-first, content approval SHALL follow presentation of the ordered human-reviewed content projection, and visual approval SHALL follow production-equivalent representative/affected-page preview or contact-sheet evidence; selected-current fallback review SHALL visibly use the forced-fallback variant. For explicit whole-page legacy, existing style-master/pilot/header artifact rules SHALL remain. Successful generation, prose description, metadata scalar, or an artifact from the other pipeline SHALL not count as approval. The gate record SHALL bind the shown evidence hash and remain human-owned.
-
-#### Scenario: HTML content gate is requested
-
-- **WHEN** the Agent asks for content approval
-- **THEN** it first shows the exact ordered content projection whose fingerprint will be approved
-
-#### Scenario: HTML visual gate is requested
-
-- **WHEN** the Agent asks for visual approval
-- **THEN** it first shows current production-compositor evidence and identifies its review hash
-- **AND** does not substitute a style master or prose summary
+#### Scenario: Whole-page gate is requested
+- **WHEN** the Agent asks for a current whole-page content, visual, or header decision
+- **THEN** it first presents the owning current artifact/evidence set
+- **AND** it does not accept a historical artifact or HTML evidence as a substitute
 
 ### Requirement: Framework root contains exactly five markdown files
 
@@ -269,139 +271,34 @@ Active framework documents and `openspec/config.yaml` SHALL distinguish four hie
 - **AND** the Phase 2.7 L3 prompt-fill checkpoint is preserved rather than erased by a simplified count
 
 ### Requirement: Active constitutional guidance matches current runtime behavior
+All active root, charter, workflow, reference, playbook, script README, template, and OpenSpec guidance SHALL agree on version-scoped state authority with modes html-only, html-then-image2, and image2-only. New decks default to image2-only with direct whole-page-image2-v1 source, normal create-deck ownership, current style-master/pilot/gate/header/build/PPTX/notes/final-review flow, scoped offline readiness, and exact provider authorization before a chargeable submit. HTML modes retain direct html-first-v1 structured source, local HTML production, current HTML evidence, and their established refinement policy.
 
-All active root, charter, workflow, reference, playbook, scripts README, template guidance, and OpenSpec
-context SHALL agree on one version-scoped production-mode authority with exact values `html-only`,
-`html-then-image2`, and `image2-only`. New decks SHALL default to `image2-only`. This default SHALL use
-the existing explicit whole-page whole-page Image2 source and normal style-master/pilot/content-visual-header
-review/build/PPTX/notes/final-review flow, with mode-scoped offline readiness and exact authorization
-before each chargeable submit. It SHALL not be described as HTML refinement or compatibility-only
-legacy maintenance.
+Every deck-scoped route SHALL verify the exact current source/mode pair without deriving one from metadata, prose, history, generated files, directory shape, or conversation. Source markers are renderer contracts and durable state is routing authority. Missing, retired, malformed, or mismatched identity is a non-writing owner-issued hard-stop with one typed next action; active guidance shall not describe it as a compatibility maintenance, migration, or resumable Controller route.
 
-Both HTML modes SHALL retain explicit `production.pipeline: html-first-v1`, structured content and
-visual config, local HTML pages/final slides, production-equivalent artifacts before visual approval,
-provider-neutral Stage-4 inputs, stable-ID notes, and local ordinary maintenance. `html-only` SHALL be
-locally complete with modern visual-slot refinement disabled and no Image2 readiness debt.
-`html-then-image2` SHALL use the same HTML production path and require current authorized Phase-4
-visual-slot refinement plus renewed final review before completion. Active guidance SHALL preserve the
-future HTML style-master seam without claiming current implementation or permanent impossibility.
+#### Scenario: Historical protocol is not guidance for a current route
+- **WHEN** active guidance addresses a run without a supported current source/state pair
+- **THEN** it names one bounded owner-issued typed next action
+- **AND** it does not advertise a maintenance Controller, inferred mode, or migration continuation
 
-Every deck-scoped route SHALL resolve authoritative production mode before verifying the source pipeline.
-Source markers remain renderer contracts, not user-intent authority: whole-page Image2 stays explicit whole-page,
-and `whole-page-image2-v1` remains only its normalized internal pipeline label. Historical explicit whole-page
-decks without durable mode/state SHALL retain bounded compatibility maintenance/migration guidance.
-No active guidance SHALL infer mode from metadata, source prose, refinement history, generated files, or
-conversation context; label first-class whole-page work as legacy-only; require HTML runtime for
-`image2-only`; require Image2 for `html-only`; or present init/readiness/quality approval as provider
-authorization.
+### Requirement: Editing-path terminology uses canonical current names
+Active classifier, glossary, WORKFLOW, COMMANDS, playbook, and OpenSpec guidance SHALL resolve the exact current source/mode pair before choosing a path. HTML uses Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path; html-then-image2 additionally reports refinement freshness. Current image2-only uses Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, and Structural Versioning Path. Structural Versioning remains outside peer refresh sets, publishes source/control before materialization, and completes target mode registration before production.
 
-#### Scenario: New-deck guidance requires Image2
+Active guidance SHALL not mix HTML and whole-page evidence/flags, use retired Chain aliases as operational paths, or route current whole-page work through a maintenance Controller. Historical aliases may appear only in archived history or explicit negative tests, never as user-facing continuation guidance. An unsupported historical protocol receives the state owner's one hard-stop action rather than a classification result.
 
-- **WHEN** coherence scans active default new-deck guidance
-- **THEN** it requires common plus offline Image2 readiness and discloses the later exact submit-authorization boundary
-- **AND** it reports HTML-only runtime prerequisites or compatibility-maintenance routing as drift
-
-#### Scenario: Visual gate guidance is artifact-based
-
-- **WHEN** active guidance describes HTML visual approval
-- **THEN** it requires production-equivalent preview/contact-sheet evidence
-- **AND** does not accept a whole-page style master or prose-only approval as equivalent
-
-#### Scenario: Version semantics remain source-first
-
-- **WHEN** active guidance describes a new version
-- **THEN** it publishes source/control first, keeps generated artifacts rebuildable, registers inherited mode, and uses target-local mode-owned production
-
-#### Scenario: User selects local HTML
-
-- **WHEN** a user explicitly chooses `html-only`
-- **THEN** active guidance follows the complete local HTML path without Image2 credentials, provider work, or refinement debt
-
-#### Scenario: User selects HTML then Image2
-
-- **WHEN** a user chooses `html-then-image2`
-- **THEN** active guidance distinguishes local HTML delivery from the later required authorized visual-slot lifecycle
-
-#### Scenario: Historical explicit whole-page guidance remains bounded
-
-- **WHEN** an old explicit whole-page deck has no durable mode/state
-- **THEN** active guidance uses the non-writing compatibility projection until explicit controller continuation
-- **AND** does not use that label for a new `image2-only` deck
-
-### Requirement: Editing-path terminology uses English canonical names and controlled legacy aliases
-
-Active classifier, glossary, WORKFLOW, COMMANDS, playbook, and OpenSpec guidance SHALL resolve the exact
-version's production mode before verifying its source pipeline and choosing maintenance terminology.
-For either HTML mode, canonical names SHALL remain Local Slide Rebuild, Local Deck Rebuild, Notes-Only
-Refresh, and Structural Versioning Path. `html-then-image2` SHALL additionally report refinement
-freshness after affected HTML changes; `html-only` SHALL offer the atomic same-pipeline mode switch
-before any new modern refinement operation.
-
-For first-class `image2-only`, Header Text & Style Refresh and Generated Image Rebuild SHALL remain the
-normal render-mode/source-owner terms alongside Notes-Only Refresh and Structural Versioning Path. The
-same terms remain compatible for historical explicit whole-page maintenance without making them legacy-only.
-Structural Versioning Path stays outside the peer refresh set, publishes source/control before
-materialization, and completes target mode registration before production. Active guidance SHALL not
-mix HTML and whole-page evidence/flags or route new first-class whole-page work through
-`create-deck`.
-
-Former Chain A (Header Text & Style Refresh), Chain B (Generated Image Rebuild), Chain C (Notes-Only Refresh), and Structural aliases MAY appear only in the existing narrow
-compatibility registries and SHALL be paired locally with their English canonical names. Chinese prose
-MAY add explanatory glosses but SHALL not create additional formal path names.
-
-#### Scenario: Maintainer classifies an HTML edit
-
-- **WHEN** authoritative mode is `html-only` or `html-then-image2` and source verifies `html-first-v1`
-- **THEN** active guidance uses Local Slide/Deck Rebuild, Notes-Only, or Structural Versioning
-- **AND** does not select a path by whole-page render mode
-
-#### Scenario: Maintainer classifies a legacy edit
-
-- **WHEN** a historical explicit whole-page deck enters compatibility maintenance
-- **THEN** whole-page render-mode/ownership rules retain Header Text & Style or Generated Image Rebuild terminology
-
-#### Scenario: Bare historical alias appears operationally
-
-- **WHEN** an active non-registry file uses a bare Chain alias
-- **THEN** terminology validation reports drift
-
-#### Scenario: Maintainer classifies an Image2-primary edit
-
-- **WHEN** authoritative mode is `image2-only` and explicit whole-page source verification succeeds
-- **THEN** guidance uses the normal whole-page refresh terms without classifying the run as historical maintenance
+#### Scenario: Maintainer classifies a current Image2-primary edit
+- **WHEN** image2-only and whole-page-image2-v1 verify for the selected run
+- **THEN** guidance uses current whole-page refresh terms or Structural Versioning as applicable
+- **AND** it does not route the run through retired maintenance
 
 ### Requirement: Active framework guidance separates slide identity from order
+Active guidance SHALL define formal slide_id as stable page identity and physical slide-block order as derived current position; examples use position + slide_id + title. New pages use Agent-authored mnemonic-v1 two-block 5-8 ASCII-letter IDs, preferring 5-6. A retained historical-format ID remains a readable/reserved identity only when its containing run otherwise has current source/state identity; it is not silently renamed and never selects pipeline, Controller, artifact provenance, or repair behavior.
 
-Active root/charter/workflow/reference/playbook/scripts/template/authoring guidance SHALL consistently define formal `slide_id` as stable page identity and physical slide-block order as derived current `position`; human examples use `position + slide_id + title`. New pages SHALL use Agent-authored mnemonic-v1 two-block 5-8 ASCII-letter IDs (prefer 5-6), while unique legacy IDs remain compatibility identities and are not silently renamed.
+Artifact identity remains (slide_id, producer, artifact_kind, producer_fingerprint), not position, filename, heading, or generic engine selection. _generated remains rebuildable and never manually edited/copied. Structural source apply publishes clean vNext without renderer/provider work. HTML receipts use needs_local_materialization and target-local reuse/composition; current whole-page receipts use manifest-proven raw reuse plus needs_render for separately authorized Generated Image Rebuild. Unproven historical raw files do not create reuse authority.
 
-Artifact identity SHALL use `(slide_id, producer, artifact_kind, producer_fingerprint)`, not position/filename/heading or a generic selected-engine field. Provider-neutral final-slide projection SHALL retain producer-private lineage only through its fingerprint. `_generated/` remains rebuildable, framework-owned, and never manually edited/copied. Structural source apply publishes clean vNext without renderer/provider work. HTML receipts use `needs_local_materialization` and later target-local verified reuse/composition; explicit whole-page receipts use verified raw materialization plus `needs_render` for separately authorized Generated Image Rebuild. Guidance SHALL retain the heading-repair/vNext/materialize-or-rebuild/new-deck escape ladder and optional Git separation.
-
-#### Scenario: Agent authors a new identity
-
-- **WHEN** guidance requests a new slide ID
-- **THEN** it asks for a durable pronounceable two-block mnemonic independent of current position/title
-
-#### Scenario: HTML reorder retains identity locally
-
-- **WHEN** unchanged HTML slides reorder
-- **THEN** IDs and reusable composition bytes remain associated independently of position
-- **AND** target delivery rebuild is described as local materialization, not remote `needs_render`
-
-#### Scenario: Legacy unproven raw render remains remote debt
-
-- **WHEN** explicit whole-page vNext lacks verified raw evidence for an ID
-- **THEN** guidance reports `needs_render` and requires separate Generated Image Rebuild authorization
-
-#### Scenario: Multiple producers share one identity model
-
-- **WHEN** guidance discusses HTML and legacy final-slide producers
-- **THEN** both use stable slide ID/kind/fingerprint with producer-private lineage
-- **AND** do not define engine-specific slide identity or order
-
-#### Scenario: Major reframing may become a new deck
-
-- **WHEN** audience, objective, or narrative materially changes
-- **THEN** guidance may recommend a new deck before applying structural work
+#### Scenario: Retained historical ID remains identity-only
+- **WHEN** current source contains retained s07_problem and a new mnemonic ID
+- **THEN** guidance preserves and reserves the former while validating the latter
+- **AND** it does not infer a historical pipeline or state continuation
 
 ### Requirement: Active guidance separates deck work versions from optional Git audit
 
@@ -438,19 +335,12 @@ The guidance SHALL preserve the source/derived boundary: `_generated/` remains r
 - **AND** their wording does not authorize an Agent to initialize, commit, or replace source/generated output by default
 
 ### Requirement: Framework ownership separates complete HTML delivery from future refinement
+The Constitution and Agent Contract SHALL state that MD Controller/human review owns content/visual approval, optional professional refinement choice, exact remote-cost authorization, and per-page adoption; JS owns deterministic HTML rendering/evidence and authorized visual-slot enforcement. Ordinary HTML create/build/iteration does not load a provider adapter. Complete HTML delivery is a valid terminal outcome with no refinement debt until the user enters the applicable refinement mode. Active guidance places complete HTML delivery under Phase 3, visual-slot refinement under Phase 4, and current whole-page image2-only generation under its create-deck-owned 04-image-production/whole-page route. Phase 5 shall not own whole-page generation or a historical maintenance route.
 
-The Constitution and Agent Contract SHALL state that MD Controller/human review owns content/visual approval, whether to consider optional professional refinement, exact remote-cost authorization, and per-page adoption; JS owns deterministic HTML rendering/evidence and Phase-4 enforcement of authorized provider/provenance boundaries. No provider adapter belongs to ordinary create/build/iteration. Completing HTML delivery SHALL be a terminal valid user outcome with no refinement node, plan, authorization, or false incomplete state until the user explicitly enters Phase 4. Active guidance SHALL place complete HTML delivery under Phase 3, optional no-text visual-slot refinement under Phase 4, and explicit whole-page whole-page maintenance under Phase 5. Phase 4 SHALL not be described as a renderer choice, a new-deck requirement, or a whole-page generator.
-
-#### Scenario: User ends after PPTX delivery
-
-- **WHEN** HTML PPTX/notes are current and the user declines or does not enter refinement
-- **THEN** the workflow is complete
-- **AND** state has no pending Image2 execution or authorization
-
-#### Scenario: Maintainer searches for Image2 ownership
-
-- **WHEN** active charter guidance distinguishes modern refinement from legacy maintenance
-- **THEN** visual-slot work points to Phase 4 and legacy whole-page behavior points to Phase 5
+#### Scenario: Maintainer locates Image2 ownership
+- **WHEN** active Charter guidance distinguishes the two Image2 capabilities
+- **THEN** visual-slot points to authorized HTML refinement and whole-page points to current image2-only create-deck ownership
+- **AND** neither points to a Phase-5 maintenance bridge
 
 ### Requirement: Gate posture is guide-first and explicitly bounded
 
@@ -506,27 +396,26 @@ permission behavior.
 - **AND** it does not use either policy as a substitute for the owning runtime contract
 
 ### Requirement: Cross-pipeline mode changes are versioned and HTML-quality-scoped
+Active framework guidance SHALL describe `html-* <-> image2-only` as a clean state-owned versioned production-mode transition, not an in-place production-mode write or a permanent refusal. It SHALL preserve the version-scoped mode SSOT, source-marker contract, source-version history, target-only evidence, provider authorization, and target-user intake-decision boundary. Guidance SHALL identify `production-mode-transition` as the Controller owner and the state owner as the deterministic exact-plan-hash commit, registration, and recovery owner. Guidance SHALL reject a missing, malformed, retired, or mismatched source/state identity before it advertises a transition path.
 
-Active framework guidance SHALL describe `html-* <-> image2-only` as a clean versioned transition, not
-an in-place production-mode write or a permanent refusal.  It SHALL preserve the version-scoped mode
-SSOT, source-marker contract, source-version history, target-only evidence, provider authorization, and
-human confirmation boundary.  Guidance SHALL identify `migrate-import` as the controller owner and the
-state owner as the deterministic confirmation/registration/recovery owner.
+The named `--confirm-production-mode-transition` operation records the target user's `proceed` decision for an explicitly authored, hash-bound intake. It is not the Human-Centered Gate Policy's `confirm` outcome: it accepts no risk reason or force option, creates no waiver/continuation, and never relaxes source identity, receipt, CAS, journal, or provider-authorization checks.
 
-The transition's HTML target scope SHALL be limited to the existing valid, runnable HTML contract and
-its existing human delivery process.  Active guidance SHALL NOT claim that this change improves, scores,
-compares, or guarantees HTML visual quality, visual parity, premium layout, or an HTML style-master.
-Image2-primary quality, provenance, authorization, and final-review requirements remain unchanged.
+Likewise, the closed uncertain-journal `no-active-apply` operation is a revalidated factual attestation inside a recovery hard-stop, not a waiver of writer ownership. Guidance SHALL keep recovery blocked when its exact journal/source/target/plan binding cannot be re-established and SHALL never turn either form of human input into a force path.
+
+The transition's HTML target scope SHALL be limited to the existing valid runnable HTML contract and its existing human delivery process. Active guidance SHALL NOT claim that this change improves, scores, compares, or guarantees HTML visual quality, visual parity, premium layout, or an HTML style master. Image2-primary quality, provenance, authorization, and final-review requirements remain unchanged.
 
 #### Scenario: Guidance explains an HTML target
-
 - **WHEN** active documentation describes an Image2-to-HTML transition
 - **THEN** it presents a safe clean-vNext path and existing HTML contract without adding an HTML quality claim
 
 #### Scenario: Guidance explains an Image2 target
-
 - **WHEN** active documentation describes an HTML-to-Image2 transition
 - **THEN** it preserves the normal Image2 pilot/review/authorization boundary after target publication
+
+#### Scenario: Guidance sees unsupported state
+- **WHEN** active documentation addresses a run with absent or inconsistent source/state identity
+- **THEN** it directs the Agent to one bounded owner-issued typed next action
+- **AND** it does not name an old Controller as a recovery path
 
 ### Requirement: AGENT_CONTRACT defines portable run-bundle entry
 
@@ -553,3 +442,18 @@ declared deck remains verified; a double relocation requires an explicit framewo
 - **WHEN** an absolute root is stale and no verified fallback is available
 - **THEN** the Agent requests exactly the missing deck or framework root
 - **AND** it does not scan, heal, re-upload, or infer a replacement
+
+### Requirement: Active whole-page terminology names only the current route
+Active root, Charter, workflow, playbook, reference, script, and command guidance SHALL identify current whole-page work as production mode `image2-only`, pipeline `whole-page-image2-v1`, and normal Controller `create-deck`. It SHALL identify cross-pipeline work only as the state-owned production-mode transition. It SHALL not describe current whole-page work as any retired route and SHALL not advertise a removed Controller, node, command, scratch owner, or receipt reader.
+
+Unrelated compatibility wording MAY remain only when its owning current requirement names the exact preserved contract. Archived history and explicit negative-test literals are not active guidance. The active-surface verifier SHALL reject exact retired whole-page identities and malformed mechanical replacements without treating a generic word ban as the behavioral proof.
+
+#### Scenario: Agent reads the current whole-page route
+- **WHEN** an Agent starts or resumes a supported `image2-only` run
+- **THEN** active guidance directs it through `create-deck` and `whole-page-image2-v1`
+- **AND** it does not expose a compatibility maintenance route
+
+#### Scenario: Agent changes page authority
+- **WHEN** an Agent needs to move between HTML and whole-page pipelines
+- **THEN** active guidance names only the closed `state --*-production-mode-transition` operations
+- **AND** no removed migration command or Controller is offered

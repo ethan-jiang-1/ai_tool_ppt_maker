@@ -16,7 +16,7 @@ import {
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/production_mode.mjs";
 
 const HTML = "html-first-v1";
-const LEGACY = "whole-page-image2-v1";
+const WHOLE_PAGE = "whole-page-image2-v1";
 
 describe("production_mode vocabulary", () => {
   it("exposes the closed three-mode vocabulary", () => {
@@ -29,7 +29,7 @@ describe("production_mode vocabulary", () => {
     for (const value of bad) expect(isProductionMode(value)).toBe(false);
   });
 
-  it("normalizeProductionMode returns the canonical string or null, never guessing", () => {
+  it("normalizeProductionMode returns the canonical string or null, and rejects retired aliases", () => {
     expect(normalizeProductionMode("image2-only")).toBe("image2-only");
     expect(normalizeProductionMode("html-only")).toBe("html-only");
     expect(normalizeProductionMode("html-then-image2")).toBe("html-then-image2");
@@ -61,11 +61,11 @@ describe("productionPolicyForMode exact mappings", () => {
     });
   });
 
-  it("maps image2-only -> legacy normalized pipeline, image2 authority, n/a refinement, current style master", () => {
+  it("maps image2-only to the current whole-page pipeline, image2 authority, n/a refinement, and current style master", () => {
     expect(productionPolicyForMode("image2-only")).toEqual({
       ok: true,
       mode: "image2-only",
-      pipeline: LEGACY,
+      pipeline: WHOLE_PAGE,
       page_authority: "image2",
       refinement_policy: "not-applicable",
       style_master_policy: "current",
@@ -94,8 +94,8 @@ describe("productionPolicyForMode exact mappings", () => {
 
 describe("source marker normalization", () => {
   it("accepts the explicit whole-page marker", () => {
-    const r = pipelineFromSourceMarker({ branch: LEGACY, issues: [] });
-    expect(r).toEqual({ ok: true, pipeline: LEGACY, branch: LEGACY });
+    const r = pipelineFromSourceMarker({ branch: WHOLE_PAGE, issues: [] });
+    expect(r).toEqual({ ok: true, pipeline: WHOLE_PAGE, branch: WHOLE_PAGE });
   });
 
   it("keeps the explicit html-first-v1 branch stable", () => {
@@ -117,11 +117,11 @@ describe("source marker normalization", () => {
       pipeline: HTML,
       branch: HTML,
     });
-    expect(productionModeFromSourceMarker({ branch: LEGACY, issues: [] })).toEqual({
+    expect(productionModeFromSourceMarker({ branch: WHOLE_PAGE, issues: [] })).toEqual({
       ok: true,
       mode: "image2-only",
-      pipeline: LEGACY,
-      branch: LEGACY,
+      pipeline: WHOLE_PAGE,
+      branch: WHOLE_PAGE,
     });
     expect(productionModeFromSourceMarker({ branch: "invalid", issues: ["e"] }).ok).toBe(false);
   });
@@ -157,11 +157,11 @@ describe("inspectProductionMode exact-version inspection", () => {
       "3_versions/v1": { mode: "html-only" },
       "3_versions/v2": { mode: "image2-only" },
     });
-    const r = inspectProductionMode({ state, runVersion: "v2", sourceMarker: { branch: LEGACY, issues: [] } });
+    const r = inspectProductionMode({ state, runVersion: "v2", sourceMarker: { branch: WHOLE_PAGE, issues: [] } });
     expect(r.ok).toBe(true);
     expect(r.run_version).toBe("v2");
     expect(r.mode).toBe("image2-only");
-    expect(r.policy.pipeline).toBe(LEGACY);
+    expect(r.policy.pipeline).toBe(WHOLE_PAGE);
     expect(r.consistent).toBe(true);
   });
 
@@ -196,7 +196,7 @@ describe("inspectProductionMode exact-version inspection", () => {
     const r = inspectProductionMode({ state, runVersion: "v1", sourceMarker: { branch: HTML, issues: [] } });
     expect(r).toMatchObject({ ok: false, code: "transition_required", mode: "image2-only" });
     expect(r.source_pipeline).toBe(HTML);
-    expect(r.derived_pipeline).toBe(LEGACY);
+    expect(r.derived_pipeline).toBe(WHOLE_PAGE);
   });
 
   it("RUN_VERSION_INVALID when the caller names no canonical version", () => {
@@ -243,7 +243,7 @@ describe("classifyProductionModeTransition", () => {
     const r = classifyProductionModeTransition({
       fromMode: "html-only",
       toMode: "html-then-image2",
-      sourcePipeline: LEGACY,
+      sourcePipeline: WHOLE_PAGE,
     });
     expect(r.ok).toBe(false);
     expect(r.code).toBe("transition_required");
@@ -269,8 +269,8 @@ describe("classifyProductionModeTransition", () => {
 describe("explicit whole-page marker", () => {
   it("the policy and marker helper agree on whole-page-image2-v1", () => {
     const policy = productionPolicyForMode("image2-only");
-    expect(policy.pipeline).toBe(LEGACY);
-    const migrated = productionModeFromSourceMarker({ branch: LEGACY, issues: [] });
-    expect(migrated).toMatchObject({ mode: "image2-only", pipeline: LEGACY });
+    expect(policy.pipeline).toBe(WHOLE_PAGE);
+    const resolved = productionModeFromSourceMarker({ branch: WHOLE_PAGE, issues: [] });
+    expect(resolved).toMatchObject({ mode: "image2-only", pipeline: WHOLE_PAGE });
   });
 });

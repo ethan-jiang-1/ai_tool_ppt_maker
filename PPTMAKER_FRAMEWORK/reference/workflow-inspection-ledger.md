@@ -16,10 +16,10 @@ evidence, not a runtime registry or a mutation authority.
 | provider authorization | mode/refinement authorization owner | explicit authorization operation | submit owner, inspection when applicable | operation/scope/profile/execution changes | no | retain authorization owner |
 | receipt and provenance | stage/adapter owner | canonical stage publication | assembly/review/inspection summary | source/artifact byte change | no | retain source owner |
 | gate/reset/promotion journals | respective transaction owner | journal owner under CAS | recovery, inspection | owner/byte/age changes | no | retain recovery authority |
-| metadata mirrors | owner-specific mirror publisher | gate/mode owner | compatibility/status only | authoritative record changes | yes | do not promote to authority |
-| `workflow_inspection` | shared read-only workflow module | none | status, state, MD guidance | direct checkpoint identity changes | yes | replace compatibility readers only after ledger proof |
+| metadata mirrors | owner-specific mirror publisher | gate/mode owner | status display only | authoritative record changes | yes | do not promote to authority |
+| `workflow_inspection` | shared read-only workflow module | none | status, state, MD guidance | direct checkpoint identity changes | yes | replace obsolete readers only after ledger proof |
 
-## Compatibility Adapters
+## Display Adapters
 
 Change 2 retains the execution cursor (`playbook`, `current_node`, execution
 and version binding, and `waiting_for`) as direct state-owned durable context.

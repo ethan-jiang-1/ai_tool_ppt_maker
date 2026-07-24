@@ -36,7 +36,7 @@ export function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
-function action(owner, actionId, kind, requiresHuman = false, displayLabel = null, { summary = null, compatibilityCommand = null, evidenceComplete = null } = {}) {
+function action(owner, actionId, kind, requiresHuman = false, displayLabel = null, { summary = null, command = null, evidenceComplete = null } = {}) {
   return Object.freeze({
     owner,
     action_id: actionId,
@@ -44,7 +44,7 @@ function action(owner, actionId, kind, requiresHuman = false, displayLabel = nul
     requires_human: requiresHuman,
     ...(displayLabel ? { display_label: displayLabel } : {}),
     ...(summary ? { summary } : {}),
-    ...(compatibilityCommand ? { compatibility_command: compatibilityCommand } : {}),
+    ...(command ? { command } : {}),
     ...(evidenceComplete !== null ? { evidence_complete: evidenceComplete } : {}),
   });
 }
@@ -157,7 +157,7 @@ function htmlAction(runDir, review) {
         posture: "guide",
         rootCause: rootCause("html-review", `${gate}-review-waived`),
         primaryAction: action("html-review", `repair-${gate}-review`, "continue", false, `Repair waived ${gate} review evidence before the next delivery review.`, {
-          compatibilityCommand: command(`pilot ${run}`),
+          command: command(`pilot ${run}`),
           evidenceComplete: false,
         }),
       };
@@ -179,7 +179,7 @@ function htmlAction(runDir, review) {
       rootCause: rootCause("html-review", "delivery-review-incomplete-lineage"),
       primaryAction: action("html-review", "repair-delivery-lineage", "continue", false, summary, {
         summary,
-        compatibilityCommand: command(`build ${run}`),
+        command: command(`build ${run}`),
         evidenceComplete: false,
       }),
     };

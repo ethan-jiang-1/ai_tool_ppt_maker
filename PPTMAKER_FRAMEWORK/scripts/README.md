@@ -42,8 +42,6 @@ scripts/
 ├── 05-iteration/
 │   ├── index.mjs
 │   ├── change-classifier.md
-│   ├── structural/
-│   ├── migration/
 │   └── internal/
 ├── shared/
 │   ├── cli/
@@ -68,7 +66,7 @@ scripts/
 | `02-visual-system/index.mjs` | visual config、asset catalog、components、tokens、geometry | Phase 3、Phase 5 |
 | `03-html-production/index.mjs` | HTML validate/preview/build/refresh、Stage 1–5 local production | root、Phase 5 |
 | `04-image-production/index.mjs` | whole-page and visual-slot public adapters | root、Phase 3、Phase 5 |
-| `05-iteration/index.mjs` | structural versioning、migration、local iteration、explicit whole-page legacy maintenance | root |
+| `05-iteration/index.mjs` | local iteration and change classification | root |
 
 Importing an interface must not parse arguments, install a CLI transaction, exit the process, write production files, launch Chromium, initialize a provider, or eagerly load heavy operation-specific implementation. Operation boundaries use string-literal dynamic imports so static architecture checks can resolve the edge.
 
@@ -142,7 +140,7 @@ tests/{00-setup,01-content,02-visual-system,03-html-production,04-image-producti
 tests_e2e/{00-setup,01-content,02-visual-system,03-html-production,04-image-production,05-iteration,shared,helpers}
 ```
 
-Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、15 个顶层 command surface 及其 direct executable union、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。
+Machine-readable mapping 位于 `tests/contracts/source-test-ownership-v1.json`。它必须覆盖每个 Phase/public shared/declared contract interface、14 个顶层 command surface 及其 direct executable union、unit/integration owner 和 owning E2E journey；缺失、重复、目录不匹配或 executable union 漂移都 fail closed。`tests/helpers/` 与 `tests_e2e/helpers/` 只构造输入、临时目录和 fake adapter，不复制 production parser/state/fingerprint/path 规则。
 
 ## Verification authorities
 

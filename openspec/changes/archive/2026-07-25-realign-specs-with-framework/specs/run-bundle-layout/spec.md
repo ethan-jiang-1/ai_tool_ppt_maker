@@ -32,7 +32,7 @@ current source/control/generated/scratch owners.
 For whole-page-image2-v1, current style master, prompt/image/header/contact-sheet artifacts use the
 current whole-page adapter's declared paths and manifests. They are required only by a consistent
 image2-only run and never by HTML init/build. No markerless layout, retired whole-page manifest, or
-html-migration/projected scratch path is a valid current run role. renderTree SHALL describe these
+retired projected scratch path is a valid current run role. renderTree SHALL describe these
 pipeline-specific/lazy roles without presenting generated paths as source truth.
 
 #### Scenario: Fresh HTML run tree is complete without Image2

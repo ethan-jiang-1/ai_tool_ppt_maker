@@ -77,21 +77,21 @@ If state/status already reports `html-production-reset: deletion-pending`, the C
 - **AND** it does not delete transition scratch, state, canonical HTML evidence, or reviews
 
 ### Requirement: playbook/ directory contains the registered MD controllers
-PPTMAKER_FRAMEWORK/playbook/ SHALL contain only the controller identities registered by the normative controller manifest plus shared nodes. create-deck SHALL declare mode-aware paths for html-first-v1 and whole-page-image2-v1, and image2-refine SHALL serve only a marked HTML-first run. production-mode-transition SHALL be a distinct state-owned cross-pipeline Controller with only its apply/recovery node, entered only after the exact plan-hash transaction commit. That commit records the target user's intake decision; it is not a `confirm` gate, risk waiver, or source-state continuation. No current Controller inventory, file name, state record, stack frame, migration map, or workflow ledger may retain a maintenance-only or migrate-import alias.
+PPTMAKER_FRAMEWORK/playbook/ SHALL contain only the controller identities registered by the normative controller manifest plus shared nodes. create-deck SHALL declare mode-aware paths for html-first-v1 and whole-page-image2-v1, and image2-refine SHALL serve only a marked HTML-first run. production-mode-transition SHALL be a distinct state-owned cross-pipeline Controller with only its apply/recovery node, entered only after the exact plan-hash transaction commit. That commit records the target user's intake decision; it is not a `confirm` gate, risk waiver, or source-state continuation. No current Controller inventory, file name, state record, stack frame, migration map, or workflow ledger may retain a maintenance-only or retired transition alias.
 
 For html-only, new entry to image2-refine is mode-disabled and the Controller SHALL offer the atomic switch to html-then-image2 without running refinement. For html-then-image2, create-deck SHALL perform its explicit state-bound handoff to the registered refinement route and return to mode-aware completion after current refinement/final review. Normal refinement entry requires current html delivery review with complete evidence; an explicit offline image2 planning waiver may apply only when current final-slide/slot identity is valid and never authorizes provider generation.
 
 #### Scenario: Agent lists available controllers
 - **WHEN** the playbook index is built
 - **THEN** it contains only registered current controllers with Image2-primary create and HTML refinement ownership
-- **AND** it contains no maintenance or migrate-import controller
+- **AND** it contains no maintenance-only or retired transition controller
 
 #### Scenario: Image2-primary uses create-deck
 - **WHEN** a new image2-only run enters its workflow
 - **THEN** entry validation selects create-deck and current whole-page nodes
 - **AND** it rejects a maintenance-only controller name
 
-#### Scenario: HTML deck cannot enter a whole-page maintenance route
+#### Scenario: HTML deck cannot enter a retired page-authority route
 - **WHEN** either HTML mode attempts to enter a whole-page-only controller
 - **THEN** entry validation fails with a pipeline/mode-ownership diagnostic
 
@@ -404,7 +404,7 @@ Phase 5 owns iteration and may expose the state-owned versioned transition hando
 ## ADDED Requirements
 
 ### Requirement: Current whole-page and transition Controllers have literal ownership
-`create-deck` SHALL own new and continuing `image2-only` work through its current whole-page nodes. A distinct `production-mode-transition` Controller SHALL own only the state-owned apply/recovery node for cross-pipeline publication after the exact plan-hash transaction commit. The commit records the target user's `proceed` intake decision, not a risk waiver or continuation, and the Controller SHALL neither request a waiver reason nor manufacture one. For an uncertain transition journal, the Controller may present only the owner-issued `no-active-apply` fact attestation after its age/identity checks; until owner reinspection validates it, the recovery remains a hard-stop and no writer is waived or forced. The Controller index, playbook file names, state records, stack frames, migration maps, and workflow ledgers SHALL use those literal identities and SHALL contain no maintenance-only or `migrate-import` alias for current work.
+`create-deck` SHALL own new and continuing `image2-only` work through its current whole-page nodes. A distinct `production-mode-transition` Controller SHALL own only the state-owned apply/recovery node for cross-pipeline publication after the exact plan-hash transaction commit. The commit records the target user's `proceed` intake decision, not a risk waiver or continuation, and the Controller SHALL neither request a waiver reason nor manufacture one. For an uncertain transition journal, the Controller may present only the owner-issued `no-active-apply` fact attestation after its age/identity checks; until owner reinspection validates it, the recovery remains a hard-stop and no writer is waived or forced. The Controller index, playbook file names, state records, stack frames, migration maps, and workflow ledgers SHALL use those literal identities and SHALL contain no maintenance-only or retired transition alias for current work.
 
 #### Scenario: Current whole-page run resumes
 - **WHEN** a consistent `image2-only` run resumes or iterates
@@ -417,7 +417,7 @@ Phase 5 owns iteration and may expose the state-owned versioned transition hando
 - **AND** no other Controller can satisfy that entry or terminal recovery condition
 
 #### Scenario: Retired transition playbook cannot be resumed
-- **WHEN** an observed state or caller names `migrate-import`
+- **WHEN** an observed state or caller names a retired transition identity
 - **THEN** the Controller reports the state-owned unsupported-protocol/recreation action without selecting a playbook
 - **AND** it does not alias, rewrite, or resume that identity as `production-mode-transition`
 

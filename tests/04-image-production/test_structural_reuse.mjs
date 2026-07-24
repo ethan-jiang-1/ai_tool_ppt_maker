@@ -3,7 +3,7 @@ import {
   carryForwardHeaderReview,
   computeStructuralImpact,
   formatSlideLabel,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-iteration/structural/structural_reuse.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/structural_reuse.mjs";
 
 const profile = { model: "gpt-image-2", resolution: "2k", style_reference_sha256: "a".repeat(64) };
 
@@ -44,16 +44,16 @@ describe("structural reuse impact", () => {
     });
   });
 
-  it("reports legacy-located as needs_render and formats discussable labels", () => {
+  it("reports unproven artifacts as needs_render and formats discussable labels", () => {
     const impact = computeStructuralImpact({
       sourcePlan: [plan("UXGap", 1, "Old")],
       targetPlan: [plan("UXGap", 1, "Friction")],
       sourcePrompts: [prompt("UXGap", "same")],
       targetPrompts: [prompt("UXGap", "same")],
-      artifactProofs: { UXGap: { status: "legacy-located" } },
+      artifactProofs: { UXGap: { status: "missing" } },
     });
     expect(impact.needs_render).toEqual(["UXGap"]);
-    expect(impact.review_warnings[0].warning).toMatch(/not reusable/);
+    expect(impact.review_warnings).toEqual([]);
     expect(formatSlideLabel(plan("UXGap", 7, "Friction"))).toBe("07 · UXGap · Friction");
   });
 });

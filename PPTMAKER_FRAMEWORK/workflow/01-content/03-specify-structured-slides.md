@@ -10,7 +10,7 @@ feeds_into:
 
 Each slide heading carries a stable mnemonic ID. Author exact `VISUAL TYPE`, header fields, one `MUST communicate`, optional `MUST NOT`, one exact fenced `SLIDE BODY` YAML document, and optional speaker note.
 
-The structured body starts with `schema_version: 1` and one closed `family`. Use only the family's typed fields. Do not author HTML, CSS, coordinates, overlays, `RENDER MODE`, `IMAGE PROMPT`, or legacy `VISUAL ASSETS` in an HTML-first source.
+The structured body starts with `schema_version: 1` and one closed `family`. Use only the family's typed fields. Do not author HTML, CSS, coordinates, overlays, `RENDER MODE`, `IMAGE PROMPT`, or whole-page-only `VISUAL ASSETS` in an HTML-first source.
 
 Keep visible copy within validator capacities. Use `primary_visual` only where the family supports it; its fallback is a registered asset, icon composition, or abstract pattern. Selection evidence is explicit and stale selection falls back locally.
 

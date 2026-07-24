@@ -3,7 +3,7 @@ title: 00 — 变更分类与最小刷新路径
 stage: workflow/05-iteration
 position: 01 of 05
 type: methodology
-summary: 先按 pipeline、source owner 与失效证据分类，再选择 HTML 本地刷新、结构版本化或 legacy 维护。
+summary: 先按 pipeline、source owner 与失效证据分类，再选择 HTML 本地刷新、whole-page 刷新或结构版本化。
 depends_on:
 - workflow/05-iteration/README.md
 feeds_into:
@@ -18,9 +18,9 @@ agent_action: internalize
 ## 顺序不能反
 
 1. 读取 canonical `production.pipeline`。
-2. 识别 source owner：content、visual system、notes、structure、runtime 或 legacy generated image。
+2. 识别 source owner：content、visual system、notes、structure、runtime 或 whole-page generated image。
 3. 计算失效的 plan/page/review/assembly lineage。
-4. 选择最小路径；只有 legacy remote work 才进入 provider authorization。
+4. 选择最小路径；只有明确的 whole-page remote work 才进入 provider authorization。
 
 ## HTML-first
 
@@ -34,7 +34,7 @@ agent_action: internalize
 
 普通 copy 不重新批准全册 visual system，但必须重新做 schema、font、overflow 与 composition checks。chart numeric shape、asset byte、selection/fallback 或 family recipe 改变时，只让对应 page/coverage stale。
 
-## Explicit whole-page legacy
+## Whole-page Image2
 
 保持 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path。Generated Image Rebuild 是远端成本，必须单独授权。详细 ownership 见 `playbook/create-deck.md`。
 

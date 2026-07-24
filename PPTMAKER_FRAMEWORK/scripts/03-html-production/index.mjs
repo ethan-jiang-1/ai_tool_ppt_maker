@@ -3,9 +3,9 @@ export async function validateHtmlRun(...args) {
   return module.validateHtmlFirstRun(...args);
 }
 
-export async function validateLegacySpecs(...args) {
+export async function validateSlideSpecs(...args) {
   const module = await import("./internal/application.mjs");
-  return module.validateLegacySpecs(...args);
+  return module.validateSlideSpecs(...args);
 }
 
 export async function runStage1Inputs(...args) {
@@ -60,9 +60,9 @@ export async function buildPresentation(runDir, options = {}) {
   return module.buildPresentation(runDir, options);
 }
 
-export async function buildLegacyPresentation(options) {
+export async function assembleWholePagePptx(options) {
   const module = await import("./internal/application.mjs");
-  return module.buildLegacyPresentation(options);
+  return module.assembleWholePagePptx(options);
 }
 
 export async function injectSpeakerNotes(runDir) {
@@ -70,9 +70,9 @@ export async function injectSpeakerNotes(runDir) {
   return module.injectSpeakerNotes(runDir);
 }
 
-export async function injectLegacySpeakerNotes(runDir) {
+export async function injectWholePageSpeakerNotes(runDir) {
   const module = await import("./internal/application.mjs");
-  return module.injectLegacySpeakerNotes(runDir);
+  return module.injectWholePageSpeakerNotes(runDir);
 }
 
 export async function runStage5Cli(...args) {
@@ -106,7 +106,6 @@ export {
 } from "./internal/html_slide_contract.mjs";
 export {
   createCanonicalHtmlValidatedRunContext,
-  createMigrationPreviewHtmlValidatedRunContext,
   composeHtmlVisualSlotCandidate,
   composeReviewOnlyVisualSlotCandidate,
   publishHtmlComposition,

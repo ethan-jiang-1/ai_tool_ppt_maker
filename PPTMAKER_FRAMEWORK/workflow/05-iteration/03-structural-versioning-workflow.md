@@ -4,4 +4,4 @@ Preview insert/delete/move/multi-operation against the current source and exact 
 
 For HTML-first, the receipt reports `needs_local_materialization`. Explicit target-local materialization recomputes fingerprints, copies only verified matching bytes into target-owned objects, locally rebuilds Stage 1-3 review evidence, and stops at `review_required`. Target approvals are mandatory before its Stage 4/5 delivery.
 
-Explicit whole-page legacy retains `needs_render` and separately authorized remote rebuild semantics.
+First-class whole-page Image2 retains `needs_render` and separately authorized remote rebuild semantics.

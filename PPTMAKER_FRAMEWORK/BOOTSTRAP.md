@@ -14,7 +14,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-only   # 跳�
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1   # 按该 version 的权威 mode 选择 profile
 ```
 
-无 selector 默认 common+HTML（Node、Playwright/paired Chromium、bundled Source Sans 3/Noto Sans SC、ECharts 6.1.0 与 HTML runtime smoke）。`image2-only`（或兼容 `--image2`）选择 common+Image2：不加载 HTML runtime，只查 credentials/endpoint/in-framework generator。`html-then-image2` 仍按 common+HTML blocking，Image2 presence 推迟到它的显式 refinement boundary。`--smoke|--probe-vendors` 仍是显式 live 选择，且必须先披露并确认。base 未就绪时先修复环境；`html-only` 是零 provider 本地路径。
+无 selector 默认 common+HTML（Node、Playwright/paired Chromium、bundled Source Sans 3/Noto Sans SC、ECharts 6.1.0 与 HTML runtime smoke）。`image2-only`（或诊断别名 `--image2`）选择 common+Image2：不加载 HTML runtime，只查 credentials/endpoint/in-framework generator。`html-then-image2` 仍按 common+HTML blocking，Image2 presence 推迟到它的显式 refinement boundary。`--smoke|--probe-vendors` 仍是显式 live 选择，且必须先披露并确认。base 未就绪时先修复环境；`html-only` 是零 provider 本地路径。
 
 ## Step 2 — Fresh intake (production mode)
 
@@ -37,9 +37,9 @@ content plan -> visual plan -> approve exact plan hashes
 
 PPTX/notes/final review 当前且 reset ID 相等时，deck 已完成；不要创建 Phase-4 placeholder。
 
-## Step 5 — Iteration and migration
+## Step 5 — Iteration and transition
 
-先按 `production.pipeline` 分类：Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 或 Structural Versioning Path。结构先 preview/hash，再发布 source-only vNext；target-local materialization 只复用匹配 stable-ID bytes，不继承 gate/reset/delivery/node evidence。
+先按 `production.pipeline` 分类：Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 或 Structural Versioning Path。结构先 preview/hash，再发布 source-only vNext；target-local materialization 只复用匹配 stable-ID bytes，不继承 gate/reset/delivery/node evidence。跨 pipeline 页面权限切换只走 state-owned production-mode transition；其 exact plan-hash commit 记录目标 intake 的用户 `proceed` 决定，不是风险 waiver 或 Gate Policy 的 `confirm`。
 
 
 ## Optional Git note
@@ -60,7 +60,7 @@ decline is a complete HTML outcome and creates no refinement state. Credentials
 and live diagnostics are discussed only after this choice; `doctor --image2`
 is an offline presence check and never authorizes production.
 
-## Legacy compatibility
+## Whole-page Image2
 
 Explicit whole-page deck 由 `playbook/create-deck.md` 的 `image2-only` 路径负责；它与现代 Phase 4 visual-slot refinement 互斥。Image2 checks/live probes 只在用户选择相应 remote action 后运行。
 

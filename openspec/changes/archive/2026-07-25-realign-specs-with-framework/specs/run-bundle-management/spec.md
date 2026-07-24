@@ -258,7 +258,7 @@ HTML-production and production-mode-transition topology walks in bundle_layout.m
 - **AND** all other topology rules still run
 
 #### Scenario: Retired scratch is not an allowlist
-- **WHEN** a retired html-migration journal or lock appears in a bundle
+- **WHEN** a retired projected-scratch journal or lock appears in a bundle
 - **THEN** topology reports the ownership violation
 - **AND** it does not recover, hide, or adopt the file
 

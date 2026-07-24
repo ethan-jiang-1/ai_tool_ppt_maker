@@ -44,7 +44,7 @@ hero_statement: One explicit statement
 
 The owned YAML is one closed YAML 1.2 core document. It permits JSON-like mappings, sequences, strings, booleans, null, and finite numbers. It rejects comments, directives/document markers, aliases/anchors/merges, explicit tags, duplicate or unknown keys, unquoted timestamp-like strings, and multiple documents. Put explanatory prose outside the fence.
 
-`TITLE`, optional `KICKER`/`SUBTITLE`, narrative `VISUAL TYPE`, the exact `CONCEPT` bullets `MUST communicate` and `MUST NOT`, and speaker notes remain Markdown-owned. Do not add legacy top-level `render` or per-slide `RENDER MODE`, `IMAGE PROMPT`, or `VISUAL ASSETS` fields to a marked source.
+`TITLE`, optional `KICKER`/`SUBTITLE`, narrative `VISUAL TYPE`, the exact `CONCEPT` bullets `MUST communicate` and `MUST NOT`, and speaker notes remain Markdown-owned. Do not add whole-page-only top-level `render` or per-slide `RENDER MODE`, `IMAGE PROMPT`, or `VISUAL ASSETS` fields to a marked source.
 
 The checked-in example is [the validation fixture](../../tests/fixtures/html-first-v1/source/slide-specifications.md).
 
@@ -55,7 +55,7 @@ HTML-first reads these optional layers by stable asset ID:
 - backbone: `2_backbone/visual-style/assets/asset-manifest.yaml`
 - sparse version override: `3_versions/vN/overrides/visual-style/assets/asset-manifest.yaml`
 
-Both manifests use `version: 2`. A newly initialized legacy bundle contains an empty v1 manifest; before opting in, either convert it to:
+Both manifests use `version: 2`. A newly initialized whole-page bundle contains an empty v1 manifest; before opting in, either convert it to:
 
 ```yaml
 version: 2
@@ -89,6 +89,6 @@ Fallback integrity is always checked first. Valid selected bytes with a differen
 
 `ppt_flow slides` preview validates projected source bytes against the current run's effective palette/catalog/font controls. Apply copies version-owned source/overrides to a hidden staged vNext and validates that real staged run before rename. Preview/apply are remote-free and do not publish `_generated/slide_plan.json`.
 
-HTML-first preview, build, local refresh, notes, and structural materialization remain local and provider-free. Legacy style-master/whole-page generation stays branch-inapplicable, while optional modern visual-slot refinement uses only `ppt_flow image2` after current delivery and exact authorization. Do not remove the marker to route structured source through the legacy prompt pipeline.
+HTML-first preview, build, local refresh, notes, and structural materialization remain local and provider-free. Whole-page Image2 style-master and generation operations belong only to an explicit `whole-page-image2-v1` / `image2-only` run; optional modern visual-slot refinement uses only `ppt_flow image2` after current delivery and exact authorization. Do not remove the marker to route structured source into the whole-page Image2 pipeline.
 
 After a material `VISUAL TYPE`, `MUST communicate`/`MUST NOT`, primary-visual brief, or geometry change, review and re-bind affected selections. After a material global visual-direction change, update the structured `html_first.image_language` tokens and propagate the changed intent into affected slide concept/brief fields where human review says the page contract changed; do not rely on free-form `deck_system.txt` prose to enter fingerprints implicitly.

@@ -413,7 +413,7 @@ describe('stage2_generate_images', () => {
       'utf-8'
     );
 
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
     const result = await generateImages({
       promptJson: prompts,
       outDir,
@@ -434,7 +434,7 @@ describe('stage2_generate_images', () => {
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
       { id: 'b', out: '02_b.png', prompt: 'prompt b' },
     ] }), 'utf-8');
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
 
     mockSyncGeneration();
     const first = await generateImages({
@@ -494,7 +494,7 @@ describe('stage2_generate_images', () => {
     writeFileSync(prompts, JSON.stringify({ slides: [
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
     ] }), 'utf-8');
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
 
     const denied = new Error('authorization missing');
     denied.image2Authorization = { code: 'AUTHORIZATION_MISSING' };
@@ -543,7 +543,7 @@ describe('stage2_generate_images', () => {
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
       { id: 'b', out: '02_b.png', prompt: 'prompt b' },
     ] }), 'utf-8');
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
 
     mockSyncGeneration();
     await generateImages({
@@ -576,7 +576,7 @@ describe('stage2_generate_images', () => {
     writeFileSync(prompts, JSON.stringify({ slides: [
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
     ] }), 'utf-8');
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
     mockSyncGeneration();
     await generateImages({
       promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
@@ -610,7 +610,7 @@ describe('stage2_generate_images', () => {
     writeFileSync(prompts, JSON.stringify({ slides: [
       { id: 'a', out: '01_a.png', prompt: 'prompt a' },
     ] }), 'utf-8');
-    const { generateLegacyImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { generateWholePageImages: generateImages } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
     mockSyncGeneration();
     await generateImages({
       promptJson: prompts, outDir, styleReference: style, only: ['a'], force: true,
@@ -630,7 +630,7 @@ describe('stage2_generate_images', () => {
     expect(failed.errors).toHaveLength(1);
     expect(failed.failures[0]).toMatchObject({
       slideId: 'a',
-      outPath: join(outDir, '01_a.png'),
+      outPath: join(outDir, 'a.png'),
       category: 'provider',
       reason: { kind: 'all_vendors_failed' },
     });
@@ -658,7 +658,7 @@ describe('stage2_generate_images', () => {
     const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
     expect(envelope.diagnostic).toMatchObject({ category: 'source_validation', stage: 'stage2' });
     expect(envelope.diagnostic.issues.map((issue) => issue.subject.id)).toEqual(['a', 'b']);
-    expect(envelope.diagnostic.issues[0].lineage.at(-1).path).toBe(join(outDir, '01_a.png'));
+    expect(envelope.diagnostic.issues[0].lineage.at(-1).path).toBe(join(outDir, 'a.png'));
   });
 });
 
@@ -684,7 +684,7 @@ describe('image provenance fingerprints', () => {
       const entry = buildImageManifestEntry({
         slideId: 'a', output: 'a.png', prompt: 'p', profile: base, imagePath,
       });
-      const manifest = { version: 1, slides: { a: entry } };
+      const manifest = { version: 2, pipeline: 'whole-page-image2-v1', slides: { a: entry } };
       expect(inspectImageProvenance({
         slide: { id: 'a', out: 'a.png', prompt: 'p' }, outDir: dir, manifest, profile: base,
       }).current).toBe(true);
@@ -721,22 +721,22 @@ describe('make_contact_sheet', () => {
   it('tiles PNGs into a JPEG contact sheet', async () => {
     const imgDir = join(dir, 'images');
     mkdirSync(imgDir, { recursive: true });
-    tinyPng(join(imgDir, '01_a.png'));
-    tinyPng(join(imgDir, '02_b.png'));
+    tinyPng(join(imgDir, 'a.png'));
+    tinyPng(join(imgDir, 'b.png'));
     const prompts = join(dir, '_prompts.json');
     writeFileSync(
       prompts,
       JSON.stringify({
         slides: [
-          { id: 'a', out: '01_a.png', prompt: 'a' },
-          { id: 'b', out: '02_b.png', prompt: 'b' },
+          { id: 'a', out: 'a.png', prompt: 'a' },
+          { id: 'b', out: 'b.png', prompt: 'b' },
         ],
       }),
       'utf-8'
     );
     const out = join(dir, 'sheet.jpg');
-    const { buildLegacyContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
-    const result = await buildLegacyContactSheet({
+    const { buildWholePageContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
+    const result = await buildWholePageContactSheet({
       imageDir: imgDir,
       promptJson: prompts,
       out,
@@ -752,18 +752,18 @@ describe('make_contact_sheet', () => {
   it('aggregates missing and invalid slide images without writing a partial sheet', async () => {
     const imgDir = join(dir, 'images');
     mkdirSync(imgDir, { recursive: true });
-    writeFileSync(join(imgDir, '01_a.png'), 'not an image');
+    writeFileSync(join(imgDir, 'a.png'), 'not an image');
     const prompts = join(dir, '_prompts.json');
     writeFileSync(prompts, JSON.stringify({ slides: [
-      { id: 'a', out: '01_a.png', prompt: 'a' },
-      { id: 'b', out: '02_b.png', prompt: 'b' },
+      { id: 'a', out: 'a.png', prompt: 'a' },
+      { id: 'b', out: 'b.png', prompt: 'b' },
     ] }), 'utf8');
     const out = join(dir, 'sheet.jpg');
-    const { buildLegacyContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs');
+    const { buildWholePageContactSheet } = await import('../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs');
     const { diagnosticFromError } = await import('../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs');
     let error;
     try {
-      await buildLegacyContactSheet({ imageDir: imgDir, promptJson: prompts, out, columns: 2 });
+      await buildWholePageContactSheet({ imageDir: imgDir, promptJson: prompts, out, columns: 2 });
     } catch (caught) {
       error = caught;
     }

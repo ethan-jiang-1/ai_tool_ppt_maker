@@ -1,4 +1,4 @@
-export async function validateLegacySpecs(...args) {
+export async function validateSlideSpecs(...args) {
   const module = await import("./stage1_inputs.mjs");
   return module.validateSpecs(...args);
 }
@@ -50,9 +50,9 @@ export async function buildPresentation(runDir, options = {}) {
   return module.buildPptxFromHtmlRunDir(runDir, options.title);
 }
 
-export async function buildLegacyPresentation(options) {
+export async function assembleWholePagePptx(options) {
   const module = await import("./pptx_assembly.mjs");
-  return module.buildPptx(options);
+  return module.assembleWholePagePptx(options);
 }
 
 export async function injectSpeakerNotes(runDir) {
@@ -60,7 +60,7 @@ export async function injectSpeakerNotes(runDir) {
   return module.injectHtmlNotesFromRunDir(runDir);
 }
 
-export async function injectLegacySpeakerNotes(runDir) {
+export async function injectWholePageSpeakerNotes(runDir) {
   const module = await import("./notes_injection.mjs");
   return module.injectNotesFromRunDir(runDir);
 }

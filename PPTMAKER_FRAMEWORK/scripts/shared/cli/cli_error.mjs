@@ -379,7 +379,7 @@ function defaultDiagnosticForCode(code) {
       next: {
         action: "repair_prerequisite",
         requires_human: false,
-        default: "Repair or recreate the state prerequisite, then rerun.",
+        default: "Preserve unsupported state bytes and run fresh explicit ppt_flow init; repair the named current prerequisite before rerunning.",
       },
     };
   }

@@ -315,7 +315,7 @@ entry: []
 exit: [evidence:image2-deck-delivered]
 ```
 
-**Step 1 — MD**: Deliver the current PPTX/version and normal whole-page iteration routes; do not redirect a first-class run to compatibility maintenance.
+**Step 1 — MD**: Deliver the current PPTX/version and normal whole-page Image2 iteration routes through this `create-deck` controller.
 
 ### preview-content
 

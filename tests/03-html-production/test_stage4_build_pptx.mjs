@@ -7,16 +7,14 @@ import { diagnosticFromError } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli
 import { createCanvas } from '@napi-rs/canvas';
 import { sha256File } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs';
 import { createHtmlFirstRun } from '../helpers/html_first_fixture.mjs';
-import { buildLegacyPresentation, buildPresentation } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs';
-import { resolveLegacyFinalSlides } from '../../PPTMAKER_FRAMEWORK/scripts/05-iteration/index.mjs';
+import { buildPresentation } from '../../PPTMAKER_FRAMEWORK/scripts/03-html-production/index.mjs';
+import { buildWholePagePresentation } from '../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/index.mjs';
 
 const S4 = 'PPTMAKER_FRAMEWORK/scripts/03-html-production/stage4_build_pptx.mjs';
 
-async function buildLegacy(options) {
-  const plan = JSON.parse(readFileSync(options.slidePlan, 'utf8'));
+async function buildWholePage(options) {
   const runDir = join(options.images, '..', '..');
-  const legacySlides = await resolveLegacyFinalSlides({ runDir, directory: options.images, slides: plan.slides || [] });
-  return buildLegacyPresentation({ ...options, legacySlides });
+  return buildWholePagePresentation({ ...options, runDir });
 }
 
 describe('stage4_build_pptx', () => {
@@ -30,20 +28,22 @@ describe('stage4_build_pptx', () => {
 
   it('retains per-slide missing image evidence at the PPTX boundary', async () => {
     const root = join(tmpdir(), `stage4-diagnostic-${Date.now()}`);
-    const images = join(root, 'images');
-    const plan = join(root, 'slide_plan.json');
-    const out = join(root, 'deck.pptx');
+    const generated = join(root, '_generated');
+    const images = join(generated, 'header_locked');
+    const plan = join(generated, 'slide_plan.json');
+    const out = join(generated, 'ppt', 'deck.pptx');
     try {
       mkdirSync(images, { recursive: true });
+      writeFileSync(join(root, 'slide-specifications.md'), '---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n', 'utf8');
       writeFileSync(plan, JSON.stringify({ slides: [{ id: 's1' }, { id: 's2' }] }), 'utf8');
       let error;
       try {
-        await buildLegacy({ images, slidePlan: plan, out });
+        await buildWholePage({ images, slidePlan: plan, out });
       } catch (caught) {
         error = caught;
       }
       expect(diagnosticFromError(error).issues.map((issue) => issue.subject.id)).toEqual(['s1', 's2']);
-      const result = spawnSync('node', [S4, '--images', images, '--slide-plan', plan, '--out', out], { encoding: 'utf8', timeout: 10000 });
+      const result = spawnSync('node', [S4, '--run-dir', root], { encoding: 'utf8', timeout: 10000 });
       expect(result.status).toBe(1);
       const envelope = JSON.parse(result.stderr.trim().split(/\r?\n/).at(-1));
       expect(envelope.diagnostic).toMatchObject({ category: 'artifact', stage: 'stage4', operation: 'resolve-images' });
@@ -79,12 +79,12 @@ describe('stage4_build_pptx', () => {
           profile: { render_mode: 'full-page' },
         };
       }
-      writeFileSync(join(images, '_manifest.json'), JSON.stringify({ version: 1, entries }), 'utf8');
+      writeFileSync(join(images, '_manifest.json'), JSON.stringify({ version: 2, pipeline: 'whole-page-image2-v1', entries }), 'utf8');
       writeFileSync(plan, JSON.stringify({ slides: [
         { id: 'AICost', slide_id: 'AICost', position: 1 },
         { id: 'UXGap', slide_id: 'UXGap', position: 2 },
       ] }), 'utf8');
-      const result = await buildLegacy({ images, slidePlan: plan, out });
+      const result = await buildWholePage({ images, slidePlan: plan, out });
 
       expect(result.slideCount).toBe(2);
       expect(existsSync(out)).toBe(true);
@@ -99,17 +99,17 @@ describe('stage4_build_pptx', () => {
     }
   });
 
-  it('refuses legacy-located final bytes and leaves no assembly receipt', async () => {
-    const root = join(tmpdir(), `stage4-legacy-${Date.now()}`);
+  it('refuses an unproven historical final filename and leaves no assembly receipt', async () => {
+    const root = join(tmpdir(), `stage4-unproven-${Date.now()}`);
     const generated = join(root, '_generated');
     const images = join(generated, 'header_locked');
     const plan = join(generated, 'slide_plan.json');
     const out = join(generated, 'ppt', 'deck.pptx');
     try {
       mkdirSync(images, { recursive: true });
-      writeFileSync(join(images, '07_s07_problem.png'), 'legacy final');
+      writeFileSync(join(images, '07_s07_problem.png'), 'unproven final');
       writeFileSync(plan, JSON.stringify({ slides: [{ id: 's07_problem' }] }), 'utf8');
-      await expect(buildLegacy({ images, slidePlan: plan, out })).rejects.toThrow(/legacy-located/i);
+      await expect(buildWholePage({ images, slidePlan: plan, out })).rejects.toThrow(/current verified final-slide/i);
       expect(existsSync(join(generated, 'qa', 'pptx_assembly.json'))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -161,14 +161,12 @@ describe('stage4_build_pptx', () => {
     }
   }, 60_000);
 
-  it('rejects legacy artifact flags when the slide plan belongs to HTML-first', () => {
+  it('does not expose direct artifact flags', () => {
     const fixture = createHtmlFirstRun('stage4-html-artifact-mode-');
     try {
-      const out = join(fixture.runDir, '_generated', 'ppt', 'bypass.pptx');
-      const result = spawnSync('node', [S4, '--images', join(fixture.runDir, '_generated', 'header_locked'), '--slide-plan', join(fixture.runDir, '_generated', 'slide_plan.json'), '--out', out], { encoding: 'utf8' });
+      const result = spawnSync('node', [S4, '--images', join(fixture.runDir, '_generated', 'header_locked')], { encoding: 'utf8' });
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('legacy artifact mode cannot target an HTML-first run');
-      expect(existsSync(out)).toBe(false);
+      expect(result.stderr).toContain('"code":"FAILED"');
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

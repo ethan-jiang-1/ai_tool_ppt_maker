@@ -44,7 +44,7 @@ HTML-first 的唯一页面源是 `slide-specifications.md` 中的稳定 `slide_i
 
 `_generated/html_production/` 保存本地 HTML page、verified final slide、review plan/contact sheet 与 current manifest；`_generated/qa/` 保存 assembly/notes lineage。它们都是管线所有的派生物，绝不手改。普通 HTML create/preview/build 不创建 Image2 candidate、authorization、style master 或 refinement 目录。
 
-Explicit whole-page 历史 deck 仍是 `whole-page-image2-v1`，沿独立兼容路径维护；不能因为打开了新 framework 就补 marker 或搬运 HTML evidence。
+`image2-only` run 使用显式 `whole-page-image2-v1`，沿 `create-deck` 的正常 whole-page 路径维护；不能从 HTML evidence 推断或搬运其 source/state。
 
 ## 生命周期
 
@@ -53,8 +53,8 @@ Phase 0  setup and local readiness
 Phase 1  structured content and family selection
 Phase 2  renderer-neutral visual system and real local preview
 Phase 3  local HTML Stage 1-5, contact sheet, PPTX, notes, final review
-Phase 4  optional authorized Image2 visual-slot refinement after HTML delivery
-Phase 5  local iteration or explicit legacy maintenance
+Phase 4  first-class whole-page Image2 and optional authorized visual-slot refinement
+Phase 5  local iteration and structural versioning
 ```
 
 Phase 3 已产生完整交付物。Phase 4 不是完成条件；只有用户明确选择并授权时才进入 `image2-refine` controller。
@@ -64,7 +64,7 @@ Phase 3 已产生完整交付物。Phase 4 不是完成条件；只有用户明�
 - 先用 `ppt_flow state <run-dir>` 查看 durable workflow state、review freshness 与下一步；不要用聊天记忆代替磁盘状态。
 - `slide_id` 是跨版本身份，`position` 只属于当前快照。
 - 结构编辑先 preview，再以 exact plan hash 发布 clean vNext；source publication 不渲染。
-- HTML target 后续显式本地 materialize，报告 `needs_local_materialization`；legacy 才报告需要远端授权的 `needs_render`。
+- HTML target 后续显式本地 materialize，报告 `needs_local_materialization`；whole-page target 报告 `needs_render`，并等待独立远端授权。
 - Git 是用户可选的 source/control 审计，不替代 `vN`，也不恢复 `_generated/`。
 
 ## 常用入口

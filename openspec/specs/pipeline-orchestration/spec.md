@@ -1,87 +1,105 @@
 ## Purpose
 
-Define marker-first orchestration through `scripts/03-html-production/unified_pipeline.mjs` on the checked-in supported Node runtime. It delegates HTML delivery to Phase 3 and whole-page Image Production to the public Phase-4 adapter, while Phase 5 retains explicit whole-page compatibility routing and targeted iteration paths.
+Define marker-first orchestration through `scripts/03-html-production/unified_pipeline.mjs` on the checked-in supported Node runtime. It delegates HTML delivery to Phase 3 and whole-page Image Production to the public Phase-4 adapter; Phase 5 retains only targeted iteration and structural-routing support.
 ## Requirements
 ### Requirement: One production policy dispatches every normal adapter operation
-
-Public orchestration SHALL consume one shared production policy resolved from the exact run version.
-For each mode it SHALL return the canonical pipeline, final page authority, refinement policy, and
+Public orchestration SHALL consume one shared production policy for the exact run version. For each
+durable mode it SHALL return the canonical source pipeline, final-page authority, refinement policy, and
 style-master policy: `html-only` maps to `html-first-v1`/HTML/disabled/reserved-HTML-adapter;
-`html-then-image2` maps to `html-first-v1`/HTML/required/reserved-HTML-adapter; and `image2-only` maps to
-`whole-page-image2-v1`/whole-page Image2/not-applicable/current. Command routers, playbook validation,
-init, and status SHALL not maintain independent mode tables.
+`html-then-image2` maps to `html-first-v1`/HTML/required/reserved-HTML-adapter; and `image2-only` maps
+to `whole-page-image2-v1`/whole-page Image2/not-applicable/current. Command routers, playbook
+validation, init, and status SHALL not maintain independent mode tables.
 
-`whole-page-image2-v1` in the policy is the normalized name for the canonical explicit whole-page branch; the
-evaluator SHALL NOT require or write that value as source frontmatter. `html-only`'s disabled refinement
-policy forbids new modern `image2 *` lifecycle operations while retaining previously attributable
-refinement/source work for a later switch back to `html-then-image2`.
+The source parser SHALL require the direct scalar `production.pipeline` value declared by that policy.
+The only supported pairs are `html-first-v1` with `html-only|html-then-image2` and
+`whole-page-image2-v1` with `image2-only`. Missing, indirect, retired, malformed, unknown, or
+state-inconsistent facts SHALL stop before branch-specific readiness, journal handling, or writes and
+return the state owner's one bounded typed next action. No fallback chain may select an adapter from
+generated artifacts, directory shape, Controller history, or whichever readiness check succeeds.
 
-The evaluator SHALL validate state mode before source marker and shall stop at the first failed
-authority/identity prerequisite. After a consistent policy is established, validate, pilot, gate,
-build, refresh, and status SHALL delegate to the existing isolated adapter; no fallback chain SHALL
-select an adapter from generated artifacts or from whichever readiness check succeeds.
-For a first-class whole-page flow, orchestration SHALL determine whether the selected operation will
-actually submit provider work before transport initialization; a submit requires the current
-Controller-owned scoped authorization, while a proven zero-submit reuse/local path does not.
+After a consistent policy is established, validate, pilot, gate, build, refresh, and status SHALL
+delegate to the existing isolated adapter. For a whole-page operation, orchestration SHALL determine
+whether the selected operation will actually submit provider work before transport initialization; a
+submit requires current Controller-owned scoped authorization, while a proven zero-submit reuse or local
+path does not.
 
 #### Scenario: HTML-then-Image2 selects HTML composition
-
 - **WHEN** orchestration inspects a consistent `html-then-image2` run
 - **THEN** normal production delegates to HTML and reports required modern refinement as completion policy
 - **AND** whole-page Image2 is not selected
 
 #### Scenario: Image2-only selects whole-page generation
-
 - **WHEN** orchestration inspects a consistent `image2-only` run
-- **THEN** pilot/build/refresh delegate to the whole-page adapter and preserve its gates/provenance
+- **THEN** pilot, build, and refresh delegate to the whole-page adapter and preserve its gates and provenance
 
 #### Scenario: Generated files suggest another adapter
-
 - **WHEN** stale HTML artifacts coexist with an authoritative consistent `image2-only` run
 - **THEN** orchestration ignores them as routing authority
 - **AND** it does not try the HTML adapter as fallback
 
-### Requirement: Pipeline runs on Node.js runtime
+#### Scenario: Historical record lacks current identity
+- **WHEN** a run cannot establish the explicit marker and durable mode pair
+- **THEN** orchestration returns the one owner-issued typed next action before adapter selection
+- **AND** it does not write an inferred mode or create a continuation
 
-整个生产管线 SHALL 在 checked-in runtime profile 支持的 Node.js major (`22.x`、`24.x` 或 `26.x`) 上执行；`package.json` 的 `>=22` 只表达 engine floor，不自动支持 23/25 等未列出的 major. 所有脚本 SHALL 以 ESM (`.mjs`) 编写, `node script.mjs` 直接运行, 无需编译. 需要本地 HTML runtime 的调用 SHALL 消费 `html-render-runtime` 拥有的 exact Playwright/Chromium/font profile，而不得自行选择 system browser；legacy Image2 stages SHALL 继续使用其现有 Node adapter.
+### Requirement: Pipeline runs on Node.js runtime
+The production pipeline SHALL run on checked-in supported Node.js majors (`22.x`, `24.x`, or `26.x`);
+`package.json`'s `>=22` expresses an engine floor and does not automatically support unlisted majors.
+All production scripts SHALL be ESM (`.mjs`) runnable through `node script.mjs` without compilation. A
+local HTML runtime SHALL consume the exact Playwright/Chromium/font profile owned by
+`html-render-runtime`, not a caller-selected system browser. Current whole-page Image2 stages SHALL use
+the public Node adapter under `04-image-production/whole-page`; no retired Phase-5 bridge is part of the
+production path.
 
 #### Scenario: Agent runs pipeline on Windows
-
-- **WHEN** Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on supported Windows with Node.js 22 and the selected pipeline's prerequisites
-- **THEN** all selected production stages complete successfully, producing a `.pptx` file
+- **WHEN** an Agent runs `node scripts/ppt_flow.mjs build <run_dir>` on supported Windows with Node.js 22 and selected-pipeline prerequisites
+- **THEN** selected production stages complete successfully and produce a `.pptx` file
 
 #### Scenario: Node 20 is below the repository baseline
-
-- **WHEN** Agent attempts to run the production pipeline on Node.js 20
+- **WHEN** an Agent attempts to run the production pipeline on Node.js 20
 - **THEN** the environment gate reports the unsupported runtime before production work proceeds
 
 ### Requirement: Unified pipeline supports semantic refresh paths
-
-`unified_pipeline.mjs` SHALL classify the canonical production marker before resolving semantic refresh behavior. For `html-first-v1`, it SHALL support Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and the post-publication materialization portion of Structural Versioning using local structured plan/HTML/composition/delivery ownership; it SHALL not consult render mode, style master, `--force-images`, or provider authorization. For explicit whole-page legacy, Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, force semantics, reviewed-image reuse, and former Chain aliases SHALL remain compatible. Structural Versioning Path remains outer to both branch-specific refresh sets and SHALL not become a CLI enum.
+`unified_pipeline.mjs` SHALL verify the current production-mode/source-marker pair before resolving
+semantic refresh behavior. For `html-first-v1`, it SHALL support Local Slide Rebuild, Local Deck
+Rebuild, Notes-Only Refresh, and post-publication Structural Versioning materialization using local
+structured-plan, HTML, composition, and delivery ownership; it SHALL not consult render mode, style
+master, `--force-images`, or provider authorization. For `whole-page-image2-v1`, it SHALL support Header
+Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, force semantics, and reviewed-image
+reuse through the normal current adapter. Structural Versioning Path remains outside both branch-specific
+refresh sets and SHALL not become a CLI enum. Unsupported historical protocols SHALL not receive any
+refresh projection or inferred force/reuse behavior.
 
 #### Scenario: HTML visible copy changes
+- **WHEN** one marked slide's header or body copy changes
+- **THEN** Local Slide Rebuild runs local affected composition and delivery with no provider path
 
-- **WHEN** one marked slide's header/body copy changes
-- **THEN** Local Slide Rebuild runs local affected composition/delivery and no provider path
+#### Scenario: Current whole-page raw image must regenerate
+- **WHEN** a selected `whole-page-image2-v1` image is intentionally rebuilt
+- **THEN** existing `--only` scope and `--force-images` semantics apply through its current authorization boundary
 
-#### Scenario: Legacy raw image must regenerate
-
-- **WHEN** a explicit whole-page selected image is intentionally rebuilt
-- **THEN** existing `--only` scope plus `--force-images` semantics remain
+#### Scenario: Historical source requests refresh
+- **WHEN** the current pair cannot be established for a whole-page refresh
+- **THEN** the operation stops with the one owner-issued typed next action before artifact reuse or provider setup
 
 ### Requirement: Unified pipeline orchestrates stages
-
-`unified_pipeline.mjs` SHALL probe the canonical marker and delegate each stage to the selected complete branch adapter. It SHALL support shared `--dry-run` and slide selection without embedding stage implementations. The HTML adapter SHALL use structured Stage 1, HTML page Stage 2, local compositor Stage 3, common final-slide Stage 4, and Stage 5 notes without loading `.env`, provider credentials, style master, or legacy generator/contact-sheet code. The explicit whole-page adapter SHALL retain `.env`/Image2 Stage 2, legacy contact sheet, header-lock Stage 3, and existing relevant `--force-images` behavior. Dry-run SHALL describe only the selected branch and remain write/remote-free.
+`unified_pipeline.mjs` SHALL verify the canonical marker and durable mode, then delegate each stage to
+the selected complete branch adapter. It SHALL support shared `--dry-run` and slide selection without
+embedding stage implementations. The HTML adapter SHALL use structured Stage 1, HTML page Stage 2, local
+compositor Stage 3, common final-slide Stage 4, and Stage 5 notes without loading `.env`, provider
+credentials, style master, or whole-page generator/contact-sheet code. The current whole-page adapter
+SHALL use its Image2 Stage 2, current contact-sheet owner, header-lock Stage 3, and relevant
+`--force-images` behavior from `04-image-production/whole-page`. Dry-run SHALL describe only the
+selected branch and remain write- and remote-free. A retired marker or missing mode SHALL fail before a
+stage adapter is loaded.
 
 #### Scenario: HTML dry run is credential-free
-
-- **WHEN** a marked run invokes any dry-run stage selection
+- **WHEN** a marked HTML run invokes any dry-run stage selection
 - **THEN** the plan names only local HTML stages and does not load Image2 environment configuration
 
-#### Scenario: Legacy Stage 2 delegates in-framework
-
-- **WHEN** a explicit whole-page run selects Stage 2
-- **THEN** orchestration retains `stage2_generate_images.mjs` plus legacy `make_contact_sheet.mjs` ownership
+#### Scenario: Whole-page Stage 2 delegates in-framework
+- **WHEN** a consistent `whole-page-image2-v1` run selects Stage 2
+- **THEN** orchestration delegates to the current whole-page generation and contact-sheet owners
 
 ### Requirement: Refinement recomposes through public local HTML operations
 
@@ -118,228 +136,197 @@ Refinement SHALL call a public Phase-3 review-only composition operation to crea
 - **AND** no pipeline stage runs for an inferred selection
 
 ### Requirement: --preview uses preview readiness for Stage 2
-
-When Stage 2 is selected, orchestration SHALL resolve mode and verify pipeline before readiness. HTML
-preview SHALL require valid structure/source/catalog/local runtime but no whole-page style master or
-approved gates, publish review-only page/final-slide/preview evidence, and not publish Stage 4. HTML
-non-preview delivery requires current authoritative HTML content/visual evidence. First-class
-`image2-only` and historical explicit whole-page preview SHALL retain structure plus style master without
-content/visual gate approval; non-preview whole-page Stage 2 retains pipeline readiness. Preview SHALL
-not waive or mutate either adapter's gates, and any actual first-class submit separately requires scoped
-provider authorization.
+When Stage 2 is selected, orchestration SHALL resolve the current mode and verify its explicit pipeline
+before readiness. HTML preview SHALL require valid structure, source, catalog, and local runtime but no
+whole-page style master or approved gates; it publishes review-only page/final-slide/preview evidence and
+does not publish Stage 4. HTML non-preview delivery requires current authoritative HTML content/visual
+evidence. `image2-only` preview SHALL require structure plus current style master without content/visual
+gate approval; non-preview whole-page Stage 2 retains pipeline readiness. Preview SHALL not waive or
+mutate gates, and any actual whole-page submission separately requires scoped provider authorization. A
+historical protocol cannot obtain preview readiness through a fallback.
 
 #### Scenario: HTML Stage 2 preview runs with pending gates
-
 - **WHEN** a valid HTML-mode run selects Stage 2 with `--preview`
 - **THEN** local review composition proceeds without whole-page style master or metadata approval
 
-#### Scenario: Legacy preview remains compatible
-
-- **WHEN** a historical explicit whole-page run has style master and pending metadata gates
-- **THEN** Stage 2 with `--preview` may proceed while non-preview remains blocked
-
-#### Scenario: Image2-primary preview retains whole-page readiness
-
-- **WHEN** `image2-only` selects Stage 2 preview
+#### Scenario: Current whole-page preview retains readiness
+- **WHEN** an `image2-only` run selects Stage 2 preview
 - **THEN** it uses whole-page preview readiness and requires provider authorization only if submission is needed
 
+#### Scenario: Unsupported record asks for a preview
+- **WHEN** the source and state cannot establish a current pipeline pair
+- **THEN** preview returns the bounded owner action without creating review artifacts or loading a provider adapter
+
 ### Requirement: Stage 2 regenerates only when --force-images is set
+For `image2-only` with `whole-page-image2-v1`, current images SHALL be skipped unless
+`--force-images` is set; `--only` remains scope, not force. A regeneration submit must remain within
+current authorization. For both HTML modes, `--force-images` SHALL be rejected before writes and
+currentness SHALL be decided by validated composition receipts/fingerprints and explicit slide scope;
+stale or missing selected pages rebuild locally and current matching pages reuse without force. No
+unsupported historical protocol may obtain the whole-page force path.
 
-For first-class `image2-only` and historical explicit whole-page compatibility, existing images SHALL be skipped
-unless `--force-images` is set; `--only` remains scope, not force. A first-class regeneration submit
-must remain within current authorization. For both HTML modes, `--force-images` SHALL be rejected before
-writes and currentness SHALL be decided by validated composition receipts/fingerprints and explicit
-slide scope; stale/missing selected pages rebuild locally and current matching pages reuse without force.
-
-#### Scenario: Legacy only without force skips
-
-- **WHEN** historical explicit whole-page Stage 2 receives `--only` for an existing current image without force
-- **THEN** it skips provider generation
+#### Scenario: Current whole-page pilot skips existing images by default
+- **WHEN** current whole-page pilot images exist and pilot runs without `--force-images`
+- **THEN** Stage 2 skips those current files
 
 #### Scenario: HTML Stage 2 receives force-images
-
 - **WHEN** an HTML-mode run supplies `--force-images`
 - **THEN** the branch rejects the whole-page-only option before publication
 
 #### Scenario: Image2-primary force remains scoped
-
 - **WHEN** `image2-only` Stage 2 will regenerate selected IDs with force
-- **THEN** transport begins only if those IDs/profile/count match current authorization
+- **THEN** transport begins only if those IDs, profile, and count match current authorization
 
 ### Requirement: Automatic pilot selection covers content full-page header risk
-
-Automatic pilot selection SHALL be mode/pipeline-specific and deterministic. For first-class
-`image2-only` and historical explicit whole-page compatibility it SHALL retain VISUAL TYPE canonicalization,
-content full-page sampling counts, opener/closer coverage, deduplication, and exact explicit `--only`.
-For either HTML mode it SHALL sort canonical component-recipe hashes and choose the code-unit-smallest
-current stable ID per key plus stale affected pages; reorder alone does not change representatives.
-Every HTML representative shows effective output plus forced fallback when current selection hides it.
-Explicit `--only` remains authoritative, but incomplete scoped review remains non-approvable and reports
-uncovered evidence rather than silently adding IDs.
+Automatic pilot selection SHALL be mode- and pipeline-specific and deterministic. For `image2-only`
+with `whole-page-image2-v1`, it SHALL retain VISUAL TYPE canonicalization, content full-page sampling
+counts, opener/closer coverage, deduplication, and exact explicit `--only`. For either HTML mode it
+SHALL sort canonical component-recipe hashes and choose the code-unit-smallest current stable ID per key
+plus stale affected pages; reorder alone does not change representatives. Every HTML representative shows
+effective output plus forced fallback when current selection hides it. Explicit `--only` remains
+authoritative, but incomplete scoped review remains non-approvable and reports uncovered evidence rather
+than silently adding IDs. Missing or retired whole-page identity SHALL not be treated as a sampling
+variant.
 
 #### Scenario: HTML automatic preview covers new geometry
-
-- **WHEN** a marked HTML plan introduces an uncovered family/geometry key
+- **WHEN** a marked HTML plan introduces an uncovered family or geometry key
 - **THEN** automatic preview includes a deterministic representative before visual approval
 
-#### Scenario: Legacy content full-page sampling remains
+#### Scenario: Current whole-page sampling remains whole-page
+- **WHEN** a current `image2-only` deck has at least two content full-page slides and default pilot runs
+- **THEN** the existing two-page content-risk sampling remains
 
-- **WHEN** a historical explicit whole-page deck has at least two content full-page slides and default pilot runs
-- **THEN** existing two-page content-risk sampling remains
-
-#### Scenario: Image2-primary sampling remains whole-page
-
+#### Scenario: Image2-primary sampling avoids HTML inference
 - **WHEN** default `image2-only` pilot selects representatives
-- **THEN** it uses the existing whole-page sampling algorithm without HTML recipe inference
+- **THEN** it uses the whole-page sampling algorithm without HTML recipe inference
 
 ### Requirement: Header review gate guides per-slide
+The header-review gate SHALL be `whole-page-image2-v1`-only. It SHALL retain per-slide full-page header
+fingerprints, `--only` scope, generation-profile/image-byte checks, actionable pilot commands, and
+pure-full-page applicability for a current `image2-only` run. Both HTML modes SHALL reject it before
+state mutation and route to HTML content/visual review; HTML title/visual changes can never be authorized
+by `header-review`. A missing or retired whole-page protocol SHALL not inherit header-review evidence.
 
-The header-review gate SHALL be whole-page-Image2-only and applies to first-class `image2-only` plus
-historical explicit whole-page compatibility. It SHALL retain per-slide full-page header fingerprints, `--only`
-scope, generation-profile/image-byte checks, actionable pilot commands, and pure-full-page applicability.
-Both HTML modes SHALL reject it before state mutation and route to HTML content/visual review; HTML
-title/visual changes can never be authorized by `header-review`.
-
-#### Scenario: Legacy reviewed title bytes drift
-
-- **WHEN** a historical explicit whole-page reviewed full-page PNG no longer matches its manifest
-- **THEN** header review identifies the affected ID and existing force/review action
+#### Scenario: Current reviewed title bytes drift
+- **WHEN** a current whole-page reviewed full-page PNG no longer matches its manifest
+- **THEN** header review identifies the affected ID and current force/review action
 
 #### Scenario: HTML run invokes header gate
-
 - **WHEN** an HTML-mode run requests whole-page header review
 - **THEN** it fails with the HTML visual-review route and writes no whole-page evidence
 
 #### Scenario: Image2-primary header gate stays first class
-
 - **WHEN** `image2-only` has stale full-page title bytes
-- **THEN** the same per-slide gate returns its normal pilot/review action without compatibility routing
+- **THEN** the per-slide gate returns its normal pilot/review action without a compatibility route
 
 ### Requirement: Gate output is MD-controller-friendly
+Whole-page header-gate output SHALL retain its exact six-field format for current
+`whole-page-image2-v1` callers. HTML content/visual planning SHALL retain its separate versioned schema
+with exact pipeline/run version, evidence kind, review-plan hash, status, bounded changed IDs or
+dependencies, and structured human next action. Both schemas remain bounded, deterministic, and
+adapter-labeled; neither controller parses prose, accepts cross-pipeline evidence, or translates an old
+whole-page record into a current response.
 
-Whole-page header-gate output SHALL retain the exact six-field format and compatibility for old callers,
-whether owned by first-class `image2-only` or historical maintenance. HTML content/visual planning SHALL
-retain its separate versioned schema with exact pipeline/run version, evidence kind, review-plan hash,
-status, bounded changed IDs/dependencies, and structured human next action. Both schemas remain bounded,
-deterministic, and adapter-labeled; neither controller parses prose or accepts cross-pipeline evidence.
-
-#### Scenario: Legacy header gate passes
-
-- **WHEN** no historical explicit whole-page slide needs header review
-- **THEN** the existing `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}` remains valid
+#### Scenario: Current header gate passes
+- **WHEN** no current whole-page slide needs header review
+- **THEN** it emits `{format: 2, applicable: true, ok: true, changed: [], action: null, hint: null}`
 
 #### Scenario: HTML review plan is emitted
-
 - **WHEN** HTML content or visual evidence is stale
 - **THEN** output identifies the HTML review schema/hash and cannot be consumed as header approval
 
 #### Scenario: Image2-primary gate keeps the stable shape
-
 - **WHEN** first-class whole-page header review passes
-- **THEN** it emits the same six-field schema rather than inventing a new first-class format
+- **THEN** it emits the same six-field schema rather than inventing a separate format
 
 ### Requirement: buildHeaderReviewInputs produces per-slide fingerprints
+`buildHeaderReviewInputs()` SHALL remain a current whole-page Image2 helper. It computes each full-page
+header fingerprint and `hasBodyHeaderLockSlides` only for a consistent `image2-only` /
+`whole-page-image2-v1` run; it rejects or remains unreachable for both HTML modes. HTML review continues
+to use its owning content, visual, and page-dependency fingerprints instead of extending this helper.
 
-`buildHeaderReviewInputs()` SHALL remain a whole-page Image2 helper for first-class `image2-only` and
-historical compatibility. It computes each full-page header fingerprint and
-`hasBodyHeaderLockSlides`; it rejects or remains unreachable for both HTML modes. HTML review continues
-to use its three owning content/visual/page dependency fingerprints instead of extending this helper.
-
-#### Scenario: HTML branch reaches legacy helper
-
+#### Scenario: HTML branch reaches whole-page helper
 - **WHEN** HTML orchestration attempts to build whole-page header inputs
 - **THEN** branch isolation fails the operation before evidence publication
 
 #### Scenario: Image2-primary builds header inputs
-
-- **WHEN** a consistent `image2-only` pilot/build evaluates full-page header review
-- **THEN** the existing helper computes per-slide fingerprints under whole-page ownership
+- **WHEN** a consistent `image2-only` pilot or build evaluates full-page header review
+- **THEN** the helper computes per-slide fingerprints under whole-page ownership
 
 ### Requirement: mergeHeaderReviewRecord stores per-slide state
+`mergeHeaderReviewRecord()` SHALL remain whole-page-Image2-only for a consistent `image2-only` /
+`whole-page-image2-v1` record, retaining snapshot/fingerprint/status merge plus deleted-ID cleanup. It
+writes only version-scoped `header-review` evidence. HTML content/visual records use their journaled
+authority and SHALL never be merged into or initialized from header-review records. An old state shape
+does not authorize a migration or alias into this record.
 
-`mergeHeaderReviewRecord()` SHALL remain whole-page-Image2-only for first-class `image2-only` and
-historical compatibility, retaining snapshot/fingerprint/status merge plus deleted-ID cleanup. It writes
-only version-scoped `header-review` evidence. HTML content/visual records use their journaled authority
-and SHALL never be merged into or initialized from header-review records.
+#### Scenario: Current whole-page slide is deleted
+- **WHEN** a current whole-page reviewed ID leaves the plan
+- **THEN** the merge removes its per-slide header record
 
-#### Scenario: Legacy slide is deleted
-
-- **WHEN** a historical explicit whole-page reviewed ID leaves the plan
-- **THEN** the whole-page merge removes its per-slide header record as before
-
-#### Scenario: HTML evidence is supplied to legacy merge
-
+#### Scenario: HTML evidence is supplied to whole-page merge
 - **WHEN** a caller supplies an HTML review record
 - **THEN** the helper rejects it without mutating either evidence store
 
 #### Scenario: Image2-primary merge uses existing state
-
 - **WHEN** first-class whole-page review publishes a partial current batch
 - **THEN** it merges into the same version-scoped header record without a duplicate evidence store
 
 ### Requirement: changedFullPageIds supports per-slide state
+`changedFullPageIds()` SHALL remain a current whole-page Image2 helper: with per-slide state it reads
+`status === changed`, and without it falls back only to the current whole-page global snapshot diff. Both
+HTML modes SHALL derive affected pages from composition/content/visual dependency fingerprints and
+current manifest evidence instead. The fallback SHALL not make a historical protocol eligible for a
+current Controller route.
 
-`changedFullPageIds()` SHALL remain a whole-page Image2 helper: with per-slide state it reads
-`status === changed`, and without it falls back to the existing global snapshot diff. Both HTML modes
-SHALL derive affected pages from composition/content/visual dependency fingerprints and current
-manifest evidence instead.
-
-#### Scenario: Legacy state is absent
-
-- **WHEN** historical explicit whole-page pilot has no per-slide state
-- **THEN** the existing snapshot fallback remains available
+#### Scenario: Current per-slide state is absent
+- **WHEN** a current whole-page pilot has no per-slide state
+- **THEN** the existing snapshot fallback determines its review scope
 
 #### Scenario: HTML local rebuild computes scope
-
 - **WHEN** a marked HTML slide dependency changes
 - **THEN** scope comes from HTML fingerprints rather than full-page header state
 
 #### Scenario: Image2-primary computes changed full pages
-
 - **WHEN** `image2-only` has current per-slide header state
-- **THEN** the existing per-slide changed-status path determines its review scope
+- **THEN** the per-slide changed-status path determines its review scope
 
 ### Requirement: Structural refresh impact is computed by stable identity
-
-After structural source publication, orchestration SHALL compare source/target by stable ID and classify retained/inserted/deleted/reordered/content-or-profile changes. For HTML-first, the impact SHALL report target current positions, IDs/titles, matching or stale composition input receipts, target-owned reuse eligibility, required local stages/reviews, and zero remote work. Reorder alone SHALL preserve slide-local HTML/final bytes and invalidate ordered delivery; inserted/stale IDs SHALL be locally composable, not `needs_render` remote debt. For explicit whole-page legacy, existing raw-render verification/materialization, cheap Stage-3/delivery invalidation, `verified|legacy-located`, `needs_render`, and review semantics SHALL remain.
+After structural source publication, orchestration SHALL compare source and target by stable ID and classify retained, inserted, deleted, reordered, content, or profile changes. For HTML-first, the impact SHALL report target positions, IDs/titles, matching or stale composition input receipts, target-owned reuse eligibility, required local stages/reviews, and zero remote work. Reorder alone SHALL preserve slide-local HTML/final bytes and invalidate ordered delivery; inserted or stale IDs SHALL be locally composable, not needs_render remote debt. For whole-page-image2-v1, the impact SHALL use current raw-render verification/materialization, cheap Stage-3/delivery invalidation, verified or needs_render, and current review semantics. Located bytes without current proof are not verified. An unsupported historical source has no structural materialization route.
 
 #### Scenario: HTML reorder is locally reusable
-
 - **WHEN** a marked target only reorders unchanged IDs
 - **THEN** impact preserves their composition bytes and schedules target-owned ordered delivery
 
-#### Scenario: Legacy insert retains needs-render semantics
-
-- **WHEN** a explicit whole-page target inserts an ID without verified raw render
-- **THEN** only that ID appears under legacy `needs_render`
+#### Scenario: Whole-page insert retains needs-render semantics
+- **WHEN** a consistent whole-page target inserts an ID without verified raw-render evidence
+- **THEN** only that ID appears under needs_render
+- **AND** no provider call occurs during source publication
 
 ### Requirement: Structural versions materialize only verified expensive raw renders
+Materialization SHALL remain target-owned and branch-specific. whole-page-image2-v1 SHALL retain shared resolver checks for stable ID, engine, raw-render kind, generation profile/fingerprint, source-byte SHA, target copy/manifests, locally rebuilt Stage 3 and later outputs, needs_render, and verified non-waiver header evidence rules. HTML-first MAY reuse prior immutable HTML/final-slide bytes only after source-only target publication, recomputed target composition fingerprints/membership, exact path/SHA/profile/receipt verification, and copy into target-owned objects/manifests; it SHALL never copy preview, gate, PPTX, notes, or state truth across versions. Unverifiable HTML bytes SHALL recompose locally and SHALL not become remote debt. Unverified or historical raw bytes SHALL not gain reuse authority.
 
-Materialization SHALL remain target-owned and branch-specific. Explicit whole-page legacy SHALL retain shared resolver checks for stable ID, engine, raw-render kind, generation profile/fingerprint, source-byte SHA, exclusion of `legacy-located`, target copy/manifests, locally rebuilt Stage 3+, `needs_render`, and verified non-waiver header evidence rules. HTML-first MAY reuse prior immutable HTML/final-slide bytes only after source-only target publication, recomputed target composition fingerprints/membership, exact path/SHA/profile/receipt verification, and copy into target-owned objects/manifests; it SHALL never copy preview/gate/PPTX/notes truth or point across versions. Unverifiable HTML bytes SHALL recompose locally and SHALL not become remote debt.
+#### Scenario: Whole-page located-only raw file remains unusable
+- **WHEN** a raw image exists but lacks current stable-ID, profile, or provenance verification
+- **THEN** materialization leaves that ID under needs_render
+- **AND** it does not copy the byte into the target manifest
 
-#### Scenario: HTML retained object verifies
-
-- **WHEN** a retained marked slide's target fingerprint and prior immutable receipt match
-- **THEN** bytes become target-owned and ordered outputs rebuild locally
-
-#### Scenario: Legacy located-only raw file remains unusable
-
-- **WHEN** a explicit whole-page adapter cannot prove raw-render fingerprint/bytes
-- **THEN** it remains `needs_render` and is not materialized
+#### Scenario: HTML matching immutable object is reused
+- **WHEN** a target HTML slide recomputes the exact source composition fingerprint and receipt proof
+- **THEN** materialization copies or links the object into target-owned paths without provider work
 
 ### Requirement: Structural materialization never silently invokes remote rendering
-
-Structural source apply and impact analysis SHALL invoke no renderer. Subsequent explicit materialization SHALL never invoke a remote renderer. HTML-first materialization MAY reuse verified target-owned bytes or run the local HTML renderer/compositor for missing/stale IDs, then rebuild local delivery. Explicit whole-page materialization SHALL retain verified raw reuse and report missing/stale IDs as `needs_render`; only a separately authorized Generated Image Rebuild may call Image2. Reorder/delete-only work with verifiable inputs SHALL complete target-local delivery with zero remote calls in both branches.
+Structural publication and target materialization SHALL be source-, receipt-, and proof-driven. Neither HTML-local composition nor whole-page verification/materialization may invoke provider rendering as an implicit fallback. A whole-page target with needs_render SHALL return selected IDs and its later authorization boundary; an HTML target with missing proof SHALL locally recompose. Dry-run remains write- and remote-free. The operation SHALL not use Image2 readiness or authorization as a substitute for materialization evidence.
 
 #### Scenario: HTML insert composes locally after publication
+- **WHEN** an HTML structural target contains an inserted or stale slide
+- **THEN** its explicit materializer composes it locally after publication
+- **AND** it performs no provider authorization or submission
 
-- **WHEN** a marked target adds one valid slide and explicit materialization runs
-- **THEN** only required local HTML composition plus ordered delivery runs with zero remote calls
-
-#### Scenario: Legacy insert does not spend quota
-
-- **WHEN** a explicit whole-page target lacks one raw render
-- **THEN** materialization reports that ID and waits for explicit remote rebuild authorization
+#### Scenario: Whole-page insert does not spend quota
+- **WHEN** a current whole-page target contains an unproven inserted ID
+- **THEN** materialization reports needs_render without spending quota
+- **AND** a later Generated Image Rebuild remains separately authorized
 
 ### Requirement: Order-dependent views display position and stable identity
 
@@ -352,134 +339,59 @@ Pipeline status, selector diagnostics, pilot/contact-sheet labels, and structura
 - **AND** the image artifact remains associated by ID rather than label text
 
 ### Requirement: Whole-page Image2 entry points enforce their own remote prerequisites
+Every image2-only / whole-page-image2-v1 orchestration path SHALL determine whether its selected operation will submit provider work before it initializes transport. A current submit requires the exact mode, explicit source marker, current style-master prerequisites where applicable, and an active Controller-owned authorization whose operation, selected IDs, profile, and count match the request. Pilot and Stage 2 preview remain gate-preserving; a proven zero-submit reuse/local path does not require credentials, base URL, provider lookup, or authorization. HTML-only stages, dry runs, structural materialization, and current generated-artifact reuse SHALL not inherit whole-page prerequisites. Missing or unsafe identity remains a hard-stop and cannot be repaired by a provider fallback.
 
-Every first-class `image2-only` or historical compatibility orchestration path SHALL first determine
-whether selected work can reuse current verified artifacts. Only a path that is about to submit Image2
-work SHALL validate action-specific prerequisites, immediately before entering its remote adapter.
-Every remote submit SHALL require resolvable Image2 credentials and base URL. Whole-page generation
-through pilot, build, or visual rebuild SHALL additionally require its current style-reference asset.
-Style-master generation SHALL require transport prerequisites but SHALL NOT require a pre-existing
-style master. The guard SHALL use existing credential, run-bundle, and style-reference authorities and
-SHALL NOT rely on a prior doctor result. A missing prerequisite SHALL fail before provider submit with
-the existing secret-safe CLI diagnostic authority.
+#### Scenario: Whole-page pilot has no credentials
+- **WHEN** a current pilot would submit Image2 work without resolvable provider configuration
+- **THEN** orchestration stops before transport and reports the bounded environment prerequisite
 
-A first-class `image2-only` submit SHALL also require the active Controller node's current scoped typed
-authorization for the exact run, operation, stable IDs/roles, generation profile, and maximum
-submissions; orchestration SHALL rederive and compare that scope before transport. Historical
-compatibility SHALL retain its already-accepted authorization contract. Local-only Stage subsets, dry
-runs, Structural Versioning materialization from verified artifacts, notes-only refresh, assembly that
-reuses already reviewed images, a no-op style-master invocation retaining its existing output, and
-Stage 2 when every selected image has current provenance SHALL NOT acquire transport prerequisites or
-provider authorization and SHALL NOT make a remote request merely because a doctor profile omitted
-Image2 checks.
-
-#### Scenario: Legacy pilot has no credentials
-
-- **WHEN** a historical compatibility pilot reaches its Image2 generation boundary without resolvable `IMAGE2_API_KEY` or `IMAGE2_BASE_URL`
-- **THEN** it fails before the provider adapter is called
-- **AND** the diagnostic points to explicit Image2 readiness/remediation without exposing secret values
-
-#### Scenario: Legacy Stage 2 has no style reference
-
-- **WHEN** a historical compatibility build or visual refresh is about to enter Stage 2 and its required style master is absent
-- **THEN** orchestration fails before any Image2 submit
-- **AND** it identifies the style-reference prerequisite through existing run-bundle paths
-
-#### Scenario: Style-master generation has no style master yet
-
-- **WHEN** whole-page style-master generation has valid Image2 transport prerequisites but no existing style master
-- **THEN** the action may enter its remote adapter after any required current scoped authorization
-- **AND** does not impose the page-generation style-reference guard on itself
+#### Scenario: Whole-page Stage 2 has no style reference
+- **WHEN** a current build or visual refresh is about to enter Stage 2 and its required style master is absent
+- **THEN** orchestration stops before provider setup and names the style-master owner
 
 #### Scenario: Local stages do not inherit Image2 gate
-
-- **WHEN** an invocation runs only Stages 1, 3, 4, or 5 from valid local/reviewed inputs
-- **THEN** missing Image2 credentials do not block the invocation
-- **AND** no provider submit occurs
+- **WHEN** a valid HTML-only local stage runs without Image2 configuration
+- **THEN** it proceeds through its local prerequisites without a whole-page authorization lookup
 
 #### Scenario: Structural materialization remains remote-free
-
-- **WHEN** a structural version reuses verified expensive raw renders under the existing materialization contract
-- **THEN** it does not run an Image2 readiness or authorization guard as a substitute for materialization evidence
-- **AND** it never silently invokes remote rendering
+- **WHEN** a structural target has reusable or missing whole-page raw images
+- **THEN** materialization verifies or reports needs_render without transport initialization
 
 #### Scenario: Dry run does not require or submit Image2
-
-- **WHEN** a whole-page pipeline invocation includes Stage 2 but is executed with `--dry-run`
-- **THEN** it may report the future prerequisite/authorization boundary but does not require secret values, launch a provider adapter, or submit remote work
+- **WHEN** a whole-page pipeline invocation includes Stage 2 but runs with --dry-run
+- **THEN** it may report the future prerequisite/authorization boundary but does not require secrets or submit work
 
 #### Scenario: Current generated artifacts require no transport lookup
-
-- **WHEN** style-master or Stage 2 determines that every selected output can be retained or reused under current provenance without generation
-- **THEN** missing Image2 credentials and base URL do not block the invocation
-- **AND** no transport prerequisite resolver, provider-authorization lookup, or provider adapter is invoked
+- **WHEN** style-master or Stage 2 proves every selected output can be retained or reused under current provenance
+- **THEN** missing provider credentials and base URL do not block the invocation
+- **AND** no transport prerequisite resolver, authorization lookup, or provider adapter is invoked
 
 #### Scenario: First-class Image2 submit has stale authorization
-
-- **WHEN** an `image2-only` operation would submit a changed or expanded scope relative to the active node's typed decision
-- **THEN** orchestration fails before transport and reports the exact scope requiring fresh authorization
+- **WHEN** an image2-only operation would submit a changed or expanded scope relative to the active decision
+- **THEN** orchestration stops before transport and reports the exact scope requiring fresh authorization
 
 ### Requirement: HTML-first source validation is available before HTML-first production
-
-The three write-free validation routes SHALL remain: `ppt_flow validate <run-dir>`, direct Stage-1
-`--validate --spec <canonical-source>`, and unified Stage-1 `--dry-run`. Their single canonical-source,
-no-alternate-control/legacy-alias, write-free, receipt-validation, and direct arbitrary-output rejection
-contracts remain unchanged.
-
-For a valid `production.pipeline: html-first-v1` run in either HTML mode, canonical unified Stage 1 SHALL
-publish only the structured plan; HTML Stage 2 publishes self-contained pages; HTML Stage 3 publishes
-measured verified final slides and preview evidence; Stage 4 consumes provider-neutral final slides;
-and Stage 5 injects notes. HTML preview/build/refresh/materialization SHALL run without dotenv,
-credentials, whole-page style master, provider/model setup, whole-page prompt files, header lock, or a
-remote adapter. Direct whole-page style-master/header approval commands remain inapplicable to HTML
-with branch-specific guidance rather than becoming prerequisites.
-
-For first-class `image2-only` and historical explicit whole-page compatibility, the explicit whole-page branch SHALL
-retain its whole-page options, style-master/readiness guards, Stage 2, Stage-3 header behavior,
-pilot/header review, refresh paths, and standalone artifact interfaces. The first-class route adds only
-mode/controller authorization and final-review ownership around those interfaces. Malformed markers or
-mode/source drift SHALL fail before either adapter's readiness or writes. Adapters SHALL not consume one
-another's manifests, gates, generated directories, or prerequisites.
+The three write-free validation routes SHALL remain ppt_flow validate <run-dir>, direct Stage-1 --validate --spec <canonical-source>, and unified Stage-1 --dry-run. Their single-canonical-source, no-alternate-control, write-free, receipt-validation, and direct arbitrary-output rejection contracts remain unchanged. For a valid production.pipeline: html-first-v1 run in either HTML mode, canonical unified Stage 1 SHALL publish only the structured plan; HTML Stage 2 publishes self-contained pages; HTML Stage 3 publishes composition/final-slide evidence; and the normal current review/gate sequence governs delivery. A source marked whole-page-image2-v1 SHALL be dispatched only by the current whole-page adapter, while any absent, retired, indirect, or unknown marker is rejected before either branch uses generated artifacts as authority.
 
 #### Scenario: Structured source validates locally
-
-- **WHEN** a valid HTML-first source runs any explicit validation route
-- **THEN** contract validation completes with zero writes and zero remote setup
+- **WHEN** a consistent HTML-mode source invokes a write-free validation route
+- **THEN** validation checks its canonical structured source without provider setup or output writes
 
 #### Scenario: HTML-first canonical Stage 1 remains the sole plan writer
-
-- **WHEN** canonical unified Stage 1 processes a valid HTML-mode run
-- **THEN** it atomically rebuilds only `_generated/slide_plan.json`
-- **AND** direct Stage 1 still cannot publish to an arbitrary output
+- **WHEN** a valid HTML source begins normal production
+- **THEN** only the HTML Stage-1 owner publishes its structured plan
 
 #### Scenario: HTML-first complete build succeeds locally
-
-- **WHEN** content/visual gate requirements are current and the user runs build on a valid HTML-mode deck
-- **THEN** Stages 1-5 publish current HTML pages, final slides, contact sheet, PPTX, and notes
-- **AND** no Image2 credential/whole-page-style-master/provider prerequisite is resolved
+- **WHEN** current HTML source and gate evidence are valid
+- **THEN** the HTML adapter proceeds without whole-page credentials or a whole-page style master
 
 #### Scenario: HTML-first stage dry-run remains write-free
+- **WHEN** a valid HTML source selects unified Stage 1 with --dry-run
+- **THEN** it produces no plan, state, generated artifact, or provider write
 
-- **WHEN** any supported HTML-first stage selection uses `--dry-run`
-- **THEN** orchestration validates and reports planned local work without publishing generated/state bytes
-
-#### Scenario: Invalid or drifted stage preserves prior artifacts
-
-- **WHEN** HTML source/control/runtime input validation or a pre-publish receipt recheck fails
-- **THEN** the prior plan/page/final/delivery artifacts remain intact
-- **AND** no newly created generated directory is left current
-
-#### Scenario: Legacy style/header command targets HTML-first
-
-- **WHEN** whole-page `style-master` or header approval targets an HTML-mode run
-- **THEN** it fails before provider/readiness/writes with branch-inapplicable guidance
-- **AND** points to HTML visual preview/gate rather than removing the marker
-
-#### Scenario: Legacy production remains unchanged
-
-- **WHEN** a consistent `image2-only` or historical compatibility source has no HTML-first marker
-- **THEN** existing whole-page pilot/build/refresh behavior and prerequisites remain selected
-- **AND** HTML manifests or gates cannot authorize it
+#### Scenario: Whole-page source is not validated as HTML
+- **WHEN** a consistent whole-page-image2-v1 source reaches an HTML-only validation or style command
+- **THEN** the command rejects the branch before writing HTML evidence
 
 ### Requirement: HTML-first preview, gates, build, and local refresh have explicit ordering
 
@@ -567,67 +479,35 @@ changes SHALL not stale content or visual review projections.
 - **AND** delivery continues to resolve only the effective variant
 
 ### Requirement: HTML review plans are immutable current artifacts
+Content and visual review planning SHALL serialize immutable canonical JSON under the canonical scope-owned html_production/preview/plans/<plan-hash>.json and publish current references only through the atomic preview manifest. The plan hash SHALL cover canonical bytes excluding its own hash field. Every plan SHALL bind exact schema pptmaker-html-review-plan-v1, publication_scope canonical-run, the current html_production_reset_id, pipeline, normalized logical run version, kind content|visual, approvable, current fingerprints/outstanding evidence, exact input receipts, and referenced confined artifact paths/SHAs. Content plans SHALL include the complete ordered human-reviewed projection. Visual plans SHALL include system coverage, page visual dependencies, and shown effective/forced-fallback preview references. Scoped plans missing outstanding evidence SHALL set approvable false and list it; they cannot publish approval but remain eligible for an explicit waiver after the current source/reset/version projection is verified. Ordinary approval SHALL resolve only a same-reset canonical plan referenced by the current preview manifest. Transition candidates and retired scratch contexts SHALL not publish an HTML review plan or satisfy target gates.
 
-Content and visual review planning SHALL serialize immutable canonical JSON under the scope-owned
-`html_production/preview/plans/<plan-hash>.json` and publish current references only through the atomic
-preview manifest. The plan hash SHALL cover canonical bytes excluding its own hash field. Every plan
-SHALL bind exact `schema: pptmaker-html-review-plan-v1`, `publication_scope:
-canonical-run|migration-preview`, nullable `html_production_reset_id` (current state value for canonical,
-null for migration preview), pipeline, normalized logical run version, `kind: content|visual`,
-`approvable`, current fingerprints/outstanding evidence, exact input receipts, and referenced artifact
-confined paths/SHAs. Content plans SHALL include the complete ordered human-reviewed projection. Visual
-plans SHALL include system coverage, page visual dependencies, and shown effective/forced-fallback
-preview references. Scoped plans missing any outstanding evidence SHALL set `approvable: false` and
-list it; they cannot publish approval but remain eligible for an explicit waiver after the current
-source/reset/version projection is verified. Ordinary approval SHALL resolve only a `canonical-run`
-plan referenced by a same-reset `canonical-run` current preview manifest and revalidate reset
-ID/plan/artifact bytes/receipts. Migration-preview plans remain comparison evidence even if internally
-complete. Failure diagnostics SHALL not echo authored content.
-
-The schema-closed `preview/manifest.json` SHALL contain exact `schema:
-pptmaker-html-preview-manifest-v1`, `publication_scope: canonical-run|migration-preview`, nullable
-`html_production_reset_id` (current state value for canonical, null for migration preview),
-pipeline/logical run version, plus independent nullable current references `review_plans.content`,
-`review_plans.visual`, `contact_sheets.visual_review`, and `contact_sheets.delivery`. Each non-null
-reference SHALL bind confined path, SHA-256, owning plan/review/delivery digest, and applicable
-composition variants of the same scope/reset epoch. One atomic owner commit SHALL revalidate and
-preserve unaffected current references, clear every stale/deleted/incompatible or
-cross-scope/cross-reset carried reference, and update only the intended slots. Approval SHALL use only
-the matching canonical/current-reset `review_plans.<gate>` slot; final delivery review SHALL use only
-canonical/current-reset `contact_sheets.delivery`.
+The schema-closed preview/manifest.json SHALL contain exact schema pptmaker-html-preview-manifest-v1, publication_scope canonical-run, current html_production_reset_id, pipeline/logical run version, plus independent nullable current references review_plans.content, review_plans.visual, contact_sheets.visual_review, and contact_sheets.delivery. Each non-null reference SHALL bind confined path, SHA-256, owning plan/review/delivery digest, and applicable composition variants of the same reset epoch. One atomic owner commit SHALL revalidate and preserve unaffected current references, clear stale/deleted/incompatible or cross-reset carried references, and update only intended slots. Approval SHALL use only the matching canonical/current-reset review_plans.<gate> slot; final delivery review SHALL use only canonical/current-reset contact_sheets.delivery.
 
 #### Scenario: Content plan survives process exit
-
 - **WHEN** content review planning completes
 - **THEN** the exact shown projection and plan hash are recoverable from current confined files
 
 #### Scenario: Referenced preview changes
-
 - **WHEN** a visual plan's referenced image bytes no longer match
 - **THEN** approval fails stale and publishes no gate evidence
 
 #### Scenario: Old plan remains as immutable storage
-
 - **WHEN** a newer preview manifest replaces the current plan reference
 - **THEN** the old plan cannot be approved even if its object file remains
 
-#### Scenario: Migration plan is complete but non-authoritative
-
-- **WHEN** a migration-preview review plan is internally complete and approvable
-- **THEN** ordinary approval rejects its scope and publishes no target-version gate evidence
+#### Scenario: Transition candidate cannot publish a canonical review plan
+- **WHEN** a production-mode transition candidate is inspected before target handoff
+- **THEN** it cannot publish a canonical HTML review plan or satisfy target-version gate evidence
 
 #### Scenario: Content and visual plans coexist
-
 - **WHEN** a current content plan is followed by visual-plan publication with unchanged content inputs
 - **THEN** one preview manifest retains both independently verified current plan references
 
 #### Scenario: Delivery sheet update preserves current review refs
-
 - **WHEN** delivery contact sheet publishes and current review plan inputs remain fresh
-- **THEN** only `contact_sheets.delivery` changes and current plan slots remain valid
+- **THEN** only contact_sheets.delivery changes and current plan slots remain valid
 
 #### Scenario: Carried visual plan becomes stale during content update
-
 - **WHEN** content-plan publication discovers the carried visual plan no longer verifies
 - **THEN** the same manifest commit clears the visual slot rather than preserving false current evidence
 
@@ -669,96 +549,22 @@ Diagnostics SHALL identify bounded expected/actual projection paths without echo
 - **THEN** the older immutable object remains available for audit
 - **AND** approval rejects it as non-current without mutating the gate
 
-### Requirement: Migration preparation resolves one isolated candidate before comparison
-
-The migration adapter SHALL resolve a prepared candidate only from the current source version's `_scratch/html-migration/projected-run/`. The candidate owns its authored slide source and sparse `overrides/`; it inherits source-version overrides and deck-root backbone controls through the trusted precedence `candidate > source-version override > backbone`. Its preparation receipt and bounded authoring-checklist projection are candidate support artifacts; its `_generated/` HTML preview owners are rebuildable derived evidence and are not candidate authority. The resolver SHALL reuse the existing HTML source, visual-config, and asset-catalog validators through their closed migration-candidate interface rather than introducing a parallel readiness evaluator.
-
-Preparation SHALL build or verify that candidate from a explicit whole-page source and a selected preset without writing outside `projected-run/`, publishing a visible version, loading provider credentials, or invoking a renderer/provider. A matching prepared candidate SHALL be idempotent. A source/preset/receipt conflict with existing authored candidate inputs SHALL stop before replacement. A legacy loose scratch candidate may be inspected only by explicit preparation compatibility handling; preview SHALL not copy, move, or adopt it.
-
-Before renderer setup, preview SHALL use the resolver to distinguish a valid unprepared explicit whole-page run from an incomplete candidate. Those are `guide` outcomes with a bounded prepare or authoring next action and no render, plan, state, source, or visible-version write. An invalid source/candidate identity, confinement failure, live journal, or conflicting owner is a `hard-stop`; it protects attributable authored inputs and transaction recovery and SHALL short-circuit derived renderer symptoms. A complete candidate SHALL continue through the existing migration-preview context and complete comparison transaction.
-
-The plan and hidden-target apply inputs SHALL bind the resolved candidate-source, candidate-override, inherited source-override, and backbone receipt set produced by this resolver. Apply SHALL re-resolve that set, construct a hidden target from those inherited inputs, stage only revalidated candidate source/overrides, and rebuild canonical target output locally. It SHALL never copy the legacy source tree, projected-run generated pages, final slides, manifests, contact sheets, review evidence, deck-root metadata, or any approval/state authority into the target.
-
-#### Scenario: Prepare is isolated and idempotent
-
-- **WHEN** the migration adapter prepares the same valid explicit whole-page source and preset twice
-- **THEN** the second result verifies the existing candidate without changing authored inputs
-- **AND** both runs make no source, visible-version, renderer, or provider write
-
-#### Scenario: Bare preview returns a guide before rendering
-
-- **WHEN** a valid explicit whole-page run has no projected candidate
-- **THEN** preview returns the preparation guide from the candidate resolver
-- **AND** no HTML renderer context, contact sheet, or migration plan is created
-
-#### Scenario: Incomplete candidate remains authored work
-
-- **WHEN** the candidate validator reports missing structured fields for two stable slide IDs
-- **THEN** preview returns only those bounded authoring requirements
-- **AND** it does not regenerate the candidate source or erase its controls
-
-#### Scenario: Apply rerenders instead of promoting scratch bytes
-
-- **WHEN** a complete candidate preview has an exact confirmed hash and apply stages the target
-- **THEN** the target is rendered through a fresh canonical context from revalidated candidate inputs
-- **AND** its generated objects are not copied from the migration-preview workspace
-
 ### Requirement: HTML and whole-page Image2 production adapters remain mutually isolated
+Every public run-dir entry SHALL inspect canonical version-scoped production mode and verify its explicit source marker before branch-specific readiness. The HTML adapter SHALL reject whole-page prompt, render, and header artifacts as authority; the whole-page Image2 adapter SHALL not infer HTML from structured-looking prose or consume HTML production manifests. Provider-call spies and exact directory diffs SHALL prove that HTML create, preview, build, refresh, and structural operations never touch whole-page Image2 or modern-refinement remote paths, and that image2-only operations never consume HTML output. Calling the whole-page adapter from a first-class Image2 Controller SHALL not weaken this isolation or turn modern visual-slot refinement into a whole-page renderer.
 
-Every public run-dir entry SHALL inspect canonical version-scoped production mode and verify the
-canonical source marker before branch-specific readiness. The HTML adapter SHALL reject whole-page
-prompt/render/header artifacts as authority; the whole-page Image2 adapter SHALL not infer HTML from
-structured-looking prose or consume HTML production manifests. Provider-call spies and exact directory
-diffs SHALL prove that HTML create/preview/build/refresh/structural operations never touch whole-page
-Image2 or modern-refinement remote paths, and that `image2-only` operations never consume HTML output.
-Calling the whole-page adapter from a first-class Image2-primary controller SHALL not weaken this
-isolation or turn modern visual-slot refinement into a whole-page renderer.
-
-#### Scenario: HTML deck has legacy generated files
-
-- **WHEN** stale whole-page prompt/image/header directories coexist with a consistent HTML-mode source
+#### Scenario: HTML deck has stray whole-page generated files
+- **WHEN** stale whole-page prompt, image, or header directories coexist with a consistent HTML-mode source
 - **THEN** HTML orchestration ignores them as production authority
 - **AND** consumes only structured-plan and HTML-production evidence
 
 #### Scenario: Explicit whole-page deck has HTML generated files
-
-- **WHEN** a consistent `image2-only` run contains stray HTML-production bytes
+- **WHEN** a consistent image2-only run contains stray HTML-production bytes
 - **THEN** whole-page orchestration does not use them to satisfy production or review gates
 
 #### Scenario: First-class Image2 path reuses the isolated adapter
-
-- **WHEN** create-deck dispatches a new `image2-only` run
-- **THEN** it invokes the existing whole-page stages through the shared policy
-- **AND** does not label the user workflow as HTML refinement or legacy-only maintenance
-
-### Requirement: Legacy-to-HTML migration comparison is complete and zero-remote
-
-Migration preview SHALL always validate and locally render the complete proposed HTML deck and contact sheet through the same renderer seam using a framework-issued `migration-preview` context rooted only at the current transaction's `_scratch/html-migration/projected-run/`. It SHALL emit exact `old_side_mode: verified-current|degraded-missing|degraded-stale`. `verified-current` SHALL require one current common-adaptable legacy final-slide per current plan ID and SHALL build the old comparison sheet locally from those entries. A legacy Stage-2 raw contact sheet alone SHALL not qualify. Degraded modes SHALL display a final-slide evidence diagnosis/placeholder, SHALL not display stale bytes or claim visual parity, and SHALL offer a separately authorized legacy-maintenance next action; migration SHALL still complete preview with zero provider calls. Scratch renderer manifests/contact sheets SHALL be comparison evidence only and SHALL not become the legacy run's or anticipated target's canonical current pointers.
-
-The canonical plan hash SHALL bind base/candidate source-control-asset receipts, anticipated visible target version, old-side mode/evidence, ordered proposed composition fingerprints/final PNG SHAs, and proposed contact-sheet SHA while excluding scratch/hidden absolute paths. Apply SHALL require explicit human acknowledgement of that exact hash/mode, recheck every precondition, construct a fresh `canonical-run` context for the hidden real target, rerender without copying scratch generated bytes, and require exact equality of its ordered composition fingerprints/final PNG SHAs/contact-sheet SHA before visible publication. Any target-name/input/evidence/output drift SHALL abort without a visible version and require a new preview. Migration SHALL remain distinct from ordinary structural publication. Publication of the target SHALL carry no content/visual approval or delivery-review decision; its locally current HTML/final/contact-sheet artifacts remain reviewable inputs, and canonical Stage 4 remains blocked until target-version human gates are recorded.
-
-#### Scenario: Current legacy contact sheet exists
-
-- **WHEN** migration finds verified current legacy final slides/contact sheet
-- **THEN** preview compares them with the complete proposed HTML contact sheet
-- **AND** makes zero provider calls
-
-#### Scenario: Legacy pixels are missing
-
-- **WHEN** no current verified legacy visual evidence exists
-- **THEN** migration emits `degraded-missing`, shows no old pixels, and neither regenerates legacy images nor claims parity
-- **AND** offers separately authorized legacy maintenance without blocking review of the complete proposal
-
-#### Scenario: Hidden target pixels differ from preview
-
-- **WHEN** target rerender produces any different composition fingerprint, final PNG SHA, or contact-sheet SHA
-- **THEN** apply publishes no visible version and requires a new preview
-
-#### Scenario: Scratch preview evidence is offered to canonical build
-
-- **WHEN** a caller tries to satisfy target gates or Stage 4 with migration-preview manifests or receipts
-- **THEN** scope validation rejects them before canonical writes
-- **AND** target review evidence remains pending until the visible target is reviewed
+- **WHEN** create-deck dispatches a new image2-only run
+- **THEN** it invokes the current whole-page stages through the shared policy
+- **AND** it does not label the workflow as HTML refinement or a maintenance compatibility path
 
 ### Requirement: HTML structural materialization reuses only target-owned verified objects
 
@@ -871,3 +677,11 @@ completion, target approval, or content conversion authority.
 - **WHEN** a candidate omits its target audience, takeaway, or success criteria
 - **THEN** preview returns a bounded authoring guide and cannot be confirmed
 - **AND** it does not read a source intake decision as a substitute
+
+### Requirement: Whole-page routing has one current protocol
+Pipeline orchestration SHALL route an `image2-only` run through the explicit `whole-page-image2-v1` contract. It SHALL not expose a retired maintenance adapter or a source-to-HTML migration command.
+
+#### Scenario: Whole-page operation is requested
+- **WHEN** a current whole-page run invokes a pipeline operation
+- **THEN** orchestration resolves its explicit mode and source marker
+- **AND** it rejects an unavailable or inconsistent state before work begins

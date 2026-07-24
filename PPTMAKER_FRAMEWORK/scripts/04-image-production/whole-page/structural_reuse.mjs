@@ -1,6 +1,6 @@
 import { canonicalJson } from "../../shared/identity/canonical_json.mjs";
 import { ARTIFACT_STATUS_VERIFIED } from "../../shared/identity/render_artifacts.mjs";
-import { sameGenerationProfile } from "../../04-image-production/index.mjs";
+import { sameGenerationProfile } from "../../04-image-production/whole-page/index.mjs";
 
 export const STRUCTURAL_LOCAL_STAGES = Object.freeze([
   "stage1",
@@ -101,10 +101,7 @@ export function computeStructuralImpact({
         artifactStatus !== ARTIFACT_STATUS_VERIFIED
       )
     );
-    const warnings = [
-      ...[].concat(mapValue(reviewWarnings, id) || []),
-      ...(artifactStatus === "legacy-located" ? ["legacy-located raw render is not reusable proof"] : []),
-    ];
+    const warnings = [...[].concat(mapValue(reviewWarnings, id) || [])];
 
     return {
       slide_id: id,

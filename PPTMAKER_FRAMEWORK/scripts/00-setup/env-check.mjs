@@ -12,13 +12,13 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(entry)) {
   } else {
     const { runEnvironmentCheckCli } = await import("./index.mjs");
     const wantsImage2 = process.argv.some((arg) => ["--image2", "--smoke", "--probe-vendors"].includes(arg));
-    const providerApi = wantsImage2 ? await import("../05-iteration/index.mjs") : null;
+    const providerApi = wantsImage2 ? await import("../04-image-production/index.mjs") : null;
     await runEnvironmentCheckCli(process.argv, providerApi ? {
       providerApi: {
-        inspect: providerApi.inspectLegacyProvider,
-        defaults: providerApi.legacyProviderDefaults,
-        classify: providerApi.classifyLegacyProviderResponse,
-        host: providerApi.legacyProviderHost,
+        inspect: providerApi.inspectWholePageProvider,
+        defaults: providerApi.wholePageProviderDefaults,
+        classify: providerApi.classifyWholePageProviderResponse,
+        host: providerApi.wholePageProviderHost,
       },
     } : undefined);
   }

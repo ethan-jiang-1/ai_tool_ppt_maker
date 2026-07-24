@@ -41,10 +41,10 @@ describe("Phase 4 refinement boundary", () => {
     }
   }, 120_000);
 
-  it("keeps explicit whole-page maintenance outside modern refinement", () => {
+  it("keeps explicit whole-page generation outside modern refinement", () => {
     const root = mkdtempSync(join(tmpdir(), "image2-explicit whole-page-normal-"));
-    const deck = join(root, "deck_legacy");
-    const transport = createFakeRefinementTransport({ onSubmit: async () => { throw new Error("explicit whole-page maintenance must not submit modern work"); } });
+    const deck = join(root, "deck_whole_page");
+    const transport = createFakeRefinementTransport({ onSubmit: async () => { throw new Error("explicit whole-page generation must not submit modern work"); } });
     try {
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");

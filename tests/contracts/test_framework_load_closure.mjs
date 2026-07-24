@@ -14,8 +14,8 @@ describe("focused framework load-closure diagnostics", () => {
     expect(base).not.toMatch(/scripts\/(?:01-content|02-visual-system|03-html-production|04-image-production|05-iteration)\//);
     expect(base).not.toMatch(/(?:image_api_client|html_slide_renderer|@napi-rs\/canvas|fast-png)/);
     const html = trace("PPTMAKER_FRAMEWORK/scripts/03-html-production/stage2_render_html.mjs", ["--help"]);
-    expect(html).not.toMatch(/scripts\/(?:04-image-production|05-iteration\/legacy-image2)|image_api_client/);
-    const explicit whole-page = trace("PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage2_generate_images.mjs", ["--help"]);
-    expect(explicit whole-page).not.toMatch(/visual-slot|html_slide_renderer|html_render_runtime/);
+    expect(html).not.toMatch(/scripts\/04-image-production|image_api_client/);
+    const wholePage = trace("PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/stage2_generate_images.mjs", ["--help"]);
+    expect(wholePage).not.toMatch(/visual-slot|html_slide_renderer|html_render_runtime/);
   }, 60_000);
 });

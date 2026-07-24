@@ -112,7 +112,7 @@ describe('bundle_layout', () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
   it('seeds HTML-first runs by default and whole-page runs explicitly', () => {
-    const legacy = join(tmpdir(), `deck_legacy_seed_${Date.now()}`);
+    const wholePage = join(tmpdir(), `deck_whole_page_seed_${Date.now()}`);
     try {
       for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
         const deck = join(tmpdir(), `deck_html_seed_${deckType || 'generic'}_${Date.now()}`);
@@ -159,10 +159,10 @@ describe('bundle_layout', () => {
           expect(existsSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'))).toBe(false);
         } finally { rmSync(deck, { recursive: true, force: true }); }
       }
-      initWholePageBundle(legacy, null, 'keynote', 'dark-executive');
-      expect(readFileSync(join(legacy, '3_versions', 'v1', 'slide-specifications.md'), 'utf8')).not.toContain('pipeline: html-first-v1');
+      initWholePageBundle(wholePage, null, 'keynote', 'dark-executive');
+      expect(readFileSync(join(wholePage, '3_versions', 'v1', 'slide-specifications.md'), 'utf8')).toContain('pipeline: whole-page-image2-v1');
     } finally {
-      rmSync(legacy, { recursive: true, force: true });
+      rmSync(wholePage, { recursive: true, force: true });
     }
   });
   it('all init templates seed a valid HTML-first structured starter', () => {
@@ -362,7 +362,7 @@ describe('bundle_layout', () => {
 
   it('requires durable state for whole-page status', () => {
     for (const catalogMode of ['absent', 'v1']) {
-      const deck = join(tmpdir(), `deck_legacy_catalog_${catalogMode}_${Date.now()}`);
+      const deck = join(tmpdir(), `deck_missing_state_catalog_${catalogMode}_${Date.now()}`);
       try {
         initWholePageBundle(deck, null, 'keynote', 'dark-executive');
         const v1 = join(deck, '3_versions', 'v1');
@@ -384,7 +384,7 @@ describe('bundle_layout', () => {
 
   it('rejects opposite-branch generated owners instead of treating them as readiness', () => {
     const htmlDeck = join(tmpdir(), `deck_html_opposite_${Date.now()}`);
-    const legacyDeck = join(tmpdir(), `deck_legacy_opposite_${Date.now()}`);
+    const wholePageDeck = join(tmpdir(), `deck_whole_page_opposite_${Date.now()}`);
     try {
       initHtmlFirstBundle(htmlDeck, null, 'keynote', 'dark-executive');
       const htmlRun = join(htmlDeck, '3_versions', 'v1');
@@ -396,15 +396,15 @@ describe('bundle_layout', () => {
       expect(htmlStatus.status).toBe(1);
       expect(JSON.parse(htmlStatus.stdout)).toMatchObject({ pipeline: 'html-first-v1', raw_images: 0, content_gate: 'pending', visual_gate: 'pending' });
 
-      initWholePageBundle(legacyDeck, null, 'keynote', 'dark-executive');
-      const legacyRun = join(legacyDeck, '3_versions', 'v1');
-      mkdirSync(join(legacyRun, '_generated', 'html_production', 'final_slides', 'objects'), { recursive: true });
-      expect(checkBundle(legacyRun, false)).toContain(
+      initWholePageBundle(wholePageDeck, null, 'keynote', 'dark-executive');
+      const wholePageRun = join(wholePageDeck, '3_versions', 'v1');
+      mkdirSync(join(wholePageRun, '_generated', 'html_production', 'final_slides', 'objects'), { recursive: true });
+      expect(checkBundle(wholePageRun, false)).toContain(
         "HTML generated owner 'html_production/' is inapplicable to whole-page Image2 production"
       );
     } finally {
       rmSync(htmlDeck, { recursive: true, force: true });
-      rmSync(legacyDeck, { recursive: true, force: true });
+      rmSync(wholePageDeck, { recursive: true, force: true });
     }
   });
 
@@ -421,7 +421,7 @@ describe('bundle_layout', () => {
       mkdirSync(join(v1, '_scratch', 'html-migration', 'projected-run'), { recursive: true });
       writeFileSync(join(production, '.DS_Store'), 'finder');
       writeFileSync(join(v1, '_scratch', 'html-migration', '.DS_Store'), 'finder');
-      expect(checkBundle(v1, false)).toEqual([]);
+      expect(checkBundle(v1, false)).toEqual(["retired 'html-migration' scratch is not permitted"]);
       writeFileSync(join(production, 'rogue-owner'), 'x');
       writeFileSync(join(production, 'preview', 'plans', 'rogue.json'), '{}');
       writeFileSync(join(v1, '_scratch', 'html-migration', '.foreign-cache'), 'x');
@@ -430,9 +430,7 @@ describe('bundle_layout', () => {
       const issues = checkBundle(v1, false);
       expect(issues.some((issue) => issue.includes('rogue-owner') && issue.includes('HTML production root'))).toBe(true);
       expect(issues.some((issue) => issue.includes('rogue.json') && issue.includes('HTML preview plans'))).toBe(true);
-      expect(issues.some((issue) => issue.includes('.foreign-cache') && issue.includes('html-migration scratch'))).toBe(true);
-      expect(issues.some((issue) => issue.includes('foreign-support.json') && issue.includes('migration projected candidate'))).toBe(true);
-      expect(issues.some((issue) => issue.includes('apply-journal.json') && issue.includes('migration projected candidate'))).toBe(true);
+      expect(issues.some((issue) => issue.includes("retired 'html-migration' scratch"))).toBe(true);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -643,9 +641,7 @@ describe('state discoverability', () => {
       const yaml2 = readFileSync(join(deck, STATE_DIR, STATE_FILE), 'utf-8');
       expect(yaml2.startsWith('#')).toBe(true);
       expect(existsSync(join(deck, STATE_DIR, 'README.md'))).toBe(true);
-      const loaded = readState(deck);
-      expect(loaded.current_node).toBe('authoring-slides');
-      expect(loaded.playbook).toBe('create-deck');
+      expect(readState(deck)).toMatchObject({ replacement_required: true });
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -732,7 +728,7 @@ describe('mode-aware init seeds (2.1, 2.3)', () => {
     }
   });
 
-  it('image2-only seeds the explicit whole-page whole-page source and no pipeline marker', () => {
+  it('image2-only seeds the explicit whole-page source and pipeline marker', () => {
     const deck = initFor('image2-only');
     try {
       const src = source(deck);
@@ -764,7 +760,7 @@ describe('mode-aware init seeds (2.1, 2.3)', () => {
   });
 
   it('initWholePageBundle delegates to the image2-only seed (explicit whole-page)', () => {
-    const deck = join(tmpdir(), `deck_legacy_delegated_${Date.now()}`);
+    const deck = join(tmpdir(), `deck_whole_page_delegated_${Date.now()}`);
     try {
       initWholePageBundle(deck, null, 'keynote', 'dark-executive');
       expect(source(deck)).not.toContain('pipeline: html-first-v1');

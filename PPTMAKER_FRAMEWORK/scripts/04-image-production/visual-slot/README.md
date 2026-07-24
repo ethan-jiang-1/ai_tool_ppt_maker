@@ -8,7 +8,7 @@ The lifecycle is deliberately bounded:
 
 `plan -> authorize -> generate -> review -> accept|use-html -> cleanup`
 
-No ordinary HTML build/local refresh or explicit whole-page legacy command imports the
+No ordinary HTML build/local refresh or explicit whole-page Image2 command imports the
 transport. Accepted bytes are version source under the two refined asset roots;
 candidates, comparisons, attempts, and journals remain lazy derived/scratch
 evidence. Use `ppt_flow image2 --help` for the closed command family.

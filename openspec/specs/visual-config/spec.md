@@ -13,10 +13,9 @@ Define `visual_config.mjs`, the shared loader for `color_palette.json` consumed 
 - **AND** missing fields in `color_palette.json` fall back to built-in defaults
 
 ### Requirement: Visual configuration exposes renderer-neutral HTML contract tokens
+The existing `color_palette.json` SHALL remain the single visual-config source, selected through the existing version-override-first `styleAsset` precedence; HTML-first does not introduce a different palette search order. A current whole-page source MAY omit `html_first`; an HTML-first source SHALL require valid UTF-8 strict JSON with no duplicate key anywhere in the document and one recursively closed `html_first` mapping, and SHALL not receive built-in HTML defaults. Strict `JSON.parse` validity and a duplicate-key lexical/AST audit SHALL share one file-byte read and one resulting source object between whole-page and HTML projections. `html_first` SHALL contain exactly `schema_version`, `canvas`, `palette`, `typography`, `spacing`, `components`, `image_language`, and `geometry`. `schema_version` SHALL equal `1`; `canvas` SHALL equal `{width: 1000, height: 562.5}`.
 
-The existing `color_palette.json` SHALL remain the single visual-config source, selected through the existing version-override-first `styleAsset` precedence; HTML-first does not introduce a different palette search order. Legacy sources MAY omit `html_first`; an HTML-first source SHALL require valid UTF-8 strict JSON with no duplicate key anywhere in the document and one recursively closed `html_first` mapping, and SHALL not receive built-in HTML defaults. Strict `JSON.parse` validity and a duplicate-key lexical/AST audit SHALL share one file-byte read and one resulting source object between legacy and HTML projections. `html_first` SHALL contain exactly `schema_version`, `canvas`, `palette`, `typography`, `spacing`, `components`, `image_language`, and `geometry`. `schema_version` SHALL equal `1`; `canvas` SHALL equal `{width: 1000, height: 562.5}`.
-
-The existing `loadVisualConfig()` legacy return shape SHALL remain byte/fingerprint-compatible and SHALL not gain an `html_first` property merely because the source file contains one. A separate branch-aware loader/projection SHALL validate and return the HTML-first config for structured planning while reusing the same validated source object when both projections are requested. Legacy Stage 1/3/header-review consumers SHALL continue to receive only the existing canvas/body/header/background projection, so seeding `html_first` in all presets does not alter legacy prompt/header fingerprints.
+The existing `loadVisualConfig()` whole-page return shape SHALL remain byte/fingerprint-compatible and SHALL not gain an `html_first` property merely because the source file contains one. A separate branch-aware loader/projection SHALL validate and return the HTML-first config for structured planning while reusing the same validated source object when both projections are requested. Whole-page Stage 1/3/header-review consumers SHALL continue to receive only the existing canvas/body/header/background projection, so seeding `html_first` in all presets does not alter whole-page prompt/header fingerprints.
 
 `palette` SHALL contain exactly `background`, `surface`, `text`, `muted_text`, `accent`, `accent_secondary`, `accent_tertiary`, and `divider`. Each value SHALL be a path reference to an existing root `background` or `colors.<name>.hex` token in the same file; validation resolves each to lowercase `#rrggbb` and rejects missing/cyclic/non-color references. Shipped presets SHALL use these mappings:
 
@@ -44,50 +43,42 @@ V1 field-to-role mapping SHALL also be closed: Markdown headers use their same-n
 | `tech-startup` | futuristic SaaS information design with synthwave vector geometry | deep purple glass with neon cyan and magenta light | controlled neon rim light with localized glow | subtle digital grain and gradient depth | bold central focal point, energetic diagonals, clean product-like spacing |
 | `warm-editorial` | warm editorial illustration and refined information design | cream paper, charcoal ink, rust, and muted-gold accents | soft warm natural light | subtle paper grain and tactile print finish | editorial rhythm, human scale, asymmetric whitespace, calm hierarchy |
 
-`geometry` SHALL equal `{registry: "html-family-geometry-v1"}`. The referenced checked-in registry is owned by `html-slide-contract` and contains the 68 exact variant records `{boxes,overlays}`: boxes map semantic slot/item names to `[x,y,width,height]`, repeated items use source-order names such as `card_1`, `metric_2`, or `step_5`, and overlays are deterministically ordered `{back,front}` pairs. Visual config SHALL reject any other registry ID in schema v1 and SHALL not duplicate family fields, capacities, formulas, or concrete records. Tokens SHALL be deterministic JSON values and independent of browser CSS or Image2 prompts. Existing legacy canvas/body/header fields and defaults SHALL remain unchanged for legacy pipeline markers; no second `html-theme.json` SHALL be introduced.
+`geometry` SHALL equal `{registry: "html-family-geometry-v1"}`. The referenced checked-in registry is owned by `html-slide-contract` and contains the 68 exact variant records `{boxes,overlays}`: boxes map semantic slot/item names to `[x,y,width,height]`, repeated items use source-order names such as `card_1`, `metric_2`, or `step_5`, and overlays are deterministically ordered `{back,front}` pairs. Visual config SHALL reject any other registry ID in schema v1 and SHALL not duplicate family fields, capacities, formulas, or concrete records. Tokens SHALL be deterministic JSON values and independent of browser CSS or Image2 prompts. Existing whole-page canvas/body/header fields and defaults SHALL remain unchanged for `whole-page-image2-v1`; no second `html-theme.json` SHALL be introduced.
 
 #### Scenario: Structured plan resolves shared tokens
-
 - **WHEN** an HTML-first source selects a family and references the visual configuration
 - **THEN** the resolved plan contains the family geometry and required typography/spacing/component tokens
-- **AND** the legacy canvas profile is not rewritten
+- **AND** the whole-page canvas profile is not rewritten
 
-#### Scenario: Adding HTML tokens does not widen the legacy loader object
-
-- **WHEN** the same palette file is loaded once for a legacy source and once for an HTML-first source
-- **THEN** the legacy `loadVisualConfig()` result remains deep-equal to its pre-change projection
+#### Scenario: Adding HTML tokens does not widen the whole-page loader object
+- **WHEN** the same palette file is loaded once for a whole-page source and once for an HTML-first source
+- **THEN** the whole-page `loadVisualConfig()` result remains deep-equal to its pre-change projection
 - **AND** only the HTML-first branch receives the validated `html_first` projection
 
 #### Scenario: Invalid token fails before rendering
-
 - **WHEN** a required token is missing, malformed, or outside its declared domain
 - **THEN** contract validation fails with the token path and expected domain
 - **AND** no browser or provider work is started
 
 #### Scenario: HTML-first config does not inherit silent defaults
-
 - **WHEN** an HTML-first source resolves a palette with no `html_first` mapping or a missing required nested token
 - **THEN** validation fails at that config path
-- **AND** JS does not borrow legacy pixels or a preset-independent HTML default
+- **AND** JS does not borrow whole-page pixels or a preset-independent HTML default
 
 ### Requirement: HTML token changes have explicit contract version evidence
-
-The resolved visual contract SHALL include the HTML visual-config schema version and checked-in dependency-projection versions in its fingerprint inputs. `visual-config` SHALL own two closed, versioned, disjoint path allowlists. `visual_projection_v1` SHALL contain exactly the resolved `canvas`, geometry registry ID/SHA, and one resolved registry record used by the slide. `style_reference_projection_v1` SHALL contain exactly the fully resolved `palette` and `image_language` mappings, including resolved `avoid`. Slide source, palette data, and `deck_system.txt` SHALL not supply or expand either allowlist. A path present in both lists or an allowlisted path absent from the closed config schema SHALL fail a checked-in coherence test. `typography`, `spacing`, and `components` remain renderer-consumed plan tokens outside both acceptance projections; they enter the resolved `theme` and therefore `ordered_plan_digest` but do not stale an accepted primary visual or future style-reference contract by themselves. A token change SHALL invalidate only the narrow fingerprints whose allowlist contains that path and SHALL not change legacy fingerprints that do not consume `html_first`.
+The resolved visual contract SHALL include the HTML visual-config schema version and checked-in dependency-projection versions in its fingerprint inputs. `visual-config` SHALL own two closed, versioned, disjoint path allowlists. `visual_projection_v1` SHALL contain exactly the resolved `canvas`, geometry registry ID/SHA, and one resolved registry record used by the slide. `style_reference_projection_v1` SHALL contain exactly the fully resolved `palette` and `image_language` mappings, including resolved `avoid`. Slide source, palette data, and `deck_system.txt` SHALL not supply or expand either allowlist. A path present in both lists or an allowlisted path absent from the closed config schema SHALL fail a checked-in coherence test. `typography`, `spacing`, and `components` remain renderer-consumed plan tokens outside both acceptance projections; they enter the resolved `theme` and therefore `ordered_plan_digest` but do not stale an accepted primary visual or future style-reference contract by themselves. A token change SHALL invalidate only the narrow fingerprints whose allowlist contains that path and SHALL not change whole-page fingerprints that do not consume `html_first`.
 
 #### Scenario: Token change changes HTML contract evidence
-
 - **WHEN** a versioned update changes the selected geometry registry ID or the resolved checked-in record while source content is unchanged
 - **THEN** its `visual_contract_fingerprint` changes
-- **AND** legacy pipeline evidence remains governed by its existing config contract
+- **AND** whole-page pipeline evidence remains governed by its own config contract
 
 #### Scenario: Natural-language prose is not hashed implicitly
-
 - **WHEN** `deck_system.txt` changes without corresponding structured image-language tokens changing
 - **THEN** JS does not parse or hash the prose into either fingerprint
 - **AND** authoring guidance requires the Agent to update structured tokens when the visual direction materially changes
 
 #### Scenario: Projection allowlists cannot overlap silently
-
 - **WHEN** a checked-in path is added to both the per-slide and deck-global projection allowlists or no longer exists in schema v1
 - **THEN** contract-coherence tests fail with the path and projection versions
 - **AND** runtime data cannot redefine the allowlists
@@ -101,27 +92,3 @@ The `html_first.geometry.registry` ID SHALL resolve to both callout-off and call
 - **WHEN** the same family is resolved once without a callout and once with a callout
 - **THEN** the visual-config registry ID resolves both checked-in contract records
 - **AND** the resolved variant participates in the visual contract fingerprint
-
-### Requirement: Migration palette preparation is deterministic and diagnostically complete
-
-`visual-config` SHALL provide one migration preparation projection for a named shipped preset and a legacy `color_palette.json`. The selected preset SHALL supply the complete closed HTML-first schema/form. The projection SHALL start from that preset, overlay only named legacy root token paths referenced by the selected preset's `html_first.palette`, retain preset values for missing/incompatible paths, and report `legacy|preset` provenance per resulting palette token. It SHALL write the resulting complete palette only to the projected candidate's `overrides/visual-style/color_palette.json`, which is the final candidate overlay above source-version overrides and backbone controls. The projection SHALL not change the legacy loader return shape or mutate the source palette. It SHALL not infer token roles from IMAGE PROMPT prose, color names, or generated bytes.
-
-The same visual-config owner SHALL validate prepared/candidate palettes for prepare, preview, and apply. On a strict JSON, duplicate-key, closed-schema, token, typography, spacing, component, image-language, or geometry mismatch, it SHALL return a bounded field-level difference set with stable paths and safe expected/actual summaries for every detected independent mismatch. It SHALL not stop at an opaque first mismatch, print arbitrary full palette/source content, or start browser/provider work. Unknown preset names SHALL fail before any projected candidate write.
-
-#### Scenario: Known preset seeds a valid candidate palette
-
-- **WHEN** preparation receives a valid explicit whole-page palette and a shipped preset name
-- **THEN** it writes a deterministic HTML-first candidate palette with recorded preset/legacy-token provenance
-- **AND** repeated preparation with identical inputs yields the same validated projection
-
-#### Scenario: Invalid candidate reports field differences
-
-- **WHEN** a prepared candidate palette has independently invalid typography and component tokens
-- **THEN** validation reports bounded differences for both field paths with expected/actual summaries
-- **AND** it does not invoke rendering or provider code
-
-#### Scenario: Unknown preset is non-writing
-
-- **WHEN** preparation receives a preset name outside the shipped registry
-- **THEN** it fails before creating or changing the projected candidate
-- **AND** the source palette remains byte-identical

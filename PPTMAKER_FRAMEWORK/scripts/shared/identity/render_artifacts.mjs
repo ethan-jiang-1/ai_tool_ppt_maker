@@ -2,14 +2,14 @@ import { canonicalJsonSha256 } from "./canonical_json.mjs";
 import { sha256Bytes } from "./byte_hash.mjs";
 
 export const ARTIFACT_STATUS_VERIFIED = "verified";
-export const ARTIFACT_STATUS_LEGACY_LOCATED = "legacy-located";
 export const ARTIFACT_STATUS_MISSING = "missing";
 export const ARTIFACT_STATUS_AMBIGUOUS = "ambiguous";
 
 export const RENDER_ENGINE_IMAGE2 = "image2";
 export const ARTIFACT_KIND_RAW_RENDER = "raw-render";
 export const ARTIFACT_KIND_FINAL_SLIDE = "final-slide";
-export const ARTIFACT_MANIFEST_VERSION = 1;
+export const ARTIFACT_MANIFEST_VERSION = 2;
+export const WHOLE_PAGE_ARTIFACT_PIPELINE = "whole-page-image2-v1";
 export const FINAL_SLIDE_CONTRACT_VERSION = 1;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -106,5 +106,9 @@ export function artifactIdentity({ slideId, renderEngine, artifactKind, fingerpr
 }
 
 export function emptyArtifactManifest() {
-  return { version: ARTIFACT_MANIFEST_VERSION, entries: {} };
+  return {
+    version: ARTIFACT_MANIFEST_VERSION,
+    pipeline: WHOLE_PAGE_ARTIFACT_PIPELINE,
+    entries: {},
+  };
 }

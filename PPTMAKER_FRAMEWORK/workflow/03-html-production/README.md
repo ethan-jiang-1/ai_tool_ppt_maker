@@ -19,4 +19,4 @@ For `html-first-v1`:
 4. `04-stage-4-build-the-pptx-container.md` consumes provider-neutral final-slide evidence in plan order.
 5. `05-stage-5-inject-speaker-notes.md` binds notes by stable ID and current order.
 
-Preview may run while content/visual reviews are pending. Stage 4 requires current authoritative review evidence. All outputs are rebuildable under `_generated/html_production/`; do not edit them. Explicit whole-page decks route to `playbook/create-deck.md` and keep their isolated legacy stages.
+Preview may run while content/visual reviews are pending. Stage 4 requires current authoritative review evidence. All outputs are rebuildable under `_generated/html_production/`; do not edit them. First-class whole-page Image2 decks route to `playbook/create-deck.md` and keep their isolated whole-page stages.

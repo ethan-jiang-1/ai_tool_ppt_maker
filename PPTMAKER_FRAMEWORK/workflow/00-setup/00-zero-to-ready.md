@@ -50,7 +50,7 @@ Node profile 只支持 22.x、24.x、26.x；coding agent 自己能运行不代�
 
 ### 3. GPT Image 2 API key + Base URL（可选）
 
-这是可选的远程精细视觉能力。没有它仍可完成本地环境检查和本地工作；只有进入 legacy Image2 远程生成时才需要。
+这是显式选择的远程 Image2 能力。没有它仍可完成 HTML 本地环境检查和本地工作；进入 `image2-only` whole-page 远程生成或授权 visual-slot refinement 时才需要。
 
 你需要两样东西：
 - **API Key**（`IMAGE2_API_KEY`）：一串 `sk-...` 开头的密钥。去 [platform.openai.com](https://platform.openai.com) → API keys 创建，或向中转服务商获取。

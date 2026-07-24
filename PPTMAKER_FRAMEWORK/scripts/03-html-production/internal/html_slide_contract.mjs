@@ -36,7 +36,6 @@ import {
   buildHtmlStyleReferenceProjectionV1,
   buildHtmlVisualProjectionV1,
   loadVisualConfigViews,
-  validateHtmlMigrationPalette,
 } from "../../02-visual-system/index.mjs";
 import {
   COLOR_PALETTE_FILE,
@@ -99,6 +98,16 @@ export class HtmlSlideContractError extends Error {
     super(message);
     this.name = "HtmlSlideContractError";
     this.issues = issues;
+  }
+}
+
+function assertNotRetiredHtmlMigrationContext(runDir) {
+  const segments = resolve(runDir).split(sep);
+  const scratchIndex = segments.lastIndexOf("_scratch");
+  if (scratchIndex >= 0 && segments[scratchIndex + 1] === "html-migration") {
+    throw new HtmlSlideContractError("retired html-migration renderer context is not supported", [
+      issue("retired_html_migration_context", "HTML validation accepts only a canonical version run, not retired html-migration scratch", { source: "_scratch/html-migration" }),
+    ]);
   }
 }
 
@@ -744,7 +753,7 @@ function buildReceipts({ runDir, sourcePath, palettePath, assetCatalog, prefligh
   return records;
 }
 
-export function verifyInputReceipts(receipts, { runDir, assetCatalog = null, candidateOverridesDir = null } = {}) {
+export function verifyInputReceipts(receipts, { runDir, assetCatalog = null } = {}) {
   const root = realpathSync(deckRoot(runDir));
   const frameworkRoot = realpathSync(FRAMEWORK_DIR);
   const seen = new Set();
@@ -762,7 +771,7 @@ export function verifyInputReceipts(receipts, { runDir, assetCatalog = null, can
     if (sha256(readFileSync(absolute)) !== record.sha256) throw new HtmlSlideContractError("input receipt drifted", [issue("input_receipt_drift", `input changed before publication: ${record.scope}:${record.path}`)]);
   }
   if (assetCatalog) {
-    const reloaded = loadHtmlAssetCatalog(runDir, { candidateOverridesDir });
+    const reloaded = loadHtmlAssetCatalog(runDir);
     const expected = Object.fromEntries(Object.entries(assetCatalog.catalog).map(([id, entry]) => [id, {
       origin: entry.origin,
       manifest_path: entry.manifest_path,
@@ -861,40 +870,15 @@ export function buildHtmlFirstPlan(validated) {
   };
 }
 
-function candidateOverrideRoot(runDir, candidateRoot) {
-  if (candidateRoot == null) return null;
-  if (!existsSync(candidateRoot)) {
-    throw new HtmlSlideContractError("migration candidate root is missing", [issue("candidate_root_missing", "migration candidate root is missing")]);
-  }
-  const root = realpathSync(candidateRoot);
-  const deck = realpathSync(deckRoot(runDir));
-  const relation = relative(deck, root);
-  if (!relation || relation.startsWith(`..${sep}`) || relation === "..") {
-    throw new HtmlSlideContractError("migration candidate root must be confined to the deck", [issue("candidate_root_not_confined", "migration candidate root must be confined to the deck root")]);
-  }
-  const expectedRoots = [
-    join(resolve(runDir), "_scratch", "html-migration", "projected-run"),
-    join(resolve(runDir), "_scratch", "production-mode-transition", "candidate-run"),
-  ];
-  if (!expectedRoots.some((expected) => existsSync(expected) && root === realpathSync(expected))) {
-    throw new HtmlSlideContractError("migration candidate root is not canonical", [issue("candidate_root_not_canonical", "migration candidate root must be the canonical projected-run")]);
-  }
-  return root;
-}
-
-export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOverride = null, migrationCandidateRoot = null } = {}) {
+export function validateHtmlFirstRun({ runDir, sourceBytes = null } = {}) {
+  assertNotRetiredHtmlMigrationContext(runDir);
   const run = resolve(runDir);
   const candidates = readdirSync(run)
     .filter((name) => /^slide-specifications.*\.md$/.test(name))
     .map((name) => join(run, name));
   const sourcePath = assertCanonicalHtmlSourceCandidates(run, candidates);
-  const receiptSourcePath = sourcePathOverride == null ? sourcePath : resolve(sourcePathOverride);
   const receiptRoot = deckRoot(run);
-  const receiptRel = relative(receiptRoot, receiptSourcePath);
-  if (!receiptRel || receiptRel.startsWith("..") || receiptRel.split(sep).includes("..")) {
-    throw new HtmlSlideContractError("HTML-first source override must be inside the run bundle", [issue("source_override_not_confined", "source override path must be confined to the run bundle", { source: "slide-specifications.md" })]);
-  }
-  const bytes = sourceBytes == null ? readFileSync(receiptSourcePath) : Buffer.from(sourceBytes);
+  const bytes = sourceBytes == null ? readFileSync(sourcePath) : Buffer.from(sourceBytes);
   let sourceText;
   try {
     sourceText = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
@@ -904,24 +888,18 @@ export function validateHtmlFirstRun({ runDir, sourceBytes = null, sourcePathOve
   if (sourceText.includes("\0")) {
     throw new HtmlSlideContractError("HTML-first source contains NUL", [issue("source_nul_forbidden", "slide-specifications.md must not contain NUL", { source: "slide-specifications.md" })]);
   }
-  const sourcePathRelative = relative(receiptRoot, receiptSourcePath).split(sep).join("/");
+  const sourcePathRelative = relative(receiptRoot, sourcePath).split(sep).join("/");
   const parsed = parseHtmlFirstSource(sourceText, { source: sourcePathRelative });
-  const candidateRoot = candidateOverrideRoot(run, migrationCandidateRoot);
-  const candidatePalettePath = candidateRoot == null ? null : join(candidateRoot, "overrides", "visual-style", COLOR_PALETTE_FILE);
-  const palettePath = candidatePalettePath && existsSync(candidatePalettePath) ? candidatePalettePath : styleAsset(run, COLOR_PALETTE_FILE);
-  const config = (candidatePalettePath && existsSync(candidatePalettePath)
-    ? validateHtmlMigrationPalette(palettePath)
-    : loadVisualConfigViews(palettePath)).html_first;
-  const assetCatalog = loadHtmlAssetCatalog(run, { candidateOverridesDir: candidateRoot == null ? null : join(candidateRoot, "overrides") });
+  const palettePath = styleAsset(run, COLOR_PALETTE_FILE);
+  const config = loadVisualConfigViews(palettePath).html_first;
+  const assetCatalog = loadHtmlAssetCatalog(run);
   const preflight = buildHtmlSourcePreflight(parsed.slides);
   const geometryRegistry = loadHtmlFamilyGeometryRegistry();
   const geometryRegistrySha256 = htmlFamilyGeometrySemanticSha256(geometryRegistry);
-  const receipts = buildReceipts({ runDir: run, sourcePath: receiptSourcePath, palettePath, assetCatalog, preflight });
+  const receipts = buildReceipts({ runDir: run, sourcePath, palettePath, assetCatalog, preflight });
   return {
     runDir: run,
-    ...(candidateRoot == null ? {} : { migrationCandidateRoot: candidateRoot }),
-    sourcePath: receiptSourcePath,
-    canonicalSourcePath: sourcePath,
+    sourcePath,
     palettePath,
     parsed,
     config,

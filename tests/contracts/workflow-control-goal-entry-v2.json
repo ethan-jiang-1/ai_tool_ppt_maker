@@ -7,7 +7,6 @@
     { "goal": "structural-versioning", "entry": "ppt_flow slides", "owner": "slides", "inspection": false },
     { "goal": "recovery", "entry": "owner recovery CLI", "owner": "direct-owner", "inspection": false },
     { "goal": "html-then-image2-refinement", "entry": "ppt_flow image2", "owner": "image2-refinement", "inspection": false },
-    { "goal": "image2-only-production", "entry": "ppt_flow pilot/build", "owner": "whole-page-image2", "inspection": false },
-    { "goal": "explicit whole-page-maintenance", "entry": "ppt_flow refresh", "owner": "legacy-maintenance", "inspection": false }
+    { "goal": "image2-only-production", "entry": "ppt_flow pilot/build/refresh", "owner": "whole-page-image2", "inspection": false }
   ]
 }

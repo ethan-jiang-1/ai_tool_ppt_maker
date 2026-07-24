@@ -133,6 +133,8 @@ describe("default Image2-primary delivery E2E", () => {
 
       const sourcePath = join(runDir, "slide-specifications.md");
       writeFileSync(sourcePath, `---
+production:
+  pipeline: whole-page-image2-v1
 identity:
   scheme: mnemonic-v1
 render:

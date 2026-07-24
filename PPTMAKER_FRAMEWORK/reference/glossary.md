@@ -12,12 +12,12 @@ Search this file before inventing a path. Framework source remains the five dire
 | `--run-dir` | `deck_NAME/3_versions/vN/` | version leaf, not deck root |
 | `slide-specifications.md` | `<run-dir>/slide-specifications.md` | structured source; exact visible body lives in `SLIDE BODY` |
 | `_state/` | deck root `_state/` | state.yaml, history, gate journal; do not hand-edit |
-| `_scratch/` | `<run-dir>/_scratch/` | transaction workspace; migration scratch is `_scratch/html-migration/` |
+| `_scratch/` | `<run-dir>/_scratch/` | transaction workspace; cross-pipeline candidates live in `_scratch/production-mode-transition/` |
 | `_generated/` | `<run-dir>/_generated/` | rebuildable derived artifacts; never source or manual edit |
 | `html_production` | `<run-dir>/_generated/html_production/` | HTML pages/final slides/preview objects, plans, manifests |
-| `contact_sheet` | HTML: `html_production/preview/`; legacy: `_generated/preview/` | real visual evidence; inspect before approval |
-| `style_master.jpg` | explicit whole-page legacy compatibility only | not a new HTML prerequisite |
-| `create-deck` | framework `reference/` + `playbook/` | isolated explicit whole-page whole-page maintenance |
+| `contact_sheet` | HTML: `html_production/preview/`; whole-page: `_generated/preview/` | real visual evidence; inspect before approval |
+| `style_master.jpg` | `image2-only` whole-page visual anchor | not an HTML prerequisite |
+| `create-deck` | framework `reference/` + `playbook/` | normal current whole-page Image2 ownership |
 | Image2 refinement | lazy source/derived/scratch partitions owned by Phase 4 | optional after current HTML delivery and exact authorization; never create for ordinary HTML work |
 | `needs_local_materialization` | HTML structural receipt | target-local work, zero remote |
 | `needs_render` | explicit whole-page structural receipt | remote cost report only, not authorization |
@@ -27,9 +27,9 @@ Search this file before inventing a path. Framework source remains the five dire
 
 ## Pipeline terms
 
-`html-first-v1` means local structured HTML production. `whole-page-image2-v1` means explicit whole-page compatibility. They do not share gates, manifests, reset epochs, receipts, or node decisions.
+`html-first-v1` means local structured HTML production. `whole-page-image2-v1` means first-class `image2-only` whole-page production. They do not share gates, manifests, reset epochs, receipts, or node decisions.
 
-`Header Text & Style Refresh`, `Generated Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path` are controlled refresh vocabulary. HTML uses the first only as a conceptual legacy mapping; actual HTML routes are Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path.
+`Header Text & Style Refresh`, `Generated Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path` are controlled refresh vocabulary for `image2-only`. HTML routes are Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path.
 
 ## Git
 

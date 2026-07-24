@@ -25,7 +25,7 @@ Options:
   --dry-run                 Print plan only
   -h, --help                display help for command`);
   } else {
-    const { runLegacyImageGenerationCli } = await import("../index.mjs");
-    await runLegacyImageGenerationCli(process.argv);
+    const { runWholePageImageGenerationCli } = await import("../index.mjs");
+    await runWholePageImageGenerationCli(process.argv);
   }
 }

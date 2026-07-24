@@ -6,7 +6,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: CLI surface preserves command names
-The `ppt_flow` CLI SHALL expose exactly 14 top-level commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and `image2`. Cross-pipeline page-authority work SHALL be exposed only by the closed `state --*-production-mode-transition` operations. There SHALL be no top-level `migrate-html` or `production-mode-transition` command and no compatibility help entry for either removed surface.
+The `ppt_flow` CLI SHALL expose exactly 14 top-level commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and `image2`. Cross-pipeline page-authority work SHALL be exposed only by the closed `state --*-production-mode-transition` operations. There SHALL be no retired top-level migration command or top-level `production-mode-transition` command and no compatibility help entry for either removed surface.
 
 #### Scenario: Help lists the complete current surface
 - **WHEN** `ppt_flow --help` runs

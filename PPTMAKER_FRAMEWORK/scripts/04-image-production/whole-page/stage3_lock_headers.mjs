@@ -7,6 +7,6 @@ const entry = fileURLToPath(import.meta.url);
 if (process.argv[1] && resolve(process.argv[1]) === resolve(entry)) {
   const { installStandaloneFailureEnvelope } = await import("../../shared/cli/cli_error.mjs");
   installStandaloneFailureEnvelope({ where: "stage3_lock_headers" });
-  const { runLegacyHeaderLockCli } = await import("../index.mjs");
-  await runLegacyHeaderLockCli(process.argv);
+  const { runWholePageHeaderLockCli } = await import("../index.mjs");
+  await runWholePageHeaderLockCli(process.argv);
 }

@@ -41,13 +41,14 @@ describe('HTML immutable object/current manifest store', () => {
     }
   });
 
-  it('fails closed on lock conflicts, scope/reset drift, malformed owner records, and stale CAS', () => {
+  it('rejects retired publication scopes and fails closed on lock conflicts, scope/reset drift, malformed owner records, and stale CAS', () => {
     const fixture = createHtmlFirstRun('html-objects-conflict-');
     try {
       const ownerRoot = ensureHtmlOwnerRoot(fixture.runDir, 'html-pages');
-      const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'html-pages', publicationScope: 'migration-preview', inputScopeSha256: sha('inputs') });
-      expect(() => acquireHtmlPublishLock({ ownerRoot, ownerKind: 'html-pages', publicationScope: 'migration-preview', inputScopeSha256: sha('other') })).toThrow(/CONFLICT/);
-      expect(() => publishHtmlCurrentManifest({ ownerRoot, ownerToken: lock.ownerToken, schema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, publicationScope: 'canonical-run', htmlProductionResetId: null, entries: [], priorManifestSha256: null })).toThrow(/scope/);
+      expect(() => acquireHtmlPublishLock({ ownerRoot, ownerKind: 'html-pages', publicationScope: 'migration-preview', inputScopeSha256: sha('inputs') })).toThrow(/invalid HTML publication lock inputs/);
+      const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'html-pages', publicationScope: 'canonical-run', inputScopeSha256: sha('inputs') });
+      expect(() => acquireHtmlPublishLock({ ownerRoot, ownerKind: 'html-pages', publicationScope: 'canonical-run', inputScopeSha256: sha('other') })).toThrow(/CONFLICT/);
+      expect(() => publishHtmlCurrentManifest({ ownerRoot, ownerToken: lock.ownerToken, schema: HTML_FINAL_SLIDES_MANIFEST_SCHEMA, publicationScope: 'migration-preview', htmlProductionResetId: null, entries: [], priorManifestSha256: null })).toThrow(/scope/);
       expect(readHtmlCurrentManifest(ownerRoot, { expectedSchema: 'pptmaker-html-pages-manifest-v1', publicationScope: 'canonical-run', htmlProductionResetId: null })).toBeNull();
       releaseHtmlPublishLock(lock);
       mkdirSync(join(ownerRoot, '.publish.lock'), { recursive: true });
@@ -73,16 +74,16 @@ describe('HTML immutable object/current manifest store', () => {
     }
   });
 
-  it('recovers only an old same-host dead owner or an explicitly confirmed old foreign owner', () => {
+  it('recovers only an old same-host dead owner and rejects an uncertain foreign canonical owner', () => {
     const fixture = createHtmlFirstRun('html-objects-recovery-');
     try {
       const ownerRoot = ensureHtmlOwnerRoot(fixture.runDir, 'preview');
       const lock = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'preview', publicationScope: 'canonical-run', inputScopeSha256: sha('inputs'), now: 1, pid: 99999999 });
       mkdirSync(join(ownerRoot, 'objects', `.object.${lock.ownerToken}.orphan.tmp`));
       expect(recoverHtmlPublishLock(ownerRoot, { now: 60001 })).toMatchObject({ status: 'recovered', mode: 'same-host-dead' });
-      const foreign = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'preview', publicationScope: 'migration-preview', inputScopeSha256: sha('inputs'), now: 1, pid: 99999999, host: 'foreign-host' });
+      const foreign = acquireHtmlPublishLock({ ownerRoot, ownerKind: 'preview', publicationScope: 'canonical-run', inputScopeSha256: sha('inputs'), now: 1, pid: 99999999, host: 'foreign-host' });
       expect(() => recoverHtmlPublishLock(ownerRoot, { now: 300001, host: 'local-host' })).toThrow(/confirmation/);
-      expect(recoverHtmlPublishLock(ownerRoot, { now: 300001, host: 'local-host', confirmedOwnerToken: foreign.ownerToken })).toMatchObject({ status: 'recovered', mode: 'confirmed-owner' });
+      expect(() => recoverHtmlPublishLock(ownerRoot, { now: 300001, host: 'local-host', confirmedOwnerToken: foreign.ownerToken })).toThrow(/whole HTML production reset/);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

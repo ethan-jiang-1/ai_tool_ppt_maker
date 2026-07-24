@@ -5,19 +5,20 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { encode as encodePng } from "fast-png";
 import { initHtmlFirstBundle, initWholePageBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readImage2RefinementState, readState, writeImage2RefinementState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import {
   buildControllerGateContext,
   selectPilotSlideIds,
 } from "../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 import {
-  generationFingerprint,
+  buildImageManifestEntry,
+  emptyImageManifest,
   generationProfile,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
 import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
-import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, MIGRATION_CONFIRMATION_RETURN_CASES, MIGRATION_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
+import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, PRODUCTION_MODE_TRANSITION_RETURN_CASES, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../helpers/image2_refinement_fixture.mjs";
 
@@ -220,13 +221,18 @@ describe("ppt_flow", () => {
 
   it("state --check-gates on minimal fixture → GATE_BLOCKED", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-gate-"));
-    const runDir = join(root, "deck_x", "_runs", "r1");
-    mkdirSync(runDir, { recursive: true });
-    const r = runPptFlow(["state", runDir, "--check-gates"]);
-    expect(r.status).toBe(1);
-    const env = parseFailureEnvelope(r.stderr);
-    expect(env.code).toBe("GATE_BLOCKED");
-    expect(env.hint).toMatch(/content|visual/);
+    const deck = join(root, "deck_x");
+    try {
+      initWholePageBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const r = runPptFlow(["state", runDir, "--check-gates"]);
+      expect(r.status).toBe(1);
+      const env = parseFailureEnvelope(r.stderr);
+      expect(env.code).toBe("GATE_BLOCKED");
+      expect(env.hint).toMatch(/content|visual/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("does not mutate STYLE_PRESETS in place", () => {
@@ -235,15 +241,15 @@ describe("ppt_flow", () => {
     );
   });
 
-  it("registers exactly 15 top-level commands", () => {
+  it("registers exactly 14 top-level commands", () => {
     const matches = PPT_FLOW_SRC.match(/\.command\("/g) || [];
-    expect(matches.length).toBe(15);
+    expect(matches.length).toBe(14);
   });
 
   it("keeps the return audit exact for all commands and Image2 cases", () => {
     expect(validateCliReturnAudit(PPT_FLOW_RETURN_AUDIT, PPT_FLOW_COMMAND_INVENTORY)).toEqual({ valid: true, errors: [] });
     expect(IMAGE2_RETURN_CASES).toEqual([
-      "explicit whole-page",
+      "whole_page",
       "current_delivery",
       "plan_authorization_drift",
       "duplicate_attempt",
@@ -252,9 +258,9 @@ describe("ppt_flow", () => {
       "promotion_recovery",
       "cleanup_ambiguity",
     ]);
-    expect(MIGRATION_RETURN_CASES).toContain("prepare_success");
-    expect(MIGRATION_RETURN_CASES).toContain("preview_preparation_guide");
-    expect(MIGRATION_CONFIRMATION_RETURN_CASES).toContain("atomic_success");
+    expect(PRODUCTION_MODE_TRANSITION_RETURN_CASES).toContain("prepare_offline");
+    expect(PRODUCTION_MODE_TRANSITION_RETURN_CASES).toContain("preview_authoring_guide");
+    expect(PRODUCTION_MODE_TRANSITION_RETURN_CASES).toContain("confirm_atomic");
     const missing = { ...PPT_FLOW_RETURN_AUDIT.commands.image2 };
     delete missing.promotion_recovery;
     const broken = { ...PPT_FLOW_RETURN_AUDIT, commands: { ...PPT_FLOW_RETURN_AUDIT.commands, image2: missing } };
@@ -372,34 +378,33 @@ describe("ppt_flow", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));
     const deck = join(root, "deck_resume");
     const runDir = join(deck, "3_versions", "v1");
-    initHtmlFirstBundle(deck, null, "keynote", "dark-executive");
-    writeFileSync(
-      join(deck, "_state", "state.yaml"),
-      `playbook: iterate-style
-current_node: review-gate
-nodes:
-  review-gate:
-    status: in_progress
-    waiting_for: user:review-style-master
-gates:
-  content: pending
-  visual: pending
-deck:
-  name: resume
-  type: keynote
-  style: dark
-playbook_stack: []
-`,
-      "utf-8"
-    );
-    const r = runPptFlow(["state", runDir, "--json"]);
-    expect(r.status).toBe(0);
-    const j = JSON.parse(r.stdout);
-    expect(j.playbook).toBe("iterate-style");
-    expect(j.current_node).toBe("review-style-system");
-    expect(j.waiting_for).toBe("user:review-style-master");
-    expect(typeof j.workflow_summary).toBe("string");
-    expect(typeof j.suggested_next).toBe("string");
+    try {
+      initHtmlFirstBundle(deck, null, "keynote", "dark-executive");
+      const state = readState(deck, { purpose: "execute", heal: false });
+      state.playbook = "iterate-style";
+      state.current_node = "review-style-system";
+      state.execution_id = "exec-resume";
+      state.execution_started_at = "2026-07-24T00:00:00.000Z";
+      state.run_version = "v1";
+      state.nodes = {};
+      state.nodes["review-style-system"] = {
+        status: "in_progress",
+        execution_id: state.execution_id,
+        run_version: "v1",
+        waiting_for: "user:review-style-master",
+      };
+      writeState(deck, state);
+      const r = runPptFlow(["state", runDir, "--json"]);
+      expect(r.status, r.stderr).toBe(0);
+      const j = JSON.parse(r.stdout);
+      expect(j.playbook).toBe("iterate-style");
+      expect(j.current_node).toBe("review-style-system");
+      expect(j.waiting_for).toBe("user:review-style-master");
+      expect(typeof j.workflow_summary).toBe("string");
+      expect(typeof j.suggested_next).toBe("string");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("state inspection consumes current HTML evidence without mutating it", async () => {
@@ -856,6 +861,8 @@ playbook_stack: []
       const qaDir = join(generated, "qa");
       const previewDir = join(generated, "preview");
       writeFileSync(join(runDir, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: full-page
   header-lock: []
@@ -891,18 +898,17 @@ render:
         model: "gpt-image-2",
         semanticOptions: { size: "16:9", n: 1 },
       });
-      const manifest = { version: 1, slides: {} };
+      const manifest = emptyImageManifest();
       for (const prompt of prompts) {
         const imagePath = join(imagesDir, prompt.out);
         writeFileSync(imagePath, `image-${prompt.id}`);
-        manifest.slides[prompt.id] = {
-          slide_id: prompt.id,
+        manifest.slides[prompt.id] = buildImageManifestEntry({
+          slideId: prompt.id,
           output: prompt.out,
-          generation_fingerprint: generationFingerprint({ prompt: prompt.prompt.trim(), profile }),
-          image_sha256: sha256File(imagePath),
-          generation_profile: profile,
-          generated_at: new Date().toISOString(),
-        };
+          prompt: prompt.prompt.trim(),
+          profile,
+          imagePath,
+        });
       }
       writeFileSync(join(imagesDir, "_manifest.json"), JSON.stringify(manifest), "utf-8");
       writeFileSync(join(previewDir, "pilot_final_contact_sheet.jpg"), "reviewed", "utf-8");
@@ -910,7 +916,7 @@ render:
       const plan = JSON.parse(readFileSync(join(generated, "slide_plan.json"), "utf-8")).slides;
       writeFileSync(join(qaDir, "pilot_slide_plan.json"), JSON.stringify({ slides: [plan[0]] }), "utf-8");
       const first = runPptFlow(["approve", runDir, "header"]);
-      expect(first.status).toBe(0);
+      expect(first.status, first.stderr).toBe(0);
       let state = readState(deck);
       const v1 = state.nodes["header-review"].by_version["3_versions/v1"];
       expect(v1.slides).toBeDefined();
@@ -960,6 +966,8 @@ render:
       initWholePageBundle(bodyDeck, null, "keynote", "dark-executive");
       const bodyRun = join(bodyDeck, "3_versions", "v1");
       writeFileSync(join(bodyRun, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: body+header-lock
   header-lock: []
@@ -978,6 +986,8 @@ render:
       initWholePageBundle(mixedDeck, null, "keynote", "dark-executive");
       const mixedRun = join(mixedDeck, "3_versions", "v1");
       writeFileSync(join(mixedRun, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: full-page
   header-lock:
@@ -1011,13 +1021,15 @@ render:
     }
   }, 20_000);
 
-  it("status --json includes playbook breakpoint", () => {
+  it("status rejects a pre-current state without rewriting its bytes", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-status-")), "deck_status");
     try {
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
+      const stateFile = join(deck, "_state", "state.yaml");
+      const historyFile = join(deck, "_state", "history.jsonl");
       writeFileSync(
-        join(deck, "_state", "state.yaml"),
+        stateFile,
         `schema_version: 4
 pipeline: whole-page-image2-v1
 production_mode:
@@ -1045,11 +1057,15 @@ playbook_stack: []
 `,
         "utf-8"
       );
+      const stateBefore = readFileSync(stateFile);
+      const historyBefore = existsSync(historyFile) ? readFileSync(historyFile) : null;
       const r = runPptFlow(["status", runDir, "--json"]);
-      expect(r.status).toBe(0);
-      const j = JSON.parse(r.stdout);
-      expect(j.playbook).toBe("create-deck");
-      expect(j.current_node).toBe("checkpoint-intake");
+      expect(r.status).toBe(1);
+      const envelope = parseFailureEnvelope(r.stderr);
+      expect(envelope.diagnostic.next).toMatchObject({ action: "repair_prerequisite", requires_human: false });
+      expect(envelope.diagnostic.next.default).toMatch(/preserve.*bytes.*ppt_flow init/i);
+      expect(readFileSync(stateFile)).toEqual(stateBefore);
+      expect(existsSync(historyFile) ? readFileSync(historyFile) : null).toEqual(historyBefore);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
@@ -1064,6 +1080,8 @@ playbook_stack: []
       writeFileSync(spec, `---
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: whole-page-image2-v1
 ---
 # Deck
 
@@ -1117,7 +1135,12 @@ identity:
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const spec = join(runDir, "slide-specifications.md");
-      writeFileSync(spec, `## Slide 01: DeckGo
+      writeFileSync(spec, `---
+production:
+  pipeline: whole-page-image2-v1
+---
+
+## Slide 01: DeckGo
 
 **TITLE**: Opening
 
@@ -1169,7 +1192,12 @@ identity:
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const spec = join(runDir, "slide-specifications.md");
-      writeFileSync(spec, `## Slide 07: DeckGo
+      writeFileSync(spec, `---
+production:
+  pipeline: whole-page-image2-v1
+---
+
+## Slide 07: DeckGo
 
 body one
 
@@ -1182,7 +1210,12 @@ body two
       const hash = JSON.parse(preview.stdout).transaction.plan_sha256;
       const applied = runPptFlow(["slides", "normalize", runDir, "--apply", "--plan-sha256", hash, "--json"]);
       expect(applied.status, applied.stderr).toBe(0);
-      expect(readFileSync(spec, "utf8")).toBe(`## Slide 01: DeckGo
+      expect(readFileSync(spec, "utf8")).toBe(`---
+production:
+  pipeline: whole-page-image2-v1
+---
+
+## Slide 01: DeckGo
 
 body one
 
@@ -1201,7 +1234,12 @@ body two
     try {
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const v1 = join(deck, "3_versions", "v1");
-      writeFileSync(join(v1, "slide-specifications.md"), `## Slide 01: DeckGo
+      writeFileSync(join(v1, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
+---
+
+## Slide 01: DeckGo
 
 **TITLE**: Opening
 `, "utf8");
@@ -1277,7 +1315,12 @@ body two
     try {
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
-      writeFileSync(join(runDir, "slide-specifications.md"), `## Slide 01: DeckGo
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
+---
+
+## Slide 01: DeckGo
 
 **TITLE**: Opening
 
@@ -1456,6 +1499,8 @@ describe("pilot selector", () => {
       const styleMaster = join(deck, "2_backbone", "visual-style", "style_master.jpg");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style-master-prompt.md"), "first-class style prompt", "utf8");
       writeFileSync(join(runDir, "slide-specifications.md"), `---
+production:
+  pipeline: whole-page-image2-v1
 render:
   default: full-page
   header-lock: []

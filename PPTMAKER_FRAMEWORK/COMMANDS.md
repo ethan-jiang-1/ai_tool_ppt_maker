@@ -38,7 +38,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --confirm-pr
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --apply-production-mode-transition --plan-hash <hash>
 ```
 
-The transition candidate is confined to `_scratch/production-mode-transition/candidate-run/`. The Agent authors its target `slide-specifications.md`, complete target intake, and target visual control there; it may preserve only the source formal identity/order ledger. An HTML target reports `needs_local_materialization` and follows the existing runnable HTML contract, not a new score, parity review, or visual-quality promise. An Image2 target reports `needs_render` and enters normal style-master authorization, provider, review, and final-delivery controls only after target handoff. A visible receipt waiting for registration is recovered with `state --recover-production-mode-transition`; an old uncertain journal additionally requires the state-owned `--confirm-production-mode-transition-recovery <owner-token>` record.
+The transition candidate is confined to `_scratch/production-mode-transition/candidate-run/`. The Agent authors its target `slide-specifications.md`, complete target intake, and target visual control there; it may preserve only the source formal identity/order ledger. `--confirm-production-mode-transition --plan-hash` records the target user's `proceed` intake decision as an exact transaction commit, not a Gate Policy `confirm` or risk waiver: it accepts neither `--reason` nor `--force`. An HTML target reports `needs_local_materialization` and follows the existing runnable HTML contract, not a new score, parity review, or visual-quality promise. An Image2 target reports `needs_render` and enters normal style-master authorization, provider, review, and final-delivery controls only after target handoff. A visible receipt waiting for registration is recovered with `state --recover-production-mode-transition`; an old uncertain journal additionally requires the state-owned `--confirm-production-mode-transition-recovery <owner-token>` record.
 
 HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/reuse image flags；HTML `build` accepts only its explicit local `--force --reason` continuation and never provider controls. `pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
 
@@ -104,9 +104,9 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> \
 
 ## Refresh classification
 
-HTML-first 的 Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 与 Structural Versioning Path 是正式路径。Legacy deck 的 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path 保持兼容。标题/小问题修当前版本；同一方向的大改发布 clean vNext；结构 apply 本身零远端。
+HTML-first 的 Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 与 Structural Versioning Path 是正式路径。`image2-only` 的 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path 通过 `create-deck` 正常执行。标题/小问题修当前版本；同一方向的大改发布 clean vNext；结构 apply 本身零远端。
 
-HTML structural output 报 `needs_local_materialization`；legacy output 报 `needs_render`。`needs_render` 只报告成本，不能自动扩大远端授权。用户若要专业 Image2 visual-slot refinement，必须在当前 HTML delivery review 为 `proceed` 后显式使用封闭的 `image2 plan|authorize|generate|accept|use-html|cleanup|unknown-submit` 路由；它不是 renderer 选择，也不会自动开始远端工作。
+HTML structural output 报 `needs_local_materialization`；whole-page output 报 `needs_render`。`needs_render` 只报告成本，不能自动扩大远端授权。用户若要专业 Image2 visual-slot refinement，必须在当前 HTML delivery review 为 `proceed` 后显式使用封闭的 `image2 plan|authorize|generate|accept|use-html|cleanup|unknown-submit` 路由；它不是 renderer 选择，也不会自动开始远端工作。
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan deck_NAME/3_versions/v1

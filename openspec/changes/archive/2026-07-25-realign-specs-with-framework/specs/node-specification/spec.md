@@ -102,7 +102,7 @@ A pre-current, retired, identity-invalid, or evidence-unpreservable schema/state
 - **AND** it does not create a mode record, execution, compatibility projection, or transition checkpoint
 
 #### Scenario: Historical state rejection is byte-preserving
-- **WHEN** a schema-4-or-earlier state, a `migrate-import` execution, or a topology-only execution binding is supplied to observe or execute
+- **WHEN** a schema-4-or-earlier state, a retired transition execution, or a topology-only execution binding is supplied to observe or execute
 - **THEN** the state owner rejects it before `healState`, alias mapping, marker inference, or default-state creation
 - **AND** `state.yaml`, `history.jsonl`, gate journals, and version directories remain byte-identical
 
@@ -134,7 +134,7 @@ A pre-current schema, topology-only execution binding, retired Controller/node i
 - **THEN** it returns the bounded owner-issued repair action without writing state, history, metadata, or generated artifacts
 
 #### Scenario: Historical state is not compatibility-migrated
-- **WHEN** a pre-current state, topology-only binding, or `migrate-import`/old-node identity is supplied
+- **WHEN** a pre-current state, topology-only binding, or retired transition/old-node identity is supplied
 - **THEN** observation and execution reject it without alias migration, source/mode inference, or state replacement
 - **AND** the returned recreation action does not require the user to edit raw YAML
 
@@ -493,7 +493,7 @@ Cross-pipeline exact plan commit SHALL create only a `production-mode-transition
 - **THEN** transition entry fails before state, journal, staging, or target writes
 
 #### Scenario: Historical transition identity cannot resume
-- **WHEN** a state record names `migrate-import` or any old transition node
+- **WHEN** a state record names a retired transition identity or any old transition node
 - **THEN** state/status returns the bounded unsupported-protocol action without renaming or resuming it
 - **AND** the record cannot become `production-mode-transition` through a read or repair path
 

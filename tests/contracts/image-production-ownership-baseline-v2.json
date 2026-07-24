@@ -1,0 +1,12 @@
+{
+  "schema": "pptmaker-image-production-ownership-baseline-v2",
+  "owner": "04-image-production",
+  "whole_page_adapter": "04-image-production/whole-page/index.mjs",
+  "direct_executables": [
+    "04-image-production/whole-page/generate_style_master.mjs",
+    "04-image-production/whole-page/make_contact_sheet.mjs",
+    "04-image-production/whole-page/stage2_generate_images.mjs",
+    "04-image-production/whole-page/stage3_lock_headers.mjs"
+  ],
+  "phase5_interface": "05-iteration/index.mjs"
+}

@@ -8,7 +8,7 @@ includes: []
 
 # Playbook: Image2 Visual-Slot Refinement
 
-这是 `html-then-image2` 的必需 Phase 4 完成路径，不是可选升级。它只处理已有 current HTML delivery review 的 marked HTML-first run；`html-only` 的新 refinement 请求必须先原子切换到 `html-then-image2`，`image2-only` 则使用 normal whole-page pilot/build，永不进入本 controller。Phase 4 不是 legacy whole-page renderer，也不改变 HTML Phase 3 的 local/provider-free ownership。
+这是 `html-then-image2` 的必需 Phase 4 完成路径，不是可选升级。它只处理已有 current HTML delivery review 的 marked HTML-first run；`html-only` 的新 refinement 请求必须先原子切换到 `html-then-image2`，`image2-only` 则使用 normal whole-page pilot/build，永不进入本 controller。Phase 4 的 whole-page adapter 不改变 HTML Phase 3 的 local/provider-free ownership。
 
 切回 `html-only` 时保留 plan、attempt、candidate、accepted source asset、provenance 与 review，只移除 completion debt；切回 `html-then-image2` 后重新验证其 freshness。一个 eligible slide 的 deck 选择这一页本身，不因 2–4 的通常批量建议而无法完成。
 

@@ -7,29 +7,44 @@ Counterpart to `framework-directory-layout` (soft bundle `PPTMAKER_FRAMEWORK/` o
 Machine authority for tree text and path constants: `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` (`renderTree()`). CLI scaffold/validate behavior is owned by `run-bundle-management` on the same module.
 ## Requirements
 ### Requirement: Canonical run-bundle tree and directory roles
+A conformant run bundle SHALL remain rooted at deck_{NAME} with upstream material, backbone, and version
+tiers; 3_versions/vN is the run-dir; deck root owns _state and _lessons; and a version owns canonical
+slide-specifications.md, overrides, rebuildable _generated, and deletable _scratch. _state permits
+durable state/README plus only the recoverable gate-publication journal; journal presence never proves
+approval.
 
-A conformant run bundle SHALL remain rooted at `deck_{NAME}/` with `1_upstream_raw_material/`, `2_backbone/`, `3_versions/v{n}/` as `--run-dir`, deck-root `_state/`, and `_lessons/`. `_state/` SHALL allow durable `state.yaml`/README plus transient `gate-approval-journal.json` owned only by recoverable gate publication; the journal's absence is normal and its presence never independently proves approval. A version SHALL contain source `slide-specifications.md`, `overrides/`, rebuildable `_generated/`, and deletable `_scratch/`.
+For html-first-v1, _generated/html_production owns html_pages, final_slides, and preview with
+immutable object paths, one manifest current-set pointer per owner, and only their declared transient
+lock/temp children. Canonical current manifests and review plans bind the current state-owned HTML reset
+ID. preview holds canonical immutable plans and independent content/visual/review/delivery pointers.
+Object/plan paths remain rebuildable and non-current unless an owning manifest references them. QA owns
+current assembly/notes receipts and an optional production_mode_transition receipt only as
+publication/handoff provenance, never completion authority. Refinement remains lazy under its declared
+current source/control/generated/scratch owners.
 
-For HTML-first runs, `_generated/html_production/` SHALL own `html_pages/`, `final_slides/`, and `preview/`; each SHALL contain an `objects/` directory for immutable raw-byte-SHA-addressed bytes, one `manifest.json` as its current-set pointer, and MAY transiently contain exclusive `.publish.lock/owner.json`, `.manifest.<64hex-owner-token>.tmp`, plus object-directory `.object.<64hex-owner-token>.<64hex-byte-sha>.tmp`. No other lock/temp child is valid. Their exact manifest schemas SHALL be `pptmaker-html-pages-manifest-v1`, `pptmaker-html-final-slides-manifest-v1`, and `pptmaker-html-preview-manifest-v1` respectively. Canonical current manifests/locks and `pptmaker-html-review-plan-v1` preview plans SHALL bind the state-owned nullable HTML-production reset ID; migration-preview equivalents use null. `preview/` SHALL additionally contain immutable canonical `plans/<review-plan-hash>.json`; its manifest SHALL hold independent current slots for content/visual plans and visual-review/delivery contact sheets rather than one overloaded pointer. Object/plan paths are rebuildable and non-current unless referenced by the owning manifest. Normal publication SHALL not delete unreferenced final objects/plans; no garbage-collection interface is introduced. `_generated/qa/` SHALL own assembly/notes receipts plus optional exact `production_mode_transition.json` only on a clean migrated target; HTML assembly/notes receipts bind the current reset ID, while `production_mode_transition.json` is publication/handoff provenance and never completion authority. For marked HTML-first versions, modern refinement is lazy: accepted style-reference and visual-slot bytes live only at `overrides/visual-style/assets/refined/image2/{style-reference,visual-slots}/`; the only refinement source-control file is `overrides/visual-style/image2-refinement.yaml`; candidates/comparisons/attempt evidence live only at `_generated/image2_refinement/`; and the exclusive promotion journal lives only at `_scratch/image2_refinement/`. These paths are absent until explicit refinement, never satisfy HTML delivery evidence, and rejected/generated history never enters `1_upstream_raw_material/`.
-
-Legacy `style_master.jpg`, prompt/image/header directories, and their manifests remain compatibility-owned and SHALL not be required or created by new HTML-first init/build. `bundle_layout.mjs` `renderTree()` SHALL describe the pipeline-specific and lazy roles without presenting generated paths as source truth.
+For whole-page-image2-v1, current style master, prompt/image/header/contact-sheet artifacts use the
+current whole-page adapter's declared paths and manifests. They are required only by a consistent
+image2-only run and never by HTML init/build. No markerless layout, retired whole-page manifest, or
+retired projected scratch path is a valid current run role. renderTree SHALL describe these
+pipeline-specific/lazy roles without presenting generated paths as source truth.
 
 #### Scenario: Fresh HTML run tree is complete without Image2
-
 - **WHEN** a fresh HTML-first deck completes build
 - **THEN** it has structured source, HTML production pages/final slides/preview, PPTX/notes receipts, state, and lessons
-- **AND** no Image2 scratch/generated/accepted directory is required or created
+- **AND** no whole-page generated or accepted directory is required or created
 
-#### Scenario: --run-dir remains the version leaf
+#### Scenario: Current whole-page run tree has explicit ownership
+- **WHEN** a consistent image2-only deck initializes or builds
+- **THEN** its whole-page artifacts use current declared paths and source marker
+- **AND** no compatibility layout is selected
 
-- **WHEN** a path is documented or validated as `--run-dir`
-- **THEN** it resolves to `deck_*/3_versions/v{n}/` rather than the deck root
+#### Scenario: Run-dir remains the version leaf
+- **WHEN** a path is documented or validated as --run-dir
+- **THEN** it resolves to deck_/3_versions/vN rather than deck root
 
-#### Scenario: Legacy deck remains conformant
-
-- **WHEN** a explicit whole-page deck retains its style master and legacy generated directories
-- **THEN** bundle validation recognizes them through the legacy compatibility shape
-- **AND** does not require HTML migration
+#### Scenario: Retired tree is presented
+- **WHEN** layout sees a markerless or retired whole-page tree shape
+- **THEN** it rejects that shape as current authority and names bounded repair/recreation
 
 ### Requirement: Structure gradient upper-strict lower-loose
 
@@ -42,56 +57,36 @@ Run-bundle layout SHALL follow **stricter toward the root, looser toward the lea
 - **AND** version `_scratch/` is the official loose temp outlet
 
 ### Requirement: Glossary Where Map is the GREP placement index
-
-`PPTMAKER_FRAMEWORK/reference/glossary.md` SHALL retain a GREP-friendly Where Map with term/path/meaning/do-not fields and exact searchable headings/tokens for at least run bundle, soft bundle, `--run-dir`, `_scratch/`, `_generated/`, `html_production`, `style_master.jpg`, `contact_sheet`/pilot, `_state/`, and `_lessons/`. It SHALL distinguish deck root from version run-dir and source/control from rebuildable/deletable outputs.
-
-Placement entries SHALL be pipeline-specific: HTML pages/final slides/review/delivery contact sheets/plans belong under version-local `_generated/html_production/`; explicit whole-page contact sheets remain `_generated/preview/`; `style_master.jpg` is explicit whole-page legacy compatibility only; Image2-refinement paths are optional/lazy after explicit authorization. The map SHALL not direct manual edits/copies into `_generated/`, cross-version manifest references, or HTML evidence into legacy paths.
+The framework glossary SHALL retain a GREP-friendly Where Map with term/path/meaning/do-not fields for
+run bundle, soft bundle, run-dir, _scratch, _generated, html_production, style_master, contact sheet or
+pilot, _state, and _lessons. It SHALL distinguish deck root from version run-dir and source/control from
+rebuildable/deletable outputs. HTML pages/final slides/review/delivery plans belong under version-local
+HTML production; current whole-page contact sheets and style-master artifacts belong to their declared
+whole-page owner paths; Image2 refinement is optional/lazy after explicit authorization. The map SHALL
+not direct manual edits/copies into generated output, cross-version manifest references, current work
+through a retired maintenance label, or any HTML-migration scratch path.
 
 #### Scenario: Agent searches HTML contact sheet
+- **WHEN** an Agent greps contact_sheet for an HTML-first run
+- **THEN** the Where Map identifies the HTML preview owner and manifest
 
-- **WHEN** Agent greps `contact_sheet` for an HTML-first run
-- **THEN** the Where Map identifies `_generated/html_production/preview/` and its owning manifest
-
-#### Scenario: Agent searches legacy style master
-
-- **WHEN** Agent greps `style_master.jpg`
-- **THEN** the entry labels it explicit whole-page legacy-only rather than a new-deck prerequisite
+#### Scenario: Agent searches current whole-page style master
+- **WHEN** an Agent greps style_master for an image2-only run
+- **THEN** the entry identifies the current whole-page owner rather than a maintenance route
 
 #### Scenario: Run bundle and run-dir remain distinct
-
-- **WHEN** Agent reads both definitions
-- **THEN** run bundle is `deck_NAME/` and `--run-dir` is `3_versions/vN/`
+- **WHEN** an Agent reads both definitions
+- **THEN** run bundle is deck_NAME and run-dir is 3_versions/vN
 
 ### Requirement: Run-bundle root admits an agent-agnostic generated entry control
+The canonical strict deck root SHALL admit RUN_BUNDLE.md and AGENTS.md alongside CLAUDE.md and deck-guide.md without loosening any other root name. RUN_BUNDLE.md is a static locator manifest; deck-guide.md is the operating guide; AGENTS.md and CLAUDE.md are short pointers to locator then guide. None claims current run version, mode, node, gate, digest, next action, or approval. The root-control validator is shared by structure checking and locator verification and neither reads state nor selects a version.
 
-The canonical strict deck root SHALL admit `RUN_BUNDLE.md` and `AGENTS.md` as named control
-files alongside `CLAUDE.md` and `deck-guide.md`, without loosening any other root name.
-`RUN_BUNDLE.md` SHALL be the static portable locator manifest. `deck-guide.md` SHALL remain the
-detailed in-bundle operating guide; it SHALL NOT be re-roled into a locator manifest.
-`AGENTS.md` and `CLAUDE.md` SHALL be short agent-agnostic pointers that direct an Agent first to
-the locator and then to the guide, not a second workflow or directory ontology. `README.md` SHALL
-tell a human that `RUN_BUNDLE.md` is the file to hand to an Agent. `bundle_layout.mjs` constants,
-deck-root whitelist, module tree comment, and `renderTree()` SHALL agree on these controls.
+An older bundle may physically lack a newer locator or Agent card without failing structure-only validation. That tolerance is layout-only: it SHALL not establish current source/state identity, select a run, permit resume, or trigger a write. State-aware commands classify unsupported protocol separately and return one bounded owner-issued typed next action.
 
-`RUN_BUNDLE.md` SHALL contain only a closed static locator record and short handoff prose. It
-SHALL NOT claim current run version, production mode, node, gate, digest, next action, or
-approval. Legacy bundles without `RUN_BUNDLE.md` or `AGENTS.md` remain structurally valid;
-validation SHALL not require either file merely because it is newly allowed. `bundle_layout.mjs`
-SHALL retain one narrow root-control validator for both normal structure checking and locator
-verification; it SHALL validate the strict root names and mandatory legacy controls, treat
-`RUN_BUNDLE.md` as optional, and neither read state nor select a version.
-
-#### Scenario: Canonical tree shows distinct Agent entry controls
-
-- **WHEN** init creates a fresh bundle
-- **THEN** the root contains a `RUN_BUNDLE.md` locator and a separate `deck-guide.md` guide
-- **AND** its Agent pointers preserve both roles in that order
-
-#### Scenario: Legacy deck remains valid
-
-- **WHEN** an existing conformant run bundle lacks `RUN_BUNDLE.md` or `AGENTS.md`
-- **AND** structure validation runs
-- **THEN** absence of that optional compatibility control alone does not fail validation
+#### Scenario: Optional historical card is not execution authority
+- **WHEN** an existing bundle lacks RUN_BUNDLE.md or AGENTS.md
+- **THEN** structure validation may report its layout without mutation
+- **AND** no state/resume command treats that absence or presence as current run authority
 
 ### Requirement: Visual-style directory optionally includes assets subdirectory
 
@@ -143,32 +138,14 @@ For a version override, `_ALLOWED_IN_VISUAL_STYLE` SHALL additionally admit exac
 - **THEN** the override path is returned, not the backbone path
 
 ### Requirement: Structured source control remains inside the existing run-bundle topology
+HTML-first source SHALL remain canonical 3_versions/vN/slide-specifications.md; shared/sparse assets and v2 catalogs SHALL remain under backbone/version-override visual-style/assets; physical slide-block order remains the source order. Every plan, diagnostic, receipt, and generated-manifest path is normalized POSIX and confined to its owning deck/run version. General validation and Stage-1 dry run remain write-free; canonical write-enabled Stage 1 publishes only _generated/slide_plan.json. HTML Stages 2-5 publish only their owned rebuildable HTML/QA/PPTX outputs and state evidence.
 
-HTML-first source SHALL remain canonical `3_versions/vN/slide-specifications.md`; shared/sparse assets and v2 catalogs SHALL remain under backbone/version-override `visual-style/assets/`; physical slide-block order SHALL remain sole source order. Every plan/diagnostic/receipt/generated-manifest path SHALL be normalized POSIX and confined relative to its owning deck/run version, never absolute, traversal-based, or cross-version. Asset whitelist and byte integrity SHALL retain their existing owners.
+Current whole-page output has its own declared current adapter ownership and never becomes HTML source/control authority. Unsupported historical branch outputs are neither validated as current source nor adopted as input; validation reports bounded protocol guidance without writing source, state, generated paths, or a transition candidate.
 
-`ppt_flow validate`, direct Stage-1 validation, and unified Stage-1 dry-run SHALL remain write-free. Canonical write-enabled Stage 1 SHALL publish only `_generated/slide_plan.json`. Change-3 HTML Stages 2-5 MAY publish only the canonical rebuildable HTML-production/QA/PPTX outputs and state evidence defined by their owning capabilities; they SHALL add no source/control directory and no Image2 refinement path. Legacy branch outputs remain isolated.
-
-#### Scenario: HTML source uses canonical version paths
-
-- **WHEN** a run uses `html-first-v1`
-- **THEN** source/control remain in the existing version/backbone/override locations
-- **AND** derived HTML output remains under version-local `_generated/html_production/`
-
-#### Scenario: Validation remains write-free
-
-- **WHEN** any general HTML validation route runs
-- **THEN** source, generated, state, and migration bytes remain unchanged
-
-#### Scenario: Stage 1 writes only the projection
-
-- **WHEN** canonical write-enabled Stage 1 succeeds
-- **THEN** it atomically replaces only `_generated/slide_plan.json`
-
-#### Scenario: HTML production paths are confined
-
-- **WHEN** Stages 2-5 publish HTML delivery
-- **THEN** every object/manifest/receipt path is target-run-owned and confined
-- **AND** no Image2 candidate/refinement directory is created
+#### Scenario: Historical generated output is not source control
+- **WHEN** a current HTML or whole-page validation finds stale branch-owned output
+- **THEN** it does not use that output as source, state, or routing authority
+- **AND** it creates no migration candidate or inferred current control
 
 ### Requirement: Derived contract artifacts are rebuildable
 
@@ -194,48 +171,27 @@ Bundle validation SHALL apply distinct immediate-entry whitelists and ownership 
 - **WHEN** a user finishes after HTML delivery
 - **THEN** the run remains conformant with all reserved Image2 directories absent
 
-### Requirement: Legacy migration scratch is temporary and version-local
-
-An explicit migration preview MAY use `_scratch/html-migration/` for a projected candidate overlay, comparison artifacts, the hash-bound plan, and exact transient `apply-journal.json`. Its exact renderer workspace SHALL be `_scratch/html-migration/projected-run/`. The projected root SHALL contain exactly proposed `slide-specifications.md`, sparse normal `overrides/`, `preparation.json`, `authoring-context.json`, `authoring-checklist.json`, and scratch `_generated/slide_plan.json` plus `_generated/html_production/` using normal private object/manifest shapes with `publication_scope: migration-preview`. Candidate source and sparse overrides are writable only inside this root; all unchanged source-version overrides and deck-root backbone controls are inherited read-only through the closed migration candidate resolver. The projected root is not a deck root and SHALL not contain or replace deck-root metadata/state. `preparation.json` is an idempotency/input record, `authoring-context.json` is Agent-only legacy reference, and `authoring-checklist.json` is advisory; none is runtime target authority.
-
-The workspace SHALL be version-local, confined, deletable, excluded from normal source truth, and never accepted by normal preview/build/gates/state/assembly/notes/completion conditions. Direct renderer CLIs SHALL not accept it as `--run-dir`; only the closed migration validator/orchestrator may issue its opaque render context. Preview SHALL recompute readiness from candidate source/overrides rather than trusting support JSON. Apply SHALL construct a hidden clean target from the same inherited source-version/backbone inputs, copy only revalidated `slide-specifications.md` and `overrides/` from the candidate, rerender its hidden canonical target, and SHALL not copy the legacy source tree, support JSON, or scratch generated objects/manifests/locks/receipts into that target. While a valid/uncertain apply journal exists, no whole migration-scratch reset may delete it; the apply recovery matrix owns its resolution first.
-
-#### Scenario: Migration preview is abandoned
-
-- **WHEN** the user declines a migration comparison
-- **THEN** deleting `_scratch/html-migration/` loses no source, version, gate, or production truth
-
-#### Scenario: Projected candidate inherits backbone without rewriting it
-
-- **WHEN** migration preparation creates a projected candidate with one sparse visual override
-- **THEN** unchanged controls resolve from the source-version override or deck-root backbone by the candidate precedence
-- **AND** no deck-root control or source-version override is rewritten
-
-#### Scenario: Scratch manifest is placed under canonical HTML production
-
-- **WHEN** a `publication_scope: migration-preview` manifest or receipt appears under a visible version's canonical `_generated/html_production/`
-- **THEN** bundle validation reports an ownership violation
-
 ### Requirement: Production-mode transition scratch is isolated and layout-validated
-
-The canonical version-local `_scratch/` owner set SHALL admit
-`_scratch/production-mode-transition/` only for the general cross-pipeline transition adapter. Its
-immediate entries SHALL be exactly `candidate-run/`, `plan.json`, and `apply-journal.json`; their internals
-remain scratch-local and deletable. The only target-visible receipt is
-`_generated/qa/production_mode_transition.json`. `bundle_layout.mjs` SHALL validate those exact entries,
-their path confinement, the target QA receipt placement, and artifact ownership without admitting them at
-the version root, another version, `_generated/` outside that QA receipt, `_state/`, or legacy
-`_scratch/html-migration/`. The legacy migration scratch owner and the production-mode transition owner
-shall neither widen nor validate each other's artifact names as authority.
+The general cross-pipeline transition adapter's canonical version-local `_scratch/` owner set SHALL admit only `_scratch/production-mode-transition/`. Its immediate entries SHALL be exactly `candidate-run/`, `plan.json`, and `apply-journal.json`; their internals remain scratch-local and deletable. The only target-visible receipt is `_generated/qa/production_mode_transition.json`. `bundle_layout.mjs` SHALL validate those exact entries, their path confinement, the target QA receipt placement, and artifact ownership without admitting them at the version root, another version, `_generated/` outside that QA receipt, or `_state/`. It SHALL reject any other cross-pipeline scratch owner and SHALL not recognize retired scratch artifacts as a candidate, plan, journal, or receipt authority.
 
 #### Scenario: Transition scratch remains version-local
-
 - **WHEN** a source version has a valid production-mode-transition candidate and journal
 - **THEN** bundle layout accepts only its declared owner under that source version's `_scratch/`
 - **AND** the same names at the version root or a target version fail structure validation
 
-#### Scenario: Legacy scratch cannot be adopted
+#### Scenario: Unexpected cross-pipeline scratch owner is rejected
+- **WHEN** a source version contains a cross-pipeline scratch owner other than `production-mode-transition`
+- **THEN** layout reports an ownership violation
+- **AND** it does not adopt any artifact from that owner as transition authority
 
-- **WHEN** both `_scratch/html-migration/` and `_scratch/production-mode-transition/` exist
-- **THEN** layout validates each immediate-entry contract independently
-- **AND** no legacy artifact is accepted as a production-mode-transition plan, journal, or receipt
+### Requirement: Whole-page run identity is explicit
+A whole-page run SHALL declare `production.pipeline: whole-page-image2-v1` in its canonical source. Layout validation SHALL not treat absent source metadata as a whole-page identity.
+
+#### Scenario: Whole-page run has an explicit marker
+- **WHEN** layout validates a canonical whole-page source with the current marker
+- **THEN** it applies whole-page ownership rules
+
+#### Scenario: Whole-page marker is absent
+- **WHEN** layout validates a source without a production marker
+- **THEN** it reports the marker as invalid
+- **AND** it does not apply whole-page ownership rules

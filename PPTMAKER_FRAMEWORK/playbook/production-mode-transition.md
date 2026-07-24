@@ -1,5 +1,5 @@
 ---
-playbook: migrate-import
+playbook: production-mode-transition
 description: State-owned cross-pipeline production-mode transition
 supported_pipelines: [html-first-v1, whole-page-image2-v1]
 includes: []
@@ -21,4 +21,4 @@ exit: [transition_publish_or_recovery_recorded]
 
 **Step 1 — CLI**: Use only `state --apply-production-mode-transition --plan-hash <hash>`, `state --recover-production-mode-transition`, or the closed recovery confirmation. The source version remains unchanged while the target is published and registered.
 
-**Step 2 — MD**: Show the target mode, exact confirmed plan hash, and resulting target continuation. Do not edit state, generated artifacts, journals, reservations, or target files by hand.
+**Step 2 — MD**: Show the target mode, exact confirmed plan hash, and resulting target continuation. The confirmation records the target user's `proceed` intake decision; it is an exact transaction commit, not a risk-waiver `confirm`, and accepts neither `--reason` nor `--force`. Do not edit state, generated artifacts, journals, reservations, or target files by hand.

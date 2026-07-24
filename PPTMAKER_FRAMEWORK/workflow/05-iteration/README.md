@@ -14,6 +14,6 @@ Classify `production.pipeline` first, then choose the smallest source-owned refr
 - Notes only: Notes-Only Refresh.
 - Insert/delete/reorder: Structural Versioning Path, source-only publication, then target-local materialization and target reviews.
 
-Stable IDs permit byte matching, not inherited reset epochs or human approval. Never edit `_generated/`, copy cross-version authority, or call a provider from an ordinary HTML iteration. Modern Image2 refinement remains a separate optional Phase-4 authorization flow after current delivery. Explicit whole-page decks retain the compatibility paths in `playbook/create-deck.md`.
+Stable IDs permit byte matching, not inherited reset epochs or human approval. Never edit `_generated/`, copy cross-version authority, or call a provider from an ordinary HTML iteration. Modern Image2 refinement remains a separate optional Phase-4 authorization flow after current delivery. First-class whole-page decks use the current `playbook/create-deck.md` paths.
 
 The files in this directory cover content/layout, visual-system, structural, and end-to-end local iteration. Optional modern refinement is owned exclusively by `04-image-production`, not Phase 5.

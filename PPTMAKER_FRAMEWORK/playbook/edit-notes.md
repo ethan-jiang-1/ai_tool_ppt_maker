@@ -27,7 +27,7 @@ exit: [speaker_notes_injected, evidence:notes-refreshed]
 
 **Step 1 — MD**: Edit the source speaker note under its stable slide block; never edit PPTX/receipt.
 
-**Step 2 — CLI**: Run `ppt_flow refresh <run-dir> --kind notes`. HTML publishes notes-v3 bound to current assembly/reset/delivery lineage; explicit whole-page retains eligible compatibility semantics.
+**Step 2 — CLI**: Run `ppt_flow refresh <run-dir> --kind notes`. HTML publishes notes-v3 bound to current assembly/reset/delivery lineage; whole-page Image2 retains its current notes lineage.
 
 ### verify-speaker-notes
 

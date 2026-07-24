@@ -1,7 +1,7 @@
 /**
- * Isolated source/control transaction for a cross-pipeline production-mode
- * transition. It does not import the historical HTML migration adapter and
- * never reads source prose into the target candidate.
+ * State-owned source/control transaction for a cross-pipeline production-mode
+ * transition. Candidate inputs are target-authored and never derived from the
+ * source pipeline's prompts, pixels, generated artifacts, or approvals.
  */
 import {
   copyFileSync,
@@ -18,7 +18,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { hostname } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import { HtmlSlideContractError, probeProductionMarker, validateAndBuildHtmlFirstPlan } from "../../03-html-production/index.mjs";
+import { probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import {
   canonicalVersionKey,
   checkStagedVersion,
@@ -27,14 +27,16 @@ import {
   normalizeRunVersion,
   pipelineFromSourceMarker,
   productionPolicyForMode,
-} from "../../shared/run-bundle/bundle_layout.mjs";
+} from "../run-bundle/bundle_layout.mjs";
 import {
   completeProductionModeTransitionHandoff,
   confirmProductionModeTransition,
+  inspectActiveProductionModeTransition,
   readState,
   restoreProductionModeTransitionSource,
+  statePath,
   verifyProductionModeTransitionRecoveryConfirmation,
-} from "../../shared/state/state.mjs";
+} from "./state.mjs";
 
 const SCRATCH = "production-mode-transition";
 const PREVIEW_SCHEMA = "pptmaker-production-mode-transition-preview-v1";
@@ -43,6 +45,13 @@ const SUCCESS_SCHEMA = "pptmaker-production-mode-transition-success-v1";
 const LEDGER_SCHEMA = "pptmaker-production-mode-transition-identity-ledger-v1";
 const TARGET_SCHEMA = "pptmaker-production-mode-transition-target-v1";
 const INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
+const TARGET_CANDIDATE_ENTRIES = Object.freeze([
+  "identity-ledger.json",
+  "target.json",
+  "target-intake.json",
+  "slide-specifications.md",
+  "overrides",
+]);
 const HEX_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
 const SAME_HOST_RECOVERY_MS = 60_000;
@@ -147,6 +156,23 @@ function recursivelyReceiptedFiles(root, runDir) {
   return receipts;
 }
 
+function assertTargetOwnedCandidateTree(candidateRoot) {
+  for (const entry of readdirSync(candidateRoot, { withFileTypes: true })) {
+    if (!TARGET_CANDIDATE_ENTRIES.includes(entry.name)) {
+      const retired = entry.name === "html-migration" || entry.name === "projected-run";
+      throw new Error(retired
+        ? "retired html-migration overlay cannot be transition evidence"
+        : `transition candidate contains non-target-owned entry ${entry.name}`);
+    }
+    if (entry.name === "overrides" && (!entry.isDirectory() || entry.isSymbolicLink())) {
+      throw new Error("transition candidate overrides must be a regular target-owned directory");
+    }
+    if (entry.name !== "overrides" && (!entry.isFile() || entry.isSymbolicLink())) {
+      throw new Error(`transition candidate ${entry.name} must be a regular target-owned file`);
+    }
+  }
+}
+
 function sourceContext(runDir) {
   const sourceRunDir = resolve(runDir);
   const sourceVersion = normalizeRunVersion(sourceRunDir);
@@ -155,7 +181,7 @@ function sourceContext(runDir) {
   const state = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
   if (state?.replacement_required || state?.corrupted) throw new Error("active source execution is unavailable for production-mode transition");
   if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
-  if (!state?.execution_id || state.run_version !== sourceVersion || state.playbook === "migrate-import" && state.current_node === "apply-production-mode-transition") {
+  if (!state?.execution_id || state.run_version !== sourceVersion || state.playbook === "production-mode-transition" && state.current_node === "apply-production-mode-transition") {
     throw new Error("active source execution is unavailable for production-mode transition");
   }
   const sourceMode = state.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)]?.mode;
@@ -176,14 +202,11 @@ function sourceContextFromActiveTransition(runDir) {
   const sourceVersion = normalizeRunVersion(sourceRunDir);
   if (!sourceVersion) throw new Error("transition source must be a canonical run version");
   const deckDir = resolve(sourceRunDir, "..", "..");
-  const state = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
-  if (state?.replacement_required || state?.corrupted || state?.execution_run_version_mismatch) throw new Error("active transition checkpoint is unavailable");
-  const record = state.nodes?.["apply-production-mode-transition"];
-  if (state.playbook !== "migrate-import" || state.current_node !== "apply-production-mode-transition" ||
-    !record || record.status !== "in_progress" || record.execution_id !== state.execution_id || record.run_version !== sourceVersion ||
-    !HEX_RE.test(record.transition_plan_hash || "") || !HEX_RE.test(record.transition_candidate_receipt_sha256 || "")) {
+  const active = inspectActiveProductionModeTransition(deckDir, { sourceRunVersion: sourceVersion });
+  if (!active.ok) {
     throw new Error("active transition checkpoint is missing or drifted");
   }
+  const { state, record } = active;
   const sourceMode = state.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)]?.mode;
   const sourcePath = join(sourceRunDir, "slide-specifications.md");
   if (!isProductionMode(sourceMode) || !safeFile(sourcePath, "transition source")) throw new Error("transition source authority is unavailable");
@@ -202,6 +225,7 @@ function candidateState(source) {
   }
   const candidateStat = statSync(paths.candidate);
   if (!candidateStat.isDirectory() || candidateStat.isSymbolicLink()) throw new Error("transition candidate root must be a regular directory");
+  assertTargetOwnedCandidateTree(paths.candidate);
   const missing = [];
   if (!safeFile(paths.ledger, "transition identity ledger")) missing.push("identity-ledger.json");
   if (!safeFile(paths.target, "transition target selection")) missing.push("target.json");
@@ -226,25 +250,6 @@ function candidateState(source) {
     return Object.freeze({ status: "authoring_required", paths, missing: ["overrides/visual-style/color_palette.json"] });
   }
   const controls = recursivelyReceiptedFiles(paths.candidate, source.sourceRunDir);
-  let htmlContractReceiptSha256 = null;
-  if (target.target_pipeline === "html-first-v1") {
-    try {
-      const contract = validateAndBuildHtmlFirstPlan({
-        runDir: source.sourceRunDir,
-        sourcePathOverride: paths.source,
-        migrationCandidateRoot: paths.candidate,
-      });
-      htmlContractReceiptSha256 = sha256(canonicalBytes({
-        source_sha256: contract.plan.source_sha256,
-        ordered_plan_digest: contract.plan.ordered_plan_digest,
-        input_receipts: contract.plan.input_receipts,
-      }));
-    } catch (error) {
-      if (!(error instanceof HtmlSlideContractError)) throw error;
-      const missing = [...new Set((error.issues || []).map((issue) => `html-contract:${issue.code || issue.message}`))].slice(0, 16);
-      return Object.freeze({ status: "authoring_required", paths, missing: missing.length > 0 ? missing : ["html contract"] });
-    }
-  }
   const candidateReceipt = sha256(canonicalBytes({ source_version: source.sourceVersion, target_mode: target.target_mode, controls }));
   return Object.freeze({
     status: "complete",
@@ -258,7 +263,6 @@ function candidateState(source) {
     controls,
     candidateReceiptSha256: candidateReceipt,
     identityLedgerSha256: sha256(readFileSync(paths.ledger)),
-    htmlContractReceiptSha256,
   });
 }
 
@@ -281,7 +285,6 @@ function previewPlan(source, candidate, { executionId = source.state.execution_i
     candidate_source_sha256: candidate.candidateSourceSha256,
     candidate_control_receipts: candidate.controls,
     identity_ledger_sha256: candidate.identityLedgerSha256,
-    ...(candidate.htmlContractReceiptSha256 ? { html_contract_receipt_sha256: candidate.htmlContractReceiptSha256 } : {}),
     target_intake_sha256: candidate.intakeSha256,
     deterministic_impact: {
       target_slide_count: sourceIdentityLedger(candidate.candidateBytes).length,
@@ -600,6 +603,41 @@ function sameHostOwnerIsLive(journal) {
   catch (error) { return error.code !== "ESRCH"; }
 }
 
+function revalidateRecoveryTakeover(sourceRunDir, plan, snapshot, ownerToken) {
+  const source = sourceContextFromActiveTransition(sourceRunDir);
+  const currentPlan = planFile(source.sourceRunDir);
+  if (!samePlan(currentPlan, plan)) throw new Error("CONFLICT: transition recovery plan changed before takeover");
+  assertActivePlan(source, currentPlan);
+  if (existsSync(join(dirname(source.sourceRunDir), currentPlan.target_version))) {
+    throw new Error("CONFLICT: transition target became visible during recovery");
+  }
+  const currentSnapshot = journalSnapshot(source.sourceRunDir, currentPlan);
+  if (!currentSnapshot || currentSnapshot.sha256 !== snapshot.sha256) {
+    throw new Error("CONFLICT: transition recovery journal changed before takeover");
+  }
+  const age = Math.max(0, Date.now() - currentSnapshot.journal.claimed_at_epoch_ms);
+  const ownerLive = sameHostOwnerIsLive(currentSnapshot.journal);
+  if (ownerLive === true) throw new Error("CONFLICT: transition apply owner is still live");
+  if (ownerLive === false) {
+    if (age < SAME_HOST_RECOVERY_MS) throw new Error(`CONFLICT: transition apply owner recovery requires at least ${SAME_HOST_RECOVERY_MS - age} ms more`);
+  } else {
+    if (!ownerToken || ownerToken !== currentSnapshot.journal.owner_token) throw new Error("transition uncertain-owner recovery requires the exact owner token");
+    if (age < UNCERTAIN_RECOVERY_MS) throw new Error(`CONFLICT: uncertain transition recovery requires at least ${UNCERTAIN_RECOVERY_MS - age} ms more`);
+    const confirmation = verifyProductionModeTransitionRecoveryConfirmation(source.deckDir, {
+      sourceRunVersion: source.sourceVersion,
+      planHash: currentPlan.plan_hash,
+      ownerToken,
+    });
+    if (!confirmation.ok) throw new Error(`transition recovery confirmation is required: ${confirmation.code}`);
+  }
+  return Object.freeze({
+    source,
+    plan: currentPlan,
+    snapshot: currentSnapshot,
+    state_sha256: sha256(readFileSync(statePath(source.deckDir))),
+  });
+}
+
 export function recoverProductionModeTransition(runDir, { ownerToken = null } = {}) {
   if (ownerToken !== null && !HEX_RE.test(ownerToken)) throw new TypeError("recovery owner token must be a 64-lowercase-hex SHA-256");
   const source = sourceContextFromActiveTransition(runDir);
@@ -626,6 +664,16 @@ export function recoverProductionModeTransition(runDir, { ownerToken = null } = 
     const confirmation = verifyProductionModeTransitionRecoveryConfirmation(source.deckDir, { sourceRunVersion: source.sourceVersion, planHash: plan.plan_hash, ownerToken });
     if (!confirmation.ok) throw new Error(`transition recovery confirmation is required: ${confirmation.code}`);
   }
-  removeJournalOwnedPaths(source.sourceRunDir, snapshot.journal);
-  return restoreProductionModeTransitionSource(source.deckDir, { sourceRunVersion: source.sourceVersion, planHash: plan.plan_hash });
+  const takeover = revalidateRecoveryTakeover(source.sourceRunDir, plan, snapshot, ownerToken);
+  const restored = restoreProductionModeTransitionSource(takeover.source.deckDir, {
+    sourceRunVersion: takeover.source.sourceVersion,
+    planHash: takeover.plan.plan_hash,
+    expectedStateSha: takeover.state_sha256,
+  });
+  const finalSnapshot = journalSnapshot(takeover.source.sourceRunDir, takeover.plan);
+  if (!finalSnapshot || finalSnapshot.sha256 !== takeover.snapshot.sha256) {
+    throw new Error("CONFLICT: transition recovery journal changed after source restoration");
+  }
+  removeJournalOwnedPaths(takeover.source.sourceRunDir, takeover.snapshot.journal);
+  return restored;
 }

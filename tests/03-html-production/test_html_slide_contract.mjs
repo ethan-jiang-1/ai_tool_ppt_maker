@@ -28,6 +28,7 @@ import {
   htmlFamilyGeometrySemanticSha256,
   loadHtmlFamilyGeometryRegistry,
 } from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/html_family_geometry.mjs";
+import { createHtmlFirstRun } from "../helpers/html_first_fixture.mjs";
 
 function source(body = "schema_version: 1\nfamily: hero\n") {
   return `---
@@ -63,9 +64,19 @@ describe("canonical JSON authority", () => {
 });
 
 describe("HTML-first marker and source grammar", () => {
-  it("selects only the direct supported marker", () => {
+  it("accepts only direct current markers and reports the closed supported set", () => {
     expect(probeProductionMarker(source()).branch).toBe("html-first-v1");
-    expect(probeProductionMarker("## Slide 01: `Legacy`\n").branch).toBe("legacy");
+    expect(probeProductionMarker(`---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n`).branch).toBe("whole-page-image2-v1");
+    for (const text of [
+      "## Slide 01: `MissingMarker`\n",
+      "---\nproduction:\n  pipeline: retired-image2-first\n---\n",
+      "---\nproduction:\n  pipeline: [html-first-v1]\n---\n",
+    ]) {
+      const result = probeProductionMarker(text);
+      expect(result.branch).toBe("invalid");
+      expect(result.issues[0].message).toContain("html-first-v1");
+      expect(result.issues[0].message).toContain("whole-page-image2-v1");
+    }
     const aliased = `---
 branch: &branch
   pipeline: html-first-v1
@@ -77,14 +88,16 @@ production: *branch
     expect(probeProductionMarker("---\nmarker_key: &marker_key production\n*marker_key:\n  pipeline: html-first-v1\n---\n").branch).toBe("invalid");
   });
 
-  it("retains unrelated legacy aliases when production is absent", () => {
+  it("rejects unrelated aliases when production is absent", () => {
     const text = `---
 shared: &shared
   value: 1
 copy: *shared
 ---
 `;
-    expect(probeProductionMarker(text).branch).toBe("legacy");
+    const result = probeProductionMarker(text);
+    expect(result.branch).toBe("invalid");
+    expect(result.issues[0]).toMatchObject({ code: "missing_production_marker" });
   });
 
   it("records exact owned fence ranges in the shared document", () => {
@@ -122,6 +135,29 @@ copy: *shared
     const parsed = parseHtmlFirstSource(source());
     expect(parsed.slides[0].variant).toBe("hero--statement0--support0--visual0--callout0");
     expect(parsed.slides[0].geometry.boxes.title).toEqual([48, 48, 904, 70]);
+  });
+
+  it("rejects retired HTML-migration import and renderer context while keeping palette selection canonical", async () => {
+    const fixture = createHtmlFirstRun("retired-html-overlay-");
+    try {
+      const retiredRun = join(fixture.runDir, "_scratch", "html-migration", "projected-run");
+      mkdirSync(retiredRun, { recursive: true });
+      writeFileSync(join(retiredRun, "slide-specifications.md"), source());
+      writeFileSync(join(retiredRun, "color_palette.json"), "{}\n");
+
+      expect(() => validateHtmlFirstRun({ runDir: retiredRun })).toThrow(/retired html-migration renderer context/);
+      const renderer = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs");
+      expect(() => renderer.createCanonicalHtmlValidatedRunContext({ runDir: retiredRun, allowHiddenRunDir: true, logicalRunVersion: "v1" })).toThrow(/retired html-migration renderer context/);
+
+      const validated = validateHtmlFirstRun({ runDir: fixture.runDir });
+      expect(validated.palettePath).toContain("2_backbone/visual-style/color_palette.json");
+      expect(validated.palettePath).not.toContain("html-migration");
+
+      const retiredAdapter = new URL("../../PPTMAKER_FRAMEWORK/scripts/05-iteration/migration/production_mode_transition.mjs", import.meta.url);
+      await expect(import(retiredAdapter.href)).rejects.toMatchObject({ code: "ERR_MODULE_NOT_FOUND" });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
   });
 });
 
