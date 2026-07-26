@@ -1,264 +1,177 @@
 # Plan: Unify Image2 Page Authority
 
-> Type: Architecture and delivery plan | Updated: 2026-07-26 | Status: Discovery in progress; not yet an OpenSpec proposal
+> Type: Architecture and delivery roadmap | Updated: 2026-07-26 | Status: Direction agreed; ready to split into three OpenSpec changes
 >
-> This is deliberately a plan first. An OpenSpec change is created only after this plan has a reviewed, stable scope.
->
-> Working papers: [index](./unify-image2-page-authority/README.md) | [contract matrix](./unify-image2-page-authority/contract-matrix.md) | [main-spec retirement](./unify-image2-page-authority/main-spec-retirement.md) | [review log](./unify-image2-page-authority/review-log.md)
+> Historical input: [legacy whole-page contract hardening](../_done/_closed_plans/legacy-whole-page-image2-contract-hardening.md)
 
-The document below is the durable human-readable architecture plan. The working papers hold
-the mutable review and specification-coverage material; OpenSpec remains the normative
-implementation contract.
+## Product Direction
 
-## The Decision
+The product has one active way to make a slide: an Image2 page with one declared final-pixel
+authority. It has exactly two closed variants:
 
-We will stop treating HTML production, whole-page Image2, header lock, and visual-slot refinement as competing ways to make the same slide.
+| Variant | Image2 owns | Local compositor owns | Finalization |
+|---|---|---|---|
+| `pure-image2` | The entire final page, including visible text | Nothing | Verified raw image passes through as the final slide |
+| `framed-image2` | A text-free, full-canvas visual underlay | Typed kicker, title, subtitle, and callout frame | Verified underlay is locally composed into the final slide |
 
-The new system has one deck-level visual system and exactly two per-slide pixel-authority choices:
+Both variants share the same page intent, visual system, provider authorization, review lifecycle,
+final-slide manifest, PPTX assembly, and notes flow. The only semantic fork is whether a local Text
+Frame exists.
 
-```text
-Deck Visual System
-  - style master and palette
-  - typography and frame preset
-  - optional Agent identity/reference material
-  - Image2 model/profile and review policy
-  |
-  +-- Pure Image2       -> Image2 owns every final pixel, including all text
-  |
-  +-- Framed Image2     -> HTML owns a deterministic text frame;
-                           Image2 owns a text-free, full-canvas visual underlay
-```
+`framed-image2` is not the historical `body+header-lock` route: Image2 must never be asked to draw
+fields owned by the frame. It is also not `html-then-image2`: HTML is an internal deterministic
+composition mechanism, not a second user-facing production family.
 
-`Framed Image2` is the normal default for a serious deck because title, kicker, subtitle, and callout placement become stable. `Pure Image2` remains an intentional per-slide choice for covers, closers, section carriers, and any page where the model should compose the entire artifact.
+The future source/state pair is expected to identify one Page Authority Image2 protocol, with a
+deck default and an explicit per-slide `pure-image2` or `framed-image2` choice. The exact serialized
+marker names belong to Change 1's OpenSpec design, not to this backlog plan.
 
-There is no third hybrid route. In particular:
+## Non-Negotiable Rules
 
-- `body+header-lock` is **not** Framed Image2. It lets Image2 draw body text and then overlays only a Canvas header.
-- `html-then-image2` is **not** Framed Image2. It is a complete HTML page plus visual-slot refinement.
-- A slide never goes “Framed first, then Pure.” It has one authority for its current version.
+1. A final visible field has one owner. Provider instructions and local composition never both claim
+   the same text or panel.
+2. A Framed underlay is full canvas and text-free. The local frame is deterministic, typed, and has
+   no slide-authored CSS, geometry, fonts, or markup escape hatch.
+3. A Pure text change changes provider material and requires fresh authorization/render/review. A
+   Framed text-only change is local, provider-free work but still renews final delivery evidence.
+4. `slide_id` remains stable identity. Changing a page variant is versioned source work, never an
+   inference from a legacy render mode, image filename, or historical state record.
+5. The provider boundary stays explicit and scoped. Preview, adoption, structural materialization,
+   and local composition make zero provider calls unless a separately authorized render is selected.
+6. New production does not expose `html-first`, `html-then-image2`, `full-page`, or
+   `body+header-lock` as choices. Historical runs remain readable only long enough to adopt them.
 
-## Why The Old Direction Is Too Small
-
-The initial issue looked like a prompt conflict: v3 reserves a header, but its prompt still asks Image2 to render titles and labels. That is real, and the existing identity/receipt work solves part of it. But the deeper problem is ownership ambiguity: the model is asked to make a finished slide while local code also claims portions of that slide.
-
-Fixing individual prompt clauses would repeat the same work at every workflow step. The durable repair is to make the ownership decision explicit once, compile all later work from it, and reject every route that bypasses it. The former whole-page hardening proposal is historical evidence only: this plan absorbs its useful receipt, identity, authorization, and ingress-fencing requirements so there is one owner for each Image2 contract and registry.
-
-## Non-Negotiable Invariants
-
-1. **One visual system, both authorities.** Style master, palette, visual language, and optional Agent identity are shared deck assets. Pure and Framed slides must feel like one deck.
-2. **A Framed Image2 underlay is always full 16:9.** It is not cropped into a middle strip. Opaque deterministic frame panels cover the reserved header and optional callout zones above the full-canvas underlay.
-3. **Image2 never owns Framed text.** A Framed prompt must forbid readable text, labels, title, kicker, subtitle, callout, table text, logos, and watermarks. The local frame supplies those pixels.
-4. **HTML frame ownership is typed, not free-form.** v1 has one compiler-owned frame preset. A slide may select only allowed fields and a preset; it may not smuggle in arbitrary CSS, geometry, fonts, colors, or markup.
-5. **Stable slide identity survives.** `slide_id` remains the page identity. Position, page authority, and frame data are version/content facts, never identity.
-6. **No legacy inference.** Historic `full-page` and `body+header-lock` are read-only legacy facts. The framework must never silently map either to `pure-image2` or `framed-image2`.
-7. **One verified final PNG per slide.** PPTX assembly consumes a current final-slide manifest, not raw Image2 files, old header-locked files, or a separately guessed overlay.
-8. **Text refresh is cheap only when it is honestly local.** Changing Framed text recompiles the local frame. Changing Pure text requires a new provider render and review.
-
-## Target Vocabulary
-
-| Term | Exact meaning |
-|---|---|
-| **Page Authority** | The declared owner of a slide's final pixels: `pure-image2` or `framed-image2`. |
-| **Pure Image2** | Image2 creates the complete final page, including all readable text. |
-| **Framed Image2** | Image2 creates a text-free visual underlay; the local HTML compositor creates the stable text frame and final page. |
-| **Text Frame** | The typed, deterministic kicker/title/subtitle/callout layout resolved from the shared visual system. |
-| **Visual Underlay** | A full-canvas Image2 raw image for a Framed slide. It is not a final slide by itself. |
-| **Raw Image Contract** | The exact material sent to Image2 and therefore the scope of provider authorization and raw-image invalidation. |
-| **Final Frame Contract** | The local inputs that turn a verified raw underlay into the final slide PNG. |
-
-The old terms `full-page` and `body+header-lock` remain historical protocol names only. New source, plans, receipts, documentation, and diagnostics use the vocabulary above.
-
-## vNext Source Shape
-
-The deck declares one Image2 production family through the exact pair `production.pipeline: page-authority-image2-v1` and version state mode `image2-page-authority`. That state mode routes the protocol only; it does not decide every slide's pixels.
-
-At source level, the deck has a default page authority, normally `framed-image2`, and each slide may explicitly override it to `pure-image2`. Every slide continues to carry structured `KICKER`, `TITLE`, and `SUBTITLE` where relevant. For Framed slides:
-
-- `TITLE` is required.
-- `KICKER` is optional.
-- `SUBTITLE` is optional.
-- `CALLOUT` is optional and is one structured text field, not prompt prose.
-- the only v1 `FRAME PRESET` is compiler-owned `standard-v1`, with deterministic `callout_absent` / `callout_present` variants.
-- an optional subject may be selected only as `VISUAL IDENTITY: <profile-id>/<role-id>`; absence means no Agent identity subject.
-
-The absence of an optional field does not let slide-local layout drift. `frame-canvas-v1` fixes the logical canvas at `1000 x 562.5` CSS pixels and the final capture at `2000 x 1125`; `standard-v1` fixes exact normalized header/text/body/callout rectangles, field-to-rectangle mapping, line budgets, panel opacity, and shared-theme font/token resolution. Its preset, variant, and resolved theme/font profile are bound into both raw and final fingerprints. The old `1672 x 941` header-lock coordinates are migration evidence only, not vNext geometry. Before any style-master or page provider authorization, the same pinned HTML/font runtime that will compose the final frame proves the Text Frame fits its measured bounds.
-
-## Rendering Contracts
-
-### Pure Image2
-
-Stage 1 compiles the full visual brief, structured display text, shared style system, and an optional identity reference into the Image2 contract. Image2 owns the final pixels. The raw image is the final slide after normal verification.
-
-Changing a Pure title, kicker, subtitle, callout, or visual brief changes the raw Image2 contract. It therefore requires scoped authorization, regeneration, visual review, and final publication.
-
-### Framed Image2
-
-Stage 1 compiles two separate things:
-
-1. a visual-only Image2 underlay contract, including the style master, optional identity reference, full-canvas composition, and the reserved frame geometry;
-2. a typed local Text Frame contract containing the exact human-readable fields, frame preset, resolved theme, fonts, and geometry.
-
-The Image2 prompt names the visual subject and composition but prohibits readable text of every kind. It requests visual breathing room for the frame panels; it must never repeat the title or callout words in model-owned form.
-
-After Image2 returns a verified canonical `2000 x 1125` raw underlay, a local HTML compositor places it as the full 16:9 background and renders opaque header/callout panels with the Text Frame on top. An exact-16:9 provider result may only be uniformly normalized through a versioned profile; crop, letterbox, stretch, and body-strip fitting are forbidden. The compositor repeats font/geometry checks before capture, publishes one verified final PNG, and Stage 4 assembles only that PNG.
-
-This is deliberately a frame compositor, not a renamed header-lock Canvas pass. It may reuse the pinned HTML runtime and final-slide artifact conventions, but it does not inherit HTML-first source/catalog/state ownership.
-
-## Shared Style And Agent Identity
-
-The Agent must be a durable, reusable deck asset rather than an accidental scratch image. The first promotion is:
+## Target Shape
 
 ```text
-source: deck_ai_sdlc_keynote/3_versions/v1/_scratch/agent_reference_sheet.png
-target: deck_ai_sdlc_keynote/2_backbone/visual-style/assets/reference/amber-agent-model-sheet.png
+canonical source + visual system
+             |
+             v
+     Page Authority resolution
+          /              \
+         v                v
+  pure-image2       framed-image2
+  provider page     text-free provider underlay
+         |                |
+         +-------+--------+
+                 v
+       finalization seam
+       pass through | compose Text Frame
+                 |
+                 v
+     final-slide manifest -> review -> PPTX -> notes
 ```
 
-The target bytes are registered with SHA-256 and provenance. A separate Image2 reference registry, owned by the Image2 production family, resolves an opt-in profile such as `amber-agent` with controlled roles such as `guide`, `collaborating`, `working`, `orchestrating`, and `reviewing`. The existing HTML asset manifest remains an HTML catalog; it must not silently become a second source of Image2 identity authority.
+The finalization seam is deliberately small. Its callers provide a verified raw result and the
+receipt-resolved page facts; they do not choose browser settings, CSS, file paths, or provider
+options. The Framed compositor is therefore a deep module: all local rendering complexity is behind
+one interface and the same interface is the test surface.
 
-The reference participates only in the raw Image2 projection, whether the page authority is Pure or Framed. It never changes the deterministic HTML frame, and it is not globally injected into every slide. A slide must ask for the Agent because its narrative needs a recurring partner, not because the deck happens to have a robot asset.
+## OpenSpec Change Sequence
 
-## Receipts, Fingerprints, And Refresh
+### Change 1: `add-page-authority-image2`
 
-Stage 1 publishes one current `page-composition` receipt that is the only authority-bearing input for provider work and local composition. It contains only source-known inputs, never a future raw-image or final PNG SHA. Stage 2 publishes a raw-images manifest whose entries preserve the raw contract digest and verified raw bytes/provenance. Before Stage 3 consumes a raw entry, a named raw visual review must accept that exact raw triple. Stage 3 later publishes a separate final-slides manifest that binds the current Stage 1 receipt, accepted raw evidence, final PNG, and compositor evidence. A later Framed text-only receipt may reuse raw bytes only by exact raw-contract-digest match and current raw-review coverage, never by filename, slide ID, or old receipt identity. Assembly, notes, and final review require both current source/final lineage and the resolved raw evidence. Convenience artifacts such as human-readable prompts and `slide_plan.json` may exist, but they cannot bypass or replace either authority.
+**Purpose:** deliver the new protocol end to end for new production while old protocols still remain
+available for existing runs.
 
-Each slide has two separately meaningful fingerprints:
+**It changes:**
 
-| Change | Pure Image2 | Framed Image2 |
-|---|---|---|
-| Kicker/title/subtitle/callout text | Rebuild raw Image2, then review | Recompose local frame only; no provider call |
-| Visual brief / visual concept | Rebuild raw Image2 | Rebuild raw underlay, then recompose frame |
-| Agent profile/reference bytes or role | Rebuild consuming raw Image2 slides | Rebuild consuming raw underlays, then recompose frames |
-| Style master / visual language | Rebuild affected raw Image2 slides | Rebuild affected raw underlays, then recompose frames |
-| Frame font/color/panel styling | N/A unless it belongs in the Pure prompt | Local recompose only |
-| Reserved frame geometry / preset | N/A unless it belongs in the Pure prompt | Rebuild raw underlay because available visual space changed |
-| Page-authority switch | Semantic/structural change; fresh review | Semantic/structural change; fresh review |
-| Notes only | Stage 5 only | Stage 5 only |
+- Source parsing and validation to resolve the closed Pure/Framed page choice, a deck default, and
+  typed Text Frame fields.
+- Stage 1 contracts so Pure submits complete page material while Framed submits a text-free visual
+  underlay contract plus a separate local frame contract.
+- Image2 generation, authorization, raw/final fingerprints, manifests, review, PPTX assembly, and
+  notes so both variants converge on one final-slide artifact model.
+- A Page Authority resolver, state/pipeline registration, CLI and playbook route for new decks.
+- A Framed compositor that may reuse the pinned HTML runtime internally but does not expose an
+  HTML-first source, asset catalog, or visual-slot path.
 
-For Framed slides, the raw-image fingerprint includes page authority, visual-only prompt, shared visual/identity projection, canonical canvas, and reserved frame geometry. It excludes text content. The final-frame fingerprint includes raw-image SHA plus the exact Text Frame contract, preflight fit evidence, and compositor evidence. For Pure slides, text belongs in the raw-image fingerprint because the provider owns it.
+**Primary OpenSpec capability owners:** `content-parsing`, `image-production`, `header-lock` (replaced
+by the Framed composition responsibility), `pipeline-orchestration`, `node-specification`,
+`cli-surface`, `pptx-assembly`, `notes-injection`, `run-bundle-layout`, `run-bundle-management`,
+`slide-identity-and-ordering`, and `playbook-execution`.
 
-Provider authorization uses `authorize-image2 plan|record`, an exact selected raw-material fingerprint, plan hash, maximum count, execution binding, CAS record, and immediate transport guard. Raw visual acceptance is separately bound to a raw-review projection, profile, and raw-evidence digest. Every raw entry used by a final manifest must have current `proceed` coverage; a local Framed text refresh preserves that coverage only when raw bytes, contract, and raw review projection remain unchanged, regardless of the new local execution ID. Local Framed text refreshes do not ask for authorization because they do not submit anything remotely, but they do stale final delivery evidence: compose -> local review projection -> PPTX -> notes -> new final-delivery decision. Final delivery is bound to the actual final review projection SHA/profile as well as the receipt, final manifest, raw-review coverage, PPTX, and notes. Any raw artifact, direct prompt path, arbitrary style path, or stale receipt must hard-stop before cache reuse, authorization, or provider transport.
+**Exit evidence:** a fresh run can deliver mixed Pure/Framed slides; a Framed text-only refresh makes
+no provider call; a Pure text change cannot reuse stale raw material; both paths publish the same
+kind of final-slide evidence. Existing protocols continue to behave exactly as before during this
+change.
 
-## New Production Flow
+### Change 2: `adopt-page-authority-from-legacy`
 
-```text
-Canonical source + shared visual system + optional identity profile
-                              |
-                              v
-             source/frame fit -> style bootstrap -> Stage 1 receipt
-                    /                         \
-                   /                           \
-          pure-image2                     framed-image2
-          raw contract                    underlay + frame contracts
-              |                                      |
-              v                                      v
-        Stage 2 Image2                         Stage 2 Image2
-        verified final raw                      verified full-canvas underlay
-              |                                      |
-              +------------------+-------------------+
-                                 v
-                   raw review -> accepted raw coverage
-                                 |
-                                 v
-                    Stage 3: final manifest + local frame compositor
-                      Pure: verify/pass through
-                      Framed: HTML compose and verify
-                                 |
-                                 v
-                     Stage 4 final-slide manifest -> PPTX -> final review
-                                 |
-                                 v
-                           Stage 5 notes
-```
+**Purpose:** make historical run bundles explicitly adoptable without allowing historical routes to
+silently remain new production.
 
-The deep `framed_image2_compositor` module owns all complexity behind one small interface: verified raw underlay, receipt-resolved Text Frame, and resolved theme/frame evidence go in; one verified final-slide artifact and provenance go out. Callers do not know CSS, browser lifecycle, font loading, opaque-panel mechanics, or screenshot verification.
+**It changes:**
 
-## Legacy Migration And v3 Pilot
+- One read-only legacy observation module that recognizes the existing source/state pair only to
+  report an adoption prerequisite. It never returns a legacy production adapter.
+- A source-version preview, exact-plan-hash confirmation, and clean target-version materialization
+  path. Every retained slide receives an explicit Pure/Framed choice; no `full-page` or
+  `body+header-lock` heuristic mapping is permitted.
+- Provider-free validation of the candidate and a narrow, separately authorized pilot after adoption.
+- Controller, status, transition, and recovery behavior so old runs have one safe next action:
+  adopt into Page Authority rather than resume an old active production route.
 
-This is a versioned adoption, not an automatic conversion.
+**Primary OpenSpec capability owners:** `node-specification`, `run-bundle-management`,
+`run-bundle-layout`, `slide-identity-and-ordering`, `cli-surface`, `workflow-inspection`, and
+`playbook-execution`.
 
-1. Preserve existing v1/v2/v3 source, state, prompts, raw images, header-locked images, and PPTX as historical evidence. Do not mutate `_generated/` by hand.
-2. Create a clean vNext target and explicitly author every slide's page authority and, when Framed, its frame contract. Stable `slide_id` may carry forward; legacy render-mode labels and generated images do not.
-3. Use the existing production-mode transition's source-version scratch owner and sole `plan.json` preview envelope to produce an adoption matrix. Its nested Page Authority subrecord is covered by the exact outer preview hash. Each carry-forward stable ID has one explicit authority/frame/callout/identity/rewrite row, and candidate source/default expansion must match every row.
-4. Confirm and atomically materialize the exact candidate into a clean vNext version with no provider call, then run provider-free source validation and local frame composition tests. A legacy prompt containing title/label/callout instructions cannot enter a Framed provider request.
-5. Authorize a tightly scoped pilot only after the matrix and local artifacts are reviewed. The pilot must include at least one Framed content slide, one Pure carrier page, one Agent-bound page, and one Framed text-only refresh proving zero provider work.
-6. Only then choose the full vNext rebuild scope through the normal gate and authorization process.
+**Exit evidence:** preview and materialization make zero provider calls; source and target remain
+isolated; the exact plan hash binds adoption; a representative legacy deck reaches a clean Page
+Authority target with explicitly authored page variants.
 
-There is no rule such as “all old `full-page` becomes Pure” or “all old `body+header-lock` becomes Framed.” Both would hide ambiguity precisely where the new contract is supposed to be explicit.
+### Change 3: `retire-legacy-production-surface`
 
-The existing `html-first` / `html-then-image2` family is also not a Framed adapter. It remains an independently readable historical protocol with its own source, assets, review, authorization, and journal rules. This change deliberately does not decide its long-term product future; no new page-authority run can enter it, and no old HTML run can be reinterpreted as Framed without a separate versioned migration decision.
+**Purpose:** after the new protocol and adoption bridge are proven, remove historical production
+families as current product behavior and clean the main specifications to match the code.
 
-## Implementation Program
+**It changes:**
 
-### 1. Establish the language and ownership model
+- Retire `html-first`, `html-only`, `html-then-image2`, whole-page/header-lock modes, and
+  visual-slot refinement from current init, build, refresh, review, CLI, and playbook routing.
+- Preserve only the bounded legacy observation/adoption path from Change 2. Local HTML runtime may
+  remain as an internal Framed compositor dependency; it is not a user-facing production protocol.
+- Remove retired adapters, state records, artifact ownership, commands, test fixtures, and active
+  documentation once they no longer have a current owner.
+- Replace or retire every affected main-spec requirement in the same change. Active specs, Charter,
+  COMMANDS, workflow, script inventory, and tests describe Page Authority as the only production
+  model; legacy terms remain only in explicitly named compatibility/migration behavior and historical
+  fixtures.
 
-- Add Page Authority, Pure Image2, Framed Image2, Text Frame, and Visual Underlay to `CONTEXT.md` and the framework vocabulary.
-- Replace new-use references to the old three production modes and two legacy render modes with the vNext marker and per-slide authority model.
-- Preserve historical readers and diagnostics; they must identify legacy protocol rather than infer a vNext mapping.
+**Primary OpenSpec capability owners:** every owner touched by the old production surface, notably
+`framework-charter`, `framework-directory-layout`, `framework-script-layout`, `commands-reference`,
+`visual-slot-refinement`, `html-slide-contract`, `html-slide-rendering`, `html-render-runtime`,
+`visual-config`, `visual-asset-management`, plus the Change 1 and Change 2 owners.
 
-### 2. Build the Page Composition contract
+**Exit evidence:** the normal resolver has one Page Authority result; a legacy run gets only adoption
+guidance; active CLI/help/playbook/spec scans do not present retired routes as choices; each affected
+main-spec requirement has a deliberate keep, replace, retire, or compatibility-only disposition;
+focused tests prove the new route and the absence of the old active routes.
 
-- Define source validation for page-authority default/override, required Framed title, optional structured fields, fixed frame preset, and explicit identity binding.
-- Compile authority-specific prompt projections and one atomic receipt.
-- Keep the receipt as the only route into Image2 transport, frame composition, review, PPTX, notes, and reuse.
-- Keep the run-bound ingress fence, exact material authorization, bounded ordered reference projection, and receipt freshness checks as native Page Authority contracts.
+## Main-Spec Cleanup Discipline
 
-### 3. Establish the Agent reference material
+The cleanup is not a fourth documentation-only change, and it must not happen early.
 
-- Promote the approved v1 amber Agent sheet into backbone `assets/reference/` with checksum and origin.
-- Implement the separate Image2 reference registry/profile resolver and one-reference-plus-style-master budget/capability check.
-- Enforce semantic role compatibility and prevent the model sheet's labels, borders, or five-pose layout from being copied into a slide.
+- Change 1 writes delta specs for a coexistence period; main specs remain truthful about both current
+  and new behavior until the implementation is accepted.
+- Change 2 writes the migration/adoption deltas and proves that old data can leave the active surface
+  without unsafe inference.
+- Change 3 owns the exact retirement inventory and syncs it with code removal. A requirement is
+  never deleted merely because a plan calls it obsolete.
 
-### 4. Replace header lock with frame composition
+This avoids both failure modes: leaving historic routes to be rediscovered as "current," and
+rewriting main specs before executable behavior has changed.
 
-- Retire new-use `body+header-lock`, Canvas header overlay, and header-review assumptions.
-- Implement the strict typed `framed_image2_compositor` on the pinned HTML runtime, including opaque panels, local fonts, bounds/overflow checks, no network, deterministic final PNG capture, and artifact provenance.
-- Make Stage 4 consume only the unified final-slide manifest for both authorities.
+## Deliberately Deferred
 
-### 5. Align refresh, review, and authorization
+The recurring Agent identity/reference registry, new visual-profile taxonomy, provider-specific
+reference budgeting, and any new image-review heuristic are not prerequisites for Page Authority.
+They can be proposed later against the stable Pure/Framed protocol. Keeping them out of these three
+changes makes the central migration testable and finishable.
 
-- Implement the raw/final fingerprint split and local-only Framed text refresh.
-- Require provider reauthorization for exactly the raw scope that changed.
-- Make raw review a required checkpoint before finalization; final review then shows the final composed artifact while raw underlay evidence remains available for diagnosis.
-- Replace the old “header quality” review with frame/underlay contract evidence and standard visual review.
+## Definition Of Done
 
-### 6. Ship vNext safely
-
-- Add explicit transition preview and adoption-matrix tooling, never automatic source mutation.
-- Add unit, integration, and E2E tests for mixed-authority decks, identity scope, prompt text exclusion, pixel geometry, refresh locality, receipt drift, transport capability, and historical hard-stops.
-- Run the provider-free v3 migration preflight, then the narrowly authorized pilot described above.
-
-## Review Gates Before Apply
-
-The future OpenSpec change is Apply-ready only when all of these are true:
-
-- The proposal, design, delta specs, and tasks all use the same two-authority vocabulary with no accidental `body+header-lock` equivalence.
-- Source schema, receipt, artifact ownership, state routing, CLI diagnostics, and playbook instructions agree about which layer owns which pixels.
-- Framed text-only changes demonstrably leave the raw Image2 contract and authorization material unchanged.
-- Pure text changes demonstrably alter the raw Image2 contract.
-- A Framed prompt cannot contain generated display text or readable-label directives after compilation.
-- The compositor can prove Text Frame fit before authorization and again at final composition, including canonical canvas/profile, bundled font use, panel/underlay geometry, nonblank final pixels, and one final-slide artifact.
-- Legacy source cannot silently enter vNext production; the exact adoption plan binds every stable ID to the materialized candidate and no preview/materialization step calls a provider.
-- The identity asset is registered once in the backbone and is scoped only to selected Image2 raw renders.
-- The post-implementation main-spec surface has one current production protocol and one explicitly
-  bounded legacy-compatibility reader, as defined in the retirement inventory. Old routes do not
-  remain distributed as apparently-current alternatives.
-
-## Planning Boundary
-
-| Artifact | Role |
-|---|---|
-| This plan | The current human-readable architecture and decision record. |
-| `unify-image2-page-authority/` working papers | Review log and contract-cleanup checklist; never runtime authority. |
-| Future OpenSpec change | Created only after the plan has a reviewed stable scope and explicit retirement inventory. |
-
-Old unimplemented change drafts and their plans are intentionally removed rather than kept as competing paths.
-
-## Deliberately Out Of Scope
-
-- Reintroducing generic HTML-only or HTML-then-Image2 as first-class new output routes.
-- Arbitrary slide-local CSS or hand-authored frame markup.
-- Automatic OCR scoring or automatic retries after a provider call.
-- Automatic conversion of historical v3 content or copying historical generated images into vNext authority.
-- A globally mandatory Agent character on every page.
-
-This keeps the system small: one shared visual system, two honest pixel owners, one current composition receipt, and a bounded migration path.
+The program is complete when new decks have one Page Authority Image2 production protocol, each
+slide is explicitly Pure or Framed, Framed text refresh is honestly local, existing runs can adopt
+through a versioned provider-free bridge, and the main specs no longer describe historical pipelines
+as current product choices.
