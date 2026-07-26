@@ -16,5 +16,5 @@ behavior, and has a task/test obligation.
 | Refinement | HTML-first visual-slot lifecycle | Reject vNext before refinement state or provider work | In review |
 | Adoption | Sole outer transition plan and source-version scratch | Nest explicit Page Authority adoption matrix under outer hash | In review |
 
-The exact closed-requirement replacements and their tests belong in the OpenSpec delta. This
-matrix is a checklist for the review process, not a schema.
+The exact closed-requirement replacements and their tests belong in a future OpenSpec delta.
+This matrix is a checklist for the review process, not a schema.

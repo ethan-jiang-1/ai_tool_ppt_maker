@@ -11,3 +11,7 @@
 {"type":"header_review_approved","version":"3_versions/v1","ids":["s07_deer_valley_engelberg"],"fingerprint":"1d871449d54faa453e6d18f21097a540733001451d14bd48fb9f063f47d6d3c8","status":"in_progress","at":"2026-07-12T15:18:54.021Z"}
 {"type":"state_healed","reason":"schema","at":"2026-07-20T15:49:11.555Z"}
 {"type":"production_mode_registration","run_version":"v3","mode":"image2-only","source":"cross-pipeline-version","at":"2026-07-24T17:40:03.697Z"}
+{"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T17:52:37.194Z"}
+{"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T18:53:45.076Z"}
+{"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T20:09:21.008Z"}
+{"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T20:21:53.859Z"}

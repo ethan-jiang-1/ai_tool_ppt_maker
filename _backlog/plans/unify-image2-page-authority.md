@@ -1,12 +1,10 @@
 # Plan: Unify Image2 Page Authority
 
-> Type: Architecture and delivery plan | Updated: 2026-07-26 | Status: Active planning, contract-closure revisions in progress
+> Type: Architecture and delivery plan | Updated: 2026-07-26 | Status: Discovery in progress; not yet an OpenSpec proposal
 >
-> Supersedes and absorbs: [`legacy-whole-page-image2-contract-hardening.md`](./legacy-whole-page-image2-contract-hardening.md)
+> This is deliberately a plan first. An OpenSpec change is created only after this plan has a reviewed, stable scope.
 >
-> Proposed OpenSpec change: `unify-image2-page-authority`
->
-> Working papers: [index](./unify-image2-page-authority/README.md) | [contract matrix](./unify-image2-page-authority/contract-matrix.md) | [review log](./unify-image2-page-authority/review-log.md)
+> Working papers: [index](./unify-image2-page-authority/README.md) | [contract matrix](./unify-image2-page-authority/contract-matrix.md) | [main-spec retirement](./unify-image2-page-authority/main-spec-retirement.md) | [review log](./unify-image2-page-authority/review-log.md)
 
 The document below is the durable human-readable architecture plan. The working papers hold
 the mutable review and specification-coverage material; OpenSpec remains the normative
@@ -121,7 +119,7 @@ The reference participates only in the raw Image2 projection, whether the page a
 
 ## Receipts, Fingerprints, And Refresh
 
-Stage 1 publishes one current `page-composition` receipt that is the only authority-bearing input for provider work and local composition. It contains only source-known inputs, never a future raw-image or final PNG SHA. Stage 2 publishes a raw-images manifest whose entries preserve the raw contract digest and verified raw bytes/provenance. Stage 3 later publishes a separate final-slides manifest that binds the current Stage 1 receipt, an exact raw-evidence record, final PNG, and compositor evidence. A later Framed text-only receipt may reuse raw bytes only by exact raw-contract-digest match, never by filename, slide ID, or old receipt identity. Assembly, notes, and final review require both current source/final lineage and the resolved raw evidence. Convenience artifacts such as human-readable prompts and `slide_plan.json` may exist, but they cannot bypass or replace either authority.
+Stage 1 publishes one current `page-composition` receipt that is the only authority-bearing input for provider work and local composition. It contains only source-known inputs, never a future raw-image or final PNG SHA. Stage 2 publishes a raw-images manifest whose entries preserve the raw contract digest and verified raw bytes/provenance. Before Stage 3 consumes a raw entry, a named raw visual review must accept that exact raw triple. Stage 3 later publishes a separate final-slides manifest that binds the current Stage 1 receipt, accepted raw evidence, final PNG, and compositor evidence. A later Framed text-only receipt may reuse raw bytes only by exact raw-contract-digest match and current raw-review coverage, never by filename, slide ID, or old receipt identity. Assembly, notes, and final review require both current source/final lineage and the resolved raw evidence. Convenience artifacts such as human-readable prompts and `slide_plan.json` may exist, but they cannot bypass or replace either authority.
 
 Each slide has two separately meaningful fingerprints:
 
@@ -138,7 +136,7 @@ Each slide has two separately meaningful fingerprints:
 
 For Framed slides, the raw-image fingerprint includes page authority, visual-only prompt, shared visual/identity projection, canonical canvas, and reserved frame geometry. It excludes text content. The final-frame fingerprint includes raw-image SHA plus the exact Text Frame contract, preflight fit evidence, and compositor evidence. For Pure slides, text belongs in the raw-image fingerprint because the provider owns it.
 
-Provider authorization uses `authorize-image2 plan|record`, an exact selected raw-material fingerprint, plan hash, maximum count, execution binding, CAS record, and immediate transport guard. Raw visual acceptance is separately bound to a raw-review projection, profile, and raw-evidence digest. Local Framed text refreshes do not ask for authorization because they do not submit anything remotely, but they do stale final delivery evidence: compose -> local review projection -> PPTX -> notes -> new final-delivery decision. Final delivery is bound to the actual final review projection SHA/profile as well as the receipt, final manifest, PPTX, and notes. Any raw artifact, direct prompt path, arbitrary style path, or stale receipt must hard-stop before cache reuse, authorization, or provider transport.
+Provider authorization uses `authorize-image2 plan|record`, an exact selected raw-material fingerprint, plan hash, maximum count, execution binding, CAS record, and immediate transport guard. Raw visual acceptance is separately bound to a raw-review projection, profile, and raw-evidence digest. Every raw entry used by a final manifest must have current `proceed` coverage; a local Framed text refresh preserves that coverage only when raw bytes, contract, and raw review projection remain unchanged, regardless of the new local execution ID. Local Framed text refreshes do not ask for authorization because they do not submit anything remotely, but they do stale final delivery evidence: compose -> local review projection -> PPTX -> notes -> new final-delivery decision. Final delivery is bound to the actual final review projection SHA/profile as well as the receipt, final manifest, raw-review coverage, PPTX, and notes. Any raw artifact, direct prompt path, arbitrary style path, or stale receipt must hard-stop before cache reuse, authorization, or provider transport.
 
 ## New Production Flow
 
@@ -157,6 +155,9 @@ Canonical source + shared visual system + optional identity profile
         verified final raw                      verified full-canvas underlay
               |                                      |
               +------------------+-------------------+
+                                 v
+                   raw review -> accepted raw coverage
+                                 |
                                  v
                     Stage 3: final manifest + local frame compositor
                       Pure: verify/pass through
@@ -199,7 +200,7 @@ The existing `html-first` / `html-then-image2` family is also not a Framed adapt
 - Define source validation for page-authority default/override, required Framed title, optional structured fields, fixed frame preset, and explicit identity binding.
 - Compile authority-specific prompt projections and one atomic receipt.
 - Keep the receipt as the only route into Image2 transport, frame composition, review, PPTX, notes, and reuse.
-- Carry forward the old change's run-bound ingress fence, exact material authorization, bounded ordered reference projection, and receipt freshness checks.
+- Keep the run-bound ingress fence, exact material authorization, bounded ordered reference projection, and receipt freshness checks as native Page Authority contracts.
 
 ### 3. Establish the Agent reference material
 
@@ -217,7 +218,7 @@ The existing `html-first` / `html-then-image2` family is also not a Framed adapt
 
 - Implement the raw/final fingerprint split and local-only Framed text refresh.
 - Require provider reauthorization for exactly the raw scope that changed.
-- Adapt contact sheets and review to show the final composed artifact, while retaining raw underlay evidence for diagnosis.
+- Make raw review a required checkpoint before finalization; final review then shows the final composed artifact while raw underlay evidence remains available for diagnosis.
 - Replace the old “header quality” review with frame/underlay contract evidence and standard visual review.
 
 ### 6. Ship vNext safely
@@ -238,15 +239,19 @@ The future OpenSpec change is Apply-ready only when all of these are true:
 - The compositor can prove Text Frame fit before authorization and again at final composition, including canonical canvas/profile, bundled font use, panel/underlay geometry, nonblank final pixels, and one final-slide artifact.
 - Legacy source cannot silently enter vNext production; the exact adoption plan binds every stable ID to the materialized candidate and no preview/materialization step calls a provider.
 - The identity asset is registered once in the backbone and is scoped only to selected Image2 raw renders.
+- The post-implementation main-spec surface has one current production protocol and one explicitly
+  bounded legacy-compatibility reader, as defined in the retirement inventory. Old routes do not
+  remain distributed as apparently-current alternatives.
 
-## Artifact Disposition
+## Planning Boundary
 
-| Existing work | Disposition |
+| Artifact | Role |
 |---|---|
-| `_backlog/plans/legacy-whole-page-image2-contract-hardening.md` | Superseded historical investigation; it is not an active delivery plan. |
-| `openspec/changes/harden-image2-identity-and-prompt-contracts/` | Superseded investigation record. It MUST NOT be applied because it would create competing legacy registry and receipt ownership. |
-| New human plan | This file: `_backlog/plans/unify-image2-page-authority.md`. |
-| New OpenSpec change | `openspec/changes/unify-image2-page-authority/`, with fresh proposal/design/spec/task contracts. |
+| This plan | The current human-readable architecture and decision record. |
+| `unify-image2-page-authority/` working papers | Review log and contract-cleanup checklist; never runtime authority. |
+| Future OpenSpec change | Created only after the plan has a reviewed stable scope and explicit retirement inventory. |
+
+Old unimplemented change drafts and their plans are intentionally removed rather than kept as competing paths.
 
 ## Deliberately Out Of Scope
 

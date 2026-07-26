@@ -12,7 +12,7 @@ Accepted findings:
 
 ## Round 2: Apply-Readiness Audit
 
-Open findings to close in the normative artifacts:
+Open findings to close in the plan before creating normative artifacts:
 
 - Raw acceptance must be an explicit Stage 2-to-Stage 3 confirm gate for every raw entry consumed by
   a final manifest, with partial/stale coverage rejection tests.
@@ -29,6 +29,6 @@ Open findings to close in the normative artifacts:
 
 ## Exit Criteria
 
-1. Each finding above is represented in proposal/design/specs/tasks and has an implementation test.
-2. `openspec validate unify-image2-page-authority --strict --no-interactive` passes.
-3. Independent architecture, contract, and deck-semantics reviews report no Apply blocker.
+1. Each finding above is resolved in the plan, with a named future implementation/test obligation.
+2. The plan has a reviewed retirement inventory for old main-spec routes.
+3. Only then may a future OpenSpec proposal be created and validated.
