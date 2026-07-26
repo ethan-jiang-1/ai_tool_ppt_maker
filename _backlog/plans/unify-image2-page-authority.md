@@ -752,3 +752,25 @@ The program is complete only when all of the following are true:
    Charter, workflow, CLI, and layout; no historical route is advertised as a current choice.
 10. Core and full verification are green from a classified baseline, and strict OpenSpec validation and
    the final merged-spec review pass.
+
+## Future OpenSpec Change Sequence
+
+This is the complete execution sequence. These are planned Change IDs only: no
+`openspec/changes/` directory is created until the Proposal Gate is passed and the user explicitly
+approves the proposal.
+
+| Order | Future Change ID | Delivers | Explicitly does not deliver |
+|---|---|---|---|
+| 1 | `introduce-page-authority-image2` | The new production path for new decks: the two per-slide authorities, Page Authority source/state pair, trusted visual-language and Agent-reference registries, raw/final evidence chain, `finalizePage(...)`, deterministic Framed composition, readiness, and one assembly/notes lineage. | Legacy adoption, deletion of old production code, automatic conversion of any old deck, or a third rendering authority. |
+| 2 | `add-page-authority-legacy-adoption` | The sole read-only legacy observer plus previewed, hash-bound, provider-free adoption into a clean Page Authority version. Once its pilot passes, normal legacy production commands cut over to adoption guidance. | Reuse of legacy prompts, pixels, approvals, generated artifacts, or an implicit adapter/fallback. |
+| 3 | `retire-legacy-production-surface` | Removal of legacy production routing, generated-artifact owners, commands, playbooks, fixtures, and main-spec requirements; only the bounded observer and shared Framed runtime primitives remain. | A rewrite of the new Page Authority path, new visual modes, or deletion of the adoption observer. |
+
+The changes are strictly serial. Change 1 makes Page Authority the only choice for a new deck while
+existing legacy runs remain usable during migration. Change 2 must prove adoption before those existing
+runs are fenced from production. Change 3 removes the retired surface only after that bridge is proven;
+there is no interval in which a legacy deck has neither its historical route nor an adoption route.
+
+Each future proposal must map its tasks and delta specs only to the scope in its own row, carry forward
+the preceding change's verification evidence, and leave the repository valid before the next proposal
+is created. Work that introduces a third authority, free-form provider prompt ingress, HTML as a
+user-facing production mode, or automatic legacy conversion is out of scope for all three changes.
