@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-23 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-26 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,9 +17,11 @@
 
 ## 活跃列表
 
-目前无活跃 plan。
+| Plan | Summary | Status |
+|------|---------|--------|
+| [`unify-image2-page-authority.md`](unify-image2-page-authority.md) | Move all new production to one Pure/Framed Page Authority Image2 protocol, then adopt and retire historical production paths in three OpenSpec changes. | Direction agreed; roadmap ready |
 
-**Next available plan ID: CLS-012**（移入 `_closed_plans/` 时分配；CLS-001…011 已用）
+**Next available plan ID: CLS-013**（移入 `_closed_plans/` 时分配；CLS-001…012 已用）
 
 ---
 
