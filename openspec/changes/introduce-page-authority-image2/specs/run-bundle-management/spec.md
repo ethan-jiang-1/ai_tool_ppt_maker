@@ -29,3 +29,15 @@ master, a PPTX/notes output, provider attempts, review evidence, or legacy produ
 - **THEN** it has written only canonical source/control/state/lesson scaffolding
 - **AND** no generated production or provider artifact exists
 
+### Requirement: Golden sample first-look READMEs match current seeds
+Seed/first-look coherence SHALL be proven from checked-in framework test fixtures produced in temporary
+directories, not production `deck_*` or `dpt_*` data. Tests SHALL compare current root/version README
+and deck-guide seeds across generic init plus every active deck-type template (`keynote`, `pitch`,
+`report`, and `training`) and SHALL cover `_scratch`, `_state`, the Page Authority default seed,
+Pure/Framed ownership guidance, and current Where Maps. Legacy source/state pairs are tested only as
+existing-run compatibility fixtures; init SHALL not create their seeds.
+
+#### Scenario: Seed coherence suite runs without production decks
+- **WHEN** the test workspace contains no `deck_*` or `dpt_*` production data
+- **THEN** fresh generic and four deck-type fixtures prove coherent Page Authority first-look seeds
+- **AND** legacy compatibility fixtures do not become init templates

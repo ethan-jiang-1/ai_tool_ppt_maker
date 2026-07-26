@@ -67,7 +67,12 @@ checks rather than layering new fallbacks.
   artifact ownership.
 - `run-bundle-management`: initialize and validate new Page Authority runs.
 - `environment-check`: report operation-scoped Page Authority readiness.
+- `bootstrap-env-guidance`: make Page Authority the sole new-deck startup path while retaining
+  operation-scoped local and provider readiness guidance.
 - `commands-reference`: route natural-language production work to the new protocol.
+- `header-lock`: fence the legacy whole-page Stage 3 from Page Authority finalization.
+- `workflow-inspection`: project Page Authority's direct-owner prerequisites without falling into an
+  HTML or legacy Image2 observation route.
 
 ## Impact
 

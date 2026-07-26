@@ -48,6 +48,9 @@ pair or reports a source/state repair diagnostic; it never infers a route from m
 files. Existing markers retain their existing dispatch during Change 1. Change 2 will replace that
 interim compatibility dispatch with the bounded observer and adoption-only diagnostic. This avoids an
 outage while also preventing any Page Authority source from falling back into a legacy adapter.
+Header-Lock remains a legacy whole-page Stage 3: only the legacy whole-page adapter may invoke it.
+The Page Authority adapter, controller, and public receipt-bound commands reject that route before any
+Stage 3 input is assembled; its standalone legacy script is not a Page Authority finalization interface.
 
 ### 2. Authority determines final pixels, not deck mode
 
@@ -120,6 +123,12 @@ provider credential; raw generation needs `image2-raw` and Framed preflight when
 probe remains explicit. Invalid source/state, missing authority, missing raw acceptance, or unauthorized
 provider work are hard-stops with one owner-issued recovery action; semantic raw and delivery review
 remain human decisions.
+
+BOOTSTRAP presents this as the only new-deck protocol and invokes its unbound doctor mode before init;
+it does not offer legacy mode selection for new work. For an existing run, workflow inspection resolves
+the exact source/state pair first. A Page Authority result obtains only the new protocol's
+direct-owner source, authorization, raw-review, finalization, and delivery facts; it never evaluates
+HTML review, Image2 refinement, or Header-Lock as a substitute prerequisite.
 
 ### 7. Artifact ownership is explicit and rebuildable
 
