@@ -3,81 +3,110 @@
 Define the producer contract for every registered direct Node CLI under `PPTMAKER_FRAMEWORK/scripts/`: entry discovery, output transactions, success and JSON channels, bounded actionable failure diagnostics, secret-safe boundaries, and exhaustive return auditing. It defines `ppt_flow.mjs` as the fixed 14-command unified entry point.
 ## Requirements
 ### Requirement: Public CLI exposes one production-mode surface
-ppt_flow init SHALL accept exact --mode html-only|html-then-image2|image2-only and default to image2-only. The closed state grammar SHALL retain same-pipeline mode transition, metadata-mirror repair, idempotent same-pipeline post-publication registration, first-class Image2 delivery review, and only the state-owned cross-pipeline transition forms: prepare with requested target mode, preview, exact-hash transaction commit through `--confirm-production-mode-transition`, exact-hash apply, durable recovery confirmation, and owner-scoped recovery. All forms SHALL be mutually exclusive with one another and with JSON, gate checks/recovery, and delivery-review forms.
+`ppt_flow init` SHALL accept no production-mode choice or exact `--mode image2-page-authority`, and
+default an omitted mode to `image2-page-authority`. It SHALL reject legacy init modes. The closed state grammar SHALL retain existing
+same-pipeline and cross-pipeline transition behavior and SHALL add Page Authority operations only through
+the Page Authority receipt and authorization boundaries. Help and successful init/mode results SHALL
+include normalized run version, selected mode, derived pipeline, and nearest next action.
 
-Same-pipeline registration SHALL reject sources outside the same deck, non-visible targets, changed/conflicting relationships, and cross-pipeline use. Cross-pipeline target registration is permitted only inside the transition state owner's verified receipt-bound handoff; it shall not be exposed through generic registration or caller-supplied source/target/mode arguments. Same-pipeline HTML transitions SHALL delegate to the state owner, while cross-pipeline requests through the in-place setter SHALL return typed transition-required guidance without state, source, generated-tree, or current-version mutation. Help and successful init/mode/registration/repair/transition results SHALL include normalized run or source/anticipated-target version, selected mode, derived pipeline, exact plan hash where applicable, and nearest next action.
+Unknown mode values, missing/corrupt authority, selected-run execution mismatch, mode/source mismatch,
+pre-current state, retired Controller identity, or CAS conflict SHALL use the existing final JSON
+diagnostic producer and fail before readiness, provider credentials, generated paths, or writes. The
+diagnostic SHALL name the owner's one bounded typed next action and never a hand-edited state recipe.
 
-Unknown mode values, missing/corrupt authority, selected-run execution mismatch, mode/source mismatch, pre-current state, retired Controller identity, or CAS conflict SHALL use the existing one-final-JSON diagnostic producer and fail before branch-specific readiness, provider credentials, generated paths, or writes. The diagnostic SHALL name the owner's one bounded typed next action, never a hand-edited state recipe.
-
-#### Scenario: Cross-pipeline registration has no generic CLI bypass
-- **WHEN** a caller invokes state registration for source and target with different pipelines
-- **THEN** the command rejects before state, metadata, source, or target mutation
-- **AND** only the exact confirmed transition handoff may register the selected target mode
-
-#### Scenario: Init omits mode
-- **WHEN** ppt_flow init is called without --mode
-- **THEN** stdout reports image2-only, its whole-page pipeline, and the Image2-primary next action
+#### Scenario: Init defaults to Page Authority
+- **WHEN** `ppt_flow init` is called without `--mode`
+- **THEN** v1 records `image2-page-authority` and source declares `page-authority-image2-v1`
+- **AND** the result reports `framed-image2` as the new-deck default
 
 #### Scenario: Invalid mode is supplied
 - **WHEN** init or a mode transition receives an unknown mode
-- **THEN** CLI returns USAGE through the registered diagnostic envelope before creating or changing a bundle
+- **THEN** CLI returns `USAGE` through the registered diagnostic envelope before creating or changing a bundle
 
-#### Scenario: Same-pipeline transition succeeds
-- **WHEN** the exact run changes from html-only to html-then-image2 with current expected state
-- **THEN** CLI reports the old/new mode and unchanged html-first-v1 pipeline
+#### Scenario: Legacy transition has no generic CLI bypass
+- **WHEN** a caller requests a Page Authority transition through a generic in-place mode setter
+- **THEN** CLI returns the owner-issued transition guidance without source, state, or generated mutation
+- **AND** it does not infer an adoption
+
+#### Scenario: Same-pipeline legacy transition remains available
+- **WHEN** the exact run changes from `html-only` to `html-then-image2` with current expected state
+- **THEN** CLI reports the old/new mode and unchanged `html-first-v1` pipeline
 - **AND** it does not submit provider work
 
-#### Scenario: Cross-pipeline transition is deferred
-- **WHEN** the exact run requests image2-only from an HTML mode
-- **THEN** CLI reports typed versioned-transition guidance and makes no state, source, or generated mutation
+#### Scenario: Legacy cross-pipeline transition remains deferred
+- **WHEN** the exact run requests `image2-only` from an HTML mode
+- **THEN** CLI reports current versioned-transition guidance and makes no state, source, or generated mutation
 
-#### Scenario: Published target registration is retried
+#### Scenario: Published same-pipeline target registration is retried
 - **WHEN** the exact same-pipeline target is visible but prior mode registration was interrupted
 - **THEN** state registration commits or reports the already-current target record idempotently
 - **AND** it does not copy source gates, node completion, or generated evidence
 
 #### Scenario: State operation flags are mixed
 - **WHEN** a caller combines mode transition, mirror repair, registration, JSON, gate, or delivery-review forms
-- **THEN** CLI returns USAGE before state, metadata, source, or target mutation
+- **THEN** CLI returns `USAGE` before state, metadata, source, or target mutation
+
+#### Scenario: Cross-pipeline registration has no generic CLI bypass
+- **WHEN** a caller invokes generic state registration for source and target with different pipelines
+- **THEN** the command rejects before state, metadata, source, or target mutation
+- **AND** it names the owner-issued transition or adoption guidance instead of registering a Page Authority target
+
+#### Scenario: Init omits mode
+- **WHEN** `ppt_flow init` is called without `--mode`
+- **THEN** stdout reports `image2-page-authority`, `page-authority-image2-v1`, and the Page Authority next action
+
+#### Scenario: Same-pipeline transition succeeds
+- **WHEN** an explicitly targeted legacy run changes from `html-only` to `html-then-image2` with current expected state
+- **THEN** CLI reports the old/new mode and unchanged `html-first-v1` pipeline
+- **AND** it does not submit provider work
+
+#### Scenario: Cross-pipeline transition is deferred
+- **WHEN** an explicitly targeted legacy HTML run requests `image2-only`
+- **THEN** CLI reports current versioned-transition guidance and makes no state, source, or generated mutation
+
+#### Scenario: Published target registration is retried
+- **WHEN** the exact same-pipeline legacy target is visible but prior mode registration was interrupted
+- **THEN** state registration commits or reports the already-current target record idempotently
+- **AND** it does not copy source gates, node completion, or generated evidence
 
 ### Requirement: Doctor exposes production-scoped readiness without hidden live work
+The root grammar SHALL accept `ppt_flow doctor --mode image2-page-authority` and a Page Authority
+run-bound operation selection. `--run-dir` SHALL inspect the exact authoritative mode and fail closed on
+unusable state/drift; explicit `--mode` supports pre-init checks. For an unbound Page Authority mode,
+doctor reports independent `framed-runtime` and `image2-raw` profiles without an aggregate source-ready
+claim. Existing `--image2` remains the compatibility alias for the legacy `image2-only` profile and is
+mutually exclusive with other selectors. `--smoke` and `--probe-vendors` remain mutually exclusive and
+live only when explicitly selected; neither authorizes production generation.
 
-The root grammar SHALL add `ppt_flow doctor --mode <mode>` and
-`ppt_flow doctor --run-dir <run-dir>`. The two selectors SHALL be mutually exclusive. `--run-dir`
-SHALL inspect the exact authoritative mode and fail closed on unusable state/drift; `--mode` supports
-pre-init checks. Omitted selectors retain the existing default HTML-readiness compatibility behavior.
-Existing `--image2` SHALL remain a compatibility alias for the `image2-only` readiness profile and SHALL
-be mutually exclusive with either selector. `--smoke` and `--probe-vendors` remain mutually exclusive,
-imply an Image2-capable profile when no selector is supplied, and retain their disclosed live-submit
-semantics; neither flag is inferred from a mode or run.
+#### Scenario: Page Authority doctor is unbound
+- **WHEN** `doctor --mode image2-page-authority` runs without run-dir, operation, or live flags
+- **THEN** it reports independent offline Frame and raw profiles without a combined readiness claim
+- **AND** it makes no network request
 
-`html-only` SHALL run common plus HTML requirements. `image2-only` SHALL run common plus Image2 presence
-requirements and omit HTML-only Playwright/ECharts/Chromium/font-runtime checks. `html-then-image2`
-SHALL make common plus HTML failures blocking for current HTML work and report missing Image2 presence
-as deferred guidance until the refinement boundary; the explicit Image2 check at that boundary remains
-blocking. Human/JSON output SHALL distinguish selected profile, current-action readiness, deferred
-readiness, and whether a live request was explicitly selected.
+#### Scenario: Page Authority doctor resolves a local operation
+- **WHEN** `doctor --run-dir <run-dir> --operation framed-local-refresh` targets a valid Page Authority run
+- **THEN** it checks only the `framed-runtime` profile
+- **AND** it does not require provider credentials or probe a vendor
+
+#### Scenario: Doctor selectors conflict
+- **WHEN** mode, run-dir, operation, or the compatibility `--image2` selector is combined incompatibly
+- **THEN** doctor returns `USAGE` before environment or provider inspection
 
 #### Scenario: Pre-init Image2-primary doctor is scoped
 
-- **WHEN** `doctor --mode image2-only` runs without live flags
-- **THEN** HTML-only runtime failures do not affect the verdict and Image2 presence is checked offline
+- **WHEN** `doctor --mode image2-only` is explicitly requested without live flags for an existing legacy workflow
+- **THEN** HTML-only runtime failures do not affect that legacy profile and Image2 presence is checked offline
 
 #### Scenario: Existing run supplies mode authority
 
-- **WHEN** `doctor --run-dir <run-dir>` targets a valid `html-only` version
+- **WHEN** `doctor --run-dir <run-dir>` targets a valid existing `html-only` version
 - **THEN** it runs the HTML readiness profile without consulting metadata as mode authority
 
 #### Scenario: HTML-then-Image2 can begin locally
 
-- **WHEN** HTML readiness passes but deferred Image2 presence fails under `html-then-image2`
+- **WHEN** HTML readiness passes but deferred Image2 presence fails under an existing `html-then-image2` run
 - **THEN** doctor reports current HTML work ready plus the later repair guidance
 - **AND** no live provider request runs and refinement submit remains blocked until repaired
-
-#### Scenario: Doctor selectors conflict
-
-- **WHEN** mode, run-dir, or the compatibility `--image2` selector is combined incompatibly
-- **THEN** doctor returns `USAGE` before environment/provider inspection
 
 ### Requirement: Public production commands route from canonical mode policy
 For run-scoped validate, pilot, approve, style-master, build, refresh, image2, state, and status, ppt_flow SHALL inspect the exact version-scoped production mode and verify its direct source pipeline before branch-specific parsing or readiness. It SHALL then delegate to the owning adapter: HTML commands for both HTML modes, normal whole-page pilot/build for image2-only, and modern image2 refinement only for html-then-image2. html-only SHALL return typed mode-disabled guidance to the same-pipeline switch without creating refinement state; whole-page image2-only SHALL return not-applicable guidance to normal pilot/build and SHALL NOT redirect modern refinement commands into whole-page generation.
@@ -119,16 +148,26 @@ Mode-inapplicable but future-reserved behavior MAY return successful typed guida
 - **AND** it creates no HTML delivery-review record
 
 ### Requirement: CLI surface preserves command names
-The `ppt_flow` CLI SHALL expose exactly 14 top-level commands: `doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and `image2`. Cross-pipeline page-authority work SHALL be exposed only by the closed `state --*-production-mode-transition` operations. There SHALL be no retired top-level migration command or top-level `production-mode-transition` command, and help SHALL not advertise either removed surface.
+The `ppt_flow` CLI SHALL expose exactly 14 top-level commands: `doctor`, `init`, `status`, `approve`,
+`style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, and
+`image2`. Page Authority work SHALL use receipt-bound forms under this existing surface; no top-level
+Page Authority or migration command is added. Help SHALL not advertise legacy modes as fresh-init
+choices.
 
 #### Scenario: Help lists the complete current surface
 - **WHEN** `ppt_flow --help` runs
 - **THEN** the 14 current command names are listed exactly once
-- **AND** no removed migration or top-level transition command is advertised
+- **AND** no extra Page Authority top-level command is advertised
+
+#### Scenario: Existing init invocation uses the new default
+- **WHEN** an Agent runs `ppt_flow init deck_demo --deck-type keynote --style dark-executive`
+- **THEN** a run bundle is created using the compatible invocation shape and `image2-page-authority`
+- **AND** the resulting source default is `framed-image2`
 
 #### Scenario: Existing init invocation remains valid
 - **WHEN** an Agent runs `ppt_flow init deck_demo --deck-type keynote --style dark-executive`
-- **THEN** a run bundle is created using the compatible invocation shape and the current `image2-only` default
+- **THEN** a run bundle is created using the compatible invocation shape and the `image2-page-authority` default
+- **AND** the resulting source default is `framed-image2`
 
 ### Requirement: ppt_flow delegates to capability scripts
 ppt_flow.mjs SHALL delegate bundle management, environment checks, state, slide transactions, the state-owned production-mode transition, and the selected production branch to owning Phase interfaces or categorized shared CLI adapters. It SHALL route HTML Stage 1-5 through the HTML interface and explicit current whole-page production through the public 04-image-production/whole-page adapter. It SHALL keep orchestration/renderer logic out of the command router, verify the canonical source/state pair before branch-specific readiness or option handling, and import no retired Phase-5 migration bridge or private path.
@@ -1107,3 +1146,15 @@ Plain status, status JSON, state, and state JSON SHALL consume the read-only ins
 - **WHEN** `state` and `status` render a response for the same workflow-inspection projection
 - **THEN** each derives its public resume-card action from that response's `primary_action`
 - **AND** neither display field or eligible candidate selects an alternate route
+
+### Requirement: Page Authority direct commands are receipt-bound
+CLI SHALL expose Page Authority validation, raw-generation, local Framed refresh, assembly, and notes
+operations only through canonical `--run-dir` source/state resolution and the resolved receipt. It SHALL
+reject direct prompt, provider style, output-path, or legacy artifact override arguments. Any hard
+failure SHALL use the existing secret-safe diagnostic envelope; no provider body, prompt, or credential
+shall be emitted.
+
+#### Scenario: Direct provider ingress is rejected
+- **WHEN** a Page Authority command receives a raw prompt, style override, output override, or legacy image path
+- **THEN** CLI returns `USAGE` before readiness, provider, or generated-artifact work
+- **AND** it identifies the receipt-bound command path

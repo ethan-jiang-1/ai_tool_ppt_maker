@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { encode as encodePng } from "fast-png";
-import { initHtmlFirstBundle, initWholePageBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initHtmlFirstBundle, initLegacyFixtureBundle, initWholePageBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import {
@@ -161,7 +161,7 @@ describe("ppt_flow", () => {
     expect(help.status).toBe(0);
     expect(help.stdout).toMatch(/--image2.*offline Image2 presence/is);
     expect(help.stdout).toMatch(/--smoke.*one live first-vendor submit/is);
-    expect(help.stdout).toMatch(/--probe-vendors.*every resolved vendor/is);
+    expect(help.stdout).toMatch(/--probe-vendors.*every resolved\s+vendor/is);
   });
 
   it("state --help exits 0 without failure envelope", () => {
@@ -1384,8 +1384,7 @@ describe("pilot selector", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-pmode-cli-"));
     try {
       const deck = join(root, "deck_pmode_cli");
-      const initResult = runPptFlow(["init", deck, "--deck-type", "keynote", "--style", "dark-executive", "--mode", "html-only"]);
-      expect(initResult.status, initResult.stderr).toBe(0);
+      initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "html-only" });
       const runDir = join(deck, "3_versions", "v1");
 
       // Invalid mode is a one-envelope USAGE failure with zero writes.
@@ -1411,24 +1410,25 @@ describe("pilot selector", () => {
     }
   });
 
-  it("default init is image2-only and status/doctor reflect the mode", () => {
+  it("default init is Page Authority and status/doctor reflect the mode", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-image2-default-"));
     try {
       const deck = join(root, "deck_image2_default");
       const initResult = runPptFlow(["init", deck, "--deck-type", "keynote", "--style", "dark-executive"]);
       expect(initResult.status, initResult.stderr).toBe(0);
-      expect(initResult.stdout).toContain("production_mode: image2-only");
+      expect(initResult.stdout).toContain("production_mode: image2-page-authority");
       const runDir = join(deck, "3_versions", "v1");
 
       const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
-      expect(source).not.toContain("pipeline: html-first-v1");
-      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-only" });
+      expect(source).toContain("pipeline: page-authority-image2-v1");
+      expect(source).toContain("page_authority_default: framed-image2");
+      expect(readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"]).toEqual({ mode: "image2-page-authority", source_epoch: 1 });
 
       const stateJson = runPptFlow(["state", runDir, "--json"]);
       const card = JSON.parse(stateJson.stdout);
-      expect(card.production_mode).toMatchObject({ resolvable: true, mode: "image2-only" });
+      expect(card.production_mode).toMatchObject({ resolvable: true, mode: "image2-page-authority" });
 
-      const doctor = runPptFlow(["doctor", "--mode", "image2-only"]);
+      const doctor = runPptFlow(["doctor", "--mode", "image2-page-authority"]);
       expect(doctor.status, doctor.stderr).toBe(0);
 
       const before = readState(deck, { purpose: "execute", heal: false }).production_mode.by_version["3_versions/v1"];

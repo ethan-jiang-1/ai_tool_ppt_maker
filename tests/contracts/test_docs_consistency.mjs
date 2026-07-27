@@ -197,8 +197,27 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
     expect(commands).toContain("Git history reader");
     expect(commands).toContain("命名 Git 操作和用户给定范围");
-    expect(commands).toContain("新 deck 走正常的 pilot/header/build/provider controls");
-    expect(commands).toContain("并保有 durable state");
+    expect(commands).toContain("唯一新-deck route 是 `image2-page-authority`");
+    expect(commands).toContain("`framed-image2` 是 source default");
+    expect(commands).toContain("These are not fresh-init choices");
+  });
+
+  it("routes fresh public guidance only through Page Authority and defers raw credentials", () => {
+    const bootstrap = readFileSync("PPTMAKER_FRAMEWORK/BOOTSTRAP.md", "utf8");
+    const commands = readFileSync("PPTMAKER_FRAMEWORK/COMMANDS.md", "utf8");
+    const freshBootstrap = bootstrap.slice(0, bootstrap.indexOf("## Existing-run guidance"));
+    const freshCommands = commands.slice(0, commands.indexOf("## Existing runs only"));
+
+    expect(freshBootstrap).toContain("doctor --mode image2-page-authority");
+    expect(freshBootstrap).toContain("--operation raw-generation");
+    expect(freshBootstrap).toContain("`pure-image2`");
+    expect(freshBootstrap).toContain("`framed-image2`");
+    expect(freshBootstrap).not.toMatch(/init[^\n]*(?:html-only|html-then-image2|image2-only)/);
+
+    expect(freshCommands).toContain("唯一新-deck route 是 `image2-page-authority`");
+    expect(freshCommands).toContain("exact operation, stable IDs, generation profile, and maximum submission count");
+    expect(freshCommands).toContain("Provider readiness, init, doctor, a live probe, raw review, and a prior batch never grant that authorization.");
+    expect(freshCommands).not.toMatch(/init[^\n]*(?:html-only|html-then-image2|image2-only)/);
   });
 
   it("documents only the bounded local run-bundle locator entry", () => {

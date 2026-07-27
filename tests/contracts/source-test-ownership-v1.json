@@ -19,6 +19,7 @@
       "interfaces": ["01-content/index.mjs"],
       "executables": [],
       "unit_integration": [
+        "tests/01-content/test_page_authority_source.mjs",
         "tests/01-content/test_slide_document.mjs",
         "tests/01-content/test_slide_ids.mjs"
       ],
@@ -32,6 +33,7 @@
         "tests/02-visual-system/test_html_asset_catalog.mjs",
         "tests/02-visual-system/test_html_chart_svg.mjs",
         "tests/02-visual-system/test_html_component_registry.mjs",
+        "tests/02-visual-system/test_page_authority_visual_language.mjs",
         "tests/02-visual-system/test_visual_config.mjs"
       ],
       "e2e": []
@@ -67,6 +69,7 @@
       "owner": "04-image-production",
       "interfaces": [
         "04-image-production/index.mjs",
+        "04-image-production/page-authority/index.mjs",
         "04-image-production/whole-page/index.mjs"
       ],
       "executables": [
@@ -79,6 +82,7 @@
         "tests/04-image-production/test_generate_style_master.mjs",
         "tests/04-image-production/test_header_review.mjs",
         "tests/04-image-production/test_image_generation.mjs",
+        "tests/04-image-production/test_page_authority_raw_manifest.mjs",
         "tests/04-image-production/test_refinement_contracts.mjs",
         "tests/04-image-production/test_refinement_lifecycle.mjs",
         "tests/04-image-production/test_relay_compatibility.mjs",
@@ -90,6 +94,7 @@
         "tests_e2e/04-image-production/test-html-then-image2-completion.mjs",
         "tests_e2e/04-image-production/test-image2-lifecycle.mjs",
         "tests_e2e/04-image-production/test-image2-primary-flow.mjs",
+        "tests_e2e/04-image-production/test-page-authority-flow.mjs",
         "tests_e2e/04-image-production/test-refinement-flow.mjs"
       ]
     },
@@ -100,7 +105,10 @@
       "unit_integration": [
         "tests/05-iteration/test_html_first_structural.mjs"
       ],
-      "e2e": ["tests_e2e/05-iteration/test-structural-slide-flow.mjs"]
+      "e2e": [
+        "tests_e2e/05-iteration/test-page-authority-structural-flow.mjs",
+        "tests_e2e/05-iteration/test-structural-slide-flow.mjs"
+      ]
     },
     {
       "owner": "contracts",
@@ -130,6 +138,7 @@
       "tests/contracts/test_image_production_relocation_baseline.mjs",
       "tests/contracts/test_mock_development_verification_runner.mjs",
       "tests/contracts/test_mock_selected_verification.mjs",
+        "tests/contracts/test_page_authority_cli.mjs",
         "tests/contracts/test_ppt_flow.mjs",
         "tests/contracts/test_runtime_constitution.mjs",
       "tests/contracts/test_workflow_control_ledger.mjs",
@@ -189,6 +198,7 @@
       "interfaces": [
         "shared/state/html_review_evidence.mjs",
         "shared/state/md_controller_reader.mjs",
+        "shared/state/page_authority_delivery_evidence.mjs",
         "shared/state/production_mode_transition.mjs",
         "shared/state/state.mjs"
       ],

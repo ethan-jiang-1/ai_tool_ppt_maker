@@ -73,14 +73,18 @@ describe("MD Controller reader characterization", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     const wholePage = index.nodesById.get("generate-image2-style-master");
     const visualSlot = index.nodesById.get("recommend-image2-refinement");
+    const pageAuthority = index.nodesById.get("generate-page-authority-raw");
     const createDeck = index.controllers.get("create-deck");
     const refinement = index.controllers.get("image2-refine");
     expect(wholePage).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "whole-page", productionModes: ["image2-only"] });
     expect(visualSlot).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "visual-slot", productionModes: ["html-then-image2"] });
+    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
     expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "image2-only")).toBe(true);
     expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "html-then-image2")).toBe(false);
     expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "html-then-image2")).toBe(true);
     expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "image2-only")).toBe(false);
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority")).toBe(true);
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-only")).toBe(false);
   });
 
   it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {

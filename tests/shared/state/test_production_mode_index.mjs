@@ -63,6 +63,7 @@ describe("production-mode index declarations (1.8)", () => {
     const htmlOnly = new Set(controllerActiveNodeIds(index, "create-deck", "html-only"));
     const htmlThenImage2 = new Set(controllerActiveNodeIds(index, "create-deck", "html-then-image2"));
     const image2Only = new Set(controllerActiveNodeIds(index, "create-deck", "image2-only"));
+    const pageAuthority = new Set(controllerActiveNodeIds(index, "create-deck", "image2-page-authority"));
 
     for (const node of [
       "author-structured-content",
@@ -92,9 +93,45 @@ describe("production-mode index declarations (1.8)", () => {
     }
     expect(image2Only.has("produce-html-deck")).toBe(false);
     expect(image2Only.has("handoff-to-image2-refinement")).toBe(false);
+
+    for (const node of [
+      "author-page-authority-content",
+      "authorize-page-authority-raw",
+      "review-page-authority-raw",
+      "finalize-page-authority-delivery",
+      "checkpoint-page-authority-delivery-review",
+      "final-page-authority",
+    ]) {
+      expect(pageAuthority.has(node)).toBe(true);
+    }
+    expect(pageAuthority.has("produce-html-deck")).toBe(false);
+    expect(pageAuthority.has("generate-image2-style-master")).toBe(false);
+    expect(pageAuthority.has("handoff-to-image2-refinement")).toBe(false);
     expect(controllerActiveNodeIds(index, "image2-refine", "html-only")).toEqual([]);
     expect(controllerActiveNodeIds(index, "image2-refine", "image2-only")).toEqual([]);
     expect(controllerActiveNodeIds(index, "image2-refine", "html-then-image2")).toHaveLength(4);
+  });
+
+  it("keeps Page Authority's controller surface disjoint from every legacy production stage", () => {
+    const index = buildPlaybookIndex(LIVE_PLAYBOOK_DIR);
+    const pageAuthority = new Set(controllerActiveNodeIds(index, "create-deck", "image2-page-authority"));
+    for (const legacyNode of [
+      "author-structured-content",
+      "configure-visual-system",
+      "preview-content",
+      "review-content",
+      "review-visual",
+      "produce-html-deck",
+      "author-whole-page-content",
+      "configure-whole-page-visual-system",
+      "generate-image2-style-master",
+      "pilot-image2-pages",
+      "review-image2-header",
+      "produce-image2-deck",
+      "handoff-to-image2-refinement",
+    ]) {
+      expect(pageAuthority, legacyNode).not.toContain(legacyNode);
+    }
   });
 
   it("controllerSupportedModes derives from pipelines when undeclared", () => {

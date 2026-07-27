@@ -85,6 +85,7 @@ const contentApi = !directRootEntry || !["doctor", "--help", "-h", undefined].in
   : Object.create(null);
 const {
   applySlideEdit,
+  computeSlideEditPlanSha256,
   formatAvailableSlideIds,
   formatSlideCandidate,
   isHeroVisualType,
@@ -95,7 +96,7 @@ const {
   validateSlideDocument,
   verifySlideEditPlanHash,
 } = contentApi;
-import { HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
+import { HTML_FIRST_PIPELINE, PAGE_AUTHORITY_IMAGE2_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -176,6 +177,10 @@ function validateResolution(where, resolution) {
   exitUsage(where, "Resolution must be 1k, 2k, or 4k.", "Pass --resolution 1k, 2k, or 4k");
 }
 
+function hasExplicitCliOption(option) {
+  return process.argv.some((argument) => argument === option || argument.startsWith(`${option}=`));
+}
+
 /**
  * Resolve one exact run to its only permitted production adapter before a
  * command reads generated output, checks readiness, or initializes a provider.
@@ -229,12 +234,29 @@ function preflightAdapterSource(resolved, where) {
   return false;
 }
 
-async function resolveRunAdapter(runDir, where) {
+async function resolveRunAdapter(runDir, where, { allowPageAuthority = false } = {}) {
   const resolved = resolve(runDir || "");
   if (preflightAdapterSource(resolved, where)) return null;
   const deckDir = deckRoot(resolved);
   const { resolveRunProductionAdapter } = await import("./shared/state/state.mjs");
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
+  if (route.ok && route.adapter === "page-authority-image2" && !allowPageAuthority) {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Page Authority Image2 is not available through a legacy production command.",
+      hint: "Use the receipt-bound Page Authority lifecycle; Header-Lock and whole-page adapters are not valid for this run.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "gate",
+        operation: "resolve-production-adapter",
+        source: { path: resolved },
+        reason: { kind: "page_authority_adapter_pending" },
+        next: createCliNext("repair_prerequisite", { default: "Use the Page Authority receipt-to-delivery command once available; do not invoke a legacy adapter." }),
+      },
+    });
+    return null;
+  }
   if (route.ok) return Object.freeze({ ...route, run_dir: resolved, deck_dir: deckDir });
 
   const code = route.code || "STATE_UNAVAILABLE";
@@ -997,7 +1019,7 @@ function buildEnvSearchDirs(dkRoot) {
  * Delegates to env-check.mjs as a subprocess.
  * @param {{image2?: boolean, smoke?: boolean, probeVendors?: boolean}} [opts]
  */
-async function commandDoctor({ image2 = false, smoke = false, probeVendors = false, mode = null, runDir = null } = {}) {
+async function commandDoctor({ image2 = false, smoke = false, probeVendors = false, mode = null, runDir = null, operation = null } = {}) {
   const args = [];
   let resolvedMode = mode;
   if (resolvedMode && !PRODUCTION_MODES.includes(resolvedMode)) {
@@ -1005,7 +1027,7 @@ async function commandDoctor({ image2 = false, smoke = false, probeVendors = fal
     return null;
   }
   if (runDir) {
-    const route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir");
+    const route = await resolveRunAdapter(runDir, "ppt_flow.doctor.run-dir", { allowPageAuthority: true });
     if (!route) return null;
     resolvedMode = route.mode || "image2-only";
   }
@@ -1013,6 +1035,7 @@ async function commandDoctor({ image2 = false, smoke = false, probeVendors = fal
   else if (image2) args.push("--image2");
   if (smoke) args.push("--smoke");
   if (probeVendors) args.push("--probe-vendors");
+  if (operation) args.push("--operation", operation);
   return runNode(ENV_CHECK, args);
 }
 
@@ -1029,13 +1052,12 @@ function commandInit(deckDir, { deckType, style, mode }) {
   const resolved = resolve(deckDir);
   const normalizedMode = mode == null ? DEFAULT_INIT_MODE : mode;
 
-  if (!PRODUCTION_MODES.includes(normalizedMode)) {
-    const allowed = [...PRODUCTION_MODES].sort().join(", ");
-    console.error(`✗ Unknown production mode: ${normalizedMode}. Allowed: ${allowed}`);
+  if (normalizedMode !== DEFAULT_INIT_MODE) {
+    console.error(`✗ New decks use ${DEFAULT_INIT_MODE}; legacy production modes are existing-run only.`);
     return emitUsage(
       "ppt_flow.init.mode",
-      `Unknown production mode: ${normalizedMode}`,
-      `Allowed: ${allowed}`
+      `New deck initialization does not support ${normalizedMode}`,
+      `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}`
     );
   }
 
@@ -1423,9 +1445,20 @@ async function commandStyleMaster(
  * @param {string} runDir
  */
 async function commandValidate(runDir) {
-  const route = await resolveRunAdapter(runDir, "ppt_flow.validate.identity");
+  const route = await resolveRunAdapter(runDir, "ppt_flow.validate.identity", { allowPageAuthority: true });
   if (!route) return 1;
   const resolved = route.run_dir;
+  if (route.adapter === "page-authority-image2") {
+    try {
+      const { resolvePageAuthorityReceipt } = await import("./04-image-production/index.mjs");
+      const result = resolvePageAuthorityReceipt(resolved);
+      console.log(`✓ Page Authority receipt validated: ${result.receipt.slides.length} slide(s)`);
+      return 0;
+    } catch (error) {
+      emitFailed("ppt_flow.validate.page-authority", error.message || "Page Authority validation failed", "Repair canonical Page Authority source or its registered visual inputs, then rerun validate.");
+      return 1;
+    }
+  }
   const canonicalSpecs = join(resolved, SLIDE_SPECS_NAME);
   const sourceCandidate = existsSync(canonicalSpecs) ? canonicalSpecs : findSlideSpecs(resolved);
   if (sourceCandidate) {
@@ -1690,6 +1723,54 @@ async function commandPilot(
 // Command: build
 // ---------------------------------------------------------------------------
 
+async function commandPageAuthorityBuild(route, { resolution, model, baseUrl, reuseImages, dryRun, force, reason, wholePageControlsExplicit }) {
+  if (baseUrl || reuseImages || dryRun || force || reason != null || wholePageControlsExplicit) {
+    return emitUsage(
+      "ppt_flow.build.page-authority",
+      "Page Authority build accepts no resolution, model, provider, image-reuse, dry-run, or legacy gate overrides",
+      "Use receipt-bound image2 plan/authorize/generate/review first, then run build with only the canonical run directory."
+    );
+  }
+  try {
+    const { buildPageAuthorityDelivery } = await import("./04-image-production/index.mjs");
+    const result = await buildPageAuthorityDelivery(route.run_dir);
+    if (!result.ok) {
+      const confirm = result.kind === "confirm";
+      emitCliError({
+        code: CLI_ERROR_CODES.GATE_BLOCKED,
+        message: `Page Authority finalization is blocked: ${result.code || "raw_review_required"}`,
+        hint: confirm
+          ? "Review the current Page Authority raw projection and record proceed, repair, or redirect."
+          : "Repair the named Page Authority raw evidence before finalization.",
+        where: "ppt_flow.build.page-authority",
+        diagnostic: {
+          version: 1,
+          category: "gate",
+          operation: "page-authority-finalize",
+          source: { path: route.run_dir },
+          reason: { kind: pageAuthorityDiagnosticReasonKind(result.code, "raw_review_required") },
+          next: createCliNext(confirm ? "review" : "repair_prerequisite", {
+            requiresHuman: confirm,
+            default: confirm
+              ? "Open the current raw-review projection and record its explicit human decision."
+              : "Regenerate or repair current raw evidence, then build again.",
+          }),
+        },
+      });
+      return 1;
+    }
+    console.log(`✓ Page Authority delivery assembled: ${result.assembly.pptx_path}`);
+    return 0;
+  } catch (error) {
+    emitFailed(
+      "ppt_flow.build.page-authority",
+      error.message || "Page Authority build failed.",
+      "Repair the canonical receipt, raw evidence, final manifest, assembly, or speaker notes before retrying."
+    );
+    return 1;
+  }
+}
+
 /**
  * build — Build the complete final deck.
  * Delegates to unified_pipeline.mjs --stage all.
@@ -1699,11 +1780,14 @@ async function commandPilot(
  */
 async function commandBuild(
   runDir,
-  { resolution, model, baseUrl, reuseImages, dryRun, force = false, reason = null }
+  { resolution, model, baseUrl, reuseImages, dryRun, force = false, reason = null, wholePageControlsExplicit = false }
 ) {
-  const route = await resolveRunAdapter(runDir, "ppt_flow.build.identity");
+  const route = await resolveRunAdapter(runDir, "ppt_flow.build.identity", { allowPageAuthority: true });
   if (!route) return 1;
   const resolved = route.run_dir;
+  if (route.adapter === "page-authority-image2") {
+    return commandPageAuthorityBuild(route, { resolution, model, baseUrl, reuseImages, dryRun, force, reason, wholePageControlsExplicit });
+  }
   if (await rejectHtmlFirstDelivery(resolved, "ppt_flow.build", { allowHtml: true })) return 1;
   if (route.adapter === "html") {
     if (force && !String(reason || "").trim()) return emitUsage("ppt_flow.build.html", "HTML build --force requires --reason", "Provide a bounded human reason for the explicit gate waiver.");
@@ -1813,6 +1897,97 @@ async function commandBuild(
 // Command: refresh
 // ---------------------------------------------------------------------------
 
+async function commandPageAuthorityRefresh(route, {
+  kind,
+  only,
+  all,
+  resolution,
+  baseUrl,
+  dryRun,
+  confirmRunVersion,
+  wholePageControlsExplicit,
+}) {
+  if (confirmRunVersion || baseUrl || dryRun || wholePageControlsExplicit) {
+    return emitUsage(
+      "ppt_flow.refresh.page-authority",
+      "Page Authority refresh accepts no provider, resolution, dry-run, reset, or legacy override controls",
+      "Use the canonical receipt-bound lifecycle and select only title or notes refresh work."
+    );
+  }
+  if (kind === "visual") {
+    return emitUsage(
+      "ppt_flow.refresh.page-authority.visual",
+      "Page Authority visual refresh requires a new receipt-bound raw plan",
+      "Run image2 plan, authorize the exact raw scope when needed, generate, review, then build."
+    );
+  }
+  if (kind === "reset-html-production") {
+    return emitUsage("ppt_flow.refresh.page-authority.reset", "reset-html-production is not available for Page Authority", "Use the Page Authority evidence owner actions instead of a legacy HTML reset.");
+  }
+  if (kind === "notes") {
+    if (only || all) return emitUsage("ppt_flow.refresh.page-authority.notes", "Page Authority notes refresh accepts no slide selectors", "Rerun notes against the current assembled Page Authority delivery.");
+    try {
+      const { refreshPageAuthorityNotes } = await import("./04-image-production/index.mjs");
+      const result = await refreshPageAuthorityNotes(route.run_dir);
+      console.log(`✓ Page Authority notes refreshed: ${result.notes.path}`);
+      return 0;
+    } catch (error) {
+      emitFailed("ppt_flow.refresh.page-authority.notes", error.message || "Page Authority notes refresh failed.", "Repair current assembly or source speaker notes, then rerun notes refresh.");
+      return 1;
+    }
+  }
+  if (only && all) return emitUsage("ppt_flow.refresh.page-authority.title", "--only and --all are mutually exclusive", "Select exact Framed stable IDs or use --all after confirming every slide is Framed.");
+  if (!only && !all) return emitUsage("ppt_flow.refresh.page-authority.title", "Framed Text Frame refresh requires --only or --all", "Select exact current Framed stable IDs before a provider-free refresh.");
+  const slideIds = only ? only.split(",").map((id) => id.trim()).filter(Boolean) : null;
+  try {
+    const { refreshPageAuthorityFramedText } = await import("./04-image-production/index.mjs");
+    const result = await refreshPageAuthorityFramedText(route.run_dir, { slideIds });
+    if (!result.ok) {
+      emitCliError({
+        code: CLI_ERROR_CODES.GATE_BLOCKED,
+        message: `Page Authority Framed refresh is blocked: ${result.code || "raw_review_required"}`,
+        hint: "Review or repair current raw evidence before local Page Authority finalization.",
+        where: "ppt_flow.refresh.page-authority.title",
+        diagnostic: {
+          version: 1,
+          category: "gate",
+          operation: "page-authority-framed-refresh",
+          source: { path: route.run_dir },
+          reason: { kind: pageAuthorityDiagnosticReasonKind(result.code, "raw_review_required") },
+          next: createCliNext(result.kind === "confirm" ? "review" : "repair_prerequisite", {
+            requiresHuman: result.kind === "confirm",
+            default: "Use the current Page Authority raw review evidence before local finalization.",
+          }),
+        },
+      });
+      return 1;
+    }
+    console.log(`✓ Page Authority Framed refresh completed without provider submission: ${result.refreshed_slide_ids.join(", ")}`);
+    return 0;
+  } catch (error) {
+    const rawRequired = /PURE_REFRESH_REQUIRES_RAW|FRAMED_RAW_REUSE_REQUIRED|RAW_REUSE_STALE/.test(`${error.code || ""} ${error.message || ""}`);
+    if (rawRequired) {
+      emitCliError({
+        code: CLI_ERROR_CODES.GATE_BLOCKED,
+        message: error.message,
+        hint: "Use the receipt-bound raw plan and review lifecycle before finalization.",
+        where: "ppt_flow.refresh.page-authority.title",
+        diagnostic: {
+          version: 1,
+          category: "gate",
+          operation: "page-authority-framed-refresh",
+          source: { path: route.run_dir },
+          reason: { kind: pageAuthorityDiagnosticReasonKind(error.code, "raw_evidence_required") },
+          next: createCliNext("repair_prerequisite", { default: "Build a fresh Page Authority raw plan; authorize only a nonzero current scope." }),
+        },
+      });
+      return 1;
+    }
+    emitFailed("ppt_flow.refresh.page-authority.title", error.message || "Page Authority Framed refresh failed.", "Repair the current Page Authority receipt, raw evidence, final manifest, or notes before retrying.");
+    return 1;
+  }
+}
+
 /**
  * refresh — Run the smallest safe edit chain.
  * Delegates to unified_pipeline.mjs with appropriate --stage.
@@ -1824,9 +1999,21 @@ async function commandRefresh(
   runDir,
   { kind, only: onlyStr, all: allSlides, resolution, baseUrl, dryRun, confirmRunVersion = null, wholePageControlsExplicit = false }
 ) {
-  const route = await resolveRunAdapter(runDir, "ppt_flow.refresh.identity");
+  const route = await resolveRunAdapter(runDir, "ppt_flow.refresh.identity", { allowPageAuthority: true });
   if (!route) return 1;
   const resolved = route.run_dir;
+  if (route.adapter === "page-authority-image2") {
+    return commandPageAuthorityRefresh(route, {
+      kind,
+      only: onlyStr,
+      all: allSlides,
+      resolution,
+      baseUrl,
+      dryRun,
+      confirmRunVersion,
+      wholePageControlsExplicit,
+    });
+  }
   if (kind === "reset-html-production") {
     if (onlyStr || allSlides || dryRun || baseUrl || wholePageControlsExplicit) return emitUsage("ppt_flow.refresh.reset-html-production", "reset-html-production accepts only --confirm-run-version", "Remove selectors/dry-run/provider/resolution controls and confirm the exact vN");
     if (!confirmRunVersion) return emitUsage("ppt_flow.refresh.reset-html-production", "--confirm-run-version is required", "Pass the exact target run version, for example --confirm-run-version v1");
@@ -2138,12 +2325,46 @@ async function validateProjectedSlideSource(context, projectedText) {
   return marker.branch;
 }
 
+function pageAuthorityStructuralBasePlanHash(transaction) {
+  const { page_authority_structural_raw: ignored, ...base } = transaction;
+  return computeSlideEditPlanSha256(base);
+}
+
+async function enrichPageAuthorityStructuralRawPlan(context, transaction, applied, targetBranch) {
+  if (targetBranch !== PAGE_AUTHORITY_IMAGE2_PIPELINE || transaction.publication.mode !== "next-version") return null;
+  const basePlanHash = pageAuthorityStructuralBasePlanHash(transaction);
+  const targetRunDir = join(dirname(context.runDir), transaction.publication.target_version);
+  const pageAuthority = await import("./04-image-production/index.mjs");
+  const target = pageAuthority.buildPageAuthorityRawBatchForSource({
+    deckDir: deckRoot(context.runDir),
+    sourcePath: join(targetRunDir, SLIDE_SPECS_NAME),
+    sourceText: applied.text,
+  });
+  const candidate = pageAuthority.previewPageAuthorityStructuralRaw({
+    sourceRunDir: context.runDir,
+    targetRunDir,
+    targetRawBatch: target.raw_batch,
+    slideEditBasePlanSha256: basePlanHash,
+  });
+  const existing = transaction.page_authority_structural_raw;
+  if (existing) {
+    if (existing.slide_edit_base_plan_sha256 !== basePlanHash || existing.plan_hash !== candidate.plan_hash) {
+      throw new Error("Page Authority structural raw plan changed after preview; obtain a fresh preview");
+    }
+    return Object.freeze({ plan: existing, pageAuthority });
+  }
+  transaction.page_authority_structural_raw = candidate;
+  transaction.plan_sha256 = computeSlideEditPlanSha256(transaction);
+  return Object.freeze({ plan: candidate, pageAuthority });
+}
+
 async function projectConfirmedSlideTransaction(context, transaction, expectedHash) {
   const applied = applySlideEdit(transaction, context.sourceText, {
     expectedPlanSha256: expectedHash,
   });
-  await validateProjectedSlideSource(context, applied.text);
-  return applied;
+  const targetBranch = await validateProjectedSlideSource(context, applied.text);
+  const pageAuthorityStructuralRaw = await enrichPageAuthorityStructuralRawPlan(context, transaction, applied, targetBranch);
+  return { ...applied, targetBranch, pageAuthorityStructuralRaw };
 }
 
 async function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
@@ -2161,6 +2382,7 @@ async function applyConfirmedSlideTransaction(context, transaction, expectedHash
       target_run_dir: context.runDir,
     };
   }
+  const pageAuthorityStructuralRaw = applied.pageAuthorityStructuralRaw;
   const publication = publishStructuralVersion({
     sourceRunDir: context.runDir,
     versionName: transaction.publication.target_version,
@@ -2180,8 +2402,24 @@ async function applyConfirmedSlideTransaction(context, transaction, expectedHash
       const staged = parseSlideDocument(stagedText, basename(sourcePath));
       return validateSlideDocument(staged).filter((issue) => issue.severity === "ERROR");
     },
+    ...(pageAuthorityStructuralRaw ? {
+      materializeStaging: ({ stagingRunDir, sourcePath }) => {
+        const target = pageAuthorityStructuralRaw.pageAuthority.buildPageAuthorityRawBatchForSource({
+          deckDir: deckRoot(context.runDir),
+          sourcePath,
+          sourceText: readFileSync(sourcePath, "utf8"),
+        });
+        return pageAuthorityStructuralRaw.pageAuthority.applyPageAuthorityStructuralRaw({
+          plan: pageAuthorityStructuralRaw.plan,
+          planHash: pageAuthorityStructuralRaw.plan.plan_hash,
+          expectedSlideEditBasePlanSha256: pageAuthorityStructuralRaw.plan.slide_edit_base_plan_sha256,
+          targetRawBatch: target.raw_batch,
+          materializationRunDir: stagingRunDir,
+        });
+      },
+    } : {}),
   });
-  const targetBranch = probeProductionMarker(applied.text, { source: SLIDE_SPECS_NAME }).branch;
+  const targetBranch = applied.targetBranch;
   const receipt = {
     ...applied.receipt,
     source_run_dir: context.runDir,
@@ -2192,6 +2430,15 @@ async function applyConfirmedSlideTransaction(context, transaction, expectedHash
       needs_local_materialization: transaction.after_order,
       required_local_stages: ["stage1", "stage2-html", "stage3-html", "review", "stage4-html", "stage5-html"],
       review_required: true,
+    } : targetBranch === PAGE_AUTHORITY_IMAGE2_PIPELINE ? {
+      pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+      needs_render: publication.materialization?.needs_raw_generation || [],
+      page_authority_structural_raw: {
+        plan_hash: pageAuthorityStructuralRaw?.plan.plan_hash || null,
+        materialized_slide_ids: publication.materialization?.materialized_slide_ids || [],
+        needs_raw_generation: publication.materialization?.needs_raw_generation || [],
+        provider_calls: publication.materialization?.provider_calls ?? 0,
+      },
     } : {
       needs_render: transaction.operations
         .filter((operation) => operation.op === "insert")
@@ -2288,7 +2535,8 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
 
     const operations = slideOperationsFor(subcommand, args, opts);
     const transaction = slideTransaction({ context, operations });
-    await projectConfirmedSlideTransaction(context, transaction, transaction.plan_sha256);
+    const previewHash = transaction.plan_sha256;
+    await projectConfirmedSlideTransaction(context, transaction, previewHash);
     if (!opts.apply) {
       renderSlidesResult({ kind: "slide-edit", applied: false, transaction }, opts.json);
       return 0;
@@ -2457,7 +2705,201 @@ async function createImage2CliTransport(runDir, baseUrl = null) {
   return phase4.createModernRefinementTransport({ credentials });
 }
 
+const PAGE_AUTHORITY_IMAGE2_OPERATIONS = new Set(["plan", "authorize", "generate", "review", "accept"]);
+
+function pageAuthorityDiagnosticReasonKind(value, fallback = "page_authority_operation_failed") {
+  const normalized = String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+  return /^[a-z][a-z0-9_-]{0,63}$/.test(normalized) ? normalized : fallback;
+}
+
+function pageAuthorityLegacyOverride(opts) {
+  const forbidden = [
+    ["slides", opts.slides],
+    ["slot", opts.slotExplicit ? opts.slot : null],
+    ["profile", opts.profile],
+    ["base-url", opts.baseUrl],
+    ["attempt-id", opts.attemptId],
+    ["slide-id", opts.slideId],
+    ["candidate-id", opts.candidateId],
+    ["review-hash", opts.reviewHash],
+    ["force", opts.force],
+    ["reason", opts.reason],
+    ["dry-run", opts.dryRun],
+  ].find(([, value]) => value !== null && value !== undefined && value !== false);
+  return forbidden ? forbidden[0] : null;
+}
+
+function imageDataUrl(path) {
+  const extension = path.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+  return `data:${extension};base64,${readFileSync(path).toString("base64")}`;
+}
+
+function imageBytesFromPageAuthorityProvider(payload) {
+  const record = payload?.data && !Array.isArray(payload.data) ? payload.data
+    : Array.isArray(payload?.data) ? payload.data[0]
+      : payload;
+  const encoded = record?.bytes_base64 || record?.b64_json || payload?.bytes_base64 || payload?.b64_json;
+  if (typeof encoded !== "string" || !encoded.trim()) {
+    const error = new Error("Page Authority provider returned no inline PNG bytes");
+    error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+    throw error;
+  }
+  const bytes = Buffer.from(encoded, "base64");
+  if (!bytes.length) {
+    const error = new Error("Page Authority provider returned empty PNG bytes");
+    error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+    throw error;
+  }
+  return bytes;
+}
+
+function pageAuthoritySubmitFactory(plan, operations) {
+  const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
+  return async ({ request }) => {
+    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+    const credentials = resolveImage2Credentials();
+    const slide = slideById.get(request.slide_id);
+    if (!slide) {
+      const error = new Error("Page Authority provider request is not bound to the current receipt");
+      error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+      throw error;
+    }
+    const references = [plan.style_master_path];
+    const identityPath = slide.visual_language?.identity_reference?.provider_reference?.path;
+    if (identityPath) references.push(identityPath);
+    const images = references.map(imageDataUrl);
+    const body = {
+      model: request.generation_profile.provider.model,
+      prompt: operations.pageAuthorityProviderPayloadForSubmit(request),
+      n: 1,
+      size: "2000x1125",
+      image: images[0],
+      images,
+      image_urls: images,
+    };
+    let response;
+    try {
+      response = await fetch(`${credentials.base_url}/images/generations`, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          Authorization: `Bearer ${credentials.api_key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      const error = new Error("Page Authority provider submission failed before a response");
+      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
+      throw error;
+    }
+    let payload;
+    try {
+      payload = JSON.parse(await response.text());
+    } catch {
+      const error = new Error("Page Authority provider response was not valid JSON");
+      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+      throw error;
+    }
+    if (!response.ok) {
+      const error = new Error(`Page Authority provider submission failed with HTTP ${response.status}`);
+      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
+      throw error;
+    }
+    return imageBytesFromPageAuthorityProvider(payload);
+  };
+}
+
+async function commandPageAuthorityImage2(operation, route, opts = {}) {
+  if (!PAGE_AUTHORITY_IMAGE2_OPERATIONS.has(operation)) {
+    return emitUsage("ppt_flow.image2.page-authority.operation", `Page Authority image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, authorize, generate, review, or accept for the receipt-bound raw lifecycle.");
+  }
+  const override = pageAuthorityLegacyOverride(opts);
+  if (override) {
+    return emitUsage("ppt_flow.image2.page-authority", `--${override} is not accepted for Page Authority`, "Use the canonical --run-dir receipt path without prompt, profile, output, or legacy-artifact overrides.");
+  }
+  try {
+    const operations = await import("./04-image-production/index.mjs");
+    let output;
+    if (operation === "plan") {
+      output = operations.pageAuthorityRawPlanProjection(operations.buildPageAuthorityRawPlan(route.run_dir));
+    } else if (operation === "authorize") {
+      if (!opts.planHash) return emitUsage("ppt_flow.image2.page-authority.authorize", "--plan-hash is required", "Pass the exact current Page Authority raw plan hash.");
+      const result = operations.authorizePageAuthorityRawPlan(route.run_dir, { planHash: opts.planHash });
+      output = {
+        plan: operations.pageAuthorityRawPlanProjection(operations.buildPageAuthorityRawPlan(route.run_dir)),
+        authorized: result.authorized,
+        zero_submit: result.zero_submit === true,
+      };
+    } else if (operation === "generate") {
+      if (!opts.planHash) return emitUsage("ppt_flow.image2.page-authority.generate", "--plan-hash is required", "Pass the exact authorized Page Authority raw plan hash.");
+      const plan = operations.buildPageAuthorityRawPlan(route.run_dir);
+      const result = await operations.generatePageAuthorityRawPlan(route.run_dir, {
+        planHash: opts.planHash,
+        submit: pageAuthoritySubmitFactory(plan, operations),
+      });
+      output = {
+        plan: operations.pageAuthorityRawPlanProjection(operations.buildPageAuthorityRawPlan(route.run_dir)),
+        submitted: result.submitted,
+        raw_manifest_sha256: result.raw_manifest_sha256 || null,
+      };
+    } else if (operation === "review") {
+      const result = await operations.preparePageAuthorityRawReview(route.run_dir);
+      output = {
+        plan: operations.pageAuthorityRawPlanProjection(operations.buildPageAuthorityRawPlan(route.run_dir)),
+        projection_sha256: result.projection_sha256,
+        decision: result.coverage.decision,
+      };
+    } else {
+      if (!['proceed', 'repair', 'redirect'].includes(opts.decision)) {
+        return emitUsage("ppt_flow.image2.page-authority.accept", "--decision must be proceed, repair, or redirect", "Record the explicit human raw-review decision for the current Page Authority evidence.");
+      }
+      const coverage = operations.decidePageAuthorityRawReview(route.run_dir, { decision: opts.decision });
+      output = { decision: coverage.decision, decided_at: coverage.decided_at };
+    }
+    console.log(JSON.stringify(output, null, 2));
+    return 0;
+  } catch (error) {
+    const errorDetail = `${error.code || ""} ${error.message || ""}`;
+    const gateBlocked = /STALE|stale|RAW_REVIEW|AUTHORIZATION|RAW_EVIDENCE/i.test(errorDetail);
+    const unauthorizedSubmit = /provider_authorization_required|AUTHORIZATION_(?:MISSING|SOURCE_EPOCH_STALE|EXECUTION_STALE|PROFILE_MISMATCH|SCOPE_MISMATCH|COUNT_EXCEEDED)/i.test(errorDetail);
+    emitCliError({
+      code: gateBlocked ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
+      message: error.message || "Page Authority Image2 operation failed.",
+      hint: gateBlocked
+        ? unauthorizedSubmit
+          ? "Record or repair the exact current raw-submit authorization before requesting another provider submission."
+          : "Rebuild the receipt-bound raw plan or review evidence, then take the owner-issued next action."
+        : "Repair the canonical Page Authority source, local evidence, or configured provider readiness before retrying.",
+      where: `ppt_flow.image2.page-authority.${operation}`,
+      diagnostic: {
+        version: 1,
+        category: gateBlocked ? "gate" : "provider",
+        operation: `page-authority-${operation}`,
+        source: { path: route.run_dir },
+        reason: { kind: pageAuthorityDiagnosticReasonKind(error.code) },
+        next: createCliNext("repair_prerequisite", {
+          default: gateBlocked
+            ? unauthorizedSubmit
+              ? "Use the current receipt-bound raw plan to record exact authorization before generate; do not retry a provider submit first."
+              : "Repair the exact current Page Authority raw plan or review evidence before retrying."
+            : "Repair the named Page Authority prerequisite without using a direct provider override.",
+        }),
+      },
+    });
+    return 1;
+  }
+}
+
 async function commandImage2(operation, runDir, opts = {}) {
+  const route = await resolveRunAdapter(runDir, `ppt_flow.image2.${operation}.identity`, { allowPageAuthority: true });
+  if (!route) return 1;
+  if (route.adapter === "page-authority-image2") return commandPageAuthorityImage2(operation, route, opts);
   const allowed = new Set(["plan", "authorize", "generate", "accept", "use-html", "cleanup", "unknown-submit", "resolve-unknown-submit"]);
   if (!allowed.has(operation)) return emitUsage("ppt_flow.image2.operation", `unknown image2 operation ${JSON.stringify(operation)}`, `Use one of: plan, authorize, generate, accept, use-html, cleanup, unknown-submit`);
   const resolved = await resolveImage2Run(runDir, `ppt_flow.image2.${operation}`);
@@ -2574,8 +3016,9 @@ Examples:
     .command("doctor")
     .description("Check offline local runtime and optional Image2 readiness")
     .option("--image2", "Add offline Image2 presence checks (no provider submit)")
-    .option("--mode <mode>", "Scope checks to a production mode: html-only|html-then-image2|image2-only")
+    .option("--mode <mode>", "Scope checks to a production mode: html-only|html-then-image2|image2-only|image2-page-authority")
     .option("--run-dir <runDir>", "Resolve the exact run's production mode and scope checks to it")
+    .option("--operation <operation>", "Run-bound Page Authority operation: framed-local-refresh|raw-generation|full-build|assembly-notes")
     .option("--smoke", "Add Image2 presence plus one live first-vendor submit")
     .option(
       "--probe-vendors",
@@ -2597,12 +3040,16 @@ Examples:
           "Use one scope selector: --mode <mode>, --run-dir <run>, or the compatibility --image2."
         );
       }
+      if (opts.operation && !opts.runDir) {
+        exitUsage("ppt_flow.doctor", "--operation requires --run-dir", "Bind the operation to an exact Page Authority run so source/state validation happens before readiness checks.");
+      }
       const code = await commandDoctor({
         image2: opts.image2 ?? false,
         smoke: opts.smoke ?? false,
         probeVendors: opts.probeVendors ?? false,
         mode: opts.mode ?? null,
         runDir: opts.runDir ?? null,
+        operation: opts.operation ?? null,
       });
       if (code === null) {
         process.exit(1);
@@ -2631,7 +3078,7 @@ Examples:
     )
     .option(
       "--mode <mode>",
-      `Production mode: ${[...PRODUCTION_MODES].join(", ")} (default: ${DEFAULT_INIT_MODE})`
+      `New-deck production mode: ${DEFAULT_INIT_MODE} (default: ${DEFAULT_INIT_MODE})`
     )
     .action(async (deckDir, opts) => {
       const code = commandInit(deckDir, {
@@ -2747,7 +3194,7 @@ Examples:
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
         forceImages: opts.forceImages ?? false,
-        wholePageControlsExplicit: process.argv.includes("--resolution") || process.argv.includes("--model"),
+        wholePageControlsExplicit: hasExplicitCliOption("--resolution") || hasExplicitCliOption("--model"),
       });
       process.exit(code);
     });
@@ -2777,6 +3224,7 @@ Examples:
         dryRun: opts.dryRun ?? false,
         force: opts.force ?? false,
         reason: opts.reason || null,
+        wholePageControlsExplicit: hasExplicitCliOption("--resolution") || hasExplicitCliOption("--model"),
       });
       process.exit(code);
     });
@@ -2810,7 +3258,7 @@ Examples:
         baseUrl: opts.baseUrl || null,
         dryRun: opts.dryRun ?? false,
         confirmRunVersion: opts.confirmRunVersion || null,
-        wholePageControlsExplicit: process.argv.includes("--resolution"),
+        wholePageControlsExplicit: hasExplicitCliOption("--resolution"),
       });
       process.exit(code);
     });
@@ -2913,13 +3361,14 @@ Examples:
     .option("--repair-production-mode-mirror", "Rewrite the metadata production-mode mirror from authoritative state")
     .option("--register-production-mode-from <sourceRunDir>", "Register this (target) version's mode from a same-pipeline source version")
     .option("--record-image2-delivery-review <decision>", "Record first-class image2-only delivery review: proceed, repair, or redirect")
+    .option("--record-page-authority-delivery-review <decision>", "Record Page Authority delivery review: proceed, repair, or redirect")
     .action(async (runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       // Validate the closed state grammar before resolving a run, importing a
       // state owner, or probing source. Mixed forms must be a zero-read/zero-
       // write USAGE failure.
       const transitionOperations = Number(Boolean(opts.prepareProductionModeTransition)) + Number(Boolean(opts.previewProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransition)) + Number(Boolean(opts.applyProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransitionRecovery)) + Number(Boolean(opts.recoverProductionModeTransition));
-      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview));
+      const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview)) + Number(Boolean(opts.recordPageAuthorityDeliveryReview));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
         process.exitCode = 1;
@@ -2930,8 +3379,8 @@ Examples:
         process.exitCode = 1;
         return;
       }
-      if (opts.reason != null && !opts.recordDeliveryReview && !opts.recordImage2DeliveryReview && !opts.setProductionMode) {
-        emitUsage("ppt_flow.state", "--reason applies only to --record-delivery-review / --record-image2-delivery-review / --set-production-mode", "Use --reason with a closed state operation that accepts it.");
+      if (opts.reason != null && !opts.recordDeliveryReview && !opts.recordImage2DeliveryReview && !opts.recordPageAuthorityDeliveryReview && !opts.setProductionMode) {
+        emitUsage("ppt_flow.state", "--reason applies only to a delivery-review operation or --set-production-mode", "Use --reason with a closed state operation that accepts it.");
         process.exitCode = 1;
         return;
       }
@@ -3221,6 +3670,37 @@ Examples:
           return;
         }
       }
+      if (opts.recordPageAuthorityDeliveryReview) {
+        if (!new Set(["proceed", "repair", "redirect"]).has(opts.recordPageAuthorityDeliveryReview)) {
+          emitUsage("ppt_flow.state.record-page-authority-delivery-review", "decision must be proceed, repair, or redirect", "Choose one of the declared Page Authority final-review decisions.");
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.recordPageAuthorityDeliveryReview === "proceed" && opts.reason != null) {
+          emitUsage("ppt_flow.state.record-page-authority-delivery-review", "proceed forbids --reason", "Remove --reason for a proceed decision.");
+          process.exitCode = 1;
+          return;
+        }
+        if (["repair", "redirect"].includes(opts.recordPageAuthorityDeliveryReview) && !String(opts.reason || "").trim()) {
+          emitUsage("ppt_flow.state.record-page-authority-delivery-review", `${opts.recordPageAuthorityDeliveryReview} requires --reason`, "Provide a bounded durable human reason.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { recordPageAuthorityDeliveryReview } = await import("./shared/state/state.mjs");
+          const result = await recordPageAuthorityDeliveryReview(deckDir, {
+            runDir: resolved,
+            decision: opts.recordPageAuthorityDeliveryReview,
+            reason: opts.reason,
+          });
+          console.log(JSON.stringify({ operation: "record-page-authority-delivery-review", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.record-page-authority-delivery-review", error.message, "Show the current Page Authority raw/final projections and PPTX/notes evidence, then record the exact delivery decision.");
+          process.exitCode = 1;
+          return;
+        }
+      }
       if (opts.checkGates && htmlFirst) {
         const { inspectHtmlReviewReadiness, recoverHtmlGatePublication } = await import("./shared/state/html_review_evidence.mjs");
         recoverHtmlGatePublication(resolved);
@@ -3371,9 +3851,9 @@ Examples:
   // ---- image2 (closed optional Phase-4 command family) ----
   program
     .command("image2")
-    .description("Optional authorized HTML-first visual-slot refinement")
-    .argument("<operation>", "plan, authorize, generate, accept, use-html, cleanup, or unknown-submit")
-    .argument("<run_dir>", "Path to marked HTML-first version dir")
+    .description("Receipt-bound Page Authority raw lifecycle or existing HTML-first refinement")
+    .argument("<operation>", "Page Authority: plan, authorize, generate, review, accept; legacy: plan, authorize, generate, accept, use-html, cleanup, or unknown-submit")
+    .argument("<run_dir>", "Path to the exact version dir")
     .option("--slides <ids>", "Comma-separated stable slide IDs for plan")
     .option("--slot <slot>", "One no-text visual slot (default primary_visual)", "primary_visual")
     .option("--profile <fingerprint>", "Safe provider profile fingerprint")
@@ -3383,15 +3863,18 @@ Examples:
     .option("--slide-id <id>", "Stable slide ID for review/promotion")
     .option("--candidate-id <id>", "Immutable candidate ID")
     .option("--review-hash <hash>", "Exact cleanup review-set hash")
-    .option("--decision <decision>", "Unknown-submit decision: retain or abandon")
+    .option("--decision <decision>", "Page Authority raw review: proceed|repair|redirect; legacy unknown-submit: retain|abandon")
     .option("--force", "Explicitly waive an incomplete HTML delivery prerequisite for offline planning")
     .option("--reason <text>", "Bounded human reason required with image2 plan --force")
     .option("--dry-run", "Show cleanup scope without deleting derived evidence")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nClosed operations:\n  plan -> authorize -> generate -> accept|use-html -> cleanup\n  unknown-submit --decision retain|abandon\nNo operation submits before exact human authorization.\n")
+    .addHelpText("after", "\nPage Authority: plan -> authorize -> generate -> review -> accept --decision proceed -> build\nExisting HTML refinement: plan -> authorize -> generate -> accept|use-html -> cleanup\nNo operation submits before exact human authorization.\n")
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
-      const code = await commandImage2(operation, runDir, opts);
+      const code = await commandImage2(operation, runDir, {
+        ...opts,
+        slotExplicit: hasExplicitCliOption("--slot"),
+      });
       process.exit(code);
     });
 

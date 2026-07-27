@@ -83,18 +83,23 @@ import { canonicalFrameworkRoot, normalizedFrameworkRelation, renderRunBundle } 
 export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode };
 
 /**
- * Production mode assumed when `ppt_flow init` omits `--mode`. New decks default
- * to first-class `image2-only` production (whole-page Image2). Explicit
- * `--mode html-only|html-then-image2` selects an HTML path.
+ * Production mode assumed when `ppt_flow init` omits `--mode`. New decks use
+ * Page Authority Image2; legacy modes are existing-run compatibility only.
  */
-export const DEFAULT_INIT_MODE = 'image2-only';
+export const DEFAULT_INIT_MODE = 'image2-page-authority';
 const WHOLE_PAGE_IMAGE2_PIPELINE = 'whole-page-image2-v1';
 
 function validateInitMode(mode) {
-    if (!PRODUCTION_MODES.includes(mode)) {
+    if (mode !== DEFAULT_INIT_MODE) {
         throw new Error(
-            `unknown production mode ${JSON.stringify(mode)}. ` +
-            `Allowed: ${[...PRODUCTION_MODES].sort().join(', ')}`);
+            `new deck initialization only supports ${DEFAULT_INIT_MODE}; received ${JSON.stringify(mode)}`);
+    }
+    return mode;
+}
+
+function validateLegacyFixtureMode(mode) {
+    if (!PRODUCTION_MODES.includes(mode) || mode === DEFAULT_INIT_MODE) {
+        throw new Error(`legacy fixture mode must be html-only, html-then-image2, or image2-only; received ${JSON.stringify(mode)}`);
     }
     return mode;
 }
@@ -176,6 +181,33 @@ export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const DECK_SYSTEM_FILE = 'deck_system.txt';
 export const COLOR_PALETTE_FILE = 'color_palette.json';
+export const PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE = 'page-authority-visual-language.yaml';
+const PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-authority-visual-language-v1
+revision: 1
+text_guard: page-authority-text-guard-v1
+recipes:
+  editorial-systems:
+    provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
+    authorities: [pure-image2, framed-image2]
+    composition_ids: [centered-constellation]
+    motif_ids: [connected-nodes]
+    identity_subject_classes: [none]
+compositions:
+  centered-constellation:
+    provider_clause: centered focal form with balanced negative space
+    authorities: [pure-image2, framed-image2]
+    min_motifs: 0
+    max_motifs: 1
+motifs:
+  connected-nodes:
+    provider_clause: luminous connected nodes with measured spacing
+    authorities: [pure-image2, framed-image2]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+`;
+const PAGE_AUTHORITY_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
+profiles: {}
+`;
 
 // ---------------------------------------------------------------------------
 // --- Inside 2_backbone/visual-style/assets/ (NEW — visual asset catalog) ---
@@ -265,6 +297,23 @@ export const GEN_IMAGE2_REFINEMENT_SUBDIR = 'image2_refinement';
 export const GEN_IMAGE2_REFINEMENT_CANDIDATES_SUBDIR = 'candidates';
 export const GEN_IMAGE2_REFINEMENT_COMPARISONS_SUBDIR = 'comparisons';
 export const GEN_IMAGE2_REFINEMENT_ATTEMPTS_SUBDIR = 'attempts';
+export const GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR = 'page_authority_image2';
+export const GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR = 'receipts';
+export const GEN_PAGE_AUTHORITY_RAW_SUBDIR = 'raw';
+export const GEN_PAGE_AUTHORITY_REVIEW_SUBDIR = 'review';
+export const GEN_PAGE_AUTHORITY_FINAL_SUBDIR = 'final';
+export const PAGE_AUTHORITY_IMAGE2_PATHS = Object.freeze({
+    root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}`,
+    receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json`,
+    raw_root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_RAW_SUBDIR}`,
+    raw_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_RAW_SUBDIR}/manifest.json`,
+    review_root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}`,
+    raw_review_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}/raw-review.png`,
+    raw_review_coverage: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}/coverage.json`,
+    final_root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}`,
+    final_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}/manifest.json`,
+    final_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}/projection.png`,
+});
 export const SCRATCH_IMAGE2_REFINEMENT_SUBDIR = 'image2_refinement';
 export const SCRATCH_IMAGE2_REFINEMENT_JOURNALS_SUBDIR = 'journals';
 export const IMAGE2_REFINEMENT_PATHS = Object.freeze({
@@ -295,7 +344,7 @@ export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKB
 export const BACKBONE_OPTIONAL = new Set(['visual-style.md']);
 
 export const VISUAL_STYLE_FILES = Object.freeze([
-    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE,
+    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, DECK_SYSTEM_FILE, COLOR_PALETTE_FILE, PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE,
 ]);
 
 export const VISUAL_STYLE_OPTIONAL = new Set([
@@ -391,6 +440,13 @@ export function image2RefinementPaths(runDir) {
     const root = path.resolve(runDir);
     if (!isVersionDir(root)) throw new Error(`image2 refinement paths require a version directory (got ${root})`);
     return Object.freeze(Object.fromEntries(Object.entries(IMAGE2_REFINEMENT_PATHS).map(([key, relativePath]) => [key, path.join(root, ...relativePath.split('/'))])));
+}
+
+/** Canonical rebuildable Page Authority derived-artifact locations. */
+export function pageAuthorityImage2Paths(runDir) {
+    const root = path.resolve(runDir);
+    if (!isVersionDir(root)) throw new Error(`Page Authority paths require a version directory (got ${root})`);
+    return Object.freeze(Object.fromEntries(Object.entries(PAGE_AUTHORITY_IMAGE2_PATHS).map(([key, relativePath]) => [key, path.join(root, ...relativePath.split('/'))])));
 }
 
 export function findSlideSpecs(runDir) {
@@ -1050,6 +1106,7 @@ export function publishStructuralVersion({
     transformedSource,
     expectedSourceSha256 = null,
     validateSource = null,
+    materializeStaging = null,
 }) {
     sourceRunDir = path.resolve(sourceRunDir);
     if (!isVersionDir(sourceRunDir)) {
@@ -1101,6 +1158,14 @@ export function publishStructuralVersion({
             const issues = Array.isArray(validation) ? validation : validation?.issues || [];
             if (issues.length > 0) throw new Error(`staged slide source is invalid: ${issues.map((issue) => issue.message || issue).join('; ')}`);
         }
+        const materialization = typeof materializeStaging === 'function'
+            ? materializeStaging({
+                sourceRunDir,
+                stagingRunDir: staging,
+                targetRunDir: target,
+                sourcePath: stagedSource,
+            })
+            : null;
         if (fs.readFileSync(path.join(reservation, 'owner'), 'utf8') !== owner) {
             throw new Error(`target reservation ownership changed: ${reservation}`);
         }
@@ -1125,7 +1190,7 @@ export function publishStructuralVersion({
                 targetRunVersion: versionName,
             });
         } catch { /* best-effort registration; published target preserved */ }
-        return { source: sourceRunDir, target, version_name: versionName, published: true };
+        return { source: sourceRunDir, target, version_name: versionName, published: true, ...(materialization ? { materialization } : {}) };
     } catch (error) {
         if (stagingOwned) fs.rmSync(staging, { recursive: true, force: true });
         if (targetOwned) fs.rmSync(target, { recursive: true, force: true });
@@ -1228,8 +1293,32 @@ family: hero
 `;
 }
 
+/** Canonical new-deck Page Authority starter, before any provider work exists. */
+function _pageAuthoritySeedSource(deckType = null) {
+    const seed = _HTML_FIRST_SEEDS[deckType || 'generic'];
+    return `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
+---
+
+# Page Authority Image2 source
+
+Start each slide with a stable mnemonic slide ID such as \`${seed.id}\`. Choose \`framed-image2\`
+when the local Text Frame owns the kicker, title, subtitle, or callout; choose \`pure-image2\`
+when readable body labels, values, dates, captions, or diagram text must belong to Image2.
+
+Every slide supplies a closed \`VISUAL BRIEF\` selection from the visual-language registry. Framed
+underlays remain text-free: Image2 owns the visual field while the deterministic Text Frame owns its
+reserved text pixels.
+`;
+}
+
 /** Source text + label for a production mode's canonical v1 seed. */
 function _seedSourceForMode(mode, deckType) {
+    if (mode === 'image2-page-authority') return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2' };
     if (mode === 'image2-only') return { source: _wholePageSeedSource(deckType), label: 'image2-only whole-page' };
     return { source: _htmlFirstSeedSource(deckType), label: 'html-first' };
 }
@@ -1238,7 +1327,7 @@ function _seedSourceForMode(mode, deckType) {
 // mode-aware initBundle (html-only) and adds only the HTML-specific asset
 // catalog. Source, state, and metadata mirrors are owned by initBundle.
 export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
-    const created = initBundle(deckDir, frameworkDir, deckType, null, { mode: 'html-only' });
+    const created = initLegacyFixtureBundle(deckDir, frameworkDir, deckType, null, { mode: 'html-only' });
     if (style !== null) {
         if (!STYLE_PRESETS.includes(style)) throw new Error(`unknown style preset ${JSON.stringify(style)}`);
         const root = frameworkDir || path.resolve(__dirname, '..', '..', '..');
@@ -1262,7 +1351,7 @@ export function initHtmlFirstBundle(deckDir, frameworkDir = null, deckType = nul
 // Whole-page initialization delegates to the mode-aware initializer so source,
 // state, and metadata mirror are owned once.
 export function initWholePageBundle(deckDir, frameworkDir = null, deckType = null, style = null) {
-    const created = initBundle(deckDir, frameworkDir, deckType, style, { mode: 'image2-only' });
+    const created = initLegacyFixtureBundle(deckDir, frameworkDir, deckType, style, { mode: 'image2-only' });
     return [...created, 'whole-page-image2-v1 scaffold'];
 }
 
@@ -1390,7 +1479,7 @@ user's explicit authorization for its named operation and exact scope.
 `;
 }
 
-export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
+function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style = null, { mode } = {}) {
     if (frameworkDir === null) {
         frameworkDir = path.resolve(__dirname, '..', '..', '..');
     }
@@ -1407,9 +1496,6 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
             `unknown style preset ${JSON.stringify(style)}. ` +
             `Allowed: ${[...STYLE_PRESETS].sort().join(', ')}`);
     }
-    // Validate the production-mode enum BEFORE any filesystem creation so an
-    // invalid `init --mode` is a zero-write USAGE failure.
-    const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
     const modePolicy = productionPolicyForMode(mode);
     const derivedPipeline = modePolicy.pipeline;
     const name = path.basename(deckDir).replace('deck_', '');
@@ -1493,6 +1579,12 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
         '\n' +
         'version: 2\n' +
         'assets: {}\n');
+    _writeIfAbsent(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE),
+        PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED);
+    _writeIfAbsent(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_REFERENCE_SUBDIR, 'image2-reference-material.yaml'),
+        PAGE_AUTHORITY_REFERENCE_REGISTRY_SEED);
     log.push(`asset catalog: ${assetsBase}/${ASSET_MANIFEST_FILE}`);
 
     _writeIfAbsent(
@@ -1567,6 +1659,21 @@ export function initBundle(deckDir, frameworkDir = null, deckType = null, style 
     return log;
 }
 
+/** Public new-deck initializer: only Page Authority Image2 may be created. */
+export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
+    const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
+    return initBundleForMode(deckDir, frameworkDir, deckType, style, { mode });
+}
+
+/**
+ * Explicit compatibility fixture constructor. It exists for tests of already
+ * marked legacy runs and is deliberately not wired into CLI or new-deck help.
+ */
+export function initLegacyFixtureBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
+    const mode = validateLegacyFixtureMode(options.mode);
+    return initBundleForMode(deckDir, frameworkDir, deckType, style, { mode });
+}
+
 // ---------------------------------------------------------------------------
 // --- Canonical tree renderer (docs generate/validate against this) ---------
 // ---------------------------------------------------------------------------
@@ -1619,6 +1726,11 @@ deck_\${NAME}/
     │   │   ├── ${GEN_PPT_SUBDIR}/{NAME}.pptx (+ .backup.pptx)
     │   │   ├── ${GEN_QA_SUBDIR}/
     │   │   ├── ${GEN_PREVIEW_SUBDIR}/contact_sheet.jpg
+    │   │   ├── ${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/
+    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json
+    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RAW_SUBDIR}/{manifest.json, <slide_id>.png}
+    │   │   │   ├── ${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}/{raw-review.png, coverage.json}
+    │   │   │   └── ${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}/{manifest.json, projection.png}
     │   │   └── ${GEN_HTML_PRODUCTION_SUBDIR}/              ← HTML-first immutable local production owner
     │   │       ├── ${GEN_HTML_PAGES_SUBDIR}/{objects/, manifest.json}
     │   │       ├── ${GEN_HTML_FINAL_SLIDES_SUBDIR}/{objects/, manifest.json}
@@ -1734,6 +1846,7 @@ function _parseArgs(argv) {
         init: null,
         deckType: null,
         style: null,
+        mode: null,
         check: null,
         structureOnly: false,
         newVersion: null,
@@ -1753,6 +1866,9 @@ function _parseArgs(argv) {
                 break;
             case '--style':
                 args.style = argv[++i] || null;
+                break;
+            case '--mode':
+                args.mode = argv[++i] || null;
                 break;
             case '--check':
                 args.check = argv[++i] || null;
@@ -1782,11 +1898,11 @@ function _main() {
     const argv = process.argv.slice(2);
     const args = _parseArgs(argv);
 
-    if ((args.deckType || args.style) && !args.init) {
-        console.error('✗ --deck-type / --style only apply together with --init.');
+    if ((args.deckType || args.style || args.mode) && !args.init) {
+        console.error('✗ --deck-type / --style / --mode only apply together with --init.');
         emitCliError({
             code: CLI_ERROR_CODES.USAGE,
-            message: "--deck-type and --style require --init.",
+            message: "--deck-type, --style, and --mode require --init.",
             hint: "Use the template options only while initializing a deck.",
             where: "bundle_layout.arguments",
             diagnostic: { version: 1, category: "usage", operation: "parse-arguments", next: createCliNext("fix_arguments", { default: "Add --init or remove the template-only options." }) },
@@ -1825,6 +1941,10 @@ function _main() {
     }
 
     if (args.init) {
+        if (args.mode && args.mode !== DEFAULT_INIT_MODE) {
+            emitCliError({ code: CLI_ERROR_CODES.USAGE, message: `New deck initialization does not support ${args.mode}.`, hint: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.`, where: "bundle_layout.init.mode", diagnostic: { version: 1, category: "usage", operation: "init", next: createCliNext("fix_arguments", { default: `Omit --mode or pass --mode ${DEFAULT_INIT_MODE}.` }) } });
+            process.exit(1);
+        }
         const deckDir = path.resolve(args.init);
         if (!path.basename(deckDir).startsWith('deck_')) {
             console.error(
@@ -1844,7 +1964,7 @@ function _main() {
         }
         let created;
         try {
-            created = initBundle(deckDir, null, args.deckType, args.style);
+            created = initBundle(deckDir, null, args.deckType, args.style, { mode: args.mode ?? DEFAULT_INIT_MODE });
         } catch {
             emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "unknown or invalid bundle initialization option.", hint: "Choose a documented deck type and style preset.", where: "bundle_layout.init.options", diagnostic: { version: 1, category: "usage", operation: "init", source: { path: deckDir }, next: createCliNext("fix_arguments", { default: "Inspect --help, choose supported initialization options, and rerun." }) } });
             process.exit(1);

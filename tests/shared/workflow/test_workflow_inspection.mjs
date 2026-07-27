@@ -3,11 +3,15 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { createHtmlFirstRun } from "../../helpers/html_first_fixture.mjs";
 import { createCurrentHtmlDelivery } from "../../helpers/image2_refinement_fixture.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle, initLegacyFixtureBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { loadRefinementOperations, transitionAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
+import { buildPageAuthorityRawPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/operations.mjs";
+import { writePageAuthorityRawManifest } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_manifest.mjs";
+import { renderPageAuthorityRawReviewProjection, writePageAuthorityRawReviewCoverage } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_review.mjs";
 import { inspectHtmlReviewReadiness, publishHtmlDeliveryDecision, publishHtmlGateDecision } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs";
 import { readImage2RefinementState, readState, recordImage2DeliveryReview, transitionProductionMode, writeImage2RefinementState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import {
@@ -24,6 +28,32 @@ function treeSnapshot(root, current = root, entries = []) {
     else entries.push(`${relative}:${readFileSync(path).toString("base64")}`);
   }
   return entries;
+}
+
+function pageAuthoritySource() {
+  return `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Inspect direct evidence
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: Explain the direct evidence path.
+`;
 }
 
 describe("workflow inspection", () => {
@@ -118,12 +148,89 @@ describe("workflow inspection", () => {
     const deck = join(root, "deck_image2");
     const runDir = join(deck, "3_versions", "v1");
     try {
-      initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" });
+      initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" });
       expect(inspectWorkflow({ runDir })).toMatchObject({
         posture: "guide",
         root_cause: { owner: "image2-delivery-review" },
         primary_action: { owner: "image2-delivery-review", kind: "continue" },
       });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("projects only Page Authority prerequisites for a fresh Page Authority run", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-page-authority-"));
+    const deck = join(root, "deck_page_authority");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-page-authority" });
+      const before = treeSnapshot(deck);
+      const result = inspectWorkflow({ runDir });
+      expect(result).toMatchObject({
+        posture: "guide",
+        root_cause: { owner: "page-authority", kind: "source-receipt-missing-or-stale" },
+        primary_action: { owner: "page-authority", action_id: "validate-source", kind: "continue" },
+        evidence_summary: { mode: "image2-page-authority" },
+      });
+      expect(result.primary_action.command).toContain(" validate ");
+      expect(result.primary_action.command).not.toContain("header");
+      expect(result.primary_action.command).not.toContain("image2-refine");
+      expect(treeSnapshot(deck)).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("distinguishes Page Authority raw-review confirmation from stale evidence without legacy routing", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-page-authority-review-"));
+    const deck = join(root, "deck_page_authority");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-page-authority" });
+      writeFileSync(join(runDir, "slide-specifications.md"), pageAuthoritySource(), "utf8");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), "style-master-bytes", "utf8");
+
+      const plan = buildPageAuthorityRawPlan(runDir);
+      writePageAuthorityRawManifest(runDir, {
+        rawBatch: plan.raw_batch,
+        sourceEpoch: plan.source_epoch,
+        images: { DeckGo: createCanvas(2000, 1125).toBuffer("image/png") },
+      });
+      const projection = await renderPageAuthorityRawReviewProjection(runDir, { rawBatch: plan.raw_batch });
+      writePageAuthorityRawReviewCoverage(runDir, { sourceEpoch: plan.source_epoch, projection });
+
+      const before = treeSnapshot(deck);
+      const confirm = inspectWorkflow({ runDir });
+      expect(confirm).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "page-authority", kind: "RAW_REVIEW_CONFIRM_REQUIRED" },
+        primary_action: {
+          owner: "page-authority",
+          action_id: "confirm_raw_review",
+          kind: "review",
+          requires_human: true,
+        },
+      });
+      expect(confirm.primary_action.command).toContain("image2 accept");
+      expect(confirm.primary_action.command).not.toContain("header");
+      expect(confirm.primary_action.command).not.toContain("image2-refine");
+      expect(treeSnapshot(deck)).toEqual(before);
+
+      writeFileSync(projection.path, "tampered", "utf8");
+      const stale = inspectWorkflow({ runDir });
+      expect(stale).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "page-authority", kind: "RAW_REVIEW_EVIDENCE_STALE" },
+        primary_action: {
+          owner: "page-authority",
+          action_id: "repair_raw_review",
+          kind: "repair",
+          requires_human: false,
+        },
+      });
+      expect(stale.primary_action.command).toContain("image2 review");
+      expect(stale.primary_action.command).not.toContain("Header-Lock");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

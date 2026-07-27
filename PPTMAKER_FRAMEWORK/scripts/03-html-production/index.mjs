@@ -117,3 +117,8 @@ export {
   readHtmlPreviewManifest,
 } from "./internal/html_object_store.mjs";
 export { publishHtmlDeliveryContactSheet } from "./internal/html_preview.mjs";
+
+// Evidence-only Page Authority collaborators. The Phase 4 adapter receives no
+// HTML/CSS/capture controls through this public boundary.
+export { composePageAuthorityFramedPage } from "./internal/page_authority_framed_runtime.mjs";
+export { extractNoteRecordsFromMarkdown, injectNotes } from "./internal/notes_injection.mjs";

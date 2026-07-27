@@ -11,7 +11,9 @@ import {
   deckRoot,
   findSlideSpecs,
 } from "../run-bundle/bundle_layout.mjs";
+import { inspectPageAuthorityDeliveryEvidence } from "../state/page_authority_delivery_evidence.mjs";
 import {
+  inspectPageAuthorityDeliveryReview,
   inspectRunProductionMode,
   projectModeCompletion,
   projectImage2RefinementState,
@@ -72,14 +74,15 @@ function isOwnerIssuedIntent(intent) {
   const keys = Object.keys(intent).sort();
   return keys.join("\n") === ["action_id", "owner", "schema"].join("\n") &&
     intent.schema === "pptmaker-workflow-observation-intent-v1" &&
-    ["html-review", "image2-refinement"].includes(intent.owner) &&
+    ["html-review", "image2-refinement", "page-authority"].includes(intent.owner) &&
     intent.action_id === "resume";
 }
 
 function intentApplies(intent, facts) {
   if (intent == null) return true;
   if (intent.owner === "html-review") return facts.pipeline === HTML_FIRST_PIPELINE;
-  return facts.mode?.ok === true && facts.mode.mode === "html-then-image2";
+  if (intent.owner === "image2-refinement") return facts.mode?.ok === true && facts.mode.mode === "html-then-image2";
+  return facts.mode?.ok === true && facts.mode.mode === "image2-page-authority";
 }
 
 function readIdentity(path) {
@@ -89,6 +92,10 @@ function readIdentity(path) {
 
 function sourcePath(runDir) {
   return join(runDir, "slide-specifications.md");
+}
+
+function command(suffix) {
+  return `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs ${suffix}`;
 }
 
 function snapshot(runDir, deckDir, facts) {
@@ -104,6 +111,7 @@ function snapshot(runDir, deckDir, facts) {
     mode_sha256: sha256(canonicalJson(facts.mode)),
     review_sha256: sha256(canonicalJson(facts.review)),
     refinement_sha256: sha256(canonicalJson(facts.refinement)),
+    page_authority_sha256: sha256(canonicalJson(facts.pageAuthority ?? null)),
   });
 }
 
@@ -251,22 +259,62 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       : null;
     let review = null;
     let refinement = null;
+    let pageAuthority = null;
     if (pipeline === HTML_FIRST_PIPELINE) {
       try { review = inspectHtmlReviewReadiness(resolved); } catch (error) { review = { error: error.message || String(error) }; }
     }
     if (mode.ok && mode.mode === "html-then-image2") {
       try { refinement = projectImage2RefinementState(state, basename(resolved)); } catch (error) { refinement = { status: "invalid", reason: error.message || String(error) }; }
     }
+    if (mode.ok && mode.mode === "image2-page-authority") {
+      const epoch = state.production_mode?.by_version?.[`3_versions/${basename(resolved)}`]?.source_epoch;
+      let deliveryEvidence;
+      try {
+        deliveryEvidence = inspectPageAuthorityDeliveryEvidence(resolved, { sourceEpoch: epoch });
+      } catch (error) {
+        deliveryEvidence = {
+          ok: false,
+          stage: "delivery",
+          code: "PAGE_AUTHORITY_EVIDENCE_INSPECTION_FAILED",
+          next_action: "repair_page_authority_evidence",
+          raw_review: null,
+          error: error.message || String(error),
+        };
+      }
+      const rawReview = deliveryEvidence.raw_review || {
+        ok: false,
+        kind: "hard-stop",
+        code: deliveryEvidence.code || "PAGE_AUTHORITY_STATE_INVALID",
+        next_action: deliveryEvidence.next_action || "repair_page_authority_state",
+      };
+      const rawAuthorization = state.page_authority_raw_provider_authorization?.by_version?.[`3_versions/${basename(resolved)}`] || null;
+      const deliveryReview = inspectPageAuthorityDeliveryReview(state, {
+        runVersion: basename(resolved),
+        evidence: deliveryEvidence.ok ? deliveryEvidence.evidence : null,
+      });
+      pageAuthority = {
+        source_receipt: deliveryEvidence.source_receipt,
+        raw_manifest: deliveryEvidence.raw_manifest,
+        raw_review: rawReview,
+        final_manifest: deliveryEvidence.final_manifest,
+        final_projection: deliveryEvidence.final_projection,
+        assembly: deliveryEvidence.assembly,
+        notes: deliveryEvidence.notes,
+        raw_authorization: rawAuthorization,
+        delivery_evidence: deliveryEvidence,
+        delivery_review: deliveryReview,
+      };
+    }
     const completion = mode.ok && mode.mode ? projectModeCompletion(state, { runVersion: basename(resolved) }) : null;
-    return { layoutIssues, validation, mode, state, review, refinement, pipeline, completion };
+    return { layoutIssues, validation, mode, state, review, refinement, pageAuthority, pipeline, completion };
   };
 
   const initialLayoutIssues = checkBundle(resolved, false);
   if (initialLayoutIssues.length > 0) {
-    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pipeline: null };
+    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null };
     const initialCheckpoint = snapshot(resolved, deckDir, initial);
     const finalLayoutIssues = checkBundle(resolved, false);
-    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pipeline: null };
+    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null };
     const finalCheckpoint = snapshot(resolved, deckDir, final);
     if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
       return result({
@@ -326,6 +374,66 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     };
   } else if (initial.review) {
     selected = htmlAction(resolved, initial.review);
+  }
+
+  if (!selected && initial.pageAuthority) {
+    const evidence = initial.pageAuthority;
+    const run = JSON.stringify(resolved);
+    if (!evidence.source_receipt) {
+      selected = {
+        posture: "guide",
+        rootCause: rootCause("page-authority", "source-receipt-missing-or-stale"),
+        primaryAction: action("page-authority", "validate-source", "continue", false, "Validate the canonical Page Authority source.", { command: command(`validate ${run}`) }),
+      };
+    } else if (!evidence.raw_manifest) {
+      selected = {
+        posture: "guide",
+        rootCause: rootCause("page-authority", "raw-evidence-missing-or-stale"),
+        primaryAction: action("page-authority", "plan-raw", "continue", false, "Prepare the receipt-bound Page Authority raw plan.", { command: command(`image2 plan ${run} --json`) }),
+      };
+    } else if (!evidence.raw_review.ok) {
+      const confirm = evidence.raw_review.kind === "confirm";
+      selected = {
+        posture: confirm ? "confirm" : "hard-stop",
+        rootCause: rootCause("page-authority", evidence.raw_review.code),
+        primaryAction: action(
+          "page-authority",
+          evidence.raw_review.next_action,
+          confirm ? "review" : "repair",
+          confirm,
+          confirm ? "Record the current raw-review decision." : "Repair the current Page Authority raw review evidence.",
+          { command: command(confirm ? `image2 accept ${run} --decision proceed` : `image2 review ${run} --json`) },
+        ),
+        protectedInvariant: "current raw tuples and their human-reviewed projection before finalization",
+      };
+    } else if (!evidence.final_manifest || !evidence.final_projection) {
+      selected = {
+        posture: "guide",
+        rootCause: rootCause("page-authority", "final-delivery-missing-or-stale"),
+        primaryAction: action("page-authority", "finalize-page-authority-delivery", "continue", false, "Finalize current accepted Page Authority raw evidence.", { command: command(`build ${run}`) }),
+      };
+    } else if (!evidence.assembly || !evidence.notes) {
+      selected = {
+        posture: "hard-stop",
+        rootCause: rootCause("page-authority", evidence.delivery_evidence.code || "assembly-or-notes-missing"),
+        primaryAction: action("page-authority", "repair-delivery-lineage", "repair", false, "Rebuild the one Page Authority final manifest, assembly, and notes lineage.", { command: command(`build ${run}`) }),
+        protectedInvariant: "one verified Page Authority final manifest, assembly, and notes lineage",
+      };
+    } else if (!evidence.delivery_evidence.ok) {
+      selected = {
+        posture: "hard-stop",
+        rootCause: rootCause("page-authority", evidence.delivery_evidence.code || "delivery-evidence-invalid"),
+        primaryAction: action("page-authority", "repair-delivery-evidence", "repair", false, "Repair the direct Page Authority delivery evidence.", { command: command(`build ${run}`) }),
+        protectedInvariant: "exact current Page Authority delivery evidence",
+      };
+    } else if (!evidence.delivery_review.current || evidence.delivery_review.decision !== "proceed") {
+      selected = {
+        posture: "confirm",
+        rootCause: rootCause("page-authority-delivery-review", evidence.delivery_review.code || "delivery-review-pending"),
+        primaryAction: action("page-authority-delivery-review", "confirm-delivery-review", "review", true, "Record the current Page Authority delivery decision.", { command: command(`state ${run} --record-page-authority-delivery-review proceed`) }),
+        continuation: action("page-authority-delivery-review", "repair-or-redirect-delivery", "review", true, "Record a bounded repair or redirect decision.", { command: command(`state ${run} --record-page-authority-delivery-review repair --reason "<human reason>"`) }),
+      };
+    }
   }
 
   if (!selected && initial.refinement?.status === "invalid") {
@@ -390,7 +498,9 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
   if (!selected) {
     const display = initial.mode.ok && ["html-only", "html-then-image2"].includes(initial.mode.mode)
       ? "complete:html-delivery"
-      : "complete:current-workflow";
+      : initial.mode.ok && initial.mode.mode === "image2-page-authority"
+        ? "complete:page-authority-delivery"
+        : "complete:current-workflow";
     selected = {
       posture: "ready",
       primaryAction: action("workflow-inspection", "complete-current-workflow", "complete", false, display),
@@ -427,6 +537,16 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       mode: initial.mode.ok ? initial.mode.mode : null,
       html_review_ready: initial.review?.ready ?? null,
       refinement_status: initial.refinement?.status ?? null,
+      page_authority: initial.pageAuthority ? {
+        source_receipt: Boolean(initial.pageAuthority.source_receipt),
+        raw_manifest: Boolean(initial.pageAuthority.raw_manifest),
+        raw_review: initial.pageAuthority.raw_review.code || "current",
+        final_manifest: Boolean(initial.pageAuthority.final_manifest),
+        final_projection: Boolean(initial.pageAuthority.final_projection),
+        assembly: Boolean(initial.pageAuthority.assembly),
+        notes: Boolean(initial.pageAuthority.notes),
+        delivery_review: initial.pageAuthority.delivery_review.current ? initial.pageAuthority.delivery_review.decision : initial.pageAuthority.delivery_review.code,
+      } : null,
       complete: initial.completion?.complete ?? null,
     },
   });

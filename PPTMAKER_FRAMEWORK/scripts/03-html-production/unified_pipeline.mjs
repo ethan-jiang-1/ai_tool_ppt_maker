@@ -1089,6 +1089,9 @@ export async function stage2(runDir, {
     if (!route.ok) {
       return failStage(stage2, { version: 1, category: "gate", stage: "stage2", operation: "resolve-production-adapter", source: { path: runDir }, reason: { kind: route.code === "transition_required" ? "mode_source_mismatch" : "production_mode_unavailable" }, next: createCliNext("repair_prerequisite", { requiresHuman: route.code === "transition_required", default: "Resolve the exact production-mode identity before Image2 Stage 2." }) });
     }
+    if (route.adapter === "page-authority-image2") {
+      return failStage(stage2, { version: 1, category: "gate", stage: "stage2", operation: "resolve-production-adapter", source: { path: runDir }, reason: { kind: "page_authority_adapter_pending" }, next: createCliNext("repair_prerequisite", { default: "Page Authority raw generation is receipt-bound and cannot use legacy Stage 2." }) });
+    }
     if (route.mode === "image2-only") {
       const { sha256File } = await import("../shared/identity/byte_hash.mjs");
       const profileFingerprint = image2AuthorizationProfileFingerprint({
@@ -1731,6 +1734,10 @@ Examples:
             }),
           },
         });
+        process.exit(1);
+      }
+      if (route.adapter === "page-authority-image2") {
+        emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Page Authority Image2 cannot enter the legacy unified pipeline.", hint: "Use the Page Authority receipt-to-delivery lifecycle; legacy HTML and Header-Lock stages are fenced.", where: "unified_pipeline.production-adapter", diagnostic: { version: 1, category: "gate", operation: "resolve-production-adapter", source: { path: runDir }, reason: { kind: "page_authority_adapter_pending" }, next: createCliNext("repair_prerequisite", { default: "Use the Page Authority pipeline; do not invoke legacy unified stages." }) } });
         process.exit(1);
       }
 

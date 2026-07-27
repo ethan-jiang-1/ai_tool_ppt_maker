@@ -11,14 +11,15 @@ npm install
 # 2. 环境检查
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 
-# 3. 配 Image2 凭据（key + base URL 都必填）
-cat > .env <<'EOF'
-IMAGE2_API_KEY=sk-...
-IMAGE2_BASE_URL=https://your-relay/v1
-EOF
+# 3. 新 deck 先走 Page Authority 的离线 readiness
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-page-authority
 
 # 4. 跟 Agent 说: "我要做一个 PPT"
 ```
+
+新 deck 的唯一初始化路径是 `image2-page-authority`，source default 为
+`framed-image2`。只在后续明确选择 Page Authority raw-generation 时，才按
+`PPTMAKER_FRAMEWORK/BOOTSTRAP.md` 配置 Image2 凭据并取得该次提交的授权。
 
 ## 开发验证
 

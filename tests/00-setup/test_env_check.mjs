@@ -768,3 +768,63 @@ describe('env-check production-mode profiles (3.5)', () => {
     expect(exitCode).not.toBe(0);
   });
 });
+
+describe('env-check Page Authority operation profiles', () => {
+  function runPageAuthorityCheck(args) {
+    try {
+      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-authority', ...args], {
+        encoding: 'utf8',
+        timeout: 30_000,
+        env: { ...process.env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },
+      });
+      return { exitCode: 0, report: JSON.parse(stdout) };
+    } catch (error) {
+      return { exitCode: error.status ?? 1, report: JSON.parse(error.stdout ?? '') };
+    }
+  }
+
+  it('reports independent unbound framed and raw profiles without blocking local readiness on missing credentials', () => {
+    const result = runPageAuthorityCheck([]);
+    expect(result.exitCode).toBe(0);
+    expect(result.report).toMatchObject({
+      allPass: true,
+      profile: 'page-authority-unbound',
+      profiles: [
+        { id: 'framed-runtime', current_action_ready: true, deferred: false },
+        { id: 'image2-raw', current_action_ready: false, deferred: true },
+      ],
+    });
+    const checks = result.report.checks.map((check) => check.check);
+    expect(checks).toContain('playwright');
+    expect(checks).toContain('page_authority_raw_generator');
+    expect(checks).not.toContain('echarts');
+  });
+
+  it('makes raw generation credentials a hard requirement without requiring the Framed runtime', () => {
+    const result = runPageAuthorityCheck(['--operation', 'raw-generation']);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.report).toMatchObject({
+      allPass: false,
+      profile: 'page-authority-raw',
+      profiles: [{ id: 'image2-raw', current_action_ready: false, deferred: false }],
+    });
+    const checks = result.report.checks.map((check) => check.check);
+    expect(checks).toContain('page_authority_raw_generator');
+    expect(checks).not.toContain('playwright');
+    expect(checks).not.toContain('echarts');
+  });
+
+  it('keeps a local Framed refresh provider-free', () => {
+    const result = runPageAuthorityCheck(['--operation', 'framed-local-refresh']);
+    expect(result.exitCode).toBe(0);
+    const checks = result.report.checks.map((check) => check.check);
+    expect(result.report).toMatchObject({
+      allPass: true,
+      profile: 'page-authority-framed',
+      profiles: [{ id: 'framed-runtime', current_action_ready: true, deferred: false }],
+    });
+    expect(checks).toContain('playwright');
+    expect(checks).not.toContain('api_key');
+    expect(checks).not.toContain('page_authority_raw_generator');
+  });
+});

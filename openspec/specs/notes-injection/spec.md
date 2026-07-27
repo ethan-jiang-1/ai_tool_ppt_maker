@@ -110,3 +110,14 @@ Notes injection SHALL accept a whole-page root assembly only when it declares `w
 - **WHEN** notes are injected from a current whole-page assembly receipt
 - **THEN** the notes receipt carries `whole-page-image2-v1`
 - **AND** retired lineage values are rejected
+
+### Requirement: Notes receipt binds Page Authority final assembly lineage
+Notes Injection SHALL accept Page Authority input only when its ordered stable IDs, current PPTX assembly
+receipt, final-manifest digest, and final-slide fingerprints match the resolved receipt. It SHALL bind
+the notes receipt to that delivery lineage and reject a raw underlay, legacy branch receipt, partial
+manifest, or mismatched ordered ID set.
+
+#### Scenario: Notes follow a mixed Page Authority assembly
+- **WHEN** a current mixed Pure/Framed final manifest and matching notes are supplied
+- **THEN** notes are injected by stable slide ID and the receipt records the Page Authority assembly lineage
+- **AND** no renderer-private manifest is used to infer alignment

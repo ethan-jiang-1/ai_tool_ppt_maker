@@ -2,9 +2,11 @@ import { isMap, isScalar, parseDocument } from "yaml";
 
 export const HTML_FIRST_PIPELINE = "html-first-v1";
 export const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
+export const PAGE_AUTHORITY_IMAGE2_PIPELINE = "page-authority-image2-v1";
 export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
   HTML_FIRST_PIPELINE,
   WHOLE_PAGE_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
 ]);
 
 const SUPPORTED_PIPELINES_TEXT = SUPPORTED_PRODUCTION_PIPELINES.join(" | ");
@@ -97,14 +99,18 @@ function directProductionNodeIssues(frontmatter, source) {
     issues.push(markerIssue("invalid_production_marker", "production must be a direct mapping", { source, expected: SUPPORTED_PIPELINES_TEXT }));
     return issues;
   }
+  const pairsByKey = new Map();
   for (const pair of production.items) {
     if (!isScalar(pair.key) || typeof pair.key.value !== "string" || pair.key.anchor || pair.key.tag) {
       issues.push(markerIssue("invalid_production_key", "production keys must be direct strings", { source, expected: SUPPORTED_PIPELINES_TEXT }));
-    } else if (pair.key.value !== "pipeline") {
-      issues.push(markerIssue("unknown_production_key", `unknown production key ${JSON.stringify(pair.key.value)}`, { source, expected: SUPPORTED_PIPELINES_TEXT }));
+      continue;
     }
+    const key = pair.key.value;
+    const values = pairsByKey.get(key) || [];
+    values.push(pair);
+    pairsByKey.set(key, values);
   }
-  const pipelinePairs = production.items.filter((pair) => isScalar(pair.key) && pair.key.value === "pipeline");
+  const pipelinePairs = pairsByKey.get("pipeline") || [];
   if (
     pipelinePairs.length !== 1
     || !isScalar(pipelinePairs[0].value)
@@ -113,6 +119,35 @@ function directProductionNodeIssues(frontmatter, source) {
     || pipelinePairs[0].value.tag
   ) {
     issues.push(markerIssue("invalid_pipeline_marker", `production.pipeline must be one direct string scalar with value ${SUPPORTED_PIPELINES_TEXT}`, { source, expected: SUPPORTED_PIPELINES_TEXT }));
+    return issues;
+  }
+
+  const pipeline = pipelinePairs[0].value.value;
+  const allowedKeys = pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE
+    ? new Set(["pipeline", "page_authority_default"])
+    : new Set(["pipeline"]);
+  for (const key of pairsByKey.keys()) {
+    if (!allowedKeys.has(key)) {
+      issues.push(markerIssue("unknown_production_key", `unknown production key ${JSON.stringify(key)}`, { source, expected: SUPPORTED_PIPELINES_TEXT }));
+    }
+  }
+
+  if (pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE) {
+    const defaultPairs = pairsByKey.get("page_authority_default") || [];
+    if (
+      defaultPairs.length !== 1
+      || !isScalar(defaultPairs[0].value)
+      || typeof defaultPairs[0].value.value !== "string"
+      || defaultPairs[0].value.anchor
+      || defaultPairs[0].value.tag
+      || !["pure-image2", "framed-image2"].includes(defaultPairs[0].value.value)
+    ) {
+      issues.push(markerIssue(
+        "invalid_page_authority_default",
+        "production.page_authority_default must be one direct string scalar with value pure-image2 | framed-image2",
+        { source, expected: "pure-image2 | framed-image2" }
+      ));
+    }
   }
   return issues;
 }

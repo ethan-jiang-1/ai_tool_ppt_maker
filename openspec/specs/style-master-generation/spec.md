@@ -3,7 +3,6 @@
 Define `generate_style_master.mjs`, which produces the deck's visual anchor
 image using the in-framework `image_api_client.mjs` (Node fetch, async API)
 under the Image2 credentials contract. No external `image2-imagegen` skill.
-
 ## Requirements
 ### Requirement: Style-master routing preserves a future HTML adapter seam
 
@@ -67,3 +66,13 @@ Style-master generation inherits the image client's visible wait heartbeats (`ph
 
 - **WHEN** `IMAGE2_API_KEY` + `IMAGE2_BASE_URL` are configured and style-master runs
 - **THEN** generation uses the same Image2 credential path as Stage 2 (via `image_api_client`)
+
+### Requirement: Generation profile separates provider execution from source authority
+Style Master Generation SHALL contribute effective provider style-master bytes and provider/model/output
+facts to `raw_generation_profile_digest`. It SHALL not place those facts in the raw image contract or
+treat their drift as a source-epoch mutation.
+
+#### Scenario: Style profile changes invalidate reuse without advancing epoch
+- **WHEN** effective style-master bytes change for an otherwise unchanged slide
+- **THEN** the generation-profile digest changes and raw reuse/review is invalidated
+- **AND** the raw-source epoch remains unchanged

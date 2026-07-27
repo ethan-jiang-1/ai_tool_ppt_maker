@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   PRODUCTION_MODES,
+  PRODUCTION_ADAPTERS,
   PRODUCTION_PAGE_AUTHORITIES,
   PRODUCTION_REFINEMENT_POLICIES,
   PRODUCTION_STYLE_MASTER_POLICIES,
@@ -17,10 +18,11 @@ import {
 
 const HTML = "html-first-v1";
 const WHOLE_PAGE = "whole-page-image2-v1";
+const PAGE_AUTHORITY = "page-authority-image2-v1";
 
 describe("production_mode vocabulary", () => {
-  it("exposes the closed three-mode vocabulary", () => {
-    expect([...PRODUCTION_MODES]).toEqual(["html-only", "html-then-image2", "image2-only"]);
+  it("exposes the closed four-mode vocabulary", () => {
+    expect([...PRODUCTION_MODES]).toEqual(["html-only", "html-then-image2", "image2-only", "image2-page-authority"]);
   });
 
   it("isProductionMode rejects everything outside the closed set without coercion", () => {
@@ -47,6 +49,7 @@ describe("productionPolicyForMode exact mappings", () => {
       page_authority: "html",
       refinement_policy: "disabled",
       style_master_policy: "reserved-html-adapter",
+      adapter: "html",
     });
   });
 
@@ -58,6 +61,7 @@ describe("productionPolicyForMode exact mappings", () => {
       page_authority: "html",
       refinement_policy: "required",
       style_master_policy: "reserved-html-adapter",
+      adapter: "html",
     });
   });
 
@@ -69,6 +73,19 @@ describe("productionPolicyForMode exact mappings", () => {
       page_authority: "image2",
       refinement_policy: "not-applicable",
       style_master_policy: "current",
+      adapter: "whole-page-image2",
+    });
+  });
+
+  it("maps Page Authority to its distinct source pipeline and adapter", () => {
+    expect(productionPolicyForMode("image2-page-authority")).toEqual({
+      ok: true,
+      mode: "image2-page-authority",
+      pipeline: PAGE_AUTHORITY,
+      page_authority: "image2",
+      refinement_policy: "not-applicable",
+      style_master_policy: "current",
+      adapter: "page-authority-image2",
     });
   });
 
@@ -88,6 +105,7 @@ describe("productionPolicyForMode exact mappings", () => {
       expect(PRODUCTION_PAGE_AUTHORITIES).toContain(p.page_authority);
       expect(PRODUCTION_REFINEMENT_POLICIES).toContain(p.refinement_policy);
       expect(PRODUCTION_STYLE_MASTER_POLICIES).toContain(p.style_master_policy);
+      expect(PRODUCTION_ADAPTERS).toContain(p.adapter);
     }
   });
 });
@@ -101,6 +119,10 @@ describe("source marker normalization", () => {
   it("keeps the explicit html-first-v1 branch stable", () => {
     const r = pipelineFromSourceMarker({ branch: HTML, issues: [] });
     expect(r).toEqual({ ok: true, pipeline: HTML, branch: HTML });
+  });
+
+  it("accepts the explicit Page Authority marker", () => {
+    expect(pipelineFromSourceMarker({ branch: PAGE_AUTHORITY, issues: [] })).toEqual({ ok: true, pipeline: PAGE_AUTHORITY, branch: PAGE_AUTHORITY });
   });
 
   it("fails closed on invalid/unknown/missing markers", () => {
@@ -122,6 +144,12 @@ describe("source marker normalization", () => {
       mode: "image2-only",
       pipeline: WHOLE_PAGE,
       branch: WHOLE_PAGE,
+    });
+    expect(productionModeFromSourceMarker({ branch: PAGE_AUTHORITY, issues: [] })).toEqual({
+      ok: true,
+      mode: "image2-page-authority",
+      pipeline: PAGE_AUTHORITY,
+      branch: PAGE_AUTHORITY,
     });
     expect(productionModeFromSourceMarker({ branch: "invalid", issues: ["e"] }).ok).toBe(false);
   });
@@ -189,6 +217,41 @@ describe("inspectProductionMode exact-version inspection", () => {
     const state = stateWith({ "3_versions/v1": "html-only" });
     const r = inspectProductionMode({ state, runVersion: "v1", sourceMarker: { branch: HTML, issues: [] } });
     expect(r.code).toBe("MODE_RECORD_MALFORMED");
+  });
+
+  it("requires Page Authority's exact positive source_epoch record before routing", () => {
+    const marker = { branch: PAGE_AUTHORITY, issues: [] };
+    const valid = inspectProductionMode({
+      state: stateWith({ "3_versions/v1": { mode: "image2-page-authority", source_epoch: 1 } }),
+      runVersion: "v1",
+      sourceMarker: marker,
+    });
+    expect(valid).toMatchObject({ ok: true, mode: "image2-page-authority", policy: { adapter: "page-authority-image2" } });
+
+    for (const record of [
+      { mode: "image2-page-authority" },
+      { mode: "image2-page-authority", source_epoch: 0 },
+      { mode: "image2-page-authority", source_epoch: 1.5 },
+      { mode: "image2-page-authority", source_epoch: 1, extra: true },
+    ]) {
+      expect(inspectProductionMode({ state: stateWith({ "3_versions/v1": record }), runVersion: "v1", sourceMarker: marker }))
+        .toMatchObject({ ok: false, code: "PAGE_AUTHORITY_STATE_INVALID", next_action: "repair_page_authority_state" });
+    }
+  });
+
+  it("short-circuits Page Authority source/state drift before any adapter can be selected", () => {
+    const result = inspectProductionMode({
+      state: stateWith({ "3_versions/v1": { mode: "image2-page-authority", source_epoch: 1 } }),
+      runVersion: "v1",
+      sourceMarker: { branch: WHOLE_PAGE, issues: [] },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "transition_required",
+      mode: "image2-page-authority",
+      source_pipeline: WHOLE_PAGE,
+      derived_pipeline: PAGE_AUTHORITY,
+    });
   });
 
   it("transition_required when mode pipeline differs from the source marker", () => {

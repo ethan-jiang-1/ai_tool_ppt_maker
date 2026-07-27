@@ -93,8 +93,11 @@ function writeSource(deckDir, version, marker) {
     ? "html-first-v1"
     : marker === "whole-page"
       ? "whole-page-image2-v1"
+      : marker === "page-authority"
+        ? "page-authority-image2-v1"
       : (() => { throw new Error(`unsupported test source marker ${marker}`); })();
-  const frontmatter = `---\nproduction:\n  pipeline: ${pipeline}\n---\n\n`;
+  const pageAuthorityDefault = marker === "page-authority" ? "  page_authority_default: framed-image2\n" : "";
+  const frontmatter = `---\nproduction:\n  pipeline: ${pipeline}\n${pageAuthorityDefault}---\n\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), `${frontmatter}## Slide 01: \`HeroGo\`\n`, "utf8");
 }
 
@@ -114,10 +117,13 @@ describe("schema v5 production-mode container (1.2)", () => {
       ["html-only", "html-first-v1"],
       ["html-then-image2", "html-first-v1"],
       ["image2-only", "whole-page-image2-v1"],
+      ["image2-page-authority", "page-authority-image2-v1"],
     ]) {
       const state = createInitialState("deck", "keynote", "dark", { mode });
       expect(state.pipeline).toBe(pipeline);
-      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({ mode });
+      expect(state.production_mode.by_version["3_versions/v1"]).toEqual(
+        mode === "image2-page-authority" ? { mode, source_epoch: 1 } : { mode },
+      );
     }
   });
 
@@ -140,6 +146,14 @@ describe("schema v5 production-mode container (1.2)", () => {
     expect(validateState({ ...createDefaultState(), production_mode: { by_version: { "3_versions/v1": { mode: "html-only", extra: 1 } } } }).valid).toBe(false);
     expect(validateState({ ...createDefaultState(), production_mode: { by_version: { "3_versions/v1": { mode: "html-first-v1" } } } }).valid).toBe(false);
     expect(validateState({ ...createDefaultState(), production_mode: { by_version: { "3_versions/v1": { mode: "html-only" } } } }).valid).toBe(true);
+    expect(validateState({ ...createDefaultState(), production_mode: { by_version: { "3_versions/v1": { mode: "image2-page-authority", source_epoch: 1 } } } }).valid).toBe(true);
+    for (const record of [
+      { mode: "image2-page-authority" },
+      { mode: "image2-page-authority", source_epoch: 0 },
+      { mode: "image2-page-authority", source_epoch: 1, extra: true },
+    ]) {
+      expect(validateState({ ...createDefaultState(), production_mode: { by_version: { "3_versions/v1": record } } }).valid).toBe(false);
+    }
   });
 
   it("validateStateReadOnly accepts valid production_mode and reports drift on disk", () => {
@@ -373,7 +387,9 @@ function seedV4Deck(tag, { mode, marker, pipeline, version = "v1", refinement = 
   const deck = tmpDeck(tag);
   const state = createDefaultState();
   state.pipeline = pipeline;
-  state.production_mode.by_version[`3_versions/${version}`] = { mode };
+  state.production_mode.by_version[`3_versions/${version}`] = mode === "image2-page-authority"
+    ? { mode, source_epoch: 1 }
+    : { mode };
   if (refinement) {
     state.nodes["image2-refinement"] = { by_version: { [`3_versions/${version}`]: { schema: "pptmaker-image2-refinement-state-v2", run_version: version, plan: null, authorization: null, attempts: {}, reviews: {}, prerequisite_waiver: null } } };
   }
@@ -403,7 +419,8 @@ describe("state-owned exact-run inspection (1.4)", () => {
     try {
       const r = inspectRunProductionMode(deck, { runVersion: "v1" });
       expect(r.ok).toBe(false);
-      expect(r.code).toBe("STATE_UNAVAILABLE");
+      expect(r.code).toBe("transition_required");
+      expect(r.mode).toBe("image2-only");
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -416,7 +433,7 @@ describe("state-owned exact-run inspection (1.4)", () => {
       writeSource(deck, "v1", "html");
       const r = inspectRunProductionMode(deck, { runVersion: "v1" });
       expect(r.ok).toBe(false);
-      expect(r.code).toBe("STATE_UNAVAILABLE");
+      expect(r.code).toBe("MODE_MISSING");
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
@@ -456,6 +473,21 @@ describe("run-scoped adapter routing (3.1)", () => {
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
+  it("routes Page Authority only to its dedicated adapter", () => {
+    const deck = seedV4Deck("adapter-page-authority", {
+      mode: "image2-page-authority",
+      marker: "page-authority",
+      pipeline: "page-authority-image2-v1",
+    });
+    try {
+      expect(resolveRunProductionAdapter(deck, { runVersion: "v1" })).toMatchObject({
+        ok: true,
+        mode: "image2-page-authority",
+        adapter: "page-authority-image2",
+      });
+    } finally { rmSync(deck, { recursive: true, force: true }); }
+  });
+
   it("rejects state-absent whole-page decks", () => {
     const deck = tmpDeck("adapter-historical");
     try {
@@ -468,7 +500,7 @@ describe("run-scoped adapter routing (3.1)", () => {
       writeState(deck, state);
       expect(resolveRunProductionAdapter(deck, { runVersion: "v1" })).toMatchObject({
         ok: false,
-        code: "STATE_UNAVAILABLE",
+        code: "transition_required",
       });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });

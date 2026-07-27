@@ -8,6 +8,7 @@ import {
   initBundle,
   initWholePageBundle,
   initHtmlFirstBundle,
+  initLegacyFixtureBundle,
   renderTree,
   selfCheck,
   checkBundle,
@@ -18,6 +19,8 @@ import {
   LESSONS_DIR,
   RUN_BUNDLE_FILE,
   checkDeckRootControls,
+  pageAuthorityImage2Paths,
+  PAGE_AUTHORITY_IMAGE2_PATHS,
   SCRATCH_SUBDIR,
 } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs';
 import { parseRunBundleManifest } from '../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/run_bundle_locator.mjs';
@@ -57,8 +60,20 @@ afterAll(() => {
 });
 
 describe('bundle_layout', () => {
+  it('declares one canonical rebuildable Page Authority artifact topology', () => {
+    const runDir = join(TEST_DECK, '3_versions', 'v1');
+    mkdirSync(runDir, { recursive: true });
+    const paths = pageAuthorityImage2Paths(runDir);
+    expect(Object.keys(paths).sort()).toEqual(Object.keys(PAGE_AUTHORITY_IMAGE2_PATHS).sort());
+    expect(paths.receipt).toBe(join(runDir, '_generated', 'page_authority_image2', 'receipts', 'source-receipt.json'));
+    expect(paths.raw_manifest).toBe(join(runDir, '_generated', 'page_authority_image2', 'raw', 'manifest.json'));
+    expect(paths.raw_review_projection).toBe(join(runDir, '_generated', 'page_authority_image2', 'review', 'raw-review.png'));
+    expect(paths.final_manifest).toBe(join(runDir, '_generated', 'page_authority_image2', 'final', 'manifest.json'));
+    expect(renderTree()).toContain('page_authority_image2');
+  });
+
   it('seeds one mode-neutral locator and operating guide across modes and deck types', () => {
-    for (const mode of ['image2-only', 'html-only', 'html-then-image2']) {
+    for (const mode of ['image2-page-authority']) {
       for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
         const deck = join(tmpdir(), `deck_continuation_${mode}_${deckType || 'generic'}_${Date.now()}_${Math.random().toString(16).slice(2)}`);
         try {
@@ -87,7 +102,7 @@ describe('bundle_layout', () => {
     const root = mkdtempSync(join(tmpdir(), 'continuation-external-'));
     const deck = join(root, 'deck_external_relation');
     try {
-      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
+      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-page-authority' });
       const manifest = parseRunBundleManifest(readFileSync(join(deck, RUN_BUNDLE_FILE), 'utf8'));
       const expectedRelation = (relative(realpathSync.native(deck), FRAMEWORK_ROOT) || '.').split(sep).join('/');
       expect(manifest.framework_relation).not.toBe('../PPTMAKER_FRAMEWORK');
@@ -98,7 +113,7 @@ describe('bundle_layout', () => {
   it('keeps structure-only checks exact-version and zero-write', () => {
     const deck = join(tmpdir(), `deck_structure_only_${Date.now()}`);
     try {
-      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-only' });
+      initBundle(deck, FRAMEWORK_ROOT, 'keynote', null, { mode: 'image2-page-authority' });
       const runDir = join(deck, '3_versions', 'v1');
       const cardBefore = readFileSync(join(deck, RUN_BUNDLE_FILE));
       const stateBefore = readFileSync(join(deck, '_state', 'state.yaml'));
@@ -165,18 +180,19 @@ describe('bundle_layout', () => {
       rmSync(wholePage, { recursive: true, force: true });
     }
   });
-  it('all init templates seed a valid HTML-first structured starter', () => {
+  it('all init templates seed the Page Authority source pair', () => {
     for (const deckType of [null, 'keynote', 'pitch', 'report', 'training']) {
       const deck = join(tmpdir(), `deck_render_policy_${deckType || 'generic'}_${Date.now()}`);
       try {
-        initBundle(deck, null, deckType, null, { mode: 'html-only' });
+        initBundle(deck, null, deckType, null, { mode: 'image2-page-authority' });
         const specs = readFileSync(
           join(deck, '3_versions', 'v1', 'slide-specifications.md'),
           'utf-8'
         );
-        expect(specs).toContain('pipeline: html-first-v1');
+        expect(specs).toContain('pipeline: page-authority-image2-v1');
+        expect(specs).toContain('page_authority_default: framed-image2');
         expect(specs).toMatch(/identity:\s*\n\s+scheme: mnemonic-v1/);
-        expect(specs).not.toMatch(/\*\*(?:RENDER MODE|IMAGE PROMPT|VISUAL ASSETS)\*\*/);
+        expect(specs).not.toMatch(/^render:|\*\*(?:RENDER MODE|IMAGE PROMPT|VISUAL ASSETS)\*\*/m);
       } finally {
         rmSync(deck, { recursive: true, force: true });
       }
@@ -704,66 +720,99 @@ describe('mode-aware init seeds (2.1, 2.3)', () => {
     return readFileSync(join(deck, '3_versions', 'v1', 'slide-specifications.md'), 'utf8');
   }
 
-  it('defaults to DEFAULT_INIT_MODE (image2-only release default)', () => {
-    expect(DEFAULT_INIT_MODE).toBe('image2-only');
+  it('defaults to the Page Authority source/state pair', () => {
+    expect(DEFAULT_INIT_MODE).toBe('image2-page-authority');
     const deck = initFor(null);
     try {
       expect(source(deck)).not.toContain('pipeline: html-first-v1');
-      expect(source(deck)).toContain('default: full-page');
+      expect(source(deck)).toContain('pipeline: page-authority-image2-v1');
+      expect(source(deck)).toContain('page_authority_default: framed-image2');
+      expect(source(deck)).toContain('scheme: mnemonic-v1');
       const state = readState(deck);
-      expect(state.production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
-      expect(state.pipeline).toBe('whole-page-image2-v1');
-    } finally { rmSync(deck, { recursive: true, force: true }); }
-  });
-
-  it('html-only / html-then-image2 seed the explicit html-first-v1 marker and mode', () => {
-    for (const mode of ['html-only', 'html-then-image2']) {
-      const deck = initFor(mode);
-      try {
-        const src = source(deck);
-        expect(src).toContain('pipeline: html-first-v1');
-        expect(src).toContain('scheme: mnemonic-v1');
-        expect(readState(deck).production_mode.by_version['3_versions/v1']).toEqual({ mode });
-      } finally { rmSync(deck, { recursive: true, force: true }); }
-    }
-  });
-
-  it('image2-only seeds the explicit whole-page source and pipeline marker', () => {
-    const deck = initFor('image2-only');
-    try {
-      const src = source(deck);
-      expect(src).toContain('scheme: mnemonic-v1');
-      expect(src).toContain('default: full-page');
-      expect(src).toContain('pipeline: whole-page-image2-v1');
-      const state = readState(deck);
-      expect(state.production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
-      expect(state.pipeline).toBe('whole-page-image2-v1');
-      // No style master, generated output, or provider attempt is created.
-      expect(existsSync(join(deck, '2_backbone', 'visual-style', 'style_master.jpg'))).toBe(false);
-      expect(existsSync(join(deck, '3_versions', 'v1', '_generated', 'page_images_full'))).toBe(false);
+      expect(state.production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-page-authority', source_epoch: 1 });
+      expect(state.pipeline).toBe('page-authority-image2-v1');
+      expect(existsSync(join(deck, '3_versions', 'v1', '_generated', 'page_authority_image2'))).toBe(false);
+      expect(checkBundle(join(deck, '3_versions', 'v1'), false)).toEqual([]);
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
   it('metadata mirrors the seeded production mode as non-authoritative', () => {
-    const deck = initFor('image2-only');
+    const deck = initFor('image2-page-authority');
     try {
       const metadata = readFileSync(join(deck, 'project-metadata.yaml'), 'utf8');
-      expect(metadata).toContain('production_mode: image2-only');
+      expect(metadata).toContain('production_mode: image2-page-authority');
       expect(metadata).toContain('production_mode_run_version: v1');
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });
 
-  it('an invalid mode is rejected before any filesystem creation', () => {
-    const deck = join(tmpdir(), `deck_bad_mode_${Date.now()}`);
-    expect(() => initBundle(deck, null, 'keynote', 'dark-executive', { mode: 'html' })).toThrow(/production mode/);
-    expect(existsSync(deck)).toBe(false);
+  it('rejects every legacy mode before filesystem creation', () => {
+    for (const mode of ['html-only', 'html-then-image2', 'image2-only', 'html']) {
+      const deck = join(tmpdir(), `deck_bad_mode_${mode}_${Date.now()}`);
+      expect(() => initBundle(deck, null, 'keynote', 'dark-executive', { mode })).toThrow(/new deck initialization only supports/);
+      expect(existsSync(deck)).toBe(false);
+    }
   });
 
-  it('initWholePageBundle delegates to the image2-only seed (explicit whole-page)', () => {
-    const deck = join(tmpdir(), `deck_whole_page_delegated_${Date.now()}`);
+  it('ppt_flow init exposes only Page Authority and keeps legacy CLI selection zero-write', () => {
+    const root = mkdtempSync(join(tmpdir(), 'page-authority-init-cli-'));
+    const accepted = join(root, 'deck_page_authority');
+    const rejected = join(root, 'deck_legacy_rejected');
     try {
-      initWholePageBundle(deck, null, 'keynote', 'dark-executive');
-      expect(source(deck)).not.toContain('pipeline: html-first-v1');
+      const ok = spawnSync('node', [PPT_FLOW, 'init', accepted, '--deck-type', 'keynote', '--style', 'dark-executive'], { encoding: 'utf8', timeout: 15_000 });
+      expect(ok.status, ok.stderr).toBe(0);
+      expect(readState(accepted).production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-page-authority', source_epoch: 1 });
+
+      const legacy = spawnSync('node', [PPT_FLOW, 'init', rejected, '--deck-type', 'keynote', '--style', 'dark-executive', '--mode', 'image2-only'], { encoding: 'utf8', timeout: 15_000 });
+      expect(legacy.status).toBe(1);
+      expect(`${legacy.stderr}\n${legacy.stdout}`).toContain('New deck initialization does not support image2-only');
+      expect(existsSync(rejected)).toBe(false);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it('fences Page Authority from root and direct legacy pipelines before artifacts or provider work', () => {
+    const root = mkdtempSync(join(tmpdir(), 'page-authority-legacy-fence-'));
+    const deck = join(root, 'deck_fenced_page_authority');
+    const runDir = join(deck, '3_versions', 'v1');
+    try {
+      initBundle(deck, null, 'keynote', 'dark-executive');
+      const rootCommand = spawnSync('node', [PPT_FLOW, 'pilot', runDir, '--dry-run'], { encoding: 'utf8', timeout: 15_000 });
+      expect(rootCommand.status).toBe(1);
+      expect(`${rootCommand.stderr}\n${rootCommand.stdout}`).toContain('page_authority_adapter_pending');
+
+      const direct = spawnSync('node', [
+        'PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs',
+        '--run-dir', runDir,
+        '--stage', '1',
+        '--dry-run',
+      ], { encoding: 'utf8', timeout: 15_000 });
+      expect(direct.status).toBe(1);
+      expect(`${direct.stderr}\n${direct.stdout}`).toContain('page_authority_adapter_pending');
+      expect(existsSync(join(runDir, '_generated', 'page_images_full'))).toBe(false);
+      expect(existsSync(join(runDir, '_generated', 'header_locked'))).toBe(false);
+      expect(existsSync(join(runDir, '_generated', 'slide_plan.json'))).toBe(false);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it('bundle_layout --init accepts only the explicit Page Authority selector', () => {
+    const root = mkdtempSync(join(tmpdir(), 'page-authority-layout-cli-'));
+    const accepted = join(root, 'deck_explicit_page_authority');
+    const rejected = join(root, 'deck_legacy_layout_rejected');
+    try {
+      const ok = spawnSync('node', [BUNDLE, '--init', accepted, '--mode', 'image2-page-authority'], { encoding: 'utf8', timeout: 15_000 });
+      expect(ok.status, ok.stderr).toBe(0);
+      expect(readState(accepted).production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-page-authority', source_epoch: 1 });
+
+      const legacy = spawnSync('node', [BUNDLE, '--init', rejected, '--mode', 'html-only'], { encoding: 'utf8', timeout: 15_000 });
+      expect(legacy.status).toBe(1);
+      expect(`${legacy.stderr}\n${legacy.stdout}`).toContain('New deck initialization does not support html-only');
+      expect(existsSync(rejected)).toBe(false);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it('keeps legacy fixture construction out of the public new-deck entrypoint', () => {
+    const deck = join(tmpdir(), `deck_legacy_fixture_${Date.now()}`);
+    try {
+      initLegacyFixtureBundle(deck, null, 'keynote', 'dark-executive', { mode: 'image2-only' });
       expect(readState(deck).production_mode.by_version['3_versions/v1']).toEqual({ mode: 'image2-only' });
     } finally { rmSync(deck, { recursive: true, force: true }); }
   });

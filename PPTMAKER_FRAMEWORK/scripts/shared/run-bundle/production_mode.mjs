@@ -1,7 +1,7 @@
 /**
  * production_mode.mjs — pure production-mode policy vocabulary and routing.
  *
- * Single source of truth for the closed three-mode production vocabulary and its
+ * Single source of truth for the closed four-mode production vocabulary and its
  * mapping onto the existing HTML and whole-page Image2 renderer contracts. This
  * module is intentionally PURE: it performs no filesystem, state, metadata,
  * history, or generated-artifact reads or writes. The filesystem/parser/
@@ -19,14 +19,14 @@
  * the whole-page Image2 branch. Every supported source declares one supported
  * `production.pipeline` value.
  */
-import { HTML_FIRST_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE } from "./production_marker.mjs";
+import { HTML_FIRST_PIPELINE, PAGE_AUTHORITY_IMAGE2_PIPELINE, WHOLE_PAGE_IMAGE2_PIPELINE } from "./production_marker.mjs";
 
 /**
- * Closed production-mode vocabulary. Exactly these three values are valid.
+ * Closed production-mode vocabulary. Exactly these four values are valid.
  * @readonly
  * @type {readonly string[]}
  */
-export const PRODUCTION_MODES = Object.freeze(["html-only", "html-then-image2", "image2-only"]);
+export const PRODUCTION_MODES = Object.freeze(["html-only", "html-then-image2", "image2-only", "image2-page-authority"]);
 
 /**
  * @readonly
@@ -46,6 +46,9 @@ export const PRODUCTION_REFINEMENT_POLICIES = Object.freeze(["disabled", "requir
  */
 export const PRODUCTION_STYLE_MASTER_POLICIES = Object.freeze(["reserved-html-adapter", "current"]);
 
+/** Closed adapter names. Adapter selection belongs to POLICY_TABLE, never to callers. */
+export const PRODUCTION_ADAPTERS = Object.freeze(["html", "whole-page-image2", "page-authority-image2"]);
+
 /**
  * Canonical policy table. The one and only mapping from a production mode to its
  * renderer contract. Callers MUST NOT keep a private copy of this table.
@@ -53,6 +56,7 @@ export const PRODUCTION_STYLE_MASTER_POLICIES = Object.freeze(["reserved-html-ad
  * - html-only        -> html-first-v1     / html    / disabled           / reserved-html-adapter
  * - html-then-image2 -> html-first-v1     / html    / required           / reserved-html-adapter
  * - image2-only      -> whole-page-image2-v1 / image2 / not-applicable   / current
+ * - image2-page-authority -> page-authority-image2-v1 / image2 / not-applicable / current
  *
  * The image2-only pipeline value is written in source frontmatter.
  *
@@ -65,6 +69,7 @@ const POLICY_TABLE = Object.freeze({
     page_authority: "html",
     refinement_policy: "disabled",
     style_master_policy: "reserved-html-adapter",
+    adapter: "html",
   }),
   "html-then-image2": Object.freeze({
     mode: "html-then-image2",
@@ -72,6 +77,7 @@ const POLICY_TABLE = Object.freeze({
     page_authority: "html",
     refinement_policy: "required",
     style_master_policy: "reserved-html-adapter",
+    adapter: "html",
   }),
   "image2-only": Object.freeze({
     mode: "image2-only",
@@ -79,6 +85,15 @@ const POLICY_TABLE = Object.freeze({
     page_authority: "image2",
     refinement_policy: "not-applicable",
     style_master_policy: "current",
+    adapter: "whole-page-image2",
+  }),
+  "image2-page-authority": Object.freeze({
+    mode: "image2-page-authority",
+    pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+    page_authority: "image2",
+    refinement_policy: "not-applicable",
+    style_master_policy: "current",
+    adapter: "page-authority-image2",
   }),
 });
 
@@ -170,6 +185,9 @@ export function pipelineFromSourceMarker(sourceMarker) {
   if (branch === WHOLE_PAGE_IMAGE2_PIPELINE) {
     return { ok: true, pipeline: WHOLE_PAGE_IMAGE2_PIPELINE, branch };
   }
+  if (branch === PAGE_AUTHORITY_IMAGE2_PIPELINE) {
+    return { ok: true, pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE, branch };
+  }
   return {
     ok: false,
     code: branch === "invalid" ? "MARKER_INVALID" : "MARKER_UNKNOWN",
@@ -193,7 +211,10 @@ export function productionModeFromSourceMarker(sourceMarker) {
   if (pipeline.pipeline === HTML_FIRST_PIPELINE) {
     return { ok: true, mode: "html-only", pipeline: HTML_FIRST_PIPELINE, branch: pipeline.branch };
   }
-  return { ok: true, mode: "image2-only", pipeline: WHOLE_PAGE_IMAGE2_PIPELINE, branch: pipeline.branch };
+  if (pipeline.pipeline === WHOLE_PAGE_IMAGE2_PIPELINE) {
+    return { ok: true, mode: "image2-only", pipeline: WHOLE_PAGE_IMAGE2_PIPELINE, branch: pipeline.branch };
+  }
+  return { ok: true, mode: "image2-page-authority", pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE, branch: pipeline.branch };
 }
 
 function readByVersion(state) {
@@ -222,7 +243,34 @@ function readModeFromRecord(record, versionKey) {
       valid_modes: [...PRODUCTION_MODES],
     };
   }
+  const expectedKeys = mode === "image2-page-authority" ? ["mode", "source_epoch"] : ["mode"];
+  if (Object.keys(record).length !== expectedKeys.length || !expectedKeys.every((key) => Object.hasOwn(record, key))) {
+    return {
+      ok: false,
+      code: mode === "image2-page-authority" ? "PAGE_AUTHORITY_STATE_INVALID" : "MODE_RECORD_MALFORMED",
+      version_key: versionKey,
+      mode,
+      next_action: mode === "image2-page-authority" ? "repair_page_authority_state" : "repair_production_mode_state",
+    };
+  }
+  if (mode === "image2-page-authority" && (!Number.isInteger(record.source_epoch) || record.source_epoch < 1)) {
+    return { ok: false, code: "PAGE_AUTHORITY_STATE_INVALID", version_key: versionKey, mode, next_action: "repair_page_authority_state" };
+  }
   return { ok: true, mode };
+}
+
+/** Exact persisted record validation for the closed per-version state contract. */
+export function isProductionModeRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record) || !isProductionMode(record.mode)) return false;
+  if (record.mode !== "image2-page-authority") return Object.keys(record).length === 1 && Object.hasOwn(record, "mode");
+  return Object.keys(record).length === 2 && Object.hasOwn(record, "mode") && Object.hasOwn(record, "source_epoch") &&
+    Number.isInteger(record.source_epoch) && record.source_epoch >= 1;
+}
+
+/** State owners use this only when publishing a fresh version record. */
+export function initialProductionModeRecord(mode) {
+  if (!isProductionMode(mode)) throw new TypeError("mode must be a valid production mode");
+  return mode === "image2-page-authority" ? { mode, source_epoch: 1 } : { mode };
 }
 
 /**

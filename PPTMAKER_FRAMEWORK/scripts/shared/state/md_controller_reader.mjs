@@ -37,7 +37,7 @@ export const RESERVED_NODE_IDS = Object.freeze([
   "html-production-reset",
   "image-production",
 ]);
-export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "whole-page-image2-v1"]);
+export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "whole-page-image2-v1", "page-authority-image2-v1"]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
 
 /** Derived renderer pipeline for a valid production mode (null for invalid). */
@@ -262,13 +262,16 @@ function validateNodeShape(node, errors) {
   }
   const imageProduction = node.methodModule === "04-image-production";
   if (node.lifecyclePhase === "4" && !imageProduction) addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production");
-  if (imageProduction && !["whole-page", "visual-slot"].includes(node.adapter)) addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: whole-page|visual-slot");
+  if (imageProduction && !["whole-page", "visual-slot", "page-authority-image2"].includes(node.adapter)) addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: whole-page|visual-slot|page-authority-image2");
   if (!imageProduction && node.adapter != null) addError(errors, node, "image-production-adapter", "only 04-image-production nodes may declare an adapter");
   if (node.adapter === "visual-slot" && (node.playbook !== "image2-refine" || node.productionModes.join("\n") !== "html-then-image2")) {
     addError(errors, node, "image-production-adapter", "visual-slot is owned by image2-refine and requires html-then-image2");
   }
   if (node.adapter === "whole-page" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-only")) {
     addError(errors, node, "image-production-adapter", "whole-page is owned by create-deck and requires image2-only");
+  }
+  if (node.adapter === "page-authority-image2" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-page-authority")) {
+    addError(errors, node, "image-production-adapter", "page-authority-image2 is owned by create-deck and requires image2-page-authority");
   }
   if (node.playbook === "image2-refine" && (node.lifecyclePhase !== "4" || node.methodModule !== "04-image-production" || node.adapter !== "visual-slot")) {
     addError(errors, node, "phase4-ownership", "image2-refine nodes must declare lifecycle 4, 04-image-production, and visual-slot");

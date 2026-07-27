@@ -1,14 +1,14 @@
 ---
 playbook: create-deck
-description: 三种 production mode 的完整 create 流程，覆盖 first-class whole-page Image2 与两种 HTML 路径
-supported_pipelines: [html-first-v1, whole-page-image2-v1]
-supported_production_modes: [html-only, html-then-image2, image2-only]
+description: source/state-routed create 流程；新 deck 使用 Page Authority，legacy mode 仅服务显式 existing run
+supported_pipelines: [html-first-v1, whole-page-image2-v1, page-authority-image2-v1]
+supported_production_modes: [html-only, html-then-image2, image2-only, image2-page-authority]
 includes: []
 ---
 
 # Playbook: Create Deck
 
-本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。`image2-only` 是 first-class whole-page 生产路径；`html-only` 与 `html-then-image2` 使用 `html-first-v1` 的本地 HTML 路径。跨 pipeline 改 mode 不编辑当前 version；state-owned versioned transition 保留 source、author target-owned candidate、确认 exact plan，并在 verified handoff 后从此 controller 的 target baseline 继续。
+本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。新 deck 的唯一路径是 `image2-page-authority`：逐页明确 `pure-image2|framed-image2`，先取得 scoped raw authorization，再做 raw review、单一 final manifest、PPTX/notes 和 evidence-bound delivery review。`image2-only` 是 existing-run 的 first-class whole-page 生产路径；`html-only` 与 `html-then-image2` 是 existing-run 的 `html-first-v1` 路径。跨 pipeline 改 mode 不编辑当前 version；state-owned versioned transition 保留 source、author target-owned candidate、确认 exact plan，并在 verified handoff 后从此 controller 的 target baseline 继续。
 
 `image2-only` 默认选择 normal whole-page style-master, pilot, content/visual/header review, build, PPTX, notes, evidence-bound final review；每个实际 provider submit 前单独展示并记录 exact operation/scope/profile/count authorization。已证明的 zero-submit reuse/local work 不虚构授权。`html-only` 是 zero-provider 本地完成路径；`html-then-image2` 在 HTML final review 后进入必需的 `image2-refine` handoff，再回到新的 final review。所有质量 gate 基于当前真实 artifact；init、doctor、probe 和旧批次都不是 provider authorization。
 
@@ -316,6 +316,148 @@ exit: [evidence:image2-deck-delivered]
 ```
 
 **Step 1 — MD**: Deliver the current PPTX/version and normal whole-page Image2 iteration routes through this `create-deck` controller.
+
+### author-page-authority-content
+
+```yaml
+node: author-page-authority-content
+lifecycle_phase: 1
+method_module: 01-content
+production_modes: [image2-page-authority]
+requires: [checkpoint-intake]
+produces: [page-authority-source, stable-slide-ids, per-slide-authority-receipt]
+entry: [node_decision:checkpoint-intake:proceed]
+exit: [slide_specs_exists, slide_specs_valid, evidence:page-authority-source-authored]
+```
+
+**Step 1 — MD**: Author the canonical Page Authority source. Select `pure-image2` whenever readable body labels, values, dates, quotations, captions, or diagram text carry meaning; select `framed-image2` only for a text-free underlay below the fixed local Text Frame. Use only the closed `VISUAL BRIEF` and registered identity forms; do not add `IMAGE PROMPT`, `RENDER MODE`, HTML, or provider instructions.
+
+**Step 2 — CLI**: Run write-free `ppt_flow validate <run-dir>`. A source, frame, registry, identity, or source/state error is a hard stop with the validation owner's repair action; no provider readiness or authorization is requested yet.
+
+### configure-page-authority-visual-system
+
+```yaml
+node: configure-page-authority-visual-system
+lifecycle_phase: 2
+method_module: 02-visual-system
+production_modes: [image2-page-authority]
+requires: [author-page-authority-content]
+produces: [page-authority-visual-language, text-frame-preflight, generation-profile]
+entry: []
+exit: [visual_preset_seeded, evidence:page-authority-visual-system-configured]
+```
+
+**Step 1 — MD**: Maintain the deck-owned closed visual-language registry, registered clean identity derivatives, and effective style-master bytes. Framed Text Frame geometry, typography, and colors are the fixed `standard-v1` preset, never slide-owned CSS.
+
+**Step 2 — CLI**: Run `ppt_flow doctor --run-dir <run-dir> --operation framed-local-refresh` for local runtime facts. Raw provider credentials remain deferred until a selected raw-generation operation.
+
+### authorize-page-authority-raw
+
+```yaml
+node: authorize-page-authority-raw
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: page-authority-image2
+production_modes: [image2-page-authority]
+requires: [configure-page-authority-visual-system]
+produces: [page-authority-raw-authorization]
+decisions: [authorize, revise, decline]
+entry: []
+exit: [user_decision_recorded]
+```
+
+**Step 1 — CLI**: Run `ppt_flow image2 plan <run-dir> --json`. A zero-submit plan continues mechanically; it must not request approval.
+
+**Step 2 — GATE**: For a nonzero plan, disclose the exact run, stable IDs, raw generation profile, and maximum submissions. The human authorization is recorded only by `ppt_flow image2 authorize <run-dir> --plan-hash <hash>`; init, doctor, a review, a previous batch, or chat is never authorization. Invalid scope or attempted unauthorized submission is a hard stop; return to the raw-plan owner.
+
+### generate-page-authority-raw
+
+```yaml
+node: generate-page-authority-raw
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: page-authority-image2
+production_modes: [image2-page-authority]
+requires: [authorize-page-authority-raw]
+produces: [page-authority-raw-manifest]
+entry: [node_decision:authorize-page-authority-raw:authorize]
+exit: [evidence:page-authority-raw-current]
+```
+
+**Step 1 — CLI**: Run `ppt_flow doctor --run-dir <run-dir> --operation raw-generation`, then `ppt_flow image2 generate <run-dir> --plan-hash <hash>`. The provider boundary rederives the exact authorization immediately before each nonzero submit.
+
+**Step 2 — MD**: If raw evidence is missing, partial, stale, profile-drifted, or mismatched, return directly to `authorize-page-authority-raw`; do not substitute HTML review, Image2 refinement, Header-Lock, or a generated path.
+
+### review-page-authority-raw
+
+```yaml
+node: review-page-authority-raw
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: page-authority-image2
+production_modes: [image2-page-authority]
+requires: [generate-page-authority-raw]
+produces: [page-authority-raw-review]
+decisions: [proceed, repair, redirect]
+entry: []
+exit: [user_decision_recorded]
+```
+
+**Step 1 — CLI**: Run `ppt_flow image2 review <run-dir> --json` to create the current non-publishing raw projection. Framed views expose only the safe-zone guide, never Text Frame literals.
+
+**Step 2 — GATE**: When every tuple and projection is current, present `proceed|repair|redirect` and record the human decision only through `ppt_flow image2 accept <run-dir> --decision <decision>`. Missing or stale evidence is a hard stop with the raw-review repair action; a current undecided projection is the one `confirm` gate.
+
+### finalize-page-authority-delivery
+
+```yaml
+node: finalize-page-authority-delivery
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: page-authority-image2
+production_modes: [image2-page-authority]
+requires: [review-page-authority-raw]
+produces: [page-authority-final-manifest, page-authority-final-projection, page-authority-pptx, page-authority-notes]
+entry: [node_decision:review-page-authority-raw:proceed]
+exit: [pptx_generated, speaker_notes_injected, evidence:page-authority-final-current]
+```
+
+**Step 1 — CLI**: Run `ppt_flow build <run-dir>`. It reaches the sole `finalizePage(...)` interface, then the one final manifest, final projection, PPTX assembly, and notes receipt. It never invokes Header-Lock, HTML-first, visual-slot, or a legacy generated-artifact route.
+
+**Step 2 — MD**: A Framed Text Frame-only refresh with exact accepted raw evidence may use `ppt_flow refresh <run-dir> --kind title --only <stable-id>` and submits zero provider work. A Pure display or raw visual change returns to receipt-bound raw planning and review.
+
+### checkpoint-page-authority-delivery-review
+
+```yaml
+node: checkpoint-page-authority-delivery-review
+lifecycle_phase: 4
+method_module: 04-image-production
+adapter: page-authority-image2
+production_modes: [image2-page-authority]
+requires: [finalize-page-authority-delivery]
+produces: [page-authority-delivery-review]
+decisions: [proceed, repair, redirect]
+entry: []
+exit: [user_decision_recorded]
+```
+
+**Step 1 — MD**: Show the current raw and final projections, plus the assembled PPTX and notes result. Do not infer acceptance from a prior raw decision or an earlier delivery decision.
+
+**Step 2 — GATE**: Record only `ppt_flow state <run-dir> --record-page-authority-delivery-review proceed|repair|redirect [--reason <reason>]`. JS binds this choice to the exact source epoch, raw review, final manifest/projection, assembly/PPTX, and notes receipt. Missing/stale evidence is a hard stop with the listed owner recovery; a complete current delivery awaiting a choice is the one confirm gate.
+
+### final-page-authority
+
+```yaml
+node: final-page-authority
+lifecycle_phase: 5
+method_module: 05-iteration
+production_modes: [image2-page-authority]
+requires: [checkpoint-page-authority-delivery-review]
+produces: [delivered-page-authority-deck]
+entry: [node_decision:checkpoint-page-authority-delivery-review:proceed]
+exit: [evidence:page-authority-delivery-complete]
+```
+
+**Step 1 — MD**: Deliver the current Page Authority PPTX/version. If any source, raw tuple, final manifest, assembly, or notes fact changes, return to its direct owner and obtain a new current delivery decision.
 
 ### preview-content
 

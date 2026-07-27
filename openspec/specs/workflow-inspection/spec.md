@@ -3,7 +3,6 @@
 ## Purpose
 Define the read-only workflow-observation projection that gives MD Controllers and CLI observers one ordered, owner-issued next action for an exact run without reconstructing mode, gate, recovery, or completion policy.
 ## Requirements
-
 ### Requirement: Inspection provides the sole run-scoped observation workflow entry
 After Change-1 ledger evidence identifies an exact run, Controller resume/iteration routing and CLI observation (`status` and non-mutating `state`) SHALL obtain their ordered workflow entry from `workflow_inspection.primary_action`. They SHALL not rederive mode, gate, recovery, completion, hash, authorization, or next-action policy from generic node state. Greenfield `init` and every mutating CLI command remain direct-owner entries and SHALL not use this projection to select or replace the requested operation.
 
@@ -100,3 +99,33 @@ The framework SHALL maintain a Change-1 durable-field ledger and canonical journ
 - **WHEN** the supported minimal fixture does not reproduce a claimed blocker
 - **THEN** the baseline records that result and observed direct facts
 - **AND** it does not introduce a bypass, hand-written state, receipt, authorization, or assembled PPTX
+
+### Requirement: Inspection projects Page Authority direct prerequisites
+When the exact source/state pair resolves to `page-authority-image2-v1` /
+`image2-page-authority`, `inspectWorkflow` SHALL retain its current schema and obtain the ordered
+Page Authority source receipt, applicable authorization, raw evidence/review, final-manifest,
+assembly/notes, and delivery-review facts from their direct owners. Its checkpoint SHALL identify the
+exact direct facts used for the Page Authority verdict. It SHALL expose the nearest owner-issued
+Page Authority action and SHALL NOT inspect or select HTML review, Image2 refinement, Header-Lock, or a
+legacy generated-artifact route as a Page Authority prerequisite.
+
+#### Scenario: Invalid raw coverage has one Page Authority action
+
+- **WHEN** an exact Page Authority run has valid source/state facts but a required raw tuple is absent,
+  partial, stale, or mismatched
+- **THEN** inspection returns the raw evidence/review owner's one bounded action before finalization
+- **AND** it does not return an HTML review, Image2-refinement, Header-Lock, or generic legacy action
+
+#### Scenario: Current raw evidence awaits confirmation
+
+- **WHEN** an exact Page Authority run has complete current raw evidence and a review projection but no
+  `proceed|repair|redirect` decision
+- **THEN** inspection returns `posture: "confirm"` and the raw-review owner's one human action
+- **AND** it does not report a hard-stop, infer `proceed`, or publish a final artifact
+
+#### Scenario: Page Authority observation remains non-mutating
+
+- **WHEN** inspection observes a stale Page Authority final or delivery fact
+- **THEN** it returns the owning repair or review action with a stable direct-fact checkpoint
+- **AND** it does not compose a frame, publish a final slide, request a provider operation, or alter
+  state, history, metadata, receipts, or generated artifacts

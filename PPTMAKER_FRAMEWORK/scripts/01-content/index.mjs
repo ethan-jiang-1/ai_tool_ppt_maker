@@ -43,3 +43,11 @@ export {
   presentHeaderText,
   validatePolicySlideIds,
 } from "./internal/render_policy.mjs";
+
+export {
+  FRAMED_TEXT_PRESET,
+  PAGE_AUTHORITIES,
+  PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA,
+  PageAuthoritySourceError,
+  parsePageAuthoritySource,
+} from "./internal/page_authority_source.mjs";

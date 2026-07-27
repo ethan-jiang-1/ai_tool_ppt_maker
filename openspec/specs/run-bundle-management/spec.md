@@ -237,18 +237,17 @@ Init-seeded `_DIR_READMES` SHALL surface `run-bundle-layout` placement tokens be
 - **THEN** the text states that new-version does not copy `_scratch` contents
 
 ### Requirement: Golden sample first-look READMEs match current seeds
-
 Seed/first-look coherence SHALL be proven from checked-in framework test fixtures produced in temporary
 directories, not production `deck_*` or `dpt_*` data. Tests SHALL compare current root/version README
 and deck-guide seeds across generic init plus every active deck-type template (`keynote`, `pitch`,
-`report`, and `training`) and SHALL cover `_scratch`, `_state`, the default `image2-only` seed, both
-explicit HTML-mode seeds, mode-owned placement guidance, and current Where Maps. Existing production
-run bundles SHALL not be hand-edited or required as test inputs.
+`report`, and `training`) and SHALL cover `_scratch`, `_state`, the Page Authority default seed,
+Pure/Framed ownership guidance, and current Where Maps. Legacy source/state pairs are tested only as
+existing-run compatibility fixtures; init SHALL not create their seeds.
 
 #### Scenario: Seed coherence suite runs without production decks
-
 - **WHEN** the test workspace contains no `deck_*` or `dpt_*` production data
-- **THEN** fresh generic and four deck-type fixtures prove coherent default and explicit-mode first-look seeds
+- **THEN** fresh generic and four deck-type fixtures prove coherent Page Authority first-look seeds
+- **AND** legacy compatibility fixtures do not become init templates
 
 ### Requirement: Init produces the run-bundle Agent diagnostic entry
 `bundle_layout.mjs#initBundle` and therefore `ppt_flow init` SHALL generate deck-root `AGENTS.md` and
@@ -417,40 +416,59 @@ The init, ordinary new-version, and structural-version publication authorities S
 - **THEN** that guide is not overwritten as an incidental Git-safety update
 
 ### Requirement: Fresh init seeds an explicit production mode and matching source
-Both `bundle_layout --init` and `ppt_flow init`, including generic init and every active deck-type template (`keynote`, `pitch`, `report`, and `training`), SHALL accept one exact mode `html-only|html-then-image2|image2-only` and SHALL default an omitted mode to `image2-only`. They SHALL seed canonical `3_versions/v1/slide-specifications.md` with a direct source marker that matches the selected mode: `html-only` and `html-then-image2` use `production.pipeline: html-first-v1`, while `image2-only` uses `production.pipeline: whole-page-image2-v1`. Every new source SHALL use `identity.scheme: mnemonic-v1`.
+Both `bundle_layout --init` and `ppt_flow init`, including generic init and every active deck-type
+template (`keynote`, `pitch`, `report`, and `training`), SHALL create only the new production mode
+`image2-page-authority`. They SHALL accept no mode selector or the exact explicit selector
+`image2-page-authority`; a legacy init mode is rejected. They SHALL seed canonical
+`3_versions/v1/slide-specifications.md` with `production.pipeline: page-authority-image2-v1`,
+`production.page_authority_default: framed-image2`, and `identity.scheme: mnemonic-v1`.
 
-HTML seeds SHALL retain the exact structured-body/family guidance owned by `html-slide-contract`, no whole-page-only top-level `render`, `RENDER MODE`, `IMAGE PROMPT`, or `VISUAL ASSETS`, and a valid `html_first` visual projection. The Image2-primary seed SHALL contain the current whole-page Image2 authoring and render-mode controls needed by Stage 1 as a first-class production source.
+The seed SHALL contain Page Authority authoring guidance and no whole-page-only top-level `render`,
+`RENDER MODE`, `IMAGE PROMPT`, `VISUAL ASSETS`, or HTML-first source contract. Deck-root state SHALL
+seed authoritative `production_mode.by_version["3_versions/v1"]` with
+`mode: image2-page-authority` and `source_epoch: 1`; metadata shall seed only its human-readable v1
+mirror. Init SHALL not create raw images, final slides, a style
+master, a PPTX/notes output, provider attempts, review evidence, or legacy production state.
 
-Deck-root state SHALL seed authoritative `production_mode.by_version["3_versions/v1"].mode`; metadata SHALL seed only the human-readable mode/v1 mirror. Mode-owned gate mirrors SHALL begin pending and SHALL not authorize delivery. Init SHALL not create style-master output, page images, headers, HTML output, PPTX/notes output, provider attempts, or modern refinement state.
+#### Scenario: Fresh init uses the Page Authority default
+- **WHEN** a user initializes a new run bundle without a mode selector
+- **THEN** v1 state records `image2-page-authority` and source declares `page-authority-image2-v1`
+- **AND** the authoritative v1 source epoch is `1` and the source default is `framed-image2`
 
-#### Scenario: Fresh init uses the release default
-- **WHEN** a user initializes a new run bundle without `--mode`
-- **THEN** v1 state records `image2-only` and source declares `production.pipeline: whole-page-image2-v1`
-- **AND** the result reports mode, pipeline, and Image2-primary next action
-
-#### Scenario: User explicitly selects html-only
-- **WHEN** init receives `--mode html-only`
-- **THEN** it seeds the local HTML-first source and an authoritative `html-only` v1 mode
-- **AND** it creates no refinement completion obligation
-
-#### Scenario: Fresh init selects HTML without asking for renderer
-- **WHEN** init receives the already selected `--mode html-only`
-- **THEN** its source explicitly selects `html-first-v1` and intake does not ask for another renderer choice
-
-#### Scenario: User explicitly selects html-then-image2
-- **WHEN** init receives `--mode html-then-image2`
-- **THEN** it seeds the same HTML-first source contract with a required-refinement mode record
-- **AND** no provider plan or authorization is created during init
-
-#### Scenario: Fresh init separates gate mirrors
-- **WHEN** any mode initializes v1
-- **THEN** state contains the routing authority and metadata contains only the v1 display mirror
-- **AND** no mirror or pending gate authorizes production
+#### Scenario: Legacy init selection is rejected
+- **WHEN** init receives `html-only`, `html-then-image2`, or `image2-only` as its mode selector
+- **THEN** it returns the typed new-production diagnostic before writing a run bundle
+- **AND** it does not create a legacy source/state pair
 
 #### Scenario: Init remains write-bounded
 - **WHEN** init completes
 - **THEN** it has written only canonical source/control/state/lesson scaffolding
 - **AND** no generated production or provider artifact exists
+
+#### Scenario: Fresh init uses the release default
+- **WHEN** a user initializes a new run bundle without `--mode`
+- **THEN** v1 state records `image2-page-authority` and source declares `production.pipeline: page-authority-image2-v1`
+- **AND** the result reports the Page Authority next action
+
+#### Scenario: User explicitly selects html-only
+- **WHEN** init receives `--mode html-only`
+- **THEN** it returns the typed new-production diagnostic before writing a bundle
+- **AND** it does not create an HTML-first source/state pair
+
+#### Scenario: Fresh init selects HTML without asking for renderer
+- **WHEN** init receives a legacy HTML selector
+- **THEN** it rejects the selector before creating a bundle
+- **AND** it does not ask the user to choose another legacy renderer
+
+#### Scenario: User explicitly selects html-then-image2
+- **WHEN** init receives `--mode html-then-image2`
+- **THEN** it returns the typed new-production diagnostic before writing a bundle
+- **AND** no provider plan or authorization is created during the rejected init
+
+#### Scenario: Fresh init separates gate mirrors
+- **WHEN** Page Authority init seeds v1
+- **THEN** state contains the routing authority and metadata contains only the v1 display mirror
+- **AND** no mirror or pending gate authorizes production
 
 ### Requirement: Bundle checks are pipeline-aware without mutating existing decks
 `checkBundle()` SHALL inspect authoritative production mode only after it has verified the canonical

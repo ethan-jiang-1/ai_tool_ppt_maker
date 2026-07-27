@@ -19,7 +19,7 @@ import {
   recoverProductionModeTransition,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/production_mode_transition.mjs";
 import { htmlFirstSlide, htmlFirstSource } from "../../helpers/html_first_fixture.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initLegacyFixtureBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 
@@ -47,7 +47,7 @@ function source(marker = "whole-page") {
 function transitionFixture({ sourceMarker = "whole-page", sourceMode = "image2-only" } = {}) {
   const root = mkdtempSync(join(tmpdir(), "production_mode_transition_"));
   const deck = join(root, "deck_production_mode_transition");
-  initBundle(deck, null, "keynote", "dark-executive", { mode: sourceMode });
+  initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: sourceMode });
   const runDir = join(deck, "3_versions", "v1");
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(deck, "deck-guide.md"), "# guide\n");

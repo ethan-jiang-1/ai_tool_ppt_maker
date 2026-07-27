@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initLegacyFixtureBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 
 export function htmlFirstSlide({
   number = 1,
@@ -36,7 +36,7 @@ ${slides.join("\n")}`;
 export function createHtmlFirstRun(prefix = "html-first-run-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, "deck_html_first");
-  initBundle(deck, null, "keynote", "dark-executive", { mode: "html-only" });
+  initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "html-only" });
   const runDir = join(deck, "3_versions", "v1");
   writeFileSync(join(runDir, "slide-specifications.md"), htmlFirstSource(), "utf8");
   const assetsDir = join(deck, "2_backbone", "visual-style", "assets");

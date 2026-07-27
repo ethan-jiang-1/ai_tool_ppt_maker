@@ -3,35 +3,49 @@
 Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local HTML readiness through `scripts/00-setup/env-check.mjs`, first-class whole-page Image2 readiness for `image2-only` and required refinement, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
 ### Requirement: BOOTSTRAP presents production mode before mode-specific readiness
+After foundation repair, BOOTSTRAP SHALL identify `image2-page-authority` as the sole mode for a new
+deck and direct the Agent to run `doctor --mode image2-page-authority` before `ppt_flow init`. It SHALL
+explain that Framed is the source default with a deterministic local Text Frame over a text-free Image2
+underlay, while Pure delegates every final pixel to Image2. BOOTSTRAP SHALL not present
+`html-only`, `html-then-image2`, or `image2-only` as fresh-init choices; they remain guidance only when
+an explicitly targeted existing run resolves to its legacy source/state pair.
 
-After foundation repair, BOOTSTRAP SHALL explain the three production modes, identify
-`image2-only` as the new-deck default, and let the Agent carry an explicit user selection into
-`ppt_flow init --mode`. It SHALL describe `html-only` as the local deterministic route,
-`html-then-image2` as local HTML delivery plus required authorized visual-slot refinement, and
-`image2-only` as first-class whole-page Image2 production. The explanation SHALL not claim that HTML
-is permanently text-only or that Image2-primary is legacy maintenance.
+The unbound doctor result SHALL be described as independent offline `framed-runtime` and `image2-raw`
+readiness, not a combined source-ready claim. A later raw-generation operation still requires its exact
+provider readiness and human authorization; init, doctor, or local Framed work does not grant it.
 
-The Agent SHALL run `doctor --mode <mode>` before init and the readiness profile protecting each later
-action. Environment repair is
-mechanical and SHALL proceed through the existing checker/fix/rerun path; semantic mode selection and
-provider authorization remain human-owned. A mode choice SHALL not itself authorize a live probe or
-production request.
+#### Scenario: Fresh user follows the only new-deck path
+
+- **WHEN** foundation readiness passes and the user requests a new deck without selecting an existing run
+- **THEN** BOOTSTRAP routes through unbound Page Authority doctor and Page Authority initialization with
+  `framed-image2` as the source default
+- **AND** it does not ask the user to select a historical production mode or authorize provider work
+
+#### Scenario: Existing legacy run remains context-bounded
+
+- **WHEN** a user explicitly targets an existing run whose exact source/state pair resolves to a legacy
+  mode
+- **THEN** BOOTSTRAP routes its readiness guidance through that run's existing mode policy
+- **AND** it does not reuse the legacy policy as new-deck setup guidance
 
 #### Scenario: New user accepts the default
 
-- **WHEN** foundation is ready and the user does not request another mode
-- **THEN** BOOTSTRAP proceeds toward `init --mode image2-only` and offline Image2 readiness
-- **AND** it discloses the later provider authorization boundary
+- **WHEN** foundation is ready and the user does not target an existing run
+- **THEN** BOOTSTRAP proceeds toward `init --mode image2-page-authority` after the unbound Page Authority doctor
+- **AND** it discloses the later raw-submission authorization boundary
 
 #### Scenario: User chooses local HTML
 
-- **WHEN** the user selects `html-only`
-- **THEN** BOOTSTRAP requires common/HTML readiness only and does not solicit Image2 credentials
+- **WHEN** the user explicitly targets an existing `html-only` source/state pair
+- **THEN** BOOTSTRAP applies that run's local HTML readiness guidance without soliciting Image2 credentials
+- **AND** it does not offer `html-only` as a fresh-init selection
 
 #### Scenario: User chooses HTML then refinement
 
-- **WHEN** the user selects `html-then-image2`
-- **THEN** BOOTSTRAP establishes common/HTML readiness and explains deferred Image2 readiness/authorization
+- **WHEN** the user explicitly targets an existing `html-then-image2` source/state pair
+- **THEN** BOOTSTRAP preserves that run's HTML readiness and deferred Image2 authorization guidance
+- **AND** it does not reuse that legacy choice for a new deck
+
 ### Requirement: BOOTSTRAP uses the Phase 0 environment interface
 
 BOOTSTRAP SHALL present `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` as the canonical normal environment command after dependencies are installed. It SHALL document `node PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` as the registered pre-install recovery checker when Commander or another npm dependency is unavailable, then return to root doctor guidance. The old flat env-check path SHALL not appear. The relocation preserves base/Image2 modes, check names, repair guidance, gate scope, and beginner behavior.
@@ -145,25 +159,34 @@ profile that failed before entering its protected scope.
 - **AND** SHALL repair and rerun Image2 readiness before whole-page generation or required refinement submit
 
 ### Requirement: Image2 first-time credential setup is self-contained in BOOTSTRAP
-BOOTSTRAP Step 1 SHALL provide self-contained Image2 presence setup when the selected/default mode is `image2-only` or when `html-then-image2` approaches required refinement. An `html-only` refinement request first changes mode and then uses the required-refinement path. BOOTSTRAP SHALL give the `.env` location, `doctor --mode image2-only` (with `doctor --image2` retained only as the documented diagnostic alias), `IMAGE2_API_KEY`/`IMAGE2_BASE_URL` repair, and the distinction between offline presence, disclosed live diagnostics, and exact production authorization. Init or mode selection SHALL not count as a provider authorization.
+BOOTSTRAP SHALL provide Image2 presence setup when a Page Authority raw-generation operation is selected,
+using its exact `image2-raw` readiness profile. It SHALL not solicit provider credentials for source
+authoring, local Framed composition, assembly, notes, or delivery review. The guidance SHALL distinguish
+offline presence from explicitly selected live diagnostics and from the separately human-authorized raw
+submission.
 
-For `html-only`, BOOTSTRAP SHALL proceed after common/HTML readiness without soliciting credentials; an explicit later refinement request first receives the mode switch to `html-then-image2`, then the existing exact-plan authorization explanation. For `image2-only`, guidance SHALL describe whole-page Image2 as the primary renderer reached through normal pilot/build, not visual-slot refinement or a maintenance route.
+#### Scenario: Framed local work needs no credentials
+
+- **WHEN** a Page Authority user is authoring source or selecting `framed-local-refresh`
+- **THEN** BOOTSTRAP gives the relevant local readiness guidance without requesting Image2 credentials
+- **AND** it states that credentials and authorization are required only before a later raw submission
 
 #### Scenario: Fresh user starts an Image2-primary deck
-- **WHEN** common readiness passes and the user accepts `image2-only`
-- **THEN** BOOTSTRAP provides offline credential presence setup before provider-backed pilot/build
-- **AND** does not perform a live request or record production authorization
+- **WHEN** a new Page Authority deck reaches an explicitly selected raw-generation operation
+- **THEN** BOOTSTRAP provides offline credential presence setup before provider-backed raw work
+- **AND** it does not perform a live request or record production authorization
 
 #### Scenario: Fresh user starts an HTML deck
-- **WHEN** common/HTML readiness passes and the user selects `html-only`
-- **THEN** BOOTSTRAP proceeds without asking for Image2 credentials or live probes
+- **WHEN** a user explicitly targets an existing `html-only` run
+- **THEN** BOOTSTRAP proceeds with that local legacy work without asking for Image2 credentials or live probes
+- **AND** it does not offer an HTML deck as a fresh-init choice
 
 #### Scenario: User elects optional refinement
-- **WHEN** an `html-only` user explicitly requests refinement
+- **WHEN** an existing `html-only` user explicitly requests the legacy refinement route
 - **THEN** BOOTSTRAP explains the required same-pipeline mode switch, deferred Image2 readiness, and exact authorization before submission
 
 #### Scenario: User reaches required refinement
-- **WHEN** `html-then-image2` reaches its provider-dependent refinement step
+- **WHEN** an existing `html-then-image2` run reaches its provider-dependent refinement step
 - **THEN** BOOTSTRAP/controller explains offline readiness and exact authorization before submission
 
 ### Requirement: External file references are for human readers only, not required for agents

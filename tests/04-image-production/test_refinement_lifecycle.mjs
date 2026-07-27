@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { initHtmlFirstBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   REFINEMENT_PLAN_SCHEMA_V1,
+  REFINEMENT_STATE_SCHEMA_V1,
   buildPlan,
   authorizePlan,
   loadRefinementOperations,
@@ -260,6 +261,13 @@ describe("Phase 4 lifecycle boundaries", () => {
     try {
       const state = readState(fixture.deck, { purpose: "execute", heal: false });
       startPlaybook(state, "image2-refine", { replace: true, runVersion: "v1" });
+      state.current_node = "recommend-image2-refinement";
+      state.nodes["recommend-image2-refinement"] = {
+        status: "in_progress",
+        execution_id: state.execution_id,
+        run_version: "v1",
+        evidence: {},
+      };
       writeState(fixture.deck, state);
       const operations = await loadRefinementOperations();
       expect(await operations.declineRefinement({ runDir: fixture.runDir })).toMatchObject({ declined: true });
@@ -467,7 +475,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       const legacyPlan = buildPlan({ ...recommendation.plan, schema: REFINEMENT_PLAN_SCHEMA_V1 });
       const legacyAuthorization = authorizePlan(legacyPlan, "legacy-auth");
       writeImage2RefinementState(fixture.deck, "v1", {
-        schema: "pptmaker-image-production-state-v1",
+        schema: REFINEMENT_STATE_SCHEMA_V1,
         run_version: "v1",
         plan: legacyPlan,
         authorization: legacyAuthorization,
@@ -481,7 +489,7 @@ describe("Phase 4 lifecycle boundaries", () => {
       await expect(operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) })).rejects.toThrow(/authorization\/review must be resolved/);
       expect(readFileSync(statePath)).toEqual(before);
       expect(readImage2RefinementState(readState(fixture.deck, { purpose: "observe" }), "v1")).toMatchObject({
-        schema: "pptmaker-image2-refinement-state-v1",
+        schema: "pptmaker-image-production-state-v1",
         authorization: { authorization_id: "legacy-auth" },
       });
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }

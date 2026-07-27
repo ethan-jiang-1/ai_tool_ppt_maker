@@ -34,6 +34,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
   "shared/state/html_review_evidence.mjs",
+  "shared/state/page_authority_delivery_evidence.mjs",
   "shared/state/production_mode_transition.mjs",
   "shared/identity/canonical_json.mjs",
   "shared/identity/byte_hash.mjs",
@@ -88,7 +89,7 @@ function phaseOf(path) {
 }
 
 function imageProductionAdapterOf(path) {
-  const match = normalized(path).match(/^04-image-production\/(whole-page|visual-slot)\//);
+  const match = normalized(path).match(/^04-image-production\/(whole-page|visual-slot|page-authority)\//);
   return match?.[1] || null;
 }
 
@@ -219,7 +220,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "legacy-lib", "lib", "scripts/lib is forbidden");
   for (const phase of ACTIVE_PHASES) if (!scriptFiles.has(`${phase}/index.mjs`)) addIssue(issues, "missing-phase-interface", `${phase}/index.mjs`, "active Phase interface is missing");
   for (const path of scriptFiles.keys()) {
-    if (path.startsWith("04-image-production/") && path.endsWith(".mjs") && !path.startsWith("04-image-production/whole-page/") && !path.startsWith("04-image-production/visual-slot/") && path !== "04-image-production/index.mjs") {
+    if (path.startsWith("04-image-production/") && path.endsWith(".mjs") && !path.startsWith("04-image-production/whole-page/") && !path.startsWith("04-image-production/visual-slot/") && !path.startsWith("04-image-production/page-authority/") && path !== "04-image-production/index.mjs") {
       addIssue(issues, "phase4-public-surface", path, "Image Production exposes only its family and adapter interfaces");
     }
   }
