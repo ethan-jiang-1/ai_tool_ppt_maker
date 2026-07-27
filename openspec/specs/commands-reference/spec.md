@@ -30,10 +30,16 @@ every pixel while Framed reserves deterministic Text Frame pixels and uses Image
 full-canvas underlay. It SHALL disclose provider readiness/cost and exact operation/IDs/profile/count
 before each chargeable submit without treating init, doctor, a probe, or a prior batch as authorization.
 
-Legacy source/state pairs remain existing-run observation/execution behavior during this change but SHALL
-not appear as new-deck init choices. COMMANDS SHALL direct an Agent to choose Pure when readable body
-labels, values, quotations, captions, timeline dates, or diagram text are needed, and Framed only when
-the body is text-free beneath the local Text Frame.
+An explicitly targeted exact legacy source/state pair SHALL be observed through the provider-free adoption
+route rather than offered as an ordinary production path. COMMANDS SHALL state that the Agent first
+inspects the protocol, then prepares a human-authored Page Authority candidate and per-slide adoption
+matrix, previews the exact plan, obtains target-intake confirmation, and publishes a clean Page Authority
+target. It SHALL disclose that adoption makes no Image2 request and that later target raw generation,
+human raw review, and any pilot are separate actions. Missing, unsupported, or partially Page Authority
+source/state facts remain repair/export or Page Authority repair paths, never an inferred adoption.
+COMMANDS SHALL direct an Agent to choose Pure when readable body labels, values, quotations, captions,
+timeline dates, or diagram text are needed, and Framed only when the body is text-free beneath the local
+Text Frame.
 
 #### Scenario: First-time user creates a PPT
 - **WHEN** a user requests a new deck without selecting a historical run
@@ -45,20 +51,20 @@ the body is text-free beneath the local Text Frame.
 - **THEN** COMMANDS directs it to select `pure-image2`
 - **AND** it does not invent a local Framed body renderer
 
-#### Scenario: Existing legacy run remains bounded
-- **WHEN** a user explicitly targets a currently supported legacy run
-- **THEN** COMMANDS routes through that run's exact existing source/state policy during this change
-- **AND** it does not offer that policy for fresh initialization
+#### Scenario: Existing legacy run enters explicit adoption
+- **WHEN** a user explicitly targets a recognized legacy run
+- **THEN** COMMANDS routes through inspection, authored candidate/matrix, exact preview/confirmation, and clean target publication
+- **AND** it does not advertise ordinary legacy build/refresh/provider work or an automatic conversion
 
 #### Scenario: First-time user requests local production
 - **WHEN** a first-time user asks for a new deck with locally owned display text
 - **THEN** COMMANDS routes to Page Authority with `framed-image2` and its local Text Frame path
 - **AND** it does not offer `html-only` as a fresh-init mode
 
-#### Scenario: Whole-page creation uses the current protocol
+#### Scenario: Historical Image2 route remains evidence only
 - **WHEN** COMMANDS discusses an explicitly targeted existing `image2-only` deck
 - **THEN** it identifies `whole-page-image2-v1` as that legacy source's explicit pipeline
-- **AND** it does not present that route as the protocol for a new Page Authority deck
+- **AND** it does not present that route as current production or the protocol for a new Page Authority deck
 
 ### Requirement: Commands describe mode-scoped visual-slot refinement
 

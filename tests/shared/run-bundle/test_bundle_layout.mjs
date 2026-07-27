@@ -398,7 +398,7 @@ describe('bundle_layout', () => {
     }
   });
 
-  it('rejects opposite-branch generated owners instead of treating them as readiness', () => {
+  it('fences historical runs before opposite-branch generated owners can appear as readiness', () => {
     const htmlDeck = join(tmpdir(), `deck_html_opposite_${Date.now()}`);
     const wholePageDeck = join(tmpdir(), `deck_whole_page_opposite_${Date.now()}`);
     try {
@@ -410,7 +410,13 @@ describe('bundle_layout', () => {
       expect(htmlIssues).toContain("legacy generated owner 'page_images_full/' is inapplicable to html-first-v1");
       const htmlStatus = spawnSync('node', [PPT_FLOW, 'status', htmlRun, '--json'], { encoding: 'utf8', timeout: 15_000 });
       expect(htmlStatus.status).toBe(1);
-      expect(JSON.parse(htmlStatus.stdout)).toMatchObject({ pipeline: 'html-first-v1', raw_images: 0, content_gate: 'pending', visual_gate: 'pending' });
+      expect(htmlStatus.stdout).toBe('');
+      expect(JSON.parse(htmlStatus.stderr)).toMatchObject({
+        code: 'FAILED',
+        message: expect.stringContaining('LEGACY_PROTOCOL_ADOPTION_REQUIRED'),
+        where: 'ppt_flow.status.identity',
+        diagnostic: { reason: { kind: 'legacy_protocol_adoption_required' } },
+      });
 
       initWholePageBundle(wholePageDeck, null, 'keynote', 'dark-executive');
       const wholePageRun = join(wholePageDeck, '3_versions', 'v1');

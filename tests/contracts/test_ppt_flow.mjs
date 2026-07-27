@@ -1,22 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, mkdtempSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { encode as encodePng } from "fast-png";
 import { initHtmlFirstBundle, initLegacyFixtureBundle, initWholePageBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readImage2RefinementState, readState, writeImage2RefinementState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { transitionAttempt } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
+import { readState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import {
   buildControllerGateContext,
   selectPilotSlideIds,
 } from "../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
-import {
-  buildImageManifestEntry,
-  emptyImageManifest,
-  generationProfile,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/internal/image_provenance.mjs";
-import { sha256File } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
 import { assemblyReceiptPath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/notes_receipt.mjs";
 import { CONTINUATION_RETURN_CASES, IMAGE2_RETURN_CASES, PPT_FLOW_COMMAND_INVENTORY, PPT_FLOW_RETURN_AUDIT, PRODUCTION_MODE_TRANSITION_RETURN_CASES, validateCliReturnAudit } from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { createHtmlFirstRun, htmlFirstSlide, htmlFirstSource } from "../helpers/html_first_fixture.mjs";
@@ -41,72 +33,24 @@ function runPptFlow(args, opts = {}) {
   });
 }
 
-async function startFakeImage2Relay() {
-  const root = mkdtempSync(join(tmpdir(), "ppt-image2-relay-"));
-  const script = join(root, "relay.mjs");
-  const bytes = Buffer.from(encodePng({
-    width: 1,
-    height: 1,
-    data: new Uint8Array([20, 30, 40, 255]),
-    channels: 4,
-    depth: 8,
-  })).toString("base64");
-  writeFileSync(script, `
-import { createServer } from "node:http";
-const response = ${JSON.stringify({
-  status: "completed",
-  provider_request_id: "fake-cli-request-001",
-  bytes_base64: bytes,
-  media: "image/png",
-  width: 1,
-  height: 1,
-})};
-const server = createServer((request, reply) => {
-  request.resume();
-  request.on("end", () => {
-    reply.writeHead(200, { "Content-Type": "application/json" });
-    reply.end(JSON.stringify(response));
-  });
-});
-server.listen(0, "127.0.0.1", () => process.stdout.write(String(server.address().port) + "\\n"));
-const stop = () => server.close(() => process.exit(0));
-process.on("SIGTERM", stop);
-process.on("SIGINT", stop);
-`);
-  const child = spawn(process.execPath, [script], { stdio: ["ignore", "pipe", "pipe"] });
-  const port = await new Promise((resolvePort, rejectPort) => {
-    const timeout = setTimeout(() => rejectPort(new Error("fake Image2 relay did not start")), 5_000);
-    let stderr = "";
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.once("error", (error) => {
-      clearTimeout(timeout);
-      rejectPort(error);
-    });
-    child.stdout.once("data", (chunk) => {
-      clearTimeout(timeout);
-      const value = Number.parseInt(chunk.toString().trim(), 10);
-      if (Number.isSafeInteger(value) && value > 0) resolvePort(value);
-      else rejectPort(new Error(`fake Image2 relay reported an invalid port: ${stderr}`));
-    });
-    child.once("exit", (code) => {
-      clearTimeout(timeout);
-      rejectPort(new Error(`fake Image2 relay exited before listening (${code}): ${stderr}`));
-    });
-  });
-  return {
-    baseUrl: `http://127.0.0.1:${port}/v1`,
-    stop() {
-      if (child.exitCode === null) child.kill("SIGTERM");
-      rmSync(root, { recursive: true, force: true });
-    },
-  };
-}
-
 function parseFailureEnvelope(stderr) {
   const line = lastNonEmptyLine(stderr);
   const env = JSON.parse(line);
   expect(env.ok).toBe(false);
   return env;
+}
+
+function expectLegacyAdoptionFence(result) {
+  expect(result.status, result.stderr).toBe(1);
+  const envelope = parseFailureEnvelope(result.stderr);
+  expect(envelope).toMatchObject({
+    code: "FAILED",
+    diagnostic: {
+      category: "gate",
+      reason: { kind: "legacy_protocol_adoption_required" },
+    },
+  });
+  expect(envelope.where).toMatch(/\.identity$/);
 }
 
 describe("ppt_flow", () => {
@@ -287,92 +231,39 @@ describe("ppt_flow", () => {
     expect(invalidAudit.errors).toContain("build is missing waiver_force continuation return case");
   });
 
-  it("rejects explicit whole-page Image2 before creating modern state", () => {
+  it("fences historical whole-page Image2 before creating modern state", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-image2-explicit whole-page-"));
     const deck = join(root, "deck_legacy");
     try {
       initWholePageBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const result = runPptFlow(["image2", "plan", runDir, "--profile", "a".repeat(64), "--json"]);
-      expect(result.status).toBe(1);
-      expect(parseFailureEnvelope(result.stderr)).toMatchObject({
-        where: "ppt_flow.image2.plan",
-        diagnostic: { category: "gate", reason: { kind: "image2_refinement_not_applicable" } },
-      });
+      expectLegacyAdoptionFence(result);
       expect(existsSync(join(runDir, "_generated", "image2_refinement"))).toBe(false);
       expect(existsSync(join(runDir, "_scratch", "image2_refinement"))).toBe(false);
-      expect(readImage2RefinementState(readState(deck), "v1")).toBeNull();
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
-  it("routes current HTML Image2 plan/authorization and preserves an unconfigured attempt", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-", { mode: "html-then-image2" });
+  it("fences ordinary historical production commands before provider or state work", () => {
+    const fixture = createHtmlFirstRun("ppt-legacy-production-fence-");
     try {
-      const legacy = runPptFlow(["style-master", fixture.runDir]);
-      expect(legacy.status, legacy.stderr).toBe(0);
-      const guide = JSON.parse(legacy.stdout);
-      expect(guide).toMatchObject({ operation: "style-master", available: false, reason: "reserved-html-adapter" });
-
-      const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
-      expect(planned.status, planned.stderr).toBe(0);
-      const plan = JSON.parse(planned.stdout);
-      expect(plan).toMatchObject({ run_version: "v1", total_attempts: 3 });
-      expect(plan.plan_hash).toMatch(/^[0-9a-f]{64}$/);
-
-      const stale = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", "f".repeat(64), "--json"]);
-      expect(stale.status).toBe(1);
-      expect(parseFailureEnvelope(stale.stderr)).toMatchObject({ code: "GATE_BLOCKED", diagnostic: { category: "gate" } });
-      expect(readImage2RefinementState(readState(fixture.deck), "v1").authorization).toBeNull();
-
-      const authorized = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", plan.plan_hash, "--json"]);
-      expect(authorized.status, authorized.stderr).toBe(0);
-      const authorization = JSON.parse(authorized.stdout);
-      const setup = authorization.authorization.attempts.find((attempt) => attempt.kind === "style-reference");
-      const unconfigured = runPptFlow(
-        ["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--json"],
-        // Prevent a developer's shell credentials from turning this missing-
-        // configuration contract into a live provider call.
-        { env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" } },
-      );
-      expect(unconfigured.status).toBe(1);
-      expect(parseFailureEnvelope(unconfigured.stderr)).toMatchObject({ code: "FAILED", diagnostic: { category: "provider" } });
-      expect(readImage2RefinementState(readState(fixture.deck), "v1").attempts[setup.attempt_id].state).toBe("planned");
+      const statePath = join(fixture.deck, "_state", "state.yaml");
+      const beforeState = readFileSync(statePath);
+      const commands = [
+        ["style-master", fixture.runDir],
+        ["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"],
+        ["approve", fixture.runDir, "content", "--plan-hash", "a".repeat(64)],
+        ["build", fixture.runDir, "--force", "--reason", "Legacy production is fenced."],
+        ["refresh", fixture.runDir, "--kind", "title", "--all", "--dry-run"],
+        ["pilot", fixture.runDir, "--dry-run"],
+      ];
+      for (const args of commands) expectLegacyAdoptionFence(runPptFlow(args, {
+        env: { IMAGE2_API_KEY: "cli-relay-key", IMAGE2_BASE_URL: "http://127.0.0.1:1/v1" },
+      }));
+      expect(readFileSync(statePath)).toEqual(beforeState);
+      expect(existsSync(join(fixture.runDir, "_generated", "image2_refinement"))).toBe(false);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  }, 120_000);
-
-  it("reaches the modern transport from the authorized CLI generate route", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-cli-relay-", { mode: "html-then-image2" });
-    let relay = null;
-    try {
-      const planned = runPptFlow(["image2", "plan", fixture.runDir, "--profile", "a".repeat(64), "--json"]);
-      expect(planned.status, planned.stderr).toBe(0);
-      const plan = JSON.parse(planned.stdout);
-      const authorized = runPptFlow(["image2", "authorize", fixture.runDir, "--plan-hash", plan.plan_hash, "--json"]);
-      expect(authorized.status, authorized.stderr).toBe(0);
-      const setup = JSON.parse(authorized.stdout).authorization.attempts.find((attempt) => attempt.kind === "style-reference");
-      relay = await startFakeImage2Relay();
-
-      const generated = runPptFlow(
-        ["image2", "generate", fixture.runDir, "--attempt-id", setup.attempt_id, "--base-url", relay.baseUrl, "--json"],
-        {
-          env: { IMAGE2_API_KEY: "cli-relay-key", IMAGE2_BASE_URL: "" },
-          timeout: 120_000,
-        },
-      );
-      expect(generated.status, generated.stderr).toBe(0);
-      expect(JSON.parse(generated.stdout)).toMatchObject({
-        attempt: {
-          attempt_id: setup.attempt_id,
-          state: "submitted",
-          provider_request_id: "fake-cli-request-001",
-          promotion_status: "committed",
-        },
-      });
-    } finally {
-      relay?.stop();
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  }, 180_000);
+  }, 30_000);
 
   it("state --json includes resume card fields", () => {
     const root = mkdtempSync(join(tmpdir(), "ppt-resume-"));
@@ -407,7 +298,7 @@ describe("ppt_flow", () => {
     }
   });
 
-  it("state inspection consumes current HTML evidence without mutating it", async () => {
+  it("state inspection gives legacy adoption priority without mutating historical evidence", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-html-resume-guidance-");
     try {
       const state = readState(fixture.deck, { purpose: "observe", heal: false });
@@ -422,17 +313,17 @@ describe("ppt_flow", () => {
       const report = JSON.parse(result.stdout);
       expect(report.html_reviews.visual).toMatchObject({ decision: "pending", freshness: "missing" });
       expect(report.workflow_inspection).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "html-review", kind: "visual-review-missing" },
-        primary_action: { action_id: "review-visual" },
+        posture: "guide",
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { action_id: "prepare-legacy-adoption" },
       });
       expect(report).not.toHaveProperty("html_resume_guidance");
-      expect(report.suggested_next).toBe(report.workflow_inspection.primary_action.display_label);
+      expect(report.suggested_next).toMatch(/--prepare-legacy-adoption/);
       expect(readFileSync(statePath)).toEqual(before);
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120_000);
 
-  it("keeps inspection HTML action ahead of optional Image2 work", async () => {
+  it("keeps adoption ahead of historical Image2 refinement work", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-html-resume-priority-", { mode: "html-then-image2" });
     try {
       const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs");
@@ -449,11 +340,11 @@ describe("ppt_flow", () => {
       const report = JSON.parse(stateResult.stdout);
       expect(report.image2_refinement).toMatchObject({ present: true });
       expect(report.workflow_inspection).toMatchObject({
-        root_cause: { owner: "html-review", kind: "visual-review-missing" },
-        primary_action: { action_id: "review-visual" },
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { action_id: "prepare-legacy-adoption" },
       });
       expect(report).not.toHaveProperty("html_resume_guidance");
-      expect(report.suggested_next).toBe(report.workflow_inspection.primary_action.display_label);
+      expect(report.suggested_next).toMatch(/--prepare-legacy-adoption/);
       expect(report.suggested_next).not.toMatch(/image2-refinement/);
 
       expect(readFileSync(statePath)).toEqual(before);
@@ -540,102 +431,6 @@ describe("ppt_flow", () => {
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120000);
 
-  it("HTML approve requires an exact hash and permits a reasoned waiver without one", async () => {
-    const fixture = createHtmlFirstRun("ppt-approve-html-");
-    try {
-      const { stage1 } = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs");
-      const renderer = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs");
-      const review = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs");
-      await stage1(fixture.runDir, false);
-      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
-      const pending = review.inspectHtmlReviewReadiness(fixture.runDir);
-      const statePath = join(fixture.deck, "_state", "state.yaml");
-      const initialState = readFileSync(statePath);
-
-      const missingHash = runPptFlow(["approve", fixture.runDir, "content"]);
-      expect(missingHash.status).toBe(1);
-      expect(parseFailureEnvelope(missingHash.stderr).code).toBe("USAGE");
-      expect(readFileSync(statePath)).toEqual(initialState);
-
-      const wrongHash = runPptFlow(["approve", fixture.runDir, "content", "--plan-hash", "f".repeat(64)]);
-      expect(wrongHash.status).toBe(1);
-      expect(readFileSync(statePath)).toEqual(initialState);
-
-      const approved = runPptFlow(["approve", fixture.runDir, "content", "--plan-hash", pending.gates.content.plan.plan_hash]);
-      expect(approved.status, approved.stderr).toBe(0);
-      expect(review.inspectHtmlReviewReadiness(fixture.runDir).content).toMatchObject({ decision: "approved", freshness: "current", evidence_complete: true });
-
-      const beforeWaiver = readFileSync(statePath);
-      const missingReason = runPptFlow(["approve", fixture.runDir, "visual", "--waive"]);
-      expect(missingReason.status).toBe(1);
-      expect(parseFailureEnvelope(missingReason.stderr).code).toBe("USAGE");
-      expect(readFileSync(statePath)).toEqual(beforeWaiver);
-
-      const wrongWaiverHash = runPptFlow(["approve", fixture.runDir, "visual", "--waive", "--reason", "Use the current projection.", "--plan-hash", "e".repeat(64)]);
-      expect(wrongWaiverHash.status).toBe(1);
-      expect(readFileSync(statePath)).toEqual(beforeWaiver);
-
-      const waived = runPptFlow(["approve", fixture.runDir, "visual", "--waive", "--reason", "Use the current projection."]);
-      expect(waived.status, waived.stderr).toBe(0);
-      expect(review.inspectHtmlReviewReadiness(fixture.runDir).visual).toMatchObject({ decision: "waived", freshness: "current", evidence_complete: true, waived_checks: [] });
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  }, 60000);
-
-  it("HTML build --force publishes only needed waivers and keeps dry-run read-only", async () => {
-    const fixture = createHtmlFirstRun("ppt-build-force-");
-    try {
-      const { stage1 } = await import("../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs");
-      const { writeState } = await import("../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs");
-      writeFileSync(join(fixture.runDir, "slide-specifications.md"), htmlFirstSource([
-        htmlFirstSlide({ note: "A valid note keeps this continuation test focused on gate evidence." }),
-      ]));
-      await stage1(fixture.runDir, false);
-      const statePath = join(fixture.deck, "_state", "state.yaml");
-      const beforeDryRun = readFileSync(statePath);
-
-      const missingReason = runPptFlow(["build", fixture.runDir, "--force"]);
-      expect(missingReason.status).toBe(1);
-      expect(parseFailureEnvelope(missingReason.stderr).code).toBe("USAGE");
-      expect(readFileSync(statePath)).toEqual(beforeDryRun);
-
-      const dryRun = runPptFlow(["build", fixture.runDir, "--force", "--reason", "Proceed with local delivery while review artifacts are rebuilt.", "--dry-run"]);
-      expect(dryRun.status, dryRun.stderr).toBe(0);
-      expect(JSON.parse(dryRun.stdout)).toMatchObject({ operation: "build", dry_run: true, force_not_needed: false, prospective_waivers: ["content", "visual"] });
-      expect(readFileSync(statePath)).toEqual(beforeDryRun);
-
-      const built = runPptFlow(["build", fixture.runDir, "--force", "--reason", "Proceed with local delivery while review artifacts are rebuilt."], { timeout: 60000 });
-      expect(built.status, built.stderr).toBe(0);
-      const waivedState = readState(fixture.deck, { purpose: "observe", heal: false });
-      expect(waivedState.nodes["html-content-review"].by_version["3_versions/v1"]).toMatchObject({ status: "waived", evidence_complete: false });
-      expect(waivedState.nodes["html-visual-review"].by_version["3_versions/v1"]).toMatchObject({ status: "waived", evidence_complete: false });
-      expect(existsSync(join(fixture.runDir, "_generated", "image2_refinement"))).toBe(false);
-
-      const gateBytes = Buffer.from(JSON.stringify({
-        content: waivedState.nodes["html-content-review"].by_version["3_versions/v1"],
-        visual: waivedState.nodes["html-visual-review"].by_version["3_versions/v1"],
-      }));
-      const unnecessary = runPptFlow(["build", fixture.runDir, "--force", "--reason", "A reason is still required when force is unnecessary."], { timeout: 60000 });
-      expect(unnecessary.status, unnecessary.stderr).toBe(0);
-      expect(unnecessary.stdout).toContain('"force_not_needed":true');
-      const after = readState(fixture.deck, { purpose: "observe", heal: false });
-      expect(Buffer.from(JSON.stringify({
-        content: after.nodes["html-content-review"].by_version["3_versions/v1"],
-        visual: after.nodes["html-visual-review"].by_version["3_versions/v1"],
-      }))).toEqual(gateBytes);
-
-      const partial = createHtmlFirstRun("ppt-build-force-partial-");
-      try {
-        await stage1(partial.runDir, false);
-        const partialState = readState(partial.deck, { purpose: "observe", heal: false });
-        partialState.nodes["html-visual-review"] = { by_version: { "3_versions/v1": { schema: "invalid" } } };
-        writeState(partial.deck, partialState);
-        const blocked = runPptFlow(["build", partial.runDir, "--force", "--reason", "Do not start assembly after a partial waiver."], { timeout: 30000 });
-        expect(blocked.status).toBe(1);
-        expect(existsSync(join(partial.runDir, "_generated", "ppt"))).toBe(false);
-      } finally { rmSync(partial.root, { recursive: true, force: true }); }
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  }, 180000);
-
   it("forced delivery review requires a reason and binds only reviewable current artifacts", async () => {
     const fixture = await createCurrentHtmlDelivery("ppt-delivery-force-cli-");
     try {
@@ -686,47 +481,6 @@ describe("ppt_flow", () => {
     } finally { rmSync(fixture.root, { recursive: true, force: true }); }
   }, 120000);
 
-  it("validates continuation option combinations with one usage envelope", async () => {
-    const htmlFixture = createHtmlFirstRun("ppt-continuation-usage-build-");
-    const deliveryFixture = await createCurrentHtmlDelivery("ppt-continuation-usage-state-", { mode: "html-then-image2" });
-    try {
-      const cases = [
-        {
-          result: runPptFlow(["build", htmlFixture.runDir, "--reason", "A reason without force is invalid." ]),
-          where: "ppt_flow.build.html",
-        },
-        {
-          result: runPptFlow(["state", deliveryFixture.runDir, "--force"]),
-          where: "ppt_flow.state",
-        },
-        {
-          result: runPptFlow(["state", deliveryFixture.runDir, "--reason", "A state reason needs a delivery decision." ]),
-          where: "ppt_flow.state",
-        },
-        {
-          result: runPptFlow(["state", deliveryFixture.runDir, "--validate-state", "--json"]),
-          where: "ppt_flow.state",
-        },
-        {
-          result: runPptFlow(["image2", "plan", deliveryFixture.runDir, "--profile", "a".repeat(64), "--reason", "A plan reason needs force." ]),
-          where: "ppt_flow.image2.plan",
-        },
-        {
-          result: runPptFlow(["image2", "generate", deliveryFixture.runDir, "--force"]),
-          where: "ppt_flow.image2.generate",
-        },
-      ];
-      for (const { result, where } of cases) {
-        expect(result.status, result.stderr).toBe(1);
-        expect((result.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
-        expect(parseFailureEnvelope(result.stderr)).toMatchObject({ code: "USAGE", where });
-      }
-    } finally {
-      rmSync(htmlFixture.root, { recursive: true, force: true });
-      rmSync(deliveryFixture.root, { recursive: true, force: true });
-    }
-  }, 120000);
-
   it("documents the constrained continuation controls in Commander help", () => {
     const approve = runPptFlow(["approve", "--help"]);
     const build = runPptFlow(["build", "--help"]);
@@ -740,78 +494,6 @@ describe("ppt_flow", () => {
     expect(image2.stdout).toMatch(/--force.*offline planning/is);
     expect(image2.stdout).toMatch(/--reason.*image2 plan\s+--force/is);
   });
-
-  it("image2 plan --force records only a bound offline prerequisite waiver", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-force-plan-", { mode: "html-then-image2" });
-    try {
-      const receiptPath = assemblyReceiptPath(fixture.runDir);
-      const assemblyReceipt = JSON.parse(readFileSync(receiptPath, "utf8"));
-      assemblyReceipt.html_delivery_digest = "f".repeat(64);
-      writeFileSync(receiptPath, `${JSON.stringify(assemblyReceipt, null, 2)}\n`);
-      const profile = "a".repeat(64);
-
-      const ordinary = runPptFlow(["image2", "plan", fixture.runDir, "--profile", profile]);
-      expect(ordinary.status).toBe(1);
-      expect(readImage2RefinementState(readState(fixture.deck), "v1")).toBeNull();
-
-      const missingReason = runPptFlow(["image2", "plan", fixture.runDir, "--profile", profile, "--force"]);
-      expect(missingReason.status).toBe(1);
-      expect(parseFailureEnvelope(missingReason.stderr)).toMatchObject({ code: "USAGE" });
-
-      const forced = runPptFlow([
-        "image2", "plan", fixture.runDir, "--profile", profile, "--force",
-        "--reason", "The current final-slide identity is sufficient for an offline refinement plan.",
-      ]);
-      expect(forced.status, forced.stderr).toBe(0);
-      const report = JSON.parse(forced.stdout);
-      expect(report).toMatchObject({
-        schema: "pptmaker-image2-refinement-plan-v2",
-        force_not_needed: false,
-        prerequisite_waiver_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
-      });
-      const record = readImage2RefinementState(readState(fixture.deck), "v1");
-      expect(record.prerequisite_waiver).toMatchObject({
-        run_version: "v1",
-        html_delivery_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
-      });
-      expect(record.plan.prerequisite_waiver_fingerprint).toBe(report.prerequisite_waiver_fingerprint);
-
-      const badOperation = runPptFlow(["image2", "authorize", fixture.runDir, "--force"]);
-      expect(badOperation.status).toBe(1);
-      expect(parseFailureEnvelope(badOperation.stderr)).toMatchObject({ code: "USAGE" });
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  }, 120000);
-
-  it("image2 unknown-submit abandon remains provider-free when credentials are absent", async () => {
-    const fixture = await createCurrentHtmlDelivery("ppt-image2-abandon-offline-", { mode: "html-then-image2" });
-    try {
-      const phase4 = await import("../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs");
-      const plan = await phase4.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
-      await phase4.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-abandon-offline" });
-      const record = readImage2RefinementState(readState(fixture.deck), "v1");
-      const attempt = Object.values(record.attempts).find((entry) => entry.kind === "style-reference");
-      const submitting = transitionAttempt(attempt, "submitting", { updated_at: "2026-07-21T00:00:00.000Z" });
-      record.attempts[attempt.attempt_id] = transitionAttempt(submitting, "unknown-submit", {
-        provider_request_id: "task-abandon-offline-001",
-        failure_code: "unknown-submit",
-        updated_at: "2026-07-21T00:00:01.000Z",
-      });
-      writeImage2RefinementState(fixture.deck, "v1", record);
-
-      const result = runPptFlow([
-        "image2", "unknown-submit", fixture.runDir,
-        "--attempt-id", attempt.attempt_id,
-        "--decision", "abandon",
-        "--json",
-      ], { env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" }, timeout: 120_000 });
-
-      expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toMatchObject({
-        replacement_requires_new_authorization: true,
-        attempt: { attempt_id: attempt.attempt_id, state: "unknown-submit", unknown_submit_resolution: "abandon" },
-      });
-    } finally { rmSync(fixture.root, { recursive: true, force: true }); }
-  }, 180_000);
 
   it("controller gate context reuses real validators and fails closed", async () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-controller-ctx-")), "deck_ctx");
@@ -827,199 +509,6 @@ describe("ppt_flow", () => {
       rmSync(deck, { recursive: true, force: true });
     }
   });
-
-  it("approve dual-writes metadata and _state gates", () => {
-    const deck = join(mkdtempSync(join(tmpdir(), "ppt-approve-")), "deck_approve");
-    try {
-      initWholePageBundle(deck, null, "keynote", "dark-executive");
-      const runDir = join(deck, "3_versions", "v1");
-      const r = runPptFlow(["approve", runDir, "visual"]);
-      expect(r.status).toBe(0);
-      const meta = readFileSync(join(deck, "project-metadata.yaml"), "utf-8");
-      expect(meta).toMatch(/visual_gate:\s*approved/);
-      const s = readState(deck);
-      expect(s.gates.visual).toBe("approved");
-      const r2 = runPptFlow(["approve", runDir, "content", "--waive"]);
-      expect(r2.status).toBe(0);
-      const meta2 = readFileSync(join(deck, "project-metadata.yaml"), "utf-8");
-      expect(meta2).toMatch(/content_gate:\s*waived/);
-      const s2 = readState(deck);
-      expect(s2.gates.content).toBe("waived");
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it("approve header merges version-scoped pilot batches without metadata gate writes", () => {
-    const deck = join(mkdtempSync(join(tmpdir(), "ppt-header-approve-")), "deck_header");
-    try {
-      initWholePageBundle(deck, null, "keynote", "dark-executive");
-      const runDir = join(deck, "3_versions", "v1");
-      const generated = join(runDir, "_generated");
-      const promptsDir = join(generated, "page_prompts");
-      const imagesDir = join(generated, "page_images_full");
-      const qaDir = join(generated, "qa");
-      const previewDir = join(generated, "preview");
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
-production:
-  pipeline: whole-page-image2-v1
-render:
-  default: full-page
-  header-lock: []
----
-
-## Slide 01 — \`c1\`
-**VISUAL TYPE**: Framework
-**KICKER**: ONE
-**TITLE**: First content title
-**IMAGE PROMPT**: Create a clear three-part framework diagram with large labels.
-
-## Slide 02 — \`c2\`
-**VISUAL TYPE**: Direction
-**KICKER**: TWO
-**TITLE**: Second content title
-**IMAGE PROMPT**: Create a clear directional roadmap with three milestones.
-`, "utf-8");
-      const stage1 = spawnSync("node", [
-        "PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs",
-        "--run-dir", runDir,
-        "--stage", "1",
-      ], { encoding: "utf-8", timeout: 15000, env: process.env });
-      expect(stage1.status).toBe(0);
-      const stylePath = join(deck, "2_backbone", "visual-style", "style_master.jpg");
-      writeFileSync(stylePath, "style");
-      mkdirSync(imagesDir, { recursive: true });
-      mkdirSync(qaDir, { recursive: true });
-      mkdirSync(previewDir, { recursive: true });
-      const prompts = JSON.parse(readFileSync(join(promptsDir, "_prompts.json"), "utf-8")).slides;
-      const profile = generationProfile({
-        styleReferenceSha256: sha256File(stylePath),
-        resolution: "1k",
-        model: "gpt-image-2",
-        semanticOptions: { size: "16:9", n: 1 },
-      });
-      const manifest = emptyImageManifest();
-      for (const prompt of prompts) {
-        const imagePath = join(imagesDir, prompt.out);
-        writeFileSync(imagePath, `image-${prompt.id}`);
-        manifest.slides[prompt.id] = buildImageManifestEntry({
-          slideId: prompt.id,
-          output: prompt.out,
-          prompt: prompt.prompt.trim(),
-          profile,
-          imagePath,
-        });
-      }
-      writeFileSync(join(imagesDir, "_manifest.json"), JSON.stringify(manifest), "utf-8");
-      writeFileSync(join(previewDir, "pilot_final_contact_sheet.jpg"), "reviewed", "utf-8");
-
-      const plan = JSON.parse(readFileSync(join(generated, "slide_plan.json"), "utf-8")).slides;
-      writeFileSync(join(qaDir, "pilot_slide_plan.json"), JSON.stringify({ slides: [plan[0]] }), "utf-8");
-      const first = runPptFlow(["approve", runDir, "header"]);
-      expect(first.status, first.stderr).toBe(0);
-      let state = readState(deck);
-      const v1 = state.nodes["header-review"].by_version["3_versions/v1"];
-      expect(v1.slides).toBeDefined();
-      expect(v1.slides.c1.status).toBe("reviewed");
-
-      writeFileSync(join(qaDir, "pilot_slide_plan.json"), JSON.stringify({ slides: [plan[1]] }), "utf-8");
-      const second = runPptFlow(["approve", runDir, "header"]);
-      expect(second.status).toBe(0);
-      state = readState(deck);
-      const record = state.nodes["header-review"].by_version["3_versions/v1"];
-      expect(record.slides.c2.status).toBe("reviewed");
-      expect(state.gates.header).toBeUndefined();
-      expect(readFileSync(join(deck, "project-metadata.yaml"), "utf-8")).not.toMatch(/header_gate/);
-
-      const reviewedRefresh = runPptFlow([
-        "refresh", runDir, "--kind", "title", "--only", "1", "--resolution", "1k", "--dry-run",
-      ]);
-      expect(reviewedRefresh.status).toBe(0);
-
-      // Per-slide state verified: both slides are reviewed in the new format
-      expect(record.slides.c1.status).toBe("reviewed");
-      expect(record.slides.c2.status).toBe("reviewed");
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  }, 20_000);
-
-  it("approve header waiver requires both ids and a reason", () => {
-    const deck = join(mkdtempSync(join(tmpdir(), "ppt-header-waive-")), "deck_waive");
-    try {
-      initWholePageBundle(deck, null, "keynote", "dark-executive");
-      const runDir = join(deck, "3_versions", "v1");
-      const result = runPptFlow(["approve", runDir, "header", "--waive", "--only", "1"]);
-      expect(result.status).toBe(1);
-      const envelope = parseFailureEnvelope(result.stderr);
-      expect(envelope.code).toBe("USAGE");
-      expect(envelope.message).toMatch(/--only.*--reason/);
-    } finally {
-      rmSync(deck, { recursive: true, force: true });
-    }
-  });
-
-  it("title refresh keeps body-only Header Text & Style Refresh and requires selectors for mixed decks", () => {
-    const bodyDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-body-")), "deck_title_body");
-    const mixedDeck = join(mkdtempSync(join(tmpdir(), "ppt-title-mixed-")), "deck_title_mixed");
-    try {
-      initWholePageBundle(bodyDeck, null, "keynote", "dark-executive");
-      const bodyRun = join(bodyDeck, "3_versions", "v1");
-      writeFileSync(join(bodyRun, "slide-specifications.md"), `---
-production:
-  pipeline: whole-page-image2-v1
-render:
-  default: body+header-lock
-  header-lock: []
----
-
-## Slide 01 — \`body\`
-**VISUAL TYPE**: Framework
-**TITLE**: Body title
-**IMAGE PROMPT**: Create a simple body diagram with two labeled sections.
-`, "utf-8");
-      const body = runPptFlow(["refresh", bodyRun, "--kind", "title", "--dry-run"]);
-      expect(body.status).toBe(0);
-      expect(body.stdout).toMatch(/--stage 3,4,5/);
-      expect(body.stdout).not.toMatch(/--stage 1,2,3,4,5/);
-
-      initWholePageBundle(mixedDeck, null, "keynote", "dark-executive");
-      const mixedRun = join(mixedDeck, "3_versions", "v1");
-      writeFileSync(join(mixedRun, "slide-specifications.md"), `---
-production:
-  pipeline: whole-page-image2-v1
-render:
-  default: full-page
-  header-lock:
-    - body
----
-
-## Slide 01 — \`full\`
-**VISUAL TYPE**: Framework
-**TITLE**: Full title
-**IMAGE PROMPT**: Create a complete visual with a strong central framework.
-
-## Slide 02 — \`body\`
-**VISUAL TYPE**: Direction
-**TITLE**: Body title
-**IMAGE PROMPT**: Create a body visual with one directional sequence.
-`, "utf-8");
-      const noSelector = runPptFlow(["refresh", mixedRun, "--kind", "title", "--dry-run"]);
-      expect(noSelector.status).toBe(1);
-      expect(parseFailureEnvelope(noSelector.stderr).code).toBe("USAGE");
-
-      for (const selector of [["--only", "1"], ["--all"]]) {
-        const result = runPptFlow([
-          "refresh", mixedRun, "--kind", "title", ...selector, "--resolution", "1k", "--dry-run",
-        ]);
-        // New behavior: no header review record → gate passes → refresh succeeds
-        expect(result.status).toBe(0);
-      }
-    } finally {
-      rmSync(bodyDeck, { recursive: true, force: true });
-      rmSync(mixedDeck, { recursive: true, force: true });
-    }
-  }, 20_000);
 
   it("status rejects a pre-current state without rewriting its bytes", () => {
     const deck = join(mkdtempSync(join(tmpdir(), "ppt-status-")), "deck_status");
@@ -1063,7 +552,7 @@ playbook_stack: []
       expect(r.status).toBe(1);
       const envelope = parseFailureEnvelope(r.stderr);
       expect(envelope.diagnostic.next).toMatchObject({ action: "repair_prerequisite", requires_human: false });
-      expect(envelope.diagnostic.next.default).toMatch(/preserve.*bytes.*ppt_flow init/i);
+      expect(envelope.diagnostic.next.default).toMatch(/inspect.*source\/state.*repair.*export/i);
       expect(readFileSync(stateFile)).toEqual(stateBefore);
       expect(existsSync(historyFile) ? readFileSync(historyFile) : null).toEqual(historyBefore);
     } finally {
@@ -1103,18 +592,6 @@ production:
       expect(JSON.parse(list.stdout).slides).toEqual([
         { slide_id: "DeckGo", position: 1, title: "Opening claim" },
         { slide_id: "UXGap", position: 2, title: "Why the old workflow breaks" },
-      ]);
-      const stage1 = spawnSync("node", [
-        "PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs",
-        "--run-dir", runDir,
-        "--stage", "1",
-      ], { encoding: "utf8", timeout: 10000 });
-      expect(stage1.status, stage1.stderr).toBe(0);
-      const status = runPptFlow(["status", runDir, "--json"]);
-      expect(status.status).toBe(0);
-      expect(JSON.parse(status.stdout).slide_labels).toEqual([
-        "01 · DeckGo · Opening claim",
-        "02 · UXGap · Why the old workflow breaks",
       ]);
       const resolved = runPptFlow(["slides", "resolve", runDir, "UXGap", "UX gap", "2", "--json"]);
       expect(resolved.status).toBe(0);
@@ -1456,7 +933,7 @@ describe("pilot selector", () => {
       expect(parseFailureEnvelope(pilot.stderr)).toMatchObject({
         code: "FAILED",
         where: "ppt_flow.pilot.identity",
-        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+        diagnostic: { reason: { kind: "current_protocol_repair_required" } },
       });
       expect((pilot.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
       expect(existsSync(join(runDir, "_generated", "slide_plan.json"))).toBe(false);
@@ -1467,7 +944,7 @@ describe("pilot selector", () => {
       expect(parseFailureEnvelope(doctor.stderr)).toMatchObject({
         code: "FAILED",
         where: "ppt_flow.doctor.run-dir",
-        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+        diagnostic: { reason: { kind: "current_protocol_repair_required" } },
       });
       expect((doctor.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
 
@@ -1481,7 +958,7 @@ describe("pilot selector", () => {
       expect(parseFailureEnvelope(direct.stderr)).toMatchObject({
         code: "FAILED",
         where: "unified_pipeline.production-adapter",
-        diagnostic: { reason: { kind: "mode_source_mismatch" } },
+        diagnostic: { reason: { kind: "current_protocol_repair_required" } },
       });
       expect((direct.stderr.match(/"ok"\s*:\s*false/g) || []).length).toBe(1);
       expect(existsSync(join(runDir, "_generated", "slide_plan.json"))).toBe(false);
@@ -1490,59 +967,4 @@ describe("pilot selector", () => {
     }
   });
 
-  it("requires first-class Image2 authorization only at a real provider boundary", () => {
-    const root = mkdtempSync(join(tmpdir(), "ppt-image2-authorization-"));
-    try {
-      const deck = join(root, "deck_image2_authorization");
-      initWholePageBundle(deck, null, "keynote", "dark-executive");
-      const runDir = join(deck, "3_versions", "v1");
-      const styleMaster = join(deck, "2_backbone", "visual-style", "style_master.jpg");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style-master-prompt.md"), "first-class style prompt", "utf8");
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
-production:
-  pipeline: whole-page-image2-v1
-render:
-  default: full-page
-  header-lock: []
----
-
-## Slide 01 — \`PilotGo\`
-**VISUAL TYPE**: Framework
-**KICKER**: PILOT
-**TITLE**: First-class authorization boundary
-**IMAGE PROMPT**: Create a clear, full-page framework with one focal idea and readable labels.
-`, "utf8");
-
-      const missingStyleAuthorization = runPptFlow(["style-master", runDir], {
-        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
-      });
-      expect(missingStyleAuthorization.status).not.toBe(0);
-      expect(parseFailureEnvelope(missingStyleAuthorization.stderr)).toMatchObject({
-        code: "FAILED",
-        diagnostic: { category: "gate" },
-      });
-      expect(existsSync(styleMaster)).toBe(false);
-
-      // Proven local reuse stays provider-free: the adapter returns before
-      // credential/authorization lookup when its current style bytes exist.
-      writeFileSync(styleMaster, "current-style-bytes", "utf8");
-      const reusedStyle = runPptFlow(["style-master", runDir], {
-        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
-      });
-      expect(reusedStyle.status, reusedStyle.stderr).toBe(0);
-
-      const pilot = runPptFlow(["pilot", runDir, "--count", "1"], {
-        env: { IMAGE2_API_KEY: "", IMAGE2_BASE_URL: "" },
-        timeout: 30000,
-      });
-      expect(pilot.status).not.toBe(0);
-      expect(parseFailureEnvelope(pilot.stderr)).toMatchObject({
-        code: "FAILED",
-        diagnostic: { category: "gate" },
-      });
-      expect(existsSync(join(runDir, "_generated", "page_images_full"))).toBe(false);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
 });

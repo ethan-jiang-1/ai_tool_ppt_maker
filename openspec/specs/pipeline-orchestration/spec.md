@@ -679,12 +679,17 @@ completion, target approval, or content conversion authority.
 - **AND** it does not read a source intake decision as a substitute
 
 ### Requirement: Whole-page routing has one current protocol
-Pipeline orchestration SHALL route an `image2-only` run through the explicit `whole-page-image2-v1` contract. It SHALL not expose a retired maintenance adapter or a source-to-HTML migration command.
+Pipeline orchestration SHALL route a Page Authority target only through the exact `page-authority-image2-v1` / `image2-page-authority` contract and shall route a current supported `image2-only` run only through the explicit `whole-page-image2-v1` contract. Before ordinary legacy pipeline dispatch, it SHALL consume the direct legacy protocol observer. A `recognized-legacy` result SHALL stop ordinary whole-page or HTML production before source parsing beyond identity, renderer setup, generated-artifact inspection, credential lookup, transport initialization, or provider work and return `LEGACY_PROTOCOL_ADOPTION_REQUIRED` with the provider-free adoption action. It SHALL not expose a retired maintenance adapter, a source-to-HTML migration command, or a legacy-to-Page-Authority conversion.
 
-#### Scenario: Whole-page operation is requested
-- **WHEN** a current whole-page run invokes a pipeline operation
+#### Scenario: Current Page Authority operation is requested
+- **WHEN** an exact Page Authority run invokes a pipeline operation
 - **THEN** orchestration resolves its explicit mode and source marker
 - **AND** it rejects an unavailable or inconsistent state before work begins
+
+#### Scenario: Recognized historical Image2 source operation is requested
+- **WHEN** a recognized `image2-only` run invokes an ordinary pipeline operation
+- **THEN** orchestration returns the typed adoption-required result before provider or generated-path work
+- **AND** it does not reuse a whole-page image as Page Authority raw evidence
 
 ### Requirement: Page Authority has one receipt-to-delivery lifecycle
 Pipeline Orchestration SHALL execute Page Authority as composition receipt, raw evidence, raw review,

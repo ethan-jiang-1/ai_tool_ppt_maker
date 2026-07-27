@@ -236,8 +236,67 @@ function preflightAdapterSource(resolved, where) {
 
 async function resolveRunAdapter(runDir, where, { allowPageAuthority = false } = {}) {
   const resolved = resolve(runDir || "");
-  if (preflightAdapterSource(resolved, where)) return null;
   const deckDir = deckRoot(resolved);
+  const { inspectLegacyProtocol } = await import("./shared/state/legacy_protocol_adoption.mjs");
+  const protocol = inspectLegacyProtocol(resolved);
+  if (protocol.classification === "recognized-legacy") {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "LEGACY_PROTOCOL_ADOPTION_REQUIRED: this historical run must use the provider-free Page Authority adoption route before production work.",
+      hint: "Inspect or prepare the explicit Page Authority candidate and per-slide adoption matrix; adoption itself makes no provider request.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "gate",
+        operation: "resolve-legacy-protocol",
+        source: { path: resolved },
+        reason: { kind: "legacy_protocol_adoption_required", actual: protocol.observation_sha256 },
+        next: createCliNext("repair_prerequisite", {
+          default: `Run ppt_flow state ${JSON.stringify(resolved)} --prepare-legacy-adoption, then preview the exact provider-free adoption plan.`,
+        }),
+      },
+    });
+    return null;
+  }
+  if (protocol.classification === "current-pair-corrupt") {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "CURRENT_PROTOCOL_REPAIR_REQUIRED: the Page Authority source/state pair is incomplete or inconsistent.",
+      hint: "Preserve the current bytes and repair the Page Authority pair through its owning state/source boundary; do not infer legacy adoption.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "gate",
+        operation: "resolve-current-protocol",
+        source: { path: resolved },
+        reason: { kind: "current_protocol_repair_required", actual: protocol.observation_sha256 },
+        next: createCliNext("repair_prerequisite", {
+          default: "Repair the exact Page Authority source/state pair, then rerun the selected operation.",
+        }),
+      },
+    });
+    return null;
+  }
+  if (protocol.classification === "unsupported-or-corrupt") {
+    emitCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "UNSUPPORTED_PROTOCOL_REPAIR_REQUIRED: the run does not contain an exact supported legacy or Page Authority source/state pair.",
+      hint: "Preserve the current bytes and use the owning repair/export path; do not infer a production adapter or adoption candidate.",
+      where,
+      diagnostic: {
+        version: 1,
+        category: "gate",
+        operation: "resolve-unsupported-protocol",
+        source: { path: resolved },
+        reason: { kind: "unsupported_protocol_repair_required", actual: protocol.observation_sha256 },
+        next: createCliNext("repair_prerequisite", {
+          default: "Inspect the exact source/state pair and repair or export it before selecting a production route.",
+        }),
+      },
+    });
+    return null;
+  }
+  if (preflightAdapterSource(resolved, where)) return null;
   const { resolveRunProductionAdapter } = await import("./shared/state/state.mjs");
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
   if (route.ok && route.adapter === "page-authority-image2" && !allowPageAuthority) {
@@ -3355,6 +3414,13 @@ Examples:
     .option("--apply-production-mode-transition", "Publish and hand off an exact confirmed cross-pipeline transition")
     .option("--confirm-production-mode-transition-recovery <ownerToken>", "Record an exact old-enough uncertain transition-journal confirmation")
     .option("--recover-production-mode-transition [ownerToken]", "Recover an exact transition journal or visible target")
+    .option("--inspect-legacy-protocol", "Read the exact legacy/Page Authority protocol classification without writing")
+    .option("--prepare-legacy-adoption", "Prepare the fixed Page Authority adoption candidate")
+    .option("--preview-legacy-adoption", "Preview the prepared Page Authority adoption candidate")
+    .option("--confirm-legacy-adoption", "Confirm the exact Page Authority adoption preview")
+    .option("--apply-legacy-adoption", "Publish and hand off an exact confirmed legacy adoption")
+    .option("--confirm-legacy-adoption-recovery <ownerToken>", "Record an exact old-enough uncertain legacy-adoption journal confirmation")
+    .option("--recover-legacy-adoption [ownerToken]", "Recover an exact legacy-adoption journal or visible target")
     .option("--force", "For --record-delivery-review proceed: waive a reversible HTML evidence risk")
     .option("--reason <text>", "Required for repair/redirect and forced proceed decisions")
     .option("--set-production-mode <mode>", "Set the exact run version's production mode (same-pipeline html-only<->html-then-image2)")
@@ -3367,7 +3433,7 @@ Examples:
       // Validate the closed state grammar before resolving a run, importing a
       // state owner, or probing source. Mixed forms must be a zero-read/zero-
       // write USAGE failure.
-      const transitionOperations = Number(Boolean(opts.prepareProductionModeTransition)) + Number(Boolean(opts.previewProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransition)) + Number(Boolean(opts.applyProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransitionRecovery)) + Number(Boolean(opts.recoverProductionModeTransition));
+      const transitionOperations = Number(Boolean(opts.prepareProductionModeTransition)) + Number(Boolean(opts.previewProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransition)) + Number(Boolean(opts.applyProductionModeTransition)) + Number(Boolean(opts.confirmProductionModeTransitionRecovery)) + Number(Boolean(opts.recoverProductionModeTransition)) + Number(Boolean(opts.inspectLegacyProtocol)) + Number(Boolean(opts.prepareLegacyAdoption)) + Number(Boolean(opts.previewLegacyAdoption)) + Number(Boolean(opts.confirmLegacyAdoption)) + Number(Boolean(opts.applyLegacyAdoption)) + Number(Boolean(opts.confirmLegacyAdoptionRecovery)) + Number(Boolean(opts.recoverLegacyAdoption));
       const specialOperations = Number(Boolean(opts.recoverGateJournal)) + Number(Boolean(opts.recordDeliveryReview)) + Number(Boolean(opts.validateState)) + transitionOperations + Number(Boolean(opts.setProductionMode)) + Number(Boolean(opts.repairProductionModeMirror)) + Number(Boolean(opts.registerProductionModeFrom)) + Number(Boolean(opts.recordImage2DeliveryReview)) + Number(Boolean(opts.recordPageAuthorityDeliveryReview));
       if (specialOperations > 1 || (specialOperations > 0 && (opts.json || opts.checkGates))) {
         emitUsage("ppt_flow.state", "state repair/evidence operations are mutually exclusive with --json/--check-gates and each other", "Run one closed state operation at a time.");
@@ -3384,8 +3450,8 @@ Examples:
         process.exitCode = 1;
         return;
       }
-      if (opts.planHash && !opts.confirmProductionModeTransition && !opts.applyProductionModeTransition) {
-        emitUsage("ppt_flow.state", "--plan-hash applies only to production-mode-transition confirmation or apply", "Use the exact preview hash with one closed confirmation or apply operation.");
+      if (opts.planHash && !opts.confirmProductionModeTransition && !opts.applyProductionModeTransition && !opts.confirmLegacyAdoption && !opts.applyLegacyAdoption) {
+        emitUsage("ppt_flow.state", "--plan-hash applies only to production-mode-transition or legacy-adoption confirmation or apply", "Use the exact preview hash with one closed confirmation or apply operation.");
         process.exitCode = 1;
         return;
       }
@@ -3410,9 +3476,22 @@ Examples:
         process.exitCode = 1;
         return;
       }
+      if (opts.inspectLegacyProtocol) {
+        try {
+          const { inspectLegacyProtocol } = await import("./shared/state/legacy_protocol_adoption.mjs");
+          const result = inspectLegacyProtocol(resolved);
+          console.log(JSON.stringify({ operation: "inspect-legacy-protocol", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.inspect-legacy-protocol", error.message, "Inspect the canonical source/state pair and repair only its owning protocol boundary.");
+          process.exitCode = 1;
+          return;
+        }
+      }
       if (opts.prepareProductionModeTransition) {
-        if (!PRODUCTION_MODES.includes(opts.prepareProductionModeTransition)) {
-          emitUsage("ppt_flow.state.prepare-production-mode-transition", `target mode must be one of ${[...PRODUCTION_MODES].join(", ")}`, "Choose the target page-authority mode before authoring its candidate.");
+        const genericTransitionModes = PRODUCTION_MODES.filter((mode) => mode !== "image2-page-authority");
+        if (!genericTransitionModes.includes(opts.prepareProductionModeTransition)) {
+          emitUsage("ppt_flow.state.prepare-production-mode-transition", `target mode must be one of ${genericTransitionModes.join(", ")}`, "Use --prepare-legacy-adoption for the fixed Page Authority target.");
           process.exitCode = 1;
           return;
         }
@@ -3427,6 +3506,18 @@ Examples:
           return;
         }
       }
+      if (opts.prepareLegacyAdoption) {
+        try {
+          const { prepareLegacyProtocolAdoption } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await prepareLegacyProtocolAdoption(resolved);
+          console.log(JSON.stringify({ operation: "prepare-legacy-adoption", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.prepare-legacy-adoption", error.message, "Inspect the exact source/state pair, then author only the confined Page Authority candidate inputs.");
+          process.exitCode = 1;
+          return;
+        }
+      }
       if (opts.previewProductionModeTransition) {
         try {
           const { previewProductionModeTransition } = await import("./shared/state/production_mode_transition.mjs");
@@ -3435,6 +3526,18 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.preview-production-mode-transition", error.message, "Complete the target-owned candidate fields or prepare a fresh transition preview.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.previewLegacyAdoption) {
+        try {
+          const { previewLegacyProtocolAdoption } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await previewLegacyProtocolAdoption(resolved);
+          console.log(JSON.stringify({ operation: "preview-legacy-adoption", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.preview-legacy-adoption", error.message, "Complete the confined Page Authority candidate and exact adoption matrix, then prepare a fresh preview.");
           process.exitCode = 1;
           return;
         }
@@ -3456,6 +3559,23 @@ Examples:
           return;
         }
       }
+      if (opts.confirmLegacyAdoption) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
+          emitUsage("ppt_flow.state.confirm-legacy-adoption", "confirmation requires only --plan-hash <64-lowercase-hex>", "Copy the exact legacy-adoption preview hash.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { confirmPreparedLegacyProtocolAdoption } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await confirmPreparedLegacyProtocolAdoption(resolved, { planHash: opts.planHash });
+          console.log(JSON.stringify({ operation: "confirm-legacy-adoption", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.confirm-legacy-adoption", error.message, "Reinspect the unchanged legacy source and Page Authority candidate, then confirm only the exact current adoption preview.");
+          process.exitCode = 1;
+          return;
+        }
+      }
       if (opts.applyProductionModeTransition) {
         if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
           emitUsage("ppt_flow.state.apply-production-mode-transition", "apply requires only --plan-hash <64-lowercase-hex>", "Apply only the exact confirmed production-mode transition hash.");
@@ -3469,6 +3589,23 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.apply-production-mode-transition", error.message, "Use the exact active transition checkpoint or its closed recovery operation; do not edit state or generated artifacts manually.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.applyLegacyAdoption) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.planHash || "")) {
+          emitUsage("ppt_flow.state.apply-legacy-adoption", "apply requires only --plan-hash <64-lowercase-hex>", "Apply only the exact confirmed legacy-adoption hash.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { applyLegacyProtocolAdoption } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await applyLegacyProtocolAdoption(resolved, { planHash: opts.planHash });
+          console.log(JSON.stringify({ operation: "apply-legacy-adoption", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.apply-legacy-adoption", error.message, "Use the exact active adoption checkpoint or its closed recovery operation; do not edit state or generated artifacts manually.");
           process.exitCode = 1;
           return;
         }
@@ -3493,6 +3630,26 @@ Examples:
           return;
         }
       }
+      if (opts.confirmLegacyAdoptionRecovery) {
+        if (!MIGRATION_PLAN_SHA_RE.test(opts.confirmLegacyAdoptionRecovery)) {
+          emitUsage("ppt_flow.state.confirm-legacy-adoption-recovery", "--confirm-legacy-adoption-recovery requires a 64-lowercase-hex owner token", "Use the exact opaque token from the uncertain-owner recovery diagnostic.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { recordActiveProductionModeTransitionRecoveryConfirmation } = await import("./shared/state/state.mjs");
+          const result = recordActiveProductionModeTransitionRecoveryConfirmation(deckDir, {
+            sourceRunVersion: basename(resolved),
+            ownerToken: opts.confirmLegacyAdoptionRecovery,
+          });
+          console.log(JSON.stringify({ operation: "confirm-legacy-adoption-recovery", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.confirm-legacy-adoption-recovery", error.message, "Re-inspect the exact active adoption journal and retry only its matching owner token after the required age.");
+          process.exitCode = 1;
+          return;
+        }
+      }
       if (opts.recoverProductionModeTransition) {
         const ownerToken = opts.recoverProductionModeTransition === true ? null : opts.recoverProductionModeTransition;
         if (ownerToken !== null && !MIGRATION_PLAN_SHA_RE.test(ownerToken)) {
@@ -3507,6 +3664,24 @@ Examples:
           return;
         } catch (error) {
           emitFailed("ppt_flow.state.recover-production-mode-transition", error.message, "Follow the producer-owned journal or visible-target recovery checkpoint without replacing source work.");
+          process.exitCode = 1;
+          return;
+        }
+      }
+      if (opts.recoverLegacyAdoption) {
+        const ownerToken = opts.recoverLegacyAdoption === true ? null : opts.recoverLegacyAdoption;
+        if (ownerToken !== null && !MIGRATION_PLAN_SHA_RE.test(ownerToken)) {
+          emitUsage("ppt_flow.state.recover-legacy-adoption", "recovery owner token must be a 64-lowercase-hex token", "Pass no token for an exact visible target or the exact token for an uncertain adoption journal.");
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          const { recoverLegacyProtocolAdoption } = await import("./shared/state/production_mode_transition.mjs");
+          const result = await recoverLegacyProtocolAdoption(resolved, { ownerToken });
+          console.log(JSON.stringify({ operation: "recover-legacy-adoption", ...result }));
+          return;
+        } catch (error) {
+          emitFailed("ppt_flow.state.recover-legacy-adoption", error.message, "Follow the producer-owned adoption journal or visible-target recovery checkpoint without replacing source work.");
           process.exitCode = 1;
           return;
         }

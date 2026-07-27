@@ -1,6 +1,6 @@
 ---
 playbook: create-deck
-description: source/state-routed create 流程；新 deck 使用 Page Authority，legacy mode 仅服务显式 existing run
+description: source/state-routed create 流程；新 deck 使用 Page Authority，legacy run 仅可显式 adoption
 supported_pipelines: [html-first-v1, whole-page-image2-v1, page-authority-image2-v1]
 supported_production_modes: [html-only, html-then-image2, image2-only, image2-page-authority]
 includes: []
@@ -8,9 +8,9 @@ includes: []
 
 # Playbook: Create Deck
 
-本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。新 deck 的唯一路径是 `image2-page-authority`：逐页明确 `pure-image2|framed-image2`，先取得 scoped raw authorization，再做 raw review、单一 final manifest、PPTX/notes 和 evidence-bound delivery review。`image2-only` 是 existing-run 的 first-class whole-page 生产路径；`html-only` 与 `html-then-image2` 是 existing-run 的 `html-first-v1` 路径。跨 pipeline 改 mode 不编辑当前 version；state-owned versioned transition 保留 source、author target-owned candidate、确认 exact plan，并在 verified handoff 后从此 controller 的 target baseline 继续。
+本 controller 用 exact version 的 authoritative `production_mode` 过滤节点，再验证 source pipeline。新 deck 的唯一路径是 `image2-page-authority`：逐页明确 `pure-image2|framed-image2`，先取得 scoped raw authorization，再做 raw review、单一 final manifest、PPTX/notes 和 evidence-bound delivery review。`html-only`、`html-then-image2` 与 `image2-only` 只可作为 exact historical source/state pair 被 observer 读取；它们不再进入普通 legacy controller/dispatch。跨 pipeline 改 mode 不编辑当前 version；state-owned versioned transition 保留 source、author target-owned candidate、确认 exact plan，并在 verified handoff 后从此 controller 的 target baseline 继续。
 
-`image2-only` 默认选择 normal whole-page style-master, pilot, content/visual/header review, build, PPTX, notes, evidence-bound final review；每个实际 provider submit 前单独展示并记录 exact operation/scope/profile/count authorization。已证明的 zero-submit reuse/local work 不虚构授权。`html-only` 是 zero-provider 本地完成路径；`html-then-image2` 在 HTML final review 后进入必需的 `image2-refine` handoff，再回到新的 final review。所有质量 gate 基于当前真实 artifact；init、doctor、probe 和旧批次都不是 provider authorization。
+对于 recognized legacy run，先显示 observer 的 provider-free adoption action。Agent 只准备 source-local candidate shell；人类逐页 author Page Authority source 和 adoption matrix，preview/confirm exact target intake hash 后才发布 clean vNext。发布出的 target 是 `image2-page-authority` / `source_epoch: 1`，从 `authorize-page-authority-raw` 重新开始，所有 target slide 都有 `needs_raw_generation`。它不复制 legacy prompt、pixel、generated/review/provider/PPTX/notes/delivery evidence，也不把旧 authorization 当新 target 的授权。下方保留的 legacy node 定义仅是 historical source evidence，不能作为 adoption 前的普通命令路由；Image2 quality 仍由 target raw projection 的人审或显式授权 pilot 决定。
 
 ## Nodes
 

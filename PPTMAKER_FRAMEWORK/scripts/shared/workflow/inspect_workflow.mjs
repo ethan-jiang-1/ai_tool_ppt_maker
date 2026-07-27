@@ -23,6 +23,7 @@ import {
   validateStateReadOnly,
 } from "../state/state.mjs";
 import { inspectHtmlReviewReadiness } from "../state/html_review_evidence.mjs";
+import { inspectLegacyProtocol } from "../state/legacy_protocol_adoption.mjs";
 
 export const WORKFLOW_INSPECTION_SCHEMA = "pptmaker-workflow-inspection-v1";
 
@@ -112,6 +113,7 @@ function snapshot(runDir, deckDir, facts) {
     review_sha256: sha256(canonicalJson(facts.review)),
     refinement_sha256: sha256(canonicalJson(facts.refinement)),
     page_authority_sha256: sha256(canonicalJson(facts.pageAuthority ?? null)),
+    legacy_protocol_sha256: sha256(canonicalJson(facts.legacyProtocol ?? null)),
   });
 }
 
@@ -246,7 +248,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
   const intent = requestedIntent == null ? null : requestedIntent;
   const invalidIntent = intent !== null && !isOwnerIssuedIntent(intent);
 
-  const facts = (layoutIssues) => {
+  const facts = (layoutIssues, legacyProtocol) => {
     const validation = validateStateReadOnly(deckDir, { runDir: resolved });
     const adapter = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
     const mode = adapter.ok
@@ -306,15 +308,15 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
       };
     }
     const completion = mode.ok && mode.mode ? projectModeCompletion(state, { runVersion: basename(resolved) }) : null;
-    return { layoutIssues, validation, mode, state, review, refinement, pageAuthority, pipeline, completion };
+    return { layoutIssues, validation, mode, state, review, refinement, pageAuthority, pipeline, completion, legacyProtocol };
   };
 
   const initialLayoutIssues = checkBundle(resolved, false);
   if (initialLayoutIssues.length > 0) {
-    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null };
+    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: null };
     const initialCheckpoint = snapshot(resolved, deckDir, initial);
     const finalLayoutIssues = checkBundle(resolved, false);
-    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null };
+    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: null };
     const finalCheckpoint = snapshot(resolved, deckDir, final);
     if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
       return result({
@@ -335,17 +337,76 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
     });
   }
 
-  const initial = facts(initialLayoutIssues);
-  const initialCheckpoint = snapshot(resolved, deckDir, initial);
-  const observations = [];
-  let selected;
+  // An invalid caller hint is never a routing fact. Report that closed input
+  // error before inspecting a historical protocol; a well-formed hint still
+  // yields to the direct protocol observer below.
   if (invalidIntent) {
-    selected = {
+    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: null };
+    const initialCheckpoint = snapshot(resolved, deckDir, initial);
+    const finalLayoutIssues = checkBundle(resolved, false);
+    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: null };
+    const finalCheckpoint = snapshot(resolved, deckDir, final);
+    if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
+      return result({
+        checkpoint: finalCheckpoint,
+        posture: "guide",
+        rootCause: rootCause("workflow-inspection", "checkpoint-changed", "requested-intent"),
+        primaryAction: action("workflow-inspection", "refresh-workflow-inspection", "continue", false, "Refresh workflow inspection after the direct fact changed."),
+        evidenceSummary: { pipeline: null, mode: null },
+      });
+    }
+    return result({
+      checkpoint: initialCheckpoint,
       posture: "guide",
       rootCause: rootCause("workflow-inspection", "requested-intent-invalid"),
       primaryAction: action("workflow-inspection", "inspect-current-run", "continue", false, "Inspect the current run without an intent descriptor."),
-    };
-  } else if (!initial.validation.valid) {
+      evidenceSummary: { pipeline: null, mode: null },
+    });
+  }
+
+  const initialProtocol = inspectLegacyProtocol(resolved);
+  if (initialProtocol.classification !== "current") {
+    const initial = { layoutIssues: initialLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: initialProtocol };
+    const initialCheckpoint = snapshot(resolved, deckDir, initial);
+    const finalLayoutIssues = checkBundle(resolved, false);
+    const finalProtocol = inspectLegacyProtocol(resolved);
+    const final = { layoutIssues: finalLayoutIssues, validation: null, mode: null, review: null, refinement: null, pageAuthority: null, pipeline: null, legacyProtocol: finalProtocol };
+    const finalCheckpoint = snapshot(resolved, deckDir, final);
+    if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
+      const changed = Object.keys(initialCheckpoint).find((key) => initialCheckpoint[key] !== finalCheckpoint[key]) || "legacy-protocol";
+      return result({
+        checkpoint: finalCheckpoint,
+        posture: "guide",
+        rootCause: rootCause("workflow-inspection", "checkpoint-changed", changed),
+        primaryAction: action("workflow-inspection", "refresh-workflow-inspection", "continue", false, "Refresh workflow inspection after the direct protocol fact changed."),
+        evidenceSummary: { pipeline: null, mode: null, legacy_protocol: finalProtocol },
+      });
+    }
+    const recognized = initialProtocol.classification === "recognized-legacy";
+    const currentPairCorrupt = initialProtocol.classification === "current-pair-corrupt";
+    return result({
+      checkpoint: initialCheckpoint,
+      posture: recognized ? "guide" : "hard-stop",
+      rootCause: rootCause("legacy-protocol", initialProtocol.classification),
+      primaryAction: recognized
+        ? action("legacy-protocol", "prepare-legacy-adoption", "continue", false, "Prepare the provider-free Page Authority adoption candidate.", {
+          command: command(`state ${JSON.stringify(resolved)} --prepare-legacy-adoption`),
+        })
+        : currentPairCorrupt
+          ? action("page-authority", "repair-page-authority-pair", "repair", false, "Repair the exact Page Authority source/state pair before continuing.")
+          : action("legacy-protocol", "repair-or-export-unsupported-protocol", "repair", false, "Repair or export the unsupported source/state pair before continuing."),
+      protectedInvariant: recognized
+        ? "legacy production is fenced until an explicit Page Authority adoption is confirmed"
+        : "only an exact canonical source/state pair may select a production workflow",
+      evidenceSummary: { pipeline: null, mode: null, legacy_protocol: initialProtocol },
+    });
+  }
+
+  const initial = facts(initialLayoutIssues, initialProtocol);
+  const initialCheckpoint = snapshot(resolved, deckDir, initial);
+  const observations = [];
+  let selected;
+  if (!initial.validation.valid) {
     selected = {
       posture: "hard-stop",
       rootCause: rootCause("state", "state-validation", initial.validation.issues[0]?.path || "state.yaml"),
@@ -511,7 +572,7 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
   if (initial.refinement && initial.refinement.status !== "complete" && selected.rootCause?.owner !== "image2-refinement") {
     observations.push({ owner: "image2-refinement", kind: initial.refinement.status });
   }
-  const finalFacts = facts(checkBundle(resolved, false));
+  const finalFacts = facts(checkBundle(resolved, false), inspectLegacyProtocol(resolved));
   const finalCheckpoint = snapshot(resolved, deckDir, finalFacts);
   if (!sameCheckpoint(initialCheckpoint, finalCheckpoint)) {
     const changed = Object.keys(initialCheckpoint).find((key) => initialCheckpoint[key] !== finalCheckpoint[key]) || "direct-fact";
@@ -546,6 +607,10 @@ export function inspectWorkflow({ runDir, requestedIntent = null } = {}) {
         assembly: Boolean(initial.pageAuthority.assembly),
         notes: Boolean(initial.pageAuthority.notes),
         delivery_review: initial.pageAuthority.delivery_review.current ? initial.pageAuthority.delivery_review.decision : initial.pageAuthority.delivery_review.code,
+      } : null,
+      legacy_protocol: initial.legacyProtocol ? {
+        classification: initial.legacyProtocol.classification,
+        observation_sha256: initial.legacyProtocol.observation_sha256,
       } : null,
       complete: initial.completion?.complete ?? null,
     },

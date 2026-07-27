@@ -19,10 +19,13 @@ readiness, state mutation, and completion evaluation to JS. A missing/invalid mo
 SHALL stop controller entry with the producer-owned recovery action rather than choosing a controller
 from source prose, metadata, generated directories, or conversation context.
 
-For `image2-only`, the ordinary create/iterate route SHALL use the whole-page Image2 production nodes
-as a first-class flow and SHALL not describe the run as an HTML refinement. For both HTML modes, normal
-production remains HTML-owned. Cross-pipeline mode requests SHALL route to versioned-transition guidance
-without clearing the active controller or editing current-version source/state.
+For an explicitly targeted run, the MD Controller SHALL consume the direct legacy protocol observer before
+selecting ordinary HTML, whole-page, or Page Authority prerequisites. A `recognized-legacy` result SHALL
+expose only provider-free adoption preparation, human-authored candidate/matrix intake, exact preview,
+target-intake confirmation, and clean Page Authority handoff. A `current` result retains Page Authority
+lifecycle routing; `current-pair-corrupt` and `unsupported-or-corrupt` expose their single repair owner.
+Cross-pipeline mode requests SHALL route to versioned-transition guidance without clearing the active
+controller or editing current-version source/state.
 
 The active node list SHALL come from the canonical mode-filtered playbook index. Inapplicable branch
 nodes remain outside that list and SHALL not be marked skipped or deleted. Before a first-class
@@ -30,11 +33,11 @@ whole-page operation that will actually submit provider work, the Controller SHA
 run version, selected IDs/roles, profile, and maximum submit count and record the typed human
 authorization in the active node. Reuse/no-submit paths SHALL not ask for a fictitious authorization.
 
-#### Scenario: Fresh Image2-primary request enters whole-page flow
+#### Scenario: Recognized Image2 source enters adoption
 
-- **WHEN** create-deck starts with a consistent `image2-only` v1
-- **THEN** the Controller proceeds through Image2 authoring, scoped provider authorization, style master, pilot/review, build, notes, and final review
-- **AND** it never enters HTML production or modern refinement
+- **WHEN** an explicitly targeted run has a recognized `whole-page-image2-v1` / `image2-only` pair
+- **THEN** the Controller presents only the provider-free adoption checkpoint
+- **AND** it does not enter HTML production, whole-page production, or refinement
 
 #### Scenario: Resume sees mode drift
 
@@ -71,13 +74,13 @@ For html-only, new entry to image2-refine is mode-disabled and the Controller SH
 - **AND** it still requires exact authorization before any provider operation
 
 ### Requirement: create-deck playbook covers complete deck creation
-`create-deck.md` SHALL define a complete mode-aware workflow from init/intake through authored content,
-visual direction, real-artifact gates, mode-owned production, evidence-bound final review, readiness,
-and completion. A fresh run SHALL use `image2-page-authority`: resolve per-slide Pure/Framed authority,
-obtain scoped authorization for raw work, obtain raw visual review, finalize one mixed manifest, assemble
-PPTX, inject notes, and record delivery review. Existing `image2-only`, `html-only`, and
-`html-then-image2` runs retain their current mode-owned workflows during this change; they are not
-fresh-init choices.
+`create-deck.md` SHALL define a complete Page Authority workflow from init/intake through authored
+content, visual direction, real-artifact gates, receipt-bound raw work, evidence-bound final review,
+readiness, and completion. A fresh run SHALL use `image2-page-authority`: resolve per-slide
+Pure/Framed authority, obtain scoped authorization for raw work, obtain raw visual review, finalize one
+mixed manifest, assemble PPTX, inject notes, and record delivery review. An exact recognized
+`image2-only`, `html-only`, or `html-then-image2` source/state pair is historical adoption input only;
+it is not a fresh-init choice or a normal mode-owned controller workflow.
 
 For Page Authority, the Controller SHALL bind a provider decision to run, operation, selected stable
 IDs, generation profile, and maximum submissions. It SHALL not infer authorization from init, doctor,
@@ -96,10 +99,10 @@ current version from free text.
 - **THEN** the Controller continues through local finalization/delivery work without requesting authorization
 - **AND** it still requires current raw acceptance before finalization
 
-#### Scenario: Legacy run retains its current controller during the bridge
-- **WHEN** an explicitly targeted existing run resolves to a current legacy source/state pair
-- **THEN** the Controller retains that mode's existing controller behavior during Change 1
-- **AND** it does not reclassify the run as Page Authority or create an adoption record
+#### Scenario: Recognized legacy run enters adoption
+- **WHEN** an explicitly targeted existing run resolves to a recognized legacy source/state pair
+- **THEN** the Controller presents provider-free adoption preparation, candidate/matrix authoring, exact preview, and target-intake confirmation
+- **AND** it does not select legacy HTML, whole-page, review, provider, or delivery nodes
 
 #### Scenario: Delivery changes after final review
 - **WHEN** a Page Authority raw tuple, final manifest, assembly, or notes receipt changes after `proceed`
@@ -111,25 +114,11 @@ current version from free text.
 - **THEN** execution begins with the default `image2-page-authority` Page Authority path
 - **AND** it does not select a legacy production mode
 
-#### Scenario: User finishes after delivery
+#### Scenario: Adoption target resumes with clean Page Authority debt
 
-- **WHEN** final review accepts current `html-only` PPTX/notes for an explicitly targeted existing legacy run
-- **THEN** that existing create execution completes with no Page Authority adoption record
-
-#### Scenario: User selects html-then-image2
-
-- **WHEN** an explicitly targeted legacy `html-then-image2` run has current HTML delivery but required refinement/final review is not
-- **THEN** its existing create execution remains incomplete and names the current legacy refinement owner
-
-#### Scenario: Chargeable whole-page work is not authorized
-
-- **WHEN** an explicitly targeted legacy whole-page style-master, pilot, or build would submit work without the current scoped typed decision
-- **THEN** the Controller stops before invoking the CLI submit boundary and requests the exact authorization
-
-#### Scenario: Whole-page batch reuses current artifacts
-
-- **WHEN** an explicitly targeted legacy whole-page operation proves it will make zero provider submissions
-- **THEN** the Agent performs the mechanical local/reuse work without a provider-authorization prompt
+- **WHEN** a confirmed adoption target is published
+- **THEN** the Controller enters `authorize-page-authority-raw` with every target slide needing raw generation
+- **AND** it does not use a source approval, raw review, final review, provider authorization, or delivery decision as target evidence
 
 ### Requirement: Iteration playbooks resolve semantic paths
 Iteration playbooks SHALL classify the exact current mode/source pair, structural scope, source owner, stale artifacts, and required real-artifact review before selecting a path. HTML text/body changes SHALL use local slide rebuild; HTML visual-system changes SHALL use local deck rebuild; notes-only changes SHALL use notes refresh; structural changes SHALL use previewed identity-aware versioning; and image2-only generated-body, header, safe-zone, style-master, and whole-page visual changes SHALL use the normal current whole-page route. html-only refinement requests SHALL offer the same-pipeline switch before a modern Image2 operation. Missing/retired marker, pre-current state, or Controller drift SHALL return the one owner-issued typed next action rather than an inferred iteration route.
@@ -610,13 +599,21 @@ For fresh, resume, and iteration observation, the MD Controller SHALL obtain wor
 - **THEN** the Controller explains the protected invariant and routes through the owner recovery action
 - **AND** it does not offer force, waive, source-marker replacement, or state editing
 
-### Requirement: Current whole-page and transition Controllers have literal ownership
-`create-deck` SHALL own new and continuing `image2-only` work through its current whole-page nodes. A distinct `production-mode-transition` Controller SHALL own only the state-owned apply/recovery node for cross-pipeline publication after the exact plan-hash transaction commit. The commit records the target user's `proceed` intake decision, not a risk waiver or continuation, and the Controller SHALL neither request a waiver reason nor manufacture one. For an uncertain transition journal, the Controller may present only the owner-issued `no-active-apply` fact attestation after its age/identity checks; until owner reinspection validates it, the recovery remains a hard-stop and no writer is waived or forced. The Controller index, playbook file names, state records, stack frames, migration maps, and workflow ledgers SHALL use those literal identities and SHALL contain no maintenance-only or retired transition alias for current work.
+### Requirement: Historical whole-page and transition Controllers have literal ownership
+The historical whole-page implementation remains readable only for explicit protocol observation and
+adoption provenance. A recognized legacy run SHALL be fenced before ordinary whole-page controller
+nodes, Header-Lock, provider work, or delivery work. A distinct `production-mode-transition` Controller
+SHALL own only the state-owned apply/recovery node for cross-pipeline publication after the exact
+plan-hash transaction commit. Its `legacy-adoption` plan kind alone publishes the fixed Page Authority
+target; the commit records the target user's `proceed` intake decision, not a risk waiver or
+continuation. For an uncertain transition journal, the Controller may present only the owner-issued
+`no-active-apply` fact attestation after its age/identity checks; until owner reinspection validates it,
+the recovery remains a hard-stop and no writer is waived or forced.
 
-#### Scenario: Current whole-page run resumes
-- **WHEN** a consistent `image2-only` run resumes or iterates
-- **THEN** the Controller uses `create-deck` and current whole-page nodes
-- **AND** it does not enter a maintenance compatibility route
+#### Scenario: Recognized Image2 source is fenced before its old controller
+- **WHEN** an exact historical `image2-only` source/state pair is selected
+- **THEN** the Controller offers only the provider-free adoption checkpoint
+- **AND** it does not enter a whole-page production node or maintenance route
 
 #### Scenario: Exact-commit transition applies
 - **WHEN** state owns a current exact-plan-committed cross-pipeline transition
@@ -632,13 +629,31 @@ For fresh, resume, and iteration observation, the MD Controller SHALL obtain wor
 The registered create-deck controller SHALL route a fresh `image2-page-authority` run through Page
 Authority source authoring, visual-language selection, scoped provider authorization, raw review, final
 projection, assembly, notes, and delivery review. The MD Controller SHALL own human visual decisions;
-JS SHALL own resolver, readiness, evidence, and state checks. Existing legacy runs retain their current
-controller behavior during this change and Page Authority runs SHALL never enter legacy nodes.
+JS SHALL own resolver, readiness, evidence, and state checks. Page Authority runs SHALL never enter
+legacy nodes. A recognized legacy run SHALL no longer enter its ordinary legacy controller route: the
+Controller SHALL present the direct provider-free adoption observer, candidate/matrix authoring, exact
+preview, target-intake confirmation, and post-publication Page Authority handoff. It SHALL keep all
+semantic slide choices human-owned and shall not infer them from legacy content or generated material.
 
 #### Scenario: Fresh run uses Page Authority nodes
 - **WHEN** a fresh initialized run has the exact Page Authority source/state pair
 - **THEN** the active controller set contains the Page Authority lifecycle and excludes HTML/header-lock/visual-slot nodes
 - **AND** provider work requires the displayed scoped authorization
+
+#### Scenario: Recognized legacy run enters adoption intake
+- **WHEN** an explicitly targeted existing run resolves to `recognized-legacy`
+- **THEN** the Controller shows the provider-free adoption prepare/preview route and explicit per-slide matrix
+- **AND** it does not run the old legacy controller, infer a Page Authority source, or create an adoption record before exact confirmation
+
+#### Scenario: Adoption target resumes with clean Page Authority debt
+- **WHEN** the state-owned adoption handoff publishes its target
+- **THEN** the Controller enters the target Page Authority raw-authorization node with every target slide needing raw generation
+- **AND** it does not treat a source approval, raw review, final review, or delivery decision as target evidence
+
+#### Scenario: Current pair corruption remains outside adoption
+- **WHEN** an existing run has a partial or mismatched Page Authority source/state pair
+- **THEN** the Controller names the Page Authority repair owner
+- **AND** it does not fall back to legacy nodes or adoption candidate authoring
 
 ### Requirement: Page Authority gates have one direct recovery path
 Page Authority nodes SHALL classify source/state corruption, invalid frame/registry/reference,

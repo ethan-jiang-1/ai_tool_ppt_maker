@@ -66,7 +66,11 @@ Pure display text、underlay visual 或任何 raw-contract 修改必须回到 re
 
 ## Existing-run guidance
 
-只有用户明确给出一个 existing run 时，才先运行 `ppt_flow state <run-dir> --json` 并依据 exact source/state pair 路由。当前 bridge 期间，`html-only`、`html-then-image2` 与 `image2-only` 仍保留各自的既有 controller/dispatch；它们不是 init 选项，也不能用来解释新的 Page Authority source。Page Authority run 只使用它的 receipt-to-delivery lifecycle，绝不进入 HTML review、Image2 refinement 或 Header-Lock。
+只有用户明确给出一个 existing run 时，才先运行 `ppt_flow state <run-dir> --inspect-legacy-protocol`。只有 exact `html-first-v1` / `html-only|html-then-image2` 或 exact `whole-page-image2-v1` / `image2-only` pair 可进入 provider-free legacy adoption；普通 legacy build、refresh、review、pilot 和 provider 命令都会先被 fence 拦住。`current` Page Authority pair 继续其正常 receipt-to-delivery lifecycle；partial Page Authority pair 走 Page Authority repair，missing/unknown/corrupt pair 走 repair/export，绝不猜测为 legacy。
+
+对 recognized legacy run，Agent 先调用 `state <run-dir> --prepare-legacy-adoption`，只在 source-local `_scratch/production-mode-transition/candidate-run/` 内准备 candidate。人类逐页明确写 Page Authority source 和 adoption matrix（保留/删除/新增、stable ID、`pure-image2|framed-image2`、Text Frame、visual brief/reference、speaker note disposition）；再显示 `--preview-legacy-adoption` 的 exact hash 和 target intake，只有明确确认后才 `--confirm-legacy-adoption --plan-hash <hash>` 与 `--apply-legacy-adoption --plan-hash <hash>`。
+
+adoption 不读取或复制 legacy prompt、pixels、generated/review/provider/PPTX/notes/delivery evidence，也不初始化 credential、transport 或 provider。发布出的 clean vNext 是 `image2-page-authority`、`source_epoch: 1`，所有 target slide 都是 `needs_raw_generation`，从 `authorize-page-authority-raw` 继续。Image2 quality 由后续 target raw projection 的人审或明确授权 pilot 判断，不是 adoption 自动验证的职责。
 
 ## Optional Git note
 

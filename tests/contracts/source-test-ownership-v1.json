@@ -197,6 +197,7 @@
       "owner": "shared/state",
       "interfaces": [
         "shared/state/html_review_evidence.mjs",
+        "shared/state/legacy_protocol_adoption.mjs",
         "shared/state/md_controller_reader.mjs",
         "shared/state/page_authority_delivery_evidence.mjs",
         "shared/state/production_mode_transition.mjs",
@@ -205,6 +206,7 @@
       "executables": [],
       "unit_integration": [
         "tests/shared/state/test_html_review_evidence.mjs",
+        "tests/shared/state/test_legacy_protocol_adoption.mjs",
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_production_mode_index.mjs",
         "tests/shared/state/test_production_mode_state.mjs",
@@ -213,7 +215,8 @@
       ],
       "e2e": [
         "tests_e2e/shared/state/test-production-mode-transition-flow.mjs",
-        "tests_e2e/shared/state/test-state-machine.mjs"
+        "tests_e2e/shared/state/test-state-machine.mjs",
+        "tests_e2e/shared/state/test_mock_legacy_adoption_journey.mjs"
       ]
     },
     {

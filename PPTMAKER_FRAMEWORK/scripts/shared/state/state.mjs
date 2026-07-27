@@ -84,10 +84,13 @@ const TRANSITION_SUSPENSION_SCHEMA = "pptmaker-production-mode-transition-suspen
 const TRANSITION_APPLY_NODE = "apply-production-mode-transition";
 const TRANSITION_INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
 const TRANSITION_UNCERTAIN_RECOVERY_AGE_MS = 300000;
+const TRANSITION_KINDS = Object.freeze(["mode-transition", "legacy-adoption"]);
 const TRANSITION_RECORD_KEYS = Object.freeze([
   "status",
   "execution_id",
   "run_version",
+  "transition_kind",
+  "transition_adoption",
   "transition_plan_hash",
   "transition_candidate_receipt_sha256",
   "transition_target_intake",
@@ -130,13 +133,19 @@ function isTransitionSuspensionFrame(frame) {
 }
 
 function isTransitionPipeline(value) {
-  return value === HTML_FIRST_PIPELINE || value === WHOLE_PAGE_IMAGE2_PIPELINE;
+  return value === HTML_FIRST_PIPELINE || value === WHOLE_PAGE_IMAGE2_PIPELINE || value === PAGE_AUTHORITY_IMAGE2_PIPELINE;
 }
 
 function validTransitionIntake(value) {
   return isPlainObject(value) &&
     Object.keys(value).length === TRANSITION_INTAKE_FIELDS.length &&
     TRANSITION_INTAKE_FIELDS.every((field) => typeof value[field] === "string" && value[field].trim().length > 0);
+}
+
+function validTransitionAdoption(value, record) {
+  if (record.transition_kind === "mode-transition") return value === null;
+  return hasExactKeys(value, ["observation_sha256", "source_state_sha256", "matrix_sha256"]) &&
+    SHA256_RE.test(value.observation_sha256 || "") && SHA256_RE.test(value.source_state_sha256 || "") && SHA256_RE.test(value.matrix_sha256 || "");
 }
 
 function validTransitionRecoveryConfirmation(value, record) {
@@ -162,6 +171,7 @@ function activeTransitionRecord(state) {
     "transition_plan_hash", "transition_candidate_receipt_sha256", "transition_target_intake_sha256",
   ];
   if (!required.every((key) => SHA256_RE.test(record[key] || ""))) return null;
+  if (!TRANSITION_KINDS.includes(record.transition_kind) || !validTransitionAdoption(record.transition_adoption, record)) return null;
   if (!validTransitionIntake(record.transition_target_intake) ||
     sha256(Buffer.from(stableStringify(record.transition_target_intake))) !== record.transition_target_intake_sha256) return null;
   if (!hasExactKeys(record.transition_confirmation, ["kind", "decision", "at"]) ||
@@ -175,6 +185,9 @@ function activeTransitionRecord(state) {
     !normalizeRunVersion(record.transition_target_version) ||
     !isProductionMode(record.transition_target_mode) ||
     !isTransitionPipeline(record.transition_target_pipeline)) return null;
+  if (record.transition_kind === "legacy-adoption" &&
+    (record.transition_target_mode !== "image2-page-authority" || record.transition_target_pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE ||
+      record.transition_source_mode === "image2-page-authority")) return null;
   if (!validIsoTimestamp(record.started)) return null;
   if (Object.hasOwn(record, "transition_recovery_confirmation") &&
     !validTransitionRecoveryConfirmation(record.transition_recovery_confirmation, record)) return null;
@@ -264,7 +277,7 @@ function transitionSuspensionErrors(state, frame, index) {
   const label = `playbook_stack[${index}]`;
   const keys = [
     "schema", "disposition", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "controller_nodes",
-    "source_run_version", "source_mode", "source_pipeline", "target_run_version", "target_mode", "target_pipeline", "transition_plan_hash", "parent_stack",
+    "source_run_version", "source_mode", "source_pipeline", "target_run_version", "target_mode", "target_pipeline", "transition_kind", "transition_plan_hash", "parent_stack",
   ];
   const errors = [];
   if (!Object.keys(frame).every((key) => keys.includes(key)) || !keys.every((key) => Object.hasOwn(frame, key))) {
@@ -275,6 +288,7 @@ function transitionSuspensionErrors(state, frame, index) {
   if (frame.source_run_version !== frame.run_version || !normalizeRunVersion(frame.source_run_version)) errors.push(`${label} source run_version mismatch`);
   if (!isProductionMode(frame.source_mode) || !isTransitionPipeline(frame.source_pipeline) || productionPolicyForMode(frame.source_mode).pipeline !== frame.source_pipeline) errors.push(`${label} source mode/pipeline mismatch`);
   if (!normalizeRunVersion(frame.target_run_version) || !isProductionMode(frame.target_mode) || !isTransitionPipeline(frame.target_pipeline) || productionPolicyForMode(frame.target_mode).pipeline !== frame.target_pipeline) errors.push(`${label} target mode/pipeline mismatch`);
+  if (!TRANSITION_KINDS.includes(frame.transition_kind)) errors.push(`${label} transition kind is invalid`);
   if (frame.source_run_version === frame.target_run_version || frame.source_pipeline === frame.target_pipeline) errors.push(`${label} is not cross-pipeline`);
   if (!SHA256_RE.test(frame.transition_plan_hash || "")) errors.push(`${label} transition plan hash is invalid`);
   if (!Array.isArray(frame.parent_stack) || frame.parent_stack.some(isTransitionSuspensionFrame)) errors.push(`${label} has invalid suspended parent stack`);
@@ -283,7 +297,7 @@ function transitionSuspensionErrors(state, frame, index) {
   if (sourceMode !== frame.source_mode) errors.push(`${label} source mode disagrees with authoritative state`);
   const apply = activeTransitionRecord(state);
   if (!apply || apply.transition_source_execution_id !== frame.execution_id || apply.transition_source_version !== frame.source_run_version ||
-    apply.transition_target_version !== frame.target_run_version || apply.transition_plan_hash !== frame.transition_plan_hash) {
+    apply.transition_target_version !== frame.target_run_version || apply.transition_kind !== frame.transition_kind || apply.transition_plan_hash !== frame.transition_plan_hash) {
     errors.push(`${label} does not match the active transition record`);
   }
   return errors;
@@ -1706,6 +1720,8 @@ export function confirmProductionModeTransition(deckDir, {
   candidateReceiptSha256,
   targetIntake,
   targetIntakeSha256,
+  transitionKind = "mode-transition",
+  transitionAdoption = null,
   expectedStateSha = null,
 } = {}) {
   const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
@@ -1713,6 +1729,15 @@ export function confirmProductionModeTransition(deckDir, {
   if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) throw new TypeError("transition source and target must be distinct canonical run versions");
   if (!isProductionMode(targetMode) || !SHA256_RE.test(planHash || "") || !SHA256_RE.test(candidateReceiptSha256 || "")) {
     throw new TypeError("transition mode, plan hash, and candidate receipt must be exact");
+  }
+  if (!TRANSITION_KINDS.includes(transitionKind) || !validTransitionAdoption(transitionAdoption, { transition_kind: transitionKind })) {
+    throw new TypeError("transition kind and adoption bindings are invalid");
+  }
+  if (transitionKind === "mode-transition" && targetMode === "image2-page-authority") {
+    throw new Error("Page Authority target requires the explicit legacy adoption transaction");
+  }
+  if (transitionKind === "legacy-adoption" && targetMode !== "image2-page-authority") {
+    throw new Error("legacy adoption must target Page Authority");
   }
   if (!validTransitionIntake(targetIntake)) throw new TypeError("transition target intake must contain every explicit intake field");
   const intakeSha = sha256(Buffer.from(stableStringify(targetIntake)));
@@ -1740,6 +1765,9 @@ export function confirmProductionModeTransition(deckDir, {
   const sourceBytes = readFileSync(statePath(deckDir));
   const sourceStateSha = sha256(sourceBytes);
   if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition source state precondition changed");
+  if (transitionKind === "legacy-adoption" && transitionAdoption.source_state_sha256 !== sourceStateSha) {
+    throw new Error("CONFLICT: legacy adoption source state binding changed");
+  }
   const frame = {
     schema: TRANSITION_SUSPENSION_SCHEMA,
     disposition: "transition-suspended",
@@ -1755,6 +1783,7 @@ export function confirmProductionModeTransition(deckDir, {
     target_run_version: targetVersion,
     target_mode: targetMode,
     target_pipeline: targetPolicy.pipeline,
+    transition_kind: transitionKind,
     transition_plan_hash: planHash,
     parent_stack: deepClone(current.playbook_stack),
   };
@@ -1773,6 +1802,8 @@ export function confirmProductionModeTransition(deckDir, {
     status: "in_progress",
     execution_id: transitionExecutionId,
     run_version: sourceVersion,
+    transition_kind: transitionKind,
+    transition_adoption: deepClone(transitionAdoption),
     transition_plan_hash: planHash,
     transition_candidate_receipt_sha256: candidateReceiptSha256,
     transition_target_intake: structuredClone(targetIntake),
@@ -1791,6 +1822,7 @@ export function confirmProductionModeTransition(deckDir, {
   writeState(deckDir, next, { expectedStateSha: sourceStateSha, updatedAt: at });
   appendHistory(deckDir, {
     type: "production_mode_transition_confirmed",
+    transition_kind: transitionKind,
     source_execution_id: frame.execution_id,
     source_version: sourceVersion,
     source_mode: sourceMode,
@@ -1807,6 +1839,7 @@ export function confirmProductionModeTransition(deckDir, {
     target_version: targetVersion,
     target_mode: targetMode,
     target_pipeline: targetPolicy.pipeline,
+    transition_kind: transitionKind,
     plan_hash: planHash,
     transition_execution_id: transitionExecutionId,
   });
@@ -1988,12 +2021,19 @@ export function completeProductionModeTransitionHandoff(deckDir, {
   let receipt;
   try { receipt = JSON.parse(receiptBytes.toString("utf8")); } catch { throw new Error("transition target receipt is invalid"); }
   if (!isPlainObject(receipt) || receipt.schema !== "pptmaker-production-mode-transition-success-v1" ||
-    receipt.plan_hash !== planHash || receipt.source_execution_id !== record.transition_source_execution_id ||
+    receipt.transition_kind !== record.transition_kind || receipt.plan_hash !== planHash || receipt.source_execution_id !== record.transition_source_execution_id ||
     receipt.source_version !== sourceVersion || receipt.target_version !== record.transition_target_version ||
     receipt.target_mode !== record.transition_target_mode || receipt.target_pipeline !== record.transition_target_pipeline ||
     receipt.candidate_receipt_sha256 !== record.transition_candidate_receipt_sha256 ||
     receipt.target_intake_sha256 !== record.transition_target_intake_sha256 || !SHA256_RE.test(receipt.source_control_fingerprint || "")) {
     throw new Error("transition target receipt does not match the active checkpoint");
+  }
+  if (record.transition_kind === "legacy-adoption" &&
+    (!hasExactKeys(receipt.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256"]) ||
+      receipt.adoption.observation_sha256 !== record.transition_adoption.observation_sha256 ||
+      receipt.adoption.source_state_sha256 !== record.transition_adoption.source_state_sha256 ||
+      receipt.adoption.matrix_sha256 !== record.transition_adoption.matrix_sha256)) {
+    throw new Error("legacy adoption target receipt does not match the active checkpoint");
   }
   if (sourceControlFingerprint && sourceControlFingerprint !== receipt.source_control_fingerprint) throw new Error("transition source/control fingerprint changed");
   const marker = probeSourceMarkerForVersion(deckDir, record.transition_target_version);
@@ -2007,13 +2047,40 @@ export function completeProductionModeTransitionHandoff(deckDir, {
   const at = nowIso();
   const intakeDecisionAt = record.transition_confirmation.at;
   const targetExecutionId = newExecutionId();
-  const baseline = { target_execution_id: targetExecutionId, target_run_version: record.transition_target_version, plan_hash: planHash, success_receipt_sha256: actualReceiptSha, source_control_fingerprint: receipt.source_control_fingerprint };
-  const authorNode = record.transition_target_mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
-  const configureNode = record.transition_target_mode === "image2-only" ? "configure-whole-page-visual-system" : "configure-visual-system";
-  const nextNode = record.transition_target_mode === "image2-only" ? "authorize-image2-style-master" : "preview-content";
+  const baseline = {
+    target_execution_id: targetExecutionId,
+    target_run_version: record.transition_target_version,
+    plan_hash: planHash,
+    success_receipt_sha256: actualReceiptSha,
+    source_control_fingerprint: receipt.source_control_fingerprint,
+    transition_kind: record.transition_kind,
+  };
+  const targetNodes = record.transition_target_mode === "image2-only"
+    ? {
+      author: "author-whole-page-content",
+      authorEvidence: "whole-page-content-authored",
+      configure: "configure-whole-page-visual-system",
+      configureEvidence: "whole-page-visual-system-configured",
+      next: "authorize-image2-style-master",
+    }
+    : record.transition_target_mode === "image2-page-authority"
+      ? {
+        author: "author-page-authority-content",
+        authorEvidence: "page-authority-source-authored",
+        configure: "configure-page-authority-visual-system",
+        configureEvidence: "page-authority-visual-system-configured",
+        next: "authorize-page-authority-raw",
+      }
+      : {
+        author: "author-structured-content",
+        authorEvidence: "structured-content-authored",
+        configure: "configure-visual-system",
+        configureEvidence: "visual-system-configured",
+        next: "preview-content",
+      };
   const next = structuredClone(current);
   next.playbook = "create-deck";
-  next.current_node = nextNode;
+  next.current_node = targetNodes.next;
   next.execution_id = targetExecutionId;
   next.execution_started_at = at;
   next.run_version = record.transition_target_version;
@@ -2029,14 +2096,14 @@ export function completeProductionModeTransitionHandoff(deckDir, {
     decision: { value: "proceed", kind: "user", at: intakeDecisionAt }, evidence: { "intake-confirmed": { met: true, kind: "user", at: intakeDecisionAt, note: record.transition_target_intake_sha256 } },
     transition_baseline: { ...baseline, target_intake_sha256: record.transition_target_intake_sha256 },
   };
-  for (const [nodeId, evidenceKey] of [[authorNode, authorNode === "author-whole-page-content" ? "whole-page-content-authored" : "structured-content-authored"], [configureNode, configureNode === "configure-whole-page-visual-system" ? "whole-page-visual-system-configured" : "visual-system-configured"]]) {
+  for (const [nodeId, evidenceKey] of [[targetNodes.author, targetNodes.authorEvidence], [targetNodes.configure, targetNodes.configureEvidence]]) {
     next.nodes[nodeId] = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, evidence: { [evidenceKey]: { met: true, kind: "agent", at, note: receipt.source_control_fingerprint } }, transition_baseline: baseline };
   }
   next.playbook_stack = [];
   writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: at });
-  appendHistory(deckDir, { type: "production_mode_transition_source_archived", source_execution_id: frame.execution_id, source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
-  appendHistory(deckDir, { type: "production_mode_transition_handoff", target_execution_id: targetExecutionId, source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
-  return Object.freeze({ status: "handoff-complete", source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, current_node: nextNode, receipt_sha256: actualReceiptSha });
+  appendHistory(deckDir, { type: "production_mode_transition_source_archived", transition_kind: record.transition_kind, source_execution_id: frame.execution_id, source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  appendHistory(deckDir, { type: "production_mode_transition_handoff", transition_kind: record.transition_kind, target_execution_id: targetExecutionId, source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  return Object.freeze({ status: "handoff-complete", source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, transition_kind: record.transition_kind, current_node: targetNodes.next, receipt_sha256: actualReceiptSha });
 }
 
 function activeRecord(state, name) {

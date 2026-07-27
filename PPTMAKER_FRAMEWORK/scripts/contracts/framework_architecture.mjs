@@ -34,6 +34,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
   "shared/state/html_review_evidence.mjs",
+  "shared/state/legacy_protocol_adoption.mjs",
   "shared/state/page_authority_delivery_evidence.mjs",
   "shared/state/production_mode_transition.mjs",
   "shared/identity/canonical_json.mjs",
@@ -62,6 +63,13 @@ const SHARED_CORE = "shared/state/internal/html_review_evidence_core.mjs";
 const SHARED_CORE_IMPORTERS = new Set([
   "shared/run-bundle/bundle_layout.mjs",
   "shared/state/html_review_evidence.mjs",
+]);
+// The transition transaction owns candidate integrity, while content and
+// visual-system own their respective parsers. This exact deep-module seam
+// permits the transaction to consume only those public Interfaces instead of
+// duplicating their validation grammar in state.
+const SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS = new Map([
+  ["shared/state/production_mode_transition.mjs", new Set(["01-content/index.mjs", "02-visual-system/index.mjs"])],
 ]);
 const DIRECT_ENTRY_EXCEPTIONS = new Set([
   "shared/cli/cli_bootstrap.mjs",
@@ -134,7 +142,8 @@ function validateImportEdge(files, importer, target, issues) {
     return;
   }
   if (importer.startsWith("shared/")) {
-    if (toPhase) addIssue(issues, "shared-phase-import", importer, `shared imports Phase path ${target}`);
+    const allowedPhaseInterfaces = SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS.get(importer);
+    if (toPhase && !allowedPhaseInterfaces?.has(target)) addIssue(issues, "shared-phase-import", importer, `shared imports Phase path ${target}`);
     if (target === SHARED_CORE && !SHARED_CORE_IMPORTERS.has(importer)) addIssue(issues, "review-core-importer", importer, `only exact review-core collaborators may import ${target}`);
     if (target.startsWith("shared/") && target !== SHARED_CORE && !PUBLIC_SHARED_INTERFACES.includes(target) && phaseOf(target) !== fromPhase) {
       const fromCategory = importer.split("/")[1];

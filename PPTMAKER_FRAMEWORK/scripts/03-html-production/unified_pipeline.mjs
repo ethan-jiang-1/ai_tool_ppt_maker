@@ -63,6 +63,7 @@ import {
   versionKey,
 } from "../04-image-production/index.mjs";
 import { resolveRunProductionAdapter } from "../shared/state/state.mjs";
+import { inspectLegacyProtocol } from "../shared/state/legacy_protocol_adoption.mjs";
 
 // --- Configuration -----------------------------------------------------------
 
@@ -1693,6 +1694,51 @@ Examples:
       if (opts.resolution && !["1k", "2k", "4k"].includes(opts.resolution)) {
         console.log(`  ✗ Invalid resolution: ${opts.resolution}. Must be 1k, 2k, or 4k.`);
         emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Pipeline resolution must be 1k, 2k, or 4k.", hint: "Choose a supported image resolution.", where: "unified_pipeline.arguments.resolution", diagnostic: { version: 1, category: "usage", operation: "parse-resolution", reason: { kind: "invalid_enum", expected: ["1k", "2k", "4k"] }, next: createCliNext("fix_arguments", { default: "Correct --resolution, then rerun the selected stages." }) } });
+        process.exit(1);
+      }
+
+      const protocol = inspectLegacyProtocol(runDir);
+      if (protocol.classification === "recognized-legacy") {
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: "LEGACY_PROTOCOL_ADOPTION_REQUIRED: legacy Stage 1-5 execution is fenced until an explicit Page Authority adoption is published.",
+          hint: "Prepare and preview the provider-free Page Authority candidate and per-slide adoption matrix before any production stage.",
+          where: "unified_pipeline.production-adapter",
+          diagnostic: {
+            version: 1,
+            category: "gate",
+            operation: "resolve-legacy-protocol",
+            source: { path: runDir },
+            reason: { kind: "legacy_protocol_adoption_required", actual: protocol.observation_sha256 },
+            next: createCliNext("repair_prerequisite", {
+              default: `Run ppt_flow state ${JSON.stringify(runDir)} --prepare-legacy-adoption, then preview the exact adoption plan.`,
+            }),
+          },
+        });
+        process.exit(1);
+      }
+      if (protocol.classification !== "current") {
+        const currentPairCorrupt = protocol.classification === "current-pair-corrupt";
+        emitCliError({
+          code: CLI_ERROR_CODES.FAILED,
+          message: currentPairCorrupt
+            ? "CURRENT_PROTOCOL_REPAIR_REQUIRED: the Page Authority source/state pair is incomplete or inconsistent."
+            : "UNSUPPORTED_PROTOCOL_REPAIR_REQUIRED: the run lacks an exact supported source/state protocol pair.",
+          hint: "Preserve the current bytes and use the owning repair/export path; do not select a legacy production stage.",
+          where: "unified_pipeline.production-adapter",
+          diagnostic: {
+            version: 1,
+            category: "gate",
+            operation: currentPairCorrupt ? "resolve-current-protocol" : "resolve-unsupported-protocol",
+            source: { path: runDir },
+            reason: { kind: currentPairCorrupt ? "current_protocol_repair_required" : "unsupported_protocol_repair_required", actual: protocol.observation_sha256 },
+            next: createCliNext("repair_prerequisite", {
+              default: currentPairCorrupt
+                ? "Repair the exact Page Authority source/state pair before stage dispatch."
+                : "Inspect the exact source/state pair and repair or export it before stage dispatch.",
+            }),
+          },
+        });
         process.exit(1);
       }
 

@@ -64,15 +64,34 @@ The clean vNext receives only plan-bound, target-owned `unreviewed` raw material
 
 ## Existing runs only
 
-For an explicitly targeted existing run, start from `state <run-dir> --json`, then resolve its exact authoritative state mode plus canonical source pipeline. `project-metadata.yaml` is only a mirror. The bridge retains these existing-run routes:
+For an explicitly targeted existing run, first inspect its exact canonical source/state pair. `project-metadata.yaml` is only a mirror:
 
-- `html-only` -> `html-first-v1`: local HTML completion; no provider.
-- `html-then-image2` -> `html-first-v1`: current HTML delivery then its required `image2-refine` lifecycle.
-- `image2-only` -> `whole-page-image2-v1`: existing whole-page controller, its style-master/pilot/header/build/provider controls, and its own final review.
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --inspect-legacy-protocol
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --prepare-legacy-adoption
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --preview-legacy-adoption
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --confirm-legacy-adoption --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --apply-legacy-adoption --plan-hash <hash>
+```
 
-These are not fresh-init choices and cannot be used to reinterpret a Page Authority source. Page Authority never substitutes HTML review, Image2 refinement, Header-Lock, or legacy generated artifacts for its direct prerequisites.
+Only an exact `html-first-v1` / `html-only|html-then-image2` pair or an exact
+`whole-page-image2-v1` / `image2-only` pair is `recognized-legacy`. It is historical evidence,
+not an ordinary build, refresh, review, or provider route. The Agent prepares the confined candidate;
+the human authors every target slide's `pure-image2|framed-image2` choice and its adoption-matrix row,
+then confirms the exact preview and target intake. The candidate never derives new source from legacy
+prompts, pixels, generated artifacts, reviews, approvals, provider history, PPTX, or notes.
+These are not fresh-init choices and cannot reinterpret a Page Authority source.
 
-Existing same-pipeline HTML mode changes stay state-owned. Cross-pipeline work uses the existing clean-vNext `production-mode-transition`: author target-owned source/control, preview, confirm exact plan hash, apply, then complete the target controller. It preserves the source version and does not copy approvals or generated evidence. Existing HTML structural output reports `needs_local_materialization`; existing whole-page output reports `needs_render`.
+Adoption itself makes no Image2 request. It publishes a clean Page Authority vNext at `source_epoch: 1`;
+every target slide starts as `needs_raw_generation`, and later raw generation, human raw review, pilot,
+and delivery work follow the normal Page Authority lifecycle independently. Missing, unsupported, or
+partially Page Authority facts are repair/export or Page Authority-pair repair paths, never inferred
+adoption. Page Authority never substitutes HTML review, Image2 refinement, Header-Lock, or legacy
+generated artifacts for its direct prerequisites.
+
+The generic `production-mode-transition` rejects `image2-page-authority` as a caller-selected target.
+Its retained legacy-to-legacy transitions remain state-owned and clean-vNext only; it preserves the
+source version and does not copy approvals or generated evidence.
 
 ## Observation and control boundaries
 

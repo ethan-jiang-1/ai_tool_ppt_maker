@@ -372,14 +372,14 @@ same check is blocking when its provider action is selected.
 - **AND** no browser or renderer work is attempted with an unknown chart runtime
 
 #### Scenario: Explicit Image2 presence mode
-- **WHEN** env-check runs with `--mode image2-only` or the documented `--image2` diagnostic alias for a legacy workflow
-- **THEN** it runs common checks plus `api_key`, `image_base_url`, and the legacy whole-page generator
-- **AND** it omits HTML-only checks and makes no Image2 network call
+- **WHEN** env-check runs with `--mode image2-only` or the documented `--image2` diagnostic alias
+- **THEN** it runs common checks plus `api_key`, `image_base_url`, and the whole-page generator presence check
+- **AND** it omits HTML-only checks, makes no Image2 network call, and does not authorize, resume, or dispatch a historical run
 
 #### Scenario: HTML-then-Image2 has deferred provider setup
 - **WHEN** common/HTML checks pass and Image2 presence fails under an existing `html-then-image2` run
 - **THEN** current HTML readiness exits successfully and lists the Image2 failures as deferred guidance
-- **AND** a later explicit legacy Image2 action rechecks them as blocking prerequisites
+- **AND** a recognized legacy source uses provider-free adoption before a later Page Authority raw action rechecks target prerequisites
 
 ### Requirement: HTML browser and font checks block only HTML readiness
 

@@ -6,14 +6,11 @@ import { createHash } from "node:crypto";
 import { createCanvas } from "@napi-rs/canvas";
 
 import { createHtmlFirstRun } from "../../helpers/html_first_fixture.mjs";
-import { createCurrentHtmlDelivery } from "../../helpers/image2_refinement_fixture.mjs";
 import { initBundle, initLegacyFixtureBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { loadRefinementOperations, transitionAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/visual-slot/index.mjs";
 import { buildPageAuthorityRawPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/operations.mjs";
 import { writePageAuthorityRawManifest } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_manifest.mjs";
 import { renderPageAuthorityRawReviewProjection, writePageAuthorityRawReviewCoverage } from "../../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_review.mjs";
-import { inspectHtmlReviewReadiness, publishHtmlDeliveryDecision, publishHtmlGateDecision } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/html_review_evidence.mjs";
-import { readImage2RefinementState, readState, recordImage2DeliveryReview, transitionProductionMode, writeImage2RefinementState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readState, recordImage2DeliveryReview, transitionProductionMode, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import {
   WORKFLOW_INSPECTION_SCHEMA,
   canonicalJson,
@@ -137,13 +134,13 @@ describe("workflow inspection", () => {
       expect(inspectWorkflow({
         runDir: fixture.runDir,
         requestedIntent: { schema: "pptmaker-workflow-observation-intent-v1", owner: "image2-refinement", action_id: "resume" },
-      })).toMatchObject({ posture: "guide", root_cause: { kind: "requested-intent-inapplicable" } });
+      })).toMatchObject({ posture: "guide", root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" } });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
-  it("does not claim unfinished whole-page Image2 production is complete", () => {
+  it("routes an exact historical Image2 run to provider-free Page Authority adoption", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-image2-"));
     const deck = join(root, "deck_image2");
     const runDir = join(deck, "3_versions", "v1");
@@ -151,8 +148,8 @@ describe("workflow inspection", () => {
       initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" });
       expect(inspectWorkflow({ runDir })).toMatchObject({
         posture: "guide",
-        root_cause: { owner: "image2-delivery-review" },
-        primary_action: { owner: "image2-delivery-review", kind: "continue" },
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { owner: "legacy-protocol", action_id: "prepare-legacy-adoption", kind: "continue" },
       });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -236,71 +233,54 @@ describe("workflow inspection", () => {
     }
   });
 
-  it("uses one non-mutating wait action from the execution cursor", async () => {
-    const fixture = await createCurrentHtmlDelivery("workflow-inspect-wait-");
+  it("fences legacy controller wait state before cursor routing", () => {
+    const fixture = createHtmlFirstRun("workflow-inspect-wait-");
     try {
       const state = readState(fixture.deck, { purpose: "observe", heal: false });
       state.nodes[state.current_node] = { ...state.nodes[state.current_node], waiting_for: "user:confirm-delivery" };
       writeState(fixture.deck, state);
       expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "state", kind: "waiting-for-human" },
-        primary_action: { owner: "state", action_id: "wait-for-human", kind: "continue", requires_human: true },
+        posture: "guide",
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { owner: "legacy-protocol", action_id: "prepare-legacy-adoption", kind: "continue", requires_human: false },
       });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  }, 60_000);
+  });
 
-  it("keeps required visual-slot refinement as html-then-image2 debt", async () => {
-    const fixture = await createCurrentHtmlDelivery("workflow-inspect-refinement-", { mode: "html-then-image2" });
+  it("fences an exact html-then-image2 source before refinement routing", () => {
+    const fixture = createHtmlFirstRun("workflow-inspect-refinement-");
     try {
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      state.production_mode.by_version["3_versions/v1"] = { mode: "html-then-image2" };
+      writeState(fixture.deck, state);
       expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
-        root_cause: { owner: "image2-refinement" },
-        primary_action: { display_label: "start:image2-refine/plan" },
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { action_id: "prepare-legacy-adoption" },
       });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  }, 60_000);
+  });
 
-  it("keeps downstream refinement debt as an ordered observation behind an HTML repair", async () => {
-    const fixture = await createCurrentHtmlDelivery("workflow-inspect-observations-", { mode: "html-then-image2" });
+  it("does not project legacy review or refinement observations behind the adoption fence", () => {
+    const fixture = createHtmlFirstRun("workflow-inspect-observations-");
     try {
-      publishHtmlDeliveryDecision(fixture.runDir, {
-        decision: "repair",
-        reason: "The current delivery needs a local correction before refinement.",
-      });
+      const state = readState(fixture.deck, { purpose: "observe", heal: false });
+      state.production_mode.by_version["3_versions/v1"] = { mode: "html-then-image2" };
+      state.nodes[state.current_node] = { ...state.nodes[state.current_node], waiting_for: "user:legacy-review" };
+      writeState(fixture.deck, state);
       expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "html-review", kind: "delivery-review-pending" },
-        primary_action: { owner: "html-review" },
-        observations: [{ owner: "image2-refinement", kind: "absent" }],
+        posture: "guide",
+        root_cause: { owner: "legacy-protocol", kind: "recognized-legacy" },
+        primary_action: { owner: "legacy-protocol", action_id: "prepare-legacy-adoption" },
+        observations: [],
       });
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
-  }, 60_000);
-
-  it("uses a terminal typed action for a complete HTML-only delivery", async () => {
-    const fixture = await createCurrentHtmlDelivery("workflow-inspect-complete-");
-    try {
-      expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
-        posture: "ready",
-        root_cause: null,
-        primary_action: {
-          owner: "workflow-inspection",
-          action_id: "complete-current-workflow",
-          kind: "complete",
-          requires_human: false,
-          display_label: "complete:html-delivery",
-        },
-        continuation: null,
-      });
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  }, 60_000);
+  });
 
   it("reports a read-only repair action for invalid durable state", () => {
     const fixture = createHtmlFirstRun("workflow-inspect-invalid-state-");
@@ -310,8 +290,8 @@ describe("workflow inspection", () => {
       const before = readFileSync(path);
       expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
         posture: "hard-stop",
-        root_cause: { owner: "state" },
-        primary_action: { owner: "state", action_id: "validate-state" },
+        root_cause: { owner: "legacy-protocol", kind: "unsupported-or-corrupt" },
+        primary_action: { owner: "legacy-protocol", action_id: "repair-or-export-unsupported-protocol" },
       });
       expect(readFileSync(path)).toEqual(before);
     } finally {
@@ -358,68 +338,4 @@ describe("workflow inspection", () => {
     }
   });
 
-  it("records BUG-033's earliest owner diagnostic and reruns after its canonical repair", async () => {
-    const fixture = createHtmlFirstRun("workflow-inspect-bug-033-");
-    try {
-      const sourceBefore = readFileSync(join(fixture.runDir, "slide-specifications.md"));
-      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
-      const first = inspectWorkflow({ runDir: fixture.runDir });
-      expect(first).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "html-review", kind: "content-review-missing" },
-        primary_action: { action_id: "review-content", requires_human: true },
-      });
-      expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
-
-      const pipeline = await import("../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/unified_pipeline.mjs");
-      expect(await pipeline.stage1(fixture.runDir, false)).toBe(true);
-      const renderer = await import("../../../PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_renderer.mjs");
-      await renderer.publishHtmlComposition(renderer.createCanonicalHtmlValidatedRunContext({ runDir: fixture.runDir }), {});
-      const review = inspectHtmlReviewReadiness(fixture.runDir);
-      publishHtmlGateDecision(fixture.runDir, {
-        gate: "content",
-        planHash: review.gates.content.plan.plan_hash,
-        status: "approved",
-      });
-
-      const rerun = inspectWorkflow({ runDir: fixture.runDir });
-      expect(rerun).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "html-review", kind: "visual-review-missing" },
-        primary_action: { action_id: "review-visual", requires_human: true },
-      });
-      expect(readFileSync(join(fixture.runDir, "slide-specifications.md"))).toEqual(sourceBefore);
-      expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).not.toEqual(stateBefore);
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  });
-
-  it("fails closed on an uncertain Image2 submit without proposing another submit", async () => {
-    const fixture = await createCurrentHtmlDelivery("workflow-inspect-unknown-submit-", { mode: "html-then-image2" });
-    try {
-      const operations = await loadRefinementOperations();
-      const plan = await operations.createRefinementPlan({ runDir: fixture.runDir, profileFingerprint: "a".repeat(64) });
-      const authorization = await operations.authorizeRefinement({ runDir: fixture.runDir, planHash: plan.plan_hash, authorizationId: "auth-inspection" });
-      const state = readState(fixture.deck, { purpose: "execute", heal: false });
-      const record = readImage2RefinementState(state, "v1");
-      const attempt = authorization.authorization.attempts.find((entry) => entry.kind === "style-reference");
-      record.attempts[attempt.attempt_id] = transitionAttempt(
-        transitionAttempt(record.attempts[attempt.attempt_id], "submitting"),
-        "unknown-submit",
-        { failure_code: "unknown-submit" },
-      );
-      writeImage2RefinementState(fixture.deck, "v1", record);
-
-      expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
-        posture: "hard-stop",
-        root_cause: { owner: "image2-refinement", kind: "unknown-submit" },
-        primary_action: { action_id: "resolve-unknown-submit", kind: "recover", requires_human: true },
-        continuation: null,
-        protected_invariant: expect.stringMatching(/uncertain provider submission/),
-      });
-    } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  }, 120_000);
 });
