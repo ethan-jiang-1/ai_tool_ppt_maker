@@ -1,10 +1,6 @@
----
-stage: workflow/04-image-production
-status: active-optional
----
+# Phase 4: Page Authority Image Production
 
-# Phase 4: Image2 Visual-Slot Refinement
-
-HTML-first delivers a complete PPTX before this optional phase. Modern visual-slot Image2 refinement is entered only after current delivery review and exact human authorization; it is never a delivery gate or whole-page renderer. Use `ppt_flow image2 --help` for the closed plan, authorize, generate, review, promotion, fallback, and cleanup lifecycle.
-
-Do not create provider state, candidates, authorization, or refinement directories for an ordinary HTML deck. Existing explicit whole-page Image2-first decks use `playbook/create-deck.md`.
+Phase 4 owns receipt-bound raw planning, explicit provider authorization, raw review,
+Pure/Framed finalization, final projection, PPTX assembly, notes injection, and the
+delivery decision. Framed composition uses the private local capture runtime and never
+creates another source or delivery protocol.

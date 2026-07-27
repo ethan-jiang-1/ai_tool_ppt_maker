@@ -1,13 +1,13 @@
----
-stage: workflow/00-setup
----
+# Runtime And Tools
 
-# Local Runtime And Tools
+Run `ppt_flow doctor --mode image2-page-authority --operation framed-local-refresh`
+before local Framed composition. This checks the local browser and font runtime
+without requiring provider credentials.
 
-Fresh HTML-first work requires the base doctor profile: supported Node/npm, project dependencies, exact Playwright and ECharts, paired Chromium, bundled Source Sans 3/Noto Sans SC fonts, and offline runtime smoke. Run `ppt_flow doctor` and repair the named local check before deck work.
+Run `ppt_flow doctor --mode image2-page-authority --operation raw-generation`
+only when Page Authority raw work is planned. Readiness does not authorize a
+provider submission; raw generation still requires the user-approved scope.
 
-Per-run source/config/catalog/overflow failures belong to `ppt_flow validate` or local preview, not credential setup. HTML create, preview, build, and local iteration never load provider credentials.
-
-Image2 checks and live probes are explicit whole-page diagnostics. Use them after an `image2-only` deck has routed to `playbook/create-deck.md`; a successful probe is not page-generation authorization.
-
-Before any live diagnostic, disclose the submit count and obtain explicit confirmation. `doctor --smoke` 提交 **1 次** to the first resolved vendor; `doctor --probe-vendors` 每家 **1 次**. Declining the probe leaves base HTML readiness unaffected.
+Use `npm test` for the bounded core tier. Select focused provider-free tests
+for changed seams. Broad E2E, real-provider work, and image-aesthetic checks
+are not routine verification.

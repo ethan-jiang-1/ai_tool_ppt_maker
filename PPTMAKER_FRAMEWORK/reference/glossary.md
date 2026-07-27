@@ -1,36 +1,41 @@
 # Glossary / Where Map
 
-Search this file before inventing a path. Framework source remains the five directories `workflow/`, `scripts/`, `charter/`, `reference/`, `playbook/`; generated run data remains inside a user-owned `deck_*`.
+Search this file before inventing a path. Framework source lives in `workflow/`,
+`scripts/`, `charter/`, `reference/`, and `playbook/`; user-owned deck data lives
+inside `deck_*`.
 
 ## Where Map
 
-| Term | Canonical path | Meaning / do not |
-|---|---|---|
-| run bundle | `deck_NAME/` | user project root; do not create under framework |
-| run-bundle locator | `deck_NAME/RUN_BUNDLE.md` | portable static local deck/framework locator; state/status owns current workflow |
-| deck guide | `deck_NAME/deck-guide.md` | in-bundle source ownership and operating rules; not a locator or current-status record |
-| `--run-dir` | `deck_NAME/3_versions/vN/` | version leaf, not deck root |
-| `slide-specifications.md` | `<run-dir>/slide-specifications.md` | structured source; exact visible body lives in `SLIDE BODY` |
-| `_state/` | deck root `_state/` | state.yaml, history, gate journal; do not hand-edit |
-| `_scratch/` | `<run-dir>/_scratch/` | transaction workspace; cross-pipeline candidates live in `_scratch/production-mode-transition/` |
-| `_generated/` | `<run-dir>/_generated/` | rebuildable derived artifacts; never source or manual edit |
-| `html_production` | `<run-dir>/_generated/html_production/` | HTML pages/final slides/preview objects, plans, manifests |
-| `contact_sheet` | HTML: `html_production/preview/`; whole-page: `_generated/preview/` | real visual evidence; inspect before approval |
-| `style_master.jpg` | `image2-only` whole-page visual anchor | not an HTML prerequisite |
-| `create-deck` | framework `reference/` + `playbook/` | normal current whole-page Image2 ownership |
-| Image2 refinement | lazy source/derived/scratch partitions owned by Phase 4 | optional after current HTML delivery and exact authorization; never create for ordinary HTML work |
-| `needs_local_materialization` | HTML structural receipt | target-local work, zero remote |
-| `needs_render` | explicit whole-page structural receipt | remote cost report only, not authorization |
-| `slide_id` | source block heading / plan | stable cross-version identity |
-| `position` | current plan projection | current order only; never artifact identity |
-| `plan_sha256` | `_scratch` preview/apply receipt | exact structural confirmation; stale means re-preview |
+| Term | Canonical path | Meaning |
+| --- | --- | --- |
+| run bundle | `deck_NAME/` | User project root; never create it under the framework. |
+| run-bundle locator | `deck_NAME/RUN_BUNDLE.md` | Static local deck/framework locator. |
+| deck guide | `deck_NAME/deck-guide.md` | In-bundle ownership and operating rules after locating the deck. |
+| `--run-dir` | `deck_NAME/3_versions/vN/` | One version leaf, not the deck root. |
+| `slide-specifications.md` | `<run-dir>/slide-specifications.md` | Page Authority source with stable slide IDs. |
+| `_state/` | deck root `_state/` | State, history, and transaction journals; never hand-edit. |
+| `_scratch/` | `<run-dir>/_scratch/` | Version-local transaction workspace. |
+| `_generated/` | `<run-dir>/_generated/` | Rebuildable derived artifacts; never a source of truth. |
+| Page Authority raw lineage | `<run-dir>/_generated/page_authority_image2/raw/` | Receipt-bound raw image evidence. |
+| Page Authority final lineage | `<run-dir>/_generated/page_authority_image2/final/` | Final slides, projection, and manifest. |
+| `slide_id` | source block heading | Stable cross-version identity. |
+| `position` | current plan projection | Snapshot order only. |
+| `plan_sha256` | structural preview/apply receipt | Exact confirmation binding; stale means re-preview. |
+| `needs_render` | structural impact report | Raw-generation debt and cost information, never permission. |
 
-## Pipeline terms
+## Current Workflow Terms
 
-`html-first-v1` means local structured HTML production. `whole-page-image2-v1` means first-class `image2-only` whole-page production. They do not share gates, manifests, reset epochs, receipts, or node decisions.
+`page-authority-image2-v1` is the only current source protocol.
+`pure-image2` assigns all final pixels to Image2. `framed-image2` assigns the
+text-free underlay to Image2 and the fixed local Text Frame to final text pixels.
 
-`Header Text & Style Refresh`, `Generated Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path` are controlled refresh vocabulary for `image2-only`. HTML routes are Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, and Structural Versioning Path.
+Use the ownership/invalidation paths `Header Text & Style Refresh`, `Generated
+Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path`. A
+recognized historical pair is read only by the legacy observer and may enter the
+explicit provider-free adoption transaction; it is never a current route.
 
 ## Git
 
-Git is a user-owned source/control audit layer. Visible `vN` plus Structural Versioning Path remains the deck version authority. No automatic history reader, source replacement, `git checkout`, `git restore`, or `_generated/` recovery exists.
+Git is a user-owned source/control audit layer. Visible `vN` plus Structural
+Versioning Path remains the deck version authority. There is no automatic history
+reader, source replacement, or `_generated/` recovery.

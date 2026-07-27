@@ -3,17 +3,17 @@ title: Template — design-constraints.md
 stage: workflow/01-content
 position: template
 type: template
-summary: 复制到 deck_{NAME}/2_backbone/design-constraints.md。上游约束:语言/禁用元素/文字密度/tone。也是 deck_system.txt 的来源。全版本共享。
+summary: 复制到 deck_{NAME}/2_backbone/design-constraints.md。上游约束:语言/禁用元素/文字密度/tone。全版本共享。
 depends_on:
 - workflow/01-content/06-iterate-with-version-discipline.md
 feeds_into:
-- workflow/02-visual-system/template-deck-system.txt
+- workflow/02-visual-system/README.md
 agent_action: fill_template
 ---
 
 # Template — design-constraints.md
 
-> 复制到 `deck_{NAME}/2_backbone/design-constraints.md`。这是**跑在每张 slide 上的检查清单**,也是 `2_backbone/visual-style/deck_system.txt` 的来源。全版本共享,极少变。删除所有 [INSTRUCTION] 注释后交付。
+> 复制到 `deck_{NAME}/2_backbone/design-constraints.md`。这是每张 slide 的检查清单。它为 Page Authority visual-language 选择提供人类约束，但不替代注册表或 source receipt。全版本共享，极少变。删除所有 [INSTRUCTION] 注释后交付。
 
 ---
 
@@ -49,4 +49,4 @@ agent_action: fill_template
 - [PLACEHOLDER: 如 基于证据,不基于观点——每个 claim 有 proof anchor]
 - [PLACEHOLDER: 如 前瞻,不回顾——聚焦"什么在变",不是"发生了什么"]
 
-[INSTRUCTION: 这些约束是 deck 的护栏。任何设计决策都能追溯到这里的某一条。如果约束说"不出现内部数字",有人建议加一个具体营收,约束赢。生产时把这些抄进 2_backbone/visual-style/deck_system.txt(Stage 1 读它注入每条 prompt)。]
+[INSTRUCTION: 这些约束是 deck 的护栏。任何设计决策都能追溯到这里的某一条。如果约束说"不出现内部数字",有人建议加一个具体营收,约束赢。把这些约束落实到每页的注册 VISUAL BRIEF 与人审标准中。]

@@ -1,44 +1,21 @@
 ## Purpose
 
-Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local HTML readiness, and explicit whole-page Image2 readiness for `image2-only` plus required `html-then-image2` refinement. It emits an actionable structured readiness report without requiring `npm install` to start.
+Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Authority raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
 ## Requirements
-### Requirement: Doctor derives readiness guidance from production mode
 
-Root doctor SHALL pass the selected explicit mode, or the exact authoritative mode resolved from a
-run, into the profile evaluator above. It SHALL NOT reimplement package/check classification. Missing
-deferred readiness is a `guide` until the protected action; a selected provider submit with missing
-credentials/endpoint/generator is a non-waivable authorization/security hard stop. Live `--smoke` or
-`--probe-vendors` still requires disclosed selection and SHALL not authorize production generation.
-
-#### Scenario: HTML-only doctor omits Image2 requirements
-
-- **WHEN** run-aware doctor targets `html-only`
-- **THEN** it runs common/HTML readiness and missing Image2 configuration does not block the run
-
-#### Scenario: Image2-primary doctor checks provider presence
-
-- **WHEN** doctor targets `image2-only` without a live flag
-- **THEN** it includes offline Image2 presence checks, omits HTML-only checks, and reports bounded repair
-- **AND** it makes no network request
-
-#### Scenario: Required refinement is not silently probed
-
-- **WHEN** doctor targets `html-then-image2` without live flags
-- **THEN** it reports blocking HTML readiness plus deferred Image2 presence guidance
-- **AND** it does not perform a smoke or vendor request
 ### Requirement: Zero-dependency runtime check
-`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a production adapter nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed HTML runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
+`scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a production adapter nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed Framed runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
 
-Base runtime/font inspection is owned by the import-safe `00-setup` interface, which SHALL NOT import the whole-page implementation. The direct adapter and root doctor may lazily call the `04-image-production/whole-page` public provider diagnostic only after prerequisites pass and an Image2 mode is explicitly selected. Base mode SHALL not load HTML renderer internals or whole-page provider implementation.
+Base runtime/font inspection is owned by the import-safe `00-setup` interface, which SHALL NOT import a provider implementation. The direct adapter and root doctor may lazily call the Page Authority raw-readiness diagnostic only after prerequisites pass and raw generation is explicitly selected. Base mode SHALL not load provider implementation.
 
 #### Scenario: Run without node_modules
 - **WHEN** `node scripts/00-setup/env-check.mjs` runs in a fresh directory with no `node_modules/`
 - **THEN** the script executes and emits actionable missing-package results
 - **AND** it does not fail during top-level module loading
 
-#### Scenario: Base mode does not initialize the whole-page provider
-- **WHEN** direct `00-setup` env-check runs without an Image2 mode
-- **THEN** no whole-page provider or credential implementation is loaded while local HTML readiness remains checkable
+#### Scenario: Base mode does not initialize a provider
+- **WHEN** direct `00-setup` env-check runs without raw generation selected
+- **THEN** no provider or credential implementation is loaded while local Framed readiness remains checkable
 
 ### Requirement: Node.js version gate
 
@@ -50,48 +27,6 @@ The env check SHALL verify at startup that Node.js belongs to the checked-in sup
 - **WHEN** Node.js 24.x or 26.x is installed → version check passes
 - **WHEN** Node.js 20.0.0 is installed → report shows required vs found version, exits non-zero
 - **WHEN** Node.js 23.x or 25.x is installed → report shows the supported major lines vs found version, exits non-zero
-
-### Requirement: npm and dependency check
-
-The env check SHALL verify npm is available and SHALL walk upward from `process.cwd()` through every
-ancestor `node_modules` rather than stopping at the first incomplete directory. Common readiness SHALL
-require `@napi-rs/canvas`, `pptxgenjs`, and `commander`. HTML readiness SHALL additionally require exact
-`playwright@1.61.1` and exact direct `echarts@6.1.0`. Image2-only readiness SHALL NOT fail because
-Playwright or ECharts is absent/mismatched, because neither package is in the whole-page Image2 adapter's
-runtime closure. Exact versions SHALL be read from discovered package metadata and every selected hard
-dependency failure SHALL provide project-root `npm install`/lockfile-alignment guidance.
-
-When HTML readiness is selected, the discovered Playwright and ECharts package roots/versions SHALL be
-passed in the validated runtime profile to `html-render-runtime` and `html-slide-rendering`. Those
-modules SHALL load only the discovered installations and SHALL NOT repeat bare or module-relative
-resolution. A nearer shadow copy SHALL not satisfy, replace, or influence the inspected profile.
-
-#### Scenario: Dependencies installed at project root while cwd is a deck
-
-- **WHEN** all dependencies selected by the active profile exist at a parent of a child deck cwd
-- **THEN** every selected dependency check reports `ok`
-
-#### Scenario: ECharts version drifts
-
-- **WHEN** discovered ECharts is not exactly `6.1.0` under an HTML readiness profile
-- **THEN** the dependency check fails and HTML readiness is NOT READY
-- **AND** HTML renderer production cannot proceed with the mismatched package
-
-#### Scenario: ECharts drifts under Image2-only
-
-- **WHEN** common and Image2 dependencies are current but ECharts is missing or mismatched under `image2-only`
-- **THEN** Image2-primary readiness is unaffected and no HTML runtime is entered
-
-#### Scenario: Shadow ECharts exists near the renderer
-
-- **WHEN** HTML readiness discovers exact `echarts@6.1.0` but a different copy is resolvable relative to the renderer module
-- **THEN** chart generation uses only the discovered exact package root
-- **AND** the shadow copy cannot satisfy or replace the inspected profile
-
-#### Scenario: Empty local node_modules does not block parent packages
-
-- **WHEN** the cwd has an incomplete `node_modules` and a parent has every selected required package
-- **THEN** upward discovery continues and the parent packages are verified
 
 ### Requirement: API key verification
 
@@ -143,24 +78,6 @@ When none is set, `image_base_url` SHALL be **`fail`** and the Image2-mode verdi
 
 - **WHEN** no base URL is set and env-check runs in base mode
 - **THEN** no `image_base_url` check is emitted
-
-### Requirement: In-framework Stage 2 scripts are a hard requirement
-In Image2 mode, the env check SHALL treat a missing current in-framework whole-page Stage-2 module as a hard failure, not a warning. It SHALL verify `04-image-production/whole-page/stage2_generate_images.mjs`, `04-image-production/whole-page/make_contact_sheet.mjs`, and `04-image-production/whole-page/internal/image_api_client.mjs` beneath `PPTMAKER_FRAMEWORK/scripts/`. It SHALL NOT search `.claude/skills/` or `.agents/skills/`. Base mode SHALL omit `stage2_generator` because local HTML runtime readiness does not depend on the whole-page implementation.
-
-#### Scenario: Scripts present
-- **WHEN** the three current whole-page Stage-2 modules exist under `scripts/`
-- **AND** Image2 mode is selected
-- **THEN** `stage2_generator` status is `ok` and detail identifies the in-framework whole-page owner
-
-#### Scenario: Scripts missing
-- **WHEN** any of the three current whole-page Stage-2 modules is missing
-- **AND** Image2 mode is selected
-- **THEN** `stage2_generator` status is `fail`, overall verdict is NOT READY, and the process exits non-zero
-
-#### Scenario: Base doctor does not require Stage 2
-- **WHEN** whole-page Stage-2 modules are absent but all base checks pass
-- **AND** env-check runs without an Image2 mode
-- **THEN** no `stage2_generator` check is emitted and base readiness remains READY
 
 ### Requirement: Structured READY/NOT READY output
 
@@ -329,65 +246,11 @@ The `git` check SHALL participate in the existing text and direct `env-check --j
 - **THEN** the overall report remains NOT READY and exits non-zero because of the hard requirement
 - **AND** the Git warning does not appear as a blocking diagnostic issue
 
-### Requirement: Environment check separates production readiness profiles
-`env-check.mjs` SHALL resolve exactly one production readiness profile per invocation. `--mode html-only` SHALL select common plus HTML checks; `--mode image2-only` and the documented diagnostic alias `--image2` SHALL select common plus offline whole-page Image2 presence checks; `--mode html-then-image2` SHALL select common plus blocking HTML checks and deferred/non-blocking Image2 presence guidance. `--smoke` and `--probe-vendors` SHALL imply a blocking Image2 profile when no mode is supplied, remain mutually exclusive, and retain live-probe behavior only after presence checks pass.
+### Requirement: Environment checks are operation-scoped for Page Authority
+Environment diagnostics SHALL distinguish Page Authority raw-generation readiness from local Framed
+composition readiness. A local Framed check SHALL not require provider credentials or select a retired
+production family.
 
-Common checks SHALL include Node/npm, common packages, framework files required by shared production/assembly, generic font fallback observation, disk space, and advisory Git. HTML checks SHALL add Playwright, ECharts, paired Chromium, distributed HTML-font integrity/coverage, and fixed offline browser smoke. Image2 checks SHALL add `api_key`, `image_base_url`, and `stage2_generator`. The report SHALL identify the selected profile, `current_action_ready`, and any `deferred_not_ready` checks. Deferred checks SHALL not alter current HTML exit status, but the same checks SHALL be blocking when an explicit Image2/live action is selected.
-
-#### Scenario: New user has no Image2 configuration
-- **WHEN** the selected `html-only` profile passes and no Image2 configuration exists
-- **THEN** env-check ends READY and exits 0
-
-#### Scenario: Required ECharts is missing
-- **WHEN** exact local ECharts cannot be discovered for an HTML profile
-- **THEN** HTML readiness ends NOT READY with a dependency repair
-- **AND** no browser or renderer work is attempted with an unknown chart runtime
-
-#### Scenario: Explicit Image2 presence mode
-- **WHEN** env-check runs with `--mode image2-only` or the documented `--image2` diagnostic alias
-- **THEN** it runs common checks plus `api_key`, `image_base_url`, and `stage2_generator`
-- **AND** it omits HTML-only checks and makes no Image2 network call
-
-#### Scenario: HTML-then-Image2 has deferred provider setup
-- **WHEN** common/HTML checks pass and Image2 presence fails under `html-then-image2`
-- **THEN** current HTML readiness exits successfully and lists the Image2 failures as deferred guidance
-- **AND** a later explicit Image2 action rechecks them as blocking prerequisites
-
-### Requirement: HTML browser and font checks block only HTML readiness
-
-After common package presence succeeds and an HTML profile is selected, env-check SHALL dynamically
-enter the runtime owned by `html-render-runtime` and emit stable records for `chromium`, `html_fonts`,
-and `html_runtime_smoke`. Missing/mismatched Chromium, absent/corrupt font, CSS, manifest, provenance,
-or license assets, unsupported fixed sentinel coverage, network attempts, browser-launch failure, or
-fixture-geometry failure SHALL be `fail` and SHALL make HTML readiness NOT READY. The checker SHALL NOT
-install/download a browser or font and SHALL NOT accept OS font fallback as HTML readiness evidence.
-With no run-dir, these checks SHALL NOT claim actual deck code-point coverage or pixel-overflow
-validation. They SHALL not be loaded or emitted for `image2-only`.
-
-#### Scenario: Chromium has not been installed
-
-- **WHEN** an HTML profile selects the pinned Playwright package but paired Chromium is absent
-- **THEN** `chromium` is `fail`, HTML readiness is NOT READY, and fix text identifies the explicit browser setup command
-- **AND** no install or download is attempted
-
-#### Scenario: Bundled font coverage is invalid
-
-- **WHEN** the canonical HTML font manifest, license, digest, or sentinel coverage check fails under an HTML profile
-- **THEN** `html_fonts` is `fail` and HTML readiness is NOT READY
-- **AND** the checker does not hide the failure behind a system-font warning
-
-#### Scenario: Static smoke succeeds
-
-- **WHEN** the package-paired browser and valid distributed fonts render the fixed offline fixture with expected geometry and no network attempt
-- **THEN** `html_runtime_smoke` is `ok`
-
-#### Scenario: Base doctor has no deck coverage claim
-
-- **WHEN** HTML readiness succeeds without a run-dir
-- **THEN** its font result is scoped to the fixed sentinel corpus
-- **AND** it does not assert that arbitrary slide source will fit or has complete glyph coverage
-
-#### Scenario: Image2-only avoids the HTML runtime
-
-- **WHEN** `image2-only` readiness is selected
-- **THEN** Playwright, ECharts, Chromium, HTML fonts, and browser smoke are neither loaded nor blocking
+#### Scenario: Framed-local doctor is provider-free
+- **WHEN** doctor is invoked for a Framed local operation without Image2 credentials
+- **THEN** it reports the browser/font runtime result without a provider-credential failure

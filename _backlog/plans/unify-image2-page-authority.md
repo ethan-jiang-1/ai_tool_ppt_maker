@@ -1,6 +1,6 @@
 # Plan: Unify Image2 Page Authority
 
-> Type: Architecture and delivery roadmap | Updated: 2026-07-26 | Status: Discovery in progress; not yet an OpenSpec proposal
+> Type: Architecture and delivery roadmap | Updated: 2026-07-27 | Status: Slice A archived; Slice B is the next planned OpenSpec change
 >
 > Historical input: [legacy whole-page contract hardening](../_done/_closed_plans/legacy-whole-page-image2-contract-hardening.md)
 >
@@ -16,6 +16,18 @@ inputs and audit aids, not additional source grammars, state schemas, or public 
 decisions are consolidated here; when a name or rule differs, this plan wins. Before a future
 OpenSpec proposal is created, the companion set must remain explicitly linked or be archived as
 historical notes. Runtime code must never discover a protocol by scanning that directory.
+
+## Program Status
+
+`introduce-page-authority-image2` is complete and archived at
+`openspec/changes/archive/2026-07-27-introduce-page-authority-image2/`. It delivered Slice A and
+synchronized its 21 capability deltas into the main specs. The remaining work is still exactly two
+strictly serial changes: explicit legacy adoption, then legacy-surface retirement.
+
+Verification slimming belongs inside the adoption change, not in a fourth change. Its purpose is to
+make ordinary development prove only the affected protocol boundary with provider-free fixtures; it
+does not turn Image2 aesthetics into an automated regression target. Actual image quality remains a
+human raw-review or explicitly authorized pilot decision.
 
 ## Review Verdict
 
@@ -585,6 +597,13 @@ historical routes may no longer remain an implicit current production choice.
 
 **Scope:**
 
+- Establish the bounded adoption verification rail before broad implementation: ordinary work runs the
+  default core tier plus only affected unit/contract or local-render tests; adoption E2E runs only the
+  smallest named provider-free journeys needed to prove inspection, preview/hash, materialization,
+  target-local re-review, and finalization blocking. Those journeys use deterministic verified PNG
+  fixtures and provider-call counters. They SHALL neither send an Image2 request nor score, compare,
+  retry, or otherwise treat Image2 aesthetics as a test verdict. A human raw-review or separately
+  authorized pilot remains the sole quality judgment.
 - Add one deterministic, read-only `inspectLegacyProtocol` module. It recognizes only an intact,
   canonical source/state pair (`html-first-v1` with its recorded HTML mode, or
   `whole-page-image2-v1` with `image2-only`) and returns protocol, source/state SHA, stable IDs, a
@@ -614,7 +633,10 @@ historical routes may no longer remain an implicit current production choice.
 **Exit evidence:** preview and materialization make zero provider calls; source and target remain
 byte/ownership isolated; exact plan hash and target-intake facts bind apply/recovery; a representative
 legacy run reaches a clean Page Authority target with explicit variants; all pre-adoption legacy entry
-points hard-stop before provider/generated writes.
+points hard-stop before provider/generated writes. The named adoption journeys are deterministic,
+provider-free, fixture-backed, and selected rather than a recursive E2E sweep; their only visual
+assertions are protocol-owned bytes, dimensions, and nonblank/composition evidence, never aesthetic
+quality.
 
 ### Slice C: Retire the legacy production surface
 
@@ -708,10 +730,14 @@ Each change must include focused negative tests, not only a happy-path deck:
 - **Retirement:** executable/help/controller inventory, requirement-level spec scan with bounded
   historical exceptions, no active old adapter imports, and named historical fixtures only.
 
-Verification order is: syntax/import and focused unit tests, affected integration/E2E journeys,
-`npm test`, full sweep, `openspec validate --all`, strict validation for each future change, then a clean
-review of the merged main-spec diff. The baseline sweep failures recorded above must be resolved or
-explicitly isolated before Slice A is declared complete.
+Verification is tiered rather than one recursive loop. Every edit runs syntax/import plus the focused
+tests for its affected seam; ordinary checkpoints run the bounded `npm test` core tier. A local-render
+test is selected only when the changed seam crosses the Framed runtime. E2E is opt-in and limited to
+the smallest named provider-free journey that covers an end-to-end invariant changed by the work; it
+does not rerun unrelated historical routes or issue a real Image2 request. A full sweep is explicit
+change-boundary/release evidence, not routine iteration work. Image quality is evaluated only by a
+human through the raw-review/pilot process after separate provider authorization. Strict OpenSpec
+validation and a clean review of the merged main-spec diff remain required before archive.
 
 ## Deliberately Deferred
 
@@ -750,25 +776,27 @@ The program is complete only when all of the following are true:
    reviewed, checksum-bound clean role derivatives can enter selected raw contracts.
 9. Every affected main-spec requirement has an explicit disposition synchronized with code, tests,
    Charter, workflow, CLI, and layout; no historical route is advertised as a current choice.
-10. Core and full verification are green from a classified baseline, and strict OpenSpec validation and
-   the final merged-spec review pass.
+10. The bounded core tier and each selected affected contract/render/journey tier are green from a
+   classified baseline; automated verification does not submit Image2 work or judge Image2 aesthetics;
+   strict OpenSpec validation and the final merged-spec review pass.
 
 ## Future OpenSpec Change Sequence
 
-This is the complete execution sequence. These are planned Change IDs only: no
-`openspec/changes/` directory is created until the Proposal Gate is passed and the user explicitly
-approves the proposal.
+This is the complete execution sequence. Row 1 is archived; rows 2 and 3 are planned Change IDs only:
+no `openspec/changes/` directory is created for either until the Proposal Gate is passed and the user
+explicitly approves the proposal.
 
 | Order | Future Change ID | Delivers | Explicitly does not deliver |
 |---|---|---|---|
-| 1 | `introduce-page-authority-image2` | The new production path for new decks: the two per-slide authorities, Page Authority source/state pair, trusted visual-language and Agent-reference registries, raw/final evidence chain, `finalizePage(...)`, deterministic Framed composition, readiness, and one assembly/notes lineage. | Legacy adoption, deletion of old production code, automatic conversion of any old deck, or a third rendering authority. |
-| 2 | `add-page-authority-legacy-adoption` | The sole read-only legacy observer plus previewed, hash-bound, provider-free adoption into a clean Page Authority version. Once its pilot passes, normal legacy production commands cut over to adoption guidance. | Reuse of legacy prompts, pixels, approvals, generated artifacts, or an implicit adapter/fallback. |
+| 1 | `introduce-page-authority-image2` (archived) | The new production path for new decks: the two per-slide authorities, Page Authority source/state pair, trusted visual-language and Agent-reference registries, raw/final evidence chain, `finalizePage(...)`, deterministic Framed composition, readiness, and one assembly/notes lineage. | Legacy adoption, deletion of old production code, automatic conversion of any old deck, or a third rendering authority. |
+| 2 | `add-page-authority-legacy-adoption` | The sole read-only legacy observer plus previewed, hash-bound, provider-free adoption into a clean Page Authority version, plus its bounded provider-free verification rail. Once its pilot passes, normal legacy production commands cut over to adoption guidance. | Reuse of legacy prompts, pixels, approvals, generated artifacts, an implicit adapter/fallback, or automated Image2 quality scoring. |
 | 3 | `retire-legacy-production-surface` | Removal of legacy production routing, generated-artifact owners, commands, playbooks, fixtures, and main-spec requirements; only the bounded observer and shared Framed runtime primitives remain. | A rewrite of the new Page Authority path, new visual modes, or deletion of the adoption observer. |
 
 The changes are strictly serial. Change 1 makes Page Authority the only choice for a new deck while
-existing legacy runs remain usable during migration. Change 2 must prove adoption before those existing
-runs are fenced from production. Change 3 removes the retired surface only after that bridge is proven;
-there is no interval in which a legacy deck has neither its historical route nor an adoption route.
+existing legacy runs remain usable during migration. Change 2 first bounds its verification work to
+selected provider-free protocol journeys, then must prove adoption before those existing runs are fenced
+from production. Change 3 removes the retired surface only after that bridge is proven; there is no
+interval in which a legacy deck has neither its historical route nor an adoption route.
 
 Each future proposal must map its tasks and delta specs only to the scope in its own row, carry forward
 the preceding change's verification evidence, and leave the repository valid before the next proposal

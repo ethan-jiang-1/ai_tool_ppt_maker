@@ -16,8 +16,7 @@ const REQUIRED_CONTRACTS = [
   "contracts/framework_architecture.mjs",
   "contracts/framework_document_command_audit.mjs",
   "contracts/framework_static_coherence.mjs",
-  "contracts/html_source_ast.mjs",
-  "contracts/html_review_projection.mjs",
+  "contracts/retirement_ledger_audit.mjs",
 ];
 
 function ownerFor(path) {
@@ -31,7 +30,6 @@ function canonicalSnapshot() {
   const files = {
     "README.md": "target tree",
     "04-image-production/README.md": "optional refinement",
-    "shared/state/internal/html_review_evidence_core.mjs": "export const evaluate = () => ({});",
   };
   const interfaces = [
     ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
@@ -43,7 +41,6 @@ function canonicalSnapshot() {
     const prefix = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1).split("/").map(() => "..").join("/") : "./";
     files[path] = `import "${prefix}shared/cli/cli_bootstrap.mjs?entry=${path}";\n` +
       (path.startsWith("00-setup/") ? `import "./index.mjs";\n` : "") +
-      (path.startsWith("03-html-production/") ? `import "./index.mjs";\n` : "") +
       (path.startsWith("05-iteration/") ? `import "../../index.mjs";\n` : "");
   }
   files["ppt_flow.mjs"] = `import "./shared/cli/cli_bootstrap.mjs?entry=ppt_flow.mjs";\nimport("./00-setup/index.mjs");\n`;
@@ -83,9 +80,8 @@ describe("framework architecture contract", () => {
       "00-setup": [],
       "01-content": [],
       "02-visual-system": [],
-      "03-html-production": ["00-setup", "01-content", "02-visual-system"],
-      "04-image-production": ["01-content", "02-visual-system", "03-html-production"],
-      "05-iteration": ["01-content", "02-visual-system", "03-html-production", "04-image-production"],
+      "04-image-production": ["00-setup", "01-content", "02-visual-system"],
+      "05-iteration": ["01-content", "02-visual-system", "04-image-production"],
     });
     const snapshot = canonicalSnapshot();
     snapshot.files["04-image-production/cli.mjs"] = "export {};";
@@ -113,16 +109,14 @@ describe("framework architecture contract", () => {
   it("rejects forbidden Phase, shared, core, and cross-adapter private edges", () => {
     const cases = [
       ["00-setup/index.mjs", `import "../05-iteration/index.mjs";`, "phase-adjacency"],
-      ["03-html-production/index.mjs", `import "../01-content/internal/private.mjs";`, "foreign-phase-private-import"],
-      ["shared/state/state.mjs", `import "../../03-html-production/index.mjs";`, "shared-phase-import"],
-      ["shared/identity/byte_hash.mjs", `import "../state/internal/html_review_evidence_core.mjs";`, "review-core-importer"],
-      ["04-image-production/whole-page/internal/provider.mjs", `import "../../visual-slot/internal/transport.mjs";`, "cross-adapter-private-import"],
+      ["shared/state/state.mjs", `import "../../04-image-production/index.mjs";`, "shared-phase-import"],
+      ["04-image-production/page-authority/internal/provider.mjs", `import "../../../01-content/internal/private.mjs";`, "foreign-phase-private-import"],
     ];
     for (const [path, source, code] of cases) {
       const snapshot = canonicalSnapshot();
       snapshot.files[path] = source;
       if (source.includes("private.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
-      if (path.includes("provider.mjs")) snapshot.files["04-image-production/visual-slot/internal/transport.mjs"] = "export {};";
+      if (path.includes("provider.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${code}`).toContain(code);
     }
   });

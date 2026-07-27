@@ -10,7 +10,7 @@
       "invalidation": "state CAS write or exact run-version change",
       "reconstructibility": "no",
       "decision": "retain-direct",
-      "replacement_tests": ["tests/shared/workflow/test_workflow_inspection.mjs"]
+      "replacement_tests": ["tests/shared/workflow/test_process_workflow_inspection.mjs"]
     },
     {
       "id": "resume-card-action-evaluator",
@@ -21,7 +21,7 @@
       "invalidation": "any inspection checkpoint change",
       "reconstructibility": "yes",
       "decision": "retire-reader",
-      "replacement_tests": ["tests/shared/state/test_state_yaml.mjs", "tests/contracts/test_workflow_inspection_cli.mjs"]
+      "replacement_tests": ["tests/shared/state/test_state_yaml.mjs", "tests/contracts/test_process_workflow_inspection_cli.mjs"]
     },
     {
       "id": "eligible-candidates",
@@ -43,7 +43,7 @@
       "invalidation": "any inspection checkpoint change",
       "reconstructibility": "yes",
       "decision": "retain-display",
-      "replacement_tests": ["tests/contracts/test_workflow_inspection_cli.mjs"]
+      "replacement_tests": ["tests/contracts/test_process_workflow_inspection_cli.mjs"]
     },
     {
       "id": "suggested-next",
@@ -54,7 +54,7 @@
       "invalidation": "any inspection checkpoint change",
       "reconstructibility": "yes",
       "decision": "retain-display",
-      "replacement_tests": ["tests/contracts/test_workflow_inspection_cli.mjs"]
+      "replacement_tests": ["tests/contracts/test_process_workflow_inspection_cli.mjs"]
     },
     {
       "id": "html-resume-guidance",

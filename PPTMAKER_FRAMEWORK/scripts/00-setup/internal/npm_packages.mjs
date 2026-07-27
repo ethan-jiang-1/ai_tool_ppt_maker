@@ -25,10 +25,8 @@ export function discoverNpmPackages(start = process.cwd()) {
     { importName: "pptxgenjs", packageName: "pptxgenjs", required: true },
     { importName: "commander", packageName: "commander", required: true },
     { importName: "playwright", packageName: "playwright", required: true, exactVersion: HTML_RUNTIME_PROFILE.playwrightVersion },
-    { importName: "echarts", packageName: "echarts", required: true, exactVersion: "6.1.0" },
   ];
   let playwright = null;
-  let echarts = null;
   const checks = packages.map(({ importName, packageName, required, exactVersion }) => {
     const nodeModules = findPackageInAncestorNodeModules(importName, start);
     const packageRoot = nodeModules ? join(nodeModules, ...importName.split("/")) : null;
@@ -40,7 +38,6 @@ export function discoverNpmPackages(start = process.cwd()) {
     const versionOk = !exactVersion || installedVersion === exactVersion;
     const ok = present && versionOk;
     if (packageName === "playwright" && present) playwright = { root: packageRoot, version: installedVersion };
-    if (packageName === "echarts" && present) echarts = { root: packageRoot, version: installedVersion };
     return {
       check: packageName,
       status: ok ? "ok" : required ? "fail" : "warn",
@@ -48,5 +45,5 @@ export function discoverNpmPackages(start = process.cwd()) {
       fix: ok ? null : "Run `npm install` in the project root to restore package/lock alignment.",
     };
   });
-  return { checks, playwright, echarts };
+  return { checks, playwright };
 }

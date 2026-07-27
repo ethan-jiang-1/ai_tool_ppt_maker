@@ -25,8 +25,11 @@ agent_action: recommend
 | emphasis | `#0284c7` |
 | warning | `#d97706`，仅风险 |
 
-Typography 由 bundled Source Sans 3 / Noto Sans SC roles 驱动。Kicker、title、subtitle、body、KPI 全由 HTML compositor 准确排版；不要生成 style master，也不要把文字层级交给图像模型。
+Typography 由 bundled Source Sans 3 / Noto Sans SC roles 驱动。Framed slides
+use the local Text Frame for kicker, title, and subtitle; Pure slides keep
+semantic display text in Image2. Do not make a style sample a source of truth.
 
 适合医疗健康、研究报告、数据型 keynote 与培训。不适合需要强烈品牌戏剧性的消费 pitch。
 
-验证方式：运行 `ppt_flow validate`，再用真实 HTML visual review plan/contact sheet 检查 cards、data、callout、English/Hans 字体与 overflow。preset 的结构化真相是 `color_palette.json`；`deck_system.txt` 只补充自然语言约束。
+验证方式：运行 `ppt_flow validate`，再用当前 Page Authority raw/final evidence
+检查 cards、data、callout、English/Hans 字体与 overflow。

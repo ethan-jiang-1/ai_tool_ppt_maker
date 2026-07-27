@@ -19,10 +19,7 @@ export const PPT_FLOW_COMMAND_INVENTORY = Object.freeze([
   "doctor",
   "init",
   "status",
-  "approve",
-  "style-master",
   "validate",
-  "pilot",
   "build",
   "refresh",
   "slides",
@@ -514,8 +511,8 @@ export function setCliOutputMode(mode) {
 }
 
 function sanitizeReportValue(value, depth = 0) {
-  // State observation composes bounded workflow, review, and visual-slot
-  // projections. A missing review can add one diagnostic layer without making
+  // State observation composes bounded workflow and review projections. A
+  // missing review can add one diagnostic layer without making
   // the report unsafe; the byte cap remains the public output boundary.
   if (depth > 12) throw new Error("CLI JSON report is too deeply nested");
   if (value === null || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value))) return value;

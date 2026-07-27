@@ -1,156 +1,165 @@
-/** Static-only legacy-token contract consumed by architecture verification. */
-export const LEGACY_TOKEN_EXCEPTIONS = Object.freeze([
-  Object.freeze({
-    token: "image2-refinement",
-    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs",
-    reason: "read-only visual-slot state compatibility and public workflow-inspection projection",
-    owner: "shared-state",
-    public_compatibility: true,
-    retire_by: "change:public-image-production-terminology",
-  }),
-  Object.freeze({
-    token: "image2-refinement",
-    file: "PPTMAKER_FRAMEWORK/playbook/image2-refine.md",
-    reason: "documented public controller and action identifiers remain stable during this physical-owner change",
-    owner: "workflow-control",
-    public_compatibility: true,
-    retire_by: "change:public-image-production-terminology",
-  }),
-  Object.freeze({
-    token: "04-image2-refinement",
-    file: "openspec/changes/realign-image-production-and-framework-governance/proposal.md",
-    reason: "breaking migration records the retired physical path",
-    owner: "openspec",
-    public_compatibility: false,
-    retire_by: "not-applicable:protected-migration-history",
-  }),
-]);
-
+/**
+ * Static retirement audit for the one current Page Authority production
+ * surface. Historical names are permitted only in exact observer, adoption,
+ * fixture, or negative-test contexts.
+ */
 const retiredIdentity = (...parts) => parts.join("");
 
-/**
- * Exact retired whole-page identities are rejected from live framework source,
- * main specs, and verification inputs. The strings are assembled so this
- * contract does not exempt its own rule definitions from the scanner.
- */
+export const LEGACY_TOKEN_EXCEPTIONS = Object.freeze([]);
+
 export const RETIRED_WHOLE_PAGE_IDENTITIES = Object.freeze([
-  retiredIdentity("legacy-image2", "-first"),
-  retiredIdentity("legacy-image2", "-maintenance"),
-  retiredIdentity("legacy-image2", "-first", "-maintenance"),
-  retiredIdentity("LEGACY", "_PIPELINE"),
-  retiredIdentity("init", "LegacyBundle"),
+  retiredIdentity("html", "-first-v1"),
+  retiredIdentity("whole", "-page-image2-v1"),
+  retiredIdentity("html", "-only"),
+  retiredIdentity("html", "-then-image2"),
+  retiredIdentity("image2", "-only"),
+  retiredIdentity("body", "+header", "-lock"),
+  retiredIdentity("full", "-page"),
+  retiredIdentity("header", "-lock"),
+  retiredIdentity("visual", "-slot"),
+  retiredIdentity("image2", "-refinement"),
   retiredIdentity("migrate", "-html"),
   retiredIdentity("confirm", "-html", "-migration"),
   retiredIdentity("apply", "-html", "-migration"),
   retiredIdentity("preview", "-html", "-migration"),
   retiredIdentity("_scratch/", "html", "-migration"),
-  retiredIdentity("migrate", "-import"),
-  retiredIdentity("html", "-migration"),
 ]);
 
 export const RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS = Object.freeze([
   Object.freeze({
-    token: retiredIdentity("html", "-migration"),
+    token: retiredIdentity("html", "-first-v1"),
     file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
-    reason: "the layout owner rejects the retired scratch directory before it can be adopted",
-    owner: "run-bundle-layout",
+    reason: "fixture-only seed preserves a recognized historical source pair",
+    owner: "legacy-adoption",
     public_compatibility: false,
-    retire_by: "not-applicable:retired-scratch-rejection",
+    retire_by: "not-applicable:observer-fixture",
   }),
   Object.freeze({
-    token: retiredIdentity("_scratch/", "html", "-migration"),
-    file: "PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_contract.mjs",
-    reason: "the canonical HTML validator rejects the retired renderer context before source or palette selection",
-    owner: "html-slide-contract",
+    token: retiredIdentity("whole", "-page-image2-v1"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
+    reason: "fixture-only seed preserves a recognized historical source pair",
+    owner: "legacy-adoption",
     public_compatibility: false,
-    retire_by: "not-applicable:retired-renderer-context-rejection",
+    retire_by: "not-applicable:observer-fixture",
   }),
   Object.freeze({
-    token: retiredIdentity("html", "-migration"),
-    file: "PPTMAKER_FRAMEWORK/scripts/03-html-production/internal/html_slide_contract.mjs",
-    reason: "the canonical HTML validator rejects the retired renderer context before source or palette selection",
-    owner: "html-slide-contract",
+    token: retiredIdentity("html", "-only"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
+    reason: "fixture-only mode is consumed by adoption coverage",
+    owner: "legacy-adoption",
     public_compatibility: false,
-    retire_by: "not-applicable:retired-renderer-context-rejection",
+    retire_by: "not-applicable:observer-fixture",
   }),
   Object.freeze({
-    token: retiredIdentity("html", "-migration"),
+    token: retiredIdentity("html", "-then-image2"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
+    reason: "fixture-only mode is consumed by adoption coverage",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:observer-fixture",
+  }),
+  Object.freeze({
+    token: retiredIdentity("image2", "-only"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
+    reason: "fixture-only mode is consumed by adoption coverage",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:observer-fixture",
+  }),
+  Object.freeze({
+    token: retiredIdentity("full", "-page"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs",
+    reason: "fixture-only source preserves an exact historical observer pair",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:observer-fixture",
+  }),
+  Object.freeze({
+    token: retiredIdentity("html", "-first-v1"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/legacy_protocol_adoption.mjs",
+    reason: "read-only observer decodes historical source bytes",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:historical-observer",
+  }),
+  Object.freeze({
+    token: retiredIdentity("whole", "-page-image2-v1"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/legacy_protocol_adoption.mjs",
+    reason: "read-only observer decodes historical source bytes",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:historical-observer",
+  }),
+  Object.freeze({
+    token: retiredIdentity("html", "-only"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/legacy_protocol_adoption.mjs",
+    reason: "read-only observer decodes historical state bytes",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:historical-observer",
+  }),
+  Object.freeze({
+    token: retiredIdentity("html", "-then-image2"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/legacy_protocol_adoption.mjs",
+    reason: "read-only observer decodes historical state bytes",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:historical-observer",
+  }),
+  Object.freeze({
+    token: retiredIdentity("image2", "-only"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/legacy_protocol_adoption.mjs",
+    reason: "read-only observer decodes historical state bytes",
+    owner: "legacy-adoption",
+    public_compatibility: false,
+    retire_by: "not-applicable:historical-observer",
+  }),
+  Object.freeze({
+    token: retiredIdentity("image2", "-refinement"),
+    file: "PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs",
+    reason: "negative state gate rejects retired record identity",
+    owner: "shared-state",
+    public_compatibility: false,
+    retire_by: "not-applicable:negative-guard",
+  }),
+  Object.freeze({
+    token: retiredIdentity("migrate", "-html"),
     file: "PPTMAKER_FRAMEWORK/scripts/shared/state/production_mode_transition.mjs",
-    reason: "the transition owner rejects retired overlay entries before they become candidate evidence",
-    owner: "production-mode-transition",
+    reason: "adoption transaction rejects a retired candidate overlay",
+    owner: "legacy-adoption",
     public_compatibility: false,
-    retire_by: "not-applicable:retired-transition-evidence-rejection",
-  }),
-  Object.freeze({
-    token: retiredIdentity("html", "-migration"),
-    file: "tests/shared/run-bundle/test_bundle_layout.mjs",
-    reason: "negative coverage proves the retired scratch directory is rejected",
-    owner: "run-bundle-layout",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("html", "-migration"),
-    file: "tests/03-html-production/test_html_slide_contract.mjs",
-    reason: "negative coverage proves retired renderer and palette contexts cannot be selected",
-    owner: "html-slide-contract",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("html", "-migration"),
-    file: "tests/shared/state/test_production_mode_transition.mjs",
-    reason: "negative coverage proves a retired overlay cannot become transition evidence",
-    owner: "production-mode-transition",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("legacy-image2", "-first"),
-    file: "tests/shared/state/test_state_yaml.mjs",
-    reason: "negative coverage proves retired source markers remain byte-preserving unsupported input",
-    owner: "shared-state",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("migrate", "-html"),
-    file: "tests/shared/state/test_state_yaml.mjs",
-    reason: "negative coverage proves retired node identities cannot be promoted into current state",
-    owner: "shared-state",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("migrate", "-import"),
-    file: "tests/shared/state/test_state_yaml.mjs",
-    reason: "negative coverage proves retired Controller identities cannot be promoted into current state",
-    owner: "shared-state",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
-  }),
-  Object.freeze({
-    token: retiredIdentity("migrate", "-html"),
-    file: "tests/contracts/test_docs_consistency.mjs",
-    reason: "negative documentation assertion proves removed command spelling is absent from active guidance",
-    owner: "framework-contracts",
-    public_compatibility: false,
-    retire_by: "not-applicable:negative-test",
+    retire_by: "not-applicable:negative-guard",
   }),
 ]);
 
 export const ACTIVE_SURFACE_PREFIXES = Object.freeze([
   "PPTMAKER_FRAMEWORK/",
   "openspec/specs/",
-  "tests/",
-  "tests_e2e/",
 ]);
 
 const LEGACY_RETIRE_BY = /^(?:change:[a-z0-9][a-z0-9-]*|release:[0-9]+(?:\.[0-9]+){1,2}|not-applicable:[a-z][a-z0-9-]*)$/;
 const LEGACY_OWNER = /^[a-z][a-z0-9-]{1,63}$/;
 const LEGACY_TOKEN = /^[A-Za-z0-9_][A-Za-z0-9._/-]{1,127}$/;
+const RETIRED_IMAGE2_ONLY = retiredIdentity("image2", "-only");
+const CURRENT_WHOLE_PAGE_LABELS = Object.freeze([
+  new RegExp(`\\b(?:legacy|compatibility|maintenance)[-_ ]+(?:whole-page(?:[-_ ]+image2(?:[-_ ]+v1)?)?|${RETIRED_IMAGE2_ONLY})\\b`, "gi"),
+  new RegExp(`\\b(?:whole-page(?:[-_ ]+image2(?:[-_ ]+v1)?)?|${RETIRED_IMAGE2_ONLY})[-_ ]+(?:legacy|compatibility|maintenance)\\b`, "gi"),
+]);
+const MALFORMED_WHOLE_PAGE_LABEL = /\bwhole-page[ \t]+whole-page\b/gi;
+const HISTORICAL_CONTEXT = /\b(?:historical|legacy)\b[^\n]{0,96}\b(?:observer|adoption|fixture)\b|\b(?:observer|adoption|fixture)\b[^\n]{0,96}\b(?:historical|legacy)\b|\bnegative (?:test|guard)\b/i;
 
 function issue(file, line, rule, message, hint) { return { file, line, rule, message, hint }; }
+function normalizedPath(value) { return String(value).replaceAll("\\", "/").replace(/^\.\//, ""); }
+function lineOf(text, offset) { return text.slice(0, offset).split("\n").length; }
+function activeSurfacePath(file) { return ACTIVE_SURFACE_PREFIXES.some((prefix) => file.startsWith(prefix)); }
+function exactException(file, token, exceptions) { return exceptions.some((entry) => entry?.file === file && entry?.token === token); }
+function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function lineAt(text, offset) {
+  const start = text.lastIndexOf("\n", offset) + 1;
+  const end = text.indexOf("\n", offset);
+  return text.slice(start, end < 0 ? text.length : end);
+}
 
 export function validateLegacyTokenExceptions(entries = LEGACY_TOKEN_EXCEPTIONS) {
   const issues = [];
@@ -180,50 +189,14 @@ export function validateRetiredWholePageTokenExceptions(entries = RETIRED_WHOLE_
   if (!Array.isArray(entries)) return issues;
   for (const entry of entries) {
     if (!entry || !RETIRED_WHOLE_PAGE_IDENTITIES.includes(entry.token)) {
-      issues.push(issue(entry?.file || "<retired-whole-page-token-exception>", 1, "retired-whole-page-token-exception", "exception token must be one exact retired whole-page identity", "register only a literal retired identity"));
+      issues.push(issue(entry?.file || "<retired-whole-page-token-exception>", 1, "retired-whole-page-token-exception", "exception token must be one exact retired production identity", "register only a literal retired identity"));
     }
   }
   return issues;
 }
 
-function normalizedPath(value) {
-  return String(value).replaceAll("\\", "/").replace(/^\.\//, "");
-}
-
-function lineOf(text, offset) {
-  return text.slice(0, offset).split("\n").length;
-}
-
-function activeSurfacePath(file) {
-  const path = normalizedPath(file);
-  return ACTIVE_SURFACE_PREFIXES.some((prefix) => path.startsWith(prefix));
-}
-
-function exactException(file, token, exceptions) {
-  return exceptions.some((entry) => entry?.file === file && entry?.token === token);
-}
-
-function literalMatches(text, token) {
-  const matches = [];
-  let offset = text.indexOf(token);
-  while (offset >= 0) {
-    matches.push(offset);
-    offset = text.indexOf(token, offset + token.length);
-  }
-  return matches;
-}
-
-const CURRENT_WHOLE_PAGE_LABELS = Object.freeze([
-  /\b(?:legacy|compatibility|maintenance)[-_ ]+(?:whole-page(?:[-_ ]+image2(?:[-_ ]+v1)?)?|image2-only)\b/gi,
-  /\b(?:whole-page(?:[-_ ]+image2(?:[-_ ]+v1)?)?|image2-only)[-_ ]+(?:legacy|compatibility|maintenance)\b/gi,
-]);
-const MALFORMED_WHOLE_PAGE_LABEL = /\bwhole-page[ \t]+whole-page\b/gi;
-
-/**
- * Scan only active source, main-spec, and verification surfaces. Exceptions
- * apply to one literal token in one file; they cannot suppress label rules or
- * a directory of historical behavior.
- */
+/** Scan active code, docs, and main specs. A literal historical context is
+ * allowed only for bounded observer/adoption/fixture explanations. */
 export function scanRetiredWholePageTerms(files, {
   exceptions = RETIRED_WHOLE_PAGE_TOKEN_EXCEPTIONS,
 } = {}) {
@@ -235,17 +208,19 @@ export function scanRetiredWholePageTerms(files, {
     const text = String(rawText);
     for (const token of RETIRED_WHOLE_PAGE_IDENTITIES) {
       if (exactException(file, token, exceptions)) continue;
-      for (const offset of literalMatches(text, token)) {
-        issues.push(issue(file, lineOf(text, offset), "retired-whole-page-identity", `${token} is retired from active surfaces`, "remove the identity or add one exact owner/reason-bounded negative exception"));
+      const pattern = new RegExp(escapeRegex(token), "gi");
+      for (const match of text.matchAll(pattern)) {
+        if (HISTORICAL_CONTEXT.test(lineAt(text, match.index))) continue;
+        issues.push(issue(file, lineOf(text, match.index), "retired-whole-page-identity", `${token} is retired from active surfaces`, "remove the identity or place it in one labelled observer/adoption/fixture context"));
       }
     }
     for (const pattern of CURRENT_WHOLE_PAGE_LABELS) {
       for (const match of text.matchAll(pattern)) {
-        issues.push(issue(file, lineOf(text, match.index), "retired-whole-page-label", `${match[0]} labels current whole-page work as retired compatibility`, "use image2-only / whole-page-image2-v1 / create-deck"));
+        issues.push(issue(file, lineOf(text, match.index), "retired-whole-page-label", `${match[0]} labels a retired production route`, "remove the route instead of presenting it as compatibility"));
       }
     }
     for (const match of text.matchAll(MALFORMED_WHOLE_PAGE_LABEL)) {
-      issues.push(issue(file, lineOf(text, match.index), "malformed-whole-page-label", `${match[0]} is a malformed replacement phrase`, "use whole-page once"));
+      issues.push(issue(file, lineOf(text, match.index), "malformed-whole-page-label", `${match[0]} is a malformed retired label`, "remove the retired label"));
     }
   }
   return issues;

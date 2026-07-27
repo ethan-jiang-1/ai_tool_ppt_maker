@@ -1,21 +1,21 @@
 ---
 node: classify-change
-shared: true
-lifecycle_phase: 5
+lifecycle_phase: "5"
 method_module: 05-iteration
 requires: []
-entry: []
-exit:
-  - evidence:change-classified
-  - evidence:playbook-selected
-  - evidence:scope-resolved
-produces: [change-classification, execution-scope]
+entry: [slide_specs_exists]
+exit: [evidence:change-classified]
+produces: [change-classification]
+shared: true
 ---
 
-# Shared Node: Classify Change
+# Classify Change
 
-**Step 1 — MD**: Read `scripts/05-iteration/change-classifier.md`. Probe canonical `production.pipeline` first, then identify source owner, structural impact, stale evidence, and smallest valid path. Never use render mode to classify an HTML-first run.
+**Step 1 — MD**: Read the exact Page Authority source/state pair and identify
+the affected stable IDs. Do not classify from generated files or position.
 
-**Step 2 — MD**: Persist `classification: {pipeline, mode: all|slides, slide_ids, change_kind, selected_playbook, structural_versioning, resolved_refresh_paths, remote_authorization_required}`. HTML paths use Local Slide Rebuild, Local Deck Rebuild, Notes-Only Refresh, or Structural Versioning Path. `image2-only` whole-page work may use Header Text & Style Refresh or Generated Image Rebuild.
+**Step 2 — MD**: Select one smallest path: Header Text & Style Refresh,
+Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path.
 
-**Step 3 — CLI**: Resolve every human position/spoken selector to current stable IDs before mutation. Record `change-classified`, `playbook-selected`, and `scope-resolved`; provider work remains false unless a whole-page Generated Image Rebuild has separate explicit authorization.
+**Step 3 — CLI**: Record the selected IDs and owner-valid path. Raw work stays
+unauthorized until the user approves its exact generation scope.

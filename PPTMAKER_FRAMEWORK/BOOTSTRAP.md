@@ -1,46 +1,75 @@
-# BOOTSTRAP — From zero to a usable deck
+# BOOTSTRAP - From zero to a usable deck
 
-这是 Agent 的启动入口。先准备本地 HTML runtime，再确认 source/visual evidence；不要把远端 Image2 当成新手前置条件。
+这是 Agent 的启动入口。新 deck 只有 Page Authority Image2 协议：先确认本地 Framed runtime，再按实际 raw-generation 操作检查 provider。不要把远端 Image2 凭证或授权当成 source authoring 的前置条件。
 
-## Step 0 — Read the contract
+## Step 0 - Read the contract
 
-读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` §1 的 locator entry 先解析本地 deck/framework，再读 `deck-guide.md`；host 无法访问 card 声明的本地路径时，请求明确 root。generic remote-chat attachment integration 不受支持。
+读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` 的 `RUN_BUNDLE locator entry` 先解析本地 deck/framework，再读 `deck-guide.md`；host 无法访问 card 声明的本地路径时，请求明确 root。generic remote-chat attachment integration 不受支持。
 
-## Step 1 — Base readiness
+## Step 1 - New-deck foundation
+
+未指定历史 run 时，先做基础检查和 unbound Page Authority readiness，然后才 init：
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-only   # 跳过 HTML-only Playwright/Chromium/ECharts/font 检查
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1   # 按该 version 的权威 mode 选择 profile
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
 ```
 
-无 selector 默认 common+HTML（Node、Playwright/paired Chromium、bundled Source Sans 3/Noto Sans SC、ECharts 6.1.0 与 HTML runtime smoke）。`image2-only`（或诊断别名 `--image2`）选择 common+Image2：不加载 HTML runtime，只查 credentials/endpoint/in-framework generator。`html-then-image2` 仍按 common+HTML blocking，Image2 presence 推迟到它的显式 refinement boundary。`--smoke|--probe-vendors` 仍是显式 live 选择，且必须先披露并确认。base 未就绪时先修复环境；`html-only` 是零 provider 本地路径。
+`doctor` 报告离线本地 runtime；它不是“source 与 provider 均已准备好”的合并结论。当前 authoring、local Framed composition、assembly、notes 和 delivery review 只需要当前操作的本地事实。只有选中非零 raw-generation 后，才运行：
 
-## Step 2 — Fresh intake (production mode)
-
-`ppt_flow init` 省略 `--mode` 时默认 `image2-only`（whole-page Image2 first-class 路径）；`--mode html-only|html-then-image2` 选择 HTML 路径。每个 version 的权威生产意图记录在 `_state/state.yaml` 的 `production_mode.by_version`，`project-metadata.yaml` 只是非权威镜像。目标合同保持 `identity.scheme: mnemonic-v1`、structured source、empty asset catalog、separate state scaffolding。Init 不创建 style master、generated output、refinement state 或 provider attempt。
-
-Intake 只问 topic、audience、language、one thing to remember、content constraints、visual DNA 与 preset。不要询问 renderer、style master 或 provider key。
-
-## Step 3 — Show real local evidence
-
-先 `validate`，再 `pilot`/quick preview。HTML preview 可在 gates pending 时运行，但必须打开真实 HTML pages/contact sheet；不得只用文字描述外观。Content review 关注 ordered semantics/header/body/fallback，visual review 关注 recipe coverage、page dependencies、font/overflow 与 effective/forced artifacts。
-
-## Step 4 — Complete locally
-
-```text
-content plan -> visual plan -> approve exact plan hashes
--> local Stage 1/2/3 -> delivery contact sheet
--> Stage 4 PPTX -> Stage 5 notes-v3
--> state --record-delivery-review proceed|repair|redirect
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1 --operation raw-generation
 ```
 
-PPTX/notes/final review 当前且 reset ID 相等时，deck 已完成；不要创建 Phase-4 placeholder。
+这时才检查 `IMAGE2_API_KEY`、endpoint 和 raw generator presence。`doctor --smoke` 提交 1 次；`doctor --probe-vendors` 恰好提交 1 次/每个 resolved entry。两者都是明确选择的 live diagnostic，必须先披露并取得确认。probe success 不等于生产授权，也不产生生产 authorization/state。
 
-## Step 5 — Iteration and transition
+## Step 2 - Choose page authority while authoring
 
-先按 `production.pipeline` 分类：Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 或 Structural Versioning Path。结构先 preview/hash，再发布 source-only vNext；target-local materialization 只复用匹配 stable-ID bytes，不继承 gate/reset/delivery/node evidence。跨 pipeline 页面权限切换只走 state-owned production-mode transition；其 exact plan-hash commit 记录目标 intake 的用户 `proceed` 决定，不是风险 waiver 或 Gate Policy 的 `confirm`。
+新 source 的唯一 pipeline 是 `page-authority-image2-v1`，state 的唯一新-deck mode 是 `image2-page-authority`。`init` 只创建这个 current route，source default 为 `framed-image2`。每个 version 的权威 mode 在 `_state/state.yaml` 的 `production_mode.by_version`，`project-metadata.yaml` 只是非权威镜像。
 
+- `pure-image2`: Image2 拥有所有最终像素。可读 body labels、values、quotations、captions、timeline dates 或 diagram text 承载语义时必须选择 Pure。
+- `framed-image2`: Image2 只生成无文字 full-canvas underlay；固定 `standard-v1` 本地 Text Frame 拥有 kicker、title、subtitle 与 callout。body 必须在 frame 下保持无文字。
+
+只写 closed `VISUAL BRIEF`、registered identity 与 Page Authority source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
+
+## Step 3 - Receipt-bound production
+
+先 author source 并验证，再按此顺序运行 Page Authority lifecycle：
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan deck_NAME/3_versions/v1 --json
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize deck_NAME/3_versions/v1 --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1 --operation raw-generation
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate deck_NAME/3_versions/v1 --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 review deck_NAME/3_versions/v1 --json
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 accept deck_NAME/3_versions/v1 --decision proceed
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --record-page-authority-delivery-review proceed
+```
+
+`plan` 是 provider-free。只有非零 submit plan 才要求人类在 `authorize` 前看到 exact run、stable IDs、generation profile 与 maximum submissions；init、doctor、probe、旧批次或聊天都不是授权。zero-submit work 可继续执行，也不虚构授权。
+
+raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用 retired review 或 historical artifact。
+
+## Step 4 - Refresh and structural changes
+
+Framed Text Frame-only 修改可在已接受 raw evidence 上本地完成，不需要 provider credential 或新授权：
+
+```bash
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1 --operation framed-local-refresh
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh deck_NAME/3_versions/v1 --kind title --only <stable-id>
+```
+
+Pure display text、underlay visual 或任何 raw-contract 修改必须回到 receipt-bound `image2 plan -> authorize -> generate -> review -> accept`，随后重新 build 和 delivery review。Notes-only work 使用 `refresh <run-dir> --kind notes`。增删重排和其它结构性修改走 Structural Versioning Path：先 preview，展示 position、stable ID、title、before/after 与 exact `plan_sha256`，再以确认的 hash apply。target 只可得到 plan-bound、target-owned `unreviewed` raw materialization 或 `needs_raw_generation` debt；不复制 raw acceptance、provider authorization、final evidence 或 delivery decision，apply 本身零远端。
+
+## Existing-run guidance
+
+只有用户明确给出一个 existing run 时，才先运行 `ppt_flow state <run-dir> --inspect-legacy-protocol`。read-only historical observer 的精确字节 schema 只识别 `html-first-v1` / `html-only|html-then-image2` 或 `whole-page-image2-v1` / `image2-only` pair，并将它们送入 provider-free legacy adoption；普通 build、refresh、review、pilot 和 provider 命令都会先被 fence 拦住。`current` Page Authority pair 继续其正常 receipt-to-delivery lifecycle；partial Page Authority pair 走 Page Authority repair，missing/unknown/corrupt pair 走 repair/export，绝不猜测为 legacy。
+
+对 recognized legacy run，Agent 先调用 `state <run-dir> --prepare-legacy-adoption`，只在 source-local `_scratch/production-mode-transition/candidate-run/` 内准备 candidate。人类逐页明确写 Page Authority source 和 adoption matrix（保留/删除/新增、stable ID、`pure-image2|framed-image2`、Text Frame、visual brief/reference、speaker note disposition）；再显示 `--preview-legacy-adoption` 的 exact hash 和 target intake，只有明确确认后才 `--confirm-legacy-adoption --plan-hash <hash>` 与 `--apply-legacy-adoption --plan-hash <hash>`。
+
+adoption 不读取或复制 legacy prompt、pixels、generated/review/provider/PPTX/notes/delivery evidence，也不初始化 credential、transport 或 provider。发布出的 clean vNext 是 `image2-page-authority`、`source_epoch: 1`，所有 target slide 都是 `needs_raw_generation`，从 `authorize-page-authority-raw` 继续。Image2 quality 由后续 target raw projection 的人审或明确授权 pilot 判断，不是 adoption 自动验证的职责。
 
 ## Optional Git note
 
@@ -49,20 +78,6 @@ PPTX/notes/final review 当前且 reset ID 相等时，deck 已完成；不要�
 Git 对做 PPT **可选但推荐**，只作为用户拥有的 source/control audit。先确认本次调用所在目录是不是用户明确指定的 worktree；否则视为 `not confirmed as a worktree`，不要检查 history。若没有用户 checkpoint，说明 `no verifiable Git history checkpoint`，不要承诺 recovery。
 
 source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不是 Git checkout，也不是 `_generated/`。用户若明确授权 Git，必须给出命名操作和精确范围；普通 checkpoint 授权不包含 inspection。不要在项目根或 framework 内 `git init`，不得嵌套 `git init`。
-
-## Optional Phase-4 refinement
-
-After the current HTML delivery review is `proceed`, the user may choose a
-professional visual upgrade. The Agent recommends at most 2–4 no-text visual
-slots and shows the exact setup/page attempt count and deterministic plan hash.
-Only an explicit authorization of that hash can create provider attempts. A
-decline is a complete HTML outcome and creates no refinement state. Credentials
-and live diagnostics are discussed only after this choice; `doctor --image2`
-is an offline presence check and never authorizes production.
-
-## Whole-page Image2
-
-Explicit whole-page deck 由 `playbook/create-deck.md` 的 `image2-only` 路径负责；它与现代 Phase 4 visual-slot refinement 互斥。Image2 checks/live probes 只在用户选择相应 remote action 后运行。
 
 ## Runtime check map
 
@@ -74,15 +89,13 @@ Explicit whole-page deck 由 `playbook/create-deck.md` 的 `image2-only` 路径�
 ### playwright
 ### echarts
 ### chromium
-### html_fonts
-### html_runtime_smoke
+### framed_fonts
+### framed_runtime
 ### fonts
 ### disk_space
 ### git
 ### api_key
 ### image_base_url
-### stage2_generator
+### page_authority_raw_generator
 ### image_smoke
 ### image_probe_vendors
-
-`doctor --smoke` 提交 1 次；`doctor --probe-vendors` 恰好提交 1 次/每个 resolved entry。两者都必须先披露并取得确认。probe success 不等于生产授权，也不产生生产 authorization/state。

@@ -1,3 +1,3 @@
-# Phase 0 internals
+# Setup internals
 
-Provider-free environment, local HTML runtime, and font-readiness implementation belongs here.
+Provider-free environment, local Framed runtime, and font-readiness implementation belongs here.

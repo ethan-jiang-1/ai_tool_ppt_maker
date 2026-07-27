@@ -27,8 +27,8 @@ describe("MD Controller reader characterization", () => {
   it("parses fenced YAML nodes rather than only document frontmatter", () => {
     const parsed = parseControllerFile(join(PLAYBOOK_DIR, "create-deck.md"));
     expect(parsed.playbook).toBe("create-deck");
-    expect(parsed.nodes.map((node) => node.id)).toContain("author-structured-content");
-    expect(parsed.nodes.find((node) => node.id === "author-structured-content")?.methodModule).toBe("01-content");
+    expect(parsed.nodes.map((node) => node.id)).toContain("author-page-authority-content");
+    expect(parsed.nodes.find((node) => node.id === "author-page-authority-content")?.methodModule).toBe("01-content");
   });
 
   it("the live MD Controller registry matches the checked-in v3 manifest and validates cleanly", () => {
@@ -44,43 +44,27 @@ describe("MD Controller reader characterization", () => {
         const node = index.nodesById.get(id);
         expect(node, `${playbook}/${id}`).toBeDefined();
         expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|4|5)$/);
-        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|03-html-production|04-image-production|05-iteration)$/);
+        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|04-image-production|05-iteration)$/);
         expect(node.steps.length).toBeGreaterThan(0);
       }
     }
   });
 
-  it("registers one HTML-only Phase-4 controller with exact current-delivery entry gates", () => {
+  it("registers Page Authority as the sole active Image Production controller", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    expect(index.controllers.size).toBe(10);
+    expect(index.controllers.size).toBe(9);
     expect(index.controllers.has("production-mode-transition")).toBe(true);
-    expect(index.controllers.has(["migrate", "import"].join("-"))).toBe(false);
-    const controller = index.controllers.get("image2-refine");
-    expect(controller.supportedPipelines).toEqual(["html-first-v1"]);
-    expect(controller.nodes.map((node) => node.id)).toEqual([
-      "recommend-image2-refinement",
-      "authorize-image2-refinement",
-      "execute-image2-refinement",
-      "review-image2-refinement",
-    ]);
-    for (const node of controller.nodes) {
-      expect(node).toMatchObject({ playbook: "image2-refine", lifecyclePhase: "4", methodModule: "04-image-production" });
-    }
-    expect(controller.nodes[0].entry).toEqual(["html_first_marked", "html_delivery_review_current"]);
+    expect(index.controllers.has("image2-refine")).toBe(false);
+    expect(index.controllers.get("create-deck").supportedPipelines).toEqual(["page-authority-image2-v1"]);
   });
 
   it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const wholePage = index.nodesById.get("generate-image2-style-master");
-    const visualSlot = index.nodesById.get("recommend-image2-refinement");
+    const pageAuthority = index.nodesById.get("generate-page-authority-raw");
     const createDeck = index.controllers.get("create-deck");
-    const refinement = index.controllers.get("image2-refine");
-    expect(wholePage).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "whole-page", productionModes: ["image2-only"] });
-    expect(visualSlot).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "visual-slot", productionModes: ["html-then-image2"] });
-    expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "image2-only")).toBe(true);
-    expect(nodeAppliesToMode(wholePage, createDeck.supportedProductionModes, "html-then-image2")).toBe(false);
-    expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "html-then-image2")).toBe(true);
-    expect(nodeAppliesToMode(visualSlot, refinement.supportedProductionModes, "image2-only")).toBe(false);
+    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority")).toBe(true);
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-only")).toBe(false);
   });
 
   it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {
@@ -90,7 +74,6 @@ describe("MD Controller reader characterization", () => {
       writeFileSync(join(dir, "duplicate.md"), `---\nplaybook: duplicate\nincludes: []\n---\n\n\`\`\`yaml\nnode: later\nlifecycle_phase: 4\nmethod_module: 05-iteration\nrequires: []\nentry: []\nexit: []\n\`\`\`\n\n**Step 1 — MD**: duplicate\n`);
       const result = validatePlaybookIndex(buildPlaybookIndex(dir));
       expect(result.valid).toBe(false);
-      expect(result.errors.some((error) => error.rule === "reserved-id")).toBe(true);
       expect(result.errors.some((error) => error.rule === "requires-order")).toBe(true);
       expect(result.errors.some((error) => error.rule === "dependency-cycle")).toBe(true);
       expect(result.errors.some((error) => error.rule === "decision-value")).toBe(true);

@@ -1,3 +1,4 @@
-# Shared state E2E
+# Shared state Mocked E2E
 
-State-machine and state-owned production-mode-transition journeys live here.
+The bounded legacy-adoption journey lives here. It verifies observer/adoption only;
+no legacy production lifecycle is retained.

@@ -571,6 +571,9 @@ export function slideEditMutationPayload(transaction) {
     after_order: transaction.after_order || [],
     structured_reference_changes: transaction.structured_reference_changes || [],
     warnings: transaction.warnings || [],
+    ...(transaction.page_authority_structural_raw
+      ? { page_authority_structural_raw: transaction.page_authority_structural_raw }
+      : {}),
   };
 }
 
@@ -622,11 +625,6 @@ function scanPageReferenceWarnings(document) {
     left.source.column - right.source.column ||
     left.match.localeCompare(right.match)
   );
-}
-
-function headerLockIds(document) {
-  const value = document.frontmatter.metadata?.render?.["header-lock"];
-  return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
 }
 
 function flattenSelectors(value) {
@@ -875,11 +873,6 @@ export function planSlideEdit(document, selectors = [], operations = [], history
     throw new SlideEditError("planned result contains duplicate slide IDs", "duplicate_result_id");
   }
 
-  const headerLock = headerLockIds(document);
-  const removedHeaderLockIds = headerLock.filter((id) => deletedIds.has(id)).sort();
-  const structuredReferenceChanges = removedHeaderLockIds.length > 0
-    ? [{ kind: "render.header-lock", action: "remove", slide_ids: removedHeaderLockIds }]
-    : [];
   const structural = formalOperations.some((operation) => operation.op !== "normalize");
   const transaction = {
     schema_version: SLIDE_EDIT_SCHEMA_VERSION,
@@ -893,7 +886,7 @@ export function planSlideEdit(document, selectors = [], operations = [], history
     operations: formalOperations,
     before_order: beforeOrder,
     after_order: afterOrder,
-    structured_reference_changes: structuredReferenceChanges,
+    structured_reference_changes: [],
     warnings: structural ? scanPageReferenceWarnings(document) : [],
   };
   transaction.plan_sha256 = computeSlideEditPlanSha256(transaction);
@@ -905,25 +898,6 @@ function normalizeBlockHeading(block, position) {
   const relativeStart = block.heading_number_range.start - block.range.start;
   const relativeEnd = block.heading_number_range.end - block.range.start;
   return block.raw.slice(0, relativeStart) + expected + block.raw.slice(relativeEnd);
-}
-
-function updateHeaderLockFrontmatter(document, removedIds) {
-  if (removedIds.length === 0 || !document.frontmatter.present) return document.frontmatter.raw;
-  const yamlDocument = parseDocument(document.frontmatter.content, { uniqueKeys: true });
-  if (yamlDocument.errors.length > 0) {
-    throw new SlideEditError("cannot update invalid YAML frontmatter", "invalid_frontmatter");
-  }
-  const existing = document.frontmatter.metadata?.render?.["header-lock"];
-  if (!Array.isArray(existing)) return document.frontmatter.raw;
-  const removed = new Set(removedIds);
-  yamlDocument.setIn(
-    ["render", "header-lock"],
-    existing.filter((id) => !removed.has(id))
-  );
-  let content = String(yamlDocument);
-  if (document.newline === "\r\n") content = content.replace(/\n/g, "\r\n");
-  const bom = document.source_text.startsWith("\uFEFF") ? "\uFEFF" : "";
-  return `${bom}---${document.newline}${content}---${document.newline}`;
 }
 
 function materializeTransaction(document, transaction) {
@@ -938,10 +912,6 @@ function materializeTransaction(document, transaction) {
       parseInsertedBlock(operation.block, `${document.source}#insert:${operation.slide_id}`)
     );
   }
-  const removedIds = transaction.structured_reference_changes
-    .filter((change) => change.kind === "render.header-lock" && change.action === "remove")
-    .flatMap((change) => change.slide_ids || []);
-  const frontmatter = updateHeaderLockFrontmatter(document, removedIds);
   const renderedBlocks = transaction.after_order.map((id, index) => {
     const block = blocks.get(id);
     if (!block) {
@@ -949,7 +919,7 @@ function materializeTransaction(document, transaction) {
     }
     return normalizeBlockHeading(block, index + 1);
   });
-  return frontmatter + document.preamble.raw + renderedBlocks.join("") + document.epilogue.raw;
+  return document.frontmatter.raw + document.preamble.raw + renderedBlocks.join("") + document.epilogue.raw;
 }
 
 /**

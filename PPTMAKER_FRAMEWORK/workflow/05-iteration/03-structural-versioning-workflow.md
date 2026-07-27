@@ -1,7 +1,14 @@
+---
+stage: workflow/05-iteration
+---
+
 # Structural Versioning Workflow
 
-Preview insert/delete/move/multi-operation against the current source and exact plan hash. Confirmed apply publishes one clean source-only vNext through hidden staging and no-replace rename. It never renders, calls a provider, or copies generated/reset/review authority.
+Use structural versioning for additions, removals, reordering, or a change of page
+authority. Preview the target first and show position, stable ID, title,
+before/after effects, and exact `plan_sha256`. Apply only that confirmed hash.
 
-For HTML-first, the receipt reports `needs_local_materialization`. Explicit target-local materialization recomputes fingerprints, copies only verified matching bytes into target-owned objects, locally rebuilds Stage 1-3 review evidence, and stops at `review_required`. Target approvals are mandatory before its Stage 4/5 delivery.
-
-First-class whole-page Image2 retains `needs_render` and separately authorized remote rebuild semantics.
+The published target contains source changes and target-owned raw materialization
+only where the plan permits it. It never inherits raw acceptance, provider
+authorization, final manifests, assembly/notes receipts, or delivery decisions.
+`needs_render` reports raw-generation debt; apply itself performs no remote work.

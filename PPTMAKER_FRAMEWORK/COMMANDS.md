@@ -1,128 +1,102 @@
-# COMMANDS — Public routing
+# COMMANDS - Public routing
 
-`ppt_flow` 顶层命令固定为 14 个：`doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, `image2`。
+`ppt_flow` 顶层命令固定为 11 个：`doctor`, `init`, `status`, `validate`, `build`, `refresh`, `slides`, `new-version`, `test`, `state`, `image2`。
 
-## Pipeline-first rule
+## New deck: Page Authority only
 
-先读取每个 canonical run version 的权威 `production_mode.by_version["3_versions/vN"].mode`（state SSOT），再用 canonical `slide-specifications.md` 的 `production.pipeline` 作为该 version 的实际 renderer 合同，最后处理 branch-specific flags/readiness/writes。`project-metadata.yaml` 的 `production_mode` 只是非权威镜像。
-
-封闭三模式（`scripts/shared/run-bundle/production_mode.mjs` 单一拥有映射）：
-
-- `html-only` → `html-first-v1` / html / refinement disabled / reserved HTML style-master seam。本地完成，零 provider。
-- `html-then-image2` → `html-first-v1` / html / refinement required（经 `image2-refine` 生命周期）/ reserved HTML seam。
-- `image2-only` → `whole-page-image2-v1`（显式 source marker）/ image2 / refinement not-applicable / current in-framework style master。
-
-`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 不就地改写，而是走 state-owned clean-vNext production-mode transition。它保留 source version 与全部 source work，先显式 author target source/control 和 target intake，再 preview、确认、发布、receipt-bound handoff。新 deck 省略 `--mode` 默认 `image2-only`。
-
-- `html-first-v1`: local HTML Stage 1-5；header/body/KPI/card/chart/callout 均由 HTML renderer/compositor 拥有；不查看 render mode、style master 或 Image2 配置。
-- `whole-page-image2-v1`: 这是 `image2-only` 的 first-class whole-page pipeline；新 deck 走正常的 pilot/header/build/provider controls，并保有 durable state。
-
-## Common commands
+未指定一个 historical run 时，唯一新-deck route 是 `image2-page-authority` / `page-authority-image2-v1`。`ppt_flow init` 只创建这个 current route。不要要求用户选择 retired production route，也不要在 init 前索要 provider credential。
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor                       # common+HTML；--mode image2-only 跳过 HTML runtime
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive [--mode html-only|html-then-image2|image2-only]
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs pilot deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --json
-# production-mode authority (same-pipeline transition / mirror repair / version registration / image2 final review)
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --set-production-mode html-only|html-then-image2
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --repair-production-mode-mirror
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <target-run-dir> --register-production-mode-from <source-run-dir>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-image2-delivery-review proceed|repair|redirect [--reason "<text>"]
-# cross-pipeline page-authority transition (no current-version mode mutation)
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --prepare-production-mode-transition html-only|html-then-image2|image2-only
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --preview-production-mode-transition
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --confirm-production-mode-transition --plan-hash <hash>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <source-run-dir> --apply-production-mode-transition --plan-hash <hash>
 ```
 
-The transition candidate is confined to `_scratch/production-mode-transition/candidate-run/`. The Agent authors its target `slide-specifications.md`, complete target intake, and target visual control there; it may preserve only the source formal identity/order ledger. `--confirm-production-mode-transition --plan-hash` records the target user's `proceed` intake decision as an exact transaction commit, not a Gate Policy `confirm` or risk waiver: it accepts neither `--reason` nor `--force`. An HTML target reports `needs_local_materialization` and follows the existing runnable HTML contract, not a new score, parity review, or visual-quality promise. An Image2 target reports `needs_render` and enters normal style-master authorization, provider, review, and final-delivery controls only after target handoff. A visible receipt waiting for registration is recovered with `state --recover-production-mode-transition`; an old uncertain journal additionally requires the state-owned `--confirm-production-mode-transition-recovery <owner-token>` record.
+unbound doctor 独立显示 `framed-runtime` 与 `image2-raw` readiness，不把 deferred raw provider 事实说成当前 source-ready。`framed-image2` 是 source default；init 创建 canonical source/state/control scaffolding，且不创建 raw/final/generated artifacts、PPTX、notes、style master 或 provider attempt。
 
-HTML `pilot` / `refresh` 不接受 provider/model/resolution/style-master/force/reuse image flags；HTML `build` accepts only its explicit local `--force --reason` continuation and never provider controls. `pilot` 只发布 production-equivalent review artifacts，不发布 PPTX，也不 waive gates。`approve ... content|visual --plan-hash <hash>` 只接受当前 reset-bound approvable plan。
+## Pixel authority
 
-Gate response always starts with the recommended repair: show the changed bounded evidence, rebuild or review the current artifact, then publish the exact current decision. A reversible evidence/process risk may expose a reasoned, version-scoped waiver; it remains `waived`, not `approved`, and evidence completeness is reported separately. Plan/reset identity drift, active journals, corrupted state, unsafe paths/bytes, and provider authorization are hard stops: use the producer-owned recovery action rather than editing state or forcing through.
+| Authority | Final-pixel owner | Choose it when |
+| --- | --- | --- |
+| `pure-image2` | Image2 owns the complete page. | Readable body labels, values, quotations, captions, timeline dates, or diagram text carry meaning. |
+| `framed-image2` | Image2 owns a text-free full-canvas underlay; the fixed local `standard-v1` Text Frame owns optional kicker/subtitle/callout and required title pixels. | The visual body is text-free beneath that deterministic frame. |
 
-For an exact run, `state <run-dir> --json` is the controller-facing resume surface. Consume `workflow_inspection.primary_action` and its bounded `continuation`; use the direct owner CLI only for the selected mutation. Do not reconstruct a review record, infer approval from render output, or copy a reason into state yourself.
+Pure does not create a local body renderer. Framed does not send Text Frame literals to Image2 and accepts no slide-owned markup, CSS, geometry, font, color, retired prompt fields, or provider prompt/style/output override. Use the closed `VISUAL BRIEF` and registered identity inputs only.
 
-## HTML Continuations And State
-
-Normal content/visual approval consumes the exact current plan hash. An explicit waiver is a separate user-owned decision and never upgrades to approval:
+## Receipt-bound Page Authority lifecycle
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> content --plan-hash <current-hash>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs approve <run-dir> visual --waive --reason "<human reason>"
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir> --force --reason "<human reason>"
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan <run-dir> --json
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize <run-dir> --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate <run-dir> --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 review <run-dir> --json
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 accept <run-dir> --decision proceed
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-page-authority-delivery-review proceed
 ```
 
-`build --force` publishes only any still-needed content/visual waivers, rechecks both gates, and then performs local assembly. It never starts an Image2 provider call. A successful force output may say `force_not_needed`; that means the current normal evidence already sufficed and no waiver was written.
+`plan` is offline and receipt-bound. Before every nonzero raw submission, disclose the exact operation, stable IDs, generation profile, and maximum submission count, then record `authorize` with that exact plan hash. Provider readiness, init, doctor, a live probe, raw review, and a prior batch never grant that authorization. A proven zero-submit operation remains mechanical and provider-free.
 
-The version-scoped HTML records live only under canonical keys such as
-`nodes.html-content-review.by_version["3_versions/vN"]`,
-`nodes.html-visual-review.by_version["3_versions/vN"]`, and
-`nodes.html-delivery-review.by_version["3_versions/vN"]`. New gate records use
-`pptmaker-html-gate-review-v2`; their closed fields bind pipeline, gate, run/reset identity,
-status, plan/audit evidence, `evidence_complete`, canonical `waived_checks`, and the decision time.
-New delivery records use `pptmaker-html-delivery-review-v2`; they bind current delivery/PPTX/contact-sheet
-identity plus the required lineage receipt references, typed decision/reason, `evidence_complete`,
-canonical `waived_checks`, and decision time. These are implementation-owned records: users inspect
-them through state output but never construct or patch them manually.
+`review` creates a non-publishing raw projection. Complete current raw evidence with no decision is a `confirm` gate, so record `proceed`, `repair`, or `redirect`; missing, partial, stale, or mismatched raw evidence is a hard-stop and returns to its owner. `build` reaches the single `finalizePage(...)` interface, final manifest/projection, PPTX assembly, and notes receipt. Complete delivery evidence without a delivery decision is another `confirm` gate; use `--record-page-authority-delivery-review proceed|repair|redirect` (repair/redirect require a bounded reason). Source/state identity failures, invalid evidence, invalid provider scope, unknown submission, and attempted unauthorized submit are hard-stops with one producer-issued recovery action.
+
+## Refresh and versioning
+
+Framed Text Frame-only changes are local and provider-free when accepted raw evidence remains exact:
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --validate-state
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation framed-local-refresh
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <stable-id>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind notes
 ```
 
-Validation is read-only. It reports bounded field paths, expected/actual summaries, closed-key or
-canonical-version-key violations, confined paths, and SHA mismatches; it does not heal, seed, rewrite,
-or choose a repair. Follow the producer's recommended public repair command.
+After a Framed refresh, rebuild the current final/assembly/notes lineage as required and record a new current delivery decision. Pure display edits and all raw visual/source-contract changes require new raw evidence and review; use the lifecycle above rather than a local refresh.
 
-Final delivery review 唯一 publisher（closed state subcommand syntax）：
+Insert, delete, reorder, and other structural changes use Structural Versioning Path. Preview first, show position, stable ID, title, before/after, and exact `plan_sha256`; apply only the confirmed hash:
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review proceed
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> <selector> --after <selector>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> <selector> --after <selector> --apply --plan-sha256 <hash>
 ```
+
+The clean vNext receives only plan-bound, target-owned `unreviewed` raw materialization or `needs_raw_generation` debt. It never inherits raw review, provider authorization, final/PPTX/notes evidence, or delivery decisions, and structural apply makes no provider request. `needs_render` is a cost/debt report, never permission.
+
+## Existing runs only
+
+For an explicitly targeted existing run, first inspect its exact canonical source/state pair. `project-metadata.yaml` is only a mirror:
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review repair --reason "<human reason>"
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --inspect-legacy-protocol
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --prepare-legacy-adoption
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --preview-legacy-adoption
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --confirm-legacy-adoption --plan-hash <hash>
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --apply-legacy-adoption --plan-hash <hash>
 ```
 
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-delivery-review proceed --force --reason "<human reason>"
-```
+Only the read-only historical observer recognizes an exact `html-first-v1` / `html-only|html-then-image2` pair or an exact `whole-page-image2-v1` / `image2-only` pair. It is historical evidence, not an ordinary build, refresh, review, or provider route. The Agent prepares the confined candidate;
+the human authors every target slide's `pure-image2|framed-image2` choice and its adoption-matrix row,
+then confirms the exact preview and target intake. The candidate never derives new source from legacy
+prompts, pixels, generated artifacts, reviews, approvals, provider history, PPTX, or notes.
+These are not fresh-init choices and cannot reinterpret a Page Authority source.
 
-Normal `proceed` requires complete current evidence and carries no reason. `repair` / `redirect` require a reason. Forced `proceed` is only available when current reviewable PPTX and contact-sheet bytes exist; it records an evidence waiver for incomplete lineage, remains visibly distinct from complete evidence, and does not invent missing paths or hashes.
+Adoption itself makes no Image2 request. It publishes a clean Page Authority vNext at `source_epoch: 1`;
+every target slide starts as `needs_raw_generation`, and later raw generation, human raw review, pilot,
+and delivery work follow the normal Page Authority lifecycle independently. Missing, unsupported, or
+partially Page Authority facts are repair/export or Page Authority-pair repair paths, never inferred
+adoption. Page Authority never substitutes retired evidence or historical generated artifacts for its
+direct prerequisites.
 
-Reset 唯一入口：
+The state-owned `production-mode-transition` transaction is the bounded adoption transaction. It has
+no caller-selected production target, preserves the source version, and does not copy approvals or
+generated evidence.
 
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> \
-  --kind reset-html-production --confirm-run-version vN
-```
+## Observation and control boundaries
 
-它拥有完整 canonical generated owner recovery；不接受 selectors/dry-run/provider/style/force/reuse overrides，不手删路径，不继承旧 approval。journal recovery 只走 `state --recover-gate-journal <owner-token>`。
+For any exact run, `state <run-dir> --json` is the controller-facing resume surface. Consume `workflow_inspection.primary_action` and its bounded `continuation`; use the direct owner CLI only for the selected mutation. Do not reconstruct review records, infer approval from rendered output, copy a reason into state, or hand-edit durable state.
 
-## Refresh classification
+Gate handling starts with the current changed evidence and the producer's recommended repair. A complete current review awaiting `proceed|repair|redirect` is a human `confirm`, not a repairable integrity fault. Identity drift, active journal, corrupted state, unsafe bytes/paths, incomplete evidence, and provider authorization failures are hard-stops; they never become `--force` or a generic bypass.
 
-HTML-first 的 Local Slide Rebuild、Local Deck Rebuild、Notes-Only Refresh 与 Structural Versioning Path 是正式路径。`image2-only` 的 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path 通过 `create-deck` 正常执行。标题/小问题修当前版本；同一方向的大改发布 clean vNext；结构 apply 本身零远端。
+## Optional Git note
 
-HTML structural output 报 `needs_local_materialization`；whole-page output 报 `needs_render`。`needs_render` 只报告成本，不能自动扩大远端授权。用户若要专业 Image2 visual-slot refinement，必须在当前 HTML delivery review 为 `proceed` 后显式使用封闭的 `image2 plan|authorize|generate|accept|use-html|cleanup|unknown-submit` 路由；它不是 renderer 选择，也不会自动开始远端工作。
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize deck_NAME/3_versions/v1 --plan-hash <sha256>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate deck_NAME/3_versions/v1 --attempt-id <id>
-```
-
-`image2 plan` is optional and offline. When complete delivery evidence is unavailable but current
-final-slide/slot identity is safe, `image2 plan <run-dir> --force --reason "<human reason>"` records
-only a prerequisite waiver and still cannot submit, promote, or complete the deck. `authorize` remains
-an exact plan-hash decision. Credentials and the modern transport are loaded only by `generate`, or by
-`unknown-submit --decision retain` when remote reconciliation is requested; `unknown-submit --decision abandon`
-stays provider-free. Reconciliation consumes the persisted provider request identity, not a rebuilt prompt/body.
-
-## Structural Versioning
-
-`slides` preview 必须绑定 position · stable ID · title、before/after 与 exact `plan_sha256`；apply 只发布 source/control vNext。Page authority changes use the state-owned production-mode transition documented above. HTML-quality-only requests remain normal HTML iteration work and never create a transition candidate.
-
-Git history reader、自动 source replacement、`git checkout`/`git restore` fallback 都不属于本框架。只有用户明确授权命名 Git 操作和用户给定范围时，Agent 才能协助。
+Git history reader、自动 source replacement、`git checkout`/`git restore` fallback 都不属于本框架。只有用户明确授权命名 Git 操作和用户给定范围时，Agent 才能协助。标题/小问题修当前版本；同一方向的大改发布 clean vNext。

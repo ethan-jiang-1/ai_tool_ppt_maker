@@ -1,47 +1,34 @@
 ---
-title: 00 — 变更分类与最小刷新路径
-stage: workflow/05-iteration
-position: 01 of 05
-type: methodology
-summary: 先按 pipeline、source owner 与失效证据分类，再选择 HTML 本地刷新、whole-page 刷新或结构版本化。
-depends_on:
-- workflow/05-iteration/README.md
-feeds_into:
-- workflow/05-iteration/01-content-and-layout-iteration.md
-agent_action: internalize
+title: Iteration Capability Routing
+summary: Classify by Page Authority ownership and invalidated evidence.
 ---
 
-# 00 — 变更分类与最小刷新路径
+# Iteration Capability Routing
 
-← [README](README.md) | [Next →](01-content-and-layout-iteration.md)
+1. Identify the exact source change and affected stable IDs.
+2. Identify the final-pixel owner: `framed-image2` or `pure-image2`.
+3. Determine whether accepted raw evidence remains exact.
+4. Select the smallest current path and display any required decision.
 
-## 顺序不能反
+## Framed Text Refresh
 
-1. 读取 canonical `production.pipeline`。
-2. 识别 source owner：content、visual system、notes、structure、runtime 或 whole-page generated image。
-3. 计算失效的 plan/page/review/assembly lineage。
-4. 选择最小路径；只有明确的 whole-page remote work 才进入 provider authorization。
+When only Text Frame content or its local style changes and accepted raw evidence
+is exact, refresh locally, rebuild final/assembly/notes lineage, and obtain a new
+delivery decision.
 
-## HTML-first
+## Raw Rebuild
 
-| 改动 | 路径 | Review 影响 |
-|---|---|---|
-| 单页 header/body/family/fallback | Local Slide Rebuild | content；family/asset/chart shape 只刷新相关 visual evidence |
-| visual config/runtime/renderer | Local Deck Rebuild | global system + recipe representatives，再本地全量 |
-| notes only | Notes-Only Refresh | 新 notes receipt 后重新 final delivery review |
-| 增删重排 | Structural Versioning Path | source-only vNext，再 target-local materialization 与 target reviews |
-| generated owner 丢失且已有 authority | Confirmed HTML production reset | 新 reset epoch，重新 preview/gates/delivery review |
+When a Pure slide's semantic text changes, or a visual brief, reference, or
+underlay changes, plan new raw work. A nonzero provider batch requires exact-plan
+authorization before generation and current raw review afterward.
 
-普通 copy 不重新批准全册 visual system，但必须重新做 schema、font、overflow 与 composition checks。chart numeric shape、asset byte、selection/fallback 或 family recipe 改变时，只让对应 page/coverage stale。
+## Notes And Structure
 
-## Whole-page Image2
+Notes-only changes use the notes owner. Structural changes use preview plus exact
+plan-hash confirmation and publish a clean target with no inherited acceptance or
+delivery evidence.
 
-保持 Header Text & Style Refresh、Generated Image Rebuild、Notes-Only Refresh 与 Structural Versioning Path。Generated Image Rebuild 是远端成本，必须单独授权。详细 ownership 见 `playbook/create-deck.md`。
+## Historical Runs
 
-## OpenSpec 何时介入
-
-- framework 合同、CLI、schema、共享 renderer/runtime、跨模块 state 变化：走 OpenSpec。
-- 一个具体 deck 的普通 source edit：在 run bundle 内按上述路径执行，不为 typo 或单页文案机械创建 framework proposal。
-- 结构变化无论大小都 preview + exact plan hash，因为它改变 source snapshot 身份。
-
-禁止把 HTML layout 改写成 `IMAGE PROMPT` 微调，也禁止把 Phase 4 当普通 refresh。现代 Image2 refinement 只能走交付后的 `image2-refine` 授权 workflow；普通 HTML refresh 不加载 provider。
+The read-only observer may classify an explicitly targeted historical pair for
+provider-free adoption. It never resumes production from that pair.

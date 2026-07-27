@@ -11,7 +11,6 @@
 import {
   appendFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -19,7 +18,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -31,9 +30,10 @@ import {
   resolveNode,
   validatePlaybookIndex,
 } from "./md_controller_reader.mjs";
-import { validateNotesReceipt, notesReceiptPath } from "../identity/notes_receipt.mjs";
-import { HTML_FIRST_PIPELINE, probeProductionMarker } from "../run-bundle/production_marker.mjs";
-import { canonicalVersionKey, classifyProductionModeTransition, inspectProductionMode, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
+import { inspectPageAuthorityDeliveryEvidence } from "./page_authority_delivery_evidence.mjs";
+import { PAGE_AUTHORITY_IMAGE2_PIPELINE, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { canonicalVersionKey, initialProductionModeRecord, inspectProductionMode, isProductionMode, isProductionModeRecord, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
+import { isHistoricalLegacyProtocolRecord, legacyProtocolPolicyForMode } from "./legacy_protocol_adoption.mjs";
 
 export const STATE_DIR = "_state";
 export const STATE_FILE = "state.yaml";
@@ -41,12 +41,9 @@ export const HISTORY_FILE = "history.jsonl";
 export const STATE_SCHEMA_VERSION = 5;
 export const NODE_STATUSES = Object.freeze(["pending", "in_progress", "completed", "skipped", "failed"]);
 export const GATE_STATUSES = Object.freeze(["pending", "approved", "waived"]);
-export const RESERVED_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image-production"]);
-export const LEGACY_RESERVED_NODE_IDS = Object.freeze(["image2-refinement"]);
-export const IMAGE_PRODUCTION_STATE_SCHEMA_V1 = "pptmaker-image-production-state-v1";
-export const IMAGE2_REFINEMENT_STATE_SCHEMA_V1 = "pptmaker-image2-refinement-state-v1";
-export const IMAGE2_REFINEMENT_STATE_SCHEMA_V2 = "pptmaker-image2-refinement-state-v2";
-export const IMAGE2_REFINEMENT_STATE_SCHEMA = IMAGE2_REFINEMENT_STATE_SCHEMA_V2;
+export const RESERVED_NODE_IDS = Object.freeze([]);
+export const LEGACY_RESERVED_NODE_IDS = Object.freeze([]);
+const RETIRED_STATE_NODE_IDS = Object.freeze(["header-review", "html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement", "image-production"]);
 
 export const STATE_YAML_HEADER = `\
 # _state/state.yaml — MD Controller execution state (not a hand-edit playground)
@@ -76,7 +73,6 @@ export const STATE_DIR_README = `\
 
 const YAML_PARSE_OPTS = { strict: false, uniqueKeys: false, logLevel: "error" };
 const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
-const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
@@ -84,10 +80,18 @@ const TRANSITION_SUSPENSION_SCHEMA = "pptmaker-production-mode-transition-suspen
 const TRANSITION_APPLY_NODE = "apply-production-mode-transition";
 const TRANSITION_INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
 const TRANSITION_UNCERTAIN_RECOVERY_AGE_MS = 300000;
+const PAGE_AUTHORITY_VISUAL_LANGUAGE_RELATIVE_PATH = "2_backbone/visual-style/page-authority-visual-language.yaml";
+const PAGE_AUTHORITY_TRANSITION_RECEIPT_RELATIVE_PATH = "_generated/page_authority_image2/receipts/production-mode-transition.json";
+// These field names and byte schemas predate retirement. They remain fixed so
+// an in-flight adoption transaction can be recovered exactly, but the only
+// accepted action is the bounded historical-to-Page-Authority adoption below.
+const LEGACY_ADOPTION_KIND = "legacy-adoption";
 const TRANSITION_RECORD_KEYS = Object.freeze([
   "status",
   "execution_id",
   "run_version",
+  "transition_kind",
+  "transition_adoption",
   "transition_plan_hash",
   "transition_candidate_receipt_sha256",
   "transition_target_intake",
@@ -125,18 +129,23 @@ function isoOr(value, fallback) {
   if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return fallback;
   return value;
 }
-function isTransitionSuspensionFrame(frame) {
+function isLegacyAdoptionSuspensionFrame(frame) {
   return isPlainObject(frame) && frame.schema === TRANSITION_SUSPENSION_SCHEMA && frame.disposition === "transition-suspended";
 }
 
-function isTransitionPipeline(value) {
-  return value === HTML_FIRST_PIPELINE || value === WHOLE_PAGE_IMAGE2_PIPELINE;
+function historicalModeMatchesPipeline(mode, pipeline) {
+  return legacyProtocolPolicyForMode(mode)?.pipeline === pipeline;
 }
 
 function validTransitionIntake(value) {
   return isPlainObject(value) &&
     Object.keys(value).length === TRANSITION_INTAKE_FIELDS.length &&
     TRANSITION_INTAKE_FIELDS.every((field) => typeof value[field] === "string" && value[field].trim().length > 0);
+}
+
+function validLegacyAdoptionBinding(value) {
+  return hasExactKeys(value, ["observation_sha256", "source_state_sha256", "matrix_sha256"]) &&
+    SHA256_RE.test(value.observation_sha256 || "") && SHA256_RE.test(value.source_state_sha256 || "") && SHA256_RE.test(value.matrix_sha256 || "");
 }
 
 function validTransitionRecoveryConfirmation(value, record) {
@@ -151,7 +160,7 @@ function validTransitionRecoveryConfirmation(value, record) {
     validIsoTimestamp(value.confirmed_at);
 }
 
-function activeTransitionRecord(state) {
+function activeLegacyAdoptionRecord(state) {
   if (state?.playbook !== "production-mode-transition" || state?.current_node !== TRANSITION_APPLY_NODE || !state?.execution_id) return null;
   const record = state.nodes?.[TRANSITION_APPLY_NODE];
   if (!isPlainObject(record) || record.status !== "in_progress" || record.execution_id !== state.execution_id || record.run_version !== state.run_version) return null;
@@ -162,6 +171,7 @@ function activeTransitionRecord(state) {
     "transition_plan_hash", "transition_candidate_receipt_sha256", "transition_target_intake_sha256",
   ];
   if (!required.every((key) => SHA256_RE.test(record[key] || ""))) return null;
+  if (record.transition_kind !== LEGACY_ADOPTION_KIND || !validLegacyAdoptionBinding(record.transition_adoption)) return null;
   if (!validTransitionIntake(record.transition_target_intake) ||
     sha256(Buffer.from(stableStringify(record.transition_target_intake))) !== record.transition_target_intake_sha256) return null;
   if (!hasExactKeys(record.transition_confirmation, ["kind", "decision", "at"]) ||
@@ -170,11 +180,9 @@ function activeTransitionRecord(state) {
     !validIsoTimestamp(record.transition_confirmation.at)) return null;
   if (typeof record.transition_source_execution_id !== "string" || !record.transition_source_execution_id ||
     record.transition_source_version !== state.run_version ||
-    !isProductionMode(record.transition_source_mode) ||
-    !isTransitionPipeline(record.transition_source_pipeline) ||
+    !historicalModeMatchesPipeline(record.transition_source_mode, record.transition_source_pipeline) ||
     !normalizeRunVersion(record.transition_target_version) ||
-    !isProductionMode(record.transition_target_mode) ||
-    !isTransitionPipeline(record.transition_target_pipeline)) return null;
+    record.transition_target_mode !== "image2-page-authority" || record.transition_target_pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE) return null;
   if (!validIsoTimestamp(record.started)) return null;
   if (Object.hasOwn(record, "transition_recovery_confirmation") &&
     !validTransitionRecoveryConfirmation(record.transition_recovery_confirmation, record)) return null;
@@ -182,18 +190,18 @@ function activeTransitionRecord(state) {
 }
 
 /**
- * State-owned read boundary for a confirmed cross-pipeline transaction.
+ * State-owned read boundary for the one confirmed historical adoption.
  * Consumers may inspect the exact tuple, but they cannot reinterpret an
  * incomplete target-intake confirmation as permission to publish or recover.
  */
-export function inspectActiveProductionModeTransition(deckDir, { sourceRunVersion, sourceRunDir, purpose = "observe" } = {}) {
+export function inspectActiveLegacyProtocolAdoption(deckDir, { sourceRunVersion, sourceRunDir, purpose = "observe" } = {}) {
   const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
   if (!sourceVersion) return Object.freeze({ ok: false, code: "TRANSITION_SOURCE_VERSION_INVALID" });
-  const state = readState(deckDir, { purpose, heal: false, runVersion: sourceVersion });
+  const state = readLegacyAdoptionState(deckDir, { purpose, sourceRunVersion: sourceVersion });
   if (state?.replacement_required || state?.execution_run_version_mismatch) {
     return Object.freeze({ ok: false, code: "TRANSITION_STATE_UNAVAILABLE" });
   }
-  const record = activeTransitionRecord(state);
+  const record = activeLegacyAdoptionRecord(state);
   if (!record) return Object.freeze({ ok: false, code: "TRANSITION_CHECKPOINT_DRIFT" });
   return Object.freeze({ ok: true, source_version: sourceVersion, state, record: Object.freeze(structuredClone(record)) });
 }
@@ -260,11 +268,11 @@ function ordinaryFrameBindingErrors(frame, label) {
   return errors;
 }
 
-function transitionSuspensionErrors(state, frame, index) {
+function legacyAdoptionSuspensionErrors(state, frame, index) {
   const label = `playbook_stack[${index}]`;
   const keys = [
     "schema", "disposition", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "controller_nodes",
-    "source_run_version", "source_mode", "source_pipeline", "target_run_version", "target_mode", "target_pipeline", "transition_plan_hash", "parent_stack",
+    "source_run_version", "source_mode", "source_pipeline", "target_run_version", "target_mode", "target_pipeline", "transition_kind", "transition_plan_hash", "parent_stack",
   ];
   const errors = [];
   if (!Object.keys(frame).every((key) => keys.includes(key)) || !keys.every((key) => Object.hasOwn(frame, key))) {
@@ -273,17 +281,18 @@ function transitionSuspensionErrors(state, frame, index) {
   if (frame.schema !== TRANSITION_SUSPENSION_SCHEMA || frame.disposition !== "transition-suspended") errors.push(`${label} is not a closed transition suspension`);
   errors.push(...ordinaryFrameBindingErrors(frame, label));
   if (frame.source_run_version !== frame.run_version || !normalizeRunVersion(frame.source_run_version)) errors.push(`${label} source run_version mismatch`);
-  if (!isProductionMode(frame.source_mode) || !isTransitionPipeline(frame.source_pipeline) || productionPolicyForMode(frame.source_mode).pipeline !== frame.source_pipeline) errors.push(`${label} source mode/pipeline mismatch`);
-  if (!normalizeRunVersion(frame.target_run_version) || !isProductionMode(frame.target_mode) || !isTransitionPipeline(frame.target_pipeline) || productionPolicyForMode(frame.target_mode).pipeline !== frame.target_pipeline) errors.push(`${label} target mode/pipeline mismatch`);
+  if (!historicalModeMatchesPipeline(frame.source_mode, frame.source_pipeline)) errors.push(`${label} source mode/pipeline mismatch`);
+  if (!normalizeRunVersion(frame.target_run_version) || frame.target_mode !== "image2-page-authority" || frame.target_pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE) errors.push(`${label} target mode/pipeline mismatch`);
+  if (frame.transition_kind !== LEGACY_ADOPTION_KIND) errors.push(`${label} transition kind is invalid`);
   if (frame.source_run_version === frame.target_run_version || frame.source_pipeline === frame.target_pipeline) errors.push(`${label} is not cross-pipeline`);
   if (!SHA256_RE.test(frame.transition_plan_hash || "")) errors.push(`${label} transition plan hash is invalid`);
-  if (!Array.isArray(frame.parent_stack) || frame.parent_stack.some(isTransitionSuspensionFrame)) errors.push(`${label} has invalid suspended parent stack`);
+  if (!Array.isArray(frame.parent_stack) || frame.parent_stack.some(isLegacyAdoptionSuspensionFrame)) errors.push(`${label} has invalid suspended parent stack`);
   else frame.parent_stack.forEach((parent, parentIndex) => errors.push(...ordinaryFrameBindingErrors(parent, `${label}.parent_stack[${parentIndex}]`)));
   const sourceMode = state?.production_mode?.by_version?.[canonicalVersionKey(frame.source_run_version)]?.mode;
   if (sourceMode !== frame.source_mode) errors.push(`${label} source mode disagrees with authoritative state`);
-  const apply = activeTransitionRecord(state);
+  const apply = activeLegacyAdoptionRecord(state);
   if (!apply || apply.transition_source_execution_id !== frame.execution_id || apply.transition_source_version !== frame.source_run_version ||
-    apply.transition_target_version !== frame.target_run_version || apply.transition_plan_hash !== frame.transition_plan_hash) {
+    apply.transition_target_version !== frame.target_run_version || apply.transition_kind !== frame.transition_kind || apply.transition_plan_hash !== frame.transition_plan_hash) {
     errors.push(`${label} does not match the active transition record`);
   }
   return errors;
@@ -305,10 +314,10 @@ function executionBindingErrors(state) {
     errors.push("inactive state must not retain run_version");
   }
   if (!Array.isArray(state?.playbook_stack)) return errors;
-  const suspensions = state.playbook_stack.filter(isTransitionSuspensionFrame);
+  const suspensions = state.playbook_stack.filter(isLegacyAdoptionSuspensionFrame);
   if (suspensions.length > 0 && (suspensions.length !== 1 || state.playbook_stack.length !== 1)) errors.push("transition suspension must be the only stack frame");
   for (const [index, frame] of state.playbook_stack.entries()) {
-    if (isTransitionSuspensionFrame(frame)) errors.push(...transitionSuspensionErrors(state, frame, index));
+    if (isLegacyAdoptionSuspensionFrame(frame)) errors.push(...legacyAdoptionSuspensionErrors(state, frame, index));
     else errors.push(...ordinaryFrameBindingErrors(frame, `playbook_stack[${index}]`));
   }
   return errors;
@@ -343,193 +352,6 @@ function requireExecutionRunVersion(state, { runVersion, runDir } = {}) {
   return active;
 }
 
-function refinementVersionKey(runVersion) {
-  if (!VERSION_RE.test(String(runVersion || ""))) throw new TypeError("runVersion must be normalized vN");
-  return `3_versions/${runVersion}`;
-}
-
-function validCanonicalWaivedChecks(value) {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 64) return false;
-  let prior = null;
-  for (const entry of value) {
-    if (!isPlainObject(entry) || !hasExactKeys(entry, ["code", "subject"]) || !/^[a-z][a-z0-9_]{0,63}$/.test(entry.code || "")) return false;
-    if (entry.subject !== null && (!isPlainObject(entry.subject) || !hasExactKeys(entry.subject, ["kind", "id"]) || !["gate", "slide", "recipe", "artifact", "receipt"].includes(entry.subject.kind) || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(entry.subject.id || ""))) return false;
-    const key = `${entry.code}\u0000${entry.subject?.kind || ""}\u0000${entry.subject?.id || ""}`;
-    if (prior !== null && prior >= key) return false;
-    prior = key;
-  }
-  return true;
-}
-
-function validPrerequisiteWaiver(value, runVersion) {
-  if (!hasExactKeys(value, ["reason", "waived_checks", "run_version", "html_production_reset_id", "html_delivery_digest", "recorded_at"])) return false;
-  return typeof value.reason === "string" && value.reason.trim() === value.reason && value.reason.length > 0 && Buffer.byteLength(value.reason, "utf8") <= 1024 &&
-    validCanonicalWaivedChecks(value.waived_checks) && value.run_version === runVersion &&
-    (value.html_production_reset_id === null || SHA256_RE.test(value.html_production_reset_id || "")) &&
-    SHA256_RE.test(value.html_delivery_digest || "") && typeof value.recorded_at === "string" && !Number.isNaN(Date.parse(value.recorded_at));
-}
-
-function validRefinementRecord(record, runVersion) {
-  if (!isPlainObject(record) || ![IMAGE2_REFINEMENT_STATE_SCHEMA_V1, IMAGE2_REFINEMENT_STATE_SCHEMA_V2].includes(record.schema) || record.run_version !== runVersion) return false;
-  const keys = record.schema === IMAGE2_REFINEMENT_STATE_SCHEMA_V2
-    ? ["schema", "run_version", "plan", "authorization", "attempts", "reviews", "prerequisite_waiver"]
-    : ["schema", "run_version", "plan", "authorization", "attempts", "reviews"];
-  if (Object.keys(record).length !== keys.length || keys.some((key) => !Object.hasOwn(record, key))) return false;
-  return (record.plan === null || isPlainObject(record.plan)) &&
-    (record.authorization === null || isPlainObject(record.authorization)) &&
-    isPlainObject(record.attempts) &&
-    isPlainObject(record.reviews) &&
-    (record.schema === IMAGE2_REFINEMENT_STATE_SCHEMA_V1 || record.prerequisite_waiver === null || validPrerequisiteWaiver(record.prerequisite_waiver, runVersion)) &&
-    Object.keys(record.attempts).every((id) => /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id)) &&
-    Object.keys(record.reviews).every((id) => typeof id === "string" && id.trim() !== "");
-}
-
-function validImageProductionRecord(record, runVersion) {
-  if (!isPlainObject(record) || record.schema !== IMAGE_PRODUCTION_STATE_SCHEMA_V1 || record.adapter !== "visual-slot" ||
-    !hasExactKeys(record, ["schema", "adapter", "run_version", "plan", "authorization", "attempts", "reviews", "prerequisite_waiver"])) return false;
-  const legacyShape = {
-    schema: IMAGE2_REFINEMENT_STATE_SCHEMA_V2,
-    run_version: record.run_version,
-    plan: record.plan,
-    authorization: record.authorization,
-    attempts: record.attempts,
-    reviews: record.reviews,
-    prerequisite_waiver: record.prerequisite_waiver,
-  };
-  return validRefinementRecord(legacyShape, runVersion);
-}
-function refinementProjection(record) {
-  if (!record) return null;
-  return {
-    run_version: record.run_version,
-    plan: record.plan,
-    authorization: record.authorization,
-    attempts: record.attempts,
-    reviews: record.reviews,
-    prerequisite_waiver: record.prerequisite_waiver ?? null,
-  };
-}
-function equalRefinementRecords(left, right) { return JSON.stringify(refinementProjection(left)) === JSON.stringify(refinementProjection(right)); }
-function readReservedContainer(state, id, label) {
-  const container = state?.nodes?.[id];
-  if (container != null && (!isPlainObject(container) || !hasExactKeys(container, ["by_version"]) || !isPlainObject(container.by_version))) throw new Error(`${label} reserved record must contain only by_version`);
-  return container?.by_version || {};
-}
-export function readImageProductionState(state, runVersion) {
-  const key = refinementVersionKey(runVersion);
-  const current = readReservedContainer(state, "image-production", "image production")[key] || null;
-  const legacy = readReservedContainer(state, "image2-refinement", "image2 refinement")[key] || null;
-  if (current && !validImageProductionRecord(current, runVersion)) throw new Error("image production state record is invalid");
-  if (legacy && !validRefinementRecord(legacy, runVersion)) throw new Error("image2 refinement state record is invalid");
-  if (current && legacy && !equalRefinementRecords(current, legacy)) throw new Error("image production state conflict requires repair_state");
-  if (!current && !legacy) return null;
-  const selected = current || legacy;
-  return structuredClone({ ...selected, ...(current ? {} : { schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1, adapter: "visual-slot", prerequisite_waiver: selected.prerequisite_waiver ?? null }) });
-}
-export function readImage2RefinementState(state, runVersion) { return readImageProductionState(state, runVersion); }
-
-function normalizedImageProductionRecord(record) {
-  return {
-    schema: IMAGE_PRODUCTION_STATE_SCHEMA_V1,
-    adapter: "visual-slot",
-    run_version: record.run_version,
-    plan: record.plan,
-    authorization: record.authorization,
-    attempts: record.attempts,
-    reviews: record.reviews,
-    prerequisite_waiver: record.prerequisite_waiver ?? null,
-  };
-}
-
-/** Apply the one authoritative visual-slot migration to an already selected
- * expected-state candidate. Callers persist this object through writeState's
- * CAS boundary (or a promotion journal bound to its exact bytes). */
-export function replaceImageProductionStateRecord(state, runVersion, record) {
-  if (!validRefinementRecord(record, runVersion) && !validImageProductionRecord(record, runVersion)) {
-    throw new TypeError("image production state record is invalid");
-  }
-  const normalized = normalizedImageProductionRecord(record);
-  if (!validImageProductionRecord(normalized, runVersion)) throw new TypeError("image production state record is invalid");
-  if (!isPlainObject(state)) throw new TypeError("state must be an object");
-  state.nodes ||= {};
-  const key = refinementVersionKey(runVersion);
-  const current = { ...(state.nodes["image-production"]?.by_version || {}) };
-  current[key] = structuredClone(normalized);
-  state.nodes["image-production"] = { by_version: current };
-  const legacy = { ...(state.nodes["image2-refinement"]?.by_version || {}) };
-  delete legacy[key];
-  if (Object.keys(legacy).length) state.nodes["image2-refinement"] = { by_version: legacy };
-  else delete state.nodes["image2-refinement"];
-  return state;
-}
-
-/** Terminal visual-slot decline removes both compatibility representations for
- * precisely one version without creating a replacement record. */
-export function removeImageProductionStateRecord(state, runVersion) {
-  if (!isPlainObject(state)) throw new TypeError("state must be an object");
-  const key = refinementVersionKey(runVersion);
-  for (const id of ["image-production", "image2-refinement"]) {
-    const byVersion = { ...(state.nodes?.[id]?.by_version || {}) };
-    delete byVersion[key];
-    if (Object.keys(byVersion).length) state.nodes[id] = { by_version: byVersion };
-    else if (state.nodes) delete state.nodes[id];
-  }
-  return state;
-}
-
-/** Safe consumer projection for status/MD controllers; raw receipts and IDs
- * remain in the reserved record and are never exposed as mutable authority. */
-export function projectImage2RefinementState(state, runVersion) {
-  const record = readImageProductionState(state, runVersion);
-  if (!record) return Object.freeze({ present: false, status: "absent", authorization: null, attempts: [], reviews: [] });
-  const attempts = Object.values(record.attempts).map((attempt) => Object.freeze({
-    attempt_id: attempt.attempt_id,
-    kind: attempt.kind,
-    slide_id: attempt.slide_id || null,
-    state: attempt.state,
-    promotion_status: attempt.promotion_status || null,
-    failure_code: attempt.failure_code || null,
-    unknown_submit_resolution: attempt.unknown_submit_resolution || null,
-    requires_human: attempt.state === "unknown-submit",
-  })).sort((a, b) => a.attempt_id.localeCompare(b.attempt_id));
-  const reviews = Object.values(record.reviews).map((review) => Object.freeze({ slide_id: review.slide_id, candidate_id: review.candidate_id, decision: review.decision, current: review.decision !== "pending" })).sort((a, b) => a.slide_id.localeCompare(b.slide_id));
-  const hasUnknown = attempts.some((attempt) => attempt.state === "unknown-submit" && !attempt.unknown_submit_resolution);
-  const hasFailure = attempts.some((attempt) => attempt.state === "failed");
-  const hasResolvedUnknown = attempts.some((attempt) => attempt.state === "unknown-submit" && attempt.unknown_submit_resolution);
-  const pendingReview = reviews.some((review) => review.decision === "pending");
-  const status = !record.plan
-    ? "planned"
-    : !record.authorization
-      ? "awaiting-authorization"
-      : hasUnknown
-        ? "unknown-submit"
-        : pendingReview
-          ? "review-pending"
-          : hasFailure || hasResolvedUnknown
-            ? "failed"
-            : attempts.some((attempt) => ["planned", "submitting"].includes(attempt.state) || attempt.promotion_status === "pending")
-              ? "in-progress"
-              : "complete";
-  return Object.freeze({
-    present: true,
-    status,
-    plan_hash: record.plan?.plan_hash || null,
-    authorization: record.authorization ? Object.freeze({ authorization_id: record.authorization.authorization_id, plan_hash: record.authorization.plan_hash, used: record.authorization.used === true }) : null,
-    attempts: Object.freeze(attempts),
-    reviews: Object.freeze(reviews),
-    human_action_required: hasUnknown || hasFailure || hasResolvedUnknown || pendingReview || !record.authorization || !record.plan,
-  });
-}
-
-export function writeImage2RefinementState(deckDir, runVersion, record, { expectedStateSha = null, expectedStateSha256 = null } = {}) {
-  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: refinement state is unavailable");
-  if (state?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: refinement state belongs to another run version");
-  replaceImageProductionStateRecord(state, runVersion, record);
-  const expected = expectedStateSha256 || expectedStateSha;
-  writeState(deckDir, state, { ...(expected ? { expectedStateSha: expected } : {}) });
-  return readImageProductionState(state, runVersion);
-}
 export function ensureStateDirHints(deckDir) {
   const dir = join(deckDir, STATE_DIR);
   mkdirSync(dir, { recursive: true });
@@ -567,7 +389,7 @@ export function normalizePlaybookStack(state, migrationTime = nowIso()) {
       // A transition suspension is schema-closed and non-resumable. Preserve
       // its bytes for the validator and state-owned terminal operations; do
       // not coerce it into an ordinary parent frame during a read/heal cycle.
-      if (isTransitionSuspensionFrame(entry)) return deepClone(entry);
+      if (isLegacyAdoptionSuspensionFrame(entry)) return deepClone(entry);
       const legacySnapshot = !isPlainObject(entry.controller_nodes);
       const runVersion = normalizeRunVersion(entry.run_version);
       const normalized = {
@@ -627,15 +449,14 @@ function currentRepairRequired(reason, pipeline = null) {
 
 function stateRepairFencePresent(deckDir, state) {
   if (existsSync(join(deckDir, STATE_DIR, GATE_JOURNAL_FILE))) return true;
-  if (state?.playbook === "production-mode-transition" || state?.playbook_stack?.some(isTransitionSuspensionFrame)) return true;
-  const resets = state?.nodes?.["html-production-reset"]?.by_version;
-  return isPlainObject(resets) && Object.values(resets).some((record) => record?.status === "deletion_pending");
+  if (state?.playbook === "production-mode-transition" || state?.playbook_stack?.some(isLegacyAdoptionSuspensionFrame)) return true;
+  return false;
 }
 
 function currentOneToOneRepair(state, { deckDir, runVersion, sourceMarker }) {
   if (!isPlainObject(state) || stateRepairFencePresent(deckDir, state)) return null;
   if (!isPlainObject(state.gates)) return null;
-  const invalidGates = ["content", "visual", "html_content", "html_visual"]
+  const invalidGates = ["content", "visual"]
     .filter((name) => !GATE_STATUSES.includes(state.gates[name]));
   if (invalidGates.length !== 1) return null;
 
@@ -755,14 +576,24 @@ export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpo
     runVersion: exactVersion,
     purpose,
   });
-  if (inspection.ok) {
+  if (inspection.ok && inspection.policy.adapter === "page-authority-image2") {
     return Object.freeze({
       ok: true,
       run_version: exactVersion,
       mode: inspection.mode,
       policy: inspection.policy,
-      adapter: inspection.policy.page_authority === "html" ? "html" : "whole-page-image2",
+      adapter: inspection.policy.adapter,
       inspection,
+    });
+  }
+
+  if (inspection.ok) {
+    return Object.freeze({
+      ok: false,
+      code: "LEGACY_PROTOCOL_ADOPTION_REQUIRED",
+      run_version: exactVersion,
+      mode: inspection.mode,
+      policy: inspection.policy,
     });
   }
 
@@ -770,166 +601,39 @@ export function resolveRunProductionAdapter(deckDir, { runVersion, runDir, purpo
 }
 
 /**
- * Preserve every node record while moving an inapplicable current pointer only
- * through an explicitly declared controller handoff. This runs inside the
- * production-mode transition CAS write; it never synthesizes `skipped` or
- * completion records for the old/new branch.
+ * Register a clean Page Authority structural publication. This current-only
+ * helper is deliberately not a production-mode converter: historical runs use
+ * the separate observer/adoption transaction.
  */
-function applyModeTransitionHandoff(state, toMode) {
-  if (!state?.playbook || !state?.current_node) return null;
-  const index = buildPlaybookIndex(DEFAULT_PLAYBOOK_DIR);
-  const validation = validatePlaybookIndex(index);
-  if (!validation.valid) throw new Error("playbook index is invalid; production-mode handoff cannot be resolved");
-  const controller = index.controllers.get(state.playbook);
-  if (!controller) throw new Error(`unknown active controller ${state.playbook}`);
-  const active = controllerActiveNodeIds(index, state.playbook, toMode);
-  if (active.includes(state.current_node)) return null;
-  const current = resolveNode(index, state.playbook, state.current_node);
-  const target = current?.modeTransitionHandoff;
-  if (!target || !active.includes(target)) {
-    throw new Error(`mode_transition_handoff required for inactive current node ${state.playbook}/${state.current_node}`);
-  }
-  const fromNode = state.current_node;
-  state.current_node = target;
-  return Object.freeze({ from_node: fromNode, to_node: target });
-}
-
-/**
- * Atomic same-pipeline production-mode transition for the exact run version.
- * `html-only <-> html-then-image2` (both html-first-v1) updates only the mode
- * record through expected-state CAS and appends a bounded audit event. Any
- * cross-pipeline request (`html-* <-> image2-only`) returns `transition_required`
- * WITHOUT mutating state, source, or generated bytes. Disabling required
- * refinement removes only the completion obligation; refinement records are
- * untouched. Enabling it makes refinement required again (revalidated by the
- * status projection).
- */
-export function transitionProductionMode(deckDir, { runVersion, runDir, toMode, expectedStateSha = null, reason } = {}) {
-  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
-  if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
-  if (!isProductionMode(toMode)) throw new TypeError("toMode must be a valid production mode");
-  const versionKey = canonicalVersionKey(exactVersion);
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: production-mode transition state is unavailable");
-  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
-  if (executionMismatch) return Object.freeze({ ok: false, ...executionMismatch });
-  const byVersion = isPlainObject(state.production_mode?.by_version) ? state.production_mode.by_version : null;
-  const currentRecord = byVersion?.[versionKey];
-  const fromMode = isPlainObject(currentRecord) && hasExactKeys(currentRecord, ["mode"]) && isProductionMode(currentRecord.mode) ? currentRecord.mode : null;
-  if (!fromMode) {
-    return Object.freeze({ ok: false, code: "MODE_MISSING", run_version: exactVersion, version_key: versionKey });
-  }
-  const sourceMarker = probeSourceMarkerForVersion(deckDir, exactVersion);
-  if (sourceMarker.ok === false) throw new Error(`source marker unavailable for ${exactVersion}`);
-  const derived = pipelineFromSourceMarker(sourceMarker);
-  const sourcePipeline = derived.ok ? derived.pipeline : null;
-  const classification = classifyProductionModeTransition({ fromMode, toMode, sourcePipeline });
-  if (!classification.ok) {
-    return Object.freeze({ ok: false, code: classification.code || "transition_required", run_version: exactVersion, from_mode: fromMode, to_mode: toMode, kind: classification.kind });
-  }
-  if (fromMode === toMode) {
-    return Object.freeze({ ok: true, status: "no-op", run_version: exactVersion, mode: toMode });
-  }
-  const next = structuredClone(state);
-  delete next.durable_state_present;
-  delete next._healed;
-  delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
-  ensureProductionModeContainer(next);
-  next.production_mode.by_version[versionKey] = { mode: toMode };
-  const handoff = applyModeTransitionHandoff(next, toMode);
-  const at = nowIso();
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
-  appendHistory(deckDir, { type: "production_mode_transition", run_version: exactVersion, from_mode: fromMode, to_mode: toMode, ...(reason ? { reason: String(reason) } : {}), at });
-  if (handoff) appendHistory(deckDir, { type: "production_mode_handoff", run_version: exactVersion, from_mode: fromMode, to_mode: toMode, ...handoff, at });
-  // Best-effort metadata-mirror publication. State stays authoritative even if
-  // this is interrupted; the next inspection reports repairable mirror drift.
-  let mirror;
-  try {
-    mirror = repairProductionModeMirror(deckDir, { runVersion: exactVersion });
-  } catch (error) {
-    mirror = Object.freeze({ ok: false, code: "MIRROR_REPAIR_FAILED", reason: error.message || String(error) });
-  }
-  return Object.freeze({ ok: true, status: "transitioned", run_version: exactVersion, version_key: versionKey, from_mode: fromMode, to_mode: toMode, ...(handoff ? { handoff } : {}), mirror });
-}
-
-function updateMirrorField(text, key, value) {
-  const re = new RegExp(`^${key}:.*$`, "m");
-  const line = `${key}: ${value}`;
-  if (re.test(text)) return text.replace(re, line);
-  const trimmed = text.endsWith("\n") ? text : `${text}\n`;
-  return `${trimmed}${line}\n`;
-}
-
-/**
- * State-owned metadata-mirror writer/repair. Rewrites the `production_mode` and
- * `production_mode_run_version` lines of project-metadata.yaml from the
- * authoritative state record for the exact version, preserving every other
- * field/comment. The mirror is display-only: it never supplies a missing mode,
- * overrides state, or introduces another journal/success store. A missing
- * metadata file or missing authoritative mode returns a typed non-write.
- */
-export function repairProductionModeMirror(deckDir, { runVersion, runDir } = {}) {
-  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
-  if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
-  const metadataPath = join(deckDir, "project-metadata.yaml");
-  if (!existsSync(metadataPath)) return Object.freeze({ ok: false, code: "METADATA_MISSING", run_version: exactVersion });
-  const state = readState(deckDir, { purpose: "observe", heal: false });
-  if (state?.replacement_required || state?.corrupted) return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion });
-  const record = isPlainObject(state.production_mode?.by_version) ? state.production_mode.by_version[canonicalVersionKey(exactVersion)] : null;
-  const mode = isPlainObject(record) && hasExactKeys(record, ["mode"]) && isProductionMode(record.mode) ? record.mode : null;
-  if (!mode) return Object.freeze({ ok: false, code: "MODE_MISSING", run_version: exactVersion });
-  let text = readFileSync(metadataPath, "utf8");
-  text = updateMirrorField(text, "production_mode", mode);
-  text = updateMirrorField(text, "production_mode_run_version", exactVersion);
-  writeFileSync(metadataPath, text, "utf8");
-  return Object.freeze({ ok: true, mirrored_mode: mode, mirrored_run_version: exactVersion });
-}
-
-/**
- * State-owned idempotent registration of a published same-pipeline target
- * version's production mode, copied from the source's authoritative record.
- * Verifies the target's canonical source marker matches the source mode's
- * derived pipeline and the source/target relationship (distinct versions) before
- * writing ONLY the target `by_version` record through expected-state CAS. It
- * never copies metadata, gates, refinement, or generated evidence as authority.
- *
- * Outcomes: `registered` (new), `already-current` (idempotent same-mode), or a
- * typed non-write (`SOURCE_MODE_MISSING`, `TARGET_MARKER_UNAVAILABLE`,
- * `PIPELINE_MISMATCH`, `TARGET_MODE_CONFLICT`). A visible target whose
- * registration did not commit surfaces as `mode_registration_required` at
- * inspection (the target lacks a mode); the mechanical registration here is the
- * repair and never asks the human to choose a mode.
- */
-export function registerProductionModeFromSource(deckDir, { sourceRunVersion, sourceRunDir, targetRunVersion, targetRunDir, expectedStateSha = null } = {}) {
+export function registerPageAuthorityVersionPublication(deckDir, { sourceRunVersion, sourceRunDir, targetRunVersion, targetRunDir, expectedStateSha = null } = {}) {
   const sourceVersion = normalizeRunVersion(sourceRunVersion ?? sourceRunDir);
   const targetVersion = normalizeRunVersion(targetRunVersion ?? targetRunDir);
   if (!sourceVersion || !targetVersion) throw new TypeError("source and target run versions must be canonical vN");
   if (sourceVersion === targetVersion) throw new TypeError("source and target versions must differ");
   const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: registration state is unavailable");
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Authority publication state is unavailable");
   const executionMismatch = selectedExecutionMismatch(state, { runVersion: sourceVersion });
   if (executionMismatch) return Object.freeze({ ok: false, ...executionMismatch });
   const sourceKey = canonicalVersionKey(sourceVersion);
   const targetKey = canonicalVersionKey(targetVersion);
   const byVersion = isPlainObject(state.production_mode?.by_version) ? state.production_mode.by_version : null;
   const sourceRecord = byVersion?.[sourceKey];
-  const sourceMode = isPlainObject(sourceRecord) && hasExactKeys(sourceRecord, ["mode"]) && isProductionMode(sourceRecord.mode) ? sourceRecord.mode : null;
-  if (!sourceMode) return Object.freeze({ ok: false, code: "SOURCE_MODE_MISSING", source_version: sourceVersion });
+  const sourceMode = isProductionModeRecord(sourceRecord) ? sourceRecord.mode : null;
+  if (sourceMode !== "image2-page-authority") return Object.freeze({ ok: false, code: "SOURCE_MODE_MISSING", source_version: sourceVersion });
   const policy = productionPolicyForMode(sourceMode);
   const targetMarker = probeSourceMarkerForVersion(deckDir, targetVersion);
   if (targetMarker.ok === false) return Object.freeze({ ok: false, code: "TARGET_MARKER_UNAVAILABLE", target_version: targetVersion, marker: targetMarker });
   const targetPipeline = pipelineFromSourceMarker(targetMarker);
-  if (!targetPipeline.ok || targetPipeline.pipeline !== policy.pipeline) {
-    return Object.freeze({ ok: false, code: "PIPELINE_MISMATCH", source_mode: sourceMode, derived_pipeline: policy.pipeline, target_pipeline: targetPipeline.ok ? targetPipeline.pipeline : null });
+  if (!targetPipeline.ok || targetPipeline.pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE || targetPipeline.pipeline !== policy.pipeline) {
+    return Object.freeze({ ok: false, code: "PAGE_AUTHORITY_PIPELINE_MISMATCH", source_mode: sourceMode, derived_pipeline: policy.pipeline, target_pipeline: targetPipeline.ok ? targetPipeline.pipeline : null });
   }
   const existingTarget = byVersion?.[targetKey];
-  if (isPlainObject(existingTarget) && hasExactKeys(existingTarget, ["mode"]) && isProductionMode(existingTarget.mode)) {
+  if (isProductionModeRecord(existingTarget)) {
     if (existingTarget.mode === sourceMode && state.continuation_target_version === targetVersion) {
       return Object.freeze({ ok: true, status: "already-current", target_version: targetVersion, mode: sourceMode });
     }
     if (existingTarget.mode !== sourceMode) {
-      return Object.freeze({ ok: false, code: "TARGET_MODE_CONFLICT", target_version: targetVersion, existing: existingTarget.mode, expected: sourceMode });
+      return Object.freeze({ ok: false, code: "TARGET_PAGE_AUTHORITY_CONFLICT", target_version: targetVersion, existing: existingTarget.mode, expected: sourceMode });
     }
   }
   const next = structuredClone(state);
@@ -938,20 +642,31 @@ export function registerProductionModeFromSource(deckDir, { sourceRunVersion, so
   delete next._heal_pending;
   next.schema_version = STATE_SCHEMA_VERSION;
   ensureProductionModeContainer(next);
-  if (!existingTarget) next.production_mode.by_version[targetKey] = { mode: sourceMode };
+  if (!existingTarget) next.production_mode.by_version[targetKey] = initialProductionModeRecord(sourceMode);
   // This publication owner is the only same-pipeline version creator. The
   // target directory and canonical source were verified above, so bind the
   // inactive continuation selector in the same CAS-protected state commit.
   next.continuation_target_version = targetVersion;
   writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
-  appendHistory(deckDir, { type: "production_mode_registration", run_version: targetVersion, mode: sourceMode, source_version: sourceVersion, source: "same-pipeline-version", at: nowIso() });
+  appendHistory(deckDir, { type: "page_authority_version_publication", run_version: targetVersion, mode: sourceMode, source_version: sourceVersion, at: nowIso() });
   return Object.freeze({ ok: true, status: existingTarget ? "already-current" : "registered", target_version: targetVersion, source_version: sourceVersion, mode: sourceMode });
 }
 
-export const IMAGE2_DELIVERY_REVIEW_SCHEMA = "pptmaker-image2-delivery-review-v1";
-export const IMAGE2_PROVIDER_AUTHORIZATION_SCHEMA = "pptmaker-image2-provider-authorization-v1";
-const IMAGE2_AUTH_OPERATIONS = Object.freeze(["style-master", "pilot", "build", "refresh"]);
-const IMAGE2_FINAL_REVIEW_NODE = "checkpoint-image2-final-review";
+export const PAGE_AUTHORITY_RAW_PROVIDER_AUTHORIZATION_SCHEMA = "pptmaker-page-authority-raw-provider-authorization-v1";
+export const PAGE_AUTHORITY_DELIVERY_REVIEW_SCHEMA = "pptmaker-page-authority-delivery-review-v1";
+const PAGE_AUTHORITY_FINAL_REVIEW_NODE = "checkpoint-page-authority-delivery-review";
+const PAGE_AUTHORITY_DELIVERY_EVIDENCE_FIELDS = Object.freeze([
+  "source_sha256",
+  "source_receipt_sha256",
+  "raw_manifest_sha256",
+  "raw_review_projection_sha256",
+  "raw_review_coverage_sha256",
+  "final_manifest_sha256",
+  "final_projection_sha256",
+  "assembly_receipt_sha256",
+  "pptx_sha256",
+  "notes_receipt_sha256",
+]);
 
 function stableStringify(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -959,280 +674,282 @@ function stableStringify(value) {
   return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
 }
 
-/** Build the opaque, secret-free generation-profile binding used by Image2 authorization. */
-export function image2AuthorizationProfileFingerprint({ operation, profile } = {}) {
-  if (!IMAGE2_AUTH_OPERATIONS.includes(operation)) throw new TypeError("operation must be style-master, pilot, build, or refresh");
-  if (!isPlainObject(profile)) throw new TypeError("profile must be a plain object");
-  return sha256(stableStringify({
-    schema: "pptmaker-image2-provider-profile-v1",
-    operation,
-    profile,
-  }));
-}
-
-function confinedRunRelative(runDir, absPath) {
-  const rel = relative(resolve(runDir), resolve(absPath));
-  if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || pathIsAbsolute(rel) || rel.includes("\\")) return null;
-  return rel;
-}
-function pathIsAbsolute(p) { return p.startsWith("/"); }
-
-function fileLineage(runDir, absPath) {
-  if (!absPath || !existsSync(absPath)) return null;
-  const rel = confinedRunRelative(runDir, absPath);
-  if (!rel) return null;
-  let stat;
-  try { stat = lstatSync(absPath); } catch { return null; }
-  if (!stat.isFile() || stat.isSymbolicLink()) return null;
-  return Object.freeze({ path: rel, sha256: sha256(readFileSync(absPath)) });
-}
-
-/** Derive current whole-page delivery lineage the caller must NOT supply. */
-function resolveImage2DeliveryLineage(deckDir, runVersion, state) {
-  const runDir = join(deckDir, "3_versions", runVersion);
-  const genDir = join(runDir, "_generated");
-  let pptxPath = null;
-  const pptDir = join(genDir, "ppt");
-  if (existsSync(pptDir)) {
-    const candidate = readdirSync(pptDir).filter((f) => f.endsWith(".pptx") && !f.endsWith(".backup.pptx")).sort()[0];
-    if (candidate) pptxPath = join(pptDir, candidate);
+function validPageAuthorityRawScope(scope, profileDigest) {
+  if (!Array.isArray(scope) || scope.length === 0) return false;
+  let previous = null;
+  for (const item of scope) {
+    if (!hasExactKeys(item, ["slide_id", "raw_image_contract_digest", "raw_generation_profile_digest"]) ||
+      typeof item.slide_id !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(item.slide_id) ||
+      !SHA256_RE.test(item.raw_image_contract_digest || "") ||
+      item.raw_generation_profile_digest !== profileDigest) return false;
+    if (previous !== null && previous >= item.slide_id) return false;
+    previous = item.slide_id;
   }
-  const contactSheet = fileLineage(runDir, join(genDir, "preview", "contact_sheet.jpg"));
-  const pptx = fileLineage(runDir, pptxPath);
-  const notes = fileLineage(runDir, notesReceiptPath(runDir));
-  const headerRec = reservedVersionRecord(state, "header-review", runVersion);
-  const headerReviewFingerprint = headerRec ? sha256(stableStringify(headerRec)) : null;
-  return { contact_sheet: contactSheet, pptx, notes_receipt: notes, header_review_fingerprint: headerReviewFingerprint };
+  return true;
 }
 
-function validImage2AuthScope(scope) {
-  if (!isPlainObject(scope)) return false;
-  if (Array.isArray(scope.slide_ids)) {
-    if (scope.slide_ids.length === 0) return false;
-    if (!scope.slide_ids.every((id) => typeof id === "string" && /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id))) return false;
-    const sorted = [...scope.slide_ids].sort();
-    return sorted.every((id, i) => id === sorted[i]);
-  }
-  return scope.role === "style-master";
+function validPageAuthorityRawAuthorizationRecord(record, runVersion) {
+  const keys = ["schema", "run_version", "source_epoch", "raw_generation_profile_digest", "scope", "max_submissions", "execution_id", "decided_at"];
+  return hasExactKeys(record, keys) &&
+    record.schema === PAGE_AUTHORITY_RAW_PROVIDER_AUTHORIZATION_SCHEMA &&
+    record.run_version === runVersion &&
+    Number.isInteger(record.source_epoch) && record.source_epoch > 0 &&
+    SHA256_RE.test(record.raw_generation_profile_digest || "") &&
+    validPageAuthorityRawScope(record.scope, record.raw_generation_profile_digest) &&
+    Number.isInteger(record.max_submissions) && record.max_submissions > 0 &&
+    typeof record.execution_id === "string" && record.execution_id.length > 0 &&
+    validIsoTimestamp(record.decided_at);
 }
 
-/** Normalize an authorization scope to the canonical sorted form (or null). */
-function normalizeImage2AuthScope(scope) {
-  if (isPlainObject(scope) && Array.isArray(scope.slide_ids)) {
-    const ids = scope.slide_ids.filter((id) => typeof id === "string" && /^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(id)).sort();
-    return { slide_ids: ids };
-  }
-  if (isPlainObject(scope) && scope.role === "style-master") return { role: "style-master" };
-  return null;
-}
-
-function validImage2DeliveryRecord(record, runVersion) {
-  const keys = ["schema", "run_version", "decision", "reason", "contact_sheet_path", "contact_sheet_sha256", "pptx_path", "pptx_sha256", "notes_receipt_path", "notes_receipt_sha256", "header_review_fingerprint", "execution_id", "decided_at"];
-  if (!hasExactKeys(record, keys)) return false;
-  if (record.schema !== IMAGE2_DELIVERY_REVIEW_SCHEMA) return false;
-  if (record.run_version !== runVersion) return false;
-  if (!["proceed", "repair", "redirect"].includes(record.decision)) return false;
-  if (!validIsoTimestamp(record.decided_at) || typeof record.execution_id !== "string" || !record.execution_id) return false;
-  if (!validNullableSha256(record.header_review_fingerprint)) return false;
-  const lineages = [
-    [record.contact_sheet_path, record.contact_sheet_sha256],
-    [record.pptx_path, record.pptx_sha256],
-    [record.notes_receipt_path, record.notes_receipt_sha256],
+function validPageAuthorityDeliveryReviewRecord(record, runVersion) {
+  const keys = [
+    "schema",
+    "run_version",
+    "source_epoch",
+    ...PAGE_AUTHORITY_DELIVERY_EVIDENCE_FIELDS,
+    "decision",
+    "reason",
+    "execution_id",
+    "decided_at",
   ];
-  for (const [p, s] of lineages) {
-    if (typeof p !== "string" || !p || typeof s !== "string" || !SHA256_RE.test(s)) return false;
-  }
-  if (record.decision === "proceed") {
-    if (record.reason !== null) return false;
-    if (record.header_review_fingerprint === null) return false;
-  } else {
-    if (typeof record.reason !== "string" || !record.reason.trim() || record.reason !== record.reason.trim()) return false;
-  }
-  return true;
+  if (!hasExactKeys(record, keys) || record.schema !== PAGE_AUTHORITY_DELIVERY_REVIEW_SCHEMA || record.run_version !== runVersion ||
+    !Number.isInteger(record.source_epoch) || record.source_epoch <= 0 ||
+    !["proceed", "repair", "redirect"].includes(record.decision) ||
+    typeof record.execution_id !== "string" || !record.execution_id || !validIsoTimestamp(record.decided_at)) return false;
+  if (!PAGE_AUTHORITY_DELIVERY_EVIDENCE_FIELDS.every((field) => SHA256_RE.test(record[field] || ""))) return false;
+  if (record.decision === "proceed") return record.reason === null;
+  return typeof record.reason === "string" && record.reason.trim().length > 0 && record.reason === record.reason.trim();
 }
 
-function validImage2AuthorizationRecord(record, runVersion) {
-  const keys = ["schema", "run_version", "operation", "scope", "profile_fingerprint", "max_submissions", "execution_id", "decided_at"];
-  if (!hasExactKeys(record, keys)) return false;
-  if (record.schema !== IMAGE2_PROVIDER_AUTHORIZATION_SCHEMA) return false;
-  if (record.run_version !== runVersion) return false;
-  if (!IMAGE2_AUTH_OPERATIONS.includes(record.operation)) return false;
-  if (!validImage2AuthScope(record.scope)) return false;
-  if (!SHA256_RE.test(record.profile_fingerprint || "")) return false;
-  if (!Number.isInteger(record.max_submissions) || record.max_submissions <= 0) return false;
-  if (typeof record.execution_id !== "string" || !record.execution_id) return false;
-  if (!validIsoTimestamp(record.decided_at)) return false;
-  return true;
-}
-
-function validateImage2MapsStructure(state, errors) {
-  for (const [mapKey, validator] of [["image2_delivery_review", validImage2DeliveryRecord], ["image2_provider_authorization", validImage2AuthorizationRecord]]) {
-    const map = state[mapKey];
-    if (map === undefined) continue;
-    if (!isPlainObject(map) || !isPlainObject(map.by_version)) { errors.push(`${mapKey} must contain by_version`); continue; }
-    for (const [key, record] of Object.entries(map.by_version)) {
-      const runVersion = versionFromReservedKey(key);
-      if (!runVersion) { errors.push(`invalid ${mapKey} version key ${key}`); continue; }
-      if (!validator(record, runVersion)) errors.push(`invalid ${mapKey} record ${key}`);
+function validatePageAuthorityRawAuthorizationStructure(state, errors) {
+  const map = state.page_authority_raw_provider_authorization;
+  if (map === undefined) return;
+  if (!isPlainObject(map) || !isPlainObject(map.by_version)) {
+    errors.push("page_authority_raw_provider_authorization must contain by_version");
+    return;
+  }
+  for (const [key, record] of Object.entries(map.by_version)) {
+    const runVersion = versionFromReservedKey(key);
+    if (!runVersion) {
+      errors.push(`invalid page_authority_raw_provider_authorization version key ${key}`);
+    } else if (!validPageAuthorityRawAuthorizationRecord(record, runVersion)) {
+      errors.push(`invalid page_authority_raw_provider_authorization record ${key}`);
     }
   }
 }
 
-/**
- * State-owned first-class Image2 delivery/final-review writer (`--record-
- * image2-delivery-review`). Derives current whole-page header/contact-sheet/
- * PPTX/notes lineage from the run dir (the caller supplies none of it), binds
- * the active execution ID, and writes through expected-state CAS. `proceed`
- * requires complete current evidence with no reason; `repair`/`redirect` require
- * a bounded reason and leave completion false. Rejects HTML modes. This change
- * adds no force/waiver path.
- */
-export function recordImage2DeliveryReview(deckDir, { runVersion, runDir, decision, reason = null, expectedStateSha = null } = {}) {
-  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
-  if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
-  if (!["proceed", "repair", "redirect"].includes(decision)) throw new TypeError("decision must be proceed, repair, or redirect");
-  const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose: "execute" });
-  if (!inspection.ok) throw new Error(`image2 delivery review unavailable: ${inspection.code}`);
-  if (inspection.mode !== "image2-only") throw new Error("image2 delivery review is first-class image2-only; HTML modes use the HTML delivery review");
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: image2 delivery review state is unavailable");
-  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
-  if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
-  if (state.playbook !== "create-deck" || !state.execution_id || state.current_node !== IMAGE2_FINAL_REVIEW_NODE) {
-    throw new Error("active first-class Image2 final-review node is required");
+function validatePageAuthorityDeliveryReviewStructure(state, errors) {
+  const map = state.page_authority_delivery_review;
+  if (map === undefined) return;
+  if (!isPlainObject(map) || !isPlainObject(map.by_version)) {
+    errors.push("page_authority_delivery_review must contain by_version");
+    return;
   }
-  const activeFinalReview = activeRecord(state, IMAGE2_FINAL_REVIEW_NODE);
-  if (!activeFinalReview || !["in_progress", "completed"].includes(activeFinalReview.status)) {
-    throw new Error("active first-class Image2 final-review node is required");
-  }
-  const lineage = resolveImage2DeliveryLineage(deckDir, exactVersion, state);
-  const trimmedReason = reason == null ? null : String(reason).trim();
-  if (decision === "proceed") {
-    if (trimmedReason !== null) throw new Error("proceed must not carry a reason");
-    if (!lineage.contact_sheet || !lineage.pptx || !lineage.notes_receipt || !lineage.header_review_fingerprint) {
-      throw new Error("proceed requires current contact sheet, PPTX, notes receipt, and header review evidence");
+  for (const [key, record] of Object.entries(map.by_version)) {
+    const runVersion = versionFromReservedKey(key);
+    if (!runVersion) {
+      errors.push(`invalid page_authority_delivery_review version key ${key}`);
+    } else if (!validPageAuthorityDeliveryReviewRecord(record, runVersion)) {
+      errors.push(`invalid page_authority_delivery_review record ${key}`);
     }
-  } else {
-    if (!trimmedReason) throw new Error(`${decision} requires a non-empty bounded reason`);
   }
-  const record = {
-    schema: IMAGE2_DELIVERY_REVIEW_SCHEMA,
-    run_version: exactVersion,
-    decision,
-    reason: trimmedReason,
-    contact_sheet_path: lineage.contact_sheet?.path,
-    contact_sheet_sha256: lineage.contact_sheet?.sha256,
-    pptx_path: lineage.pptx?.path,
-    pptx_sha256: lineage.pptx?.sha256,
-    notes_receipt_path: lineage.notes_receipt?.path,
-    notes_receipt_sha256: lineage.notes_receipt?.sha256,
-    header_review_fingerprint: lineage.header_review_fingerprint,
-    execution_id: state.execution_id,
-    decided_at: nowIso(),
-  };
-  if (!validImage2DeliveryRecord(record, exactVersion)) throw new Error("derived image2 delivery review record is invalid");
-  const next = structuredClone(state);
-  delete next.durable_state_present;
-  delete next._healed;
-  delete next._heal_pending;
-  next.schema_version = STATE_SCHEMA_VERSION;
-  if (!isPlainObject(next.image2_delivery_review) || !isPlainObject(next.image2_delivery_review.by_version)) next.image2_delivery_review = { by_version: {} };
-  next.image2_delivery_review.by_version[canonicalVersionKey(exactVersion)] = record;
-  const at = record.decided_at;
-  const reviewFingerprint = sha256(stableStringify(record));
-  next.nodes ||= {};
-  next.nodes[IMAGE2_FINAL_REVIEW_NODE] = {
-    ...next.nodes[IMAGE2_FINAL_REVIEW_NODE],
-    status: "completed",
-    execution_id: next.execution_id,
-    run_version: exactVersion,
-    decision: { value: decision, kind: "user", at },
-    image2_delivery_review: {
-      run_version: exactVersion,
-      fingerprint: reviewFingerprint,
-    },
-    completed: at,
-  };
-  next.current_node = IMAGE2_FINAL_REVIEW_NODE;
-  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
-  appendHistory(deckDir, { type: "image2_delivery_review", run_version: exactVersion, decision, at });
-  return Object.freeze({ ok: true, run_version: exactVersion, decision, record: Object.freeze(structuredClone(record)), node: IMAGE2_FINAL_REVIEW_NODE });
+}
+
+function pageAuthorityAuthorizationScopeFromBatch(rawBatch) {
+  if (!rawBatch || typeof rawBatch !== "object" || Array.isArray(rawBatch) ||
+    rawBatch.schema !== "pptmaker-page-authority-raw-batch-v1" ||
+    !SHA256_RE.test(rawBatch.raw_generation_profile_digest || "") ||
+    !Array.isArray(rawBatch.requests) || rawBatch.requests.length === 0) return null;
+  const scope = rawBatch.requests.map((request) => ({
+    slide_id: request?.slide_id,
+    raw_image_contract_digest: request?.raw_image_contract_digest,
+    raw_generation_profile_digest: request?.raw_generation_profile_digest,
+  })).sort((left, right) => String(left.slide_id).localeCompare(String(right.slide_id)));
+  if (!validPageAuthorityRawScope(scope, rawBatch.raw_generation_profile_digest)) return null;
+  return scope;
 }
 
 /**
- * State-owned first-class Image2 provider-authorization writer. Persists the
- * active controller node's typed human authorization bound to exact run
- * version, operation, sorted stable slide IDs (or the style-master role),
- * generation-profile fingerprint, positive max submission count, active
- * execution ID, and decision time. First-class image2-only only; reuses one
- * state-owned map rather than a second provider-attempt store.
+ * Record the sole Page Authority raw-submit decision. The source epoch is
+ * always derived from authoritative state; callers cannot choose or advance it.
  */
-export function recordImage2ProviderAuthorization(deckDir, { runVersion, runDir, operation, scope, profileFingerprint, maxSubmissions, expectedStateSha = null } = {}) {
+export function recordPageAuthorityRawProviderAuthorization(deckDir, { runVersion, runDir, rawBatch, maxSubmissions, expectedStateSha = null } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
-  if (!IMAGE2_AUTH_OPERATIONS.includes(operation)) throw new TypeError("operation must be style-master, pilot, build, or refresh");
-  if (!SHA256_RE.test(profileFingerprint || "")) throw new TypeError("profileFingerprint must be a sha256");
-  const normalizedScope = normalizeImage2AuthScope(scope);
-  if (!normalizedScope || !validImage2AuthScope(normalizedScope)) throw new TypeError("scope must be {role:'style-master'} or sorted non-empty slide_ids");
+  const scope = pageAuthorityAuthorizationScopeFromBatch(rawBatch);
+  if (!scope) throw new TypeError("rawBatch must be a non-empty canonical Page Authority raw batch");
   if (!Number.isInteger(maxSubmissions) || maxSubmissions <= 0) throw new TypeError("maxSubmissions must be a positive integer");
   const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose: "execute" });
-  if (!inspection.ok) throw new Error(`image2 authorization unavailable: ${inspection.code}`);
-  if (inspection.mode !== "image2-only") throw new Error("image2 provider authorization is first-class image2-only");
-  const state = readState(deckDir, { purpose: "execute", heal: false });
-  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: image2 authorization state is unavailable");
+  if (!inspection.ok) throw new Error(`Page Authority authorization unavailable: ${inspection.code}`);
+  if (inspection.mode !== "image2-page-authority") throw new Error("Page Authority raw authorization is only available for image2-page-authority");
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Authority authorization state is unavailable");
   const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
   if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
+  const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
+  if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) throw new Error("PAGE_AUTHORITY_STATE_INVALID: authoritative source_epoch is unavailable");
   const record = {
-    schema: IMAGE2_PROVIDER_AUTHORIZATION_SCHEMA,
+    schema: PAGE_AUTHORITY_RAW_PROVIDER_AUTHORIZATION_SCHEMA,
     run_version: exactVersion,
-    operation,
-    scope: Object.freeze(structuredClone(normalizedScope)),
-    profile_fingerprint: profileFingerprint,
+    source_epoch: sourceEpoch,
+    raw_generation_profile_digest: rawBatch.raw_generation_profile_digest,
+    scope,
     max_submissions: maxSubmissions,
     execution_id: state.execution_id,
     decided_at: nowIso(),
   };
-  if (!validImage2AuthorizationRecord(record, exactVersion)) throw new Error("derived image2 authorization record is invalid");
+  if (!validPageAuthorityRawAuthorizationRecord(record, exactVersion)) throw new Error("derived Page Authority authorization record is invalid");
   const next = structuredClone(state);
   delete next.durable_state_present;
   delete next._healed;
   delete next._heal_pending;
   next.schema_version = STATE_SCHEMA_VERSION;
-  if (!isPlainObject(next.image2_provider_authorization) || !isPlainObject(next.image2_provider_authorization.by_version)) next.image2_provider_authorization = { by_version: {} };
-  next.image2_provider_authorization.by_version[canonicalVersionKey(exactVersion)] = record;
+  if (!isPlainObject(next.page_authority_raw_provider_authorization) || !isPlainObject(next.page_authority_raw_provider_authorization.by_version)) {
+    next.page_authority_raw_provider_authorization = { by_version: {} };
+  }
+  next.page_authority_raw_provider_authorization.by_version[canonicalVersionKey(exactVersion)] = record;
   writeState(deckDir, next, { expectedStateSha, updatedAt: record.decided_at });
-  appendHistory(deckDir, { type: "image2_provider_authorization", run_version: exactVersion, operation, at: record.decided_at });
+  appendHistory(deckDir, { type: "page_authority_raw_provider_authorization", run_version: exactVersion, source_epoch: sourceEpoch, at: record.decided_at });
   return Object.freeze({ ok: true, run_version: exactVersion, record: Object.freeze(structuredClone(record)) });
 }
 
 /**
- * Re-derive and verify the authorization immediately before a first-class
- * Image2 transport submit. The caller must already have proved that it will
- * submit at least one request; reuse-only paths never call this function.
+ * Advance the one authoritative Page Authority source epoch after a caller has
+ * proven that source-owned raw semantics changed. Provider profile drift never
+ * uses this writer. Old authorization and delivery evidence remain historical
+ * facts in history only; they cannot authorize or complete the new epoch.
  */
-export function inspectImage2ProviderAuthorization(deckDir, { runVersion, runDir, operation, scope, profileFingerprint, maxSubmissions } = {}) {
+export function advancePageAuthoritySourceEpoch(deckDir, { runVersion, runDir, expectedSourceEpoch = null, expectedStateSha = null } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
+  const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose: "execute" });
+  if (!inspection.ok) throw new Error(`Page Authority source epoch is unavailable: ${inspection.code}`);
+  if (inspection.mode !== "image2-page-authority") throw new Error("Page Authority source epoch is only available for image2-page-authority");
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Authority source epoch state is unavailable");
+  const versionKey = canonicalVersionKey(exactVersion);
+  const record = state.production_mode?.by_version?.[versionKey];
+  if (!isProductionModeRecord(record) || record.mode !== "image2-page-authority") {
+    throw new Error("PAGE_AUTHORITY_STATE_INVALID: authoritative source epoch is unavailable");
+  }
+  if (expectedSourceEpoch !== null && record.source_epoch !== expectedSourceEpoch) {
+    throw new Error("PAGE_AUTHORITY_SOURCE_EPOCH_STALE: obtain a fresh Page Authority raw plan");
+  }
+
+  const next = structuredClone(state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  const sourceEpoch = record.source_epoch + 1;
+  next.production_mode.by_version[versionKey] = { mode: "image2-page-authority", source_epoch: sourceEpoch };
+  if (isPlainObject(next.page_authority_raw_provider_authorization?.by_version)) {
+    delete next.page_authority_raw_provider_authorization.by_version[versionKey];
+  }
+  if (isPlainObject(next.page_authority_delivery_review?.by_version)) {
+    delete next.page_authority_delivery_review.by_version[versionKey];
+  }
+  const at = nowIso();
+  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  appendHistory(deckDir, {
+    type: "page_authority_source_epoch_advanced",
+    run_version: exactVersion,
+    previous_source_epoch: record.source_epoch,
+    source_epoch: sourceEpoch,
+    at,
+  });
+  return Object.freeze({ ok: true, run_version: exactVersion, previous_source_epoch: record.source_epoch, source_epoch: sourceEpoch });
+}
+
+/** Verify an exact Page Authority raw-submit decision immediately before submit. */
+export function inspectPageAuthorityRawProviderAuthorization(deckDir, { runVersion, runDir, rawBatch, maxSubmissions } = {}) {
   const exactVersion = normalizeRunVersion(runVersion ?? runDir);
   if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
-  if (!IMAGE2_AUTH_OPERATIONS.includes(operation)) return Object.freeze({ ok: false, code: "AUTHORIZATION_OPERATION_INVALID" });
-  const normalizedScope = normalizeImage2AuthScope(scope);
-  if (!normalizedScope || !validImage2AuthScope(normalizedScope)) return Object.freeze({ ok: false, code: "AUTHORIZATION_SCOPE_INVALID" });
-  if (!SHA256_RE.test(profileFingerprint || "")) return Object.freeze({ ok: false, code: "AUTHORIZATION_PROFILE_INVALID" });
-  if (!Number.isInteger(maxSubmissions) || maxSubmissions <= 0) return Object.freeze({ ok: false, code: "AUTHORIZATION_COUNT_INVALID" });
-
+  const scope = pageAuthorityAuthorizationScopeFromBatch(rawBatch);
+  if (!scope) return Object.freeze({ ok: false, code: "AUTHORIZATION_SCOPE_INVALID", run_version: exactVersion });
+  if (!Number.isInteger(maxSubmissions) || maxSubmissions <= 0) return Object.freeze({ ok: false, code: "AUTHORIZATION_COUNT_INVALID", run_version: exactVersion });
   const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose: "execute" });
   if (!inspection.ok) return Object.freeze({ ok: false, code: inspection.code, run_version: exactVersion });
-  if (inspection.mode !== "image2-only") return Object.freeze({ ok: false, code: "AUTHORIZATION_NOT_APPLICABLE", run_version: exactVersion, mode: inspection.mode });
-
-  const state = readState(deckDir, { purpose: "execute", heal: false });
+  if (inspection.mode !== "image2-page-authority") return Object.freeze({ ok: false, code: "AUTHORIZATION_NOT_APPLICABLE", run_version: exactVersion, mode: inspection.mode });
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
   if (state?.replacement_required || state?.corrupted) return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion });
-  const record = state.image2_provider_authorization?.by_version?.[canonicalVersionKey(exactVersion)];
-  if (!validImage2AuthorizationRecord(record, exactVersion)) return Object.freeze({ ok: false, code: "AUTHORIZATION_MISSING", run_version: exactVersion });
+  const record = state.page_authority_raw_provider_authorization?.by_version?.[canonicalVersionKey(exactVersion)];
+  if (!validPageAuthorityRawAuthorizationRecord(record, exactVersion)) return Object.freeze({ ok: false, code: "AUTHORIZATION_MISSING", run_version: exactVersion });
+  const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
+  if (record.source_epoch !== sourceEpoch) return Object.freeze({ ok: false, code: "AUTHORIZATION_SOURCE_EPOCH_STALE", run_version: exactVersion });
   if (record.execution_id !== state.execution_id) return Object.freeze({ ok: false, code: "AUTHORIZATION_EXECUTION_STALE", run_version: exactVersion });
-  if (record.operation !== operation) return Object.freeze({ ok: false, code: "AUTHORIZATION_OPERATION_MISMATCH", run_version: exactVersion, expected: operation, actual: record.operation });
-  if (stableStringify(record.scope) !== stableStringify(normalizedScope)) return Object.freeze({ ok: false, code: "AUTHORIZATION_SCOPE_MISMATCH", run_version: exactVersion });
-  if (record.profile_fingerprint !== profileFingerprint) return Object.freeze({ ok: false, code: "AUTHORIZATION_PROFILE_MISMATCH", run_version: exactVersion });
+  if (record.raw_generation_profile_digest !== rawBatch.raw_generation_profile_digest) return Object.freeze({ ok: false, code: "AUTHORIZATION_PROFILE_MISMATCH", run_version: exactVersion });
+  if (stableStringify(record.scope) !== stableStringify(scope)) return Object.freeze({ ok: false, code: "AUTHORIZATION_SCOPE_MISMATCH", run_version: exactVersion });
   if (record.max_submissions < maxSubmissions) return Object.freeze({ ok: false, code: "AUTHORIZATION_COUNT_EXCEEDED", run_version: exactVersion, authorized: record.max_submissions, required: maxSubmissions });
   return Object.freeze({ ok: true, run_version: exactVersion, record: Object.freeze(structuredClone(record)) });
+}
+
+/**
+ * Record the Page Authority delivery decision from exact current derived
+ * evidence. The shared evidence reader retains digests, not paths or duplicated
+ * generated artifacts.
+ */
+export async function recordPageAuthorityDeliveryReview(deckDir, { runVersion, runDir, decision, reason = null, expectedStateSha = null } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) throw new TypeError("runVersion/runDir must name a canonical vN version");
+  if (!["proceed", "repair", "redirect"].includes(decision)) throw new TypeError("decision must be proceed, repair, or redirect");
+  const inspection = inspectRunProductionMode(deckDir, { runVersion: exactVersion, purpose: "execute" });
+  if (!inspection.ok) throw new Error(`Page Authority delivery review unavailable: ${inspection.code}`);
+  if (inspection.mode !== "image2-page-authority") throw new Error("Page Authority delivery review is only available for image2-page-authority");
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
+  if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Authority delivery review state is unavailable");
+  const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
+  if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
+  if (state.playbook !== "create-deck" || typeof state.execution_id !== "string" || !state.execution_id) {
+    throw new Error("active Page Authority create-deck execution is required");
+  }
+  const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
+  if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) throw new Error("PAGE_AUTHORITY_STATE_INVALID: authoritative source_epoch is unavailable");
+  const evidenceInspection = inspectPageAuthorityDeliveryEvidence(runDir || join(deckDir, "3_versions", exactVersion), { sourceEpoch });
+  if (!evidenceInspection.ok) {
+    throw new Error(`PAGE_AUTHORITY_DELIVERY_EVIDENCE_${evidenceInspection.code}: ${evidenceInspection.next_action}`);
+  }
+  const trimmedReason = reason == null ? null : String(reason).trim();
+  if (decision === "proceed" && trimmedReason !== null) throw new Error("proceed must not carry a reason");
+  if (decision !== "proceed" && !trimmedReason) throw new Error(`${decision} requires a non-empty bounded reason`);
+  const record = {
+    schema: PAGE_AUTHORITY_DELIVERY_REVIEW_SCHEMA,
+    run_version: exactVersion,
+    source_epoch: sourceEpoch,
+    ...evidenceInspection.evidence,
+    decision,
+    reason: trimmedReason,
+    execution_id: state.execution_id,
+    decided_at: nowIso(),
+  };
+  if (!validPageAuthorityDeliveryReviewRecord(record, exactVersion)) throw new Error("derived Page Authority delivery review record is invalid");
+  const next = structuredClone(state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  if (!isPlainObject(next.page_authority_delivery_review) || !isPlainObject(next.page_authority_delivery_review.by_version)) {
+    next.page_authority_delivery_review = { by_version: {} };
+  }
+  next.page_authority_delivery_review.by_version[canonicalVersionKey(exactVersion)] = record;
+  const at = record.decided_at;
+  next.nodes ||= {};
+  next.nodes[PAGE_AUTHORITY_FINAL_REVIEW_NODE] = {
+    ...next.nodes[PAGE_AUTHORITY_FINAL_REVIEW_NODE],
+    status: "completed",
+    execution_id: next.execution_id,
+    run_version: exactVersion,
+    decision: { value: decision, kind: "user", at },
+    page_authority_delivery_review: {
+      run_version: exactVersion,
+      fingerprint: sha256(stableStringify(record)),
+    },
+    completed: at,
+  };
+  next.current_node = PAGE_AUTHORITY_FINAL_REVIEW_NODE;
+  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  appendHistory(deckDir, { type: "page_authority_delivery_review", run_version: exactVersion, source_epoch: sourceEpoch, decision, at });
+  return Object.freeze({ ok: true, run_version: exactVersion, decision, record: Object.freeze(structuredClone(record)), node: PAGE_AUTHORITY_FINAL_REVIEW_NODE });
 }
 
 export function readState(deckDir, opts = {}) {
@@ -1255,13 +972,23 @@ export function readState(deckDir, opts = {}) {
   if (parsed.value.schema_version !== STATE_SCHEMA_VERSION) {
     return replacementRequired(`unsupported state schema_version ${String(parsed.value.schema_version)}`);
   }
-  const version = selectedRunVersion(opts) || normalizeRunVersion(parsed.value.run_version);
+  const version = selectedRunVersion(opts) || normalizeRunVersion(parsed.value.run_version) ||
+    (!parsed.value.playbook ? exactContinuationTargetVersion(parsed.value.continuation_target_version) : null);
   let sourceMarker = null;
   if (version) {
     sourceMarker = probeSourceMarkerForVersion(deckDir, version);
     const markerPipeline = sourceMarker.ok === false ? null : pipelineFromSourceMarker(sourceMarker);
     if (!markerPipeline?.ok) {
-      return replacementRequired(`source/state identity is unsupported: ${markerPipeline?.code || sourceMarker.code || "marker unavailable"}`);
+      // An inactive historical fixture may still name one visible run for a
+      // locator or observer. This is not a production-state read: the
+      // replacement fence remains true and no current adapter can use it.
+      const continuation = !parsed.value.playbook
+        ? exactContinuationTargetVersion(parsed.value.continuation_target_version)
+        : null;
+      return Object.freeze({
+        ...replacementRequired(`source/state identity is unsupported: ${markerPipeline?.code || sourceMarker.code || "marker unavailable"}`),
+        ...(continuation ? { continuation_target_version: continuation } : {}),
+      });
     }
     // A valid marker belongs to the source owner. The exact mode/pipeline pair
     // is evaluated by resolveRunProductionAdapter so drift remains visible as a
@@ -1293,6 +1020,32 @@ export function readState(deckDir, opts = {}) {
   }
   const mismatch = selectedExecutionMismatch(parsed.value, opts);
   const state = { ...parsed.value, durable_state_present: true };
+  return mismatch ? Object.freeze({ ...state, ...mismatch }) : state;
+}
+
+/**
+ * Read the historical source state only while executing the explicit adoption
+ * transaction. Unlike `readState`, this never treats the result as current
+ * Page Authority authority, repairs it, or derives a production route.
+ */
+export function readLegacyAdoptionState(deckDir, { purpose = "observe", sourceRunVersion, sourceRunDir } = {}) {
+  if (!["observe", "execute"].includes(purpose)) throw new TypeError("state read purpose must be observe or execute");
+  const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
+  if (!sourceVersion) return replacementRequired("legacy adoption source version is invalid");
+  const path = statePath(deckDir);
+  if (!existsSync(path)) return replacementRequired("legacy adoption state is missing");
+  let bytes;
+  try { bytes = readFileSync(path); } catch { return replacementRequired("legacy adoption state cannot be read"); }
+  const parsed = parseStateYaml(bytes.toString("utf8"));
+  if (!parsed.ok || parsed.hadErrors || parsed.value.schema_version !== STATE_SCHEMA_VERSION) {
+    return replacementRequired("legacy adoption state is not safely parseable");
+  }
+  const record = parsed.value.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)];
+  if (!isHistoricalLegacyProtocolRecord(record)) {
+    return replacementRequired("legacy adoption source has no exact historical mode record");
+  }
+  const state = { ...parsed.value, durable_state_present: true };
+  const mismatch = selectedExecutionMismatch(state, { runVersion: sourceVersion });
   return mismatch ? Object.freeze({ ...state, ...mismatch }) : state;
 }
 
@@ -1341,15 +1094,6 @@ function readJournalSnapshot(deckDir) {
   return { path, bytes, record };
 }
 
-function currentResetRecordFromBytes(bytes) {
-  if (!bytes?.length) return null;
-  const parsed = parseStateYaml(bytes.toString("utf8"));
-  if (!parsed.ok) return null;
-  const records = parsed.value?.nodes?.["html-production-reset"]?.by_version;
-  if (!isPlainObject(records)) return null;
-  return Object.values(records).find((record) => record?.status === "deletion_pending") || null;
-}
-
 export function writeState(deckDir, state, opts = {}) {
   const expectedStateSha = opts.expectedStateSha ?? null;
   if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
@@ -1361,18 +1105,12 @@ export function writeState(deckDir, state, opts = {}) {
   if (journal.record) {
     if (!opts.journalOwnerToken || opts.journalOwnerToken !== journal.record.owner_token) throw new Error("CONFLICT: gate approval journal fences state writes");
   }
-  const currentReset = currentResetRecordFromBytes(oldBytes);
-  if (currentReset && opts.resetOwnerToken !== currentReset.owner_token) throw new Error("CONFLICT: HTML production reset fences state writes");
   const bindingErrors = executionBindingErrors(state);
   if (bindingErrors.length > 0) throw new Error(`execution_run_version_mismatch: ${bindingErrors[0]}`);
   const continuationTargetError = continuationTargetVisibilityError(state, deckDir);
   if (continuationTargetError) throw new Error(`continuation_target_invalid: ${continuationTargetError}`);
   const prepared = prepareStateWrite(state, { updatedAt: opts.updatedAt || nowIso() });
   if (journal.record && prepared.sha256 !== journal.record.new_state_sha256) throw new Error("CONFLICT: journal owner attempted unbound state bytes");
-  const candidateReset = state?.nodes?.["html-production-reset"]?.by_version
-    ? Object.values(state.nodes["html-production-reset"].by_version).find((record) => record?.status === "deletion_pending")
-    : null;
-  if (!currentReset && candidateReset && opts.resetOwnerToken !== candidateReset.owner_token) throw new Error("CONFLICT: reset start requires its exact owner token");
   ensureStateDirHints(deckDir);
   const dir = dirname(path);
   mkdirSync(dir, { recursive: true });
@@ -1384,8 +1122,6 @@ export function writeState(deckDir, state, opts = {}) {
     if (sha256(currentBytes) !== oldSha) throw new Error("CONFLICT: state changed before commit");
     const currentJournal = readJournalSnapshot(deckDir);
     if (Boolean(currentJournal.record) !== Boolean(journal.record) || (journal.bytes && !currentJournal.bytes?.equals(journal.bytes))) throw new Error("CONFLICT: gate approval journal changed before state commit");
-    const resetNow = currentResetRecordFromBytes(currentBytes);
-    if (resetNow && opts.resetOwnerToken !== resetNow.owner_token) throw new Error("CONFLICT: HTML production reset ownership changed before state commit");
     renameSync(temp, path);
   } catch (error) {
     rmSync(temp, { force: true });
@@ -1397,54 +1133,57 @@ export function writeState(deckDir, state, opts = {}) {
 }
 
 /**
- * Capture a confirmed cross-pipeline preview as the sole active transition.
- * Candidate preparation and preview deliberately live outside state; this is
- * the first pointer-changing operation and is fenced by the exact source
- * state bytes and all preview receipts.
+ * Capture the one confirmed historical-to-Page-Authority adoption. Candidate
+ * preparation and preview live outside state; this is the first
+ * pointer-changing operation and is fenced by exact source-state bytes and
+ * target-authored receipts.
  */
-export function confirmProductionModeTransition(deckDir, {
+export function confirmLegacyProtocolAdoption(deckDir, {
   sourceRunVersion,
   sourceRunDir,
   targetRunVersion,
-  targetMode,
   planHash,
   candidateReceiptSha256,
   targetIntake,
   targetIntakeSha256,
+  adoption,
   expectedStateSha = null,
 } = {}) {
   const sourceVersion = selectedRunVersion({ runVersion: sourceRunVersion, runDir: sourceRunDir });
   const targetVersion = normalizeRunVersion(targetRunVersion);
-  if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) throw new TypeError("transition source and target must be distinct canonical run versions");
-  if (!isProductionMode(targetMode) || !SHA256_RE.test(planHash || "") || !SHA256_RE.test(candidateReceiptSha256 || "")) {
-    throw new TypeError("transition mode, plan hash, and candidate receipt must be exact");
+  const targetMode = "image2-page-authority";
+  const targetPipeline = PAGE_AUTHORITY_IMAGE2_PIPELINE;
+  if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) throw new TypeError("legacy adoption source and target must be distinct canonical run versions");
+  if (!SHA256_RE.test(planHash || "") || !SHA256_RE.test(candidateReceiptSha256 || "") || !validLegacyAdoptionBinding(adoption)) {
+    throw new TypeError("legacy adoption plan, candidate receipt, and observer bindings must be exact");
   }
-  if (!validTransitionIntake(targetIntake)) throw new TypeError("transition target intake must contain every explicit intake field");
+  if (!validTransitionIntake(targetIntake)) throw new TypeError("legacy adoption target intake must contain every explicit intake field");
   const intakeSha = sha256(Buffer.from(stableStringify(targetIntake)));
-  if (!SHA256_RE.test(targetIntakeSha256 || "") || targetIntakeSha256 !== intakeSha) throw new Error("transition target intake digest is stale or invalid");
+  if (!SHA256_RE.test(targetIntakeSha256 || "") || targetIntakeSha256 !== intakeSha) throw new Error("legacy adoption target intake digest is stale or invalid");
   if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
 
   const versions = visibleRunVersions(deckDir);
   const expectedTarget = `v${(versions.reduce((highest, version) => Math.max(highest, Number(version.slice(1))), 0) + 1)}`;
-  if (targetVersion !== expectedTarget) throw new Error(`transition target must be anticipated ${expectedTarget}`);
-  if (existsSync(join(deckDir, "3_versions", targetVersion))) throw new Error("transition target version already exists");
+  if (targetVersion !== expectedTarget) throw new Error(`legacy adoption target must be anticipated ${expectedTarget}`);
+  if (existsSync(join(deckDir, "3_versions", targetVersion))) throw new Error("legacy adoption target version already exists");
 
-  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition source state is unavailable");
-  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
-  if (!current.playbook || !current.execution_id || current.run_version !== sourceVersion) throw new Error("active source execution is required");
-  if (current.playbook === "production-mode-transition" && current.current_node === TRANSITION_APPLY_NODE) throw new Error("transition apply is already active");
-  if (current.playbook_stack.some(isTransitionSuspensionFrame)) throw new Error("transition suspension is already active");
+  const current = readLegacyAdoptionState(deckDir, { purpose: "execute", sourceRunVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: legacy adoption source state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
+  if (!current.playbook || !current.execution_id || current.run_version !== sourceVersion) throw new Error("active historical source execution is required");
+  if (current.playbook === "production-mode-transition" && current.current_node === TRANSITION_APPLY_NODE) throw new Error("legacy adoption apply is already active");
+  if (current.playbook_stack.some(isLegacyAdoptionSuspensionFrame)) throw new Error("legacy adoption suspension is already active");
   const sourceMode = current.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)]?.mode;
-  if (!isProductionMode(sourceMode)) throw new Error("transition source has no authoritative production mode");
-  const sourcePolicy = productionPolicyForMode(sourceMode);
-  const targetPolicy = productionPolicyForMode(targetMode);
-  if (sourcePolicy.pipeline === targetPolicy.pipeline) throw new Error("same-pipeline mode changes must use the in-place transition");
-  if (current.production_mode?.by_version?.[canonicalVersionKey(targetVersion)]) throw new Error("transition target mode already exists");
+  const sourcePolicy = legacyProtocolPolicyForMode(sourceMode);
+  if (!sourcePolicy) throw new Error("legacy adoption source has no authoritative historical mode");
+  if (current.production_mode?.by_version?.[canonicalVersionKey(targetVersion)]) throw new Error("legacy adoption target mode already exists");
 
   const sourceBytes = readFileSync(statePath(deckDir));
   const sourceStateSha = sha256(sourceBytes);
-  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition source state precondition changed");
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: legacy adoption source state precondition changed");
+  if (adoption.source_state_sha256 !== sourceStateSha) {
+    throw new Error("CONFLICT: legacy adoption source state binding changed");
+  }
   const frame = {
     schema: TRANSITION_SUSPENSION_SCHEMA,
     disposition: "transition-suspended",
@@ -1459,7 +1198,8 @@ export function confirmProductionModeTransition(deckDir, {
     source_pipeline: sourcePolicy.pipeline,
     target_run_version: targetVersion,
     target_mode: targetMode,
-    target_pipeline: targetPolicy.pipeline,
+    target_pipeline: targetPipeline,
+    transition_kind: LEGACY_ADOPTION_KIND,
     transition_plan_hash: planHash,
     parent_stack: deepClone(current.playbook_stack),
   };
@@ -1478,6 +1218,8 @@ export function confirmProductionModeTransition(deckDir, {
     status: "in_progress",
     execution_id: transitionExecutionId,
     run_version: sourceVersion,
+    transition_kind: LEGACY_ADOPTION_KIND,
+    transition_adoption: deepClone(adoption),
     transition_plan_hash: planHash,
     transition_candidate_receipt_sha256: candidateReceiptSha256,
     transition_target_intake: structuredClone(targetIntake),
@@ -1489,13 +1231,14 @@ export function confirmProductionModeTransition(deckDir, {
     transition_source_pipeline: sourcePolicy.pipeline,
     transition_target_version: targetVersion,
     transition_target_mode: targetMode,
-    transition_target_pipeline: targetPolicy.pipeline,
+    transition_target_pipeline: targetPipeline,
     started: at,
   };
   next.playbook_stack = [frame];
   writeState(deckDir, next, { expectedStateSha: sourceStateSha, updatedAt: at });
   appendHistory(deckDir, {
-    type: "production_mode_transition_confirmed",
+    type: "legacy_protocol_adoption_confirmed",
+    transition_kind: LEGACY_ADOPTION_KIND,
     source_execution_id: frame.execution_id,
     source_version: sourceVersion,
     source_mode: sourceMode,
@@ -1511,29 +1254,30 @@ export function confirmProductionModeTransition(deckDir, {
     source_execution_id: frame.execution_id,
     target_version: targetVersion,
     target_mode: targetMode,
-    target_pipeline: targetPolicy.pipeline,
+    target_pipeline: targetPipeline,
+    adoption_kind: LEGACY_ADOPTION_KIND,
     plan_hash: planHash,
     transition_execution_id: transitionExecutionId,
   });
 }
 
-/** Restore the exact captured source only when no anticipated target exists. */
-export function restoreProductionModeTransitionSource(deckDir, { sourceRunVersion, planHash, expectedStateSha = null } = {}) {
+/** Restore the exact captured historical source only when no target exists. */
+export function restoreLegacyProtocolAdoptionSource(deckDir, { sourceRunVersion, planHash, expectedStateSha = null } = {}) {
   const sourceVersion = normalizeRunVersion(sourceRunVersion);
   if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
   if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
-  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
-  const record = activeTransitionRecord(current);
+  const current = readLegacyAdoptionState(deckDir, { purpose: "execute", sourceRunVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: legacy adoption state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
+  const record = activeLegacyAdoptionRecord(current);
   const frame = current.playbook_stack?.[0];
-  if (!record || !isTransitionSuspensionFrame(frame) || frame.source_run_version !== sourceVersion || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) {
-    throw new Error("active transition checkpoint is missing or drifted");
+  if (!record || !isLegacyAdoptionSuspensionFrame(frame) || frame.source_run_version !== sourceVersion || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) {
+    throw new Error("active legacy adoption checkpoint is missing or drifted");
   }
-  if (existsSync(join(deckDir, "3_versions", record.transition_target_version))) throw new Error("CONFLICT: transition target is visible and must be registered or inspected");
+  if (existsSync(join(deckDir, "3_versions", record.transition_target_version))) throw new Error("CONFLICT: legacy adoption target is visible and must be inspected");
   const sourceBytes = readFileSync(statePath(deckDir));
   const sourceStateSha = sha256(sourceBytes);
-  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition state precondition changed");
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: legacy adoption state precondition changed");
   const next = structuredClone(current);
   next.playbook = frame.playbook;
   next.current_node = frame.current_node;
@@ -1545,16 +1289,16 @@ export function restoreProductionModeTransitionSource(deckDir, { sourceRunVersio
   next.playbook_stack = deepClone(frame.parent_stack);
   writeState(deckDir, next, { expectedStateSha: sourceStateSha });
   appendHistory(deckDir, {
-    type: "production_mode_transition_source_restored",
+    type: "legacy_protocol_adoption_source_restored",
     source_execution_id: frame.execution_id,
     source_version: sourceVersion,
     target_version: record.transition_target_version,
     plan_hash: planHash,
   });
-  return Object.freeze({ status: "source_restored", source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash });
+  return Object.freeze({ status: "source_restored", source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, adoption_kind: LEGACY_ADOPTION_KIND });
 }
 
-function transitionJournalSnapshot(deckDir, record, ownerToken) {
+function legacyAdoptionJournalSnapshot(deckDir, record, ownerToken) {
   if (!SHA256_RE.test(ownerToken || "")) throw new TypeError("transition recovery owner token must be a lowercase SHA-256");
   const path = join(deckDir, "3_versions", record.transition_source_version, "_scratch", "production-mode-transition", "apply-journal.json");
   if (!existsSync(path)) throw new Error("transition apply journal is missing");
@@ -1578,7 +1322,7 @@ function transitionJournalSnapshot(deckDir, record, ownerToken) {
  * The token is only compared in memory and is intentionally absent from both
  * state and return values.
  */
-export function recordProductionModeTransitionRecoveryConfirmation(deckDir, {
+export function recordLegacyProtocolAdoptionRecoveryConfirmation(deckDir, {
   sourceRunVersion,
   planHash,
   ownerToken,
@@ -1587,17 +1331,17 @@ export function recordProductionModeTransitionRecoveryConfirmation(deckDir, {
   const sourceVersion = normalizeRunVersion(sourceRunVersion);
   if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
   if (expectedStateSha !== null && !SHA256_RE.test(expectedStateSha)) throw new TypeError("expectedStateSha must be a lowercase SHA-256");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
-  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
-  const record = activeTransitionRecord(current);
-  if (!record || record.transition_plan_hash !== planHash) throw new Error("active transition checkpoint is missing or drifted");
-  const snapshot = transitionJournalSnapshot(deckDir, record, ownerToken);
-  if (snapshot.journal.owner_host.trim().toLowerCase() === hostname().trim().toLowerCase()) throw new Error("transition journal is same-host; uncertain-owner confirmation is inapplicable");
-  if (snapshot.age_ms < TRANSITION_UNCERTAIN_RECOVERY_AGE_MS) throw new Error("transition journal is not old enough for uncertain-owner recovery confirmation");
+  const current = readLegacyAdoptionState(deckDir, { purpose: "execute", sourceRunVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: legacy adoption state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
+  const record = activeLegacyAdoptionRecord(current);
+  if (!record || record.transition_plan_hash !== planHash) throw new Error("active legacy adoption checkpoint is missing or drifted");
+  const snapshot = legacyAdoptionJournalSnapshot(deckDir, record, ownerToken);
+  if (snapshot.journal.owner_host.trim().toLowerCase() === hostname().trim().toLowerCase()) throw new Error("legacy adoption journal is same-host; uncertain-owner confirmation is inapplicable");
+  if (snapshot.age_ms < TRANSITION_UNCERTAIN_RECOVERY_AGE_MS) throw new Error("legacy adoption journal is not old enough for uncertain-owner recovery confirmation");
   const sourceBytes = readFileSync(statePath(deckDir));
   const sourceStateSha = sha256(sourceBytes);
-  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: transition state precondition changed");
+  if (expectedStateSha && expectedStateSha !== sourceStateSha) throw new Error("CONFLICT: legacy adoption state precondition changed");
   const at = nowIso();
   const next = structuredClone(current);
   next.nodes[TRANSITION_APPLY_NODE] = {
@@ -1627,18 +1371,18 @@ export function recordProductionModeTransitionRecoveryConfirmation(deckDir, {
  * Closed public recovery-confirmation form. The caller supplies only the
  * uncertain journal token; the state owner derives the active plan binding.
  */
-export function recordActiveProductionModeTransitionRecoveryConfirmation(deckDir, {
+export function recordActiveLegacyProtocolAdoptionRecoveryConfirmation(deckDir, {
   sourceRunVersion,
   ownerToken,
 } = {}) {
   const sourceVersion = normalizeRunVersion(sourceRunVersion);
   if (!sourceVersion) throw new TypeError("transition source version is required");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
-  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
-  const record = activeTransitionRecord(current);
-  if (!record) throw new Error("active transition checkpoint is missing or drifted");
-  return recordProductionModeTransitionRecoveryConfirmation(deckDir, {
+  const current = readLegacyAdoptionState(deckDir, { purpose: "execute", sourceRunVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: legacy adoption state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
+  const record = activeLegacyAdoptionRecord(current);
+  if (!record) throw new Error("active legacy adoption checkpoint is missing or drifted");
+  return recordLegacyProtocolAdoptionRecoveryConfirmation(deckDir, {
     sourceRunVersion: sourceVersion,
     planHash: record.transition_plan_hash,
     ownerToken,
@@ -1647,15 +1391,15 @@ export function recordActiveProductionModeTransitionRecoveryConfirmation(deckDir
 }
 
 /** Re-inspect the durable journal before an uncertain-owner takeover. */
-export function verifyProductionModeTransitionRecoveryConfirmation(deckDir, { sourceRunVersion, planHash, ownerToken } = {}) {
+export function verifyLegacyProtocolAdoptionRecoveryConfirmation(deckDir, { sourceRunVersion, planHash, ownerToken } = {}) {
   const sourceVersion = normalizeRunVersion(sourceRunVersion);
   if (!sourceVersion || !SHA256_RE.test(planHash || "")) return Object.freeze({ ok: false, code: "TRANSITION_RECOVERY_INPUT_INVALID" });
-  const current = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
+  const current = readLegacyAdoptionState(deckDir, { purpose: "observe", sourceRunVersion: sourceVersion });
   if (current?.replacement_required || current?.corrupted || current?.execution_run_version_mismatch) return Object.freeze({ ok: false, code: current?.code || "TRANSITION_STATE_UNAVAILABLE" });
-  const record = activeTransitionRecord(current);
+  const record = activeLegacyAdoptionRecord(current);
   if (!record || record.transition_plan_hash !== planHash) return Object.freeze({ ok: false, code: "TRANSITION_CHECKPOINT_DRIFT" });
   let snapshot;
-  try { snapshot = transitionJournalSnapshot(deckDir, record, ownerToken); } catch { return Object.freeze({ ok: false, code: "TRANSITION_JOURNAL_DRIFT" }); }
+  try { snapshot = legacyAdoptionJournalSnapshot(deckDir, record, ownerToken); } catch { return Object.freeze({ ok: false, code: "TRANSITION_JOURNAL_DRIFT" }); }
   const confirmation = record.transition_recovery_confirmation;
   const matches = isPlainObject(confirmation) && confirmation.kind === "user" && confirmation.decision === "no-active-apply" &&
     confirmation.source_execution_id === record.transition_source_execution_id && confirmation.source_version === record.transition_source_version &&
@@ -1666,8 +1410,8 @@ export function verifyProductionModeTransitionRecoveryConfirmation(deckDir, { so
   return Object.freeze({ ok: true, source_version: record.transition_source_version, target_version: record.transition_target_version, plan_hash: record.transition_plan_hash, journal_sha256: snapshot.sha256 });
 }
 
-/** Complete the only terminal cross-pipeline path after a target-local receipt. */
-export function completeProductionModeTransitionHandoff(deckDir, {
+/** Complete the only terminal legacy-adoption path after a target-local receipt. */
+export function completeLegacyProtocolAdoptionHandoff(deckDir, {
   sourceRunVersion,
   planHash,
   receiptSha256 = null,
@@ -1675,73 +1419,97 @@ export function completeProductionModeTransitionHandoff(deckDir, {
   expectedStateSha = null,
 } = {}) {
   const sourceVersion = normalizeRunVersion(sourceRunVersion);
-  if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("transition source version and plan hash are required");
+  if (!sourceVersion || !SHA256_RE.test(planHash || "")) throw new TypeError("legacy adoption source version and plan hash are required");
   if (receiptSha256 !== null && !SHA256_RE.test(receiptSha256)) throw new TypeError("receiptSha256 must be a lowercase SHA-256");
   if (sourceControlFingerprint !== null && !SHA256_RE.test(sourceControlFingerprint)) throw new TypeError("sourceControlFingerprint must be a lowercase SHA-256");
-  const current = readState(deckDir, { purpose: "execute", heal: false, runVersion: sourceVersion });
-  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: transition state is unavailable");
-  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: transition source belongs to another run version");
-  const record = activeTransitionRecord(current);
+  const current = readLegacyAdoptionState(deckDir, { purpose: "execute", sourceRunVersion: sourceVersion });
+  if (current?.replacement_required || current?.corrupted) throw new Error("replacement_required: legacy adoption state is unavailable");
+  if (current?.execution_run_version_mismatch) throw new Error("execution_run_version_mismatch: selected run does not own the active execution");
+  const record = activeLegacyAdoptionRecord(current);
   const frame = current.playbook_stack?.[0];
-  if (!record || !isTransitionSuspensionFrame(frame) || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) throw new Error("active transition checkpoint is missing or drifted");
+  if (!record || !isLegacyAdoptionSuspensionFrame(frame) || record.transition_plan_hash !== planHash || frame.transition_plan_hash !== planHash) throw new Error("active legacy adoption checkpoint is missing or drifted");
   const targetDir = join(deckDir, "3_versions", record.transition_target_version);
-  const receiptPath = join(targetDir, "_generated", "qa", "production_mode_transition.json");
-  if (!existsSync(targetDir) || !existsSync(receiptPath)) throw new Error("mode_registration_required: transition target receipt is not visible");
+  const receiptPath = join(targetDir, ...PAGE_AUTHORITY_TRANSITION_RECEIPT_RELATIVE_PATH.split("/"));
+  if (!existsSync(targetDir) || !existsSync(receiptPath)) throw new Error("legacy_adoption_target_required: target receipt is not visible");
   const receiptBytes = readFileSync(receiptPath);
   const actualReceiptSha = sha256(receiptBytes);
-  if (receiptSha256 && receiptSha256 !== actualReceiptSha) throw new Error("transition target receipt changed");
+  if (receiptSha256 && receiptSha256 !== actualReceiptSha) throw new Error("legacy adoption target receipt changed");
   let receipt;
-  try { receipt = JSON.parse(receiptBytes.toString("utf8")); } catch { throw new Error("transition target receipt is invalid"); }
+  try { receipt = JSON.parse(receiptBytes.toString("utf8")); } catch { throw new Error("legacy adoption target receipt is invalid"); }
   if (!isPlainObject(receipt) || receipt.schema !== "pptmaker-production-mode-transition-success-v1" ||
-    receipt.plan_hash !== planHash || receipt.source_execution_id !== record.transition_source_execution_id ||
+    receipt.transition_kind !== record.transition_kind || receipt.plan_hash !== planHash || receipt.source_execution_id !== record.transition_source_execution_id ||
     receipt.source_version !== sourceVersion || receipt.target_version !== record.transition_target_version ||
     receipt.target_mode !== record.transition_target_mode || receipt.target_pipeline !== record.transition_target_pipeline ||
     receipt.candidate_receipt_sha256 !== record.transition_candidate_receipt_sha256 ||
     receipt.target_intake_sha256 !== record.transition_target_intake_sha256 || !SHA256_RE.test(receipt.source_control_fingerprint || "")) {
-    throw new Error("transition target receipt does not match the active checkpoint");
+    throw new Error("legacy adoption target receipt does not match the active checkpoint");
   }
-  if (sourceControlFingerprint && sourceControlFingerprint !== receipt.source_control_fingerprint) throw new Error("transition source/control fingerprint changed");
+  if (!hasExactKeys(receipt.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256"]) ||
+    receipt.adoption.observation_sha256 !== record.transition_adoption.observation_sha256 ||
+    receipt.adoption.source_state_sha256 !== record.transition_adoption.source_state_sha256 ||
+    receipt.adoption.matrix_sha256 !== record.transition_adoption.matrix_sha256) {
+    throw new Error("legacy adoption target receipt does not match the active checkpoint");
+  }
+  if (sourceControlFingerprint && sourceControlFingerprint !== receipt.source_control_fingerprint) throw new Error("legacy adoption source/control fingerprint changed");
   const marker = probeSourceMarkerForVersion(deckDir, record.transition_target_version);
   const targetPipeline = pipelineFromSourceMarker(marker);
-  if (!targetPipeline?.ok || targetPipeline.pipeline !== record.transition_target_pipeline) throw new Error("transition target marker does not match selected mode");
-  const required = [join(deckDir, "deck-guide.md"), join(targetDir, "slide-specifications.md"), join(targetDir, "overrides", "visual-style", "color_palette.json")];
-  if (required.some((path) => !existsSync(path))) throw new Error("transition target baseline prerequisites are incomplete");
+  if (!targetPipeline?.ok || targetPipeline.pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE) throw new Error("legacy adoption target marker is not Page Authority");
+  const required = [
+    join(deckDir, "deck-guide.md"),
+    join(targetDir, "slide-specifications.md"),
+    join(deckDir, ...PAGE_AUTHORITY_VISUAL_LANGUAGE_RELATIVE_PATH.split("/")),
+  ];
+  if (required.some((path) => !existsSync(path))) throw new Error("legacy adoption target baseline prerequisites are incomplete");
   const stateBytes = readFileSync(statePath(deckDir));
   const stateSha = sha256(stateBytes);
-  if (expectedStateSha && expectedStateSha !== stateSha) throw new Error("CONFLICT: transition state precondition changed");
+  if (expectedStateSha && expectedStateSha !== stateSha) throw new Error("CONFLICT: legacy adoption state precondition changed");
   const at = nowIso();
   const intakeDecisionAt = record.transition_confirmation.at;
   const targetExecutionId = newExecutionId();
-  const baseline = { target_execution_id: targetExecutionId, target_run_version: record.transition_target_version, plan_hash: planHash, success_receipt_sha256: actualReceiptSha, source_control_fingerprint: receipt.source_control_fingerprint };
-  const authorNode = record.transition_target_mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
-  const configureNode = record.transition_target_mode === "image2-only" ? "configure-whole-page-visual-system" : "configure-visual-system";
-  const nextNode = record.transition_target_mode === "image2-only" ? "authorize-image2-style-master" : "preview-content";
+  const baseline = {
+    target_execution_id: targetExecutionId,
+    target_run_version: record.transition_target_version,
+    plan_hash: planHash,
+    success_receipt_sha256: actualReceiptSha,
+    source_control_fingerprint: receipt.source_control_fingerprint,
+    adoption_kind: LEGACY_ADOPTION_KIND,
+  };
+  const targetNodes = {
+    author: "author-page-authority-content",
+    authorEvidence: "page-authority-source-authored",
+    configure: "configure-page-authority-visual-system",
+    configureEvidence: "page-authority-visual-system-configured",
+    next: "authorize-page-authority-raw",
+  };
   const next = structuredClone(current);
   next.playbook = "create-deck";
-  next.current_node = nextNode;
+  next.current_node = targetNodes.next;
   next.execution_id = targetExecutionId;
   next.execution_started_at = at;
   next.run_version = record.transition_target_version;
+  next.continuation_target_version = record.transition_target_version;
   next.pipeline = record.transition_target_pipeline;
   ensureProductionModeContainer(next);
   const existingTargetMode = next.production_mode.by_version[canonicalVersionKey(record.transition_target_version)]?.mode;
-  if (existingTargetMode && existingTargetMode !== record.transition_target_mode) throw new Error("CONFLICT: transition target mode conflicts with receipt");
-  next.production_mode.by_version[canonicalVersionKey(record.transition_target_version)] = { mode: record.transition_target_mode };
+  if (existingTargetMode && existingTargetMode !== "image2-page-authority") throw new Error("CONFLICT: legacy adoption target mode conflicts with receipt");
+  // The historical source remains byte-preserved observer input; the active
+  // state graph retains only the adopted Page Authority run.
+  delete next.production_mode.by_version[canonicalVersionKey(sourceVersion)];
+  next.production_mode.by_version[canonicalVersionKey(record.transition_target_version)] = initialProductionModeRecord("image2-page-authority");
   next.nodes = preserveReservedNodes(current.nodes);
-  next.nodes.instantiation = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, transition_baseline: baseline };
   next.nodes["checkpoint-intake"] = {
     status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at,
     decision: { value: "proceed", kind: "user", at: intakeDecisionAt }, evidence: { "intake-confirmed": { met: true, kind: "user", at: intakeDecisionAt, note: record.transition_target_intake_sha256 } },
     transition_baseline: { ...baseline, target_intake_sha256: record.transition_target_intake_sha256 },
   };
-  for (const [nodeId, evidenceKey] of [[authorNode, authorNode === "author-whole-page-content" ? "whole-page-content-authored" : "structured-content-authored"], [configureNode, configureNode === "configure-whole-page-visual-system" ? "whole-page-visual-system-configured" : "visual-system-configured"]]) {
+  for (const [nodeId, evidenceKey] of [[targetNodes.author, targetNodes.authorEvidence], [targetNodes.configure, targetNodes.configureEvidence]]) {
     next.nodes[nodeId] = { status: "completed", execution_id: targetExecutionId, run_version: record.transition_target_version, completed: at, evidence: { [evidenceKey]: { met: true, kind: "agent", at, note: receipt.source_control_fingerprint } }, transition_baseline: baseline };
   }
   next.playbook_stack = [];
   writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: at });
-  appendHistory(deckDir, { type: "production_mode_transition_source_archived", source_execution_id: frame.execution_id, source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
-  appendHistory(deckDir, { type: "production_mode_transition_handoff", target_execution_id: targetExecutionId, source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
-  return Object.freeze({ status: "handoff-complete", source_version: sourceVersion, target_version: record.transition_target_version, target_mode: record.transition_target_mode, current_node: nextNode, receipt_sha256: actualReceiptSha });
+  appendHistory(deckDir, { type: "legacy_protocol_adoption_source_archived", adoption_kind: LEGACY_ADOPTION_KIND, source_execution_id: frame.execution_id, source_version: sourceVersion, target_version: record.transition_target_version, plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  appendHistory(deckDir, { type: "legacy_protocol_adoption_handoff", adoption_kind: LEGACY_ADOPTION_KIND, target_execution_id: targetExecutionId, source_version: sourceVersion, target_version: record.transition_target_version, target_mode: "image2-page-authority", plan_hash: planHash, receipt_sha256: actualReceiptSha, at });
+  return Object.freeze({ status: "handoff-complete", source_version: sourceVersion, target_version: record.transition_target_version, target_mode: "image2-page-authority", adoption_kind: LEGACY_ADOPTION_KIND, current_node: targetNodes.next, receipt_sha256: actualReceiptSha });
 }
 
 function activeRecord(state, name) {
@@ -1777,7 +1545,7 @@ function modeForControllerContext(state, ctx = {}) {
   const runVersion = normalizeRunVersion(ctx.runVersion ?? ctx.run_version ?? ctx.runDir ?? ctx.run_dir);
   if (!runVersion) return null;
   const record = state?.production_mode?.by_version?.[canonicalVersionKey(runVersion)];
-  return isPlainObject(record) && hasExactKeys(record, ["mode"]) && isProductionMode(record.mode)
+  return isProductionModeRecord(record)
     ? record.mode
     : null;
 }
@@ -1853,42 +1621,33 @@ export function buildResumeCard(state, _statusSnapshot = null, controller = null
   };
 }
 
-function reservedVersionRecord(state, reservedId, runVersion) {
-  const container = state?.nodes?.[reservedId];
-  if (!isPlainObject(container) || !isPlainObject(container.by_version)) return null;
-  const rec = container.by_version[canonicalVersionKey(runVersion)];
-  return isPlainObject(rec) ? rec : null;
-}
-
-function readHtmlDeliveryDecision(state, runVersion) {
-  const rec = reservedVersionRecord(state, "html-delivery-review", runVersion);
-  if (!rec) return { present: false, decision: null };
-  return { present: true, decision: typeof rec.decision === "string" ? rec.decision : null };
-}
-
-function readImage2DeliveryDecision(state, runVersion) {
-  // The image2-primary delivery/final-review record is a dedicated state-owned
-  // map (see recordImage2DeliveryReview). Read defensively so this projection
-  // stays correct before/after that record exists.
-  const byVersion = isPlainObject(state?.image2_delivery_review?.by_version) ? state.image2_delivery_review.by_version : null;
-  const rec = byVersion ? byVersion[canonicalVersionKey(runVersion)] : null;
-  if (!isPlainObject(rec)) return { present: false, decision: null };
-  const durableCreateExecution = state?.playbook === "create-deck" && typeof state?.execution_id === "string" && state.execution_id;
-  if (durableCreateExecution) {
-    const node = activeRecord(state, IMAGE2_FINAL_REVIEW_NODE);
-    const binding = node?.image2_delivery_review;
-    const bound = node?.status === "completed" &&
-      node?.decision?.kind === "user" &&
-      node?.decision?.value === rec.decision &&
-      binding?.run_version === runVersion &&
-      binding?.fingerprint === sha256(stableStringify(rec));
-    if (!bound) return { present: false, decision: null, code: "FINAL_REVIEW_NODE_UNBOUND" };
+/** Read the state-owned Page Authority delivery decision and its node binding. */
+export function inspectPageAuthorityDeliveryReview(state, { runVersion, evidence = null } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion);
+  if (!exactVersion) return Object.freeze({ present: false, current: false, code: "RUN_VERSION_INVALID" });
+  const record = state?.page_authority_delivery_review?.by_version?.[canonicalVersionKey(exactVersion)];
+  if (!validPageAuthorityDeliveryReviewRecord(record, exactVersion)) {
+    return Object.freeze({ present: false, current: false, code: "DELIVERY_REVIEW_MISSING" });
   }
-  return { present: true, decision: typeof rec.decision === "string" ? rec.decision : null };
-}
-
-function safeRefinementStatus(state, runVersion) {
-  try { return projectImage2RefinementState(state, runVersion); } catch { return Object.freeze({ present: false, status: "invalid" }); }
+  if (record.execution_id !== state?.execution_id) {
+    return Object.freeze({ present: true, current: false, code: "DELIVERY_REVIEW_EXECUTION_STALE", record: Object.freeze(structuredClone(record)) });
+  }
+  const node = activeRecord(state, PAGE_AUTHORITY_FINAL_REVIEW_NODE);
+  const binding = node?.page_authority_delivery_review;
+  if (node?.status !== "completed" || node?.decision?.kind !== "user" || node?.decision?.value !== record.decision ||
+    binding?.run_version !== exactVersion || binding?.fingerprint !== sha256(stableStringify(record))) {
+    return Object.freeze({ present: true, current: false, code: "DELIVERY_REVIEW_NODE_UNBOUND", record: Object.freeze(structuredClone(record)) });
+  }
+  if (evidence != null) {
+    if (!isPlainObject(evidence) || evidence.source_epoch !== record.source_epoch) {
+      return Object.freeze({ present: true, current: false, code: "DELIVERY_REVIEW_EVIDENCE_STALE", record: Object.freeze(structuredClone(record)) });
+    }
+    const mismatch = PAGE_AUTHORITY_DELIVERY_EVIDENCE_FIELDS.find((field) => evidence[field] !== record[field]);
+    if (mismatch) {
+      return Object.freeze({ present: true, current: false, code: "DELIVERY_REVIEW_EVIDENCE_STALE", field: mismatch, record: Object.freeze(structuredClone(record)) });
+    }
+  }
+  return Object.freeze({ present: true, current: true, decision: record.decision, record: Object.freeze(structuredClone(record)) });
 }
 
 /** Resume-card mode projection: resolvable mode + derived policy, or a typed gap. */
@@ -1897,47 +1656,28 @@ function projectModeCard(state, runVersion) {
   const versionKey = canonicalVersionKey(exactVersion);
   if (!versionKey) return Object.freeze({ resolvable: false, code: "RUN_VERSION_INVALID" });
   const record = isPlainObject(state?.production_mode?.by_version) ? state.production_mode.by_version[versionKey] : null;
-  const mode = isPlainObject(record) && hasExactKeys(record, ["mode"]) && isProductionMode(record.mode) ? record.mode : null;
+  const mode = isProductionModeRecord(record) ? record.mode : null;
   if (!mode) return Object.freeze({ resolvable: false, code: "MODE_MISSING", run_version: exactVersion });
   return Object.freeze({ resolvable: true, run_version: exactVersion, mode, policy: productionPolicyForMode(mode) });
 }
 
-/**
- * Mode-aware completion projection over authoritative state records. State owns
- * the mode + record-level completion truth; the CLI status layer composes this
- * with artifact freshness. Returns the mode, whether the run is complete under
- * that mode, and the nearest owning missing prerequisite per mode:
- *  - html-only: current HTML delivery review (proceed); retained/absent
- *    refinement is not debt.
- *  - html-then-image2: HTML delivery + a current required refinement lifecycle.
- *  - image2-only: the evidence-bound image2 delivery/final-review record.
- * A missing/invalid mode fails closed rather than guessing completion.
- */
+/** Project completion from the only current Page Authority delivery evidence. */
 export function projectModeCompletion(state, { runVersion } = {}) {
   const exactVersion = normalizeRunVersion(runVersion);
   if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
   const versionKey = canonicalVersionKey(exactVersion);
   const record = isPlainObject(state?.production_mode?.by_version) ? state.production_mode.by_version[versionKey] : null;
-  const mode = isPlainObject(record) && hasExactKeys(record, ["mode"]) && isProductionMode(record.mode) ? record.mode : null;
+  const mode = isProductionModeRecord(record) ? record.mode : null;
   if (!mode) return Object.freeze({ ok: false, code: "MODE_MISSING", run_version: exactVersion, next_action: "register_production_mode" });
+  if (mode !== "image2-page-authority") {
+    return Object.freeze({ ok: false, code: "LEGACY_PROTOCOL_ADOPTION_REQUIRED", run_version: exactVersion });
+  }
   const policy = productionPolicyForMode(mode);
-  const delivery = readHtmlDeliveryDecision(state, exactVersion);
-  const refinement = safeRefinementStatus(state, exactVersion);
-
-  if (mode === "html-only") {
-    const missing = [];
-    if (!delivery.present || delivery.decision !== "proceed") missing.push({ owner: "html-delivery-review", action: "complete_html_delivery_review" });
-    return Object.freeze({ ok: true, mode, policy, complete: missing.length === 0, missing });
-  }
-  if (mode === "html-then-image2") {
-    const missing = [];
-    if (!delivery.present || delivery.decision !== "proceed") missing.push({ owner: "html-delivery-review", action: "complete_html_delivery_review" });
-    if (refinement.status !== "complete") missing.push({ owner: "image2-refinement", action: "complete_required_refinement_lifecycle" });
-    return Object.freeze({ ok: true, mode, policy, complete: missing.length === 0, missing });
-  }
-  const image2 = readImage2DeliveryDecision(state, exactVersion);
+  const pageAuthority = inspectPageAuthorityDeliveryReview(state, { runVersion: exactVersion });
   const missing = [];
-  if (!image2.present || image2.decision !== "proceed") missing.push({ owner: "image2-delivery-review", action: "complete_evidence_bound_image2_final_review" });
+  if (!pageAuthority.current || pageAuthority.decision !== "proceed") {
+    missing.push({ owner: "page-authority-delivery-review", action: "complete_evidence_bound_page_authority_delivery_review" });
+  }
   return Object.freeze({ ok: true, mode, policy, complete: missing.length === 0, missing });
 }
 
@@ -2046,7 +1786,7 @@ export function startPlaybook(state, playbook, { replace = false, runVersion, ru
 export function switchPlaybook(state, newPlaybook, selected = {}) {
   const activeRunVersion = requireActiveExecution(state, selected);
   normalizePlaybookStack(state);
-  if (state.playbook_stack.some(isTransitionSuspensionFrame)) {
+  if (state.playbook_stack.some(isLegacyAdoptionSuspensionFrame)) {
     throw new Error("transition suspension is non-resumable; use the closed transition apply or recovery operation");
   }
   const snapshot = Object.fromEntries(controllerEntries(state.nodes).map(([id, rec]) => [id, deepClone(rec)]));
@@ -2071,7 +1811,7 @@ export function resumePlaybook(state, selected = {}) {
   requireExecutionRunVersion(state, selected);
   normalizePlaybookStack(state);
   if (state.playbook_stack.length === 0) return state;
-  if (state.playbook_stack.some(isTransitionSuspensionFrame)) {
+  if (state.playbook_stack.some(isLegacyAdoptionSuspensionFrame)) {
     throw new Error("transition suspension is non-resumable; use the closed transition apply or recovery operation");
   }
   const reserved = preserveReservedNodes(state.nodes);
@@ -2088,7 +1828,7 @@ export function resumePlaybook(state, selected = {}) {
 export function createDefaultState() {
   return {
     schema_version: STATE_SCHEMA_VERSION,
-    pipeline: WHOLE_PAGE_IMAGE2_PIPELINE,
+    pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
     production_mode: { by_version: {} },
     playbook: "",
     current_node: "",
@@ -2099,20 +1839,20 @@ export function createDefaultState() {
     started_at: "",
     updated_at: "",
     nodes: {},
-    gates: { content: "pending", visual: "pending", html_content: "pending", html_visual: "pending" },
+    gates: { content: "pending", visual: "pending" },
     deck: { name: "", type: "", style: "" },
     playbook_stack: [],
   };
 }
-export function createInitialState(deckName, deckType, style, { mode = "image2-only" } = {}) {
+export function createInitialState(deckName, deckType, style, { mode = "image2-page-authority" } = {}) {
   const policy = productionPolicyForMode(mode);
   if (!policy.ok) throw new TypeError("initial state requires a valid production mode");
   const state = createDefaultState();
   state.pipeline = policy.pipeline;
-  state.production_mode.by_version[canonicalVersionKey("v1")] = { mode: policy.mode };
+  state.production_mode.by_version[canonicalVersionKey("v1")] = initialProductionModeRecord(policy.mode);
   state.deck = { name: String(deckName || ""), type: String(deckType || ""), style: String(style || "") };
   startPlaybook(state, "create-deck", { runVersion: "v1" });
-  state.current_node = "instantiation";
+  state.current_node = "checkpoint-intake";
   return state;
 }
 
@@ -2135,40 +1875,11 @@ export function validateState(state) {
     if (node?.execution_id !== state.execution_id) errors.push(`execution mismatch for ${name}`);
     if (node?.status === "in_progress" && node.completed) errors.push(`illegal: ${name} completed→in_progress`);
   }
-  if (nodes["image2-refinement"] !== undefined) {
-    const byVersion = nodes["image2-refinement"]?.by_version;
-    if (!isPlainObject(byVersion)) errors.push("image2-refinement must contain by_version");
-    else {
-      for (const key of Object.keys(byVersion)) {
-        const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
-        if (!match) errors.push(`invalid image2-refinement version key ${key}`);
-        else if (!validRefinementRecord(byVersion[key], match[1])) errors.push(`invalid image2-refinement record ${key}`);
-      }
-    }
-  }
-  if (nodes["image-production"] !== undefined) {
-    const byVersion = nodes["image-production"]?.by_version;
-    if (!isPlainObject(byVersion)) errors.push("image-production must contain by_version");
-    else for (const key of Object.keys(byVersion)) {
-      const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
-      if (!match) errors.push(`invalid image-production version key ${key}`);
-      else if (!validImageProductionRecord(byVersion[key], match[1])) errors.push(`invalid image-production record ${key}`);
-    }
-  }
-  const imageProductionVersions = new Set();
-  for (const id of ["image2-refinement", "image-production"]) {
-    for (const key of Object.keys(nodes[id]?.by_version || {})) {
-      const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
-      if (match) imageProductionVersions.add(match[1]);
-    }
-  }
-  for (const runVersion of imageProductionVersions) {
-    try { readImageProductionState(state, runVersion); }
-    catch (error) { errors.push(`image production ${runVersion} requires repair_state: ${error.message}`); }
-  }
-  for (const gate of ["content", "visual", "html_content", "html_visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
+  for (const id of RETIRED_STATE_NODE_IDS) if (nodes[id] !== undefined) errors.push(`${id} is retired and cannot appear in current state`);
+  for (const gate of ["content", "visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
   validateProductionModeStructure(state, errors);
-  validateImage2MapsStructure(state, errors);
+  validatePageAuthorityRawAuthorizationStructure(state, errors);
+  validatePageAuthorityDeliveryReviewStructure(state, errors);
   validateCurrentControllerIdentity(state, errors);
   return { valid: errors.length === 0, errors };
 }
@@ -2213,8 +1924,8 @@ function validateCurrentControllerIdentity(state, errors) {
   for (const [indexPosition, frame] of (state.playbook_stack || []).entries()) {
     validateControllerFrameIdentity(index, frame, `playbook_stack[${indexPosition}]`, errors);
   }
-  if (state.playbook === "production-mode-transition" && !activeTransitionRecord(state)) {
-    errors.push("active production-mode transition record is malformed or contains retired receipt identity");
+  if (state.playbook === "production-mode-transition" && !activeLegacyAdoptionRecord(state)) {
+    errors.push("active legacy adoption record is malformed or contains retired receipt identity");
   }
 }
 
@@ -2251,7 +1962,7 @@ function validateProductionModeStructure(state, errors) {
   }
   for (const [key, record] of Object.entries(pm.by_version)) {
     if (!versionFromReservedKey(key)) errors.push(`invalid production_mode version key ${key}`);
-    if (!isPlainObject(record) || !hasExactKeys(record, ["mode"]) || !isProductionMode(record.mode)) {
+    if (!isProductionModeRecord(record)) {
       errors.push(`invalid production_mode record ${key}`);
     }
   }
@@ -2272,253 +1983,25 @@ function validateProductionModeReadOnly(state, issues) {
       issues.push(stateIssue(recordPath, "canonical 3_versions/vN key", "noncanonical", "record"));
       continue;
     }
-    if (!isPlainObject(record) || !hasExactKeys(record, ["mode"])) {
-      issues.push(stateIssue(recordPath, "closed {mode} record", "unknown-or-missing-key", "record"));
-      continue;
-    }
-    if (!isProductionMode(record.mode)) {
-      issues.push(stateIssue(`${recordPath}.mode`, "html-only|html-then-image2|image2-only", record.mode, "record"));
+    if (!isProductionModeRecord(record)) {
+      issues.push(stateIssue(
+        recordPath,
+        "exact {mode: image2-page-authority, source_epoch: positive integer} record",
+        "unknown-or-invalid",
+        "record",
+        "repair_page_authority_state",
+      ));
     }
   }
 }
 
 /** Read-only validation for the first-class Image2 evidence maps. */
-function validateImage2MapsReadOnly(state, issues) {
-  for (const [mapKey, validator, label] of [
-    ["image2_delivery_review", validImage2DeliveryRecord, "closed image2 delivery-review record"],
-    ["image2_provider_authorization", validImage2AuthorizationRecord, "closed image2 authorization record"],
-  ]) {
-    const map = state[mapKey];
-    if (map == null) continue;
-    if (!hasExactKeys(map, ["by_version"]) || !isPlainObject(map.by_version)) {
-      issues.push(stateIssue(mapKey, "by_version-only map", "invalid", "record"));
-      continue;
-    }
-    for (const [key, record] of Object.entries(map.by_version)) {
-      const recordPath = `${mapKey}.by_version.${key}`;
-      const runVersion = versionFromReservedKey(key);
-      if (!runVersion) { issues.push(stateIssue(recordPath, "canonical 3_versions/vN key", "noncanonical", "record")); continue; }
-      if (!validator(record, runVersion)) issues.push(stateIssue(recordPath, label, "unknown-or-invalid", "record"));
-    }
-  }
-}
-
 function versionFromReservedKey(key) {
   return /^3_versions\/(v[1-9][0-9]*)$/.exec(key)?.[1] || null;
 }
 
 function validIsoTimestamp(value) {
   return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
-}
-
-function validNullableSha256(value) {
-  return value === null || (typeof value === "string" && SHA256_RE.test(value));
-}
-
-function validateReservedRecordIdentity(record, key, recordPath, issues) {
-  const runVersion = versionFromReservedKey(key);
-  if (!runVersion) {
-    issues.push(stateIssue(recordPath, "canonical 3_versions/vN key", "noncanonical", "record"));
-    return null;
-  }
-  if (!isPlainObject(record)) {
-    issues.push(stateIssue(recordPath, "mapping record", typeof record, "record"));
-    return null;
-  }
-  if (record.run_version !== runVersion) {
-    issues.push(stateIssue(`${recordPath}.run_version`, runVersion, record.run_version, "record"));
-  }
-  return runVersion;
-}
-
-function validateWaivedChecksReadOnly(value, path, issues) {
-  if (!Array.isArray(value) || value.length > 64) {
-    issues.push(stateIssue(path, "0..64 canonical checks", Array.isArray(value) ? `array:${value.length}` : typeof value, "record"));
-    return false;
-  }
-  let allValid = true;
-  let prior = null;
-  for (const entry of value) {
-    const entryValid = isPlainObject(entry) && hasExactKeys(entry, ["code", "subject"]) && /^[a-z][a-z0-9_]{0,63}$/.test(entry.code || "") &&
-      (entry.subject === null || (isPlainObject(entry.subject) && hasExactKeys(entry.subject, ["kind", "id"]) && ["gate", "slide", "recipe", "artifact", "receipt"].includes(entry.subject.kind) && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(entry.subject.id || "")));
-    if (!entryValid) {
-      issues.push(stateIssue(path, "canonical waived check", "invalid", "record"));
-      allValid = false;
-      continue;
-    }
-    const key = `${entry.code}\u0000${entry.subject?.kind || ""}\u0000${entry.subject?.id || ""}`;
-    if (prior !== null && prior >= key) {
-      issues.push(stateIssue(path, "sorted duplicate-free checks", "noncanonical", "record"));
-      allValid = false;
-    }
-    prior = key;
-  }
-  return allValid;
-}
-
-function hasWaivedSubject(checks, kind, id) {
-  return Array.isArray(checks) && checks.some((entry) => entry?.subject?.kind === kind && entry.subject.id === id);
-}
-
-function validateReferencePairShape(record, pathKey, shaKey, recordPath, issues, { required = false } = {}) {
-  const pathValue = record[pathKey];
-  const shaValue = record[shaKey];
-  if (pathValue === null && shaValue === null) {
-    if (required) issues.push(stateIssue(`${recordPath}.${pathKey}`, "path plus sha256", "missing", "record"));
-    return false;
-  }
-  if (typeof pathValue !== "string" || !pathValue || typeof shaValue !== "string" || !SHA256_RE.test(shaValue)) {
-    issues.push(stateIssue(`${recordPath}.${pathKey}`, "path plus sha256", "missing-or-invalid", "record"));
-    return false;
-  }
-  return true;
-}
-
-function validateHtmlGateRecordReadOnly(id, record, key, recordPath, issues) {
-  const gate = id === "html-content-review" ? "content" : "visual";
-  const audit = gate === "content"
-    ? ["content_review_fingerprint", "ordered_plan_digest"]
-    : ["visual_system_fingerprint", "component_recipe_coverage", "page_visual_dependencies", "shown_artifacts"];
-  const common = ["schema", "gate", "pipeline", "run_version", "status", "waiver_reason", "review_plan_hash", "html_production_reset_id"];
-  const v1 = [...common, ...audit, "decided_at"];
-  const v2 = [...common, "evidence_complete", "waived_checks", ...audit, "decided_at"];
-  const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
-  if (!runVersion) return;
-  if (record.schema === "pptmaker-html-gate-review-v1") {
-    if (!hasExactKeys(record, v1)) issues.push(stateIssue(recordPath, "closed gate v1 record", "unknown-or-missing-key", "record"));
-  } else if (record.schema === "pptmaker-html-gate-review-v2") {
-    if (!hasExactKeys(record, v2)) issues.push(stateIssue(recordPath, "closed gate v2 record", "unknown-or-missing-key", "record"));
-  } else {
-    issues.push(stateIssue(`${recordPath}.schema`, "supported gate record schema", record.schema || "missing", "record"));
-    return;
-  }
-  if (record.gate !== gate) issues.push(stateIssue(`${recordPath}.gate`, gate, record.gate, "record"));
-  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
-  if (!["approved", "waived"].includes(record.status)) issues.push(stateIssue(`${recordPath}.status`, "approved|waived", record.status, "record"));
-  if (!validNullableSha256(record.html_production_reset_id)) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "null or sha256", "invalid", "record"));
-  if (!validIsoTimestamp(record.decided_at)) issues.push(stateIssue(`${recordPath}.decided_at`, "UTC ISO-8601", "invalid", "record"));
-  const hasPlanHash = typeof record.review_plan_hash === "string" && SHA256_RE.test(record.review_plan_hash);
-  if (record.schema === "pptmaker-html-gate-review-v1") {
-    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256", "missing-or-invalid", "record"));
-    if (record.status === "approved" && record.waiver_reason !== null) issues.push(stateIssue(`${recordPath}.waiver_reason`, "null for approved", "present", "record"));
-    if (record.status === "waived" && (typeof record.waiver_reason !== "string" || !record.waiver_reason)) issues.push(stateIssue(`${recordPath}.waiver_reason`, "non-empty waiver reason", "missing-or-invalid", "record"));
-    return;
-  }
-  const checksValid = validateWaivedChecksReadOnly(record.waived_checks, `${recordPath}.waived_checks`, issues);
-  const checks = Array.isArray(record.waived_checks) ? record.waived_checks : [];
-  if (typeof record.evidence_complete !== "boolean") issues.push(stateIssue(`${recordPath}.evidence_complete`, "boolean", typeof record.evidence_complete, "record"));
-  if (record.status === "approved") {
-    if (record.waiver_reason !== null) issues.push(stateIssue(`${recordPath}.waiver_reason`, "null for approved", "present", "record"));
-    if (record.evidence_complete !== true) issues.push(stateIssue(`${recordPath}.evidence_complete`, "true for approved", record.evidence_complete, "record"));
-    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for approved", `array:${checks.length}`, "record"));
-    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256 for approved", "missing-or-invalid", "record"));
-    return;
-  }
-  if (typeof record.waiver_reason !== "string" || !record.waiver_reason) issues.push(stateIssue(`${recordPath}.waiver_reason`, "non-empty waiver reason", "missing-or-invalid", "record"));
-  if (record.evidence_complete === true) {
-    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for complete waiver", `array:${checks.length}`, "record"));
-    if (!hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "sha256 for complete waiver", "missing-or-invalid", "record"));
-  } else if (record.evidence_complete === false) {
-    if (checks.length === 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "non-empty canonical checks", `array:${checks.length}`, "record"));
-    if (record.review_plan_hash !== null && !hasPlanHash) issues.push(stateIssue(`${recordPath}.review_plan_hash`, "null or sha256 for incomplete waiver", "invalid", "record"));
-  }
-}
-
-function validateHtmlDeliveryRecordReadOnly(record, key, recordPath, issues) {
-  const v1 = ["schema", "pipeline", "run_version", "html_production_reset_id", "html_delivery_digest", "contact_sheet_manifest_path", "contact_sheet_manifest_sha256", "contact_sheet_path", "contact_sheet_sha256", "assembly_receipt_path", "assembly_receipt_sha256", "pptx_sha256", "notes_receipt_path", "notes_receipt_sha256", "decision", "reason", "decided_at"];
-  const v2 = [...v1, "pptx_path", "evidence_complete", "waived_checks"];
-  const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
-  if (!runVersion) return;
-  const isV1 = record.schema === "pptmaker-html-delivery-review-v1";
-  const isV2 = record.schema === "pptmaker-html-delivery-review-v2";
-  if (isV1) {
-    if (!hasExactKeys(record, v1)) issues.push(stateIssue(recordPath, "closed delivery v1 record", "unknown-or-missing-key", "record"));
-  } else if (isV2) {
-    if (!hasExactKeys(record, v2)) issues.push(stateIssue(recordPath, "closed delivery v2 record", "unknown-or-missing-key", "record"));
-  } else {
-    issues.push(stateIssue(`${recordPath}.schema`, "supported delivery record schema", record.schema || "missing", "record"));
-    return;
-  }
-  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
-  if (!validNullableSha256(record.html_production_reset_id)) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "null or sha256", "invalid", "record"));
-  if (!SHA256_RE.test(record.html_delivery_digest || "")) issues.push(stateIssue(`${recordPath}.html_delivery_digest`, "sha256", "missing-or-invalid", "record"));
-  if (!["proceed", "repair", "redirect"].includes(record.decision)) issues.push(stateIssue(`${recordPath}.decision`, "proceed|repair|redirect", record.decision, "record"));
-  if (!validIsoTimestamp(record.decided_at)) issues.push(stateIssue(`${recordPath}.decided_at`, "UTC ISO-8601", "invalid", "record"));
-  const complete = isV1 || record.evidence_complete === true;
-  const requiredLineage = complete;
-  validateReferencePairShape(record, "contact_sheet_manifest_path", "contact_sheet_manifest_sha256", recordPath, issues, { required: true });
-  validateReferencePairShape(record, "contact_sheet_path", "contact_sheet_sha256", recordPath, issues, { required: true });
-  const assemblyPresent = validateReferencePairShape(record, "assembly_receipt_path", "assembly_receipt_sha256", recordPath, issues, { required: requiredLineage });
-  const notesPresent = validateReferencePairShape(record, "notes_receipt_path", "notes_receipt_sha256", recordPath, issues, { required: requiredLineage });
-  if (!SHA256_RE.test(record.pptx_sha256 || "")) issues.push(stateIssue(`${recordPath}.pptx_sha256`, "sha256", "missing-or-invalid", "record"));
-  if (isV1) {
-    if (record.decision === "proceed" && record.reason !== null) issues.push(stateIssue(`${recordPath}.reason`, "null for normal proceed", "present", "record"));
-    if (["repair", "redirect"].includes(record.decision) && (typeof record.reason !== "string" || !record.reason)) issues.push(stateIssue(`${recordPath}.reason`, "non-empty repair/redirect reason", "missing-or-invalid", "record"));
-    return;
-  }
-  const pptxPresent = validateReferencePairShape(record, "pptx_path", "pptx_sha256", recordPath, issues, { required: true });
-  const checksValid = validateWaivedChecksReadOnly(record.waived_checks, `${recordPath}.waived_checks`, issues);
-  const checks = Array.isArray(record.waived_checks) ? record.waived_checks : [];
-  if (typeof record.evidence_complete !== "boolean") issues.push(stateIssue(`${recordPath}.evidence_complete`, "boolean", typeof record.evidence_complete, "record"));
-  if (record.evidence_complete === true) {
-    if (checks.length !== 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "empty for complete evidence", `array:${checks.length}`, "record"));
-    if (!assemblyPresent || !notesPresent || !pptxPresent) issues.push(stateIssue(recordPath, "complete delivery artifact set", "incomplete", "record"));
-  } else if (record.evidence_complete === false) {
-    if (record.decision !== "proceed") issues.push(stateIssue(`${recordPath}.decision`, "proceed for incomplete evidence", record.decision, "record"));
-    if (typeof record.reason !== "string" || !record.reason) issues.push(stateIssue(`${recordPath}.reason`, "non-empty forced-proceed reason", "missing-or-invalid", "record"));
-    if (checks.length === 0 || !checksValid) issues.push(stateIssue(`${recordPath}.waived_checks`, "non-empty canonical checks", `array:${checks.length}`, "record"));
-    if (!assemblyPresent && !hasWaivedSubject(checks, "receipt", "assembly-v2")) issues.push(stateIssue(`${recordPath}.assembly_receipt_path`, "waived assembly-v2 receipt", "uncovered-null", "record"));
-    if (!notesPresent && !hasWaivedSubject(checks, "receipt", "notes-v3")) issues.push(stateIssue(`${recordPath}.notes_receipt_path`, "waived notes-v3 receipt", "uncovered-null", "record"));
-  }
-  if (["repair", "redirect"].includes(record.decision) && (typeof record.reason !== "string" || !record.reason)) issues.push(stateIssue(`${recordPath}.reason`, "non-empty repair/redirect reason", "missing-or-invalid", "record"));
-}
-
-function validateHtmlResetRecordReadOnly(record, key, recordPath, issues) {
-  const keys = ["schema", "pipeline", "run_version", "html_production_reset_id", "status", "started_at", "completed_at", "owner_token", "owner_host", "owner_pid", "owner_claimed_at_epoch_ms"];
-  if (!validateReservedRecordIdentity(record, key, recordPath, issues)) return;
-  if (!hasExactKeys(record, keys)) issues.push(stateIssue(recordPath, "closed HTML reset record", "unknown-or-missing-key", "record"));
-  if (record.schema !== "pptmaker-html-production-reset-v1") issues.push(stateIssue(`${recordPath}.schema`, "pptmaker-html-production-reset-v1", record.schema || "missing", "record"));
-  if (record.pipeline !== HTML_FIRST_PIPELINE) issues.push(stateIssue(`${recordPath}.pipeline`, HTML_FIRST_PIPELINE, record.pipeline, "record"));
-  if (!SHA256_RE.test(record.html_production_reset_id || "")) issues.push(stateIssue(`${recordPath}.html_production_reset_id`, "sha256", "missing-or-invalid", "record"));
-  if (!SHA256_RE.test(record.owner_token || "")) issues.push(stateIssue(`${recordPath}.owner_token`, "sha256", "missing-or-invalid", "record"));
-  if (!["deletion_pending", "complete"].includes(record.status)) issues.push(stateIssue(`${recordPath}.status`, "deletion_pending|complete", record.status, "record"));
-  if (!validIsoTimestamp(record.started_at)) issues.push(stateIssue(`${recordPath}.started_at`, "UTC ISO-8601", "invalid", "record"));
-  if (record.status === "deletion_pending" ? record.completed_at !== null : !validIsoTimestamp(record.completed_at)) issues.push(stateIssue(`${recordPath}.completed_at`, record.status === "deletion_pending" ? "null" : "UTC ISO-8601", "invalid", "record"));
-}
-
-function validateConfinedReferenceReadOnly(runDir, pathValue, shaValue, pathField, issues) {
-  if (pathValue === null && shaValue === null) return;
-  if (typeof pathValue !== "string" || !pathValue || typeof shaValue !== "string" || !SHA256_RE.test(shaValue)) {
-    issues.push(stateIssue(pathField, "confined path plus sha256", "missing-or-invalid", "reference"));
-    return;
-  }
-  if (!runDir) return;
-  const root = resolve(runDir);
-  if (pathValue.includes("\\") || pathValue.startsWith("/") || pathValue.split("/").some((part) => !part || part === "." || part === "..")) {
-    issues.push(stateIssue(pathField, "confined run-relative path", "invalid-path", "reference"));
-    return;
-  }
-  const absolute = resolve(root, pathValue);
-  const rel = relative(root, absolute);
-  if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
-    issues.push(stateIssue(pathField, "confined run-relative path", "escaping-path", "reference"));
-    return;
-  }
-  if (!existsSync(absolute)) {
-    issues.push(stateIssue(pathField, "existing referenced file", "missing", "reference", "rebuild_or_repair"));
-    return;
-  }
-  let stat;
-  try { stat = lstatSync(absolute); } catch {
-    issues.push(stateIssue(pathField, "regular referenced file", "unreadable", "reference", "rebuild_or_repair"));
-    return;
-  }
-  if (!stat.isFile() || stat.isSymbolicLink()) {
-    issues.push(stateIssue(pathField, "regular confined file", stat.isSymbolicLink() ? "symbolic-link" : "not-file", "reference", "rebuild_or_repair"));
-    return;
-  }
-  const actual = sha256(readFileSync(absolute));
-  if (actual !== shaValue) issues.push(stateIssue(`${pathField}_sha256`, `sha256:${shaValue.slice(0, 12)}`, `sha256:${actual.slice(0, 12)}`, "reference", "rebuild_or_repair"));
 }
 
 /**
@@ -2545,7 +2028,7 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
       "select_active_run_version",
     ));
   }
-  const topLevel = ["schema_version", "pipeline", "production_mode", "image2_delivery_review", "image2_provider_authorization", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "continuation_target_version", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
+  const topLevel = ["schema_version", "pipeline", "production_mode", "page_authority_raw_provider_authorization", "page_authority_delivery_review", "playbook", "current_node", "execution_id", "execution_started_at", "run_version", "continuation_target_version", "started_at", "updated_at", "nodes", "gates", "deck", "playbook_stack", "diagnostics"];
   for (const key of Object.keys(state)) if (!topLevel.includes(key)) issues.push(stateIssue(key, "known top-level state key", "unknown", "state"));
   for (const error of validateState(state).errors.slice(0, 20)) issues.push(stateIssue("state", "valid schema-v5 invariant", error, "state"));
   const continuationTargetError = continuationTargetVisibilityError(state, deckDir);
@@ -2553,55 +2036,9 @@ export function validateStateReadOnly(deckDir, { runDir = null } = {}) {
     issues.push(stateIssue("continuation_target_version", "normalized visible canonical vN", state.continuation_target_version || "missing", "state", "guide_explicit_run"));
   }
   validateProductionModeReadOnly(state, issues);
-  validateImage2MapsReadOnly(state, issues);
-
   const nodes = state.nodes;
   if (isPlainObject(nodes)) {
-    for (const id of ["html-content-review", "html-visual-review", "html-delivery-review", "html-production-reset", "image2-refinement", "image-production"]) {
-      const container = nodes[id];
-      if (container == null) continue;
-      if (!hasExactKeys(container, ["by_version"]) || !isPlainObject(container.by_version)) {
-        issues.push(stateIssue(`nodes.${id}`, "by_version-only reserved record", "invalid", "record"));
-        continue;
-      }
-      for (const [key, record] of Object.entries(container.by_version)) {
-        const recordPath = `nodes.${id}.by_version.${key}`;
-        if (["html-content-review", "html-visual-review"].includes(id)) {
-          validateHtmlGateRecordReadOnly(id, record, key, recordPath, issues);
-        } else if (id === "html-delivery-review") {
-          validateHtmlDeliveryRecordReadOnly(record, key, recordPath, issues);
-          if (isPlainObject(record)) {
-            validateConfinedReferenceReadOnly(runDir, record.contact_sheet_manifest_path, record.contact_sheet_manifest_sha256, `${recordPath}.contact_sheet_manifest_path`, issues);
-            validateConfinedReferenceReadOnly(runDir, record.contact_sheet_path, record.contact_sheet_sha256, `${recordPath}.contact_sheet_path`, issues);
-            validateConfinedReferenceReadOnly(runDir, record.assembly_receipt_path, record.assembly_receipt_sha256, `${recordPath}.assembly_receipt_path`, issues);
-            validateConfinedReferenceReadOnly(runDir, record.notes_receipt_path, record.notes_receipt_sha256, `${recordPath}.notes_receipt_path`, issues);
-            if (record.schema === "pptmaker-html-delivery-review-v2") {
-              validateConfinedReferenceReadOnly(runDir, record.pptx_path, record.pptx_sha256, `${recordPath}.pptx_path`, issues);
-            }
-          }
-        } else if (id === "html-production-reset") {
-          validateHtmlResetRecordReadOnly(record, key, recordPath, issues);
-        } else if (id === "image2-refinement" || id === "image-production") {
-          const runVersion = validateReservedRecordIdentity(record, key, recordPath, issues);
-          if (runVersion && !(id === "image2-refinement" ? validRefinementRecord(record, runVersion) : validImageProductionRecord(record, runVersion))) {
-            issues.push(stateIssue(recordPath, id === "image2-refinement" ? "closed image2 refinement v1/v2 record" : "closed image production visual-slot record", "unknown-or-invalid", "record"));
-          }
-        }
-      }
-    }
-    const imageProductionVersions = new Set();
-    for (const id of ["image2-refinement", "image-production"]) {
-      for (const key of Object.keys(nodes[id]?.by_version || {})) {
-        const match = /^3_versions\/(v[1-9][0-9]*)$/.exec(key);
-        if (match) imageProductionVersions.add(match[1]);
-      }
-    }
-    for (const runVersion of imageProductionVersions) {
-      try { readImageProductionState(state, runVersion); }
-      catch (error) {
-        issues.push(stateIssue(`nodes.image-production.by_version.3_versions/${runVersion}`, "equal valid visual-slot records", error.message, "record", "repair_state"));
-      }
-    }
+    for (const id of RETIRED_STATE_NODE_IDS) if (nodes[id] !== undefined) issues.push(stateIssue(`nodes.${id}`, "no retired state record", "retired", "record", "repair_state"));
   }
   return Object.freeze({ valid: issues.length === 0, issues: Object.freeze(issues.slice(0, 64)) });
 }
@@ -2618,21 +2055,24 @@ function currentDecision(state, nodeId, userOnly = false) {
 export const CONDITIONS = {
   run_bundle_exists: (_state, ctx) => existsSync(ctx.deckDir || ""),
   deck_guide_created: (_state, ctx) => existsSync(join(ctx.deckDir || "", "deck-guide.md")),
-  visual_preset_seeded: (_state, ctx) => existsSync(join(ctx.deckDir || "", "2_backbone", "visual-style", "color_palette.json")),
+  visual_preset_seeded: (_state, ctx) => existsSync(join(ctx.deckDir || "", ...PAGE_AUTHORITY_VISUAL_LANGUAGE_RELATIVE_PATH.split("/"))),
   style_master_exists: (_state, ctx) => existsSync(join(ctx.deckDir || "", "2_backbone", "visual-style", "style_master.jpg")),
   slide_specs_exists: (_state, ctx) => existsSync(join(ctx.runDir || "", "slide-specifications.md")),
   slide_specs_valid: (_state, ctx) => typeof ctx.slideSpecsValid === "function" ? Boolean(ctx.slideSpecsValid()) : ctx.slideSpecsValid === true,
-  pptx_generated: (_state, ctx) => {
-    try { return readdirSync(join(ctx.runDir || "", "_generated", "ppt")).some((name) => name.endsWith(".pptx") && !name.endsWith(".backup.pptx")); } catch { return false; }
+  pptx_generated: (state, ctx) => {
+    const runVersion = normalizeRunVersion(ctx.runVersion || ctx.runDir);
+    const sourceEpoch = state?.production_mode?.by_version?.[canonicalVersionKey(runVersion)]?.source_epoch;
+    return inspectPageAuthorityDeliveryEvidence(ctx.runDir || "", { sourceEpoch }).ok;
   },
-  speaker_notes_injected: (_state, ctx) => validateNotesReceipt(ctx.runDir || "").valid,
-  header_review_current: (_state, ctx) => typeof ctx.headerReviewCurrent === "function" ? Boolean(ctx.headerReviewCurrent()) : ctx.headerReviewCurrent === true,
-  html_first_marked: (_state, ctx) => typeof ctx.htmlFirstMarked === "function" ? Boolean(ctx.htmlFirstMarked()) : ctx.htmlFirstMarked === true,
-  html_delivery_review_current: (_state, ctx) => typeof ctx.htmlDeliveryReviewCurrent === "function" ? Boolean(ctx.htmlDeliveryReviewCurrent()) : ctx.htmlDeliveryReviewCurrent === true,
+  speaker_notes_injected: (state, ctx) => {
+    const runVersion = normalizeRunVersion(ctx.runVersion || ctx.runDir);
+    const sourceEpoch = state?.production_mode?.by_version?.[canonicalVersionKey(runVersion)]?.source_epoch;
+    return inspectPageAuthorityDeliveryEvidence(ctx.runDir || "", { sourceEpoch }).ok;
+  },
   transition_apply_current: (state, ctx) => {
-    const record = activeTransitionRecord(state);
+    const record = activeLegacyAdoptionRecord(state);
     const frame = state?.playbook_stack?.[0];
-    return Boolean(record && isTransitionSuspensionFrame(frame) && selectedRunVersion(ctx) === record.transition_source_version &&
+    return Boolean(record && isLegacyAdoptionSuspensionFrame(frame) && selectedRunVersion(ctx) === record.transition_source_version &&
       frame.execution_id === record.transition_source_execution_id && frame.transition_plan_hash === record.transition_plan_hash);
   },
   // Terminal transition finalization replaces the active execution rather than

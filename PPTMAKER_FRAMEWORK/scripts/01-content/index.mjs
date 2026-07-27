@@ -30,16 +30,9 @@ export {
 } from "./internal/slide_ids.mjs";
 
 export {
-  CANONICAL_RENDER_MODES,
-  RENDER_MODE_BODY_HEADER_LOCK,
-  RENDER_MODE_FULL_PAGE,
-  RenderPolicyError,
-  determineRenderMode,
-  isBracketPlaceholder,
-  isHeroVisualType,
-  normalizeRenderMode,
-  normalizeVisualType,
-  parseLeadingFrontmatter,
-  presentHeaderText,
-  validatePolicySlideIds,
-} from "./internal/render_policy.mjs";
+  FRAMED_TEXT_PRESET,
+  PAGE_AUTHORITIES,
+  PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA,
+  PageAuthoritySourceError,
+  parsePageAuthoritySource,
+} from "./internal/page_authority_source.mjs";

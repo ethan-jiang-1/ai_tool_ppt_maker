@@ -6,10 +6,14 @@ feeds_into:
   - workflow/01-content/05-create-content-assets.md
 ---
 
-# Choose Closed Layout Families
+# Choose Visual Language
 
-Each HTML-first slide declares one closed family in its exact `SLIDE BODY` YAML: `hero`, `split`, `cards`, `kpi`, `comparison`, `flow`, `timeline`, `data`, `quote`, or `visual-focus`.
+Choose the `VISUAL BRIEF` recipe, composition, motifs, negative constraints, and
+optional registered identity from the Page Authority visual-language registry.
+Select them from the information relationship and audience, not from a free-form
+layout vocabulary.
 
-Choose the family from the information relationship, then author only that family's typed blocks. Geometry comes from the framework registry; source must not contain HTML, CSS, coordinates, or overlays. Keep every field within the contract capacities and provide a renderer-neutral `primary_visual.fallback` when the family uses a visual. Registered assets are referenced by stable catalog ID and SHA-bound by the pipeline.
-
-Run `ppt_flow validate <run-dir>` after authoring. A family or capacity failure is repaired in source, never in `_generated/`.
+Use Framed when deterministic local text can carry the slide's claims. Use Pure
+when readable data, labels, dates, quotations, or diagram text must live in the
+generated image. Keep every choice inside the registered contract and validate the
+source before raw planning.

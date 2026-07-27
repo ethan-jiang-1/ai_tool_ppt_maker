@@ -3,43 +3,39 @@
   "shared_nodes": ["classify-change"],
   "controllers": {
     "create-deck": {
-      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
-      "nodes": ["instantiation", "checkpoint-intake", "author-structured-content", "configure-visual-system", "author-whole-page-content", "configure-whole-page-visual-system", "authorize-image2-style-master", "generate-image2-style-master", "pilot-image2-pages", "review-image2-content", "review-image2-visual", "review-image2-header", "authorize-image2-build", "produce-image2-deck", "checkpoint-image2-final-review", "repair-image2-deck", "image2-readiness", "final-image2", "preview-content", "review-content", "review-visual", "produce-html-deck", "checkpoint-final-review", "handoff-to-image2-refinement", "repair-html-deck", "readiness", "final"]
+      "supported_pipelines": ["page-authority-image2-v1"],
+      "nodes": ["checkpoint-intake", "author-page-authority-content", "configure-page-authority-visual-system", "authorize-page-authority-raw", "generate-page-authority-raw", "review-page-authority-raw", "finalize-page-authority-delivery", "checkpoint-page-authority-delivery-review", "final-page-authority"]
     },
     "edit-notes": {
-      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["classify-change", "refresh-speaker-notes", "verify-speaker-notes"]
     },
     "edit-text": {
-      "supported_pipelines": ["html-first-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["classify-change", "rebuild-text-slides", "review-text-delivery"]
     },
     "edit-visual": {
-      "supported_pipelines": ["html-first-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["classify-change", "rebuild-visual-evidence", "approve-visual-evidence"]
     },
     "iterate-style": {
-      "supported_pipelines": ["html-first-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["define-style-change", "update-visual-system", "review-style-system"]
     },
-    "image2-refine": {
-      "supported_pipelines": ["html-first-v1"],
-      "nodes": ["recommend-image2-refinement", "authorize-image2-refinement", "execute-image2-refinement", "review-image2-refinement"]
-    },
     "production-mode-transition": {
-      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["apply-production-mode-transition"]
     },
     "probe-image-channels": {
-      "supported_pipelines": ["whole-page-image2-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["intake", "run-probe", "show-report", "confirm-write"]
     },
     "quick-preview": {
-      "supported_pipelines": ["html-first-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["validate-preview-source", "compose-local-preview", "review-local-preview"]
     },
     "restructure-slides": {
-      "supported_pipelines": ["html-first-v1", "whole-page-image2-v1"],
+      "supported_pipelines": ["page-authority-image2-v1"],
       "nodes": ["classify-change", "publish-structural-version", "materialize-structural-target", "review-structural-target", "verify-structural-delivery"]
     }
   }

@@ -1,31 +1,26 @@
 ---
-production:
-  pipeline: html-first-v1
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
 deck_type: pitch
 ---
 
-# Pitch Structured Deck Template
+# Pitch Page Authority Template
 
-Use a progression of hook, problem, solution, proof, market, model, team, ask, and close.
-Every slide is structured source, not an image-generation brief.
+Use hook, problem, solution, proof, market, model, team, ask, and close. Each
+slide declares Pure or Framed authority and one closed visual brief.
 
 ## Slide 01: `AskGo`
 
-**VISUAL TYPE**: Pitch opener
 **TITLE**: [The memorable venture promise]
-**CONCEPT**:
-- **MUST communicate**: [Who gains what outcome]
-- **MUST NOT**: [Unverified market claims]
-
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints: [no-readable-text, no-labels]
 ```
 
 > **SPEAKER NOTE**: [One spoken hook.]
-
-Use typed comparison, metric, timeline, and decision families for the remaining blocks.
-Attach local registered assets only through the structured body contract.

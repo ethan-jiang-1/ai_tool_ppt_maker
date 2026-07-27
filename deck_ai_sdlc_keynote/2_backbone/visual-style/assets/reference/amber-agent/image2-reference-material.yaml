@@ -1,0 +1,16 @@
+schema: pptmaker-image2-reference-registry-v1
+profiles:
+  amber-agent:
+    subject_class: amber-light-form
+    maximum_identity_subjects: 1
+    compatible_restrictions: [none, no-generic-metal-robot]
+    incompatible_restrictions: [no-identity-subject]
+    roles:
+      guide:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: one warm amber light-form gently leads, open palm, book held close, attentive head tilt
+      collaborating:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: one warm amber light-form shares attention through an open reciprocal posture

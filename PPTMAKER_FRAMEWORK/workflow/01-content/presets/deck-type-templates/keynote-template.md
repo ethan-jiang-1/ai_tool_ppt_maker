@@ -1,32 +1,26 @@
 ---
-production:
-  pipeline: html-first-v1
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
 deck_type: keynote
 ---
 
-# Keynote Structured Deck Template
+# Keynote Page Authority Template
 
-Build the keynote as a sequence of claim, diagnosis, framework, evidence, commitment,
-and close. Replace each placeholder with a closed family/body contract; no Image2 prompt
-or free-form layout is part of this template.
+Build claim, diagnosis, framework, evidence, commitment, and close with stable
+mnemonic IDs. The source selects Page Authority ownership, not a renderer family.
 
 ## Slide 01: `KeyGo`
 
-**VISUAL TYPE**: Keynote opener
 **TITLE**: [The consequential idea]
-**CONCEPT**:
-- **MUST communicate**: [Why this audience should act now]
-- **MUST NOT**: [A generic corporate introduction]
-
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints: [no-readable-text, no-labels]
 ```
 
 > **SPEAKER NOTE**: [Opening statement and transition.]
-
-Continue with stable mnemonic IDs and families appropriate to each block. Validate the
-whole structured source before local HTML preview and review.
