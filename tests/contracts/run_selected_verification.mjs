@@ -7,10 +7,13 @@ import { collectStaticSpecifiers, hasVisualEngineClosure } from "./development_v
 
 const require = createRequire(import.meta.url);
 const TEST_PATH = /^tests\/.+\/(?:test_[^/]+|test-[^/]+)\.mjs$/;
+const PROCESS_TEST_PATH = /^tests\/.+\/test_process_[^/]+\.mjs$/;
 const JOURNEY_PATH = /^tests_e2e\/.+\/test_mock_[^/]+\.mjs$/;
+const REAL_E2E_PATH = /^tests_e2e\/.+\/test_real_[^/]+\.mjs$/;
 
 function usage(message) { process.stderr.write(`${message}\n`); return 2; }
 function normalized(path) { return String(path).replaceAll("\\", "/"); }
+function localSpecifierPath(specifier) { return specifier.split(/[?#]/, 1)[0]; }
 
 function selectedClosure(root, entry) {
   const queue = [resolve(root, entry)];
@@ -28,27 +31,36 @@ function selectedClosure(root, entry) {
     for (const specifier of parsed.specifiers) {
       visual ||= hasVisualEngineClosure(specifier);
       if (!specifier.startsWith(".")) continue;
-      if (!specifier.endsWith(".mjs")) return { ok: false, detail: `selected local import must be an exact .mjs path: ${specifier}` };
-      const dependency = resolve(dirname(path), specifier);
+      const localSpecifier = localSpecifierPath(specifier);
+      if (!localSpecifier.endsWith(".mjs")) return { ok: false, detail: `selected local import must be an exact .mjs path: ${specifier}` };
+      const dependency = resolve(dirname(path), localSpecifier);
       if (!normalized(relative(root, dependency)).startsWith("..")) queue.push(dependency);
     }
   }
   return { ok: true, visual };
 }
 
-export function validateSelectedInvocation(args, root = process.cwd()) {
+export function realE2EEnabled(env = process.env) {
+  return env.PPTMAKER_RUN_REAL_E2E === "1";
+}
+
+export function validateSelectedInvocation(args, root = process.cwd(), env = process.env) {
   const [tier, entry, ...rest] = args;
-  if (!["focused", "render", "journey"].includes(tier)) return { ok: false, detail: "select focused, render, or journey" };
+  if (!["focused", "journey", "real-e2e"].includes(tier)) return { ok: false, detail: "select focused, journey, or real-e2e" };
   if (!entry || rest.length) return { ok: false, detail: "supply exactly one selected test path and no extra selector or flag" };
-  if (entry.includes("\\") || entry.includes("..") || entry.startsWith("/") || (tier === "journey" ? !JOURNEY_PATH.test(entry) : !TEST_PATH.test(entry))) return { ok: false, detail: "selected path is outside this tier's exact naming and scope" };
+  const pathPattern = tier === "journey" ? JOURNEY_PATH : tier === "real-e2e" ? REAL_E2E_PATH : TEST_PATH;
+  if (entry.includes("\\") || entry.includes("..") || entry.startsWith("/") || !pathPattern.test(entry)) return { ok: false, detail: "selected path is outside this tier's exact naming and scope" };
   const path = resolve(root, entry);
   if (!path.startsWith(`${resolve(root)}/`) || !existsSync(path)) return { ok: false, detail: "selected test path does not exist in this repository" };
   if (tier === "journey") return { ok: true, tier, entry, config: "vitest.e2e.config.mjs" };
+  if (tier === "real-e2e") {
+    if (!realE2EEnabled(env)) return { ok: false, detail: "real E2E requires PPTMAKER_RUN_REAL_E2E=1" };
+    return { ok: true, tier, entry, config: "vitest.real-e2e.config.mjs" };
+  }
   const closure = selectedClosure(root, entry);
   if (!closure.ok) return closure;
-  if (tier === "focused" && closure.visual) return { ok: false, detail: "focused verification rejects a visual-engine closure; use test:render" };
-  if (tier === "render" && !closure.visual) return { ok: false, detail: "render verification requires a Canvas/Chromium/PPTX/ECharts/HTML visual-engine closure" };
-  return { ok: true, tier, entry, config: "vitest.config.mjs" };
+  if (closure.visual) return { ok: false, detail: "focused verification rejects visual-engine closures; long local render tests are not retained" };
+  return { ok: true, tier, entry, config: PROCESS_TEST_PATH.test(entry) ? "vitest.process.config.mjs" : "vitest.config.mjs" };
 }
 
 export function runSelectedVerification(args = process.argv.slice(2), { root = process.cwd(), spawnChild = spawnSync } = {}) {

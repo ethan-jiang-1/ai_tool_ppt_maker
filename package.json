@@ -7,20 +7,17 @@
     "node": ">=22"
   },
   "scripts": {
-    "bench:html-catalog": "node tests/03-html-production/benchmarks/html_asset_catalog_worst_case.mjs",
-    "bench:html-delivery": "node tests/03-html-production/benchmarks/html_delivery_acceptance.mjs",
     "test": "node tests/contracts/run_development_verification.mjs",
     "test:sweep": "vitest run",
     "test:focused": "node tests/contracts/run_selected_verification.mjs focused",
-    "test:render": "node tests/contracts/run_selected_verification.mjs render",
-    "test:e2e": "node tests/contracts/run_selected_verification.mjs journey",
+    "test:mock-e2e": "node tests/contracts/run_selected_verification.mjs journey",
+    "test:real-e2e": "node tests/contracts/run_selected_verification.mjs real-e2e",
     "setup:chromium": "playwright install chromium",
     "setup:chromium:with-deps": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.68",
     "commander": "^13.1.0",
-    "echarts": "6.1.0",
     "fast-png": "8.0.0",
     "jpeg-js": "0.4.4",
     "jszip": "^3.10.1",

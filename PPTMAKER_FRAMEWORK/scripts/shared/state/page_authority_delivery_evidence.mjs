@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 
 import { canonicalJson, canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
-import { SLIDE_SPECS_NAME, pageAuthorityImage2Paths } from "../run-bundle/bundle_layout.mjs";
+import { SLIDE_SPECS_NAME, pageAuthorityImage2Paths } from "../run-bundle/page_authority_paths.mjs";
 
 const PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA = "pptmaker-page-authority-source-receipt-v1";
 const PAGE_AUTHORITY_RAW_MANIFEST_SCHEMA = "pptmaker-page-authority-raw-manifest-v1";
@@ -139,8 +139,8 @@ function baseFacts(sourceEpoch) {
   };
 }
 
-function failed(stage, code, nextAction, facts) {
-  return Object.freeze({ ok: false, stage, code, next_action: nextAction, ...facts });
+function failed(stage, code, nextAction, facts, kind = "hard-stop") {
+  return Object.freeze({ ok: false, kind, stage, code, next_action: nextAction, ...facts });
 }
 
 /** Read the direct, non-publishing evidence required by a Page Authority delivery decision. */
@@ -176,7 +176,7 @@ export function inspectPageAuthorityDeliveryEvidence(runDir, { sourceEpoch } = {
 
   const rawReview = inspectRawReview({ paths, sourceEpoch, rawManifest, rawManifestFile: rawFile });
   facts.raw_review = rawReview;
-  if (!rawReview.ok) return failed("raw-review", rawReview.code, rawReview.next_action, facts);
+  if (!rawReview.ok) return failed("raw-review", rawReview.code, rawReview.next_action, facts, rawReview.kind);
   const coverageFile = readRegularFile(paths.raw_review_coverage);
   const rawProjectionFile = readRegularFile(paths.raw_review_projection);
   if (!coverageFile || !rawProjectionFile || rawReview.coverage?.projection_sha256 !== rawProjectionFile.sha256 ||
@@ -209,7 +209,7 @@ export function inspectPageAuthorityDeliveryEvidence(runDir, { sourceEpoch } = {
   const assemblyFile = readRegularFile(join(paths.final_root, "pptx-assembly.json"));
   const assembly = readJson(assemblyFile);
   const pptx = assembly ? relativeFile(resolved, assembly.pptx_path) : null;
-  if (!assemblyFile || !assembly || assembly.schema !== PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA ||
+  if (!assemblyFile || !assembly || assembly.schema !== PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA || assembly.source_epoch !== sourceEpoch ||
     assembly.final_manifest_sha256 !== finalFile.sha256 || !pptx) {
     return failed("assembly", "PPTX_ASSEMBLY_MISSING_OR_STALE", "assemble_page_authority_delivery", facts);
   }
@@ -217,7 +217,7 @@ export function inspectPageAuthorityDeliveryEvidence(runDir, { sourceEpoch } = {
 
   const notesFile = readRegularFile(join(paths.final_root, "notes-receipt.json"));
   const notes = readJson(notesFile);
-  if (!notesFile || !notes || notes.schema !== PAGE_AUTHORITY_NOTES_RECEIPT_SCHEMA ||
+  if (!notesFile || !notes || notes.schema !== PAGE_AUTHORITY_NOTES_RECEIPT_SCHEMA || notes.source_epoch !== sourceEpoch ||
     notes.assembly_receipt_sha256 !== assemblyFile.sha256 || notes.final_manifest_sha256 !== finalFile.sha256 ||
     notes.pptx_sha256 !== pptx.sha256) {
     return failed("notes", "NOTES_RECEIPT_MISSING_OR_STALE", "inject_page_authority_notes", facts);

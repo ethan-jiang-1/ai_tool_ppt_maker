@@ -1,11 +1,15 @@
 ---
 stage: workflow/02-visual-system
-feeds_into:
-  - workflow/02-visual-system/01-gather-product-context-dna.md
 ---
 
-# Why Deterministic Visual Systems
+# Why Page Authority Is Explicit
 
-HTML-first separates authored semantics from deterministic presentation tokens. Palette, typography, spacing, components, geometry, chart recipes, and fallback assets are explicit inputs, so ordinary copy changes can recompose locally without asking an image model to recreate a page.
+Every slide needs a clear final-pixel owner. Page Authority makes that decision
+in source: `pure-image2` assigns every final pixel to Image2, while
+`framed-image2` keeps the visual underlay in Image2 and assigns final text pixels
+to the fixed local Text Frame.
 
-The visual contract is reviewed through the same local compositor used for delivery. A style-master image is neither source truth nor a prerequisite. This makes page identity auditable, scoped rebuilds predictable, and accurate English/Hans text measurable.
+The visual-language registry keeps recipes, compositions, motifs, identities, and
+negative constraints reviewable. This makes invalidation explicit: a Text Frame
+change can remain local, while a visual brief or reference change renews raw
+evidence.

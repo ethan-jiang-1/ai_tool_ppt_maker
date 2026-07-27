@@ -2,14 +2,14 @@
  * Zero-dependency environment checker for PPTMAKER_FRAMEWORK.
  *
  * Run this FIRST — it is the hard startup gate. Supported Node.js and npm are
- * the FOUNDATION. Default mode checks local HTML runtime readiness; Image2 is
- * selected explicitly.
+ * the FOUNDATION. It reports Page Authority readiness for the requested
+ * operation; local Framed composition is the default and is provider-free.
  *
  * Cross-platform: macOS, Linux, Windows. Node built-in modules only.
  *
  *     node scripts/00-setup/env-check.mjs           # human-readable
  *     node scripts/00-setup/env-check.mjs --json    # machine-readable
- *     node scripts/00-setup/env-check.mjs --image2  # + offline Image2 presence
+ *     node scripts/00-setup/env-check.mjs --operation raw-generation
  *     node scripts/00-setup/env-check.mjs --smoke   # + live Image2 submit probe (task_id)
  */
 
@@ -37,17 +37,17 @@ const IS_WINDOWS = process.platform === 'win32';
 export const COMMON_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'fonts', 'disk_space', 'git',
 ]);
-export const HTML_CHECK_NAMES = Object.freeze(['playwright', 'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke']);
-export const HTML_PACKAGE_CHECK_NAMES = Object.freeze(['playwright', 'echarts']);
+export const HTML_CHECK_NAMES = Object.freeze(['playwright', 'chromium', 'html_fonts', 'html_runtime_smoke']);
+export const HTML_PACKAGE_CHECK_NAMES = Object.freeze(['playwright']);
 // BASE_CHECK_NAMES is intentionally in runtime-emission order (not common-first)
 // so the emitted check stream matches documented/expected ordering.
 export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
-  'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
+  'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
-export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'stage2_generator']);
+export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_authority_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const DOCTOR_MODES = Object.freeze(['html-only', 'html-then-image2', 'image2-only', 'image2-page-authority']);
+export const DOCTOR_MODES = Object.freeze(['image2-page-authority']);
 export const PAGE_AUTHORITY_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
 export const PAGE_AUTHORITY_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
@@ -403,7 +403,7 @@ function checkFonts() {
   return {
     check: 'fonts',
     status: found ? 'ok' : 'warn',
-    detail: found ? 'Source Sans Pro available' : 'Source Sans Pro not found — Stage 3 will use a readable fallback sans',
+    detail: found ? 'Source Sans Pro available' : 'Source Sans Pro not found — Framed composition will use a readable fallback sans',
     fix: found ? null : 'Optional. Drop SourceSansPro-*.otf into scripts/fonts/ (or set PPT_FONT_DIR).',
   };
 }
@@ -415,28 +415,6 @@ function checkNpmPackages(start = process.cwd()) {
 }
 
 export { checkNode, checkNpmPackages, discoverNpmPackages };
-
-function checkStage2Generator() {
-  // In-framework Node Stage 2 — no external skills.
-  const wholePageRoot = resolve(__dirname, '..', '..', '04-image-production', 'whole-page');
-  const scriptPath = join(wholePageRoot, 'stage2_generate_images.mjs');
-  const contactPath = join(wholePageRoot, 'make_contact_sheet.mjs');
-  const clientPath = join(wholePageRoot, 'internal', 'image_api_client.mjs');
-  const ok = existsSync(scriptPath) && existsSync(contactPath) && existsSync(clientPath);
-  return {
-    check: 'stage2_generator',
-    status: ok ? 'ok' : 'fail',
-    detail: ok
-      ? 'in-framework (stage2_generate_images.mjs + make_contact_sheet.mjs)'
-      : 'missing in-framework Stage 2 scripts under PPTMAKER_FRAMEWORK/scripts/04-image-production/whole-page/',
-    fix: ok ? null : (
-      'Stage 2 must ship inside the framework as Node ESM.\n' +
-      '  Expected: scripts/04-image-production/whole-page/stage2_generate_images.mjs, make_contact_sheet.mjs, image_api_client.mjs\n' +
-      '  External skills / Python / bash are not allowed.\n' +
-      '  Then re-run: node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor'
-    ),
-  };
-}
 
 function checkPageAuthorityRawGenerator() {
   const root = resolve(__dirname, '..', '..', '04-image-production', 'page-authority');
@@ -577,20 +555,15 @@ async function runAllChecks({ includeImage2 = false, profile = 'common+html', st
 
   const framedRuntime = ['page-authority-framed', 'page-authority-full', 'page-authority-unbound'].includes(profile);
   const includeHtml = profile === 'common+html' || framedRuntime;
-  const includeEcharts = profile === 'common+html';
   const pageAuthorityRaw = ['page-authority-raw', 'page-authority-full', 'page-authority-unbound'].includes(profile);
   const node = checkNode();
   const npm = checkNpm();
   const packages = discoverNpmPackages(start);
-  // The Image2 profile excludes HTML-only package checks (playwright/echarts)
-  // and the HTML runtime so Image2-primary is not blocked by the HTML browser/
-  // chart/font runtime it does not use.
+  // Raw-only work does not require the local Framed browser runtime.
   const packageChecks = includeHtml
     ? packages.checks
     : packages.checks.filter((check) => !HTML_PACKAGE_CHECK_NAMES.includes(check.check));
-  const selectedPackageChecks = includeEcharts
-    ? packageChecks
-    : packageChecks.filter((check) => check.check !== 'echarts');
+  const selectedPackageChecks = packageChecks;
   const results = [
     node,
     npm,
@@ -614,16 +587,7 @@ async function runAllChecks({ includeImage2 = false, profile = 'common+html', st
   if (includeImage2) {
     const apiKey = checkApiKey();
     const baseUrl = checkBaseUrl();
-    const generator = pageAuthorityRaw ? checkPageAuthorityRawGenerator() : checkStage2Generator();
-    if (apiKey.status === 'ok' && baseUrl.status === 'ok' && generator.status === 'ok') {
-      try {
-        generator.detail = `${generator.detail}; resolved vendor count: ${(await providerDiagnostics(providerApi).inspect()).vendors.length}`;
-      } catch {
-        generator.status = 'fail';
-        generator.detail = 'in-framework Image2 resolver could not produce a usable vendor entry';
-        generator.fix = 'Repair IMAGE2_API_KEY and IMAGE2_BASE_URL, then rerun doctor --image2.';
-      }
-    }
+    const generator = checkPageAuthorityRawGenerator();
     results.push(apiKey, baseUrl, generator);
   }
 
@@ -902,7 +866,7 @@ function formatText(results, allPass, { image2 = false, profiles = [] } = {}) {
 
   lines.push('');
   const warns = results.filter(r => r.status === 'warn').length;
-  const generatorMissing = results.some(r => ['stage2_generator', 'page_authority_raw_generator'].includes(r.check) && r.status !== 'ok');
+  const generatorMissing = results.some(r => r.check === 'page_authority_raw_generator' && r.status !== 'ok');
 
   if (!foundationOk) {
     lines.push('  ⛔ FOUNDATION NOT READY — supported Node.js (22/24/26) and npm must be set up FIRST.');
@@ -995,7 +959,7 @@ function pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles
 }
 
 export async function runEnvCheckCli(argv = process.argv, { providerApi = null } = {}) {
-  const explicitImage2 = argv.includes('--image2');
+  const retiredImage2Flag = argv.includes('--image2');
   const wantSmoke = argv.includes('--smoke');
   const wantProbe = argv.includes('--probe-vendors');
   const wantJson = argv.includes('--json');
@@ -1003,8 +967,8 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   const operation = argValue(argv, '--operation');
   if (wantJson) setCliOutputMode('json');
 
-  if (explicitImage2 && mode) {
-    emitEnvCheckUsage('--image2 is mutually exclusive with --mode', 'Use --mode <mode> (or let doctor resolve --run-dir) instead of the compatibility --image2 flag.');
+  if (retiredImage2Flag) {
+    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-authority --operation raw-generation.');
     process.exit(1);
   }
   if (mode != null && !DOCTOR_MODES.includes(mode)) {
@@ -1015,32 +979,23 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_AUTHORITY_DOCTOR_OPERATIONS.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && mode !== 'image2-page-authority') {
+  if (operation != null && mode != null && mode !== 'image2-page-authority') {
     emitEnvCheckUsage('--operation requires --mode image2-page-authority', 'Select Page Authority mode before an operation-scoped doctor check.');
     process.exit(1);
   }
 
-  // Profile selection: HTML modes (and the no-selector default) run common+HTML;
-  // image2-only (and the compatibility --image2 flag) run common+Image2 with no
-  // HTML browser/chart/font runtime, so Image2-primary is not blocked by HTML.
-  let profile = 'common+html';
-  let wantImage2 = explicitImage2 || wantSmoke || wantProbe || mode === 'image2-only';
-  let activeProfiles = [];
-  let deferredProfiles = [];
-  if (mode === 'image2-page-authority') {
-    const plan = pageAuthorityDoctorPlan(operation);
-    profile = plan.profile;
-    wantImage2 = plan.includeImage2 || wantSmoke || wantProbe;
-    activeProfiles = plan.activeProfiles;
-    deferredProfiles = plan.deferredProfiles;
-    if ((wantSmoke || wantProbe) && operation == null) {
-      profile = 'page-authority-full';
-      wantImage2 = true;
-      activeProfiles = [...PAGE_AUTHORITY_DOCTOR_PROFILES];
-      deferredProfiles = [];
-    }
-  } else if (explicitImage2 || mode === 'image2-only') {
-    profile = 'common';
+  const resolvedMode = mode ?? 'image2-page-authority';
+  const resolvedOperation = operation ?? 'framed-local-refresh';
+  const plan = pageAuthorityDoctorPlan(resolvedOperation);
+  let profile = plan.profile;
+  let wantImage2 = plan.includeImage2 || wantSmoke || wantProbe;
+  let activeProfiles = plan.activeProfiles;
+  let deferredProfiles = plan.deferredProfiles;
+  if ((wantSmoke || wantProbe) && operation == null) {
+    profile = 'page-authority-full';
+    wantImage2 = true;
+    activeProfiles = [...PAGE_AUTHORITY_DOCTOR_PROFILES];
+    deferredProfiles = [];
   }
 
   if (wantSmoke && wantProbe) {
@@ -1082,9 +1037,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     }
   }
 
-  const profiles = mode === 'image2-page-authority'
-    ? pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles })
-    : [];
+  const profiles = pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles });
   const deferredChecks = new Set(
     deferredProfiles.includes('image2-raw')
       ? ['api_key', 'image_base_url', 'page_authority_raw_generator']
@@ -1101,8 +1054,8 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     probeVendors: wantProbe,
     image2: wantImage2,
     profile,
-    mode: mode || (explicitImage2 ? 'image2-only' : null),
-    operation: operation || null,
+    mode: resolvedMode,
+    operation: resolvedOperation,
     ...(profiles.length ? { profiles } : {}),
   };
   if (wantJson) {
@@ -1114,7 +1067,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
 
   if (!allPass) {
     const failed = results.filter((result) => result.status === 'fail' && !deferredChecks.has(result.check));
-    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), ...(mode ? ['--mode', mode] : explicitImage2 ? ['--image2'] : []), ...(operation ? ['--operation', operation] : []), ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])];
+    const invocationArgs = [ENV_CHECK_CLI, ...(wantJson ? ['--json'] : []), '--mode', resolvedMode, '--operation', resolvedOperation, ...(wantSmoke ? ['--smoke'] : []), ...(wantProbe ? ['--probe-vendors'] : [])];
     emitCliError({
       code: CLI_ERROR_CODES.FAILED,
       message: `Environment check found ${failed.length} blocking requirement(s).`,

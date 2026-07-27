@@ -25,8 +25,8 @@ agent_action: recommend
 | primary text | `#f4f8fc` |
 | secondary text | `#94a3b8` |
 
-HTML compositor 以 fixed family geometry 排版 header、body、KPI、chart 和 callout，bundled fonts 提供准确 English/Hans text。不要生成 style master；不要让图像模型决定标题位置或拼写。
+Framed Page Authority compositor owns exact display text and geometry; Pure pages keep readable text in the Image2 authority. Bundled fonts provide accurate English/Hans text. Do not let Image2 decide Framed title placement or spelling.
 
 适合战略 keynote、董事会、制造业、B2B 与深科技。不适合需要温暖生活方式叙事的消费品牌。
 
-visual gate 必须打开真实 representative pages；selected visual 存在时同时审查 forced-fallback。全局 palette/recipe 改变重审 coverage，普通 copy edit 不重批整个 visual system。
+Visual review must open the current raw or final projection. A visual-language or recipe change rechecks the affected Page Authority evidence; an ordinary Framed copy edit does not reopen unrelated raw evidence.

@@ -25,7 +25,7 @@ rename it merely because its embedded page number is no longer current.
 #### Scenario: Retained historical ID does not select a route
 - **WHEN** a current explicit source contains retained ID `s07_problem`
 - **THEN** the resolver treats it as that formal identity while position is derived separately
-- **AND** it does not infer a whole-page mode, alternate Controller, or historical state protocol
+- **AND** it does not infer a retired mode, alternate Controller, or historical state protocol
 
 ### Requirement: New slide IDs are short spoken mnemonic pairs
 The Agent or MD Controller SHALL name each newly authored slide from its durable narrative role as
@@ -92,9 +92,21 @@ mode, Controller, artifact provenance, or migration authority.
 
 ### Requirement: One structured slide document owns Markdown round trips
 
-Stage 1 validation and structural editing SHALL consume one shared structured slide-document interface. It SHALL parse and retain leading frontmatter, preamble, ordered slide blocks, and epilogue. After the slide list starts, the first ordinary level-2 heading that is not a slide heading SHALL start the epilogue. A level-2 heading that begins with the reserved slide-heading prefix but is malformed SHALL be a blocking parse error rather than an epilogue boundary. Unchanged source regions and complete moved blocks SHALL preserve their original bytes except for heading-number projection, the explicit identity marker when required, and deterministic structured-reference updates.
+Page Authority source validation and structural editing SHALL consume one shared
+structured slide-document interface. It SHALL parse and retain leading frontmatter,
+preamble, ordered slide blocks, and epilogue. After the slide list starts, the first
+ordinary level-2 heading that is not a slide heading SHALL start the epilogue. A
+level-2 heading that begins with the reserved slide-heading prefix but is malformed
+SHALL be a blocking parse error rather than an epilogue boundary. Unchanged source
+regions and complete moved blocks SHALL preserve their original bytes except for
+heading-number projection, the explicit identity marker when required, and
+deterministic structured-reference updates.
 
-The canonical run-directory editor SHALL operate on exactly one `slide-specifications.md`; it SHALL NOT create a second persistent order file. Stage 1's standalone multi-input mode SHALL remain supported, with local heading validation per input and global positions derived from input order followed by block order.
+The canonical run-directory editor SHALL operate on exactly one
+`slide-specifications.md`; it SHALL NOT create a second persistent order file. The
+shared source parser's standalone multi-input mode SHALL remain supported, with local
+heading validation per input and global positions derived from input order followed by
+block order.
 
 #### Scenario: Epilogue is not absorbed into the last slide
 
@@ -115,149 +127,9 @@ The canonical run-directory editor SHALL operate on exactly one `slide-specifica
 
 #### Scenario: Multiple standalone inputs keep local numbering
 
-- **WHEN** Stage 1 receives two standalone source files whose slide headings each start at 1
+- **WHEN** the shared source parser receives two standalone source files whose slide headings each start at 1
 - **THEN** each file is validated for its own continuous local numbering
 - **AND** the merged plan positions increase globally in input and block order
-
-### Requirement: Structural edits are previewed and committed as one transaction
-
-Move, delete, insert, normalize, and multi-operation plans SHALL compile to a transaction containing a schema version, `base_spec_sha256`, the publication mode and anticipated visible target version, per-token selector bindings including `matched_by`, formal-ID operations, `before_order`, `after_order`, deterministic structured-reference changes, source-based review-warning locators, and a canonical `plan_sha256`. The plan hash SHALL be SHA-256 over this mutation payload without `plan_sha256`, encoded as recursively canonical UTF-8 JSON. Source paths SHALL be run-relative and warning collections SHALL use deterministic order. Presentation text, current render-artifact impact/status, timestamps, nonce values, staging paths, and machine-specific absolute paths SHALL be excluded. Planning SHALL validate selector resolution, caller-specific duplicate/operation conflicts, the final ID set, historical ID reservation, and continuous derived positions without writing source.
-
-Applying SHALL require the expected `plan_sha256`, recompute both the canonical plan hash and source hash, and reject any mismatch rather than replanning, rebasing, or reinterpreting selectors. A convenience command SHALL NOT treat a bare `--apply` as permission to generate and immediately apply a fresh unreviewed transaction.
-
-The editor SHALL update deterministic structured references such as `render.header-lock` when a referenced slide is deleted or explicitly migrated. It SHALL NOT blindly rewrite page-number prose in slide bodies, block maps, or notes; it SHALL surface those occurrences as review warnings for the Agent.
-
-#### Scenario: Preview and apply use the same resolved transaction
-
-- **WHEN** a valid move transaction is previewed and the source does not change before apply
-- **THEN** apply produces exactly the previewed `after_order`
-- **AND** selectors are not resolved again against an intermediate order
-
-#### Scenario: Bare apply cannot bypass preview binding
-
-- **WHEN** a mutating structure command is invoked with `--apply` but without the expected preview `plan_sha256` or a self-hash-valid persisted plan
-- **THEN** apply fails without writing source or creating a visible version
-- **AND** directs the caller to obtain and confirm a fresh preview
-
-#### Scenario: Replanned transaction is rejected
-
-- **WHEN** the same human selectors now compile to a transaction whose canonical hash differs from the confirmed preview
-- **THEN** apply rejects the transaction even if the base source hash still matches
-- **AND** does not substitute the newly planned operation set
-
-#### Scenario: Render status does not destabilize the confirmed edit
-
-- **WHEN** a raw artifact appears or disappears after preview but source bytes and the resolved structural mutation are unchanged
-- **THEN** canonical `plan_sha256` remains unchanged because render impact is not part of the mutation payload
-- **AND** apply recomputes and reports current `needs_render` impact separately
-
-#### Scenario: Anticipated target version is bound
-
-- **WHEN** preview identifies visible target `v3` but another publication reserves or creates `v3` before apply
-- **THEN** apply fails with a fresh-preview path rather than silently publishing the confirmed mutation as `v4`
-
-#### Scenario: Source changed after preview
-
-- **WHEN** the canonical source bytes change after a transaction is planned
-- **THEN** apply rejects the transaction because `base_spec_sha256` is stale
-- **AND** neither source version is partially rewritten
-
-#### Scenario: Natural-language page reference needs review
-
-- **WHEN** a moved or deleted slide leaves prose containing a phrase such as "see page 7"
-- **THEN** the transaction emits a review warning with a source locator
-- **AND** does not replace the prose by numeric string substitution
-
-### Requirement: Structural apply preserves source versions and publishes an edit receipt
-Applying move/delete/insert or a structural multi-operation SHALL create a fully validated clean vNext
-source/control tree through hidden same-parent staging and one final visible-directory rename. The
-source version remains unchanged, a failed publication exposes no partial vNext, and normalize remains
-the atomic current-source heading-only exception. Structural source apply SHALL invoke neither a
-renderer nor provider work and SHALL not materialize generated bytes.
-
-The success receipt SHALL bind source/target versions, confirmed plan/base/result hashes, formal-ID
-operations, before/after order, heading/reference changes, review warnings, and pipeline-specific
-deterministic impact. HTML-first receipts SHALL report `needs_local_materialization` and target-version
-review/delivery work without copying source reset, approvals, mirrors, delivery review, or node
-decisions. Current whole-page Image2 receipts SHALL report manifest-proven raw reuse and
-`needs_render` IDs requiring separately authorized Generated Image Rebuild; stable IDs never grant
-cross-version approval, provider authorization, or provenance. A persisted plan or receipt may live in
-`_scratch/` but never becomes order authority. Unsupported historical source/state protocols fail
-before staging or receipt creation.
-
-#### Scenario: Whole-page insert lacks a verified raw render
-- **WHEN** a current `whole-page-image2-v1` target inserts an ID with no manifest-proven raw render
-- **THEN** source vNext publishes with that ID under `needs_render`
-- **AND** no provider call occurs until a separately authorized rebuild
-
-#### Scenario: Historical protocol cannot publish structural vNext
-- **WHEN** source/state identity is absent, retired, or inconsistent
-- **THEN** structural apply fails before staging and returns one bounded owner-issued typed next action
-- **AND** it does not infer a mode from retained IDs or raw files
-
-### Requirement: Render artifact identity excludes current position
-The logical private identity for rendered artifacts SHALL be
-`(slide_id, producer, artifact_kind, producer_fingerprint)`. `producer` SHALL be a stable
-adapter/contract identifier, not a directory or filename; current whole-page producer lineage includes
-its render engine/profile and HTML includes its composition variant. Position, heading number, human
-filename, and deck order SHALL not enter private identity. Stage-owned manifests remain provenance
-authorities; only fully provenance/byte-verified entries are reusable or assemblable.
-
-A position-prefixed file without current manifest proof is `unverified-located`, not a compatibility
-artifact. Callers SHALL not reuse, materialize, assemble, or promote it as current evidence. The
-provider-neutral Stage-4 adapter projects only current HTML effective entries and never inspects a
-producer-private lineage.
-
-#### Scenario: Position-prefixed bytes lack proof
-- **WHEN** a matching-looking position-prefixed PNG has no current manifest entry for its fingerprint and bytes
-- **THEN** the resolver reports `unverified-located`
-- **AND** no current materialization or assembly reuses it
-
-### Requirement: Structured contract preserves stable identity and derived order
-
-The HTML-first structured plan SHALL reuse the existing stable slide ID, spoken-key, and current physical position contract. Reordering SHALL update derived positions and heading projections while preserving IDs, spoken keys, notes bindings, per-slide semantic/visual fingerprints, and the deck style-reference fingerprint; the complete ordered plan digest SHALL change. The contract SHALL not introduce a second order source.
-
-#### Scenario: Reordered structured slides keep identity
-
-- **WHEN** a structured slide moves from position 7 to position 3 without content changes
-- **THEN** its plan record reports position 3 with the same stable ID and spoken key
-- **AND** its semantic and visual contract fingerprints remain unchanged
-- **AND** the ordered plan digest changes with the physical sequence
-
-#### Scenario: Deleted identity is not reused
-
-- **WHEN** a structured slide is deleted from a version
-- **THEN** its formal ID and spoken key remain reserved by existing history rules
-- **AND** a later structured insertion cannot reuse them silently
-
-### Requirement: Round-trip edits do not shift notes or unrelated blocks
-Structured contract serialization SHALL use the shared slide-document interface and preserve
-speaker-note ownership, epilogue boundaries, unrelated blocks, raw owned fences, stable IDs, spoken
-keys, and source-order semantics. HTML structural publication and later target-local materialization
-retain their existing current-source, reset, receipt, and review rules; neither step may import
-unproven prompt/raw-image artifacts, copy approvals or generated evidence across versions, or create
-Image2 refinement state.
-
-Move/delete/heading normalization SHALL retain raw YAML fence bytes. Insert SHALL require one complete
-locally valid HTML-first slide block and referenced assets. Reorder/delete SHALL preserve notes and
-per-slide semantic/visual/composition fingerprints for unchanged slides; only positions and ordered
-delivery evidence change. Obsolete prompt controls are invalid mixed-source input, not conversion
-material.
-
-#### Scenario: Obsolete prompt controls cannot create a mixed branch
-- **WHEN** an HTML structural insert contains a retired prompt control, missing structured body, or unresolved local asset
-- **THEN** preview fails before a version transaction is created
-- **AND** it does not parse the prompt or raw image as target content
-
-### Requirement: Composition artifact identity excludes physical position
-
-HTML page and final-slide artifact identity SHALL use stable slide ID plus renderer contract/composition fingerprint and SHALL not include current position or filename prefixes. Order-dependent manifests/contact sheets/PPTX/notes SHALL derive order only from the current structured plan.
-
-#### Scenario: Position changes without content change
-
-- **WHEN** a slide moves from position 7 to 3
-- **THEN** its page/final-slide artifact remains reusable
-- **AND** no directory-glob or prefixed filename becomes order authority
 
 ### Requirement: Page Authority structural targets preserve provenance without inheriting acceptance
 The existing structural preview/apply transaction SHALL recognize the exact
@@ -303,3 +175,12 @@ artifact, or delivery decision into the target.
 - **WHEN** a candidate removes one old slide and adds one new Page Authority slide
 - **THEN** the matrix has one `removed` row and one `addition` row before preview succeeds
 - **AND** no source-generated material is associated with either row
+
+### Requirement: Structural identity remains independent of retired output modes
+Structural previews and applications SHALL preserve stable slide identity while calculating Page
+Authority raw-materialization and Framed-local-finalization impact. They SHALL NOT use retired
+final-output assumptions.
+
+#### Scenario: A structural Page Authority version is previewed
+- **WHEN** slides are reordered or their authority changes
+- **THEN** the preview reports stable-ID Page Authority impact without selecting a legacy output owner

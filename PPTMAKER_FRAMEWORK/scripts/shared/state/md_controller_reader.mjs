@@ -25,19 +25,11 @@ export const METHOD_MODULES = Object.freeze([
   "00-setup",
   "01-content",
   "02-visual-system",
-  "03-html-production",
   "04-image-production",
   "05-iteration",
 ]);
-export const RESERVED_NODE_IDS = Object.freeze([
-  "header-review",
-  "html-content-review",
-  "html-visual-review",
-  "html-delivery-review",
-  "html-production-reset",
-  "image-production",
-]);
-export const SUPPORTED_PIPELINES = Object.freeze(["html-first-v1", "whole-page-image2-v1", "page-authority-image2-v1"]);
+export const RESERVED_NODE_IDS = Object.freeze([]);
+export const SUPPORTED_PIPELINES = Object.freeze(["page-authority-image2-v1"]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
 
 /** Derived renderer pipeline for a valid production mode (null for invalid). */
@@ -77,9 +69,6 @@ const DETERMINISTIC_CONDITIONS = new Set([
   "slide_specs_valid",
   "pptx_generated",
   "speaker_notes_injected",
-  "header_review_current",
-  "html_first_marked",
-  "html_delivery_review_current",
   "transition_apply_current",
   "transition_publish_or_recovery_recorded",
 ]);
@@ -262,19 +251,10 @@ function validateNodeShape(node, errors) {
   }
   const imageProduction = node.methodModule === "04-image-production";
   if (node.lifecyclePhase === "4" && !imageProduction) addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production");
-  if (imageProduction && !["whole-page", "visual-slot", "page-authority-image2"].includes(node.adapter)) addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: whole-page|visual-slot|page-authority-image2");
+  if (imageProduction && node.adapter !== "page-authority-image2") addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: page-authority-image2");
   if (!imageProduction && node.adapter != null) addError(errors, node, "image-production-adapter", "only 04-image-production nodes may declare an adapter");
-  if (node.adapter === "visual-slot" && (node.playbook !== "image2-refine" || node.productionModes.join("\n") !== "html-then-image2")) {
-    addError(errors, node, "image-production-adapter", "visual-slot is owned by image2-refine and requires html-then-image2");
-  }
-  if (node.adapter === "whole-page" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-only")) {
-    addError(errors, node, "image-production-adapter", "whole-page is owned by create-deck and requires image2-only");
-  }
   if (node.adapter === "page-authority-image2" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-page-authority")) {
     addError(errors, node, "image-production-adapter", "page-authority-image2 is owned by create-deck and requires image2-page-authority");
-  }
-  if (node.playbook === "image2-refine" && (node.lifecyclePhase !== "4" || node.methodModule !== "04-image-production" || node.adapter !== "visual-slot")) {
-    addError(errors, node, "phase4-ownership", "image2-refine nodes must declare lifecycle 4, 04-image-production, and visual-slot");
   }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
@@ -347,10 +327,6 @@ export function validatePlaybookIndex(index) {
         errors.push({ rule: "supported-pipelines", source: controller.source, line: 1, message: `unsupported pipeline ${pipeline}` });
       }
     }
-    if (controller.playbook === "image2-refine" &&
-        (controller.supportedPipelines.length !== 1 || controller.supportedPipelines[0] !== "html-first-v1")) {
-      errors.push({ rule: "pipeline-ownership", source: controller.source, line: 1, message: "image2-refine must be HTML-first-only" });
-    }
     // Production-mode declarations: closed vocabulary, compatible with the
     // controller's supported_pipelines, and node modes must stay within the
     // controller's effective supported modes.
@@ -405,11 +381,6 @@ export function validatePlaybookIndex(index) {
         else if (!available.has(node.modeTransitionHandoff)) addError(errors, node, "mode-transition-handoff", `unknown handoff node ${node.modeTransitionHandoff}`);
       }
       validateConditions(node, errors, available);
-      if (controller.playbook === "image2-refine" && node.lifecyclePhase === "4") {
-        if (!node.entry.includes("html_first_marked") || !node.entry.includes("html_delivery_review_current")) {
-          addError(errors, node, "phase4-entry", "Phase 4 entry requires html_first_marked and html_delivery_review_current");
-        }
-      }
       seen.add(node.id);
     }
 

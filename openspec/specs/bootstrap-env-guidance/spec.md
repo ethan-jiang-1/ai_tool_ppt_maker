@@ -1,86 +1,7 @@
 ## Purpose
 
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local HTML readiness through `scripts/00-setup/env-check.mjs`, first-class whole-page Image2 readiness for `image2-only` and required refinement, and labeled user-profile-aware remediation for every emitted check.
+Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Authority raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
-### Requirement: BOOTSTRAP presents production mode before mode-specific readiness
-After foundation repair, BOOTSTRAP SHALL identify `image2-page-authority` as the sole mode for a new
-deck and direct the Agent to run `doctor --mode image2-page-authority` before `ppt_flow init`. It SHALL
-explain that Framed is the source default with a deterministic local Text Frame over a text-free Image2
-underlay, while Pure delegates every final pixel to Image2. BOOTSTRAP SHALL not present
-`html-only`, `html-then-image2`, or `image2-only` as fresh-init choices; they remain guidance only when
-an explicitly targeted existing run resolves to its legacy source/state pair.
-
-The unbound doctor result SHALL be described as independent offline `framed-runtime` and `image2-raw`
-readiness, not a combined source-ready claim. A later raw-generation operation still requires its exact
-provider readiness and human authorization; init, doctor, or local Framed work does not grant it.
-
-#### Scenario: Fresh user follows the only new-deck path
-
-- **WHEN** foundation readiness passes and the user requests a new deck without selecting an existing run
-- **THEN** BOOTSTRAP routes through unbound Page Authority doctor and Page Authority initialization with
-  `framed-image2` as the source default
-- **AND** it does not ask the user to select a historical production mode or authorize provider work
-
-#### Scenario: Existing legacy run remains context-bounded
-
-- **WHEN** a user explicitly targets an existing run whose exact source/state pair resolves to a legacy
-  mode
-- **THEN** BOOTSTRAP routes its readiness guidance through that run's existing mode policy
-- **AND** it does not reuse the legacy policy as new-deck setup guidance
-
-#### Scenario: New user accepts the default
-
-- **WHEN** foundation is ready and the user does not target an existing run
-- **THEN** BOOTSTRAP proceeds toward `init --mode image2-page-authority` after the unbound Page Authority doctor
-- **AND** it discloses the later raw-submission authorization boundary
-
-#### Scenario: User chooses local HTML
-
-- **WHEN** the user explicitly targets an existing `html-only` source/state pair
-- **THEN** BOOTSTRAP applies that run's local HTML readiness guidance without soliciting Image2 credentials
-- **AND** it does not offer `html-only` as a fresh-init selection
-
-#### Scenario: User chooses HTML then refinement
-
-- **WHEN** the user explicitly targets an existing `html-then-image2` source/state pair
-- **THEN** BOOTSTRAP preserves that run's HTML readiness and deferred Image2 authorization guidance
-- **AND** it does not reuse that legacy choice for a new deck
-
-### Requirement: BOOTSTRAP uses the Phase 0 environment interface
-
-BOOTSTRAP SHALL present `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` as the canonical normal environment command after dependencies are installed. It SHALL document `node PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs` as the registered pre-install recovery checker when Commander or another npm dependency is unavailable, then return to root doctor guidance. The old flat env-check path SHALL not appear. The relocation preserves base/Image2 modes, check names, repair guidance, gate scope, and beginner behavior.
-
-#### Scenario: Commander is not installed yet
-
-- **WHEN** BOOTSTRAP diagnoses a missing npm dependency before root CLI can load
-- **THEN** it gives the direct Phase-0 recovery invocation and returns to root doctor after repair
-
-### Requirement: BOOTSTRAP Step 1 covers every selected doctor-profile check
-
-BOOTSTRAP Step 1 SHALL contain a labeled failure-to-fix section for every stable check in the common,
-HTML, and Image2 profiles. Common repair covers Node/npm/common packages/framework files and advisory
-checks. HTML repair covers exact `playwright@1.61.1`, exact direct `echarts@6.1.0`, paired Chromium,
-bundled HTML fonts, and offline runtime smoke. Image2 repair covers credentials, endpoint, and the
-in-framework whole-page generator. Each selected blocking section SHALL explain required versus found
-state, provide a copy-pasteable local repair, and rerun the same profile. Exact ECharts repair SHALL
-direct lockfile-aligned project-root installation and SHALL not suggest CDN/browser script use.
-
-#### Scenario: ECharts is missing or mismatched
-
-- **WHEN** an HTML doctor profile reports the ECharts check failed
-- **THEN** BOOTSTRAP provides an exact `echarts@6.1.0` project-root/lockfile repair and rerun command
-- **AND** does not route to provider credentials or remote chart loading
-
-#### Scenario: Image2 is absent for a fresh deck
-
-- **WHEN** common/HTML checks pass, the selected mode is `html-only`, and Image2 configuration is absent
-- **THEN** BOOTSTRAP proceeds with local HTML creation without treating provider setup as a blocker
-
-#### Scenario: Image2 is absent for the default mode
-
-- **WHEN** common checks pass but selected/default `image2-only` lacks Image2 presence readiness
-- **THEN** BOOTSTRAP gives the bounded offline credential/endpoint repair before provider production
-- **AND** it does not run a live probe or claim production authorization
 
 ### Requirement: Fix instructions are user-profile-aware
 
@@ -126,69 +47,6 @@ Each fix instruction SHALL use concrete, copy-pasteable commands in fenced code 
 - **THEN** no fix instruction says "ensure the packages are installed" without providing the specific `npm install` command
 - **AND** every required action has a corresponding executable command
 
-### Requirement: BOOTSTRAP gate behavior is preserved
-
-Step 1 SHALL distinguish gate scope. FOUNDATION NOT READY (Node.js or npm missing/unsupported) SHALL
-block all later framework work. Common NOT READY blocks every mode; HTML NOT READY blocks only HTML
-production; Image2 NOT READY blocks `image2-only` provider work and the provider-dependent portion of
-`html-then-image2`. For `html-then-image2`, missing Image2 presence before HTML work is deferred guide
-output rather than a current hard failure. Warnings remain non-blocking. The Agent SHALL rerun the same
-profile that failed before entering its protected scope.
-
-#### Scenario: Foundation failure still blocks
-
-- **WHEN** base doctor reports `FOUNDATION NOT READY`
-- **THEN** the Agent SHALL NOT proceed to Step 2
-- **AND** SHALL present the inline Node/npm fix and require base doctor to confirm READY
-
-#### Scenario: NOT READY blocks but offers clear path
-
-- **WHEN** the selected HTML profile reports NOT READY because Chromium or HTML fonts are unavailable
-- **THEN** the Agent SHALL list each HTML failure with its inline fix
-- **AND** SHALL NOT enter HTML production until the same profile confirms READY
-
-#### Scenario: Warnings allow continuation
-
-- **WHEN** base doctor reports only advisory warnings and no hard failure
-- **THEN** the Agent explains the affected optional behavior and MAY continue to Step 2
-
-#### Scenario: Image2 failure has bounded scope
-
-- **WHEN** common readiness is READY but offline Image2 readiness is NOT READY
-- **THEN** the Agent MAY continue `html-only` or other local work
-- **AND** SHALL repair and rerun Image2 readiness before whole-page generation or required refinement submit
-
-### Requirement: Image2 first-time credential setup is self-contained in BOOTSTRAP
-BOOTSTRAP SHALL provide Image2 presence setup when a Page Authority raw-generation operation is selected,
-using its exact `image2-raw` readiness profile. It SHALL not solicit provider credentials for source
-authoring, local Framed composition, assembly, notes, or delivery review. The guidance SHALL distinguish
-offline presence from explicitly selected live diagnostics and from the separately human-authorized raw
-submission.
-
-#### Scenario: Framed local work needs no credentials
-
-- **WHEN** a Page Authority user is authoring source or selecting `framed-local-refresh`
-- **THEN** BOOTSTRAP gives the relevant local readiness guidance without requesting Image2 credentials
-- **AND** it states that credentials and authorization are required only before a later raw submission
-
-#### Scenario: Fresh user starts an Image2-primary deck
-- **WHEN** a new Page Authority deck reaches an explicitly selected raw-generation operation
-- **THEN** BOOTSTRAP provides offline credential presence setup before provider-backed raw work
-- **AND** it does not perform a live request or record production authorization
-
-#### Scenario: Fresh user starts an HTML deck
-- **WHEN** a user explicitly targets an existing `html-only` run
-- **THEN** BOOTSTRAP proceeds with that local legacy work without asking for Image2 credentials or live probes
-- **AND** it does not offer an HTML deck as a fresh-init choice
-
-#### Scenario: User elects optional refinement
-- **WHEN** an existing `html-only` user explicitly requests the legacy refinement route
-- **THEN** BOOTSTRAP explains the required same-pipeline mode switch, deferred Image2 readiness, and exact authorization before submission
-
-#### Scenario: User reaches required refinement
-- **WHEN** an existing `html-then-image2` run reaches its provider-dependent refinement step
-- **THEN** BOOTSTRAP/controller explains offline readiness and exact authorization before submission
-
 ### Requirement: External file references are for human readers only, not required for agents
 
 BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `workflow/00-setup/02-nodejs-environment.md`, and `workflow/00-setup/03-runtime-and-tools.md`. These references SHALL be explicitly marked as human background reading (labeled "给人类读者的背景阅读" or similar), and the Agent SHALL NOT be required to read them to guide a user through environment repair. The BOOTSTRAP text SHALL make clear to the Agent that the inline sections are sufficient and external files are not part of the remediation path.
@@ -204,18 +62,6 @@ BOOTSTRAP.md Step 1 MAY reference `workflow/00-setup/00-zero-to-ready.md`, `work
 - **WHEN** a human reader encounters a link to `02-nodejs-environment.md` in BOOTSTRAP Step 1
 - **THEN** the link is accompanied by text indicating it is background reading for humans (e.g., "给人类读者的背景阅读")
 - **AND** the Agent can skip it without missing anything needed for remediation
-
-### Requirement: BOOTSTRAP stays in sync with environment readiness profiles
-When `env-check.mjs` adds, moves, or changes a stable check name/profile, BOOTSTRAP Step 1 SHALL update the matching labeled repair in the same change. Exact ECharts SHALL remain an HTML check and repair alongside Playwright/Chromium/fonts, not an Image2-only blocker. Checks emitted only by Image2 profiles, `--smoke`, or `--probe-vendors` SHALL remain under Image2 readiness and SHALL be described as applicable to `image2-only` or required refinement after the explicit mode switch. `env-check` remains the check-name/ownership authority; prose SHALL match its owning readiness group.
-
-#### Scenario: Base ECharts check is added
-- **WHEN** the stable default/HTML report includes exact ECharts readiness
-- **THEN** BOOTSTRAP's HTML section includes the same named check and executable remediation
-
-#### Scenario: Image2-only check appears
-- **WHEN** a check is emitted only in Image2 mode
-- **THEN** it is absent from the base prerequisite list and documented under Image2 readiness
-- **AND** its blocking scope is tied to the selected Image2-dependent action
 
 ### Requirement: BOOTSTRAP provides optional, scope-honest Git startup guidance
 
@@ -265,12 +111,11 @@ The Agent and framework SHALL NOT automatically initialize a repository, stage f
 - **THEN** the Agent continues the applicable deck workflow after existing hard gates pass
 - **AND** it does not frame the decision as skipping Structural Versioning Path or source validation
 
-### Requirement: BOOTSTRAP repairs the complete local HTML delivery prerequisites
+### Requirement: Bootstrap guidance exposes current operation-scoped readiness
+Active bootstrap guidance SHALL describe only Page Authority raw-generation and local
+Framed-composition readiness. It SHALL state that local Framed work does not require
+provider credentials and that historical runs must use the adoption observer.
 
-BOOTSTRAP SHALL map every base doctor/package/runtime/font/browser failure, including exact ECharts, to copy-pasteable local repair guidance and SHALL explain that per-run source/config/catalog/overflow failures are repaired through `ppt_flow validate` or HTML preview diagnostics rather than environment credentials. It SHALL route the Agent from BOOTSTRAP into final `00-setup` and the pipeline-specific playbook.
-
-#### Scenario: Runtime is ready but a slide overflows
-
-- **WHEN** doctor passes and HTML composition reports pixel overflow
-- **THEN** BOOTSTRAP/controller treats it as a run source/layout repair
-- **AND** does not ask for Image2 or reinstall the browser
+#### Scenario: Local Framed readiness is documented
+- **WHEN** an operator follows active bootstrap guidance for a Framed local refresh
+- **THEN** the guidance names the browser/font runtime prerequisite and does not request an Image2 credential

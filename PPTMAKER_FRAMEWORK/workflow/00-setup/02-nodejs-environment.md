@@ -1,4 +1,4 @@
-# Node.js 与本地 HTML Runtime 环境
+# Node.js 与本地 Framed Capture Runtime 环境
 
 > **首次安装？** 请走 [BOOTSTRAP.md](../../BOOTSTRAP.md) Step 1。本文是 Node、Chromium、缓存和本地字体的详细参考。
 
@@ -11,7 +11,7 @@
 | **Node.js 22.x / 24.x / 26.x** | 运行时；新安装推荐当前 LTS 24.x | 用户安装一次 |
 | **npm** | 包管理，随 Node.js 提供 | 用户安装一次 |
 | **Playwright 1.61.1** | framework 固定的浏览器库 | repo 根运行 `npm install` |
-| **配对 Chromium** | 本地 HTML runtime 与离线 smoke | repo 根运行 `npm run setup:chromium` |
+| **配对 Chromium** | 本地 Framed capture 与离线 smoke | repo 根运行 `npm run setup:chromium` |
 | **Source Sans 3 / Noto Sans SC WOFF2** | 固定 Latin 与简体中文 smoke 字体 | 已随 framework 放在 `scripts/fonts/`，用户不安装 |
 
 `package.json` 的 `>=22` 是最低版本表达；可执行 runtime 只支持 22、24、26 这三个 major。23、25 或其它未验证 major 不属于本 profile。
@@ -58,13 +58,13 @@ CI 缓存 key 至少包含 Playwright 版本、操作系统和 CPU 架构。恢�
 
 ## 本地字体
 
-HTML runtime 需要的 WOFF2 字体、CSS、完整 inventory、来源与许可证都随 framework 位于：
+Framed capture runtime 需要的 WOFF2 字体、CSS、完整 inventory、来源与许可证都随 framework 位于：
 
 ```text
 PPTMAKER_FRAMEWORK/scripts/fonts/
 ```
 
-用户不需要把字体安装到操作系统，也不需要在运行时联网下载。`doctor` 直接验证 framework 内字体的文件完整性、固定双语字符覆盖和 Chromium 实际使用证据。若 `html_fonts` 失败，应恢复完整的 `PPTMAKER_FRAMEWORK` 包，而不是安装系统字体。
+用户不需要把字体安装到操作系统，也不需要在运行时联网下载。`doctor` 直接验证 framework 内字体的文件完整性、固定双语字符覆盖和 Chromium 实际使用证据。若 Framed font diagnostic 失败，应恢复完整的 `PPTMAKER_FRAMEWORK` 包，而不是安装系统字体。
 
 ## 统一验证入口
 
@@ -72,7 +72,7 @@ PPTMAKER_FRAMEWORK/scripts/fonts/
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 ```
 
-默认 doctor 检查本地 base readiness，包括 Node、npm、依赖、配对 Chromium、framework 内置字体及零网络 HTML runtime smoke。它只检查和启动已经安装好的 Chromium，绝不运行 installer、下载浏览器或下载字体，也不回退到系统 Chrome/Edge 或系统字体。
+默认 doctor 检查本地 base readiness，包括 Node、npm、依赖、配对 Chromium、framework 内置字体及零网络 Framed capture smoke。它只检查和启动已经安装好的 Chromium，绝不运行 installer、下载浏览器或下载字体，也不回退到系统 Chrome/Edge 或系统字体。
 
 如果 `chromium` 失败，运行 `npm run setup:chromium` 后再执行同一个 doctor。若输出 READY，即本地 runtime 可以开始使用。
 
@@ -88,7 +88,7 @@ IMAGE2_BASE_URL=https://你的-relay/v1
 先用离线 presence 检查，不产生 provider submit：
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
 ```
 
 任何 `--smoke` 或 `--probe-vendors` live probe 都会产生 provider submit，必须先披露次数并取得用户确认。完整契约见 `03-runtime-and-tools.md`。

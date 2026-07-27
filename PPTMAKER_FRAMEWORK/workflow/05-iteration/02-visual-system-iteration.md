@@ -1,5 +1,10 @@
-# Visual System Iteration
+---
+stage: workflow/05-iteration
+---
 
-Edit the human-owned visual config or registered local assets, validate the resulting `html_first` projection, and run Local Deck Rebuild. Global token/renderer/geometry changes require representative recipe coverage; page-local asset or chart changes require only affected page evidence.
+# Visual-System Iteration
 
-Ordinary iteration composition is local and deterministic. Provider work belongs only to a separately authorized modern Phase-4 visual-slot refinement or first-class `image2-only` whole-page production; neither is entered by Local Deck Rebuild.
+Change the visual-language registry, visual brief, or reference profile only in
+source-owned inputs. Those changes invalidate raw evidence and use Generated Image
+Rebuild. A Framed Text Frame-only change remains local only when the accepted raw
+receipt is still exact.

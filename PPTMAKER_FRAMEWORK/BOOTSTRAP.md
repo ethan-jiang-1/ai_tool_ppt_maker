@@ -4,7 +4,7 @@
 
 ## Step 0 - Read the contract
 
-读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` §1 的 locator entry 先解析本地 deck/framework，再读 `deck-guide.md`；host 无法访问 card 声明的本地路径时，请求明确 root。generic remote-chat attachment integration 不受支持。
+读 `charter/AGENT_CONTRACT.md`、`charter/NODE-SPEC.md`、`reference/glossary.md`，确认 run bundle 与 `--run-dir` 的区别。若用户交给你 `RUN_BUNDLE.md` bytes，按 `AGENT_CONTRACT.md` 的 `RUN_BUNDLE locator entry` 先解析本地 deck/framework，再读 `deck-guide.md`；host 无法访问 card 声明的本地路径时，请求明确 root。generic remote-chat attachment integration 不受支持。
 
 ## Step 1 - New-deck foundation
 
@@ -12,11 +12,10 @@
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-page-authority
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
 ```
 
-`doctor --mode image2-page-authority` 分别报告离线 `framed-runtime` 与 `image2-raw` profile；它不是“source 与 provider 均已准备好”的合并结论。当前 authoring、local Framed composition、assembly、notes 和 delivery review 只需要当前操作的本地事实。只有选中非零 raw-generation 后，才运行：
+`doctor` 报告离线本地 runtime；它不是“source 与 provider 均已准备好”的合并结论。当前 authoring、local Framed composition、assembly、notes 和 delivery review 只需要当前操作的本地事实。只有选中非零 raw-generation 后，才运行：
 
 ```bash
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versions/v1 --operation raw-generation
@@ -26,12 +25,12 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir deck_NAME/3_versio
 
 ## Step 2 - Choose page authority while authoring
 
-新 source 的唯一 pipeline 是 `page-authority-image2-v1`，state 的唯一新-deck mode 是 `image2-page-authority`。init 省略 `--mode` 时使用它，source default 为 `framed-image2`；显式 `--mode` 也只接受这个值。每个 version 的权威 mode 在 `_state/state.yaml` 的 `production_mode.by_version`，`project-metadata.yaml` 只是非权威镜像。
+新 source 的唯一 pipeline 是 `page-authority-image2-v1`，state 的唯一新-deck mode 是 `image2-page-authority`。`init` 只创建这个 current route，source default 为 `framed-image2`。每个 version 的权威 mode 在 `_state/state.yaml` 的 `production_mode.by_version`，`project-metadata.yaml` 只是非权威镜像。
 
 - `pure-image2`: Image2 拥有所有最终像素。可读 body labels、values、quotations、captions、timeline dates 或 diagram text 承载语义时必须选择 Pure。
 - `framed-image2`: Image2 只生成无文字 full-canvas underlay；固定 `standard-v1` 本地 Text Frame 拥有 kicker、title、subtitle 与 callout。body 必须在 frame 下保持无文字。
 
-只写 closed `VISUAL BRIEF`、registered identity 与 Page Authority source fields。不得写 `IMAGE PROMPT`、`RENDER MODE`、HTML、slide-owned CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
+只写 closed `VISUAL BRIEF`、registered identity 与 Page Authority source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
 
 ## Step 3 - Receipt-bound production
 
@@ -51,7 +50,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --rec
 
 `plan` 是 provider-free。只有非零 submit plan 才要求人类在 `authorize` 前看到 exact run、stable IDs、generation profile 与 maximum submissions；init、doctor、probe、旧批次或聊天都不是授权。zero-submit work 可继续执行，也不虚构授权。
 
-raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用 HTML review、visual-slot、Header-Lock 或 legacy artifact。
+raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用 retired review 或 historical artifact。
 
 ## Step 4 - Refresh and structural changes
 
@@ -66,7 +65,7 @@ Pure display text、underlay visual 或任何 raw-contract 修改必须回到 re
 
 ## Existing-run guidance
 
-只有用户明确给出一个 existing run 时，才先运行 `ppt_flow state <run-dir> --inspect-legacy-protocol`。只有 exact `html-first-v1` / `html-only|html-then-image2` 或 exact `whole-page-image2-v1` / `image2-only` pair 可进入 provider-free legacy adoption；普通 legacy build、refresh、review、pilot 和 provider 命令都会先被 fence 拦住。`current` Page Authority pair 继续其正常 receipt-to-delivery lifecycle；partial Page Authority pair 走 Page Authority repair，missing/unknown/corrupt pair 走 repair/export，绝不猜测为 legacy。
+只有用户明确给出一个 existing run 时，才先运行 `ppt_flow state <run-dir> --inspect-legacy-protocol`。read-only historical observer 的精确字节 schema 只识别 `html-first-v1` / `html-only|html-then-image2` 或 `whole-page-image2-v1` / `image2-only` pair，并将它们送入 provider-free legacy adoption；普通 build、refresh、review、pilot 和 provider 命令都会先被 fence 拦住。`current` Page Authority pair 继续其正常 receipt-to-delivery lifecycle；partial Page Authority pair 走 Page Authority repair，missing/unknown/corrupt pair 走 repair/export，绝不猜测为 legacy。
 
 对 recognized legacy run，Agent 先调用 `state <run-dir> --prepare-legacy-adoption`，只在 source-local `_scratch/production-mode-transition/candidate-run/` 内准备 candidate。人类逐页明确写 Page Authority source 和 adoption matrix（保留/删除/新增、stable ID、`pure-image2|framed-image2`、Text Frame、visual brief/reference、speaker note disposition）；再显示 `--preview-legacy-adoption` 的 exact hash 和 target intake，只有明确确认后才 `--confirm-legacy-adoption --plan-hash <hash>` 与 `--apply-legacy-adoption --plan-hash <hash>`。
 
@@ -90,13 +89,13 @@ source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不�
 ### playwright
 ### echarts
 ### chromium
-### html_fonts
-### html_runtime_smoke
+### framed_fonts
+### framed_runtime
 ### fonts
 ### disk_space
 ### git
 ### api_key
 ### image_base_url
-### stage2_generator
+### page_authority_raw_generator
 ### image_smoke
 ### image_probe_vendors

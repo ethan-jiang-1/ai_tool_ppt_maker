@@ -1,13 +1,13 @@
----
-stage: workflow/00-setup
----
-
 # Conventions
 
-- Canonical HTML source is exact `3_versions/vN/slide-specifications.md` with a production marker and stable mnemonic IDs.
-- Backbone owns shared content/visual defaults; version overrides own only that version's delta.
-- `_generated/` is rebuildable and never hand-edited. `_scratch/` holds disposable transaction-local work.
-- Page position is snapshot order; `slide_id` owns notes, evidence, and reuse identity.
-- Header/body/family/fallback changes use local rebuilds. Notes use Notes-Only Refresh. Insert/delete/reorder uses Structural Versioning Path and target-local materialization.
-- Human review is version/reset/evidence-bound; metadata mirrors alone authorize nothing.
-- Provider calls are outside ordinary HTML work. First-class `image2-only` whole-page behavior is owned by `create-deck`.
+Use `page-authority-image2-v1` for new source and `image2-page-authority` in
+current state. Each slide has a mnemonic `slide_id` and one Page Authority
+owner: `pure-image2` or `framed-image2`.
+
+Provider calls require explicit authorization and a receipt-bound raw scope.
+Local Framed composition, notes refresh, inspection, and structural preview do
+not imply provider authorization. Structural apply is source-only; unresolved
+raw work is reported as `needs_render`.
+
+Historical source/state data is read only through the legacy observer. Do not
+rename, migrate, or manually repair it as part of normal work.

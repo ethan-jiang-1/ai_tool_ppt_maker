@@ -12,7 +12,6 @@ export const ACTIVE_PHASES = Object.freeze([
   "00-setup",
   "01-content",
   "02-visual-system",
-  "03-html-production",
   "04-image-production",
   "05-iteration",
 ]);
@@ -21,26 +20,23 @@ export const PHASE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
   "01-content": Object.freeze([]),
   "02-visual-system": Object.freeze([]),
-  "03-html-production": Object.freeze(["00-setup", "01-content", "02-visual-system"]),
-  "04-image-production": Object.freeze(["01-content", "02-visual-system", "03-html-production"]),
-  "05-iteration": Object.freeze(["01-content", "02-visual-system", "03-html-production", "04-image-production"]),
+  "04-image-production": Object.freeze(["00-setup", "01-content", "02-visual-system"]),
+  "05-iteration": Object.freeze(["01-content", "02-visual-system", "04-image-production"]),
 });
 
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
   "shared/run-bundle/bundle_layout.mjs",
+  "shared/run-bundle/page_authority_paths.mjs",
   "shared/run-bundle/production_marker.mjs",
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
-  "shared/state/html_review_evidence.mjs",
   "shared/state/legacy_protocol_adoption.mjs",
   "shared/state/page_authority_delivery_evidence.mjs",
   "shared/state/production_mode_transition.mjs",
   "shared/identity/canonical_json.mjs",
   "shared/identity/byte_hash.mjs",
-  "shared/identity/notes_receipt.mjs",
-  "shared/identity/render_artifacts.mjs",
   "shared/image2/credentials.mjs",
   "shared/workflow/inspect_workflow.mjs",
 ]);
@@ -48,22 +44,14 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
 export const CROSS_OWNER_PROCESS_ADAPTERS = Object.freeze([
   "ppt_flow.mjs",
   "00-setup/env-check.mjs",
-  "03-html-production/unified_pipeline.mjs",
-  "03-html-production/stage1_build_inputs.mjs",
-  "03-html-production/stage4_build_pptx.mjs",
 ]);
 
 const ROOT_WHITELIST = new Set([
   "README.md", "ppt_flow.mjs", "00-setup", "01-content",
-  "02-visual-system", "03-html-production", "04-image-production",
+  "02-visual-system", "04-image-production",
   "05-iteration", "shared", "contracts", "fonts", "fixtures",
 ]);
 const FORBIDDEN_GENERIC_ROOTS = new Set(["lib", "internal", "utils", "helpers", "common"]);
-const SHARED_CORE = "shared/state/internal/html_review_evidence_core.mjs";
-const SHARED_CORE_IMPORTERS = new Set([
-  "shared/run-bundle/bundle_layout.mjs",
-  "shared/state/html_review_evidence.mjs",
-]);
 // The transition transaction owns candidate integrity, while content and
 // visual-system own their respective parsers. This exact deep-module seam
 // permits the transaction to consume only those public Interfaces instead of
@@ -83,8 +71,7 @@ const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   "contracts/framework_architecture.mjs",
   "contracts/framework_document_command_audit.mjs",
   "contracts/framework_static_coherence.mjs",
-  "contracts/html_source_ast.mjs",
-  "contracts/html_review_projection.mjs",
+  "contracts/retirement_ledger_audit.mjs",
 ]);
 
 function normalized(value) {
@@ -97,7 +84,7 @@ function phaseOf(path) {
 }
 
 function imageProductionAdapterOf(path) {
-  const match = normalized(path).match(/^04-image-production\/(whole-page|visual-slot|page-authority)\//);
+  const match = normalized(path).match(/^04-image-production\/(page-authority)\//);
   return match?.[1] || null;
 }
 
@@ -144,8 +131,7 @@ function validateImportEdge(files, importer, target, issues) {
   if (importer.startsWith("shared/")) {
     const allowedPhaseInterfaces = SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS.get(importer);
     if (toPhase && !allowedPhaseInterfaces?.has(target)) addIssue(issues, "shared-phase-import", importer, `shared imports Phase path ${target}`);
-    if (target === SHARED_CORE && !SHARED_CORE_IMPORTERS.has(importer)) addIssue(issues, "review-core-importer", importer, `only exact review-core collaborators may import ${target}`);
-    if (target.startsWith("shared/") && target !== SHARED_CORE && !PUBLIC_SHARED_INTERFACES.includes(target) && phaseOf(target) !== fromPhase) {
+    if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target) && phaseOf(target) !== fromPhase) {
       const fromCategory = importer.split("/")[1];
       const toCategory = target.split("/")[1];
       if (fromCategory !== toCategory) addIssue(issues, "shared-private-cross-category", importer, `cross-category shared import targets private path ${target}`);
@@ -164,7 +150,7 @@ function validateImportEdge(files, importer, target, issues) {
   if (fromImageProductionAdapter && toImageProductionAdapter && fromImageProductionAdapter !== toImageProductionAdapter && /\/internal\//.test(target)) {
     addIssue(issues, "cross-adapter-private-import", importer, `${fromImageProductionAdapter} imports private ${toImageProductionAdapter} path ${target}`);
   }
-  if (fromPhase && target.startsWith("shared/") && target !== SHARED_CORE && !PUBLIC_SHARED_INTERFACES.includes(target)) {
+  if (fromPhase && target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) {
     addIssue(issues, "phase-private-shared-import", importer, `Phase imports private shared path ${target}`);
   }
   if (fromPhase && importer.endsWith("/index.mjs") && target !== "shared/run-bundle/bundle_layout.mjs" && EXECUTABLE_INVENTORY.includes(target)) {
@@ -229,14 +215,13 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   if ([...scriptFiles].some(([path]) => path === "lib" || path.startsWith("lib/"))) addIssue(issues, "legacy-lib", "lib", "scripts/lib is forbidden");
   for (const phase of ACTIVE_PHASES) if (!scriptFiles.has(`${phase}/index.mjs`)) addIssue(issues, "missing-phase-interface", `${phase}/index.mjs`, "active Phase interface is missing");
   for (const path of scriptFiles.keys()) {
-    if (path.startsWith("04-image-production/") && path.endsWith(".mjs") && !path.startsWith("04-image-production/whole-page/") && !path.startsWith("04-image-production/visual-slot/") && !path.startsWith("04-image-production/page-authority/") && path !== "04-image-production/index.mjs") {
+    if (path.startsWith("04-image-production/") && path.endsWith(".mjs") && !path.startsWith("04-image-production/page-authority/") && path !== "04-image-production/index.mjs") {
       addIssue(issues, "phase4-public-surface", path, "Image Production exposes only its family and adapter interfaces");
     }
   }
   for (const path of scriptFiles.keys()) if (/^(?:asset_manifest|bundle_layout|env-check|generate_style_master|image_api_client|lessons|make_contact_sheet|stage[1-5]_|unified_pipeline|visual_config)\.mjs$/.test(path)) addIssue(issues, "old-flat-path", path, "old flat business path is forbidden");
   for (const [importer, source] of scriptFiles) {
     for (const specifier of collectLiteralImports(source)) validateImportEdge(scriptFiles, importer, resolveLocalImport(importer, specifier), issues);
-    if (importer.startsWith("03-html-production/") && /04-image-production\/(?:whole-page|visual-slot)\/internal/.test(source)) addIssue(issues, "html-image-production-edge", importer, "HTML Phase 3 must not import private Image Production transport");
   }
   const detected = [...scriptFiles].filter(([path, source]) => path.endsWith(".mjs") && !DIRECT_ENTRY_EXCEPTIONS.has(path) && hasDirectEntryIndicator(source)).map(([path]) => path).sort();
   const expected = [...EXECUTABLE_INVENTORY].sort();

@@ -1,233 +1,47 @@
-# Node 规格宪法
+# Node Specification
 
-> 本文定义 MD Controller 的 Playbook Node、state schema 与 gate 条件。`playbook/*.md` 是工作流内容、节点顺序与声明的唯一真相源；`scripts/shared/state/md_controller_reader.mjs` 只负责读取、解析、索引和校验，不定义、生成、修改或执行 playbook。
+Markdown playbooks are the workflow authority. `state.yaml` stores only the
+current execution pointer and Page Authority evidence; it does not define a
+second workflow.
 
-## 规范层级
+## Controller declaration
 
-- **Lifecycle Phase**：`0 → 1 → 2 → 3 → [4 optional/authorized] → 5`
-- **Method Module**：`00-setup`、`01-content`、`02-visual-system`、`03-html-production`、`04-image-production`、`05-iteration`
-- **Pipeline Stage**：生产脚本 Stage 1–5
-- **Playbook Node**：MD Controller 中的有序执行节点
+Every controller declares `supported_pipelines: [page-authority-image2-v1]`.
+Image-production nodes use `method_module: 04-image-production` and
+`adapter: page-authority-image2`. A node may declare
+`production_modes: [image2-page-authority]`; no other current mode exists.
 
-这四个层级不可混称。尤其禁止用旧字段 `phase: 04` 表示 Method Module。
+Node IDs are global kebab-case. Entry and exit conditions must be explicit,
+ordered, and satisfiable from current source/state evidence. A node cannot use
+its own completion as an entry condition.
 
-## Node 声明
+## State contract
 
-有序 controller 在 Markdown 中使用 fenced YAML；standalone shared node 使用文档 frontmatter。每个 node ID 必须是全局唯一 kebab-case，且不得占用系统保留 ID `header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`、`image2-refinement`。只有 `image2-refine` controller 可声明 lifecycle 4/module `04-image-production`，且 entry 必须要求 marked HTML-first 与 current delivery review。
-
-```yaml
-node: author-structured-content
-lifecycle_phase: 1
-method_module: 01-content
-requires: [checkpoint-intake]
-entry: []
-exit:
-  - slide_specs_exists
-  - evidence:l1-l2-l4-complete
-produces: [slide-specifications]
-```
-
-必填字段：`node`、`lifecycle_phase`、`method_module`、`requires`、`entry`、`exit`。可选字段包括 `produces`。控制后续分支的 GATE node 还必须声明非空、无重复的 `decisions` enum。
-
-`requires` 是唯一 node-to-node 前置机制：runtime 会在显式 `entry` 之前把每项按 `node_done:<id>` 检查。不要在 `entry` 重复前驱完成条件。
-
-## Node body
-
-每个 node 至少包含一个 canonical step；编号从 1 开始单调递增，类型只能是 MD、CLI、GATE：
-
-```markdown
-**Step 1 — MD**: 读方法论、做判断或更新源文件。
-
-**Step 2 — CLI**: 运行完整 Node 命令或调用 state API。
-
-**Step 3 — GATE**: 向用户展示可审查产物，记录 typed decision/evidence。
-```
-
-禁止 `CLI/State` 等混合标签；需要分别落成 CLI 与 MD/GATE step。
-
-## State Schema v5
-
-State 位于 run bundle 根目录 `_state/state.yaml`，由 `scripts/shared/state/state.mjs` 原子写入。`history.jsonl` 仅供审计，不参与恢复。读取先验证 exact schema-5、source marker、run version、mode 与 Controller identity；observation 永不写入、推断或继续不受支持的旧 bytes。可一对一解释的 current-v5 canonical defect 只可由其 owning execution path 在既有 gate/reset/transition fence 后修复；缺失/冲突 marker、pre-current schema、topology-only version identity 或 retired node 保留原 bytes 并以 `replacement_required` 返回一个 owner-issued typed next action。v5 的 cross-pipeline transition 只允许 state owner 用一个 non-resumable source suspension frame 在 source/target 间原子恢复或 handoff。
+For each current `vN`, `_state/state.yaml` records:
 
 ```yaml
-schema_version: 5
-pipeline: html-first-v1            # actual-pipeline 兼容投影；不再是路由权威
-production_mode:                   # 每 version 的权威生产意图（路由 SSOT）
+pipeline: page-authority-image2-v1
+production_mode:
   by_version:
     3_versions/v1:
-      mode: image2-only            # html-only | html-then-image2 | image2-only
-playbook: create-deck
-current_node: author-structured-content
-execution_id: exec-...
-execution_started_at: 2026-07-12T06:00:00.000Z
-run_version: v1                    # v5：active execution 的唯一 exact version binding
-started_at: 2026-07-12T05:00:00.000Z   # 整个 workflow 的稳定开始时间
-updated_at: 2026-07-12T06:20:00.000Z
-
-nodes:
-  author-structured-content:
-    status: in_progress
-    execution_id: exec-...
-    evidence:
-      sources-collected:
-        met: true
-        kind: agent
-        at: 2026-07-12T06:15:00.000Z
-  checkpoint-final-review:
-    status: completed
-    execution_id: exec-...
-    decision:
-      value: proceed
-      kind: user
-      at: 2026-07-12T06:18:00.000Z
-
-gates:
-  content: approved
-  visual: approved
-
-playbook_stack:
-  - playbook: create-deck
-    current_node: rerun
-    execution_id: exec-parent
-    execution_started_at: 2026-07-12T06:00:00.000Z
-    controller_nodes: {}
+      mode: image2-page-authority
+      source_epoch: 1
 ```
 
-### Execution working set
+The metadata mirror is display-only. It never selects a route or repairs state.
+Current evidence is limited to Page Authority raw authorization/review and
+delivery review. Unknown or retired node/evidence records fail closed.
 
-顶层 `nodes` 只包含当前 execution 的 controller working set，加上独立 freshness contract 管理的系统保留记录（`header-review`、`html-content-review`、`html-visual-review`、`html-delivery-review`、`html-production-reset`）。controller record、evidence 与 decision 都必须匹配当前 `execution_id`；旧 execution 不能授权新 execution。HTML records 只能存在于 `nodes[reserved_id].by_version["3_versions/vN"]`，并绑定 normalized `run_version` 与 nullable current reset ID。
+## Inspection
 
-- `startPlaybook`：顶层启动新 execution；清理旧 controller records，保留系统记录。未完成 execution 只有显式 `{replace:true}` 才能替换；stack 非空时禁止调用。
-- `switchPlaybook`：把 parent 的 `{playbook,current_node,execution_id,execution_started_at,controller_nodes}` 深拷贝进 stack，再创建干净 child execution。
-- `resumePlaybook`：丢弃 child controller working set，恢复五字段 parent snapshot，同时保留最新系统记录。
-- pre-current pointer-only stack 无法建立 provenance 时保留原 bytes 并 hard-stop；禁止猜测归属。
+Inspection returns one Page Authority lifecycle action for a current pair. An
+explicitly supplied historical pair returns one provider-free adoption or
+repair/export action. Inspection never produces a historical cursor, approval,
+provider request, or adapter.
 
-### Status enums
+## Structural requests
 
-Node status 只能是 `pending`、`in_progress`、`completed`、`skipped`、`failed`。Gate status 只能是 `pending`、`approved`、`waived`。writer 拒绝其他值；heal 把非法持久值降级为阻塞的 `pending` 并保留诊断。重启 completed node 会清掉旧 `completed` 时间；完成 node 会清掉不兼容的 failure 字段。
-
-### Typed evidence 与 decision
-
-Evidence 形状：`{met:true, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
-
-Decision 形状：`{value:<declared enum>, kind:"user"|"agent"|"cli", at:<ISO>, note?:<string>}`。
-
-用 `setNodeEvidence` 与 `setNodeDecision` 写入；decision value 必须存在于 canonical node 的 `decisions` enum。pre-current boolean/scalar 不能被解释为当前 decision，绝不能伪造用户批准。
-
-## Production Mode (v5 SSOT)
-
-每个 canonical run version 的生产意图由 `_state/state.yaml` 的 `production_mode.by_version["3_versions/vN"].mode` 唯一记录，封闭词表为 `html-only`、`html-then-image2`、`image2-only`。`project-metadata.yaml` 的 `production_mode`/`production_mode_run_version` 仅是非权威镜像；缺失或漂移时 status 报告可修复 drift，但绝不能用 metadata 覆盖 state。
-
-封闭映射（由 `scripts/shared/run-bundle/production_mode.mjs` 单一拥有，调用方不得私存映射表）：
-
-| mode | pipeline | page authority | refinement | style-master |
-|------|----------|----------------|------------|--------------|
-| `html-only` | `html-first-v1` | html | disabled | reserved-html-adapter |
-| `html-then-image2` | `html-first-v1` | html | required | reserved-html-adapter |
-| `image2-only` | `whole-page-image2-v1` | image2 | not-applicable | current |
-
-`whole-page-image2-v1` 是 `image2-only` 分支在 source frontmatter 中的直接规范化 marker。新 deck 的 omitted-mode 默认为 `image2-only`（`ppt_flow init --mode` 可显式选择 HTML 路径）。`html-only <-> html-then-image2` 是同管道原子切换；`html-* <-> image2-only` 由 state-owned versioned transition 生成 clean vNext，绝不就地改写。确认前 source pointer 不变；确认后 state 以 run-bound non-resumable source snapshot 保护恢复，并且只在 target receipt、selected-mode registration、target-owned baseline 都成立后 handoff。HTML target 仅验证既有 runnable contract，不增加 HTML visual-quality、parity 或 style-master 结论；Image2 target 保持其正常 authorization/review 边界。
-
-Controller frontmatter 可声明 `supported_production_modes`；node 可声明 `production_modes`（其子集）。canonical index 按权威 mode 计算 active node 集：inapplicable node 不标 `skipped`、不删记录，只是不在 active 工作集内。`skipped` 仍只表示显式人工 bypass。
-
-## CLI ⇔ MD 协议
-
-- MD → CLI：先过 entry gate，再执行 CLI step。
-- CLI 成功：exit 0；需要的 durable evidence/state 由负责该动作的调用方写入。
-- CLI 硬失败：非零 exit，以 stderr 最后一个有效 JSON envelope 为控制消息；producer schema、bounds 与发射规则由 capability `cli-surface` 唯一拥有。
-- MD 仅在完整支持并校验 `diagnostic.version` 后使用 structured evidence；unsupported/malformed nested data 退回 top-level summary。非零但无有效末行 envelope 按外部中断/崩溃处理，不从 partial output 猜原因。
-- `diagnostic.next.requires_human:true` 必须停下交给人；自动 invocation 直接传 `program`/`args` 且 `shell:false`。不发明省略的 path/id/line/cause/approval；lineage 是证据，不是修改所有 artifact 的许可，`_generated/` 永不手改。
-- parent-wrapped failure 以 parent code/where/next 为控制权，保留的 child source/subject/reason/lineage/issues 仅作因果证据；不寻找第二个 child envelope，不执行被丢弃的 child next。
-- Controller resume 先消费 `ppt_flow state <run-dir> --json` 的 `workflow_inspection.primary_action` 与 owner-issued `continuation`。它给出一个有序 owner action、posture、protected invariant 和独立 evidence completeness；Controller 只通过该 owner 的 public CLI 执行 mutation，不从 prose 推断 approval/waiver，也不手写 record。
-- HTML final review 只调用 `ppt_flow state <run-dir> --record-delivery-review proceed|repair|redirect`；不再调用 `setNodeDecision` 做第二次写入。`proceed --force --reason` 仅在 producer 表明 reviewable artifacts 已当前时可作为 evidence continuation；`state --validate-state` 是只读检查，不能自动 heal、seed 或修复 state。
-- 新 run bundle 通过根 `AGENTS.md` / `CLAUDE.md` → `RUN_BUNDLE.md`（定位）→ `deck-guide.md`（consumer 规则）进入；locator 不携带 consumer protocol、当前执行事实或命令菜单。
-- State 写入：只改本动作负责的字段；temp 文件必须与 `_state/state.yaml` 同目录，再 atomic rename。
-
-### 结构 preview/receipt consumer 规则
-
-- UI、status、selector candidate 与用户复述统一显示 `position · formal slide_id · title`。`position` 是当前快照投影，`slide_id` 是跨版本身份；MD 不把页序号写成持久身份，也不复制 producer 的 selector/plan wire schema。
-- MD 按引用消费 `slides` preview、edit receipt 与 structural impact receipt，并在内存/state note 中保留确认过的 `plan_sha256`；用户只确认 before/after，不负责抄写或管理 hash。
-- Apply 必须重放同一个 preview 并传 exact hash。stale base/hash mismatch 时重新生成 preview；禁止替旧计划 rebase、猜测新 selector 或在 `_generated/` 补状态。
-- `requires_human:true`、selector ambiguity、正文页码 warning 或新增内容/成本选择必须停下。其他确定性冲突由 Agent 修复或重新 preview。
-- Structural apply/materialization 是 renderer-free 授权域；HTML receipt 的 `needs_local_materialization` 只说明后续本地工作，whole-page receipt 的 `needs_render` 才表示后续昂贵工作。Generated Image Rebuild 必须是用户知情后的独立调用。
-- 结构变化若无法在一个版本内清晰收敛，consumer 使用逃生阶梯：新 preview → 新 vNext → 新 deck。新 deck 适用于受众、主叙事或设计系统已经分叉，不用于逃避普通小改。
-
-## State API
-
-- READ/HISTORY：`readState`、`writeState`、`statePath`、`historyPath`、`appendHistory`、`readHistory`
-- QUERY：`getNodeStatus`、`getCurrentNode`、`getCompletedNodes(state,nodeIds?)`、`getPendingNodes(state,nodeIds?)`、`isNodeCompleted`、`isPlaybookComplete(state,nodeIds?)`、`getGateStatus`、`isGateApproved`
-- VALIDATE：`checkEntry`、`checkExit`、`getMissingConditions`、`validateState`、`getEligibleNextNodes`
-- WRITE：`setNodeStatus`、`resetNode`、`skipNode`、`setGate`、`setNodeEvidence`、`setNodeDecision`、`startPlaybook`、`switchPlaybook`、`resumePlaybook`
-
-传入 canonical node-ID list 时，尚未写入或 execution-mismatched 的 node 都按 pending 处理；系统记录和 controller 外节点不影响 playbook completion。
-
-## Gate Conditions Catalog
-
-未知 condition 必须 fail closed，返回 `unknown`；不得当作“人工判断后默认通过”。`requires` 由 runtime 单独按 `node_done:<id>` 强制执行。
-
-### Deterministic artifact conditions
-
-| Condition | 类型 / 数据源 | 精确检查 |
-|---|---|---|
-| `run_bundle_exists` | filesystem / `ctx.deckDir` | run bundle 目录存在 |
-| `deck_guide_created` | filesystem | `<deckDir>/deck-guide.md` 存在 |
-| `visual_preset_seeded` | filesystem | `2_backbone/visual-style/color_palette.json` 存在 |
-| `style_master_exists` | filesystem | `2_backbone/visual-style/style_master.jpg` 存在 |
-| `slide_specs_exists` | filesystem | `<runDir>/slide-specifications.md` 存在 |
-| `slide_specs_valid` | Stage 1 validation | 调用 Stage 1 同一 side-effect-free validator；零错误、无 L3 placeholder、render-required 字段齐全 |
-| `pptx_generated` | filesystem | `_generated/ppt/` 恰有当前非 backup PPTX 产物 |
-| `speaker_notes_injected` | receipt | 校验 `_generated/qa/notes_injection.json` schema v1、contained paths、当前 input/PPTX SHA-256 与 count equality |
-| `header_review_current` | header review contract | 按当前 profile 与 execution classification scope 检查 relevant `full-page` IDs 的 reviewed hashes/fingerprint；无 relevant full-page 时才 vacuous pass |
-| `html_content_review_current` | HTML review evidence | 当前 run version/reset 的完整 approvable content plan 与 fingerprint 证据 |
-| `html_visual_review_current` | HTML review evidence | 当前 recipe coverage、page dependencies、effective/forced artifacts 与 approvable visual plan |
-| `html_delivery_current` | HTML delivery evidence | current contact sheet、assembly-v2、notes-v3、delivery digest 与 accepted final review |
-| `html_reset_clear` | HTML reset fence | 无 `deletion_pending` reset，或当前 owner 已完成显式 reset transaction |
-| `transition_apply_current` | state-owned transition checkpoint | exact selected source run、active `production-mode-transition/apply-production-mode-transition`、closed source/target/plan/candidate binding 与唯一 non-resumable suspension 都匹配；只可作 entry |
-| `transition_publish_or_recovery_recorded` | state-owned terminal finalization | 仅在 atomic target receipt/registration/baseline handoff 或 verified no-target source restoration 中成立；普通 node completion、publication-only 与 recovery hard-stop 都不通过；只可作 exit |
-
-### State/gate condition families
-
-| Condition | 数据源 | 规则 |
-|---|---|---|
-| `gate_approved:<name>` | `state.gates` | status 为 `approved` 或 `waived` |
-| `node_completed:<id>` | active node record | 同 execution 且 status 为 `completed` |
-| `node_done:<id>` | active node record | 同 execution 且 status 为 `completed` 或 `skipped`；`requires` 自动使用此条件 |
-| `node_status:<id>:<status>` | active node record | 同 execution 且精确 status 匹配 |
-
-### Typed evidence/decision families
-
-| Condition | 允许位置 | 规则 |
-|---|---|---|
-| `evidence:<key>` | 当前 node exit only | 当前 node 同 execution 的有效 evidence，任意 provenance |
-| `user_evidence:<key>` | 当前 node exit only | 同上，但 `kind:user` |
-| `decision_recorded` | 当前 node exit only | 当前 node 有有效 typed decision |
-| `user_decision_recorded` | 当前 node exit only | 当前 node 有 `kind:user` 的 typed decision |
-| `node_evidence:<required-node>:<key>` | downstream entry | source 必须在 `requires` 中、同 execution、status=`completed`；skipped 不供 evidence |
-| `node_decision:<required-node>:<value>` | downstream entry | 同上，且 value 精确匹配 upstream `decisions` enum |
-
-如果 downstream 使用 `node_decision:<node>:<value>`，upstream 必须声明该 value、包含 GATE step，并以 `decision_recorded` 或 `user_decision_recorded` 退出。
-
-## 完整 Node 示例
-
-````markdown
-```yaml
-node: authoring-slides
-lifecycle_phase: 1
-method_module: 02-content
-requires: [seed-topics]
-entry: []
-exit:
-  - slide_specs_exists
-  - evidence:l1-l2-l4-complete
-  - evidence:sources-collected
-produces: [slide-specifications]
-```
-
-# authoring-slides: Foundation Shared Reference
-
-**Step 1 — MD**: 读 `workflow/01-content/05-create-content-assets.md`，完成 L1/L2/L4 与来源收集。
-
-**Step 2 — CLI**: 用 `setNodeEvidence` 记录 `l1-l2-l4-complete` 与 `sources-collected`，再 `writeState`。
-````
-
-Registry validator 必须对 checked-in `playbook/controller-manifest-v3.json` 声明的 11 个有序 controllers、1 个 shared node、44 个全局唯一 nodes 做零错误校验：parse、ID/reserved collision、supported pipeline ownership、includes/requires、dependency order/cycle、metadata、step grammar、condition catalog、decision enum 与 impossible self-entry。
+Structural controller nodes resolve a snapshot `position` selector to stable
+`slide_id`, preview the exact `plan_sha256`, and apply only that confirmed
+plan. Target work reports `needs_render` as raw-generation debt; it never turns
+a structural transaction into a provider call.

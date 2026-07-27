@@ -1,31 +1,26 @@
 ---
-production:
-  pipeline: html-first-v1
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
 deck_type: report
 ---
 
-# Report Structured Deck Template
+# Report Page Authority Template
 
-Lead with the decision, then establish scope, findings, evidence, options, recommendation,
-implementation, risks, and next action. Keep quantitative evidence in closed chart/table
-records rather than a visual prompt.
+Lead with the decision, then scope, findings, evidence, options, recommendation,
+implementation, risks, and next action. Preserve stable IDs when findings reorder.
 
 ## Slide 01: `FindGo`
 
-**VISUAL TYPE**: Report opener
 **TITLE**: [The decision-ready finding]
-**CONCEPT**:
-- **MUST communicate**: [What the reader can decide]
-- **MUST NOT**: [A conclusion unsupported by the source]
-
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints: [no-readable-text, no-labels]
 ```
 
 > **SPEAKER NOTE**: [Scope and decision context.]
-
-Use closed data/chart families for evidence and preserve stable IDs when findings reorder.

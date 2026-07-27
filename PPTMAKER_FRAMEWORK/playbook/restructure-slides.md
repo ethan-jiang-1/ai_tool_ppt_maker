@@ -1,7 +1,7 @@
 ---
 playbook: restructure-slides
-description: source-only clean vNext 与 pipeline-specific materialization
-supported_pipelines: [html-first-v1, whole-page-image2-v1]
+description: source-only clean vNext 与 Page Authority raw materialization
+supported_pipelines: [page-authority-image2-v1]
 includes: [classify-change]
 ---
 
@@ -33,15 +33,19 @@ exit: [evidence:new-version-created]
 
 ```yaml
 node: materialize-structural-target
-lifecycle_phase: 3
-method_module: 03-html-production
+lifecycle_phase: 5
+method_module: 05-iteration
 requires: [publish-structural-version]
 produces: [target-local-review-artifacts]
 entry: []
 exit: [evidence:target-materialized]
 ```
 
-**Step 1 — CLI**: For HTML `needs_local_materialization`, explicitly run target-local materialization. It recomputes fingerprints, copies only matching immutable bytes into target-owned objects/manifests with target reset ID, composes missing bytes locally, publishes Stage 1-3 review artifacts, and stops at typed `review_required`.
+**Step 1 — CLI**: Read the structural preview's per-ID raw disposition. A
+`materialize_unreviewed` item may copy only hash-matching current raw bytes into the
+target-owned Page Authority raw manifest; `needs_raw_generation` remains explicit
+debt. Apply validates the confirmed hash, makes zero provider calls, and never
+promotes copied bytes to accepted raw evidence.
 
 **Step 2 — MD**: Stable IDs authorize byte matching only. Do not copy source reset epoch, content/visual gates, metadata mirrors, delivery review, node decisions, or cross-version paths. Reorder-only targets still need target reviews.
 
@@ -49,8 +53,8 @@ exit: [evidence:target-materialized]
 
 ```yaml
 node: review-structural-target
-lifecycle_phase: 3
-method_module: 03-html-production
+lifecycle_phase: 5
+method_module: 05-iteration
 requires: [materialize-structural-target]
 produces: [target-content-visual-reviews]
 decisions: [approve, revise, stop]
@@ -80,8 +84,10 @@ entry: [node_decision:review-structural-target:approve]
 exit: [user_decision_recorded, user_evidence:structure-change-verified]
 ```
 
-**Step 1 — CLI**: Continue target delivery through local contact sheet, Stage 4, Stage 5, and final review. Provider call count and Image2 write set must be zero.
+**Step 1 — CLI**: Continue through Page Authority raw review, Framed/Pure
+finalization, PPTX assembly, notes injection, and delivery review. Provider call
+count and Image2 write set remain zero when the target has no `needs_render` debt.
 
-**Step 2 — MD**: Verify target order/membership, notes-by-ID, receipts, target-owned manifests, and unchanged source version. Whole-page Image2 instead keeps `needs_render`; any Generated Image Rebuild requires separate remote authorization through `create-deck`.
+**Step 2 — MD**: Verify target order/membership, notes-by-ID, receipts, target-owned manifests, and unchanged source version. Missing Page Authority raw evidence remains `needs_render`; any Generated Image Rebuild requires separate remote authorization through `create-deck`.
 
 **Step 3 — GATE**: Record verification only after the target final delivery review is current.

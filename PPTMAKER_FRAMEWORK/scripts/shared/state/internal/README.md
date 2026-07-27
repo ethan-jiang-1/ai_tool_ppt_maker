@@ -1,3 +1,4 @@
 # Shared state internals
 
-Only the private HTML review-evidence core belongs here.
+No private state submodule is a current production owner. Page Authority state,
+inspection, and bounded legacy observation remain behind their named public seams.

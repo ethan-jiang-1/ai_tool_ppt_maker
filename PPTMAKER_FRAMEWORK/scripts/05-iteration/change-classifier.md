@@ -1,54 +1,16 @@
----
-title: Change Classifier
-stage: automation
-position: toolkit
-type: reference
-summary: marker-first routing from natural language change to the smallest owner and stale set.
-depends_on:
-- BOOTSTRAP.md
-- AGENTS.md
-feeds_into: []
-agent_action: classify_changes
----
-
 # Change Classifier
 
-> 先按权威 `production_mode.by_version["3_versions/vN"].mode` 分类，再按 verified pipeline。`html-only` 现代细化（modern refinement）被禁用（typed guidance，零写入）；`html-then-image2` 细化是完成要求；`image2-only` 用 first-class whole-page pilot/build，不走 modern visual-slot 细化。Structural Versioning Path 仍是增删重排的正式路径，不在这三个 refresh 路径之内。
+Classify current Page Authority work by evidence ownership:
 
-Changing final page authority (`html-* <-> image2-only`) is neither refresh nor ordinary structural versioning. Route it to the state-owned `production-mode-transition`: explicit target authoring, offline preview, exact confirmation, clean vNext publication, receipt-bound registration, and target-owned continuation. A request only to improve HTML appearance stays in ordinary HTML quality/iteration work; this transition adds no HTML visual score, parity gate, or style-master.
+| Request | Path |
+| --- | --- |
+| Framed Text Frame or frame style | Header Text & Style Refresh |
+| Pure display copy or raw visual contract | Generated Image Rebuild |
+| Speaker notes only | Notes-Only Refresh |
+| Add, delete, reorder, or change authority | Structural Versioning Path |
 
-Probe the canonical `production.pipeline` before interpreting flags, render mode, readiness, or writing. Then resolve source owner and stale evidence.
-
-## HTML-first routes
-
-| User change | Route | Stale set |
-|---|---|---|
-| header/body/family/fallback on selected IDs | Local Slide Rebuild | Stage 1-3 affected pages, content/page visual review, delivery |
-| palette/typography/recipe/runtime/renderer | Local Deck Rebuild | global recipe representatives, affected pages, delivery |
-| speaker notes only | Notes-Only Refresh | Stage 5 and final delivery review |
-| add/delete/move/reorder | Structural Versioning Path | source-only vNext, target local materialization, target reviews |
-| generated owner missing with current authority | confirmed HTML production reset | new reset epoch, all reviews/delivery |
-
-Ordinary copy does not stale the global visual system when page dependencies are unchanged, but browser font/overflow/composition checks always rerun. Selected visual changes retain forced-fallback review. Stable IDs authorize byte matching only.
-
-## Whole-page Image2 routes
-
-Use Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path only under `create-deck`. A `needs_render` report describes remote cost; it does not authorize provider work. A new explicit generation decision must bind IDs/profile/count.
-
-## Optional HTML-first refinement
-
-After `html-delivery-review: proceed`, the user may explicitly select the
-`image2-refine` controller. It is bounded to 2–4 stable IDs and one no-text
-visual slot per page. Plan/authorize/generate/review/promotion are separate
-steps; a declined refinement leaves the HTML delivery complete. This route never
-uses the whole-page renderer and never runs during ordinary HTML edits.
-
-## Structural and transition rules
-
-Display `position · slide_id · title`, bind every selector to one current snapshot, and preview before apply. Keep exact `plan_sha256`; bare/stale/hash-drift apply fails and must re-preview. Source apply is renderer-free. HTML target-local materialization copies only matching target-owned bytes and never copies reset/gate/delivery/node authority.
-
-`production-mode-transition` prepares a distinct target candidate and does not parse source prose, notes, prompts, pixels, generated artifacts, metadata, or history into target authoring. Its HTML-to-Image2 preview is offline and provider-free; its Image2-to-HTML target proves only the existing runnable contract.
-
-## Communication
-
-Tell the user which owner is stale, which local artifacts will be shown, whether remote cost is zero, and which typed human decision is needed. Never claim a page is current from metadata scalar alone. Do not hand the user an opaque internal path/token as a repair instruction; use the producer-owned diagnostic next action.
+Selection is by stable `slide_id`. Structural operations require preview and
+the exact plan hash. A snapshot `position` selector resolves to that stable ID;
+the target may report `needs_render` debt but structural apply never creates a
+provider request. Raw generation is a separately authorized action; local
+Framed finalization is not.

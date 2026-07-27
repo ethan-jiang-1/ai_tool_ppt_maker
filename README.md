@@ -25,13 +25,13 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-page-authority
 
 ```bash
 npm test                                                    # bounded dependency-free core
-npm run test:focused -- tests/contracts/test_framework_load_closure.mjs
-npm run test:render -- tests/03-html-production/test_html_slide_renderer.mjs
-npm run test:e2e -- tests_e2e/shared/workflow/test_mock_selected_journey.mjs
+npm run test:focused -- tests/contracts/test_framework_architecture.mjs
+npm run test:mock-e2e -- tests_e2e/shared/workflow/test_mock_selected_journey.mjs
+PPTMAKER_RUN_REAL_E2E=1 npm run test:real-e2e -- tests_e2e/.../test_real_*.mjs
 npm run test:sweep                                          # explicit unit/integration sampling
 ```
 
-`npm test` is the protected development checkpoint, not release certification. It runs only the checked-in core inventory and prints one final JSON result. When it reports `invalid_inventory`, `unavailable`, `failed`, or `timed_out`, stop and repair that nearest cause before claiming core evidence. Renderer, browser, provider, load-closure, journey, and sweep checks are opt-in diagnostics or deliberate release sampling; select only the affected focused/render seam and at most one mocked journey. Do not use a broad E2E command.
+`npm test` is the protected development checkpoint, not release certification. It runs only the checked-in core inventory and prints one final JSON result. `test:sweep` is also pure fast feedback: it excludes child processes, Canvas/PPTX, browsers, provider relays, and adoption transactions. When either command reports `invalid_inventory`, `unavailable`, `failed`, or `timed_out`, stop and repair that nearest cause before claiming core evidence. Mocked E2E uses a fake external adapter; select one only for the affected public journey. Real E2E requires both a `test_real_*` path and `PPTMAKER_RUN_REAL_E2E=1`, and is reserved for explicitly authorized release or environment-health evidence. Do not use a broad E2E command.
 
 ## 项目结构
 

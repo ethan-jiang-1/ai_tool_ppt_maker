@@ -2,14 +2,11 @@
 export const CLI_RETURN_AUDIT_SCHEMA = "pptmaker-cli-return-audit-v1";
 export const CLI_RETURN_CATEGORIES = Object.freeze(["help", "usage", "validation", "gate", "conflict", "stale", "commit", "internal"]);
 export const IMAGE2_RETURN_CASES = Object.freeze([
-  "whole_page",
-  "current_delivery",
-  "plan_authorization_drift",
-  "duplicate_attempt",
-  "unknown_submit",
-  "candidate_identity",
-  "promotion_recovery",
-  "cleanup_ambiguity",
+  "raw_plan",
+  "raw_authorization",
+  "raw_generation",
+  "raw_review",
+  "delivery_lineage",
 ]);
 export const PRODUCTION_MODE_TRANSITION_RETURN_CASES = Object.freeze([
   "prepare_offline",
@@ -29,13 +26,6 @@ export const PRODUCTION_MODE_TRANSITION_RETURN_CASES = Object.freeze([
  * in the producer audit as the commands grow.
  */
 export const CONTINUATION_RETURN_CASES = Object.freeze({
-  approve: Object.freeze([
-    "normal_approval",
-    "guide_current_review_required",
-    "waiver_incomplete_evidence",
-    "conflict_plan_identity",
-    "secret_safe_diagnostic",
-  ]),
   build: Object.freeze([
     "normal_current_evidence",
     "guide_repair_recommended",
@@ -94,10 +84,7 @@ export const PPT_FLOW_RETURN_AUDIT = Object.freeze({
     doctor: all,
     init: all,
     status: all,
-    approve: all,
-    "style-master": all,
     validate: all,
-    pilot: all,
     build: all,
     refresh: all,
     slides: all,
@@ -109,14 +96,11 @@ export const PPT_FLOW_RETURN_AUDIT = Object.freeze({
     }),
     image2: Object.freeze({
       ...all,
-      whole_page: "case:ownership",
-      current_delivery: "case:current-html-delivery",
-      plan_authorization_drift: "case:exact-plan",
-      duplicate_attempt: "case:duplicate",
-      unknown_submit: "case:human-only",
-      candidate_identity: "case:candidate-binding",
-      promotion_recovery: "case:promotion-recovery",
-      cleanup_ambiguity: "case:cleanup-fail-closed",
+      raw_plan: "case:receipt-bound-plan",
+      raw_authorization: "case:exact-plan-authorization",
+      raw_generation: "case:authorized-submit",
+      raw_review: "case:review-evidence",
+      delivery_lineage: "case:receipt-bound-delivery",
     }),
     continuations: CONTINUATION_RETURN_CASES,
   }),

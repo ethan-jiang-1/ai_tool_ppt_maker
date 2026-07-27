@@ -6,18 +6,13 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { parse } from "yaml";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import {
-  HTML_FIRST_PIPELINE,
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
-  WHOLE_PAGE_IMAGE2_PIPELINE,
-  probeProductionMarker,
-} from "../run-bundle/production_marker.mjs";
+import { PAGE_AUTHORITY_IMAGE2_PIPELINE } from "../run-bundle/production_marker.mjs";
 import {
   canonicalVersionKey,
   isProductionModeRecord,
   normalizeRunVersion,
-  pipelineFromSourceMarker,
 } from "../run-bundle/production_mode.mjs";
 import { readState, statePath } from "./state.mjs";
 
@@ -31,6 +26,15 @@ const LEGACY_CLASSIFICATIONS = Object.freeze([
 ]);
 const MAX_SUMMARY_ENTRIES = 64;
 const SLIDE_HEADING = /^##\s+Slide\s+(\d+)\s*:\s*`([A-Za-z][A-Za-z0-9]{4,7})`/gm;
+const HISTORICAL_HTML_PIPELINE = "html-first-v1";
+const HISTORICAL_WHOLE_PAGE_PIPELINE = "whole-page-image2-v1";
+
+/** Historical bytes are decoded only by this bounded observer/adoption seam. */
+export const LEGACY_PROTOCOL_MODE_POLICIES = Object.freeze({
+  "html-only": Object.freeze({ pipeline: HISTORICAL_HTML_PIPELINE }),
+  "html-then-image2": Object.freeze({ pipeline: HISTORICAL_HTML_PIPELINE }),
+  "image2-only": Object.freeze({ pipeline: HISTORICAL_WHOLE_PAGE_PIPELINE }),
+});
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -83,10 +87,40 @@ function boundedHistoricalSummary(runDir) {
   };
 }
 
-function expectedLegacyMode(pipeline) {
-  if (pipeline === HTML_FIRST_PIPELINE) return new Set(["html-only", "html-then-image2"]);
-  if (pipeline === WHOLE_PAGE_IMAGE2_PIPELINE) return new Set(["image2-only"]);
+function sourcePipelineFromHistoricalBytes(sourceBytes) {
+  if (!sourceBytes) return { ok: false, pipeline: null };
+  const text = sourceBytes.toString("utf8");
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!match) return { ok: false, pipeline: null };
+  try {
+    const value = parse(match[1]);
+    const pipeline = value?.production?.pipeline;
+    return typeof pipeline === "string" ? { ok: true, pipeline } : { ok: false, pipeline: null };
+  } catch {
+    return { ok: false, pipeline: null };
+  }
+}
+
+function expectedHistoricalModes(pipeline) {
+  if (pipeline === HISTORICAL_HTML_PIPELINE) return new Set(["html-only", "html-then-image2"]);
+  if (pipeline === HISTORICAL_WHOLE_PAGE_PIPELINE) return new Set(["image2-only"]);
   return null;
+}
+
+function isHistoricalRecord(record, expected) {
+  return Boolean(record && typeof record === "object" && !Array.isArray(record) &&
+    Object.keys(record).length === 1 && Object.hasOwn(record, "mode") && expected?.has(record.mode));
+}
+
+export function legacyProtocolPolicyForMode(mode) {
+  const policy = LEGACY_PROTOCOL_MODE_POLICIES[mode];
+  return policy ? Object.freeze({ mode, ...policy }) : null;
+}
+
+export function isHistoricalLegacyProtocolRecord(record) {
+  const policy = legacyProtocolPolicyForMode(record?.mode);
+  return Boolean(policy && record && typeof record === "object" && !Array.isArray(record) &&
+    Object.keys(record).length === 1 && Object.hasOwn(record, "mode"));
 }
 
 function actionFor(classification) {
@@ -106,10 +140,7 @@ export function inspectLegacyProtocol(canonicalRun) {
   const deckDir = resolve(runDir, "..", "..");
   const sourcePath = join(runDir, "slide-specifications.md");
   const sourceBytes = sourceVersion ? regularBytes(sourcePath) : null;
-  const sourceMarker = sourceBytes
-    ? probeProductionMarker(sourceBytes, { source: "slide-specifications.md" })
-    : { branch: "invalid", issues: [] };
-  const sourcePipeline = pipelineFromSourceMarker(sourceMarker);
+  const sourcePipeline = sourcePipelineFromHistoricalBytes(sourceBytes);
   const sourceLedgerFacts = sourceLedger(sourceBytes);
   const historical = sourceVersion ? boundedHistoricalSummary(runDir) : { present: false, valid: false, entry_count: 0, digest: sha256("invalid-run") };
 
@@ -120,12 +151,16 @@ export function inspectLegacyProtocol(canonicalRun) {
     catch (error) { stateReadError = error.message || String(error); }
   }
   const stateBytes = sourceVersion ? regularBytes(statePath(deckDir)) : null;
-  const record = state && !state.replacement_required && !state.corrupted
-    ? state.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)] ?? null
-    : null;
-  const recordValid = isProductionModeRecord(record);
+  let historicalState = null;
+  if (stateBytes && (!state || state.replacement_required || state.corrupted)) {
+    try { historicalState = parse(stateBytes.toString("utf8")); }
+    catch { historicalState = null; }
+  }
+  const record = (state && !state.replacement_required && !state.corrupted ? state : historicalState)
+    ?.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)] ?? null;
   const mode = typeof record?.mode === "string" ? record.mode : null;
   const markerClaimsPageAuthority = sourcePipeline.ok && sourcePipeline.pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE;
+  const recordValid = isProductionModeRecord(record);
   const recordClaimsPageAuthority = mode === "image2-page-authority";
 
   let classification = "unsupported-or-corrupt";
@@ -134,8 +169,8 @@ export function inspectLegacyProtocol(canonicalRun) {
       ? "current"
       : "current-pair-corrupt";
   } else {
-    const expected = sourcePipeline.ok ? expectedLegacyMode(sourcePipeline.pipeline) : null;
-    if (sourceVersion && sourceBytes && sourcePipeline.ok && expected && recordValid && expected.has(mode) && sourceLedgerFacts.valid && historical.valid) {
+    const expected = sourcePipeline.ok ? expectedHistoricalModes(sourcePipeline.pipeline) : null;
+    if (sourceVersion && sourceBytes && sourcePipeline.ok && expected && isHistoricalRecord(record, expected) && sourceLedgerFacts.valid && historical.valid) {
       classification = "recognized-legacy";
     }
   }
@@ -148,7 +183,7 @@ export function inspectLegacyProtocol(canonicalRun) {
     source_pipeline: sourcePipeline.ok ? sourcePipeline.pipeline : null,
     source_marker_valid: sourcePipeline.ok,
     production_mode: mode,
-    production_mode_record_valid: recordValid,
+    production_mode_record_valid: recordValid || Boolean(expectedHistoricalModes(sourcePipeline.pipeline) && isHistoricalRecord(record, expectedHistoricalModes(sourcePipeline.pipeline))),
     stable_slide_count: sourceLedgerFacts.count,
     stable_slide_ledger_sha256: sourceLedgerFacts.digest,
     historical_artifact_summary_sha256: historical.digest,

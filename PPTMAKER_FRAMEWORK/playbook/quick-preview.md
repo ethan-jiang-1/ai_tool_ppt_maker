@@ -1,7 +1,7 @@
 ---
 playbook: quick-preview
-description: HTML-first production-equivalent local preview without gate waiver
-supported_pipelines: [html-first-v1]
+description: Page Authority local evidence preview
+supported_pipelines: [page-authority-image2-v1]
 includes: []
 ---
 
@@ -13,36 +13,36 @@ includes: []
 
 ```yaml
 node: validate-preview-source
-lifecycle_phase: 3
-method_module: 03-html-production
+lifecycle_phase: 5
+method_module: 05-iteration
 requires: []
 produces: [preview-readiness]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid, evidence:preview-readiness-validated]
 ```
 
-**Step 1 — CLI**: Run write-free `ppt_flow validate <run-dir>`. HTML preview needs base local runtime/source readiness, not gates, style master, or provider credentials.
+**Step 1 — CLI**: Run write-free `ppt_flow validate <run-dir>`. A Page Authority source must be valid before any raw or Framed evidence is prepared.
 
 ### compose-local-preview
 
 ```yaml
 node: compose-local-preview
-lifecycle_phase: 3
-method_module: 03-html-production
+lifecycle_phase: 5
+method_module: 05-iteration
 requires: [validate-preview-source]
-produces: [content-review-plan, visual-review-plan, visual-contact-sheet]
+produces: [page-authority-raw-projection]
 entry: []
-exit: [evidence:pilot-generated]
+exit: [evidence:page-authority-raw-projection-current]
 ```
 
-**Step 1 — CLI**: Run `ppt_flow pilot <run-dir>` with the requested HTML slide scope. Do not pass `--force-images`, resolution, provider, or browser overrides.
+**Step 1 — CLI**: Run `ppt_flow image2 review <run-dir>` only after current raw evidence exists. Do not pass provider, browser, prompt, or artifact overrides.
 
 ### review-local-preview
 
 ```yaml
 node: review-local-preview
-lifecycle_phase: 3
-method_module: 03-html-production
+lifecycle_phase: 5
+method_module: 05-iteration
 requires: [compose-local-preview]
 produces: [preview-decision]
 decisions: [proceed, revise-content, revise-visual, stop]
@@ -50,9 +50,9 @@ entry: []
 exit: [user_decision_recorded]
 ```
 
-**Step 1 — MD**: Open the exact content projection and real visual contact sheet. Show outstanding recipe keys/pages and effective/forced fallback evidence.
+**Step 1 — MD**: Open the exact current Page Authority raw projection. Show the bound slide IDs, raw evidence, and the current review decision.
 
 **Step 2 — GATE**: Record the routing decision. `proceed` means return to the owning controller
 to consume current producer-owned `workflow_inspection.primary_action` and publish exact plan-hash gates; quick
-preview itself never waives/approves them or treats successful rendering as approval. A hard-stop
+quick preview itself never waives/approves them or treats a generated projection as approval. A hard-stop
 diagnostic returns to its owner; it is not an invitation to edit state or infer a missing decision.

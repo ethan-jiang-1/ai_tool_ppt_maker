@@ -1,4 +1,4 @@
 # Phase 4 Image Production tests
 
-Whole-page Image2 generation, provenance, header review, and the public
-`whole-page` adapter are owned here alongside visual-slot refinement.
+Page Authority raw, Framed composition, finalization, and deterministic local evidence are owned here.
+Historical production fixtures belong only to the bounded observer/adoption coverage under shared state.

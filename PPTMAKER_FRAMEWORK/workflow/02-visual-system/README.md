@@ -1,28 +1,22 @@
 ---
-title: Renderer-Neutral Visual System
+title: Page Authority Visual System
 stage: workflow/02-visual-system
 position: entry
 type: overview
-feeds_into:
-  - workflow/02-visual-system/00-why-deterministic-visual-systems.md
 ---
 
-# Phase 2: Renderer-Neutral Visual System
+# Phase 2: Page Authority Visual System
 
-Define the deck-wide visual contract without requiring a style-master image or provider. The human-owned source is `2_backbone/visual-style/color_palette.json`; its validated `html_first` projection owns palette references, bundled typography roles, spacing, component recipes, image language, and the fixed family geometry registry.
+The visual system supplies the registered visual language, reference registry,
+and fixed Framed Text Frame inputs used by Page Authority. It does not define a
+second source grammar or a separate production route.
 
-Local assets live in the layered schema-v2 catalog under `visual-style/assets/`. Slides bind stable IDs through structured fallback or typed icon fields. Asset bytes and SHA receipts are validated before composition.
+Choose visual recipes, compositions, motifs, and reference roles from the
+versioned registry. Framed slides keep the Image2 underlay text-free; Pure slides
+use Image2 for all final pixels. Validate the selected registry and references
+before raw planning.
 
-Read:
-
-1. `00-why-deterministic-visual-systems.md`
-2. `01-gather-product-context-dna.md`
-3. `02-design-the-visual-system.md`
-4. `03-configure-visual-tokens.md`
-5. `04-validate-the-html-system.md`
-
-Start from `template-color-palette.json` or a checked-in preset. Keep
-`2_backbone/visual-style/color_palette.json` as the single human-owned visual
-configuration source.
-
-Visual approval is based on real local HTML compositor output and contact-sheet evidence. After complete HTML delivery, modern Image2 refinement is an optional separately authorized visual-slot upgrade; explicit whole-page historical style-master work uses `playbook/create-deck.md`.
+Visual decisions are reviewed through current Page Authority raw and final
+evidence. A local Framed refresh changes only final composition when its accepted
+raw receipt remains exact; source, visual-brief, or reference changes return to
+raw planning.

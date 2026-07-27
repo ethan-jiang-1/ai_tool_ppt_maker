@@ -9,14 +9,12 @@ export default defineConfig({
       'tests/contracts/fixtures/development-verification/test_mock_out_of_root.mjs',
       'tests/contracts/fixtures/development-verification/test_mock_prohibited_direct.mjs',
       'tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs',
+      // A sweep is pure, fast feedback. Process-level checks are explicitly
+      // named and must be selected deliberately while their broad setup is
+      // replaced by direct seam tests.
+      'tests/**/test_process_*.mjs',
     ],
-    // Local PPTX/render integration cases can exceed Vitest's 5s default
-    // under normal parallel suite load; longer end-to-end cases set their
-    // own explicit limits.
     testTimeout: 30_000,
-    // Canvas, Chromium, and PPTX integration tests contend heavily when all
-    // files run at once. Keep enough parallelism for feedback while avoiding
-    // worker RPC and child-process starvation in the full suite.
     minWorkers: 1,
     maxWorkers: 2,
   },

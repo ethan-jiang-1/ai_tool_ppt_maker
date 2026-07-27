@@ -13,7 +13,7 @@
     },
     {
       "id": "provider-load-isolation",
-      "source": "scripts/04-image-production/{whole-page,visual-slot}/index.mjs",
+      "source": "scripts/04-image-production/page-authority/index.mjs",
       "invariant": "Provider clients initialize only after an authorized provider operation reaches its adapter boundary.",
       "failure_story": "A status or help command can load credentials or provider transport before authorization, violating dry-run and human-control boundaries.",
       "owner": "image-production-adapter",
@@ -33,11 +33,12 @@
     },
     {
       "id": "visual-slot-state-integrity",
-      "source": "scripts/shared/state/state.mjs:readImageProductionState",
-      "invariant": "One exact run version has one attributable visual-slot state projection.",
-      "failure_story": "Conflicting old and new records could select a different authorization, attempt, or review history for the same version.",
+      "id": "page-authority-state-integrity",
+      "source": "scripts/shared/state/state.mjs:validateProductionModeStructure",
+      "invariant": "One exact run version has one Page Authority state and evidence graph.",
+      "failure_story": "Conflicting records could select a different authorization or delivery lineage for the same version.",
       "owner": "shared-state",
-      "next_action": "run the state owner's repair_state checkpoint without hand-editing records",
+      "next_action": "run the state owner's Page Authority repair checkpoint without hand-editing records",
       "classification": "hard-stop",
       "disposition": "retain"
     }

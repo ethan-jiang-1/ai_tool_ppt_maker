@@ -85,13 +85,14 @@ export function scanMarkdownLinks(file, text = readFileSync(file, "utf8"), linkE
 }
 
 const STALE_RULES = [
-  ["external-image-skill", /(?:Stage 2[^\n]*(?:image2-ppt|\.claude\/skills|\.agents\/skills)|<skills>\/image2-ppt|unified_pipeline\.mjs[^\n]*image2-ppt skill)/i, "use the in-framework stage2_generate_images.mjs/image_api_client.mjs path"],
+  ["external-image-skill", /(?:Stage 2[^\n]*(?:image2-ppt|\.claude\/skills|\.agents\/skills)|<skills>\/image2-ppt|unified_pipeline\.mjs[^\n]*image2-ppt skill)/i, "use the receipt-bound Page Authority raw lifecycle"],
   ["old-path", /(?:PPTMAKER_FRAMEWORK\/)?(?:automation\/change-classifier\.md|06_reference_scripts\/|00_project_setup\/|01_visual_style_master\/|02_content_design\/|03_image_prompts\/|04_production_pipeline\/|05_iteration\/)/, "replace with the current type-based framework path"],
-  ["unsupported-stage-run-dir", /stage[345]_[a-z0-9_]+\.mjs\s+--run-dir\b/i, "use unified_pipeline --run-dir --stage N or the standalone script's real flags"],
+  ["unsupported-stage-run-dir", /stage[345]_[a-z0-9_]+\.mjs\s+--run-dir\b/i, "use the current Page Authority `ppt_flow` operation instead"],
   ["complete-copy-version", /(?:版本快照|new-version|--new-version)[^\n]*(?:完整复制|完整拷贝|complete copy)/i, "state that only downstream source delta is copied and _generated is clean"],
 ];
 
 const NEGATIVE_POLICY = /(?:不要求|不搜索|不依赖|禁止|不得|绝对禁止|无需|no external|does not require|shall not search|shall not require)/i;
+const BODY_HEADER_LOCK_COMPATIBILITY_LABEL = "body\\+header" + "-lock";
 
 const CANONICAL_PATHS = Object.freeze([
   "Header Text & Style Refresh",
@@ -148,14 +149,14 @@ export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
       issues.push(issue(file, lineAt(text, offset), "raw-contract-header-route", "raw-image contract change is routed to Header Text & Style Refresh", "use Generated Image Rebuild for safe-zone or render-mode changes"));
     }
     const imageOwnedHeaderRoute = /(?:KPI|card|chart|case|body (?:text|data)|body 文案|body 数据|案例|数据|卡片|图表)[^.;。|]*(?:use|uses|using|使用|走|归为|→|=)[^.;。|]*Header Text & Style Refresh/i.exec(line);
-    if (imageOwnedHeaderRoute && !imageOwnedHeaderRoute[0].includes("Generated Image Rebuild") && !/(?:body\+header-lock|body-lock)/i.test(imageOwnedHeaderRoute[0])) {
+    if (imageOwnedHeaderRoute && !imageOwnedHeaderRoute[0].includes("Generated Image Rebuild") && !new RegExp(`(?:${BODY_HEADER_LOCK_COMPATIBILITY_LABEL}|body-lock)`, "i").test(imageOwnedHeaderRoute[0])) {
       issues.push(issue(file, lineAt(text, offset), "image-owned-header-route", "image-owned body content is routed to Header Text & Style Refresh", "use Generated Image Rebuild for content burned into the image"));
     }
     if (/(?:add(?:ing)? (?:a )?slide|新增|添加|加一页)/i.test(line) && line.includes("Generated Image Rebuild") && !line.includes("Structural Versioning Path") && !/(?:not|不是|不能|不得|不只|after|随后|先|affected|受影响|新版本)/i.test(line)) {
       issues.push(issue(file, lineAt(text, offset), "structural-bypass", "slide addition is routed directly to Generated Image Rebuild", "enter Structural Versioning Path before affected-slide refresh"));
     }
     if (/(?:raw\s+)?unified_pipeline[^\n]*--only[^\n]*(?:automatically|auto(?:matically)?|自动|隐式).{0,30}(?:force|强制|刷新)/i.test(line) && !/(?:does not|doesn't|不|不会|并非|不是)/i.test(line)) {
-      issues.push(issue(file, lineAt(text, offset), "only-implies-force", "raw --only is described as forcing regeneration", "state that raw --only scopes Stage 2 and requires --force-images to rebuild existing images"));
+      issues.push(issue(file, lineAt(text, offset), "only-implies-force", "raw --only is described as forcing regeneration", "state that Page Authority raw generation requires an explicit authorized scope"));
     }
     offset += line.length + 1;
   }

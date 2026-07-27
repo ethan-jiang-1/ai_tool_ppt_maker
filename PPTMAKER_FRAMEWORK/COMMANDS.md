@@ -1,13 +1,13 @@
 # COMMANDS - Public routing
 
-`ppt_flow` 顶层命令固定为 14 个：`doctor`, `init`, `status`, `approve`, `style-master`, `validate`, `pilot`, `build`, `refresh`, `new-version`, `test`, `state`, `slides`, `image2`。
+`ppt_flow` 顶层命令固定为 11 个：`doctor`, `init`, `status`, `validate`, `build`, `refresh`, `slides`, `new-version`, `test`, `state`, `image2`。
 
 ## New deck: Page Authority only
 
-未指定一个 historical run 时，唯一新-deck route 是 `image2-page-authority` / `page-authority-image2-v1`。`ppt_flow init` 不给 production mode 时使用该默认值；显式 `--mode` 也只可传 `image2-page-authority`。不要要求用户选择 HTML、whole-page 或 visual-slot 路线，也不要在 init 前索要 provider credential。
+未指定一个 historical run 时，唯一新-deck route 是 `image2-page-authority` / `page-authority-image2-v1`。`ppt_flow init` 只创建这个 current route。不要要求用户选择 retired production route，也不要在 init 前索要 provider credential。
 
 ```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --mode image2-page-authority
+node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --json
@@ -22,7 +22,7 @@ unbound doctor 独立显示 `framed-runtime` 与 `image2-raw` readiness，不把
 | `pure-image2` | Image2 owns the complete page. | Readable body labels, values, quotations, captions, timeline dates, or diagram text carry meaning. |
 | `framed-image2` | Image2 owns a text-free full-canvas underlay; the fixed local `standard-v1` Text Frame owns optional kicker/subtitle/callout and required title pixels. | The visual body is text-free beneath that deterministic frame. |
 
-Pure does not create a local body renderer. Framed does not send Text Frame literals to Image2 and accepts no slide-owned HTML, CSS, geometry, font, color, `IMAGE PROMPT`, `RENDER MODE`, or provider prompt/style/output override. Use the closed `VISUAL BRIEF` and registered identity inputs only.
+Pure does not create a local body renderer. Framed does not send Text Frame literals to Image2 and accepts no slide-owned markup, CSS, geometry, font, color, retired prompt fields, or provider prompt/style/output override. Use the closed `VISUAL BRIEF` and registered identity inputs only.
 
 ## Receipt-bound Page Authority lifecycle
 
@@ -74,9 +74,7 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --confirm-legacy-ad
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --apply-legacy-adoption --plan-hash <hash>
 ```
 
-Only an exact `html-first-v1` / `html-only|html-then-image2` pair or an exact
-`whole-page-image2-v1` / `image2-only` pair is `recognized-legacy`. It is historical evidence,
-not an ordinary build, refresh, review, or provider route. The Agent prepares the confined candidate;
+Only the read-only historical observer recognizes an exact `html-first-v1` / `html-only|html-then-image2` pair or an exact `whole-page-image2-v1` / `image2-only` pair. It is historical evidence, not an ordinary build, refresh, review, or provider route. The Agent prepares the confined candidate;
 the human authors every target slide's `pure-image2|framed-image2` choice and its adoption-matrix row,
 then confirms the exact preview and target intake. The candidate never derives new source from legacy
 prompts, pixels, generated artifacts, reviews, approvals, provider history, PPTX, or notes.
@@ -86,12 +84,12 @@ Adoption itself makes no Image2 request. It publishes a clean Page Authority vNe
 every target slide starts as `needs_raw_generation`, and later raw generation, human raw review, pilot,
 and delivery work follow the normal Page Authority lifecycle independently. Missing, unsupported, or
 partially Page Authority facts are repair/export or Page Authority-pair repair paths, never inferred
-adoption. Page Authority never substitutes HTML review, Image2 refinement, Header-Lock, or legacy
-generated artifacts for its direct prerequisites.
+adoption. Page Authority never substitutes retired evidence or historical generated artifacts for its
+direct prerequisites.
 
-The generic `production-mode-transition` rejects `image2-page-authority` as a caller-selected target.
-Its retained legacy-to-legacy transitions remain state-owned and clean-vNext only; it preserves the
-source version and does not copy approvals or generated evidence.
+The state-owned `production-mode-transition` transaction is the bounded adoption transaction. It has
+no caller-selected production target, preserves the source version, and does not copy approvals or
+generated evidence.
 
 ## Observation and control boundaries
 

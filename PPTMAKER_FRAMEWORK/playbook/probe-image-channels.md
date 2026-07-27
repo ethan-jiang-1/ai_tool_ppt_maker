@@ -1,7 +1,7 @@
 ---
 playbook: probe-image-channels
 description: 离线数清 Image2 通道，披露提交次数并确认后逐家探测
-supported_pipelines: [whole-page-image2-v1]
+supported_pipelines: [page-authority-image2-v1]
 includes: []
 ---
 
@@ -23,7 +23,7 @@ entry: []
 exit: [user_evidence:provider-submit-confirmed]
 ```
 
-**Step 1 — CLI**: 离线运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2`，读取 secret-safe 的 resolved vendor count。此命令不产生 provider submit；若 presence 未就绪，先修复并重跑，不进入 live probe。
+**Step 1 — CLI**: 对明确的 raw-generation run 离线运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation`，读取 secret-safe 的 readiness。此命令不产生 provider submit；若 presence 未就绪，先修复并重跑，不进入 live probe。
 
 **Step 2 — MD**: 告知用户 `doctor --probe-vendors` 将对每个 resolved entry 恰好提交 1 次，明确说出总 submit 数、可能计费、将展示进度与报告，并说明不会自动修改 `.env` 或 `_lessons/`。
 
@@ -81,6 +81,6 @@ exit:
 
 **Step 2 — GATE**: 用户选择 `write` 或 `skip`。未明确选择 `write` 时不修改任何文件；probe 本身绝不自动写配置。
 
-**Step 3 — CLI**: 写入后只离线运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --image2` 验证已保存的 presence，不自动运行 `doctor --smoke`。
+**Step 3 — CLI**: 写入后只对明确的 raw-generation run 离线运行 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation` 验证已保存的 readiness，不自动运行 `doctor --smoke`。
 
 只有当保存组合未被刚才报告覆盖，或用户明确要求再测时，才可以另行提议 `doctor --smoke`。提议时必须重新披露“向第一家提交 1 次、可能计费”并重新取得确认；上一次 probe/write 的确认不能复用。

@@ -1,19 +1,21 @@
 ---
-title: Iteration
+title: Page Authority Iteration
 stage: workflow/05-iteration
 position: entry
 type: overview
 ---
 
-# Phase 5: Iteration And Maintenance
+# Phase 5: Page Authority Iteration
 
-Classify `production.pipeline` first, then choose the smallest source-owned refresh.
+Classify a requested change by final-pixel owner and invalidated evidence:
 
-- Header/body/family/fallback on HTML: Local Slide Rebuild, local review, then delivery continuation after current gates.
-- Visual config: Local Deck Rebuild and representative real-artifact review.
-- Notes only: Notes-Only Refresh.
-- Insert/delete/reorder: Structural Versioning Path, source-only publication, then target-local materialization and target reviews.
+| Change | Path |
+| --- | --- |
+| Framed Text Frame-only | Header Text & Style Refresh |
+| Pure display text, visual brief, reference, or underlay | Generated Image Rebuild |
+| Speaker notes only | Notes-Only Refresh |
+| Add, remove, move, reorder, or authority change | Structural Versioning Path |
 
-Stable IDs permit byte matching, not inherited reset epochs or human approval. Never edit `_generated/`, copy cross-version authority, or call a provider from an ordinary HTML iteration. Modern Image2 refinement remains a separate optional Phase-4 authorization flow after current delivery. First-class whole-page decks use the current `playbook/create-deck.md` paths.
-
-The files in this directory cover content/layout, visual-system, structural, and end-to-end local iteration. Optional modern refinement is owned exclusively by `04-image-production`, not Phase 5.
+Never edit `_generated/`, inherit approval or delivery evidence into a target
+version, or call a provider from a local Framed refresh. Structural work previews
+the exact stable-ID impact and applies only a confirmed plan hash.

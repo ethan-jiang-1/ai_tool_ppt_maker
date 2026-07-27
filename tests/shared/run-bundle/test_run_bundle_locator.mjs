@@ -197,7 +197,8 @@ describe("run bundle locator", () => {
       const state = readState(located.deckDir, { purpose: "observe", heal: false });
       const selected = resolveContinuationTargetVersion(state, located.deckDir);
       expect(selected).toMatchObject({ ok: true, run_version: "v1" });
-      expect(checkBundle(join(located.deckDir, "3_versions", selected.run_version), false)).toEqual([]);
+      expect(checkBundle(join(located.deckDir, "3_versions", selected.run_version), false))
+        .toContain("historical production source is observer/adoption-only and cannot pass normal bundle validation");
     } finally {
       cleanup(root);
     }

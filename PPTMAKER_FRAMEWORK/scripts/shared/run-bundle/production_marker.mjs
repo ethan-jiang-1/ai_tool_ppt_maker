@@ -1,25 +1,10 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
-export const HTML_FIRST_PIPELINE = "html-first-v1";
-export const WHOLE_PAGE_IMAGE2_PIPELINE = "whole-page-image2-v1";
+/** The only source marker accepted by current production code. */
 export const PAGE_AUTHORITY_IMAGE2_PIPELINE = "page-authority-image2-v1";
-export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
-  HTML_FIRST_PIPELINE,
-  WHOLE_PAGE_IMAGE2_PIPELINE,
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
-]);
+export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([PAGE_AUTHORITY_IMAGE2_PIPELINE]);
 
-const SUPPORTED_PIPELINES_TEXT = SUPPORTED_PRODUCTION_PIPELINES.join(" | ");
-
-function markerIssuesWithSupportedPipelines(issues) {
-  return issues.map((issue) => ({
-    ...issue,
-    message: `${issue.message}; supported production.pipeline values: ${SUPPORTED_PIPELINES_TEXT}`,
-    expected: issue.expected ?? SUPPORTED_PIPELINES_TEXT,
-  }));
-}
-
-function markerIssue(code, message, { source, line = 1, actual, expected } = {}) {
+function issue(code, message, { source, line = 1, actual, expected } = {}) {
   return {
     severity: "ERROR",
     code,
@@ -30,157 +15,67 @@ function markerIssue(code, message, { source, line = 1, actual, expected } = {})
   };
 }
 
-function parseLeadingFrontmatter(sourceText, source) {
-  const text = String(sourceText ?? "");
-  const bom = text.startsWith("\uFEFF") ? "\uFEFF" : "";
-  const body = text.slice(bom.length);
+function invalid(source, code, message, options = {}) {
+  return { branch: "invalid", issues: [issue(code, message, { source, expected: PAGE_AUTHORITY_IMAGE2_PIPELINE, ...options })] };
+}
+
+/**
+ * Read the direct Page Authority frontmatter. Historical marker parsing lives
+ * exclusively in the observer module so it cannot be reused as current input.
+ */
+export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
+  const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");
+  const body = text.startsWith("\uFEFF") ? text.slice(1) : text;
   if (!body.startsWith("---\n") && !body.startsWith("---\r\n")) {
-    return { present: false, metadata: {}, document: null, issues: [], raw: "" };
+    return invalid(source, "missing_production_marker", "production.pipeline must explicitly select page-authority-image2-v1");
   }
   const newline = body.startsWith("---\r\n") ? "\r\n" : "\n";
   const close = body.indexOf(`${newline}---${newline}`, 3 + newline.length);
   const terminalClose = body.endsWith(`${newline}---`) ? body.length - (newline.length + 3) : -1;
   const closing = close >= 0 ? close + newline.length : terminalClose;
-  if (closing < 0) {
-    return {
-      present: true,
-      metadata: {},
-      document: null,
-      raw: "",
-      issues: [markerIssue("unclosed_frontmatter", "leading YAML frontmatter is not closed", { source })],
-    };
-  }
-  const contentStart = 3 + newline.length;
-  const content = body.slice(contentStart, closing);
-  const document = parseDocument(content, {
-    version: "1.2",
-    schema: "core",
-    uniqueKeys: true,
-    merge: false,
-    keepSourceTokens: true,
+  if (closing < 0) return invalid(source, "unclosed_frontmatter", "leading YAML frontmatter is not closed");
+  const document = parseDocument(body.slice(3 + newline.length, closing), {
+    version: "1.2", schema: "core", uniqueKeys: true, merge: false, keepSourceTokens: true,
   });
-  const issues = [...document.errors, ...document.warnings].map((problem) =>
-    markerIssue("invalid_frontmatter_yaml", problem.message.split("\n")[0], { source, line: 2 })
-  );
-  let metadata = {};
-  if (issues.length === 0) {
-    metadata = document.toJS({ mapAsMap: false }) ?? {};
-    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-      issues.push(markerIssue("invalid_frontmatter_root", "frontmatter root must be a mapping", { source }));
-      metadata = {};
+  if (document.errors.length || document.warnings.length || !isMap(document.contents)) {
+    return invalid(source, "invalid_frontmatter_yaml", "frontmatter must be one direct YAML mapping");
+  }
+  const pairs = new Map();
+  for (const pair of document.contents.items) {
+    if (!isScalar(pair.key) || typeof pair.key.value !== "string" || pair.key.anchor || pair.key.tag || pairs.has(pair.key.value)) {
+      return invalid(source, "invalid_frontmatter_key", "frontmatter keys must be unique direct strings");
     }
+    pairs.set(pair.key.value, pair.value);
+  }
+  const production = pairs.get("production");
+  if (!isMap(production) || production.anchor || production.tag) {
+    return invalid(source, "invalid_production_marker", "production must be one direct mapping");
+  }
+  const values = new Map();
+  for (const pair of production.items) {
+    if (!isScalar(pair.key) || typeof pair.key.value !== "string" || pair.key.anchor || pair.key.tag || values.has(pair.key.value)) {
+      return invalid(source, "invalid_production_key", "production keys must be unique direct strings");
+    }
+    values.set(pair.key.value, pair.value);
+  }
+  if ([...values.keys()].some((key) => !["pipeline", "page_authority_default"].includes(key))) {
+    return invalid(source, "unknown_production_key", "production contains a retired or unsupported key");
+  }
+  const pipeline = values.get("pipeline");
+  const authority = values.get("page_authority_default");
+  if (!isScalar(pipeline) || typeof pipeline.value !== "string" || pipeline.value !== PAGE_AUTHORITY_IMAGE2_PIPELINE) {
+    return invalid(source, "unsupported_pipeline_marker", "production.pipeline must equal page-authority-image2-v1", { actual: pipeline?.value });
+  }
+  if (!isScalar(authority) || typeof authority.value !== "string" || !["pure-image2", "framed-image2"].includes(authority.value)) {
+    return invalid(source, "invalid_page_authority_default", "production.page_authority_default must equal pure-image2 | framed-image2", { actual: authority?.value, expected: "pure-image2 | framed-image2" });
   }
   return {
-    present: true,
-    metadata,
-    document,
-    issues,
-    raw: body.slice(0, closing + 3 + (close >= 0 ? newline.length : 0)),
+    branch: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+    issues: [],
+    frontmatter: {
+      metadata: {
+        production: { pipeline: pipeline.value, page_authority_default: authority.value },
+      },
+    },
   };
-}
-
-function directProductionNodeIssues(frontmatter, source) {
-  const issues = [];
-  if (!frontmatter.document || frontmatter.issues.length > 0) return issues;
-  const root = frontmatter.document.contents;
-  if (!isMap(root)) return issues;
-  const pairs = root.items.filter((pair) => isScalar(pair.key) && pair.key.value === "production");
-  if (pairs.length !== 1) {
-    if (Object.hasOwn(frontmatter.metadata || {}, "production")) {
-      issues.push(markerIssue("invalid_production_marker", "production must be one direct string-keyed mapping", { source, expected: SUPPORTED_PIPELINES_TEXT }));
-    }
-    return issues;
-  }
-  if (pairs[0].key.anchor || pairs[0].key.tag) {
-    issues.push(markerIssue("invalid_production_key", "production must use a direct untagged string key", { source, expected: SUPPORTED_PIPELINES_TEXT }));
-  }
-  const production = pairs[0].value;
-  if (!isMap(production) || production.anchor || production.tag) {
-    issues.push(markerIssue("invalid_production_marker", "production must be a direct mapping", { source, expected: SUPPORTED_PIPELINES_TEXT }));
-    return issues;
-  }
-  const pairsByKey = new Map();
-  for (const pair of production.items) {
-    if (!isScalar(pair.key) || typeof pair.key.value !== "string" || pair.key.anchor || pair.key.tag) {
-      issues.push(markerIssue("invalid_production_key", "production keys must be direct strings", { source, expected: SUPPORTED_PIPELINES_TEXT }));
-      continue;
-    }
-    const key = pair.key.value;
-    const values = pairsByKey.get(key) || [];
-    values.push(pair);
-    pairsByKey.set(key, values);
-  }
-  const pipelinePairs = pairsByKey.get("pipeline") || [];
-  if (
-    pipelinePairs.length !== 1
-    || !isScalar(pipelinePairs[0].value)
-    || typeof pipelinePairs[0].value.value !== "string"
-    || pipelinePairs[0].value.anchor
-    || pipelinePairs[0].value.tag
-  ) {
-    issues.push(markerIssue("invalid_pipeline_marker", `production.pipeline must be one direct string scalar with value ${SUPPORTED_PIPELINES_TEXT}`, { source, expected: SUPPORTED_PIPELINES_TEXT }));
-    return issues;
-  }
-
-  const pipeline = pipelinePairs[0].value.value;
-  const allowedKeys = pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE
-    ? new Set(["pipeline", "page_authority_default"])
-    : new Set(["pipeline"]);
-  for (const key of pairsByKey.keys()) {
-    if (!allowedKeys.has(key)) {
-      issues.push(markerIssue("unknown_production_key", `unknown production key ${JSON.stringify(key)}`, { source, expected: SUPPORTED_PIPELINES_TEXT }));
-    }
-  }
-
-  if (pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE) {
-    const defaultPairs = pairsByKey.get("page_authority_default") || [];
-    if (
-      defaultPairs.length !== 1
-      || !isScalar(defaultPairs[0].value)
-      || typeof defaultPairs[0].value.value !== "string"
-      || defaultPairs[0].value.anchor
-      || defaultPairs[0].value.tag
-      || !["pure-image2", "framed-image2"].includes(defaultPairs[0].value.value)
-    ) {
-      issues.push(markerIssue(
-        "invalid_page_authority_default",
-        "production.page_authority_default must be one direct string scalar with value pure-image2 | framed-image2",
-        { source, expected: "pure-image2 | framed-image2" }
-      ));
-    }
-  }
-  return issues;
-}
-
-export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
-  const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");
-  const frontmatter = parseLeadingFrontmatter(text, source);
-  if (frontmatter.issues.length > 0) {
-    return { branch: "invalid", issues: markerIssuesWithSupportedPipelines(frontmatter.issues) };
-  }
-  const directIssues = directProductionNodeIssues(frontmatter, source);
-  if (directIssues.length > 0) {
-    return { branch: "invalid", issues: markerIssuesWithSupportedPipelines(directIssues) };
-  }
-  if (!Object.hasOwn(frontmatter.metadata, "production")) {
-    return {
-      branch: "invalid",
-      issues: [markerIssue("missing_production_marker", `production.pipeline must explicitly select ${SUPPORTED_PIPELINES_TEXT}`, { source, expected: SUPPORTED_PIPELINES_TEXT })],
-    };
-  }
-  const production = frontmatter.metadata.production;
-  if (!production || typeof production !== "object" || Array.isArray(production)) {
-    return { branch: "invalid", issues: [markerIssue("invalid_production_marker", `production must be a direct mapping with pipeline ${SUPPORTED_PIPELINES_TEXT}`, { source, expected: SUPPORTED_PIPELINES_TEXT })] };
-  }
-  if (!SUPPORTED_PRODUCTION_PIPELINES.includes(production.pipeline)) {
-    return {
-      branch: "invalid",
-      issues: [markerIssue("unsupported_pipeline_marker", `production.pipeline must equal ${SUPPORTED_PIPELINES_TEXT}`, {
-        source,
-        actual: production.pipeline,
-        expected: SUPPORTED_PIPELINES_TEXT,
-      })],
-    };
-  }
-  return { branch: production.pipeline, issues: [], frontmatter };
 }

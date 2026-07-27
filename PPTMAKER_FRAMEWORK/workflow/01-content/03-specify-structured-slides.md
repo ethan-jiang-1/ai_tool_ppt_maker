@@ -6,12 +6,16 @@ feeds_into:
   - workflow/01-content/04-choose-layout-families.md
 ---
 
-# Specify Structured Slides
+# Specify Page Authority Slides
 
-Each slide heading carries a stable mnemonic ID. Author exact `VISUAL TYPE`, header fields, one `MUST communicate`, optional `MUST NOT`, one exact fenced `SLIDE BODY` YAML document, and optional speaker note.
+Each slide heading carries a 5–8 character mnemonic ID with exactly two BlockCase
+chunks. Author the claim, optional Framed Text Frame fields, one closed fenced
+`VISUAL BRIEF`, and speaker notes for that stable ID.
 
-The structured body starts with `schema_version: 1` and one closed `family`. Use only the family's typed fields. Do not author HTML, CSS, coordinates, overlays, `RENDER MODE`, `IMAGE PROMPT`, or whole-page-only `VISUAL ASSETS` in an HTML-first source.
+Resolve each slide to `framed-image2` or `pure-image2`. Framed underlays stay
+text-free and the local frame owns final text pixels. Pure uses Image2 for all
+final pixels, including any semantic display text.
 
-Keep visible copy within validator capacities. Use `primary_visual` only where the family supports it; its fallback is a registered asset, icon composition, or abstract pattern. Selection evidence is explicit and stale selection falls back locally.
-
-Validate after every meaningful edit. Source order controls the current snapshot, while IDs preserve notes and slide-local composition identity across versions.
+Do not author arbitrary markup, coordinates, local rendering controls, free-form
+provider prompts, or hand-edited derived artifacts. Validate after each meaningful
+edit; source order controls the snapshot while IDs preserve slide-local identity.

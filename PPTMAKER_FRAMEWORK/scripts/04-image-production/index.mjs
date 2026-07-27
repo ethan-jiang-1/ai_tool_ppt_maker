@@ -1,5 +1,3 @@
-export * from "./whole-page/index.mjs";
-export * from "./visual-slot/index.mjs";
 export {
   PAGE_AUTHORITY_RAW_GENERATION_PROFILE_SCHEMA,
   PAGE_AUTHORITY_RAW_IMAGE_CONTRACT_SCHEMA,

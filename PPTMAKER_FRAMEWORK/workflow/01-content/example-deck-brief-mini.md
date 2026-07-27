@@ -1,134 +1,86 @@
 ---
-title: Example — Mini Structured Deck
+title: Example — Mini Page Authority Deck
 stage: workflow/01-content
 position: example
 type: reference
-summary: 三页 HTML-first source 示例，覆盖 hero、comparison、flow 与 speaker notes。
+summary: Three-slide Page Authority source with stable IDs, visual briefs, and notes.
 depends_on:
 - workflow/01-content/template-core-metaphor.md
 - workflow/01-content/template-core-formula.md
 - workflow/01-content/template-design-constraints.md
-- workflow/01-content/03-specify-structured-slides.md
-- workflow/01-content/04-choose-layout-families.md
 feeds_into: []
 agent_action: reference
 ---
 
-# Example — Mini Structured Deck
+# Example — Mini Page Authority Deck
 
-主题：虚构 SaaS 公司把 analytics 从 dashboard 变成 action。示例只展示 source contract；准确 family schema 仍以 Stage 1 validator 为准。
+This fictional SaaS deck shows source ownership only. Validate the actual source
+against the selected visual-language registry before planning raw work.
 
 ````markdown
 ---
-production:
-  pipeline: html-first-v1
 identity:
   scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
 ---
 
 ## Block Map
 
 | Block | Purpose | Slides |
-|---|---|---|
+| --- | --- | --- |
 | B1: Tension | Why dashboards are insufficient | `GapNow` |
 | B2: Choice | Compare the operating models | `ModeGo` |
-| B3: Action | Show how the product changes work | `ActNow` |
+| B3: Action | Show the accountable loop | `ActNow` |
 
 ## Slide 01: `GapNow`
 
-**VISUAL TYPE**: Opener
 **KICKER**: THE GAP
 **TITLE**: Dashboards explain yesterday; teams need a decision for today
-
-**CONCEPT**:
-- **MUST communicate**: Reporting latency is an operating problem, not only a data problem.
-- **MUST NOT**: Claim prediction alone creates value.
-- **Bridge from previous**: N/A — opener.
-- **Bridge to next**: Compare dashboard output with decision output.
-
-**SLIDE BODY**:
+**VISUAL IDENTITY**: [SUBJECT + MOVE]
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: "From rearview mirror to headlights"
-supporting_text: "The useful product is the next action, not another chart."
-callout: "Latency compounds every time a team waits for interpretation."
+recipe: editorial-systems
+composition: centered-constellation
+motifs: [connected-nodes]
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
-> **SPEAKER NOTE**
->
-> **Narrative flow:** Start with a familiar frustration, then separate prediction from action.
->
-> **Takeaway:** Analytics only matters when it changes the next decision.
+> **SPEAKER NOTE**: Reporting latency is an operating problem, not only a data problem.
 
 ## Slide 02: `ModeGo`
 
-**VISUAL TYPE**: Comparison
-**KICKER**: TWO MODELS
-**TITLE**: Generic analytics leaves the hardest reasoning with the customer
-
-**CONCEPT**:
-- **MUST communicate**: Domain logic plus current context changes the output from chart to action.
-- **MUST NOT**: Dismiss existing BI tools; show the ownership difference.
-- **Bridge from previous**: Make the opening tension concrete.
-- **Bridge to next**: Show the operating flow of the proposed model.
-
-**SLIDE BODY**:
+**PAGE AUTHORITY**: pure-image2
+**TITLE**: Domain logic changes output from chart to action
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: comparison
-left:
-  heading: "Dashboard model"
-  points:
-    - "Shows what changed"
-    - "Customer interprets the signal"
-right:
-  heading: "Decision model"
-  points:
-    - "Applies domain rules"
-    - "Recommends the next action"
-callout: "The moat is encoded judgment, not a prettier chart."
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints: [no-logo]
 ```
 
-> **SPEAKER NOTE**
->
-> **Narrative flow:** Respect the old tool, then show where work still sits.
->
-> **Takeaway:** Product differentiation is ownership of the reasoning step.
+> **SPEAKER NOTE**: Compare interpretation work with a product that recommends the next action.
 
 ## Slide 03: `ActNow`
 
-**VISUAL TYPE**: Flow
-**KICKER**: HOW IT WORKS
+**KICKER**: THE LOOP
 **TITLE**: Context becomes useful when it moves through one accountable decision loop
-
-**CONCEPT**:
-- **MUST communicate**: Inputs, domain logic, recommendation, and feedback form one loop.
-- **MUST NOT**: Present an autonomous black box.
-- **Bridge from previous**: Explain the mechanism behind the decision model.
-- **Bridge to next**: N/A — close on the action loop.
-
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: flow
-steps:
-  - title: "Observe"
-    body: "Live operational context"
-  - title: "Reason"
-    body: "Domain constraints and priorities"
-  - title: "Recommend"
-    body: "One accountable next action"
-  - title: "Learn"
-    body: "Outcome returns to the loop"
-callout: "Human judgment remains visible at the decision boundary."
+recipe: editorial-systems
+composition: centered-constellation
+motifs: [connected-nodes]
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
-> **SPEAKER NOTE**
->
-> **Narrative flow:** Walk left to right and point out the human decision boundary.
->
-> **Takeaway:** The product compounds context without hiding accountability.
+> **SPEAKER NOTE**: The feedback loop keeps human judgment visible at the decision boundary.
 ````
 
-检查点：三个 ID 都是可口述 BlockCase；source 中没有 `RENDER MODE`、`IMAGE PROMPT`、`VISUAL ASSETS`、HTML/CSS 或坐标；speaker notes 属于各自 stable ID。
+Check that all IDs are mnemonic BlockCase, every visual brief is registered, and
+notes remain bound to their stable IDs.

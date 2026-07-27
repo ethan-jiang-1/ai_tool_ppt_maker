@@ -195,22 +195,6 @@ describe('slide edit transactions', () => {
     );
   });
 
-  it('updates deterministic render.header-lock references when deleting', () => {
-    const text = source({
-      frontmatter:
-        '---\nrender:\n  default: full-page\n  header-lock: [UXGap, AICost]\n---\n',
-    });
-    const document = parseSlideDocument(text);
-    const plan = planSlideEdit(document, ['UXGap'], [{ op: 'delete' }]);
-    const applied = applySlideEdit(plan, text, { expectedPlanSha256: plan.plan_sha256 });
-    const result = parseSlideDocument(applied.text);
-
-    expect(result.frontmatter.metadata.render['header-lock']).toEqual(['AICost']);
-    expect(plan.structured_reference_changes).toEqual([
-      { kind: 'render.header-lock', action: 'remove', slide_ids: ['UXGap'] },
-    ]);
-  });
-
   it('supports an Agent-authored insertion and preserves its body', () => {
     const text = source();
     const document = parseSlideDocument(text);

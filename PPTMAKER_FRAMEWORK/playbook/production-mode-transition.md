@@ -1,7 +1,7 @@
 ---
 playbook: production-mode-transition
 description: State-owned cross-pipeline transition and explicit legacy adoption
-supported_pipelines: [html-first-v1, whole-page-image2-v1, page-authority-image2-v1]
+supported_pipelines: [page-authority-image2-v1]
 includes: []
 ---
 

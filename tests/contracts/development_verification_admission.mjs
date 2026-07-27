@@ -20,6 +20,12 @@ function tokenize(source, start = 0, end = source.length) {
   const whitespace = /\s/;
   const identStart = /[A-Za-z_$]/;
   const ident = /[A-Za-z0-9_$]/;
+  const regexPrefix = new Set(["(", "[", "{", "=", ":", ",", ";", "!", "&&", "||", "??", "?", "return", "=>"]);
+  if (start === 0 && source.startsWith("#!")) {
+    const newline = source.indexOf("\n");
+    if (newline < 0 || newline >= end) return out;
+    i = newline + 1;
+  }
   const readString = (quote) => {
     let value = "";
     i += 1;
@@ -72,11 +78,15 @@ function tokenize(source, start = 0, end = source.length) {
     if (whitespace.test(ch)) { i += 1; continue; }
     if (ch === "/" && source[i + 1] === "/") { i += 2; while (i < end && source[i] !== "\n") i += 1; continue; }
     if (ch === "/" && source[i + 1] === "*") { const close = source.indexOf("*/", i + 2); if (close < 0) throw new Error("unterminated comment"); i = close + 2; continue; }
-    if (ch === "/" && (!out.length || /^(?:\(|\[|\{|=|:|,|;|!|&&|\|\||\?|return)$/.test(out.at(-1)?.value || ""))) { readRegex(); continue; }
+    if (ch === "/" && (!out.length || regexPrefix.has(out.at(-1)?.value))) { readRegex(); continue; }
     if (ch === "'" || ch === '"') { out.push(token("string", readString(ch))); continue; }
     if (ch === "`") { readTemplate(); continue; }
     if (identStart.test(ch)) { let value = ch; i += 1; while (i < end && ident.test(source[i])) value += source[i++]; out.push(token("id", value)); continue; }
-    if (ch === "=" && source[i + 1] === ">") { out.push(token("punct", "=>")); i += 2; continue; }
+    if (["=>", "&&", "||", "??"].includes(source.slice(i, i + 2))) {
+      out.push(token("punct", source.slice(i, i + 2)));
+      i += 2;
+      continue;
+    }
     out.push(token("punct", ch)); i += 1;
   }
   return out;
@@ -87,7 +97,7 @@ function statementEnd(tokens, index) {
   return index;
 }
 
-export function collectStaticSpecifiers(source, { prohibitRuntimeSurfaces = true } = {}) {
+export function collectStaticSpecifiers(source, { prohibitRuntimeSurfaces = true, allowDynamic = false } = {}) {
   let tokens;
   try { tokens = tokenize(source); } catch (error) { return fail("unclassifiable-syntax", error.message, "use literal static ESM imports only"); }
   const specifiers = [];
@@ -97,7 +107,10 @@ export function collectStaticSpecifiers(source, { prohibitRuntimeSurfaces = true
     if (current.type !== "id" || (current.value !== "import" && current.value !== "export")) continue;
     const next = tokens[i + 1];
     if (current.value === "import") {
-      if (!next || next.value === "(") return fail("dynamic-import", "dynamic import is not permitted in core", "use one literal static import or move the test to an opt-in tier");
+      if (!next || next.value === "(") {
+        if (allowDynamic) continue;
+        return fail("dynamic-import", "dynamic import is not permitted in core", "use one literal static import or move the test to an opt-in tier");
+      }
       if (next.value === "." && tokens[i + 2]?.value === "meta") { i += 2; continue; }
       if (next.type === "string") {
         const end = statementEnd(tokens, i + 2);

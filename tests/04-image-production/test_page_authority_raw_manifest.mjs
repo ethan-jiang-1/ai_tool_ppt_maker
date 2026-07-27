@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -14,17 +14,8 @@ import {
   writeState,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { submitAuthorizedPageAuthorityRawBatch } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_compilation.mjs";
-import {
-  inspectPageAuthorityRawReviewCoverage,
-  recordPageAuthorityRawReviewDecision,
-  renderPageAuthorityRawReviewProjection,
-  writePageAuthorityRawReviewCoverage,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_review.mjs";
-import { createCanvas } from "@napi-rs/canvas";
-import { createHash } from "node:crypto";
-import { finalizePage } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/finalizer.mjs";
-import { assemblePageAuthorityPptx } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/pptx_assembly.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { validatePageAuthorityAssemblyInput } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/pptx_assembly.mjs";
+import { validatePageAuthorityNotesInput } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/notes.mjs";
 import { applyPageAuthorityStructuralRaw, previewPageAuthorityStructuralRaw } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/structural_raw.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -40,6 +31,27 @@ function batch({ source = "a", contract = "c", profile = "b" } = {}) {
       raw_image_contract_digest: digest(contract),
       raw_generation_profile_digest: digest(profile),
       provider_payload: {},
+    }],
+  };
+}
+
+function finalManifest({ sourceEpoch = 1 } = {}) {
+  return {
+    schema: "pptmaker-page-authority-final-manifest-v1",
+    source_epoch: sourceEpoch,
+    raw_review_coverage_sha256: digest("b"),
+    entries: [{
+      slide_id: "DeckGo",
+      authority: "framed-image2",
+      final_sha256: digest("f"),
+      raw_sha256: digest("a"),
+      raw_image_contract_digest: digest("c"),
+      raw_generation_profile_digest: digest("d"),
+      path: "DeckGo.png",
+      width: 2000,
+      height: 1125,
+      media_profile: "page-authority-framed-local-v1",
+      finalization_fingerprint: digest("e"),
     }],
   };
 }
@@ -73,7 +85,7 @@ describe("Page Authority raw manifest", () => {
     }
   });
 
-  it("short-circuits provider submission and requires current raw-review proceed coverage", async () => {
+  it("short-circuits provider submission behind current authorization", async () => {
     const deck = mkdtempSync(join(tmpdir(), "deck_page_authority_gate_"));
     const runDir = join(deck, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
@@ -99,39 +111,23 @@ describe("Page Authority raw manifest", () => {
       });
       expect(submits).toBe(1);
 
-      const canvas = createCanvas(32, 18);
-      writePageAuthorityRawManifest(runDir, { rawBatch, sourceEpoch: 1, images: { DeckGo: canvas.toBuffer("image/png") } });
-      const projection = await renderPageAuthorityRawReviewProjection(runDir, { rawBatch });
-      writePageAuthorityRawReviewCoverage(runDir, { sourceEpoch: 1, projection });
-      expect(inspectPageAuthorityRawReviewCoverage(runDir, { sourceEpoch: 1 })).toMatchObject({ kind: "confirm", code: "RAW_REVIEW_CONFIRM_REQUIRED" });
-      recordPageAuthorityRawReviewDecision(runDir, { decision: "proceed" });
-      expect(inspectPageAuthorityRawReviewCoverage(runDir, { sourceEpoch: 1 }).ok).toBe(true);
     } finally {
       rmSync(deck, { recursive: true, force: true });
     }
   });
 
-  it("finalizes Pure only through the shared receipt/evidence interface", async () => {
-    const bytes = createCanvas(2000, 1125).toBuffer("image/png");
-    const rawSha = createHash("sha256").update(bytes).digest("hex");
-    const rawContract = digest("d");
-    const result = await finalizePage(
-      { slide_id: "DeckGo", authority: "pure-image2" },
-      { bytes, sha256: rawSha, raw_image_contract_digest: rawContract },
-      { ok: true, coverage: { decision: "proceed", tuples: [{ slide_id: "DeckGo", raw_sha256: rawSha }] } },
-    );
-    expect(result).toMatchObject({ slide_id: "DeckGo", authority: "pure-image2", final_sha256: rawSha, width: 2000, height: 1125 });
-  });
-
-  it("assembles only the ordered final-manifest entries", async () => {
-    const deck = mkdtempSync(join(tmpdir(), "deck_page_authority_pptx_")); const runDir = join(deck, "3_versions", "v1"); mkdirSync(runDir, { recursive: true });
-    try {
-      const paths = pageAuthorityImage2Paths(runDir); mkdirSync(paths.final_root, { recursive: true });
-      const bytes = createCanvas(2000, 1125).toBuffer("image/png"); const hash = createHash("sha256").update(bytes).digest("hex"); writeFileSync(join(paths.final_root, "DeckGo.png"), bytes);
-      writeFileSync(paths.final_manifest, JSON.stringify({ schema: "pptmaker-page-authority-final-manifest-v1", entries: [{ slide_id: "DeckGo", final_sha256: hash, finalization_fingerprint: digest("e"), path: "DeckGo.png" }] }));
-      const assembly = await assemblePageAuthorityPptx(runDir, { title: "Page Authority" });
-      expect(assembly.receipt.ordered_slide_ids).toEqual(["DeckGo"]); expect(existsSync(assembly.pptx_path)).toBe(true);
-    } finally { rmSync(deck, { recursive: true, force: true }); }
+  it("accepts only the exact current Page Authority final and notes lineage", () => {
+    const manifest = finalManifest();
+    expect(validatePageAuthorityAssemblyInput(manifest, { sourceEpoch: 1 }).ordered_slide_ids).toEqual(["DeckGo"]);
+    expect(() => validatePageAuthorityAssemblyInput(finalManifest({ sourceEpoch: 2 }), { sourceEpoch: 1 })).toThrow(/stale/);
+    const assembly = {
+      schema: "pptmaker-page-authority-pptx-assembly-v1",
+      source_epoch: 1,
+      final_manifest_sha256: digest("f"),
+      ordered_slide_ids: ["DeckGo"],
+    };
+    expect(validatePageAuthorityNotesInput({ assembly, finalManifest: manifest, finalManifestSha256: digest("f"), notesBySlide: { DeckGo: "note" }, sourceEpoch: 1 })).toEqual({ ordered_slide_ids: ["DeckGo"] });
+    expect(() => validatePageAuthorityNotesInput({ assembly, finalManifest: manifest, finalManifestSha256: digest("a"), notesBySlide: { DeckGo: "note" }, sourceEpoch: 1 })).toThrow(/stale/);
   });
 
   it("materializes exact structural raw bytes as target-local unreviewed evidence", () => {

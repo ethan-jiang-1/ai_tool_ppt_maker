@@ -25,8 +25,8 @@ agent_action: recommend
 | emphasis | `#f72585` |
 | data | `#7209b7` |
 
-HTML compositor 负责准确 header/body/KPI；abstract pattern、icons 与 chart 由 closed adapters 生成。不要创建 style master，不要使用 arbitrary CSS、gradient orb 或 provider-generated page text。
+Framed Page Authority composition owns exact header/body/KPI text; Pure pages keep readable content inside their Image2 authority. Do not use arbitrary CSS or provider-generated text outside the declared page authority.
 
 适合融资 pitch、产品发布与年轻科技受众。不适合金融、政府或严肃合规汇报。
 
-用真实 local preview 检查 sparse hero、KPI、flow 和 comparison。高对比 accent 只用于信息层级；所有文字仍需 bundled-font 与 overflow 证据。
+Use current raw or final projections to inspect sparse hero, KPI, flow, and comparison pages. High-contrast accent serves information hierarchy only; Framed text still needs bundled-font and overflow evidence.

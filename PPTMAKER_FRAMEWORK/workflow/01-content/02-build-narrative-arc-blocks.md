@@ -110,7 +110,7 @@ Block 之间的过渡是叙事转折点。观众需要被明确告知 "我们正
 
 在 T10 案例中，用 **slide type 变化** 来标记 Block 边界：
 - Block 1 → Block 2：Slide 04（procurement workflow）自然过渡到 Slide 05（clock/deadlines），不显式停顿
-- Block 2 → Block 3：Slide 07（full-page bridge page）——全屏视觉效果，明确宣告 "现在进入核心：Manufacturing DNA, Digitized"
+- Block 2 → Block 3：Slide 07（visual bridge page）——用一个完整视觉场景明确宣告 "现在进入核心：Manufacturing DNA, Digitized"
 - Block 3 → Block 4：Slide 14（pivot page）——从 "Data" 翻到 "People"，问 "谁来做这一切？"
 - Block 4 → Block 5：Slide 18（risk page）——坦诚的 tone shift，从 "你应该行动" 变成 "你要知道风险再行动"
 

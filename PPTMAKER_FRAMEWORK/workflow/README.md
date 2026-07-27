@@ -1,21 +1,12 @@
-# Workflow
+# Framework Workflow
 
-The active lifecycle and method-module order are identical: `0 -> 1 -> 2 -> 3 -> [4 optional] -> 5`.
+| Phase | Ownership |
+| --- | --- |
+| 00 | Run bundle and operation-scoped readiness |
+| 01 | Page Authority source and stable slide identity |
+| 02 | Visual language, references, and Text Frame configuration |
+| 04 | Page Authority raw generation, review, finalization, assembly, and notes |
+| 05 | Owner-scoped refresh and structural versioning |
 
-| Phase | Directory | Outcome |
-|---|---|---|
-| 0 | `00-setup/` | Base local runtime ready and run bundle classified |
-| 1 | `01-content/` | Structured narrative, stable IDs, families, typed bodies |
-| 2 | `02-visual-system/` | Renderer-neutral visual tokens and local assets |
-| 3 | `03-html-production/` | Reviewed HTML pages, final slides, PPTX, notes, delivery review |
-| 4 | `04-image-production/` | Optional authorized post-delivery visual-slot refinement |
-| 5 | `05-iteration/` | Local content, visual, notes, and structural maintenance |
-
-HTML-first maintenance terms:
-
-- Local Slide Rebuild for affected header/body/family/fallback work.
-- Local Deck Rebuild for visual-system changes.
-- Notes-Only Refresh for speaker notes.
-- Structural Versioning Path for insert/delete/reorder followed by target-local materialization.
-
-Explicit whole-page historical decks are not a second active method tree. They route to `playbook/create-deck.md`. New HTML work never reaches a provider adapter or style-master prerequisite; Phase 4 begins only after current delivery and exact human authorization.
+All current deck work follows the Page Authority lifecycle. Historical runs are
+read-only observation inputs for explicit adoption or repair/export guidance.

@@ -112,7 +112,7 @@ Check:
 1. Is the TITLE a claim that could be argued against? (Not a topic label)
 2. Does the CONCEPT specify what the audience MUST understand?
 3. Is the slide's narrative function clear — why does this slide exist in the argument chain?
-4. Is the IMAGE PROMPT describing a visual, not a narrative?
+4. Does the PAGE AUTHORITY and VISUAL BRIEF assign visible text and visual ownership clearly?
 
 If any check fails, suggest a specific fix. Don't say "this is weak" — say "Try: [ALTERNATIVE_TITLE]".
 ```
@@ -132,8 +132,8 @@ The user said: "{USER_FEEDBACK}"
 Translate this into specific, actionable changes:
 1. What exactly needs to change? (text, visual, structure, or speaker notes)
 2. Which slides are affected? (specific IDs or range)
-3. Which editing chain does this map to? (A: text only, B: visual, C: notes)
-4. What stages need to be rerun?
+3. Which Page Authority path does this map to? (Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path)
+4. Which current receipt, raw-review, finalization, or notes evidence is invalidated?
 5. Estimated time to deliver the change.
 
 If the feedback is too vague to act on, ask one clarifying question.
@@ -160,14 +160,17 @@ For each slide in the template:
 1. Fill the KICKER (short, all-caps, 2-5 words — sets the lens)
 2. Fill the TITLE as a falsifiable claim (could be argued against — not a topic label)
 3. Fill the CONCEPT: MUST communicate (1 sentence), MUST NOT (1 sentence), Bridge from previous slide (1 phrase)
-4. Fill the IMAGE PROMPT: 150-400 words. Use the template's prompt structure. Describe layout zones, colors from the preset, exact text, anti-patterns.
-5. Fill the SPEAKER NOTE: 60-90 seconds of talking points. Narrative flow, not script.
+4. Choose PAGE AUTHORITY: `framed-image2` when the local Text Frame owns visible text, or `pure-image2` when Image2 must own the readable visual content.
+5. Fill the VISUAL BRIEF YAML mapping: recipe, composition, motifs, and negative_constraints. Keep Framed underlays text-free.
+6. Fill the SPEAKER NOTE: 60-90 seconds of talking points. Narrative flow, not script.
 
 Constraints:
 - Every TITLE must be debatable (could someone say "I disagree"?)
-- IMAGE PROMPT: Describe the VISUAL CONTENT only — layout, colors, icons, diagrams, KPI numbers, callout text. Do NOT include header-safe-zone instructions, body text contracts, deck-wide rules, or style anchoring language. Stage 1 assembles all final text contracts once; Stage 2 receives `--prompt-is-final` and sends that audited prompt unchanged with the style reference.
-- Under {MAX_WORDS} words per slide (excluding IMAGE PROMPT and SPEAKER NOTE)
-- Match the visual preset's COLOR FAMILY, FORBIDDEN elements, and TONE from deck_system.txt (but reference them by describing the visual result, not by repeating the rules verbatim)
+- VISUAL BRIEF: Select only registered Page Authority visual-language values. Describe desired visual content through its recipe and composition; do not add arbitrary prompt controls, markup, coordinates, or generated-artifact instructions.
+- Framed slides keep readable text in KICKER, TITLE, SUBTITLE, or CALLOUT fields. Pure slides treat display text as raw Image2 work and therefore require a Generated Image Rebuild when it changes.
+- Under {MAX_WORDS} words per slide (excluding VISUAL BRIEF and SPEAKER NOTE)
+- Match the selected visual-language recipe's color family, forbidden elements,
+  and tone by describing the intended visual result rather than copying registry prose
 
 Write the complete slide-specifications.md file content. No placeholders — fill everything with concrete content based on what you know about {TOPIC}. If you need to research something (market size, competitor names, etc.), do that before filling.
 ```

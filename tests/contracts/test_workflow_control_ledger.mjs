@@ -30,8 +30,8 @@ describe("workflow control ledger", () => {
   it("declares one direct entry for every supported goal", () => {
     expect(goals.schema).toBe("pptmaker-workflow-goal-entry-v2");
     expect(goals.entries.map((entry) => entry.goal).sort()).toEqual([
-      "exact-run-resume", "greenfield-init", "html-then-image2-refinement", "image2-only-production",
-      "local-refresh", "recovery", "structural-versioning",
+      "delivery-build", "exact-run-resume", "greenfield-init", "local-refresh",
+      "raw-generation", "recovery", "structural-versioning",
     ]);
     expect(goals.entries.filter((entry) => entry.inspection)).toEqual([
       expect.objectContaining({ goal: "exact-run-resume", entry: "workflow_inspection" }),

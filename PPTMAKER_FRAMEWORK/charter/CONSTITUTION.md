@@ -18,11 +18,12 @@
 | Python（`.py`）、Pillow、uv、`pyproject.toml` | 目标环境不保证有 Python |
 | bash / shell 脚本（`.sh`）、POSIX-only 管线 | Windows 移植会断 |
 | 外部 agent skill（「拜师」：`.claude/skills` / `.agents/skills` 作为生产依赖） | 跨平台 / 跨 agent 发现路径不一致，冷启动不可复现 |
-| 任何非 Node 子进程作为 Stage 官方路径 | 破坏单一运行时 |
+| 任何非 Node 子进程作为生产官方路径 | 破坏单一运行时 |
 
 **允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`、`yaml`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
 
-Stage 2 / style-master / contact sheet **全部在** `PPTMAKER_FRAMEWORK/scripts/` 内实现，不发现、不依赖外部 skill。
+Page Authority raw generation、visual-language compilation 和 raw review **全部在**
+`PPTMAKER_FRAMEWORK/scripts/` 内实现，不发现、不依赖外部 skill。
 
 ## CLI 失败回执宪法（不可违反）
 
@@ -113,23 +114,20 @@ deck_{NAME}/
 │   └── visual-style/
 │       ├── style-master-prompt.md
 │       ├── style_master.jpg
-│       ├── deck_system.txt
-│       └── color_palette.json
+│       └── page-authority-visual-language.yaml
 │
 └── 3_versions/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── slide-specifications.md       ← per-slide 4-layer specs; each slide declares render mode
+    │   ├── slide-specifications.md       ← Page Authority source; each slide has a stable ID and authority
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │   │   ├── slide_plan.json
-    │   │   ├── page_prompts/{NN--ID.prompt.md, _prompts.json}  ← cheap position projection
-    │   │   ├── page_images_full/{ID.png, _manifest.json}      ← raw-render identity by ID
-    │   │   ├── header_locked/{ID.png, _manifest.json}         ← target-local final-slide
-    │   │   ├── ppt/{NAME}.pptx (+ .backup.pptx)
-    │   │   ├── qa/
-    │   │   └── preview/contact_sheet.jpg
+    │   │   ├── page_authority_image2/receipts/source-receipt.json
+    │   │   ├── page_authority_image2/raw/manifest.json
+    │   │   ├── page_authority_image2/review/
+    │   │   ├── page_authority_image2/final/manifest.json
+    │   │   └── ppt/{NAME}.pptx (+ notes receipt)
     │   └── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
     └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; backbone referenced)
 ```

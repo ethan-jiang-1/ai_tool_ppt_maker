@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -120,11 +119,6 @@ function authorCandidate(runDir) {
     source_version: "v1",
     rows: [retainedRow()],
   }));
-  mkdirSync(join(candidate, "overrides", "visual-style"), { recursive: true });
-  copyFileSync(
-    join(runDir, "..", "..", "2_backbone", "visual-style", "color_palette.json"),
-    join(candidate, "overrides", "visual-style", "color_palette.json"),
-  );
 }
 
 async function startProviderCounter() {
@@ -209,7 +203,7 @@ describe("mock legacy adoption journey", () => {
       expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-page-authority", source_epoch: 1 });
       expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(state.page_authority_delivery_review?.by_version?.["3_versions/v2"]).toBeUndefined();
-      expect(existsSync(join(target, "_generated", "qa", "production_mode_transition.json"))).toBe(true);
+      expect(existsSync(join(target, "_generated", "page_authority_image2", "receipts", "production-mode-transition.json"))).toBe(true);
       expect(existsSync(join(target, "adoption-matrix.json"))).toBe(false);
       expect(provider.calls).toEqual([]);
     } finally {
