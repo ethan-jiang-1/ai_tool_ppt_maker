@@ -1,8 +1,8 @@
 # Plan: Unify Image2 Page Authority
 
-> Type: Architecture and delivery roadmap | Updated: 2026-07-27 | Status: Slice A archived; Slice B is the next planned OpenSpec change
+> Type: Architecture and delivery roadmap | Completed: 2026-07-28 | Status: all three serial OpenSpec slices are archived
 >
-> Historical input: [legacy whole-page contract hardening](../_done/_closed_plans/legacy-whole-page-image2-contract-hardening.md)
+> Historical input: [legacy whole-page contract hardening](legacy-whole-page-image2-contract-hardening.md)
 >
 > Working papers: [protocol](./unify-image2-page-authority/active-protocol-contract.md) | [visual-language registry](./unify-image2-page-authority/visual-language-registry-contract.md) | [legacy compatibility](./unify-image2-page-authority/legacy-compatibility-contract.md) | [review/versioning](./unify-image2-page-authority/review-and-versioning-contract.md) | [Agent reference](./unify-image2-page-authority/agent-reference-contract.md) | [exact spec ledger](./unify-image2-page-authority/main-spec-retirement-ledger.md) | [coverage audit](./unify-image2-page-authority/main-spec-retirement-audit.md) | [review log](./unify-image2-page-authority/review-log.md)
 
@@ -19,10 +19,12 @@ historical notes. Runtime code must never discover a protocol by scanning that d
 
 ## Program Status
 
-`introduce-page-authority-image2` is complete and archived at
-`openspec/changes/archive/2026-07-27-introduce-page-authority-image2/`. It delivered Slice A and
-synchronized its 21 capability deltas into the main specs. The remaining work is still exactly two
-strictly serial changes: explicit legacy adoption, then legacy-surface retirement.
+All three serial changes are complete and archived: Slice A at
+`openspec/changes/archive/2026-07-27-introduce-page-authority-image2/`, Slice B at
+`openspec/changes/archive/2026-07-27-add-page-authority-legacy-adoption/`, and Slice C at
+`openspec/changes/archive/2026-07-28-retire-legacy-production-surface/`. Their synced main specs,
+retirement audit, bounded core tier, focused provider-free seams, and deterministic mock adoption
+journey passed before Slice C was archived.
 
 Verification slimming belongs inside the adoption change, not in a fourth change. Its purpose is to
 make ordinary development prove only the affected protocol boundary with provider-free fixtures; it
@@ -780,25 +782,22 @@ The program is complete only when all of the following are true:
    classified baseline; automated verification does not submit Image2 work or judge Image2 aesthetics;
    strict OpenSpec validation and the final merged-spec review pass.
 
-## Future OpenSpec Change Sequence
+## Completed OpenSpec Change Sequence
 
-This is the complete execution sequence. Row 1 is archived; rows 2 and 3 are planned Change IDs only:
-no `openspec/changes/` directory is created for either until the Proposal Gate is passed and the user
-explicitly approves the proposal.
+This was the complete execution sequence. All three changes completed in order and are archived.
 
 | Order | Future Change ID | Delivers | Explicitly does not deliver |
 |---|---|---|---|
 | 1 | `introduce-page-authority-image2` (archived) | The new production path for new decks: the two per-slide authorities, Page Authority source/state pair, trusted visual-language and Agent-reference registries, raw/final evidence chain, `finalizePage(...)`, deterministic Framed composition, readiness, and one assembly/notes lineage. | Legacy adoption, deletion of old production code, automatic conversion of any old deck, or a third rendering authority. |
-| 2 | `add-page-authority-legacy-adoption` | The sole read-only legacy observer plus previewed, hash-bound, provider-free adoption into a clean Page Authority version, plus its bounded provider-free verification rail. Once its pilot passes, normal legacy production commands cut over to adoption guidance. | Reuse of legacy prompts, pixels, approvals, generated artifacts, an implicit adapter/fallback, or automated Image2 quality scoring. |
-| 3 | `retire-legacy-production-surface` | Removal of legacy production routing, generated-artifact owners, commands, playbooks, fixtures, and main-spec requirements; only the bounded observer and shared Framed runtime primitives remain. | A rewrite of the new Page Authority path, new visual modes, or deletion of the adoption observer. |
+| 2 | `add-page-authority-legacy-adoption` (archived) | The sole read-only legacy observer plus previewed, hash-bound, provider-free adoption into a clean Page Authority version, plus its bounded provider-free verification rail. Once its pilot passes, normal legacy production commands cut over to adoption guidance. | Reuse of legacy prompts, pixels, approvals, generated artifacts, an implicit adapter/fallback, or automated Image2 quality scoring. |
+| 3 | `retire-legacy-production-surface` (archived) | Removal of legacy production routing, generated-artifact owners, commands, playbooks, fixtures, and main-spec requirements; only the bounded observer and shared Framed runtime primitives remain. | A rewrite of the new Page Authority path, new visual modes, or deletion of the adoption observer. |
 
-The changes are strictly serial. Change 1 makes Page Authority the only choice for a new deck while
-existing legacy runs remain usable during migration. Change 2 first bounds its verification work to
-selected provider-free protocol journeys, then must prove adoption before those existing runs are fenced
-from production. Change 3 removes the retired surface only after that bridge is proven; there is no
-interval in which a legacy deck has neither its historical route nor an adoption route.
+The changes executed strictly serially. Change 1 made Page Authority the only choice for a new deck
+while existing legacy runs remained usable during migration. Change 2 proved adoption before those
+runs were fenced from production. Change 3 removed the retired surface after that bridge was proven;
+there was no interval in which a legacy deck had neither its historical route nor an adoption route.
 
-Each future proposal must map its tasks and delta specs only to the scope in its own row, carry forward
-the preceding change's verification evidence, and leave the repository valid before the next proposal
-is created. Work that introduces a third authority, free-form provider prompt ingress, HTML as a
-user-facing production mode, or automatic legacy conversion is out of scope for all three changes.
+Each completed proposal mapped its tasks and delta specs only to the scope in its own row, carried
+forward preceding verification evidence, and left the repository valid before the next change. Work
+that introduces a third authority, free-form provider prompt ingress, HTML as a user-facing production
+mode, or automatic legacy conversion remains out of scope for the completed program.

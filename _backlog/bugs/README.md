@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-23 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-07-28 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -15,11 +15,9 @@
 
 ## 活跃列表
 
-### P1（重要 — 3 个）
+### P2（次要 — 1 个）
 
-- **[BUG-014](BUG-014-html-objects-unnavigable-sha256-filenames.md)** — HTML 审阅面缺少由 slide_id 驱动的直接定位入口
-- **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — HTML-first 的概念视觉语法仍不足以表达信息关系
-- **[BUG-034](BUG-034-full-suite-runner-lacks-completable-observable-exit.md)** — 默认开发测试入口缺少受控范围、时间预算和可观察退出契约
+- **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
 
 ---
 
@@ -29,8 +27,7 @@
 
 | 类别 | 数量 | Bug IDs |
 |---|---|---|
-| 渲染/视觉 | 2 | 014, 015 |
-| 测试基础设施 | 1 | 034 |
+| 渲染/视觉 | 1 | 015 |
 
 ---
 
