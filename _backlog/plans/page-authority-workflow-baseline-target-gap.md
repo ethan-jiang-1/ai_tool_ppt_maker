@@ -35,6 +35,7 @@ framework source、run bundle、state、receipt、journal 或生成物。
 | 维度 | CURRENT Baseline | TARGET Model | Gap 判断 |
 | --- | --- | --- | --- |
 | 用户选择 | 每个 slide 可选 Pure/Framed，同 deck 可混用 | 一个 deck version 只选择一次 Framed 或 Pure | 大：source/spec 语义变化 |
+| production identity | `page-authority-image2-v1` + CURRENT receipt semantics | 可机械区分的新 marker/source receipt identity | 大：必须 version-separate，禁止原地改义 |
 | 上层流程 | 一个 Page Authority lifecycle 内逐页 dispatch | `03 Framed` 与 `04 Pure` 是互斥 sibling workflows | 大：workflow/controller 重构 |
 | Framed owner | 分散在 `01`、`02`、`04` | `03-framed-image` 完整负责到 final manifest | 大：业务规则迁移与去重 |
 | Pure owner | 隐含在 `04-image-production` shared coordinator 内 | `04-pure-image` 完整负责到 final manifest | 中到大：显式 owner 与 adapter |
@@ -206,8 +207,17 @@ TARGET 将 Pure/Framed 从“同一 lifecycle 内的 per-slide authority branch�
   version，不能私下把单页改成 Pure。
 
 “两条 workflow”不自动等于“两套 state protocol”。TARGET 可以继续共享底层
-Page Authority integrity contracts；最终 marker、state mode、source field 和 schema version
-必须由 OpenSpec change 锁定。
+Page Authority integrity contracts，但不能复用 CURRENT production identity 后原地改变语义。
+New source marker 与 source receipt schema 必须可机械区分；state mode 可以换名，也可以在
+new source/state pair 中复用底层概念，但最终 pair 必须由 OpenSpec change 锁定且无歧义。
+
+CURRENT identifiers 保留 CURRENT 含义：
+
+- `page-authority-image2-v1` 继续表示 per-slide Pure/Framed authority；
+- `pure-image2` / `framed-image2` 继续是 CURRENT per-slide tokens；
+- TARGET workflow IDs 的确切名称待定，不得让同一 source/state bytes 在两个模型间重解释；
+- CURRENT evidence 默认不能满足 TARGET；只有 accepted migration spec 证明 exact tuple 时，
+  才能执行 plan-bound materialization。
 
 ### Target User-To-Delivery Map
 
@@ -235,6 +245,11 @@ flowchart TD
 对用户来说，两条路线从选择后都是直线。`03` 不先进入 `04` 再回到 `03`；`04` 也不再
 作为包含 Framed 的 generic upper-level coordinator。Root workflow 必须表达
 `03 XOR 04 -> 05 -> 06`，而不是按目录编号暗示 `03 -> 04`。
+
+`01-content` 与 `02-visual-system` 仍是两条 workflow 共用的 method modules。所谓完整
+Framed/Pure workflow，是用户只看见一条 end-to-end route；implementation 通过 `01`/`02`
+interfaces 取得 shared grammar、stable identity、visual language 与 references，不复制这些
+规则，也不把 Framed/Pure-specific semantics 放回 shared modules。
 
 ### Target Internal Sharing
 
@@ -306,6 +321,7 @@ TARGET 改变的是选择粒度与工作流形状，不改变“按 owner 与 in
 | Gap | CURRENT | TARGET | 所需工作 | 风险/规模 |
 | --- | --- | --- | --- | --- |
 | Accepted specs | 明确允许 per-slide mixed | version-level exclusive workflow | 修改 `content-parsing`、`pipeline-orchestration`、`image-generation`、`visual-config`、`framework-charter` 等 specs | 大 / 高 |
+| Production identity | `page-authority-image2-v1` + CURRENT receipt schema | new versioned marker + distinguishable receipt identity | marker-first dispatch、schema versioning、禁止同 bytes 双重解释 | 大 / 最高 |
 | Source grammar | `page_authority_default` + per-slide override | canonical version workflow，无 override | 锁定字段、schema/version、diagnostics 与 templates | 大 / 高 |
 | Source receipt | 每页记录 authority | version receipt 记录一次 workflow，slides 继承 | 新 receipt identity、hash/invalidation 与 compatibility | 大 / 高 |
 | User guidance | 要求 Agent 逐页选择 authority | intake 时只选择一次 | 重写 BOOTSTRAP、quick-start、glossary、workflow root、playbook | 中到大 |
@@ -316,7 +332,7 @@ TARGET 改变的是选择粒度与工作流形状，不改变“按 owner 与 in
 | Delivery | 位于 current `04` | 独立 `05-delivery` | 移动 final manifest、projection、PPTX、notes、delivery review | 中 |
 | Iteration | current `05` 读 per-slide authority | `06` 读 version workflow | 路由、编号、docs、controller metadata 迁移 | 中 |
 | Architecture/tests | phase adjacency 与 tests 按旧 owner | sibling adapters + shared seams | 更新 manifest、whitelist、imports、ownership/coherence tests | 大 |
-| CLI/controller | 一个 Page Authority lifecycle | 一次 version route 后进入一条 workflow | 决定兼容现名还是新 command surface；更新 receipts/diagnostics | 待定 / 高 |
+| CLI/controller | 一个 Page Authority lifecycle | marker-first route 后进入一条 workflow | `node-specification` 锁定 controller consumption；若 producer surface 改变则由 `cli-surface` 锁定 receipts/diagnostics | 待定 / 高 |
 | Existing mixed runs | current legal runs | 不属于 new active authoring | bounded compatibility 或 explicit structural migration | 大 / 最高 |
 
 ### What Does Not Need To Split
@@ -339,22 +355,26 @@ TARGET 改变的是选择粒度与工作流形状，不改变“按 owner 与 in
 在任何 framework relocation 或 implementation 前，OpenSpec change 必须回答：
 
 1. version-level workflow 的 canonical source 字段与 receipt schema 是什么？
-2. current protocol/state mode 保留还是 version bump？
+2. TARGET 的 new source marker、receipt schema 与 source/state pair 如何保证与 CURRENT
+   `page-authority-image2-v1` 机械区分？state mode 是否换名？
 3. 现有 mixed current run 如何继续、冻结或 structural migrate？
-4. 哪些 current raw/final/review evidence 在迁移后可验证复用，哪些必须失效？
+4. 哪些 current raw/final/review evidence 在迁移后可验证 materialize？除 accepted plan-bound
+   proof 外，所有 cross-protocol evidence 必须失效。
 5. 外部 CLI 保持现名并依据 receipt route，还是暴露新的 Framed/Pure commands？
 6. `RawWorkPlan`、`AcceptedRawEvidence`、`FinalSlideManifest` 的 owner、writer、readers、
    hash binding 和 invalidation 是什么？
 7. `03`/`04` 如何做到互不 import，只通过 approved shared interfaces 协作？
 8. 哪些 negative tests 证明不存在 silent per-slide fallback、wrong-owner mutation 或第二份
    delivery truth？
+9. `Header Text & Style Refresh` 的 TARGET surface 是 text-only，还是包含 versioned preset
+   changes？`03` 必须给出唯一、可测试的语义。
 
 ### Transition Order
 
 ```text
 confirm Baseline/Target/Gap
   -> create OpenSpec proposal/design/specs/tasks
-  -> lock source/receipt + mixed-run migration
+  -> lock new production identity + source/receipt + mixed-run migration
   -> lock RawWorkPlan / AcceptedRawEvidence / FinalSlideManifest interfaces
   -> write two user-facing workflow documents
   -> establish 03 Framed and 04 Pure adapters
@@ -372,6 +392,8 @@ confirm Baseline/Target/Gap
 Gap 只有在以下事实都成立时才算关闭：
 
 - new version source/receipt 恰好选择一个 workflow；
+- TARGET marker/source/state/receipt identity 与 CURRENT pair 可机械区分，同一 bytes 不会被
+  两种 parser/controller route 接受；
 - root guidance 与 controller 明确执行 `03 XOR 04 -> 05 -> 06`；
 - `03` 与 `04` 分别通过自己的 interface 产出同 schema `FinalSlideManifest`；
 - `03` 与 `04` 不互相 import，shared code 不拥有 authority semantic branch；
@@ -385,6 +407,8 @@ Gap 只有在以下事实都成立时才算关闭：
 
 - **把 TARGET 当 CURRENT。** 在 OpenSpec change 落地前，所有生产 Agent 仍按 Part I 执行；
   docs 与 diagnostics 必须有明确版本标签。
+- **复用 CURRENT identifier 却改变语义。** CURRENT marker 与 authority tokens 永久保留
+  Part I 含义；TARGET 必须使用 new versioned identity，并由 controller marker-first route。
 - **为上层清晰复制底层 integrity。** 两条 workflow 可以有独立 implementation，但不能
   复制 authorization、evidence 或 delivery truth。
 - **shared module 吞回业务差异。** 一旦 shared implementation 理解 frame/no-text/display

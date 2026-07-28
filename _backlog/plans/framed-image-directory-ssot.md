@@ -1,6 +1,6 @@
 # Plan: Framed / Pure Workflow Separation and Delivery SSOT
 
-> 类型: 设计 | 更新: 2026-07-28 | 状态: 待人工确认，未实施
+> 类型: 设计 | 更新: 2026-07-28 | 状态: 目标已对齐，待 OpenSpec change，未实施
 
 ## 阅读说明 / 本文自足边界
 
@@ -62,11 +62,14 @@ framework source、现有 run、state、receipt 或生成物。
 
 本计划不是对上述行为做目录包装，而是提出新的上层工作流模型：
 
-- 新 deck version 在 intake/source authoring 时选择 `framed-image` 或 `pure-image`；
+- 新 deck version 在 intake/source authoring 时选择概念上的 `framed-image` 或
+  `pure-image` workflow；这两个是本文标签，不是已锁定的 source token；
 - 该选择属于整个 version，不是 per-slide default，也不是每页 override；
 - active authoring 不提供 mixed workflow；
 - Framed 与 Pure 各自从 source semantics 负责到 final PNG manifest；
 - shared delivery 只从统一 final PNG manifest 开始，不参与 authority dispatch；
+- CURRENT 的 `page-authority-image2-v1`、`pure-image2`、`framed-image2` 标识及其语义保持
+  不变；TARGET 必须有可区分的新 production identity 与 source receipt schema；
 - 现有 mixed current runs 如何继续或迁移，必须在 OpenSpec 中显式决定，不能静默重解释。
 
 这意味着实施前必须先创建独立 OpenSpec change，修订 accepted specs。不得把它伪装成
@@ -82,9 +85,11 @@ framework source、现有 run、state、receipt 或生成物。
 | 已定 | 两条工作流都以统一 `FinalSlideManifest` 为终点，然后进入 shared delivery。 |
 | 已定 | PPTX full-page image assembly、speaker notes injection、final projection 与 delivery review 由独立 shared delivery owner 负责。 |
 | 已定 | 下层代码允许复用，但复用模块不得拥有用户工作流选择，也不得复制 Framed/Pure 业务规则。 |
-| 待定 | version-level workflow selection 的最终 source 字段、receipt schema 与 migration 版本号。 |
+| 已定 | TARGET 不原地改变 CURRENT identifier 的含义；new source marker 与 receipt schema 必须可与 `page-authority-image2-v1` CURRENT runs 确定区分。 |
+| 待定 | TARGET production identity、version-level workflow selection 与 receipt schema 的最终名称；state mode 是否换名，但 source/state pair 必须无歧义。 |
 | 待定 | 现有 mixed current runs 是保留 bounded compatibility route，还是只能 structural migrate 到 homogeneous vNext。 |
 | 待定 | 外部 CLI 命令保持现名并按 version workflow 路由，还是增加明确的 Framed/Pure command surface。 |
+| 待定 | `Header Text & Style Refresh` 的 TARGET surface 是 text-only，还是包含 versioned preset changes。 |
 
 ## 目标工作流
 
@@ -116,6 +121,11 @@ flowchart TD
 
 `03` 与 `04` 是 sibling branches，不是 `03 -> 04` 的顺序。Workflow root README、
 BOOTSTRAP、quick-start 和 playbook 必须明确画出 XOR 选择，不能仅靠一段文字解释编号。
+
+这里的“完整 workflow”指用户从 version choice 到 final slides 始终留在一条可理解的路径，
+不表示复制 `01-content` 与 `02-visual-system`。两条 workflow 都通过它们的 public
+interfaces 使用 shared source grammar、stable identity、visual language 和 references；
+Framed/Pure-specific semantics 仍分别只属于 `03` / `04`。
 
 ### 实现内部允许的复用
 
@@ -156,7 +166,8 @@ BOOTSTRAP、quick-start 和 playbook 必须明确画出 XOR 选择，不能仅�
 
 | Fact | 唯一 Source of Record | 禁止的替代来源 |
 | --- | --- | --- |
-| 当前 version 选择 Framed 还是 Pure | canonical source frontmatter + resolved source receipt | chat memory、目录名、某页 artifact、默认猜测 |
+| TARGET production identity | new versioned source marker + bound state/receipt identity | 把 `page-authority-image2-v1` 原地解释成 TARGET |
+| TARGET version 选择 Framed 还是 Pure | canonical source frontmatter + resolved source receipt | chat memory、目录名、某页 artifact、默认猜测 |
 | Framed contract 与 fit 结果 | `03` evaluator 产生的 typed Framed receipt/preflight evidence | `01`/`02`/shared 中的重复常量或 validator |
 | Pure raw contract | `04` evaluator 产生的 typed Pure raw plan | shared raw module 中的 authority branch |
 | raw authorization/evidence/review | shared raw owner 的 current receipt chain | README、copied manifest、旧 review |
@@ -257,14 +268,18 @@ Version workflow selection 必须在任何 provider work 前成为 canonical fac
 4. resolver 发布一个 immutable source receipt，所有 slides 继承同一个 workflow；
 5. 后续 raw、finalization、refresh 均从该 receipt 读取，不再次推断或逐页选择。
 
-目标 source 可以使用类似以下的 version-level mapping，但字段名与 schema version 必须由
-OpenSpec change 最终锁定：
+目标 source 的形状可以类似以下 mapping；占位符不是合法 bytes，最终 identifier 必须由
+OpenSpec change 锁定，并且不能复用 CURRENT identifier 的既有含义：
 
 ```yaml
 production:
-  pipeline: page-authority-image2-v1
-  workflow: framed-image2   # 或 pure-image2；不是 default
+  pipeline: <new-versioned-target-marker>
+  workflow: <framed-or-pure-workflow-id>   # version-level，不是 default
 ```
+
+`page-authority-image2-v1`、`pure-image2`、`framed-image2` 继续只表示 companion Baseline
+文档 Part I 的 CURRENT 模型。TARGET workflow ID 的确切拼写待定，但必须由 new
+marker/field/schema 明确限定，不能让同一 source/state pair 同时拥有两种解释。
 
 新 authoring 不再接受 per-slide `PAGE AUTHORITY` override。若未来确实需要 mixed deck，
 它必须作为第三个明确、独立设计的工作流重新论证，不能作为隐藏 escape hatch 留在 parser。
@@ -274,9 +289,12 @@ production:
 1. **先创建 OpenSpec change，不移动 framework 文件。**
    - 修订至少 `content-parsing`、`pipeline-orchestration`、`image-generation`、
      `visual-config` 与 `framework-charter`。
-   - 锁定 version-level workflow schema、receipt identity、现有 mixed-run compatibility
-     和 CLI/controller surface。
-   - 明确哪些 receipt/schema 需要 version bump，哪些现有 evidence 不可沿用。
+   - MD controller metadata/consumption 必须同时修订 `node-specification`；若 direct CLI、
+     receipt fields、stdout/stderr 或 diagnostics 改变，再由 `cli-surface` 锁定 producer contract。
+   - 锁定 new production identity、version-level workflow schema、receipt identity、现有
+     mixed-run compatibility 和 CLI/controller surface。
+   - Source marker 与 source receipt schema 必须 version-separate；现有 evidence 默认不得
+     跨 protocol 沿用，除非 accepted migration spec 对 exact tuple 作出明确证明。
 
 2. **先建立 artifact seams。**
    - 固定 `RawWorkPlan`、`AcceptedRawEvidence` 与 `FinalSlideManifest` 的 owner、writer、
@@ -321,6 +339,8 @@ production:
 
 - 新 deck version 的 canonical source/receipt 恰好选择一个 workflow；正常路径没有
   per-slide authority dispatch。
+- TARGET source/state/receipt identity 与 CURRENT `page-authority-image2-v1` pair 可机械区分；
+  parser/controller 不会把同一 bytes 在两个模型间重解释。
 - Workflow root 明确显示 `03 XOR 04 -> 05 -> 06`，不会被读成 `03 -> 04`。
 - `03-framed-image` 能从 Framed source semantics 独立产出 `FinalSlideManifest`，不调用
   `04-pure-image`。
@@ -345,6 +365,9 @@ production:
 
 - **把 sibling 编号看成顺序。** `03` 与 `04` 必须在 root graph、controller metadata 和
   tests 中建模为 XOR；仅在 README 中补一句不够。
+- **CURRENT/TARGET identifier 碰撞。** `page-authority-image2-v1` 与其 per-slide authority
+  tokens 保留既有语义；TARGET 使用 new versioned identity，controller marker-first dispatch，
+  禁止通过字段缺失、目录或 artifact 猜测模型。
 - **为了代码复用再次合并上层流程。** 共享只能位于 typed artifact seam 下方；上层
   controller 不得把用户带回 per-slide dispatch。
 - **两条流程复制完整性逻辑。** Authorization、raw evidence/review、manifest integrity、
