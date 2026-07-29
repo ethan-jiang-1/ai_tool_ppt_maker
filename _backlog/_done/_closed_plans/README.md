@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-07-28 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-07-29 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -32,7 +32,10 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-011](agent-workflow-simplification.md) | 2026-07-23 | `agent-workflow-simplification.md` | 三项串行 change 已完成：统一 workflow inspection、收敛 workflow control/interface、重整 Image Production 与框架治理；BUG-033 的复现分类保留为活跃 follow-up |
 | [CLS-012](legacy-whole-page-image2-contract-hardening.md) | 2026-07-26 | `legacy-whole-page-image2-contract-hardening.md` | Superseded whole-page Image2 investigation preserved as historical input; its unimplemented contract is not an active delivery plan. |
 | [CLS-013](unify-image2-page-authority.md) | 2026-07-28 | `unify-image2-page-authority.md` | Three serial OpenSpec changes completed: Page Authority protocol, provider-free legacy adoption, and retirement of the historical production surface. |
+| [CLS-014](framed-image-directory-ssot.md) | 2026-07-29 | `framed-image-directory-ssot.md` | Framed/Pure sibling-workflow directory and delivery SSOT; absorbed by the archived Page Authority changes. |
+| [CLS-015](page-authority-workflow-baseline-target-gap.md) | 2026-07-29 | `page-authority-workflow-baseline-target-gap.md` | CURRENT baseline, TARGET dual-workflow model, and implementation gap; absorbed by the archived Page Authority changes. |
+| [CLS-016](page-authority-workflow-openspec-progressive-plan.md) | 2026-07-29 | `page-authority-workflow-openspec-progressive-plan.md` | Progressive delivery, compatibility hygiene, retirement, archive, and `v0.23.0` closeout complete. |
 
-**Next available plan ID: CLS-014**
+**Next available plan ID: CLS-017**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

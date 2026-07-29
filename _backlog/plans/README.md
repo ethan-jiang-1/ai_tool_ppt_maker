@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-28 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-29 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,11 +19,10 @@
 
 | Plan | Summary | Status |
 |------|---------|--------|
-| [framed-image-directory-ssot.md](framed-image-directory-ssot.md) | 将 `03 Framed` / `04 Pure` 拆成 sibling workflows，并在统一 final manifest 后进入 shared delivery | 目标已对齐，待 OpenSpec |
-| [page-authority-workflow-baseline-target-gap.md](page-authority-workflow-baseline-target-gap.md) | 对照 Page Authority 的 CURRENT baseline、双工作流 TARGET 与完整 implementation gap | 目标已对齐，待 OpenSpec |
-| [page-authority-workflow-openspec-progressive-plan.md](page-authority-workflow-openspec-progressive-plan.md) | 以一个 umbrella OpenSpec change 分波次落地双 workflow 迁移，控制术语、capability delta、切换与验证边界 | 单 change 方案已确定，尚未创建 |
 
-**Next available plan ID: CLS-014**（移入 `_closed_plans/` 时分配；CLS-001…013 已用）
+当前没有活跃 plan。
+
+**Next available plan ID: CLS-017**（移入 `_closed_plans/` 时分配；CLS-001…016 已用）
 
 ---
 
