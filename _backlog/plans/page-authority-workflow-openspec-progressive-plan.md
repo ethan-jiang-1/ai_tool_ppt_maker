@@ -1,6 +1,6 @@
 # Plan: Page Authority Workflow OpenSpec Progressive Delivery
 
-> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: Phase A 已完成；active change 已创建，framework source 尚未移动
+> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: 原 change 已归档并提交、主规格已同步；H.10 的项目版本决策与后续 `HC.*` compatibility hygiene 扩展待完成
 
 ## 进度跟踪
 
@@ -8,16 +8,17 @@
 
 | 工作流 / 阶段 | 状态 | 完成信号 / 下一步 |
 | --- | --- | --- |
-| 规划基线 | 已完成 | 本文与两份上游 plan 已固定目标、范围和 one-change 决策；创建 change 进入 Phase A |
-| Phase A - OpenSpec artifacts | 已完成 | `A.CP` 已关闭；下一步是 Wave 0 baseline |
-| Wave 0 - Baseline | 已完成 | `W0.CP` 已关闭；下一步是 Wave 1 artifact seams |
-| Wave 1 - Artifact seams | 进行中 | `W1.1` 已完成；继续完成 shared final-manifest/delivery seam 与 CURRENT regression 证明。 |
-| Wave 2 - Workflow owners | 进行中 | `03-framed-image` / `04-pure-image` 边界已建立；继续迁移 Framed/Pure owner behavior。 |
-| Wave 3 - Shared delivery | 未开始 | 关闭 `W3.CP` |
-| Wave 4 - TARGET routing and iteration | 未开始 | 关闭 `W4.CP` |
-| Wave 5 - CURRENT boundary and activation | 未开始 | 关闭 `W5.CP` |
-| Wave 6 - Cleanup and change close | 未开始 | 关闭 `W6.CP` |
-| Archive / handoff | 未开始 | `H.1`–`H.8`、`V.1`–`V.8` 与 `W6.CP` -> `H.9` archive -> `H.10` handoff |
+| 规划基线 | 已完成 | one-change 决策、范围与 CURRENT/TARGET 不变量已由 archived change 吸收。 |
+| Phase A - OpenSpec artifacts | 已完成 | 39/39 tasks、proposal、design 与 14 个 delta 已验收并归档。 |
+| Wave 0 - Baseline | 已完成 | CURRENT v1 边界与 provider-free baseline 保持覆盖。 |
+| Wave 1 - Artifact seams | 已完成 | typed raw/evidence/final-manifest seams 与 shared-boundary 测试已完成。 |
+| Wave 2 - Workflow owners | 已完成 | `03-framed-image` 与 `04-pure-image` 独立 owner 已上线。 |
+| Wave 3 - Shared delivery | 已完成 | `05-delivery` 成为 Framed、Pure 与 CURRENT compatibility 的唯一 delivery owner。 |
+| Wave 4 - TARGET routing and iteration | 已完成 | v2 marker/state/controller/inspection 与 `06-iteration` 已上线。 |
+| Wave 5 - CURRENT boundary and activation | 已完成 | fresh Framed、fresh Pure、CURRENT mixed boundary 全部通过 E2E。 |
+| Wave 6 - Cleanup and change close | 已完成 | superseded owners 清理、inventory 审计、focused/完整验证与 main-spec review 均完成。 |
+| Archive / handoff | 进行中 | `H.1`–`H.9` 已完成：specs 同步、archive 与 commit 已完成；`H.10` 的项目版本决策待用户授权。 |
+| Post-archive compatibility hygiene | 待创建 change | `HC.0` 已记录：保持 exact CURRENT v1 compatibility，同时清掉错误的观察写入、死 wrapper、过期占位目录和误导性路径。 |
 
 ### 更新规则
 
@@ -34,8 +35,8 @@
 | 日期 | 项目 ID | 状态变化 | 证据 / 说明 | 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-07-29 | Plan tracker | 已初始化 | 已将执行计划转换为 checklist；`openspec list --json` 显示没有 active change，尚未开始实现。 | 创建 `separate-framed-pure-workflows` 并开始 `A.1`。 |
-| 2026-07-29 | A.1 | 已完成 | 已创建 active change [`separate-framed-pure-workflows`](../../openspec/changes/separate-framed-pure-workflows/)。 | 完成 proposal、design、delta specs 和 tasks。 |
-| 2026-07-29 | A.2 / G1-G6 | 已完成 | [`design.md`](../../openspec/changes/separate-framed-pure-workflows/design.md) 锁定 v2 identity、CURRENT boundary、artifact seams、controller/CLI route、refresh semantics 及 activation/verification budget。 | 将这些决策完整投射到 14 个 capability delta。 |
+| 2026-07-29 | A.1 | 已完成 | 已创建并最终归档 [`separate-framed-pure-workflows`](../../openspec/changes/archive/2026-07-29-separate-framed-pure-workflows/)。 | 历史记录；artifacts 已归档。 |
+| 2026-07-29 | A.2 / G1-G6 | 已完成 | [`design.md`](../../openspec/changes/archive/2026-07-29-separate-framed-pure-workflows/design.md) 锁定 v2 identity、CURRENT boundary、artifact seams、controller/CLI route、refresh semantics 及 activation/verification budget。 | 已投射到归档 delta 与主规格。 |
 | 2026-07-29 | A.4 | 已完成 | `design.md` 已固定 identity/schema、owners、import rules、migration/rollback 和 test tiers。 | 用 `tasks.md` 拆成可执行 waves。 |
 | 2026-07-29 | A.3 | 进行中 | 已写入 10/14 个 proposal capability delta；尚余 `commands-reference`、`framework-charter`、`framework-directory-layout`、`framework-script-layout`。 | 完成剩余 delta 后核对 proposal/spec 目录一一对应。 |
 | 2026-07-29 | A.3 | 已完成 | 已写入 14/14 个 delta；proposal capability 列表与 `openspec/changes/separate-framed-pure-workflows/specs/` 目录一一对应。 | 编写 `tasks.md`。 |
@@ -47,6 +48,11 @@
 | 2026-07-29 | OpenSpec 2.3-2.5 | 已完成 | common final-manifest helper 只接受 current plan-bound accepted evidence，逐项校验 final bytes；缺失/漂移仅返回 owner rebuild action。覆盖 source/profile/byte drift、cross-protocol、partial evidence、wrong owner 和 failed prerequisite；architecture contract 禁止 shared raw/final helper 按 workflow semantic 分支。 | 建立 `03-framed-image` 与 `04-pure-image` sibling boundaries。 |
 | 2026-07-29 | OpenSpec 3.1 / 3.2 进行中 | 进行中 | 已建立 `03-framed-image`、`04-pure-image` import-safe owner interfaces、source-to-test inventory 与 sibling-import 禁止；Framed adapter 已接管 target receipt 的 `standard-v1` preflight、reserved-underlay evidence、text-free raw contribution 和 common final-manifest publication入口。capture runtime/Framed local refresh 与 Pure adapter 尚待迁移。 | 完成 3.2 的 runtime/refresh owner 迁移，再实现 3.3 Pure adapter。 |
 | 2026-07-29 | OpenSpec 3.3 | 已完成 | `04-pure-image` 现在独立写入 Pure typed raw plan，只从 current accepted evidence 发布 common final manifest，并将 source/display drift 归类为 raw rebuild debt；workflow/architecture focused tests 通过。 | 完成 Framed local refresh/invalidation，并验证两个 adapter 的独立 publication。 |
+| 2026-07-29 | W1.2–W5.CP / OpenSpec 2.3–7.4 | 已完成 | 完成 sibling adapters、shared delivery、v2 state/controller/inspection、workflow-aware iteration、CURRENT v1 bounded compatibility 与 fresh TARGET activation。 | 运行收尾验证、清理 superseded owners 并 archive。 |
+| 2026-07-29 | W6.CP / V.1–V.8 / H.1–H.8 | 已完成 | focused target tests 95/95、process checks 28/28、full E2E 18/18、`npm test`、`git diff --check`、change strict validation 与全库 strict validation 均通过。 | 同步主规格并 archive。 |
+| 2026-07-29 | H.9 | 已完成 | OpenSpec archive 同步 14 个 capability specs（+16 / ~4），归档至 [`2026-07-29-separate-framed-pure-workflows`](../../openspec/changes/archive/2026-07-29-separate-framed-pure-workflows/)，提交为 `058e6ff feat: separate framed and pure workflows`。 | 如需发布，先由用户决定项目版本策略。 |
+| 2026-07-29 | H.10 | 待用户授权 | 归档、主规格同步与提交已完成；尚未执行 `project-versioning` 判断或修改版本号。 | 用户决定是否评估/调整项目版本。 |
+| 2026-07-29 | HC.0 | 已记录 | 对 compatibility 目录做只读盘点；临时 exact v2 run 证明 `ppt_flow status` 会在保留 `source-receipt-v2.json` 的同时错误写入 v1 `source-receipt.json`。同时发现未被生产调用的 `scripts/05-iteration` wrapper，以及只含过期 README 的 `tests/05-iteration`、`tests_e2e/04-image-production`、`tests_e2e/05-iteration`。 | 以独立 cleanup change 固化范围、迁移方案和验证。 |
 
 ## 阅读说明 / 本文边界
 
@@ -63,11 +69,11 @@
 实施波次、验证检查点和拆分触发条件。若本文与上游两份文档发生目标语义冲突，先修正文档
 之间的矛盾，再创建 change；不得让 proposal 靠聊天上下文选择其中一种解释。
 
-截至 2026-07-29，active change
-[`separate-framed-pure-workflows`](../../openspec/changes/separate-framed-pure-workflows/) 已创建，
-但尚未授权或开始 framework source implementation，也不读取或迁移任何 `deck_*`、`dpt_*` 或
-`_generated/` 生产数据。在 change 被完整实施并 archive 前，accepted main specs 与 CURRENT
-`page-authority-image2-v1` 行为继续是生产权威。
+截至 2026-07-29，change
+[`separate-framed-pure-workflows`](../../openspec/changes/archive/2026-07-29-separate-framed-pure-workflows/)
+已完成实施、同步主规格、archive 并提交。实现未读取或迁移任何 `deck_*`、`dpt_*` 或 `_generated/`
+生产数据；新 authoring 的生产权威为 v2 once-per-version workflow，CURRENT
+`page-authority-image2-v1` 保留为显式 bounded compatibility。
 
 ## 一页决策
 
@@ -401,68 +407,68 @@ implementation ownership，不自动成为 capability 名称。只有 proposal �
 
 - [x] **W1.1** 在现有 Page Authority path 下固定 raw plan、accepted evidence 与 final manifest 的 typed
   contracts、hash/invalidation tests 和 owner boundaries。
-- [ ] **W1.2** 让 shared raw mechanics 只消费 typed raw input，让 delivery-facing code 只消费 final manifest。
-- [ ] **W1.3** 保持 CURRENT v1 resolver、init、CLI 和 observable artifact bytes/receipts 不变。
-- [ ] **W1.4** 增加 architecture tests，禁止未来 `03 <-> 04` private imports 与 shared semantic switch。
-- [ ] **W1.CP** **Checkpoint 1:** CURRENT 可通过新 seams 完成原行为；TARGET 尚未注册为 public identity；删除任一
+- [x] **W1.2** 让 shared raw mechanics 只消费 typed raw input，让 delivery-facing code 只消费 final manifest。
+- [x] **W1.3** 保持 CURRENT v1 resolver、init、CLI 和 observable artifact bytes/receipts 不变。
+- [x] **W1.4** 增加 architecture tests，禁止未来 `03 <-> 04` private imports 与 shared semantic switch。
+- [x] **W1.CP** **Checkpoint 1:** CURRENT 可通过新 seams 完成原行为；TARGET 尚未注册为 public identity；删除任一
   新 seam 会由 contract test 直接发现，而不是由 broad E2E 偶然发现。
 
 ### Wave 2 - Build the two workflow owners behind internal fixtures
 
-- [ ] **W2.1** 建立 `03-framed-image`，集中 Text Frame schema/preset、fit preflight、text-free underlay
+- [x] **W2.1** 建立 `03-framed-image`，集中 Text Frame schema/preset、fit preflight、text-free underlay
   contribution、local composition/capture 与 Framed refresh。
-- [ ] **W2.2** 建立 `04-pure-image`，集中 Pure display/raw contract、accepted-raw publication 与 rebuild。
-- [ ] **W2.3** 让两个 adapter 通过 target receipt fixtures 分别产出同 schema final manifest，且不互相 import。
-- [ ] **W2.4** 让 shared raw authorization/evidence/review 保留一个 owner，不让任一 adapter 复制。
-- [ ] **W2.5** 编写两条完整 workflow MD；change 完成前不得把未注册 TARGET 描述成 accepted CURRENT。
-- [ ] **W2.CP** **Checkpoint 2:** Framed 与 Pure 各自从 typed target receipt 走到 final manifest；Framed text-only
+- [x] **W2.2** 建立 `04-pure-image`，集中 Pure display/raw contract、accepted-raw publication 与 rebuild。
+- [x] **W2.3** 让两个 adapter 通过 target receipt fixtures 分别产出同 schema final manifest，且不互相 import。
+- [x] **W2.4** 让 shared raw authorization/evidence/review 保留一个 owner，不让任一 adapter 复制。
+- [x] **W2.5** 编写两条完整 workflow MD；change 完成前不得把未注册 TARGET 描述成 accepted CURRENT。
+- [x] **W2.CP** **Checkpoint 2:** Framed 与 Pure 各自从 typed target receipt 走到 final manifest；Framed text-only
   路径零 provider，Pure visible-text change 产生 raw debt；public init 仍不创建 TARGET。
 
 ### Wave 3 - Extract shared `05-delivery`
 
-- [ ] **W3.1** 将 final manifest validation、final projection、full-page-image PPTX、speaker notes injection
+- [x] **W3.1** 将 final manifest validation、final projection、full-page-image PPTX、speaker notes injection
   与 delivery review 收拢到 `05-delivery` public interface。
-- [ ] **W3.2** 以同一套 assertions 分别消费 Framed/Pure manifests，禁止 delivery behavior branch。
-- [ ] **W3.3** 让仍需 delivery 的 CURRENT compatibility 只调用这个 interface，不发布第二结果。
-- [ ] **W3.4** 保持 `pptx-assembly` 与 `notes-injection` 的既有 observable contract，除非 Gate 3 证明必须改。
-- [ ] **W3.CP** **Checkpoint 3:** 两条 target fixture lineage 和 CURRENT representative lineage 都只产生一套
+- [x] **W3.2** 以同一套 assertions 分别消费 Framed/Pure manifests，禁止 delivery behavior branch。
+- [x] **W3.3** 让仍需 delivery 的 CURRENT compatibility 只调用这个 interface，不发布第二结果。
+- [x] **W3.4** 保持 `pptx-assembly` 与 `notes-injection` 的既有 observable contract，除非 Gate 3 证明必须改。
+- [x] **W3.CP** **Checkpoint 3:** 两条 target fixture lineage 和 CURRENT representative lineage 都只产生一套
   PPTX/notes/delivery receipts；manifest mismatch 在 assembly 前 prerequisite-first hard-stop。
 
 ### Wave 4 - Add TARGET identity, state, controller, and `06-iteration`
 
-- [ ] **W4.1** 实现 new marker、version-level workflow source receipt、state/evidence graph 与 marker-first resolver。
-- [ ] **W4.2** 将 workflow root、BOOTSTRAP/quick-start、playbook、inspection 和 controller metadata 建模为
+- [x] **W4.1** 实现 new marker、version-level workflow source receipt、state/evidence graph 与 marker-first resolver。
+- [x] **W4.2** 将 workflow root、BOOTSTRAP/quick-start、playbook、inspection 和 controller metadata 建模为
   `03 XOR 04 -> 05 -> 06`。
-- [ ] **W4.3** 将 iteration owner 迁至 `06-iteration`，按 version workflow 和 artifact ownership 选择
+- [x] **W4.3** 将 iteration owner 迁至 `06-iteration`，按 version workflow 和 artifact ownership 选择
   Framed local refresh、Pure rebuild、notes-only 或 Structural Versioning Path。
-- [ ] **W4.4** 更新 architecture contracts、whitelist、method-module edges、executable/source-test inventory。
-- [ ] **W4.5** 默认保持 direct CLI grammar/diagnostics 不变；确需变更时才启用已接受的 `cli-surface` delta。
-- [ ] **W4.CP** **Checkpoint 4:** 手工构造的 TARGET source/state 可通过 public-equivalent integration path 完成两条
+- [x] **W4.4** 更新 architecture contracts、whitelist、method-module edges、executable/source-test inventory。
+- [x] **W4.5** 默认保持 direct CLI grammar/diagnostics 不变；确需变更时才启用已接受的 `cli-surface` delta。
+- [x] **W4.CP** **Checkpoint 4:** 手工构造的 TARGET source/state 可通过 public-equivalent integration path 完成两条
   workflow，但 fresh `init` 仍未切换；CURRENT marker 不读取 TARGET workflow field，反之亦然。
 
 ### Wave 5 - Complete CURRENT boundary, then activate TARGET
 
-- [ ] **W5.1** 实施 Gate 2 已接受的 CURRENT mixed-run compatibility 或 structural migration。
-- [ ] **W5.2** 覆盖 existing v1 mixed resume/refresh/delivery 或 migration preview/hash/apply/recovery 的完整合同。
-- [ ] **W5.3** 确认 cross-protocol evidence 默认失效、structural apply 零 provider、target review 从 fresh state 开始。
-- [ ] **W5.4** 只有此时才让 fresh init/source templates 创建 TARGET identity 并要求一次 workflow choice。
-- [ ] **W5.5** 让 user-facing guidance 只展示 selected route，不展示 CURRENT compatibility 内部或 raw topology。
-- [ ] **W5.CP** **Checkpoint 5:** fresh Framed、fresh Pure、CURRENT mixed boundary 三条 E2E 均有确定结果；不存在
+- [x] **W5.1** 实施 Gate 2 已接受的 CURRENT mixed-run compatibility 或 structural migration。
+- [x] **W5.2** 覆盖 existing v1 mixed resume/refresh/delivery 或 migration preview/hash/apply/recovery 的完整合同。
+- [x] **W5.3** 确认 cross-protocol evidence 默认失效、structural apply 零 provider、target review 从 fresh state 开始。
+- [x] **W5.4** 只有此时才让 fresh init/source templates 创建 TARGET identity 并要求一次 workflow choice。
+- [x] **W5.5** 让 user-facing guidance 只展示 selected route，不展示 CURRENT compatibility 内部或 raw topology。
+- [x] **W5.CP** **Checkpoint 5:** fresh Framed、fresh Pure、CURRENT mixed boundary 三条 E2E 均有确定结果；不存在
   new init 产生 mixed source、silent fallback、半注册 marker 或用户被要求逐页选 authority。
 
 ### Wave 6 - Remove superseded owners and close the change
 
-- [ ] **W6.1** 删除已被新 adapters/seams 取代的 generic authority branches、duplicate validators、旧
+- [x] **W6.1** 删除已被新 adapters/seams 取代的 generic authority branches、duplicate validators、旧
   method-module paths、misleading docs/fixtures 与临时 development glue。
-- [ ] **W6.2** 不删除 Gate 2 明确保留的 bounded compatibility owner，也不保留未登记的 shim/re-export。
-- [ ] **W6.3** 审计 terminology ledger，确认 stable terms 没有发生无理由 churn。
-- [ ] **W6.4** 运行 focused unit/architecture、integration、selected E2E、`npm test`、
+- [x] **W6.2** 不删除 Gate 2 明确保留的 bounded compatibility owner，也不保留未登记的 shim/re-export。
+- [x] **W6.3** 审计 terminology ledger，确认 stable terms 没有发生无理由 churn。
+- [x] **W6.4** 运行 focused unit/architecture、integration、selected E2E、`npm test`、
   `openspec validate separate-framed-pure-workflows --strict`、
   `openspec validate --all --strict` 与 `git diff --check`。
-- [ ] **W6.5** Review archive 后的 merged main-spec model，确认 CURRENT compatibility 与 TARGET 没有互相覆盖。
-- [ ] **W6.6** 确认所有 tasks、verification 与 docs 已完成并交给下方 handoff checklist；准备 post-archive
+- [x] **W6.5** Review archive 后的 merged main-spec model，确认 CURRENT compatibility 与 TARGET 没有互相覆盖。
+- [x] **W6.6** 确认所有 tasks、verification 与 docs 已完成并交给下方 handoff checklist；准备 post-archive
   `project-versioning` 判断所需的证据。
-- [ ] **W6.CP** **Checkpoint 6:** 上游两份计划的 completion criteria 全部有 spec + implementation + focused proof；
+- [x] **W6.CP** **Checkpoint 6:** 上游两份计划的 completion criteria 全部有 spec + implementation + focused proof；
   active source、controller、directory、imports 和 main specs 只有一个 TARGET SSOT 和一个显式
   CURRENT boundary。
 
@@ -481,20 +487,20 @@ implementation ownership，不自动成为 capability 名称。只有 proposal �
 
 ### Verification Completion Checklist
 
-- [ ] **V.1** Static / architecture proof：`03`、`04` 不互相 import；shared raw/delivery 不含 workflow
+- [x] **V.1** Static / architecture proof：`03`、`04` 不互相 import；shared raw/delivery 不含 workflow
   semantic branch；目录/entry/test inventory 完整。
-- [ ] **V.2** Unit proof：marker/schema resolution、version selection、frame fit、Pure raw plan、
+- [x] **V.2** Unit proof：marker/schema resolution、version selection、frame fit、Pure raw plan、
   hash/invalidation 与 wrong-owner rejection 均有 focused coverage。
-- [ ] **V.3** Integration proof：Framed receipt -> raw evidence -> local compose -> manifest、Pure receipt ->
+- [x] **V.3** Integration proof：Framed receipt -> raw evidence -> local compose -> manifest、Pure receipt ->
   raw evidence -> manifest，以及 manifest -> same delivery 全部通过。
-- [ ] **V.4** Controller / CLI proof：一次 workflow choice、marker-first route、一个 next action、provider
+- [x] **V.4** Controller / CLI proof：一次 workflow choice、marker-first route、一个 next action、provider
   authorization 不被推断，且 producer/consumer ownership 正确。
-- [ ] **V.5** Structural proof：workflow switch 创建 vNext；preview + exact hash；apply 零 provider；不继承
+- [x] **V.5** Structural proof：workflow switch 创建 vNext；preview + exact hash；apply 零 provider；不继承
   review/final/delivery acceptance。
-- [ ] **V.6** CURRENT-boundary proof：mixed v1 要么完整兼容，要么只走已接受 migration；绝不静默 reinterpret。
-- [ ] **V.7** E2E proof：fresh Framed、fresh Pure、两类 refresh、notes-only、shared PPTX/notes 与 CURRENT
+- [x] **V.6** CURRENT-boundary proof：mixed v1 要么完整兼容，要么只走已接受 migration；绝不静默 reinterpret。
+- [x] **V.7** E2E proof：fresh Framed、fresh Pure、两类 refresh、notes-only、shared PPTX/notes 与 CURRENT
   boundary 都有记录。
-- [ ] **V.8** Negative proof：TARGET per-slide override、identity collision、stale evidence、wrong workflow
+- [x] **V.8** Negative proof：TARGET per-slide override、identity collision、stale evidence、wrong workflow
   state、partial manifest、second delivery result 全部 fail closed。
 
 真实 provider 和审美评分不是本次普通 implementation checkpoint。Provider contract 使用最小
@@ -524,18 +530,82 @@ accepted main specs 校准。不得退化成按 `03`、`04`、`05` 各建一个�
 
 ## Completion And Handoff Checklist
 
-本 progressive plan 的下一步不是移动文件，而是在用户确认后创建唯一 OpenSpec change，
-并先完成 Phase A。只有下列条目与 `W6.CP` 都关闭后，才可 archive：
+本 progressive plan 的 implementation、spec sync、archive 与提交均已完成。下列 `H.1`–`H.9`
+记录已满足的收尾条件；`H.10` 保留为一次独立的、用户授权后的项目版本决策：
 
-- [ ] **H.1** 六个 design gates 全部关闭，无实现者需要猜测的 open question。
-- [ ] **H.2** Proposal capability 表与 delta spec 目录完全一致，没有为纯实现/文案制造 main-spec churn。
-- [ ] **H.3** TARGET identity、Framed、Pure、Delivery、Iteration 与 CURRENT boundary 构成一个可执行闭环。
-- [ ] **H.4** 新手只作一次 workflow choice，后续不接触实现复用拓扑。
-- [ ] **H.5** PPTX assembly 与 notes injection 对两条 workflow 保持同一合同和实现路径。
-- [ ] **H.6** policies 所保护的 identity、authorization、evidence、bytes、lineage、recovery 不变量未放松。
-- [ ] **H.7** Old business branches/paths 已删除，或被 Gate 2 明确登记为 bounded compatibility。
-- [ ] **H.8** Focused、integration、selected E2E、core regression 与 OpenSpec strict validation 全部有记录。
-- [ ] **H.9** 在 `H.1`–`H.8`、`V.1`–`V.8` 与 `W6.CP` 全部完成后 archive 一次，并把 archive 证据记入
+- [x] **H.1** 六个 design gates 全部关闭，无实现者需要猜测的 open question。
+- [x] **H.2** Proposal capability 表与 delta spec 目录完全一致，没有为纯实现/文案制造 main-spec churn。
+- [x] **H.3** TARGET identity、Framed、Pure、Delivery、Iteration 与 CURRENT boundary 构成一个可执行闭环。
+- [x] **H.4** 新手只作一次 workflow choice，后续不接触实现复用拓扑。
+- [x] **H.5** PPTX assembly 与 notes injection 对两条 workflow 保持同一合同和实现路径。
+- [x] **H.6** policies 所保护的 identity、authorization、evidence、bytes、lineage、recovery 不变量未放松。
+- [x] **H.7** Old business branches/paths 已删除，或被 Gate 2 明确登记为 bounded compatibility。
+- [x] **H.8** Focused、integration、selected E2E、core regression 与 OpenSpec strict validation 全部有记录。
+- [x] **H.9** 在 `H.1`–`H.8`、`V.1`–`V.8` 与 `W6.CP` 全部完成后 archive 一次，并把 archive 证据记入
   evidence log。
-- [ ] **H.10** Archive 后确认本文与两份上游 plan 的结论已被 proposal/design/specs/tasks/main specs 吸收，并按
-  `project-versioning` 判断版本；只有此时三份 backlog plan 才适合一起关闭，不能只因 change 被创建就提前关闭。
+- [ ] **H.10（待用户授权）** Archive 后确认本文与两份上游 plan 的结论已被 proposal/design/specs/tasks/main specs 吸收，并按
+  `project-versioning` 判断版本；它可独立于后续 hygiene change 评估，但本文只有在 `HC.CP` 也关闭后才适合整体关闭。
+
+## Post-Archive Progressive Extension: Compatibility Hygiene
+
+这一节不是追溯性地否定已经完成的 `separate-framed-pure-workflows`，也不重新打开已 archive 的
+change。它记录的是 archive 后通过真实目录盘点和观察路径复现发现的一个**独立可交付边界**：让
+exact CURRENT v1 compatibility 留在一个清晰、受限且可验证的位置，同时将 TARGET、观察路径、文档
+和测试中的残留旧拓扑清掉。这个边界可独立 spec、验证、发布和回滚，不会产生半注册 TARGET 或改变
+已接受的 v1 bytes，因此应当以一个新的 OpenSpec change 落地。
+
+### Hygiene 目标与目录处置原则
+
+目标不是删除 `page-authority-image2-v1` / `image2-page-authority` 支持。它们仍是 existing exact mixed
+run 的 bounded compatibility；要删除的是错误的 TARGET -> v1 调用、无调用的 pass-through、空占位和
+将 legacy 内容伪装成 current workflow 的目录入口。
+
+| 当前 surface | 分类 | Hygiene 后的要求 |
+| --- | --- | --- |
+| `scripts/04-image-production/` | exact CURRENT v1 implementation | 收敛到显式 current-v1 compatibility home；TARGET、status 和 inspection 不得经此 writer。迁移前先证明 v1 receipt/bytes/CLI 语义不变。 |
+| `workflow/04-image-production/`、`workflow/05-iteration/` | CURRENT v1 guidance | 腾挪到明确标识的 compatibility 文档入口，或在原路径删除前更新所有 links；任何直达页必须首先声明 exact v1-only。 |
+| `tests/04-image-production/` | CURRENT v1 proof | 与 v1 implementation 一起迁移/重命名，并把 test owner、fixture 术语和 README 改为 compatibility-only。 |
+| `scripts/05-iteration/` | suspected dead compatibility wrapper | 先证明无生产 caller；若成立，删除 wrapper、internal pass-through 和相应 inventory，而不是留下空 interface。仍需保留的 v1 classifier 随 compatibility guidance 收口。 |
+| `tests/05-iteration/`、`tests_e2e/04-image-production/`、`tests_e2e/05-iteration/` | stale placeholders | 删除只有过期 README 的空 owner 目录；实际 test 归属必须由 source-to-test inventory 明确登记。 |
+| `workflow/05-delivery/`、`tests/05-delivery/` | active TARGET shared delivery | 保留为 `03 XOR 04 -> 05` 的唯一 delivery owner；仅更新它引用 compatibility 的说明，不迁回 legacy path。 |
+
+候选新 home 是清晰的 `compatibility/current-v1-page-authority/` source、workflow 与 test surface；
+`HC.1` 的 proposal/design 必须确认最终命名、迁移顺序和是否需要短暂的内部-only redirect。不得保留
+长寿命 re-export，也不得让目录移动成为 TARGET 语义或 public CLI grammar 的改变。
+
+### Hygiene Cleanup Checklist
+
+- [x] **HC.0** 记录 post-archive inventory 与最小复现：已验证 selected TARGET v2 的 `ppt_flow status`
+  会错误写入 v1 `source-receipt.json`；已列出 dead wrapper、误导文档与空测试占位。
+- [ ] **HC.1** 新建一个 dedicated OpenSpec cleanup change，写清 CURRENT compatibility 保留合同、目标
+  compatibility home、迁移/rollback、directory ownership、CLI non-goals 和不读取生产 deck data 的约束。
+- [ ] **HC.2** 以一个 read-only seam 重做 `status` / controller observation：marker-first 区分 v1/v2，
+  不初始化 state、不写 v1/v2 receipt、不写 `_generated/`、history 或 metadata，也不发起 provider 调用。
+- [ ] **HC.3** 将保留的 v1 implementation、workflow guidance 与 focused proof 迁至或收敛到一个明确
+  current-v1 compatibility owner；删除 generic/new-authoring 暗示，且不保留未登记的长期 re-export。
+- [ ] **HC.4** 删除已证明无 caller 的 `scripts/05-iteration` wrapper/internal pass-through，以及
+  `tests/05-iteration`、`tests_e2e/04-image-production`、`tests_e2e/05-iteration` 的空占位；迁移任何
+  仍有效的 classifier/document link 到正式 compatibility home。
+- [ ] **HC.5** 保持 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration` 为所有新 authoring
+  的唯一可见路径；更新直达 legacy 文档、README、playbook、test README 和 link/audit allowlist，使 v1
+  只能作为 existing-run compatibility 出现。
+- [ ] **HC.6** 更新 architecture contracts、source-to-test ownership、governance/retirement ledger、
+  executable/import inventory 和相关 main specs；明确 target method modules 不会 import 或调用 v1 writer。
+- [ ] **HC.7** 加入 focused 与 E2E proof：exact CURRENT v1 resume/refresh/delivery 保持合同；selected
+  TARGET Framed/Pure 和 fresh workflow-selection `status` 均为零写入；旧 receipt 不会由 target observation
+  创建；目录/链接/ownership audit fail closed。
+- [ ] **HC.8** 运行 focused、process、selected E2E、`npm test`、`git diff --check` 和 OpenSpec strict
+  validation；在 archive/commit 后把证据回写本节与证据日志。
+- [ ] **HC.CP** **Compatibility Hygiene Checkpoint:** 每个 retained v1 surface 都有一个明确 owner；TARGET
+  public route、observer 和 delivery 只有 `03 XOR 04 -> 05 -> 06`；没有 dead wrapper、空 test owner、
+  误导 legacy entry 或 observation-induced generated artifact；v1 与 v2 的 bytes、state 和 CLI contracts
+  都有回归证明。
+
+### Hygiene 非目标与关闭条件
+
+- 不删除或静默迁移任何用户 `deck_*`、`dpt_*`、`_generated/` 生产数据。
+- 不将 exact v1 mixed source 自动重写为 v2，也不改变 v1 的 receipt、raw/final bytes 或 provider
+  authorization 语义。
+- 不借目录 cleanup 改写 direct CLI grammar、发布新 workflow，或让 `05-delivery` 出现第二个 writer。
+- `H.10` 的项目版本决策与 `HC.CP` 都完成后，才可把这份 progressive plan 作为整体关闭；在此之前，
+  后续发现应继续以新的证据行和 `HC.*` 子项扩展，而不是回填为原 change 的未完成工作。
