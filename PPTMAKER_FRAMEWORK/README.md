@@ -1,9 +1,9 @@
 ---
 title: PPTMAKER_FRAMEWORK
-version: 0.22.0
+version: 0.23.0
 ---
 
-# PPTMAKER_FRAMEWORK · v0.22.0
+# PPTMAKER_FRAMEWORK · v0.23.0
 
 AI-driven presentation framework soft bundle. The Agent owns process and local
 production work; the human owns content, visual acceptance, and remote-cost
