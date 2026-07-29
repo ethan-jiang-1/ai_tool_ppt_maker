@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { decode as decodePng } from "fast-png";
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 import { pageAuthorityImage2Paths } from "../../shared/run-bundle/bundle_layout.mjs";
-import { composePageAuthorityFramedPage } from "./internal/framed_runtime.mjs";
+import { composePageAuthorityFramedPage } from "../../03-framed-image/index.mjs";
 
 export const PAGE_AUTHORITY_FINAL_SLIDE_SCHEMA = "pptmaker-page-authority-final-slide-v1";
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }

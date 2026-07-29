@@ -33,6 +33,14 @@ export {
   FRAMED_TEXT_PRESET,
   PAGE_AUTHORITIES,
   PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA,
+  PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
   PageAuthoritySourceError,
   parsePageAuthoritySource,
 } from "./internal/page_authority_source.mjs";
+
+export {
+  TARGET_STRUCTURAL_PLAN_SCHEMA,
+  applyTargetStructuralVersion,
+  deriveTargetStructuralSource,
+  previewTargetStructuralVersion,
+} from "./internal/target_structural_version.mjs";

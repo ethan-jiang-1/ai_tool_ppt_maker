@@ -5,7 +5,7 @@ import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 import {
   FRAMED_TEXT_FRAME_STANDARD_V1,
   preflightFramedTextFrame,
-} from "../../02-visual-system/index.mjs";
+} from "../../03-framed-image/index.mjs";
 
 export const PAGE_AUTHORITY_RAW_IMAGE_CONTRACT_SCHEMA = "pptmaker-page-authority-raw-image-contract-v1";
 export const PAGE_AUTHORITY_RAW_GENERATION_PROFILE_SCHEMA = "pptmaker-page-authority-raw-generation-profile-v1";

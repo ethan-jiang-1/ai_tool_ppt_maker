@@ -2,8 +2,8 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: <framed|pure>
 ---
 
 # Page Authority Slide Source
@@ -30,10 +30,15 @@ negative_constraints:
 
 ## Authoring Rules
 
-- `framed-image2` gives visible text to the local Text Frame. `pure-image2` is
-  for visual content that must be owned by the raw Image2 result.
-- Every slide selects a closed `VISUAL BRIEF` from the Page Authority visual-language
-  registry. Framed underlays remain text-free.
+- Replace `<framed|pure>` with one explicit workflow before validation or
+  provider work. It applies to the whole version; do not add a per-slide
+  `PAGE AUTHORITY` field or `page_authority_default`.
+- Framed gives visible title-like text to the local Text Frame and keeps each
+  underlay text-free. Pure is for a version whose visible display content must
+  be owned by the raw Image2 result.
+- Every slide supplies a closed `VISUAL BRIEF` from the Page Authority
+  visual-language registry. The shown no-readable-text constraints are for a
+  Framed version; adjust them consistently when the selected version is Pure.
 - Do not add arbitrary markup, CSS, coordinates, retired source fields, provider
   controls, or hand-edited generated artifacts.
 - Use `**VISUAL IDENTITY**: [SUBJECT + MOVE]` only when the selected registry

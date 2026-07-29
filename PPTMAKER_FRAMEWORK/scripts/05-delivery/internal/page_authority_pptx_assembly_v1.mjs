@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import PptxGenJS from "pptxgenjs";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { pageAuthorityImage2Paths } from "../../shared/run-bundle/bundle_layout.mjs";
-import { PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA } from "./final_manifest.mjs";
+const PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA = "pptmaker-page-authority-final-manifest-v1";
 
 export const PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA = "pptmaker-page-authority-pptx-assembly-v1";
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");

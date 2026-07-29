@@ -45,16 +45,7 @@ export {
 export {
   PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA,
   finalizePageAuthorityRun,
-  renderPageAuthorityFinalProjection,
 } from "./page-authority/final_manifest.mjs";
-export {
-  PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA,
-  assemblePageAuthorityPptx,
-} from "./page-authority/pptx_assembly.mjs";
-export {
-  PAGE_AUTHORITY_NOTES_RECEIPT_SCHEMA,
-  injectPageAuthorityNotes,
-} from "./page-authority/notes.mjs";
 export {
   PAGE_AUTHORITY_STRUCTURAL_RAW_PLAN_SCHEMA,
   applyPageAuthorityStructuralRaw,

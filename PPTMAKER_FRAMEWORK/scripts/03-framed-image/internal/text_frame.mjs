@@ -1,5 +1,7 @@
 import { canonicalJsonSha256 } from "../../contracts/canonical_json.mjs";
 
+// Framed-specific preset and preflight semantics belong to the Framed workflow.
+
 export const FRAMED_TEXT_FRAME_PRESET = "standard-v1";
 export const FRAMED_TEXT_FRAME_PREFLIGHT_SCHEMA = "pptmaker-framed-text-frame-preflight-v1";
 

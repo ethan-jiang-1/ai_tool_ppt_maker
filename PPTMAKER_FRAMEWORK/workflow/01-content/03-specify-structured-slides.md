@@ -12,9 +12,11 @@ Each slide heading carries a 5–8 character mnemonic ID with exactly two BlockC
 chunks. Author the claim, optional Framed Text Frame fields, one closed fenced
 `VISUAL BRIEF`, and speaker notes for that stable ID.
 
-Resolve each slide to `framed-image2` or `pure-image2`. Framed underlays stay
-text-free and the local frame owns final text pixels. Pure uses Image2 for all
-final pixels, including any semantic display text.
+Set `production.workflow: framed|pure` once in the version frontmatter; every
+slide inherits it. Framed underlays stay text-free and the local frame owns
+final text pixels. Pure uses Image2 for all final pixels, including any
+semantic display text. Do not add `PAGE AUTHORITY` to an individual target
+slide; a Framed/Pure switch is a Structural Versioning Path decision.
 
 Do not author arbitrary markup, coordinates, local rendering controls, free-form
 provider prompts, or hand-edited derived artifacts. Validate after each meaningful

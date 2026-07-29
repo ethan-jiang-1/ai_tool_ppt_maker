@@ -3,12 +3,17 @@ title: Iteration Capability Routing
 summary: Classify by Page Authority ownership and invalidated evidence.
 ---
 
-# Iteration Capability Routing
+# CURRENT v1 Compatibility Iteration Routing
+
+This document applies only to an exact mixed
+`page-authority-image2-v1` / `image2-page-authority` run. Target v2 uses
+`workflow/06-iteration/` after its bound Framed or Pure workflow; it does not
+select Page Authority per slide.
 
 1. Identify the exact source change and affected stable IDs.
 2. Identify the final-pixel owner: `framed-image2` or `pure-image2`.
 3. Determine whether accepted raw evidence remains exact.
-4. Select the smallest current path and display any required decision.
+4. Select the smallest bounded compatibility path and display any required decision.
 
 ## Framed Text Refresh
 

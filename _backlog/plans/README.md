@@ -19,6 +19,9 @@
 
 | Plan | Summary | Status |
 |------|---------|--------|
+| [framed-image-directory-ssot.md](framed-image-directory-ssot.md) | 将 `03 Framed` / `04 Pure` 拆成 sibling workflows，并在统一 final manifest 后进入 shared delivery | 目标已对齐，待 OpenSpec |
+| [page-authority-workflow-baseline-target-gap.md](page-authority-workflow-baseline-target-gap.md) | 对照 Page Authority 的 CURRENT baseline、双工作流 TARGET 与完整 implementation gap | 目标已对齐，待 OpenSpec |
+| [page-authority-workflow-openspec-progressive-plan.md](page-authority-workflow-openspec-progressive-plan.md) | 以一个 umbrella OpenSpec change 分波次落地双 workflow 迁移，控制术语、capability delta、切换与验证边界 | 单 change 方案已确定，尚未创建 |
 
 **Next available plan ID: CLS-014**（移入 `_closed_plans/` 时分配；CLS-001…013 已用）
 

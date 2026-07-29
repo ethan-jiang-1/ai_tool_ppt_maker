@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
-import { basename, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
+import { PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { inspectLegacyProtocol } from "../state/legacy_protocol_adoption.mjs";
 import { inspectPageAuthorityDeliveryEvidence } from "../state/page_authority_delivery_evidence.mjs";
 import {
   inspectPageAuthorityDeliveryReview,
+  inspectTargetPageAuthorityState,
   readState,
   resolveRunProductionAdapter,
   validateStateReadOnly,
@@ -60,11 +63,102 @@ function legacyResult(runDir, protocol) {
   });
 }
 
+function targetWorkflowOwner(workflow, actionId) {
+  if (["initialize_target_source_state", "repair_target_source_state"].includes(actionId)) return "state";
+  if (actionId === "rebuild_target_source_receipt") return "01-content";
+  if (["authorize_target_raw_work", "record_target_raw_evidence"].includes(actionId)) return "shared-raw";
+  if (actionId === "publish_target_final_manifest") return workflow === "framed" ? "03-framed-image" : "04-pure-image";
+  if (actionId === "deliver_target_final_manifest") return "05-delivery";
+  return "state";
+}
+
+function targetWorkflowResult(runDir, route) {
+  const target = inspectTargetPageAuthorityState(deckRoot(runDir), { runDir });
+  const workflow = route.workflow;
+  const evidenceSummary = {
+    pipeline: route.policy.pipeline,
+    mode: route.mode,
+    workflow,
+    source_epoch: target.source_epoch ?? null,
+    target_evidence: target.ok ? "current" : target.code,
+  };
+  if (target.ok) {
+    return report({
+      runDir,
+      posture: "complete",
+      rootCause: { owner: "05-delivery", kind: "target-delivery-complete" },
+      primaryAction: ownerAction("05-delivery", "complete-target-delivery", "complete", false, "Target delivery evidence is complete."),
+      evidenceSummary,
+    });
+  }
+  const actionId = target.next_action || "repair_target_source_state";
+  const owner = targetWorkflowOwner(workflow, actionId);
+  const isConfirm = target.kind === "confirm";
+  return report({
+    runDir,
+    posture: isConfirm ? "confirm" : "hard-stop",
+    rootCause: { owner, kind: target.code || "target-evidence-unavailable" },
+    primaryAction: ownerAction(
+      owner,
+      actionId,
+      isConfirm ? "review" : "repair",
+      isConfirm,
+      "Follow the exact target workflow prerequisite.",
+    ),
+    evidenceSummary,
+  });
+}
+
+function currentPageAuthorityMarker(runDir) {
+  try {
+    const marker = probeProductionMarker(readFileSync(join(runDir, "slide-specifications.md")), {
+      source: "slide-specifications.md",
+    });
+    return marker;
+  } catch {
+    return null;
+  }
+}
+
 /** Read-only Page Authority lifecycle or bounded historical-adoption projection. */
 export function inspectWorkflow({ runDir } = {}) {
   const resolved = resolve(runDir || "");
-  const protocol = inspectLegacyProtocol(resolved);
-  if (protocol.classification === "recognized-legacy") return legacyResult(resolved, protocol);
+  const marker = currentPageAuthorityMarker(resolved);
+  if (isTargetWorkflowSelectionPending(marker)) {
+    const layoutIssues = checkBundle(resolved, false)
+      .filter((issue) => issue !== TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
+    if (layoutIssues.length) {
+      return report({
+        runDir: resolved,
+        posture: "hard-stop",
+        rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
+        primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
+        evidenceSummary: { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, mode: null, workflow: null },
+      });
+    }
+    return report({
+      runDir: resolved,
+      posture: "confirm",
+      rootCause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
+      primaryAction: ownerAction("01-content", "select-target-page-authority-workflow", "select", true, "Select framed or pure for this target version before source validation or provider work."),
+      evidenceSummary: { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, mode: null, workflow: null },
+    });
+  }
+  if (!marker || ![PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE].includes(marker.branch)) {
+    const protocol = inspectLegacyProtocol(resolved);
+    if (protocol.classification === "recognized-legacy") return legacyResult(resolved, protocol);
+    const layoutIssues = checkBundle(resolved, false);
+    if (layoutIssues.length) {
+      return report({
+        runDir: resolved,
+        posture: "hard-stop",
+        rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
+        primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
+        evidenceSummary: { pipeline: null, mode: null },
+      });
+    }
+    return legacyResult(resolved, protocol);
+  }
   const layoutIssues = checkBundle(resolved, false);
   if (layoutIssues.length) {
     return report({
@@ -75,8 +169,6 @@ export function inspectWorkflow({ runDir } = {}) {
       evidenceSummary: { pipeline: null, mode: null },
     });
   }
-  if (protocol.classification !== "current") return legacyResult(resolved, protocol);
-
   const deckDir = deckRoot(resolved);
   const validation = validateStateReadOnly(deckDir, { runDir: resolved });
   if (!validation.valid) {
@@ -90,11 +182,23 @@ export function inspectWorkflow({ runDir } = {}) {
   }
 
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
-  if (!route.ok || route.adapter !== "page-authority-image2") {
+  if (!route.ok) {
     return report({
       runDir: resolved,
       posture: "hard-stop",
       rootCause: { owner: "production-mode", kind: route.code || "current-route-unavailable" },
+      primaryAction: ownerAction("production-mode", "repair-current-route", "repair", false, "Repair the exact Page Authority source/state pair."),
+      evidenceSummary: { pipeline: null, mode: null },
+    });
+  }
+
+  if (route.adapter === "page-authority-image2-v2") return targetWorkflowResult(resolved, route);
+
+  if (route.adapter !== "page-authority-image2") {
+    return report({
+      runDir: resolved,
+      posture: "hard-stop",
+      rootCause: { owner: "production-mode", kind: "current-route-unavailable" },
       primaryAction: ownerAction("production-mode", "repair-current-route", "repair", false, "Repair the exact Page Authority source/state pair."),
       evidenceSummary: { pipeline: null, mode: null },
     });

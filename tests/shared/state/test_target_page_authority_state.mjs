@@ -1,0 +1,359 @@
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
+import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  advanceTargetPageAuthoritySourceEpoch,
+  createInitialState,
+  initializeTargetPageAuthorityState,
+  inspectPageAuthorityRawProviderAuthorization,
+  inspectTargetPageAuthorityState,
+  readState,
+  recordPageAuthorityRawProviderAuthorization,
+  recordTargetAcceptedRawEvidence,
+  recordTargetDeliveryReceipt,
+  recordTargetFinalManifest,
+  statePath,
+  validateStateReadOnly,
+  writeState,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+
+const digest = (letter) => letter.repeat(64);
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+function targetFixture(workflow = "pure") {
+  const root = mkdtempSync(join(tmpdir(), "page-authority-target-state-"));
+  const deck = join(root, "deck_target");
+  const runDir = join(deck, "3_versions", "v1");
+  initBundle(deck, null, "keynote", "dark-executive");
+  const source = `---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: ${workflow}\n---\n`;
+  writeFileSync(join(runDir, "slide-specifications.md"), source);
+  const state = createInitialState("target", "keynote", "dark-executive", {
+    mode: "image2-page-authority-v2",
+    workflow,
+  });
+  state.continuation_target_version = "v1";
+  writeState(deck, state);
+  return {
+    root,
+    deck,
+    runDir,
+    sourceReceipt: {
+      schema: "page-authority-image2-source-v2",
+      pipeline: "page-authority-image2-v2",
+      workflow,
+      source_sha256: sha256(source),
+      slides: [{ slide_id: "DeckGo", workflow, display: { title: "Target state" } }],
+    },
+  };
+}
+
+function rawPlan(receipt) {
+  return createRawWorkPlan({
+    source_receipt_sha256: receipt.source_sha256,
+    workflow: receipt.workflow,
+    ordered_slide_ids: ["DeckGo"],
+    provider_profile_sha256: digest("b"),
+    authorization_scope_sha256: digest("c"),
+    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+  });
+}
+
+describe("TARGET Page Authority state lineage", () => {
+  it("records source, authorization, raw evidence, final manifest, and delivery in one v2 state record", () => {
+    const fixture = targetFixture();
+    try {
+      const plan = rawPlan(fixture.sourceReceipt);
+      const beforeInitialization = readFileSync(statePath(fixture.deck));
+      expect(() => recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      })).toThrow("TARGET_STATE_INITIALIZATION_REQUIRED");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeInitialization);
+
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const authorization = recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      });
+      const evidence = createAcceptedRawEvidence({
+        plan,
+        provider_authorization_sha256: canonicalJsonSha256(authorization.record),
+        raw_review_sha256: digest("e"),
+        raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
+      });
+      recordTargetAcceptedRawEvidence(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        acceptedRawEvidence: evidence,
+      });
+      const finalManifest = createFinalSlideManifest({
+        evidence,
+        expected_workflow: "pure",
+        final_bytes_by_slide: { DeckGo: Buffer.from("final") },
+      });
+      recordTargetFinalManifest(fixture.deck, {
+        runVersion: "v1",
+        acceptedRawEvidence: evidence,
+        finalManifest,
+      });
+      recordTargetDeliveryReceipt(fixture.deck, {
+        runVersion: "v1",
+        deliveryReceipt: {
+          schema: "page-authority-delivery-receipt-v2",
+          source_epoch: 1,
+          final_manifest_sha256: finalManifest.sha256,
+        },
+      });
+
+      const record = readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_target_evidence.by_version["3_versions/v1"];
+      expect(record).toMatchObject({
+        workflow: "pure",
+        source_epoch: 1,
+        source_receipt_sha256: fixture.sourceReceipt.source_sha256,
+        provider_authorization_sha256: canonicalJsonSha256(authorization.record),
+        accepted_raw_evidence_sha256: evidence.sha256,
+        final_manifest_sha256: finalManifest.sha256,
+      });
+      expect(record.delivery_receipt_sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(inspectTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      })).toMatchObject({ ok: true, workflow: "pure", source_epoch: 1 });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("starts a fresh same-workflow source epoch before a selected raw rebuild", () => {
+    const fixture = targetFixture();
+    try {
+      const plan = rawPlan(fixture.sourceReceipt);
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      });
+      const nextSource = `---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n# revised raw source\n`;
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), nextSource);
+      const nextReceipt = {
+        ...fixture.sourceReceipt,
+        source_sha256: sha256(nextSource),
+      };
+
+      const advanced = advanceTargetPageAuthoritySourceEpoch(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: nextReceipt,
+        expectedSourceEpoch: 1,
+      });
+      expect(advanced).toMatchObject({ ok: true, previous_source_epoch: 1, source_epoch: 2 });
+      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(state.production_mode.by_version["3_versions/v1"]).toEqual({
+        mode: "image2-page-authority-v2",
+        workflow: "pure",
+        source_epoch: 2,
+      });
+      expect(state.page_authority_target_evidence.by_version["3_versions/v1"]).toEqual({
+        schema: "page-authority-image2-target-state-v1",
+        run_version: "v1",
+        source_epoch: 2,
+        source_receipt_sha256: nextReceipt.source_sha256,
+        workflow: "pure",
+        provider_authorization_sha256: null,
+        accepted_raw_evidence_sha256: null,
+        final_manifest_sha256: null,
+        delivery_receipt_sha256: null,
+      });
+      expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v1"]).toBeUndefined();
+
+      const beforeRepeat = readFileSync(statePath(fixture.deck));
+      expect(() => advanceTargetPageAuthoritySourceEpoch(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: nextReceipt,
+        expectedSourceEpoch: 2,
+      })).toThrow("TARGET_SOURCE_TRANSITION_INVALID");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeRepeat);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed target evidence during read-only validation without changing persisted bytes", () => {
+    const fixture = targetFixture("framed");
+    try {
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const path = statePath(fixture.deck);
+      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      state.page_authority_target_evidence.by_version["3_versions/v1"].workflow = "mixed";
+      writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+      const before = readFileSync(path);
+      expect(validateStateReadOnly(fixture.deck, { runDir: fixture.runDir }).valid).toBe(false);
+      expect(inspectTargetPageAuthorityState(fixture.deck, { runVersion: "v1" })).toMatchObject({
+        ok: false,
+        code: "STATE_UNAVAILABLE",
+      });
+      expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("hard-stops a missing workflow or source/state mismatch before target state publication", () => {
+    const missingWorkflow = targetFixture("pure");
+    const mismatch = targetFixture("pure");
+    try {
+      const missingPath = join(missingWorkflow.runDir, "slide-specifications.md");
+      writeFileSync(missingPath, "---\nproduction:\n  pipeline: page-authority-image2-v2\n---\n");
+      const missingBefore = readFileSync(statePath(missingWorkflow.deck));
+      expect(inspectTargetPageAuthorityState(missingWorkflow.deck, { runVersion: "v1" })).toMatchObject({
+        ok: false,
+        kind: "hard-stop",
+        code: "STATE_UNAVAILABLE",
+        next_action: "repair_target_source_state",
+      });
+      expect(readFileSync(statePath(missingWorkflow.deck))).toEqual(missingBefore);
+
+      const mismatchSource = "---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: framed\n---\n";
+      writeFileSync(join(mismatch.runDir, "slide-specifications.md"), mismatchSource);
+      const mismatchReceipt = {
+        ...mismatch.sourceReceipt,
+        workflow: "framed",
+        source_sha256: sha256(mismatchSource),
+        slides: [{ slide_id: "DeckGo", workflow: "framed", display: { title: "Target state" } }],
+      };
+      const mismatchBefore = readFileSync(statePath(mismatch.deck));
+      expect(() => initializeTargetPageAuthorityState(mismatch.deck, {
+        runVersion: "v1",
+        sourceReceipt: mismatchReceipt,
+      })).toThrow("MODE_SOURCE_IDENTITY_MISMATCH");
+      expect(readFileSync(statePath(mismatch.deck))).toEqual(mismatchBefore);
+    } finally {
+      rmSync(missingWorkflow.root, { recursive: true, force: true });
+      rmSync(mismatch.root, { recursive: true, force: true });
+    }
+  });
+
+  it("retains the confirmed version-scoped authorization when scope or raw evidence is invalid", () => {
+    const fixture = targetFixture();
+    try {
+      const plan = rawPlan(fixture.sourceReceipt);
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const authorization = recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      });
+      const authorizationDigest = canonicalJsonSha256(authorization.record);
+      expect(inspectPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      })).toMatchObject({ ok: true, record: authorization.record });
+
+      const invalidScope = { ...plan, authorization_scope_sha256: "not-a-sha256" };
+      const beforeInvalidScope = readFileSync(statePath(fixture.deck));
+      expect(() => recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: invalidScope,
+        maxSubmissions: 1,
+      })).toThrow("rawBatch or rawWorkPlan");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeInvalidScope);
+
+      const staleEvidence = createAcceptedRawEvidence({
+        plan,
+        provider_authorization_sha256: digest("f"),
+        raw_review_sha256: digest("e"),
+        raw_bytes_by_slide: { DeckGo: Buffer.from("stale raw") },
+      });
+      const beforeStaleEvidence = readFileSync(statePath(fixture.deck));
+      expect(() => recordTargetAcceptedRawEvidence(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        acceptedRawEvidence: staleEvidence,
+      })).toThrow("TARGET_RAW_EVIDENCE_LINEAGE_MISMATCH");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeStaleEvidence);
+
+      const persisted = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(persisted.page_authority_raw_provider_authorization.by_version["3_versions/v1"])
+        .toEqual(authorization.record);
+      expect(persisted.page_authority_target_evidence.by_version["3_versions/v1"])
+        .toMatchObject({ provider_authorization_sha256: authorizationDigest, accepted_raw_evidence_sha256: null });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a delivery lineage mismatch without replacing the target final record", () => {
+    const fixture = targetFixture();
+    try {
+      const plan = rawPlan(fixture.sourceReceipt);
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const authorization = recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        maxSubmissions: 1,
+      });
+      const evidence = createAcceptedRawEvidence({
+        plan,
+        provider_authorization_sha256: canonicalJsonSha256(authorization.record),
+        raw_review_sha256: digest("e"),
+        raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
+      });
+      recordTargetAcceptedRawEvidence(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: plan,
+        acceptedRawEvidence: evidence,
+      });
+      const finalManifest = createFinalSlideManifest({
+        evidence,
+        expected_workflow: "pure",
+        final_bytes_by_slide: { DeckGo: Buffer.from("final") },
+      });
+      recordTargetFinalManifest(fixture.deck, {
+        runVersion: "v1",
+        acceptedRawEvidence: evidence,
+        finalManifest,
+      });
+
+      const beforeMismatch = readFileSync(statePath(fixture.deck));
+      expect(() => recordTargetDeliveryReceipt(fixture.deck, {
+        runVersion: "v1",
+        deliveryReceipt: {
+          schema: "page-authority-delivery-receipt-v2",
+          source_epoch: 1,
+          final_manifest_sha256: digest("9"),
+        },
+      })).toThrow("TARGET_DELIVERY_LINEAGE_MISMATCH");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeMismatch);
+      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_target_evidence.by_version["3_versions/v1"])
+        .toMatchObject({ final_manifest_sha256: finalManifest.sha256, delivery_receipt_sha256: null });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+});

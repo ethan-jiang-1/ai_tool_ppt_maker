@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { pageAuthorityImage2Paths } from "../../shared/run-bundle/bundle_layout.mjs";
 import { readPageAuthorityRawManifest, validatePageAuthorityRawManifest } from "./raw_manifest.mjs";
@@ -37,15 +36,4 @@ export async function finalizePageAuthorityRun({ runDir, receipt, sourceEpoch, r
   const manifest = { schema: PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA, source_epoch: sourceEpoch, raw_review_coverage_sha256: sha256(readFileSync(paths.raw_review_coverage)), entries };
   atomic(paths.final_manifest, Buffer.from(`${canonicalJson(manifest)}\n`, "utf8"));
   return Object.freeze({ ok: true, manifest, path: paths.final_manifest });
-}
-
-/** Local final projection for delivery review; no provider or legacy artifact access. */
-export async function renderPageAuthorityFinalProjection(runDir) {
-  const paths = pageAuthorityImage2Paths(runDir);
-  const manifest = JSON.parse(readFileSync(paths.final_manifest, "utf8"));
-  if (manifest.schema !== PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA || !Array.isArray(manifest.entries) || !manifest.entries.length) throw new Error("Page Authority final manifest is invalid");
-  const width = 1032; const cellW = 500; const cellH = 281; const pad = 16; const labelH = 34; const rows = Math.ceil(manifest.entries.length / 2);
-  const canvas = createCanvas(width, pad * 2 + rows * (cellH + labelH) + Math.max(0, rows - 1) * pad); const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [index, entry] of manifest.entries.entries()) { const x = pad + (index % 2) * (cellW + pad); const y = pad + Math.floor(index / 2) * (cellH + labelH + pad); ctx.drawImage(await loadImage(readFileSync(join(paths.final_root, entry.path))), x, y, cellW, cellH); ctx.fillStyle = "#17212b"; ctx.font = "700 16px Arial"; ctx.fillText(entry.slide_id, x, y + cellH + 22); }
-  const bytes = canvas.toBuffer("image/png"); atomic(paths.final_projection, bytes); return Object.freeze({ path: paths.final_projection, sha256: sha256(bytes) });
 }

@@ -2,15 +2,16 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: <framed|pure>
 deck_type: report
 ---
 
 # Report Page Authority Template
 
 Lead with the decision, then scope, findings, evidence, options, recommendation,
-implementation, risks, and next action. Preserve stable IDs when findings reorder.
+implementation, risks, and next action. Preserve stable IDs when findings
+reorder. Select `framed` or `pure` once for the version before validation.
 
 ## Slide 01: `FindGo`
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { decode as decodePng } from "fast-png";
-import { discoverRuntimePackages, inspectHtmlRuntime } from "../../../00-setup/index.mjs";
-import { captureHtmlPng } from "./framed_capture_runtime.mjs";
+import { discoverRuntimePackages, inspectHtmlRuntime } from "../../00-setup/index.mjs";
+import { captureHtmlPng } from "./capture_runtime.mjs";
 
 export const PAGE_AUTHORITY_FRAMED_RUNTIME_PROFILE = "page-authority-framed-runtime-v1";
 

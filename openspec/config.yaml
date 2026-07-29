@@ -88,42 +88,6 @@ context: |-
 
   Config 只固定协议边界，不复制 producer 或 consumer 的详细 schema。
 
-  ## Human-centered gates
-
-  Gate/readiness/validation/diagnostic/override work follows
-  `openspec/policies/human-centered-gates.md`. Classify each observable outcome
-  as `guide`, `confirm`, or `hard-stop`; explain the invariant for every hard
-  stop. An explicit continuation publishes a version-scoped waiver with a human
-  reason. It never silently ignores a pending gate, becomes approval, or implies
-  complete evidence. Runtime record and CLI schemas remain in their capability
-  specifications.
-
-  ## Agent assistance and control paths
-
-  Controller, state, recovery, deterministic-check, and diagnostic changes
-  also follow `openspec/policies/agent-assistance-and-control.md`. Keep the
-  human at genuinely semantic/risk/authority decisions, let the Agent perform
-  authorized mechanical work, and keep runtime truth with its existing owner.
-  Prefer one direct evaluator, bounded prerequisite-first diagnostics, and an
-  explicit same-check recovery path over added modes, duplicate validators,
-  inferred intent, or parallel state. This policy is guidance only; runtime
-  schemas and permissions remain in their owning capability specifications.
-  When both policies apply, the gate policy alone classifies the outcome,
-  waiver semantics, and protected invariant; the control policy alone shapes
-  the direct source/evaluator/handoff/recovery path; capability specifications
-  alone define concrete commands, record fields, and permissions.
-
-  ## Simple reliable control
-
-  All new or modified quality-control paths also follow
-  `openspec/policies/simple-reliable-control.md`. Quality control SHALL be
-  simpler than the work it validates: prefer one direct truth path, prerequisite
-  short-circuiting, bounded root-cause feedback, explicit same-check recovery,
-  and focused negative tests. Any new blocking rule, state, validator, retry,
-  fallback, or recovery layer must show what duplicate complexity it removes or
-  consolidates; otherwise reduce scope or make the rule advisory. This policy
-  is charter-level guidance and does not define runtime schemas or permissions.
-
   ## Capability 注册表
 
   Capability 是 proposal → delta specs → main specs 的稳定归属边界。名称使用 kebab-case，
@@ -225,12 +189,12 @@ rules:
       New Capabilities 与 Modified Capabilities 必须准确：只有 requirement-level 行为变化才列入；
       纯实现、测试或文案调整不得伪装成 capability 变化。
     - >-
-      明确 change domain（framework maintenance 或指定 deck 的 run-bundle production）以及
-      control owner（MD、JS 或 MD⇔JS protocol），并在 What Changes / Impact 中说明权威源、
-      兼容或迁移影响；不要提前展开 design.md 的实现细节。
-    - >-
-      Run-bundle production 才需要按 change-classifier 说明 Structural Versioning Path、refresh path、
-      Gate 与生成物影响；framework maintenance 不得把 deck_* 生产对象当框架源码或测试夹具。
+      本 repo 的 OpenSpec 只处理 framework maintenance。Proposal 必须列出受影响的 framework
+      源码范围（PPTMAKER_FRAMEWORK/、openspec/、tests/、tests_e2e/）、control owner
+      （MD、JS 或 MD⇔JS protocol），并评估对 run-bundle contract 的 impact：
+      `none` / `compatible` / `migration`。不得把 production `deck_*` 当源码、fixture
+      或待自动迁移对象。指定 deck 的制作从 `BOOTSTRAP.md`、`AGENT_CONTRACT.md` 和
+      controller playbook 进入，不经 OpenSpec proposal。
     - >-
       涉及 gate、readiness、validation、diagnostic 或 override 时，必须引用
       `openspec/policies/human-centered-gates.md`，说明 guide/confirm/hard-stop 结果、
@@ -290,16 +254,21 @@ rules:
     - >-
       涉及兼容、状态或持久化时说明 migration、heal、幂等与回退；涉及生成物时说明失效与重建路径，
       不把手工修改派生产物作为方案。
-    - >-
-      涉及 gate/readiness/validation/diagnostic/override 的 design 必须说明每种结果的
-      guide/confirm/hard-stop 分类、确认记录的 owner，以及 hard-stop 的恢复路径；不得把
-      force/waive 设计成越过 identity、integrity、security、authorization 或 recovery 边界。
-    - >-
-      新增 state、validator、recovery branch 或 controller step 时，Design 必须说明 owner、
-      writer/reader、失效规则、最近合法下一动作，以及替代、删除或避免的重复控制复杂度。
-    - >-
-      Design 新增任何质量控制层时必须应用 `simple-reliable-control.md` 的 complexity burden：
-      说明 direct fact、现有 checkpoint 的不足、被删除或合并的逻辑、唯一失败动作和 focused negative test。
+    - >
+      当 change 涉及 gate/readiness/validation/diagnostic/override 时，读取
+      `openspec/policies/human-centered-gates.md`；在 design 说明每种结果的
+      guide/confirm/hard-stop 分类、protected invariant、确认记录 owner 和 hard-stop 的合法恢复。
+      不得把 force/waive 设计成跨越 identity、integrity、security、authorization 或 recovery 边界。
+    - >
+      当 change 涉及 controller handoff、Agent 自动执行、state/recovery、deterministic check
+      或 diagnostic control path 时，读取 `openspec/policies/agent-assistance-and-control.md`；
+      说明 direct Source of Record、evaluator、human/Agent/runtime responsibility、writer/reader、
+      失效规则与同一 checkpoint 的最近合法下一动作，不得创建第二 controller 或 authority。
+    - >
+      当新增或修改 quality-control layer 时，读取
+      `openspec/policies/simple-reliable-control.md`；说明 direct fact、现有 checkpoint 的不足、
+      删除或合并的逻辑、唯一失败动作和 focused negative test。无法说明 net simplification 时缩 scope
+      或降为 advisory。
 
   tasks:
     - >-

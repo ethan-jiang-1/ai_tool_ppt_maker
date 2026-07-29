@@ -3,12 +3,19 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  METHOD_MODULES,
   buildPlaybookIndex,
+  controllerActiveNodeIds,
   controllerNodeIds,
   nodeAppliesToMode,
+  nodeAppliesToWorkflow,
   parseControllerFile,
   validatePlaybookIndex,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/md_controller_reader.mjs";
+import {
+  buildResumeCard,
+  createInitialState,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const PLAYBOOK_DIR = "PPTMAKER_FRAMEWORK/playbook";
 
@@ -44,7 +51,7 @@ describe("MD Controller reader characterization", () => {
         const node = index.nodesById.get(id);
         expect(node, `${playbook}/${id}`).toBeDefined();
         expect(node.lifecyclePhase).toMatch(/^(0|1|2|3|4|5)$/);
-        expect(node.methodModule).toMatch(/^(00-setup|01-content|02-visual-system|04-image-production|05-iteration)$/);
+        expect(METHOD_MODULES).toContain(node.methodModule);
         expect(node.steps.length).toBeGreaterThan(0);
       }
     }
@@ -55,7 +62,10 @@ describe("MD Controller reader characterization", () => {
     expect(index.controllers.size).toBe(9);
     expect(index.controllers.has("production-mode-transition")).toBe(true);
     expect(index.controllers.has("image2-refine")).toBe(false);
-    expect(index.controllers.get("create-deck").supportedPipelines).toEqual(["page-authority-image2-v1"]);
+    expect(index.controllers.get("create-deck").supportedPipelines).toEqual([
+      "page-authority-image2-v1",
+      "page-authority-image2-v2",
+    ]);
   });
 
   it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
@@ -65,6 +75,75 @@ describe("MD Controller reader characterization", () => {
     expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
     expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority")).toBe(true);
     expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-only")).toBe(false);
+  });
+
+  it("projects one bound target workflow through 03 XOR 04, then common delivery and iteration", () => {
+    const index = buildPlaybookIndex(PLAYBOOK_DIR);
+    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2", "framed");
+    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2", "pure");
+    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2");
+
+    expect(unresolved).toEqual(["checkpoint-intake", "select-target-page-authority-workflow"]);
+    expect(framed).toEqual([
+      "checkpoint-intake",
+      "select-target-page-authority-workflow",
+      "author-target-page-authority-content",
+      "configure-target-page-authority-visual-system",
+      "authorize-target-framed-raw",
+      "generate-target-framed-raw",
+      "review-target-framed-raw",
+      "publish-target-framed-final-manifest",
+      "deliver-target-page-authority",
+      "review-target-page-authority-delivery",
+      "complete-target-page-authority-iteration",
+    ]);
+    expect(pure).toEqual([
+      "checkpoint-intake",
+      "select-target-page-authority-workflow",
+      "author-target-page-authority-content",
+      "configure-target-page-authority-visual-system",
+      "authorize-target-pure-raw",
+      "generate-target-pure-raw",
+      "review-target-pure-raw",
+      "publish-target-pure-final-manifest",
+      "deliver-target-page-authority",
+      "review-target-page-authority-delivery",
+      "complete-target-page-authority-iteration",
+    ]);
+    expect(framed).not.toContain("authorize-target-pure-raw");
+    expect(pure).not.toContain("authorize-target-framed-raw");
+
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "framed")).toEqual([
+      "classify-change",
+      "refresh-target-framed-text",
+      "review-target-text-delivery",
+    ]);
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "pure")).toEqual([
+      "classify-change",
+      "refresh-target-pure-text",
+      "review-target-text-delivery",
+    ]);
+    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-authority-v2", "framed")).toEqual([
+      "classify-change",
+      "refresh-target-speaker-notes",
+      "verify-target-speaker-notes",
+    ]);
+
+    const framedNode = index.nodesById.get("authorize-target-framed-raw");
+    expect(nodeAppliesToWorkflow(framedNode, "framed")).toBe(true);
+    expect(nodeAppliesToWorkflow(framedNode, "pure")).toBe(false);
+
+    const state = createInitialState("target", "keynote", "dark", {
+      mode: "image2-page-authority-v2",
+      workflow: "framed",
+    });
+    const card = buildResumeCard(state, null, { index, ctx: { runVersion: "v1" } });
+    expect(card.pending_nodes).toEqual(framed);
+    const mismatched = buildResumeCard(state, null, {
+      index,
+      ctx: { runVersion: "v1", productionWorkflow: "pure" },
+    });
+    expect(mismatched.pending_nodes).toEqual(unresolved);
   });
 
   it("rejects undeclared decisions, reserved ids, impossible ordering, and dependency cycles", () => {

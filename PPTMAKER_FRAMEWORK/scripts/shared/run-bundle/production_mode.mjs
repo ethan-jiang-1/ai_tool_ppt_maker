@@ -5,12 +5,16 @@
  * state pairs belong to the read-only legacy observer; they cannot become a
  * policy, adapter, or state record through this interface.
  */
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE } from "./production_marker.mjs";
+import {
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+  TARGET_WORKFLOWS,
+} from "./production_marker.mjs";
 
 export const CURRENT_PRODUCTION_MODE = "image2-page-authority";
-/** Current code owns one production mode. Historical parsing lives in the
- * legacy observer/adoption boundary, never in this policy module. */
-export const PRODUCTION_MODES = Object.freeze([CURRENT_PRODUCTION_MODE]);
+export const TARGET_PRODUCTION_MODE = "image2-page-authority-v2";
+/** Historical parsing remains in the observer/adoption boundary. */
+export const PRODUCTION_MODES = Object.freeze([CURRENT_PRODUCTION_MODE, TARGET_PRODUCTION_MODE]);
 export const PRODUCTION_PAGE_AUTHORITIES = Object.freeze(["image2"]);
 export const PRODUCTION_REFINEMENT_POLICIES = Object.freeze(["not-applicable"]);
 export const PRODUCTION_STYLE_MASTER_POLICIES = Object.freeze(["current"]);
@@ -24,6 +28,14 @@ const CURRENT_POLICY = Object.freeze({
   style_master_policy: "current",
   adapter: "page-authority-image2",
 });
+const TARGET_POLICY = Object.freeze({
+  mode: TARGET_PRODUCTION_MODE,
+  pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+  page_authority: "image2",
+  refinement_policy: "not-applicable",
+  style_master_policy: "current",
+  adapter: "page-authority-image2-v2",
+});
 const RUN_VERSION_RE = /^v[1-9][0-9]*$/;
 
 export function isProductionMode(value) {
@@ -36,6 +48,7 @@ export function normalizeProductionMode(value) {
 
 export function productionPolicyForMode(mode) {
   if (mode === CURRENT_PRODUCTION_MODE) return { ok: true, ...CURRENT_POLICY };
+  if (mode === TARGET_PRODUCTION_MODE) return { ok: true, ...TARGET_POLICY };
   return {
     ok: false,
     code: "INVALID_PRODUCTION_MODE",
@@ -60,8 +73,13 @@ export function pipelineFromSourceMarker(sourceMarker) {
     return { ok: false, code: "MARKER_MISSING", issues: [] };
   }
   const issues = Array.isArray(sourceMarker.issues) ? sourceMarker.issues : [];
-  if (sourceMarker.branch === PAGE_AUTHORITY_IMAGE2_PIPELINE) {
-    return { ok: true, pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE, branch: PAGE_AUTHORITY_IMAGE2_PIPELINE };
+  if (sourceMarker.branch === PAGE_AUTHORITY_IMAGE2_PIPELINE || sourceMarker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
+    return {
+      ok: true,
+      pipeline: sourceMarker.branch,
+      branch: sourceMarker.branch,
+      workflow: sourceMarker.frontmatter?.metadata?.production?.workflow ?? null,
+    };
   }
   return {
     ok: false,
@@ -89,30 +107,40 @@ function readCurrentRecord(record, versionKey) {
       valid_modes: [...PRODUCTION_MODES],
     };
   }
-  if (
-    Object.keys(record).length !== 2 || !Object.hasOwn(record, "mode") || !Object.hasOwn(record, "source_epoch") ||
-    !Number.isInteger(record.source_epoch) || record.source_epoch < 1
-  ) {
+  const isTarget = record.mode === TARGET_PRODUCTION_MODE;
+  const expectedKeys = isTarget ? ["mode", "workflow", "source_epoch"] : ["mode", "source_epoch"];
+  if (Object.keys(record).length !== expectedKeys.length || !expectedKeys.every((key) => Object.hasOwn(record, key)) ||
+    !Number.isInteger(record.source_epoch) || record.source_epoch < 1 ||
+    (isTarget && !TARGET_WORKFLOWS.includes(record.workflow))) {
     return {
       ok: false,
       code: "PAGE_AUTHORITY_STATE_INVALID",
       version_key: versionKey,
-      mode: CURRENT_PRODUCTION_MODE,
+      mode: record.mode,
       next_action: "repair_page_authority_state",
     };
   }
-  return { ok: true, mode: CURRENT_PRODUCTION_MODE };
+  return { ok: true, mode: record.mode, workflow: isTarget ? record.workflow : null };
 }
 
 export function isProductionModeRecord(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return false;
-  return record.mode === CURRENT_PRODUCTION_MODE &&
-    Object.keys(record).length === 2 && Number.isInteger(record.source_epoch) && record.source_epoch >= 1 &&
-    Object.hasOwn(record, "mode") && Object.hasOwn(record, "source_epoch");
+  if (record.mode === CURRENT_PRODUCTION_MODE) {
+    return Object.keys(record).length === 2 && Number.isInteger(record.source_epoch) && record.source_epoch >= 1 &&
+      Object.hasOwn(record, "mode") && Object.hasOwn(record, "source_epoch");
+  }
+  return record.mode === TARGET_PRODUCTION_MODE && Object.keys(record).length === 3 &&
+    Number.isInteger(record.source_epoch) && record.source_epoch >= 1 &&
+    TARGET_WORKFLOWS.includes(record.workflow) && Object.hasOwn(record, "mode") &&
+    Object.hasOwn(record, "workflow") && Object.hasOwn(record, "source_epoch");
 }
 
-export function initialProductionModeRecord(mode = CURRENT_PRODUCTION_MODE) {
-  if (mode !== CURRENT_PRODUCTION_MODE) throw new TypeError("mode must be image2-page-authority");
+export function initialProductionModeRecord(mode = CURRENT_PRODUCTION_MODE, workflow = null) {
+  if (!isProductionMode(mode)) throw new TypeError("mode must be a supported Page Authority mode");
+  if (mode === TARGET_PRODUCTION_MODE) {
+    if (!TARGET_WORKFLOWS.includes(workflow)) throw new TypeError("v2 mode requires workflow framed | pure");
+    return { mode: TARGET_PRODUCTION_MODE, workflow, source_epoch: 1 };
+  }
   return { mode: CURRENT_PRODUCTION_MODE, source_epoch: 1 };
 }
 
@@ -131,12 +159,24 @@ export function inspectProductionMode({ state, runDir, runVersion, sourceMarker 
   if (!marker.ok) {
     return { ok: false, code: marker.code, run_version: resolvedVersion, mode: CURRENT_PRODUCTION_MODE, marker };
   }
+  const policy = productionPolicyForMode(record.mode);
+  if (!policy.ok || marker.pipeline !== policy.pipeline || (record.mode === TARGET_PRODUCTION_MODE && marker.workflow !== record.workflow)) {
+    return {
+      ok: false,
+      code: "MODE_SOURCE_IDENTITY_MISMATCH",
+      run_version: resolvedVersion,
+      mode: record.mode,
+      workflow: record.workflow,
+      marker,
+    };
+  }
   return {
     ok: true,
     run_version: resolvedVersion,
     version_key: versionKey,
-    mode: CURRENT_PRODUCTION_MODE,
-    policy: { ok: true, ...CURRENT_POLICY },
+    mode: record.mode,
+    ...(record.workflow ? { workflow: record.workflow } : {}),
+    policy,
     source_branch: marker.branch,
     source_pipeline: marker.pipeline,
     consistent: true,

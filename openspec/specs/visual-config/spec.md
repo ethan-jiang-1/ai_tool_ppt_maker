@@ -2,9 +2,7 @@
 
 Define the Page Authority visual-language registry and fixed Framed Text Frame
 inputs. The registry is the current source of visual selection and frame data.
-
 ## Requirements
-
 ### Requirement: Page Authority visual language is a closed registry selection
 
 Visual Config SHALL own
@@ -52,3 +50,29 @@ Authority and SHALL NOT retain retired production semantics.
 
 - **WHEN** a current Framed Page Authority slide is composed
 - **THEN** its frame inputs come from current Page Authority visual configuration
+
+### Requirement: TARGET Framed visual semantics have one Framed workflow owner
+
+Shared visual language and closed registry selection SHALL remain available to
+both target workflows. For workflow `framed`, the Framed adapter SHALL be the
+sole owner of `standard-v1`, deterministic fit preflight, reserved underlay
+rectangles, text-free raw constraints, and local Text Frame composition inputs.
+For workflow `pure`, those Framed-specific facts SHALL NOT be added to the Pure
+raw plan or shared raw mechanics.
+
+A Framed fit or no-text violation SHALL be detected before provider work and
+return the owning deterministic repair action. A frame preset change SHALL
+invalidate the related underlay/raw tuple; it SHALL NOT be classified as a
+text-only local refresh.
+
+#### Scenario: Framed preflight blocks invalid content early
+
+- **WHEN** a target Framed source exceeds deterministic Text Frame fit or requires semantic body text
+- **THEN** the Framed owner rejects it before raw authorization with one repair-or-whole-version-switch action
+- **AND** it does not silently change the slide or version to Pure
+
+#### Scenario: Pure target plan has no Framed runtime semantics
+
+- **WHEN** a valid target Pure source is compiled into a raw plan
+- **THEN** the plan carries Pure display/raw contract facts and no Text Frame preset or reserved-underlay requirement
+- **AND** shared raw mechanics can consume it without a Framed branch

@@ -18,19 +18,47 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse } from "yaml";
-import { PRODUCTION_MODES, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
+import {
+  CURRENT_PRODUCTION_MODE,
+  PRODUCTION_MODES,
+  TARGET_PRODUCTION_MODE,
+  productionPolicyForMode,
+} from "../run-bundle/production_mode.mjs";
+import {
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+  TARGET_WORKFLOWS,
+} from "../run-bundle/production_marker.mjs";
 
 export const LIFECYCLE_PHASES = Object.freeze(["0", "1", "2", "3", "4", "5"]);
 export const METHOD_MODULES = Object.freeze([
   "00-setup",
   "01-content",
   "02-visual-system",
+  "03-framed-image",
   "04-image-production",
+  "04-pure-image",
+  "05-delivery",
   "05-iteration",
+  "06-iteration",
 ]);
 export const RESERVED_NODE_IDS = Object.freeze([]);
-export const SUPPORTED_PIPELINES = Object.freeze(["page-authority-image2-v1"]);
+export const SUPPORTED_PIPELINES = Object.freeze([
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
+export const SUPPORTED_PRODUCTION_WORKFLOWS = Object.freeze([...TARGET_WORKFLOWS]);
+
+const TARGET_STAGE_FOUR_MODULES = new Set([
+  "03-framed-image",
+  "04-pure-image",
+  "05-delivery",
+]);
+const TARGET_WORKFLOW_MODULES = Object.freeze({
+  "03-framed-image": "framed",
+  "04-pure-image": "pure",
+});
 
 /** Derived renderer pipeline for a valid production mode (null for invalid). */
 function derivedPipelineForMode(mode) {
@@ -58,6 +86,14 @@ export function nodeAppliesToMode(node, supportedModes, mode) {
   const nodeModes = node.productionModes;
   if (!nodeModes || nodeModes.length === 0) return true; // no restriction -> all supported modes
   return nodeModes.includes(mode);
+}
+
+/** True when a target node is active for the version workflow selected in state. */
+export function nodeAppliesToWorkflow(node, workflow) {
+  if (!node) return false;
+  const nodeWorkflows = node.productionWorkflows;
+  if (!nodeWorkflows || nodeWorkflows.length === 0) return true;
+  return TARGET_WORKFLOWS.includes(workflow) && nodeWorkflows.includes(workflow);
 }
 
 const DETERMINISTIC_CONDITIONS = new Set([
@@ -117,6 +153,7 @@ function normalizeNode(raw, meta) {
     produces: asStringArray(raw?.produces),
     decisions: asStringArray(raw?.decisions),
     productionModes: asStringArray(raw?.production_modes),
+    productionWorkflows: asStringArray(raw?.production_workflows),
     adapter: raw?.adapter == null ? null : String(raw.adapter),
     modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
     shared: raw?.shared === true,
@@ -220,6 +257,10 @@ function addError(errors, node, rule, message) {
   });
 }
 
+function hasExactSet(values, expected) {
+  return values.length === expected.length && expected.every((value) => values.includes(value));
+}
+
 function conditionKind(condition) {
   if (DETERMINISTIC_CONDITIONS.has(condition)) return "deterministic";
   if (/^gate_approved:[a-z0-9-]+$/.test(condition)) return "deterministic";
@@ -250,11 +291,48 @@ function validateNodeShape(node, errors) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
   }
   const imageProduction = node.methodModule === "04-image-production";
-  if (node.lifecyclePhase === "4" && !imageProduction) addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production");
+  const targetStageFour = TARGET_STAGE_FOUR_MODULES.has(node.methodModule);
+  const targetWorkflow = TARGET_WORKFLOW_MODULES[node.methodModule] || null;
+  const targetModeOnly = hasExactSet(node.productionModes, [TARGET_PRODUCTION_MODE]);
+  if (node.lifecyclePhase === "4" && !imageProduction && !targetStageFour) {
+    addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production or a target 03/04/05 module");
+  }
+  if (targetStageFour && node.lifecyclePhase !== "4") {
+    addError(errors, node, "target-lifecycle", `${node.methodModule} must use lifecycle_phase 4`);
+  }
+  if (node.methodModule === "06-iteration" && node.lifecyclePhase !== "5") {
+    addError(errors, node, "target-lifecycle", "06-iteration must use lifecycle_phase 5");
+  }
   if (imageProduction && node.adapter !== "page-authority-image2") addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: page-authority-image2");
-  if (!imageProduction && node.adapter != null) addError(errors, node, "image-production-adapter", "only 04-image-production nodes may declare an adapter");
-  if (node.adapter === "page-authority-image2" && (node.playbook !== "create-deck" || node.productionModes.join("\n") !== "image2-page-authority")) {
+  if (targetStageFour && node.adapter !== "page-authority-image2-v2") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-authority-image2-v2");
+  if (!imageProduction && !targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only Page Authority production nodes may declare an adapter");
+  if (imageProduction && (!hasExactSet(node.productionModes, [CURRENT_PRODUCTION_MODE]) || node.playbook !== "create-deck")) {
     addError(errors, node, "image-production-adapter", "page-authority-image2 is owned by create-deck and requires image2-page-authority");
+  }
+  if (targetStageFour && (!targetModeOnly || node.playbook !== "create-deck")) {
+    addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck and requires image2-page-authority-v2");
+  }
+  if (node.productionWorkflows.length > 0) {
+    if (new Set(node.productionWorkflows).size !== node.productionWorkflows.length) {
+      addError(errors, node, "production-workflows", "production_workflows must be unique");
+    }
+    for (const workflow of node.productionWorkflows) {
+      if (!SUPPORTED_PRODUCTION_WORKFLOWS.includes(workflow)) {
+        addError(errors, node, "production-workflows", `unsupported production workflow ${workflow}`);
+      }
+    }
+    if (!targetModeOnly) {
+      addError(errors, node, "production-workflows", "production_workflows require image2-page-authority-v2 only");
+    }
+  }
+  if (targetWorkflow && !hasExactSet(node.productionWorkflows, [targetWorkflow])) {
+    addError(errors, node, "production-workflows", `${node.methodModule} requires production_workflows: [${targetWorkflow}]`);
+  }
+  if (node.methodModule === "05-delivery" && !hasExactSet(node.productionWorkflows, TARGET_WORKFLOWS)) {
+    addError(errors, node, "production-workflows", "05-delivery must apply to both target workflows without a semantic branch");
+  }
+  if (node.methodModule === "06-iteration" && (!targetModeOnly || node.productionWorkflows.length === 0)) {
+    addError(errors, node, "production-workflows", "06-iteration requires one or both target workflows on image2-page-authority-v2");
   }
   if (!Array.isArray(node.raw?.requires) || !Array.isArray(node.raw?.entry) || !Array.isArray(node.raw?.exit)) {
     addError(errors, node, "node-lists", "requires, entry, and exit must be YAML arrays");
@@ -425,7 +503,7 @@ export function controllerNodeIds(index, playbook) {
  * apply when their production_modes (defaulting to all supported modes) contain
  * the mode. Inapplicable nodes are simply absent — never marked skipped.
  */
-export function controllerActiveNodeIds(index, playbook, mode) {
+export function controllerActiveNodeIds(index, playbook, mode, workflow = null) {
   const controller = index.controllers.get(playbook);
   if (!controller) return [];
   const supportedModes = controllerSupportedModes(controller);
@@ -433,10 +511,10 @@ export function controllerActiveNodeIds(index, playbook, mode) {
   const active = [];
   for (const include of controller.includes) {
     const shared = index.shared.get(include);
-    if (!mode || nodeAppliesToMode(shared, supportedModes, mode)) active.push(include);
+    if (!mode || (nodeAppliesToMode(shared, supportedModes, mode) && nodeAppliesToWorkflow(shared, workflow))) active.push(include);
   }
   for (const node of controller.nodes) {
-    if (!mode || nodeAppliesToMode(node, supportedModes, mode)) active.push(node.id);
+    if (!mode || (nodeAppliesToMode(node, supportedModes, mode) && nodeAppliesToWorkflow(node, workflow))) active.push(node.id);
   }
   return active;
 }

@@ -20,7 +20,9 @@
       "unit_integration": [
         "tests/01-content/test_page_authority_source.mjs",
         "tests/01-content/test_slide_document.mjs",
-        "tests/01-content/test_slide_ids.mjs"
+        "tests/01-content/test_slide_ids.mjs",
+        "tests/01-content/test_target_structural_cli.mjs",
+        "tests/01-content/test_target_structural_version.mjs"
       ],
       "e2e": []
     },
@@ -31,6 +33,13 @@
       "unit_integration": [
         "tests/02-visual-system/test_page_authority_visual_language.mjs"
       ],
+      "e2e": []
+    },
+    {
+      "owner": "03-framed-image",
+      "interfaces": ["03-framed-image/index.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/03-framed-image/test_framed_workflow.mjs"],
       "e2e": []
     },
     {
@@ -46,10 +55,31 @@
       "e2e": []
     },
     {
+      "owner": "04-pure-image",
+      "interfaces": ["04-pure-image/index.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/04-pure-image/test_pure_workflow.mjs"],
+      "e2e": []
+    },
+    {
+      "owner": "05-delivery",
+      "interfaces": ["05-delivery/index.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/05-delivery/test_delivery.mjs"],
+      "e2e": []
+    },
+    {
       "owner": "05-iteration",
       "interfaces": ["05-iteration/index.mjs"],
       "executables": [],
       "unit_integration": [],
+      "e2e": []
+    },
+    {
+      "owner": "06-iteration",
+      "interfaces": ["06-iteration/index.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/06-iteration/test_target_refresh_routing.mjs"],
       "e2e": []
     },
     {
@@ -104,9 +134,9 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs"],
       "executables": [],
-      "unit_integration": ["tests/shared/image2/test_credentials.mjs"],
+      "unit_integration": ["tests/shared/image2/test_artifact_contracts.mjs", "tests/shared/image2/test_credentials.mjs", "tests/shared/image2/test_final_manifest.mjs", "tests/shared/image2/test_raw_mechanics.mjs"],
       "e2e": []
     },
     {
@@ -140,7 +170,8 @@
       "unit_integration": [
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_process_legacy_protocol_adoption.mjs",
-        "tests/shared/state/test_state_yaml.mjs"
+        "tests/shared/state/test_state_yaml.mjs",
+        "tests/shared/state/test_target_page_authority_state.mjs"
       ],
       "e2e": [
         "tests_e2e/shared/state/test_mock_legacy_adoption_journey.mjs"
@@ -151,11 +182,13 @@
       "interfaces": ["shared/workflow/inspect_workflow.mjs"],
       "executables": [],
       "unit_integration": [
-        "tests/shared/workflow/test_process_workflow_inspection.mjs"
+        "tests/shared/workflow/test_process_workflow_inspection.mjs",
+        "tests/shared/workflow/test_target_workflow_inspection.mjs"
       ],
       "e2e": [
         "tests_e2e/shared/workflow/test-workflow-inspection-flow.mjs",
-        "tests_e2e/shared/workflow/test_mock_selected_journey.mjs"
+        "tests_e2e/shared/workflow/test_mock_selected_journey.mjs",
+        "tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs"
       ]
     }
   ]

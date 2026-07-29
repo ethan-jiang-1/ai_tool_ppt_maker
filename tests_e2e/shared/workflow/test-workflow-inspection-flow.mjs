@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { createHtmlFirstRun } from "../../../tests/helpers/html_first_fixture.mjs";
-import { canonicalJson } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 
@@ -23,24 +23,30 @@ function treeSnapshot(root, current = root, entries = []) {
 }
 
 describe("workflow inspection observation flow", () => {
-  it("keeps status/state parity and records the BUG-033 earliest owner diagnostic without writes", () => {
-    const fixture = createHtmlFirstRun("workflow-inspection-e2e-");
+  it("keeps a fresh target workflow-selection gate observable without writes", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspection-e2e-"));
+    const deck = join(root, "deck_target_inspection");
+    const runDir = join(deck, "3_versions", "v1");
     try {
-      const before = treeSnapshot(fixture.deck);
-      const status = flow(["status", fixture.runDir, "--json"]);
-      const state = flow(["state", fixture.runDir, "--json"]);
+      initBundle(deck, null, "keynote", "dark-executive");
+      const before = treeSnapshot(deck);
+      const status = flow(["status", runDir, "--json"]);
+      const state = flow(["state", runDir, "--json"]);
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
-      const statusInspection = JSON.parse(status.stdout).workflow_inspection;
-      const stateInspection = JSON.parse(state.stdout).workflow_inspection;
-      expect(canonicalJson(statusInspection)).toBe(canonicalJson(stateInspection));
-      expect(statusInspection).toMatchObject({
-        root_cause: { owner: "html-review", kind: "content-review-missing" },
-        primary_action: { action_id: "review-content" },
+      expect(JSON.parse(status.stdout)).toMatchObject({
+        pipeline: "page-authority-image2-v2",
+        structure_issues: [],
+        current_node: "select-target-page-authority-workflow",
       });
-      expect(treeSnapshot(fixture.deck)).toEqual(before);
+      expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
+        primary_action: { action_id: "select-target-page-authority-workflow", requires_human: true },
+      });
+      expect(treeSnapshot(deck)).toEqual(before);
     } finally {
-      rmSync(fixture.root, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

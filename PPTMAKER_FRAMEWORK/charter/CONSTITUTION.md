@@ -118,7 +118,7 @@ deck_{NAME}/
 │
 └── 3_versions/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── slide-specifications.md       ← Page Authority source; each slide has a stable ID and authority
+    │   ├── slide-specifications.md       ← Page Authority source; stable IDs + one v2 version workflow
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
     │   │   └── manuscript/               ←   (optional) this version's script tweaks

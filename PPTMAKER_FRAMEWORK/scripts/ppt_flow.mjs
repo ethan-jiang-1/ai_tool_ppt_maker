@@ -79,17 +79,26 @@ const contentApi = !directRootEntry || !["doctor", "--help", "-h", undefined].in
   : Object.create(null);
 const {
   applySlideEdit,
+  applyTargetStructuralVersion,
   computeSlideEditPlanSha256,
   formatAvailableSlideIds,
   formatSlideCandidate,
   parseSlideDocument,
+  parsePageAuthoritySource,
   planSlideEdit,
+  previewTargetStructuralVersion,
   resolveSlideBindings,
   resolveSlideIds,
   validateSlideDocument,
   verifySlideEditPlanHash,
 } = contentApi;
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE, probeProductionMarker } from "./shared/run-bundle/production_marker.mjs";
+import {
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+  TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE,
+  isTargetWorkflowSelectionPending,
+  probeProductionMarker,
+} from "./shared/run-bundle/production_marker.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -206,9 +215,44 @@ function preflightAdapterSource(resolved, where) {
   return false;
 }
 
+/**
+ * A fresh v2 bundle has no durable mode record until its authored source has a
+ * valid workflow receipt.  This narrow draft route lets the selected adapter
+ * create that first binding; it never applies to a v1/v2 hybrid or an active
+ * non-draft execution.
+ */
+async function resolveTargetAuthoringDraftAdapter(resolved, deckDir) {
+  const sourcePath = join(resolved, SLIDE_SPECS_NAME);
+  if (!existsSync(sourcePath)) return null;
+  const marker = probeProductionMarker(readFileSync(sourcePath), { source: SLIDE_SPECS_NAME });
+  const selectionPending = isTargetWorkflowSelectionPending(marker);
+  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE && !selectionPending) return null;
+  const { readState } = await import("./shared/state/state.mjs");
+  const state = readState(deckDir, { purpose: "observe", heal: false, runDir: resolved });
+  const versionKey = `3_versions/${basename(resolved)}`;
+  const isDraft = state && !state.replacement_required && !state.corrupted &&
+    state.pipeline === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE &&
+    state.production_mode?.by_version?.[versionKey] === undefined &&
+    state.playbook === "create-deck" && state.run_version === basename(resolved) &&
+    state.current_node === "select-target-page-authority-workflow";
+  if (!isDraft) return null;
+  return Object.freeze({
+    ok: true,
+    run_version: basename(resolved),
+    mode: "image2-page-authority-v2",
+    workflow: selectionPending ? null : marker.frontmatter.metadata.production.workflow,
+    policy: { adapter: "page-authority-image2-v2", pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE },
+    adapter: "page-authority-image2-v2",
+    draft: true,
+    target_workflow_selection_required: selectionPending,
+  });
+}
+
 async function resolveRunAdapter(runDir, where, { allowPageAuthority = false } = {}) {
   const resolved = resolve(runDir || "");
   const deckDir = deckRoot(resolved);
+  const targetDraft = await resolveTargetAuthoringDraftAdapter(resolved, deckDir);
+  if (targetDraft) return Object.freeze({ ...targetDraft, run_dir: resolved, deck_dir: deckDir });
   const { inspectLegacyProtocol } = await import("./shared/state/legacy_protocol_adoption.mjs");
   const protocol = inspectLegacyProtocol(resolved);
   if (protocol.classification === "recognized-legacy") {
@@ -566,7 +610,16 @@ async function enrichStatusWithState(status, runDir, route = null) {
     ? { resolvable: true, mode: modeInspection.mode, policy: modeInspection.policy }
     : { resolvable: false, code: modeInspection.code };
   const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
-  const controllerCtx = await buildControllerGateContext(runDir);
+  const controllerCtx = route?.target_workflow_selection_required
+    ? {
+      deckDir: root,
+      runDir,
+      runVersion: basename(resolve(runDir)),
+      pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+      frameworkDir: FRAMEWORK_DIR,
+      slideSpecsValid: false,
+    }
+    : await buildControllerGateContext(runDir);
   if (modeInspection.ok && modeInspection.mode) controllerCtx.productionMode = modeInspection.mode;
   const card = buildResumeCard(s, {
     style_master: status.style_master,
@@ -827,6 +880,11 @@ async function commandStatus(runDir, { json: asJson }) {
   if (!route) return 1;
   const resolved = route.run_dir;
   const status = collectStatus(resolved);
+  if (route.target_workflow_selection_required) {
+    status.pipeline = PAGE_AUTHORITY_IMAGE2_V2_PIPELINE;
+    status.structure_issues = status.structure_issues
+      .filter((issue) => issue !== TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
+  }
   await enrichStatusWithState(status, resolved, route);
   if (asJson) {
     registerCliJsonReport(status);
@@ -849,6 +907,12 @@ async function commandValidate(runDir) {
   const route = await resolveRunAdapter(runDir, "ppt_flow.validate.identity", { allowPageAuthority: true });
   if (!route) return 1;
   try {
+    if (route.adapter === "page-authority-image2-v2") {
+      const operations = await targetImage2Operations(route.workflow);
+      const source = operations.resolveSource(route.run_dir);
+      console.log(`✓ Target Page Authority ${route.workflow} receipt validated: ${source.receipt.slides.length} slide(s)`);
+      return 0;
+    }
     const { resolvePageAuthorityReceipt } = await import("./04-image-production/index.mjs");
     const result = resolvePageAuthorityReceipt(route.run_dir);
     console.log(`✓ Page Authority receipt validated: ${result.receipt.slides.length} slide(s)`);
@@ -871,6 +935,12 @@ async function commandPageAuthorityBuild(route, { resolution, model, baseUrl, re
     );
   }
   try {
+    if (route.adapter === "page-authority-image2-v2") {
+      const operations = await targetImage2Operations(route.workflow);
+      const result = await operations.buildDelivery(route.run_dir);
+      console.log(`✓ Target Page Authority ${route.workflow} delivery assembled: ${result.delivery.assembly.path}`);
+      return 0;
+    }
     const { buildPageAuthorityDelivery } = await import("./04-image-production/index.mjs");
     const result = await buildPageAuthorityDelivery(route.run_dir);
     if (!result.ok) {
@@ -941,6 +1011,57 @@ async function commandPageAuthorityRefresh(route, {
       "Page Authority refresh accepts no provider, resolution, dry-run, reset, or legacy override controls",
       "Use the canonical receipt-bound lifecycle and select only title or notes refresh work."
     );
+  }
+  if (route.adapter === "page-authority-image2-v2") {
+    if (kind === "visual") {
+      return emitUsage(
+        "ppt_flow.refresh.target.visual",
+        "Target Page Authority visual refresh requires a selected-workflow raw rebuild",
+        "Run image2 plan, authorize the exact raw scope when needed, generate, review, then build."
+      );
+    }
+    if (kind === "reset-html-production") {
+      return emitUsage("ppt_flow.refresh.target.reset", "reset-html-production is not available for target Page Authority", "Use the selected workflow evidence owner actions instead of a retired HTML reset.");
+    }
+    try {
+      const operations = await targetImage2Operations(route.workflow);
+      if (kind === "notes") {
+        if (only || all) return emitUsage("ppt_flow.refresh.target.notes", "Target Page Authority notes refresh accepts no slide selectors", "Rerun notes against the current shared target delivery.");
+        const result = await operations.refreshNotes(route.run_dir);
+        console.log(`✓ Target Page Authority notes refreshed: ${result.delivery.notes.notesInjected} slide(s)`);
+        return 0;
+      }
+      if (route.workflow !== "framed") {
+        return emitUsage("ppt_flow.refresh.target.title", "Target Pure visible text requires a Pure raw rebuild", "Run the selected Pure image2 raw lifecycle; Framed local refresh is not legal for Pure.");
+      }
+      if (only && all) return emitUsage("ppt_flow.refresh.target.title", "--only and --all are mutually exclusive", "Select exact Framed stable IDs or use --all.");
+      if (!only && !all) return emitUsage("ppt_flow.refresh.target.title", "Framed Text Frame refresh requires --only or --all", "Select exact current Framed stable IDs before a provider-free refresh.");
+      const slideIds = only ? only.split(",").map((id) => id.trim()).filter(Boolean) : null;
+      const result = await operations.refreshFramedText(route.run_dir, { slideIds });
+      console.log(`✓ Target Framed refresh delivered without provider submission: ${result.delivery.assembly.path}`);
+      return 0;
+    } catch (error) {
+      const rawRequired = /TARGET_(?:ACCEPTED_RAW_EVIDENCE_REQUIRED|RAW_REVIEW|SOURCE_RECEIPT_STALE)|raw_evidence|raw_review/i.test(`${error.code || ""} ${error.message || ""}`);
+      if (rawRequired) {
+        emitCliError({
+          code: CLI_ERROR_CODES.GATE_BLOCKED,
+          message: error.message,
+          hint: "Use the selected target raw plan and review lifecycle before target finalization.",
+          where: "ppt_flow.refresh.target.title",
+          diagnostic: {
+            version: 1,
+            category: "gate",
+            operation: "target-framed-refresh",
+            source: { path: route.run_dir },
+            reason: { kind: pageAuthorityDiagnosticReasonKind(error.code, "raw_evidence_required") },
+            next: createCliNext("repair_prerequisite", { default: "Build a fresh selected-workflow target raw plan; authorize only a nonzero current scope." }),
+          },
+        });
+        return 1;
+      }
+      emitFailed("ppt_flow.refresh.target", error.message || "Target Page Authority refresh failed.", "Repair the selected workflow source, evidence, final manifest, or notes before retrying.");
+      return 1;
+    }
   }
   if (kind === "visual") {
     return emitUsage(
@@ -1159,7 +1280,9 @@ async function validateProjectedSlideSource(context, projectedText) {
     error.issues = marker.issues;
     throw error;
   }
-  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_PIPELINE) throw new Error("projected source must remain Page Authority");
+  if (![PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE].includes(marker.branch)) {
+    throw new Error("projected source must remain Page Authority");
+  }
   return marker.branch;
 }
 
@@ -1196,13 +1319,55 @@ async function enrichPageAuthorityStructuralRawPlan(context, transaction, applie
   return Object.freeze({ plan: candidate, pageAuthority });
 }
 
+function targetStructuralBaseSlidePlan(transaction) {
+  const { page_authority_target_structural: _ignored, ...base } = transaction;
+  return Object.freeze({ ...base, plan_sha256: computeSlideEditPlanSha256(base) });
+}
+
+async function parseTargetStructuralReceipt(context, sourceText) {
+  const { createPageAuthoritySourceResolver, loadPageAuthorityVisualLanguage } = await import("./02-visual-system/index.mjs");
+  const visualLanguage = loadPageAuthorityVisualLanguage(deckRoot(context.runDir));
+  return parsePageAuthoritySource(sourceText, {
+    source: context.document.source,
+    registry: createPageAuthoritySourceResolver({ deckDir: deckRoot(context.runDir), visualLanguage }),
+  });
+}
+
+/** Bind a v2 same-workflow structural vNext to the existing exact preview. */
+async function enrichTargetPageAuthorityStructuralPlan(context, transaction, applied, targetBranch) {
+  if (targetBranch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE || transaction.publication.mode !== "next-version") return null;
+  const marker = probeProductionMarker(applied.text, { source: context.document.source });
+  const workflow = marker.frontmatter?.metadata?.production?.workflow;
+  const baseSlidePlan = targetStructuralBaseSlidePlan(transaction);
+  const targetReceipt = await parseTargetStructuralReceipt(context, applied.text);
+  const candidate = previewTargetStructuralVersion({
+    sourceRunDir: context.runDir,
+    targetRunVersion: transaction.publication.target_version,
+    slideEditPlan: baseSlidePlan,
+    targetWorkflow: workflow,
+    targetSourceText: applied.text,
+    targetSourceReceipt: targetReceipt,
+  });
+  const existing = transaction.page_authority_target_structural;
+  if (existing) {
+    if (existing.slide_edit_plan_sha256 !== baseSlidePlan.plan_sha256 || existing.plan_hash !== candidate.plan_hash) {
+      throw new Error("Target Page Authority structural plan changed after preview; obtain a fresh preview");
+    }
+    return Object.freeze({ plan: existing });
+  }
+  transaction.page_authority_target_structural = candidate;
+  transaction.plan_sha256 = computeSlideEditPlanSha256(transaction);
+  return Object.freeze({ plan: candidate });
+}
+
 async function projectConfirmedSlideTransaction(context, transaction, expectedHash) {
   const applied = applySlideEdit(transaction, context.sourceText, {
     expectedPlanSha256: expectedHash,
   });
   const targetBranch = await validateProjectedSlideSource(context, applied.text);
   const pageAuthorityStructuralRaw = await enrichPageAuthorityStructuralRawPlan(context, transaction, applied, targetBranch);
-  return { ...applied, targetBranch, pageAuthorityStructuralRaw };
+  const targetPageAuthorityStructural = await enrichTargetPageAuthorityStructuralPlan(context, transaction, applied, targetBranch);
+  return { ...applied, targetBranch, pageAuthorityStructuralRaw, targetPageAuthorityStructural };
 }
 
 async function applyConfirmedSlideTransaction(context, transaction, expectedHash) {
@@ -1218,6 +1383,35 @@ async function applyConfirmedSlideTransaction(context, transaction, expectedHash
       transaction,
       receipt: applied.receipt,
       target_run_dir: context.runDir,
+    };
+  }
+  const targetPageAuthorityStructural = applied.targetPageAuthorityStructural;
+  if (targetPageAuthorityStructural) {
+    const publication = applyTargetStructuralVersion({
+      sourceRunDir: context.runDir,
+      plan: targetPageAuthorityStructural.plan,
+      planHash: targetPageAuthorityStructural.plan.plan_hash,
+    });
+    return {
+      kind: "slide-edit",
+      applied: true,
+      transaction,
+      receipt: {
+        ...applied.receipt,
+        source_run_dir: context.runDir,
+        target_run_dir: publication.target_run_dir,
+        pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+        workflow: publication.workflow,
+        needs_render: publication.needs_raw_generation,
+        page_authority_target_structural: {
+          plan_hash: targetPageAuthorityStructural.plan.plan_hash,
+          materialized_slide_ids: publication.materialized_slide_ids,
+          needs_raw_generation: publication.needs_raw_generation,
+          provider_calls: publication.provider_calls,
+          inherited_acceptance: publication.inherited_acceptance,
+        },
+      },
+      target_run_dir: publication.target_run_dir,
     };
   }
   const pageAuthorityStructuralRaw = applied.pageAuthorityStructuralRaw;
@@ -1463,7 +1657,7 @@ async function commandBuildWrapped(runDir, opts) {
 
 async function resolveImage2Run(runDir, where) {
   const route = await resolveRunAdapter(runDir, where, { allowPageAuthority: true });
-  return route?.adapter === "page-authority-image2" ? route.run_dir : null;
+  return ["page-authority-image2", "page-authority-image2-v2"].includes(route?.adapter) ? route.run_dir : null;
 }
 const PAGE_AUTHORITY_IMAGE2_OPERATIONS = new Set(["plan", "authorize", "generate", "review", "accept"]);
 
@@ -1575,6 +1769,64 @@ function pageAuthoritySubmitFactory(plan, operations) {
   };
 }
 
+/** Submit an opaque target adapter request without re-evaluating its workflow. */
+function targetPageAuthoritySubmitFactory(plan) {
+  const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
+  return async ({ request, item }) => {
+    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+    const credentials = resolveImage2Credentials();
+    const slide = slideById.get(item.slide_id);
+    if (!slide || request?.slide_id !== item.slide_id || !request?.generation_profile?.provider?.model) {
+      const error = new Error("Target Page Authority provider request is not bound to the current selected workflow plan");
+      error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+      throw error;
+    }
+    const references = [plan.style_master_path];
+    const identityPath = slide.visual_language?.identity_reference?.provider_reference?.path;
+    if (identityPath) references.push(identityPath);
+    const images = references.map(imageDataUrl);
+    const body = {
+      model: request.generation_profile.provider.model,
+      prompt: JSON.stringify(request),
+      n: 1,
+      size: "2000x1125",
+      image: images[0],
+      images,
+      image_urls: images,
+    };
+    let response;
+    try {
+      response = await fetch(`${credentials.base_url}/images/generations`, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          Authorization: `Bearer ${credentials.api_key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      const error = new Error("Target Page Authority provider submission failed before a response");
+      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
+      throw error;
+    }
+    let payload;
+    try {
+      payload = JSON.parse(await response.text());
+    } catch {
+      const error = new Error("Target Page Authority provider response was not valid JSON");
+      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+      throw error;
+    }
+    if (!response.ok) {
+      const error = new Error(`Target Page Authority provider submission failed with HTTP ${response.status}`);
+      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
+      throw error;
+    }
+    return imageBytesFromPageAuthorityProvider(payload);
+  };
+}
+
 async function commandPageAuthorityImage2(operation, route, opts = {}) {
   if (!PAGE_AUTHORITY_IMAGE2_OPERATIONS.has(operation)) {
     return emitUsage("ppt_flow.image2.page-authority.operation", `Page Authority image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, authorize, generate, review, or accept for the receipt-bound raw lifecycle.");
@@ -1656,9 +1908,112 @@ async function commandPageAuthorityImage2(operation, route, opts = {}) {
   }
 }
 
+async function targetImage2Operations(workflow) {
+  if (workflow === "framed") {
+    const owner = await import("./03-framed-image/index.mjs");
+    return Object.freeze({
+      resolveSource: owner.resolveFramedTargetSource,
+      buildPlan: owner.buildFramedTargetRawPlan,
+      projectPlan: owner.framedTargetRawPlanProjection,
+      authorize: owner.authorizeFramedTargetRawPlan,
+      generate: owner.generateFramedTargetRawPlan,
+      review: owner.prepareFramedTargetRawReview,
+      accept: owner.decideFramedTargetRawReview,
+      buildDelivery: owner.buildFramedTargetDelivery,
+      refreshFramedText: owner.refreshFramedTargetText,
+      refreshNotes: owner.refreshFramedTargetNotes,
+    });
+  }
+  if (workflow === "pure") {
+    const owner = await import("./04-pure-image/index.mjs");
+    return Object.freeze({
+      resolveSource: owner.resolvePureTargetSource,
+      buildPlan: owner.buildPureTargetRawPlan,
+      projectPlan: owner.pureTargetRawPlanProjection,
+      authorize: owner.authorizePureTargetRawPlan,
+      generate: owner.generatePureTargetRawPlan,
+      review: owner.preparePureTargetRawReview,
+      accept: owner.decidePureTargetRawReview,
+      buildDelivery: owner.buildPureTargetDelivery,
+      refreshNotes: owner.refreshPureTargetNotes,
+    });
+  }
+  const error = new Error("Target Page Authority workflow is unavailable");
+  error.code = "TARGET_WORKFLOW_REQUIRED";
+  throw error;
+}
+
+/** Execute the same public raw lifecycle through the marker-selected v2 owner. */
+async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
+  if (!PAGE_AUTHORITY_IMAGE2_OPERATIONS.has(operation)) {
+    return emitUsage("ppt_flow.image2.target.operation", `Target Page Authority image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, authorize, generate, review, or accept for the selected workflow raw lifecycle.");
+  }
+  const override = pageAuthorityLegacyOverride(opts);
+  if (override) {
+    return emitUsage("ppt_flow.image2.target", `--${override} is not accepted for target Page Authority`, "Use the canonical --run-dir receipt path without prompt, profile, output, or legacy-artifact overrides.");
+  }
+  try {
+    const operations = await targetImage2Operations(route.workflow);
+    let output;
+    if (operation === "plan") {
+      const plan = operations.buildPlan(route.run_dir, { allowSourceRebuild: true });
+      output = operations.projectPlan(plan);
+    } else if (operation === "authorize") {
+      if (!opts.planHash) return emitUsage("ppt_flow.image2.target.authorize", "--plan-hash is required", "Pass the exact current target raw plan hash.");
+      output = await operations.authorize(route.run_dir, { planHash: opts.planHash });
+    } else if (operation === "generate") {
+      if (!opts.planHash) return emitUsage("ppt_flow.image2.target.generate", "--plan-hash is required", "Pass the exact authorized target raw plan hash.");
+      const plan = operations.buildPlan(route.run_dir);
+      output = await operations.generate(route.run_dir, {
+        planHash: opts.planHash,
+        submit: targetPageAuthoritySubmitFactory(plan),
+      });
+    } else if (operation === "review") {
+      output = await operations.review(route.run_dir);
+    } else {
+      if (!['proceed', 'repair', 'redirect'].includes(opts.decision)) {
+        return emitUsage("ppt_flow.image2.target.accept", "--decision must be proceed, repair, or redirect", "Record the explicit human raw-review decision for the selected target workflow evidence.");
+      }
+      output = await operations.accept(route.run_dir, { decision: opts.decision });
+    }
+    console.log(JSON.stringify(output, null, 2));
+    return 0;
+  } catch (error) {
+    const errorDetail = `${error.code || ""} ${error.message || ""}`;
+    const gateBlocked = /STALE|stale|RAW_REVIEW|AUTHORIZATION|RAW_EVIDENCE|TARGET_.*(?:REQUIRED|MISMATCH)|provider_authorization_required/i.test(errorDetail);
+    const unauthorizedSubmit = /provider_authorization_required|AUTHORIZATION_(?:MISSING|SOURCE_EPOCH_STALE|EXECUTION_STALE|PROFILE_MISMATCH|SCOPE_MISMATCH|COUNT_EXCEEDED)/i.test(errorDetail);
+    emitCliError({
+      code: gateBlocked ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
+      message: error.message || "Target Page Authority Image2 operation failed.",
+      hint: gateBlocked
+        ? unauthorizedSubmit
+          ? "Record or repair the exact current raw-submit authorization before requesting another provider submission."
+          : "Repair the selected workflow raw plan or review evidence, then take the owner-issued next action."
+        : "Repair the canonical target source, local evidence, or configured provider readiness before retrying.",
+      where: `ppt_flow.image2.target.${operation}`,
+      diagnostic: {
+        version: 1,
+        category: gateBlocked ? "gate" : "provider",
+        operation: `target-page-authority-${operation}`,
+        source: { path: route.run_dir },
+        reason: { kind: pageAuthorityDiagnosticReasonKind(error.code, "target_page_authority_operation_failed") },
+        next: createCliNext("repair_prerequisite", {
+          default: gateBlocked
+            ? unauthorizedSubmit
+              ? "Use the current selected-workflow raw plan to record exact authorization before generate; do not retry a provider submit first."
+              : "Repair the exact selected-workflow raw plan or review evidence before retrying."
+            : "Repair the named target Page Authority prerequisite without using a direct provider override.",
+        }),
+      },
+    });
+    return 1;
+  }
+}
+
 async function commandImage2(operation, runDir, opts = {}) {
   const route = await resolveRunAdapter(runDir, `ppt_flow.image2.${operation}.identity`, { allowPageAuthority: true });
   if (!route) return 1;
+  if (route.adapter === "page-authority-image2-v2") return commandTargetPageAuthorityImage2(operation, route, opts);
   return commandPageAuthorityImage2(operation, route, opts);
 }
 // ---------------------------------------------------------------------------

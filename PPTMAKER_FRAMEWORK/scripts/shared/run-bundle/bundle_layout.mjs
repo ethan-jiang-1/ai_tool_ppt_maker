@@ -72,9 +72,9 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { readState, writeState, setNodeStatus, createInitialState, stringifyStateYaml, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath, registerPageAuthorityVersionPublication } from '../state/state.mjs';
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE, probeProductionMarker } from './production_marker.mjs';
-import { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
+import { readState, writeState, setNodeStatus, createInitialState, createTargetAuthoringState, stringifyStateYaml, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath, registerPageAuthorityVersionPublication } from '../state/state.mjs';
+import { PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
+import { PRODUCTION_MODES, TARGET_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
 import { canonicalFrameworkRoot, normalizedFrameworkRelation, renderRunBundle } from './run_bundle_locator.mjs';
 import {
     GENERATED_SUBDIR,
@@ -110,7 +110,7 @@ export {
  * Production mode assumed when `ppt_flow init` omits `--mode`. New decks use
  * Page Authority Image2; legacy modes are existing-run compatibility only.
  */
-export const DEFAULT_INIT_MODE = 'image2-page-authority';
+export const DEFAULT_INIT_MODE = TARGET_PRODUCTION_MODE;
 
 function validateInitMode(mode) {
     if (mode !== DEFAULT_INIT_MODE) {
@@ -609,13 +609,16 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     let branchValid = true;
     if (sourceCandidate) {
         const marker = probeProductionMarker(fs.readFileSync(sourceCandidate), { source: path.basename(sourceCandidate) });
-        if (marker.branch === 'invalid' && _hasHistoricalObserverMarker(fs.readFileSync(sourceCandidate))) {
+        if (isTargetWorkflowSelectionPending(marker)) {
+            currentPageAuthority = false;
+            problems.push(TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
+        } else if (marker.branch === 'invalid' && _hasHistoricalObserverMarker(fs.readFileSync(sourceCandidate))) {
             branchValid = false;
             problems.push('historical production source is observer/adoption-only and cannot pass normal bundle validation');
         } else if (marker.branch === 'invalid') {
             branchValid = false;
             for (const entry of marker.issues) problems.push(`invalid production marker: ${entry.message}`);
-        } else if (marker.branch === PAGE_AUTHORITY_IMAGE2_PIPELINE) {
+        } else if (marker.branch === PAGE_AUTHORITY_IMAGE2_PIPELINE || marker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
             currentPageAuthority = true;
         } else {
             branchValid = false;
@@ -1070,32 +1073,31 @@ family: hero
 `;
 }
 
-/** Canonical new-deck Page Authority starter, before any provider work exists. */
+/** Canonical v2 authoring draft. It becomes runnable only after workflow selection. */
 function _pageAuthoritySeedSource(deckType = null) {
     const seed = _LEGACY_FIXTURE_SEEDS[deckType || 'generic'];
     return `---
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
 ---
 
-# Page Authority Image2 source
+# Page Authority Image2 v2 source
 
-Start each slide with a stable mnemonic slide ID such as \`${seed.id}\`. Choose \`framed-image2\`
-when the local Text Frame owns the kicker, title, subtitle, or callout; choose \`pure-image2\`
-when readable body labels, values, dates, captions, or diagram text must belong to Image2.
+Before source validation or provider work, record exactly one version workflow under
+\`production\`: \`workflow: framed\` when the local Text Frame owns title-like text, or
+\`workflow: pure\` when readable body labels, values, dates, captions, or diagram text belong
+to Image2. This is one decision for the entire version, never a per-slide choice.
 
-Every slide supplies a closed \`VISUAL BRIEF\` selection from the visual-language registry. Framed
-underlays remain text-free: Image2 owns the visual field while the deterministic Text Frame owns its
-reserved text pixels.
+Start each slide with a stable mnemonic slide ID such as \`${seed.id}\`. Every slide supplies a
+closed \`VISUAL BRIEF\` selection from the visual-language registry.
 `;
 }
 
-/** Source text + label for a production mode's canonical v1 seed. */
+/** Source text + label for a production mode's canonical seed. */
 function _seedSourceForMode(mode, deckType) {
-    if (mode === 'image2-page-authority') return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2' };
+    if (mode === TARGET_PRODUCTION_MODE) return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2 v2 authoring draft' };
     if (mode === 'image2-only') return { source: _legacyWholePageFixtureSource(deckType), label: 'legacy fixture image2-only' };
     return { source: _legacyHtmlFixtureSource(deckType), label: 'legacy fixture html-only' };
 }
@@ -1368,7 +1370,9 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
     log.push('credentials: .env.example, .gitignore');
 
     if (!fs.existsSync(statePath(deckDir))) {
-        const state = createInitialState(name, deckType || '', style || '', { mode: DEFAULT_INIT_MODE });
+        const state = mode === DEFAULT_INIT_MODE
+            ? createTargetAuthoringState(name, deckType || '', style || '')
+            : createInitialState(name, deckType || '', style || '', { mode: 'image2-page-authority' });
         // v1 exists before state is created; bind the durable inactive selector
         // here so terminal card entry never has to infer a version from disk.
         state.continuation_target_version = 'v1';
@@ -1376,6 +1380,7 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
             state.gates.content = 'pending';
             state.gates.visual = 'pending';
             setNodeStatus(state, 'checkpoint-intake', 'completed');
+            state.current_node = 'select-target-page-authority-workflow';
         } else {
             // Historical fixtures model an already-existing, inactive state
             // pair. They must be locatable and readable by the bounded

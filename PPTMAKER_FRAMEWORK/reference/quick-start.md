@@ -33,7 +33,10 @@ I want to make a presentation. Read PPTMAKER_FRAMEWORK/BOOTSTRAP.md and guide me
 ```
 
 New work begins with local readiness and source authoring. Provider credentials
-are needed only when a selected raw-generation operation will submit work.
+are needed only when a selected raw-generation operation will submit work. Before
+that work, choose one version workflow: `framed` for local Text Frame titles or
+`pure` when Image2 must own readable display content. The choice covers the
+whole version, never an individual slide.
 
 ## What The Agent Does
 
@@ -43,9 +46,10 @@ are needed only when a selected raw-generation operation will submit work.
 | Whether raw and delivery evidence are acceptable | Plans, authorizes, generates, reviews, finalizes, and assembles as authorized |
 | What should change | Selects the smallest ownership/invalidation path |
 
-`framed-image2` uses a deterministic local Text Frame for final text. `pure-image2`
-uses Image2 for all final pixels. The Agent records the required human decisions at
-raw review and delivery review.
+Framed uses a deterministic local Text Frame for final text. Pure uses Image2
+for all final pixels. The Agent records the required human decisions at raw
+review and delivery review through `03-framed-image XOR 04-pure-image ->
+05-delivery -> 06-iteration`.
 
 ## Continue A Deck
 
@@ -58,6 +62,7 @@ attachment integration is not supported.
 
 - `workflow/01-content/` for narrative and source authoring
 - `workflow/02-visual-system/` for visual language and references
-- `workflow/04-image-production/` for Page Authority production
-- `workflow/05-iteration/` for refresh and structural changes
+- `workflow/03-framed-image/` or `workflow/04-pure-image/` for the selected production workflow
+- `workflow/05-delivery/` for final projection, PPTX, notes, and delivery review
+- `workflow/06-iteration/` for refresh and structural changes
 - `charter/CONSTITUTION.md` for run-bundle ownership

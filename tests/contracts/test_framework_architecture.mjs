@@ -5,6 +5,9 @@ import {
   ACTIVE_PHASES,
   PHASE_ADJACENCY,
   PUBLIC_SHARED_INTERFACES,
+  TARGET_DELIVERY_INTERFACES,
+  TARGET_ITERATION_INTERFACES,
+  TARGET_WORKFLOW_INTERFACES,
   collectLiteralImports,
   validateArchitectureSnapshot,
   validateRepositoryArchitecture,
@@ -33,6 +36,9 @@ function canonicalSnapshot() {
   };
   const interfaces = [
     ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
+    ...TARGET_WORKFLOW_INTERFACES,
+    ...TARGET_DELIVERY_INTERFACES,
+    ...TARGET_ITERATION_INTERFACES,
     ...PUBLIC_SHARED_INTERFACES,
     ...REQUIRED_CONTRACTS,
   ];
@@ -75,7 +81,7 @@ describe("framework architecture contract", () => {
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
   });
 
-  it("pins the exact acyclic Phase adjacency including the bounded Phase 4", () => {
+  it("pins the exact acyclic compatibility Phase adjacency including bounded Phase 4", () => {
     expect(PHASE_ADJACENCY).toEqual({
       "00-setup": [],
       "01-content": [],
@@ -111,14 +117,82 @@ describe("framework architecture contract", () => {
       ["00-setup/index.mjs", `import "../05-iteration/index.mjs";`, "phase-adjacency"],
       ["shared/state/state.mjs", `import "../../04-image-production/index.mjs";`, "shared-phase-import"],
       ["04-image-production/page-authority/internal/provider.mjs", `import "../../../01-content/internal/private.mjs";`, "foreign-phase-private-import"],
+      ["03-framed-image/index.mjs", `import "../shared/image2/private.mjs";`, "target-private-shared-import"],
     ];
     for (const [path, source, code] of cases) {
       const snapshot = canonicalSnapshot();
       snapshot.files[path] = source;
       if (source.includes("private.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
       if (path.includes("provider.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
+      if (path.includes("03-framed-image")) snapshot.files["shared/image2/private.mjs"] = "export {};";
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${code}`).toContain(code);
     }
+  });
+
+  it("rejects Framed/Pure semantic branches in shared mechanics and delivery", () => {
+    for (const [path, source] of [
+      ["shared/image2/page_authority_raw_mechanics.mjs", `if (workflow === "framed") return null;`],
+      ["shared/image2/page_authority_final_manifest.mjs", `if (ownerWorkflow !== "pure") return null;`],
+      ["05-delivery/index.mjs", `switch (manifest.workflow) { case "framed": return null; }`],
+    ]) {
+      const snapshot = canonicalSnapshot();
+      snapshot.files[path] = source;
+      expect(issueCodes(validateArchitectureSnapshot(snapshot)), path).toContain("shared-workflow-semantic-branch");
+    }
+  });
+
+  it("rejects imports between target workflow siblings", () => {
+    for (const [path, imported] of [
+      ["03-framed-image/index.mjs", "../04-pure-image/index.mjs"],
+      ["03-framed-image/index.mjs", "../04-pure-image/internal/private.mjs"],
+      ["04-pure-image/index.mjs", "../03-framed-image/index.mjs"],
+      ["04-pure-image/index.mjs", "../03-framed-image/internal/private.mjs"],
+    ]) {
+      const snapshot = canonicalSnapshot();
+      snapshot.files[path] = `import "${imported}";`;
+      if (imported.includes("internal/private")) {
+        const sibling = imported.includes("04-pure") ? "04-pure-image" : "03-framed-image";
+        snapshot.files[`${sibling}/internal/private.mjs`] = "export {};";
+      }
+      expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${imported}`).toContain("sibling-workflow-import");
+    }
+  });
+
+  it("allows iteration to use target public interfaces but rejects target sibling internals", () => {
+    const allowed = canonicalSnapshot();
+    allowed.files["06-iteration/index.mjs"] = [
+      `import "../03-framed-image/index.mjs";`,
+      `import "../04-pure-image/index.mjs";`,
+      `import "../05-delivery/index.mjs";`,
+    ].join("\n");
+    expect(issueCodes(validateArchitectureSnapshot(allowed))).not.toContain("iteration-private-sibling-import");
+
+    for (const [path, imported] of [
+      ["06-iteration/index.mjs", "../03-framed-image/internal/text_frame.mjs"],
+      ["06-iteration/index.mjs", "../04-pure-image/internal/private.mjs"],
+      ["06-iteration/index.mjs", "../05-delivery/internal/notes_runtime.mjs"],
+    ]) {
+      const snapshot = canonicalSnapshot();
+      snapshot.files[path] = `import "${imported}";`;
+      if (imported.includes("03-framed-image/internal/text_frame")) snapshot.files["03-framed-image/internal/text_frame.mjs"] = "export {};";
+      if (imported.includes("04-pure-image/internal/private")) snapshot.files["04-pure-image/internal/private.mjs"] = "export {};";
+      if (imported.includes("05-delivery/internal/notes_runtime")) snapshot.files["05-delivery/internal/notes_runtime.mjs"] = "export {};";
+      expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${imported}`).toContain("iteration-private-sibling-import");
+    }
+  });
+
+  it("keeps all PPTX and notes writers under the delivery owner", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["04-image-production/page-authority/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
+    snapshot.files["06-iteration/index.mjs"] = "injectNotes();";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
+  });
+
+  it("keeps the retained generic Image Production adapter bounded to CURRENT v1", () => {
+    const snapshot = canonicalSnapshot();
+    snapshot.files["04-image-production/page-authority/operations.mjs"] = `const protocol = "page-authority-image2-v2";`;
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("target-protocol-in-current-compatibility-owner");
   });
 
   it("fails closed on executable, recursive test, and source ownership drift", () => {
