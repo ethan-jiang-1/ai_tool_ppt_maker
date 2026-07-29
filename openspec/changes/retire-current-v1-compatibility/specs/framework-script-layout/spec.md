@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Direct executables have explicit current ownership
-Every direct executable SHALL be listed in the checked-in inventory and resolve through an allowed current v2/shared interface. The inventory SHALL not register a retired production executable, compatibility interface, v1 new-authoring interface, v1 receipt writer, or migration runtime after its authorized sunset.
+Every direct executable SHALL be listed in the checked-in inventory and resolve through an allowed current v2/shared interface. The inventory SHALL not register a retired production executable, compatibility interface, v1 new-authoring interface, v1 receipt writer, or migration runtime.
 
 #### Scenario: Inventory is checked
 - **WHEN** architecture validation scans the script root
@@ -17,14 +17,14 @@ The target script inventory SHALL give `03-framed-image` and `04-pure-image` sep
 
 Shared raw mechanics SHALL consume typed raw plans/evidence without Framed Text Frame, no-text, reserved-rectangle, Pure display, or refresh-policy semantics. `05-delivery` SHALL consume the common final-slide manifest and shall not publish different PPTX, notes, or delivery behavior by workflow. The checked-in architecture inventory and source-to-test mapping SHALL validate these boundaries and every direct executable's current owner.
 
-Target adapters, shared workflow observation, and controller-observation code SHALL NOT import a retired protocol adapter, writer, receipt initializer, or migration implementation.
+Target adapters, shared workflow observation, and controller-observation code SHALL NOT import a non-v2 adapter, writer, receipt initializer, historical decoder, or migration implementation.
 
 #### Scenario: Architecture validation finds a sibling import
 - **WHEN** a target Framed module imports a target Pure module or its private internal path
 - **THEN** architecture validation fails the ownership boundary
 - **AND** it does not accept the import as a convenience fallback
 
-#### Scenario: Architecture validation finds a retired-protocol import
-- **WHEN** an active adapter, observer, controller, or process module imports a retired protocol implementation
+#### Scenario: Architecture validation finds a non-v2 import
+- **WHEN** an active adapter, observer, controller, or process module imports a non-v2 protocol implementation
 - **THEN** architecture validation fails the ownership boundary
 - **AND** it does not accept the import as a migration or read-only convenience

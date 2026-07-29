@@ -2,7 +2,7 @@
 
 ### Requirement: Historical adoption controller has literal ownership
 **Reason**: The historical adoption controller is a second active controller path.
-**Migration**: A sunset migration preview/export action is outside normal playbook routing and is deleted after its authorized window.
+**Migration**: The generic unsupported-protocol/export action is outside playbook routing. A named bundle conversion requires separately authorized deck-scoped work and is not a current controller path.
 
 ## MODIFIED Requirements
 
@@ -16,14 +16,14 @@ The human owns workflow/content/visual decisions. JS owns parsing, readiness, st
 - **THEN** the controller enters the Framed path and later shared delivery without presenting Pure as a slide-level option
 - **AND** provider work still waits for the owner-issued scoped authorization
 
-#### Scenario: Retired source is not a controller route
-- **WHEN** an existing source/state pair is retired
-- **THEN** the Controller presents the owner-issued migration/export hard-stop
+#### Scenario: Non-v2 source is not a controller route
+- **WHEN** an existing source/state pair is non-v2
+- **THEN** the Controller presents the owner-issued unsupported-protocol hard-stop
 - **AND** it does not register, select, rewrite, or resume a compatibility controller
 
 ### Requirement: Active controllers route only Page Authority work
-Registered active playbooks SHALL describe v2 Page Authority creation and Pure/Framed/notes/structural refreshes. They SHALL NOT register retired production, compatibility, adoption, or migration nodes.
+Registered active playbooks SHALL describe v2 Page Authority creation and Pure/Framed/notes/structural refreshes. They SHALL NOT register another-protocol, compatibility, adoption, or migration nodes.
 
 #### Scenario: Controller manifest is validated
 - **WHEN** the controller manifest and playbooks are loaded
-- **THEN** no active node, gate, or resume card names a retired or compatibility route
+- **THEN** no active node, gate, or resume card names another-protocol or compatibility route

@@ -6,7 +6,7 @@
 
 ### Requirement: Legacy adoption uses an explicit per-slide identity matrix
 **Reason**: Legacy adoption is not an active structural workflow after retirement.
-**Migration**: A necessary one-off migration preview uses an isolated, exact-plan contract and is removed after its support window.
+**Migration**: No migration preview is part of this framework change. A named bundle conversion requires separately authorized deck-scoped work; current structural plans are v2 workflow-bound.
 
 ### Requirement: Structural identity remains independent of retired output modes
 **Reason**: Retired output-mode compatibility is no longer part of the current structural contract.

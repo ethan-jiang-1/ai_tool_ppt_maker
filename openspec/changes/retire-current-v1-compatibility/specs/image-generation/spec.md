@@ -2,7 +2,7 @@
 
 ### Requirement: Legacy adoption creates no Image2 evidence or provider work
 **Reason**: Legacy adoption is replaced by a bounded operator migration/export boundary and is not an active Image Generation lifecycle.
-**Migration**: A necessary one-off migration preview is provider-free and is removed with its sunset artifact; active raw work uses typed v2 plans only.
+**Migration**: This framework change has no migration preview. Active raw work uses typed v2 plans only; a named conversion, if needed, is separately authorized deck-scoped work.
 
 ## MODIFIED Requirements
 

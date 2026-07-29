@@ -2,7 +2,7 @@
 
 ### Requirement: Commands name the bounded CURRENT compatibility surface
 **Reason**: v1 is no longer a current executable or human-facing route.
-**Migration**: Use the explicit migration preview/export action for a named retired bundle; new work uses the v2 target classifier.
+**Migration**: New work uses the v2 target classifier. A named retired bundle receives only the generic unsupported-protocol/export action; any conversion requires a separately authorized deck-scoped plan.
 
 ### Requirement: COMMANDS.md complements target and CURRENT compatibility classifiers
 **Reason**: An active v1 classifier makes a retired protocol discoverable to coding agents.
@@ -11,16 +11,16 @@
 ## MODIFIED Requirements
 
 ### Requirement: Commands route work by Page Authority ownership and invalidation
-Active command guidance SHALL route Framed, Pure, notes-only, and structural requests through the v2 Page Authority ownership/invalidation model. A retired protocol SHALL receive one explicit migration-preview or export action and SHALL NOT be presented as a production, inspection-continuation, or fallback route.
+Active command guidance SHALL route Framed, Pure, notes-only, and structural requests through the v2 Page Authority ownership/invalidation model. A non-v2 input SHALL receive the generic unsupported-protocol/export hard-stop and SHALL NOT be presented as a production, inspection-continuation, or fallback route.
 
-#### Scenario: A retired protocol is not offered
+#### Scenario: A non-v2 protocol is not offered
 - **WHEN** command guidance describes a visual or text change
-- **THEN** it selects a v2 Page Authority refresh path without presenting a retired route as a choice
+- **THEN** it selects a v2 Page Authority refresh path without presenting another protocol as a choice
 
-#### Scenario: A named retired bundle is encountered
-- **WHEN** command guidance receives a retired source/state identity
-- **THEN** it directs the operator to the bounded migration preview or export action
-- **AND** it does not infer a workflow or create a receipt
+#### Scenario: A non-v2 bundle is encountered
+- **WHEN** command guidance receives a non-v2 source/state identity
+- **THEN** it reports the generic unsupported-protocol/export action
+- **AND** it does not infer a workflow, decode history, or create a receipt
 
 ### Requirement: Commands route TARGET work by one version workflow and owner
 For a target `page-authority-image2-v2` run, `COMMANDS.md` SHALL describe one Framed-or-Pure workflow choice at version start and thereafter route requests by the bound workflow and direct artifact ownership. It SHALL present the selected workflow's current fact, gate, and nearest action without exposing shared raw topology, sibling adapter internals, or a per-slide authority choice.
