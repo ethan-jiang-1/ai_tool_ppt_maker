@@ -19,7 +19,7 @@
 | Wave 6 - Cleanup and change close | 已完成 | superseded owners 清理、inventory 审计、focused/完整验证与 main-spec review 均完成。 |
 | Archive / handoff | 已完成（版本决策待授权） | `H.1`–`H.9` 已完成：specs 同步、archive 与 commit 已完成；`H.10` 的项目版本决策待用户授权。 |
 | Post-archive compatibility hygiene | 已完成并归档 | `HC.2`–`HC.8`、`HC.CP` 已由 cleanup change 的 focused/process/E2E、ownership/docs、full core verification、main-spec sync 与 archive/commit 直接证明。 |
-| Legacy absorption and retirement | 已规划，未提案 | 先将仍有价值的 v1 语义吸收进 v2/shared 或一次性迁移交付物，再删除所有 active compatibility、v1 协议与过时 main specs 表述。 |
+| Legacy absorption and retirement | 已提案，待 H.10 后 apply | [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/) 已完整规划代码流、测试 owner、migration boundary 与 13 份 main-spec removal/rewriting delta；先吸收再删除。 |
 
 ### 更新规则
 
@@ -57,6 +57,7 @@
 | 2026-07-29 | HC.1 | 已完成 | 已建立并归档 [clean-current-v1-compatibility-boundary](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/)；proposal、design、五项 delta specs 与依赖排序 tasks 完整，设计锁定 read-only observation seam、`compatibility/current-v1-page-authority/` logical home、无长期 re-export 的迁移及回滚边界。 | HC.2 起实施已完成。 |
 | 2026-07-29 | HC.2–HC.7 / HC.CP | 已完成 | [implementation evidence](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/implementation-evidence.md) 记录了零写 status/state temporary-bundle snapshots、selected Framed/Pure 与 exact v1/hybrid journeys、compatibility relocation、ownership/link/retirement audits、`npm test`、`git diff --check` 与 strict validation。无生产 bundle 被作为 fixture 或修改。 | HC.8 closeout 已完成；H.10 仍待用户单独授权。 |
 | 2026-07-29 | HC.8 | 已完成 | 五份 delta specs 已同步至 main specs；change 已归档至 [`2026-07-29-clean-current-v1-compatibility-boundary`](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/)，提交为 `51b69bb chore: clean current v1 compatibility boundary`。`openspec validate --all --strict` 为 29/29 通过。 | H.10 仍待用户单独授权。 |
+| 2026-07-29 | LR.2 | 已完成 | 已建立 [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/)；proposal、design、13 份 current-main-spec delta 与依赖排序 tasks 已完整，`openspec validate retire-current-v1-compatibility --strict` 通过。它把旧路径的语义吸收、一次性迁移边界、active source/tests 删除和 main specs 清扫作为同一原子 change。 | 等待 H.10 授权后从 LR.0/LR.1 开始 apply。 |
 
 ## 阅读说明 / 本文边界
 
@@ -651,10 +652,11 @@ active framework surface；历史说明只可位于 OpenSpec archive 或一次�
 - [ ] **LR.1** 对每个 v1 surface 建立吸收矩阵：将语义归为 `v2 owner`、`shared invariant`、
   `one-off migration` 或 `delete` 四类。任何没有目标 owner 或迁移判定的 legacy 行为都不能删除，
   也不能悄悄成为兼容 fallback。
-- [ ] **LR.2** 建立 dedicated retirement change；proposal/design/tasks 必须写清 v1-to-v2 migration
-  contract、preview/confirmation、rollback/拒绝策略、截止版本，以及删除后 active graph 的唯一性。
-  此 change 的 delta specs 必须把 retirement 视为 main-spec removal/renaming，而非在现行规格上追加
-  “legacy exception”。
+- [x] **LR.2** 已建立 dedicated retirement change
+  [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/)；proposal/design/tasks
+  写清 v1-to-v2 migration contract、preview/confirmation、rollback/拒绝策略、截止版本，以及删除后 active
+  graph 的唯一性。13 份 delta specs 均把 retirement 视为 main-spec removal/renaming，而非在现行规格上
+  追加 “legacy exception”。
 - [ ] **LR.3** 将可保留的 v1 业务语义吸收至它的 v2 或 shared owner，并以目标协议的 source receipt、
   evidence、final-manifest、delivery 与 structural-versioning 合同重新证明；不复用 v1 writer、
   mode、state initializer 或 receipt 路径。
