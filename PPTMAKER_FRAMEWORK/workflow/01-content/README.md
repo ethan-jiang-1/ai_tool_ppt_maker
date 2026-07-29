@@ -11,12 +11,14 @@ feeds_into:
 
 Turn the brief into an ordered, reviewable Page Authority source before any raw
 generation. Start with the core metaphor, formula, and Block Map, then give every
-slide a stable mnemonic ID, one reviewable claim, a closed `VISUAL BRIEF`, and a
-resolved `pure-image2` or `framed-image2` authority.
+slide a stable mnemonic ID, one reviewable claim, and a closed `VISUAL BRIEF`.
+Before source validation/provider work, bind the whole version to one `framed`
+or `pure` workflow; slides do not select authority individually.
 
 The canonical source is `3_versions/vN/slide-specifications.md`. It declares
-`production.pipeline: page-authority-image2-v1` and `identity.scheme: mnemonic-v1`.
-`position` is snapshot order; `slide_id` is cross-version identity.
+`production.pipeline: page-authority-image2-v2`, `production.workflow: framed|pure`,
+and `identity.scheme: mnemonic-v1`. `position` is snapshot order; `slide_id` is
+cross-version identity. An exact v1 source is compatibility input only.
 
 Read in order:
 

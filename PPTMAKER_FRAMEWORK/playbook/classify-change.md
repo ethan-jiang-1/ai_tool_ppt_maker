@@ -11,11 +11,15 @@ shared: true
 
 # Classify Change
 
-**Step 1 — MD**: Read the exact Page Authority source/state pair and identify
-the affected stable IDs. Do not classify from generated files or position.
+**Step 1 — MD**: Read the exact source/state pair, then identify the affected
+stable IDs. For v2, read the bound version workflow; do not infer one from a
+slide, generated file, or position.
 
-**Step 2 — MD**: Select one smallest path: Header Text & Style Refresh,
-Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path.
+**Step 2 — MD**: For v2, route Framed exact-evidence Text Frame-only work to
+Header Text & Style Refresh; Framed preset/underlay and all Pure visible changes
+to Generated Image Rebuild; notes-only work to Delivery; and structural or
+whole-workflow changes to Structural Versioning Path. An exact v1 pair stays on
+its bounded compatibility route.
 
 **Step 3 — CLI**: Record the selected IDs and owner-valid path. Raw work stays
 unauthorized until the user approves its exact generation scope.

@@ -15,16 +15,6 @@ export {
 } from "./internal/page_authority_visual_language.mjs";
 
 export {
-  FRAMED_TEXT_FRAME_PREFLIGHT_SCHEMA,
-  FRAMED_TEXT_FRAME_PRESET,
-  FRAMED_TEXT_FRAME_STANDARD_V1,
-  FRAMED_TEXT_FRAME_STANDARD_V1_DIGEST,
-  FramedTextFrameError,
-  preflightFramedTextFrame,
-  resolveFramedTextFramePreset,
-} from "./internal/page_authority_text_frame.mjs";
-
-export {
   AMBER_AGENT_MODEL_SHEET_SHA256,
   PAGE_AUTHORITY_REFERENCE_REGISTRY_SCHEMA,
   PAGE_AUTHORITY_REFERENCE_ROOT,

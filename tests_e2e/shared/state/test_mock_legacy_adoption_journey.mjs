@@ -43,8 +43,8 @@ function pageAuthoritySource() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: framed
 ---
 
 ## Slide 01: \`HeroGo\`
@@ -69,7 +69,7 @@ function retainedRow() {
     source_slide_id: "HeroGo",
     target_slide_id: "HeroGo",
     disposition: "retained",
-    authority: "framed-image2",
+    workflow: "framed",
     text_frame_disposition: "authored",
     visual_brief_disposition: "authored",
     reference_disposition: "none",
@@ -112,10 +112,15 @@ function setupLegacyRun() {
 
 function authorCandidate(runDir) {
   const candidate = join(runDir, "_scratch", "production-mode-transition", "candidate-run");
+  writeFileSync(join(candidate, "target.json"), JSON.stringify({
+    schema: "pptmaker-production-mode-transition-target-v2",
+    target_mode: "image2-page-authority-v2",
+    workflow: "framed",
+  }));
   writeFileSync(join(candidate, "target-intake.json"), JSON.stringify(TARGET_INTAKE));
   writeFileSync(join(candidate, "slide-specifications.md"), pageAuthoritySource());
   writeFileSync(join(candidate, "adoption-matrix.json"), JSON.stringify({
-    schema: "pptmaker-page-authority-legacy-adoption-matrix-v1",
+    schema: "pptmaker-page-authority-legacy-adoption-matrix-v2",
     source_version: "v1",
     rows: [retainedRow()],
   }));
@@ -172,7 +177,8 @@ describe("mock legacy adoption journey", () => {
       expect(JSON.parse(prepared.stdout)).toMatchObject({
         operation: "prepare-legacy-adoption",
         plan_kind: "legacy-adoption",
-        target_mode: "image2-page-authority",
+        target_mode: "image2-page-authority-v2",
+        target_workflow: null,
       });
 
       authorCandidate(fixture.runDir);
@@ -182,8 +188,9 @@ describe("mock legacy adoption journey", () => {
       expect(preview).toMatchObject({
         operation: "preview-legacy-adoption",
         plan_kind: "legacy-adoption",
+        target_workflow: "framed",
         deterministic_impact: { needs_raw_generation: ["HeroGo"] },
-        adoption: { matrix_rows: [retainedRow()] },
+        adoption: { workflow: "framed", matrix_rows: [retainedRow()] },
       });
 
       const confirmed = flow(["state", fixture.runDir, "--confirm-legacy-adoption", "--plan-hash", preview.plan_hash], env);
@@ -193,14 +200,22 @@ describe("mock legacy adoption journey", () => {
       expect(JSON.parse(applied.stdout)).toMatchObject({
         operation: "apply-legacy-adoption",
         target_version: "v2",
-        target_mode: "image2-page-authority",
-        current_node: "authorize-page-authority-raw",
+        target_mode: "image2-page-authority-v2",
+        target_workflow: "framed",
+        current_node: "authorize-target-framed-raw",
         needs_raw_generation: ["HeroGo"],
       });
 
       const target = join(fixture.deck, "3_versions", "v2");
       const state = readState(fixture.deck, { purpose: "observe", heal: false, runVersion: "v2" });
-      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-page-authority", source_epoch: 1 });
+      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-page-authority-v2", workflow: "framed", source_epoch: 1 });
+      expect(state.page_authority_target_evidence.by_version["3_versions/v2"]).toMatchObject({
+        workflow: "framed",
+        provider_authorization_sha256: null,
+        accepted_raw_evidence_sha256: null,
+        final_manifest_sha256: null,
+        delivery_receipt_sha256: null,
+      });
       expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(state.page_authority_delivery_review?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(existsSync(join(target, "_generated", "page_authority_image2", "receipts", "production-mode-transition.json"))).toBe(true);

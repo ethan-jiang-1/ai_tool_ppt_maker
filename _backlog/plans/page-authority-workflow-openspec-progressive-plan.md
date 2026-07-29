@@ -1,6 +1,6 @@
 # Plan: Page Authority Workflow OpenSpec Progressive Delivery
 
-> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: 方案已确定；change 尚未创建，实施未开始
+> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: Phase A 已完成；active change 已创建，framework source 尚未移动
 
 ## 进度跟踪
 
@@ -9,10 +9,10 @@
 | 工作流 / 阶段 | 状态 | 完成信号 / 下一步 |
 | --- | --- | --- |
 | 规划基线 | 已完成 | 本文与两份上游 plan 已固定目标、范围和 one-change 决策；创建 change 进入 Phase A |
-| Phase A - OpenSpec artifacts | 未开始 | 关闭 `A.CP` |
-| Wave 0 - Baseline | 未开始 | 关闭 `W0.CP` |
-| Wave 1 - Artifact seams | 未开始 | 关闭 `W1.CP` |
-| Wave 2 - Workflow owners | 未开始 | 关闭 `W2.CP` |
+| Phase A - OpenSpec artifacts | 已完成 | `A.CP` 已关闭；下一步是 Wave 0 baseline |
+| Wave 0 - Baseline | 已完成 | `W0.CP` 已关闭；下一步是 Wave 1 artifact seams |
+| Wave 1 - Artifact seams | 进行中 | `W1.1` 已完成；继续完成 shared final-manifest/delivery seam 与 CURRENT regression 证明。 |
+| Wave 2 - Workflow owners | 进行中 | `03-framed-image` / `04-pure-image` 边界已建立；继续迁移 Framed/Pure owner behavior。 |
 | Wave 3 - Shared delivery | 未开始 | 关闭 `W3.CP` |
 | Wave 4 - TARGET routing and iteration | 未开始 | 关闭 `W4.CP` |
 | Wave 5 - CURRENT boundary and activation | 未开始 | 关闭 `W5.CP` |
@@ -34,6 +34,19 @@
 | 日期 | 项目 ID | 状态变化 | 证据 / 说明 | 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-07-29 | Plan tracker | 已初始化 | 已将执行计划转换为 checklist；`openspec list --json` 显示没有 active change，尚未开始实现。 | 创建 `separate-framed-pure-workflows` 并开始 `A.1`。 |
+| 2026-07-29 | A.1 | 已完成 | 已创建 active change [`separate-framed-pure-workflows`](../../openspec/changes/separate-framed-pure-workflows/)。 | 完成 proposal、design、delta specs 和 tasks。 |
+| 2026-07-29 | A.2 / G1-G6 | 已完成 | [`design.md`](../../openspec/changes/separate-framed-pure-workflows/design.md) 锁定 v2 identity、CURRENT boundary、artifact seams、controller/CLI route、refresh semantics 及 activation/verification budget。 | 将这些决策完整投射到 14 个 capability delta。 |
+| 2026-07-29 | A.4 | 已完成 | `design.md` 已固定 identity/schema、owners、import rules、migration/rollback 和 test tiers。 | 用 `tasks.md` 拆成可执行 waves。 |
+| 2026-07-29 | A.3 | 进行中 | 已写入 10/14 个 proposal capability delta；尚余 `commands-reference`、`framework-charter`、`framework-directory-layout`、`framework-script-layout`。 | 完成剩余 delta 后核对 proposal/spec 目录一一对应。 |
+| 2026-07-29 | A.3 | 已完成 | 已写入 14/14 个 delta；proposal capability 列表与 `openspec/changes/separate-framed-pure-workflows/specs/` 目录一一对应。 | 编写 `tasks.md`。 |
+| 2026-07-29 | A.5 | 已完成 | `tasks.md` 已按八个依赖组写入 39 个可追踪 implementation task；OpenSpec status 显示 proposal/specs/design/tasks 全部完成。 | 运行 strict validation 并修复 planning defects。 |
+| 2026-07-29 | A.6 | 已完成 | `openspec validate separate-framed-pure-workflows --strict` 与 `openspec validate --all --strict` 均通过；proposal/design 已补上上游 plan 链接、terminology ledger，并将 v1/v2 finalization 与 fresh-controller requirement 改为显式 `MODIFIED` delta，避免 merge 后语义冲突。 | 关闭 A.CP，进入 Wave 0 baseline。 |
+| 2026-07-29 | A.CP | 已完成 | design gates 已闭合，strict validation 与 `git diff --check` 通过；`git status` 确认 framework source、tests、accepted main specs 未移动。 | 从 W0.1 冻结 CURRENT observable baseline。 |
+| 2026-07-29 | W0.1-W0.4 / W0.CP | 已完成 | v1 marker/state/parser、inspection 与 architecture baseline 已由 provider-free focused tests 覆盖；新增 v2 marker/state negative fixtures不使用 production deck data。`npm test`、focused architecture/inspection tests 和 strict change validation 均通过，无 unrelated baseline failure。 | 从 W1.1 建立 typed artifact seams，fresh init 仍保持 v1。 |
+| 2026-07-29 | W1.1 / OpenSpec 2.1-2.2 | 已完成 | 新增 v2 RawWorkPlan、AcceptedRawEvidence、FinalSlideManifest contract；shared raw seam 仅消费 opaque typed plan，并通过既有 state authorization owner 绑定 workflow/receipt/profile/scope。未授权 prerequisite 时 provider callback 为零；focused contract、state、architecture tests 通过。 | 完成 W1.2 的 common final-manifest helper 与 delivery-facing validation。 |
+| 2026-07-29 | OpenSpec 2.3-2.5 | 已完成 | common final-manifest helper 只接受 current plan-bound accepted evidence，逐项校验 final bytes；缺失/漂移仅返回 owner rebuild action。覆盖 source/profile/byte drift、cross-protocol、partial evidence、wrong owner 和 failed prerequisite；architecture contract 禁止 shared raw/final helper 按 workflow semantic 分支。 | 建立 `03-framed-image` 与 `04-pure-image` sibling boundaries。 |
+| 2026-07-29 | OpenSpec 3.1 / 3.2 进行中 | 进行中 | 已建立 `03-framed-image`、`04-pure-image` import-safe owner interfaces、source-to-test inventory 与 sibling-import 禁止；Framed adapter 已接管 target receipt 的 `standard-v1` preflight、reserved-underlay evidence、text-free raw contribution 和 common final-manifest publication入口。capture runtime/Framed local refresh 与 Pure adapter 尚待迁移。 | 完成 3.2 的 runtime/refresh owner 迁移，再实现 3.3 Pure adapter。 |
+| 2026-07-29 | OpenSpec 3.3 | 已完成 | `04-pure-image` 现在独立写入 Pure typed raw plan，只从 current accepted evidence 发布 common final manifest，并将 source/display drift 归类为 raw rebuild debt；workflow/architecture focused tests 通过。 | 完成 Framed local refresh/invalidation，并验证两个 adapter 的独立 publication。 |
 
 ## 阅读说明 / 本文边界
 
@@ -50,10 +63,11 @@
 实施波次、验证检查点和拆分触发条件。若本文与上游两份文档发生目标语义冲突，先修正文档
 之间的矛盾，再创建 change；不得让 proposal 靠聊天上下文选择其中一种解释。
 
-截至 2026-07-29，`openspec list --json` 没有 active change。本文不创建
-`openspec/changes/` 内容，不授权修改 framework source，也不读取或迁移任何 `deck_*`、
-`dpt_*` 或 `_generated/` 生产数据。在 change 被完整实施并 archive 前，accepted main specs
-与 CURRENT `page-authority-image2-v1` 行为继续是生产权威。
+截至 2026-07-29，active change
+[`separate-framed-pure-workflows`](../../openspec/changes/separate-framed-pure-workflows/) 已创建，
+但尚未授权或开始 framework source implementation，也不读取或迁移任何 `deck_*`、`dpt_*` 或
+`_generated/` 生产数据。在 change 被完整实施并 archive 前，accepted main specs 与 CURRENT
+`page-authority-image2-v1` 行为继续是生产权威。
 
 ## 一页决策
 
@@ -345,47 +359,47 @@ implementation ownership，不自动成为 capability 名称。只有 proposal �
 
 ### Phase A - Form and accept the OpenSpec artifacts
 
-- [ ] **A.1** 创建唯一 change `separate-framed-pure-workflows`；proposal 引用两份上游计划并自足记录
+- [x] **A.1** 创建唯一 change `separate-framed-pure-workflows`；proposal 引用两份上游计划并自足记录
   CURRENT/TARGET、one-change 理由、scope fence、control owner 与 policies。
-- [ ] **A.2** 关闭下列六个 design gates，同时维护 terminology delta ledger 与 capability delta budget。
-- [ ] **A.3** 只为 requirement-level 行为变化编写 delta specs；将不变 capability 留作 regression
+- [x] **A.2** 关闭下列六个 design gates，同时维护 terminology delta ledger 与 capability delta budget。
+- [x] **A.3** 只为 requirement-level 行为变化编写 delta specs；将不变 capability 留作 regression
   obligations，不虚报 Modified Capabilities。
-- [ ] **A.4** 在 design 中固定 exact identity/schema、CURRENT boundary、artifact interfaces、import
+- [x] **A.4** 在 design 中固定 exact identity/schema、CURRENT boundary、artifact interfaces、import
   rules、activation/rollback 与 unit/integration/E2E 选择。
-- [ ] **A.5** 将 tasks 按下列 implementation waves 展开，每项带 capability、完成判据和 focused test。
-- [ ] **A.6** Apply 前运行 `openspec validate separate-framed-pure-workflows --strict`；artifact 之间仍有
+- [x] **A.5** 将 tasks 按下列 implementation waves 展开，每项带 capability、完成判据和 focused test。
+- [x] **A.6** Apply 前运行 `openspec validate separate-framed-pure-workflows --strict`；artifact 之间仍有
   open question、capability 不匹配或 CURRENT/TARGET 混写时不进入实现。
 
 #### Design Gate Checklist
 
-- [ ] **G1** 按 [Gate 1 - Minimal identity and terminology](#gate-1---minimal-identity-and-terminology)
+- [x] **G1** 按 [Gate 1 - Minimal identity and terminology](#gate-1---minimal-identity-and-terminology)
   锁定 TARGET identity、receipt/state resolver 和 terminology ledger。
-- [ ] **G2** 按 [Gate 2 - CURRENT mixed-run boundary](#gate-2---current-mixed-run-boundary) 选择并 spec 化
+- [x] **G2** 按 [Gate 2 - CURRENT mixed-run boundary](#gate-2---current-mixed-run-boundary) 选择并 spec 化
   CURRENT compatibility 或 structural migration 边界。
-- [ ] **G3** 按 [Gate 3 - Artifact interfaces and owners](#gate-3---artifact-interfaces-and-owners) 锁定
+- [x] **G3** 按 [Gate 3 - Artifact interfaces and owners](#gate-3---artifact-interfaces-and-owners) 锁定
   三个 artifact seam 的 schema、owner、binding、freshness 和 shared-boundary rules。
-- [ ] **G4** 按 [Gate 4 - Beginner-facing route and CLI surface](#gate-4---beginner-facing-route-and-cli-surface)
+- [x] **G4** 按 [Gate 4 - Beginner-facing route and CLI surface](#gate-4---beginner-facing-route-and-cli-surface)
   锁定一次 workflow choice 的 user route，并决定是否真的需要 `cli-surface` delta。
-- [ ] **G5** 按 [Gate 5 - Refresh semantics](#gate-5---refresh-semantics) 固定 workflow-aware refresh matrix 和
+- [x] **G5** 按 [Gate 5 - Refresh semantics](#gate-5---refresh-semantics) 固定 workflow-aware refresh matrix 和
   Structural Versioning Path。
-- [ ] **G6** 按 [Gate 6 - Activation, rollback, and verification budget](#gate-6---activation-rollback-and-verification-budget)
+- [x] **G6** 按 [Gate 6 - Activation, rollback, and verification budget](#gate-6---activation-rollback-and-verification-budget)
   固定 activation order、rollback boundary 与 provider-free verification budget。
 
-- [ ] **A.CP** **Checkpoint A:** change artifacts 可以由不了解聊天的 Agent 独立解释；所有 design gates
+- [x] **A.CP** **Checkpoint A:** change artifacts 可以由不了解聊天的 Agent 独立解释；所有 design gates
   closed，strict validation green，framework source 尚未移动。
 
 ### Wave 0 - Freeze the observable baseline
 
-- [ ] **W0.1** 固定 CURRENT marker/state、mixed source receipts、raw/final/delivery lineage、public CLI/help、
+- [x] **W0.1** 固定 CURRENT marker/state、mixed source receipts、raw/final/delivery lineage、public CLI/help、
   controller/inspection、directory/import inventory 与 representative fixtures。
-- [ ] **W0.2** 把两份上游计划中的 CURRENT invariants 对应到现有 focused tests。
-- [ ] **W0.3** 建立 negative baseline：same bytes 不得被 target parser 接受，CURRENT path 不得读取未来字段。
-- [ ] **W0.4** 记录与本 change 无关的 pre-existing test failures，不把它们伪装成本次 regression。
-- [ ] **W0.CP** **Checkpoint 0:** CURRENT focused tests 与 declared core tier green；没有 production data fixture。
+- [x] **W0.2** 把两份上游计划中的 CURRENT invariants 对应到现有 focused tests。
+- [x] **W0.3** 建立 negative baseline：same bytes 不得被 target parser 接受，CURRENT path 不得读取未来字段。
+- [x] **W0.4** 记录与本 change 无关的 pre-existing test failures，不把它们伪装成本次 regression。
+- [x] **W0.CP** **Checkpoint 0:** CURRENT focused tests 与 declared core tier green；没有 production data fixture。
 
 ### Wave 1 - Establish artifact seams without changing public routing
 
-- [ ] **W1.1** 在现有 Page Authority path 下固定 raw plan、accepted evidence 与 final manifest 的 typed
+- [x] **W1.1** 在现有 Page Authority path 下固定 raw plan、accepted evidence 与 final manifest 的 typed
   contracts、hash/invalidation tests 和 owner boundaries。
 - [ ] **W1.2** 让 shared raw mechanics 只消费 typed raw input，让 delivery-facing code 只消费 final manifest。
 - [ ] **W1.3** 保持 CURRENT v1 resolver、init、CLI 和 observable artifact bytes/receipts 不变。

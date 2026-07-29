@@ -28,11 +28,11 @@ function createLegacyObservationFixture(prefix) {
   return { root, deck, runDir };
 }
 
-function createCurrentObservationFixture(prefix) {
+function createTargetDraftObservationFixture(prefix) {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, "deck_page_authority");
   const runDir = join(deck, "3_versions", "v1");
-  initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-page-authority" });
+  initBundle(deck, null, "keynote", "dark-executive");
   return { root, deck, runDir };
 }
 
@@ -92,7 +92,7 @@ describe("workflow inspection", () => {
   });
 
   it("short-circuits later workflow facts when layout is invalid", () => {
-    const fixture = createCurrentObservationFixture("workflow-inspect-layout-");
+    const fixture = createTargetDraftObservationFixture("workflow-inspect-layout-");
     try {
       rmSync(join(fixture.runDir, "slide-specifications.md"));
       writeFileSync(join(fixture.deck, "_state", "state.yaml"), "][}{\n", "utf8");
@@ -139,19 +139,19 @@ describe("workflow inspection", () => {
     }
   });
 
-  it("projects only Page Authority prerequisites for a fresh Page Authority run", () => {
+  it("requires an explicit target workflow selection for a fresh Page Authority run", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-page-authority-"));
     const deck = join(root, "deck_page_authority");
     const runDir = join(deck, "3_versions", "v1");
     try {
-      initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-page-authority" });
+      initBundle(deck, null, "keynote", "dark-executive");
       const before = treeSnapshot(deck);
       const result = inspectWorkflow({ runDir });
       expect(result).toMatchObject({
-        posture: "hard-stop",
-        root_cause: { owner: "page-authority", kind: "SOURCE_RECEIPT_MISSING_OR_STALE" },
-        primary_action: { owner: "page-authority", action_id: "validate_page_authority_source", kind: "repair" },
-        evidence_summary: { mode: "image2-page-authority" },
+        posture: "confirm",
+        root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
+        primary_action: { owner: "01-content", action_id: "select-target-page-authority-workflow", kind: "select", requires_human: true },
+        evidence_summary: { pipeline: "page-authority-image2-v2", mode: null, workflow: null },
       });
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {

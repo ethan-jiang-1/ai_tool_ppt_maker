@@ -34,6 +34,7 @@ const GIT_GUIDANCE_CORPUS = [
   "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
   "PPTMAKER_FRAMEWORK/COMMANDS.md",
   "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md",
+  "PPTMAKER_FRAMEWORK/scripts/06-iteration/change-classifier.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/00-run-bundle-concept.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/04-conventions.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/README.md",
@@ -148,7 +149,7 @@ describe("framework documentation coherence", () => {
       "PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md",
       "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
       "PPTMAKER_FRAMEWORK/COMMANDS.md",
-      "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md",
+      "PPTMAKER_FRAMEWORK/scripts/06-iteration/change-classifier.md",
     ].map((file) => [file, readFileSync(file, "utf8")]);
     for (const [file, text] of docs) {
       expect(text, file).toMatch(/position/);
@@ -196,9 +197,9 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("标题/小问题修当前版本；同一方向的大改发布 clean vNext");
     expect(commands).toContain("Git history reader");
     expect(commands).toContain("命名 Git 操作和用户给定范围");
-    expect(commands).toContain("唯一新-deck route 是 `image2-page-authority`");
-    expect(commands).toContain("`framed-image2` 是 source default");
-    expect(commands).toContain("These are not fresh-init choices");
+    expect(commands).toContain("唯一新-deck route 是\n`page-authority-image2-v2` / `image2-page-authority-v2`");
+    expect(commands).toContain("`production.workflow: framed|pure`");
+    expect(commands).toContain("bounded mixed compatibility route");
   });
 
   it("routes fresh public guidance only through Page Authority and defers raw credentials", () => {
@@ -209,13 +210,13 @@ describe("framework documentation coherence", () => {
 
     expect(freshBootstrap).toContain("node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor");
     expect(freshBootstrap).toContain("--operation raw-generation");
-    expect(freshBootstrap).toContain("`pure-image2`");
-    expect(freshBootstrap).toContain("`framed-image2`");
+    expect(freshBootstrap).toContain("`framed`");
+    expect(freshBootstrap).toContain("`pure`");
     expect(freshBootstrap).not.toMatch(/init[^\n]*(?:html-only|html-then-image2|image2-only)/);
 
-    expect(freshCommands).toContain("唯一新-deck route 是 `image2-page-authority`");
-    expect(freshCommands).toContain("exact operation, stable IDs, generation profile, and maximum submission count");
-    expect(freshCommands).toContain("Provider readiness, init, doctor, a live probe, raw review, and a prior batch never grant that authorization.");
+    expect(freshCommands).toContain("唯一新-deck route 是\n`page-authority-image2-v2` / `image2-page-authority-v2`");
+    expect(freshCommands).toContain("exact operation, stable IDs, generation profile, and maximum\nsubmission count");
+    expect(freshCommands).toContain("readiness, init, doctor, a live probe, raw review, and a prior batch never grant\nauthorization.");
     expect(freshCommands).not.toMatch(/init[^\n]*(?:html-only|html-then-image2|image2-only)/);
   });
 

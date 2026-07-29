@@ -3,7 +3,6 @@
 ## Purpose
 Define the read-only workflow-observation projection that gives MD Controllers and CLI observers one ordered, owner-issued next action for an exact run without reconstructing mode, gate, recovery, or completion policy.
 ## Requirements
-
 ### Requirement: Inspection is observation-only and not an authority
 Inspection SHALL perform zero state, history, metadata, generated-artifact, receipt, authorization, or source writes; it makes zero network/provider calls and shall not cache a verdict, heal state, migrate schema, or recover a journal. A repairable current direct fact is reported with its owning repair action. Mutation owners revalidate their direct source/CAS/authorization/receipt facts immediately before a write or submit and never treat an earlier inspection as authorization or freshness proof. An unsupported historical protocol remains byte-preserving and produces one bounded owner-issued typed next action, not a compatibility projection.
 
@@ -78,3 +77,28 @@ cursor, provider request, or approval path.
 #### Scenario: A recognized legacy run is inspected
 - **WHEN** inspection reads an intact historical pair
 - **THEN** it returns the provider-free adoption action and no legacy production route
+
+### Requirement: Inspection projects TARGET workflow prerequisites marker-first
+
+Inspection SHALL remain observation-only and resolve a target run from the
+exact v2 source/state pair before projecting workflow status. For a valid
+target pair it SHALL report the selected `framed` or `pure` workflow, the
+direct receipt/evidence prerequisite, and one owner-issued nearest action. It
+SHALL NOT heal state, infer a workflow from artifacts, or calculate a second
+pass/fail authority from Markdown or a compatibility summary.
+
+CURRENT v1 mixed runs SHALL continue to project their bounded compatibility
+route. A partial, hybrid, or mismatched v1/v2 pair SHALL project the owning
+repair hard-stop rather than either workflow.
+
+#### Scenario: Target Framed raw debt has one inspection action
+
+- **WHEN** a valid target Framed source/state pair has no current accepted raw evidence
+- **THEN** inspection reports workflow `framed` and the raw-plan/authorization prerequisite from its owner
+- **AND** it does not suggest a Pure path or a per-slide authority repair
+
+#### Scenario: Hybrid pair is observed without coercion
+
+- **WHEN** a v2 source is paired with a CURRENT v1 state mode
+- **THEN** inspection reports the marker/state repair hard-stop without mutation
+- **AND** it does not classify the run as CURRENT compatibility or TARGET workflow work

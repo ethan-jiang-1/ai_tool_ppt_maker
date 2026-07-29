@@ -1,8 +1,15 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
-/** The only source marker accepted by current production code. */
+/** Versioned Page Authority markers. v1 stays a bounded compatibility input. */
 export const PAGE_AUTHORITY_IMAGE2_PIPELINE = "page-authority-image2-v1";
-export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([PAGE_AUTHORITY_IMAGE2_PIPELINE]);
+export const PAGE_AUTHORITY_IMAGE2_V2_PIPELINE = "page-authority-image2-v2";
+export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+]);
+export const TARGET_WORKFLOWS = Object.freeze(["framed", "pure"]);
+export const TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE =
+  "target workflow selection required: record production.workflow as framed or pure before provider work";
 
 function issue(code, message, { source, line = 1, actual, expected } = {}) {
   return {
@@ -16,18 +23,26 @@ function issue(code, message, { source, line = 1, actual, expected } = {}) {
 }
 
 function invalid(source, code, message, options = {}) {
-  return { branch: "invalid", issues: [issue(code, message, { source, expected: PAGE_AUTHORITY_IMAGE2_PIPELINE, ...options })] };
+  return { branch: "invalid", issues: [issue(code, message, { source, ...options })] };
+}
+
+/** A v2 authoring draft is intentionally not a production-ready marker. */
+export function isTargetWorkflowSelectionPending(marker) {
+  return Boolean(marker?.branch === "invalid" && marker?.target_workflow_selection_required === true);
 }
 
 /**
- * Read the direct Page Authority frontmatter. Historical marker parsing lives
- * exclusively in the observer module so it cannot be reused as current input.
+ * Read a direct Page Authority frontmatter marker. Historical marker parsing
+ * remains exclusively in the observer module so it cannot become production
+ * input through this seam.
  */
 export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
   const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");
   const body = text.startsWith("\uFEFF") ? text.slice(1) : text;
   if (!body.startsWith("---\n") && !body.startsWith("---\r\n")) {
-    return invalid(source, "missing_production_marker", "production.pipeline must explicitly select page-authority-image2-v1");
+    return invalid(source, "missing_production_marker", "production.pipeline must explicitly select a supported Page Authority protocol", {
+      expected: SUPPORTED_PRODUCTION_PIPELINES.join(" | "),
+    });
   }
   const newline = body.startsWith("---\r\n") ? "\r\n" : "\n";
   const close = body.indexOf(`${newline}---${newline}`, 3 + newline.length);
@@ -58,24 +73,45 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
     }
     values.set(pair.key.value, pair.value);
   }
-  if ([...values.keys()].some((key) => !["pipeline", "page_authority_default"].includes(key))) {
-    return invalid(source, "unknown_production_key", "production contains a retired or unsupported key");
-  }
   const pipeline = values.get("pipeline");
-  const authority = values.get("page_authority_default");
-  if (!isScalar(pipeline) || typeof pipeline.value !== "string" || pipeline.value !== PAGE_AUTHORITY_IMAGE2_PIPELINE) {
-    return invalid(source, "unsupported_pipeline_marker", "production.pipeline must equal page-authority-image2-v1", { actual: pipeline?.value });
+  if (!isScalar(pipeline) || typeof pipeline.value !== "string" || !SUPPORTED_PRODUCTION_PIPELINES.includes(pipeline.value)) {
+    return invalid(source, "unsupported_pipeline_marker", "production.pipeline must select a supported Page Authority protocol", {
+      actual: pipeline?.value,
+      expected: SUPPORTED_PRODUCTION_PIPELINES.join(" | "),
+    });
   }
-  if (!isScalar(authority) || typeof authority.value !== "string" || !["pure-image2", "framed-image2"].includes(authority.value)) {
-    return invalid(source, "invalid_page_authority_default", "production.page_authority_default must equal pure-image2 | framed-image2", { actual: authority?.value, expected: "pure-image2 | framed-image2" });
+  const isV2 = pipeline.value === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE;
+  const expectedKeys = isV2 ? ["pipeline", "workflow"] : ["pipeline", "page_authority_default"];
+  if ([...values.keys()].some((key) => !expectedKeys.includes(key)) || values.size !== expectedKeys.length) {
+    const result = invalid(source, "invalid_production_protocol_shape", `${pipeline.value} requires exactly ${expectedKeys.join(", ")}`, {
+      expected: expectedKeys.join(", "),
+    });
+    if (isV2 && values.size === 1 && values.has("pipeline")) {
+      result.target_workflow_selection_required = true;
+    }
+    return result;
+  }
+  if (!isV2) {
+    const authority = values.get("page_authority_default");
+    if (!isScalar(authority) || typeof authority.value !== "string" || !["pure-image2", "framed-image2"].includes(authority.value)) {
+      return invalid(source, "invalid_page_authority_default", "production.page_authority_default must equal pure-image2 | framed-image2", { actual: authority?.value, expected: "pure-image2 | framed-image2" });
+    }
+    return {
+      branch: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+      issues: [],
+      frontmatter: { metadata: { production: { pipeline: pipeline.value, page_authority_default: authority.value } } },
+    };
+  }
+  const workflow = values.get("workflow");
+  if (!isScalar(workflow) || typeof workflow.value !== "string" || !TARGET_WORKFLOWS.includes(workflow.value)) {
+    return invalid(source, "invalid_target_workflow", "production.workflow must equal framed | pure", {
+      actual: workflow?.value,
+      expected: TARGET_WORKFLOWS.join(" | "),
+    });
   }
   return {
-    branch: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+    branch: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
     issues: [],
-    frontmatter: {
-      metadata: {
-        production: { pipeline: pipeline.value, page_authority_default: authority.value },
-      },
-    },
+    frontmatter: { metadata: { production: { pipeline: pipeline.value, workflow: workflow.value } } },
   };
 }

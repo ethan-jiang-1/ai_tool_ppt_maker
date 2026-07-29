@@ -12,7 +12,7 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { initBundle, initLegacyFixtureBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initLegacyFixtureBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   createDefaultState,
   readLegacyAdoptionState,
@@ -53,13 +53,13 @@ production:
 `;
 }
 
-function pageAuthoritySource({ title = "Target-owned slide", includeLegacyField = false } = {}) {
+function pageAuthoritySource({ title = "Target-owned slide", workflow = "framed", includeLegacyField = false } = {}) {
   return `---
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: ${workflow}
 ---
 
 ## Slide 01: \`HeroGo\`
@@ -79,13 +79,39 @@ negative_constraints:
 `;
 }
 
-function retainedRow() {
+function currentV1PageAuthoritySource() {
+  return `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
+---
+
+## Slide 01: \`HeroGo\`
+
+**TITLE**: Current compatibility slide
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: Current compatibility note.
+`;
+}
+
+function retainedRow(workflow = "framed") {
   return {
     source_slide_id: "HeroGo",
     target_slide_id: "HeroGo",
     disposition: "retained",
-    authority: "framed-image2",
-    text_frame_disposition: "authored",
+    workflow,
+    text_frame_disposition: workflow === "framed" ? "authored" : "not-applicable",
     visual_brief_disposition: "authored",
     reference_disposition: "none",
     speaker_notes_disposition: "authored",
@@ -103,32 +129,47 @@ function flow(args) {
 function fixture({ pipeline = "whole-page-image2-v1", mode = "image2-only" } = {}) {
   const root = mkdtempSync(join(tmpdir(), "legacy-adoption-"));
   const deck = join(root, "deck_legacy_adoption");
-  initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode });
+  const fixtureMode = ["html-only", "html-then-image2", "image2-only"].includes(mode) ? mode : "image2-only";
+  initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: fixtureMode });
   const runDir = join(deck, "3_versions", "v1");
   writeFileSync(join(runDir, "slide-specifications.md"), legacySource(pipeline));
   const state = createDefaultState();
   state.pipeline = pipeline;
-  state.playbook = "create-deck";
-  state.current_node = mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
-  state.execution_id = "exec-historical-source";
-  state.execution_started_at = "2026-07-27T00:00:00.000Z";
-  state.run_version = "v1";
-  state.nodes[state.current_node] = {
-    status: "in_progress",
-    execution_id: state.execution_id,
-    run_version: "v1",
-  };
-  state.production_mode.by_version["3_versions/v1"] = { mode };
+  if (mode === "image2-page-authority") {
+    state.playbook = "";
+    state.current_node = "";
+    state.execution_id = "";
+    state.execution_started_at = "";
+    state.run_version = "";
+    state.production_mode.by_version["3_versions/v1"] = { mode, source_epoch: 1 };
+  } else {
+    state.playbook = "create-deck";
+    state.current_node = mode === "image2-only" ? "author-whole-page-content" : "author-structured-content";
+    state.execution_id = "exec-historical-source";
+    state.execution_started_at = "2026-07-27T00:00:00.000Z";
+    state.run_version = "v1";
+    state.nodes[state.current_node] = {
+      status: "in_progress",
+      execution_id: state.execution_id,
+      run_version: "v1",
+    };
+    state.production_mode.by_version["3_versions/v1"] = { mode };
+  }
   writeState(deck, state);
   return { root, deck, runDir };
 }
 
-function authorCandidate(runDir, { rows = [retainedRow()], source = pageAuthoritySource() } = {}) {
+function authorCandidate(runDir, { workflow = "framed", rows = [retainedRow(workflow)], source = pageAuthoritySource({ workflow }) } = {}) {
   const candidate = join(runDir, "_scratch", "production-mode-transition", "candidate-run");
+  writeFileSync(join(candidate, "target.json"), JSON.stringify({
+    schema: "pptmaker-production-mode-transition-target-v2",
+    target_mode: "image2-page-authority-v2",
+    workflow,
+  }));
   writeFileSync(join(candidate, "target-intake.json"), JSON.stringify(INTAKE));
   writeFileSync(join(candidate, "slide-specifications.md"), source);
   writeFileSync(join(candidate, "adoption-matrix.json"), JSON.stringify({
-    schema: "pptmaker-page-authority-legacy-adoption-matrix-v1",
+    schema: "pptmaker-page-authority-legacy-adoption-matrix-v2",
     source_version: "v1",
     rows,
   }));
@@ -147,8 +188,7 @@ function confirmedFixture() {
 describe("legacy protocol adoption", () => {
   it("classifies only the four direct protocol outcomes without writes or provider work", () => {
     const legacy = fixture();
-    const currentRoot = mkdtempSync(join(tmpdir(), "legacy-adoption-current-"));
-    const currentDeck = join(currentRoot, "deck_current");
+    const current = fixture({ pipeline: "page-authority-image2-v1", mode: "image2-page-authority" });
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     try {
       const sourceBefore = readFileSync(join(legacy.runDir, "slide-specifications.md"));
@@ -160,9 +200,8 @@ describe("legacy protocol adoption", () => {
       expect(readFileSync(join(legacy.runDir, "slide-specifications.md"))).toEqual(sourceBefore);
       expect(readFileSync(join(legacy.deck, "_state", "state.yaml"))).toEqual(stateBefore);
 
-      initBundle(currentDeck, null, "keynote", "dark-executive", { mode: "image2-page-authority" });
-      const currentRun = join(currentDeck, "3_versions", "v1");
-      expect(inspectLegacyProtocol(currentRun)).toMatchObject({ classification: "current" });
+      writeFileSync(join(current.runDir, "slide-specifications.md"), currentV1PageAuthoritySource());
+      expect(inspectLegacyProtocol(current.runDir)).toMatchObject({ classification: "current" });
 
       writeFileSync(join(legacy.runDir, "slide-specifications.md"), pageAuthoritySource());
       expect(inspectLegacyProtocol(legacy.runDir)).toMatchObject({ classification: "current-pair-corrupt" });
@@ -173,7 +212,7 @@ describe("legacy protocol adoption", () => {
     } finally {
       fetchSpy.mockRestore();
       rmSync(legacy.root, { recursive: true, force: true });
-      rmSync(currentRoot, { recursive: true, force: true });
+      rmSync(current.root, { recursive: true, force: true });
     }
   });
 
@@ -188,15 +227,17 @@ describe("legacy protocol adoption", () => {
 
       expect(prepareLegacyProtocolAdoption(value.runDir)).toMatchObject({
         plan_kind: "legacy-adoption",
-        target_mode: "image2-page-authority",
+        target_mode: "image2-page-authority-v2",
+        target_workflow: null,
       });
       authorCandidate(value.runDir);
       const preview = previewLegacyProtocolAdoption(value.runDir);
       expect(preview).toMatchObject({
         plan_kind: "legacy-adoption",
-        target_mode: "image2-page-authority",
+        target_mode: "image2-page-authority-v2",
+        target_workflow: "framed",
         deterministic_impact: { needs_raw_generation: ["HeroGo"] },
-        adoption: { page_authority_default: "framed-image2", matrix_rows: [retainedRow()] },
+        adoption: { workflow: "framed", matrix_rows: [retainedRow()] },
       });
       expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
 
@@ -204,18 +245,29 @@ describe("legacy protocol adoption", () => {
       const applied = applyLegacyProtocolAdoption(value.runDir, { planHash: preview.plan_hash });
       expect(applied).toMatchObject({
         target_version: "v2",
-        target_mode: "image2-page-authority",
-        current_node: "authorize-page-authority-raw",
+        target_mode: "image2-page-authority-v2",
+        target_workflow: "framed",
+        current_node: "authorize-target-framed-raw",
         needs_raw_generation: ["HeroGo"],
       });
       const target = join(value.deck, "3_versions", "v2");
       const state = readState(value.deck, { purpose: "observe", heal: false, runVersion: "v2" });
       expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
-      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-page-authority", source_epoch: 1 });
-      expect(state.current_node).toBe("authorize-page-authority-raw");
+      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({ mode: "image2-page-authority-v2", workflow: "framed", source_epoch: 1 });
+      expect(state.current_node).toBe("authorize-target-framed-raw");
+      expect(state.page_authority_target_evidence.by_version["3_versions/v2"]).toMatchObject({
+        schema: "page-authority-image2-target-state-v1",
+        run_version: "v2",
+        source_epoch: 1,
+        workflow: "framed",
+        provider_authorization_sha256: null,
+        accepted_raw_evidence_sha256: null,
+        final_manifest_sha256: null,
+        delivery_receipt_sha256: null,
+      });
       expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(state.page_authority_delivery_review?.by_version?.["3_versions/v2"]).toBeUndefined();
-      expect(readFileSync(join(target, "slide-specifications.md"), "utf8")).toContain("page-authority-image2-v1");
+      expect(readFileSync(join(target, "slide-specifications.md"), "utf8")).toContain("page-authority-image2-v2");
       expect(existsSync(join(target, "_generated", "legacy-only", "pixels.png"))).toBe(false);
       expect(existsSync(join(target, "adoption-matrix.json"))).toBe(false);
       expect(existsSync(join(target, "_scratch", "production-mode-transition"))).toBe(false);
@@ -237,7 +289,7 @@ describe("legacy protocol adoption", () => {
       expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
 
       writeFileSync(join(candidate, "adoption-matrix.json"), JSON.stringify({
-        schema: "pptmaker-page-authority-legacy-adoption-matrix-v1",
+        schema: "pptmaker-page-authority-legacy-adoption-matrix-v2",
         source_version: "v1",
         rows: [retainedRow()],
       }));
@@ -267,8 +319,9 @@ describe("legacy protocol adoption", () => {
         source_execution_id: value.preview.source_execution_id,
         source_version: "v1",
         target_version: "v2",
-        target_mode: "image2-page-authority",
-        target_pipeline: "page-authority-image2-v1",
+        target_mode: "image2-page-authority-v2",
+        target_pipeline: "page-authority-image2-v2",
+        target_workflow: "framed",
         reservation_basename: `.v2.production-mode-transition-reservation-${ownerToken}`,
         staging_basename: `.v2.production-mode-transition-staging-${ownerToken}`,
       }));

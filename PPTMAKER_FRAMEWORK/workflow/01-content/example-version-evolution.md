@@ -7,14 +7,15 @@ summary: How source ownership, stable IDs, and receipt evidence evolve across ve
 depends_on:
 - workflow/01-content/06-iterate-with-version-discipline.md
 feeds_into:
-- workflow/05-iteration/03-structural-versioning-workflow.md
+- workflow/06-iteration/README.md
 agent_action: reference
 ---
 
 # Example — Page Authority Version Evolution
 
-This example focuses on why evidence becomes stale and which current owner must
-rebuild it.
+This example follows one Framed v2 version so its evidence owner stays clear.
+It focuses on why evidence becomes stale and which current owner must rebuild
+it. Switching the version to Pure is always a separate structural vNext.
 
 ## v1: Establish Source And Visual Language
 

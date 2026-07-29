@@ -2,25 +2,34 @@
 
 ## Authority
 
-Page Authority is the only current production protocol. Its source marker is
-`page-authority-image2-v1`; its state mode is `image2-page-authority`; its
-adapter is `page-authority-image2`.
+New Page Authority authoring uses `page-authority-image2-v2`. A version records
+exactly one `production.workflow: framed|pure` before provider work; state then
+binds the same workflow in `image2-page-authority-v2`. The target method graph
+is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 
-Each slide has one authority:
-
-| Authority | Owner | Refresh consequence |
+| Target concern | Sole owner | Refresh consequence |
 | --- | --- | --- |
-| `pure-image2` | Image2 raw output | Raw contract changes require explicit raw authorization and review. |
-| `framed-image2` | Image2 underlay plus local Text Frame | Text Frame-only changes recompose locally from accepted raw evidence. |
+| `framed` semantics, text-free underlay, Text Frame, composition | `03-framed-image` | Exact-evidence Text Frame-only work may compose locally; preset/underlay drift rebuilds raw. |
+| `pure` display/raw contract and raw-to-final publication | `04-pure-image` | Any visible display or visual change rebuilds raw. |
+| Final projection, PPTX, notes, delivery review | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
+| Refresh classification and structural routing | `06-iteration` | Workflow switches and structural edits create a previewed vNext. |
+
+`page-authority-image2-v1` / `image2-page-authority` remains a bounded
+compatibility pair for existing mixed runs only. Its `pure-image2`,
+`framed-image2`, default, and per-slide grammar are never new-authoring choices
+and are never silently reinterpreted as v2.
 
 ## Invalidation
 
 Use the smallest owner-valid path:
 
-- Header Text & Style Refresh for Framed text/frame changes.
-- Generated Image Rebuild for Pure display text or raw visual-contract changes.
-- Notes-Only Refresh for speaker notes.
-- Structural Versioning Path for additions, removals, reordering, or authority changes.
+- Header Text & Style Refresh for v2 Framed Text Frame-only work with exact
+  accepted raw evidence and a current preset.
+- Generated Image Rebuild for v2 Pure visible display work and every Framed
+  preset, underlay, or visual-contract change.
+- Notes-Only Refresh for speaker notes through `05-delivery`.
+- Structural Versioning Path for additions, removals, reordering, or a whole
+  Framed/Pure workflow switch.
 
 Structural work is preview-first. The exact plan hash binds apply; target
 materialization makes no remote call. A missing raw item is reported as
@@ -28,17 +37,22 @@ materialization makes no remote call. A missing raw item is reported as
 
 ## Evidence
 
-Current production is a receipt chain: source receipt, raw plan/authorization,
-raw manifest and review, final manifest and projection, PPTX assembly, notes,
-and delivery review. A later receipt cannot repair a missing earlier receipt.
-Generated files are rebuildable output and never replace the receipt chain.
+Target production is a receipt chain: v2 source receipt, adapter-owned typed raw
+plan, shared authorization and accepted raw evidence, selected-adapter final
+manifest, then `05-delivery` projection, PPTX, notes, and delivery review. A
+later receipt cannot repair a missing earlier receipt. Generated files are
+rebuildable output and never replace the receipt chain.
 
 ## Historical boundary
 
-Existing historical source/state pairs are read only through the legacy
-observer. A recognized pair can be adopted into a clean current target without
-provider calls or copied output evidence. Corrupt or ambiguous pairs stop at
+The exact v1 pair is a bounded compatibility route. Other historical source/state
+pairs are read only through the legacy observer. A recognized pair can enter v2
+only through an explicit workflow-selected structural vNext without provider
+calls or copied output evidence. Corrupt, hybrid, or ambiguous pairs stop at
 repair/export guidance. The observer never creates a production adapter.
+Compatibility is deliberately isolated to this exact resolver: after remaining
+v1 runs have taken an explicit vNext or repair/export route, a future release
+can remove that resolver without keeping v1 re-exports or target fallback code.
 
 ## RUN_BUNDLE locator entry
 

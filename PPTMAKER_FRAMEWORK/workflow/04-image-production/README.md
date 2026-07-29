@@ -1,6 +1,7 @@
-# Phase 4: Page Authority Image Production
+# CURRENT v1 compatibility: Page Authority Image Production
 
-Phase 4 owns receipt-bound raw planning, explicit provider authorization, raw review,
-Pure/Framed finalization, final projection, PPTX assembly, notes injection, and the
-delivery decision. Framed composition uses the private local capture runtime and never
-creates another source or delivery protocol.
+This legacy method-module description applies only to an existing exact
+`page-authority-image2-v1` / `image2-page-authority` mixed run. It is not a
+new-authoring route and does not own target Framed, Pure, delivery, or iteration
+behavior. New v2 work follows `03-framed-image XOR 04-pure-image ->
+05-delivery -> 06-iteration`.

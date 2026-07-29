@@ -1,9 +1,9 @@
-import { attachCliDiagnostic, createCliNext } from "../../../shared/cli/cli_error.mjs";
+import { attachCliDiagnostic, createCliNext } from "../../shared/cli/cli_error.mjs";
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import JSZip from "jszip";
-import { parseSlideDocument } from "../../../01-content/index.mjs";
+import { parseSlideDocument } from "../../01-content/index.mjs";
 
 function normalizeSpeakerNote(value) {
   const lines = String(value ?? "")

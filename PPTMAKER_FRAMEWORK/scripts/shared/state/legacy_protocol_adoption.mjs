@@ -8,7 +8,10 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { parse } from "yaml";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE } from "../run-bundle/production_marker.mjs";
+import {
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+} from "../run-bundle/production_marker.mjs";
 import {
   canonicalVersionKey,
   isProductionModeRecord,
@@ -159,15 +162,18 @@ export function inspectLegacyProtocol(canonicalRun) {
   const record = (state && !state.replacement_required && !state.corrupted ? state : historicalState)
     ?.production_mode?.by_version?.[canonicalVersionKey(sourceVersion)] ?? null;
   const mode = typeof record?.mode === "string" ? record.mode : null;
-  const markerClaimsPageAuthority = sourcePipeline.ok && sourcePipeline.pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE;
+  const markerClaimsPageAuthority = sourcePipeline.ok &&
+    [PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE].includes(sourcePipeline.pipeline);
   const recordValid = isProductionModeRecord(record);
-  const recordClaimsPageAuthority = mode === "image2-page-authority";
+  const recordClaimsPageAuthority = ["image2-page-authority", "image2-page-authority-v2"].includes(mode);
+  const currentPair = markerClaimsPageAuthority && recordValid && (
+    (sourcePipeline.pipeline === PAGE_AUTHORITY_IMAGE2_PIPELINE && record?.mode === "image2-page-authority") ||
+    (sourcePipeline.pipeline === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE && record?.mode === "image2-page-authority-v2")
+  );
 
   let classification = "unsupported-or-corrupt";
   if (markerClaimsPageAuthority || recordClaimsPageAuthority) {
-    classification = markerClaimsPageAuthority && recordValid && record?.mode === "image2-page-authority"
-      ? "current"
-      : "current-pair-corrupt";
+    classification = currentPair ? "current" : "current-pair-corrupt";
   } else {
     const expected = sourcePipeline.ok ? expectedHistoricalModes(sourcePipeline.pipeline) : null;
     if (sourceVersion && sourceBytes && sourcePipeline.ok && expected && isHistoricalRecord(record, expected) && sourceLedgerFacts.valid && historical.valid) {

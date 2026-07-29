@@ -5,14 +5,43 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { createInitialState, writeState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+
+function currentV1Source() {
+  return `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Current compatibility fact
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+`;
+}
 
 function createCurrentFixture(prefix) {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, "deck_current");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
+  writeFileSync(join(runDir, "slide-specifications.md"), currentV1Source(), "utf8");
+  const state = createInitialState("current", "keynote", "dark-executive", { mode: "image2-page-authority" });
+  state.continuation_target_version = "v1";
+  writeState(deck, state);
   return { root, deck, runDir };
 }
 

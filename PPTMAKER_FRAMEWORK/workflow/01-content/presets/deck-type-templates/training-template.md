@@ -2,15 +2,16 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: <framed|pure>
 deck_type: training
 ---
 
 # Training Page Authority Template
 
 Move from outcome and motivation through concept, demonstration, practice,
-feedback, recap, and next action.
+feedback, recap, and next action. Select the one target workflow before source
+validation; it applies to every slide in the version.
 
 ## Slide 01: `TryNow`
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   PageAuthoritySourceError,
+  PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
   parsePageAuthoritySource,
 } from "../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/page_authority_source.mjs";
 import {
   PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
   probeProductionMarker,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/production_marker.mjs";
 import {
@@ -29,8 +31,11 @@ function slide(number, id, body) {
   return `## Slide ${String(number).padStart(2, "0")}: \`${id}\`\n\n${body}\n`;
 }
 
-function source({ defaultAuthority = "framed-image2", slides } = {}) {
-  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-authority-image2-v1\n  page_authority_default: ${defaultAuthority}\n---\n\n${slides || slide(1, "DeckGo", `**TITLE**: Stable pixels\n${visualBrief()}`)}`;
+function source({ pipeline = PAGE_AUTHORITY_IMAGE2_PIPELINE, defaultAuthority = "framed-image2", workflow = "framed", slides } = {}) {
+  const production = pipeline === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE
+    ? `  pipeline: ${pipeline}\n  workflow: ${workflow}`
+    : `  pipeline: ${pipeline}\n  page_authority_default: ${defaultAuthority}`;
+  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n${production}\n---\n\n${slides || slide(1, "DeckGo", `**TITLE**: Stable pixels\n${visualBrief()}`)}`;
 }
 
 function parse(text, options = {}) {
@@ -56,6 +61,21 @@ describe("Page Authority production marker", () => {
       source().replace("  page_authority_default: framed-image2\n", ""),
       source().replace("  page_authority_default: framed-image2", "  page_authority_default: html"),
       source().replace("  page_authority_default: framed-image2", "  page_authority_default: framed-image2\n  render: full-page"),
+    ]) {
+      expect(probeProductionMarker(invalid)).toMatchObject({ branch: "invalid" });
+    }
+  });
+
+  it("recognizes the exact v2 workflow mapping and rejects hybrids", () => {
+    const valid = source({ pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, workflow: "pure" });
+    expect(probeProductionMarker(valid)).toMatchObject({
+      branch: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+      frontmatter: { metadata: { production: { workflow: "pure" } } },
+    });
+    for (const invalid of [
+      valid.replace("  workflow: pure\n", ""),
+      valid.replace("  workflow: pure", "  workflow: pure\n  page_authority_default: framed-image2"),
+      valid.replace("  workflow: pure", "  workflow: mixed"),
     ]) {
       expect(probeProductionMarker(invalid)).toMatchObject({ branch: "invalid" });
     }
@@ -90,6 +110,32 @@ describe("parsePageAuthoritySource", () => {
     });
     expect(Object.isFrozen(receipt)).toBe(true);
     expect(Object.isFrozen(receipt.slides[0])).toBe(true);
+  });
+
+  it("binds one v2 workflow into the receipt and rejects per-slide authority", () => {
+    const target = source({
+      pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+      workflow: "pure",
+      slides: slide(1, "DeckGo", `**TITLE**: Provider-owned title\n${visualBrief({ constraints: " [no-logo]" })}`),
+    });
+    const receipt = parse(target);
+    expect(receipt).toMatchObject({
+      schema: PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
+      pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+      workflow: "pure",
+    });
+    expect(receipt.slides).toEqual([expect.objectContaining({ slide_id: "DeckGo", workflow: "pure" })]);
+    expect(receipt.slides[0]).not.toHaveProperty("authority");
+
+    const error = captureError(() => parse(target.replace("**TITLE**", "**PAGE AUTHORITY**: framed-image2\n**TITLE**")));
+    expect(error.issues).toContainEqual(expect.objectContaining({ code: "target_per_slide_authority_forbidden" }));
+
+    const framed = source({ pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, workflow: "framed" });
+    const bodyError = captureError(() => parse(framed.replace("**TITLE**: Stable pixels", "**TITLE**: Stable pixels\n**BODY**: Semantic body text belongs to Pure")));
+    expect(bodyError.issues).toContainEqual(expect.objectContaining({
+      code: "framed_semantic_body_forbidden",
+      repair_hint: expect.stringContaining("Structural Versioning Path"),
+    }));
   });
 
   it("requires visual-config to resolve every registered visual selection", () => {

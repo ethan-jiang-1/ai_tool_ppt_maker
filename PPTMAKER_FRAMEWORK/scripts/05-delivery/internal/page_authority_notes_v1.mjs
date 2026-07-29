@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import { injectNotes } from "./internal/notes_runtime.mjs";
+import { injectNotes } from "./notes_runtime.mjs";
 import { pageAuthorityImage2Paths } from "../../shared/run-bundle/bundle_layout.mjs";
-import { PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA } from "./pptx_assembly.mjs";
-import { PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA } from "./final_manifest.mjs";
+import { PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA } from "./page_authority_pptx_assembly_v1.mjs";
+
+const PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA = "pptmaker-page-authority-final-manifest-v1";
 
 export const PAGE_AUTHORITY_NOTES_RECEIPT_SCHEMA = "pptmaker-page-authority-notes-receipt-v1";
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");

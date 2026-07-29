@@ -112,7 +112,7 @@ Check:
 1. Is the TITLE a claim that could be argued against? (Not a topic label)
 2. Does the CONCEPT specify what the audience MUST understand?
 3. Is the slide's narrative function clear — why does this slide exist in the argument chain?
-4. Does the PAGE AUTHORITY and VISUAL BRIEF assign visible text and visual ownership clearly?
+4. Does the version's selected workflow and the VISUAL BRIEF assign visible text and visual ownership clearly?
 
 If any check fails, suggest a specific fix. Don't say "this is weak" — say "Try: [ALTERNATIVE_TITLE]".
 ```
@@ -132,7 +132,7 @@ The user said: "{USER_FEEDBACK}"
 Translate this into specific, actionable changes:
 1. What exactly needs to change? (text, visual, structure, or speaker notes)
 2. Which slides are affected? (specific IDs or range)
-3. Which Page Authority path does this map to? (Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path)
+3. Which bound-workflow owner path does this map to? (Framed exact-evidence Header Text & Style Refresh, Generated Image Rebuild, Notes-Only Refresh, or Structural Versioning Path)
 4. Which current receipt, raw-review, finalization, or notes evidence is invalidated?
 5. Estimated time to deliver the change.
 
@@ -160,7 +160,7 @@ For each slide in the template:
 1. Fill the KICKER (short, all-caps, 2-5 words — sets the lens)
 2. Fill the TITLE as a falsifiable claim (could be argued against — not a topic label)
 3. Fill the CONCEPT: MUST communicate (1 sentence), MUST NOT (1 sentence), Bridge from previous slide (1 phrase)
-4. Choose PAGE AUTHORITY: `framed-image2` when the local Text Frame owns visible text, or `pure-image2` when Image2 must own the readable visual content.
+4. Preserve the version's one selected workflow: `framed` when the local Text Frame owns visible title-like text, or `pure` when Image2 must own readable visual content. Do not choose a workflow per slide.
 5. Fill the VISUAL BRIEF YAML mapping: recipe, composition, motifs, and negative_constraints. Keep Framed underlays text-free.
 6. Fill the SPEAKER NOTE: 60-90 seconds of talking points. Narrative flow, not script.
 

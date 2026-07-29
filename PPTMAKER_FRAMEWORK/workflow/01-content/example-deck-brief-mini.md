@@ -22,8 +22,8 @@ against the selected visual-language registry before planning raw work.
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
+  pipeline: page-authority-image2-v2
+  workflow: framed
 ---
 
 ## Block Map
@@ -53,14 +53,13 @@ negative_constraints:
 
 ## Slide 02: `ModeGo`
 
-**PAGE AUTHORITY**: pure-image2
 **TITLE**: Domain logic changes output from chart to action
 **VISUAL BRIEF**:
 ```yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
-negative_constraints: [no-logo]
+negative_constraints: [no-readable-text, no-labels, no-logo]
 ```
 
 > **SPEAKER NOTE**: Compare interpretation work with a product that recommends the next action.
@@ -82,5 +81,7 @@ negative_constraints:
 > **SPEAKER NOTE**: The feedback loop keeps human judgment visible at the decision boundary.
 ````
 
-Check that all IDs are mnemonic BlockCase, every visual brief is registered, and
-notes remain bound to their stable IDs.
+This is a homogeneous Framed v2 example. Check that all IDs are mnemonic
+BlockCase, every visual brief is registered, and notes remain bound to their
+stable IDs. A Pure version changes the workflow for the whole source through
+Structural Versioning Path; it does not add a slide-level override.

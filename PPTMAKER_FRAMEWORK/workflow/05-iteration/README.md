@@ -1,11 +1,15 @@
 ---
-title: Page Authority Iteration
+title: CURRENT v1 Page Authority Iteration
 stage: workflow/05-iteration
 position: entry
 type: overview
 ---
 
-# Phase 5: Page Authority Iteration
+# CURRENT v1 compatibility: Page Authority Iteration
+
+This legacy guide applies only to an existing exact v1 mixed run. New v2 work
+uses `workflow/06-iteration/` after one selected Framed or Pure workflow and
+shared `05-delivery`.
 
 Classify a requested change by final-pixel owner and invalidated evidence:
 

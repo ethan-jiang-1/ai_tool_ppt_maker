@@ -1,8 +1,11 @@
 # PPTMAKER Framework Agent Guide
 
-The framework has one current production protocol: `page-authority-image2-v1`.
-New run bundles use `image2-page-authority`; every slide is `pure-image2` or
-`framed-image2` according to Page Authority ownership.
+New authoring uses `page-authority-image2-v2` with
+`image2-page-authority-v2`. Before provider work, a human records exactly one
+version workflow: `framed` or `pure`. Every target slide inherits that workflow;
+there is no slide-level authority choice. An exact
+`page-authority-image2-v1` / `image2-page-authority` pair remains only a
+bounded existing-run compatibility route.
 
 ## Current workflow
 
@@ -15,6 +18,9 @@ New run bundles use `image2-page-authority`; every slide is `pure-image2` or
    never source evidence for a new operation.
 5. Obtain explicit user authorization before remote raw generation. Local
    Framed composition and notes work do not require provider credentials.
+6. Follow `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`:
+   the selected workflow publishes the final-slide manifest and shared delivery
+   owns final projection, PPTX, notes, and delivery review.
 
 ## Historical runs
 
@@ -31,7 +37,7 @@ mutate a historical state file during inspection.
   validation and producer diagnostics.
 - A current final manifest, PPTX receipt, and notes receipt must all derive
   from Page Authority evidence.
-- `ppt_flow init` creates only the current protocol. `doctor` is scoped to the
-  requested Page Authority operation.
+- `ppt_flow init` creates a v2 authoring draft, never a Framed, Pure, or mixed
+  default. `doctor` is scoped to the requested Page Authority operation.
 - Framework maintenance changes follow OpenSpec. Run-bundle work does not edit
   framework source.

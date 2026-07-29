@@ -14,8 +14,8 @@ import {
   writeState,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 import { submitAuthorizedPageAuthorityRawBatch } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_compilation.mjs";
-import { validatePageAuthorityAssemblyInput } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/pptx_assembly.mjs";
-import { validatePageAuthorityNotesInput } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/notes.mjs";
+import { validatePageAuthorityAssemblyInput } from "../../PPTMAKER_FRAMEWORK/scripts/05-delivery/internal/page_authority_pptx_assembly_v1.mjs";
+import { validatePageAuthorityNotesInput } from "../../PPTMAKER_FRAMEWORK/scripts/05-delivery/internal/page_authority_notes_v1.mjs";
 import { applyPageAuthorityStructuralRaw, previewPageAuthorityStructuralRaw } from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/structural_raw.mjs";
 
 const digest = (letter) => letter.repeat(64);

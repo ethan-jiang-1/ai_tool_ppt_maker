@@ -13,7 +13,7 @@ authorization.
 
 ```text
 PPTMAKER_FRAMEWORK/
-├── workflow/   setup, content, visual system, image production, iteration
+├── workflow/   setup, content, visual system, Framed/Pure, delivery, iteration
 ├── scripts/    Node ESM CLI and capability modules
 ├── charter/    directory, lifecycle, node, and state rules
 ├── reference/  glossary, anti-patterns, and quick start
@@ -29,24 +29,28 @@ created by `bundle_layout.mjs`; `_generated/` is always rebuildable derived data
 0 setup and operation-scoped readiness
 1 Page Authority source and stable slide identity
 2 visual language, references, and Text Frame inputs
-4 Page Authority raw plan, authorization, generation, review, finalization,
-  assembly, notes, and delivery review
-5 local refresh and structural versioning
+03 Framed workflow semantics and local composition
+04 Pure workflow semantics and raw-to-final publication
+05 shared final projection, PPTX assembly, notes, and delivery review
+06 workflow-aware refresh and structural versioning
 ```
 
-New decks use only `image2-page-authority` / `page-authority-image2-v1`.
-`framed-image2` supports local deterministic text composition; `pure-image2`
-uses Image2 for every final pixel. Raw work is receipt-bound and requires explicit
-authorization only when it submits a nonzero provider batch.
+New decks use only `image2-page-authority-v2` / `page-authority-image2-v2` and
+record exactly one version workflow, `framed` or `pure`, before provider work.
+The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
+06-iteration`. Framed supports local deterministic text composition; Pure uses
+Image2 for every final pixel. Raw work is receipt-bound and requires explicit
+authorization only when it submits a nonzero provider batch. The exact v1 pair
+is an existing-run compatibility input, never a new-deck choice.
 
 ## Refresh Vocabulary
 
 | Intent | Current owner path |
 | --- | --- |
-| Framed Text Frame-only change | Header Text & Style Refresh |
-| Pure text or raw visual/source-contract change | Generated Image Rebuild |
-| Speaker notes only | Notes-Only Refresh |
-| Add, remove, move, or reorder slides | Structural Versioning Path |
+| Framed Text Frame-only, exact evidence + preset | `03-framed-image` Header Text & Style Refresh |
+| Pure text/visual or Framed preset/underlay change | Selected workflow Generated Image Rebuild |
+| Speaker notes only | `05-delivery` Notes-Only Refresh |
+| Add, remove, move, reorder, or switch workflow | `06-iteration` Structural Versioning Path |
 
 Structural preview and apply preserve stable IDs, bind an exact plan hash, and
 report `needs_render` as debt rather than permission. A recognized historical

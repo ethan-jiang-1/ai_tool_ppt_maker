@@ -24,7 +24,7 @@ import {
   FramedTextFrameError,
   preflightFramedTextFrame,
   resolveFramedTextFramePreset,
-} from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/internal/page_authority_text_frame.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/text_frame.mjs";
 import {
   AMBER_AGENT_MODEL_SHEET_SHA256,
   PageAuthorityReferenceMaterialError,

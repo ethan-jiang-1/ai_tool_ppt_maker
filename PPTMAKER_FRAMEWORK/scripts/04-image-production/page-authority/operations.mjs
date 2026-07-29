@@ -7,9 +7,12 @@ import { parsePageAuthoritySource } from "../../01-content/index.mjs";
 import {
   createPageAuthoritySourceResolver,
   loadPageAuthorityVisualLanguage,
-  preflightFramedTextFrame,
 } from "../../02-visual-system/index.mjs";
-import { extractNoteRecordsFromMarkdown } from "./internal/notes_runtime.mjs";
+import { preflightFramedTextFrame } from "../../03-framed-image/index.mjs";
+import {
+  deliverPageAuthorityManifest,
+  refreshCurrentPageAuthorityNotes,
+} from "../../05-delivery/index.mjs";
 import {
   PAGE_AUTHORITY_STYLE_MASTER_RELATIVE_PATH,
   buildPageAuthorityRawGenerationProfile,
@@ -31,9 +34,7 @@ import {
   renderPageAuthorityRawReviewProjection,
   writePageAuthorityRawReviewCoverage,
 } from "./raw_review.mjs";
-import { finalizePageAuthorityRun, renderPageAuthorityFinalProjection } from "./final_manifest.mjs";
-import { assemblePageAuthorityPptx } from "./pptx_assembly.mjs";
-import { injectPageAuthorityNotes } from "./notes.mjs";
+import { finalizePageAuthorityRun } from "./final_manifest.mjs";
 import {
   SLIDE_SPECS_NAME,
   deckRoot,
@@ -385,20 +386,26 @@ export async function buildPageAuthorityDelivery(runDir) {
     preflight_by_slide: plan.preflight_by_slide,
   });
   if (!finalization.ok) return finalization;
-  const projection = await renderPageAuthorityFinalProjection(plan.run_dir);
-  const assembly = await assemblePageAuthorityPptx(plan.run_dir, { title: basename(plan.deck_dir), sourceEpoch: plan.source_epoch });
-  const notesBySlide = Object.fromEntries(extractNoteRecordsFromMarkdown([plan.source_path]).map((record) => [record.slide_id, record.note]));
-  const notes = await injectPageAuthorityNotes(plan.run_dir, { notes_by_slide: notesBySlide, sourceEpoch: plan.source_epoch });
-  return Object.freeze({ ok: true, finalization, projection, assembly, notes });
+  const delivery = await deliverPageAuthorityManifest({
+    runDir: plan.run_dir,
+    manifest: finalization.manifest,
+    sourcePath: plan.source_path,
+    sourceEpoch: plan.source_epoch,
+    title: basename(plan.deck_dir),
+  });
+  return Object.freeze({ ok: true, finalization, ...delivery });
 }
 
 /** Inject current source notes only after a current Page Authority assembly. */
 export async function refreshPageAuthorityNotes(runDir) {
   const resolved = resolvePageAuthorityReceipt(runDir);
   const { sourceEpoch } = requireSourceEpoch(resolved.run_dir, resolved.deck_dir);
-  const notesBySlide = Object.fromEntries(extractNoteRecordsFromMarkdown([resolved.source_path]).map((record) => [record.slide_id, record.note]));
-  const notes = await injectPageAuthorityNotes(resolved.run_dir, { notes_by_slide: notesBySlide, sourceEpoch });
-  return Object.freeze({ ok: true, notes });
+  const delivery = await refreshCurrentPageAuthorityNotes({
+    runDir: resolved.run_dir,
+    sourcePath: resolved.source_path,
+    sourceEpoch,
+  });
+  return Object.freeze({ ok: true, ...delivery });
 }
 
 /** A Frame-only refresh must prove exact raw reuse and never receives a submit callback. */

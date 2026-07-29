@@ -25,7 +25,10 @@ import {
   loadPageAuthorityVisualLanguage,
 } from "../../02-visual-system/index.mjs";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE } from "../run-bundle/production_marker.mjs";
+import {
+  PAGE_AUTHORITY_IMAGE2_PIPELINE,
+  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+} from "../run-bundle/production_marker.mjs";
 import {
   checkStagedVersion,
   nextVersionName,
@@ -47,9 +50,13 @@ const PREVIEW_SCHEMA = "pptmaker-production-mode-transition-preview-v1";
 const JOURNAL_SCHEMA = "pptmaker-production-mode-transition-apply-journal-v1";
 const SUCCESS_SCHEMA = "pptmaker-production-mode-transition-success-v1";
 const LEDGER_SCHEMA = "pptmaker-production-mode-transition-identity-ledger-v1";
-const TARGET_SCHEMA = "pptmaker-production-mode-transition-target-v1";
-const ADOPTION_MATRIX_SCHEMA = "pptmaker-page-authority-legacy-adoption-matrix-v1";
+const TARGET_SCHEMA = "pptmaker-production-mode-transition-target-v2";
+const ADOPTION_MATRIX_SCHEMA = "pptmaker-page-authority-legacy-adoption-matrix-v2";
 const LEGACY_ADOPTION_KIND = "legacy-adoption";
+const TARGET_SELECTION_TEMPLATE = Object.freeze({
+  schema: TARGET_SCHEMA,
+  target_mode: "image2-page-authority-v2",
+});
 const INTAKE_FIELDS = Object.freeze(["topic", "audience", "duration", "language", "takeaway", "content_constraints", "visual_dna", "success_criteria"]);
 const TARGET_CANDIDATE_ENTRIES = Object.freeze([
   "identity-ledger.json",
@@ -62,7 +69,7 @@ const ADOPTION_MATRIX_ROW_KEYS = Object.freeze([
   "source_slide_id",
   "target_slide_id",
   "disposition",
-  "authority",
+  "workflow",
   "text_frame_disposition",
   "visual_brief_disposition",
   "reference_disposition",
@@ -150,11 +157,16 @@ function normalizeIntake(value) {
 
 function exactTargetSelection(value) {
   if (!value || typeof value !== "object" || Array.isArray(value) ||
-    value.schema !== TARGET_SCHEMA || value.target_mode !== "image2-page-authority" ||
-    Object.keys(value).some((key) => !["schema", "target_mode"].includes(key))) {
+    value.schema !== TARGET_SCHEMA || value.target_mode !== "image2-page-authority-v2" ||
+    !["framed", "pure"].includes(value.workflow) ||
+    !exactKeys(value, ["schema", "target_mode", "workflow"])) {
     throw new Error("legacy adoption candidate target.json is invalid");
   }
-  return Object.freeze({ target_mode: "image2-page-authority", target_pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE });
+  return Object.freeze({
+    target_mode: "image2-page-authority-v2",
+    target_pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+    target_workflow: value.workflow,
+  });
 }
 
 function exactKeys(value, keys) {
@@ -166,7 +178,7 @@ function validTargetDisposition(value) {
   return ADOPTION_TARGET_DISPOSITIONS.includes(value);
 }
 
-function validateAdoptionMatrix(value, { sourceVersion, sourceEntries, receipt } = {}) {
+function validateAdoptionMatrix(value, { sourceVersion, sourceEntries, receipt, targetWorkflow } = {}) {
   if (!exactKeys(value, ["schema", "source_version", "rows"]) || value.schema !== ADOPTION_MATRIX_SCHEMA ||
     value.source_version !== sourceVersion || !Array.isArray(value.rows) || value.rows.length === 0) {
     throw new Error("adoption matrix is invalid");
@@ -186,7 +198,7 @@ function validateAdoptionMatrix(value, { sourceVersion, sourceEntries, receipt }
     if (previous !== null && previous >= sortKey) throw new Error("adoption matrix rows must be in canonical target/source order");
     previous = sortKey;
     if (row.disposition === "removed") {
-      if (!SLIDE_ID_RE.test(sourceId || "") || targetId !== null || row.authority !== null ||
+      if (!SLIDE_ID_RE.test(sourceId || "") || targetId !== null || row.workflow !== null ||
         row.text_frame_disposition !== "removed" || row.visual_brief_disposition !== "removed" ||
         row.reference_disposition !== "removed" || row.speaker_notes_disposition !== "removed") {
         throw new Error("adoption removal row is invalid");
@@ -195,18 +207,18 @@ function validateAdoptionMatrix(value, { sourceVersion, sourceEntries, receipt }
       seenSource.add(sourceId);
       continue;
     }
-    if (!SLIDE_ID_RE.test(targetId || "") || !["pure-image2", "framed-image2"].includes(row.authority) ||
+    if (!SLIDE_ID_RE.test(targetId || "") || row.workflow !== targetWorkflow ||
       row.visual_brief_disposition !== "authored" || !validTargetDisposition(row.reference_disposition) ||
       !validTargetDisposition(row.speaker_notes_disposition)) {
       throw new Error("adoption target row is invalid");
     }
     const slide = receiptById.get(targetId);
-    if (!slide || slide.authority !== row.authority || seenTarget.has(targetId)) {
+    if (!slide || slide.workflow !== targetWorkflow || seenTarget.has(targetId)) {
       throw new Error("adoption matrix target does not match the Page Authority source");
     }
     seenTarget.add(targetId);
-    const expectedFrame = row.authority === "framed-image2" ? "authored" : "not-applicable";
-    if (row.text_frame_disposition !== expectedFrame) throw new Error("adoption matrix Text Frame disposition does not match authority");
+    const expectedFrame = targetWorkflow === "framed" ? "authored" : "not-applicable";
+    if (row.text_frame_disposition !== expectedFrame) throw new Error("adoption matrix Text Frame disposition does not match workflow");
     if (row.disposition === "retained") {
       if (!SLIDE_ID_RE.test(sourceId || "") || sourceId !== targetId || !sourceIds.has(sourceId) || seenSource.has(sourceId)) {
         throw new Error("adoption retained identity must be explicitly unchanged");
@@ -341,7 +353,16 @@ function candidateState(source, { observation = source.observation } = {}) {
   if (canonicalJson(ledger.entries) !== canonicalJson(sourceIdentityLedger(source.sourceBytes))) {
     throw new Error("transition identity ledger no longer matches the source identity/order");
   }
-  const target = exactTargetSelection(readJson(paths.target, "transition target selection"));
+  const targetValue = readJson(paths.target, "transition target selection");
+  let target;
+  try {
+    target = exactTargetSelection(targetValue);
+  } catch (error) {
+    if (canonicalJson(targetValue) === canonicalJson(TARGET_SELECTION_TEMPLATE)) {
+      return Object.freeze({ status: "authoring_required", paths, missing: ["target.json.workflow"] });
+    }
+    throw error;
+  }
   const intake = normalizeIntake(readJson(paths.intake, "transition target intake"));
   const candidateBytes = readFileSync(paths.source);
   assertRecognizedLegacyObservation(source, observation);
@@ -356,12 +377,18 @@ function candidateState(source, { observation = source.observation } = {}) {
   } catch (error) {
     throw new Error(`legacy adoption Page Authority candidate is invalid: ${error.message || String(error)}`);
   }
+  if (receipt.schema !== "page-authority-image2-source-v2" ||
+    receipt.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE ||
+    receipt.workflow !== target.target_workflow) {
+    throw new Error("legacy adoption target source workflow does not match target.json");
+  }
   const matrixBytes = readFileSync(paths.adoptionMatrix);
   const matrix = readJson(paths.adoptionMatrix, "adoption matrix");
   const matrixRows = validateAdoptionMatrix(matrix, {
     sourceVersion: source.sourceVersion,
     sourceEntries: ledger.entries,
     receipt,
+    targetWorkflow: target.target_workflow,
   });
   const controls = recursivelyReceiptedFiles(paths.candidate, source.sourceRunDir);
   const adoptionMatrixSha256 = sha256(matrixBytes);
@@ -369,6 +396,7 @@ function candidateState(source, { observation = source.observation } = {}) {
     kind,
     source_version: source.sourceVersion,
     target_mode: target.target_mode,
+    target_workflow: target.target_workflow,
     observation_sha256: observation.observation_sha256,
     adoption_matrix_sha256: adoptionMatrixSha256,
     controls,
@@ -379,6 +407,7 @@ function candidateState(source, { observation = source.observation } = {}) {
     kind,
     targetMode: target.target_mode,
     targetPipeline: target.target_pipeline,
+    targetWorkflow: target.target_workflow,
     intake,
     intakeSha256: sha256(Buffer.from(canonicalJson(intake))),
     candidateBytes,
@@ -390,7 +419,6 @@ function candidateState(source, { observation = source.observation } = {}) {
     adoptionSourceStateSha256: observation.observation.state_sha256,
     adoptionMatrixSha256,
     adoptionMatrixRows: matrixRows,
-    pageAuthorityDefault: receipt.page_authority_default,
     candidateSlideCount: receipt.slides.length,
   });
 }
@@ -410,6 +438,7 @@ function previewPlan(source, candidate, { executionId = source.state.execution_i
     target_version: targetVersion,
     target_mode: candidate.targetMode,
     target_pipeline: candidate.targetPipeline,
+    target_workflow: candidate.targetWorkflow,
     expected_target_marker_pipeline: candidate.targetPipeline,
     candidate_receipt_sha256: candidate.candidateReceiptSha256,
     candidate_source_sha256: candidate.candidateSourceSha256,
@@ -429,7 +458,7 @@ function previewPlan(source, candidate, { executionId = source.state.execution_i
       observation_sha256: candidate.adoptionObservationSha256,
       source_state_sha256: candidate.adoptionSourceStateSha256,
       matrix_sha256: candidate.adoptionMatrixSha256,
-      page_authority_default: candidate.pageAuthorityDefault,
+      workflow: candidate.targetWorkflow,
       matrix_rows: candidate.adoptionMatrixRows,
     },
   };
@@ -441,14 +470,15 @@ function validatePlan(plan) {
   const copy = { ...plan };
   delete copy.plan_hash;
   if (sha256(canonicalBytes(copy)) !== plan.plan_hash) throw new Error("transition preview plan hash drifted");
-  if (plan.plan_kind !== LEGACY_ADOPTION_KIND || !normalizeRunVersion(plan.source_version) || !normalizeRunVersion(plan.target_version) || !plan.source_mode || plan.target_mode !== "image2-page-authority" ||
+  if (plan.plan_kind !== LEGACY_ADOPTION_KIND || !normalizeRunVersion(plan.source_version) || !normalizeRunVersion(plan.target_version) || !plan.source_mode || plan.target_mode !== "image2-page-authority-v2" ||
+    !["framed", "pure"].includes(plan.target_workflow) ||
     !HEX_RE.test(plan.candidate_receipt_sha256 || "") || !HEX_RE.test(plan.target_intake_sha256 || "") || typeof plan.source_execution_id !== "string" || !plan.source_execution_id) {
     throw new Error("transition preview plan has invalid bindings");
   }
-  if (plan.target_pipeline !== PAGE_AUTHORITY_IMAGE2_PIPELINE ||
-    !exactKeys(plan.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256", "page_authority_default", "matrix_rows"]) ||
+  if (plan.target_pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE ||
+    !exactKeys(plan.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256", "workflow", "matrix_rows"]) ||
     !HEX_RE.test(plan.adoption.observation_sha256 || "") || !HEX_RE.test(plan.adoption.source_state_sha256 || "") || !HEX_RE.test(plan.adoption.matrix_sha256 || "") ||
-    !["pure-image2", "framed-image2"].includes(plan.adoption.page_authority_default) || !Array.isArray(plan.adoption.matrix_rows)) {
+    plan.adoption.workflow !== plan.target_workflow || !Array.isArray(plan.adoption.matrix_rows)) {
     throw new Error("legacy adoption preview plan is invalid");
   }
   return plan;
@@ -501,12 +531,15 @@ function expectedSuccessReceipt(path, plan) {
   const matches = receipt?.schema === SUCCESS_SCHEMA && receipt.transition_kind === LEGACY_ADOPTION_KIND && receipt.plan_hash === plan.plan_hash &&
     receipt.source_execution_id === plan.source_execution_id && receipt.source_version === plan.source_version &&
     receipt.target_version === plan.target_version && receipt.target_mode === plan.target_mode &&
-    receipt.target_pipeline === plan.target_pipeline && receipt.candidate_receipt_sha256 === plan.candidate_receipt_sha256 &&
+    receipt.target_pipeline === plan.target_pipeline && receipt.target_workflow === plan.target_workflow &&
+    receipt.candidate_receipt_sha256 === plan.candidate_receipt_sha256 &&
     receipt.target_intake_sha256 === plan.target_intake_sha256 && HEX_RE.test(receipt.source_control_fingerprint || "") &&
-    exactKeys(receipt.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256"]) &&
+    receipt.target_source_sha256 === plan.candidate_source_sha256 &&
+    exactKeys(receipt.adoption, ["observation_sha256", "source_state_sha256", "matrix_sha256", "workflow"]) &&
     receipt.adoption.observation_sha256 === plan.adoption.observation_sha256 &&
     receipt.adoption.source_state_sha256 === plan.adoption.source_state_sha256 &&
-    receipt.adoption.matrix_sha256 === plan.adoption.matrix_sha256;
+    receipt.adoption.matrix_sha256 === plan.adoption.matrix_sha256 &&
+    receipt.adoption.workflow === plan.target_workflow;
   return matches ? Object.freeze({ receipt, bytes, sha256: sha256(bytes), path }) : null;
 }
 
@@ -526,6 +559,7 @@ function transitionJournal(source, plan, token) {
     target_version: plan.target_version,
     target_mode: plan.target_mode,
     target_pipeline: plan.target_pipeline,
+    target_workflow: plan.target_workflow,
     reservation_basename: `.${plan.target_version}.production-mode-transition-reservation-${ownerToken}`,
     staging_basename: `.${plan.target_version}.production-mode-transition-staging-${ownerToken}`,
   });
@@ -538,6 +572,7 @@ function validateJournal(journal, plan) {
     journal.plan_hash === plan.plan_hash && journal.source_execution_id === plan.source_execution_id &&
     journal.source_version === plan.source_version && journal.target_version === plan.target_version &&
     journal.target_mode === plan.target_mode && journal.target_pipeline === plan.target_pipeline &&
+    journal.target_workflow === plan.target_workflow &&
     typeof journal.reservation_basename === "string" && typeof journal.staging_basename === "string" &&
     journal.reservation_basename === `.${plan.target_version}.production-mode-transition-reservation-${journal.owner_token}` &&
     journal.staging_basename === `.${plan.target_version}.production-mode-transition-staging-${journal.owner_token}`;
@@ -565,6 +600,7 @@ function assertActivePlan(source, plan) {
     record.transition_source_version !== plan.source_version || record.transition_source_mode !== plan.source_mode ||
     record.transition_source_pipeline !== plan.source_pipeline || record.transition_target_version !== plan.target_version ||
     record.transition_target_mode !== plan.target_mode || record.transition_target_pipeline !== plan.target_pipeline ||
+    record.transition_target_workflow !== plan.target_workflow ||
     record.transition_candidate_receipt_sha256 !== plan.candidate_receipt_sha256 || record.transition_target_intake_sha256 !== plan.target_intake_sha256 ||
     !record.transition_adoption || record.transition_adoption.observation_sha256 !== plan.adoption.observation_sha256 ||
     record.transition_adoption.source_state_sha256 !== plan.adoption.source_state_sha256 ||
@@ -607,6 +643,7 @@ function publishTarget(source, candidate, plan, journal) {
       target_version: plan.target_version,
       target_mode: plan.target_mode,
       target_pipeline: plan.target_pipeline,
+      target_workflow: plan.target_workflow,
       plan_hash: plan.plan_hash,
       candidate_receipt_sha256: plan.candidate_receipt_sha256,
       target_intake_sha256: plan.target_intake_sha256,
@@ -622,6 +659,7 @@ function publishTarget(source, candidate, plan, journal) {
       observation_sha256: plan.adoption.observation_sha256,
       source_state_sha256: plan.adoption.source_state_sha256,
       matrix_sha256: plan.adoption.matrix_sha256,
+      workflow: plan.target_workflow,
     };
     const receiptPath = transitionReceiptPath(staging.staging);
     ensureDir(dirname(receiptPath));
@@ -642,12 +680,14 @@ function prepareLegacyCandidate(source, observation) {
   const paths = transitionPaths(source.sourceRunDir);
   if (existsSync(paths.plan) || existsSync(paths.journal)) throw new Error("CONFLICT: transition preview or apply is already active");
   ensureDir(paths.candidate);
-  const target = { schema: TARGET_SCHEMA, target_mode: "image2-page-authority" };
+  const target = TARGET_SELECTION_TEMPLATE;
   const ledger = { schema: LEDGER_SCHEMA, source_version: source.sourceVersion, entries: sourceIdentityLedger(source.sourceBytes) };
   if (existsSync(paths.target)) {
-    if (canonicalJson(readJson(paths.target, "transition target selection")) !== canonicalJson(target)) {
-      throw new Error("CONFLICT: existing transition candidate selects a different target mode");
-    }
+    const existing = readJson(paths.target, "transition target selection");
+    const isTemplate = canonicalJson(existing) === canonicalJson(target);
+    let selected = false;
+    try { selected = exactTargetSelection(existing).target_mode === "image2-page-authority-v2"; } catch { selected = false; }
+    if (!isTemplate && !selected) throw new Error("CONFLICT: existing transition candidate selects an invalid target mode or workflow");
   } else writeCanonicalNoReplace(paths.target, target);
   if (existsSync(paths.ledger)) {
     if (canonicalJson(readJson(paths.ledger, "transition identity ledger")) !== canonicalJson(ledger)) {
@@ -661,10 +701,11 @@ function prepareLegacyCandidate(source, observation) {
     source_mode: source.sourceMode,
     anticipated_target_version: nextVersionName(source.sourceRunDir),
     target_mode: target.target_mode,
-    target_pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
+    target_pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+    target_workflow: null,
     observation_sha256: observation.observation_sha256,
     candidate_root: relativeRunPath(source.sourceRunDir, paths.candidate),
-    next_action: "author Page Authority slide-specifications.md, target-intake.json, and adoption-matrix.json in candidate-run",
+    next_action: "record one framed|pure workflow in candidate-run/target.json, then author matching v2 slide-specifications.md, target-intake.json, and adoption-matrix.json",
   });
 }
 
@@ -735,6 +776,7 @@ export function confirmPreparedLegacyProtocolAdoption(runDir, { planHash } = {})
     candidateReceiptSha256: inspection.candidate_receipt_sha256,
     targetIntake: inspection.target_intake,
     targetIntakeSha256: inspection.target_intake_sha256,
+    targetWorkflow: inspection.target_workflow,
     adoption: {
       observation_sha256: inspection.adoption.observation_sha256,
       source_state_sha256: inspection.adoption.source_state_sha256,
@@ -746,13 +788,14 @@ export function confirmPreparedLegacyProtocolAdoption(runDir, { planHash } = {})
 
 function assertCandidateMatchesPlan(source, candidate, plan) {
   if (candidate.candidateReceiptSha256 !== plan.candidate_receipt_sha256 || candidate.intakeSha256 !== plan.target_intake_sha256 ||
-    candidate.targetMode !== plan.target_mode || candidate.targetPipeline !== plan.target_pipeline || sha256(source.sourceBytes) !== plan.source_marker_sha256) {
+    candidate.targetMode !== plan.target_mode || candidate.targetPipeline !== plan.target_pipeline ||
+    candidate.targetWorkflow !== plan.target_workflow || sha256(source.sourceBytes) !== plan.source_marker_sha256) {
     throw new Error("transition candidate or source inputs changed; prepare a fresh preview");
   }
   if (candidate.adoptionObservationSha256 !== plan.adoption.observation_sha256 ||
     candidate.adoptionMatrixSha256 !== plan.adoption.matrix_sha256 ||
     canonicalJson(candidate.adoptionMatrixRows) !== canonicalJson(plan.adoption.matrix_rows) ||
-    candidate.pageAuthorityDefault !== plan.adoption.page_authority_default) {
+    candidate.targetWorkflow !== plan.adoption.workflow) {
     throw new Error("legacy adoption candidate or observation inputs changed; prepare a fresh preview");
   }
 }
