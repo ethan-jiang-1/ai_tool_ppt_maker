@@ -10,7 +10,10 @@ import {
   initializeTargetPageAuthorityState,
   writeState,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { inspectWorkflow } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+import {
+  inspectWorkflow,
+  isWorkflowInspectionSourceReady,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
 
 function treeSnapshot(root, current = root, entries = []) {
   for (const name of readdirSync(current).sort()) {
@@ -49,6 +52,35 @@ function fixture(workflow = "pure") {
 }
 
 describe("TARGET workflow inspection", () => {
+  it("hard-stops an unsupported source without reading or creating workflow artifacts", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-unsupported-"));
+    const deck = join(root, "deck_unsupported_page_authority");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+production:
+  pipeline: unsupported-protocol-v0
+---
+
+## Slide 01: \`PastGo\`
+
+**TITLE**: Unsupported
+`);
+      const before = treeSnapshot(deck);
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
+        primary_action: { action_id: "export-unsupported-protocol", kind: "export", requires_human: false },
+      });
+      expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
+      expect(treeSnapshot(deck)).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("projects a fresh v2 bundle as a workflow-choice confirm without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-target-draft-"));
     const deck = join(root, "deck_target_page_authority");
@@ -56,12 +88,14 @@ describe("TARGET workflow inspection", () => {
     try {
       initBundle(deck, null, "keynote", "dark-executive");
       const before = treeSnapshot(deck);
-      expect(inspectWorkflow({ runDir })).toMatchObject({
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection).toMatchObject({
         posture: "confirm",
         root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
         primary_action: { action_id: "select-target-page-authority-workflow", requires_human: true },
         evidence_summary: { pipeline: "page-authority-image2-v2", mode: null, workflow: null },
       });
+      expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -72,31 +106,38 @@ describe("TARGET workflow inspection", () => {
     const value = fixture();
     try {
       const before = treeSnapshot(value.deck);
-      expect(inspectWorkflow({ runDir: value.runDir })).toMatchObject({
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
         posture: "confirm",
         root_cause: { owner: "shared-raw", kind: "TARGET_PROVIDER_AUTHORIZATION_REQUIRED" },
         primary_action: { owner: "shared-raw", action_id: "authorize_target_raw_work", requires_human: true },
         evidence_summary: { mode: "image2-page-authority-v2", workflow: "pure" },
       });
+      expect(isWorkflowInspectionSourceReady(inspection)).toBe(true);
       expect(treeSnapshot(value.deck)).toEqual(before);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
   });
 
-  it("reports a marker/state repair for a v2/v1 hybrid without healing it", () => {
+  it("reports a marker/state workflow mismatch without healing it", () => {
     const value = fixture();
     try {
       const path = join(value.deck, "_state", "state.yaml");
-      const state = createInitialState("hybrid", "keynote", "dark-executive");
+      const state = createInitialState("target", "keynote", "dark-executive", {
+        mode: "image2-page-authority-v2",
+        workflow: "framed",
+      });
       state.continuation_target_version = "v1";
       writeState(value.deck, state);
       const before = readFileSync(path);
-      expect(inspectWorkflow({ runDir: value.runDir })).toMatchObject({
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
         posture: "hard-stop",
         root_cause: { owner: "production-mode", kind: "MODE_SOURCE_IDENTITY_MISMATCH" },
         primary_action: { action_id: "repair-current-route" },
       });
+      expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(readFileSync(path)).toEqual(before);
     } finally {
       rmSync(value.root, { recursive: true, force: true });

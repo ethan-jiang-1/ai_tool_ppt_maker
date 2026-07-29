@@ -32,7 +32,6 @@ function ownerFor(path) {
 function canonicalSnapshot() {
   const files = {
     "README.md": "target tree",
-    "04-image-production/README.md": "optional refinement",
   };
   const interfaces = [
     ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
@@ -81,17 +80,15 @@ describe("framework architecture contract", () => {
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
   });
 
-  it("pins the exact acyclic compatibility Phase adjacency including bounded Phase 4", () => {
+  it("pins active phases and rejects retired numbered owners", () => {
     expect(PHASE_ADJACENCY).toEqual({
       "00-setup": [],
       "01-content": [],
       "02-visual-system": [],
-      "04-image-production": ["00-setup", "01-content", "02-visual-system"],
-      "05-iteration": ["01-content", "02-visual-system", "04-image-production"],
     });
     const snapshot = canonicalSnapshot();
     snapshot.files["04-image-production/cli.mjs"] = "export {};";
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("phase4-public-surface");
+      expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-numbered-owner");
   });
 
   it("rejects old paths, scripts/lib, generic roots, and root business dumping", () => {
@@ -114,16 +111,12 @@ describe("framework architecture contract", () => {
 
   it("rejects forbidden Phase, shared, core, and cross-adapter private edges", () => {
     const cases = [
-      ["00-setup/index.mjs", `import "../05-iteration/index.mjs";`, "phase-adjacency"],
-      ["shared/state/state.mjs", `import "../../04-image-production/index.mjs";`, "shared-phase-import"],
-      ["04-image-production/page-authority/internal/provider.mjs", `import "../../../01-content/internal/private.mjs";`, "foreign-phase-private-import"],
       ["03-framed-image/index.mjs", `import "../shared/image2/private.mjs";`, "target-private-shared-import"],
     ];
     for (const [path, source, code] of cases) {
       const snapshot = canonicalSnapshot();
       snapshot.files[path] = source;
       if (source.includes("private.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
-      if (path.includes("provider.mjs")) snapshot.files["01-content/internal/private.mjs"] = "export {};";
       if (path.includes("03-framed-image")) snapshot.files["shared/image2/private.mjs"] = "export {};";
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${code}`).toContain(code);
     }
@@ -183,16 +176,17 @@ describe("framework architecture contract", () => {
 
   it("keeps all PPTX and notes writers under the delivery owner", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["04-image-production/page-authority/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
+    snapshot.files["03-framed-image/internal/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
     snapshot.files["06-iteration/index.mjs"] = "injectNotes();";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
   });
 
-  it("keeps the retained generic Image Production adapter bounded to CURRENT v1", () => {
+  it("fails closed when a retired protocol owner reappears", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["04-image-production/page-authority/operations.mjs"] = `const protocol = "page-authority-image2-v2";`;
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("target-protocol-in-current-compatibility-owner");
+    const retiredOwner = ["compatibility", "current-v1-page-authority", "index.mjs"].join("/");
+    snapshot.files[retiredOwner] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-protocol-owner");
   });
 
   it("fails closed on executable, recursive test, and source ownership drift", () => {

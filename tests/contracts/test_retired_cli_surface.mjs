@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { initBundle, initLegacyFixtureBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
-  createDefaultState,
-  createInitialState,
   initializeTargetPageAuthorityState,
   resolveRunProductionAdapter,
-  writeState,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
@@ -21,12 +18,26 @@ function run(args) {
   return spawnSync("node", [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });
 }
 
-describe("retired production CLI surface", () => {
-  it("resolves exact v1 compatibility and v2 selected workflows, while rejecting a hybrid pair", () => {
+function treeSnapshot(root, current = root, entries = []) {
+  for (const name of readdirSync(current).sort()) {
+    const path = join(current, name);
+    const relative = path.slice(root.length + 1);
+    if (statSync(path).isDirectory()) treeSnapshot(root, path, entries);
+    else entries.push(`${relative}:${readFileSync(path).toString("base64")}`);
+  }
+  return entries;
+}
+
+function finalDiagnostic(stderr) {
+  return JSON.parse(stderr.trim().split("\n").filter(Boolean).at(-1));
+}
+
+describe("v2-only production CLI surface", () => {
+  it("resolves the exact selected v2 workflow and rejects another source protocol", () => {
     const root = mkdtempSync(join(tmpdir(), "current-route-"));
     try {
       const deck = join(root, "deck_current");
-      expect(() => initBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" })).toThrow(/only supports image2-page-authority/);
+      expect(() => initBundle(deck, null, "keynote", "dark-executive", { mode: "unsupported-mode" })).toThrow();
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
       const v2Source = "---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n";
@@ -48,19 +59,10 @@ describe("retired production CLI surface", () => {
         adapter: "page-authority-image2-v2",
       });
 
-      const v1Source = "---\nproduction:\n  pipeline: page-authority-image2-v1\n  page_authority_default: pure-image2\n---\n";
-      writeFileSync(join(runDir, "slide-specifications.md"), v1Source);
-      writeState(deck, createInitialState("current", "keynote", "dark-executive"));
-      expect(resolveRunProductionAdapter(deck, { runDir })).toMatchObject({
-        ok: true,
-        mode: "image2-page-authority",
-        adapter: "page-authority-image2",
-      });
-
-      writeFileSync(join(runDir, "slide-specifications.md"), v2Source);
+      const unsupportedSource = "---\nproduction:\n  pipeline: unsupported-protocol-v0\n---\n";
+      writeFileSync(join(runDir, "slide-specifications.md"), unsupportedSource);
       expect(resolveRunProductionAdapter(deck, { runDir })).toMatchObject({
         ok: false,
-        code: "MODE_SOURCE_IDENTITY_MISMATCH",
       });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -114,27 +116,37 @@ negative_constraints:
     }
   });
 
-  it("exposes Page Authority commands only and fences a recognized historical run at adoption", () => {
+  it("has no retired command and hard-stops non-v2 observation and execution without writes", () => {
     const help = run(["--help"]);
     expect(help.status, help.stderr).toBe(0);
     expect(help.stdout).not.toMatch(/\b(?:approve|pilot|style-master)\b/);
     expect(help.stdout).toContain("image2 [options] <operation> <run_dir>");
 
-    const root = mkdtempSync(join(tmpdir(), "retired-cli-surface-"));
+    const root = mkdtempSync(join(tmpdir(), "unsupported-cli-surface-"));
     try {
-      const deck = join(root, "deck_historical");
-      initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" });
+      const deck = join(root, "deck_unsupported");
+      initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
-      writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: whole-page-image2-v1\n---\n\n## Slide 01: `PastGo`\n\n**TITLE**: Historical\n");
-      const state = createDefaultState();
-      state.pipeline = "whole-page-image2-v1";
-      state.production_mode.by_version["3_versions/v1"] = { mode: "image2-only" };
-      writeState(deck, state);
+      writeFileSync(join(runDir, "slide-specifications.md"), "---\nproduction:\n  pipeline: unsupported-protocol-v0\n---\n\n## Slide 01: `PastGo`\n\n**TITLE**: Unsupported\n");
+      const before = treeSnapshot(deck);
 
-      const status = run(["status", runDir, "--json"]);
-      expect(status.status).toBe(1);
-      expect(status.stderr).toContain("LEGACY_PROTOCOL_ADOPTION_REQUIRED");
-      expect(status.stderr).toContain("prepare-legacy-adoption");
+      for (const args of [
+        ["status", runDir, "--json"],
+        ["state", runDir, "--json"],
+        ["image2", "plan", runDir, "--json"],
+        ["build", runDir],
+      ]) {
+        const result = run(args);
+        expect(result.status, result.stderr).toBe(1);
+        expect(finalDiagnostic(result.stderr)).toMatchObject({
+          diagnostic: {
+            operation: "export-unsupported-protocol",
+            reason: { kind: "unsupported_protocol" },
+            next: { action: "export" },
+          },
+        });
+        expect(treeSnapshot(deck)).toEqual(before);
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

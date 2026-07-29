@@ -36,7 +36,6 @@ agent_action: navigate
 | `02-nodejs-environment.md` | Node.js 环境参考——npm install、.env 配置的详细背景（首次安装走 BOOTSTRAP Step 1） | 5 min |
 | `03-runtime-and-tools.md` | 工具选用——image generation、PPT 生产、Node.js 工具链 | 5 min |
 | `04-conventions.md` | 命名约定、版本快照策略、可选 Git 审计边界、工作纪律 | 5 min |
-| `05-production-mode-transition.md` | 跨 pipeline 页面权限切换（explicit target + exact plan hash） | 8 min |
 | `template-deck-guide.md` | 每个 run bundle 里的 deck-guide.md 模板 | 3 min |
 
 ### 参考附录

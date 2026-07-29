@@ -229,7 +229,7 @@ Immediately before rename, every writer SHALL recheck journal bytes/absence, cur
 ### Requirement: CLI exposes state via ppt_flow state command
 ppt_flow state <runDir>, --json, and --check-gates SHALL remain observation-first operations. They SHALL resolve the canonical deck/run version, classify the direct source marker and durable state, and call readState with purpose observe and heal false plus read-only validation. A repairable current record returns the owner-issued action without writes. Missing, retired, malformed, or mismatched state/source identity returns a bounded non-writing protocol diagnostic; it does not seed state, infer mode, select a Controller, or use generated artifacts as a resume substitute.
 
-Closed current mutation forms, including gate-journal recovery, Page Authority delivery decision, and bounded adoption transaction operations, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No historical controller identity or receipt is accepted by this command surface.
+Closed current mutation forms, including gate-journal recovery and Page Authority delivery decisions, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No unsupported controller identity or receipt is accepted by this command surface.
 
 #### Scenario: Plain state observes a repairable current record
 - **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable schema-5 defect
@@ -618,48 +618,6 @@ State-owned transition, gate, journal, reset, and recovery mutations SHALL conti
 - **WHEN** a journal owner or state byte changes after a workflow inspection is produced
 - **THEN** the subsequent state mutation revalidates the current journal and CAS facts
 - **AND** it fails or follows the existing owner recovery path when they no longer match
-
-### Requirement: Page Authority state owns source epoch and evidence references
-For `image2-page-authority`, Node Specification SHALL own the version-scoped source epoch, provider
-authorization scope, raw tuple acceptance references, and final/delivery evidence references. It SHALL
-initialize every fresh or structural-target Page Authority version's source epoch to `1`, advance it only
-for raw-source authority changes, require exact raw tuple coverage before finalization, and retain
-generated manifests as rebuildable derived artifacts rather than parallel state.
-
-#### Scenario: Source and provider changes have different state effects
-- **WHEN** source visual semantics change and then only the provider generation profile changes
-- **THEN** state advances source epoch for the first change and invalidates raw reuse/review for both
-- **AND** it does not advance source epoch for the provider-only change
-
-### Requirement: Page Authority structural targets begin with fresh evidence state
-When an exact-plan structural transaction publishes an `image2-page-authority` vNext, Node
-Specification SHALL initialize that target's `source_epoch` to `1`. It SHALL not carry raw-review
-acceptance, final/projection/PPTX/notes/delivery evidence, provider authorization, or active execution
-from the source version. Target-owned raw manifest provenance remains derived evidence and may identify a
-verified source tuple only as lineage; it does not make the target raw-reviewed or finalizable.
-
-#### Scenario: Materialized raw remains unreviewed in vNext
-- **WHEN** structural apply materializes a verified Page Authority raw tuple into a clean target version
-- **THEN** target state has epoch `1` and no inherited raw `proceed` coverage or delivery decision
-- **AND** target finalization remains blocked until the target's current raw evidence is reviewed
-
-### Requirement: Current state contains one Page Authority evidence graph
-Current state SHALL record Page Authority source epochs, raw authorization/review, final delivery, and
-bounded legacy observation/adoption facts only. It SHALL NOT validate or publish retired completion
-state.
-
-#### Scenario: A current state is inspected
-- **WHEN** state is read for a current Page Authority run
-- **THEN** its next action derives from Page Authority evidence without a retired gate or mode branch
-
-### Requirement: Legacy observations remain non-authoritative
-The state owner SHALL retain the read-only legacy observer and adoption transaction. Neither outcome
-shall revive a legacy production adapter, evidence record, or completion state.
-
-#### Scenario: A recognized historical pair is read
-- **WHEN** state/inspection encounters an intact legacy source/state pair
-- **THEN** it returns only the adoption action and makes no production-state mutation
-
 ### Requirement: TARGET Page Authority state is bound to one version workflow
 
 For the exact `page-authority-image2-v2` /
@@ -689,16 +647,9 @@ earliest direct-fact failure and one owner-issued repair-and-rerun action.
 - **AND** no controller, inspection, or generation path guesses which workflow to use
 
 ### Requirement: TARGET structural versions begin with fresh workflow evidence
-
-An exact-plan structural transaction that publishes a v2 target SHALL bind the
-chosen workflow into the preview and confirmed plan hash. Apply SHALL initialize
-target state at source epoch `1` with target-owned unreviewed provenance or
-`needs_raw_generation` debt only. It SHALL NOT carry provider authorization,
-raw review, final projection, PPTX, notes, delivery decision, or active
-execution from its source version, including an exact CURRENT v1 source.
+An exact-plan structural transaction that publishes a v2 target SHALL bind the chosen workflow into the preview and confirmed plan hash. Apply SHALL initialize target state at source epoch `1` with target-owned unreviewed provenance or `needs_raw_generation` debt only. It SHALL NOT carry provider authorization, raw review, final projection, PPTX, notes, delivery decision, or active execution from its source version.
 
 #### Scenario: Workflow switch creates a clean vNext state
-
 - **WHEN** a confirmed structural transaction switches a version from target Framed to target Pure
 - **THEN** the published vNext state binds workflow `pure` and starts with fresh target evidence state
 - **AND** apply makes no provider call or inherits the source final/delivery acceptance

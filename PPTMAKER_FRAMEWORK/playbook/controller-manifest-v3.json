@@ -3,40 +3,24 @@
   "shared_nodes": ["classify-change"],
   "controllers": {
     "create-deck": {
-      "supported_pipelines": ["page-authority-image2-v1", "page-authority-image2-v2"],
-      "nodes": ["checkpoint-intake", "author-page-authority-content", "configure-page-authority-visual-system", "authorize-page-authority-raw", "generate-page-authority-raw", "review-page-authority-raw", "finalize-page-authority-delivery", "checkpoint-page-authority-delivery-review", "final-page-authority", "select-target-page-authority-workflow", "author-target-page-authority-content", "configure-target-page-authority-visual-system", "authorize-target-framed-raw", "generate-target-framed-raw", "review-target-framed-raw", "publish-target-framed-final-manifest", "authorize-target-pure-raw", "generate-target-pure-raw", "review-target-pure-raw", "publish-target-pure-final-manifest", "deliver-target-page-authority", "review-target-page-authority-delivery", "complete-target-page-authority-iteration"]
+      "supported_pipelines": ["page-authority-image2-v2"],
+      "nodes": ["checkpoint-intake", "select-target-page-authority-workflow", "author-target-page-authority-content", "configure-target-page-authority-visual-system", "authorize-target-framed-raw", "generate-target-framed-raw", "review-target-framed-raw", "publish-target-framed-final-manifest", "authorize-target-pure-raw", "generate-target-pure-raw", "review-target-pure-raw", "publish-target-pure-final-manifest", "deliver-target-page-authority", "review-target-page-authority-delivery", "complete-target-page-authority-iteration"]
     },
     "edit-notes": {
-      "supported_pipelines": ["page-authority-image2-v1", "page-authority-image2-v2"],
-      "nodes": ["classify-change", "refresh-speaker-notes", "verify-speaker-notes", "refresh-target-speaker-notes", "verify-target-speaker-notes"]
+      "supported_pipelines": ["page-authority-image2-v2"],
+      "nodes": ["classify-change", "refresh-target-speaker-notes", "verify-target-speaker-notes"]
     },
     "edit-text": {
-      "supported_pipelines": ["page-authority-image2-v1", "page-authority-image2-v2"],
-      "nodes": ["classify-change", "rebuild-text-slides", "review-text-delivery", "refresh-target-framed-text", "refresh-target-pure-text", "review-target-text-delivery"]
+      "supported_pipelines": ["page-authority-image2-v2"],
+      "nodes": ["classify-change", "refresh-target-framed-text", "refresh-target-pure-text", "review-target-text-delivery"]
     },
     "edit-visual": {
-      "supported_pipelines": ["page-authority-image2-v1", "page-authority-image2-v2"],
-      "nodes": ["classify-change", "rebuild-visual-evidence", "approve-visual-evidence", "refresh-target-framed-visual", "refresh-target-pure-visual", "review-target-visual-delivery"]
-    },
-    "iterate-style": {
-      "supported_pipelines": ["page-authority-image2-v1"],
-      "nodes": ["define-style-change", "update-visual-system", "review-style-system"]
-    },
-    "production-mode-transition": {
-      "supported_pipelines": ["page-authority-image2-v1"],
-      "nodes": ["apply-production-mode-transition"]
-    },
-    "probe-image-channels": {
-      "supported_pipelines": ["page-authority-image2-v1"],
-      "nodes": ["intake", "run-probe", "show-report", "confirm-write"]
-    },
-    "quick-preview": {
-      "supported_pipelines": ["page-authority-image2-v1"],
-      "nodes": ["validate-preview-source", "compose-local-preview", "review-local-preview"]
+      "supported_pipelines": ["page-authority-image2-v2"],
+      "nodes": ["classify-change", "refresh-target-framed-visual", "refresh-target-pure-visual", "review-target-visual-delivery"]
     },
     "restructure-slides": {
-      "supported_pipelines": ["page-authority-image2-v1", "page-authority-image2-v2"],
-      "nodes": ["classify-change", "publish-structural-version", "materialize-structural-target", "review-structural-target", "verify-structural-delivery", "preview-target-structural-version", "apply-target-structural-version", "review-target-structural-route"]
+      "supported_pipelines": ["page-authority-image2-v2"],
+      "nodes": ["classify-change", "preview-target-structural-version", "apply-target-structural-version", "review-target-structural-route"]
     }
   }
 }

@@ -12,7 +12,7 @@ describe("mock selected verifier dispatcher", () => {
     expect(validateSelectedInvocation(["journey", "tests_e2e/shared/workflow/test_mock_selected_journey.mjs"])).toMatchObject({ ok: true, config: "vitest.e2e.config.mjs" });
     expect(validateSelectedInvocation(["real-e2e", "tests_e2e/shared/workflow/test_mock_selected_journey.mjs"])).toMatchObject({ ok: false });
     expect(validateSelectedInvocation(["render", "tests/contracts/test_framework_architecture.mjs"])).toMatchObject({ ok: false });
-    expect(validateSelectedInvocation(["focused", "tests/04-image-production/test_page_authority_raw_manifest.mjs"])).toMatchObject({ ok: false });
+    expect(validateSelectedInvocation(["focused", "tests/contracts/not-an-admitted-test.mjs"])).toMatchObject({ ok: false });
   });
 
   it("makes real E2E an explicit human-controlled invocation", () => {

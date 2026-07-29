@@ -18,14 +18,8 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse } from "yaml";
+import { PRODUCTION_MODES, TARGET_PRODUCTION_MODE, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 import {
-  CURRENT_PRODUCTION_MODE,
-  PRODUCTION_MODES,
-  TARGET_PRODUCTION_MODE,
-  productionPolicyForMode,
-} from "../run-bundle/production_mode.mjs";
-import {
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
   TARGET_WORKFLOWS,
 } from "../run-bundle/production_marker.mjs";
@@ -36,15 +30,12 @@ export const METHOD_MODULES = Object.freeze([
   "01-content",
   "02-visual-system",
   "03-framed-image",
-  "04-image-production",
   "04-pure-image",
   "05-delivery",
-  "05-iteration",
   "06-iteration",
 ]);
 export const RESERVED_NODE_IDS = Object.freeze([]);
 export const SUPPORTED_PIPELINES = Object.freeze([
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
 ]);
 export const SUPPORTED_PRODUCTION_MODES = Object.freeze([...PRODUCTION_MODES]);
@@ -105,8 +96,6 @@ const DETERMINISTIC_CONDITIONS = new Set([
   "slide_specs_valid",
   "pptx_generated",
   "speaker_notes_injected",
-  "transition_apply_current",
-  "transition_publish_or_recovery_recorded",
 ]);
 
 function lineNumber(text, offset) {
@@ -290,12 +279,11 @@ function validateNodeShape(node, errors) {
   if (!METHOD_MODULES.includes(node.methodModule)) {
     addError(errors, node, "method-module", `invalid method_module ${JSON.stringify(node.methodModule)}`);
   }
-  const imageProduction = node.methodModule === "04-image-production";
   const targetStageFour = TARGET_STAGE_FOUR_MODULES.has(node.methodModule);
   const targetWorkflow = TARGET_WORKFLOW_MODULES[node.methodModule] || null;
   const targetModeOnly = hasExactSet(node.productionModes, [TARGET_PRODUCTION_MODE]);
-  if (node.lifecyclePhase === "4" && !imageProduction && !targetStageFour) {
-    addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by 04-image-production or a target 03/04/05 module");
+  if (node.lifecyclePhase === "4" && !targetStageFour) {
+    addError(errors, node, "phase4-ownership", "lifecycle 4 must be owned by target 03/04/05 module");
   }
   if (targetStageFour && node.lifecyclePhase !== "4") {
     addError(errors, node, "target-lifecycle", `${node.methodModule} must use lifecycle_phase 4`);
@@ -303,12 +291,8 @@ function validateNodeShape(node, errors) {
   if (node.methodModule === "06-iteration" && node.lifecyclePhase !== "5") {
     addError(errors, node, "target-lifecycle", "06-iteration must use lifecycle_phase 5");
   }
-  if (imageProduction && node.adapter !== "page-authority-image2") addError(errors, node, "image-production-adapter", "04-image-production nodes require adapter: page-authority-image2");
   if (targetStageFour && node.adapter !== "page-authority-image2-v2") addError(errors, node, "image-production-adapter", "target 03/04/05 nodes require adapter: page-authority-image2-v2");
-  if (!imageProduction && !targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only Page Authority production nodes may declare an adapter");
-  if (imageProduction && (!hasExactSet(node.productionModes, [CURRENT_PRODUCTION_MODE]) || node.playbook !== "create-deck")) {
-    addError(errors, node, "image-production-adapter", "page-authority-image2 is owned by create-deck and requires image2-page-authority");
-  }
+  if (!targetStageFour && node.adapter != null) addError(errors, node, "image-production-adapter", "only target Page Authority production nodes may declare an adapter");
   if (targetStageFour && (!targetModeOnly || node.playbook !== "create-deck")) {
     addError(errors, node, "image-production-adapter", "target 03/04/05 production is owned by create-deck and requires image2-page-authority-v2");
   }

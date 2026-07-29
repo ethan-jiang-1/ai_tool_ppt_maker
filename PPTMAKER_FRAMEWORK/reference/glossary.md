@@ -31,16 +31,12 @@ text-free underlay to Image2 and the fixed local Text Frame to final text
 pixels. Pure assigns every final pixel to Image2. The selected route is
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 
-`page-authority-image2-v1`, `pure-image2`, `framed-image2`, and
-`page_authority_default` are exact CURRENT compatibility terms only; they are
-not choices for a new version.
-
 Use the ownership/invalidation paths `Header Text & Style Refresh`, `Generated
 Image Rebuild`, `Notes-Only Refresh`, and `Structural Versioning Path`. A
 Framed Text Frame-only change can use the first path only with current exact
 raw evidence and preset; Pure display changes always rebuild raw work. A
-recognized historical pair is read only by the legacy observer and may enter the
-explicit provider-free adoption transaction; it is never a current route.
+non-v2 pair is byte-preserving and receives the generic unsupported-protocol
+export action; it is never a current route.
 
 ## Git
 

@@ -36,7 +36,7 @@ describe("Pure target workflow", () => {
     })).toThrow(/Pure workflow requires/);
   });
 
-  it("publishes accepted full-page raw bytes directly as a common manifest", () => {
+  it("publishes accepted Pure raw bytes directly as a common manifest", () => {
     const source = receipt();
     const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
     const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: Buffer.from("raw") } });

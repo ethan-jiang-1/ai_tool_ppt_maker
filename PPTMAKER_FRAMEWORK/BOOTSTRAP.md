@@ -47,7 +47,6 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate deck_NAME/3_version
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 review deck_NAME/3_versions/v1 --json
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 accept deck_NAME/3_versions/v1 --decision proceed
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --record-page-authority-delivery-review proceed
 ```
 
 `plan` 是 provider-free。只有非零 submit plan 才要求人类在 `authorize` 前看到 exact run、stable IDs、generation profile 与 maximum submissions；init、doctor、probe、旧批次或聊天都不是授权。zero-submit work 可继续执行，也不虚构授权。
@@ -65,15 +64,11 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh deck_NAME/3_versions/v1 --k
 
 `framed` 的 preset/underlay/visual 修改，以及 `pure` 的任意可见 display 或 visual 修改，都必须回到 receipt-bound `image2 plan -> authorize -> generate -> review -> accept`，然后由 selected workflow 发布 manifest，再经 `05-delivery` delivery review。Notes-only work 只走 `05-delivery`。增删重排和 workflow switch 都是 Structural Versioning Path：先 preview，展示 position、stable ID、title、before/after 与 exact `plan_sha256`，再以确认的 hash apply。target 只可得到 plan-bound、target-owned `unreviewed` raw materialization 或 `needs_raw_generation` debt；不复制 raw acceptance、provider authorization、final evidence 或 delivery decision，apply 本身零远端。
 
-## Existing-run guidance
+## Unsupported-run guidance
 
-已有 exact `page-authority-image2-v1` / `image2-page-authority` mixed run 是 bounded compatibility input：它继续自己的 v1 lifecycle，但绝不成为新-deck choice，也不会被静默重写为 v2。partial v1/v2 pair 走 Page Authority repair，missing/unknown/corrupt pair 走 repair/export，绝不猜测 workflow 或 legacy。
-
-只有用户明确给出一个非-Page-Authority historical run 时，才先运行 `ppt_flow state <run-dir> --inspect-legacy-protocol`。read-only historical observer 的精确字节 schema 只识别 `html-first-v1` / `html-only|html-then-image2` 或 `whole-page-image2-v1` / `image2-only` pair，并将它们送入 provider-free legacy adoption；普通 build、refresh、review、pilot 和 provider 命令都会先被 fence 拦住。
-
-对 recognized legacy run，Agent 先调用 `state <run-dir> --prepare-legacy-adoption`，只在 source-local `_scratch/production-mode-transition/candidate-run/` 内准备 candidate。人类选择一次 target `framed|pure` workflow，并明确写 Page Authority source 和 adoption matrix（保留/删除/新增、stable ID、Text Frame、visual brief/reference、speaker note disposition）；再显示 `--preview-legacy-adoption` 的 exact hash 和 target intake，只有明确确认后才 `--confirm-legacy-adoption --plan-hash <hash>` 与 `--apply-legacy-adoption --plan-hash <hash>`。
-
-adoption 不读取或复制 legacy prompt、pixels、generated/review/provider/PPTX/notes/delivery evidence，也不初始化 credential、transport 或 provider。发布出的 clean vNext 是 `image2-page-authority-v2`、`source_epoch: 1`，所有 target slide 都是 `needs_raw_generation`，从 selected workflow 的 raw authorization 继续。Image2 quality 由后续 target raw projection 的人审或明确授权 pilot 判断，不是 adoption 自动验证的职责。
+任何 non-v2、partial、missing、unknown 或 corrupt source/state pair 都是同一个
+unsupported-protocol/export hard-stop。普通 observation、build、refresh、review 和
+provider 命令不得推断 workflow、初始化 receipt/state、读取 generated artifacts 或修改原始 bytes。
 
 ## Optional Git note
 

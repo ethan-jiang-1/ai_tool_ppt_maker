@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 import {
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
   probeProductionMarker,
 } from "../../shared/run-bundle/production_marker.mjs";
@@ -11,14 +10,11 @@ import {
   validateSlideDocument,
 } from "./slide_document.mjs";
 
-export const PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA = "pptmaker-page-authority-source-receipt-v1";
 export const PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA = "page-authority-image2-source-v2";
-export const PAGE_AUTHORITIES = Object.freeze(["pure-image2", "framed-image2"]);
 export const FRAMED_TEXT_PRESET = "standard-v1";
 
 const DISPLAY_FIELDS = Object.freeze(["KICKER", "TITLE", "SUBTITLE", "CALLOUT"]);
 const PAGE_AUTHORITY_FIELDS = Object.freeze([
-  "PAGE AUTHORITY",
   ...DISPLAY_FIELDS,
   "BODY",
   "FRAME PRESET",
@@ -27,7 +23,7 @@ const PAGE_AUTHORITY_FIELDS = Object.freeze([
   "IDENTITY SUBJECT COUNT",
   "SUBJECT RESTRICTIONS",
 ]);
-const LEGACY_FIELDS = new Set(["RENDER MODE", "IMAGE PROMPT"]);
+const RETIRED_FIELDS = new Set(["PAGE AUTHORITY", "RENDER MODE", "IMAGE PROMPT"]);
 const VISUAL_BRIEF_KEYS = Object.freeze(["recipe", "composition", "motifs", "negative_constraints"]);
 const NEGATIVE_CONSTRAINTS = Object.freeze([
   "no-readable-text",
@@ -317,7 +313,7 @@ function scanSlideFields(document, block, issues) {
   const fields = new Map();
   for (const match of block.body.matchAll(BOLD_FIELD_RE)) {
     const label = match[1].trim().replace(/\s+/g, " ").toUpperCase();
-    if (!PAGE_AUTHORITY_FIELDS.includes(label) && !LEGACY_FIELDS.has(label)) continue;
+    if (!PAGE_AUTHORITY_FIELDS.includes(label) && !RETIRED_FIELDS.has(label)) continue;
     const start = block.body_range.start + match.index;
     const parsed = {
       label,
@@ -337,11 +333,11 @@ function scanSlideFields(document, block, issues) {
         }));
       }
     }
-    if (LEGACY_FIELDS.has(label)) {
-      for (const legacy of records) {
-        issues.push(issue(document, block, "legacy_page_authority_ingress", `**${label}** is forbidden for ${PAGE_AUTHORITY_IMAGE2_PIPELINE}`, {
+    if (RETIRED_FIELDS.has(label)) {
+      for (const retired of records) {
+        issues.push(issue(document, block, "retired_page_authority_ingress", `**${label}** is not part of the v2 Page Authority source grammar`, {
           field: label,
-          fieldSpan: legacy.range,
+          fieldSpan: retired.range,
         }));
       }
     }
@@ -526,18 +522,17 @@ function resolveVisualBrief(registry, context, document, block, visualBrief, iss
  */
 export function parsePageAuthoritySource(sourceText, { source = "slide-specifications.md", registry = null } = {}) {
   const marker = probeProductionMarker(sourceText, { source });
-  if (![PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE].includes(marker.branch)) {
+  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
     const markerIssues = marker.issues?.length ? marker.issues : [frontmatterIssue({
       source,
       frontmatter: { range: span(String(sourceText ?? ""), 0, 0) },
-    }, "page_authority_marker_required", "production.pipeline must select a supported Page Authority protocol", {
-      expected: `${PAGE_AUTHORITY_IMAGE2_PIPELINE} | ${PAGE_AUTHORITY_IMAGE2_V2_PIPELINE}`,
+    }, "page_authority_marker_required", "production.pipeline must select the v2 Page Authority protocol", {
+      expected: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
       actual: marker.branch,
     })];
     throw new PageAuthoritySourceError(markerIssues);
   }
-  const isTarget = marker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE;
-  const workflow = isTarget ? marker.frontmatter.metadata.production.workflow : null;
+  const workflow = marker.frontmatter.metadata.production.workflow;
 
   let document;
   try {
@@ -548,25 +543,22 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
   }
   const issues = [...validateSlideDocument(document)];
   if (Object.hasOwn(document.frontmatter.metadata, "render")) {
-    issues.push(frontmatterIssue(document, "legacy_page_authority_ingress", "frontmatter render is forbidden for page-authority-image2-v1", {
+    issues.push(frontmatterIssue(document, "retired_page_authority_ingress", "frontmatter render is not part of the v2 Page Authority source grammar", {
       actual: "render",
     }));
   }
-  const defaultAuthority = isTarget ? `${workflow}-image2` : marker.frontmatter.metadata.production.page_authority_default;
+  const authority = `${workflow}-image2`;
   const receipts = [];
 
   for (const block of document.slides) {
     const fields = scanSlideFields(document, block, issues);
     const authorityField = oneField(fields, "PAGE AUTHORITY");
-    if (isTarget && authorityField) {
-      issues.push(issue(document, block, "target_per_slide_authority_forbidden", "TARGET source inherits its version workflow and must not declare PAGE AUTHORITY", {
+    if (authorityField) {
+      issues.push(issue(document, block, "retired_per_slide_authority_forbidden", "v2 source inherits its version workflow and must not declare PAGE AUTHORITY", {
         field: "PAGE AUTHORITY",
         fieldSpan: authorityField.range,
       }));
     }
-    const authority = isTarget
-      ? defaultAuthority
-      : parseOptionalEnum(document, block, authorityField, PAGE_AUTHORITIES, defaultAuthority, issues);
     const display = displayFields(document, block, fields, issues);
     const frameField = oneField(fields, "FRAME PRESET");
     const framePreset = frameField
@@ -612,7 +604,7 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
       issues
     );
     validateAuthorityAwareSemantics(document, block, authority, display, visualBrief, identity, count, restrictions, framePreset, fields, issues, {
-      targetWorkflow: isTarget ? workflow : null,
+      targetWorkflow: workflow,
     });
     const compiledVisualBrief = resolveVisualBrief(registry, {
       authority,
@@ -629,7 +621,7 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
     if (parsedVisualBlocks[0]) diagnostic_spans["VISUAL BRIEF"] = parsedVisualBlocks[0].range;
     receipts.push({
       slide_id: block.slide_id,
-      ...(isTarget ? { workflow } : { authority }),
+      workflow,
       display,
       frame_preset: authority === "framed-image2" ? framePreset : null,
       text_frame: authority === "framed-image2" ? {
@@ -649,21 +641,11 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
   }
 
   if (issues.length > 0) throw new PageAuthoritySourceError(issues);
-  const receipt = {
-    schema: PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA,
-    pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
-    page_authority_default: defaultAuthority,
+  return deepFreeze({
+    schema: PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
+    pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+    workflow,
     source_sha256: sha256(document.source_text),
     slides: receipts,
-  };
-  if (isTarget) {
-    return deepFreeze({
-      schema: PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
-      pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
-      workflow,
-      source_sha256: receipt.source_sha256,
-      slides: receipts,
-    });
-  }
-  return deepFreeze(receipt);
+  });
 }

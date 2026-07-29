@@ -35,21 +35,6 @@ slide.
 - **WHEN** only source order and normalized heading numbers change
 - **THEN** each retained ID has the same semantic raw input as before
 - **AND** only order-dependent projections are rebuilt
-
-### Requirement: Page Authority source resolves one authority per slide
-
-For `production.pipeline: page-authority-image2-v1`, parsing SHALL accept only
-the current production mapping and a per-slide `PAGE AUTHORITY` override of
-`pure-image2` or `framed-image2`. The receipt SHALL record one authority for each
-stable slide ID and reject unrecognized production or free-form provider input
-before derived-artifact or provider work.
-
-#### Scenario: Source default and slide override resolve
-
-- **WHEN** a valid source defaults to `framed-image2` and one slide overrides it with `pure-image2`
-- **THEN** the receipt records the correct authority for each stable slide ID
-- **AND** metadata, filenames, and generated artifacts do not affect resolution
-
 ### Requirement: Framed display fields remain local receipt data
 
 For Framed slides, `TITLE` SHALL be required and optional kicker, subtitle, and
@@ -78,39 +63,24 @@ contract is emitted.
 - **AND** no provider payload, authorization scope, or raw contract is created
 
 ### Requirement: Current source parsing is Page Authority-only
+Current production source parsing SHALL accept only the v2 Page Authority grammar and bind every slide to the version's selected Framed or Pure workflow. A non-v2 source marker or shape SHALL fail before receipt compilation and return the owner-issued unsupported-protocol hard-stop; it SHALL NOT publish a plan, adapter, receipt, or inferred workflow.
 
-Current production source parsing SHALL accept only the Page Authority grammar and
-bind each slide to its resolved Pure or Framed authority. Historical source parsing
-is confined to the read-only observer and SHALL NOT publish a current plan or
-adapter.
-
-#### Scenario: Historical source cannot produce a current plan
-
-- **WHEN** a source carries a recognized historical marker
-- **THEN** normal production parsing returns the adoption boundary before producing a receipt or raw owner
+#### Scenario: Non-v2 source cannot produce a current plan
+- **WHEN** a source carries a non-v2 marker or per-slide authority grammar
+- **THEN** normal parsing returns the bounded unsupported-protocol action before producing a receipt or raw owner
+- **AND** it does not rewrite source bytes
 
 ### Requirement: TARGET Page Authority source selects one version workflow
+For `production.pipeline: page-authority-image2-v2`, the source parser SHALL require exactly one `production.workflow` value: `framed` or `pure`. It SHALL bind that value, the ordered stable slide IDs, and the canonical source digest into a `page-authority-image2-source-v2` receipt before raw or provider work. Every resolved target slide SHALL inherit the receipt workflow; the parser SHALL NOT infer a workflow from a slide, artifact, directory, or omitted field.
 
-For `production.pipeline: page-authority-image2-v2`, the source parser SHALL
-require exactly one `production.workflow` value: `framed` or `pure`. It SHALL
-bind that value, the ordered stable slide IDs, and the canonical source digest
-into a `page-authority-image2-source-v2` receipt before raw or provider work.
-Every resolved target slide SHALL inherit the receipt workflow; the parser
-SHALL NOT infer a workflow from a slide, artifact, directory, or omitted field.
-
-TARGET source SHALL reject `production.page_authority_default`, any per-slide
-`PAGE AUTHORITY` declaration, a missing workflow, an unsupported workflow, and
-any hybrid v1/v2 source shape. `page-authority-image2-v1` parsing remains the
-sole owner of the CURRENT default and per-slide authority grammar.
+TARGET source SHALL reject `production.page_authority_default`, any per-slide `PAGE AUTHORITY` declaration, a missing workflow, an unsupported workflow, and any non-v2 source shape.
 
 #### Scenario: Target workflow receipt is homogeneous
-
 - **WHEN** a source has pipeline `page-authority-image2-v2`, workflow `framed`, and valid stable slides
 - **THEN** parsing publishes one `page-authority-image2-source-v2` receipt with workflow `framed`
 - **AND** every slide is resolved through the Framed workflow without a per-slide authority selection
 
-#### Scenario: Hybrid source fails before provider work
-
+#### Scenario: Non-v2 grammar fails before provider work
 - **WHEN** a v2 source contains `page_authority_default` or a slide `PAGE AUTHORITY` declaration
-- **THEN** parsing rejects the source as an invalid target workflow shape
-- **AND** it does not publish a receipt, raw plan, authorization scope, or provider request
+- **THEN** parsing rejects the source with the unsupported-protocol or target-shape repair action
+- **AND** no provider payload or source receipt is created

@@ -21,19 +21,19 @@ describe("Page Authority state boundary", () => {
       const before = readFileSync(path);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
       expect(state.schema_version).toBe(5);
-      expect(state.production_mode.by_version["3_versions/v1"].mode).toBe("image2-page-authority");
+      expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
       expect(readFileSync(path)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
-  it("rejects a retired state container instead of projecting it", () => {
+  it("rejects an unknown state container instead of projecting it", () => {
     const fixture = currentFixture();
     try {
       const path = statePath(fixture.deck);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      state.nodes["image2-refinement"] = { by_version: {} };
+      state.unsupported_state_container = { by_version: {} };
       writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
       const before = readFileSync(path);
       expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })).toMatchObject({ replacement_required: true });

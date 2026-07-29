@@ -1,6 +1,6 @@
 # Plan: Page Authority Workflow OpenSpec Progressive Delivery
 
-> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: 原 change 已归档并提交、主规格已同步；H.10 的项目版本决策与后续 `HC.*` compatibility hygiene 扩展待完成
+> 类型: OpenSpec 落地规划 | 更新: 2026-07-29 | 状态: 原 change 与 compatibility hygiene change 均已归档并提交、主规格已同步；H.10 的项目版本决策仍待用户授权。其后的 legacy 吸收与退休已登记为独立的未来阶段，尚未提案或实施。
 
 ## 进度跟踪
 
@@ -17,8 +17,9 @@
 | Wave 4 - TARGET routing and iteration | 已完成 | v2 marker/state/controller/inspection 与 `06-iteration` 已上线。 |
 | Wave 5 - CURRENT boundary and activation | 已完成 | fresh Framed、fresh Pure、CURRENT mixed boundary 全部通过 E2E。 |
 | Wave 6 - Cleanup and change close | 已完成 | superseded owners 清理、inventory 审计、focused/完整验证与 main-spec review 均完成。 |
-| Archive / handoff | 进行中 | `H.1`–`H.9` 已完成：specs 同步、archive 与 commit 已完成；`H.10` 的项目版本决策待用户授权。 |
-| Post-archive compatibility hygiene | 待创建 change | `HC.0` 已记录：保持 exact CURRENT v1 compatibility，同时清掉错误的观察写入、死 wrapper、过期占位目录和误导性路径。 |
+| Archive / handoff | 已完成（版本决策待授权） | `H.1`–`H.9` 已完成：specs 同步、archive 与 commit 已完成；`H.10` 的项目版本决策待用户授权。 |
+| Post-archive compatibility hygiene | 已完成并归档 | `HC.2`–`HC.8`、`HC.CP` 已由 cleanup change 的 focused/process/E2E、ownership/docs、full core verification、main-spec sync 与 archive/commit 直接证明。 |
+| Legacy absorption and retirement | 已提案，待 H.10 后 apply | [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/) 已完整规划代码流、测试 owner、migration boundary 与 13 份 main-spec removal/rewriting delta；先吸收再删除。 |
 
 ### 更新规则
 
@@ -53,6 +54,10 @@
 | 2026-07-29 | H.9 | 已完成 | OpenSpec archive 同步 14 个 capability specs（+16 / ~4），归档至 [`2026-07-29-separate-framed-pure-workflows`](../../openspec/changes/archive/2026-07-29-separate-framed-pure-workflows/)，提交为 `058e6ff feat: separate framed and pure workflows`。 | 如需发布，先由用户决定项目版本策略。 |
 | 2026-07-29 | H.10 | 待用户授权 | 归档、主规格同步与提交已完成；尚未执行 `project-versioning` 判断或修改版本号。 | 用户决定是否评估/调整项目版本。 |
 | 2026-07-29 | HC.0 | 已记录 | 对 compatibility 目录做只读盘点；临时 exact v2 run 证明 `ppt_flow status` 会在保留 `source-receipt-v2.json` 的同时错误写入 v1 `source-receipt.json`。同时发现未被生产调用的 `scripts/05-iteration` wrapper，以及只含过期 README 的 `tests/05-iteration`、`tests_e2e/04-image-production`、`tests_e2e/05-iteration`。 | 以独立 cleanup change 固化范围、迁移方案和验证。 |
+| 2026-07-29 | HC.1 | 已完成 | 已建立并归档 [clean-current-v1-compatibility-boundary](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/)；proposal、design、五项 delta specs 与依赖排序 tasks 完整，设计锁定 read-only observation seam、`compatibility/current-v1-page-authority/` logical home、无长期 re-export 的迁移及回滚边界。 | HC.2 起实施已完成。 |
+| 2026-07-29 | HC.2–HC.7 / HC.CP | 已完成 | [implementation evidence](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/implementation-evidence.md) 记录了零写 status/state temporary-bundle snapshots、selected Framed/Pure 与 exact v1/hybrid journeys、compatibility relocation、ownership/link/retirement audits、`npm test`、`git diff --check` 与 strict validation。无生产 bundle 被作为 fixture 或修改。 | HC.8 closeout 已完成；H.10 仍待用户单独授权。 |
+| 2026-07-29 | HC.8 | 已完成 | 五份 delta specs 已同步至 main specs；change 已归档至 [`2026-07-29-clean-current-v1-compatibility-boundary`](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/)，提交为 `51b69bb chore: clean current v1 compatibility boundary`。`openspec validate --all --strict` 为 29/29 通过。 | H.10 仍待用户单独授权。 |
+| 2026-07-29 | LR.2 | 已完成 | 已建立 [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/)；proposal、design、13 份 current-main-spec delta 与依赖排序 tasks 已完整，`openspec validate retire-current-v1-compatibility --strict` 通过。它把旧路径的语义吸收、一次性迁移边界、active source/tests 删除和 main specs 清扫作为同一原子 change。 | 等待 H.10 授权后从 LR.0/LR.1 开始 apply。 |
 
 ## 阅读说明 / 本文边界
 
@@ -569,34 +574,38 @@ run 的 bounded compatibility；要删除的是错误的 TARGET -> v1 调用、�
 | `tests/05-iteration/`、`tests_e2e/04-image-production/`、`tests_e2e/05-iteration/` | stale placeholders | 删除只有过期 README 的空 owner 目录；实际 test 归属必须由 source-to-test inventory 明确登记。 |
 | `workflow/05-delivery/`、`tests/05-delivery/` | active TARGET shared delivery | 保留为 `03 XOR 04 -> 05` 的唯一 delivery owner；仅更新它引用 compatibility 的说明，不迁回 legacy path。 |
 
-候选新 home 是清晰的 `compatibility/current-v1-page-authority/` source、workflow 与 test surface；
-`HC.1` 的 proposal/design 必须确认最终命名、迁移顺序和是否需要短暂的内部-only redirect。不得保留
-长寿命 re-export，也不得让目录移动成为 TARGET 语义或 public CLI grammar 的改变。
+`HC.1` 已锁定新 home 为清晰的 `compatibility/current-v1-page-authority/` source、workflow 与
+test logical surface：分别落在 scripts、workflow 与 tests 的对应 domain root。迁移没有
+内部-only redirect 或长寿命 re-export；目录移动不得成为 TARGET 语义或 public CLI grammar 的改变。
 
 ### Hygiene Cleanup Checklist
 
 - [x] **HC.0** 记录 post-archive inventory 与最小复现：已验证 selected TARGET v2 的 `ppt_flow status`
   会错误写入 v1 `source-receipt.json`；已列出 dead wrapper、误导文档与空测试占位。
-- [ ] **HC.1** 新建一个 dedicated OpenSpec cleanup change，写清 CURRENT compatibility 保留合同、目标
-  compatibility home、迁移/rollback、directory ownership、CLI non-goals 和不读取生产 deck data 的约束。
-- [ ] **HC.2** 以一个 read-only seam 重做 `status` / controller observation：marker-first 区分 v1/v2，
+- [x] **HC.1** 新建 dedicated OpenSpec cleanup change
+  [clean-current-v1-compatibility-boundary](../../openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/)，写清
+  CURRENT compatibility 保留合同、目标 compatibility home、迁移/rollback、directory ownership、CLI non-goals
+  和不读取生产 deck data 的约束；proposal/design/specs/tasks 已完整且 strict validation 通过。
+- [x] **HC.2** 以一个 read-only seam 重做 `status` / controller observation：marker-first 区分 v1/v2，
   不初始化 state、不写 v1/v2 receipt、不写 `_generated/`、history 或 metadata，也不发起 provider 调用。
-- [ ] **HC.3** 将保留的 v1 implementation、workflow guidance 与 focused proof 迁至或收敛到一个明确
+- [x] **HC.3** 将保留的 v1 implementation、workflow guidance 与 focused proof 迁至或收敛到一个明确
   current-v1 compatibility owner；删除 generic/new-authoring 暗示，且不保留未登记的长期 re-export。
-- [ ] **HC.4** 删除已证明无 caller 的 `scripts/05-iteration` wrapper/internal pass-through，以及
+- [x] **HC.4** 删除已证明无 caller 的 `scripts/05-iteration` wrapper/internal pass-through，以及
   `tests/05-iteration`、`tests_e2e/04-image-production`、`tests_e2e/05-iteration` 的空占位；迁移任何
   仍有效的 classifier/document link 到正式 compatibility home。
-- [ ] **HC.5** 保持 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration` 为所有新 authoring
+- [x] **HC.5** 保持 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration` 为所有新 authoring
   的唯一可见路径；更新直达 legacy 文档、README、playbook、test README 和 link/audit allowlist，使 v1
   只能作为 existing-run compatibility 出现。
-- [ ] **HC.6** 更新 architecture contracts、source-to-test ownership、governance/retirement ledger、
+- [x] **HC.6** 更新 architecture contracts、source-to-test ownership、governance/retirement ledger、
   executable/import inventory 和相关 main specs；明确 target method modules 不会 import 或调用 v1 writer。
-- [ ] **HC.7** 加入 focused 与 E2E proof：exact CURRENT v1 resume/refresh/delivery 保持合同；selected
+- [x] **HC.7** 加入 focused 与 E2E proof：exact CURRENT v1 resume/refresh/delivery 保持合同；selected
   TARGET Framed/Pure 和 fresh workflow-selection `status` 均为零写入；旧 receipt 不会由 target observation
   创建；目录/链接/ownership audit fail closed。
-- [ ] **HC.8** 运行 focused、process、selected E2E、`npm test`、`git diff --check` 和 OpenSpec strict
-  validation；在 archive/commit 后把证据回写本节与证据日志。
-- [ ] **HC.CP** **Compatibility Hygiene Checkpoint:** 每个 retained v1 surface 都有一个明确 owner；TARGET
+- [x] **HC.8** 已完成 focused、process、selected E2E、`npm test`、`git diff --check` 和 OpenSpec strict
+  validation；证据已回写本节与证据日志，并已在
+  `openspec/changes/archive/2026-07-29-clean-current-v1-compatibility-boundary/` 完成 archive/commit closeout
+  （`51b69bb chore: clean current v1 compatibility boundary`）。
+- [x] **HC.CP** **Compatibility Hygiene Checkpoint:** 每个 retained v1 surface 都有一个明确 owner；TARGET
   public route、observer 和 delivery 只有 `03 XOR 04 -> 05 -> 06`；没有 dead wrapper、空 test owner、
   误导 legacy entry 或 observation-induced generated artifact；v1 与 v2 的 bytes、state 和 CLI contracts
   都有回归证明。
@@ -608,4 +617,68 @@ run 的 bounded compatibility；要删除的是错误的 TARGET -> v1 调用、�
   authorization 语义。
 - 不借目录 cleanup 改写 direct CLI grammar、发布新 workflow，或让 `05-delivery` 出现第二个 writer。
 - `H.10` 的项目版本决策与 `HC.CP` 都完成后，才可把这份 progressive plan 作为整体关闭；在此之前，
-  后续发现应继续以新的证据行和 `HC.*` 子项扩展，而不是回填为原 change 的未完成工作。
+  后续发现应继续以新的证据行和独立子项扩展，而不是回填为原 change 的未完成工作。`H.10` 与
+  `HC.CP` 只关闭已完成的两轮 change；下述 legacy retirement 阶段关闭前，本文不应宣称框架已
+  完成“无旧协议”收尾。
+
+## Future Progressive Extension: Legacy Absorption and Retirement
+
+Compatibility hygiene 的目的，是先把 CURRENT v1 隔离得不污染 TARGET；它不是永久架构。下一阶段的
+目标是让 coding agent 在 active framework、active tests、main specs 与人类入口中只看见一个 v2
+工作图：`03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`。任何仍有业务价值的 v1
+语义必须先被明确吸收，不能以 `compatibility/`、marker fallback、旧 receipt writer 或“先看看旧的”
+文档长期留在树中。
+
+这里的“继承”指继承可验证的**业务语义、输入输出合同、迁移判定和测试案例**，不是把旧目录改名后
+继续由 runtime 或 Agent 路由。完成后，`PPTMAKER_FRAMEWORK/workflow/compatibility/`、
+`PPTMAKER_FRAMEWORK/scripts/compatibility/`、`tests/compatibility/` 及其 v1-specific owner 都不应是
+active framework surface；历史说明只可位于 OpenSpec archive 或一次性、版本化的迁移交付物中。
+
+### Retirement Policy and Safety Boundary
+
+- 这是一项单独的 future OpenSpec change，必须在 H.10 的项目版本/发布策略由用户授权后才可提出；
+  删除 existing-run v1 runtime support 不能伪装成普通目录整理。
+- 迁移必须是显式、preview-first、用户确认后的 structural vNext 或离线一次性交付：它保留原始
+  source/state/bytes，不在原 v1 run 上就地改写，也不在 `status`、`state` 或普通恢复路径中执行。
+- 若仍有需要迁移的生产 bundle，迁移工具应作为有版本、有截止日期的外部/一次性 operator artifact
+  交付；迁移窗口结束后它也不留在 framework 的 active 运行时、方法论或 main specs 中。
+- 不存在“无法迁移但仍要保留 runtime fallback”的隐性第三条路。遇到无法保持合同的 v1 输入，必须在
+  proposal 中选择：先补迁移能力、将该输入明确拒绝，或取消 retirement；不得让 TARGET 重新依赖 v1。
+
+### Absorb-Then-Delete Checklist
+
+- [ ] **LR.0（待 H.10 授权）** 记录发布/版本决策、可迁移 run 的操作边界、迁移窗口与最终支持截止日；
+  明确这是 breaking removal 还是已完成迁移后的删除，且不扫描或批量改写用户 `deck_*` 数据。
+- [ ] **LR.1** 对每个 v1 surface 建立吸收矩阵：将语义归为 `v2 owner`、`shared invariant`、
+  `one-off migration` 或 `delete` 四类。任何没有目标 owner 或迁移判定的 legacy 行为都不能删除，
+  也不能悄悄成为兼容 fallback。
+- [x] **LR.2** 已建立 dedicated retirement change
+  [retire-current-v1-compatibility](../../openspec/changes/retire-current-v1-compatibility/)；proposal/design/tasks
+  写清 v1-to-v2 migration contract、preview/confirmation、rollback/拒绝策略、截止版本，以及删除后 active
+  graph 的唯一性。13 份 delta specs 均把 retirement 视为 main-spec removal/renaming，而非在现行规格上
+  追加 “legacy exception”。
+- [ ] **LR.3** 将可保留的 v1 业务语义吸收至它的 v2 或 shared owner，并以目标协议的 source receipt、
+  evidence、final-manifest、delivery 与 structural-versioning 合同重新证明；不复用 v1 writer、
+  mode、state initializer 或 receipt 路径。
+- [ ] **LR.4** 实现并验证一次性迁移交付物（如需要）：默认只 preview，materialize 必须绑定 exact plan
+  hash 与显式确认，产生独立 v2 target，原 v1 bundle 保持字节不变；迁移工具不得被 `ppt_flow`
+  的日常观察或 TARGET 执行导入。
+- [ ] **LR.5** 将仍有价值的 v1 tests 转写为 v2/shared invariant 或一次性迁移 proof；随后删除 active
+  `workflow/compatibility/`、`scripts/compatibility/`、`tests/compatibility/`、v1 marker/receipt writer、
+  v1 classifier、legacy inventory entries 和所有 runtime dispatch/fallback。历史 fixtures 与交付记录只
+  留在 archive 或明确隔离的 migration evidence，不成为 Agent 启动时的工作入口。
+- [ ] **LR.6** 清理 main specs：删除或重写所有把 `CURRENT v1`、`compatibility`、`page-authority-image2-v1`、
+  `image2-page-authority`、旧目录或 v1 receipt 说成现行支持路径的 Purpose、Requirement、Scenario 与
+  cross-link；保留的 v2/shared requirement 必须独立可读，不借旧协议解释自己。历史合同仅由 archive
+  保存，不能停留在 `openspec/specs/`。
+- [ ] **LR.7** 更新 COMMANDS、BOOTSTRAP、playbook、directory map、architecture/source-to-test inventory、
+  governance/retirement ledger 与 docs tests；新增 fail-closed audit，要求 active framework roots 与
+  main specs 不再注册 compatibility/v1 owner、import、CLI route、classification link 或 observation branch。
+- [ ] **LR.8** 运行 v2/shared full regression、migration preview/materialization proof（如适用）、所有
+  ownership/link/retirement negative audits、`npm test`、`git diff --check` 与 `openspec validate --all --strict`；
+  记录证明没有 production data 被隐式读取或改写。
+- [ ] **LR.9** 在 main specs sync、archive 与 commit 后记录删除清单、迁移交付物截止状态和 commit；只有
+  当 active tree 与 main specs 都不再出现旧协议时才可关闭本阶段。
+- [ ] **LR.CP** **No-Legacy-Noise Checkpoint:** coding agent 从 BOOTSTRAP、COMMANDS、workflow、scripts、
+  tests 和 main specs 只能发现 v2/shared 的一个 current graph；旧协议只作为 archive/一次性迁移证据，
+  不再是可执行、可选择、可 import 或可观察的路径。

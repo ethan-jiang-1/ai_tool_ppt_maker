@@ -1,10 +1,8 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
-/** Versioned Page Authority markers. v1 stays a bounded compatibility input. */
-export const PAGE_AUTHORITY_IMAGE2_PIPELINE = "page-authority-image2-v1";
+/** The exact v2 Page Authority marker is the only current protocol. */
 export const PAGE_AUTHORITY_IMAGE2_V2_PIPELINE = "page-authority-image2-v2";
 export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
-  PAGE_AUTHORITY_IMAGE2_PIPELINE,
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
 ]);
 export const TARGET_WORKFLOWS = Object.freeze(["framed", "pure"]);
@@ -80,27 +78,15 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
       expected: SUPPORTED_PRODUCTION_PIPELINES.join(" | "),
     });
   }
-  const isV2 = pipeline.value === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE;
-  const expectedKeys = isV2 ? ["pipeline", "workflow"] : ["pipeline", "page_authority_default"];
+  const expectedKeys = ["pipeline", "workflow"];
   if ([...values.keys()].some((key) => !expectedKeys.includes(key)) || values.size !== expectedKeys.length) {
     const result = invalid(source, "invalid_production_protocol_shape", `${pipeline.value} requires exactly ${expectedKeys.join(", ")}`, {
       expected: expectedKeys.join(", "),
     });
-    if (isV2 && values.size === 1 && values.has("pipeline")) {
+    if (values.size === 1 && values.has("pipeline")) {
       result.target_workflow_selection_required = true;
     }
     return result;
-  }
-  if (!isV2) {
-    const authority = values.get("page_authority_default");
-    if (!isScalar(authority) || typeof authority.value !== "string" || !["pure-image2", "framed-image2"].includes(authority.value)) {
-      return invalid(source, "invalid_page_authority_default", "production.page_authority_default must equal pure-image2 | framed-image2", { actual: authority?.value, expected: "pure-image2 | framed-image2" });
-    }
-    return {
-      branch: PAGE_AUTHORITY_IMAGE2_PIPELINE,
-      issues: [],
-      frontmatter: { metadata: { production: { pipeline: pipeline.value, page_authority_default: authority.value } } },
-    };
   }
   const workflow = values.get("workflow");
   if (!isScalar(workflow) || typeof workflow.value !== "string" || !TARGET_WORKFLOWS.includes(workflow.value)) {

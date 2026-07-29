@@ -13,7 +13,7 @@
     },
     {
       "id": "provider-load-isolation",
-      "source": "scripts/04-image-production/page-authority/index.mjs",
+      "source": "scripts/04-pure-image/index.mjs",
       "invariant": "Provider clients initialize only after an authorized provider operation reaches its adapter boundary.",
       "failure_story": "A status or help command can load credentials or provider transport before authorization, violating dry-run and human-control boundaries.",
       "owner": "image-production-adapter",
@@ -32,7 +32,6 @@
       "disposition": "retain"
     },
     {
-      "id": "visual-slot-state-integrity",
       "id": "page-authority-state-integrity",
       "source": "scripts/shared/state/state.mjs:validateProductionModeStructure",
       "invariant": "One exact run version has one Page Authority state and evidence graph.",

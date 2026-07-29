@@ -47,7 +47,7 @@ export const BASE_CHECK_NAMES = Object.freeze([
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_authority_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const DOCTOR_MODES = Object.freeze(['image2-page-authority']);
+export const DOCTOR_MODES = Object.freeze(['image2-page-authority-v2']);
 export const PAGE_AUTHORITY_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
 export const PAGE_AUTHORITY_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
@@ -417,12 +417,11 @@ function checkNpmPackages(start = process.cwd()) {
 export { checkNode, checkNpmPackages, discoverNpmPackages };
 
 function checkPageAuthorityRawGenerator() {
-  const root = resolve(__dirname, '..', '..', '04-image-production', 'page-authority');
+  const root = resolve(__dirname, '..', '..');
   const required = [
-    'raw_compilation.mjs',
-    'raw_manifest.mjs',
-    'raw_review.mjs',
-    'raw_profiles.mjs',
+    '03-framed-image/index.mjs',
+    '04-pure-image/index.mjs',
+    'shared/image2/page_authority_target_runtime.mjs',
   ];
   const missing = required.filter((name) => !existsSync(join(root, name)));
   const ok = missing.length === 0;
@@ -432,7 +431,7 @@ function checkPageAuthorityRawGenerator() {
     detail: ok
       ? 'receipt-bound Page Authority raw compiler and evidence owners are present'
       : `missing Page Authority raw owner(s): ${missing.join(', ')}`,
-    fix: ok ? null : 'Restore the Page Authority raw compiler, manifest, review, and profile modules under scripts/04-image-production/page-authority/.',
+    fix: ok ? null : 'Restore the v2 Framed/Pure raw owners and their shared target runtime under scripts/.',
   };
 }
 
@@ -968,7 +967,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   if (wantJson) setCliOutputMode('json');
 
   if (retiredImage2Flag) {
-    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-authority --operation raw-generation.');
+    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-authority-v2 --operation raw-generation.');
     process.exit(1);
   }
   if (mode != null && !DOCTOR_MODES.includes(mode)) {
@@ -979,12 +978,12 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_AUTHORITY_DOCTOR_OPERATIONS.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && mode != null && mode !== 'image2-page-authority') {
-    emitEnvCheckUsage('--operation requires --mode image2-page-authority', 'Select Page Authority mode before an operation-scoped doctor check.');
+  if (operation != null && mode != null && mode !== 'image2-page-authority-v2') {
+    emitEnvCheckUsage('--operation requires --mode image2-page-authority-v2', 'Select v2 Page Authority mode before an operation-scoped doctor check.');
     process.exit(1);
   }
 
-  const resolvedMode = mode ?? 'image2-page-authority';
+  const resolvedMode = mode ?? 'image2-page-authority-v2';
   const resolvedOperation = operation ?? 'framed-local-refresh';
   const plan = pageAuthorityDoctorPlan(resolvedOperation);
   let profile = plan.profile;

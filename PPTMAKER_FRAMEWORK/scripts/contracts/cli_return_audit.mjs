@@ -8,18 +8,6 @@ export const IMAGE2_RETURN_CASES = Object.freeze([
   "raw_review",
   "delivery_lineage",
 ]);
-export const PRODUCTION_MODE_TRANSITION_RETURN_CASES = Object.freeze([
-  "prepare_offline",
-  "preview_authoring_guide",
-  "preview_exact_plan",
-  "confirm_atomic",
-  "apply_handoff",
-  "recovery_visible_target",
-  "recovery_same_host",
-  "recovery_uncertain_confirmation",
-  "stale_or_conflict",
-]);
-
 /**
  * Continuation paths are intentionally named here instead of inferred from
  * Commander wiring. This keeps every user-visible guide/waiver/conflict path
@@ -90,10 +78,7 @@ export const PPT_FLOW_RETURN_AUDIT = Object.freeze({
     slides: all,
     "new-version": all,
     test: all,
-    state: Object.freeze({
-      ...all,
-      ...Object.fromEntries(PRODUCTION_MODE_TRANSITION_RETURN_CASES.map((name) => ["production_mode_transition_" + name, "case:" + name])),
-    }),
+    state: all,
     image2: Object.freeze({
       ...all,
       raw_plan: "case:receipt-bound-plan",
@@ -118,12 +103,6 @@ export function validateCliReturnAudit(audit = PPT_FLOW_RETURN_AUDIT, expectedCo
     for (const category of CLI_RETURN_CATEGORIES) if (typeof record[category] !== "string" || !record[category]) errors.push(`${command} is missing ${category} return case`);
     if (command === "image2") {
       for (const operation of IMAGE2_RETURN_CASES) if (typeof record[operation] !== "string" || !record[operation]) errors.push(`image2 is missing ${operation} return case`);
-    }
-    if (command === "state") {
-      for (const operation of PRODUCTION_MODE_TRANSITION_RETURN_CASES) {
-        const key = `production_mode_transition_${operation}`;
-        if (typeof record[key] !== "string" || !record[key]) errors.push(`state is missing ${key} return case`);
-      }
     }
   }
   const continuationAudit = audit.commands.continuations;

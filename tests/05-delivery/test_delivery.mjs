@@ -98,7 +98,7 @@ describe("target Page Authority delivery", () => {
     })).toThrow(/drifted/);
   });
 
-  it("writes full-page delivery artifacts only after every target prerequisite validates", async () => {
+  it("writes delivery artifacts only after every target prerequisite validates", async () => {
     const deckDir = mkdtempSync(join(tmpdir(), "deck_target_delivery_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });

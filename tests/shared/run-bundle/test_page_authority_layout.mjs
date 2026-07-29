@@ -9,7 +9,6 @@ import {
   PAGE_AUTHORITY_IMAGE2_PATHS,
   checkBundle,
   initBundle,
-  initLegacyFixtureBundle,
   pageAuthorityImage2Paths,
   renderTree,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -104,18 +103,6 @@ describe("Page Authority bundle layout", () => {
       const retiredOwner = join(runDir, "_generated", "retired-owner");
       writeFileSync(retiredOwner, "not current", "utf8");
       expect(checkBundle(runDir, false)).toContain("unexpected current generated owner 'retired-owner' — Page Authority owns page_authority_image2/ only");
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  it("keeps historical fixture construction explicitly observer-only", () => {
-    const root = mkdtempSync(join(tmpdir(), "legacy-observer-fixture-"));
-    try {
-      const deck = join(root, "deck_historical");
-      initLegacyFixtureBundle(deck, null, "keynote", "dark-executive", { mode: "image2-only" });
-      const runDir = join(deck, "3_versions", "v1");
-      expect(checkBundle(runDir, false)).toContain("historical production source is observer/adoption-only and cannot pass normal bundle validation");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

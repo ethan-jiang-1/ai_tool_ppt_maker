@@ -1,41 +1,11 @@
 ---
 playbook: edit-visual
-description: Page Authority visual-owner refresh
-supported_pipelines: [page-authority-image2-v1, page-authority-image2-v2]
+description: v2 Page Authority visual refresh
+supported_pipelines: [page-authority-image2-v2]
 includes: [classify-change]
 ---
 
 # Playbook: Edit Visual
-
-### rebuild-visual-evidence
-```yaml
-node: rebuild-visual-evidence
-lifecycle_phase: 5
-method_module: 05-iteration
-production_modes: [image2-page-authority]
-requires: [classify-change]
-produces: [current-raw-or-frame-evidence]
-entry: [slide_specs_exists]
-exit: [slide_specs_valid]
-```
-**Step 1 — MD**: Change the registered visual language, reference material, or authority-owned source fields.
-**Step 2 — CLI**: Re-enter raw planning when raw facts changed; use only the Framed-local owner for frame-only change.
-
-### approve-visual-evidence
-```yaml
-node: approve-visual-evidence
-lifecycle_phase: 5
-method_module: 05-iteration
-production_modes: [image2-page-authority]
-requires: [rebuild-visual-evidence]
-produces: [reviewed-visual-evidence]
-decisions: [proceed, repair, redirect]
-entry: []
-exit: [user_decision_recorded]
-```
-**Step 1 — GATE**: Review the current raw or final projection and record the direct owner decision.
-
-## TARGET v2
 
 ### refresh-target-framed-visual
 ```yaml
@@ -49,8 +19,7 @@ produces: [target-framed-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — MD**: A Framed preset, underlay, or visual-language change invalidates the exact underlay/raw tuple and returns to the Framed raw rebuild route.
-**Step 2 — CLI**: Use the owner-issued Framed rebuild action, then shared delivery. Do not classify this as a text-only local compose.
+**Step 1 — CLI**: Framed visual underlay or frame-preset changes use the selected Framed raw rebuild route.
 
 ### refresh-target-pure-visual
 ```yaml
@@ -64,8 +33,7 @@ produces: [target-pure-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — MD**: A Pure display or visual change invalidates raw work and returns to the Pure rebuild route.
-**Step 2 — CLI**: Use the owner-issued Pure rebuild action, then shared delivery.
+**Step 1 — CLI**: Pure visual changes use the selected Pure raw rebuild route and scoped authorization.
 
 ### review-target-visual-delivery
 ```yaml
@@ -80,4 +48,5 @@ decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
-**Step 1 — GATE**: Review the selected workflow's exact current delivery evidence and record the version-scoped decision.
+**Step 1 — MD**: Inspect the selected workflow's updated visual and delivery evidence.
+**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against that exact lineage.

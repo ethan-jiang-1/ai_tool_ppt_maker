@@ -34,8 +34,8 @@ describe("MD Controller reader characterization", () => {
   it("parses fenced YAML nodes rather than only document frontmatter", () => {
     const parsed = parseControllerFile(join(PLAYBOOK_DIR, "create-deck.md"));
     expect(parsed.playbook).toBe("create-deck");
-    expect(parsed.nodes.map((node) => node.id)).toContain("author-page-authority-content");
-    expect(parsed.nodes.find((node) => node.id === "author-page-authority-content")?.methodModule).toBe("01-content");
+    expect(parsed.nodes.map((node) => node.id)).toContain("author-target-page-authority-content");
+    expect(parsed.nodes.find((node) => node.id === "author-target-page-authority-content")?.methodModule).toBe("01-content");
   });
 
   it("the live MD Controller registry matches the checked-in v3 manifest and validates cleanly", () => {
@@ -59,22 +59,21 @@ describe("MD Controller reader characterization", () => {
 
   it("registers Page Authority as the sole active Image Production controller", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    expect(index.controllers.size).toBe(9);
-    expect(index.controllers.has("production-mode-transition")).toBe(true);
+    expect(index.controllers.size).toBe(5);
+    expect(index.controllers.has("production-mode-transition")).toBe(false);
     expect(index.controllers.has("image2-refine")).toBe(false);
     expect(index.controllers.get("create-deck").supportedPipelines).toEqual([
-      "page-authority-image2-v1",
       "page-authority-image2-v2",
     ]);
   });
 
   it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const pageAuthority = index.nodesById.get("generate-page-authority-raw");
+    const pageAuthority = index.nodesById.get("generate-target-framed-raw");
     const createDeck = index.controllers.get("create-deck");
-    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
-    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority")).toBe(true);
-    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-only")).toBe(false);
+    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-authority-image2-v2", productionModes: ["image2-page-authority-v2"] });
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority-v2")).toBe(true);
+    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
   });
 
   it("projects one bound target workflow through 03 XOR 04, then common delivery and iteration", () => {

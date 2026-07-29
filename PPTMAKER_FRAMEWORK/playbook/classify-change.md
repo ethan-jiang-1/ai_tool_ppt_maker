@@ -1,7 +1,9 @@
 ---
 node: classify-change
 lifecycle_phase: "5"
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: []
 entry: [slide_specs_exists]
 exit: [evidence:change-classified]

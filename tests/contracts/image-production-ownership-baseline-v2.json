@@ -1,7 +1,0 @@
-{
-  "schema": "pptmaker-image-production-ownership-baseline-v2",
-  "owner": "04-image-production",
-  "page_authority_adapter": "04-image-production/page-authority/index.mjs",
-  "direct_executables": [],
-  "phase5_interface": "05-iteration/index.mjs"
-}

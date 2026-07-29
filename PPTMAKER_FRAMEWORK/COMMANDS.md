@@ -57,7 +57,6 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate <run-dir> --plan-ha
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 review <run-dir> --json
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 accept <run-dir> --decision proceed
 node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --record-page-authority-delivery-review proceed
 ```
 
 `plan` is offline and receipt-bound. Before every nonzero raw submission,
@@ -104,32 +103,11 @@ authorization, final/PPTX/notes evidence, or delivery decisions, and
 structural apply makes no provider request. `needs_render` is a cost/debt
 report, never permission.
 
-## Existing runs only
+## Unsupported runs
 
-An exact existing `page-authority-image2-v1` / `image2-page-authority` pair is
-a bounded mixed compatibility route. It is never a fresh-init choice and is
-never silently converted to v2. Partial v1/v2 pairs repair their exact source
-or state facts before any lifecycle selection.
-
-For an explicitly targeted non-Page-Authority historical run, inspect its exact
-canonical source/state pair first:
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --inspect-legacy-protocol
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --prepare-legacy-adoption
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --preview-legacy-adoption
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --confirm-legacy-adoption --plan-hash <hash>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state <run-dir> --apply-legacy-adoption --plan-hash <hash>
-```
-
-The historical observer alone recognizes exact historical pairs `html-first-v1` / `html-only|html-then-image2` or `whole-page-image2-v1` / `image2-only`.
-The human selects one v2 target workflow in the confined candidate, then
-confirms the exact preview and target intake. The candidate never derives new
-source from legacy prompts, pixels, generated artifacts, reviews, approvals,
-provider history, PPTX, or notes.
-
-This is the state-owned `production-mode-transition` adoption transaction; it
-is a structural vNext route, never a silent mixed-to-target coercion.
+Non-v2 or malformed source/state pairs receive the generic
+unsupported-protocol/export hard-stop. They are not an executable workflow,
+and no command infers a workflow, initializes state, or reads generated output.
 
 ## Observation and control boundaries
 
@@ -138,6 +116,11 @@ surface. Consume `workflow_inspection.primary_action` and its bounded
 continuation; use the direct owner CLI only for the selected mutation. Do not
 reconstruct review records, infer approval from rendered output, copy a reason
 into state, or hand-edit durable state.
+
+`status <run-dir>` and ordinary `state <run-dir> --json` are read-only
+observation projections. They never initialize a state, metadata, generated
+artifact, or protocol receipt; a missing receipt remains a repair or validation
+action issued by its owner.
 
 Gate handling starts with current changed evidence and the producer's recommended
 repair. A complete current review awaiting `proceed|repair|redirect` is a human

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { initBundle, initLegacyFixtureBundle, checkBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle, checkBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   RUN_BUNDLE_FILE,
   renderRunBundle,
@@ -15,7 +15,7 @@ const FRAMEWORK_ROOT = resolve("PPTMAKER_FRAMEWORK");
 function fixture(name) {
   const root = mkdtempSync(join(tmpdir(), `${name}-`));
   const deck = join(root, "deck_locator");
-  initLegacyFixtureBundle(deck, FRAMEWORK_ROOT, "keynote", null, { mode: "image2-only" });
+  initBundle(deck, FRAMEWORK_ROOT, "keynote", null);
   return { root, deck, cardPath: join(deck, RUN_BUNDLE_FILE) };
 }
 
@@ -112,7 +112,7 @@ describe("run bundle locator", () => {
       expect(resolveRunBundleLocator({ manifestText: unverified })).toMatchObject({ code: "deck_root_unverified" });
 
       const other = join(root, "deck_other");
-      initLegacyFixtureBundle(other, FRAMEWORK_ROOT, "keynote", null, { mode: "image2-only" });
+      initBundle(other, FRAMEWORK_ROOT, "keynote", null);
       const conflict = readFileSync(cardPath, "utf8").replace(JSON.stringify(realpathSync.native(deck)), JSON.stringify(realpathSync.native(other)));
       expect(resolveRunBundleLocator({ manifestText: conflict })).toMatchObject({ code: "deck_root_conflict" });
       expect(resolveRunBundleLocator({ manifestText: readFileSync(join(other, RUN_BUNDLE_FILE), "utf8") })).toMatchObject({
@@ -198,7 +198,7 @@ describe("run bundle locator", () => {
       const selected = resolveContinuationTargetVersion(state, located.deckDir);
       expect(selected).toMatchObject({ ok: true, run_version: "v1" });
       expect(checkBundle(join(located.deckDir, "3_versions", selected.run_version), false))
-        .toContain("historical production source is observer/adoption-only and cannot pass normal bundle validation");
+        .toContain("target workflow selection required: record production.workflow as framed or pure before provider work");
     } finally {
       cleanup(root);
     }

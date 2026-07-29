@@ -11,13 +11,11 @@ is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 | --- | --- | --- |
 | `framed` semantics, text-free underlay, Text Frame, composition | `03-framed-image` | Exact-evidence Text Frame-only work may compose locally; preset/underlay drift rebuilds raw. |
 | `pure` display/raw contract and raw-to-final publication | `04-pure-image` | Any visible display or visual change rebuilds raw. |
-| Final projection, PPTX, notes, delivery review | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
+| Final projection, PPTX, notes, delivery | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
 | Refresh classification and structural routing | `06-iteration` | Workflow switches and structural edits create a previewed vNext. |
 
-`page-authority-image2-v1` / `image2-page-authority` remains a bounded
-compatibility pair for existing mixed runs only. Its `pure-image2`,
-`framed-image2`, default, and per-slide grammar are never new-authoring choices
-and are never silently reinterpreted as v2.
+Any non-v2 source/state pair is an unsupported-protocol hard-stop. It is not a
+workflow choice and is never silently rewritten or interpreted as current.
 
 ## Invalidation
 
@@ -43,16 +41,11 @@ manifest, then `05-delivery` projection, PPTX, notes, and delivery review. A
 later receipt cannot repair a missing earlier receipt. Generated files are
 rebuildable output and never replace the receipt chain.
 
-## Historical boundary
+## Unsupported boundary
 
-The exact v1 pair is a bounded compatibility route. Other historical source/state
-pairs are read only through the legacy observer. A recognized pair can enter v2
-only through an explicit workflow-selected structural vNext without provider
-calls or copied output evidence. Corrupt, hybrid, or ambiguous pairs stop at
-repair/export guidance. The observer never creates a production adapter.
-Compatibility is deliberately isolated to this exact resolver: after remaining
-v1 runs have taken an explicit vNext or repair/export route, a future release
-can remove that resolver without keeping v1 re-exports or target fallback code.
+Non-v2, corrupt, hybrid, or ambiguous source/state pairs stop at the generic
+unsupported-protocol/export action. Observation creates no receipt, state,
+adapter, provider request, or generated-artifact read.
 
 ## RUN_BUNDLE locator entry
 

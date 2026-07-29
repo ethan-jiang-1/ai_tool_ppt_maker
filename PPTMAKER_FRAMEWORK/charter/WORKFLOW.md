@@ -34,7 +34,7 @@ to the current snapshot. Structural work, including a Framed/Pure switch, is
 previewed and exact-hash applied before any target materialization.
 `_generated/` is never edited by hand.
 
-The exact v1 `page-authority-image2-v1` / `image2-page-authority` mixed pair is
-bounded compatibility for existing runs. Other historical source/state pairs
-are observable only through the provider-free adoption transaction. Neither
-route becomes a new authoring workflow or silently coerces a version to v2.
+A source/state pair outside the exact v2 contract is a byte-preserving
+unsupported-protocol hard-stop. Normal observation and production commands do
+not infer a workflow, decode it, or modify it; export is the only immediate
+action.

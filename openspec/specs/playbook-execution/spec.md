@@ -172,90 +172,20 @@ For fresh, resume, and iteration observation, the MD Controller SHALL obtain wor
 - **WHEN** workflow inspection reports a hard-stop
 - **THEN** the Controller explains the protected invariant and routes through the owner recovery action
 - **AND** it does not offer force, waive, source-marker replacement, or state editing
-
-### Requirement: Historical adoption controller has literal ownership
-The historical implementation remains readable only for explicit protocol observation and adoption
-provenance. A recognized legacy run SHALL be fenced before ordinary production controller nodes,
-provider work, or delivery work. A distinct `production-mode-transition` Controller
-SHALL own only the state-owned apply/recovery node for cross-pipeline publication after the exact
-plan-hash transaction commit. Its `legacy-adoption` plan kind alone publishes the fixed Page Authority
-target; the commit records the target user's `proceed` intake decision, not a risk waiver or
-continuation. For an uncertain transition journal, the Controller may present only the owner-issued
-`no-active-apply` fact attestation after its age/identity checks; until owner reinspection validates it,
-the recovery remains a hard-stop and no writer is waived or forced.
-
-#### Scenario: Recognized historical source is fenced before its old controller
-- **WHEN** an exact recognized historical source/state pair is selected
-- **THEN** the Controller offers only the provider-free adoption checkpoint
-- **AND** it does not enter a retired production node or maintenance route
-
-#### Scenario: Exact-commit transition applies
-- **WHEN** state owns a current exact-plan-committed cross-pipeline transition
-- **THEN** the Controller enters `production-mode-transition/apply-production-mode-transition`
-- **AND** no other Controller can satisfy that entry or terminal recovery condition
-
-#### Scenario: Retired transition playbook cannot be resumed
-- **WHEN** an observed state or caller names a retired transition identity
-- **THEN** the Controller reports the state-owned unsupported-protocol/recreation action without selecting a playbook
-- **AND** it does not alias, rewrite, or resume that identity as `production-mode-transition`
-
 ### Requirement: New decks enter the Page Authority production controller
+For a fresh TARGET version, the registered create-deck controller SHALL obtain one human semantic choice, `framed` or `pure`, before it enters provider-facing work. It SHALL write or consume the canonical v2 source/receipt through the owning interface and then expose only the selected workflow's path, prerequisites, gate, and nearest action. The controller SHALL NOT ask for a per-slide authority choice or infer a workflow from deck type, content, or a generated artifact.
 
-For a fresh TARGET version, the registered create-deck controller SHALL obtain
-one human semantic choice, `framed` or `pure`, before it enters provider-facing
-work. It SHALL write or consume the canonical v2 source/receipt through the
-owning interface and then expose only the selected workflow's path,
-prerequisites, gate, and nearest action. The controller SHALL NOT ask for a
-per-slide authority choice or infer a workflow from deck type, content, or a
-generated artifact. Fresh initialization SHALL NOT create a v1
-`image2-page-authority` run after target activation.
-
-The human owns workflow/content/visual decisions. JS owns parsing, readiness,
-state, evidence, and recovery. A missing or invalid workflow is a resolver
-hard-stop; a provider authorization or raw/visual review remains a bounded
-human confirm recorded by its owning runtime interface.
+The human owns workflow/content/visual decisions. JS owns parsing, readiness, state, evidence, and recovery. A missing or invalid workflow is a resolver hard-stop; a provider authorization or raw/visual review remains a bounded human confirm recorded by its owning runtime interface.
 
 #### Scenario: Framed selection creates a straight controller route
-
 - **WHEN** a human selects `framed` for a fresh target version and the canonical source receipt is valid
 - **THEN** the controller enters the Framed path and later shared delivery without presenting Pure as a slide-level option
 - **AND** provider work still waits for the owner-issued scoped authorization
 
-#### Scenario: Missing selection cannot become a default workflow
-
-- **WHEN** a fresh target source has no valid workflow selection
-- **THEN** the controller presents the source-selection repair action before provider work
-- **AND** it does not default to Framed, Pure, or a mixed route
-
-#### Scenario: CURRENT runs remain compatibility inputs rather than fresh routes
-
-- **WHEN** an existing exact v1 mixed source/state pair is resumed after target activation
-- **THEN** the controller projects its bounded compatibility route
-- **AND** it does not register that v1 pair as a fresh-deck controller choice or rewrite it to v2
-
-#### Scenario: Fresh run uses Page Authority nodes
-
-- **WHEN** a fresh initialized run has the exact TARGET source/state pair and selected workflow
-- **THEN** the active controller set contains the selected Page Authority lifecycle and excludes retired nodes
-- **AND** provider work requires the displayed scoped authorization
-
-#### Scenario: Recognized legacy run enters adoption intake
-
-- **WHEN** an explicitly targeted existing run resolves to `recognized-legacy`
-- **THEN** the Controller shows the provider-free adoption prepare/preview route and explicit per-slide matrix
-- **AND** it does not run the old legacy controller, infer a Page Authority source, or create an adoption record before exact confirmation
-
-#### Scenario: Adoption target resumes with clean Page Authority debt
-
-- **WHEN** the state-owned adoption handoff publishes its TARGET version
-- **THEN** the Controller enters the target Page Authority raw-authorization node with every target slide needing raw generation
-- **AND** it does not treat a source approval, raw review, final review, or delivery decision as target evidence
-
-#### Scenario: Current pair corruption remains outside adoption
-
-- **WHEN** an existing run has a partial or mismatched Page Authority source/state pair
-- **THEN** the Controller names the Page Authority repair owner
-- **AND** it does not fall back to legacy nodes or adoption candidate authoring
+#### Scenario: Non-v2 source is not a controller route
+- **WHEN** an existing source/state pair is non-v2
+- **THEN** the Controller presents the owner-issued unsupported-protocol hard-stop
+- **AND** it does not register, select, rewrite, or resume a compatibility controller
 
 ### Requirement: Page Authority gates have one direct recovery path
 Page Authority nodes SHALL classify source/state corruption, invalid frame/registry/reference,
@@ -276,12 +206,11 @@ approval, a fallback path, or a state edit.
 - **AND** it does not publish a final slide or classify the missing human choice as a repairable integrity fault
 
 ### Requirement: Active controllers route only Page Authority work
-Registered active playbooks SHALL describe Page Authority creation, Pure/Framed/notes/structural
-refreshes, and bounded legacy adoption/repair. They SHALL NOT register retired production nodes.
+Registered active playbooks SHALL describe v2 Page Authority creation and Pure/Framed/notes/structural refreshes. They SHALL NOT register another-protocol, compatibility, adoption, or migration nodes.
 
 #### Scenario: Controller manifest is validated
 - **WHEN** the controller manifest and playbooks are loaded
-- **THEN** no active node, gate, or resume card names a retired production route
+- **THEN** no active node, gate, or resume card names another-protocol or compatibility route
 
 ### Requirement: TARGET controller gates reuse direct workflow evidence
 
