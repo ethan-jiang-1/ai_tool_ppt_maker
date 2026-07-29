@@ -37,11 +37,11 @@ import {
   buildPageAuthorityRawGenerationProfile,
   buildPageAuthorityRawImageContract,
   loadEffectiveStyleMasterByteProfile,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_profiles.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/compatibility/current-v1-page-authority/page-authority/raw_profiles.mjs";
 import {
   canonicalPageAuthorityProviderPayload,
   compilePageAuthorityRawBatch,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-image-production/page-authority/raw_compilation.mjs";
+} from "../../PPTMAKER_FRAMEWORK/scripts/compatibility/current-v1-page-authority/page-authority/raw_compilation.mjs";
 
 const deckDir = resolve("deck_ai_sdlc_keynote");
 const registryPath = resolve(deckDir, "2_backbone/visual-style/page-authority-visual-language.yaml");

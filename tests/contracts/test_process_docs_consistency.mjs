@@ -33,15 +33,15 @@ const GIT_GUIDANCE_CORPUS = [
   "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
   "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
   "PPTMAKER_FRAMEWORK/COMMANDS.md",
-  "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md",
+  "PPTMAKER_FRAMEWORK/workflow/compatibility/current-v1-page-authority/change-classifier.md",
   "PPTMAKER_FRAMEWORK/scripts/06-iteration/change-classifier.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/00-run-bundle-concept.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/04-conventions.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/README.md",
   "PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md",
   "PPTMAKER_FRAMEWORK/workflow/02-visual-system/04-validate-page-authority-visual-system.md",
-  "PPTMAKER_FRAMEWORK/workflow/05-iteration/README.md",
-  "PPTMAKER_FRAMEWORK/workflow/05-iteration/02-visual-system-iteration.md",
+  "PPTMAKER_FRAMEWORK/workflow/compatibility/current-v1-page-authority/README.md",
+  "PPTMAKER_FRAMEWORK/workflow/compatibility/current-v1-page-authority/02-visual-system-iteration.md",
   "PPTMAKER_FRAMEWORK/reference/glossary.md",
 ];
 
@@ -200,6 +200,10 @@ describe("framework documentation coherence", () => {
     expect(commands).toContain("唯一新-deck route 是\n`page-authority-image2-v2` / `image2-page-authority-v2`");
     expect(commands).toContain("`production.workflow: framed|pure`");
     expect(commands).toContain("bounded mixed compatibility route");
+    expect(commands).toContain("workflow/compatibility/current-v1-page-authority/change-classifier.md");
+    expect(commands).toContain("scripts/06-iteration/change-classifier.md");
+    expect(commands).not.toContain("scripts/05-iteration/change-classifier.md");
+    expect(commands).toContain("are read-only\nobservation projections");
   });
 
   it("routes fresh public guidance only through Page Authority and defers raw credentials", () => {

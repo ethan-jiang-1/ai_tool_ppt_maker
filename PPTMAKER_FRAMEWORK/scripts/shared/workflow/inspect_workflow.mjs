@@ -17,6 +17,7 @@ import {
 export const WORKFLOW_INSPECTION_SCHEMA = "pptmaker-workflow-inspection-v1";
 
 const sha256 = (value) => createHash("sha256").update(canonicalJson(value)).digest("hex");
+const sourceReadyByInspection = new WeakMap();
 
 function ownerAction(owner, actionId, kind, requiresHuman, summary, command = null) {
   return Object.freeze({
@@ -29,8 +30,8 @@ function ownerAction(owner, actionId, kind, requiresHuman, summary, command = nu
   });
 }
 
-function report({ runDir, posture, rootCause, primaryAction, evidenceSummary }) {
-  return Object.freeze({
+function report({ runDir, posture, rootCause, primaryAction, evidenceSummary, sourceReady = false }) {
+  const inspection = Object.freeze({
     schema: WORKFLOW_INSPECTION_SCHEMA,
     checkpoint: Object.freeze({ run_dir: resolve(runDir), facts_sha256: sha256({ posture, rootCause, evidenceSummary }) }),
     posture,
@@ -41,6 +42,13 @@ function report({ runDir, posture, rootCause, primaryAction, evidenceSummary }) 
     protected_invariant: "only Page Authority evidence may drive current production",
     evidence_summary: Object.freeze(evidenceSummary),
   });
+  sourceReadyByInspection.set(inspection, sourceReady === true);
+  return inspection;
+}
+
+/** Return the source-readiness fact from this exact read-only inspection checkpoint. */
+export function isWorkflowInspectionSourceReady(inspection) {
+  return sourceReadyByInspection.get(inspection) === true;
 }
 
 function legacyResult(runDir, protocol) {
@@ -75,6 +83,11 @@ function targetWorkflowOwner(workflow, actionId) {
 function targetWorkflowResult(runDir, route) {
   const target = inspectTargetPageAuthorityState(deckRoot(runDir), { runDir });
   const workflow = route.workflow;
+  const sourceReady = target.ok || ![
+    "TARGET_STATE_INITIALIZATION_REQUIRED",
+    "TARGET_SOURCE_STATE_IDENTITY_MISMATCH",
+    "TARGET_SOURCE_RECEIPT_STALE",
+  ].includes(target.code);
   const evidenceSummary = {
     pipeline: route.policy.pipeline,
     mode: route.mode,
@@ -89,6 +102,7 @@ function targetWorkflowResult(runDir, route) {
       rootCause: { owner: "05-delivery", kind: "target-delivery-complete" },
       primaryAction: ownerAction("05-delivery", "complete-target-delivery", "complete", false, "Target delivery evidence is complete."),
       evidenceSummary,
+      sourceReady,
     });
   }
   const actionId = target.next_action || "repair_target_source_state";
@@ -106,6 +120,7 @@ function targetWorkflowResult(runDir, route) {
       "Follow the exact target workflow prerequisite.",
     ),
     evidenceSummary,
+    sourceReady,
   });
 }
 
@@ -219,6 +234,7 @@ export function inspectWorkflow({ runDir } = {}) {
     delivery: delivery.ok ? "current" : delivery.code,
     delivery_review: review,
   };
+  const sourceReady = delivery.ok || !["state", "layout", "source-receipt"].includes(delivery.stage);
 
   if (!delivery.ok) {
     return report({
@@ -227,6 +243,7 @@ export function inspectWorkflow({ runDir } = {}) {
       rootCause: { owner: "page-authority", kind: delivery.code || "evidence-unavailable" },
       primaryAction: ownerAction("page-authority", delivery.next_action || (delivery.kind === "confirm" ? "confirm_raw_review" : "repair_page_authority_evidence"), delivery.kind === "confirm" ? "review" : "repair", delivery.kind === "confirm", "Follow the current Page Authority evidence action."),
       evidenceSummary,
+      sourceReady,
     });
   }
   if (review.freshness !== "current" || review.decision !== "proceed") {
@@ -236,6 +253,7 @@ export function inspectWorkflow({ runDir } = {}) {
       rootCause: { owner: "page-authority-delivery-review", kind: "delivery-review-pending" },
       primaryAction: ownerAction("page-authority-delivery-review", "review-delivery", "review", true, "Record the Page Authority delivery decision."),
       evidenceSummary,
+      sourceReady,
     });
   }
   return report({
@@ -244,5 +262,6 @@ export function inspectWorkflow({ runDir } = {}) {
     rootCause: { owner: "page-authority", kind: "delivery-complete" },
     primaryAction: ownerAction("page-authority", "complete-delivery", "complete", false, "Page Authority delivery evidence is complete."),
     evidenceSummary,
+    sourceReady,
   });
 }

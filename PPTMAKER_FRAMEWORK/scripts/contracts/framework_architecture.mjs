@@ -12,9 +12,9 @@ export const ACTIVE_PHASES = Object.freeze([
   "00-setup",
   "01-content",
   "02-visual-system",
-  "04-image-production",
-  "05-iteration",
 ]);
+
+export const CURRENT_V1_COMPATIBILITY_INTERFACE = "compatibility/current-v1-page-authority/index.mjs";
 
 export const TARGET_WORKFLOW_INTERFACES = Object.freeze([
   "03-framed-image/index.mjs",
@@ -33,8 +33,6 @@ export const PHASE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
   "01-content": Object.freeze([]),
   "02-visual-system": Object.freeze([]),
-  "04-image-production": Object.freeze(["00-setup", "01-content", "02-visual-system"]),
-  "05-iteration": Object.freeze(["01-content", "02-visual-system", "04-image-production"]),
 });
 
 export const PUBLIC_SHARED_INTERFACES = Object.freeze([
@@ -71,8 +69,7 @@ export const CROSS_OWNER_PROCESS_ADAPTERS = Object.freeze([
 
 const ROOT_WHITELIST = new Set([
   "README.md", "ppt_flow.mjs", "00-setup", "01-content", "03-framed-image", "04-pure-image", "05-delivery",
-  "02-visual-system", "04-image-production",
-  "05-iteration", "06-iteration", "shared", "contracts", "fonts", "fixtures",
+  "02-visual-system", "06-iteration", "compatibility", "shared", "contracts", "fonts", "fixtures",
 ]);
 const FORBIDDEN_GENERIC_ROOTS = new Set(["lib", "internal", "utils", "helpers", "common"]);
 const TARGET_WORKFLOW_ADAPTERS = Object.freeze(["03-framed-image", "04-pure-image"]);
@@ -94,6 +91,7 @@ const DIRECT_ENTRY_EXCEPTIONS = new Set([
 ]);
 const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
+  CURRENT_V1_COMPATIBILITY_INTERFACE,
   ...TARGET_WORKFLOW_INTERFACES,
   ...TARGET_DELIVERY_INTERFACES,
   ...TARGET_ITERATION_INTERFACES,
@@ -115,9 +113,8 @@ function phaseOf(path) {
   return ACTIVE_PHASES.includes(first) ? first : null;
 }
 
-function imageProductionAdapterOf(path) {
-  const match = normalized(path).match(/^04-image-production\/(page-authority)\//);
-  return match?.[1] || null;
+function currentV1CompatibilityOf(path) {
+  return normalized(path).startsWith("compatibility/current-v1-page-authority/");
 }
 
 function targetWorkflowAdapterOf(path) {
@@ -163,12 +160,16 @@ function validateImportEdge(files, importer, target, issues) {
   if (!target || !files.has(target)) return;
   const fromPhase = phaseOf(importer);
   const toPhase = phaseOf(target);
-  const fromImageProductionAdapter = imageProductionAdapterOf(importer);
-  const toImageProductionAdapter = imageProductionAdapterOf(target);
+  const fromCurrentV1Compatibility = currentV1CompatibilityOf(importer);
+  const toCurrentV1Compatibility = currentV1CompatibilityOf(target);
   const fromTargetWorkflowAdapter = targetWorkflowAdapterOf(importer);
   const toTargetWorkflowAdapter = targetWorkflowAdapterOf(target);
   const fromTargetMethodModule = targetMethodModuleOf(importer);
   const toTargetMethodModule = targetMethodModuleOf(target);
+  if (toCurrentV1Compatibility && !fromCurrentV1Compatibility && !(importer === "ppt_flow.mjs" && target === CURRENT_V1_COMPATIBILITY_INTERFACE)) {
+    addIssue(issues, "current-v1-compatibility-import", importer, `only the exact v1 top-level dispatcher may import ${target}`);
+    return;
+  }
   if (importer === "ppt_flow.mjs") {
     if (toPhase && target !== `${toPhase}/index.mjs`) addIssue(issues, "root-private-import", importer, `root imports private Phase path ${target}`);
     if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) addIssue(issues, "root-private-shared-import", importer, `root imports private shared path ${target}`);
@@ -192,9 +193,6 @@ function validateImportEdge(files, importer, target, issues) {
     const processAdapterPublicEdge = CROSS_OWNER_PROCESS_ADAPTERS.includes(importer) && target === `${toPhase}/index.mjs`;
     if (!processAdapterPublicEdge && !PHASE_ADJACENCY[fromPhase].includes(toPhase)) addIssue(issues, "phase-adjacency", importer, `${fromPhase} may not import ${toPhase}`);
     if (target !== `${toPhase}/index.mjs`) addIssue(issues, "foreign-phase-private-import", importer, `foreign Phase import must target ${toPhase}/index.mjs`);
-  }
-  if (fromImageProductionAdapter && toImageProductionAdapter && fromImageProductionAdapter !== toImageProductionAdapter && /\/internal\//.test(target)) {
-    addIssue(issues, "cross-adapter-private-import", importer, `${fromImageProductionAdapter} imports private ${toImageProductionAdapter} path ${target}`);
   }
   if (fromTargetWorkflowAdapter && toTargetWorkflowAdapter && fromTargetWorkflowAdapter !== toTargetWorkflowAdapter) {
     addIssue(issues, "sibling-workflow-import", importer, `${fromTargetWorkflowAdapter} may not import ${toTargetWorkflowAdapter}`);
@@ -275,7 +273,7 @@ function validateSharedWorkflowSemanticBoundaries(files, issues) {
 function validateSingleDeliveryOwner(files, issues) {
   const deliveryWriter = /\bPptxGenJS\b|\binjectNotes\s*\(|\bassemblePageAuthorityPptx\s*\(|\binjectPageAuthorityNotes\s*\(/;
   for (const [path, source] of files) {
-    if (!/^(?:03-framed-image|04-pure-image|04-image-production|06-iteration)\//.test(path) || !deliveryWriter.test(source)) continue;
+    if (!/^(?:03-framed-image|04-pure-image|compatibility\/current-v1-page-authority|06-iteration)\//.test(path) || !deliveryWriter.test(source)) continue;
     addIssue(issues, "second-delivery-owner", path, "workflow and v1 adapter code may not own PPTX, notes, or delivery writing");
   }
 }
@@ -284,7 +282,7 @@ function validateSingleDeliveryOwner(files, issues) {
 function validateBoundedCurrentCompatibility(files, issues) {
   const targetProtocol = /\b(?:page-authority-image2-v2|image2-page-authority-v2)\b/;
   for (const [path, source] of files) {
-    if (path.startsWith("04-image-production/") && targetProtocol.test(source)) {
+    if (currentV1CompatibilityOf(path) && targetProtocol.test(source)) {
       addIssue(issues, "target-protocol-in-current-compatibility-owner", path, "the bounded CURRENT v1 owner may not implement a target v2 branch");
     }
   }
@@ -308,9 +306,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   for (const path of TARGET_DELIVERY_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-delivery-interface", path, "target delivery interface is missing");
   for (const path of TARGET_ITERATION_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-iteration-interface", path, "target iteration interface is missing");
   for (const path of scriptFiles.keys()) {
-    if (path.startsWith("04-image-production/") && path.endsWith(".mjs") && !path.startsWith("04-image-production/page-authority/") && path !== "04-image-production/index.mjs") {
-      addIssue(issues, "phase4-public-surface", path, "Image Production exposes only its family and adapter interfaces");
-    }
+    if (/^(?:04-image-production|05-iteration)\//.test(path)) addIssue(issues, "retired-v1-numbered-owner", path, "CURRENT v1 ownership must use compatibility/current-v1-page-authority");
   }
   for (const path of scriptFiles.keys()) if (/^(?:asset_manifest|bundle_layout|env-check|generate_style_master|image_api_client|lessons|make_contact_sheet|stage[1-5]_|unified_pipeline|visual_config)\.mjs$/.test(path)) addIssue(issues, "old-flat-path", path, "old flat business path is forbidden");
   for (const [importer, source] of scriptFiles) {

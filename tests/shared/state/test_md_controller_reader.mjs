@@ -72,7 +72,7 @@ describe("MD Controller reader characterization", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     const pageAuthority = index.nodesById.get("generate-page-authority-raw");
     const createDeck = index.controllers.get("create-deck");
-    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "04-image-production", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
+    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "compatibility/current-v1-page-authority", adapter: "page-authority-image2", productionModes: ["image2-page-authority"] });
     expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority")).toBe(true);
     expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-only")).toBe(false);
   });

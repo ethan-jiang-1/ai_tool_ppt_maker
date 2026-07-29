@@ -11,7 +11,7 @@ includes: [classify-change]
 ```yaml
 node: rebuild-visual-evidence
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
 production_modes: [image2-page-authority]
 requires: [classify-change]
 produces: [current-raw-or-frame-evidence]
@@ -25,7 +25,7 @@ exit: [slide_specs_valid]
 ```yaml
 node: approve-visual-evidence
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
 production_modes: [image2-page-authority]
 requires: [rebuild-visual-evidence]
 produces: [reviewed-visual-evidence]

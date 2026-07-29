@@ -18,7 +18,9 @@ Resolve every position/spoken selector to the current stable ID. New IDs are Age
 ```yaml
 node: publish-structural-version
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: [classify-change]
 produces: [new-version-dir, structural-edit-receipt]
 entry: [run_bundle_exists]
@@ -34,7 +36,9 @@ exit: [evidence:new-version-created]
 ```yaml
 node: materialize-structural-target
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: [publish-structural-version]
 produces: [target-local-review-artifacts]
 entry: []
@@ -54,7 +58,9 @@ promotes copied bytes to accepted raw evidence.
 ```yaml
 node: review-structural-target
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: [materialize-structural-target]
 produces: [target-content-visual-reviews]
 decisions: [approve, revise, stop]
@@ -76,7 +82,9 @@ by hand-editing state or reusing source-version evidence.
 ```yaml
 node: verify-structural-delivery
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: [review-structural-target]
 produces: [verified-structure]
 decisions: [proceed, repair, redirect]

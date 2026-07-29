@@ -417,7 +417,7 @@ function checkNpmPackages(start = process.cwd()) {
 export { checkNode, checkNpmPackages, discoverNpmPackages };
 
 function checkPageAuthorityRawGenerator() {
-  const root = resolve(__dirname, '..', '..', '04-image-production', 'page-authority');
+  const root = resolve(__dirname, '..', '..', 'compatibility', 'current-v1-page-authority', 'page-authority');
   const required = [
     'raw_compilation.mjs',
     'raw_manifest.mjs',
@@ -432,7 +432,7 @@ function checkPageAuthorityRawGenerator() {
     detail: ok
       ? 'receipt-bound Page Authority raw compiler and evidence owners are present'
       : `missing Page Authority raw owner(s): ${missing.join(', ')}`,
-    fix: ok ? null : 'Restore the Page Authority raw compiler, manifest, review, and profile modules under scripts/04-image-production/page-authority/.',
+    fix: ok ? null : 'Restore the Page Authority raw compiler, manifest, review, and profile modules under scripts/compatibility/current-v1-page-authority/page-authority/.',
   };
 }
 

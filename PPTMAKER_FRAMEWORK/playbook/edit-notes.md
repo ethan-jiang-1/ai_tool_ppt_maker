@@ -11,7 +11,7 @@ includes: [classify-change]
 ```yaml
 node: refresh-speaker-notes
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
 production_modes: [image2-page-authority]
 requires: [classify-change]
 produces: [page-authority-notes-receipt]
@@ -25,7 +25,7 @@ exit: [speaker_notes_injected]
 ```yaml
 node: verify-speaker-notes
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
 production_modes: [image2-page-authority]
 requires: [refresh-speaker-notes]
 produces: [verified-notes]

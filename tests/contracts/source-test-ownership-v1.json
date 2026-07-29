@@ -43,18 +43,6 @@
       "e2e": []
     },
     {
-      "owner": "04-image-production",
-      "interfaces": [
-        "04-image-production/index.mjs",
-        "04-image-production/page-authority/index.mjs"
-      ],
-      "executables": [],
-      "unit_integration": [
-        "tests/04-image-production/test_page_authority_raw_manifest.mjs"
-      ],
-      "e2e": []
-    },
-    {
       "owner": "04-pure-image",
       "interfaces": ["04-pure-image/index.mjs"],
       "executables": [],
@@ -69,17 +57,19 @@
       "e2e": []
     },
     {
-      "owner": "05-iteration",
-      "interfaces": ["05-iteration/index.mjs"],
-      "executables": [],
-      "unit_integration": [],
-      "e2e": []
-    },
-    {
       "owner": "06-iteration",
       "interfaces": ["06-iteration/index.mjs"],
       "executables": [],
       "unit_integration": ["tests/06-iteration/test_target_refresh_routing.mjs"],
+      "e2e": []
+    },
+    {
+      "owner": "compatibility/current-v1-page-authority",
+      "interfaces": ["compatibility/current-v1-page-authority/index.mjs"],
+      "executables": [],
+      "unit_integration": [
+        "tests/compatibility/current-v1-page-authority/test_page_authority_raw_manifest.mjs"
+      ],
       "e2e": []
     },
     {
@@ -101,6 +91,7 @@
         "tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs",
         "tests/contracts/test_development_verification_admission.mjs",
         "tests/contracts/test_framework_architecture.mjs",
+        "tests/contracts/test_framework_directory_layout.mjs",
         "tests/contracts/test_framework_governance_ledger.mjs",
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",

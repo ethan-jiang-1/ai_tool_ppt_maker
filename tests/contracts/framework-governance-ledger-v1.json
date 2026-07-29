@@ -13,7 +13,7 @@
     },
     {
       "id": "provider-load-isolation",
-      "source": "scripts/04-image-production/page-authority/index.mjs",
+      "source": "scripts/compatibility/current-v1-page-authority/page-authority/index.mjs",
       "invariant": "Provider clients initialize only after an authorized provider operation reaches its adapter boundary.",
       "failure_story": "A status or help command can load credentials or provider transport before authorization, violating dry-run and human-control boundaries.",
       "owner": "image-production-adapter",

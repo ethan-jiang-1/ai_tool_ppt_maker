@@ -51,7 +51,7 @@ exit: [visual_preset_seeded]
 ```yaml
 node: authorize-page-authority-raw
 lifecycle_phase: 4
-method_module: 04-image-production
+method_module: compatibility/current-v1-page-authority
 adapter: page-authority-image2
 production_modes: [image2-page-authority]
 requires: [configure-page-authority-visual-system]
@@ -67,7 +67,7 @@ exit: [user_decision_recorded]
 ```yaml
 node: generate-page-authority-raw
 lifecycle_phase: 4
-method_module: 04-image-production
+method_module: compatibility/current-v1-page-authority
 adapter: page-authority-image2
 production_modes: [image2-page-authority]
 requires: [authorize-page-authority-raw]
@@ -81,7 +81,7 @@ exit: [evidence:page-authority-raw-current]
 ```yaml
 node: review-page-authority-raw
 lifecycle_phase: 4
-method_module: 04-image-production
+method_module: compatibility/current-v1-page-authority
 adapter: page-authority-image2
 production_modes: [image2-page-authority]
 requires: [generate-page-authority-raw]
@@ -97,7 +97,7 @@ exit: [user_decision_recorded]
 ```yaml
 node: finalize-page-authority-delivery
 lifecycle_phase: 4
-method_module: 04-image-production
+method_module: compatibility/current-v1-page-authority
 adapter: page-authority-image2
 production_modes: [image2-page-authority]
 requires: [review-page-authority-raw]
@@ -111,7 +111,7 @@ exit: [pptx_generated, speaker_notes_injected]
 ```yaml
 node: checkpoint-page-authority-delivery-review
 lifecycle_phase: 4
-method_module: 04-image-production
+method_module: compatibility/current-v1-page-authority
 adapter: page-authority-image2
 production_modes: [image2-page-authority]
 requires: [finalize-page-authority-delivery]
@@ -127,7 +127,7 @@ exit: [user_decision_recorded]
 ```yaml
 node: final-page-authority
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
 production_modes: [image2-page-authority]
 requires: [checkpoint-page-authority-delivery-review]
 produces: [delivered-page-authority-deck]

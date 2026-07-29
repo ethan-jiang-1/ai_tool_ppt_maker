@@ -37,7 +37,7 @@ changes to previewed exact-hash versioning.
 Active framework guidance SHALL present the target method graph as
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`. It SHALL
 explain that the selected workflow owns its semantic rules and publishes a
-common final-slide manifest; shared delivery owns final projection, full-page
+common final-slide manifest; shared delivery owns final projection, complete-deck
 PPTX, notes injection, and delivery review. It SHALL preserve the ownership and
 invalidation rule that structural and whole-workflow changes use a previewed
 exact-hash vNext path.

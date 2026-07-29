@@ -108,8 +108,12 @@ report, never permission.
 
 An exact existing `page-authority-image2-v1` / `image2-page-authority` pair is
 a bounded mixed compatibility route. It is never a fresh-init choice and is
-never silently converted to v2. Partial v1/v2 pairs repair their exact source
-or state facts before any lifecycle selection.
+never silently converted to v2. Its detailed change classifier is
+[`workflow/compatibility/current-v1-page-authority/change-classifier.md`](workflow/compatibility/current-v1-page-authority/change-classifier.md);
+target structural classification remains
+[`scripts/06-iteration/change-classifier.md`](scripts/06-iteration/change-classifier.md).
+Partial v1/v2 pairs repair their exact source or state facts before any
+lifecycle selection.
 
 For an explicitly targeted non-Page-Authority historical run, inspect its exact
 canonical source/state pair first:
@@ -138,6 +142,11 @@ surface. Consume `workflow_inspection.primary_action` and its bounded
 continuation; use the direct owner CLI only for the selected mutation. Do not
 reconstruct review records, infer approval from rendered output, copy a reason
 into state, or hand-edit durable state.
+
+`status <run-dir>` and ordinary `state <run-dir> --json` are read-only
+observation projections. They never initialize a state, metadata, generated
+artifact, or protocol receipt; a missing receipt remains a repair or validation
+action issued by its owner.
 
 Gate handling starts with current changed evidence and the producer's recommended
 repair. A complete current review awaiting `proceed|repair|redirect` is a human

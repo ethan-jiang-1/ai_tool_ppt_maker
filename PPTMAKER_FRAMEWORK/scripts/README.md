@@ -16,8 +16,7 @@ CLI producer fields and diagnostics are governed by `openspec/specs/cli-surface/
 04-pure-image/         TARGET Pure workflow semantics and final-manifest publication
 05-delivery/           TARGET and bounded CURRENT final projection, PPTX, notes, and delivery review
 06-iteration/          TARGET workflow-aware refresh and structural routing
-04-image-production/   bounded CURRENT v1 mixed compatibility adapter
-05-iteration/          bounded CURRENT v1 iteration compatibility
+compatibility/current-v1-page-authority/  bounded CURRENT v1 mixed compatibility adapter
 shared/                state, run-bundle, identity, and workflow interfaces
 contracts/             static architecture and retirement audits
 ```
@@ -25,7 +24,7 @@ contracts/             static architecture and retirement audits
 The target route is `03-framed-image XOR 04-pure-image -> 05-delivery ->
 06-iteration`. The two workflow adapters publish the same final-slide-manifest
 contract; only `05-delivery` writes final projection, PPTX, notes, or delivery
-review. The v1 paths remain compatibility owners only.
+review. The v1 compatibility interface is existing-run-only.
 
 ## Boundaries
 

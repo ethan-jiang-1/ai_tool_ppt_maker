@@ -14,7 +14,8 @@ includes: []
 ```yaml
 node: validate-preview-source
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
+production_modes: [image2-page-authority]
 requires: []
 produces: [preview-readiness]
 entry: [slide_specs_exists]
@@ -28,7 +29,8 @@ exit: [slide_specs_valid, evidence:preview-readiness-validated]
 ```yaml
 node: compose-local-preview
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
+production_modes: [image2-page-authority]
 requires: [validate-preview-source]
 produces: [page-authority-raw-projection]
 entry: []
@@ -42,7 +44,8 @@ exit: [evidence:page-authority-raw-projection-current]
 ```yaml
 node: review-local-preview
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: compatibility/current-v1-page-authority
+production_modes: [image2-page-authority]
 requires: [compose-local-preview]
 produces: [preview-decision]
 decisions: [proceed, revise-content, revise-visual, stop]

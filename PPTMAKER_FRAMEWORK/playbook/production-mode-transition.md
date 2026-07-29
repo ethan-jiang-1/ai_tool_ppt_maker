@@ -1,7 +1,8 @@
 ---
 playbook: production-mode-transition
 description: State-owned cross-pipeline transition and explicit legacy adoption
-supported_pipelines: [page-authority-image2-v1]
+supported_pipelines: [page-authority-image2-v1, page-authority-image2-v2]
+supported_production_modes: [image2-page-authority-v2]
 includes: []
 ---
 
@@ -12,7 +13,9 @@ includes: []
 ```yaml
 node: apply-production-mode-transition
 lifecycle_phase: 5
-method_module: 05-iteration
+method_module: 06-iteration
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed, pure]
 requires: []
 produces: [versioned-production-mode-target]
 entry: [transition_apply_current]

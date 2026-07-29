@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -49,10 +49,21 @@ function flow(args) {
   return spawnSync(process.execPath, [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });
 }
 
+function treeSnapshot(root, current = root, entries = []) {
+  for (const name of readdirSync(current).sort()) {
+    const path = join(current, name);
+    const relative = path.slice(root.length + 1);
+    if (statSync(path).isDirectory()) treeSnapshot(root, path, entries);
+    else entries.push(`${relative}:${readFileSync(path).toString("base64")}`);
+  }
+  return entries;
+}
+
 describe("workflow inspection CLI projection", () => {
   it("keeps current Page Authority state and status free of retired projections", () => {
     const fixture = createCurrentFixture("workflow-inspection-cli-");
     try {
+      const before = treeSnapshot(fixture.deck);
       const state = flow(["state", fixture.runDir, "--json"]);
       const status = flow(["status", fixture.runDir, "--json"]);
       expect(state.status, state.stderr).toBe(0);
@@ -69,6 +80,7 @@ describe("workflow inspection CLI projection", () => {
       expect(stateReport).not.toHaveProperty("html_resume_guidance");
       expect(stateReport).not.toHaveProperty("image2_refinement");
       expect(stateReport).not.toHaveProperty("html_reviews");
+      expect(treeSnapshot(fixture.deck)).toEqual(before);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -104,6 +116,19 @@ describe("workflow inspection CLI projection", () => {
       const secondReport = JSON.parse(second.stdout);
       expect(firstReport.pipeline).toBe("page-authority-image2-v1");
       expect(secondReport.durable_state.production_mode.by_version["3_versions/v1"].mode).toBe("image2-page-authority");
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("persists a v1 receipt only through explicit validation", () => {
+    const fixture = createCurrentFixture("workflow-inspection-cli-validate-");
+    try {
+      const receipt = join(fixture.runDir, "_generated", "page_authority_image2", "receipts", "source-receipt.json");
+      expect(existsSync(receipt)).toBe(false);
+      const result = flow(["validate", fixture.runDir]);
+      expect(result.status, result.stderr).toBe(0);
+      expect(existsSync(receipt)).toBe(true);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

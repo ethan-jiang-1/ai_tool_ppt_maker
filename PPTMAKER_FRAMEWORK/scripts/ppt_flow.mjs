@@ -610,16 +610,9 @@ async function enrichStatusWithState(status, runDir, route = null) {
     ? { resolvable: true, mode: modeInspection.mode, policy: modeInspection.policy }
     : { resolvable: false, code: modeInspection.code };
   const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
-  const controllerCtx = route?.target_workflow_selection_required
-    ? {
-      deckDir: root,
-      runDir,
-      runVersion: basename(resolve(runDir)),
-      pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
-      frameworkDir: FRAMEWORK_DIR,
-      slideSpecsValid: false,
-    }
-    : await buildControllerGateContext(runDir);
+  const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
+  const workflowInspection = inspectWorkflow({ runDir });
+  const controllerCtx = await buildControllerGateContext(runDir, { workflowInspection });
   if (modeInspection.ok && modeInspection.mode) controllerCtx.productionMode = modeInspection.mode;
   const card = buildResumeCard(s, {
     style_master: status.style_master,
@@ -643,19 +636,11 @@ async function enrichStatusWithState(status, runDir, route = null) {
  * Page Authority receipt validation instead of maintaining state-only
  * approximations.
  */
-export async function buildControllerGateContext(runDir) {
+export async function buildControllerGateContext(runDir, { workflowInspection = null } = {}) {
   const resolved = resolve(runDir);
-  const specPath = findSlideSpecs(resolved);
-  let slideSpecsValid = false;
-  if (specPath) {
-    try {
-      const { resolvePageAuthorityReceipt } = await import("./04-image-production/index.mjs");
-      resolvePageAuthorityReceipt(resolved);
-      slideSpecsValid = true;
-    } catch {
-      slideSpecsValid = false;
-    }
-  }
+  const inspection = workflowInspection || (await import("./shared/workflow/inspect_workflow.mjs"))
+    .inspectWorkflow({ runDir: resolved });
+  const { isWorkflowInspectionSourceReady } = await import("./shared/workflow/inspect_workflow.mjs");
 
   return {
     deckDir: deckRoot(resolved),
@@ -663,7 +648,7 @@ export async function buildControllerGateContext(runDir) {
     runVersion: basename(resolved),
     pipeline: PAGE_AUTHORITY_IMAGE2_PIPELINE,
     frameworkDir: FRAMEWORK_DIR,
-    slideSpecsValid,
+    slideSpecsValid: isWorkflowInspectionSourceReady(inspection),
   };
 }
 
@@ -913,7 +898,7 @@ async function commandValidate(runDir) {
       console.log(`✓ Target Page Authority ${route.workflow} receipt validated: ${source.receipt.slides.length} slide(s)`);
       return 0;
     }
-    const { resolvePageAuthorityReceipt } = await import("./04-image-production/index.mjs");
+    const { resolvePageAuthorityReceipt } = await import("./compatibility/current-v1-page-authority/index.mjs");
     const result = resolvePageAuthorityReceipt(route.run_dir);
     console.log(`✓ Page Authority receipt validated: ${result.receipt.slides.length} slide(s)`);
     return 0;
@@ -941,7 +926,7 @@ async function commandPageAuthorityBuild(route, { resolution, model, baseUrl, re
       console.log(`✓ Target Page Authority ${route.workflow} delivery assembled: ${result.delivery.assembly.path}`);
       return 0;
     }
-    const { buildPageAuthorityDelivery } = await import("./04-image-production/index.mjs");
+    const { buildPageAuthorityDelivery } = await import("./compatibility/current-v1-page-authority/index.mjs");
     const result = await buildPageAuthorityDelivery(route.run_dir);
     if (!result.ok) {
       const confirm = result.kind === "confirm";
@@ -1076,7 +1061,7 @@ async function commandPageAuthorityRefresh(route, {
   if (kind === "notes") {
     if (only || all) return emitUsage("ppt_flow.refresh.page-authority.notes", "Page Authority notes refresh accepts no slide selectors", "Rerun notes against the current assembled Page Authority delivery.");
     try {
-      const { refreshPageAuthorityNotes } = await import("./04-image-production/index.mjs");
+      const { refreshPageAuthorityNotes } = await import("./compatibility/current-v1-page-authority/index.mjs");
       const result = await refreshPageAuthorityNotes(route.run_dir);
       console.log(`✓ Page Authority notes refreshed: ${result.notes.path}`);
       return 0;
@@ -1089,7 +1074,7 @@ async function commandPageAuthorityRefresh(route, {
   if (!only && !all) return emitUsage("ppt_flow.refresh.page-authority.title", "Framed Text Frame refresh requires --only or --all", "Select exact current Framed stable IDs before a provider-free refresh.");
   const slideIds = only ? only.split(",").map((id) => id.trim()).filter(Boolean) : null;
   try {
-    const { refreshPageAuthorityFramedText } = await import("./04-image-production/index.mjs");
+    const { refreshPageAuthorityFramedText } = await import("./compatibility/current-v1-page-authority/index.mjs");
     const result = await refreshPageAuthorityFramedText(route.run_dir, { slideIds });
     if (!result.ok) {
       emitCliError({
@@ -1295,7 +1280,7 @@ async function enrichPageAuthorityStructuralRawPlan(context, transaction, applie
   if (targetBranch !== PAGE_AUTHORITY_IMAGE2_PIPELINE || transaction.publication.mode !== "next-version") return null;
   const basePlanHash = pageAuthorityStructuralBasePlanHash(transaction);
   const targetRunDir = join(dirname(context.runDir), transaction.publication.target_version);
-  const pageAuthority = await import("./04-image-production/index.mjs");
+  const pageAuthority = await import("./compatibility/current-v1-page-authority/index.mjs");
   const target = pageAuthority.buildPageAuthorityRawBatchForSource({
     deckDir: deckRoot(context.runDir),
     sourcePath: join(targetRunDir, SLIDE_SPECS_NAME),
@@ -1836,7 +1821,7 @@ async function commandPageAuthorityImage2(operation, route, opts = {}) {
     return emitUsage("ppt_flow.image2.page-authority", `--${override} is not accepted for Page Authority`, "Use the canonical --run-dir receipt path without prompt, profile, output, or legacy-artifact overrides.");
   }
   try {
-    const operations = await import("./04-image-production/index.mjs");
+    const operations = await import("./compatibility/current-v1-page-authority/index.mjs");
     let output;
     if (operation === "plan") {
       output = operations.pageAuthorityRawPlanProjection(operations.buildPageAuthorityRawPlan(route.run_dir));
@@ -2470,7 +2455,7 @@ Examples:
           return;
         }
       }
-      const s = readState(deckDir, { purpose: "observe" });
+      const s = readState(deckDir, { purpose: "observe", heal: false });
       if (s.replacement_required) {
         const currentRepair = s.current_repair_required === true;
         exitCliError({
@@ -2511,13 +2496,13 @@ Examples:
       }
       const { buildPlaybookIndex } = await import("./shared/state/md_controller_reader.mjs");
       const controllerIndex = buildPlaybookIndex(join(FRAMEWORK_DIR, "playbook"));
-      const controllerCtx = await buildControllerGateContext(resolved);
+      const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
+      const workflowInspection = inspectWorkflow({ runDir: resolved });
+      const controllerCtx = await buildControllerGateContext(resolved, { workflowInspection });
       const indexedCard = buildResumeCard(s, statusSnapshot, {
         index: controllerIndex,
         ctx: controllerCtx,
       });
-      const { inspectWorkflow } = await import("./shared/workflow/inspect_workflow.mjs");
-      const workflowInspection = inspectWorkflow({ runDir: resolved });
       const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
       const inspectionNext = workflowInspection.primary_action.command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 

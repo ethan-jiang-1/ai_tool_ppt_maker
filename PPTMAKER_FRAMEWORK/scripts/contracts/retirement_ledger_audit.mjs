@@ -75,6 +75,6 @@ function readMainSpecs(specsRoot) {
 /** Audits checked-in specification text only; no run-bundle or generated data is read. */
 export function auditMainSpecRetirement({ repoRoot = process.cwd(), phase = "before-sync" } = {}) {
   const root = resolve(repoRoot);
-  const ledger = parseRetirementLedger(readFileSync(join(root, "_backlog/plans/unify-image2-page-authority/main-spec-retirement-ledger.md"), "utf8"));
+  const ledger = parseRetirementLedger(readFileSync(join(root, "_backlog/_done/_closed_plans/unify-image2-page-authority/main-spec-retirement-ledger.md"), "utf8"));
   return auditRetirementRequirements({ ledger, requirements: readMainSpecs(join(root, "openspec/specs")), phase });
 }

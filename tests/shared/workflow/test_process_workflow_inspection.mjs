@@ -9,6 +9,7 @@ import {
   inspectWorkflow,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
 import { canonicalJson } from "../../../PPTMAKER_FRAMEWORK/scripts/contracts/canonical_json.mjs";
+import { createInitialState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 function treeSnapshot(root, current = root, entries = []) {
   for (const name of readdirSync(current).sort()) {
@@ -33,6 +34,38 @@ function createTargetDraftObservationFixture(prefix) {
   const deck = join(root, "deck_page_authority");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
+  return { root, deck, runDir };
+}
+
+function createCurrentV1ObservationFixture(prefix) {
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  const deck = join(root, "deck_current_page_authority");
+  const runDir = join(deck, "3_versions", "v1");
+  initBundle(deck, null, "keynote", "dark-executive");
+  writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v1
+  page_authority_default: framed-image2
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Current compatibility fact
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+`, "utf8");
+  const state = createInitialState("current", "keynote", "dark-executive", { mode: "image2-page-authority" });
+  state.continuation_target_version = "v1";
+  writeState(deck, state);
   return { root, deck, runDir };
 }
 
@@ -171,6 +204,23 @@ describe("workflow inspection", () => {
         primary_action: { owner: "run-bundle-layout", action_id: "repair-layout" },
       });
       expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports missing CURRENT v1 source evidence without materializing it", () => {
+    const fixture = createCurrentV1ObservationFixture("workflow-inspect-current-v1-");
+    try {
+      const receipt = join(fixture.runDir, "_generated", "page-authority-image2", "receipts", "source-receipt.json");
+      const before = treeSnapshot(fixture.deck);
+      expect(inspectWorkflow({ runDir: fixture.runDir })).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "page-authority", kind: "SOURCE_RECEIPT_MISSING_OR_STALE" },
+        primary_action: { action_id: "validate_page_authority_source" },
+      });
+      expect(treeSnapshot(fixture.deck)).toEqual(before);
+      expect(() => readFileSync(receipt)).toThrow();
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

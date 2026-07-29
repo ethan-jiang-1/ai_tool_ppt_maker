@@ -26,7 +26,7 @@ export const COMPATIBILITY_REGISTRIES = Object.freeze({
   "openspec/config.yaml": "repository planning context",
   "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md": "process constitution compatibility table",
   "PPTMAKER_FRAMEWORK/reference/glossary.md": "terminology compatibility registry",
-  "PPTMAKER_FRAMEWORK/scripts/05-iteration/change-classifier.md": "agent classification compatibility table",
+  "PPTMAKER_FRAMEWORK/workflow/compatibility/current-v1-page-authority/change-classifier.md": "agent classification compatibility table",
   "PPTMAKER_FRAMEWORK/scripts/06-iteration/change-classifier.md": "target agent classification table",
   "openspec/specs/framework-charter/spec.md": "governing terminology requirement",
   "openspec/specs/pipeline-orchestration/spec.md": "governing pipeline terminology requirement",
