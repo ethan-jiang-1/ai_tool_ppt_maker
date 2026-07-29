@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/executable_inventory.mjs";
 import {
   ACTIVE_PHASES,
-  CURRENT_V1_COMPATIBILITY_INTERFACE,
   PHASE_ADJACENCY,
   PUBLIC_SHARED_INTERFACES,
   TARGET_DELIVERY_INTERFACES,
@@ -25,7 +24,6 @@ const REQUIRED_CONTRACTS = [
 
 function ownerFor(path) {
   if (path === "ppt_flow.mjs") return "root";
-  if (path.startsWith("compatibility/current-v1-page-authority/")) return "compatibility/current-v1-page-authority";
   if (path.startsWith("shared/")) return path.split("/").slice(0, 2).join("/");
   if (path.startsWith("contracts/")) return "contracts";
   return path.split("/")[0];
@@ -34,11 +32,9 @@ function ownerFor(path) {
 function canonicalSnapshot() {
   const files = {
     "README.md": "target tree",
-    "compatibility/current-v1-page-authority/README.md": "CURRENT v1 compatibility",
   };
   const interfaces = [
     ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
-    CURRENT_V1_COMPATIBILITY_INTERFACE,
     ...TARGET_WORKFLOW_INTERFACES,
     ...TARGET_DELIVERY_INTERFACES,
     ...TARGET_ITERATION_INTERFACES,
@@ -84,7 +80,7 @@ describe("framework architecture contract", () => {
     expect(result.detectedExecutables).toEqual([...EXECUTABLE_INVENTORY].sort());
   });
 
-  it("pins active phases separately from the bounded compatibility interface", () => {
+  it("pins active phases and rejects retired numbered owners", () => {
     expect(PHASE_ADJACENCY).toEqual({
       "00-setup": [],
       "01-content": [],
@@ -92,7 +88,7 @@ describe("framework architecture contract", () => {
     });
     const snapshot = canonicalSnapshot();
     snapshot.files["04-image-production/cli.mjs"] = "export {};";
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-v1-numbered-owner");
+      expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-numbered-owner");
   });
 
   it("rejects old paths, scripts/lib, generic roots, and root business dumping", () => {
@@ -115,9 +111,6 @@ describe("framework architecture contract", () => {
 
   it("rejects forbidden Phase, shared, core, and cross-adapter private edges", () => {
     const cases = [
-      ["00-setup/index.mjs", `import "../compatibility/current-v1-page-authority/index.mjs";`, "current-v1-compatibility-import"],
-      ["shared/state/state.mjs", `import "../../compatibility/current-v1-page-authority/index.mjs";`, "current-v1-compatibility-import"],
-      ["03-framed-image/index.mjs", `import "../compatibility/current-v1-page-authority/index.mjs";`, "current-v1-compatibility-import"],
       ["03-framed-image/index.mjs", `import "../shared/image2/private.mjs";`, "target-private-shared-import"],
     ];
     for (const [path, source, code] of cases) {
@@ -183,22 +176,17 @@ describe("framework architecture contract", () => {
 
   it("keeps all PPTX and notes writers under the delivery owner", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["compatibility/current-v1-page-authority/page-authority/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
+    snapshot.files["03-framed-image/internal/operations.mjs"] = "import PptxGenJS from 'pptxgenjs'; new PptxGenJS();";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
     snapshot.files["06-iteration/index.mjs"] = "injectNotes();";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("second-delivery-owner");
   });
 
-  it("keeps the retained generic Image Production adapter bounded to CURRENT v1", () => {
+  it("fails closed when a retired protocol owner reappears", () => {
     const snapshot = canonicalSnapshot();
-    snapshot.files["compatibility/current-v1-page-authority/page-authority/operations.mjs"] = `const protocol = "page-authority-image2-v2";`;
-    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("target-protocol-in-current-compatibility-owner");
-  });
-
-  it("allows only the top-level exact dispatcher to import the v1 mutation interface", () => {
-    const allowed = canonicalSnapshot();
-    allowed.files["ppt_flow.mjs"] = `import "./compatibility/current-v1-page-authority/index.mjs";`;
-    expect(issueCodes(validateArchitectureSnapshot(allowed))).not.toContain("current-v1-compatibility-import");
+    const retiredOwner = ["compatibility", "current-v1-page-authority", "index.mjs"].join("/");
+    snapshot.files[retiredOwner] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-protocol-owner");
   });
 
   it("fails closed on executable, recursive test, and source ownership drift", () => {

@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { stringify } from "yaml";
 
 import { canonicalJsonSha256 } from "../../shared/identity/canonical_json.mjs";
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
+import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
 import { inspectRunProductionMode, registerTargetPageAuthorityStructuralPublication } from "../../shared/state/state.mjs";
 import { applySlideEdit, parseSlideDocument, verifySlideEditPlanHash } from "./slide_document.mjs";
@@ -118,8 +118,8 @@ export function deriveTargetStructuralSource({ sourceText, slideEditPlan, target
     throw new Error("target structural source requires canonical frontmatter");
   }
   const marker = probeProductionMarker(applied.text, { source: "slide-specifications.md" });
-  if (![PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE].includes(marker.branch)) {
-    throw new Error("target structural source requires a current Page Authority source marker");
+  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
+    throw new Error("target structural source requires the exact v2 Page Authority source marker");
   }
   const metadata = { ...document.frontmatter.metadata };
   metadata.production = { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, workflow };

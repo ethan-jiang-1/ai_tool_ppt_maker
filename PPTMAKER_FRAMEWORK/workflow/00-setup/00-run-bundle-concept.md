@@ -21,10 +21,5 @@ changes may recompose locally from exact accepted raw evidence and a current
 preset. Structural edits, including a workflow switch, are previewed and
 applied through a clean target version.
 
-An exact `page-authority-image2-v1` / `image2-page-authority` pair remains a
-bounded compatibility input; its per-slide `pure-image2`/`framed-image2`
-vocabulary never becomes a new-authoring choice.
-
-An explicitly named historical run is observer input only. It can produce a
-provider-free adoption plan or repair/export guidance; it cannot become current
-evidence in place.
+Any non-v2 source/state pair is an unsupported-protocol/export hard-stop. It
+cannot become current evidence, initialize state, or select a workflow.

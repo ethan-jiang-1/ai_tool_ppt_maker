@@ -31,8 +31,6 @@ export {
 
 export {
   FRAMED_TEXT_PRESET,
-  PAGE_AUTHORITIES,
-  PAGE_AUTHORITY_SOURCE_RECEIPT_SCHEMA,
   PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
   PageAuthoritySourceError,
   parsePageAuthoritySource,

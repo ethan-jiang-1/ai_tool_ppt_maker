@@ -119,10 +119,13 @@ describe("workflow inspection observation flow", () => {
     }
   });
 
-  it("keeps a v1/v2 hybrid behind its marker/state hard-stop without coercion", () => {
+  it("keeps a v2 workflow mismatch behind its marker/state hard-stop without coercion", () => {
     const fixture = createSelectedTargetFixture("pure");
     try {
-      const state = createInitialState("hybrid", "keynote", "dark-executive", { mode: "image2-page-authority" });
+      const state = createInitialState("target", "keynote", "dark-executive", {
+        mode: "image2-page-authority-v2",
+        workflow: "framed",
+      });
       state.continuation_target_version = "v1";
       writeState(fixture.deck, state);
       const before = treeSnapshot(fixture.deck);
@@ -132,7 +135,7 @@ describe("workflow inspection observation flow", () => {
       expect(JSON.parse(status.stderr)).toMatchObject({
         ok: false,
         code: "FAILED",
-        message: expect.stringContaining("CURRENT_PROTOCOL_REPAIR_REQUIRED"),
+        message: expect.stringContaining("UNSUPPORTED_PROTOCOL"),
       });
       expect(stateResult.status, stateResult.stderr).toBe(0);
       expect(JSON.parse(stateResult.stdout).workflow_inspection).toMatchObject({

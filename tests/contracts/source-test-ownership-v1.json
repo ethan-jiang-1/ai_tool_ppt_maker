@@ -30,9 +30,7 @@
       "owner": "02-visual-system",
       "interfaces": ["02-visual-system/index.mjs"],
       "executables": [],
-      "unit_integration": [
-        "tests/02-visual-system/test_page_authority_visual_language.mjs"
-      ],
+      "unit_integration": [],
       "e2e": []
     },
     {
@@ -61,15 +59,6 @@
       "interfaces": ["06-iteration/index.mjs"],
       "executables": [],
       "unit_integration": ["tests/06-iteration/test_target_refresh_routing.mjs"],
-      "e2e": []
-    },
-    {
-      "owner": "compatibility/current-v1-page-authority",
-      "interfaces": ["compatibility/current-v1-page-authority/index.mjs"],
-      "executables": [],
-      "unit_integration": [
-        "tests/compatibility/current-v1-page-authority/test_page_authority_raw_manifest.mjs"
-      ],
       "e2e": []
     },
     {
@@ -151,22 +140,16 @@
     {
       "owner": "shared/state",
       "interfaces": [
-        "shared/state/legacy_protocol_adoption.mjs",
         "shared/state/md_controller_reader.mjs",
-        "shared/state/page_authority_delivery_evidence.mjs",
-        "shared/state/production_mode_transition.mjs",
         "shared/state/state.mjs"
       ],
       "executables": [],
       "unit_integration": [
         "tests/shared/state/test_md_controller_reader.mjs",
-        "tests/shared/state/test_process_legacy_protocol_adoption.mjs",
         "tests/shared/state/test_state_yaml.mjs",
         "tests/shared/state/test_target_page_authority_state.mjs"
       ],
-      "e2e": [
-        "tests_e2e/shared/state/test_mock_legacy_adoption_journey.mjs"
-      ]
+      "e2e": []
     },
     {
       "owner": "shared/workflow",

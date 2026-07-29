@@ -22,11 +22,10 @@ export const DOC_EXCEPTIONS = Object.freeze({
   "PPTMAKER_FRAMEWORK/reference/version-log.md": "historical migration record",
 });
 
-export const COMPATIBILITY_REGISTRIES = Object.freeze({
+export const CURRENT_CONTRACT_FILES = Object.freeze({
   "openspec/config.yaml": "repository planning context",
-  "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md": "process constitution compatibility table",
-  "PPTMAKER_FRAMEWORK/reference/glossary.md": "terminology compatibility registry",
-  "PPTMAKER_FRAMEWORK/workflow/compatibility/current-v1-page-authority/change-classifier.md": "agent classification compatibility table",
+  "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md": "process constitution",
+  "PPTMAKER_FRAMEWORK/reference/glossary.md": "terminology reference",
   "PPTMAKER_FRAMEWORK/scripts/06-iteration/change-classifier.md": "target agent classification table",
   "openspec/specs/framework-charter/spec.md": "governing terminology requirement",
   "openspec/specs/pipeline-orchestration/spec.md": "governing pipeline terminology requirement",
@@ -120,13 +119,13 @@ function normalizedRepoPath(file) {
   return normalized.replace(/^\.\//, "");
 }
 
-function isCompatibilityRegistry(file) {
-  return Object.hasOwn(COMPATIBILITY_REGISTRIES, normalizedRepoPath(file));
+function isCurrentContractFile(file) {
+  return Object.hasOwn(CURRENT_CONTRACT_FILES, normalizedRepoPath(file));
 }
 
 export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
   const issues = [];
-  const registry = isCompatibilityRegistry(file);
+  const registry = isCurrentContractFile(file);
   let offset = 0;
   for (const line of text.split("\n")) {
     for (const [rule, regex, hint] of STALE_RULES) {
@@ -261,7 +260,7 @@ export function scanFrameworkCoherence({ root = "PPTMAKER_FRAMEWORK", exceptions
     if (!existsSync(file)) continue;
     issues.push(...scanSemanticDrift(file, readFileSync(file, "utf8")));
   }
-  for (const file of Object.keys(COMPATIBILITY_REGISTRIES).filter((file) => file.startsWith("openspec/specs/"))) {
+  for (const file of Object.keys(CURRENT_CONTRACT_FILES).filter((file) => file.startsWith("openspec/specs/"))) {
     if (!existsSync(file)) continue;
     const text = readFileSync(file, "utf8");
     activeSurfaceFiles[file] = text;

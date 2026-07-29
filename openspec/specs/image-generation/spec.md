@@ -60,44 +60,17 @@ not inherit authorization, raw acceptance, final evidence, or delivery evidence.
 - **WHEN** a confirmed structural plan retains one exact raw tuple and adds one slide
 - **THEN** the target records unreviewed provenance for the retained slide and raw debt for the new slide
 - **AND** no provider submission or current review acceptance is created by apply
-
-### Requirement: Legacy adoption creates no Image2 evidence or provider work
-
-Image Generation SHALL treat a published legacy-adoption target as a new Page
-Authority source epoch with no inherited raw item, raw review, final evidence,
-provider authorization, provider request, PPTX assembly, notes receipt, or delivery
-evidence. Observation, candidate validation, preview, confirmation, staging,
-publication, state handoff, and recovery SHALL make zero provider calls.
-
-#### Scenario: Adoption publishes only raw-generation debt
-
-- **WHEN** a confirmed legacy-adoption target is published
-- **THEN** every target slide first classifies as `needs_raw_generation`
-- **AND** no credential resolver, transport adapter, or provider call is invoked
-
 ### Requirement: TARGET raw mechanics consume typed workflow plans without semantic dispatch
+The shared raw owner SHALL accept only a `page-authority-raw-work-plan-v2` written by the selected target workflow adapter. It SHALL use the plan's bound source receipt digest, workflow, ordered stable IDs, typed raw-contract digests, provider profile, and exact authorization scope to submit, record, and review raw work. It SHALL publish only `page-authority-accepted-raw-evidence-v2`, bound to the exact plan, raw bytes, provider/authorization tuple, and raw-review decision.
 
-The shared raw owner SHALL accept only a
-`page-authority-raw-work-plan-v2` written by the selected target workflow
-adapter. It SHALL use the plan's bound source receipt digest, workflow,
-ordered stable IDs, typed raw-contract digests, provider profile, and exact
-authorization scope to submit, record, and review raw work. It SHALL publish
-only `page-authority-accepted-raw-evidence-v2`, bound to the exact plan, raw
-bytes, provider/authorization tuple, and raw-review decision.
-
-Shared raw mechanics SHALL NOT interpret Text Frame literals, reserved
-rectangles, no-text requirements, Pure display literals, or workflow-specific
-refresh policy. A source, workflow, raw-contract, provider-profile, or byte
-drift SHALL invalidate evidence through its owning interface before finalization.
+Shared raw mechanics SHALL NOT interpret Text Frame literals, reserved rectangles, no-text requirements, Pure display literals, or workflow-specific refresh policy. A source, workflow, raw-contract, provider-profile, byte, or foreign-protocol drift SHALL invalidate evidence through its owning interface before finalization.
 
 #### Scenario: Typed target plan receives shared authorization and evidence
-
 - **WHEN** the selected target adapter submits a valid typed raw plan with exact authorization
 - **THEN** the shared raw owner records evidence bound to that plan and its raw byte hashes
 - **AND** it does not branch on Framed or Pure semantic fields
 
-#### Scenario: Cross-protocol evidence cannot satisfy target work
-
-- **WHEN** CURRENT v1 raw evidence or a v2 evidence record with a different plan digest is supplied for target finalization
-- **THEN** the raw owner reports the stale or cross-protocol evidence as unavailable
+#### Scenario: Foreign evidence cannot satisfy target work
+- **WHEN** evidence is supplied with a different protocol or plan digest
+- **THEN** the raw owner reports it as unavailable
 - **AND** it does not promote the evidence, infer byte reuse, or submit a provider request automatically

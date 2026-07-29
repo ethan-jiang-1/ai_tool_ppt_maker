@@ -277,7 +277,7 @@ describe("TARGET Page Authority state lineage", () => {
         runVersion: "v1",
         rawWorkPlan: invalidScope,
         maxSubmissions: 1,
-      })).toThrow("rawBatch or rawWorkPlan");
+      })).toThrow("rawWorkPlan must be a non-empty canonical v2 Page Authority raw input");
       expect(readFileSync(statePath(fixture.deck))).toEqual(beforeInvalidScope);
 
       const staleEvidence = createAcceptedRawEvidence({

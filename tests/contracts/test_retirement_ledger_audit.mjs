@@ -1,18 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
   auditMainSpecRetirement,
+  auditActiveRetirementSurface,
   auditRetirementRequirements,
   parseRetirementLedger,
 } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/retirement_ledger_audit.mjs";
 
 describe("main-spec retirement ledger audit", () => {
-  it("covers every checked-in legacy requirement after main-spec synchronization", () => {
+  it("covers current roots after main-spec synchronization", () => {
     const report = auditMainSpecRetirement({ phase: "after-sync" });
-    expect(report.totals.ledger).toBe(258);
+    expect(report.totals.ledger).toBe(0);
     expect(report.remaining_non_keep).toEqual([]);
     expect(report.missing_keep).toEqual([]);
     expect(report.unclassified_legacy_requirements).toEqual([]);
+    expect(report.active_root_issues).toEqual([]);
     expect(report.ok).toBe(true);
+  });
+
+  it("scans active files only and flags a retired source marker", () => {
+    const marker = ["page-authority", "image2", "v1"].join("-");
+    expect(auditActiveRetirementSurface({ files: { "openspec/specs/example/spec.md": marker } }))
+      .toMatchObject({ ok: false, issues: [expect.objectContaining({ code: "retired-active-reference" })] });
   });
 
   it("distinguishes before-sync and after-sync coverage without reading production data", () => {

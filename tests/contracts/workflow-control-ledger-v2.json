@@ -55,17 +55,6 @@
       "reconstructibility": "yes",
       "decision": "retain-display",
       "replacement_tests": ["tests/contracts/test_process_workflow_inspection_cli.mjs"]
-    },
-    {
-      "id": "html-resume-guidance",
-      "surface": "derived",
-      "direct_owner": "ppt_flow",
-      "writer": [],
-      "readers": ["legacy state/status consumers"],
-      "invalidation": "any inspection checkpoint change",
-      "reconstructibility": "yes",
-      "decision": "retire-reader",
-      "replacement_tests": ["tests/contracts/test_ppt_flow.mjs"]
     }
   ]
 }

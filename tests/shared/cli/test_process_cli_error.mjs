@@ -118,7 +118,7 @@ describe("cli_error", () => {
       message: `invalid field ${index}`,
       subject: { kind: "slide", id: `s${index}`, field: "RENDER MODE" },
       source: { path: `/tmp/spec ${index}.md`, line: index + 1 },
-      reason: { kind: "invalid_enum", actual: "image_direct", expected: ["full-page", "body+header-lock"] },
+      reason: { kind: "invalid_enum", actual: "invalid-mode", expected: ["framed", "pure"] },
       lineage: [{ kind: "source", path: `/tmp/spec ${index}.md`, stage: "input" }],
       nested: { ignored: true },
     }));

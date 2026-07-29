@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 export const RETIREMENT_DISPOSITIONS = Object.freeze(["Replace", "Retire", "Collapse", "Keep"]);
@@ -72,9 +72,95 @@ function readMainSpecs(specsRoot) {
   return requirements;
 }
 
-/** Audits checked-in specification text only; no run-bundle or generated data is read. */
+const compose = (...parts) => parts.join("");
+const RETIRED_ACTIVE_MARKERS = Object.freeze([
+  compose("page-authority", "-image2-v1"),
+  new RegExp(`\\b${compose("image2", "-page-authority")}(?!-v2)\\b`),
+  compose("legacy", "_protocol"),
+  compose("production_mode", "_transition"),
+  compose("compatibility/", "current", "-v1-page-authority"),
+  compose("whole", "-page-image2-v1"),
+  compose("html", "-first-v1"),
+  compose("html", "-only"),
+  compose("html", "-then-image2"),
+  compose("image2", "-only"),
+]);
+const RETIRED_ACTIVE_PATHS = Object.freeze([
+  "PPTMAKER_FRAMEWORK/scripts/compatibility",
+  "PPTMAKER_FRAMEWORK/workflow/compatibility",
+  "tests/compatibility",
+]);
+
+function walkFiles(root, current = root, out = {}) {
+  if (!statSync(current).isDirectory()) return out;
+  for (const name of readdirSync(current)) {
+    const path = join(current, name);
+    if (statSync(path).isDirectory()) walkFiles(root, path, out);
+    else out[path.slice(root.length + 1).replaceAll("\\", "/")] = readFileSync(path, "utf8");
+  }
+  return out;
+}
+
+function markerIssues(files) {
+  const issues = [];
+  for (const [path, text] of Object.entries(files)) {
+    for (const marker of RETIRED_ACTIVE_MARKERS) {
+      const pattern = marker instanceof RegExp
+        ? new RegExp(marker.source, "gi")
+        : new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      if (pattern.test(text)) {
+        issues.push(Object.freeze({ code: "retired-active-reference", path, message: "active root contains a retired protocol marker" }));
+        break;
+      }
+    }
+  }
+  return issues;
+}
+
+/** Scan only current source roots. OpenSpec changes and archives are intentionally excluded. */
+export function auditActiveRetirementSurface({ repoRoot = process.cwd(), files = null } = {}) {
+  const root = resolve(repoRoot);
+  const activeFiles = files || Object.assign(
+    {},
+    ...["PPTMAKER_FRAMEWORK", "tests", "tests_e2e", "openspec/specs"].map((entry) => {
+      const absolute = join(root, entry);
+      if (!statSync(absolute).isDirectory()) return {};
+      return Object.fromEntries(Object.entries(walkFiles(absolute)).map(([path, text]) => [`${entry}/${path}`, text]));
+    }),
+  );
+  const issues = markerIssues(activeFiles);
+  if (files) return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+  for (const path of RETIRED_ACTIVE_PATHS) {
+    try {
+      if (statSync(join(root, path)).isDirectory()) {
+        issues.push(Object.freeze({ code: "retired-active-owner", path, message: "retired protocol root still exists" }));
+      }
+    } catch { /* absent is required */ }
+  }
+  const removedCapabilities = [
+    ["header", "lock"].join("-"),
+    ["html", "slide", "contract"].join("-"),
+    ["visual", "slot", "refinement"].join("-"),
+  ];
+  for (const capability of removedCapabilities) {
+    try {
+      if (statSync(join(root, "openspec/specs", capability)).isDirectory()) {
+        issues.push(Object.freeze({ code: "retired-empty-capability", path: `openspec/specs/${capability}`, message: "retired empty capability spec still exists" }));
+      }
+    } catch { /* absent is required */ }
+  }
+  return Object.freeze({ ok: issues.length === 0, issues: Object.freeze(issues) });
+}
+
+/** Audits checked-in current specification and source roots only. */
 export function auditMainSpecRetirement({ repoRoot = process.cwd(), phase = "before-sync" } = {}) {
   const root = resolve(repoRoot);
-  const ledger = parseRetirementLedger(readFileSync(join(root, "_backlog/_done/_closed_plans/unify-image2-page-authority/main-spec-retirement-ledger.md"), "utf8"));
-  return auditRetirementRequirements({ ledger, requirements: readMainSpecs(join(root, "openspec/specs")), phase });
+  const requirements = readMainSpecs(join(root, "openspec/specs"));
+  const requirementReport = auditRetirementRequirements({ ledger: [], requirements, phase });
+  const activeReport = auditActiveRetirementSurface({ repoRoot: root });
+  return Object.freeze({
+    ...requirementReport,
+    active_root_issues: activeReport.issues,
+    ok: requirementReport.ok && activeReport.ok,
+  });
 }

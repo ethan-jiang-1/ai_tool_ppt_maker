@@ -1,8 +1,0 @@
-{
-  "schema": "pptmaker-page-authority-compatibility-ownership-baseline-v1",
-  "owner": "compatibility/current-v1-page-authority",
-  "page_authority_adapter": "compatibility/current-v1-page-authority/index.mjs",
-  "direct_executables": [],
-  "target_graph": "03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration",
-  "shared_delivery_interface": "05-delivery/index.mjs"
-}

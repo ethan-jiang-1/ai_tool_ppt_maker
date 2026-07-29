@@ -10,29 +10,12 @@ that schema.
 ## Requirements
 
 ### Requirement: Public CLI exposes only Page Authority production operations
+The public CLI SHALL expose v2 Page Authority source validation, raw planning, authorization, generation, review, final delivery, Framed local refresh, notes refresh, and structural versioning. It SHALL NOT expose another-protocol observation, adoption, migration, production commands, flags, or approval gates.
 
-The public CLI SHALL expose Page Authority source validation, raw planning,
-authorization, generation, review, final delivery, Framed local refresh, notes
-refresh, structural versioning, and bounded historical observation/adoption
-controls. It SHALL NOT expose retired production commands, flags, or approval
-gates.
-
-#### Scenario: Help has no retired production choice
-
+#### Scenario: Help has no other-protocol choice
 - **WHEN** a user requests public CLI help
-- **THEN** every production operation is Page Authority-owned or a bounded historical action
-- **AND** no retired production route is listed
-
-### Requirement: Historical production requests stop at the adoption boundary
-
-A recognized historical run reaching a current production command SHALL emit the
-producer-owned `LEGACY_PROTOCOL_ADOPTION_REQUIRED` diagnostic before provider
-initialization, generated-artifact reads, review publication, or state mutation.
-
-#### Scenario: Historical build is fenced
-
-- **WHEN** a recognized historical run requests build, refresh, review, or raw generation
-- **THEN** the CLI returns only the provider-free adoption next action
+- **THEN** every production operation is v2 Page Authority-owned
+- **AND** no historical, adoption, compatibility, or migration route is listed
 
 ### Requirement: --only accepts friendly slide selectors
 
@@ -77,3 +60,11 @@ redefine the producer schema.
 
 - **WHEN** a command receives an invalid source, state, plan hash, or authorization scope
 - **THEN** it emits one bounded producer diagnostic before provider or artifact work
+
+### Requirement: Non-v2 CLI requests fail before execution
+When a command receives a non-v2 source/state pair, the CLI producer SHALL emit the one bounded unsupported-protocol diagnostic before provider initialization, generated-artifact reads, review publication, or state mutation.
+
+#### Scenario: Non-v2 build is fenced
+- **WHEN** a non-v2 run requests build, refresh, review, or raw generation
+- **THEN** the CLI returns only the unsupported-protocol next action
+- **AND** it does not invoke a decoder, migration operation, or provider

@@ -14,8 +14,6 @@ export const ACTIVE_PHASES = Object.freeze([
   "02-visual-system",
 ]);
 
-export const CURRENT_V1_COMPATIBILITY_INTERFACE = "compatibility/current-v1-page-authority/index.mjs";
-
 export const TARGET_WORKFLOW_INTERFACES = Object.freeze([
   "03-framed-image/index.mjs",
   "04-pure-image/index.mjs",
@@ -43,9 +41,6 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/run-bundle/production_marker.mjs",
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
-  "shared/state/legacy_protocol_adoption.mjs",
-  "shared/state/page_authority_delivery_evidence.mjs",
-  "shared/state/production_mode_transition.mjs",
   "shared/identity/canonical_json.mjs",
   "shared/identity/byte_hash.mjs",
   "shared/image2/credentials.mjs",
@@ -69,7 +64,7 @@ export const CROSS_OWNER_PROCESS_ADAPTERS = Object.freeze([
 
 const ROOT_WHITELIST = new Set([
   "README.md", "ppt_flow.mjs", "00-setup", "01-content", "03-framed-image", "04-pure-image", "05-delivery",
-  "02-visual-system", "06-iteration", "compatibility", "shared", "contracts", "fonts", "fixtures",
+  "02-visual-system", "06-iteration", "shared", "contracts", "fonts", "fixtures",
 ]);
 const FORBIDDEN_GENERIC_ROOTS = new Set(["lib", "internal", "utils", "helpers", "common"]);
 const TARGET_WORKFLOW_ADAPTERS = Object.freeze(["03-framed-image", "04-pure-image"]);
@@ -78,20 +73,13 @@ const TARGET_METHOD_MODULES = Object.freeze([
   "05-delivery",
   "06-iteration",
 ]);
-// The transition transaction owns candidate integrity, while content and
-// visual-system own their respective parsers. This exact deep-module seam
-// permits the transaction to consume only those public Interfaces instead of
-// duplicating their validation grammar in state.
-const SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS = new Map([
-  ["shared/state/production_mode_transition.mjs", new Set(["01-content/index.mjs", "02-visual-system/index.mjs"])],
-]);
+const SHARED_PUBLIC_PHASE_INTERFACE_IMPORTS = new Map();
 const DIRECT_ENTRY_EXCEPTIONS = new Set([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
 ]);
 const REQUIRED_MANIFEST_INTERFACES = Object.freeze([
   ...ACTIVE_PHASES.map((phase) => `${phase}/index.mjs`),
-  CURRENT_V1_COMPATIBILITY_INTERFACE,
   ...TARGET_WORKFLOW_INTERFACES,
   ...TARGET_DELIVERY_INTERFACES,
   ...TARGET_ITERATION_INTERFACES,
@@ -111,10 +99,6 @@ function normalized(value) {
 function phaseOf(path) {
   const first = normalized(path).split("/")[0];
   return ACTIVE_PHASES.includes(first) ? first : null;
-}
-
-function currentV1CompatibilityOf(path) {
-  return normalized(path).startsWith("compatibility/current-v1-page-authority/");
 }
 
 function targetWorkflowAdapterOf(path) {
@@ -160,16 +144,10 @@ function validateImportEdge(files, importer, target, issues) {
   if (!target || !files.has(target)) return;
   const fromPhase = phaseOf(importer);
   const toPhase = phaseOf(target);
-  const fromCurrentV1Compatibility = currentV1CompatibilityOf(importer);
-  const toCurrentV1Compatibility = currentV1CompatibilityOf(target);
   const fromTargetWorkflowAdapter = targetWorkflowAdapterOf(importer);
   const toTargetWorkflowAdapter = targetWorkflowAdapterOf(target);
   const fromTargetMethodModule = targetMethodModuleOf(importer);
   const toTargetMethodModule = targetMethodModuleOf(target);
-  if (toCurrentV1Compatibility && !fromCurrentV1Compatibility && !(importer === "ppt_flow.mjs" && target === CURRENT_V1_COMPATIBILITY_INTERFACE)) {
-    addIssue(issues, "current-v1-compatibility-import", importer, `only the exact v1 top-level dispatcher may import ${target}`);
-    return;
-  }
   if (importer === "ppt_flow.mjs") {
     if (toPhase && target !== `${toPhase}/index.mjs`) addIssue(issues, "root-private-import", importer, `root imports private Phase path ${target}`);
     if (target.startsWith("shared/") && !PUBLIC_SHARED_INTERFACES.includes(target)) addIssue(issues, "root-private-shared-import", importer, `root imports private shared path ${target}`);
@@ -273,17 +251,30 @@ function validateSharedWorkflowSemanticBoundaries(files, issues) {
 function validateSingleDeliveryOwner(files, issues) {
   const deliveryWriter = /\bPptxGenJS\b|\binjectNotes\s*\(|\bassemblePageAuthorityPptx\s*\(|\binjectPageAuthorityNotes\s*\(/;
   for (const [path, source] of files) {
-    if (!/^(?:03-framed-image|04-pure-image|compatibility\/current-v1-page-authority|06-iteration)\//.test(path) || !deliveryWriter.test(source)) continue;
-    addIssue(issues, "second-delivery-owner", path, "workflow and v1 adapter code may not own PPTX, notes, or delivery writing");
+    if (!/^(?:03-framed-image|04-pure-image|06-iteration)\//.test(path) || !deliveryWriter.test(source)) continue;
+    addIssue(issues, "second-delivery-owner", path, "workflow code may not own PPTX, notes, or delivery writing");
   }
 }
 
-/** The retained generic adapter is CURRENT v1 compatibility only. */
-function validateBoundedCurrentCompatibility(files, issues) {
-  const targetProtocol = /\b(?:page-authority-image2-v2|image2-page-authority-v2)\b/;
+const RETIRED_PROTOCOL_PATH = `compatibility/${["current", "v1"].join("-")}-page-authority`;
+const RETIRED_PROTOCOL_TOKENS = Object.freeze([
+  `page-authority-image2-${"v1"}`,
+  ["image2", "page", "authority"].join("-"),
+  "legacy" + "_protocol",
+  "production_mode_" + "transition",
+]);
+
+function validateRetiredProtocolAbsence(files, issues) {
   for (const [path, source] of files) {
-    if (currentV1CompatibilityOf(path) && targetProtocol.test(source)) {
-      addIssue(issues, "target-protocol-in-current-compatibility-owner", path, "the bounded CURRENT v1 owner may not implement a target v2 branch");
+    if (normalized(path).includes(RETIRED_PROTOCOL_PATH)) {
+      addIssue(issues, "retired-protocol-owner", path, "retired protocol paths may not exist in active roots");
+    }
+    const text = String(source);
+    const hasRetiredToken = text.includes(RETIRED_PROTOCOL_TOKENS[0]) ||
+      new RegExp(`\\b${RETIRED_PROTOCOL_TOKENS[1]}(?!-v2)\\b`).test(text) ||
+      text.includes(RETIRED_PROTOCOL_TOKENS[2]) || text.includes(RETIRED_PROTOCOL_TOKENS[3]);
+    if (hasRetiredToken) {
+      addIssue(issues, "retired-protocol-reference", path, "active source may not reference a retired protocol owner, writer, or decoder");
     }
   }
 }
@@ -293,7 +284,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   const issues = [];
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
-  validateBoundedCurrentCompatibility(files, issues);
+  validateRetiredProtocolAbsence(files, issues);
   for (const legacyIssue of validateLegacyTokenExceptions(LEGACY_TOKEN_EXCEPTIONS)) addIssue(issues, legacyIssue.rule, legacyIssue.file, legacyIssue.message);
   for (const retiredIssue of validateRetiredWholePageTokenExceptions()) addIssue(issues, retiredIssue.rule, retiredIssue.file, retiredIssue.message);
   const scriptFiles = new Map([...files].filter(([path]) => !path.startsWith("tests/") && !path.startsWith("tests_e2e/")));
@@ -306,7 +297,7 @@ export function validateArchitectureSnapshot({ files: inputFiles, manifest = nul
   for (const path of TARGET_DELIVERY_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-delivery-interface", path, "target delivery interface is missing");
   for (const path of TARGET_ITERATION_INTERFACES) if (!scriptFiles.has(path)) addIssue(issues, "missing-iteration-interface", path, "target iteration interface is missing");
   for (const path of scriptFiles.keys()) {
-    if (/^(?:04-image-production|05-iteration)\//.test(path)) addIssue(issues, "retired-v1-numbered-owner", path, "CURRENT v1 ownership must use compatibility/current-v1-page-authority");
+    if (/^(?:04-image-production|05-iteration)\//.test(path)) addIssue(issues, "retired-numbered-owner", path, "retired numbered ownership path is forbidden");
   }
   for (const path of scriptFiles.keys()) if (/^(?:asset_manifest|bundle_layout|env-check|generate_style_master|image_api_client|lessons|make_contact_sheet|stage[1-5]_|unified_pipeline|visual_config)\.mjs$/.test(path)) addIssue(issues, "old-flat-path", path, "old flat business path is forbidden");
   for (const [importer, source] of scriptFiles) {

@@ -59,43 +59,6 @@ ${negativeConstraints}
 `;
 }
 
-function currentMixedSource() {
-  return `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: page-authority-image2-v1
-  page_authority_default: framed-image2
----
-
-## Slide 01: \`FramGo\`
-
-**TITLE**: Historical framed fact
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
-composition: centered-constellation
-motifs: []
-negative_constraints:
-  - no-readable-text
-  - no-labels
-\`\`\`
-
-## Slide 02: \`PureGo\`
-
-**PAGE AUTHORITY**: pure-image2
-**TITLE**: Historical pure fact
-**VISUAL BRIEF**:
-\`\`\`yaml
-recipe: editorial-systems
-composition: centered-constellation
-motifs: []
-negative_constraints:
-  - no-logo
-\`\`\`
-`;
-}
-
 function createTargetFixture(prefix, workflow, slides) {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const deck = join(root, `deck_${workflow}_journey`);
@@ -314,24 +277,4 @@ describe("mock TARGET workflow journey", () => {
     }
   }, 90_000);
 
-  it("keeps an exact CURRENT mixed v1 source on its bounded compatibility route", async () => {
-    const root = mkdtempSync(join(tmpdir(), "target-current-boundary-"));
-    const deck = join(root, "deck_current_boundary");
-    const runDir = join(deck, "3_versions", "v1");
-    try {
-      initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(runDir, "slide-specifications.md"), currentMixedSource());
-      const state = createInitialState("current", "keynote", "dark-executive", { mode: "image2-page-authority" });
-      state.continuation_target_version = "v1";
-      writeState(deck, state);
-
-      const validated = expectSuccess(await flow(["validate", runDir]));
-      expect(validated.stdout).toContain("Page Authority receipt validated: 2 slide(s)");
-      expect(validated.stdout).not.toContain("Target Page Authority");
-      expect(readState(deck, { purpose: "observe", runVersion: "v1" }).production_mode.by_version["3_versions/v1"])
-        .toEqual({ mode: "image2-page-authority", source_epoch: 1 });
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  }, 90_000);
 });

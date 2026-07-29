@@ -6,20 +6,12 @@ Define active framework guidance for Page Authority production, ownership-aware
 refresh, structural versioning, and bounded historical adoption.
 ## Requirements
 ### Requirement: Framework guidance names one current production protocol
-
-Active framework guidance SHALL name `page-authority-image2-v2` as the sole
-current protocol for new authoring and describe its version-level Framed/Pure
-workflow choice. It SHALL describe `page-authority-image2-v1` mixed runs only
-as a bounded CURRENT compatibility route, and retired protocols only as
-bounded historical observation/adoption context. Guidance SHALL NOT present v1
-per-slide authority as a new-deck choice or silently reinterpret v1 bytes as
-v2.
+Active framework guidance SHALL name `page-authority-image2-v2` as the sole current production protocol and describe its version-level Framed/Pure workflow choice. It SHALL not describe another protocol, per-slide authority, compatibility, or historical adoption as an active workflow context. A non-v2 input may be mentioned only as the generic unsupported-protocol hard-stop.
 
 #### Scenario: An active workflow reference is read
-
-- **WHEN** an Agent reads Charter, BOOTSTRAP, or workflow guidance for a new version
+- **WHEN** an Agent reads Charter, BOOTSTRAP, or workflow guidance for a version
 - **THEN** it receives the v2 once-per-version workflow decision and ownership-aware refresh guidance
-- **AND** it does not receive a v1 per-slide authority or retired protocol as an active production choice
+- **AND** it does not receive another protocol or compatibility path as a production choice
 
 ### Requirement: Framework guidance routes changes by ownership and invalidation
 

@@ -13,7 +13,7 @@ registry or mutation authority.
 | Raw plan, authorization, and review | Page Authority raw owner | Determine raw-generation prerequisites. |
 | Final manifest, assembly, notes, delivery review | Page Authority final owners | Determine completion and delivery action. |
 | Structural preview and transaction journal | structural/state owner | Bind preview, apply, and recovery. |
-| Historical observer digest | legacy adoption observer | Offer adoption or repair/export only. |
+| Unsupported source/state pair | protocol evaluator | Return the byte-preserving export hard-stop. |
 
 Inspection never writes source, state, journals, metadata, receipts, or generated
 output, and never submits a provider request. Each mutation owner validates its

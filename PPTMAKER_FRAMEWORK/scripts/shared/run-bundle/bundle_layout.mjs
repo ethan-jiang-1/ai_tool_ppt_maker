@@ -72,8 +72,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { readState, writeState, setNodeStatus, createInitialState, createTargetAuthoringState, stringifyStateYaml, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath, registerPageAuthorityVersionPublication } from '../state/state.mjs';
-import { PAGE_AUTHORITY_IMAGE2_PIPELINE, PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
+import { readState, writeState, setNodeStatus, createTargetAuthoringState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
+import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
 import { PRODUCTION_MODES, TARGET_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
 import { canonicalFrameworkRoot, normalizedFrameworkRelation, renderRunBundle } from './run_bundle_locator.mjs';
 import {
@@ -108,7 +108,7 @@ export {
 
 /**
  * Production mode assumed when `ppt_flow init` omits `--mode`. New decks use
- * Page Authority Image2; legacy modes are existing-run compatibility only.
+ * Page Authority Image2 v2.
  */
 export const DEFAULT_INIT_MODE = TARGET_PRODUCTION_MODE;
 
@@ -118,18 +118,6 @@ function validateInitMode(mode) {
             `new deck initialization only supports ${DEFAULT_INIT_MODE}; received ${JSON.stringify(mode)}`);
     }
     return mode;
-}
-
-function validateLegacyFixtureMode(mode) {
-    if (!["html-only", "html-then-image2", "image2-only"].includes(mode)) {
-        throw new Error(`legacy fixture mode must be html-only, html-then-image2, or image2-only; received ${JSON.stringify(mode)}`);
-    }
-    return mode;
-}
-
-function legacyFixturePolicy(mode) {
-    const pipeline = mode === 'image2-only' ? 'whole-page-image2-v1' : 'html-first-v1';
-    return Object.freeze({ mode, pipeline });
 }
 
 // ---------------------------------------------------------------------------
@@ -472,56 +460,6 @@ function _isMacOsSystemEntry(name) {
     return name === '.DS_Store';
 }
 
-function _hasHistoricalObserverMarker(bytes) {
-    const text = Buffer.from(bytes).toString('utf8');
-    return /\bproduction:\s*\n\s*pipeline:\s*(?:html-first-v1|whole-page-image2-v1)\b/.test(text);
-}
-
-function _checkProductionModeTransitionScratch(runDir, problems) {
-    const transition = path.join(runDir, SCRATCH_SUBDIR, 'production-mode-transition');
-    if (fs.existsSync(transition) && fs.statSync(transition).isDirectory()) {
-        const allowed = new Map([['candidate-run', 'directory'], ['plan.json', 'file'], ['apply-journal.json', 'file']]);
-        for (const entry of fs.readdirSync(transition, { withFileTypes: true })) {
-            if (_isMacOsSystemEntry(entry.name)) continue;
-            const kind = allowed.get(entry.name);
-            if (!kind) {
-                problems.push(`unexpected '${entry.name}' in production-mode-transition scratch/`);
-                continue;
-            }
-            if ((kind === 'file' && !entry.isFile()) || (kind === 'directory' && !entry.isDirectory())) {
-                problems.push(`production-mode-transition scratch '${entry.name}' must be a ${kind}`);
-            }
-        }
-    }
-}
-
-function _checkProductionModeTransitionReceipt(runDir, problems) {
-    const receipt = pageAuthorityImage2Paths(runDir).transition_receipt;
-    if (!fs.existsSync(receipt)) return;
-    if (!fs.statSync(receipt).isFile()) {
-        problems.push('production-mode transition receipt must be a Page Authority receipt file');
-        return;
-    }
-    try {
-        const value = JSON.parse(fs.readFileSync(receipt, 'utf8'));
-        const targetVersion = path.basename(runDir);
-        const exact = value && typeof value === 'object' && !Array.isArray(value) &&
-            value.schema === 'pptmaker-production-mode-transition-success-v1' &&
-            typeof value.plan_hash === 'string' && /^[0-9a-f]{64}$/.test(value.plan_hash) &&
-            typeof value.source_execution_id === 'string' && value.source_execution_id &&
-            typeof value.source_version === 'string' && /^v[1-9][0-9]*$/.test(value.source_version) &&
-            value.target_version === targetVersion &&
-            isProductionMode(value.target_mode) &&
-            productionPolicyForMode(value.target_mode).pipeline === value.target_pipeline &&
-            typeof value.candidate_receipt_sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.candidate_receipt_sha256) &&
-            typeof value.target_intake_sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.target_intake_sha256) &&
-            typeof value.source_control_fingerprint === 'string' && /^[0-9a-f]{64}$/.test(value.source_control_fingerprint);
-        if (!exact) problems.push('production-mode transition receipt has an invalid closed schema or target binding');
-    } catch {
-        problems.push('production-mode transition receipt is invalid JSON');
-    }
-}
-
 function _checkPageAuthorityGeneratedOwnership(runDir, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR);
     if (!fs.existsSync(generated) || !fs.statSync(generated).isDirectory()) return;
@@ -612,17 +550,14 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         if (isTargetWorkflowSelectionPending(marker)) {
             currentPageAuthority = false;
             problems.push(TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
-        } else if (marker.branch === 'invalid' && _hasHistoricalObserverMarker(fs.readFileSync(sourceCandidate))) {
-            branchValid = false;
-            problems.push('historical production source is observer/adoption-only and cannot pass normal bundle validation');
         } else if (marker.branch === 'invalid') {
             branchValid = false;
             for (const entry of marker.issues) problems.push(`invalid production marker: ${entry.message}`);
-        } else if (marker.branch === PAGE_AUTHORITY_IMAGE2_PIPELINE || marker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
+        } else if (marker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
             currentPageAuthority = true;
         } else {
             branchValid = false;
-            problems.push('historical production source is observer/adoption-only and cannot pass normal bundle validation');
+            problems.push('unsupported production source cannot pass normal bundle validation');
         }
     }
     const needStyle = branchValid && currentPageAuthority && (mode === 'preview' || mode === 'pipeline');
@@ -752,8 +687,6 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     }
 
     _checkPageAuthorityGeneratedOwnership(runDir, problems);
-    _checkProductionModeTransitionScratch(runDir, problems);
-    _checkProductionModeTransitionReceipt(runDir, problems);
     return problems;
 }
 
@@ -841,17 +774,8 @@ export function createVersion(sourceRunDir, versionName = null) {
     }
 
     _seedCleanVersion(sourceRunDir, target, versionName);
-    // After the target is visible, register its production mode idempotently
-    // from the source's authoritative record (same pipeline — the clean seed
-    // copies the source marker). Best-effort: a pre-mode deck or unavailable
-    // state leaves the target visible and production reports
-    // mode_registration_required rather than failing version creation.
-    try {
-        registerPageAuthorityVersionPublication(path.dirname(path.dirname(sourceRunDir)), {
-            sourceRunVersion: path.basename(sourceRunDir),
-            targetRunVersion: versionName,
-        });
-    } catch { /* best-effort registration; target remains visible */ }
+    // A clean copy is not a structural transaction. It remains unregistered
+    // until the v2 preview/apply owner publishes an exact workflow-bound plan.
     return target;
 }
 
@@ -969,16 +893,6 @@ export function publishStructuralVersion({
         fs.rmSync(reservation, { recursive: true, force: true });
         reservationOwned = false;
         targetOwned = false;
-        // After the target is visible, register its mode idempotently from the
-        // source. Best-effort and outside the cleanup window: a registration
-        // failure leaves the published target intact and production reports
-        // mode_registration_required rather than deleting or republishing it.
-        try {
-            registerPageAuthorityVersionPublication(path.dirname(parent), {
-                sourceRunVersion: path.basename(sourceRunDir),
-                targetRunVersion: versionName,
-            });
-        } catch { /* best-effort registration; published target preserved */ }
         return { source: sourceRunDir, target, version_name: versionName, published: true, ...(materialization ? { materialization } : {}) };
     } catch (error) {
         if (stagingOwned) fs.rmSync(staging, { recursive: true, force: true });
@@ -1005,9 +919,7 @@ function _writeIfAbsent(filePath, content) {
     }
 }
 
-// Historical fixture data only: consumed by initLegacyFixtureBundle for
-// observer/adoption tests, never by current initialization or validation.
-const _LEGACY_FIXTURE_SEEDS = Object.freeze({
+const _PAGE_AUTHORITY_SEEDS = Object.freeze({
     generic: Object.freeze({ id: 'DeckGo', title: 'State the deck\'s governing idea', visualType: 'Hero statement' }),
     keynote: Object.freeze({ id: 'KeyGo', title: 'State the keynote\'s consequential idea', visualType: 'Keynote opener' }),
     pitch: Object.freeze({ id: 'AskGo', title: 'State the venture\'s memorable promise', visualType: 'Pitch opener' }),
@@ -1015,67 +927,9 @@ const _LEGACY_FIXTURE_SEEDS = Object.freeze({
     training: Object.freeze({ id: 'TryNow', title: 'State the capability learners will gain', visualType: 'Training opener' }),
 });
 
-function _legacyHtmlFixtureSource(deckType = null) {
-    const seed = _LEGACY_FIXTURE_SEEDS[deckType || 'generic'];
-    return `---
-production:
-  pipeline: html-first-v1
-identity:
-  scheme: mnemonic-v1
----
-
-## Slide 01: \`${seed.id}\`
-
-**VISUAL TYPE**: ${seed.visualType}
-**TITLE**: ${seed.title}
-**CONCEPT**:
-- **MUST communicate**: Replace this starter with one clear, reviewable claim.
-- **MUST NOT**: Add arbitrary HTML, CSS, coordinates, or legacy image prompts.
-
-**SLIDE BODY**:
-\`\`\`yaml
-schema_version: 1
-family: hero
-\`\`\`
-`;
-}
-
-/**
- * Canonical explicit whole-page Image2 starter source. It carries
- * `identity.scheme: mnemonic-v1`, the whole-page pipeline marker, and a
- * whole-page render default for `image2-only` production.
- */
-function _legacyWholePageFixtureSource(deckType = null) {
-    const seed = _LEGACY_FIXTURE_SEEDS[deckType || 'generic'];
-    return `---
-identity:
-  scheme: mnemonic-v1
-production:
-  pipeline: whole-page-image2-v1
-render:
-  default: full-page
----
-
-## Slide 01: \`${seed.id}\`
-
-**VISUAL TYPE**: ${seed.visualType}
-**TITLE**: ${seed.title}
-**CONCEPT**:
-- **MUST communicate**: Replace this starter with one clear, reviewable claim.
-- **MUST NOT**: Change the explicit production pipeline without an intentional
-  cross-pipeline transition.
-
-**SLIDE BODY**:
-\`\`\`yaml
-schema_version: 1
-family: hero
-\`\`\`
-`;
-}
-
 /** Canonical v2 authoring draft. It becomes runnable only after workflow selection. */
 function _pageAuthoritySeedSource(deckType = null) {
-    const seed = _LEGACY_FIXTURE_SEEDS[deckType || 'generic'];
+    const seed = _PAGE_AUTHORITY_SEEDS[deckType || 'generic'];
     return `---
 identity:
   scheme: mnemonic-v1
@@ -1096,10 +950,8 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 }
 
 /** Source text + label for a production mode's canonical seed. */
-function _seedSourceForMode(mode, deckType) {
-    if (mode === TARGET_PRODUCTION_MODE) return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2 v2 authoring draft' };
-    if (mode === 'image2-only') return { source: _legacyWholePageFixtureSource(deckType), label: 'legacy fixture image2-only' };
-    return { source: _legacyHtmlFixtureSource(deckType), label: 'legacy fixture html-only' };
+function _seedSourceForMode(deckType) {
+    return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2 v2 authoring draft' };
 }
 
 const _DIR_READMES = {
@@ -1242,10 +1094,6 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
             `unknown style preset ${JSON.stringify(style)}. ` +
             `Allowed: ${[...STYLE_PRESETS].sort().join(', ')}`);
     }
-    const modePolicy = mode === DEFAULT_INIT_MODE
-        ? productionPolicyForMode(mode)
-        : legacyFixturePolicy(mode);
-    const derivedPipeline = modePolicy.pipeline;
     const name = path.basename(deckDir).replace('deck_', '');
     const log = [];
 
@@ -1298,10 +1146,7 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
     }
     const specsDest = path.join(deckDir, VERSIONS_DIR, 'v1', SLIDE_SPECS_NAME);
     if (!fs.existsSync(specsDest)) {
-        // Seed the canonical v1 source for the selected production mode. HTML
-        // modes seed their explicit canonical pipeline marker. The mode adapter is selected
-        // directly here, never "create HTML then rewrite".
-        const seed = _seedSourceForMode(mode, deckType);
+        const seed = _seedSourceForMode(deckType);
         fs.writeFileSync(specsDest, seed.source, 'utf8');
         log.push(`${specsLabel} (${seed.label}): ${VERSIONS_DIR}/v1/${SLIDE_SPECS_NAME}`);
     }
@@ -1370,38 +1215,13 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
     log.push('credentials: .env.example, .gitignore');
 
     if (!fs.existsSync(statePath(deckDir))) {
-        const state = mode === DEFAULT_INIT_MODE
-            ? createTargetAuthoringState(name, deckType || '', style || '')
-            : createInitialState(name, deckType || '', style || '', { mode: 'image2-page-authority' });
-        // v1 exists before state is created; bind the durable inactive selector
-        // here so terminal card entry never has to infer a version from disk.
+        const state = createTargetAuthoringState(name, deckType || '', style || '');
         state.continuation_target_version = 'v1';
-        if (mode === DEFAULT_INIT_MODE) {
-            state.gates.content = 'pending';
-            state.gates.visual = 'pending';
-            setNodeStatus(state, 'checkpoint-intake', 'completed');
-            state.current_node = 'select-target-page-authority-workflow';
-        } else {
-            // Historical fixtures model an already-existing, inactive state
-            // pair. They must be locatable and readable by the bounded
-            // observer, but must never look like an active current execution.
-            state.pipeline = derivedPipeline;
-            state.production_mode.by_version[canonicalVersionKey('v1')] = { mode };
-            state.playbook = '';
-            state.current_node = '';
-            state.execution_id = '';
-            state.execution_started_at = '';
-            state.run_version = '';
-            state.nodes = {};
-            state.playbook_stack = [];
-        }
-        if (mode === DEFAULT_INIT_MODE) {
-            writeState(deckDir, state);
-        } else {
-            // Fixture-only historical bytes intentionally fail normal current
-            // validation and are consumed exclusively by the observer.
-            fs.writeFileSync(statePath(deckDir), stringifyStateYaml(state), 'utf8');
-        }
+        state.gates.content = 'pending';
+        state.gates.visual = 'pending';
+        setNodeStatus(state, 'checkpoint-intake', 'completed');
+        state.current_node = 'select-target-page-authority-workflow';
+        writeState(deckDir, state);
         log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
     }
 
@@ -1411,15 +1231,6 @@ function initBundleForMode(deckDir, frameworkDir = null, deckType = null, style 
 /** Public new-deck initializer: only Page Authority Image2 may be created. */
 export function initBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
     const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
-    return initBundleForMode(deckDir, frameworkDir, deckType, style, { mode });
-}
-
-/**
- * Explicit compatibility fixture constructor. It exists for tests of already
- * marked legacy runs and is deliberately not wired into CLI or new-deck help.
- */
-export function initLegacyFixtureBundle(deckDir, frameworkDir = null, deckType = null, style = null, options = {}) {
-    const mode = validateLegacyFixtureMode(options.mode);
     return initBundleForMode(deckDir, frameworkDir, deckType, style, { mode });
 }
 
@@ -1462,17 +1273,17 @@ deck_\${NAME}/
 │
 └── ${VERSIONS_DIR}/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── ${SLIDE_SPECS_NAME}       ← Page Authority source; each slide declares Pure or Framed authority
+    │   ├── ${SLIDE_SPECS_NAME}       ← Page Authority source; the version selects Framed or Pure
     │   ├── ${OVERRIDES_SUBDIR}/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── ${BACKBONE_STYLE_SUBDIR}/           ←   (optional) this version's visual tweaks
     │   │   └── ${BACKBONE_MANUSCRIPT_SUBDIR}/               ←   (optional) this version's script tweaks
     │   ├── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
     │   │   ├── ${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/
-    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/{source-receipt.json, production-mode-transition.json}
+    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json
     │   │   │   ├── ${GEN_PAGE_AUTHORITY_RAW_SUBDIR}/{manifest.json, <slide_id>.png}
     │   │   │   ├── ${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}/{raw-review.png, coverage.json}
     │   │   │   └── ${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}/{manifest.json, projection.png, deck.pptx, notes-receipt.json}
-    │   └── ${SCRATCH_SUBDIR}/production-mode-transition/   ← target-owned cross-pipeline candidate only
+    │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
 }

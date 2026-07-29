@@ -52,6 +52,35 @@ function fixture(workflow = "pure") {
 }
 
 describe("TARGET workflow inspection", () => {
+  it("hard-stops an unsupported source without reading or creating workflow artifacts", () => {
+    const root = mkdtempSync(join(tmpdir(), "workflow-inspect-unsupported-"));
+    const deck = join(root, "deck_unsupported_page_authority");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+production:
+  pipeline: unsupported-protocol-v0
+---
+
+## Slide 01: \`PastGo\`
+
+**TITLE**: Unsupported
+`);
+      const before = treeSnapshot(deck);
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
+        primary_action: { action_id: "export-unsupported-protocol", kind: "export", requires_human: false },
+      });
+      expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
+      expect(treeSnapshot(deck)).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("projects a fresh v2 bundle as a workflow-choice confirm without writes", () => {
     const root = mkdtempSync(join(tmpdir(), "workflow-inspect-target-draft-"));
     const deck = join(root, "deck_target_page_authority");
@@ -91,11 +120,14 @@ describe("TARGET workflow inspection", () => {
     }
   });
 
-  it("reports a marker/state repair for a v2/v1 hybrid without healing it", () => {
+  it("reports a marker/state workflow mismatch without healing it", () => {
     const value = fixture();
     try {
       const path = join(value.deck, "_state", "state.yaml");
-      const state = createInitialState("hybrid", "keynote", "dark-executive");
+      const state = createInitialState("target", "keynote", "dark-executive", {
+        mode: "image2-page-authority-v2",
+        workflow: "framed",
+      });
       state.continuation_target_version = "v1";
       writeState(value.deck, state);
       const before = readFileSync(path);

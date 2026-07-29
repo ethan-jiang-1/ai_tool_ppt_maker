@@ -41,7 +41,7 @@ describe('runtime and diagnostic guidance coherence', () => {
     const base = runDoctorJson();
     const image2 = runDoctorJson(['--image2']);
     expect(base.checks.map(({ check }) => check)).toEqual(BASE_CHECK_NAMES);
-    // --image2 (and image2-only) selects common+Image2 and excludes the HTML
+    // The retired flag fails closed and excludes the browser/chart/font runtime.
     // browser/chart/font runtime, so Image2-primary is not blocked by HTML.
     expect(image2.checks.map(({ check }) => check)).toEqual([
       ...COMMON_CHECK_NAMES,

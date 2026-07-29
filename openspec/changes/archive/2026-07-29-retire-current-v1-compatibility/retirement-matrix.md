@@ -42,5 +42,30 @@ compatibility, project version history, visual-language compatibility, and the
 
 ## Evidence Status
 
-The rows are classified before deletion. Task 5.1 records the exact commands
-and results after the retained v2/shared proof and absence audits pass.
+All classified rows have retained-proof or absence evidence. The following
+commands ran on 2026-07-29 against framework/test sources only:
+
+| Evidence area | Command | Result |
+| --- | --- | --- |
+| v2 parser, state, raw, final, delivery, structural, CLI, and absence proof | `npx vitest run` | passed: 31 files, 171 tests |
+| selected inspection process proof | `npm run test:focused -- tests/shared/workflow/test_process_workflow_inspection.mjs` | passed: 2 tests |
+| selected inspection CLI proof | `npm run test:focused -- tests/contracts/test_process_workflow_inspection_cli.mjs` | passed: 2 tests |
+| main-spec/current-doc absence audit | `npm run test:focused -- tests/contracts/test_process_docs_consistency.mjs` | passed: 5 tests |
+| architecture, directory, governance, and controller audits | `npx vitest run tests/contracts/test_framework_architecture.mjs tests/contracts/test_framework_directory_layout.mjs tests/contracts/test_framework_governance_ledger.mjs tests/contracts/test_workflow_control_ledger.mjs` | passed: 4 files, 19 tests |
+| retirement, CLI, and marker-first inspection audit | `npx vitest run tests/contracts/test_retirement_ledger_audit.mjs tests/contracts/test_retired_cli_surface.mjs tests/shared/workflow/test_target_workflow_inspection.mjs` | passed: 3 files, 11 tests |
+| valid Framed/Pure public journeys | `npm run test:mock-e2e -- tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs` | passed: 2 journeys |
+
+No-write snapshots are asserted by `treeSnapshot` before/after comparisons in
+the unsupported CLI, process inspection, and hybrid source/state inspection
+fixtures. They cover `status`, ordinary `state`, `image2 plan`, and `build`,
+and prove that non-v2 input receives the export hard-stop while hybrid input
+keeps its identity-repair hard-stop. The selected mock journeys run only in
+temporary fixtures; repository status contains no `deck_*`, `dpt_*`, or
+`_generated/` production-data change.
+
+Closeout archived this matrix at
+`openspec/changes/archive/2026-07-29-retire-current-v1-compatibility/` after
+the active main-spec retirement audit passed. The generic archive sync was
+skipped because the retired capability specs were already deleted from the
+main registry; rerunning it would reject the intended empty capability. No
+retired source, decoder, writer, or active ownership path was restored.

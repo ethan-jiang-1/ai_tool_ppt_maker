@@ -32,7 +32,7 @@ negative_constraints:
 
 - Replace `<framed|pure>` with one explicit workflow before validation or
   provider work. It applies to the whole version; do not add a per-slide
-  `PAGE AUTHORITY` field or `page_authority_default`.
+  source ownership field.
 - Framed gives visible title-like text to the local Text Frame and keeps each
   underlay text-free. Pure is for a version whose visible display content must
   be owned by the raw Image2 result.

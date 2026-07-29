@@ -740,36 +740,9 @@ describe('env-check --probe-vendors', () => {
   });
 });
 
-describe('env-check production-mode profiles (3.5)', () => {
-  function checkNames(args) {
-    const { stdout } = runCheck(args);
-    const text = stdout.replace(/^[\s\S]*?(?=\{)/, '');
-    const report = JSON.parse(text);
-    return report.checks.map((c) => c.check);
-  }
-
-  it('image2-only profile excludes the HTML browser/chart/font runtime', () => {
-    const names = checkNames('--mode image2-only --json');
-    const html = ['playwright', 'echarts', 'chromium', 'html_fonts', 'html_runtime_smoke'];
-    for (const h of html) expect(names, `should not include ${h}`).not.toContain(h);
-    // Common checks remain.
-    expect(names).toContain('nodejs');
-    expect(names).toContain('npm');
-  });
-
-  it('html-only profile retains the HTML runtime checks', () => {
-    const names = checkNames('--mode html-only --json');
-    expect(names).toContain('playwright');
-    expect(names).toContain('chromium');
-  });
-
-  it('rejects --image2 together with --mode', () => {
-    const { exitCode } = runCheck('--image2 --mode image2-only --json');
-    expect(exitCode).not.toBe(0);
-  });
-
-  it('rejects an unknown --mode', () => {
-    const { exitCode } = runCheck('--mode html --json');
+describe('env-check v2 mode boundary', () => {
+  it('rejects an unknown mode', () => {
+    const { exitCode } = runCheck('--mode unsupported-mode --json');
     expect(exitCode).not.toBe(0);
   });
 });
@@ -777,7 +750,7 @@ describe('env-check production-mode profiles (3.5)', () => {
 describe('env-check Page Authority operation profiles', () => {
   function runPageAuthorityCheck(args) {
     try {
-      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-authority', ...args], {
+      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-authority-v2', ...args], {
         encoding: 'utf8',
         timeout: 30_000,
         env: { ...process.env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },
