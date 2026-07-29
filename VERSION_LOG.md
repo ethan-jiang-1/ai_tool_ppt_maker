@@ -20,6 +20,21 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.23.0 — V2-only Page Authority Workflow（2026-07-29）
+
+**代号**：One current graph
+
+> Page Authority 生产框架收敛到 v2 的 Framed/Pure 版本级 workflow；active v1 runtime、controller、CLI、文档、测试与 main-spec ownership 已退休。
+
+### 变了什么
+
+1. 新 authoring 只接受 `page-authority-image2-v2` / `image2-page-authority-v2`，每个 version 只绑定 `framed` 或 `pure` 一个 workflow，并经共享 `05-delivery` 与 `06-iteration` 交付和迭代。
+2. 删除 active v1 compatibility runtime、receipt/state initializer、workflow/playbook routes、fixtures 和 retired capability specs；non-v2 source/state 统一保持字节不变并返回 export hard-stop。
+3. 加入 marker-first no-write observation、active-root/main-spec retirement audit、Framed/Pure mock E2E 和 v2/shared invariant proof；不读取或修改 production `deck_*`、`dpt_*` 或 `_generated/` 数据。
+4. 归档 `separate-framed-pure-workflows`、`clean-current-v1-compatibility-boundary` 与 `retire-current-v1-compatibility` 三个 OpenSpec changes，并同步其 current main specs。
+
+---
+
 ## v0.22.0 — Bounded Development Verification（2026-07-23）
 
 **代号**：One bounded checkpoint
