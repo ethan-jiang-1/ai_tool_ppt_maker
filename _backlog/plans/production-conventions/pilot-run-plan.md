@@ -308,68 +308,18 @@ Representative scoring、remaining scope、状态摘要、布局检查结果和 
 
 ## Progressive Plan（渐进推进计划）
 
-每一步都通过正常 OpenSpec change 完成；规划目录本身不授权实现。精确 capability deltas 应在 proposal 时依据当时 main specs 决定，不在这里预填 change 名或复制 schema。
+本节原 P0-P5 已并入 [根 progressive plan](../progressive-plan.md)，这里不再维护第二套执行 checklist。当前映射是：
 
-### P0：冻结基线与验收语言
+| 原 work packet | OpenSpec 归属 |
+| --- | --- |
+| P0 基线、验收语言与两条 journey | Changes 2-3 各自 proposal/design 的共同约束 |
+| P1 Style Master | Change 2 `establish-style-master-feedback` |
+| P2 分批 raw foundation | Change 3 `introduce-progressive-page-production` |
+| P3F / P3P 独立 Pilot slices | 同一个 Change 3 的两个独立 Controller nodes，不拆成两个 change |
+| P4 Expansion / complete review / recovery | Change 3 |
+| P5 delivery / resume / rollout | Change 3 的最终 Gate |
 
-- 记录 Current 行为、目标 UX、四个人类问题和 hard-stop invariants。
-- 明确现有 `--slides` 不是可用 Pilot surface，并决定未来 CLI/Controller 所有权。
-- 给 Framed/Pure 各准备最小端到端验收 journey，并包含中途暂停、进程中断和 uncertain provider outcome；不建立共享用户分支。
-
-退出条件：proposal、design、delta specs 和 tasks 自洽；每个新增控制都说明删除/避免了什么复杂度。
-
-### P1：Style Master 早反馈闭环
-
-- 建立 provider-free candidate plan、精确生成授权、candidate provenance、真实 review、promotion 与 acceptance receipt。
-- Framed 与 Pure Controller 分别在自己的直线路径中调用同一资产 owner。
-- 明确 deck-shared asset 的 effective selection scope、promotion CAS 和跨版本 invalidation projection。
-- 先用受控 run 做 UX 试用，确认用户能在页面级生产前看懂、比较并重定向风格。
-
-退出条件：未审查 candidate 不能覆盖 current Style Master；每个失败回到同一 checkpoint；零页面级 provider 调用。
-
-### P2：分批 raw 基础能力
-
-- 演进现有唯一 authorization owner，支持同一 full plan 下的精确不可变 grants 与逐项 grant consumption。
-- 增加逐项 claim/attempt/materialization owner；每个结果在下一 submit 前原子持久化，inspection 从 owner facts 投影 progress。
-- 演进 accepted raw evidence，使一份完整 evidence 能逐项绑定多个 grants/attempts 与 provider-free reuse，而不是只绑定最后一个 authorization digest。
-- 用 focused negative tests 覆盖越权 scope、陈旧 plan、重复 submit、crash-after-submit、partial write、uncertain outcome 和错误 owner mutation。
-
-退出条件：共享层不解释 Framed/Pure 语义；无精确 grant 时 provider 调用 hard-stop；任意 item commit 后重启不会重复提交，uncertain attempt 不会自动 retry。
-
-### P3F：Framed 独立 Pilot vertical slice
-
-- 在 Framed Controller 内完成代表页提案、精确 Pilot 授权、underlay 生成、生产等价本地合成，以及 partial Pilot decision 或 full raw-review handoff。
-- 用唯一 accepted production renderer 生成 projection，不增加第二套 CSS/compiler。
-- 通过少量受控试生产收集人的 safe-zone、Text Frame 和整体视觉反馈。
-
-退出条件：Framed 用户全程不需要理解 Pure；partial Pilot `proceed` 只能打开 Expansion 授权检查点；若 Pilot 已耗尽 paid-generation debt，则不创建 partial receipt，直接交给 complete raw-review owner。
-
-### P3P：Pure 独立 Pilot vertical slice
-
-- 在 Pure Controller 内完成代表页提案、精确 Pilot 授权、full-page 生成、真实 raw-byte projection，以及 partial Pilot decision 或 full raw-review handoff。
-- 不调用 Framed compositor，不展示 Framed 专属概念。
-- 通过少量受控试生产收集人的字体、层级、exact-copy 和复杂构图反馈。
-
-退出条件：Pure 用户全程不需要理解 Framed；partial Pilot `proceed` 只能打开 Expansion 授权检查点；若 Pilot 已耗尽 paid-generation debt，则不创建 partial receipt，直接交给 complete raw-review owner。
-
-P3F 与 P3P 可以分开实施和试用；其中一条的内部状态或 UX 不得成为另一条的前置知识。
-
-### P4：Expansion、完整审查与恢复
-
-- 只对剩余当前 IDs 请求第二次 raw 授权，并验证 Pilot bytes 原样复用。
-- 把 Pilot、Expansion、provider-free reuse 与显式 retry materializations 的逐项 provenance 合并进入现有 complete raw-review owner。
-- 实现 1-5 页一次审查、零 paid-generation debt 跳过 Pilot authorization，以及 source/profile 漂移后的 same-check recovery。
-
-退出条件：部分 Pilot 永远不能 finalization；完整小范围不重复询问；resume 只依赖 runtime truth。
-
-### P5：交付与逐步推广
-
-- 分别完成 Framed/Pure 从 Pilot 到 final manifest、PPTX、notes 和 Delivery Review 的端到端测试。
-- 覆盖每个慢速阶段的暂停/取消、逐项 progress、进程重启、provider 对账与 no-duplicate-submit journey。
-- 兼容读取旧的完整 accepted evidence；一旦当前 plan 进入新的 scoped-generation lifecycle，不得把旧 plan-wide grant 静默当成 Pilot grant。
-- 更新 Controller 文档、CLI help、diagnostics、command inventory 和回归测试，再逐步扩大试用范围。
-
-退出条件：两条 workflow 均通过独立 journey；用户在 Expansion 前已经看过真实代表页并给出明确反馈。
+每个 change 只在前驱 validate、sync、archive 后 propose。精确 capability deltas 仍以 propose 当时的 main specs 和 runtime truth 为准；本 target design 不复制 schema，也不授权实现。
 
 ## 成功定义
 

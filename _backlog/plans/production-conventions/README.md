@@ -2,6 +2,7 @@
 
 > Framed（框架合成模式）和 Pure（全图模式）共用的产品原则、长程生产节奏与协作词汇。
 > 本目录是设计材料，不是 runtime authority（运行时权威）、OpenSpec change 状态或具体 run 的进度账本。
+> 第一阶段唯一执行顺序与 program checklist 见 [../progressive-plan.md](../progressive-plan.md)。
 
 ## 这里负责什么
 
@@ -29,6 +30,8 @@ Markdown checkbox、文件存在、文件名、聊天记录或历史观察都不
 | [tasks-overview.md](tasks-overview.md) | Target UX 的长程生产任务模型、暂停点与恢复纪律。 |
 | [tasks/](tasks/) | Style Master、Pilot、Expansion/Reviews 的顺序任务清单；用于推进和反馈，不替代 runtime owner。 |
 | [observations/](observations/) | 从旧草稿保留下来的具体 run 历史观察；不得用于 resume、授权或证据判断。 |
+
+本目录不再维护独立 OpenSpec change 顺序。Style Master 工作归入根计划 Change 2，Pilot/Expansion、逐项进度、完整审查与恢复归入 Change 3。
 
 ## Policy 对齐
 

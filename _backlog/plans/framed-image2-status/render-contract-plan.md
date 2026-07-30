@@ -278,7 +278,7 @@ Browser proof 可以确认本地 typography 与 safe-zone geometry，却不能�
 
 ## Pilot Run 依赖边界
 
-[pilot-run-plan.md](pilot-run-plan.md) 中的渐进式生产 UX 依赖本 render contract，但不属于 renderer module 内部。
+[pilot-run-plan.md](../production-conventions/pilot-run-plan.md) 中的渐进式生产 UX 依赖本 render contract，但不属于 renderer module 内部。
 
 Framed Pilot Run 必须通过 final composition 所用的同一套私有 compiler、font selection、browser evaluator 与 capture profile，合成代表性、尚未审查的 underlays。它可以发布 preview-only pilot bytes 与 evidence，但不能发布 accepted raw evidence、final manifest、PPTX、notes 或 delivery state。这样可让前置样本生产等价，又不增加另一 renderer 或 finalization bypass。
 
