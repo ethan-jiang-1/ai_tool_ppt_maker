@@ -1,5 +1,23 @@
 # deck_ai_sdlc_keynote — 迁移说明（人写 · 不在 `_generated/`）
 
+## 2026-07-30: page-authority-image2-v2 migration — first production deck on new pipeline
+
+从 `html-first-v1` pipeline 迁移到 `page-authority-image2-v2`，workflow 选 `framed`（Text Frame 持有 title/kicker/subtitle/callout；Image2 生成无文字 underlay）。
+
+**变更清单：**
+
+- **`slide-specifications.md`（v2）**：frontmatter 改为 `production.pipeline: page-authority-image2-v2` + `workflow: framed`。25 页全部从旧 `SLIDE BODY` YAML（schema_version: 1, family: hero/split/comparison/flow/cards/quote）转换为新 `VISUAL BRIEF` YAML（recipe/composition/motifs/negative_constraints）。映射：hero/quote → editorial-systems/centered-constellation，split/comparison → editorial-systems/left-to-right-flow，flow → +layered-pathways，cards → +soft-grid。所有 framed slides 添加 `no-readable-text` + `no-labels` negative constraints。保留 KICKER/TITLE/SUBTITLE/CONCEPT/SPEAKER NOTE 为 narrative context。
+- **`_state/state.yaml`**：pipeline 改为 `page-authority-image2-v2`，production_mode.by_version.v2 改为 `mode: image2-page-authority-v2, workflow: framed, source_epoch: 1`。移除所有 html-* 旧节点（html-content-review、html-visual-review、html-delivery-review、image2-refinement）和 legacy gates。新增 `page_authority_raw_provider_authorization` 和 `page_authority_target_evidence` 空结构。
+- **`project-metadata.yaml`**：production.pipeline 改为 `page-authority-image2-v2` + `workflow: framed`，production_mode 改为 `image2-page-authority-v2`。
+- **`deck-guide.md`**：重写为 page-authority-image2-v2 framed workflow 指南，包含新 CLI 命令（validate/image2 plan/authorize/generate/review/accept/build/refresh）。
+- **`AGENTS.md` / `CLAUDE.md`**：更新 framework 入口引用。
+- **`_generated/`（v2）**：清空旧产物（html_production/、image2_refinement/、ppt/、qa/、slide_plan.json）。由新 framework 重建到 `page_authority_image2/`。
+- **v1 / v3**：保留为只读历史版本（legacy pipelines）。
+
+**Workflow 选择理由**：该 deck 的视觉风格依赖精确的中文 Song/Ming serif typography over sketch/etching underlays。framed workflow 的 Text Frame 拥有文字排版权，Image2 负责无文字 underlay——与现有 visual-style 资产和设计约束一致。现有 `page-authority-visual-language.yaml` 已支持 `framed-image2` authority。
+
+**未改动**：`1_upstream_raw_material/`、`2_backbone/`（含 visual-style）、`_lessons/`、`3_versions/v2/overrides/`、`3_versions/v2/_scratch/`。
+
 ## 2026-07-25: framework v0.22 alignment — v5 state + RUN_BUNDLE + production_mode
 
 升级 run bundle 以适配当前 PPTMAKER_FRAMEWORK（v0.22.0，包含 production-mode + image2-primary 功能分支）。
