@@ -12,6 +12,37 @@
 - 生成图像的 canonical artifact name 是 `${slide_id}.png`；不得把 `{NN}-` 前缀当作身份或正式文件命名规则。
 - 有意替换身份是一项单独审查的 source edit，不是普通内容修改或重排的副作用。
 
+## Production 文件命名：`NN_slideID`
+
+Production 输出（最终 PPT 导出、交付物文件）使用 **`NN_slideID`** 双层命名：
+
+```text
+NN_slideID.ext
+
+01_UXGap.png
+02_DataMap.png
+03_AITurn.png
+```
+
+| 层 | 含义 | 可变性 | 示例 |
+|---|---|---|---|
+| `NN` | 当前 deck 中的页序（两位数字，从 01 起） | **随增删挪动自由变化** | `01`, `02`, `03` |
+| `slideID` | 跨版本稳定身份（mnemonic-v1） | **不可变** | `UXGap`, `DataMap`, `AITurn` |
+
+核心原则：
+
+- **`slideID` 是真相，`NN` 只是当期投影。** 加页、减页、挪页时只改数字前缀，ID 纹丝不动——不管怎么调顺序，ID 永远能找到那一页。
+- **Identity artifact 不加前缀。** Canonical artifact name 始终是 `${slide_id}.png`，用于 receipt、log、跨版本引用。`NN_` 前缀只出现在 production 交付物中。
+- **换页无伤。** 挪动页面只改 `NN_` 前缀；重新排序 production 文件即可，不会破坏任何 ID 引用链。
+
+两层分工：
+
+| 场景 | 用哪个 |
+|---|---|
+| 代码、receipt、log、cross-ref | `${slide_id}` 不加前缀 |
+| 最终 PPT 导出、交付给客户的 PNG/PDF | `NN_slideID` |
+| 口头讨论、文档引用 | `position + slide_id + title`（如 "P03 AITurn AI 带来的转向"） |
+
 ## 语义规则：`SUBJECT + MOVE`
 
 每个新 ID 由 Agent 根据页面长期叙事角色编写两个语义块：
