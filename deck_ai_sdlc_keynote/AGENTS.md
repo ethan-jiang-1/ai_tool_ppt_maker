@@ -4,4 +4,5 @@
 
 **断线 / 清聊天：** 先 `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state 3_versions/v2 --json`（整流程 where-am-I），再动手。进度在盘上（`_state/state.yaml` + 产物），不在聊天上下文。
 
+Framework 入口：`PPTMAKER_FRAMEWORK/BOOTSTRAP.md` → `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md`。
 目录宪法：`PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs`。
