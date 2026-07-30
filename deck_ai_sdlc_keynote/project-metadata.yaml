@@ -11,12 +11,8 @@ one_thing_to_remember: "软件是先行样本，你的行业也在同一条信�
 content_gate: waived
 visual_gate: approved
 production:
-  pipeline: html-first-v1
+  pipeline: page-authority-image2-v2
+  workflow: framed
 # production_mode mirror (SSOT: _state/state.yaml)
-production_mode: html-then-image2
+production_mode: image2-page-authority-v2
 production_mode_run_version: v2
-# HTML-first gates (active for v2)
-html_content_gate: waived
-html_content_gate_run_version: v2
-html_visual_gate: waived
-html_visual_gate_run_version: v2

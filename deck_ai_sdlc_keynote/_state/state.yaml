@@ -6,205 +6,54 @@
 # MD Controller source: PPTMAKER_FRAMEWORK/playbook/*.md
 # Read boundary: observation validates current schema-5 authority and never rewrites, infers, or continues unsupported historical state
 schema_version: 5
-pipeline: html-first-v1
+pipeline: page-authority-image2-v2
 production_mode:
   by_version:
-    3_versions/v1:
-      mode: image2-only
     3_versions/v2:
-      mode: html-then-image2
-    3_versions/v3:
-      mode: image2-only
+      mode: image2-page-authority-v2
+      workflow: framed
+      source_epoch: 1
+    3_versions/v4:
+      mode: image2-page-authority-v2
+      workflow: framed
+      source_epoch: 2
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-24T20:21:53.859Z
-nodes:
-  html-content-review:
-    by_version:
-      3_versions/v2:
-        schema: pptmaker-html-gate-review-v1
-        gate: content
-        pipeline: html-first-v1
-        run_version: v2
-        html_production_reset_id: null
-        status: waived
-        review_plan_hash: dd2126cfb6412e4d80e170826254fe98bbfb1fee741da1e35f641a59a65656f9
-        content_review_fingerprint: null
-        ordered_plan_digest: null
-        decided_at: 2026-07-20T00:00:00.000Z
-        waiver_reason: Migration from legacy Image2 — content carried forward from v1 to v2 html-first
-  html-visual-review:
-    by_version:
-      3_versions/v2:
-        schema: pptmaker-html-gate-review-v1
-        gate: visual
-        pipeline: html-first-v1
-        run_version: v2
-        html_production_reset_id: null
-        status: waived
-        review_plan_hash: a9bca522f3b3029abd6028711817638e4d061565d287c049f7bdd5247a187206
-        visual_system_fingerprint: null
-        component_recipe_coverage: null
-        page_visual_dependencies: null
-        shown_artifacts: null
-        decided_at: 2026-07-20T00:00:00.000Z
-        waiver_reason: Migration from legacy Image2 — visual system carried forward from v1 to v2 html-first
-  html-delivery-review:
-    by_version:
-      3_versions/v2:
-        schema: pptmaker-html-delivery-review-v1
-        pipeline: html-first-v1
-        run_version: v2
-        html_production_reset_id: null
-        html_delivery_digest: 19ca69954dfed62decfbb4dadb3d3f33a990b1cfa925abf508d2cf82f6f9f49b
-        contact_sheet_manifest_path: _generated/html_production/preview/manifest.json
-        contact_sheet_manifest_sha256: ae5ad04dcc9310a40bafd22b5e0ad983ba2cdb2aafd2f4d22d945ba7ab1c9c0c
-        contact_sheet_path: _generated/html_production/preview/objects/3b39038bcb590cacc367cd19e6f081b37c1de6cf5e8462416e568a323a8eb029.png
-        contact_sheet_sha256: 3b39038bcb590cacc367cd19e6f081b37c1de6cf5e8462416e568a323a8eb029
-        assembly_receipt_path: _generated/qa/pptx_assembly.json
-        assembly_receipt_sha256: 3603d7aa7a92fe81daa50af58dc360bc8e0b71058eebf2c2acb4cb509569148f
-        pptx_sha256: c469516f334dc21c364ac3fd2fdd481f6878866efacfb20514759cc19424ce52
-        notes_receipt_path: _generated/qa/notes_injection.json
-        notes_receipt_sha256: b501f098c3a8473979dbbcd24f0482645ff959b70b33511e3a0824744a903565
-        decision: proceed
-        reason: null
-        decided_at: 2026-07-21T00:00:00.000Z
-  image2-refinement:
-    by_version:
-      3_versions/v2:
-        schema: pptmaker-image2-refinement-state-v1
-        run_version: v2
-        plan:
-          schema: pptmaker-image2-refinement-plan-v1
-          run_version: v2
-          delivery_digest: 19ca69954dfed62decfbb4dadb3d3f33a990b1cfa925abf508d2cf82f6f9f49b
-          profile_fingerprint: 237087f71c2c515fab646f0e0ca136f55c2901537d1df760975c752e63195766
-          style_reference_status: missing
-          slides:
-            - slide_id: GoRev
-              slot: primary_visual
-              visual_contract_fingerprint: 6324a4d1419ca770099a9535dff1c5abbaa278fc6996b602ba1c24a87ca542ac
-            - slide_id: RiskMid
-              slot: primary_visual
-              visual_contract_fingerprint: f04b2e0308ec3333ee283abf76004679f89537c2b525d9f26ab037dd183cd3a2
-            - slide_id: ToBPM
-              slot: primary_visual
-              visual_contract_fingerprint: 8df210fd940941a2c0eb5cb485a6eaa62e3721582d9ea74d5484ec6b15ab336d
-            - slide_id: TriYear
-              slot: primary_visual
-              visual_contract_fingerprint: 564fb9619190a2216cf91916984bbb65e6bb964969f833c290b887787827d105
-          setup_attempts: 1
-          page_attempts: 4
-          total_attempts: 5
-          plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-        authorization:
-          schema: pptmaker-image2-refinement-authorization-v1
-          authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-          plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-          state: authorized
-          authorized_at: 2026-07-20T19:02:54.858Z
-          used: false
-          attempts:
-            - attempt_id: attempt-3c498fb4-6613-430c-98f8-21920076a95b
-              kind: style-reference
-              state: planned
-            - attempt_id: attempt-286c1971-efcb-4dd1-b5b7-bd0df7d2e8ff
-              kind: slot
-              slide_id: GoRev
-              slot: primary_visual
-              state: planned
-            - attempt_id: attempt-b739a455-d3c9-432e-b9ba-9dc3c10b323a
-              kind: slot
-              slide_id: RiskMid
-              slot: primary_visual
-              state: planned
-            - attempt_id: attempt-3554027c-09da-42c8-84f3-b3ddfef967b0
-              kind: slot
-              slide_id: ToBPM
-              slot: primary_visual
-              state: planned
-            - attempt_id: attempt-75c39759-84a0-4dc4-b5f4-6b4d833e963a
-              kind: slot
-              slide_id: TriYear
-              slot: primary_visual
-              state: planned
-        attempts:
-          attempt-3c498fb4-6613-430c-98f8-21920076a95b:
-            schema: pptmaker-image2-refinement-attempt-v1
-            attempt_id: attempt-3c498fb4-6613-430c-98f8-21920076a95b
-            authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-            plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-            kind: style-reference
-            state: planned
-            created_at: 2026-07-20T19:02:54.858Z
-          attempt-286c1971-efcb-4dd1-b5b7-bd0df7d2e8ff:
-            schema: pptmaker-image2-refinement-attempt-v1
-            attempt_id: attempt-286c1971-efcb-4dd1-b5b7-bd0df7d2e8ff
-            authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-            plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-            kind: slot
-            state: planned
-            slide_id: GoRev
-            slot: primary_visual
-            created_at: 2026-07-20T19:02:54.858Z
-          attempt-b739a455-d3c9-432e-b9ba-9dc3c10b323a:
-            schema: pptmaker-image2-refinement-attempt-v1
-            attempt_id: attempt-b739a455-d3c9-432e-b9ba-9dc3c10b323a
-            authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-            plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-            kind: slot
-            state: planned
-            slide_id: RiskMid
-            slot: primary_visual
-            created_at: 2026-07-20T19:02:54.858Z
-          attempt-3554027c-09da-42c8-84f3-b3ddfef967b0:
-            schema: pptmaker-image2-refinement-attempt-v1
-            attempt_id: attempt-3554027c-09da-42c8-84f3-b3ddfef967b0
-            authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-            plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-            kind: slot
-            state: planned
-            slide_id: ToBPM
-            slot: primary_visual
-            created_at: 2026-07-20T19:02:54.858Z
-          attempt-75c39759-84a0-4dc4-b5f4-6b4d833e963a:
-            schema: pptmaker-image2-refinement-attempt-v1
-            attempt_id: attempt-75c39759-84a0-4dc4-b5f4-6b4d833e963a
-            authorization_id: auth-e363d64b-4f09-4008-aa7f-9493cd217ba5
-            plan_hash: 8b47c398f8dbac357b927330200822e332c2e08d2d3a4d91eb26b683ad89b51e
-            kind: slot
-            state: planned
-            slide_id: TriYear
-            slot: primary_visual
-            created_at: 2026-07-20T19:02:54.858Z
-        reviews: {}
-gates:
-  html_content: waived
-  html_content_run_version: v2
-  html_visual: waived
-  html_visual_run_version: v2
-  content: waived
-  visual: waived
+updated_at: 2026-07-30T07:12:21.196Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
   style: warm-editorial
+nodes: {}
+gates:
+  content: waived
+  visual: waived
 playbook_stack: []
 execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
 execution_started_at: 2026-07-20T00:00:00.000Z
 diagnostics:
   - "schema healed: v3 → v5 (2026-07-24 framework alignment)"
-  - "production_mode.by_version seeded: v2=html-then-image2, v1=image2-only"
-  - instantiation removed from active migrate-import working set
-image2_provider_authorization:
+  - "migrated: html-first-v1 → page-authority-image2-v2, workflow=framed (2026-07-30)"
+page_authority_raw_provider_authorization:
+  by_version: {}
+page_authority_target_evidence:
   by_version:
-    3_versions/v3:
-      schema: pptmaker-image2-provider-authorization-v1
-      run_version: v3
-      operation: build
-      scope:
-        slide_ids:
-          - RomPyr
-      profile_fingerprint: f45d8f5ba0b96aa79c2ad498d4e2f7a71ba5e2180d8848ff9e2588430d162903
-      max_submissions: 1
-      execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
-      decided_at: 2026-07-24T20:21:53.859Z
+    3_versions/v2:
+      schema: page-authority-image2-target-state-v1
+      run_version: v2
+      source_epoch: 1
+      source_receipt_sha256: 9bf45992ef43fd99b53725ba622119ffea523de4758be926ff99a93693d8bbcc
+      workflow: framed
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v4:
+      schema: page-authority-image2-target-state-v1
+      run_version: v4
+      source_epoch: 2
+      source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
+      workflow: framed
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null

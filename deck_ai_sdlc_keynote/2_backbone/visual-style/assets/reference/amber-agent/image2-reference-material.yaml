@@ -14,3 +14,27 @@ profiles:
         reference_path: collaborating.png
         reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
         role_clause: one warm amber light-form shares attention through an open reciprocal posture
+      yan:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: one warm amber light-form sits focused, brush in hand, calm and precise
+      zhu:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: one warm amber light-form stands, hands reaching outward, dynamic and energetic
+      duo:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: one warm amber light-form centered, fine threads radiating outward to connect distant forms
+      he:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: one warm amber light-form examines through a lens, methodical and verifying
+      cha:
+        reference_path: collaborating.png
+        reference_sha256: 3c6d32bc8796b655b49f89674a09b193220f7dbdbda3b00762183c11d1d19ccf
+        role_clause: one warm amber light-form scans flowing data, alert and watchful
+      suan:
+        reference_path: guide.png
+        reference_sha256: cb81bcc0ed59fa44922bac3f3cd610de562ece4046d0186aba06ae98f46719d2
+        role_clause: one warm amber light-form contemplates calculations, precise and numerical

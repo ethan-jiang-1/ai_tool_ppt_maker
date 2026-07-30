@@ -1,17 +1,18 @@
 ---
 production:
-  pipeline: html-first-v1
+  pipeline: page-authority-image2-v2
+  workflow: framed
 identity:
   scheme: mnemonic-v1
 ---
 
 # Slide Specifications — AI 时代的信息加工变革 (v2)
 
-> 每个版本一份下游文件，也是**管线入口**：Stage 1 解析 `## Slide N` 块生成 JSON。
+> 每个版本一份下游文件，也是**管线入口**。
 >
 > **上游身份不在这里**：核心隐喻（信息加工链 / ITO）在 `2_backbone/core-metaphor.md`，公式在 `2_backbone/core-formula.md`，约束在 `2_backbone/design-constraints.md`，视觉在 `2_backbone/visual-style/`。
 >
-> **Render policy**：全册默认 `full-page`。SLIDE BODY 使用 html-first-v1 合约。
+> **Workflow**：framed — Text Frame 持有 kicker/title/subtitle/callout；Image2 生成无文字 underlay。
 
 ---
 
@@ -50,23 +51,16 @@ identity:
 - **Bridge to next**: 下一页用"三年三级跳"把观众拉进场，证明这不是空谈。
 - **Content structure**: 极简封面。大量留白的奶油纸底，主标题大号衬线中文居中偏上，副标题一行居中在其下。最多在标题下方一条极淡的手绘横线 + 一个小琥珀点作锚。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: AI 时代的信息加工革命
-supporting_line: 从 SDLC 到 BPM，工作方式正在被整体重写
-callout: 软件是先行样本——你的行业紧随其后
-primary_visual:
-  placement: full-bleed
-  brief: Warm amber-to-cream gradient field covering the full slide background
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 开场落在封面上停一拍——今天讲的不是某个工具，而是一场"信息加工"方式的整体重写。软件是第一个样本，但故事关于所有靠信息吃饭的行业。
@@ -94,22 +88,16 @@ primary_visual:
 - **Bridge to next**: 既然 AI 进步这么快，为什么偏偏是软件/编程第一个被颠覆？下一页回答。
 - **Content structure**: 时间轴（2024→2025→2026），三个光源由弱到强（烛火→灯→太阳），配三段由一行到整项目的代码演化。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: 从补全一行代码，到接管整个项目。
-supporting_line: 这不是 hype。这是加速度。
-primary_visual:
-  placement: full-bleed
-  brief: Amber gradient field suggesting acceleration and forward motion
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 用亲历者身份开场——在 AI 行业待了很久，见过多次"狼来了"，但这三年不一样。用三年三级跳（补全一行→写完函数→接管项目）建立加速度感，强调这不是 hype 是真实的加速度，而且正在溢出到所有信息加工领域。
@@ -135,23 +123,15 @@ primary_visual:
 - **Bridge to next**: 溢出到哪里去？下一页给出证据：同一套工具已同时服务编程和办公。
 - **Content structure**: 两栏并置（左：编译器绿勾瀑布+反馈环 / 右：海量代码碎片如雨落进知识库），汇聚到中心 AI 核心。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: split
-mode: text-text
-left:
-  heading: 编译器反馈
-  bullets:
-    - AI 写得对不对，0.1 秒就知道
-    - 反馈循环快，自我纠正效率极高
-    - 学得快，进步曲线陡峭
-right:
-  heading: 海量教材
-  bullets:
-    - GitHub 上几十亿行代码
-    - AI 有读不完的训练数据
-    - 进步快→资本涌入→模型更强
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -180,23 +160,15 @@ right:
 - **Bridge to next**: 既然共享，软件行业就是先行样本；下一页给出今天的路线图（讲三件事）。
 - **Content structure**: 中心琥珀 Agent 核心，左右分叉（左：黑色终端+程序员剪影 / 右：明亮文档+白领剪影），两侧朝向同一核心。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: split
-mode: text-text
-left:
-  heading: 编程模式
-  bullets:
-    - 同一个 Agent 引擎驱动
-    - 开发者已在这条路上跑了三年
-    - 给任务→Agent 执行→人验收
-right:
-  heading: 办公模式
-  bullets:
-    - 同一套工具，只切模式
-    - 上午写代码，下午写报告
-    - 办公室白领才刚刚开始
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -226,25 +198,15 @@ right:
 - **Bridge to next**: 这个新搭档最先撞进软件开发——看 SDLC，人以前是怎么想的，现在有了搭档以后旧地图怎么不管用了。下一页。
 - **Content structure**: 左右对比构图。左边：一个传统程序员，他是专才，只会写代码。右边：一个 AI 伙伴，通才——产品、程序、测试、运维、汇报五个领域同一搭档完成。专才 → 通才。底部一行字：你多了个超级能干的伙伴——但你还不会配合。两个都是真的。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: split
-mode: text-text
-left:
-  heading: 人：专才
-  bullets:
-    - 只懂写代码，一个领域钻得很深
-    - 产品、测试、运维、汇报都不懂
-    - 跨出领域就得换人
-    - 以前每次技术浪潮——换工具
-right:
-  heading: AI：通才
-  bullets:
-    - 产品、程序、测试、运维、汇报全懂
-    - 每样都能上手干活，不是只会一点
-    - 你把一整件事委派给它——全套
-    - 这次不一样——给你一个搭档
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -274,26 +236,15 @@ right:
 - **Bridge to next**: 「旧地图不管用」是理论，证据在哪？Martin Fowler 两次 retreat 的亲历者告诉你——下一页。
 - **Content structure**: 一面墙上挂着三张褪色的旧地图——瀑布、V 模型、敏捷——都是经典完整但已褪色。人站在墙前，旁边是 AI 伙伴，一起面向前方大片留白画布，上面只有试探性线条和一个问号：「AIDLC？」。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: comparison
-left:
-  heading: 旧地图：人独自走
-  bullets:
-    - 瀑布：想全部，做全部
-    - V 模型：边做边验证
-    - 敏捷：想一点做一点
-    - 差异只是节奏，不是分工
-    - 默认人独自想、写、验
-right:
-  heading: 新路况：多了一个搭档
-  bullets:
-    - AI 能写、能测、能替你想
-    - 怎么分工？谁做多少？
-    - AIDLC 还是问号
-    - 旧地图不管用了
-    - 新地图正在被画出来
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -324,16 +275,14 @@ right:
 - **Bridge to next**: 同一时期旧金山还有一场更大的公开场——Fowler 和 Kent Beck 同台，有硬数据、有 12 万开发者调查，下一页。
 - **Content structure**: 左右并置对比——左：Utah 雪山、篝火几人围坐、笔触试探犹豫，角标注「Deer Valley，2026.02」；右：瑞士绿色山谷、发光仪表盘、笔触自信果断，角标注「Engelberg，2026.06」。中间一道粗琥珀箭头标「5 个月」。底部一行大字：Not slides — Production。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: Not slides — production. The debate is over.
-  attribution: Greg Herlein
-  context: Engelberg 2026.06
-supporting:
-  heading: 五个月内，同一群人从犹豫到确信
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -364,16 +313,14 @@ supporting:
 - **Bridge to next**: 这些讨论发生时 Fable 5 还没发布；6月它来了，把一切推到新量级。
 - **Content structure**: 炉边对话双人剪影 + 舞台琥珀光 + 三个关键词漂浮；右侧 AI Agent 记忆点。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: Nothing has hit with the magnitude of AI.
-  attribution: Martin Fowler
-  context: Pragmatic Summit
-supporting:
-  heading: 敏捷奠基人的判断
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -404,16 +351,14 @@ supporting:
 - **Bridge to next**: 瓶颈变成人，人的角色就必须被重写——进入 Block B。
 - **Content structure**: 车内视角——现代汽车驾驶室内部。AI 搭档坐在驾驶位，沉稳自信。人坐在副驾驶，姿态是信任+关注。呼应 Mollick 引语 "I no longer steer. I commission."。瓶颈=人能不能放心把方向盘交给搭档（Trust Gap）。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: I no longer steer. I commission.
-  attribution: Ethan Mollick
-  context: on Fable 5
-supporting:
-  heading: 瓶颈从机器变成了人
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -442,17 +387,15 @@ supporting:
 - **Bridge to next**: 往下游要验收，但 AI 一晚写几千行——人审得过来吗？下一页。
 - **Content structure**: 水平链条七节点，中间三节点换成琥珀 AI 核心，左侧人指向上、右侧人指向下。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: flow
-steps:
-  - label: 需求
-    body: 往上游：定义做什么。架构师、产品经理。
-  - label: AI 加工
-    body: AI 接管编码、测试、部分设计。通才一站直通。
-  - label: 验收治理
-    body: 往下游：建护栏做验收。Harness Engineer。
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - layered-pathways
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -482,25 +425,15 @@ steps:
 - **Bridge to next**: 既然逐行审不可行，就得改成设护栏——human-on-the-loop，下一页。
 - **Content structure**: 漏斗——顶部密集代码涌入，底部单滴流出（10:1），出口的小人被淹没。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: split
-mode: text-text
-left:
-  heading: 人的速度
-  bullets:
-    - 一天几百行代码
-    - 一个 PR 审半小时
-    - 一个 sprint 两周
-    - 人的信息吞吐恒定
-right:
-  heading: AI 的速度
-  bullets:
-    - 一晚上几千行代码
-    - 一晚 25 个实验
-    - 反馈周期变成 AI-paced
-    - 人审不过来，量级错配
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -529,26 +462,15 @@ right:
 - **Bridge to next**: 角色和方法都重写了，组织会怎样？进入 Block C（中层危机）。
 - **Content structure**: 上下对比（上 In loop：流水线逐个检查=暗红棕 / 下 On loop：控制台设护栏、Agent 框内自主=绿金）+ 底部三个新工种徽章。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: comparison
-left:
-  heading: In the loop
-  bullets:
-    - 人逐行 review
-    - 不可扩展
-    - 一对一盯着每个产出
-    - 修的是 artifact
-    - 人-paced，瓶颈在人
-right:
-  heading: On the loop
-  bullets:
-    - 人建护栏，AI 框内自主
-    - Agent 产出不满→修 harness
-    - 一对多设护栏
-    - Supervisory Eng.
-    - Harness Engineer
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -577,22 +499,16 @@ right:
 - **Bridge to next**: 这不是理论，两家公司已在动，但方式完全不同——下一页 Block vs Cloudflare。
 - **Content structure**: 三层地质剖面（顶绿=初级安全 / 中琥珀红=中层受挤 / 底金=资深编排）。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: AI 最先替代的不是不会写代码的人。是只会写代码的人。
-callout: 三层分化：初级安全 · 中层受挤 · 资深转向架构
-primary_visual:
-  placement: full-bleed
-  brief: Gradient field with amber accent emphasizing the risk warning
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 三层分化：初级意外安全、中层真正危机、资深转架构。Beck："中层是我最担心的。"Cherny 新稀缺：judgment / taste / dimensionality——模型也有判断力后，人剩下的是发现盲区、问对问题。
@@ -619,16 +535,14 @@ primary_visual:
 - **Bridge to next**: 同一季度，另一位 CEO 用完全不同的方式重新定义人——下一页 Cloudflare 的精准诊断。
 - **Content structure**: 主图=传统金字塔层级坍缩，重组为三个并列角色徽章（IC / DRI / Player-Coach），每个徽章带一句解释，中间用 AI agent 做协调层连接。下方一行 amber 高亮结果。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: From Hierarchy to Intelligence.
-  attribution: Jack Dorsey, Block
-  context: "2026"
-supporting:
-  heading: 三种角色替代五层管理
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -659,16 +573,14 @@ supporting:
 - **Bridge to next**: 软件行业讲完了；同样的事正在传统企业发生——进入企业镜像（BPM）。
 - **Content structure**: 三栏并列（Builder / Seller / Measurer），每栏一个角色 + 定义 + AI 可替代性标记。底部一行大字 Displacement, not reduction。溯源 Drucker 1954 小标。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: Displacement, not reduction.
-  attribution: Matthew Prince
-  context: Cloudflare CEO
-supporting:
-  heading: 三种人的刻度尺
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -698,23 +610,16 @@ supporting:
 - **Bridge to next**: 下一页正式建立 SDLC↔BPM 同构：你们公司也在加工信息。
 - **Content structure**: 极简中转页，和封面/结尾同一种"停顿页"语言。奶油纸底、大量留白。大号衬线中文标题居中，副标题一行居中在其下。最多一个居中的小琥珀点或极淡的换挡箭头作锚。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: 软件的故事讲完了。现在，轮到你的行业。
-supporting_line: 同一条信息加工链，只是换了名字
-callout: 软件是金丝雀——你的行业也在加工信息
-primary_visual:
-  placement: full-bleed
-  brief: Transitional gradient field marking the pivot from software to enterprise
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 前半场我们看着软件行业：方法论被挖、人的角色被重写、组织开始连锁反应。别以为这是科技公司的家务事——软件只是煤矿里的金丝雀，它先感觉到空气变了。你的行业同样在加工信息，只是换了个名字叫 BPM。接下来，把同一个故事映射到你身上。
@@ -741,26 +646,15 @@ primary_visual:
 - **Bridge to next**: Framed Autonomy 这个名字值得记住，下一页展开它 = AI Sandwich。
 - **Content structure**: 两条平行链，节点间竖虚线一一连接；背后时间轴在 2026 汇合于琥珀点。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: comparison
-left:
-  heading: SDLC（软件开发）
-  bullets:
-    - 需求→分析→设计
-    - 编码→测试→产品
-    - 瀑布→敏捷→AI-SDLC
-    - 40 年方法论演进
-    - 已被 AI 整体重写
-right:
-  heading: BPM（企业流程）
-  bullets:
-    - 业务信息→汇总→分析
-    - 审批→执行→决策
-    - 泰勒→BPR→Agentic BPM
-    - Dagstuhl 宣言 2026
-    - Framed Autonomy
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -790,25 +684,15 @@ right:
 - **Bridge to next**: Framed Autonomy 落到企业架构，就是四层同时重构——下一页。
 - **Content structure**: 主画面=一个温暖的琥珀色几何力场框（透明发光边界，沙盒感）。框内两个 Agent 性格对比鲜明——左边：「砚」——安静坐着写，周围飘着整洁产出；右边：「铸」——站着的，能量充沛，在摆弄设备。框外：一个人一只手轻轻搭在框边。底部两行：有框，才有真正的自主。框不是笼子——是让你敢放手的边界。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: split
-mode: text-text
-left:
-  heading: Operational Frame
-  bullets:
-    - 规定执行序列，像 CI 管道
-    - 告诉 Agent 怎么走
-    - 砚：在想，在写，在验证
-    - 安静沉稳，产出整洁精确
-right:
-  heading: Normative Frame
-  bullets:
-    - 规定禁止行为，像编码规范
-    - 告诉 Agent 不许碰什么
-    - 铸：在搭，在连，在跑
-    - 能量充沛，连接设备调动资源
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -838,19 +722,15 @@ right:
 - **Bridge to next**: 有没有真实企业这么做？下一页海外四案例。
 - **Content structure**: 四条水平堆叠面板（前端/中端/后端/治理），同一道琥珀波贯穿每层。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: cards
-cards:
-  - label: 前端
-    body: Office、飞书、钉钉变成 Agent 基础设施
-  - label: 中端
-    body: Agentic Orchestration / ProcessOS 重写流程
-  - label: 后端
-    body: CRM、ERP、HCM 变成 Agent 调用的数据源
-  - label: 治理
-    body: 控制 Agent 身份权限 = 控制企业 AI
+recipe: editorial-systems
+composition: centered-constellation
+motifs:
+  - soft-grid
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -879,16 +759,14 @@ cards:
 - **Bridge to next**: 海外如此，中国呢？下一页中国案例。
 - **Content structure**: 单案例深讲。一侧一个克制的"AI 理赔班组"意象：planner「舵」居中，向外发散连到 3 个命名专才 agent（核 / 察 / 算）。另一侧文字主舞台：公司一行介绍 + 两个带标号的突出点。底部小字诚实注脚。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: We scoped it intentionally.
-  attribution: Maria Janssen, CTrO
-  context: Allianz Project Nemo
-supporting:
-  heading: 数天→数小时，理赔员升为签核者
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -919,16 +797,14 @@ supporting:
 - **Bridge to next**: 两家传统巨头、两条不同的路，结果一样——软件发生的正在所有行业重演。退一步看大局（进入 Part 3：罗马军团散了）。
 - **Content structure**: 主图=一艘巨型集装箱船，船身上叠一张发光的数字孪生蓝图，船上 edge AI 核心标记为琥珀色。下方三列要点：油耗/准班率、报关 AI、客服 AI。底部一行 amber 小字：跟 Allianz 不同路，同一个结论。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: quote
-quote:
-  quote: Process Intelligence First — 先建孪生，再上 AI。
-  attribution: Maersk Star Connect
-  context: 130 年航运巨头
-supporting:
-  heading: 油耗 -9.2%，年省 $300M+
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -960,26 +836,15 @@ supporting:
 - **Bridge to next**: 中层若只做搬运就没用了——那到底该怎么重新分类岗位？下一页 Builder/Seller/Measurer。
 - **Content structure**: 上半部文字为主，五行递进要点。下半部三栏对比：左栏=罗马军团金字塔；中栏=现代企业金字塔（完全一样的结构）；右栏=同一个金字塔被琥珀涟漪从中间淡化——纯搬运的中间层变半透明，顶层和底层之间出现 Agent 直连。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: comparison
-left:
-  heading: 为什么需要金字塔
-  bullets:
-    - 管理带宽 7-15 人
-    - 人是窄专家，知识有边界
-    - 纵向瓶颈：层级链
-    - 横向瓶颈：部门墙
-    - 两千年没变过
-right:
-  heading: AI 为什么能打破
-  bullets:
-    - AI 是通才，没职业边界
-    - 沟通成本接近零
-    - 纯搬运的中层理由消失
-    - 跨边界流程一步直通
-    - Block 已在试
+recipe: editorial-systems
+composition: left-to-right-flow
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
 
 > **SPEAKER NOTE**
@@ -1011,22 +876,16 @@ right:
 - **Bridge to next**: 两条河（SDLC/BPM）正在汇流——下一页融合。
 - **Content structure**: 三列（Builders/Sellers/Measurers）+ 箭头转化（岗位重定义）；底部中国法律注释。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: 纯测量、报告、协调的岗位——不是裁掉，是重新定义。
-callout: 从「做测量」变成「管 AI 测量输出并决策」
-primary_visual:
-  placement: full-bleed
-  brief: Warm gradient suggesting transformation and role evolution
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > Builder/Seller/Measurer 三分法。Measurer 不是裁掉是重定义：质检员→AI 异常处理员、排产员→AI 排产审查员、成本会计→AI 成本决策者。三波冲击时序：先 productivity、再 communication、后 organization——前两波已发生，第三波刚开始。中国：法院已裁定 AI 不能作为裁员合法理由，但不影响重新设计岗位。
@@ -1053,22 +912,16 @@ primary_visual:
 - **Bridge to next**: 收敛已成事实，最后抛出开放问题——下一页 closer。
 - **Content structure**: 文字为主舞台，核心一句大字压题，下方四行要点。底部一个简洁的单一意象：两条细线（软件 / 企业）在中间汇成一条更粗的琥珀主流。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: SDLC 和 BPM。两条河。正在汇成一条。
-callout: 不是互相借鉴——是同一 Agent 基础设施上的收敛
-primary_visual:
-  placement: full-bleed
-  brief: Gradient field evoking two streams merging into one
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 回顾：软件经历前提被挖、角色重写、组织重构；企业 BPM 完全一样（Framed Autonomy = AI Sandwich、四层精确映射）。而且两边用同一套工具。不是边界模糊，是同一 Agent 基础设施上的收敛。
@@ -1096,22 +949,16 @@ primary_visual:
 - **Bridge to next**: N/A — closer
 - **Content structure**: 极简结尾页，和封面/中转同一种"停顿页"语言。大量留白。大号衬线中文主问句居中，副标题一行居中在其下。不画插画，只留一个小琥珀点作锚。留白就是收尾。
 
-**SLIDE BODY**:
+**VISUAL BRIEF**:
 ```yaml
-schema_version: 1
-family: hero
-hero_statement: 外面都变了。你打算怎么变？
-supporting_line: 我今天没有结论。只有一个问题。
-primary_visual:
-  placement: full-bleed
-  brief: Minimal gradient — calm, spacious, one amber spark on cream paper
-  fit: cover
-  focal_point: [0.5, 0.5]
-  fallback:
-    kind: abstract-pattern
-    recipe: gradient-field
-  selection: null
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
 ```
+
 > **SPEAKER NOTE**
 > **Narrative flow:**
 > 坦承没有标准答案——不知道你该怎么重组、怎么分工、3 年后架构长什么样。但确定一件事：最系统化管理信息加工的软件业，方法论/角色/组织 5 个月被掀翻；而你的行业也在加工信息。软件是先行样本，你是下一个。留一个问题收尾。
