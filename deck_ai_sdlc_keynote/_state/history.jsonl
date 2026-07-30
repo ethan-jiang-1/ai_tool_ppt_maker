@@ -16,3 +16,5 @@
 {"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T20:09:21.008Z"}
 {"type":"image2_provider_authorization","run_version":"v3","operation":"build","at":"2026-07-24T20:21:53.859Z"}
 {"type":"page_authority_target_state_initialized","run_version":"v2","source_epoch":1,"at":"2026-07-30T06:09:56.655Z"}
+{"type":"page_authority_target_state_initialized","run_version":"v4","source_epoch":1,"at":"2026-07-30T06:58:40.361Z"}
+{"type":"page_authority_target_source_epoch_advanced","run_version":"v4","workflow":"framed","previous_source_epoch":1,"source_epoch":2,"previous_source_receipt_sha256":"9bf45992ef43fd99b53725ba622119ffea523de4758be926ff99a93693d8bbcc","source_receipt_sha256":"5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155","at":"2026-07-30T07:12:21.196Z"}

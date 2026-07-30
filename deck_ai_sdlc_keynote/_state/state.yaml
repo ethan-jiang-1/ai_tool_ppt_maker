@@ -13,8 +13,12 @@ production_mode:
       mode: image2-page-authority-v2
       workflow: framed
       source_epoch: 1
+    3_versions/v4:
+      mode: image2-page-authority-v2
+      workflow: framed
+      source_epoch: 2
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-30T06:09:56.650Z
+updated_at: 2026-07-30T07:12:21.196Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -38,6 +42,16 @@ page_authority_target_evidence:
       run_version: v2
       source_epoch: 1
       source_receipt_sha256: 9bf45992ef43fd99b53725ba622119ffea523de4758be926ff99a93693d8bbcc
+      workflow: framed
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+    3_versions/v4:
+      schema: page-authority-image2-target-state-v1
+      run_version: v4
+      source_epoch: 2
+      source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
       workflow: framed
       provider_authorization_sha256: null
       accepted_raw_evidence_sha256: null
