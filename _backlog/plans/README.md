@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-07-29 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-07-30 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,8 +19,7 @@
 
 | Plan | Summary | Status |
 |------|---------|--------|
-
-当前没有活跃 plan。
+| [framed-image2-status/](framed-image2-status/README.md) | Framed Text Frame render-contract convergence and verification plan. | Draft |
 
 **Next available plan ID: CLS-017**（移入 `_closed_plans/` 时分配；CLS-001…016 已用）
 
