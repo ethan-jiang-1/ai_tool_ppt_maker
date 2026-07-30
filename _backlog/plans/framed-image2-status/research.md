@@ -1,461 +1,328 @@
-# Research: Framed Image2 Current Status
+# 调研：Framed Image2 当前状态
 
-> Evidence snapshot | Date: 2026-07-30
+> 证据快照 | 日期：2026-07-30
 
-## Scope And Method
+## 范围与方法
 
-This investigation covers framework source, current OpenSpec capabilities,
-tests, and local deterministic probes. It does not inspect production `deck_*`
-or `dpt_*` data. Besides this requested plan directory, no other `_backlog`
-material is used as authority.
+本次调查覆盖 framework source、当前 OpenSpec capabilities、tests 与本地确定性 probes；不检查生产 `deck_*` 或 `dpt_*` 数据。除用户指定的本 plan 目录外，不使用其他 `_backlog` 材料作为权威。
 
-The report separates observed behavior from proposed design. Decisions and the
-implementation sequence live in [render-contract-plan.md](render-contract-plan.md),
-[pilot-run-plan.md](pilot-run-plan.md), and
-[progressive-plan.md](progressive-plan.md).
+报告严格区分 observed behavior（已观察行为）与 proposed design（建议设计）。决定与实施顺序分别记录在 [render-contract-plan.md](render-contract-plan.md)、[pilot-run-plan.md](pilot-run-plan.md) 和 [progressive-plan.md](progressive-plan.md)。
 
-## Terminology Finding
+## 术语发现
 
-`image2only` is not the current protocol name. New authoring uses
-`page-authority-image2-v2`; one whole `vN` selects exactly one
-`production.workflow: framed|pure`. `framed-image2` is the parser's derived
-authority for a Framed version, not a per-slide source choice. A source `PAGE
-AUTHORITY` field is rejected.
+`image2only` 不是当前 protocol name。新 authoring 使用 `page-authority-image2-v2`；一个完整 `vN` 只能选择一个 `production.workflow: framed|pure`。`framed-image2` 是 parser 对 Framed version 派生出的 authority，不是逐页 source choice。Source 中出现 `PAGE AUTHORITY` field 会被拒绝。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/BOOTSTRAP.md:26-37`
 - `PPTMAKER_FRAMEWORK/scripts/01-content/internal/page_authority_source.mjs:535-566`
 - `openspec/specs/pipeline-orchestration/spec.md:83-106`
 
-## Conclusion
+## 结论
 
-Framed is **workflow-complete but render-contract incomplete**.
+Framed 当前是**流程完整，但渲染契约不完整**。
 
-Implemented behavior includes source parsing, Text Frame validation, text-free
-raw planning, exact-hash authorization, provider generation, human raw review,
-accepted raw evidence, local Chromium composition, common final-manifest
-publication, PPTX/notes delivery, provider-free Text Frame refresh, and
-notes-only refresh.
+已实现行为包括 source parsing、Text Frame validation、无文字 raw planning、exact-hash authorization、provider generation、人类 raw review、accepted raw evidence、本地 Chromium composition、共享 final-manifest publication、PPTX/notes delivery、provider-free Text Frame refresh 和 notes-only refresh。
 
-The blocking integrity gap is that authoring/preflight and final composition
-implement different frames. The declared `standard-v1` data is light,
-preset-sized, and names bundled fonts. Chromium receives separately hard-coded
-dark Arial CSS. The current heuristic therefore cannot prove that final text
-fits the frame described by the raw contract.
+阻塞性的 integrity gap 是：authoring/preflight 与 final composition 实现了不同 frame。已声明的 `standard-v1` 数据是浅色、按 preset 定尺寸，并指定 bundled fonts；Chromium 收到的却是另一套 hard-code 的深色 Arial CSS。因此，当前 heuristic 无法证明最终文字适配 raw contract 所描述的 frame。
 
-There is also a cross-workflow UX gap. Current v2 requires Style Master bytes
-but does not expose a first-class Style Master feedback loop, and both Framed
-and Pure authorize and generate the complete raw plan before the human sees a
-representative production-equivalent sample.
+还存在一个跨 workflow UX 缺口：当前 v2 要求 Style Master（风格母版）bytes，却不暴露一等 Style Master feedback loop；Framed 与 Pure 都会在人看到代表性 production-equivalent sample 前，就授权并生成完整 raw plan。
 
-## Current Framed/Pure Boundary
+## 当前 Framed/Pure 边界
 
-| Concern | `framed` | `pure` |
+| 关注点 | `framed` | `pure` |
 | --- | --- | --- |
-| Pixel ownership | Image2 supplies a text-free 2000x1125 underlay; local Chromium adds the Text Frame. | Image2 supplies all final pixels, including display text. |
-| Source restrictions | Requires title, `no-readable-text`, and `no-labels`; semantic `BODY` is forbidden. | Display text is part of the provider-owned raw contract. |
-| Raw contract | Carries frame preset/safe zones and `text_free: true`. | Carries visual language, identity reference, and display fields. |
-| Finalization | Composes accepted raw PNG plus local fields, then publishes the common v2 manifest. | Publishes accepted raw PNG bytes unchanged into the same manifest schema. |
-| Visible text edit | May recompose locally with exact accepted underlay evidence and unchanged raw facts. | Display/visual changes create raw-generation debt. |
-| Version rule | Cannot coexist slide-by-slide with Pure in one `vN`. | Same. |
+| Pixel ownership | Image2 提供无文字 2000x1125 underlay；本地 Chromium 添加 Text Frame。 | Image2 提供全部最终像素，包括 display text。 |
+| Source restrictions | 要求 title、`no-readable-text` 和 `no-labels`；禁止 semantic `BODY`。 | Display text 是 provider-owned raw contract 的一部分。 |
+| Raw contract | 携带 frame preset/safe zones 和 `text_free: true`。 | 携带 visual language、identity reference 和 display fields。 |
+| Finalization | 把 accepted raw PNG 与 local fields 合成，再发布共享 v2 manifest。 | 把 accepted raw PNG bytes 原样发布进同一 manifest schema。 |
+| 可见文字编辑 | 若精确 accepted underlay evidence 当前有效且 raw facts 未变，可在本地重新合成。 | Display/visual 变化会产生 raw-generation debt。 |
+| Version rule | 在同一 `vN` 内不能逐页与 Pure 共存。 | 相同。 |
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/BOOTSTRAP.md:28-33,58-65`
 - `PPTMAKER_FRAMEWORK/scripts/01-content/internal/page_authority_source.mjs:414-460`
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs:134-264,289-409,434-548`
 - `PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs:78-227`
 
-## Current Style Master And Pilot Status
+## 当前 Style Master 与 Pilot 状态
 
-Page Authority raw planning requires nonempty effective bytes at
-`2_backbone/visual-style/style_master.jpg`. Both selected workflow adapters
-place that exact path into provider submission references, and the style byte
-digest contributes to `provider_profile_sha256`.
+Page Authority raw planning 要求 `2_backbone/visual-style/style_master.jpg` 中存在非空有效 bytes。两种已选 workflow adapters 都把这个精确路径放入 provider submission references，且 style byte digest 会参与 `provider_profile_sha256`。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs:44,190-212`
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs:314-349`
 - `PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs:134-167`
 
-The current create-deck Controller only has `configure visual system ->
-authorize raw -> generate all -> review all`. It has no node that generates,
-shows, decides, and promotes a Style Master candidate. File existence is
-visible in status, but existence is not a human feedback loop or byte-bound
-visual decision.
+当前 create-deck Controller 只有 `configure visual system -> authorize raw -> generate all -> review all`。它没有用于生成、展示、决定并提升 Style Master candidate 的 node。Status 可以看到文件存在，但文件存在不等于 human feedback loop，也不等于绑定字节的视觉决定。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/playbook/create-deck.md:62-202`
 - `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs:484-498,609-622`
 - `openspec/specs/style-master-generation/spec.md:1-30`
 
-Current v2 also has no first-class Pilot Run:
+当前 v2 也没有一等 Pilot Run（试生产）：
 
-- plan projection reports `maximum_submissions` for every item in the complete
-  plan;
-- authorization always records `rawWorkPlan.items.length`;
-- generation requires provider requests to cover the complete plan exactly and
-  submits every item;
-- raw review requires bytes for every plan item;
-- target `--slides` input is explicitly rejected rather than treated as a
-  supported scoped batch;
-- public help is contract-tested not to expose `pilot` or `style-master`.
+- plan projection 为完整 plan 中每个 item 报告 `maximum_submissions`；
+- authorization 总是记录 `rawWorkPlan.items.length`；
+- generation 要求 provider requests 精确覆盖完整 plan，并 submit 每个 item；
+- raw review 要求每个 plan item 都有 bytes；
+- target `--slides` input 被明确拒绝，而不是当作支持的 scoped batch；
+- public help 有 contract test 保证不暴露 `pilot` 或 `style-master`。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs:378-443,469-525`
 - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_raw_mechanics.mjs:24-55`
 - `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs:1373-1387,1507-1539,1974-1985`
 - `tests/contracts/test_retired_cli_surface.mjs:119-123`
 
-The authorization record has one plan-wide scope and a count but no exact
-selected-ID grant. Lowering only `max_submissions` would therefore be unsafe:
-it could authorize N submissions without proving which N plan items the human
-saw. A real pilot needs exact item scope and generation provenance, not a
-count-only shortcut.
+Authorization record 只有一个 plan-wide scope 和 count，没有 exact selected-ID grant。因此，只降低 `max_submissions` 并不安全：它可能授权 N 次提交，却无法证明人看到的是哪 N 个 plan items。真实 pilot 需要 exact item scope 与 generation provenance，而不是 count-only shortcut。
 
-Accepted raw evidence also carries one top-level provider-authorization digest
-and no per-item grant binding. A second expansion authorization would overwrite
-current authorization state, so treating only its digest as authority would
-lose the exact grant that produced pilot bytes. Progressive generation needs
-one versioned cumulative authorization owner plus item-to-grant materialization
-provenance; a later broad grant cannot retroactively cover earlier bytes.
+Accepted raw evidence 也只有一个顶层 provider-authorization digest，没有 per-item grant binding。第二次 expansion authorization 会覆盖当前 authorization state，因此若只把其 digest 当作权威，就会丢失实际生成 pilot bytes 的精确 grant。Progressive generation 需要一个已 version 的 cumulative authorization owner，加 item-to-grant materialization provenance；后来的宽范围 grant 不能追溯覆盖早期 bytes。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs:474-488,1148-1248`
 - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs:56-99,101-153`
 
-## Historical Pilot Context
+## 历史 Pilot 背景
 
-The repository did have the desired interaction idea before the legacy
-whole-page production surface was retired:
+在 legacy whole-page production surface 退役前，repository 曾经具备目标交互理念：
 
-- the old create-deck Controller explicitly sequenced Style Master
-  authorization/generation, representative pilot generation, pilot review, and
-  a separate full-build authorization;
-- `selectPilotSlideIds()` defaulted to three and selected by render/visual risk
-  before falling back to first/middle/last positions;
-- `pilot` generated only selected IDs and published a contact sheet before full
-  build.
+- 旧 create-deck Controller 明确串联 Style Master authorization/generation、代表性 pilot generation、pilot review，以及单独 full-build authorization；
+- `selectPilotSlideIds()` 默认选择 3 页，优先按 render/visual risk 选择，再回退到 first/middle/last positions；
+- `pilot` 只生成 selected IDs，并在 full build 前发布 contact sheet。
 
-Historical sources at parent of commit `2a42fe4`:
+Commit `2a42fe4` 父提交中的历史来源：
 
 - `PPTMAKER_FRAMEWORK/playbook/create-deck.md:118-235`
 - `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs:881-955,1596-1778`
 - `PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md:187-197`
 
-Commit `2a42fe4` removed those commands and implementations together with the
-legacy HTML/whole-page/Header-Lock production authority. The retained current
-Style Master spec now preserves only shared Page Authority input/client
-primitives. Therefore the old flow is useful product evidence, but it is not a
-current v2 route and its old state, adapter, command grammar, or render-mode
-semantics must not be copied back implicitly.
+Commit `2a42fe4` 把这些 commands 和 implementations 连同 legacy HTML/whole-page/Header-Lock production authority 一起移除。当前保留的 Style Master spec 只保存共享 Page Authority input/client primitives。因此，旧流程是有价值的 product evidence，却不是当前 v2 route；其旧 state、adapter、command grammar 或 render-mode semantics 不得被隐式复制回来。
 
-## Primary Contradiction: Two Definitions Of `standard-v1`
+## 主要矛盾：`standard-v1` 的两种定义
 
-The preset declares:
+Preset 声明：
 
-- Source Sans 3 and Noto Sans SC;
-- a light `#f5f0eb` panel at `x=40, y=28, w=920, h=238`;
-- absolute field rectangles, including a 46px two-line title;
-- top and optional bottom reserved underlay rectangles;
-- a 1000x562.5 CSS canvas captured at 2000x1125.
+- Source Sans 3 与 Noto Sans SC；
+- 位于 `x=40, y=28, w=920, h=238` 的浅色 `#f5f0eb` panel；
+- absolute field rectangles，包括 46px 两行 title；
+- 顶部与可选底部 reserved underlay rectangles；
+- 1000x562.5 CSS canvas，以 2000x1125 capture。
 
-Source:
+来源：
 `PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/text_frame.mjs:5-74`.
 
-The final compositor instead emits:
+Final compositor 却输出：
 
-- `Arial,sans-serif`;
-- a dark full-width top panel beginning at `top:0`;
-- a 34px title and independent flow/margin geometry;
-- capture without `fontRoles`, producing no custom-font evidence.
+- `Arial,sans-serif`；
+- 从 `top:0` 开始的深色 full-width top panel；
+- 34px title 和独立 flow/margin geometry；
+- 不带 `fontRoles` 的 capture，因此没有 custom-font evidence。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_composition.mjs:6-36`
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/capture_runtime.mjs:90-140`
 
-The compositor only checks that a caller supplied an `ok` preflight object. It
-does not prove that the object was produced for the exact current receipt,
-preset, fonts, runtime, or CSS.
+Compositor 只检查 caller 是否提供 `ok` preflight object；并不证明该 object 是针对精确当前 receipt、preset、fonts、runtime 或 CSS 产生的。
 
-## Empirical False-Acceptance Probe
+## False Acceptance 实测探针
 
-A deterministic local probe used the pinned Chromium runtime and checked-in
-Source Sans 3 with a title containing 28 uppercase `W` characters.
+一个确定性本地 probe 使用 pinned Chromium runtime 和 checked-in Source Sans 3，并让 title 包含 28 个大写 `W`。
 
-| Observation | Result |
+| 观察项 | 结果 |
 | --- | --- |
-| Current heuristic width | 811.44px |
-| Declared field width | 872px |
+| 当前 heuristic width | 811.44px |
+| 声明 field width | 872px |
 | Heuristic decision | accepted |
 | Browser rendered width | 1047.72px |
 | Browser decision | overflow |
-| Browser launch plus measurement | approximately 727ms |
+| Browser launch 加 measurement | 约 727ms |
 
-This is a direct counterexample to treating the current glyph-width estimator
-as authorization evidence. It also supports one bounded browser batch rather
-than one launch per field or one launch in every lifecycle command.
+这是反对把当前 glyph-width estimator 当作 authorization evidence 的直接反例。它也支持执行一个有界 browser batch，而不是每个 field 启动一次，或每个 lifecycle command 都启动一次。
 
-## Preset Data Quality Findings
+## Preset 数据质量发现
 
-The declared preset is closer to the intended authority than the compositor,
-but it is not yet a clean canonical model:
+已声明 preset 比 compositor 更接近预期权威，但仍不是干净的 canonical model：
 
-- panel opacity exists in the theme and is copied into every panel;
-- `border` is declared but never rendered;
-- panel `padding` is not the source of field layout because fields use absolute
-  coordinates;
-- header padding happens to approximate its field inset, while callout padding
-  contradicts the callout field's absolute x coordinate.
+- panel opacity 同时存在于 theme，并复制到每个 panel；
+- 声明了 `border`，但从未渲染；
+- panel `padding` 不是 field layout 的事实源，因为 fields 使用 absolute coordinates；
+- header padding 恰好接近对应 field inset，但 callout padding 与 callout field 的 absolute x coordinate 矛盾。
 
-Hashing these facts does not make them semantically authoritative. Any faithful
-convergence needs a normalized preset and a deliberate digest change.
+Hash 这些事实不会使它们获得语义权威。任何忠实收敛都需要规范化 preset，并有意改变 digest。
 
-Source:
+来源：
 `PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/text_frame.mjs:8-74`.
 
-## Current Planning And Write Topology
+## 当前 Planning 与 Write 拓扑
 
-`compileFramedTargetRawPlan()` is synchronous. It performs heuristic
-preflight, constructs raw contracts/provider requests, creates the plan, and
-immediately calls `writeTargetRawWorkPlan()`.
+`compileFramedTargetRawPlan()` 是 synchronous。它执行 heuristic preflight，构建 raw contracts/provider requests，创建 plan，并立即调用 `writeTargetRawWorkPlan()`。
 
-Every later Framed raw lifecycle command calls `buildFramedTargetRawPlan()`
-again:
+后续每个 Framed raw lifecycle command 都再次调用 `buildFramedTargetRawPlan()`：
 
 ```text
 plan / authorize / generate / prepare-review / decide-review / delivery
                               |
                               v
-                 rebuild and rewrite current plan
+                 重建并重写 current plan
 ```
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs:198-228,314-409`
 - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs:371-408`
 
-This topology has two implications:
+该拓扑有两个推论：
 
-1. Adding asynchronous browser proof inside the current helper would rerun it
-   in authorize/generate/review/delivery unless the command topology is split.
-2. A blanket guarantee that failed proof writes no state would be false.
-   `resolveTargetSourceContext()` initializes or advances target source state
-   and writes the source receipt before raw-plan compilation begins.
+1. 若不拆分 command topology，在当前 helper 内增加 asynchronous browser proof，会导致 authorize/generate/review/delivery 全部重复运行证明。
+2. “proof 失败时不写任何 state”的笼统保证不成立。`resolveTargetSourceContext()` 在 raw-plan compilation 开始前，就会 initialize 或 advance target source state，并写 source receipt。
 
-Source:
+来源：
 `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs:245-283`.
 
-The current implementation can only offer a narrower guarantee: failed proof
-would write no raw plan or downstream raw/final evidence, while source state
-may already have changed. The target design should correct this by separating
-read-only candidate source resolution from post-proof source-state/receipt and
-raw-plan materialization.
+当前实现只能提供更窄的保证：proof 失败不写 raw plan 或下游 raw/final evidence，但 source state 可能已经改变。目标设计应拆分 read-only candidate source resolution，与 proof 后的 source-state/receipt 和 raw-plan materialization，从而修正该问题。
 
-## Raw Review Does Not Show Its Required Framed Facts
+## Raw Review 未展示必需的 Framed 事实
 
-Current target raw review renders a contact sheet containing raw images and
-`slide_id` labels. It does not show the required `position + slide_id + title`,
-does not overlay Framed safe-zone rectangles, and its review record carries no
-explicit capture/projection profile or typed coverage record.
+当前 target raw review 渲染包含 raw images 与 `slide_id` labels 的 contact sheet。它没有展示必需的 `position + slide_id + title`，没有 overlay Framed safe-zone rectangles；review record 也不携带显式 capture/projection profile 或 typed coverage record。
 
-Source:
+来源：
 `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs:455-525`.
 
-This is more than a future enhancement: retained specs already describe raw
-review/rebuild behavior around safe-zone guides and canonical renderer-profile
-evidence.
+这不只是未来 enhancement：保留的 specs 已经描述围绕 safe-zone guides 和 canonical renderer-profile evidence 的 raw review/rebuild behavior。
 
-Sources:
+来源：
 
 - `openspec/specs/image-generation/spec.md:35-67`
 - `openspec/specs/run-bundle-layout/spec.md:29-40`
 
-The existing review remains intentionally human-owned. It has no OCR or
-automated determination that the generated underlay is text-free; that is a
-known boundary, not the renderer-contract bug.
+既有 review 刻意保持 human-owned。它没有 OCR，也不自动判断 generated underlay 是否 text-free；这是已知边界，不是 renderer-contract bug。
 
-The evidence also exposes three identities that future wording must not
-conflate: provider generation profile, Framed final-pixel render profile, and
-raw-review projection/capture profile. A semantics-blind shared owner can
-retain its boundary if the selected workflow adapter supplies typed generic
-overlay/profile contributions and the review binds their digest.
+证据还暴露了未来表述不能混淆的三种 identity：provider generation profile、Framed final-pixel render profile 和 raw-review projection/capture profile。若已选 workflow adapter 提供 typed generic overlay/profile contributions，且 review 绑定其 digest，则 semantics-blind shared owner 可以保持自己的边界。
 
-## Production-Facing Test Bypass
+## 面向生产的 Test Bypass
 
-`composeFramedFinalSlideManifest()` exports a `compose` callback. Tests use it
-to return arbitrary bytes, bypassing raw PNG validation, the pinned browser,
-frame CSS, layout checks, fonts, network denial, capture dimensions, and the
-unique compositor.
+`composeFramedFinalSlideManifest()` 暴露 `compose` callback。Tests 使用它返回任意 bytes，从而绕过 raw PNG validation、pinned browser、frame CSS、layout checks、fonts、network denial、capture dimensions 和唯一 compositor。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs:231-264`
 - `tests/03-framed-image/test_framed_workflow.mjs:48-58`
 
-This makes final-manifest mechanics testable but weakens the production module
-boundary. The replacement needs a private runtime seam so public workflow
-tests cannot accidentally prove only a bypass.
+这让 final-manifest mechanics 可测试，却削弱 production module boundary。替代设计需要私有 runtime test seam，防止公共 workflow tests 意外只证明 bypass。
 
-## Font Inventory And Feasibility
+## Font Inventory 与可行性
 
-The repository already has an owned, integrity-checked font inventory with
-unicode-range metadata:
+Repository 已经有一份具有明确 owner、经过 integrity check 且带 unicode-range metadata 的 font inventory：
 
-- 102 font files total: one Source Sans 3 face plus 101 Noto Sans SC shards;
-- approximately 4.69 MB of font bytes in the full inventory;
-- a typical English frame embeds approximately 170 KB;
-- a sampled Chinese frame selects four Noto shards and embeds approximately
-  402 KB total.
+- 共 102 个 font files：1 个 Source Sans 3 face 加 101 个 Noto Sans SC shards；
+- 完整 inventory 约 4.69 MB font bytes；
+- 典型英文 frame 嵌入约 170 KB；
+- 抽样中文 frame 选择 4 个 Noto shards，共嵌入约 402 KB。
 
-Sources:
+来源：
 
 - `PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_fonts.mjs:35-179`
 - `PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_runtime.mjs:150-222`
 - `openspec/specs/html-render-runtime/spec.md:16-87`
 
-The inventory parser already validates face metadata, unicode ranges, local
-files, and digests. What is missing is a narrow production helper that maps a
-frame's actual code points to the required checked-in faces and emits them into
-the self-contained page.
+Inventory parser 已经验证 face metadata、unicode ranges、local files 与 digests。当前缺少的是窄接口 production helper：把 frame 实际 code points 映射到所需 checked-in faces，并输出进 self-contained page。
 
-The numbers rule out embedding all Noto shards on every page and support
-deterministic per-page selection. They do not justify saying that arbitrary
-Chinese or any other language is supported; code-point coverage and language
-support are different claims.
+这些数字排除了每页嵌入全部 Noto shards，支持确定性 per-page selection。但不能据此声称支持任意中文或其他语言；code-point coverage 与 language support 是不同主张。
 
-## Layout Evidence Requirements
+## Layout Evidence 要求
 
-The existing capture runtime can collect CDP font evidence when `fontRoles` is
-provided, deny network routes, validate expected leaf markers, and capture a
-fixed PNG. The Framed compositor does not currently use the font path, and
-there is no exact DOM agreement check against preset panels/fields.
+提供 `fontRoles` 时，既有 capture runtime 可以收集 CDP font evidence、拒绝 network routes、验证 expected leaf markers，并 capture 固定 PNG。Framed compositor 当前没有使用 font path，也没有针对 preset panels/fields 执行 exact DOM agreement check。
 
-A robust browser observation can use:
+稳健 browser observation 可以使用：
 
-- exact panel and field container rectangles;
-- field `scrollWidth`/`scrollHeight`;
-- y-grouped `Range` fragments for line count;
-- conditional custom-font evidence for actual selected glyphs.
+- 精确 panel 与 field container rectangles；
+- field `scrollWidth`/`scrollHeight`；
+- 按 y 分组的 `Range` fragments，用于 line count；
+- 针对真实 selected glyphs 的条件式 custom-font evidence。
 
-It should not require every raw glyph rectangle to remain inside the CSS field
-rectangle: glyph ink and browser rounding do not define the layout box.
+不应要求每个 raw glyph rectangle 都留在 CSS field rectangle 内：glyph ink 与 browser rounding 不定义 layout box。
 
-## Specification Coherence Findings
+## Specification 一致性发现
 
-The orchestration spec contains a scenario titled `Mixed deck` that says
-accepted Pure and Framed evidence is selected for one build. The same spec's
-current authoritative requirement says one target version selects exactly one
-workflow and prohibits per-slide dispatch.
+Orchestration spec 中有一个名为 `Mixed deck` 的 scenario，声称一次 build 会同时选择 accepted Pure 与 Framed evidence。同一 spec 当前权威 requirement 却规定一个 target version 恰好选择一个 workflow，并禁止 per-slide dispatch。
 
-Source:
+来源：
 `openspec/specs/pipeline-orchestration/spec.md:50-59,83-106`.
 
-The stale scenario should be removed or rewritten; it must not be used to
-invent mixed-mode support.
+应移除或重写这个陈旧 scenario；不得用它发明 mixed-mode support。
 
-The render correction spans more than the four capabilities named in the
-original draft. In addition to `image-production`, `html-render-runtime`,
-`image-generation`, and `pipeline-orchestration`, proposal work must audit:
+Render correction 跨越的 capabilities 多于原草稿列出的四项。除 `image-production`、`html-render-runtime`、`image-generation` 和 `pipeline-orchestration` 外，proposal 工作还必须审计：
 
-- `visual-config` for canonical visual/profile identity;
-- `environment-check` for runtime/font readiness and recovery;
-- `cli-surface` for owner-issued error category, JSON/stderr, and exit behavior.
+- `visual-config`：canonical visual/profile identity；
+- `environment-check`：runtime/font readiness 与 recovery；
+- `cli-surface`：owner-issued error category、JSON/stderr 和 exit behavior。
 
-The generic raw-review restoration may also touch accepted bundle-layout and
-evidence requirements. CLI producer fields remain authoritative; consumer
-specs must not copy their schema.
+通用 raw-review restoration 也可能涉及 accepted bundle-layout 与 evidence requirements。CLI producer fields 继续保持权威；consumer specs 不得复制其 schema。
 
-## Test Coverage And Baseline
+## 测试覆盖与 Baseline
 
-The focused Framed suite currently proves six lifecycle behaviors, including a
-real local composition/shared delivery path, provider-free text refresh, and
-the public title-refresh command. It does not directly prove:
+Focused Framed suite 当前证明 6 项 lifecycle behaviors，包括真实 local composition/shared delivery path、provider-free text refresh 和公共 title-refresh command。它没有直接证明：
 
-- browser equivalence with preset geometry;
-- CJK/mixed font selection on actual deck pages;
-- long-token, extra-line, or DOM scroll overflow;
-- both callout variants;
-- profile-bound invalidation;
-- no raw-plan write after failed browser proof;
-- browser launch counts by lifecycle command;
-- safe-zone/profile evidence in raw review.
-- Style Master candidate/review/promotion evidence;
-- exact representative-scope authorization for either workflow;
-- pilot-to-expansion byte reuse and prevention of premature full authorization;
-- production-equivalent Framed and Pure pilot projections;
-- small-scope review deduplication.
+- browser 与 preset geometry 等价；
+- 在真实 deck pages 上选择 CJK/mixed fonts；
+- long-token、extra-line 或 DOM scroll overflow；
+- 两种 callout variants；
+- profile-bound invalidation；
+- browser proof 失败后不写 raw plan；
+- 按 lifecycle command 统计 browser launch counts；
+- raw review 中的 safe-zone/profile evidence；
+- Style Master candidate/review/promotion evidence；
+- 任一 workflow 的精确 representative-scope authorization；
+- pilot-to-expansion byte reuse，以及防止过早 full authorization；
+- 生产等价 Framed/Pure pilot projections；
+- small-scope review deduplication。
 
-Source: `tests/03-framed-image/test_framed_workflow.mjs:41-305`.
+来源：`tests/03-framed-image/test_framed_workflow.mjs:41-305`。
 
-Verification performed during the investigation:
+调查期间执行的验证：
 
-- `npm exec -- vitest run tests/03-framed-image/test_framed_workflow.mjs`:
-  6/6 tests passed;
-- full `npm test`: passed;
-- `tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs`: 2 tests
-  passed.
+- `npm exec -- vitest run tests/03-framed-image/test_framed_workflow.mjs`：6/6 tests passed；
+- 完整 `npm test`：passed；
+- `tests_e2e/shared/workflow/test_mock_target_workflow_journey.mjs`：2 tests passed。
 
-These are uncovered contract gaps, not an existing red regression.
+这些是尚未覆盖的 contract gaps，不是现有 red regression。
 
-## Evidence-Based Implications
+## 基于证据的推论
 
-The observations support the following constraints on any implementation:
+观察结果支持对任何实现施加以下约束：
 
-1. The heuristic cannot remain the authorization authority.
-2. Preset normalization must precede profile identity and browser convergence.
-3. Candidate source/contract compilation, browser verification, and source
-   state/receipt/raw-plan materialization must become separate operations.
-4. Later raw lifecycle commands should validate a stored plan rather than
-   rebuilding it or rerunning Chromium.
-5. The browser compiler and compositor must be one private owner.
-6. Profile drift needs conservative raw-evidence invalidation.
-7. Raw visual judgment remains human, but its review projection must expose
-   the safe-zone/profile facts already required by contract.
-8. Style Master existence must not be confused with an early human visual
-   decision; candidate review and accepted-byte identity need an owner.
-9. Pilot Run belongs to both workflows, but each selected workflow needs a
-   straight independent Controller path and its own production-equivalent
-   evidence.
-10. One complete plan plus exact selected-ID authorization batches is safer
-    than count-only scope or a preauthorized full batch.
-11. Reusing paid pilot bytes requires owner-written tuple provenance; copied
-    filenames or a later broader authorization cannot prove their origin.
-12. Pilot `proceed` may unlock expansion but cannot make partial evidence
-    complete or authorize the remaining provider calls.
+1. Heuristic 不能继续作为 authorization authority。
+2. Preset normalization 必须先于 profile identity 与 browser convergence。
+3. Candidate source/contract compilation、browser verification，以及 source state/receipt/raw-plan materialization 必须成为独立操作。
+4. 后续 raw lifecycle commands 应验证 stored plan，而不是重建它或重跑 Chromium。
+5. Browser compiler 与 compositor 必须归同一个私有 owner。
+6. Profile drift 需要保守地使 raw evidence 失效。
+7. Raw visual judgment 继续归人所有，但其 review projection 必须展示 contract 已要求的 safe-zone/profile facts。
+8. Style Master 文件存在不能与前置人类视觉决定混淆；candidate review 与 accepted-byte identity 需要明确 owner。
+9. Pilot Run 同时属于两种 workflow，但每种已选 workflow 都需要直线、独立的 Controller 路径和自己的 production-equivalent evidence。
+10. 一份完整 plan 加 exact selected-ID authorization batches，比 count-only scope 或 preauthorized full batch 更安全。
+11. 复用已付费 pilot bytes 需要 owner-written tuple provenance；复制的 filenames 或后来更宽的 authorization 都不能证明其来源。
+12. Pilot `proceed` 可以开放 expansion 环节，但不能让部分证据变完整，也不能授权剩余 provider calls。
 
-## Policy Interpretation
+## Policy 解读
 
-The evidence maps directly to the repository policies without creating a new
-runtime authority:
+这些证据可直接映射到 repository policy，无需创建新的 runtime authority：
 
-- the heuristic and hard-coded compositor are competing evaluators for one
-  fact, contrary to the one-truth-path rule;
-- rebuilding and rewriting the plan in every lifecycle command lengthens the
-  control path and risks wrong-owner mutation;
-- the public `compose` callback bypasses the owning integrity evaluator;
-- missing raw-review guides/profile coverage weakens an existing human
-  `confirm`, but does not justify OCR or another approval;
-- actual browser fit is reconstructable, so persisting a second proof/gate
-  would violate durable-state discipline.
-- Style Master and Pilot Run quality are genuinely human-owned `confirm`
-  decisions, while missing identity/evidence and unauthorized submit attempts
-  remain non-waivable `hard-stop` outcomes;
-- the minimum new durable pilot facts are justified only where prior human
-  authorization, human judgment, or paid provider-byte provenance cannot be
-  reconstructed;
-- exact scoped batches shorten feedback and prevent full-plan preauthorization,
-  while separate Framed/Pure Controller paths avoid a cross-workflow decision
-  layer.
+- heuristic 与 hard-coded compositor 是针对同一事实的竞争性 evaluators，违反 one-truth-path rule；
+- 每个 lifecycle command 都重建并重写 plan，会拉长 control path，并带来 wrong-owner mutation 风险；
+- 公共 `compose` callback 绕过所属 integrity evaluator；
+- raw-review guides/profile coverage 缺失会削弱既有人类 `confirm`，但不足以证明需要 OCR 或另一 approval；
+- 真实 browser fit 可重建，因此持久化第二份 proof/Gate 会违反 durable-state discipline；
+- Style Master 与 Pilot Run 质量确实是 human-owned `confirm` decisions；missing identity/evidence 与 unauthorized submit attempts 则继续是不可 waiver 的 `hard-stop` outcomes；
+- 只有在先前 human authorization、human judgment 或付费 provider-byte provenance 无法重建时，最小新增 durable pilot facts 才合理；
+- exact scoped batches 缩短反馈，并防止 full-plan preauthorization；彼此分开的 Framed/Pure Controller 路径则避免跨 workflow decision layer。
 
-Therefore render convergence remains subtractive: one direct evaluator,
-earliest-prerequisite short-circuiting, one nearest legal action, and same-check
-rerun. Progressive production adds only irreconstructable decision/provenance
-facts to the existing owners; it adds no hidden retry/fallback, inferred
-authorization, cross-workflow Controller, or parallel success path.
+因此，render convergence 继续保持 subtractive（做减法）：一个 direct evaluator、最早 prerequisite short-circuit、唯一最近合法动作，以及 same-check rerun。Progressive production 只向既有 owners 增加不可重建的 decision/provenance facts；不增加 hidden retry/fallback、inferred authorization、cross-workflow Controller 或 parallel success path。

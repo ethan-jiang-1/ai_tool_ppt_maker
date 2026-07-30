@@ -296,326 +296,232 @@ Raw-review Gate：
 - generated artifacts 只通过所属 owner 重建；
 - 没有生产 `deck_*` 目录被用作 fixture 或 migration target。
 
-## Phase 8: Specify Early Style Master Feedback
+## Phase 8：规定前置 Style Master 反馈
 
-**Objective:** make visual direction an early actual-image decision before
-page-scale generation.
+**目标：** 在页面级生成前，让视觉方向尽早成为基于真实图片的决定。
 
-Start only after Phase 7.
+只能在 Phase 7 完成后开始。
 
-Work:
+工作：
 
-- create `establish-target-style-master-feedback` and cite all three policies;
-- audit `style-master-generation`, `image-generation`, `visual-config`,
-  `visual-asset-management`, `playbook-execution`, `pipeline-orchestration`,
-  `cli-surface`, `node-specification`, `workflow-inspection`,
-  `run-bundle-layout`, `run-bundle-management`, `environment-check`,
-  `framework-charter`, `commands-reference`, and related accepted specs before
-  declaring deltas;
-- place the Style Master interaction after workflow selection and enough
-  content context to judge direction, but before the complete raw plan;
-- expose the interaction directly inside both selected-workflow Controller
-  paths so neither branch requires a jump through its sibling;
-- retain one deck-level Style Master owner and one accepted asset rather than
-  duplicating bytes/state per workflow;
-- specify provider-free candidate planning, exact one-submit authorization,
-  candidate provenance, actual-image review, and promotion of canonical bytes
-  only after `proceed`;
-- place that authorization under the same state authority as a distinct typed
-  `style-master` operation because no raw plan exists yet; prevent it from
-  authorizing raw pages and prevent raw grants from authorizing Style Master;
-- bind an owner-written acceptance receipt to the exact candidate bytes, style
-  intent, and generation profile;
-- retain rejected iterations under the existing
-  `1_upstream_raw_material/style-master-iterations/` owner;
-- allow an existing confined Style Master to be shown and adopted without a
-  provider call while making no false historical-provenance claim;
-- distinguish a ready scope awaiting authorization (`confirm`) from an
-  attempted unauthorized submit (`hard-stop`);
-- classify actual current candidate review as `confirm` and missing/stale
-  candidate identity or provenance as `hard-stop`;
-- restore the clear public name `style-master` as a current Page Authority
-  surface by deliberately revising the CLI contract and retired-surface tests;
-  do not reuse the removed whole-page adapter or state semantics.
+- 创建 `establish-target-style-master-feedback`，并引用全部三项 policy；
+- 在声明 deltas 前，审计 `style-master-generation`、`image-generation`、`visual-config`、`visual-asset-management`、`playbook-execution`、`pipeline-orchestration`、`cli-surface`、`node-specification`、`workflow-inspection`、`run-bundle-layout`、`run-bundle-management`、`environment-check`、`framework-charter`、`commands-reference` 及相关 accepted specs；
+- 把 Style Master 交互放在 workflow 选择完成、内容上下文足以判断方向之后，但在完整 raw plan 之前；
+- 直接在两条已选 workflow Controller 路径内暴露该交互，任何分支都不需要跳到 sibling branch；
+- 保留一个 deck-level Style Master owner 和一份 accepted asset，不按 workflow 重复 bytes/state；
+- 规定 provider-free candidate planning、精确 one-submit authorization、candidate provenance、真实图片 review，以及仅在 `proceed` 后提升 canonical bytes；
+- 因此时尚无 raw plan，把该授权作为同一 state authority 下独立、带类型的 `style-master` operation；防止它授权 raw pages，也防止 raw grants 授权 Style Master；
+- 把 owner-written acceptance receipt 绑定到精确 candidate bytes、style intent 和 generation profile；
+- 被拒绝 iterations 继续由既有 `1_upstream_raw_material/style-master-iterations/` owner 保留；
+- 允许展示和采用已有 confined Style Master 而不调用 provider，但不得做虚假的 historical-provenance claim；
+- 区分等待授权的 ready scope（`confirm`），与尝试未经授权 submit（`hard-stop`）；
+- 把真实当前 candidate review 分类为 `confirm`，把缺失/陈旧 candidate identity 或 provenance 分类为 `hard-stop`；
+- 通过有意修改 CLI contract 和 retired-surface tests，把清晰公共名称 `style-master` 恢复为当前 Page Authority surface；不复用已移除 whole-page adapter 或 state 语义。
 
-Policy admission for the new durable acceptance fact:
+新持久 acceptance fact 的 policy admission：
 
-1. Direct source: exact candidate bytes plus owner-written candidate/profile
-   provenance and the current human decision.
-2. Uncovered failure: file existence cannot prove that the person reviewed
-   these exact bytes.
-3. Complexity avoided: no metadata visual gate, chat-memory approval, copied
-   file, or separate workflow-specific acceptance stores.
-4. One recovery: rebuild or re-present through the Style Master owner, then
-   rerun the same review.
-5. Negative proof: stale bytes/profile cannot promote, wrong-workflow routing
-   cannot occur, and a declined candidate makes zero later provider calls.
+1. Direct source：精确 candidate bytes，加 owner-written candidate/profile provenance 和当前人类决定。
+2. 未覆盖失败：文件存在不能证明人审查了这些精确字节。
+3. 避免的复杂度：不增加 metadata visual Gate、chat-memory approval、复制文件或彼此分开的 workflow-specific acceptance stores。
+4. 唯一恢复：通过 Style Master owner 重建或重新展示，再重跑同一 review。
+5. Negative proof：陈旧 bytes/profile 不能 promotion；不能路由到错误 workflow；candidate 被拒绝后，后续 provider calls 为零。
 
-Exit gate:
+退出 Gate：
 
-- `openspec validate establish-target-style-master-feedback --strict` passes;
-- the proposal/design names the one owner, writer, readers, freshness rule,
-  lazy existing-byte adoption, and removal/invalidation path;
-- Style Master review is neither a waiver nor a substitute for Pilot Run;
-- no raw generation can consume an unreviewed newly generated candidate.
+- `openspec validate establish-target-style-master-feedback --strict` 通过；
+- proposal/design 指明唯一 owner、writer、readers、freshness rule、lazy existing-byte adoption 和 removal/invalidation path；
+- Style Master review 既不是 waiver，也不替代 Pilot Run；
+- raw generation 不能消费尚未审查的新生成 candidate。
 
-## Phase 9: Deliver And Archive Style Master Feedback
+## Phase 9：交付并归档 Style Master 反馈
 
-**Objective:** complete the early visual loop before adding scoped page
-production.
+**目标：** 在增加 scoped page production 前，完成前置视觉环路。
 
-Implementation and focused tests:
+实现与 focused tests：
 
-- use the retained in-framework Image2 credential/transport owner;
-- publish a provider-free exact candidate scope before authorization;
-- prove zero provider calls for decline, current reuse, and local adoption;
-- write generated candidates to iteration history, not over canonical accepted
-  bytes;
-- show the actual candidate artifact and bind `proceed|repair|redirect` to it;
-- promote exact bytes and acceptance evidence atomically through the owner;
-- invalidate the raw generation profile, raw plan, review, and downstream
-  evidence when accepted Style Master bytes change, without manufacturing a
-  source epoch solely for profile drift;
-- verify both Framed and Pure Controller journeys enter the same owner directly
-  and never show the other workflow branch;
-- test missing/partial/stale provenance, wrong scope, wrong workflow,
-  unauthorized submit, interrupted promotion, and same-check repair;
-- run focused CLI/Controller tests, target mock E2E, full `npm test`, and strict
-  OpenSpec validation.
+- 使用保留在 framework 内的 Image2 credential/transport owner；
+- 授权前发布 provider-free exact candidate scope；
+- 证明 decline、current reuse 和 local adoption 的 provider calls 为零；
+- 把 generated candidates 写入 iteration history，不覆盖 canonical accepted bytes；
+- 展示真实 candidate artifact，并把 `proceed|repair|redirect` 与之绑定；
+- 通过 owner 原子化提升精确 bytes 与 acceptance evidence；
+- accepted Style Master bytes 改变时，使 raw generation profile、raw plan、review 和 downstream evidence 失效；不要只为 profile drift 人为制造 source epoch；
+- 验证 Framed 和 Pure Controller journey 都直接进入同一个 owner，且绝不展示另一 workflow 分支；
+- 测试 missing/partial/stale provenance、wrong scope、wrong workflow、unauthorized submit、interrupted promotion 和 same-check repair；
+- 运行 focused CLI/Controller tests、target mock E2E、完整 `npm test` 和 strict OpenSpec validation。
 
-Exit gate:
+退出 Gate：
 
-- a person can establish, inspect, repair, redirect, and accept Style Master
-  before page-scale production;
-- accepted current bytes have one direct receipt and one invalidation path;
-- `establish-target-style-master-feedback` is validated, synced, and archived.
+- 人可以在页面级生产前建立、检查、修复、重定向并接受 Style Master；
+- accepted current bytes 只有一个 direct receipt 与一条 invalidation path；
+- `establish-target-style-master-feedback` 已 validate、sync 并 archive。
 
-## Phase 10: Specify Exact Pilot Run Batches
+## Phase 10：规定精确 Pilot Run 批次
 
-**Objective:** define one safe incremental-production contract for both modes
-without creating a shared user-facing workflow.
+**目标：** 为两种模式定义同一个安全渐进生产契约，但不创建共享的用户可见 workflow。
 
-Work:
+工作：
 
-- create `introduce-target-pilot-runs` against all three accepted prerequisite
-  contracts;
-- cite all three policies and answer the five admission questions for exact
-  batch authorization, raw materialization provenance, and pilot review;
-- compile one canonical complete provider-free raw plan, then project exact
-  pilot and remaining batches from it;
-- define batch identity as full plan hash plus exact ordered selected IDs,
-  selected raw-contract digests, provider profile, source/execution identity,
-  and maximum submissions;
-- make 3-5 pages the normal Agent-proposed UX, not a hard validator limit;
-- require the Agent to present `position + formal slide_id + title + reason`,
-  current profile, exact maximum submissions, and remaining count;
-- let the human adjust representatives inside the same exact authorization
-  interaction instead of adding a selection approval;
-- define independent Framed and Pure Controller nodes and review questions;
-- define Pilot Run `proceed` as permission to reach expansion authorization,
-  never as expansion authorization or partial raw acceptance;
-- define a second exact authorization for only current remaining IDs;
-- require exact current pilot bytes to survive unchanged into complete raw
-  review and final production;
-- let a complete scope of at most five pages use one pilot/full review artifact
-  and decision rather than duplicate confirmations;
-- preserve provider-free Framed Text Frame-only and notes-only refreshes;
-- restore the clear public name `pilot` as a current Page Authority operation
-  by deliberately updating `cli-surface`, help, command-count/retirement
-  contracts, non-v2 fences, and producer diagnostics.
+- 以三项已接受 prerequisite contracts 为基础创建 `introduce-target-pilot-runs`；
+- 引用全部三项 policy，并针对 exact batch authorization、raw materialization provenance 和 pilot review 回答五个 admission questions；
+- 编译一份规范、完整且 provider-free 的 raw plan，再从中投影精确 pilot batch 与 remaining batch；
+- 把 batch identity 定义为 full plan hash，加精确有序 selected IDs、所选 raw-contract digests、provider profile、source/execution identity 和 maximum submissions；
+- 把 3-5 页设为 Agent 提议的正常 UX，而不是 validator 硬限制；
+- 要求 Agent 展示 `position + formal slide_id + title + reason`、当前 profile、精确最大提交次数和剩余数量；
+- 允许人在同一次精确授权交互中调整代表页，不增加 selection approval；
+- 定义彼此独立的 Framed/Pure Controller nodes 和 review questions；
+- 把 Pilot Run `proceed` 定义为“可进入 expansion authorization”，绝不等同于 expansion authorization 或 partial raw acceptance；
+- 只对当前剩余 IDs 定义第二次精确授权；
+- 要求精确当前 pilot bytes 原样进入完整 raw review 与最终生产；
+- 不超过 5 页的 complete scope 使用一份 pilot/full review artifact 和一次决定，避免重复 confirmations；
+- 保留 provider-free Framed Text Frame-only 和 notes-only refresh；
+- 通过有意更新 `cli-surface`、help、command-count/retirement contracts、non-v2 fences 和 producer diagnostics，把清晰公共名称 `pilot` 恢复为当前 Page Authority operation。
 
-Policy admission for durable pilot facts:
+持久 pilot facts 的 policy admission：
 
-1. Direct sources: the complete raw plan, sole authorization owner, exact raw
-   bytes, owner-written materialization provenance, and bounded pilot decision.
-2. Uncovered failure: the current all-or-nothing path cannot enforce a smaller
-   spend scope or prove that retained pilot bytes came from its exact grant.
-3. Complexity removed/avoided: no full-plan preauthorization, count-only grant,
-   filename-based reuse, duplicate small-deck review, cross-workflow Controller,
-   or second raw success authority.
-4. One recovery: repair the named owner and rerun the same plan, authorization,
-   materialization, or review checkpoint.
-5. Negative proof: an unselected item cannot submit, partial evidence cannot
-   finalize, an expansion request before pilot `proceed` returns the current
-   pilot `confirm` with zero submit, and valid pilot bytes are not regenerated.
+1. Direct sources：完整 raw plan、唯一 authorization owner、精确 raw bytes、owner-written materialization provenance，以及有界 pilot decision。
+2. 未覆盖失败：当前 all-or-nothing 路径不能约束更小花费范围，也不能证明保留 pilot bytes 来自对应精确 grant。
+3. 删除/避免的复杂度：不增加 full-plan preauthorization、count-only grant、filename-based reuse、重复 small-deck review、cross-workflow Controller 或第二 raw success authority。
+4. 唯一恢复：修复具名 owner，并重跑同一 plan、authorization、materialization 或 review checkpoint。
+5. Negative proof：未选择 item 不能 submit；部分证据不能 finalization；pilot `proceed` 前请求 expansion，会返回当前 pilot `confirm` 且 submit 为零；合法 pilot bytes 不会重新生成。
 
-Exit gate:
+退出 Gate：
 
-- `openspec validate introduce-target-pilot-runs --strict` passes;
-- every new durable fact has one owner/writer/read set/freshness/removal path;
-- state migration and in-progress full-batch authorization behavior are
-  explicit and owner-controlled, with no bulk production-deck rewrite;
-- Framed/Pure path independence and semantics-blind shared mechanics are
-  testable requirements, not documentation convention.
+- `openspec validate introduce-target-pilot-runs --strict` 通过；
+- 每个新增 durable fact 都有唯一 owner/writer/read set/freshness/removal path；
+- state migration 与 in-progress full-batch authorization behavior 显式且由 owner 控制，不批量重写 production deck；
+- Framed/Pure path independence 与 semantics-blind shared mechanics 是可测试 requirements，而非仅有文档约定。
 
-## Phase 11: Build Scoped Authorization And Materialization
+## Phase 11：构建限定范围的授权与物化
 
-**Objective:** establish the mechanical foundation before either workflow
-publishes Pilot Run evidence.
+**目标：** 在任一 workflow 发布 Pilot Run evidence 前，建立机械基础。
 
-Work:
+工作：
 
-- evolve the existing sole Page Authority authorization owner to retain exact
-  immutable batch grants for one current complete plan;
-- make the owner record one canonical cumulative grant set while each
-  materialized item binds the individual grant that produced it;
-- bind grants to exact selected IDs and raw-contract digests, not only count;
-- make every provider submit recheck its exact current grant immediately before
-  invocation;
-- add one owner-written current raw-materialization record that binds each paid
-  byte to plan, source, workflow, contract, profile, and authorization grant;
-- make that record replace raw-file existence as pre-review provenance rather
-  than compete with accepted raw evidence;
-- generate only the exact authorized batch and publish no success for uncertain
-  or partially unattributable bytes;
-- compute remaining scope as complete plan minus validated current
-  materializations;
-- preserve current pilot items during expansion and reject copied/stale bytes;
-- keep accepted raw evidence as the only complete-review finalization input;
-- bind complete accepted evidence to the cumulative authorization-record
-  digest, never only the latest expansion grant;
-- add no inferred authorization, automatic retry, hidden fallback, watcher, or
-  second state writer.
+- 演进既有唯一 Page Authority authorization owner，为一份当前完整计划保留精确、不可变 batch grants；
+- 让 owner 记录一份规范 cumulative grant set，同时让每个 materialized item 绑定实际生成它的单独 grant；
+- grant 绑定精确 selected IDs 与 raw-contract digests，而不只是 count；
+- 每次 provider submit 都在调用前立即重检精确当前 grant；
+- 增加一份 owner-written current raw-materialization record，把每份付费 byte 绑定到 plan、source、workflow、contract、profile 和 authorization grant；
+- 让该记录取代 raw-file existence，成为 pre-review provenance，而不是与 accepted raw evidence 竞争；
+- 只生成精确 authorized batch；对不确定或部分无法归属的字节不发布成功；
+- remaining scope 计算为 complete plan 减去 validated current materializations；
+- expansion 时保留当前 pilot items，拒绝 copied/stale bytes；
+- accepted raw evidence 继续作为 complete-review finalization 的唯一输入；
+- 完整 accepted evidence 绑定 cumulative authorization-record digest，绝不只绑定最新 expansion grant；
+- 不增加 inferred authorization、automatic retry、hidden fallback、watcher 或第二 state writer。
 
-Focused tests:
+Focused tests：
 
-- pilot authorization for IDs A/B/C cannot submit D or all plan items;
-- the same count with different IDs fails scope validation;
-- expansion authorization cannot retroactively enlarge the pilot grant;
-- a latest-grant-only evidence binding cannot cover earlier pilot bytes;
-- plan/profile/source/execution drift fails before submit;
-- current materialization proves its exact bytes and grant across invocations;
-- copied filename, wrong hash, foreign workflow, or missing provenance fails;
-- valid pilot bytes are not submitted again during expansion;
-- interruption returns one owner-issued exact regeneration action without
-  manufacturing success;
-- wrong-owner and stale-state writes are prevented with focused negative tests.
+- 只授权 IDs A/B/C 的 pilot authorization 不能 submit D 或全部 plan items；
+- count 相同但 IDs 不同，scope validation 失败；
+- expansion authorization 不能追溯扩大 pilot grant；
+- 只绑定 latest grant 的 evidence 不能覆盖早期 pilot bytes；
+- plan/profile/source/execution 漂移在 submit 前失败；
+- current materialization 能跨 invocation 证明其精确 bytes 与 grant；
+- copied filename、wrong hash、foreign workflow 或 missing provenance 失败；
+- expansion 期间不再次 submit 合法 pilot bytes；
+- interruption 返回一个 owner-issued exact regeneration action，不制造成功；
+- focused negative tests 防止 wrong-owner 与 stale-state writes。
 
-Exit gate:
+退出 Gate：
 
-- public integration tests prove exact provider-call IDs and counts for pilot
-  and expansion;
-- authorization/materialization state is simpler than the paid work it guards
-  and has no parallel pass/fail authority;
-- no workflow-specific semantics have entered shared raw mechanics.
+- public integration tests 证明 pilot 与 expansion 的精确 provider-call IDs 和 counts；
+- authorization/materialization state 比它保护的付费工作更简单，且无 parallel pass/fail authority；
+- shared raw mechanics 中没有进入 workflow-specific semantics。
 
-## Phase 12: Deliver Independent Framed And Pure Pilot Paths
+## Phase 12：交付彼此独立的 Framed 与 Pure Pilot 路径
 
-**Objective:** expose early real output while keeping each selected workflow
-straight and self-contained.
+**目标：** 尽早暴露真实输出，同时让每条已选 workflow 保持直线、独立完整。
 
-Framed work:
+Framed 工作：
 
-- let the Agent propose Framed representatives by Text Frame, callout,
-  safe-zone, identity, narrative-position, and composition risk;
-- generate only authorized text-free underlays;
-- compose preview-only pages through the accepted private Framed compiler,
-  fonts, layout evaluator, and capture profile;
-- show underlay safe-zone evidence and production-equivalent composed pages in
-  one human Pilot Run decision;
-- prevent preview composition from writing accepted raw evidence, final
-  manifest, PPTX, notes, or delivery state;
-- route `repair` to the nearest Framed source/visual owner and `redirect` to
-  Style Master, with workflow switch remaining Structural Versioning.
+- Agent 按 Text Frame、callout、safe-zone、identity、narrative-position 和 composition risk 提出 Framed 代表页；
+- 只生成已授权的无文字 underlays；
+- 通过已接受的私有 Framed compiler、fonts、layout evaluator 和 capture profile 合成 preview-only pages；
+- 在一次人类 Pilot Run 决定中，同时展示 underlay safe-zone evidence 和生产等价合成页面；
+- 防止 preview composition 写入 accepted raw evidence、final manifest、PPTX、notes 或 delivery state；
+- `repair` 路由到最近 Framed source/visual owner，`redirect` 路由到 Style Master；workflow 切换继续走 Structural Versioning。
 
-Pure work:
+Pure 工作：
 
-- let the Agent propose Pure representatives by text density, complex
-  composition, identity, narrative-position, and legibility risk;
-- show the exact generated full-page bytes with complete identity/profile
-  labels and coverage;
-- never import Framed renderer, Text Frame, or safe-zone semantics;
-- route `repair` to the nearest Pure source/visual owner and `redirect` to
-  Style Master, with workflow switch remaining Structural Versioning.
+- Agent 按 text density、complex composition、identity、narrative-position 和 legibility risk 提出 Pure 代表页；
+- 展示精确 generated full-page bytes，以及完整 identity/profile labels 与 coverage；
+- 绝不导入 Framed renderer、Text Frame 或 safe-zone 语义；
+- `repair` 路由到最近 Pure source/visual owner，`redirect` 路由到 Style Master；workflow 切换继续走 Structural Versioning。
 
-Shared handoff work:
+共享 handoff 工作：
 
-- on current Pilot Run `proceed`, present but do not infer the exact remaining
-  authorization;
-- after authorized expansion, build complete raw review from all exact current
-  tuples, including unchanged pilot bytes;
-- if pilot scope equals complete scope, reuse the complete projection and
-  decision as accepted raw review rather than asking twice;
-- keep complete review and delivery review human-owned and current-evidence
-  bound.
+- 当前 Pilot Run `proceed` 后，展示但不推断精确 remaining authorization；
+- 已授权 expansion 后，从所有精确当前 tuples 构建完整 raw review，包括未变化 pilot bytes；
+- 若 pilot scope 等于 complete scope，复用 complete projection 与 decision 作为 accepted raw review，不重复询问；
+- complete review 与 delivery review 继续归人所有，并绑定 current evidence。
 
-Focused tests:
+Focused tests：
 
-- both Controller journeys expose only their selected branch;
-- the Agent proposal is risk-covering and human-adjustable while runtime exact
-  IDs remain authoritative;
-- Framed pilot and final composition use one renderer/evaluator;
-- Pure pilot bytes equal the raw/final page bytes and invoke no Framed code;
-- pilot `repair`/`redirect` invalidates the right evidence and returns to one
-  nearest action;
-- an expansion request before `proceed` returns the same current Pilot Run
-  `confirm` with zero submit;
-- expansion submit without exact authorization and partial pilot finalization
-  hard-stop;
-- 1-5-page scope has zero remaining submits and one visual decision;
-- provider-free local refreshes do not enter Pilot Run.
+- 两条 Controller journey 都只暴露已选分支；
+- Agent proposal 覆盖风险且人可调整，同时 runtime exact IDs 保持权威；
+- Framed pilot 与 final composition 使用同一个 renderer/evaluator；
+- Pure pilot bytes 等于 raw/final page bytes，且不调用 Framed code；
+- pilot `repair`/`redirect` 使正确 evidence 失效，并返回唯一最近动作；
+- `proceed` 前请求 expansion，返回同一份当前 Pilot Run `confirm`，submit 为零；
+- 没有精确授权的 expansion submit，以及用部分 pilot finalization，都会 `hard-stop`；
+- 1-5 页 scope 的 remaining submits 为零，且只有一次视觉决定；
+- provider-free local refresh 不进入 Pilot Run。
 
-Exit gate:
+退出 Gate：
 
-- real user-facing artifacts appear at Style Master and Pilot Run checkpoints;
-- larger batches cannot submit remaining pages before current pilot feedback;
-- each mode is independently understandable and complete.
+- 真实 user-facing artifacts 出现在 Style Master 与 Pilot Run checkpoints；
+- 较大批次在取得当前 pilot 反馈前不能 submit 剩余页面；
+- 每种模式都可以独立理解且流程完整。
 
-## Phase 13: Validate And Archive Pilot Runs
+## Phase 13：验证并归档 Pilot Run
 
-Validation ladder:
+验证阶梯：
 
-1. exact batch/authorization/materialization unit tests;
-2. Style Master/Pilot evidence and invalidation integration tests;
-3. Framed production-equivalent pilot browser tests;
-4. Pure exact-byte pilot tests;
-5. independent Controller/CLI contract tests, including updated command-count,
-   retirement, and non-v2 fences for the restored public names;
-6. both target mock E2E journeys, including repair and small-scope paths;
-7. full `npm test` and appropriate E2E tier;
-8. strict OpenSpec validation and framework terminology/ownership scans.
+1. exact batch/authorization/materialization unit tests；
+2. Style Master/Pilot evidence 与 invalidation integration tests；
+3. Framed production-equivalent pilot browser tests；
+4. Pure exact-byte pilot tests；
+5. independent Controller/CLI contract tests，包括恢复公共名称后更新的 command-count、retirement 和 non-v2 fences；
+6. 两条 target mock E2E journeys，包括 repair 与 small-scope paths；
+7. 完整 `npm test` 与适当 E2E tier；
+8. strict OpenSpec validation 与 framework terminology/ownership scans。
 
-Final gate:
+最终 Gate：
 
-- the complete definition of success in [README.md](README.md) and
-  [pilot-run-plan.md](pilot-run-plan.md) is demonstrated;
-- all four changes are validated, synced, and archived in sequence;
-- every visible outcome maps to `guide`, `confirm`, or `hard-stop` exactly as
-  specified;
-- each deterministic failure has one direct owner and same-check recovery;
-- no production `deck_*` data was used as source, fixture, or migration target;
-- no remaining implementation or contract task is deferred implicitly.
+- 完整证明 [README.md](README.md) 与 [pilot-run-plan.md](pilot-run-plan.md) 中的成功定义；
+- 四个 change 已按顺序 validate、sync 并 archive；
+- 每个可见 outcome 都严格按规格映射到 `guide`、`confirm` 或 `hard-stop`；
+- 每个确定性失败都有一个 direct owner 与 same-check recovery；
+- 没有生产 `deck_*` 数据被用作 source、fixture 或 migration target；
+- 没有剩余 implementation 或 contract task 被隐式延期。
 
-## Stop Conditions
+## 停止条件
 
-Stop and revise the design if any phase requires:
+若任何阶段要求以下任一项，必须停止并修改设计：
 
-- another pass/fail authority for browser fit;
-- Text Frame literals inside `render_profile_digest`;
-- a browser launch in every lifecycle command or per field;
-- a second persisted layout approval/evidence state;
-- source state/receipt mutation before plan-time browser proof;
-- shared raw mechanics interpreting Framed Text Frame semantics;
-- a human manually repairing deterministic state/artifacts;
-- more than one recovery action for the same root cause;
-- a force/waiver across identity, integrity, authorization, or evidence
-  completeness;
-- hidden fallback, retry loop, watcher, daemon, inferred intent, or parallel
-  success store;
-- system font fallback as success;
-- silent accepted-underlay reuse after profile drift;
-- OCR as a prerequisite;
-- mixed Framed/Pure slides in one version;
-- canonical Style Master bytes overwritten before current human `proceed`;
-- first-N or a fixed pilot count treated as the creative selection authority;
-- a pilot grant that names only a count or authorizes the complete plan;
-- remaining pages submitted before current pilot `proceed` and a separate exact
-  expansion authorization;
-- current pilot bytes silently regenerated during expansion;
-- partial pilot evidence accepted as complete raw/final evidence;
-- a shared user-facing pilot branch that makes one workflow reason about the
-  other;
-- a second authorization ledger or filename-based raw success inference.
+- 为 browser fit 增加另一套 pass/fail authority；
+- 把 Text Frame literals 放入 `render_profile_digest`；
+- 在每个 lifecycle command 或每个 field 都启动一次 browser；
+- 增加第二份持久 layout approval/evidence state；
+- 在 plan-time browser proof 前修改 source state/receipt；
+- 让 shared raw mechanics 解释 Framed Text Frame 语义；
+- 要求人手工修复确定性 state/artifacts；
+- 同一 root cause 有多个 recovery action；
+- 用 force/waiver 跨过 identity、integrity、authorization 或 evidence completeness；
+- 引入 hidden fallback、retry loop、watcher、daemon、inferred intent 或 parallel success store；
+- 把 system font fallback 当作成功；
+- profile drift 后静默复用 accepted underlay；
+- 把 OCR 作为 prerequisite；
+- 同一版本混用 Framed/Pure slides；
+- 当前人类 `proceed` 前覆盖 canonical Style Master bytes；
+- 把 first-N 或固定 pilot 数量当作 creative selection authority；
+- pilot grant 只记录 count 或授权完整计划；
+- 在当前 pilot `proceed` 和单独精确 expansion authorization 前 submit 剩余页面；
+- expansion 时静默重新生成当前 pilot bytes；
+- 把部分 pilot evidence 接受为完整 raw/final evidence；
+- 建立共享 user-facing pilot branch，迫使一种 workflow 理解另一种；
+- 增加第二 authorization ledger，或依据 filename 推断 raw success。
 
-Any of these means the quality-control layer has become more complex than the
-work it validates.
+出现任何一项，都说明 quality-control layer 已比它验证的工作更复杂。
