@@ -6,7 +6,7 @@
 
 本次调查覆盖 framework source、当前 OpenSpec capabilities、tests 与本地确定性 probes；不检查生产 `deck_*` 或 `dpt_*` 数据。除用户指定的本 plan 目录外，不使用其他 `_backlog` 材料作为权威。
 
-报告严格区分 observed behavior（已观察行为）与 proposed design（建议设计）。决定与实施顺序分别记录在 [render-contract-plan.md](render-contract-plan.md)、[pilot-run-plan.md](pilot-run-plan.md) 和 [progressive-plan.md](progressive-plan.md)。
+报告严格区分 observed behavior（已观察行为）与 proposed design（建议设计）。决定与实施顺序分别记录在 [render-contract-plan.md](render-contract-plan.md)、[pilot-run-plan.md](../production-conventions/pilot-run-plan.md) 和 [progressive-plan.md](progressive-plan.md)。
 
 ## 术语发现
 

@@ -10,7 +10,7 @@
 
 1. [research.md](research.md)：记录当前行为、已观察到的缺口与实测结果。
 2. [render-contract-plan.md](render-contract-plan.md)：定义目标契约和模块边界。
-3. [pilot-run-plan.md](pilot-run-plan.md)：定义 Style Master（风格母版）以及 Framed、Pure 两条独立路径中的代表性 Pilot Run（试生产）UX。
+3. [pilot-run-plan.md](../production-conventions/pilot-run-plan.md)：定义 Style Master（风格母版）以及 Framed、Pure 两条独立路径中的代表性 Pilot Run（试生产）UX。
 4. [progressive-plan.md](progressive-plan.md)：把工作安排为带 Gate（关口）、可独立验证的渐进阶段。
 
 ## 双语术语约定
