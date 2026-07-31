@@ -37,13 +37,13 @@ const IS_WINDOWS = process.platform === 'win32';
 export const COMMON_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'fonts', 'disk_space', 'git',
 ]);
-export const HTML_CHECK_NAMES = Object.freeze(['playwright', 'chromium', 'html_fonts', 'html_runtime_smoke']);
+export const HTML_CHECK_NAMES = Object.freeze(['playwright', 'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke']);
 export const HTML_PACKAGE_CHECK_NAMES = Object.freeze(['playwright']);
 // BASE_CHECK_NAMES is intentionally in runtime-emission order (not common-first)
 // so the emitted check stream matches documented/expected ordering.
 export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
-  'chromium', 'html_fonts', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
+  'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
 export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_authority_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
@@ -479,10 +479,59 @@ function unavailableHtmlRuntimeChecks(reason) {
       fix: 'Restore the complete PPTMAKER_FRAMEWORK package, including scripts/fonts/.',
     },
     {
+      check: 'framed_render_profile', status: 'fail', detail: `not checked (${reason})`,
+      fix: 'Repair the Framed runtime, font inventory, and capture-profile owners, then rerun doctor.',
+    },
+    {
       check: 'html_runtime_smoke', status: 'fail', detail: `not checked (${reason})`,
       fix: 'Repair the preceding local runtime checks, then rerun doctor.',
     },
   ];
+}
+
+function framedProfileFacts(profile) {
+  if (!profile || typeof profile !== 'object' ||
+    typeof profile.schema !== 'string' ||
+    typeof profile.render_profile_digest !== 'string' ||
+    !profile.runtime || !profile.font_render_inventory || !profile.capture) {
+    throw new Error('Framed profile shape is invalid');
+  }
+  return Object.freeze({
+    schema: profile.schema,
+    render_profile_digest: profile.render_profile_digest,
+    runtime: Object.freeze({ ...profile.runtime }),
+    font_render_inventory: Object.freeze({ ...profile.font_render_inventory }),
+    capture: Object.freeze({ ...profile.capture }),
+  });
+}
+
+async function checkFramedRenderProfile(runtime) {
+  try {
+    // Keep the direct doctor pre-install-safe: this production owner is loaded
+    // only after the package-backed browser and font prerequisites have passed.
+    const { currentFramedRenderProfile } = await import('../../03-framed-image/internal/framed_render_profile.mjs');
+    const profile = framedProfileFacts(currentFramedRenderProfile());
+    if (profile.runtime.id !== runtime.profile ||
+      profile.runtime.playwright_version !== runtime.playwright?.version ||
+      profile.runtime.chromium_revision !== runtime.chromium?.revision ||
+      profile.runtime.chromium_browser_version !== runtime.chromium?.browserVersion) {
+      throw new Error('Framed profile does not match the verified pinned runtime');
+    }
+    return {
+      check: 'framed_render_profile',
+      status: 'ok',
+      detail: `canonical Framed profile ${profile.render_profile_digest.slice(0, 12)} is ready (runtime ${profile.runtime.id}, font inventory ${profile.font_render_inventory.digest.slice(0, 12)}, capture ${profile.capture.id})`,
+      fix: null,
+      profile,
+    };
+  } catch {
+    return {
+      check: 'framed_render_profile',
+      status: 'fail',
+      detail: 'canonical Framed runtime, font inventory, or capture profile is unavailable or inconsistent',
+      fix: 'Repair the Framed runtime, font inventory, and capture-profile owners, then rerun doctor.',
+    };
+  }
 }
 
 async function checkHtmlRuntime(playwright) {
@@ -509,9 +558,16 @@ async function checkHtmlRuntime(playwright) {
       : 'bundled font inventory, files, CSS, coverage, or legal material is invalid',
     fix: fontEvidence.ok ? null : 'Restore the complete framework package under PPTMAKER_FRAMEWORK/scripts/fonts/.',
   };
+  const framedRenderProfile = runtime.ok && fontEvidence.ok
+    ? await checkFramedRenderProfile(runtime)
+    : {
+      check: 'framed_render_profile', status: 'fail',
+      detail: 'not checked because Chromium or bundled fonts are not ready',
+      fix: 'Repair chromium and html_fonts first, then rerun doctor.',
+    };
 
   let smoke;
-  if (runtime.ok && fontEvidence.ok) {
+  if (runtime.ok && fontEvidence.ok && framedRenderProfile.status === 'ok') {
     const evidence = await runHtmlRuntimeSmoke({ runtimeEvidence: runtime });
     smoke = {
       check: 'html_runtime_smoke',
@@ -524,11 +580,11 @@ async function checkHtmlRuntime(playwright) {
   } else {
     smoke = {
       check: 'html_runtime_smoke', status: 'fail',
-      detail: 'not run because Chromium or bundled fonts are not ready',
-      fix: 'Repair chromium and html_fonts first, then rerun doctor.',
+      detail: 'not run because Chromium, bundled fonts, or the canonical Framed profile are not ready',
+      fix: 'Repair chromium, html_fonts, and framed_render_profile first, then rerun doctor.',
     };
   }
-  return [chromium, htmlFonts, smoke];
+  return [chromium, htmlFonts, framedRenderProfile, smoke];
 }
 
 function fallbackProviderDiagnostics() {
@@ -939,7 +995,7 @@ function profileReady(results, names) {
 function pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles }) {
   const framedChecks = new Set([
     'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander',
-    'playwright', 'chromium', 'html_fonts', 'html_runtime_smoke',
+    'playwright', 'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke',
   ]);
   const rawChecks = new Set([
     'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander',

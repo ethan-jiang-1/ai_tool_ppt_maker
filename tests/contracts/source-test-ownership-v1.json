@@ -37,14 +37,23 @@
       "owner": "03-framed-image",
       "interfaces": ["03-framed-image/index.mjs"],
       "executables": [],
-      "unit_integration": ["tests/03-framed-image/test_framed_workflow.mjs"],
+      "unit_integration": [
+        "tests/03-framed-image/test_framed_plan_lifecycle.mjs",
+        "tests/03-framed-image/test_framed_render_contract.mjs",
+        "tests/03-framed-image/test_framed_render_profile.mjs",
+        "tests/03-framed-image/test_framed_review_contribution.mjs",
+        "tests/03-framed-image/test_framed_workflow.mjs"
+      ],
       "e2e": []
     },
     {
       "owner": "04-pure-image",
       "interfaces": ["04-pure-image/index.mjs"],
       "executables": [],
-      "unit_integration": ["tests/04-pure-image/test_pure_workflow.mjs"],
+      "unit_integration": [
+        "tests/04-pure-image/test_pure_review_contribution.mjs",
+        "tests/04-pure-image/test_pure_workflow.mjs"
+      ],
       "e2e": []
     },
     {
@@ -99,7 +108,10 @@
         "shared/cli/cli_error.mjs"
       ],
       "executables": [],
-      "unit_integration": ["tests/shared/cli/test_process_cli_error.mjs"],
+      "unit_integration": [
+        "tests/shared/cli/test_process_cli_error.mjs",
+        "tests/shared/cli/test_process_target_diagnostics.mjs"
+      ],
       "e2e": []
     },
     {
@@ -116,7 +128,13 @@
       "owner": "shared/image2",
       "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs"],
       "executables": [],
-      "unit_integration": ["tests/shared/image2/test_artifact_contracts.mjs", "tests/shared/image2/test_credentials.mjs", "tests/shared/image2/test_final_manifest.mjs", "tests/shared/image2/test_raw_mechanics.mjs"],
+      "unit_integration": [
+        "tests/shared/image2/test_artifact_contracts.mjs",
+        "tests/shared/image2/test_credentials.mjs",
+        "tests/shared/image2/test_final_manifest.mjs",
+        "tests/shared/image2/test_raw_mechanics.mjs",
+        "tests/shared/image2/test_target_raw_review_coverage.mjs"
+      ],
       "e2e": []
     },
     {

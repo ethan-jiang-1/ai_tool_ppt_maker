@@ -29,6 +29,15 @@ can expose provider-facing work. It then follows exactly one sibling path into
 shared delivery and iteration. The source/state resolver remains the authority
 for receipt identity, workflow binding, evidence, and recovery.
 
+### Owner diagnostic handoff
+
+When an owner CLI exits nonzero, consume only the final nonempty stderr JSON
+envelope. Use the producer-issued `diagnostic.category` and `diagnostic.next`,
+not explanatory prose or a locally recreated category/action table. Perform a
+mechanical repair only when that owner action permits it, then rerun its named
+checkpoint. This never replaces the existing raw visual `proceed`, `repair`,
+or `redirect` confirmation.
+
 ### select-target-page-authority-workflow
 ```yaml
 node: select-target-page-authority-workflow

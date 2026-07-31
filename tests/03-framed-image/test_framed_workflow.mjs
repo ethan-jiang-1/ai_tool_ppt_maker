@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
@@ -12,8 +12,9 @@ import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/ide
 import {
   classifyFramedRefresh,
   createFramedRawWorkPlan,
-  prepareFramedRawContribution,
   publishFramedFinalSlideManifest,
+  readFramedTargetStoredPlanContext,
+  resolveFramedTextFramePreset,
   authorizeFramedTargetRawPlan,
   buildFramedTargetDelivery,
   buildFramedTargetRawPlan,
@@ -23,6 +24,7 @@ import {
   refreshFramedTargetNotes,
   refreshFramedTargetText,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
+import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
@@ -40,21 +42,175 @@ const receipt = {
 };
 
 describe("Framed target workflow", () => {
+  it("normalizes standard-v1 to only rendered frame facts", () => {
+    const preset = resolveFramedTextFramePreset("standard-v1");
+    expect(preset).toMatchObject({
+      canvas: { css_width: 1000, css_height: 562.5, capture_width: 2000, capture_height: 1125 },
+      theme: { panel: "#f5f0eb", panel_opacity: 0.96, text: "#2d1b11" },
+      variants: {
+        callout_absent: { id: "callout_absent", panels: [{ id: "header", x: 40, y: 28, width: 920, height: 238 }] },
+        callout_present: { id: "callout_present", panels: [{ id: "header" }, { id: "callout", x: 40, y: 482, width: 920, height: 48 }] },
+      },
+    });
+    expect(preset.theme).not.toHaveProperty("border");
+    for (const variant of Object.values(preset.variants)) {
+      for (const panel of variant.panels) {
+        expect(panel).not.toHaveProperty("opacity");
+        expect(panel).not.toHaveProperty("padding");
+      }
+    }
+  });
+
+  it("rejects the 28-W regression through the canonical browser render contract", async () => {
+    const textFrame = {
+      preset: "standard-v1",
+      kicker: null,
+      title: "W".repeat(28),
+      subtitle: null,
+      callout: null,
+    };
+    await expect(verifyFramedRenderContracts([{
+      slide_id: "WideW",
+      text_frame: textFrame,
+    }])).rejects.toMatchObject({
+      code: "framed_text_fit_failed",
+      message: expect.stringContaining("scroll overflow"),
+    });
+  }, 20_000);
+
+  it("does not materialize source lineage or a raw plan when browser proof rejects the candidate", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-proof-before-write-"));
+    const deck = join(root, "deck_framed_proof_before_write");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: ${"W".repeat(28)}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: Candidate proof must fail before materialization.
+`);
+      const paths = pageAuthorityImage2Paths(runDir);
+      const derived = [paths.target_source_receipt, paths.target_raw_plan, paths.target_raw_evidence, paths.target_raw_review, paths.target_final_manifest];
+      const beforeState = readFileSync(join(deck, "_state", "state.yaml"));
+      expect(derived.every((path) => !existsSync(path))).toBe(true);
+
+      await expect(buildFramedTargetRawPlan(runDir, { allowSourceRebuild: true })).rejects.toMatchObject({
+        code: "framed_text_fit_failed",
+        message: expect.stringContaining("scroll overflow"),
+      });
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(beforeState);
+      expect(derived.every((path) => !existsSync(path))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 20_000);
+
+  it("fails closed on a post-proof plan write and repairs the same checkpoint without advancing state", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-plan-write-recovery-"));
+    const deck = join(root, "deck_framed_plan_write_recovery");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Recover the exact plan checkpoint
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: A failed plan write must remain unauthorizable.
+`);
+      const paths = pageAuthorityImage2Paths(runDir);
+      mkdirSync(paths.target_raw_plan, { recursive: true });
+
+      await expect(buildFramedTargetRawPlan(runDir)).rejects.toThrow();
+      const stateAfterFailure = readFileSync(join(deck, "_state", "state.yaml"));
+      const receiptAfterFailure = readFileSync(paths.target_source_receipt);
+      await expect(authorizeFramedTargetRawPlan(runDir, { planHash: "a".repeat(64) }))
+        .rejects.toMatchObject({ code: "target_raw_plan_required" });
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateAfterFailure);
+      expect(readFileSync(paths.target_source_receipt)).toEqual(receiptAfterFailure);
+
+      rmSync(paths.target_raw_plan, { recursive: true, force: true });
+      const repaired = await buildFramedTargetRawPlan(runDir);
+      expect(readFramedTargetStoredPlanContext(runDir).source_epoch).toBe(1);
+      expect(canonicalJsonSha256(JSON.parse(readFileSync(paths.target_raw_plan, "utf8"))))
+        .toBe(repaired.raw_work_plan.sha256);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateAfterFailure);
+      expect(readFileSync(paths.target_source_receipt)).toEqual(receiptAfterFailure);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 20_000);
+
   it("rejects a Pure receipt before creating target work", () => {
-    expect(() => prepareFramedRawContribution({ ...receipt, workflow: "pure" }))
+    expect(() => createFramedRawWorkPlan({
+      receipt: { ...receipt, workflow: "pure" },
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      raw_contracts_by_slide: { DeckGo: digest("d") },
+    }))
       .toThrow(/Framed workflow requires/);
   });
 
-  it("keeps Text Frame content local while composing final manifest bytes", async () => {
-    const contribution = prepareFramedRawContribution(receipt);
-    expect(contribution.items[0]).toMatchObject({ text_free: true, preflight: { preset: "standard-v1", reserved_underlay_rectangles: expect.any(Array) } });
+  it("keeps composition substitution below the public Framed workflow boundary", async () => {
     const rawWorkPlan = createFramedRawWorkPlan({ receipt, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
     const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: Buffer.from("raw") } });
-    const manifest = await publishFramedFinalSlideManifest({
-      receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide: { DeckGo: Buffer.from("raw") },
-      compose: async ({ text_frame, raw_bytes }) => Buffer.from(`${raw_bytes}:${text_frame.title}`),
-    });
-    expect(manifest).toMatchObject({ workflow: "framed" });
+    for (const [key, value] of Object.entries({
+      compose: async () => Buffer.from("injected"),
+      preflight: { ok: true },
+      markup: "<main>injected</main>",
+      css: ".pm-slide { color: red; }",
+      asset_paths: ["/private/path.png"],
+      capture_options: { scale: "css" },
+      publication_root: "/private/output",
+    })) {
+      await expect(publishFramedFinalSlideManifest({
+        receipt,
+        rawWorkPlan,
+        acceptedRawEvidence,
+        rawBytesBySlide: { DeckGo: Buffer.from("raw") },
+        [key]: value,
+      })).rejects.toMatchObject({ code: "framed_render_input_invalid" });
+    }
   });
 
   it("keeps text-only refresh provider-free only with exact accepted underlay evidence", () => {
@@ -75,7 +231,15 @@ describe("Framed target workflow", () => {
       raw_review_sha256: digest("f"),
       raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
     });
-    expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next, rawWorkPlan, acceptedRawEvidence }))
+    const nextRawWorkPlan = createRawWorkPlan({
+      source_receipt_sha256: next.source_sha256,
+      workflow: "framed",
+      ordered_slide_ids: ["DeckGo"],
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+    });
+    expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next, rawWorkPlan, acceptedRawEvidence, nextRawWorkPlan }))
       .toMatchObject({ kind: "local_compose", provider_required: false });
     const styleMasterDrift = createRawWorkPlan({
       source_receipt_sha256: next.source_sha256,
@@ -94,6 +258,8 @@ describe("Framed target workflow", () => {
     })).toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "raw_contract_or_profile_drift" });
     expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next }))
       .toMatchObject({ kind: "raw_evidence_required", provider_required: true });
+    expect(classifyFramedRefresh({ previousReceipt: receipt, nextReceipt: next, rawWorkPlan, acceptedRawEvidence }))
+      .toMatchObject({ kind: "rebuild_raw", provider_required: true, reason: "raw_contract_or_profile_drift" });
     expect(classifyFramedRefresh({
       previousReceipt: receipt,
       nextReceipt: { ...next, slides: [{ ...next.slides[0], visual_brief: { recipe: "changed" } }] },
@@ -136,18 +302,38 @@ negative_constraints:
 
 > **SPEAKER NOTE**: Framed target source-owned note.
 `);
-      const plan = buildFramedTargetRawPlan(runDir);
+      const plan = await buildFramedTargetRawPlan(runDir);
+      const paths = pageAuthorityImage2Paths(runDir);
+      const rawPlanBytes = readFileSync(paths.target_raw_plan);
+      const sourceReceiptBytes = readFileSync(paths.target_source_receipt);
+      const stateBeforeRawLifecycle = readState(deck, { purpose: "observe", runVersion: "v1" });
+      const storedPlan = readFramedTargetStoredPlanContext(runDir);
+      expect(storedPlan.source_epoch).toBe(1);
+      expect(canonicalJsonSha256(storedPlan.raw_work_plan)).toBe(plan.raw_work_plan.sha256);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(rawPlanBytes);
+      expect(readFileSync(paths.target_source_receipt)).toEqual(sourceReceiptBytes);
+      expect(readState(deck, { purpose: "observe", runVersion: "v1" })).toEqual(stateBeforeRawLifecycle);
       const projection = plan.raw_work_plan.sha256;
-      expect(authorizeFramedTargetRawPlan(runDir, { planHash: projection })).toMatchObject({ authorized: true });
+      expect(await authorizeFramedTargetRawPlan(runDir, { planHash: projection })).toMatchObject({ authorized: true });
       expect(await generateFramedTargetRawPlan(runDir, {
         planHash: projection,
         submit: async () => image.toBuffer("image/png"),
       })).toMatchObject({ submitted: 1 });
       expect(await prepareFramedTargetRawReview(runDir)).toMatchObject({ raw_review_sha256: expect.any(String) });
-      expect(decideFramedTargetRawReview(runDir, { decision: "proceed" })).toMatchObject({
+      const reviewProjection = createCanvas(1032, 347);
+      const reviewContext = reviewProjection.getContext("2d");
+      reviewContext.drawImage(await loadImage(readFileSync(paths.target_raw_review_projection)), 0, 0);
+      const guidePixels = reviewContext.getImageData(16, 16, 500, 143).data;
+      expect(Array.from(guidePixels).some((_channel, index) => index % 4 === 0 &&
+        guidePixels[index] > 180 && guidePixels[index + 1] > 75 && guidePixels[index + 1] < 150 && guidePixels[index + 2] < 60)).toBe(true);
+      expect(await decideFramedTargetRawReview(runDir, { decision: "proceed" })).toMatchObject({
         decision: "proceed",
         accepted_raw_evidence: { workflow: "framed" },
       });
+      expect(readFileSync(paths.target_raw_plan)).toEqual(rawPlanBytes);
+      expect(readFileSync(paths.target_source_receipt)).toEqual(sourceReceiptBytes);
+      expect(readState(deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(1);
       const delivery = await buildFramedTargetDelivery(runDir);
       expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
     } finally {
@@ -190,9 +376,9 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original heading"));
-      const initialPlan = buildFramedTargetRawPlan(runDir);
+      const initialPlan = await buildFramedTargetRawPlan(runDir);
       const projection = initialPlan.raw_work_plan.sha256;
-      authorizeFramedTargetRawPlan(runDir, { planHash: projection });
+      await authorizeFramedTargetRawPlan(runDir, { planHash: projection });
       let providerSubmissions = 0;
       await generateFramedTargetRawPlan(runDir, {
         planHash: projection,
@@ -202,7 +388,7 @@ negative_constraints:
         },
       });
       await prepareFramedTargetRawReview(runDir);
-      decideFramedTargetRawReview(runDir, { decision: "proceed" });
+      await decideFramedTargetRawReview(runDir, { decision: "proceed" });
       await buildFramedTargetDelivery(runDir);
       expect(providerSubmissions).toBe(1);
 
@@ -274,9 +460,9 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original CLI heading"));
-      const initialPlan = buildFramedTargetRawPlan(runDir);
+      const initialPlan = await buildFramedTargetRawPlan(runDir);
       const projection = initialPlan.raw_work_plan.sha256;
-      authorizeFramedTargetRawPlan(runDir, { planHash: projection });
+      await authorizeFramedTargetRawPlan(runDir, { planHash: projection });
       let providerSubmissions = 0;
       await generateFramedTargetRawPlan(runDir, {
         planHash: projection,
@@ -286,7 +472,7 @@ negative_constraints:
         },
       });
       await prepareFramedTargetRawReview(runDir);
-      decideFramedTargetRawReview(runDir, { decision: "proceed" });
+      await decideFramedTargetRawReview(runDir, { decision: "proceed" });
       await buildFramedTargetDelivery(runDir);
       const paths = pageAuthorityImage2Paths(runDir);
       const rawBytes = readFileSync(join(paths.raw_root, "DeckGo.png"));

@@ -18,7 +18,7 @@ production_mode:
       workflow: framed
       source_epoch: 2
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-30T07:12:21.196Z
+updated_at: 2026-07-30T13:21:33.848Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -34,7 +34,19 @@ diagnostics:
   - "schema healed: v3 → v5 (2026-07-24 framework alignment)"
   - "migrated: html-first-v1 → page-authority-image2-v2, workflow=framed (2026-07-30)"
 page_authority_raw_provider_authorization:
-  by_version: {}
+  by_version:
+    3_versions/v4:
+      schema: pptmaker-page-authority-raw-provider-authorization-v2
+      run_version: v4
+      source_epoch: 2
+      source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
+      workflow: framed
+      raw_work_plan_sha256: dc6b7a452247399a573f6514cf8d8468c6f406243ee36e3d730c48c583434837
+      provider_profile_sha256: 644cb5294ceabf3e0af9f6e5f06cda667a1b88561ec0d478a6cc33a802337617
+      authorization_scope_sha256: 3fa655ef35f429bc25271e9379e77ed03617cf677ca58c65291880b8ff1b8b83
+      max_submissions: 25
+      execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
+      decided_at: 2026-07-30T09:16:18.014Z
 page_authority_target_evidence:
   by_version:
     3_versions/v2:
@@ -53,7 +65,7 @@ page_authority_target_evidence:
       source_epoch: 2
       source_receipt_sha256: 5aa9aed79e12ec80e2d28744cd8f53284030e58521ce7dbaac4ae3b76aabe155
       workflow: framed
-      provider_authorization_sha256: null
-      accepted_raw_evidence_sha256: null
-      final_manifest_sha256: null
-      delivery_receipt_sha256: null
+      provider_authorization_sha256: ede39251936801c98cc904c0b39b7edff64500741c1211198e353a766268d60c
+      accepted_raw_evidence_sha256: e1d363598e9e371468b38378ee2910d94e2ca4daf9689f93bb0621757a6eabeb
+      final_manifest_sha256: 4c5eaf375fb6708a6d73ecc214cdd0dac3558815c46d650c979dd6e5b1aca0f5
+      delivery_receipt_sha256: 02ecbeb20d50df1ad1a2a302092102cc7965176d7667a8050deaa97c7edd399e

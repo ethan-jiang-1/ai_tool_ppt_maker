@@ -1,6 +1,6 @@
 # 规划：Framed 渲染契约与渐进式生产 UX
 
-> 类型：总设计（design umbrella） | 状态：可进入 OpenSpec proposal | 更新：2026-07-30
+> 类型：component design（组件设计输入） | 状态：已纳入总控计划 | 更新：2026-07-31
 
 ## 目的
 
@@ -11,7 +11,8 @@
 1. [research.md](research.md)：记录当前行为、已观察到的缺口与实测结果。
 2. [render-contract-plan.md](render-contract-plan.md)：定义目标契约和模块边界。
 3. [pilot-run-plan.md](../production-conventions/pilot-run-plan.md)：定义 Style Master（风格母版）以及 Framed、Pure 两条独立路径中的代表性 Pilot Run（试生产）UX。
-4. [progressive-plan.md](progressive-plan.md)：把工作安排为带 Gate（关口）、可独立验证的渐进阶段。
+4. [progressive-plan.md](progressive-plan.md)：记录旧阶段如何并入根总控计划，不再独立维护执行顺序。
+5. [../progressive-plan.md](../progressive-plan.md)：第一阶段唯一推进顺序、OpenSpec change 边界与 checklist。
 
 ## 双语术语约定
 
@@ -140,16 +141,15 @@ render profile 不包含 Text Frame literal，也不包含单页所选 font-shar
 
 ## Change 边界
 
-未来使用四个 OpenSpec change，且必须严格串行：
+执行边界已由 [根 progressive plan](../progressive-plan.md) 收敛为三个串行 change，且任一时刻最多一个 active change：
 
-1. `converge-framed-render-contract`：负责 preset 规范化、render-profile 身份、私有 renderer、plan-time/final proof、refresh 失效、诊断和测试。
-2. `restore-target-raw-review-evidence`：在共享 target raw-review owner 中恢复 safe-zone overlay、完整标签，以及规范 projection/workflow coverage。
-3. `establish-target-style-master-feedback`：恢复面向当前 Page Authority 的 candidate/authorization/review/promotion 环路，但不复活 legacy production adapter。
-4. `introduce-target-pilot-runs`：增加精确限定范围的生成批次、彼此独立的 Framed/Pure Pilot Run Controller 路径、生产等价证据、单独的剩余范围授权，以及 pilot 字节复用。
+1. `converge-framed-render-and-review`：把 preset/profile/private renderer/proof-before-materialization 与 typed raw-review evidence 合并为一条可验收纵向闭环。该 change 已 propose 并通过 strict validation。
+2. `establish-style-master-feedback`：在页面级 raw work 前建立 candidate authorization、attempt/provenance、真实 review、CAS promotion 与 accepted effective selection。
+3. `introduce-progressive-page-production`：建立 exact Pilot/Expansion grants、逐项 materialization/progress、两条独立 workflow journey、complete review 与 resume。
 
-每个 change 都要在提出下一个 change 前完成 validate 和 archive。Raw review 消费已接受的规范 render-profile 身份；Style Master 随后建立前置、已接受的视觉参考；Pilot Run 再消费前三项已接受契约。这样可以避免并行依赖，并让每个 change 保持局部 owner 清晰。
+Raw review 不再单独建 change，因为它必须消费同一 change 接受的 render-profile identity 才能完成验收；Style Master 不与 Pilot/Expansion 合并，因为二者拥有不同的人类问题、scope、持久事实和迁移边界。详细理由、checkbox 与覆盖审计只在根计划维护。
 
-第一个 change 不增加人类决定：所有新增 layout/profile 结果都是确定性且不可绕过的完整性检查。第二个 change 保留既有 raw-review `confirm`。第三和第四个 change 针对视觉方向、代表性质量与精确 provider 花费增加有界的人类决定，因为这些事实无法机械判断。它们都不是 continuation（继续许可）或 waiver。面对完整且当前的证据，人的 `proceed` 是归人所有的内容判断，不是跨越身份、授权或证据失败的 bypass。
+第一个 change 不增加人类决定；它保留既有 raw-review `confirm`。后两个 change 只增加无法机械重建的视觉方向、精确 provider 花费与代表性质量决定。人的 `proceed` 仍不是 continuation（继续许可）或 waiver，不能跨过身份、授权或证据失败。
 
 第一个 proposal 至少必须审计以下既有 capabilities 的 delta：
 
@@ -163,11 +163,11 @@ render profile 不包含 Text Frame literal，也不包含单页所选 font-shar
 
 raw-review proposal 还必须对齐已经描述 safe-zone/profile binding 的 accepted evidence 和 bundle-layout requirements。准确 capability delta 在创建 proposal 时确认；consumer specs 不得复制 producer 所有的 CLI diagnostic schema。需要审计 `node-specification` 的兼容性，且只有 Controller 消费行为确实变化时才增加 delta。
 
-Style Master 与 Pilot Run proposal 必须审计 [pilot-run-plan.md](pilot-run-plan.md) 列出的 capabilities。清晰的公共名称 `style-master` 和 `pilot` 只能作为当前 Page Authority CLI surface 恢复。这是一次有意的 `cli-surface` 契约变更，包含 command-count/help 和 retirement-test 更新；不能只是删除断言，也不能复用旧 whole-page state 语义。版本 workflow 选定后，Framed 与 Pure Controller 节点继续保持独立；只允许共享不理解语义的机械 primitives。
+Style Master 与 Pilot Run proposal 必须审计 [pilot-run-plan.md](../production-conventions/pilot-run-plan.md) 列出的 capabilities。清晰的公共名称 `style-master` 和 `pilot` 只能作为当前 Page Authority CLI surface 恢复。这是一次有意的 `cli-surface` 契约变更，包含 command-count/help 和 retirement-test 更新；不能只是删除断言，也不能复用旧 whole-page state 语义。版本 workflow 选定后，Framed 与 Pure Controller 节点继续保持独立；只允许共享不理解语义的机械 primitives。
 
 只有 requirement-level behavior 才属于 Modified Capabilities。既有 requirement 如果只是缺少实现覆盖，不得伪装为新的 capability 行为。
 
-当前没有 active OpenSpec change。下一步是 [progressive-plan.md](progressive-plan.md) 的 Phase 0，而不是实现。
+当前 active OpenSpec change 是 [`converge-framed-render-and-review`](../../../openspec/changes/converge-framed-render-and-review/proposal.md)，其 planning artifacts 已完成并通过 strict validation。下一步按 [根 progressive plan](../progressive-plan.md) 与 change `tasks.md` 实施，不创建后续 change。
 
 ## 成功定义
 

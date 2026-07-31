@@ -3,6 +3,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { canonicalJsonSha256 } from '../../shared/identity/canonical_json.mjs';
+
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 export const HTML_FONT_ROOT = resolve(MODULE_DIR, '..', '..', 'fonts');
 
@@ -14,6 +16,19 @@ const NOTO_LICENSE = 'licenses/NOTO-SANS-SC-OFL.txt';
 const COPYRIGHT = 'COPYRIGHT.txt';
 const PROVENANCE = 'PROVENANCE.md';
 const SENTINELS = 'sentinels.json';
+
+export const FRAMED_FONT_RENDER_INVENTORY_SCHEMA = 'pptmaker-framed-font-render-inventory-v1';
+export const FRAMED_FONT_SELECTION_SCHEMA = 'pptmaker-framed-font-selection-v1';
+export const FRAMED_FONT_SELECTION_ALGORITHM = 'pptmaker-framed-font-selection-v1';
+
+export class HtmlFontSelectionError extends Error {
+  constructor(code, message, details = null) {
+    super(message);
+    this.name = 'HtmlFontSelectionError';
+    this.code = code;
+    this.details = details;
+  }
+}
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
@@ -253,4 +268,134 @@ export function verifyHtmlFontBundle({
       actualDeckCoverage: false,
     };
   }
+}
+
+function deepFreeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+}
+
+function fontRenderInventoryFrom(inventory) {
+  const platforms = new Map(inventory.families.map((family) => [family.family, family.platformFamilyName]));
+  return deepFreeze({
+    schema: FRAMED_FONT_RENDER_INVENTORY_SCHEMA,
+    families: inventory.families.map((family) => ({
+      family: family.family,
+      platform_family_name: family.platformFamilyName,
+    })),
+    faces: inventory.files.map((file) => ({
+      path: file.path,
+      sha256: file.sha256,
+      family: file.family,
+      platform_family_name: platforms.get(file.family),
+      style: file.style,
+      weight: file.weight,
+      unicode_ranges: [...file.unicodeRanges].sort(),
+    })).sort((left, right) => left.path.localeCompare(right.path)),
+  });
+}
+
+/**
+ * Return the canonical, integrity-checked render inventory used by Framed
+ * composition. Paths remain relative to the checked-in font root.
+ */
+export function loadFramedFontRenderInventory({
+  root = HTML_FONT_ROOT,
+  readFile = readFileSync,
+  exists = existsSync,
+  stat = statSync,
+} = {}) {
+  const verified = verifyHtmlFontBundle({ root, readFile, exists, stat });
+  if (!verified.ok) {
+    throw new HtmlFontSelectionError(
+      'font_render_inventory_invalid',
+      'the checked-in Framed font render inventory is unavailable or invalid',
+    );
+  }
+  try {
+    return fontRenderInventoryFrom(buildFontInventory({ root, readFile }));
+  } catch {
+    throw new HtmlFontSelectionError(
+      'font_render_inventory_invalid',
+      'the checked-in Framed font render inventory is unavailable or invalid',
+    );
+  }
+}
+
+export function framedFontRenderInventoryDigest(options = {}) {
+  return canonicalJsonSha256(loadFramedFontRenderInventory(options));
+}
+
+function formatCodePoint(point) {
+  return `U+${point.toString(16).toUpperCase().padStart(4, '0')}`;
+}
+
+function faceSupportsCodePoint(face, point) {
+  return face.unicode_ranges.some((value) => parseUnicodeRanges(value).some((range) => (
+    point >= range.start && point <= range.end
+  )));
+}
+
+function textFrameFields(textFrame) {
+  if (!textFrame || typeof textFrame !== 'object' || Array.isArray(textFrame)) {
+    throw new HtmlFontSelectionError('font_selection_input_invalid', 'a typed Framed Text Frame is required for font selection');
+  }
+  return ['kicker', 'title', 'subtitle', 'callout']
+    .filter((field) => typeof textFrame[field] === 'string' && textFrame[field].length > 0)
+    .map((field) => ({ field, text: textFrame[field] }));
+}
+
+/**
+ * Select exactly the checked-in faces needed for current Text Frame code
+ * points. The selection is deterministic and never uses system fallback.
+ */
+export function selectFramedFontFaces(textFrame, options = {}) {
+  const inventory = loadFramedFontRenderInventory(options);
+  const familyOrder = new Map(inventory.families.map((family, index) => [family.family, index]));
+  const faces = [...inventory.faces].sort((left, right) => (
+    familyOrder.get(left.family) - familyOrder.get(right.family)
+    || left.path.localeCompare(right.path)
+  ));
+  const selected = new Map();
+  const fields = [];
+  const unsupported = [];
+
+  for (const { field, text } of textFrameFields(textFrame)) {
+    const fieldFaces = new Map();
+    for (const point of [...new Set([...text].map((character) => character.codePointAt(0)))].sort((left, right) => left - right)) {
+      const face = faces.find((candidate) => faceSupportsCodePoint(candidate, point));
+      if (!face) {
+        unsupported.push({ field, code_point: formatCodePoint(point) });
+        continue;
+      }
+      selected.set(face.path, face);
+      fieldFaces.set(face.family, face.family);
+    }
+    fields.push({
+      field,
+      families: [...fieldFaces].map(([family]) => family).sort((left, right) => (
+        familyOrder.get(left) - familyOrder.get(right)
+      )),
+    });
+  }
+  if (unsupported.length) {
+    throw new HtmlFontSelectionError(
+      'unsupported_framed_code_points',
+      `Framed Text Frame contains unsupported code points: ${unsupported.map((entry) => `${entry.field}:${entry.code_point}`).join(', ')}`,
+      Object.freeze({ unsupported: Object.freeze(unsupported) }),
+    );
+  }
+
+  const selectedFaces = [...selected.values()].sort((left, right) => (
+    familyOrder.get(left.family) - familyOrder.get(right.family)
+    || left.path.localeCompare(right.path)
+  ));
+  return deepFreeze({
+    schema: FRAMED_FONT_SELECTION_SCHEMA,
+    algorithm: FRAMED_FONT_SELECTION_ALGORITHM,
+    font_render_inventory_sha256: canonicalJsonSha256(inventory),
+    selected_faces: selectedFaces,
+    fields,
+  });
 }

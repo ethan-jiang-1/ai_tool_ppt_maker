@@ -1,13 +1,16 @@
 import {
-  FRAMED_TEXT_FRAME_PREFLIGHT_SCHEMA,
   FRAMED_TEXT_FRAME_PRESET,
   FRAMED_TEXT_FRAME_STANDARD_V1,
   FRAMED_TEXT_FRAME_STANDARD_V1_DIGEST,
   FramedTextFrameError,
-  preflightFramedTextFrame,
   resolveFramedTextFramePreset,
 } from "./internal/text_frame.mjs";
-import { composePageAuthorityFramedPage } from "./internal/framed_composition.mjs";
+import {
+  composeFramedRenderContracts,
+  describeFramedFrame,
+  verifyFramedRenderContracts,
+} from "./internal/framed_render_contract.mjs";
+import { currentFramedRenderProfile } from "./internal/framed_render_profile.mjs";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
@@ -25,17 +28,22 @@ import {
   authorizeTargetRawWork,
   buildTargetRawGenerationProfile,
   createTargetProviderRequest,
+  createTargetRawReviewContribution,
   decideTargetRawReview,
   generateTargetRawWork,
+  materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
   rebindTargetLocalComposeWork,
   resolveTargetLocalComposeContext,
+  resolveTargetCandidateSourceContext,
+  resolveTargetStoredPlanContext,
   resolveTargetSourceContext,
   targetSourceSemanticSha256,
   targetRawPlanProjection,
+  validateTargetRawReviewContribution,
   writeTargetFinalManifest,
   writeTargetRawWorkPlan,
   TARGET_RAW_CONTRACT_SCHEMA,
@@ -56,13 +64,10 @@ export const FRAMED_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
 ]);
 
 export {
-  FRAMED_TEXT_FRAME_PREFLIGHT_SCHEMA,
   FRAMED_TEXT_FRAME_PRESET,
   FRAMED_TEXT_FRAME_STANDARD_V1,
   FRAMED_TEXT_FRAME_STANDARD_V1_DIGEST,
   FramedTextFrameError,
-  composePageAuthorityFramedPage,
-  preflightFramedTextFrame,
   resolveFramedTextFramePreset,
 };
 
@@ -74,11 +79,106 @@ export class FramedImageWorkflowError extends Error {
   }
 }
 
+const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
+  "schema",
+  "slide_id",
+  "workflow",
+  "visual_language",
+  "visual_identity",
+  "framed",
+]);
+const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
+  "preset",
+  "preset_digest",
+  "canvas",
+  "reserved_underlay_rectangles",
+  "render_profile_digest",
+  "text_free",
+]);
+const SHA256_RE = /^[0-9a-f]{64}$/;
+
+function hasExactKeys(value, keys) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
+    Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+function isRectangle(value, canvas) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
+    hasExactKeys(value, ["x", "y", "width", "height"]) &&
+    [value.x, value.y, value.width, value.height].every(Number.isFinite) &&
+    value.width > 0 && value.height > 0 && value.x >= 0 && value.y >= 0 &&
+    value.x + value.width <= canvas.css_width && value.y + value.height <= canvas.css_height;
+}
+
+function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
+  try {
+    if (!hasExactKeys(rawContract, FRAMED_RAW_CONTRACT_KEYS) ||
+      rawContract.schema !== TARGET_RAW_CONTRACT_SCHEMA ||
+      rawContract.workflow !== FRAMED_IMAGE_WORKFLOW ||
+      typeof rawContract.slide_id !== "string" || !rawContract.slide_id ||
+      !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
+      (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasExactKeys(rawContract.framed, FRAMED_RAW_CONTRACT_FRAME_KEYS)) {
+      throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has an invalid canonical shape");
+    }
+    const frame = rawContract.framed;
+    if (frame.preset !== renderProfile?.preset?.id ||
+      frame.preset_digest !== renderProfile?.preset?.digest ||
+      !Array.isArray(frame.reserved_underlay_rectangles) || frame.reserved_underlay_rectangles.length === 0 ||
+      frame.reserved_underlay_rectangles.some((rectangle) => !isRectangle(rectangle, frame.canvas)) ||
+      frame.text_free !== true || !SHA256_RE.test(frame.render_profile_digest || "")) {
+      throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has invalid frame facts");
+    }
+    if (!SHA256_RE.test(renderProfile?.render_profile_digest || "")) {
+      throw new FramedImageWorkflowError("framed_render_profile_required", "Framed raw contracts require the canonical render profile");
+    }
+    if (frame.render_profile_digest !== renderProfile.render_profile_digest) {
+      throw new FramedImageWorkflowError("framed_raw_contract_profile_stale", "Framed raw contract does not bind the current render profile");
+    }
+    return Object.freeze({
+      ok: true,
+      raw_contract_sha256: canonicalJsonSha256(rawContract),
+      render_profile_digest: frame.render_profile_digest,
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      code: error.code || "framed_raw_contract_invalid",
+      message: error.message || "Framed raw contract is invalid",
+    });
+  }
+}
+
+/** Validate one Framed raw contract against the canonical current render profile. */
+export function validateFramedRawContract(rawContract) {
+  return validateFramedRawContractAgainstProfile(rawContract, currentFramedRenderProfile());
+}
+
 function requireReceipt(receipt) {
   if (!receipt || receipt.schema !== "page-authority-image2-source-v2" || receipt.workflow !== FRAMED_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
     throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed workflow requires a current framed v2 source receipt");
   }
   return receipt;
+}
+
+function canonicalFramedFrameFacts(frame) {
+  const layout = frame?.layout;
+  const profile = frame?.render_profile;
+  if (!layout || !profile || typeof profile.preset?.id !== "string" ||
+    !SHA256_RE.test(profile.preset?.digest || "") ||
+    !layout.canvas || !Array.isArray(layout.safe_zones) || layout.safe_zones.length === 0) {
+    throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed render contract is missing canonical raw facts");
+  }
+  return Object.freeze({
+    preset: profile.preset.id,
+    preset_digest: profile.preset.digest,
+    canvas: layout.canvas,
+    reserved_underlay_rectangles: Object.freeze(layout.safe_zones.map(({ rectangle }) => ({ ...rectangle }))),
+  });
+}
+
+function describeFramedSlide(slide) {
+  return describeFramedFrame({ slide_id: slide.slide_id, text_frame: slide.text_frame });
 }
 
 function sameSlideOrder(previousReceipt, nextReceipt) {
@@ -89,13 +189,10 @@ function sameSlideOrder(previousReceipt, nextReceipt) {
 function underlaySignature(slide) {
   let frame = null;
   try {
-    const evidence = preflightFramedTextFrame(slide.text_frame).evidence;
+    const described = describeFramedSlide(slide);
     frame = {
-      preset: evidence.preset,
-      preset_digest: evidence.preset_digest,
-      variant: evidence.variant,
-      canvas: evidence.canvas,
-      reserved_underlay_rectangles: evidence.reserved_underlay_rectangles,
+      ...canonicalFramedFrameFacts(described),
+      variant: described.layout.variant,
     };
   } catch {
     frame = null;
@@ -118,7 +215,8 @@ function hasExactAcceptedRawEvidence(receipt, rawWorkPlan, acceptedRawEvidence) 
 }
 
 function hasReusableRawContract(previousReceipt, nextReceipt, previousRawWorkPlan, nextRawWorkPlan) {
-  if (!nextRawWorkPlan) return true;
+  if (!previousRawWorkPlan) return null;
+  if (!nextRawWorkPlan) return false;
   const previous = validateRawWorkPlan(previousRawWorkPlan);
   const next = validateRawWorkPlan(nextRawWorkPlan);
   return previous.ok && next.ok &&
@@ -162,7 +260,7 @@ export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPla
       });
     }
   }
-  if (!hasReusableRawContract(previousReceipt, nextReceipt, rawWorkPlan, nextRawWorkPlan)) {
+  if (hasReusableRawContract(previousReceipt, nextReceipt, rawWorkPlan, nextRawWorkPlan) === false) {
     return Object.freeze({
       workflow: FRAMED_IMAGE_WORKFLOW,
       kind: "rebuild_raw",
@@ -195,66 +293,130 @@ export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPla
   });
 }
 
-/** Derive the Framed-only text-free underlay contribution before provider work. */
-export function prepareFramedRawContribution(receipt) {
+function framedRawPlanItems(receipt) {
   requireReceipt(receipt);
-  const items = receipt.slides.map((slide) => {
-    const preflight = preflightFramedTextFrame(slide.text_frame);
-    if (!preflight.ok || !preflight.authorization_allowed) {
-      throw new FramedImageWorkflowError("framed_preflight_required", `Framed Text Frame requires repair for ${slide.slide_id}`);
-    }
-    return Object.freeze({
-      slide_id: slide.slide_id,
-      preflight: preflight.evidence,
-      text_free: true,
-    });
-  });
-  return Object.freeze({ workflow: FRAMED_IMAGE_WORKFLOW, items: Object.freeze(items) });
+  return Object.freeze(receipt.slides.map((slide) => Object.freeze({
+    slide_id: slide.slide_id,
+    text_free: true,
+  })));
 }
 
 /** The selected adapter alone writes target raw plans for its framed receipt. */
 export function createFramedRawWorkPlan({ receipt, provider_profile_sha256, authorization_scope_sha256, raw_contracts_by_slide } = {}) {
-  const contribution = prepareFramedRawContribution(receipt);
+  const items = framedRawPlanItems(receipt);
   if (!raw_contracts_by_slide || typeof raw_contracts_by_slide !== "object" || Array.isArray(raw_contracts_by_slide)) {
     throw new FramedImageWorkflowError("raw_contracts_required", "Framed raw contracts are required for every slide");
   }
   return createRawWorkPlan({
     source_receipt_sha256: receipt.source_sha256,
     workflow: FRAMED_IMAGE_WORKFLOW,
-    ordered_slide_ids: contribution.items.map((item) => item.slide_id),
+    ordered_slide_ids: items.map((item) => item.slide_id),
     provider_profile_sha256,
     authorization_scope_sha256,
-    items: contribution.items.map((item) => ({ slide_id: item.slide_id, raw_contract_sha256: raw_contracts_by_slide[item.slide_id] })),
+    items: items.map((item) => ({ slide_id: item.slide_id, raw_contract_sha256: raw_contracts_by_slide[item.slide_id] })),
   });
 }
 
+/**
+ * Map Framed's canonical render contract into the shared review contribution
+ * interface. Coverage is deliberately text-free; titles live only in the
+ * projection snapshot consumed by the later shared review owner.
+ */
+export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan } = {}) {
+  requireReceipt(receipt);
+  const plan = validateRawWorkPlan(rawWorkPlan);
+  const receiptIds = receipt.slides.map((slide) => slide.slide_id);
+  if (!plan.ok || rawWorkPlan.workflow !== FRAMED_IMAGE_WORKFLOW ||
+    rawWorkPlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(receiptIds)) {
+    throw new FramedImageWorkflowError("framed_review_contribution_plan_invalid", "Framed raw-review contribution requires the exact current raw work plan");
+  }
+  const slidesById = new Map(receipt.slides.map((slide) => [slide.slide_id, slide]));
+  if (slidesById.size !== receipt.slides.length) {
+    throw new FramedImageWorkflowError("framed_review_contribution_source_invalid", "Framed raw-review contribution requires unique source slide identities");
+  }
+  const described = rawWorkPlan.ordered_slide_ids.map((slideId) => {
+    const slide = slidesById.get(slideId);
+    if (!slide) throw new FramedImageWorkflowError("framed_review_contribution_source_invalid", `Framed raw-review contribution is missing ${slideId}`);
+    const frame = describeFramedFrame({ slide_id: slideId, text_frame: slide.text_frame });
+    const title = slide.display?.title ?? slide.text_frame?.title;
+    if (typeof title !== "string" || !title.trim()) {
+      throw new FramedImageWorkflowError("framed_review_contribution_label_invalid", `Framed raw-review projection requires a title for ${slideId}`);
+    }
+    return Object.freeze({ slide, frame, title });
+  });
+  const profileDigests = new Set(described.map(({ frame }) => frame.render_profile.render_profile_digest));
+  if (profileDigests.size !== 1) {
+    throw new FramedImageWorkflowError("framed_review_contribution_profile_invalid", "Framed raw-review contribution requires one current render profile");
+  }
+  const contribution = createTargetRawReviewContribution({
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    ordered_stable_ids: rawWorkPlan.ordered_slide_ids,
+    coverage_items: described.map(({ frame }, index) => ({
+      stable_id: rawWorkPlan.ordered_slide_ids[index],
+      coverage_profile_digest: frame.render_profile.render_profile_digest,
+      guide_primitives: frame.layout.safe_zones.map(({ rectangle }, guideIndex) => ({
+        kind: "rectangle",
+        guide_id: `guide_${guideIndex + 1}`,
+        x: rectangle.x / frame.layout.canvas.css_width,
+        y: rectangle.y / frame.layout.canvas.css_height,
+        width: rectangle.width / frame.layout.canvas.css_width,
+        height: rectangle.height / frame.layout.canvas.css_height,
+      })),
+    })),
+    projection_labels: described.map(({ title }, index) => ({
+      stable_id: rawWorkPlan.ordered_slide_ids[index],
+      position: index + 1,
+      title,
+    })),
+  });
+  const validation = validateTargetRawReviewContribution(contribution, {
+    rawWorkPlan,
+    expectedWorkflow: FRAMED_IMAGE_WORKFLOW,
+  });
+  if (!validation.ok) throw new FramedImageWorkflowError(validation.code, validation.message);
+  return contribution;
+}
+
+const FRAMED_FINAL_COMPOSITION_KEYS = Object.freeze([
+  "receipt",
+  "rawWorkPlan",
+  "acceptedRawEvidence",
+  "rawBytesBySlide",
+]);
+
+function requireFramedFinalCompositionInput(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+    Object.keys(input).length !== FRAMED_FINAL_COMPOSITION_KEYS.length ||
+    !FRAMED_FINAL_COMPOSITION_KEYS.every((key) => Object.hasOwn(input, key))) {
+    throw new FramedImageWorkflowError(
+      "framed_render_input_invalid",
+      "Framed final rendering accepts only current receipt, raw plan, accepted evidence, and raw bytes",
+    );
+  }
+  return input;
+}
+
 /** Compose local text over accepted raw bytes, then publish the common manifest. */
-export async function composeFramedFinalSlideManifest({ receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide, compose = null } = {}) {
+export async function composeFramedFinalSlideManifest(input = {}) {
+  const { receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide } = requireFramedFinalCompositionInput(input);
   requireReceipt(receipt);
   const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
   if (!evidence.ok) throw new FramedImageWorkflowError(evidence.code, evidence.message);
-  if (compose !== null && typeof compose !== "function") throw new FramedImageWorkflowError("framed_composer_required", "Framed local composer must be a function");
   const byId = new Map(receipt.slides.map((slide) => [slide.slide_id, slide]));
-  const finalBytesBySlide = {};
+  const frames = [];
   for (const item of acceptedRawEvidence.items) {
     const slide = byId.get(item.slide_id);
     const raw = rawBytesBySlide?.[item.slide_id];
     if (!slide || !raw) throw new FramedImageWorkflowError("accepted_raw_unavailable", `accepted raw bytes are unavailable for ${item.slide_id}`);
-    const preflight = preflightFramedTextFrame(slide.text_frame);
-    if (!preflight.ok || !preflight.authorization_allowed) {
-      throw new FramedImageWorkflowError("framed_preflight_required", `Framed Text Frame requires repair for ${item.slide_id}`);
-    }
-    const output = compose
-      ? await compose(Object.freeze({ slide_id: item.slide_id, text_frame: slide.text_frame, raw_bytes: Buffer.from(raw) }))
-      : await composePageAuthorityFramedPage({
-        receipt: { text_frame: slide.text_frame },
-        verifiedRaw: { bytes: Buffer.from(raw), sha256: item.raw_sha256 },
-        preflight,
-      });
-    const finalBytes = Buffer.isBuffer(output) || output instanceof Uint8Array ? output : output?.bytes;
-    if (!Buffer.isBuffer(finalBytes) && !(finalBytes instanceof Uint8Array)) throw new FramedImageWorkflowError("framed_compose_invalid", `Framed composer returned no bytes for ${item.slide_id}`);
-    finalBytesBySlide[item.slide_id] = Buffer.from(finalBytes);
+    frames.push(Object.freeze({
+      slide_id: item.slide_id,
+      text_frame: slide.text_frame,
+      verified_raw: { bytes: Buffer.from(raw), sha256: item.raw_sha256 },
+    }));
   }
+  const composed = await composeFramedRenderContracts(frames);
+  const finalBytesBySlide = composed.final_bytes_by_slide;
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan,
     acceptedRawEvidence,
@@ -286,41 +448,54 @@ export function resolveFramedTargetSource(runDir, { allowSourceRebuild = false }
   });
 }
 
-function framedRawContract(slide, preflight) {
+/** Resolve the selected Framed source without state or artifact materialization. */
+function resolveFramedTargetCandidateSource(runDir) {
+  return resolveTargetCandidateSourceContext(runDir, {
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    parseReceipt: parseFramedTargetReceipt,
+  });
+}
+
+function framedRawContract(slide, frame) {
   const visualLanguage = slide.visual_language?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new FramedImageWorkflowError("framed_visual_language_required", `Framed visual language is unresolved for ${slide.slide_id}`);
   }
-  const evidence = preflight?.evidence || preflight;
-  if (!evidence || typeof evidence !== "object") {
-    throw new FramedImageWorkflowError("framed_preflight_required", `Framed Text Frame requires repair for ${slide.slide_id}`);
+  if (frame?.slide_id !== slide.slide_id || !SHA256_RE.test(frame?.render_profile?.render_profile_digest || "")) {
+    throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", `Framed render contract is unavailable for ${slide.slide_id}`);
   }
-  return Object.freeze({
+  const facts = canonicalFramedFrameFacts(frame);
+  const rawContract = Object.freeze({
     schema: TARGET_RAW_CONTRACT_SCHEMA,
     slide_id: slide.slide_id,
     workflow: FRAMED_IMAGE_WORKFLOW,
     visual_language: { ...visualLanguage, negative_constraints: [...(slide.visual_brief?.negative_constraints || [])] },
     visual_identity: slide.visual_language?.identity_reference?.projection || null,
     framed: {
-      preset: evidence.preset,
-      preset_digest: evidence.preset_digest,
-      canvas: evidence.canvas,
-      reserved_underlay_rectangles: evidence.reserved_underlay_rectangles,
+      ...facts,
+      render_profile_digest: frame.render_profile.render_profile_digest,
       text_free: true,
     },
   });
+  return rawContract;
 }
 
-/** Compile a selected Framed v2 raw plan without touching the Pure sibling. */
-function compileFramedTargetRawPlan(context) {
-  const contribution = prepareFramedRawContribution(context.receipt);
+/** Compile a selected Framed v2 raw-plan candidate without artifact writes. */
+function compileFramedTargetRawPlanCandidate(context) {
+  const framesById = new Map(context.receipt.slides.map((slide) => [slide.slide_id, describeFramedSlide(slide)]));
+  const renderProfileDigests = new Set([...framesById.values()].map((frame) => frame.render_profile.render_profile_digest));
+  if (renderProfileDigests.size !== 1) {
+    throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed raw-plan candidate requires one canonical render profile");
+  }
+  const renderProfile = framesById.values().next().value.render_profile;
   const generation = buildTargetRawGenerationProfile(context.deck_dir, context.receipt);
-  const preflightById = new Map(contribution.items.map((item) => [item.slide_id, item.preflight]));
   const rawContractsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
-    const rawContract = framedRawContract(slide, preflightById.get(slide.slide_id));
-    rawContractsBySlide[slide.slide_id] = canonicalJsonSha256(rawContract);
+    const rawContract = framedRawContract(slide, framesById.get(slide.slide_id));
+    const rawContractValidation = validateFramedRawContractAgainstProfile(rawContract, renderProfile);
+    if (!rawContractValidation.ok) throw new FramedImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
+    rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
     providerRequestsBySlide[slide.slide_id] = createTargetProviderRequest({
       slideId: slide.slide_id,
       rawContract,
@@ -340,30 +515,58 @@ function compileFramedTargetRawPlan(context) {
     authorization_scope_sha256: authorizationScopeSha,
     raw_contracts_by_slide: rawContractsBySlide,
   });
-  writeTargetRawWorkPlan(context, rawWorkPlan);
   return Object.freeze({
     ...context,
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
+    render_profile_digest: renderProfile.render_profile_digest,
     style_master_path: generation.style_master_path,
   });
 }
 
-export function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
-  return compileFramedTargetRawPlan(resolveFramedTargetSource(runDir, { allowSourceRebuild }));
+/**
+ * Prove the complete current Framed candidate before source/state/plan
+ * materialization. The state owner rechecks the exact candidate bytes.
+ */
+export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
+  const proof = await verifyFramedRenderContracts(candidate.receipt.slides.map((slide) => ({
+    slide_id: slide.slide_id,
+    text_frame: slide.text_frame,
+  })));
+  if (proof.render_profile_digest !== candidate.render_profile_digest) {
+    throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
+  }
+  const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  writeTargetRawWorkPlan(context, candidate.raw_work_plan);
+  return Object.freeze({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    provider_requests_by_slide: candidate.provider_requests_by_slide,
+    style_master_path: candidate.style_master_path,
+  });
+}
+
+/** Read the exact current Framed stored plan without running plan-time proof. */
+export function readFramedTargetStoredPlanContext(runDir) {
+  return resolveTargetStoredPlanContext(runDir, {
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    parseReceipt: parseFramedTargetReceipt,
+    compilePlanCandidate: compileFramedTargetRawPlanCandidate,
+  });
 }
 
 export function framedTargetRawPlanProjection(plan) {
   return targetRawPlanProjection(plan, plan.raw_work_plan);
 }
 
-export function authorizeFramedTargetRawPlan(runDir, { planHash } = {}) {
-  const plan = buildFramedTargetRawPlan(runDir);
+export async function authorizeFramedTargetRawPlan(runDir, { planHash } = {}) {
+  const plan = readFramedTargetStoredPlanContext(runDir);
   return authorizeTargetRawWork(plan, plan.raw_work_plan, { planHash });
 }
 
 export async function generateFramedTargetRawPlan(runDir, { planHash, submit } = {}) {
-  const plan = buildFramedTargetRawPlan(runDir);
+  const plan = readFramedTargetStoredPlanContext(runDir);
   return generateTargetRawWork(plan, plan.raw_work_plan, {
     planHash,
     providerRequestsBySlide: plan.provider_requests_by_slide,
@@ -372,18 +575,23 @@ export async function generateFramedTargetRawPlan(runDir, { planHash, submit } =
 }
 
 export async function prepareFramedTargetRawReview(runDir) {
-  const plan = buildFramedTargetRawPlan(runDir);
-  return prepareTargetRawReview(plan, plan.raw_work_plan);
+  const plan = readFramedTargetStoredPlanContext(runDir);
+  return prepareTargetRawReview(plan, plan.raw_work_plan, {
+    reviewContribution: createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+  });
 }
 
-export function decideFramedTargetRawReview(runDir, { decision } = {}) {
-  const plan = buildFramedTargetRawPlan(runDir);
-  return decideTargetRawReview(plan, plan.raw_work_plan, { decision });
+export async function decideFramedTargetRawReview(runDir, { decision } = {}) {
+  const plan = readFramedTargetStoredPlanContext(runDir);
+  return decideTargetRawReview(plan, plan.raw_work_plan, {
+    decision,
+    reviewContribution: createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+  });
 }
 
 /** Framed finalization then shared delivery through the one target delivery owner. */
 export async function buildFramedTargetDelivery(runDir) {
-  const plan = buildFramedTargetRawPlan(runDir);
+  const plan = readFramedTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
   const finalization = await composeFramedFinalSlideManifest({
     receipt: plan.receipt,
@@ -442,7 +650,7 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
     workflow: FRAMED_IMAGE_WORKFLOW,
     parseReceipt: parseFramedTargetReceipt,
   });
-  const candidate = compileFramedTargetRawPlan(refresh);
+  const candidate = compileFramedTargetRawPlanCandidate(refresh);
   const classified = classifyFramedRefresh({
     previousReceipt: refresh.previous_source_receipt,
     nextReceipt: refresh.receipt,
@@ -463,9 +671,14 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
+  const reviewContribution = createFramedTargetRawReviewContribution({
+    receipt: candidate.receipt,
+    rawWorkPlan: candidate.raw_work_plan,
+  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
+    reviewContribution,
   });
   const finalization = await composeFramedFinalSlideManifest({
     receipt: context.receipt,
@@ -504,10 +717,20 @@ export async function refreshFramedTargetNotes(runDir) {
     workflow: FRAMED_IMAGE_WORKFLOW,
     parseReceipt: parseFramedTargetReceipt,
   });
-  const candidate = compileFramedTargetRawPlan(refresh);
+  const candidate = compileFramedTargetRawPlanCandidate(refresh);
   if (targetSourceSemanticSha256(refresh.previous_source_receipt, FRAMED_IMAGE_WORKFLOW) !==
     targetSourceSemanticSha256(refresh.receipt, FRAMED_IMAGE_WORKFLOW)) {
     throw new FramedImageWorkflowError("framed_notes_refresh_rebuild_required", "Framed notes refresh requires unchanged pixel-owning source facts; use the selected Framed rebuild path instead");
+  }
+  const classified = classifyFramedRefresh({
+    previousReceipt: refresh.previous_source_receipt,
+    nextReceipt: refresh.receipt,
+    rawWorkPlan: refresh.previous_raw_work_plan,
+    acceptedRawEvidence: refresh.previous_accepted_raw_evidence,
+    nextRawWorkPlan: candidate.raw_work_plan,
+  });
+  if (!['current', 'local_compose'].includes(classified.kind)) {
+    throw new FramedImageWorkflowError("framed_notes_refresh_rebuild_required", "Framed notes refresh requires exact unchanged raw contract and render profile; use the selected Framed rebuild path instead");
   }
   const previousFinal = readTargetFinalWork(refresh, {
     sourceReceipt: refresh.previous_source_receipt,
@@ -520,9 +743,14 @@ export async function refreshFramedTargetNotes(runDir) {
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
+  const reviewContribution = createFramedTargetRawReviewContribution({
+    receipt: candidate.receipt,
+    rawWorkPlan: candidate.raw_work_plan,
+  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
+    reviewContribution,
   });
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan: context.raw_work_plan,

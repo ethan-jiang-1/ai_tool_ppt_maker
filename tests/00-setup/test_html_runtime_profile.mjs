@@ -98,6 +98,20 @@ describe('HTML runtime profile', () => {
     expect(evidence).toMatchObject({ ok: false, error: 'paired_chromium_missing' });
   });
 
+  it('fails before importing Chromium when the paired registry is mismatched', async () => {
+    const selected = fakeInstallation({ revision: '9999' });
+    const importer = vi.fn();
+    const evidence = await inspectHtmlRuntime({
+      playwrightRoot: selected.playwrightRoot,
+      playwrightVersion: '1.61.1',
+      nodeVersion: '24.0.0',
+      importer,
+    });
+    expect(evidence).toMatchObject({ ok: false, error: 'profile_mismatch' });
+    expect(evidence.detail).toMatch(/Chromium registry/);
+    expect(importer).not.toHaveBeenCalled();
+  });
+
   it('rejects system channels and arbitrary executable overrides', async () => {
     expect(() => assertSafeChromiumLaunchOptions({ channel: 'chrome' })).toThrow(/channel/);
     expect(() => assertSafeChromiumLaunchOptions({ executablePath: '/system/chrome' })).toThrow(/executablePath/);

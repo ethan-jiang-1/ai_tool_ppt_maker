@@ -6,20 +6,9 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
-import {
-  applyTargetStructuralVersion,
-  parsePageAuthoritySource,
-  parseSlideDocument,
-  planSlideEdit,
-  previewTargetStructuralVersion,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/01-content/index.mjs";
-import {
-  createPageAuthorityVisualLanguageResolver,
-  loadPageAuthorityVisualLanguage,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { createInitialState, readState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { readState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 
@@ -165,7 +154,7 @@ async function runTargetRawLifecycle(runDir, env) {
 }
 
 describe("mock TARGET workflow journey", () => {
-  it("runs fresh Framed, text-only and notes-only refreshes, then a provider-free structural workflow switch", async () => {
+  it("runs a homogeneous Framed current-version journey through text-only and notes-only refreshes", async () => {
     const slides = [
       { id: "FramGo", title: "Original framed heading", note: "Original Framed note." },
       { id: "BodyMap", title: "Second framed heading", note: "Second Framed note." },
@@ -203,43 +192,28 @@ describe("mock TARGET workflow journey", () => {
       expect(provider.calls).toHaveLength(2);
       expect(readFileSync(join(paths.raw_root, "FramGo.png"))).toEqual(originalRaw);
       expect(readFileSync(join(paths.final_root, "FramGo.png"))).toEqual(finalAfterTitleRefresh);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 90_000);
 
-      const sourceText = readFileSync(join(fixture.runDir, "slide-specifications.md"), "utf8");
-      const document = parseSlideDocument(sourceText, "slide-specifications.md");
-      const slideEditPlan = planSlideEdit(document, [], [{ op: "move", slide_id: "BodyMap", to: "start" }], [], {
-        publication: { mode: "next-version", target_version: "v2" },
-      });
-      const switchedSource = targetSource("pure", [
-        { id: "BodyMap", title: "Second fact rewritten for Pure", note: "Pure BodyMap note." },
-        { id: "FramGo", title: "Framed fact rewritten for Pure", note: "Pure FramGo note." },
-      ]);
-      const registry = createPageAuthorityVisualLanguageResolver(loadPageAuthorityVisualLanguage(fixture.deck));
-      const targetReceipt = parsePageAuthoritySource(switchedSource, { registry });
-      const preview = previewTargetStructuralVersion({
-        sourceRunDir: fixture.runDir,
-        targetRunVersion: "v2",
-        slideEditPlan,
-        targetWorkflow: "pure",
-        targetSourceText: switchedSource,
-        targetSourceReceipt: targetReceipt,
-      });
-      expect(preview).toMatchObject({ target_workflow: "pure", ordered_slide_ids: ["BodyMap", "FramGo"], provider_calls: 0 });
-      const callsBeforeSwitch = provider.calls.length;
-      const switched = applyTargetStructuralVersion({
-        sourceRunDir: fixture.runDir,
-        plan: preview,
-        planHash: preview.plan_hash,
-      });
-      expect(switched).toMatchObject({ target_version: "v2", workflow: "pure", provider_calls: 0, inherited_acceptance: false });
-      expect(provider.calls).toHaveLength(callsBeforeSwitch);
-      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-authority-v2",
-        workflow: "pure",
-        source_epoch: 1,
-      });
-      expect(state.page_authority_target_evidence.by_version["3_versions/v2"])
-        .toMatchObject({ provider_authorization_sha256: null, accepted_raw_evidence_sha256: null, final_manifest_sha256: null, delivery_receipt_sha256: null });
+  it("rejects mixed workflow evidence before final publication", async () => {
+    const slides = [{ id: "FramGo", title: "Current framed heading", note: "Current Framed note." }];
+    const fixture = createTargetFixture("target-mixed-evidence-", "framed", slides);
+    const provider = await startMockProvider(pngBytes("#5d277f"));
+    try {
+      await runTargetRawLifecycle(fixture.runDir, provider.env);
+      const paths = pageAuthorityImage2Paths(fixture.runDir);
+      const finalManifestBefore = readFileSync(paths.target_final_manifest);
+      const evidence = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
+      writeFileSync(paths.target_raw_evidence, `${JSON.stringify({ ...evidence, workflow: "pure" })}\n`);
+
+      const result = await flow(["build", fixture.runDir], provider.env);
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}\n${result.stderr}`).toContain("accepted raw evidence does not bind the current raw work plan");
+      expect(provider.calls).toHaveLength(1);
+      expect(readFileSync(paths.target_final_manifest)).toEqual(finalManifestBefore);
     } finally {
       await provider.close();
       rmSync(fixture.root, { recursive: true, force: true });

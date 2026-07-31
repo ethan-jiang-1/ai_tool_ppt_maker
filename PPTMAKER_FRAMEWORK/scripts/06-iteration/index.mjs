@@ -42,7 +42,7 @@ function sameStableOrder(previousReceipt, nextReceipt) {
     nextReceipt.slides.map((slide) => slide.slide_id).join("\n");
 }
 
-function route({ workflow, kind, owner, providerRequired, nextAction, delivery = false, structural = false }) {
+function route({ workflow, kind, owner, providerRequired, nextAction, reason = null, delivery = false, structural = false }) {
   return Object.freeze({
     schema: TARGET_REFRESH_ROUTING_SCHEMA,
     workflow,
@@ -50,6 +50,7 @@ function route({ workflow, kind, owner, providerRequired, nextAction, delivery =
     owner,
     provider_required: providerRequired,
     next_action: nextAction,
+    ...(reason ? { reason } : {}),
     ...(delivery ? { delivery_owner: "05-delivery" } : {}),
     ...(structural ? { requires_structural_preview: true, provider_calls_before_apply: 0 } : {}),
   });
@@ -66,6 +67,7 @@ export function classifyTargetRefresh({
   nextReceipt,
   changeKind = "source",
   rawWorkPlan = null,
+  nextRawWorkPlan = null,
   acceptedRawEvidence = null,
 } = {}) {
   const previous = requireTargetReceipt(previousReceipt, "previousReceipt");
@@ -111,6 +113,7 @@ export function classifyTargetRefresh({
       previousReceipt: previous,
       nextReceipt: next,
       rawWorkPlan,
+      nextRawWorkPlan,
       acceptedRawEvidence,
     });
     if (classified.kind === "current") {
@@ -132,6 +135,7 @@ export function classifyTargetRefresh({
       owner: "03-framed-image",
       providerRequired: true,
       nextAction: classified.next_action || "authorize_and_rebuild_framed_raw",
+      reason: classified.reason || null,
       delivery: true,
     });
   }

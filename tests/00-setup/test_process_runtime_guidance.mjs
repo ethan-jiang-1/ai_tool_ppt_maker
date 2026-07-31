@@ -39,14 +39,19 @@ function runDoctorJson(args = []) {
 describe('runtime and diagnostic guidance coherence', () => {
   it('maps every emitted base and Image2 presence check to a BOOTSTRAP heading', () => {
     const base = runDoctorJson();
-    const image2 = runDoctorJson(['--image2']);
+    const image2 = runDoctorJson([
+      '--mode', 'image2-page-authority-v2',
+      '--operation', 'raw-generation',
+    ]);
     expect(base.checks.map(({ check }) => check)).toEqual(BASE_CHECK_NAMES);
-    // The retired flag fails closed and excludes the browser/chart/font runtime.
-    // browser/chart/font runtime, so Image2-primary is not blocked by HTML.
     expect(image2.checks.map(({ check }) => check)).toEqual([
       ...COMMON_CHECK_NAMES,
       ...IMAGE2_CHECK_NAMES,
     ]);
+    expect(image2).toMatchObject({
+      mode: 'image2-page-authority-v2',
+      operation: 'raw-generation',
+    });
     for (const name of [...BASE_CHECK_NAMES, ...IMAGE2_CHECK_NAMES, ...LIVE_CHECK_NAMES]) {
       expect(BOOTSTRAP).toContain(`### ${name}`);
     }
@@ -76,6 +81,8 @@ describe('runtime and diagnostic guidance coherence', () => {
     expect(confirmation).toBeGreaterThan(disclosure);
     expect(invocation).toBeGreaterThan(confirmation);
     expect(PROBE_PLAYBOOK).toContain('不自动运行 `doctor --smoke`');
+    expect(PROBE_PLAYBOOK).not.toMatch(/^---$/m);
+    expect(PROBE_PLAYBOOK).not.toContain('node:');
   });
 
   it('rejects stale universal Image2, Node-18, style-master diagnostic, and premature HTML product claims', () => {
