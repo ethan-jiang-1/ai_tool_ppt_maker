@@ -16,6 +16,7 @@ import {
   createCliNext,
   emitCliError,
   formatCliError,
+  hasSupportedCliDiagnostic,
   normalizeDelegatedExit,
   parseCliErrorLine,
   renderCliHumanError,
@@ -93,6 +94,40 @@ describe("cli_error", () => {
       diagnostic: { version: 1, category: "provider", next: { action: "rerun", requires_human: "no", default: "retry" } },
     }));
     expect(malformed).toEqual(legacy);
+  });
+
+  it("preserves structured consumer facts when producer prose changes", () => {
+    const diagnostic = {
+      version: 1,
+      category: "source_validation",
+      next: createCliNext("edit_source", {
+        default: "Repair the current source and rerun the plan checkpoint.",
+      }),
+    };
+    const first = parseCliErrorLine(JSON.stringify({
+      ok: false,
+      code: "FAILED",
+      message: "Framed proof could not establish text fit.",
+      hint: "The layout proof stopped before provider work.",
+      where: "ppt_flow.image2.target.plan",
+      diagnostic,
+    }));
+    const second = parseCliErrorLine(JSON.stringify({
+      ok: false,
+      code: "FAILED",
+      message: "A different human summary.",
+      hint: "Different explanatory wording.",
+      where: "ppt_flow.image2.target.plan",
+      diagnostic,
+    }));
+
+    expect(hasSupportedCliDiagnostic(first)).toBe(true);
+    expect(hasSupportedCliDiagnostic(second)).toBe(true);
+    expect(first?.diagnostic).toEqual(second?.diagnostic);
+    expect(second?.diagnostic).toMatchObject({
+      category: "source_validation",
+      next: { action: "edit_source", requires_human: false },
+    });
   });
 
   it("falls back the whole diagnostic when required v1 fields are malformed", () => {
@@ -442,12 +477,12 @@ describe("cli_error", () => {
     const dir = mkdtempSync(join(tmpdir(), "pptmaker-provider-secret-"));
     try {
       const path = join(dir, "provider.mjs");
-      const rawCompilationUrl = pathToFileURL(join(SCRIPTS, "04-image-production", "page-authority", "raw_compilation.mjs")).href;
+      const rawMechanicsUrl = pathToFileURL(join(SCRIPTS, "shared", "image2", "page_authority_raw_mechanics.mjs")).href;
       const helperUrl = pathToFileURL(join(SCRIPTS, "shared", "cli", "cli_error.mjs")).href;
-      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageAuthorityRawCompilationError } from "${rawCompilationUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageAuthorityRawCompilationError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
+      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageAuthorityRawMechanicsError } from "${rawMechanicsUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageAuthorityRawMechanicsError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
       const result = spawnSync("node", [path], { encoding: "utf8", timeout: 10000 });
       expect(result.status).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).not.toMatch(/CREDENTIAL_SENTINEL|PROMPT_SENTINEL|PROVIDER_BODY_SENTINEL|PageAuthorityRawCompilationError/);
+      expect(`${result.stdout}${result.stderr}`).not.toMatch(/CREDENTIAL_SENTINEL|PROMPT_SENTINEL|PROVIDER_BODY_SENTINEL|PageAuthorityRawMechanicsError/);
       expect(envelopeLines(result.stderr)[0].diagnostic).toMatchObject({ category: "provider", reason: { kind: "raw_submit_failed" } });
     } finally {
       rmSync(dir, { recursive: true, force: true });

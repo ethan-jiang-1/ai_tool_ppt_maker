@@ -66,6 +66,22 @@ describe("Page Authority bundle layout", () => {
     }
   });
 
+  it("writes structured diagnostic guidance for runtime Agents", () => {
+    const root = mkdtempSync(join(tmpdir(), "page-authority-diagnostic-guide-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const guide = readFileSync(join(deck, "deck-guide.md"), "utf8");
+      expect(guide).toMatch(/final valid JSON failure envelope on stderr/);
+      expect(guide).toContain("diagnostic.category");
+      expect(guide).toContain("diagnostic.next");
+      expect(guide).toMatch(/never prose/);
+      expect(guide).not.toMatch(/code\s*\+\s*hint.*repair/i);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("binds an explicit v2 workflow through the state owner after authoring", () => {
     const root = mkdtempSync(join(tmpdir(), "page-authority-target-bind-"));
     try {

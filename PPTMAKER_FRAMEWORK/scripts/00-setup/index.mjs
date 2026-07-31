@@ -18,9 +18,16 @@ export {
   launchPinnedChromium,
 } from "./internal/html_runtime.mjs";
 export {
+  FRAMED_FONT_RENDER_INVENTORY_SCHEMA,
+  FRAMED_FONT_SELECTION_ALGORITHM,
+  FRAMED_FONT_SELECTION_SCHEMA,
   HTML_FONT_ROOT,
+  HtmlFontSelectionError,
   buildFontInventory,
+  framedFontRenderInventoryDigest,
+  loadFramedFontRenderInventory,
   parseUnicodeRanges,
+  selectFramedFontFaces,
   verifyHtmlFontBundle,
 } from "./internal/html_fonts.mjs";
 

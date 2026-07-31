@@ -8,9 +8,10 @@ The same runtime profile SHALL be available to the Framed owner for bounded plan
 and final composition. Callers SHALL provide only current Page Authority evidence and SHALL NOT
 select a browser executable, system font, network asset, markup, CSS, or capture option.
 
-The runtime SHALL evaluate an ordered bounded slide batch without creating a long-lived daemon or a
-workflow controller. It SHALL close browser resources on success, failure, and timeout, and an unknown
-runtime or font result SHALL fail closed without provider work or artifact publication.
+The runtime SHALL evaluate one finite ordered raw-plan batch under one pinned browser process, with
+per-page capture deadlines and one finite whole-batch deadline, without creating a long-lived daemon or
+a workflow controller. It SHALL close browser resources on success, failure, and timeout, and an unknown
+runtime, font, or proof-timeout result SHALL fail closed without provider work or artifact publication.
 
 #### Scenario: Runtime use does not create a deck route
 

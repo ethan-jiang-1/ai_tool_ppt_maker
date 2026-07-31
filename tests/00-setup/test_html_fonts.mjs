@@ -4,11 +4,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   HTML_FONT_ROOT,
+  HtmlFontSelectionError,
   buildFontInventory,
+  loadFramedFontRenderInventory,
   parseFontFaces,
   parseUnicodeRanges,
+  selectFramedFontFaces,
   verifyHtmlFontBundle,
 } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_fonts.mjs';
+import { currentFramedRenderProfile } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const INVENTORY_PATH = join(HTML_FONT_ROOT, 'inventory.json');
 
@@ -86,6 +90,74 @@ describe('HTML font bundle', () => {
       ok: false,
       error: expect.stringMatching(/unsupported code points/),
     });
+  });
+
+  it('validates the checked-in render inventory and selects only required Latin, Han, and mixed faces', () => {
+    const inventory = loadFramedFontRenderInventory();
+    expect(inventory).toMatchObject({
+      schema: 'pptmaker-framed-font-render-inventory-v1',
+      families: [
+        { family: 'Source Sans 3', platform_family_name: 'SourceSans3VF' },
+        { family: 'Noto Sans SC', platform_family_name: 'Noto Sans SC Thin' },
+      ],
+    });
+    expect(inventory.faces).toHaveLength(102);
+
+    const latin = selectFramedFontFaces({ title: 'Latin heading' });
+    expect(latin.selected_faces).toHaveLength(1);
+    expect(latin.selected_faces[0]).toMatchObject({ family: 'Source Sans 3' });
+    expect(latin.fields).toEqual([{ field: 'title', families: ['Source Sans 3'] }]);
+
+    const han = selectFramedFontFaces({ title: '\u4F60\u597D' });
+    expect(han.selected_faces).toHaveLength(1);
+    expect(han.selected_faces[0]).toMatchObject({ family: 'Noto Sans SC' });
+    expect(han.fields).toEqual([{ field: 'title', families: ['Noto Sans SC'] }]);
+
+    const mixed = selectFramedFontFaces({ kicker: 'Context', title: '\u4F60\u597D World' });
+    expect(mixed.selected_faces.map((face) => face.family)).toEqual(['Source Sans 3', 'Noto Sans SC']);
+    expect(mixed.fields).toEqual([
+      { field: 'kicker', families: ['Source Sans 3'] },
+      { field: 'title', families: ['Source Sans 3', 'Noto Sans SC'] },
+    ]);
+    expect(mixed.selected_faces).toHaveLength(2);
+  });
+
+  it('returns a bounded source-facing error for unsupported Framed code points', () => {
+    try {
+      selectFramedFontFaces({ title: `Unsupported ${String.fromCodePoint(0x10ffff)}` });
+      throw new Error('expected unsupported-code-point failure');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HtmlFontSelectionError);
+      expect(error).toMatchObject({
+        code: 'unsupported_framed_code_points',
+        details: { unsupported: [{ field: 'title', code_point: 'U+10FFFF' }] },
+      });
+    }
+  });
+
+  it('fails selection when the checked-in render inventory cannot validate', () => {
+    const inventory = buildFontInventory();
+    const fontPath = join(HTML_FONT_ROOT, ...inventory.files[0].path.split('/'));
+    expect(() => selectFramedFontFaces({ title: 'Heading' }, {
+      readFile: injectedRead(new Map([[fontPath, Buffer.from('drift')]])),
+    })).toThrow(/font render inventory is unavailable or invalid/);
+  });
+
+  it.each(['missing', 'changed'])('rejects a %s selected font before building the production profile', (kind) => {
+    const selected = selectFramedFontFaces({ title: 'Heading' }).selected_faces[0];
+    const fontPath = join(HTML_FONT_ROOT, ...selected.path.split('/'));
+    const readFile = kind === 'missing'
+      ? (path, ...args) => {
+        if (String(path) === fontPath) {
+          const error = new Error('ENOENT');
+          error.code = 'ENOENT';
+          throw error;
+        }
+        return readFileSync(path, ...args);
+      }
+      : injectedRead(new Map([[fontPath, Buffer.from('changed')]]));
+    expect(() => currentFramedRenderProfile({ fontOptions: { readFile } }))
+      .toThrow(/font render inventory is unavailable or invalid/);
   });
 
   it('keeps one font authority and no third-party font toolchain', () => {

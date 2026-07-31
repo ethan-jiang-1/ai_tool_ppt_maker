@@ -865,6 +865,7 @@ export function validateTargetAcceptedRawEvidenceLocalComposeRebind(deckDir, {
   return Object.freeze({
     ok: true,
     run_version: exactVersion,
+    source_epoch: existing.source_epoch,
     facts,
     state: Object.freeze(structuredClone(state)),
   });

@@ -2,6 +2,7 @@ import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
   validateAcceptedRawEvidence,
+  validateRawWorkPlan,
 } from "../shared/image2/page_authority_artifacts.mjs";
 import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
 import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
@@ -14,6 +15,7 @@ import {
   authorizeTargetRawWork,
   buildTargetRawGenerationProfile,
   createTargetProviderRequest,
+  createTargetRawReviewContribution,
   decideTargetRawReview,
   generateTargetRawWork,
   prepareTargetRawReview,
@@ -25,6 +27,7 @@ import {
   resolveTargetSourceContext,
   targetSourceSemanticSha256,
   targetRawPlanProjection,
+  validateTargetRawReviewContribution,
   writeTargetFinalManifest,
   writeTargetRawWorkPlan,
   TARGET_RAW_CONTRACT_SCHEMA,
@@ -73,6 +76,49 @@ export function createPureRawWorkPlan({ receipt, provider_profile_sha256, author
     authorization_scope_sha256,
     items: receipt.slides.map((slide) => ({ slide_id: slide.slide_id, raw_contract_sha256: raw_contracts_by_slide[slide.slide_id] })),
   });
+}
+
+/**
+ * Map Pure's selected plan to the generic review contribution without
+ * introducing Framed text or safe-zone semantics into the shared boundary.
+ */
+export function createPureTargetRawReviewContribution({ receipt, rawWorkPlan } = {}) {
+  requireReceipt(receipt);
+  const plan = validateRawWorkPlan(rawWorkPlan);
+  const receiptIds = receipt.slides.map((slide) => slide.slide_id);
+  if (!plan.ok || rawWorkPlan.workflow !== PURE_IMAGE_WORKFLOW ||
+    rawWorkPlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(receiptIds)) {
+    throw new PureImageWorkflowError("pure_review_contribution_plan_invalid", "Pure raw-review contribution requires the exact current raw work plan");
+  }
+  const slidesById = new Map(receipt.slides.map((slide) => [slide.slide_id, slide]));
+  if (slidesById.size !== receipt.slides.length) {
+    throw new PureImageWorkflowError("pure_review_contribution_source_invalid", "Pure raw-review contribution requires unique source slide identities");
+  }
+  const labels = rawWorkPlan.ordered_slide_ids.map((slideId, index) => {
+    const slide = slidesById.get(slideId);
+    const title = slide?.display?.title;
+    if (typeof title !== "string" || !title.trim()) {
+      throw new PureImageWorkflowError("pure_review_contribution_label_invalid", `Pure raw-review projection requires a title for ${slideId}`);
+    }
+    return { stable_id: slideId, position: index + 1, title };
+  });
+  const contribution = createTargetRawReviewContribution({
+    workflow: PURE_IMAGE_WORKFLOW,
+    ordered_stable_ids: rawWorkPlan.ordered_slide_ids,
+    coverage_items: rawWorkPlan.ordered_slide_ids.map((slideId) => ({
+      stable_id: slideId,
+      coverage_profile_digest: rawWorkPlan.provider_profile_sha256,
+      guide_primitives: [],
+    })),
+    projection_labels: labels,
+  });
+  const validation = validateTargetRawReviewContribution(contribution, {
+    rawWorkPlan,
+    expectedWorkflow: PURE_IMAGE_WORKFLOW,
+  });
+  if (!validation.ok) throw new PureImageWorkflowError(validation.code, validation.message);
+  return contribution;
 }
 
 /** Pure finalization publishes the accepted raw bytes unchanged. */
@@ -191,12 +237,17 @@ export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {
 
 export async function preparePureTargetRawReview(runDir) {
   const plan = buildPureTargetRawPlan(runDir);
-  return prepareTargetRawReview(plan, plan.raw_work_plan);
+  return prepareTargetRawReview(plan, plan.raw_work_plan, {
+    reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+  });
 }
 
 export function decidePureTargetRawReview(runDir, { decision } = {}) {
   const plan = buildPureTargetRawPlan(runDir);
-  return decideTargetRawReview(plan, plan.raw_work_plan, { decision });
+  return decideTargetRawReview(plan, plan.raw_work_plan, {
+    decision,
+    reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+  });
 }
 
 /** Pure finalization publishes accepted raw bytes, then joins shared delivery. */
@@ -249,9 +300,14 @@ export async function refreshPureTargetNotes(runDir) {
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
+  const reviewContribution = createPureTargetRawReviewContribution({
+    receipt: candidate.receipt,
+    rawWorkPlan: candidate.raw_work_plan,
+  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
+    reviewContribution,
   });
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan: context.raw_work_plan,

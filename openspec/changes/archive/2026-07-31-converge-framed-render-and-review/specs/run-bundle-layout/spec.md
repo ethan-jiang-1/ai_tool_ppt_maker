@@ -9,7 +9,7 @@ rebuildable derived artifacts under the version leaf; source/state ownership SHA
 their paths, names, or presence.
 
 A raw-review projection SHALL be stored as its actual PNG bytes in that version's derived review
-owner. Its coverage record SHALL reference the projection PNG SHA-256, the shared
+owner. Its coverage record SHALL reference the current source epoch, projection PNG SHA-256, the shared
 projection/capture-profile digest, the selected workflow's typed review-contribution digest, and the
 exact covered raw byte identities. A Framed contribution SHALL in turn bind its canonical render
 profile and generic safe-zone guides. These identities SHALL NOT be collapsed into one ambiguous

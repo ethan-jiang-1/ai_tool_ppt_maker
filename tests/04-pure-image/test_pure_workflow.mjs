@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
@@ -14,8 +14,10 @@ import {
   decidePureTargetRawReview,
   generatePureTargetRawPlan,
   preparePureTargetRawReview,
+  refreshPureTargetNotes,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -53,10 +55,7 @@ describe("Pure target workflow", () => {
     const runDir = join(deck, "3_versions", "v1");
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
-    try {
-      initBundle(deck, null, "keynote", "dark-executive");
-      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-      writeFileSync(join(runDir, "slide-specifications.md"), `---
+    const source = (note) => `---
 identity:
   scheme: mnemonic-v1
 production:
@@ -76,14 +75,22 @@ negative_constraints:
   - no-logo
 \`\`\`
 
-> **SPEAKER NOTE**: Pure target source-owned note.
-`);
+> **SPEAKER NOTE**: ${note}
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Pure target source-owned note."));
       const plan = buildPureTargetRawPlan(runDir);
       const projection = plan.raw_work_plan.sha256;
       expect(authorizePureTargetRawPlan(runDir, { planHash: projection })).toMatchObject({ authorized: true });
+      let providerSubmissions = 0;
       expect(await generatePureTargetRawPlan(runDir, {
         planHash: projection,
-        submit: async () => image.toBuffer("image/png"),
+        submit: async () => {
+          providerSubmissions += 1;
+          return image.toBuffer("image/png");
+        },
       })).toMatchObject({ submitted: 1 });
       expect(await preparePureTargetRawReview(runDir)).toMatchObject({ raw_review_sha256: expect.any(String) });
       expect(decidePureTargetRawReview(runDir, { decision: "proceed" })).toMatchObject({
@@ -92,6 +99,18 @@ negative_constraints:
       });
       const delivery = await buildPureTargetDelivery(runDir);
       expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
+      const paths = pageAuthorityImage2Paths(runDir);
+      const rawEvidenceBefore = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
+      const sourceEpochBefore = readState(deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch;
+
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Only the Pure speaker note changed."));
+      await expect(refreshPureTargetNotes(runDir)).resolves.toMatchObject({ ok: true });
+      const rawEvidenceAfter = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
+      expect(providerSubmissions).toBe(1);
+      expect(rawEvidenceAfter.raw_review_sha256).toBe(rawEvidenceBefore.raw_review_sha256);
+      expect(readState(deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(sourceEpochBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

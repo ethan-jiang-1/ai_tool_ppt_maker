@@ -30,6 +30,7 @@ import {
 import {
   advanceTargetPageAuthoritySourceEpoch,
   initializeTargetPageAuthorityState,
+  inspectTargetPageAuthorityState,
   recordPageAuthorityRawProviderAuthorization,
   recordTargetAcceptedRawEvidence,
   recordTargetDeliveryReceipt,
@@ -38,20 +39,24 @@ import {
   validateTargetAcceptedRawEvidenceLocalComposeRebind,
 } from "../state/state.mjs";
 
-export const TARGET_RAW_REVIEW_SCHEMA = "page-authority-target-raw-review-v1";
+export const TARGET_RAW_REVIEW_SCHEMA = "page-authority-target-raw-review-v2";
+export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-authority-target-raw-review-contribution-v1";
+export const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA = "page-authority-target-raw-review-projection-capture-profile-v1";
 export const TARGET_RAW_CONTRACT_SCHEMA = "page-authority-target-raw-contract-v1";
 export const TARGET_RAW_PROVIDER_REQUEST_SCHEMA = "page-authority-target-raw-provider-request-v1";
 export const TARGET_STYLE_MASTER_RELATIVE_PATH = "2_backbone/visual-style/style_master.jpg";
 
 export class PageAuthorityTargetRuntimeError extends Error {
-  constructor(code, message) {
+  constructor(code, message, { nextAction = null } = {}) {
     super(message);
     this.name = "PageAuthorityTargetRuntimeError";
     this.code = code;
+    if (nextAction) this.next_action = nextAction;
   }
 }
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
+const STABLE_SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -110,6 +115,12 @@ function requireTargetPlan(plan, receipt, workflow) {
   return checked;
 }
 
+function staleTargetPlanError(code, message) {
+  return new PageAuthorityTargetRuntimeError(code, message, {
+    nextAction: "rebuild_target_raw_plan",
+  });
+}
+
 /**
  * Return a workflow-opaque receipt fingerprint for operations whose only
  * source-owned delta is delivery metadata such as speaker notes. Diagnostic
@@ -149,19 +160,223 @@ function rawPath(paths, slideId) {
 function reviewShape(value) {
   return exactKeys(value, [
     "schema",
-    "raw_work_plan_sha256",
-    "source_receipt_sha256",
+    "source_epoch",
     "workflow",
     "raw_bytes_sha256",
+    "typed_review_contribution_sha256",
     "projection_sha256",
+    "projection_capture_profile_sha256",
     "decision",
   ]) && value.schema === TARGET_RAW_REVIEW_SCHEMA &&
-    SHA256_RE.test(value.raw_work_plan_sha256 || "") &&
-    SHA256_RE.test(value.source_receipt_sha256 || "") &&
+    Number.isInteger(value.source_epoch) && value.source_epoch > 0 &&
     typeof value.workflow === "string" &&
     SHA256_RE.test(value.raw_bytes_sha256 || "") &&
+    SHA256_RE.test(value.typed_review_contribution_sha256 || "") &&
     SHA256_RE.test(value.projection_sha256 || "") &&
+    SHA256_RE.test(value.projection_capture_profile_sha256 || "") &&
     (value.decision === null || ["proceed", "repair", "redirect"].includes(value.decision));
+}
+
+const TARGET_RAW_REVIEW_CONTRIBUTION_KEYS = Object.freeze([
+  "schema",
+  "workflow",
+  "coverage",
+  "projection",
+]);
+const TARGET_RAW_REVIEW_CONTRIBUTION_COVERAGE_KEYS = Object.freeze([
+  "ordered_stable_ids",
+  "items",
+]);
+const TARGET_RAW_REVIEW_CONTRIBUTION_ITEM_KEYS = Object.freeze([
+  "stable_id",
+  "coverage_profile_digest",
+  "guide_primitives",
+]);
+const TARGET_RAW_REVIEW_GUIDE_KEYS = Object.freeze([
+  "kind",
+  "guide_id",
+  "x",
+  "y",
+  "width",
+  "height",
+]);
+const TARGET_RAW_REVIEW_PROJECTION_KEYS = Object.freeze(["labels"]);
+const TARGET_RAW_REVIEW_LABEL_KEYS = Object.freeze([
+  "stable_id",
+  "position",
+  "title",
+]);
+
+function freezeDeep(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const entry of Object.values(value)) freezeDeep(entry);
+  return Object.freeze(value);
+}
+
+const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE = freezeDeep({
+  schema: TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA,
+  contact_sheet: {
+    columns: 2,
+    width: 1032,
+    cell_width: 500,
+    cell_height: 281,
+    padding: 16,
+    row_gap: 16,
+    label_height: 34,
+    background: "#ffffff",
+  },
+  labels: {
+    format: "position-formal-slide-id-title-v1",
+    separator: " | ",
+    font: { family: "Arial", weight: 700, size: 16, color: "#17212b", baseline_offset: 22 },
+  },
+  guides: {
+    coordinate_space: "normalized-canvas-v1",
+    renderer: "generic-rectangle-v1",
+    rectangle: { stroke: "#d97706", line_width: 2 },
+  },
+  capture: { format: "png", encoder: "napi-rs-canvas-v1" },
+});
+
+/** Return the one canonical shared raw-review projection/capture profile. */
+export function currentTargetRawReviewProjectionCaptureProfile() {
+  return Object.freeze({
+    profile: TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE,
+    projection_capture_profile_sha256: canonicalJsonSha256(TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE),
+  });
+}
+
+function reviewContributionCoverageIdentity(contribution) {
+  return {
+    schema: contribution.schema,
+    workflow: contribution.workflow,
+    coverage: contribution.coverage,
+  };
+}
+
+function validStableId(value) {
+  return typeof value === "string" && STABLE_SLIDE_ID_RE.test(value);
+}
+
+function validGuidePrimitive(value) {
+  return exactKeys(value, TARGET_RAW_REVIEW_GUIDE_KEYS) &&
+    value.kind === "rectangle" && typeof value.guide_id === "string" && value.guide_id &&
+    [value.x, value.y, value.width, value.height].every(Number.isFinite) &&
+    value.x >= 0 && value.y >= 0 && value.width > 0 && value.height > 0 &&
+    value.x + value.width <= 1 && value.y + value.height <= 1;
+}
+
+/**
+ * Validate generic, ephemeral raw-review contribution facts without
+ * interpreting any workflow's source or layout semantics.
+ */
+export function validateTargetRawReviewContribution(contribution, {
+  rawWorkPlan = null,
+  expectedWorkflow = null,
+} = {}) {
+  try {
+    if (!exactKeys(contribution, TARGET_RAW_REVIEW_CONTRIBUTION_KEYS) ||
+      contribution.schema !== TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA ||
+      !["framed", "pure"].includes(contribution.workflow) ||
+      (expectedWorkflow !== null && contribution.workflow !== expectedWorkflow) ||
+      !exactKeys(contribution.coverage, TARGET_RAW_REVIEW_CONTRIBUTION_COVERAGE_KEYS) ||
+      !exactKeys(contribution.projection, TARGET_RAW_REVIEW_PROJECTION_KEYS)) {
+      throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_invalid", "target raw-review contribution has an invalid canonical shape");
+    }
+    const orderedIds = contribution.coverage.ordered_stable_ids;
+    const coverageItems = contribution.coverage.items;
+    const labels = contribution.projection.labels;
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0 ||
+      orderedIds.some((stableId) => !validStableId(stableId)) ||
+      new Set(orderedIds).size !== orderedIds.length ||
+      !Array.isArray(coverageItems) || coverageItems.length !== orderedIds.length ||
+      !Array.isArray(labels) || labels.length !== orderedIds.length) {
+      throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_invalid", "target raw-review contribution must cover ordered stable IDs exactly");
+    }
+    for (const [index, stableId] of orderedIds.entries()) {
+      const item = coverageItems[index];
+      const label = labels[index];
+      if (!exactKeys(item, TARGET_RAW_REVIEW_CONTRIBUTION_ITEM_KEYS) ||
+        item.stable_id !== stableId || !SHA256_RE.test(item.coverage_profile_digest || "") ||
+        !Array.isArray(item.guide_primitives) ||
+        item.guide_primitives.some((primitive) => !validGuidePrimitive(primitive)) ||
+        new Set(item.guide_primitives.map((primitive) => primitive.guide_id)).size !== item.guide_primitives.length) {
+        throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_invalid", "target raw-review coverage facts are invalid");
+      }
+      if (!exactKeys(label, TARGET_RAW_REVIEW_LABEL_KEYS) || label.stable_id !== stableId ||
+        label.position !== index + 1 || typeof label.title !== "string" || !label.title.trim()) {
+        throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_invalid", "target raw-review projection labels are invalid");
+      }
+    }
+    if (rawWorkPlan !== null) {
+      const checkedPlan = validateRawWorkPlan(rawWorkPlan);
+      if (!checkedPlan.ok || rawWorkPlan.workflow !== contribution.workflow ||
+        canonicalJson(rawWorkPlan.ordered_slide_ids) !== canonicalJson(orderedIds)) {
+        throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_stale", "target raw-review contribution does not bind the current raw work plan order");
+      }
+    }
+    return Object.freeze({
+      ok: true,
+      typed_review_contribution_sha256: canonicalJsonSha256(reviewContributionCoverageIdentity(contribution)),
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      code: error.code || "target_raw_review_contribution_invalid",
+      message: error.message || "target raw-review contribution is invalid",
+    });
+  }
+}
+
+/**
+ * Create one workflow-opaque raw-review contribution. Its digest binds only
+ * coverage; projection labels are intentionally presentation-only snapshots.
+ */
+export function createTargetRawReviewContribution(input = {}) {
+  if (!exactKeys(input, ["workflow", "ordered_stable_ids", "coverage_items", "projection_labels"])) {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_contribution_invalid", "target raw-review contribution input has an invalid shape");
+  }
+  const contribution = {
+    schema: TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA,
+    workflow: input.workflow,
+    coverage: {
+      ordered_stable_ids: input.ordered_stable_ids,
+      items: input.coverage_items,
+    },
+    projection: {
+      labels: input.projection_labels,
+    },
+  };
+  const validation = validateTargetRawReviewContribution(contribution);
+  if (!validation.ok) throw new PageAuthorityTargetRuntimeError(validation.code, validation.message);
+  Object.defineProperty(contribution, "typed_review_contribution_sha256", {
+    value: validation.typed_review_contribution_sha256,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return freezeDeep(contribution);
+}
+
+/**
+ * Project generic contribution facts into the current raw-plan order for one
+ * capture. The result remains ephemeral and carries no workflow semantics.
+ */
+export function projectTargetRawReviewContribution(rawWorkPlan, reviewContribution) {
+  const checkedPlan = validateRawWorkPlan(rawWorkPlan);
+  if (!checkedPlan.ok) throw new PageAuthorityTargetRuntimeError(checkedPlan.code, checkedPlan.message);
+  const validation = requireTargetReviewContribution(reviewContribution, rawWorkPlan, rawWorkPlan.workflow);
+  return Object.freeze(rawWorkPlan.ordered_slide_ids.map((stableId, index) => {
+    const coverage = reviewContribution.coverage.items[index];
+    const label = reviewContribution.projection.labels[index];
+    return Object.freeze({
+      stable_id: stableId,
+      position: label.position,
+      title: label.title,
+      guide_primitives: Object.freeze(coverage.guide_primitives.map((primitive) => Object.freeze({ ...primitive }))),
+      typed_review_contribution_sha256: validation.typed_review_contribution_sha256,
+    });
+  }));
 }
 
 function rawBytesBySlide(paths, plan) {
@@ -185,6 +400,51 @@ function rawBytesDigest(plan, rawBytes) {
     slide_id: item.slide_id,
     raw_sha256: sha256(rawBytes[item.slide_id]),
   })));
+}
+
+function requireTargetSourceEpoch(context) {
+  if (!Number.isInteger(context?.source_epoch) || context.source_epoch <= 0) {
+    throw new PageAuthorityTargetRuntimeError("target_source_epoch_required", "current target source epoch is required for raw-review coverage");
+  }
+  return context.source_epoch;
+}
+
+function requireTargetReviewContribution(reviewContribution, rawWorkPlan, workflow) {
+  const validation = validateTargetRawReviewContribution(reviewContribution, {
+    rawWorkPlan,
+    expectedWorkflow: workflow,
+  });
+  if (!validation.ok) throw new PageAuthorityTargetRuntimeError(validation.code, validation.message);
+  return validation;
+}
+
+function currentReviewProjectionSha(paths) {
+  let bytes;
+  try {
+    bytes = readFileSync(paths.target_raw_review_projection);
+  } catch {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_projection_missing", "current target raw-review projection is required");
+  }
+  if (bytes.length < 8 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_projection_invalid", "target raw-review projection must be a PNG");
+  }
+  return sha256(bytes);
+}
+
+function readTargetRawReviewRecord(paths) {
+  let bytes;
+  try {
+    bytes = readFileSync(paths.target_raw_review);
+  } catch {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_required", "a current target raw review is required");
+  }
+  let review;
+  try {
+    review = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_invalid", "the target raw review record is invalid");
+  }
+  return Object.freeze({ review, raw_review_sha256: sha256(bytes) });
 }
 
 /** Compile provider-only facts without inspecting workflow-specific contracts. */
@@ -228,11 +488,14 @@ export function createTargetProviderRequest({ slideId, rawContract, generationPr
 }
 
 /**
- * Resolve source bytes through the selected adapter callback, then bind the
- * receipt to the state owner.  The callback is the source/visual boundary;
- * this runtime never parses or interprets workflow fields itself.
+ * Read and validate current source through the selected adapter without
+ * initializing state or materializing any derived Page Authority artifact.
  */
-export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, allowSourceRebuild = false } = {}) {
+export function resolveTargetCandidateSourceContext(runDir, {
+  workflow,
+  parseReceipt,
+  allowWorkflowDrift = false,
+} = {}) {
   if (typeof parseReceipt !== "function") {
     throw new TypeError("parseReceipt must be a selected workflow source parser");
   }
@@ -244,20 +507,54 @@ export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, all
   } catch {
     throw new PageAuthorityTargetRuntimeError("target_source_missing", "the canonical target slide source is unavailable");
   }
-  const receipt = requireSourceReceipt(parseReceipt({
+  const parsedReceipt = parseReceipt({
     runDir: resolvedRunDir,
     deckDir: deckRoot(resolvedRunDir),
     sourcePath,
     sourceText,
-  }), workflow);
+  });
+  const receipt = requireSourceReceipt(parsedReceipt, allowWorkflowDrift ? parsedReceipt?.workflow : workflow);
   const actualSourceSha = sha256(Buffer.from(sourceText, "utf8"));
   if (actualSourceSha !== receipt.source_sha256) {
     throw new PageAuthorityTargetRuntimeError("target_source_receipt_stale", "the selected workflow receipt does not bind current source bytes");
   }
+  const paths = targetPaths(resolvedRunDir);
+  return Object.freeze({
+    run_dir: resolvedRunDir,
+    deck_dir: deckRoot(resolvedRunDir),
+    source_path: sourcePath,
+    source_sha256: actualSourceSha,
+    receipt,
+    workflow: receipt.workflow,
+    paths: Object.freeze(paths),
+  });
+}
+
+/**
+ * Bind an already-validated selected-workflow source candidate to the state
+ * owner, then materialize its source receipt through the existing writer.
+ */
+export function materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild = false } = {}) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate) ||
+    typeof candidate.run_dir !== "string" || typeof candidate.deck_dir !== "string" ||
+    typeof candidate.source_path !== "string" || typeof candidate.source_sha256 !== "string" ||
+    typeof candidate.workflow !== "string") {
+    throw new PageAuthorityTargetRuntimeError("target_source_candidate_invalid", "a current selected-workflow source candidate is required");
+  }
+  const receipt = requireSourceReceipt(candidate.receipt, candidate.workflow);
+  if (candidate.source_sha256 !== receipt.source_sha256) {
+    throw new PageAuthorityTargetRuntimeError("target_source_candidate_invalid", "the source candidate hash must match its selected-workflow receipt");
+  }
+  const runDir = resolve(candidate.run_dir);
+  const deckDir = deckRoot(runDir);
+  if (candidate.deck_dir !== deckDir || candidate.source_path !== join(runDir, SLIDE_SPECS_NAME)) {
+    throw new PageAuthorityTargetRuntimeError("target_source_candidate_invalid", "the source candidate does not describe one canonical target run");
+  }
+  const paths = targetPaths(runDir);
   let state;
   try {
-    state = initializeTargetPageAuthorityState(deckRoot(resolvedRunDir), {
-      runDir: resolvedRunDir,
+    state = initializeTargetPageAuthorityState(deckDir, {
+      runDir,
       sourceReceipt: receipt,
     });
   } catch (error) {
@@ -265,22 +562,30 @@ export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, all
     // Only an explicit selected-workflow raw-plan route may invalidate a
     // current target tuple. The state writer checks source/state identity and
     // resets authorization/evidence before any new provider work can occur.
-    state = advanceTargetPageAuthoritySourceEpoch(deckRoot(resolvedRunDir), {
-      runDir: resolvedRunDir,
+    state = advanceTargetPageAuthoritySourceEpoch(deckDir, {
+      runDir,
       sourceReceipt: receipt,
     });
   }
-  const paths = targetPaths(resolvedRunDir);
   writeJson(paths.target_source_receipt, receipt);
   return Object.freeze({
-    run_dir: resolvedRunDir,
-    deck_dir: deckRoot(resolvedRunDir),
-    source_path: sourcePath,
+    run_dir: runDir,
+    deck_dir: deckDir,
+    source_path: candidate.source_path,
+    source_sha256: candidate.source_sha256,
     receipt,
-    workflow,
+    workflow: candidate.workflow,
     source_epoch: state.record.source_epoch,
     paths: Object.freeze(paths),
   });
+}
+
+/** Resolve and materialize a current source for legacy selected-workflow callers. */
+export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, allowSourceRebuild = false } = {}) {
+  return materializeTargetSourceCandidateContext(
+    resolveTargetCandidateSourceContext(runDir, { workflow, parseReceipt }),
+    { allowSourceRebuild },
+  );
 }
 
 /**
@@ -289,49 +594,43 @@ export function resolveTargetSourceContext(runDir, { workflow, parseReceipt, all
  * reuse; this shared runtime only validates typed artifacts and byte hashes.
  */
 export function resolveTargetLocalComposeContext(runDir, { workflow, parseReceipt } = {}) {
-  if (typeof parseReceipt !== "function") {
-    throw new TypeError("parseReceipt must be a selected workflow source parser");
-  }
-  const resolvedRunDir = resolve(runDir || "");
-  const sourcePath = join(resolvedRunDir, SLIDE_SPECS_NAME);
-  let sourceText;
-  try {
-    sourceText = readFileSync(sourcePath, "utf8");
-  } catch {
-    throw new PageAuthorityTargetRuntimeError("target_source_missing", "the canonical target slide source is unavailable");
-  }
-  const receipt = requireSourceReceipt(parseReceipt({
-    runDir: resolvedRunDir,
-    deckDir: deckRoot(resolvedRunDir),
-    sourcePath,
-    sourceText,
-  }), workflow);
-  if (sha256(Buffer.from(sourceText, "utf8")) !== receipt.source_sha256) {
-    throw new PageAuthorityTargetRuntimeError("target_source_receipt_stale", "the selected workflow receipt does not bind current source bytes");
-  }
-  const paths = targetPaths(resolvedRunDir);
+  const candidate = resolveTargetCandidateSourceContext(runDir, {
+    workflow,
+    parseReceipt,
+    allowWorkflowDrift: true,
+  });
   const previousReceipt = requireSourceReceipt(
-    readJson(paths.target_source_receipt, "target_previous_source_receipt_required", "previous target source receipt is required for local composition"),
+    readJson(candidate.paths.target_source_receipt, "target_previous_source_receipt_required", "previous target source receipt is required for local composition"),
     workflow,
   );
-  const previousRawWorkPlan = readJson(paths.target_raw_plan, "target_previous_raw_plan_required", "previous target raw plan is required for local composition");
+  if (candidate.workflow !== previousReceipt.workflow) {
+    throw new PageAuthorityTargetRuntimeError(
+      "target_workflow_switch_structural_required",
+      "target workflow changes require a structural vNext preview and confirmed plan hash",
+      { nextAction: "preview_target_structural_vnext" },
+    );
+  }
+  if (candidate.receipt.slides.length !== previousReceipt.slides.length ||
+    candidate.receipt.slides.some((slide, index) => slide.slide_id !== previousReceipt.slides[index]?.slide_id)) {
+    throw new PageAuthorityTargetRuntimeError(
+      "target_structural_versioning_required",
+      "target slide membership or order changes require a structural vNext preview and confirmed plan hash",
+      { nextAction: "preview_target_structural_vnext" },
+    );
+  }
+  const previousRawWorkPlan = readJson(candidate.paths.target_raw_plan, "target_previous_raw_plan_required", "previous target raw plan is required for local composition");
   requireTargetPlan(previousRawWorkPlan, previousReceipt, workflow);
-  const previousAcceptedRawEvidence = readJson(paths.target_raw_evidence, "target_accepted_raw_evidence_required", "current accepted target raw evidence is required");
+  const previousAcceptedRawEvidence = readJson(candidate.paths.target_raw_evidence, "target_accepted_raw_evidence_required", "current accepted target raw evidence is required");
   const previousEvidence = validateAcceptedRawEvidence(previousAcceptedRawEvidence, { plan: previousRawWorkPlan });
   if (!previousEvidence.ok) throw new PageAuthorityTargetRuntimeError(previousEvidence.code, previousEvidence.message);
-  const rawBytes = rawBytesBySlide(paths, previousRawWorkPlan);
+  const rawBytes = rawBytesBySlide(candidate.paths, previousRawWorkPlan);
   for (const item of previousAcceptedRawEvidence.items) {
     if (sha256(rawBytes[item.slide_id]) !== item.raw_sha256) {
       throw new PageAuthorityTargetRuntimeError("target_accepted_raw_evidence_stale", `accepted target raw bytes drifted for ${item.slide_id}`);
     }
   }
   return Object.freeze({
-    run_dir: resolvedRunDir,
-    deck_dir: deckRoot(resolvedRunDir),
-    source_path: sourcePath,
-    receipt,
-    workflow,
-    paths: Object.freeze(paths),
+    ...candidate,
     previous_source_receipt: previousReceipt,
     previous_raw_work_plan: previousRawWorkPlan,
     previous_accepted_raw_evidence: previousAcceptedRawEvidence,
@@ -339,12 +638,63 @@ export function resolveTargetLocalComposeContext(runDir, { workflow, parseReceip
   });
 }
 
+/**
+ * Read one current selected-workflow plan without materializing source, plan,
+ * review, authorization, or state. The selected adapter recompiles opaque
+ * candidate facts; shared code compares only their typed plan identity.
+ */
+export function resolveTargetStoredPlanContext(runDir, {
+  workflow,
+  parseReceipt,
+  compilePlanCandidate,
+} = {}) {
+  if (typeof compilePlanCandidate !== "function") {
+    throw new TypeError("compilePlanCandidate must be a selected workflow plan compiler");
+  }
+  const candidate = resolveTargetCandidateSourceContext(runDir, { workflow, parseReceipt });
+  const storedReceipt = requireSourceReceipt(
+    readJson(candidate.paths.target_source_receipt, "target_source_receipt_required", "a current target source receipt is required"),
+    workflow,
+  );
+  if (canonicalJsonSha256(storedReceipt) !== canonicalJsonSha256(candidate.receipt)) {
+    throw staleTargetPlanError("target_source_receipt_stale", "the stored target source receipt does not match current source");
+  }
+  const storedPlan = readJson(candidate.paths.target_raw_plan, "target_raw_plan_required", "a current target raw plan is required");
+  const storedPlanCheck = requireTargetPlan(storedPlan, storedReceipt, workflow);
+  const compiled = compilePlanCandidate(candidate);
+  const compiledPlanCheck = requireTargetPlan(compiled?.raw_work_plan, candidate.receipt, workflow);
+  if (compiledPlanCheck.sha256 !== storedPlanCheck.sha256) {
+    throw staleTargetPlanError("target_raw_plan_stale", "the stored target raw plan does not match current selected-workflow contracts");
+  }
+  const state = inspectTargetPageAuthorityState(candidate.deck_dir, {
+    runDir: candidate.run_dir,
+    sourceReceipt: candidate.receipt,
+  });
+  if (!Number.isInteger(state.source_epoch) || state.source_epoch <= 0 || state.workflow !== workflow) {
+    throw new PageAuthorityTargetRuntimeError(
+      state.code || "target_source_state_stale",
+      "the target source state is not current for the stored raw plan",
+    );
+  }
+  return Object.freeze({
+    ...candidate,
+    source_epoch: state.source_epoch,
+    raw_work_plan: storedPlan,
+    provider_requests_by_slide: compiled.provider_requests_by_slide,
+    style_master_path: compiled.style_master_path,
+  });
+}
+
 /** Persist a selected workflow's already-validated local-compose rebind. */
-export function rebindTargetLocalComposeWork(context, { rawWorkPlan, acceptedRawEvidence } = {}) {
+export function rebindTargetLocalComposeWork(context, {
+  rawWorkPlan,
+  acceptedRawEvidence,
+  reviewContribution,
+} = {}) {
   requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
   const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
   if (!evidence.ok) throw new PageAuthorityTargetRuntimeError(evidence.code, evidence.message);
-  validateTargetAcceptedRawEvidenceLocalComposeRebind(context.deck_dir, {
+  const statePreflight = validateTargetAcceptedRawEvidenceLocalComposeRebind(context.deck_dir, {
     runDir: context.run_dir,
     previousSourceReceipt: context.previous_source_receipt,
     nextSourceReceipt: context.receipt,
@@ -352,6 +702,11 @@ export function rebindTargetLocalComposeWork(context, { rawWorkPlan, acceptedRaw
     nextRawWorkPlan: rawWorkPlan,
     previousAcceptedRawEvidence: context.previous_accepted_raw_evidence,
     nextAcceptedRawEvidence: acceptedRawEvidence,
+  });
+  validateTargetCurrentRawReview(context, rawWorkPlan, {
+    reviewContribution,
+    sourceEpoch: statePreflight.source_epoch,
+    acceptedRawEvidence: context.previous_accepted_raw_evidence,
   });
   writeJson(context.paths.target_source_receipt, context.receipt);
   writeJson(context.paths.target_raw_plan, rawWorkPlan);
@@ -442,24 +797,43 @@ export async function generateTargetRawWork(context, rawWorkPlan, { planHash, pr
   });
 }
 
-async function renderTargetRawReview(paths, plan, rawBytes) {
-  const width = 1032;
-  const cellWidth = 500;
-  const cellHeight = 281;
-  const padding = 16;
-  const labelHeight = 34;
-  const rows = Math.ceil(plan.items.length / 2);
-  const canvas = createCanvas(width, padding * 2 + rows * (cellHeight + labelHeight) + Math.max(0, rows - 1) * padding);
+function projectionLabelText(item, projectionCaptureProfile) {
+  const separator = projectionCaptureProfile.profile.labels.separator;
+  return `${item.position}. ${item.stable_id}${separator}${item.title}`;
+}
+
+async function renderTargetRawReview(paths, projectionItems, rawBytes, projectionCaptureProfile) {
+  const profile = projectionCaptureProfile.profile;
+  const layout = profile.contact_sheet;
+  const label = profile.labels;
+  const guide = profile.guides;
+  const rows = Math.ceil(projectionItems.length / layout.columns);
+  const canvas = createCanvas(
+    layout.width,
+    layout.padding * 2 + rows * (layout.cell_height + layout.label_height) + Math.max(0, rows - 1) * layout.row_gap,
+  );
   const context = canvas.getContext("2d");
-  context.fillStyle = "#ffffff";
+  context.fillStyle = layout.background;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [index, item] of plan.items.entries()) {
-    const x = padding + (index % 2) * (cellWidth + padding);
-    const y = padding + Math.floor(index / 2) * (cellHeight + labelHeight + padding);
-    context.drawImage(await loadImage(rawBytes[item.slide_id]), x, y, cellWidth, cellHeight);
-    context.fillStyle = "#17212b";
-    context.font = "700 16px Arial";
-    context.fillText(item.slide_id, x, y + cellHeight + 22);
+  for (const [index, item] of projectionItems.entries()) {
+    const x = layout.padding + (index % layout.columns) * (layout.cell_width + layout.padding);
+    const y = layout.padding + Math.floor(index / layout.columns) * (layout.cell_height + layout.label_height + layout.row_gap);
+    context.drawImage(await loadImage(rawBytes[item.stable_id]), x, y, layout.cell_width, layout.cell_height);
+    context.save();
+    context.strokeStyle = guide.rectangle.stroke;
+    context.lineWidth = guide.rectangle.line_width;
+    for (const primitive of item.guide_primitives) {
+      context.strokeRect(
+        x + primitive.x * layout.cell_width,
+        y + primitive.y * layout.cell_height,
+        primitive.width * layout.cell_width,
+        primitive.height * layout.cell_height,
+      );
+    }
+    context.restore();
+    context.fillStyle = label.font.color;
+    context.font = `${label.font.weight} ${label.font.size}px ${label.font.family}`;
+    context.fillText(projectionLabelText(item, projectionCaptureProfile), x, y + layout.cell_height + label.font.baseline_offset, layout.cell_width);
   }
   const bytes = canvas.toBuffer("image/png");
   atomicWrite(paths.target_raw_review_projection, bytes);
@@ -467,41 +841,84 @@ async function renderTargetRawReview(paths, plan, rawBytes) {
 }
 
 /** Publish a reviewable contact sheet for exact current raw bytes. */
-export async function prepareTargetRawReview(context, rawWorkPlan) {
+export async function prepareTargetRawReview(context, rawWorkPlan, { reviewContribution } = {}) {
   const checked = requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
+  const sourceEpoch = requireTargetSourceEpoch(context);
+  const contribution = requireTargetReviewContribution(reviewContribution, rawWorkPlan, context.workflow);
+  const projectionCaptureProfile = currentTargetRawReviewProjectionCaptureProfile();
+  const projectionItems = projectTargetRawReviewContribution(rawWorkPlan, reviewContribution);
   const rawBytes = rawBytesBySlide(context.paths, rawWorkPlan);
-  const projectionSha = await renderTargetRawReview(context.paths, rawWorkPlan, rawBytes);
+  await renderTargetRawReview(context.paths, projectionItems, rawBytes, projectionCaptureProfile);
+  const projectionSha = currentReviewProjectionSha(context.paths);
   const review = {
     schema: TARGET_RAW_REVIEW_SCHEMA,
-    raw_work_plan_sha256: checked.sha256,
-    source_receipt_sha256: rawWorkPlan.source_receipt_sha256,
+    source_epoch: sourceEpoch,
     workflow: rawWorkPlan.workflow,
     raw_bytes_sha256: rawBytesDigest(rawWorkPlan, rawBytes),
+    typed_review_contribution_sha256: contribution.typed_review_contribution_sha256,
     projection_sha256: projectionSha,
+    projection_capture_profile_sha256: projectionCaptureProfile.projection_capture_profile_sha256,
     decision: null,
   };
   const reviewSha = writeJson(context.paths.target_raw_review, review);
-  return Object.freeze({ ...targetRawPlanProjection(context, rawWorkPlan), projection_sha256: projectionSha, raw_review_sha256: reviewSha, review });
+  return Object.freeze({
+    ...targetRawPlanProjection(context, rawWorkPlan),
+    projection_sha256: projectionSha,
+    projection_capture_profile_sha256: projectionCaptureProfile.projection_capture_profile_sha256,
+    typed_review_contribution_sha256: contribution.typed_review_contribution_sha256,
+    raw_review_sha256: reviewSha,
+    review,
+  });
 }
 
-function currentTargetReview(context, rawWorkPlan) {
+/**
+ * Read one persisted raw-review record and prove that its current projection,
+ * coverage facts, and optional accepted-evidence reference remain exact.
+ */
+export function validateTargetCurrentRawReview(context, rawWorkPlan, {
+  reviewContribution,
+  sourceEpoch = context?.source_epoch ?? null,
+  acceptedRawEvidence = null,
+} = {}) {
   const checked = requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
-  const review = readJson(context.paths.target_raw_review, "target_raw_review_required", "a current target raw review is required");
+  const currentSourceEpoch = requireTargetSourceEpoch({ source_epoch: sourceEpoch });
+  const contribution = requireTargetReviewContribution(reviewContribution, rawWorkPlan, context.workflow);
+  const projectionCaptureProfile = currentTargetRawReviewProjectionCaptureProfile();
+  const { review, raw_review_sha256: rawReviewSha } = readTargetRawReviewRecord(context.paths);
   const rawBytes = rawBytesBySlide(context.paths, rawWorkPlan);
-  if (!reviewShape(review) || review.raw_work_plan_sha256 !== checked.sha256 ||
-    review.source_receipt_sha256 !== rawWorkPlan.source_receipt_sha256 || review.workflow !== rawWorkPlan.workflow ||
-    review.raw_bytes_sha256 !== rawBytesDigest(rawWorkPlan, rawBytes)) {
-    throw new PageAuthorityTargetRuntimeError("target_raw_review_stale", "the target raw review no longer binds current raw bytes");
+  if (!reviewShape(review) || review.source_epoch !== currentSourceEpoch || review.workflow !== rawWorkPlan.workflow ||
+    review.raw_bytes_sha256 !== rawBytesDigest(rawWorkPlan, rawBytes) ||
+    review.typed_review_contribution_sha256 !== contribution.typed_review_contribution_sha256 ||
+    review.projection_capture_profile_sha256 !== projectionCaptureProfile.projection_capture_profile_sha256 ||
+    review.projection_sha256 !== currentReviewProjectionSha(context.paths)) {
+    throw new PageAuthorityTargetRuntimeError("target_raw_review_stale", "the target raw review no longer binds current coverage");
   }
-  return { checked, review, rawBytes };
+  if (acceptedRawEvidence !== null) {
+    const accepted = validateAcceptedRawEvidence(acceptedRawEvidence);
+    if (!accepted.ok || acceptedRawEvidence.raw_review_sha256 !== rawReviewSha || review.decision !== "proceed") {
+      throw new PageAuthorityTargetRuntimeError("target_raw_review_stale", "the target raw review is not the accepted current coverage");
+    }
+  }
+  return Object.freeze({
+    checked,
+    review,
+    rawBytes: Object.freeze(rawBytes),
+    contribution,
+    projectionCaptureProfile,
+    raw_review_sha256: rawReviewSha,
+  });
+}
+
+function currentTargetReview(context, rawWorkPlan, { reviewContribution } = {}) {
+  return validateTargetCurrentRawReview(context, rawWorkPlan, { reviewContribution });
 }
 
 /** Record a human raw decision; proceed alone publishes accepted evidence. */
-export function decideTargetRawReview(context, rawWorkPlan, { decision } = {}) {
+export function decideTargetRawReview(context, rawWorkPlan, { decision, reviewContribution } = {}) {
   if (!["proceed", "repair", "redirect"].includes(decision)) {
     throw new PageAuthorityTargetRuntimeError("target_raw_review_decision_invalid", "decision must be proceed, repair, or redirect");
   }
-  const { checked, review, rawBytes } = currentTargetReview(context, rawWorkPlan);
+  const { checked, review, rawBytes } = currentTargetReview(context, rawWorkPlan, { reviewContribution });
   const nextReview = { ...review, decision };
   const reviewSha = writeJson(context.paths.target_raw_review, nextReview);
   if (decision !== "proceed") {

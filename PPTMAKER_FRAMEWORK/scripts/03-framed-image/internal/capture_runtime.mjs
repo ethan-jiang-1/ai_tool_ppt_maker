@@ -15,6 +15,8 @@ export const HTML_CAPTURE_PROFILE = Object.freeze({
   reencode: 'fast-png-crop-final-device-row-v1',
 });
 export const HTML_RENDER_TIMEOUT_MS = 30_000;
+export const HTML_RENDER_PAGE_TIMEOUT_MS = 15_000;
+export const HTML_RENDER_BATCH_TIMEOUT_MS = 45_000;
 
 const FORBIDDEN_SCHEME_RE = /^(?:http|https|file|ftp|blob|ws|wss|custom):/i;
 
@@ -171,6 +173,219 @@ export async function captureHtmlPng({ runtimeEvidence, html, timeoutMs = HTML_R
   }
   if (failure) return { ok: false, profile: HTML_CAPTURE_PROFILE.id, phase, error: failure.message.replaceAll(process.cwd(), '<cwd>') };
   return result;
+}
+
+function withDeadline(operation, timeoutMs, message) {
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(operation),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+function layoutExpectationFor(pageSpec) {
+  const value = pageSpec?.layout;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('render-contract layout expectation is required');
+  }
+  if (!value.slide || !Array.isArray(value.panels) || !Array.isArray(value.fields) || !Array.isArray(value.panel_safe_zones)) {
+    throw new TypeError('render-contract layout expectation is incomplete');
+  }
+  return value;
+}
+
+async function verifyRenderContractLayout(page, expectation, expectedLeafMarkers) {
+  return page.evaluate(({ layout, expectedMarkers, epsilon }) => {
+    const root = document.querySelector('[data-pptmaker-slide]');
+    if (!root) throw new Error('render-contract slide root is missing');
+    const rect = (node) => {
+      const value = node.getBoundingClientRect();
+      return { x: value.x, y: value.y, width: value.width, height: value.height, right: value.right, bottom: value.bottom };
+    };
+    const close = (actual, expected, label) => {
+      for (const key of ['x', 'y', 'width', 'height']) {
+        if (Math.abs(actual[key] - expected[key]) > epsilon) {
+          throw new Error(`${label} ${key} expected ${expected[key]}, observed ${actual[key]}`);
+        }
+      }
+    };
+    const rootRect = rect(root);
+    close(rootRect, { x: 0, y: 0, width: layout.slide.width, height: layout.slide.height }, 'slide geometry');
+
+    const panels = {};
+    for (const expected of layout.panels) {
+      const node = root.querySelector(`[data-pm-panel="${expected.id}"]`);
+      if (!node) throw new Error(`panel ${expected.id} is missing`);
+      const actual = rect(node);
+      close(actual, expected, `panel ${expected.id}`);
+      panels[expected.id] = actual;
+    }
+    for (const expected of layout.panel_safe_zones) {
+      const panel = panels[expected.panel_id];
+      if (!panel) throw new Error(`safe-zone panel ${expected.panel_id} is missing`);
+      const zone = expected.rectangle;
+      if (
+        panel.x < zone.x - epsilon || panel.y < zone.y - epsilon
+        || panel.right > zone.x + zone.width + epsilon || panel.bottom > zone.y + zone.height + epsilon
+      ) {
+        throw new Error(`panel ${expected.panel_id} escapes its reserved underlay rectangle`);
+      }
+    }
+
+    const fields = {};
+    for (const expected of layout.fields) {
+      const node = root.querySelector(`[data-pm-field="${expected.id}"]`);
+      if (!node) throw new Error(`field ${expected.id} is missing`);
+      const actual = rect(node);
+      close(actual, expected, `field ${expected.id}`);
+      if (node.scrollWidth > node.clientWidth + epsilon || node.scrollHeight > node.clientHeight + epsilon) {
+        throw new Error(`field ${expected.id} has scroll overflow`);
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const lineYs = [];
+      for (const line of [...range.getClientRects()]) {
+        if (line.width <= 0 || line.height <= 0) continue;
+        if (!lineYs.some((existing) => Math.abs(existing - line.y) <= epsilon)) lineYs.push(line.y);
+      }
+      if (lineYs.length === 0) throw new Error(`field ${expected.id} has no rendered line`);
+      if (lineYs.length > expected.max_lines) {
+        throw new Error(`field ${expected.id} exceeds ${expected.max_lines} rendered lines`);
+      }
+      fields[expected.id] = { rect: actual, line_count: lineYs.length, scroll_width: node.scrollWidth, scroll_height: node.scrollHeight };
+    }
+
+    const markers = [...root.querySelectorAll('[data-pm-leaf]')].map((node) => node.getAttribute('data-pm-leaf'));
+    if (new Set(markers).size !== markers.length || new Set(expectedMarkers).size !== expectedMarkers.length ||
+      JSON.stringify([...markers].sort()) !== JSON.stringify([...expectedMarkers].sort())) {
+      throw new Error(`leaf marker set mismatch: expected ${expectedMarkers.length}, observed ${markers.length}`);
+    }
+    for (const marker of markers) {
+      const node = root.querySelector(`[data-pm-leaf="${marker}"]`);
+      const style = getComputedStyle(node);
+      const markerRect = rect(node);
+      if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0 || markerRect.width <= 0 || markerRect.height <= 0) {
+        throw new Error(`leaf ${marker} is not visible`);
+      }
+    }
+    return { slide: rootRect, panels, fields, markers };
+  }, {
+    layout: expectation,
+    expectedMarkers: expectedLeafMarkers,
+    epsilon: HTML_CAPTURE_PROFILE.geometryEpsilonCssPx,
+  });
+}
+
+async function captureRenderContractPage({ context, guards, runtimeEvidence, pageSpec, pageTimeoutMs, setPhase }) {
+  const expectation = layoutExpectationFor(pageSpec);
+  const page = await context.newPage();
+  try {
+    setPhase(`${pageSpec.id}:document_load`);
+    await page.setContent(pageSpec.html, { waitUntil: 'load', timeout: pageTimeoutMs });
+    await page.evaluate(() => document.fonts.ready);
+    setPhase(`${pageSpec.id}:geometry`);
+    const layout = await verifyRenderContractLayout(page, expectation, pageSpec.expectedLeafMarkers || []);
+    setPhase(`${pageSpec.id}:font_usage`);
+    const fonts = await collectHtmlFontEvidence({ page, context, roles: pageSpec.fontRoles || [] });
+    if (pageSpec.probeForbiddenRoutes) {
+      setPhase(`${pageSpec.id}:network_probe`);
+      await exerciseForbiddenRouteDenials(page);
+    }
+    setPhase(`${pageSpec.id}:capture`);
+    const rawPng = await page.screenshot({
+      type: 'png',
+      clip: { x: 0, y: 0, width: HTML_CAPTURE_PROFILE.cssWidth, height: HTML_CAPTURE_PROFILE.viewportHeight },
+      animations: 'disabled',
+      scale: 'device',
+    });
+    const finalPng = cropOneDeviceRow(decodePng(rawPng, { checkCrc: true }));
+    setPhase(`${pageSpec.id}:verify`);
+    const png = assertNonBlankPng(finalPng);
+    const pageDenials = await guards.readPageDenials(page);
+    return {
+      id: pageSpec.id,
+      bytes: finalPng,
+      png: { ...png, sha256: sha256(finalPng), bytes: finalPng.length },
+      raw_capture: { width: HTML_CAPTURE_PROFILE.outputWidth, height: HTML_CAPTURE_PROFILE.rawCaptureHeight, sha256: sha256(rawPng) },
+      layout,
+      fonts,
+      network: { routeAttempts: guards.attempts, pageDenials, serviceWorkers: 'blocked' },
+    };
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+/**
+ * Private bounded browser seam for Framed render-contract pages. One call owns
+ * exactly one Chromium process and returns bytes only after every page passes.
+ */
+export async function captureHtmlPngBatch({
+  runtimeEvidence,
+  pages,
+  pageTimeoutMs = HTML_RENDER_PAGE_TIMEOUT_MS,
+  batchTimeoutMs = HTML_RENDER_BATCH_TIMEOUT_MS,
+  launch = launchPinnedChromium,
+  onPhase,
+} = {}) {
+  if (!Array.isArray(pages) || pages.length === 0 || pages.length > 64 || pages.some((page) => !page || typeof page.id !== 'string' || !page.id || typeof page.html !== 'string' || !page.html)) {
+    throw new TypeError('a finite nonempty render-contract page batch is required');
+  }
+  if (!Number.isInteger(pageTimeoutMs) || pageTimeoutMs <= 0 || !Number.isInteger(batchTimeoutMs) || batchTimeoutMs <= 0) {
+    throw new TypeError('positive render-contract deadlines are required');
+  }
+  let browser;
+  let context;
+  let phase = 'browser_launch';
+  let failure = null;
+  const setPhase = (next) => { phase = next; onPhase?.(next); };
+  try {
+    const results = await withDeadline(async () => {
+      setPhase('browser_launch');
+      browser = await launch(runtimeEvidence, { headless: true });
+      setPhase('context_create');
+      context = await browser.newContext({
+        viewport: { width: HTML_CAPTURE_PROFILE.cssWidth, height: HTML_CAPTURE_PROFILE.viewportHeight },
+        deviceScaleFactor: HTML_CAPTURE_PROFILE.deviceScaleFactor,
+        serviceWorkers: 'block',
+        locale: 'en-US',
+        timezoneId: 'UTC',
+        reducedMotion: 'reduce',
+      });
+      const guards = installNetworkDenialGuards(context);
+      const output = [];
+      for (const pageSpec of pages) {
+        output.push(await withDeadline(
+          () => captureRenderContractPage({ context, guards, runtimeEvidence, pageSpec, pageTimeoutMs, setPhase }),
+          pageTimeoutMs,
+          `HTML render page ${pageSpec.id} timed out during ${phase}`,
+        ));
+      }
+      return output;
+    }, batchTimeoutMs, `HTML render batch timed out during ${phase}`);
+    return {
+      ok: true,
+      profile: HTML_CAPTURE_PROFILE.id,
+      runtimeProfile: HTML_RUNTIME_PROFILE.id,
+      pages: results,
+    };
+  } catch (error) {
+    failure = error instanceof Error ? error : new Error(String(error));
+  } finally {
+    const cleanupErrors = [];
+    if (context) try { await context.close(); } catch (error) { cleanupErrors.push(error); }
+    if (browser) try { await browser.close(); } catch (error) { cleanupErrors.push(error); }
+    if (cleanupErrors.length && !failure) failure = cleanupErrors[0] instanceof Error ? cleanupErrors[0] : new Error(String(cleanupErrors[0]));
+  }
+  return {
+    ok: false,
+    profile: HTML_CAPTURE_PROFILE.id,
+    runtimeProfile: HTML_RUNTIME_PROFILE.id,
+    phase,
+    error: failure?.message.replaceAll(process.cwd(), '<cwd>') || 'unknown HTML render failure',
+  };
 }
 
 export async function exerciseForbiddenRouteDenials(page, schemes = ['http', 'https', 'file', 'ftp', 'blob', 'ws', 'wss', 'custom', 'service-worker']) {

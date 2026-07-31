@@ -53,6 +53,8 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build deck_NAME/3_versions/v1
 
 raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redirect` 时，这是一个 `confirm` gate：展示当前 artifact 后记录对应决定。source/state 不一致、无效 frame/registry/reference、缺失/部分/陈旧 raw evidence、无效 scope 或未授权 submit 是 hard-stop：使用 state/CLI 指出的直接 owner recovery，不手改 state，也不借用 retired review 或 historical artifact。
 
+对于 nonzero 的 owner CLI，只读取 stderr 最后一个非空 JSON 回执，并使用 producer 发出的 `diagnostic.category` 与 `diagnostic.next`；不要匹配说明文字，也不要在 Agent/MD 侧复写分类或恢复表。只有该 owner action 明确允许时才做机械修复，然后重跑它指定的 checkpoint；这不替代既有 raw visual `confirm`。
+
 ## Step 4 - Refresh and structural changes
 
 `framed` 版本的 Text Frame-only 修改，只有在 exact accepted raw evidence 与 frame preset 都仍 current 时，才可由 `03-framed-image` 本地完成，不需要 provider credential 或新授权：
@@ -86,10 +88,10 @@ source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不�
 ### pptxgenjs
 ### commander
 ### playwright
-### echarts
 ### chromium
-### framed_fonts
-### framed_runtime
+### html_fonts
+### framed_render_profile
+### html_runtime_smoke
 ### fonts
 ### disk_space
 ### git

@@ -1370,6 +1370,179 @@ function pageAuthorityDiagnosticReasonKind(value, fallback = "page_authority_ope
   return /^[a-z][a-z0-9_-]{0,63}$/.test(normalized) ? normalized : fallback;
 }
 
+const FRAMED_SOURCE_VALIDATION_CODES = new Set([
+  "invalid_text_frame",
+  "untrusted_text_frame_override",
+  "invalid_text_frame_literal",
+  "missing_framed_title",
+  "unsupported_frame_preset",
+  "unsupported_framed_code_points",
+  "font_selection_input_invalid",
+  "framed_text_frame_invalid",
+  "framed_text_fit_failed",
+  "framed_render_input_invalid",
+  "framed_visual_language_required",
+  "target_source_missing",
+  "target_source_receipt_invalid",
+]);
+
+const FRAMED_ENVIRONMENT_CODES = new Set([
+  "font_render_inventory_invalid",
+  "framed_font_asset_missing",
+  "framed_font_asset_invalid",
+  "framed_font_runtime_invalid",
+  "framed_font_runtime_unavailable",
+  "framed_runtime_unavailable",
+  "framed_render_timeout",
+]);
+
+const FRAMED_INTERNAL_CODES = new Set([
+  "framed_render_profile_invalid",
+  "framed_render_profile_required",
+  "framed_render_profile_stale",
+  "framed_font_selection_invalid",
+  "framed_render_contract_invariant_failed",
+  "framed_raw_contract_invalid",
+  "framed_raw_invalid",
+  "target_raw_review_contribution_invalid",
+  "target_provider_request_invalid",
+  "target_source_candidate_invalid",
+]);
+
+const TARGET_GATE_CODES = new Set([
+  "provider_authorization_required",
+  "raw_review_required",
+  "target_provider_authorization_required",
+]);
+
+function isTargetArtifactFailure(code) {
+  if (code === "target_style_master_unavailable" || code === "framed_raw_contract_profile_stale") return true;
+  return /^target_(?:source_receipt|source_state|raw_plan|raw_evidence|raw_review|accepted_raw_evidence|final_manifest|final_bytes|delivery)_.*(?:stale|required|missing|invalid|mismatch|drift)$/.test(code)
+    || code === "target_raw_review_contribution_stale";
+}
+
+function isTargetProviderFailure(code) {
+  return /^page_authority_provider_/.test(code)
+    || /^target_provider_/.test(code)
+    || code === "provider_submit_required"
+    || code === "target_raw_bytes_invalid";
+}
+
+function targetPageAuthorityFailure(operation, route, error) {
+  const reason = pageAuthorityDiagnosticReasonKind(error?.code);
+  const common = {
+    version: 1,
+    operation: `target-page-authority-${operation}`,
+    reason: { kind: reason },
+  };
+  const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
+
+  if (FRAMED_SOURCE_VALIDATION_CODES.has(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Framed Text Frame is invalid or cannot fit the canonical frame.",
+      hint: "Repair the named source Text Frame, then rerun image2 plan.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        source,
+        next: createCliNext("edit_source", {
+          inspect: [source],
+          default: "Repair the current Framed Text Frame in source, then rerun image2 plan.",
+        }),
+      },
+    };
+  }
+
+  if (FRAMED_ENVIRONMENT_CODES.has(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The local Framed browser or checked-in font runtime is not ready.",
+      hint: "Repair the local Framed runtime or font inventory, then rerun the same checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "environment",
+        next: createCliNext("repair_environment", {
+          default: "Run the Framed-local doctor repair path, then rerun the same image2 checkpoint.",
+        }),
+      },
+    };
+  }
+
+  if (FRAMED_INTERNAL_CODES.has(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The canonical Framed render contract is inconsistent.",
+      hint: "Report the framework defect; source and provider configuration are not the repair owner.",
+      diagnostic: {
+        ...common,
+        category: "internal",
+        next: createCliNext("report_internal", {
+          default: "Inspect the Framed compiler, profile, or capture owner and report the framework defect before rerunning.",
+        }),
+      },
+    };
+  }
+
+  if (isTargetArtifactFailure(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Page Authority plan or evidence is stale or incomplete.",
+      hint: "Repair the owning Page Authority artifact, then rerun the same checkpoint.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("repair_prerequisite", {
+          default: "Rebuild the named current plan or evidence through its owner, then rerun the same checkpoint.",
+        }),
+      },
+    };
+  }
+
+  if (TARGET_GATE_CODES.has(reason)) {
+    return {
+      code: CLI_ERROR_CODES.GATE_BLOCKED,
+      message: "The current Page Authority authorization or review gate is not satisfied.",
+      hint: "Complete the owner-issued authorization or raw-review prerequisite before continuing.",
+      diagnostic: {
+        ...common,
+        category: "gate",
+        next: createCliNext("repair_prerequisite", {
+          default: "Complete the exact current authorization or review prerequisite, then rerun this operation.",
+        }),
+      },
+    };
+  }
+
+  if (isTargetProviderFailure(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The Image2 provider request did not complete.",
+      hint: "Repair provider configuration or availability, then rerun the authorized operation.",
+      diagnostic: {
+        ...common,
+        category: "provider",
+        next: createCliNext("repair_environment", {
+          default: "Repair the provider configuration or availability, then rerun the already authorized operation.",
+        }),
+      },
+    };
+  }
+
+  return {
+    code: CLI_ERROR_CODES.FAILED,
+    message: "The target Page Authority operation failed unexpectedly.",
+    hint: "Report the framework failure; provider configuration is not the repair owner for an unknown cause.",
+    diagnostic: {
+      ...common,
+      category: "internal",
+      next: createCliNext("report_internal", {
+        default: "Inspect the registered Page Authority owner and report the framework failure before rerunning.",
+      }),
+    },
+  };
+}
+
 function targetUnsupportedOverride(opts) {
   const forbidden = [
     ["slides", opts.slides],
@@ -1416,7 +1589,14 @@ function targetPageAuthoritySubmitFactory(plan) {
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
   return async ({ request, item }) => {
     const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
-    const credentials = resolveImage2Credentials();
+    let credentials;
+    try {
+      credentials = resolveImage2Credentials();
+    } catch {
+      const error = new Error("Target Page Authority provider credentials are unavailable");
+      error.code = "PAGE_AUTHORITY_PROVIDER_CREDENTIALS_UNAVAILABLE";
+      throw error;
+    }
     const slide = slideById.get(item.slide_id);
     if (!slide || request?.slide_id !== item.slide_id || !request?.generation_profile?.provider?.model) {
       const error = new Error("Target Page Authority provider request is not bound to the current selected workflow plan");
@@ -1475,6 +1655,7 @@ async function targetImage2Operations(workflow) {
     return Object.freeze({
       resolveSource: owner.resolveFramedTargetSource,
       buildPlan: owner.buildFramedTargetRawPlan,
+      readStoredPlan: owner.readFramedTargetStoredPlanContext,
       projectPlan: owner.framedTargetRawPlanProjection,
       authorize: owner.authorizeFramedTargetRawPlan,
       generate: owner.generateFramedTargetRawPlan,
@@ -1490,6 +1671,7 @@ async function targetImage2Operations(workflow) {
     return Object.freeze({
       resolveSource: owner.resolvePureTargetSource,
       buildPlan: owner.buildPureTargetRawPlan,
+      readStoredPlan: owner.buildPureTargetRawPlan,
       projectPlan: owner.pureTargetRawPlanProjection,
       authorize: owner.authorizePureTargetRawPlan,
       generate: owner.generatePureTargetRawPlan,
@@ -1517,14 +1699,14 @@ async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
     const operations = await targetImage2Operations(route.workflow);
     let output;
     if (operation === "plan") {
-      const plan = operations.buildPlan(route.run_dir, { allowSourceRebuild: true });
+      const plan = await operations.buildPlan(route.run_dir, { allowSourceRebuild: true });
       output = operations.projectPlan(plan);
     } else if (operation === "authorize") {
       if (!opts.planHash) return emitUsage("ppt_flow.image2.target.authorize", "--plan-hash is required", "Pass the exact current target raw plan hash.");
       output = await operations.authorize(route.run_dir, { planHash: opts.planHash });
     } else if (operation === "generate") {
       if (!opts.planHash) return emitUsage("ppt_flow.image2.target.generate", "--plan-hash is required", "Pass the exact authorized target raw plan hash.");
-      const plan = operations.buildPlan(route.run_dir);
+      const plan = await operations.readStoredPlan(route.run_dir);
       output = await operations.generate(route.run_dir, {
         planHash: opts.planHash,
         submit: targetPageAuthoritySubmitFactory(plan),
@@ -1540,32 +1722,13 @@ async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
     console.log(JSON.stringify(output, null, 2));
     return 0;
   } catch (error) {
-    const errorDetail = `${error.code || ""} ${error.message || ""}`;
-    const gateBlocked = /STALE|stale|RAW_REVIEW|AUTHORIZATION|RAW_EVIDENCE|TARGET_.*(?:REQUIRED|MISMATCH)|provider_authorization_required/i.test(errorDetail);
-    const unauthorizedSubmit = /provider_authorization_required|AUTHORIZATION_(?:MISSING|SOURCE_EPOCH_STALE|EXECUTION_STALE|PROFILE_MISMATCH|SCOPE_MISMATCH|COUNT_EXCEEDED)/i.test(errorDetail);
+    const failure = targetPageAuthorityFailure(operation, route, error);
     emitCliError({
-      code: gateBlocked ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
-      message: error.message || "Target Page Authority Image2 operation failed.",
-      hint: gateBlocked
-        ? unauthorizedSubmit
-          ? "Record or repair the exact current raw-submit authorization before requesting another provider submission."
-          : "Repair the selected workflow raw plan or review evidence, then take the owner-issued next action."
-        : "Repair the canonical target source, local evidence, or configured provider readiness before retrying.",
+      code: failure.code,
+      message: failure.message,
+      hint: failure.hint,
       where: `ppt_flow.image2.target.${operation}`,
-      diagnostic: {
-        version: 1,
-        category: gateBlocked ? "gate" : "provider",
-        operation: `target-page-authority-${operation}`,
-        source: { path: route.run_dir },
-        reason: { kind: pageAuthorityDiagnosticReasonKind(error.code, "target_page_authority_operation_failed") },
-        next: createCliNext("repair_prerequisite", {
-          default: gateBlocked
-            ? unauthorizedSubmit
-              ? "Use the current selected-workflow raw plan to record exact authorization before generate; do not retry a provider submit first."
-              : "Repair the exact selected-workflow raw plan or review evidence before retrying."
-            : "Repair the named target Page Authority prerequisite without using a direct provider override.",
-        }),
-      },
+      diagnostic: failure.diagnostic,
     });
     return 1;
   }

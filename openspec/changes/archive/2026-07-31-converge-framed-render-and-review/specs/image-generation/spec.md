@@ -35,25 +35,40 @@ plan-time browser proof.
 
 ### Requirement: Raw review is Page Authority evidence
 
-The raw-review projection SHALL cover one deterministic order of all current raw tuples and bind its
-PNG digest, projection/capture-profile digest, source epoch, exact byte coverage, and the selected
-workflow's typed review-contribution digest. Each selected workflow adapter SHALL contribute generic
-identity labels and any workflow-owned overlay/profile facts; shared raw-review mechanics SHALL verify
-and render those generic primitives without interpreting workflow semantics.
+The raw-review projection SHALL cover all current raw tuples in the current raw work plan's
+`ordered_slide_ids` order and bind its PNG digest, projection/capture-profile digest, source epoch,
+exact ordered byte coverage, and the selected workflow's coverage-only typed review-contribution digest. Each
+selected workflow adapter SHALL contribute generic identity labels separately from the coverage facts
+and contribute any workflow-owned overlay/profile facts; shared raw-review mechanics SHALL verify and
+render those generic primitives without interpreting workflow semantics.
 
 Framed contributions SHALL bind the current `render_profile_digest` and reserved safe-zone guides.
 Pure contributions SHALL contain no Framed Text Frame or safe-zone semantics. When available, every
-page label SHALL display `position + formal slide_id + title` while stable identity and current position
-remain distinct facts.
+page label SHALL display `position + formal slide_id + title` at projection capture while stable identity
+and current position remain distinct facts. Individual label strings, including a source title, SHALL be
+presentation-only: they SHALL NOT enter the workflow's typed review-contribution digest or coverage identity.
+The projection/capture profile binds label format and rendering behavior, not the displayed label values.
+Review coverage SHALL NOT bind `source_receipt_sha256` or a raw-work-plan hash; accepted raw evidence
+owns those source-lineage bindings and the local-rebind validator separately checks the exact raw
+contracts, ordered stable IDs, provider profile, and underlay bytes.
+
+A Framed Text Frame-only local rebind SHALL retain an accepted raw-review reference and its prior
+projection only when its source epoch, workflow, ordered stable IDs, raw contracts, provider profile,
+exact underlay bytes, safe-zone guides, render profile, typed review-contribution digest, and
+projection/capture profile remain exact. It SHALL rebind the accepted raw tuple to the changed source
+without advancing the source epoch or regenerating the projection. Before it retains the reference, the
+owner SHALL verify the stored review record's actual projection PNG bytes/hash and every listed coverage
+binding. The retained title label is historical presentation, never current-source authority. Any change
+to a listed coverage-bound fact requires a fresh projection and review.
 
 A complete current projection without a human decision is the existing raw-quality `confirm` action.
 Missing, partial, stale, mismatched, or incompletely attributable coverage is a repair `hard-stop` and
 cannot be waived by a human quality decision. Finalization SHALL not publish without current accepted
 raw-review evidence.
 
-#### Scenario: A stale raw projection cannot satisfy finalization
+#### Scenario: A coverage-bound raw projection cannot satisfy finalization
 
-- **WHEN** a covered raw tuple, Framed safe-zone guide, workflow contribution, render profile, or projection/capture profile changes
+- **WHEN** an ordered raw-byte identity, raw contract, Framed safe-zone guide, typed review contribution, render profile, or projection/capture profile changes
 - **THEN** the previous review decision is stale and a fresh projection is required
 - **AND** a final artifact or copied review record cannot substitute for it
 
@@ -62,6 +77,18 @@ raw-review evidence.
 - **WHEN** a current Framed raw projection is prepared
 - **THEN** it shows each exact raw image with current position, formal ID, title, and reserved-region guides
 - **AND** coverage binds both the Framed render-profile contribution and the shared projection/capture profile
+
+#### Scenario: Text-only rebind retains underlay review evidence
+
+- **WHEN** only Framed Text Frame literals change and every local-rebind coverage condition remains exact
+- **THEN** the accepted raw evidence retains its prior raw-review reference while binding the new source receipt
+- **AND** the unchanged source epoch and historical projection label do not make the underlay coverage stale
+
+#### Scenario: Review order follows the current plan
+
+- **WHEN** the current raw work plan presents its exact ordered stable IDs after a source reorder
+- **THEN** the review projection renders those tuples in that order with their current positions
+- **AND** the ordering remains bound to the exact current plan rather than lexical ID sorting
 
 #### Scenario: Pure review stays free of Framed semantics
 

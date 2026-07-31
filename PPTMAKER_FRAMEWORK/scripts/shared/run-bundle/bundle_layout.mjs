@@ -1066,10 +1066,11 @@ owning path. Put version-local temporary work only in \`${VERSIONS_DIR}/vN/${SCR
 
 ## CLI diagnostic contract
 
-For a non-zero CLI result, consume only the final valid JSON failure envelope on stderr. Use a
-supported \`diagnostic.next\` with its \`program\` and \`args\` kept as separate arguments. Stop
-when \`requires_human: true\`; do not guess omitted lineage, repair state/journals/locks by hand,
-or treat a chat request as approval.
+For a non-zero CLI result, consume only the final valid JSON failure envelope on stderr. Use the
+producer-issued \`diagnostic.category\` and supported \`diagnostic.next\`, never prose, to choose the
+owner action; keep its \`program\` and \`args\` as separate arguments. Stop when
+\`requires_human: true\`; do not guess omitted lineage, repair state/journals/locks by hand, or treat
+a chat request as approval.
 
 Git is optional and user-owned. Visible \`vN\` remains the work-version authority, and
 \`${GENERATED_SUBDIR}/\` is never a recovery target. Do not perform a Git mutation without the

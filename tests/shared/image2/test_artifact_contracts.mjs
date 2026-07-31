@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   createAcceptedRawEvidence,
   createFinalSlideManifest,
@@ -7,8 +11,13 @@ import {
   validateFinalSlideManifest,
   validateRawWorkPlan,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { resolveTargetCandidateSourceContext } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { statePath } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 function plan(workflow = "framed") {
   return createRawWorkPlan({
@@ -80,5 +89,58 @@ describe("Page Authority v2 typed artifacts", () => {
       raw_review_sha256: digest("0"),
       raw_bytes_by_slide: { DeckGo: Buffer.from("raw-a") },
     })).toThrow(/cover the raw work plan exactly/);
+  });
+
+  it("reads a selected-workflow source candidate without materializing lineage", () => {
+    const root = mkdtempSync(join(tmpdir(), "target-candidate-source-"));
+    const deck = join(root, "deck_candidate_source");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const sourcePath = join(runDir, "slide-specifications.md");
+      const sourceText = "candidate source bytes\n";
+      writeFileSync(sourcePath, sourceText, "utf8");
+      const paths = pageAuthorityImage2Paths(runDir);
+      const derived = [
+        paths.target_source_receipt,
+        paths.target_raw_plan,
+        paths.target_raw_evidence,
+        paths.target_raw_review,
+        paths.target_raw_review_projection,
+        paths.target_final_manifest,
+      ];
+      const beforeState = readFileSync(statePath(deck));
+      expect(derived.every((path) => !existsSync(path))).toBe(true);
+
+      let parserInput = null;
+      const candidate = resolveTargetCandidateSourceContext(runDir, {
+        workflow: "framed",
+        parseReceipt: (input) => {
+          parserInput = input;
+          return {
+            schema: "page-authority-image2-source-v2",
+            pipeline: "page-authority-image2-v2",
+            workflow: "framed",
+            source_sha256: sha256(input.sourceText),
+            slides: [{ slide_id: "DeckGo", workflow: "framed" }],
+          };
+        },
+      });
+
+      expect(parserInput).toMatchObject({ runDir, deckDir: deck, sourcePath, sourceText });
+      expect(candidate).toMatchObject({
+        run_dir: runDir,
+        deck_dir: deck,
+        source_path: sourcePath,
+        source_sha256: sha256(sourceText),
+        workflow: "framed",
+        receipt: { source_sha256: sha256(sourceText) },
+      });
+      expect(candidate).not.toHaveProperty("source_epoch");
+      expect(readFileSync(statePath(deck))).toEqual(beforeState);
+      expect(derived.every((path) => !existsSync(path))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

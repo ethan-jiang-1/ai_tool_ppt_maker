@@ -35,15 +35,19 @@ function pureReceipt(source = "a", title = "Pure title") {
   };
 }
 
-function framedEvidence(receipt) {
-  const plan = createRawWorkPlan({
+function framedPlan(receipt, rawContract = "d") {
+  return createRawWorkPlan({
     source_receipt_sha256: receipt.source_sha256,
     workflow: "framed",
     ordered_slide_ids: ["DeckGo"],
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
-    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest(rawContract) }],
   });
+}
+
+function framedEvidence(receipt) {
+  const plan = framedPlan(receipt);
   return {
     plan,
     evidence: createAcceptedRawEvidence({
@@ -59,11 +63,13 @@ describe("TARGET refresh routing", () => {
   it("routes Framed text-only edits through local compose and style changes through raw rebuild", () => {
     const previous = framedReceipt("a", "Original title");
     const { plan, evidence } = framedEvidence(previous);
+    const textOnlyNext = framedReceipt("f", "Updated title");
     expect(classifyTargetRefresh({
       workflow: "framed",
       previousReceipt: previous,
-      nextReceipt: framedReceipt("z", "Updated title"),
+      nextReceipt: textOnlyNext,
       rawWorkPlan: plan,
+      nextRawWorkPlan: framedPlan(textOnlyNext),
       acceptedRawEvidence: evidence,
     })).toMatchObject({
       kind: "framed_local_compose",
@@ -72,7 +78,7 @@ describe("TARGET refresh routing", () => {
       delivery_owner: "05-delivery",
     });
 
-    const styleChanged = framedReceipt("z", "Original title");
+    const styleChanged = framedReceipt("e", "Original title");
     styleChanged.slides[0].visual_brief = { recipe: "bold-editorial" };
     expect(classifyTargetRefresh({
       workflow: "framed",
@@ -84,6 +90,20 @@ describe("TARGET refresh routing", () => {
       kind: "framed_rebuild",
       owner: "03-framed-image",
       provider_required: true,
+    });
+
+    expect(classifyTargetRefresh({
+      workflow: "framed",
+      previousReceipt: previous,
+      nextReceipt: previous,
+      rawWorkPlan: plan,
+      nextRawWorkPlan: framedPlan(previous, "f"),
+      acceptedRawEvidence: evidence,
+    })).toMatchObject({
+      kind: "framed_rebuild",
+      owner: "03-framed-image",
+      provider_required: true,
+      reason: "raw_contract_or_profile_drift",
     });
   });
 

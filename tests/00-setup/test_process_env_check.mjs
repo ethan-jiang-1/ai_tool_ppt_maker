@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { execFileSync, execSync } from 'node:child_process';
-import { chmodSync, mkdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -11,11 +11,13 @@ import {
   discoverNpmPackages,
   findPackageInAncestorNodeModules,
   probeGitSafetyForTest,
+  runAllChecks,
 } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
 import { parseCliErrorLine } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
+import { currentFramedRenderProfile } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
-const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright', 'echarts'];
+const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
 
 function runCheck(args = '') {
   try {
@@ -34,8 +36,8 @@ function stubPackages(nmDir) {
   for (const pkg of REQUIRED) {
     const root = join(nmDir, ...pkg.split('/'));
     mkdirSync(root, { recursive: true });
-    if (pkg === 'playwright' || pkg === 'echarts') {
-      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: pkg, version: pkg === 'playwright' ? '1.61.1' : '6.1.0' }));
+    if (pkg === 'playwright') {
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: pkg, version: '1.61.1' }));
     }
   }
 }
@@ -263,7 +265,7 @@ describe('env-check optional Git public wiring', () => {
       let stdout = '';
       let status = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --image2`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-authority-v2 --operation raw-generation`, {
           encoding: 'utf8',
           timeout: 15_000,
           env: {
@@ -309,6 +311,7 @@ describe('00-env-check', () => {
       const report = JSON.parse(stdout);
       expect(report.checks.find((check) => check.check === 'playwright')).toMatchObject({ status: 'fail' });
       expect(report.checks.find((check) => check.check === 'chromium')).toMatchObject({ status: 'fail' });
+      expect(report.checks.find((check) => check.check === 'framed_render_profile')).toMatchObject({ status: 'fail' });
       expect(report.checks.find((check) => check.check === 'api_key')).toBeUndefined();
     } finally {
       rmSync(cwd, { recursive: true, force: true });
@@ -338,7 +341,7 @@ describe('00-env-check', () => {
 
   it.each([
     ['base', []],
-    ['image2', ['--image2']],
+    ['raw-generation', ['--mode', 'image2-page-authority-v2', '--operation', 'raw-generation']],
     ['smoke', ['--smoke']],
     ['probe-vendors', ['--probe-vendors']],
   ])('emits exactly one parseable JSON document in %s mode', (_mode, modeArgs) => {
@@ -388,18 +391,18 @@ describe('00-env-check', () => {
     expect(checkNode(`${major}.0.0`).status).toBe('fail');
   });
 
-  it('default mode includes HTML runtime checks and omits Image2 presence', () => {
+  it('default mode selects provider-free Framed-local readiness', () => {
     const { stdout } = runCheck('--json');
     const data = JSON.parse(stdout);
     expect(data.image2).toBe(false);
-    expect(data.checks.filter((check) => ['chromium', 'html_fonts', 'html_runtime_smoke'].includes(check.check)).map((check) => check.status)).toEqual(['ok', 'ok', 'ok']);
+    expect(data.checks.filter((check) => ['chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke'].includes(check.check)).map((check) => check.status)).toEqual(['ok', 'ok', 'ok', 'ok']);
     expect(data.checks.find((check) => check.check === 'api_key')).toBeUndefined();
     expect(data.checks.find((check) => check.check === 'image_base_url')).toBeUndefined();
     expect(data.checks.find((check) => check.check === 'page_authority_raw_generator')).toBeUndefined();
   });
 
-  it('treats Page Authority raw owners as ready only in Image2 mode', () => {
-    const { stdout } = runCheck('--json --image2');
+  it('reports Page Authority raw owners for the raw-generation operation', () => {
+    const { stdout } = runCheck('--json --mode image2-page-authority-v2 --operation raw-generation');
     const data = JSON.parse(stdout);
     const generator = data.checks.find(c => c.check === 'page_authority_raw_generator');
     expect(generator).toBeDefined();
@@ -486,19 +489,6 @@ describe('env-check deps walk-up', () => {
     }
   });
 
-  it('fails a present but mismatched ECharts package and exposes the exact root handoff', () => {
-    const root = mkdtempSync(join(tmpdir(), 'env-echarts-drift-'));
-    try {
-      const nm = join(root, 'node_modules');
-      stubPackages(nm);
-      writeFileSync(join(nm, 'echarts', 'package.json'), JSON.stringify({ name: 'echarts', version: '6.0.0' }));
-      const discovered = discoverNpmPackages(root);
-      expect(discovered.checks.find((check) => check.check === 'echarts')).toMatchObject({ status: 'fail' });
-      expect(discovered.echarts).toEqual({ root: join(nm, 'echarts'), version: '6.0.0' });
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
 });
 
 describe('env-check Image2 base URL hard fail', () => {
@@ -513,7 +503,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --image2`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-authority-v2 --operation raw-generation`, {
           encoding: 'utf-8',
           timeout: 15000,
           cwd,
@@ -748,12 +738,12 @@ describe('env-check v2 mode boundary', () => {
 });
 
 describe('env-check Page Authority operation profiles', () => {
-  function runPageAuthorityCheck(args) {
+  function runPageAuthorityCheck(args, env = process.env) {
     try {
       const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-authority-v2', ...args], {
         encoding: 'utf8',
         timeout: 30_000,
-        env: { ...process.env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },
+        env: { ...env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },
       });
       return { exitCode: 0, report: JSON.parse(stdout) };
     } catch (error) {
@@ -761,21 +751,30 @@ describe('env-check Page Authority operation profiles', () => {
     }
   }
 
-  it('reports independent unbound framed and raw profiles without blocking local readiness on missing credentials', () => {
+  it('reports the exact production profile for default Framed-local readiness', () => {
     const result = runPageAuthorityCheck([]);
+    const productionProfile = currentFramedRenderProfile();
     expect(result.exitCode).toBe(0);
     expect(result.report).toMatchObject({
       allPass: true,
-      profile: 'page-authority-unbound',
+      profile: 'page-authority-framed',
       profiles: [
         { id: 'framed-runtime', current_action_ready: true, deferred: false },
-        { id: 'image2-raw', current_action_ready: false, deferred: true },
       ],
     });
     const checks = result.report.checks.map((check) => check.check);
     expect(checks).toContain('playwright');
-    expect(checks).toContain('page_authority_raw_generator');
-    expect(checks).not.toContain('echarts');
+    expect(checks).not.toContain('page_authority_raw_generator');
+    expect(result.report.checks.find((check) => check.check === 'framed_render_profile')).toMatchObject({
+      status: 'ok',
+      profile: {
+        schema: productionProfile.schema,
+        render_profile_digest: productionProfile.render_profile_digest,
+        runtime: productionProfile.runtime,
+        font_render_inventory: productionProfile.font_render_inventory,
+        capture: productionProfile.capture,
+      },
+    });
   });
 
   it('makes raw generation credentials a hard requirement without requiring the Framed runtime', () => {
@@ -789,7 +788,6 @@ describe('env-check Page Authority operation profiles', () => {
     const checks = result.report.checks.map((check) => check.check);
     expect(checks).toContain('page_authority_raw_generator');
     expect(checks).not.toContain('playwright');
-    expect(checks).not.toContain('echarts');
   });
 
   it('keeps a local Framed refresh provider-free', () => {
@@ -804,5 +802,36 @@ describe('env-check Page Authority operation profiles', () => {
     expect(checks).toContain('playwright');
     expect(checks).not.toContain('api_key');
     expect(checks).not.toContain('page_authority_raw_generator');
+  });
+
+  it('does not initialize a provider while checking Framed-local readiness', async () => {
+    const providerApi = {
+      inspect: vi.fn(async () => { throw new Error('provider must remain unused'); }),
+      defaults: vi.fn(async () => { throw new Error('provider must remain unused'); }),
+      classify: vi.fn(async () => { throw new Error('provider must remain unused'); }),
+      host: vi.fn(async () => { throw new Error('provider must remain unused'); }),
+    };
+    const { results } = await runAllChecks({ profile: 'page-authority-framed', providerApi });
+    expect(results.some((check) => check.check === 'api_key' || check.check === 'page_authority_raw_generator')).toBe(false);
+    for (const probe of Object.values(providerApi)) expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('reports a missing paired browser without acquiring one', () => {
+    const browserCache = mkdtempSync(join(tmpdir(), 'env-empty-browser-cache-'));
+    try {
+      const result = runPageAuthorityCheck(['--operation', 'framed-local-refresh'], {
+        ...process.env,
+        PLAYWRIGHT_BROWSERS_PATH: browserCache,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.report.checks.find((check) => check.check === 'chromium')).toMatchObject({
+        status: 'fail',
+        detail: 'paired Chromium is not installed',
+      });
+      expect(result.report.checks.find((check) => check.check === 'framed_render_profile')).toMatchObject({ status: 'fail' });
+      expect(readdirSync(browserCache)).toEqual([]);
+    } finally {
+      rmSync(browserCache, { recursive: true, force: true });
+    }
   });
 });

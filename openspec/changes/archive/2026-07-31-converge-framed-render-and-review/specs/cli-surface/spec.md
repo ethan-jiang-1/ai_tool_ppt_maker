@@ -30,6 +30,12 @@ submission.
 - **THEN** the producer reports a bounded `environment` hard-stop and one environment-repair action
 - **AND** it does not ask the user to edit source or retry a provider
 
+#### Scenario: Browser proof timeout belongs to environment
+
+- **WHEN** the pinned browser cannot complete a page or finite batch proof before its owned deadline
+- **THEN** the producer reports a bounded `environment` hard-stop and one runtime-repair action
+- **AND** it does not attribute unknown runtime behavior to source, retry a provider, or publish an artifact
+
 #### Scenario: Contract contradiction belongs to the framework
 
 - **WHEN** canonical preset, compiler, safe-zone, or capture assertions contradict one another
