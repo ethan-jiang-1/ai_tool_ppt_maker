@@ -8,6 +8,15 @@ export const IMAGE2_RETURN_CASES = Object.freeze([
   "raw_review",
   "delivery_lineage",
 ]);
+export const STYLE_MASTER_RETURN_CASES = Object.freeze([
+  "inspect",
+  "plan",
+  "authorize",
+  "generate",
+  "review",
+  "accept",
+  "abandon",
+]);
 /**
  * Continuation paths are intentionally named here instead of inferred from
  * Commander wiring. This keeps every user-visible guide/waiver/conflict path
@@ -79,6 +88,16 @@ export const PPT_FLOW_RETURN_AUDIT = Object.freeze({
     "new-version": all,
     test: all,
     state: all,
+    "style-master": Object.freeze({
+      ...all,
+      inspect: "case:owner-issued-current-projection",
+      plan: "case:provider-free-plan",
+      authorize: "case:exact-candidate-grant",
+      generate: "case:authorized-candidate-submit",
+      review: "case:real-byte-review",
+      accept: "case:selection-cas-and-projection",
+      abandon: "case:reasoned-unknown-abandonment",
+    }),
     image2: Object.freeze({
       ...all,
       raw_plan: "case:receipt-bound-plan",
@@ -103,6 +122,9 @@ export function validateCliReturnAudit(audit = PPT_FLOW_RETURN_AUDIT, expectedCo
     for (const category of CLI_RETURN_CATEGORIES) if (typeof record[category] !== "string" || !record[category]) errors.push(`${command} is missing ${category} return case`);
     if (command === "image2") {
       for (const operation of IMAGE2_RETURN_CASES) if (typeof record[operation] !== "string" || !record[operation]) errors.push(`image2 is missing ${operation} return case`);
+    }
+    if (command === "style-master") {
+      for (const operation of STYLE_MASTER_RETURN_CASES) if (typeof record[operation] !== "string" || !record[operation]) errors.push(`style-master is missing ${operation} return case`);
     }
   }
   const continuationAudit = audit.commands.continuations;

@@ -51,7 +51,7 @@ describe("framework documentation coherence", () => {
 
   it("keeps CLI producer and MD consumer authority routes discoverable", () => {
     const cliSpec = readFileSync("openspec/specs/cli-surface/spec.md", "utf8");
-    expect(cliSpec).toMatch(/fixed 14-command unified entry\s+point/);
+    expect(cliSpec).toMatch(/fixed 12-command unified entry\s+point/);
     expect(validateDiagnosticAuthorityPointers()).toEqual([]);
   });
 

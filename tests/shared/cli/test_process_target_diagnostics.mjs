@@ -6,9 +6,11 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
+import { resolveFramedStyleMasterScope } from "../../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import { CLI_BOUNDS, parseCliErrorLine } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 
@@ -46,13 +48,14 @@ negative_constraints:
 `;
 }
 
-function createFixture(title) {
+async function createFixture(title) {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-target-cli-diagnostic-"));
   const deck = join(root, "deck_target_cli_diagnostic");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
   writeFileSync(join(runDir, "slide-specifications.md"), framedSource(title));
+  await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
@@ -166,7 +169,7 @@ function expectOwnerAction(envelope, { category, reason, action }) {
 
 describe("target Page Authority CLI diagnostics", () => {
   it("short-circuits an unfit Framed source, preserves owner boundaries, and succeeds after the same plan repair", async () => {
-    const fixture = createFixture(`SOURCE_LITERAL_SENTINEL ${"W".repeat(28)}`);
+    const fixture = await createFixture(`SOURCE_LITERAL_SENTINEL ${"W".repeat(28)}`);
     const provider = await startMockProvider();
     try {
       const before = immutableSnapshot(fixture);
@@ -217,7 +220,7 @@ describe("target Page Authority CLI diagnostics", () => {
   }, 45_000);
 
   it("reports an unavailable pinned runtime before materialization and succeeds after the same plan environment repair", async () => {
-    const fixture = createFixture("Runtime readiness");
+    const fixture = await createFixture("Runtime readiness");
     const emptyBrowserCache = mkdtempSync(join(tmpdir(), "pptmaker-empty-browser-cache-"));
     const provider = await startMockProvider();
     try {

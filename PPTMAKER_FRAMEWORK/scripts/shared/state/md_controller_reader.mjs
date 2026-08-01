@@ -15,9 +15,9 @@
  * plus active node-specification deltas discovered through `openspec status`.
  * Producer fields remain owned by cli-surface and are not redefined here.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { parse } from "yaml";
+import { parseDocument } from "yaml";
 import { PRODUCTION_MODES, TARGET_PRODUCTION_MODE, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 import {
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
@@ -92,6 +92,7 @@ const DETERMINISTIC_CONDITIONS = new Set([
   "deck_guide_created",
   "visual_preset_seeded",
   "style_master_exists",
+  "style_master_accepted",
   "slide_specs_exists",
   "slide_specs_valid",
   "pptx_generated",
@@ -111,10 +112,21 @@ function parseFrontmatter(text, source) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
   if (!match) return { data: {}, end: 0, error: null };
   try {
-    return { data: parse(match[1]) || {}, end: match[0].length, error: null };
+    return { data: parseYamlMapping(match[1], source) || {}, end: match[0].length, error: null };
   } catch (error) {
     return { data: {}, end: match[0].length, error: `${source}:1: ${error.message}` };
   }
+}
+
+function parseYamlMapping(text, source) {
+  const document = parseDocument(text, { uniqueKeys: true, prettyErrors: false });
+  if (document.errors.length > 0) throw new Error(`${source}: ${document.errors[0].message}`);
+  const value = document.toJS();
+  if (value == null) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${source}: YAML declaration must be a mapping`);
+  }
+  return value;
 }
 
 function parseSteps(body, startLine) {
@@ -145,6 +157,7 @@ function normalizeNode(raw, meta) {
     productionWorkflows: asStringArray(raw?.production_workflows),
     adapter: raw?.adapter == null ? null : String(raw.adapter),
     modeTransitionHandoff: raw?.mode_transition_handoff == null ? null : String(raw.mode_transition_handoff),
+    draftRoute: raw && Object.hasOwn(raw, "draft_route") ? raw.draft_route === true : false,
     shared: raw?.shared === true,
     raw,
     ...meta,
@@ -179,7 +192,7 @@ export function parseControllerFile(filePath) {
     const match = fences[index];
     let raw;
     try {
-      raw = parse(match[1]) || {};
+      raw = parseYamlMapping(match[1], `${filePath}:${lineNumber(text, match.index)}`) || {};
     } catch (error) {
       errors.push(`${filePath}:${lineNumber(text, match.index)}: ${error.message}`);
       continue;
@@ -210,6 +223,56 @@ export function parseControllerFile(filePath) {
   };
 }
 
+const CONTROLLER_MANIFEST_FILE = "controller-manifest-v3.json";
+
+function readControllerManifest(playbookDir) {
+  const path = join(playbookDir, CONTROLLER_MANIFEST_FILE);
+  if (!existsSync(path)) return { path, manifest: null, errors: [] };
+  try {
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+      return { path, manifest: null, errors: [`${path}: controller manifest must be an object`] };
+    }
+    return { path, manifest, errors: [] };
+  } catch (error) {
+    return { path, manifest: null, errors: [`${path}: ${error.message}`] };
+  }
+}
+
+function manifestDraftRoutes(manifest, playbook) {
+  const routes = manifest?.controllers?.[playbook]?.draft_route_nodes;
+  if (!routes || typeof routes !== "object" || Array.isArray(routes)) return null;
+  return routes;
+}
+
+/**
+ * Return the manifest route only when it exactly agrees with the declarations
+ * in the Controller. Consumers never receive an unvalidated raw manifest list.
+ */
+function normalizedManifestDraftRoutes(index, playbook) {
+  const controller = index?.controllers?.get(playbook);
+  if (!controller || controller.playbook !== "create-deck") return null;
+  const routes = manifestDraftRoutes(index.controllerManifest, playbook);
+  if (!routes || Object.keys(routes).length !== TARGET_WORKFLOWS.length ||
+    !TARGET_WORKFLOWS.every((workflow) => Object.hasOwn(routes, workflow))) {
+    return null;
+  }
+
+  const normalized = {};
+  for (const workflow of TARGET_WORKFLOWS) {
+    const declared = controller.nodes
+      .filter((node) => node.draftRoute && nodeAppliesToWorkflow(node, workflow))
+      .map((node) => node.id);
+    const route = routes[workflow];
+    if (!Array.isArray(route) || route.some((nodeId) => typeof nodeId !== "string") ||
+      new Set(route).size !== route.length || !sameOrderedValues(route, declared)) {
+      return null;
+    }
+    normalized[workflow] = Object.freeze([...route]);
+  }
+  return Object.freeze(normalized);
+}
+
 export function buildPlaybookIndex(playbookDir) {
   const files = readdirSync(playbookDir)
     .filter((name) => name.endsWith(".md"))
@@ -220,6 +283,7 @@ export function buildPlaybookIndex(playbookDir) {
   const nodesById = new Map();
   const duplicates = new Map();
   const errors = files.flatMap((file) => file.errors);
+  const manifestResult = readControllerManifest(playbookDir);
 
   for (const file of files) {
     if (file.playbook) controllers.set(file.playbook, file);
@@ -233,7 +297,46 @@ export function buildPlaybookIndex(playbookDir) {
     }
   }
 
-  return { playbookDir, files, controllers, shared, nodesById, duplicates, errors };
+  const index = {
+    playbookDir,
+    files,
+    controllers,
+    shared,
+    nodesById,
+    duplicates,
+    errors,
+    controllerManifest: manifestResult.manifest,
+    manifestPath: manifestResult.path,
+    manifestErrors: manifestResult.errors,
+    draftRoutes: new Map(),
+  };
+  if (manifestResult.manifest?.controllers && typeof manifestResult.manifest.controllers === "object") {
+    for (const playbook of Object.keys(manifestResult.manifest.controllers)) {
+      const routes = normalizedManifestDraftRoutes(index, playbook);
+      if (routes) index.draftRoutes.set(playbook, routes);
+    }
+  }
+  return index;
+}
+
+/** Ordered, manifest-owned fresh-draft route for one selected workflow. */
+export function controllerDraftRouteNodes(index, playbook, workflow = null) {
+  const routes = index?.draftRoutes?.get(playbook) || normalizedManifestDraftRoutes(index, playbook);
+  if (!routes) return [];
+  if (workflow === null) {
+    const framed = Array.isArray(routes.framed) ? routes.framed : [];
+    const pure = Array.isArray(routes.pure) ? routes.pure : [];
+    // Before a workflow is selected, the Controller may route only through
+    // its common selection entry. Shared later nodes become routable only
+    // after the canonical source binds framed or pure.
+    return framed.length > 0 && framed[0] === pure[0] ? [framed[0]] : [];
+  }
+  if (!TARGET_WORKFLOWS.includes(workflow) || !Array.isArray(routes[workflow])) return [];
+  return [...routes[workflow]];
+}
+
+export function controllerDraftRouteIncludes(index, playbook, workflow, nodeId) {
+  return controllerDraftRouteNodes(index, playbook, workflow).includes(nodeId);
 }
 
 function addError(errors, node, rule, message) {
@@ -272,6 +375,12 @@ function validateNodeShape(node, errors) {
   }
   if (node.legacyPhase != null) {
     addError(errors, node, "legacy-phase", "replace phase with lifecycle_phase and method_module");
+  }
+  if (Object.hasOwn(node.raw || {}, "draft_route") && node.raw.draft_route !== true) {
+    addError(errors, node, "draft-route", "draft_route may only be the literal Boolean true when present");
+  }
+  if (node.draftRoute && node.playbook !== "create-deck") {
+    addError(errors, node, "draft-route", "draft_route is limited to create-deck nodes");
   }
   if (!LIFECYCLE_PHASES.includes(node.lifecyclePhase)) {
     addError(errors, node, "lifecycle-phase", `invalid lifecycle_phase ${JSON.stringify(node.lifecyclePhase)}`);
@@ -373,9 +482,91 @@ function validateConditions(node, errors, available) {
   }
 }
 
+function sameOrderedValues(actual, expected) {
+  return Array.isArray(actual) && Array.isArray(expected) && actual.length === expected.length && actual.every((value, index) => value === expected[index]);
+}
+
+function validateManifestDraftRoutes(index, controller, manifestEntry, errors) {
+  const declaredNodes = controller.nodes.filter((node) => node.draftRoute);
+  const routes = manifestEntry?.draft_route_nodes;
+  if (routes === undefined) {
+    if (declaredNodes.length > 0) {
+      errors.push({ rule: "draft-route", source: controller.source, line: 1, message: "draft_route declarations require manifest draft_route_nodes" });
+    }
+    return;
+  }
+  if (controller.playbook !== "create-deck") {
+    errors.push({ rule: "draft-route", source: controller.source, line: 1, message: "only create-deck may declare manifest draft_route_nodes" });
+    return;
+  }
+  if (!routes || typeof routes !== "object" || Array.isArray(routes) ||
+    Object.keys(routes).length !== TARGET_WORKFLOWS.length || !TARGET_WORKFLOWS.every((workflow) => Object.hasOwn(routes, workflow))) {
+    errors.push({ rule: "draft-route", source: controller.source, line: 1, message: "draft_route_nodes must contain exactly framed and pure arrays" });
+    return;
+  }
+  for (const workflow of TARGET_WORKFLOWS) {
+    const expected = routes[workflow];
+    if (!Array.isArray(expected) || new Set(expected).size !== expected.length || expected.some((nodeId) => typeof nodeId !== "string")) {
+      errors.push({ rule: "draft-route", source: controller.source, line: 1, message: `${workflow} draft_route_nodes must be a unique ordered node array` });
+      continue;
+    }
+    const actual = controller.nodes
+      .filter((node) => node.draftRoute && nodeAppliesToWorkflow(node, workflow))
+      .map((node) => node.id);
+    if (!sameOrderedValues(actual, expected)) {
+      errors.push({ rule: "draft-route", source: controller.source, line: 1, message: `${workflow} draft_route_nodes must exactly match node-declared draft_route projection` });
+    }
+    for (const nodeId of expected) {
+      const node = controller.nodes.find((entry) => entry.id === nodeId);
+      if (!node || !node.draftRoute || !nodeAppliesToWorkflow(node, workflow)) {
+        errors.push({ rule: "draft-route", source: controller.source, line: 1, message: `${workflow} draft route contains an unknown, sibling, or undeclared node ${nodeId}` });
+      }
+    }
+  }
+}
+
+function validateControllerManifest(index, errors) {
+  for (const message of index.manifestErrors || []) errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message });
+  const manifest = index.controllerManifest;
+  if (!manifest) return;
+  if (manifest.schema !== "pptmaker-controller-manifest-v3" || !Array.isArray(manifest.shared_nodes) ||
+    !manifest.controllers || typeof manifest.controllers !== "object" || Array.isArray(manifest.controllers)) {
+    errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: "controller manifest has an invalid top-level schema" });
+    return;
+  }
+  const shared = [...index.shared.keys()].sort();
+  if (!sameOrderedValues([...manifest.shared_nodes].sort(), shared)) {
+    errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: "manifest shared_nodes do not match active shared nodes" });
+  }
+  const manifestControllers = Object.keys(manifest.controllers).sort();
+  const activeControllers = [...index.controllers.keys()].sort();
+  if (!sameOrderedValues(manifestControllers, activeControllers)) {
+    errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: "manifest controllers do not match active controllers" });
+  }
+  for (const [playbook, controller] of index.controllers) {
+    const entry = manifest.controllers[playbook];
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: `manifest is missing controller ${playbook}` });
+      continue;
+    }
+    const allowed = new Set(["supported_pipelines", "nodes", "draft_route_nodes"]);
+    for (const key of Object.keys(entry)) {
+      if (!allowed.has(key)) errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: `manifest ${playbook} has unknown key ${key}` });
+    }
+    if (!sameOrderedValues(entry.supported_pipelines, controller.supportedPipelines)) {
+      errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: `manifest ${playbook} supported_pipelines drift` });
+    }
+    if (!sameOrderedValues(entry.nodes, controllerNodeIds(index, playbook))) {
+      errors.push({ rule: "manifest", source: index.manifestPath, line: 1, message: `manifest ${playbook} node order drift` });
+    }
+    validateManifestDraftRoutes(index, controller, entry, errors);
+  }
+}
+
 export function validatePlaybookIndex(index) {
   const errors = [];
   for (const message of index.errors) errors.push({ rule: "parse", message });
+  validateControllerManifest(index, errors);
   for (const [id, nodes] of index.duplicates) {
     for (const node of nodes) addError(errors, node, "duplicate-id", `duplicate node id ${id}`);
   }

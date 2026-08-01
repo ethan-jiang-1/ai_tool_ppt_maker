@@ -1,8 +1,8 @@
 # Progressive Plan: Page Authority 第一阶段收官
 
-> 类型：总控计划（program control） | 状态：进行中 | 更新：2026-07-31
+> 类型：总控计划（program control） | 状态：进行中 | 更新：2026-08-01
 >
-> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已 propose 且为唯一 active change；Change 3 尚未创建。
+> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已于 2026-08-01 sync 并 archive；Change 3 尚未创建。
 
 ## 目的
 
@@ -17,7 +17,7 @@
 下面三个总 checkbox 只在对应 change archive 后勾选，严格从上往下做：
 
 - [x] Change 1：`converge-framed-render-and-review`
-- [ ] Change 2：`establish-style-master-feedback`
+- [x] Change 2：`establish-style-master-feedback`
 - [ ] Change 3：`introduce-progressive-page-production`
 
 总共只做这 3 个 OpenSpec change，不再拆小，也不并行。前一个 change 没有完成 apply、测试、sync 和 archive，就不 propose 下一个。每个 change 的 Scope checklist 是归档前必须全部交付的范围；具体实现细项由该 change 的 `tasks.md` 跟踪。
@@ -48,24 +48,24 @@
 
 **目的：** 在任何页面级 raw production 前，让用户先看到真实 Style Master candidate，并把选择变成可恢复、可失效的 accepted visual direction。
 
-**Scope 来源：** [生产约定](production-conventions/README.md)、[Style Master/Pilot 设计](production-conventions/pilot-run-plan.md)、[Style Master tasks](production-conventions/tasks/style-master-tasks.md)、[tasks 投影规则](production-conventions/tasks-overview.md)、[proposal](../../openspec/changes/establish-style-master-feedback/proposal.md)、[design](../../openspec/changes/establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/establish-style-master-feedback/tasks.md)。
+**Scope 来源：** [生产约定](production-conventions/README.md)、[Style Master/Pilot 设计](production-conventions/pilot-run-plan.md)、[Style Master tasks](production-conventions/tasks/style-master-tasks.md)、[tasks 投影规则](production-conventions/tasks-overview.md)、[proposal](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/proposal.md)、[design](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/tasks.md)。
 
 **Scope checklist：**
 
-- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：建立 provider-free candidate plan，绑定 style intent、workflow、generation profile、candidate count、selection scope 与 previous effective-style digest。
-- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：取得精确 `style-master` authorization，并由唯一 owner 保存 grant、attempt、consumption、bytes 与 provenance。
-- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：每个 candidate 完成后提供可恢复 progress；uncertain outcome 先对账，不自动 retry。
-- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：展示真实 candidate bytes 后取得 `proceed | repair | redirect`，未经审查的 bytes 不能成为 effective style。
-- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)、[`image-generation`](../../openspec/changes/establish-style-master-feedback/specs/image-generation/spec.md)、[`pipeline-orchestration`](../../openspec/changes/establish-style-master-feedback/specs/pipeline-orchestration/spec.md) 与 [`run-bundle-layout`](../../openspec/changes/establish-style-master-feedback/specs/run-bundle-layout/spec.md)：通过 CAS/atomic promotion 保存 effective selection 与 acceptance receipt，并正确失效下游 plan/review/final/delivery evidence。
-- [ ] [`playbook-execution`](../../openspec/changes/establish-style-master-feedback/specs/playbook-execution/spec.md)、[`node-specification`](../../openspec/changes/establish-style-master-feedback/specs/node-specification/spec.md) 与 [`cli-surface`](../../openspec/changes/establish-style-master-feedback/specs/cli-surface/spec.md)：Framed/Pure 各自拥有独立 Controller entry，同时恢复 current `style-master` CLI、diagnostics、task projection 和 tests。
-- [ ] [`image-generation`](../../openspec/changes/establish-style-master-feedback/specs/image-generation/spec.md) 与 [`pipeline-orchestration`](../../openspec/changes/establish-style-master-feedback/specs/pipeline-orchestration/spec.md)：Change 2 结束时页面级 raw provider calls 仍为零；不提前建立 raw batch lifecycle。
+- [x] [`style-master-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/style-master-generation/spec.md)：建立 provider-free candidate plan，绑定 style intent、workflow、generation profile、candidate count、selection scope 与 previous effective-style digest。
+- [x] [`style-master-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/style-master-generation/spec.md)：取得精确 `style-master` authorization，并由唯一 owner 保存 grant、attempt、consumption、bytes 与 provenance。
+- [x] [`style-master-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/style-master-generation/spec.md)：每个 candidate 完成后提供可恢复 progress；uncertain outcome 先对账，不自动 retry。
+- [x] [`style-master-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/style-master-generation/spec.md)：展示真实 candidate bytes 后取得 `proceed | repair | redirect`，未经审查的 bytes 不能成为 effective style。
+- [x] [`style-master-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/style-master-generation/spec.md)、[`image-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/image-generation/spec.md)、[`pipeline-orchestration`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/pipeline-orchestration/spec.md) 与 [`run-bundle-layout`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/run-bundle-layout/spec.md)：通过 CAS/atomic promotion 保存 effective selection 与 acceptance receipt，并正确失效下游 plan/review/final/delivery evidence。
+- [x] [`playbook-execution`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/playbook-execution/spec.md)、[`node-specification`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/node-specification/spec.md) 与 [`cli-surface`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/cli-surface/spec.md)：Framed/Pure 各自拥有独立 Controller entry，同时恢复 current `style-master` CLI、diagnostics、task projection 和 tests。
+- [x] [`image-generation`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/image-generation/spec.md) 与 [`pipeline-orchestration`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/specs/pipeline-orchestration/spec.md)：Change 2 结束时页面级 raw provider calls 仍为零；不提前建立 raw batch lifecycle。
 
 **按顺序完成：**
 
-- [x] Change 1 archive 后，重新读取 main specs/runtime truth；propose [`establish-style-master-feedback`](../../openspec/changes/establish-style-master-feedback/proposal.md)，完成 7 个 capability delta、[design](../../openspec/changes/establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/establish-style-master-feedback/tasks.md) 和初始 strict validation。
-- [ ] 完成该 change 的全部 tasks；页面级 raw provider calls 必须保持为零。
-- [ ] 跑 focused、Controller、CLI、Framed/Pure mock E2E 和完整 regression。
-- [ ] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `establish-style-master-feedback`。
+- [x] Change 1 archive 后，重新读取 main specs/runtime truth；propose [`establish-style-master-feedback`](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/proposal.md)，完成 7 个 capability delta、[design](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/archive/2026-08-01-establish-style-master-feedback/tasks.md) 和初始 strict validation。
+- [x] 完成该 change 的全部 tasks；页面级 raw provider calls 必须保持为零。
+- [x] 跑 focused、Controller、CLI、Framed/Pure mock E2E 和完整 regression。
+- [x] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `establish-style-master-feedback`。
 
 ## Change 3: Introduce Progressive Page Production
 

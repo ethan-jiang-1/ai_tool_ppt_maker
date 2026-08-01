@@ -18,12 +18,15 @@ import {
   createTargetRawReviewContribution,
   decideTargetRawReview,
   generateTargetRawWork,
+  materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
   rebindTargetLocalComposeWork,
   resolveTargetLocalComposeContext,
+  resolveTargetCandidateSourceContext,
+  resolveTargetStoredPlanContext,
   resolveTargetSourceContext,
   targetSourceSemanticSha256,
   targetRawPlanProjection,
@@ -32,6 +35,10 @@ import {
   writeTargetRawWorkPlan,
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
+import {
+  bindStyleMasterScopeCandidate,
+  resolveStyleMasterScopeContext,
+} from "../shared/image2/style_master_scope.mjs";
 import {
   deliverTargetFinalSlideManifest,
 } from "../05-delivery/index.mjs";
@@ -162,6 +169,23 @@ export function resolvePureTargetSource(runDir, { allowSourceRebuild = false } =
   });
 }
 
+/** Resolve the selected Pure source without state or artifact materialization. */
+export function resolvePureTargetCandidateSource(runDir) {
+  return resolveTargetCandidateSourceContext(runDir, {
+    workflow: PURE_IMAGE_WORKFLOW,
+    parseReceipt: parsePureTargetReceipt,
+  });
+}
+
+/** Resolve Pure's exact Style Master scope without materializing page lineage. */
+export function resolvePureStyleMasterScope(runDir) {
+  const scope = resolveStyleMasterScopeContext(runDir);
+  if (scope.workflow !== PURE_IMAGE_WORKFLOW) {
+    throw new PureImageWorkflowError("wrong_workflow_owner", "Pure Style Master scope requires the selected pure workflow");
+  }
+  return bindStyleMasterScopeCandidate(scope, resolvePureTargetCandidateSource(runDir));
+}
+
 function pureRawContract(slide) {
   const visualLanguage = slide.visual_language?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
@@ -177,9 +201,13 @@ function pureRawContract(slide) {
   });
 }
 
-/** Compile a selected Pure v2 raw plan without touching the Framed sibling. */
-function compilePureTargetRawPlan(context) {
-  const generation = buildTargetRawGenerationProfile(context.deck_dir, context.receipt);
+/** Compile a selected Pure v2 raw-plan candidate without materializing state. */
+function compilePureTargetRawPlanCandidate(context) {
+  const generation = buildTargetRawGenerationProfile({
+    runDir: context.run_dir,
+    deckDir: context.deck_dir,
+    receipt: context.receipt,
+  });
   const rawContractsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
@@ -204,17 +232,33 @@ function compilePureTargetRawPlan(context) {
     authorization_scope_sha256: authorizationScopeSha,
     raw_contracts_by_slide: rawContractsBySlide,
   });
-  writeTargetRawWorkPlan(context, rawWorkPlan);
   return Object.freeze({
     ...context,
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
-    style_master_path: generation.style_master_path,
+    style_master_reference: generation.style_master_reference,
   });
 }
 
 export function buildPureTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
-  return compilePureTargetRawPlan(resolvePureTargetSource(runDir, { allowSourceRebuild }));
+  const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
+  const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  writeTargetRawWorkPlan(context, candidate.raw_work_plan);
+  return Object.freeze({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    provider_requests_by_slide: candidate.provider_requests_by_slide,
+    style_master_reference: candidate.style_master_reference,
+  });
+}
+
+/** Read Pure's exact current stored plan without rematerializing source state. */
+export function readPureTargetStoredPlanContext(runDir) {
+  return resolveTargetStoredPlanContext(runDir, {
+    workflow: PURE_IMAGE_WORKFLOW,
+    parseReceipt: parsePureTargetReceipt,
+    compilePlanCandidate: compilePureTargetRawPlanCandidate,
+  });
 }
 
 export function pureTargetRawPlanProjection(plan) {
@@ -222,12 +266,12 @@ export function pureTargetRawPlanProjection(plan) {
 }
 
 export function authorizePureTargetRawPlan(runDir, { planHash } = {}) {
-  const plan = buildPureTargetRawPlan(runDir);
+  const plan = readPureTargetStoredPlanContext(runDir);
   return authorizeTargetRawWork(plan, plan.raw_work_plan, { planHash });
 }
 
 export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {}) {
-  const plan = buildPureTargetRawPlan(runDir);
+  const plan = readPureTargetStoredPlanContext(runDir);
   return generateTargetRawWork(plan, plan.raw_work_plan, {
     planHash,
     providerRequestsBySlide: plan.provider_requests_by_slide,
@@ -236,14 +280,14 @@ export async function generatePureTargetRawPlan(runDir, { planHash, submit } = {
 }
 
 export async function preparePureTargetRawReview(runDir) {
-  const plan = buildPureTargetRawPlan(runDir);
+  const plan = readPureTargetStoredPlanContext(runDir);
   return prepareTargetRawReview(plan, plan.raw_work_plan, {
     reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
   });
 }
 
 export function decidePureTargetRawReview(runDir, { decision } = {}) {
-  const plan = buildPureTargetRawPlan(runDir);
+  const plan = readPureTargetStoredPlanContext(runDir);
   return decideTargetRawReview(plan, plan.raw_work_plan, {
     decision,
     reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
@@ -252,7 +296,7 @@ export function decidePureTargetRawReview(runDir, { decision } = {}) {
 
 /** Pure finalization publishes accepted raw bytes, then joins shared delivery. */
 export async function buildPureTargetDelivery(runDir) {
-  const plan = buildPureTargetRawPlan(runDir);
+  const plan = readPureTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
   const manifest = publishPureFinalSlideManifest({
     receipt: plan.receipt,
@@ -284,7 +328,7 @@ export async function refreshPureTargetNotes(runDir) {
     workflow: PURE_IMAGE_WORKFLOW,
     parseReceipt: parsePureTargetReceipt,
   });
-  const candidate = compilePureTargetRawPlan(refresh);
+  const candidate = compilePureTargetRawPlanCandidate(refresh);
   if (targetSourceSemanticSha256(refresh.previous_source_receipt, PURE_IMAGE_WORKFLOW) !==
     targetSourceSemanticSha256(refresh.receipt, PURE_IMAGE_WORKFLOW)) {
     throw new PureImageWorkflowError("pure_notes_refresh_rebuild_required", "Pure notes refresh requires unchanged pixel-owning source facts; use the selected Pure rebuild path instead");

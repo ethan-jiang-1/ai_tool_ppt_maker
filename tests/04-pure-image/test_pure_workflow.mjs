@@ -15,10 +15,12 @@ import {
   generatePureTargetRawPlan,
   preparePureTargetRawReview,
   refreshPureTargetNotes,
+  resolvePureStyleMasterScope,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
 function receipt(source = "a") {
@@ -81,6 +83,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Pure target source-owned note."));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       const plan = buildPureTargetRawPlan(runDir);
       const projection = plan.raw_work_plan.sha256;
       expect(authorizePureTargetRawPlan(runDir, { planHash: projection })).toMatchObject({ authorized: true });
@@ -148,6 +151,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original pure fact"));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       let providerSubmissions = 0;
       const submit = async () => {
         providerSubmissions += 1;

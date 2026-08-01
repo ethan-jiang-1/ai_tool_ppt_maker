@@ -86,6 +86,11 @@ import {
     isPageAuthorityVersionDir,
     PAGE_AUTHORITY_IMAGE2_PATHS,
     pageAuthorityImage2Paths,
+    STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
+    STYLE_MASTER_STAGING_SUBDIR,
+    STYLE_MASTER_PLANS_SUBDIR,
+    STYLE_MASTER_SCOPES_SUBDIR,
+    pageAuthorityStyleMasterPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 } from './page_authority_paths.mjs';
@@ -102,6 +107,11 @@ export {
     GEN_PAGE_AUTHORITY_REVIEW_SUBDIR,
     PAGE_AUTHORITY_IMAGE2_PATHS,
     pageAuthorityImage2Paths,
+    STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
+    STYLE_MASTER_STAGING_SUBDIR,
+    STYLE_MASTER_PLANS_SUBDIR,
+    STYLE_MASTER_SCOPES_SUBDIR,
+    pageAuthorityStyleMasterPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 };
@@ -195,6 +205,11 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE = 'page-authority-visual-language.yaml';
+const STYLE_MASTER_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
+const STYLE_MASTER_STAGING_DIRECTORY_RE = /^plan-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const STYLE_MASTER_VERSION_DIRECTORY_RE = /^v[0-9]+$/;
+const STYLE_MASTER_WORKFLOWS = new Set(['framed', 'pure']);
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-authority-visual-language-v1
 revision: 1
 text_guard: page-authority-text-guard-v1
@@ -472,6 +487,177 @@ function _checkPageAuthorityGeneratedOwnership(runDir, problems) {
     }
 }
 
+function _realDirectory(pathname) {
+    try {
+        const stats = fs.lstatSync(pathname);
+        return stats.isDirectory() && !stats.isSymbolicLink();
+    } catch {
+        return false;
+    }
+}
+
+function _realFile(pathname) {
+    try {
+        const stats = fs.lstatSync(pathname);
+        return stats.isFile() && !stats.isSymbolicLink();
+    } catch {
+        return false;
+    }
+}
+
+function _jpegHasFrameAndEnd(bytes) {
+    if (!Buffer.isBuffer(bytes) || bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return false;
+    let offset = 2;
+    let sawFrame = false;
+    while (offset < bytes.length) {
+        if (bytes[offset] !== 0xff) return false;
+        while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
+        if (offset >= bytes.length) return false;
+        const marker = bytes[offset++];
+        if (marker === 0xd9) return sawFrame && offset === bytes.length;
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+        if (offset + 2 > bytes.length) return false;
+        const length = bytes.readUInt16BE(offset);
+        if (length < 2 || offset + length > bytes.length) return false;
+        const frameMarker = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+        if (frameMarker) {
+            if (length < 8) return false;
+            const height = bytes.readUInt16BE(offset + 3);
+            const width = bytes.readUInt16BE(offset + 5);
+            if (height <= 0 || width <= 0) return false;
+            sawFrame = true;
+        }
+        if (marker !== 0xda) {
+            offset += length;
+            continue;
+        }
+        if (!sawFrame) return false;
+        offset += length;
+        while (offset < bytes.length) {
+            if (bytes[offset] !== 0xff) {
+                offset += 1;
+                continue;
+            }
+            while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
+            if (offset >= bytes.length) return false;
+            const entropyMarker = bytes[offset++];
+            if (entropyMarker === 0x00 || (entropyMarker >= 0xd0 && entropyMarker <= 0xd7)) continue;
+            return entropyMarker === 0xd9 && offset === bytes.length;
+        }
+    }
+    return false;
+}
+
+function _styleMasterImageMediaType(bytes) {
+    if (Buffer.isBuffer(bytes) && bytes.length >= PNG_SIGNATURE.length && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+        return 'image/png';
+    }
+    if (_jpegHasFrameAndEnd(bytes)) return 'image/jpeg';
+    return null;
+}
+
+/**
+ * Inspect only the layout-resolved compatibility path. Presence is never an
+ * acceptance signal: an unselected PNG/JPEG remains a possible local input,
+ * while a promoted compatibility projection must be a real JPEG.
+ */
+export function checkStyleMasterCompatibilityPayload(runDir, { requireJpeg = false } = {}) {
+    const problems = [];
+    const payloadPath = styleAsset(runDir, STYLE_MASTER_IMAGE);
+    if (!fs.existsSync(payloadPath)) return problems;
+    if (!_realFile(payloadPath)) {
+        problems.push(`Style Master compatibility payload must be a regular file at ${payloadPath}`);
+        return problems;
+    }
+    let bytes;
+    try {
+        bytes = fs.readFileSync(payloadPath);
+    } catch {
+        problems.push(`Style Master compatibility payload is unreadable at ${payloadPath}`);
+        return problems;
+    }
+    const mediaType = _styleMasterImageMediaType(bytes);
+    if (mediaType === null) {
+        problems.push(`Style Master compatibility payload must be a valid PNG/JPEG candidate at ${payloadPath}`);
+    } else if (requireJpeg && mediaType !== 'image/jpeg') {
+        problems.push(`accepted Style Master compatibility payload must be a valid JPEG at ${payloadPath}`);
+    }
+    return problems;
+}
+
+/**
+ * Check only the confined directory topology of append-mostly Style Master
+ * history. This intentionally does not select a plan: staging and plans not
+ * named by a scope head are non-authoritative immutable/incomplete records.
+ */
+export function checkStyleMasterHistoryLayout(runDir) {
+    let paths;
+    try {
+        paths = pageAuthorityStyleMasterPaths(runDir);
+    } catch (error) {
+        return [error.message];
+    }
+    if (!fs.existsSync(paths.history_root)) return [];
+    const problems = [];
+    const upstreamRoot = path.join(paths.deck_root, UPSTREAM_DIR);
+    for (const [pathname, label] of [[paths.deck_root, 'deck root'], [upstreamRoot, UPSTREAM_DIR], [paths.history_root, 'Style Master history root']]) {
+        if (!_realDirectory(pathname)) {
+            problems.push(`${label} must be a real directory for confined Style Master history`);
+            return problems;
+        }
+    }
+    for (const entry of fs.readdirSync(paths.history_root, { withFileTypes: true })) {
+        if (_ignorable(entry.name)) continue;
+        const target = path.join(paths.history_root, entry.name);
+        if (entry.name === STYLE_MASTER_STAGING_SUBDIR || entry.name === STYLE_MASTER_PLANS_SUBDIR || entry.name === STYLE_MASTER_SCOPES_SUBDIR) {
+            if (!_realDirectory(target)) problems.push(`Style Master ${entry.name}/ must be a real confined directory`);
+            continue;
+        }
+        problems.push(`unexpected '${entry.name}' in Style Master history; only ${STYLE_MASTER_STAGING_SUBDIR}/, ${STYLE_MASTER_PLANS_SUBDIR}/, and ${STYLE_MASTER_SCOPES_SUBDIR}/ are canonical`);
+    }
+    if (_realDirectory(paths.staging_root)) {
+        for (const entry of fs.readdirSync(paths.staging_root, { withFileTypes: true })) {
+            if (_ignorable(entry.name)) continue;
+            if (!STYLE_MASTER_STAGING_DIRECTORY_RE.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) {
+                problems.push(`Style Master staging contains noncanonical entry '${entry.name}'; only confined plan-<unique>/ directories are allowed`);
+            }
+        }
+    }
+    if (_realDirectory(paths.plans_root)) {
+        for (const entry of fs.readdirSync(paths.plans_root, { withFileTypes: true })) {
+            if (_ignorable(entry.name)) continue;
+            if (!STYLE_MASTER_PLAN_DIRECTORY_RE.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) {
+                problems.push(`Style Master plans contains noncanonical entry '${entry.name}'; only immutable plans/<plan-sha256>/ directories are allowed`);
+            }
+        }
+    }
+    if (_realDirectory(paths.scopes_root)) {
+        for (const version of fs.readdirSync(paths.scopes_root, { withFileTypes: true })) {
+            if (_ignorable(version.name)) continue;
+            const versionPath = path.join(paths.scopes_root, version.name);
+            if (!STYLE_MASTER_VERSION_DIRECTORY_RE.test(version.name) || !version.isDirectory() || version.isSymbolicLink()) {
+                problems.push(`Style Master scopes contains noncanonical version '${version.name}'`);
+                continue;
+            }
+            for (const workflow of fs.readdirSync(versionPath, { withFileTypes: true })) {
+                if (_ignorable(workflow.name)) continue;
+                const workflowPath = path.join(versionPath, workflow.name);
+                if (!STYLE_MASTER_WORKFLOWS.has(workflow.name) || !workflow.isDirectory() || workflow.isSymbolicLink()) {
+                    problems.push(`Style Master scope ${version.name} contains noncanonical workflow '${workflow.name}'`);
+                    continue;
+                }
+                for (const entry of fs.readdirSync(workflowPath, { withFileTypes: true })) {
+                    if (_ignorable(entry.name)) continue;
+                    if (entry.name !== 'head.json' || !entry.isFile() || entry.isSymbolicLink()) {
+                        problems.push(`Style Master scope ${version.name}/${workflow.name} may contain only mutable head.json`);
+                    }
+                }
+            }
+        }
+    }
+    return problems;
+}
+
 /**
  * Validate deck-root controls without reading state or selecting a version.
  * This is shared by exact-run structure validation and portable locator proof.
@@ -560,17 +746,13 @@ export function checkBundle(runDir, requirePipelineReady = true) {
             problems.push('unsupported production source cannot pass normal bundle validation');
         }
     }
-    const needStyle = branchValid && currentPageAuthority && (mode === 'preview' || mode === 'pipeline');
     const needGates = branchValid && currentPageAuthority && mode === 'pipeline';
 
     problems.push(...checkDeckRootControls(root));
     const bbPath = path.join(root, BACKBONE_DIR);
     const vsPath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
-    if (needStyle && !fs.existsSync(styleAsset(runDir, STYLE_MASTER_IMAGE))) {
-        problems.push(
-            `missing ${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${STYLE_MASTER_IMAGE} ` +
-            `(Phase-2 output; generate it before running the pipeline, or add a version override)`);
-    }
+    problems.push(...checkStyleMasterCompatibilityPayload(runDir));
+    problems.push(...checkStyleMasterHistoryLayout(runDir));
     if (needGates) {
         const metadataPath = path.join(root, METADATA_FILE);
         if (fs.existsSync(metadataPath) && fs.statSync(metadataPath).isFile()) {
@@ -983,9 +1165,10 @@ const _DIR_READMES = {
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
         '- `page-authority-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
-        '- `style-master-prompt.md` / `style_master.jpg` — optional Page Authority raw style reference\n' +
+        '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived compatibility JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
-        '**你做什么:** 改 registry 或资产后，刷新受影响的 Page Authority raw profile 和 review evidence。\n'
+        '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
+        '**你做什么:** 改 intent/registry/资产或 selected bytes 后，先回到 Style Master，再走受影响范围的 Generated Image Rebuild。\n'
     ),
     [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}/${BACKBONE_ASSETS_SUBDIR}`]: (
         '# 视觉资产 (assets)\n\n' +
@@ -1255,6 +1438,10 @@ deck_\${NAME}/
 │   └── *.md | *.yaml                   ← one lesson per file (e.g. image2-proven.yaml)
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
+│   └── style-master-iterations/           ← immutable Style Master candidate history; not current selection
+│       ├── _staging/plan-<unique>/         ← incomplete owner-only staging; never authority
+│       ├── plans/<plan-sha256>/             ← append-mostly immutable plans/candidates/provenance
+│       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per exact scope
 │
 ├── ${BACKBONE_DIR}/                       ← 中游 BACKBONE · 主干/default source-of-truth · shared · stable
 │   ├── ${BACKBONE_METAPHOR}
@@ -1264,7 +1451,7 @@ deck_\${NAME}/
 │   ├── ${BACKBONE_MANUSCRIPT_SUBDIR}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
-│       ├── ${STYLE_MASTER_IMAGE}
+│       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG compatibility projection only
 │       ├── ${PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE}
 │       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Authority reference registry
 │           ├── ${ASSET_MANIFEST_FILE}
