@@ -16,10 +16,18 @@ import {
   readFramedTargetStoredPlanContext,
   resolveFramedTextFramePreset,
   authorizeFramedTargetRawPlan,
+  authorizeFramedProgressiveRawBatch,
+  acceptFramedProgressivePilot,
+  acceptFramedProgressiveRawReview,
+  buildFramedProgressiveTargetRawPlan,
   buildFramedTargetDelivery,
   buildFramedTargetRawPlan,
   decideFramedTargetRawReview,
+  generateFramedProgressiveRawItem,
   generateFramedTargetRawPlan,
+  planFramedTargetPilot,
+  prepareFramedProgressivePilotReview,
+  prepareFramedProgressiveRawReview,
   prepareFramedTargetRawReview,
   refreshFramedTargetNotes,
   refreshFramedTargetText,
@@ -29,6 +37,13 @@ import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { inspectWorkflow } from "../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+import {
+  readProgressiveAcceptedRawWork,
+} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+import {
+  readProgressiveRawPlanDirectRecords,
+} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -428,6 +443,247 @@ negative_constraints:
       expect(readFileSync(join(paths.final_root, "DeckGo.png"))).toEqual(finalBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("retains accepted Framed progressive raw evidence for a Text Frame-only local rebind", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-progressive-local-rebind-"));
+    const deck = join(root, "deck_framed_progressive_local_rebind");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    const context = image.getContext("2d");
+    context.fillStyle = "#1f4d6e";
+    context.fillRect(0, 0, 2000, 1125);
+    const source = (title) => `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: ${title}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: Framed progressive local-rebind fixture.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Original progressive heading"));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const initial = await buildFramedProgressiveTargetRawPlan(runDir);
+      const initialPlanHash = initial.progressive_raw_work_plan.sha256;
+      const pilot = await planFramedTargetPilot(runDir, {
+        planHash: initialPlanHash,
+        slideIds: ["DeckGo"],
+      });
+      await authorizeFramedProgressiveRawBatch(runDir, {
+        planHash: initialPlanHash,
+        batchHash: pilot.batch.batch_hash,
+      });
+      let providerSubmissions = 0;
+      await generateFramedProgressiveRawItem(runDir, {
+        planHash: initialPlanHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => {
+          providerSubmissions += 1;
+          return image.toBuffer("image/png");
+        },
+      });
+      await prepareFramedProgressiveRawReview(runDir, { planHash: initialPlanHash });
+      const accepted = await acceptFramedProgressiveRawReview(runDir, {
+        planHash: initialPlanHash,
+        decision: "proceed",
+      });
+      expect(providerSubmissions).toBe(1);
+      expect(accepted.accepted_raw_evidence_sha256).toMatch(/^[0-9a-f]{64}$/);
+
+      const initialAccepted = readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: "framed",
+        plan_hash: initialPlanHash,
+        expected_plan: initial.progressive_raw_work_plan,
+      });
+      const initialDirect = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: initialPlanHash });
+      const initialState = readState(deck, { purpose: "observe", runVersion: "v1" });
+      expect(initialState.page_authority_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({
+          raw_work_plan_sha256: initialPlanHash,
+          complete_raw_review_sha256: initialAccepted.accepted_raw_evidence.complete_raw_review_sha256,
+          accepted_raw_evidence_sha256: accepted.accepted_raw_evidence_sha256,
+        });
+
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Rebound progressive heading"));
+      const stateBeforeInspection = readFileSync(join(deck, "_state", "state.yaml"));
+      const directBeforeInspection = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: initialPlanHash });
+      const inspection = inspectWorkflow({ runDir });
+      expect(inspection).toMatchObject({
+        posture: "guide",
+        root_cause: { owner: "03-framed-image", kind: "framed-local-rebind-ready" },
+        primary_action: { owner: "03-framed-image", action_id: "refresh_framed_text", requires_human: false },
+        evidence_summary: { progressive: "framed-local-rebind", plan_hash: initialPlanHash },
+      });
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBeforeInspection);
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: initialPlanHash })).toEqual(directBeforeInspection);
+
+      const rebound = await buildFramedProgressiveTargetRawPlan(runDir);
+      const reboundPlanHash = rebound.progressive_raw_work_plan.sha256;
+      const reboundAccepted = readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: "framed",
+        plan_hash: reboundPlanHash,
+        expected_plan: rebound.progressive_raw_work_plan,
+      });
+      const successorDirect = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: reboundPlanHash });
+      const reboundState = readState(deck, { purpose: "observe", runVersion: "v1" });
+
+      expect(providerSubmissions).toBe(1);
+      expect(reboundPlanHash).not.toBe(initialPlanHash);
+      expect(rebound.progressive_raw_work_plan.source_epoch).toBe(initial.progressive_raw_work_plan.source_epoch);
+      expect(rebound.progressive_raw_work_plan.source_receipt_sha256)
+        .not.toBe(initial.progressive_raw_work_plan.source_receipt_sha256);
+      expect(rebound.progressive_publication).toMatchObject({
+        reused_slide_ids: ["DeckGo"],
+        retained_complete_raw_review_sha256: initialAccepted.accepted_raw_evidence.complete_raw_review_sha256,
+        accepted_raw_evidence_sha256: reboundAccepted.accepted_raw_evidence_sha256,
+      });
+      expect(reboundAccepted.accepted_raw_evidence.complete_raw_review_sha256)
+        .not.toBe(initialAccepted.accepted_raw_evidence.complete_raw_review_sha256);
+      expect(successorDirect.batches).toHaveLength(0);
+      expect(successorDirect.grants).toHaveLength(0);
+      expect(successorDirect.attempts).toHaveLength(0);
+      expect(successorDirect.materializations).toHaveLength(1);
+      expect(successorDirect.materializations[0].provenance.record).toMatchObject({
+        kind: "reuse",
+        reused_from_provenance_sha256: initialDirect.materializations[0].provenance.sha256,
+      });
+      expect(successorDirect.complete_reviews.some((entry) =>
+        entry.record.retained_from_complete_raw_review_sha256 === initialAccepted.accepted_raw_evidence.complete_raw_review_sha256,
+      )).toBe(true);
+      expect(reboundState.page_authority_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({
+          source_epoch: initial.progressive_raw_work_plan.source_epoch,
+          source_receipt_sha256: rebound.progressive_raw_work_plan.source_receipt_sha256,
+          raw_work_plan_sha256: reboundPlanHash,
+          complete_raw_review_sha256: reboundAccepted.accepted_raw_evidence.complete_raw_review_sha256,
+          accepted_raw_evidence_sha256: reboundAccepted.accepted_raw_evidence_sha256,
+        });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("publishes a partial Framed Pilot with raw underlay and production-equivalent Text Frame composite", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-progressive-pilot-"));
+    const deck = join(root, "deck_framed_progressive_pilot");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    const context = image.getContext("2d");
+    context.fillStyle = "#1f4d6e";
+    context.fillRect(0, 0, 2000, 1125);
+    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+${slides.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
+
+**TITLE**: Framed Pilot ${index + 1}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+`).join("\n")}> **SPEAKER NOTE**: Partial Framed Pilot fixture.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const plan = await buildFramedProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      const rawBytes = image.toBuffer("image/png");
+      await generateFramedProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => rawBytes,
+      });
+      const evidence = await prepareFramedProgressivePilotReview(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+      });
+      const paths = pageAuthorityImage2Paths(runDir);
+      const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
+      const projection = JSON.parse(readFileSync(join(pilotRoot, "projection.json"), "utf8"));
+      expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(readFileSync(join(pilotRoot, "raw-underlay", "DeckGo.png"))).toEqual(rawBytes);
+      expect(existsSync(join(pilotRoot, "text-frame-composite", "DeckGo.png"))).toBe(true);
+      expect(projection).toMatchObject({
+        schema: "page-authority-framed-pilot-projection-v1",
+        workflow: "framed",
+        raw_work_plan_sha256: planHash,
+        batch_sha256: pilot.batch.batch_hash,
+        items: [{ slide_id: "DeckGo" }],
+      });
+      expect(existsSync(paths.target_final_manifest)).toBe(false);
+
+      const decision = await acceptFramedProgressivePilot(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        decision: "proceed",
+      });
+      expect(decision).toMatchObject({
+        pilot_decision_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        progressive_handoff: { partial_pilot_decision_sha256: expect.any(String) },
+        next_action: { action_id: "plan_progressive_expansion" },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("rejects Framed Pilot render overrides before resolving source or starting a browser", async () => {
+    for (const override of [
+      { renderer: "untrusted" },
+      { html: "<main>untrusted</main>" },
+      { css: "* { color: red; }" },
+      { fontPath: "/tmp/untrusted.woff2" },
+      { capture: { width: 1 } },
+      { proof: { trusted: true } },
+      { outputPath: "/tmp/untrusted-pilot" },
+    ]) {
+      await expect(prepareFramedProgressivePilotReview(join(tmpdir(), "missing-framed-pilot-run"), {
+        planHash: digest("a"),
+        batchHash: digest("b"),
+        ...override,
+      })).rejects.toMatchObject({
+        code: "framed_pilot_input_invalid",
+        message: expect.stringContaining("planHash and batchHash"),
+      });
     }
   });
 

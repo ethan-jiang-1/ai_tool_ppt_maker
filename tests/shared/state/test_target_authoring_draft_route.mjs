@@ -45,8 +45,8 @@ function writePlaybook(playbookDir) {
     "",
     controllerNode("select-target-page-authority-workflow", { draftRoute: true }),
     controllerNode("author-target-page-authority-content", { workflow: "framed", draftRoute: true }),
-    controllerNode("authorize-target-pure-raw", { workflow: "pure", draftRoute: true }),
-    controllerNode("generate-target-framed-raw", { workflow: "framed" }),
+    controllerNode("target-pure-draft-entry", { workflow: "pure", draftRoute: true }),
+    controllerNode("target-framed-post-entry", { workflow: "framed" }),
   ].join("\n"));
   writeFileSync(join(playbookDir, "controller-manifest-v3.json"), JSON.stringify({
     schema: "pptmaker-controller-manifest-v3",
@@ -54,10 +54,10 @@ function writePlaybook(playbookDir) {
     controllers: {
       "create-deck": {
         supported_pipelines: ["page-authority-image2-v2"],
-        nodes: ["select-target-page-authority-workflow", "author-target-page-authority-content", "authorize-target-pure-raw", "generate-target-framed-raw"],
+        nodes: ["select-target-page-authority-workflow", "author-target-page-authority-content", "target-pure-draft-entry", "target-framed-post-entry"],
         draft_route_nodes: {
           framed: ["select-target-page-authority-workflow", "author-target-page-authority-content"],
-          pure: ["select-target-page-authority-workflow", "authorize-target-pure-raw"],
+          pure: ["select-target-page-authority-workflow", "target-pure-draft-entry"],
         },
       },
     },
@@ -182,9 +182,9 @@ describe("target authoring draft route", () => {
         draft_route_nodes: ["select-target-page-authority-workflow", "author-target-page-authority-content"],
       });
 
-      const sibling = freshRejectedFixture({ currentNode: "authorize-target-pure-raw" });
+      const sibling = freshRejectedFixture({ currentNode: "target-pure-draft-entry" });
       expect(resolveTargetAuthoringDraftRoute(sibling.runDir, { playbookDir: sibling.playbookDir })).toBeNull();
-      const postRaw = freshRejectedFixture({ currentNode: "generate-target-framed-raw" });
+      const postRaw = freshRejectedFixture({ currentNode: "target-framed-post-entry" });
       expect(resolveTargetAuthoringDraftRoute(postRaw.runDir, { playbookDir: postRaw.playbookDir })).toBeNull();
       const anotherController = freshRejectedFixture({ playbook: "another-controller" });
       expect(resolveTargetAuthoringDraftRoute(anotherController.runDir, { playbookDir: anotherController.playbookDir })).toBeNull();
@@ -195,7 +195,7 @@ describe("target authoring draft route", () => {
       const mismatch = freshRejectedFixture();
       const manifestPath = join(mismatch.playbookDir, "controller-manifest-v3.json");
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      manifest.controllers["create-deck"].draft_route_nodes.framed = ["select-target-page-authority-workflow", "generate-target-framed-raw"];
+      manifest.controllers["create-deck"].draft_route_nodes.framed = ["select-target-page-authority-workflow", "target-framed-post-entry"];
       writeFileSync(manifestPath, JSON.stringify(manifest));
       expect(resolveTargetAuthoringDraftRoute(mismatch.runDir, { playbookDir: mismatch.playbookDir })).toBeNull();
     } finally {
@@ -209,7 +209,7 @@ describe("target authoring draft route", () => {
     try {
       const index = buildPlaybookIndex("PPTMAKER_FRAMEWORK/playbook");
       const route = controllerDraftRouteNodes(index, "create-deck", workflow);
-      expect(route.at(-1)).toBe(`authorize-target-${workflow}-raw`);
+      expect(route.at(-1)).toBe(`plan-target-${workflow}-progressive-raw`);
       expect(route).toContain(`promote-target-${workflow}-style-master`);
 
       for (const currentNode of route) {
@@ -227,7 +227,7 @@ describe("target authoring draft route", () => {
 
       for (const currentNode of [
         `inspect-target-${workflow === "framed" ? "pure" : "framed"}-style-master`,
-        `generate-target-${workflow}-raw`,
+        `recommend-target-${workflow}-pilot`,
       ]) {
         const state = readState(value.deck, { purpose: "observe", runDir: value.runDir });
         state.current_node = currentNode;

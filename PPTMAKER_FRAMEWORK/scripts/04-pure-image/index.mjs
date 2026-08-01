@@ -2,10 +2,14 @@ import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
   validateAcceptedRawEvidence,
+  validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
 } from "../shared/image2/page_authority_artifacts.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
 import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
 import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
   createPageAuthoritySourceResolver,
@@ -20,6 +24,7 @@ import {
   generateTargetRawWork,
   materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
+  publishProgressiveTargetCompleteRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
@@ -32,9 +37,34 @@ import {
   targetRawPlanProjection,
   validateTargetRawReviewContribution,
   writeTargetFinalManifest,
+  writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
+import {
+  assertNoUnresolvedProgressiveRawSubmission,
+  authorizeProgressiveRawBatch,
+  createProgressiveRawWorkPlanFromTarget,
+  generateProgressiveRawItem,
+  inspectProgressiveRawLifecycle,
+  planProgressiveRawExpansion,
+  planProgressiveRawPilot,
+  prepareProgressiveRawCompleteReview,
+  prepareProgressiveRawPilotEvidence,
+  acceptProgressiveRawCompleteReview,
+  acceptProgressiveRawPilot,
+  publishProgressiveRawWorkPlan,
+  readProgressiveAcceptedRawWork,
+  reconcileProgressiveRawAttempt,
+} from "../shared/image2/page_authority_progressive_raw_owner.mjs";
+import {
+  recordTargetProgressiveAcceptedRawEvidence,
+  recordTargetProgressiveCompleteRawReview,
+  recordTargetProgressiveDeliveryReceipt,
+  recordTargetProgressiveFinalManifest,
+  recordTargetProgressivePilotDecision,
+  recordTargetProgressiveRawPlan,
+} from "../shared/state/state.mjs";
 import {
   bindStyleMasterScopeCandidate,
   resolveStyleMasterScopeContext,
@@ -129,12 +159,17 @@ export function createPureTargetRawReviewContribution({ receipt, rawWorkPlan } =
 }
 
 /** Pure finalization publishes the accepted raw bytes unchanged. */
-export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide } = {}) {
+export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide, evidencePlan = rawWorkPlan } = {}) {
   requireReceipt(receipt);
-  const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
+  const evidence = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: evidencePlan });
   if (!evidence.ok) throw new PureImageWorkflowError(evidence.code, evidence.message);
+  if (rawWorkPlan.workflow !== PURE_IMAGE_WORKFLOW || rawWorkPlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    evidencePlan.workflow !== PURE_IMAGE_WORKFLOW || evidencePlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(evidencePlan.ordered_slide_ids)) {
+    throw new PureImageWorkflowError("pure_finalization_lineage_invalid", "Pure finalization requires matching selected-workflow raw-plan lineage");
+  }
   return publishCurrentFinalSlideManifest({
-    rawWorkPlan,
+    rawWorkPlan: evidencePlan,
     acceptedRawEvidence,
     ownerWorkflow: PURE_IMAGE_WORKFLOW,
     finalBytesBySlide: rawBytesBySlide,
@@ -294,8 +329,304 @@ export function decidePureTargetRawReview(runDir, { decision } = {}) {
   });
 }
 
+function progressivePureDisplayBySlide(receipt) {
+  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.display?.title || "" }]));
+}
+
+function progressivePurePlanFromContext(context) {
+  return createProgressiveRawWorkPlanFromTarget({
+    runDir: context.run_dir,
+    source_epoch: context.source_epoch,
+    raw_work_plan: context.raw_work_plan,
+    effective_style_master_sha256: context.style_master_reference.selection_sha256,
+  });
+}
+
+/**
+ * Compile current Pure source/style facts into an expected v3 plan without
+ * reading or rebuilding any version `_generated` projection.
+ */
+export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
+  const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
+  if (sourceEpoch === null) return candidate;
+  if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) {
+    throw new PureImageWorkflowError("progressive_raw_target_plan_invalid", "a current progressive source epoch is required for Pure plan comparison");
+  }
+  return Object.freeze({
+    ...candidate,
+    progressive_raw_work_plan: progressivePurePlanFromContext({ ...candidate, source_epoch: sourceEpoch }),
+  });
+}
+
+/** Compile and publish the provider-free v3 full plan through the selected Pure adapter. */
+export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  const prior = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
+  if (prior.ok && prior.legacy_v2) {
+    throw new PureImageWorkflowError("progressive_raw_legacy_replan_required", "legacy v2 raw records remain readable; start the owner-issued progressive replan/rebuild action instead");
+  }
+  assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: PURE_IMAGE_WORKFLOW });
+  const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
+  const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  // This is a rebuildable adapter projection; v3 direct records own lifecycle facts.
+  writeTargetRawWorkPlan(context, candidate.raw_work_plan);
+  const progressiveRawWorkPlan = progressivePurePlanFromContext({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    style_master_reference: candidate.style_master_reference,
+  });
+  const published = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
+  const progressiveHandoff = recordTargetProgressiveRawPlan(context.deck_dir, {
+    runDir: context.run_dir,
+    progressiveRawWorkPlan,
+  });
+  return Object.freeze({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    progressive_raw_work_plan: progressiveRawWorkPlan,
+    progressive_publication: published,
+    progressive_handoff: progressiveHandoff,
+    provider_requests_by_slide: candidate.provider_requests_by_slide,
+    style_master_reference: candidate.style_master_reference,
+  });
+}
+
+/** Resolve the selected Pure source and its exact current v3 raw-plan binding. */
+export function readPureProgressiveTargetStoredPlanContext(runDir) {
+  const context = readPureTargetStoredPlanContext(runDir);
+  const progressiveRawWorkPlan = progressivePurePlanFromContext(context);
+  return Object.freeze({ ...context, progressive_raw_work_plan: progressiveRawWorkPlan });
+}
+
+export function pureProgressiveRawPlanProjection(plan) {
+  const inspection = inspectProgressiveRawLifecycle({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  return Object.freeze({
+    schema: "page-authority-progressive-raw-plan-projection-v1",
+    plan_hash: plan.progressive_raw_work_plan.sha256,
+    workflow: PURE_IMAGE_WORKFLOW,
+    source_epoch: plan.source_epoch,
+    ordered_slide_ids: Object.freeze([...plan.progressive_raw_work_plan.ordered_slide_ids]),
+    maximum_submissions: plan.progressive_raw_work_plan.items.length,
+    progress: inspection.progress || null,
+    next_action: inspection.primary_action,
+  });
+}
+
+export async function planPureTargetPilot(runDir, { planHash, slideIds } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  return planProgressiveRawPilot({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    slide_ids: slideIds,
+    display_by_slide: progressivePureDisplayBySlide(plan.receipt),
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+}
+
+export async function planPureTargetExpansion(runDir, { planHash } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  return planProgressiveRawExpansion({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    display_by_slide: progressivePureDisplayBySlide(plan.receipt),
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+}
+
+export async function authorizePureProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
+}
+
+export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, submit } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  return generateProgressiveRawItem({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    expected_plan: plan.progressive_raw_work_plan,
+    provider_requests_by_slide: plan.provider_requests_by_slide,
+    submit,
+  });
+}
+
+async function publishPureProgressivePilot({ context, plan, batch_sha256, coverage, materializations }) {
+  const outputRoot = join(pageAuthorityImage2Paths(context.run_dir).review_root, "pilot", batch_sha256);
+  mkdirSync(outputRoot, { recursive: true });
+  const items = coverage.map((item) => {
+    const materialization = materializations.get(item.slide_id);
+    writeFileSync(join(outputRoot, `${item.slide_id}.png`), materialization.bytes);
+    return { slide_id: item.slide_id, raw_sha256: item.raw_sha256 };
+  });
+  const projection = {
+    schema: "page-authority-pure-pilot-projection-v1",
+    workflow: PURE_IMAGE_WORKFLOW,
+    raw_work_plan_sha256: plan.sha256,
+    batch_sha256,
+    items,
+  };
+  const bytes = Buffer.from(`${JSON.stringify(projection)}\n`, "utf8");
+  writeFileSync(join(outputRoot, "projection.json"), bytes);
+  return Object.freeze({
+    workflow_evidence_sha256: canonicalJsonSha256({ schema: "page-authority-pure-pilot-evidence-v1", workflow: PURE_IMAGE_WORKFLOW, items }),
+    projection_sha256: canonicalJsonSha256(projection),
+  });
+}
+
+export async function preparePureProgressivePilotReview(runDir, { planHash, batchHash } = {}) {
+  const context = readPureProgressiveTargetStoredPlanContext(runDir);
+  return prepareProgressiveRawPilotEvidence({
+    runDir: context.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    publish: ({ plan, ...input }) => publishPureProgressivePilot({ context, plan, ...input }),
+  });
+}
+
+export async function acceptPureProgressivePilot(runDir, { planHash, batchHash, decision } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  const accepted = await acceptProgressiveRawPilot({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    decision,
+  });
+  const handoff = recordTargetProgressivePilotDecision(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+    pilotDecisionSha256: accepted.pilot_decision_sha256,
+  });
+  return Object.freeze({ ...accepted, progressive_handoff: handoff.record });
+}
+
+function progressiveRawBytes(materializations) {
+  return Object.fromEntries([...materializations.entries()].map(([slideId, materialization]) => [slideId, Buffer.from(materialization.bytes)]));
+}
+
+export async function preparePureProgressiveRawReview(runDir, { planHash } = {}) {
+  const context = readPureProgressiveTargetStoredPlanContext(runDir);
+  const prepared = await prepareProgressiveRawCompleteReview({
+    runDir: context.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    publish: async ({ materializations }) => publishProgressiveTargetCompleteRawReview(context, context.raw_work_plan, {
+      raw_bytes_by_slide: progressiveRawBytes(materializations),
+      reviewContribution: createPureTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan: context.raw_work_plan }),
+    }),
+  });
+  const handoff = prepared.accepted_raw_evidence_sha256
+    ? recordTargetProgressiveAcceptedRawEvidence(context.deck_dir, {
+      runDir: context.run_dir,
+      progressiveRawWorkPlan: context.progressive_raw_work_plan,
+      acceptedRawEvidence: readProgressiveAcceptedRawWork({
+        runDir: context.run_dir,
+        workflow: PURE_IMAGE_WORKFLOW,
+        plan_hash: planHash,
+        expected_plan: context.progressive_raw_work_plan,
+      }).accepted_raw_evidence,
+    })
+    : recordTargetProgressiveCompleteRawReview(context.deck_dir, {
+      runDir: context.run_dir,
+      progressiveRawWorkPlan: context.progressive_raw_work_plan,
+      completeRawReviewSha256: prepared.complete_raw_review_sha256,
+    });
+  return Object.freeze({ ...prepared, progressive_handoff: handoff.record });
+}
+
+export async function acceptPureProgressiveRawReview(runDir, { planHash, decision } = {}) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  const accepted = await acceptProgressiveRawCompleteReview({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    decision,
+  });
+  const handoff = accepted.accepted_raw_evidence_sha256
+    ? recordTargetProgressiveAcceptedRawEvidence(plan.deck_dir, {
+      runDir: plan.run_dir,
+      progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+      acceptedRawEvidence: readProgressiveAcceptedRawWork({
+        runDir: plan.run_dir,
+        workflow: PURE_IMAGE_WORKFLOW,
+        plan_hash: planHash,
+        expected_plan: plan.progressive_raw_work_plan,
+      }).accepted_raw_evidence,
+    })
+    : recordTargetProgressiveCompleteRawReview(plan.deck_dir, {
+      runDir: plan.run_dir,
+      progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+      completeRawReviewSha256: accepted.complete_raw_review_sha256,
+    });
+  return Object.freeze({ ...accepted, progressive_handoff: handoff.record });
+}
+
+export async function reconcilePureProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
+  return reconcileProgressiveRawAttempt({ runDir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, attempt_sha256: attemptSha256, lookup });
+}
+
+/** Publish final and delivery projections from exact v3 accepted raw evidence only. */
+export async function buildPureProgressiveTargetDelivery(runDir) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  const raw = readProgressiveAcceptedRawWork({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: plan.progressive_raw_work_plan.sha256,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  const manifest = publishPureFinalSlideManifest({
+    receipt: plan.receipt,
+    rawWorkPlan: plan.raw_work_plan,
+    evidencePlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    rawBytesBySlide: raw.raw_bytes_by_slide,
+  });
+  const persisted = writeProgressiveTargetFinalManifest(plan, {
+    progressiveRawWorkPlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalManifest: manifest,
+  });
+  const finalHandoff = recordTargetProgressiveFinalManifest(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalManifest: manifest,
+  });
+  const delivery = await deliverTargetFinalSlideManifest({
+    runDir: plan.run_dir,
+    manifest,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalBytesBySlide: raw.raw_bytes_by_slide,
+    sourcePath: plan.source_path,
+    sourceEpoch: plan.source_epoch,
+    title: plan.deck_dir.split(/[\\/]/).at(-1),
+  });
+  const deliveryHandoff = recordTargetProgressiveDeliveryReceipt(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: raw.plan,
+    deliveryReceipt: delivery.receipt,
+  });
+  return Object.freeze({
+    ok: true,
+    plan: pureProgressiveRawPlanProjection(plan),
+    finalization: persisted,
+    delivery,
+    progressive_handoff: deliveryHandoff.record,
+    final_handoff: finalHandoff.record,
+  });
+}
+
 /** Pure finalization publishes accepted raw bytes, then joins shared delivery. */
 export async function buildPureTargetDelivery(runDir) {
+  const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
+  if (progressive.ok && progressive.plan) return buildPureProgressiveTargetDelivery(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
   const manifest = publishPureFinalSlideManifest({

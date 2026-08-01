@@ -3,8 +3,14 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  buildPureProgressiveTargetRawPlan,
+  resolvePureStyleMasterScope,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
+import { progressiveRawStorePaths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 import {
   createInitialState,
   initializeTargetPageAuthorityState,
@@ -14,6 +20,7 @@ import {
   inspectWorkflow,
   isWorkflowInspectionSourceReady,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 function treeSnapshot(root, current = root, entries = []) {
   for (const name of readdirSync(current).sort()) {
@@ -49,6 +56,41 @@ function fixture(workflow = "pure") {
     },
   });
   return { root, deck, runDir };
+}
+
+async function progressivePureFixture() {
+  const root = mkdtempSync(join(tmpdir(), "workflow-inspect-progressive-pure-"));
+  const deck = join(root, "deck_workflow_inspect_progressive_pure");
+  const runDir = join(deck, "3_versions", "v1");
+  const image = createCanvas(2000, 1125);
+  image.getContext("2d").fillRect(0, 0, 2000, 1125);
+  initBundle(deck, null, "keynote", "dark-executive");
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+  writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Inspection direct-record fixture
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+> **SPEAKER NOTE**: Workflow inspection reads only owner facts.
+`);
+  await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+  const plan = buildPureProgressiveTargetRawPlan(runDir);
+  return { root, deck, runDir, plan };
 }
 
 describe("TARGET workflow inspection", () => {
@@ -102,15 +144,15 @@ production:
     }
   });
 
-  it("projects a v2 workflow marker-first with one selected owner action and no writes", () => {
+  it("fails closed on a selected workflow source that cannot establish progressive planning prerequisites", () => {
     const value = fixture();
     try {
       const before = treeSnapshot(value.deck);
       const inspection = inspectWorkflow({ runDir: value.runDir });
       expect(inspection).toMatchObject({
-        posture: "confirm",
-        root_cause: { owner: "shared-raw", kind: "TARGET_PROVIDER_AUTHORIZATION_REQUIRED" },
-        primary_action: { owner: "shared-raw", action_id: "authorize_target_raw_work", requires_human: true },
+        posture: "hard-stop",
+        root_cause: { owner: "selected-workflow-adapter", kind: "source-or-style-preflight-invalid" },
+        primary_action: { owner: "04-pure-image", action_id: "repair-progressive-source-binding", requires_human: false },
         evidence_summary: { mode: "image2-page-authority-v2", workflow: "pure" },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(true);
@@ -139,6 +181,46 @@ production:
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("reconstructs progressive inspection from direct records after generated projections are removed", async () => {
+    const value = await progressivePureFixture();
+    try {
+      rmSync(join(value.runDir, "_generated"), { recursive: true, force: true });
+      const before = treeSnapshot(value.deck);
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "progressive-raw-owner", kind: "plan_progressive_pilot" },
+        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", requires_human: true },
+        evidence_summary: {
+          progressive: "current",
+          plan_hash: value.plan.progressive_raw_work_plan.sha256,
+          progress: { materialized: 0, unsubmitted: 1 },
+        },
+      });
+      expect(treeSnapshot(value.deck)).toEqual(before);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed on a malformed direct raw-owner record without reconstructing progress", async () => {
+    const value = await progressivePureFixture();
+    try {
+      const scope = progressiveRawStorePaths(value.runDir, { workflow: "pure" });
+      writeFileSync(scope.scope_head, "{not canonical JSON}\n");
+      const before = treeSnapshot(value.deck);
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "progressive-raw-owner", kind: expect.stringMatching(/^progressive_raw_/) },
+        primary_action: { owner: "progressive-raw-owner", kind: "repair" },
+      });
+      expect(treeSnapshot(value.deck)).toEqual(before);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

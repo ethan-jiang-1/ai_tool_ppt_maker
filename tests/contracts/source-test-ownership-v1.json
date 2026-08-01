@@ -130,12 +130,13 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_progressive_raw_owner.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
+        "tests/shared/image2/test_progressive_raw_owner.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
         "tests/shared/image2/test_style_master_plan.mjs",
         "tests/shared/image2/test_style_master_raw_binding.mjs",
@@ -181,9 +182,10 @@
     },
     {
       "owner": "shared/workflow",
-      "interfaces": ["shared/workflow/inspect_workflow.mjs"],
+      "interfaces": ["shared/workflow/inspect_workflow.mjs", "shared/workflow/page_production_task_projection.mjs"],
       "executables": [],
       "unit_integration": [
+        "tests/shared/workflow/test_page_production_task_projection.mjs",
         "tests/shared/workflow/test_process_workflow_inspection.mjs",
         "tests/shared/workflow/test_target_workflow_inspection.mjs"
       ],

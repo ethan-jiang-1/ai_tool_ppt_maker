@@ -164,7 +164,7 @@ describe("TARGET structural slides CLI", () => {
       const targetRunDir = join(deck, "3_versions", "v2");
       const targetState = readState(deck, { purpose: "observe" });
       startPlaybook(targetState, "create-deck", { runVersion: "v2" });
-      targetState.current_node = "authorize-target-pure-raw";
+      targetState.current_node = "plan-target-pure-progressive-raw";
       writeState(deck, targetState);
       recordEffectiveStyleMasterSelection(deck, {
         runVersion: "v2",
@@ -179,7 +179,7 @@ describe("TARGET structural slides CLI", () => {
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(readState(deck, { purpose: "observe", runVersion: "v2" })).toMatchObject({
         playbook: "create-deck",
-        current_node: "authorize-target-pure-raw",
+        current_node: "plan-target-pure-progressive-raw",
       });
     } finally {
       rmSync(root, { recursive: true, force: true });

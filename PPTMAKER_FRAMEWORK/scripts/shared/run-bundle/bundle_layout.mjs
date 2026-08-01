@@ -91,6 +91,11 @@ import {
     STYLE_MASTER_PLANS_SUBDIR,
     STYLE_MASTER_SCOPES_SUBDIR,
     pageAuthorityStyleMasterPaths,
+    PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH,
+    PAGE_PRODUCTION_STAGING_SUBDIR,
+    PAGE_PRODUCTION_PLANS_SUBDIR,
+    PAGE_PRODUCTION_SCOPES_SUBDIR,
+    pageAuthorityProgressiveRawPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 } from './page_authority_paths.mjs';
@@ -112,6 +117,11 @@ export {
     STYLE_MASTER_PLANS_SUBDIR,
     STYLE_MASTER_SCOPES_SUBDIR,
     pageAuthorityStyleMasterPaths,
+    PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH,
+    PAGE_PRODUCTION_STAGING_SUBDIR,
+    PAGE_PRODUCTION_PLANS_SUBDIR,
+    PAGE_PRODUCTION_SCOPES_SUBDIR,
+    pageAuthorityProgressiveRawPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 };
@@ -209,6 +219,8 @@ const STYLE_MASTER_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
 const STYLE_MASTER_STAGING_DIRECTORY_RE = /^plan-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const STYLE_MASTER_VERSION_DIRECTORY_RE = /^v[0-9]+$/;
 const STYLE_MASTER_WORKFLOWS = new Set(['framed', 'pure']);
+const PAGE_PRODUCTION_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
+const PAGE_PRODUCTION_STAGING_DIRECTORY_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-authority-visual-language-v1
 revision: 1
@@ -659,6 +671,79 @@ export function checkStyleMasterHistoryLayout(runDir) {
 }
 
 /**
+ * Check only progressive raw-owner topology. It intentionally does not read a
+ * head or select a plan: staging and unreferenced immutable containers are
+ * never lifecycle authority during layout inspection.
+ */
+export function checkProgressivePageProductionHistoryLayout(runDir) {
+    let paths;
+    try {
+        paths = pageAuthorityProgressiveRawPaths(runDir);
+    } catch (error) {
+        return [error.message];
+    }
+    if (!fs.existsSync(paths.history_root)) return [];
+    const problems = [];
+    const upstreamRoot = path.join(paths.deck_root, UPSTREAM_DIR);
+    for (const [pathname, label] of [[paths.deck_root, 'deck root'], [upstreamRoot, UPSTREAM_DIR], [paths.history_root, 'progressive page-production history root']]) {
+        if (!_realDirectory(pathname)) {
+            problems.push(`${label} must be a real directory for confined progressive page-production history`);
+            return problems;
+        }
+    }
+    for (const entry of fs.readdirSync(paths.history_root, { withFileTypes: true })) {
+        if (_ignorable(entry.name)) continue;
+        const target = path.join(paths.history_root, entry.name);
+        if (entry.name === PAGE_PRODUCTION_STAGING_SUBDIR || entry.name === PAGE_PRODUCTION_PLANS_SUBDIR || entry.name === PAGE_PRODUCTION_SCOPES_SUBDIR) {
+            if (!_realDirectory(target)) problems.push(`progressive page-production ${entry.name}/ must be a real confined directory`);
+            continue;
+        }
+        problems.push(`unexpected '${entry.name}' in progressive page-production history; only ${PAGE_PRODUCTION_STAGING_SUBDIR}/, ${PAGE_PRODUCTION_PLANS_SUBDIR}/, and ${PAGE_PRODUCTION_SCOPES_SUBDIR}/ are canonical`);
+    }
+    if (_realDirectory(paths.staging_root)) {
+        for (const entry of fs.readdirSync(paths.staging_root, { withFileTypes: true })) {
+            if (_ignorable(entry.name)) continue;
+            if (!PAGE_PRODUCTION_STAGING_DIRECTORY_RE.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) {
+                problems.push(`progressive page-production staging contains noncanonical entry '${entry.name}'; only confined plan|record|materialization-<unique>/ directories are allowed`);
+            }
+        }
+    }
+    if (_realDirectory(paths.plans_root)) {
+        for (const entry of fs.readdirSync(paths.plans_root, { withFileTypes: true })) {
+            if (_ignorable(entry.name)) continue;
+            if (!PAGE_PRODUCTION_PLAN_DIRECTORY_RE.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) {
+                problems.push(`progressive page-production plans contains noncanonical entry '${entry.name}'; only immutable plans/<plan-sha256>/ directories are allowed`);
+            }
+        }
+    }
+    if (_realDirectory(paths.scopes_root)) {
+        for (const version of fs.readdirSync(paths.scopes_root, { withFileTypes: true })) {
+            if (_ignorable(version.name)) continue;
+            const versionPath = path.join(paths.scopes_root, version.name);
+            if (!STYLE_MASTER_VERSION_DIRECTORY_RE.test(version.name) || !version.isDirectory() || version.isSymbolicLink()) {
+                problems.push(`progressive page-production scopes contains noncanonical version '${version.name}'`);
+                continue;
+            }
+            for (const workflow of fs.readdirSync(versionPath, { withFileTypes: true })) {
+                if (_ignorable(workflow.name)) continue;
+                const workflowPath = path.join(versionPath, workflow.name);
+                if (!STYLE_MASTER_WORKFLOWS.has(workflow.name) || !workflow.isDirectory() || workflow.isSymbolicLink()) {
+                    problems.push(`progressive page-production scope ${version.name} contains noncanonical workflow '${workflow.name}'`);
+                    continue;
+                }
+                for (const entry of fs.readdirSync(workflowPath, { withFileTypes: true })) {
+                    if (_ignorable(entry.name)) continue;
+                    if (entry.name !== 'head.json' || !entry.isFile() || entry.isSymbolicLink()) {
+                        problems.push(`progressive page-production scope ${version.name}/${workflow.name} may contain only mutable head.json`);
+                    }
+                }
+            }
+        }
+    }
+    return problems;
+}
+
+/**
  * Validate deck-root controls without reading state or selecting a version.
  * This is shared by exact-run structure validation and portable locator proof.
  * @param {string} root
@@ -753,6 +838,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     const vsPath = path.join(root, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR);
     problems.push(...checkStyleMasterCompatibilityPayload(runDir));
     problems.push(...checkStyleMasterHistoryLayout(runDir));
+    problems.push(...checkProgressivePageProductionHistoryLayout(runDir));
     if (needGates) {
         const metadataPath = path.join(root, METADATA_FILE);
         if (fs.existsSync(metadataPath) && fs.statSync(metadataPath).isFile()) {
@@ -1441,6 +1527,10 @@ deck_\${NAME}/
 │   └── style-master-iterations/           ← immutable Style Master candidate history; not current selection
 │       ├── _staging/plan-<unique>/         ← incomplete owner-only staging; never authority
 │       ├── plans/<plan-sha256>/             ← append-mostly immutable plans/candidates/provenance
+│       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per exact scope
+│   └── page-production-iterations/         ← immutable progressive page raw history; not generated output
+│       ├── _staging/{plan,record,materialization}-<unique>/ ← owner-only incomplete records
+│       ├── plans/<plan-sha256>/             ← append-mostly plan/batch/attempt/provenance containers
 │       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per exact scope
 │
 ├── ${BACKBONE_DIR}/                       ← 中游 BACKBONE · 主干/default source-of-truth · shared · stable

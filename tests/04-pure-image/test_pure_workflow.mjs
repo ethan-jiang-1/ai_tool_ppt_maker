@@ -1,18 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { createAcceptedRawEvidence } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { prepareFramedProgressivePilotReview } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
   createPureRawWorkPlan,
   publishPureFinalSlideManifest,
   authorizePureTargetRawPlan,
+  authorizePureProgressiveRawBatch,
+  acceptPureProgressivePilot,
+  acceptPureProgressiveRawReview,
   buildPureTargetDelivery,
+  buildPureProgressiveTargetDelivery,
   buildPureTargetRawPlan,
+  buildPureProgressiveTargetRawPlan,
   decidePureTargetRawReview,
+  generatePureProgressiveRawItem,
   generatePureTargetRawPlan,
+  planPureTargetExpansion,
+  planPureTargetPilot,
+  preparePureProgressivePilotReview,
+  preparePureProgressiveRawReview,
   preparePureTargetRawReview,
   refreshPureTargetNotes,
   resolvePureStyleMasterScope,
@@ -20,6 +31,12 @@ import {
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import {
+  readProgressiveAcceptedRawWork,
+} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+import {
+  readProgressiveRawPlanDirectRecords,
+} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -114,6 +131,284 @@ negative_constraints:
       expect(rawEvidenceAfter.raw_review_sha256).toBe(rawEvidenceBefore.raw_review_sha256);
       expect(readState(deck, { purpose: "observe", runVersion: "v1" })
         .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(sourceEpochBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("delivers a small-debt Pure progressive lifecycle from v3 accepted evidence without a v2 authorization", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-progressive-target-"));
+    const deck = join(root, "deck_pure_progressive");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Progressive pure fact
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+> **SPEAKER NOTE**: Progressive source-owned note.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      expect(pilot.batch).toMatchObject({ is_partial_pilot: false, paid_submission_slide_ids: ["DeckGo"] });
+
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      await generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => image.toBuffer("image/png"),
+      });
+      const review = await preparePureProgressiveRawReview(runDir, { planHash });
+      const accepted = await acceptPureProgressiveRawReview(runDir, { planHash, decision: "proceed" });
+      expect(accepted).toMatchObject({ accepted_raw_evidence_sha256: expect.any(String) });
+
+      const delivery = await buildPureProgressiveTargetDelivery(runDir);
+      expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
+      const state = readState(deck, { purpose: "observe", runVersion: "v1" });
+      const handoff = state.page_authority_progressive_handoff.by_version["3_versions/v1"];
+      expect(handoff).toMatchObject({
+        raw_work_plan_sha256: planHash,
+        complete_raw_review_sha256: accepted.complete_raw_review_sha256,
+        accepted_raw_evidence_sha256: accepted.accepted_raw_evidence_sha256,
+        final_manifest_sha256: delivery.finalization.final_manifest_sha256,
+        delivery_receipt_sha256: expect.any(String),
+      });
+      expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v1"]).toBeUndefined();
+      expect(state.page_authority_target_evidence.by_version["3_versions/v1"].provider_authorization_sha256).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("publishes a partial Pure Pilot as exact canvas raw bytes only", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-progressive-pilot-"));
+    const deck = join(root, "deck_pure_progressive_pilot");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+${slides.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
+
+**TITLE**: Pure Pilot ${index + 1}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`).join("\n")}> **SPEAKER NOTE**: Partial Pure Pilot fixture.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      const rawBytes = image.toBuffer("image/png");
+      await generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => rawBytes,
+      });
+      const paths = pageAuthorityImage2Paths(runDir);
+      const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
+      await expect(prepareFramedProgressivePilotReview(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+      })).rejects.toMatchObject({ code: "target_source_receipt_invalid" });
+      expect(existsSync(pilotRoot)).toBe(false);
+      const evidence = await preparePureProgressivePilotReview(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+      });
+      const projection = JSON.parse(readFileSync(join(pilotRoot, "projection.json"), "utf8"));
+      expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+      expect(readFileSync(join(pilotRoot, "DeckGo.png"))).toEqual(rawBytes);
+      expect(projection).toMatchObject({
+        schema: "page-authority-pure-pilot-projection-v1",
+        workflow: "pure",
+        raw_work_plan_sha256: planHash,
+        batch_sha256: pilot.batch.batch_hash,
+        items: [{ slide_id: "DeckGo" }],
+      });
+      expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
+      expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
+      expect(existsSync(paths.target_final_manifest)).toBe(false);
+
+      const decision = await acceptPureProgressivePilot(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        decision: "proceed",
+      });
+      expect(decision).toMatchObject({
+        pilot_decision_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        progressive_handoff: { partial_pilot_decision_sha256: expect.any(String) },
+        next_action: { action_id: "plan_progressive_expansion" },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("takes a partial Pilot through Expansion, complete v3 acceptance, and rebuildable delivery", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-progressive-expansion-delivery-"));
+    const deck = join(root, "deck_pure_progressive_expansion");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+${slides.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
+
+**TITLE**: Expansion Pure ${index + 1}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+> **SPEAKER NOTE**: Progressive Expansion fixture ${index + 1}.
+`).join("\n")}
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const paths = pageAuthorityImage2Paths(runDir);
+      await expect(buildPureProgressiveTargetDelivery(runDir)).rejects.toMatchObject({
+        code: "progressive_raw_accepted_evidence_required",
+      });
+      expect(existsSync(paths.target_final_manifest)).toBe(false);
+
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      expect(pilot.batch).toMatchObject({ is_partial_pilot: true, paid_submission_slide_ids: ["DeckGo"] });
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      await generatePureProgressiveRawItem(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        submit: async () => image.toBuffer("image/png"),
+      });
+      await preparePureProgressivePilotReview(runDir, { planHash, batchHash: pilot.batch.batch_hash });
+      const pilotDecision = await acceptPureProgressivePilot(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        decision: "proceed",
+      });
+      expect(pilotDecision.next_action).toMatchObject({ action_id: "plan_progressive_expansion" });
+
+      const expansion = await planPureTargetExpansion(runDir, { planHash });
+      expect(expansion.batch).toMatchObject({
+        kind: "expansion",
+        paid_submission_slide_ids: ["FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"],
+      });
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: expansion.batch.batch_hash });
+      for (const slideId of expansion.batch.paid_submission_slide_ids) {
+        const generated = await generatePureProgressiveRawItem(runDir, {
+          planHash,
+          batchHash: expansion.batch.batch_hash,
+          submit: async () => image.toBuffer("image/png"),
+        });
+        expect(generated.item).toBe(slideId);
+      }
+      const review = await preparePureProgressiveRawReview(runDir, { planHash });
+      const accepted = await acceptPureProgressiveRawReview(runDir, { planHash, decision: "proceed" });
+      expect(accepted).toMatchObject({
+        accepted_raw_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(accepted.complete_raw_review_sha256).not.toBe(review.complete_raw_review_sha256);
+
+      const delivery = await buildPureProgressiveTargetDelivery(runDir);
+      expect(delivery).toMatchObject({
+        ok: true,
+        delivery: { receipt: { ordered_slide_ids: slides } },
+        finalization: { final_manifest_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      });
+
+      const directBefore = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });
+      const acceptedBefore = readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        expected_plan: plan.progressive_raw_work_plan,
+      });
+      rmSync(paths.raw_root, { recursive: true, force: true });
+      rmSync(paths.review_root, { recursive: true, force: true });
+      rmSync(paths.final_root, { recursive: true, force: true });
+
+      const replayedPlan = buildPureProgressiveTargetRawPlan(runDir);
+      expect(replayedPlan.progressive_publication).toMatchObject({ replay: true, plan_hash: planHash });
+      const replayedReview = await preparePureProgressiveRawReview(runDir, { planHash });
+      expect(replayedReview).toMatchObject({
+        replay: true,
+        complete_raw_review_sha256: accepted.complete_raw_review_sha256,
+      });
+      const rebuilt = await buildPureProgressiveTargetDelivery(runDir);
+      expect(rebuilt.finalization.final_manifest_sha256).toBe(delivery.finalization.final_manifest_sha256);
+      expect(existsSync(paths.target_raw_plan)).toBe(true);
+      expect(existsSync(paths.target_raw_review)).toBe(true);
+      expect(existsSync(paths.target_final_manifest)).toBe(true);
+
+      const directAfter = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });
+      const acceptedAfter = readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        expected_plan: plan.progressive_raw_work_plan,
+      });
+      expect(directAfter).toEqual(directBefore);
+      expect(acceptedAfter.accepted_raw_evidence_sha256).toBe(acceptedBefore.accepted_raw_evidence_sha256);
+      expect(acceptedAfter.raw_bytes_by_slide).toEqual(acceptedBefore.raw_bytes_by_slide);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

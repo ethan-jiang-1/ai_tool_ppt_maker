@@ -176,7 +176,7 @@ describe("TARGET structural vNext", () => {
       const targetRunDir = join(value.deck, "3_versions", "v2");
       const state = readState(value.deck, { purpose: "observe" });
       startPlaybook(state, "create-deck", { runVersion: "v2" });
-      state.current_node = "authorize-target-pure-raw";
+      state.current_node = "plan-target-pure-progressive-raw";
       writeState(value.deck, state);
       recordEffectiveStyleMasterSelection(value.deck, {
         runVersion: "v2",
@@ -195,7 +195,7 @@ describe("TARGET structural vNext", () => {
       expect(readFileSync(join(targetRunDir, "slide-specifications.md"))).toEqual(targetBefore);
       expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
       const after = readState(value.deck, { purpose: "observe", runVersion: "v2" });
-      expect(after).toMatchObject({ playbook: "create-deck", run_version: "v2", current_node: "authorize-target-pure-raw" });
+      expect(after).toMatchObject({ playbook: "create-deck", run_version: "v2", current_node: "plan-target-pure-progressive-raw" });
       expect(after.page_authority_style_master.by_version["3_versions/v2"].workflow).toBe("pure");
     } finally {
       rmSync(value.root, { recursive: true, force: true });

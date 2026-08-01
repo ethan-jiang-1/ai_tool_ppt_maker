@@ -137,10 +137,12 @@ describe("accepted Style Master raw binding", () => {
       const referenceBytes = Buffer.from(plan.style_master_reference.bytes);
       writeFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), localImageBytes(1));
       let providerBody = null;
+      let providerIdempotencyKey = null;
       const submit = targetPageAuthoritySubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async (_url, options) => {
           providerBody = JSON.parse(options.body);
+          providerIdempotencyKey = options.headers["Idempotency-Key"];
           return {
             ok: true,
             status: 200,
@@ -152,9 +154,11 @@ describe("accepted Style Master raw binding", () => {
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"a".repeat(64)}`,
       });
       expect(providerBody.image).toBe(`data:image/png;base64,${referenceBytes.toString("base64")}`);
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
+      expect(providerIdempotencyKey).toBe(`page-authority-v3-${"a".repeat(64)}`);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

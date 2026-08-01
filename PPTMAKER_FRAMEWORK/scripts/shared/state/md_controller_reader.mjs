@@ -224,6 +224,27 @@ export function parseControllerFile(filePath) {
 }
 
 const CONTROLLER_MANIFEST_FILE = "controller-manifest-v3.json";
+const RETIRED_ONE_SHOT_RAW_NODES = Object.freeze([
+  "authorize-target-framed-raw",
+  "generate-target-framed-raw",
+  "authorize-target-pure-raw",
+  "generate-target-pure-raw",
+]);
+
+function progressiveRawNodeIds(workflow) {
+  return Object.freeze([
+    `plan-target-${workflow}-progressive-raw`,
+    `recommend-target-${workflow}-pilot`,
+    `authorize-target-${workflow}-pilot`,
+    `generate-target-${workflow}-pilot`,
+    `review-target-${workflow}-pilot`,
+    `plan-target-${workflow}-expansion`,
+    `authorize-target-${workflow}-expansion`,
+    `generate-target-${workflow}-expansion`,
+    `review-target-${workflow}-raw`,
+    `publish-target-${workflow}-final-manifest`,
+  ]);
+}
 
 function readControllerManifest(playbookDir) {
   const path = join(playbookDir, CONTROLLER_MANIFEST_FILE);
@@ -563,6 +584,59 @@ function validateControllerManifest(index, errors) {
   }
 }
 
+function validateProgressivePageProductionNodes(controller, errors) {
+  if (controller.playbook !== "create-deck") return;
+  const nodes = new Map(controller.nodes.map((node) => [node.id, node]));
+  const presentProgressive = [...nodes.keys()].some((id) => /^(?:plan|recommend|authorize|generate|review)-target-(?:framed|pure)-(?:progressive-raw|pilot|expansion|raw)$/.test(id));
+  const presentRetired = RETIRED_ONE_SHOT_RAW_NODES.filter((id) => nodes.has(id));
+  if (!presentProgressive && presentRetired.length === 0) return;
+  for (const id of presentRetired) {
+    addError(errors, nodes.get(id), "progressive-page-production", `${id} is retired; use the progressive Page Authority checkpoints`);
+  }
+  for (const workflow of TARGET_WORKFLOWS) {
+    const expected = progressiveRawNodeIds(workflow);
+    for (const id of expected) {
+      const node = nodes.get(id);
+      if (!node) {
+        errors.push({ rule: "progressive-page-production", source: controller.source, line: 1, message: `missing ${workflow} progressive node ${id}` });
+        continue;
+      }
+      if (!hasExactSet(node.productionWorkflows, [workflow])) {
+        addError(errors, node, "progressive-page-production", `${id} must remain selected-workflow specific`);
+      }
+    }
+    const [plan, recommend, authorizePilot, generatePilot, reviewPilot, planExpansion, authorizeExpansion, generateExpansion, reviewRaw, publish] = expected;
+    const requiredPairs = [
+      [plan, `promote-target-${workflow}-style-master`],
+      [recommend, plan],
+      [authorizePilot, recommend],
+      [generatePilot, authorizePilot],
+      [reviewPilot, generatePilot],
+      [planExpansion, reviewPilot],
+      [authorizeExpansion, planExpansion],
+      [generateExpansion, authorizeExpansion],
+      [reviewRaw, plan],
+      [publish, reviewRaw],
+    ];
+    for (const [nodeId, required] of requiredPairs) {
+      const node = nodes.get(nodeId);
+      if (node && !node.requires.includes(required)) {
+        addError(errors, node, "progressive-page-production", `${nodeId} must require ${required}`);
+      }
+    }
+    const planNode = nodes.get(plan);
+    if (planNode?.draftRoute !== true) {
+      addError(errors, planNode || null, "progressive-page-production", `${plan} must be the selected workflow's first progressive draft-route handoff`);
+    }
+    for (const id of expected.slice(1)) {
+      const node = nodes.get(id);
+      if (node?.draftRoute === true) {
+        addError(errors, node, "progressive-page-production", `${id} must not be a fresh-draft route node`);
+      }
+    }
+  }
+}
+
 export function validatePlaybookIndex(index) {
   const errors = [];
   for (const message of index.errors) errors.push({ rule: "parse", message });
@@ -656,6 +730,7 @@ export function validatePlaybookIndex(index) {
       visited.add(nodeId);
     };
     for (const nodeId of available.keys()) walk(nodeId);
+    validateProgressivePageProductionNodes(controller, errors);
   }
 
   for (const node of index.shared.values()) {
