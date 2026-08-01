@@ -2,7 +2,7 @@
 
 > 类型：总控计划（program control） | 状态：进行中 | 更新：2026-08-01
 >
-> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已于 2026-08-01 sync 并 archive；Change 3 尚未创建。
+> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已于 2026-08-01 sync、archive 并提交（`ec7c667`）；Change 3 已于 2026-08-01 propose，完成全部 planning artifacts 和初始 strict validation，是当前唯一 active change，下一步 apply。
 
 ## 目的
 
@@ -71,7 +71,7 @@
 
 **目的：** 在一份完整 provider-free raw plan 上，用 exact Pilot 和 Expansion batches 完成长程生产、恢复、完整审查与交付。
 
-**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md)。
+**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md)、[proposal](../../openspec/changes/introduce-progressive-page-production/proposal.md)、[design](../../openspec/changes/introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/introduce-progressive-page-production/tasks.md)。
 
 **Scope checklist：**
 
@@ -87,7 +87,7 @@
 
 **按顺序完成：**
 
-- [ ] Change 2 archive 后，重新读取 main specs/owners/journeys；propose `introduce-progressive-page-production`，一次完成全部 planning artifacts 和初始 strict validation。
+- [x] Change 2 archive 后，重新读取 main specs/owners/journeys；propose [`introduce-progressive-page-production`](../../openspec/changes/introduce-progressive-page-production/proposal.md)，完成 8 个 capability delta、[design](../../openspec/changes/introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/introduce-progressive-page-production/tasks.md) 和初始 strict validation。
 - [ ] 先完成 exact grants 与逐项 materialization/recovery foundation。
 - [ ] 再完成 Framed Pilot 和 Pure Pilot 两条独立 journey。
 - [ ] 再完成 Expansion、complete raw review、final delivery 和 resume。
