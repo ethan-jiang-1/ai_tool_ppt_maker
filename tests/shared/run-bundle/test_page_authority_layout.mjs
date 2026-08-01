@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createCanvas } from "@napi-rs/canvas";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,9 +9,14 @@ import {
   DEFAULT_INIT_MODE,
   PAGE_AUTHORITY_IMAGE2_PATHS,
   checkBundle,
+  checkStyleMasterCompatibilityPayload,
+  checkStyleMasterHistoryLayout,
   initBundle,
   pageAuthorityImage2Paths,
+  pageAuthorityStyleMasterPaths,
   renderTree,
+  STYLE_MASTER_IMAGE,
+  styleAsset,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   TARGET_PRODUCTION_MODE,
@@ -39,6 +45,8 @@ describe("Page Authority bundle layout", () => {
       expect(paths.final_manifest).toContain("_generated/page_authority_image2/final/manifest.json");
       expect(renderTree()).toContain("page_authority_image2");
       expect(renderTree()).not.toContain("html_production");
+      expect(renderTree()).toContain("style-master-iterations");
+      expect(renderTree()).toContain("scopes/vN/{framed,pure}/head.json");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -119,6 +127,92 @@ describe("Page Authority bundle layout", () => {
       const retiredOwner = join(runDir, "_generated", "retired-owner");
       writeFileSync(retiredOwner, "not current", "utf8");
       expect(checkBundle(runDir, false)).toContain("unexpected current generated owner 'retired-owner' — Page Authority owns page_authority_image2/ only");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps staging and unreferenced plans non-authoritative during layout inspection", () => {
+    const root = mkdtempSync(join(tmpdir(), "style-master-layout-history-"));
+    try {
+      const deck = join(root, "deck_current");
+      const runDir = join(deck, "3_versions", "v1");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const paths = pageAuthorityStyleMasterPaths(runDir);
+      const planSha256 = "a".repeat(64);
+      const staging = join(paths.staging_root, "plan-crashed");
+      const unreferencedPlan = join(paths.plans_root, planSha256);
+      const overridePath = join(runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE);
+      mkdirSync(staging, { recursive: true });
+      mkdirSync(unreferencedPlan, { recursive: true });
+      writeFileSync(join(staging, "candidate-plan.json"), "partial", "utf8");
+      writeFileSync(join(unreferencedPlan, "candidate-plan.json"), "complete-but-unreferenced", "utf8");
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const stagingBefore = readFileSync(join(staging, "candidate-plan.json"));
+      const planBefore = readFileSync(join(unreferencedPlan, "candidate-plan.json"));
+
+      expect(checkStyleMasterHistoryLayout(runDir)).toEqual([]);
+      expect(checkBundle(runDir, false)).toEqual([TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
+      expect(existsSync(join(paths.scopes_root, "v1", "framed", "head.json"))).toBe(false);
+      expect(existsSync(overridePath)).toBe(false);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(readFileSync(join(staging, "candidate-plan.json"))).toEqual(stagingBefore);
+      expect(readFileSync(join(unreferencedPlan, "candidate-plan.json"))).toEqual(planBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports invalid Style Master history topology without selecting or cleaning it", () => {
+    const root = mkdtempSync(join(tmpdir(), "style-master-layout-invalid-"));
+    try {
+      const deck = join(root, "deck_current");
+      const runDir = join(deck, "3_versions", "v1");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const paths = pageAuthorityStyleMasterPaths(runDir);
+      mkdirSync(join(paths.scopes_root, "v7", "unexpected-workflow"), { recursive: true });
+      writeFileSync(join(paths.history_root, "current.json"), "not-a-head", "utf8");
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+
+      expect(checkStyleMasterHistoryLayout(runDir)).toEqual(expect.arrayContaining([
+        expect.stringContaining("unexpected 'current.json' in Style Master history"),
+        expect.stringContaining("Style Master scope v7 contains noncanonical workflow 'unexpected-workflow'"),
+      ]));
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(existsSync(join(paths.scopes_root, "v7", "unexpected-workflow"))).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the override-first compatibility path and requires JPEG only for an accepted projection", () => {
+    const root = mkdtempSync(join(tmpdir(), "style-master-layout-payload-"));
+    try {
+      const deck = join(root, "deck_current");
+      const runDir = join(deck, "3_versions", "v1");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const canvas = createCanvas(4, 3);
+      const png = Buffer.from(canvas.toBuffer("image/png"));
+      const jpeg = Buffer.from(canvas.toBuffer("image/jpeg"));
+      const backbonePath = styleAsset(runDir, STYLE_MASTER_IMAGE);
+      const overridePath = join(runDir, "overrides", "visual-style", STYLE_MASTER_IMAGE);
+      writeFileSync(backbonePath, png);
+
+      expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(backbonePath);
+      expect(checkStyleMasterCompatibilityPayload(runDir)).toEqual([]);
+      expect(checkStyleMasterCompatibilityPayload(runDir, { requireJpeg: true }))
+        .toEqual([`accepted Style Master compatibility payload must be a valid JPEG at ${backbonePath}`]);
+
+      mkdirSync(join(runDir, "overrides", "visual-style"), { recursive: true });
+      writeFileSync(overridePath, jpeg);
+      expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(overridePath);
+      expect(checkStyleMasterCompatibilityPayload(runDir, { requireJpeg: true })).toEqual([]);
+      expect(readFileSync(backbonePath)).toEqual(png);
+
+      rmSync(join(runDir, "overrides"), { recursive: true, force: true });
+      writeFileSync(backbonePath, jpeg);
+      expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(backbonePath);
+      expect(checkStyleMasterCompatibilityPayload(runDir, { requireJpeg: true })).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

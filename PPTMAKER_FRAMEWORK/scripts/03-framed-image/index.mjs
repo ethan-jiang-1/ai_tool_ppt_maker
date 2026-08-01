@@ -49,6 +49,10 @@ import {
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
 import {
+  bindStyleMasterScopeCandidate,
+  resolveStyleMasterScopeContext,
+} from "../shared/image2/style_master_scope.mjs";
+import {
   deliverTargetFinalSlideManifest,
 } from "../05-delivery/index.mjs";
 
@@ -449,11 +453,20 @@ export function resolveFramedTargetSource(runDir, { allowSourceRebuild = false }
 }
 
 /** Resolve the selected Framed source without state or artifact materialization. */
-function resolveFramedTargetCandidateSource(runDir) {
+export function resolveFramedTargetCandidateSource(runDir) {
   return resolveTargetCandidateSourceContext(runDir, {
     workflow: FRAMED_IMAGE_WORKFLOW,
     parseReceipt: parseFramedTargetReceipt,
   });
+}
+
+/** Resolve Framed's exact Style Master scope without materializing page lineage. */
+export function resolveFramedStyleMasterScope(runDir) {
+  const scope = resolveStyleMasterScopeContext(runDir);
+  if (scope.workflow !== FRAMED_IMAGE_WORKFLOW) {
+    throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed Style Master scope requires the selected framed workflow");
+  }
+  return bindStyleMasterScopeCandidate(scope, resolveFramedTargetCandidateSource(runDir));
 }
 
 function framedRawContract(slide, frame) {
@@ -488,7 +501,11 @@ function compileFramedTargetRawPlanCandidate(context) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed raw-plan candidate requires one canonical render profile");
   }
   const renderProfile = framesById.values().next().value.render_profile;
-  const generation = buildTargetRawGenerationProfile(context.deck_dir, context.receipt);
+  const generation = buildTargetRawGenerationProfile({
+    runDir: context.run_dir,
+    deckDir: context.deck_dir,
+    receipt: context.receipt,
+  });
   const rawContractsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
@@ -520,7 +537,7 @@ function compileFramedTargetRawPlanCandidate(context) {
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
     render_profile_digest: renderProfile.render_profile_digest,
-    style_master_path: generation.style_master_path,
+    style_master_reference: generation.style_master_reference,
   });
 }
 
@@ -543,7 +560,7 @@ export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = fa
     ...context,
     raw_work_plan: candidate.raw_work_plan,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
-    style_master_path: candidate.style_master_path,
+    style_master_reference: candidate.style_master_reference,
   });
 }
 

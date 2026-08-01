@@ -23,11 +23,13 @@ import {
   prepareFramedTargetRawReview,
   refreshFramedTargetNotes,
   refreshFramedTargetText,
+  resolveFramedStyleMasterScope,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
@@ -110,6 +112,7 @@ negative_constraints:
 
 > **SPEAKER NOTE**: Candidate proof must fail before materialization.
 `);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const paths = pageAuthorityImage2Paths(runDir);
       const derived = [paths.target_source_receipt, paths.target_raw_plan, paths.target_raw_evidence, paths.target_raw_review, paths.target_final_manifest];
       const beforeState = readFileSync(join(deck, "_state", "state.yaml"));
@@ -158,6 +161,7 @@ negative_constraints:
 
 > **SPEAKER NOTE**: A failed plan write must remain unauthorizable.
 `);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const paths = pageAuthorityImage2Paths(runDir);
       mkdirSync(paths.target_raw_plan, { recursive: true });
 
@@ -302,6 +306,7 @@ negative_constraints:
 
 > **SPEAKER NOTE**: Framed target source-owned note.
 `);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const plan = await buildFramedTargetRawPlan(runDir);
       const paths = pageAuthorityImage2Paths(runDir);
       const rawPlanBytes = readFileSync(paths.target_raw_plan);
@@ -376,6 +381,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original heading"));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const initialPlan = await buildFramedTargetRawPlan(runDir);
       const projection = initialPlan.raw_work_plan.sha256;
       await authorizeFramedTargetRawPlan(runDir, { planHash: projection });
@@ -460,6 +466,7 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Original CLI heading"));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
       const initialPlan = await buildFramedTargetRawPlan(runDir);
       const projection = initialPlan.raw_work_plan.sha256;
       await authorizeFramedTargetRawPlan(runDir, { planHash: projection });

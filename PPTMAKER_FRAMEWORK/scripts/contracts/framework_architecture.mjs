@@ -48,6 +48,9 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/page_authority_final_manifest.mjs",
   "shared/image2/page_authority_raw_mechanics.mjs",
   "shared/image2/page_authority_target_runtime.mjs",
+  "shared/image2/style_master_plan.mjs",
+  "shared/image2/style_master_scope.mjs",
+  "shared/state/target_authoring_draft_route.mjs",
   "shared/workflow/inspect_workflow.mjs",
 ]);
 

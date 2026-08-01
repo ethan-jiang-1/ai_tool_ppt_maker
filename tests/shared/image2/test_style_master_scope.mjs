@@ -1,0 +1,160 @@
+import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import {
+  StyleMasterScopeError,
+  bindStyleMasterScopeCandidate,
+  resolveStyleMasterScopeContext,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_scope.mjs";
+import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+import {
+  SLIDE_SPECS_NAME,
+  STYLE_MASTER_IMAGE,
+  STYLE_MASTER_PROMPT,
+  initBundle,
+  styleAsset,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  initializeTargetPageAuthorityState,
+  statePath,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+
+function source() {
+  return `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Style Master scope
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: The source stays read-only during Style Master scope resolution.
+`;
+}
+
+function createFixture() {
+  const root = mkdtempSync(join(tmpdir(), "style-master-scope-"));
+  const deck = join(root, "deck_style_master_scope");
+  const runDir = join(deck, "3_versions", "v1");
+  initBundle(deck, null, "keynote", "dark-executive");
+  writeFileSync(join(runDir, SLIDE_SPECS_NAME), source(), "utf8");
+  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+}
+
+function derivedPaths(paths) {
+  return [
+    paths.target_source_receipt,
+    paths.target_raw_plan,
+    paths.target_raw_evidence,
+    paths.target_raw_review,
+    paths.target_raw_review_projection,
+    paths.target_final_manifest,
+  ];
+}
+
+function sourceCandidate(fixture) {
+  const sourcePath = join(fixture.runDir, SLIDE_SPECS_NAME);
+  const sourceSha = createHash("sha256").update(readFileSync(sourcePath)).digest("hex");
+  return {
+    run_dir: fixture.runDir,
+    deck_dir: fixture.deck,
+    source_path: sourcePath,
+    source_sha256: sourceSha,
+    workflow: "framed",
+    receipt: { workflow: "framed", source_sha256: sourceSha },
+  };
+}
+
+describe("Style Master scope", () => {
+  it("resolves an active fresh selected-workflow draft read-only and exposes only canonical local paths", () => {
+    const fixture = createFixture();
+    try {
+      const stateBefore = readFileSync(statePath(fixture.deck));
+      expect(derivedPaths(fixture.paths).every((path) => !readFileSyncSafe(path))).toBe(true);
+
+      const scope = bindStyleMasterScopeCandidate(
+        resolveStyleMasterScopeContext(fixture.runDir),
+        sourceCandidate(fixture),
+      );
+
+      expect(scope).toMatchObject({
+        run_dir: fixture.runDir,
+        deck_dir: fixture.deck,
+        run_version: "v1",
+        workflow: "framed",
+        draft: true,
+        source_candidate: {
+          run_dir: fixture.runDir,
+          source_path: join(fixture.runDir, SLIDE_SPECS_NAME),
+          workflow: "framed",
+        },
+      });
+      expect(scope.local_existing_source_path).toBe(styleAsset(fixture.runDir, STYLE_MASTER_IMAGE));
+      expect(scope.style_intent_source_path).toBe(styleAsset(fixture.runDir, STYLE_MASTER_PROMPT));
+      expect(readFileSync(statePath(fixture.deck))).toEqual(stateBefore);
+      expect(derivedPaths(fixture.paths).every((path) => !readFileSyncSafe(path))).toBe(true);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the exact current source/state pair and fences stale scope before candidate reads or writes", () => {
+    const fixture = createFixture();
+    try {
+      const candidate = sourceCandidate(fixture);
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runDir: fixture.runDir,
+        sourceReceipt: {
+          schema: "page-authority-image2-source-v2",
+          pipeline: "page-authority-image2-v2",
+          workflow: "framed",
+          source_sha256: candidate.source_sha256,
+          slides: [{ slide_id: "DeckGo", workflow: "framed" }],
+        },
+      });
+      const stateBefore = readFileSync(statePath(fixture.deck));
+      expect(resolveStyleMasterScopeContext(fixture.runDir)).toMatchObject({
+        draft: false,
+        workflow: "framed",
+        run_version: "v1",
+      });
+      expect(readFileSync(statePath(fixture.deck))).toEqual(stateBefore);
+
+      writeFileSync(join(fixture.runDir, SLIDE_SPECS_NAME), source().replace("Style Master scope", "Stale Style Master scope"), "utf8");
+      expect(() => resolveStyleMasterScopeContext(fixture.runDir)).toThrow(expect.objectContaining({
+        name: StyleMasterScopeError.name,
+        code: "style_master_scope_stale",
+      }));
+      expect(readFileSync(statePath(fixture.deck))).toEqual(stateBefore);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+});
+
+function readFileSyncSafe(path) {
+  try {
+    readFileSync(path);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+}

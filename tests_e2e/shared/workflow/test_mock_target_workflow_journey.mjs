@@ -1,12 +1,16 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  STYLE_MASTER_PROMPT,
+  initBundle,
+  styleAsset,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
@@ -54,6 +58,7 @@ function createTargetFixture(prefix, workflow, slides) {
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
+  writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with no readable text.\n", "utf8");
   writeFileSync(join(runDir, "slide-specifications.md"), targetSource(workflow, slides));
   return { root, deck, runDir };
 }
@@ -94,6 +99,10 @@ function flow(args, env = {}) {
 function expectSuccess(result) {
   expect(result.status, result.stderr || result.stdout).toBe(0);
   return result;
+}
+
+function jsonSuccess(result) {
+  return JSON.parse(expectSuccess(result).stdout);
 }
 
 async function startMockProvider(bytes) {
@@ -138,7 +147,8 @@ async function startMockProvider(bytes) {
   };
 }
 
-async function runTargetRawLifecycle(runDir, env) {
+async function runTargetRawLifecycle(runDir, env, { styleMaster: includeStyleMaster = true } = {}) {
+  const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
   const planned = expectSuccess(await flow(["image2", "plan", runDir], env));
   const plan = JSON.parse(planned.stdout);
   expect(plan).toMatchObject({
@@ -150,7 +160,30 @@ async function runTargetRawLifecycle(runDir, env) {
   expectSuccess(await flow(["image2", "review", runDir], env));
   expectSuccess(await flow(["image2", "accept", runDir, "--decision", "proceed"], env));
   expectSuccess(await flow(["build", runDir], env));
-  return plan;
+  return { rawPlan: plan, styleMaster };
+}
+
+async function runStyleMasterLifecycle(runDir, env) {
+  const paths = pageAuthorityImage2Paths(runDir);
+  const inspected = jsonSuccess(await flow(["style-master", "inspect", runDir], env));
+  expect(inspected).toMatchObject({ head: null, next_action: "plan_style_master_candidates" });
+  const planned = jsonSuccess(await flow(["style-master", "plan", runDir, "--candidate-count", "0"], env));
+  expect(planned).toMatchObject({
+    max_candidate_submissions: 0,
+    next_action: "review_style_master_candidates",
+    plan: { candidates: [{ candidate_id: "local-existing", kind: "local-existing" }] },
+  });
+  const reviewed = jsonSuccess(await flow(["style-master", "review", runDir, "--plan-hash", planned.plan_sha256], env));
+  const accepted = jsonSuccess(await flow([
+    "style-master", "accept", runDir,
+    "--plan-hash", planned.plan_sha256,
+    "--decision", "proceed",
+    "--candidate-id", "local-existing",
+  ], env));
+  expect(accepted).toMatchObject({ promoted: true, workflow: planned.workflow, candidate_id: "local-existing" });
+  expect(existsSync(paths.target_source_receipt)).toBe(false);
+  expect(existsSync(paths.target_raw_plan)).toBe(false);
+  return { inspected, planned, reviewed, accepted };
 }
 
 describe("mock TARGET workflow journey", () => {
@@ -163,7 +196,9 @@ describe("mock TARGET workflow journey", () => {
     const provider = await startMockProvider(pngBytes("#5d277f"));
     try {
       const initial = await runTargetRawLifecycle(fixture.runDir, provider.env);
-      expect(initial).toMatchObject({ workflow: "framed", source_epoch: 1, ordered_slide_ids: ["FramGo", "BodyMap"] });
+      expect(initial.styleMaster.planned.workflow).toBe("framed");
+      expect(JSON.stringify(initial.styleMaster)).not.toMatch(/"pure"|Text Frame/i);
+      expect(initial.rawPlan).toMatchObject({ workflow: "framed", source_epoch: 1, ordered_slide_ids: ["FramGo", "BodyMap"] });
       expect(provider.calls).toHaveLength(2);
       expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
 
@@ -226,7 +261,9 @@ describe("mock TARGET workflow journey", () => {
     const provider = await startMockProvider(pngBytes("#205070"));
     try {
       const initial = await runTargetRawLifecycle(fixture.runDir, provider.env);
-      expect(initial).toMatchObject({ workflow: "pure", source_epoch: 1 });
+      expect(initial.styleMaster.planned.workflow).toBe("pure");
+      expect(JSON.stringify(initial.styleMaster)).not.toMatch(/"framed"|Text Frame|safe-zone/i);
+      expect(initial.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 1 });
       expect(provider.calls).toHaveLength(1);
 
       writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("pure", [
@@ -239,8 +276,8 @@ describe("mock TARGET workflow journey", () => {
       expect(`${rejectedRefresh.stdout}\n${rejectedRefresh.stderr}`).toContain("Target Pure visible text requires a Pure raw rebuild");
       expect(provider.calls).toHaveLength(1);
 
-      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env);
-      expect(rebuilt).toMatchObject({ workflow: "pure", source_epoch: 2 });
+      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, { styleMaster: false });
+      expect(rebuilt.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 2 });
       expect(provider.calls).toHaveLength(2);
       expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
         .page_authority_target_evidence.by_version["3_versions/v1"])

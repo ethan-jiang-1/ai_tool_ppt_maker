@@ -11,6 +11,14 @@ export const GEN_PAGE_AUTHORITY_RAW_SUBDIR = "raw";
 export const GEN_PAGE_AUTHORITY_REVIEW_SUBDIR = "review";
 export const GEN_PAGE_AUTHORITY_FINAL_SUBDIR = "final";
 
+// Style Master candidate history is append-mostly source evidence, not a
+// version-generated artifact. The small per-scope head is its sole mutable
+// current-plan pointer; selection remains in schema-v5 state.
+export const STYLE_MASTER_ITERATIONS_RELATIVE_PATH = "1_upstream_raw_material/style-master-iterations";
+export const STYLE_MASTER_STAGING_SUBDIR = "_staging";
+export const STYLE_MASTER_PLANS_SUBDIR = "plans";
+export const STYLE_MASTER_SCOPES_SUBDIR = "scopes";
+
 export const PAGE_AUTHORITY_IMAGE2_PATHS = Object.freeze({
   root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}`,
   receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json`,
@@ -45,4 +53,21 @@ export function pageAuthorityImage2Paths(runDir) {
   return Object.freeze(Object.fromEntries(
     Object.entries(PAGE_AUTHORITY_IMAGE2_PATHS).map(([key, relativePath]) => [key, path.join(root, ...relativePath.split("/"))]),
   ));
+}
+
+/** Canonical Style Master candidate-history paths for one v2 run. */
+export function pageAuthorityStyleMasterPaths(runDir) {
+  const root = path.resolve(runDir);
+  if (!isPageAuthorityVersionDir(root)) throw new Error(`Style Master paths require a version directory (got ${root})`);
+  const deckRoot = path.dirname(path.dirname(root));
+  const historyRoot = path.join(deckRoot, ...STYLE_MASTER_ITERATIONS_RELATIVE_PATH.split("/"));
+  return Object.freeze({
+    deck_root: deckRoot,
+    run_dir: root,
+    run_version: path.basename(root),
+    history_root: historyRoot,
+    staging_root: path.join(historyRoot, STYLE_MASTER_STAGING_SUBDIR),
+    plans_root: path.join(historyRoot, STYLE_MASTER_PLANS_SUBDIR),
+    scopes_root: path.join(historyRoot, STYLE_MASTER_SCOPES_SUBDIR),
+  });
 }

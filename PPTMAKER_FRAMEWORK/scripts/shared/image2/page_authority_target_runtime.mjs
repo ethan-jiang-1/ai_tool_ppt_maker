@@ -23,6 +23,9 @@ import {
   submitAuthorizedRawWorkPlan,
 } from "./page_authority_raw_mechanics.mjs";
 import {
+  resolveAcceptedStyleMasterReference,
+} from "./style_master_plan.mjs";
+import {
   deckRoot,
   pageAuthorityImage2Paths,
   SLIDE_SPECS_NAME,
@@ -44,7 +47,6 @@ export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-authority-target-raw-
 export const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA = "page-authority-target-raw-review-projection-capture-profile-v1";
 export const TARGET_RAW_CONTRACT_SCHEMA = "page-authority-target-raw-contract-v1";
 export const TARGET_RAW_PROVIDER_REQUEST_SCHEMA = "page-authority-target-raw-provider-request-v1";
-export const TARGET_STYLE_MASTER_RELATIVE_PATH = "2_backbone/visual-style/style_master.jpg";
 
 export class PageAuthorityTargetRuntimeError extends Error {
   constructor(code, message, { nextAction = null } = {}) {
@@ -447,26 +449,44 @@ function readTargetRawReviewRecord(paths) {
   return Object.freeze({ review, raw_review_sha256: sha256(bytes) });
 }
 
-/** Compile provider-only facts without inspecting workflow-specific contracts. */
-export function buildTargetRawGenerationProfile(deckDir, receipt) {
-  const styleMasterPath = join(resolve(deckDir || ""), TARGET_STYLE_MASTER_RELATIVE_PATH);
-  let styleMasterBytes;
+/** Compile provider-only facts from the current accepted immutable style selection. */
+export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {}) {
+  let styleMaster;
   try {
-    styleMasterBytes = readFileSync(styleMasterPath);
-  } catch {
-    throw new PageAuthorityTargetRuntimeError("target_style_master_unavailable", "effective target style-master bytes are required before raw planning");
+    styleMaster = resolveAcceptedStyleMasterReference({ runDir, deckDir, receipt });
+  } catch (error) {
+    const missing = error?.code === "style_master_selection_missing";
+    throw new PageAuthorityTargetRuntimeError(
+      missing ? "target_style_master_unavailable" : "target_style_master_stale",
+      missing
+        ? "a current accepted Style Master selection is required before raw planning"
+        : "the current Style Master selection cannot supply immutable raw-plan reference bytes",
+      { nextAction: "inspect_style_master" },
+    );
   }
-  if (!styleMasterBytes.length) throw new PageAuthorityTargetRuntimeError("target_style_master_unavailable", "effective target style-master bytes must not be empty");
   const identitySelected = receipt.slides.some((slide) => slide.visual_language?.identity_reference?.provider_reference?.path);
   const profile = {
     schema: "page-authority-target-raw-generation-profile-v1",
     provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-authority-image2-v2" },
     output: { format: "png", width: 2000, height: 1125 },
     reference_transport: { style_master: "image-reference-v1", identity_reference: identitySelected ? "image-reference-v1" : "none" },
-    effective_style_master: { sha256: sha256(styleMasterBytes), bytes: styleMasterBytes.length },
+    effective_style_master: {
+      selection_sha256: styleMaster.selection_sha256,
+      plan_sha256: styleMaster.plan_sha256,
+      candidate_id: styleMaster.candidate_id,
+      candidate_sha256: styleMaster.candidate_sha256,
+      candidate_provenance_sha256: styleMaster.candidate_provenance_sha256,
+      candidate_media_type: styleMaster.candidate_media_type,
+      candidate_width: styleMaster.candidate_width,
+      candidate_height: styleMaster.candidate_height,
+      style_intent_sha256: styleMaster.style_intent_sha256,
+      style_context_sha256: styleMaster.style_context_sha256,
+      candidate_generation_profile_sha256: styleMaster.candidate_generation_profile_sha256,
+      bytes: styleMaster.bytes.length,
+    },
   };
   return Object.freeze({
-    style_master_path: styleMasterPath,
+    style_master_reference: styleMaster,
     profile: Object.freeze(profile),
     provider_profile_sha256: canonicalJsonSha256(profile),
   });
@@ -681,7 +701,7 @@ export function resolveTargetStoredPlanContext(runDir, {
     source_epoch: state.source_epoch,
     raw_work_plan: storedPlan,
     provider_requests_by_slide: compiled.provider_requests_by_slide,
-    style_master_path: compiled.style_master_path,
+    style_master_reference: compiled.style_master_reference,
   });
 }
 

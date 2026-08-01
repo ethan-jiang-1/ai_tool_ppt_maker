@@ -93,12 +93,14 @@ import {
   readFramedTargetStoredPlanContext,
   refreshFramedTargetNotes,
   refreshFramedTargetText,
+  resolveFramedStyleMasterScope,
   validateFramedRawContract,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 function errorWithCode(code, message) {
   const error = new Error(message);
@@ -169,7 +171,7 @@ negative_constraints:
 `;
 }
 
-function createFixture({ invalid = false } = {}) {
+async function createFixture({ invalid = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "framed-plan-lifecycle-"));
   const deck = join(root, "deck_framed_plan_lifecycle");
   const runDir = join(deck, "3_versions", "v1");
@@ -180,6 +182,7 @@ function createFixture({ invalid = false } = {}) {
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
   writeFileSync(join(runDir, "slide-specifications.md"), source({ invalid }));
+  if (!invalid) await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
   return { root, deck, runDir, image: image.toBuffer("image/png"), paths: pageAuthorityImage2Paths(runDir) };
 }
 
@@ -282,7 +285,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("does not write or submit when the current source is invalid", async () => {
-    const fixture = createFixture({ invalid: true });
+    const fixture = await createFixture({ invalid: true });
     try {
       const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       await expect(buildFramedTargetRawPlan(fixture.runDir)).rejects.toThrow();
@@ -296,7 +299,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("does not write or submit when the selected font profile is unavailable", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       renderControls.profile_error = errorWithCode("framed_font_asset_missing", "selected font is unavailable");
       const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
@@ -311,7 +314,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("does not write or submit when the pinned runtime is unavailable", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       renderControls.proof_error = errorWithCode("framed_runtime_unavailable", "pinned runtime is unavailable");
       renderControls.proof_error_before_launch = true;
@@ -327,7 +330,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("does not write or submit when browser proof rejects layout", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       renderControls.proof_error = errorWithCode("framed_text_fit_failed", "title field has scroll overflow");
       const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
@@ -342,7 +345,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("materializes one exact plan, keeps later raw commands browser-free, and reserves one final composition batch for delivery", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       const plan = await buildFramedTargetRawPlan(fixture.runDir);
       const rawPlanBytes = readFileSync(fixture.paths.target_raw_plan);
@@ -426,7 +429,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("stops stale source before provider work and recovers through the same plan checkpoint", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
       writeFileSync(join(fixture.runDir, "slide-specifications.md"), source().replace("Exact lifecycle proof", "Repaired source lifecycle"));
@@ -445,7 +448,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("stops render-profile drift before provider work and repairs without manufacturing a source epoch", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
       renderControls.profile_digest_override = "b".repeat(64);
@@ -463,28 +466,33 @@ describe("Framed proof-before-materialization lifecycle", () => {
     }
   });
 
-  it("stops raw-contract registry drift before provider work and repairs through the plan owner", async () => {
-    const fixture = createFixture();
+  it("routes style-context registry drift back to Style Master before raw rebuild", async () => {
+    const fixture = await createFixture();
     try {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
+      const rawPlanBefore = readFileSync(fixture.paths.target_raw_plan);
+      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       const registryPath = join(fixture.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
       writeFileSync(registryPath, readFileSync(registryPath, "utf8").replace("quiet depth", "quiet luminous depth"));
 
       await expectStalePlanStopsProvider(fixture, initial.raw_work_plan.sha256, "target_source_receipt_stale");
       expect(sourceEpoch(fixture)).toBe(1);
       expect(renderControls.proof_calls).toBe(1);
-
-      const repaired = await repairPlanAndSubmit(fixture);
-      expect(repaired.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
+      await expect(buildFramedTargetRawPlan(fixture.runDir, { allowSourceRebuild: true })).rejects.toMatchObject({
+        code: "target_style_master_stale",
+        next_action: "inspect_style_master",
+      });
+      expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBefore);
+      expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(sourceEpoch(fixture)).toBe(1);
-      expect(renderControls.proof_calls).toBe(2);
+      expect(renderControls.proof_calls).toBe(1);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   });
 
   it("stops a tampered stored plan before provider work and repairs it through the same plan checkpoint", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
       const tampered = JSON.parse(readFileSync(fixture.paths.target_raw_plan, "utf8"));
@@ -505,7 +513,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("revalidates accepted raw-review record and projection bytes before local rebind", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
       await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
@@ -571,7 +579,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("does not publish a refreshed final manifest when final composition rejects the updated Text Frame", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
       await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
@@ -599,7 +607,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("requires raw rebuild when profile or canonical safe-zone facts drift", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
       await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
@@ -642,7 +650,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("routes reordered or switched sources to structural versioning before local underlay rebind", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
       await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
@@ -692,7 +700,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("keeps an exact notes-only refresh browser- and provider-free", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
       await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
@@ -714,7 +722,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
   });
 
   it("routes profile drift to raw rebuild instead of rebinding a notes-only underlay", async () => {
-    const fixture = createFixture();
+    const fixture = await createFixture();
     try {
       await buildAcceptedRawWork(fixture);
       const rawPlanBytes = readFileSync(fixture.paths.target_raw_plan);

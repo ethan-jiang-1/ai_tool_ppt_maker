@@ -84,3 +84,5 @@ dpt_rb_*
 
 skills-lock.json
 .agents
+.codewhale/
+

@@ -42,7 +42,8 @@
         "tests/03-framed-image/test_framed_render_contract.mjs",
         "tests/03-framed-image/test_framed_render_profile.mjs",
         "tests/03-framed-image/test_framed_review_contribution.mjs",
-        "tests/03-framed-image/test_framed_workflow.mjs"
+        "tests/03-framed-image/test_framed_workflow.mjs",
+        "tests/03-framed-image/test_style_master_scope.mjs"
       ],
       "e2e": []
     },
@@ -52,7 +53,8 @@
       "executables": [],
       "unit_integration": [
         "tests/04-pure-image/test_pure_review_contribution.mjs",
-        "tests/04-pure-image/test_pure_workflow.mjs"
+        "tests/04-pure-image/test_pure_workflow.mjs",
+        "tests/04-pure-image/test_style_master_scope.mjs"
       ],
       "e2e": []
     },
@@ -94,6 +96,8 @@
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",
         "tests/contracts/test_process_docs_consistency.mjs",
+        "tests/contracts/test_process_style_master_cli.mjs",
+        "tests/contracts/test_process_style_master_lifecycle_integration.mjs",
         "tests/contracts/test_process_workflow_inspection_cli.mjs",
         "tests/contracts/test_retired_cli_surface.mjs",
         "tests/contracts/test_retirement_ledger_audit.mjs",
@@ -126,13 +130,17 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
+        "tests/shared/image2/test_style_master_plan.mjs",
+        "tests/shared/image2/test_style_master_raw_binding.mjs",
+        "tests/shared/image2/test_style_master_schema.mjs",
+        "tests/shared/image2/test_style_master_scope.mjs",
         "tests/shared/image2/test_target_raw_review_coverage.mjs"
       ],
       "e2e": []
@@ -159,12 +167,14 @@
       "owner": "shared/state",
       "interfaces": [
         "shared/state/md_controller_reader.mjs",
-        "shared/state/state.mjs"
+        "shared/state/state.mjs",
+        "shared/state/target_authoring_draft_route.mjs"
       ],
       "executables": [],
       "unit_integration": [
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_state_yaml.mjs",
+        "tests/shared/state/test_target_authoring_draft_route.mjs",
         "tests/shared/state/test_target_page_authority_state.mjs"
       ],
       "e2e": []

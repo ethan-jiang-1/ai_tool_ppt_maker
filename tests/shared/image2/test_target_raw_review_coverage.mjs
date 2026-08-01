@@ -13,6 +13,7 @@ import {
   decidePureTargetRawReview,
   generatePureTargetRawPlan,
   preparePureTargetRawReview,
+  resolvePureStyleMasterScope,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
 import { createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
@@ -25,6 +26,7 @@ import {
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -61,12 +63,13 @@ function solidPng(fillStyle) {
   return image.toBuffer("image/png");
 }
 
-function createPureFixture(root, name, imageBytes) {
+async function createPureFixture(root, name, imageBytes) {
   const deck = join(root, name);
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), imageBytes);
   writeFileSync(join(runDir, "slide-specifications.md"), source());
+  await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   return { deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
@@ -133,6 +136,7 @@ describe("target raw-review coverage", () => {
       const imageBytes = image.toBuffer("image/png");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), imageBytes);
       writeFileSync(join(runDir, "slide-specifications.md"), source());
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
 
       const plan = buildPureTargetRawPlan(runDir);
       await authorizePureTargetRawPlan(runDir, { planHash: plan.raw_work_plan.sha256 });
@@ -204,8 +208,8 @@ describe("target raw-review coverage", () => {
     const root = mkdtempSync(join(tmpdir(), "target-review-copy-"));
     const firstBytes = solidPng("#1f4d6e");
     const secondBytes = solidPng("#7c2d12");
-    const first = createPureFixture(root, "deck_review_copy_source", firstBytes);
-    const second = createPureFixture(root, "deck_review_copy_target", secondBytes);
+    const first = await createPureFixture(root, "deck_review_copy_source", firstBytes);
+    const second = await createPureFixture(root, "deck_review_copy_target", secondBytes);
     try {
       await submitPureRaw(first.runDir, firstBytes);
       await preparePureTargetRawReview(first.runDir);

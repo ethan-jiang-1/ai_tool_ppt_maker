@@ -6,6 +6,7 @@ import {
   METHOD_MODULES,
   buildPlaybookIndex,
   controllerActiveNodeIds,
+  controllerDraftRouteNodes,
   controllerNodeIds,
   nodeAppliesToMode,
   nodeAppliesToWorkflow,
@@ -97,6 +98,13 @@ describe("MD Controller reader characterization", () => {
       "select-target-page-authority-workflow",
       "author-target-page-authority-content",
       "configure-target-page-authority-visual-system",
+      "inspect-target-framed-style-master",
+      "plan-target-framed-style-master",
+      "authorize-target-framed-style-master",
+      "generate-target-framed-style-master",
+      "abandon-target-framed-style-master",
+      "review-target-framed-style-master",
+      "promote-target-framed-style-master",
       "authorize-target-framed-raw",
       "generate-target-framed-raw",
       "review-target-framed-raw",
@@ -110,6 +118,13 @@ describe("MD Controller reader characterization", () => {
       "select-target-page-authority-workflow",
       "author-target-page-authority-content",
       "configure-target-page-authority-visual-system",
+      "inspect-target-pure-style-master",
+      "plan-target-pure-style-master",
+      "authorize-target-pure-style-master",
+      "generate-target-pure-style-master",
+      "abandon-target-pure-style-master",
+      "review-target-pure-style-master",
+      "promote-target-pure-style-master",
       "authorize-target-pure-raw",
       "generate-target-pure-raw",
       "review-target-pure-raw",
@@ -120,6 +135,34 @@ describe("MD Controller reader characterization", () => {
     ]);
     expect(framed).not.toContain("authorize-target-pure-raw");
     expect(pure).not.toContain("authorize-target-framed-raw");
+    expect(framed).not.toContain("inspect-target-pure-style-master");
+    expect(pure).not.toContain("inspect-target-framed-style-master");
+    expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual([
+      "select-target-page-authority-workflow",
+      "author-target-page-authority-content",
+      "configure-target-page-authority-visual-system",
+      "inspect-target-framed-style-master",
+      "plan-target-framed-style-master",
+      "authorize-target-framed-style-master",
+      "generate-target-framed-style-master",
+      "abandon-target-framed-style-master",
+      "review-target-framed-style-master",
+      "promote-target-framed-style-master",
+      "authorize-target-framed-raw",
+    ]);
+    expect(controllerDraftRouteNodes(index, "create-deck", "pure")).toEqual([
+      "select-target-page-authority-workflow",
+      "author-target-page-authority-content",
+      "configure-target-page-authority-visual-system",
+      "inspect-target-pure-style-master",
+      "plan-target-pure-style-master",
+      "authorize-target-pure-style-master",
+      "generate-target-pure-style-master",
+      "abandon-target-pure-style-master",
+      "review-target-pure-style-master",
+      "promote-target-pure-style-master",
+      "authorize-target-pure-raw",
+    ]);
 
     expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "framed")).toEqual([
       "classify-change",
@@ -171,6 +214,102 @@ describe("MD Controller reader characterization", () => {
       expect(result.errors.some((error) => error.rule === "steps")).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts only manifest-owned literal draft_route declarations", () => {
+    const dir = fixtureDir("draft-route");
+    const controller = [
+      "---",
+      "playbook: create-deck",
+      "supported_pipelines: [page-authority-image2-v2]",
+      "includes: []",
+      "---",
+      "",
+      "```yaml",
+      "node: select-target-page-authority-workflow",
+      "lifecycle_phase: 1",
+      "method_module: 01-content",
+      "production_modes: [image2-page-authority-v2]",
+      "draft_route: true",
+      "requires: []",
+      "entry: []",
+      "exit: []",
+      "```",
+      "",
+      "**Step 1 — MD**: route",
+      "",
+    ].join("\n");
+    try {
+      writeFileSync(join(dir, "create-deck.md"), controller);
+      writeFileSync(join(dir, "controller-manifest-v3.json"), JSON.stringify({
+        schema: "pptmaker-controller-manifest-v3",
+        shared_nodes: [],
+        controllers: {
+          "create-deck": {
+            supported_pipelines: ["page-authority-image2-v2"],
+            nodes: ["select-target-page-authority-workflow"],
+            draft_route_nodes: {
+              framed: ["select-target-page-authority-workflow"],
+              pure: ["select-target-page-authority-workflow"],
+            },
+          },
+        },
+      }));
+      const index = buildPlaybookIndex(dir);
+      expect(validatePlaybookIndex(index)).toMatchObject({ valid: true });
+      expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-authority-workflow"]);
+      expect(controllerDraftRouteNodes(index, "create-deck", null)).toEqual(["select-target-page-authority-workflow"]);
+
+      const manifest = JSON.parse(readFileSync(join(dir, "controller-manifest-v3.json"), "utf8"));
+      manifest.controllers["create-deck"].draft_route_nodes.pure = ["unknown-node"];
+      writeFileSync(join(dir, "controller-manifest-v3.json"), JSON.stringify(manifest));
+      const mismatched = buildPlaybookIndex(dir);
+      expect(validatePlaybookIndex(mismatched).errors.some((error) => error.rule === "draft-route")).toBe(true);
+      expect(controllerDraftRouteNodes(mismatched, "create-deck", "pure")).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects noncanonical and duplicate draft_route YAML forms before routing", () => {
+    const controllerLines = (value, duplicate = false) => [
+      "---",
+      "playbook: create-deck",
+      "supported_pipelines: [page-authority-image2-v2]",
+      "includes: []",
+      "---",
+      "",
+      "```yaml",
+      "node: select-target-page-authority-workflow",
+      "lifecycle_phase: 1",
+      "method_module: 01-content",
+      "production_modes: [image2-page-authority-v2]",
+      `draft_route: ${value}`,
+      ...(duplicate ? [`draft_route: ${value}`] : []),
+      "requires: []",
+      "entry: []",
+      "exit: []",
+      "```",
+      "",
+      "**Step 1 — MD**: route",
+      "",
+    ].join("\n");
+    for (const value of ["false", "\"true\"", "1", "null"]) {
+      const dir = fixtureDir(`draft-route-${value.replace(/[^a-z0-9]/gi, "") || "null"}`);
+      try {
+        writeFileSync(join(dir, "create-deck.md"), controllerLines(value));
+        expect(validatePlaybookIndex(buildPlaybookIndex(dir)).errors.some((error) => error.rule === "draft-route")).toBe(true);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+    const duplicate = fixtureDir("draft-route-duplicate");
+    try {
+      writeFileSync(join(duplicate, "create-deck.md"), controllerLines("true", true));
+      expect(validatePlaybookIndex(buildPlaybookIndex(duplicate)).errors.some((error) => error.rule === "parse")).toBe(true);
+    } finally {
+      rmSync(duplicate, { recursive: true, force: true });
     }
   });
 });

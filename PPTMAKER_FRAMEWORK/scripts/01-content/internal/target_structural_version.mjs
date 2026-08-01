@@ -6,7 +6,11 @@ import { stringify } from "yaml";
 import { canonicalJsonSha256 } from "../../shared/identity/canonical_json.mjs";
 import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
-import { inspectRunProductionMode, registerTargetPageAuthorityStructuralPublication } from "../../shared/state/state.mjs";
+import {
+  inspectRunProductionMode,
+  registerTargetPageAuthorityStructuralPublication,
+  revalidateTargetPageAuthorityStructuralReplay,
+} from "../../shared/state/state.mjs";
 import { applySlideEdit, parseSlideDocument, verifySlideEditPlanHash } from "./slide_document.mjs";
 
 export const TARGET_STRUCTURAL_PLAN_SCHEMA = "page-authority-target-structural-plan-v1";
@@ -188,13 +192,7 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
   if (!validTargetStructuralPlan(plan) || plan.plan_hash !== planHash) {
     throw new Error("confirmed target structural plan hash is required");
   }
-  if (plan.source_run_version !== context.sourceVersion || plan.target_run_version !== nextVersionName(context.runDir)) {
-    throw new Error("target structural plan no longer names the current source and next vNext");
-  }
-  const sourceInspection = inspectRunProductionMode(context.deckDir, { runVersion: context.sourceVersion, purpose: "execute" });
-  if (!sourceInspection.ok || sourceInspection.mode !== plan.source_mode) {
-    throw new Error("target structural source mode changed after preview");
-  }
+  if (plan.source_run_version !== context.sourceVersion) throw new Error("target structural plan no longer names the current source");
   const sourceText = readFileSync(join(context.runDir, "slide-specifications.md"), "utf8");
   const applied = validateSlidePlan(plan.slide_edit_plan, sourceText, plan.target_run_version);
   const targetFacts = validateTargetSource(
@@ -205,6 +203,44 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
   );
   if (targetFacts.source_sha256 !== plan.target_source_sha256 || targetFacts.ordered_slide_ids.join("\n") !== plan.ordered_slide_ids.join("\n")) {
     throw new Error("target structural plan source tuple drifted");
+  }
+
+  const targetRunDir = join(dirname(context.runDir), plan.target_run_version);
+  if (existsSync(targetRunDir)) {
+    const targetText = readFileSync(join(targetRunDir, "slide-specifications.md"), "utf8");
+    if (targetText !== plan.target_source_text) throw new Error("target structural replay target source bytes changed after publication");
+    validateTargetSource(targetText, plan.target_workflow, plan.ordered_slide_ids, plan.target_source_receipt);
+    const replay = revalidateTargetPageAuthorityStructuralReplay(context.deckDir, {
+      sourceRunVersion: context.sourceVersion,
+      targetRunVersion: plan.target_run_version,
+      sourceReceipt: plan.target_source_receipt,
+      planHash,
+    });
+    if (replay.workflow !== plan.target_workflow || replay.source_mode !== plan.source_mode) {
+      throw new Error("target structural replay source or workflow drifted");
+    }
+    return Object.freeze({
+      plan_hash: planHash,
+      source_run_dir: context.runDir,
+      target_run_dir: targetRunDir,
+      target_version: plan.target_run_version,
+      workflow: plan.target_workflow,
+      source_epoch: replay.source_epoch,
+      ordered_slide_ids: Object.freeze([...plan.ordered_slide_ids]),
+      materialized_slide_ids: Object.freeze([]),
+      needs_raw_generation: Object.freeze([...plan.ordered_slide_ids]),
+      provider_calls: 0,
+      inherited_acceptance: false,
+      replayed: true,
+    });
+  }
+
+  if (plan.target_run_version !== nextVersionName(context.runDir)) {
+    throw new Error("target structural plan no longer names the current next vNext");
+  }
+  const sourceInspection = inspectRunProductionMode(context.deckDir, { runVersion: context.sourceVersion, purpose: "execute" });
+  if (!sourceInspection.ok || sourceInspection.mode !== plan.source_mode) {
+    throw new Error("target structural source mode changed after preview");
   }
 
   const publication = publishStructuralVersion({

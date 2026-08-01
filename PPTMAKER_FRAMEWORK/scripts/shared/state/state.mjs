@@ -34,6 +34,9 @@ import {
   validateFinalSlideManifest,
   validateRawWorkPlan,
 } from "../image2/page_authority_artifacts.mjs";
+import {
+  validateStyleMasterSelectionRecord,
+} from "../image2/style_master_schema.mjs";
 import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOWS, isTargetWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
 import { TARGET_PRODUCTION_MODE, canonicalVersionKey, initialProductionModeRecord, inspectProductionMode, isProductionMode, isProductionModeRecord, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from "../run-bundle/production_mode.mjs";
 
@@ -83,6 +86,7 @@ const STATE_TOP_LEVEL_KEYS = new Set([
   "production_mode",
   "page_authority_raw_provider_authorization",
   "page_authority_target_evidence",
+  "page_authority_style_master",
   "playbook",
   "current_node",
   "execution_id",
@@ -425,6 +429,119 @@ export function inspectRunProductionMode(deckDir, { runVersion, runDir, purpose 
   });
 }
 
+function styleMasterSourceWorkflow(deckDir, runVersion) {
+  const marker = probeSourceMarkerForVersion(deckDir, runVersion);
+  if (marker?.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE || !TARGET_WORKFLOWS.includes(marker?.frontmatter?.metadata?.production?.workflow)) {
+    return Object.freeze({ ok: false, code: marker?.code || "STYLE_MASTER_SOURCE_UNAVAILABLE" });
+  }
+  return Object.freeze({ ok: true, workflow: marker.frontmatter.metadata.production.workflow });
+}
+
+/**
+ * Read one exact selection record without treating a compatibility file,
+ * candidate history, or Controller checkbox as selection authority.
+ */
+export function resolveEffectiveStyleMasterSelection(deckDir, { runVersion, runDir, state = null } = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) return Object.freeze({ ok: false, code: "RUN_VERSION_INVALID" });
+  const currentState = state || readState(deckDir, { purpose: "observe", heal: false });
+  if (currentState?.replacement_required || currentState?.corrupted) {
+    return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", current: false });
+  }
+  const record = styleMasterSelectionRecord(currentState, exactVersion);
+  if (!record) return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_MISSING", current: false });
+  const source = styleMasterSourceWorkflow(deckDir, exactVersion);
+  if (!source.ok) return Object.freeze({ ok: false, code: source.code, current: false });
+  const expectedWorkflow = styleMasterSelectionExpectedWorkflow(currentState, exactVersion) || source.workflow;
+  const checked = validateStyleMasterSelectionRecord(record, {
+    expectedRunVersion: exactVersion,
+    expectedWorkflow,
+  });
+  if (!checked.ok || source.workflow !== record.workflow) {
+    return Object.freeze({ ok: false, code: "STYLE_MASTER_SELECTION_STALE", current: false });
+  }
+  return Object.freeze({
+    ok: true,
+    current: true,
+    run_version: exactVersion,
+    workflow: record.workflow,
+    selection_sha256: checked.selection_sha256,
+    record: Object.freeze(structuredClone(record)),
+  });
+}
+
+/**
+ * Persist the one capability-owned selection record. Candidate lifecycle code
+ * supplies an already validated record; this state owner only CAS-binds it to
+ * its exact version/workflow scope and never materializes page lineage.
+ */
+export function recordEffectiveStyleMasterSelection(deckDir, {
+  runVersion,
+  runDir,
+  selection,
+  expectedStateSha = null,
+} = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) throw new Error("RUN_VERSION_INVALID");
+  // This mutation is always CAS-bound to the state bytes it inspected. Callers
+  // may supply an earlier explicit precondition when their owning transaction
+  // already has one; otherwise capture the durable bytes before observation.
+  const stateBytes = existsSync(statePath(deckDir)) ? readFileSync(statePath(deckDir)) : Buffer.alloc(0);
+  const stateSha = expectedStateSha ?? sha256(stateBytes);
+  const source = styleMasterSourceWorkflow(deckDir, exactVersion);
+  if (!source.ok) throw new Error(source.code);
+  const state = readState(deckDir, { purpose: "execute", heal: false });
+  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  const expectedWorkflow = styleMasterSelectionExpectedWorkflow(state, exactVersion) || source.workflow;
+  if (expectedWorkflow !== source.workflow) throw new Error("STYLE_MASTER_SELECTION_SCOPE_MISMATCH");
+  const checked = validateStyleMasterSelectionRecord(selection, {
+    expectedRunVersion: exactVersion,
+    expectedWorkflow,
+  });
+  if (!checked.ok) throw new Error(checked.code || "STYLE_MASTER_SELECTION_INVALID");
+  const existing = styleMasterSelectionRecord(state, exactVersion);
+  if (existing) {
+    const checkedExisting = validateStyleMasterSelectionRecord(existing, {
+      expectedRunVersion: exactVersion,
+      expectedWorkflow,
+    });
+    if (!checkedExisting.ok) throw new Error("STYLE_MASTER_SELECTION_INVALID");
+    if (selection.previous_selection_sha256 !== checkedExisting.selection_sha256) {
+      throw new Error("STYLE_MASTER_SELECTION_CONFLICT");
+    }
+    if (checked.selection_sha256 === checkedExisting.selection_sha256) {
+      return Object.freeze({
+        ok: true,
+        status: "already-current",
+        selection_sha256: checkedExisting.selection_sha256,
+        record: Object.freeze(structuredClone(existing)),
+      });
+    }
+  } else if (selection.previous_selection_sha256 !== null) {
+    throw new Error("STYLE_MASTER_SELECTION_CONFLICT");
+  }
+  const next = structuredClone(state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  ensureStyleMasterSelectionContainer(next)[canonicalVersionKey(exactVersion)] = structuredClone(selection);
+  writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: selection.accepted_at });
+  appendHistory(deckDir, {
+    type: "page_authority_style_master_selection_recorded",
+    run_version: exactVersion,
+    workflow: selection.workflow,
+    selection_sha256: checked.selection_sha256,
+    accepted_at: selection.accepted_at,
+  });
+  return Object.freeze({
+    ok: true,
+    status: "recorded",
+    selection_sha256: checked.selection_sha256,
+    record: Object.freeze(structuredClone(selection)),
+  });
+}
+
 /**
  * Resolve the one adapter allowed to handle an exact run version. This is the
  * public routing boundary for root orchestration and direct multi-pipeline
@@ -502,6 +619,43 @@ function validatePageAuthorityRawAuthorizationStructure(state, errors) {
       errors.push(`invalid page_authority_raw_provider_authorization record ${key}`);
     }
   }
+}
+
+function styleMasterSelectionExpectedWorkflow(state, runVersion) {
+  const mode = state?.production_mode?.by_version?.[canonicalVersionKey(runVersion)];
+  return isProductionModeRecord(mode) ? mode.workflow : null;
+}
+
+function validateStyleMasterSelectionStructure(state, errors) {
+  const map = state.page_authority_style_master;
+  if (map === undefined) return;
+  if (!hasExactKeys(map, ["by_version"]) || !isPlainObject(map.by_version)) {
+    errors.push("page_authority_style_master must contain only by_version");
+    return;
+  }
+  for (const [key, record] of Object.entries(map.by_version)) {
+    const runVersion = versionFromReservedKey(key);
+    if (!runVersion) {
+      errors.push(`invalid page_authority_style_master version key ${key}`);
+      continue;
+    }
+    const checked = validateStyleMasterSelectionRecord(record, {
+      expectedRunVersion: runVersion,
+      expectedWorkflow: styleMasterSelectionExpectedWorkflow(state, runVersion),
+    });
+    if (!checked.ok) errors.push(`invalid page_authority_style_master record ${key}: ${checked.code}`);
+  }
+}
+
+function ensureStyleMasterSelectionContainer(state) {
+  if (!isPlainObject(state.page_authority_style_master) || !isPlainObject(state.page_authority_style_master.by_version)) {
+    state.page_authority_style_master = { by_version: {} };
+  }
+  return state.page_authority_style_master.by_version;
+}
+
+function styleMasterSelectionRecord(state, runVersion) {
+  return state?.page_authority_style_master?.by_version?.[canonicalVersionKey(runVersion)] || null;
 }
 
 
@@ -1025,6 +1179,74 @@ export function registerTargetPageAuthorityStructuralPublication(deckDir, {
   });
 }
 
+/**
+ * Revalidate a previously published structural target without publishing or
+ * touching current target execution. This is deliberately separate from the
+ * first-publication writer so an active target Controller cannot be mistaken
+ * for a source-side execution conflict.
+ */
+export function revalidateTargetPageAuthorityStructuralReplay(deckDir, {
+  sourceRunVersion,
+  sourceRunDir,
+  targetRunVersion,
+  targetRunDir,
+  sourceReceipt,
+  planHash,
+} = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion ?? sourceRunDir);
+  const targetVersion = normalizeRunVersion(targetRunVersion ?? targetRunDir);
+  if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) {
+    throw new TypeError("source and target run versions must be distinct canonical vN values");
+  }
+  if (!SHA256_RE.test(planHash || "")) throw new TypeError("target structural replay requires an exact plan hash");
+  const targetSource = targetSourceFacts(sourceReceipt);
+  const targetSourcePath = join(deckDir, "3_versions", targetVersion, "slide-specifications.md");
+  if (!existsSync(targetSourcePath) || sha256(readFileSync(targetSourcePath)) !== targetSource.source_receipt_sha256) {
+    throw new Error("TARGET_STRUCTURAL_REPLAY_TARGET_SOURCE_DRIFT");
+  }
+  const targetMarker = probeSourceMarkerForVersion(deckDir, targetVersion);
+  const targetPipeline = pipelineFromSourceMarker(targetMarker);
+  if (!targetPipeline.ok || targetPipeline.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE || targetPipeline.workflow !== targetSource.workflow) {
+    throw new Error("TARGET_STRUCTURAL_REPLAY_TARGET_RECEIPT_DRIFT");
+  }
+  const state = readState(deckDir, { purpose: "observe", heal: false });
+  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  const sourceMarker = probeSourceMarkerForVersion(deckDir, sourceVersion);
+  const sourceInspection = inspectProductionMode({ state, runVersion: sourceVersion, sourceMarker });
+  if (!sourceInspection.ok) throw new Error("TARGET_STRUCTURAL_REPLAY_SOURCE_IDENTITY_DRIFT");
+  const sourceKey = canonicalVersionKey(sourceVersion);
+  const targetKey = canonicalVersionKey(targetVersion);
+  const sourceMode = state.production_mode?.by_version?.[sourceKey];
+  const targetMode = state.production_mode?.by_version?.[targetKey];
+  if (!isProductionModeRecord(sourceMode) || !isProductionModeRecord(targetMode) ||
+    targetMode.mode !== TARGET_PRODUCTION_MODE || targetMode.workflow !== targetSource.workflow || targetMode.source_epoch !== 1) {
+    throw new Error("TARGET_STRUCTURAL_REPLAY_TARGET_MODE_DRIFT");
+  }
+  const evidence = targetEvidenceRecord(state, targetVersion);
+  if (!validTargetEvidenceRecord(evidence, targetVersion) || evidence.source_epoch !== targetMode.source_epoch ||
+    evidence.source_receipt_sha256 !== targetSource.source_receipt_sha256 || evidence.workflow !== targetSource.workflow) {
+    throw new Error("TARGET_STRUCTURAL_REPLAY_TARGET_EVIDENCE_DRIFT");
+  }
+  const selection = styleMasterSelectionRecord(state, targetVersion);
+  if (selection) {
+    const checkedSelection = validateStyleMasterSelectionRecord(selection, {
+      expectedRunVersion: targetVersion,
+      expectedWorkflow: targetSource.workflow,
+    });
+    if (!checkedSelection.ok) throw new Error("TARGET_STRUCTURAL_REPLAY_TARGET_STYLE_MASTER_DRIFT");
+  }
+  return Object.freeze({
+    ok: true,
+    status: "exact-replay",
+    source_version: sourceVersion,
+    source_mode: sourceInspection.mode,
+    target_version: targetVersion,
+    workflow: targetSource.workflow,
+    source_epoch: targetMode.source_epoch,
+    selection_present: Boolean(selection),
+  });
+}
+
 function mutateTargetEvidenceRecord(deckDir, { runVersion, runDir, expectedStateSha = null, mutate } = {}) {
   const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
   if (!validTargetEvidenceRecord(context.record, context.exactVersion)) throw new Error("TARGET_STATE_INITIALIZATION_REQUIRED");
@@ -1144,6 +1366,38 @@ export function inspectTargetPageAuthorityState(deckDir, { runVersion, runDir, s
     return Object.freeze({ ok: false, kind: "confirm", code: "TARGET_DELIVERY_REQUIRED", next_action: "deliver_target_final_manifest", workflow: record.workflow, source_epoch: record.source_epoch });
   }
   return Object.freeze({ ok: true, workflow: record.workflow, source_epoch: record.source_epoch, record: Object.freeze(structuredClone(record)) });
+}
+
+/**
+ * Resolve only the exact current target source/state pair. This deliberately
+ * stops before raw authorization, raw review, finalization, and delivery so
+ * pre-raw owners can reuse the same byte/state boundary without treating
+ * downstream lifecycle work as a source-currentness requirement.
+ */
+export function resolveCurrentTargetPageAuthoritySourceState(deckDir, { runVersion, runDir } = {}) {
+  let context;
+  try {
+    context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "observe" });
+  } catch (error) {
+    return targetEvidenceFailure(error.message || "TARGET_STATE_UNAVAILABLE", "repair_target_source_state");
+  }
+  const record = context.record;
+  if (!validTargetEvidenceRecord(record, context.exactVersion)) {
+    return targetEvidenceFailure("TARGET_STATE_INITIALIZATION_REQUIRED", "initialize_target_source_state");
+  }
+  if (record.source_epoch !== context.modeRecord.source_epoch || record.workflow !== context.inspection.workflow) {
+    return targetEvidenceFailure("TARGET_SOURCE_STATE_IDENTITY_MISMATCH", "repair_target_source_state");
+  }
+  const sourcePath = join(deckDir, "3_versions", context.exactVersion, "slide-specifications.md");
+  if (!existsSync(sourcePath) || sha256(readFileSync(sourcePath)) !== record.source_receipt_sha256) {
+    return targetEvidenceFailure("TARGET_SOURCE_RECEIPT_STALE", "rebuild_target_source_receipt");
+  }
+  return Object.freeze({
+    ok: true,
+    workflow: record.workflow,
+    source_epoch: record.source_epoch,
+    record: Object.freeze(structuredClone(record)),
+  });
 }
 
 function pageAuthorityAuthorizationScopeFromRawWorkPlan(rawWorkPlan) {
@@ -1779,6 +2033,7 @@ export function validateState(state) {
   }
   for (const gate of ["content", "visual"]) if (!GATE_STATUSES.includes(gates[gate])) errors.push(`invalid gate ${gate}`);
   validateProductionModeStructure(state, errors);
+  validateStyleMasterSelectionStructure(state, errors);
   validatePageAuthorityRawAuthorizationStructure(state, errors);
   validateTargetEvidenceStructure(state, errors);
   validateCurrentControllerIdentity(state, errors);
@@ -1950,6 +2205,17 @@ export const CONDITIONS = {
   deck_guide_created: (_state, ctx) => existsSync(join(ctx.deckDir || "", "deck-guide.md")),
   visual_preset_seeded: (_state, ctx) => existsSync(join(ctx.deckDir || "", ...PAGE_AUTHORITY_VISUAL_LANGUAGE_RELATIVE_PATH.split("/"))),
   style_master_exists: (_state, ctx) => existsSync(join(ctx.deckDir || "", "2_backbone", "visual-style", "style_master.jpg")),
+  style_master_accepted: (state, ctx) => {
+    try {
+      const result = resolveEffectiveStyleMasterSelection(ctx.deckDir || "", {
+        runVersion: ctx.runVersion || ctx.run_version || ctx.runDir || ctx.run_dir,
+        state,
+      });
+      return result.ok === true && result.current === true;
+    } catch {
+      return false;
+    }
+  },
   slide_specs_exists: (_state, ctx) => existsSync(join(ctx.runDir || "", "slide-specifications.md")),
   slide_specs_valid: (_state, ctx) => typeof ctx.slideSpecsValid === "function" ? Boolean(ctx.slideSpecsValid()) : ctx.slideSpecsValid === true,
   pptx_generated: (state, ctx) => {

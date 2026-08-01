@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { styleMasterGenerationProfileSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
@@ -13,11 +14,14 @@ import {
   initializeTargetPageAuthorityState,
   inspectPageAuthorityRawProviderAuthorization,
   inspectTargetPageAuthorityState,
+  CONDITIONS,
   readState,
+  recordEffectiveStyleMasterSelection,
   recordPageAuthorityRawProviderAuthorization,
   recordTargetAcceptedRawEvidence,
   recordTargetDeliveryReceipt,
   recordTargetFinalManifest,
+  resolveEffectiveStyleMasterSelection,
   statePath,
   validateStateReadOnly,
   writeState,
@@ -64,7 +68,119 @@ function rawPlan(receipt) {
   });
 }
 
+function styleSelection(workflow = "pure", runVersion = "v1") {
+  return {
+    schema: "page-authority-style-master-selection-v1",
+    run_version: runVersion,
+    workflow,
+    plan_sha256: digest("a"),
+    candidate_id: "candidate-001",
+    candidate_sha256: digest("b"),
+    candidate_media_type: "image/png",
+    candidate_width: 2000,
+    candidate_height: 1125,
+    candidate_provenance_sha256: digest("c"),
+    style_intent_sha256: digest("d"),
+    style_context_sha256: digest("e"),
+    candidate_generation_profile_sha256: styleMasterGenerationProfileSha256(),
+    previous_selection_sha256: null,
+    review_decision_sha256: digest("0"),
+    accepted_at: "2026-08-01T00:00:00.000Z",
+  };
+}
+
 describe("TARGET Page Authority state lineage", () => {
+  it("keeps optional Style Master selection state separate from raw lineage and fails closed when stale or malformed", () => {
+    const fixture = targetFixture("pure");
+    try {
+      const selection = styleSelection();
+      expect(resolveEffectiveStyleMasterSelection(fixture.deck, { runDir: fixture.runDir })).toMatchObject({
+        ok: false,
+        code: "STYLE_MASTER_SELECTION_MISSING",
+      });
+      const recorded = recordEffectiveStyleMasterSelection(fixture.deck, {
+        runDir: fixture.runDir,
+        selection,
+      });
+      expect(recorded).toMatchObject({ ok: true, status: "recorded" });
+      let state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(state.page_authority_style_master.by_version["3_versions/v1"]).toEqual(selection);
+      expect(state.page_authority_target_evidence).toBeUndefined();
+      expect(resolveEffectiveStyleMasterSelection(fixture.deck, { runDir: fixture.runDir })).toMatchObject({
+        ok: true,
+        current: true,
+        selection_sha256: recorded.selection_sha256,
+      });
+      expect(CONDITIONS.style_master_accepted(state, { deckDir: fixture.deck, runDir: fixture.runDir })).toBe(true);
+
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(state.page_authority_style_master.by_version["3_versions/v1"]).toEqual(selection);
+
+      const staleSource = `---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: framed\n---\n`;
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), staleSource);
+      expect(resolveEffectiveStyleMasterSelection(fixture.deck, { runDir: fixture.runDir })).toMatchObject({
+        ok: false,
+        code: "STYLE_MASTER_SELECTION_STALE",
+        current: false,
+      });
+
+      const path = statePath(fixture.deck);
+      const malformed = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      malformed.page_authority_style_master.by_version["3_versions/v1"].candidate_width = 0;
+      writeFileSync(path, `${JSON.stringify(malformed, null, 2)}\n`);
+      const before = readFileSync(path);
+      expect(validateStateReadOnly(fixture.deck, { runDir: fixture.runDir }).valid).toBe(false);
+      expect(resolveEffectiveStyleMasterSelection(fixture.deck, { runDir: fixture.runDir })).toMatchObject({ ok: false });
+      expect(readFileSync(path)).toEqual(before);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects noncanonical selection map keys and scope bindings without normalizing state", () => {
+    const cases = [
+      {
+        label: "noncanonical key",
+        selection: styleSelection(),
+        key: "v1",
+      },
+      {
+        label: "run-version mismatch",
+        selection: styleSelection("pure", "v2"),
+        key: "3_versions/v1",
+      },
+      {
+        label: "workflow mismatch",
+        selection: styleSelection("framed", "v1"),
+        key: "3_versions/v1",
+      },
+    ];
+    for (const item of cases) {
+      const fixture = targetFixture("pure");
+      try {
+        const path = statePath(fixture.deck);
+        const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+        state.page_authority_style_master = { by_version: { [item.key]: item.selection } };
+        writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
+        const before = readFileSync(path);
+
+        expect(validateStateReadOnly(fixture.deck, { runDir: fixture.runDir })).toMatchObject({ valid: false });
+        expect(resolveEffectiveStyleMasterSelection(fixture.deck, { runDir: fixture.runDir })).toMatchObject({ ok: false, current: false });
+        expect(CONDITIONS.style_master_accepted(readState(fixture.deck, { purpose: "observe" }), {
+          deckDir: fixture.deck,
+          runDir: fixture.runDir,
+        })).toBe(false);
+        expect(readFileSync(path)).toEqual(before);
+      } finally {
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  });
+
   it("records source, authorization, raw evidence, final manifest, and delivery in one v2 state record", () => {
     const fixture = targetFixture();
     try {

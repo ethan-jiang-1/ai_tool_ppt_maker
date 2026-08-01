@@ -7,7 +7,7 @@
  * and production orchestrator instead of duplicating their logic.
  *
  * Current commands: doctor, init, status, validate, build, refresh, slides,
- *                   new-version, test, state, image2
+ *                   new-version, test, state, image2, style-master
  *
  * Uses commander for CLI. Delegates to:
  *   - bundle_layout.mjs         — directory SSOT, init, check, create_version
@@ -98,6 +98,7 @@ import {
   isTargetWorkflowSelectionPending,
   probeProductionMarker,
 } from "./shared/run-bundle/production_marker.mjs";
+import { sha256Bytes } from "./shared/identity/byte_hash.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -220,29 +221,18 @@ function preflightAdapterSource(resolved, where) {
  * non-draft execution.
  */
 async function resolveTargetAuthoringDraftAdapter(resolved, deckDir) {
-  const sourcePath = join(resolved, SLIDE_SPECS_NAME);
-  if (!existsSync(sourcePath)) return null;
-  const marker = probeProductionMarker(readFileSync(sourcePath), { source: SLIDE_SPECS_NAME });
-  const selectionPending = isTargetWorkflowSelectionPending(marker);
-  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE && !selectionPending) return null;
-  const { readState } = await import("./shared/state/state.mjs");
-  const state = readState(deckDir, { purpose: "observe", heal: false, runDir: resolved });
-  const versionKey = `3_versions/${basename(resolved)}`;
-  const isDraft = state && !state.replacement_required && !state.corrupted &&
-    state.pipeline === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE &&
-    state.production_mode?.by_version?.[versionKey] === undefined &&
-    state.playbook === "create-deck" && state.run_version === basename(resolved) &&
-    state.current_node === "select-target-page-authority-workflow";
-  if (!isDraft) return null;
+  const { resolveTargetAuthoringDraftRoute } = await import("./shared/state/target_authoring_draft_route.mjs");
+  const draft = resolveTargetAuthoringDraftRoute(resolved, { playbookDir: join(FRAMEWORK_DIR, "playbook") });
+  if (!draft || draft.deck_dir !== deckDir) return null;
   return Object.freeze({
     ok: true,
-    run_version: basename(resolved),
+    run_version: draft.run_version,
     mode: "image2-page-authority-v2",
-    workflow: selectionPending ? null : marker.frontmatter.metadata.production.workflow,
+    workflow: draft.workflow,
     policy: { adapter: "page-authority-image2-v2", pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE },
     adapter: "page-authority-image2-v2",
     draft: true,
-    target_workflow_selection_required: selectionPending,
+    target_workflow_selection_required: draft.workflow === null,
   });
 }
 
@@ -1097,6 +1087,16 @@ async function enrichTargetPageAuthorityStructuralPlan(context, transaction, app
   const workflow = marker.frontmatter?.metadata?.production?.workflow;
   const baseSlidePlan = targetStructuralBaseSlidePlan(transaction);
   const targetReceipt = await parseTargetStructuralReceipt(context, applied.text);
+  const existing = transaction.page_authority_target_structural;
+  if (existing) {
+    if (existing.slide_edit_plan_sha256 !== baseSlidePlan.plan_sha256 ||
+      existing.target_workflow !== workflow ||
+      existing.target_source_sha256 !== targetReceipt.source_sha256 ||
+      existing.target_source_receipt?.source_sha256 !== targetReceipt.source_sha256) {
+      throw new Error("Target Page Authority structural plan changed after preview; obtain a fresh preview");
+    }
+    return Object.freeze({ plan: existing });
+  }
   const candidate = previewTargetStructuralVersion({
     sourceRunDir: context.runDir,
     targetRunVersion: transaction.publication.target_version,
@@ -1105,13 +1105,6 @@ async function enrichTargetPageAuthorityStructuralPlan(context, transaction, app
     targetSourceText: applied.text,
     targetSourceReceipt: targetReceipt,
   });
-  const existing = transaction.page_authority_target_structural;
-  if (existing) {
-    if (existing.slide_edit_plan_sha256 !== baseSlidePlan.plan_sha256 || existing.plan_hash !== candidate.plan_hash) {
-      throw new Error("Target Page Authority structural plan changed after preview; obtain a fresh preview");
-    }
-    return Object.freeze({ plan: existing });
-  }
   transaction.page_authority_target_structural = candidate;
   transaction.plan_sha256 = computeSlideEditPlanSha256(transaction);
   return Object.freeze({ plan: candidate });
@@ -1565,6 +1558,20 @@ function imageDataUrl(path) {
   return `data:${extension};base64,${readFileSync(path).toString("base64")}`;
 }
 
+function imageBytesDataUrl(bytes, mediaType) {
+  if (!Buffer.isBuffer(bytes) && !(bytes instanceof Uint8Array)) {
+    const error = new Error("Target Page Authority Style Master reference bytes are invalid");
+    error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+    throw error;
+  }
+  if (!["image/png", "image/jpeg"].includes(mediaType) || bytes.length === 0) {
+    const error = new Error("Target Page Authority Style Master reference media is invalid");
+    error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+    throw error;
+  }
+  return `data:${mediaType};base64,${Buffer.from(bytes).toString("base64")}`;
+}
+
 function imageBytesFromPageAuthorityProvider(payload) {
   const record = payload?.data && !Array.isArray(payload.data) ? payload.data
     : Array.isArray(payload?.data) ? payload.data[0]
@@ -1585,13 +1592,20 @@ function imageBytesFromPageAuthorityProvider(payload) {
 }
 
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
-function targetPageAuthoritySubmitFactory(plan) {
+export function targetPageAuthoritySubmitFactory(plan, {
+  credentialResolver = null,
+  fetchImpl = fetch,
+} = {}) {
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
   return async ({ request, item }) => {
-    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
     let credentials;
     try {
-      credentials = resolveImage2Credentials();
+      if (credentialResolver) {
+        credentials = credentialResolver();
+      } else {
+        const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+        credentials = resolveImage2Credentials();
+      }
     } catch {
       const error = new Error("Target Page Authority provider credentials are unavailable");
       error.code = "PAGE_AUTHORITY_PROVIDER_CREDENTIALS_UNAVAILABLE";
@@ -1603,10 +1617,27 @@ function targetPageAuthoritySubmitFactory(plan) {
       error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
       throw error;
     }
-    const references = [plan.style_master_path];
+    const styleMaster = plan.style_master_reference;
+    const profileStyle = request.generation_profile?.effective_style_master;
+    if (!styleMaster || !profileStyle ||
+      !Buffer.isBuffer(styleMaster.bytes) ||
+      sha256Bytes(styleMaster.bytes) !== styleMaster.candidate_sha256 ||
+      profileStyle.selection_sha256 !== styleMaster.selection_sha256 ||
+      profileStyle.plan_sha256 !== styleMaster.plan_sha256 ||
+      profileStyle.candidate_id !== styleMaster.candidate_id ||
+      profileStyle.candidate_sha256 !== styleMaster.candidate_sha256 ||
+      profileStyle.candidate_provenance_sha256 !== styleMaster.candidate_provenance_sha256 ||
+      profileStyle.candidate_media_type !== styleMaster.candidate_media_type ||
+      profileStyle.candidate_width !== styleMaster.candidate_width ||
+      profileStyle.candidate_height !== styleMaster.candidate_height ||
+      profileStyle.bytes !== styleMaster.bytes.length) {
+      const error = new Error("Target Page Authority provider request lost its selected immutable Style Master reference");
+      error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+      throw error;
+    }
+    const images = [imageBytesDataUrl(styleMaster.bytes, styleMaster.candidate_media_type)];
     const identityPath = slide.visual_language?.identity_reference?.provider_reference?.path;
-    if (identityPath) references.push(identityPath);
-    const images = references.map(imageDataUrl);
+    if (identityPath) images.push(imageDataUrl(identityPath));
     const body = {
       model: request.generation_profile.provider.model,
       prompt: JSON.stringify(request),
@@ -1618,7 +1649,7 @@ function targetPageAuthoritySubmitFactory(plan) {
     };
     let response;
     try {
-      response = await fetch(`${credentials.base_url}/images/generations`, {
+      response = await fetchImpl(`${credentials.base_url}/images/generations`, {
         method: "POST",
         redirect: "error",
         headers: {
@@ -1649,11 +1680,66 @@ function targetPageAuthoritySubmitFactory(plan) {
   };
 }
 
+async function initializeStyleMasterImage2Transport() {
+  try {
+    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+    return resolveImage2Credentials();
+  } catch {
+    const error = new Error("Style Master provider credentials are unavailable");
+    error.code = "style_master_provider_credentials_unavailable";
+    throw error;
+  }
+}
+
+/** Submit one fixed Style Master candidate request through the existing Image2 transport. */
+function styleMasterSubmitFactory({ fetchImpl = fetch } = {}) {
+  return async ({ compiled_prompt_bytes: compiledPromptBytes, candidate_generation_profile: profile, transport }) => {
+    if (!Buffer.isBuffer(compiledPromptBytes) || compiledPromptBytes.length === 0 ||
+      !profile?.provider?.model || !transport?.base_url || !transport?.api_key) {
+      const error = new Error("Style Master provider request is not bound to its fixed candidate profile");
+      error.code = "style_master_provider_request_invalid";
+      error.style_master_known_failure = true;
+      throw error;
+    }
+    let response;
+    try {
+      response = await fetchImpl(`${transport.base_url}/images/generations`, {
+        method: "POST",
+        redirect: "error",
+        headers: {
+          Authorization: `Bearer ${transport.api_key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: profile.provider.model,
+          prompt: compiledPromptBytes.toString("utf8"),
+          n: 1,
+          size: "2000x1125",
+        }),
+      });
+    } catch {
+      const error = new Error("Style Master provider submission did not return a response");
+      error.code = "style_master_provider_submit_failed";
+      throw error;
+    }
+    if (!response.ok) return Object.freeze({ outcome: "known_failure" });
+    let payload;
+    try {
+      payload = JSON.parse(await response.text());
+      return imageBytesFromPageAuthorityProvider(payload);
+    } catch {
+      return Object.freeze({ outcome: "known_failure" });
+    }
+  };
+}
+
 async function targetImage2Operations(workflow) {
   if (workflow === "framed") {
     const owner = await import("./03-framed-image/index.mjs");
     return Object.freeze({
       resolveSource: owner.resolveFramedTargetSource,
+      resolveCandidateSource: owner.resolveFramedTargetCandidateSource,
+      resolveStyleMasterScope: owner.resolveFramedStyleMasterScope,
       buildPlan: owner.buildFramedTargetRawPlan,
       readStoredPlan: owner.readFramedTargetStoredPlanContext,
       projectPlan: owner.framedTargetRawPlanProjection,
@@ -1670,8 +1756,10 @@ async function targetImage2Operations(workflow) {
     const owner = await import("./04-pure-image/index.mjs");
     return Object.freeze({
       resolveSource: owner.resolvePureTargetSource,
+      resolveCandidateSource: owner.resolvePureTargetCandidateSource,
+      resolveStyleMasterScope: owner.resolvePureStyleMasterScope,
       buildPlan: owner.buildPureTargetRawPlan,
-      readStoredPlan: owner.buildPureTargetRawPlan,
+      readStoredPlan: owner.readPureTargetStoredPlanContext,
       projectPlan: owner.pureTargetRawPlanProjection,
       authorize: owner.authorizePureTargetRawPlan,
       generate: owner.generatePureTargetRawPlan,
@@ -1739,6 +1827,337 @@ async function commandImage2(operation, runDir, opts = {}) {
   if (!route) return 1;
   return commandTargetPageAuthorityImage2(operation, route, opts);
 }
+
+const STYLE_MASTER_OPERATIONS = new Set([
+  "inspect",
+  "plan",
+  "authorize",
+  "generate",
+  "review",
+  "accept",
+  "abandon",
+]);
+const STYLE_MASTER_PLAN_HASH_RE = /^[0-9a-f]{64}$/;
+
+function styleMasterNextInvocation(route, operation, options = {}) {
+  const args = [__filename, "style-master", operation, route.run_dir];
+  if (options.planHash) args.push("--plan-hash", options.planHash);
+  if (options.candidateCount !== undefined) args.push("--candidate-count", String(options.candidateCount));
+  if (options.decision) args.push("--decision", options.decision);
+  if (options.candidateId) args.push("--candidate-id", options.candidateId);
+  if (options.reason) args.push("--reason", options.reason);
+  return Object.freeze({ program: "node", args: Object.freeze(args) });
+}
+
+function styleMasterUnexpectedOption(operation) {
+  const allowed = {
+    inspect: new Set(["--plan-hash"]),
+    plan: new Set(["--candidate-count"]),
+    authorize: new Set(["--plan-hash"]),
+    generate: new Set(["--plan-hash"]),
+    review: new Set(["--plan-hash"]),
+    accept: new Set(["--plan-hash", "--decision", "--candidate-id"]),
+    abandon: new Set(["--plan-hash", "--reason"]),
+  }[operation] || new Set();
+  return ["--plan-hash", "--candidate-count", "--decision", "--candidate-id", "--reason"]
+    .find((option) => hasExplicitCliOption(option) && !allowed.has(option)) || null;
+}
+
+function requiredStyleMasterPlanHash(operation, opts) {
+  if (!hasExplicitCliOption("--plan-hash")) {
+    emitUsage(`ppt_flow.style-master.${operation}`, "--plan-hash is required", "Pass the exact current Style Master plan SHA-256.");
+    return null;
+  }
+  if (!STYLE_MASTER_PLAN_HASH_RE.test(opts.planHash || "")) {
+    emitUsage(`ppt_flow.style-master.${operation}`, "--plan-hash must be one lowercase SHA-256", "Pass the exact current Style Master plan SHA-256.");
+    return null;
+  }
+  return opts.planHash;
+}
+
+function requestedStyleMasterCandidateCount(opts) {
+  if (!hasExplicitCliOption("--candidate-count")) {
+    emitUsage("ppt_flow.style-master.plan", "--candidate-count is required", "Pass one explicit candidate count from 0 through 4.");
+    return null;
+  }
+  if (!/^[0-4]$/.test(String(opts.candidateCount || ""))) {
+    emitUsage("ppt_flow.style-master.plan", "--candidate-count must be an integer from 0 through 4", "Pass one explicit candidate count from 0 through 4.");
+    return null;
+  }
+  return Number(opts.candidateCount);
+}
+
+function styleMasterFailure(operation, route, error) {
+  const reason = pageAuthorityDiagnosticReasonKind(error?.code, "style_master_operation_failed");
+  const common = {
+    version: 1,
+    operation: `style-master-${operation}`,
+    reason: error?.reason?.kind === "compatibility_projection_failed"
+      ? Object.freeze({ kind: "compatibility_projection_failed" })
+      : Object.freeze({ kind: reason }),
+  };
+  const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
+
+  if (reason === "style_master_compatibility_projection_failed" &&
+    error?.subject?.kind === "style_master_selection" && STYLE_MASTER_PLAN_HASH_RE.test(error?.replay?.plan_sha256 || "") &&
+    error?.replay?.decision === "proceed" && typeof error?.replay?.candidate_id === "string") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The Style Master selection committed, but its compatibility JPEG projection needs replay.",
+      hint: "Rerun the exact accepted selection so its derived compatibility JPEG can be rebuilt.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        subject: error.subject,
+        next: createCliNext("rerun", {
+          invocation: styleMasterNextInvocation(route, "accept", {
+            planHash: error.replay.plan_sha256,
+            decision: "proceed",
+            candidateId: error.replay.candidate_id,
+          }),
+          default: "Rerun this exact accept invocation to repair only the derived compatibility JPEG.",
+        }),
+      },
+    };
+  }
+
+  if ([
+    "style_master_intent_invalid",
+    "style_master_context_invalid",
+    "style_master_prompt_invalid",
+    "style_master_local_invalid",
+    "style_master_local_unstable",
+    "style_master_scope_candidate_invalid",
+  ].includes(reason)) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Style Master intent, visual context, or local candidate is invalid.",
+      hint: "Repair the canonical source or local compatibility asset, then rerun the Style Master operation.",
+      diagnostic: {
+        ...common,
+        category: "source_validation",
+        source,
+        next: createCliNext("edit_source", {
+          inspect: [source],
+          default: "Repair the selected workflow source or canonical Style Master input, then rerun this operation.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_scope_workflow_required") {
+    return {
+      code: CLI_ERROR_CODES.GATE_BLOCKED,
+      message: "Style Master work requires one selected target workflow.",
+      hint: "Record the selected Framed or Pure workflow before starting Style Master work.",
+      diagnostic: {
+        ...common,
+        category: "gate",
+        next: createCliNext("review", {
+          default: "Select one target workflow through the Controller, then rerun Style Master inspection.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_provider_credentials_unavailable") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "Style Master candidate generation cannot access the Image2 credentials.",
+      hint: "Repair Image2 credentials or endpoint configuration, then rerun the exact generate operation.",
+      diagnostic: {
+        ...common,
+        category: "environment",
+        next: createCliNext("repair_environment", {
+          default: "Repair the Image2 credential and endpoint configuration, then rerun the exact Style Master generate operation.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_grant_missing" || reason === "style_master_plan_not_authorizable") {
+    return {
+      code: CLI_ERROR_CODES.GATE_BLOCKED,
+      message: "Style Master candidate generation requires its exact current cost authorization.",
+      hint: "Review and authorize the exact current Style Master candidate plan before generation.",
+      diagnostic: {
+        ...common,
+        category: "gate",
+        next: createCliNext("approve", {
+          invocation: styleMasterNextInvocation(route, "authorize", {
+            planHash: error?.plan_sha256 || null,
+          }),
+          default: "Obtain human approval for the exact current Style Master candidate cost, then authorize that plan.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_attempt_unknown") {
+    return {
+      code: CLI_ERROR_CODES.GATE_BLOCKED,
+      message: "A submitted Style Master candidate has an unknown provider outcome.",
+      hint: "Provide a human reason to abandon the exact current plan; do not retry the provider request.",
+      diagnostic: {
+        ...common,
+        category: "gate",
+        next: createCliNext("review", {
+          default: "Review the unknown submitted candidate and provide a reasoned exact-plan abandonment if recovery is required.",
+        }),
+      },
+    };
+  }
+
+  if (reason.startsWith("style_master_provider_") || reason.startsWith("style_master_transport_")) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The Style Master Image2 provider operation did not complete.",
+      hint: "Repair provider availability, then inspect the exact candidate plan before continuing.",
+      diagnostic: {
+        ...common,
+        category: "provider",
+        next: createCliNext("inspect", {
+          invocation: styleMasterNextInvocation(route, "inspect"),
+          default: "Inspect the exact current Style Master plan before deciding whether provider recovery is known or unknown.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "style_master_selection_conflict") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The effective Style Master selection changed before promotion could commit.",
+      hint: "Inspect and review the current Style Master selection before another promotion attempt.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("review", {
+          default: "Review the current Style Master candidates and selection before recording another visual-direction decision.",
+        }),
+      },
+    };
+  }
+
+  if (reason.startsWith("style_master_")) {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Style Master lifecycle record is stale, incomplete, or inconsistent.",
+      hint: "Inspect the current Style Master owner projection and follow its one next action.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("inspect", {
+          invocation: styleMasterNextInvocation(route, "inspect"),
+          default: "Inspect the current Style Master owner projection, then follow its exact next action.",
+        }),
+      },
+    };
+  }
+
+  return {
+    code: CLI_ERROR_CODES.FAILED,
+    message: "The Style Master operation failed unexpectedly.",
+    hint: "Report the framework failure; do not infer a provider or recovery route.",
+    diagnostic: {
+      ...common,
+      category: "internal",
+      next: createCliNext("report_internal", {
+        default: "Inspect the registered Style Master owner and report the framework failure before rerunning.",
+      }),
+    },
+  };
+}
+
+async function commandStyleMaster(operation, runDir, opts = {}) {
+  if (!STYLE_MASTER_OPERATIONS.has(operation)) {
+    return emitUsage("ppt_flow.style-master.operation", `Style Master operation ${JSON.stringify(operation)} is not supported`, "Use inspect, plan, authorize, generate, review, accept, or abandon.");
+  }
+  const unexpected = styleMasterUnexpectedOption(operation);
+  if (unexpected) {
+    return emitUsage(`ppt_flow.style-master.${operation}`, `${unexpected} is not accepted for Style Master ${operation}`, "Use only the fixed arguments for this current-v2 Style Master operation.");
+  }
+
+  let planHash = null;
+  let candidateCount = null;
+  if (["authorize", "generate", "review", "accept", "abandon"].includes(operation)) {
+    planHash = requiredStyleMasterPlanHash(operation, opts);
+    if (planHash === null) return 1;
+  } else if (operation === "inspect" && hasExplicitCliOption("--plan-hash")) {
+    if (!STYLE_MASTER_PLAN_HASH_RE.test(opts.planHash || "")) {
+      return emitUsage("ppt_flow.style-master.inspect", "--plan-hash must be one lowercase SHA-256", "Pass the exact current Style Master plan SHA-256.");
+    }
+    planHash = opts.planHash;
+  } else if (operation === "plan") {
+    candidateCount = requestedStyleMasterCandidateCount(opts);
+    if (candidateCount === null) return 1;
+  }
+
+  if (operation === "accept") {
+    if (!["proceed", "repair", "redirect"].includes(opts.decision)) {
+      return emitUsage("ppt_flow.style-master.accept", "--decision must be proceed, repair, or redirect", "Record one explicit current Style Master visual-direction decision.");
+    }
+    if (opts.decision === "proceed" && !opts.candidateId) {
+      return emitUsage("ppt_flow.style-master.accept", "--candidate-id is required when --decision proceed", "Name one eligible candidate from the exact reviewed plan.");
+    }
+    if (opts.decision !== "proceed" && opts.candidateId) {
+      return emitUsage("ppt_flow.style-master.accept", "--candidate-id is allowed only when --decision proceed", "Remove --candidate-id for repair or redirect.");
+    }
+  }
+  if (operation === "abandon" && !opts.reason) {
+    return emitUsage("ppt_flow.style-master.abandon", "--reason is required", "Provide one bounded human reason for abandoning the exact unknown plan.");
+  }
+
+  const route = await resolveRunAdapter(runDir, `ppt_flow.style-master.${operation}.identity`);
+  if (!route) return 1;
+  try {
+    const workflowOperations = await targetImage2Operations(route.workflow);
+    const scope = await workflowOperations.resolveStyleMasterScope(route.run_dir);
+    const owner = await import("./shared/image2/style_master_plan.mjs");
+    const common = { scope, refreshScope: workflowOperations.resolveStyleMasterScope };
+    let output;
+    if (operation === "inspect") {
+      output = await owner.inspectStyleMasterCandidates({ ...common, planSha256: planHash });
+    } else if (operation === "plan") {
+      output = await owner.planStyleMasterCandidates({ ...common, candidateCount });
+    } else if (operation === "authorize") {
+      output = await owner.authorizeStyleMasterCandidates({ ...common, planSha256: planHash });
+    } else if (operation === "generate") {
+      output = await owner.generateStyleMasterCandidates({
+        ...common,
+        planSha256: planHash,
+        initialize: initializeStyleMasterImage2Transport,
+        submit: styleMasterSubmitFactory(),
+      });
+    } else if (operation === "review") {
+      output = owner.projectStyleMasterCandidateReview(await owner.prepareStyleMasterCandidateReview({
+        ...common,
+        planSha256: planHash,
+      }));
+    } else if (operation === "accept") {
+      output = await owner.acceptStyleMasterCandidateReview({
+        ...common,
+        planSha256: planHash,
+        decision: opts.decision,
+        candidateId: opts.candidateId || null,
+      });
+    } else {
+      output = await owner.abandonStyleMasterCandidates({ ...common, planSha256: planHash, reason: opts.reason });
+    }
+    console.log(JSON.stringify(output, null, 2));
+    return 0;
+  } catch (error) {
+    const failure = styleMasterFailure(operation, route, error);
+    emitCliError({
+      code: failure.code,
+      message: failure.message,
+      hint: failure.hint,
+      where: `ppt_flow.style-master.${operation}`,
+      diagnostic: failure.diagnostic,
+    });
+    return 1;
+  }
+}
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -1756,6 +2175,7 @@ Examples:
   ppt_flow.mjs init deck_mydeck --deck-type pitch --style tech-startup
   ppt_flow.mjs status deck_mydeck/3_versions/v1
   ppt_flow.mjs validate deck_mydeck/3_versions/v1
+  ppt_flow.mjs style-master plan deck_mydeck/3_versions/v1 --candidate-count 2
   ppt_flow.mjs image2 plan deck_mydeck/3_versions/v1
   ppt_flow.mjs build deck_mydeck/3_versions/v1
   ppt_flow.mjs refresh deck_mydeck/3_versions/v1 --kind title --only slide_03
@@ -2132,6 +2552,23 @@ Examples:
       );
       console.log("Summary:  " + inspectionSummary);
       console.log("Next:     " + inspectionNext);
+    });
+
+  // ---- style-master (candidate lifecycle before page raw work) ----
+  program
+    .command("style-master")
+    .description("Current-v2 Style Master candidate lifecycle")
+    .argument("<operation>", "inspect, plan, authorize, generate, review, accept, or abandon")
+    .argument("<run_dir>", "Path to the exact version dir")
+    .option("--plan-hash <sha256>", "Exact current Style Master plan hash")
+    .option("--candidate-count <count>", "New generated candidate count: 0 through 4")
+    .option("--decision <decision>", "Visual-direction decision: proceed, repair, or redirect")
+    .option("--candidate-id <slot-id>", "Eligible reviewed candidate ID for proceed")
+    .option("--reason <text>", "Bounded human reason for exact unknown-plan abandonment")
+    .addHelpText("after", "\ninspect -> plan -> authorize -> generate -> review -> accept\nA zero-generated local plan skips authorize and generate.\n")
+    .action(async (operation, runDir, opts) => {
+      const code = await commandStyleMaster(operation, runDir, opts);
+      process.exit(code);
     });
 
   // ---- image2 (Page Authority raw lifecycle) ----
