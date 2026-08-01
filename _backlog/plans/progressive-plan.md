@@ -2,7 +2,7 @@
 
 > 类型：总控计划（program control） | 状态：进行中 | 更新：2026-07-31
 >
-> 当前只做 Change 1：`converge-framed-render-and-review`。Change 2 和 Change 3 尚未创建。
+> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已 propose 且为唯一 active change；Change 3 尚未创建。
 
 ## 目的
 
@@ -16,7 +16,7 @@
 
 下面三个总 checkbox 只在对应 change archive 后勾选，严格从上往下做：
 
-- [ ] Change 1：`converge-framed-render-and-review`
+- [x] Change 1：`converge-framed-render-and-review`
 - [ ] Change 2：`establish-style-master-feedback`
 - [ ] Change 3：`introduce-progressive-page-production`
 
@@ -26,43 +26,43 @@
 
 **目的：** 先证明 Framed 最终像素与 raw-review evidence 可信。这个 change 不增加新的人类决定。
 
-**Scope 来源：** [现状研究](framed-image2-status/research.md)、[render-contract 设计](framed-image2-status/render-contract-plan.md)、[proposal](../../openspec/changes/converge-framed-render-and-review/proposal.md)、[design](../../openspec/changes/converge-framed-render-and-review/design.md)、[tasks](../../openspec/changes/converge-framed-render-and-review/tasks.md)。
+**Scope 来源：** [现状研究](framed-image2-status/research.md)、[render-contract 设计](framed-image2-status/render-contract-plan.md)、[proposal](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/proposal.md)、[design](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/design.md)、[tasks](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/tasks.md)。
 
 **Scope checklist：**
 
-- [ ] [`visual-config`](../../openspec/changes/converge-framed-render-and-review/specs/visual-config/spec.md) 与 [`html-render-runtime`](../../openspec/changes/converge-framed-render-and-review/specs/html-render-runtime/spec.md)：规范化 `standard-v1`、render profile 和 checked-in fonts。
-- [ ] [`image-production`](../../openspec/changes/converge-framed-render-and-review/specs/image-production/spec.md)：用一个私有 compiler/evaluator/compositor 统一 description、browser proof 和 final composition。
-- [ ] [`image-generation`](../../openspec/changes/converge-framed-render-and-review/specs/image-generation/spec.md)：在写 source state、receipt、raw plan 或调用 provider 前完成真实 browser proof；后续命令只读 stored plan。
-- [ ] [`image-generation`](../../openspec/changes/converge-framed-render-and-review/specs/image-generation/spec.md) 与 [`run-bundle-layout`](../../openspec/changes/converge-framed-render-and-review/specs/run-bundle-layout/spec.md)：让 Framed/Pure raw review 都有完整、当前、可归属的 labels、guides 和 coverage。
-- [ ] [`pipeline-orchestration`](../../openspec/changes/converge-framed-render-and-review/specs/pipeline-orchestration/spec.md)：保留 Text Frame-only、notes-only 与 structural refresh 的正确边界。
-- [ ] [`environment-check`](../../openspec/changes/converge-framed-render-and-review/specs/environment-check/spec.md) 与 [`cli-surface`](../../openspec/changes/converge-framed-render-and-review/specs/cli-surface/spec.md)：统一 readiness、failure category 和唯一最近合法动作。
+- [x] [`visual-config`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/visual-config/spec.md) 与 [`html-render-runtime`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/html-render-runtime/spec.md)：规范化 `standard-v1`、render profile 和 checked-in fonts。
+- [x] [`image-production`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/image-production/spec.md)：用一个私有 compiler/evaluator/compositor 统一 description、browser proof 和 final composition。
+- [x] [`image-generation`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/image-generation/spec.md)：在写 source state、receipt、raw plan 或调用 provider 前完成真实 browser proof；后续命令只读 stored plan。
+- [x] [`image-generation`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/image-generation/spec.md) 与 [`run-bundle-layout`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/run-bundle-layout/spec.md)：让 Framed/Pure raw review 都有完整、当前、可归属的 labels、guides 和 coverage。
+- [x] [`pipeline-orchestration`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/pipeline-orchestration/spec.md)：保留 Text Frame-only、notes-only 与 structural refresh 的正确边界。
+- [x] [`environment-check`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/environment-check/spec.md) 与 [`cli-surface`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/specs/cli-surface/spec.md)：统一 readiness、failure category 和唯一最近合法动作。
 
 **按顺序完成：**
 
-- [x] Propose [`converge-framed-render-and-review`](../../openspec/changes/converge-framed-render-and-review/proposal.md)，完成 proposal、8 个 capability delta、design、[43 项 tasks](../../openspec/changes/converge-framed-render-and-review/tasks.md) 和初始 strict validation。
-- [ ] 按 `tasks.md` 完成全部 43 项实现与测试，不隐式延期。
-- [ ] 跑 focused、private-browser、integration、CLI、Framed/Pure mock E2E、完整 `npm test` 和适当 E2E tier。
-- [ ] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `converge-framed-render-and-review`。
+- [x] Propose [`converge-framed-render-and-review`](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/proposal.md)，完成 proposal、8 个 capability delta、design、[43 项 tasks](../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/tasks.md) 和初始 strict validation。
+- [x] 按 `tasks.md` 完成全部 43 项实现与测试，不隐式延期。
+- [x] 跑 focused、private-browser、integration、CLI、Framed/Pure mock E2E、完整 `npm test` 和适当 E2E tier。
+- [x] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `converge-framed-render-and-review`（commit `fb1940d`）。
 
 ## Change 2: Establish Style Master Feedback
 
 **目的：** 在任何页面级 raw production 前，让用户先看到真实 Style Master candidate，并把选择变成可恢复、可失效的 accepted visual direction。
 
-**Scope 来源：** [生产约定](production-conventions/README.md)、[Style Master/Pilot 设计](production-conventions/pilot-run-plan.md)、[Style Master tasks](production-conventions/tasks/style-master-tasks.md)、[tasks 投影规则](production-conventions/tasks-overview.md)。
+**Scope 来源：** [生产约定](production-conventions/README.md)、[Style Master/Pilot 设计](production-conventions/pilot-run-plan.md)、[Style Master tasks](production-conventions/tasks/style-master-tasks.md)、[tasks 投影规则](production-conventions/tasks-overview.md)、[proposal](../../openspec/changes/establish-style-master-feedback/proposal.md)、[design](../../openspec/changes/establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/establish-style-master-feedback/tasks.md)。
 
 **Scope checklist：**
 
-- [ ] 建立 provider-free candidate plan，绑定 style intent、workflow、generation profile、candidate count、selection scope 与 previous effective-style digest。
-- [ ] 取得精确 `style-master` authorization，并由唯一 owner 保存 grant、attempt、consumption、bytes 与 provenance。
-- [ ] 每个 candidate 完成后提供可恢复 progress；uncertain outcome 先对账，不自动 retry。
-- [ ] 展示真实 candidate bytes 后取得 `proceed | repair | redirect`，未经审查的 bytes 不能成为 effective style。
-- [ ] 通过 CAS/atomic promotion 保存 effective selection 与 acceptance receipt，并正确失效下游 plan/review/final/delivery evidence。
-- [ ] Framed/Pure 各自拥有独立 Controller entry，同时恢复 current `style-master` CLI、diagnostics、task projection 和 tests。
-- [ ] Change 2 结束时页面级 raw provider calls 仍为零；不提前建立 raw batch lifecycle。
+- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：建立 provider-free candidate plan，绑定 style intent、workflow、generation profile、candidate count、selection scope 与 previous effective-style digest。
+- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：取得精确 `style-master` authorization，并由唯一 owner 保存 grant、attempt、consumption、bytes 与 provenance。
+- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：每个 candidate 完成后提供可恢复 progress；uncertain outcome 先对账，不自动 retry。
+- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)：展示真实 candidate bytes 后取得 `proceed | repair | redirect`，未经审查的 bytes 不能成为 effective style。
+- [ ] [`style-master-generation`](../../openspec/changes/establish-style-master-feedback/specs/style-master-generation/spec.md)、[`image-generation`](../../openspec/changes/establish-style-master-feedback/specs/image-generation/spec.md)、[`pipeline-orchestration`](../../openspec/changes/establish-style-master-feedback/specs/pipeline-orchestration/spec.md) 与 [`run-bundle-layout`](../../openspec/changes/establish-style-master-feedback/specs/run-bundle-layout/spec.md)：通过 CAS/atomic promotion 保存 effective selection 与 acceptance receipt，并正确失效下游 plan/review/final/delivery evidence。
+- [ ] [`playbook-execution`](../../openspec/changes/establish-style-master-feedback/specs/playbook-execution/spec.md)、[`node-specification`](../../openspec/changes/establish-style-master-feedback/specs/node-specification/spec.md) 与 [`cli-surface`](../../openspec/changes/establish-style-master-feedback/specs/cli-surface/spec.md)：Framed/Pure 各自拥有独立 Controller entry，同时恢复 current `style-master` CLI、diagnostics、task projection 和 tests。
+- [ ] [`image-generation`](../../openspec/changes/establish-style-master-feedback/specs/image-generation/spec.md) 与 [`pipeline-orchestration`](../../openspec/changes/establish-style-master-feedback/specs/pipeline-orchestration/spec.md)：Change 2 结束时页面级 raw provider calls 仍为零；不提前建立 raw batch lifecycle。
 
 **按顺序完成：**
 
-- [ ] Change 1 archive 后，重新读取 main specs/runtime truth；propose `establish-style-master-feedback`，一次完成全部 planning artifacts 和初始 strict validation。
+- [x] Change 1 archive 后，重新读取 main specs/runtime truth；propose [`establish-style-master-feedback`](../../openspec/changes/establish-style-master-feedback/proposal.md)，完成 7 个 capability delta、[design](../../openspec/changes/establish-style-master-feedback/design.md)、[24 项 tasks](../../openspec/changes/establish-style-master-feedback/tasks.md) 和初始 strict validation。
 - [ ] 完成该 change 的全部 tasks；页面级 raw provider calls 必须保持为零。
 - [ ] 跑 focused、Controller、CLI、Framed/Pure mock E2E 和完整 regression。
 - [ ] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `establish-style-master-feedback`。
