@@ -1,8 +1,8 @@
 # Progressive Plan: Page Authority 第一阶段收官
 
-> 类型：总控计划（program control） | 状态：进行中 | 更新：2026-08-01
+> 类型：总控计划（program control） | 状态：收官待归档 | 更新：2026-08-02
 >
-> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已于 2026-08-01 sync、archive 并提交（`ec7c667`）；Change 3 已于 2026-08-01 propose，完成全部 planning artifacts 和初始 strict validation，是当前唯一 active change，下一步 apply。
+> Change 1 已于 2026-07-31 archive 并提交（`fb1940d`）。Change 2 已于 2026-08-01 sync、archive 并提交（`ec7c667`）。Change 3 已于 2026-08-02 sync、archive 并提交（`9f3540d`）；三个 change 均已完成，OpenSpec 没有遗留 active change。本文保留在原路径，等待显式移入 `_done/_closed_plans/`。
 
 ## 目的
 
@@ -18,7 +18,7 @@
 
 - [x] Change 1：`converge-framed-render-and-review`
 - [x] Change 2：`establish-style-master-feedback`
-- [ ] Change 3：`introduce-progressive-page-production`
+- [x] Change 3：`introduce-progressive-page-production`
 
 总共只做这 3 个 OpenSpec change，不再拆小，也不并行。前一个 change 没有完成 apply、测试、sync 和 archive，就不 propose 下一个。每个 change 的 Scope checklist 是归档前必须全部交付的范围；具体实现细项由该 change 的 `tasks.md` 跟踪。
 
@@ -71,39 +71,39 @@
 
 **目的：** 在一份完整 provider-free raw plan 上，用 exact Pilot 和 Expansion batches 完成长程生产、恢复、完整审查与交付。
 
-**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md)、[proposal](../../openspec/changes/introduce-progressive-page-production/proposal.md)、[design](../../openspec/changes/introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/introduce-progressive-page-production/tasks.md)。
+**Scope 来源：** [渐进生产设计](production-conventions/pilot-run-plan.md)、[slide identity](production-conventions/slide-naming.md)、[Pilot tasks](production-conventions/tasks/pilot-run-tasks.md)、[Expansion/Reviews tasks](production-conventions/tasks/expansion-and-reviews-tasks.md)、[历史 negative case](production-conventions/observations/deck-ai-sdlc-keynote-v4-2026-07-30.md)、[proposal](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/proposal.md)、[design](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/tasks.md)。
 
 **Scope checklist：**
 
-- [ ] 先建立覆盖 full paid-generation range 的 provider-free raw plan，并只用 `mnemonic-v1` formal slide IDs 表达 exact scope。
-- [ ] Pilot/Expansion grant 绑定 ordered IDs、raw-contract digests、plan/profile/source identity 与 maximum submissions；不接受 count-only 或 plan-wide inferred authorization。
-- [ ] 每项付费工作走 `claim -> submit -> commit`，保存 attempt、consumption、bytes、provenance、progress 与 uncertain-outcome reconciliation。
-- [ ] Framed Pilot 使用 Change 1 的同一 renderer 展示 underlay 与 production-equivalent composite，不发布 partial accepted/final evidence。
-- [ ] Pure Pilot 展示精确 full-page bytes，不调用 Framed code，也不暴露 Framed 语义。
-- [ ] Pilot `proceed` 后才请求 exact Expansion grant；Expansion 原样复用 current Pilot bytes，只提交 remaining paid debt。
-- [ ] Complete Raw Review 覆盖 Pilot、Expansion、provider-free reuse 与 retry provenance；partial Pilot 不能 finalization。
-- [ ] 1-5 页 paid debt 只做一次完整审查；零 paid debt 不创建 synthetic Pilot；resume 不重复 submit 已完成或 uncertain item。
-- [ ] 完成 current `pilot` CLI、task projections、Complete Raw Review、finalization、PPTX、notes、Delivery Review 与两条完整 E2E。
+- [x] 建立覆盖 full paid-generation range 的 provider-free raw plan，并只用 `mnemonic-v1` formal slide IDs 表达 exact scope。
+- [x] Pilot/Expansion grant 绑定 ordered IDs、raw-contract digests、plan/profile/source identity 与 maximum submissions；不接受 count-only 或 plan-wide inferred authorization。
+- [x] 每项付费工作走 `claim -> submit -> commit`，保存 attempt、consumption、bytes、provenance、progress 与 uncertain-outcome reconciliation。
+- [x] Framed Pilot 使用 Change 1 的同一 renderer 展示 underlay 与 production-equivalent composite，不发布 partial accepted/final evidence。
+- [x] Pure Pilot 展示精确 full-page bytes，不调用 Framed code，也不暴露 Framed 语义。
+- [x] Pilot `proceed` 后才请求 exact Expansion grant；Expansion 原样复用 current Pilot bytes，只提交 remaining paid debt。
+- [x] Complete Raw Review 覆盖 Pilot、Expansion、provider-free reuse 与 retry provenance；partial Pilot 不能 finalization。
+- [x] 1-5 页 paid debt 只做一次完整审查；零 paid debt 不创建 synthetic Pilot；resume 不重复 submit 已完成或 uncertain item。
+- [x] 完成 current `pilot` CLI、task projections、Complete Raw Review、finalization、PPTX、notes、Delivery Review 与两条完整 E2E。
 
 **按顺序完成：**
 
-- [x] Change 2 archive 后，重新读取 main specs/owners/journeys；propose [`introduce-progressive-page-production`](../../openspec/changes/introduce-progressive-page-production/proposal.md)，完成 8 个 capability delta、[design](../../openspec/changes/introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/introduce-progressive-page-production/tasks.md) 和初始 strict validation。
-- [ ] 先完成 exact grants 与逐项 materialization/recovery foundation。
-- [ ] 再完成 Framed Pilot 和 Pure Pilot 两条独立 journey。
-- [ ] 再完成 Expansion、complete raw review、final delivery 和 resume。
-- [ ] 跑 focused、browser、integration、CLI/Controller、两条完整 mock E2E、完整 `npm test` 和适当 E2E tier。
-- [ ] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `introduce-progressive-page-production`。
+- [x] Change 2 archive 后，重新读取 main specs/owners/journeys；propose [`introduce-progressive-page-production`](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/proposal.md)，完成 8 个 capability delta、[design](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/design.md)、[49 项 tasks](../../openspec/changes/archive/2026-08-02-introduce-progressive-page-production/tasks.md) 和初始 strict validation。
+- [x] 完成 exact grants 与逐项 materialization/recovery foundation。
+- [x] 完成 Framed Pilot 和 Pure Pilot 两条独立 journey。
+- [x] 完成 Expansion、complete raw review、final delivery 和 resume。
+- [x] 跑 focused、browser、integration、CLI/Controller、两条完整 mock E2E、完整 `npm test` 和适当 E2E tier。
+- [x] 再次 strict validate，把 delta specs sync 到 main specs，并 archive `introduce-progressive-page-production`（commit `9f3540d`）。
 
 ## 第一阶段结束
 
 三个 change 都归档后，只做一次最终收口：
 
-- [ ] `openspec status --json` 没有遗留 active change。
-- [ ] 三个 archived change 合起来完整覆盖 main specs、framework code、tests 和 Controller 文档。
-- [ ] Framed 与 Pure 都通过 fresh/resume 的完整 journey，且每个状态只有一个 owner 和一个最近合法动作。
-- [ ] 没有 inferred authorization、hidden retry/fallback、parallel ledger、cross-workflow Controller 或手改 `_generated/`。
-- [ ] 没有把生产 `deck_*` / `dpt_*` 当 framework source、fixture 或自动 migration target。
-- [ ] 两个原计划目录没有未归属或隐式 deferred 的事项。
+- [x] `openspec status --json` 没有遗留 active change。
+- [x] 三个 archived change 合起来完整覆盖 main specs、framework code、tests 和 Controller 文档。
+- [x] Framed 与 Pure 都通过 fresh/resume 的完整 journey，且每个状态只有一个 owner 和一个最近合法动作。
+- [x] 没有 inferred authorization、hidden retry/fallback、parallel ledger、cross-workflow Controller 或手改 `_generated/`。
+- [x] 没有把生产 `deck_*` / `dpt_*` 当 framework source、fixture 或自动 migration target。
+- [x] 两个原计划目录没有未归属或隐式 deferred 的事项。
 - [ ] 将本计划移入 `_done/_closed_plans/`，Page Authority 第一阶段结束。
 
 ## 原材料归属
