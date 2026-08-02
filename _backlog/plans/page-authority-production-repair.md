@@ -1,6 +1,6 @@
 # Plan: Page Authority 残余 Bug 收敛修复
 
-> 类型: 设计 / 分析 | 更新: 2026-08-02
+> 类型: 设计 / 分析 | 更新: 2026-08-03
 
 ## 结论
 
@@ -177,9 +177,15 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 9. [ ] **真实 run 验收（非 change，需授权）**：对指定 run bundle 执行正确的 Generated Image
    Rebuild / delivery 重建；人类确认画面文字、场景表达、文件顺序和页脚。绝不手改
    `_generated/`，也不因验收而修改 framework 外的未指定 deck。
-10. [ ] **簿记与版本收尾（非 change）**：更新各 bug 卡的最终状态、记录仍存在的根因；两项
-    change 都完成后移动本 plan 到 `_done/_closed_plans/`，并按 `project-versioning` 决定版本
-    更新是否需要人类确认。
+10. [ ] **簿记、归档与版本收尾（非 change）**：仅在第 2、9 步的真实 run 验收全部通过后执行：
+    先记录八张卡的最终状态与仍存在的根因，再以 `git mv` 将 BUG-036、BUG-037、BUG-040、
+    BUG-041、BUG-042、BUG-043、BUG-044、BUG-045 移入 `_backlog/_done/_fixed_bugs/`，并同步
+    `_backlog/bugs/README.md`、`_backlog/_done/_fixed_bugs/README.md` 与
+    `_backlog/_done/README.md` 的活跃列表、编号和计数；随后以 `git mv` 将本文件移入
+    `_backlog/_done/_closed_plans/page-authority-production-repair.md`，分配归档当日的下一个
+    `CLS-NNN`，并同步 `_backlog/plans/README.md`、`_backlog/_done/_closed_plans/README.md` 与
+    `_backlog/_done/README.md`。最后按 `project-versioning` 决定版本更新是否需要人类确认。
+    在真实 run 验收前不得移动任何待验收卡或本 plan。
 
 第 3 和第 6 步才创建 active change。这样 plan 可以先稳定存在，OpenSpec artifact 只在真正
 要实施时产生，也不会在等待期间过期。
