@@ -4,7 +4,21 @@ import { basename, join, resolve } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
 import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
-import { inspectTargetPageAuthorityState, resolveRunProductionAdapter, validateStateReadOnly } from "../state/state.mjs";
+import {
+  readTargetProgressiveControllerDecision,
+  readTargetProgressiveHandoff,
+  resolveRunProductionAdapter,
+  validateStateReadOnly,
+} from "../state/state.mjs";
+import { inspectProgressiveRawLifecycle } from "../image2/page_authority_progressive_raw_owner.mjs";
+import { resolveAcceptedStyleMasterReference } from "../image2/style_master_plan.mjs";
+import {
+  inspectFramedProgressiveLocalRebind,
+  readFramedProgressiveTargetPlanCandidate,
+} from "../../03-framed-image/index.mjs";
+import {
+  readPureProgressiveTargetPlanCandidate,
+} from "../../04-pure-image/index.mjs";
 
 export const WORKFLOW_INSPECTION_SCHEMA = "pptmaker-workflow-inspection-v1";
 
@@ -19,6 +33,19 @@ function ownerAction(owner, actionId, kind, requiresHuman, summary, command = nu
     requires_human: requiresHuman,
     summary,
     ...(command ? { command } : {}),
+  });
+}
+
+function progressiveOwnerAction(rawAction) {
+  return Object.freeze({
+    owner: rawAction?.owner || "progressive-raw-owner",
+    action_id: rawAction?.action_id || "rebuild_progressive_raw_work",
+    kind: rawAction?.kind || "repair",
+    requires_human: rawAction?.requires_human === true,
+    summary: rawAction?.summary || "Repair the exact progressive raw-owner facts.",
+    ...(rawAction?.plan_hash ? { plan_hash: rawAction.plan_hash } : {}),
+    ...(rawAction?.batch_hash ? { batch_hash: rawAction.batch_hash } : {}),
+    ...(rawAction?.attempt_sha256 ? { attempt_sha256: rawAction.attempt_sha256 } : {}),
   });
 }
 
@@ -53,56 +80,230 @@ function unsupportedProtocolResult(runDir, marker = null) {
   });
 }
 
-function targetWorkflowOwner(workflow, actionId) {
-  if (["initialize_target_source_state", "repair_target_source_state"].includes(actionId)) return "state";
-  if (actionId === "rebuild_target_source_receipt") return "01-content";
-  if (["authorize_target_raw_work", "record_target_raw_evidence"].includes(actionId)) return "shared-raw";
-  if (actionId === "publish_target_final_manifest") return workflow === "framed" ? "03-framed-image" : "04-pure-image";
-  if (actionId === "deliver_target_final_manifest") return "05-delivery";
-  return "state";
+function progressiveAdapter(workflow) {
+  if (workflow === "framed") {
+    return Object.freeze({
+      readPlanCandidate: readFramedProgressiveTargetPlanCandidate,
+      inspectLocalRebind: inspectFramedProgressiveLocalRebind,
+    });
+  }
+  if (workflow === "pure") {
+    return Object.freeze({
+      readPlanCandidate: readPureProgressiveTargetPlanCandidate,
+    });
+  }
+  return null;
 }
 
-function targetWorkflowResult(runDir, route) {
-  const target = inspectTargetPageAuthorityState(deckRoot(runDir), { runDir });
+/**
+ * Project only raw-owner facts. Adapter reads below are source/style validation
+ * preflights; they do not materialize source, head, state, grants, attempts,
+ * generated projections, or providers.
+ */
+function progressiveTargetWorkflowResult(runDir, route) {
   const workflow = route.workflow;
-  const sourceReady = target.ok || ![
-    "TARGET_STATE_INITIALIZATION_REQUIRED",
-    "TARGET_SOURCE_STATE_IDENTITY_MISMATCH",
-    "TARGET_SOURCE_RECEIPT_STALE",
-  ].includes(target.code);
-  const evidenceSummary = {
+  const direct = inspectProgressiveRawLifecycle({ runDir, workflow });
+  const baseSummary = {
     pipeline: route.policy.pipeline,
     mode: route.mode,
     workflow,
-    source_epoch: target.source_epoch ?? null,
-    target_evidence: target.ok ? "current" : target.code,
   };
-  if (target.ok) {
+  if (!direct.ok) {
     return report({
       runDir,
-      posture: "complete",
-      rootCause: { owner: "05-delivery", kind: "target-delivery-complete" },
-      primaryAction: ownerAction("05-delivery", "complete-target-delivery", "complete", false, "Target delivery evidence is complete."),
-      evidenceSummary,
-      sourceReady,
+      posture: "hard-stop",
+      rootCause: { owner: "progressive-raw-owner", kind: direct.code || "progressive-raw-owner-invalid" },
+      primaryAction: progressiveOwnerAction(direct.next_action),
+      evidenceSummary: { ...baseSummary, progressive: "invalid" },
+      sourceReady: true,
     });
   }
-  const actionId = target.next_action || "repair_target_source_state";
-  const owner = targetWorkflowOwner(workflow, actionId);
-  const isConfirm = target.kind === "confirm";
+  if (direct.legacy_v2) {
+    return report({
+      runDir,
+      posture: "hard-stop",
+      rootCause: { owner: "progressive-raw-owner", kind: "legacy-v2-replan-required" },
+      primaryAction: progressiveOwnerAction(direct.primary_action),
+      evidenceSummary: { ...baseSummary, progressive: "legacy-v2" },
+      sourceReady: true,
+    });
+  }
+
+  // A persisted submitted attempt is recoverability truth even if the source
+  // has drifted, so it takes precedence over adapter currentness checks.
+  if (direct.primary_action?.action_id === "reconcile_progressive_raw_attempt") {
+    return report({
+      runDir,
+      posture: "hard-stop",
+      rootCause: { owner: "progressive-raw-owner", kind: "submitted-outcome-unresolved" },
+      primaryAction: progressiveOwnerAction(direct.primary_action),
+      evidenceSummary: { ...baseSummary, progressive: "reconciliation-required", progress: direct.progress || null },
+      sourceReady: true,
+    });
+  }
+
+  const adapter = progressiveAdapter(workflow);
+  if (!adapter) return unsupportedProtocolResult(runDir);
+  let candidate = null;
+  let expectedPlan = null;
+  try {
+    candidate = adapter.readPlanCandidate(runDir, {
+      sourceEpoch: direct.plan?.source_epoch ?? null,
+    });
+    expectedPlan = candidate.progressive_raw_work_plan || null;
+    // A missing progressive head still needs the accepted Style Master
+    // prerequisite checked before inspection can offer plan creation.
+    if (!direct.plan) {
+      resolveAcceptedStyleMasterReference({
+        runDir: candidate.run_dir,
+        deckDir: candidate.deck_dir,
+        receipt: candidate.receipt,
+      });
+    }
+  } catch (error) {
+    const styleRequired = /^style_master_(?:selection|required|stale|scope)/.test(error?.code || "");
+    return report({
+      runDir,
+      posture: styleRequired ? "hard-stop" : "hard-stop",
+      rootCause: { owner: styleRequired ? "style-master" : "selected-workflow-adapter", kind: error?.code || "source-or-style-preflight-invalid" },
+      primaryAction: ownerAction(
+        styleRequired ? "style-master" : workflow === "framed" ? "03-framed-image" : "04-pure-image",
+        styleRequired ? "plan-style-master" : "repair-progressive-source-binding",
+        "repair",
+        false,
+        "Repair the earliest source, Style Master, or selected-workflow binding before progressive raw work.",
+      ),
+      evidenceSummary: { ...baseSummary, progressive: direct.plan ? "stale" : "plan-prerequisite" },
+      sourceReady: !styleRequired,
+    });
+  }
+
+  // Framed keeps its narrow, provider-free Text Frame-only path. It is only
+  // considered after unresolved submission precedence and only from direct
+  // accepted raw-owner evidence plus the existing retention validator.
+  if (direct.plan && direct.evidence?.accepted_raw_evidence_sha256 &&
+    expectedPlan?.sha256 !== direct.plan.plan_hash && typeof adapter.inspectLocalRebind === "function") {
+    try {
+      const localRebind = adapter.inspectLocalRebind(runDir, {
+        planHash: direct.plan.plan_hash,
+        candidate,
+      });
+      if (localRebind.available && localRebind.classification?.kind === "local_compose") {
+        const evidenceSummary = {
+          ...baseSummary,
+          progressive: "framed-local-rebind",
+          plan_hash: direct.plan.plan_hash,
+          progress: direct.progress || null,
+          evidence: direct.evidence || null,
+        };
+        return report({
+          runDir,
+          posture: "guide",
+          rootCause: { owner: "03-framed-image", kind: "framed-local-rebind-ready" },
+          primaryAction: ownerAction(
+            "03-framed-image",
+            "refresh_framed_text",
+            "refresh",
+            false,
+            "Refresh the validated Framed Text Frame through its provider-free local-rebind owner.",
+          ),
+          evidenceSummary,
+          sourceReady: true,
+        });
+      }
+    } catch (error) {
+      return report({
+        runDir,
+        posture: "hard-stop",
+        rootCause: { owner: "03-framed-image", kind: error?.code || "framed-local-rebind-invalid" },
+        primaryAction: ownerAction(
+          "03-framed-image",
+          "repair-progressive-source-binding",
+          "repair",
+          false,
+          "Repair the earliest Framed local-rebind source or evidence binding before progressive work.",
+        ),
+        evidenceSummary: { ...baseSummary, progressive: "framed-local-rebind-invalid" },
+        sourceReady: true,
+      });
+    }
+  }
+
+  const current = inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan: expectedPlan });
+  if (!current.ok) {
+    return report({
+      runDir,
+      posture: "hard-stop",
+      rootCause: { owner: "progressive-raw-owner", kind: current.code || "progressive-raw-owner-invalid" },
+      primaryAction: progressiveOwnerAction(current.next_action),
+      evidenceSummary: { ...baseSummary, progressive: "invalid" },
+      sourceReady: true,
+    });
+  }
+  const handoff = current.plan ? readTargetProgressiveHandoff(deckRoot(runDir), { runDir }) : null;
+  const evidenceSummary = {
+    ...baseSummary,
+    progressive: current.plan ? "current" : "plan-required",
+    plan_hash: current.plan?.plan_hash || null,
+    progress: current.progress || null,
+    latest_batch: current.latest_batch || null,
+    evidence: current.evidence || null,
+    controller_handoffs: current.controller_handoffs || null,
+  };
+  const acceptedRawCurrent = current.evidence?.accepted_raw_evidence_sha256 &&
+    handoff?.accepted_raw_evidence_sha256 === current.evidence.accepted_raw_evidence_sha256;
+  if (acceptedRawCurrent && handoff?.final_manifest_sha256 && handoff.delivery_receipt_sha256) {
+    const deliveryDecision = readTargetProgressiveControllerDecision(deckRoot(runDir), {
+      runDir,
+      nodeId: "review-target-page-authority-delivery",
+    });
+    if (deliveryDecision?.kind === "user" && deliveryDecision.value === "proceed") {
+      return report({
+        runDir,
+        posture: "complete",
+        rootCause: { owner: "05-delivery", kind: "target-delivery-complete" },
+        primaryAction: ownerAction("05-delivery", "complete-target-delivery", "complete", false, "Target progressive delivery evidence and the current delivery decision are complete."),
+        evidenceSummary: { ...evidenceSummary, delivery_decision: deliveryDecision },
+        sourceReady: true,
+      });
+    }
+    if (deliveryDecision?.kind === "user" && ["repair", "redirect"].includes(deliveryDecision.value)) {
+      return report({
+        runDir,
+        posture: "hard-stop",
+        rootCause: { owner: "05-delivery", kind: "delivery-decision-repair" },
+        primaryAction: ownerAction("05-delivery", "repair-target-page-authority-delivery", "repair", false, "Apply the owner-issued delivery repair before recording another delivery decision."),
+        evidenceSummary: { ...evidenceSummary, delivery_decision: deliveryDecision },
+        sourceReady: true,
+      });
+    }
+    return report({
+      runDir,
+      posture: "confirm",
+      rootCause: { owner: "05-delivery", kind: "review-target-page-authority-delivery" },
+      primaryAction: ownerAction("05-delivery", "review-target-page-authority-delivery", "confirm", true, "Review the current selected-workflow final projection, PPTX, and notes receipt."),
+      evidenceSummary: { ...evidenceSummary, delivery_decision: deliveryDecision },
+      sourceReady: true,
+    });
+  }
+  if (acceptedRawCurrent && handoff?.final_manifest_sha256) {
+    return report({
+      runDir,
+      posture: "guide",
+      rootCause: { owner: "05-delivery", kind: "deliver-target-page-authority" },
+      primaryAction: ownerAction("05-delivery", "deliver-target-page-authority", "deliver", false, "Assemble the current selected-workflow final manifest through shared delivery."),
+      evidenceSummary,
+      sourceReady: true,
+    });
+  }
+  const rawAction = current.primary_action;
   return report({
     runDir,
-    posture: isConfirm ? "confirm" : "hard-stop",
-    rootCause: { owner, kind: target.code || "target-evidence-unavailable" },
-    primaryAction: ownerAction(
-      owner,
-      actionId,
-      isConfirm ? "review" : "repair",
-      isConfirm,
-      "Follow the exact target workflow prerequisite.",
-    ),
+    posture: rawAction?.requires_human ? "confirm" : rawAction?.kind === "repair" ? "hard-stop" : "guide",
+    rootCause: { owner: rawAction?.owner || "progressive-raw-owner", kind: rawAction?.action_id || "progressive-raw-action" },
+    primaryAction: progressiveOwnerAction(rawAction),
     evidenceSummary,
-    sourceReady,
+    sourceReady: true,
   });
 }
 
@@ -175,5 +376,5 @@ export function inspectWorkflow({ runDir } = {}) {
     });
   }
 
-  return targetWorkflowResult(resolved, route);
+  return progressiveTargetWorkflowResult(resolved, route);
 }

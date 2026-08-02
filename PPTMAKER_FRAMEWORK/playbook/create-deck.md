@@ -45,6 +45,23 @@ not candidate authority or a resume signal. `proceed`, `repair`, and `redirect`
 are Style Master visual-direction decisions; none grants page-raw cost or
 acceptance.
 
+### Progressive Page Production Resume
+
+For a selected progressive Page Authority route, first resolve the exact
+run/controller identity and refresh workflow inspection before choosing any
+node. The inspection's one owner-issued action selects the current checkpoint;
+it is never inferred from a previously completed node, a generated file, or
+conversation context. A partial Pilot `proceed` refreshes inspection and shows
+only the owner-derived Expansion scope/cost checkpoint. It does not authorize
+Expansion, accept full raw evidence, finalize, or deliver.
+
+The Controller rebuilds `_state/page-production-task-projection.md` on route
+entry/resume and after relevant decisions. The card contains only owner-issued
+references, bounded progress, one next action, and the matching typed human
+handoff plus an optional note. It is a collaboration view: its prose,
+checkboxes, manual edits, stale content, or deletion cannot authorize a cost,
+resume a submission, prove materialization, advance state, or become evidence.
+
 ### select-target-page-authority-workflow
 ```yaml
 node: select-target-page-authority-workflow
@@ -204,9 +221,9 @@ exit: [style_master_accepted]
 ```
 **Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete only when the owner exposes the current accepted selection; a failed compatibility projection must use the producer-issued exact replay invocation.
 
-### authorize-target-framed-raw
+### plan-target-framed-progressive-raw
 ```yaml
-node: authorize-target-framed-raw
+node: plan-target-framed-progressive-raw
 lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-authority-image2-v2
@@ -214,28 +231,123 @@ production_modes: [image2-page-authority-v2]
 production_workflows: [framed]
 draft_route: true
 requires: [promote-target-framed-style-master]
-produces: [target-framed-raw-authorization]
-decisions: [authorize, revise, decline]
+produces: [target-framed-progressive-raw-plan]
 entry: [style_master_accepted]
-exit: [user_decision_recorded]
+exit: [evidence:target-framed-progressive-raw-plan-current]
 ```
-**Step 1 — CLI**: Use the existing owner-issued raw-plan action for the exact Framed target receipt and authorize only its disclosed scope.
-**Step 2 — GATE**: Record `authorize`, `revise`, or `decline` against that exact scoped plan.
+**Step 1 — CLI**: Run `ppt_flow image2 plan <run-dir>`. It compiles one provider-free full Framed raw plan and exposes only the owner-issued next action.
 
-### generate-target-framed-raw
+### recommend-target-framed-pilot
 ```yaml
-node: generate-target-framed-raw
+node: recommend-target-framed-pilot
 lifecycle_phase: 4
 method_module: 03-framed-image
 adapter: page-authority-image2-v2
 production_modes: [image2-page-authority-v2]
 production_workflows: [framed]
-requires: [authorize-target-framed-raw]
-produces: [target-framed-accepted-raw-evidence]
+requires: [plan-target-framed-progressive-raw]
+produces: [target-framed-pilot-projection]
 entry: []
-exit: [evidence:target-framed-raw-current]
+exit: [evidence:target-framed-pilot-projection-current]
 ```
-**Step 1 — CLI**: Run only the authorized Framed raw work through the shared raw owner; it records evidence for the exact target plan.
+**Step 1 — MD**: Recommend a risk-representative set of exact formal slide IDs only when workflow inspection requests a Pilot scope. Do not infer a partial route from card text or positions.
+**Step 2 — CLI**: Run `ppt_flow image2 pilot <run-dir> --plan-hash <sha256> --slide-id <formal-id> ...` and present the returned ordered scope, display facts, paid membership, and maximum submissions.
+
+### authorize-target-framed-pilot
+```yaml
+node: authorize-target-framed-pilot
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [recommend-target-framed-pilot]
+produces: [target-framed-pilot-authorization]
+decisions: [authorize, revise, decline]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — GATE**: Record the human cost decision for the exact owner-issued Pilot batch. This does not accept raw quality or authorize Expansion.
+**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+
+### generate-target-framed-pilot
+```yaml
+node: generate-target-framed-pilot
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [authorize-target-framed-pilot]
+produces: [target-framed-pilot-item-progress]
+entry: [node_decision:authorize-target-framed-pilot:authorize]
+exit: [evidence:target-framed-pilot-item-progress]
+```
+**Step 1 — CLI**: Re-run `ppt_flow image2 generate` with the exact plan and batch hashes. Each invocation may submit and materialize at most one owner-eligible item; refresh inspection before the next call.
+
+### review-target-framed-pilot
+```yaml
+node: review-target-framed-pilot
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [generate-target-framed-pilot]
+produces: [target-framed-pilot-evidence]
+decisions: [proceed, repair, redirect]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present only the Framed underlay plus production-equivalent Text Frame composite.
+**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` for the exact Pilot evidence. A partial `proceed` only unlocks owner-derived Expansion planning.
+
+### plan-target-framed-expansion
+```yaml
+node: plan-target-framed-expansion
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [review-target-framed-pilot]
+produces: [target-framed-expansion-projection]
+entry: [node_decision:review-target-framed-pilot:proceed]
+exit: [evidence:target-framed-expansion-projection-current]
+```
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-accept ... --decision proceed`, refresh inspection, then run `ppt_flow image2 expansion <run-dir> --plan-hash <sha256>`. The owner, not the Controller, derives the remaining paid scope.
+
+### authorize-target-framed-expansion
+```yaml
+node: authorize-target-framed-expansion
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [plan-target-framed-expansion]
+produces: [target-framed-expansion-authorization]
+decisions: [authorize, revise, decline]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — GATE**: Record a separate cost decision for the exact disclosed Expansion batch.
+**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+
+### generate-target-framed-expansion
+```yaml
+node: generate-target-framed-expansion
+lifecycle_phase: 4
+method_module: 03-framed-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [framed]
+requires: [authorize-target-framed-expansion]
+produces: [target-framed-expansion-item-progress]
+entry: [node_decision:authorize-target-framed-expansion:authorize]
+exit: [evidence:target-framed-expansion-item-progress]
+```
+**Step 1 — CLI**: Re-run the exact one-item `ppt_flow image2 generate` invocation and refresh owner inspection after every result.
 
 ### review-target-framed-raw
 ```yaml
@@ -245,14 +357,14 @@ method_module: 03-framed-image
 adapter: page-authority-image2-v2
 production_modes: [image2-page-authority-v2]
 production_workflows: [framed]
-requires: [generate-target-framed-raw]
-produces: [target-framed-raw-review]
+requires: [plan-target-framed-progressive-raw]
+produces: [target-framed-complete-raw-review]
 decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
-**Step 1 — MD**: Review the exact Framed raw projection and its source-bound evidence.
-**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the current evidence only.
+**Step 1 — CLI**: Only when owner inspection requests complete review, run `ppt_flow image2 review <run-dir> --plan-hash <sha256>` and present full-plan current Framed evidence.
+**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
 
 ### publish-target-framed-final-manifest
 ```yaml
@@ -264,10 +376,10 @@ production_modes: [image2-page-authority-v2]
 production_workflows: [framed]
 requires: [review-target-framed-raw]
 produces: [target-framed-final-slide-manifest]
-entry: []
+entry: [node_decision:review-target-framed-raw:proceed]
 exit: [evidence:target-framed-final-manifest-current]
 ```
-**Step 1 — CLI**: Have the Framed workflow publish its common final-slide manifest from current accepted evidence. It does not assemble PPTX or notes.
+**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Framed workflow publish its final manifest from the accepted v3 evidence. It does not assemble PPTX or notes.
 
 ### inspect-target-pure-style-master
 ```yaml
@@ -381,9 +493,9 @@ exit: [style_master_accepted]
 ```
 **Step 1 — CLI**: Run `ppt_flow style-master accept <run-dir> --plan-hash <sha256> --decision proceed --candidate-id <slot-id>`. Promotion is complete only when the owner exposes the current accepted selection; a failed compatibility projection must use the producer-issued exact replay invocation.
 
-### authorize-target-pure-raw
+### plan-target-pure-progressive-raw
 ```yaml
-node: authorize-target-pure-raw
+node: plan-target-pure-progressive-raw
 lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-authority-image2-v2
@@ -391,28 +503,123 @@ production_modes: [image2-page-authority-v2]
 production_workflows: [pure]
 draft_route: true
 requires: [promote-target-pure-style-master]
-produces: [target-pure-raw-authorization]
-decisions: [authorize, revise, decline]
+produces: [target-pure-progressive-raw-plan]
 entry: [style_master_accepted]
-exit: [user_decision_recorded]
+exit: [evidence:target-pure-progressive-raw-plan-current]
 ```
-**Step 1 — CLI**: Use the existing owner-issued raw-plan action for the exact Pure target receipt and authorize only its disclosed scope.
-**Step 2 — GATE**: Record `authorize`, `revise`, or `decline` against that exact scoped plan.
+**Step 1 — CLI**: Run `ppt_flow image2 plan <run-dir>`. It compiles one provider-free full Pure raw plan and exposes only the owner-issued next action.
 
-### generate-target-pure-raw
+### recommend-target-pure-pilot
 ```yaml
-node: generate-target-pure-raw
+node: recommend-target-pure-pilot
 lifecycle_phase: 4
 method_module: 04-pure-image
 adapter: page-authority-image2-v2
 production_modes: [image2-page-authority-v2]
 production_workflows: [pure]
-requires: [authorize-target-pure-raw]
-produces: [target-pure-accepted-raw-evidence]
+requires: [plan-target-pure-progressive-raw]
+produces: [target-pure-pilot-projection]
 entry: []
-exit: [evidence:target-pure-raw-current]
+exit: [evidence:target-pure-pilot-projection-current]
 ```
-**Step 1 — CLI**: Run only the authorized Pure raw work through the shared raw owner; it records evidence for the exact target plan.
+**Step 1 — MD**: Recommend a risk-representative set of exact formal slide IDs only when workflow inspection requests a Pilot scope. Do not infer a partial route from card text or positions.
+**Step 2 — CLI**: Run `ppt_flow image2 pilot <run-dir> --plan-hash <sha256> --slide-id <formal-id> ...` and present the returned ordered scope, display facts, paid membership, and maximum submissions.
+
+### authorize-target-pure-pilot
+```yaml
+node: authorize-target-pure-pilot
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [recommend-target-pure-pilot]
+produces: [target-pure-pilot-authorization]
+decisions: [authorize, revise, decline]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — GATE**: Record the human cost decision for the exact owner-issued Pilot batch. This does not accept raw quality or authorize Expansion.
+**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+
+### generate-target-pure-pilot
+```yaml
+node: generate-target-pure-pilot
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [authorize-target-pure-pilot]
+produces: [target-pure-pilot-item-progress]
+entry: [node_decision:authorize-target-pure-pilot:authorize]
+exit: [evidence:target-pure-pilot-item-progress]
+```
+**Step 1 — CLI**: Re-run `ppt_flow image2 generate` with the exact plan and batch hashes. Each invocation may submit and materialize at most one owner-eligible item; refresh inspection before the next call.
+
+### review-target-pure-pilot
+```yaml
+node: review-target-pure-pilot
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [generate-target-pure-pilot]
+produces: [target-pure-pilot-evidence]
+decisions: [proceed, repair, redirect]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present only the Pure full-page raw bytes plus their current bindings.
+**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` for the exact Pilot evidence. A partial `proceed` only unlocks owner-derived Expansion planning.
+
+### plan-target-pure-expansion
+```yaml
+node: plan-target-pure-expansion
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [review-target-pure-pilot]
+produces: [target-pure-expansion-projection]
+entry: [node_decision:review-target-pure-pilot:proceed]
+exit: [evidence:target-pure-expansion-projection-current]
+```
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-accept ... --decision proceed`, refresh inspection, then run `ppt_flow image2 expansion <run-dir> --plan-hash <sha256>`. The owner, not the Controller, derives the remaining paid scope.
+
+### authorize-target-pure-expansion
+```yaml
+node: authorize-target-pure-expansion
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [plan-target-pure-expansion]
+produces: [target-pure-expansion-authorization]
+decisions: [authorize, revise, decline]
+entry: []
+exit: [user_decision_recorded]
+```
+**Step 1 — GATE**: Record a separate cost decision for the exact disclosed Expansion batch.
+**Step 2 — CLI**: After `authorize`, run `ppt_flow image2 authorize <run-dir> --plan-hash <sha256> --batch-hash <sha256>`.
+
+### generate-target-pure-expansion
+```yaml
+node: generate-target-pure-expansion
+lifecycle_phase: 4
+method_module: 04-pure-image
+adapter: page-authority-image2-v2
+production_modes: [image2-page-authority-v2]
+production_workflows: [pure]
+requires: [authorize-target-pure-expansion]
+produces: [target-pure-expansion-item-progress]
+entry: [node_decision:authorize-target-pure-expansion:authorize]
+exit: [evidence:target-pure-expansion-item-progress]
+```
+**Step 1 — CLI**: Re-run the exact one-item `ppt_flow image2 generate` invocation and refresh owner inspection after every result.
 
 ### review-target-pure-raw
 ```yaml
@@ -422,14 +629,14 @@ method_module: 04-pure-image
 adapter: page-authority-image2-v2
 production_modes: [image2-page-authority-v2]
 production_workflows: [pure]
-requires: [generate-target-pure-raw]
-produces: [target-pure-raw-review]
+requires: [plan-target-pure-progressive-raw]
+produces: [target-pure-complete-raw-review]
 decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
-**Step 1 — MD**: Review the exact Pure raw projection and its source-bound evidence.
-**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the current evidence only.
+**Step 1 — CLI**: Only when owner inspection requests complete review, run `ppt_flow image2 review <run-dir> --plan-hash <sha256>` and present full-plan current Pure evidence.
+**Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against the complete raw review. Small debt and zero debt arrive here without a synthetic partial Pilot decision.
 
 ### publish-target-pure-final-manifest
 ```yaml
@@ -441,10 +648,10 @@ production_modes: [image2-page-authority-v2]
 production_workflows: [pure]
 requires: [review-target-pure-raw]
 produces: [target-pure-final-slide-manifest]
-entry: []
+entry: [node_decision:review-target-pure-raw:proceed]
 exit: [evidence:target-pure-final-manifest-current]
 ```
-**Step 1 — CLI**: Have the Pure workflow publish its common final-slide manifest from current accepted evidence. It does not assemble PPTX or notes.
+**Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Pure workflow publish its final manifest from the accepted v3 evidence. It does not assemble PPTX or notes.
 
 ### deliver-target-page-authority
 ```yaml

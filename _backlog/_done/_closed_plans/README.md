@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-07-29 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-02 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -35,7 +35,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-014](framed-image-directory-ssot.md) | 2026-07-29 | `framed-image-directory-ssot.md` | Framed/Pure sibling-workflow directory and delivery SSOT; absorbed by the archived Page Authority changes. |
 | [CLS-015](page-authority-workflow-baseline-target-gap.md) | 2026-07-29 | `page-authority-workflow-baseline-target-gap.md` | CURRENT baseline, TARGET dual-workflow model, and implementation gap; absorbed by the archived Page Authority changes. |
 | [CLS-016](page-authority-workflow-openspec-progressive-plan.md) | 2026-07-29 | `page-authority-workflow-openspec-progressive-plan.md` | Progressive delivery, compatibility hygiene, retirement, archive, and `v0.23.0` closeout complete. |
+| [CLS-017](progressive-plan.md) | 2026-08-02 | `progressive-plan.md` | Page Authority 第一阶段三个串行 OpenSpec change 已完成并归档；同级保留其设计输入。 |
 
-**Next available plan ID: CLS-017**
+**Next available plan ID: CLS-018**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

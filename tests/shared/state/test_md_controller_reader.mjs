@@ -79,7 +79,7 @@ describe("MD Controller reader characterization", () => {
 
   it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const pageAuthority = index.nodesById.get("generate-target-framed-raw");
+    const pageAuthority = index.nodesById.get("generate-target-framed-pilot");
     const createDeck = index.controllers.get("create-deck");
     expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-authority-image2-v2", productionModes: ["image2-page-authority-v2"] });
     expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority-v2")).toBe(true);
@@ -105,8 +105,14 @@ describe("MD Controller reader characterization", () => {
       "abandon-target-framed-style-master",
       "review-target-framed-style-master",
       "promote-target-framed-style-master",
-      "authorize-target-framed-raw",
-      "generate-target-framed-raw",
+      "plan-target-framed-progressive-raw",
+      "recommend-target-framed-pilot",
+      "authorize-target-framed-pilot",
+      "generate-target-framed-pilot",
+      "review-target-framed-pilot",
+      "plan-target-framed-expansion",
+      "authorize-target-framed-expansion",
+      "generate-target-framed-expansion",
       "review-target-framed-raw",
       "publish-target-framed-final-manifest",
       "deliver-target-page-authority",
@@ -125,16 +131,22 @@ describe("MD Controller reader characterization", () => {
       "abandon-target-pure-style-master",
       "review-target-pure-style-master",
       "promote-target-pure-style-master",
-      "authorize-target-pure-raw",
-      "generate-target-pure-raw",
+      "plan-target-pure-progressive-raw",
+      "recommend-target-pure-pilot",
+      "authorize-target-pure-pilot",
+      "generate-target-pure-pilot",
+      "review-target-pure-pilot",
+      "plan-target-pure-expansion",
+      "authorize-target-pure-expansion",
+      "generate-target-pure-expansion",
       "review-target-pure-raw",
       "publish-target-pure-final-manifest",
       "deliver-target-page-authority",
       "review-target-page-authority-delivery",
       "complete-target-page-authority-iteration",
     ]);
-    expect(framed).not.toContain("authorize-target-pure-raw");
-    expect(pure).not.toContain("authorize-target-framed-raw");
+    expect(framed).not.toContain("authorize-target-pure-pilot");
+    expect(pure).not.toContain("authorize-target-framed-pilot");
     expect(framed).not.toContain("inspect-target-pure-style-master");
     expect(pure).not.toContain("inspect-target-framed-style-master");
     expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual([
@@ -148,7 +160,7 @@ describe("MD Controller reader characterization", () => {
       "abandon-target-framed-style-master",
       "review-target-framed-style-master",
       "promote-target-framed-style-master",
-      "authorize-target-framed-raw",
+      "plan-target-framed-progressive-raw",
     ]);
     expect(controllerDraftRouteNodes(index, "create-deck", "pure")).toEqual([
       "select-target-page-authority-workflow",
@@ -161,7 +173,7 @@ describe("MD Controller reader characterization", () => {
       "abandon-target-pure-style-master",
       "review-target-pure-style-master",
       "promote-target-pure-style-master",
-      "authorize-target-pure-raw",
+      "plan-target-pure-progressive-raw",
     ]);
 
     expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "framed")).toEqual([
@@ -180,7 +192,7 @@ describe("MD Controller reader characterization", () => {
       "verify-target-speaker-notes",
     ]);
 
-    const framedNode = index.nodesById.get("authorize-target-framed-raw");
+    const framedNode = index.nodesById.get("authorize-target-framed-pilot");
     expect(nodeAppliesToWorkflow(framedNode, "framed")).toBe(true);
     expect(nodeAppliesToWorkflow(framedNode, "pure")).toBe(false);
 

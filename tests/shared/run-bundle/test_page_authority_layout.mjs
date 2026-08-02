@@ -9,10 +9,12 @@ import {
   DEFAULT_INIT_MODE,
   PAGE_AUTHORITY_IMAGE2_PATHS,
   checkBundle,
+  checkProgressivePageProductionHistoryLayout,
   checkStyleMasterCompatibilityPayload,
   checkStyleMasterHistoryLayout,
   initBundle,
   pageAuthorityImage2Paths,
+  pageAuthorityProgressiveRawPaths,
   pageAuthorityStyleMasterPaths,
   renderTree,
   STYLE_MASTER_IMAGE,
@@ -158,6 +160,57 @@ describe("Page Authority bundle layout", () => {
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(readFileSync(join(staging, "candidate-plan.json"))).toEqual(stagingBefore);
       expect(readFileSync(join(unreferencedPlan, "candidate-plan.json"))).toEqual(planBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps progressive page-production staging and unreferenced plans non-authoritative", () => {
+    const root = mkdtempSync(join(tmpdir(), "progressive-page-production-layout-history-"));
+    try {
+      const deck = join(root, "deck_current");
+      const runDir = join(deck, "3_versions", "v1");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const paths = pageAuthorityProgressiveRawPaths(runDir);
+      const planSha256 = "a".repeat(64);
+      const staging = join(paths.staging_root, "plan-crashed");
+      const unreferencedPlan = join(paths.plans_root, planSha256);
+      mkdirSync(staging, { recursive: true });
+      mkdirSync(unreferencedPlan, { recursive: true });
+      writeFileSync(join(staging, "work-plan.json"), "partial", "utf8");
+      writeFileSync(join(unreferencedPlan, "work-plan.json"), "complete-but-unreferenced", "utf8");
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const stagingBefore = readFileSync(join(staging, "work-plan.json"));
+      const planBefore = readFileSync(join(unreferencedPlan, "work-plan.json"));
+
+      expect(checkProgressivePageProductionHistoryLayout(runDir)).toEqual([]);
+      expect(checkBundle(runDir, false)).toEqual([TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE]);
+      expect(existsSync(join(paths.scopes_root, "v1", "pure", "head.json"))).toBe(false);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(readFileSync(join(staging, "work-plan.json"))).toEqual(stagingBefore);
+      expect(readFileSync(join(unreferencedPlan, "work-plan.json"))).toEqual(planBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports malformed progressive page-production topology without selecting or cleaning it", () => {
+    const root = mkdtempSync(join(tmpdir(), "progressive-page-production-layout-invalid-"));
+    try {
+      const deck = join(root, "deck_current");
+      const runDir = join(deck, "3_versions", "v1");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const paths = pageAuthorityProgressiveRawPaths(runDir);
+      mkdirSync(join(paths.scopes_root, "v7", "unexpected-workflow"), { recursive: true });
+      writeFileSync(join(paths.history_root, "current.json"), "not-a-head", "utf8");
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+
+      expect(checkProgressivePageProductionHistoryLayout(runDir)).toEqual(expect.arrayContaining([
+        expect.stringContaining("unexpected 'current.json' in progressive page-production history"),
+        expect.stringContaining("progressive page-production scope v7 contains noncanonical workflow 'unexpected-workflow'"),
+      ]));
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(existsSync(join(paths.scopes_root, "v7", "unexpected-workflow"))).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

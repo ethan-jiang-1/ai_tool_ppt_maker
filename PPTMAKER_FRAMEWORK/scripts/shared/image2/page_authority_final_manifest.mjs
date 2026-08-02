@@ -1,9 +1,9 @@
 import { sha256Bytes } from "../identity/byte_hash.mjs";
 import {
   createFinalSlideManifest,
-  validateAcceptedRawEvidence,
+  validateAcceptedRawEvidenceForFinalization,
   validateFinalSlideManifest,
-  validateRawWorkPlan,
+  validateRawWorkPlanForFinalization,
 } from "./page_authority_artifacts.mjs";
 
 export class PageAuthorityFinalManifestError extends Error {
@@ -21,9 +21,9 @@ function bytes(value) {
 }
 
 function requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence }) {
-  const plan = validateRawWorkPlan(rawWorkPlan);
+  const plan = validateRawWorkPlanForFinalization(rawWorkPlan);
   if (!plan.ok) throw new PageAuthorityFinalManifestError(plan.code, plan.message);
-  const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
+  const evidence = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: rawWorkPlan });
   if (!evidence.ok) throw new PageAuthorityFinalManifestError(evidence.code, evidence.message);
   return { plan, evidence };
 }

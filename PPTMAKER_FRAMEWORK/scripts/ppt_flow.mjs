@@ -820,6 +820,7 @@ async function commandPageAuthorityBuild(route, { resolution, model, baseUrl, re
   try {
     const operations = await targetImage2Operations(route.workflow);
     const result = await operations.buildDelivery(route.run_dir);
+    await refreshProgressiveControllerTaskProjection(route.run_dir);
     console.log(`✓ Target Page Authority ${route.workflow} delivery assembled: ${result.delivery.assembly.path}`);
     return 0;
   } catch (error) {
@@ -1351,7 +1352,20 @@ async function resolveImage2Run(runDir, where) {
   const route = await resolveRunAdapter(runDir, where);
   return route?.adapter === "page-authority-image2-v2" ? route.run_dir : null;
 }
-const PAGE_AUTHORITY_IMAGE2_OPERATIONS = new Set(["plan", "authorize", "generate", "review", "accept"]);
+const PAGE_AUTHORITY_IMAGE2_OPERATIONS = new Set([
+  "plan",
+  "pilot",
+  "expansion",
+  "authorize",
+  "generate",
+  "pilot-review",
+  "pilot-accept",
+  "review",
+  "accept",
+  "reconcile",
+]);
+const PAGE_AUTHORITY_HASH_RE = /^[0-9a-f]{64}$/;
+const PAGE_AUTHORITY_PROVIDER_IDEMPOTENCY_KEY_RE = /^page-authority-v3-[0-9a-f]{64}$/;
 
 function pageAuthorityDiagnosticReasonKind(value, fallback = "page_authority_operation_failed") {
   const normalized = String(value || fallback)
@@ -1429,6 +1443,34 @@ function targetPageAuthorityFailure(operation, route, error) {
     reason: { kind: reason },
   };
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
+
+  if (reason.startsWith("progressive_raw") || reason === "progressive_raw_legacy_replan_required") {
+    const ownerAction = error?.next_action || null;
+    const reconciliation = reason.includes("reconciliation") || reason.includes("outcome_unresolved");
+    const gate = reconciliation || /(?:grant_required|authorization|required|batch_terminal|pilot_|complete_review)/.test(reason);
+    const provider = reason.includes("provider") && !reconciliation;
+    return {
+      code: gate ? CLI_ERROR_CODES.GATE_BLOCKED : CLI_ERROR_CODES.FAILED,
+      message: reconciliation
+        ? "A persisted provider submission must be reconciled before progressive work can continue."
+        : gate
+          ? "The progressive Page Authority checkpoint is not ready for this operation."
+          : provider
+            ? "The progressive Page Authority provider operation did not complete."
+            : "The progressive Page Authority raw-owner facts are stale or invalid.",
+      hint: "Use the owner-issued next action; do not retry or infer another batch, grant, or provider result.",
+      diagnostic: {
+        ...common,
+        category: provider ? "provider" : gate ? "gate" : "artifact",
+        ...(ownerAction ? { subject: { kind: "progressive_raw_action", id: ownerAction.action_id } } : {}),
+        next: createCliNext(reconciliation ? "reconcile" : gate ? "review" : "repair_prerequisite", {
+          default: ownerAction?.action_id
+            ? `Run the raw owner's ${ownerAction.action_id} action after re-reading exact current owner facts.`
+            : "Inspect the exact progressive raw owner facts and run its one current action.",
+        }),
+      },
+    };
+  }
 
   if (FRAMED_SOURCE_VALIDATION_CODES.has(reason)) {
     return {
@@ -1536,21 +1578,67 @@ function targetPageAuthorityFailure(operation, route, error) {
   };
 }
 
-function targetUnsupportedOverride(opts) {
-  const forbidden = [
-    ["slides", opts.slides],
-    ["slot", opts.slotExplicit ? opts.slot : null],
-    ["profile", opts.profile],
-    ["base-url", opts.baseUrl],
-    ["attempt-id", opts.attemptId],
-    ["slide-id", opts.slideId],
-    ["candidate-id", opts.candidateId],
-    ["review-hash", opts.reviewHash],
-    ["force", opts.force],
-    ["reason", opts.reason],
-    ["dry-run", opts.dryRun],
-  ].find(([, value]) => value !== null && value !== undefined && value !== false);
-  return forbidden ? forbidden[0] : null;
+function progressiveUnsupportedOption(operation) {
+  const allowed = {
+    plan: new Set(),
+    pilot: new Set(["--plan-hash", "--slide-id"]),
+    expansion: new Set(["--plan-hash"]),
+    authorize: new Set(["--plan-hash", "--batch-hash"]),
+    generate: new Set(["--plan-hash", "--batch-hash"]),
+    "pilot-review": new Set(["--plan-hash", "--batch-hash"]),
+    "pilot-accept": new Set(["--plan-hash", "--batch-hash", "--decision"]),
+    review: new Set(["--plan-hash"]),
+    accept: new Set(["--plan-hash", "--decision"]),
+    reconcile: new Set(["--plan-hash", "--attempt-sha256"]),
+  }[operation] || new Set();
+  const rejected = [
+    "--slides",
+    "--base-url",
+    "--profile",
+    "--prompt",
+    "--provider",
+    "--output",
+    "--path",
+    "--force",
+    "--retry",
+    "--attempt-id",
+    "--candidate-id",
+    "--review-hash",
+    "--reason",
+    "--dry-run",
+    "--slot",
+    "--slide-id",
+    "--plan-hash",
+    "--batch-hash",
+    "--attempt-sha256",
+    "--decision",
+  ];
+  return rejected.find((option) => hasExplicitCliOption(option) && !allowed.has(option)) || null;
+}
+
+function requiredPageAuthorityHash(operation, option, value, label) {
+  if (!hasExplicitCliOption(option) || !PAGE_AUTHORITY_HASH_RE.test(value || "")) {
+    emitUsage(`ppt_flow.image2.target.${operation}`, `${option} must be one lowercase SHA-256`, `Pass the exact current ${label} SHA-256 issued by the raw owner.`);
+    return null;
+  }
+  return value;
+}
+
+function requiredPilotSlideIds(opts) {
+  const values = Array.isArray(opts.slideId) ? opts.slideId : opts.slideId ? [opts.slideId] : [];
+  if (!hasExplicitCliOption("--slide-id") || values.length === 0 || values.some((value) => !/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(value || ""))) {
+    emitUsage("ppt_flow.image2.target.pilot", "At least one exact formal --slide-id is required", "Repeat --slide-id once for each current formal slide ID in the proposed Pilot scope.");
+    return null;
+  }
+  return values;
+}
+
+function requiredProgressiveDecision(operation, value) {
+  if (!hasExplicitCliOption("--decision") || !["proceed", "repair", "redirect"].includes(value)) {
+    emitUsage(`ppt_flow.image2.target.${operation}`, "--decision must be proceed, repair, or redirect", "Record the explicit human decision for the exact current owner-issued evidence.");
+    return null;
+  }
+  return value;
 }
 
 function imageDataUrl(path) {
@@ -1597,7 +1685,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
   fetchImpl = fetch,
 } = {}) {
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
-  return async ({ request, item }) => {
+  return async ({ request, item, provider_idempotency_key: providerIdempotencyKey }) => {
     let credentials;
     try {
       if (credentialResolver) {
@@ -1614,6 +1702,11 @@ export function targetPageAuthoritySubmitFactory(plan, {
     const slide = slideById.get(item.slide_id);
     if (!slide || request?.slide_id !== item.slide_id || !request?.generation_profile?.provider?.model) {
       const error = new Error("Target Page Authority provider request is not bound to the current selected workflow plan");
+      error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
+      throw error;
+    }
+    if (!PAGE_AUTHORITY_PROVIDER_IDEMPOTENCY_KEY_RE.test(providerIdempotencyKey || "")) {
+      const error = new Error("Target Page Authority provider request is missing its persisted idempotency identity");
       error.code = "PAGE_AUTHORITY_PROVIDER_REQUEST_INVALID";
       throw error;
     }
@@ -1655,6 +1748,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
         headers: {
           Authorization: `Bearer ${credentials.api_key}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": providerIdempotencyKey,
         },
         body: JSON.stringify(body),
       });
@@ -1740,14 +1834,19 @@ async function targetImage2Operations(workflow) {
       resolveSource: owner.resolveFramedTargetSource,
       resolveCandidateSource: owner.resolveFramedTargetCandidateSource,
       resolveStyleMasterScope: owner.resolveFramedStyleMasterScope,
-      buildPlan: owner.buildFramedTargetRawPlan,
-      readStoredPlan: owner.readFramedTargetStoredPlanContext,
-      projectPlan: owner.framedTargetRawPlanProjection,
-      authorize: owner.authorizeFramedTargetRawPlan,
-      generate: owner.generateFramedTargetRawPlan,
-      review: owner.prepareFramedTargetRawReview,
-      accept: owner.decideFramedTargetRawReview,
-      buildDelivery: owner.buildFramedTargetDelivery,
+      buildPlan: owner.buildFramedProgressiveTargetRawPlan,
+      readStoredPlan: owner.readFramedProgressiveTargetStoredPlanContext,
+      projectPlan: owner.framedProgressiveRawPlanProjection,
+      pilot: owner.planFramedTargetPilot,
+      expansion: owner.planFramedTargetExpansion,
+      authorize: owner.authorizeFramedProgressiveRawBatch,
+      generate: owner.generateFramedProgressiveRawItem,
+      pilotReview: owner.prepareFramedProgressivePilotReview,
+      pilotAccept: owner.acceptFramedProgressivePilot,
+      review: owner.prepareFramedProgressiveRawReview,
+      accept: owner.acceptFramedProgressiveRawReview,
+      reconcile: owner.reconcileFramedProgressiveRawAttempt,
+      buildDelivery: owner.buildFramedProgressiveTargetDelivery,
       refreshFramedText: owner.refreshFramedTargetText,
       refreshNotes: owner.refreshFramedTargetNotes,
     });
@@ -1758,14 +1857,19 @@ async function targetImage2Operations(workflow) {
       resolveSource: owner.resolvePureTargetSource,
       resolveCandidateSource: owner.resolvePureTargetCandidateSource,
       resolveStyleMasterScope: owner.resolvePureStyleMasterScope,
-      buildPlan: owner.buildPureTargetRawPlan,
-      readStoredPlan: owner.readPureTargetStoredPlanContext,
-      projectPlan: owner.pureTargetRawPlanProjection,
-      authorize: owner.authorizePureTargetRawPlan,
-      generate: owner.generatePureTargetRawPlan,
-      review: owner.preparePureTargetRawReview,
-      accept: owner.decidePureTargetRawReview,
-      buildDelivery: owner.buildPureTargetDelivery,
+      buildPlan: owner.buildPureProgressiveTargetRawPlan,
+      readStoredPlan: owner.readPureProgressiveTargetStoredPlanContext,
+      projectPlan: owner.pureProgressiveRawPlanProjection,
+      pilot: owner.planPureTargetPilot,
+      expansion: owner.planPureTargetExpansion,
+      authorize: owner.authorizePureProgressiveRawBatch,
+      generate: owner.generatePureProgressiveRawItem,
+      pilotReview: owner.preparePureProgressivePilotReview,
+      pilotAccept: owner.acceptPureProgressivePilot,
+      review: owner.preparePureProgressiveRawReview,
+      accept: owner.acceptPureProgressiveRawReview,
+      reconcile: owner.reconcilePureProgressiveRawAttempt,
+      buildDelivery: owner.buildPureProgressiveTargetDelivery,
       refreshNotes: owner.refreshPureTargetNotes,
     });
   }
@@ -1774,14 +1878,24 @@ async function targetImage2Operations(workflow) {
   throw error;
 }
 
-/** Execute the same public raw lifecycle through the marker-selected v2 owner. */
+/** Rebuild the non-authoritative progressive collaboration card after a Controller checkpoint. */
+async function refreshProgressiveControllerTaskProjection(runDir, { workflowInspection = null, state = null } = {}) {
+  const inspection = workflowInspection || (await import("./shared/workflow/inspect_workflow.mjs"))
+    .inspectWorkflow({ runDir });
+  const summary = inspection?.evidence_summary || {};
+  if (summary.mode !== "image2-page-authority-v2" || !["framed", "pure"].includes(summary.workflow)) return null;
+  const { refreshPageProductionTaskProjection } = await import("./shared/workflow/page_production_task_projection.mjs");
+  return refreshPageProductionTaskProjection({ runDir, inspection, state });
+}
+
+/** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
 async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
   if (!PAGE_AUTHORITY_IMAGE2_OPERATIONS.has(operation)) {
-    return emitUsage("ppt_flow.image2.target.operation", `Target Page Authority image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, authorize, generate, review, or accept for the selected workflow raw lifecycle.");
+    return emitUsage("ppt_flow.image2.target.operation", `Target Page Authority image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile.");
   }
-  const override = targetUnsupportedOverride(opts);
+  const override = progressiveUnsupportedOption(operation);
   if (override) {
-    return emitUsage("ppt_flow.image2.target", `--${override} is not accepted for target Page Authority`, "Use the canonical --run-dir receipt path without prompt, profile, output, or retired-artifact overrides.");
+    return emitUsage("ppt_flow.image2.target", `${override} is not accepted for progressive Page Authority`, "Use only the registered progressive form and exact raw-owner hashes or formal IDs.");
   }
   try {
     const operations = await targetImage2Operations(route.workflow);
@@ -1789,24 +1903,57 @@ async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
     if (operation === "plan") {
       const plan = await operations.buildPlan(route.run_dir, { allowSourceRebuild: true });
       output = operations.projectPlan(plan);
+    } else if (operation === "pilot") {
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const slideIds = requiredPilotSlideIds(opts);
+      if (!planHash || !slideIds) return 1;
+      output = await operations.pilot(route.run_dir, { planHash, slideIds });
+    } else if (operation === "expansion") {
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      if (!planHash) return 1;
+      output = await operations.expansion(route.run_dir, { planHash });
     } else if (operation === "authorize") {
-      if (!opts.planHash) return emitUsage("ppt_flow.image2.target.authorize", "--plan-hash is required", "Pass the exact current target raw plan hash.");
-      output = await operations.authorize(route.run_dir, { planHash: opts.planHash });
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
+      if (!planHash || !batchHash) return 1;
+      output = await operations.authorize(route.run_dir, { planHash, batchHash });
     } else if (operation === "generate") {
-      if (!opts.planHash) return emitUsage("ppt_flow.image2.target.generate", "--plan-hash is required", "Pass the exact authorized target raw plan hash.");
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
+      if (!planHash || !batchHash) return 1;
       const plan = await operations.readStoredPlan(route.run_dir);
       output = await operations.generate(route.run_dir, {
-        planHash: opts.planHash,
+        planHash,
+        batchHash,
         submit: targetPageAuthoritySubmitFactory(plan),
       });
+    } else if (operation === "pilot-review") {
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
+      if (!planHash || !batchHash) return 1;
+      output = await operations.pilotReview(route.run_dir, { planHash, batchHash });
+    } else if (operation === "pilot-accept") {
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
+      const decision = requiredProgressiveDecision(operation, opts.decision);
+      if (!planHash || !batchHash || !decision) return 1;
+      output = await operations.pilotAccept(route.run_dir, { planHash, batchHash, decision });
     } else if (operation === "review") {
-      output = await operations.review(route.run_dir);
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      if (!planHash) return 1;
+      output = await operations.review(route.run_dir, { planHash });
+    } else if (operation === "accept") {
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
+      const decision = requiredProgressiveDecision(operation, opts.decision);
+      if (!planHash || !decision) return 1;
+      output = await operations.accept(route.run_dir, { planHash, decision });
     } else {
-      if (!['proceed', 'repair', 'redirect'].includes(opts.decision)) {
-        return emitUsage("ppt_flow.image2.target.accept", "--decision must be proceed, repair, or redirect", "Record the explicit human raw-review decision for the selected target workflow evidence.");
-      }
-      output = await operations.accept(route.run_dir, { decision: opts.decision });
+      const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "historical full plan");
+      const attemptSha256 = requiredPageAuthorityHash(operation, "--attempt-sha256", opts.attemptSha256, "submitted attempt");
+      if (!planHash || !attemptSha256) return 1;
+      output = await operations.reconcile(route.run_dir, { planHash, attemptSha256 });
     }
+    await refreshProgressiveControllerTaskProjection(route.run_dir);
     console.log(JSON.stringify(output, null, 2));
     return 0;
   } catch (error) {
@@ -2507,6 +2654,10 @@ Examples:
         index: controllerIndex,
         ctx: controllerCtx,
       });
+      await refreshProgressiveControllerTaskProjection(resolved, {
+        workflowInspection,
+        state: s,
+      });
       const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
       const inspectionNext = workflowInspection.primary_action.command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
@@ -2574,15 +2725,16 @@ Examples:
   // ---- image2 (Page Authority raw lifecycle) ----
   program
     .command("image2")
-    .description("Receipt-bound Page Authority raw lifecycle")
-    .argument("<operation>", "plan, authorize, generate, review, or accept")
+    .description("Receipt-bound progressive Page Authority raw lifecycle")
+    .argument("<operation>", "plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile")
     .argument("<run_dir>", "Path to the exact version dir")
-    .option("--slides <ids>", "Comma-separated stable slide IDs for plan")
-    .option("--base-url <url>", "Override the Image2 provider base URL for generate/reconciliation")
-    .option("--plan-hash <hash>", "Exact deterministic plan hash")
-    .option("--decision <decision>", "Page Authority raw review: proceed, repair, or redirect")
+    .option("--plan-hash <sha256>", "Exact current progressive full-plan hash")
+    .option("--batch-hash <sha256>", "Exact current progressive batch hash")
+    .option("--attempt-sha256 <sha256>", "Exact submitted progressive attempt hash for reconciliation")
+    .option("--slide-id <formal-id>", "Repeat an exact formal slide ID for Pilot scope", (value, previous) => [...(previous || []), value])
+    .option("--decision <decision>", "Explicit Pilot or complete raw-review decision: proceed, repair, or redirect")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nplan -> authorize -> generate -> review -> accept --decision proceed -> build\nNo operation submits before exact human authorization.\n")
+    .addHelpText("after", "\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | review/accept -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const code = await commandImage2(operation, runDir, {

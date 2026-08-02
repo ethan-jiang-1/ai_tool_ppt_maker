@@ -1,6 +1,6 @@
 # 规划：Framed 渲染契约与渐进式生产 UX
 
-> 类型：component design（组件设计输入） | 状态：已纳入总控计划 | 更新：2026-07-31
+> 类型：component design（组件设计输入） | 状态：已完成并归档为 CLS-017 的历史输入 | 更新：2026-08-02
 
 ## 目的
 
@@ -39,9 +39,9 @@
 
 未来由本规划形成的 proposal/design 必须引用并应用：
 
-- [human-centered-gates.md](../../../openspec/policies/human-centered-gates.md)：负责 `guide`、`confirm`、`hard-stop` 的分类；
-- [agent-assistance-and-control.md](../../../openspec/policies/agent-assistance-and-control.md)：负责直接权威、人/Agent/runtime 的职责交接、状态、诊断和 same-check recovery（同检查点恢复）；
-- [simple-reliable-control.md](../../../openspec/policies/simple-reliable-control.md)：要求质量控制必须比它所验证的工作更简单。
+- [human-centered-gates.md](../../../../openspec/policies/human-centered-gates.md)：负责 `guide`、`confirm`、`hard-stop` 的分类；
+- [agent-assistance-and-control.md](../../../../openspec/policies/agent-assistance-and-control.md)：负责直接权威、人/Agent/runtime 的职责交接、状态、诊断和 same-check recovery（同检查点恢复）；
+- [simple-reliable-control.md](../../../../openspec/policies/simple-reliable-control.md)：要求质量控制必须比它所验证的工作更简单。
 
 政策推论：渲染收敛用一个有明确 owner 的布局 evaluator（评估器）替代相互竞争的检查，不增加持久化 layout-proof（布局证明）记录。渐进式生产只增加无法自动化的人类决定：精确 provider 授权、真实 Style Master 判断、代表性 Pilot Run 判断，以及完整视觉审查。它不增加 waiver（豁免）、隐藏重试、fallback（回退链）、第二权威、跨 workflow Controller 或平行成功状态库；任何新增持久事实都必须是不可重建的授权、provenance（来源归属）或人类决定证据，并且只有一个 owner 和一条失效路径。
 
@@ -141,11 +141,11 @@ render profile 不包含 Text Frame literal，也不包含单页所选 font-shar
 
 ## Change 边界
 
-执行边界已由 [根 progressive plan](../progressive-plan.md) 收敛为三个串行 change，且任一时刻最多一个 active change：
+执行边界已由 [根 progressive plan](../progressive-plan.md) 收敛为三个串行 change；以下是已完成的历史规划边界，不再作为 active change 指令：
 
-1. `converge-framed-render-and-review`：把 preset/profile/private renderer/proof-before-materialization 与 typed raw-review evidence 合并为一条可验收纵向闭环。该 change 已 propose 并通过 strict validation。
-2. `establish-style-master-feedback`：在页面级 raw work 前建立 candidate authorization、attempt/provenance、真实 review、CAS promotion 与 accepted effective selection。
-3. `introduce-progressive-page-production`：建立 exact Pilot/Expansion grants、逐项 materialization/progress、两条独立 workflow journey、complete review 与 resume。
+1. `converge-framed-render-and-review`：把 preset/profile/private renderer/proof-before-materialization 与 typed raw-review evidence 合并为一条可验收纵向闭环，已于 2026-07-31 archive。
+2. `establish-style-master-feedback`：在页面级 raw work 前建立 candidate authorization、attempt/provenance、真实 review、CAS promotion 与 accepted effective selection，已于 2026-08-01 archive。
+3. `introduce-progressive-page-production`：建立 exact Pilot/Expansion grants、逐项 materialization/progress、两条独立 workflow journey、complete review 与 resume，已于 2026-08-02 archive。
 
 Raw review 不再单独建 change，因为它必须消费同一 change 接受的 render-profile identity 才能完成验收；Style Master 不与 Pilot/Expansion 合并，因为二者拥有不同的人类问题、scope、持久事实和迁移边界。详细理由、checkbox 与覆盖审计只在根计划维护。
 
@@ -167,7 +167,7 @@ Style Master 与 Pilot Run proposal 必须审计 [pilot-run-plan.md](../producti
 
 只有 requirement-level behavior 才属于 Modified Capabilities。既有 requirement 如果只是缺少实现覆盖，不得伪装为新的 capability 行为。
 
-当前 active OpenSpec change 是 [`converge-framed-render-and-review`](../../../openspec/changes/converge-framed-render-and-review/proposal.md)，其 planning artifacts 已完成并通过 strict validation。下一步按 [根 progressive plan](../progressive-plan.md) 与 change `tasks.md` 实施，不创建后续 change。
+三个 OpenSpec change 均已归档；完整 program 结论见 [根 progressive plan](../progressive-plan.md)。本目录只保留已实施设计的历史输入，不创建后续 change。
 
 ## 成功定义
 

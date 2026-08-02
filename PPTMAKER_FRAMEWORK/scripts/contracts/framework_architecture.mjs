@@ -47,11 +47,13 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/page_authority_artifacts.mjs",
   "shared/image2/page_authority_final_manifest.mjs",
   "shared/image2/page_authority_raw_mechanics.mjs",
+  "shared/image2/page_authority_progressive_raw_owner.mjs",
   "shared/image2/page_authority_target_runtime.mjs",
   "shared/image2/style_master_plan.mjs",
   "shared/image2/style_master_scope.mjs",
   "shared/state/target_authoring_draft_route.mjs",
   "shared/workflow/inspect_workflow.mjs",
+  "shared/workflow/page_production_task_projection.mjs",
 ]);
 
 export const SHARED_WORKFLOW_SEMANTIC_HELPERS = Object.freeze([

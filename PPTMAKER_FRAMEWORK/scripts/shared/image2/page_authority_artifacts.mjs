@@ -1,5 +1,11 @@
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
+import {
+  PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
+  PROGRESSIVE_RAW_WORK_PLAN_SCHEMA,
+  validateProgressiveAcceptedRawEvidence,
+  validateProgressiveRawWorkPlan,
+} from "./page_authority_progressive_schema.mjs";
 
 export const RAW_WORK_PLAN_SCHEMA = "page-authority-raw-work-plan-v2";
 export const ACCEPTED_RAW_EVIDENCE_SCHEMA = "page-authority-accepted-raw-evidence-v2";
@@ -152,6 +158,20 @@ export function createAcceptedRawEvidence({ plan, provider_authorization_sha256,
   return withSha(evidence, validation.sha256);
 }
 
+/** Validate either preserved v2 evidence or the progressive v3 finalization input. */
+export function validateAcceptedRawEvidenceForFinalization(evidence, { plan = null } = {}) {
+  if (evidence?.schema === PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA) {
+    return validateProgressiveAcceptedRawEvidence(evidence, { plan });
+  }
+  return validateAcceptedRawEvidence(evidence, { plan });
+}
+
+/** Validate either historical v2 or progressive v3 raw plan bindings for final publication. */
+export function validateRawWorkPlanForFinalization(plan) {
+  if (plan?.schema === PROGRESSIVE_RAW_WORK_PLAN_SCHEMA) return validateProgressiveRawWorkPlan(plan);
+  return validateRawWorkPlan(plan);
+}
+
 function finalManifestShape(manifest) {
   return exactKeys(manifest, [
     "schema", "source_receipt_sha256", "accepted_raw_evidence_sha256", "workflow", "items",
@@ -175,7 +195,7 @@ export function validateFinalSlideManifest(manifest, { evidence = null, expected
     }
     if (new Set(ids).size !== ids.length || manifest.items.some((item, index) => item.position !== index + 1)) throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest position/order is invalid");
     if (evidence) {
-      const checked = validateAcceptedRawEvidence(evidence);
+      const checked = validateAcceptedRawEvidenceForFinalization(evidence);
       if (!checked.ok || checked.sha256 !== manifest.accepted_raw_evidence_sha256 || evidence.source_receipt_sha256 !== manifest.source_receipt_sha256 || evidence.workflow !== manifest.workflow ||
         canonicalJson(evidence.items.map((item) => item.slide_id)) !== canonicalJson(ids)) {
         throw new PageAuthorityArtifactError("final_manifest_stale", "final slide manifest does not bind current accepted raw evidence");
@@ -188,7 +208,7 @@ export function validateFinalSlideManifest(manifest, { evidence = null, expected
 }
 
 export function createFinalSlideManifest({ evidence, expected_workflow, final_bytes_by_slide } = {}) {
-  const checkedEvidence = validateAcceptedRawEvidence(evidence);
+  const checkedEvidence = validateAcceptedRawEvidenceForFinalization(evidence);
   if (!checkedEvidence.ok) throw new PageAuthorityArtifactError(checkedEvidence.code, checkedEvidence.message);
   if (expected_workflow !== evidence.workflow) throw new PageAuthorityArtifactError("wrong_workflow_owner", "only the selected workflow may publish final slides");
   if (!final_bytes_by_slide || typeof final_bytes_by_slide !== "object" || Array.isArray(final_bytes_by_slide)) throw new PageAuthorityArtifactError("final_manifest_invalid", "final_bytes_by_slide is required");

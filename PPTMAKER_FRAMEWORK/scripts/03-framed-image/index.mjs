@@ -15,10 +15,15 @@ import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
   validateAcceptedRawEvidence,
+  validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
 } from "../shared/image2/page_authority_artifacts.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
 import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
+import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
 import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
   createPageAuthoritySourceResolver,
@@ -33,11 +38,14 @@ import {
   generateTargetRawWork,
   materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
+  publishProgressiveTargetCompleteRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
   rebindTargetLocalComposeWork,
+  rebindTargetProgressiveLocalComposeWork,
   resolveTargetLocalComposeContext,
+  resolveTargetProgressiveLocalRebindContext,
   resolveTargetCandidateSourceContext,
   resolveTargetStoredPlanContext,
   resolveTargetSourceContext,
@@ -45,15 +53,41 @@ import {
   targetRawPlanProjection,
   validateTargetRawReviewContribution,
   writeTargetFinalManifest,
+  writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
+import {
+  acceptProgressiveRawCompleteReview,
+  acceptProgressiveRawPilot,
+  assertNoUnresolvedProgressiveRawSubmission,
+  authorizeProgressiveRawBatch,
+  createProgressiveRawWorkPlanFromTarget,
+  generateProgressiveRawItem,
+  inspectProgressiveRawLifecycle,
+  planProgressiveRawExpansion,
+  planProgressiveRawPilot,
+  prepareProgressiveRawCompleteReview,
+  prepareProgressiveRawPilotEvidence,
+  publishProgressiveRawWorkPlan,
+  readProgressiveAcceptedRawWork,
+  reconcileProgressiveRawAttempt,
+} from "../shared/image2/page_authority_progressive_raw_owner.mjs";
+import {
+  recordTargetProgressiveAcceptedRawEvidence,
+  recordTargetProgressiveCompleteRawReview,
+  recordTargetProgressiveDeliveryReceipt,
+  recordTargetProgressiveFinalManifest,
+  recordTargetProgressivePilotDecision,
+  recordTargetProgressiveRawPlan,
+} from "../shared/state/state.mjs";
 import {
   bindStyleMasterScopeCandidate,
   resolveStyleMasterScopeContext,
 } from "../shared/image2/style_master_scope.mjs";
 import {
   deliverTargetFinalSlideManifest,
+  refreshTargetPageAuthorityNotes,
 } from "../05-delivery/index.mjs";
 
 /** TARGET Framed workflow owner. Behavior moves here from the bounded v1 adapter. */
@@ -237,7 +271,13 @@ function hasReusableRawContract(previousReceipt, nextReceipt, previousRawWorkPla
  * Classify target Framed drift without submitting provider work. Text Frame
  * literals may be recomposed locally only from exact prior underlay evidence.
  */
-export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPlan = null, acceptedRawEvidence = null, nextRawWorkPlan = null } = {}) {
+function classifyFramedRefreshFromAcceptedEvidence({
+  previousReceipt,
+  nextReceipt,
+  rawWorkPlan = null,
+  nextRawWorkPlan = null,
+  hasAcceptedEvidence = false,
+} = {}) {
   requireReceipt(previousReceipt);
   requireReceipt(nextReceipt);
   if (!sameSlideOrder(previousReceipt, nextReceipt)) {
@@ -281,7 +321,7 @@ export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPla
       next_action: "none",
     });
   }
-  if (!hasExactAcceptedRawEvidence(previousReceipt, rawWorkPlan, acceptedRawEvidence)) {
+  if (!hasAcceptedEvidence) {
     return Object.freeze({
       workflow: FRAMED_IMAGE_WORKFLOW,
       kind: "raw_evidence_required",
@@ -294,6 +334,44 @@ export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPla
     kind: "local_compose",
     provider_required: false,
     next_action: "compose_framed_final_through_owner",
+  });
+}
+
+export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPlan = null, acceptedRawEvidence = null, nextRawWorkPlan = null } = {}) {
+  return classifyFramedRefreshFromAcceptedEvidence({
+    previousReceipt,
+    nextReceipt,
+    rawWorkPlan,
+    nextRawWorkPlan,
+    hasAcceptedEvidence: hasExactAcceptedRawEvidence(previousReceipt, rawWorkPlan, acceptedRawEvidence),
+  });
+}
+
+/**
+ * Apply the same Framed Text Frame-only retention validator to direct v3
+ * evidence without treating a rebuildable v2 accepted-evidence projection as
+ * canonical authority.
+ */
+export function classifyFramedProgressiveLocalRebind({
+  previousReceipt,
+  nextReceipt,
+  rawWorkPlan = null,
+  nextRawWorkPlan = null,
+  progressiveRawWorkPlan = null,
+  acceptedRawEvidence = null,
+} = {}) {
+  const accepted = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: progressiveRawWorkPlan });
+  const hasAcceptedEvidence = Boolean(rawWorkPlan && progressiveRawWorkPlan) && accepted.ok &&
+    progressiveRawWorkPlan?.workflow === FRAMED_IMAGE_WORKFLOW &&
+    progressiveRawWorkPlan.source_receipt_sha256 === previousReceipt?.source_sha256 &&
+    canonicalJsonSha256(progressiveRawWorkPlan.ordered_slide_ids) === canonicalJsonSha256(rawWorkPlan?.ordered_slide_ids) &&
+    canonicalJsonSha256(progressiveRawWorkPlan.items) === canonicalJsonSha256(rawWorkPlan?.items);
+  return classifyFramedRefreshFromAcceptedEvidence({
+    previousReceipt,
+    nextReceipt,
+    rawWorkPlan,
+    nextRawWorkPlan,
+    hasAcceptedEvidence,
   });
 }
 
@@ -391,8 +469,8 @@ const FRAMED_FINAL_COMPOSITION_KEYS = Object.freeze([
 
 function requireFramedFinalCompositionInput(input) {
   if (!input || typeof input !== "object" || Array.isArray(input) ||
-    Object.keys(input).length !== FRAMED_FINAL_COMPOSITION_KEYS.length ||
-    !FRAMED_FINAL_COMPOSITION_KEYS.every((key) => Object.hasOwn(input, key))) {
+    !FRAMED_FINAL_COMPOSITION_KEYS.every((key) => Object.hasOwn(input, key)) ||
+    Object.keys(input).some((key) => ![...FRAMED_FINAL_COMPOSITION_KEYS, "evidencePlan"].includes(key))) {
     throw new FramedImageWorkflowError(
       "framed_render_input_invalid",
       "Framed final rendering accepts only current receipt, raw plan, accepted evidence, and raw bytes",
@@ -404,9 +482,17 @@ function requireFramedFinalCompositionInput(input) {
 /** Compose local text over accepted raw bytes, then publish the common manifest. */
 export async function composeFramedFinalSlideManifest(input = {}) {
   const { receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide } = requireFramedFinalCompositionInput(input);
+  const evidencePlan = input.evidencePlan ?? rawWorkPlan;
   requireReceipt(receipt);
-  const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
+  const rawPlan = validateRawWorkPlan(rawWorkPlan);
+  const evidence = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: evidencePlan });
   if (!evidence.ok) throw new FramedImageWorkflowError(evidence.code, evidence.message);
+  if (!rawPlan.ok || rawWorkPlan.workflow !== FRAMED_IMAGE_WORKFLOW || rawWorkPlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    evidencePlan.workflow !== FRAMED_IMAGE_WORKFLOW || evidencePlan.source_receipt_sha256 !== receipt.source_sha256 ||
+    canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(evidencePlan.ordered_slide_ids) ||
+    canonicalJsonSha256(rawWorkPlan.items) !== canonicalJsonSha256(evidencePlan.items)) {
+    throw new FramedImageWorkflowError("framed_finalization_lineage_invalid", "Framed finalization requires matching selected-workflow raw-plan lineage");
+  }
   const byId = new Map(receipt.slides.map((slide) => [slide.slide_id, slide]));
   const frames = [];
   for (const item of acceptedRawEvidence.items) {
@@ -422,7 +508,7 @@ export async function composeFramedFinalSlideManifest(input = {}) {
   const composed = await composeFramedRenderContracts(frames);
   const finalBytesBySlide = composed.final_bytes_by_slide;
   const manifest = publishCurrentFinalSlideManifest({
-    rawWorkPlan,
+    rawWorkPlan: evidencePlan,
     acceptedRawEvidence,
     ownerWorkflow: FRAMED_IMAGE_WORKFLOW,
     finalBytesBySlide,
@@ -606,8 +692,435 @@ export async function decideFramedTargetRawReview(runDir, { decision } = {}) {
   });
 }
 
+function progressiveFramedDisplayBySlide(receipt) {
+  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.display?.title || slide.text_frame?.title || "" }]));
+}
+
+function progressiveFramedPlanFromContext(context) {
+  return createProgressiveRawWorkPlanFromTarget({
+    runDir: context.run_dir,
+    source_epoch: context.source_epoch,
+    raw_work_plan: context.raw_work_plan,
+    effective_style_master_sha256: context.style_master_reference.selection_sha256,
+  });
+}
+
+function progressiveLocalRebindProjectionUnavailable(error) {
+  return ["target_previous_source_receipt_required", "target_previous_raw_plan_required"].includes(error?.code);
+}
+
+/**
+ * Compile the current Framed source/style facts into an expected v3 plan
+ * without reading or rebuilding any version `_generated` projection.
+ */
+export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
+  const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
+  if (sourceEpoch === null) return candidate;
+  if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0) {
+    throw new FramedImageWorkflowError("progressive_raw_target_plan_invalid", "a current progressive source epoch is required for Framed plan comparison");
+  }
+  return Object.freeze({
+    ...candidate,
+    progressive_raw_work_plan: progressiveFramedPlanFromContext({ ...candidate, source_epoch: sourceEpoch }),
+  });
+}
+
+/**
+ * Read-only Framed local-rebind preflight. The raw owner remains the source
+ * of accepted bytes/evidence; the legacy v2 projection is consulted only by
+ * the existing narrow retention validator and never as lifecycle authority.
+ */
+export function inspectFramedProgressiveLocalRebind(runDir, { planHash, candidate } = {}) {
+  const next = candidate || readFramedProgressiveTargetPlanCandidate(runDir, {});
+  if (!next?.progressive_raw_work_plan) {
+    throw new FramedImageWorkflowError("progressive_raw_target_plan_invalid", "Framed local-rebind inspection requires a current candidate v3 plan");
+  }
+  const previous = readProgressiveAcceptedRawWork({
+    runDir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+  });
+  let rebindContext;
+  try {
+    rebindContext = resolveTargetProgressiveLocalRebindContext(runDir, {
+      workflow: FRAMED_IMAGE_WORKFLOW,
+      parseReceipt: parseFramedTargetReceipt,
+    });
+  } catch (error) {
+    if (progressiveLocalRebindProjectionUnavailable(error)) {
+      return Object.freeze({ available: false, classification: null });
+    }
+    throw error;
+  }
+  const classification = classifyFramedProgressiveLocalRebind({
+    previousReceipt: rebindContext.previous_source_receipt,
+    nextReceipt: next.receipt,
+    rawWorkPlan: rebindContext.previous_raw_work_plan,
+    nextRawWorkPlan: next.raw_work_plan,
+    progressiveRawWorkPlan: previous.plan,
+    acceptedRawEvidence: previous.accepted_raw_evidence,
+  });
+  return Object.freeze({
+    available: true,
+    classification,
+    progressive_raw_work_plan: next.progressive_raw_work_plan,
+  });
+}
+
+/** Compile/prove selected Framed source then publish only its provider-free v3 full plan. */
+export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
+  const prior = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
+  if (prior.ok && prior.legacy_v2) {
+    throw new FramedImageWorkflowError("progressive_raw_legacy_replan_required", "legacy v2 raw records remain readable; start the owner-issued progressive replan/rebuild action instead");
+  }
+  assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
+  let rebindContext = null;
+  if (prior.ok && prior.plan && prior.evidence?.accepted_raw_evidence_sha256) {
+    try {
+      rebindContext = resolveTargetProgressiveLocalRebindContext(runDir, {
+        workflow: FRAMED_IMAGE_WORKFLOW,
+        parseReceipt: parseFramedTargetReceipt,
+      });
+    } catch (error) {
+      if (!progressiveLocalRebindProjectionUnavailable(error)) throw error;
+    }
+  }
+  const candidate = compileFramedTargetRawPlanCandidate(rebindContext || resolveFramedTargetCandidateSource(runDir));
+  const proof = await verifyFramedRenderContracts(candidate.receipt.slides.map((slide) => ({
+    slide_id: slide.slide_id,
+    text_frame: slide.text_frame,
+  })));
+  if (proof.render_profile_digest !== candidate.render_profile_digest) {
+    throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
+  }
+  if (rebindContext) {
+    const previous = readProgressiveAcceptedRawWork({
+      runDir,
+      workflow: FRAMED_IMAGE_WORKFLOW,
+      plan_hash: prior.plan.plan_hash,
+    });
+    const classification = classifyFramedProgressiveLocalRebind({
+      previousReceipt: rebindContext.previous_source_receipt,
+      nextReceipt: candidate.receipt,
+      rawWorkPlan: rebindContext.previous_raw_work_plan,
+      nextRawWorkPlan: candidate.raw_work_plan,
+      progressiveRawWorkPlan: previous.plan,
+      acceptedRawEvidence: previous.accepted_raw_evidence,
+    });
+    if (classification.kind === "local_compose") {
+      const progressiveRawWorkPlan = progressiveFramedPlanFromContext({
+        ...candidate,
+        source_epoch: previous.plan.source_epoch,
+      });
+      const progressivePublication = publishProgressiveRawWorkPlan({
+        runDir,
+        plan: progressiveRawWorkPlan,
+        reuse_current_materializations: true,
+        retain_current_complete_review: true,
+      });
+      const successor = readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: FRAMED_IMAGE_WORKFLOW,
+        plan_hash: progressiveRawWorkPlan.sha256,
+        expected_plan: progressiveRawWorkPlan,
+      });
+      const context = rebindTargetProgressiveLocalComposeWork(rebindContext, {
+        rawWorkPlan: candidate.raw_work_plan,
+        previousProgressiveRawWorkPlan: previous.plan,
+        nextProgressiveRawWorkPlan: successor.plan,
+        previousAcceptedRawEvidence: previous.accepted_raw_evidence,
+        nextAcceptedRawEvidence: successor.accepted_raw_evidence,
+      });
+      return Object.freeze({
+        ...context,
+        raw_work_plan: candidate.raw_work_plan,
+        progressive_raw_work_plan: successor.plan,
+        progressive_publication: progressivePublication,
+        progressive_handoff: context.rebound_state.progressive_handoff,
+        provider_requests_by_slide: candidate.provider_requests_by_slide,
+        style_master_reference: candidate.style_master_reference,
+      });
+    }
+  }
+  const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
+  // The retained v2 plan is only a rebuildable adapter projection for review rendering.
+  writeTargetRawWorkPlan(context, candidate.raw_work_plan);
+  const progressiveRawWorkPlan = progressiveFramedPlanFromContext({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    style_master_reference: candidate.style_master_reference,
+  });
+  const progressivePublication = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
+  const progressiveHandoff = recordTargetProgressiveRawPlan(context.deck_dir, {
+    runDir: context.run_dir,
+    progressiveRawWorkPlan,
+  });
+  return Object.freeze({
+    ...context,
+    raw_work_plan: candidate.raw_work_plan,
+    progressive_raw_work_plan: progressiveRawWorkPlan,
+    progressive_publication: progressivePublication,
+    progressive_handoff: progressiveHandoff,
+    provider_requests_by_slide: candidate.provider_requests_by_slide,
+    style_master_reference: candidate.style_master_reference,
+  });
+}
+
+export function readFramedProgressiveTargetStoredPlanContext(runDir) {
+  const context = readFramedTargetStoredPlanContext(runDir);
+  return Object.freeze({ ...context, progressive_raw_work_plan: progressiveFramedPlanFromContext(context) });
+}
+
+export function framedProgressiveRawPlanProjection(plan) {
+  const inspection = inspectProgressiveRawLifecycle({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  return Object.freeze({
+    schema: "page-authority-progressive-raw-plan-projection-v1",
+    plan_hash: plan.progressive_raw_work_plan.sha256,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    source_epoch: plan.source_epoch,
+    ordered_slide_ids: Object.freeze([...plan.progressive_raw_work_plan.ordered_slide_ids]),
+    maximum_submissions: plan.progressive_raw_work_plan.items.length,
+    progress: inspection.progress || null,
+    next_action: inspection.primary_action,
+  });
+}
+
+export async function planFramedTargetPilot(runDir, { planHash, slideIds } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  return planProgressiveRawPilot({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, slide_ids: slideIds, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
+}
+
+export async function planFramedTargetExpansion(runDir, { planHash } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  return planProgressiveRawExpansion({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, display_by_slide: progressiveFramedDisplayBySlide(plan.receipt), expected_plan: plan.progressive_raw_work_plan });
+}
+
+export async function authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
+}
+
+export async function generateFramedProgressiveRawItem(runDir, { planHash, batchHash, submit } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  return generateProgressiveRawItem({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    expected_plan: plan.progressive_raw_work_plan,
+    provider_requests_by_slide: plan.provider_requests_by_slide,
+    submit,
+  });
+}
+
+async function publishFramedProgressivePilot({ context, plan, batch_sha256, coverage, materializations }) {
+  const byId = new Map(context.receipt.slides.map((slide) => [slide.slide_id, slide]));
+  const frames = coverage.map((item) => {
+    const slide = byId.get(item.slide_id);
+    const materialization = materializations.get(item.slide_id);
+    if (!slide || !materialization) throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is unavailable for ${item.slide_id}`);
+    return Object.freeze({
+      slide_id: item.slide_id,
+      text_frame: slide.text_frame,
+      verified_raw: { bytes: Buffer.from(materialization.bytes), sha256: item.raw_sha256 },
+    });
+  });
+  // This uses the exact private compiler/browser evaluator used by finalization.
+  const composed = await composeFramedRenderContracts(frames);
+  const outputRoot = join(pageAuthorityImage2Paths(context.run_dir).review_root, "pilot", batch_sha256);
+  const rawRoot = join(outputRoot, "raw-underlay");
+  const compositeRoot = join(outputRoot, "text-frame-composite");
+  mkdirSync(rawRoot, { recursive: true });
+  mkdirSync(compositeRoot, { recursive: true });
+  const items = coverage.map((item) => {
+    const materialization = materializations.get(item.slide_id);
+    const composite = composed.final_bytes_by_slide[item.slide_id];
+    if (!composite) throw new FramedImageWorkflowError("framed_pilot_capture_invalid", `Framed Pilot composite is unavailable for ${item.slide_id}`);
+    writeFileSync(join(rawRoot, `${item.slide_id}.png`), materialization.bytes);
+    writeFileSync(join(compositeRoot, `${item.slide_id}.png`), composite);
+    return { slide_id: item.slide_id, raw_sha256: item.raw_sha256, composite_sha256: sha256Bytes(composite) };
+  });
+  const projection = {
+    schema: "page-authority-framed-pilot-projection-v1",
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    raw_work_plan_sha256: plan.sha256,
+    batch_sha256,
+    render_profile_sha256: currentFramedRenderProfile().render_profile_digest,
+    items,
+  };
+  writeFileSync(join(outputRoot, "projection.json"), Buffer.from(`${JSON.stringify(projection)}\n`, "utf8"));
+  return Object.freeze({
+    workflow_evidence_sha256: canonicalJsonSha256({ schema: "page-authority-framed-pilot-evidence-v1", workflow: FRAMED_IMAGE_WORKFLOW, render_profile_sha256: projection.render_profile_sha256, items }),
+    projection_sha256: canonicalJsonSha256(projection),
+  });
+}
+
+const FRAMED_PROGRESSIVE_PILOT_REVIEW_KEYS = Object.freeze(["planHash", "batchHash"]);
+
+function requireFramedProgressivePilotReviewInput(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+    Object.keys(input).some((key) => !FRAMED_PROGRESSIVE_PILOT_REVIEW_KEYS.includes(key))) {
+    throw new FramedImageWorkflowError(
+      "framed_pilot_input_invalid",
+      "Framed Pilot review accepts only the exact planHash and batchHash bindings",
+    );
+  }
+  return input;
+}
+
+export async function prepareFramedProgressivePilotReview(runDir, input = {}) {
+  const { planHash, batchHash } = requireFramedProgressivePilotReviewInput(input);
+  const context = readFramedProgressiveTargetStoredPlanContext(runDir);
+  return prepareProgressiveRawPilotEvidence({
+    runDir: context.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    publish: ({ plan, ...input }) => publishFramedProgressivePilot({ context, plan, ...input }),
+  });
+}
+
+export async function acceptFramedProgressivePilot(runDir, { planHash, batchHash, decision } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  const accepted = await acceptProgressiveRawPilot({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    batch_hash: batchHash,
+    decision,
+  });
+  const handoff = recordTargetProgressivePilotDecision(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+    pilotDecisionSha256: accepted.pilot_decision_sha256,
+  });
+  return Object.freeze({ ...accepted, progressive_handoff: handoff.record });
+}
+
+function progressiveFramedRawBytes(materializations) {
+  return Object.fromEntries([...materializations.entries()].map(([slideId, materialization]) => [slideId, Buffer.from(materialization.bytes)]));
+}
+
+export async function prepareFramedProgressiveRawReview(runDir, { planHash } = {}) {
+  const context = readFramedProgressiveTargetStoredPlanContext(runDir);
+  const prepared = await prepareProgressiveRawCompleteReview({
+    runDir: context.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    publish: async ({ materializations }) => publishProgressiveTargetCompleteRawReview(context, context.raw_work_plan, {
+      raw_bytes_by_slide: progressiveFramedRawBytes(materializations),
+      reviewContribution: createFramedTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan: context.raw_work_plan }),
+    }),
+  });
+  const handoff = prepared.accepted_raw_evidence_sha256
+    ? recordTargetProgressiveAcceptedRawEvidence(context.deck_dir, {
+      runDir: context.run_dir,
+      progressiveRawWorkPlan: context.progressive_raw_work_plan,
+      acceptedRawEvidence: readProgressiveAcceptedRawWork({
+        runDir: context.run_dir,
+        workflow: FRAMED_IMAGE_WORKFLOW,
+        plan_hash: planHash,
+        expected_plan: context.progressive_raw_work_plan,
+      }).accepted_raw_evidence,
+    })
+    : recordTargetProgressiveCompleteRawReview(context.deck_dir, {
+      runDir: context.run_dir,
+      progressiveRawWorkPlan: context.progressive_raw_work_plan,
+      completeRawReviewSha256: prepared.complete_raw_review_sha256,
+    });
+  return Object.freeze({ ...prepared, progressive_handoff: handoff.record });
+}
+
+export async function acceptFramedProgressiveRawReview(runDir, { planHash, decision } = {}) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  const accepted = await acceptProgressiveRawCompleteReview({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    decision,
+  });
+  const handoff = accepted.accepted_raw_evidence_sha256
+    ? recordTargetProgressiveAcceptedRawEvidence(plan.deck_dir, {
+      runDir: plan.run_dir,
+      progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+      acceptedRawEvidence: readProgressiveAcceptedRawWork({
+        runDir: plan.run_dir,
+        workflow: FRAMED_IMAGE_WORKFLOW,
+        plan_hash: planHash,
+        expected_plan: plan.progressive_raw_work_plan,
+      }).accepted_raw_evidence,
+    })
+    : recordTargetProgressiveCompleteRawReview(plan.deck_dir, {
+      runDir: plan.run_dir,
+      progressiveRawWorkPlan: plan.progressive_raw_work_plan,
+      completeRawReviewSha256: accepted.complete_raw_review_sha256,
+    });
+  return Object.freeze({ ...accepted, progressive_handoff: handoff.record });
+}
+
+export async function reconcileFramedProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
+  return reconcileProgressiveRawAttempt({ runDir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, attempt_sha256: attemptSha256, lookup });
+}
+
+/** Compose, publish, and deliver only from exact current v3 accepted raw evidence. */
+export async function buildFramedProgressiveTargetDelivery(runDir) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  const raw = readProgressiveAcceptedRawWork({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: plan.progressive_raw_work_plan.sha256,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  const finalization = await composeFramedFinalSlideManifest({
+    receipt: plan.receipt,
+    rawWorkPlan: plan.raw_work_plan,
+    evidencePlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    rawBytesBySlide: raw.raw_bytes_by_slide,
+  });
+  const persisted = writeProgressiveTargetFinalManifest(plan, {
+    progressiveRawWorkPlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalManifest: finalization.manifest,
+  });
+  const finalHandoff = recordTargetProgressiveFinalManifest(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: raw.plan,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalManifest: finalization.manifest,
+  });
+  const delivery = await deliverTargetFinalSlideManifest({
+    runDir: plan.run_dir,
+    manifest: finalization.manifest,
+    acceptedRawEvidence: raw.accepted_raw_evidence,
+    finalBytesBySlide: finalization.final_bytes_by_slide,
+    sourcePath: plan.source_path,
+    sourceEpoch: plan.source_epoch,
+    title: plan.deck_dir.split(/[\\/]/).at(-1),
+  });
+  const deliveryHandoff = recordTargetProgressiveDeliveryReceipt(plan.deck_dir, {
+    runDir: plan.run_dir,
+    progressiveRawWorkPlan: raw.plan,
+    deliveryReceipt: delivery.receipt,
+  });
+  return Object.freeze({
+    ok: true,
+    plan: framedProgressiveRawPlanProjection(plan),
+    finalization: persisted,
+    delivery,
+    progressive_handoff: deliveryHandoff.record,
+    final_handoff: finalHandoff.record,
+  });
+}
+
 /** Framed finalization then shared delivery through the one target delivery owner. */
 export async function buildFramedTargetDelivery(runDir) {
+  const progressive = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
+  if (progressive.ok && progressive.plan) return buildFramedProgressiveTargetDelivery(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
   const finalization = await composeFramedFinalSlideManifest({
@@ -656,6 +1169,59 @@ function selectedFramedRefreshIds(previousReceipt, nextReceipt, slideIds) {
   return [...slideIds];
 }
 
+function currentAcceptedFramedProgressiveRaw(runDir) {
+  const current = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
+  return current.ok && current.plan && current.evidence?.accepted_raw_evidence_sha256 ? current : null;
+}
+
+async function refreshFramedProgressiveTargetText(runDir, { slideIds }) {
+  const current = currentAcceptedFramedProgressiveRaw(runDir);
+  if (!current) return null;
+  const candidate = readFramedProgressiveTargetPlanCandidate(runDir, {
+    sourceEpoch: current.plan.source_epoch,
+  });
+  const localRebind = inspectFramedProgressiveLocalRebind(runDir, {
+    planHash: current.plan.plan_hash,
+    candidate,
+  });
+  if (!localRebind.available || localRebind.classification?.kind !== "local_compose") {
+    throw new FramedImageWorkflowError(
+      "framed_local_compose_rebuild_required",
+      "Framed local refresh requires exact unchanged underlay evidence; authorize and rebuild framed raw work instead",
+    );
+  }
+  const previous = resolveTargetProgressiveLocalRebindContext(runDir, {
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    parseReceipt: parseFramedTargetReceipt,
+  });
+  const refreshedSlideIds = selectedFramedRefreshIds(previous.previous_source_receipt, candidate.receipt, slideIds);
+  const rebound = await buildFramedProgressiveTargetRawPlan(runDir, { allowSourceRebuild: true });
+  if (rebound.progressive_raw_work_plan.sha256 !== localRebind.progressive_raw_work_plan.sha256) {
+    throw new FramedImageWorkflowError("framed_local_compose_rebind_stale", "Framed local refresh did not publish the exact validated progressive successor");
+  }
+  const delivery = await buildFramedProgressiveTargetDelivery(runDir);
+  return Object.freeze({ ...delivery, refreshed_slide_ids: Object.freeze(refreshedSlideIds) });
+}
+
+async function refreshFramedProgressiveTargetNotes(runDir) {
+  const current = currentAcceptedFramedProgressiveRaw(runDir);
+  if (!current) return null;
+  const refresh = resolveTargetProgressiveLocalRebindContext(runDir, {
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    parseReceipt: parseFramedTargetReceipt,
+  });
+  if (targetSourceSemanticSha256(refresh.previous_source_receipt, FRAMED_IMAGE_WORKFLOW) !==
+    targetSourceSemanticSha256(refresh.receipt, FRAMED_IMAGE_WORKFLOW)) {
+    throw new FramedImageWorkflowError("framed_notes_refresh_rebuild_required", "Framed notes refresh requires unchanged pixel-owning source facts; use the selected Framed rebuild path instead");
+  }
+  const refreshed = await refreshTargetPageAuthorityNotes({
+    runDir: refresh.run_dir,
+    sourcePath: refresh.source_path,
+    sourceEpoch: current.plan.source_epoch,
+  });
+  return Object.freeze({ ok: true, delivery: refreshed });
+}
+
 /**
  * Recompose a target Framed source edit from exactly accepted prior underlay
  * bytes. This is the only provider-free source transition: source parsing,
@@ -663,6 +1229,8 @@ function selectedFramedRefreshIds(previousReceipt, nextReceipt, slideIds) {
  * delivery all remain bound to the selected Framed owner.
  */
 export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) {
+  const progressive = await refreshFramedProgressiveTargetText(runDir, { slideIds });
+  if (progressive) return progressive;
   const refresh = resolveTargetLocalComposeContext(runDir, {
     workflow: FRAMED_IMAGE_WORKFLOW,
     parseReceipt: parseFramedTargetReceipt,
@@ -730,6 +1298,8 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
 
 /** Notes-only target refresh remains a shared delivery operation. */
 export async function refreshFramedTargetNotes(runDir) {
+  const progressive = await refreshFramedProgressiveTargetNotes(runDir);
+  if (progressive) return progressive;
   const refresh = resolveTargetLocalComposeContext(runDir, {
     workflow: FRAMED_IMAGE_WORKFLOW,
     parseReceipt: parseFramedTargetReceipt,

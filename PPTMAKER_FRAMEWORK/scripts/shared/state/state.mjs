@@ -35,6 +35,10 @@ import {
   validateRawWorkPlan,
 } from "../image2/page_authority_artifacts.mjs";
 import {
+  validateProgressiveAcceptedRawEvidence,
+  validateProgressiveRawWorkPlan,
+} from "../image2/page_authority_progressive_schema.mjs";
+import {
   validateStyleMasterSelectionRecord,
 } from "../image2/style_master_schema.mjs";
 import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOWS, isTargetWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
@@ -86,6 +90,7 @@ const STATE_TOP_LEVEL_KEYS = new Set([
   "production_mode",
   "page_authority_raw_provider_authorization",
   "page_authority_target_evidence",
+  "page_authority_progressive_handoff",
   "page_authority_style_master",
   "playbook",
   "current_node",
@@ -716,6 +721,76 @@ function targetEvidenceRecord(state, runVersion) {
   return state?.page_authority_target_evidence?.by_version?.[canonicalVersionKey(runVersion)] || null;
 }
 
+// Progressive raw facts remain exclusively in the append-mostly raw owner.
+// State keeps only the typed Controller handoff references needed to resume.
+export const PAGE_AUTHORITY_PROGRESSIVE_HANDOFF_SCHEMA = "page-authority-progressive-handoff-v1";
+const PROGRESSIVE_HANDOFF_RECORD_KEYS = Object.freeze([
+  "schema",
+  "run_version",
+  "source_epoch",
+  "source_receipt_sha256",
+  "workflow",
+  "raw_work_plan_sha256",
+  "partial_pilot_decision_sha256",
+  "complete_raw_review_sha256",
+  "accepted_raw_evidence_sha256",
+  "final_manifest_sha256",
+  "delivery_receipt_sha256",
+]);
+
+function validProgressiveHandoffRecord(record, runVersion) {
+  return hasExactKeys(record, PROGRESSIVE_HANDOFF_RECORD_KEYS) &&
+    record.schema === PAGE_AUTHORITY_PROGRESSIVE_HANDOFF_SCHEMA &&
+    record.run_version === runVersion &&
+    Number.isInteger(record.source_epoch) && record.source_epoch > 0 &&
+    SHA256_RE.test(record.source_receipt_sha256 || "") &&
+    ["framed", "pure"].includes(record.workflow) &&
+    SHA256_RE.test(record.raw_work_plan_sha256 || "") &&
+    nullableDigest(record.partial_pilot_decision_sha256) &&
+    nullableDigest(record.complete_raw_review_sha256) &&
+    nullableDigest(record.accepted_raw_evidence_sha256) &&
+    nullableDigest(record.final_manifest_sha256) &&
+    nullableDigest(record.delivery_receipt_sha256);
+}
+
+function validateProgressiveHandoffStructure(state, errors) {
+  const map = state.page_authority_progressive_handoff;
+  if (map === undefined) return;
+  if (!hasExactKeys(map, ["by_version"]) || !isPlainObject(map.by_version)) {
+    errors.push("page_authority_progressive_handoff must contain only by_version");
+    return;
+  }
+  for (const [key, record] of Object.entries(map.by_version)) {
+    const runVersion = versionFromReservedKey(key);
+    if (!runVersion) errors.push(`invalid page_authority_progressive_handoff version key ${key}`);
+    else if (!validProgressiveHandoffRecord(record, runVersion)) errors.push(`invalid page_authority_progressive_handoff record ${key}`);
+  }
+}
+
+function ensureProgressiveHandoffContainer(state) {
+  if (!isPlainObject(state.page_authority_progressive_handoff) || !isPlainObject(state.page_authority_progressive_handoff.by_version)) {
+    state.page_authority_progressive_handoff = { by_version: {} };
+  }
+  return state.page_authority_progressive_handoff.by_version;
+}
+
+function progressiveHandoffRecord(state, runVersion) {
+  return state?.page_authority_progressive_handoff?.by_version?.[canonicalVersionKey(runVersion)] || null;
+}
+
+// A current v3 handoff fences the retired v2 state-side raw ledger. The old
+// records remain readable history, but must not be repurposed for progressive
+// cost, evidence, finalization, or delivery work.
+function hasCurrentProgressiveRawHandoff(state, runVersion) {
+  return validProgressiveHandoffRecord(progressiveHandoffRecord(state, runVersion), runVersion);
+}
+
+function assertLegacyRawLifecycleAvailable(state, runVersion) {
+  if (hasCurrentProgressiveRawHandoff(state, runVersion)) {
+    throw new Error("TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED");
+  }
+}
+
 function targetSourceFacts(receipt) {
   if (!receipt || receipt.schema !== "page-authority-image2-source-v2" || receipt.pipeline !== "page-authority-image2-v2" ||
     !SHA256_RE.test(receipt.source_sha256 || "") || !["framed", "pure"].includes(receipt.workflow) ||
@@ -775,6 +850,55 @@ function targetLocalComposeRebindFacts({
     previousAcceptedRawEvidence.raw_review_sha256 !== nextAcceptedRawEvidence.raw_review_sha256 ||
     stableStringify(previousAcceptedRawEvidence.items) !== stableStringify(nextAcceptedRawEvidence.items)) {
     throw new Error("TARGET_LOCAL_COMPOSE_RAW_EVIDENCE_DRIFT");
+  }
+  return Object.freeze({
+    previousSource,
+    nextSource,
+    previousPlan,
+    nextPlan,
+    previousEvidence,
+    nextEvidence,
+  });
+}
+
+function sameProgressiveRawTuples(left, right) {
+  return Array.isArray(left) && Array.isArray(right) && left.length === right.length &&
+    left.every((item, index) => item.slide_id === right[index]?.slide_id &&
+      item.raw_contract_sha256 === right[index]?.raw_contract_sha256 &&
+      item.raw_sha256 === right[index]?.raw_sha256);
+}
+
+function progressiveLocalRebindFacts({
+  previousSourceReceipt,
+  nextSourceReceipt,
+  previousProgressiveRawWorkPlan,
+  nextProgressiveRawWorkPlan,
+  previousAcceptedRawEvidence,
+  nextAcceptedRawEvidence,
+} = {}) {
+  const previousSource = targetSourceFacts(previousSourceReceipt);
+  const nextSource = targetSourceFacts(nextSourceReceipt);
+  const previousPlan = validateProgressiveRawWorkPlan(previousProgressiveRawWorkPlan);
+  const nextPlan = validateProgressiveRawWorkPlan(nextProgressiveRawWorkPlan);
+  if (previousSource.workflow !== nextSource.workflow || previousSource.source_receipt_sha256 === nextSource.source_receipt_sha256 ||
+    !previousPlan.ok || !nextPlan.ok ||
+    previousProgressiveRawWorkPlan.source_receipt_sha256 !== previousSource.source_receipt_sha256 ||
+    nextProgressiveRawWorkPlan.source_receipt_sha256 !== nextSource.source_receipt_sha256 ||
+    previousProgressiveRawWorkPlan.run_version !== nextProgressiveRawWorkPlan.run_version ||
+    previousProgressiveRawWorkPlan.source_epoch !== nextProgressiveRawWorkPlan.source_epoch ||
+    previousProgressiveRawWorkPlan.workflow !== previousSource.workflow ||
+    nextProgressiveRawWorkPlan.workflow !== nextSource.workflow ||
+    previousProgressiveRawWorkPlan.provider_profile_sha256 !== nextProgressiveRawWorkPlan.provider_profile_sha256 ||
+    previousProgressiveRawWorkPlan.effective_style_master_sha256 !== nextProgressiveRawWorkPlan.effective_style_master_sha256 ||
+    stableStringify(previousProgressiveRawWorkPlan.ordered_slide_ids) !== stableStringify(nextProgressiveRawWorkPlan.ordered_slide_ids) ||
+    stableStringify(previousProgressiveRawWorkPlan.items) !== stableStringify(nextProgressiveRawWorkPlan.items)) {
+    throw new Error("TARGET_PROGRESSIVE_LOCAL_REBIND_RAW_CONTRACT_DRIFT");
+  }
+  const previousEvidence = validateProgressiveAcceptedRawEvidence(previousAcceptedRawEvidence, { plan: previousProgressiveRawWorkPlan });
+  const nextEvidence = validateProgressiveAcceptedRawEvidence(nextAcceptedRawEvidence, { plan: nextProgressiveRawWorkPlan });
+  if (!previousEvidence.ok || !nextEvidence.ok ||
+    !sameProgressiveRawTuples(previousAcceptedRawEvidence.items, nextAcceptedRawEvidence.items)) {
+    throw new Error("TARGET_PROGRESSIVE_LOCAL_REBIND_RAW_EVIDENCE_DRIFT");
   }
   return Object.freeze({
     previousSource,
@@ -932,6 +1056,9 @@ export function advanceTargetPageAuthoritySourceEpoch(deckDir, {
   if (isPlainObject(next.page_authority_raw_provider_authorization?.by_version)) {
     delete next.page_authority_raw_provider_authorization.by_version[versionKey];
   }
+  if (isPlainObject(next.page_authority_progressive_handoff?.by_version)) {
+    delete next.page_authority_progressive_handoff.by_version[versionKey];
+  }
   const at = nowIso();
   writeState(deckDir, next, { expectedStateSha, updatedAt: at });
   appendHistory(deckDir, {
@@ -1067,6 +1194,112 @@ export function rebindTargetAcceptedRawEvidenceForLocalCompose(deckDir, args = {
     run_version: exactVersion,
     source_epoch: record.source_epoch,
     record: Object.freeze(structuredClone(record)),
+  });
+}
+
+/**
+ * Rebind source/state handoffs after the raw owner has published a fully
+ * validated provider-free v3 local-rebind successor. State keeps references
+ * only; it never reconstructs or authorizes raw materialization facts.
+ */
+export function rebindTargetProgressiveRawEvidenceForLocalCompose(deckDir, {
+  runVersion,
+  runDir,
+  previousSourceReceipt,
+  nextSourceReceipt,
+  previousProgressiveRawWorkPlan,
+  nextProgressiveRawWorkPlan,
+  previousAcceptedRawEvidence,
+  nextAcceptedRawEvidence,
+  expectedStateSha = null,
+} = {}) {
+  const exactVersion = normalizeRunVersion(runVersion ?? runDir);
+  if (!exactVersion) throw new Error("RUN_VERSION_INVALID");
+  const facts = progressiveLocalRebindFacts({
+    previousSourceReceipt,
+    nextSourceReceipt,
+    previousProgressiveRawWorkPlan,
+    nextProgressiveRawWorkPlan,
+    previousAcceptedRawEvidence,
+    nextAcceptedRawEvidence,
+  });
+  if (nextProgressiveRawWorkPlan.run_version !== exactVersion) {
+    throw new Error("TARGET_PROGRESSIVE_LOCAL_REBIND_VERSION_MISMATCH");
+  }
+  const { marker } = assertTargetSourceReceiptMatchesCanonicalBytes(deckDir, exactVersion, facts.nextSource);
+  const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
+  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  if (state?.execution_run_version_mismatch) throw new Error("TARGET_SOURCE_EXECUTION_MISMATCH");
+  const versionKey = canonicalVersionKey(exactVersion);
+  const modeRecord = state.production_mode?.by_version?.[versionKey];
+  const inspection = inspectProductionMode({ state, runVersion: exactVersion, sourceMarker: marker });
+  if (!inspection.ok || !isProductionModeRecord(modeRecord) || modeRecord.mode !== TARGET_PRODUCTION_MODE ||
+    modeRecord.workflow !== facts.nextSource.workflow || modeRecord.source_epoch !== nextProgressiveRawWorkPlan.source_epoch) {
+    throw new Error("TARGET_SOURCE_STATE_IDENTITY_MISMATCH");
+  }
+  const existing = targetEvidenceRecord(state, exactVersion);
+  const previousHandoff = progressiveHandoffRecord(state, exactVersion);
+  if (!validTargetEvidenceRecord(existing, exactVersion) ||
+    existing.source_epoch !== modeRecord.source_epoch ||
+    existing.source_receipt_sha256 !== facts.previousSource.source_receipt_sha256 ||
+    existing.workflow !== facts.previousSource.workflow ||
+    !validProgressiveHandoffRecord(previousHandoff, exactVersion) ||
+    previousHandoff.raw_work_plan_sha256 !== facts.previousPlan.sha256 ||
+    previousHandoff.source_epoch !== previousProgressiveRawWorkPlan.source_epoch ||
+    previousHandoff.source_receipt_sha256 !== facts.previousSource.source_receipt_sha256 ||
+    previousHandoff.workflow !== facts.previousSource.workflow ||
+    previousHandoff.accepted_raw_evidence_sha256 !== facts.previousEvidence.sha256) {
+    throw new Error("TARGET_PROGRESSIVE_LOCAL_REBIND_STATE_LINEAGE_MISMATCH");
+  }
+
+  const next = structuredClone(state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  const targetRecord = next.page_authority_target_evidence.by_version[versionKey];
+  targetRecord.source_receipt_sha256 = facts.nextSource.source_receipt_sha256;
+  targetRecord.provider_authorization_sha256 = null;
+  targetRecord.accepted_raw_evidence_sha256 = null;
+  targetRecord.final_manifest_sha256 = null;
+  targetRecord.delivery_receipt_sha256 = null;
+  if (!validTargetEvidenceRecord(targetRecord, exactVersion)) throw new Error("TARGET_STATE_RECORD_INVALID");
+  const handoffs = ensureProgressiveHandoffContainer(next);
+  handoffs[versionKey] = {
+    schema: PAGE_AUTHORITY_PROGRESSIVE_HANDOFF_SCHEMA,
+    run_version: exactVersion,
+    source_epoch: nextProgressiveRawWorkPlan.source_epoch,
+    source_receipt_sha256: facts.nextSource.source_receipt_sha256,
+    workflow: facts.nextSource.workflow,
+    raw_work_plan_sha256: facts.nextPlan.sha256,
+    partial_pilot_decision_sha256: null,
+    complete_raw_review_sha256: nextAcceptedRawEvidence.complete_raw_review_sha256,
+    accepted_raw_evidence_sha256: facts.nextEvidence.sha256,
+    final_manifest_sha256: null,
+    delivery_receipt_sha256: null,
+  };
+  if (!validProgressiveHandoffRecord(handoffs[versionKey], exactVersion)) throw new Error("TARGET_PROGRESSIVE_HANDOFF_INVALID");
+  const at = nowIso();
+  writeState(deckDir, next, { expectedStateSha, updatedAt: at });
+  appendHistory(deckDir, {
+    type: "page_authority_progressive_local_rebind",
+    run_version: exactVersion,
+    workflow: facts.nextSource.workflow,
+    source_epoch: targetRecord.source_epoch,
+    previous_source_receipt_sha256: facts.previousSource.source_receipt_sha256,
+    source_receipt_sha256: facts.nextSource.source_receipt_sha256,
+    previous_raw_work_plan_sha256: facts.previousPlan.sha256,
+    raw_work_plan_sha256: facts.nextPlan.sha256,
+    previous_accepted_raw_evidence_sha256: facts.previousEvidence.sha256,
+    accepted_raw_evidence_sha256: facts.nextEvidence.sha256,
+    at,
+  });
+  return Object.freeze({
+    ok: true,
+    run_version: exactVersion,
+    source_epoch: targetRecord.source_epoch,
+    record: Object.freeze(structuredClone(targetRecord)),
+    progressive_handoff: Object.freeze(structuredClone(handoffs[versionKey])),
   });
 }
 
@@ -1249,6 +1482,7 @@ export function revalidateTargetPageAuthorityStructuralReplay(deckDir, {
 
 function mutateTargetEvidenceRecord(deckDir, { runVersion, runDir, expectedStateSha = null, mutate } = {}) {
   const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  assertLegacyRawLifecycleAvailable(context.state, context.exactVersion);
   if (!validTargetEvidenceRecord(context.record, context.exactVersion)) throw new Error("TARGET_STATE_INITIALIZATION_REQUIRED");
   if (context.record.source_epoch !== context.modeRecord.source_epoch || context.record.workflow !== context.inspection.workflow) {
     throw new Error("TARGET_SOURCE_STATE_IDENTITY_MISMATCH");
@@ -1263,6 +1497,254 @@ function mutateTargetEvidenceRecord(deckDir, { runVersion, runDir, expectedState
   if (!validTargetEvidenceRecord(record, context.exactVersion)) throw new Error("TARGET_STATE_RECORD_INVALID");
   writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
   return Object.freeze({ run_version: context.exactVersion, record: Object.freeze(structuredClone(record)) });
+}
+
+function progressivePlanFacts(progressiveRawWorkPlan) {
+  const checked = validateProgressiveRawWorkPlan(progressiveRawWorkPlan);
+  if (!checked.ok) throw new Error(checked.code || "TARGET_PROGRESSIVE_PLAN_INVALID");
+  return Object.freeze({
+    sha256: checked.sha256,
+    run_version: progressiveRawWorkPlan.run_version,
+    source_epoch: progressiveRawWorkPlan.source_epoch,
+    source_receipt_sha256: progressiveRawWorkPlan.source_receipt_sha256,
+    workflow: progressiveRawWorkPlan.workflow,
+  });
+}
+
+function mutateProgressiveHandoff(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  expectedStateSha = null,
+  mutate,
+} = {}) {
+  const facts = progressivePlanFacts(progressiveRawWorkPlan);
+  const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "execute" });
+  if (!validTargetEvidenceRecord(context.record, context.exactVersion) ||
+    context.record.source_epoch !== context.modeRecord.source_epoch ||
+    context.record.workflow !== context.inspection.workflow) {
+    throw new Error("TARGET_SOURCE_STATE_IDENTITY_MISMATCH");
+  }
+  if (facts.run_version !== context.exactVersion ||
+    facts.source_epoch !== context.record.source_epoch ||
+    facts.source_receipt_sha256 !== context.record.source_receipt_sha256 ||
+    facts.workflow !== context.record.workflow) {
+    throw new Error("TARGET_PROGRESSIVE_HANDOFF_LINEAGE_MISMATCH");
+  }
+  const next = structuredClone(context.state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  const handoffs = ensureProgressiveHandoffContainer(next);
+  const versionKey = canonicalVersionKey(context.exactVersion);
+  const previous = handoffs[versionKey] || null;
+  const record = previous && validProgressiveHandoffRecord(previous, context.exactVersion) &&
+    previous.raw_work_plan_sha256 === facts.sha256 &&
+    previous.source_epoch === facts.source_epoch &&
+    previous.source_receipt_sha256 === facts.source_receipt_sha256 &&
+    previous.workflow === facts.workflow
+    ? previous
+    : {
+      schema: PAGE_AUTHORITY_PROGRESSIVE_HANDOFF_SCHEMA,
+      run_version: context.exactVersion,
+      source_epoch: facts.source_epoch,
+      source_receipt_sha256: facts.source_receipt_sha256,
+      workflow: facts.workflow,
+      raw_work_plan_sha256: facts.sha256,
+      partial_pilot_decision_sha256: null,
+      complete_raw_review_sha256: null,
+      accepted_raw_evidence_sha256: null,
+      final_manifest_sha256: null,
+      delivery_receipt_sha256: null,
+    };
+  handoffs[versionKey] = record;
+  mutate(record, facts, context);
+  if (!validProgressiveHandoffRecord(record, context.exactVersion)) throw new Error("TARGET_PROGRESSIVE_HANDOFF_INVALID");
+  writeState(deckDir, next, { expectedStateSha, updatedAt: nowIso() });
+  return Object.freeze({
+    run_version: context.exactVersion,
+    record: Object.freeze(structuredClone(record)),
+  });
+}
+
+/** Record the provider-free v3 plan reference without copying raw-owner facts into state. */
+export function recordTargetProgressiveRawPlan(deckDir, { runVersion, runDir, progressiveRawWorkPlan, expectedStateSha = null } = {}) {
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate() {},
+  });
+}
+
+/** Persist only the exact partial-Pilot decision reference for Controller resume. */
+export function recordTargetProgressivePilotDecision(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  pilotDecisionSha256,
+  expectedStateSha = null,
+} = {}) {
+  if (!SHA256_RE.test(pilotDecisionSha256 || "")) throw new TypeError("pilotDecisionSha256 must be a lowercase SHA-256");
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate(record) {
+      record.partial_pilot_decision_sha256 = pilotDecisionSha256;
+    },
+  });
+}
+
+/** Persist only the exact complete-review reference for Controller resume. */
+export function recordTargetProgressiveCompleteRawReview(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  completeRawReviewSha256,
+  expectedStateSha = null,
+} = {}) {
+  if (!SHA256_RE.test(completeRawReviewSha256 || "")) throw new TypeError("completeRawReviewSha256 must be a lowercase SHA-256");
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate(record) {
+      record.complete_raw_review_sha256 = completeRawReviewSha256;
+      record.accepted_raw_evidence_sha256 = null;
+      record.final_manifest_sha256 = null;
+      record.delivery_receipt_sha256 = null;
+    },
+  });
+}
+
+/** Persist the v3 accepted-evidence reference only after raw-owner validation. */
+export function recordTargetProgressiveAcceptedRawEvidence(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  acceptedRawEvidence,
+  expectedStateSha = null,
+} = {}) {
+  const facts = progressivePlanFacts(progressiveRawWorkPlan);
+  const evidence = validateProgressiveAcceptedRawEvidence(acceptedRawEvidence, { plan: progressiveRawWorkPlan });
+  if (!evidence.ok || acceptedRawEvidence.raw_work_plan_sha256 !== facts.sha256) {
+    throw new Error(evidence.code || "TARGET_PROGRESSIVE_RAW_EVIDENCE_INVALID");
+  }
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate(record) {
+      record.complete_raw_review_sha256 = acceptedRawEvidence.complete_raw_review_sha256;
+      record.accepted_raw_evidence_sha256 = evidence.sha256;
+      record.final_manifest_sha256 = null;
+      record.delivery_receipt_sha256 = null;
+    },
+  });
+}
+
+/** Persist selected-workflow final-manifest lineage from exact v3 accepted evidence. */
+export function recordTargetProgressiveFinalManifest(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  acceptedRawEvidence,
+  finalManifest,
+  expectedStateSha = null,
+} = {}) {
+  const evidence = validateProgressiveAcceptedRawEvidence(acceptedRawEvidence, { plan: progressiveRawWorkPlan });
+  const final = validateFinalSlideManifest(finalManifest, { evidence: acceptedRawEvidence });
+  if (!evidence.ok || !final.ok) throw new Error(final.code || evidence.code || "TARGET_PROGRESSIVE_FINAL_MANIFEST_INVALID");
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate(record) {
+      if (record.accepted_raw_evidence_sha256 !== evidence.sha256 ||
+        finalManifest.source_receipt_sha256 !== record.source_receipt_sha256 ||
+        finalManifest.workflow !== record.workflow) {
+        throw new Error("TARGET_PROGRESSIVE_FINAL_MANIFEST_LINEAGE_MISMATCH");
+      }
+      record.final_manifest_sha256 = final.sha256;
+      record.delivery_receipt_sha256 = null;
+    },
+  });
+}
+
+/** Persist delivery lineage without converting it into raw-work authority. */
+export function recordTargetProgressiveDeliveryReceipt(deckDir, {
+  runVersion,
+  runDir,
+  progressiveRawWorkPlan,
+  deliveryReceipt,
+  expectedStateSha = null,
+} = {}) {
+  if (!deliveryReceipt || deliveryReceipt.schema !== "page-authority-delivery-receipt-v2" ||
+    !SHA256_RE.test(deliveryReceipt.final_manifest_sha256 || "") ||
+    !Number.isInteger(deliveryReceipt.source_epoch) || deliveryReceipt.source_epoch <= 0) {
+    throw new Error("TARGET_DELIVERY_RECEIPT_INVALID");
+  }
+  return mutateProgressiveHandoff(deckDir, {
+    runVersion,
+    runDir,
+    progressiveRawWorkPlan,
+    expectedStateSha,
+    mutate(record) {
+      if (deliveryReceipt.source_epoch !== record.source_epoch ||
+        deliveryReceipt.final_manifest_sha256 !== record.final_manifest_sha256) {
+        throw new Error("TARGET_PROGRESSIVE_DELIVERY_LINEAGE_MISMATCH");
+      }
+      record.delivery_receipt_sha256 = targetEvidenceDigest(deliveryReceipt);
+    },
+  });
+}
+
+/** Read the narrow progressive handoff; callers must still revalidate raw-owner records. */
+export function readTargetProgressiveHandoff(deckDir, { runVersion, runDir } = {}) {
+  const context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "observe" });
+  const record = progressiveHandoffRecord(context.state, context.exactVersion);
+  if (!validProgressiveHandoffRecord(record, context.exactVersion) ||
+    record.source_epoch !== context.record?.source_epoch ||
+    record.source_receipt_sha256 !== context.record?.source_receipt_sha256 ||
+    record.workflow !== context.record?.workflow) {
+    return null;
+  }
+  return Object.freeze(structuredClone(record));
+}
+
+/**
+ * Read one normal MD Controller decision for a current progressive route.
+ * The node record remains the owner of the optional human note; this helper
+ * only returns a narrow typed projection and never promotes it to evidence.
+ */
+export function readTargetProgressiveControllerDecision(deckDir, { runVersion, runDir, nodeId } = {}) {
+  if (typeof nodeId !== "string" || !nodeId) return null;
+  let context;
+  try {
+    context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "observe" });
+  } catch {
+    return null;
+  }
+  if (!hasCurrentProgressiveRawHandoff(context.state, context.exactVersion)) return null;
+  const record = activeRecord(context.state, nodeId);
+  const decision = record?.decision;
+  if (!decision || typeof decision.value !== "string" || !["user", "agent", "cli"].includes(decision.kind) ||
+    !validIsoTimestamp(decision.at)) {
+    return null;
+  }
+  return Object.freeze({
+    value: decision.value,
+    kind: decision.kind,
+    at: decision.at,
+    ...(typeof decision.note === "string" ? { note: decision.note } : {}),
+  });
 }
 
 /** Persist accepted raw evidence only when it binds the initialized target tuple. */
@@ -1331,6 +1813,9 @@ export function inspectTargetPageAuthorityState(deckDir, { runVersion, runDir, s
     context = targetEvidenceContext(deckDir, { runVersion, runDir, purpose: "observe" });
   } catch (error) {
     return targetEvidenceFailure(error.message || "TARGET_STATE_UNAVAILABLE", "repair_target_source_state");
+  }
+  if (hasCurrentProgressiveRawHandoff(context.state, context.exactVersion)) {
+    return targetEvidenceFailure("TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED", "inspect_progressive_raw_owner");
   }
   const record = context.record;
   if (!validTargetEvidenceRecord(record, context.exactVersion)) {
@@ -1429,6 +1914,7 @@ export function recordPageAuthorityRawProviderAuthorization(deckDir, { runVersio
   }
   const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
   if (state?.replacement_required || state?.corrupted) throw new Error("replacement_required: Page Authority authorization state is unavailable");
+  assertLegacyRawLifecycleAvailable(state, exactVersion);
   const executionMismatch = selectedExecutionMismatch(state, { runVersion: exactVersion });
   if (executionMismatch) throw new Error(`execution_run_version_mismatch: active=${executionMismatch.active_run_version || "none"} requested=${exactVersion}`);
   const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
@@ -1486,6 +1972,9 @@ export function inspectPageAuthorityRawProviderAuthorization(deckDir, { runVersi
   }
   const state = readState(deckDir, { purpose: "execute", heal: false, runVersion: exactVersion });
   if (state?.replacement_required || state?.corrupted) return Object.freeze({ ok: false, code: "STATE_UNAVAILABLE", run_version: exactVersion });
+  if (hasCurrentProgressiveRawHandoff(state, exactVersion)) {
+    return Object.freeze({ ok: false, code: "TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED", run_version: exactVersion });
+  }
   const record = state.page_authority_raw_provider_authorization?.by_version?.[canonicalVersionKey(exactVersion)];
   if (!validPageAuthorityRawAuthorizationRecord(record, exactVersion)) return Object.freeze({ ok: false, code: "AUTHORIZATION_MISSING", run_version: exactVersion });
   const sourceEpoch = state.production_mode?.by_version?.[canonicalVersionKey(exactVersion)]?.source_epoch;
@@ -2036,6 +2525,7 @@ export function validateState(state) {
   validateStyleMasterSelectionStructure(state, errors);
   validatePageAuthorityRawAuthorizationStructure(state, errors);
   validateTargetEvidenceStructure(state, errors);
+  validateProgressiveHandoffStructure(state, errors);
   validateCurrentControllerIdentity(state, errors);
   return { valid: errors.length === 0, errors };
 }

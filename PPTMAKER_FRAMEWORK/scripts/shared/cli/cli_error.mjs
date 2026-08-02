@@ -49,6 +49,7 @@ export const CLI_NEXT_ACTIONS = Object.freeze([
   "edit_source",
   "repair_environment",
   "repair_prerequisite",
+  "reconcile",
   "rerun",
   "review",
   "approve",

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createProgressiveRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_schema.mjs";
 import { styleMasterGenerationProfileSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -18,10 +19,14 @@ import {
   readState,
   recordEffectiveStyleMasterSelection,
   recordPageAuthorityRawProviderAuthorization,
+  recordTargetProgressiveCompleteRawReview,
+  recordTargetProgressivePilotDecision,
+  recordTargetProgressiveRawPlan,
   recordTargetAcceptedRawEvidence,
   recordTargetDeliveryReceipt,
   recordTargetFinalManifest,
   resolveEffectiveStyleMasterSelection,
+  readTargetProgressiveHandoff,
   statePath,
   validateStateReadOnly,
   writeState,
@@ -64,6 +69,20 @@ function rawPlan(receipt) {
     ordered_slide_ids: ["DeckGo"],
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
+    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+  });
+}
+
+function progressivePlan(receipt) {
+  return createProgressiveRawWorkPlan({
+    run_version: "v1",
+    source_receipt_sha256: receipt.source_sha256,
+    source_epoch: 1,
+    workflow: receipt.workflow,
+    provider_profile_sha256: digest("b"),
+    effective_style_master_sha256: digest("c"),
+    source_execution_sha256: digest("d"),
+    ordered_slide_ids: ["DeckGo"],
     items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
   });
 }
@@ -415,6 +434,77 @@ describe("TARGET Page Authority state lineage", () => {
         .toEqual(authorization.record);
       expect(persisted.page_authority_target_evidence.by_version["3_versions/v1"])
         .toMatchObject({ provider_authorization_sha256: authorizationDigest, accepted_raw_evidence_sha256: null });
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("fences v2 raw authorization and evidence paths once a progressive handoff is current", () => {
+    const fixture = targetFixture();
+    try {
+      const legacyPlan = rawPlan(fixture.sourceReceipt);
+      initializeTargetPageAuthorityState(fixture.deck, {
+        runVersion: "v1",
+        sourceReceipt: fixture.sourceReceipt,
+      });
+      const authorization = recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: legacyPlan,
+        maxSubmissions: 1,
+      });
+      const plan = progressivePlan(fixture.sourceReceipt);
+      recordTargetProgressiveRawPlan(fixture.deck, {
+        runVersion: "v1",
+        progressiveRawWorkPlan: plan,
+      });
+      recordTargetProgressivePilotDecision(fixture.deck, {
+        runVersion: "v1",
+        progressiveRawWorkPlan: plan,
+        pilotDecisionSha256: digest("e"),
+      });
+      recordTargetProgressiveCompleteRawReview(fixture.deck, {
+        runVersion: "v1",
+        progressiveRawWorkPlan: plan,
+        completeRawReviewSha256: digest("f"),
+      });
+
+      expect(readTargetProgressiveHandoff(fixture.deck, { runVersion: "v1" })).toMatchObject({
+        raw_work_plan_sha256: plan.sha256,
+        partial_pilot_decision_sha256: digest("e"),
+        complete_raw_review_sha256: digest("f"),
+        accepted_raw_evidence_sha256: null,
+        final_manifest_sha256: null,
+        delivery_receipt_sha256: null,
+      });
+      expect(inspectPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: legacyPlan,
+        maxSubmissions: 1,
+      })).toMatchObject({ ok: false, code: "TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED" });
+      expect(inspectTargetPageAuthorityState(fixture.deck, { runVersion: "v1" }))
+        .toMatchObject({ ok: false, code: "TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED" });
+
+      const legacyEvidence = createAcceptedRawEvidence({
+        plan: legacyPlan,
+        provider_authorization_sha256: canonicalJsonSha256(authorization.record),
+        raw_review_sha256: digest("a"),
+        raw_bytes_by_slide: { DeckGo: Buffer.from("legacy evidence") },
+      });
+      const before = readFileSync(statePath(fixture.deck));
+      expect(() => recordPageAuthorityRawProviderAuthorization(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: legacyPlan,
+        maxSubmissions: 1,
+      })).toThrow("TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED");
+      expect(() => recordTargetAcceptedRawEvidence(fixture.deck, {
+        runVersion: "v1",
+        rawWorkPlan: legacyPlan,
+        acceptedRawEvidence: legacyEvidence,
+      })).toThrow("TARGET_PROGRESSIVE_RAW_OWNER_REQUIRED");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(before);
+      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
+        .page_authority_raw_provider_authorization.by_version["3_versions/v1"])
+        .toEqual(authorization.record);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

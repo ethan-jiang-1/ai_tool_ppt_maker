@@ -19,6 +19,14 @@ export const STYLE_MASTER_STAGING_SUBDIR = "_staging";
 export const STYLE_MASTER_PLANS_SUBDIR = "plans";
 export const STYLE_MASTER_SCOPES_SUBDIR = "scopes";
 
+// Progressive page production retains irreversible provider facts outside the
+// rebuildable version `_generated` leaf. Its scoped head is the only mutable
+// pointer; all plan container records remain append-mostly history.
+export const PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH = "1_upstream_raw_material/page-production-iterations";
+export const PAGE_PRODUCTION_STAGING_SUBDIR = "_staging";
+export const PAGE_PRODUCTION_PLANS_SUBDIR = "plans";
+export const PAGE_PRODUCTION_SCOPES_SUBDIR = "scopes";
+
 export const PAGE_AUTHORITY_IMAGE2_PATHS = Object.freeze({
   root: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}`,
   receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json`,
@@ -69,5 +77,22 @@ export function pageAuthorityStyleMasterPaths(runDir) {
     staging_root: path.join(historyRoot, STYLE_MASTER_STAGING_SUBDIR),
     plans_root: path.join(historyRoot, STYLE_MASTER_PLANS_SUBDIR),
     scopes_root: path.join(historyRoot, STYLE_MASTER_SCOPES_SUBDIR),
+  });
+}
+
+/** Canonical append-mostly progressive raw-production owner paths for one v2 run. */
+export function pageAuthorityProgressiveRawPaths(runDir) {
+  const root = path.resolve(runDir);
+  if (!isPageAuthorityVersionDir(root)) throw new Error(`Progressive Page Authority paths require a version directory (got ${root})`);
+  const deckRoot = path.dirname(path.dirname(root));
+  const historyRoot = path.join(deckRoot, ...PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH.split("/"));
+  return Object.freeze({
+    deck_root: deckRoot,
+    run_dir: root,
+    run_version: path.basename(root),
+    history_root: historyRoot,
+    staging_root: path.join(historyRoot, PAGE_PRODUCTION_STAGING_SUBDIR),
+    plans_root: path.join(historyRoot, PAGE_PRODUCTION_PLANS_SUBDIR),
+    scopes_root: path.join(historyRoot, PAGE_PRODUCTION_SCOPES_SUBDIR),
   });
 }

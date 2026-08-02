@@ -12,6 +12,7 @@ import {
   styleAsset,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { readState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
@@ -105,8 +106,9 @@ function jsonSuccess(result) {
   return JSON.parse(expectSuccess(result).stdout);
 }
 
-async function startMockProvider(bytes) {
+async function startMockProvider(bytes, { failCalls = [] } = {}) {
   const calls = [];
+  const failedCalls = new Set(failCalls);
   const encoded = bytes.toString("base64");
   const server = createServer((request, response) => {
     const chunks = [];
@@ -122,6 +124,11 @@ async function startMockProvider(bytes) {
       if (request.method !== "POST" || request.url !== "/images/generations") {
         response.writeHead(404, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: "unexpected mock provider route" }));
+        return;
+      }
+      if (failedCalls.has(calls.length)) {
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "planned mock provider interruption" }));
         return;
       }
       response.writeHead(200, { "content-type": "application/json" });
@@ -147,20 +154,172 @@ async function startMockProvider(bytes) {
   };
 }
 
-async function runTargetRawLifecycle(runDir, env, { styleMaster: includeStyleMaster = true } = {}) {
+function jsonFailure(result) {
+  expect(result.status, result.stderr || result.stdout).toBe(1);
+  const line = result.stderr.split(/\r?\n/).filter(Boolean).at(-1);
+  return JSON.parse(line);
+}
+
+async function generateBatch(runDir, env, planHash, batch) {
+  const generated = [];
+  for (const slideId of batch.paid_submission_slide_ids) {
+    const result = jsonSuccess(await flow([
+      "image2", "generate", runDir,
+      "--plan-hash", planHash,
+      "--batch-hash", batch.batch_hash,
+    ], env));
+    expect(result).toMatchObject({
+      plan_hash: planHash,
+      batch_hash: batch.batch_hash,
+      item: slideId,
+      outcome: "succeeded",
+    });
+    generated.push(result);
+  }
+  return generated;
+}
+
+async function authorizeBatch(runDir, env, planHash, batchHash) {
+  return jsonSuccess(await flow([
+    "image2", "authorize", runDir,
+    "--plan-hash", planHash,
+    "--batch-hash", batchHash,
+  ], env));
+}
+
+async function runTargetRawLifecycle(runDir, env, slides, { styleMaster: includeStyleMaster = true } = {}) {
   const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
-  const planned = expectSuccess(await flow(["image2", "plan", runDir], env));
-  const plan = JSON.parse(planned.stdout);
+  const plan = jsonSuccess(await flow(["image2", "plan", runDir], env));
   expect(plan).toMatchObject({
-    schema: "page-authority-target-raw-plan-projection-v1",
+    schema: "page-authority-progressive-raw-plan-projection-v1",
     plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
   });
-  expectSuccess(await flow(["image2", "authorize", runDir, "--plan-hash", plan.plan_hash], env));
-  expectSuccess(await flow(["image2", "generate", runDir, "--plan-hash", plan.plan_hash], env));
-  expectSuccess(await flow(["image2", "review", runDir], env));
-  expectSuccess(await flow(["image2", "accept", runDir, "--decision", "proceed"], env));
+  const pilot = jsonSuccess(await flow([
+    "image2", "pilot", runDir,
+    "--plan-hash", plan.plan_hash,
+    ...slides.flatMap((slide) => ["--slide-id", slide.id]),
+  ], env));
+  expect(pilot).toMatchObject({
+    plan_hash: plan.plan_hash,
+    batch: {
+      kind: "pilot",
+      is_partial_pilot: false,
+      ordered_slide_ids: slides.map((slide) => slide.id),
+      paid_submission_slide_ids: slides.map((slide) => slide.id),
+      maximum_submissions: slides.length,
+    },
+  });
+  const authorization = await authorizeBatch(runDir, env, plan.plan_hash, pilot.batch.batch_hash);
+  expect(authorization).toMatchObject({
+    plan_hash: plan.plan_hash,
+    batch_hash: pilot.batch.batch_hash,
+    grant_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    maximum_submissions: slides.length,
+  });
+  const generated = await generateBatch(runDir, env, plan.plan_hash, pilot.batch);
+  expect(generated.at(-1)).toMatchObject({
+    progress: { materialized: slides.length, unsubmitted: 0 },
+    next_action: { action_id: "prepare_progressive_raw_review" },
+  });
+  const review = jsonSuccess(await flow([
+    "image2", "review", runDir,
+    "--plan-hash", plan.plan_hash,
+  ], env));
+  const accepted = jsonSuccess(await flow([
+    "image2", "accept", runDir,
+    "--plan-hash", plan.plan_hash,
+    "--decision", "proceed",
+  ], env));
+  expect(accepted).toMatchObject({
+    complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    accepted_raw_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+  });
+  expect(accepted.complete_raw_review_sha256).not.toBe(review.complete_raw_review_sha256);
   expectSuccess(await flow(["build", runDir], env));
-  return { rawPlan: plan, styleMaster };
+  return { rawPlan: plan, styleMaster, pilot, authorization, generated, review, accepted };
+}
+
+async function runPartialTargetRawLifecycle(runDir, env, slides, { styleMaster: includeStyleMaster = true } = {}) {
+  const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
+  const plan = jsonSuccess(await flow(["image2", "plan", runDir], env));
+  const planHash = plan.plan_hash;
+  const pilotSlideIds = slides.slice(0, 2).map((slide) => slide.id);
+  const pilot = jsonSuccess(await flow([
+    "image2", "pilot", runDir,
+    "--plan-hash", planHash,
+    ...pilotSlideIds.flatMap((slideId) => ["--slide-id", slideId]),
+  ], env));
+  expect(pilot).toMatchObject({
+    plan_hash: planHash,
+    batch: {
+      kind: "pilot",
+      is_partial_pilot: true,
+      ordered_slide_ids: pilotSlideIds,
+      paid_submission_slide_ids: pilotSlideIds,
+      maximum_submissions: pilotSlideIds.length,
+    },
+  });
+  const pilotAuthorization = await authorizeBatch(runDir, env, planHash, pilot.batch.batch_hash);
+  const pilotGenerated = await generateBatch(runDir, env, planHash, pilot.batch);
+  const pilotReview = jsonSuccess(await flow([
+    "image2", "pilot-review", runDir,
+    "--plan-hash", planHash,
+    "--batch-hash", pilot.batch.batch_hash,
+  ], env));
+  const pilotAccepted = jsonSuccess(await flow([
+    "image2", "pilot-accept", runDir,
+    "--plan-hash", planHash,
+    "--batch-hash", pilot.batch.batch_hash,
+    "--decision", "proceed",
+  ], env));
+  expect(pilotAccepted).toMatchObject({
+    pilot_decision_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    next_action: { action_id: "plan_progressive_expansion" },
+  });
+  const expansion = jsonSuccess(await flow([
+    "image2", "expansion", runDir,
+    "--plan-hash", planHash,
+  ], env));
+  const expansionIds = slides.slice(2).map((slide) => slide.id);
+  expect(expansion).toMatchObject({
+    plan_hash: planHash,
+    batch: {
+      kind: "expansion",
+      is_partial_pilot: false,
+      ordered_slide_ids: expansionIds,
+      paid_submission_slide_ids: expansionIds,
+      maximum_submissions: expansionIds.length,
+    },
+  });
+  const expansionAuthorization = await authorizeBatch(runDir, env, planHash, expansion.batch.batch_hash);
+  const expansionGenerated = await generateBatch(runDir, env, planHash, expansion.batch);
+  expect(expansionGenerated.at(-1)).toMatchObject({
+    next_action: { action_id: "prepare_progressive_raw_review" },
+  });
+  const review = jsonSuccess(await flow([
+    "image2", "review", runDir,
+    "--plan-hash", planHash,
+  ], env));
+  const accepted = jsonSuccess(await flow([
+    "image2", "accept", runDir,
+    "--plan-hash", planHash,
+    "--decision", "proceed",
+  ], env));
+  expectSuccess(await flow(["build", runDir], env));
+  return {
+    rawPlan: plan,
+    styleMaster,
+    pilot,
+    pilotAuthorization,
+    pilotGenerated,
+    pilotReview,
+    pilotAccepted,
+    expansion,
+    expansionAuthorization,
+    expansionGenerated,
+    review,
+    accepted,
+  };
 }
 
 async function runStyleMasterLifecycle(runDir, env) {
@@ -195,7 +354,7 @@ describe("mock TARGET workflow journey", () => {
     const fixture = createTargetFixture("target-framed-journey-", "framed", slides);
     const provider = await startMockProvider(pngBytes("#5d277f"));
     try {
-      const initial = await runTargetRawLifecycle(fixture.runDir, provider.env);
+      const initial = await runTargetRawLifecycle(fixture.runDir, provider.env, slides);
       expect(initial.styleMaster.planned.workflow).toBe("framed");
       expect(JSON.stringify(initial.styleMaster)).not.toMatch(/"pure"|Text Frame/i);
       expect(initial.rawPlan).toMatchObject({ workflow: "framed", source_epoch: 1, ordered_slide_ids: ["FramGo", "BodyMap"] });
@@ -233,34 +392,12 @@ describe("mock TARGET workflow journey", () => {
     }
   }, 90_000);
 
-  it("rejects mixed workflow evidence before final publication", async () => {
-    const slides = [{ id: "FramGo", title: "Current framed heading", note: "Current Framed note." }];
-    const fixture = createTargetFixture("target-mixed-evidence-", "framed", slides);
-    const provider = await startMockProvider(pngBytes("#5d277f"));
-    try {
-      await runTargetRawLifecycle(fixture.runDir, provider.env);
-      const paths = pageAuthorityImage2Paths(fixture.runDir);
-      const finalManifestBefore = readFileSync(paths.target_final_manifest);
-      const evidence = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
-      writeFileSync(paths.target_raw_evidence, `${JSON.stringify({ ...evidence, workflow: "pure" })}\n`);
-
-      const result = await flow(["build", fixture.runDir], provider.env);
-      expect(result.status).not.toBe(0);
-      expect(`${result.stdout}\n${result.stderr}`).toContain("accepted raw evidence does not bind the current raw work plan");
-      expect(provider.calls).toHaveLength(1);
-      expect(readFileSync(paths.target_final_manifest)).toEqual(finalManifestBefore);
-    } finally {
-      await provider.close();
-      rmSync(fixture.root, { recursive: true, force: true });
-    }
-  }, 90_000);
-
   it("runs fresh Pure and rebuilds its visible pixels through a fresh raw lifecycle", async () => {
     const initialSlides = [{ id: "PureGo", title: "Original pure heading", note: "Original Pure note." }];
     const fixture = createTargetFixture("target-pure-journey-", "pure", initialSlides);
     const provider = await startMockProvider(pngBytes("#205070"));
     try {
-      const initial = await runTargetRawLifecycle(fixture.runDir, provider.env);
+      const initial = await runTargetRawLifecycle(fixture.runDir, provider.env, initialSlides);
       expect(initial.styleMaster.planned.workflow).toBe("pure");
       expect(JSON.stringify(initial.styleMaster)).not.toMatch(/"framed"|Text Frame|safe-zone/i);
       expect(initial.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 1 });
@@ -276,16 +413,218 @@ describe("mock TARGET workflow journey", () => {
       expect(`${rejectedRefresh.stdout}\n${rejectedRefresh.stderr}`).toContain("Target Pure visible text requires a Pure raw rebuild");
       expect(provider.calls).toHaveLength(1);
 
-      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, { styleMaster: false });
+      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, [
+        { ...initialSlides[0], title: "Updated pure heading" },
+      ], { styleMaster: false });
       expect(rebuilt.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 2 });
       expect(provider.calls).toHaveLength(2);
-      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"])
-        .toMatchObject({ source_epoch: 2, workflow: "pure", accepted_raw_evidence_sha256: expect.any(String), final_manifest_sha256: expect.any(String), delivery_receipt_sha256: expect.any(String) });
+      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(state.page_authority_target_evidence.by_version["3_versions/v1"])
+        .toMatchObject({
+          source_epoch: 2,
+          workflow: "pure",
+          accepted_raw_evidence_sha256: null,
+          final_manifest_sha256: null,
+          delivery_receipt_sha256: null,
+        });
+      expect(state.page_authority_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({
+          source_epoch: 2,
+          workflow: "pure",
+          accepted_raw_evidence_sha256: expect.any(String),
+          final_manifest_sha256: expect.any(String),
+          delivery_receipt_sha256: expect.any(String),
+        });
     } finally {
       await provider.close();
       rmSync(fixture.root, { recursive: true, force: true });
     }
   }, 90_000);
+
+  it.each(["framed", "pure"])("runs a fresh %s partial Pilot through Expansion, complete review, and delivery", async (workflow) => {
+    const slides = [
+      { id: "DeckGo", title: `${workflow} progressive opening`, note: "Progressive opening note." },
+      { id: "FlowGo", title: `${workflow} progressive flow`, note: "Progressive flow note." },
+      { id: "DataGo", title: `${workflow} progressive data`, note: "Progressive data note." },
+      { id: "ToneGo", title: `${workflow} progressive tone`, note: "Progressive tone note." },
+      { id: "FormGo", title: `${workflow} progressive form`, note: "Progressive form note." },
+      { id: "GridGo", title: `${workflow} progressive grid`, note: "Progressive grid note." },
+    ];
+    const fixture = createTargetFixture(`target-${workflow}-partial-`, workflow, slides);
+    const provider = await startMockProvider(pngBytes("#356d8d"));
+    try {
+      const lifecycle = await runPartialTargetRawLifecycle(fixture.runDir, provider.env, slides);
+      expect(lifecycle.styleMaster.planned.workflow).toBe(workflow);
+      expect(lifecycle.rawPlan).toMatchObject({
+        workflow,
+        source_epoch: 1,
+        ordered_slide_ids: slides.map((slide) => slide.id),
+      });
+      expect(lifecycle.accepted).toMatchObject({
+        accepted_raw_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        complete_raw_review_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(lifecycle.accepted.complete_raw_review_sha256).not.toBe(lifecycle.review.complete_raw_review_sha256);
+      expect(provider.calls).toHaveLength(slides.length);
+      expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
+
+      const paths = pageAuthorityImage2Paths(fixture.runDir);
+      const pilotRoot = join(paths.review_root, "pilot", lifecycle.pilot.batch.batch_hash);
+      const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, {
+        plan_sha256: lifecycle.rawPlan.plan_hash,
+      });
+      const acceptedEvidence = direct.accepted_evidence.find((entry) =>
+        entry.sha256 === lifecycle.accepted.accepted_raw_evidence_sha256,
+      );
+      const finalManifest = JSON.parse(readFileSync(paths.target_final_manifest, "utf8"));
+      expect(acceptedEvidence).toMatchObject({ record: { workflow } });
+      expect(finalManifest).toMatchObject({ workflow });
+      const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
+      expect(state.page_authority_target_evidence.by_version["3_versions/v1"])
+        .toMatchObject({ workflow, accepted_raw_evidence_sha256: null });
+      expect(state.page_authority_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({ workflow, accepted_raw_evidence_sha256: lifecycle.accepted.accepted_raw_evidence_sha256 });
+      if (workflow === "framed") {
+        expect(existsSync(join(pilotRoot, "raw-underlay", "DeckGo.png"))).toBe(true);
+        expect(existsSync(join(pilotRoot, "text-frame-composite", "DeckGo.png"))).toBe(true);
+      } else {
+        expect(existsSync(join(pilotRoot, "DeckGo.png"))).toBe(true);
+        expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
+        expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
+      }
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it.each(["framed", "pure"])("resumes %s one item at a time and requires reconciliation plus a new grant after an unknown outcome", async (workflow) => {
+    const slides = [
+      { id: "DeckGo", title: `${workflow} retry opening`, note: "Retry opening note." },
+      { id: "FlowGo", title: `${workflow} retry flow`, note: "Retry flow note." },
+      { id: "DataGo", title: `${workflow} retry data`, note: "Retry data note." },
+      { id: "ToneGo", title: `${workflow} retry tone`, note: "Retry tone note." },
+      { id: "FormGo", title: `${workflow} retry form`, note: "Retry form note." },
+      { id: "GridGo", title: `${workflow} retry grid`, note: "Retry grid note." },
+    ];
+    const fixture = createTargetFixture(`target-${workflow}-resume-`, workflow, slides);
+    const provider = await startMockProvider(pngBytes("#8a4b62"), { failCalls: [2] });
+    try {
+      await runStyleMasterLifecycle(fixture.runDir, provider.env);
+      const plan = jsonSuccess(await flow(["image2", "plan", fixture.runDir], provider.env));
+      const pilot = jsonSuccess(await flow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "DeckGo",
+        "--slide-id", "FlowGo",
+      ], provider.env));
+      const grant = await authorizeBatch(fixture.runDir, provider.env, plan.plan_hash, pilot.batch.batch_hash);
+      const committed = jsonSuccess(await flow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", pilot.batch.batch_hash,
+      ], provider.env));
+      expect(committed).toMatchObject({
+        item: "DeckGo",
+        outcome: "succeeded",
+        progress: { materialized: 1, unsubmitted: 5 },
+        next_action: { action_id: "generate_progressive_raw_item" },
+      });
+
+      const interrupted = jsonFailure(await flow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", pilot.batch.batch_hash,
+      ], provider.env));
+      expect(interrupted).toMatchObject({
+        code: "GATE_BLOCKED",
+        diagnostic: { reason: { kind: "progressive_raw_provider_outcome_unresolved" } },
+      });
+      const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+      const submitted = direct.attempts.find((entry) =>
+        entry.record.slide_id === "FlowGo" && entry.record.status === "submitted",
+      );
+      expect(submitted).toMatchObject({
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        record: { slide_id: "FlowGo", status: "submitted" },
+      });
+      expect(provider.calls).toHaveLength(2);
+
+      const driftedSlides = [
+        { ...slides[0], title: `${workflow} changed after submitted attempt` },
+        ...slides.slice(1),
+      ];
+      writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource(workflow, driftedSlides));
+      const blocked = jsonFailure(await flow(["image2", "plan", fixture.runDir], provider.env));
+      expect(JSON.stringify(blocked)).toMatch(/reconcile_progressive_raw_attempt|reconcile/i);
+      expect(provider.calls).toHaveLength(2);
+
+      const reconciled = jsonSuccess(await flow([
+        "image2", "reconcile", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--attempt-sha256", submitted.sha256,
+      ], provider.env));
+      expect(reconciled).toMatchObject({
+        plan_hash: plan.plan_hash,
+        attempt_sha256: submitted.sha256,
+        reconciled: true,
+        outcome: "unknown",
+      });
+      expect(provider.calls).toHaveLength(2);
+
+      const successor = jsonSuccess(await flow(["image2", "plan", fixture.runDir], provider.env));
+      expect(successor).toMatchObject({
+        workflow,
+        source_epoch: 2,
+      });
+      expect(successor.plan_hash).not.toBe(plan.plan_hash);
+      const retry = jsonSuccess(await flow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", successor.plan_hash,
+        "--slide-id", "FlowGo",
+      ], provider.env));
+      const retryGrant = await authorizeBatch(fixture.runDir, provider.env, successor.plan_hash, retry.batch.batch_hash);
+      expect(retry.batch.batch_hash).not.toBe(pilot.batch.batch_hash);
+      expect(retryGrant.grant_hash).not.toBe(grant.grant_hash);
+      const retried = jsonSuccess(await flow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", successor.plan_hash,
+        "--batch-hash", retry.batch.batch_hash,
+      ], provider.env));
+      expect(retried).toMatchObject({ item: "FlowGo", outcome: "succeeded" });
+      expect(provider.calls).toHaveLength(3);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 90_000);
+
+  it.each(["framed", "pure"])("uses one complete raw-quality decision for %s small debt and its resulting zero-debt state", async (workflow) => {
+    const slides = [
+      { id: "DeckGo", title: `${workflow} small debt opening`, note: "Small debt opening note." },
+      { id: "FlowGo", title: `${workflow} small debt flow`, note: "Small debt flow note." },
+      { id: "DataGo", title: `${workflow} small debt data`, note: "Small debt data note." },
+    ];
+    const fixture = createTargetFixture(`target-${workflow}-small-debt-`, workflow, slides);
+    const provider = await startMockProvider(pngBytes("#32636f"));
+    try {
+      const lifecycle = await runTargetRawLifecycle(fixture.runDir, provider.env, slides);
+      expect(lifecycle.pilot.batch).toMatchObject({
+        is_partial_pilot: false,
+        paid_submission_slide_ids: slides.map((slide) => slide.id),
+      });
+      expect(lifecycle.generated.at(-1)).toMatchObject({
+        progress: { materialized: slides.length, unsubmitted: 0, paid_debt: [] },
+        next_action: { action_id: "prepare_progressive_raw_review" },
+      });
+      const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: lifecycle.rawPlan.plan_hash });
+      expect(direct.pilot_evidence).toEqual([]);
+      expect(direct.pilot_decisions).toEqual([]);
+      expect(provider.calls).toHaveLength(slides.length);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 120_000);
 
 });

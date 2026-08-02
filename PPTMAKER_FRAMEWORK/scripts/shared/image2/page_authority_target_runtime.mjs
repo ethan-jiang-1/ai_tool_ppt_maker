@@ -15,8 +15,10 @@ import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.m
 import {
   createAcceptedRawEvidence,
   validateAcceptedRawEvidence,
+  validateAcceptedRawEvidenceForFinalization,
   validateFinalSlideManifest,
   validateRawWorkPlan,
+  validateRawWorkPlanForFinalization,
 } from "./page_authority_artifacts.mjs";
 import {
   publishAcceptedRawEvidence,
@@ -33,12 +35,13 @@ import {
 import {
   advanceTargetPageAuthoritySourceEpoch,
   initializeTargetPageAuthorityState,
-  inspectTargetPageAuthorityState,
   recordPageAuthorityRawProviderAuthorization,
   recordTargetAcceptedRawEvidence,
   recordTargetDeliveryReceipt,
   recordTargetFinalManifest,
   rebindTargetAcceptedRawEvidenceForLocalCompose,
+  rebindTargetProgressiveRawEvidenceForLocalCompose,
+  resolveCurrentTargetPageAuthoritySourceState,
   validateTargetAcceptedRawEvidenceLocalComposeRebind,
 } from "../state/state.mjs";
 
@@ -659,6 +662,45 @@ export function resolveTargetLocalComposeContext(runDir, { workflow, parseReceip
 }
 
 /**
+ * Read the narrow pre-progressive source artifacts needed by a selected
+ * workflow's v3 local-rebind validator. This is observation only: canonical
+ * raw bytes, provenance, and acceptance remain under the progressive owner.
+ */
+export function resolveTargetProgressiveLocalRebindContext(runDir, { workflow, parseReceipt } = {}) {
+  const candidate = resolveTargetCandidateSourceContext(runDir, {
+    workflow,
+    parseReceipt,
+    allowWorkflowDrift: true,
+  });
+  const previousReceipt = requireSourceReceipt(
+    readJson(candidate.paths.target_source_receipt, "target_previous_source_receipt_required", "previous target source receipt is required for progressive local rebind"),
+    workflow,
+  );
+  if (candidate.workflow !== previousReceipt.workflow) {
+    throw new PageAuthorityTargetRuntimeError(
+      "target_workflow_switch_structural_required",
+      "target workflow changes require a structural vNext preview and confirmed plan hash",
+      { nextAction: "preview_target_structural_vnext" },
+    );
+  }
+  if (candidate.receipt.slides.length !== previousReceipt.slides.length ||
+    candidate.receipt.slides.some((slide, index) => slide.slide_id !== previousReceipt.slides[index]?.slide_id)) {
+    throw new PageAuthorityTargetRuntimeError(
+      "target_structural_versioning_required",
+      "target slide membership or order changes require a structural vNext preview and confirmed plan hash",
+      { nextAction: "preview_target_structural_vnext" },
+    );
+  }
+  const previousRawWorkPlan = readJson(candidate.paths.target_raw_plan, "target_previous_raw_plan_required", "previous target raw plan is required for progressive local rebind");
+  requireTargetPlan(previousRawWorkPlan, previousReceipt, workflow);
+  return Object.freeze({
+    ...candidate,
+    previous_source_receipt: previousReceipt,
+    previous_raw_work_plan: previousRawWorkPlan,
+  });
+}
+
+/**
  * Read one current selected-workflow plan without materializing source, plan,
  * review, authorization, or state. The selected adapter recompiles opaque
  * candidate facts; shared code compares only their typed plan identity.
@@ -686,9 +728,11 @@ export function resolveTargetStoredPlanContext(runDir, {
   if (compiledPlanCheck.sha256 !== storedPlanCheck.sha256) {
     throw staleTargetPlanError("target_raw_plan_stale", "the stored target raw plan does not match current selected-workflow contracts");
   }
-  const state = inspectTargetPageAuthorityState(candidate.deck_dir, {
+  // Stored-plan reads are shared by legacy and progressive adapters. They only
+  // need the exact source/state tuple; a v3 handoff deliberately fences the
+  // retired v2 raw authorization/evidence lifecycle from this read path.
+  const state = resolveCurrentTargetPageAuthoritySourceState(candidate.deck_dir, {
     runDir: candidate.run_dir,
-    sourceReceipt: candidate.receipt,
   });
   if (!Number.isInteger(state.source_epoch) || state.source_epoch <= 0 || state.workflow !== workflow) {
     throw new PageAuthorityTargetRuntimeError(
@@ -740,6 +784,29 @@ export function rebindTargetLocalComposeWork(context, {
     previousAcceptedRawEvidence: context.previous_accepted_raw_evidence,
     nextAcceptedRawEvidence: acceptedRawEvidence,
   });
+  return Object.freeze({ ...context, source_epoch: state.source_epoch, rebound_state: state });
+}
+
+/** Persist only derived source/plan projections after a v3 raw-owner rebind. */
+export function rebindTargetProgressiveLocalComposeWork(context, {
+  rawWorkPlan,
+  previousProgressiveRawWorkPlan,
+  nextProgressiveRawWorkPlan,
+  previousAcceptedRawEvidence,
+  nextAcceptedRawEvidence,
+} = {}) {
+  requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
+  const state = rebindTargetProgressiveRawEvidenceForLocalCompose(context.deck_dir, {
+    runDir: context.run_dir,
+    previousSourceReceipt: context.previous_source_receipt,
+    nextSourceReceipt: context.receipt,
+    previousProgressiveRawWorkPlan,
+    nextProgressiveRawWorkPlan,
+    previousAcceptedRawEvidence,
+    nextAcceptedRawEvidence,
+  });
+  writeJson(context.paths.target_source_receipt, context.receipt);
+  writeJson(context.paths.target_raw_plan, rawWorkPlan);
   return Object.freeze({ ...context, source_epoch: state.source_epoch, rebound_state: state });
 }
 
@@ -892,6 +959,35 @@ export async function prepareTargetRawReview(context, rawWorkPlan, { reviewContr
 }
 
 /**
+ * Rebuild a version-derived complete-review projection from canonical v3
+ * bytes. The v2 plan/review files are projection inputs only here: the
+ * progressive raw owner remains the only authority for attempts, grants,
+ * materializations, and acceptance.
+ */
+export async function publishProgressiveTargetCompleteRawReview(context, rawWorkPlan, {
+  raw_bytes_by_slide,
+  reviewContribution,
+} = {}) {
+  const checked = requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
+  if (!raw_bytes_by_slide || typeof raw_bytes_by_slide !== "object" || Array.isArray(raw_bytes_by_slide)) {
+    throw new PageAuthorityTargetRuntimeError("target_raw_bytes_invalid", "progressive complete review requires exact raw bytes by slide");
+  }
+  const expected = rawWorkPlan.ordered_slide_ids;
+  if (Object.keys(raw_bytes_by_slide).sort().join("\n") !== [...expected].sort().join("\n")) {
+    throw new PageAuthorityTargetRuntimeError("target_raw_bytes_invalid", "progressive complete review bytes must exactly cover the selected raw plan");
+  }
+  for (const slideId of expected) atomicWrite(rawPath(context.paths, slideId), asBytes(raw_bytes_by_slide[slideId], `progressive raw ${slideId}`));
+  const prepared = await prepareTargetRawReview(context, rawWorkPlan, { reviewContribution });
+  return Object.freeze({
+    raw_work_plan_sha256: checked.sha256,
+    workflow_evidence_sha256: prepared.typed_review_contribution_sha256,
+    projection_sha256: prepared.projection_sha256,
+    projection_capture_profile_sha256: prepared.projection_capture_profile_sha256,
+    raw_review_sha256: prepared.raw_review_sha256,
+  });
+}
+
+/**
  * Read one persisted raw-review record and prove that its current projection,
  * coverage facts, and optional accepted-evidence reference remain exact.
  */
@@ -1031,6 +1127,34 @@ export function writeTargetFinalManifest(context, { rawWorkPlan, acceptedRawEvid
     finalManifest,
   });
   return Object.freeze({ final_manifest: finalManifest, final_manifest_sha256: check.sha256 });
+}
+
+/**
+ * Persist a rebuildable final-manifest projection from v3 accepted evidence.
+ * The raw owner and the state handoff are deliberately separate writers.
+ */
+export function writeProgressiveTargetFinalManifest(context, {
+  progressiveRawWorkPlan,
+  acceptedRawEvidence,
+  finalManifest,
+} = {}) {
+  const plan = validateRawWorkPlanForFinalization(progressiveRawWorkPlan);
+  const evidence = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: progressiveRawWorkPlan });
+  const final = validateFinalSlideManifest(finalManifest, {
+    evidence: acceptedRawEvidence,
+    expectedWorkflow: context.workflow,
+  });
+  if (!plan.ok || !evidence.ok || !final.ok ||
+    progressiveRawWorkPlan.workflow !== context.workflow ||
+    progressiveRawWorkPlan.source_receipt_sha256 !== context.receipt.source_sha256 ||
+    progressiveRawWorkPlan.source_epoch !== context.source_epoch) {
+    throw new PageAuthorityTargetRuntimeError(
+      final.code || evidence.code || plan.code || "target_progressive_final_manifest_invalid",
+      "the progressive final manifest is invalid or does not bind the current selected workflow",
+    );
+  }
+  writeJson(context.paths.target_final_manifest, finalManifest);
+  return Object.freeze({ final_manifest: finalManifest, final_manifest_sha256: final.sha256 });
 }
 
 /** Persist delivery lineage only after the shared delivery owner returns its receipt. */

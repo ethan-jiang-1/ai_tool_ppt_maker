@@ -3,6 +3,7 @@
 > 文档性质：Target Design（目标设计），不是当前可执行契约。
 > 基线日期：2026-07-30。任何实现都必须先进入正常 OpenSpec change，并以届时 accepted specs 与 runtime truth 为准。
 > 基线检查：`openspec list --json` 当时没有 active change；本文不代表实施已经开始。
+> 归档：该目标已由 Change 2 和 Change 3 实现，并随 CLS-017 保留为历史设计基线。
 
 ## 一句话结论
 
@@ -268,7 +269,7 @@ current plan/grant recheck
 
 ## Gate 与 continuation
 
-本计划遵循 [human-centered-gates.md](../../../openspec/policies/human-centered-gates.md)、[agent-assistance-and-control.md](../../../openspec/policies/agent-assistance-and-control.md) 和 [simple-reliable-control.md](../../../openspec/policies/simple-reliable-control.md)。
+本计划遵循 [human-centered-gates.md](../../../../openspec/policies/human-centered-gates.md)、[agent-assistance-and-control.md](../../../../openspec/policies/agent-assistance-and-control.md) 和 [simple-reliable-control.md](../../../../openspec/policies/simple-reliable-control.md)。
 
 | 条件 | 分类 | 最近合法动作 |
 | --- | --- | --- |
