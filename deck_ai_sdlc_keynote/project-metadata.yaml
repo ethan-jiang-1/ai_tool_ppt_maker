@@ -12,7 +12,7 @@ content_gate: waived
 visual_gate: approved
 production:
   pipeline: page-authority-image2-v2
-  workflow: framed
+  workflow: pure
 # production_mode mirror (SSOT: _state/state.yaml)
 production_mode: image2-page-authority-v2
-production_mode_run_version: v2
+production_mode_run_version: v5

@@ -46,6 +46,22 @@ mismatched pair returns the owner-issued `unsupported-protocol/export` action.
 Inspection never produces a historical cursor, approval, provider request, or
 adapter.
 
+## Diagnostic recovery consumer
+
+MD consumes a valid final CLI failure envelope through the canonical
+[Diagnostic Recovery Handoff](AGENT_CONTRACT.md#diagnostic-recovery-handoff).
+The producer's bounded category, causal facts, and exact supported `next`
+remain the control authority; MD never copies the producer schema, parses raw
+stderr, or invents a retry, shell invocation, authorization, or classification.
+
+For a user-facing diagnostic, MD gives the contract's four parts in order: what
+happened, what it affects, what the Agent can mechanically do, and the one
+human action or confirmation required. It says that no human action is required
+when the current owner permits fully mechanical work, and stops when the owner
+requires a human. A non-zero process without a valid final envelope remains an
+external/interrupted boundary; only the canonical next applicable read-only
+discovery branch may follow.
+
 ## Structural requests
 
 Structural controller nodes resolve a snapshot `position` selector to stable

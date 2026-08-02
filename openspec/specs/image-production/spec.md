@@ -44,6 +44,7 @@ a partial final manifest when any page fails.
 - **WHEN** current accepted underlay evidence and current Text Frames enter Framed finalization
 - **THEN** the adapter compiles and evaluates the same canonical frame contract used at planning
 - **AND** only a completely successful batch may publish final PNG bytes and the common manifest
+
 ### Requirement: TARGET workflow adapters publish one common final-slide manifest
 
 For a current `page-authority-image2-v2` source receipt, the selected workflow
@@ -128,3 +129,25 @@ visual quality for either workflow.
 - **WHEN** a Framed run is passed to a Pure Pilot publisher or a Pure run is passed to a Framed Pilot publisher
 - **THEN** the selected-workflow check hard-stops before artifact publication
 - **AND** the owner does not delegate to the sibling adapter
+
+### Requirement: Production final files use NN_slideID naming
+
+The final-slide manifest SHALL name each production file `NN_slideID.png`,
+where `NN` is the item's current `position` zero-padded to two digits and
+`slideID` is the stable mnemonic `slide_id`. The final manifest validator SHALL
+require this exact path shape, and PPTX assembly SHALL consume it. `slide_id`
+remains the cross-version identity inside the filename; `NN` is only the current
+position projection and changes with reordering.
+
+#### Scenario: Final files carry position prefix
+
+- **WHEN** a final manifest is created for ordered slides with positions 1..N
+- **THEN** each item path is `NN_slideID.png` in position order
+- **AND** the validator accepts those exact paths
+
+#### Scenario: Non-prefixed final path is rejected
+
+- **WHEN** a final manifest item path is not `NN_slideID.png` (for example
+  `${slide_id}.png` only)
+- **THEN** the final manifest validator reports an invalid item
+- **AND** assembly does not accept the manifest

@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-07-28 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-02 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -15,31 +15,35 @@
 
 ## 活跃列表
 
-### P0（阻断 — 1 个）
+### P0（阻断 — 3 个）
 
-- **[BUG-035](BUG-035-provider-clauses-lost-in-async-generate.mjs.md)** — async-generate.mjs 取 projection 而非 provider_clauses，API 只收到 SHA 摘要
+- **[BUG-035](BUG-035-target-provider-request-omits-visual-language-clauses.md)** — 当前 target provider request 只携带 visual-language projection，遗漏 provider clauses
+- **[BUG-041](BUG-041-pure-raw-images-lack-display-text.md)** — Pure raw 图像缺失 display 文字（provider_clauses 的 "no lettering" 与 pure 冲突）
+- **[BUG-044](BUG-044-pure-slides-image-heavy-text-light.md)** — Pure 页面图多字少（BODY 正文从未送达模型，图文比例先天失衡）
 
-### P1（重要 — 3 个）
+### P1（重要 — 6 个）
 
 - **[BUG-036](BUG-036-concept-content-structure-stripped-from-api-prompt.md)** — CONCEPT 的 Content structure/MUST communicate 在 Page Authority 解析阶段被丢弃
 - **[BUG-037](BUG-037-image2-api-size-not-honored.md)** — Image2 API (gpt-image-2) 不遵守请求尺寸 2000x1125
-- **[BUG-038](BUG-038-text-frame-dark-overlay-conflicts-warm-editorial.md)** — Text Frame standard-v1 深色面板与 warm-editorial underlay 风格冲突
+- **[BUG-040](BUG-040-pptx-delivery-omits-page-number.md)** — PPTX 交付不贴页码（assembly 只铺图，无 footer，workflow 无规定）
+- **[BUG-042](BUG-042-provider-prompts-not-surfaced-for-diagnosis.md)** — 每页 provider prompt（JSON）不外露，无法诊断
+- **[BUG-043](BUG-043-production-files-lack-NN-slideID-naming.md)** — Production 交付文件名缺 `NN_slideID` 前缀（框架强制 canonical-only）
+- **[BUG-045](BUG-045-NN-slideID-naming-not-uniform-across-outputs.md)** — NN_slideID 命名只用于 final，raw 等产出仍无前缀（命名不统一）
 
-### P2（次要 — 2 个）
+### P2（次要 — 1 个）
 
-- **[BUG-039](BUG-039-async-generate-naming-mismatch.md)** — async-generate.mjs 文件命名 `{NN}-{sid}.png` 与 formal pipeline `{sid}.png` 不一致
 - **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
 
 ---
 
-**Next available bug ID: BUG-040**
+**Next available bug ID: BUG-046**
 
 ## 类别分布
 
 | 类别 | 数量 | Bug IDs |
 |---|---|---|
-| 渲染/视觉 | 4 | 015, 035, 037, 038 |
-| 数据/契约 | 2 | 036, 039 |
+| 渲染/视觉 | 2 | 015, 037 |
+| 数据/契约 | 2 | 035, 036 |
 
 ---
 

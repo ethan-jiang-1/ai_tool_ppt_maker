@@ -180,6 +180,24 @@ describe("intent route catalog", () => {
     expect(persistenceTokens).toEqual([]);
   });
 
+  it("keeps the orientation diagnostic route producer-first and recovery-only at its final branch", () => {
+    const contract = readFileSync(join(FRAMEWORK, "charter", "AGENT_CONTRACT.md"), "utf8");
+    const diagnosticStart = contract.indexOf("## Diagnostic Recovery Handoff");
+    expect(diagnosticStart).toBeGreaterThan(-1);
+    const diagnosticRest = contract.slice(diagnosticStart);
+    const nextHeading = diagnosticRest.indexOf("\n## ", 3);
+    const diagnostic = nextHeading === -1 ? diagnosticRest : diagnosticRest.slice(0, nextHeading);
+
+    expect(readCatalog().routes.find((route) => route.id === "orientation-diagnostic"))
+      .toMatchObject({ first_safe_step: "consume current producer result" });
+    expect(diagnostic).toMatch(/current valid CLI failure envelope\s*->\s*consume producer next/i);
+    expect(diagnostic).toMatch(/known exact run\s*->\s*state --json/i);
+    expect(diagnostic).toMatch(/no exact run\s*->\s*supported locator/i);
+    expect(diagnostic).toMatch(/pre-install or unavailable main entry\s*->\s*direct env-check/i);
+    expect(diagnostic).toMatch(/(?:does not|never permits).*scan(?:ning)?\s+(?:production\s+)?`?deck_\*`?|no deck scanning/i);
+    expect(diagnostic).toMatch(/does not.*raw stderr|not.*raw stderr/i);
+  });
+
   it("renders common requests for novices without protocol mechanics", () => {
     const commands = readFileSync(join(FRAMEWORK, "COMMANDS.md"), "utf8");
     const tableStart = commands.indexOf("## Common Requests");

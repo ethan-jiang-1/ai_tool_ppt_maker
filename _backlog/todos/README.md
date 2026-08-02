@@ -20,6 +20,7 @@
 | # | 文件 | 优先级 | 简述 | 阻塞 / 备注 |
 |---|------|--------|------|-------------|
 | 1 | `todo-model-aligned-prompt-tension.md` | 中 | prompt 松紧度随模型能力「水涨船高」：结构硬约束要守住，表现指令别过度束缚强模型 | 等 HTML-first 落地后做 prompt 松紧度审计 |
+| 2 | `todo-deck-ai-sdlc-keynote-v5-production.md` | 高 | deck_ai_sdlc_keynote v5 生产：V1 内容 + pure + 图字双主；全量重生成/验收 + 框架 BUG-040/042 后续 | 全量重生成进行中 |
 
 _原 `todo-dual-render-pipeline.md` 已升级为 [`../plans/html-first-progressive-rendering.md`](../plans/html-first-progressive-rendering.md)。_
 

@@ -203,6 +203,100 @@ negative_constraints:
     }
   });
 
+  it("compiles provider_clauses text and VISUAL SCENE into the Pure raw contract", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-scene-contract-"));
+    const deck = join(root, "deck_pure_scene");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Pure target fact
+**BODY**: 两个东西让 AI 学编程比别的都快
+**VISUAL SCENE**: two agents at a shared desk calm work setting
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+> **SPEAKER NOTE**: Pure scene source-owned note.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const contract = plan.provider_requests_by_slide.DeckGo.raw_contract;
+      expect(contract.provider_clauses).toEqual(expect.objectContaining({
+        recipe: expect.any(String),
+        composition: expect.any(String),
+        motifs: expect.any(Array),
+      }));
+      expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
+      expect(contract.body).toBe("两个东西让 AI 学编程比别的都快");
+      expect(contract.visual_identity_role_clause).toBeNull();
+      expect(contract.visual_language).toEqual(expect.objectContaining({
+        recipe: expect.objectContaining({ id: "editorial-systems", provider_clause_sha256: expect.any(String) }),
+      }));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects VISUAL SCENE text that fails the text guard at Pure raw planning", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-scene-guard-"));
+    const deck = join(root, "deck_pure_scene_guard");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Pure target fact
+**VISUAL SCENE**: a slide with visible text annotations
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+> **SPEAKER NOTE**: Pure scene guard note.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      expect(() => buildPureProgressiveTargetRawPlan(runDir)).toThrow(/forbidden_token|VISUAL SCENE/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("publishes a partial Pure Pilot as exact canvas raw bytes only", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-progressive-pilot-"));
     const deck = join(root, "deck_pure_progressive_pilot");

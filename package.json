@@ -1,6 +1,6 @@
 {
   "name": "ppkmaker-framework",
-  "version": "0.23.0",
+  "version": "0.23.2",
   "description": "Agent-driven PPT generation pipeline — production scripts (Node.js ESM)",
   "type": "module",
   "engines": {

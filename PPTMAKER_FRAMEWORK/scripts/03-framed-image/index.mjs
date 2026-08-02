@@ -28,6 +28,7 @@ import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
   createPageAuthoritySourceResolver,
   loadPageAuthorityVisualLanguage,
+  normalizePageAuthorityTextGuard,
 } from "../02-visual-system/index.mjs";
 import {
   authorizeTargetRawWork,
@@ -122,6 +123,9 @@ const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
   "slide_id",
   "workflow",
   "visual_language",
+  "provider_clauses",
+  "visual_identity_role_clause",
+  "visual_scene",
   "visual_identity",
   "framed",
 ]);
@@ -155,6 +159,9 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       rawContract.workflow !== FRAMED_IMAGE_WORKFLOW ||
       typeof rawContract.slide_id !== "string" || !rawContract.slide_id ||
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
+      (rawContract.provider_clauses !== null && (typeof rawContract.provider_clauses !== "object" || Array.isArray(rawContract.provider_clauses))) ||
+      (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
+      (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
       !hasExactKeys(rawContract.framed, FRAMED_RAW_CONTRACT_FRAME_KEYS)) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has an invalid canonical shape");
@@ -564,11 +571,20 @@ function framedRawContract(slide, frame) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", `Framed render contract is unavailable for ${slide.slide_id}`);
   }
   const facts = canonicalFramedFrameFacts(frame);
+  const providerClauses = slide.visual_language?.provider_clauses || null;
+  const identityRoleClause = slide.visual_language?.identity_reference?.provider_reference?.role_clause || null;
+  let visualScene = slide.visual_scene ?? null;
+  if (visualScene != null) {
+    visualScene = normalizePageAuthorityTextGuard(visualScene, { context: `VISUAL SCENE:${slide.slide_id}` });
+  }
   const rawContract = Object.freeze({
     schema: TARGET_RAW_CONTRACT_SCHEMA,
     slide_id: slide.slide_id,
     workflow: FRAMED_IMAGE_WORKFLOW,
     visual_language: { ...visualLanguage, negative_constraints: [...(slide.visual_brief?.negative_constraints || [])] },
+    provider_clauses: providerClauses,
+    visual_identity_role_clause: identityRoleClause,
+    visual_scene: visualScene,
     visual_identity: slide.visual_language?.identity_reference?.projection || null,
     framed: {
       ...facts,

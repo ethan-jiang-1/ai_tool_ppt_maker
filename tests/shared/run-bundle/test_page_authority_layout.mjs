@@ -86,6 +86,12 @@ describe("Page Authority bundle layout", () => {
       expect(guide).toContain("diagnostic.category");
       expect(guide).toContain("diagnostic.next");
       expect(guide).toMatch(/never prose/);
+      expect(guide).toMatch(/1\. \*\*What happened\*\*/);
+      expect(guide).toMatch(/2\. \*\*What it affects\*\*/);
+      expect(guide).toMatch(/3\. \*\*What the Agent can mechanically do\*\*/);
+      expect(guide).toMatch(/4\. \*\*The one human action or confirmation required\*\*/);
+      expect(guide).toMatch(/No human action is required now/i);
+      expect(guide).toMatch(/This\s+guide does not locate a run or select pre-install recovery/i);
       expect(guide).not.toMatch(/code\s*\+\s*hint.*repair/i);
     } finally {
       rmSync(root, { recursive: true, force: true });

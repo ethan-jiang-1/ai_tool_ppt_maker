@@ -39,12 +39,12 @@ for receipt identity, workflow binding, evidence, and recovery.
 
 ### Owner diagnostic handoff
 
-When an owner CLI exits nonzero, consume only the final nonempty stderr JSON
-envelope. Use the producer-issued `diagnostic.category` and `diagnostic.next`,
-not explanatory prose or a locally recreated category/action table. Perform a
-mechanical repair only when that owner action permits it, then rerun its named
-checkpoint. This never replaces the existing raw visual `proceed`, `repair`,
-or `redirect` confirmation.
+Follow the shared [Diagnostic Recovery Handoff](../charter/AGENT_CONTRACT.md#diagnostic-recovery-handoff)
+when an owner CLI exits nonzero. This Controller preserves the producer-issued
+`diagnostic.category` and `diagnostic.next`; it does not recreate a category,
+action, or recovery route. The shared handoff owns the user explanation and
+recovery precedence. A current raw visual `proceed`, `repair`, or `redirect`
+confirmation remains an owner-required stop, never a mechanical repair.
 
 For Style Master work, project only the owner-issued current scope head, exact
 plan hash, grant progress, real-byte review evidence, and next action. A
@@ -579,7 +579,7 @@ decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
-**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present only the Pure full-page raw bytes plus their current bindings.
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present only the exact Pure raw page bytes plus their current bindings.
 **Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` for the exact Pilot evidence. A partial `proceed` only unlocks owner-derived Expansion planning.
 
 ### plan-target-pure-expansion

@@ -17,7 +17,7 @@ decisions.
 | "Update the speaker notes." | The exact deck and the note changes | Updated notes and their normal delivery check | Review of the notes | Short local work |
 | "Add, remove, reorder, or rethink pages." | The exact deck and the intended new structure | A preview of a clean next version before changes are published | Approval of the proposed structure | Human decision, then local work |
 | "Which image channel is working?" | Whether you want an offline check or a live diagnostic | A channel-health report in plain language | Live diagnostics require an exact disclosed submit count and your confirmation | Local check or provider-variable work |
-| "I am stuck" or "this failed." | The current error report or the symptom you can describe | A plain-language explanation and the producer's next safe action | None unless the next action reaches a real decision or cost boundary | Short inspection |
+| "I am stuck" or "this failed." | The current error report or the symptom you can describe | A four-part plain-language answer: what happened, what it affects, what the Agent can mechanically do, and the one decision or confirmation needed from you | None unless that one action reaches a real decision or cost boundary | Short inspection |
 | "I cannot find the presentation to continue." | A handoff card or an exact local path | The supported way to locate the intended run | Supply the exact local locator; the Agent will not guess | Short human/Agent exchange |
 | "Can this system do something else?" | Whether the request fits an existing path | A clear answer, or a small named gap to discuss | Whether to start framework-maintenance work | Conversation first |
 
@@ -50,6 +50,10 @@ language conversationally, then follow these existing owners:
 - Channel diagnostics use
   [probe-image-channels](playbook/probe-image-channels.md). Direct environment
   recovery is only for a pre-install or unavailable main entry.
+- For a current failure or a stuck request, follow the shared
+  [Diagnostic Recovery Handoff](charter/AGENT_CONTRACT.md#diagnostic-recovery-handoff).
+  It preserves the current producer action before any inspection, location, or
+  recovery choice.
 - A Route Gap is conversational and non-persistent. Name the smallest missing
   catalog route, playbook, or owner capability, then wait for an explicit
   maintenance request.

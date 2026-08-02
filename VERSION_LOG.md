@@ -20,6 +20,36 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.23.2 — Pure BODY Text Delivery And NN_slideID Production Naming（2026-08-02）
+
+**代号**：Text-first, numbered
+
+> 修复 BUG-043/044：Pure 页面从"图多字少"走向"字为主、图为隐喻"。`BODY` 正文首次送达模型；最终生产文件用 `NN_slideID` 命名。
+
+### 变了什么
+
+1. `content-parsing`：`**BODY**` 成为可选单行源字段，解析进 slide receipt（`body`）；Framed 继续禁止 BODY。
+2. `image-generation`：`pureRawContract` 携带 `body` 文本，正文可被模型画进图。
+3. `image-production`：final manifest 生产文件命名 `NN_slideID.png`（`position` 两位补零 + slide_id），validator 与 PPTX assembly 同步。
+4. 归档 `pure-text-delivery-and-nn-production-naming` 并同步三个 main specs；测试覆盖 BODY 解析/入合约、NN_ 路径。
+
+---
+
+## v0.23.1 — Provider Clause And Scene Semantic Chain（2026-08-02）
+
+**代号**：Clause and scene reach the model
+
+> 修复 BUG-035（provider_clauses 文本被丢弃、模型只收到 SHA 摘要）与 BUG-036（每页 CONCEPT 场景从未到达 provider）。resolved 视觉语言条款文本、身份 role clause 与 per-slide scene 现在随 receipt-bound raw contract 进入 provider prompt。
+
+### 变了什么
+
+1. 新增可选 `**VISUAL SCENE**` 源字段（`content-parsing`），按内联字段解析进 slide receipt，缺省为 `null`。
+2. Pure/Framed raw contract 增加 `provider_clauses`（recipe/composition/motifs 文本）、`visual_identity_role_clause`、经 text guard 规范化的 `visual_scene`（`image-generation`）；Framed exact-key validator 同步扩展。
+3. scene 文本在 raw-contract 编译时过同款 text guard（`visual-config`），违规在 provider-free planning 硬停并给出 bounded source-repair 诊断。
+4. 归档 `fix-provider-clauses-and-visual-scene` OpenSpec change 并同步三个 main specs；测试覆盖 scene 解析、条款/scene 入合约、guard 规范化与 fail-closed。
+
+---
+
 ## v0.23.0 — V2-only Page Authority Workflow（2026-07-29）
 
 **代号**：One current graph

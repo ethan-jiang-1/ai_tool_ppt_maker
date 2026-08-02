@@ -78,6 +78,56 @@ describe("Framed target workflow", () => {
     }
   });
 
+  it("compiles provider_clauses text and VISUAL SCENE into the Framed raw contract", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-scene-contract-"));
+    const deck = join(root, "deck_framed_scene");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Framed target fact
+**VISUAL SCENE**: two agents at a shared desk calm work setting
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+
+> **SPEAKER NOTE**: Framed scene source-owned note.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+      const plan = await buildFramedTargetRawPlan(runDir);
+      const contract = plan.provider_requests_by_slide.DeckGo.raw_contract;
+      expect(contract.provider_clauses).toEqual(expect.objectContaining({
+        recipe: expect.any(String),
+        composition: expect.any(String),
+        motifs: expect.any(Array),
+      }));
+      expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
+      expect(contract.visual_identity_role_clause).toBeNull();
+      expect(contract.framed.text_free).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects the 28-W regression through the canonical browser render contract", async () => {
     const textFrame = {
       preset: "standard-v1",
@@ -434,13 +484,13 @@ negative_constraints:
       expect(state.page_authority_raw_provider_authorization.by_version["3_versions/v1"]).toEqual(authorizationBefore);
       expect(target.accepted_raw_evidence_sha256).not.toBe(canonicalJsonSha256(previousEvidence));
 
-      const finalBytes = readFileSync(join(paths.final_root, "DeckGo.png"));
+      const finalBytes = readFileSync(join(paths.final_root, "01_DeckGo.png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Updated heading", "Updated source-owned note."));
       const notes = await refreshFramedTargetNotes(runDir);
       expect(notes).toMatchObject({ ok: true, delivery: { receipt: { notes_injected: 1 } } });
       expect(providerSubmissions).toBe(1);
       expect(readFileSync(join(paths.raw_root, "DeckGo.png"))).toEqual(previousRawBytes);
-      expect(readFileSync(join(paths.final_root, "DeckGo.png"))).toEqual(finalBytes);
+      expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(finalBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

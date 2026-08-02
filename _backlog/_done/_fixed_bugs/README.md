@@ -57,4 +57,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 
 ## Suspended (未修复，仍在排查)
 
-悬挂 bug 放在 [`../_suspened_bugs/`](../_suspened_bugs/)，尚未确认修复。此处不列。
+悬挂 bug 放在 [`../_suspened_bugs/`](../_suspened_bugs/)，尚未确认修复：
+
+- [BUG-038](../_suspened_bugs/BUG-038-text-frame-dark-overlay-conflicts-warm-editorial.md) — historical compositor path retired; current Framed theme no longer reproduces the report.
+- [BUG-039](../_suspened_bugs/BUG-039-async-generate-naming-mismatch.md) — historical scratch-generator naming split is absent from the current raw owner.

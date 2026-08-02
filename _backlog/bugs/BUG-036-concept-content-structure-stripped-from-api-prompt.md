@@ -1,8 +1,22 @@
 # BUG-036: CONCEPT 的 Content structure/MUST communicate 在 Page Authority 解析阶段被丢弃
 
-> 严重级别: P1 | 发现: 2026-07-30 | 状态: 活跃
+> 严重级别: P1 | 发现: 2026-07-30 | 状态: 活跃（当前路径复核：2026-08-02）
 
-## 症状
+## 当前复核
+
+当前 `page_authority_source.mjs` 的 `PAGE_AUTHORITY_FIELDS` 不包含 `CONCEPT`，而
+`scanSlideFields` 会忽略所有未注册的 bold field。v2 receipt、raw contract 与
+provider request 因而没有任何 slide-specific concept/scene 事实。这仍是当前
+source-to-provider 语义链的缺口，和 BUG-035 共同造成 provider 只知道通用 registry
+选择而不知道本页需要表达什么。
+
+修复不能把自由 `CONCEPT` prose 直接送入 provider。应先在 OpenSpec 中定义受 text
+guard、digest、stable-ID lineage 和 review 约束的显式 scene/relationship source
+contract；BUG-015 是该有限关系模型的上游设计缺口。
+
+## 历史记录
+
+### 症状
 
 `slide-specifications.md` 中每页 CONCEPT 节包含最核心的视觉内容结构指令（场景描述、隐喻、布局），但这些信息**从未到达 Image2 API**。recipe/composition/motif 三个抽象 ID 及其 provider clauses 无法表达 slide-specific 的场景要求。
 
@@ -16,7 +30,7 @@
 
 API 能生成正确的暖编辑风格（来自 style_master.jpg），但**完全没有**每页独特的场景结构信息。
 
-## 根因
+### 根因
 
 `page_authority_source.mjs` 的 `PAGE_AUTHORITY_FIELDS`（第 17-25 行）不包含 CONCEPT：
 
@@ -36,7 +50,7 @@ CONCEPT 被当作"人类文档"在解析时忽略。它包含的 `MUST communica
 
 设计层面的根因：recipe/composition/motif 是一个封闭的视觉词汇表，适用于建立**统一风格基调**，但不适用于表达**slide-specific 场景内容**。25 页共用 2 个 recipe、3 个 composition、4 个 motif——所有独特的内容结构信息都丢失了。
 
-## 复现
+### 历史复现
 
 取任意 slide-specifications.md 中的 slide，追踪其完整数据流：
 
@@ -48,7 +62,7 @@ node -e "
 "
 ```
 
-## 修复方向
+### 当时修复方向
 
 需要在管线中新增一个字段，将 CONCEPT 中的视觉结构指令传递给 Image2 API。几种可能路径：
 
@@ -60,13 +74,13 @@ node -e "
 
 需配合 BUG-035 修复后一起验证——provider_clauses 和 scene/ concept 描述需要**同时**到达 API 才有效果。
 
-## 非目标
+### 非目标
 
 - 不改动 text guard 的 forbidden tokens 约束（scene 描述仍需遵守 no-readable-text/no-labels）
 - 不把 CONCEPT 的 Speaker Note/Narrative flow 发给 API（那是给人看的）
 - 不要求 recipe/composition/motif 体系废弃——它仍然负责统一的风格基调
 
-## 修复关联
+### 关联
 
 - BUG-035（provider_clauses 丢失）— 两个 bug 共同导致 API 缺乏视觉文本指导
 - 待定 OpenSpec change
