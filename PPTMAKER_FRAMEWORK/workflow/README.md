@@ -19,6 +19,6 @@ method graph is:
 | 06 | Workflow-aware refresh classification and structural routing |
 
 `03` and `04` are mutually exclusive siblings; neither owns the other's
-semantics or delivery. The exact v1 mixed route is existing-run compatibility
-only. Historical runs remain read-only observation inputs for explicit adoption
-or repair/export guidance.
+semantics or delivery. A non-v2, partial, hybrid, or mismatched source/state
+pair is a byte-preserving `unsupported-protocol/export` hard-stop, not an
+observation-continuation or current workflow route.

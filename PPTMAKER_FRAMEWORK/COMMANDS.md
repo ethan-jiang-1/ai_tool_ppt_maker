@@ -1,135 +1,69 @@
-# COMMANDS - Public routing
+# How To Ask For Help
 
-`ppt_flow` 顶层命令固定为 11 个：`doctor`, `init`, `status`, `validate`,
-`build`, `refresh`, `slides`, `new-version`, `test`, `state`, `image2`。本
-change 不增加或改变任何直接 CLI grammar。
+You do not need to know the framework's commands. Say what you are trying to
+achieve, what you already have, and what feels wrong. The Agent chooses the
+smallest safe next step; you retain ownership of content and important
+decisions.
 
-## New deck: one v2 workflow
+## Common Requests
 
-未指定 existing run 时，唯一新-deck route 是
-`page-authority-image2-v2` / `image2-page-authority-v2`。`ppt_flow init`
-创建一个 authoring draft；人必须先在 canonical source 中显式写一次
-`production.workflow: framed|pure`，再验证并进入 provider-facing work。
-不要从 deck type、生成物或某个 slide 推断 workflow，也不要在 init 前索要
-provider credential。
+| You can ask | The Agent first clarifies or checks | What you get | Your meaningful decision | Typical timing |
+| --- | --- | --- | --- | --- |
+| "Can you help me get set up?" | Local runtime and the part of the work you plan to do | A plain-language readiness result and the next repair, if needed | None for local checks | Short local work |
+| "I want to make a presentation." | Topic, audience, source material, visual direction, and local foundation | A new workspace and the current creation handoff | Content and necessary creative choices | Your decision, then local work |
+| "Please continue this presentation." | The exact local deck folder or its handoff card, then its current status | The one current next step | Only if the next step has a real review or remote cost boundary | Short inspection, then depends on the next step |
+| "Change this wording." | The exact deck and what text should change | The smallest valid text-change path | Review of the changed content | Local work or a later owner decision |
+| "Change how this page looks." | The exact deck, the visible goal, and which pages are affected | The appropriate visual-change path and a reviewable result | Any disclosed remote work and visual acceptance | Local work or provider-variable work |
+| "Update the speaker notes." | The exact deck and the note changes | Updated notes and their normal delivery check | Review of the notes | Short local work |
+| "Add, remove, reorder, or rethink pages." | The exact deck and the intended new structure | A preview of a clean next version before changes are published | Approval of the proposed structure | Human decision, then local work |
+| "Which image channel is working?" | Whether you want an offline check or a live diagnostic | A channel-health report in plain language | Live diagnostics require an exact disclosed submit count and your confirmation | Local check or provider-variable work |
+| "I am stuck" or "this failed." | The current error report or the symptom you can describe | A plain-language explanation and the producer's next safe action | None unless the next action reaches a real decision or cost boundary | Short inspection |
+| "I cannot find the presentation to continue." | A handoff card or an exact local path | The supported way to locate the intended run | Supply the exact local locator; the Agent will not guess | Short human/Agent exchange |
+| "Can this system do something else?" | Whether the request fits an existing path | A clear answer, or a small named gap to discuss | Whether to start framework-maintenance work | Conversation first |
 
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs init deck_NAME --deck-type keynote --style dark-executive
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate deck_NAME/3_versions/v1
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs state deck_NAME/3_versions/v1 --json
-```
+## What Stays Safe
 
-unbound doctor 独立显示 `framed-runtime` 与 `image2-raw` readiness，不把
-deferred raw provider 事实说成 source-ready。init 不选择 Framed、Pure 或
-mixed default，且不创建 raw/final/generated artifacts、PPTX、notes、style
-master 或 provider attempt。
+- An offline readiness result or a successful channel diagnostic does not grant
+  permission to create paid work.
+- For an existing presentation, the Agent asks for the exact local run rather
+  than guessing from a name, timestamp, or a nearby rendered file.
+- If the request is unclear or unsupported, the Agent explains the smallest
+  missing extension and waits. It does not silently create maintenance work.
+- A presentation's content, examples, claims, and final visual judgment remain
+  yours. The Agent owns the bounded process needed to move the work forward.
 
-## Version workflow and current action
+## Agent Routing Reference
 
-先读取 exact source/state pair 和 owner-issued inspection。对于 target v2，
-向人展示已绑定的 `framed` 或 `pure` workflow、当前直接事实、gate 和一个
-nearest action；不要让人选择 slide-level authority，也不要展示 shared raw
-implementation topology。
+The [discovery catalog](playbook/intent-routes-v1.json) is static validation
+for the first safe handoff, not an execution mechanism. Interpret the user's
+language conversationally, then follow these existing owners:
 
-| Bound workflow / request | Owner-valid route |
-| --- | --- |
-| `framed`, exact accepted raw evidence + current frame preset, Text Frame-only | Header Text & Style Refresh; provider-free local composition, then delivery. |
-| `framed`, preset/underlay/visual change | Generated Image Rebuild, then delivery. |
-| `pure`, visible display or visual change | Generated Image Rebuild, then delivery. |
-| Either workflow, speaker notes only | Notes-Only Refresh through shared delivery. |
-| Insert, delete, reorder, or Framed/Pure switch | `06-iteration` Structural Versioning Path. |
+- For a known exact run, an explicit change enters the current
+  [change classifier](scripts/06-iteration/change-classifier.md). Otherwise,
+  resume from `state --json.workflow_inspection.primary_action`.
+- If no exact run is known, use the `RUN_BUNDLE.md` / exact-path locator in
+  [the Agent contract](charter/AGENT_CONTRACT.md). Never scan production
+  folders or infer a latest run.
+- New work hands off from local foundation and initialization to the existing
+  [create-deck controller](playbook/create-deck.md). The controller retains
+  lifecycle, evidence, and authorization decisions.
+- Channel diagnostics use
+  [probe-image-channels](playbook/probe-image-channels.md). Direct environment
+  recovery is only for a pre-install or unavailable main entry.
+- A Route Gap is conversational and non-persistent. Name the smallest missing
+  catalog route, playbook, or owner capability, then wait for an explicit
+  maintenance request.
 
-Framed uses a local deterministic Text Frame; Pure gives Image2 all final
-pixels. Those are version-level workflow semantics, not a per-slide menu.
+## Agent Verification Scope
 
-## Receipt-bound lifecycle
-
-The selected workflow owns its semantic rules and publishes a common final-slide
-manifest. Shared delivery owns final projection, PPTX assembly, notes injection,
-and delivery review. Existing commands remain:
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 plan <run-dir> --json
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 authorize <run-dir> --plan-hash <hash>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation raw-generation
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 generate <run-dir> --plan-hash <hash>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 review <run-dir> --json
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs image2 accept <run-dir> --decision proceed
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <run-dir>
-```
-
-`plan` is offline and receipt-bound. Before every nonzero raw submission,
-disclose the exact operation, stable IDs, generation profile, and maximum
-submission count, then record `authorize` with that exact plan hash. Provider
-readiness, init, doctor, a live probe, raw review, and a prior batch never grant
-authorization. A proven zero-submit operation remains mechanical and
-provider-free.
-
-Complete current evidence with no `proceed|repair|redirect` decision is a
-`confirm` gate. Source/state identity failure, invalid workflow owner,
-missing/partial/stale evidence, invalid provider scope, or invalid delivery
-lineage is a hard-stop: consume the one producer-issued recovery action; never
-hand-edit state or derived output.
-
-## Refresh and versioning
-
-For an exact Framed text-only route, these existing commands remain the local
-refresh path:
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operation framed-local-refresh
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind title --only <stable-id>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs refresh <run-dir> --kind notes
-```
-
-Notes-only work refreshes delivery lineage without changing pixels. Any Pure
-visible change or Framed preset/underlay/visual drift returns to the selected
-workflow's receipt-bound rebuild route. A workflow switch is never an in-place
-mutation.
-
-Insert, delete, reorder, and workflow changes use Structural Versioning Path.
-Preview first, show position, stable ID, title, before/after, target workflow,
-and exact `plan_sha256`; apply only the confirmed hash:
-
-```bash
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> <selector> --after <selector>
-node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs slides move <run-dir> <selector> --after <selector> --apply --plan-sha256 <hash>
-```
-
-The clean vNext receives only plan-bound, target-owned `unreviewed` provenance
-or `needs_raw_generation` debt. It never inherits raw review, provider
-authorization, final/PPTX/notes evidence, or delivery decisions, and
-structural apply makes no provider request. `needs_render` is a cost/debt
-report, never permission.
-
-## Unsupported runs
-
-Non-v2 or malformed source/state pairs receive the generic
-unsupported-protocol/export hard-stop. They are not an executable workflow,
-and no command infers a workflow, initializes state, or reads generated output.
-
-## Observation and control boundaries
-
-For any exact run, `state <run-dir> --json` is the controller-facing resume
-surface. Consume `workflow_inspection.primary_action` and its bounded
-continuation; use the direct owner CLI only for the selected mutation. Do not
-reconstruct review records, infer approval from rendered output, copy a reason
-into state, or hand-edit durable state.
-
-`status <run-dir>` and ordinary `state <run-dir> --json` are read-only
-observation projections. They never initialize a state, metadata, generated
-artifact, or protocol receipt; a missing receipt remains a repair or validation
-action issued by its owner.
-
-Gate handling starts with current changed evidence and the producer's recommended
-repair. A complete current review awaiting `proceed|repair|redirect` is a human
-`confirm`, not an integrity fault. Identity drift, active journal, corrupted
-state, unsafe bytes/paths, incomplete evidence, and provider authorization
-failures are hard-stops; they never become `--force` or a generic bypass.
-
-## Optional Git note
-
-Git history reader、自动 source replacement、`git checkout`/`git restore`
-fallback 都不属于本框架。只有用户明确授权命名 Git 操作和用户给定范围时，Agent
-才能协助。标题/小问题修当前版本；同一方向的大改发布 clean vNext。
+- `core`: `npm test` and the compatible `ppt_flow test` command run the bounded
+  protected core inventory; they are not full regression or release
+  certification.
+- `focused`: run one deliberately selected seam or process test while changing
+  that boundary.
+- `sweep`: run broader pure unit/integration sampling when a public change
+  warrants it; it does not include process-level or live-provider work.
+- `mock E2E`: run one selected journey through a fake external adapter when a
+  public journey changed.
+- `real E2E`: run only a selected live journey after separate explicit human
+  authorization. It is never implied by core, focused, sweep, or mock E2E.

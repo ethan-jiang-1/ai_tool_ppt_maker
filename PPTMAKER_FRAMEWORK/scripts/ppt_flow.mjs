@@ -1302,7 +1302,7 @@ async function commandSlides(subcommand, runDir, args = [], opts = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * test — Run all framework checks via vitest.
+ * test — Run the bounded core verification tier via npm test.
  */
 async function commandTest() {
   const result = spawnSync("npm", ["test"], {
@@ -1329,7 +1329,7 @@ async function commandTest() {
     emitFailed(
       "ppt_flow.test",
       `npm test exited ${code}`,
-      "Inspect the failing test suite, fix the source, then rerun ppt_flow test",
+      "Inspect the failing core test suite, fix the source, then rerun ppt_flow test",
       buildDelegatedDiagnostic({
         invocation: { program: "npm", args: ["test"] },
         overflow: captured.overflow,
@@ -1882,10 +1882,11 @@ async function targetImage2Operations(workflow) {
 async function refreshProgressiveControllerTaskProjection(runDir, { workflowInspection = null, state = null } = {}) {
   const inspection = workflowInspection || (await import("./shared/workflow/inspect_workflow.mjs"))
     .inspectWorkflow({ runDir });
-  const summary = inspection?.evidence_summary || {};
-  if (summary.mode !== "image2-page-authority-v2" || !["framed", "pure"].includes(summary.workflow)) return null;
+  const { progressiveControllerTaskProjectionEligibility } = await import("./shared/workflow/progressive_controller_task_projection_eligibility.mjs");
+  const eligibility = progressiveControllerTaskProjectionEligibility({ runDir, inspection, state });
+  if (!eligibility.eligible) return Object.freeze({ status: "not-applicable" });
   const { refreshPageProductionTaskProjection } = await import("./shared/workflow/page_production_task_projection.mjs");
-  return refreshPageProductionTaskProjection({ runDir, inspection, state });
+  return refreshPageProductionTaskProjection({ runDir, inspection, state: eligibility.state });
 }
 
 /** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
@@ -2540,7 +2541,7 @@ Examples:
   // ---- test ----
   program
     .command("test")
-    .description("Run all framework checks")
+    .description("Run bounded core verification")
     .action(async () => {
       const code = await commandTest();
       process.exit(code);
@@ -2654,10 +2655,11 @@ Examples:
         index: controllerIndex,
         ctx: controllerCtx,
       });
-      await refreshProgressiveControllerTaskProjection(resolved, {
+      const taskProjection = await refreshProgressiveControllerTaskProjection(resolved, {
         workflowInspection,
         state: s,
       });
+      const taskProjectionStatus = taskProjection?.status || "not-applicable";
       const inspectionSummary = workflowInspection.primary_action.summary || workflowInspection.primary_action.display_label || workflowInspection.primary_action.action_id;
       const inspectionNext = workflowInspection.primary_action.command || workflowInspection.primary_action.display_label || `${workflowInspection.primary_action.owner}:${workflowInspection.primary_action.action_id}`;
 
@@ -2679,12 +2681,12 @@ Examples:
           workflow_summary: inspectionSummary,
           suggested_next: inspectionNext,
           workflow_inspection: workflowInspection,
+          task_projection: { status: taskProjectionStatus },
         };
         registerCliJsonReport(report);
         console.log(JSON.stringify(report, null, 2));
         return;
       }
-      if (healed) console.log("Note:     state.yaml was auto-tidied (heal)");
       console.log("Playbook: " + (indexedCard.playbook || "(none)"));
       console.log("Current:  " + (indexedCard.current_node || "(none)"));
       console.log("Status:   " + (indexedCard.node_status || "(none)"));
@@ -2703,6 +2705,7 @@ Examples:
       );
       console.log("Summary:  " + inspectionSummary);
       console.log("Next:     " + inspectionNext);
+      console.log("Task projection: " + taskProjectionStatus);
     });
 
   // ---- style-master (candidate lifecycle before page raw work) ----

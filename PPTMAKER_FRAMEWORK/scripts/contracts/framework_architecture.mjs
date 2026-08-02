@@ -54,6 +54,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/state/target_authoring_draft_route.mjs",
   "shared/workflow/inspect_workflow.mjs",
   "shared/workflow/page_production_task_projection.mjs",
+  "shared/workflow/progressive_controller_task_projection_eligibility.mjs",
 ]);
 
 export const SHARED_WORKFLOW_SEMANTIC_HELPERS = Object.freeze([

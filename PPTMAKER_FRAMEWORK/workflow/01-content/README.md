@@ -18,7 +18,8 @@ or `pure` workflow; slides do not select authority individually.
 The canonical source is `3_versions/vN/slide-specifications.md`. It declares
 `production.pipeline: page-authority-image2-v2`, `production.workflow: framed|pure`,
 and `identity.scheme: mnemonic-v1`. `position` is snapshot order; `slide_id` is
-cross-version identity. An exact v1 source is compatibility input only.
+cross-version identity. A non-v2 source is a byte-preserving
+`unsupported-protocol/export` hard-stop and cannot enter current authoring.
 
 Read in order:
 

@@ -6,7 +6,7 @@
 
 AI 驱动的 PPT 生成系统. Agent 是编排器——读方法论文档 → 做创意判断 → 跑生产管线 → 响应迭代.
 
-核心技术栈: **Node.js 18+ ESM (.mjs)**. 依赖: `@napi-rs/canvas`, `pptxgenjs`, `commander`.
+核心技术栈: **Node.js 22.x、24.x 或 26.x ESM (.mjs)**. 依赖: `@napi-rs/canvas`, `pptxgenjs`, `commander`.
 
 ## 目录地图
 
@@ -15,7 +15,7 @@ ai_tool_ppt_maker/
 ├── PPTMAKER_FRAMEWORK/        ← 方法论知识库 (soft bundle, 只读)
 │   ├── BOOTSTRAP.md           ← Agent 三步启动入口
 │   ├── charter/               ← 宪法 / 铁律 / 流程摘要
-│   ├── workflow/              ← 00-setup … 05-iteration 方法论
+│   ├── workflow/              ← 00-setup … 06-iteration 方法论
 │   ├── scripts/               ← 生产管线 (.mjs)
 │   ├── playbook/              ← 自然语言意图路由（附录）
 │   └── reference/             ← glossary / anti-patterns / quick-start
@@ -62,8 +62,9 @@ Agent 探索/理解框架时只看上面 4 个源码目录。**做具体 deck �
 - 页面 `slide_id` 是跨版本身份，`position` 只属于当前快照；结构编辑必须 preview + exact plan hash，提交/materialization 零远端调用，`needs_render` 另行授权
 - 新 deck 使用 `identity.scheme: mnemonic-v1`；Agent 编写 5–8 字母、恰好两块 BlockCase 的可口述 ID，优先 5–6
 - `_generated/` 内一切都可以重跑管线重新生成, 绝不手动编辑
-- 新 deck 使用 Page Authority 的 `pure-image2` / `framed-image2`；legacy `RENDER MODE`
-  的 `full-page` / `body+header-lock` 只属于显式指定的旧 run，Page Authority source 拒绝它
+- 新 deck 使用 `page-authority-image2-v2`；在 provider work 前由人明确选择版本级
+  `framed` 或 `pure`。非 v2 source/state pair 保持字节不变并进入 owner-issued
+  `unsupported-protocol/export` hard-stop，绝不推断为当前工作流
 
 ## 从哪里开始
 
@@ -73,6 +74,6 @@ Agent 探索/理解框架时只看上面 4 个源码目录。**做具体 deck �
 
 ## CLI / MD 诊断维护路由
 
-- 新增或修改 direct CLI、命令、exit path、stdout JSON、stderr diagnostic、child process、`cli_error.mjs`：先读 `openspec/specs/cli-surface/spec.md`，再用 `openspec status` 找 active `cli-surface` delta，并复用 `PPTMAKER_FRAMEWORK/scripts/lib/cli_error.mjs`。
+- 新增或修改 direct CLI、命令、exit path、stdout JSON、stderr diagnostic、child process、`cli_error.mjs`：先读 `openspec/specs/cli-surface/spec.md`，再用 `openspec status` 找 active `cli-surface` delta，并复用 `PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs`。
 - 修改 MD Controller / state 对 CLI 回执的消费：先读 `openspec/specs/node-specification/spec.md`，再读 active `node-specification` delta。producer 字段与发射规则仍以 `cli-surface` 为权威，不在 consumer 侧复制 schema。
 - 上述是 framework repository maintenance；run-bundle 生产 Agent 仍不得修改 framework，也不得手改 `_generated/`。

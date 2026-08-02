@@ -63,6 +63,41 @@ When the resolver reports a conflict, request the current card or repair the
 named root; 不得拿另一条路径覆盖. A terminal deck may be inspected read-only.
 generic remote-chat attachment integration is not a framework capability.
 
+## Intent Discovery Handoff
+
+`playbook/intent-routes-v1.json` is a closed discovery catalog, not a parser,
+dispatcher, Controller, or authorization record. The Agent interprets the
+user's words and uses the catalog only to check the first safe handoff.
+
+For a known exact run, keep this precedence:
+
+```text
+explicit requested change -> classify-change -> selected existing playbook
+otherwise resume -> state --json -> workflow_inspection.primary_action
+```
+
+An explicit text, visual, notes, or structural request therefore enters
+`classify-change`; it is never replaced by a passive resume action. Without an
+exact run, resume and every change request enter the `RUN_BUNDLE.md` / exact
+path locator. Do not scan `deck_*`, infer a latest run, or select one from a
+name, timestamp, current directory, rendered artifact, or conversation memory.
+
+For a new deck, establish local foundation, initialize the requested run,
+obtain the user's content and necessary choices, then hand off to the current
+`create-deck` Controller/owner action. Discovery does not select a node,
+workflow, grant, or raw plan.
+
+Normal raw-generation readiness remains exact-run-bound:
+`ppt_flow doctor --run-dir <run-dir> --operation raw-generation`. Direct
+`env-check` is a recovery entry only when the framework is pre-install or the
+main entry is unavailable; it cannot substitute for normal run-bound readiness,
+locate a run, start a Controller, or authorize provider work.
+
+Route Gap is conversational and non-persistent. Name whether the smallest
+missing extension is a catalog route, playbook, or owner capability, then wait
+for the human to request framework maintenance. Route Gap does not write state,
+receipts, grants, attempts, history, a collaboration card, or maintenance work.
+
 ## Git boundary
 
 Visible `vN` versions remain the deck's working authority. Git is optional and

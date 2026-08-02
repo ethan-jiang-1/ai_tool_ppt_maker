@@ -40,8 +40,7 @@ record exactly one version workflow, `framed` or `pure`, before provider work.
 The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
 06-iteration`. Framed supports local deterministic text composition; Pure uses
 Image2 for every final pixel. Raw work is receipt-bound and requires explicit
-authorization only when it submits a nonzero provider batch. The exact v1 pair
-is an existing-run compatibility input, never a new-deck choice.
+authorization only when it submits a nonzero provider batch.
 
 ## Refresh Vocabulary
 
@@ -53,9 +52,9 @@ is an existing-run compatibility input, never a new-deck choice.
 | Add, remove, move, reorder, or switch workflow | `06-iteration` Structural Versioning Path |
 
 Structural preview and apply preserve stable IDs, bind an exact plan hash, and
-report `needs_render` as debt rather than permission. A recognized historical
-source/state pair is readable only through the observer and explicit adoption
-transaction.
+report `needs_render` as debt rather than permission. A non-v2, partial,
+hybrid, or mismatched source/state pair is a byte-preserving
+`unsupported-protocol/export` hard-stop, not a current lifecycle branch.
 
 ## Where To Start
 

@@ -8,6 +8,14 @@ includes: []
 
 # Playbook: Create Deck
 
+## Discovery Handoff
+
+For a new-deck request, the Agent establishes applicable local foundation,
+initializes the exact requested run, and obtains user content plus necessary
+choices before entering this Controller. The discovery catalog does not choose
+a Controller node, workflow, authorization, or raw plan; this playbook and its
+existing owners retain those decisions.
+
 ### checkpoint-intake
 ```yaml
 node: checkpoint-intake
