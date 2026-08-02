@@ -1,6 +1,6 @@
 # Slide Naming：`mnemonic-v1` 页面身份约定
 
-> 这是一份协作说明。正式行为以 [slide-identity-and-ordering spec](../../../openspec/specs/slide-identity-and-ordering/spec.md) 和 [slide_ids.mjs](../../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_ids.mjs) 为准。
+> 这是一份协作说明。正式行为以 [slide-identity-and-ordering spec](../../../../openspec/specs/slide-identity-and-ordering/spec.md) 和 [slide_ids.mjs](../../../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_ids.mjs) 为准。
 
 ## 核心模型
 

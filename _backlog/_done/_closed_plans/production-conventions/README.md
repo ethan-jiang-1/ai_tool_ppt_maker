@@ -2,7 +2,7 @@
 
 > Framed（框架合成模式）和 Pure（全图模式）共用的产品原则、长程生产节奏与协作词汇。
 > 本目录是设计材料，不是 runtime authority（运行时权威）、OpenSpec change 状态或具体 run 的进度账本。
-> 第一阶段唯一执行顺序与 program checklist 见 [../progressive-plan.md](../progressive-plan.md)。
+> 第一阶段已由 [../progressive-plan.md](../progressive-plan.md) 完成并归档为 CLS-017；本目录保留其历史设计输入。
 
 ## 这里负责什么
 
@@ -37,9 +37,9 @@ Markdown checkbox、文件存在、文件名、聊天记录或历史观察都不
 
 未来由本目录形成的 OpenSpec proposal/design 必须引用并应用：
 
-- [human-centered-gates.md](../../../openspec/policies/human-centered-gates.md)：负责 `guide`、`confirm`、`hard-stop` 与 continuation/waiver 边界；
-- [agent-assistance-and-control.md](../../../openspec/policies/agent-assistance-and-control.md)：负责直接 Source of Record、human/Agent/runtime 交接与 same-check recovery；
-- [simple-reliable-control.md](../../../openspec/policies/simple-reliable-control.md)：要求控制比被验证的生产工作更简单。
+- [human-centered-gates.md](../../../../openspec/policies/human-centered-gates.md)：负责 `guide`、`confirm`、`hard-stop` 与 continuation/waiver 边界；
+- [agent-assistance-and-control.md](../../../../openspec/policies/agent-assistance-and-control.md)：负责直接 Source of Record、human/Agent/runtime 交接与 same-check recovery；
+- [simple-reliable-control.md](../../../../openspec/policies/simple-reliable-control.md)：要求控制比被验证的生产工作更简单。
 
 ## 使用纪律
 

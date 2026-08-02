@@ -1,6 +1,6 @@
 # 原阶段计划并入说明
 
-> 状态：执行顺序已由 [根 progressive plan](../progressive-plan.md) 取代 | 更新：2026-07-31
+> 状态：执行顺序已由 [根 progressive plan](../progressive-plan.md) 完成并归档 | 更新：2026-08-02
 
 本文件原先把渲染收敛、raw-review 恢复、Style Master 与 Pilot Run 拆为 4 个 change、14 个 phase。该拆法已经完成依赖审计并收敛为 3 个串行 change；旧 phase 不再是执行 checklist，也不得用于判断 active OpenSpec 状态。
 
@@ -19,6 +19,6 @@
 - Framed 技术设计：[render-contract-plan.md](render-contract-plan.md)
 - 生产 UX 设计：[../production-conventions/pilot-run-plan.md](../production-conventions/pilot-run-plan.md)
 - 当前总控 checklist：[../progressive-plan.md](../progressive-plan.md)
-- 当前 active OpenSpec change：[converge-framed-render-and-review](../../../openspec/changes/converge-framed-render-and-review/proposal.md)
+- 已归档 Change 1：[converge-framed-render-and-review](../../../../openspec/changes/archive/2026-07-31-converge-framed-render-and-review/proposal.md)
 
-后续只在根计划勾选 program 状态，只在 active change 的 `tasks.md` 勾选实施状态。这里不再复制任何 Gate、phase 或 change checklist。
+实施已完成；根计划与三个 archived change 保留最终记录。这里不再复制任何 Gate、phase 或 change checklist。
