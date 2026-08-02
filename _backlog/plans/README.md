@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-_目前无活跃 plan。_
+- [`page-authority-production-repair.md`](page-authority-production-repair.md) — 将 BUG-036/037/040/041/042/043/044/045 收敛为三条系统线；只建议新建两项 OpenSpec change。
 
 **Next available plan ID: CLS-019**（移入 `_closed_plans/` 时分配；CLS-001…018 已用）
 
