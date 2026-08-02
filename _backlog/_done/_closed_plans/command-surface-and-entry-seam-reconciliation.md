@@ -2,7 +2,7 @@
 
 > Type: design / planning | Updated: 2026-08-02
 >
-> Status: absorbed by [OpenSpec change `reconcile-command-surface-and-entry-seams`](../../openspec/changes/reconcile-command-surface-and-entry-seams/proposal.md). The change owns implementation truth; this document preserves the reasoning that led to it.
+> Status: closed. The main implementation is archived as [OpenSpec change `reconcile-command-surface-and-entry-seams`](../../../openspec/changes/archive/2026-08-02-reconcile-command-surface-and-entry-seams/proposal.md), diagnostic translation/recovery precedence is archived as [OpenSpec change `formalize-diagnostic-recovery-handoff`](../../../openspec/changes/archive/2026-08-02-formalize-diagnostic-recovery-handoff/proposal.md), and the scoped active-documentation terminology repair is archived as [OpenSpec change `retire-stale-full-page-prose`](../../../openspec/changes/archive/2026-08-02-retire-stale-full-page-prose/proposal.md). All commitments in this plan have a completed, verified change. This document preserves the reasoning that led to those changes.
 
 ## Why This Exists
 

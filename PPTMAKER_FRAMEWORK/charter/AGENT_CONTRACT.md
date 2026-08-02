@@ -98,6 +98,55 @@ missing extension is a catalog route, playbook, or owner capability, then wait
 for the human to request framework maintenance. Route Gap does not write state,
 receipts, grants, attempts, history, a collaboration card, or maintenance work.
 
+## Diagnostic Recovery Handoff
+
+When a user is stuck or a CLI has failed, select one current authority in this
+order:
+
+```text
+current valid CLI failure envelope -> consume producer next
+otherwise, startable main entry + known exact run -> state --json
+otherwise, startable main entry + no exact run -> supported locator
+otherwise, pre-install or unavailable main entry -> direct env-check
+```
+
+A valid final failure envelope is the current producer fact and wins over a
+new inspection, locator, or environment check. If a non-zero result has an
+invalid, missing, or truncated envelope, report an external/interrupted
+boundary; do not mine raw stderr or incidental prose for a recovery action.
+Only then use the next applicable read-only discovery branch above. A known
+exact run still never permits scanning production `deck_*` directories or
+choosing another run.
+
+Direct `env-check` is the final recovery-only branch. It does not locate a run,
+start a Controller, authorize provider work, or replace normal exact-run
+readiness. It is available only when the framework is pre-install or the main
+entry cannot start.
+
+For every user-facing diagnostic, give exactly these four parts in order:
+
+1. **What happened**: state only the sanitized producer summary, bounded
+   category/reason, or exact owner inspection fact.
+2. **What it affects**: state only the bounded subject, source, lineage, or
+   inspected exact-run scope. If that scope is absent, say it is not yet known.
+3. **What the Agent can mechanically do**: use only the current owner-issued
+   `diagnostic.next` action that permits mechanical work, then rerun its named
+   checkpoint. Do not invent a retry, shell command, authorization, or mutation.
+4. **The one human action or confirmation required**: name only the current
+   owner-required action and stop. When `diagnostic.next.requires_human` or an
+   existing confirmation boundary applies, do not perform it implicitly. When
+   the owner permits fully mechanical work, say: "No human action is required
+   now."
+
+The translation is derived from bounded owner facts. It never exposes raw
+stderr, child output, stack text, secrets, prompts, provider bodies, or an
+invented causal story. This handoff is conversational: it does not write or
+persist state, receipts, grants, attempts, history, task projections,
+selected-route records, or maintenance work. `guide`, `confirm`, and
+`hard-stop` retain their current owner classification: perform only a legal
+guide repair, stop for the existing confirmation, and name the protected
+invariant plus safe owner recovery for a hard stop.
+
 ## Git boundary
 
 Visible `vN` versions remain the deck's working authority. Git is optional and

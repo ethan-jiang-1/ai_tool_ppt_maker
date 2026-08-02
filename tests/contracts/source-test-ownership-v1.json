@@ -90,6 +90,7 @@
         "tests/contracts/fixtures/development-verification/test_mock_prohibited_direct.mjs",
         "tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs",
         "tests/contracts/test_development_verification_admission.mjs",
+        "tests/contracts/test_diagnostic_recovery_handoff.mjs",
         "tests/contracts/test_framework_architecture.mjs",
         "tests/contracts/test_framework_directory_layout.mjs",
         "tests/contracts/test_framework_governance_ledger.mjs",

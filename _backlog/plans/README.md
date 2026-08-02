@@ -17,13 +17,9 @@
 
 ## 活跃列表
 
-当前没有独立活跃 plan。
+_目前无活跃 plan。_
 
-## 已吸收（保留设计溯源）
-
-- [`command-surface-and-entry-seam-reconciliation.md`](command-surface-and-entry-seam-reconciliation.md) — 已吸收至 [`reconcile-command-surface-and-entry-seams`](../../openspec/changes/reconcile-command-surface-and-entry-seams/proposal.md)；Page Authority 三个 change 后的入口、命令面、diagnostic、观察语义与文档/测试收口，不新增第三个生产 CLI。
-
-**Next available plan ID: CLS-018**（移入 `_closed_plans/` 时分配；CLS-001…017 已用）
+**Next available plan ID: CLS-019**（移入 `_closed_plans/` 时分配；CLS-001…018 已用）
 
 ---
 
