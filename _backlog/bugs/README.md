@@ -15,14 +15,19 @@
 
 ## 活跃列表
 
-### P0（阻断 — 1 个）
+### P0（阻断 — 3 个）
 
 - **[BUG-035](BUG-035-target-provider-request-omits-visual-language-clauses.md)** — 当前 target provider request 只携带 visual-language projection，遗漏 provider clauses
+- **[BUG-041](BUG-041-pure-raw-images-lack-display-text.md)** — Pure raw 图像缺失 display 文字（provider_clauses 的 "no lettering" 与 pure 冲突）
+- **[BUG-044](BUG-044-pure-slides-image-heavy-text-light.md)** — Pure 页面图多字少（BODY 正文从未送达模型，图文比例先天失衡）
 
-### P1（重要 — 2 个）
+### P1（重要 — 5 个）
 
 - **[BUG-036](BUG-036-concept-content-structure-stripped-from-api-prompt.md)** — CONCEPT 的 Content structure/MUST communicate 在 Page Authority 解析阶段被丢弃
 - **[BUG-037](BUG-037-image2-api-size-not-honored.md)** — Image2 API (gpt-image-2) 不遵守请求尺寸 2000x1125
+- **[BUG-040](BUG-040-pptx-delivery-omits-page-number.md)** — PPTX 交付不贴页码（assembly 只铺图，无 footer，workflow 无规定）
+- **[BUG-042](BUG-042-provider-prompts-not-surfaced-for-diagnosis.md)** — 每页 provider prompt（JSON）不外露，无法诊断
+- **[BUG-043](BUG-043-production-files-lack-NN-slideID-naming.md)** — Production 交付文件名缺 `NN_slideID` 前缀（框架强制 canonical-only）
 
 ### P2（次要 — 1 个）
 
@@ -30,7 +35,7 @@
 
 ---
 
-**Next available bug ID: BUG-040**
+**Next available bug ID: BUG-044**
 
 ## 类别分布
 

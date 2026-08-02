@@ -187,7 +187,7 @@ export function validateFinalSlideManifest(manifest, { evidence = null, expected
     if (!Array.isArray(manifest.items) || manifest.items.length === 0) throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest needs ordered items");
     const ids = [];
     for (const item of manifest.items) {
-      if (!exactKeys(item, ["slide_id", "position", "final_sha256", "path"]) || !SLIDE_ID_RE.test(item.slide_id || "") || !Number.isInteger(item.position) || item.position < 1 || item.path !== `${item.slide_id}.png`) {
+      if (!exactKeys(item, ["slide_id", "position", "final_sha256", "path"]) || !SLIDE_ID_RE.test(item.slide_id || "") || !Number.isInteger(item.position) || item.position < 1 || item.path !== `${String(item.position).padStart(2, "0")}_${item.slide_id}.png`) {
         throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest item is invalid");
       }
       assertDigest(item.final_sha256, "final_sha256");
@@ -219,7 +219,7 @@ export function createFinalSlideManifest({ evidence, expected_workflow, final_by
     source_receipt_sha256: evidence.source_receipt_sha256,
     accepted_raw_evidence_sha256: checkedEvidence.sha256,
     workflow: evidence.workflow,
-    items: ids.map((slide_id, index) => ({ slide_id, position: index + 1, final_sha256: sha256Bytes(bytes(final_bytes_by_slide[slide_id], `final ${slide_id}`)), path: `${slide_id}.png` })),
+    items: ids.map((slide_id, index) => ({ slide_id, position: index + 1, final_sha256: sha256Bytes(bytes(final_bytes_by_slide[slide_id], `final ${slide_id}`)), path: `${String(index + 1).padStart(2, "0")}_${slide_id}.png` })),
   };
   const validation = validateFinalSlideManifest(manifest, { evidence, expectedWorkflow: expected_workflow });
   if (!validation.ok) throw new PageAuthorityArtifactError(validation.code, validation.message);

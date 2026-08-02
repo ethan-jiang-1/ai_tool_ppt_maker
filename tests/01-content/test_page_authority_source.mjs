@@ -73,4 +73,11 @@ describe("v2 Page Authority source", () => {
     expect(() => parsePageAuthoritySource(source({ workflow: "pure", extra: "**VISUAL SCENE**: first scene\n**VISUAL SCENE**: second scene\n" }), { registry }))
       .toThrow(PageAuthoritySourceError);
   });
+
+  it("parses BODY as an optional inline field and defaults to null", () => {
+    const withBody = parsePageAuthoritySource(source({ workflow: "pure", extra: "**BODY**: 两个东西让 AI 学编程比别的都快\n" }), { registry });
+    expect(withBody.slides[0].body).toBe("两个东西让 AI 学编程比别的都快");
+    const without = parsePageAuthoritySource(source({ workflow: "pure" }), { registry });
+    expect(without.slides[0].body).toBeNull();
+  });
 });

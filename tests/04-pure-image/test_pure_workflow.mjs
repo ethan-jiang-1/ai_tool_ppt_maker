@@ -220,6 +220,7 @@ production:
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Pure target fact
+**BODY**: 两个东西让 AI 学编程比别的都快
 **VISUAL SCENE**: two agents at a shared desk calm work setting
 **VISUAL BRIEF**:
 \`\`\`yaml
@@ -246,6 +247,7 @@ negative_constraints:
         motifs: expect.any(Array),
       }));
       expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
+      expect(contract.body).toBe("两个东西让 AI 学编程比别的都快");
       expect(contract.visual_identity_role_clause).toBeNull();
       expect(contract.visual_language).toEqual(expect.objectContaining({
         recipe: expect.objectContaining({ id: "editorial-systems", provider_clause_sha256: expect.any(String) }),

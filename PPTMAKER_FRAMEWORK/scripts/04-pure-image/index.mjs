@@ -243,6 +243,7 @@ function pureRawContract(slide) {
     visual_scene: visualScene,
     visual_identity: slide.visual_language?.identity_reference?.projection || null,
     display: { ...slide.display },
+    body: slide.body ?? null,
   });
 }
 

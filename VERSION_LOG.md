@@ -20,6 +20,21 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.23.2 — Pure BODY Text Delivery And NN_slideID Production Naming（2026-08-02）
+
+**代号**：Text-first, numbered
+
+> 修复 BUG-043/044：Pure 页面从"图多字少"走向"字为主、图为隐喻"。`BODY` 正文首次送达模型；最终生产文件用 `NN_slideID` 命名。
+
+### 变了什么
+
+1. `content-parsing`：`**BODY**` 成为可选单行源字段，解析进 slide receipt（`body`）；Framed 继续禁止 BODY。
+2. `image-generation`：`pureRawContract` 携带 `body` 文本，正文可被模型画进图。
+3. `image-production`：final manifest 生产文件命名 `NN_slideID.png`（`position` 两位补零 + slide_id），validator 与 PPTX assembly 同步。
+4. 归档 `pure-text-delivery-and-nn-production-naming` 并同步三个 main specs；测试覆盖 BODY 解析/入合约、NN_ 路径。
+
+---
+
 ## v0.23.1 — Provider Clause And Scene Semantic Chain（2026-08-02）
 
 **代号**：Clause and scene reach the model

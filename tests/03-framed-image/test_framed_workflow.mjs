@@ -484,13 +484,13 @@ negative_constraints:
       expect(state.page_authority_raw_provider_authorization.by_version["3_versions/v1"]).toEqual(authorizationBefore);
       expect(target.accepted_raw_evidence_sha256).not.toBe(canonicalJsonSha256(previousEvidence));
 
-      const finalBytes = readFileSync(join(paths.final_root, "DeckGo.png"));
+      const finalBytes = readFileSync(join(paths.final_root, "01_DeckGo.png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source("Updated heading", "Updated source-owned note."));
       const notes = await refreshFramedTargetNotes(runDir);
       expect(notes).toMatchObject({ ok: true, delivery: { receipt: { notes_injected: 1 } } });
       expect(providerSubmissions).toBe(1);
       expect(readFileSync(join(paths.raw_root, "DeckGo.png"))).toEqual(previousRawBytes);
-      expect(readFileSync(join(paths.final_root, "DeckGo.png"))).toEqual(finalBytes);
+      expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(finalBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

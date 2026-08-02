@@ -51,6 +51,7 @@ describe("Page Authority v2 typed artifacts", () => {
     expect(validateAcceptedRawEvidence(evidence, { plan: rawPlan })).toMatchObject({ ok: true });
     expect(validateFinalSlideManifest(manifest, { evidence, expectedWorkflow: "framed" })).toMatchObject({ ok: true });
     expect(manifest.items.map((item) => [item.slide_id, item.position])).toEqual([["DeckGo", 1], ["BodyMap", 2]]);
+    expect(manifest.items.map((item) => item.path)).toEqual(["01_DeckGo.png", "02_BodyMap.png"]);
   });
 
   it("fails closed for source/profile/evidence drift and wrong workflow publication", () => {
@@ -72,7 +73,7 @@ describe("Page Authority v2 typed artifacts", () => {
       source_receipt_sha256: digest("a"),
       accepted_raw_evidence_sha256: digest("b"),
       workflow: "pure",
-      items: [{ slide_id: "DeckGo", position: 1, final_sha256: digest("c"), path: "DeckGo.png" }],
+      items: [{ slide_id: "DeckGo", position: 1, final_sha256: digest("c"), path: "01_DeckGo.png" }],
     }, { evidence, expectedWorkflow: "pure" })).toMatchObject({ ok: false, code: "final_manifest_stale" });
     expect(validateAcceptedRawEvidence({
       schema: "pptmaker-page-authority-raw-manifest-v1",

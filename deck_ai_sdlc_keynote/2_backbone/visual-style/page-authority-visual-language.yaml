@@ -3,13 +3,13 @@ revision: 2
 text_guard: page-authority-text-guard-v1
 recipes:
   editorial-systems:
-    provider_clause: warm editorial sketch on cream paper, sepia ink, amber accents, quiet depth, pure visual underlay with no lettering
+    provider_clause: warm editorial sketch on cream paper, sepia ink, amber accents, quiet depth, display heading supporting line and body content painted in clear sepia serif lettering as the primary surface, the sketched scene as a supporting metaphor
     authorities: [pure-image2, framed-image2]
     composition_ids: [centered-constellation, left-to-right-flow]
     motif_ids: [connected-nodes, layered-pathways, soft-grid]
     identity_subject_classes: [none, amber-light-form]
   collaborative-work:
-    provider_clause: warm amber light form within a calm shared work setting, pure visual underlay with no lettering
+    provider_clause: warm amber light form within a calm shared work setting, display heading and body content painted in clear sepia serif lettering, the shared work scene as a supporting metaphor
     authorities: [pure-image2, framed-image2]
     composition_ids: [field-of-work, centered-constellation]
     motif_ids: [shared-work-surface, connected-nodes, soft-grid]

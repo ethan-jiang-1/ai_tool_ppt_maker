@@ -609,6 +609,8 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
     });
     const sceneField = oneField(fields, "VISUAL SCENE");
     const scene = sceneField ? nonEmptyInlineValue(document, block, sceneField, issues) : null;
+    const bodyField = oneField(fields, "BODY");
+    const body = bodyField ? nonEmptyInlineValue(document, block, bodyField, issues) : null;
     const compiledVisualBrief = resolveVisualBrief(registry, {
       authority,
       visual_brief: visualBrief,
@@ -636,6 +638,7 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
       } : null,
       visual_brief: visualBrief,
       visual_scene: scene,
+      body,
       ...(compiledVisualBrief ? { visual_language: compiledVisualBrief } : {}),
       visual_identity: identity,
       identity_subject_count: count,

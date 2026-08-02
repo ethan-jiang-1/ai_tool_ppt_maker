@@ -17,8 +17,12 @@ production_mode:
       mode: image2-page-authority-v2
       workflow: framed
       source_epoch: 2
+    3_versions/v5:
+      mode: image2-page-authority-v2
+      workflow: pure
+      source_epoch: 2
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-07-30T13:21:33.848Z
+updated_at: 2026-08-02T13:24:21.285Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -69,3 +73,46 @@ page_authority_target_evidence:
       accepted_raw_evidence_sha256: e1d363598e9e371468b38378ee2910d94e2ca4daf9689f93bb0621757a6eabeb
       final_manifest_sha256: 4c5eaf375fb6708a6d73ecc214cdd0dac3558815c46d650c979dd6e5b1aca0f5
       delivery_receipt_sha256: 02ecbeb20d50df1ad1a2a302092102cc7965176d7667a8050deaa97c7edd399e
+    3_versions/v5:
+      schema: page-authority-image2-target-state-v1
+      run_version: v5
+      source_epoch: 2
+      source_receipt_sha256: 3aae06b19adb9bd444c63879d9c28c2b15433a64cfb328370b8d791afa7eeae8
+      workflow: pure
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+page_authority_style_master:
+  by_version:
+    3_versions/v5:
+      schema: page-authority-style-master-selection-v1
+      run_version: v5
+      workflow: pure
+      plan_sha256: 540bf1334e8f4fc12d78e8db09197eca3e4ff2edf77ccfb03376561fd49fb7ac
+      candidate_id: local-existing
+      candidate_sha256: 82dc370bd6f581cceacea7437227b7aac256dcbe7212e101bb0fa0cfd270b9d5
+      candidate_media_type: image/jpeg
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: c17d81afb205153b9922a93008c29222007e116e0afef475e81429cfdbe7fda7
+      style_intent_sha256: 14328036b68d68255a7fdd174c38bba159d18ffd7a664e34a4e038a85a1269b0
+      style_context_sha256: c756d529502de81edca9f916482af1f6bf8ca91f9048fe7b7ae7bccaaa53258f
+      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
+      previous_selection_sha256: 9bf3174d6e15f909dad979104e925d576d4f39d75c2468f0c0af14e369bbdaf4
+      review_decision_sha256: 8a7f1ca6457fbb8339c6845a910caa7f5ae1f40695ed3ed31f67cb9b1157a25e
+      accepted_at: 2026-08-02T12:36:39.705Z
+page_authority_progressive_handoff:
+  by_version:
+    3_versions/v5:
+      schema: page-authority-progressive-handoff-v1
+      run_version: v5
+      source_epoch: 2
+      source_receipt_sha256: 3aae06b19adb9bd444c63879d9c28c2b15433a64cfb328370b8d791afa7eeae8
+      workflow: pure
+      raw_work_plan_sha256: 961c52cb51d81e48386fbb20a73b852b689f6c89acc05a2053e7e0d84112d314
+      partial_pilot_decision_sha256: c32fbedacf7eb24f20f9af1d8af5061d5ff66113a02b1647c72878100fb12754
+      complete_raw_review_sha256: 49f072ad4a140c4b8dc659994397e817e2119f7e24426a7f23c8db86c3bf9750
+      accepted_raw_evidence_sha256: 9c26a2abd994da4f26ffa08b756a513f2ab2fab808bfbee364b2a2748c5e4920
+      final_manifest_sha256: e3fd5ce6ef961ae0be9e26a980761184b58c078b7f0a05ffb565381b11615a8e
+      delivery_receipt_sha256: bff9646d02341230ea65a5c4f2e66dd3ec1a289ade5acc4d7d47811602ec07d8
