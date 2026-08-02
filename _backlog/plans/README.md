@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-02 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-03 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,7 +17,7 @@
 
 ## 活跃列表
 
-- [`page-authority-production-repair.md`](page-authority-production-repair.md) — 将 BUG-036/037/040/041/042/043/044/045 收敛为三条系统线；只建议新建两项 OpenSpec change。
+- [`page-authority-production-repair.md`](page-authority-production-repair.md) — 将 BUG-036/037/040/041/042/043/044/045 收敛为三条系统线；三项 OpenSpec change 已归档，等待指定真实 run 的人工 / provider 验收。
 
 **Next available plan ID: CLS-019**（移入 `_closed_plans/` 时分配；CLS-001…018 已用）
 

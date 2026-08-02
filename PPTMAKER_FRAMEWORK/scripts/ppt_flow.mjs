@@ -941,12 +941,26 @@ async function commandRefresh(runDir, { kind, only, all, resolution, baseUrl, dr
  * @param {string} runDir
  * @param {string|null} name - e.g. "v3".
  */
-function commandNewVersion(runDir, { name }) {
+async function commandNewVersion(runDir, { name }) {
   const resolved = resolve(runDir);
   try {
+    const deckDir = deckRoot(resolved);
+    const {
+      resolveRunProductionAdapter,
+      activateCleanPageAuthorityTargetDraft,
+    } = await import("./shared/state/state.mjs");
+    const sourceRoute = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
+    const activateTargetDraft = sourceRoute.ok &&
+      sourceRoute.adapter === "page-authority-image2-v2";
     const target = createVersion(resolved, name);
+    const activation = activateTargetDraft
+      ? activateCleanPageAuthorityTargetDraft(deckDir, { sourceRunDir: resolved, targetRunDir: target })
+      : null;
     console.log(`✓ Created clean version: ${target}`);
     console.log("  Generated artifacts were not copied.");
+    if (activation) {
+      console.log(`  Activated Page Authority ${activation.workflow} authoring draft.`);
+    }
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
@@ -2573,8 +2587,8 @@ Examples:
     .description("Create a clean downstream version")
     .argument("<run_dir>", "Path to source version dir")
     .option("--name <name>", "Explicit version name, e.g. v3")
-    .action((runDir, opts) => {
-      const code = commandNewVersion(runDir, {
+    .action(async (runDir, opts) => {
+      const code = await commandNewVersion(runDir, {
         name: opts.name || null,
       });
       process.exit(code);

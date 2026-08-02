@@ -11,7 +11,9 @@ digest；它不含 credential、Authorization header、环境值、image data UR
 response。正常 CLI 输出和失败 envelope 仍不打印 prompt。
 
 本地 fixture 已覆盖 Pure/Framed 的 replay、drift replacement 和 secret-safe CLI 行为；
-仍需指定真实 run 中由人确认该诊断投影足以定位实际 provider prompt 问题。
+指定的 v7 已到达 provider-free Style Master inspect，但尚未具备 human selection，因而未创建
+真实 run 的 image2 plan/inspection sidecar。仍需在第 9 步中由人确认该诊断投影足以定位实际
+provider prompt 问题。
 
 ## 症状
 

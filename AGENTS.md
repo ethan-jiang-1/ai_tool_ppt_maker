@@ -36,8 +36,8 @@ ai_tool_ppt_maker/
 | 环境检查 | `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs doctor` |
 | 跑回归测试 | `npm test` |
 | 管线入口 | `node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <cmd>` |
-| 打印目录宪法 | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs` |
-| 校验 run bundle | `node PPTMAKER_FRAMEWORK/scripts/bundle_layout.mjs --check <dir>` |
+| 打印目录宪法 | `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs` |
+| 校验 run bundle | `node PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs --check <dir>` |
 
 ## 框架边界
 

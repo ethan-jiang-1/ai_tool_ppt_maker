@@ -4,27 +4,29 @@
 
 ## 结论
 
-这 8 张 bug 卡不应产生 8 个 OpenSpec change。按当前代码与已归档 change
-复核后，应按三条系统线处理，但只新建 **2 个** change：已合入的语义修复只做
-回归验收和卡片关闭，不再为同一行为支付一次 change 成本。
+这 8 张 bug 卡不应产生 8 个 OpenSpec change。初始复核将它们按三条系统线收敛为
+**最初 2 个** change；真实验收随后发现 `new-version` 无法把 clean Page Authority target
+接入 authoring draft，因而新增了一个窄的 activation repair。最终共 **3 个** change，
+而不是按八张卡逐张拆分；已合入的语义修复仍只做回归验收和卡片关闭。
 
 | 系统线 | 覆盖 bug | 处理方式 |
 | --- | --- | --- |
 | Source-to-provider 语义 | BUG-036、BUG-041、BUG-044 | 已由归档 change 实现；做端到端回归与 run-bundle 内容迁移，不新建 change |
 | Provider I/O 边界 | BUG-037、BUG-042 | 新建 1 个 change |
 | 页序的人类可见投影 | BUG-040、BUG-043、BUG-045 | 新建 1 个 change；BUG-043 作为既有 final 命名的回归项 |
+| Clean target activation | 真实 run 验收前置 | 验收中发现；新建 1 个窄 change，已完成并归档 |
 
-这比“三个 change”更省，但仍保留三个能独立讨论、验收和回归的系统边界。
+最终保持为三个彼此独立、可讨论、可验收、可回归的系统边界，同时避免按八张卡逐张开 change。
 
 ## 计数口径
 
 - **3 条工作线**：语义、provider I/O、页序投影。
-- **2 个待新建 OpenSpec change**：Change 1 和 Change 2。
+- **3 个 OpenSpec change（均已完成）**：原计划的 Change 1、Change 2，以及验收中发现的 Change 3。
 - **1 条非 change 的语义收尾线**：已由两个归档 change 实现，只需回归验收和指定
   run bundle 的内容迁移。
 
-不建议为了凑“三个 change”重开语义线：它当前没有新的 framework 行为契约，额外的
-proposal / spec / design / tasks / archive 只会增加维护成本。
+不建议为了凑数量重开语义线：它当前没有新的 framework 行为契约。Change 3 不是重复
+语义线，而是实际 new-version 验收揭示的可达性缺口。
 
 ## 背景 / 现状
 
@@ -43,21 +45,22 @@ proposal / spec / design / tasks / archive 只会增加维护成本。
 BUG-041、BUG-043、BUG-044 的 framework 行为也已有实现。它们在真实生成 run 上验收
 通过后再关闭；若验收失败，回到对应归档 change 的回归测试定位，而不是另开重复 change。
 
-仍缺的是 provider 请求的可诊断投影、provider 返回图像的早期介质校验、PPTX 页码，
-以及 raw 等人类浏览产物的页序命名一致性。
+provider 请求的可诊断投影、provider 返回图像的早期介质校验、PPTX 页码，以及 raw 等
+人类浏览产物的页序命名一致性均已由 Change 1 / Change 2 完成。当前只缺真实 run 的
+人类 Style Master 选择、显式 provider 授权、生成 / review / delivery，以及最终视觉确认。
 
 ## Bug 去向
 
 | Bug | 当前判断 | 最终归属 |
 | --- | --- | --- |
-| BUG-036 | 已有显式 `VISUAL SCENE` 契约；待在真实 source 中采用 | 语义回归验收，不新建 change |
-| BUG-037 | 返回 bytes 在 materialize 前未统一校验尺寸 | Change 1 |
-| BUG-040 | 当前 PPTX 只铺整页图片，没有页脚 | Change 2 |
-| BUG-041 | Pure 已携带 display，clause 已可按工作流表达 | 语义回归验收，不新建 change |
-| BUG-042 | provider request 只有内存对象 / digest，难以检查 | Change 1 |
-| BUG-043 | final manifest 已使用 `NN_slideID.png` | Change 2 的回归项 |
-| BUG-044 | Pure 已携带 `BODY` | 语义回归验收，不新建 change |
-| BUG-045 | raw / pilot 等按页浏览产物仍裸用 `slide_id` | Change 2 |
+| BUG-036 | v7 source 的 `VISUAL SCENE` 已迁移并验证；待真实图像语义确认 | 语义回归验收，不新建 change |
+| BUG-037 | 入站 PNG 尺寸 / 格式边界已验证；待 live provider probe | Change 1 已归档 |
+| BUG-040 | PPTX 页脚 XML 已验证；待真实 delivery 可读性确认 | Change 2 已归档 |
+| BUG-041 | Pure 已携带 display、BODY 和 scene；待真实文字可读性确认 | 语义回归验收，不新建 change |
+| BUG-042 | request inspection 已由本地 plan 生成；待真实请求回放确认 | Change 1 已归档 |
+| BUG-043 | v5 final 25/25 使用 `NN_slideID.png`；待 v7 rebuild 回归 | Change 2 的回归项 |
+| BUG-044 | Pure 已携带 `BODY`；待真实图文比例确认 | 语义回归验收，不新建 change |
+| BUG-045 | 新 raw / pilot / final 命名规则已由测试覆盖；待 v7 rebuild 文件树确认 | Change 2 已归档 |
 
 在修改 bug 卡状态前，必须跑一次不含远端调用的 fixture 回归；对 BUG-036、BUG-041、
 BUG-044 再补一次经授权的真实 run 验收。不能把某个 `deck_*` 当 framework fixture 或
@@ -137,6 +140,16 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 - 不将文件名前缀当作跨版本 ID，也不重命名 source heading 中的 formal ID。
 - 不要求迁移已交付 run bundle；派生输出按现有重建路径更新即可。
 
+## Change 3: `activate-clean-page-authority-versions`
+
+**目的：** 让 `new-version` 创建的 clean Page Authority target 立即成为其已选 workflow
+的 `create-deck` authoring draft，而不继承 source 的 production 或 paid-work lineage。
+
+**验收中发现与完成：** 2026-08-03 在 `deck_ai_sdlc_keynote` 从 v5 创建 v7 时发现，旧路径
+会让 target 在 provider-free validation 前卡在 `MODE_MISSING`。该 change 已覆盖 active / inactive
+source、target lineage conflict 和 public CLI routing；主规格已同步，并归档为
+`openspec/changes/archive/2026-08-03-activate-clean-page-authority-versions/`。
+
 ## 逐步 To-do（按真实次序）
 
 以下清单是后续工作的唯一顺序索引。完成一项就将 `[ ]` 改为 `[x]`，并记录失败或新增
@@ -144,9 +157,11 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 
 1. [x] **建立 baseline（非 change）**：运行与 Page Authority 相关的无远端 fixture 回归，
    记录 BUG-036/041/043/044 的当前契约结果；不修改 `_generated/`，不提交 provider 请求。
-2. [ ] **完成语义线验收（非 change）**：在用户指定的 run bundle 中，把每页真正要画的
-   CONCEPT 内容提炼到 `VISUAL SCENE`，并为 Pure 页补齐需要上图的 `BODY`；这是内容工作，
-   不是 framework 代码修改。
+2. [x] **完成语义线验收（非 change）**：在用户指定的
+   `deck_ai_sdlc_keynote/3_versions/v7` 中，官方 `validate` 通过 25 页；结构化
+   source receipt 显示 `BODY` 25/25、`VISUAL SCENE` 25/25，且所有 slide ID 唯一。逐页
+   人工语义复核确认 scene 承载各页的结构或隐喻，Pure 所需正文也已存在。这是 source-side
+   readiness，不替代 provider 真实出图验收。
 3. [x] **创建 Change 1 proposal**：以 `harden-page-authority-provider-boundary` 运行
    `openspec-propose`，生成 proposal、delta specs、design、tasks；先确认请求检查投影的
    secret-safe CLI 边界和错误 PNG 的 known-failure 语义。
@@ -175,8 +190,14 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
    BUG-043 与 BUG-045 均待指定真实 run 验收。PPTX XML 断言通过；本机无
    `soffice` / `libreoffice`，视觉渲染验收保留给第 9 步。
 9. [ ] **真实 run 验收（非 change，需授权）**：对指定 run bundle 执行正确的 Generated Image
-   Rebuild / delivery 重建；人类确认画面文字、场景表达、文件顺序和页脚。绝不手改
+   Rebuild / delivery 重建；先完成 v7 Style Master plan / human selection，再以显式 provider
+   authorization 生成、review、delivery。人类确认画面文字、场景表达、文件顺序和页脚。绝不手改
    `_generated/`，也不因验收而修改 framework 外的未指定 deck。
+   2026-08-03 已完成无远端前置：v7 `validate` 和 `bundle_layout --check` 通过，source receipt
+   为 25/25 非空 `BODY`、25/25 非空 `VISUAL SCENE`、25 个唯一 slide ID；Style Master 的零生成
+   本地候选 plan `4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6` 已 review。
+   未完成的首个 gate 是人类对 `local-existing` 候选作 `proceed`、`repair` 或 `redirect` 决策；它不能
+   由 agent 代替。其后才可进行明确授权的 provider 工作。
 10. [ ] **簿记、归档与版本收尾（非 change）**：仅在第 2、9 步的真实 run 验收全部通过后执行：
     先记录八张卡的最终状态与仍存在的根因，再以 `git mv` 将 BUG-036、BUG-037、BUG-040、
     BUG-041、BUG-042、BUG-043、BUG-044、BUG-045 移入 `_backlog/_done/_fixed_bugs/`，并同步
@@ -187,8 +208,8 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
     `_backlog/_done/README.md`。最后按 `project-versioning` 决定版本更新是否需要人类确认。
     在真实 run 验收前不得移动任何待验收卡或本 plan。
 
-第 3 和第 6 步才创建 active change。这样 plan 可以先稳定存在，OpenSpec artifact 只在真正
-要实施时产生，也不会在等待期间过期。
+第 3、6 步分别创建 Change 1、Change 2；验收中新发现的 Change 3 也已完成并归档。plan 保留
+这些顺序和验收事实，供后续真实 run 恢复时直接定位下一项未完成 gate。
 
 ## 风险 / 取舍
 
@@ -203,11 +224,11 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 
 ## 落地关联
 
-本文件是 backlog 中的分析 / 设计记录，不是 active OpenSpec change。实施时新建的 change
-仅为：
+本文件是 backlog 中的分析 / 设计记录，不是 active OpenSpec change。已实施并归档的 change 为：
 
 1. `harden-page-authority-provider-boundary`
 2. `unify-page-ordinal-projections`
+3. `activate-clean-page-authority-versions`
 
 已归档的 `fix-provider-clauses-and-visual-scene` 与
 `pure-text-delivery-and-nn-production-naming` 是语义线的历史依据和回归基线，不应重新开启。

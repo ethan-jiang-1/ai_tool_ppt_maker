@@ -9,9 +9,10 @@
 `01`、`10`、`100`，防止 final path 从现有 `NN_slideID.png` production contract 回退为
 裸 stable ID。
 
-没有指定 run bundle，因此尚未验证真实 rebuild 的 final 文件树；本卡保持待真实 run
-验收。bounded CURRENT v1 final filenames 仍是其受限兼容协议的一部分，本 change 不迁移或
-重命名既有运行产物。
+2026-08-03 的指定 deck 静态验收确认 v5 final 目录 25/25 个页面文件均为
+`NN_slideID.png`。v7 仍没有 final 输出，故真实 rebuild 的 final 文件树仍待第 9 步验收。
+bounded CURRENT v1 final filenames 仍是其受限兼容协议的一部分，本 change 不迁移或重命名
+既有运行产物。
 
 ## 历史记录
 

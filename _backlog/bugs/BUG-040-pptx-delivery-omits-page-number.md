@@ -14,6 +14,10 @@ entry 顺序。整页 final PNG、stable `slide_id`、raw evidence 与 delivery 
 但没有指定 run bundle，且本机缺少 `soffice` / `libreoffice` 进行视觉渲染。因此仍需在
 用户指定的真实 run 重建 delivery 后验收可读性与实际页序。
 
+2026-08-03 的补充静态验收读取指定 deck v5 的既有 `deck.pptx`：25/25 个 slide XML
+同时含整页图片与对应 `01` 到 `25` footer。它是历史交付的 XML 证据，不替代 v7 rebuild
+后的渲染可读性检查。
+
 ## 历史记录
 
 ### 症状

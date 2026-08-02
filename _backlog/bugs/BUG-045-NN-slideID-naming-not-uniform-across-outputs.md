@@ -10,8 +10,9 @@ plan 取 current position，因此单独抽取第 10 页仍写为 `10_DataMap.pn
 `01_DataMap.png`。stable evidence path、raw contract、provider authorization、CAS/attempt/
 provenance 与 receipt 仍只用 stable `slide_id` / digest，不把序号变成逻辑身份。
 
-本地 workflow 回归已覆盖 raw、Pure/Framed Pilot 和重排序下稳定 evidence item；但未获得
-指定 run bundle 的重建授权，因此仍待真实 run 确认输出目录浏览体验与实际文件顺序。
+本地 workflow 回归已覆盖 raw、Pure/Framed Pilot 和重排序下稳定 evidence item。2026-08-03
+读取指定 deck v5 的历史 raw 目录，25 个文件仍为裸 `slide_id.png`，这正说明旧产物不能作为
+新命名规则的验收替代；v7 尚未获重建授权，因此仍待真实 run 确认输出目录浏览体验与实际文件顺序。
 
 ## 历史记录
 

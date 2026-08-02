@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { describe, expect, it } from "vitest";
 
@@ -32,6 +33,12 @@ function localImageBytes(variant = 0) {
     ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY1AJyPoPAANYAd6lcnCEAAAAAElFTkSuQmCC"
     : "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY8hyUPkPAAO0Ac51OmnoAAAAAElFTkSuQmCC", "base64");
 }
+
+const VALID_PROVIDER_PNG = (() => {
+  const image = createCanvas(2000, 1125);
+  image.getContext("2d").fillRect(0, 0, 2000, 1125);
+  return image.toBuffer("image/png");
+})();
 
 function source() {
   return `---
@@ -146,7 +153,7 @@ describe("accepted Style Master raw binding", () => {
           return {
             ok: true,
             status: 200,
-            text: async () => JSON.stringify({ data: [{ b64_json: localImageBytes().toString("base64") }] }),
+            text: async () => JSON.stringify({ data: [{ b64_json: VALID_PROVIDER_PNG.toString("base64") }] }),
           };
         },
       });

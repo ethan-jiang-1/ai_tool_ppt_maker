@@ -1,18 +1,19 @@
 # BUG-036: CONCEPT 的 Content structure/MUST communicate 在 Page Authority 解析阶段被丢弃
 
-> 严重级别: P1 | 发现: 2026-07-30 | 状态: 活跃（当前路径复核：2026-08-02）
+> 严重级别: P1 | 发现: 2026-07-30 | 状态: 待真实 run 验收（source 迁移完成：2026-08-03）
 
 ## 当前复核
 
-当前 `page_authority_source.mjs` 的 `PAGE_AUTHORITY_FIELDS` 不包含 `CONCEPT`，而
-`scanSlideFields` 会忽略所有未注册的 bold field。v2 receipt、raw contract 与
-provider request 因而没有任何 slide-specific concept/scene 事实。这仍是当前
-source-to-provider 语义链的缺口，和 BUG-035 共同造成 provider 只知道通用 registry
-选择而不知道本页需要表达什么。
+当前 parser 仍刻意不把自由 `CONCEPT` prose 送入 provider；已归档的
+`fix-provider-clauses-and-visual-scene` 以受 guard 的显式 `VISUAL SCENE` 承载每页
+要画的关系和布局。2026-08-03 对指定的
+`deck_ai_sdlc_keynote/3_versions/v7` 执行官方 validation，结构化 receipt 为 25/25 页
+记录了非空 `VISUAL SCENE` 与 `BODY`，逐页复核也确认 scene 是页面内容结构而非通用风格
+标签。
 
-修复不能把自由 `CONCEPT` prose 直接送入 provider。应先在 OpenSpec 中定义受 text
-guard、digest、stable-ID lineage 和 review 约束的显式 scene/relationship source
-contract；BUG-015 是该有限关系模型的上游设计缺口。
+这证明 source-to-contract 的内容迁移已经完成；尚未提交 provider request 或生成最终图像，
+故仍需第 9 步的授权真实 run 来确认场景确实被模型表达。BUG-015 仍是更广泛关系型视觉
+词汇的独立设计缺口。
 
 ## 历史记录
 

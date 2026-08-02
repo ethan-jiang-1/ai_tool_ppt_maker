@@ -12,6 +12,9 @@
 这证明本地 deterministic 防护已完成，不证明 APIMART 已停止返回错误尺寸。是否 provider
 当前仍会发生该偏差，仍需一次单独授权的真实 run/live probe 验收。
 
+2026-08-03 指定 v7 已完成 provider-free source validation 并停在 Style Master gate；没有
+provider authorization 或 raw materialization，因此该验收没有伪造 live-probe 结论。
+
 ## 历史记录
 
 ### 症状

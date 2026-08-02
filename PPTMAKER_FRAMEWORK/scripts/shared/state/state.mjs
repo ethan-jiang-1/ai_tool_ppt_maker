@@ -26,6 +26,7 @@ import {
   buildPlaybookIndex,
   controllerNodeIds,
   controllerActiveNodeIds,
+  controllerDraftRouteIncludes,
   resolveNode,
   validatePlaybookIndex,
 } from "./md_controller_reader.mjs";
@@ -719,6 +720,121 @@ function ensureTargetEvidenceContainer(state) {
 
 function targetEvidenceRecord(state, runVersion) {
   return state?.page_authority_target_evidence?.by_version?.[canonicalVersionKey(runVersion)] || null;
+}
+
+function cleanTargetLineageConflict(state, runVersion) {
+  const versionKey = canonicalVersionKey(runVersion);
+  const targets = [
+    ["production_mode", state?.production_mode?.by_version],
+    ["page_authority_target_evidence", state?.page_authority_target_evidence?.by_version],
+    ["page_authority_style_master", state?.page_authority_style_master?.by_version],
+    ["page_authority_raw_provider_authorization", state?.page_authority_raw_provider_authorization?.by_version],
+    ["page_authority_progressive_handoff", state?.page_authority_progressive_handoff?.by_version],
+  ];
+  return targets.find(([, records]) => isPlainObject(records) && Object.hasOwn(records, versionKey))?.[0] || null;
+}
+
+/**
+ * Bind a filesystem-clean selected Page Authority version to one new draft
+ * execution without creating any target production lineage.
+ */
+export function activateCleanPageAuthorityTargetDraft(deckDir, {
+  sourceRunVersion,
+  sourceRunDir,
+  targetRunVersion,
+  targetRunDir,
+  expectedStateSha = null,
+  playbookDir = DEFAULT_PLAYBOOK_DIR,
+} = {}) {
+  const sourceVersion = normalizeRunVersion(sourceRunVersion ?? sourceRunDir);
+  const targetVersion = normalizeRunVersion(targetRunVersion ?? targetRunDir);
+  if (!sourceVersion || !targetVersion || sourceVersion === targetVersion) {
+    throw new TypeError("clean target activation requires distinct canonical source and target versions");
+  }
+
+  const sourceDir = resolve(deckDir, "3_versions", sourceVersion);
+  const targetDir = resolve(deckDir, "3_versions", targetVersion);
+  if (sourceRunDir && resolve(sourceRunDir) !== sourceDir) throw new Error("CLEAN_TARGET_SOURCE_PATH_MISMATCH");
+  if (targetRunDir && resolve(targetRunDir) !== targetDir) throw new Error("CLEAN_TARGET_PATH_MISMATCH");
+
+  const sourceMarker = probeSourceMarkerForVersion(deckDir, sourceVersion);
+  const targetMarker = probeSourceMarkerForVersion(deckDir, targetVersion);
+  const sourcePipeline = pipelineFromSourceMarker(sourceMarker);
+  const targetPipeline = pipelineFromSourceMarker(targetMarker);
+  if (!sourcePipeline.ok || sourcePipeline.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
+    throw new Error("CLEAN_TARGET_SOURCE_IDENTITY_MISMATCH");
+  }
+  if (!targetPipeline.ok || targetPipeline.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
+    throw new Error("CLEAN_TARGET_SOURCE_INVALID");
+  }
+  if (sourcePipeline.workflow !== targetPipeline.workflow) {
+    throw new Error("CLEAN_TARGET_WORKFLOW_MISMATCH");
+  }
+
+  const stateFile = statePath(deckDir);
+  const stateBytes = existsSync(stateFile) ? readFileSync(stateFile) : Buffer.alloc(0);
+  const stateSha = expectedStateSha ?? sha256(stateBytes);
+  const state = readState(deckDir, { purpose: "observe", heal: false, runVersion: sourceVersion });
+  if (state?.replacement_required || state?.corrupted) throw new Error("STATE_UNAVAILABLE");
+  if (state?.playbook && (
+    state.execution_run_version_mismatch || normalizeRunVersion(state.run_version) !== sourceVersion
+  )) {
+    throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_REQUIRED");
+  }
+  if (Array.isArray(state.playbook_stack) && state.playbook_stack.length > 0) {
+    throw new Error("CLEAN_TARGET_SOURCE_EXECUTION_STACKED");
+  }
+  if (state.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) throw new Error("CLEAN_TARGET_SOURCE_STATE_MISMATCH");
+
+  const sourceInspection = inspectProductionMode({ state, runVersion: sourceVersion, sourceMarker });
+  if (!sourceInspection.ok || sourceInspection.mode !== TARGET_PRODUCTION_MODE || sourceInspection.workflow !== targetPipeline.workflow) {
+    throw new Error("CLEAN_TARGET_SOURCE_STATE_MISMATCH");
+  }
+  const lineageConflict = cleanTargetLineageConflict(state, targetVersion);
+  if (lineageConflict) throw new Error(`CLEAN_TARGET_LINEAGE_CONFLICT:${lineageConflict}`);
+
+  const index = buildPlaybookIndex(playbookDir);
+  if (!validatePlaybookIndex(index).valid || !controllerDraftRouteIncludes(
+    index,
+    "create-deck",
+    targetPipeline.workflow,
+    "author-target-page-authority-content",
+  )) {
+    throw new Error("CLEAN_TARGET_DRAFT_ROUTE_INVALID");
+  }
+
+  const next = structuredClone(state);
+  delete next.durable_state_present;
+  delete next._healed;
+  delete next._heal_pending;
+  next.schema_version = STATE_SCHEMA_VERSION;
+  next.playbook = "";
+  next.current_node = "";
+  next.execution_id = "";
+  next.execution_started_at = "";
+  next.run_version = "";
+  next.nodes = preserveReservedNodes(next.nodes);
+  next.playbook_stack = [];
+  next.continuation_target_version = targetVersion;
+  startPlaybook(next, "create-deck", { runVersion: targetVersion });
+  next.current_node = "author-target-page-authority-content";
+
+  const at = nowIso();
+  writeState(deckDir, next, { expectedStateSha: stateSha, updatedAt: at });
+  appendHistory(deckDir, {
+    type: "page_authority_clean_target_draft_activated",
+    source_version: sourceVersion,
+    target_version: targetVersion,
+    workflow: targetPipeline.workflow,
+    at,
+  });
+  return Object.freeze({
+    ok: true,
+    source_version: sourceVersion,
+    target_version: targetVersion,
+    workflow: targetPipeline.workflow,
+    current_node: next.current_node,
+  });
 }
 
 // Progressive raw facts remain exclusively in the append-mostly raw owner.

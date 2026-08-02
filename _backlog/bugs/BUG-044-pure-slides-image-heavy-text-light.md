@@ -1,6 +1,16 @@
 # BUG-044: Pure 页面图多字少（BODY 正文从未送达模型，图文比例先天失衡）
 
-> 严重级别: P0 | 发现: 2026-08-02 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-08-02 | 状态: 待真实 run 验收（本地契约与 source 迁移完成：2026-08-03）
+
+## 当前复核
+
+Pure 的 `BODY` 通道和 workflow-aware text clauses 已由
+`pure-text-delivery-and-nn-production-naming` 落地。2026-08-03 对指定 v7 的官方 source
+validation 得到 25/25 非空 `BODY` 与 25/25 非空 `VISUAL SCENE`，因此正文不再在 source
+解析阶段丢失。
+
+这只证明模型会收到完整文本事实；未授权 provider 前无法证明模型实际排版出的图文比例。
+v7 的 raw generation、review 和最终人类视觉验收仍是关闭本卡的必要条件。
 
 ## 症状
 
