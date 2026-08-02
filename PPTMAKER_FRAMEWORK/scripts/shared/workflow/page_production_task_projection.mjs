@@ -12,21 +12,20 @@ import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { pageAuthorityProgressiveRawPaths } from "../run-bundle/page_authority_paths.mjs";
 import {
   STATE_DIR,
-  readState,
   readTargetProgressiveControllerDecision,
   readTargetProgressiveHandoff,
 } from "../state/state.mjs";
 import {
-  buildPlaybookIndex,
-  controllerActiveNodeIds,
-  validatePlaybookIndex,
-} from "../state/md_controller_reader.mjs";
+  progressiveControllerCheckpoint,
+  progressiveControllerTaskProjectionEligibility,
+} from "./progressive_controller_task_projection_eligibility.mjs";
 
 export const PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA = "page-production-task-projection-v1";
 export const PAGE_PRODUCTION_TASK_PROJECTION_FILE = "page-production-task-projection.md";
 
 const FRAMEWORK_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
-const TARGET_MODE = "image2-page-authority-v2";
+
+export { progressiveControllerCheckpoint } from "./progressive_controller_task_projection_eligibility.mjs";
 
 function requiredObject(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -47,58 +46,6 @@ function safeNote(value) {
   if (typeof value !== "string") return null;
   const normalized = value.replace(/[\r\n\t]+/g, " ").trim().slice(0, 500);
   return normalized || null;
-}
-
-function currentController(state, runVersion, workflow, playbookDir) {
-  if (!state || state.replacement_required || state.corrupted) {
-    throw new Error("PROGRESSIVE_CONTROLLER_STATE_UNAVAILABLE");
-  }
-  if (state.playbook !== "create-deck" || state.run_version !== runVersion || !state.execution_id) {
-    throw new Error("PROGRESSIVE_CONTROLLER_IDENTITY_MISMATCH");
-  }
-  const index = buildPlaybookIndex(playbookDir);
-  if (!validatePlaybookIndex(index).valid) throw new Error("PROGRESSIVE_CONTROLLER_MANIFEST_INVALID");
-  const active = controllerActiveNodeIds(index, "create-deck", TARGET_MODE, workflow);
-  if (!active.includes(state.current_node)) throw new Error("PROGRESSIVE_CONTROLLER_NODE_MISMATCH");
-  return Object.freeze({ active, current_node: state.current_node });
-}
-
-function batchStage(inspection) {
-  return inspection?.evidence_summary?.latest_batch?.kind === "expansion" ? "expansion" : "pilot";
-}
-
-/** Map one owner-issued action to the selected workflow's declared Controller node. */
-export function progressiveControllerCheckpoint(inspection) {
-  const inspected = requiredObject(inspection, "workflow inspection");
-  const summary = requiredObject(inspected.evidence_summary, "workflow inspection evidence summary");
-  const workflow = ["framed", "pure"].includes(summary.workflow) ? summary.workflow : null;
-  if (!workflow) throw new Error("PROGRESSIVE_CONTROLLER_WORKFLOW_REQUIRED");
-  const action = requiredObject(inspected.primary_action, "workflow inspection primary action");
-  const stage = batchStage(inspected);
-  const suffix = `target-${workflow}`;
-  const nodeByAction = {
-    plan_progressive_raw_work: `plan-${suffix}-progressive-raw`,
-    plan_progressive_pilot: `recommend-${suffix}-pilot`,
-    authorize_progressive_raw_batch: `authorize-${suffix}-${stage}`,
-    generate_progressive_raw_item: `generate-${suffix}-${stage}`,
-    prepare_progressive_pilot_review: `review-${suffix}-pilot`,
-    accept_progressive_pilot: `review-${suffix}-pilot`,
-    plan_progressive_expansion: `plan-${suffix}-expansion`,
-    prepare_progressive_raw_review: `review-${suffix}-raw`,
-    accept_progressive_raw_review: `review-${suffix}-raw`,
-    publish_target_final_manifest: `publish-${suffix}-final-manifest`,
-    "deliver-target-page-authority": "deliver-target-page-authority",
-    "review-target-page-authority-delivery": "review-target-page-authority-delivery",
-    "complete-target-delivery": "complete-target-page-authority-iteration",
-  };
-  return Object.freeze({
-    workflow,
-    controller_node: nodeByAction[action.action_id] || null,
-    owner: typeof action.owner === "string" ? action.owner : "progressive-raw-owner",
-    action_id: typeof action.action_id === "string" ? action.action_id : "rebuild_progressive_raw_work",
-    kind: typeof action.kind === "string" ? action.kind : "repair",
-    requires_human: action.requires_human === true,
-  });
 }
 
 function boundedProgress(progress) {
@@ -183,8 +130,9 @@ function humanHandoffs(runDir, workflow, inspection, handoff) {
 function projectionPayload({ runDir, inspection, state, playbookDir }) {
   const paths = pageAuthorityProgressiveRawPaths(runDir);
   const summary = requiredObject(inspection.evidence_summary, "workflow inspection evidence summary");
-  const checkpoint = progressiveControllerCheckpoint(inspection);
-  const controller = currentController(state, paths.run_version, checkpoint.workflow, playbookDir);
+  const eligibility = progressiveControllerTaskProjectionEligibility({ runDir, inspection, state, playbookDir });
+  if (!eligibility.eligible) throw new Error(eligibility.reason);
+  const { checkpoint, controller } = eligibility;
   const handoff = readTargetProgressiveHandoff(paths.deck_root, { runDir });
   return Object.freeze({
     schema: PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA,
@@ -271,9 +219,9 @@ export function pageProductionTaskProjectionPath(runDir) {
  */
 export function refreshPageProductionTaskProjection({ runDir, inspection, state = null, playbookDir = FRAMEWORK_PLAYBOOK_DIR } = {}) {
   const resolvedRunDir = resolve(runDir || "");
-  const paths = pageAuthorityProgressiveRawPaths(resolvedRunDir);
-  const currentState = state || readState(paths.deck_root, { purpose: "observe", runDir: resolvedRunDir });
-  const payload = projectionPayload({ runDir: resolvedRunDir, inspection, state: currentState, playbookDir });
+  const eligibility = progressiveControllerTaskProjectionEligibility({ runDir: resolvedRunDir, inspection, state, playbookDir });
+  if (!eligibility.eligible) throw new Error(eligibility.reason);
+  const payload = projectionPayload({ runDir: resolvedRunDir, inspection, state: eligibility.state, playbookDir });
   const text = renderPageProductionTaskProjection(payload);
   const path = pageProductionTaskProjectionPath(resolvedRunDir);
   const current = existsSync(path) ? readFileSync(path, "utf8") : null;

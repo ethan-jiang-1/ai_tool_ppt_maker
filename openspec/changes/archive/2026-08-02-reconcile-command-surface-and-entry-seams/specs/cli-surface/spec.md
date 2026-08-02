@@ -2,21 +2,23 @@
 
 ### Requirement: CLI observation does not mutate authority or invoke providers
 
-Plain `status` and every `state --validate-state` observation SHALL consume the
-read-only inspection path and SHALL not write source, durable state, history,
+Plain `status` SHALL consume its read-only workflow-inspection path, while
+every `state --validate-state` observation SHALL retain its direct read-only
+state/evidence validator. Neither SHALL write source, durable state, history,
 journals, metadata, receipts, grants, attempts, authorizations, or generated
-artifacts, nor invoke a provider. Text `state` and `state --json` SHALL also
-consume that same inspection path before any presentation adaptation.
+artifacts, nor invoke a provider. Text `state` and `state --json` SHALL consume
+the workflow-inspection path before any presentation adaptation.
 
-For one exact active progressive Page Authority Controller route only, text
-`state` and `state --json` MAY atomically rebuild
+For one exact active progressive Page Authority Controller route only, normal
+text `state` and `state --json` MAY atomically rebuild
 `_state/page-production-task-projection.md` after inspection. This is an
 authority-read-only collaboration projection, not an authority mutation. The
-response SHALL report `task_projection.status` as `created`, `updated`,
-`current`, or `not-applicable` in JSON and an equivalent text line. A
-non-applicable route SHALL not create the card. The card itself SHALL not be
-used to authorize cost, select a lifecycle action, prove evidence, or resume
-work.
+two normal state responses SHALL report `task_projection.status` as `created`,
+`updated`, `current`, or `not-applicable` in JSON and an equivalent text line.
+`status` and `state --validate-state` SHALL neither invoke the projection
+writer nor render a task-projection status. A non-applicable normal state route
+SHALL not create the card. The card itself SHALL not be used to authorize cost,
+select a lifecycle action, prove evidence, or resume work.
 
 #### Scenario: Observation sees a repairable fact
 
@@ -32,11 +34,17 @@ work.
 - **AND** snapshots show no authority source, state, receipt, grant, attempt,
   authorization, history, or generated artifact change
 
-#### Scenario: Other observations are genuinely zero-write
+#### Scenario: Ineligible normal state does not write a card
 
-- **WHEN** `status`, `state --validate-state`, or state for a non-applicable
-  route runs
-- **THEN** it reports no collaboration projection refresh or `not-applicable`
+- **WHEN** text `state` or `state --json` runs for a non-applicable route
+- **THEN** it reports `task_projection.status: "not-applicable"`
+- **AND** it writes no card or authority artifact and invokes no provider
+
+#### Scenario: Zero-write observations do not render a projection status
+
+- **WHEN** `status` or `state --validate-state` runs
+- **THEN** it preserves its existing read-only observation/validation report
+  without a task-projection status
 - **AND** it writes no card or authority artifact and invokes no provider
 
 ## ADDED Requirements

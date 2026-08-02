@@ -11,8 +11,8 @@ authoring uses `page-authority-image2-v2` /
 `image2-page-authority-v2`, and target nodes declare one or both
 `production_workflows: [framed|pure]`. The selected workflow route is
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`; `05` nodes
-apply to both workflows without semantic branching. The exact v1 pair remains
-an existing-run compatibility route.
+apply to both workflows without semantic branching. A non-v2 source/state pair
+is a byte-preserving `unsupported-protocol/export` hard-stop.
 
 Node IDs are global kebab-case. Entry and exit conditions must be explicit,
 ordered, and satisfiable from current source/state evidence. A node cannot use
@@ -40,11 +40,11 @@ and delivery references. Unknown or retired node/evidence records fail closed.
 
 ## Inspection
 
-Inspection returns one v2 workflow action for an exact target pair, one
-workflow-selection confirm for a fresh v2 draft, or one bounded v1 compatibility
-action for an exact v1 pair. An explicitly supplied historical pair returns one
-provider-free adoption or repair/export action. Inspection never produces a
-historical cursor, approval, provider request, or adapter.
+Inspection returns one v2 workflow action for an exact target pair or one
+workflow-selection confirm for a fresh v2 draft. A non-v2, partial, hybrid, or
+mismatched pair returns the owner-issued `unsupported-protocol/export` action.
+Inspection never produces a historical cursor, approval, provider request, or
+adapter.
 
 ## Structural requests
 

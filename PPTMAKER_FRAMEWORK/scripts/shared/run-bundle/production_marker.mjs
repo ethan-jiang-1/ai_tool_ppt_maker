@@ -30,9 +30,8 @@ export function isTargetWorkflowSelectionPending(marker) {
 }
 
 /**
- * Read a direct Page Authority frontmatter marker. Historical marker parsing
- * remains exclusively in the observer module so it cannot become production
- * input through this seam.
+ * Read a direct Page Authority frontmatter marker. Non-v2 marker shapes are
+ * rejected here so they cannot become production input through this seam.
  */
 export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
   const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");

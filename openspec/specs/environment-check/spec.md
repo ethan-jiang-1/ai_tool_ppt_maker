@@ -81,18 +81,52 @@ When none is set, `image_base_url` SHALL be **`fail`** and the Image2-mode verdi
 
 ### Requirement: Structured READY/NOT READY output
 
-The env check SHALL output a structured report with per-check status and an overall verdict for the selected mode. Exit 0 on READY and non-zero on NOT READY. The direct `--json` form SHALL retain the existing `env-check-v1` top-level booleans and generic check-array contract; it SHALL not expose secrets or add a second incompatible report schema. Every accepted JSON combination, including `--image2`, `--smoke`, and `--probe-vendors`, SHALL emit exactly one parseable JSON document on stdout. Live heartbeat, progress, and human Summary text SHALL be sent to stderr or represented inside structured check evidence, never prepended/appended to stdout JSON. Human text SHALL make clear whether it reports base readiness or Image2 readiness.
+The env check SHALL output a structured report with per-check status and an
+overall verdict for the selected Page Authority mode and operation. It SHALL
+exit 0 on READY and non-zero on NOT READY. The direct `--json` form SHALL
+retain the existing `env-check-v1` top-level booleans and generic check-array
+contract; it SHALL not expose secrets or add a second incompatible report
+schema. Every accepted JSON combination SHALL emit exactly one parseable JSON
+document on stdout. Live heartbeat, progress, and human Summary text SHALL be
+sent to stderr or represented inside structured check evidence, never
+prepended/appended to stdout JSON. Human text SHALL make clear whether it
+reports local or raw-generation readiness.
+
+Direct `env-check --help` SHALL list only parser-accepted arguments:
+`--json`, `--mode <mode>`, `--operation <operation>`, `--smoke`, and
+`--probe-vendors`. `--image2` is retired and SHALL be rejected with the
+operation-scoped replacement. `--operation` SHALL require the current Page
+Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
 
 #### Scenario: Output format
 
-- **WHEN** all checks selected by the invocation pass → output ends with "READY", exit 0
-- **WHEN** any selected hard check fails → output ends with "NOT READY", lists all failures, exit non-zero
+- **WHEN** all checks selected by the invocation pass
+- **THEN** output ends with `READY` and exits 0
+
+- **WHEN** any selected hard check fails
+- **THEN** output ends with `NOT READY`, lists all failures, and exits non-zero
 
 #### Scenario: JSON compatibility is preserved
 
-- **WHEN** direct `env-check --json` runs in base or Image2 mode
+- **WHEN** direct `env-check --json` runs for a supported local or
+  raw-generation operation
 - **THEN** the report remains valid under `env-check-v1`
-- **AND** mode-specific behavior is represented by the checks included and existing `smoke`/`probeVendors` booleans rather than a duplicate diagnostic schema
+- **AND** mode-specific behavior is represented by included checks and existing
+  live-probe booleans rather than a duplicate diagnostic schema
+
+#### Scenario: Direct help and parser agree
+
+- **WHEN** a user reads direct `env-check --help` or passes a documented form
+- **THEN** every advertised flag is accepted by the parser with its documented
+  mode/operation constraints
+- **AND** no help or active documentation advertises `--image2`
+
+#### Scenario: Retired Image2 flag is rejected safely
+
+- **WHEN** a user passes direct `env-check --image2`
+- **THEN** it returns a bounded usage diagnostic naming the operation-scoped
+  replacement
+- **AND** it starts no provider work or lifecycle operation
 
 #### Scenario: Live JSON stdout remains parseable
 
@@ -102,7 +136,18 @@ The env check SHALL output a structured report with per-check status and an over
 
 ### Requirement: Optional --smoke performs one live credential probe
 
-`env-check.mjs` SHALL accept `--smoke`. `--smoke` SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL perform exactly one minimal live Image2 POST attempt against the **first** vendor from `resolveVendors`. The diagnostic request SHALL disable automatic redirect following and SHALL NOT retry a redirect, transient response, timeout, or ambiguous network failure. Success SHALL be an extractable image ref **or** a task id, using the same exported extract helpers as the client (no forked parser). Full async image completion is NOT required. Without `--smoke` and without `--probe-vendors`, env-check SHALL NOT make Image2 network calls. The zero-static-dependency startup contract remains; dynamic-importing sibling ESM after prerequisites pass is allowed.
+`env-check.mjs` SHALL accept `--smoke`. `--smoke` SHALL select
+raw-generation readiness for its diagnostic. After local and raw-generation
+presence checks pass, it SHALL perform exactly one minimal live Image2 POST
+attempt against the **first** vendor from `resolveVendors`. The diagnostic
+request SHALL disable automatic redirect following and SHALL NOT retry a
+redirect, transient response, timeout, or ambiguous network failure. Success
+SHALL be an extractable image ref **or** a task id, using the same exported
+extract helpers as the client (no forked parser). Full async image completion
+is NOT required. Without `--smoke` and without `--probe-vendors`, env-check
+SHALL NOT make Image2 network calls. The zero-static-dependency startup
+contract remains; dynamic-importing sibling ESM after prerequisites pass is
+allowed.
 
 #### Scenario: --smoke fails on bad credentials
 
@@ -129,12 +174,6 @@ The env check SHALL output a structured report with per-check status and an over
 - **THEN** it does not perform an Image2 network probe
 - **AND** the base browser smoke remains local-only
 
-#### Scenario: --smoke remains backward compatible
-
-- **WHEN** `env-check --smoke` runs without an explicit `--image2`
-- **THEN** Image2 presence checks and the first-vendor live probe still run
-- **AND** exactly one provider submit is attempted
-
 #### Scenario: --smoke redirect or ambiguous failure is not retried
 
 - **WHEN** the diagnostic POST receives a 307/308 redirect, times out, or fails with an ambiguous network error
@@ -143,36 +182,45 @@ The env check SHALL output a structured report with per-check status and an over
 
 ### Requirement: Optional --probe-vendors reports every Image2 channel
 
-`env-check.mjs` SHALL accept `--probe-vendors`, which SHALL imply Image2 mode. After base and Image2 presence checks pass, it SHALL make exactly one live POST attempt to **each** entry returned by `resolveVendors` in order (same success rule as `--smoke`: image ref or task id; no forked parser). Each diagnostic request SHALL disable automatic redirect following and SHALL NOT retry a redirect, transient response, timeout, or ambiguous network failure. The current `image-generation` SSOT continues to produce one canonical entry from `IMAGE2_API_KEY` plus `IMAGE2_BASE_URL`; this change SHALL NOT add an alternate multi-vendor credential schema. The loop SHALL nevertheless remain array-generic and be testable with injected multi-entry resolver output. It SHALL log `probing i/N` progress and per-vendor submit heartbeats consistent with the image client's wait contract. For each vendor it SHALL print `base_url`, `ok|fail`, `mode` (`sync`|`async`|`unknown`), `elapsed_s`, and a short `error` on failure — never API key values. After all probes it SHALL print a Summary (OK vs FAIL) with working vendors first sorted by ascending elapsed time; failed vendors appended in original relative order. Exit 0 if at least one vendor is OK; otherwise non-zero with an actionable failure path. It SHALL NOT write `.env` or `_lessons/`. If both `--smoke` and `--probe-vendors` are passed, the tool SHALL fail with a clear usage error. `--image2` MAY accompany either live flag without changing behavior.
+`env-check.mjs` SHALL accept `--probe-vendors`, which SHALL select
+raw-generation readiness. After local and raw-generation presence checks pass,
+it SHALL make exactly one live POST attempt to each entry returned by the
+current resolver in order, using the same success rule as `--smoke`: an image
+reference or task ID. Each diagnostic request SHALL disable automatic redirect
+following and SHALL not retry a redirect, transient response, timeout, or
+ambiguous network failure. The current credential source remains unchanged; the
+array-generic resolver behavior shall not introduce an alternate credential
+schema.
 
-#### Scenario: --probe-vendors lists per-vendor outcomes
+The report SHALL disclose the ordered total submission count before execution
+can be presented by an Agent for confirmation. It SHALL log bounded progress
+and per-channel results without API key values, list working channels first by
+ascending elapsed time followed by failed channels in original order, and exit
+0 only when at least one channel succeeds. It SHALL not write `.env`, a
+lesson, authorization, grant, attempt, receipt, or workflow state. Passing
+both live flags SHALL be a usage error.
 
-- **WHEN** the probe receives three ordered entries from the shared resolver (for example through the injected regression seam) and `--probe-vendors` runs
-- **THEN** output includes a result line for each vendor
-- **AND** exactly three provider submits are attempted
-- **AND** no API key values appear in the output
+#### Scenario: Probe lists every channel outcome
 
-#### Scenario: --probe-vendors exits non-zero when all fail
+- **WHEN** the resolver supplies three ordered entries and a confirmed
+  `--probe-vendors` invocation runs
+- **THEN** output includes one result per entry and exactly three provider
+  submissions occur
+- **AND** no credential value appears in the output
 
-- **WHEN** every vendor probe fails
-- **AND** `--probe-vendors` runs
-- **THEN** the process exits non-zero
+#### Scenario: Probe does not retry a channel
 
-#### Scenario: --smoke and --probe-vendors together are rejected
+- **WHEN** one channel returns a redirect, times out, or has an ambiguous
+  network failure
+- **THEN** that channel reports a failed result without a second POST attempt
+- **AND** later ordered channels are handled only by their own one permitted
+  attempt
+
+#### Scenario: Live flags cannot be combined
 
 - **WHEN** both `--smoke` and `--probe-vendors` are passed
-- **THEN** the process exits non-zero with a usage/mutual-exclusion error
-
-#### Scenario: --probe-vendors remains backward compatible
-
-- **WHEN** `env-check --probe-vendors` runs without explicit `--image2`
-- **THEN** Image2 presence checks and all-vendor probing still run
-
-#### Scenario: Probe does not retry a vendor
-
-- **WHEN** one resolver entry redirects, returns a transient 5xx, times out, or has an ambiguous network failure
-- **THEN** that entry is recorded as failed or unknown after one POST attempt
-- **AND** probing continues to the next resolver entry without retrying the failed entry
+- **THEN** the process exits non-zero with a bounded usage diagnostic
+- **AND** no provider submission occurs
 
 ### Requirement: Git safety observation is advisory, bounded, and scope-honest
 
@@ -274,3 +322,55 @@ source-validation failure.
 - **WHEN** doctor reports the current Framed runtime profile ready
 - **THEN** Framed plan verification and final composition validate against those same owned runtime/font identities
 - **AND** neither path constructs a competing readiness profile
+
+### Requirement: Direct environment check is a bounded recovery entry
+
+`ppt_flow doctor` SHALL remain the normal installed-framework diagnostic entry.
+Direct `scripts/00-setup/env-check.mjs` SHALL remain runnable before npm
+installation and SHALL be documented for pre-install recovery or an unavailable
+main entry. It MAY report bounded local or operation-scoped readiness, but it
+SHALL not locate a Deck, infer a run, create/resume a controller, begin a
+production workflow, or authorize provider work.
+
+Normal raw-generation readiness SHALL remain exact-run-bound through
+`ppt_flow doctor --run-dir <run-dir> --operation raw-generation`. Direct
+`env-check` MAY provide an unbound operation-scoped report only at its
+pre-install/unavailable-main-entry recovery boundary; that report is not a
+normal provider-readiness continuation and cannot substitute for exact-run
+validation.
+
+Default direct and unified doctor checks SHALL be offline. `--smoke` makes one
+live first-channel submission and `--probe-vendors` makes one submission per
+resolved channel; an Agent SHALL disclose that count and obtain the existing
+human confirmation before invoking either live form. Successful readiness or
+probe evidence SHALL not authorize a later production action.
+
+#### Scenario: Pre-install recovery stays available
+
+- **WHEN** framework npm dependencies are absent or the main entry cannot
+  start
+- **THEN** direct env-check reports bounded local prerequisites without loading
+  an unavailable production dependency at startup
+- **AND** it does not create a Deck or provider authorization
+
+#### Scenario: Default foundation check remains offline
+
+- **WHEN** a user requests local foundation readiness without a live probe
+- **THEN** the selected doctor path performs no provider network request
+- **AND** it reports a guide or owner-issued repair action rather than treating
+  readiness as production permission
+
+#### Scenario: Normal raw readiness requires its exact run
+
+- **WHEN** the installed `ppt_flow` entry is available and raw-generation
+  readiness is requested for normal work
+- **THEN** the check requires the exact run before the operation-scoped doctor
+  work begins
+- **AND** direct `env-check` is not presented as an unbound normal substitute
+
+#### Scenario: Live channel probe needs an explicit human boundary
+
+- **WHEN** an Agent offers smoke or all-channel diagnosis
+- **THEN** it states the exact maximum provider submission count and waits for
+  human confirmation before invocation
+- **AND** declining leaves offline evidence valid and makes zero live calls

@@ -2022,9 +2022,9 @@ export function readState(deckDir, opts = {}) {
     const targetAuthoringDraft = isTargetWorkflowSelectionPending(sourceMarker) &&
       parsed.value.pipeline === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE && draftRecord === undefined;
     if (!markerPipeline?.ok && !targetAuthoringDraft) {
-      // An inactive historical fixture may still name one visible run for a
-      // locator or observer. This is not a production-state read: the
-      // replacement fence remains true and no current adapter can use it.
+      // An inactive fixture may still name one visible run for the locator.
+      // This is not a production-state read: the replacement fence remains
+      // true and no current adapter can use it.
       const continuation = !parsed.value.playbook
         ? exactContinuationTargetVersion(parsed.value.continuation_target_version)
         : null;

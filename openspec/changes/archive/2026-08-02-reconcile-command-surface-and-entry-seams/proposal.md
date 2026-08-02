@@ -32,24 +32,26 @@ and novices.
   `RUN_BUNDLE.md` / exact-path locator boundary, never deck scanning or a
   latest-run guess.
 - Correct normal versus recovery entry guidance. `ppt_flow` remains the fixed
-  twelve-command normal interface; direct `env-check` remains pre-install or
-  unavailable-main-entry recovery only, and its help/docs must describe only
+  twelve-command normal interface; normal raw readiness stays exact-run-bound
+  under `ppt_flow doctor`, while direct `env-check` remains pre-install or
+  unavailable-main-entry recovery only. Its help/docs must describe only
   parser-accepted mode/operation forms. No new executable, `ppt work`, or
   generic dispatcher is added.
 - Preserve valid delegated diagnostic data from child producers and fail closed
   for invalid/truncated child output. The parent may add lineage but cannot
   replace a valid producer's bounded `next` action with a generic one.
 - Define the existing progressive task-card refresh precisely: `inspectWorkflow`
-  remains zero-write, while text `state` and `state --json` may refresh one
-  named rebuildable collaboration projection only for an exact active
-  progressive Controller route. The response exposes the projection result;
-  authority files remain unchanged, and `status` / `state --validate-state`
-  remain zero-write observations.
-- Reconcile active help, bootstrap and command guidance, current spec/config
-  pointers, test-tier wording, and retired Page Authority terminology with the
-  current owner contracts. Documentation examples must not recreate the
-  retired one-shot Image2 sequence or imply that observation/probing grants
-  provider authorization.
+  remains zero-write, while normal text `state` and `state --json` may refresh
+  one named rebuildable collaboration projection only for an exact active
+  progressive Controller route. Those two state renderings expose the
+  projection result; authority files remain unchanged, and `status` /
+  `state --validate-state` remain zero-write observations outside that
+  presentation path.
+- Reconcile active help, bootstrap, top-level onboarding, and command guidance,
+  current spec/config pointers, test-tier wording, and retired Page Authority
+  terminology with the current owner contracts. Documentation examples must
+  not recreate the retired one-shot Image2 sequence or imply that
+  observation/probing grants provider authorization.
 
 The change applies `openspec/policies/human-centered-gates.md`: local
 foundation checks are `guide`, explicitly requested live probes require
@@ -83,16 +85,18 @@ None.
 - `playbook-execution`: map work-change discovery to the existing classifier
   and leaf playbooks, and define the exact active-route eligibility of the
   rebuildable task projection.
-- `bootstrap-env-guidance`: replace fixed retired production sequences with
-  current owner/controller handoff guidance and aligned readiness disclosure.
+- `bootstrap-env-guidance`: replace fixed retired production sequences and
+  top-level onboarding drift with current owner/controller handoff guidance
+  and aligned readiness disclosure.
 - `image-production`: remove active retired Page Authority wording without
   changing Framed/Pure evidence, authorization, or ownership semantics.
 
 ## Impact
 
 - **Framework source:** `PPTMAKER_FRAMEWORK/playbook/intent-routes-v1.json`,
-  command/bootstrap/playbook documentation, the unified CLI and diagnostic
-  adapter, direct environment-check help, and process-contract audits.
+  command/bootstrap/playbook documentation, root onboarding, the unified CLI
+  and diagnostic adapter, direct environment-check help, and process-contract
+  audits.
 - **Tests:** focused contract/process coverage under `tests/`, with small
   representative integration coverage where the CLI/projection boundary needs
   it; affected mock E2E may be run, but no proposed test calls a real provider.

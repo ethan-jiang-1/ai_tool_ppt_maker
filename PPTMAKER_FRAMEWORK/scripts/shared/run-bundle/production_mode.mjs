@@ -1,9 +1,9 @@
 /**
  * Current Page Authority production policy.
  *
- * This module intentionally has one current vocabulary. Historical source and
- * state pairs belong to the read-only legacy observer; they cannot become a
- * policy, adapter, or state record through this interface.
+ * This module intentionally has one current vocabulary. Non-v2 source and
+ * state pairs cannot become a policy, adapter, or state record through this
+ * interface.
  */
 import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOWS } from "./production_marker.mjs";
 

@@ -12,6 +12,7 @@ import {
   CLI_NEXT_ACTIONS,
   EXECUTABLE_INVENTORY,
   PPT_FLOW_COMMAND_INVENTORY,
+  buildDelegatedDiagnostic,
   createChildOutputCollector,
   createCliNext,
   emitCliError,
@@ -256,13 +257,13 @@ describe("cli_error", () => {
       const commandProbeFile = "tests/contracts/test_retired_cli_surface.mjs";
       const commandProbeName = `ppt_flow ${entry} contextual behavior`;
       return [entry, {
-        help: focused("tests/contracts/test_retired_cli_surface.mjs", "exposes Page Authority commands only and fences a recognized historical run at adoption"),
-        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_retired_cli_surface.mjs", "exposes Page Authority commands only and fences a recognized historical run at adoption"),
+        help: focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes"),
+        usage: entry === "test" ? na("The no-argument test command has no command-specific usage failure.") : focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes"),
         contextual: focused(commandProbeFile, commandProbeName),
         delegated: delegatedCommands.has(entry) ? focused("tests/shared/cli/test_process_cli_error.mjs", "suppresses child failure prose") : na("Command does not delegate to a child process."),
         interruption: focused("tests/shared/cli/test_process_cli_error.mjs", "handles catchable interruption once"),
         prose_success: focused(commandProbeFile, `ppt_flow ${entry} success`),
-        json_success: ["status", "state", "image2"].includes(entry) ? focused("tests/contracts/test_retired_cli_surface.mjs", "exposes Page Authority commands only and fences a recognized historical run at adoption") : na("No documented JSON success mode."),
+        json_success: ["status", "state", "image2"].includes(entry) ? focused("tests/contracts/test_retired_cli_surface.mjs", "has no retired command and hard-stops non-v2 observation and execution without writes") : na("No documented JSON success mode."),
       }];
     }));
     expect(Object.keys(executableAudit).sort()).toEqual([...EXECUTABLE_INVENTORY].sort());
@@ -315,6 +316,69 @@ describe("cli_error", () => {
     expect(result.stderr).toBe("");
     expect(result.childError?.diagnostic).toMatchObject({ category: "artifact", subject: { id: "s03" } });
     expect(normalizeDelegatedExit(0, result.childError)).toBe(1);
+  });
+
+  it("preserves a valid delegated doctor producer action and fails closed otherwise", () => {
+    const child = parseCliErrorLine(JSON.stringify(formatCliError({
+      code: CLI_ERROR_CODES.FAILED,
+      message: "raw readiness is unavailable",
+      hint: "repair the selected environment prerequisite",
+      where: "env-check.raw-generation",
+      diagnostic: {
+        version: 1,
+        category: "environment",
+        stage: "foundation",
+        operation: "raw-generation-readiness",
+        subject: { kind: "environment", id: "raw-generation" },
+        source: { path: "PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs", line: 1 },
+        reason: { kind: "missing_credential" },
+        issues: [{ message: "Image provider credential is unavailable." }],
+        lineage: [{ kind: "script", path: "PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs", stage: "foundation" }],
+        next: createCliNext("repair_environment", {
+          default: "Configure the selected raw-generation environment, then rerun this exact readiness check.",
+          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-authority-v2", "--operation", "raw-generation"] },
+        }),
+      },
+    })));
+    const expected = child?.diagnostic;
+    const preserved = buildDelegatedDiagnostic({
+      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-authority-v2", "--operation", "raw-generation"] },
+      childError: child,
+      operation: "doctor",
+      next: createCliNext("inspect", { default: "Generic parent advice must not replace the producer action." }),
+    });
+    expect(preserved).toMatchObject({
+      category: expected?.category,
+      stage: expected?.stage,
+      operation: expected?.operation,
+      subject: expected?.subject,
+      source: expected?.source,
+      reason: expected?.reason,
+      issues: expected?.issues,
+      lineage: expected?.lineage,
+      next: expected?.next,
+      delegated: { invocation: { program: "node" }, child_where: "env-check.raw-generation" },
+    });
+
+    for (const [label, childError, overflow] of [
+      ["missing", null, false],
+      ["malformed", { ok: false, code: "FAILED", message: "CHILD_PROSE_SENTINEL", hint: "CHILD_PROSE_SENTINEL", where: "child" }, false],
+      ["truncated", child, true],
+    ]) {
+      const closed = buildDelegatedDiagnostic({
+        invocation: { program: "node", args: ["env-check.mjs"] },
+        childError,
+        overflow,
+        operation: "doctor",
+        next: createCliNext("inspect", { default: "CHILD_PROSE_SENTINEL" }),
+      });
+      expect(closed, label).toMatchObject({
+        category: "delegated",
+        next: { action: "report_internal", requires_human: false },
+      });
+      expect(JSON.stringify(closed), label).not.toContain("CHILD_PROSE_SENTINEL");
+      if (overflow) expect(closed, label).toMatchObject({ truncated: true });
+    }
   });
 
   it("replays successful child bytes and fails closed on overflow", () => {

@@ -740,23 +740,30 @@ export function normalizeDelegatedExit(rawCode, childError) {
 }
 
 export function buildDelegatedDiagnostic({ invocation, childError, category, stage, operation, next, overflow = false }) {
-  const child = childError?.diagnostic && hasSupportedCliDiagnostic(childError) ? childError.diagnostic : null;
+  // A complete child envelope is the producer for its own recovery action.
+  // Truncated capture cannot establish that the final child envelope is whole.
+  const child = !overflow && childError?.diagnostic && hasSupportedCliDiagnostic(childError)
+    ? childError.diagnostic
+    : null;
+  const delegated = {
+    invocation,
+    ...(childError?.code ? { child_code: childError.code } : {}),
+    ...(childError?.where ? { child_where: childError.where } : {}),
+  };
+  if (child) {
+    return sanitizeCliDiagnostic({
+      ...child,
+      delegated,
+      // Keep the exact child `next`; parent callers must not replace it.
+      next: child.next,
+    });
+  }
   return sanitizeCliDiagnostic({
     version: 1,
-    category: category || child?.category || "delegated",
-    ...(stage ? { stage } : child?.stage ? { stage: child.stage } : {}),
-    ...(operation ? { operation } : child?.operation ? { operation: child.operation } : {}),
-    ...(child?.subject ? { subject: child.subject } : {}),
-    ...(child?.source ? { source: child.source } : {}),
-    ...(child?.reason ? { reason: child.reason } : {}),
-    ...(child?.lineage ? { lineage: child.lineage } : {}),
-    ...(child?.issues ? { issues: child.issues } : {}),
-    delegated: {
-      invocation,
-      ...(childError?.code ? { child_code: childError.code } : {}),
-      ...(childError?.where ? { child_where: childError.where } : {}),
-    },
-    next: next || createCliNext("report_internal", {
+    category: "delegated",
+    ...(operation ? { operation } : {}),
+    delegated,
+    next: createCliNext("report_internal", {
       default: "Inspect the parent command and registered child boundary before retrying.",
     }),
     ...(overflow ? { truncated: true } : {}),

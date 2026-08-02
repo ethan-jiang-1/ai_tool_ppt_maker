@@ -4,9 +4,17 @@
 
 `PPTMAKER_FRAMEWORK/playbook/intent-routes-v1.json` SHALL define the
 versioned, audit-first discovery catalog independently of the Controller
-manifest. Every route SHALL contain `id`, `kind`, `required_context`, `entry`,
-`first_safe_step`, `risk_boundary`, `fallback`, and `visibility`. The catalog
-SHALL use only `foundation`, `work`, or `orientation` as `kind`, and only
+manifest. Its top-level object SHALL contain exactly `schema` with the literal
+value `pptmaker-intent-routes-v1` and `routes` as an array. Every route SHALL
+contain exactly `id`, `kind`, `required_context`, `entry`, `first_safe_step`,
+`risk_boundary`, `fallback`, and `visibility`. `id`, `entry`, and
+`first_safe_step` SHALL be non-empty strings; IDs SHALL be unique.
+`required_context` SHALL be an array of unique kebab-case context tokens and
+MAY be empty; it names information the Agent obtains or clarifies before
+leaving discovery, not a prerequisite for recognizing a user goal.
+`visibility` SHALL be a Boolean, where `true` makes the user goal eligible for
+novice rendering without exposing its route ID. The catalog SHALL use only
+`foundation`, `work`, or `orientation` as `kind`, and only
 `no-remote`, `confirm-live-diagnostic`, or `owner-issued-authorization` as
 `risk_boundary`.
 
@@ -29,6 +37,12 @@ orientation-env-recovery
 orientation-unrouted-intent
 ```
 
+Every initial route SHALL set `visibility: true`. `fallback` SHALL name another
+catalog ID or be `null` only for `orientation-unrouted-intent`; no fallback
+chain may cycle. `risk_boundary` SHALL express the strongest boundary a route
+can reach after its owner handoff, never authorization granted by route
+selection.
+
 `work-change` SHALL enter the existing change classifier; its four leaf routes
 SHALL enter the existing text, visual, notes, and structural playbooks. The
 catalog SHALL not parse natural language, contain shell command strings or
@@ -40,10 +54,10 @@ of relying on undocumented routing prose.
 #### Scenario: Catalog validates the public discovery surface
 
 - **WHEN** the checked-in catalog is validated
-- **THEN** every route has the required fields, supported enum values, and a
-  legal discovery fallback
+- **THEN** its top-level and route records have the exact required fields and
+  types, supported enum values, and a legal acyclic discovery fallback
 - **AND** every initial public route appears exactly once without a CLI command
-  string, hash, grant, or lifecycle-node sequence
+  string, hash, grant, lifecycle-node sequence, or route-granted authorization
 
 #### Scenario: Work-change leaves reuse existing lifecycle owners
 
@@ -65,7 +79,11 @@ one, discovery SHALL enter `orientation-locate-run` and request `RUN_BUNDLE.md`
 or an exact deck/run path. It SHALL not scan `deck_*`, infer a target from a
 name, timestamp, current directory, rendered artifact, or conversation memory.
 Foundation routes do not require a run except an owner-defined run-bound
-readiness operation.
+readiness operation. In particular, normal raw-generation readiness SHALL use
+an exact run through the owner-issued `ppt_flow doctor` operation. An unbound
+direct `env-check` operation-scoped report is available only through
+`orientation-env-recovery` when the main entry is unavailable or the framework
+is pre-install; it is not a normal foundation-provider-readiness continuation.
 
 An unrecognized request SHALL produce the non-persistent Route Gap through
 `orientation-unrouted-intent`. The Agent SHALL explain whether the smallest
@@ -87,6 +105,15 @@ attempt, history record, task projection, or selected-route record.
 - **THEN** the Agent requests the supported card or exact path through
   `orientation-locate-run`
 - **AND** it does not inspect production deck directories to guess a target
+
+#### Scenario: Normal raw readiness does not bypass the exact-run boundary
+
+- **WHEN** the installed normal entry is available and a user requests
+  raw-generation readiness without an exact run
+- **THEN** discovery establishes applicable local foundation and requests the
+  exact run before the normal raw-readiness operation
+- **AND** it does not present direct `env-check` recovery as an unbound normal
+  provider-readiness route
 
 #### Scenario: Route Gap has no durable side effect
 

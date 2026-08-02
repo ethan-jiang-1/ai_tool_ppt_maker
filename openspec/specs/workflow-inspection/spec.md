@@ -6,7 +6,13 @@ Define the read-only workflow-observation projection that gives MD Controllers a
 ### Requirement: Inspection is observation-only and not an authority
 Inspection SHALL perform zero state, history, metadata, generated-artifact, receipt, authorization, or source writes; it makes zero network/provider calls and shall not cache a verdict, heal state, migrate schema, or recover a journal. A repairable current direct fact is reported with its owning repair action. Mutation owners revalidate their direct source/CAS/authorization/receipt facts immediately before a write or submit and never treat an earlier inspection as authorization or freshness proof. A non-v2, absent, or ambiguous protocol remains byte-preserving and produces one bounded owner-issued unsupported-protocol or identity action, not a compatibility projection.
 
-Every controller-facing observation, including ppt_flow status and ordinary ppt_flow state projection, SHALL consume the same read-only inspection checkpoint or a direct read-only evaluator already used by that checkpoint. It SHALL NOT call a protocol receipt initializer, receipt writer, lifecycle operation, provider-facing adapter, or migration materializer merely to calculate a resume-card condition. An unavailable direct fact SHALL remain unavailable and produce the inspection owner's nearest legal action.
+Every controller-facing observation, including `ppt_flow status` and the
+inspection phase of ordinary `ppt_flow state`, SHALL consume the same read-only
+inspection checkpoint or a direct read-only evaluator already used by that
+checkpoint. It SHALL NOT call a protocol receipt initializer, receipt writer,
+lifecycle operation, provider-facing adapter, or migration materializer merely
+to calculate a resume-card condition. An unavailable direct fact SHALL remain
+unavailable and produce the inspection owner's nearest legal action.
 
 #### Scenario: Inspection observes a repairable current state without healing
 - **WHEN** inspection encounters a schema-5 state shape the owner could safely repair
@@ -101,3 +107,34 @@ title, task card, or generated artifact.
 - **WHEN** source or profile facts drift while the current head has a submitted attempt without a terminal outcome
 - **THEN** inspection returns that attempt's reconciliation action before full-plan rebuild or batch authorization
 - **AND** it does not treat a stale plan as permission to bypass, replace, or forget the paid attempt
+
+### Requirement: Inspection remains separate from collaboration projection refresh
+
+`inspectWorkflow({ runDir })` SHALL remain a zero-authority-write evaluator: it
+shall not create, refresh, inspect as input, or rely on a collaboration task
+projection. It SHALL return the direct owner facts and one nearest legal action
+for an exact run independently of whether a caller later renders a
+non-authoritative projection.
+
+Eligibility to rebuild `_state/page-production-task-projection.md` belongs to
+the Controller/CLI presentation boundary after that inspection, not to
+inspection itself. A card's presence, content, or absence SHALL not affect the
+inspection checkpoint, action, gate posture, evidence evaluation,
+authorization, or recovery route.
+
+#### Scenario: Inspection ignores a missing or stale card
+
+- **WHEN** an exact progressive run is inspected while its task projection is
+  absent, manually edited, or stale
+- **THEN** inspection returns the same direct owner action it would return
+  without that card
+- **AND** it creates, changes, and reads no task projection as lifecycle input
+
+#### Scenario: Projection cannot influence a hard-stop
+
+- **WHEN** inspection encounters an identity, evidence, authorization, or
+  recoverability hard-stop
+- **THEN** it returns the owning protected invariant and nearest recovery
+  action from direct facts
+- **AND** no card content can turn that result into resume, confirmation, or
+  authorization

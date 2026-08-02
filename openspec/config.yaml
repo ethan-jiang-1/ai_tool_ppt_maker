@@ -61,7 +61,7 @@ context: |-
 
   ## 技术栈与运行时铁律
 
-  Node.js 18+ ESM。主要依赖由 `package.json` 声明：`@napi-rs/canvas`、`pptxgenjs`、
+  Node.js 22.x、24.x 或 26.x ESM。主要依赖由 `package.json` 声明：`@napi-rs/canvas`、`pptxgenjs`、
   `jszip`、`commander`、`yaml`；HTTP 使用 Node 内置 `fetch`，测试使用 `vitest`。
   统一入口：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`。
 
@@ -130,7 +130,7 @@ context: |-
 
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
-  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/05-iteration/change-classifier.md` |
+  | `commands-reference` | 自然语言意图到 playbook / 命令 / 所有权路径的路由 | `COMMANDS.md`, `scripts/06-iteration/change-classifier.md` |
   | `cli-surface` | Registered direct CLI 的输出、诊断与 delegation 契约 | `scripts/shared/cli/cli_error.mjs`, `scripts/ppt_flow.mjs` |
   | `node-specification` | Node、State Schema、Gate condition 与 CLI consumer 协议 | `charter/NODE-SPEC.md`, `scripts/shared/state/state.mjs` |
   | `playbook-execution` | MD Controller、Entry/Exit Gate 与执行状态 | `playbook/*.md`, `scripts/shared/state/md_controller_reader.mjs`, `scripts/shared/state/state.mjs` |
@@ -140,7 +140,7 @@ context: |-
   | 层级 | 含义 |
   |------|------|
   | Lifecycle Phase | `0 → 1/2 → 2.7 → 3 → 4` 的端到端进程 |
-  | Method Module | `workflow/00-setup` 到 `workflow/05-iteration` 的方法论目录 |
+  | Method Module | `workflow/00-setup` 到 `workflow/06-iteration` 的方法论目录 |
   | Pipeline Stage | Stage 1–5 的确定性生产步骤 |
   | Playbook Node | MD Controller 中的执行节点 |
 

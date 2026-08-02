@@ -51,18 +51,31 @@ document with this minimal top-level shape:
 }
 ```
 
-Each route record uses exactly the eight agreed fields. `required_context` is a
-small list of stable context tokens such as `exact-run` or
-`failure-envelope`; `entry` and `first_safe_step` are stable discovery labels,
-not shell syntax or lifecycle node sequences. `fallback` is another catalog ID
-or `null`, which is permitted only for the terminal Route Gap. `visibility`
-controls whether a user-goal rendering is available; it does not expose a route
-ID or an owner implementation name to a novice.
+The top-level object has exactly `schema` and `routes`: the former is the exact
+string `pptmaker-intent-routes-v1`, and the latter is an array. Each route
+record has exactly the eight agreed fields. `id`, `entry`, and
+`first_safe_step` are non-empty strings; route IDs are unique. `kind` and
+`risk_boundary` use their closed enums. `required_context` is an array of
+unique, stable kebab-case context tokens and may be empty. `entry` and
+`first_safe_step` are discovery labels, not shell syntax or lifecycle node
+sequences. `fallback` is another catalog ID or `null`, which is permitted only
+for the terminal Route Gap; its graph is acyclic and terminates there.
+`visibility` is a Boolean: `true` makes a goal eligible for novice rendering
+without exposing its route ID or owner implementation name. Every route in the
+initial public inventory has `visibility: true`.
+
+`required_context` names information the Agent must obtain or clarify before
+leaving discovery; it is not a prerequisite for recognizing the user's goal.
+
+`risk_boundary` identifies the strongest confirmation or owner-authorization
+boundary that a route can reach after its discovery handoff. It never grants
+that boundary, and selecting a catalog record never authorizes a command,
+provider request, or mutation.
 
 | Route group | Required context | Entry / first safe step | Risk boundary |
 | --- | --- | --- | --- |
 | `foundation-local-runtime` | none | foundation / inspect local runtime | `no-remote` |
-| `foundation-provider-readiness` | selected operation when needed | foundation / establish applicable readiness | `no-remote` |
+| `foundation-provider-readiness` | selected operation; exact run for normal raw readiness | foundation / clarify operation and establish the applicable owner readiness | `no-remote` |
 | `foundation-channel-probe` | none | probe controller / disclose submit count | `confirm-live-diagnostic` |
 | `work-new` | none | new-deck / establish local foundation | `owner-issued-authorization` |
 | `work-resume` | exact run | resume / inspect exact run | `owner-issued-authorization` |
@@ -129,8 +142,13 @@ owner's ability to change exact Style Master or progressive raw steps later.
 
 The installed normal route remains the fixed twelve-command `ppt_flow`
 surface. Direct `env-check` remains intentionally narrow: pre-install recovery
-or unavailable-main-entry diagnosis. It can inspect operation-scoped readiness
-but cannot locate a Deck, initiate a Controller, or grant a production action.
+or unavailable-main-entry diagnosis. Normal raw-generation readiness is
+exact-run-bound under `ppt_flow doctor --run-dir <run-dir> --operation
+raw-generation`; a foundation request without that run does not turn into an
+unbound normal provider check. Only `orientation-env-recovery` may use direct
+`env-check` for an unbound operation-scoped report when that recovery boundary
+applies. It cannot locate a Deck, initiate a Controller, or grant a production
+action.
 
 Direct help will be generated/maintained from the parser's actual accepted
 forms, including `--mode` and `--operation`, and will remove retired
@@ -160,14 +178,15 @@ classifier or fallback menu.
 
 ### 6. Make the collaboration projection an explicit, narrow post-inspection writer
 
-`inspectWorkflow` remains fully zero-write. The `state` command first obtains
-its inspection result, then evaluates a small eligibility predicate: exact
-current v2 run, selected workflow, active `create-deck` Controller identity,
-and active progressive Controller node. Only then may it call the existing
-atomic task-projection writer. All other observations return
-`task_projection.status: "not-applicable"` without importing a writer.
+`inspectWorkflow` remains fully zero-write. Normal text `state` and
+`state --json` first obtain its inspection result, then evaluate a small
+eligibility predicate: exact current v2 run, selected workflow, active
+`create-deck` Controller identity, and active progressive Controller node.
+Only then may they call the existing atomic task-projection writer. An
+ineligible normal state rendering returns `task_projection.status:
+"not-applicable"` without importing a writer.
 
-The state response will always include:
+The two normal state renderings will always include:
 
 ```json
 { "task_projection": { "status": "created|updated|current|not-applicable" } }
@@ -175,14 +194,17 @@ The state response will always include:
 
 Text output will render the same status. The card remains derived from current
 inspection and typed handoffs, never read as control input. `status` and
-`state --validate-state` skip the eligibility/writer path entirely. This keeps
-the stated authority truth and the existing compatibility card behavior both
-visible, rather than falsely calling the latter a zero-write observation.
+`state --validate-state` skip the eligibility/writer and projection-status
+presentation paths entirely; the latter keeps its existing direct read-only
+state/evidence validator. This keeps the stated authority truth and the
+existing compatibility card behavior both visible, rather than falsely calling
+the latter a zero-write observation.
 
 ### 7. Align contracts and tests around current vocabulary
 
-Active `COMMANDS.md`, `BOOTSTRAP.md`, script help, current main specs, and
-config pointers will be reconciled with the fixed owner grammar. Retirement
+Active `COMMANDS.md`, `BOOTSTRAP.md`, root `README.md`, script help, current
+main specs, and config pointers will be reconciled with the fixed owner
+grammar and environment-check's current supported Node major set. Retirement
 cleanup changes active terminology only; archives retain their historical
 spelling unless a precise per-file exception is necessary. Test descriptions
 will distinguish core, focused, sweep, mock E2E, and real E2E. `ppt_flow test`
@@ -203,16 +225,20 @@ result crosses authorization, identity, integrity, or recovery boundaries.
 
 ## Verification Strategy
 
-- **Unit/contract:** validate catalog schema, closed route IDs, fallback graph,
-  risk boundaries, absence of command/hash/authorization content, and absence
-  of route persistence in every authority file/projection.
+- **Unit/contract:** validate the catalog's exact top-level and route shapes,
+  closed route IDs, fallback graph, risk boundaries, absence of
+  command/hash/authorization content, and absence of route persistence in
+  every authority file/projection. Route tests validate declared catalog and
+  Agent-guidance mappings; they do not add a natural-language runtime parser.
 - **Focused integration:** use temporary run-bundle fixtures to prove explicit
   change precedence, locator-only behavior, offline foundation, valid versus
-  invalid doctor delegation, and all four task-projection statuses while
-  snapshotting authority files.
+  invalid doctor delegation, and all four task-projection statuses from normal
+  text/JSON `state` while snapshotting authority files. `status` and
+  `state --validate-state` prove their zero-write paths without rendering a
+  projection status.
 - **Process/document checks:** compare top-level/family help with parser forms,
-  verify docs/config links and current terminology, and assert the novice table
-  plus verification-tier wording.
+  verify docs/config links, root onboarding, and current terminology, and
+  assert the novice table plus verification-tier wording.
 - **E2E:** run affected mock E2E only when the modified public boundary needs
   it; real E2E remains separately authorized and is not a default validation
   step. No new test makes a real provider call.

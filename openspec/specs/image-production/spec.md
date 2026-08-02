@@ -108,17 +108,19 @@ environment, or framework repair action before any Pilot decision is offered.
 
 ### Requirement: Pilot evidence preserves selected-workflow isolation
 
-The selected workflow adapter SHALL own the workflow-specific Pilot contribution.
-Pure Pilot evidence SHALL present the exact current raw full-page bytes with
-identity and plan/profile bindings and SHALL not invoke, import, or expose
-Framed composition, Text Frame, safe-zone, or underlay semantics. Shared
-production mechanics may validate generic coverage and labels but SHALL not
-decide Pilot visual quality for either workflow.
+The selected workflow adapter SHALL own the workflow-specific Pilot
+contribution. Pure Pilot evidence SHALL present the exact current raw image
+bytes as the selected workflow's content for all final pixels, with identity
+and plan/profile bindings, and SHALL not invoke, import, or expose Framed
+composition, Text Frame, safe-zone, or underlay semantics. Shared production
+mechanics may validate generic coverage and labels but SHALL not decide Pilot
+visual quality for either workflow.
 
 #### Scenario: Pure Pilot has no Framed semantics
 
 - **WHEN** a current Pure Pilot projection is prepared
-- **THEN** it contains exact full-page raw bytes and generic identity evidence only
+- **THEN** it contains exact current raw image bytes and generic identity
+  evidence only
 - **AND** no Framed compositor, safe-zone guide, or Text Frame contribution is used
 
 #### Scenario: Sibling workflow cannot publish Pilot evidence

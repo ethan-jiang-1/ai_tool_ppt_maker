@@ -110,6 +110,13 @@ main entry. It MAY report bounded local or operation-scoped readiness, but it
 SHALL not locate a Deck, infer a run, create/resume a controller, begin a
 production workflow, or authorize provider work.
 
+Normal raw-generation readiness SHALL remain exact-run-bound through
+`ppt_flow doctor --run-dir <run-dir> --operation raw-generation`. Direct
+`env-check` MAY provide an unbound operation-scoped report only at its
+pre-install/unavailable-main-entry recovery boundary; that report is not a
+normal provider-readiness continuation and cannot substitute for exact-run
+validation.
+
 Default direct and unified doctor checks SHALL be offline. `--smoke` makes one
 live first-channel submission and `--probe-vendors` makes one submission per
 resolved channel; an Agent SHALL disclose that count and obtain the existing
@@ -130,6 +137,14 @@ probe evidence SHALL not authorize a later production action.
 - **THEN** the selected doctor path performs no provider network request
 - **AND** it reports a guide or owner-issued repair action rather than treating
   readiness as production permission
+
+#### Scenario: Normal raw readiness requires its exact run
+
+- **WHEN** the installed `ppt_flow` entry is available and raw-generation
+  readiness is requested for normal work
+- **THEN** the check requires the exact run before the operation-scoped doctor
+  work begins
+- **AND** direct `env-check` is not presented as an unbound normal substitute
 
 #### Scenario: Live channel probe needs an explicit human boundary
 

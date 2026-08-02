@@ -1,8 +1,9 @@
 # Workflow Inspection Baseline
 
 Inspection is read-only. It projects one current Page Authority action, or one
-bounded adoption/repair action for a historical or corrupt pair. It never writes
-state, submits a provider request, or accepts generated artifacts as authority.
+bounded owner-issued hard-stop for a non-v2, partial, hybrid, missing, or corrupt
+pair. It never writes state, submits a provider request, or accepts generated
+artifacts as authority.
 
 | Journey | Direct facts | Expected primary action | Writes / remote work |
 | --- | --- | --- | --- |
@@ -11,7 +12,7 @@ state, submits a provider request, or accepts generated artifacts as authority.
 | Pure or raw-contract refresh | source and raw evidence | raw planning/authorization owner | 0 / 0 |
 | Notes refresh | final manifest and assembly receipt | notes owner | 0 / 0 |
 | Structural versioning | stable IDs, order, preview receipt | preview or exact-hash apply owner | 0 / 0 |
-| Recognized historical pair | exact source/state observer facts | provider-free adoption preparation | 0 / 0 |
+| Non-v2, partial, hybrid, or mismatched pair | direct source/state prerequisites | unsupported-protocol/export owner | 0 / 0 |
 | Missing or corrupt pair | direct source/state prerequisites | repair or export owner | 0 / 0 |
 | Interrupted transaction | journal and owner binding | recovery owner | 0 / 0 |
 
