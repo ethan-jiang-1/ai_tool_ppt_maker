@@ -25,11 +25,11 @@ _done/
 | 归档目录 | 数量 | Next ID |
 |---------|------|---------|
 | `_fixed_bugs/` | 33 | BUG-035 |
-| `_suspened_bugs/` | 0 | — |
+| `_suspened_bugs/` | 2 | — |
 | `_done_todos/` | 1 | DONE-002 |
 | `_closed_plans/` | 17 | CLS-018 |
 
-_（已修复 bug：BUG-001…014、BUG-016…034；BUG-015 仍活跃。已关闭 plan：CLS-001…017。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
+_（已修复 bug：BUG-001…014、BUG-016…034；BUG-015、035…037 仍活跃；BUG-038、039 悬挂。已关闭 plan：CLS-001…017。每次搬迁按 `../README.md` 的 ritual 更新对应计数与 Next ID。）_
 
 ---
 
