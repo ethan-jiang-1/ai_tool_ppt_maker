@@ -399,6 +399,7 @@ negative_constraints: []
 **VISUAL TYPE**: Concept Split
 **KICKER**: 信息加工链
 **TITLE**: 软件开发就是把需求一步步加工成代码。以前每个环节都是人。
+**BODY**: AI 没有职业边界——同时懂需求、能设计、会编码、会测试；接管中间加工后，人只有两个方向：往上游定义做什么（架构师、产品经理），或往下游做验收治理（Harness Engineer）。Build is cheap. Argument is expensive.
 
 **CONCEPT**:
 - **MUST communicate**: 软件开发是一条信息加工链(需求→分析→设计→编码→测试→部署→产品)。以前每个环节不只是一个「人」——经常是**不同的人**：需求分析师、架构师、程序员、测试工程师，各自有知识边界。链条长，很大一块是跨边界的沟通成本。AI 没有职业边界——它同时懂需求、能设计、会编码、会测试。所以它接管中间加工环节后,人只有两个方向:往上游定义"做什么"(架构师、产品经理),或往下游做验收治理(Harness Engineer)。"Build is cheap. Argument is expensive."
@@ -441,6 +442,7 @@ negative_constraints: []
 **VISUAL TYPE**: Concept Split
 **KICKER**: 人审不过来了
 **TITLE**: AI 一晚上写几千行代码。人还是那个速度在 review。
+**BODY**: 传统 SDLC 前提：人的信息吞吐恒定——一天几百行。AI 把这个前提也炸了：反馈周期从人-paced 变成 AI-paced。Fowler 重定义 Verified：不再是"你读过了"，是被测试、类型检查器、自动门禁检查过。
 
 **CONCEPT**:
 - **MUST communicate**: 传统 SDLC 默认"人的信息吞吐恒定"(一天几百行)。AI 把这个前提也炸了——反馈周期从人-paced 变成 AI-paced。核心瓶颈不是"写不够快",是"审不过来"。Fowler 重定义 Verified:不再是"你读过了",而是被测试、类型检查器、自动门禁检查过。
@@ -478,6 +480,7 @@ negative_constraints: []
 **VISUAL TYPE**: Framework
 **KICKER**: 从盯着到设护栏
 **TITLE**: Human-in-the-loop 变成 Human-on-the-loop。
+**BODY**: In-the-loop 逐行 review、不可扩展→On-the-loop 建护栏、AI 在框内自主。产出不满意时修的是 harness，不是 artifact。新工种：Supervisory Engineer / Harness Engineer / Middle Loop。Agents are not hard. The Harness is hard.
 
 **CONCEPT**:
 - **MUST communicate**: Kief Morris 框架——in the loop(人逐行 review,不可扩展)→ on the loop(人建护栏,AI 在框内自主)。产出不满意时,修的是 harness,不是 artifact。催生新工种:Supervisory / Harness Engineer / Middle Loop。"Agents are not hard. The Harness is hard."
@@ -519,6 +522,7 @@ negative_constraints: []
 **VISUAL TYPE**: Impact / Evidence
 **KICKER**: 中层最危险
 **TITLE**: AI 最先替代的不是不会写代码的人。是只会写代码的人。
+**BODY**: 初级意外安全（AI-native，LLM 是 24/7 导师）；中层真正危机（CRUD 与调试正是 AI 进步最快处，尚无架构判断力）；资深转向架构（Harness Engineer、Agent 编排者）。「中层，这是我最担心的。」— Kent Beck
 
 **CONCEPT**:
 - **MUST communicate**: Three-Tier Developer Split:初级意外安全(AI-native,LLM 是 24/7 导师);中层真正危机(CRUD/调试正是 AI 进步最快处,又没积累架构判断力);资深转向架构(Harness Engineer、Agent 编排者)。新稀缺能力是判断力与发现盲区。
@@ -556,6 +560,7 @@ negative_constraints: []
 **VISUAL TYPE**: Impact / Evidence
 **KICKER**: 激进重构
 **TITLE**: Block：废掉层级，一家公司只留三种人。
+**BODY**: Jack Dorsey 发"From Hierarchy to Intelligence"宣言，5 层管理压成 2–3 层，只留 IC 执行者、DRI 负责人、Player-Coach 球员教练；AI agent 做中间协调层接管信息传递与资源协调。结果：裁到 ~6000 人后 Q1 2026 毛利 +27%、Rule of 40=44。
 
 **CONCEPT**:
 - **MUST communicate**: Jack Dorsey 发布"From Hierarchy to Intelligence"宣言，把传统 5 层管理压成 2-3 层——组织里只留三种角色：IC（纯执行者）、DRI（项目直接负责人）、Player-Coach（既做技术又带团队，不允许纯管理者）。关键：AI agent 做中间协调层，替代传统管理者的"信息传递+资源协调"。**结果**：裁到 ~6000 人后，Q1 2026 仍跑出毛利 $2.91B（+27%）、Rule of 40 = 44；Goose 开源框架（GitHub 39K stars、捐给 Linux Foundation）成了行业基础设施。这是"人怎么协作"的一次激进重写，而且业绩没垮。
@@ -595,6 +600,7 @@ negative_constraints: []
 **VISUAL TYPE**: Impact / Evidence
 **KICKER**: 精准诊断
 **TITLE**: Cloudflare：一把尺，把所有人分成三种。
+**BODY**: Builder 建造者（AI 难替代·保留）、Seller 销售者（AI 难替代·保留）、Measurer 量度者（LLM 核心能力·重塑）。Prince 做法：Displacement, not reduction——裁量度者、创纪录扩招建造者。营收 +34% YoY，Workers 平台 550 万开发者仍在加速。这把尺任何组织都能拿去用。
 
 **CONCEPT**:
 - **MUST communicate**: Matthew Prince 用 Builder/Seller/Measurer 三分法（溯源 Drucker 1954：只有建造者和销售者产生成果，其余都是成本）重新定义组织里有哪几种人。Builders（创造产品）和 Sellers（获取客户）——AI 难替代；Measurers（测量/报告/协调/审核，如合规/财务/法务/中层管理/内审）——正是 LLM 核心能力，工作被 AI 重塑。Prince 的做法："Displacement, not reduction"——裁量度者、同时创纪录扩招建造者。**结果**：这么"换人"之后，营收 +34% YoY（超预期）、Workers 平台 550 万开发者且以 +100 万/季度加速——公司没缩，是换了副骨架继续长。这把尺任何组织都能拿去用。
@@ -633,6 +639,7 @@ negative_constraints: []
 **KICKER**: 换挡
 **TITLE**: 软件的故事讲完了。现在，轮到你的行业。
 **SUBTITLE**: 同一条信息加工链，只是换了名字
+**BODY**: 软件只是煤矿里的金丝雀——它先感觉到空气变了。方法论被挖、角色被重写、组织开始连锁反应。同一条信息加工链，现在轮到你的行业。
 
 **CONCEPT**:
 - **MUST communicate**: 一个明确的换挡信号——前半场讲的软件（SDLC）不是特例，而是"先行样本"；接下来把镜头从科技公司转向传统企业（BPM）。软件先经历的方法论、角色、组织三重重写，正沿着同一条信息加工链向所有行业蔓延。
@@ -670,6 +677,7 @@ negative_constraints: []
 **VISUAL TYPE**: Framework
 **KICKER**: 你们公司也在加工信息
 **TITLE**: 软件有 SDLC。你们公司有 BPM。两条完全同构的信息加工链。
+**BODY**: SDLC 需求→分析→设计→编码→测试→产品，BPM 业务信息→汇总→分析→审批→执行→决策——完全同构。BPM 有 40 年学术传承（1980s MIT→2026 Dagstuhl），18 位作者联合发表 Agentic BPM Manifesto，核心概念：Framed Autonomy。
 
 **CONCEPT**:
 - **MUST communicate**: 企业业务处理(BPM)与软件开发(SDLC)是完全同构的信息加工链:需求→…→代码 对应 业务信息→…→决策。方法论演进平行(瀑布→敏捷→AI-SDLC vs 泰勒→BPR→BPM→Agentic BPM)。BPM 有 40 年学术传承(1980s MIT → 2026 Dagstuhl),18 位作者发表 Agentic BPM Manifesto,核心概念 Framed Autonomy。
@@ -708,6 +716,7 @@ negative_constraints: []
 **KICKER**: 有框，才有真正的自主
 **TITLE**: Framed Autonomy = 人定边界。Agent 在框内可劲儿干。
 **SUBTITLE**: 框不是笼子——是让你敢放手的边界。
+**BODY**: 约束不是限制发挥——明确的边界让 Agent 敢放手干活。Operational Frame 规定执行序列（像 CI 管道）；Normative Frame 规定禁止行为（像编码规范）。框内砚·在想在写在验证，铸·在搭在连在跑。德国能源网 meter-to-cash 达 99% 成功执行率。框是信任，不是锁。
 
 **CONCEPT**:
 - **MUST communicate**: Dagstuhl 18 位作者定义 Framed Autonomy：通过对 Agent 的知识和目标施加限制来约束其自主性。关键是「约束」不等于「限制发挥」——恰恰相反，**明确的边界让 Agent 敢放手干活**。就像沙盒——因为知道什么不能碰，所以框内什么都能试。框内两个 Agent 性格完全不同：一个叫「砚」——安静地在写，写代码、写测试、写规范，沉稳精确；一个叫「铸」——狂野地在跑，连接设备、调动资源、跑流程，能量充沛。两种 Agent，同一个框。框外，人一只手轻轻搭在框边——不是紧张地扶着，是信任但关注。姿态是「框我设好了，你们尽情发挥」。两种框的类型：Operational Frame（规定执行序列——像 CI 管道，告诉你怎么走）和 Normative Frame（规定禁止行为——像编码规范，告诉你不许碰什么）。德国能源网 meter-to-cash 达 99% 成功执行率。BPM 叫 Framed Autonomy，SDLC 叫 AI Sandwich——同一件事。框是信任，不是锁。
@@ -750,6 +759,7 @@ negative_constraints: []
 **VISUAL TYPE**: Framework
 **KICKER**: 四层重构
 **TITLE**: 企业 IT 有四层。每一层都在被 AI 重写。
+**BODY**: 前端（Office/飞书/钉钉→Agent 基础设施，最被低估）；中端（Agentic Orchestration/ProcessOS，每个流程都是 legacy）；后端（CRM/ERP/HCM→Agent 调用的数据源）；治理（Agent 365/AI Control Tower，控制 Agent 身份权限=控制企业 AI）。四层同时重构，每层精确映射 SDLC。
 
 **CONCEPT**:
 - **MUST communicate**: 企业 IT 四层都在被重写,且每层与 SDLC 精确对应:前端(Office/飞书/钉钉→Agent 基础设施,最被低估,Nadella"第一个配置的资源是 Office")、中端(Agentic Orchestration/ProcessOS,Camunda"每个流程都是 legacy")、后端(CRM/ERP/HCM 变成 Agent 调用的数据源)、治理(Agent 365/AI Control Tower,控制 Agent 身份权限=控制企业 AI)。
@@ -787,6 +797,7 @@ negative_constraints: []
 **VISUAL TYPE**: Impact / Evidence
 **KICKER**: 唯一有独立第三方验证
 **TITLE**: Allianz「Project Nemo」——不是高举高打，是从最窄处跑通，再铺开。
+**BODY**: 1 个 planner「舵」调度 3 个专才 agent「核」「察」「算」——澳洲食品变质理赔，数天→数小时（−80%）；理赔员未裁，升为签核者。Maria Janssen："We scoped it intentionally." 巨头刻意缩到最窄高频低值场景先跑通、被独立第三方验证，再铺开。
 
 **CONCEPT**:
 - **MUST communicate**: 安联（Allianz，全球最大保险集团之一，传统金融巨头、非科技公司）的 Project Nemo 有两个突出点。① 结果与角色迁移：澳洲「食品变质理赔」场景，1 个 planner agent「舵」调度 3 个专才 agent——「核」（承保核对）、「察」（欺诈筛查）、「算」（赔付计算），处理时间从数天→数小时（-80%）；理赔员没被裁，从"逐单处理者"升格为"审 AI 结果、签字负责的签核者"(human-in-the-loop)。② 打法与洞察：首席转型官 Maria Janssen 原话 "We scoped it intentionally"——巨头没有全面铺 AI，而是刻意缩到又窄又高频、金额小(<AUD$500)、边界清楚的场景先跑通、先被独立第三方验证，再向外铺开。这是全 deck 唯一有独立媒体 + 独立评估机构双重佐证的案例。
@@ -830,7 +841,7 @@ negative_constraints: []
 **KICKER**: 情报先行
 **TITLE**: Maersk：130 年航运巨头，先建数字孪生，再让 AI 上船。
 **SUBTITLE**: 不是科技公司。是全球最大的集装箱航运公司。
-
+**BODY**: 跟 Allianz 不同路——Process Intelligence First：先建数字孪生，再叠 AI。Star Connect：700 艘船实时处理 25 亿 IoT 数据点，油耗 −9.2%、年省 $300M+。报关 AI：6000+ 商品码自动分类。Gemini 联盟 90% 准班率（行业 2x）。两条路，同一个结论——传统企业核心流程正在被 AI 重写。
 
 **CONCEPT**:
 - **MUST communicate**: Maersk（A.P. Moller-Maersk，1904 年丹麦创立）是全球最大航运集团，10 万员工、700+ 艘船、130 国运营。跟 Allianz 的「直建 agentic」不同，Maersk 走的是第二条路——**Process Intelligence First**：先建数字孪生、让流程可见，再叠 AI。最独特的约束：海上卫星带宽太贵，AI **必须在船上的边缘服务器跑**——Star Connect 平台在 700 艘船上实时处理 25 亿 IoT 数据点，油耗 -9.2%、年省 $300M+。信息加工链的一面：Trade & Tariff Studio 用 AI 做报关——6000+ 商品编码自动分类、关税计算、贸易合规监控，把海关文书处理从人工变成 AI-driven。Gemini 联盟（Maersk+Hapag-Lloyd）的航线网络本身就是 AI 优化的产物——90% 准班率，行业平均的 **两倍**。两条路，同一个目的地：AI 正在重写传统企业的核心流程。
@@ -871,6 +882,7 @@ negative_constraints: []
 **KICKER**: 两千年的结构
 **TITLE**: 组织金字塔不是「效率最高」。是「人是信息瓶颈」下的不得已。
 **SUBTITLE**: 罗马军团，公元 1 世纪。现代企业，公元 21 世纪。同一种结构。
+**BODY**: 一个 manager 只能有效沟通 7–15 人——金字塔不是效率最高，是"人是信息瓶颈"下的不得已。罗马军团 Legatus→Centurion→Decurion→Legionary，2000 年同一套逻辑。AI 是通才+沟通成本归零，纯搬运的中层理由消失了。Block 已在试：CEO 直接管 6000 人。
 
 **CONCEPT**:
 - **MUST communicate**: 一个 manager 只能有效沟通 7–15 人（管理版 Dunbar 数）——这是**纵向瓶颈**。还有一层**横向瓶颈**：人是窄专家，知识有边界。律师不懂工程，工程师不懂财务，所以组织必须切成部门，流程必须在不同专家之间接力。每一个接力点——翻译、对齐、确认——都是摩擦。层级 + 部门墙，不是「效率最高」，是人在两种约束下的不得已：沟通带宽有限，且知识边界固定。两千年没变过——罗马军团 Legatus → Centurion → Decurion → Legionary，指挥链一模一样；现代企业加上部门墙，横向纵向都是同一套逻辑。AI 同时打破两层：① 它是通才——没有职业边界，跨领域一步直通；② 它沟通成本接近零——瞬时对齐，不需要层层中转。还记得 Slide 05 吗——「以前给你换工具，这次给你一个搭档」。搭档能拆金字塔，不是因为更强，是因为这两个特质正好打在金字塔存在的两个理由上。纯做上传下达的中层 + 纯做跨边界搬运的流程环节，存在的理由一起消失了。Block 已在试——Dorsey 砍掉中间层，CEO 直接管 6000 人。不是理论，已经在发生。
@@ -911,6 +923,7 @@ negative_constraints: []
 **VISUAL TYPE**: Impact / Evidence
 **KICKER**: 量度者，不是建造者
 **TITLE**: 纯测量、报告、协调的岗位——不是裁掉，是重新定义。
+**BODY**: Builder 创造产品（AI 是工具），Seller 获取客户（人际不可替代），Measurer 测量/报告/协调（LLM 核心能力）。Measurer 不是被裁——质检员→AI 异常处理员、排产员→AI 排产审查员、成本会计→AI 成本决策者。三波冲击：productivity→communication→organization。
 
 **CONCEPT**:
 - **MUST communicate**: Cloudflare 的 Builder/Seller/Measurer 三分法可诊断任何组织:Builders(创造产品,AI 是工具)、Sellers(获取客户,人际不可替代)、Measurers(测量/报告/协调,正是 LLM 核心能力)。Measurers 不是被裁,是重新定义——质检员→AI 异常处理员、排产员→AI 排产审查员、成本会计→AI 成本决策者。三波冲击:productivity→communication→organization。
@@ -948,6 +961,7 @@ negative_constraints: []
 **VISUAL TYPE**: Concept Split
 **KICKER**: 不是互相借鉴，是融合
 **TITLE**: SDLC 和 BPM。两条河。正在汇成一条。
+**BODY**: 软件：前提被挖→人从操作者变委托人→Harness Engineering→组织极端扁平。企业 BPM：Framed Autonomy=AI Sandwich，Agentic BPM=Agentic SDLC，四层精确映射。同一套工具——Claude Code 上午写代码下午写报告；飞书/钉钉 CLI 化。不是互相借鉴，是收敛到同一 Agent 基础设施上。
 
 **CONCEPT**:
 - **MUST communicate**: SDLC 和 BPM 经历完全相同的路径——软件侧：前提被挖 → 人从操作者变委托人 → 方法论转向 Harness Engineering → 组织从中层密集变极端扁平；企业 BPM 侧完全一样：Framed Autonomy = AI Sandwich，Agentic BPM = Agentic SDLC，四层架构逐层精确映射。而且两边用同一套工具：Claude Code 上午写代码、下午写报告；飞书/钉钉 CLI 化让 office 变成 Agent 的 terminal。这不是"两个领域边界模糊",是它们在同一个 Agent 基础设施上收敛。
@@ -990,6 +1004,7 @@ negative_constraints: []
 **KICKER**: (none)
 **TITLE**: 外面都变了。你打算怎么变？
 **SUBTITLE**: 我今天没有结论。只有一个问题。
+**BODY**: 软件是煤矿里的金丝雀——方法论、角色、组织 5 个月被掀翻。你的行业也在加工信息：看文档、写邮件、填报表、走审批——AI 正在学会做这一切。软件是先行样本，你是下一个。
 
 **CONCEPT**:
 - **MUST communicate**: 软件开发是煤矿里的金丝雀——它先感觉到空气的变化。软件的方法论、角色、组织在 5 个月内被掀翻;你的行业也在加工信息(看文档、写邮件、填报表、走审批),AI 正在学会做这一切。软件是先行样本,你是下一个。收在一个开放问题,不给结论。
