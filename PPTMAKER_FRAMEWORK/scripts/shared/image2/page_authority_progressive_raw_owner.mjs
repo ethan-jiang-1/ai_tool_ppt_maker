@@ -1179,6 +1179,26 @@ function providerKnownFailure(error) {
   return Boolean(error?.progressive_raw_known_failure || error?.page_authority_known_failure || error?.known_failure);
 }
 
+function pageAuthorityKnownFailureFacts(error) {
+  const facts = error?.page_authority_known_failure_facts;
+  if (!error?.page_authority_known_failure || !facts || typeof facts !== "object" || Array.isArray(facts)) return null;
+  const actual = facts.actual;
+  if (facts.expected?.format !== "png" || facts.expected?.width !== 2000 || facts.expected?.height !== 1125 ||
+    !actual || typeof actual !== "object" || Array.isArray(actual)) return null;
+  const expected = Object.freeze({ format: "png", width: 2000, height: 1125 });
+  if (["empty", "invalid_png"].includes(actual.classification)) {
+    return Object.freeze({ expected, actual: Object.freeze({ classification: actual.classification }) });
+  }
+  if (actual.format === "png" && Number.isSafeInteger(actual.width) && actual.width > 0 &&
+    Number.isSafeInteger(actual.height) && actual.height > 0) {
+    return Object.freeze({
+      expected,
+      actual: Object.freeze({ format: "png", width: actual.width, height: actual.height }),
+    });
+  }
+  return null;
+}
+
 function providerResultKnownFailure(result) {
   return Boolean(result && typeof result === "object" && result.outcome === "known_failure");
 }
@@ -1236,7 +1256,16 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
         writeProgressiveRawItemAttempt(runDir, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record, attempt: terminal });
         const after = loadPlanByHead(runDir, workflow);
-        return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "known_failure", progress: after.progress, next_action: nextAction(after) });
+        const providerMedia = pageAuthorityKnownFailureFacts(error);
+        return Object.freeze({
+          plan_hash,
+          batch_hash,
+          item: candidate.record.slide_id,
+          outcome: "known_failure",
+          ...(providerMedia ? { provider_media: providerMedia } : {}),
+          progress: after.progress,
+          next_action: nextAction(after),
+        });
       }
       if (providerResultKnownFailure(result)) {
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });

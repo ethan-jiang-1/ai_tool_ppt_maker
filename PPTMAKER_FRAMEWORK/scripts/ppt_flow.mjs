@@ -25,6 +25,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { join, resolve, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { decode as decodePng } from "fast-png";
 import {
   CLI_ERROR_CODES,
   CLI_JSON_REPORT_SCHEMAS,
@@ -1679,6 +1680,47 @@ function imageBytesFromPageAuthorityProvider(payload) {
   return bytes;
 }
 
+const PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED = Object.freeze({
+  format: "png",
+  width: 2000,
+  height: 1125,
+});
+
+function pageAuthorityProviderMediaKnownFailure(actual) {
+  const error = new Error("Target Page Authority provider returned invalid PNG media");
+  error.code = "PAGE_AUTHORITY_PROVIDER_MEDIA_INVALID";
+  error.page_authority_known_failure = true;
+  error.page_authority_known_failure_facts = Object.freeze({
+    expected: PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED,
+    actual: Object.freeze(actual),
+  });
+  return error;
+}
+
+function targetPageAuthorityPngBytesFromProvider(payload) {
+  let bytes;
+  try {
+    bytes = imageBytesFromPageAuthorityProvider(payload);
+  } catch {
+    throw pageAuthorityProviderMediaKnownFailure({ classification: "empty" });
+  }
+  let decoded;
+  try {
+    decoded = decodePng(bytes, { checkCrc: true });
+  } catch {
+    throw pageAuthorityProviderMediaKnownFailure({ classification: "invalid_png" });
+  }
+  if (decoded.width !== PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED.width ||
+    decoded.height !== PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED.height) {
+    throw pageAuthorityProviderMediaKnownFailure({
+      format: "png",
+      width: decoded.width,
+      height: decoded.height,
+    });
+  }
+  return bytes;
+}
+
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
 export function targetPageAuthoritySubmitFactory(plan, {
   credentialResolver = null,
@@ -1770,7 +1812,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
       error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
       throw error;
     }
-    return imageBytesFromPageAuthorityProvider(payload);
+    return targetPageAuthorityPngBytesFromProvider(payload);
   };
 }
 

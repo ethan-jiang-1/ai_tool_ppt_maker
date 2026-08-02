@@ -16,11 +16,11 @@ import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_mast
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 
-function pngBytes(color) {
-  const canvas = createCanvas(2000, 1125);
+function pngBytes(color, width = 2000, height = 1125) {
+  const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
   context.fillStyle = color;
-  context.fillRect(0, 0, 2000, 1125);
+  context.fillRect(0, 0, width, height);
   return canvas.toBuffer("image/png");
 }
 
@@ -61,7 +61,7 @@ async function createFixture(title) {
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
-function pureSource() {
+function pureSource(firstTitle = "First exact Pure page") {
   return `---
 identity:
   scheme: mnemonic-v1
@@ -72,7 +72,7 @@ production:
 
 ## Slide 01: \`PureOne\`
 
-**TITLE**: First exact Pure page
+**TITLE**: ${firstTitle}
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -100,13 +100,13 @@ negative_constraints:
 `;
 }
 
-async function createPureFixture() {
+async function createPureFixture(firstTitle = "First exact Pure page") {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-pure-progressive-cli-"));
   const deck = join(root, "deck_pure_progressive_cli");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#265e74"));
-  writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
+  writeFileSync(join(runDir, "slide-specifications.md"), pureSource(firstTitle));
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
@@ -144,11 +144,16 @@ function runFlow(args, env = {}) {
   });
 }
 
-async function startMockProvider({ responseBytes = null } = {}) {
+async function startMockProvider({ responseBytes = null, responsePayload = null } = {}) {
   const calls = [];
   const server = createServer((request, response) => {
     calls.push({ method: request.method, url: request.url, idempotency_key: request.headers["idempotency-key"] || null });
     request.resume();
+    if (responsePayload !== null) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(responsePayload));
+      return;
+    }
     if (responseBytes) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ data: [{ b64_json: responseBytes.toString("base64") }] }));
@@ -180,6 +185,7 @@ function derivedPaths(paths) {
   return [
     paths.target_source_receipt,
     paths.target_raw_plan,
+    paths.target_provider_request_inspection,
     paths.target_raw_evidence,
     paths.target_raw_review,
     paths.target_raw_review_projection,
@@ -444,6 +450,168 @@ describe("target Page Authority CLI diagnostics", () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   }, 45_000);
+
+  it("surfaces a plan-bound inspection reference without leaking its prompt or transport", async () => {
+    const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+    const provider = await startMockProvider();
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      expect(plan.provider_request_inspection).toMatchObject({
+        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        plan_hash: plan.plan_hash,
+      });
+      const inspection = readFileSync(join(fixture.runDir, plan.provider_request_inspection.path), "utf8");
+      expect(inspection).toContain("PROMPT_LITERAL_SENTINEL");
+      expect(inspection).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(`${planned.stdout}${planned.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(0);
+
+      const rejected = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", "0".repeat(64),
+      ], provider.env);
+      const envelope = parseFailure(rejected);
+      expect(envelope.diagnostic).toMatchObject({ category: "artifact" });
+      expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(0);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("terminalizes invalid provider media before Pure or Framed raw evidence", async () => {
+    const cases = [
+      {
+        name: "empty",
+        responsePayload: { data: [{ b64_json: "" }], provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL" },
+        actual: { classification: "empty" },
+      },
+      {
+        name: "malformed",
+        responsePayload: {
+          data: [{ b64_json: Buffer.from("not a PNG PROVIDER_RESPONSE_BODY_SENTINEL").toString("base64") }],
+          provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        },
+        actual: { classification: "invalid_png" },
+      },
+      {
+        name: "wrong dimensions",
+        responsePayload: {
+          data: [{ b64_json: pngBytes("#397d93", 1600, 900).toString("base64") }],
+          provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        },
+        actual: { format: "png", width: 1600, height: 900 },
+      },
+    ];
+    for (const scenario of cases) {
+      const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+      const provider = await startMockProvider({ responsePayload: scenario.responsePayload });
+      try {
+        const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+        expect(planned.status, planned.stderr).toBe(0);
+        const plan = JSON.parse(planned.stdout);
+        const pilot = await runFlow([
+          "image2", "pilot", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--slide-id", "PureOne",
+          "--slide-id", "PureTwo",
+        ], provider.env);
+        expect(pilot.status, pilot.stderr).toBe(0);
+        const batch = JSON.parse(pilot.stdout).batch;
+        const authorized = await runFlow([
+          "image2", "authorize", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(authorized.status, authorized.stderr).toBe(0);
+
+        const generated = await runFlow([
+          "image2", "generate", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(generated.status, `${scenario.name}: ${generated.stderr}`).toBe(0);
+        expect(JSON.parse(generated.stdout)).toMatchObject({
+          item: "PureOne",
+          outcome: "known_failure",
+          provider_media: {
+            expected: { format: "png", width: 2000, height: 1125 },
+            actual: scenario.actual,
+          },
+          progress: { materialized: 0, known_failure: 1, unsubmitted: 1 },
+          next_action: { action_id: "generate_progressive_raw_item" },
+        });
+        expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
+        expect(provider.calls).toHaveLength(1);
+        const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+        expect(direct.materializations).toHaveLength(0);
+        expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+        expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+        expect(existsSync(join(fixture.paths.raw_root, "PureOne.png"))).toBe(false);
+      } finally {
+        await provider.close();
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+
+    const framed = await createFixture("Framed invalid media");
+    const provider = await startMockProvider({
+      responsePayload: {
+        data: [{ b64_json: pngBytes("#1f4d6e", 1600, 900).toString("base64") }],
+        provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+      },
+    });
+    try {
+      const planned = await runFlow(["image2", "plan", framed.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "FramGo",
+      ], provider.env);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = await runFlow([
+        "image2", "generate", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        item: "FramGo",
+        outcome: "known_failure",
+        provider_media: {
+          expected: { format: "png", width: 2000, height: 1125 },
+          actual: { format: "png", width: 1600, height: 900 },
+        },
+        progress: { materialized: 0, known_failure: 1 },
+        next_action: { action_id: "plan_progressive_pilot" },
+      });
+      expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(1);
+      const direct = readProgressiveRawPlanDirectRecords(framed.runDir, { plan_sha256: plan.plan_hash });
+      expect(direct.materializations).toHaveLength(0);
+      expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+      expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      expect(existsSync(join(framed.paths.raw_root, "FramGo.png"))).toBe(false);
+    } finally {
+      await provider.close();
+      rmSync(framed.root, { recursive: true, force: true });
+    }
+  }, 90_000);
 
   it("rejects retired and bypassing progressive forms before mutation or provider initialization", async () => {
     const fixture = await createPureFixture();

@@ -989,6 +989,71 @@ describe("progressive Page Authority raw owner", () => {
     }
   });
 
+  it("returns only bounded tagged Page Authority media facts without materializing rejected bytes", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+
+      const result = await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: async () => {
+          const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
+          error.page_authority_known_failure = true;
+          error.page_authority_known_failure_facts = {
+            expected: {
+              format: "png",
+              width: 2000,
+              height: 1125,
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+            actual: {
+              format: "png",
+              width: 1600,
+              height: 900,
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+          };
+          throw error;
+        },
+      });
+
+      expect(result).toMatchObject({
+        item: "Slide01",
+        outcome: "known_failure",
+        provider_media: {
+          expected: { format: "png", width: 2000, height: 1125 },
+          actual: { format: "png", width: 1600, height: 900 },
+        },
+        progress: { materialized: 0, known_failure: 1 },
+        next_action: { action_id: "plan_progressive_pilot" },
+      });
+      expect(JSON.stringify(result)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(records.materializations).toHaveLength(0);
+      expect(records.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+      expect(records.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reconciles an exact historical submitted attempt without advancing the current head", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan();

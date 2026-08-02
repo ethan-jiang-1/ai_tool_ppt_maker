@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import PptxGenJS from "pptxgenjs";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { pageAuthorityImage2Paths } from "../../shared/run-bundle/bundle_layout.mjs";
+import { addPageAuthorityOrdinalFooter } from "./page_authority_ordinal_footer.mjs";
 const PAGE_AUTHORITY_FINAL_MANIFEST_SCHEMA = "pptmaker-page-authority-final-manifest-v1";
 
 export const PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA = "pptmaker-page-authority-pptx-assembly-v1";
@@ -42,10 +43,12 @@ export async function assemblePageAuthorityPptx(runDir, { title = "Presentation"
   const input = validatePageAuthorityAssemblyInput(manifest, { sourceEpoch });
   const pptxPath = join(paths.final_root, "deck.pptx"); const temporary = `${pptxPath}.tmp-${process.pid}.pptx`;
   const pptx = new PptxGenJS(); pptx.layout = "LAYOUT_WIDE"; pptx.author = "PPT Maker Framework"; pptx.title = title;
-  for (const entry of input.entries) {
+  for (const [index, entry] of input.entries.entries()) {
     const path = join(paths.final_root, entry.path);
     if (!existsSync(path) || sha256(readFileSync(path)) !== entry.final_sha256) throw new Error(`final Page Authority PNG drifted for ${entry.slide_id}`);
-    pptx.addSlide().addImage({ path, x: 0, y: 0, w: 13.333333, h: 7.5 });
+    const slide = pptx.addSlide();
+    slide.addImage({ path, x: 0, y: 0, w: 13.333333, h: 7.5 });
+    addPageAuthorityOrdinalFooter(slide, index + 1);
   }
   try { await pptx.writeFile({ fileName: temporary }); renameSync(temporary, pptxPath); } catch (error) { rmSync(temporary, { force: true }); throw error; }
   const receipt = { schema: PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA, source_epoch: sourceEpoch, final_manifest_sha256: sha256(readFileSync(paths.final_manifest)), ordered_slide_ids: input.ordered_slide_ids, final_entries: input.entries.map((entry) => ({ slide_id: entry.slide_id, final_sha256: entry.final_sha256, finalization_fingerprint: entry.finalization_fingerprint })), pptx_path: relative(runDir, pptxPath).split("\\").join("/"), pptx_sha256: sha256(readFileSync(pptxPath)) };

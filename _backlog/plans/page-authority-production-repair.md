@@ -142,25 +142,38 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 以下清单是后续工作的唯一顺序索引。完成一项就将 `[ ]` 改为 `[x]`，并记录失败或新增
 发现；没有指定 run bundle 前，不执行第 2 和第 9 步。
 
-1. [ ] **建立 baseline（非 change）**：运行与 Page Authority 相关的无远端 fixture 回归，
+1. [x] **建立 baseline（非 change）**：运行与 Page Authority 相关的无远端 fixture 回归，
    记录 BUG-036/041/043/044 的当前契约结果；不修改 `_generated/`，不提交 provider 请求。
 2. [ ] **完成语义线验收（非 change）**：在用户指定的 run bundle 中，把每页真正要画的
    CONCEPT 内容提炼到 `VISUAL SCENE`，并为 Pure 页补齐需要上图的 `BODY`；这是内容工作，
    不是 framework 代码修改。
-3. [ ] **创建 Change 1 proposal**：以 `harden-page-authority-provider-boundary` 运行
+3. [x] **创建 Change 1 proposal**：以 `harden-page-authority-provider-boundary` 运行
    `openspec-propose`，生成 proposal、delta specs、design、tasks；先确认请求检查投影的
    secret-safe CLI 边界和错误 PNG 的 known-failure 语义。
-4. [ ] **实施并验证 Change 1**：完成 provider request 检查投影与入站 PNG 尺寸/格式校验；
+4. [x] **实施并验证 Change 1**：完成 provider request 检查投影与入站 PNG 尺寸/格式校验；
    用 Pure、Framed、损坏 PNG、错误尺寸和正常 PNG 的测试覆盖其边界。
-5. [ ] **归档 Change 1**：执行相关测试与 OpenSpec validation；通过后 archive，并把
+   验证于 2026-08-02：focused Page Authority 套件 53/53、直接 CLI 套件 7/7、`npm test`、
+   `openspec validate harden-page-authority-provider-boundary --strict` 与 `git diff --check` 均通过。
+5. [x] **归档 Change 1**：执行相关测试与 OpenSpec validation；通过后 archive，并把
    BUG-037、BUG-042 改为“待真实 run 验收”或关闭，取决于结果。
-6. [ ] **创建 Change 2 proposal**：以 `unify-page-ordinal-projections` 运行
+   2026-08-02：delta specs 已同步至 `image-generation` / `cli-surface` 主规格，Change 1
+   已归档为 `2026-08-02-harden-page-authority-provider-boundary`；两张卡均待指定真实 run 验收。
+6. [x] **创建 Change 2 proposal**：以 `unify-page-ordinal-projections` 运行
    `openspec-propose`，明确 `position` 的展示投影、内部 stable-ID 不变量、文件命名和 PPTX
-   页脚规则。
-7. [ ] **实施并验证 Change 2**：统一人类浏览的 raw / pilot / final 命名，给 PPTX 增加页脚；
+   页脚规则。2026-08-02：proposal、3 份 delta specs、design 与 tasks 已创建，strict validation
+   已通过。
+7. [x] **实施并验证 Change 2**：统一人类浏览的 raw / pilot / final 命名，给 PPTX 增加页脚；
    覆盖 1、10、100 页，以及仅重排页面时不重新生成 provider raw 的场景。
-8. [ ] **归档 Change 2**：执行相关测试、PPTX XML 断言和可读性检查；通过后 archive，并将
+   2026-08-02：focused artifact/raw-owner/Pure/Framed/delivery/process tests 与 `npm test`
+   通过；PPTX XML 断言通过。`soffice` / `libreoffice` 不可用，视觉 renderer 验收保留给
+   指定真实 run。
+8. [x] **归档 Change 2**：执行相关测试、PPTX XML 断言和可读性检查；通过后 archive，并将
    BUG-040、BUG-045 关闭或标成待真实 run 验收，同时确认 BUG-043 未回归。
+   2026-08-03：delta specs 已同步至 `image-generation`、`pptx-assembly` 与
+   `slide-identity-and-ordering` 主规格，Change 2 已归档为
+   `openspec/changes/archive/2026-08-03-unify-page-ordinal-projections/`；BUG-040、
+   BUG-043 与 BUG-045 均待指定真实 run 验收。PPTX XML 断言通过；本机无
+   `soffice` / `libreoffice`，视觉渲染验收保留给第 9 步。
 9. [ ] **真实 run 验收（非 change，需授权）**：对指定 run bundle 执行正确的 Generated Image
    Rebuild / delivery 重建；人类确认画面文字、场景表达、文件顺序和页脚。绝不手改
    `_generated/`，也不因验收而修改 framework 外的未指定 deck。

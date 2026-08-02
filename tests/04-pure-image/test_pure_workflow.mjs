@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { createAcceptedRawEvidence } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { prepareFramedProgressivePilotReview } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
@@ -203,6 +204,101 @@ negative_constraints:
     }
   });
 
+  it("writes a current Pure provider-request inspection sidecar without provider work", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-provider-request-inspection-"));
+    const deck = join(root, "deck_pure_provider_request_inspection");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = (title) => `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: ${title}
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+
+> **SPEAKER NOTE**: Provider request inspection is provider-free.
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Initial Pure inspection prompt"));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const initial = buildPureProgressiveTargetRawPlan(runDir);
+      const initialPlanHash = initial.progressive_raw_work_plan.sha256;
+      const paths = pageAuthorityImage2Paths(runDir);
+      const initialBytes = readFileSync(paths.target_provider_request_inspection);
+      const initialInspection = JSON.parse(initialBytes.toString("utf8"));
+      const initialRequest = initial.provider_requests_by_slide.DeckGo;
+
+      expect(initial.provider_request_inspection).toMatchObject({
+        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        plan_hash: initialPlanHash,
+      });
+      expect(initialInspection).toMatchObject({
+        schema: "page-authority-provider-request-inspection-v1",
+        progressive_raw_work_plan_sha256: initialPlanHash,
+        target_raw_work_plan_sha256: initial.raw_work_plan.sha256,
+        source_receipt_sha256: initial.receipt.source_sha256,
+        source_epoch: initial.source_epoch,
+        workflow: "pure",
+        provider_profile_sha256: initial.progressive_raw_work_plan.provider_profile_sha256,
+        transport: { model: initialRequest.generation_profile.provider.model, size: "2000x1125" },
+        ordered_slide_ids: ["DeckGo"],
+      });
+      expect(initialInspection.items).toEqual([{
+        slide_id: "DeckGo",
+        raw_contract_sha256: initial.progressive_raw_work_plan.items[0].raw_contract_sha256,
+        provider_request_sha256: canonicalJsonSha256(initialRequest),
+        prompt: JSON.stringify(initialRequest),
+      }]);
+      expect(JSON.stringify(initialInspection)).not.toMatch(/data:image|authorization|api[_-]?key/i);
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: initialPlanHash })).toMatchObject({
+        batches: [],
+        grants: [],
+        attempts: [],
+        materializations: [],
+      });
+
+      const replay = buildPureProgressiveTargetRawPlan(runDir);
+      expect(replay.provider_request_inspection).toEqual(initial.provider_request_inspection);
+      expect(readFileSync(paths.target_provider_request_inspection)).toEqual(initialBytes);
+
+      writeFileSync(join(runDir, "slide-specifications.md"), source("Replacement Pure inspection prompt"));
+      const replacement = buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild: true });
+      const replacementInspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
+      expect(replacement.progressive_raw_work_plan.sha256).not.toBe(initialPlanHash);
+      expect(replacement.provider_request_inspection).toMatchObject({
+        plan_hash: replacement.progressive_raw_work_plan.sha256,
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(replacement.provider_request_inspection.sha256).not.toBe(initial.provider_request_inspection.sha256);
+      expect(replacementInspection.source_receipt_sha256).not.toBe(initialInspection.source_receipt_sha256);
+      expect(replacementInspection.items[0]).toMatchObject({
+        provider_request_sha256: canonicalJsonSha256(replacement.provider_requests_by_slide.DeckGo),
+        prompt: JSON.stringify(replacement.provider_requests_by_slide.DeckGo),
+      });
+      expect(replacementInspection.items[0].prompt).toContain("Replacement Pure inspection prompt");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("compiles provider_clauses text and VISUAL SCENE into the Pure raw contract", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-scene-contract-"));
     const deck = join(root, "deck_pure_scene");
@@ -303,7 +399,7 @@ negative_constraints:
     const runDir = join(deck, "3_versions", "v1");
     const image = createCanvas(2000, 1125);
     image.getContext("2d").fillRect(0, 0, 2000, 1125);
-    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
+    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo", "LineGo", "RoleGo", "PathGo", "DataMap"];
     const source = `---
 identity:
   scheme: mnemonic-v1
@@ -333,7 +429,7 @@ negative_constraints:
 
       const plan = buildPureProgressiveTargetRawPlan(runDir);
       const planHash = plan.progressive_raw_work_plan.sha256;
-      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DataMap"] });
       await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
       const rawBytes = image.toBuffer("image/png");
       await generatePureProgressiveRawItem(runDir, {
@@ -354,14 +450,16 @@ negative_constraints:
       });
       const projection = JSON.parse(readFileSync(join(pilotRoot, "projection.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
-      expect(readFileSync(join(pilotRoot, "DeckGo.png"))).toEqual(rawBytes);
+      expect(readFileSync(join(pilotRoot, "10_DataMap.png"))).toEqual(rawBytes);
+      expect(existsSync(join(pilotRoot, "DataMap.png"))).toBe(false);
       expect(projection).toMatchObject({
         schema: "page-authority-pure-pilot-projection-v1",
         workflow: "pure",
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
-        items: [{ slide_id: "DeckGo" }],
+        items: [{ slide_id: "DataMap" }],
       });
+      expect(projection.items[0]).not.toHaveProperty("path");
       expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
       expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
       expect(existsSync(paths.target_final_manifest)).toBe(false);

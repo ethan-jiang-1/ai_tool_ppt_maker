@@ -465,7 +465,7 @@ negative_constraints:
 
       const paths = pageAuthorityImage2Paths(runDir);
       const previousEvidence = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
-      const previousRawBytes = readFileSync(join(paths.raw_root, "DeckGo.png"));
+      const previousRawBytes = readFileSync(join(paths.raw_root, "01_DeckGo.png"));
       const authorizationBefore = readState(deck, { purpose: "observe", runVersion: "v1" })
         .page_authority_raw_provider_authorization.by_version["3_versions/v1"];
       writeFileSync(join(runDir, "slide-specifications.md"), source("Updated heading"));
@@ -473,7 +473,7 @@ negative_constraints:
       const refreshed = await refreshFramedTargetText(runDir, { slideIds: ["DeckGo"] });
       expect(refreshed).toMatchObject({ ok: true, refreshed_slide_ids: ["DeckGo"], delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
       expect(providerSubmissions).toBe(1);
-      expect(readFileSync(join(paths.raw_root, "DeckGo.png"))).toEqual(previousRawBytes);
+      expect(readFileSync(join(paths.raw_root, "01_DeckGo.png"))).toEqual(previousRawBytes);
       const currentEvidence = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
       expect(currentEvidence).not.toEqual(previousEvidence);
       expect(currentEvidence.provider_authorization_sha256).toBe(previousEvidence.provider_authorization_sha256);
@@ -489,7 +489,7 @@ negative_constraints:
       const notes = await refreshFramedTargetNotes(runDir);
       expect(notes).toMatchObject({ ok: true, delivery: { receipt: { notes_injected: 1 } } });
       expect(providerSubmissions).toBe(1);
-      expect(readFileSync(join(paths.raw_root, "DeckGo.png"))).toEqual(previousRawBytes);
+      expect(readFileSync(join(paths.raw_root, "01_DeckGo.png"))).toEqual(previousRawBytes);
       expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(finalBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -535,6 +535,33 @@ negative_constraints:
 
       const initial = await buildFramedProgressiveTargetRawPlan(runDir);
       const initialPlanHash = initial.progressive_raw_work_plan.sha256;
+      const paths = pageAuthorityImage2Paths(runDir);
+      const initialInspectionBytes = readFileSync(paths.target_provider_request_inspection);
+      const initialInspection = JSON.parse(initialInspectionBytes.toString("utf8"));
+      const initialRequest = initial.provider_requests_by_slide.DeckGo;
+      expect(initial.provider_request_inspection).toMatchObject({
+        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        plan_hash: initialPlanHash,
+      });
+      expect(initialInspection).toMatchObject({
+        schema: "page-authority-provider-request-inspection-v1",
+        progressive_raw_work_plan_sha256: initialPlanHash,
+        target_raw_work_plan_sha256: initial.raw_work_plan.sha256,
+        source_receipt_sha256: initial.receipt.source_sha256,
+        source_epoch: initial.source_epoch,
+        workflow: "framed",
+        provider_profile_sha256: initial.progressive_raw_work_plan.provider_profile_sha256,
+        transport: { model: initialRequest.generation_profile.provider.model, size: "2000x1125" },
+        ordered_slide_ids: ["DeckGo"],
+      });
+      expect(initialInspection.items).toEqual([{
+        slide_id: "DeckGo",
+        raw_contract_sha256: initial.progressive_raw_work_plan.items[0].raw_contract_sha256,
+        provider_request_sha256: canonicalJsonSha256(initialRequest),
+        prompt: JSON.stringify(initialRequest),
+      }]);
+      expect(JSON.stringify(initialInspection)).not.toMatch(/data:image|authorization|api[_-]?key/i);
       const pilot = await planFramedTargetPilot(runDir, {
         planHash: initialPlanHash,
         slideIds: ["DeckGo"],
@@ -590,6 +617,7 @@ negative_constraints:
 
       const rebound = await buildFramedProgressiveTargetRawPlan(runDir);
       const reboundPlanHash = rebound.progressive_raw_work_plan.sha256;
+      const reboundInspection = JSON.parse(readFileSync(paths.target_provider_request_inspection, "utf8"));
       const reboundAccepted = readProgressiveAcceptedRawWork({
         runDir,
         workflow: "framed",
@@ -601,6 +629,16 @@ negative_constraints:
 
       expect(providerSubmissions).toBe(1);
       expect(reboundPlanHash).not.toBe(initialPlanHash);
+      expect(rebound.provider_request_inspection).toMatchObject({
+        path: initial.provider_request_inspection.path,
+        plan_hash: reboundPlanHash,
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(rebound.provider_request_inspection.sha256).not.toBe(initial.provider_request_inspection.sha256);
+      expect(reboundInspection.progressive_raw_work_plan_sha256).toBe(reboundPlanHash);
+      expect(reboundInspection.source_receipt_sha256).not.toBe(initialInspection.source_receipt_sha256);
+      expect(reboundInspection.items[0].provider_request_sha256)
+        .toBe(canonicalJsonSha256(rebound.provider_requests_by_slide.DeckGo));
       expect(rebound.progressive_raw_work_plan.source_epoch).toBe(initial.progressive_raw_work_plan.source_epoch);
       expect(rebound.progressive_raw_work_plan.source_receipt_sha256)
         .not.toBe(initial.progressive_raw_work_plan.source_receipt_sha256);
@@ -643,7 +681,7 @@ negative_constraints:
     const context = image.getContext("2d");
     context.fillStyle = "#1f4d6e";
     context.fillRect(0, 0, 2000, 1125);
-    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo"];
+    const slides = ["DeckGo", "FlowGo", "DataGo", "ToneGo", "FormGo", "GridGo", "LineGo", "RoleGo", "PathGo", "DataMap"];
     const source = `---
 identity:
   scheme: mnemonic-v1
@@ -674,7 +712,7 @@ negative_constraints:
 
       const plan = await buildFramedProgressiveTargetRawPlan(runDir);
       const planHash = plan.progressive_raw_work_plan.sha256;
-      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DeckGo"] });
+      const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DataMap"] });
       await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
       const rawBytes = image.toBuffer("image/png");
       await generateFramedProgressiveRawItem(runDir, {
@@ -690,15 +728,18 @@ negative_constraints:
       const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
       const projection = JSON.parse(readFileSync(join(pilotRoot, "projection.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
-      expect(readFileSync(join(pilotRoot, "raw-underlay", "DeckGo.png"))).toEqual(rawBytes);
-      expect(existsSync(join(pilotRoot, "text-frame-composite", "DeckGo.png"))).toBe(true);
+      expect(readFileSync(join(pilotRoot, "raw-underlay", "10_DataMap.png"))).toEqual(rawBytes);
+      expect(existsSync(join(pilotRoot, "text-frame-composite", "10_DataMap.png"))).toBe(true);
+      expect(existsSync(join(pilotRoot, "raw-underlay", "DataMap.png"))).toBe(false);
+      expect(existsSync(join(pilotRoot, "text-frame-composite", "DataMap.png"))).toBe(false);
       expect(projection).toMatchObject({
         schema: "page-authority-framed-pilot-projection-v1",
         workflow: "framed",
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
-        items: [{ slide_id: "DeckGo" }],
+        items: [{ slide_id: "DataMap" }],
       });
+      expect(projection.items[0]).not.toHaveProperty("path");
       expect(existsSync(paths.target_final_manifest)).toBe(false);
 
       const decision = await acceptFramedProgressivePilot(runDir, {
@@ -788,7 +829,7 @@ negative_constraints:
       await decideFramedTargetRawReview(runDir, { decision: "proceed" });
       await buildFramedTargetDelivery(runDir);
       const paths = pageAuthorityImage2Paths(runDir);
-      const rawBytes = readFileSync(join(paths.raw_root, "DeckGo.png"));
+      const rawBytes = readFileSync(join(paths.raw_root, "01_DeckGo.png"));
       const previousEvidence = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
 
       writeFileSync(join(runDir, "slide-specifications.md"), source("Refreshed CLI heading"));
@@ -797,7 +838,7 @@ negative_constraints:
       expect(result.status, result.stderr).toBe(0);
       expect(result.stdout).toContain("Target Framed refresh delivered without provider submission");
       expect(providerSubmissions).toBe(1);
-      expect(readFileSync(join(paths.raw_root, "DeckGo.png"))).toEqual(rawBytes);
+      expect(readFileSync(join(paths.raw_root, "01_DeckGo.png"))).toEqual(rawBytes);
       expect(JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"))).not.toEqual(previousEvidence);
     } finally {
       rmSync(root, { recursive: true, force: true });

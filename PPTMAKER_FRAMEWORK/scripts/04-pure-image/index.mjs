@@ -1,6 +1,7 @@
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
+  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
@@ -37,6 +38,7 @@ import {
   targetSourceSemanticSha256,
   targetRawPlanProjection,
   validateTargetRawReviewContribution,
+  writeTargetProviderRequestInspection,
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
@@ -386,6 +388,11 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     style_master_reference: candidate.style_master_reference,
   });
   const published = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
+  const providerRequestInspection = writeTargetProviderRequestInspection(context, {
+    rawWorkPlan: candidate.raw_work_plan,
+    progressiveRawWorkPlan,
+    providerRequestsBySlide: candidate.provider_requests_by_slide,
+  });
   const progressiveHandoff = recordTargetProgressiveRawPlan(context.deck_dir, {
     runDir: context.run_dir,
     progressiveRawWorkPlan,
@@ -396,6 +403,7 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     progressive_raw_work_plan: progressiveRawWorkPlan,
     progressive_publication: published,
     progressive_handoff: progressiveHandoff,
+    provider_request_inspection: providerRequestInspection,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
     style_master_reference: candidate.style_master_reference,
   });
@@ -421,6 +429,7 @@ export function pureProgressiveRawPlanProjection(plan) {
     source_epoch: plan.source_epoch,
     ordered_slide_ids: Object.freeze([...plan.progressive_raw_work_plan.ordered_slide_ids]),
     maximum_submissions: plan.progressive_raw_work_plan.items.length,
+    ...(plan.provider_request_inspection ? { provider_request_inspection: plan.provider_request_inspection } : {}),
     progress: inspection.progress || null,
     next_action: inspection.primary_action,
   });
@@ -472,7 +481,11 @@ async function publishPureProgressivePilot({ context, plan, batch_sha256, covera
   mkdirSync(outputRoot, { recursive: true });
   const items = coverage.map((item) => {
     const materialization = materializations.get(item.slide_id);
-    writeFileSync(join(outputRoot, `${item.slide_id}.png`), materialization.bytes);
+    const position = plan.ordered_slide_ids.indexOf(item.slide_id) + 1;
+    if (!materialization || position < 1) {
+      throw new PureImageWorkflowError("pure_pilot_coverage_invalid", `Pure Pilot coverage is unavailable for ${item.slide_id}`);
+    }
+    writeFileSync(join(outputRoot, pageAuthorityOrdinalImageFilename(position, item.slide_id)), materialization.bytes);
     return { slide_id: item.slide_id, raw_sha256: item.raw_sha256 };
   });
   const projection = {

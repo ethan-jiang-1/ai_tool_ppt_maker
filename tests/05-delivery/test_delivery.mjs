@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
@@ -10,13 +12,23 @@ import {
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   PageAuthorityDeliveryError,
+  assemblePageAuthorityPptx,
   validatePageAuthorityDeliveryInput,
   deliverTargetFinalSlideManifest,
   refreshTargetPageAuthorityNotes,
   validateTargetFinalDeliveryInput,
 } from "../../PPTMAKER_FRAMEWORK/scripts/05-delivery/index.mjs";
+import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+async function readPptxSlideXml(pptxPath, position = 1) {
+  const archive = await JSZip.loadAsync(readFileSync(pptxPath));
+  const slide = archive.file(`ppt/slides/slide${position}.xml`);
+  if (!slide) throw new Error(`PPTX slide ${position} is missing`);
+  return slide.async("string");
+}
 
 function deliveryInput(workflow = "pure") {
   const plan = createRawWorkPlan({
@@ -134,6 +146,9 @@ describe("target Page Authority delivery", () => {
       expect(existsSync(result.assembly.path)).toBe(true);
       expect(existsSync(result.projection.path)).toBe(true);
       expect(existsSync(result.receipt_path)).toBe(true);
+      const assemblyXml = await readPptxSlideXml(result.assembly.path);
+      expect(assemblyXml).toContain("<a:blip");
+      expect(assemblyXml).toContain("<a:t>01</a:t>");
 
       const sourcePath = join(runDir, "slide-specifications.md");
       writeFileSync(sourcePath, "## Slide 01: `DeckGo`\n\n> **SPEAKER NOTE**: Updated source-owned note\n");
@@ -149,6 +164,52 @@ describe("target Page Authority delivery", () => {
         notes_injected: 1,
       });
       expect(JSON.parse(readFileSync(result.receipt_path, "utf8"))).toEqual(refreshed.receipt);
+      const refreshedXml = await readPptxSlideXml(result.assembly.path);
+      expect(refreshedXml).toContain("<a:blip");
+      expect(refreshedXml).toContain("<a:t>01</a:t>");
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes a bounded CURRENT footer from manifest entry order without renaming its final image", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_current_footer_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const paths = pageAuthorityImage2Paths(runDir);
+    const canvas = createCanvas(2000, 1125);
+    canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const finalBytes = canvas.toBuffer("image/png");
+    const manifest = {
+      schema: "pptmaker-page-authority-final-manifest-v1",
+      source_epoch: 1,
+      raw_review_coverage_sha256: digest("a"),
+      entries: [{
+        slide_id: "DeckGo",
+        authority: "pure-image2",
+        final_sha256: sha256(finalBytes),
+        raw_sha256: digest("b"),
+        raw_image_contract_digest: digest("c"),
+        raw_generation_profile_digest: digest("d"),
+        path: "DeckGo.png",
+        width: 2000,
+        height: 1125,
+        media_profile: "test",
+        finalization_fingerprint: digest("e"),
+      }],
+    };
+    try {
+      mkdirSync(paths.final_root, { recursive: true });
+      writeFileSync(join(paths.final_root, "DeckGo.png"), finalBytes);
+      writeFileSync(paths.final_manifest, JSON.stringify(manifest));
+
+      const result = await assemblePageAuthorityPptx(runDir, { sourceEpoch: 1, title: "Current footer" });
+      expect(result.receipt).toMatchObject({ ordered_slide_ids: ["DeckGo"] });
+      expect(existsSync(join(paths.final_root, "DeckGo.png"))).toBe(true);
+      expect(existsSync(join(paths.final_root, "01_DeckGo.png"))).toBe(false);
+      const xml = await readPptxSlideXml(result.pptx_path);
+      expect(xml).toContain("<a:blip");
+      expect(xml).toContain("<a:t>01</a:t>");
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }

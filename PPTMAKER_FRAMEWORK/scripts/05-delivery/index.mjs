@@ -8,6 +8,7 @@ import { validateFinalSlideManifest } from "../shared/image2/page_authority_arti
 import { pageAuthorityImage2Paths } from "../shared/run-bundle/bundle_layout.mjs";
 import { extractNoteRecordsFromMarkdown, injectNotes } from "./internal/notes_runtime.mjs";
 import { renderPageAuthorityFinalProjection } from "./internal/page_authority_final_projection_v1.mjs";
+import { addPageAuthorityOrdinalFooter } from "./internal/page_authority_ordinal_footer.mjs";
 import {
   PAGE_AUTHORITY_PPTX_ASSEMBLY_SCHEMA,
   assemblePageAuthorityPptx,
@@ -167,7 +168,9 @@ async function assemblePptx(paths, input, title) {
   pptx.author = "PPT Maker Framework";
   pptx.title = title || "Presentation";
   for (const item of input.manifest.items) {
-    pptx.addSlide().addImage({ path: join(paths.final_root, item.path), x: 0, y: 0, w: 13.333333, h: 7.5 });
+    const slide = pptx.addSlide();
+    slide.addImage({ path: join(paths.final_root, item.path), x: 0, y: 0, w: 13.333333, h: 7.5 });
+    addPageAuthorityOrdinalFooter(slide, item.position);
   }
   try {
     await pptx.writeFile({ fileName: temporary });
