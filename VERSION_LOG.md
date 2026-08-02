@@ -20,6 +20,21 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.23.1 — Provider Clause And Scene Semantic Chain（2026-08-02）
+
+**代号**：Clause and scene reach the model
+
+> 修复 BUG-035（provider_clauses 文本被丢弃、模型只收到 SHA 摘要）与 BUG-036（每页 CONCEPT 场景从未到达 provider）。resolved 视觉语言条款文本、身份 role clause 与 per-slide scene 现在随 receipt-bound raw contract 进入 provider prompt。
+
+### 变了什么
+
+1. 新增可选 `**VISUAL SCENE**` 源字段（`content-parsing`），按内联字段解析进 slide receipt，缺省为 `null`。
+2. Pure/Framed raw contract 增加 `provider_clauses`（recipe/composition/motifs 文本）、`visual_identity_role_clause`、经 text guard 规范化的 `visual_scene`（`image-generation`）；Framed exact-key validator 同步扩展。
+3. scene 文本在 raw-contract 编译时过同款 text guard（`visual-config`），违规在 provider-free planning 硬停并给出 bounded source-repair 诊断。
+4. 归档 `fix-provider-clauses-and-visual-scene` OpenSpec change 并同步三个 main specs；测试覆盖 scene 解析、条款/scene 入合约、guard 规范化与 fail-closed。
+
+---
+
 ## v0.23.0 — V2-only Page Authority Workflow（2026-07-29）
 
 **代号**：One current graph

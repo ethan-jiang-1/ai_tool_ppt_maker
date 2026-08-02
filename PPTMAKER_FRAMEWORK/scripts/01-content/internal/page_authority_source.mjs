@@ -19,6 +19,7 @@ const PAGE_AUTHORITY_FIELDS = Object.freeze([
   "BODY",
   "FRAME PRESET",
   "VISUAL BRIEF",
+  "VISUAL SCENE",
   "VISUAL IDENTITY",
   "IDENTITY SUBJECT COUNT",
   "SUBJECT RESTRICTIONS",
@@ -606,6 +607,8 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
     validateAuthorityAwareSemantics(document, block, authority, display, visualBrief, identity, count, restrictions, framePreset, fields, issues, {
       targetWorkflow: workflow,
     });
+    const sceneField = oneField(fields, "VISUAL SCENE");
+    const scene = sceneField ? nonEmptyInlineValue(document, block, sceneField, issues) : null;
     const compiledVisualBrief = resolveVisualBrief(registry, {
       authority,
       visual_brief: visualBrief,
@@ -632,6 +635,7 @@ export function parsePageAuthoritySource(sourceText, { source = "slide-specifica
         callout: display.callout,
       } : null,
       visual_brief: visualBrief,
+      visual_scene: scene,
       ...(compiledVisualBrief ? { visual_language: compiledVisualBrief } : {}),
       visual_identity: identity,
       identity_subject_count: count,

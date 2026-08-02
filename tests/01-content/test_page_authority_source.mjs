@@ -53,4 +53,24 @@ describe("v2 Page Authority source", () => {
     expect(() => parsePageAuthoritySource(source().replace("page-authority-image2-v2", "unsupported-pipeline")))
       .toThrow(PageAuthoritySourceError);
   });
+
+  it("parses VISUAL SCENE as an optional inline field", () => {
+    const receipt = parsePageAuthoritySource(source({ workflow: "pure", extra: "**VISUAL SCENE**: a calm shared work setting\n" }), { registry });
+    expect(receipt.slides[0].visual_scene).toBe("a calm shared work setting");
+  });
+
+  it("defaults visual_scene to null when VISUAL SCENE is absent", () => {
+    const receipt = parsePageAuthoritySource(source({ workflow: "pure" }), { registry });
+    expect(receipt.slides[0].visual_scene).toBeNull();
+  });
+
+  it("rejects an empty VISUAL SCENE field", () => {
+    expect(() => parsePageAuthoritySource(source({ workflow: "pure", extra: "**VISUAL SCENE**:\n" }), { registry }))
+      .toThrow(PageAuthoritySourceError);
+  });
+
+  it("rejects duplicate VISUAL SCENE fields", () => {
+    expect(() => parsePageAuthoritySource(source({ workflow: "pure", extra: "**VISUAL SCENE**: first scene\n**VISUAL SCENE**: second scene\n" }), { registry }))
+      .toThrow(PageAuthoritySourceError);
+  });
 });

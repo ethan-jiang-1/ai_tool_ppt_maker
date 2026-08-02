@@ -14,6 +14,7 @@ import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
   createPageAuthoritySourceResolver,
   loadPageAuthorityVisualLanguage,
+  normalizePageAuthorityTextGuard,
 } from "../02-visual-system/index.mjs";
 import {
   authorizeTargetRawWork,
@@ -226,11 +227,20 @@ function pureRawContract(slide) {
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new PureImageWorkflowError("pure_visual_language_required", `Pure visual language is unresolved for ${slide.slide_id}`);
   }
+  const providerClauses = slide.visual_language?.provider_clauses || null;
+  const identityRoleClause = slide.visual_language?.identity_reference?.provider_reference?.role_clause || null;
+  let visualScene = slide.visual_scene ?? null;
+  if (visualScene != null) {
+    visualScene = normalizePageAuthorityTextGuard(visualScene, { context: `VISUAL SCENE:${slide.slide_id}` });
+  }
   return Object.freeze({
     schema: TARGET_RAW_CONTRACT_SCHEMA,
     slide_id: slide.slide_id,
     workflow: PURE_IMAGE_WORKFLOW,
     visual_language: { ...visualLanguage, negative_constraints: [...(slide.visual_brief?.negative_constraints || [])] },
+    provider_clauses: providerClauses,
+    visual_identity_role_clause: identityRoleClause,
+    visual_scene: visualScene,
     visual_identity: slide.visual_language?.identity_reference?.projection || null,
     display: { ...slide.display },
   });
