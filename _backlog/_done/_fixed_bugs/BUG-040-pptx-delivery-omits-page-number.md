@@ -1,8 +1,14 @@
 # BUG-040: PPTX 交付不贴页码
 
-> 严重级别: P1 | 发现: 2026-08-02 | 状态: 待真实 run 验收（本地框架修复完成：2026-08-02）
+> 严重级别: P1 | 发现: 2026-08-02 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+`unify-page-ordinal-projections` 的 delivery contract 已在真实 v7 输出验证：`deck.pptx` 含
+25 个 slide XML，分别存在 `01` 到 `25` 的右下角 ordinal footer，同时保留对应的 full-page
+final image。PPTX ZIP integrity、25 页 notes、25/25 embedded media 的顺序/哈希均通过；本卡关闭。
+
+## 关闭前复核
 
 `unify-page-ordinal-projections` 已让 target-v2 与 bounded CURRENT 两条
 PPTX assembly 路径共用固定的右下角页码 footer。页码由当前 position 派生，至少两位

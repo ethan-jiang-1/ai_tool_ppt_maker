@@ -20,6 +20,29 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.24.0 — Native Page Authority Recovery And Delivery（2026-08-04）
+
+**代号**：Native bytes, complete chain
+
+> 以真实 v7 recovery 校正 provider request 与 native response 的契约边界；完成异步结果、
+> 历史 attempt 投影、Pure 原字节交付与 25 页最终 PPTX 验收。
+
+### 变了什么
+
+1. Page Authority 保留 `2000x1125` transport request，但将 provider raw 响应契约明确为
+   `2048x1136` native PNG；错误媒体仍在 ingress hard-stop，不 resize、crop 或 transcode。
+2. Pure final 保留 accepted native raw bytes，delivery/PPTX 对该契约验证并按原字节嵌入媒体；
+   Framed 保留自己的本地 composition contract。
+3. `image2 generate` 在一次授权 submit 内解析有界 async task result，并在 owner mutation 前执行
+   secret-safe dotenv credential preflight；不增加 retry、后台 worker 或 durable task store。
+4. 仅对一个严格的历史 `known_failure + unknown` 直接 sibling pair 建立 effective terminal
+   projection，所有其它分叉继续 integrity hard-stop。
+5. v7 实际完成 25/25 raw/final/PPTX：final/raw 与 embedded media 的 25/25 hash 相同，25 页
+   notes、ordinal footer、ZIP/layout 与 visual contact-sheet review 均通过；相关 OpenSpec changes
+   已同步主规格并归档。
+
+---
+
 ## v0.23.2 — Pure BODY Text Delivery And NN_slideID Production Naming（2026-08-02）
 
 **代号**：Text-first, numbered

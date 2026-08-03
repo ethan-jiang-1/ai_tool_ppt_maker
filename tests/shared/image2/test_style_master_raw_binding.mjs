@@ -35,8 +35,8 @@ function localImageBytes(variant = 0) {
 }
 
 const VALID_PROVIDER_PNG = (() => {
-  const image = createCanvas(2000, 1125);
-  image.getContext("2d").fillRect(0, 0, 2000, 1125);
+  const image = createCanvas(2048, 1136);
+  image.getContext("2d").fillRect(0, 0, 2048, 1136);
   return image.toBuffer("image/png");
 })();
 

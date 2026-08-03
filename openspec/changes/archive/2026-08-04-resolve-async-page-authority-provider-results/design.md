@@ -98,6 +98,30 @@ recovery action. Focused tests will prove the same checkpoint handles sync,
 async success, terminal failure, and interrupted polling without mutating a
 wrong attempt.
 
+### D5: Resolve credentials before entering the progressive raw owner
+
+**Owner: JS.** Only the direct `ppt_flow image2 generate` branch reaches a
+remote Page Authority boundary. After it has accepted the exact CLI hashes and
+read the current stored plan, it loads dotenv from `deckRoot(route.run_dir)`
+and then `process.cwd()`. The existing loader fills only absent process
+environment entries, so exported process values remain authoritative; it does
+not write either dotenv file or print a path or value. The branch then resolves
+one credential pair before calling `operations.generate()` and passes that
+same pair through `credentialResolver` to the submit factory. POST and any
+async task poll consequently use identical base-URL and authorization facts.
+
+If either credential fact is unavailable or invalid, the existing secret-safe
+credential error leaves the branch before the progressive raw owner can create
+a `claimed` or `submitted` attempt. This is an environment preflight hard
+stop, not a provider outcome: it protects attempt immutability, grant meaning,
+and the one-submit cost invariant. `plan`, `pilot`, `expansion`, `authorize`,
+`reconcile`, review, and delivery remain credential-free.
+
+Loading dotenv at process startup would violate those provider-free paths, and
+leaving resolution inside the submit callback is the proven ghost-attempt
+failure. A separate credential state or dotenv mutation would add a second
+authority without improving the direct boundary, so neither is introduced.
+
 ## Risks / Trade-offs
 
 - [Provider task completion exceeds the bounded wait] -> return the current
@@ -107,15 +131,20 @@ wrong attempt.
   secret-safe known failure; do not accept unverified bytes.
 - [Long task wait holds the plan lock] -> this preserves the existing single
   writer invariant; the bounded deadline prevents indefinite lock retention.
+- [A dotenv value disagrees with an exported process value] -> preserve the
+  existing fill-only precedence and resolve the exported value without writing
+  either source.
+- [Credentials are absent] -> fail before entering the owner; do not create a
+  claim, submitted attempt, provider call, or replacement authorization.
 - [The live deck has terminal failed attempts] -> do not migrate them. Resume
   only through a future owner-issued successor batch after framework validation.
 
 ## Migration Plan
 
-1. Add focused test coverage for the verified async envelope and existing sync
-   behavior.
-2. Implement the adapter resolver and run the focused plus full regression
-   suites.
+1. Add focused test coverage for the verified async envelope, existing sync
+   behavior, cwd dotenv loading, and missing-credential preflight.
+2. Implement the adapter resolver and direct generate preflight, then run the
+   focused plus full regression suites.
 3. Strict-validate the OpenSpec change and review CLI secret-safety behavior.
 4. Archive only after the framework change is complete; the specified deck is
    then resumed through its current owner action, never by hand-editing its

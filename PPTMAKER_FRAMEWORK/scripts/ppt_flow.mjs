@@ -25,7 +25,6 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { join, resolve, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
-import { decode as decodePng } from "fast-png";
 import {
   CLI_ERROR_CODES,
   CLI_JSON_REPORT_SCHEMAS,
@@ -100,6 +99,11 @@ import {
   probeProductionMarker,
 } from "./shared/run-bundle/production_marker.mjs";
 import { sha256Bytes } from "./shared/identity/byte_hash.mjs";
+import {
+  inspectExactPageAuthorityPng,
+  PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "./shared/image2/page_authority_media_contract.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -1729,18 +1733,12 @@ function pageAuthorityProviderTaskResultPayload(payload) {
   return images ? { data: images[0] } : result;
 }
 
-const PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED = Object.freeze({
-  format: "png",
-  width: 2000,
-  height: 1125,
-});
-
 function pageAuthorityProviderMediaKnownFailure(actual) {
   const error = new Error("Target Page Authority provider returned invalid PNG media");
   error.code = "PAGE_AUTHORITY_PROVIDER_MEDIA_INVALID";
   error.page_authority_known_failure = true;
   error.page_authority_known_failure_facts = Object.freeze({
-    expected: PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED,
+    expected: PAGE_AUTHORITY_NATIVE_RAW_PNG,
     actual: Object.freeze(actual),
   });
   return error;
@@ -1864,21 +1862,16 @@ function targetPageAuthorityPngBytesFromProvider(payload) {
   } catch {
     throw pageAuthorityProviderMediaKnownFailure({ classification: "empty" });
   }
-  let decoded;
-  try {
-    decoded = decodePng(bytes, { checkCrc: true });
-  } catch {
+  const inspected = inspectExactPageAuthorityPng(bytes, PAGE_AUTHORITY_NATIVE_RAW_PNG);
+  if (!inspected.ok && inspected.classification === "invalid_png") {
     throw pageAuthorityProviderMediaKnownFailure({ classification: "invalid_png" });
   }
-  if (decoded.width !== PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED.width ||
-    decoded.height !== PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED.height) {
+  if (!inspected.ok) {
     throw pageAuthorityProviderMediaKnownFailure({
-      format: "png",
-      width: decoded.width,
-      height: decoded.height,
+      ...(inspected.actual || { classification: inspected.classification }),
     });
   }
-  return bytes;
+  return inspected.bytes;
 }
 
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
@@ -1941,7 +1934,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
       model: request.generation_profile.provider.model,
       prompt: JSON.stringify(request),
       n: 1,
-      size: "2000x1125",
+      size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
       image: images[0],
       images,
       image_urls: images,
@@ -1995,6 +1988,20 @@ export function targetPageAuthoritySubmitFactory(plan, {
     }
     return targetPageAuthorityPngBytesFromProvider(payload);
   };
+}
+
+/** Resolve the one remote Image2 credential pair before the raw owner may write an attempt. */
+async function targetPageAuthorityGenerateCredentials(runDir) {
+  try {
+    loadDotenv(deckRoot(runDir));
+    loadDotenv(process.cwd());
+    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+    return resolveImage2Credentials();
+  } catch {
+    const error = new Error("Target Page Authority provider credentials are unavailable");
+    error.code = "PAGE_AUTHORITY_PROVIDER_CREDENTIALS_UNAVAILABLE";
+    throw error;
+  }
 }
 
 async function initializeStyleMasterImage2Transport() {
@@ -2146,10 +2153,13 @@ async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
       const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
       if (!planHash || !batchHash) return 1;
       const plan = await operations.readStoredPlan(route.run_dir);
+      const credentials = await targetPageAuthorityGenerateCredentials(route.run_dir);
       output = await operations.generate(route.run_dir, {
         planHash,
         batchHash,
-        submit: targetPageAuthoritySubmitFactory(plan),
+        submit: targetPageAuthoritySubmitFactory(plan, {
+          credentialResolver: () => credentials,
+        }),
       });
     } else if (operation === "pilot-review") {
       const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");

@@ -1,8 +1,15 @@
 # BUG-042: 每页 provider prompt（JSON）不外露，无法诊断
 
-> 严重级别: P1 | 发现: 2026-08-02 | 状态: 待真实 run 验收（本地诊断投影完成：2026-08-02）
+> 严重级别: P1 | 发现: 2026-08-02 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+`harden-page-authority-provider-boundary` 的 v7 owner plan 实际发布了
+`page-authority-provider-request-inspection-v1`：25 个有序 item 绑定当前 plan/request digest，
+且结构检查未发现 credential、Authorization、媒体 data URL 或 response body token。该投影仅作
+本地可重建诊断，正常 CLI/失败回执仍不输出 prompt；真实 provider run 已据此完成，本卡关闭。
+
+## 关闭前复核
 
 `harden-page-authority-provider-boundary` 已让 provider-free `image2 plan` 返回当前
 `provider_request_inspection` 的 run-relative path、digest 与 plan hash。对应可重建

@@ -1,8 +1,14 @@
 # BUG-043: Production 交付文件名缺 `NN_slideID` 前缀（框架强制 canonical-only）
 
-> 严重级别: P1 | 发现: 2026-08-02 | 状态: 待真实 run 验收（本地框架回归保护完成：2026-08-02）
+> 严重级别: P1 | 发现: 2026-08-02 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+真实 v7 final directory 已发布 25 个 `NN_slideID.png` 文件；manifest position、stable
+`slide_id`、final hash 与 PPTX media 顺序一致。`01_InfoRev.png` 到 `25_YourMov.png` 的
+文件序列已由 owner 生成并核验，未把 position 写入稳定 identity；本卡关闭。
+
+## 关闭前复核
 
 `unify-page-ordinal-projections` 把 `position + slide_id -> NN_slideID.png`
 收束为一个共享 formatter，target-v2 final manifest 的创建与校验都复用它。回归测试覆盖

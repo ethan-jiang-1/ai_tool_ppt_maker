@@ -3,6 +3,7 @@ import { basename } from "node:path";
 
 import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
+import { PAGE_AUTHORITY_NATIVE_RAW_PNG } from "./page_authority_media_contract.mjs";
 import { pageAuthorityImage2Paths } from "../run-bundle/page_authority_paths.mjs";
 import {
   PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
@@ -228,20 +229,40 @@ function validateAttemptState(plan, batches, grants, attempts) {
       const siblings = children.get(previous) || [];
       siblings.push(entry);
       children.set(previous, siblings);
-      if (siblings.length > 1) fail("progressive_raw_attempt_chain_invalid", "attempt transitions cannot branch");
       const transition = validateProgressiveRawAttemptTransition(prior.record, entry.record);
       if (!transition.ok) fail(transition.code, transition.message);
     }
+    const effectiveChildren = new Map();
+    const ignoredTerminalSiblings = new Set();
+    for (const [parentSha256, siblings] of children.entries()) {
+      if (siblings.length === 1) {
+        effectiveChildren.set(parentSha256, siblings);
+        continue;
+      }
+      const parent = bySha.get(parentSha256);
+      const knownFailure = siblings.find((entry) => entry.record.status === "known_failure") || null;
+      const unknown = siblings.find((entry) => entry.record.status === "unknown") || null;
+      const childless = siblings.every((entry) => (children.get(entry.sha256) || []).length === 0);
+      if (siblings.length !== 2 || parent?.record.status !== "submitted" || !knownFailure || !unknown || !childless) {
+        fail("progressive_raw_attempt_chain_invalid", "attempt transitions cannot branch");
+      }
+      effectiveChildren.set(parentSha256, [knownFailure]);
+      ignoredTerminalSiblings.add(unknown.sha256);
+    }
+
     let cursor = roots[0];
+    let current = null;
     const seen = new Set();
     while (cursor) {
       if (seen.has(cursor.sha256)) fail("progressive_raw_attempt_chain_invalid", "attempt transition cannot cycle");
       seen.add(cursor.sha256);
-      const next = children.get(cursor.sha256) || [];
+      current = cursor;
+      const next = effectiveChildren.get(cursor.sha256) || [];
       cursor = next[0] || null;
     }
-    if (seen.size !== entries.length) fail("progressive_raw_attempt_chain_invalid", "attempt chain has unreachable records");
-    const current = entries.find((entry) => !(children.get(entry.sha256)?.length));
+    if (seen.size + ignoredTerminalSiblings.size !== entries.length) {
+      fail("progressive_raw_attempt_chain_invalid", "attempt chain has unreachable records");
+    }
     currentByKey.set(key, current);
     const tuple = `${current.record.slide_id}:${current.record.raw_contract_sha256}`;
     const existing = currentByTuple.get(tuple);
@@ -1210,9 +1231,11 @@ function pageAuthorityKnownFailureMediaFacts(error) {
   const facts = error?.page_authority_known_failure_facts;
   if (!error?.page_authority_known_failure || !facts || typeof facts !== "object" || Array.isArray(facts)) return null;
   const actual = facts.actual;
-  if (facts.expected?.format !== "png" || facts.expected?.width !== 2000 || facts.expected?.height !== 1125 ||
+  if (facts.expected?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
+    facts.expected?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
+    facts.expected?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height ||
     !actual || typeof actual !== "object" || Array.isArray(actual)) return null;
-  const expected = Object.freeze({ format: "png", width: 2000, height: 1125 });
+  const expected = PAGE_AUTHORITY_NATIVE_RAW_PNG;
   if (["empty", "invalid_png"].includes(actual.classification)) {
     return Object.freeze({ expected, actual: Object.freeze({ classification: actual.classification }) });
   }

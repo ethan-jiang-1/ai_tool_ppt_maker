@@ -26,7 +26,7 @@ production_mode:
       workflow: pure
       source_epoch: 1
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-08-03T11:04:17.485Z
+updated_at: 2026-08-03T16:31:40.502Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -153,12 +153,12 @@ page_authority_progressive_handoff:
       source_epoch: 1
       source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
       workflow: pure
-      raw_work_plan_sha256: 6dde499ec00d517943ef79266c9c6baafbf25a0e7fb126dfc1e2e867349c24ce
-      partial_pilot_decision_sha256: null
-      complete_raw_review_sha256: null
-      accepted_raw_evidence_sha256: null
-      final_manifest_sha256: null
-      delivery_receipt_sha256: null
+      raw_work_plan_sha256: a905c2ffd916b25f308ed6764c43eecdbbdda568cd14f7374e4154c6a15a0f5a
+      partial_pilot_decision_sha256: 8f0556716cea04adbbc0e045de095aae83f2ae97aa6e360f875cd22e0a7f795e
+      complete_raw_review_sha256: d7853817fb86d0c7e7c721f1ea1e67911d337894bcedffe96b63877fccb08464
+      accepted_raw_evidence_sha256: c0bd7393e4c70f061cff3916bcebb10862eb96b44ae225f6532c19eca27d206e
+      final_manifest_sha256: 511cb363a9f61d88d273176bb3dd9910d1bea00759140c147793c6cd8557ae87
+      delivery_receipt_sha256: b4918534368bd67510de707a96508bcb277bb460ee243c431a0506484bd02037
 playbook: create-deck
 current_node: author-target-page-authority-content
 run_version: v7

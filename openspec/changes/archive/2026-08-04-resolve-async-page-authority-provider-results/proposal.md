@@ -12,6 +12,15 @@ run. The legacy Image2 workflow previously supported the same submit/poll
 pattern; Page Authority needs the narrow equivalent without restoring legacy
 or creating a second provider lifecycle.
 
+The same recovery also established a separate pre-submit defect: the direct
+`ppt_flow image2 generate` path imports the supported dotenv loader but never
+calls it. Its raw-owner callback therefore discovers unavailable credentials
+only after it has persisted a `submitted` attempt. Generation 8 and the first
+generation 9 item in the specified v7 run reached that local failure path; no
+provider POST is evidenced by those records. Credential availability must be
+proved at the one remote boundary before the raw owner can create a claim or
+submitted record.
+
 ## What Changes
 
 - Extend the Page Authority provider-result boundary to recognize a stable
@@ -28,6 +37,12 @@ or creating a second provider lifecycle.
 - Preserve current terminal semantics: a completed failed/invalid response is
   `known_failure`; a poll transport interruption or bounded timeout remains
   `unknown` and uses the existing exact reconciliation route.
+- At the direct `image2 generate` remote boundary only, load the deck-root and
+  current-working-directory dotenv sources as fill-only process defaults,
+  resolve one credential pair before raw-owner mutation, and give the same
+  resolved pair to both submit and async polling.
+- Treat unavailable credentials as a secret-safe preflight hard stop: no
+  provider request and no new claimed or submitted attempt are created.
 
 ## Capabilities
 
@@ -44,10 +59,12 @@ None.
 ## Impact
 
 - **Framework source:** `PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs` gains the
-  bounded async result resolver beside the existing Page Authority transport.
+  bounded async result resolver and a generate-only credential preflight beside
+  the existing Page Authority transport.
 - **Tests:** focused Page Authority transport and direct CLI tests cover
-  synchronous compatibility, async success, terminal async failure, and
-  interrupted/timeout polling.
+  synchronous compatibility, async success, terminal async failure,
+  interrupted/timeout polling, dotenv loading, and a zero-attempt credential
+  failure.
 - **Control owner:** JS remains the sole provider-result and lifecycle owner;
   MD and the Agent keep their current authorization, review, and recovery
   roles.
@@ -58,9 +75,10 @@ None.
 
 Per `human-centered-gates.md`, async resolution is a `guide` inside an already
 authorized submission, not a new human confirmation. The existing
-authorization, identity, and exact-PNG invariants remain hard boundaries:
-unknown polling outcomes cannot be overwritten or retried, and invalid media
-cannot become raw evidence. Per `agent-assistance-and-control.md` and
+authorization, identity, credential, and exact-PNG invariants remain hard
+boundaries: unavailable credentials cannot consume an attempt, unknown polling
+outcomes cannot be overwritten or retried, and invalid media cannot become raw
+evidence. Per `agent-assistance-and-control.md` and
 `simple-reliable-control.md`, the implementation reuses the selected adapter's
 one submit path and existing progressive owner outcomes instead of adding a
 daemon, fallback chain, second state store, or user-operated recovery step.

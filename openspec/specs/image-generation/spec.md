@@ -396,6 +396,55 @@ bytes current by doing so.
 - **THEN** planning, authorization, and full-plan head advancement return that attempt's reconciliation action first
 - **AND** they do not issue a successor plan, batch, or grant until a terminal outcome is recorded
 
+### Requirement: Redundant terminal attempt history has one safe effective projection
+
+Image Generation SHALL derive Page Authority progressive progress, grant
+consumption, live claims, and the next owner action from direct immutable
+attempt records. When one exact submitted attempt has exactly two direct
+terminal children, one `known_failure` and one `unknown`, and both children
+are otherwise valid, terminal, childless transitions for the same immutable
+attempt identity, Image Generation SHALL retain both records unchanged while
+using the `known_failure` child as that attempt's sole effective terminal
+projection. The redundant `unknown` child SHALL not be treated as current,
+live, materialized, reusable, or a reason to consume another submission.
+
+Every other attempt branch, including a branch containing `succeeded`, a
+nonterminal child, a foreign or malformed transition, a child with its own
+descendant, a cycle, or more than the two defined terminal children, SHALL
+remain an integrity hard-stop. It SHALL not be repaired by a CLI flag, a human
+waiver, provider lookup, resubmission, attempt rewrite, or durable repair
+record. The existing direct owner evaluator remains the single source for
+inspection, generation preflight, reconciliation, and progress projections.
+
+#### Scenario: A redundant unknown does not block a newer exact reconciliation
+
+- **WHEN** historical direct records contain one valid submitted parent with
+  childless `known_failure` and `unknown` terminal children, and a newer exact
+  item attempt is submitted without a provable outcome
+- **THEN** the owner derives the historical item as `known_failure` and exposes
+  only the existing exact reconciliation action for the newer submitted attempt
+- **AND** it creates no provider call, replacement grant, materialization,
+  accepted evidence, or mutation of either historical terminal record
+
+#### Scenario: Success-conflicting branch remains a hard-stop
+
+- **WHEN** a submitted parent has a branch that contains `succeeded`, a
+  nonterminal child, an additional child, a descendant, a foreign identity, or
+  another malformed transition
+- **THEN** the owner hard-stops on the attempt-history integrity failure before
+  progress, authorization, reconciliation, or provider work can advance
+- **AND** no continuation, force option, inferred terminal result, or record
+  rewrite is available
+
+#### Scenario: Existing single-terminal history remains unchanged
+
+- **WHEN** every submitted attempt has one valid direct terminal child or one
+  current unresolved submitted record
+- **THEN** the owner preserves its existing terminal and reconciliation
+  behavior
+- **AND** it does not create an additional derived state or alternate recovery
+  path
+
 ### Requirement: Pilot evidence is distinct from complete raw acceptance
 
 The raw owner SHALL prepare Pilot evidence only for a current Pilot projection
@@ -515,6 +564,11 @@ tuples. Each item SHALL identify its formal slide ID, raw-contract digest,
 canonical provider-request digest, and the exact prompt text that the selected
 adapter would submit for that request.
 
+The projection SHALL separately expose the non-secret transport request as
+model plus `2000x1125` request size, and the selected raw profile SHALL bind
+the expected native provider result as a `2048x1136` PNG. A requested size
+SHALL NOT be treated as evidence that returned bytes have those dimensions.
+
 The inspection projection SHALL be a rebuildable derived artifact only. The
 raw work plan and immutable progressive records remain the authority for
 authorization, submission, reconciliation, materialization, and evidence; no
@@ -534,6 +588,13 @@ stale current-plan projection.
   the selected adapter
 - **AND** it does not resolve credentials, invoke a provider, create a grant,
   or materialize raw bytes
+
+#### Scenario: Request size and native result remain distinct
+
+- **WHEN** the projection describes a current Page Authority Image2 request
+- **THEN** it reports the established `2000x1125` transport request and binds
+  the raw generation profile to a `2048x1136` PNG result
+- **AND** it does not infer returned media dimensions from the request size
 
 #### Scenario: Plan drift invalidates an inspection projection
 
@@ -558,10 +619,10 @@ stale current-plan projection.
 
 Image Generation SHALL accept a Page Authority provider result only after the
 selected adapter has verified that the returned bytes fully decode as a PNG
-with exact dimensions `2000x1125`. The adapter SHALL perform that verification
-before the progressive raw owner can materialize bytes, create provenance, or
-publish a `succeeded` attempt. The system SHALL not resize, transcode, or
-otherwise repair an invalid provider result.
+with exact native dimensions `2048x1136`. The adapter SHALL perform that
+verification before the progressive raw owner can materialize bytes, create
+provenance, or publish a `succeeded` attempt. The system SHALL not resize,
+transcode, crop, or otherwise repair an invalid provider result.
 
 An empty result, invalid PNG, or dimension mismatch SHALL terminalize the
 already submitted item through the existing `known_failure` lifecycle. The
@@ -570,12 +631,12 @@ PNG format and dimensions plus a non-secret actual format/dimension or invalid
 media classification. It SHALL not expose provider response content, raw
 returned bytes, raw-byte digest, prompt text, or a new retry/force route.
 
-#### Scenario: Exact provider PNG materializes normally
+#### Scenario: Exact native provider PNG materializes normally
 
-- **WHEN** a selected Pure or Framed adapter receives a valid `2000x1125` PNG
+- **WHEN** a selected Pure or Framed adapter receives a valid `2048x1136` PNG
   result for an authorized current item
 - **THEN** the system follows the existing materialization, provenance, and
-  `succeeded` lifecycle
+  `succeeded` lifecycle with those exact provider bytes
 - **AND** no additional provider authorization is introduced
 
 #### Scenario: Invalid provider PNG becomes a known failure before evidence
@@ -586,10 +647,10 @@ returned bytes, raw-byte digest, prompt text, or a new retry/force route.
 - **AND** it writes no accepted raw bytes, raw-byte provenance, or `succeeded`
   attempt for that item
 
-#### Scenario: Wrong dimensions are not repaired
+#### Scenario: Non-native dimensions are not repaired
 
 - **WHEN** a provider returns a valid PNG whose width or height differs from
-  `2000x1125`
+  `2048x1136`
 - **THEN** the system reports the expected and actual dimensions as bounded
   known-failure facts
 - **AND** it does not resize the image or make it current raw evidence
@@ -601,6 +662,118 @@ returned bytes, raw-byte digest, prompt text, or a new retry/force route.
   successor-batch action
 - **AND** the system does not reopen the old grant, infer a retry, or create a
   second recovery controller
+
+### Requirement: Page Authority credential preflight is generate-scoped and attempt-safe
+
+Image Generation SHALL resolve Page Authority Image2 credentials only at the
+direct `image2 generate` remote boundary. Before invoking the progressive raw
+owner, it SHALL load dotenv from the selected run's deck root and then the
+process current working directory, preserving already-set process environment
+values, and resolve one credential/base-URL pair. It SHALL pass that same
+resolved pair to the original submit and any async task polling performed for
+that invocation.
+
+If the required credential or base URL is unavailable or invalid, the command
+SHALL return the existing secret-safe credential failure before any new
+progressive raw `claimed` or `submitted` attempt, provider request,
+materialization, provenance, or replacement authorization is created. It SHALL
+not load dotenv for provider-free planning, Pilot/Expansion planning,
+authorization, reconciliation, review, acceptance, or delivery, and it SHALL
+not write dotenv files or expose their paths or values in CLI output.
+
+#### Scenario: Cwd dotenv enables one authorized generation
+
+- **WHEN** a direct generate process has no Image2 credential in its inherited
+  environment but its current working directory dotenv supplies the required
+  pair
+- **THEN** the exact authorized item may enter the existing one-submit lifecycle
+- **AND** the submit and any async task poll use the same resolved pair
+
+#### Scenario: Exported environment values retain precedence
+
+- **WHEN** an inherited Image2 credential or base URL is already present and a
+  searched dotenv contains that key
+- **THEN** the direct generate operation uses the inherited value
+- **AND** it does not mutate the dotenv file or expose either value
+
+#### Scenario: Missing credentials stop before an owner attempt
+
+- **WHEN** a direct generate operation has no resolvable Image2 credential
+  pair after the scoped dotenv load
+- **THEN** it returns the existing bounded credential diagnostic before calling
+  the progressive raw owner
+- **AND** it makes no HTTP provider request and creates no new claimed or
+  submitted attempt
+
+### Requirement: Page Authority resolves provider-accepted async image tasks
+
+When an exact authorized Page Authority provider submit receives a successful
+JSON response that contains a stable task identifier but no immediate image,
+Image Generation SHALL resolve that task within the same submission. It SHALL
+poll the provider task resource using the same resolved credential and base
+URL, without submitting another image request, creating another grant,
+changing the raw plan, or creating a background worker or durable task store.
+
+The poll SHALL be bounded. A successful synchronous inline-image response
+SHALL retain its current behavior without a task poll. Task identifiers,
+provider response content, response headers, prompts, credentials, and image
+data SHALL not enter CLI output, diagnostics, raw evidence, or durable state.
+
+#### Scenario: Accepted task reaches a completed inline result
+
+- **WHEN** a current authorized Page Authority submit returns a stable task ID
+  and a later task poll reports a completed result with inline image bytes
+- **THEN** the adapter uses those bytes as the result of the original
+  submission
+- **AND** no second provider submit, authorization, or batch is created
+
+#### Scenario: Synchronous inline provider result remains direct
+
+- **WHEN** a current authorized Page Authority submit returns inline image
+  bytes without a task ID
+- **THEN** the adapter accepts the result through the existing direct path
+- **AND** it does not poll a task resource
+
+#### Scenario: Polling cannot become an unbounded recovery path
+
+- **WHEN** an accepted task remains incomplete beyond the bounded poll budget
+  or its poll transport becomes unreadable
+- **THEN** the original attempt follows the existing unresolved/unknown
+  lifecycle and exact reconciliation action
+- **AND** the system does not resubmit the request, create a replacement
+  grant, or expose the task ID
+
+### Requirement: Async Page Authority results retain verified-media and terminal failure semantics
+
+Image Generation SHALL apply the existing Page Authority exact PNG validation
+to a completed async task result before raw materialization, provenance, or a
+`succeeded` attempt is possible. A completed task that reports failure, has an
+unusable response, or lacks valid exact native `2048x1136` PNG media SHALL
+follow the existing secret-safe `known_failure` outcome. A received non-success
+task poll response SHALL retain its bounded HTTP failure classification.
+
+#### Scenario: Completed async PNG follows the existing success chain
+
+- **WHEN** a completed task result contains a valid `2048x1136` PNG
+- **THEN** the original authorized attempt materializes through the existing
+  raw evidence and provenance chain
+- **AND** it does not create a separate async evidence format
+
+#### Scenario: Completed task with no usable image terminalizes safely
+
+- **WHEN** a task poll reaches a terminal result without usable image media
+- **THEN** the original authorized attempt terminalizes as `known_failure`
+- **AND** the CLI exposes only the existing bounded result classification and
+  nearest owner action
+
+#### Scenario: Async failure does not leak provider data
+
+- **WHEN** task polling receives a failed task, a non-success response, or
+  malformed completed response
+- **THEN** CLI output and diagnostics exclude the task ID, provider response
+  body, headers, prompt, credentials, image bytes, and image data URLs
+- **AND** a later retry remains available only through the existing
+  owner-derived successor authorization path
 
 ### Requirement: Definite Page Authority provider failures terminalize without leaking responses
 

@@ -16,7 +16,7 @@ import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_mast
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 
-function pngBytes(color, width = 2000, height = 1125) {
+function pngBytes(color, width = 2048, height = 1136) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
   context.fillStyle = color;
@@ -111,11 +111,13 @@ async function createPureFixture(firstTitle = "First exact Pure page") {
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
-function runFlow(args, env = {}) {
+function runFlow(args, env = {}, { cwd = process.cwd(), unsetEnv = [] } = {}) {
+  const childEnv = { ...process.env, ...env };
+  for (const key of unsetEnv) delete childEnv[key];
   return new Promise((resolveResult, reject) => {
     const child = spawn(process.execPath, [FLOW, ...args], {
-      cwd: process.cwd(),
-      env: { ...process.env, ...env },
+      cwd,
+      env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -520,6 +522,102 @@ describe("target Page Authority CLI diagnostics", () => {
     }
   }, 45_000);
 
+  it("loads cwd dotenv credentials only when an authorized generate crosses the remote boundary", async () => {
+    const fixture = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    const withoutInheritedCredentials = {
+      cwd: fixture.root,
+      unsetEnv: ["IMAGE2_API_KEY", "IMAGE2_BASE_URL"],
+    };
+    try {
+      writeFileSync(join(fixture.root, ".env"), `${Object.entries(provider.env).map(([key, value]) => `${key}=${value}`).join("\n")}\n`);
+
+      const planned = await runFlow(["image2", "plan", fixture.runDir], {}, withoutInheritedCredentials);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], {}, withoutInheritedCredentials);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      expect(provider.calls).toHaveLength(0);
+
+      const generated = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        item: "PureOne",
+        outcome: "succeeded",
+      });
+      expect(provider.calls).toHaveLength(1);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(provider.env.IMAGE2_API_KEY);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(provider.env.IMAGE2_BASE_URL);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("stops missing credentials before the raw owner creates an attempt or contacts a provider", async () => {
+    const fixture = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    const withoutInheritedCredentials = {
+      cwd: fixture.root,
+      unsetEnv: ["IMAGE2_API_KEY", "IMAGE2_BASE_URL"],
+    };
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], {}, withoutInheritedCredentials);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], {}, withoutInheritedCredentials);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      const before = immutableSnapshot(fixture);
+
+      const rejected = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      const envelope = parseFailure(rejected);
+      expectOwnerAction(envelope, {
+        category: "provider",
+        reason: "page_authority_provider_credentials_unavailable",
+        action: "repair_environment",
+      });
+      expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/IMAGE2_API_KEY|IMAGE2_BASE_URL/i);
+      expect(provider.calls).toHaveLength(0);
+      expect(readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash }).attempts).toHaveLength(0);
+      expectUnchanged(fixture, before);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
   it("resolves a Page Authority async task without a second submission or CLI transport leakage", async () => {
     const image = pngBytes("#397d93");
     const provider = await startAsyncMockProvider({
@@ -611,7 +709,7 @@ describe("target Page Authority CLI diagnostics", () => {
         }],
         expected: {
           provider_media: {
-            expected: { format: "png", width: 2000, height: 1125 },
+            expected: { format: "png", width: 2048, height: 1136 },
             actual: { classification: "empty" },
           },
         },
@@ -629,7 +727,7 @@ describe("target Page Authority CLI diagnostics", () => {
         }],
         expected: {
           provider_media: {
-            expected: { format: "png", width: 2000, height: 1125 },
+            expected: { format: "png", width: 2048, height: 1136 },
             actual: { classification: "invalid_png" },
           },
         },
@@ -740,6 +838,10 @@ describe("target Page Authority CLI diagnostics", () => {
         plan_hash: plan.plan_hash,
       });
       const inspection = readFileSync(join(fixture.runDir, plan.provider_request_inspection.path), "utf8");
+      const inspectionRecord = JSON.parse(inspection);
+      const inspectedRequest = JSON.parse(inspectionRecord.items[0].prompt);
+      expect(inspectionRecord.transport).toMatchObject({ model: "gpt-image-2", size: "2000x1125" });
+      expect(inspectedRequest.generation_profile.output).toEqual({ format: "png", width: 2048, height: 1136 });
       expect(inspection).toContain("PROMPT_LITERAL_SENTINEL");
       expect(inspection).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
       expect(`${planned.stdout}${planned.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
@@ -816,7 +918,7 @@ describe("target Page Authority CLI diagnostics", () => {
           item: "PureOne",
           outcome: "known_failure",
           provider_media: {
-            expected: { format: "png", width: 2000, height: 1125 },
+            expected: { format: "png", width: 2048, height: 1136 },
             actual: scenario.actual,
           },
           progress: { materialized: 0, known_failure: 1, unsubmitted: 1 },
@@ -870,7 +972,7 @@ describe("target Page Authority CLI diagnostics", () => {
         item: "FramGo",
         outcome: "known_failure",
         provider_media: {
-          expected: { format: "png", width: 2000, height: 1125 },
+          expected: { format: "png", width: 2048, height: 1136 },
           actual: { format: "png", width: 1600, height: 900 },
         },
         progress: { materialized: 0, known_failure: 1 },

@@ -13,6 +13,10 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import {
+  PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "./page_authority_media_contract.mjs";
+import {
   createAcceptedRawEvidence,
   pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
@@ -185,10 +189,12 @@ function requireSafeProviderRequestInspectionTransport(request, providerProfileS
   const profile = request?.generation_profile;
   if (!profile || typeof profile !== "object" || canonicalJsonSha256(profile) !== providerProfileSha256 ||
     typeof profile.provider?.model !== "string" || !profile.provider.model ||
-    profile.output?.format !== "png" || profile.output?.width !== 2000 || profile.output?.height !== 1125) {
+    profile.output?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
+    profile.output?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
+    profile.output?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height) {
     throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires the canonical selected transport profile");
   }
-  return Object.freeze({ model: profile.provider.model, size: "2000x1125" });
+  return Object.freeze({ model: profile.provider.model, size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE });
 }
 
 /**
@@ -571,7 +577,7 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
   const profile = {
     schema: "page-authority-target-raw-generation-profile-v1",
     provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-authority-image2-v2" },
-    output: { format: "png", width: 2000, height: 1125 },
+    output: PAGE_AUTHORITY_NATIVE_RAW_PNG,
     reference_transport: { style_master: "image-reference-v1", identity_reference: identitySelected ? "image-reference-v1" : "none" },
     effective_style_master: {
       selection_sha256: styleMaster.selection_sha256,

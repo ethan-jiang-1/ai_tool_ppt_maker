@@ -10,6 +10,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
 import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
+import {
+  inspectExactPageAuthorityPng,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "../shared/image2/page_authority_media_contract.mjs";
 import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
 import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
@@ -102,6 +107,24 @@ function requireReceipt(receipt) {
   return receipt;
 }
 
+function requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide) {
+  if (!rawBytesBySlide || typeof rawBytesBySlide !== "object" || Array.isArray(rawBytesBySlide)) {
+    throw new PureImageWorkflowError("pure_final_media_invalid", "Pure finalization requires accepted native raw PNG bytes");
+  }
+  for (const item of acceptedRawEvidence.items) {
+    const media = inspectExactPageAuthorityPng(rawBytesBySlide[item.slide_id], PAGE_AUTHORITY_NATIVE_RAW_PNG);
+    if (!media.ok) {
+      throw new PureImageWorkflowError(
+        "pure_final_media_invalid",
+        `Pure final bytes for ${item.slide_id} must be a ${PAGE_AUTHORITY_NATIVE_RAW_PNG.width}x${PAGE_AUTHORITY_NATIVE_RAW_PNG.height} PNG`,
+      );
+    }
+    if (sha256Bytes(media.bytes) !== item.raw_sha256) {
+      throw new PureImageWorkflowError("pure_finalization_raw_drift", `Pure final bytes drifted from accepted raw evidence for ${item.slide_id}`);
+    }
+  }
+}
+
 /** The selected adapter alone writes target raw plans for its Pure receipt. */
 export function createPureRawWorkPlan({ receipt, provider_profile_sha256, authorization_scope_sha256, raw_contracts_by_slide } = {}) {
   requireReceipt(receipt);
@@ -171,6 +194,7 @@ export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRa
     canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(evidencePlan.ordered_slide_ids)) {
     throw new PureImageWorkflowError("pure_finalization_lineage_invalid", "Pure finalization requires matching selected-workflow raw-plan lineage");
   }
+  requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide);
   return publishCurrentFinalSlideManifest({
     rawWorkPlan: evidencePlan,
     acceptedRawEvidence,

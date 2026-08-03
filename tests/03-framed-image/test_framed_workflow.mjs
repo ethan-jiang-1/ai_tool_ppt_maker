@@ -48,6 +48,11 @@ import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.
 
 const digest = (letter) => letter.repeat(64);
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const NATIVE_PROVIDER_PNG = (() => {
+  const image = createCanvas(2048, 1136);
+  image.getContext("2d").fillRect(0, 0, 2048, 1136);
+  return image.toBuffer("image/png");
+})();
 
 function runFlow(args) {
   return spawnSync("node", [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });
@@ -262,7 +267,7 @@ negative_constraints:
 
   it("keeps composition substitution below the public Framed workflow boundary", async () => {
     const rawWorkPlan = createFramedRawWorkPlan({ receipt, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
-    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: Buffer.from("raw") } });
+    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG } });
     for (const [key, value] of Object.entries({
       compose: async () => Buffer.from("injected"),
       preflight: { ok: true },
@@ -276,7 +281,7 @@ negative_constraints:
         receipt,
         rawWorkPlan,
         acceptedRawEvidence,
-        rawBytesBySlide: { DeckGo: Buffer.from("raw") },
+        rawBytesBySlide: { DeckGo: NATIVE_PROVIDER_PNG },
         [key]: value,
       })).rejects.toMatchObject({ code: "framed_render_input_invalid" });
     }
@@ -298,7 +303,7 @@ negative_constraints:
       plan: rawWorkPlan,
       provider_authorization_sha256: digest("e"),
       raw_review_sha256: digest("f"),
-      raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
+      raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG },
     });
     const nextRawWorkPlan = createRawWorkPlan({
       source_receipt_sha256: next.source_sha256,
@@ -387,7 +392,7 @@ negative_constraints:
       expect(await authorizeFramedTargetRawPlan(runDir, { planHash: projection })).toMatchObject({ authorized: true });
       expect(await generateFramedTargetRawPlan(runDir, {
         planHash: projection,
-        submit: async () => image.toBuffer("image/png"),
+        submit: async () => NATIVE_PROVIDER_PNG,
       })).toMatchObject({ submitted: 1 });
       expect(await prepareFramedTargetRawReview(runDir)).toMatchObject({ raw_review_sha256: expect.any(String) });
       const reviewProjection = createCanvas(1032, 347);
@@ -455,7 +460,7 @@ negative_constraints:
         planHash: projection,
         submit: async () => {
           providerSubmissions += 1;
-          return image.toBuffer("image/png");
+          return NATIVE_PROVIDER_PNG;
         },
       });
       await prepareFramedTargetRawReview(runDir);
@@ -576,7 +581,7 @@ negative_constraints:
         batchHash: pilot.batch.batch_hash,
         submit: async () => {
           providerSubmissions += 1;
-          return image.toBuffer("image/png");
+          return NATIVE_PROVIDER_PNG;
         },
       });
       await prepareFramedProgressiveRawReview(runDir, { planHash: initialPlanHash });
@@ -714,7 +719,7 @@ negative_constraints:
       const planHash = plan.progressive_raw_work_plan.sha256;
       const pilot = await planFramedTargetPilot(runDir, { planHash, slideIds: ["DataMap"] });
       await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
-      const rawBytes = image.toBuffer("image/png");
+      const rawBytes = NATIVE_PROVIDER_PNG;
       await generateFramedProgressiveRawItem(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
@@ -822,7 +827,7 @@ negative_constraints:
         planHash: projection,
         submit: async () => {
           providerSubmissions += 1;
-          return image.toBuffer("image/png");
+          return NATIVE_PROVIDER_PNG;
         },
       });
       await prepareFramedTargetRawReview(runDir);

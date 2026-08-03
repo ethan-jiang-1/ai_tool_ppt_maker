@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-07-28 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-04 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的唯一权威来源——新 bug 的编号 = 本目录最大编号 + 1。**
@@ -50,8 +50,16 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-032](BUG-032-migrate-html-preview-never-works-for-real-decks.md) | 2026-07-21 | `migrate-html` 无法处理真实 markerless deck |
 | [BUG-033](BUG-033-legacy-image2-lightweight-iteration-blocked.md) | 2026-07-23 | markerless whole-page deck 的单页迭代被多重控制面诊断阻断；由 CLS-011 三项串行 change 修复 |
 | [BUG-034](BUG-034-full-suite-runner-lacks-completable-observable-exit.md) | 2026-07-28 | 默认开发测试入口缺少受控范围、时间预算和可观察退出契约 |
+| [BUG-036](BUG-036-concept-content-structure-stripped-from-api-prompt.md) | 2026-08-04 | CONCEPT 场景结构已收束为 VISUAL SCENE，并经真实 v7 provider/delivery 验收 |
+| [BUG-037](BUG-037-image2-api-size-not-honored.md) | 2026-08-04 | 请求尺寸与 `2048x1136` native response contract 分离，无 resize 的真实 v7 验收 |
+| [BUG-040](BUG-040-pptx-delivery-omits-page-number.md) | 2026-08-04 | 真实 v7 PPTX 25 页 `01`–`25` ordinal footer 交付验收 |
+| [BUG-041](BUG-041-pure-raw-images-lack-display-text.md) | 2026-08-04 | Pure display/BODY/scene text contract 经真实 v7 final visual 验收 |
+| [BUG-042](BUG-042-provider-prompts-not-surfaced-for-diagnosis.md) | 2026-08-04 | 25-item secret-safe provider request inspection projection 经真实 v7 验收 |
+| [BUG-043](BUG-043-production-files-lack-NN-slideID-naming.md) | 2026-08-04 | 真实 v7 final 25/25 `NN_slideID.png` 文件验收 |
+| [BUG-044](BUG-044-pure-slides-image-heavy-text-light.md) | 2026-08-04 | Pure BODY 通道和图文比例经真实 v7 final visual 验收 |
+| [BUG-045](BUG-045-NN-slideID-naming-not-uniform-across-outputs.md) | 2026-08-04 | 真实 v7 raw/final 25/25 统一 `NN_slideID.png` 命名验收 |
 
-**Next available bug ID: BUG-035**
+**Next available bug ID: BUG-046**
 
 ---
 

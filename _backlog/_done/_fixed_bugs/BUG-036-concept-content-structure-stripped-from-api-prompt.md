@@ -1,8 +1,16 @@
 # BUG-036: CONCEPT 的 Content structure/MUST communicate 在 Page Authority 解析阶段被丢弃
 
-> 严重级别: P1 | 发现: 2026-07-30 | 状态: 待真实 run 验收（source 迁移完成：2026-08-03）
+> 严重级别: P1 | 发现: 2026-07-30 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+`fix-provider-clauses-and-visual-scene` 已将逐页结构从自由 `CONCEPT` prose 收束为受
+guard 的 `VISUAL SCENE`。v7 source receipt 为 25/25 非空 `VISUAL SCENE` 与 `BODY`，随后
+通过新的 Pure owner plan 完成 25/25 raw、final 与 PPTX delivery。完整 final contact sheet
+和原始分辨率的密集页复核确认各页的独立场景/结构已呈现，无空白、裁切或明显失真；因此本卡
+的 source-to-provider 场景传递缺口已闭环。BUG-015 的关系型视觉词汇范围仍独立保留。
+
+## 关闭前复核
 
 当前 parser 仍刻意不把自由 `CONCEPT` prose 送入 provider；已归档的
 `fix-provider-clauses-and-visual-scene` 以受 guard 的显式 `VISUAL SCENE` 承载每页

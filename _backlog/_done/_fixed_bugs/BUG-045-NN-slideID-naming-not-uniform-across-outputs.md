@@ -1,8 +1,14 @@
 # BUG-045: NN_slideID 命名只用于 final，raw 等产出仍无前缀（命名不统一）
 
-> 严重级别: P1 | 发现: 2026-08-02 | 状态: 待真实 run 验收（本地框架修复完成：2026-08-02）
+> 严重级别: P1 | 发现: 2026-08-02 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+`unify-page-ordinal-projections` 已在真实 v7 同时产出 25 个有序 raw 和 25 个有序 final
+`NN_slideID.png` 文件；两目录均符合 `NN_slideID`，final 25/25 与 raw 字节一致且 PPTX media
+按该顺序嵌入。Pilot/review 的 position 也继续来自完整 plan，不重编号 stable identity；本卡关闭。
+
+## 关闭前复核
 
 `unify-page-ordinal-projections` 现在将 rebuildable raw、Pure Pilot 和 Framed Pilot
 underlay/composite 的人类浏览文件统一命名为 `NN_slideID.png`。Pilot subset 从完整 raw

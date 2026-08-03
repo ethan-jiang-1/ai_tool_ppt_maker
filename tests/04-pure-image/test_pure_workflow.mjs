@@ -41,6 +41,12 @@ import {
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const NATIVE_PROVIDER_PNG = (() => {
+  const image = createCanvas(2048, 1136);
+  image.getContext("2d").fillRect(0, 0, 2048, 1136);
+  return image.toBuffer("image/png");
+})();
+
 function receipt(source = "a") {
   return {
     schema: "page-authority-image2-source-v2", pipeline: "page-authority-image2-v2", workflow: "pure", source_sha256: digest(source),
@@ -61,8 +67,24 @@ describe("Pure target workflow", () => {
   it("publishes accepted Pure raw bytes directly as a common manifest", () => {
     const source = receipt();
     const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
-    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: Buffer.from("raw") } });
-    expect(publishPureFinalSlideManifest({ receipt: source, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide: { DeckGo: Buffer.from("raw") } })).toMatchObject({ workflow: "pure" });
+    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG } });
+    expect(publishPureFinalSlideManifest({ receipt: source, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide: { DeckGo: NATIVE_PROVIDER_PNG } })).toMatchObject({
+      workflow: "pure",
+      items: [{ final_sha256: acceptedRawEvidence.items[0].raw_sha256 }],
+    });
+  });
+
+  it("rejects a Framed-sized PNG before Pure final publication", () => {
+    const source = receipt();
+    const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
+    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG } });
+    const framedFinal = createCanvas(2000, 1125).toBuffer("image/png");
+    expect(() => publishPureFinalSlideManifest({
+      receipt: source,
+      rawWorkPlan,
+      acceptedRawEvidence,
+      rawBytesBySlide: { DeckGo: framedFinal },
+    })).toThrow(/2048x1136/);
   });
 
   it("classifies visible-text source changes as raw rebuild debt", () => {
@@ -110,7 +132,7 @@ negative_constraints:
         planHash: projection,
         submit: async () => {
           providerSubmissions += 1;
-          return image.toBuffer("image/png");
+          return NATIVE_PROVIDER_PNG;
         },
       })).toMatchObject({ submitted: 1 });
       expect(await preparePureTargetRawReview(runDir)).toMatchObject({ raw_review_sha256: expect.any(String) });
@@ -180,7 +202,7 @@ negative_constraints:
       await generatePureProgressiveRawItem(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
-        submit: async () => image.toBuffer("image/png"),
+        submit: async () => NATIVE_PROVIDER_PNG,
       });
       const review = await preparePureProgressiveRawReview(runDir, { planHash });
       const accepted = await acceptPureProgressiveRawReview(runDir, { planHash, decision: "proceed" });
@@ -431,7 +453,7 @@ negative_constraints:
       const planHash = plan.progressive_raw_work_plan.sha256;
       const pilot = await planPureTargetPilot(runDir, { planHash, slideIds: ["DataMap"] });
       await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: pilot.batch.batch_hash });
-      const rawBytes = image.toBuffer("image/png");
+      const rawBytes = NATIVE_PROVIDER_PNG;
       await generatePureProgressiveRawItem(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
@@ -528,7 +550,7 @@ negative_constraints:
       await generatePureProgressiveRawItem(runDir, {
         planHash,
         batchHash: pilot.batch.batch_hash,
-        submit: async () => image.toBuffer("image/png"),
+        submit: async () => NATIVE_PROVIDER_PNG,
       });
       await preparePureProgressivePilotReview(runDir, { planHash, batchHash: pilot.batch.batch_hash });
       const pilotDecision = await acceptPureProgressivePilot(runDir, {
@@ -548,7 +570,7 @@ negative_constraints:
         const generated = await generatePureProgressiveRawItem(runDir, {
           planHash,
           batchHash: expansion.batch.batch_hash,
-          submit: async () => image.toBuffer("image/png"),
+          submit: async () => NATIVE_PROVIDER_PNG,
         });
         expect(generated.item).toBe(slideId);
       }
@@ -642,7 +664,7 @@ negative_constraints:
       let providerSubmissions = 0;
       const submit = async () => {
         providerSubmissions += 1;
-        return image.toBuffer("image/png");
+        return NATIVE_PROVIDER_PNG;
       };
 
       const initial = buildPureTargetRawPlan(runDir);

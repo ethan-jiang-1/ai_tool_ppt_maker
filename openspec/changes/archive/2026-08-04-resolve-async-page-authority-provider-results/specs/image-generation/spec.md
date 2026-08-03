@@ -1,5 +1,47 @@
 ## ADDED Requirements
 
+### Requirement: Page Authority credential preflight is generate-scoped and attempt-safe
+
+Image Generation SHALL resolve Page Authority Image2 credentials only at the
+direct `image2 generate` remote boundary. Before invoking the progressive raw
+owner, it SHALL load dotenv from the selected run's deck root and then the
+process current working directory, preserving already-set process environment
+values, and resolve one credential/base-URL pair. It SHALL pass that same
+resolved pair to the original submit and any async task polling performed for
+that invocation.
+
+If the required credential or base URL is unavailable or invalid, the command
+SHALL return the existing secret-safe credential failure before any new
+progressive raw `claimed` or `submitted` attempt, provider request,
+materialization, provenance, or replacement authorization is created. It SHALL
+not load dotenv for provider-free planning, Pilot/Expansion planning,
+authorization, reconciliation, review, acceptance, or delivery, and it SHALL
+not write dotenv files or expose their paths or values in CLI output.
+
+#### Scenario: Cwd dotenv enables one authorized generation
+
+- **WHEN** a direct generate process has no Image2 credential in its inherited
+  environment but its current working directory dotenv supplies the required
+  pair
+- **THEN** the exact authorized item may enter the existing one-submit lifecycle
+- **AND** the submit and any async task poll use the same resolved pair
+
+#### Scenario: Exported environment values retain precedence
+
+- **WHEN** an inherited Image2 credential or base URL is already present and a
+  searched dotenv contains that key
+- **THEN** the direct generate operation uses the inherited value
+- **AND** it does not mutate the dotenv file or expose either value
+
+#### Scenario: Missing credentials stop before an owner attempt
+
+- **WHEN** a direct generate operation has no resolvable Image2 credential
+  pair after the scoped dotenv load
+- **THEN** it returns the existing bounded credential diagnostic before calling
+  the progressive raw owner
+- **AND** it makes no HTTP provider request and creates no new claimed or
+  submitted attempt
+
 ### Requirement: Page Authority resolves provider-accepted async image tasks
 
 When an exact authorized Page Authority provider submit receives a successful

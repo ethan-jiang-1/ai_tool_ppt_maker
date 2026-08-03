@@ -1,8 +1,15 @@
 # BUG-037: Image2 API (APIMART gpt-image-2) 不遵守请求尺寸
 
-> 严重级别: P1 | 发现: 2026-07-30 | 状态: 待真实 run 验收（本地边界防护完成：2026-08-02）
+> 严重级别: P1 | 发现: 2026-07-30 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
+
+根因已校正为“请求尺寸不是返回 bytes 契约”，而不是以 resize 掩盖 provider 原件。
+`2026-08-04-align-page-authority-native-media-contract` 保留 `2000x1125` transport request，
+将验证/ingress 契约设为原生 `2048x1136` PNG。v7 的 25/25 raw 均为该原生尺寸，且 25/25
+Pure final 与 raw 字节相同、PPTX media 也按序相同；没有 resize、crop 或 transcode。本卡关闭。
+
+## 关闭前复核
 
 `harden-page-authority-provider-boundary` 已在 selected adapter/provider-result
 边界以 CRC-checked PNG decode 验证精确 `2000x1125`。空 bytes、损坏/非 PNG 与错误

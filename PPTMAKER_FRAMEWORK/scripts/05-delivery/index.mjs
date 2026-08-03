@@ -5,6 +5,9 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 import PptxGenJS from "pptxgenjs";
 import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
 import { validateFinalSlideManifest } from "../shared/image2/page_authority_artifacts.mjs";
+import {
+  inspectPageAuthorityFinalMedia,
+} from "../shared/image2/page_authority_media_contract.mjs";
 import { pageAuthorityImage2Paths } from "../shared/run-bundle/bundle_layout.mjs";
 import { extractNoteRecordsFromMarkdown, injectNotes } from "./internal/notes_runtime.mjs";
 import { renderPageAuthorityFinalProjection } from "./internal/page_authority_final_projection_v1.mjs";
@@ -99,15 +102,23 @@ export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence
     throw new PageAuthorityDeliveryError("notes_coverage_invalid", "source notes must exactly cover final manifest slide IDs");
   }
   const finalBytes = {};
+  const rawShaBySlide = new Map(acceptedRawEvidence.items.map((item) => [item.slide_id, item.raw_sha256]));
   for (const item of manifest.items) {
     const bytes = asBytes(finalBytesBySlide[item.slide_id], `final bytes for ${item.slide_id}`);
     if (sha256(bytes) !== item.final_sha256) {
       throw new PageAuthorityDeliveryError("final_bytes_stale", `final bytes drifted for ${item.slide_id}`);
     }
+    const media = inspectPageAuthorityFinalMedia({
+      workflow: manifest.workflow,
+      finalBytes: bytes,
+      rawSha256: rawShaBySlide.get(item.slide_id),
+      finalSha256: item.final_sha256,
+    });
+    if (!media.ok) throw new PageAuthorityDeliveryError(media.code, `final bytes for ${item.slide_id} do not meet the selected workflow media contract`);
     if (typeof notesBySlide[item.slide_id] !== "string" || !notesBySlide[item.slide_id].trim()) {
       throw new PageAuthorityDeliveryError("source_notes_invalid", `source notes are missing for ${item.slide_id}`);
     }
-    finalBytes[item.slide_id] = bytes;
+    finalBytes[item.slide_id] = media.bytes;
   }
   return Object.freeze({
     manifest: Object.freeze(manifest),
