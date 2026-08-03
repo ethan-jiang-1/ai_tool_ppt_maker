@@ -26,7 +26,7 @@ production_mode:
       workflow: pure
       source_epoch: 1
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-08-02T18:33:32.925Z
+updated_at: 2026-08-03T11:04:17.485Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -116,6 +116,23 @@ page_authority_style_master:
       previous_selection_sha256: 9e4facc5ac4f270f7891b65c7f75a98f096875200ada6a6586b0e22af4980574
       review_decision_sha256: 00047215ff568da6994325460945f263a7f0117e6cf240e12ba02ffbb81f60ec
       accepted_at: 2026-08-02T14:20:13.261Z
+    3_versions/v7:
+      schema: page-authority-style-master-selection-v1
+      run_version: v7
+      workflow: pure
+      plan_sha256: 4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6
+      candidate_id: local-existing
+      candidate_sha256: 6518f7f2bbdc9c4b4d5a3a2a75fe6bfecdd975a3b0ef4f4226e4f43657ac7eb7
+      candidate_media_type: image/jpeg
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: 5199e75b14424735004f23fde3ea1a829e79c6c235043812e080083e05cc06ee
+      style_intent_sha256: 14328036b68d68255a7fdd174c38bba159d18ffd7a664e34a4e038a85a1269b0
+      style_context_sha256: 5bbcc7fcd8ba0326af2899ff35d5fbedddd43f1dc252767938cdba7dc0991bcc
+      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
+      previous_selection_sha256: null
+      review_decision_sha256: 792aee78f925dd38df3e37bf88420bb8fdbde019e23672b65e790e3a700a122f
+      accepted_at: 2026-08-03T06:32:17.006Z
 page_authority_progressive_handoff:
   by_version:
     3_versions/v5:
@@ -130,6 +147,18 @@ page_authority_progressive_handoff:
       accepted_raw_evidence_sha256: 646133f2c2b1eb22159f83efff3dcd91e0b863e80533bbe6395c77ec14b771eb
       final_manifest_sha256: 4c47342923bbb5e127260b48222264f92a34454e20caa01de48a17440c21e2d6
       delivery_receipt_sha256: bf1fbe31a66451d72d8de5719d4c89917bd459856e122a9cd1a82bc7639b984e
+    3_versions/v7:
+      schema: page-authority-progressive-handoff-v1
+      run_version: v7
+      source_epoch: 1
+      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+      workflow: pure
+      raw_work_plan_sha256: 6dde499ec00d517943ef79266c9c6baafbf25a0e7fb126dfc1e2e867349c24ce
+      partial_pilot_decision_sha256: null
+      complete_raw_review_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
 playbook: create-deck
 current_node: author-target-page-authority-content
 run_version: v7
