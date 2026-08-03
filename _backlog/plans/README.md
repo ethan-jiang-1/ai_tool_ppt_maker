@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-02 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-04 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,9 +17,9 @@
 
 ## 活跃列表
 
-_目前无活跃 plan。_
+当前没有 active plan。
 
-**Next available plan ID: CLS-019**（移入 `_closed_plans/` 时分配；CLS-001…018 已用）
+**Next available plan ID: CLS-020**（移入 `_closed_plans/` 时分配；CLS-001…019 已用）
 
 ---
 

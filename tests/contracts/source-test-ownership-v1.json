@@ -18,6 +18,7 @@
       "interfaces": ["01-content/index.mjs"],
       "executables": [],
       "unit_integration": [
+        "tests/01-content/test_clean_page_authority_new_version_cli.mjs",
         "tests/01-content/test_page_authority_source.mjs",
         "tests/01-content/test_slide_document.mjs",
         "tests/01-content/test_slide_ids.mjs",
@@ -133,12 +134,13 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_progressive_raw_owner.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_media_contract.mjs", "shared/image2/page_authority_progressive_raw_owner.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
+        "tests/shared/image2/test_page_authority_media_contract.mjs",
         "tests/shared/image2/test_progressive_raw_owner.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
         "tests/shared/image2/test_style_master_plan.mjs",
@@ -176,6 +178,7 @@
       ],
       "executables": [],
       "unit_integration": [
+        "tests/shared/state/test_clean_page_authority_target_draft.mjs",
         "tests/shared/state/test_md_controller_reader.mjs",
         "tests/shared/state/test_state_yaml.mjs",
         "tests/shared/state/test_target_authoring_draft_route.mjs",

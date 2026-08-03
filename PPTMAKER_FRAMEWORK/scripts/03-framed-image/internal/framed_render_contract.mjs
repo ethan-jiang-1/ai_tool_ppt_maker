@@ -2,8 +2,6 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
-import { decode as decodePng } from 'fast-png';
-
 import {
   HTML_FONT_ROOT,
   discoverRuntimePackages,
@@ -19,6 +17,10 @@ import {
   currentFramedRenderProfile,
 } from './framed_render_profile.mjs';
 import { validateFramedTextFrame } from './text_frame.mjs';
+import {
+  inspectExactPageAuthorityPng,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from '../../shared/image2/page_authority_media_contract.mjs';
 
 const FRAME_FIELDS = Object.freeze(['kicker', 'title', 'subtitle', 'callout']);
 const SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
@@ -150,14 +152,12 @@ function assertVerifiedRaw(value) {
   if (!bytes.length || typeof value.sha256 !== 'string' || sha256(bytes) !== value.sha256) {
     throw new FramedRenderContractError('framed_raw_invalid', 'verified Framed raw bytes do not match their digest');
   }
-  let png;
-  try {
-    png = decodePng(bytes, { checkCrc: true });
-  } catch {
+  const media = inspectExactPageAuthorityPng(bytes, PAGE_AUTHORITY_NATIVE_RAW_PNG);
+  if (!media.ok && media.classification === 'invalid_png') {
     throw new FramedRenderContractError('framed_raw_invalid', 'verified Framed raw bytes must be a valid PNG');
   }
-  if (png.width !== HTML_CAPTURE_PROFILE.outputWidth || png.height !== HTML_CAPTURE_PROFILE.outputHeight) {
-    throw new FramedRenderContractError('framed_raw_invalid', `verified Framed raw PNG must be ${HTML_CAPTURE_PROFILE.outputWidth}x${HTML_CAPTURE_PROFILE.outputHeight}`);
+  if (!media.ok) {
+    throw new FramedRenderContractError('framed_raw_invalid', `verified Framed raw PNG must be ${PAGE_AUTHORITY_NATIVE_RAW_PNG.width}x${PAGE_AUTHORITY_NATIVE_RAW_PNG.height}`);
   }
   return Object.freeze({ bytes, sha256: value.sha256 });
 }

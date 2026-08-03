@@ -21,8 +21,12 @@ production_mode:
       mode: image2-page-authority-v2
       workflow: pure
       source_epoch: 3
+    3_versions/v7:
+      mode: image2-page-authority-v2
+      workflow: pure
+      source_epoch: 1
 started_at: 2026-07-20T00:00:00.000Z
-updated_at: 2026-08-02T14:52:12.909Z
+updated_at: 2026-08-03T16:31:40.502Z
 deck:
   name: ai_sdlc_keynote
   type: keynote
@@ -32,8 +36,8 @@ gates:
   content: waived
   visual: waived
 playbook_stack: []
-execution_id: exec-941302da-f423-45aa-b293-b9ae7a054ff6
-execution_started_at: 2026-07-20T00:00:00.000Z
+execution_id: exec-f60bc155-fb44-416b-87c7-1bc04f5f8db0
+execution_started_at: 2026-08-02T18:32:41.338Z
 diagnostics:
   - "schema healed: v3 → v5 (2026-07-24 framework alignment)"
   - "migrated: html-first-v1 → page-authority-image2-v2, workflow=framed (2026-07-30)"
@@ -83,6 +87,16 @@ page_authority_target_evidence:
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null
       delivery_receipt_sha256: null
+    3_versions/v7:
+      schema: page-authority-image2-target-state-v1
+      run_version: v7
+      source_epoch: 1
+      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+      workflow: pure
+      provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
 page_authority_style_master:
   by_version:
     3_versions/v5:
@@ -102,6 +116,23 @@ page_authority_style_master:
       previous_selection_sha256: 9e4facc5ac4f270f7891b65c7f75a98f096875200ada6a6586b0e22af4980574
       review_decision_sha256: 00047215ff568da6994325460945f263a7f0117e6cf240e12ba02ffbb81f60ec
       accepted_at: 2026-08-02T14:20:13.261Z
+    3_versions/v7:
+      schema: page-authority-style-master-selection-v1
+      run_version: v7
+      workflow: pure
+      plan_sha256: 4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6
+      candidate_id: local-existing
+      candidate_sha256: 6518f7f2bbdc9c4b4d5a3a2a75fe6bfecdd975a3b0ef4f4226e4f43657ac7eb7
+      candidate_media_type: image/jpeg
+      candidate_width: 1536
+      candidate_height: 864
+      candidate_provenance_sha256: 5199e75b14424735004f23fde3ea1a829e79c6c235043812e080083e05cc06ee
+      style_intent_sha256: 14328036b68d68255a7fdd174c38bba159d18ffd7a664e34a4e038a85a1269b0
+      style_context_sha256: 5bbcc7fcd8ba0326af2899ff35d5fbedddd43f1dc252767938cdba7dc0991bcc
+      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
+      previous_selection_sha256: null
+      review_decision_sha256: 792aee78f925dd38df3e37bf88420bb8fdbde019e23672b65e790e3a700a122f
+      accepted_at: 2026-08-03T06:32:17.006Z
 page_authority_progressive_handoff:
   by_version:
     3_versions/v5:
@@ -115,4 +146,20 @@ page_authority_progressive_handoff:
       complete_raw_review_sha256: 85f041a978ba20360ad5ddffe7b426912d6b32ad82e80d7bf6be2a04e63bf8d6
       accepted_raw_evidence_sha256: 646133f2c2b1eb22159f83efff3dcd91e0b863e80533bbe6395c77ec14b771eb
       final_manifest_sha256: 4c47342923bbb5e127260b48222264f92a34454e20caa01de48a17440c21e2d6
-      delivery_receipt_sha256: 9f6768c09239f3665c5ff61793d4211e891f0a886309121540d7d9f53566e868
+      delivery_receipt_sha256: bf1fbe31a66451d72d8de5719d4c89917bd459856e122a9cd1a82bc7639b984e
+    3_versions/v7:
+      schema: page-authority-progressive-handoff-v1
+      run_version: v7
+      source_epoch: 1
+      source_receipt_sha256: 3d3a2abb46045411d3fc5477a83858b4d8072e1e3adb5f65e4f0cc933bc4850f
+      workflow: pure
+      raw_work_plan_sha256: a905c2ffd916b25f308ed6764c43eecdbbdda568cd14f7374e4154c6a15a0f5a
+      partial_pilot_decision_sha256: 8f0556716cea04adbbc0e045de095aae83f2ae97aa6e360f875cd22e0a7f795e
+      complete_raw_review_sha256: d7853817fb86d0c7e7c721f1ea1e67911d337894bcedffe96b63877fccb08464
+      accepted_raw_evidence_sha256: c0bd7393e4c70f061cff3916bcebb10862eb96b44ae225f6532c19eca27d206e
+      final_manifest_sha256: 511cb363a9f61d88d273176bb3dd9910d1bea00759140c147793c6cd8557ae87
+      delivery_receipt_sha256: b4918534368bd67510de707a96508bcb277bb460ee243c431a0506484bd02037
+playbook: create-deck
+current_node: author-target-page-authority-content
+run_version: v7
+continuation_target_version: v7

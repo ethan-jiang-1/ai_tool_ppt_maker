@@ -7,6 +7,8 @@ import {
   createAcceptedRawEvidence,
   createFinalSlideManifest,
   createRawWorkPlan,
+  formatPageAuthorityOrdinal,
+  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateFinalSlideManifest,
   validateRawWorkPlan,
@@ -52,6 +54,67 @@ describe("Page Authority v2 typed artifacts", () => {
     expect(validateFinalSlideManifest(manifest, { evidence, expectedWorkflow: "framed" })).toMatchObject({ ok: true });
     expect(manifest.items.map((item) => [item.slide_id, item.position])).toEqual([["DeckGo", 1], ["BodyMap", 2]]);
     expect(manifest.items.map((item) => item.path)).toEqual(["01_DeckGo.png", "02_BodyMap.png"]);
+  });
+
+  it("uses one ordinal projection for human-facing files while evidence keeps stable paths", () => {
+    const slideIds = Array.from({ length: 100 }, (_, index) => `Slide${String(index + 1).padStart(3, "0")}`);
+    const rawPlan = createRawWorkPlan({
+      source_receipt_sha256: digest("a"),
+      workflow: "pure",
+      ordered_slide_ids: slideIds,
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      items: slideIds.map((slide_id) => ({ slide_id, raw_contract_sha256: digest("d") })),
+    });
+    const rawBytesBySlide = Object.fromEntries(slideIds.map((slideId) => [slideId, Buffer.from(`raw-${slideId}`)]));
+    const finalBytesBySlide = Object.fromEntries(slideIds.map((slideId) => [slideId, Buffer.from(`final-${slideId}`)]));
+    const evidence = createAcceptedRawEvidence({
+      plan: rawPlan,
+      provider_authorization_sha256: digest("e"),
+      raw_review_sha256: digest("f"),
+      raw_bytes_by_slide: rawBytesBySlide,
+    });
+    const reorderedSlideIds = [...slideIds].reverse();
+    const reorderedPlan = createRawWorkPlan({
+      source_receipt_sha256: digest("a"),
+      workflow: "pure",
+      ordered_slide_ids: reorderedSlideIds,
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      items: reorderedSlideIds.map((slide_id) => ({ slide_id, raw_contract_sha256: digest("d") })),
+    });
+    const reorderedEvidence = createAcceptedRawEvidence({
+      plan: reorderedPlan,
+      provider_authorization_sha256: digest("e"),
+      raw_review_sha256: digest("f"),
+      raw_bytes_by_slide: rawBytesBySlide,
+    });
+    const manifest = createFinalSlideManifest({
+      evidence,
+      expected_workflow: "pure",
+      final_bytes_by_slide: finalBytesBySlide,
+    });
+
+    expect(formatPageAuthorityOrdinal(1)).toBe("01");
+    expect(formatPageAuthorityOrdinal(10)).toBe("10");
+    expect(formatPageAuthorityOrdinal(100)).toBe("100");
+    expect(pageAuthorityOrdinalImageFilename(1, "DeckGo")).toBe("01_DeckGo.png");
+    expect(pageAuthorityOrdinalImageFilename(10, "DataMap")).toBe("10_DataMap.png");
+    expect(pageAuthorityOrdinalImageFilename(100, "Slide100")).toBe("100_Slide100.png");
+    expect(() => formatPageAuthorityOrdinal(0)).toThrow(/positive integer/);
+    expect(() => formatPageAuthorityOrdinal(1.5)).toThrow(/positive integer/);
+    expect(() => pageAuthorityOrdinalImageFilename(1, "01_DeckGo")).toThrow(/stable Page Authority slide ID/);
+    expect(manifest.items.at(0).path).toBe("01_Slide001.png");
+    expect(manifest.items.at(9).path).toBe("10_Slide010.png");
+    expect(manifest.items.at(99).path).toBe("100_Slide100.png");
+    expect(evidence.items.at(0).path).toBe("Slide001.png");
+    expect(evidence.items.at(9).path).toBe("Slide010.png");
+    expect(evidence.items.at(99).path).toBe("Slide100.png");
+    expect(reorderedEvidence.items.find((item) => item.slide_id === "Slide001"))
+      .toEqual(evidence.items.find((item) => item.slide_id === "Slide001"));
+    expect(pageAuthorityOrdinalImageFilename(1, "Slide001")).toBe("01_Slide001.png");
+    expect(pageAuthorityOrdinalImageFilename(100, "Slide001")).toBe("100_Slide001.png");
+    expect(validateFinalSlideManifest(manifest, { evidence, expectedWorkflow: "pure" })).toMatchObject({ ok: true });
   });
 
   it("fails closed for source/profile/evidence drift and wrong workflow publication", () => {

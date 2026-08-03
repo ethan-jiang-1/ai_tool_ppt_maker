@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
 import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -10,7 +10,12 @@ import {
   buildPureProgressiveTargetRawPlan,
   resolvePureStyleMasterScope,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { progressiveRawStorePaths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
+import {
+  progressiveRawStorePaths,
+  readProgressiveRawPlanDirectRecords,
+  writeProgressiveRawItemAttempt,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { createProgressiveRawItemAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_schema.mjs";
 import {
   createInitialState,
   initializeTargetPageAuthorityState,
@@ -20,7 +25,15 @@ import {
   inspectWorkflow,
   isWorkflowInspectionSourceReady,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+import {
+  authorizeProgressiveRawBatch,
+  generateProgressiveRawItem,
+  planProgressiveRawPilot,
+  reconcileProgressiveRawAttempt,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
+
+const PROGRESSIVE_SLIDE_IDS = ["DeckGo", "SysMap", "FlowGo", "TeamGo", "RiskGo", "ValMap"];
 
 function treeSnapshot(root, current = root, entries = []) {
   for (const name of readdirSync(current).sort()) {
@@ -58,25 +71,18 @@ function fixture(workflow = "pure") {
   return { root, deck, runDir };
 }
 
-async function progressivePureFixture() {
-  const root = mkdtempSync(join(tmpdir(), "workflow-inspect-progressive-pure-"));
-  const deck = join(root, "deck_workflow_inspect_progressive_pure");
-  const runDir = join(deck, "3_versions", "v1");
-  const image = createCanvas(2000, 1125);
-  image.getContext("2d").fillRect(0, 0, 2000, 1125);
-  initBundle(deck, null, "keynote", "dark-executive");
-  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
-  writeFileSync(join(runDir, "slide-specifications.md"), `---
+function progressivePureSource(slideCount) {
+  return `---
 identity:
   scheme: mnemonic-v1
 production:
   pipeline: page-authority-image2-v2
   workflow: pure
 ---
+${PROGRESSIVE_SLIDE_IDS.slice(0, slideCount).map((slideId, index) => `
+## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`
 
-## Slide 01: \`DeckGo\`
-
-**TITLE**: Inspection direct-record fixture
+**TITLE**: Inspection direct-record fixture ${index + 1}
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -87,10 +93,41 @@ negative_constraints:
 \`\`\`
 
 > **SPEAKER NOTE**: Workflow inspection reads only owner facts.
-`);
+`).join("")}`;
+}
+
+async function progressivePureFixture(slideCount = 1) {
+  const root = mkdtempSync(join(tmpdir(), "workflow-inspect-progressive-pure-"));
+  const deck = join(root, "deck_workflow_inspect_progressive_pure");
+  const runDir = join(deck, "3_versions", "v1");
+  const image = createCanvas(2000, 1125);
+  image.getContext("2d").fillRect(0, 0, 2000, 1125);
+  initBundle(deck, null, "keynote", "dark-executive");
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+  writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideCount));
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   const plan = buildPureProgressiveTargetRawPlan(runDir);
   return { root, deck, runDir, plan };
+}
+
+function appendUnknownTerminalSibling(runDir, { plan_hash, batch_hash }) {
+  const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan_hash });
+  const submitted = direct.attempts.find((entry) =>
+    entry.record.batch_sha256 === batch_hash && entry.record.status === "submitted",
+  );
+  const batch = direct.batches.find((entry) => entry.sha256 === batch_hash);
+  const grant = direct.grants.find((entry) => entry.sha256 === submitted?.record.grant_sha256);
+  const attempt = createProgressiveRawItemAttempt({
+    ...submitted.record,
+    status: "unknown",
+    previous_attempt_sha256: submitted.sha256,
+  }, { plan: direct.plan.record, batch: batch.record, grant: grant.record });
+  writeProgressiveRawItemAttempt(runDir, {
+    plan: direct.plan.record,
+    batch: batch.record,
+    grant: grant.record,
+    attempt,
+  });
 }
 
 describe("TARGET workflow inspection", () => {
@@ -203,6 +240,207 @@ production:
         },
       });
       expect(treeSnapshot(value.deck)).toEqual(before);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns successor Pilot planning for a terminal partial Pilot with missing coverage without writes", async () => {
+    const value = await progressivePureFixture(6);
+    try {
+      const planHash = value.plan.progressive_raw_work_plan.sha256;
+      const pilot = await planProgressiveRawPilot({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        slide_ids: ["DeckGo"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: pilot.batch.batch_hash,
+      });
+      await generateProgressiveRawItem({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        submit: async () => ({ outcome: "known_failure" }),
+      });
+
+      const before = treeSnapshot(value.deck);
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
+        posture: "confirm",
+        root_cause: { owner: "progressive-raw-owner", kind: "plan_progressive_pilot" },
+        primary_action: { owner: "progressive-raw-owner", action_id: "plan_progressive_pilot", kind: "confirm", requires_human: true },
+        evidence_summary: {
+          progressive: "current",
+          plan_hash: planHash,
+          progress: { materialized: 0, known_failure: 1 },
+        },
+      });
+      expect(treeSnapshot(value.deck)).toEqual(before);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("projects a successor submitted attempt as exact reconciliation without writes", async () => {
+    const value = await progressivePureFixture(6);
+    try {
+      const planHash = value.plan.progressive_raw_work_plan.sha256;
+      const predecessor = await planProgressiveRawPilot({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        slide_ids: ["DeckGo"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: predecessor.batch.batch_hash,
+      });
+      await expect(generateProgressiveRawItem({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: predecessor.batch.batch_hash,
+        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        submit: async () => { throw new Error("predecessor transport interrupted"); },
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+      const predecessorAttempt = readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: planHash }).attempts
+        .find((entry) => entry.record.batch_sha256 === predecessor.batch.batch_hash && entry.record.status === "submitted");
+      await reconcileProgressiveRawAttempt({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        attempt_sha256: predecessorAttempt.sha256,
+        lookup: async () => null,
+      });
+
+      const successor = await planProgressiveRawPilot({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        slide_ids: ["DeckGo"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: successor.batch.batch_hash,
+      });
+      const successorSubmit = vi.fn(async () => { throw new Error("successor transport interrupted"); });
+      await expect(generateProgressiveRawItem({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: successor.batch.batch_hash,
+        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        submit: successorSubmit,
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+
+      const submitted = readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: planHash }).attempts
+        .find((entry) => entry.record.batch_sha256 === successor.batch.batch_hash && entry.record.status === "submitted");
+      const before = treeSnapshot(value.deck);
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "progressive-raw-owner", kind: "submitted-outcome-unresolved" },
+        primary_action: {
+          owner: "progressive-raw-owner",
+          action_id: "reconcile_progressive_raw_attempt",
+          kind: "repair",
+          attempt_sha256: submitted.sha256,
+        },
+        evidence_summary: {
+          progressive: "reconciliation-required",
+          progress: { materialized: 0, submitted: 1 },
+        },
+      });
+      expect(successorSubmit).toHaveBeenCalledTimes(1);
+      expect(treeSnapshot(value.deck)).toEqual(before);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("projects the accepted redundant terminal pair as the newer exact reconciliation without writes", async () => {
+    const value = await progressivePureFixture(6);
+    try {
+      const planHash = value.plan.progressive_raw_work_plan.sha256;
+      const predecessor = await planProgressiveRawPilot({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        slide_ids: ["DeckGo"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: predecessor.batch.batch_hash,
+      });
+      const predecessorSubmit = vi.fn(async () => ({ outcome: "known_failure" }));
+      await generateProgressiveRawItem({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: predecessor.batch.batch_hash,
+        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        submit: predecessorSubmit,
+      });
+
+      const successor = await planProgressiveRawPilot({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        slide_ids: ["SysMap"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: successor.batch.batch_hash,
+      });
+      const successorSubmit = vi.fn(async () => { throw new Error("successor transport interrupted"); });
+      await expect(generateProgressiveRawItem({
+        runDir: value.runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        batch_hash: successor.batch.batch_hash,
+        provider_requests_by_slide: { SysMap: { schema: "fixture-request-v1" } },
+        submit: successorSubmit,
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+      const successorAttempt = readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: planHash }).attempts
+        .find((entry) => entry.record.batch_sha256 === successor.batch.batch_hash && entry.record.status === "submitted");
+      appendUnknownTerminalSibling(value.runDir, {
+        plan_hash: planHash,
+        batch_hash: predecessor.batch.batch_hash,
+      });
+
+      const before = treeSnapshot(value.deck);
+      const inspection = inspectWorkflow({ runDir: value.runDir });
+      expect(inspection).toMatchObject({
+        posture: "hard-stop",
+        root_cause: { owner: "progressive-raw-owner", kind: "submitted-outcome-unresolved" },
+        primary_action: {
+          owner: "progressive-raw-owner",
+          action_id: "reconcile_progressive_raw_attempt",
+          attempt_sha256: successorAttempt.sha256,
+        },
+        evidence_summary: {
+          progressive: "reconciliation-required",
+          progress: { known_failure: 1, submitted: 1, unsubmitted: 4 },
+        },
+      });
+      expect(treeSnapshot(value.deck)).toEqual(before);
+      expect(predecessorSubmit).toHaveBeenCalledTimes(1);
+      expect(successorSubmit).toHaveBeenCalledTimes(1);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

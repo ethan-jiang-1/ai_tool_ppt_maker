@@ -99,6 +99,11 @@ import {
   probeProductionMarker,
 } from "./shared/run-bundle/production_marker.mjs";
 import { sha256Bytes } from "./shared/identity/byte_hash.mjs";
+import {
+  inspectExactPageAuthorityPng,
+  PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "./shared/image2/page_authority_media_contract.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -940,12 +945,26 @@ async function commandRefresh(runDir, { kind, only, all, resolution, baseUrl, dr
  * @param {string} runDir
  * @param {string|null} name - e.g. "v3".
  */
-function commandNewVersion(runDir, { name }) {
+async function commandNewVersion(runDir, { name }) {
   const resolved = resolve(runDir);
   try {
+    const deckDir = deckRoot(resolved);
+    const {
+      resolveRunProductionAdapter,
+      activateCleanPageAuthorityTargetDraft,
+    } = await import("./shared/state/state.mjs");
+    const sourceRoute = resolveRunProductionAdapter(deckDir, { runDir: resolved, purpose: "observe" });
+    const activateTargetDraft = sourceRoute.ok &&
+      sourceRoute.adapter === "page-authority-image2-v2";
     const target = createVersion(resolved, name);
+    const activation = activateTargetDraft
+      ? activateCleanPageAuthorityTargetDraft(deckDir, { sourceRunDir: resolved, targetRunDir: target })
+      : null;
     console.log(`✓ Created clean version: ${target}`);
     console.log("  Generated artifacts were not copied.");
+    if (activation) {
+      console.log(`  Activated Page Authority ${activation.workflow} authoring draft.`);
+    }
     return 0;
   } catch (err) {
     console.error(`✗ ${err.message}`);
@@ -1660,10 +1679,14 @@ function imageBytesDataUrl(bytes, mediaType) {
   return `data:${mediaType};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
-function imageBytesFromPageAuthorityProvider(payload) {
-  const record = payload?.data && !Array.isArray(payload.data) ? payload.data
+function pageAuthorityProviderResponseRecord(payload) {
+  return payload?.data && !Array.isArray(payload.data) ? payload.data
     : Array.isArray(payload?.data) ? payload.data[0]
       : payload;
+}
+
+function imageBytesFromPageAuthorityProvider(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
   const encoded = record?.bytes_base64 || record?.b64_json || payload?.bytes_base64 || payload?.b64_json;
   if (typeof encoded !== "string" || !encoded.trim()) {
     const error = new Error("Page Authority provider returned no inline PNG bytes");
@@ -1679,10 +1702,186 @@ function imageBytesFromPageAuthorityProvider(payload) {
   return bytes;
 }
 
+function pageAuthorityProviderTaskId(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  const value = record?.task_id || payload?.task_id;
+  if (typeof value !== "string") return null;
+  const taskId = value.trim();
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/.test(taskId) ? taskId : null;
+}
+
+function pageAuthorityProviderHasInlineImage(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  return [record?.bytes_base64, record?.b64_json, payload?.bytes_base64, payload?.b64_json]
+    .some((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+function pageAuthorityProviderTaskStatus(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  const value = record?.status || payload?.status;
+  return typeof value === "string" ? value.trim().toLowerCase() : null;
+}
+
+function pageAuthorityProviderTaskResult(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  return record?.result || payload?.result || null;
+}
+
+function pageAuthorityProviderTaskResultPayload(payload) {
+  const result = pageAuthorityProviderTaskResult(payload);
+  const images = Array.isArray(result?.images) ? result.images : null;
+  return images ? { data: images[0] } : result;
+}
+
+function pageAuthorityProviderMediaKnownFailure(actual) {
+  const error = new Error("Target Page Authority provider returned invalid PNG media");
+  error.code = "PAGE_AUTHORITY_PROVIDER_MEDIA_INVALID";
+  error.page_authority_known_failure = true;
+  error.page_authority_known_failure_facts = Object.freeze({
+    expected: PAGE_AUTHORITY_NATIVE_RAW_PNG,
+    actual: Object.freeze(actual),
+  });
+  return error;
+}
+
+const PAGE_AUTHORITY_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
+  "http_error",
+  "invalid_json",
+  "task_terminal_failure",
+  "task_response_invalid",
+]);
+
+function pageAuthorityProviderResponseKnownFailure(classification, { httpStatus = null } = {}) {
+  if (!PAGE_AUTHORITY_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
+    throw new Error("Target Page Authority response failure classification is invalid");
+  }
+  const response = { classification };
+  if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
+    response.http_status = httpStatus;
+  }
+  const error = new Error("Target Page Authority provider returned an unusable response");
+  error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+  error.page_authority_known_failure = true;
+  error.page_authority_known_failure_facts = Object.freeze({
+    response: Object.freeze(response),
+  });
+  return error;
+}
+
+function pageAuthorityProviderTaskPollUnresolved() {
+  const error = new Error("Target Page Authority provider task outcome could not be resolved");
+  error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED";
+  return error;
+}
+
+const PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS = 60_000;
+const PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS = 1_000;
+
+function pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs }) {
+  return Object.freeze({
+    timeoutMs: Number.isSafeInteger(taskPollTimeoutMs) && taskPollTimeoutMs > 0
+      ? taskPollTimeoutMs
+      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
+    intervalMs: Number.isSafeInteger(taskPollIntervalMs) && taskPollIntervalMs > 0
+      ? taskPollIntervalMs
+      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
+  });
+}
+
+async function resolvePageAuthorityProviderTask({
+  baseUrl,
+  apiKey,
+  taskId,
+  fetchImpl,
+  now,
+  sleep,
+  taskPollTimeoutMs,
+  taskPollIntervalMs,
+}) {
+  const { timeoutMs, intervalMs } = pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs });
+  const deadline = now() + timeoutMs;
+  const taskUrl = `${baseUrl}/tasks/${encodeURIComponent(taskId)}`;
+
+  while (now() < deadline) {
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), Math.max(1, deadline - now()));
+    let response;
+    try {
+      response = await fetchImpl(taskUrl, {
+        method: "GET",
+        redirect: "error",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: controller.signal,
+      });
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    } finally {
+      clearTimeout(abortTimer);
+    }
+    if (!response.ok) {
+      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
+    }
+    let responseText;
+    try {
+      responseText = await response.text();
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    }
+    if (now() >= deadline) throw pageAuthorityProviderTaskPollUnresolved();
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch {
+      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
+    }
+    const status = pageAuthorityProviderTaskStatus(payload);
+    if (status === "completed") {
+      return targetPageAuthorityPngBytesFromProvider(pageAuthorityProviderTaskResultPayload(payload));
+    }
+    if (["failed", "error", "cancelled", "canceled", "expired"].includes(status)) {
+      throw pageAuthorityProviderResponseKnownFailure("task_terminal_failure");
+    }
+    if (!["pending", "queued", "submitted", "running", "processing"].includes(status)) {
+      throw pageAuthorityProviderResponseKnownFailure("task_response_invalid");
+    }
+    const remainingMs = deadline - now();
+    if (remainingMs <= 0) throw pageAuthorityProviderTaskPollUnresolved();
+    try {
+      await sleep(Math.min(intervalMs, remainingMs));
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    }
+  }
+  throw pageAuthorityProviderTaskPollUnresolved();
+}
+
+function targetPageAuthorityPngBytesFromProvider(payload) {
+  let bytes;
+  try {
+    bytes = imageBytesFromPageAuthorityProvider(payload);
+  } catch {
+    throw pageAuthorityProviderMediaKnownFailure({ classification: "empty" });
+  }
+  const inspected = inspectExactPageAuthorityPng(bytes, PAGE_AUTHORITY_NATIVE_RAW_PNG);
+  if (!inspected.ok && inspected.classification === "invalid_png") {
+    throw pageAuthorityProviderMediaKnownFailure({ classification: "invalid_png" });
+  }
+  if (!inspected.ok) {
+    throw pageAuthorityProviderMediaKnownFailure({
+      ...(inspected.actual || { classification: inspected.classification }),
+    });
+  }
+  return inspected.bytes;
+}
+
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
 export function targetPageAuthoritySubmitFactory(plan, {
   credentialResolver = null,
   fetchImpl = fetch,
+  now = () => Date.now(),
+  sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)),
+  taskPollTimeoutMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
+  taskPollIntervalMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
 } = {}) {
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
   return async ({ request, item, provider_idempotency_key: providerIdempotencyKey }) => {
@@ -1735,7 +1934,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
       model: request.generation_profile.provider.model,
       prompt: JSON.stringify(request),
       n: 1,
-      size: "2000x1125",
+      size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
       image: images[0],
       images,
       image_urls: images,
@@ -1757,21 +1956,52 @@ export function targetPageAuthoritySubmitFactory(plan, {
       error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
       throw error;
     }
+    if (!response.ok) {
+      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
+    }
+    let responseText;
+    try {
+      responseText = await response.text();
+    } catch {
+      const error = new Error("Target Page Authority provider response could not be read");
+      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED";
+      throw error;
+    }
     let payload;
     try {
-      payload = JSON.parse(await response.text());
+      payload = JSON.parse(responseText);
     } catch {
-      const error = new Error("Target Page Authority provider response was not valid JSON");
-      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
-      throw error;
+      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
     }
-    if (!response.ok) {
-      const error = new Error(`Target Page Authority provider submission failed with HTTP ${response.status}`);
-      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
-      throw error;
+    const taskId = pageAuthorityProviderTaskId(payload);
+    if (taskId && !pageAuthorityProviderHasInlineImage(payload)) {
+      return resolvePageAuthorityProviderTask({
+        baseUrl: credentials.base_url,
+        apiKey: credentials.api_key,
+        taskId,
+        fetchImpl,
+        now,
+        sleep,
+        taskPollTimeoutMs,
+        taskPollIntervalMs,
+      });
     }
-    return imageBytesFromPageAuthorityProvider(payload);
+    return targetPageAuthorityPngBytesFromProvider(payload);
   };
+}
+
+/** Resolve the one remote Image2 credential pair before the raw owner may write an attempt. */
+async function targetPageAuthorityGenerateCredentials(runDir) {
+  try {
+    loadDotenv(deckRoot(runDir));
+    loadDotenv(process.cwd());
+    const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
+    return resolveImage2Credentials();
+  } catch {
+    const error = new Error("Target Page Authority provider credentials are unavailable");
+    error.code = "PAGE_AUTHORITY_PROVIDER_CREDENTIALS_UNAVAILABLE";
+    throw error;
+  }
 }
 
 async function initializeStyleMasterImage2Transport() {
@@ -1923,10 +2153,13 @@ async function commandTargetPageAuthorityImage2(operation, route, opts = {}) {
       const batchHash = requiredPageAuthorityHash(operation, "--batch-hash", opts.batchHash, "batch");
       if (!planHash || !batchHash) return 1;
       const plan = await operations.readStoredPlan(route.run_dir);
+      const credentials = await targetPageAuthorityGenerateCredentials(route.run_dir);
       output = await operations.generate(route.run_dir, {
         planHash,
         batchHash,
-        submit: targetPageAuthoritySubmitFactory(plan),
+        submit: targetPageAuthoritySubmitFactory(plan, {
+          credentialResolver: () => credentials,
+        }),
       });
     } else if (operation === "pilot-review") {
       const planHash = requiredPageAuthorityHash(operation, "--plan-hash", opts.planHash, "full plan");
@@ -2531,8 +2764,8 @@ Examples:
     .description("Create a clean downstream version")
     .argument("<run_dir>", "Path to source version dir")
     .option("--name <name>", "Explicit version name, e.g. v3")
-    .action((runDir, opts) => {
-      const code = commandNewVersion(runDir, {
+    .action(async (runDir, opts) => {
+      const code = await commandNewVersion(runDir, {
         name: opts.name || null,
       });
       process.exit(code);

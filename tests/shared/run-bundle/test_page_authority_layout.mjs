@@ -44,6 +44,7 @@ describe("Page Authority bundle layout", () => {
       const paths = pageAuthorityImage2Paths(runDir);
       expect(Object.keys(paths).sort()).toEqual(Object.keys(PAGE_AUTHORITY_IMAGE2_PATHS).sort());
       expect(paths.raw_manifest).toContain("_generated/page_authority_image2/raw/manifest.json");
+      expect(paths.target_provider_request_inspection).toContain("_generated/page_authority_image2/raw/provider-request-inspection-v1.json");
       expect(paths.final_manifest).toContain("_generated/page_authority_image2/final/manifest.json");
       expect(renderTree()).toContain("page_authority_image2");
       expect(renderTree()).not.toContain("html_production");

@@ -24,10 +24,10 @@ const textFrame = Object.freeze({
 });
 
 function verifiedRaw(color) {
-  const canvas = createCanvas(2000, 1125);
+  const canvas = createCanvas(2048, 1136);
   const context = canvas.getContext('2d');
   context.fillStyle = color;
-  context.fillRect(0, 0, 2000, 1125);
+  context.fillRect(0, 0, 2048, 1136);
   const bytes = canvas.toBuffer('image/png');
   return Object.freeze({
     bytes,

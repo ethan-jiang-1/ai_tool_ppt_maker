@@ -1,19 +1,26 @@
 # BUG-037: Image2 API (APIMART gpt-image-2) 不遵守请求尺寸
 
-> 严重级别: P1 | 发现: 2026-07-30 | 状态: 活跃（当前路径复核：2026-08-02）
+> 严重级别: P1 | 发现: 2026-07-30 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
 
-## 当前复核
+## 关闭证据（2026-08-04）
 
-当前 target provider request 仍声明 `2000x1125`，但
-`targetPageAuthoritySubmitFactory` 只验证 response 有非空 base64 bytes；progressive
-raw owner 会把这些 opaque bytes materialize。Framed 到较晚的本地 composition 才解码
-并拒绝错误尺寸，Pure 则没有一个等价的 shared provider-response media boundary。
+根因已校正为“请求尺寸不是返回 bytes 契约”，而不是以 resize 掩盖 provider 原件。
+`2026-08-04-align-page-authority-native-media-contract` 保留 `2000x1125` transport request，
+将验证/ingress 契约设为原生 `2048x1136` PNG。v7 的 25/25 raw 均为该原生尺寸，且 25/25
+Pure final 与 raw 字节相同、PPTX media 也按序相同；没有 resize、crop 或 transcode。本卡关闭。
 
-因此这里仍是当前路径的防护缺口：错误尺寸不应被静默 resize（那会伪造被接受 raw
-bytes），但应在 selected adapter/provider-result 边界立即解码并以 bounded known
-failure 停止，避免把无效 bytes 记为已 materialize 的生产事实。是否 provider 目前
-仍会返回错误尺寸需要一次单独授权的 live probe 才能重新确认；本卡保留的是本地
-deterministic 防护责任。
+## 关闭前复核
+
+`harden-page-authority-provider-boundary` 已在 selected adapter/provider-result
+边界以 CRC-checked PNG decode 验证精确 `2000x1125`。空 bytes、损坏/非 PNG 与错误
+尺寸均在 raw materialization、provenance 和 `succeeded` attempt 之前进入既有 bounded
+`known_failure`，不会 resize 或伪造合格原件；Pure 与 Framed 共用这一边界。
+
+这证明本地 deterministic 防护已完成，不证明 APIMART 已停止返回错误尺寸。是否 provider
+当前仍会发生该偏差，仍需一次单独授权的真实 run/live probe 验收。
+
+2026-08-03 指定 v7 已完成 provider-free source validation 并停在 Style Master gate；没有
+provider authorization 或 raw materialization，因此该验收没有伪造 live-probe 结论。
 
 ## 历史记录
 

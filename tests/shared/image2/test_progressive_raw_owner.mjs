@@ -9,6 +9,7 @@ import {
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   createProgressiveRawBatch,
+  createProgressiveRawItemAttempt,
   createProgressiveRawMaterializationProvenance,
   createProgressiveRawScopeHead,
   createProgressiveRawWorkPlan,
@@ -23,6 +24,7 @@ import {
   readProgressiveRawPlanDirectRecords,
   readProgressiveRawScopeHead,
   stageProgressiveRawPlanContainer,
+  writeProgressiveRawItemAttempt,
   writeProgressiveRawScopeHeadCas,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
@@ -70,6 +72,22 @@ function fixtureRun() {
   const runDir = join(deck, "3_versions", "v1");
   mkdirSync(runDir, { recursive: true });
   return { root, deck, runDir };
+}
+
+function appendTerminalAttemptSibling(runDir, { plan, batch_hash, status }) {
+  const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+  const submitted = direct.attempts.find((entry) =>
+    entry.record.batch_sha256 === batch_hash && entry.record.status === "submitted",
+  );
+  const batch = direct.batches.find((entry) => entry.sha256 === batch_hash);
+  const grant = direct.grants.find((entry) => entry.sha256 === submitted?.record.grant_sha256);
+  const terminal = createProgressiveRawItemAttempt({
+    ...submitted.record,
+    status,
+    previous_attempt_sha256: submitted.sha256,
+  }, { plan, batch: batch.record, grant: grant.record });
+  writeProgressiveRawItemAttempt(runDir, { plan, batch: batch.record, grant: grant.record, attempt: terminal });
+  return Object.freeze({ submitted, terminal });
 }
 
 describe("progressive Page Authority raw owner", () => {
@@ -585,6 +603,222 @@ describe("progressive Page Authority raw owner", () => {
     }
   });
 
+  it("keeps a successor Pilot transport interruption reconcilable after a terminal unknown predecessor", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan(6);
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const predecessor = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      const predecessorGrant = await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: predecessor.batch.batch_hash,
+      });
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: predecessor.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: async () => { throw new Error("predecessor transport interrupted"); },
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+      const predecessorAttempt = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" }).primary_action.attempt_sha256;
+      await reconcileProgressiveRawAttempt({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        attempt_sha256: predecessorAttempt,
+        lookup: async () => null,
+      });
+
+      const successor = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      expect(successor.batch).toMatchObject({
+        batch_generation: 2,
+        previous_batch_sha256: predecessor.batch.batch_hash,
+      });
+      const successorGrant = await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: successor.batch.batch_hash,
+      });
+      const successorSubmit = vi.fn(async () => { throw new Error("successor transport interrupted"); });
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: successor.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: successorSubmit,
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+
+      const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      const submitted = records.attempts.find((entry) =>
+        entry.record.status === "submitted" && entry.record.batch_sha256 === successor.batch.batch_hash,
+      );
+      expect(submitted?.record.slide_id).toBe("Slide01");
+      expect(successorSubmit).toHaveBeenCalledTimes(1);
+      expect(records.grants).toHaveLength(2);
+      expect(records.grants.some((entry) => entry.sha256 === predecessorGrant.grant_hash)).toBe(true);
+      expect(records.grants.some((entry) => entry.sha256 === successorGrant.grant_hash)).toBe(true);
+      expect(records.attempts.some((entry) =>
+        entry.record.batch_sha256 === predecessor.batch.batch_hash && entry.record.status === "unknown",
+      )).toBe(true);
+      expect(records.materializations).toHaveLength(0);
+      expect(records.pilot_evidence).toHaveLength(0);
+      expect(records.accepted_evidence).toHaveLength(0);
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        ok: true,
+        primary_action: {
+          action_id: "reconcile_progressive_raw_attempt",
+          attempt_sha256: submitted.sha256,
+        },
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("derives a known-failure terminal from a redundant unknown sibling before reconciling newer work", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan(6);
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const predecessor = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: predecessor.batch.batch_hash,
+      });
+      const predecessorSubmit = vi.fn(async () => ({ outcome: "known_failure" }));
+      await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: predecessor.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: predecessorSubmit,
+      });
+
+      const successor = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide02"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: successor.batch.batch_hash,
+      });
+      const successorSubmit = vi.fn(async () => { throw new Error("successor transport interrupted"); });
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: successor.batch.batch_hash,
+        provider_requests_by_slide: { Slide02: { schema: "fixture-request-v1" } },
+        submit: successorSubmit,
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
+      const successorSubmitted = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).attempts
+        .find((entry) => entry.record.batch_sha256 === successor.batch.batch_hash && entry.record.status === "submitted");
+
+      appendTerminalAttemptSibling(runDir, {
+        plan,
+        batch_hash: predecessor.batch.batch_hash,
+        status: "unknown",
+      });
+      const before = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      const inspected = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" });
+
+      expect(inspected).toMatchObject({
+        ok: true,
+        progress: { known_failure: 1, submitted: 1, unsubmitted: 4 },
+        primary_action: {
+          action_id: "reconcile_progressive_raw_attempt",
+          attempt_sha256: successorSubmitted.sha256,
+        },
+      });
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 })).toEqual(before);
+      expect(predecessorSubmit).toHaveBeenCalledTimes(1);
+      expect(successorSubmit).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a succeeded and unknown sibling branch as an integrity hard-stop", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+      const submitted = vi.fn(async () => Buffer.from("fixture succeeded bytes"));
+      await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: submitted,
+      });
+      appendTerminalAttemptSibling(runDir, {
+        plan,
+        batch_hash: pilot.batch.batch_hash,
+        status: "unknown",
+      });
+
+      const before = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        ok: false,
+        code: "progressive_raw_attempt_chain_invalid",
+      });
+      const blockedSubmit = vi.fn(async () => Buffer.from("must not submit"));
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: blockedSubmit,
+      })).rejects.toMatchObject({ code: "progressive_raw_attempt_chain_invalid" });
+      expect(submitted).toHaveBeenCalledTimes(1);
+      expect(blockedSubmit).not.toHaveBeenCalled();
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 })).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("derives Expansion only after a partial Pilot proceed and rejects another Pilot bypass", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan(6);
@@ -984,6 +1218,211 @@ describe("progressive Page Authority raw owner", () => {
         batch_hash: retry.batch.batch_hash,
       });
       expect(grant.grant_hash).not.toBe(oldGrant);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns only bounded tagged Page Authority media facts without materializing rejected bytes", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+
+      const result = await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: async () => {
+          const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
+          error.page_authority_known_failure = true;
+          error.page_authority_known_failure_facts = {
+            expected: {
+              format: "png",
+              width: 2048,
+              height: 1136,
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+            actual: {
+              format: "png",
+              width: 1600,
+              height: 900,
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+          };
+          throw error;
+        },
+      });
+
+      expect(result).toMatchObject({
+        item: "Slide01",
+        outcome: "known_failure",
+        provider_media: {
+          expected: { format: "png", width: 2048, height: 1136 },
+          actual: { format: "png", width: 1600, height: 900 },
+        },
+        progress: { materialized: 0, known_failure: 1 },
+        next_action: { action_id: "plan_progressive_pilot" },
+      });
+      expect(JSON.stringify(result)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(records.materializations).toHaveLength(0);
+      expect(records.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+      expect(records.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns only bounded tagged Page Authority response facts without materializing rejected bytes", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+
+      const result = await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: async () => {
+          const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
+          error.page_authority_known_failure = true;
+          error.page_authority_known_failure_facts = {
+            response: {
+              classification: "http_error",
+              http_status: 502,
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+          };
+          throw error;
+        },
+      });
+
+      expect(result).toMatchObject({
+        item: "Slide01",
+        outcome: "known_failure",
+        provider_failure: { classification: "http_error", http_status: 502 },
+        progress: { materialized: 0, known_failure: 1 },
+        next_action: { action_id: "plan_progressive_pilot" },
+      });
+      expect(result.provider_media).toBeUndefined();
+      expect(JSON.stringify(result)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(records.materializations).toHaveLength(0);
+      expect(records.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+      expect(records.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("routes a terminal partial Pilot with missing coverage through a fresh successor grant", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan(6);
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      const oldGrant = await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+      const terminal = await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        submit: async () => ({ outcome: "known_failure" }),
+      });
+      expect(terminal).toMatchObject({
+        outcome: "known_failure",
+        next_action: { action_id: "plan_progressive_pilot", kind: "confirm", requires_human: true },
+      });
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        primary_action: { action_id: "plan_progressive_pilot", kind: "confirm", requires_human: true },
+      });
+
+      const beforeReview = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      const publish = vi.fn();
+      await expect(prepareProgressiveRawPilotEvidence({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        publish,
+      })).rejects.toMatchObject({
+        code: "progressive_raw_pilot_coverage_missing",
+        next_action: { action_id: "plan_progressive_pilot", kind: "confirm", requires_human: true },
+      });
+      expect(publish).not.toHaveBeenCalled();
+      const afterReview = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(afterReview.pilot_evidence).toEqual(beforeReview.pilot_evidence);
+      expect(afterReview.pilot_decisions).toEqual(beforeReview.pilot_decisions);
+      expect(afterReview.attempts).toEqual(beforeReview.attempts);
+
+      await expect(authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      })).rejects.toMatchObject({ code: "progressive_raw_batch_terminal" });
+
+      const successor = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      expect(successor).toMatchObject({
+        replay: false,
+        batch: {
+          batch_generation: 2,
+          previous_batch_sha256: pilot.batch.batch_hash,
+          paid_submission_slide_ids: ["Slide01"],
+        },
+      });
+      const successorGrant = await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: successor.batch.batch_hash,
+      });
+      expect(successorGrant.grant_hash).not.toBe(oldGrant.grant_hash);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

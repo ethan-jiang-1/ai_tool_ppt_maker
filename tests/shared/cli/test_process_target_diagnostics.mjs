@@ -16,11 +16,11 @@ import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_mast
 
 const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 
-function pngBytes(color) {
-  const canvas = createCanvas(2000, 1125);
+function pngBytes(color, width = 2048, height = 1136) {
+  const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
   context.fillStyle = color;
-  context.fillRect(0, 0, 2000, 1125);
+  context.fillRect(0, 0, width, height);
   return canvas.toBuffer("image/png");
 }
 
@@ -61,7 +61,7 @@ async function createFixture(title) {
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
-function pureSource() {
+function pureSource(firstTitle = "First exact Pure page") {
   return `---
 identity:
   scheme: mnemonic-v1
@@ -72,7 +72,7 @@ production:
 
 ## Slide 01: \`PureOne\`
 
-**TITLE**: First exact Pure page
+**TITLE**: ${firstTitle}
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -100,22 +100,24 @@ negative_constraints:
 `;
 }
 
-async function createPureFixture() {
+async function createPureFixture(firstTitle = "First exact Pure page") {
   const root = mkdtempSync(join(tmpdir(), "pptmaker-pure-progressive-cli-"));
   const deck = join(root, "deck_pure_progressive_cli");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#265e74"));
-  writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
+  writeFileSync(join(runDir, "slide-specifications.md"), pureSource(firstTitle));
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
   return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
 }
 
-function runFlow(args, env = {}) {
+function runFlow(args, env = {}, { cwd = process.cwd(), unsetEnv = [] } = {}) {
+  const childEnv = { ...process.env, ...env };
+  for (const key of unsetEnv) delete childEnv[key];
   return new Promise((resolveResult, reject) => {
     const child = spawn(process.execPath, [FLOW, ...args], {
-      cwd: process.cwd(),
-      env: { ...process.env, ...env },
+      cwd,
+      env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -144,11 +146,31 @@ function runFlow(args, env = {}) {
   });
 }
 
-async function startMockProvider({ responseBytes = null } = {}) {
+async function startMockProvider({
+  responseBytes = null,
+  responsePayload = null,
+  responseStatus = null,
+  responseBody = null,
+  closeConnection = false,
+} = {}) {
   const calls = [];
   const server = createServer((request, response) => {
     calls.push({ method: request.method, url: request.url, idempotency_key: request.headers["idempotency-key"] || null });
     request.resume();
+    if (closeConnection) {
+      request.socket.destroy();
+      return;
+    }
+    if (responseStatus !== null) {
+      response.writeHead(responseStatus, { "content-type": "application/json" });
+      response.end(responseBody === null ? JSON.stringify({ error: "unexpected provider call" }) : responseBody);
+      return;
+    }
+    if (responsePayload !== null) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(responsePayload));
+      return;
+    }
     if (responseBytes) {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ data: [{ b64_json: responseBytes.toString("base64") }] }));
@@ -176,10 +198,65 @@ async function startMockProvider({ responseBytes = null } = {}) {
   };
 }
 
+async function startAsyncMockProvider({
+  taskId = "ASYNC_TASK_ID_SENTINEL",
+  pollResponses = [],
+} = {}) {
+  const calls = [];
+  let pollIndex = 0;
+  const server = createServer((request, response) => {
+    calls.push({ method: request.method, url: request.url, idempotency_key: request.headers["idempotency-key"] || null });
+    request.resume();
+    if (request.method === "POST" && request.url === "/images/generations") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ data: [{ task_id: taskId }] }));
+      return;
+    }
+    if (request.method === "GET" && request.url === `/tasks/${taskId}`) {
+      const step = pollResponses[Math.min(pollIndex, pollResponses.length - 1)];
+      pollIndex += 1;
+      if (!step) {
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "missing async fixture response" }));
+        return;
+      }
+      if (step.closeConnection) {
+        request.socket.destroy();
+        return;
+      }
+      const status = Number.isSafeInteger(step.status) ? step.status : 200;
+      const body = Object.hasOwn(step, "body") ? step.body : JSON.stringify(step.payload ?? {});
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(body);
+      return;
+    }
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: "unexpected provider route" }));
+  });
+  await new Promise((resolveReady, rejectReady) => {
+    server.once("error", rejectReady);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", rejectReady);
+      resolveReady();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("async mock provider did not receive a TCP address");
+  return {
+    calls,
+    env: {
+      IMAGE2_API_KEY: "CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL",
+      IMAGE2_BASE_URL: `http://127.0.0.1:${address.port}`,
+    },
+    close: () => new Promise((resolveClosed) => server.close(resolveClosed)),
+  };
+}
+
 function derivedPaths(paths) {
   return [
     paths.target_source_receipt,
     paths.target_raw_plan,
+    paths.target_provider_request_inspection,
     paths.target_raw_evidence,
     paths.target_raw_review,
     paths.target_raw_review_projection,
@@ -445,6 +522,541 @@ describe("target Page Authority CLI diagnostics", () => {
     }
   }, 45_000);
 
+  it("loads cwd dotenv credentials only when an authorized generate crosses the remote boundary", async () => {
+    const fixture = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    const withoutInheritedCredentials = {
+      cwd: fixture.root,
+      unsetEnv: ["IMAGE2_API_KEY", "IMAGE2_BASE_URL"],
+    };
+    try {
+      writeFileSync(join(fixture.root, ".env"), `${Object.entries(provider.env).map(([key, value]) => `${key}=${value}`).join("\n")}\n`);
+
+      const planned = await runFlow(["image2", "plan", fixture.runDir], {}, withoutInheritedCredentials);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], {}, withoutInheritedCredentials);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      expect(provider.calls).toHaveLength(0);
+
+      const generated = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        item: "PureOne",
+        outcome: "succeeded",
+      });
+      expect(provider.calls).toHaveLength(1);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(provider.env.IMAGE2_API_KEY);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(provider.env.IMAGE2_BASE_URL);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("stops missing credentials before the raw owner creates an attempt or contacts a provider", async () => {
+    const fixture = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    const withoutInheritedCredentials = {
+      cwd: fixture.root,
+      unsetEnv: ["IMAGE2_API_KEY", "IMAGE2_BASE_URL"],
+    };
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], {}, withoutInheritedCredentials);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], {}, withoutInheritedCredentials);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      expect(authorized.status, authorized.stderr).toBe(0);
+      const before = immutableSnapshot(fixture);
+
+      const rejected = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {}, withoutInheritedCredentials);
+      const envelope = parseFailure(rejected);
+      expectOwnerAction(envelope, {
+        category: "provider",
+        reason: "page_authority_provider_credentials_unavailable",
+        action: "repair_environment",
+      });
+      expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/IMAGE2_API_KEY|IMAGE2_BASE_URL/i);
+      expect(provider.calls).toHaveLength(0);
+      expect(readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash }).attempts).toHaveLength(0);
+      expectUnchanged(fixture, before);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("resolves a Page Authority async task without a second submission or CLI transport leakage", async () => {
+    const image = pngBytes("#397d93");
+    const provider = await startAsyncMockProvider({
+      pollResponses: [
+        { payload: { data: { status: "pending" } } },
+        {
+          payload: {
+            data: {
+              status: "completed",
+              result: { images: [{ bytes_base64: image.toString("base64") }] },
+              provider_response: "ASYNC_PROVIDER_BODY_SENTINEL",
+            },
+          },
+        },
+      ],
+    });
+    const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], provider.env);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        item: "PureOne",
+        outcome: "succeeded",
+        progress: { materialized: 1, unsubmitted: 1 },
+      });
+      const controlTranscript = `${planned.stdout}${planned.stderr}${pilot.stdout}${pilot.stderr}${authorized.stdout}${authorized.stderr}`;
+      const generatedTranscript = `${generated.stdout}${generated.stderr}`;
+      expect(controlTranscript).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|ASYNC_TASK_ID_SENTINEL|ASYNC_PROVIDER_BODY_SENTINEL|data:image/i);
+      expect(generatedTranscript).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|ASYNC_TASK_ID_SENTINEL|ASYNC_PROVIDER_BODY_SENTINEL|data:image/i);
+      expect(generatedTranscript).not.toContain(image.toString("base64"));
+      expect(provider.calls.map(({ method, url }) => ({ method, url }))).toEqual([
+        { method: "POST", url: "/images/generations" },
+        { method: "GET", url: "/tasks/ASYNC_TASK_ID_SENTINEL" },
+        { method: "GET", url: "/tasks/ASYNC_TASK_ID_SENTINEL" },
+      ]);
+      const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+      expect(direct.attempts.filter((entry) => entry.record.status === "succeeded")).toHaveLength(1);
+      expect(direct.materializations).toHaveLength(1);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("terminalizes received async failures while preserving an interrupted poll for reconciliation", async () => {
+    const cases = [
+      {
+        name: "terminal task failure",
+        pollResponses: [{ payload: { data: { status: "failed", provider_response: "ASYNC_PROVIDER_BODY_SENTINEL" } } }],
+        expected: { provider_failure: { classification: "task_terminal_failure" } },
+      },
+      {
+        name: "poll HTTP failure",
+        pollResponses: [{ status: 503, body: "ASYNC_PROVIDER_BODY_SENTINEL" }],
+        expected: { provider_failure: { classification: "http_error", http_status: 503 } },
+      },
+      {
+        name: "completed task without media",
+        pollResponses: [{
+          payload: {
+            data: {
+              status: "completed",
+              result: { images: [] },
+              provider_response: "ASYNC_PROVIDER_BODY_SENTINEL",
+            },
+          },
+        }],
+        expected: {
+          provider_media: {
+            expected: { format: "png", width: 2048, height: 1136 },
+            actual: { classification: "empty" },
+          },
+        },
+      },
+      {
+        name: "completed task with invalid media",
+        pollResponses: [{
+          payload: {
+            data: {
+              status: "completed",
+              result: { images: [{ bytes_base64: Buffer.from("not a PNG ASYNC_PROVIDER_BODY_SENTINEL").toString("base64") }] },
+              provider_response: "ASYNC_PROVIDER_BODY_SENTINEL",
+            },
+          },
+        }],
+        expected: {
+          provider_media: {
+            expected: { format: "png", width: 2048, height: 1136 },
+            actual: { classification: "invalid_png" },
+          },
+        },
+      },
+    ];
+    for (const scenario of cases) {
+      const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+      const provider = await startAsyncMockProvider({ pollResponses: scenario.pollResponses });
+      try {
+        const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+        expect(planned.status, planned.stderr).toBe(0);
+        const plan = JSON.parse(planned.stdout);
+        const pilot = await runFlow([
+          "image2", "pilot", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--slide-id", "PureOne",
+          "--slide-id", "PureTwo",
+        ], provider.env);
+        expect(pilot.status, pilot.stderr).toBe(0);
+        const batch = JSON.parse(pilot.stdout).batch;
+        const authorized = await runFlow([
+          "image2", "authorize", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(authorized.status, authorized.stderr).toBe(0);
+
+        const generated = await runFlow([
+          "image2", "generate", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(generated.status, `${scenario.name}: ${generated.stderr}`).toBe(0);
+        expect(JSON.parse(generated.stdout)).toMatchObject({
+          item: "PureOne",
+          outcome: "known_failure",
+          ...scenario.expected,
+        });
+        expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|ASYNC_TASK_ID_SENTINEL|ASYNC_PROVIDER_BODY_SENTINEL|data:image/i);
+        expect(provider.calls).toHaveLength(2);
+        const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+        expect(direct.materializations).toHaveLength(0);
+        expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      } finally {
+        await provider.close();
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+
+    const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+    const provider = await startAsyncMockProvider({ pollResponses: [{ closeConnection: true }] });
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], provider.env);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = await runFlow([
+        "image2", "generate", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      const envelope = parseFailure(generated);
+      expect(envelope).toMatchObject({
+        code: "GATE_BLOCKED",
+        diagnostic: {
+          category: "gate",
+          reason: { kind: "progressive_raw_provider_outcome_unresolved" },
+          next: { action: "reconcile", requires_human: false },
+        },
+      });
+      expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|ASYNC_TASK_ID_SENTINEL|data:image/i);
+      expect(provider.calls).toHaveLength(2);
+      const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+      expect(direct.batches).toHaveLength(1);
+      expect(direct.grants).toHaveLength(1);
+      expect(direct.materializations).toHaveLength(0);
+      expect(direct.attempts.filter((entry) => entry.record.status === "submitted")).toHaveLength(1);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("surfaces a plan-bound inspection reference without leaking its prompt or transport", async () => {
+    const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+    const provider = await startMockProvider();
+    try {
+      const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      expect(plan.provider_request_inspection).toMatchObject({
+        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        plan_hash: plan.plan_hash,
+      });
+      const inspection = readFileSync(join(fixture.runDir, plan.provider_request_inspection.path), "utf8");
+      const inspectionRecord = JSON.parse(inspection);
+      const inspectedRequest = JSON.parse(inspectionRecord.items[0].prompt);
+      expect(inspectionRecord.transport).toMatchObject({ model: "gpt-image-2", size: "2000x1125" });
+      expect(inspectedRequest.generation_profile.output).toEqual({ format: "png", width: 2048, height: 1136 });
+      expect(inspection).toContain("PROMPT_LITERAL_SENTINEL");
+      expect(inspection).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(`${planned.stdout}${planned.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(0);
+
+      const rejected = await runFlow([
+        "image2", "authorize", fixture.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", "0".repeat(64),
+      ], provider.env);
+      const envelope = parseFailure(rejected);
+      expect(envelope.diagnostic).toMatchObject({ category: "artifact" });
+      expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(0);
+    } finally {
+      await provider.close();
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  }, 45_000);
+
+  it("terminalizes invalid provider media before Pure or Framed raw evidence", async () => {
+    const cases = [
+      {
+        name: "empty",
+        responsePayload: { data: [{ b64_json: "" }], provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL" },
+        actual: { classification: "empty" },
+      },
+      {
+        name: "malformed",
+        responsePayload: {
+          data: [{ b64_json: Buffer.from("not a PNG PROVIDER_RESPONSE_BODY_SENTINEL").toString("base64") }],
+          provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        },
+        actual: { classification: "invalid_png" },
+      },
+      {
+        name: "wrong dimensions",
+        responsePayload: {
+          data: [{ b64_json: pngBytes("#397d93", 1600, 900).toString("base64") }],
+          provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        },
+        actual: { format: "png", width: 1600, height: 900 },
+      },
+    ];
+    for (const scenario of cases) {
+      const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+      const provider = await startMockProvider({ responsePayload: scenario.responsePayload });
+      try {
+        const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+        expect(planned.status, planned.stderr).toBe(0);
+        const plan = JSON.parse(planned.stdout);
+        const pilot = await runFlow([
+          "image2", "pilot", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--slide-id", "PureOne",
+          "--slide-id", "PureTwo",
+        ], provider.env);
+        expect(pilot.status, pilot.stderr).toBe(0);
+        const batch = JSON.parse(pilot.stdout).batch;
+        const authorized = await runFlow([
+          "image2", "authorize", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(authorized.status, authorized.stderr).toBe(0);
+
+        const generated = await runFlow([
+          "image2", "generate", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(generated.status, `${scenario.name}: ${generated.stderr}`).toBe(0);
+        expect(JSON.parse(generated.stdout)).toMatchObject({
+          item: "PureOne",
+          outcome: "known_failure",
+          provider_media: {
+            expected: { format: "png", width: 2048, height: 1136 },
+            actual: scenario.actual,
+          },
+          progress: { materialized: 0, known_failure: 1, unsubmitted: 1 },
+          next_action: { action_id: "generate_progressive_raw_item" },
+        });
+        expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
+        expect(provider.calls).toHaveLength(1);
+        const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+        expect(direct.materializations).toHaveLength(0);
+        expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+        expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+        expect(existsSync(join(fixture.paths.raw_root, "PureOne.png"))).toBe(false);
+      } finally {
+        await provider.close();
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+
+    const framed = await createFixture("Framed invalid media");
+    const provider = await startMockProvider({
+      responsePayload: {
+        data: [{ b64_json: pngBytes("#1f4d6e", 1600, 900).toString("base64") }],
+        provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+      },
+    });
+    try {
+      const planned = await runFlow(["image2", "plan", framed.runDir], provider.env);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const pilot = await runFlow([
+        "image2", "pilot", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "FramGo",
+      ], provider.env);
+      expect(pilot.status, pilot.stderr).toBe(0);
+      const batch = JSON.parse(pilot.stdout).batch;
+      const authorized = await runFlow([
+        "image2", "authorize", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = await runFlow([
+        "image2", "generate", framed.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], provider.env);
+      expect(generated.status, generated.stderr).toBe(0);
+      expect(JSON.parse(generated.stdout)).toMatchObject({
+        item: "FramGo",
+        outcome: "known_failure",
+        provider_media: {
+          expected: { format: "png", width: 2048, height: 1136 },
+          actual: { format: "png", width: 1600, height: 900 },
+        },
+        progress: { materialized: 0, known_failure: 1 },
+        next_action: { action_id: "plan_progressive_pilot" },
+      });
+      expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
+      expect(provider.calls).toHaveLength(1);
+      const direct = readProgressiveRawPlanDirectRecords(framed.runDir, { plan_sha256: plan.plan_hash });
+      expect(direct.materializations).toHaveLength(0);
+      expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+      expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      expect(existsSync(join(framed.paths.raw_root, "FramGo.png"))).toBe(false);
+    } finally {
+      await provider.close();
+      rmSync(framed.root, { recursive: true, force: true });
+    }
+  }, 90_000);
+
+  it("terminalizes received HTTP and malformed success responses without leaking provider content", async () => {
+    const cases = [
+      {
+        name: "HTTP error",
+        responseStatus: 503,
+        providerFailure: { classification: "http_error", http_status: 503 },
+      },
+      {
+        name: "invalid JSON",
+        responseStatus: 200,
+        providerFailure: { classification: "invalid_json" },
+      },
+    ];
+    for (const scenario of cases) {
+      const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
+      const provider = await startMockProvider({
+        responseStatus: scenario.responseStatus,
+        responseBody: "PROVIDER_RESPONSE_BODY_SENTINEL",
+      });
+      try {
+        const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
+        expect(planned.status, planned.stderr).toBe(0);
+        const plan = JSON.parse(planned.stdout);
+        const pilot = await runFlow([
+          "image2", "pilot", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--slide-id", "PureOne",
+          "--slide-id", "PureTwo",
+        ], provider.env);
+        expect(pilot.status, pilot.stderr).toBe(0);
+        const batch = JSON.parse(pilot.stdout).batch;
+        const authorized = await runFlow([
+          "image2", "authorize", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(authorized.status, authorized.stderr).toBe(0);
+
+        const generated = await runFlow([
+          "image2", "generate", fixture.runDir,
+          "--plan-hash", plan.plan_hash,
+          "--batch-hash", batch.batch_hash,
+        ], provider.env);
+        expect(generated.status, `${scenario.name}: ${generated.stderr}`).toBe(0);
+        const output = JSON.parse(generated.stdout);
+        expect(output).toMatchObject({
+          item: "PureOne",
+          outcome: "known_failure",
+          provider_failure: scenario.providerFailure,
+          progress: { materialized: 0, known_failure: 1, unsubmitted: 1 },
+          next_action: { action_id: "generate_progressive_raw_item" },
+        });
+        expect(output.provider_media).toBeUndefined();
+        expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
+        expect(provider.calls).toHaveLength(1);
+        const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, { plan_sha256: plan.plan_hash });
+        expect(direct.materializations).toHaveLength(0);
+        expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+        expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      } finally {
+        await provider.close();
+        rmSync(fixture.root, { recursive: true, force: true });
+      }
+    }
+  }, 90_000);
+
   it("rejects retired and bypassing progressive forms before mutation or provider initialization", async () => {
     const fixture = await createPureFixture();
     const provider = await startMockProvider();
@@ -476,7 +1088,7 @@ describe("target Page Authority CLI diagnostics", () => {
 
   it("permits only exact historical reconciliation after a submitted Pure attempt drifts", async () => {
     const fixture = await createPureFixture();
-    const provider = await startMockProvider();
+    const provider = await startMockProvider({ closeConnection: true });
     try {
       const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);
       expect(planned.status, planned.stderr).toBe(0);

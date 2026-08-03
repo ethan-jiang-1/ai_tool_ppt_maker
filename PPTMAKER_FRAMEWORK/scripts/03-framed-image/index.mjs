@@ -14,6 +14,7 @@ import { currentFramedRenderProfile } from "./internal/framed_render_profile.mjs
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
+  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
@@ -53,6 +54,7 @@ import {
   targetSourceSemanticSha256,
   targetRawPlanProjection,
   validateTargetRawReviewContribution,
+  writeTargetProviderRequestInspection,
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
@@ -847,12 +849,18 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
         previousAcceptedRawEvidence: previous.accepted_raw_evidence,
         nextAcceptedRawEvidence: successor.accepted_raw_evidence,
       });
+      const providerRequestInspection = writeTargetProviderRequestInspection(context, {
+        rawWorkPlan: candidate.raw_work_plan,
+        progressiveRawWorkPlan: successor.plan,
+        providerRequestsBySlide: candidate.provider_requests_by_slide,
+      });
       return Object.freeze({
         ...context,
         raw_work_plan: candidate.raw_work_plan,
         progressive_raw_work_plan: successor.plan,
         progressive_publication: progressivePublication,
         progressive_handoff: context.rebound_state.progressive_handoff,
+        provider_request_inspection: providerRequestInspection,
         provider_requests_by_slide: candidate.provider_requests_by_slide,
         style_master_reference: candidate.style_master_reference,
       });
@@ -867,6 +875,11 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
     style_master_reference: candidate.style_master_reference,
   });
   const progressivePublication = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
+  const providerRequestInspection = writeTargetProviderRequestInspection(context, {
+    rawWorkPlan: candidate.raw_work_plan,
+    progressiveRawWorkPlan,
+    providerRequestsBySlide: candidate.provider_requests_by_slide,
+  });
   const progressiveHandoff = recordTargetProgressiveRawPlan(context.deck_dir, {
     runDir: context.run_dir,
     progressiveRawWorkPlan,
@@ -877,6 +890,7 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
     progressive_raw_work_plan: progressiveRawWorkPlan,
     progressive_publication: progressivePublication,
     progressive_handoff: progressiveHandoff,
+    provider_request_inspection: providerRequestInspection,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
     style_master_reference: candidate.style_master_reference,
   });
@@ -900,6 +914,7 @@ export function framedProgressiveRawPlanProjection(plan) {
     source_epoch: plan.source_epoch,
     ordered_slide_ids: Object.freeze([...plan.progressive_raw_work_plan.ordered_slide_ids]),
     maximum_submissions: plan.progressive_raw_work_plan.items.length,
+    ...(plan.provider_request_inspection ? { provider_request_inspection: plan.provider_request_inspection } : {}),
     progress: inspection.progress || null,
     next_action: inspection.primary_action,
   });
@@ -955,9 +970,14 @@ async function publishFramedProgressivePilot({ context, plan, batch_sha256, cove
   const items = coverage.map((item) => {
     const materialization = materializations.get(item.slide_id);
     const composite = composed.final_bytes_by_slide[item.slide_id];
+    const position = plan.ordered_slide_ids.indexOf(item.slide_id) + 1;
+    if (!materialization || position < 1) {
+      throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is unavailable for ${item.slide_id}`);
+    }
     if (!composite) throw new FramedImageWorkflowError("framed_pilot_capture_invalid", `Framed Pilot composite is unavailable for ${item.slide_id}`);
-    writeFileSync(join(rawRoot, `${item.slide_id}.png`), materialization.bytes);
-    writeFileSync(join(compositeRoot, `${item.slide_id}.png`), composite);
+    const filename = pageAuthorityOrdinalImageFilename(position, item.slide_id);
+    writeFileSync(join(rawRoot, filename), materialization.bytes);
+    writeFileSync(join(compositeRoot, filename), composite);
     return { slide_id: item.slide_id, raw_sha256: item.raw_sha256, composite_sha256: sha256Bytes(composite) };
   });
   const projection = {

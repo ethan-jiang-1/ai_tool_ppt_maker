@@ -1,6 +1,7 @@
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
+  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
@@ -9,6 +10,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
 import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
+import {
+  inspectExactPageAuthorityPng,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "../shared/image2/page_authority_media_contract.mjs";
 import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
 import { parsePageAuthoritySource } from "../01-content/index.mjs";
 import {
@@ -37,6 +43,7 @@ import {
   targetSourceSemanticSha256,
   targetRawPlanProjection,
   validateTargetRawReviewContribution,
+  writeTargetProviderRequestInspection,
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
@@ -98,6 +105,24 @@ function requireReceipt(receipt) {
     throw new PureImageWorkflowError("wrong_workflow_owner", "Pure workflow requires a current pure v2 source receipt");
   }
   return receipt;
+}
+
+function requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide) {
+  if (!rawBytesBySlide || typeof rawBytesBySlide !== "object" || Array.isArray(rawBytesBySlide)) {
+    throw new PureImageWorkflowError("pure_final_media_invalid", "Pure finalization requires accepted native raw PNG bytes");
+  }
+  for (const item of acceptedRawEvidence.items) {
+    const media = inspectExactPageAuthorityPng(rawBytesBySlide[item.slide_id], PAGE_AUTHORITY_NATIVE_RAW_PNG);
+    if (!media.ok) {
+      throw new PureImageWorkflowError(
+        "pure_final_media_invalid",
+        `Pure final bytes for ${item.slide_id} must be a ${PAGE_AUTHORITY_NATIVE_RAW_PNG.width}x${PAGE_AUTHORITY_NATIVE_RAW_PNG.height} PNG`,
+      );
+    }
+    if (sha256Bytes(media.bytes) !== item.raw_sha256) {
+      throw new PureImageWorkflowError("pure_finalization_raw_drift", `Pure final bytes drifted from accepted raw evidence for ${item.slide_id}`);
+    }
+  }
 }
 
 /** The selected adapter alone writes target raw plans for its Pure receipt. */
@@ -169,6 +194,7 @@ export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRa
     canonicalJsonSha256(rawWorkPlan.ordered_slide_ids) !== canonicalJsonSha256(evidencePlan.ordered_slide_ids)) {
     throw new PureImageWorkflowError("pure_finalization_lineage_invalid", "Pure finalization requires matching selected-workflow raw-plan lineage");
   }
+  requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide);
   return publishCurrentFinalSlideManifest({
     rawWorkPlan: evidencePlan,
     acceptedRawEvidence,
@@ -386,6 +412,11 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     style_master_reference: candidate.style_master_reference,
   });
   const published = publishProgressiveRawWorkPlan({ runDir: context.run_dir, plan: progressiveRawWorkPlan });
+  const providerRequestInspection = writeTargetProviderRequestInspection(context, {
+    rawWorkPlan: candidate.raw_work_plan,
+    progressiveRawWorkPlan,
+    providerRequestsBySlide: candidate.provider_requests_by_slide,
+  });
   const progressiveHandoff = recordTargetProgressiveRawPlan(context.deck_dir, {
     runDir: context.run_dir,
     progressiveRawWorkPlan,
@@ -396,6 +427,7 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
     progressive_raw_work_plan: progressiveRawWorkPlan,
     progressive_publication: published,
     progressive_handoff: progressiveHandoff,
+    provider_request_inspection: providerRequestInspection,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
     style_master_reference: candidate.style_master_reference,
   });
@@ -421,6 +453,7 @@ export function pureProgressiveRawPlanProjection(plan) {
     source_epoch: plan.source_epoch,
     ordered_slide_ids: Object.freeze([...plan.progressive_raw_work_plan.ordered_slide_ids]),
     maximum_submissions: plan.progressive_raw_work_plan.items.length,
+    ...(plan.provider_request_inspection ? { provider_request_inspection: plan.provider_request_inspection } : {}),
     progress: inspection.progress || null,
     next_action: inspection.primary_action,
   });
@@ -472,7 +505,11 @@ async function publishPureProgressivePilot({ context, plan, batch_sha256, covera
   mkdirSync(outputRoot, { recursive: true });
   const items = coverage.map((item) => {
     const materialization = materializations.get(item.slide_id);
-    writeFileSync(join(outputRoot, `${item.slide_id}.png`), materialization.bytes);
+    const position = plan.ordered_slide_ids.indexOf(item.slide_id) + 1;
+    if (!materialization || position < 1) {
+      throw new PureImageWorkflowError("pure_pilot_coverage_invalid", `Pure Pilot coverage is unavailable for ${item.slide_id}`);
+    }
+    writeFileSync(join(outputRoot, pageAuthorityOrdinalImageFilename(position, item.slide_id)), materialization.bytes);
     return { slide_id: item.slide_id, raw_sha256: item.raw_sha256 };
   });
   const projection = {

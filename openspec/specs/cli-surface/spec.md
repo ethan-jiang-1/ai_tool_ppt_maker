@@ -481,3 +481,140 @@ parsing prose or creating another recovery route.
 - **WHEN** authorize or generate receives a batch hash whose plan, raw contract, profile, source, execution, or selected IDs drifted
 - **THEN** the CLI returns the raw-owner rebuild/replan diagnostic before provider initialization
 - **AND** it does not reinterpret the grant, choose a replacement batch, or consume another item
+
+### Requirement: Page Authority plan output exposes a safe request-inspection reference
+
+On a successful `ppt_flow image2 plan <run-dir>` operation, the CLI producer
+SHALL include a `provider_request_inspection` reference for the exact current
+plan. The reference SHALL contain only the run-relative inspection path, its
+digest, and its matching plan hash. It SHALL be sufficient for a local operator
+to intentionally open the provider-free inspection artifact, but it SHALL not
+be accepted as a CLI selector, authorization assertion, or replacement plan
+identity.
+
+Normal success output, stderr, and every failure envelope SHALL exclude raw
+prompt prose, credentials, authorization headers, environment values, image
+data URLs, and provider response bodies. The producer retains ownership of
+failure classification and the one nearest legal action; consumers SHALL not
+derive a prompt-inspection or provider-retry route from prose.
+
+#### Scenario: Plan output references the current local inspection artifact
+
+- **WHEN** `image2 plan` successfully creates a current Page Authority plan
+- **THEN** its JSON output includes a `provider_request_inspection` object with
+  the run-relative path, inspection digest, and the returned plan hash
+- **AND** the JSON output does not contain the prompt text itself
+
+#### Scenario: Diagnostics remain secret-safe with an inspection artifact present
+
+- **WHEN** a later Page Authority command fails after an inspection projection
+  exists
+- **THEN** its producer-owned diagnostic returns only bounded identity and next
+  action facts
+- **AND** it does not print raw prompt prose, credential values, image data
+  URLs, or provider response content
+
+### Requirement: Invalid provider media uses the bounded progressive outcome surface
+
+When `ppt_flow image2 generate` receives a definite invalid Page Authority
+provider-media result, the CLI SHALL return the existing direct progressive
+`known_failure` outcome for the exact item. That outcome SHALL include only
+bounded expected/actual media facts from the selected native provider-response
+contract, derived progress, and the existing next legal action. It SHALL not
+emit a raw response, raw prompt, stack trace, new retry flag, force option, or
+alternate provider route. The historically proven HTTP `2000x1125` request
+parameter SHALL NOT be reported as evidence that returned PNG bytes must have
+those dimensions.
+
+#### Scenario: Wrong-size media returns a bounded known-failure outcome
+
+- **WHEN** an authorized generate operation receives a PNG whose dimensions
+  differ from the exact native `2048x1136` response contract
+- **THEN** the CLI reports the item as `known_failure` with expected and actual
+  dimensions, derived progress, and the owner-issued next action
+- **AND** it does not report raw bytes as materialized or offer a retry under
+  the old grant
+
+#### Scenario: Malformed media does not leak provider content
+
+- **WHEN** an authorized generate operation receives an empty or malformed
+  provider-media result
+- **THEN** the CLI reports only the bounded invalid-media classification and
+  the existing recovery action
+- **AND** neither stdout nor stderr contains provider response content, prompt
+  prose, credentials, or a stack trace
+
+### Requirement: Page Authority received-response failures use a secret-safe known-failure outcome
+
+When `ppt_flow image2 generate` receives a definite unusable Page Authority
+provider response, the CLI SHALL return the existing direct progressive
+`known_failure` outcome for the exact item. The outcome MAY include only a
+fixed response-failure classification and a numeric HTTP status when one was
+received, together with derived progress and the raw-owner's next legal action.
+It SHALL not include a provider body, response headers, prompt prose,
+credentials, authorization headers, environment values, image data URLs, raw
+bytes, a stack trace, retry flag, force option, or alternate provider route.
+
+#### Scenario: HTTP error is safe terminal output
+
+- **WHEN** an authorized generate operation receives a non-success HTTP
+  response from the Page Authority provider
+- **THEN** the CLI reports the exact item as `known_failure` with only a fixed
+  classification, numeric status, derived progress, and the owner-issued next
+  action
+- **AND** it emits no provider response content or old-grant retry route
+
+#### Scenario: Transport uncertainty remains a diagnostic hard-stop
+
+- **WHEN** a generate operation has no provable response outcome
+- **THEN** the CLI retains the producer-owned reconciliation diagnostic and
+  exact reconciliation action
+- **AND** it does not relabel the outcome as known failure or emit transport
+  internals
+
+### Requirement: Incomplete Pilot review points to the exact successor gate
+
+When `ppt_flow image2 pilot-review` encounters a terminal partial Pilot with
+missing current review coverage and residual paid debt, it SHALL emit the
+producer-owned bounded diagnostic whose only next owner action is current
+successor Pilot planning. The response SHALL preserve exact run and plan scope
+without exposing provider results or manufacturing a batch/grant. The successor
+Pilot remains subject to the existing human cost confirmation and exact
+authorization path.
+
+#### Scenario: Pilot-review cannot mask missing raw coverage
+
+- **WHEN** a terminal partial Pilot lacks current materialization for one or
+  more selected review sample items
+- **THEN** the CLI returns the owner-issued successor Pilot planning action
+  rather than generic review readiness
+- **AND** it creates no Pilot evidence, decision, final evidence, or provider
+  submission
+
+### Requirement: Page Authority new-version success includes draft activation
+
+For an exact current Page Authority source with an explicit selected workflow,
+whether its Controller execution is active or inactive, `ppt_flow new-version`
+SHALL report success only after both the clean filesystem copy and state-owned
+target-draft activation complete. Its successful output SHALL identify the
+clean target and its selected authoring workflow without exposing raw prompt
+text, credentials, provider response data, authorization, or quality
+acceptance. The command SHALL make no provider request.
+
+#### Scenario: New-version activates a clean Page Authority target
+
+- **WHEN** a caller creates a new version from an exact current selected-workflow Page Authority run
+- **THEN** stdout reports the created clean version and its ready authoring draft
+- **AND** a following provider-free validation reaches the draft route rather than failing with `MODE_MISSING`
+
+#### Scenario: New-version activates from a completed Page Authority source
+
+- **WHEN** a caller creates a new version from an inactive exact current-v2 selected-workflow Page Authority run
+- **THEN** the command uses the same state-owned activation path
+- **AND** it does not treat the absence of an active Controller as a reason to omit draft activation
+
+#### Scenario: Draft activation does not complete
+
+- **WHEN** the clean copy succeeds but target-draft activation fails
+- **THEN** `ppt_flow new-version` exits nonzero with the normal secret-safe failure envelope
+- **AND** it does not print a successful creation receipt or submit provider work

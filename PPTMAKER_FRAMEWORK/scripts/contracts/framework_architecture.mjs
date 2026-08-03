@@ -46,6 +46,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/credentials.mjs",
   "shared/image2/page_authority_artifacts.mjs",
   "shared/image2/page_authority_final_manifest.mjs",
+  "shared/image2/page_authority_media_contract.mjs",
   "shared/image2/page_authority_raw_mechanics.mjs",
   "shared/image2/page_authority_progressive_raw_owner.mjs",
   "shared/image2/page_authority_target_runtime.mjs",

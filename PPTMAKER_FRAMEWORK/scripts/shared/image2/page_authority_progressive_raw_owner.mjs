@@ -3,6 +3,7 @@ import { basename } from "node:path";
 
 import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
+import { PAGE_AUTHORITY_NATIVE_RAW_PNG } from "./page_authority_media_contract.mjs";
 import { pageAuthorityImage2Paths } from "../run-bundle/page_authority_paths.mjs";
 import {
   PROGRESSIVE_ACCEPTED_RAW_EVIDENCE_SCHEMA,
@@ -121,10 +122,11 @@ function asObject(value, label) {
 }
 
 function rawCoverage(plan, materializations, ids = plan.ordered_slide_ids) {
+  const missing = missingRawCoverage(materializations, ids);
+  if (missing.length > 0) fail("progressive_raw_coverage_missing", "current materialization is missing for the selected coverage");
   const coverage = [];
   for (const slideId of ids) {
     const materialization = materializations.get(slideId);
-    if (!materialization) fail("progressive_raw_coverage_missing", `current materialization is missing for ${slideId}`);
     const item = plan.items.find((entry) => entry.slide_id === slideId);
     coverage.push({
       slide_id: slideId,
@@ -134,6 +136,10 @@ function rawCoverage(plan, materializations, ids = plan.ordered_slide_ids) {
     });
   }
   return coverage;
+}
+
+function missingRawCoverage(materializations, ids) {
+  return ids.filter((slideId) => !materializations.has(slideId));
 }
 
 function progressProjection(plan, materializations, attemptState) {
@@ -223,24 +229,50 @@ function validateAttemptState(plan, batches, grants, attempts) {
       const siblings = children.get(previous) || [];
       siblings.push(entry);
       children.set(previous, siblings);
-      if (siblings.length > 1) fail("progressive_raw_attempt_chain_invalid", "attempt transitions cannot branch");
       const transition = validateProgressiveRawAttemptTransition(prior.record, entry.record);
       if (!transition.ok) fail(transition.code, transition.message);
     }
+    const effectiveChildren = new Map();
+    const ignoredTerminalSiblings = new Set();
+    for (const [parentSha256, siblings] of children.entries()) {
+      if (siblings.length === 1) {
+        effectiveChildren.set(parentSha256, siblings);
+        continue;
+      }
+      const parent = bySha.get(parentSha256);
+      const knownFailure = siblings.find((entry) => entry.record.status === "known_failure") || null;
+      const unknown = siblings.find((entry) => entry.record.status === "unknown") || null;
+      const childless = siblings.every((entry) => (children.get(entry.sha256) || []).length === 0);
+      if (siblings.length !== 2 || parent?.record.status !== "submitted" || !knownFailure || !unknown || !childless) {
+        fail("progressive_raw_attempt_chain_invalid", "attempt transitions cannot branch");
+      }
+      effectiveChildren.set(parentSha256, [knownFailure]);
+      ignoredTerminalSiblings.add(unknown.sha256);
+    }
+
     let cursor = roots[0];
+    let current = null;
     const seen = new Set();
     while (cursor) {
       if (seen.has(cursor.sha256)) fail("progressive_raw_attempt_chain_invalid", "attempt transition cannot cycle");
       seen.add(cursor.sha256);
-      const next = children.get(cursor.sha256) || [];
+      current = cursor;
+      const next = effectiveChildren.get(cursor.sha256) || [];
       cursor = next[0] || null;
     }
-    if (seen.size !== entries.length) fail("progressive_raw_attempt_chain_invalid", "attempt chain has unreachable records");
-    const current = entries.find((entry) => !(children.get(entry.sha256)?.length));
+    if (seen.size + ignoredTerminalSiblings.size !== entries.length) {
+      fail("progressive_raw_attempt_chain_invalid", "attempt chain has unreachable records");
+    }
     currentByKey.set(key, current);
     const tuple = `${current.record.slide_id}:${current.record.raw_contract_sha256}`;
-    if (currentByTuple.has(tuple)) fail("progressive_raw_attempt_chain_invalid", "one current plan tuple has competing attempts");
-    currentByTuple.set(tuple, current);
+    const existing = currentByTuple.get(tuple);
+    const currentGeneration = batchBySha.get(current.record.batch_sha256).record.batch_generation;
+    const existingGeneration = existing
+      ? batchBySha.get(existing.record.batch_sha256).record.batch_generation
+      : null;
+    if (existingGeneration === null || currentGeneration > existingGeneration) {
+      currentByTuple.set(tuple, current);
+    }
   }
 
   const live = [...currentByKey.values()].filter((entry) => ["claimed", "submitted"].includes(entry.record.status));
@@ -690,6 +722,22 @@ function nextAction(snapshot, { expectedPlan = null } = {}) {
   if (latest) {
     const latestState = snapshot.batch_states.get(latest.sha256);
     if (latestState?.terminal && latest.record.is_partial_pilot) {
+      const coverageMissing = missingRawCoverage(snapshot.materializations, latest.record.review_sample_slide_ids);
+      if (coverageMissing.length > 0) {
+        if (snapshot.progress.paid_debt.length > 0) {
+          return action("plan_progressive_pilot", {
+            kind: "confirm",
+            requires_human: true,
+            plan_hash: snapshot.plan.sha256,
+            summary: "A terminal Pilot lacks current review coverage; choose the exact successor Pilot scope.",
+          });
+        }
+        return action("rebuild_progressive_raw_work", {
+          kind: "repair",
+          plan_hash: snapshot.plan.sha256,
+          summary: "A terminal Pilot lacks current review coverage without recoverable paid debt.",
+        });
+      }
       const evidence = snapshot.pilot.evidence_by_batch.get(latest.sha256);
       const decision = snapshot.pilot.decision_by_batch.get(latest.sha256);
       if (!evidence) return action("prepare_progressive_pilot_review", { plan_hash: snapshot.plan.sha256, batch_hash: latest.sha256 });
@@ -1179,6 +1227,45 @@ function providerKnownFailure(error) {
   return Boolean(error?.progressive_raw_known_failure || error?.page_authority_known_failure || error?.known_failure);
 }
 
+function pageAuthorityKnownFailureMediaFacts(error) {
+  const facts = error?.page_authority_known_failure_facts;
+  if (!error?.page_authority_known_failure || !facts || typeof facts !== "object" || Array.isArray(facts)) return null;
+  const actual = facts.actual;
+  if (facts.expected?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
+    facts.expected?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
+    facts.expected?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height ||
+    !actual || typeof actual !== "object" || Array.isArray(actual)) return null;
+  const expected = PAGE_AUTHORITY_NATIVE_RAW_PNG;
+  if (["empty", "invalid_png"].includes(actual.classification)) {
+    return Object.freeze({ expected, actual: Object.freeze({ classification: actual.classification }) });
+  }
+  if (actual.format === "png" && Number.isSafeInteger(actual.width) && actual.width > 0 &&
+    Number.isSafeInteger(actual.height) && actual.height > 0) {
+    return Object.freeze({
+      expected,
+      actual: Object.freeze({ format: "png", width: actual.width, height: actual.height }),
+    });
+  }
+  return null;
+}
+
+function pageAuthorityKnownFailureResponseFacts(error) {
+  const facts = error?.page_authority_known_failure_facts;
+  const response = facts?.response;
+  if (!error?.page_authority_known_failure || !response || typeof response !== "object" || Array.isArray(response)) return null;
+  if (["invalid_json", "task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
+    return Object.freeze({ classification: response.classification });
+  }
+  if (response.classification === "http_error") {
+    const result = { classification: "http_error" };
+    if (Number.isSafeInteger(response.http_status) && response.http_status >= 100 && response.http_status <= 599) {
+      result.http_status = response.http_status;
+    }
+    return Object.freeze(result);
+  }
+  return null;
+}
+
 function providerResultKnownFailure(result) {
   return Boolean(result && typeof result === "object" && result.outcome === "known_failure");
 }
@@ -1236,7 +1323,18 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
         writeProgressiveRawItemAttempt(runDir, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record, attempt: terminal });
         const after = loadPlanByHead(runDir, workflow);
-        return Object.freeze({ plan_hash, batch_hash, item: candidate.record.slide_id, outcome: "known_failure", progress: after.progress, next_action: nextAction(after) });
+        const providerMedia = pageAuthorityKnownFailureMediaFacts(error);
+        const providerFailure = pageAuthorityKnownFailureResponseFacts(error);
+        return Object.freeze({
+          plan_hash,
+          batch_hash,
+          item: candidate.record.slide_id,
+          outcome: "known_failure",
+          ...(providerMedia ? { provider_media: providerMedia } : {}),
+          ...(providerFailure ? { provider_failure: providerFailure } : {}),
+          progress: after.progress,
+          next_action: nextAction(after),
+        });
       }
       if (providerResultKnownFailure(result)) {
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
@@ -1366,6 +1464,9 @@ export async function prepareProgressiveRawPilotEvidence({ runDir, workflow, pla
       const state = snapshot.batch_states.get(batch_hash);
       if (!batch || !state?.terminal || !batch.record.is_partial_pilot) fail("progressive_raw_pilot_unavailable", "Pilot evidence requires a terminal current partial Pilot batch", { nextAction: nextAction(snapshot) });
       if (snapshot.pilot.evidence_by_batch.has(batch_hash)) return Object.freeze({ plan_hash, batch_hash, pilot_evidence_sha256: snapshot.pilot.evidence_by_batch.get(batch_hash).sha256, replay: true, next_action: nextAction(snapshot) });
+      if (missingRawCoverage(snapshot.materializations, batch.record.review_sample_slide_ids).length > 0) {
+        fail("progressive_raw_pilot_coverage_missing", "Pilot evidence requires current materialization coverage", { nextAction: nextAction(snapshot) });
+      }
       const coverage = rawCoverage(snapshot.plan, snapshot.materializations, batch.record.review_sample_slide_ids);
       const published = await publish(Object.freeze({
         plan: snapshot.plan,

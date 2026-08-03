@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { describe, expect, it } from "vitest";
 
@@ -31,6 +32,20 @@ function localImageBytes(variant = 0) {
   return Buffer.from(variant === 0
     ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY1AJyPoPAANYAd6lcnCEAAAAAElFTkSuQmCC"
     : "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY8hyUPkPAAO0Ac51OmnoAAAAAElFTkSuQmCC", "base64");
+}
+
+const VALID_PROVIDER_PNG = (() => {
+  const image = createCanvas(2048, 1136);
+  image.getContext("2d").fillRect(0, 0, 2048, 1136);
+  return image.toBuffer("image/png");
+})();
+
+function providerJsonResponse(payload, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(payload),
+  };
 }
 
 function source() {
@@ -138,15 +153,17 @@ describe("accepted Style Master raw binding", () => {
       writeFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), localImageBytes(1));
       let providerBody = null;
       let providerIdempotencyKey = null;
+      let providerCalls = 0;
       const submit = targetPageAuthoritySubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async (_url, options) => {
+          providerCalls += 1;
           providerBody = JSON.parse(options.body);
           providerIdempotencyKey = options.headers["Idempotency-Key"];
           return {
             ok: true,
             status: 200,
-            text: async () => JSON.stringify({ data: [{ b64_json: localImageBytes().toString("base64") }] }),
+            text: async () => JSON.stringify({ data: [{ b64_json: VALID_PROVIDER_PNG.toString("base64") }] }),
           };
         },
       });
@@ -159,6 +176,189 @@ describe("accepted Style Master raw binding", () => {
       expect(providerBody.image).toBe(`data:image/png;base64,${referenceBytes.toString("base64")}`);
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
       expect(providerIdempotencyKey).toBe(`page-authority-v3-${"a".repeat(64)}`);
+      expect(providerCalls).toBe(1);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves an accepted async task with the same credential and one original submit", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const requests = [];
+      let pollCount = 0;
+      let clock = 0;
+      const submit = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        taskPollTimeoutMs: 50,
+        taskPollIntervalMs: 5,
+        now: () => clock,
+        sleep: async (milliseconds) => { clock += milliseconds; },
+        fetchImpl: async (url, options) => {
+          requests.push({ url, method: options.method, authorization: options.headers.Authorization });
+          if (options.method === "POST") {
+            return providerJsonResponse({ data: [{ task_id: "task_async_fixture" }] });
+          }
+          pollCount += 1;
+          if (pollCount === 1) return providerJsonResponse({ data: { status: "pending" } });
+          return providerJsonResponse({
+            data: {
+              status: "completed",
+              result: { images: [{ bytes_base64: VALID_PROVIDER_PNG.toString("base64") }] },
+            },
+          });
+        },
+      });
+
+      const result = await submit({
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"c".repeat(64)}`,
+      });
+
+      expect(result).toEqual(VALID_PROVIDER_PNG);
+      expect(requests.map(({ url, method }) => ({ url, method }))).toEqual([
+        { url: "https://image.example/images/generations", method: "POST" },
+        { url: "https://image.example/tasks/task_async_fixture", method: "GET" },
+        { url: "https://image.example/tasks/task_async_fixture", method: "GET" },
+      ]);
+      expect(requests.map((request) => request.authorization)).toEqual([
+        "Bearer test-key",
+        "Bearer test-key",
+        "Bearer test-key",
+      ]);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("classifies terminal async responses while retaining interrupted and timed-out polls as unresolved", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const args = {
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"d".repeat(64)}`,
+      };
+      const asyncSubmit = (pollResponse, options = {}) => targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, requestOptions) => requestOptions.method === "POST"
+          ? providerJsonResponse({ task_id: "task_async_fixture" })
+          : pollResponse(),
+        ...options,
+      });
+
+      const terminalError = await asyncSubmit(() => providerJsonResponse({ data: { status: "failed" } }))(args)
+        .catch((error) => error);
+      expect(terminalError).toMatchObject({
+        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
+        page_authority_known_failure: true,
+        page_authority_known_failure_facts: { response: { classification: "task_terminal_failure" } },
+      });
+
+      const missingMediaError = await asyncSubmit(() => providerJsonResponse({
+        data: { status: "completed", result: { images: [] } },
+      }))(args).catch((error) => error);
+      expect(missingMediaError).toMatchObject({
+        code: "PAGE_AUTHORITY_PROVIDER_MEDIA_INVALID",
+        page_authority_known_failure: true,
+        page_authority_known_failure_facts: { actual: { classification: "empty" } },
+      });
+
+      const httpError = await asyncSubmit(() => providerJsonResponse({ response: "withheld" }, 503))(args)
+        .catch((error) => error);
+      expect(httpError).toMatchObject({
+        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
+        page_authority_known_failure: true,
+        page_authority_known_failure_facts: { response: { classification: "http_error", http_status: 503 } },
+      });
+
+      const interruptedError = await asyncSubmit(() => ({
+        ok: true,
+        status: 200,
+        text: async () => { throw new Error("poll body interrupted"); },
+      }))(args).catch((error) => error);
+      expect(interruptedError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(interruptedError.page_authority_known_failure).toBeUndefined();
+
+      let clock = 0;
+      const timeoutError = await asyncSubmit(
+        () => providerJsonResponse({ data: { status: "pending" } }),
+        {
+          taskPollTimeoutMs: 5,
+          taskPollIntervalMs: 2,
+          now: () => clock,
+          sleep: async (milliseconds) => { clock += milliseconds; },
+        },
+      )(args).catch((error) => error);
+      expect(timeoutError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(timeoutError.page_authority_known_failure).toBeUndefined();
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("classifies complete unusable responses without relabeling unresolved transport", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const args = {
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"b".repeat(64)}`,
+      };
+      let httpBodyRead = false;
+      const http = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async () => ({
+          ok: false,
+          status: 503,
+          text: async () => {
+            httpBodyRead = true;
+            return "PROVIDER_RESPONSE_BODY_SENTINEL";
+          },
+        }),
+      });
+      const httpError = await http(args).catch((error) => error);
+      expect(httpError).toMatchObject({
+        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
+        page_authority_known_failure: true,
+        page_authority_known_failure_facts: {
+          response: { classification: "http_error", http_status: 503 },
+        },
+      });
+      expect(httpBodyRead).toBe(false);
+      expect(JSON.stringify(httpError.page_authority_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+
+      const invalidJson = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async () => ({ ok: true, status: 200, text: async () => "PROVIDER_RESPONSE_BODY_SENTINEL" }),
+      });
+      const invalidJsonError = await invalidJson(args).catch((error) => error);
+      expect(invalidJsonError).toMatchObject({
+        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
+        page_authority_known_failure: true,
+        page_authority_known_failure_facts: { response: { classification: "invalid_json" } },
+      });
+      expect(JSON.stringify(invalidJsonError.page_authority_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+
+      const noResponse = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async () => { throw new Error("connection ended"); },
+      });
+      const noResponseError = await noResponse(args).catch((error) => error);
+      expect(noResponseError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED" });
+      expect(noResponseError.page_authority_known_failure).toBeUndefined();
+
+      const unreadableBody = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async () => ({ ok: true, status: 200, text: async () => { throw new Error("body interrupted"); } }),
+      });
+      const unreadableBodyError = await unreadableBody(args).catch((error) => error);
+      expect(unreadableBodyError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(unreadableBodyError.page_authority_known_failure).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

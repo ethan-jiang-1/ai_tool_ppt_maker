@@ -1,6 +1,24 @@
 # BUG-041: Pure raw 图像缺失 display 文字（provider_clauses 的 "no lettering" 与 pure 冲突）
 
-> 严重级别: P0 | 发现: 2026-08-02 | 状态: 活跃
+> 严重级别: P0 | 发现: 2026-08-02 | 状态: 已修复并通过真实 v7 验收（2026-08-04）
+
+## 关闭证据（2026-08-04）
+
+`pure-text-delivery-and-nn-production-naming` 已让 Pure contract 同时传递 display、BODY 与
+VISUAL SCENE，并以 workflow-aware clauses 消除无字 underlay 的冲突。v7 以 Pure workflow
+完成 25/25 raw/final/PPTX；最终 contact sheet 与原始分辨率密集页复核确认 display text、正文
+结构和图示均在完整画布中可读，无空白、裁切或明显失真。本卡关闭。
+
+## 关闭前复核
+
+已归档的 `pure-text-delivery-and-nn-production-naming` 让 Pure raw contract 传递
+`display`、`BODY` 与 `VISUAL SCENE`，并使 workflow-aware provider clauses 要求将文字作为
+主画面、场景作为支持隐喻。v7 的结构化 receipt 已验证 25 页完整 `BODY` / `VISUAL SCENE`，
+相关 fixture 回归也覆盖 Pure request contract。
+
+当前 v5 final 是修复前的历史图像，不能证明新 prompt 的视觉结果；v7 尚未获得 Style Master
+selection 或 provider authorization。真实生成、raw review 与人类对文字可读性的确认仍是关闭
+本卡的必要条件。
 
 ## 症状
 

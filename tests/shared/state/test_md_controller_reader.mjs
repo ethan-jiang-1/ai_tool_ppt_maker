@@ -41,11 +41,11 @@ describe("MD Controller reader characterization", () => {
 
   it("keeps Controller diagnostic recovery bound to producer structured fields", () => {
     const controller = readFileSync(join(PLAYBOOK_DIR, "create-deck.md"), "utf8");
-    expect(controller).toMatch(/final\s+nonempty stderr JSON\s+envelope/);
+    expect(controller).toContain("[Diagnostic Recovery Handoff](../charter/AGENT_CONTRACT.md#diagnostic-recovery-handoff)");
     expect(controller).toContain("diagnostic.category");
     expect(controller).toContain("diagnostic.next");
-    expect(controller).toMatch(/not explanatory prose/i);
-    expect(controller).not.toMatch(/code\s*\+\s*hint.*decide the next repair/i);
+    expect(controller).toMatch(/does not recreate a category,\s*action, or recovery route/i);
+    expect(controller).toMatch(/shared handoff owns the user explanation/i);
   });
 
   it("the live MD Controller registry matches the checked-in v3 manifest and validates cleanly", () => {

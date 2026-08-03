@@ -8,12 +8,17 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import {
+  PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
+  PAGE_AUTHORITY_NATIVE_RAW_PNG,
+} from "./page_authority_media_contract.mjs";
+import {
   createAcceptedRawEvidence,
+  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateFinalSlideManifest,
@@ -27,6 +32,9 @@ import {
 import {
   resolveAcceptedStyleMasterReference,
 } from "./style_master_plan.mjs";
+import {
+  validateProgressiveRawWorkPlan,
+} from "./page_authority_progressive_schema.mjs";
 import {
   deckRoot,
   pageAuthorityImage2Paths,
@@ -50,6 +58,7 @@ export const TARGET_RAW_REVIEW_CONTRIBUTION_SCHEMA = "page-authority-target-raw-
 export const TARGET_RAW_REVIEW_PROJECTION_CAPTURE_PROFILE_SCHEMA = "page-authority-target-raw-review-projection-capture-profile-v1";
 export const TARGET_RAW_CONTRACT_SCHEMA = "page-authority-target-raw-contract-v1";
 export const TARGET_RAW_PROVIDER_REQUEST_SCHEMA = "page-authority-target-raw-provider-request-v1";
+export const TARGET_PROVIDER_REQUEST_INSPECTION_SCHEMA = "page-authority-provider-request-inspection-v1";
 
 export class PageAuthorityTargetRuntimeError extends Error {
   constructor(code, message, { nextAction = null } = {}) {
@@ -155,11 +164,108 @@ function targetPaths(runDir) {
   };
 }
 
-function rawPath(paths, slideId) {
+function runRelativePath(runDir, artifactPath) {
+  const value = relative(runDir, artifactPath).replaceAll("\\", "/");
+  if (!value || value === ".." || value.startsWith("../")) {
+    throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection must remain within the current run");
+  }
+  return value;
+}
+
+function requireProgressiveInspectionPlan(progressiveRawWorkPlan, rawWorkPlan, context) {
+  const progressive = validateProgressiveRawWorkPlan(progressiveRawWorkPlan);
+  if (!progressive.ok || progressiveRawWorkPlan.workflow !== context.workflow ||
+    progressiveRawWorkPlan.source_receipt_sha256 !== context.receipt.source_sha256 ||
+    progressiveRawWorkPlan.source_epoch !== context.source_epoch ||
+    progressiveRawWorkPlan.provider_profile_sha256 !== rawWorkPlan.provider_profile_sha256 ||
+    canonicalJson(progressiveRawWorkPlan.ordered_slide_ids) !== canonicalJson(rawWorkPlan.ordered_slide_ids) ||
+    canonicalJson(progressiveRawWorkPlan.items) !== canonicalJson(rawWorkPlan.items)) {
+    throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires the exact current progressive raw plan");
+  }
+  return progressive;
+}
+
+function requireSafeProviderRequestInspectionTransport(request, providerProfileSha256) {
+  const profile = request?.generation_profile;
+  if (!profile || typeof profile !== "object" || canonicalJsonSha256(profile) !== providerProfileSha256 ||
+    typeof profile.provider?.model !== "string" || !profile.provider.model ||
+    profile.output?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
+    profile.output?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
+    profile.output?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height) {
+    throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires the canonical selected transport profile");
+  }
+  return Object.freeze({ model: profile.provider.model, size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE });
+}
+
+/**
+ * Materialize a provider-free diagnostic view of the exact selected-adapter
+ * request. This sidecar is deliberately not read by authorization, submission,
+ * reconciliation, or materialization paths.
+ */
+export function writeTargetProviderRequestInspection(context, {
+  rawWorkPlan,
+  progressiveRawWorkPlan,
+  providerRequestsBySlide,
+} = {}) {
+  const rawPlan = requireTargetPlan(rawWorkPlan, context.receipt, context.workflow);
+  const progressivePlan = requireProgressiveInspectionPlan(progressiveRawWorkPlan, rawWorkPlan, context);
+  if (!providerRequestsBySlide || typeof providerRequestsBySlide !== "object" || Array.isArray(providerRequestsBySlide)) {
+    throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires selected adapter requests");
+  }
+  const orderedIds = rawWorkPlan.ordered_slide_ids;
+  const requestIds = Object.keys(providerRequestsBySlide).sort();
+  if (canonicalJson(requestIds) !== canonicalJson([...orderedIds].sort())) {
+    throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requests must exactly cover the current raw plan");
+  }
+  let transport = null;
+  const items = rawWorkPlan.items.map((item) => {
+    const request = providerRequestsBySlide[item.slide_id];
+    if (!request || typeof request !== "object" || Array.isArray(request) ||
+      request.schema !== TARGET_RAW_PROVIDER_REQUEST_SCHEMA || request.slide_id !== item.slide_id ||
+      request.raw_contract_sha256 !== item.raw_contract_sha256 || !request.raw_contract ||
+      canonicalJsonSha256(request.raw_contract) !== item.raw_contract_sha256) {
+      throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection does not match the current raw contract");
+    }
+    const requestTransport = requireSafeProviderRequestInspectionTransport(request, rawWorkPlan.provider_profile_sha256);
+    if (transport && canonicalJson(transport) !== canonicalJson(requestTransport)) {
+      throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires one shared selected transport profile");
+    }
+    transport = requestTransport;
+    return Object.freeze({
+      slide_id: item.slide_id,
+      raw_contract_sha256: item.raw_contract_sha256,
+      provider_request_sha256: canonicalJsonSha256(request),
+      prompt: JSON.stringify(request),
+    });
+  });
+  const inspection = Object.freeze({
+    schema: TARGET_PROVIDER_REQUEST_INSPECTION_SCHEMA,
+    progressive_raw_work_plan_sha256: progressivePlan.sha256,
+    target_raw_work_plan_sha256: rawPlan.sha256,
+    source_receipt_sha256: context.receipt.source_sha256,
+    source_epoch: context.source_epoch,
+    workflow: context.workflow,
+    provider_profile_sha256: progressiveRawWorkPlan.provider_profile_sha256,
+    transport,
+    ordered_slide_ids: Object.freeze([...orderedIds]),
+    items: Object.freeze(items),
+  });
+  const inspectionSha256 = writeJson(context.paths.target_provider_request_inspection, inspection);
+  return Object.freeze({
+    path: runRelativePath(context.run_dir, context.paths.target_provider_request_inspection),
+    sha256: inspectionSha256,
+    plan_hash: progressivePlan.sha256,
+  });
+}
+
+function rawPath(paths, position, slideId) {
   if (typeof slideId !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(slideId)) {
     throw new PageAuthorityTargetRuntimeError("target_slide_id_invalid", "target raw path requires a stable slide ID");
   }
-  return join(paths.raw_root, `${slideId}.png`);
+  if (!Number.isInteger(position) || position < 1) {
+    throw new PageAuthorityTargetRuntimeError("target_position_invalid", "target raw path requires a positive current position");
+  }
+  return join(paths.raw_root, pageAuthorityOrdinalImageFilename(position, slideId));
 }
 
 function reviewShape(value) {
@@ -386,8 +492,8 @@ export function projectTargetRawReviewContribution(rawWorkPlan, reviewContributi
 
 function rawBytesBySlide(paths, plan) {
   const bytes = {};
-  for (const item of plan.items) {
-    const path = rawPath(paths, item.slide_id);
+  for (const [index, item] of plan.items.entries()) {
+    const path = rawPath(paths, index + 1, item.slide_id);
     let value;
     try {
       value = readFileSync(path);
@@ -471,7 +577,7 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
   const profile = {
     schema: "page-authority-target-raw-generation-profile-v1",
     provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-authority-image2-v2" },
-    output: { format: "png", width: 2000, height: 1125 },
+    output: PAGE_AUTHORITY_NATIVE_RAW_PNG,
     reference_transport: { style_master: "image-reference-v1", identity_reference: identitySelected ? "image-reference-v1" : "none" },
     effective_style_master: {
       selection_sha256: styleMaster.selection_sha256,
@@ -875,7 +981,7 @@ export async function generateTargetRawWork(context, rawWorkPlan, { planHash, pr
   const rawBytes = {};
   for (const [index, item] of rawWorkPlan.items.entries()) {
     rawBytes[item.slide_id] = asBytes(submitted.results[index], `provider bytes for ${item.slide_id}`);
-    atomicWrite(rawPath(context.paths, item.slide_id), rawBytes[item.slide_id]);
+    atomicWrite(rawPath(context.paths, index + 1, item.slide_id), rawBytes[item.slide_id]);
   }
   return Object.freeze({
     ...targetRawPlanProjection(context, rawWorkPlan),
@@ -976,7 +1082,9 @@ export async function publishProgressiveTargetCompleteRawReview(context, rawWork
   if (Object.keys(raw_bytes_by_slide).sort().join("\n") !== [...expected].sort().join("\n")) {
     throw new PageAuthorityTargetRuntimeError("target_raw_bytes_invalid", "progressive complete review bytes must exactly cover the selected raw plan");
   }
-  for (const slideId of expected) atomicWrite(rawPath(context.paths, slideId), asBytes(raw_bytes_by_slide[slideId], `progressive raw ${slideId}`));
+  for (const [index, slideId] of expected.entries()) {
+    atomicWrite(rawPath(context.paths, index + 1, slideId), asBytes(raw_bytes_by_slide[slideId], `progressive raw ${slideId}`));
+  }
   const prepared = await prepareTargetRawReview(context, rawWorkPlan, { reviewContribution });
   return Object.freeze({
     raw_work_plan_sha256: checked.sha256,

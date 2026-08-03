@@ -15,7 +15,10 @@ import {
   preparePureTargetRawReview,
   resolvePureStyleMasterScope,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import {
+  createRawWorkPlan,
+  pageAuthorityOrdinalImageFilename,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import {
   createTargetRawReviewContribution,
@@ -189,10 +192,11 @@ describe("target raw-review coverage", () => {
       expectReviewDriftStops({ ...review, source_epoch: review.source_epoch + 1 });
       expectReviewDriftStops({ ...review, projection_capture_profile_sha256: "f".repeat(64) });
 
-      writeFileSync(join(paths.raw_root, "DeckGo.png"), solidPng("#7c2d12"));
+      const rawSlidePath = join(paths.raw_root, pageAuthorityOrdinalImageFilename(1, "DeckGo"));
+      writeFileSync(rawSlidePath, solidPng("#7c2d12"));
       expect(() => decidePureTargetRawReview(runDir, { decision: "proceed" })).toThrow(/current coverage/);
       expect(existsSync(paths.target_raw_evidence)).toBe(false);
-      writeFileSync(join(paths.raw_root, "DeckGo.png"), imageBytes);
+      writeFileSync(rawSlidePath, imageBytes);
 
       const tampered = Buffer.from(projectionBytes);
       tampered[tampered.length - 1] ^= 1;
