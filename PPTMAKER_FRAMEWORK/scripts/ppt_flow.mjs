@@ -1675,10 +1675,14 @@ function imageBytesDataUrl(bytes, mediaType) {
   return `data:${mediaType};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
-function imageBytesFromPageAuthorityProvider(payload) {
-  const record = payload?.data && !Array.isArray(payload.data) ? payload.data
+function pageAuthorityProviderResponseRecord(payload) {
+  return payload?.data && !Array.isArray(payload.data) ? payload.data
     : Array.isArray(payload?.data) ? payload.data[0]
       : payload;
+}
+
+function imageBytesFromPageAuthorityProvider(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
   const encoded = record?.bytes_base64 || record?.b64_json || payload?.bytes_base64 || payload?.b64_json;
   if (typeof encoded !== "string" || !encoded.trim()) {
     const error = new Error("Page Authority provider returned no inline PNG bytes");
@@ -1692,6 +1696,37 @@ function imageBytesFromPageAuthorityProvider(payload) {
     throw error;
   }
   return bytes;
+}
+
+function pageAuthorityProviderTaskId(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  const value = record?.task_id || payload?.task_id;
+  if (typeof value !== "string") return null;
+  const taskId = value.trim();
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,255}$/.test(taskId) ? taskId : null;
+}
+
+function pageAuthorityProviderHasInlineImage(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  return [record?.bytes_base64, record?.b64_json, payload?.bytes_base64, payload?.b64_json]
+    .some((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+function pageAuthorityProviderTaskStatus(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  const value = record?.status || payload?.status;
+  return typeof value === "string" ? value.trim().toLowerCase() : null;
+}
+
+function pageAuthorityProviderTaskResult(payload) {
+  const record = pageAuthorityProviderResponseRecord(payload);
+  return record?.result || payload?.result || null;
+}
+
+function pageAuthorityProviderTaskResultPayload(payload) {
+  const result = pageAuthorityProviderTaskResult(payload);
+  const images = Array.isArray(result?.images) ? result.images : null;
+  return images ? { data: images[0] } : result;
 }
 
 const PAGE_AUTHORITY_PROVIDER_PNG_EXPECTED = Object.freeze({
@@ -1709,6 +1744,117 @@ function pageAuthorityProviderMediaKnownFailure(actual) {
     actual: Object.freeze(actual),
   });
   return error;
+}
+
+const PAGE_AUTHORITY_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
+  "http_error",
+  "invalid_json",
+  "task_terminal_failure",
+  "task_response_invalid",
+]);
+
+function pageAuthorityProviderResponseKnownFailure(classification, { httpStatus = null } = {}) {
+  if (!PAGE_AUTHORITY_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
+    throw new Error("Target Page Authority response failure classification is invalid");
+  }
+  const response = { classification };
+  if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
+    response.http_status = httpStatus;
+  }
+  const error = new Error("Target Page Authority provider returned an unusable response");
+  error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+  error.page_authority_known_failure = true;
+  error.page_authority_known_failure_facts = Object.freeze({
+    response: Object.freeze(response),
+  });
+  return error;
+}
+
+function pageAuthorityProviderTaskPollUnresolved() {
+  const error = new Error("Target Page Authority provider task outcome could not be resolved");
+  error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED";
+  return error;
+}
+
+const PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS = 60_000;
+const PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS = 1_000;
+
+function pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs }) {
+  return Object.freeze({
+    timeoutMs: Number.isSafeInteger(taskPollTimeoutMs) && taskPollTimeoutMs > 0
+      ? taskPollTimeoutMs
+      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
+    intervalMs: Number.isSafeInteger(taskPollIntervalMs) && taskPollIntervalMs > 0
+      ? taskPollIntervalMs
+      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
+  });
+}
+
+async function resolvePageAuthorityProviderTask({
+  baseUrl,
+  apiKey,
+  taskId,
+  fetchImpl,
+  now,
+  sleep,
+  taskPollTimeoutMs,
+  taskPollIntervalMs,
+}) {
+  const { timeoutMs, intervalMs } = pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs });
+  const deadline = now() + timeoutMs;
+  const taskUrl = `${baseUrl}/tasks/${encodeURIComponent(taskId)}`;
+
+  while (now() < deadline) {
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), Math.max(1, deadline - now()));
+    let response;
+    try {
+      response = await fetchImpl(taskUrl, {
+        method: "GET",
+        redirect: "error",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: controller.signal,
+      });
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    } finally {
+      clearTimeout(abortTimer);
+    }
+    if (!response.ok) {
+      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
+    }
+    let responseText;
+    try {
+      responseText = await response.text();
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    }
+    if (now() >= deadline) throw pageAuthorityProviderTaskPollUnresolved();
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch {
+      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
+    }
+    const status = pageAuthorityProviderTaskStatus(payload);
+    if (status === "completed") {
+      return targetPageAuthorityPngBytesFromProvider(pageAuthorityProviderTaskResultPayload(payload));
+    }
+    if (["failed", "error", "cancelled", "canceled", "expired"].includes(status)) {
+      throw pageAuthorityProviderResponseKnownFailure("task_terminal_failure");
+    }
+    if (!["pending", "queued", "submitted", "running", "processing"].includes(status)) {
+      throw pageAuthorityProviderResponseKnownFailure("task_response_invalid");
+    }
+    const remainingMs = deadline - now();
+    if (remainingMs <= 0) throw pageAuthorityProviderTaskPollUnresolved();
+    try {
+      await sleep(Math.min(intervalMs, remainingMs));
+    } catch {
+      throw pageAuthorityProviderTaskPollUnresolved();
+    }
+  }
+  throw pageAuthorityProviderTaskPollUnresolved();
 }
 
 function targetPageAuthorityPngBytesFromProvider(payload) {
@@ -1739,6 +1885,10 @@ function targetPageAuthorityPngBytesFromProvider(payload) {
 export function targetPageAuthoritySubmitFactory(plan, {
   credentialResolver = null,
   fetchImpl = fetch,
+  now = () => Date.now(),
+  sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)),
+  taskPollTimeoutMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
+  taskPollIntervalMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
 } = {}) {
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
   return async ({ request, item, provider_idempotency_key: providerIdempotencyKey }) => {
@@ -1813,18 +1963,35 @@ export function targetPageAuthoritySubmitFactory(plan, {
       error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
       throw error;
     }
-    let payload;
+    if (!response.ok) {
+      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
+    }
+    let responseText;
     try {
-      payload = JSON.parse(await response.text());
+      responseText = await response.text();
     } catch {
-      const error = new Error("Target Page Authority provider response was not valid JSON");
-      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID";
+      const error = new Error("Target Page Authority provider response could not be read");
+      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED";
       throw error;
     }
-    if (!response.ok) {
-      const error = new Error(`Target Page Authority provider submission failed with HTTP ${response.status}`);
-      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
-      throw error;
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch {
+      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
+    }
+    const taskId = pageAuthorityProviderTaskId(payload);
+    if (taskId && !pageAuthorityProviderHasInlineImage(payload)) {
+      return resolvePageAuthorityProviderTask({
+        baseUrl: credentials.base_url,
+        apiKey: credentials.api_key,
+        taskId,
+        fetchImpl,
+        now,
+        sleep,
+        taskPollTimeoutMs,
+        taskPollIntervalMs,
+      });
     }
     return targetPageAuthorityPngBytesFromProvider(payload);
   };

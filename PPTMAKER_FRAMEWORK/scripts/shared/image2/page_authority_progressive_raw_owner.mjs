@@ -121,10 +121,11 @@ function asObject(value, label) {
 }
 
 function rawCoverage(plan, materializations, ids = plan.ordered_slide_ids) {
+  const missing = missingRawCoverage(materializations, ids);
+  if (missing.length > 0) fail("progressive_raw_coverage_missing", "current materialization is missing for the selected coverage");
   const coverage = [];
   for (const slideId of ids) {
     const materialization = materializations.get(slideId);
-    if (!materialization) fail("progressive_raw_coverage_missing", `current materialization is missing for ${slideId}`);
     const item = plan.items.find((entry) => entry.slide_id === slideId);
     coverage.push({
       slide_id: slideId,
@@ -134,6 +135,10 @@ function rawCoverage(plan, materializations, ids = plan.ordered_slide_ids) {
     });
   }
   return coverage;
+}
+
+function missingRawCoverage(materializations, ids) {
+  return ids.filter((slideId) => !materializations.has(slideId));
 }
 
 function progressProjection(plan, materializations, attemptState) {
@@ -239,8 +244,14 @@ function validateAttemptState(plan, batches, grants, attempts) {
     const current = entries.find((entry) => !(children.get(entry.sha256)?.length));
     currentByKey.set(key, current);
     const tuple = `${current.record.slide_id}:${current.record.raw_contract_sha256}`;
-    if (currentByTuple.has(tuple)) fail("progressive_raw_attempt_chain_invalid", "one current plan tuple has competing attempts");
-    currentByTuple.set(tuple, current);
+    const existing = currentByTuple.get(tuple);
+    const currentGeneration = batchBySha.get(current.record.batch_sha256).record.batch_generation;
+    const existingGeneration = existing
+      ? batchBySha.get(existing.record.batch_sha256).record.batch_generation
+      : null;
+    if (existingGeneration === null || currentGeneration > existingGeneration) {
+      currentByTuple.set(tuple, current);
+    }
   }
 
   const live = [...currentByKey.values()].filter((entry) => ["claimed", "submitted"].includes(entry.record.status));
@@ -690,6 +701,22 @@ function nextAction(snapshot, { expectedPlan = null } = {}) {
   if (latest) {
     const latestState = snapshot.batch_states.get(latest.sha256);
     if (latestState?.terminal && latest.record.is_partial_pilot) {
+      const coverageMissing = missingRawCoverage(snapshot.materializations, latest.record.review_sample_slide_ids);
+      if (coverageMissing.length > 0) {
+        if (snapshot.progress.paid_debt.length > 0) {
+          return action("plan_progressive_pilot", {
+            kind: "confirm",
+            requires_human: true,
+            plan_hash: snapshot.plan.sha256,
+            summary: "A terminal Pilot lacks current review coverage; choose the exact successor Pilot scope.",
+          });
+        }
+        return action("rebuild_progressive_raw_work", {
+          kind: "repair",
+          plan_hash: snapshot.plan.sha256,
+          summary: "A terminal Pilot lacks current review coverage without recoverable paid debt.",
+        });
+      }
       const evidence = snapshot.pilot.evidence_by_batch.get(latest.sha256);
       const decision = snapshot.pilot.decision_by_batch.get(latest.sha256);
       if (!evidence) return action("prepare_progressive_pilot_review", { plan_hash: snapshot.plan.sha256, batch_hash: latest.sha256 });
@@ -1179,7 +1206,7 @@ function providerKnownFailure(error) {
   return Boolean(error?.progressive_raw_known_failure || error?.page_authority_known_failure || error?.known_failure);
 }
 
-function pageAuthorityKnownFailureFacts(error) {
+function pageAuthorityKnownFailureMediaFacts(error) {
   const facts = error?.page_authority_known_failure_facts;
   if (!error?.page_authority_known_failure || !facts || typeof facts !== "object" || Array.isArray(facts)) return null;
   const actual = facts.actual;
@@ -1195,6 +1222,23 @@ function pageAuthorityKnownFailureFacts(error) {
       expected,
       actual: Object.freeze({ format: "png", width: actual.width, height: actual.height }),
     });
+  }
+  return null;
+}
+
+function pageAuthorityKnownFailureResponseFacts(error) {
+  const facts = error?.page_authority_known_failure_facts;
+  const response = facts?.response;
+  if (!error?.page_authority_known_failure || !response || typeof response !== "object" || Array.isArray(response)) return null;
+  if (["invalid_json", "task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
+    return Object.freeze({ classification: response.classification });
+  }
+  if (response.classification === "http_error") {
+    const result = { classification: "http_error" };
+    if (Number.isSafeInteger(response.http_status) && response.http_status >= 100 && response.http_status <= 599) {
+      result.http_status = response.http_status;
+    }
+    return Object.freeze(result);
   }
   return null;
 }
@@ -1256,13 +1300,15 @@ export async function generateProgressiveRawItem({ runDir, workflow, plan_hash, 
         const terminal = createProgressiveRawItemAttempt({ ...submitted, status: "known_failure", previous_attempt_sha256: submitted.sha256 }, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record });
         writeProgressiveRawItemAttempt(runDir, { plan: snapshot.plan, batch: batch.record, grant: state.grant.record, attempt: terminal });
         const after = loadPlanByHead(runDir, workflow);
-        const providerMedia = pageAuthorityKnownFailureFacts(error);
+        const providerMedia = pageAuthorityKnownFailureMediaFacts(error);
+        const providerFailure = pageAuthorityKnownFailureResponseFacts(error);
         return Object.freeze({
           plan_hash,
           batch_hash,
           item: candidate.record.slide_id,
           outcome: "known_failure",
           ...(providerMedia ? { provider_media: providerMedia } : {}),
+          ...(providerFailure ? { provider_failure: providerFailure } : {}),
           progress: after.progress,
           next_action: nextAction(after),
         });
@@ -1395,6 +1441,9 @@ export async function prepareProgressiveRawPilotEvidence({ runDir, workflow, pla
       const state = snapshot.batch_states.get(batch_hash);
       if (!batch || !state?.terminal || !batch.record.is_partial_pilot) fail("progressive_raw_pilot_unavailable", "Pilot evidence requires a terminal current partial Pilot batch", { nextAction: nextAction(snapshot) });
       if (snapshot.pilot.evidence_by_batch.has(batch_hash)) return Object.freeze({ plan_hash, batch_hash, pilot_evidence_sha256: snapshot.pilot.evidence_by_batch.get(batch_hash).sha256, replay: true, next_action: nextAction(snapshot) });
+      if (missingRawCoverage(snapshot.materializations, batch.record.review_sample_slide_ids).length > 0) {
+        fail("progressive_raw_pilot_coverage_missing", "Pilot evidence requires current materialization coverage", { nextAction: nextAction(snapshot) });
+      }
       const coverage = rawCoverage(snapshot.plan, snapshot.materializations, batch.record.review_sample_slide_ids);
       const published = await publish(Object.freeze({
         plan: snapshot.plan,

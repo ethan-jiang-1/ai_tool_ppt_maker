@@ -6,8 +6,9 @@
 
 这 8 张 bug 卡不应产生 8 个 OpenSpec change。初始复核将它们按三条系统线收敛为
 **最初 2 个** change；真实验收随后发现 `new-version` 无法把 clean Page Authority target
-接入 authoring draft，因而新增了一个窄的 activation repair。最终共 **3 个** change，
-而不是按八张卡逐张拆分；已合入的语义修复仍只做回归验收和卡片关闭。
+接入 authoring draft，因而新增了一个窄的 activation repair。随后真实 provider recovery
+又暴露 successor attempt-chain 的错误拒绝，新增一个 implementation-only repair。最终共
+**4 个** change，而不是按八张卡逐张拆分；已合入的语义修复仍只做回归验收和卡片关闭。
 
 | 系统线 | 覆盖 bug | 处理方式 |
 | --- | --- | --- |
@@ -15,18 +16,21 @@
 | Provider I/O 边界 | BUG-037、BUG-042 | 新建 1 个 change |
 | 页序的人类可见投影 | BUG-040、BUG-043、BUG-045 | 新建 1 个 change；BUG-043 作为既有 final 命名的回归项 |
 | Clean target activation | 真实 run 验收前置 | 验收中发现；新建 1 个窄 change，已完成并归档 |
+| Successor attempt recovery | 真实 provider recovery | 验收中发现；新建 1 个 implementation-only change，已完成并归档 |
 
-最终保持为三个彼此独立、可讨论、可验收、可回归的系统边界，同时避免按八张卡逐张开 change。
+最终保持为三个主要系统边界和一个窄 recovery repair，同时避免按八张卡逐张开 change。
 
 ## 计数口径
 
 - **3 条工作线**：语义、provider I/O、页序投影。
-- **3 个 OpenSpec change（均已完成）**：原计划的 Change 1、Change 2，以及验收中发现的 Change 3。
+- **4 个 OpenSpec change（均已完成）**：原计划的 Change 1、Change 2，以及验收中发现的
+  Change 3 和 implementation-only Change 4。
 - **1 条非 change 的语义收尾线**：已由两个归档 change 实现，只需回归验收和指定
   run bundle 的内容迁移。
 
 不建议为了凑数量重开语义线：它当前没有新的 framework 行为契约。Change 3 不是重复
-语义线，而是实际 new-version 验收揭示的可达性缺口。
+语义线，而是实际 new-version 验收揭示的可达性缺口；Change 4 则恢复已接受的 submitted
+attempt reconciliation 契约，不新增 capability 或 durable schema。
 
 ## 背景 / 现状
 
@@ -46,8 +50,9 @@ BUG-041、BUG-043、BUG-044 的 framework 行为也已有实现。它们在真�
 通过后再关闭；若验收失败，回到对应归档 change 的回归测试定位，而不是另开重复 change。
 
 provider 请求的可诊断投影、provider 返回图像的早期介质校验、PPTX 页码，以及 raw 等
-人类浏览产物的页序命名一致性均已由 Change 1 / Change 2 完成。当前只缺真实 run 的
-人类 Style Master 选择、显式 provider 授权、生成 / review / delivery，以及最终视觉确认。
+人类浏览产物的页序命名一致性均已由 Change 1 / Change 2 完成。v7 Style Master 已接受，
+successor recovery 也已恢复；当前只缺 provider 恢复可用后的真实生成 / review / delivery，
+以及最终视觉确认。
 
 ## Bug 去向
 
@@ -150,6 +155,18 @@ BUG-040 与 BUG-045，并持续保护 BUG-043 已实现的 final 命名。
 source、target lineage conflict 和 public CLI routing；主规格已同步，并归档为
 `openspec/changes/archive/2026-08-03-activate-clean-page-authority-versions/`。
 
+## Change 4: `fix-successor-provider-attempt-chain`
+
+**目的：** 让 terminal predecessor 与合法 successor 的同一 slide/raw-contract tuple 共存时，
+raw owner 将最新 batch 的 current attempt 用于进度投影，并继续只暴露 exact reconciliation。
+
+**验收中发现与完成：** 2026-08-03，v7 generation 2 的 `InfoRev` submitted attempt 曾被错误
+诊断为 `progressive_raw_attempt_chain_invalid`，而不是其唯一合法的 reconcile action。修复保留
+batch-local attempt identity、全局 live-claim 互斥和 immutable history；回归覆盖 terminal unknown
+predecessor、successor transport interruption 与 read-only workflow inspection。focused raw-owner
+20/20、workflow inspection 8/8、`npm test`、strict validation 和 diff check 均通过，且 change
+已归档为 `openspec/changes/archive/2026-08-03-fix-successor-provider-attempt-chain/`。
+
 ## 逐步 To-do（按真实次序）
 
 以下清单是后续工作的唯一顺序索引。完成一项就将 `[ ]` 改为 `[x]`，并记录失败或新增
@@ -195,9 +212,16 @@ source、target lineage conflict 和 public CLI routing；主规格已同步，�
    `_generated/`，也不因验收而修改 framework 外的未指定 deck。
    2026-08-03 已完成无远端前置：v7 `validate` 和 `bundle_layout --check` 通过，source receipt
    为 25/25 非空 `BODY`、25/25 非空 `VISUAL SCENE`、25 个唯一 slide ID；Style Master 的零生成
-   本地候选 plan `4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6` 已 review。
-   未完成的首个 gate 是人类对 `local-existing` 候选作 `proceed`、`repair` 或 `redirect` 决策；它不能
-   由 agent 代替。其后才可进行明确授权的 provider 工作。
+   本地候选 plan `4907a3fd5150911d14bf15a7c2632a98b07c0d50f525733cd7e78b21448c15c6` 已接受为
+   `local-existing`。原 Pilot 与 generation 2 的 `InfoRev`、`NewPart`、`TwinChn` 均已按 owner
+   reconciliation 终结为 `unknown`，没有任何 raw materialization。generation 3 已以同组三项
+   建立 batch `4270ba76dee0eed282f2e0e074561b9d73a5a32225798dd802762e56b493c51d` 和新 grant，
+   但尚未提交。对同一有认证 endpoint 的零生成 POST 连续探测均返回 HTTP 503；本轮还按已授权
+   发起了 1 次可能计费的 live smoke，但执行会话未留下可采信的最终 CLI 回执，故不重复该请求以
+   避免重复计费。其后图片端点仍持续返回 HTTP 503。v7 transport 的模型、字段、Style Master
+   和约 1.69 MB body 与曾成功的 v5 等价，故当前为外部 relay/upstream 可用性阻塞。恢复前不得
+   盲目消耗 generation 3 grant；provider 健康后从其 owner-issued `generate_progressive_raw_item`
+   继续。
 10. [ ] **簿记、归档与版本收尾（非 change）**：仅在第 2、9 步的真实 run 验收全部通过后执行：
     先记录八张卡的最终状态与仍存在的根因，再以 `git mv` 将 BUG-036、BUG-037、BUG-040、
     BUG-041、BUG-042、BUG-043、BUG-044、BUG-045 移入 `_backlog/_done/_fixed_bugs/`，并同步
@@ -208,8 +232,8 @@ source、target lineage conflict 和 public CLI routing；主规格已同步，�
     `_backlog/_done/README.md`。最后按 `project-versioning` 决定版本更新是否需要人类确认。
     在真实 run 验收前不得移动任何待验收卡或本 plan。
 
-第 3、6 步分别创建 Change 1、Change 2；验收中新发现的 Change 3 也已完成并归档。plan 保留
-这些顺序和验收事实，供后续真实 run 恢复时直接定位下一项未完成 gate。
+第 3、6 步分别创建 Change 1、Change 2；验收中新发现的 Change 3 与 Change 4 也已完成并归档。
+plan 保留这些顺序和验收事实，供后续真实 run 恢复时直接定位下一项未完成 gate。
 
 ## 风险 / 取舍
 
@@ -229,6 +253,7 @@ source、target lineage conflict 和 public CLI routing；主规格已同步，�
 1. `harden-page-authority-provider-boundary`
 2. `unify-page-ordinal-projections`
 3. `activate-clean-page-authority-versions`
+4. `fix-successor-provider-attempt-chain`
 
 已归档的 `fix-provider-clauses-and-visual-scene` 与
 `pure-text-delivery-and-nn-production-naming` 是语义线的历史依据和回归基线，不应重新开启。
