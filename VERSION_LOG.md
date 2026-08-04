@@ -20,6 +20,27 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.24.2 — Hardened Page Authority Provider-Clause Delivery（2026-08-05）
+
+**代号**：Canonical clause contract
+
+> 归档 `harden-page-authority-provider-clause-delivery` 并修复 BUG-035（P0）：把 Page Authority raw contract
+> 的 provider-clause 交付收口为受支持工作流的 canonical 校验契约，并补上序列化 provider body 的回归断言。
+
+### 变了什么
+
+1. Pure 工作流新增 canonical raw contract 校验（`validatePureRawContract`），在授权与 provider 工作前
+   拒绝畸形 contract；Framed 的 `provider_clauses` 校验从 `object-or-null` 收紧为
+   `{recipe, composition, motifs}` 文本形状。
+2. `image-generation` main spec 新增/修改 requirement：raw request 必须携带 text-guard 保护的 canonical
+   provider-clause 文本，畸形形状在 plan 阶段 hard-stop，序列化 provider body 必须包含该文本而非仅 digest。
+3. 保持 raw contract 作为 provider clause 文本的唯一来源；不新增提交前反查、不回退授权/idempotency 契约。
+4. 新增回归测试：Pure/Framed 的 canonical clause shape 校验、malformed 提前 hard-stop、以及序列化
+   provider body 含 exact clause 文本（含 registry drift 后的提交路径）。
+5. BUG-035 关闭并移入 `_backlog/_done/_fixed_bugs/`。
+
+---
+
 ## v0.24.1 — Hardened Style Master Provider Boundary（2026-08-05）
 
 **代号**：Bounded, provider-compatible
