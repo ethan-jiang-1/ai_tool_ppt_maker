@@ -58,6 +58,7 @@ import {
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
+  isPageAuthorityProviderClausesShape,
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
 import {
@@ -161,7 +162,7 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       rawContract.workflow !== FRAMED_IMAGE_WORKFLOW ||
       typeof rawContract.slide_id !== "string" || !rawContract.slide_id ||
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
-      (rawContract.provider_clauses !== null && (typeof rawContract.provider_clauses !== "object" || Array.isArray(rawContract.provider_clauses))) ||
+      !isPageAuthorityProviderClausesShape(rawContract.provider_clauses) ||
       (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||

@@ -1,9 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { createAcceptedRawEvidence } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+
+const pureResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
+
+vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createPageAuthoritySourceResolver(...args) {
+      const resolver = actual.createPageAuthoritySourceResolver(...args);
+      if (!pureResolverControls.null_provider_clauses) return resolver;
+      return Object.freeze({
+        resolveSelection(context) {
+          return Object.freeze({ ...resolver.resolveSelection(context), provider_clauses: null });
+        },
+      });
+    },
+  };
+});
 import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { prepareFramedProgressivePilotReview } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import {
@@ -28,6 +46,7 @@ import {
   preparePureTargetRawReview,
   refreshPureTargetNotes,
   resolvePureStyleMasterScope,
+  validatePureRawContract,
 } from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
@@ -55,6 +74,10 @@ function receipt(source = "a") {
 }
 
 describe("Pure target workflow", () => {
+  beforeEach(() => {
+    pureResolverControls.null_provider_clauses = false;
+  });
+
   it("rejects a Framed receipt before creating target work", () => {
     expect(() => createPureRawWorkPlan({
       receipt: { ...receipt(), workflow: "framed" },
@@ -89,6 +112,113 @@ describe("Pure target workflow", () => {
 
   it("classifies visible-text source changes as raw rebuild debt", () => {
     expect(classifyPureRefresh({ previousReceipt: receipt("a"), nextReceipt: receipt("b") })).toMatchObject({ kind: "rebuild_raw", provider_required: true });
+  });
+
+  it("validates the canonical Pure clause shape and preserves its digest in the plan", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-raw-contract-validation-"));
+    const deck = join(root, "deck_pure_raw_contract_validation");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Validate raw contract
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureTargetRawPlan(runDir);
+      const rawContract = plan.provider_requests_by_slide.DeckGo.raw_contract;
+      const expectedDigest = plan.raw_work_plan.items.find((item) => item.slide_id === "DeckGo").raw_contract_sha256;
+      expect(validatePureRawContract(rawContract)).toEqual({ ok: true, raw_contract_sha256: expectedDigest });
+
+      const clauses = rawContract.provider_clauses;
+      const malformedClauses = [
+        null,
+        { recipe: clauses.recipe, composition: clauses.composition },
+        { ...clauses, unexpected: "extra" },
+        { ...clauses, recipe: "   " },
+        { ...clauses, motifs: [42] },
+      ];
+      for (const providerClauses of malformedClauses) {
+        expect(validatePureRawContract({ ...structuredClone(rawContract), provider_clauses: providerClauses }))
+          .toMatchObject({ ok: false, code: "pure_raw_contract_invalid" });
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops a malformed Pure clause record before source or raw-plan materialization", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-raw-contract-hard-stop-"));
+    const deck = join(root, "deck_pure_raw_contract_hard_stop");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Reject malformed clauses
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      const paths = pageAuthorityImage2Paths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+
+      pureResolverControls.null_provider_clauses = true;
+      const error = (() => {
+        try {
+          buildPureTargetRawPlan(runDir);
+        } catch (value) {
+          return value;
+        }
+        throw new Error("expected Pure raw planning to fail");
+      })();
+
+      expect(error).toMatchObject({ code: "pure_raw_contract_invalid" });
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(existsSync(paths.target_source_receipt)).toBe(false);
+      expect(existsSync(paths.target_raw_plan)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("runs the selected Pure receipt through raw evidence, manifest, and shared delivery with a provider fake", async () => {

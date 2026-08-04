@@ -81,6 +81,15 @@ function exactKeys(value, keys) {
     Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
+/** Return whether resolved provider clause text has the canonical Page Authority shape. */
+export function isPageAuthorityProviderClausesShape(value) {
+  return exactKeys(value, ["recipe", "composition", "motifs"]) &&
+    typeof value.recipe === "string" && value.recipe.trim().length > 0 &&
+    typeof value.composition === "string" && value.composition.trim().length > 0 &&
+    Array.isArray(value.motifs) &&
+    value.motifs.every((motif) => typeof motif === "string" && motif.trim().length > 0);
+}
+
 function asBytes(value, label) {
   if (!Buffer.isBuffer(value) && !(value instanceof Uint8Array)) {
     throw new PageAuthorityTargetRuntimeError("target_raw_bytes_invalid", `${label} must be nonempty bytes`);

@@ -50,6 +50,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-032](BUG-032-migrate-html-preview-never-works-for-real-decks.md) | 2026-07-21 | `migrate-html` 无法处理真实 markerless deck |
 | [BUG-033](BUG-033-legacy-image2-lightweight-iteration-blocked.md) | 2026-07-23 | markerless whole-page deck 的单页迭代被多重控制面诊断阻断；由 CLS-011 三项串行 change 修复 |
 | [BUG-034](BUG-034-full-suite-runner-lacks-completable-observable-exit.md) | 2026-07-28 | 默认开发测试入口缺少受控范围、时间预算和可观察退出契约 |
+| [BUG-035](BUG-035-target-provider-request-omits-visual-language-clauses.md) | 2026-08-05 | Plan-bound visual-language provider clauses are canonical-validated and serialized to the provider body |
 | [BUG-036](BUG-036-concept-content-structure-stripped-from-api-prompt.md) | 2026-08-04 | CONCEPT 场景结构已收束为 VISUAL SCENE，并经真实 v7 provider/delivery 验收 |
 | [BUG-037](BUG-037-image2-api-size-not-honored.md) | 2026-08-04 | 请求尺寸与 `2048x1136` native response contract 分离，无 resize 的真实 v7 验收 |
 | [BUG-040](BUG-040-pptx-delivery-omits-page-number.md) | 2026-08-04 | 真实 v7 PPTX 25 页 `01`–`25` ordinal footer 交付验收 |

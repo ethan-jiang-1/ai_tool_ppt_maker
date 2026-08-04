@@ -15,10 +15,6 @@
 
 ## 活跃列表
 
-### P0（阻断 — 1 个）
-
-- **[BUG-035](BUG-035-target-provider-request-omits-visual-language-clauses.md)** — 当前 target provider request 只携带 visual-language projection，遗漏 provider clauses
-
 ### P2（次要 — 1 个）
 
 - **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
@@ -32,7 +28,6 @@
 | 类别 | 数量 | Bug IDs |
 |---|---|---|
 | 渲染/视觉 | 1 | 015 |
-| 数据/契约 | 1 | 035 |
 
 ---
 

@@ -47,6 +47,7 @@ import {
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
+  isPageAuthorityProviderClausesShape,
   TARGET_RAW_CONTRACT_SCHEMA,
 } from "../shared/image2/page_authority_target_runtime.mjs";
 import {
@@ -97,6 +98,55 @@ export class PureImageWorkflowError extends Error {
     super(message);
     this.name = "PureImageWorkflowError";
     this.code = code;
+  }
+}
+
+const PURE_RAW_CONTRACT_KEYS = Object.freeze([
+  "schema",
+  "slide_id",
+  "workflow",
+  "visual_language",
+  "provider_clauses",
+  "visual_identity_role_clause",
+  "visual_scene",
+  "visual_identity",
+  "display",
+  "body",
+]);
+const PURE_RAW_CONTRACT_DISPLAY_KEYS = Object.freeze(["kicker", "title", "subtitle", "callout"]);
+
+function hasExactKeys(value, keys) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
+    Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+
+/** Validate one Pure raw contract before it can bind a request or plan. */
+export function validatePureRawContract(rawContract) {
+  try {
+    if (!hasExactKeys(rawContract, PURE_RAW_CONTRACT_KEYS) ||
+      rawContract.schema !== TARGET_RAW_CONTRACT_SCHEMA ||
+      rawContract.workflow !== PURE_IMAGE_WORKFLOW ||
+      typeof rawContract.slide_id !== "string" || !rawContract.slide_id.trim() ||
+      !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
+      !isPageAuthorityProviderClausesShape(rawContract.provider_clauses) ||
+      (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
+      (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
+      (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasExactKeys(rawContract.display, PURE_RAW_CONTRACT_DISPLAY_KEYS) ||
+      Object.values(rawContract.display).some((value) => value !== null && typeof value !== "string") ||
+      (rawContract.body !== null && typeof rawContract.body !== "string")) {
+      throw new PureImageWorkflowError("pure_raw_contract_invalid", "Pure raw contract has an invalid canonical shape");
+    }
+    return Object.freeze({
+      ok: true,
+      raw_contract_sha256: canonicalJsonSha256(rawContract),
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      code: error.code || "pure_raw_contract_invalid",
+      message: error.message || "Pure raw contract is invalid",
+    });
   }
 }
 
@@ -284,7 +334,9 @@ function compilePureTargetRawPlanCandidate(context) {
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
     const rawContract = pureRawContract(slide);
-    rawContractsBySlide[slide.slide_id] = canonicalJsonSha256(rawContract);
+    const rawContractValidation = validatePureRawContract(rawContract);
+    if (!rawContractValidation.ok) throw new PureImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
+    rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
     providerRequestsBySlide[slide.slide_id] = createTargetProviderRequest({
       slideId: slide.slide_id,
       rawContract,

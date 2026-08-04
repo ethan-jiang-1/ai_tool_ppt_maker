@@ -18,6 +18,23 @@ const renderControls = vi.hoisted(() => ({
   proof_batches: [],
   safe_zone_drift: false,
 }));
+const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
+
+vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createPageAuthoritySourceResolver(...args) {
+      const resolver = actual.createPageAuthoritySourceResolver(...args);
+      if (!framedResolverControls.null_provider_clauses) return resolver;
+      return Object.freeze({
+        resolveSelection(context) {
+          return Object.freeze({ ...resolver.resolveSelection(context), provider_clauses: null });
+        },
+      });
+    },
+  };
+});
 
 vi.mock("../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs", async (importOriginal) => {
   const actual = await importOriginal();
@@ -282,6 +299,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       proof_batches: [],
       safe_zone_drift: false,
     });
+    framedResolverControls.null_provider_clauses = false;
   });
 
   it("does not write or submit when the current source is invalid", async () => {
@@ -308,6 +326,23 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(renderControls.proof_calls).toBe(0);
       expect(renderControls.browser_launches).toBe(0);
       await expectNoProviderSubmit(fixture.runDir, fixture.image);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("stops malformed Framed clauses before proof or source materialization", async () => {
+    const fixture = await createFixture();
+    try {
+      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
+      framedResolverControls.null_provider_clauses = true;
+
+      await expect(buildFramedTargetRawPlan(fixture.runDir)).rejects.toMatchObject({
+        code: "framed_raw_contract_invalid",
+      });
+      expectNoMaterialization(fixture, stateBefore);
+      expect(renderControls.proof_calls).toBe(0);
+      expect(renderControls.browser_launches).toBe(0);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -369,6 +404,18 @@ describe("Framed proof-before-materialization lifecycle", () => {
         ok: false,
         code: "framed_raw_contract_profile_stale",
       });
+      const clauses = rawContracts.DeckGo.provider_clauses;
+      const malformedClauses = [
+        null,
+        { recipe: clauses.recipe, composition: clauses.composition },
+        { ...clauses, unexpected: "extra" },
+        { ...clauses, composition: "   " },
+        { ...clauses, motifs: [42] },
+      ];
+      for (const providerClauses of malformedClauses) {
+        expect(validateFramedRawContract({ ...structuredClone(rawContracts.DeckGo), provider_clauses: providerClauses }))
+          .toMatchObject({ ok: false, code: "framed_raw_contract_invalid" });
+      }
 
       const stored = readFramedTargetStoredPlanContext(fixture.runDir);
       expect(stored.source_epoch).toBe(1);
