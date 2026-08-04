@@ -20,6 +20,31 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.24.1 — Hardened Style Master Provider Boundary（2026-08-05）
+
+**代号**：Bounded, provider-compatible
+
+> 归档 `harden-style-master-provider-boundary`：把 Style Master 的 provider 边界收紧为确定性、有界、
+> 对兼容 provider 可解释，并修复 BUG-046..052。这是纯 bug 修复 + 既有 capability 边界收紧，无新 capability。
+
+### 变了什么
+
+1. Style Master provider prompt 从"全投影序列化"改为确定性 4,000 字节 provider brief（authored intent +
+   紧凑 global visual summary）；超限在 plan/grant/provider 工作之前失败，绝不静默截断。
+2. `IMAGE2_BASE_URL` 强制为单端点，逗号分隔列表在任何联网工作前拒绝；env-check 与 doctor 同步，doctor
+   `--smoke` 成功证据改为 connectivity-only，不再被误读为 Style Master 生产兼容证明。
+3. Style Master 与 page raw 共享一个有界 600,000 ms 的 submit/poll deadline（剩余预算 abort）；收到的明确
+   失败（HTTP/畸形 JSON/terminal task 失败/非法媒体）定类为 known failed attempt，无法证实的响应丢失、
+   abort、deadline 耗尽仍保留 `submitted`/`unknown` 边界。
+4. 生成的 Style Master 候选校验接受 CRC 有效且正尺寸的原生 PNG（不再固定 2000x1125），保留原字节与尺寸
+   进不可变 provenance；收到非法媒体为 known failed attempt。
+5. `style-master generate` 复用 page raw 的 scoped dotenv 解析与共享 sync-or-async provider 完成路径，
+   不持久化 task ID、不引入 retry/reconcile。
+6. BUG-046..052 全部修复并移入 `_backlog/_done/_fixed_bugs/`；相关 main specs（style-master-generation、
+   cli-surface、environment-check）已同步并归档。
+
+---
+
 ## v0.24.0 — Native Page Authority Recovery And Delivery（2026-08-04）
 
 **代号**：Native bytes, complete chain
