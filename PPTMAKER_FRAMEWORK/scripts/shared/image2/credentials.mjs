@@ -7,9 +7,23 @@
 function normalizeBaseUrl(value) {
   const raw = String(value).trim();
   if (!raw) return "";
-  const parsed = new URL(raw);
+  if (raw.includes(",")) {
+    const error = new Error("Image provider URL must name one endpoint, not a comma-separated list");
+    error.code = "IMAGE2_BASE_URL_INVALID";
+    throw error;
+  }
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    const error = new Error("Image provider URL must be a valid endpoint");
+    error.code = "IMAGE2_BASE_URL_INVALID";
+    throw error;
+  }
   if (parsed.username || parsed.password) {
-    throw new Error("Image provider URL must not contain credentials");
+    const error = new Error("Image provider URL must not contain credentials");
+    error.code = "IMAGE2_BASE_URL_INVALID";
+    throw error;
   }
   parsed.search = "";
   parsed.hash = "";

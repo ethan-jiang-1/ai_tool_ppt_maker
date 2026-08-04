@@ -55,12 +55,23 @@ uncommitted decision as promotion.
   provider:{provider:"image2",model:"gpt-image-2",api_revision:"page-authority-image2-v2"},
   output:{format:"png",width:2000,height:1125},
   prompt_contract:"style-master-no-readable-text-v1" }`;
-- `compiled_prompt_sha256`, SHA-256 of the exact nonempty UTF-8 provider-prompt bytes deterministically
+- `compiled_prompt_sha256`, SHA-256 of the exact nonempty UTF-8 provider-brief bytes deterministically
   compiled provider-free from the bounded intent, canonical style context, and fixed prompt contract; display
-  literals, host paths, credentials, and provider response data SHALL not enter those bytes;
+  literals, host paths, credentials, provider response data, and projection-only digests SHALL not enter those
+  bytes;
 - `previous_selection_sha256`, the prior canonical effective-selection record digest or null; and
 - the scope-head generation and predecessor identity; and
 - an explicit `--candidate-count` of `0..4` newly generated slots with ordered stable slot IDs.
+
+The provider brief SHALL be at most 4,000 UTF-8 bytes. It SHALL contain the authored style intent and a
+deterministic compact global visual summary derived from the current projection semantics, including the
+ordered unique visual recipe, composition, motif, and identity-subject identifiers needed to describe the
+deck-wide style. It SHALL NOT serialize a per-slide projection object, a projection digest, a provider-clause
+digest, a registry digest, a host path, credential, provider response, display literal, or other identity-only
+SHA-256 field into the provider brief. The complete canonical projection remains the source of
+`style_context_sha256` and plan invalidation. The compiler SHALL fail planning before plan publication, grant
+creation, or provider initialization when it cannot produce a nonempty brief within the bound; it SHALL NOT
+silently truncate intent or summary content.
 
 The owner SHALL compute `plan_sha256` over the existing shared canonical-JSON UTF-8 serialization of one
 `plan_identity` object, never over the enclosing file or a self-referential digest. That exact object SHALL
@@ -134,10 +145,12 @@ validate the current plan/grant, CAS-persist a `claimed` attempt before provider
 to `submitted` with the exact canonical `provider_request_sha256` immediately before the one transport call,
 and, when the invocation regains control, transition
 it exactly once to `succeeded`, `failed`, or `unknown`. A persisted `submitted` attempt with no terminal evidence
-SHALL evaluate as unknown without an observation write. Only `succeeded` SHALL bind valid PNG bytes whose
-decoded size is exactly 2000x1125, byte digest, and generated-provenance digest after atomic placement of both
-candidate artifacts individually. The terminal attempt CAS SHALL be the single publication point and reference
-and revalidate both digests; preplaced image or
+SHALL evaluate as unknown without an observation write. Only `succeeded` SHALL bind valid PNG bytes with
+CRC-checked decoding, positive decoded integer width and height, byte digest, and generated-provenance digest
+after atomic placement of both candidate artifacts individually. The request size in the generation profile
+remains a request contract; the owner SHALL retain a provider's valid native PNG dimensions in provenance and
+SHALL NOT resize or reject the response solely because those dimensions differ from `2000x1125`. The terminal
+attempt CAS SHALL be the single publication point and reference and revalidate both digests; preplaced image or
 provenance files without a winning `succeeded` attempt remain non-authoritative. Every claimed, submitted, or
 terminal generated attempt SHALL retain the exact `candidate_grant_sha256` of its validated grant. The immutable
 grant's consumed slots and owner progress SHALL be derived only from exact grant-bound attempts that reached
@@ -156,17 +169,29 @@ and provenance digests; `failed` and `unknown` have those candidate fields null.
 null `reason_sha256`, while an abandonment-owned `unknown` binds the normalized reason digest. The plan/scope/slot
 and exact grant binding SHALL remain unchanged across all transitions.
 
-Before advancing `claimed` to `submitted`, generate SHALL deterministically recompile the provider prompt from
+Before advancing `claimed` to `submitted`, generate SHALL deterministically recompile the provider brief from
 current canonical inputs and require its exact bytes to match `compiled_prompt_sha256`; compiler/profile/input
-drift SHALL close the still-pre-submit plan as stale without a provider call. The one transport request and a
-successful terminal provenance record SHALL bind that compiled prompt digest plus the fixed generation-profile
-digest, so bytes cannot be attributed to a different request contract.
+drift SHALL close the still-pre-submit plan as stale without a provider call. The one provider submission, any
+bounded same-invocation task polling, and a successful terminal provenance record SHALL bind that compiled
+prompt digest plus the fixed generation-profile digest, so bytes cannot be attributed to a different request
+contract.
 `provider_request_sha256` SHALL be `canonicalJsonSha256` of exactly
 `{schema:"page-authority-style-master-provider-request-v1",plan_sha256,candidate_id,
 compiled_prompt_sha256,candidate_generation_profile_sha256}` and SHALL match the slot submitted through the
 existing transport. The `submitted` attempt persists this digest before the call; every
 `succeeded|failed|unknown` terminal transition and generated provenance SHALL exact-match it. A response or
 preplaced artifact with another or missing request digest cannot win terminal CAS.
+
+Generation SHALL load credentials using the same ordered, non-overwriting scoped dotenv resolution as current
+page raw generation before it resolves the existing Image2 credential pair. `IMAGE2_BASE_URL` SHALL name one
+normalized endpoint and a value containing a comma SHALL fail as malformed environment configuration before
+provider initialization. The Style Master transport SHALL accept either a complete inline response or a provider
+task identifier. For a task identifier it SHALL poll only the provider's task result within the same generate
+invocation and its explicit finite transport deadline; it SHALL not write a durable task ID or introduce a later
+reconciliation command. A received non-success HTTP response, invalid JSON, malformed completed task response,
+terminal task failure, or received inline/task result that cannot decode to a valid PNG SHALL terminalize the
+submitted attempt as `failed`. A lost response, unreadable response, interrupted submit, poll transport failure,
+or elapsed bounded deadline SHALL terminalize nothing as known and leave the submitted attempt uncertain.
 
 A persisted `claimed` attempt SHALL consume no grant slot and remain resumable only through the same exact
 plan's generate operation. After revalidating unchanged plan, grant, scope, and canonical inputs, generate SHALL
@@ -221,6 +246,21 @@ NOT create a second parser, provider route, external skill, implicit retry, or p
   identity when present, and ordered slot IDs into the plan hash
 - **AND** it does not write a page source receipt, raw plan, raw evidence, or source epoch
 
+#### Scenario: Bounded provider brief fails before paid work
+
+- **WHEN** the authored intent and deterministic global visual summary cannot compile to a nonempty provider
+  brief of at most 4,000 UTF-8 bytes
+- **THEN** `plan` returns the bounded source-validation failure before publishing a plan, grant, attempt, or
+  provider request
+- **AND** it does not truncate intent, serialize the full slide projection, or consume a candidate submission
+
+#### Scenario: Projection identity does not bloat the provider brief
+
+- **WHEN** current slide projections contain provider-clause or registry SHA-256 fields
+- **THEN** their full canonical projection remains bound by `style_context_sha256` while the provider brief
+  contains only the compact visual summary and authored intent
+- **AND** changing an identity-only digest still invalidates the plan without sending that digest to the provider
+
 #### Scenario: Draft remains reachable after workflow selection
 
 - **WHEN** an unbound create-deck draft advances along its manifest-validated selected-workflow `draft_route: true` nodes through Style Master
@@ -273,6 +313,35 @@ NOT create a second parser, provider route, external skill, implicit retry, or p
 - **THEN** its terminal attempt, bytes, digest, provenance, and derived grant consumption/progress are current before the next candidate submission
 - **AND** no page raw plan, raw evidence, or source epoch is written by that candidate operation
 
+#### Scenario: Native provider PNG becomes a generated candidate
+
+- **WHEN** an authorized provider response contains a CRC-valid PNG with positive native dimensions that differ
+  from the requested `2000x1125` size
+- **THEN** the owner records the returned bytes and native dimensions in the exact succeeded attempt and generated provenance
+- **AND** it does not resize the bytes, label the response uncertain, or alter the requested generation profile
+
+#### Scenario: Definite received response becomes a known failure
+
+- **WHEN** an authorized submission receives a non-success response, malformed response, terminal failed task,
+  or response media that cannot be decoded as a valid PNG
+- **THEN** the owner terminalizes that submitted attempt as `failed` and returns the terminal-plan successor action
+- **AND** it does not leave the plan at `unknown`, submit a later candidate, or expose the provider body
+
+#### Scenario: Same-invocation task polling publishes one candidate
+
+- **WHEN** an authorized provider submit response contains a valid task identifier and a later bounded poll in
+  the same generate invocation returns a valid PNG result
+- **THEN** the owner records one succeeded attempt bound to the original provider request
+- **AND** it does not create a durable task identifier, second authorization, or a second provider submission
+
+#### Scenario: Scoped dotenv and endpoint validation precede submit
+
+- **WHEN** `style-master generate` starts with credentials available only in the deck-root or process-current `.env`,
+  or with an `IMAGE2_BASE_URL` containing a comma-separated list
+- **THEN** it resolves the former by the same non-overwriting scoped order as page raw, and rejects the latter
+  before a provider request
+- **AND** it does not require a manual `node --env-file` wrapper or attempt implicit endpoint failover
+
 #### Scenario: Known failure stops unusable remaining cost
 
 - **WHEN** one generated slot reaches known `failed` before later planned slots are submitted
@@ -296,6 +365,13 @@ NOT create a second parser, provider route, external skill, implicit retry, or p
 - **WHEN** a candidate request may have reached the provider but its terminal result cannot be proved, including an orphan `submitted` record
 - **THEN** the owner preserves an unknown consumed attempt and hard-stops with the exact-plan abandonment action
 - **AND** it retains the exact submitted provider-request digest and does not consume another slot, overwrite the attempt, or submit a replacement candidate automatically
+
+#### Scenario: Deadline or transport loss remains uncertain
+
+- **WHEN** a submitted provider request or same-invocation task poll reaches its explicit deadline or loses its
+  response before a terminal provider result can be established
+- **THEN** the owner preserves the consumed submitted attempt as `unknown` and returns only the exact-plan abandonment action
+- **AND** it does not relabel the outcome as failed, persist a task ID, or submit a replacement candidate automatically
 
 #### Scenario: Abandonment and late terminal response have one winner
 

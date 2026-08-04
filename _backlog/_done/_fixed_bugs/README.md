@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-04 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-05 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的唯一权威来源——新 bug 的编号 = 本目录最大编号 + 1。**
@@ -58,8 +58,15 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-043](BUG-043-production-files-lack-NN-slideID-naming.md) | 2026-08-04 | 真实 v7 final 25/25 `NN_slideID.png` 文件验收 |
 | [BUG-044](BUG-044-pure-slides-image-heavy-text-light.md) | 2026-08-04 | Pure BODY 通道和图文比例经真实 v7 final visual 验收 |
 | [BUG-045](BUG-045-NN-slideID-naming-not-uniform-across-outputs.md) | 2026-08-04 | 真实 v7 raw/final 25/25 统一 `NN_slideID.png` 命名验收 |
+| [BUG-046](BUG-046-style-master-fetch-timeout-causes-attempt-unknown.md) | 2026-08-05 | Style Master candidate dimension/prompt/provider 不兼容导致 `attempt_unknown` 且无重试路径 |
+| [BUG-047](BUG-047-style-master-generate-requires-manual-env-loading.md) | 2026-08-05 | `ppt_flow style-master generate` 不自动加载 `.env` 凭证，doctor 却会 |
+| [BUG-048](BUG-048-style-master-compiled-prompt-structurally-oversized.md) | 2026-08-05 | Style Master 编译 prompt 结构性过长（全 slide projection digest JSON）超 provider 上限 |
+| [BUG-049](BUG-049-style-master-attempt-unknown-no-reconcile-burns-submissions.md) | 2026-08-05 | Style Master `attempt_unknown` 永久阻塞计划、无 reconcile，只能 abandon 烧提交 |
+| [BUG-050](BUG-050-style-master-fetch-no-explicit-timeout-undici-300s.md) | 2026-08-05 | Style Master 与 page raw 的 provider fetch 无显式超时，慢 provider 撞 undici 300s |
+| [BUG-051](BUG-051-doctor-smoke-false-positive-misses-size-and-prompt-failures.md) | 2026-08-05 | `doctor --smoke` 假阳性，测不出尺寸不符与 prompt 超限 |
+| [BUG-052](BUG-052-provider-base-url-comma-list-not-supported-and-async-model.md) | 2026-08-05 | provider base_url 逗号列表不被支持；async task 模型不被 Style Master transport 支持 |
 
-**Next available bug ID: BUG-046**
+**Next available bug ID: BUG-053**
 
 ---
 

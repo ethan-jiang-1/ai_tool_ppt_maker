@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { execFileSync, execSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -559,9 +559,116 @@ describe('env-check Image2 base URL hard fail', () => {
       else process.env.IMAGE2_BASE_URL = prev;
     }
   });
+
+  it('rejects a comma-separated IMAGE2_BASE_URL without disclosing the configured list', async () => {
+    const prev = process.env.IMAGE2_BASE_URL;
+    try {
+      process.env.IMAGE2_BASE_URL = 'https://first.example.test/v1,https://second.example.test/v1';
+      const { checkBaseUrl } = await import(
+        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
+      );
+      const url = checkBaseUrl();
+      expect(url).toMatchObject({ check: 'image_base_url', status: 'fail' });
+      expect(`${url.detail}\n${url.fix}`).toMatch(/one endpoint/i);
+      expect(`${url.detail}\n${url.fix}`).not.toContain('first.example.test');
+      expect(`${url.detail}\n${url.fix}`).not.toContain('second.example.test');
+    } finally {
+      if (prev === undefined) delete process.env.IMAGE2_BASE_URL;
+      else process.env.IMAGE2_BASE_URL = prev;
+    }
+  });
+
+  it('stops smoke before a live fetch when IMAGE2_BASE_URL is a comma list', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-comma-list-smoke-'));
+    const marker = join(root, 'fetches.log');
+    const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
+    const script = join(process.cwd(), ENV_CHECK);
+    try {
+      let stdout = '';
+      let exitCode = 0;
+      try {
+        stdout = execFileSync('node', ['--import', preload, script, '--json', '--smoke'], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          timeout: 30_000,
+          env: {
+            ...process.env,
+            IMAGE2_API_KEY: 'test-only-key',
+            IMAGE2_BASE_URL: 'https://first.example.test/v1,https://second.example.test/v1',
+            PPTMAKER_IMAGE_PROBE_MARKER: marker,
+          },
+        });
+      } catch (error) {
+        exitCode = error.status ?? 1;
+        stdout = String(error.stdout || '');
+      }
+      expect(exitCode).not.toBe(0);
+      const report = JSON.parse(stdout);
+      expect(report.checks.find((check) => check.check === 'image_base_url')).toMatchObject({ status: 'fail' });
+      expect(report.checks.find((check) => check.check === 'image_smoke')).toMatchObject({
+        status: 'fail', detail: expect.stringContaining('skipped'),
+      });
+      expect(existsSync(marker)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('env-check --smoke', () => {
+  it('keeps successful text and JSON smoke evidence connectivity-only with one POST each', () => {
+    const root = mkdtempSync(join(tmpdir(), 'env-smoke-connectivity-only-'));
+    const preload = join(process.cwd(), 'tests', 'helpers', 'fixtures', 'mock_image_probe_fetch.mjs');
+    const script = join(process.cwd(), ENV_CHECK);
+    const apiKey = 'SMOKE_CONNECTIVITY_ONLY_SECRET';
+    const baseUrl = 'https://smoke.example.test/v1';
+    const runSmoke = (args, marker) => {
+      try {
+        return {
+          exitCode: 0,
+          stdout: execFileSync('node', ['--import', preload, script, ...args], {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            timeout: 30_000,
+            env: {
+              ...process.env,
+              IMAGE2_API_KEY: apiKey,
+              IMAGE2_BASE_URL: baseUrl,
+              PPTMAKER_IMAGE_PROBE_MARKER: marker,
+            },
+          }),
+        };
+      } catch (error) {
+        return { exitCode: error.status ?? 1, stdout: String(error.stdout || '') };
+      }
+    };
+    try {
+      const textMarker = join(root, 'text-fetches.log');
+      const text = runSmoke(['--smoke'], textMarker);
+      expect(text.exitCode, text.stdout).toBe(0);
+      expect(text.stdout).toContain('connectivity-only evidence');
+      expect(text.stdout).toMatch(/prompt fit.*media dimensions\/decoding.*async completion.*run authorization remain unverified/i);
+      expect(text.stdout).not.toMatch(/start building decks|Style Master generation can proceed/i);
+      expect(text.stdout).not.toContain(apiKey);
+      expect(readFileSync(textMarker, 'utf8').trim().split('\n')).toEqual(['fetch']);
+
+      const jsonMarker = join(root, 'json-fetches.log');
+      const json = runSmoke(['--json', '--smoke'], jsonMarker);
+      expect(json.exitCode, json.stdout).toBe(0);
+      const report = JSON.parse(json.stdout);
+      expect(report).toMatchObject({ allPass: true });
+      expect(report.checks.find((check) => check.check === 'image_smoke')).toMatchObject({
+        status: 'ok',
+        detail: expect.stringContaining('connectivity-only evidence'),
+      });
+      expect(JSON.stringify(report)).not.toMatch(/start building decks|Style Master generation can proceed/i);
+      expect(JSON.stringify(report)).not.toContain(apiKey);
+      expect(readFileSync(jsonMarker, 'utf8').trim().split('\n')).toEqual(['fetch']);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 35_000);
+
   it('checkImageSmoke fails on HTTP error without hanging', async () => {
     const prevFetch = globalThis.fetch;
     process.env.IMAGE2_API_KEY = 'k';

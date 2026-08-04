@@ -1,0 +1,10 @@
+# dark_factory — project metadata (static config + pipeline gates)
+# Playbook execution progress / playbook gates live in _state/state.yaml — see _state/README.md
+deck_name: dark_factory
+topic: 
+audience: 
+language: 
+one_thing_to_remember: 
+# production_mode is a non-authoritative mirror; _state/state.yaml is the routing authority.
+production_mode: image2-page-authority-v2
+production_mode_run_version: v1

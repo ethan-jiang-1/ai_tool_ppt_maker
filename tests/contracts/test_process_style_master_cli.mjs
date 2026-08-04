@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -11,6 +11,8 @@ import {
   styleAsset,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { resolveEffectiveStyleMasterSelection } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { styleMasterStorePaths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
 
 const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 const LOCAL_PNG = Buffer.from(
@@ -18,11 +20,12 @@ const LOCAL_PNG = Buffer.from(
   "base64",
 );
 
-function run(args, env = {}) {
-  return spawnSync(process.execPath, [FLOW, ...args], {
+function run(args, env = {}, { cwd = process.cwd(), nodeArgs = [] } = {}) {
+  return spawnSync(process.execPath, [...nodeArgs, FLOW, ...args], {
     encoding: "utf8",
     timeout: 30_000,
     env: { ...process.env, ...env },
+    cwd,
   });
 }
 
@@ -180,6 +183,126 @@ describe("Style Master process CLI", () => {
         plan_sha256: plan.plan_sha256,
         next_action: "plan_style_master_successor",
       });
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a comma-list endpoint before Style Master fetch and preserves its pre-submit claim", () => {
+    const value = fixture("style-master-cli-comma-endpoint");
+    const marker = join(value.root, "style-master-fetches.log");
+    const preload = join(process.cwd(), "tests", "helpers", "fixtures", "mock_image_probe_fetch.mjs");
+    const apiKey = "STYLE_MASTER_COMMA_LIST_SECRET";
+    const endpointList = "https://first.example.test/v1,https://second.example.test/v1";
+    try {
+      const planned = run(["style-master", "plan", value.runDir, "--candidate-count", "1"]);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const authorized = run(["style-master", "authorize", value.runDir, "--plan-hash", plan.plan_sha256]);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = run([
+        "style-master", "generate", value.runDir, "--plan-hash", plan.plan_sha256,
+      ], {
+        IMAGE2_API_KEY: apiKey,
+        IMAGE2_BASE_URL: endpointList,
+        PPTMAKER_IMAGE_PROBE_MARKER: marker,
+      }, { nodeArgs: ["--import", preload] });
+
+      expect(generated.status, generated.stderr).toBe(1);
+      expect(generated.stdout).toBe("");
+      expect(finalDiagnostic(generated.stderr)).toMatchObject({
+        code: "FAILED",
+        diagnostic: {
+          operation: "style-master-generate",
+          category: "environment",
+          reason: { kind: "style_master_provider_credentials_unavailable" },
+          next: { action: "repair_environment", requires_human: false },
+        },
+      });
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(apiKey);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain("first.example.test");
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain("second.example.test");
+      expect(existsSync(marker)).toBe(false);
+
+      const attemptPaths = styleMasterStorePaths(value.runDir, {
+        plan_sha256: plan.plan_sha256,
+        candidate_id: "candidate-001",
+      });
+      expect(JSON.parse(readFileSync(attemptPaths.candidate_attempt, "utf8"))).toMatchObject({
+        status: "claimed",
+        provider_request_sha256: null,
+      });
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a comma-list endpoint before Page Authority fetch or attempt creation", () => {
+    const value = fixture("page-authority-cli-comma-endpoint");
+    const marker = join(value.root, "page-authority-fetches.log");
+    const preload = join(process.cwd(), "tests", "helpers", "fixtures", "mock_image_probe_fetch.mjs");
+    const apiKey = "PAGE_AUTHORITY_COMMA_LIST_SECRET";
+    const endpointList = "https://first.example.test/v1,https://second.example.test/v1";
+    try {
+      const stylePlan = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
+      expect(stylePlan.status, stylePlan.stderr).toBe(0);
+      const reviewed = run([
+        "style-master", "review", value.runDir,
+        "--plan-hash", JSON.parse(stylePlan.stdout).plan_sha256,
+      ]);
+      expect(reviewed.status, reviewed.stderr).toBe(0);
+      const accepted = run([
+        "style-master", "accept", value.runDir,
+        "--plan-hash", JSON.parse(stylePlan.stdout).plan_sha256,
+        "--decision", "proceed",
+        "--candidate-id", "local-existing",
+      ]);
+      expect(accepted.status, accepted.stderr).toBe(0);
+
+      const planned = run(["image2", "plan", value.runDir]);
+      expect(planned.status, planned.stderr).toBe(0);
+      const plan = JSON.parse(planned.stdout);
+      const piloted = run([
+        "image2", "pilot", value.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--slide-id", "DeckGo",
+      ]);
+      expect(piloted.status, piloted.stderr).toBe(0);
+      const batch = JSON.parse(piloted.stdout).batch;
+      const authorized = run([
+        "image2", "authorize", value.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ]);
+      expect(authorized.status, authorized.stderr).toBe(0);
+
+      const generated = run([
+        "image2", "generate", value.runDir,
+        "--plan-hash", plan.plan_hash,
+        "--batch-hash", batch.batch_hash,
+      ], {
+        IMAGE2_API_KEY: apiKey,
+        IMAGE2_BASE_URL: endpointList,
+        PPTMAKER_IMAGE_PROBE_MARKER: marker,
+      }, { nodeArgs: ["--import", preload] });
+
+      expect(generated.status, generated.stderr).toBe(1);
+      expect(generated.stdout).toBe("");
+      expect(finalDiagnostic(generated.stderr)).toMatchObject({
+        code: "FAILED",
+        diagnostic: {
+          operation: "target-page-authority-generate",
+          category: "provider",
+          reason: { kind: "page_authority_provider_credentials_unavailable" },
+          next: { action: "repair_environment", requires_human: false },
+        },
+      });
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain(apiKey);
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain("first.example.test");
+      expect(`${generated.stdout}${generated.stderr}`).not.toContain("second.example.test");
+      expect(existsSync(marker)).toBe(false);
+      expect(readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: plan.plan_hash }).attempts).toEqual([]);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

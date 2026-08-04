@@ -22,6 +22,7 @@ import {
   setCliOutputMode,
 } from '../../shared/cli/cli_error.mjs';
 import { HTML_RUNTIME_PROFILE } from './html_runtime_profile.mjs';
+import { normalizeImage2BaseUrl } from '../../shared/image2/credentials.mjs';
 
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
@@ -33,6 +34,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ENV_CHECK_CLI = 'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
 const IS_WINDOWS = process.platform === 'win32';
+const SMOKE_CONNECTIVITY_ONLY_EVIDENCE = 'connectivity-only evidence; production prompt fit, requested or returned media dimensions, decoded media, async completion, and run authorization are not verified';
 
 export const COMMON_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'fonts', 'disk_space', 'git',
@@ -368,15 +370,32 @@ function checkApiKey() {
 
 function checkBaseUrl() {
   const url = (process.env.IMAGE2_BASE_URL || '').trim();
-  const ok = Boolean(url);
+  if (!url) {
+    return {
+      check: 'image_base_url',
+      status: 'fail',
+      detail: 'not set',
+      fix: (
+        'Image API base URL is required. Put it in .env:\n' +
+        '  IMAGE2_BASE_URL=https://your-relay/v1'
+      ),
+    };
+  }
+  try {
+    normalizeImage2BaseUrl(url);
+  } catch {
+    return {
+      check: 'image_base_url',
+      status: 'fail',
+      detail: 'invalid (IMAGE2_BASE_URL must name one endpoint)',
+      fix: 'Set IMAGE2_BASE_URL to one valid endpoint; comma-separated endpoint lists are not supported.',
+    };
+  }
   return {
     check: 'image_base_url',
-    status: ok ? 'ok' : 'fail',
-    detail: ok ? 'found (IMAGE2_BASE_URL)' : 'not set',
-    fix: ok ? null : (
-      'Image API base URL is required. Put it in .env:\n' +
-      '  IMAGE2_BASE_URL=https://your-relay/v1'
-    ),
+    status: 'ok',
+    detail: 'found (IMAGE2_BASE_URL)',
+    fix: null,
   };
 }
 
@@ -588,7 +607,12 @@ async function checkHtmlRuntime(playwright) {
 }
 
 function fallbackProviderDiagnostics() {
-  const baseUrl = String(process.env.IMAGE2_BASE_URL || '').replace(/\/$/, '');
+  let baseUrl = '';
+  try {
+    baseUrl = normalizeImage2BaseUrl(process.env.IMAGE2_BASE_URL || '');
+  } catch {
+    // The caller's image_base_url check owns the bounded malformed-config result.
+  }
   const apiKey = String(process.env.IMAGE2_API_KEY || '');
   return {
     async inspect() { return { vendors: baseUrl && apiKey ? [{ base_url: baseUrl, api_key: apiKey }] : [], model: 'gpt-image-2', heartbeat_ms: 1_000 }; },
@@ -710,7 +734,7 @@ export async function checkImageSmoke({ vendors: injectedVendors, fetchImpl = gl
       return {
         check: 'image_smoke',
         status: 'ok',
-        detail: `submit ok (sync image from ${await diagnostics.host(base) || 'provider'})`,
+        detail: `submit accepted (sync image reference from ${await diagnostics.host(base) || 'provider'}; ${SMOKE_CONNECTIVITY_ONLY_EVIDENCE})`,
         fix: null,
       };
     }
@@ -718,7 +742,7 @@ export async function checkImageSmoke({ vendors: injectedVendors, fetchImpl = gl
       return {
         check: 'image_smoke',
         status: 'ok',
-        detail: `submit ok (async task accepted by ${await diagnostics.host(base) || 'provider'})`,
+        detail: `submit accepted (async task identifier from ${await diagnostics.host(base) || 'provider'}; ${SMOKE_CONNECTIVITY_ONLY_EVIDENCE})`,
         fix: null,
       };
     }
@@ -890,7 +914,7 @@ export {
   probeGitSafetyForTest,
 };
 
-function formatText(results, allPass, { image2 = false, profiles = [] } = {}) {
+function formatText(results, allPass, { image2 = false, profiles = [], smoke = false } = {}) {
   const lines = [];
   const platformName = IS_WINDOWS ? 'Windows' : process.platform;
   lines.push('='.repeat(56));
@@ -927,7 +951,10 @@ function formatText(results, allPass, { image2 = false, profiles = [] } = {}) {
     lines.push('  ⛔ FOUNDATION NOT READY — supported Node.js (22/24/26) and npm must be set up FIRST.');
     lines.push('     Fix the [FOUNDATION] items above, then re-run.');
   } else if (allPass) {
-    if (warns) {
+    if (smoke) {
+      lines.push('  ✓  READY — local prerequisites and endpoint connectivity-only evidence passed.');
+      lines.push('  Production prompt fit, media dimensions/decoding, async completion, and run authorization remain unverified.');
+    } else if (warns) {
       lines.push(`  ✓  READY — foundation OK, no blockers. ${warns} advisory warning(s) above.`);
     } else {
       lines.push('  ✓  READY — all checks passed.');
@@ -1117,7 +1144,7 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     registerCliJsonReport(report, { schema: CLI_JSON_REPORT_SCHEMAS.ENV_CHECK });
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log(formatText(results, allPass, { image2: wantImage2, profiles }));
+    console.log(formatText(results, allPass, { image2: wantImage2, profiles, smoke: wantSmoke }));
   }
 
   if (!allPass) {

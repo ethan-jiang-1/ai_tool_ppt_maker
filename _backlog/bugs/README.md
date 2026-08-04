@@ -1,6 +1,6 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-08-04 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-05 | `_backlog/bugs/` — 活跃 bug 在此
 >
 > **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
 
@@ -25,7 +25,7 @@
 
 ---
 
-**Next available bug ID: BUG-046**
+**Next available bug ID: BUG-053**
 
 ## 类别分布
 

@@ -25,6 +25,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { join, resolve, basename, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { decode as decodePng } from "fast-png";
 import {
   CLI_ERROR_CODES,
   CLI_JSON_REPORT_SCHEMAS,
@@ -1774,85 +1775,212 @@ function pageAuthorityProviderTaskPollUnresolved() {
   return error;
 }
 
-const PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS = 60_000;
-const PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS = 1_000;
+function pageAuthorityProviderSubmitUnresolved() {
+  const error = new Error("Target Page Authority provider submission failed before a response");
+  error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
+  return error;
+}
 
-function pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs }) {
+const STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
+  "http_error",
+  "invalid_json",
+  "task_terminal_failure",
+  "task_response_invalid",
+]);
+
+function styleMasterProviderKnownFailure(classification, { httpStatus = null } = {}) {
+  if (!STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
+    throw new Error("Style Master response failure classification is invalid");
+  }
+  const response = { classification };
+  if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
+    response.http_status = httpStatus;
+  }
+  const error = new Error("Style Master provider returned an unusable response");
+  error.code = "style_master_provider_response_invalid";
+  error.style_master_known_failure = true;
+  error.style_master_known_failure_facts = Object.freeze({ response: Object.freeze(response) });
+  return error;
+}
+
+function styleMasterProviderMediaKnownFailure() {
+  const error = new Error("Style Master provider returned invalid candidate media");
+  error.code = "style_master_provider_media_invalid";
+  error.style_master_known_failure = true;
+  return error;
+}
+
+function styleMasterProviderTaskPollUnresolved() {
+  const error = new Error("Style Master provider task outcome could not be resolved");
+  error.code = "style_master_provider_response_unresolved";
+  return error;
+}
+
+function styleMasterProviderSubmitUnresolved() {
+  const error = new Error("Style Master provider submission did not return a response");
+  error.code = "style_master_provider_submit_failed";
+  return error;
+}
+
+const IMAGE2_PROVIDER_OPERATION_TIMEOUT_MS = 600_000;
+const IMAGE2_PROVIDER_TASK_POLL_INTERVAL_MS = 1_000;
+
+function image2ProviderOperationTiming({ providerDeadlineMs, taskPollTimeoutMs, taskPollIntervalMs }) {
   return Object.freeze({
-    timeoutMs: Number.isSafeInteger(taskPollTimeoutMs) && taskPollTimeoutMs > 0
-      ? taskPollTimeoutMs
-      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
+    // taskPollTimeoutMs is retained as a test-only compatibility seam. It now
+    // bounds the complete operation rather than granting polls a fresh window.
+    timeoutMs: Number.isSafeInteger(providerDeadlineMs) && providerDeadlineMs > 0
+      ? providerDeadlineMs
+      : Number.isSafeInteger(taskPollTimeoutMs) && taskPollTimeoutMs > 0
+        ? taskPollTimeoutMs
+        : IMAGE2_PROVIDER_OPERATION_TIMEOUT_MS,
     intervalMs: Number.isSafeInteger(taskPollIntervalMs) && taskPollIntervalMs > 0
       ? taskPollIntervalMs
-      : PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
+      : IMAGE2_PROVIDER_TASK_POLL_INTERVAL_MS,
   });
 }
 
-async function resolvePageAuthorityProviderTask({
+function createImage2ProviderDeadline({ now, timeoutMs }) {
+  const startedAt = now();
+  const deadlineAt = startedAt + timeoutMs;
+  return Object.freeze({
+    remainingMs() {
+      return Math.max(0, deadlineAt - now());
+    },
+  });
+}
+
+function image2ProviderDeadlineAbortError() {
+  const error = new Error("Image2 provider operation deadline elapsed");
+  error.name = "AbortError";
+  return error;
+}
+
+function awaitWithinImage2ProviderDeadline(work, signal) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    let settled = false;
+    const finish = (settle, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      settle(value);
+    };
+    const onAbort = () => finish(rejectPromise, image2ProviderDeadlineAbortError());
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve()
+      .then(work)
+      .then((value) => finish(resolvePromise, value), (error) => finish(rejectPromise, error));
+  });
+}
+
+async function readImage2ProviderResponseJson({
+  url,
+  options,
+  fetchImpl,
+  deadline,
+  knownFailure,
+  unresolved,
+  requestUnresolved = unresolved,
+}) {
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) throw unresolved();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1, remainingMs));
+  try {
+    let response;
+    try {
+      response = await awaitWithinImage2ProviderDeadline(
+        () => fetchImpl(url, { ...options, signal: controller.signal }),
+        controller.signal,
+      );
+    } catch {
+      throw requestUnresolved();
+    }
+    if (!response || typeof response.ok !== "boolean") {
+      throw knownFailure("task_response_invalid");
+    }
+    if (!response.ok) {
+      throw knownFailure("http_error", { httpStatus: response.status });
+    }
+    if (typeof response.text !== "function") {
+      throw knownFailure("task_response_invalid");
+    }
+    let responseText;
+    try {
+      responseText = await awaitWithinImage2ProviderDeadline(() => response.text(), controller.signal);
+    } catch {
+      throw unresolved();
+    }
+    if (deadline.remainingMs() <= 0) throw unresolved();
+    try {
+      return JSON.parse(responseText);
+    } catch {
+      throw knownFailure("invalid_json");
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function sleepWithinImage2ProviderDeadline({ deadline, sleep, intervalMs, unresolved }) {
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) throw unresolved();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(1, remainingMs));
+  try {
+    await awaitWithinImage2ProviderDeadline(() => sleep(Math.min(intervalMs, remainingMs)), controller.signal);
+  } catch {
+    throw unresolved();
+  } finally {
+    clearTimeout(timer);
+  }
+  if (deadline.remainingMs() <= 0) throw unresolved();
+}
+
+async function resolveImage2ProviderTask({
   baseUrl,
   apiKey,
   taskId,
   fetchImpl,
-  now,
   sleep,
-  taskPollTimeoutMs,
-  taskPollIntervalMs,
+  deadline,
+  pollIntervalMs,
+  knownFailure,
+  unresolved,
+  completePayload,
 }) {
-  const { timeoutMs, intervalMs } = pageAuthorityTaskPollTiming({ taskPollTimeoutMs, taskPollIntervalMs });
-  const deadline = now() + timeoutMs;
   const taskUrl = `${baseUrl}/tasks/${encodeURIComponent(taskId)}`;
 
-  while (now() < deadline) {
-    const controller = new AbortController();
-    const abortTimer = setTimeout(() => controller.abort(), Math.max(1, deadline - now()));
-    let response;
-    try {
-      response = await fetchImpl(taskUrl, {
+  while (deadline.remainingMs() > 0) {
+    const payload = await readImage2ProviderResponseJson({
+      url: taskUrl,
+      options: {
         method: "GET",
         redirect: "error",
         headers: { Authorization: `Bearer ${apiKey}` },
-        signal: controller.signal,
-      });
-    } catch {
-      throw pageAuthorityProviderTaskPollUnresolved();
-    } finally {
-      clearTimeout(abortTimer);
-    }
-    if (!response.ok) {
-      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
-    }
-    let responseText;
-    try {
-      responseText = await response.text();
-    } catch {
-      throw pageAuthorityProviderTaskPollUnresolved();
-    }
-    if (now() >= deadline) throw pageAuthorityProviderTaskPollUnresolved();
-    let payload;
-    try {
-      payload = JSON.parse(responseText);
-    } catch {
-      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
-    }
+      },
+      fetchImpl,
+      deadline,
+      knownFailure,
+      unresolved,
+    });
     const status = pageAuthorityProviderTaskStatus(payload);
     if (status === "completed") {
-      return targetPageAuthorityPngBytesFromProvider(pageAuthorityProviderTaskResultPayload(payload));
+      return completePayload(pageAuthorityProviderTaskResultPayload(payload));
     }
     if (["failed", "error", "cancelled", "canceled", "expired"].includes(status)) {
-      throw pageAuthorityProviderResponseKnownFailure("task_terminal_failure");
+      throw knownFailure("task_terminal_failure");
     }
     if (!["pending", "queued", "submitted", "running", "processing"].includes(status)) {
-      throw pageAuthorityProviderResponseKnownFailure("task_response_invalid");
+      throw knownFailure("task_response_invalid");
     }
-    const remainingMs = deadline - now();
-    if (remainingMs <= 0) throw pageAuthorityProviderTaskPollUnresolved();
-    try {
-      await sleep(Math.min(intervalMs, remainingMs));
-    } catch {
-      throw pageAuthorityProviderTaskPollUnresolved();
-    }
+    await sleepWithinImage2ProviderDeadline({ deadline, sleep, intervalMs: pollIntervalMs, unresolved });
   }
-  throw pageAuthorityProviderTaskPollUnresolved();
+  throw unresolved();
 }
 
 function targetPageAuthorityPngBytesFromProvider(payload) {
@@ -1880,9 +2008,11 @@ export function targetPageAuthoritySubmitFactory(plan, {
   fetchImpl = fetch,
   now = () => Date.now(),
   sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)),
-  taskPollTimeoutMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_TIMEOUT_MS,
-  taskPollIntervalMs = PAGE_AUTHORITY_PROVIDER_TASK_POLL_INTERVAL_MS,
+  providerDeadlineMs = null,
+  taskPollTimeoutMs = null,
+  taskPollIntervalMs = IMAGE2_PROVIDER_TASK_POLL_INTERVAL_MS,
 } = {}) {
+  const transportTiming = image2ProviderOperationTiming({ providerDeadlineMs, taskPollTimeoutMs, taskPollIntervalMs });
   const slideById = new Map(plan.receipt.slides.map((slide) => [slide.slide_id, slide]));
   return async ({ request, item, provider_idempotency_key: providerIdempotencyKey }) => {
     let credentials;
@@ -1939,9 +2069,12 @@ export function targetPageAuthoritySubmitFactory(plan, {
       images,
       image_urls: images,
     };
-    let response;
-    try {
-      response = await fetchImpl(`${credentials.base_url}/images/generations`, {
+    // The same deadline owns the submit response and every task poll spawned
+    // by that submit. It begins immediately before the provider POST.
+    const deadline = createImage2ProviderDeadline({ now, timeoutMs: transportTiming.timeoutMs });
+    const payload = await readImage2ProviderResponseJson({
+      url: `${credentials.base_url}/images/generations`,
+      options: {
         method: "POST",
         redirect: "error",
         headers: {
@@ -1950,40 +2083,26 @@ export function targetPageAuthoritySubmitFactory(plan, {
           "Idempotency-Key": providerIdempotencyKey,
         },
         body: JSON.stringify(body),
-      });
-    } catch {
-      const error = new Error("Target Page Authority provider submission failed before a response");
-      error.code = "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED";
-      throw error;
-    }
-    if (!response.ok) {
-      throw pageAuthorityProviderResponseKnownFailure("http_error", { httpStatus: response.status });
-    }
-    let responseText;
-    try {
-      responseText = await response.text();
-    } catch {
-      const error = new Error("Target Page Authority provider response could not be read");
-      error.code = "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED";
-      throw error;
-    }
-    let payload;
-    try {
-      payload = JSON.parse(responseText);
-    } catch {
-      throw pageAuthorityProviderResponseKnownFailure("invalid_json");
-    }
+      },
+      fetchImpl,
+      deadline,
+      knownFailure: pageAuthorityProviderResponseKnownFailure,
+      unresolved: pageAuthorityProviderTaskPollUnresolved,
+      requestUnresolved: pageAuthorityProviderSubmitUnresolved,
+    });
     const taskId = pageAuthorityProviderTaskId(payload);
     if (taskId && !pageAuthorityProviderHasInlineImage(payload)) {
-      return resolvePageAuthorityProviderTask({
+      return resolveImage2ProviderTask({
         baseUrl: credentials.base_url,
         apiKey: credentials.api_key,
         taskId,
         fetchImpl,
-        now,
         sleep,
-        taskPollTimeoutMs,
-        taskPollIntervalMs,
+        deadline,
+        pollIntervalMs: transportTiming.intervalMs,
+        knownFailure: pageAuthorityProviderResponseKnownFailure,
+        unresolved: pageAuthorityProviderTaskPollUnresolved,
+        completePayload: targetPageAuthorityPngBytesFromProvider,
       });
     }
     return targetPageAuthorityPngBytesFromProvider(payload);
@@ -2004,8 +2123,10 @@ async function targetPageAuthorityGenerateCredentials(runDir) {
   }
 }
 
-async function initializeStyleMasterImage2Transport() {
+async function initializeStyleMasterImage2Transport({ run_dir: runDir } = {}) {
   try {
+    loadDotenv(deckRoot(runDir));
+    loadDotenv(process.cwd());
     const { resolveImage2Credentials } = await import("./shared/image2/credentials.mjs");
     return resolveImage2Credentials();
   } catch {
@@ -2015,8 +2136,29 @@ async function initializeStyleMasterImage2Transport() {
   }
 }
 
+function styleMasterProviderBytesFromPayload(payload) {
+  try {
+    const bytes = imageBytesFromPageAuthorityProvider(payload);
+    const decoded = decodePng(bytes, { checkCrc: true });
+    if (!Number.isInteger(decoded.width) || decoded.width <= 0 || !Number.isInteger(decoded.height) || decoded.height <= 0) {
+      throw new Error("invalid dimensions");
+    }
+    return bytes;
+  } catch {
+    throw styleMasterProviderMediaKnownFailure();
+  }
+}
+
 /** Submit one fixed Style Master candidate request through the existing Image2 transport. */
-function styleMasterSubmitFactory({ fetchImpl = fetch } = {}) {
+export function styleMasterSubmitFactory({
+  fetchImpl = fetch,
+  now = () => Date.now(),
+  sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds)),
+  providerDeadlineMs = null,
+  taskPollTimeoutMs = null,
+  taskPollIntervalMs = IMAGE2_PROVIDER_TASK_POLL_INTERVAL_MS,
+} = {}) {
+  const transportTiming = image2ProviderOperationTiming({ providerDeadlineMs, taskPollTimeoutMs, taskPollIntervalMs });
   return async ({ compiled_prompt_bytes: compiledPromptBytes, candidate_generation_profile: profile, transport }) => {
     if (!Buffer.isBuffer(compiledPromptBytes) || compiledPromptBytes.length === 0 ||
       !profile?.provider?.model || !transport?.base_url || !transport?.api_key) {
@@ -2025,9 +2167,10 @@ function styleMasterSubmitFactory({ fetchImpl = fetch } = {}) {
       error.style_master_known_failure = true;
       throw error;
     }
-    let response;
-    try {
-      response = await fetchImpl(`${transport.base_url}/images/generations`, {
+    const deadline = createImage2ProviderDeadline({ now, timeoutMs: transportTiming.timeoutMs });
+    const payload = await readImage2ProviderResponseJson({
+      url: `${transport.base_url}/images/generations`,
+      options: {
         method: "POST",
         redirect: "error",
         headers: {
@@ -2040,20 +2183,29 @@ function styleMasterSubmitFactory({ fetchImpl = fetch } = {}) {
           n: 1,
           size: "2000x1125",
         }),
+      },
+      fetchImpl,
+      deadline,
+      knownFailure: styleMasterProviderKnownFailure,
+      unresolved: styleMasterProviderTaskPollUnresolved,
+      requestUnresolved: styleMasterProviderSubmitUnresolved,
+    });
+    const taskId = pageAuthorityProviderTaskId(payload);
+    if (taskId && !pageAuthorityProviderHasInlineImage(payload)) {
+      return resolveImage2ProviderTask({
+        baseUrl: transport.base_url,
+        apiKey: transport.api_key,
+        taskId,
+        fetchImpl,
+        sleep,
+        deadline,
+        pollIntervalMs: transportTiming.intervalMs,
+        knownFailure: styleMasterProviderKnownFailure,
+        unresolved: styleMasterProviderTaskPollUnresolved,
+        completePayload: styleMasterProviderBytesFromPayload,
       });
-    } catch {
-      const error = new Error("Style Master provider submission did not return a response");
-      error.code = "style_master_provider_submit_failed";
-      throw error;
     }
-    if (!response.ok) return Object.freeze({ outcome: "known_failure" });
-    let payload;
-    try {
-      payload = JSON.parse(await response.text());
-      return imageBytesFromPageAuthorityProvider(payload);
-    } catch {
-      return Object.freeze({ outcome: "known_failure" });
-    }
+    return styleMasterProviderBytesFromPayload(payload);
   };
 }
 

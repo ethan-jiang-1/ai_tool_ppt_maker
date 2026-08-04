@@ -12,9 +12,13 @@ import {
   resolvePureStyleMasterScope,
   resolvePureTargetCandidateSource,
 } from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { targetPageAuthoritySubmitFactory } from "../../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+import {
+  styleMasterSubmitFactory,
+  targetPageAuthoritySubmitFactory,
+} from "../../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import { buildTargetRawGenerationProfile } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { STYLE_MASTER_GENERATION_PROFILE } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
 import { styleMasterStorePaths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
 import {
   STYLE_MASTER_IMAGE,
@@ -40,11 +44,25 @@ const VALID_PROVIDER_PNG = (() => {
   return image.toBuffer("image/png");
 })();
 
+const VALID_STYLE_MASTER_PNG = (() => {
+  const image = createCanvas(17, 11);
+  image.getContext("2d").fillRect(0, 0, 17, 11);
+  return image.toBuffer("image/png");
+})();
+
 function providerJsonResponse(payload, status = 200) {
   return {
     ok: status >= 200 && status < 300,
     status,
     text: async () => JSON.stringify(payload),
+  };
+}
+
+function styleMasterTransportRequest() {
+  return {
+    compiled_prompt_bytes: Buffer.from("One bounded visual style brief.", "utf8"),
+    candidate_generation_profile: STYLE_MASTER_GENERATION_PROFILE,
+    transport: { base_url: "https://image.example", api_key: "test-key" },
   };
 }
 
@@ -364,6 +382,41 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
+  it("uses one shared total budget for Page Authority submit and task polling", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const args = {
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"e".repeat(64)}`,
+      };
+      let clock = 0;
+      const calls = [];
+      const submit = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        providerDeadlineMs: 10,
+        taskPollIntervalMs: 5,
+        now: () => clock,
+        sleep: async (milliseconds) => { clock += milliseconds; },
+        fetchImpl: async (_url, options) => {
+          calls.push(options.method);
+          if (options.method === "POST") {
+            clock += 7;
+            return providerJsonResponse({ task_id: "shared_deadline_task" });
+          }
+          return providerJsonResponse({ data: { status: "pending" } });
+        },
+      });
+
+      const error = await submit(args).catch((value) => value);
+      expect(error).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(calls).toEqual(["POST", "GET"]);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("treats selection replacement as raw rebuild debt without advancing source epoch", async () => {
     const value = await fixture({ accepted: true });
     try {
@@ -485,5 +538,130 @@ describe("accepted Style Master raw binding", () => {
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("Style Master current Image2 transport", () => {
+  it("resolves inline and same-invocation task media without a second submit", async () => {
+    const inlineCalls = [];
+    const inline = styleMasterSubmitFactory({
+      fetchImpl: async (_url, options) => {
+        inlineCalls.push(options.method);
+        return providerJsonResponse({ data: [{ b64_json: VALID_STYLE_MASTER_PNG.toString("base64") }] });
+      },
+    });
+    await expect(inline(styleMasterTransportRequest())).resolves.toEqual(VALID_STYLE_MASTER_PNG);
+    expect(inlineCalls).toEqual(["POST"]);
+
+    let clock = 0;
+    let polls = 0;
+    const asyncCalls = [];
+    const asyncSubmit = styleMasterSubmitFactory({
+      providerDeadlineMs: 50,
+      taskPollIntervalMs: 5,
+      now: () => clock,
+      sleep: async (milliseconds) => { clock += milliseconds; },
+      fetchImpl: async (_url, options) => {
+        asyncCalls.push(options.method);
+        if (options.method === "POST") return providerJsonResponse({ task_id: "style_master_task" });
+        polls += 1;
+        if (polls === 1) return providerJsonResponse({ data: { status: "pending" } });
+        return providerJsonResponse({
+          data: {
+            status: "completed",
+            result: { images: [{ b64_json: VALID_STYLE_MASTER_PNG.toString("base64") }] },
+          },
+        });
+      },
+    });
+
+    await expect(asyncSubmit(styleMasterTransportRequest())).resolves.toEqual(VALID_STYLE_MASTER_PNG);
+    expect(asyncCalls).toEqual(["POST", "GET", "GET"]);
+  });
+
+  it("classifies received terminal, malformed, and invalid-media responses as known failures", async () => {
+    const terminal = styleMasterSubmitFactory({
+      fetchImpl: async (_url, options) => options.method === "POST"
+        ? providerJsonResponse({ task_id: "style_master_task" })
+        : providerJsonResponse({ data: { status: "failed" } }),
+    });
+    const terminalError = await terminal(styleMasterTransportRequest()).catch((value) => value);
+    expect(terminalError).toMatchObject({
+      code: "style_master_provider_response_invalid",
+      style_master_known_failure: true,
+      style_master_known_failure_facts: { response: { classification: "task_terminal_failure" } },
+    });
+
+    const malformed = styleMasterSubmitFactory({
+      fetchImpl: async () => ({ ok: true, status: 200 }),
+    });
+    const malformedError = await malformed(styleMasterTransportRequest()).catch((value) => value);
+    expect(malformedError).toMatchObject({
+      code: "style_master_provider_response_invalid",
+      style_master_known_failure: true,
+      style_master_known_failure_facts: { response: { classification: "task_response_invalid" } },
+    });
+
+    const invalidMedia = styleMasterSubmitFactory({
+      fetchImpl: async () => providerJsonResponse({ data: [{ b64_json: Buffer.from("not a PNG").toString("base64") }] }),
+    });
+    const invalidMediaError = await invalidMedia(styleMasterTransportRequest()).catch((value) => value);
+    expect(invalidMediaError).toMatchObject({
+      code: "style_master_provider_media_invalid",
+      style_master_known_failure: true,
+    });
+  });
+
+  it("keeps submit aborts and shared-budget exhaustion unresolved with one provider POST", async () => {
+    let abortCalls = 0;
+    let abortObserved = false;
+    const aborted = styleMasterSubmitFactory({
+      providerDeadlineMs: 20,
+      fetchImpl: async (_url, options) => new Promise((_resolve, reject) => {
+        abortCalls += 1;
+        options.signal.addEventListener("abort", () => {
+          abortObserved = true;
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        }, { once: true });
+      }),
+    });
+    const abortError = await aborted(styleMasterTransportRequest()).catch((value) => value);
+    expect(abortError).toMatchObject({ code: "style_master_provider_submit_failed" });
+    expect(abortCalls).toBe(1);
+    expect(abortObserved).toBe(true);
+
+    let unreadableCalls = 0;
+    const unreadableBody = styleMasterSubmitFactory({
+      providerDeadlineMs: 20,
+      fetchImpl: async () => {
+        unreadableCalls += 1;
+        return { ok: true, status: 200, text: async () => new Promise(() => {}) };
+      },
+    });
+    const unreadableBodyError = await unreadableBody(styleMasterTransportRequest()).catch((value) => value);
+    expect(unreadableBodyError).toMatchObject({ code: "style_master_provider_response_unresolved" });
+    expect(unreadableCalls).toBe(1);
+
+    let clock = 0;
+    const deadlineCalls = [];
+    const exhausted = styleMasterSubmitFactory({
+      providerDeadlineMs: 10,
+      taskPollIntervalMs: 5,
+      now: () => clock,
+      sleep: async (milliseconds) => { clock += milliseconds; },
+      fetchImpl: async (_url, options) => {
+        deadlineCalls.push(options.method);
+        if (options.method === "POST") {
+          clock += 7;
+          return providerJsonResponse({ task_id: "style_master_deadline_task" });
+        }
+        return providerJsonResponse({ data: { status: "pending" } });
+      },
+    });
+    const deadlineError = await exhausted(styleMasterTransportRequest()).catch((value) => value);
+    expect(deadlineError).toMatchObject({ code: "style_master_provider_response_unresolved" });
+    expect(deadlineCalls).toEqual(["POST", "GET"]);
   });
 });

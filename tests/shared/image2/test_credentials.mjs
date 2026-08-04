@@ -19,4 +19,16 @@ describe("shared Image2 credentials", () => {
     expect(() => resolveImage2Credentials({ env: { IMAGE2_API_KEY: "test-key" } })).toThrow(/No image API base URL/);
     expect(() => normalizeImage2BaseUrl("https://key:secret@example.test/v1")).toThrow(/must not contain credentials/);
   });
+
+  it("rejects a comma-separated selected endpoint before any caller can fetch it", () => {
+    const commaList = "https://first.example.test/v1,https://second.example.test/v1";
+    expect(() => normalizeImage2BaseUrl(commaList)).toThrow(/one endpoint/i);
+    expect(() => resolveImage2Credentials({
+      env: { IMAGE2_API_KEY: "test-key", IMAGE2_BASE_URL: commaList },
+    })).toThrow(/comma-separated/i);
+    expect(() => resolveImage2Credentials({
+      extraBaseUrls: [commaList],
+      env: { IMAGE2_API_KEY: "test-key", IMAGE2_BASE_URL: "https://env.example.test/v1" },
+    })).toThrow(/comma-separated/i);
+  });
 });

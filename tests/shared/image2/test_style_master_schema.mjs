@@ -249,7 +249,8 @@ describe("Style Master schema and immutable storage", () => {
     });
     expect(validateStyleMasterGeneratedProvenance(generated)).toMatchObject({ ok: true });
     expect(validateStyleMasterSelectionRecord(selection, { expectedRunVersion: "v1", expectedWorkflow: "framed" })).toMatchObject({ ok: true });
-    expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 1999 })).toMatchObject({ ok: false });
+    expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 1999, candidate_height: 1111 })).toMatchObject({ ok: true });
+    expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_width: 0 })).toMatchObject({ ok: false });
     expect(validateStyleMasterLocalProvenance({ ...local, plan_sha256: digest("f") })).toMatchObject({ ok: false });
     expect(validateStyleMasterGeneratedProvenance({ ...generated, candidate_generation_profile_sha256: digest("f") })).toMatchObject({
       ok: false,
