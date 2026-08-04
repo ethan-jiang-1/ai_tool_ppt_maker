@@ -66,10 +66,11 @@ function styleMasterTransportRequest() {
   };
 }
 
-function source({ motifs = [] } = {}) {
+function source({ motifs = [], relationship = null } = {}) {
   const motifsYaml = motifs.length === 0
     ? "[]"
     : `\n${motifs.map((motif) => `  - ${motif}`).join("\n")}`;
+  const relationshipYaml = relationship ? `relationship: ${relationship}\n` : "";
   return `---
 identity:
   scheme: mnemonic-v1
@@ -88,17 +89,17 @@ composition: centered-constellation
 motifs: ${motifsYaml}
 negative_constraints:
   - no-logo
-\`\`\`
+${relationshipYaml}\`\`\`
 `;
 }
 
-async function fixture({ accepted = false, motifs = [] } = {}) {
+async function fixture({ accepted = false, motifs = [], relationship = null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "style-master-raw-binding-"));
   const deck = join(root, "deck_style_master_raw_binding");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), localImageBytes());
-  writeFileSync(join(runDir, "slide-specifications.md"), source({ motifs }), "utf8");
+  writeFileSync(join(runDir, "slide-specifications.md"), source({ motifs, relationship }), "utf8");
   const result = accepted
     ? await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir))
     : null;
@@ -204,15 +205,15 @@ describe("accepted Style Master raw binding", () => {
   });
 
   it("serializes Pure provider clauses from the plan after registry drift", async () => {
-    const value = await fixture({ accepted: true, motifs: ["connected-nodes"] });
+    const value = await fixture({ accepted: true, motifs: ["connected-nodes"], relationship: "layer-stack" });
     try {
       const plan = buildPureTargetRawPlan(value.runDir);
       const expectedClauses = structuredClone(plan.provider_requests_by_slide.DeckGo.raw_contract.provider_clauses);
       const registryPath = join(value.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
       const registry = readFileSync(registryPath, "utf8");
-      const driftClause = "luminous radial nodes with measured spacing";
-      expect(registry).toContain("luminous connected nodes with measured spacing");
-      writeFileSync(registryPath, registry.replace("luminous connected nodes with measured spacing", driftClause));
+      const driftClause = "nested focused planes rising from broad base to focused apex";
+      expect(registry).toContain("nested translucent planes rising from broad base to focused apex");
+      writeFileSync(registryPath, registry.replace("nested translucent planes rising from broad base to focused apex", driftClause));
 
       let providerBody = null;
       const submit = targetPageAuthoritySubmitFactory(plan, {
@@ -230,7 +231,7 @@ describe("accepted Style Master raw binding", () => {
 
       const serializedRequest = JSON.parse(providerBody.prompt);
       expect(serializedRequest.raw_contract.provider_clauses).toEqual(expectedClauses);
-      expect(serializedRequest.raw_contract.provider_clauses.motifs).toEqual([expectedClauses.motifs[0]]);
+      expect(serializedRequest.raw_contract.provider_clauses.relationship).toBe(expectedClauses.relationship);
       expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(value.root, { recursive: true, force: true });

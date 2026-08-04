@@ -477,6 +477,7 @@ composition: centered-constellation
 motifs: []
 negative_constraints:
   - no-logo
+relationship: causal-flow
 \`\`\`
 
 > **SPEAKER NOTE**: Pure scene source-owned note.
@@ -493,7 +494,20 @@ negative_constraints:
         recipe: expect.any(String),
         composition: expect.any(String),
         motifs: expect.any(Array),
+        relationship: "connected luminous forms progressing from left origin to right outcome",
       }));
+      expect(contract.visual_language.relationship).toMatchObject({
+        id: "causal-flow",
+        reading_order: "left-to-right",
+      });
+      for (const providerClauses of [
+        Object.fromEntries(Object.entries(contract.provider_clauses).filter(([key]) => key !== "relationship")),
+        { ...contract.provider_clauses, relationship: "" },
+        { ...contract.provider_clauses, relationship: "nested translucent planes rising from broad base to focused apex" },
+      ]) {
+        expect(validatePureRawContract({ ...structuredClone(contract), provider_clauses: providerClauses }))
+          .toMatchObject({ ok: false, code: "pure_raw_contract_invalid" });
+      }
       expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
       expect(contract.body).toBe("两个东西让 AI 学编程比别的都快");
       expect(contract.visual_identity_role_clause).toBeNull();

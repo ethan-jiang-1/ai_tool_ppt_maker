@@ -244,6 +244,19 @@ motifs:
     authorities: [pure-image2, framed-image2]
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation]
+relationships:
+  layer-stack:
+    provider_clause: nested translucent planes rising from broad base to focused apex
+    authorities: [pure-image2, framed-image2]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+    reading_order: bottom-to-top
+  causal-flow:
+    provider_clause: connected luminous forms progressing from left origin to right outcome
+    authorities: [pure-image2, framed-image2]
+    recipe_ids: [editorial-systems]
+    composition_ids: [centered-constellation]
+    reading_order: left-to-right
 `;
 const PAGE_AUTHORITY_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
 profiles: {}

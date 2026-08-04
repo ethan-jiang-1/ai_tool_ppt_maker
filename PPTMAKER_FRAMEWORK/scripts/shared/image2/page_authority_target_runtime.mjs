@@ -83,11 +83,30 @@ function exactKeys(value, keys) {
 
 /** Return whether resolved provider clause text has the canonical Page Authority shape. */
 export function isPageAuthorityProviderClausesShape(value) {
-  return exactKeys(value, ["recipe", "composition", "motifs"]) &&
+  const isLegacyShape = exactKeys(value, ["recipe", "composition", "motifs"]);
+  const isRelationshipShape = exactKeys(value, ["recipe", "composition", "motifs", "relationship"]);
+  return (isLegacyShape || isRelationshipShape) &&
     typeof value.recipe === "string" && value.recipe.trim().length > 0 &&
     typeof value.composition === "string" && value.composition.trim().length > 0 &&
-    Array.isArray(value.motifs) &&
-    value.motifs.every((motif) => typeof motif === "string" && motif.trim().length > 0);
+    Array.isArray(value.motifs) && value.motifs.every((motif) => typeof motif === "string" && motif.trim().length > 0) &&
+    (!Object.hasOwn(value, "relationship") || (typeof value.relationship === "string" && value.relationship.trim().length > 0));
+}
+
+/** Bind an optional selected relationship clause to the plan's visual-language projection. */
+export function isPageAuthorityProviderClausesBoundToVisualLanguage(visualLanguage, providerClauses) {
+  if (!isPageAuthorityProviderClausesShape(providerClauses) || !visualLanguage || typeof visualLanguage !== "object" || Array.isArray(visualLanguage)) {
+    return false;
+  }
+  if (!Object.hasOwn(visualLanguage, "relationship")) return !Object.hasOwn(providerClauses, "relationship");
+  const relationship = visualLanguage.relationship;
+  if (!exactKeys(relationship, ["id", "reading_order", "provider_clause_sha256"]) ||
+    typeof relationship.id !== "string" || !relationship.id ||
+    !["bottom-to-top", "left-to-right"].includes(relationship.reading_order) ||
+    !SHA256_RE.test(relationship.provider_clause_sha256 || "") ||
+    !Object.hasOwn(providerClauses, "relationship")) {
+    return false;
+  }
+  return sha256(providerClauses.relationship) === relationship.provider_clause_sha256;
 }
 
 function asBytes(value, label) {

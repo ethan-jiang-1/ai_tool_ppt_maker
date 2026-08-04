@@ -24,10 +24,13 @@ const AUTHORITIES = Object.freeze(["pure-image2", "framed-image2"]);
 const SUBJECT_CLASSES = Object.freeze(["none", "amber-light-form"]);
 const LOWER_KEBAB_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CHARACTER_GRAMMAR = "[a-z0-9 ,;:()./-]";
-const TOP_LEVEL_KEYS = Object.freeze(["schema", "revision", "text_guard", "recipes", "compositions", "motifs"]);
+const TOP_LEVEL_KEYS = Object.freeze(["schema", "revision", "text_guard", "recipes", "compositions", "motifs", "relationships"]);
+const OPTIONAL_TOP_LEVEL_KEYS = Object.freeze(["relationships"]);
 const RECIPE_KEYS = Object.freeze(["provider_clause", "authorities", "composition_ids", "motif_ids", "identity_subject_classes"]);
 const COMPOSITION_KEYS = Object.freeze(["provider_clause", "authorities", "min_motifs", "max_motifs"]);
 const MOTIF_KEYS = Object.freeze(["provider_clause", "authorities", "recipe_ids", "composition_ids"]);
+const RELATIONSHIP_KEYS = Object.freeze(["provider_clause", "authorities", "recipe_ids", "composition_ids", "reading_order"]);
+const RELATIONSHIP_READING_ORDERS = Object.freeze(["bottom-to-top", "left-to-right"]);
 
 export class PageAuthorityVisualLanguageError extends Error {
   constructor(issues) {
@@ -88,7 +91,7 @@ function plainString(node) {
   return isScalar(node) && node.type === "PLAIN" && !node.anchor && !node.tag && typeof node.value === "string";
 }
 
-function exactMap(node, expectedKeys, context, issues) {
+function exactMap(node, expectedKeys, context, issues, { optionalKeys = [] } = {}) {
   if (!isMap(node) || !noYamlIndirection(node)) {
     issues.push(issue("invalid_registry_mapping", `${context} must be one direct untagged mapping`, { path: context, actual: nodeKind(node) }));
     return new Map();
@@ -110,7 +113,9 @@ function exactMap(node, expectedKeys, context, issues) {
     pairs.set(pair.key.value, pair.value);
   }
   for (const key of expectedKeys) {
-    if (!pairs.has(key)) issues.push(issue("missing_registry_key", `${context} is missing ${key}`, { path: context, expected: key }));
+    if (!pairs.has(key) && !optionalKeys.includes(key)) {
+      issues.push(issue("missing_registry_key", `${context} is missing ${key}`, { path: context, expected: key }));
+    }
   }
   return pairs;
 }
@@ -287,8 +292,29 @@ function parseMotifRecord(map, context, issues) {
   };
 }
 
+function parseRelationshipRecord(map, context, issues) {
+  const providerClause = parseScalar(map.get("provider_clause"), `${context}.provider_clause`, issues, { guard: true });
+  const authorities = parseEnumSequence(map.get("authorities"), `${context}.authorities`, issues, AUTHORITIES);
+  const recipeIds = parseEnumSequence(map.get("recipe_ids"), `${context}.recipe_ids`, issues, null);
+  const compositionIds = parseEnumSequence(map.get("composition_ids"), `${context}.composition_ids`, issues, null);
+  const readingOrder = parseScalar(map.get("reading_order"), `${context}.reading_order`, issues, { id: true });
+  if (readingOrder && !RELATIONSHIP_READING_ORDERS.includes(readingOrder)) {
+    issues.push(issue("invalid_registry_enum", `${context}.reading_order contains unsupported value ${JSON.stringify(readingOrder)}`, {
+      path: `${context}.reading_order`, actual: readingOrder, expected: RELATIONSHIP_READING_ORDERS,
+    }));
+  }
+  return {
+    provider_clause: providerClause,
+    provider_clause_sha256: providerClause ? sha256(providerClause) : null,
+    authorities,
+    recipe_ids: recipeIds,
+    composition_ids: compositionIds,
+    reading_order: readingOrder,
+  };
+}
+
 function verifyCrossReferences(registry, issues) {
-  const { recipes, compositions, motifs } = registry;
+  const { recipes, compositions, motifs, relationships } = registry;
   for (const [recipeId, recipe] of Object.entries(recipes)) {
     for (const compositionId of recipe.composition_ids) {
       if (!Object.hasOwn(compositions, compositionId)) {
@@ -319,6 +345,18 @@ function verifyCrossReferences(registry, issues) {
       }
     }
   }
+  for (const [relationshipId, relationship] of Object.entries(relationships)) {
+    for (const recipeId of relationship.recipe_ids) {
+      if (!Object.hasOwn(recipes, recipeId)) {
+        issues.push(issue("unknown_registry_reference", `relationships.${relationshipId}.recipe_ids references unknown recipe ${JSON.stringify(recipeId)}`, { path: `relationships.${relationshipId}.recipe_ids`, actual: recipeId }));
+      }
+    }
+    for (const compositionId of relationship.composition_ids) {
+      if (!Object.hasOwn(compositions, compositionId)) {
+        issues.push(issue("unknown_registry_reference", `relationships.${relationshipId}.composition_ids references unknown composition ${JSON.stringify(compositionId)}`, { path: `relationships.${relationshipId}.composition_ids`, actual: compositionId }));
+      }
+    }
+  }
 }
 
 /** Parse a registry string. Loading and canonical deck-path enforcement are separate. */
@@ -336,7 +374,7 @@ export function parsePageAuthorityVisualLanguage(raw, { source = PAGE_AUTHORITY_
     throw new PageAuthorityVisualLanguageError(issue("invalid_registry_yaml", error.message, { source }));
   }
   const issues = [...document.errors, ...document.warnings].map((problem) => issue("invalid_registry_yaml", problem.message.split("\n")[0], { source }));
-  const root = exactMap(document.contents, TOP_LEVEL_KEYS, "registry", issues);
+  const root = exactMap(document.contents, TOP_LEVEL_KEYS, "registry", issues, { optionalKeys: OPTIONAL_TOP_LEVEL_KEYS });
   const schema = parseScalar(root.get("schema"), "registry.schema", issues);
   const revision = parseInteger(root.get("revision"), "registry.revision", issues, { positive: true });
   const textGuard = parseScalar(root.get("text_guard"), "registry.text_guard", issues);
@@ -355,6 +393,9 @@ export function parsePageAuthorityVisualLanguage(raw, { source = PAGE_AUTHORITY_
     recipes: parseRecordMap(root.get("recipes"), "recipes", RECIPE_KEYS, issues, parseRecipeRecord),
     compositions: parseRecordMap(root.get("compositions"), "compositions", COMPOSITION_KEYS, issues, parseCompositionRecord),
     motifs: parseRecordMap(root.get("motifs"), "motifs", MOTIF_KEYS, issues, parseMotifRecord),
+    relationships: root.has("relationships")
+      ? parseRecordMap(root.get("relationships"), "relationships", RELATIONSHIP_KEYS, issues, parseRelationshipRecord)
+      : {},
   };
   verifyCrossReferences(registry, issues);
   if (issues.length > 0) throw new PageAuthorityVisualLanguageError(issues);
@@ -393,14 +434,19 @@ export function resolvePageAuthorityVisualLanguageSelection(registry, context) {
   const recipe = registry.recipes?.[brief?.recipe];
   const composition = registry.compositions?.[brief?.composition];
   const motifs = Array.isArray(brief?.motifs) ? brief.motifs.map((id) => ({ id, record: registry.motifs?.[id] })) : [];
+  const relationshipId = brief?.relationship;
+  const relationship = relationshipId === undefined ? null : registry.relationships?.[relationshipId];
   if (!recipe) issues.push(selectionIssue("unregistered_visual_recipe", `VISUAL BRIEF selects unregistered recipe ${JSON.stringify(brief?.recipe)}`, brief?.recipe));
   if (!composition) issues.push(selectionIssue("unregistered_visual_composition", `VISUAL BRIEF selects unregistered composition ${JSON.stringify(brief?.composition)}`, brief?.composition));
   for (const motif of motifs) {
     if (!motif.record) issues.push(selectionIssue("unregistered_visual_motif", `VISUAL BRIEF selects unregistered motif ${JSON.stringify(motif.id)}`, motif.id));
   }
+  if (relationshipId !== undefined && !relationship) {
+    issues.push(selectionIssue("unregistered_visual_relationship", `VISUAL BRIEF selects unregistered relationship ${JSON.stringify(relationshipId)}`, relationshipId));
+  }
   if (issues.length > 0) throw new PageAuthorityVisualLanguageError(issues);
 
-  for (const [kind, record, id] of [["recipe", recipe, brief.recipe], ["composition", composition, brief.composition], ...motifs.map((item) => ["motif", item.record, item.id])]) {
+  for (const [kind, record, id] of [["recipe", recipe, brief.recipe], ["composition", composition, brief.composition], ...motifs.map((item) => ["motif", item.record, item.id]), ...(relationship ? [["relationship", relationship, relationshipId]] : [])]) {
     if (!record.authorities.includes(authority)) {
       issues.push(selectionIssue("authority_ineligible_visual_selection", `${kind} ${JSON.stringify(id)} is not eligible for ${authority}`, { kind, id, authority }));
     }
@@ -415,6 +461,9 @@ export function resolvePageAuthorityVisualLanguageSelection(registry, context) {
     if (!recipe.motif_ids.includes(motif.id) || !motif.record.recipe_ids.includes(brief.recipe) || !motif.record.composition_ids.includes(brief.composition)) {
       issues.push(selectionIssue("incompatible_visual_motif", `motif ${JSON.stringify(motif.id)} is not compatible with the selected recipe/composition`, motif.id));
     }
+  }
+  if (relationship && (!relationship.recipe_ids.includes(brief.recipe) || !relationship.composition_ids.includes(brief.composition))) {
+    issues.push(selectionIssue("incompatible_visual_relationship", `relationship ${JSON.stringify(relationshipId)} is not compatible with the selected recipe/composition`, relationshipId));
   }
   const selectedIdentitySubjectClass = context.identity ? context.identity_subject_class : "none";
   if (context.identity && !SUBJECT_CLASSES.includes(selectedIdentitySubjectClass)) {
@@ -438,6 +487,12 @@ export function resolvePageAuthorityVisualLanguageSelection(registry, context) {
     motifs: motifs.map((motif) => ({ id: motif.id, provider_clause_sha256: motif.record.provider_clause_sha256 })),
     selected_identity_subject_class: selectedIdentitySubjectClass,
   };
+  if (relationship) {
+    semantic.relationship = {
+      id: relationshipId,
+      provider_clause_sha256: relationship.provider_clause_sha256,
+    };
+  }
   const projection = {
     schema: PAGE_AUTHORITY_VISUAL_LANGUAGE_SCHEMA,
     text_guard_digest: registry.text_guard_digest,
@@ -447,12 +502,20 @@ export function resolvePageAuthorityVisualLanguageSelection(registry, context) {
     motifs: semantic.motifs,
     selected_identity_subject_class: selectedIdentitySubjectClass,
   };
+  if (relationship) {
+    projection.relationship = {
+      id: relationshipId,
+      reading_order: relationship.reading_order,
+      provider_clause_sha256: relationship.provider_clause_sha256,
+    };
+  }
   return deepFreeze({
     projection,
     provider_clauses: {
       recipe: recipe.provider_clause,
       composition: composition.provider_clause,
       motifs: motifs.map((motif) => motif.record.provider_clause),
+      ...(relationship ? { relationship: relationship.provider_clause } : {}),
     },
     audit: {
       revision: registry.revision,
