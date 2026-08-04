@@ -32,6 +32,7 @@ import {
   refreshFramedTargetNotes,
   refreshFramedTargetText,
   resolveFramedStyleMasterScope,
+  validateFramedRawContract,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs";
 import { targetPageAuthoritySubmitFactory } from "../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
@@ -110,6 +111,7 @@ motifs: []
 negative_constraints:
   - no-readable-text
   - no-labels
+relationship: layer-stack
 \`\`\`
 
 > **SPEAKER NOTE**: Framed scene source-owned note.
@@ -125,7 +127,20 @@ negative_constraints:
         recipe: expect.any(String),
         composition: expect.any(String),
         motifs: expect.any(Array),
+        relationship: "nested translucent planes rising from broad base to focused apex",
       }));
+      expect(contract.visual_language.relationship).toMatchObject({
+        id: "layer-stack",
+        reading_order: "bottom-to-top",
+      });
+      for (const providerClauses of [
+        Object.fromEntries(Object.entries(contract.provider_clauses).filter(([key]) => key !== "relationship")),
+        { ...contract.provider_clauses, relationship: "" },
+        { ...contract.provider_clauses, relationship: "connected luminous forms progressing from left origin to right outcome" },
+      ]) {
+        expect(validateFramedRawContract({ ...structuredClone(contract), provider_clauses: providerClauses }))
+          .toMatchObject({ ok: false, code: "framed_raw_contract_invalid" });
+      }
       expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
       expect(contract.visual_identity_role_clause).toBeNull();
       expect(contract.framed.text_free).toBe(true);
@@ -160,6 +175,7 @@ motifs:
 negative_constraints:
   - no-readable-text
   - no-labels
+relationship: causal-flow
 \`\`\`
 `;
     try {
@@ -172,9 +188,9 @@ negative_constraints:
       const expectedClauses = structuredClone(plan.provider_requests_by_slide.DeckGo.raw_contract.provider_clauses);
       const registryPath = join(deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
       const registry = readFileSync(registryPath, "utf8");
-      const driftClause = "luminous radial nodes with measured spacing";
-      expect(registry).toContain("luminous connected nodes with measured spacing");
-      writeFileSync(registryPath, registry.replace("luminous connected nodes with measured spacing", driftClause));
+      const driftClause = "connected balanced forms progressing from left origin to right outcome";
+      expect(registry).toContain("connected luminous forms progressing from left origin to right outcome");
+      writeFileSync(registryPath, registry.replace("connected luminous forms progressing from left origin to right outcome", driftClause));
 
       let providerBody = null;
       const submit = targetPageAuthoritySubmitFactory(plan, {
@@ -196,7 +212,7 @@ negative_constraints:
 
       const serializedRequest = JSON.parse(providerBody.prompt);
       expect(serializedRequest.raw_contract.provider_clauses).toEqual(expectedClauses);
-      expect(serializedRequest.raw_contract.provider_clauses.motifs).toEqual([expectedClauses.motifs[0]]);
+      expect(serializedRequest.raw_contract.provider_clauses.relationship).toBe(expectedClauses.relationship);
       expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(root, { recursive: true, force: true });

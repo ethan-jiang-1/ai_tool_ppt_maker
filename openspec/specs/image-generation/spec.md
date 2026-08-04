@@ -22,9 +22,12 @@ local composition, review, assembly, notes, and zero-submit reuse SHALL be provi
 Each selected-workflow raw contract (Pure and Framed) SHALL carry the resolved clause text and per-slide
 scene alongside the existing digest projection:
 
-- `provider_clauses`: the text-guard-protected resolved record with exactly `recipe`, `composition`, and
-  `motifs`; recipe and composition SHALL be non-empty strings, and motifs SHALL be an array of non-empty strings
-  that MAY be empty.
+- `provider_clauses`: the text-guard-protected resolved record. Without a relationship it SHALL contain
+  exactly `recipe`, `composition`, and `motifs`; recipe and composition SHALL be non-empty strings, and motifs
+  SHALL be an array of non-empty strings that MAY be empty. With a selected relationship it SHALL contain exactly
+  those three fields plus a non-empty `relationship` string from that same selection. Its SHA-256 SHALL equal
+  `visual_language.relationship.provider_clause_sha256`; a relationship clause SHALL be absent when the
+  projection has no relationship member. No other shape is valid.
 - `visual_identity_role_clause`: the resolved identity role-clause text, or `null` when no
   `VISUAL IDENTITY` is selected.
 - `visual_scene`: the slide's `VISUAL SCENE` source text after passing the versioned Page Authority text
@@ -42,8 +45,8 @@ or recovery route.
 The provider submitter SHALL receive the full validated request, including these additive text fields, without
 rereading source, registry, `style_master.jpg`, or any compatibility payload. The existing
 `visual_language.projection` digest facts SHALL remain in the contract for authorization binding. The serialized
-provider body SHALL carry the exact recipe, composition, and motif clause text from that plan-bound raw contract,
-not only identifiers and digests.
+provider body SHALL carry the exact recipe, composition, ordered motif, and selected relationship clause text
+from that plan-bound raw contract, not only identifiers and digests.
 
 #### Scenario: Framed payload excludes Text Frame literals
 
@@ -80,6 +83,9 @@ not only identifiers and digests.
 - **WHEN** a Pure slide resolves a visual-language selection with clause text and has a valid `VISUAL SCENE`
 - **THEN** its raw contract includes the canonical `provider_clauses` text record,
   `visual_identity_role_clause` (null without identity), and the normalized `visual_scene`
+- **AND** a selected relationship adds its exact plan-bound clause text while a four-key source retains the
+  legacy three-key clause shape
+- **AND** the relationship clause's SHA-256 equals the selected projection's clause digest
 - **AND** the same `visual_language.projection` digest facts remain in the contract for authorization binding
 
 #### Scenario: Framed payload carries canonical clause text and scene
@@ -87,26 +93,29 @@ not only identifiers and digests.
 - **WHEN** a Framed slide resolves a visual-language selection and has a valid `VISUAL SCENE`
 - **THEN** its raw contract includes the canonical clause text and normalized scene while preserving
   `text_free: true` and the frame facts
-- **AND** the Framed canonical-shape validator accepts the additive fields
+- **AND** the Framed canonical-shape validator accepts either closed provider-clause variant and no other
 
 #### Scenario: Pure malformed clause shape hard-stops before provider work
 
-- **WHEN** a Pure canonical raw contract has null, missing, extra-key, empty-text, or non-string-motif
-  `provider_clauses` despite its resolved visual language
+- **WHEN** a Pure canonical raw contract has null, missing, an unsupported fourth key, an absent or empty
+  selected relationship clause, a relationship clause whose SHA-256 differs from the selected projection,
+  empty recipe/composition text, or non-string motif `provider_clauses`
 - **THEN** planning hard-stops before authorization, provider request construction, raw-plan materialization, or a provider call
 - **AND** it does not materialize source/raw-plan state or mutate another workflow's state
 
 #### Scenario: Framed malformed clause shape hard-stops before provider work
 
-- **WHEN** a Framed canonical raw contract has null, missing, extra-key, empty-text, or non-string-motif
-  `provider_clauses` despite its resolved visual language
+- **WHEN** a Framed canonical raw contract has null, missing, an unsupported fourth key, an absent or empty
+  selected relationship clause, a relationship clause whose SHA-256 differs from the selected projection,
+  empty recipe/composition text, or non-string motif `provider_clauses`
 - **THEN** planning hard-stops before authorization or a provider call
 - **AND** the rejection does not depend on provider-side lookup of clause digests or a second workflow adapter
 
 #### Scenario: Serialized provider body preserves plan-bound clause text
 
 - **WHEN** an authorized current Pure or Framed raw item reaches the existing submitter
-- **THEN** the serialized body prompt contains exactly that request's recipe, composition, and ordered motif clause text
+- **THEN** the serialized body prompt contains exactly that request's recipe, composition, ordered motif, and
+  selected relationship clause text when present
 - **AND** the raw-contract digest and authorization scope bind those same text values without submit-time registry lookup or reassembly
 
 ### Requirement: Raw evidence is addressed by exact Page Authority tuples

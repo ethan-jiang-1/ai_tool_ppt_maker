@@ -149,10 +149,11 @@ function assertNoPageRawMaterialization(value, stateBefore) {
   expect(existsSync(value.paths.target_raw_evidence)).toBe(false);
 }
 
-function projection(recipe) {
+function projection(recipe, { relationship = null } = {}) {
   return {
     schema: "pptmaker-page-authority-visual-language-v1",
     recipe: { id: recipe, provider_clause_sha256: "a".repeat(64) },
+    ...(relationship ? { relationship } : {}),
   };
 }
 
@@ -528,6 +529,39 @@ describe("Style Master candidate planning", () => {
       expect(successor.plan).toMatchObject({ plan_generation: 2, previous_plan_sha256: first.plan_sha256 });
       expect(successor.plan.style_context_sha256).not.toBe(first.plan.style_context_sha256);
       assertNoPageRawMaterialization(value, stateBefore);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("changes Style Master context for a selected relationship without exposing clause text or reference paths", async () => {
+    const value = fixture();
+    try {
+      const relationProjection = {
+        id: "layer-stack",
+        reading_order: "bottom-to-top",
+        provider_clause_sha256: "b".repeat(64),
+      };
+      const legacy = await planStyleMasterCandidates({
+        scope: planningScope(value, {
+          slides: [{ slide_id: "DeckGo", workflow: "framed", visual_language: { projection: projection("editorial-systems") } }],
+        }),
+        candidateCount: 1,
+      });
+      const selected = await planStyleMasterCandidates({
+        scope: planningScope(value, {
+          slides: [{ slide_id: "DeckGo", workflow: "framed", visual_language: { projection: projection("editorial-systems", { relationship: relationProjection }) } }],
+        }),
+        candidateCount: 1,
+      });
+      const prompt = compileStyleMasterProviderPrompt({
+        styleIntent: "Use a calm editorial visual system with material depth.\n",
+        styleContext: [{ slide_id: "DeckGo", projection: projection("editorial-systems", { relationship: relationProjection }) }],
+      });
+
+      expect(selected.plan.style_context_sha256).not.toBe(legacy.plan.style_context_sha256);
+      expect(prompt.bytes.toString("utf8")).not.toContain("nested translucent planes rising from broad base to focused apex");
+      expect(prompt.bytes.toString("utf8")).not.toContain("identity_reference");
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
