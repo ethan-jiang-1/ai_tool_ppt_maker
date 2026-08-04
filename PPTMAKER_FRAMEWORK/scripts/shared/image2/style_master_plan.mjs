@@ -66,8 +66,9 @@ const STABLE_SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
 const MAX_PLAN_CAS_RETRIES = 8;
 const MAX_GENERATION_CAS_RETRIES = 8;
 const MAX_SELECTION_CAS_RETRIES = 8;
-const COMPILED_PROMPT_SCHEMA = "page-authority-style-master-compiled-prompt-v1";
+const COMPILED_PROMPT_SCHEMA = "page-authority-style-master-provider-brief-v1";
 const COMPILED_PROMPT_INSTRUCTION = "Generate one visual style reference image with no readable text or labels.";
+const MAX_COMPILED_PROMPT_BYTES = 4_000;
 
 export class StyleMasterPlanError extends Error {
   constructor(code, message, details = null) {
@@ -251,7 +252,48 @@ function styleContextFromCandidate(scope) {
   return Object.freeze({ context: Object.freeze(context), style_context_sha256: canonicalJsonSha256(context) });
 }
 
-/** Deterministically compile the fixed provider prompt without provider or page-raw work. */
+function providerBriefIdentifier(value) {
+  if (typeof value === "string" && value) return value;
+  if (isPlainRecord(value) && typeof value.id === "string" && value.id) return value.id;
+  return null;
+}
+
+function orderedUniqueProviderBriefIdentifiers(values) {
+  return Object.freeze([...new Set(values)].sort((left, right) => left < right ? -1 : left > right ? 1 : 0));
+}
+
+function compactProviderBriefSummary(styleContext) {
+  const recipes = [];
+  const compositions = [];
+  const motifs = [];
+  const identitySubjects = [];
+  for (const item of styleContext) {
+    const projection = item?.projection;
+    if (!isPlainRecord(projection)) {
+      fail("style_master_prompt_invalid", "Style Master prompt compilation requires canonical visual projections");
+    }
+    const recipe = providerBriefIdentifier(projection.recipe);
+    if (recipe) recipes.push(recipe);
+    const composition = providerBriefIdentifier(projection.composition);
+    if (composition) compositions.push(composition);
+    if (Array.isArray(projection.motifs)) {
+      for (const motif of projection.motifs) {
+        const identifier = providerBriefIdentifier(motif);
+        if (identifier) motifs.push(identifier);
+      }
+    }
+    const identitySubject = providerBriefIdentifier(projection.selected_identity_subject_class);
+    if (identitySubject) identitySubjects.push(identitySubject);
+  }
+  return Object.freeze({
+    recipes: orderedUniqueProviderBriefIdentifiers(recipes),
+    compositions: orderedUniqueProviderBriefIdentifiers(compositions),
+    motifs: orderedUniqueProviderBriefIdentifiers(motifs),
+    identity_subjects: orderedUniqueProviderBriefIdentifiers(identitySubjects),
+  });
+}
+
+/** Deterministically compile the bounded provider brief without provider or page-raw work. */
 export function compileStyleMasterProviderPrompt({ styleIntent, styleContext } = {}) {
   if (typeof styleIntent !== "string" || !styleIntent) {
     fail("style_master_prompt_invalid", "Style Master prompt compilation requires nonempty authored intent");
@@ -264,10 +306,13 @@ export function compileStyleMasterProviderPrompt({ styleIntent, styleContext } =
     prompt_contract: STYLE_MASTER_GENERATION_PROFILE.prompt_contract,
     output_instruction: COMPILED_PROMPT_INSTRUCTION,
     style_intent: styleIntent,
-    style_context: styleContext,
+    global_visual_summary: compactProviderBriefSummary(styleContext),
   };
   const bytes = Buffer.from(canonicalJson(prompt), "utf8");
   if (bytes.length === 0) fail("style_master_prompt_invalid", "Style Master compiled prompt must not be empty");
+  if (bytes.length > MAX_COMPILED_PROMPT_BYTES) {
+    fail("style_master_prompt_invalid", "Style Master provider brief exceeds the fixed 4,000 UTF-8 byte limit");
+  }
   return Object.freeze({ bytes, compiled_prompt_sha256: sha256Bytes(bytes) });
 }
 
@@ -908,10 +953,10 @@ function validateGeneratedCandidatePng(value) {
   try {
     decoded = decodePng(bytes, { checkCrc: true });
   } catch {
-    fail("style_master_attempt_unknown", "Style Master provider response could not be verified as PNG bytes after submission");
+    fail("style_master_provider_media_invalid", "Style Master provider response is not valid PNG media");
   }
-  if (decoded.width !== 2000 || decoded.height !== 1125) {
-    fail("style_master_attempt_unknown", "Style Master provider response has incorrect generated PNG dimensions after submission");
+  if (!Number.isInteger(decoded.width) || decoded.width <= 0 || !Number.isInteger(decoded.height) || decoded.height <= 0) {
+    fail("style_master_provider_media_invalid", "Style Master provider response has invalid PNG dimensions");
   }
   return Object.freeze({
     bytes,
@@ -1226,6 +1271,7 @@ export async function generateStyleMasterCandidates({
     const transport = initialize === null
       ? undefined
       : await initialize(Object.freeze({
+        run_dir: context.scope.run_dir,
         plan_sha256: context.current.plan.plan_sha256,
         candidate_id: claimed.record.candidate_id,
         candidate_generation_profile: STYLE_MASTER_GENERATION_PROFILE,
@@ -1306,7 +1352,13 @@ export async function generateStyleMasterCandidates({
       return generationProjection(recordedGenerationContext(beforeSubmit));
     }
 
-    persistSucceededAttempt(beforeSubmit, submitted, transportResult);
+    try {
+      persistSucceededAttempt(beforeSubmit, submitted, transportResult);
+    } catch (error) {
+      if (error?.code !== "style_master_provider_media_invalid") throw error;
+      persistKnownFailedAttempt(beforeSubmit, submitted);
+      return generationProjection(recordedGenerationContext(beforeSubmit));
+    }
     // Progress is recomputed from the grant-bound persisted attempts before
     // this invocation may advance to another generated slot.
     const progressed = recordedGenerationContext(beforeSubmit);
@@ -1545,8 +1597,8 @@ function validateReviewGeneratedPng(bytes) {
   } catch {
     fail("style_master_review_evidence_invalid", "generated Style Master candidate bytes are not a valid PNG");
   }
-  if (decoded.width !== 2000 || decoded.height !== 1125) {
-    fail("style_master_review_evidence_invalid", "generated Style Master candidate bytes do not have the fixed 2000x1125 dimensions");
+  if (!Number.isInteger(decoded.width) || decoded.width <= 0 || !Number.isInteger(decoded.height) || decoded.height <= 0) {
+    fail("style_master_review_evidence_invalid", "generated Style Master candidate bytes do not have positive dimensions");
   }
   return Object.freeze({
     candidate_media_type: "image/png",

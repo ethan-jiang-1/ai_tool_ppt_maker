@@ -19,13 +19,23 @@
 
 - **[BUG-035](BUG-035-target-provider-request-omits-visual-language-clauses.md)** — 当前 target provider request 只携带 visual-language projection，遗漏 provider clauses
 
-### P2（次要 — 1 个）
+### P1（重要 — 4 个）
+
+- **[BUG-046](BUG-046-style-master-fetch-timeout-causes-attempt-unknown.md)** — Style Master 候选被 2000x1125 硬校验 + provider 尺寸/prompt 上限/async 模型错配 → `attempt_unknown` 无重试路径（**deck_dark_factory 主阻塞**）
+- **[BUG-047](BUG-047-style-master-generate-requires-manual-env-loading.md)** — `style-master generate` 不自动加载 `.env` 凭证（doctor 却会），需 `node --env-file`
+- **[BUG-048](BUG-048-style-master-compiled-prompt-structurally-oversized.md)** — Style Master 编译 prompt 结构性过长（全 slide projection digest JSON，13 页 = 10931 字符）超 provider 上限
+- **[BUG-049](BUG-049-style-master-attempt-unknown-no-reconcile-burns-submissions.md)** — Style Master `attempt_unknown` 永久阻塞计划、无 reconcile，只能 abandon 烧提交
+
+### P2（次要 — 4 个）
 
 - **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
+- **[BUG-050](BUG-050-style-master-fetch-no-explicit-timeout-undici-300s.md)** — Style Master / page raw 的 provider fetch 无显式超时，慢 provider 撞 undici 300s
+- **[BUG-051](BUG-051-doctor-smoke-false-positive-misses-size-and-prompt-failures.md)** — `doctor --smoke` 假阳性，测不出尺寸不符与 prompt 超限
+- **[BUG-052](BUG-052-provider-base-url-comma-list-not-supported-and-async-model.md)** — provider base_url 逗号列表不被支持；async task 模型不被 Style Master transport 支持
 
 ---
 
-**Next available bug ID: BUG-046**
+**Next available bug ID: BUG-053**
 
 ## 类别分布
 
@@ -33,6 +43,12 @@
 |---|---|---|
 | 渲染/视觉 | 1 | 015 |
 | 数据/契约 | 1 | 035 |
+| 运行时/超时 | 1 | 046 |
+| 凭证/环境 | 1 | 047 |
+| 数据/契约 | 1 | 048 |
+| 状态机/恢复 | 1 | 049 |
+| 诊断 | 1 | 051 |
+| provider 兼容 | 1 | 052 |
 
 ---
 

@@ -532,9 +532,10 @@ export function validateStyleMasterGeneratedProvenance(record, { plan = null, at
     }
     assertFixedGenerationProfileSha256(record.candidate_generation_profile_sha256, "candidate_generation_profile_sha256");
     assertGeneratedCandidateId(record.candidate_id);
-    if (record.candidate_media_type !== "image/png" || record.candidate_width !== 2000 || record.candidate_height !== 1125) {
-      fail("style_master_provenance_invalid", "generated candidate must be a 2000x1125 PNG");
+    if (record.candidate_media_type !== "image/png") {
+      fail("style_master_provenance_invalid", "generated candidate must be a PNG");
     }
+    assertDimensions(record.candidate_width, record.candidate_height);
     if (plan) {
       const checkedPlan = validateStyleMasterPlanRecord(plan);
       if (!checkedPlan.ok) fail(checkedPlan.code, checkedPlan.message);

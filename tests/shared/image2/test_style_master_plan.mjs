@@ -125,6 +125,12 @@ function generatedCandidateBytes() {
   return Buffer.from(generatedCandidatePng);
 }
 
+function nativeGeneratedCandidateBytes(width, height) {
+  const data = new Uint8Array(width * height * 4);
+  data.fill(255);
+  return Buffer.from(encodePng({ width, height, data }));
+}
+
 function fixture({ local = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), "style-master-plan-"));
   const deck = join(root, "deck_style_master_plan");
@@ -527,6 +533,69 @@ describe("Style Master candidate planning", () => {
     }
   });
 
+  it("compiles a deterministic bounded provider brief without projection identity digests", () => {
+    const digestOnly = "a".repeat(64);
+    const context = [
+      {
+        slide_id: "ViewMap",
+        projection: {
+          recipe: { id: "editorial-systems", provider_clause_sha256: digestOnly },
+          composition: { id: "layered-grid", provider_clause_sha256: digestOnly },
+          motifs: [{ id: "signal-lines", provider_clause_sha256: digestOnly }],
+          selected_identity_subject_class: "analyst",
+        },
+      },
+      {
+        slide_id: "DeckGo",
+        projection: {
+          recipe: { id: "editorial-systems", provider_clause_sha256: digestOnly },
+          composition: { id: "centered-constellation", provider_clause_sha256: digestOnly },
+          motifs: [{ id: "signal-lines", provider_clause_sha256: digestOnly }, { id: "quiet-grid", provider_clause_sha256: digestOnly }],
+          selected_identity_subject_class: "none",
+        },
+      },
+    ];
+    const first = compileStyleMasterProviderPrompt({
+      styleIntent: "Use a calm editorial visual system with material depth.\n",
+      styleContext: context,
+    });
+    const second = compileStyleMasterProviderPrompt({
+      styleIntent: "Use a calm editorial visual system with material depth.\n",
+      styleContext: [...context].reverse(),
+    });
+    const brief = JSON.parse(first.bytes.toString("utf8"));
+
+    expect(first.bytes.length).toBeLessThanOrEqual(4_000);
+    expect(second.bytes).toEqual(first.bytes);
+    expect(brief.global_visual_summary).toEqual({
+      recipes: ["editorial-systems"],
+      compositions: ["centered-constellation", "layered-grid"],
+      motifs: ["quiet-grid", "signal-lines"],
+      identity_subjects: ["analyst", "none"],
+    });
+    expect(JSON.stringify(brief)).not.toContain(digestOnly);
+    expect(JSON.stringify(brief)).not.toContain("DeckGo");
+    expect(JSON.stringify(brief)).not.toContain("ViewMap");
+  });
+
+  it("stops an oversized provider brief before plan, grant, or provider work", async () => {
+    const value = fixture();
+    try {
+      const stateBefore = readFileSync(statePath(value.deck));
+      writeFileSync(styleAsset(value.runDir, STYLE_MASTER_PROMPT), "x".repeat(4_001), "utf8");
+
+      await expect(planStyleMasterCandidates({
+        scope: planningScope(value),
+        candidateCount: 1,
+      })).rejects.toMatchObject({ code: "style_master_prompt_invalid" });
+
+      expect(existsSync(join(value.deck, "1_upstream_raw_material", "style-master-iterations"))).toBe(false);
+      assertNoPageRawMaterialization(value, stateBefore);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("keeps same-input nonterminal plans, then allocates a distinct successor only after direct terminal proof", async () => {
     const value = fixture();
     try {
@@ -804,6 +873,52 @@ describe("Style Master candidate planning", () => {
       assertNoPageRawMaterialization(value, stateBefore);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a valid native PNG and terminalizes received invalid media as a known failure", async () => {
+    const native = fixture();
+    const invalid = fixture();
+    try {
+      const nativePlan = await planStyleMasterCandidates({ scope: planningScope(native), candidateCount: 1 });
+      await authorizeStyleMasterCandidates({ scope: planningScope(native), planSha256: nativePlan.plan_sha256 });
+      const nativeBytes = nativeGeneratedCandidateBytes(17, 11);
+      const nativeResult = await generateStyleMasterCandidates({
+        scope: planningScope(native),
+        planSha256: nativePlan.plan_sha256,
+        submit: async () => nativeBytes,
+      });
+      const nativeAttempt = readCandidateAttempt(native.runDir, nativePlan.plan_sha256, "candidate-001");
+      const nativePaths = styleMasterStorePaths(native.runDir, {
+        plan_sha256: nativePlan.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      });
+      const nativeProvenance = JSON.parse(readFileSync(nativePaths.candidate_provenance, "utf8"));
+
+      expect(nativeResult).toMatchObject({ next_action: "review_style_master_candidates" });
+      expect(nativeAttempt.record).toMatchObject({ status: "succeeded" });
+      expect(readFileSync(nativePaths.candidate_image)).toEqual(nativeBytes);
+      expect(nativeProvenance).toMatchObject({ candidate_width: 17, candidate_height: 11 });
+      await expect(prepareStyleMasterCandidateReview({
+        scope: planningScope(native),
+        planSha256: nativePlan.plan_sha256,
+      })).resolves.toMatchObject({ candidates: [{ candidate_id: "candidate-001", candidate_width: 17, candidate_height: 11 }] });
+
+      const invalidPlan = await planStyleMasterCandidates({ scope: planningScope(invalid), candidateCount: 1 });
+      await authorizeStyleMasterCandidates({ scope: planningScope(invalid), planSha256: invalidPlan.plan_sha256 });
+      const invalidResult = await generateStyleMasterCandidates({
+        scope: planningScope(invalid),
+        planSha256: invalidPlan.plan_sha256,
+        submit: async () => Buffer.from("not a PNG"),
+      });
+      const invalidAttempt = readCandidateAttempt(invalid.runDir, invalidPlan.plan_sha256, "candidate-001");
+
+      expect(invalidResult).toMatchObject({ terminal: true, terminal_reason: "known_failure", next_action: "plan_style_master_successor" });
+      expect(invalidAttempt.record).toMatchObject({ status: "failed", candidate_sha256: null, candidate_provenance_sha256: null });
+    } finally {
+      rmSync(native.root, { recursive: true, force: true });
+      rmSync(invalid.root, { recursive: true, force: true });
     }
   });
 

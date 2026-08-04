@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,7 +16,7 @@ import {
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
 
-const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const FLOW = join(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
 const LOCAL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY1AJyPoPAANYAd6lcnCEAAAAAElFTkSuQmCC",
   "base64",
@@ -33,11 +33,15 @@ function generatedCandidate() {
   return Buffer.from(generatedPng);
 }
 
-function flow(args, env = {}) {
+function flow(args, env = {}, cwd = process.cwd()) {
+  const childEnv = { ...process.env, ...env };
+  for (const [key, value] of Object.entries(childEnv)) {
+    if (value === undefined) delete childEnv[key];
+  }
   return new Promise((resolveResult, rejectResult) => {
     const child = spawn(process.execPath, [FLOW, ...args], {
-      cwd: process.cwd(),
-      env: { ...process.env, ...env },
+      cwd,
+      env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -56,6 +60,18 @@ function flow(args, env = {}) {
       resolveResult({ status, signal, stdout, stderr });
     });
   });
+}
+
+function isolatedImage2Env(overrides = {}) {
+  return {
+    IMAGE2_API_KEY: undefined,
+    IMAGE2_BASE_URL: undefined,
+    ...overrides,
+  };
+}
+
+function writeImage2Dotenv(directory, env) {
+  writeFileSync(join(directory, ".env"), `IMAGE2_API_KEY=${env.IMAGE2_API_KEY}\nIMAGE2_BASE_URL=${env.IMAGE2_BASE_URL}\n`, "utf8");
 }
 
 function expectSuccess(result) {
@@ -201,6 +217,53 @@ describe("fresh Style Master lifecycle integration", () => {
       expect(existsSync(value.paths.target_final_manifest)).toBe(false);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it("loads Style Master credentials from deck-root then process-current dotenv scopes", async () => {
+    const deckScoped = fixture();
+    const cwdScoped = fixture();
+    const currentDir = join(cwdScoped.root, "dotenv-current");
+    const provider = await startMockProvider(generatedCandidate());
+    try {
+      writeImage2Dotenv(deckScoped.deck, provider.env);
+      const deckPlan = expectSuccess(await flow(
+        ["style-master", "plan", deckScoped.runDir, "--candidate-count", "1"],
+        isolatedImage2Env(),
+      ));
+      expectSuccess(await flow(
+        ["style-master", "authorize", deckScoped.runDir, "--plan-hash", deckPlan.plan_sha256],
+        isolatedImage2Env(),
+      ));
+      expectSuccess(await flow(
+        ["style-master", "generate", deckScoped.runDir, "--plan-hash", deckPlan.plan_sha256],
+        isolatedImage2Env(),
+      ));
+
+      mkdirSync(currentDir);
+      writeImage2Dotenv(currentDir, provider.env);
+      const cwdPlan = expectSuccess(await flow(
+        ["style-master", "plan", cwdScoped.runDir, "--candidate-count", "1"],
+        isolatedImage2Env(),
+        currentDir,
+      ));
+      expectSuccess(await flow(
+        ["style-master", "authorize", cwdScoped.runDir, "--plan-hash", cwdPlan.plan_sha256],
+        isolatedImage2Env(),
+        currentDir,
+      ));
+      expectSuccess(await flow(
+        ["style-master", "generate", cwdScoped.runDir, "--plan-hash", cwdPlan.plan_sha256],
+        isolatedImage2Env(),
+        currentDir,
+      ));
+
+      expect(provider.calls).toHaveLength(2);
+      expect(provider.calls.map((call) => call.method)).toEqual(["POST", "POST"]);
+    } finally {
+      await provider.close();
+      rmSync(deckScoped.root, { recursive: true, force: true });
+      rmSync(cwdScoped.root, { recursive: true, force: true });
     }
   }, 60_000);
 });

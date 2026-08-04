@@ -59,7 +59,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-044](BUG-044-pure-slides-image-heavy-text-light.md) | 2026-08-04 | Pure BODY 通道和图文比例经真实 v7 final visual 验收 |
 | [BUG-045](BUG-045-NN-slideID-naming-not-uniform-across-outputs.md) | 2026-08-04 | 真实 v7 raw/final 25/25 统一 `NN_slideID.png` 命名验收 |
 
-**Next available bug ID: BUG-046**
+**Next available bug ID: BUG-053**
 
 ---
 
