@@ -31,7 +31,9 @@
       "owner": "02-visual-system",
       "interfaces": ["02-visual-system/index.mjs"],
       "executables": [],
-      "unit_integration": [],
+      "unit_integration": [
+        "tests/02-visual-system/test_page_authority_visual_language_relationships.mjs"
+      ],
       "e2e": []
     },
     {

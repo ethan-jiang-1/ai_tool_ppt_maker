@@ -25,7 +25,8 @@ const PAGE_AUTHORITY_FIELDS = Object.freeze([
   "SUBJECT RESTRICTIONS",
 ]);
 const RETIRED_FIELDS = new Set(["PAGE AUTHORITY", "RENDER MODE", "IMAGE PROMPT"]);
-const VISUAL_BRIEF_KEYS = Object.freeze(["recipe", "composition", "motifs", "negative_constraints"]);
+const VISUAL_BRIEF_REQUIRED_KEYS = Object.freeze(["recipe", "composition", "motifs", "negative_constraints"]);
+const VISUAL_BRIEF_KEYS = Object.freeze([...VISUAL_BRIEF_REQUIRED_KEYS, "relationship"]);
 const NEGATIVE_CONSTRAINTS = Object.freeze([
   "no-readable-text",
   "no-labels",
@@ -250,8 +251,8 @@ function parseVisualBrief(document, block, visualBlock, issues) {
     }));
     return null;
   }
-  if (root.items.length !== VISUAL_BRIEF_KEYS.length) {
-    issues.push(issue(document, block, "invalid_visual_brief_keys", "VISUAL BRIEF must contain exactly recipe, composition, motifs, negative_constraints", {
+  if (root.items.length < VISUAL_BRIEF_REQUIRED_KEYS.length || root.items.length > VISUAL_BRIEF_KEYS.length) {
+    issues.push(issue(document, block, "invalid_visual_brief_keys", "VISUAL BRIEF must contain recipe, composition, motifs, negative_constraints, and optional trailing relationship", {
       field: "VISUAL BRIEF",
       fieldSpan: visualBlock.yaml_range,
     }));
@@ -282,7 +283,7 @@ function parseVisualBrief(document, block, visualBlock, issues) {
     }
     pairs.set(pair.key.value, pair.value);
   }
-  for (const key of VISUAL_BRIEF_KEYS) {
+  for (const key of VISUAL_BRIEF_REQUIRED_KEYS) {
     if (!pairs.has(key)) {
       issues.push(issue(document, block, "missing_visual_brief_key", `VISUAL BRIEF is missing ${key}`, {
         field: "VISUAL BRIEF",
@@ -302,11 +303,15 @@ function parseVisualBrief(document, block, visualBlock, issues) {
     issues,
     { allowed: new Set(NEGATIVE_CONSTRAINTS) }
   );
+  const relationship = pairs.has("relationship")
+    ? requirePlainId(document, block, pairs.get("relationship"), visualBlock.yaml_start, "relationship", issues)
+    : null;
   return recipe && composition ? {
     recipe,
     composition,
     motifs,
     negative_constraints: negativeConstraints,
+    ...(relationship ? { relationship } : {}),
   } : null;
 }
 
