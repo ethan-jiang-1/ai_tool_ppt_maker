@@ -11,9 +11,10 @@ raw-contract/provider-request 边界收口，并关闭 BUG-035。
 
 ## What Changes
 
-- 为 Pure 工作流增加 canonical raw contract 校验（与 Framed 现有 `validateFramedRawContractAgainstProfile`
-  对齐）：校验 schema/slide_id/workflow/visual_language/provider_clauses/visual_scene/visual_identity/display/body
-  的规范形状，plan 阶段在授权与 provider 工作之前拒绝畸形 contract，绝不静默放行。
+- 为 Pure 工作流增加 canonical raw contract 校验（与 Framed 已公开的 `validateFramedRawContract`
+  对齐）：校验 exact top-level keys、schema/slide_id/workflow/visual_language/provider_clauses/
+  visual_scene/visual_identity/display/body 的规范形状，plan 阶段在 request construction、授权与 provider
+  工作之前拒绝畸形 contract，绝不静默放行。
 - 强化 Framed raw contract 对 `provider_clauses` 的校验：从 `object-or-null` 收紧为文本保护的
   `{ recipe: string, composition: string, motifs: string[] }` 形状，并拒绝解析到 resolved visual language
   却携带 null/畸形 clauses 的 contract。
@@ -21,9 +22,12 @@ raw-contract/provider-request 边界收口，并关闭 BUG-035。
   provider clauses 文本，request 原样包装，submit 序列化——**不做提交前从 source/registry 反查拼接**，
   不新增临时通道。
 - 新增回归测试：断言 Pure 与 Framed 的**序列化 provider body**（`prompt` 中的完整 request JSON）确实包含
-  exact provider clause 文本，而不只是 raw contract 对象级断言。
+  exact provider clause 文本，而不只是 raw contract 对象级断言；body-level fixture 必须使用默认 registry
+  中受支持的非空 `connected-nodes` motif，避免 `motifs: []` 掩盖 motif 交付；plan 创建后故意改变临时
+  registry 的 `connected-nodes` clause 为不同且 text-guard-safe 的文本，证明 submit 仍只使用
+  plan-bound raw contract，绝不反查重组。
 - 关闭 BUG-035（移入 `_backlog/_done/_fixed_bugs/`），并把 raw contract 校验作为
-  `image-production` 的 requirement 固化。
+  `image-generation` 的既有 requirement 收紧。
 
 ## Capabilities
 
@@ -33,7 +37,7 @@ raw-contract/provider-request 边界收口，并关闭 BUG-035。
 
 ### Modified Capabilities
 
-- `image-production`: Page Authority raw contract 的 canonical 校验成为 requirement——两个受支持工作流
+- `image-generation`: Page Authority raw contract 的 canonical 校验成为 requirement——两个受支持工作流
   （pure/framed）都必须在 plan 阶段验证 raw contract 形状（含 provider_clauses 文本形状），畸形 contract
   在授权/provider 工作前 hard-stop；序列化 provider request 必须包含文本保护的 provider clause 文本，
   而非仅 digest。
@@ -43,10 +47,13 @@ raw-contract/provider-request 边界收口，并关闭 BUG-035。
 - 框架源码范围：
   - `PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs`（新增 pure raw contract 校验）
   - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs`（强化 provider_clauses 形状校验）
-  - `tests/04-pure-image/test_pure_workflow.mjs`、`tests/03-framed-image/test_framed_workflow.mjs`、
-    `tests/shared/image2/test_style_master_raw_binding.mjs`（submit body 回归断言）
-- Control owner：JS/CLI 拥有确定性 raw contract 编译与校验、state 转换与诊断；MD 继续消费
-  producer 发布的受限 next action，不获得新状态或恢复路由。纯 JS 侧变更。
+  - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs`（共享 clause-shape predicate）
+  - `tests/04-pure-image/test_pure_workflow.mjs`、`tests/03-framed-image/test_framed_plan_lifecycle.mjs`、
+    `tests/03-framed-image/test_framed_workflow.mjs`、`tests/shared/image2/test_style_master_raw_binding.mjs`
+    （validator 与 serialized submit-body 回归断言）
+- Control owner：selected-workflow JS adapters own deterministic raw-contract compilation and validation;
+  the existing shared submitter owns serialization. MD continues to consume the existing producer-issued next
+  action and receives no state or recovery route. This is a JS-only behavior change; the CLI surface is unchanged.
 - Run-bundle contract impact：`compatible`。已有 accepted selection 与历史 attempt 仍可读；无
   `deck_*` 生产数据作为 fixture 或迁移对象，不手工编辑任何生成产物。
 - 质量路径引用：

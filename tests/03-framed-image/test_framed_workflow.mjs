@@ -34,6 +34,7 @@ import {
   resolveFramedStyleMasterScope,
 } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
 import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs";
+import { targetPageAuthoritySubmitFactory } from "../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
 import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
@@ -128,6 +129,75 @@ negative_constraints:
       expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
       expect(contract.visual_identity_role_clause).toBeNull();
       expect(contract.framed.text_free).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("serializes Framed provider clauses from the plan after registry drift", async () => {
+    const root = mkdtempSync(join(tmpdir(), "framed-provider-clause-delivery-"));
+    const deck = join(root, "deck_framed_provider_clause_delivery");
+    const runDir = join(deck, "3_versions", "v1");
+    const image = createCanvas(2000, 1125);
+    image.getContext("2d").fillRect(0, 0, 2000, 1125);
+    const source = `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: framed
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Framed clause delivery
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs:
+  - connected-nodes
+negative_constraints:
+  - no-readable-text
+  - no-labels
+\`\`\`
+`;
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), source);
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const plan = await buildFramedTargetRawPlan(runDir);
+      const expectedClauses = structuredClone(plan.provider_requests_by_slide.DeckGo.raw_contract.provider_clauses);
+      const registryPath = join(deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
+      const registry = readFileSync(registryPath, "utf8");
+      const driftClause = "luminous radial nodes with measured spacing";
+      expect(registry).toContain("luminous connected nodes with measured spacing");
+      writeFileSync(registryPath, registry.replace("luminous connected nodes with measured spacing", driftClause));
+
+      let providerBody = null;
+      const submit = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, options) => {
+          providerBody = JSON.parse(options.body);
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ data: [{ b64_json: NATIVE_PROVIDER_PNG.toString("base64") }] }),
+          };
+        },
+      });
+      await submit({
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"f".repeat(64)}`,
+      });
+
+      const serializedRequest = JSON.parse(providerBody.prompt);
+      expect(serializedRequest.raw_contract.provider_clauses).toEqual(expectedClauses);
+      expect(serializedRequest.raw_contract.provider_clauses.motifs).toEqual([expectedClauses.motifs[0]]);
+      expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

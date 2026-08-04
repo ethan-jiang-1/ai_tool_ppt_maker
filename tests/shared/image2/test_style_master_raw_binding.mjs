@@ -66,7 +66,10 @@ function styleMasterTransportRequest() {
   };
 }
 
-function source() {
+function source({ motifs = [] } = {}) {
+  const motifsYaml = motifs.length === 0
+    ? "[]"
+    : `\n${motifs.map((motif) => `  - ${motif}`).join("\n")}`;
   return `---
 identity:
   scheme: mnemonic-v1
@@ -82,20 +85,20 @@ production:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
-motifs: []
+motifs: ${motifsYaml}
 negative_constraints:
   - no-logo
 \`\`\`
 `;
 }
 
-async function fixture({ accepted = false } = {}) {
+async function fixture({ accepted = false, motifs = [] } = {}) {
   const root = mkdtempSync(join(tmpdir(), "style-master-raw-binding-"));
   const deck = join(root, "deck_style_master_raw_binding");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), localImageBytes());
-  writeFileSync(join(runDir, "slide-specifications.md"), source(), "utf8");
+  writeFileSync(join(runDir, "slide-specifications.md"), source({ motifs }), "utf8");
   const result = accepted
     ? await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir))
     : null;
@@ -195,6 +198,40 @@ describe("accepted Style Master raw binding", () => {
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
       expect(providerIdempotencyKey).toBe(`page-authority-v3-${"a".repeat(64)}`);
       expect(providerCalls).toBe(1);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("serializes Pure provider clauses from the plan after registry drift", async () => {
+    const value = await fixture({ accepted: true, motifs: ["connected-nodes"] });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const expectedClauses = structuredClone(plan.provider_requests_by_slide.DeckGo.raw_contract.provider_clauses);
+      const registryPath = join(value.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
+      const registry = readFileSync(registryPath, "utf8");
+      const driftClause = "luminous radial nodes with measured spacing";
+      expect(registry).toContain("luminous connected nodes with measured spacing");
+      writeFileSync(registryPath, registry.replace("luminous connected nodes with measured spacing", driftClause));
+
+      let providerBody = null;
+      const submit = targetPageAuthoritySubmitFactory(plan, {
+        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+        fetchImpl: async (_url, options) => {
+          providerBody = JSON.parse(options.body);
+          return providerJsonResponse({ data: [{ b64_json: VALID_PROVIDER_PNG.toString("base64") }] });
+        },
+      });
+      await submit({
+        request: plan.provider_requests_by_slide.DeckGo,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-authority-v3-${"f".repeat(64)}`,
+      });
+
+      const serializedRequest = JSON.parse(providerBody.prompt);
+      expect(serializedRequest.raw_contract.provider_clauses).toEqual(expectedClauses);
+      expect(serializedRequest.raw_contract.provider_clauses.motifs).toEqual([expectedClauses.motifs[0]]);
+      expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
