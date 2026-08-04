@@ -15,19 +15,26 @@
 
 ## 活跃列表
 
+### P1（重要 — 2 个）
+
+- **[BUG-053](BUG-053-style-master-compat-jpeg-loadimage-rejects-cabx-png.md)** — Style Master 兼容 JPEG 投影失败：@napi-rs/canvas `loadImage` 拒载带 `caBX` chunk 的 provider PNG，accept promotion 无法完成
+- **[BUG-054](BUG-054-page-raw-provider-native-size-mismatch.md)** — Page raw provider 返回非契约原生尺寸（1684×934 ≠ 2048×1136），pilot 提交全部 known_failure，烧付费提交
+
 ### P2（次要 — 1 个）
 
 - **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
 
 ---
 
-**Next available bug ID: BUG-053**
+**Next available bug ID: BUG-055**
 
 ## 类别分布
 
 | 类别 | 数量 | Bug IDs |
 |---|---|---|
 | 渲染/视觉 | 1 | 015 |
+| 视觉系统/图像 | 1 | 053 |
+| 图像生产/Provider | 1 | 054 |
 
 ---
 
