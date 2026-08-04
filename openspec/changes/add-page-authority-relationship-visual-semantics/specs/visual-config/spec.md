@@ -11,7 +11,9 @@ free provider prose, and caller-owned path overrides SHALL be rejected.
 The registry SHALL optionally declare a `relationships` section. Each registered
 relationship record SHALL carry a text-guard-protected `provider_clause`, its
 `authorities` eligibility, the `recipe_ids` / `composition_ids` it is compatible
-with, and a restricted `reading_order` projection. A registry without a
+with, and a `reading_order` projection restricted to `bottom-to-top` or
+`left-to-right`. Each compatibility id SHALL reference a registered recipe or
+composition. A registry without a
 `relationships` section SHALL remain parseable and usable; relationship selection
 is only available when the registry declares the referenced relationship.
 
@@ -23,8 +25,9 @@ incompatible relationship SHALL be rejected before receipt compilation. When
 declared and valid, the relationship SHALL enter the semantic and projection
 digests and the compiled provider clauses deterministically, so the raw image
 contract digest changes with the relationship while the stable `slide_id` lineage
-is preserved. When not declared, the relationship projection SHALL be null and
-existing behavior SHALL be unchanged.
+is preserved. When not declared, the relationship members SHALL be omitted from
+the selected semantic, projection, and provider-clause objects; consumers SHALL
+treat their absence as no relationship, and existing behavior SHALL be unchanged.
 
 #### Scenario: Selected registry facts have local invalidation
 
@@ -56,4 +59,12 @@ existing behavior SHALL be unchanged.
   no relationship
 - **THEN** the source parses and the visual-language selection resolves exactly as
   before this requirement
-- **AND** the relationship projection is null with unchanged digests
+- **AND** the selected semantic, projection, and provider-clause objects contain no
+  relationship key and retain their pre-change digests
+
+#### Scenario: Relationship record has only registered compatible facts
+
+- **WHEN** a relationship record contains an unknown recipe/composition id or a
+  reading order outside `bottom-to-top` / `left-to-right`
+- **THEN** registry parsing rejects that record before any source selection
+- **AND** no receipt or raw contract is compiled

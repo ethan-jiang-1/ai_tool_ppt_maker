@@ -11,19 +11,22 @@ provider clauses、兼容性与 digest，缺少有限且可验证的「关系模
 - 在 closed registry（`page-authority-visual-language.yaml`）新增**可选** `relationships:` 顶层段，先支持两类
   真实叙事关系：`layer-stack`（层级堆叠）与 `causal-flow`（因果流向）。每个 relationship record 声明：
   text-guard 保护的 `provider_clause`、`authorities` 资格、与 recipe/composition 的兼容性、以及受限的
-  `reading_order` 投影（例如 layer-stack 自底向上、causal-flow 自左向右）。可选段意味着**未声明关系类型的
+  `reading_order` 投影（仅 `bottom-to-top` 或 `left-to-right`；layer-stack 自底向上、causal-flow 自左向右）。可选段意味着**未声明关系类型的
   既有 deck registry 继续可解析**，不构成迁移。
 - 扩展 VISUAL BRIEF source schema：在严格位置序的现有 4 个 key（recipe/composition/motifs/negative_constraints）
-  之后增加**可选** `relationship` key（plain 字符串类型 id，如 `layer-stack`）。source 只选关系类型；
-  reading order、primitive 与 bounds 由 registry record（版本化、受审阅）决定，不由 provider output 猜测。
+  之后增加**可选** `relationship` key（lower-kebab plain 字符串类型 id，如 `layer-stack`）。source 只选关系类型；
+  reading order 与 provider clause 由 registry record（版本化、受审阅）决定，不由 provider output 猜测。
 - `resolvePageAuthorityVisualLanguageSelection` 校验关系选择：registered、authority-eligible、与所选
-  recipe/composition 兼容；未声明则关系投影为 null（向后兼容）。关系进入 `semantic`、`projection` 与
-  `provider_clauses`，使 `registry_semantic_digest` → raw contract digest **确定性变化**，同时保留 stable
-  `slide_id` lineage。
-- raw contract 无需改 schema：`visual_language`（projection，现含关系投影）与 `provider_clauses`（现含关系
-  文本）本就通用携带，关系自动流入 raw contract digest、授权范围与 provider prompt。
-- 新增 pure Node contract tests（不依赖浏览器、Canvas、PPTX 或外部 provider）：registry 关系 schema 解析、
-  选择与兼容性、reading-order projection、digest 指纹、fallback/error diagnostics。
+  recipe/composition 兼容。未声明时不在 selection、projection 或 provider clauses 中物化 relationship key，
+  使既有 4-key source 的 receipt、style-master context 和 raw-contract digest 保持不变；声明且有效时，关系
+  进入 `semantic`、`projection` 与 `provider_clauses`，使 `registry_semantic_digest` → raw contract digest
+  **确定性变化**，同时保留 stable `slide_id` lineage。
+- raw contract 不新增顶层字段或版本：已选 relationship 使 `visual_language` projection 与
+  `provider_clauses` 进入受限 relationship shape；Pure/Framed adapters 与 shared validator 必须接受该
+  shape，关系才会流入 raw contract digest、授权范围与 provider prompt。
+- 新增 pure Node visual-language/source contract tests（不依赖浏览器、Canvas、PPTX 或外部 provider）：registry
+  关系 schema 解析、选择与兼容性、reading-order projection、digest 指纹、fallback/error diagnostics；adapter
+  seam tests 复用现有离线 fixture，不执行浏览器、PPTX 或外部 provider。
 
 ## Capabilities
 
@@ -37,6 +40,10 @@ provider clauses、兼容性与 digest，缺少有限且可验证的「关系模
   注册表可声明关系类型（含 text-guard 保护的 provider clause、authority 资格、recipe/composition 兼容性、
   受限 reading-order），source 可选声明关系选择，selection 必须校验其注册、资格与兼容性，并把关系投影进
   语义/投影 digest 与 provider clause。
+- `content-parsing`: `VISUAL BRIEF` 的 closed、位置有序 source grammar 扩展为可选的第 5 个
+  `relationship` id；缺省时现有 4-key receipt 语义保持字节等价。
+- `image-generation`: Pure/Framed raw-contract provider-clause validator 从仅接受 legacy 三字段 shape
+  扩展为同时接受已选 relationship 的受限 shape，确保已选 clause text 与 digest 在同一 plan-bound request 中。
 
 ## Impact
 
@@ -45,12 +52,16 @@ provider clauses、兼容性与 digest，缺少有限且可验证的「关系模
     schema 解析、`relationships` 段、selection 校验与投影）
   - `PPTMAKER_FRAMEWORK/scripts/01-content/internal/page_authority_source.mjs`（VISUAL BRIEF 可选
     `relationship` key）
+  - `PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs`（provider-clause closed shape）
+  - `PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs` 与
+    `PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs`（selected relationship raw-contract compilation and validation）
   - `PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs`（seed registry 加入 relationships 段）
-  - `tests/02-visual-system/` 或新增 pure Node visual-language relationship contract tests
+  - focused visual-language/source, Pure/Framed raw-contract, and Style Master context tests
 - Control owner：JS/CLI 拥有确定性 registry 解析、关系选择校验与投影、digest 计算；MD 继续消费 source
   authoring 与 producer 发布的 next action。纯 JS 侧变更。
-- Run-bundle contract impact：`compatible`。关系段可选、seed 增补、既有 deck registry 可解析、无
-  `deck_*` 生产数据作为 fixture 或迁移对象。
+- Run-bundle contract impact：`compatible`。关系段可选、seed 增补，未选择 relationship 的既有 deck
+  registry、receipt、style-master context 与 raw-plan digest 均保持不变；无 `deck_*` 生产数据作为 fixture
+  或迁移对象。
 - 质量路径引用：
   - `openspec/policies/simple-reliable-control.md`——closed source schema + 前置校验短路：未注册/不兼容的
     关系在内容解析期失败，owner 只发一个确定 next action；不新增 retry/fallback/recovery 路径。
