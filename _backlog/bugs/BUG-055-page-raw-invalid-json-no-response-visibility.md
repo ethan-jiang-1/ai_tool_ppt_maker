@@ -27,16 +27,22 @@ framework 侧核查：
 - `imageBytesDataUrl` 产生的 data URL 与诊断一致。
 - 请求格式一致，deadline 600s 覆盖 provider 60-230s 响应。
 
-## 根因（待确认）
+## 根因（已确证）
 
-二选一或并存：
+**provider（duckcoding.ai）对 Node.js 系 TLS 客户端返回 "Service unavailable" HTML 页，但对 Python
+urllib 返回合法 JSON 图像。**
 
-1. **provider 间歇性返回损坏/截断响应**：失败期间 provider 偶发返回非 JSON（网络抖动/中继不稳定），现已
-   恢复（诊断 3/3 成功）。若如此，框架把这类瞬时错误当**确定性 known_failure** 且**不重试**，导致整批
-   付费提交被烧掉 —— 对不稳定 provider 是代价极高的处理策略。
-2. **framework 诊断盲区**：`invalid_json` 分类只暴露 `{classification: "invalid_json"}`，不含响应
-   content-type、body 大小/hash 等有界线索。operator/agent 无法区分「provider 挂了」「返回 HTML 错误页」
-   「响应被截断」「framework 解析问题」，只能盲试或盲换 provider。
+- 同一请求（SysGo 完整 prompt + style master 图引用）：
+  - Python `urllib` POST `/images/generations` → 200，**合法 JSON**（`{"data":[{"b64_json":...}]}`，
+    49-65s，2.4-2.9MB，b64 解码 PNG）
+  - Node `fetch`（undici）POST → 200，**3994 字节 HTML**，`<title>Service unavailable</title>`
+  - Node `https` 模块 POST → 200，同样的 "Service unavailable" HTML
+  - undici 加 User-Agent / `accept-encoding: identity` / `accept: application/json` 均无效
+- 请求内容完全一致，差异只在 HTTP 客户端（TLS 指纹 / undici 与 urllib 的 HTTP 行为）。
+- Pilot 3 张当初用 Node fetch 成功，说明该拦截是后发的（限流/反爬策略升级），非持久配置。
+
+framework 的 `readImage2ProviderResponseJson` 对 HTML 响应 `JSON.parse` 失败 → 分类 `invalid_json`，
+无任何响应特征暴露，operator 无法看出是 provider 返回了 HTML 页。
 
 ## 修复方向
 
