@@ -2,11 +2,7 @@ import { decode as decodePng } from "fast-png";
 
 export const PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE = "2000x1125";
 
-export const PAGE_AUTHORITY_NATIVE_RAW_PNG = Object.freeze({
-  format: "png",
-  width: 2048,
-  height: 1136,
-});
+export const PAGE_AUTHORITY_NATIVE_RAW_PNG = Object.freeze({ format: "png" });
 
 export const PAGE_AUTHORITY_FRAMED_FINAL_PNG = Object.freeze({
   format: "png",
@@ -26,8 +22,11 @@ function bytes(value) {
 }
 
 function expectedPng(value) {
-  if (!value || value.format !== "png" || !Number.isSafeInteger(value.width) || value.width <= 0 ||
-    !Number.isSafeInteger(value.height) || value.height <= 0) {
+  const hasWidth = Object.hasOwn(value || {}, "width");
+  const hasHeight = Object.hasOwn(value || {}, "height");
+  if (!value || value.format !== "png" || hasWidth !== hasHeight ||
+    (hasWidth && (!Number.isSafeInteger(value.width) || value.width <= 0 ||
+      !Number.isSafeInteger(value.height) || value.height <= 0))) {
     throw new TypeError("Page Authority PNG expectation is invalid");
   }
   return value;
@@ -41,7 +40,7 @@ export function pageAuthorityFinalPngForWorkflow(workflow) {
 }
 
 /** Inspect bytes without transforming them or inferring dimensions from request transport. */
-export function inspectExactPageAuthorityPng(value, expected) {
+export function inspectExactPageAuthorityPng(value, expected = PAGE_AUTHORITY_NATIVE_RAW_PNG) {
   const required = expectedPng(expected);
   const source = bytes(value);
   if (!source) return Object.freeze({ ok: false, classification: "empty" });
@@ -52,7 +51,7 @@ export function inspectExactPageAuthorityPng(value, expected) {
     return Object.freeze({ ok: false, classification: "invalid_png" });
   }
   const actual = Object.freeze({ format: "png", width: decoded.width, height: decoded.height });
-  if (actual.width !== required.width || actual.height !== required.height) {
+  if (Object.hasOwn(required, "width") && (actual.width !== required.width || actual.height !== required.height)) {
     return Object.freeze({ ok: false, classification: "wrong_dimensions", actual });
   }
   return Object.freeze({ ok: true, bytes: source, actual });

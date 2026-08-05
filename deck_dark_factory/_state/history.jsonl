@@ -1,1 +1,3 @@
 {"type":"page_authority_target_state_initialized","run_version":"v1","source_epoch":1,"at":"2026-08-04T11:59:15.365Z"}
+{"type":"page_authority_style_master_selection_recorded","run_version":"v1","workflow":"pure","selection_sha256":"1bdc61ccdf81cc6e428caba07422b95d5590570846446695cb1c7e144ac0107c","accepted_at":"2026-08-04T19:10:09.459Z","at":"2026-08-04T19:10:09.483Z"}
+{"type":"page_authority_target_source_epoch_advanced","run_version":"v1","workflow":"pure","previous_source_epoch":1,"source_epoch":2,"previous_source_receipt_sha256":"fb7f25ff9e028bf82670bfbe843d41ceb05eeaf4813b41d2ecf96b87f9358592","source_receipt_sha256":"8d4a7af64821f38515fe91c8e70196bb99dc4e9f4aa7055004d4f502c8dc0c45","at":"2026-08-04T19:15:03.381Z"}

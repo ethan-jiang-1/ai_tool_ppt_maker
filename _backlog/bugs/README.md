@@ -15,19 +15,15 @@
 
 ## 活跃列表
 
-### P2（次要 — 1 个）
-
-- **[BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md)** — Page Authority visual-language registry 缺少关系型概念视觉的可验证语义
+当前没有活跃 bug。
 
 ---
 
-**Next available bug ID: BUG-053**
+**Next available bug ID: BUG-055**
 
 ## 类别分布
 
-| 类别 | 数量 | Bug IDs |
-|---|---|---|
-| 渲染/视觉 | 1 | 015 |
+无活跃 bug。
 
 ---
 

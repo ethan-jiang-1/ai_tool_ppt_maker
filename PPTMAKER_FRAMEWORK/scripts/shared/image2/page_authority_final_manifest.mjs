@@ -1,5 +1,9 @@
 import { sha256Bytes } from "../identity/byte_hash.mjs";
 import {
+  inspectExactPageAuthorityPng,
+  pageAuthorityFinalPngForWorkflow,
+} from "./page_authority_media_contract.mjs";
+import {
   createFinalSlideManifest,
   validateAcceptedRawEvidenceForFinalization,
   validateFinalSlideManifest,
@@ -31,10 +35,17 @@ function requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence }) {
 /** Publish a final manifest only from exact current accepted raw evidence. */
 export function publishCurrentFinalSlideManifest({ rawWorkPlan, acceptedRawEvidence, ownerWorkflow, finalBytesBySlide } = {}) {
   requireCurrentEvidence({ rawWorkPlan, acceptedRawEvidence });
+  const finalDimensionsBySlide = {};
+  for (const slideId of rawWorkPlan.ordered_slide_ids) {
+    const media = inspectExactPageAuthorityPng(finalBytesBySlide?.[slideId], pageAuthorityFinalPngForWorkflow(ownerWorkflow));
+    if (!media.ok) throw new PageAuthorityFinalManifestError("final_manifest_media_invalid", `final media is invalid for ${slideId}`);
+    finalDimensionsBySlide[slideId] = media.actual;
+  }
   return createFinalSlideManifest({
     evidence: acceptedRawEvidence,
     expected_workflow: ownerWorkflow,
     final_bytes_by_slide: finalBytesBySlide,
+    final_dimensions_by_slide: finalDimensionsBySlide,
   });
 }
 
@@ -51,6 +62,12 @@ export function inspectCurrentFinalSlideManifest({ rawWorkPlan, acceptedRawEvide
       const value = bytes(finalBytesBySlide[item.slide_id]);
       if (!value || sha256Bytes(value) !== item.final_sha256) {
         throw new PageAuthorityFinalManifestError("final_manifest_bytes_stale", `final bytes drifted for ${item.slide_id}`);
+      }
+      if (Object.hasOwn(item, "width")) {
+        const media = inspectExactPageAuthorityPng(value, pageAuthorityFinalPngForWorkflow(manifest.workflow));
+        if (!media.ok || media.actual.width !== item.width || media.actual.height !== item.height) {
+          throw new PageAuthorityFinalManifestError("final_manifest_dimensions_stale", `final dimensions drifted for ${item.slide_id}`);
+        }
       }
     }
     return Object.freeze({ ok: true, manifest, sha256: checked.sha256 });

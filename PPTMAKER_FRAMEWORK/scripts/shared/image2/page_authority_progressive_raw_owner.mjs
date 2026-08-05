@@ -1232,8 +1232,6 @@ function pageAuthorityKnownFailureMediaFacts(error) {
   if (!error?.page_authority_known_failure || !facts || typeof facts !== "object" || Array.isArray(facts)) return null;
   const actual = facts.actual;
   if (facts.expected?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
-    facts.expected?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
-    facts.expected?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height ||
     !actual || typeof actual !== "object" || Array.isArray(actual)) return null;
   const expected = PAGE_AUTHORITY_NATIVE_RAW_PNG;
   if (["empty", "invalid_png"].includes(actual.classification)) {

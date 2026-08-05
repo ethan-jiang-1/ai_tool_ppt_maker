@@ -43,7 +43,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: 2009 DÉJÀ VU
 **TITLE**: "It will not work here." means "We're not ready yet."
 **BODY**: Continuous delivery was "crazy" in 2009. / The dark factory is "crazy" today. / Not the technology — the organization.
-**VISUAL SCENE**: Two eras side by side in one dim industrial space — left, 2009 server racks with a skeptical crowd in shadow; right, today's agent control room. Same posture, different machines.
+**VISUAL SCENE**: Two eras side by side in one dim industrial space -- left, 2009 server racks with a skeptical crowd in shadow; right, the agent control room of today. Same posture, different machines.
 **VISUAL BRIEF**:
 ```yaml
 recipe: industrial-night
@@ -91,7 +91,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: THE MENTALITY SHIFT
 **TITLE**: Stop fixing the agent's code. Improve the system.
 **BODY**: Build the thing that builds the thing. / Channel skeptic energy into context and harness. / Engineering practices still matter — tests, docs, no YOLO.
-**VISUAL SCENE**: A luminous feedback loop where output is routed back into the machine itself — the machine being upgraded rather than the parts it produces, with test and documentation nodes glowing along the path.
+**VISUAL SCENE**: A luminous feedback loop where output is routed back into the machine itself -- the machine being upgraded rather than the parts it produces, with test and documentation nodes glowing along the path.
 **VISUAL BRIEF**:
 ```yaml
 recipe: pipeline-flows
@@ -107,7 +107,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: TEAM RITUALS
 **TITLE**: Retro: "Can we fix the system?" Planning: split the work.
 **BODY**: Retro — the agent hit this wall again; fix the system. / Planning — well-defined → agents; conversational → humans. / Team leads set the pace: make context reusable.
-**VISUAL SCENE**: Two industrial control rooms joined by a seam — left, a retro review board glowing with system issues; right, a planning board sorting work into machine-ready and human-decision lanes.
+**VISUAL SCENE**: Two industrial control rooms joined by a seam -- left, a retro review board glowing with system issues; right, a planning board sorting work into machine-ready and human-decision lanes.
 **VISUAL BRIEF**:
 ```yaml
 recipe: industrial-night
@@ -123,7 +123,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: WHAT MATTERS
 **TITLE**: Two metrics that actually measure agentic productivity
 **BODY**: 1 — Human touches ↓: better harness, context, guidelines. / 2 — One fix, everyone benefits: solo → shared → multiplayer.
-**VISUAL SCENE**: Two glowing instrument dials on a dark control panel — the first dial reading "human touches" trending down, the second dial radiating a multiplier outward to many connected nodes.
+**VISUAL SCENE**: Two glowing instrument dials on a dark control panel -- the first dial reading human touches trending down, the second dial radiating a multiplier outward to many connected nodes.
 **VISUAL BRIEF**:
 ```yaml
 recipe: pipeline-flows
@@ -139,7 +139,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: SCALING UP
 **TITLE**: The platform team owns the paved roads
 **BODY**: New tools: skill registries, eval systems, guardrails, identities. / One owner → no sprawl. / A catalog of 3-4 paved roads, not one.
-**VISUAL SCENE**: A central platform control core with clearly marked paved roads branching out to many teams, each road registered and maintained, the whole network under one owner's glow.
+**VISUAL SCENE**: A central platform control core with clearly marked paved roads branching out to many teams, each road registered and maintained, the whole network under the glow of one owner.
 **VISUAL BRIEF**:
 ```yaml
 recipe: industrial-night
@@ -187,7 +187,7 @@ negative_constraints: [no-logo, no-watermark]
 **KICKER**: HIRING FOR THE AGENTIC ERA
 **TITLE**: Titles don't prove maturity. The interview does.
 **BODY**: 1 — Exercise: let them go nuts with AI. / 2 — Walkthrough: explain why — engineering. / 3 — Collaboration: will they share?
-**VISUAL SCENE**: A three-stage evaluation hall: first a workbench where candidates build freely with AI, then a walkthrough stage where they explain their reasoning, then a round table testing whether they share and reuse.
+**VISUAL SCENE**: A three-stage evaluation hall: first a workbench where candidates build freely with AI, then a walkthrough stage where they explain their reasoning, then a discussion circle testing whether they share and reuse.
 **VISUAL BRIEF**:
 ```yaml
 recipe: pipeline-flows

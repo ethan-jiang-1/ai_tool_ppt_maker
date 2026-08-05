@@ -217,9 +217,7 @@ function requireSafeProviderRequestInspectionTransport(request, providerProfileS
   const profile = request?.generation_profile;
   if (!profile || typeof profile !== "object" || canonicalJsonSha256(profile) !== providerProfileSha256 ||
     typeof profile.provider?.model !== "string" || !profile.provider.model ||
-    profile.output?.format !== PAGE_AUTHORITY_NATIVE_RAW_PNG.format ||
-    profile.output?.width !== PAGE_AUTHORITY_NATIVE_RAW_PNG.width ||
-    profile.output?.height !== PAGE_AUTHORITY_NATIVE_RAW_PNG.height) {
+    canonicalJson(profile.output) !== canonicalJson(PAGE_AUTHORITY_NATIVE_RAW_PNG)) {
     throw new PageAuthorityTargetRuntimeError("target_provider_request_inspection_invalid", "provider request inspection requires the canonical selected transport profile");
   }
   return Object.freeze({ model: profile.provider.model, size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE });

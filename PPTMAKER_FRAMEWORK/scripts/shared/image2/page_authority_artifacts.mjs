@@ -194,6 +194,11 @@ function finalManifestShape(manifest) {
   ]) && manifest.schema === FINAL_SLIDE_MANIFEST_SCHEMA;
 }
 
+function finalManifestItemShape(item) {
+  return exactKeys(item, ["slide_id", "position", "final_sha256", "path"]) ||
+    exactKeys(item, ["slide_id", "position", "final_sha256", "path", "width", "height"]);
+}
+
 export function validateFinalSlideManifest(manifest, { evidence = null, expectedWorkflow = null } = {}) {
   try {
     if (!finalManifestShape(manifest)) throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest has an invalid shape");
@@ -203,7 +208,8 @@ export function validateFinalSlideManifest(manifest, { evidence = null, expected
     if (!Array.isArray(manifest.items) || manifest.items.length === 0) throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest needs ordered items");
     const ids = [];
     for (const item of manifest.items) {
-      if (!exactKeys(item, ["slide_id", "position", "final_sha256", "path"]) || !SLIDE_ID_RE.test(item.slide_id || "") || !Number.isInteger(item.position) || item.position < 1 || item.path !== pageAuthorityOrdinalImageFilename(item.position, item.slide_id)) {
+      if (!finalManifestItemShape(item) || !SLIDE_ID_RE.test(item.slide_id || "") || !Number.isInteger(item.position) || item.position < 1 || item.path !== pageAuthorityOrdinalImageFilename(item.position, item.slide_id) ||
+        (Object.hasOwn(item, "width") && (!Number.isSafeInteger(item.width) || item.width <= 0 || !Number.isSafeInteger(item.height) || item.height <= 0))) {
         throw new PageAuthorityArtifactError("final_manifest_invalid", "final slide manifest item is invalid");
       }
       assertDigest(item.final_sha256, "final_sha256");
@@ -223,24 +229,35 @@ export function validateFinalSlideManifest(manifest, { evidence = null, expected
   }
 }
 
-export function createFinalSlideManifest({ evidence, expected_workflow, final_bytes_by_slide } = {}) {
+export function createFinalSlideManifest({ evidence, expected_workflow, final_bytes_by_slide, final_dimensions_by_slide = null } = {}) {
   const checkedEvidence = validateAcceptedRawEvidenceForFinalization(evidence);
   if (!checkedEvidence.ok) throw new PageAuthorityArtifactError(checkedEvidence.code, checkedEvidence.message);
   if (expected_workflow !== evidence.workflow) throw new PageAuthorityArtifactError("wrong_workflow_owner", "only the selected workflow may publish final slides");
   if (!final_bytes_by_slide || typeof final_bytes_by_slide !== "object" || Array.isArray(final_bytes_by_slide)) throw new PageAuthorityArtifactError("final_manifest_invalid", "final_bytes_by_slide is required");
   const ids = evidence.items.map((item) => item.slide_id);
   if (Object.keys(final_bytes_by_slide).sort().join("\n") !== [...ids].sort().join("\n")) throw new PageAuthorityArtifactError("final_manifest_invalid", "final bytes must cover accepted evidence exactly");
+  if (final_dimensions_by_slide !== null && (!final_dimensions_by_slide || typeof final_dimensions_by_slide !== "object" || Array.isArray(final_dimensions_by_slide) ||
+    Object.keys(final_dimensions_by_slide).sort().join("\n") !== [...ids].sort().join("\n"))) {
+    throw new PageAuthorityArtifactError("final_manifest_invalid", "final dimensions must cover accepted evidence exactly");
+  }
   const manifest = {
     schema: FINAL_SLIDE_MANIFEST_SCHEMA,
     source_receipt_sha256: evidence.source_receipt_sha256,
     accepted_raw_evidence_sha256: checkedEvidence.sha256,
     workflow: evidence.workflow,
-    items: ids.map((slide_id, index) => ({
-      slide_id,
-      position: index + 1,
-      final_sha256: sha256Bytes(bytes(final_bytes_by_slide[slide_id], `final ${slide_id}`)),
-      path: pageAuthorityOrdinalImageFilename(index + 1, slide_id),
-    })),
+    items: ids.map((slide_id, index) => {
+      const dimensions = final_dimensions_by_slide?.[slide_id];
+      if (dimensions && (!Number.isSafeInteger(dimensions.width) || dimensions.width <= 0 || !Number.isSafeInteger(dimensions.height) || dimensions.height <= 0)) {
+        throw new PageAuthorityArtifactError("final_manifest_invalid", `final dimensions for ${slide_id} are invalid`);
+      }
+      return {
+        slide_id,
+        position: index + 1,
+        final_sha256: sha256Bytes(bytes(final_bytes_by_slide[slide_id], `final ${slide_id}`)),
+        path: pageAuthorityOrdinalImageFilename(index + 1, slide_id),
+        ...(dimensions ? { width: dimensions.width, height: dimensions.height } : {}),
+      };
+    }),
   };
   const validation = validateFinalSlideManifest(manifest, { evidence, expectedWorkflow: expected_workflow });
   if (!validation.ok) throw new PageAuthorityArtifactError(validation.code, validation.message);

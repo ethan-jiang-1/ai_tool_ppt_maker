@@ -31,6 +31,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-012](BUG-012-header-review-stale-fingerprint.md) | 2026-07-13 | Header review gate 在 full-page 与迭代场景中 stale 锁死 |
 | [BUG-013](BUG-013-model-sheet-pollutes-style-master.md) | 2026-07-13 | 实验脚本占用 style_master.jpg 作为 style reference，框架层 generateOneImage 无 style ref 时静默接受 |
 | [BUG-014](BUG-014-html-objects-unnavigable-sha256-filenames.md) | 2026-07-28 | HTML 审阅面缺少由 slide_id 驱动的直接定位入口 |
+| [BUG-015](BUG-015-html-first-rendering-text-only-no-visual-expression.md) | 2026-08-05 | Page Authority visual-language registry 缺少关系型概念视觉的可验证语义 |
 | [BUG-016](BUG-016-approve-rejects-valid-plan-hash.md) | 2026-07-21 | `ppt_flow approve` 拒绝有效 plan hash |
 | [BUG-017](BUG-017-approve-deadlock-blocks-build-and-image2.md) | 2026-07-21 | HTML gate approval 死锁阻断 build 与 Phase 4 Image2 |
 | [BUG-018](BUG-018-preview-plan-fingerprint-body-stripping.md) | 2026-07-21 | Preview 与 read-back body projection 导致 fingerprint 永久不匹配 |
@@ -66,8 +67,10 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-050](BUG-050-style-master-fetch-no-explicit-timeout-undici-300s.md) | 2026-08-05 | Style Master 与 page raw 的 provider fetch 无显式超时，慢 provider 撞 undici 300s |
 | [BUG-051](BUG-051-doctor-smoke-false-positive-misses-size-and-prompt-failures.md) | 2026-08-05 | `doctor --smoke` 假阳性，测不出尺寸不符与 prompt 超限 |
 | [BUG-052](BUG-052-provider-base-url-comma-list-not-supported-and-async-model.md) | 2026-08-05 | provider base_url 逗号列表不被支持；async task 模型不被 Style Master transport 支持 |
+| [BUG-053](BUG-053-style-master-compat-jpeg-loadimage-rejects-cabx-png.md) | 2026-08-05 | Style Master 兼容 JPEG 投影失败：canvas `loadImage` 拒载带 `caBX` chunk 的 provider PNG |
+| [BUG-054](BUG-054-page-raw-provider-native-size-mismatch.md) | 2026-08-05 | Page raw provider 返回非契约原生尺寸，pilot 提交全部 known_failure |
 
-**Next available bug ID: BUG-053**
+**Next available bug ID: BUG-055**
 
 ---
 
