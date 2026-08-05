@@ -165,12 +165,7 @@ function requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide) {
   }
   for (const item of acceptedRawEvidence.items) {
     const media = inspectExactPageAuthorityPng(rawBytesBySlide[item.slide_id], PAGE_AUTHORITY_NATIVE_RAW_PNG);
-    if (!media.ok) {
-      throw new PureImageWorkflowError(
-        "pure_final_media_invalid",
-        `Pure final bytes for ${item.slide_id} must be a ${PAGE_AUTHORITY_NATIVE_RAW_PNG.width}x${PAGE_AUTHORITY_NATIVE_RAW_PNG.height} PNG`,
-      );
-    }
+    if (!media.ok) throw new PureImageWorkflowError("pure_final_media_invalid", `Pure final bytes for ${item.slide_id} must be a valid PNG`);
     if (sha256Bytes(media.bytes) !== item.raw_sha256) {
       throw new PureImageWorkflowError("pure_finalization_raw_drift", `Pure final bytes drifted from accepted raw evidence for ${item.slide_id}`);
     }

@@ -709,7 +709,7 @@ describe("target Page Authority CLI diagnostics", () => {
         }],
         expected: {
           provider_media: {
-            expected: { format: "png", width: 2048, height: 1136 },
+            expected: { format: "png" },
             actual: { classification: "empty" },
           },
         },
@@ -727,7 +727,7 @@ describe("target Page Authority CLI diagnostics", () => {
         }],
         expected: {
           provider_media: {
-            expected: { format: "png", width: 2048, height: 1136 },
+            expected: { format: "png" },
             actual: { classification: "invalid_png" },
           },
         },
@@ -841,7 +841,7 @@ describe("target Page Authority CLI diagnostics", () => {
       const inspectionRecord = JSON.parse(inspection);
       const inspectedRequest = JSON.parse(inspectionRecord.items[0].prompt);
       expect(inspectionRecord.transport).toMatchObject({ model: "gpt-image-2", size: "2000x1125" });
-      expect(inspectedRequest.generation_profile.output).toEqual({ format: "png", width: 2048, height: 1136 });
+      expect(inspectedRequest.generation_profile.output).toEqual({ format: "png" });
       expect(inspection).toContain("PROMPT_LITERAL_SENTINEL");
       expect(inspection).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
       expect(`${planned.stdout}${planned.stderr}`).not.toMatch(/PROMPT_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|data:image|authorization/i);
@@ -877,14 +877,6 @@ describe("target Page Authority CLI diagnostics", () => {
         },
         actual: { classification: "invalid_png" },
       },
-      {
-        name: "wrong dimensions",
-        responsePayload: {
-          data: [{ b64_json: pngBytes("#397d93", 1600, 900).toString("base64") }],
-          provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
-        },
-        actual: { format: "png", width: 1600, height: 900 },
-      },
     ];
     for (const scenario of cases) {
       const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
@@ -918,7 +910,7 @@ describe("target Page Authority CLI diagnostics", () => {
           item: "PureOne",
           outcome: "known_failure",
           provider_media: {
-            expected: { format: "png", width: 2048, height: 1136 },
+            expected: { format: "png" },
             actual: scenario.actual,
           },
           progress: { materialized: 0, known_failure: 1, unsubmitted: 1 },
@@ -970,21 +962,16 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(generated.status, generated.stderr).toBe(0);
       expect(JSON.parse(generated.stdout)).toMatchObject({
         item: "FramGo",
-        outcome: "known_failure",
-        provider_media: {
-          expected: { format: "png", width: 2048, height: 1136 },
-          actual: { format: "png", width: 1600, height: 900 },
-        },
-        progress: { materialized: 0, known_failure: 1 },
-        next_action: { action_id: "plan_progressive_pilot" },
+        outcome: "succeeded",
+        progress: { materialized: 1, known_failure: 0 },
       });
       expect(`${generated.stdout}${generated.stderr}`).not.toMatch(/CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|PROVIDER_RESPONSE_BODY_SENTINEL|data:image|authorization/i);
       expect(provider.calls).toHaveLength(1);
       const direct = readProgressiveRawPlanDirectRecords(framed.runDir, { plan_sha256: plan.plan_hash });
-      expect(direct.materializations).toHaveLength(0);
-      expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
-      expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
-      expect(existsSync(join(framed.paths.raw_root, "FramGo.png"))).toBe(false);
+      expect(direct.materializations).toHaveLength(1);
+      expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(true);
+      expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(0);
+      expect(existsSync(join(framed.paths.raw_root, "FramGo.png"))).toBe(true);
     } finally {
       await provider.close();
       rmSync(framed.root, { recursive: true, force: true });

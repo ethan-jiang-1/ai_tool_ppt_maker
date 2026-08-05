@@ -153,11 +153,8 @@ function assertVerifiedRaw(value) {
     throw new FramedRenderContractError('framed_raw_invalid', 'verified Framed raw bytes do not match their digest');
   }
   const media = inspectExactPageAuthorityPng(bytes, PAGE_AUTHORITY_NATIVE_RAW_PNG);
-  if (!media.ok && media.classification === 'invalid_png') {
-    throw new FramedRenderContractError('framed_raw_invalid', 'verified Framed raw bytes must be a valid PNG');
-  }
   if (!media.ok) {
-    throw new FramedRenderContractError('framed_raw_invalid', `verified Framed raw PNG must be ${PAGE_AUTHORITY_NATIVE_RAW_PNG.width}x${PAGE_AUTHORITY_NATIVE_RAW_PNG.height}`);
+    throw new FramedRenderContractError('framed_raw_invalid', 'verified Framed raw bytes must be a valid PNG');
   }
   return Object.freeze({ bytes, sha256: value.sha256 });
 }

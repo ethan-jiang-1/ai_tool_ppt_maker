@@ -18,7 +18,7 @@ function png(width, height) {
 describe("Page Authority native media contract", () => {
   it("keeps the provider transport parameter separate from raw and final media", () => {
     expect(PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE).toBe("2000x1125");
-    expect(PAGE_AUTHORITY_NATIVE_RAW_PNG).toEqual({ format: "png", width: 2048, height: 1136 });
+    expect(PAGE_AUTHORITY_NATIVE_RAW_PNG).toEqual({ format: "png" });
     expect(pageAuthorityFinalPngForWorkflow("pure")).toBe(PAGE_AUTHORITY_NATIVE_RAW_PNG);
     expect(pageAuthorityFinalPngForWorkflow("framed")).toBe(PAGE_AUTHORITY_FRAMED_FINAL_PNG);
     expect(() => pageAuthorityFinalPngForWorkflow("unknown")).toThrow(/no final PNG contract/);
@@ -31,11 +31,16 @@ describe("Page Authority native media contract", () => {
     expect(media.bytes).toEqual(bytes);
   });
 
-  it("rejects non-native, empty, and malformed media with bounded classifications", () => {
-    expect(inspectExactPageAuthorityPng(png(2000, 1125), PAGE_AUTHORITY_NATIVE_RAW_PNG)).toEqual({
+  it("accepts provider-native dimensions and rejects empty or malformed media with bounded classifications", () => {
+    const providerNative = png(1684, 934);
+    expect(inspectExactPageAuthorityPng(providerNative, PAGE_AUTHORITY_NATIVE_RAW_PNG)).toMatchObject({
+      ok: true,
+      actual: { format: "png", width: 1684, height: 934 },
+    });
+    expect(inspectExactPageAuthorityPng(png(1684, 934), PAGE_AUTHORITY_FRAMED_FINAL_PNG)).toEqual({
       ok: false,
       classification: "wrong_dimensions",
-      actual: { format: "png", width: 2000, height: 1125 },
+      actual: { format: "png", width: 1684, height: 934 },
     });
     expect(inspectExactPageAuthorityPng(Buffer.alloc(0), PAGE_AUTHORITY_NATIVE_RAW_PNG)).toEqual({
       ok: false,

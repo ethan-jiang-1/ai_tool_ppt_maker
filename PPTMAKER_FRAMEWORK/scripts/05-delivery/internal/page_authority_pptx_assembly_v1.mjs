@@ -37,7 +37,9 @@ export function validatePageAuthorityAssemblyInput(manifest, { sourceEpoch } = {
       !["pure-image2", "framed-image2"].includes(entry.authority) || entry.path !== `${entry.slide_id}.png` ||
       !SHA256_RE.test(entry.final_sha256 || "") || !SHA256_RE.test(entry.raw_sha256 || "") ||
       !SHA256_RE.test(entry.raw_image_contract_digest || "") || !SHA256_RE.test(entry.raw_generation_profile_digest || "") ||
-      !SHA256_RE.test(entry.finalization_fingerprint || "") || !expectedMedia || entry.width !== expectedMedia.width || entry.height !== expectedMedia.height ||
+      !SHA256_RE.test(entry.finalization_fingerprint || "") || !expectedMedia || !Number.isSafeInteger(entry.width) || entry.width <= 0 ||
+      !Number.isSafeInteger(entry.height) || entry.height <= 0 ||
+      (Object.hasOwn(expectedMedia, "width") && (entry.width !== expectedMedia.width || entry.height !== expectedMedia.height)) ||
       typeof entry.media_profile !== "string" || !entry.media_profile) {
       throw new Error("Page Authority final manifest contains an invalid current entry");
     }
@@ -60,7 +62,9 @@ export async function assemblePageAuthorityPptx(runDir, { title = "Presentation"
     const bytes = readFileSync(path);
     if (sha256(bytes) !== entry.final_sha256) throw new Error(`final Page Authority PNG drifted for ${entry.slide_id}`);
     const media = inspectExactPageAuthorityPng(bytes, expectedEntryMedia(entry.authority));
-    if (!media.ok) throw new Error(`final Page Authority PNG media is invalid for ${entry.slide_id}`);
+    if (!media.ok || media.actual.width !== entry.width || media.actual.height !== entry.height) {
+      throw new Error(`final Page Authority PNG media is invalid for ${entry.slide_id}`);
+    }
     const slide = pptx.addSlide();
     slide.addImage({ path, x: 0, y: 0, w: 13.333333, h: 7.5 });
     addPageAuthorityOrdinalFooter(slide, index + 1);

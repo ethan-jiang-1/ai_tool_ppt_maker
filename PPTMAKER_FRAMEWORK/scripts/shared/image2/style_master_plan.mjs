@@ -1970,13 +1970,16 @@ function assertUnchangedCompatibilityProjectionTarget(scope, target) {
 
 async function encodeStyleMasterCompatibilityJpeg(candidate) {
   try {
-    const image = await loadImage(candidate.bytes);
-    if (image.width !== candidate.candidate_width || image.height !== candidate.candidate_height) {
+    const decoded = decodePng(candidate.bytes, { checkCrc: true });
+    if (decoded.width !== candidate.candidate_width || decoded.height !== candidate.candidate_height ||
+      decoded.data.length !== decoded.width * decoded.height * 4) {
       fail("style_master_compatibility_projection_failed", "Style Master selected bytes changed image dimensions before compatibility projection");
     }
-    const canvas = createCanvas(image.width, image.height);
+    const canvas = createCanvas(decoded.width, decoded.height);
     const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0);
+    const pixels = context.createImageData(decoded.width, decoded.height);
+    pixels.data.set(decoded.data);
+    context.putImageData(pixels, 0, 0);
     const jpeg = Buffer.from(canvas.toBuffer("image/jpeg"));
     if (jpeg.length === 0 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
       fail("style_master_compatibility_projection_failed", "Style Master compatibility projection did not produce JPEG bytes");

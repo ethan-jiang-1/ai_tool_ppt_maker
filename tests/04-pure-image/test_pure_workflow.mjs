@@ -97,17 +97,24 @@ describe("Pure target workflow", () => {
     });
   });
 
-  it("rejects a Framed-sized PNG before Pure final publication", () => {
+  it("preserves a non-default provider-native PNG and rejects evidence drift", () => {
     const source = receipt();
     const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
-    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG } });
+    const providerNative = createCanvas(1684, 934).toBuffer("image/png");
+    const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: providerNative } });
+    expect(publishPureFinalSlideManifest({
+      receipt: source,
+      rawWorkPlan,
+      acceptedRawEvidence,
+      rawBytesBySlide: { DeckGo: providerNative },
+    })).toMatchObject({ items: [{ final_sha256: acceptedRawEvidence.items[0].raw_sha256 }] });
     const framedFinal = createCanvas(2000, 1125).toBuffer("image/png");
     expect(() => publishPureFinalSlideManifest({
       receipt: source,
       rawWorkPlan,
       acceptedRawEvidence,
       rawBytesBySlide: { DeckGo: framedFinal },
-    })).toThrow(/2048x1136/);
+    })).toThrow(/drifted from accepted raw evidence/);
   });
 
   it("classifies visible-text source changes as raw rebuild debt", () => {

@@ -1253,8 +1253,6 @@ describe("progressive Page Authority raw owner", () => {
           error.page_authority_known_failure_facts = {
             expected: {
               format: "png",
-              width: 2048,
-              height: 1136,
               provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
             },
             actual: {
@@ -1272,7 +1270,7 @@ describe("progressive Page Authority raw owner", () => {
         item: "Slide01",
         outcome: "known_failure",
         provider_media: {
-          expected: { format: "png", width: 2048, height: 1136 },
+          expected: { format: "png" },
           actual: { format: "png", width: 1600, height: 900 },
         },
         progress: { materialized: 0, known_failure: 1 },

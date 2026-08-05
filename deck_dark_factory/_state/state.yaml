@@ -12,7 +12,7 @@ production_mode:
     3_versions/v1:
       mode: image2-page-authority-v2
       workflow: pure
-      source_epoch: 1
+      source_epoch: 2
 playbook: create-deck
 current_node: select-target-page-authority-workflow
 execution_id: exec-f94c6179-874f-4d31-a313-6097a8a2ba03
@@ -20,7 +20,7 @@ execution_started_at: 2026-08-04T11:52:04.428Z
 run_version: v1
 continuation_target_version: v1
 started_at: 2026-08-04T11:52:04.428Z
-updated_at: 2026-08-04T11:59:15.359Z
+updated_at: 2026-08-04T19:19:23.283Z
 nodes:
   checkpoint-intake:
     status: completed
@@ -41,10 +41,43 @@ page_authority_target_evidence:
     3_versions/v1:
       schema: page-authority-image2-target-state-v1
       run_version: v1
-      source_epoch: 1
-      source_receipt_sha256: fb7f25ff9e028bf82670bfbe843d41ceb05eeaf4813b41d2ecf96b87f9358592
+      source_epoch: 2
+      source_receipt_sha256: 8d4a7af64821f38515fe91c8e70196bb99dc4e9f4aa7055004d4f502c8dc0c45
       workflow: pure
       provider_authorization_sha256: null
+      accepted_raw_evidence_sha256: null
+      final_manifest_sha256: null
+      delivery_receipt_sha256: null
+page_authority_style_master:
+  by_version:
+    3_versions/v1:
+      schema: page-authority-style-master-selection-v1
+      run_version: v1
+      workflow: pure
+      plan_sha256: 6747ec0b7784cc57177eca78eeb85228b3307909917bb0e8ff011829be82404b
+      candidate_id: candidate-002
+      candidate_sha256: ce253b8ef4da850f191df29d2d80ddb674b695774ace06e26fad6f46bd70f2a7
+      candidate_media_type: image/png
+      candidate_width: 1536
+      candidate_height: 1024
+      candidate_provenance_sha256: c14db18d1f82766e11a45aeff4b4d660575ad4882d9bbb9643e8a91df7eb16fe
+      style_intent_sha256: a30bbefcdd46739a819150f481bd8b37cd1bba50448cdd158016898075f75b7e
+      style_context_sha256: 73ffc575179318853331e52c7026e98c95f54f84f2d154361a47ab747eb8294a
+      candidate_generation_profile_sha256: 8a2eb9268f79acad25b028236149715df359fdf54792ac907b4765582a64692d
+      previous_selection_sha256: null
+      review_decision_sha256: 71b487f060dfc723ca1816276f3519de772b154cf89a2c2655d49630cab4d5cf
+      accepted_at: 2026-08-04T19:10:09.459Z
+page_authority_progressive_handoff:
+  by_version:
+    3_versions/v1:
+      schema: page-authority-progressive-handoff-v1
+      run_version: v1
+      source_epoch: 2
+      source_receipt_sha256: 8d4a7af64821f38515fe91c8e70196bb99dc4e9f4aa7055004d4f502c8dc0c45
+      workflow: pure
+      raw_work_plan_sha256: 185e5d973406581b7ed89dee0b8446f68c4c4f091cc1d9c684348515c7b9c80c
+      partial_pilot_decision_sha256: null
+      complete_raw_review_sha256: null
       accepted_raw_evidence_sha256: null
       final_manifest_sha256: null
       delivery_receipt_sha256: null
