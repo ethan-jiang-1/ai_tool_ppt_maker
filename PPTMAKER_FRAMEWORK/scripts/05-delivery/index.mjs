@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas } from "@napi-rs/canvas";
+import { decode as decodePng } from "fast-png";
 import PptxGenJS from "pptxgenjs";
 import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
 import { validateFinalSlideManifest } from "../shared/image2/page_authority_artifacts.mjs";
@@ -115,6 +116,9 @@ export function validateTargetFinalDeliveryInput({ manifest, acceptedRawEvidence
       finalSha256: item.final_sha256,
     });
     if (!media.ok) throw new PageAuthorityDeliveryError(media.code, `final bytes for ${item.slide_id} do not meet the selected workflow media contract`);
+    if (Object.hasOwn(item, "width") && (item.width !== media.actual.width || item.height !== media.actual.height)) {
+      throw new PageAuthorityDeliveryError("final_dimensions_stale", `final dimensions drifted for ${item.slide_id}`);
+    }
     if (typeof notesBySlide[item.slide_id] !== "string" || !notesBySlide[item.slide_id].trim()) {
       throw new PageAuthorityDeliveryError("source_notes_invalid", `source notes are missing for ${item.slide_id}`);
     }
@@ -161,7 +165,13 @@ async function writeProjection(paths, input) {
   for (const [index, item] of input.manifest.items.entries()) {
     const x = padding + (index % 2) * (cellWidth + padding);
     const y = padding + Math.floor(index / 2) * (cellHeight + labelHeight + padding);
-    context.drawImage(await loadImage(input.final_bytes_by_slide[item.slide_id]), x, y, cellWidth, cellHeight);
+    const decoded = decodePng(input.final_bytes_by_slide[item.slide_id], { checkCrc: true });
+    const imageCanvas = createCanvas(decoded.width, decoded.height);
+    const imageContext = imageCanvas.getContext("2d");
+    const pixels = imageContext.createImageData(decoded.width, decoded.height);
+    pixels.data.set(decoded.data);
+    imageContext.putImageData(pixels, 0, 0);
+    context.drawImage(imageCanvas, x, y, cellWidth, cellHeight);
     context.fillStyle = "#17212b";
     context.font = "700 16px Arial";
     context.fillText(item.slide_id, x, y + cellHeight + 22);

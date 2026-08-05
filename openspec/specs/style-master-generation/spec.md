@@ -546,7 +546,10 @@ After the state CAS commits, the owner SHALL ensure the compatibility `style_mas
 bytes projected from the selected immutable candidate through the existing in-framework image stack at the
 layout-resolved canonical path: use an existing `overrides/visual-style/style_master.jpg` when present, otherwise
 the shared backbone default, and never create an override solely for projection. Its
-transformed bytes, failure, presence, or digest SHALL neither roll back nor establish the selection. An exact
+transformed bytes, failure, presence, or digest SHALL neither roll back nor establish the selection. For a selected
+PNG candidate, the projection SHALL derive pixels from the same CRC-valid decoded PNG media that established its
+candidate dimensions; valid ancillary or private PNG chunks SHALL NOT make that derived projection fail solely
+because a different image decoder rejects them. An exact
 idempotent accept replay SHALL return the original selection record and timestamp while repairing only a
 missing or stale compatibility payload for the requesting run; it SHALL not change another version's selection
 record or automatically create an override.
@@ -584,6 +587,16 @@ path SHALL invoke a provider, rewrite the layout-resolved compatibility payload,
 - **WHEN** promotion or explicit rebuild projects a selected PNG or JPEG candidate to `style_master.jpg`
 - **THEN** the projection contains valid JPEG bytes while the selection continues to reference the immutable original candidate bytes
 - **AND** the projected JPEG digest does not replace candidate or acceptance identity
+
+#### Scenario: Private PNG chunk remains promotable
+
+- **WHEN** an accepted generated PNG candidate has CRC-valid positive
+  dimensions and contains an ancillary private chunk that a canvas image loader
+  rejects
+- **THEN** promotion writes a valid compatibility JPEG from the verified
+  candidate pixels
+- **AND** it retains the candidate's original bytes, digest, dimensions, and
+  selection identity unchanged
 
 #### Scenario: Projection failure preserves committed selection
 

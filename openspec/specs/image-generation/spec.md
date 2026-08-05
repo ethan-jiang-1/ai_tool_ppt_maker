@@ -606,9 +606,11 @@ canonical provider-request digest, and the exact prompt text that the selected
 adapter would submit for that request.
 
 The projection SHALL separately expose the non-secret transport request as
-model plus `2000x1125` request size, and the selected raw profile SHALL bind
-the expected native provider result as a `2048x1136` PNG. A requested size
-SHALL NOT be treated as evidence that returned bytes have those dimensions.
+model plus `2000x1125` request size, and the selected raw profile SHALL bind a
+PNG provider-media contract that requires CRC-valid bytes and positive native
+dimensions. A requested size SHALL NOT be treated as evidence that returned
+bytes have those dimensions, and the profile SHALL NOT assert a fixed received
+width or height before provider media is inspected.
 
 The inspection projection SHALL be a rebuildable derived artifact only. The
 raw work plan and immutable progressive records remain the authority for
@@ -633,8 +635,8 @@ stale current-plan projection.
 #### Scenario: Request size and native result remain distinct
 
 - **WHEN** the projection describes a current Page Authority Image2 request
-- **THEN** it reports the established `2000x1125` transport request and binds
-  the raw generation profile to a `2048x1136` PNG result
+- **THEN** it reports the established `2000x1125` transport request and a PNG
+  response contract with no predeclared received dimensions
 - **AND** it does not infer returned media dimensions from the request size
 
 #### Scenario: Plan drift invalidates an inspection projection
@@ -659,20 +661,22 @@ stale current-plan projection.
 ### Requirement: Page Authority accepts only verified provider PNG media
 
 Image Generation SHALL accept a Page Authority provider result only after the
-selected adapter has verified that the returned bytes fully decode as a PNG
-with exact native dimensions `2048x1136`. The adapter SHALL perform that
-verification before the progressive raw owner can materialize bytes, create
-provenance, or publish a `succeeded` attempt. The system SHALL not resize,
-transcode, crop, or otherwise repair an invalid provider result.
+selected adapter has verified that the returned bytes fully decode as a
+CRC-valid PNG with positive native integer dimensions. The adapter SHALL
+perform that verification before the progressive raw owner can materialize
+bytes, create provenance, or publish a `succeeded` attempt. It SHALL retain
+the exact returned bytes and actual decoded dimensions in accepted raw evidence
+and provenance, and SHALL NOT resize, transcode, crop, or otherwise repair a
+valid provider result solely to satisfy a request or historical native size.
 
-An empty result, invalid PNG, or dimension mismatch SHALL terminalize the
-already submitted item through the existing `known_failure` lifecycle. The
-direct terminal outcome SHALL report only bounded media facts: the required
-PNG format and dimensions plus a non-secret actual format/dimension or invalid
-media classification. It SHALL not expose provider response content, raw
-returned bytes, raw-byte digest, prompt text, or a new retry/force route.
+An empty result, malformed or CRC-invalid PNG, or PNG with non-positive native
+dimensions SHALL terminalize the already submitted item through the existing
+`known_failure` lifecycle. The direct terminal outcome SHALL report only the
+bounded invalid-media classification and existing next legal action. It SHALL
+not expose provider response content, raw returned bytes, raw-byte digest,
+prompt text, or a new retry/force route.
 
-#### Scenario: Exact native provider PNG materializes normally
+#### Scenario: Default-size native provider PNG materializes normally
 
 - **WHEN** a selected Pure or Framed adapter receives a valid `2048x1136` PNG
   result for an authorized current item
@@ -688,13 +692,14 @@ returned bytes, raw-byte digest, prompt text, or a new retry/force route.
 - **AND** it writes no accepted raw bytes, raw-byte provenance, or `succeeded`
   attempt for that item
 
-#### Scenario: Non-native dimensions are not repaired
+#### Scenario: Non-default native provider PNG materializes normally
 
-- **WHEN** a provider returns a valid PNG whose width or height differs from
-  `2048x1136`
-- **THEN** the system reports the expected and actual dimensions as bounded
-  known-failure facts
-- **AND** it does not resize the image or make it current raw evidence
+- **WHEN** a selected Pure or Framed adapter receives a CRC-valid PNG with
+  positive native dimensions that differ from `2048x1136`
+- **THEN** the system follows the existing materialization, provenance, and
+  `succeeded` lifecycle with its exact provider bytes and actual dimensions
+- **AND** it does not resize the media, terminalize the item, or introduce
+  another provider authorization
 
 #### Scenario: Known media failure preserves the existing successor lifecycle
 

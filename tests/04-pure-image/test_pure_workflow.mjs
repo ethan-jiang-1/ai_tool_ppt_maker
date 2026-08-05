@@ -107,7 +107,13 @@ describe("Pure target workflow", () => {
       rawWorkPlan,
       acceptedRawEvidence,
       rawBytesBySlide: { DeckGo: providerNative },
-    })).toMatchObject({ items: [{ final_sha256: acceptedRawEvidence.items[0].raw_sha256 }] });
+    })).toMatchObject({
+      items: [{
+        final_sha256: acceptedRawEvidence.items[0].raw_sha256,
+        width: 1684,
+        height: 934,
+      }],
+    });
     const framedFinal = createCanvas(2000, 1125).toBuffer("image/png");
     expect(() => publishPureFinalSlideManifest({
       receipt: source,

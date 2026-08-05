@@ -7,9 +7,9 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
-  createFinalSlideManifest,
   createRawWorkPlan,
 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { publishCurrentFinalSlideManifest } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_final_manifest.mjs";
 import {
   PageAuthorityDeliveryError,
   assemblePageAuthorityPptx,
@@ -51,7 +51,7 @@ async function readPptxMedia(pptxPath) {
   }));
 }
 
-function deliveryInput(workflow = "pure") {
+function deliveryInput(workflow = "pure", nativeProviderPng = NATIVE_PROVIDER_PNG) {
   const plan = createRawWorkPlan({
     source_receipt_sha256: digest("a"),
     workflow,
@@ -64,17 +64,18 @@ function deliveryInput(workflow = "pure") {
     plan,
     provider_authorization_sha256: digest("e"),
     raw_review_sha256: digest("f"),
-    raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG },
+    raw_bytes_by_slide: { DeckGo: nativeProviderPng },
   });
   const finalBytesBySlide = {
-    DeckGo: workflow === "pure" ? NATIVE_PROVIDER_PNG : FRAMED_FINAL_PNG,
+    DeckGo: workflow === "pure" ? nativeProviderPng : FRAMED_FINAL_PNG,
   };
-  const manifest = createFinalSlideManifest({
-    evidence,
-    expected_workflow: workflow,
-    final_bytes_by_slide: finalBytesBySlide,
+  const manifest = publishCurrentFinalSlideManifest({
+    rawWorkPlan: plan,
+    acceptedRawEvidence: evidence,
+    ownerWorkflow: workflow,
+    finalBytesBySlide,
   });
-  return { manifest, evidence, finalBytesBySlide, notesBySlide: { DeckGo: "Source-owned note" } };
+  return { plan, manifest, evidence, finalBytesBySlide, notesBySlide: { DeckGo: "Source-owned note" } };
 }
 
 describe("target Page Authority delivery", () => {
@@ -134,12 +135,13 @@ describe("target Page Authority delivery", () => {
   });
 
   it("rejects a native-sized Pure final whose bytes drift from accepted raw evidence", () => {
-    const { evidence, notesBySlide } = deliveryInput("pure");
+    const { plan, evidence, notesBySlide } = deliveryInput("pure");
     const finalBytesBySlide = { DeckGo: pngBytes(2048, 1136, "#8c3f32") };
-    const manifest = createFinalSlideManifest({
-      evidence,
-      expected_workflow: "pure",
-      final_bytes_by_slide: finalBytesBySlide,
+    const manifest = publishCurrentFinalSlideManifest({
+      rawWorkPlan: plan,
+      acceptedRawEvidence: evidence,
+      ownerWorkflow: "pure",
+      finalBytesBySlide,
     });
     expect(() => validateTargetFinalDeliveryInput({
       manifest,
@@ -171,7 +173,12 @@ describe("target Page Authority delivery", () => {
     context.font = "700 80px Arial";
     context.fillText("Target delivery", 100, 200);
     const finalBytesBySlide = { DeckGo: canvas.toBuffer("image/png") };
-    const manifest = createFinalSlideManifest({ evidence, expected_workflow: "framed", final_bytes_by_slide: finalBytesBySlide });
+    const manifest = publishCurrentFinalSlideManifest({
+      rawWorkPlan: plan,
+      acceptedRawEvidence: evidence,
+      ownerWorkflow: "framed",
+      finalBytesBySlide,
+    });
     try {
       const result = await deliverTargetFinalSlideManifest({
         runDir,
@@ -212,11 +219,12 @@ describe("target Page Authority delivery", () => {
     }
   });
 
-  it("embeds native Pure final PNG bytes without a raster rewrite", async () => {
+  it("embeds non-default native Pure final PNG bytes without a raster rewrite", async () => {
     const deckDir = mkdtempSync(join(tmpdir(), "deck_native_pure_delivery_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
-    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput("pure");
+    const providerNative = pngBytes(1684, 934, "#24506a");
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput("pure", providerNative);
     try {
       const result = await deliverTargetFinalSlideManifest({
         runDir,
@@ -229,8 +237,9 @@ describe("target Page Authority delivery", () => {
       });
       const media = await readPptxMedia(result.assembly.path);
       expect(media).toHaveLength(1);
-      expect(media[0]).toEqual(NATIVE_PROVIDER_PNG);
-      expect(readFileSync(join(runDir, "_generated", "page_authority_image2", "final", "01_DeckGo.png"))).toEqual(NATIVE_PROVIDER_PNG);
+      expect(manifest.items[0]).toMatchObject({ width: 1684, height: 934 });
+      expect(media[0]).toEqual(providerNative);
+      expect(readFileSync(join(runDir, "_generated", "page_authority_image2", "final", "01_DeckGo.png"))).toEqual(providerNative);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }

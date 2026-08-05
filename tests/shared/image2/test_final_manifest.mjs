@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createCanvas } from "@napi-rs/canvas";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
@@ -9,6 +10,12 @@ import {
 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_final_manifest.mjs";
 
 const digest = (letter) => letter.repeat(64);
+
+function framedFinalPng() {
+  const canvas = createCanvas(2000, 1125);
+  canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+  return canvas.toBuffer("image/png");
+}
 
 function currentInputs() {
   const rawWorkPlan = createRawWorkPlan({
@@ -26,7 +33,7 @@ function currentInputs() {
 describe("Page Authority common final manifest helper", () => {
   it("publishes and validates only exact current evidence and bytes", () => {
     const { rawWorkPlan, acceptedRawEvidence } = currentInputs();
-    const finalBytesBySlide = { DeckGo: Buffer.from("final") };
+    const finalBytesBySlide = { DeckGo: framedFinalPng() };
     const manifest = publishCurrentFinalSlideManifest({
       rawWorkPlan, acceptedRawEvidence, ownerWorkflow: "framed", finalBytesBySlide,
     });
@@ -45,7 +52,7 @@ describe("Page Authority common final manifest helper", () => {
       rawWorkPlan: { ...rawWorkPlan, provider_profile_sha256: digest("9") },
       acceptedRawEvidence,
       ownerWorkflow: "framed",
-      finalBytesBySlide: { DeckGo: Buffer.from("final") },
+      finalBytesBySlide: { DeckGo: framedFinalPng() },
     })).toThrow(/current raw work plan/);
   });
 });

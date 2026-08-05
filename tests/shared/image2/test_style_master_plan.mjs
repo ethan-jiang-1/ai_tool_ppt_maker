@@ -3,8 +3,36 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
-import { encode as encodePng } from "fast-png";
+import { describe, expect, it, vi } from "vitest";
+import { decode as decodePng, encode as encodePng } from "fast-png";
+
+const canvasLoaderControls = vi.hoisted(() => ({
+  rejectPrivatePng: false,
+  hasPrivateCaBX(value) {
+    if (!Buffer.isBuffer(value) && !(value instanceof Uint8Array)) return false;
+    const bytes = Buffer.from(value);
+    for (let offset = 8; offset + 12 <= bytes.length;) {
+      const length = bytes.readUInt32BE(offset);
+      if (offset + 12 + length > bytes.length) return false;
+      if (bytes.subarray(offset + 4, offset + 8).toString("ascii") === "caBX") return true;
+      offset += 12 + length;
+    }
+    return false;
+  },
+}));
+
+vi.mock("@napi-rs/canvas", async (importOriginal) => {
+  const canvas = await importOriginal();
+  return {
+    ...canvas,
+    async loadImage(value, ...args) {
+      if (canvasLoaderControls.rejectPrivatePng && canvasLoaderControls.hasPrivateCaBX(value)) {
+        throw new Error("strict canvas PNG loader rejected private caBX media");
+      }
+      return canvas.loadImage(value, ...args);
+    },
+  };
+});
 
 import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
 import {
@@ -129,6 +157,33 @@ function nativeGeneratedCandidateBytes(width, height) {
   const data = new Uint8Array(width * height * 4);
   data.fill(255);
   return Buffer.from(encodePng({ width, height, data }));
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
+  const chunk = Buffer.alloc(12 + data.length);
+  chunk.writeUInt32BE(data.length, 0);
+  typeBytes.copy(chunk, 4);
+  data.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])), 8 + data.length);
+  return chunk;
+}
+
+function providerPngWithPrivateCaBX(bytes) {
+  const source = Buffer.from(bytes);
+  const ihdrEnd = 8 + 12 + source.readUInt32BE(8);
+  // C2PA-style ancillary/private chunk: caBX carries a JUMBF box header.
+  const payload = Buffer.concat([Buffer.from([0, 0, 0, 32]), Buffer.from("jumb", "ascii"), Buffer.alloc(24)]);
+  return Buffer.concat([source.subarray(0, ihdrEnd), pngChunk("caBX", payload), source.subarray(ihdrEnd)]);
 }
 
 function fixture({ local = false } = {}) {
@@ -1565,6 +1620,51 @@ describe("Style Master candidate planning", () => {
       });
       expect(readFileSync(paths.review_decision)).toEqual(styleMasterCanonicalBytes(decision));
     } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("promotes CRC-valid provider PNG bytes carrying a private caBX chunk without changing selection identity", async () => {
+    const value = fixture();
+    try {
+      const candidateBytes = providerPngWithPrivateCaBX(nativeGeneratedCandidateBytes(17, 11));
+      expect(decodePng(candidateBytes, { checkCrc: true })).toMatchObject({ width: 17, height: 11 });
+      const plan = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        submit: async () => candidateBytes,
+      });
+      await prepareStyleMasterCandidateReview({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+      // The prior compatibility projection used this loader for candidate PNG bytes.
+      canvasLoaderControls.rejectPrivatePng = true;
+
+      const accepted = await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const candidatePath = styleMasterStorePaths(value.runDir, {
+        plan_sha256: plan.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      }).candidate_image;
+
+      expect(readFileSync(candidatePath)).toEqual(candidateBytes);
+      expect(accepted).toMatchObject({
+        compatibility_projection: { status: "rebuilt" },
+        selection: { candidate_sha256: digest(candidateBytes) },
+      });
+      expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+      expect(resolveEffectiveStyleMasterSelection(value.deck, { runDir: value.runDir })).toMatchObject({
+        ok: true,
+        selection_sha256: accepted.selection_sha256,
+        record: { candidate_sha256: digest(candidateBytes), candidate_width: 17, candidate_height: 11 },
+      });
+    } finally {
+      canvasLoaderControls.rejectPrivatePng = false;
       rmSync(value.root, { recursive: true, force: true });
     }
   });
