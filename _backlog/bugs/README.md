@@ -15,7 +15,9 @@
 
 ## 活跃列表
 
-当前没有活跃 bug。
+### P1（重要 — 1 个）
+
+- **[BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md)** — page raw generate 报 invalid_json 但 provider 实际返回合法 JSON：无响应可见性，瞬时 provider 抖动被当确定性失败烧掉整批提交
 
 ---
 
