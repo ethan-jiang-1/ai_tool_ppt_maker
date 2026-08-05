@@ -20,6 +20,24 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.24.3 — Render Pure Slide Text In Provider Prompt（2026-08-05）
+
+**代号**：Text-forward pure slides
+
+> 归档 `render-pure-slide-text-in-provider-prompt`：pure 工作流的 provider prompt 把 slide 文字
+> （kicker/title/subtitle/callout/body）作为显式顶层文字渲染契约突出呈现，让 provider 把字画得更全更清；
+> framed 保持 text-free underlay。transport-only，raw contract/授权/idempotency 不变。
+
+### 变了什么
+
+1. `targetPageAuthoritySubmitFactory` 对 pure raw 请求构建结构化 prompt：顶层 `text` 段携带 slide 全部文字 +
+   bounded「render as readable typography」指令，`visual` 段携带 recipe/composition/motifs/relationship/scene。
+2. framed 请求保持 `JSON.stringify(request)`（text-free underlay，文字由 framework 本地 composition 叠加）。
+3. 回归测试：pure prompt 含显式文字契约、framed prompt 不含；raw contract/授权/idempotency 不变。
+4. `image-generation` main spec 同步新增「pure prompts render slide text prominently」requirement。
+
+---
+
 ## v0.24.2 — Hardened Page Authority Provider-Clause Delivery（2026-08-05）
 
 **代号**：Canonical clause contract

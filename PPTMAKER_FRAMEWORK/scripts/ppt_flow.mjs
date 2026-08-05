@@ -2002,6 +2002,43 @@ function targetPageAuthorityPngBytesFromProvider(payload) {
   return inspected.bytes;
 }
 
+/**
+ * Build the provider prompt for a target adapter request. Pure workflow raw
+ * images ARE the final slide (PPTX embeds raw bytes; no local text overlay),
+ * so the slide text must be rendered by the provider. Present kicker/title/
+ * subtitle/callout/body as an explicit top-level text contract alongside the
+ * visual direction. Framed raw images are text-free underlays whose text is
+ * composed locally, so the framed prompt keeps the request as-is.
+ */
+function buildPageAuthorityProviderPrompt(request) {
+  const rawContract = request?.raw_contract;
+  if (rawContract?.workflow === "pure") {
+    const display = rawContract.display || {};
+    return JSON.stringify({
+      schema: "page-authority-pure-provider-prompt-v1",
+      slide_id: request.slide_id,
+      instruction:
+        "Render one premium keynote slide. Render all of the following slide text clearly and prominently as readable typography in the image; do not omit any of it.",
+      text: {
+        kicker: display.kicker || null,
+        title: display.title || null,
+        subtitle: display.subtitle || null,
+        callout: display.callout || null,
+        body: rawContract.body || null,
+      },
+      visual: {
+        recipe: rawContract.provider_clauses?.recipe || null,
+        composition: rawContract.provider_clauses?.composition || null,
+        motifs: rawContract.provider_clauses?.motifs || null,
+        relationship: rawContract.provider_clauses?.relationship || null,
+        visual_scene: rawContract.visual_scene || null,
+      },
+      generation_profile: request.generation_profile,
+    });
+  }
+  return JSON.stringify(request);
+}
+
 /** Submit an opaque target adapter request without re-evaluating its workflow. */
 export function targetPageAuthoritySubmitFactory(plan, {
   credentialResolver = null,
@@ -2062,7 +2099,7 @@ export function targetPageAuthoritySubmitFactory(plan, {
     if (identityPath) images.push(imageDataUrl(identityPath));
     const body = {
       model: request.generation_profile.provider.model,
-      prompt: JSON.stringify(request),
+      prompt: buildPageAuthorityProviderPrompt(request),
       n: 1,
       size: PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
       image: images[0],
