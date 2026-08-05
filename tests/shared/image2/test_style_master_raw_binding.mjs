@@ -229,9 +229,12 @@ describe("accepted Style Master raw binding", () => {
         provider_idempotency_key: `page-authority-v3-${"f".repeat(64)}`,
       });
 
-      const serializedRequest = JSON.parse(providerBody.prompt);
-      expect(serializedRequest.raw_contract.provider_clauses).toEqual(expectedClauses);
-      expect(serializedRequest.raw_contract.provider_clauses.relationship).toBe(expectedClauses.relationship);
+      const serializedPrompt = JSON.parse(providerBody.prompt);
+      expect(serializedPrompt.visual.recipe).toBe(expectedClauses.recipe);
+      expect(serializedPrompt.visual.composition).toBe(expectedClauses.composition);
+      expect(serializedPrompt.visual.motifs).toEqual(expectedClauses.motifs);
+      expect(serializedPrompt.visual.relationship).toBe(expectedClauses.relationship);
+      expect(serializedPrompt.text).toMatchObject({ title: expect.any(String) });
       expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
