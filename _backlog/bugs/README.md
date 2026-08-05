@@ -19,9 +19,13 @@
 
 - **[BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md)** — page raw generate 报 invalid_json 但 provider 实际返回合法 JSON：无响应可见性，瞬时 provider 抖动被当确定性失败烧掉整批提交
 
+### P2（次要 — 1 个）
+
+- **[BUG-056](BUG-056-artifacts-need-full-paths-for-user-viewing.md)** — Agent 要求用户查看产物（中间图/PPT）时不提供完整路径，用户无从定位
+
 ---
 
-**Next available bug ID: BUG-055**
+**Next available bug ID: BUG-057**
 
 ## 类别分布
 
