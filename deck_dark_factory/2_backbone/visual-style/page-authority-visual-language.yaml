@@ -1,21 +1,21 @@
 schema: pptmaker-page-authority-visual-language-v1
-revision: 2
+revision: 3
 text_guard: page-authority-text-guard-v1
 recipes:
   editorial-systems:
-    provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
+    provider_clause: bright architectural editorial scene, layered amber and cobalt light, clean surfaces, crisp highlights, quiet depth, uncluttered
     authorities: [pure-image2, framed-image2]
     composition_ids: [centered-constellation]
     motif_ids: [connected-nodes]
     identity_subject_classes: [none]
   industrial-night:
-    provider_clause: dark industrial facility floor at night, machine silhouettes, sparse electric-blue glow, high ceilings, atmospheric haze
+    provider_clause: clean dark industrial facility floor at night, brighter well-defined lighting, crisp machine silhouettes, vivid electric-blue glow accents, high contrast between bright highlights and deep navy shadows, uncluttered composition, generous negative space
     authorities: [pure-image2, framed-image2]
     composition_ids: [centered-constellation, diagonal-flow, split-panel]
     motif_ids: [gear-cogs, glowing-wireframe]
     identity_subject_classes: [none]
   pipeline-flows:
-    provider_clause: abstract luminous data pipeline flowing through layered panels, cyan and teal connection lines, soft depth
+    provider_clause: abstract luminous data pipeline flowing through layered panels, bright cyan and teal connection lines, clean high-contrast surfaces, clear focal forms, soft depth, uncluttered
     authorities: [pure-image2, framed-image2]
     composition_ids: [diagonal-flow, split-panel]
     motif_ids: [connected-nodes, glowing-wireframe]

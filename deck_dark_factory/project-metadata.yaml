@@ -8,3 +8,6 @@ one_thing_to_remember:
 # production_mode is a non-authoritative mirror; _state/state.yaml is the routing authority.
 production_mode: image2-page-authority-v2
 production_mode_run_version: v1
+# pipeline gates — approved by human (2026-08-06); state.yaml gates remain the routing mirror
+content_gate: approved
+visual_gate: approved

@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-06 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-07 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,6 +19,7 @@
 
 | Plan | 摘要 | 状态 |
 | --- | --- | --- |
+| [`framed-hybrid-image2-composition.md`](framed-hybrid-image2-composition.md) | 将 Framed 从“无文字底图 + 本地正文”纠正为“固定头部 + Image2 图文页面”的所有权模型 | 待 Review |
 
 **Next available plan ID: CLS-021**（移入 `_closed_plans/` 时分配；CLS-001…020 已用）
 

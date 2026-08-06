@@ -61,3 +61,9 @@ node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs style-master accept deck_dark_facto
 
 - BUG-053（caBX chunk）同类问题的 16-bit 变体；都在 Style Master compat JPEG 投影层。
 - 触发于 v2 framed Style Master（MICU provider，16-bit PNG）。
+
+## 复发
+
+2026-08-06 v3 framed Style Master accept（candidate-001, plan `p-93966a0a`, 16-bit PNG）
+同样失败，rerun 无效；selection 照常 promoted，JPEG 派生物缺失。确认此 bug 对所有
+16-bit provider 候选持续存在，raw 生产不受阻塞。
