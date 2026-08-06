@@ -6,7 +6,7 @@
 ## 一句话背景
 
 这是一个 13 页 keynote「The AI Dark Factory」（Patrick Debois · AI Native Dev keynote）。用 framework
-（`PPTMAKER_FRAMEWORK`）的 Page Authority 工作流制作，产出了**两个版本**：v1（pure 工作流）和
+（`ppt_maker_harness`）的 Page Authority 工作流制作，产出了**两个版本**：v1（pure 工作流）和
 v2（framed 工作流）。用户对 v2（framed，最新）的视觉效果不满意，说「什么都看不清楚」。
 
 ## 产物在哪、是什么

@@ -9,4 +9,4 @@
 **别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。
 
 **生成/更新:** 跟你的 AI agent 说人话(「第 5 页换个例子」),或自己跑:
-`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs build <这个版本目录>`
+`node ppt_maker_harness/scripts/ppt_flow.mjs build <这个版本目录>`

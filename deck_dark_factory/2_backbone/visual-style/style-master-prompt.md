@@ -1,41 +1,52 @@
-# Style Master Intent — The AI Dark Factory
+# Style Master Intent — The AI Dark Factory (v3: bright, unmanned, agent-filled)
 
-A single coherent visual style for a 13-slide keynote by Patrick Debois on the
-"dark factory" — organizations rebuilt around autonomous coding agents.
+Governing idea: "The AI Dark Factory" is a factory with **no people** — the
+darkness is metaphorical (no humans need the lights), NOT literal. The floor
+runs on **autonomous intelligent agents**. Therefore every image must be
+**VERY BRIGHT, high-key, and clearly lit** so the working robots and machines
+are plainly visible. Brightness is the #1 priority; the "darkness" is only
+the absence of people, never dimness.
+
+## What to depict (non-negotiable)
+
+- **VERY bright.** High-key, daylight-bright or brilliantly floodlit lighting.
+  Large windows and skylights, glossy steel, bright reflections. Nothing murky,
+  nothing dim, no dark corners swallowing detail.
+- **Unmanned.** No human figures anywhere.
+- **Agents/robots doing real work, clearly visible and luminous.** Articulated
+  robotic arms assembling, mobile AGV machines carrying parts, drone agents
+  along rail lines, glowing AI control cores coordinating, bright light links
+  between machines. Machines gleam and glow — vivid cyan/white cores with amber
+  accents.
+- **Clean and crisp.** Hard, bright, polished industrial interior: steel,
+  glass, concrete. Sharp edges, high contrast, generous negative space.
 
 ## Mood
 
-Precise, confident, restrained. A vast dark industrial facility floor at night:
-high ceilings, machine silhouettes, sparse electric-blue glow, atmospheric haze.
-Nothing cute, nothing cluttered. The viewer should feel the scale and calm of a
-factory running without humans — and the quiet control rooms where people still
-decide.
+Bright, precise, quietly busy — a gleaming autonomous machine floor in strong
+light. The space is obviously capable and alive: robots move with purpose,
+machines glow, work is being done with no person in sight. Grounded, real
+industrial materials (steel, concrete, big windows), human-scale machinery —
+not sci-fi, no neon, no holograms. The viewer should think "this place runs
+itself, and I can see every part of it."
 
-## Palette
+## Palette (bright)
 
-- Background: deep navy `#0a1628`
-- Panels: steel blue `#1e3a5f`
-- Positive/accent: cyan `#06b6d4`
-- Emphasis: electric blue `#3b82f6`
-- Data: teal `#0d9488`
-- Primary text: near-white `#f4f8fc`
-- Secondary text: muted slate `#94a3b8`
+- Base/key light: bright cool white `#eef4ff` and light steel `#cbd5e1`
+- Agent/machine glow: vivid cyan `#06b6d4`, electric blue `#3b82f6`
+- Warm accent: amber `#fbbf24` (work lamps, machine cores)
+- Structure: steel blue `#1e3a5f`, concrete grey, rust touches `#b45309`
+- Text: near-black `#0f172a` for contrast (final slides use the framed overlay)
 
-Avoid flat single-color slides; use layered depth, panels, and luminous accent
-lines.
+## Layout
 
-## Typography and layout
-
-- Space for readable English slide text (titles, quotes, metrics, list items) —
-  this version is Pure, so text is owned by the generated image and must be
-  crisp and legible.
-- Generous negative space. A focal form or strong diagonal flow per slide, with
-  stacked content groups following the composition.
-- Layered translucent panels and a measured grid; nothing touches the edges.
+- Underlay is **text-free**; slide text lives in the framed Text Frame overlay.
+  Keep the reserved top band visually quiet but bright.
+- One or two clear focal robots/machines per slide; generous negative space;
+  nothing touches the edges.
 
 ## Content
 
-- No company logos, watermarks, or recognizable real-world brands.
-- Abstract and architectural scenes only — no stock people, no clip art.
-- Keep readable text minimal but authoritative: one governing claim, short
-  metric lines, or a single pull-quote per slide.
+- No people, no logos, no watermarks, no recognizable brands.
+- Abstract but grounded industrial scenes: robotic arms, AGV machines, drone
+  agents, glowing control cores. No clip art.
