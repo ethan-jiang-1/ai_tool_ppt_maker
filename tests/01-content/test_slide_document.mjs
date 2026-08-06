@@ -9,7 +9,7 @@ import {
   validateSlideDocument,
   validateSlideDocuments,
   verifySlideEditPlanHash,
-} from '../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_document.mjs';
+} from '../../ppt_maker_harness/scripts/01-content/internal/slide_document.mjs';
 
 function block(number, id, title, body = '') {
   return (

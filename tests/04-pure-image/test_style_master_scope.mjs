@@ -3,10 +3,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { resolvePureStyleMasterScope } from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { SLIDE_SPECS_NAME, initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { statePath } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { resolvePureStyleMasterScope } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { SLIDE_SPECS_NAME, initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "pure-style-master-scope-"));

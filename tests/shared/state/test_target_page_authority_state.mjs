@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
-import { createProgressiveRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_schema.mjs";
-import { styleMasterGenerationProfileSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
-import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { createAcceptedRawEvidence, createFinalSlideManifest, createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createProgressiveRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_schema.mjs";
+import { styleMasterGenerationProfileSha256 } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
+import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   advanceTargetPageAuthoritySourceEpoch,
   createInitialState,
@@ -30,7 +30,7 @@ import {
   statePath,
   validateStateReadOnly,
   writeState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");

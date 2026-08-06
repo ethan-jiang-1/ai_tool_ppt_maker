@@ -3,9 +3,25 @@
 Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/shared/state/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
 ## Requirements
 
+### Requirement: Stateful Controller entry follows verified Harness binding
+
+Before a Controller or state consumer uses a run-scoped Deck as current work,
+the owning CLI or locator entry SHALL verify that Bundle's v2 local Harness
+binding. The MD Controller SHALL consume the resulting bounded success or
+hard-stop and SHALL not infer a current execution, choose another Harness, or
+seed state from a structure-only observation.
+
+#### Scenario: A legacy Bundle is presented to a stateful command
+
+- **WHEN** a stateful command derives a Deck root with a missing or legacy
+  locator
+- **THEN** it returns the binding owner's one bounded hard-stop before reading
+  state or selecting a Controller node
+- **AND** the Controller does not create a replacement state record
+
 ### Requirement: NODE-SPEC.md exists in charter directory
 
-`PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md` SHALL exist as the constitutional specification for Nodes, defining their anatomy, state schema, and execution rules.
+`ppt_maker_harness/charter/NODE-SPEC.md` SHALL exist as the constitutional specification for Nodes, defining their anatomy, state schema, and execution rules.
 
 #### Scenario: Developer reads node specification
 
@@ -72,7 +88,7 @@ Each node body SHALL contain one or more compact step declarations using exactly
 
 ### Requirement: ctx parameter provides run bundle paths to conditions
 
-`checkEntry` and `checkExit` SHALL accept a `ctx` parameter providing: `deckDir` (deck root), `runDir` (current version dir), and `frameworkDir` (PPTMAKER_FRAMEWORK root). FILESYSTEM conditions SHALL resolve paths relative to these directories.
+`checkEntry` and `checkExit` SHALL accept a `ctx` parameter providing: `deckDir` (deck root), `runDir` (current version dir), and `harnessDir` (PPT Maker Harness root). FILESYSTEM conditions SHALL resolve paths relative to these directories. The context SHALL not expose a retired root field.
 
 #### Scenario: Condition resolves file path via ctx
 
@@ -413,7 +429,7 @@ Content and visual gate status SHALL be exactly pending, approved, or waived; se
 
 The CLI-to-MD consumer protocol SHALL reference producer fields and emission rules owned by capability `cli-surface`; it SHALL NOT redefine them. MD SHALL treat every non-zero CLI return as process status plus the final stderr envelope, use required top-level fields as legacy summary, and use diagnostic data for structured action only when its version is supported and the complete nested object validates against that version.
 
-If a process ends non-zero without a valid final envelope, MD SHALL treat the producer as externally interrupted or crashed and SHALL NOT infer category, lineage, or recovery from partial stdout/stderr. A supported `interrupted` diagnostic means execution stopped, not that source or framework code is defective.
+If a process ends non-zero without a valid final envelope, MD SHALL treat the producer as externally interrupted or crashed and SHALL NOT infer category, lineage, or recovery from partial stdout/stderr. A supported `interrupted` diagnostic means execution stopped, not that source or Harness code is defective.
 
 MD SHALL NOT invent omitted paths, ids, lines, causes, invocations, approvals, or issue results. It SHALL interpret `diagnostic.next`: automatic actions may proceed only within MD authority, while `requires_human:true` SHALL stop for a genuine human decision. If `next.invocation` is followed programmatically, MD SHALL pass `program` and `args` directly without a shell; it SHALL NOT concatenate them into executable shell text.
 

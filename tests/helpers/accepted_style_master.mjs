@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   acceptStyleMasterCandidateReview,
   planStyleMasterCandidates,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_plan.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/style_master_plan.mjs";
 
 const DEFAULT_STYLE_INTENT = "Use a calm editorial visual system with material depth.\n";
 

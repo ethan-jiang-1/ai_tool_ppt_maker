@@ -3,8 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readState, statePath, validateStateReadOnly } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { readState, statePath, validateStateReadOnly } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function currentFixture() {
   const root = mkdtempSync(join(tmpdir(), "page-authority-state-"));

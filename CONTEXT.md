@@ -4,8 +4,48 @@ This context names the durable concepts used to author, version, render, and ass
 
 ## Language
 
+**PPT Maker Harness**:
+The reusable methodology, controls, and production tools that an Agent uses to establish and operate individual Run Bundles. It does not contain an Agent instance.
+_Avoid_: a generic system label or `ppt_maker_harness` when naming the conceptual system
+
+**Agent**:
+The external orchestrator that uses the PPT Maker Harness to operate a Run Bundle. An Agent is not Harness source or Run Bundle identity.
+_Avoid_: A component of the Harness, a persisted Deck identity
+
+**Ownership Model**:
+The division in which the human owns Deck content and consequential approvals, the Agent owns process orchestration, the PPT Maker Harness owns reusable methods and tools, and the Run Bundle owns one Deck's working facts.
+_Avoid_: Harness ownership of Deck content, Agent ownership of human content
+
+**Harness Root**:
+The one source directory that contains a PPT Maker Harness and is distinct from every Run Bundle.
+_Avoid_: a generic source-root label or duplicate Harness root
+
+**Harness Maintenance Domain**:
+The source and verification area used to evolve a PPT Maker Harness, including its implementation, normative specifications, and tests. It excludes Deck production data.
+_Avoid_: Harness Root alone, a Deck workspace
+
+**Normative Harness Specification**:
+The active contract that states intended Harness behavior within the Harness Maintenance Domain. Harness guidance, implementation, and tests conform to it; a contradiction is resolved explicitly rather than silently choosing one source.
+_Avoid_: An advisory document, an implementation-only rule
+
+**Harness Binding**:
+The association between a Run Bundle and the exact local PPT Maker Harness root that created it, rather than a release, Git revision, or content hash. A different Harness does not take over that Run Bundle implicitly.
+_Avoid_: Portable binding, silent Harness reassignment, version pinning
+
+**Run Bundle Placement**:
+The local location of a Run Bundle, which may be any directory outside its Harness Root. A sibling layout is convenient but not required.
+_Avoid_: A Harness child directory, a sibling-only layout
+
+**Run Bundle Lesson**:
+A non-secret operational lesson retained by one Run Bundle for its Deck's later work. It is read before guessing and does not automatically become Harness knowledge.
+_Avoid_: Global memory, workflow progress, secret, automatic promotion
+
+**Run Bundle**:
+The sole instance-specific workspace for one Deck, created and operated by the PPT Maker Harness; it contains that Deck's work versions and owns its inputs, state, and evolving artifacts, not reusable Harness source.
+_Avoid_: Harness instance, Harness project, a second workspace for the same Deck
+
 **Deck**:
-A presentation work with one audience, objective, and narrative continuity across its work versions.
+A presentation work with one audience, objective, and narrative continuity across its work versions. It is the persistent project identity for its Run Bundle.
 _Avoid_: Project, PPT file
 
 **Slide Identity**:
@@ -21,8 +61,8 @@ A snapshot-scoped human reference that resolves a position, spoken mnemonic, for
 _Avoid_: Slide ID when the input has not yet been resolved
 
 **Work Version**:
-A user-visible `vN` snapshot of one Deck used for structural alternatives and clean downstream production.
-_Avoid_: Git commit, framework release
+A user-visible `vN` snapshot of one Deck inside its Run Bundle, used for structural alternatives and clean downstream production.
+_Avoid_: Git commit, Harness release
 
 **Render Artifact**:
 A rendered representation of one Slide Identity for a specific render engine and artifact kind under a particular content fingerprint.

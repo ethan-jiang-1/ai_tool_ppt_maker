@@ -4,8 +4,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { styleMasterGenerationProfileSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
+import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { styleMasterGenerationProfileSha256 } from "../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import {
   createInitialState,
   readState,
@@ -13,9 +13,9 @@ import {
   statePath,
   startPlaybook,
   writeState,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
-const PPT_FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
+const PPT_FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
 
 function source() {
   const brief = `**VISUAL BRIEF**:

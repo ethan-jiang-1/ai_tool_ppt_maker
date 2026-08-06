@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
-import { publishCurrentFinalSlideManifest } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_final_manifest.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { publishCurrentFinalSlideManifest } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_final_manifest.mjs";
 import {
   PageAuthorityDeliveryError,
   assemblePageAuthorityPptx,
@@ -17,8 +17,8 @@ import {
   deliverTargetFinalSlideManifest,
   refreshTargetPageAuthorityNotes,
   validateTargetFinalDeliveryInput,
-} from "../../PPTMAKER_FRAMEWORK/scripts/05-delivery/index.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../ppt_maker_harness/scripts/05-delivery/index.mjs";
+import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");

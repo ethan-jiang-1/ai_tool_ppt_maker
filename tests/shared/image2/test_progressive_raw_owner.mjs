@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   createProgressiveRawBatch,
   createProgressiveRawItemAttempt,
@@ -15,8 +15,8 @@ import {
   createProgressiveRawWorkPlan,
   validateProgressiveRawBatch,
   validateProgressiveRawWorkPlan,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_schema.mjs";
-import { sha256Bytes } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/byte_hash.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_schema.mjs";
+import { sha256Bytes } from "../../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
 import {
   publishProgressiveRawMaterialization,
   publishProgressiveRawStagedPlan,
@@ -26,8 +26,8 @@ import {
   stageProgressiveRawPlanContainer,
   writeProgressiveRawItemAttempt,
   writeProgressiveRawScopeHeadCas,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import {
   acceptProgressiveRawCompleteReview,
   acceptProgressiveRawPilot,
@@ -41,7 +41,7 @@ import {
   publishProgressiveRawWorkPlan,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

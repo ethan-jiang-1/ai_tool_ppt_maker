@@ -3,8 +3,9 @@ import { execSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 
-const LESSONS_CLI = "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs";
+const LESSONS_CLI = "ppt_maker_harness/scripts/shared/run-bundle/lessons.mjs";
 const TEST_DECK = join(tmpdir(), `deck_lessons_test_${Date.now()}`);
 const RUN_DIR = join(TEST_DECK, "3_versions", "v1");
 
@@ -26,12 +27,7 @@ function mkdirs(p) {
 }
 
 beforeAll(() => {
-  mkdirs(RUN_DIR);
-  mkdirs(join(TEST_DECK, "2_backbone", "visual-style"));
-  writeFileSync(join(TEST_DECK, "deck-guide.md"), "# test\n", "utf-8");
-  writeFileSync(join(TEST_DECK, "CLAUDE.md"), "# test\n", "utf-8");
-  writeFileSync(join(TEST_DECK, "project-metadata.yaml"), "deck_name: test\n", "utf-8");
-  mkdirs(join(TEST_DECK, "1_upstream_raw_material"));
+  initBundle(TEST_DECK, null, null, null);
 });
 
 afterAll(() => {
@@ -165,12 +161,7 @@ describe("lessons check", () => {
   it("prints nothing-to-review when empty", () => {
     const tmp = join(tmpdir(), `deck_empty_${Date.now()}`);
     const rd = join(tmp, "3_versions", "v1");
-    mkdirs(rd);
-    mkdirs(join(tmp, "2_backbone", "visual-style"));
-    writeFileSync(join(tmp, "deck-guide.md"), "# t\n", "utf-8");
-    writeFileSync(join(tmp, "CLAUDE.md"), "# t\n", "utf-8");
-    writeFileSync(join(tmp, "project-metadata.yaml"), "deck_name: t\n", "utf-8");
-    mkdirs(join(tmp, "1_upstream_raw_material"));
+    initBundle(tmp, null, null, null);
 
     const { out, code } = run(`node ${LESSONS_CLI} check ${rd}`);
     expect(code).toBe(0);
@@ -189,6 +180,23 @@ describe("lessons check", () => {
     expect(code).toBe(0);
     expect(out).toContain("known-lesson.md");
     expect(out).toContain("lessons to review");
+  });
+});
+
+describe("lessons Harness binding", () => {
+  it("hard-stops a locatorless Deck before creating a lesson", () => {
+    const legacyDeck = join(tmpdir(), `deck_legacy_lessons_${Date.now()}`);
+    const legacyRun = join(legacyDeck, "3_versions", "v1");
+    try {
+      mkdirs(legacyRun);
+      const lessonsDir = join(legacyDeck, "_lessons");
+      const { out, code } = run(`node ${LESSONS_CLI} add ${legacyRun} --title "must-not-write"`);
+      expect(code).not.toBe(0);
+      expect(out).toContain("exact local PPT Maker Harness identity");
+      expect(existsSync(lessonsDir)).toBe(false);
+    } finally {
+      rmSync(legacyDeck, { recursive: true, force: true });
+    }
   });
 });
 

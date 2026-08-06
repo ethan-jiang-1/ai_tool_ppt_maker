@@ -1,7 +1,7 @@
 ## Purpose
 
-Define repo-level version management: a `VERSION` file as the single source of truth,
-a `VERSION_LOG.md` changelog migrated from the soft bundle, agent-driven bump judgment
+Define PPT Maker Harness version surfaces: a `VERSION` file as the single source of truth,
+a `VERSION_LOG.md` changelog migrated from the Harness soft bundle, agent-driven bump judgment
 after each archive, and codified bump rules in `CLAUDE.md` and `openspec/config.yaml`.
 
 ## Requirements
@@ -22,14 +22,14 @@ Repo 根目录 SHALL 包含一个 `VERSION` 纯文本文件，内容为一个 se
 
 ### Requirement: VERSION_LOG.md tracks version bump history at repo root
 
-Repo 根目录 SHALL 包含 `VERSION_LOG.md`，记录每次版本变更的历史。该文件 SHALL 从 `PPTMAKER_FRAMEWORK/reference/version-log.md` 迁移而来（含重命名：`version-log.md` → `VERSION_LOG.md`），并完成以下改造：
-- 移除或替换 YAML frontmatter 为 repo 级描述（原 frontmatter 属于框架文档索引系统）
+Repo 根目录 SHALL 包含 `VERSION_LOG.md`，记录每次版本变更的历史。该文件 SHALL 从 `ppt_maker_harness/reference/version-log.md` 迁移而来（含重命名：`version-log.md` → `VERSION_LOG.md`），并完成以下改造：
+- 移除或替换 YAML frontmatter 为 repo 级描述（原 frontmatter 属于 Harness 文档索引系统）
 - 更新标题为 repo 级 `# VERSION_LOG`
 - 重写版本号规则段为当前 semver 方案（0.x 线，MAJOR 0→1 在项目稳定发布时）
 - 历史条目中的版本号 SHALL 从 v1.x.y 重编号为 v0.xy.z（MAJOR 1→0，旧 MAJOR.MINOR 合并为新 MINOR）
 - 末尾追加分界说明后，新增 `0.14.3` 条目（新版本管理机制下的第一条记录）
 
-迁移完成后，`PPTMAKER_FRAMEWORK/reference/version-log.md` SHALL 不再存在。
+迁移完成后，`ppt_maker_harness/reference/version-log.md` SHALL 不再存在。
 
 #### Scenario: VERSION_LOG exists at repo root with full renumbered history
 
@@ -43,28 +43,40 @@ Repo 根目录 SHALL 包含 `VERSION_LOG.md`，记录每次版本变更的历史
 - **THEN** `VERSION_LOG.md` 中不再出现 v1.x.y 格式的版本号
 - **AND** v1.0.0 → v0.10.0、v1.4.3 → v0.14.3（旧 MAJOR.MINOR 合并为新 MINOR）
 
-#### Scenario: Framework reference no longer contains version-log after migration
+#### Scenario: Harness reference no longer contains version-log after migration
 
-- **WHEN** 迁移已完成且 agent 检查 `PPTMAKER_FRAMEWORK/reference/`
+- **WHEN** 迁移已完成且 agent 检查 `ppt_maker_harness/reference/`
 - **THEN** `version-log.md` 文件不存在
 
-### Requirement: Framework README displays current version
+### Requirement: Harness README displays current version
 
-`PPTMAKER_FRAMEWORK/README.md` SHALL 在 frontmatter 中声明 `version:` 字段，并在标题旁展示当前版本号（如 `# PPT 信息加工流  ·  v0.14.3`）。两处 SHALL 与 `VERSION` 文件保持一致。
+`ppt_maker_harness/README.md` SHALL 在 frontmatter 中声明 `version:` 字段，并在标题旁展示当前版本号和 PPT Maker Harness 名称（如 `# PPT Maker Harness · v0.14.3`）。两处 SHALL 与 `VERSION` 文件保持一致。
 
 #### Scenario: README frontmatter has version
 
-- **WHEN** agent 读取 `PPTMAKER_FRAMEWORK/README.md` 的 YAML frontmatter
+- **WHEN** agent 读取 `ppt_maker_harness/README.md` 的 YAML frontmatter
 - **THEN** `version` 字段的值与 `VERSION` 文件一致
 
 #### Scenario: README title shows version
 
-- **WHEN** 人类在 GitHub 上打开 `PPTMAKER_FRAMEWORK/README.md`
+- **WHEN** 人类在 GitHub 上打开 `ppt_maker_harness/README.md`
 - **THEN** 标题行展示当前版本号
+
+### Requirement: Package metadata identifies the Harness
+
+The npm package name SHALL be `pptmaker-harness`. Changing that package identity
+SHALL not by itself update the repository version; the existing archive-time
+version-bump decision and user confirmation remain authoritative.
+
+#### Scenario: Package metadata is inspected during the rename
+
+- **WHEN** a maintainer reads the root `package.json`
+- **THEN** its package name is `pptmaker-harness`
+- **AND** the package-name transition has not silently changed `VERSION`
 
 ### Requirement: Agent judges version bump after archiving a change
 
-Agent SHALL 在每次 `openspec-archive-change` 完成后，按 `openspec/config.yaml` `rules:` `version:` 段定义的 bump 粒度规则，判断本次变更是否需要 bump 版本，并 SHALL 向用户建议 bump 粒度（MINOR/PATCH/不 bump）。用户确认后，Agent SHALL 同步更新 `VERSION`、`VERSION_LOG.md`、`PPTMAKER_FRAMEWORK/README.md` 和 `package.json` 中的版本号。
+Agent SHALL 在每次 `openspec-archive-change` 完成后，按 `openspec/config.yaml` `rules:` `version:` 段定义的 bump 粒度规则，判断本次变更是否需要 bump 版本，并 SHALL 向用户建议 bump 粒度（MINOR/PATCH/不 bump）。用户确认后，Agent SHALL 同步更新 `VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md` 和 `package.json` 中的版本号。
 
 #### Scenario: New capability triggers MINOR bump
 
@@ -91,7 +103,7 @@ Agent SHALL 在每次 `openspec-archive-change` 完成后，按 `openspec/config
 - **WHEN** 用户确认 bump
 - **THEN** agent 更新 `VERSION` 文件中的版本号
 - **AND** agent 在 `VERSION_LOG.md` 顶部追加新版本条目（日期 + 版本号 + 变更摘要）
-- **AND** agent 更新 `PPTMAKER_FRAMEWORK/README.md` frontmatter 和标题中的版本号
+- **AND** agent 更新 `ppt_maker_harness/README.md` frontmatter 和标题中的版本号
 - **AND** agent 更新 `package.json` 中的 `version` 字段
 
 ### Requirement: Bump rules are codified in CLAUDE.md and config.yaml with distinct roles

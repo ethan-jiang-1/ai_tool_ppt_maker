@@ -7,14 +7,14 @@
 ## 入口
 
 1. Read [AGENTS.md](AGENTS.md) — repo 级 agent 指引
-2. Read [PPTMAKER_FRAMEWORK/BOOTSTRAP.md](PPTMAKER_FRAMEWORK/BOOTSTRAP.md) — 三步启动
-3. Read [PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md](PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md) — 11 条铁律
-4. 按 Phase 读 [PPTMAKER_FRAMEWORK/AGENTS.md](PPTMAKER_FRAMEWORK/AGENTS.md)
+2. Read [ppt_maker_harness/BOOTSTRAP.md](ppt_maker_harness/BOOTSTRAP.md) — 三步启动
+3. Read [ppt_maker_harness/charter/AGENT_CONTRACT.md](ppt_maker_harness/charter/AGENT_CONTRACT.md) — 11 条铁律
+4. 按 Phase 读 [ppt_maker_harness/AGENTS.md](ppt_maker_harness/AGENTS.md)
 
 ## 技术栈
 
-Node.js 18+ ESM (.mjs). 回归测试: `npm test`.
+Node.js 22.x、24.x 或 26.x ESM (.mjs). 回归测试: `npm test`.
 
 ## 版本管理
 
-根目录 `VERSION` 是当前 repo 版本号（semver）。每次 `openspec-archive-change` 完成后，按 `openspec/config.yaml` `rules:` `version:` 段定义的 bump 粒度规则判断是否需要 bump（MINOR/PATCH/不 bump），向用户建议，确认后同步更新 `VERSION`、`VERSION_LOG.md`、`PPTMAKER_FRAMEWORK/README.md` 和 `package.json`。
+根目录 `VERSION` 是当前 repo 版本号（semver）。每次 `openspec-archive-change` 完成后，按 `openspec/config.yaml` `rules:` `version:` 段定义的 bump 粒度规则判断是否需要 bump（MINOR/PATCH/不 bump），向用户建议，确认后同步更新 `VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md` 和 `package.json`。

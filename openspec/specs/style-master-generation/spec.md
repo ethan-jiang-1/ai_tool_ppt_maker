@@ -5,7 +5,7 @@ readiness. They do not create a separate production route.
 
 ## Requirements
 
-### Requirement: Style master uses in-framework image client
+### Requirement: Style master uses in-Harness image client
 
 The current-v2 Style Master owner SHALL compile and materialize a provider-free candidate plan before any
 candidate submission. `plan <run-dir>` SHALL resolve exactly one `{ run_version, workflow }` tuple from either
@@ -543,7 +543,7 @@ effective selection and acceptance receipt identity. The owner SHALL NOT write a
 metadata mirror, raw-profile payload, or host path as selection authority.
 
 After the state CAS commits, the owner SHALL ensure the compatibility `style_master.jpg` payload as valid JPEG
-bytes projected from the selected immutable candidate through the existing in-framework image stack at the
+bytes projected from the selected immutable candidate through the existing in-Harness image stack at the
 layout-resolved canonical path: use an existing `overrides/visual-style/style_master.jpg` when present, otherwise
 the shared backbone default, and never create an override solely for projection. Its
 transformed bytes, failure, presence, or digest SHALL neither roll back nor establish the selection. For a selected

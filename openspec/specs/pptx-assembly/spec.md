@@ -11,7 +11,7 @@ PPTX assembly SHALL accept only the ordered v2 Page Authority final-slide
 manifest and its receipt-bound files. It SHALL reject foreign or unregistered
 final artifacts as current assembly input. For a Pure Page Authority manifest,
 the accepted native final PNG is an exact `2048x1136` image; assembly SHALL
-place that verified image as the full-slide image without changing its source
+place that verified image as the complete slide image without changing its source
 bytes, stable identity, final manifest identity, or delivery lineage. Framed
 final media remains owned by the Framed local compositor and SHALL not be
 reinterpreted as a provider-media normalization by assembly.
@@ -38,7 +38,7 @@ image projections. Target-v2 delivery SHALL use the final manifest item's
 position; bounded CURRENT assembly SHALL derive the ordinal from the accepted
 manifest order.
 
-The full-page final image SHALL remain the slide's image content. The footer
+The final image SHALL remain the slide's image content. The footer
 is a derived presentation annotation only: it SHALL not alter final image
 bytes, `slide_id`, final manifest identity, raw evidence, or delivery lineage.
 Assembly SHALL not introduce an opt-out configuration or a new review/gate
@@ -50,7 +50,7 @@ path for the footer.
   100
 - **THEN** the assembled PPTX contains a right-bottom footer with `01`, `10`,
   and `100` on the corresponding slides
-- **AND** each slide still contains its matching full-page final image
+- **AND** each slide still contains its matching final image
 
 #### Scenario: Bounded CURRENT assembly derives order locally
 

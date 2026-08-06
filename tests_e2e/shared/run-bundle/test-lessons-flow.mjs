@@ -14,8 +14,8 @@ import { existsSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const LESSONS = "PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs";
-const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const LESSONS = "ppt_maker_harness/scripts/shared/run-bundle/lessons.mjs";
+const PPT_FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 
 let TEST_DECK;
 let RUN_DIR;
@@ -33,7 +33,7 @@ function run(cmd) {
 
 beforeAll(async () => {
   const { initBundle } = await import(
-    "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs"
+    "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs"
   );
   TEST_DECK = join(tmpdir(), `deck_e2e_lessons_${Date.now()}`);
   initBundle(TEST_DECK, null, null, null);

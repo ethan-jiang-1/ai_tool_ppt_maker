@@ -10,7 +10,7 @@ import {
   inspectNodeRuntime,
   launchPinnedChromium,
   resolvePlaywrightInstallation,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_runtime.mjs';
+} from '../../ppt_maker_harness/scripts/00-setup/internal/html_runtime.mjs';
 
 function fakeInstallation({ version = '1.61.1', revision = '1228', browserVersion = '149.0.7827.55' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'html-runtime-profile-'));

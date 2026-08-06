@@ -10,13 +10,13 @@ import {
   parseSlideDocument,
   planSlideEdit,
   previewTargetStructuralVersion,
-} from "../../PPTMAKER_FRAMEWORK/scripts/01-content/index.mjs";
+} from "../../ppt_maker_harness/scripts/01-content/index.mjs";
 import {
   createPageAuthorityVisualLanguageResolver,
   loadPageAuthorityVisualLanguage,
-} from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
-import { styleMasterGenerationProfileSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../ppt_maker_harness/scripts/02-visual-system/index.mjs";
+import { styleMasterGenerationProfileSha256 } from "../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
+import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   createInitialState,
   readState,
@@ -24,7 +24,7 @@ import {
   statePath,
   startPlaybook,
   writeState,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function visualBrief() {
   return `**VISUAL BRIEF**:\n\`\`\`yaml\nrecipe: editorial-systems\ncomposition: centered-constellation\nmotifs: []\nnegative_constraints:\n  - no-logo\n\`\`\``;

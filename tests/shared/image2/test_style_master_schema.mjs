@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
+import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA,
   STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA,
@@ -32,7 +32,7 @@ import {
   validateStyleMasterPlanRecord,
   validateStyleMasterProviderRequestRecord,
   validateStyleMasterSelectionRecord,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import {
   cleanupStyleMasterStagingDirectory,
   createOrExactMatchStyleMasterRecord,
@@ -41,8 +41,8 @@ import {
   readCanonicalStyleMasterRecord,
   styleMasterStorePaths,
   writeStyleMasterScopeHeadCas,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

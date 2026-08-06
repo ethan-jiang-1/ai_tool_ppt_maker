@@ -3,17 +3,17 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRawWorkPlan } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   publishAcceptedRawEvidence,
   submitAuthorizedRawWorkPlan,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_raw_mechanics.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_raw_mechanics.mjs";
 import {
   createInitialState,
   initializeTargetPageAuthorityState,
   recordPageAuthorityRawProviderAuthorization,
   writeState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

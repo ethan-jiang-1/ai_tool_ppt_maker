@@ -6,14 +6,14 @@ import { createCanvas } from '@napi-rs/canvas';
 import {
   createFramedRenderContractForTesting,
   describeFramedFrame,
-} from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs';
-import { captureHtmlPngBatch } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/capture_runtime.mjs';
-import { FRAMED_TEXT_FRAME_STANDARD_V1 } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/text_frame.mjs';
+} from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs';
+import { captureHtmlPngBatch } from '../../ppt_maker_harness/scripts/03-framed-image/internal/capture_runtime.mjs';
+import { FRAMED_TEXT_FRAME_STANDARD_V1 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/text_frame.mjs';
 import {
   discoverRuntimePackages,
   inspectHtmlRuntime,
   launchPinnedChromium,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/index.mjs';
+} from '../../ppt_maker_harness/scripts/00-setup/index.mjs';
 
 const textFrame = Object.freeze({
   preset: 'standard-v1',

@@ -9,7 +9,7 @@ import {
   resolveSlideBindings,
   resolveSlideIds,
   validateNewSlideId,
-} from '../../PPTMAKER_FRAMEWORK/scripts/01-content/internal/slide_ids.mjs';
+} from '../../ppt_maker_harness/scripts/01-content/internal/slide_ids.mjs';
 
 const slides = [
   { id: 's01_opener' },

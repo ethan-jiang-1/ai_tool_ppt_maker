@@ -2,18 +2,18 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-import { runAllChecks } from "../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs";
+import { runAllChecks } from "../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs";
 import {
   PPT_FLOW_COMMAND_INVENTORY,
   parseCliErrorLine,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
-import { TARGET_PRODUCTION_MODE } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/production_mode.mjs";
+} from "../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
+import { TARGET_PRODUCTION_MODE } from "../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
 
-const ENV_CHECK = "PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs";
-const PPT_FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const ENV_CHECK = "ppt_maker_harness/scripts/00-setup/env-check.mjs";
+const PPT_FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const ROOT_README = readFileSync("README.md", "utf8");
-const BOOTSTRAP = readFileSync("PPTMAKER_FRAMEWORK/BOOTSTRAP.md", "utf8");
-const COMMANDS = readFileSync("PPTMAKER_FRAMEWORK/COMMANDS.md", "utf8");
+const BOOTSTRAP = readFileSync("ppt_maker_harness/BOOTSTRAP.md", "utf8");
+const COMMANDS = readFileSync("ppt_maker_harness/COMMANDS.md", "utf8");
 const OPEN_SPEC_CONFIG = readFileSync("openspec/config.yaml", "utf8");
 
 function run(script, args = []) {

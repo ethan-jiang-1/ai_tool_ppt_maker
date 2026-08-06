@@ -5,32 +5,32 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   buildPureProgressiveTargetRawPlan,
   resolvePureStyleMasterScope,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
+} from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   progressiveRawStorePaths,
   readProgressiveRawPlanDirectRecords,
   writeProgressiveRawItemAttempt,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
-import { createProgressiveRawItemAttempt } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_schema.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_schema.mjs";
 import {
   createInitialState,
   initializeTargetPageAuthorityState,
   writeState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
   inspectWorkflow,
   isWorkflowInspectionSourceReady,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import {
   authorizeProgressiveRawBatch,
   generateProgressiveRawItem,
   planProgressiveRawPilot,
   reconcileProgressiveRawAttempt,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const PROGRESSIVE_SLIDE_IDS = ["DeckGo", "SysMap", "FlowGo", "TeamGo", "RiskGo", "ValMap"];

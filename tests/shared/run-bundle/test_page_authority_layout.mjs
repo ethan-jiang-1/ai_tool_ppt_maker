@@ -19,22 +19,22 @@ import {
   renderTree,
   STYLE_MASTER_IMAGE,
   styleAsset,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   TARGET_PRODUCTION_MODE,
   initialProductionModeRecord,
   inspectProductionMode,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/production_mode.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
 import {
   createInitialState,
   initializeTargetPageAuthorityState,
   readState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
   PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
   TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE,
   probeProductionMarker,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/production_marker.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/production_marker.mjs";
 
 describe("Page Authority bundle layout", () => {
   it("declares one rebuildable Page Authority artifact topology", () => {

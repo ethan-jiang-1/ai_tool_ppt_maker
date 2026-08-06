@@ -23,10 +23,10 @@ import {
   renderCliHumanError,
   sanitizeCliDiagnostic,
   validateCliJsonReport,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..", "..", "..");
-const SCRIPTS = join(ROOT, "PPTMAKER_FRAMEWORK", "scripts");
+const SCRIPTS = join(ROOT, "ppt_maker_harness", "scripts");
 const BOOTSTRAP = join(SCRIPTS, "shared", "cli", "cli_bootstrap.mjs");
 
 function recursiveMjs(dir) {
@@ -144,7 +144,7 @@ describe("cli_error", () => {
       next: {
         action: "report_internal",
         requires_human: false,
-        default: "Inspect the named command location and report the framework failure.",
+        default: "Inspect the named command location and report the Harness failure.",
       },
     });
   });
@@ -206,7 +206,7 @@ describe("cli_error", () => {
     const exceptions = new Map([
       ["shared/cli/cli_bootstrap.mjs", "shared bootstrap inspects argv but is not a public CLI"],
       ["shared/cli/cli_error.mjs", "shared diagnostic producer is not a direct entry"],
-      ["contracts/framework_architecture.mjs", "architecture checker is an import-only contract"],
+      ["contracts/harness_architecture.mjs", "architecture checker is an import-only contract"],
     ]);
     const detected = recursiveMjs(SCRIPTS).filter((path) => {
       const rel = relative(SCRIPTS, path).replaceAll("\\", "/");
@@ -330,10 +330,10 @@ describe("cli_error", () => {
         stage: "foundation",
         operation: "raw-generation-readiness",
         subject: { kind: "environment", id: "raw-generation" },
-        source: { path: "PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs", line: 1 },
+        source: { path: "ppt_maker_harness/scripts/00-setup/env-check.mjs", line: 1 },
         reason: { kind: "missing_credential" },
         issues: [{ message: "Image provider credential is unavailable." }],
-        lineage: [{ kind: "script", path: "PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs", stage: "foundation" }],
+        lineage: [{ kind: "script", path: "ppt_maker_harness/scripts/00-setup/env-check.mjs", stage: "foundation" }],
         next: createCliNext("repair_environment", {
           default: "Configure the selected raw-generation environment, then rerun this exact readiness check.",
           invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-authority-v2", "--operation", "raw-generation"] },

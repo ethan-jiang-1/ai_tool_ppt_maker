@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Define creation, validation, current topology, and bounded historical handling for
-run bundles.
+Define creation, validation, current topology, bounded historical handling, and
+exact local Harness binding for Run Bundles.
 ## Requirements
 ### Requirement: Init and bundle validation seed only Page Authority topology
 Fresh initialization and normal bundle validation SHALL create and validate only v2 Page Authority source, state, and topology. A non-v2 source/state pair remains byte-preserving under read-only classification and SHALL not be mutated, initialized, or adopted by normal validation.
@@ -15,6 +15,53 @@ Fresh initialization and normal bundle validation SHALL create and validate only
 #### Scenario: A non-v2 bundle is checked
 - **WHEN** normal validation reads a non-v2 source/state identity
 - **THEN** it returns the unsupported-protocol hard-stop without writing bundle state or artifacts
+
+### Requirement: Init emits only a v2 Harness-bound locator
+
+Fresh Run Bundle initialization SHALL verify its creating local Harness root
+and write only a `pptmaker-run-bundle-v2` locator with exactly `schema`,
+`deck_root`, `harness_root`, and `harness_relation`. It SHALL not write
+retired root fields, `harness_id`, a version pin, or a
+portable binding record.
+
+#### Scenario: A fresh Bundle is initialized from the Harness
+
+- **WHEN** a user initializes a new Run Bundle through the canonical Harness
+  entrypoint
+- **THEN** the Bundle receives one verified v2 local-Harness locator
+- **AND** no legacy locator or compatibility data is created
+
+### Requirement: Authority-carrying run operations require a current Harness binding
+
+A missing, malformed, conflicting, v1, or retired-root-named locator is a
+`hard-stop` protecting the exact Deck-to-Harness identity invariant. Its direct
+source of record is the locator itself and the diagnostic SHALL return the
+nearest safe action: explicitly reconstruct a new current Bundle rather than
+converting the old one. Every run-scoped operation that reads or mutates source,
+state, or production authority SHALL verify the card at its derived Deck root
+through the shared v2 locator evaluator before its owner logic runs. It SHALL
+not write a locator, state, receipt, generated artifact, migration record,
+fallback root, or compatibility projection.
+
+`bundle_layout --check --structure-only` SHALL remain a layout-only,
+non-authoritative observation. It MAY report an old or locatorless tree, but it
+SHALL not select a run, read state, inspect production readiness, authorize
+work, or write.
+
+#### Scenario: A v1 Bundle is used by a run operation
+
+- **WHEN** a run-scoped command derives a Deck root whose card uses a retired
+  v1 schema or retired root fields
+- **THEN** it returns the bounded unsupported-binding hard-stop before
+  production, provider, generated-artifact, or state work
+- **AND** it offers neither waiver nor automatic migration
+
+#### Scenario: A structure-only check observes an old tree
+
+- **WHEN** `bundle_layout --check --structure-only` is given a locatorless or
+  v1 Bundle
+- **THEN** it may report only the Bundle's filesystem layout without mutation
+- **AND** it does not establish a current binding or continuation authority
 
 ### Requirement: Current bundle ownership is explicit
 

@@ -12,11 +12,11 @@ import {
   validateAcceptedRawEvidence,
   validateFinalSlideManifest,
   validateRawWorkPlan,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
-import { resolveTargetCandidateSourceContext } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { statePath } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { resolveTargetCandidateSourceContext } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { statePath } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const digest = (letter) => letter.repeat(64);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");

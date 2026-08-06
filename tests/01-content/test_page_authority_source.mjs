@@ -3,7 +3,7 @@ import {
   PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
   PageAuthoritySourceError,
   parsePageAuthoritySource,
-} from "../../PPTMAKER_FRAMEWORK/scripts/01-content/index.mjs";
+} from "../../ppt_maker_harness/scripts/01-content/index.mjs";
 
 const registry = Object.freeze({
   resolveSelection: () => Object.freeze({}),

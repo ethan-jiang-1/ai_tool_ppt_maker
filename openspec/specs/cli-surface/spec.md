@@ -9,6 +9,45 @@ schema.
 
 ## Requirements
 
+### Requirement: Direct CLI is exposed from the canonical Harness root
+
+Every documented direct production CLI entrypoint SHALL be invoked from
+`ppt_maker_harness/` and SHALL identify that location as the PPT Maker Harness.
+The retired source-root command path SHALL not remain documented, accepted as an
+alias, or resolved as a fallback. Existing `ppt_flow`, `PPTMAKER_*`, and
+`pptmaker-*` namespaces SHALL remain unchanged.
+
+#### Scenario: An Agent receives a direct CLI command
+
+- **WHEN** active guidance or a CLI diagnostic names the production entrypoint
+- **THEN** it uses `node ppt_maker_harness/scripts/ppt_flow.mjs <command>`
+- **AND** it does not direct the Agent to a retired root path
+
+### Requirement: Non-v2 CLI requests fail before execution
+
+When a run-scoped command derives a Deck root whose locator is missing,
+malformed, v1, retired-root-named, conflicting, or not verified at its declared
+local Harness root, the CLI producer SHALL emit one bounded unsupported-binding
+diagnostic before state reads or mutation, provider initialization,
+generated-artifact reads, review publication, or production work. It SHALL use
+the shared binding evaluator and SHALL not select a fallback Harness or convert
+the Bundle. When that binding is valid but the source/state pair is non-v2, the
+existing unsupported-protocol diagnostic SHALL occur before provider
+initialization, generated-artifact reads, review publication, or state mutation.
+
+`bundle_layout --check --structure-only` remains a non-authoritative layout
+inspection: it may report structure without a current binding, but it SHALL not
+read state, select a run, or perform an execution action.
+
+#### Scenario: A legacy binding is fenced before state inspection
+
+- **WHEN** a run requests status, validate, build, refresh, slides, new-version,
+  state, Style Master, Image2, normal bundle validation, or another registered
+  run operation and its Deck card is not a verified v2 local Harness binding
+- **THEN** the CLI returns only the bounded unsupported-binding next action
+- **AND** it does not invoke a decoder, migration operation, provider, or
+  source/state/generated-artifact mutation
+
 ### Requirement: Public CLI exposes only Page Authority production operations
 
 The public CLI SHALL expose v2 Page Authority source validation, Style Master candidate inspection/planning,
@@ -289,10 +328,10 @@ submission.
 - **THEN** the producer reports a bounded `environment` hard-stop and one runtime-repair action
 - **AND** it does not attribute unknown runtime behavior to source, retry a provider, or publish an artifact
 
-#### Scenario: Contract contradiction belongs to the framework
+#### Scenario: Contract contradiction belongs to the Harness
 
 - **WHEN** canonical preset, compiler, safe-zone, or capture assertions contradict one another
-- **THEN** the producer reports a bounded `internal` hard-stop and the framework-repair action
+- **THEN** the producer reports a bounded `internal` hard-stop and the Harness-repair action
 - **AND** no source, provider, review, or generated artifact is mutated
 
 ### Requirement: Non-v2 CLI requests fail before execution

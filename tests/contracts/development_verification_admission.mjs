@@ -3,7 +3,7 @@ import { dirname, relative, resolve, sep } from "node:path";
 
 export const INVENTORY_SCHEMA = "pptmaker-development-verification-core-v1";
 export const CORE_LIMITS = Object.freeze({ maxEntries: 16, maxFileBytes: 1024 * 1024, maxFiles: 256, maxTotalBytes: 8 * 1024 * 1024 });
-const SAFE_ROOTS = ["tests/contracts/", "PPTMAKER_FRAMEWORK/scripts/contracts/", "PPTMAKER_FRAMEWORK/scripts/shared/cli/"];
+const SAFE_ROOTS = ["tests/contracts/", "ppt_maker_harness/scripts/contracts/", "ppt_maker_harness/scripts/shared/cli/"];
 const PROHIBITED_NODE = /^(?:node:)?(?:child_process|cluster|dgram|dns|http2?|https|net|tls|module)$/;
 const PROHIBITED_SURFACE = /(?:canvas|chromium|playwright|pptx|echarts|html[_-]?(?:render|composit)|provider|image_api_client|browser)/i;
 const TEST_ENTRY = /^tests\/.+\/(?:test_[^/]+|test-[^/]+)\.mjs$/;

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   extractNodeCommands,
-  scanFrameworkCoherence,
+  scanHarnessCoherence,
   scanMarkdownLinks,
   scanRetiredWholePageTerms,
   scanSemanticDrift,
@@ -11,21 +11,21 @@ import {
   validateLegacyTokenExceptions,
   validatePseudocodeMarkers,
   validateRetiredWholePageTokenExceptions,
-} from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_coherence.mjs";
-import { validateDocumentedCommands } from "../../PPTMAKER_FRAMEWORK/scripts/contracts/framework_document_command_audit.mjs";
+} from "../../ppt_maker_harness/scripts/contracts/harness_coherence.mjs";
+import { validateDocumentedCommands } from "../../ppt_maker_harness/scripts/contracts/harness_document_command_audit.mjs";
 
 const CRITICAL_FILES = [
-  "PPTMAKER_FRAMEWORK/BOOTSTRAP.md",
-  "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md",
-  "PPTMAKER_FRAMEWORK/AGENTS.md",
-  "PPTMAKER_FRAMEWORK/README.md",
-  "PPTMAKER_FRAMEWORK/COMMANDS.md",
-  "PPTMAKER_FRAMEWORK/charter/CONSTITUTION.md",
-  "PPTMAKER_FRAMEWORK/charter/WORKFLOW.md",
-  "PPTMAKER_FRAMEWORK/reference/glossary.md",
+  "ppt_maker_harness/BOOTSTRAP.md",
+  "ppt_maker_harness/charter/AGENT_CONTRACT.md",
+  "ppt_maker_harness/AGENTS.md",
+  "ppt_maker_harness/README.md",
+  "ppt_maker_harness/COMMANDS.md",
+  "ppt_maker_harness/charter/CONSTITUTION.md",
+  "ppt_maker_harness/charter/WORKFLOW.md",
+  "ppt_maker_harness/reference/glossary.md",
 ];
 
-describe("framework documentation coherence", () => {
+describe("Harness documentation coherence", () => {
   it("keeps the current entry documents available", () => {
     for (const file of CRITICAL_FILES) expect(existsSync(file), file).toBe(true);
   });
@@ -33,14 +33,14 @@ describe("framework documentation coherence", () => {
   it("rejects broken links, stale commands, broad exceptions, and retired protocol terms", () => {
     expect(scanMarkdownLinks("/tmp/a/doc.md", "[bad](missing.md)")).toHaveLength(1);
     expect(scanSemanticDrift("doc.md", "Stage 2 uses image2-ppt skill")).toHaveLength(1);
-    expect(validateExceptionMap({ "PPTMAKER_FRAMEWORK/workflow/": "broad" })).toHaveLength(1);
+    expect(validateExceptionMap({ "ppt_maker_harness/workflow/": "broad" })).toHaveLength(1);
     expect(validateLegacyTokenExceptions([{}])).not.toEqual([]);
     expect(validateRetiredWholePageTokenExceptions([{}])).not.toEqual([]);
     const retired = ["whole", "page", "image2", "v1"].join("-");
-    expect(scanRetiredWholePageTerms({ "PPTMAKER_FRAMEWORK/playbook/example.md": retired }))
+    expect(scanRetiredWholePageTerms({ "ppt_maker_harness/playbook/example.md": retired }))
       .toEqual(expect.arrayContaining([expect.objectContaining({ rule: "retired-protocol-term" })]));
-    const commands = extractNodeCommands("doc.md", "```bash\nnode PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs validate x --unexpected\n```");
-    expect(validateDocumentedCommands(commands, "PPTMAKER_FRAMEWORK/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
+    const commands = extractNodeCommands("doc.md", "```bash\nnode ppt_maker_harness/scripts/ppt_flow.mjs validate x --unexpected\n```");
+    expect(validateDocumentedCommands(commands, "ppt_maker_harness/scripts").some((item) => item.rule === "unsupported-flag")).toBe(true);
   });
 
   it("requires an adjacent reasoned pseudocode marker for non-executable commands", () => {
@@ -56,7 +56,7 @@ describe("framework documentation coherence", () => {
   });
 
   it("keeps current guidance and main specifications free of retired protocol prose", () => {
-    const issues = scanFrameworkCoherence();
+    const issues = scanHarnessCoherence();
     expect(issues, issues.map((item) => `${item.file}:${item.line} [${item.rule}] ${item.message}`).join("\n")).toEqual([]);
   }, 30_000);
 });

@@ -2,15 +2,15 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import * as catalogModule from "../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/intent_route_catalog.mjs";
+import * as catalogModule from "../../ppt_maker_harness/scripts/shared/workflow/intent_route_catalog.mjs";
 import {
   INTENT_ROUTE_CATALOG_SCHEMA,
   readIntentRouteCatalog,
   validateIntentRouteCatalog,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/intent_route_catalog.mjs";
+} from "../../ppt_maker_harness/scripts/shared/workflow/intent_route_catalog.mjs";
 
-const FRAMEWORK = "PPTMAKER_FRAMEWORK";
-const CATALOG_PATH = join(FRAMEWORK, "playbook", "intent-routes-v1.json");
+const HARNESS = "ppt_maker_harness";
+const CATALOG_PATH = join(HARNESS, "playbook", "intent-routes-v1.json");
 const TERMINAL_ROUTE = "orientation-unrouted-intent";
 const ROUTE_IDS = [
   "foundation-local-runtime",
@@ -69,10 +69,10 @@ function assertFallbacksTerminate(routesById) {
   }
 }
 
-function frameworkTextFiles(directory, files = []) {
+function harnessTextFiles(directory, files = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) frameworkTextFiles(path, files);
+    if (entry.isDirectory()) harnessTextFiles(path, files);
     else if (entry.isFile() && /\.(?:mjs|md|json)$/u.test(entry.name) && statSync(path).size < 2_000_000) files.push(path);
   }
   return files;
@@ -120,7 +120,7 @@ describe("intent route catalog", () => {
 
     for (const [routeId, playbook] of LEAF_PLAYBOOKS) {
       expect(routesById.get(routeId)?.entry).toContain("playbook");
-      expect(existsSync(join(FRAMEWORK, "playbook", playbook)), `${routeId} -> ${playbook}`).toBe(true);
+      expect(existsSync(join(HARNESS, "playbook", playbook)), `${routeId} -> ${playbook}`).toBe(true);
     }
   });
 
@@ -163,8 +163,8 @@ describe("intent route catalog", () => {
       first_safe_step: "establish applicable owner readiness",
     });
 
-    const agentContract = readFileSync(join(FRAMEWORK, "charter", "AGENT_CONTRACT.md"), "utf8");
-    const classifier = readFileSync(join(FRAMEWORK, "playbook", "classify-change.md"), "utf8");
+    const agentContract = readFileSync(join(HARNESS, "charter", "AGENT_CONTRACT.md"), "utf8");
+    const classifier = readFileSync(join(HARNESS, "playbook", "classify-change.md"), "utf8");
     const discovery = `${agentContract}\n${classifier}`;
     expect(discovery).toMatch(/explicit requested change\s*->\s*classify-change/i);
     expect(discovery).toMatch(/otherwise resume\s*->\s*state --json\s*->\s*workflow_inspection\.primary_action/i);
@@ -174,14 +174,14 @@ describe("intent route catalog", () => {
     expect(discovery).toMatch(/direct\s+`?env-check`?[\s\S]{0,180}(?:pre-install|unavailable\s+main entry)/i);
     expect(discovery).toMatch(/Route Gap[\s\S]{0,220}(?:no persistent record|does not write|non-persistent)/i);
 
-    const persistenceTokens = frameworkTextFiles(FRAMEWORK)
+    const persistenceTokens = harnessTextFiles(HARNESS)
       .filter((path) => /(?:scripts|playbook|charter)\//u.test(path))
       .filter((path) => readFileSync(path, "utf8").includes("selected_route_id"));
     expect(persistenceTokens).toEqual([]);
   });
 
   it("keeps the orientation diagnostic route producer-first and recovery-only at its final branch", () => {
-    const contract = readFileSync(join(FRAMEWORK, "charter", "AGENT_CONTRACT.md"), "utf8");
+    const contract = readFileSync(join(HARNESS, "charter", "AGENT_CONTRACT.md"), "utf8");
     const diagnosticStart = contract.indexOf("## Diagnostic Recovery Handoff");
     expect(diagnosticStart).toBeGreaterThan(-1);
     const diagnosticRest = contract.slice(diagnosticStart);
@@ -199,7 +199,7 @@ describe("intent route catalog", () => {
   });
 
   it("renders common requests for novices without protocol mechanics", () => {
-    const commands = readFileSync(join(FRAMEWORK, "COMMANDS.md"), "utf8");
+    const commands = readFileSync(join(HARNESS, "COMMANDS.md"), "utf8");
     const tableStart = commands.indexOf("## Common Requests");
     const tableEnd = commands.indexOf("## What Stays Safe");
     const commonRequests = commands.slice(tableStart, tableEnd);

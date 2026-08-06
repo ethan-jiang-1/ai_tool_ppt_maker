@@ -11,23 +11,23 @@ import {
   readPureTargetStoredPlanContext,
   resolvePureStyleMasterScope,
   resolvePureTargetCandidateSource,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
+} from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   styleMasterSubmitFactory,
   targetPageAuthoritySubmitFactory,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
-import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
-import { buildTargetRawGenerationProfile } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
-import { STYLE_MASTER_GENERATION_PROFILE } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
-import { styleMasterStorePaths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
+} from "../../../ppt_maker_harness/scripts/ppt_flow.mjs";
+import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { buildTargetRawGenerationProfile } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { STYLE_MASTER_GENERATION_PROFILE } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
+import { styleMasterStorePaths } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import {
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { readState, statePath } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { readState, statePath } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");

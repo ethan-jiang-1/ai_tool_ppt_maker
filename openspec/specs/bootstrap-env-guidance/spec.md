@@ -3,6 +3,20 @@
 Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Authority raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
 
+### Requirement: Bootstrap guidance names the canonical Harness entry
+
+Bootstrap and top-level onboarding guidance SHALL identify
+`ppt_maker_harness/BOOTSTRAP.md` as the Harness startup document and
+`ppt_maker_harness/scripts/ppt_flow.mjs` as the canonical production entrypoint.
+It SHALL not present a retired source root as a supported startup path.
+
+#### Scenario: An Agent begins Harness startup
+
+- **WHEN** an Agent follows active onboarding for PPT work or local readiness
+- **THEN** it enters through the Harness BOOTSTRAP document and its current CLI
+  entrypoint
+- **AND** it does not infer a production Run Bundle or compatibility route
+
 ### Requirement: Fix instructions are user-profile-aware
 
 Each fix section in BOOTSTRAP.md Step 1 SHALL distinguish users with an existing coding agent from bare-metal users, but SHALL NOT assume that the coding-agent installation already provides a supported Node line. For the coding-agent profile, guidance SHALL verify the current Node major first, upgrade when it is outside `22.x`/`24.x`/`26.x`, then use repository-local `npm install` and Chromium setup commands. For bare-metal users, guidance SHALL install current LTS `24.x` plus npm before repository setup while naming `22.x` and `26.x` as the other supported lines. Image2 credential setup SHALL appear only when the user selects or reaches an Image2-dependent action.
@@ -17,7 +31,7 @@ Each fix section in BOOTSTRAP.md Step 1 SHALL distinguish users with an existing
 
 - **WHEN** the user has a coding agent but doctor reports Node 20 below the required baseline
 - **THEN** the Agent provides a platform-specific supported-Node upgrade path, recommending current LTS `24.x`, before npm/browser setup
-- **AND** does not assume the coding agent's own runtime satisfies the framework
+- **AND** does not assume the coding agent's own runtime satisfies the Harness
 
 #### Scenario: Bare-metal user missing Node.js
 
@@ -97,7 +111,7 @@ The section SHALL include copy-pasteable installation and `git --version` verifi
 
 BOOTSTRAP and its Agent-facing startup guidance SHALL permit an Agent to make at most one concise, user-owned source-checkpoint recommendation per continuous source-work episode after initial real source authoring, before an important structural change when the Agent knows from current interaction that it edited meaningful source, after a validated vNext, or at final delivery/archival. The guidance SHALL define an episode as the current interaction's continuous substantive source work for one deck; a decline or deferral suppresses every further reminder until that episode ends, and a later interaction or different deck begins a new episode. The guidance SHALL state that this recommendation is not authorization and does not require hidden working-tree inspection.
 
-The Agent and framework SHALL NOT automatically initialize a repository, stage files, commit, push, pull, change a remote, run a Git restore/reset/checkout/clean/read-tree operation, discard working-tree changes, inspect worktree cleanliness, or require a clean worktree. After explicit user authorization for a named Git operation and user-supplied scope, an Agent MAY assist with that exact operation; it SHALL restate that operation and scope and SHALL NOT infer files, staged changes, or effect from hidden inspection. Ordinary checkpoint authorization does not authorize `git status`, `git diff`, or another inspection, each of which requires separately named user direction and scope. This change supplies no Git-history reader, automated source replacement, or default recovery protocol. Absent authorization it SHALL not mutate Git state. A user who declines Git installation, initialization, or checkpoint work SHALL continue the applicable deck workflow after existing hard gates pass.
+The Agent and Harness SHALL NOT automatically initialize a repository, stage files, commit, push, pull, change a remote, run a Git restore/reset/checkout/clean/read-tree operation, discard working-tree changes, inspect worktree cleanliness, or require a clean worktree. After explicit user authorization for a named Git operation and user-supplied scope, an Agent MAY assist with that exact operation; it SHALL restate that operation and scope and SHALL NOT infer files, staged changes, or effect from hidden inspection. Ordinary checkpoint authorization does not authorize `git status`, `git diff`, or another inspection, each of which requires separately named user direction and scope. This change supplies no Git-history reader, automated source replacement, or default recovery protocol. Absent authorization it SHALL not mutate Git state. A user who declines Git installation, initialization, or checkpoint work SHALL continue the applicable deck workflow after existing hard gates pass.
 
 #### Scenario: Agent recommends but does not create a checkpoint
 

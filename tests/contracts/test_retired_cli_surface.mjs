@@ -10,13 +10,13 @@ import {
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   initializeTargetPageAuthorityState,
   resolveRunProductionAdapter,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
-const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 
 function run(args) {
   return spawnSync("node", [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });

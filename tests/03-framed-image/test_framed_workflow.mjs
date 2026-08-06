@@ -7,8 +7,8 @@ import { createCanvas, loadImage } from "@napi-rs/canvas";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
-import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   classifyFramedRefresh,
   createFramedRawWorkPlan,
@@ -33,23 +33,23 @@ import {
   refreshFramedTargetText,
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
-} from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
-import { verifyFramedRenderContracts } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs";
-import { targetPageAuthoritySubmitFactory } from "../../PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { inspectWorkflow } from "../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+} from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
+import { verifyFramedRenderContracts } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs";
+import { targetPageAuthoritySubmitFactory } from "../../ppt_maker_harness/scripts/ppt_flow.mjs";
+import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { inspectWorkflow } from "../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import {
   readProgressiveAcceptedRawWork,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
 import {
   readProgressiveRawPlanDirectRecords,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
-const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const NATIVE_PROVIDER_PNG = (() => {
   const image = createCanvas(2048, 1136);
   image.getContext("2d").fillRect(0, 0, 2048, 1136);
