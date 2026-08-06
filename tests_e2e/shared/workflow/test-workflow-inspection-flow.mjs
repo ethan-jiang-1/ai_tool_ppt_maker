@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { createInitialState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { resolveFramedTargetSource } from "../../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
-import { resolvePureTargetSource } from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { createInitialState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { resolveFramedTargetSource } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
+import { resolvePureTargetSource } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 
-const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 
 function flow(args) {
   return spawnSync(process.execPath, [FLOW, ...args], { encoding: "utf8", timeout: 30_000 });

@@ -1,5 +1,5 @@
 {
-  "name": "ppkmaker-framework",
+  "name": "pptmaker-harness",
   "version": "0.24.3",
   "description": "Agent-driven PPT generation pipeline — production scripts (Node.js ESM)",
   "type": "module",

@@ -14,21 +14,21 @@ import {
   generatePureTargetRawPlan,
   preparePureTargetRawReview,
   resolvePureStyleMasterScope,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
+} from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   createRawWorkPlan,
   pageAuthorityOrdinalImageFilename,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
-import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   createTargetRawReviewContribution,
   currentTargetRawReviewProjectionCaptureProfile,
   prepareTargetRawReview,
   projectTargetRawReviewContribution,
   validateTargetRawReviewContribution,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");

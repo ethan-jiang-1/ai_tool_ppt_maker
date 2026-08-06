@@ -115,7 +115,7 @@ publication paths, alternate renderers, or a trusted proof result.
 The Pilot publisher SHALL not write a final-slide manifest, final projection,
 PPTX, notes receipt, accepted raw evidence, or delivery decision. A failed
 Framed preflight or capture SHALL return the existing owning source,
-environment, or framework repair action before any Pilot decision is offered.
+environment, or Harness repair action before any Pilot decision is offered.
 
 #### Scenario: Framed Pilot composition is production-equivalent but preview-only
 

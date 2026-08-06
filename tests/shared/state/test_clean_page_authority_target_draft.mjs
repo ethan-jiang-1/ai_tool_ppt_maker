@@ -7,15 +7,15 @@ import { describe, expect, it } from "vitest";
 import {
   createVersion,
   initBundle,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   activateCleanPageAuthorityTargetDraft,
   initializeTargetPageAuthorityState,
   readState,
   statePath,
   writeState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { resolveTargetAuthoringDraftRoute } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/target_authoring_draft_route.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { resolveTargetAuthoringDraftRoute } from "../../../ppt_maker_harness/scripts/shared/state/target_authoring_draft_route.mjs";
 
 function source(workflow = "pure") {
   return `---

@@ -21,7 +21,7 @@ describe("development verification core admission", () => {
     expect(validateInventoryData(null).code).toBe("inventory-shape");
     expect(validateInventoryData({ schema: INVENTORY_SCHEMA, budget_ms: 60000, entries: [] }).code).toBe("inventory-shape");
     expect(validateInventoryData(validInventory([VALID_ENTRY, VALID_ENTRY])).code).toBe("inventory-entries");
-    expect(validateInventoryData(validInventory(["tests/contracts/test_framework_architecture.mjs", VALID_ENTRY])).code).toBe("inventory-entries");
+    expect(validateInventoryData(validInventory(["tests/contracts/test_harness_architecture.mjs", VALID_ENTRY])).code).toBe("inventory-entries");
     expect(auditInventoryObject(validInventory(["tests/contracts/missing_test.mjs"])).code).toBe("entry-path");
     expect(auditInventoryObject(validInventory(["../tests/contracts/test_escape.mjs"])).code).toBe("entry-path");
     expect(auditInventoryObject(validInventory(["tests/contracts/fixture.mjs"])).code).toBe("entry-path");

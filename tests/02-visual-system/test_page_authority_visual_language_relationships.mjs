@@ -5,11 +5,11 @@ import {
   createPageAuthorityVisualLanguageResolver,
   parsePageAuthorityVisualLanguage,
   resolvePageAuthorityVisualLanguageSelection,
-} from "../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs";
+} from "../../ppt_maker_harness/scripts/02-visual-system/index.mjs";
 import {
   PageAuthoritySourceError,
   parsePageAuthoritySource,
-} from "../../PPTMAKER_FRAMEWORK/scripts/01-content/index.mjs";
+} from "../../ppt_maker_harness/scripts/01-content/index.mjs";
 
 const RELATIONSHIP_CLAUSES = `relationships:
   layer-stack:

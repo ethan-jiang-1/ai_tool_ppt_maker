@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { HTML_RUNTIME_PROFILE } from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_runtime_profile.mjs';
-import { HTML_CAPTURE_PROFILE } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/capture_runtime.mjs';
+import { HTML_RUNTIME_PROFILE } from '../../ppt_maker_harness/scripts/00-setup/internal/html_runtime_profile.mjs';
+import { HTML_CAPTURE_PROFILE } from '../../ppt_maker_harness/scripts/03-framed-image/internal/capture_runtime.mjs';
 import {
   compileFramedLayoutGeometry,
   createFramedRenderProfile,
@@ -9,9 +9,9 @@ import {
   FRAMED_LAYOUT_COMPILER,
   FRAMED_LAYOUT_COMPILER_COHERENCE_HISTORY,
   FRAMED_RENDER_PROFILE_SCHEMA,
-} from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs';
-import { FRAMED_TEXT_FRAME_STANDARD_V1 } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/text_frame.mjs';
-import { canonicalJsonSha256 } from '../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs';
+} from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
+import { FRAMED_TEXT_FRAME_STANDARD_V1 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/text_frame.mjs';
+import { canonicalJsonSha256 } from '../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs';
 
 const fontRenderInventory = Object.freeze({
   schema: 'pptmaker-framed-font-render-inventory-v1',

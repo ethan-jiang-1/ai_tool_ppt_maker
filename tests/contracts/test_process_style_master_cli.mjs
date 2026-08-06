@@ -9,12 +9,12 @@ import {
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { resolveEffectiveStyleMasterSelection } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { styleMasterStorePaths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { resolveEffectiveStyleMasterSelection } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
 
-const FLOW = "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs";
+const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const LOCAL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAAANSURBVAiZY1AJyPoPAANYAd6lcnCEAAAAAElFTkSuQmCC",
   "base64",

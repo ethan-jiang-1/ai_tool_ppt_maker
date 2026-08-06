@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   createFramedRawWorkPlan,
   createFramedTargetRawReviewContribution,
-} from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
-import { currentFramedRenderProfile } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs";
-import { validateTargetRawReviewContribution } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
+} from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
+import { currentFramedRenderProfile } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs";
+import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

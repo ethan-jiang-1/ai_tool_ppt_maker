@@ -3,11 +3,11 @@ import { createCanvas } from "@napi-rs/canvas";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   inspectCurrentFinalSlideManifest,
   publishCurrentFinalSlideManifest,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_final_manifest.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_final_manifest.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

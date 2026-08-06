@@ -8,19 +8,19 @@ import {
   StyleMasterScopeError,
   bindStyleMasterScopeCandidate,
   resolveStyleMasterScopeContext,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_scope.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_scope.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   initializeTargetPageAuthorityState,
   statePath,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function source() {
   return `---

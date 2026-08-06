@@ -81,9 +81,9 @@
         "contracts/canonical_json.mjs",
         "contracts/cli_return_audit.mjs",
         "contracts/executable_inventory.mjs",
-        "contracts/framework_architecture.mjs",
-        "contracts/framework_document_command_audit.mjs",
-        "contracts/framework_static_coherence.mjs",
+        "contracts/harness_architecture.mjs",
+        "contracts/harness_document_command_audit.mjs",
+        "contracts/harness_static_coherence.mjs",
         "contracts/retirement_ledger_audit.mjs"
       ],
       "executables": ["ppt_flow.mjs"],
@@ -94,9 +94,9 @@
         "tests/contracts/fixtures/development-verification/test_mock_prohibited_transitive.mjs",
         "tests/contracts/test_development_verification_admission.mjs",
         "tests/contracts/test_diagnostic_recovery_handoff.mjs",
-        "tests/contracts/test_framework_architecture.mjs",
-        "tests/contracts/test_framework_directory_layout.mjs",
-        "tests/contracts/test_framework_governance_ledger.mjs",
+        "tests/contracts/test_harness_architecture.mjs",
+        "tests/contracts/test_harness_directory_layout.mjs",
+        "tests/contracts/test_harness_governance_ledger.mjs",
         "tests/contracts/test_intent_route_catalog.mjs",
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",
@@ -166,6 +166,7 @@
       ],
       "unit_integration": [
         "tests/shared/run-bundle/test_page_authority_layout.mjs",
+        "tests/shared/run-bundle/test_process_harness_binding.mjs",
         "tests/shared/run-bundle/test_process_lessons.mjs",
         "tests/shared/run-bundle/test_run_bundle_locator.mjs"
       ],

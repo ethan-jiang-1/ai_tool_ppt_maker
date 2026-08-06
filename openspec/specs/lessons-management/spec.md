@@ -4,9 +4,22 @@ Provide the CLI operational surface at `scripts/shared/run-bundle/lessons.mjs` f
 
 ## Requirements
 
+### Requirement: Lessons remain bundle-local rather than global memory
+
+The Harness-supplied lessons operations SHALL resolve one exact current Bundle
+through the Run Bundle layout authority. They SHALL not create a global lesson
+store, cross-session memory, or portable binding behavior.
+
+#### Scenario: Agent checks lessons for one exact Bundle
+
+- **WHEN** an Agent invokes the Harness lessons CLI for an exact run directory
+- **THEN** it reads only that Bundle's `_lessons/` location through the layout
+  authority
+- **AND** it does not read or write lesson data outside that Bundle
+
 ### Requirement: lessons.mjs CLI lists lessons in a run bundle
 
-`PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
+`ppt_maker_harness/scripts/shared/run-bundle/lessons.mjs` SHALL provide a `list` subcommand that, given a run directory path, resolves the deck root, reads all files in `_lessons/` (excluding `README.md`), and prints a human-readable listing with one line per lesson file showing the filename and a brief summary extracted from the first heading or frontmatter.
 
 The tool SHALL:
 - Accept a run directory (e.g., `deck_*/3_versions/v1`) as its argument
@@ -127,7 +140,7 @@ The tool SHALL:
 
 ### Requirement: lessons.mjs integrates with bundle_layout path constants
 
-`lessons.mjs` SHALL import `deckRoot`, `LESSONS_DIR` from `bundle_layout.mjs` and SHALL NOT hardcode any run-bundle paths. Lesson file discovery SHALL resolve `deckRoot(runDir)` then join with `LESSONS_DIR`, consistent with how other framework scripts resolve bundle paths.
+`lessons.mjs` SHALL import `deckRoot`, `LESSONS_DIR` from `bundle_layout.mjs` and SHALL NOT hardcode any run-bundle paths. Lesson file discovery SHALL resolve `deckRoot(runDir)` then join with `LESSONS_DIR`, consistent with how other Harness scripts resolve bundle paths.
 
 #### Scenario: Path resolution follows bundle_layout SSOT
 

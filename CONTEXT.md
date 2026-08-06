@@ -6,7 +6,7 @@ This context names the durable concepts used to author, version, render, and ass
 
 **PPT Maker Harness**:
 The reusable methodology, controls, and production tools that an Agent uses to establish and operate individual Run Bundles. It does not contain an Agent instance.
-_Avoid_: Framework, `PPTMAKER_FRAMEWORK` when naming the conceptual system
+_Avoid_: a generic system label or `ppt_maker_harness` when naming the conceptual system
 
 **Agent**:
 The external orchestrator that uses the PPT Maker Harness to operate a Run Bundle. An Agent is not Harness source or Run Bundle identity.
@@ -18,7 +18,7 @@ _Avoid_: Harness ownership of Deck content, Agent ownership of human content
 
 **Harness Root**:
 The one source directory that contains a PPT Maker Harness and is distinct from every Run Bundle.
-_Avoid_: Framework root, duplicate Harness root
+_Avoid_: a generic source-root label or duplicate Harness root
 
 **Harness Maintenance Domain**:
 The source and verification area used to evolve a PPT Maker Harness, including its implementation, normative specifications, and tests. It excludes Deck production data.

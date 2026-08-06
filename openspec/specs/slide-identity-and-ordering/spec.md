@@ -83,7 +83,7 @@ The system SHALL derive a `spoken_key` by removing a leading `@`, spaces, and hy
 - **AND** the system does not choose one by case or current position
 
 ### Requirement: Slide selectors have one shared deterministic resolution contract
-All framework paths that accept a slide selector SHALL use the same resolver. Resolution SHALL attempt,
+All Harness paths that accept a slide selector SHALL use the same resolver. Resolution SHALL attempt,
 in order: exact current formal ID, exact spoken key, explicit current position (`N` or `pN`), unique
 case-insensitive title fragment, then a retained-historical-ID prefix only when it uniquely resolves an
 existing formal ID. An unknown or ambiguous selector SHALL fail loudly with bounded

@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   WORKFLOW_INSPECTION_SCHEMA,
   inspectWorkflow,
   isWorkflowInspectionSourceReady,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
-import { canonicalJson } from "../../../PPTMAKER_FRAMEWORK/scripts/contracts/canonical_json.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
+import { canonicalJson } from "../../../ppt_maker_harness/scripts/contracts/canonical_json.mjs";
 
 function treeSnapshot(root, current = root, entries = []) {
   for (const name of readdirSync(current).sort()) {

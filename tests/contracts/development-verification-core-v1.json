@@ -3,6 +3,6 @@
   "budget_ms": 60000,
   "entries": [
     "tests/contracts/test_development_verification_admission.mjs",
-    "tests/contracts/test_framework_architecture.mjs"
+    "tests/contracts/test_harness_architecture.mjs"
   ]
 }

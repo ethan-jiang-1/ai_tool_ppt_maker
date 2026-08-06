@@ -34,7 +34,7 @@ vi.mock("@napi-rs/canvas", async (importOriginal) => {
   };
 });
 
-import { canonicalJsonSha256 } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
+import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   abandonStyleMasterCandidates,
   acceptStyleMasterCandidateReview,
@@ -44,11 +44,11 @@ import {
   inspectStyleMasterCandidates,
   planStyleMasterCandidates,
   prepareStyleMasterCandidateReview,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_plan.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_plan.mjs";
 import {
   bindStyleMasterScopeCandidate,
   resolveStyleMasterScopeContext,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_scope.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_scope.mjs";
 import {
   STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA,
   STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA,
@@ -70,7 +70,7 @@ import {
   validateStyleMasterHeadRecord,
   validateStyleMasterProviderRequestRecord,
   validateStyleMasterReviewDecisionRecord,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_schema.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import {
   createStyleMasterStagingDirectory,
   createOrExactMatchStyleMasterRecord,
@@ -78,15 +78,15 @@ import {
   publishStyleMasterStagedPlan,
   styleMasterStorePaths,
   writeStyleMasterCandidateAttemptCas,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/style_master_store.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import {
   CONDITIONS,
   readState,
@@ -94,7 +94,7 @@ import {
   resolveEffectiveStyleMasterSelection,
   statePath,
   writeState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 

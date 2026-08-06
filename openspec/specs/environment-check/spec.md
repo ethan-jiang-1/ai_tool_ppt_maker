@@ -3,6 +3,21 @@
 Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Authority raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
 ## Requirements
 
+### Requirement: Environment checks are owned by the Harness root
+
+The normal installed environment diagnostic SHALL be invoked through
+`node ppt_maker_harness/scripts/ppt_flow.mjs doctor`; the pre-install recovery
+entry SHALL be `ppt_maker_harness/scripts/00-setup/env-check.mjs`. Both paths
+remain bounded readiness checks and SHALL not use a retired source root as an
+alias or infer a Deck, Run Bundle, provider authorization, or Controller
+continuation.
+
+#### Scenario: An Agent performs normal Harness readiness
+
+- **WHEN** an installed Agent requests the normal environment diagnostic
+- **THEN** it invokes the Harness `ppt_flow doctor` entrypoint
+- **AND** it receives existing bounded readiness evidence rather than a retired-root fallback
+
 ### Requirement: Zero-dependency runtime check
 `scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a production adapter nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed Framed runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
 
@@ -187,7 +202,7 @@ making this evidence boundary clear without exposing prompt, credential, or prov
 
 #### Scenario: Plan owns Style Master prompt preflight
 
-- **WHEN** a Style Master provider brief cannot meet its deterministic framework-owned bound
+- **WHEN** a Style Master provider brief cannot meet its deterministic Harness-owned bound
 - **THEN** `style-master plan` fails before authorization regardless of a prior successful smoke result
 - **AND** the smoke report is not interpreted as competing readiness authority
 
@@ -283,7 +298,7 @@ both live flags SHALL be a usage error.
 
 `scripts/00-setup/env-check.mjs` SHALL include one stable base check named `git`, implemented with Node.js built-ins and no npm dependency. The check SHALL observe only the process current working directory; its production child runner SHALL fix `cwd` to `process.cwd()`, use `shell: false` with ignored stdin, and expose no caller-controlled cwd/path input. Its public text SHALL describe that scope without emitting the directory path and SHALL NOT claim that a future or separately located run bundle is protected, tracked, clean, or recoverable.
 
-The probe SHALL use only a fixed, argument-safe sequence: a bounded `git --version` with a conservative one-line parse that accepts exactly `git version <major>.<minor>.<patch>` plus only the optional `.windows.<number>` or ` (Apple Git-<number>)` suffix; after a recognized version succeeds, a bounded `git rev-parse --is-inside-work-tree`; and only after literal `true`, a bounded `git rev-parse --verify --quiet HEAD^{commit}` accepting only a 40- or 64-hex object identifier. Each invocation SHALL use `shell: false`, ignored stdin, a 2-second timeout, and Node `maxBuffer` of 4 KiB per captured stdout/stderr stream. Only a quiet no-stdout/no-stderr `rc=1` HEAD verification result MAY be normalized as no-verifiable-HEAD; every other nonzero/timeout/permission/malformed result is unavailable. The child environment SHALL be allowlisted enough to preserve platform-required executable discovery while omitting framework credentials and removing inherited `GIT_*` overrides (case-insensitively on Windows); on Windows it SHALL forward at most one canonicalized `PATH`/`Path` key. It SHALL set `LC_ALL=C` and `LANG=C` on every platform, plus framework-owned `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_CONFIG_NOSYSTEM=1`, and `GIT_CONFIG_GLOBAL` to Node's platform null device so global/system Git configuration and replacement refs do not affect the probe. The implementation SHALL not invoke shell parsing, `git status`, `git log`, `git diff`, `git remote`, `git config`, or any Git mutation command.
+The probe SHALL use only a fixed, argument-safe sequence: a bounded `git --version` with a conservative one-line parse that accepts exactly `git version <major>.<minor>.<patch>` plus only the optional `.windows.<number>` or ` (Apple Git-<number>)` suffix; after a recognized version succeeds, a bounded `git rev-parse --is-inside-work-tree`; and only after literal `true`, a bounded `git rev-parse --verify --quiet HEAD^{commit}` accepting only a 40- or 64-hex object identifier. Each invocation SHALL use `shell: false`, ignored stdin, a 2-second timeout, and Node `maxBuffer` of 4 KiB per captured stdout/stderr stream. Only a quiet no-stdout/no-stderr `rc=1` HEAD verification result MAY be normalized as no-verifiable-HEAD; every other nonzero/timeout/permission/malformed result is unavailable. The child environment SHALL be allowlisted enough to preserve platform-required executable discovery while omitting Harness credentials and removing inherited `GIT_*` overrides (case-insensitively on Windows); on Windows it SHALL forward at most one canonicalized `PATH`/`Path` key. It SHALL set `LC_ALL=C` and `LANG=C` on every platform, plus Harness-owned `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, `GIT_NO_REPLACE_OBJECTS=1`, `GIT_CONFIG_NOSYSTEM=1`, and `GIT_CONFIG_GLOBAL` to Node's platform null device so global/system Git configuration and replacement refs do not affect the probe. The implementation SHALL not invoke shell parsing, `git status`, `git log`, `git diff`, `git remote`, `git config`, or any Git mutation command.
 
 The check SHALL be `ok` only when a conservatively recognized version is available, `rev-parse --is-inside-work-tree` exits zero with trimmed literal `true`, and `HEAD^{commit}` is verifiable. It SHALL be `warn`, never `fail`, when Git is unavailable, the current directory is not positively confirmed as a worktree, the positively confirmed worktree has no verifiable commit at HEAD, a probe times out or is denied, or output is malformed/unrecognized. A nonzero worktree probe without a separately classified timeout/permission condition SHALL be rendered only as "current directory not confirmed as a worktree"; it SHALL not infer an exact cause from raw stderr. Detail and fix text SHALL contain only normalized facts and generic state; they SHALL NOT expose a remote URL, credential, environment value, username, command path, commit, branch, diff, status, raw stdout, or raw stderr.
 
@@ -382,7 +397,7 @@ source-validation failure.
 
 ### Requirement: Direct environment check is a bounded recovery entry
 
-`ppt_flow doctor` SHALL remain the normal installed-framework diagnostic entry.
+`ppt_flow doctor` SHALL remain the normal installed-Harness diagnostic entry.
 Direct `scripts/00-setup/env-check.mjs` SHALL remain runnable before npm
 installation and SHALL be documented for pre-install recovery or an unavailable
 main entry. It MAY report bounded local or operation-scoped readiness, but it
@@ -404,7 +419,7 @@ probe evidence SHALL not authorize a later production action.
 
 #### Scenario: Pre-install recovery stays available
 
-- **WHEN** framework npm dependencies are absent or the main entry cannot
+- **WHEN** Harness npm dependencies are absent or the main entry cannot
   start
 - **THEN** direct env-check reports bounded local prerequisites without loading
   an unavailable production dependency at startup

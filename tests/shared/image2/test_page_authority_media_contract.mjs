@@ -7,7 +7,7 @@ import {
   PAGE_AUTHORITY_IMAGE2_REQUEST_SIZE,
   PAGE_AUTHORITY_NATIVE_RAW_PNG,
   pageAuthorityFinalPngForWorkflow,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_media_contract.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_media_contract.mjs";
 
 function png(width, height) {
   const canvas = createCanvas(width, height);

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   createPureRawWorkPlan,
   createPureTargetRawReviewContribution,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { validateTargetRawReviewContribution } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_target_runtime.mjs";
+} from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

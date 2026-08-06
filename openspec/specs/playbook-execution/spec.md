@@ -1,7 +1,21 @@
 ## Purpose
 
-Define how MD Controller playbooks under `PPTMAKER_FRAMEWORK/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
+Define how MD Controller playbooks under `ppt_maker_harness/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
 ## Requirements
+
+### Requirement: MD Controller playbooks are housed by the Harness
+
+MD Controller playbooks and their normative controller inventory SHALL reside
+under `ppt_maker_harness/playbook/`. Their move to the Harness SHALL preserve
+the external Agent's ownership of intent interpretation, sequencing, creative
+work, and user communication; the Harness SHALL not be represented as a
+persisted Agent or a Run Bundle identity.
+
+#### Scenario: Agent begins controller work
+
+- **WHEN** an Agent locates an active playbook after resolving an exact run
+- **THEN** it reads the playbook from the canonical Harness root
+- **AND** it preserves existing state, gate, and direct-owner boundaries
 
 ### Requirement: Playbook controller delegates workflow control to inspection
 After it has resolved a semantic intent and exact run, the MD Controller SHALL use the workflow-entry inspection result for resume, small refresh, structural change, and recovery observation/routing. Greenfield creation SHALL first use the direct `init` entry, then consume inspection only after the exact run exists. The Controller SHALL retain intent interpretation, creative work, human communication, and playbook sequencing, but SHALL not reconstruct direct-owner mode/gate/recovery rules or turn a resume action into a substitute for a requested mutation.
@@ -191,7 +205,7 @@ a second representation of non-routability.
 
 #### Scenario: Draft-route projection matches playbooks
 
-- **WHEN** the framework indexes the updated create-deck playbook and controller manifest
+- **WHEN** the Harness indexes the updated create-deck playbook and controller manifest
 - **THEN** each workflow's ordered `draft_route_nodes` begins with the shared workflow-selection node and exactly matches its applicable content, visual-system, selected Style Master, and first-raw nodes declared `draft_route: true`
 - **AND** unknown, sibling, post-raw, and non-create-deck nodes cannot become draft-routable through manifest drift
 
@@ -498,7 +512,7 @@ the Controller route.
 
 #### Scenario: Active documentation passes the existing retirement audit
 
-- **WHEN** current framework guidance and main specifications are audited
+- **WHEN** current Harness guidance and main specifications are audited
 - **THEN** the existing process-document coherence check finds no retired
   production label in the current Pure Pilot descriptions
 - **AND** no exception, alternate route, or new validation layer is required

@@ -10,12 +10,12 @@ import {
   STYLE_MASTER_PROMPT,
   initBundle,
   styleAsset,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
-import { readState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { readState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
-const FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
+const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
 
 function pngBytes(color) {
   const canvas = createCanvas(2000, 1125);

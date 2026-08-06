@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import {
   classifyTargetRefresh,
-} from "../../PPTMAKER_FRAMEWORK/scripts/06-iteration/index.mjs";
+} from "../../ppt_maker_harness/scripts/06-iteration/index.mjs";
 
 const digest = (letter) => letter.repeat(64);
 

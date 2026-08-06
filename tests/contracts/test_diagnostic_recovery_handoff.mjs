@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const AGENT_CONTRACT_PATH = "PPTMAKER_FRAMEWORK/charter/AGENT_CONTRACT.md";
-const COMMANDS_PATH = "PPTMAKER_FRAMEWORK/COMMANDS.md";
-const NODE_SPEC_PATH = "PPTMAKER_FRAMEWORK/charter/NODE-SPEC.md";
-const CREATE_DECK_PATH = "PPTMAKER_FRAMEWORK/playbook/create-deck.md";
-const GUIDE_TEMPLATE_PATH = "PPTMAKER_FRAMEWORK/workflow/00-setup/template-deck-guide.md";
+const AGENT_CONTRACT_PATH = "ppt_maker_harness/charter/AGENT_CONTRACT.md";
+const COMMANDS_PATH = "ppt_maker_harness/COMMANDS.md";
+const NODE_SPEC_PATH = "ppt_maker_harness/charter/NODE-SPEC.md";
+const CREATE_DECK_PATH = "ppt_maker_harness/playbook/create-deck.md";
+const GUIDE_TEMPLATE_PATH = "ppt_maker_harness/workflow/00-setup/template-deck-guide.md";
 const FOUR_PART_LABELS = [
   "What happened",
   "What it affects",

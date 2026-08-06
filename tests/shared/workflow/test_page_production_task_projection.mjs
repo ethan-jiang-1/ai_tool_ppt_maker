@@ -5,22 +5,22 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 
-import { initBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   buildPureProgressiveTargetRawPlan,
   resolvePureStyleMasterScope,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { readState, writeState } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
-import { inspectWorkflow } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/inspect_workflow.mjs";
+} from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { inspectWorkflow } from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import {
   pageProductionTaskProjectionPath,
   progressiveControllerCheckpoint,
   refreshPageProductionTaskProjection,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/page_production_task_projection.mjs";
-import { progressiveControllerTaskProjectionEligibility } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/workflow/progressive_controller_task_projection_eligibility.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/workflow/page_production_task_projection.mjs";
+import { progressiveControllerTaskProjectionEligibility } from "../../../ppt_maker_harness/scripts/shared/workflow/progressive_controller_task_projection_eligibility.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
-const PPT_FLOW = resolve(process.cwd(), "PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs");
+const PPT_FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
 
 function progressiveInspection({ actionId, latestBatch = null, progress = null } = {}) {
   return {

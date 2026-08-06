@@ -12,11 +12,11 @@ import {
   findPackageInAncestorNodeModules,
   probeGitSafetyForTest,
   runAllChecks,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
-import { parseCliErrorLine } from '../../PPTMAKER_FRAMEWORK/scripts/shared/cli/cli_error.mjs';
-import { currentFramedRenderProfile } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs';
+} from '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs';
+import { parseCliErrorLine } from '../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs';
+import { currentFramedRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
-const ENV_CHECK = 'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs';
+const ENV_CHECK = 'ppt_maker_harness/scripts/00-setup/env-check.mjs';
 const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
 
 function runCheck(args = '') {
@@ -242,7 +242,7 @@ describe('env-check optional Git public wiring', () => {
       expect(direct).toContain('△ git');
       expect(direct).toContain('READY');
 
-      const doctor = execSync(`node ${join(process.cwd(), 'PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs')} doctor`, {
+      const doctor = execSync(`node ${join(process.cwd(), 'ppt_maker_harness/scripts/ppt_flow.mjs')} doctor`, {
         encoding: 'utf8', timeout: 20_000, env,
       });
       expect(doctor).toContain('△ git');
@@ -532,7 +532,7 @@ describe('env-check Image2 base URL hard fail', () => {
     try {
       process.env.IMAGE2_API_KEY = 'test-key';
       const { checkApiKey } = await import(
-        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
+        '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs'
       );
       const key = checkApiKey();
       expect(key.status).toBe('ok');
@@ -548,7 +548,7 @@ describe('env-check Image2 base URL hard fail', () => {
     try {
       process.env.IMAGE2_BASE_URL = 'https://example.test/v1';
       const { checkBaseUrl } = await import(
-        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
+        '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs'
       );
       const url = checkBaseUrl();
       expect(url.status).toBe('ok');
@@ -565,7 +565,7 @@ describe('env-check Image2 base URL hard fail', () => {
     try {
       process.env.IMAGE2_BASE_URL = 'https://first.example.test/v1,https://second.example.test/v1';
       const { checkBaseUrl } = await import(
-        '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs'
+        '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs'
       );
       const url = checkBaseUrl();
       expect(url).toMatchObject({ check: 'image_base_url', status: 'fail' });
@@ -680,7 +680,7 @@ describe('env-check --smoke', () => {
       json: async () => ({ error: 'unauthorized' }),
     });
     try {
-      const { checkImageSmoke } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs');
+      const { checkImageSmoke } = await import('../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs');
       const r = await checkImageSmoke();
       expect(r.check).toBe('image_smoke');
       expect(r.status).toBe('fail');
@@ -745,7 +745,7 @@ describe('env-check --probe-vendors', () => {
       };
     };
     try {
-      const { checkProbeVendors } = await import('../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs');
+      const { checkProbeVendors } = await import('../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs');
       const r = await checkProbeVendors();
       expect(r.check).toBe('image_probe_vendors');
       expect(r.status).toBe('ok');

@@ -3,7 +3,7 @@ import {
   normalizeImage2BaseUrl,
   resolveImage2Credentials,
   resolveImage2Vendors,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/image2/credentials.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/credentials.mjs";
 
 describe("shared Image2 credentials", () => {
   it("resolves the legacy environment shape with the same override precedence", () => {

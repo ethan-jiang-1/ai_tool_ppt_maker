@@ -19,36 +19,36 @@ context: |-
 
   ## 工作域与对象边界
 
-  Framework repository maintenance 只把以下四个目录视为框架源码域：
+  PPT Maker Harness repository maintenance 只把以下四个目录视为 Harness 源码域：
 
   | 对象 | 路径 | 角色 |
   |------|------|------|
-  | Framework soft bundle | `PPTMAKER_FRAMEWORK/` | Charter、方法论、MD Controller 与 Node 工具 |
+  | PPT Maker Harness soft bundle | `ppt_maker_harness/` | Charter、方法论、MD Controller 与 Node 工具 |
   | OpenSpec system | `openspec/` | main specs、changes、archive 与项目配置 |
   | Unit / integration tests | `tests/` | 单元测试与跨模块集成测试 |
   | End-to-end tests | `tests_e2e/` | 从公开入口验证完整流程与状态机 |
 
   做 repository maintenance 时，按 OpenSpec change 修改上述源码域。做具体 deck 时，
-  `PPTMAKER_FRAMEWORK/` 是只读方法论与工具，不得为某个 deck 顺手修改 framework。
+  `ppt_maker_harness/` 是只读方法论与工具，不得为某个 deck 顺手修改 Harness。
 
-  - **Run bundle** (`deck_{NAME}/`) 是 framework 生产和维护的 PPT 项目对象，不是框架源码。
+  - **Run bundle** (`deck_{NAME}/`) 是 Harness 生产和维护的 PPT 项目对象，不是 Harness 源码。
     只有用户明确指定 deck 路径后才进入其中工作。其稳定梯度是：
     `1_upstream_raw_material/` → `2_backbone/` → `3_versions/v{n}/`。
   - `3_versions/v{n}/` 是 `--run-dir`，不是 deck 根；`_generated/` 是可重建派生物，
     `_scratch/` 是版本级临时出口。
-  - **Deep research input** (`dpt_*`) 是输入素材，不是 framework、run bundle 或测试夹具；
+  - **Deep research input** (`dpt_*`) 是输入素材，不是 Harness、run bundle 或测试夹具；
     用户未明确指定时不读。
   - `_backlog/` 是独立簿记系统，只有用户明确指定时读取；它不替代 OpenSpec change 状态。
 
-  Framework soft-bundle 结构由 `framework-directory-layout` 管；run bundle 本体论由
+  PPT Maker Harness soft-bundle 结构由 `harness-directory-layout` 管；run bundle 本体论由
   `run-bundle-layout` 管，机器 SSOT 是 `bundle_layout.mjs`。两者不得混称。
 
   ## 权威源与查找顺序
 
   | 主题 | 权威源 |
   |------|--------|
-  | 项目宪法与 Agent 行为 | `PPTMAKER_FRAMEWORK/charter/*.md` |
-  | MD Controller 流程 | `PPTMAKER_FRAMEWORK/playbook/*.md` |
+  | 项目宪法与 Agent 行为 | `ppt_maker_harness/charter/*.md` |
+  | MD Controller 流程 | `ppt_maker_harness/playbook/*.md` |
   | Capability 当前行为 | `openspec/specs/<capability>/spec.md` |
   | 当前 change 增量 | active change 下的 `specs/<capability>/spec.md` |
   | Run-bundle 目录与路径 | `bundle_layout.mjs` + `run-bundle-layout` |
@@ -63,14 +63,14 @@ context: |-
 
   Node.js 22.x、24.x 或 26.x ESM。主要依赖由 `package.json` 声明：`@napi-rs/canvas`、`pptxgenjs`、
   `jszip`、`commander`、`yaml`；HTTP 使用 Node 内置 `fetch`，测试使用 `vitest`。
-  统一入口：`node PPTMAKER_FRAMEWORK/scripts/ppt_flow.mjs <command>`。
+  统一入口：`node ppt_maker_harness/scripts/ppt_flow.mjs <command>`。
 
   | 边界 | 规则 |
   |------|------|
-  | 官方运行时 | 所有 framework 可执行资产使用 Node.js ESM（`.mjs` / 必要的 `.js`）和声明的 npm 依赖 |
-  | 绝对禁止的生产依赖 | 不把 Python / `.py` / Pillow / uv / `pyproject.toml`、bash / `.sh` / POSIX-only 管线作为 framework 生产路径 |
-  | Agent skill 边界 | 外部 skill 可以辅助开发 Agent，但不得成为 framework 冷启动或生产管线的运行时依赖 |
-  | 图像与视觉工具 | 图像生成、style master、contact sheet 等正式能力由 `PPTMAKER_FRAMEWORK/scripts/` 内的 Node 模块实现 |
+  | 官方运行时 | 所有 Harness 可执行资产使用 Node.js ESM（`.mjs` / 必要的 `.js`）和声明的 npm 依赖 |
+  | 绝对禁止的生产依赖 | 不把 Python / `.py` / Pillow / uv / `pyproject.toml`、bash / `.sh` / POSIX-only 管线作为 Harness 生产路径 |
+  | Agent skill 边界 | 外部 skill 可以辅助开发 Agent，但不得成为 Harness 冷启动或生产管线的运行时依赖 |
+  | 图像与视觉工具 | 图像生成、style master、contact sheet 等正式能力由 `ppt_maker_harness/scripts/` 内的 Node 模块实现 |
   | 文档命令 | shell 代码块只是供人或 Agent 调用 `node …` 的命令示例，不是 `.sh` 可执行资产 |
 
   详细权威：`charter/CONSTITUTION.md` + `charter/AGENT_CONTRACT.md` §7。
@@ -79,7 +79,7 @@ context: |-
 
   | 维度 | 规则 |
   |------|------|
-  | 适用范围 | Framework 直接暴露的 CLI 发生 JS-controlled non-zero hard failure |
+  | 适用范围 | PPT Maker Harness 直接暴露的 CLI 发生 JS-controlled non-zero hard failure |
   | 机器回执 | `stderr` 最后一个非空行必须是唯一的单行 JSON envelope，不能只返回散文错误 |
   | 诊断内容 | Diagnostic 必须有版本、范围受限且 secret-safe；只交付 JS 已知的 source/artifact lineage 与安全 `next` |
   | 禁止泄露 | 不释放 raw prose、stack、provider body、prompt、`.env` 内容或未经整理的 child output |
@@ -98,12 +98,13 @@ context: |-
 
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
-  | `framework-charter` | Charter、入口面、Agent 行为与 framework-wide 一致性 | `charter/*.md`, `BOOTSTRAP.md` |
-  | `framework-directory-layout` | `PPTMAKER_FRAMEWORK/` soft-bundle 目录布局 | `PPTMAKER_FRAMEWORK/` |
+  | `harness-charter` | Charter、入口面、Agent 行为与 Harness-wide 一致性 | `charter/*.md`, `BOOTSTRAP.md` |
+  | `harness-directory-layout` | `ppt_maker_harness/` soft-bundle 目录布局 | `ppt_maker_harness/` |
+  | `harness-script-layout` | Harness 脚本的 executable ownership 与 import boundary | `scripts/`, `scripts/contracts/` |
   | `run-bundle-layout` | `deck_*` 目录本体论、角色与结构梯度 | `bundle_layout.mjs`, `reference/glossary.md` |
   | `run-bundle-management` | init、check、new-version 与 layout 执法 | `bundle_layout.mjs` |
   | `bootstrap-env-guidance` | BOOTSTRAP 环境修复与首次凭据指导 | `BOOTSTRAP.md`, `env-check.mjs` |
-  | `environment-check` | Node/npm/凭据/字体/框架内图像能力检查 | `env-check.mjs` |
+  | `environment-check` | Node/npm/凭据/字体/Harness 内图像能力检查 | `env-check.mjs` |
   | `project-versioning` | VERSION、VERSION_LOG 与 archive 后版本判断 | `VERSION`, `VERSION_LOG.md` |
 
   ### 生产管线
@@ -111,7 +112,7 @@ context: |-
   | Capability | 稳定责任 | 主要权威 |
   |------------|----------|----------|
   | `content-parsing` | Stage 1：Markdown → slide plan / prompts / source validation | `scripts/03-html-production/stage1_build_inputs.mjs` |
-  | `image-generation` | Stage 2：框架内 Node 图像生成与 contact sheet | `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs`, `scripts/05-iteration/legacy-image2/make_contact_sheet.mjs`, `scripts/05-iteration/legacy-image2/internal/image_api_client.mjs` |
+  | `image-generation` | Stage 2：Harness 内 Node 图像生成与 contact sheet | `scripts/05-iteration/legacy-image2/stage2_generate_images.mjs`, `scripts/05-iteration/legacy-image2/make_contact_sheet.mjs`, `scripts/05-iteration/legacy-image2/internal/image_api_client.mjs` |
   | `header-lock` | Stage 3：确定性 kicker/title/subtitle 叠加 | `scripts/05-iteration/legacy-image2/stage3_lock_headers.mjs` |
   | `pptx-assembly` | Stage 4：最终图片 → PPTX | `scripts/03-html-production/stage4_build_pptx.mjs` |
   | `notes-injection` | Stage 5：Speaker notes 注入与 receipt | `scripts/03-html-production/stage5_inject_notes.mjs` |
@@ -167,7 +168,7 @@ context: |-
   做具体 PPT：`BOOTSTRAP.md` → `charter/AGENT_CONTRACT.md` → 按当前 Phase 读 `AGENTS.md`。
   已有 deck 先读 `_state` / status，聊天上下文不是进度真相；视觉 Gate 前必须展示真实产物。
 
-  Framework maintenance：proposal → specs → design → tasks → apply → validate → archive。
+  PPT Maker Harness maintenance：proposal → specs → design → tasks → apply → validate → archive。
   - Proposal 保存 WHY、范围和 capability 合同。
   - Specs 定义 capability 的可测试 WHAT。
   - Design 记录 HOW、关键取舍、迁移与验证策略。
@@ -189,8 +190,8 @@ rules:
       New Capabilities 与 Modified Capabilities 必须准确：只有 requirement-level 行为变化才列入；
       纯实现、测试或文案调整不得伪装成 capability 变化。
     - >-
-      本 repo 的 OpenSpec 只处理 framework maintenance。Proposal 必须列出受影响的 framework
-      源码范围（PPTMAKER_FRAMEWORK/、openspec/、tests/、tests_e2e/）、control owner
+      本 repo 的 OpenSpec 只处理 PPT Maker Harness maintenance。Proposal 必须列出受影响的 Harness
+      源码范围（ppt_maker_harness/、openspec/、tests/、tests_e2e/）、control owner
       （MD、JS 或 MD⇔JS protocol），并评估对 run-bundle contract 的 impact：
       `none` / `compatible` / `migration`。不得把 production `deck_*` 当源码、fixture
       或待自动迁移对象。指定 deck 的制作从 `BOOTSTRAP.md`、`AGENT_CONTRACT.md` 和
@@ -226,7 +227,7 @@ rules:
       Reason 与 Migration。Delta 必须足以在 archive 时安全同步到 main specs，不依赖聊天补全。
     - >-
       目录、render mode、source/derived 等领域术语必须使用本 context 的 canonical 含义；
-      framework-directory-layout 与 run-bundle-layout 不得混称。
+      harness-directory-layout 与 run-bundle-layout 不得混称。
     - >-
       Gate-sensitive requirement 必须区分可自动修复的 guide、可被 reasoned waiver 继续的
       confirm、以及不可绕过的 hard-stop。waiver 必须保持 version-scoped、可审计，且绝不能
@@ -247,10 +248,10 @@ rules:
       每个关键决策说明由 MD、JS 或 MD⇔JS protocol 的哪一侧拥有，并给出理由与备选；不得创建与
       playbook/*.md、cli-surface、node-specification 或 bundle_layout.mjs 重复的第二事实源。
     - >-
-      Change 只要涉及 framework 可执行代码，Design 就必须单独思考验证策略：分别评估 unit、
+      Change 只要涉及 Harness 可执行代码，Design 就必须单独思考验证策略：分别评估 unit、
       integration、e2e 是否需要、各自验证哪一层边界以及为什么。不是机械要求三类测试全部增加，
       但不得跳过评估；测试资产优先复用 tests/fixtures 与最小代表性夹具，不把 deck_* 生产数据
-      默认为 framework 测试资产。
+      默认为 Harness 测试资产。
     - >-
       涉及兼容、状态或持久化时说明 migration、heal、幂等与回退；涉及生成物时说明失效与重建路径，
       不把手工修改派生产物作为方案。

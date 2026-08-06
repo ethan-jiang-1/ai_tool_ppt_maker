@@ -1,6 +1,6 @@
 ## Purpose
 
-Define `PPTMAKER_FRAMEWORK/COMMANDS.md`, the novice-facing discovery reference
+Define `ppt_maker_harness/COMMANDS.md`, the PPT Maker Harness novice-facing discovery reference
 that maps natural-language user goals to existing ownership-aware handoffs. It
 covers setup, creation, resume, changes, orientation, and the current refresh
 paths without duplicating a lifecycle state machine. This capability guarantees
@@ -31,9 +31,9 @@ artifact.
   validate or repair the receipt
 - **AND** it does not imply that status or state observation will create it
 
-### Requirement: COMMANDS.md exists at framework root
+### Requirement: COMMANDS.md exists at Harness root
 
-`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL exist as a human-readable command reference. It SHALL map natural-language user requests to the agent actions that fulfill them.
+`ppt_maker_harness/COMMANDS.md` SHALL exist at the PPT Maker Harness root as a human-readable command reference. It SHALL map natural-language user requests to the Agent actions that fulfill them and SHALL not identify a retired source root as a command or discovery location.
 
 #### Scenario: Human opens COMMANDS.md to learn what to say
 
@@ -91,7 +91,7 @@ COMMANDS.md SHALL be the concise human-facing interface and SHALL link detailed 
 
 ### Requirement: Intent Route Catalog is a closed discovery contract
 
-`PPTMAKER_FRAMEWORK/playbook/intent-routes-v1.json` SHALL define the
+`ppt_maker_harness/playbook/intent-routes-v1.json` SHALL define the
 versioned, audit-first discovery catalog independently of the Controller
 manifest. Its top-level object SHALL contain exactly `schema` with the literal
 value `pptmaker-intent-routes-v1` and `routes` as an array. Every route SHALL
@@ -171,7 +171,7 @@ Foundation routes do not require a run except an owner-defined run-bound
 readiness operation. In particular, normal raw-generation readiness SHALL use
 an exact run through the owner-issued `ppt_flow doctor` operation. An unbound
 direct `env-check` operation-scoped report is available only through
-`orientation-env-recovery` when the main entry is unavailable or the framework
+`orientation-env-recovery` when the main entry is unavailable or the Harness
 is pre-install; it is not a normal foundation-provider-readiness continuation.
 
 An unrecognized request SHALL produce the non-persistent Route Gap through
@@ -214,7 +214,7 @@ attempt, history record, task projection, or selected-route record.
 
 ### Requirement: COMMANDS.md presents user goals rather than protocol mechanics
 
-`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL render the supported discovery surface
+`ppt_maker_harness/COMMANDS.md` SHALL render the supported discovery surface
 as a novice-facing reference. Each common-request row SHALL state what the
 user can ask for, what the Agent needs to clarify or inspect, the expected
 result, the meaningful confirmation/cost boundary, and coarse timing as local
@@ -248,7 +248,7 @@ forms remain owned by the current playbooks and CLI specs.
 
 ### Requirement: COMMANDS presents a bounded diagnostic outcome without protocol leakage
 
-`PPTMAKER_FRAMEWORK/COMMANDS.md` SHALL present the orientation request for a
+`ppt_maker_harness/COMMANDS.md` SHALL present the orientation request for a
 user who is stuck or has a failure as a bounded result: the user receives what
 happened, what it affects, what the Agent can mechanically do, and the one
 human action or confirmation required. The novice-facing presentation SHALL

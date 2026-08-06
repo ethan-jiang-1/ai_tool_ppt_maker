@@ -12,13 +12,13 @@ import {
   nodeAppliesToWorkflow,
   parseControllerFile,
   validatePlaybookIndex,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/md_controller_reader.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/md_controller_reader.mjs";
 import {
   buildResumeCard,
   createInitialState,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
-const PLAYBOOK_DIR = "PPTMAKER_FRAMEWORK/playbook";
+const PLAYBOOK_DIR = "ppt_maker_harness/playbook";
 
 const CHECKED_MANIFEST = JSON.parse(readFileSync(join(PLAYBOOK_DIR, "controller-manifest-v3.json"), "utf8"));
 export const EXPECTED_CONTROLLER_MANIFEST = Object.freeze(Object.fromEntries(

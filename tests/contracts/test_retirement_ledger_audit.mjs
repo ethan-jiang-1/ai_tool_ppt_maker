@@ -4,7 +4,7 @@ import {
   auditActiveRetirementSurface,
   auditRetirementRequirements,
   parseRetirementLedger,
-} from "../../PPTMAKER_FRAMEWORK/scripts/contracts/retirement_ledger_audit.mjs";
+} from "../../ppt_maker_harness/scripts/contracts/retirement_ledger_audit.mjs";
 
 describe("main-spec retirement ledger audit", () => {
   it("covers current roots after main-spec synchronization", () => {

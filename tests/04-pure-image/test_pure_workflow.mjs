@@ -3,11 +3,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { createAcceptedRawEvidence } from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createAcceptedRawEvidence } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 
 const pureResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 
-vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (importOriginal) => {
+vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -22,8 +22,8 @@ vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (im
     },
   };
 });
-import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
-import { prepareFramedProgressivePilotReview } from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
+import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { prepareFramedProgressivePilotReview } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
   createPureRawWorkPlan,
@@ -47,16 +47,16 @@ import {
   refreshPureTargetNotes,
   resolvePureStyleMasterScope,
   validatePureRawContract,
-} from "../../PPTMAKER_FRAMEWORK/scripts/04-pure-image/index.mjs";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
   readProgressiveAcceptedRawWork,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
 import {
   readProgressiveRawPlanDirectRecords,
-} from "../../PPTMAKER_FRAMEWORK/scripts/shared/image2/page_authority_progressive_store.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);

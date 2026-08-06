@@ -33,7 +33,7 @@ download a browser, or use a system-browser fallback.
 
 ### Requirement: Static runtime smoke is local, fixed, and renderer-independent
 
-The framework SHALL keep a fixed local capture fixture. Smoke validation SHALL
+The Harness SHALL keep a fixed local capture fixture. Smoke validation SHALL
 launch paired headless Chromium, load only local/data resources, block network
 requests and service workers, wait for bundled fonts, verify geometry, and close
 contexts and browsers on success, failure, or timeout.
@@ -45,7 +45,7 @@ contexts and browsers on success, failure, or timeout.
 
 ### Requirement: Official Latin and Simplified-Chinese WOFF2 assets are distributed immutably
 
-The framework SHALL distribute pinned local font assets with their provenance,
+The Harness SHALL distribute pinned local font assets with their provenance,
 license material, immutable bytes, and fixed manifest. The runtime SHALL use only
 those local assets and shall not query a font service or use a system-font fallback
 as evidence.
@@ -53,7 +53,7 @@ as evidence.
 #### Scenario: Machine has no usable system font
 
 - **WHEN** the distributed font tree and manifest are valid
-- **THEN** Framed runtime font readiness succeeds using framework-owned assets
+- **THEN** Framed runtime font readiness succeeds using Harness-owned assets
 - **AND** it makes no remote font request
 
 ### Requirement: Font integrity and fixed sentinel coverage fail closed

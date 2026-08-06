@@ -1,97 +1,121 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { initBundle, checkBundle } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
+import { parse as parseYaml } from "yaml";
+import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
   RUN_BUNDLE_FILE,
+  RUN_BUNDLE_SCHEMA,
   renderRunBundle,
-  resolveRunBundleLocator,
-} from "../../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/run_bundle_locator.mjs";
-import { readState, resolveContinuationTargetVersion } from "../../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+  verifyDeckHarnessBinding,
+} from "../../../ppt_maker_harness/scripts/shared/run-bundle/run_bundle_locator.mjs";
 
-const FRAMEWORK_ROOT = resolve("PPTMAKER_FRAMEWORK");
+const HARNESS_ROOT = realpathSync.native(resolve("ppt_maker_harness"));
 
 function fixture(name) {
   const root = mkdtempSync(join(tmpdir(), `${name}-`));
   const deck = join(root, "deck_locator");
-  initBundle(deck, FRAMEWORK_ROOT, "keynote", null);
+  initBundle(deck, HARNESS_ROOT, "keynote", null);
   return { root, deck, cardPath: join(deck, RUN_BUNDLE_FILE) };
-}
-
-function fakeFramework(root, name) {
-  const framework = join(root, name);
-  for (const file of [
-    "scripts/ppt_flow.mjs",
-    "scripts/shared/run-bundle/bundle_layout.mjs",
-    "scripts/shared/state/state.mjs",
-  ]) {
-    const target = join(framework, file);
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, "export {};\n");
-  }
-  return framework;
-}
-
-function replaceCard(deck, frameworkRoot, frameworkRelation) {
-  const text = renderRunBundle({
-    deckName: "deck_locator",
-    deckRoot: realpathSync.native(deck),
-    frameworkRoot: resolve(frameworkRoot),
-    frameworkRelation,
-  });
-  writeFileSync(join(deck, RUN_BUNDLE_FILE), text);
-  return text;
 }
 
 function cleanup(root) {
   rmSync(root, { recursive: true, force: true });
 }
 
-describe("run bundle locator", () => {
-  it("fails before deck writes when init cannot prove the framework root", () => {
+function frontmatter(text) {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(text);
+  if (!match) throw new Error("expected frontmatter");
+  return parseYaml(match[1]);
+}
+
+function fakeHarness(root, name) {
+  const harness = join(root, name);
+  for (const file of [
+    "scripts/ppt_flow.mjs",
+    "scripts/shared/run-bundle/bundle_layout.mjs",
+    "scripts/shared/state/state.mjs",
+  ]) {
+    const target = join(harness, file);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, "export {};\n");
+  }
+  return realpathSync.native(harness);
+}
+
+describe("run bundle local Harness binding", () => {
+  it("does not scaffold when the local Harness cannot be verified or the Deck target is inside it", () => {
     const root = mkdtempSync(join(tmpdir(), "locator-init-failure-"));
-    const deck = join(root, "deck_locator");
     try {
-      expect(() => initBundle(deck, join(root, "missing-framework"))).toThrow(/framework root is unavailable/);
-      expect(existsSync(deck)).toBe(false);
-      expect(existsSync(join(deck, RUN_BUNDLE_FILE))).toBe(false);
+      const missingHarnessDeck = join(root, "deck_missing_harness");
+      expect(() => initBundle(missingHarnessDeck, join(root, "missing-harness"))).toThrow(/harness root is unavailable/);
+      expect(existsSync(missingHarnessDeck)).toBe(false);
+
+      const insideHarnessDeck = join(HARNESS_ROOT, "deck_should_not_exist");
+      expect(() => initBundle(insideHarnessDeck, HARNESS_ROOT)).toThrow(/outside the local Harness root/);
+      expect(existsSync(insideHarnessDeck)).toBe(false);
     } finally {
       cleanup(root);
     }
   });
 
-  it("locates a byte-only manifest without relying on the current working directory", () => {
-    const { root, deck, cardPath } = fixture("locator-bytes");
+  it("renders exactly the v2 binding fields and resolves only the exact local Harness", () => {
+    const { root, deck, cardPath } = fixture("locator-v2");
     try {
+      const card = readFileSync(cardPath, "utf8");
+      const manifest = frontmatter(card);
+      const canonicalDeck = realpathSync.native(deck);
+      expect(Object.keys(manifest).sort()).toEqual([
+        "deck_root",
+        "harness_relation",
+        "harness_root",
+        "schema",
+      ]);
+      expect(manifest).toEqual({
+        schema: RUN_BUNDLE_SCHEMA,
+        deck_root: canonicalDeck,
+        harness_root: HARNESS_ROOT,
+        harness_relation: relative(canonicalDeck, HARNESS_ROOT).split("\\").join("/"),
+      });
+
       const before = readFileSync(join(deck, "_state", "state.yaml"));
-      const result = resolveRunBundleLocator({ manifestText: readFileSync(cardPath, "utf8") });
-      expect(result).toMatchObject({
+      expect(verifyDeckHarnessBinding(deck)).toEqual({
         kind: "resolved",
         deckDir: realpathSync.native(deck),
-        frameworkDir: FRAMEWORK_ROOT,
-        deckSource: "declared",
-        frameworkSource: "declared",
+        harnessDir: HARNESS_ROOT,
       });
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(before);
+      expect(canonicalDeck.startsWith(`${HARNESS_ROOT}/`)).toBe(false);
     } finally {
       cleanup(root);
     }
   });
 
-  it("rejects closed-manifest syntax outside its four scalar fields", () => {
-    const { root, cardPath } = fixture("locator-manifest");
+  it("rejects malformed, v1, and retired-root-named cards without selecting a fallback", () => {
+    const { root, deck, cardPath } = fixture("locator-reject-legacy");
     try {
       const valid = readFileSync(cardPath, "utf8");
-      for (const invalid of [
+      const rejected = [
         "not a manifest",
-        valid.replace("schema:", "schema_alias:"),
-        valid.replace("deck_root:", "deck_root: &deck"),
+        valid.replace("schema: pptmaker-run-bundle-v2", "schema: pptmaker-run-bundle-v1"),
+        valid.replace("harness_root:", "framework_root:"),
+        valid.replace("harness_relation:", "framework_relation:"),
         valid.replace("---\n\n#", "extra: no\n---\n\n#"),
-        valid.replace(/deck_root: "[^"]+"/, 'deck_root: "/tmp/../tmp"'),
-      ]) {
-        expect(resolveRunBundleLocator({ manifestText: invalid })).toEqual({
-          kind: "guide", subject: "manifest", code: "manifest_invalid",
+      ];
+      for (const card of rejected) {
+        writeFileSync(cardPath, card);
+        expect(verifyDeckHarnessBinding(deck)).toMatchObject({
+          kind: "hard-stop",
+          subject: "harness_binding",
         });
       }
     } finally {
@@ -99,106 +123,56 @@ describe("run bundle locator", () => {
     }
   });
 
-  it("returns bounded deck-root guides for unavailable, unverified, and conflicting roots", () => {
-    const { root, deck, cardPath } = fixture("locator-deck-guides");
+  it("rejects a conflicting relation and a different verified local Harness", () => {
+    const { root, deck, cardPath } = fixture("locator-exact-root");
     try {
-      const missing = replaceCard(deck, FRAMEWORK_ROOT, relative(deck, FRAMEWORK_ROOT).split("\\").join("/"))
-        .replace(`deck_root: ${JSON.stringify(realpathSync.native(deck))}`, `deck_root: ${JSON.stringify(join(root, "missing"))}`);
-      expect(resolveRunBundleLocator({ manifestText: missing })).toMatchObject({ code: "deck_root_unavailable" });
+      const valid = readFileSync(cardPath, "utf8");
+      const otherHarness = fakeHarness(root, "other-harness");
+      const canonicalDeck = realpathSync.native(deck);
+      const actualRelation = relative(canonicalDeck, HARNESS_ROOT).split("\\").join("/");
+      const otherRelation = relative(canonicalDeck, otherHarness).split("\\").join("/");
 
-      const empty = join(root, "empty-deck");
-      mkdirSync(empty);
-      const unverified = missing.replace(JSON.stringify(join(root, "missing")), JSON.stringify(empty));
-      expect(resolveRunBundleLocator({ manifestText: unverified })).toMatchObject({ code: "deck_root_unverified" });
+      writeFileSync(cardPath, valid.replace(
+        `harness_relation: ${JSON.stringify(actualRelation)}`,
+        `harness_relation: ${JSON.stringify(otherRelation)}`,
+      ));
+      expect(verifyDeckHarnessBinding(deck)).toMatchObject({
+        kind: "hard-stop",
+        code: "harness_relation_conflict",
+      });
 
-      const other = join(root, "deck_other");
-      initBundle(other, FRAMEWORK_ROOT, "keynote", null);
-      const conflict = readFileSync(cardPath, "utf8").replace(JSON.stringify(realpathSync.native(deck)), JSON.stringify(realpathSync.native(other)));
-      expect(resolveRunBundleLocator({ manifestText: conflict })).toMatchObject({ code: "deck_root_conflict" });
-      expect(resolveRunBundleLocator({ manifestText: readFileSync(join(other, RUN_BUNDLE_FILE), "utf8") })).toMatchObject({
-        kind: "resolved", deckDir: realpathSync.native(other),
+      writeFileSync(cardPath, valid
+        .replace(`harness_root: ${JSON.stringify(HARNESS_ROOT)}`, `harness_root: ${JSON.stringify(otherHarness)}`)
+        .replace(
+          `harness_relation: ${JSON.stringify(actualRelation)}`,
+          `harness_relation: ${JSON.stringify(otherRelation)}`,
+        ));
+      expect(verifyDeckHarnessBinding(deck)).toMatchObject({
+        kind: "hard-stop",
+        code: "harness_root_conflict",
       });
     } finally {
       cleanup(root);
     }
   });
 
-  it("rejects a symlinked root card before any state access", () => {
-    const { root, deck, cardPath } = fixture("locator-symlink-card");
+  it("does not render a card for a different Harness or a nonmatching relation", () => {
+    const { root, deck } = fixture("locator-render-guard");
     try {
-      const original = `${cardPath}.real`;
-      renameSync(cardPath, original);
-      symlinkSync(original, cardPath);
-      expect(resolveRunBundleLocator({ manifestText: readFileSync(original, "utf8") })).toEqual({
-        kind: "guide", subject: "deck_root", code: "deck_root_unverified",
-      });
-    } finally {
-      cleanup(root);
-    }
-  });
-
-  it("uses only explicit deck relocation fallback and preserves the direct framework anchor", () => {
-    const { root, deck, cardPath } = fixture("locator-relocate-deck");
-    const moved = join(root, "moved", "deck_locator");
-    try {
-      mkdirSync(join(root, "moved"), { recursive: true });
-      renameSync(deck, moved);
-      expect(resolveRunBundleLocator({
-        manifestText: readFileSync(join(moved, RUN_BUNDLE_FILE), "utf8"),
-        originalCardPath: join(moved, RUN_BUNDLE_FILE),
-      })).toMatchObject({
-        kind: "resolved",
-        deckDir: realpathSync.native(moved),
-        frameworkDir: FRAMEWORK_ROOT,
-        deckSource: "card-parent",
-        frameworkSource: "declared",
-      });
-      expect(resolveRunBundleLocator({
-        manifestText: readFileSync(join(moved, RUN_BUNDLE_FILE), "utf8"),
-        requestedDeckRoot: moved,
-      })).toMatchObject({ kind: "resolved", deckSource: "requested" });
-      expect(existsSync(cardPath)).toBe(false);
-    } finally {
-      cleanup(root);
-    }
-  });
-
-  it("returns bounded framework guides and accepts only its relation fallback", () => {
-    const { root, deck } = fixture("locator-framework-guides");
-    try {
-      const missingRoot = join(root, "missing-framework");
-      const missing = replaceCard(deck, missingRoot, "../also-missing");
-      expect(resolveRunBundleLocator({ manifestText: missing })).toMatchObject({ code: "framework_root_unavailable" });
-
-      const empty = join(root, "empty-framework");
-      mkdirSync(empty);
-      const unverified = replaceCard(deck, empty, relative(deck, empty).split("\\").join("/"));
-      expect(resolveRunBundleLocator({ manifestText: unverified })).toMatchObject({ code: "framework_root_unverified" });
-
-      const first = fakeFramework(root, "framework-first");
-      const second = fakeFramework(root, "framework-second");
-      const conflict = replaceCard(deck, first, relative(deck, second).split("\\").join("/"));
-      expect(resolveRunBundleLocator({ manifestText: conflict })).toMatchObject({ code: "framework_root_conflict" });
-
-      const relation = replaceCard(deck, missingRoot, relative(deck, first).split("\\").join("/"));
-      expect(resolveRunBundleLocator({ manifestText: relation })).toMatchObject({
-        kind: "resolved", frameworkDir: realpathSync.native(first), frameworkSource: "relation",
-      });
-    } finally {
-      cleanup(root);
-    }
-  });
-
-  it("selects the state-owned exact run only after locator resolution", () => {
-    const { root, deck, cardPath } = fixture("locator-state");
-    try {
-      const located = resolveRunBundleLocator({ manifestText: readFileSync(cardPath, "utf8") });
-      expect(located.kind).toBe("resolved");
-      const state = readState(located.deckDir, { purpose: "observe", heal: false });
-      const selected = resolveContinuationTargetVersion(state, located.deckDir);
-      expect(selected).toMatchObject({ ok: true, run_version: "v1" });
-      expect(checkBundle(join(located.deckDir, "3_versions", selected.run_version), false))
-        .toContain("target workflow selection required: record production.workflow as framed or pure before provider work");
+      const otherHarness = fakeHarness(root, "render-other-harness");
+      const relation = relative(deck, otherHarness).split("\\").join("/");
+      expect(() => renderRunBundle({
+        deckName: "deck_locator",
+        deckRoot: realpathSync.native(deck),
+        harnessRoot: otherHarness,
+        harnessRelation: relation,
+      })).toThrow(/this local PPT Maker Harness/);
+      expect(() => renderRunBundle({
+        deckName: "deck_locator",
+        deckRoot: realpathSync.native(deck),
+        harnessRoot: HARNESS_ROOT,
+        harnessRelation: relation,
+      })).toThrow(/exact normalized relation/);
     } finally {
       cleanup(root);
     }

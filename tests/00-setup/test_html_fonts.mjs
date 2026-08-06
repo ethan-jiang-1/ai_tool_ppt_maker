@@ -11,8 +11,8 @@ import {
   parseUnicodeRanges,
   selectFramedFontFaces,
   verifyHtmlFontBundle,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/html_fonts.mjs';
-import { currentFramedRenderProfile } from '../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs';
+} from '../../ppt_maker_harness/scripts/00-setup/internal/html_fonts.mjs';
+import { currentFramedRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const INVENTORY_PATH = join(HTML_FONT_ROOT, 'inventory.json');
 
@@ -164,15 +164,15 @@ describe('HTML font bundle', () => {
     const packageJson = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8'));
     const dependencies = Object.keys({ ...packageJson.dependencies, ...packageJson.devDependencies });
     expect(dependencies.some((name) => /fontsource|fonttools/i.test(name))).toBe(false);
-    expect(HTML_FONT_ROOT).toBe(join(process.cwd(), 'PPTMAKER_FRAMEWORK', 'scripts', 'fonts'));
+    expect(HTML_FONT_ROOT).toBe(join(process.cwd(), 'ppt_maker_harness', 'scripts', 'fonts'));
 
-    const frameworkRoot = join(process.cwd(), 'PPTMAKER_FRAMEWORK');
-    const frameworkDirectories = readdirSync(frameworkRoot, { withFileTypes: true })
+    const harnessRoot = join(process.cwd(), 'ppt_maker_harness');
+    const harnessDirectories = readdirSync(harnessRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(frameworkDirectories).toEqual(['charter', 'playbook', 'reference', 'scripts', 'workflow']);
-    const fontDirectories = readdirSync(frameworkRoot, { recursive: true, withFileTypes: true })
+    expect(harnessDirectories).toEqual(['charter', 'playbook', 'reference', 'scripts', 'workflow']);
+    const fontDirectories = readdirSync(harnessRoot, { recursive: true, withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name === 'fonts')
       .map((entry) => join(entry.parentPath, entry.name));
     expect(fontDirectories).toEqual([HTML_FONT_ROOT]);

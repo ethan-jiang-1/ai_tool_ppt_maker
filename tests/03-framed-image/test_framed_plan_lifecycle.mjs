@@ -20,7 +20,7 @@ const renderControls = vi.hoisted(() => ({
 }));
 const framedResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 
-vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (importOriginal) => {
+vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -36,7 +36,7 @@ vi.mock("../../PPTMAKER_FRAMEWORK/scripts/02-visual-system/index.mjs", async (im
   };
 });
 
-vi.mock("../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_profile.mjs", async (importOriginal) => {
+vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -53,7 +53,7 @@ vi.mock("../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render
   };
 });
 
-vi.mock("../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/internal/framed_render_contract.mjs", async (importOriginal) => {
+vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_contract.mjs", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
@@ -112,11 +112,11 @@ import {
   refreshFramedTargetText,
   resolveFramedStyleMasterScope,
   validateFramedRawContract,
-} from "../../PPTMAKER_FRAMEWORK/scripts/03-framed-image/index.mjs";
-import { canonicalJsonSha256 } from "../../PPTMAKER_FRAMEWORK/scripts/shared/identity/canonical_json.mjs";
-import { pageAuthorityImage2Paths } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { initBundle } from "../../PPTMAKER_FRAMEWORK/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readState } from "../../PPTMAKER_FRAMEWORK/scripts/shared/state/state.mjs";
+} from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
+import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 function errorWithCode(code, message) {

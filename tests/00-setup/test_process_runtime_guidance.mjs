@@ -6,19 +6,19 @@ import {
   COMMON_CHECK_NAMES,
   IMAGE2_CHECK_NAMES,
   LIVE_CHECK_NAMES,
-} from '../../PPTMAKER_FRAMEWORK/scripts/00-setup/internal/env_check.mjs';
+} from '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs';
 
-const BOOTSTRAP = readFileSync('PPTMAKER_FRAMEWORK/BOOTSTRAP.md', 'utf8');
-const NODE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/02-nodejs-environment.md', 'utf8');
-const IMAGE_GUIDE = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/03-runtime-and-tools.md', 'utf8');
-const PROBE_PLAYBOOK = readFileSync('PPTMAKER_FRAMEWORK/playbook/probe-image-channels.md', 'utf8');
-const ZERO_READY = readFileSync('PPTMAKER_FRAMEWORK/workflow/00-setup/00-zero-to-ready.md', 'utf8');
-const QUICK_START = readFileSync('PPTMAKER_FRAMEWORK/reference/quick-start.md', 'utf8');
+const BOOTSTRAP = readFileSync('ppt_maker_harness/BOOTSTRAP.md', 'utf8');
+const NODE_GUIDE = readFileSync('ppt_maker_harness/workflow/00-setup/02-nodejs-environment.md', 'utf8');
+const IMAGE_GUIDE = readFileSync('ppt_maker_harness/workflow/00-setup/03-runtime-and-tools.md', 'utf8');
+const PROBE_PLAYBOOK = readFileSync('ppt_maker_harness/playbook/probe-image-channels.md', 'utf8');
+const ZERO_READY = readFileSync('ppt_maker_harness/workflow/00-setup/00-zero-to-ready.md', 'utf8');
+const QUICK_START = readFileSync('ppt_maker_harness/reference/quick-start.md', 'utf8');
 
 function runDoctorJson(args = []) {
   try {
     return JSON.parse(execFileSync('node', [
-      'PPTMAKER_FRAMEWORK/scripts/00-setup/env-check.mjs',
+      'ppt_maker_harness/scripts/00-setup/env-check.mjs',
       '--json',
       ...args,
     ], {
@@ -57,13 +57,13 @@ describe('runtime and diagnostic guidance coherence', () => {
     }
   }, 60_000);
 
-  it('keeps browser setup explicit and fonts inside the local framework package', () => {
+  it('keeps browser setup explicit and fonts inside the local Harness package', () => {
     const combined = `${BOOTSTRAP}\n${NODE_GUIDE}`;
     expect(combined).toContain('npm run setup:chromium');
     expect(combined).toContain('PLAYWRIGHT_BROWSERS_PATH');
     expect(combined).toMatch(/doctor[^\n]*(?:绝不|never)[^\n]*(?:安装|install)/i);
     expect(combined).toMatch(/用户不(?:安装系统字体|需要把字体安装到操作系统)/);
-    expect(combined).toContain('PPTMAKER_FRAMEWORK/scripts/fonts/');
+    expect(combined).toContain('ppt_maker_harness/scripts/fonts/');
     expect(combined).toMatch(/(?:不|绝不)[^\n]*(?:下载字体|联网下载)/i);
     expect(combined).toMatch(/(?:不|绝不)回退到系统 Chrome/i);
   });
