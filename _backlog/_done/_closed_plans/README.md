@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-04 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-06 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -38,7 +38,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-017](progressive-plan.md) | 2026-08-02 | `progressive-plan.md` | Page Authority 第一阶段三个串行 OpenSpec change 已完成并归档；同级保留其设计输入。 |
 | [CLS-018](command-surface-and-entry-seam-reconciliation.md) | 2026-08-02 | `command-surface-and-entry-seam-reconciliation.md` | 命令发现面、精确 run 定位、诊断四段翻译与恢复优先级已由三个 OpenSpec change 落地并验证。 |
 | [CLS-019](page-authority-production-repair.md) | 2026-08-04 | `page-authority-production-repair.md` | BUG-036/037/040/041/042/043/044/045 的七条 Change 收敛、真实 v7 25 页 recovery/delivery、bug 卡与版本 `0.24.0` 收尾完成。 |
+| [CLS-020](page-production-short-references.md) | 2026-08-06 | `page-production-short-references.md` | 渐进式页面生产协作卡的 typed 短引用、完整 digest 脱敏与非 authority 边界；由 `short-page-production-references` change 吸收并归档。 |
 
-**Next available plan ID: CLS-020**
+**Next available plan ID: CLS-021**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。

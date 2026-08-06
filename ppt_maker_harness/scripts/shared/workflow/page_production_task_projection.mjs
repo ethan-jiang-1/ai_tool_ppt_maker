@@ -24,6 +24,31 @@ export const PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA = "page-production-task-proj
 export const PAGE_PRODUCTION_TASK_PROJECTION_FILE = "page-production-task-projection.md";
 
 const HARNESS_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
+const SHA256_RE = /^[0-9a-f]{64}$/;
+const DIGEST_TOKEN_RE = /(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])/gi;
+const DISPLAY_REFERENCE_PREFIXES = Object.freeze({
+  plan: "p",
+  batch: "b",
+  evidence: "e",
+  review: "r",
+  manifest: "m",
+  delivery: "d",
+});
+const DISPLAY_REFERENCE_KIND_BY_OWNER_LABEL = Object.freeze({
+  raw_work_plan: "plan",
+  current_batch: "batch",
+  pilot_evidence: "evidence",
+  partial_pilot_decision: "review",
+  complete_raw_review: "review",
+  accepted_raw_evidence: "evidence",
+  final_manifest: "manifest",
+  delivery_receipt: "delivery",
+});
+const DISPLAY_REFERENCE_KIND_BY_HANDOFF = Object.freeze({
+  partial_pilot: "review",
+  complete_raw_review: "review",
+  delivery: "delivery",
+});
 
 export { progressiveControllerCheckpoint } from "./progressive_controller_task_projection_eligibility.mjs";
 
@@ -35,7 +60,7 @@ function requiredObject(value, label) {
 }
 
 function safeDigest(value) {
-  return /^[0-9a-f]{64}$/.test(value || "") ? value : null;
+  return typeof value === "string" && SHA256_RE.test(value) ? value : null;
 }
 
 function safeDecision(value) {
@@ -46,6 +71,75 @@ function safeNote(value) {
   if (typeof value !== "string") return null;
   const normalized = value.replace(/[\r\n\t]+/g, " ").trim().slice(0, 500);
   return normalized || null;
+}
+
+function displayReferenceKey(kind, sha256) {
+  return `${kind}\u0000${sha256}`;
+}
+
+function requireDisplayReferenceKind(kind) {
+  if (typeof kind !== "string" || !Object.hasOwn(DISPLAY_REFERENCE_PREFIXES, kind)) {
+    throw new TypeError("PAGE_PRODUCTION_DISPLAY_REFERENCE_KIND_INVALID");
+  }
+  return kind;
+}
+
+function requireDisplayReferenceDigest(sha256) {
+  if (typeof sha256 !== "string" || !SHA256_RE.test(sha256)) {
+    throw new TypeError("PAGE_PRODUCTION_DISPLAY_REFERENCE_DIGEST_INVALID");
+  }
+  return sha256;
+}
+
+function redactDigestTokens(value) {
+  return value.replace(DIGEST_TOKEN_RE, "[digest redacted]");
+}
+
+/** Create a card-scoped formatter; it intentionally cannot resolve a short value. */
+export function createPageProductionDisplayReferenceIndex(entries) {
+  if (!Array.isArray(entries)) throw new TypeError("PAGE_PRODUCTION_DISPLAY_REFERENCE_ENTRIES_INVALID");
+  const unique = new Map();
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new TypeError("PAGE_PRODUCTION_DISPLAY_REFERENCE_ENTRY_INVALID");
+    }
+    const kind = requireDisplayReferenceKind(entry.kind);
+    const sha256 = requireDisplayReferenceDigest(entry.sha256);
+    unique.set(displayReferenceKey(kind, sha256), Object.freeze({ kind, sha256 }));
+  }
+
+  const collisionGroups = new Map();
+  for (const entry of [...unique.values()].sort((left, right) => {
+    if (left.kind !== right.kind) return left.kind < right.kind ? -1 : 1;
+    if (left.sha256 === right.sha256) return 0;
+    return left.sha256 < right.sha256 ? -1 : 1;
+  })) {
+    const collisionKey = displayReferenceKey(entry.kind, entry.sha256.slice(0, 8));
+    const group = collisionGroups.get(collisionKey) || [];
+    group.push(entry);
+    collisionGroups.set(collisionKey, group);
+  }
+
+  const displayByKey = new Map();
+  for (const group of collisionGroups.values()) {
+    for (const [index, entry] of group.entries()) {
+      const suffix = group.length > 1 ? `~${index + 1}` : "";
+      displayByKey.set(
+        displayReferenceKey(entry.kind, entry.sha256),
+        `${DISPLAY_REFERENCE_PREFIXES[entry.kind]}-${entry.sha256.slice(0, 8)}${suffix}`,
+      );
+    }
+  }
+
+  return Object.freeze({
+    describe(kind, sha256) {
+      const checkedKind = requireDisplayReferenceKind(kind);
+      const checkedDigest = requireDisplayReferenceDigest(sha256);
+      const display = displayByKey.get(displayReferenceKey(checkedKind, checkedDigest));
+      if (!display) throw new Error("PAGE_PRODUCTION_DISPLAY_REFERENCE_UNKNOWN");
+      return display;
+    },
+  });
 }
 
 function boundedProgress(progress) {
@@ -146,9 +240,37 @@ function projectionPayload({ runDir, inspection, state, playbookDir }) {
   });
 }
 
-function renderReferences(references) {
+function ownerDisplayReferenceKind(label) {
+  const kind = DISPLAY_REFERENCE_KIND_BY_OWNER_LABEL[label];
+  if (!kind) throw new Error("PAGE_PRODUCTION_DISPLAY_REFERENCE_OWNER_LABEL_UNKNOWN");
+  return kind;
+}
+
+function handoffDisplayReferenceKind(name) {
+  const kind = DISPLAY_REFERENCE_KIND_BY_HANDOFF[name];
+  if (!kind) throw new Error("PAGE_PRODUCTION_DISPLAY_REFERENCE_HANDOFF_UNKNOWN");
+  return kind;
+}
+
+function taskProjectionDisplayReferenceEntries(payload) {
+  if (!Array.isArray(payload.references)) throw new TypeError("PAGE_PRODUCTION_TASK_PROJECTION_REFERENCES_INVALID");
+  const entries = payload.references.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new TypeError("PAGE_PRODUCTION_TASK_PROJECTION_REFERENCE_INVALID");
+    }
+    return Object.freeze({ kind: ownerDisplayReferenceKind(entry.label), sha256: entry.sha256 });
+  });
+  const handoffs = requiredObject(payload.human_handoffs, "task projection human handoffs");
+  for (const [name, handoff] of Object.entries(handoffs)) {
+    if (!handoff || typeof handoff !== "object" || Array.isArray(handoff) || handoff.reference_sha256 == null) continue;
+    entries.push(Object.freeze({ kind: handoffDisplayReferenceKind(name), sha256: handoff.reference_sha256 }));
+  }
+  return entries;
+}
+
+function renderReferences(references, displayReferenceIndex) {
   return references.length
-    ? references.map((entry) => `- ${entry.label}: \`${entry.sha256}\``).join("\n")
+    ? references.map((entry) => `- ${entry.label}: \`${displayReferenceIndex.describe(ownerDisplayReferenceKind(entry.label), entry.sha256)}\``).join("\n")
     : "- none";
 }
 
@@ -162,23 +284,23 @@ function renderProgress(progress) {
   return `- ${counts || "unavailable"}${debt}`;
 }
 
-function renderHandoff(name, value) {
+function renderHandoff(name, value, displayReferenceIndex) {
   if (!value) return `- ${name}: none`;
   const fields = [
     `${name}: ${value.decision || "recorded"}`,
-    ...(value.reference_sha256 ? [`reference=\`${value.reference_sha256}\``] : []),
-    ...(value.note ? [`note=${value.note}`] : []),
+    ...(value.reference_sha256 ? [`reference=\`${displayReferenceIndex.describe(handoffDisplayReferenceKind(name), value.reference_sha256)}\``] : []),
+    ...(value.note ? [`note=${redactDigestTokens(value.note)}`] : []),
   ];
   return `- ${fields.join("; ")}`;
 }
 
 export function renderPageProductionTaskProjection(payload) {
   const checked = requiredObject(payload, "task projection payload");
-  const digest = canonicalJsonSha256(checked);
-  return [
+  const displayReferenceIndex = createPageProductionDisplayReferenceIndex(taskProjectionDisplayReferenceEntries(checked));
+  return redactDigestTokens([
     "# Page Production Task Projection",
     "",
-    `<!-- ${PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA} sha256:${digest} -->`,
+    `<!-- ${PAGE_PRODUCTION_TASK_PROJECTION_SCHEMA} -->`,
     "",
     `- run_version: \`${checked.run_version}\``,
     `- workflow: \`${checked.workflow}\``,
@@ -193,7 +315,7 @@ export function renderPageProductionTaskProjection(payload) {
     "",
     "## Owner References",
     "",
-    renderReferences(checked.references),
+    renderReferences(checked.references, displayReferenceIndex),
     "",
     "## Bounded Progress",
     "",
@@ -201,11 +323,11 @@ export function renderPageProductionTaskProjection(payload) {
     "",
     "## Human Handoffs",
     "",
-    renderHandoff("partial_pilot", checked.human_handoffs.partial_pilot),
-    renderHandoff("complete_raw_review", checked.human_handoffs.complete_raw_review),
-    renderHandoff("delivery", checked.human_handoffs.delivery),
+    renderHandoff("partial_pilot", checked.human_handoffs.partial_pilot, displayReferenceIndex),
+    renderHandoff("complete_raw_review", checked.human_handoffs.complete_raw_review, displayReferenceIndex),
+    renderHandoff("delivery", checked.human_handoffs.delivery, displayReferenceIndex),
     "",
-  ].join("\n");
+  ].join("\n"));
 }
 
 export function pageProductionTaskProjectionPath(runDir) {

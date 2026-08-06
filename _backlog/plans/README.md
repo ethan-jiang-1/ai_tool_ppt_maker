@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-05 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-06 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -19,9 +19,8 @@
 
 | Plan | 摘要 | 状态 |
 | --- | --- | --- |
-| [page-production-short-references.md](page-production-short-references.md) | 为渐进式页面生产提供短的人类引用，保留完整 SHA-256 协议身份 | 待 OpenSpec propose |
 
-**Next available plan ID: CLS-020**（移入 `_closed_plans/` 时分配；CLS-001…019 已用）
+**Next available plan ID: CLS-021**（移入 `_closed_plans/` 时分配；CLS-001…020 已用）
 
 ---
 

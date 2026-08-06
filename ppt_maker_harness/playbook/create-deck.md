@@ -69,6 +69,10 @@ references, bounded progress, one next action, and the matching typed human
 handoff plus an optional note. It is a collaboration view: its prose,
 checkboxes, manual edits, stale content, or deletion cannot authorize a cost,
 resume a submission, prove materialization, advance state, or become evidence.
+Typed references in the card are scoped presentation labels only, never
+selectors. For an operation that requires a complete digest, refresh workflow
+inspection and use the current direct owner record or its existing CLI surface;
+never expand or submit a card reference.
 
 ### select-target-page-authority-workflow
 ```yaml

@@ -13,9 +13,11 @@ import {
 import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { inspectWorkflow } from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import {
+  createPageProductionDisplayReferenceIndex,
   pageProductionTaskProjectionPath,
   progressiveControllerCheckpoint,
   refreshPageProductionTaskProjection,
+  renderPageProductionTaskProjection,
 } from "../../../ppt_maker_harness/scripts/shared/workflow/page_production_task_projection.mjs";
 import { progressiveControllerTaskProjectionEligibility } from "../../../ppt_maker_harness/scripts/shared/workflow/progressive_controller_task_projection_eligibility.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
@@ -38,6 +40,36 @@ function progressiveInspection({ actionId, latestBatch = null, progress = null }
       action_id: actionId,
       kind: "confirm",
       requires_human: true,
+    },
+  };
+}
+
+function digest(letter) {
+  return letter.repeat(64);
+}
+
+function taskProjectionPayload({ note = null } = {}) {
+  return {
+    schema: "page-production-task-projection-v1",
+    run_version: "v1",
+    workflow: "pure",
+    controller: { current_node: "review-target-pure-pilot", checkpoint_node: "review-target-pure-pilot" },
+    next_action: { owner: "progressive-raw-owner", action_id: "prepare_progressive_pilot_review", kind: "confirm", requires_human: true },
+    references: [
+      { label: "raw_work_plan", sha256: digest("a") },
+      { label: "current_batch", sha256: digest("b") },
+      { label: "pilot_evidence", sha256: digest("c") },
+      { label: "partial_pilot_decision", sha256: digest("d") },
+      { label: "complete_raw_review", sha256: digest("e") },
+      { label: "accepted_raw_evidence", sha256: digest("f") },
+      { label: "final_manifest", sha256: digest("0") },
+      { label: "delivery_receipt", sha256: digest("1") },
+    ],
+    progress: { total: 1, materialized: 0, unsubmitted: 1, paid_debt_slide_ids: [] },
+    human_handoffs: {
+      partial_pilot: { decision: "proceed", reference_sha256: digest("2"), ...(note ? { note } : {}) },
+      complete_raw_review: { decision: "proceed", reference_sha256: digest("3") },
+      delivery: { decision: "proceed", reference_sha256: digest("4") },
     },
   };
 }
@@ -103,6 +135,96 @@ negative_constraints:
 }
 
 describe("progressive page-production task projection", () => {
+  it("formats only valid typed card-scoped display references", () => {
+    const entries = [
+      { kind: "plan", sha256: digest("a") },
+      { kind: "batch", sha256: digest("b") },
+      { kind: "evidence", sha256: digest("c") },
+      { kind: "review", sha256: digest("d") },
+      { kind: "manifest", sha256: digest("e") },
+      { kind: "delivery", sha256: digest("f") },
+      { kind: "plan", sha256: digest("a") },
+    ];
+    const index = createPageProductionDisplayReferenceIndex(entries);
+
+    expect(index.describe("plan", digest("a"))).toBe("p-aaaaaaaa");
+    expect(index.describe("batch", digest("b"))).toBe("b-bbbbbbbb");
+    expect(index.describe("evidence", digest("c"))).toBe("e-cccccccc");
+    expect(index.describe("review", digest("d"))).toBe("r-dddddddd");
+    expect(index.describe("manifest", digest("e"))).toBe("m-eeeeeeee");
+    expect(index.describe("delivery", digest("f"))).toBe("d-ffffffff");
+    expect(() => createPageProductionDisplayReferenceIndex([{ kind: "unknown", sha256: digest("a") }]))
+      .toThrow("PAGE_PRODUCTION_DISPLAY_REFERENCE_KIND_INVALID");
+    expect(() => createPageProductionDisplayReferenceIndex([{ kind: "plan", sha256: digest("A") }]))
+      .toThrow("PAGE_PRODUCTION_DISPLAY_REFERENCE_DIGEST_INVALID");
+    expect(() => createPageProductionDisplayReferenceIndex([{ kind: "plan", sha256: { toString: () => digest("a") } }]))
+      .toThrow("PAGE_PRODUCTION_DISPLAY_REFERENCE_DIGEST_INVALID");
+    expect(() => index.describe("plan", digest("b"))).toThrow("PAGE_PRODUCTION_DISPLAY_REFERENCE_UNKNOWN");
+  });
+
+  it("ranks same-type collisions lexically without expanding their digest", () => {
+    const sharedPrefix = "671d4555";
+    const first = `${sharedPrefix}${"0".repeat(56)}`;
+    const second = `${sharedPrefix}${"f".repeat(56)}`;
+    const nearCompleteFirst = `${"a".repeat(63)}b`;
+    const nearCompleteSecond = `${"a".repeat(63)}c`;
+    const forward = createPageProductionDisplayReferenceIndex([
+      { kind: "plan", sha256: second },
+      { kind: "plan", sha256: first },
+      { kind: "review", sha256: first },
+      { kind: "plan", sha256: nearCompleteSecond },
+      { kind: "plan", sha256: nearCompleteFirst },
+    ]);
+    const reversed = createPageProductionDisplayReferenceIndex([
+      { kind: "plan", sha256: nearCompleteFirst },
+      { kind: "plan", sha256: nearCompleteSecond },
+      { kind: "review", sha256: first },
+      { kind: "plan", sha256: first },
+      { kind: "plan", sha256: second },
+    ]);
+
+    expect(forward.describe("plan", first)).toBe("p-671d4555~1");
+    expect(forward.describe("plan", second)).toBe("p-671d4555~2");
+    expect(forward.describe("review", first)).toBe("r-671d4555");
+    expect(forward.describe("plan", nearCompleteFirst)).toBe("p-aaaaaaaa~1");
+    expect(forward.describe("plan", nearCompleteSecond)).toBe("p-aaaaaaaa~2");
+    expect(forward.describe("plan", nearCompleteFirst)).not.toContain(nearCompleteFirst);
+    expect(reversed.describe("plan", first)).toBe(forward.describe("plan", first));
+    expect(reversed.describe("plan", nearCompleteSecond)).toBe(forward.describe("plan", nearCompleteSecond));
+  });
+
+  it("renders every structured reference as display-only text and redacts notes without mutating the payload", () => {
+    const noteDigest = "A".repeat(64);
+    const payload = taskProjectionPayload({ note: `Preserve this ${noteDigest} note in state.` });
+    const before = structuredClone(payload);
+    const card = renderPageProductionTaskProjection(payload);
+
+    for (const [prefix, letter] of [["p", "a"], ["b", "b"], ["e", "c"], ["r", "d"], ["r", "e"], ["e", "f"], ["m", "0"], ["d", "1"], ["r", "2"], ["r", "3"], ["d", "4"]]) {
+      expect(card).toContain(`${prefix}-${letter.repeat(8)}`);
+    }
+    for (const value of [...payload.references.map((entry) => entry.sha256), ...Object.values(payload.human_handoffs).map((handoff) => handoff.reference_sha256)]) {
+      expect(card).not.toContain(value);
+    }
+    expect(card).not.toContain(noteDigest);
+    expect(card).toContain("[digest redacted]");
+    expect(card).not.toContain("sha256:");
+    expect(payload).toEqual(before);
+  });
+
+  it("redacts a complete digest from any rendered card text without changing its payload", () => {
+    const payload = taskProjectionPayload();
+    const completeDigest = digest("a");
+    payload.next_action = { ...payload.next_action, action_id: `inspect-${completeDigest}` };
+    payload.human_handoffs.partial_pilot.reference_sha256 = null;
+    const before = structuredClone(payload);
+
+    const card = renderPageProductionTaskProjection(payload);
+
+    expect(card).not.toContain(completeDigest);
+    expect(card).toContain("[digest redacted]");
+    expect(payload).toEqual(before);
+  });
+
   it("rebuilds missing and manually edited cards only from current owner inspection", async () => {
     const value = await fixture();
     try {
@@ -111,7 +233,9 @@ describe("progressive page-production task projection", () => {
       const path = pageProductionTaskProjectionPath(value.runDir);
       const first = refreshPageProductionTaskProjection({ runDir: value.runDir, inspection });
       expect(first.status).toBe("created");
-      expect(readFileSync(path, "utf8")).toContain(value.plan.progressive_raw_work_plan.sha256);
+      expect(first.projection.references[0].sha256).toBe(value.plan.progressive_raw_work_plan.sha256);
+      expect(readFileSync(path, "utf8")).toContain(`p-${value.plan.progressive_raw_work_plan.sha256.slice(0, 8)}`);
+      expect(readFileSync(path, "utf8")).not.toContain(value.plan.progressive_raw_work_plan.sha256);
       expect(readFileSync(path, "utf8")).toContain("recommend-target-pure-pilot");
 
       writeFileSync(path, "# manually edited\n- action: generate_progressive_raw_item\n");
@@ -125,6 +249,37 @@ describe("progressive page-production task projection", () => {
       const rebuilt = refreshPageProductionTaskProjection({ runDir: value.runDir, inspection: inspectWorkflow({ runDir: value.runDir }) });
       expect(rebuilt.status).toBe("created");
       expect(readFileSync(path, "utf8")).toContain("Page Production Task Projection");
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps full owner facts and Controller notes outside the display-only card", async () => {
+    const value = await fixture();
+    try {
+      const noteDigest = "A".repeat(64);
+      const note = `Keep ${noteDigest} in the Controller record.`;
+      const state = readState(value.deck, { purpose: "observe", runDir: value.runDir });
+      state.nodes["review-target-pure-pilot"] = {
+        status: "in_progress",
+        execution_id: state.execution_id,
+        run_version: state.run_version,
+        decision: { value: "proceed", kind: "user", at: "2026-08-06T00:00:00.000Z", note },
+      };
+      writeState(value.deck, state);
+
+      const stateResult = runState(value.runDir, { json: true });
+      expect(stateResult.status, stateResult.stderr).toBe(0);
+      const report = JSON.parse(stateResult.stdout);
+      expect(report.workflow_inspection.evidence_summary.plan_hash).toBe(value.plan.progressive_raw_work_plan.sha256);
+      const card = readFileSync(pageProductionTaskProjectionPath(value.runDir), "utf8");
+      expect(card).toContain(`p-${value.plan.progressive_raw_work_plan.sha256.slice(0, 8)}`);
+      expect(card).not.toContain(value.plan.progressive_raw_work_plan.sha256);
+      expect(card).toContain("[digest redacted]");
+      expect(card).not.toContain(noteDigest);
+
+      const persisted = readState(value.deck, { purpose: "observe", runDir: value.runDir });
+      expect(persisted.nodes["review-target-pure-pilot"].decision.note).toBe(note);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
