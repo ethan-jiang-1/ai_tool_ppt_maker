@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-The framework will add a versioned Intent Route Catalog beside, but independent from, the Controller manifest. The Agent interprets a user's natural-language goal; the catalog validates the selected route's first safe discovery step. Lifecycle nodes, owner CLIs, exact hashes, authorizations, and state remain owned by their current sources. This makes novice-oriented discovery explicit and auditable without creating a second controller or a third production CLI.
+The PPT Maker Harness contains a versioned Intent Route Catalog beside, but independent from, the Controller manifest. The Agent interprets a user's natural-language goal; the catalog validates the selected route's first safe discovery step. Lifecycle nodes, owner CLIs, exact hashes, authorizations, and state remain owned by their current sources. This makes novice-oriented discovery explicit and auditable without creating a second controller or a third production CLI.
 
 ## Considered Options
 

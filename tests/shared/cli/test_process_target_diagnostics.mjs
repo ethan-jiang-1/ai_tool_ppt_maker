@@ -9,6 +9,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { resolveFramedStyleMasterScope } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { resolvePureStyleMasterScope } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import { CLI_BOUNDS, parseCliErrorLine } from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
+import { pageAuthorityOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import { pageAuthorityImage2Paths, pageAuthorityProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
@@ -971,7 +972,7 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(direct.materializations).toHaveLength(1);
       expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(true);
       expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(0);
-      expect(existsSync(join(framed.paths.raw_root, "FramGo.png"))).toBe(true);
+      expect(existsSync(join(framed.paths.raw_root, pageAuthorityOrdinalImageFilename(1, "FramGo")))).toBe(false);
     } finally {
       await provider.close();
       rmSync(framed.root, { recursive: true, force: true });

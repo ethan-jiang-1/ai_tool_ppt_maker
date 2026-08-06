@@ -1,6 +1,6 @@
 # Simple Reliable Control Policy
 
-This policy is the framework's charter companion for keeping quality control
+This policy is the PPT Maker Harness's charter companion for keeping quality control
 short, recoverable, and understandable to an Agent. It applies to new or
 modified gates, validators, readiness checks, controller handoffs, diagnostic
 surfaces, persistent control state, retries, and recovery paths.

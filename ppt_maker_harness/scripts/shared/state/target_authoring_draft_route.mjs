@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,7 +36,7 @@ export function resolveTargetAuthoringDraftRoute(runDir, { playbookDir = DEFAULT
   if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE && !selectionPending) return null;
 
   const workflow = selectionPending ? null : marker.frontmatter?.metadata?.production?.workflow || null;
-  const deckDir = deckRoot(resolvedRunDir);
+  const deckDir = realpathSync.native(deckRoot(resolvedRunDir));
   const state = readState(deckDir, { purpose: "observe", heal: false, runDir: resolvedRunDir });
   const index = buildPlaybookIndex(playbookDir);
   if (!validatePlaybookIndex(index).valid) return null;

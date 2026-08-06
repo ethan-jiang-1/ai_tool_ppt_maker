@@ -85,9 +85,9 @@ function fixture() {
   return { root, deck, runDir, playbookDir };
 }
 
-function frameworkFixture(workflow) {
+function harnessFixture(workflow) {
   const root = mkdtempSync(join(tmpdir(), `target-authoring-harness-${workflow}-`));
-  const deck = join(root, "deck_framework_fixture");
+  const deck = join(root, "deck_harness_fixture");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), [
@@ -114,7 +114,7 @@ function frameworkFixture(workflow) {
   return { root, deck, runDir };
 }
 
-function setFrameworkDraft(value, { currentNode, workflow = "framed", playbook = "create-deck" } = {}) {
+function setHarnessDraft(value, { currentNode, workflow = "framed", playbook = "create-deck" } = {}) {
   const source = [
     "---",
     "production:",
@@ -205,7 +205,7 @@ describe("target authoring draft route", () => {
   });
 
   it.each(["framed", "pure"])("accepts every built-in selected %s pre-raw boundary and fences all others", (workflow) => {
-    const value = frameworkFixture(workflow);
+    const value = harnessFixture(workflow);
     try {
       const index = buildPlaybookIndex("ppt_maker_harness/playbook");
       const route = controllerDraftRouteNodes(index, "create-deck", workflow);
@@ -246,14 +246,14 @@ describe("target authoring draft route", () => {
   });
 
   it("allows only workflow selection before the source records a selected workflow", () => {
-    const value = frameworkFixture("framed");
+    const value = harnessFixture("framed");
     try {
-      setFrameworkDraft(value, { currentNode: "select-target-page-authority-workflow", workflow: null });
+      setHarnessDraft(value, { currentNode: "select-target-page-authority-workflow", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toMatchObject({ workflow: null });
 
-      setFrameworkDraft(value, { currentNode: "author-target-page-authority-content", workflow: null });
+      setHarnessDraft(value, { currentNode: "author-target-page-authority-content", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toBeNull();
-      setFrameworkDraft(value, { currentNode: "configure-target-page-authority-visual-system", workflow: null });
+      setHarnessDraft(value, { currentNode: "configure-target-page-authority-visual-system", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toBeNull();
     } finally {
       rmSync(value.root, { recursive: true, force: true });

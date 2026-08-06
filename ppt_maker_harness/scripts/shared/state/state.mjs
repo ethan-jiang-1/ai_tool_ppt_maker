@@ -14,6 +14,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -85,6 +86,15 @@ const DEFAULT_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), ".
 const GATE_JOURNAL_FILE = "gate-approval-journal.json";
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const VERSION_RE = /^v[1-9][0-9]*$/;
+
+function sameExistingPath(left, right) {
+  try {
+    return realpathSync.native(resolve(left)) === realpathSync.native(resolve(right));
+  } catch {
+    return false;
+  }
+}
+
 const STATE_TOP_LEVEL_KEYS = new Set([
   "schema_version",
   "pipeline",
@@ -754,8 +764,8 @@ export function activateCleanPageAuthorityTargetDraft(deckDir, {
 
   const sourceDir = resolve(deckDir, "3_versions", sourceVersion);
   const targetDir = resolve(deckDir, "3_versions", targetVersion);
-  if (sourceRunDir && resolve(sourceRunDir) !== sourceDir) throw new Error("CLEAN_TARGET_SOURCE_PATH_MISMATCH");
-  if (targetRunDir && resolve(targetRunDir) !== targetDir) throw new Error("CLEAN_TARGET_PATH_MISMATCH");
+  if (sourceRunDir && !sameExistingPath(sourceRunDir, sourceDir)) throw new Error("CLEAN_TARGET_SOURCE_PATH_MISMATCH");
+  if (targetRunDir && !sameExistingPath(targetRunDir, targetDir)) throw new Error("CLEAN_TARGET_PATH_MISMATCH");
 
   const sourceMarker = probeSourceMarkerForVersion(deckDir, sourceVersion);
   const targetMarker = probeSourceMarkerForVersion(deckDir, targetVersion);

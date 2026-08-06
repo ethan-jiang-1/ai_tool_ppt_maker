@@ -6,9 +6,10 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
 
@@ -74,6 +75,38 @@ describe("Harness-bound process commands", () => {
     const normalCheck = run(LAYOUT, ["--check", runDir]);
     expect(normalCheck.stderr).not.toContain("harness_binding_invalid");
     expect(existsSync(deck)).toBe(true);
+  });
+
+  it("accepts a lexical alias for the same Harness-bound authoring draft", () => {
+    const { deck, runDir } = initFixture("harness-binding-alias");
+    const root = dirname(deck);
+    const aliasRoot = `${root}-alias`;
+    cleanupRoots.push(aliasRoot);
+    symlinkSync(root, aliasRoot, "dir");
+    writeFileSync(join(runDir, "slide-specifications.md"), `---
+identity:
+  scheme: mnemonic-v1
+production:
+  pipeline: page-authority-image2-v2
+  workflow: pure
+---
+
+## Slide 01: \`DeckGo\`
+
+**TITLE**: Alias draft
+**VISUAL BRIEF**:
+\`\`\`yaml
+recipe: editorial-systems
+composition: centered-constellation
+motifs: []
+negative_constraints:
+  - no-logo
+\`\`\`
+`);
+
+    const aliasRunDir = join(aliasRoot, "deck_binding", "3_versions", "v1");
+    const validated = run(FLOW, ["validate", aliasRunDir]);
+    expect(validated.status, validated.stderr).toBe(0);
   });
 
   it("hard-stops legacy and malformed cards before every authority-carrying run path", () => {

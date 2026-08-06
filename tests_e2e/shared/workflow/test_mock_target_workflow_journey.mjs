@@ -11,6 +11,7 @@ import {
   initBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import { pageAuthorityOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
 import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
 import { readState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
@@ -106,9 +107,9 @@ function jsonSuccess(result) {
   return JSON.parse(expectSuccess(result).stdout);
 }
 
-async function startMockProvider(bytes, { failCalls = [] } = {}) {
+async function startMockProvider(bytes, { closeCalls = [] } = {}) {
   const calls = [];
-  const failedCalls = new Set(failCalls);
+  const closedCalls = new Set(closeCalls);
   const encoded = bytes.toString("base64");
   const server = createServer((request, response) => {
     const chunks = [];
@@ -126,9 +127,8 @@ async function startMockProvider(bytes, { failCalls = [] } = {}) {
         response.end(JSON.stringify({ error: "unexpected mock provider route" }));
         return;
       }
-      if (failedCalls.has(calls.length)) {
-        response.writeHead(500, { "content-type": "application/json" });
-        response.end(JSON.stringify({ error: "planned mock provider interruption" }));
+      if (closedCalls.has(calls.length)) {
+        request.socket.destroy();
         return;
       }
       response.writeHead(200, { "content-type": "application/json" });
@@ -362,7 +362,8 @@ describe("mock TARGET workflow journey", () => {
       expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
 
       const paths = pageAuthorityImage2Paths(fixture.runDir);
-      const originalRaw = readFileSync(join(paths.raw_root, "FramGo.png"));
+      const framGoImage = pageAuthorityOrdinalImageFilename(1, "FramGo");
+      const originalRaw = readFileSync(join(paths.raw_root, framGoImage));
       const titleUpdated = [
         { ...slides[0], title: "Refreshed framed heading" },
         slides[1],
@@ -373,8 +374,8 @@ describe("mock TARGET workflow journey", () => {
       ], provider.env));
       expect(refreshed.stdout).toContain("Target Framed refresh delivered without provider submission");
       expect(provider.calls).toHaveLength(2);
-      expect(readFileSync(join(paths.raw_root, "FramGo.png"))).toEqual(originalRaw);
-      const finalAfterTitleRefresh = readFileSync(join(paths.final_root, "FramGo.png"));
+      expect(readFileSync(join(paths.raw_root, framGoImage))).toEqual(originalRaw);
+      const finalAfterTitleRefresh = readFileSync(join(paths.final_root, framGoImage));
 
       const notesUpdated = [
         { ...titleUpdated[0], note: "Updated source-owned Framed note." },
@@ -384,8 +385,8 @@ describe("mock TARGET workflow journey", () => {
       const notes = expectSuccess(await flow(["refresh", fixture.runDir, "--kind", "notes"], provider.env));
       expect(notes.stdout).toContain("Target Page Authority notes refreshed");
       expect(provider.calls).toHaveLength(2);
-      expect(readFileSync(join(paths.raw_root, "FramGo.png"))).toEqual(originalRaw);
-      expect(readFileSync(join(paths.final_root, "FramGo.png"))).toEqual(finalAfterTitleRefresh);
+      expect(readFileSync(join(paths.raw_root, framGoImage))).toEqual(originalRaw);
+      expect(readFileSync(join(paths.final_root, framGoImage))).toEqual(finalAfterTitleRefresh);
     } finally {
       await provider.close();
       rmSync(fixture.root, { recursive: true, force: true });
@@ -484,11 +485,12 @@ describe("mock TARGET workflow journey", () => {
         .toMatchObject({ workflow, accepted_raw_evidence_sha256: null });
       expect(state.page_authority_progressive_handoff.by_version["3_versions/v1"])
         .toMatchObject({ workflow, accepted_raw_evidence_sha256: lifecycle.accepted.accepted_raw_evidence_sha256 });
+      const deckGoImage = pageAuthorityOrdinalImageFilename(1, "DeckGo");
       if (workflow === "framed") {
-        expect(existsSync(join(pilotRoot, "raw-underlay", "DeckGo.png"))).toBe(true);
-        expect(existsSync(join(pilotRoot, "text-frame-composite", "DeckGo.png"))).toBe(true);
+        expect(existsSync(join(pilotRoot, "raw-underlay", deckGoImage))).toBe(true);
+        expect(existsSync(join(pilotRoot, "text-frame-composite", deckGoImage))).toBe(true);
       } else {
-        expect(existsSync(join(pilotRoot, "DeckGo.png"))).toBe(true);
+        expect(existsSync(join(pilotRoot, deckGoImage))).toBe(true);
         expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
         expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
       }
@@ -508,7 +510,7 @@ describe("mock TARGET workflow journey", () => {
       { id: "GridGo", title: `${workflow} retry grid`, note: "Retry grid note." },
     ];
     const fixture = createTargetFixture(`target-${workflow}-resume-`, workflow, slides);
-    const provider = await startMockProvider(pngBytes("#8a4b62"), { failCalls: [2] });
+    const provider = await startMockProvider(pngBytes("#8a4b62"), { closeCalls: [2] });
     try {
       await runStyleMasterLifecycle(fixture.runDir, provider.env);
       const plan = jsonSuccess(await flow(["image2", "plan", fixture.runDir], provider.env));
