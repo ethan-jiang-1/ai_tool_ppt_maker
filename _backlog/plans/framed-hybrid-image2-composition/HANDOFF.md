@@ -26,24 +26,25 @@ Owner 已明确：Pure 与 Framed 的 Image2 页面生成本质相同。两者�
 - common `page_image_core` 服务 Pure/Framed；版本级 workflow 只选择 header rendering policy。
 - 工作流名称仍只有 `framed` 和 `pure`；`hybrid` 只描述正确 Framed 的页面构成，不是第三个模式。
 - Framed local fixed set 闭合为 kicker/title/subtitle；callout 默认 provider-rendered。
+- provider-rendered 的重要文字、数字、标签和 callout 必须由 canonical source 的闭合结构化内容模型声明；不接受自由 `BODY` prose 或 provider 补写事实。
+- Workflow 利用对 Image2 的理解将 source-owned content、visual direction 和 composition constraints 编译为 provider input；它优化请求与构图，但不拥有事实或必需文案。
+- Pure 编译一份 full-page provider input；Framed 协调 local header-renderer input 与 provider page input，并将 exact header literals 作为 context-not-to-render 传给 provider。
+- 默认全部 copy exact；只有 source 明示的非事实性 supporting copy 可作为 Presentation-Adaptable Copy 让 Image2 为图文一体构图压缩或改写。该授权绝不覆盖 claims、facts、numbers、names、labels、headers 或未标记文案。
 - Framed overlay 默认透明；不允许通用大面积不透明 header card。
 - source/human 拥有含义、数据和 exact copy；Image2 只拥有 provider-rendered 内容的像素呈现与构图。
 - provider 必须获得 header/primary claim 的 context-not-to-render 语义。
 - refresh 按 actual compiled provider-input fingerprint 判定，不按“header 字段”粗分。
 - actual prompt bytes/digest 必须由 selected adapter 编译并进入 plan/authorization/attempt/evidence lineage。
-- complete review 应并列检查 raw 与 production-equivalent composite；Pilot 只负责样本与成本控制。
+- Complete Page Review 只作一次 `proceed / repair` 决定：Framed 并列检查 raw 与 production-equivalent composite；Pure 检查完整 provider page。Pilot 只负责样本与成本控制，final delivery review 仍独立存在。
 - 错误的 v2 模型从 active Harness 完全丢弃；没有兼容、迁移、fallback 或旧 evidence 重解释。
 
 相关依据和限制只引用 [`research-findings.md`](research-findings.md)。
 
 ## Owner Decisions Still Needed
 
-在进入 OpenSpec proposal 前，从 parent plan 的“待确认决策”取得明确结论，尤其是：
+在进入 OpenSpec proposal 前，从 parent plan 的“待确认决策”取得明确结论：
 
-1. `SLIDE BODY` 是否承载 canonical structured content，以及其 closed schema。
-2. Framed provider context 包含 exact header literals，还是稳定 primary claim + header roles。
-3. provider-rendered explanatory copy 是否允许显式 `paraphrase_allowed`；当前建议默认 exact。
-4. complete raw review 是否升级为 raw/composite side-by-side 的单一 complete decision。
+1. Provider Content Schema 的具体 closed vocabulary、数量/长度限制、literal policy syntax 和 canonical input syntax；`SLIDE BODY` 仅是候选载体。
 
 不得替 Owner 默许这些选择。
 
@@ -68,7 +69,7 @@ Owner 已明确：Pure 与 Framed 的 Image2 页面生成本质相同。两者�
 - 不把 OpenAI `presentations` plugin、Codex Grid 或 `@oai/artifact-tool` 变成 Harness 依赖。
 - 不把 Style Master 的 no-readable-text 规则扩散到 Framed page generation。
 - 不让 03/04 sibling adapter 互相导入 private internals；共同语义应进入明确 shared seam。
-- 不提前修改 `CONTEXT.md`、ADR、main specs 或 `AGENTS.md` 造成 proposed/current 冲突。
+- 不将 `CONTEXT.md` 或 Proposed ADR 当作操作错误 v2 runtime 的授权；不提前修改 main specs 或 `AGENTS.md`。
 - 不复用旧 v2 raw acceptance、provider authorization 或 delivery decision 证明新语义。
 
 ## Suggested Skills
@@ -77,7 +78,7 @@ Owner 已明确：Pure 与 Framed 的 Image2 页面生成本质相同。两者�
 - `mattpocock-skills:domain-modeling`：收敛 `Page Image Core`、`Header Rendering Policy`、内容权威与像素权威的正式词汇时。
 - `mattpocock-skills:codebase-design`：设计 03/04 sibling adapters 共用的 deep shared seam、prompt compiler ownership 和 import boundary 时。
 - `openspec-propose`：Owner 明确批准并要求生成完整 OpenSpec proposal/design/spec/tasks 时。
-- `presentations:Presentations`：只用于复核页面叙事、单一构图和 final composite QA 原则，不作为项目依赖。
+- `presentations:Presentations`：只用于复核页面叙事、单一构图和 final-page QA 原则，不作为项目依赖。
 - `mattpocock-skills:research`：只有出现新的、尚无一手证据的问题时再使用；不要重复已有研究。
 
 ## Verification Before Handoff

@@ -34,7 +34,7 @@ Pure 与 Framed 必须共享同一个 `page_image_core`：
 | body / labels / metrics / diagram text | Image2 渲染 | Image2 渲染 |
 | quote / callout / supporting copy | Image2 渲染 | Image2 渲染 |
 | kicker / title / subtitle | Image2 渲染 | 本地透明 overlay 渲染 |
-| header 语义 | provider context + visible pixels | provider `context_not_to_render` + local visible pixels |
+| header 语义 | provider context + visible pixels | exact header literals as provider `context_not_to_render` + local visible pixels |
 | final publication | provider page 进入 delivery | provider page 与 local header 合成后进入 delivery |
 
 固定字段是协议闭集 `kicker/title/subtitle`。不得通过 per-slide `fixed_fields` 把 callout、正文、指标或标签逐步搬回本地 frame。
@@ -85,7 +85,7 @@ header_rendering_policy
   pure
     content_to_render: kicker/title/subtitle
   framed
-    context_not_to_render: kicker/title/subtitle
+    context_not_to_render: exact kicker/title/subtitle literals
     protected_geometry
     duplicate_header_forbidden
 ```
@@ -109,6 +109,8 @@ Framed 在共同基线上增加三项：
 1. raw 中没有可见的 kicker/title/subtitle 副本。
 2. protected zone 对本地 header 保持足够安静，同时画面仍 full-canvas 连续。
 3. production-equivalent composite 中 header 的字体、位置和风格一致，且 overlay 透明、无冲突、无大面积通用卡片。
+
+Complete Page Review 只作一次 `proceed / repair` 决定。Framed 必须并列展示 exact raw 与 production-equivalent composite；Pure 的完整 provider page 本身就是该审查页，不另造 composite。两种模式随后仍须完成独立的 final delivery review。
 
 ## 禁止的错误解释
 

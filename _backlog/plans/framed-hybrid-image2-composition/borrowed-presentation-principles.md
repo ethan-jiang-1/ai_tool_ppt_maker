@@ -21,13 +21,13 @@
 | 先定义 communication job | 先说明目标观众、页面要产生的理解/判断和中心结论，再决定布局 | `provider_rendered_content` 不只是散乱 copy；它要服务一个明确页面任务 | 看完一页能用一句话说出它要观众理解什么 |
 | 一页一个 narrative job | 一页只推进一个主张；证据和视觉围绕它组织 | source authoring 应拒绝把多个平行主题塞入一页 | title、body、metrics 和视觉指向同一 primary claim |
 | takeaway title | title 说出结论，不只命名话题 | Framed 虽由 local frame 渲染 title，但 title 的语义仍属于页面叙事 | title 是可直接朗读的观点，而非“现状分析”式目录词 |
-| one composition | 页面应像一个完整画面，避免卡片网格和组件库式拼装 | Image2 同时拥有 body、labels、metrics 和 visuals；frame 不成为通用大卡片 | final composite 有单一视觉重心，没有“底图 + 浮层 UI”割裂感 |
+| one composition | 页面应像一个完整画面，避免卡片网格和组件库式拼装 | Image2 同时拥有 body、labels、metrics 和 visuals；frame 不成为通用大卡片 | Complete Page Review 中，Framed composite 或 Pure provider page 有单一视觉重心，没有“底图 + 浮层 UI”割裂感 |
 | evidence into meaning | 数字、图表和案例必须说明其意义，而不是罗列 | structured body 应能表达 claim、evidence 和 implication 的关系 | 每个关键 metric/label 都能解释为什么出现在本页 |
 | shorten before shrink | 内容放不下时先改写或改变构图 | source/prompt 不鼓励长段落和密集表格；不能用微小字体掩盖过载 | 正文简短可读，没有因塞内容而形成异常小字或拥挤 |
 | audience-facing copy | 页面只出现观众需要看到的语言 | 禁止 prompt、制作指令、内部字段名、talk track 泄漏到 Image2 输出 | final pixels 不含模型指令、制作说明或内部术语 |
 | compose for intended placement | 生成视觉前先知道文字区和裁切关系 | protected zone 以 provider-visible composition constraint 表达 | Image2 主体主动避让 fixed header，而非最终用面板遮挡 |
 | ownership at the right layer | 全局、重复和单页变化应在对应层处理 | visual language → frame preset → slide content 分层；刷新由真实 provider/local input 决定 | 不用 slide hack 修复 deck-level 风格，也不把改变 provider context 的 header edit 错判为本地刷新 |
-| final render is the truth | 零件分别正确不代表最终页面正确 | raw review 后仍需 final composite review | full-size final 页面无重复、冲突、裁切、错误换行和层级断裂 |
+| final render is the truth | 零件分别正确不代表最终页面正确 | Complete Page Review 必须看完整页面，之后仍有 final delivery review | full-size final 页面无重复、冲突、裁切、错误换行和层级断裂 |
 
 ## 对 Source Authoring 的启发
 
@@ -61,27 +61,20 @@ context_not_to_render
 
 ## 分层视觉验收
 
-### Raw Image Review
+### Complete Page Review
 
-raw review 判断 provider-rendered layer 是否可以进入合成，并同时预览 production-equivalent composite：
+Complete Page Review 是 deterministic preflight 后唯一的页面级 `proceed / repair` 决定，不把 raw acceptance 和 final-composite acceptance 拆成两个 gate：
 
-- primary claim 所需的 body、metrics、labels 和 visual evidence 是否完整、正确、可读。
-- 是否错误生成了 kicker、title、subtitle 等 fixed-frame 文字。
-- 主体是否主动避让 protected zone，且没有用明显空洞或生硬切割破坏构图。
-- 是否泄漏 prompt、字段名、制作说明或其它非 audience-facing copy。
-- 是否形成一个主体明确的 composition，而不是重复卡片、按钮、badge 或 dashboard UI。
+- Framed 并列展示 provider raw 与 production-equivalent composite；检查 raw 中没有 fixed header 副本，并确认叠加 header 后的页面成立。
+- Pure 直接展示完整 provider page，不另造 composite。
+- 两种模式都检查 primary claim 所需的 body、metrics、labels 和 visual evidence 是否完整、正确、可读。
+- 两种模式都检查是否泄漏 prompt、字段名、制作说明或其它非 audience-facing copy，以及是否形成一个主体明确的 composition，而不是重复卡片、按钮、badge 或 dashboard UI。
+- Framed 额外检查主体是否主动避让 protected zone，header 的字体、字号、位置、换行和对齐是否满足 fixed frame contract，并且 header 不与 provider-rendered 文字、人物、图表或指标重叠、争抢焦点或产生重复。
+- Framed composite 必须仍保持一个整体构图，而不是通过不透明 header card 遮住 raw image 后勉强可读。
 
-### Final Composite Review
+### Final Delivery Review
 
-final review 判断这张 slide 是否真正成立：
-
-- local header 的字体、字号、位置、换行和对齐是否满足 fixed frame contract。
-- header 与 provider-rendered 文字、人物、图表、指标之间是否重叠、争抢焦点或产生重复。
-- title 是否表达 takeaway，页面其它内容是否为同一个 primary claim 服务。
-- 是否存在裁切、模糊、意外换行、过小文字、异常留白或视觉层级中断。
-- 页面是否仍保持一个整体构图，而不是通过不透明 header card 遮住 raw image 后勉强可读。
-
-contact sheet 可以评估整套 deck 的节奏、重复和视觉一致性，但不能代替逐页 full-size final review。
+Complete Page Review 后仍须检查最终 PNG、PPTX、notes 和 deck-level 节奏。contact sheet 可以评估整套 deck 的重复和视觉一致性，但不能代替逐页 full-size final review；每页仍须检查裁切、模糊、意外换行、过小文字、异常留白和视觉层级中断。
 
 ## 应进入 OpenSpec 的规则
 
@@ -89,10 +82,10 @@ contact sheet 可以评估整套 deck 的节奏、重复和视觉一致性，但
 
 - Framed request 必须携带 provider-rendered semantic content 和 fixed-header exclusion contract。
 - Image2 不得重复 fixed header，但允许并应当渲染其它 audience-facing page text。
-- raw acceptance 与 final-composite acceptance 是不同 gate，后者不能由前者替代。
+- Complete Page Review 将 Framed raw 与 production-equivalent composite 纳入一个决定；Pure 使用完整 provider page；final delivery review 仍独立存在。
 - provider-input-preserving local header change 与 provider context/content change 必须产生不同的 invalidation 结果。
 - visible output 不得包含内部 prompt、source 字段名或制作说明。
-- final composite 必须检查重复 header、重叠、裁切、异常换行和 protected-zone 冲突。
+- Framed final composite 与 Pure provider page 都必须检查裁切、异常换行、清晰度和整体层级；Framed 额外检查重复 fixed header、与 header 的重叠和 protected-zone 冲突。
 
 下列内容更适合作为 authoring/review guidance，而非僵硬 schema：
 

@@ -43,7 +43,7 @@ Framed overlay 默认只绘制文字 glyph 和必要的最小 contrast treatment
 - 一页是 title、证据、文字和视觉共同完成的单一构图，不是“背景图 + 通用文字卡片”的拼装。
 - provider-rendered 内容应短、结构化、面向观众；内容过载时先删减或改变构图，不能靠持续缩字解决。
 - protected zone 是让 Image2 为固定 header 主动留出构图空间，不是把整张 raw image 变成 no-text 区域。
-- raw image 与 local frame 分别合法仍不足以证明页面成立；最终验收对象必须是 full-size final composite。
+- Framed 的 raw image 与 local frame 分别合法仍不足以证明页面成立；它必须审查 full-size final composite。Pure 则以完整 provider page 审查页面成立性。
 - 视觉语言、frame preset、slide content 要在各自正确的所有权层修改，避免以单页 hack 覆盖全局设计问题。
 
 这些纪律会约束 source schema、provider request 和视觉验收，但不会把 Codex Grid、`@oai/artifact-tool`、其固定字号或其它 plugin-specific rule 引入 Harness。
@@ -69,7 +69,7 @@ Framed overlay 默认只绘制文字 glyph 和必要的最小 contrast treatment
 | Framed raw contract | `03-framed-image/index.mjs` 未携带 body，且固定 `framed.text_free: true` | 分离 `local_rendered_header`、`provider_rendered_content` 与非渲染 context |
 | Provider request | `ppt_flow.mjs` 在 transport 层按 workflow 二次编译 prompt；inspection/attempt 只绑定未编译 request | 03/04 adapter 编译最终 provider input，并让 exact prompt digest 进入 plan、inspection、authorization、attempt 与 reconciliation |
 | 本地 frame | `text_frame.mjs` 的 `standard-v1` 上部高不透明底板近似通用大卡片 | 改为保护锚点的最小化样式；是否需要面板由 preset 决定，不成为 Framed 的默认视觉语义 |
-| 规格与工作流 | `content-parsing`、`image-generation`、`visual-config` 和 bootstrap/charter 把 Framed 描述为全页 text-free | 将定义改为 hybrid ownership，并明确刷新/迁移不变式 |
+| 规格与工作流 | `content-parsing`、`image-generation`、`visual-config` 和 bootstrap/charter 把 Framed 描述为全页 text-free | 将定义改为共同 Page Image Core + header policy，并明确刷新规则与错误 v2 的拒绝边界 |
 
 `openspec/config.yaml` 中残留的 `body+header-lock` 词汇与目标模型接近，但与现行 v2 实现不一致。它只能作为历史信号；本次不能直接把它当作既有可用协议或隐式迁移依据。
 
@@ -93,6 +93,12 @@ Header Rendering Policy
     protected zone remains visually continuous but compositionally quiet
 ```
 
+Page Image Workflow 是这两种模式的主要价值：它将 source-owned content、
+visual direction 和 composition constraints 编译为 Image2 最能执行的输入。
+Pure 只有一份 full-page provider input；Framed 协调一份 local header-renderer
+input 与一份 provider page input。Workflow 可以改善请求和构图，但不能改变
+source-owned facts 或 required copy。
+
 这里的 exclusion zone 是给固定 header 留出的构图空间，不是“画面任何地方均不可出现可读文字”的禁令。它同时是 canonical geometry、provider constraint 和 acceptance evidence；prompt 只能表达约束，不能证明模型已经遵守。它保护可预测的局部几何，也不把 frame 变成不透明的通用 UI 卡片。当前 `standard-v1` 的高不透明 header panel 必须在新 capability 中被透明优先的 preset 替代，不能继承为 canonical Framed 外观。
 
 ### 建议的领域边界
@@ -103,15 +109,15 @@ Header Rendering Policy
 | --- | --- | --- |
 | `content_authority` | human + canonical source | 决定全部主张、数据、exact visible literals 与是否允许改写；provider 不获得语义发明权 |
 | `page_image_core` | common Page Authority domain + selected adapter | 为 Pure/Framed 提供同一套 full-page body/visual semantics、generation profile、provider-rendered content 和 baseline review contract |
-| `header_rendering_policy` | version-level workflow selection | 只选择 `provider`（Pure）或 `local_transparent_overlay`（Framed）；不是两套不同的 body/image 语义 |
+| `header_rendering_policy` | version-level workflow selection | 只选择 `provider`（Pure）或 `local_transparent_overlay`（Framed）；Framed 将 exact header literals 作为 context-not-to-render 给 provider；不是两套不同的 body/image 语义 |
 | `local_rendered_header` | `03-framed-image` + local renderer | 以协议闭集锁定 kicker、title、subtitle、frame preset、精确锚点和 exclusion geometry；不允许 per-slide `fixed_fields` 逃生口 |
 | `provider_rendered_content` | source parser + common page-image contract | 在 Pure/Framed 中同样传递必须和画面共同渲染的 body、labels、metrics、diagram text、quote 与 callout；默认 exact literal |
 | `context_not_to_render` | source + selected adapter | 让 provider 理解 primary claim 和 fixed-header 语义，同时明确禁止渲染或复写这些 header literals |
 | `composition_constraints` | visual config / provider adapter | 禁止复写 fixed header、约束 protected zone、保留页面视觉语言；不禁止全页其它位置的文字 |
-| `compiled_provider_input` | selected 03/04 adapter | 编译最终发送字节；其 digest 绑定 plan、inspection、authorization、attempt 和 reconciliation，shared transport 不理解 workflow 语义 |
+| `compiled_provider_input` | selected 03/04 adapter | 编译最终发送字节；Pure 为一份 full-page input，Framed 为 provider page input 并包含 exact header context-not-to-render；其 digest 绑定 plan、inspection、authorization、attempt 和 reconciliation，shared transport 不理解 workflow 语义 |
 | final composition | `03-framed-image` → `05-delivery` | 将 raw 页面和本地固定 frame 合成为最终像素，并沿用现有 receipt/evidence/delivery 责任 |
 
-字段的最终 schema 不在本计划中提前拍板。`slide_document.mjs` 已识别、但 `page_authority_source.mjs` 尚未消费的 `**SLIDE BODY**` YAML 只是候选语法 seam，不是现成领域模型。实现 change 必须先定义 closed keys、数量/长度限制、exact-literal 规则、重复/缺失诊断和 canonical hash，再决定是否采用它。无论选择哪种输入，canonical source 必须分开 narrative context、local-rendered header、provider-rendered content 与 visual direction，不能把 raw YAML 直接接进 prompt。
+Owner 已决定：所有 provider-rendered 的重要文字、数字、标签和 callout 都必须作为 canonical source 中一等的、闭合结构化内容声明；不得使用自由 `BODY` prose 或让 provider 自行补写事实。默认全部 exact；只有 source 明示的、非事实性 supporting copy 才可被 Workflow 交给 Image2 为图文一体构图进行压缩或改写。该授权绝不覆盖 claims、facts、numbers、names、labels、headers 或任何未标记文案。Workflow 的价值在于它理解 Image2，能将 source-owned content、visual direction 和 composition constraints 编译为更适合完整页面生成的 provider input；它可以优化请求与构图，但不能发明或静默改写 source-owned meaning 或 required copy。`slide_document.mjs` 已识别、但 `page_authority_source.mjs` 尚未消费的 `**SLIDE BODY**` YAML 只是候选语法 seam，不是现成领域模型。实现 change 必须先定义 closed keys、数量/长度限制、literal policy、重复/缺失诊断和 canonical hash，再决定是否采用它。无论选择哪种输入，canonical source 必须分开 narrative context、local-rendered header、provider-rendered content 与 visual direction，不能把 raw YAML 直接接进 prompt。
 
 ### 保留的不变式与刷新规则
 
@@ -120,9 +126,9 @@ Header Rendering Policy
 - 一个版本只选择一个 `framed` 或 `pure` 工作流；不得按 slide 混合 authority。
 - 两种 workflow 必须共享同一个 page-image semantic core、provider-rendered body contract 和 baseline raw-quality criteria；不得再次分叉为“Pure 有图文 / Framed 无文字”两套世界。
 - `slide_id` 仍是跨版本身份，`position` 仍只属于快照。
-- provider work 仍经过 source receipt、typed raw plan、提交授权、raw acceptance、final manifest 和 delivery evidence；本次不放宽远端调用授权。
+- provider work 仍经过 source receipt、typed raw plan、提交授权、Complete Page Review、final manifest 和 delivery evidence；本次不放宽远端调用授权。
 - `05-delivery` 仍是 PPTX、notes 与最终交付的唯一 owner；`_generated/` 继续只能重建，不能手改。
-- Framed 只保留 **provider-input-preserving local header refresh**：actual compiled provider input bytes、protected geometry、raw contract 和 profile 均不变时，固定 header 的本地排版/呈现变化才可复用 exact accepted raw evidence。
+- Framed 只保留 **provider-input-preserving local header refresh**：actual compiled provider input bytes、protected geometry、raw contract 和 profile 均不变时，固定 header 的本地排版/呈现变化才可复用 exact accepted provider-page evidence。
 - title/kicker/subtitle literal 若进入 `context_not_to_render`，其内容变化会改变 provider input，默认必须 raw rebuild；不能再按“header 字段”粗略判为本地刷新。
 - 任何 `provider_rendered_content`、narrative context、visual brief、protected-zone geometry、provider compiler/profile 或 Image2 composition 变更，必须走 Framed Generated Image Rebuild，并经现有 raw review/confirm 边界。
 - Pure 的任意可见像素变更仍需 raw rebuild；notes-only 仍只经 `05-delivery`；增删重排或 workflow switch 仍是 preview-first Structural Versioning Path。
@@ -160,7 +166,7 @@ Header Rendering Policy
 
 | 影响面 | 预计工作 |
 | --- | --- |
-| `content-parsing` | 接受并校验 Framed 的 provider-rendered content 与 non-rendering context；移除全页 no-text/no-labels 要求，替换为 fixed-header duplicate/protected-zone 约束 |
+| `content-parsing` | 定义并校验 Provider Content Schema、literal policy、Framed 的 provider-rendered content 与 non-rendering context；移除全页 no-text/no-labels 要求，替换为 fixed-header duplicate/protected-zone 约束 |
 | `visual-config` | 表达两种 workflow 共用的 page-image visual language，以及 Framed 的 transparent overlay、protected zone 和 provider-facing composition constraints |
 | `image-generation` | 规定 common page-image core、header-rendering policy、adapter-owned compiled provider input、prompt digest lineage、共同 baseline review 与 Framed composite 行为 |
 | `image-production` | 移除依赖 text-free 的 raw plan、evidence 和 acceptance schema，建立正确模型的新 lineage |
@@ -206,11 +212,11 @@ Header Rendering Policy
 
 ### 验证方法
 
-- 验收模型采用三级检查、两类主要人工决定：deterministic source/contract preflight；complete raw review 中的 raw + production-equivalent composite 联合决定；最终 delivery review。Pilot 只承担样本与成本控制，不新增独立语义 gate。
+- 验收模型采用三级检查、两类主要人工决定：deterministic source/contract preflight；一次 Complete Page Review 的 `proceed / repair` 决定（Framed 并列 raw 与 production-equivalent composite；Pure 审查完整 provider page）；最终 delivery review。Pilot 只承担样本与成本控制，不新增独立语义 gate。
 - 给 source parser、raw-contract validator、adapter prompt compiler、prompt-lineage validator 和 change classifier 增加定向 unit/integration tests。
-- 用 mock provider 的 E2E fixture 验证 Framed hybrid 的 receipt、authorization、raw acceptance、final projection 与交付链路。
-- complete raw review 对每页并列展示 exact raw 与 production-equivalent composite；检查 provider-rendered literal/data 是否逐字正确、fixed header 是否缺失于 raw 且正确出现于 composite、protected zone 是否无冲突。
-- 提供一组可检查的视觉 fixture，逐页 full-size 检查 final composite：文字可读性、fixed header 精确性、无重复 header、整体层级和单一构图是否成立；contact sheet 只检查 deck flow。
+- 用 mock provider 的 E2E fixture 验证 Pure/Framed 的 receipt、authorization、Complete Page Review、Framed final projection 与交付链路。
+- Complete Page Review 对 Framed 每页并列展示 exact raw 与 production-equivalent composite，检查 provider-rendered literal/data 是否逐字正确、fixed header 是否缺失于 raw 且正确出现于 composite、protected zone 是否无冲突；Pure 每页审查完整 provider page，不另造 composite。
+- 提供一组可检查的视觉 fixture，逐页 full-size 检查 Framed final composite 或 Pure provider page 的文字可读性、整体层级和单一构图；Framed 额外检查 fixed header 精确性、无重复 header 与 protected-zone 冲突。contact sheet 只检查 deck flow。
 - visual fixture 同时检查每页是否只有一个 primary claim、title 是否表达 takeaway、provider-rendered 文字是否面向观众，以及页面是否退化为 UI card grid。
 - 运行现有回归测试，并新增 Pure/Framed correct-model cases 与废弃 v2 input rejection cases，确保 active Harness 不会解释、转换或执行错误协议 bytes。
 
@@ -226,13 +232,18 @@ Header Rendering Policy
 - [frame 又演化为通用大卡片] → 将“最小化/透明优先”的视觉目标写入 preset 约束和 visual fixture，只有明确风格需要时才使用面板。
 - [Pure/Framed 再次演化成两套 page semantics] → 以 common `page_image_core` contract 和共享 baseline tests 锁定 body/visual 行为，差异测试只覆盖 header policy 与 Framed composition。
 
-## 待确认决策
+## 已确认与待定决策
+
+### 已确认
 
 1. `framed` 和 `pure` 保留为仅有的版本级工作流名称；`hybrid` 只描述 Framed 的页面构成，不是第三个模式或 slide-level choice。
-2. `**SLIDE BODY**` YAML 是否成为 provider-rendered content 的 canonical source？它目前只是候选语法 seam；建议先以真实 body/metric/diagram fixtures 定义领域 schema，再决定接线，不能直接复用 raw YAML。
-3. provider context 应包含 fixed header 的 exact literals，还是只包含稳定 primary claim + fixed roles？前者更利于叙事与防重复，但任意 literal edit 都会 raw rebuild。
-4. provider-rendered explanatory copy 是否允许显式 `paraphrase_allowed`？建议默认全部 exact，例外必须由 source 明示并通过 review。
-5. complete raw review 是否升级为每页 raw/composite side-by-side，并保留一个 complete-review decision？建议是；Pilot 继续只承担样本和成本控制，不新增一套语义 gate。
+2. Framed 将 kicker/title/subtitle 的 exact literals 作为 `context_not_to_render` 传给 provider；因此 literal change 通常改变 compiled provider input，必须 raw rebuild。
+3. 默认所有 provider-rendered copy 都是 exact；只有 source 显式标记的非事实性 supporting copy 才是 Presentation-Adaptable Copy，可为图文一体构图压缩或改写。该授权不覆盖 claims、facts、numbers、names、labels、headers 或未标记文案。
+4. Complete Page Review 只作一次 `proceed / repair` 决定：Framed 并列审查 raw 与 production-equivalent composite；Pure 审查完整 provider page。它不新增独立 composite gate，最终 delivery review 仍保留。
+
+### 尚待 OpenSpec Design
+
+1. Provider Content Schema 的具体 closed vocabulary、数量/长度限制、literal policy syntax 和 canonical input syntax 是什么？`SLIDE BODY` 只可作为候选载体，不能先当作自由 YAML。
 
 ## 落地关联
 

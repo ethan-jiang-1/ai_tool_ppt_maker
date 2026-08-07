@@ -28,6 +28,8 @@ Plan Review 已将 Owner 确认的领域语言写入 root `CONTEXT.md`，并创�
 - **Header Rendering Policy**：版本级选择 `provider`（Pure）或 `local-transparent-overlay`（Framed）。
 - **Content Authority**：human/canonical source 拥有主张、数据和 exact required copy。
 - **Provider-Rendered Content**：Image2 负责 body/labels/metrics/diagram text/quote/callout 的像素呈现与构图，不获得语义发明权。
+- **Production-Equivalent Composite**：Framed 的 provider raw 与精确本地 header overlay 合成的审查页；Pure 不另造 composite。
+- **Complete Page Review**：一次 `proceed / repair` 决定；Framed 并列 raw/composite，Pure 审查完整 provider page，之后仍有 final delivery review。
 - **Protected Zone**：连续画面上的构图避让区，不是 blank strip、cutout 或 no-text page contract。
 - **Provider-Input-Preserving Refresh**：只有实际 compiled provider input 与相关 geometry/profile 不变时，Framed 才能复用 raw 做 local overlay refresh。
 
@@ -56,9 +58,11 @@ ADR 应记录：
 - 原因：保留 Image2 图文一体构图，同时保证 kicker/title/subtitle consistency。
 - closed fixed set：kicker/title/subtitle；callout 默认 provider-rendered。
 - adapter boundary：03/04 保持 sibling owner，但从共同 semantic/compiler seam 取输入，不互相导入 private internals。
+- workflow compilation：Pure 编译一份 full-page provider input；Framed 协调 local header-renderer input 与 provider page input，exact header literals 进入后者的 context-not-to-render。
 - prompt lineage：实际发送字节由 adapter 编译并进入 authorization/evidence。
 - clean break：从 active Harness 删除 v2 route；旧 v2 bytes 一律是不支持输入。
-- 取舍：header context 可能使部分 copy edit 触发 raw rebuild；透明 overlay 依赖 provider 遵守 protected zone 并接受 composite review。
+- 取舍：header context 可能使部分 copy edit 触发 raw rebuild；透明 overlay 依赖 provider 遵守 protected zone 并接受 Framed composite review。
+- review：一次 Complete Page Review；只有 Framed 并列 raw 与 production-equivalent composite，Pure 使用完整 provider page。
 
 ADR 保持 `Proposed`，直到 Owner 完成 Plan Review 并授权进入 OpenSpec proposal；它不是对当前 runtime 已完成替换的声明。
 
@@ -68,10 +72,10 @@ main specs 不能在此计划中直接修改。应创建一个 OpenSpec change�
 
 | Capability | 必须改变的主语义 |
 | --- | --- |
-| `content-parsing` | Framed 接受 provider-rendered content；fixed set 闭合；`SLIDE BODY` 仅在定义 closed schema 后接入 |
+| `content-parsing` | Provider-rendered content 必须使用闭合结构化 source model，并定义 literal policy：默认 exact，只有明示的非事实 supporting copy 可适配；fixed set 闭合；`SLIDE BODY` 仅在定义 exact schema 后才能作为载体接入 |
 | `visual-config` | common page visual language；transparent overlay；protected zone 是 composition constraint |
 | `image-generation` | common page-image core、header policy、compiled prompt lineage、Pure/Framed baseline/difference tests |
-| `image-production` | Pilot/complete raw+composite review 与废弃 v2 evidence 的拒绝边界 |
+| `image-production` | Pilot/Complete Page Review：Framed raw+production-equivalent composite 并列、Pure 完整 provider page、单一 `proceed / repair` 决定；以及废弃 v2 evidence 的拒绝边界 |
 | `pipeline-orchestration` | provider-input fingerprint、local refresh/rebuild 路由、transport 不二次编译 prompt |
 | `harness-script-layout` | 03/04 sibling adapters 共用明确的 page-image seam，但不得互导 sibling/private modules |
 | `node-specification` | 正确 current protocol 的 source/state identity、workflow binding、Controller handoff，以及废弃 v2 input 的硬停止 |

@@ -83,7 +83,7 @@ The common full-canvas image composition model shared by Pure and Framed. It ren
 _Avoid_: A Framed-only image model, a text-free underlay, a background-only image
 
 **Header Rendering Policy**:
-A version-level policy deciding who renders kicker, title, and subtitle: the provider for Pure or a deterministic transparent local overlay for Framed. It does not select a different body/content model per slide.
+A version-level policy deciding who renders kicker, title, and subtitle: the provider for Pure or a deterministic transparent local overlay for Framed. Framed supplies their exact literals to the provider as context not to render, and it does not select a different body/content model per slide.
 _Avoid_: A slide-level authority choice, a third workflow
 
 **Pure**:
@@ -95,12 +95,36 @@ The Page Image Core workflow in which a transparent deterministic local overlay 
 _Avoid_: Hybrid as a third workflow, a text-free underlay, a background-only workflow
 
 **Content Authority**:
-The human and canonical source's authority over claims, data, and exact required copy. Rendering ownership does not permit semantic invention or silent paraphrase.
+The human and canonical source's authority over claims, data, and exact required copy. Rendering ownership does not permit semantic invention or paraphrase unless the source explicitly grants Presentation-Adaptable Copy.
 _Avoid_: Provider authorship, pixel ownership of facts
 
 **Provider-Rendered Content**:
-Canonical page content whose final pixels and composition are rendered by the provider, including body, labels, metrics, diagram text, quotes, and callouts. Its meaning and exact required copy remain under Content Authority.
+Canonical page content declared through a Provider Content Schema whose final pixels and composition are rendered by the provider, including body, labels, metrics, diagram text, quotes, and callouts. Its meaning and exact required copy remain under Content Authority.
 _Avoid_: Provider-authored content, local frame content by default
+
+**Provider Content Schema**:
+The closed canonical-source vocabulary that declares the Provider-Rendered Content and exact required literals of a page. It expresses semantic roles, not provider prompts, free-form BODY prose, coordinates, or layout instructions.
+_Avoid_: Arbitrary YAML, an unvalidated BODY field, provider-invented copy
+
+**Presentation-Adaptable Copy**:
+Non-factual supporting copy that the canonical source explicitly permits the provider to shorten or rephrase for better text-and-visual composition. It never permits the provider to alter claims, facts, numbers, names, labels, headers, or any unmarked text.
+_Avoid_: Implicit paraphrase, provider-authored facts, a blanket rewrite permission
+
+**Page Image Workflow**:
+The Harness-owned route that uses Image2 knowledge to compile canonical content, visual direction, and composition constraints into auditable rendering inputs for a complete page. Pure compiles one full-page provider input; Framed coordinates a provider page input with a local header-renderer input, using Presentation-Adaptable Copy only when the source explicitly grants it.
+_Avoid_: A content author, a free-form prompt, a per-slide authority choice
+
+**Compiled Provider Input**:
+The exact provider request bytes produced by a Page Image Workflow and bound into authorization and evidence lineage. For Framed it includes the exact header literals as context not to render; it is distinct from the local header-renderer input.
+_Avoid_: A transport-layer prompt rewrite, an unbound request wrapper
+
+**Production-Equivalent Composite**:
+The Framed review image formed by combining the provider raw page under review with the exact deterministic local header-renderer output. Pure has no separate composite because its complete provider page is already its page composition.
+_Avoid_: A second provider image, a separate approval state
+
+**Complete Page Review**:
+The one human proceed-or-repair decision on a complete page representation: Framed presents its raw page beside its Production-Equivalent Composite, while Pure presents its complete provider page. It precedes and does not replace final delivery review.
+_Avoid_: A raw-only Framed decision, an additional composite gate
 
 **Protected Zone**:
 A full-canvas compositional avoidance area that keeps provider-rendered text and key visual subjects away from a Framed header. It is not a blank strip, cutout, or whole-page no-text rule.
