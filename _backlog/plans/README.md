@@ -19,7 +19,7 @@
 
 | Plan | 摘要 | 状态 |
 | --- | --- | --- |
-| [`framed-hybrid-image2-composition.md`](framed-hybrid-image2-composition.md) | 将 Framed 从“无文字底图 + 本地正文”纠正为“固定头部 + Image2 图文页面”的所有权模型 | 待 Review |
+| [`framed-hybrid-image2-composition.md`](framed-hybrid-image2-composition.md) | 统一 Pure/Framed 的完整页面生成核心；Framed 仅增加透明、确定性的固定头部 overlay | 待 Review |
 
 **Next available plan ID: CLS-021**（移入 `_closed_plans/` 时分配；CLS-001…020 已用）
 
