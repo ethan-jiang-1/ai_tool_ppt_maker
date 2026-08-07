@@ -73,8 +73,42 @@ The production family that composes final pages locally from structured HTML sou
 _Avoid_: The only production path
 
 **Image Production**:
-The production family that uses an image model to create either a whole-page final Render Artifact or a reviewed visual-slot asset. Whole-page Image Production owns final page pixels; visual-slot Image Production supplies an asset to HTML Production and does not own the final page.
+The production family that uses an image model to create either a whole-page page composition or a reviewed visual-slot asset. A local Framed header overlay does not turn whole-page Image Production into visual-slot production or HTML Production.
 _Avoid_: Refinement as the umbrella name, a synonym for provider authorization, or a required post-HTML phase
+
+### Page Image Composition
+
+**Page Image Core**:
+The common full-canvas image composition model shared by Pure and Framed. It renders page visuals and Provider-Rendered Content while Content Authority remains in the human and canonical source.
+_Avoid_: A Framed-only image model, a text-free underlay, a background-only image
+
+**Header Rendering Policy**:
+A version-level policy deciding who renders kicker, title, and subtitle: the provider for Pure or a deterministic transparent local overlay for Framed. It does not select a different body/content model per slide.
+_Avoid_: A slide-level authority choice, a third workflow
+
+**Pure**:
+The Page Image Core workflow in which the provider renders all visible page pixels, including kicker, title, and subtitle.
+_Avoid_: An HTML-composed page, a provider-free workflow
+
+**Framed**:
+The Page Image Core workflow in which a transparent deterministic local overlay renders only kicker, title, and subtitle, while the provider renders the rest of the page composition.
+_Avoid_: Hybrid as a third workflow, a text-free underlay, a background-only workflow
+
+**Content Authority**:
+The human and canonical source's authority over claims, data, and exact required copy. Rendering ownership does not permit semantic invention or silent paraphrase.
+_Avoid_: Provider authorship, pixel ownership of facts
+
+**Provider-Rendered Content**:
+Canonical page content whose final pixels and composition are rendered by the provider, including body, labels, metrics, diagram text, quotes, and callouts. Its meaning and exact required copy remain under Content Authority.
+_Avoid_: Provider-authored content, local frame content by default
+
+**Protected Zone**:
+A full-canvas compositional avoidance area that keeps provider-rendered text and key visual subjects away from a Framed header. It is not a blank strip, cutout, or whole-page no-text rule.
+_Avoid_: Exclusion strip, opaque header panel, guaranteed collision prevention
+
+**Provider-Input-Preserving Refresh**:
+A Framed local header refresh for which the compiled provider input, protected geometry, raw contract, and generation profile remain unchanged. Any change outside that proof requires a raw rebuild.
+_Avoid_: Any header-field edit, a provider-free semantic update
 
 **Needs Render**:
 A production state in which a required Render Artifact is missing or cannot be proven current; it reports unfinished work without authorizing remote rendering.
