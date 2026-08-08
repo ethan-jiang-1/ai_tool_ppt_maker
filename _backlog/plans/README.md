@@ -17,7 +17,9 @@
 
 ## 活跃列表
 
-当前没有活跃 plan。
+| Plan | 说明 |
+|---|---|
+| [`progressive-page-image-integrity-and-usability.md`](progressive-page-image-integrity-and-usability.md) | BUG-055/056/057/059/060/062/063 的系统性分阶段修复：像素完整性、provider 可观测性、人类导航、Pure 视觉系统。 |
 
 **Next available plan ID: CLS-023**（移入 `_closed_plans/` 时分配；CLS-001…022 已用）
 
