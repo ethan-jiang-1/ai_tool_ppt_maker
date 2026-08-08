@@ -41,15 +41,43 @@ manifest, then `05-delivery` projection, PPTX, notes, and delivery review. A
 later receipt cannot repair a missing earlier receipt. Generated files are
 rebuildable output and never replace the receipt chain.
 
+## Human-facing CLI success handoff
+
+For every successful direct Harness CLI result, give the person a bounded
+summary in this order:
+
+1. **Purpose**: name the completed owner operation in domain terms.
+2. **Outcome**: name the current result with stable domain identifiers.
+3. **Next human action**: name the one current human action, or say that no
+   human action is required now.
+
+This applies to `ppt_flow`, `style-master`, and `image2`. Do not reproduce an
+ordinary success JSON payload or make a raw 64-hex digest the conversational
+status label. Retain an exact SHA-256 only for the owner-controlled CLI command
+that requires it. Provide that exact identifier, together with its control
+purpose, only when the person explicitly requests it. A display reference is
+never an equivalent command selector.
+
+This success handoff does not replace diagnostic recovery. For any nonzero CLI
+result, consume the existing producer-issued failure envelope through
+Diagnostic Recovery Handoff; do not summarize a failure as a successful result.
+
 ## Human inspection handoff
 
 Before asking a person to inspect current Style Master, review, final, PPTX,
 notes, or delivery artifacts, rebuild the exact run's human artifact reference
 view with `ppt_flow image2 artifact-view <run-dir>`. Cite every requested
 artifact's owner-issued locator, artifact type, and inspection purpose from
-that view. A locator is a read target only: it neither selects a lifecycle
-record nor authorizes provider work, records a decision, or permits a hand edit
-to `_generated/`.
+that view. For every current Page Image status or request for review,
+authorization, or delivery action, use that rebuilt view as the human display
+surface: cite stable slide/candidate IDs and available typed display references
+with their locators. When the view marks an artifact unavailable, report that
+bounded owner-issued fact and do not invent a reference or use an abbreviated
+reference as a selector.
+
+A locator is a read target only: it neither selects a lifecycle record nor
+authorizes provider work, records a decision, or permits a hand edit to
+`_generated/`.
 
 ## Unsupported boundary
 
