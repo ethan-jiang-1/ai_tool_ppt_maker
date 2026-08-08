@@ -1,6 +1,6 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–5 已归档；BUG-055/056/059/060/062/063 已归档；BUG-057 等待既有授权流程下的人类 Pilot）
+> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–5 已归档；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；唯一未完成项为 BUG-057 的既有授权流程下人类 Pilot）
 
 ## 当前进度（2026-08-08）
 
@@ -44,14 +44,22 @@ Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人�
 
 ## 下一步队列（2026-08-08）
 
-没有 active OpenSpec change。不能将 provider-free binding 结果误作付费 Pilot 的替代，也不能直接修改
-machine JSON 来“顺手”关闭 BUG-062。
+没有 active OpenSpec change。当前只剩 BUG-057 的受授权三页 Pure Pilot；provider-free binding 不能替代
+真实像素验收。BUG-062 已完成，不应为了它修改 machine JSON 或启动新的 change。
 
-| 优先级 | Owner | 下一项 | 进入条件与完成条件 |
-| --- | --- | --- | --- |
-| P0 | Maintainer | **release bump** | 已确认并完成：`0.24.4 → 0.25.0`（MINOR）。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，MINOR 比先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议更准确。`VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md`、`package.json` 和根 package-lock 元数据已同步。 |
-| P1 | Human + Agent | **BUG-057 三页 Pure Pilot** | 人类指定真实 deck 的 canonical `runDir`、三张具有 editorial narrative / metric-data-led / process-relationship-led 需求的页，并明确授权该 exact plan/batch 的 provider 成本。随后复用既有 Pilot/Complete Page Review；跨页检查 hierarchy、Style-Master-derived colour use、zones、whitespace 和 layout-family discipline。通过才可将 BUG-057 移至 `_done`；修复则回到 source edit → raw rebuild。无需新的 Harness OpenSpec change。 |
-| P2 | Agent + Maintainer | **BUG-062 人类 handoff guidance** | **已完成、归档并发布为 PATCH `0.25.0 → 0.25.1`。** `add-human-cli-handoff-guidance` 将所有 direct Harness CLI success 的人类摘要与 machine payload 分离；current Page Image 额外使用 provider-free、collision-aware `image2 artifact-view`。不新增 `--short-refs`、不截短 CLI 控制键、不改 CLI schema、目录内容寻址或 selector grammar。 |
+### BUG-057 三页 Pure Pilot（唯一未完成项）
+
+- [ ] **Maintainer**：指定一个真实、current Pure source/version 的 canonical `runDir`。
+- [ ] **Maintainer**：从该版本选定三张代表页：editorial narrative、metric/data-led、
+  process/relationship-led；三页必须绑定同一 visual-system digest，但内容与 visual-language selection 不同。
+- [ ] **Maintainer**：明确授权该 exact plan/batch 的 provider 成本范围。
+- [ ] **Agent**：复用既有 Pure Pilot/Complete Page Review，生成并通过当前 artifact view 给出每页的
+  complete-page evidence locator；不创建本地 header overlay、第二份页面证据或新 gate。
+- [ ] **Human**：跨页判断 typography hierarchy、Style-Master-derived colour use、title/content zones、
+  whitespace 与 permitted layout-family discipline，同时确认每页各自的内容/构图任务。
+- [ ] **Agent**：记录既有 review 结论：通过则将 BUG-057 移至 `_done/_fixed_bugs/`；需要修复则回到
+  source edit → raw rebuild → 同一 Complete Page Review。只有证据表明已绑定的 token 仍不足以表达问题时，
+  才另行 propose、polish 新 OpenSpec change。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
