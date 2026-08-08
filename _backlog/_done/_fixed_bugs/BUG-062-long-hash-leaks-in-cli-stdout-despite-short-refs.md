@@ -1,6 +1,6 @@
 # BUG-062: 短引用只覆盖 task-projection，一般 CLI stdout 仍甩完整 64 位哈希
 
-> 严重级别: P3（UX/可读性）| 发现: 2026-08-06 | 状态: needs-info
+> 严重级别: P3（UX/可读性）| 发现: 2026-08-06 | 状态: resolved
 
 ## 症状
 
@@ -75,3 +75,22 @@ machine-output 与 human-display-output 边界。
 view，并要求 Agent handoff 使用该 view；这改善了人工检查时的 digest 可读性。但该 change 明确保留普通
 `ppt_flow` success JSON 的 machine schema 和所有 exact SHA-256 参数，因此本卡的“一般 CLI stdout 仍输出完整
 64 位 hash”问题仍然存在，不能归档。后续仍需 maintainer 在本卡列出的三种 CLI/display surface 之间作选择。
+
+## Resolution Update — 2026-08-08
+
+`add-human-cli-handoff-guidance` resolves this issue at the intended human-conversation boundary.
+Successful direct Harness CLI results now require an Agent to give `Purpose`, `Outcome`, and `Next
+human action` using domain identifiers. Ordinary success JSON remains the unchanged machine
+contract: the Agent retains a full SHA-256 only for an exact owner-issued command or when a person
+explicitly asks for that identifier.
+
+For current Page Image status and human action requests, the Agent rebuilds and uses the existing
+provider-free `image2 artifact-view`, including stable slide/candidate IDs, typed display
+references, read-only locators, and bounded unavailable-artifact facts. A display reference cannot
+be used as a selector or authorization key. This deliberately does not add `--short-refs`, alter
+CLI schema, rename content-addressed storage, or change exact CLI arguments.
+
+The Charter documentation contract now covers both boundaries; focused handoff tests (5/5), the
+protected baseline, strict change/all-spec validation, and `git diff --check` passed. No provider
+work, runtime protocol change, state/receipt/immutable-record mutation, or production run-bundle
+write occurred.

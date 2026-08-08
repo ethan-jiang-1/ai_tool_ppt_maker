@@ -1,13 +1,17 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–4 已归档；BUG-055/056/059/060/063 已归档；BUG-057 等待既有授权流程下的人类 Pilot，BUG-062 仍活跃）
+> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–5 已归档；BUG-055/056/059/060/062/063 已归档；BUG-057 等待既有授权流程下的人类 Pilot）
 
 ## 当前进度（2026-08-08）
 
 Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
-`_done/_fixed_bugs/`。BUG-062 仍保持活跃，因为普通 machine-oriented CLI JSON 继续输出完整 SHA-256，尚待
-maintainer 选择独立的人类 display surface。
+`_done/_fixed_bugs/`。BUG-062 的产品边界已收敛为“机器 JSON 保持不变、Agent 不原样转述成功回执”；
+Change 5 `add-human-cli-handoff-guidance` 已实现、验证、main-spec sync 和归档。它在 Charter 中将每个
+successful direct Harness CLI 的人类转述收敛为 Purpose / Outcome / Next human action；current Page Image
+额外使用现有 provider-free `image2 artifact-view` 的 stable IDs、typed display refs、read-only locators 和
+bounded unavailable facts。普通 CLI success JSON、完整 SHA 参数、selector grammar 与运行时协议均保持不变；
+BUG-062 已移至 `_done/_fixed_bugs/`。
 
 Change 4 `bind-pure-deck-visual-system` 已完成 provider-free implementation/validation。它以
 `visual-config`、`image-generation` 和 `run-bundle-layout` 三个 capability 定义并落实 version-level
@@ -23,16 +27,30 @@ Pure token 只产生既有的 raw rebuild debt，不生成或重选 Style Master
 这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。下一步须通过既有的成本授权与
 Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人类视觉验收；这不是新 gate。
 
+## 执行看板（2026-08-08）
+
+- [x] **Change 0**：归档 `add-jpeg-delivery-media`。
+- [x] **Change 1 / BUG-059、BUG-060**：完成 raster projection integrity 修复、验证、main-spec sync 与归档。
+- [x] **Change 2 / BUG-055**：完成有界 provider response-shape diagnostics、验证、main-spec sync 与归档。
+- [x] **Change 3 / BUG-056、BUG-063**：完成 human artifact reference view、验证、main-spec sync 与归档。
+- [x] **Change 4 / BUG-057（provider-free 部分）**：完成 Pure deck visual-system binding、验证、main-spec sync 与归档。
+- [x] **Release**：确认并完成 `0.24.4 → 0.25.0` MINOR bump。
+- [ ] **BUG-057 人类 Pilot**：等待人类指定真实 `runDir`、三张代表页与该 exact plan/batch 的 provider 成本授权；尚未产生 provider 请求。
+- [x] **BUG-062 产品探索**：确认普通 CLI JSON/精确 SHA 是 machine contract；`artifact-view` 是现有的人类检查面，但不会自动阻止 Agent 原样转述成功 JSON。
+- [x] **BUG-062 proposal**：已创建 `add-human-cli-handoff-guidance`，包含 proposal、`harness-charter` delta spec、design 与 tasks。
+- [x] **BUG-062 polish**：两轮 planning-only 审查、change/all-spec strict、diff check 与 `npm test` 均通过；随后取得人类 `APPLY` 授权。
+- [x] **BUG-062 apply / validate / sync / archive**：Charter/test 已实现；focused handoff 5/5、protected `npm test`、change/all-spec strict 与 diff check 均通过；main `harness-charter` spec 已同步并归档 change。没有 provider 工作、CLI schema、state/receipt/immutable-record 或 production run-bundle 改动。
+
 ## 下一步队列（2026-08-08）
 
-当前没有 active OpenSpec change。下列事项按所有权和前置条件独立推进，不能将 provider-free binding
-结果误作付费 Pilot 的替代，也不能直接修改 machine JSON 来“顺手”关闭 BUG-062。
+没有 active OpenSpec change。不能将 provider-free binding 结果误作付费 Pilot 的替代，也不能直接修改
+machine JSON 来“顺手”关闭 BUG-062。
 
 | 优先级 | Owner | 下一项 | 进入条件与完成条件 |
 | --- | --- | --- | --- |
 | P0 | Maintainer | **release bump** | 已确认并完成：`0.24.4 → 0.25.0`（MINOR）。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，MINOR 比先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议更准确。`VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md`、`package.json` 和根 package-lock 元数据已同步。 |
 | P1 | Human + Agent | **BUG-057 三页 Pure Pilot** | 人类指定真实 deck 的 canonical `runDir`、三张具有 editorial narrative / metric-data-led / process-relationship-led 需求的页，并明确授权该 exact plan/batch 的 provider 成本。随后复用既有 Pilot/Complete Page Review；跨页检查 hierarchy、Style-Master-derived colour use、zones、whitespace 和 layout-family discipline。通过才可将 BUG-057 移至 `_done`；修复则回到 source edit → raw rebuild。无需新的 Harness OpenSpec change。 |
-| P2 | Maintainer | **确定 BUG-062 的产品边界** | 先决定现有显式 `image2 artifact-view` 是否已满足“人类可读 locator/display reference”；若不足，确认要新增的独立 human-oriented CLI surface，同时保持普通 JSON machine-only。只有后者才创建一个独立 OpenSpec proposal，按 polish → apply → archive 推进。 |
+| P2 | Agent + Maintainer | **BUG-062 人类 handoff guidance** | **已完成并归档。** `add-human-cli-handoff-guidance` 将所有 direct Harness CLI success 的人类摘要与 machine payload 分离；current Page Image 额外使用 provider-free、collision-aware `image2 artifact-view`。不新增 `--short-refs`、不截短 CLI 控制键、不改 CLI schema、目录内容寻址或 selector grammar。版本建议为 PATCH `0.25.0 → 0.25.1`，待 maintainer 确认后才修改 release surfaces。 |
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
@@ -47,7 +65,7 @@ Change 3 已完成：main specs 已同步并归档至
 | --- | --- | --- |
 | Raster projection integrity | 059、060 | 已完成：共享 projector 已覆盖所有审计到的 derived canvas seam；16-bit/RGB provider PNG 和 Chromium RGB screenshot 不再被错误当作 8-bit RGBA。 |
 | Provider diagnosis | 055 | 已完成：完整读取的非 JSON 响应在既有 `invalid_json` fact 中以闭集 shape 区分 empty、HTML-like 与 other，不泄露 provider 数据或改变成本控制。 |
-| Human artifact navigation | 056、062、063 | BUG-056/063 已由 explicit logical reference view、locator/type/purpose handoff 和 typed display refs 解决；BUG-062 仍缺普通 CLI machine JSON 与人类 display 输出的产品决策。 |
+| Human artifact navigation | 056、062、063 | 已完成：BUG-056/063 由 explicit logical reference view、locator/type/purpose handoff 和 typed display refs 解决；BUG-062 以 Agent 成功交接规则解决，普通 CLI JSON 与 exact SHA 继续仅作 machine/control contract。 |
 | Pure deck visual system | 057 | 已完成 provider-free binding：Pure 每页共享闭合 deck-level typography、colour-use、zones、whitespace 和 layout-family projection；尚待真实三页 Pilot 的人类像素验收。 |
 
 `add-jpeg-delivery-media` 已于 2026-08-08 完成 main-spec sync 并 archive。其 delivery contact
@@ -149,6 +167,7 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | **已完成**：主 spec 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-bounded-provider-response-shape-diagnostics/`，BUG-055 已移入 `_done/_fixed_bugs/`。仅 `empty` / `html_like` / `other_non_json`；无 retry，Style Master 不新增持久化或 CLI field。 |
 | 3 | `add-human-artifact-reference-view` | BUG-056、BUG-063（BUG-062 仍活跃） | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；显式 provider-free `image2 artifact-view` 重建 run-scoped logical view；所有人类检查 handoff 都有 locator；storage/CLI exact args 与普通 machine JSON 不变。BUG-056/063 已移入 `_done/_fixed_bugs/`。 |
 | 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`run-bundle-layout` | **已完成**：main specs 已同步并归档至 `openspec/changes/archive/2026-08-08-bind-pure-deck-visual-system/`；closed deck-authored source record 已进入 Pure Core/raw contract/compiled input/plan binding；`deck_visual_system_sha256` 为 Pure-required / Framed-null 的 common binding slot，并在 ordinary/progressive raw-plan validation、invalidation、inspection 和 fixtures 同步。Style Master 保持色彩/参考 authority、不扩大 candidate scope。14/14 Pure fixture、focused suites、protected baseline 和 strict checks 已绿；仅待既有成本授权下的三张 representative Pilot 供人类视觉判断。 |
+| 5 | `add-human-cli-handoff-guidance` | BUG-062 | `harness-charter` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-add-human-cli-handoff-guidance/`；成功 direct CLI 对人只报告 Purpose / Outcome / Next human action，当前 Page Image 状态/行动用重建的 typed artifact view。普通 success JSON、full SHA CLI 参数、content-addressed storage 和 selector grammar 保持不变；BUG-062 已移入 `_done/_fixed_bugs/`。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
 Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在

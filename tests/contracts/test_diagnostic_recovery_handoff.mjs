@@ -23,14 +23,31 @@ function headingSection(text, heading) {
 }
 
 describe("diagnostic recovery handoff", () => {
+  it("keeps human CLI success summaries separate from exact control identifiers", () => {
+    const contract = readFileSync(AGENT_CONTRACT_PATH, "utf8");
+    const handoff = headingSection(contract, "Human-facing CLI success handoff");
+
+    expect(handoff).toMatch(/Purpose[\s\S]*Outcome[\s\S]*Next human action/i);
+    expect(handoff).toMatch(/ppt_flow.*style-master.*image2/i);
+    expect(handoff).toMatch(/ordinary success JSON/i);
+    expect(handoff).toMatch(/raw 64-hex digest[\s\S]*status label/i);
+    expect(handoff).toMatch(/exact identifier[\s\S]{0,220}explicitly requests/i);
+    expect(handoff).toMatch(/display reference[\s\S]*never[\s\S]*selector/i);
+    expect(handoff).toMatch(/nonzero CLI[\s\S]*producer-issued failure envelope[\s\S]*Diagnostic Recovery Handoff/i);
+  });
+
   it("requires locatable, read-only Page Image inspection handoffs", () => {
     const contract = readFileSync(AGENT_CONTRACT_PATH, "utf8");
     const handoff = headingSection(contract, "Human inspection handoff");
 
     expect(handoff).toContain("ppt_flow image2 artifact-view <run-dir>");
     expect(handoff).toMatch(/locator, artifact type, and inspection purpose/i);
+    expect(handoff).toMatch(/stable slide\/candidate IDs/i);
+    expect(handoff).toMatch(/typed display references/i);
+    expect(handoff).toMatch(/artifact unavailable[\s\S]*do not invent a reference/i);
+    expect(handoff).toMatch(/abbreviated[\s\S]*reference as a selector/i);
     expect(handoff).toMatch(/read target only/i);
-    expect(handoff).toMatch(/neither selects a lifecycle\s+record nor authorizes provider work, records a decision, or permits a hand edit\s+to/i);
+    expect(handoff).toMatch(/neither selects a lifecycle\s+record nor[\s\S]{0,80}authorizes provider work, records a decision, or permits a hand edit[\s\S]{0,80}to/i);
   });
 
   it("defines exactly four bounded novice-facing parts in the canonical contract", () => {
