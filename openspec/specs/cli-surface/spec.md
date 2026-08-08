@@ -100,6 +100,17 @@ legal owner action for missing/stale intent or selection, unavailable runtime, c
 uncertain attempt, invalid candidate evidence, lifecycle-head conflict, or selection compare-and-swap conflict; consumers SHALL NOT derive a
 parallel style recovery route from prose or file presence.
 
+When selected-workflow visual/source drift makes an existing Style Master
+selection stale but a current canonical candidate validates, `style-master
+inspect` SHALL return its normal owner projection with one replacement-planning
+next action and `style-master plan` SHALL accept that same scope for the
+provider-free successor plan. Neither command SHALL classify that bounded
+condition as an internal failure or direct the Agent to an inspection that has
+the same stale-scope precondition. Any raw-plan diagnostic preceding the new
+selection shall name only this Style Master recovery and shall not imply
+provider authorization, provider retry, source-epoch mutation, raw-plan
+publication, or Page Image evidence acceptance.
+
 #### Scenario: Missing selection has one repair action
 
 - **WHEN** page raw planning finds no current accepted effective-style selection
@@ -117,6 +128,16 @@ parallel style recovery route from prose or file presence.
 - **WHEN** inspection finds an attempt whose provider outcome became unknown after submit
 - **THEN** the CLI reports the recoverability hard-stop and exact-plan abandonment action requiring a human reason
 - **AND** it does not offer retry, force, outcome editing, or successor authorization as the same action
+
+#### Scenario: Stale source context has one replacement-planning action
+
+- **WHEN** `style-master inspect` or `style-master plan` reaches a stale prior
+  selection while the selected workflow's current canonical candidate validates
+- **THEN** inspection returns the owner-issued replacement Style Master
+  planning action and planning accepts the same scope to publish its
+  provider-free successor
+- **AND** neither command returns an opaque internal error, self-referential
+  inspect loop, raw-plan force, provider retry, or mutation claim
 
 ### Requirement: Progressive production diagnostics remain direct and bounded
 

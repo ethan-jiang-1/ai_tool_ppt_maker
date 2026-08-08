@@ -1,6 +1,6 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–7 均已完成、main-spec sync、归档；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；BUG-057 的三页 Pure review 已记录 `repair`，owner 已恢复既有 rebuild 路由，等待下一轮受控 source edit）
+> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–7 均已完成、main-spec sync、归档并提交 `e2a74d6`；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；BUG-057 的三页 Pure review 已记录 `repair`，source-only visual repair 已完成；Change 8 已完成实施、验证、main-spec sync、archive 和 commit）
 
 ## 当前进度（2026-08-09）
 
@@ -15,8 +15,28 @@
   decision record 已写入，final media、PPTX 和 delivery 仍不可用。
 - [x] **repair routing**：owner 现在以 relation-aware selector 排除已被 `repair` 决定引用的 prepared review；
   当前唯一恢复动作是 `rebuild_progressive_raw_work`，历史 decision handoff 仅供审计。
-- [ ] **下一轮受控重建**：按 owner-issued `rebuild_progressive_raw_work` 进行 source edit → 重新披露 exact raw
-  scope → 取得对应授权 → raw rebuild → 同一 Complete Page Review；不得借旧的 broad authorization 推断新 provider scope。
+- [x] **运行时复核**：2026-08-09 对真实 `v1` 执行只读 status/state 检查，确认 owner 当前只给出
+  `rebuild_progressive_raw_work`；`complete_raw_review_sha256`、accepted evidence、final media、PPTX 与 delivery
+  均不可用，三张既有 raw pages 仅保留为历史审计记录。
+- [x] **视觉修订意图**：Agent 已对历史 Complete Page Review 作出 source-only 复盘；保留所有 claim、标题、stable ID
+  与 speaker note，收紧 shared visual-language 为“大尺度简洁形式、无标记大表面、避免密集 control-room interface”，并从
+  `TwoMet` / `PlatGo` 移除会放大密度的 `connected-nodes` motif。source literals 仍只由 Pure provider contract 绑定。
+- [x] **恢复缺口已定位**：该 source-only edit 正确使旧 Style Master selection stale；raw-plan 因而先要求新的
+  Style Master，但 `style-master inspect/plan` 又把同一 stale source/state binding 拒绝，形成无 provider、无 state
+  mutation 的自引用阻塞。
+- [x] **Change 8 / stale Style Master recovery（实施、验证、归档与提交完成）**：`recover-stale-style-master-scope` 已通过两轮
+  planning-only polish 和 `APPLY` 后完成实现。它只允许从当前 validated candidate 发布 provider-free replacement Style
+  Master plan；不发布 source epoch/raw plan、不复用旧 grant/selection、不生成 provider work；canonical
+  `style_master.jpg` 仅可按既有 local-existing 规则重新快照，不能继承历史 authority。作为 `guide`，`style-master
+  inspect/plan` 成功返回/执行 owner recovery，不把正常恢复误投影为 CLI failure；仅现有 evaluator 明确给出的 source
+  identity/receipt drift 可进入该路，其他 state、workflow、lineage 或不确定性失败仍是 hard-stop。聚焦 Style Master、
+  Pure、Framed、CLI suites 与 protected `npm test` 均通过；change/all-spec strict 和 diff check 均通过，未发生 provider
+  或生产 deck mutation。main specs 已同步，change 已归档至
+  `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`。额外 opt-in CLI audit 为既存基线红灯：其 registry 引用了缺失的
+  `tests/shared/run-bundle/test_page_image_layout.mjs`（27/28），与本 change 无关。
+- [ ] **下一轮受控重建**：Change 8 已实施、验证、sync/archive；Agent 执行 replacement Style Master plan → 新 selection
+  → validation → 新 current raw plan / exact-scope disclosure；人类对该新 scope 独立授权后，Agent raw rebuild → 同一
+  Complete Page Review。不得借旧的 broad authorization 推断新的 provider scope。
 
 **当前可用审阅入口：**
 `deck_dark_factory_current/3_versions/v1/_generated/page_image_workflow/reference/human-artifact-reference-v1.md`
@@ -41,8 +61,9 @@ Pure token 只产生既有的 raw rebuild debt，不生成或重选 Style Master
 `tests/04-pure-image/test_pure_workflow.mjs` 为 14/14 通过。新增/相关 focused tests、protected `npm test`、
 `git diff --check`、change strict 与 all-spec strict 已通过；未执行 provider-backed E2E 或 Pilot。
 
-这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。三张页面的既有成本授权和
-Complete Page Review evidence 已准备完毕；现在仅等待人类对内容/构图需求不同的 Pure 页进行视觉验收。这不是新 gate。
+这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。三张页面已经完成既有成本授权和
+Complete Page Review，且人类已作出 `repair` 决定；旧 raw bytes 和 decision 保持审计可用，但不再是 current
+evidence。因此正式输出、PPTX 与 delivery 继续不可用，直到完成下一次受控 raw rebuild 和同一人类 review。
 
 为避免把历史 `page-authority-image2-v2` source/state 伪装成 current protocol，已保留
 `deck_dark_factory/` 的 v1--v3 原始 bytes，并新建
@@ -53,7 +74,7 @@ selection 各不相同。`ppt_flow validate` 已通过 3 页 source receipt vali
 pages 和 Complete Page Review 已准备完成。新 target 的 content/visual gates 已明确批准，仍不继承旧 deck 的历史
 approval；final images、PPTX 和 delivery 尚未生成。
 
-## 执行看板（2026-08-08）
+## 执行看板（2026-08-09）
 
 - [x] **Change 0**：归档 `add-jpeg-delivery-media`。
 - [x] **Change 1 / BUG-059、BUG-060**：完成 raster projection integrity 修复、验证、main-spec sync 与归档。
@@ -104,15 +125,33 @@ approval；final images、PPTX 和 delivery 尚未生成。
 - [x] **Change 7 / apply / validate / sync / archive**：已统一 raw owner 的 relation-aware current-review selector，
   repair 后不再重放或二次决定历史 prepared evidence，且只返回 `rebuild_progressive_raw_work`；focused
   raw-owner test、protected `npm test`、strict checks 与 diff check 均通过。main `image-generation` spec 已同步，
-  change 已归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；没有 provider 调用或 deck state/evidence 变更。
+  change 已归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`，并提交为 `e2a74d6`；
+  没有 provider 调用或 deck state/evidence 变更。
+- [x] **BUG-057 repair-route runtime verification**：在真实
+  `deck_dark_factory_current/3_versions/v1/` 上只读确认 `rebuild_progressive_raw_work` 是唯一 primary action；
+  repair handoff 为 audit-only，且不存在 current review、accepted raw evidence、final manifest 或 delivery。
+- [x] **BUG-057 source-only visual repair runtime check**：在真实 `v1` 上确认当前 source candidate 可验证，旧
+  Style Master binding 由于 visual-language drift 变 stale；`image2 plan` 在 `target_style_master_stale` 前停止，
+  `style-master inspect/plan` 均在 `style_master_scope_stale` 失败，且这些失败未写 state、raw record、grant、attempt
+  或 provider request。
+- [x] **Change 8 / stale Style Master recovery**：`recover-stale-style-master-scope` 已覆盖
+  `style-master-generation`、`image-generation`、`cli-surface`，两轮 planning-only polish 后获 `APPLY` 并完成代码与
+  回归验证。第一轮收紧 local-existing media 的重新快照/provenance 边界，第二轮限定显式 source identity/receipt drift
+  且修正 CLI guide success 语义；聚焦 suites、protected `npm test`、change/all-spec strict 与 diff check 均通过。未执行
+  provider-backed E2E 或 Pilot，也未写入真实 deck；main specs 已同步，change 已归档至
+  `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`，已提交。
 
 ## 下一步队列（2026-08-09）
 
 Change 6 `expose-current-page-review-artifacts` 已完成、同步和归档；它修复 BUG-057 的 existing Complete Page Review
 display surface，不改变 machine JSON 或启动新的 provider 工作。三页 Pure raw evidence 保持未接受状态，provider-free
 binding 不能替代真实像素验收。Human 已选择 `repair`；该决定未接受 raw evidence，未解锁 final/delivery，也未发起新的
-provider 请求。Change 7 已恢复 owner 的 rebuild routing，因此不再有工程协议阻塞；下一步是既有的受控 source edit →
-exact-scope disclosure / authorization → raw rebuild → 同一 review。BUG-062 已完成。
+provider 请求。Change 7 已恢复 owner 的 rebuild routing。随后的 source-only visual-language / motif 修订保留 claims、stable
+IDs 与 notes，却正确使旧 Style Master selection stale；当前 implementation 缺少从 validated candidate 发布 replacement
+Style Master plan 的无副作用恢复路径，`inspect` 与 `plan` 形成自引用阻塞。Change 8
+`recover-stale-style-master-scope` 只解决此协议缺口，完成并获得新 selection 后才回到既有受控 source edit → exact-scope
+disclosure / authorization → raw rebuild → 同一 review。若新 review 仍发现 claim、叙事或数据问题，再由内容所有者给出逐页修订
+意图；这不是新的 provider 或 OpenSpec gate。BUG-062 已完成。
 
 ### BUG-057 三页 Pure Pilot（唯一未完成项）
 
@@ -144,10 +183,22 @@ exact-scope disclosure / authorization → raw rebuild → 同一 review。BUG-0
 - [x] **Human**：已从 current artifact view 检查三页 provider page / contact sheet，并作出 `repair` 决定；该决定不等于
   raw acceptance、final/delivery 授权或新的 provider 成本授权。
 - [x] **Agent**：Change 7 `restore-repair-raw-rebuild-routing` 已实施、验证、main-spec sync 并归档至
-  `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；该修复不修改 deck evidence、不做
-  provider 调用。
-- [ ] **Agent**：routing 修复后，按 owner-issued `rebuild_progressive_raw_work` 回到 source edit → 重新披露 exact raw
-  scope → 既有授权边界 → raw rebuild → 同一 Complete Page Review。不得借当前 broad authorization 推断新的 provider scope。
+  `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`，并提交为 `e2a74d6`；该修复不修改
+  deck evidence、不做 provider 调用。
+- [x] **Agent**：已在真实 `v1` 上只读确认 routing 修复生效，当前 action 为
+  `rebuild_progressive_raw_work`；历史 repair handoff 不会重新使 review/current evidence 可用。
+- [x] **Agent**：已把 historical visual repair 转为 source-only 修订：shared registry 约束为大尺度简洁形式与无标记
+  表面，`TwoMet` / `PlatGo` 移除高密度 motif；不改事实性 copy、stable IDs 或 speaker notes。
+- [x] **Agent**：已复现并界定 source-only edit 后的无 provider recovery gap：raw owner 正确拒绝 stale Style Master，
+  但 Style Master scope 又错误要求同一份 stale source/state；所有失败只读且未改变 deck evidence。
+- [x] **Agent**：Change 8 `recover-stale-style-master-scope` 已完成两轮 polish、用户 `APPLY` 后的实施与验证；它让
+  current validated candidate 进入现有 immutable Style Master successor lifecycle，不增加 state、不继承旧 selection/grant，
+  且在新 selection 前不允许 raw rebuild。所有目标回归、protected baseline、strict validation 和 diff check 均已通过；
+  无 provider 或真实 deck mutation；main specs 已同步，change 已归档至
+  `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`，已提交。
+- [ ] **Agent / Human**：按 owner-issued replacement Style Master plan → selection →
+  `rebuild_progressive_raw_work` 发布新 raw plan / exact-scope disclosure；人类对新 scope 独立授权后，Agent raw rebuild
+  → 同一 Complete Page Review。不得借旧的 broad authorization 推断新 provider scope。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
@@ -267,6 +318,7 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 5 | `add-human-cli-handoff-guidance` | BUG-062 | `harness-charter` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-add-human-cli-handoff-guidance/`；成功 direct CLI 对人只报告 Purpose / Outcome / Next human action，当前 Page Image 状态/行动用重建的 typed artifact view。普通 success JSON、full SHA CLI 参数、content-addressed storage 和 selector grammar 保持不变；BUG-062 已移入 `_done/_fixed_bugs/`。 |
 | 6 | `expose-current-page-review-artifacts` | BUG-057 current Complete Page Review locator gap | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-expose-current-page-review-artifacts/`；current Pure/Framed Complete Page Review 在 `proceed`/`repair` 前进入现有 provider-free artifact view，repair 后的 prepared record 不会在该 display view 复活；final/delivery 仍只认 accepted evidence。owner lifecycle 的独立 selector 漏洞由 Change 7 处理。 |
 | 7 | `restore-repair-raw-rebuild-routing` | BUG-057 repair 后 owner lifecycle selector 漏洞 | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；统一 relation-aware current-review selector，repair 后不得重放/二次决定 historical prepared evidence，唯一合法下一步是 `rebuild_progressive_raw_work`。不改 records、CLI、grant、provider 或 deck bytes。 |
+| 8 | `recover-stale-style-master-scope` | BUG-057 source-only visual repair 后的 Style Master replacement-plan deadlock | `style-master-generation`、`image-generation`、`cli-surface` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/` 并已提交；current validated selected-workflow candidate 可 provider-free 地发布 Style Master successor plan；旧历史只作审计，新 selection 前 raw source epoch、plan、authorization、provider 与 evidence 全部保持不可用。目标回归、protected baseline 与 strict checks 已通过，无 provider 或真实 deck mutation。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
 Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在

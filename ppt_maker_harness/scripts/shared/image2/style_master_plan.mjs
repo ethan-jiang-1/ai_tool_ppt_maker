@@ -141,7 +141,7 @@ function ensureCanonicalScope(scope) {
   const deckDir = deckRoot(runDir);
   const expectedContext = (() => {
     try {
-      return resolveStyleMasterScopeContext(runDir);
+      return resolveStyleMasterScopeContext(runDir, { sourceCandidate: scope.source_candidate });
     } catch (error) {
       fail("style_master_scope_stale", error?.message || "Style Master scope is no longer current");
     }

@@ -693,12 +693,17 @@ export function buildTargetRawGenerationProfile({ runDir, deckDir, receipt } = {
     styleMaster = resolveAcceptedStyleMasterReference({ runDir, deckDir, receipt });
   } catch (error) {
     const missing = error?.code === "style_master_selection_missing";
+    const sourceState = missing
+      ? null
+      : resolveCurrentTargetPageImageSourceState(deckDir, { runDir });
+    const sourceDrift = sourceState?.code === "TARGET_SOURCE_STATE_IDENTITY_MISMATCH" ||
+      sourceState?.code === "TARGET_SOURCE_RECEIPT_STALE";
     throw new PageImageTargetRuntimeError(
       missing ? "target_style_master_unavailable" : "target_style_master_stale",
       missing
         ? "a current accepted Style Master selection is required before raw planning"
         : "the current Style Master selection cannot supply immutable raw-plan reference bytes",
-      { nextAction: "inspect_style_master" },
+      { nextAction: missing || !sourceDrift ? "inspect_style_master" : "plan_style_master_successor" },
     );
   }
   const identitySelected = receipt.slides.some((slide) => slide.visual_language?.identity_reference?.provider_reference?.path);

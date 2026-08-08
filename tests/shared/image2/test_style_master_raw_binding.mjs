@@ -560,6 +560,38 @@ describe("accepted Style Master raw binding", () => {
     }
   });
 
+  it("replaces a stale Pure Style Master before source-epoch rebuild", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const initial = buildPureTargetRawPlan(value.runDir);
+      const stateBefore = readFileSync(statePath(value.deck));
+      const rawPlanBefore = readFileSync(value.paths.target_raw_plan);
+      const sourcePath = join(value.runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, readFileSync(sourcePath, "utf8").replace("motifs: []", "motifs:\n  - connected-nodes"), "utf8");
+
+      expect(captureError(() => buildPureTargetRawPlan(value.runDir, { allowSourceRebuild: true }))).toMatchObject({
+        code: "target_style_master_stale",
+        next_action: "plan_style_master_successor",
+      });
+      expect(readFileSync(statePath(value.deck))).toEqual(stateBefore);
+      expect(readFileSync(value.paths.target_raw_plan)).toEqual(rawPlanBefore);
+      expect(sourceEpoch(value)).toBe(1);
+
+      writeFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), localImageBytes(1));
+      const replacement = await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(value.runDir));
+      expect(replacement.plan.plan_sha256).not.toBe(value.result.plan.plan_sha256);
+      expect(replacement.accepted.selection_sha256).not.toBe(value.result.accepted.selection_sha256);
+      expect(readFileSync(value.paths.target_raw_plan)).toEqual(rawPlanBefore);
+      expect(sourceEpoch(value)).toBe(1);
+
+      const rebuilt = buildPureTargetRawPlan(value.runDir, { allowSourceRebuild: true });
+      expect(rebuilt.source_epoch).toBe(2);
+      expect(rebuilt.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("routes style-intent, context, and immutable-byte drift to Style Master without raw mutation", async () => {
     const intent = await fixture({ accepted: true });
     const context = await fixture({ accepted: true });

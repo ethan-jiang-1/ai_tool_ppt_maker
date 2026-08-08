@@ -689,11 +689,12 @@ export function resolveFramedTargetCandidateSource(runDir) {
 
 /** Resolve Framed's exact Style Master scope without materializing page lineage. */
 export function resolveFramedStyleMasterScope(runDir) {
-  const scope = resolveStyleMasterScopeContext(runDir);
+  const sourceCandidate = resolveFramedTargetCandidateSource(runDir);
+  const scope = resolveStyleMasterScopeContext(runDir, { sourceCandidate });
   if (scope.workflow !== FRAMED_IMAGE_WORKFLOW) {
     throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed Style Master scope requires the selected framed workflow");
   }
-  return bindStyleMasterScopeCandidate(scope, resolveFramedTargetCandidateSource(runDir));
+  return bindStyleMasterScopeCandidate(scope, sourceCandidate);
 }
 
 function coreStyleMasterSelection(workflow, styleMasterReference) {

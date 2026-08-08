@@ -13,6 +13,7 @@ import {
 import { resolveEffectiveStyleMasterSelection } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const LOCAL_PNG = Buffer.from(
@@ -80,6 +81,60 @@ function fixture(tag) {
 }
 
 describe("Style Master process CLI", () => {
+  it("plans a stale source-context successor without raw mutation or an inspect loop", () => {
+    const value = fixture("style-master-cli-source-drift");
+    try {
+      const initialStyle = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
+      expect(initialStyle.status, initialStyle.stderr).toBe(0);
+      const initialStylePlan = JSON.parse(initialStyle.stdout);
+      const accepted = run([
+        "style-master", "accept", value.runDir,
+        "--plan-hash", initialStylePlan.plan_sha256,
+        "--decision", "proceed",
+        "--candidate-id", "local-existing",
+      ]);
+      expect(accepted.status, accepted.stderr).toBe(0);
+
+      const initialRaw = run(["image2", "plan", value.runDir]);
+      expect(initialRaw.status, initialRaw.stderr).toBe(0);
+      const paths = pageImageWorkflowPaths(value.runDir);
+      const stateBefore = readFileSync(join(value.deck, "_state", "state.yaml"));
+      const rawPlanBefore = readFileSync(paths.target_raw_plan);
+      const registryPath = join(value.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
+      writeFileSync(registryPath, readFileSync(registryPath, "utf8").replace("quiet depth", "quiet luminous depth"), "utf8");
+      const sourcePath = join(value.runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, `${readFileSync(sourcePath, "utf8")}\n<!-- Style Master CLI successor -->\n`, "utf8");
+
+      const blocked = run(["image2", "plan", value.runDir]);
+      expect(blocked.status).toBe(1);
+      expect(blocked.stdout).toBe("");
+      expect(finalDiagnostic(blocked.stderr)).toMatchObject({
+        diagnostic: {
+          category: "artifact",
+          reason: { kind: "target_style_master_stale" },
+          next: { action: "plan_style_master_successor", requires_human: false },
+        },
+      });
+      expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(rawPlanBefore);
+
+      const inspected = run(["style-master", "inspect", value.runDir]);
+      expect(inspected.status, inspected.stderr).toBe(0);
+      expect(JSON.parse(inspected.stdout)).toMatchObject({
+        input_stale: true,
+        terminal: true,
+        next_action: "plan_style_master_successor",
+      });
+      const successor = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
+      expect(successor.status, successor.stderr).toBe(0);
+      expect(JSON.parse(successor.stdout).plan_sha256).not.toBe(initialStylePlan.plan_sha256);
+      expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(readFileSync(paths.target_raw_plan)).toEqual(rawPlanBefore);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("keeps inspect current-only and rejects zero-cost authorization or generation", () => {
     const value = fixture("style-master-cli-assertion");
     try {

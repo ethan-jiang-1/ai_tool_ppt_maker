@@ -1501,7 +1501,7 @@ const TARGET_GATE_CODES = new Set([
 ]);
 
 function isTargetArtifactFailure(code) {
-  if (code === "target_style_master_unavailable" || code === "framed_raw_contract_profile_stale") return true;
+  if (["target_style_master_unavailable", "target_style_master_stale", "framed_raw_contract_profile_stale"].includes(code)) return true;
   return /^target_(?:source_receipt|source_state|raw_plan|raw_evidence|raw_review|accepted_raw_evidence|final_manifest|final_bytes|delivery)_.*(?:stale|required|missing|invalid|mismatch|drift)$/.test(code)
     || code === "target_raw_review_contribution_stale";
 }
@@ -1592,6 +1592,21 @@ function targetPageImageFailure(operation, route, error) {
         category: "internal",
         next: createCliNext("report_internal", {
           default: "Inspect the Framed compiler, profile, or capture owner and report the Harness defect before rerunning.",
+        }),
+      },
+    };
+  }
+
+  if (reason === "target_style_master_stale" && error?.next_action === "plan_style_master_successor") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Style Master selection is stale for the selected workflow source.",
+      hint: "Publish a provider-free Style Master successor plan, then complete its review and selection before rebuilding raw work.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("plan_style_master_successor", {
+          default: "Run Style Master inspection, publish one current successor plan with an explicit candidate count, then review and select it before rerunning image2 plan.",
         }),
       },
     };

@@ -114,7 +114,7 @@ describe("Style Master scope", () => {
     }
   });
 
-  it("uses the exact current source/state pair and fences stale scope before candidate reads or writes", () => {
+  it("uses the exact current source/state pair and admits only a validated source-drift recovery candidate", () => {
     const fixture = createFixture();
     try {
       const candidate = sourceCandidate(fixture);
@@ -141,6 +141,12 @@ describe("Style Master scope", () => {
         name: StyleMasterScopeError.name,
         code: "style_master_scope_stale",
       }));
+      const recoveryCandidate = sourceCandidate(fixture);
+      expect(resolveStyleMasterScopeContext(fixture.runDir, { sourceCandidate: recoveryCandidate })).toMatchObject({
+        draft: false,
+        workflow: "framed",
+        run_version: "v1",
+      });
       expect(readFileSync(statePath(fixture.deck))).toEqual(stateBefore);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });

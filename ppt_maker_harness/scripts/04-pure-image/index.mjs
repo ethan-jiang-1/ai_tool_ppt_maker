@@ -518,7 +518,7 @@ export function resolvePureStyleMasterScope(runDir) {
   // Parse the selected Pure source first so its deck-owned visual-system
   // prerequisite fails before any Style Master scope/readiness path.
   const sourceCandidate = resolvePureTargetCandidateSource(runDir);
-  const scope = resolveStyleMasterScopeContext(runDir);
+  const scope = resolveStyleMasterScopeContext(runDir, { sourceCandidate });
   if (scope.workflow !== PURE_IMAGE_WORKFLOW) {
     throw new PureImageWorkflowError("wrong_workflow_owner", "Pure Style Master scope requires the selected pure workflow");
   }
