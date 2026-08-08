@@ -20,6 +20,26 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.25.1 — Human-Readable CLI Success Handoff（2026-08-08）
+
+**代号**：Readable control boundary
+
+> 归档 `add-human-cli-handoff-guidance` 并关闭 BUG-062：Harness 的 Agent Contract 现在把成功的
+> direct CLI 结果转述为人可读的目的、结果和下一步，而不把机器 success JSON 或完整 SHA-256 当作
+> 会话状态标签。CLI machine contract、精确参数和内容寻址存储保持不变。
+
+### 变了什么
+
+1. `ppt_flow`、`style-master` 与 `image2` 的成功交接使用 `Purpose`、`Outcome`、`Next human action`；
+   full SHA-256 只保留给现有精确控制命令，或在人明确要求时给出。
+2. current Page Image 的状态、检查或行动请求重建既有 provider-free `image2 artifact-view`，并使用稳定
+   slide/candidate ID、typed display reference、read-only locator 和 bounded unavailable fact；它们均不成为
+   selector 或 authorization key。
+3. Producer-first nonzero diagnostic recovery、CLI schema、state/receipt/immutable record 以及 run-bundle
+   ownership 均未改变；focused contract tests、protected baseline 与 strict OpenSpec validation 均通过。
+
+---
+
 ## v0.25.0 — Page Image Integrity And Pure Visual-System Binding（2026-08-08）
 
 **代号**：Current-page integrity

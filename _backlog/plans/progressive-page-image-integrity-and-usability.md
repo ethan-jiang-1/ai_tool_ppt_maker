@@ -35,6 +35,7 @@ Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人�
 - [x] **Change 3 / BUG-056、BUG-063**：完成 human artifact reference view、验证、main-spec sync 与归档。
 - [x] **Change 4 / BUG-057（provider-free 部分）**：完成 Pure deck visual-system binding、验证、main-spec sync 与归档。
 - [x] **Release**：确认并完成 `0.24.4 → 0.25.0` MINOR bump。
+- [x] **Release**：确认并完成 `0.25.0 → 0.25.1` PATCH bump，记录 BUG-062 的 human-success-handoff 修复。
 - [ ] **BUG-057 人类 Pilot**：等待人类指定真实 `runDir`、三张代表页与该 exact plan/batch 的 provider 成本授权；尚未产生 provider 请求。
 - [x] **BUG-062 产品探索**：确认普通 CLI JSON/精确 SHA 是 machine contract；`artifact-view` 是现有的人类检查面，但不会自动阻止 Agent 原样转述成功 JSON。
 - [x] **BUG-062 proposal**：已创建 `add-human-cli-handoff-guidance`，包含 proposal、`harness-charter` delta spec、design 与 tasks。
@@ -50,7 +51,7 @@ machine JSON 来“顺手”关闭 BUG-062。
 | --- | --- | --- | --- |
 | P0 | Maintainer | **release bump** | 已确认并完成：`0.24.4 → 0.25.0`（MINOR）。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，MINOR 比先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议更准确。`VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md`、`package.json` 和根 package-lock 元数据已同步。 |
 | P1 | Human + Agent | **BUG-057 三页 Pure Pilot** | 人类指定真实 deck 的 canonical `runDir`、三张具有 editorial narrative / metric-data-led / process-relationship-led 需求的页，并明确授权该 exact plan/batch 的 provider 成本。随后复用既有 Pilot/Complete Page Review；跨页检查 hierarchy、Style-Master-derived colour use、zones、whitespace 和 layout-family discipline。通过才可将 BUG-057 移至 `_done`；修复则回到 source edit → raw rebuild。无需新的 Harness OpenSpec change。 |
-| P2 | Agent + Maintainer | **BUG-062 人类 handoff guidance** | **已完成并归档。** `add-human-cli-handoff-guidance` 将所有 direct Harness CLI success 的人类摘要与 machine payload 分离；current Page Image 额外使用 provider-free、collision-aware `image2 artifact-view`。不新增 `--short-refs`、不截短 CLI 控制键、不改 CLI schema、目录内容寻址或 selector grammar。版本建议为 PATCH `0.25.0 → 0.25.1`，待 maintainer 确认后才修改 release surfaces。 |
+| P2 | Agent + Maintainer | **BUG-062 人类 handoff guidance** | **已完成、归档并发布为 PATCH `0.25.0 → 0.25.1`。** `add-human-cli-handoff-guidance` 将所有 direct Harness CLI success 的人类摘要与 machine payload 分离；current Page Image 额外使用 provider-free、collision-aware `image2 artifact-view`。不新增 `--short-refs`、不截短 CLI 控制键、不改 CLI schema、目录内容寻址或 selector grammar。 |
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
