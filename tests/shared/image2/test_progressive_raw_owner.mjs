@@ -226,6 +226,18 @@ describe("progressive Page Image raw owner", () => {
     const unboundPlan = structuredClone(plan);
     delete unboundPlan.items[0].provider_input_binding;
     expect(validateProgressiveRawWorkPlan(unboundPlan)).toMatchObject({ ok: false, code: "progressive_raw_invalid_items" });
+    const pureWithoutDeckSystem = structuredClone(plan);
+    pureWithoutDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = null;
+    expect(validateProgressiveRawWorkPlan(pureWithoutDeckSystem)).toMatchObject({
+      ok: false,
+      code: "progressive_raw_invalid_provider_input_binding",
+    });
+    const framedWithDeckSystem = structuredClone(fixturePlan(1, { workflow: "framed" }));
+    framedWithDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = digest("9");
+    expect(validateProgressiveRawWorkPlan(framedWithDeckSystem)).toMatchObject({
+      ok: false,
+      code: "progressive_raw_invalid_provider_input_binding",
+    });
     expect(validateProgressiveRawBatch(batch, { plan })).toMatchObject({ ok: true, sha256: batch.sha256 });
     expect(validateProgressiveRawBatch({ ...batch, provider_profile_sha256: digest("9") }, { plan }))
       .toMatchObject({ ok: false, code: "progressive_raw_cross_bound" });

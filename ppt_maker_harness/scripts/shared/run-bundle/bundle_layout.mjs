@@ -225,6 +225,7 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
 export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
+export const PURE_DECK_VISUAL_SYSTEM_FILE = 'pure-deck-visual-system.yaml';
 const STYLE_MASTER_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
 const STYLE_MASTER_STAGING_DIRECTORY_RE = /^plan-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const STYLE_MASTER_VERSION_DIRECTORY_RE = /^v[0-9]+$/;
@@ -266,6 +267,37 @@ relationships:
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation]
     reading_order: left-to-right
+`;
+const PURE_DECK_VISUAL_SYSTEM_SEED = `schema: pptmaker-pure-deck-visual-system-v1
+revision: 1
+typography:
+  voices:
+    display: editorial-serif
+    text: editorial-sans
+  hierarchy:
+    kicker: eyebrow
+    title: display
+    subtitle: supporting
+    body: body
+    label: label
+    metric: metric
+    diagram_text: diagram
+    quote: quote
+    callout: callout
+    supporting_copy: supporting
+colour_use:
+  palette_source: style-master
+  roles:
+    primary_text: primary
+    secondary_text: secondary
+    accent: accent
+    surface: neutral
+layout:
+  zones:
+    title: { x: 0.08, y: 0.08, width: 0.84, height: 0.22 }
+    content: { x: 0.08, y: 0.34, width: 0.84, height: 0.54 }
+  whitespace: generous
+  families: [editorial-hero, diagram-led, data-led]
 `;
 const PAGE_IMAGE_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
 profiles: {}
@@ -350,7 +382,7 @@ export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKB
 export const BACKBONE_OPTIONAL = new Set(['visual-style.md']);
 
 export const VISUAL_STYLE_FILES = Object.freeze([
-    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE,
+    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE, PURE_DECK_VISUAL_SYSTEM_FILE,
 ]);
 
 export const VISUAL_STYLE_OPTIONAL = new Set([
@@ -420,6 +452,11 @@ export function resolveBackboneAsset(runDir, relpath) {
 
 export function styleAsset(runDir, filename) {
     return resolveBackboneAsset(runDir, `${BACKBONE_STYLE_SUBDIR}/${filename}`);
+}
+
+/** Resolve the Pure deck visual-system source through normal version overrides. */
+export function pureDeckVisualSystemAsset(runDir) {
+    return styleAsset(runDir, PURE_DECK_VISUAL_SYSTEM_FILE);
 }
 
 export function styleDir(runDir) {
@@ -1288,6 +1325,7 @@ const _DIR_READMES = {
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
         '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
+        '- `pure-deck-visual-system.yaml` — Pure-only deck typography, colour-use, zones, whitespace, and layout-family source; version overrides use the normal `overrides/visual-style/` path\n' +
         '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived compatibility JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
         '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
@@ -1498,6 +1536,9 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_IMAGE_VISUAL_LANGUAGE_FILE),
         PAGE_IMAGE_VISUAL_LANGUAGE_SEED);
     _writeIfAbsent(
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PURE_DECK_VISUAL_SYSTEM_FILE),
+        PURE_DECK_VISUAL_SYSTEM_SEED);
+    _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_REFERENCE_SUBDIR, 'image2-reference-material.yaml'),
         PAGE_IMAGE_REFERENCE_REGISTRY_SEED);
     log.push(`asset catalog: ${assetsBase}/${ASSET_MANIFEST_FILE}`);
@@ -1608,6 +1649,7 @@ deck_\${NAME}/
 │       ├── ${STYLE_MASTER_PROMPT}
 │       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG compatibility projection only
 │       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
+│       ├── ${PURE_DECK_VISUAL_SYSTEM_FILE}  ← Pure-only version-resolved source contract
 │       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Image reference registry
 │           ├── ${ASSET_MANIFEST_FILE}
 │           ├── ${ASSET_SVG_SUBDIR}/

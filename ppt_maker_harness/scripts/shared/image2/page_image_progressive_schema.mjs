@@ -29,6 +29,7 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "style_master_selection_sha256",
   "generation_profile_sha256",
   "header_policy_sha256",
+  "deck_visual_system_sha256",
   "local_header_profile_sha256",
   "protected_geometry_sha256",
 ]);
@@ -109,7 +110,7 @@ function rawPlanItemShape(item) {
   return exactKeys(item, ["slide_id", "raw_contract_sha256", "provider_input_binding"]);
 }
 
-function assertProviderInputBinding(binding) {
+function assertProviderInputBinding(binding, workflow) {
   if (!exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) {
     fail("progressive_raw_invalid_provider_input_binding", "provider input binding has an invalid shape");
   }
@@ -117,9 +118,15 @@ function assertProviderInputBinding(binding) {
   for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(6)) {
     if (binding[field] !== null) assertDigest(binding[field], field);
   }
+  if (workflow === "pure" && binding.deck_visual_system_sha256 === null) {
+    fail("progressive_raw_invalid_provider_input_binding", "Pure provider input binding requires deck_visual_system_sha256");
+  }
+  if (workflow === "framed" && binding.deck_visual_system_sha256 !== null) {
+    fail("progressive_raw_invalid_provider_input_binding", "Framed provider input binding requires null deck_visual_system_sha256");
+  }
 }
 
-function assertItems(items, ids, { plan = null } = {}) {
+function assertItems(items, ids, { plan = null, workflow = null } = {}) {
   if (!Array.isArray(items) || items.length !== ids.length) {
     fail("progressive_raw_invalid_items", "items must cover ordered_slide_ids exactly");
   }
@@ -130,7 +137,7 @@ function assertItems(items, ids, { plan = null } = {}) {
     }
     assertSlideId(item.slide_id);
     assertDigest(item.raw_contract_sha256, "raw_contract_sha256");
-    assertProviderInputBinding(item.provider_input_binding);
+    assertProviderInputBinding(item.provider_input_binding, workflow);
     actualIds.push(item.slide_id);
   }
   if (!sameOrder(actualIds, ids)) fail("progressive_raw_invalid_items", "item order must equal ordered_slide_ids");
@@ -231,7 +238,7 @@ export function validateProgressiveRawWorkPlan(plan) {
     assertDigest(plan.effective_style_master_sha256, "effective_style_master_sha256");
     assertDigest(plan.source_execution_sha256, "source_execution_sha256");
     assertOrderedIds(plan.ordered_slide_ids);
-    assertItems(plan.items, plan.ordered_slide_ids);
+    assertItems(plan.items, plan.ordered_slide_ids, { workflow: plan.workflow });
     return plan;
   });
 }
@@ -306,7 +313,7 @@ export function validateProgressiveRawBatch(batch, { plan = null } = {}) {
     if (!Number.isInteger(batch.batch_generation) || batch.batch_generation <= 0) fail("progressive_raw_batch_invalid", "batch_generation must be positive");
     assertDigest(batch.previous_batch_sha256, "previous_batch_sha256", { nullable: true });
     assertOrderedIds(batch.ordered_slide_ids);
-    assertItems(batch.items, batch.ordered_slide_ids, { plan });
+    assertItems(batch.items, batch.ordered_slide_ids, { plan, workflow: batch.workflow });
     assertOrderedIds(batch.review_sample_slide_ids, "review_sample_slide_ids");
     assertOrderedIds(batch.paid_submission_slide_ids, "paid_submission_slide_ids");
     assertSubset(batch.review_sample_slide_ids, batch.ordered_slide_ids, "review_sample_slide_ids");
@@ -355,7 +362,7 @@ export function validateProgressiveRawBatchGrant(grant, { plan = null, batch = n
     commonPlanBinding(grant, { plan });
     assertDigest(grant.batch_sha256, "batch_sha256");
     assertOrderedIds(grant.ordered_slide_ids);
-    assertItems(grant.items, grant.ordered_slide_ids, { plan });
+    assertItems(grant.items, grant.ordered_slide_ids, { plan, workflow: grant.workflow });
     if (!Number.isInteger(grant.maximum_submissions) || grant.maximum_submissions <= 0) {
       fail("progressive_raw_grant_invalid", "maximum_submissions must be positive");
     }

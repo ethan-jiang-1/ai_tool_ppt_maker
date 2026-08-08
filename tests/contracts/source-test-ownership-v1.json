@@ -32,7 +32,8 @@
       "interfaces": ["02-visual-system/index.mjs"],
       "executables": [],
       "unit_integration": [
-        "tests/02-visual-system/test_page_authority_visual_language_relationships.mjs"
+        "tests/02-visual-system/test_page_authority_visual_language_relationships.mjs",
+        "tests/02-visual-system/test_pure_deck_visual_system.mjs"
       ],
       "e2e": []
     },

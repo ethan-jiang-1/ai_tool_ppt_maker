@@ -24,3 +24,11 @@ export {
   parsePageImageReferenceMaterial,
   resolvePageImageIdentityReference,
 } from "./internal/page_image_reference_material.mjs";
+
+export {
+  PURE_DECK_VISUAL_SYSTEM_RELATIVE_PATH,
+  PURE_DECK_VISUAL_SYSTEM_SCHEMA,
+  PureDeckVisualSystemError,
+  loadPureDeckVisualSystem,
+  parsePureDeckVisualSystem,
+} from "./internal/pure_deck_visual_system.mjs";

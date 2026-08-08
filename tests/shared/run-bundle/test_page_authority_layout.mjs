@@ -16,6 +16,8 @@ import {
   pageImageWorkflowPaths,
   pageImageProgressiveRawPaths,
   pageImageStyleMasterPaths,
+  PURE_DECK_VISUAL_SYSTEM_FILE,
+  pureDeckVisualSystemAsset,
   renderTree,
   STYLE_MASTER_IMAGE,
   styleAsset,
@@ -54,6 +56,7 @@ describe("Page Image bundle layout", () => {
       expect(renderTree()).toContain("delivery-media-manifest-v1.json");
       expect(renderTree()).toContain("reference/human-artifact-reference-v1.md");
       expect(renderTree()).toContain("page_image_workflow");
+      expect(renderTree()).toContain(PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");
       expect(renderTree()).toContain("scopes/vN/{framed,pure}/head.json");
@@ -70,6 +73,7 @@ describe("Page Image bundle layout", () => {
       const runDir = join(deck, "3_versions", "v1");
       expect(DEFAULT_INIT_MODE).toBe(PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE);
       const source = readFileSync(join(runDir, "slide-specifications.md"), "utf8");
+      const pureDeckVisualSystemPath = join(deck, "2_backbone", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(source).toContain("pipeline: page-image-workflow-v1");
       expect(source).not.toMatch(/^  workflow:/m);
       expect(source).not.toContain("page_image_default");
@@ -79,6 +83,8 @@ describe("Page Image bundle layout", () => {
       expect(state.production_mode.by_version["3_versions/v1"]).toBeUndefined();
       expect(state.current_node).toBe("select-target-page-image-workflow");
       expect(existsSync(pageImageWorkflowPaths(runDir).root)).toBe(false);
+      expect(existsSync(pureDeckVisualSystemPath)).toBe(true);
+      expect(readFileSync(pureDeckVisualSystemPath, "utf8")).toContain("schema: pptmaker-pure-deck-visual-system-v1");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -284,6 +290,24 @@ describe("Page Image bundle layout", () => {
       writeFileSync(backbonePath, jpeg);
       expect(styleAsset(runDir, STYLE_MASTER_IMAGE)).toBe(backbonePath);
       expect(checkStyleMasterCompatibilityPayload(runDir, { requireJpeg: true })).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves the Pure deck visual-system source override-first", () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-deck-visual-system-layout-"));
+    try {
+      const deck = join(root, "deck_current");
+      initBundle(deck, null, "keynote", "dark-executive");
+      const runDir = join(deck, "3_versions", "v1");
+      const backbonePath = pureDeckVisualSystemAsset(runDir);
+      const overridePath = join(runDir, "overrides", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE);
+      expect(backbonePath).toBe(join(deck, "2_backbone", "visual-style", PURE_DECK_VISUAL_SYSTEM_FILE));
+      mkdirSync(join(runDir, "overrides", "visual-style"), { recursive: true });
+      writeFileSync(overridePath, "schema: replacement\n", "utf8");
+      expect(pureDeckVisualSystemAsset(runDir)).toBe(overridePath);
+      expect(readFileSync(backbonePath, "utf8")).toContain("pptmaker-pure-deck-visual-system-v1");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -21,6 +21,7 @@ inside `deck_*`.
 | Style Master scope head | `.../style-master-iterations/scopes/vN/{framed,pure}/head.json` | The sole mutable current candidate-plan pointer for one version/workflow scope. |
 | accepted Style Master selection | `_state/state.yaml` `page_image_style_master.by_version["3_versions/vN"]` | Optional acceptance record and raw-profile authority; first vNext has no inherited target record. |
 | `style_master.jpg` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Format-correct JPEG compatibility projection after acceptance; not selection or raw-provider authority. |
+| `pure-deck-visual-system.yaml` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Pure-only deck-authored typography, Style-Master-derived colour use, zones, whitespace, and allowed layout families; source input, never lifecycle state. |
 | Page Image raw lineage | `<run-dir>/_generated/page_image_workflow/raw/` | Receipt-bound raw image evidence. |
 | Page Image final PNG | `<run-dir>/_generated/page_image_workflow/final/NN_slideID.png` | Lossless finalization and review evidence; JPEG never replaces this source-side artifact. |
 | Page Image delivery JPEG | `<run-dir>/_generated/page_image_workflow/final/delivery-media/NN_slideID.jpg` | Rebuildable fixed-profile delivery derivative embedded in the PPTX. |

@@ -21,6 +21,7 @@ import {
 import { parsePageImageSource } from "../01-content/index.mjs";
 import {
   createPageImageSourceResolver,
+  loadPureDeckVisualSystem,
   loadPageImageVisualLanguage,
 } from "../02-visual-system/index.mjs";
 import {
@@ -124,10 +125,12 @@ const PURE_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_identity_role_clause",
   "visual_scene",
   "visual_identity",
+  "deck_visual_system",
   "page_image_core",
   "provider_rendered_content",
 ]);
 const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
+const PURE_DECK_VISUAL_SYSTEM_KEYS = Object.freeze(["sha256", "projection"]);
 const PURE_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["header", "items"]);
 const PURE_HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -150,6 +153,10 @@ export function validatePureRawContract(rawContract) {
       (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasExactKeys(rawContract.deck_visual_system, PURE_DECK_VISUAL_SYSTEM_KEYS) ||
+      !SHA256_RE.test(rawContract.deck_visual_system.sha256 || "") ||
+      !rawContract.deck_visual_system.projection || typeof rawContract.deck_visual_system.projection !== "object" || Array.isArray(rawContract.deck_visual_system.projection) ||
+      canonicalJsonSha256(rawContract.deck_visual_system.projection) !== rawContract.deck_visual_system.sha256 ||
       !hasExactKeys(rawContract.page_image_core, PURE_RAW_CONTRACT_CORE_KEYS) ||
       rawContract.page_image_core.schema !== "page-image-core-slide-facts-v1" ||
       !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
@@ -467,7 +474,8 @@ export function classifyPureRefresh({
   });
 }
 
-function parsePureTargetReceipt({ deckDir, sourcePath, sourceText }) {
+function parsePureTargetReceipt({ runDir, deckDir, sourcePath, sourceText }) {
+  loadPureDeckVisualSystem(runDir);
   const visualLanguage = loadPageImageVisualLanguage(deckDir);
   return parsePageImageSource(sourceText, {
     source: sourcePath,
@@ -494,11 +502,14 @@ export function resolvePureTargetCandidateSource(runDir) {
 
 /** Resolve Pure's exact Style Master scope without materializing page lineage. */
 export function resolvePureStyleMasterScope(runDir) {
+  // Parse the selected Pure source first so its deck-owned visual-system
+  // prerequisite fails before any Style Master scope/readiness path.
+  const sourceCandidate = resolvePureTargetCandidateSource(runDir);
   const scope = resolveStyleMasterScopeContext(runDir);
   if (scope.workflow !== PURE_IMAGE_WORKFLOW) {
     throw new PureImageWorkflowError("wrong_workflow_owner", "Pure Style Master scope requires the selected pure workflow");
   }
-  return bindStyleMasterScopeCandidate(scope, resolvePureTargetCandidateSource(runDir));
+  return bindStyleMasterScopeCandidate(scope, sourceCandidate);
 }
 
 function coreStyleMasterSelection(workflow, styleMasterReference) {
@@ -514,8 +525,11 @@ function coreStyleMasterSelection(workflow, styleMasterReference) {
   });
 }
 
-function createPureCoreFacts(context, generation) {
+function createPureCoreFacts(context, generation, deckVisualSystem) {
   try {
+    if (!deckVisualSystem || !SHA256_RE.test(deckVisualSystem.sha256 || "")) {
+      throw new PureImageWorkflowError("pure_deck_visual_system_required", "Pure adapter requires one validated deck visual system");
+    }
     return createPageImageCoreFacts({
       sourceReceipt: context.receipt,
       visualSelections: context.receipt.slides.map((slide) => ({
@@ -525,6 +539,7 @@ function createPureCoreFacts(context, generation) {
       styleMasterSelection: coreStyleMasterSelection(PURE_IMAGE_WORKFLOW, generation.style_master_reference),
       generationProfile: generation.profile,
       headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible-v1" },
+      deckVisualSystemSha256: deckVisualSystem.sha256,
     });
   } catch (error) {
     if (error instanceof PageImageCoreError) {
@@ -534,7 +549,7 @@ function createPureCoreFacts(context, generation) {
   }
 }
 
-function pureRawContract(slide, coreSlide) {
+function pureRawContract(slide, coreSlide, deckVisualSystem) {
   const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new PureImageWorkflowError("pure_visual_language_required", `Pure visual language is unresolved for ${slide.slide_id}`);
@@ -542,6 +557,10 @@ function pureRawContract(slide, coreSlide) {
   if (coreSlide.slide_id !== slide.slide_id || coreSlide.workflow !== PURE_IMAGE_WORKFLOW ||
     coreSlide.header_policy?.provider_visible === undefined) {
     throw new PureImageWorkflowError("pure_page_image_core_invalid", `Pure Page Image Core facts are unavailable for ${slide.slide_id}`);
+  }
+  if (!deckVisualSystem || !SHA256_RE.test(deckVisualSystem.sha256 || "") ||
+    canonicalJsonSha256(deckVisualSystem.projection) !== deckVisualSystem.sha256) {
+    throw new PureImageWorkflowError("pure_deck_visual_system_required", `Pure deck visual system is unavailable for ${slide.slide_id}`);
   }
   const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
   const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
@@ -554,6 +573,10 @@ function pureRawContract(slide, coreSlide) {
     visual_identity_role_clause: identityRoleClause,
     visual_scene: null,
     visual_identity: coreSlide.visual_selection?.identity_reference?.projection || null,
+    deck_visual_system: {
+      sha256: deckVisualSystem.sha256,
+      projection: deckVisualSystem.projection,
+    },
     page_image_core: {
       schema: coreSlide.schema,
       canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
@@ -583,6 +606,7 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
       relationship: rawContract.provider_clauses.relationship || null,
       identity: rawContract.visual_identity,
     },
+    deck_visual_system: rawContract.deck_visual_system,
     generation_profile: generationProfile,
   });
   return Object.freeze({
@@ -594,19 +618,20 @@ function compilePureProviderInput({ slideId, rawContract, generationProfile } = 
 
 /** Compile a selected Pure current raw-plan candidate without materializing state. */
 function compilePureTargetRawPlanCandidate(context) {
+  const deckVisualSystem = loadPureDeckVisualSystem(context.run_dir);
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
-  const coreFacts = createPureCoreFacts(context, generation);
+  const coreFacts = createPureCoreFacts(context, generation, deckVisualSystem);
   const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
   const providerInputBindingsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
     const coreSlide = coreSlidesById.get(slide.slide_id);
-    const rawContract = pureRawContract(slide, coreSlide);
+    const rawContract = pureRawContract(slide, coreSlide, deckVisualSystem);
     const rawContractValidation = validatePureRawContract(rawContract);
     if (!rawContractValidation.ok) throw new PureImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
@@ -646,6 +671,7 @@ function compilePureTargetRawPlanCandidate(context) {
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
     page_image_core: coreFacts,
+    deck_visual_system: deckVisualSystem,
     style_master_reference: generation.style_master_reference,
   });
 }
