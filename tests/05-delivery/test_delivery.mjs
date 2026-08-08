@@ -450,6 +450,42 @@ describe("target Page Image delivery", () => {
     }
   });
 
+  it("keeps final PNG, JPEG media, contact projection, and receipt unchanged when raster projection derivation fails", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_failed_raster_projection_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      const paths = persistFinalManifest(runDir, manifest);
+      const first = await deliverTargetFinalSlideManifest({
+        runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
+      });
+      const beforeFinalPng = readFileSync(join(paths.final_root, manifest.items[0].path));
+      const beforeJpeg = readFileSync(first.delivery_media.media_by_slide.DeckGo.path);
+      const beforeMediaManifest = readFileSync(paths.delivery_media_manifest);
+      const beforeProjection = readFileSync(first.projection.path);
+      const beforeReceipt = readFileSync(first.receipt_path);
+
+      await expect(deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+        projectionDeriver: () => { throw new Error("forced raster projection failure"); },
+      })).rejects.toMatchObject({ code: "final_projection_invalid" });
+
+      expect(readFileSync(join(paths.final_root, manifest.items[0].path))).toEqual(beforeFinalPng);
+      expect(readFileSync(first.delivery_media.media_by_slide.DeckGo.path)).toEqual(beforeJpeg);
+      expect(readFileSync(paths.delivery_media_manifest)).toEqual(beforeMediaManifest);
+      expect(readFileSync(first.projection.path)).toEqual(beforeProjection);
+      expect(readFileSync(first.receipt_path)).toEqual(beforeReceipt);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
   it("hard-stops a v2 final manifest before writing delivery artifacts", async () => {
     const deckDir = mkdtempSync(join(tmpdir(), "deck_delivery_v2_hard_stop_"));
     const runDir = join(deckDir, "3_versions", "v1");
