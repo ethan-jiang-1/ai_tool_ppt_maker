@@ -30,7 +30,7 @@ Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人�
 
 | 优先级 | Owner | 下一项 | 进入条件与完成条件 |
 | --- | --- | --- | --- |
-| P0 | Maintainer | **确认 release bump** | 当前 `VERSION` 为 `0.24.4`。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，建议一次性升至 **`0.25.0`（MINOR）**，而非先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议。获得明确确认后，原子同步 `VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md` 和 `package.json`，并单独提交。 |
+| P0 | Maintainer | **release bump** | 已确认并完成：`0.24.4 → 0.25.0`（MINOR）。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，MINOR 比先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议更准确。`VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md`、`package.json` 和根 package-lock 元数据已同步。 |
 | P1 | Human + Agent | **BUG-057 三页 Pure Pilot** | 人类指定真实 deck 的 canonical `runDir`、三张具有 editorial narrative / metric-data-led / process-relationship-led 需求的页，并明确授权该 exact plan/batch 的 provider 成本。随后复用既有 Pilot/Complete Page Review；跨页检查 hierarchy、Style-Master-derived colour use、zones、whitespace 和 layout-family discipline。通过才可将 BUG-057 移至 `_done`；修复则回到 source edit → raw rebuild。无需新的 Harness OpenSpec change。 |
 | P2 | Maintainer | **确定 BUG-062 的产品边界** | 先决定现有显式 `image2 artifact-view` 是否已满足“人类可读 locator/display reference”；若不足，确认要新增的独立 human-oriented CLI surface，同时保持普通 JSON machine-only。只有后者才创建一个独立 OpenSpec proposal，按 polish → apply → archive 推进。 |
 
