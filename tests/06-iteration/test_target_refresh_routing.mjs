@@ -3,46 +3,65 @@ import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import {
   classifyTargetRefresh,
 } from "../../ppt_maker_harness/scripts/06-iteration/index.mjs";
+import { pageImageProviderInputBinding } from "../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
 function framedReceipt(source = "a", title = "Framed title") {
   return {
-    schema: "page-authority-image2-source-v2",
-    pipeline: "page-authority-image2-v2",
+    schema: "page-image-workflow-source-v1",
+    pipeline: "page-image-workflow-v1",
     workflow: "framed",
     source_sha256: digest(source),
     slides: [{
       slide_id: "DeckGo",
-      workflow: "framed",
-      text_frame: { preset: "standard-v1", kicker: null, title, subtitle: null, callout: null },
-      visual_brief: { recipe: "editorial-systems" },
+      position: 1,
+      provider_content: { items: [] },
+      header_policy: {
+        frame_preset: "standard-v1",
+        local_header: { kicker: null, title, subtitle: null },
+        context_not_to_render: { kicker: null, title, subtitle: null },
+      },
+      visual_language: { recipe: "editorial-systems" },
     }],
   };
 }
 
 function pureReceipt(source = "a", title = "Pure title") {
   return {
-    schema: "page-authority-image2-source-v2",
-    pipeline: "page-authority-image2-v2",
+    schema: "page-image-workflow-source-v1",
+    pipeline: "page-image-workflow-v1",
     workflow: "pure",
     source_sha256: digest(source),
-    slides: [{ slide_id: "DeckGo", workflow: "pure", display: { title } }],
+    slides: [{
+      slide_id: "DeckGo",
+      position: 1,
+      provider_content: { items: [] },
+      header_policy: { provider_visible: { kicker: null, title, subtitle: null } },
+      visual_language: { recipe: "editorial-systems" },
+    }],
   };
 }
 
-function framedPlan(receipt, rawContract = "d") {
+function framedPlan(receipt, { rawContract = "d", binding = {} } = {}) {
   return createRawWorkPlan({
     source_receipt_sha256: receipt.source_sha256,
     workflow: "framed",
     ordered_slide_ids: ["DeckGo"],
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
-    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest(rawContract) }],
+    items: [{
+      slide_id: "DeckGo",
+      raw_contract_sha256: digest(rawContract),
+      provider_input_binding: {
+        ...pageImageProviderInputBinding({ workflow: "framed" }),
+        ...binding,
+      },
+    }],
   });
 }
 
@@ -60,16 +79,33 @@ function framedEvidence(receipt) {
 }
 
 describe("TARGET refresh routing", () => {
-  it("routes Framed text-only edits through local compose and style changes through raw rebuild", () => {
+  it("routes a Framed header literal edit through raw rebuild and an equality-proven refresh through local compose", () => {
     const previous = framedReceipt("a", "Original title");
     const { plan, evidence } = framedEvidence(previous);
-    const textOnlyNext = framedReceipt("f", "Updated title");
+    const titleChanged = framedReceipt("f", "Updated title");
     expect(classifyTargetRefresh({
       workflow: "framed",
       previousReceipt: previous,
-      nextReceipt: textOnlyNext,
+      nextReceipt: titleChanged,
       rawWorkPlan: plan,
-      nextRawWorkPlan: framedPlan(textOnlyNext),
+      nextRawWorkPlan: framedPlan(titleChanged, {
+        binding: { compiled_provider_input_sha256: digest("9") },
+      }),
+      acceptedRawEvidence: evidence,
+    })).toMatchObject({
+      kind: "framed_rebuild",
+      owner: "03-framed-image",
+      provider_required: true,
+      reason: "compiled_provider_input_drift",
+    });
+
+    const providerFreeNext = framedReceipt("f", "Original title");
+    expect(classifyTargetRefresh({
+      workflow: "framed",
+      previousReceipt: previous,
+      nextReceipt: providerFreeNext,
+      rawWorkPlan: plan,
+      nextRawWorkPlan: framedPlan(providerFreeNext),
       acceptedRawEvidence: evidence,
     })).toMatchObject({
       kind: "framed_local_compose",
@@ -79,12 +115,15 @@ describe("TARGET refresh routing", () => {
     });
 
     const styleChanged = framedReceipt("e", "Original title");
-    styleChanged.slides[0].visual_brief = { recipe: "bold-editorial" };
+    styleChanged.slides[0].visual_language = { recipe: "bold-editorial" };
     expect(classifyTargetRefresh({
       workflow: "framed",
       previousReceipt: previous,
       nextReceipt: styleChanged,
       rawWorkPlan: plan,
+      nextRawWorkPlan: framedPlan(styleChanged, {
+        binding: { visual_selection_sha256: digest("9") },
+      }),
       acceptedRawEvidence: evidence,
     })).toMatchObject({
       kind: "framed_rebuild",
@@ -97,13 +136,13 @@ describe("TARGET refresh routing", () => {
       previousReceipt: previous,
       nextReceipt: previous,
       rawWorkPlan: plan,
-      nextRawWorkPlan: framedPlan(previous, "f"),
+      nextRawWorkPlan: framedPlan(previous, { rawContract: "f" }),
       acceptedRawEvidence: evidence,
     })).toMatchObject({
       kind: "framed_rebuild",
       owner: "03-framed-image",
       provider_required: true,
-      reason: "raw_contract_or_profile_drift",
+      reason: "raw_contract_drift",
     });
   });
 
@@ -111,7 +150,7 @@ describe("TARGET refresh routing", () => {
     expect(classifyTargetRefresh({
       workflow: "pure",
       previousReceipt: pureReceipt("a", "Original title"),
-      nextReceipt: pureReceipt("z", "Updated title"),
+      nextReceipt: pureReceipt("9", "Updated title"),
     })).toMatchObject({
       kind: "pure_rebuild",
       owner: "04-pure-image",
@@ -124,7 +163,7 @@ describe("TARGET refresh routing", () => {
     expect(classifyTargetRefresh({
       workflow: "pure",
       previousReceipt: pureReceipt("a"),
-      nextReceipt: pureReceipt("z"),
+      nextReceipt: pureReceipt("9"),
       changeKind: "notes-only",
     })).toMatchObject({
       kind: "notes_only_delivery",
@@ -136,12 +175,17 @@ describe("TARGET refresh routing", () => {
 
   it("makes structural membership and workflow changes use exact-hash vNext planning", () => {
     const previous = framedReceipt("a");
-    const reordered = framedReceipt("z");
+    const reordered = framedReceipt("9");
     reordered.slides.push({
       slide_id: "BodyMap",
-      workflow: "framed",
-      text_frame: { preset: "standard-v1", kicker: null, title: "Body", subtitle: null, callout: null },
-      visual_brief: { recipe: "editorial-systems" },
+      position: 2,
+      provider_content: { items: [] },
+      header_policy: {
+        frame_preset: "standard-v1",
+        local_header: { kicker: null, title: "Body", subtitle: null },
+        context_not_to_render: { kicker: null, title: "Body", subtitle: null },
+      },
+      visual_language: { recipe: "editorial-systems" },
     });
     expect(classifyTargetRefresh({
       workflow: "framed",
@@ -156,7 +200,7 @@ describe("TARGET refresh routing", () => {
     expect(classifyTargetRefresh({
       workflow: "framed",
       previousReceipt: previous,
-      nextReceipt: pureReceipt("z"),
+      nextReceipt: pureReceipt("9"),
     })).toMatchObject({
       kind: "workflow_switch",
       owner: "01-content",
@@ -169,7 +213,7 @@ describe("TARGET refresh routing", () => {
     expect(() => classifyTargetRefresh({
       workflow: "pure",
       previousReceipt: framedReceipt("a"),
-      nextReceipt: framedReceipt("z"),
+      nextReceipt: framedReceipt("9"),
     })).toThrow(/state-bound source workflow/);
   });
 });

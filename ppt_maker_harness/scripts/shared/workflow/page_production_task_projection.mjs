@@ -1,5 +1,5 @@
 /**
- * Rebuildable collaboration projection for the progressive Page Authority
+ * Rebuildable collaboration projection for the progressive Page Image
  * lifecycle. It intentionally consumes only workflow inspection and narrow
  * state handoffs; it is never a source of lifecycle truth.
  */
@@ -9,7 +9,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { canonicalJsonSha256 } from "../identity/canonical_json.mjs";
-import { pageAuthorityProgressiveRawPaths } from "../run-bundle/page_authority_paths.mjs";
+import { pageImageProgressiveRawPaths } from "../run-bundle/page_image_paths.mjs";
 import {
   STATE_DIR,
   readTargetProgressiveControllerDecision,
@@ -191,17 +191,17 @@ function humanHandoffs(runDir, workflow, inspection, handoff) {
   const direct = inspection.evidence_summary?.controller_handoffs || {};
   const partialNode = `review-target-${workflow}-pilot`;
   const completeNode = `review-target-${workflow}-raw`;
-  const partialDecision = readTargetProgressiveControllerDecision(pageAuthorityProgressiveRawPaths(runDir).deck_root, {
+  const partialDecision = readTargetProgressiveControllerDecision(pageImageProgressiveRawPaths(runDir).deck_root, {
     runDir,
     nodeId: partialNode,
   });
-  const completeDecision = readTargetProgressiveControllerDecision(pageAuthorityProgressiveRawPaths(runDir).deck_root, {
+  const completeDecision = readTargetProgressiveControllerDecision(pageImageProgressiveRawPaths(runDir).deck_root, {
     runDir,
     nodeId: completeNode,
   });
-  const deliveryDecision = readTargetProgressiveControllerDecision(pageAuthorityProgressiveRawPaths(runDir).deck_root, {
+  const deliveryDecision = readTargetProgressiveControllerDecision(pageImageProgressiveRawPaths(runDir).deck_root, {
     runDir,
-    nodeId: "review-target-page-authority-delivery",
+    nodeId: "review-target-page-image-delivery",
   });
   return Object.freeze({
     partial_pilot: typedDecision({
@@ -222,7 +222,7 @@ function humanHandoffs(runDir, workflow, inspection, handoff) {
 }
 
 function projectionPayload({ runDir, inspection, state, playbookDir }) {
-  const paths = pageAuthorityProgressiveRawPaths(runDir);
+  const paths = pageImageProgressiveRawPaths(runDir);
   const summary = requiredObject(inspection.evidence_summary, "workflow inspection evidence summary");
   const eligibility = progressiveControllerTaskProjectionEligibility({ runDir, inspection, state, playbookDir });
   if (!eligibility.eligible) throw new Error(eligibility.reason);
@@ -331,7 +331,7 @@ export function renderPageProductionTaskProjection(payload) {
 }
 
 export function pageProductionTaskProjectionPath(runDir) {
-  const paths = pageAuthorityProgressiveRawPaths(runDir);
+  const paths = pageImageProgressiveRawPaths(runDir);
   return join(paths.deck_root, STATE_DIR, PAGE_PRODUCTION_TASK_PROJECTION_FILE);
 }
 

@@ -6,7 +6,7 @@
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { pageAuthorityProgressiveRawPaths } from "../run-bundle/page_authority_paths.mjs";
+import { pageImageProgressiveRawPaths } from "../run-bundle/page_image_paths.mjs";
 import { readState } from "../state/state.mjs";
 import {
   buildPlaybookIndex,
@@ -14,7 +14,7 @@ import {
   validatePlaybookIndex,
 } from "../state/md_controller_reader.mjs";
 
-export const PROGRESSIVE_TASK_PROJECTION_MODE = "image2-page-authority-v2";
+export const PROGRESSIVE_TASK_PROJECTION_MODE = "image2-page-workflow-v1";
 
 const HARNESS_PLAYBOOK_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "playbook");
 
@@ -43,9 +43,9 @@ export function progressiveControllerCheckpoint(inspection) {
     prepare_progressive_raw_review: `review-${suffix}-raw`,
     accept_progressive_raw_review: `review-${suffix}-raw`,
     publish_target_final_manifest: `publish-${suffix}-final-manifest`,
-    "deliver-target-page-authority": "deliver-target-page-authority",
-    "review-target-page-authority-delivery": "review-target-page-authority-delivery",
-    "complete-target-delivery": "complete-target-page-authority-iteration",
+    "deliver-target-page-image": "deliver-target-page-image",
+    "review-target-page-image-delivery": "review-target-page-image-delivery",
+    "complete-target-delivery": "complete-target-page-image-iteration",
   };
   return Object.freeze({
     workflow,
@@ -74,7 +74,7 @@ export function progressiveControllerTaskProjectionEligibility({ runDir, inspect
     }
     const checkpoint = progressiveControllerCheckpoint(inspection);
     if (!checkpoint.controller_node) return ineligible("PROGRESSIVE_CONTROLLER_NODE_MISMATCH");
-    const paths = pageAuthorityProgressiveRawPaths(resolvedRunDir);
+    const paths = pageImageProgressiveRawPaths(resolvedRunDir);
     const currentState = state || readState(paths.deck_root, { purpose: "observe", runDir: resolvedRunDir });
     if (!currentState || currentState.replacement_required || currentState.corrupted) {
       return ineligible("PROGRESSIVE_CONTROLLER_STATE_UNAVAILABLE");

@@ -13,7 +13,7 @@ import {
   initBundle,
   styleAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const FLOW = join(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
@@ -84,7 +84,7 @@ function source() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -112,7 +112,7 @@ function fixture({ local = false } = {}) {
   writeFileSync(join(runDir, "slide-specifications.md"), source(), "utf8");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a calm editorial visual system with material depth.\n", "utf8");
   if (local) writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), LOCAL_PNG);
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 function expectNoRawPublication(paths) {
@@ -177,7 +177,7 @@ describe("fresh Style Master lifecycle integration", () => {
       ], provider.env));
       expect(accepted).toMatchObject({ promoted: true, selection_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
       expect(readState(value.deck, { purpose: "observe", runDir: value.runDir }))
-        .toMatchObject({ page_authority_style_master: { by_version: { "3_versions/v1": { plan_sha256: planned.plan_sha256 } } } });
+        .toMatchObject({ page_image_style_master: { by_version: { "3_versions/v1": { plan_sha256: planned.plan_sha256 } } } });
       expectNoRawPublication(value.paths);
 
       const rawPlan = expectSuccess(await flow(["image2", "plan", value.runDir], provider.env));

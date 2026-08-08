@@ -571,8 +571,8 @@ export function slideEditMutationPayload(transaction) {
     after_order: transaction.after_order || [],
     structured_reference_changes: transaction.structured_reference_changes || [],
     warnings: transaction.warnings || [],
-    ...(transaction.page_authority_structural_raw
-      ? { page_authority_structural_raw: transaction.page_authority_structural_raw }
+    ...(transaction.page_image_structural_raw
+      ? { page_image_structural_raw: transaction.page_image_structural_raw }
       : {}),
   };
 }

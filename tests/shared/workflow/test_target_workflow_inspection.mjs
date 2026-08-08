@@ -14,11 +14,11 @@ import {
   progressiveRawStorePaths,
   readProgressiveRawPlanDirectRecords,
   writeProgressiveRawItemAttempt,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
-import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_schema.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
+import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import {
   createInitialState,
-  initializeTargetPageAuthorityState,
+  initializeTargetPageImageState,
   writeState,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
@@ -30,7 +30,7 @@ import {
   generateProgressiveRawItem,
   planProgressiveRawPilot,
   reconcileProgressiveRawAttempt,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const PROGRESSIVE_SLIDE_IDS = ["DeckGo", "SysMap", "FlowGo", "TeamGo", "RiskGo", "ValMap"];
@@ -50,22 +50,22 @@ function fixture(workflow = "pure") {
   const deck = join(root, "deck_target_page_authority");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  const source = `---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: ${workflow}\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: Target prerequisite\n`;
+  const source = `---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: ${workflow}\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: Target prerequisite\n`;
   writeFileSync(join(runDir, "slide-specifications.md"), source);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-authority-v2",
+    mode: "image2-page-workflow-v1",
     workflow,
   });
   state.continuation_target_version = "v1";
   writeState(deck, state);
-  initializeTargetPageAuthorityState(deck, {
+  initializeTargetPageImageState(deck, {
     runVersion: "v1",
     sourceReceipt: {
-      schema: "page-authority-image2-source-v2",
-      pipeline: "page-authority-image2-v2",
+      schema: "page-image-workflow-source-v1",
+      pipeline: "page-image-workflow-v1",
       workflow,
       source_sha256: createHash("sha256").update(source).digest("hex"),
-      slides: [{ slide_id: "DeckGo", workflow }],
+      slides: [{ slide_id: "DeckGo", position: 1 }],
     },
   });
   return { root, deck, runDir };
@@ -76,7 +76,7 @@ function progressivePureSource(slideCount) {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 ${PROGRESSIVE_SLIDE_IDS.slice(0, slideCount).map((slideId, index) => `
@@ -151,7 +151,7 @@ production:
       expect(inspection).toMatchObject({
         posture: "hard-stop",
         root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
-        primary_action: { action_id: "export-unsupported-protocol", kind: "export", requires_human: false },
+        primary_action: { action_id: "unsupported-protocol/export", kind: "export", requires_human: false },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
@@ -171,8 +171,8 @@ production:
       expect(inspection).toMatchObject({
         posture: "confirm",
         root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
-        primary_action: { action_id: "select-target-page-authority-workflow", requires_human: true },
-        evidence_summary: { pipeline: "page-authority-image2-v2", mode: null, workflow: null },
+        primary_action: { action_id: "select-target-page-image-workflow", requires_human: true },
+        evidence_summary: { pipeline: "page-image-workflow-v1", mode: null, workflow: null },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(false);
       expect(treeSnapshot(deck)).toEqual(before);
@@ -190,7 +190,7 @@ production:
         posture: "hard-stop",
         root_cause: { owner: "selected-workflow-adapter", kind: "source-or-style-preflight-invalid" },
         primary_action: { owner: "04-pure-image", action_id: "repair-progressive-source-binding", requires_human: false },
-        evidence_summary: { mode: "image2-page-authority-v2", workflow: "pure" },
+        evidence_summary: { mode: "image2-page-workflow-v1", workflow: "pure" },
       });
       expect(isWorkflowInspectionSourceReady(inspection)).toBe(true);
       expect(treeSnapshot(value.deck)).toEqual(before);
@@ -204,7 +204,7 @@ production:
     try {
       const path = join(value.deck, "_state", "state.yaml");
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";
@@ -266,7 +266,7 @@ production:
         workflow: "pure",
         plan_hash: planHash,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: value.plan.provider_requests_by_slide,
         submit: async () => ({ outcome: "known_failure" }),
       });
 
@@ -309,7 +309,7 @@ production:
         workflow: "pure",
         plan_hash: planHash,
         batch_hash: predecessor.batch.batch_hash,
-        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: value.plan.provider_requests_by_slide,
         submit: async () => { throw new Error("predecessor transport interrupted"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
       const predecessorAttempt = readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: planHash }).attempts
@@ -340,7 +340,7 @@ production:
         workflow: "pure",
         plan_hash: planHash,
         batch_hash: successor.batch.batch_hash,
-        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: value.plan.provider_requests_by_slide,
         submit: successorSubmit,
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
 
@@ -391,7 +391,7 @@ production:
         workflow: "pure",
         plan_hash: planHash,
         batch_hash: predecessor.batch.batch_hash,
-        provider_requests_by_slide: { DeckGo: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: value.plan.provider_requests_by_slide,
         submit: predecessorSubmit,
       });
 
@@ -413,7 +413,7 @@ production:
         workflow: "pure",
         plan_hash: planHash,
         batch_hash: successor.batch.batch_hash,
-        provider_requests_by_slide: { SysMap: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: value.plan.provider_requests_by_slide,
         submit: successorSubmit,
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
       const successorAttempt = readProgressiveRawPlanDirectRecords(value.runDir, { plan_sha256: planHash }).attempts

@@ -2,12 +2,12 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: <framed|pure>
 deck_type: pitch
 ---
 
-# Pitch Page Authority Template
+# Pitch Page Image Template
 
 Use hook, problem, solution, proof, market, model, team, ask, and close. Choose
 one Framed or Pure workflow for the version and give every slide one closed

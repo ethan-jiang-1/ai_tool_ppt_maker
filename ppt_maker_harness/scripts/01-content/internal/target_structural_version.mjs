@@ -4,19 +4,19 @@ import { basename, dirname, join, resolve } from "node:path";
 import { stringify } from "yaml";
 
 import { canonicalJsonSha256 } from "../../shared/identity/canonical_json.mjs";
-import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, probeProductionMarker } from "../../shared/run-bundle/production_marker.mjs";
 import { nextVersionName, publishStructuralVersion } from "../../shared/run-bundle/bundle_layout.mjs";
 import {
   inspectRunProductionMode,
-  registerTargetPageAuthorityStructuralPublication,
-  revalidateTargetPageAuthorityStructuralReplay,
+  registerTargetPageImageStructuralPublication,
+  revalidateTargetPageImageStructuralReplay,
 } from "../../shared/state/state.mjs";
 import { applySlideEdit, parseSlideDocument, verifySlideEditPlanHash } from "./slide_document.mjs";
 
-export const TARGET_STRUCTURAL_PLAN_SCHEMA = "page-authority-target-structural-plan-v1";
+export const TARGET_STRUCTURAL_PLAN_SCHEMA = "page-image-target-structural-plan-v1";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
-const TARGET_WORKFLOWS = new Set(["framed", "pure"]);
+const PAGE_IMAGE_WORKFLOWS = new Set(["framed", "pure"]);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -37,18 +37,19 @@ function runContext(sourceRunDir) {
 }
 
 function requireWorkflow(workflow) {
-  if (!TARGET_WORKFLOWS.has(workflow)) throw new TypeError("target workflow must be framed or pure");
+  if (!PAGE_IMAGE_WORKFLOWS.has(workflow)) throw new TypeError("target workflow must be framed or pure");
   return workflow;
 }
 
 function targetReceiptFacts(receipt, sourceText, workflow, expectedOrder) {
-  if (!receipt || receipt.schema !== "page-authority-image2-source-v2" || receipt.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE ||
+  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" || receipt.pipeline !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE ||
     receipt.workflow !== workflow || receipt.source_sha256 !== sha256(sourceText) || !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new Error("target structural source receipt does not bind the candidate source");
   }
   const slideIds = receipt.slides.map((slide) => slide?.slide_id);
   if (slideIds.some((slideId) => typeof slideId !== "string" || !slideId) || new Set(slideIds).size !== slideIds.length ||
-    receipt.slides.some((slide) => slide?.workflow !== workflow) || slideIds.join("\n") !== expectedOrder.join("\n")) {
+    receipt.slides.some((slide, index) => slide?.position !== index + 1 || Object.hasOwn(slide || {}, "workflow") || Object.hasOwn(slide || {}, "authority")) ||
+    slideIds.join("\n") !== expectedOrder.join("\n")) {
     throw new Error("target structural source receipt does not bind the planned stable-ID order");
   }
   return Object.freeze({ source_sha256: receipt.source_sha256, ordered_slide_ids: Object.freeze([...slideIds]) });
@@ -56,8 +57,8 @@ function targetReceiptFacts(receipt, sourceText, workflow, expectedOrder) {
 
 function validateTargetSource(sourceText, workflow, expectedOrder, receipt) {
   const marker = probeProductionMarker(sourceText, { source: "slide-specifications.md" });
-  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE || marker.frontmatter?.metadata?.production?.workflow !== workflow) {
-    throw new Error("target structural source must carry the exact v2 workflow marker");
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE || marker.frontmatter?.metadata?.production?.workflow !== workflow) {
+    throw new Error("target structural source must carry the exact current Page Image Workflow marker");
   }
   const document = parseSlideDocument(sourceText, "slide-specifications.md");
   const order = document.slides.map((slide) => slide.slide_id);
@@ -100,14 +101,14 @@ function validTargetStructuralPlan(plan) {
     /^v[1-9][0-9]*$/.test(plan.source_run_version || "") && /^v[1-9][0-9]*$/.test(plan.target_run_version || "") &&
     plan.source_run_version !== plan.target_run_version && typeof plan.source_mode === "string" &&
     verifySlideEditPlanHash(plan.slide_edit_plan) && plan.slide_edit_plan_sha256 === plan.slide_edit_plan.plan_sha256 &&
-    TARGET_WORKFLOWS.has(plan.target_workflow) && typeof plan.target_source_text === "string" &&
+    PAGE_IMAGE_WORKFLOWS.has(plan.target_workflow) && typeof plan.target_source_text === "string" &&
     SHA256_RE.test(plan.target_source_sha256 || "") && Array.isArray(plan.ordered_slide_ids) && plan.ordered_slide_ids.length > 0 &&
     plan.provider_calls === 0 &&
     typeof plan.plan_hash === "string" && plan.plan_hash === canonicalJsonSha256(structuralPlanBody(plan));
 }
 
 /**
- * Produce a target v2 source from one confirmed stable-ID slide edit while
+ * Produce a target current Page Image Workflow source from one confirmed stable-ID slide edit while
  * preserving the source body. Callers may instead supply a rewritten target
  * source to previewTargetStructuralVersion when a workflow switch needs
  * source-owned semantic edits.
@@ -122,11 +123,11 @@ export function deriveTargetStructuralSource({ sourceText, slideEditPlan, target
     throw new Error("target structural source requires canonical frontmatter");
   }
   const marker = probeProductionMarker(applied.text, { source: "slide-specifications.md" });
-  if (marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
-    throw new Error("target structural source requires the exact v2 Page Authority source marker");
+  if (marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+    throw new Error("target structural source requires the exact current Page Image source marker");
   }
   const metadata = { ...document.frontmatter.metadata };
-  metadata.production = { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, workflow };
+  metadata.production = { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, workflow };
   const newline = document.newline;
   const prefix = applied.text.startsWith("\uFEFF") ? "\uFEFF" : "";
   const frontmatter = stringify(metadata).replaceAll("\n", newline);
@@ -140,7 +141,7 @@ export function deriveTargetStructuralSource({ sourceText, slideEditPlan, target
 }
 
 /**
- * Preview a v2 structural vNext without publishing a version, mutating state,
+ * Preview a current structural vNext without publishing a version, mutating state,
  * submitting provider work, or inheriting a source acceptance. The receipt is
  * produced by the source/visual owner and bound to the exact target bytes.
  */
@@ -186,7 +187,7 @@ export function previewTargetStructuralVersion({
   return Object.freeze({ ...body, plan_hash: canonicalJsonSha256(body) });
 }
 
-/** Apply only the exact previewed target vNext and initialize fresh v2 state. */
+/** Apply only the exact previewed target vNext and initialize fresh Page Image state. */
 export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, expectedStateSha = null } = {}) {
   const context = runContext(sourceRunDir);
   if (!validTargetStructuralPlan(plan) || plan.plan_hash !== planHash) {
@@ -210,7 +211,7 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
     const targetText = readFileSync(join(targetRunDir, "slide-specifications.md"), "utf8");
     if (targetText !== plan.target_source_text) throw new Error("target structural replay target source bytes changed after publication");
     validateTargetSource(targetText, plan.target_workflow, plan.ordered_slide_ids, plan.target_source_receipt);
-    const replay = revalidateTargetPageAuthorityStructuralReplay(context.deckDir, {
+    const replay = revalidateTargetPageImageStructuralReplay(context.deckDir, {
       sourceRunVersion: context.sourceVersion,
       targetRunVersion: plan.target_run_version,
       sourceReceipt: plan.target_source_receipt,
@@ -258,7 +259,7 @@ export function applyTargetStructuralVersion({ sourceRunDir, plan, planHash, exp
       }
     },
   });
-  const state = registerTargetPageAuthorityStructuralPublication(context.deckDir, {
+  const state = registerTargetPageImageStructuralPublication(context.deckDir, {
     sourceRunVersion: context.sourceVersion,
     targetRunVersion: plan.target_run_version,
     sourceReceipt: plan.target_source_receipt,

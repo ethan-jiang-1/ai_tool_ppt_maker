@@ -186,7 +186,7 @@ export function buildSlideIdReservation(ids = []) {
 }
 
 /**
- * Validate an ID supplied by a creation/insertion path. Current Page Authority
+ * Validate an ID supplied by a creation/insertion path. Current Page Image
  * IDs are created here; historical bytes do not pass through ordinary deck reads.
  */
 export function validateNewSlideId(

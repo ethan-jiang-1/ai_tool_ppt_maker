@@ -6,14 +6,14 @@ import { describe, expect, it } from "vitest";
 import {
   applySlideEdit,
   applyTargetStructuralVersion,
-  parsePageAuthoritySource,
+  parsePageImageSource,
   parseSlideDocument,
   planSlideEdit,
   previewTargetStructuralVersion,
 } from "../../ppt_maker_harness/scripts/01-content/index.mjs";
 import {
-  createPageAuthorityVisualLanguageResolver,
-  loadPageAuthorityVisualLanguage,
+  createPageImageVisualLanguageResolver,
+  loadPageImageVisualLanguage,
 } from "../../ppt_maker_harness/scripts/02-visual-system/index.mjs";
 import { styleMasterGenerationProfileSha256 } from "../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
@@ -31,7 +31,7 @@ function visualBrief() {
 }
 
 function source() {
-  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: First target fact\n${visualBrief()}\n\n## Slide 02: \`BodyMap\`\n\n**TITLE**: Second target fact\n${visualBrief()}\n`;
+  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n\n## Slide 01: \`DeckGo\`\n\n**TITLE**: First target fact\n${visualBrief()}\n\n## Slide 02: \`BodyMap\`\n\n**TITLE**: Second target fact\n${visualBrief()}\n`;
 }
 
 function targetPureSourceInOrder(slideIds) {
@@ -39,18 +39,18 @@ function targetPureSourceInOrder(slideIds) {
     DeckGo: "Historical framed fact rewritten for Pure",
     BodyMap: "Historical pure fact",
   };
-  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n\n${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`\n\n**TITLE**: ${titles[slideId]}\n${visualBrief()}`).join("\n\n")}\n`;
+  return `---\nidentity:\n  scheme: mnemonic-v1\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n\n${slideIds.map((slideId, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slideId}\`\n\n**TITLE**: ${titles[slideId]}\n${visualBrief()}`).join("\n\n")}\n`;
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "page-authority-target-structural-"));
+  const root = mkdtempSync(join(tmpdir(), "page-image-target-structural-"));
   const deck = join(root, "deck_target");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   const sourceText = source();
   writeFileSync(join(runDir, "slide-specifications.md"), sourceText);
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-authority-v2",
+    mode: "image2-page-workflow-v1",
     workflow: "pure",
   });
   state.continuation_target_version = "v1";
@@ -60,7 +60,7 @@ function fixture() {
 
 function targetSelection(runVersion = "v2") {
   return {
-    schema: "page-authority-style-master-selection-v1",
+    schema: "page-image-style-master-selection-v1",
     run_version: runVersion,
     workflow: "pure",
     plan_sha256: "a".repeat(64),
@@ -87,8 +87,8 @@ function previewFor(value) {
   const targetSourceText = applySlideEdit(slideEditPlan, value.sourceText, {
     expectedPlanSha256: slideEditPlan.plan_sha256,
   }).text;
-  const registry = createPageAuthorityVisualLanguageResolver(loadPageAuthorityVisualLanguage(value.deck));
-  const targetSourceReceipt = parsePageAuthoritySource(targetSourceText, { registry });
+  const registry = createPageImageVisualLanguageResolver(loadPageImageVisualLanguage(value.deck));
+  const targetSourceReceipt = parsePageImageSource(targetSourceText, { registry });
   return previewTargetStructuralVersion({
     sourceRunDir: value.runDir,
     targetRunVersion: "v2",
@@ -128,11 +128,11 @@ describe("TARGET structural vNext", () => {
       });
       const state = readState(value.deck, { purpose: "observe", runVersion: "v1" });
       expect(state.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
         source_epoch: 1,
       });
-      expect(state.page_authority_target_evidence.by_version["3_versions/v2"]).toMatchObject({
+      expect(state.page_image_target_evidence.by_version["3_versions/v2"]).toMatchObject({
         workflow: "pure",
         provider_authorization_sha256: null,
         accepted_raw_evidence_sha256: null,
@@ -196,7 +196,7 @@ describe("TARGET structural vNext", () => {
       expect(readFileSync(join(value.deck, "_state", "state.yaml"))).toEqual(stateBefore);
       const after = readState(value.deck, { purpose: "observe", runVersion: "v2" });
       expect(after).toMatchObject({ playbook: "create-deck", run_version: "v2", current_node: "plan-target-pure-progressive-raw" });
-      expect(after.page_authority_style_master.by_version["3_versions/v2"].workflow).toBe("pure");
+      expect(after.page_image_style_master.by_version["3_versions/v2"].workflow).toBe("pure");
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -212,7 +212,7 @@ describe("TARGET structural vNext", () => {
         label: "target receipt",
         apply: ({ deck }) => {
           const state = readState(deck, { purpose: "observe" });
-          state.page_authority_target_evidence.by_version["3_versions/v2"].source_receipt_sha256 = "f".repeat(64);
+          state.page_image_target_evidence.by_version["3_versions/v2"].source_receipt_sha256 = "f".repeat(64);
           writeFileSync(statePath(deck), `${JSON.stringify(state, null, 2)}\n`);
         },
       },
@@ -228,7 +228,7 @@ describe("TARGET structural vNext", () => {
         label: "target evidence",
         apply: ({ deck }) => {
           const state = readState(deck, { purpose: "observe" });
-          state.page_authority_target_evidence.by_version["3_versions/v2"].source_epoch = 2;
+          state.page_image_target_evidence.by_version["3_versions/v2"].source_epoch = 2;
           writeFileSync(statePath(deck), `${JSON.stringify(state, null, 2)}\n`);
         },
       },
@@ -236,7 +236,7 @@ describe("TARGET structural vNext", () => {
         label: "target selection map",
         apply: ({ deck }) => {
           const state = readState(deck, { purpose: "observe" });
-          state.page_authority_style_master = { by_version: { "3_versions/v2": { ...targetSelection(), candidate_width: 0 } } };
+          state.page_image_style_master = { by_version: { "3_versions/v2": { ...targetSelection(), candidate_width: 0 } } };
           writeFileSync(statePath(deck), `${JSON.stringify(state, null, 2)}\n`);
         },
       },
@@ -274,8 +274,8 @@ describe("TARGET structural vNext", () => {
       const plan = previewFor(value);
       applyTargetStructuralVersion({ sourceRunDir: value.runDir, plan, planHash: plan.plan_hash });
       const state = readState(value.deck, { purpose: "observe" });
-      expect(state.page_authority_style_master.by_version["3_versions/v1"].run_version).toBe("v1");
-      expect(state.page_authority_style_master.by_version["3_versions/v2"]).toBeUndefined();
+      expect(state.page_image_style_master.by_version["3_versions/v1"].run_version).toBe("v1");
+      expect(state.page_image_style_master.by_version["3_versions/v2"]).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }

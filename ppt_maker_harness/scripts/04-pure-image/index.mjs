@@ -1,27 +1,36 @@
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-  pageAuthorityOrdinalImageFilename,
   validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
-} from "../shared/image2/page_authority_artifacts.mjs";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
-import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+} from "../shared/image2/page_image_artifacts.mjs";
+import {
+  publishCompletePageReviewPresentation,
+  publishPilotPageReviewPresentation,
+  validateCompletePageReviewPresentation,
+  validatePilotPageReviewPresentation,
+} from "../shared/image2/page_image_complete_page_review.mjs";
+import { publishCurrentFinalSlideManifest } from "../shared/image2/page_image_final_manifest.mjs";
+import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
 import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
 import {
-  inspectExactPageAuthorityPng,
-  PAGE_AUTHORITY_NATIVE_RAW_PNG,
-} from "../shared/image2/page_authority_media_contract.mjs";
-import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
-import { parsePageAuthoritySource } from "../01-content/index.mjs";
+  inspectExactPageImagePng,
+  PAGE_IMAGE_NATIVE_RAW_PNG,
+} from "../shared/image2/page_image_media_contract.mjs";
+import { parsePageImageSource } from "../01-content/index.mjs";
 import {
-  createPageAuthoritySourceResolver,
-  loadPageAuthorityVisualLanguage,
-  normalizePageAuthorityTextGuard,
+  createPageImageSourceResolver,
+  loadPageImageVisualLanguage,
 } from "../02-visual-system/index.mjs";
+import {
+  PageImageCoreError,
+  createPageImageCoreFacts,
+  createPageImageProviderInputBinding,
+  normalizePageImageHeaderPolicy,
+  normalizePageImageProviderContent,
+} from "../shared/page-image/page_image_core.mjs";
+import { evaluatePageImageInvalidation } from "../shared/page-image/page_image_invalidation.mjs";
 import {
   authorizeTargetRawWork,
   buildTargetRawGenerationProfile,
@@ -31,7 +40,6 @@ import {
   generateTargetRawWork,
   materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
-  publishProgressiveTargetCompleteRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
@@ -42,15 +50,17 @@ import {
   resolveTargetSourceContext,
   targetSourceSemanticSha256,
   targetRawPlanProjection,
+  validateTargetCurrentRawReview,
   validateTargetRawReviewContribution,
   writeTargetProviderRequestInspection,
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
-  isPageAuthorityProviderClausesBoundToVisualLanguage,
-  isPageAuthorityProviderClausesShape,
+  isPageImageProviderClausesBoundToVisualLanguage,
+  isPageImageProviderClausesShape,
+  TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
   TARGET_RAW_CONTRACT_SCHEMA,
-} from "../shared/image2/page_authority_target_runtime.mjs";
+} from "../shared/image2/page_image_target_runtime.mjs";
 import {
   assertNoUnresolvedProgressiveRawSubmission,
   authorizeProgressiveRawBatch,
@@ -66,7 +76,7 @@ import {
   publishProgressiveRawWorkPlan,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
-} from "../shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../shared/image2/page_image_progressive_raw_owner.mjs";
 import {
   recordTargetProgressiveAcceptedRawEvidence,
   recordTargetProgressiveCompleteRawReview,
@@ -87,11 +97,13 @@ import {
 export const PURE_IMAGE_WORKFLOW = "pure";
 
 export const PURE_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
-  "shared/image2/page_authority_artifacts.mjs",
-  "shared/image2/page_authority_final_manifest.mjs",
-  "shared/image2/page_authority_raw_mechanics.mjs",
-  "shared/image2/page_authority_target_runtime.mjs",
+  "shared/image2/page_image_artifacts.mjs",
+  "shared/image2/page_image_final_manifest.mjs",
+  "shared/image2/page_image_raw_mechanics.mjs",
+  "shared/image2/page_image_target_runtime.mjs",
   "shared/identity/canonical_json.mjs",
+  "shared/page-image/page_image_core.mjs",
+  "shared/page-image/page_image_invalidation.mjs",
 ]);
 
 export class PureImageWorkflowError extends Error {
@@ -111,10 +123,13 @@ const PURE_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_identity_role_clause",
   "visual_scene",
   "visual_identity",
-  "display",
-  "body",
+  "page_image_core",
+  "provider_rendered_content",
 ]);
-const PURE_RAW_CONTRACT_DISPLAY_KEYS = Object.freeze(["kicker", "title", "subtitle", "callout"]);
+const PURE_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
+const PURE_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["header", "items"]);
+const PURE_HEADER_KEYS = Object.freeze(["kicker", "title", "subtitle"]);
+const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function hasExactKeys(value, keys) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value)) &&
@@ -129,15 +144,28 @@ export function validatePureRawContract(rawContract) {
       rawContract.workflow !== PURE_IMAGE_WORKFLOW ||
       typeof rawContract.slide_id !== "string" || !rawContract.slide_id.trim() ||
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
-      !isPageAuthorityProviderClausesShape(rawContract.provider_clauses) ||
-      !isPageAuthorityProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
+      !isPageImageProviderClausesShape(rawContract.provider_clauses) ||
+      !isPageImageProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
       (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
-      !hasExactKeys(rawContract.display, PURE_RAW_CONTRACT_DISPLAY_KEYS) ||
-      Object.values(rawContract.display).some((value) => value !== null && typeof value !== "string") ||
-      (rawContract.body !== null && typeof rawContract.body !== "string")) {
+      !hasExactKeys(rawContract.page_image_core, PURE_RAW_CONTRACT_CORE_KEYS) ||
+      rawContract.page_image_core.schema !== "page-image-core-slide-facts-v1" ||
+      !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
+      !hasExactKeys(rawContract.provider_rendered_content, PURE_PROVIDER_RENDERED_CONTENT_KEYS) ||
+      !hasExactKeys(rawContract.provider_rendered_content.header, PURE_HEADER_KEYS) ||
+      !Array.isArray(rawContract.provider_rendered_content.items)) {
       throw new PureImageWorkflowError("pure_raw_contract_invalid", "Pure raw contract has an invalid canonical shape");
+    }
+    const normalizedHeader = normalizePageImageHeaderPolicy({
+      provider_visible: rawContract.provider_rendered_content.header,
+    }, PURE_IMAGE_WORKFLOW);
+    const normalizedContent = normalizePageImageProviderContent({
+      items: rawContract.provider_rendered_content.items,
+    });
+    if (canonicalJsonSha256(normalizedHeader.provider_visible) !== canonicalJsonSha256(rawContract.provider_rendered_content.header) ||
+      canonicalJsonSha256(normalizedContent.items) !== canonicalJsonSha256(rawContract.provider_rendered_content.items)) {
+      throw new PureImageWorkflowError("pure_raw_contract_invalid", "Pure provider-rendered content must be normalized by Page Image Core");
     }
     return Object.freeze({
       ok: true,
@@ -153,8 +181,8 @@ export function validatePureRawContract(rawContract) {
 }
 
 function requireReceipt(receipt) {
-  if (!receipt || receipt.schema !== "page-authority-image2-source-v2" || receipt.workflow !== PURE_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
-    throw new PureImageWorkflowError("wrong_workflow_owner", "Pure workflow requires a current pure v2 source receipt");
+  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" || receipt.workflow !== PURE_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
+    throw new PureImageWorkflowError("wrong_workflow_owner", "Pure workflow requires a current Page Image Workflow pure receipt");
   }
   return receipt;
 }
@@ -164,7 +192,7 @@ function requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide) {
     throw new PureImageWorkflowError("pure_final_media_invalid", "Pure finalization requires accepted native raw PNG bytes");
   }
   for (const item of acceptedRawEvidence.items) {
-    const media = inspectExactPageAuthorityPng(rawBytesBySlide[item.slide_id], PAGE_AUTHORITY_NATIVE_RAW_PNG);
+    const media = inspectExactPageImagePng(rawBytesBySlide[item.slide_id], PAGE_IMAGE_NATIVE_RAW_PNG);
     if (!media.ok) throw new PureImageWorkflowError("pure_final_media_invalid", `Pure final bytes for ${item.slide_id} must be a valid PNG`);
     if (sha256Bytes(media.bytes) !== item.raw_sha256) {
       throw new PureImageWorkflowError("pure_finalization_raw_drift", `Pure final bytes drifted from accepted raw evidence for ${item.slide_id}`);
@@ -173,10 +201,20 @@ function requirePureNativeFinalBytes(acceptedRawEvidence, rawBytesBySlide) {
 }
 
 /** The selected adapter alone writes target raw plans for its Pure receipt. */
-export function createPureRawWorkPlan({ receipt, provider_profile_sha256, authorization_scope_sha256, raw_contracts_by_slide } = {}) {
+export function createPureRawWorkPlan({
+  receipt,
+  provider_profile_sha256,
+  authorization_scope_sha256,
+  raw_contracts_by_slide,
+  provider_input_bindings_by_slide,
+} = {}) {
   requireReceipt(receipt);
   if (!raw_contracts_by_slide || typeof raw_contracts_by_slide !== "object" || Array.isArray(raw_contracts_by_slide)) {
     throw new PureImageWorkflowError("raw_contracts_required", "Pure raw contracts are required for every slide");
+  }
+  if (!provider_input_bindings_by_slide || typeof provider_input_bindings_by_slide !== "object" || Array.isArray(provider_input_bindings_by_slide) ||
+    canonicalJson(Object.keys(provider_input_bindings_by_slide).sort()) !== canonicalJson(receipt.slides.map((slide) => slide.slide_id).sort())) {
+    throw new PureImageWorkflowError("pure_provider_input_bindings_required", "Pure raw plans require one provider input binding for every slide");
   }
   return createRawWorkPlan({
     source_receipt_sha256: receipt.source_sha256,
@@ -184,7 +222,11 @@ export function createPureRawWorkPlan({ receipt, provider_profile_sha256, author
     ordered_slide_ids: receipt.slides.map((slide) => slide.slide_id),
     provider_profile_sha256,
     authorization_scope_sha256,
-    items: receipt.slides.map((slide) => ({ slide_id: slide.slide_id, raw_contract_sha256: raw_contracts_by_slide[slide.slide_id] })),
+    items: receipt.slides.map((slide) => ({
+      slide_id: slide.slide_id,
+      raw_contract_sha256: raw_contracts_by_slide[slide.slide_id],
+      provider_input_binding: provider_input_bindings_by_slide[slide.slide_id],
+    })),
   });
 }
 
@@ -207,7 +249,7 @@ export function createPureTargetRawReviewContribution({ receipt, rawWorkPlan } =
   }
   const labels = rawWorkPlan.ordered_slide_ids.map((slideId, index) => {
     const slide = slidesById.get(slideId);
-    const title = slide?.display?.title;
+    const title = slide?.header_policy?.provider_visible?.title;
     if (typeof title !== "string" || !title.trim()) {
       throw new PureImageWorkflowError("pure_review_contribution_label_invalid", `Pure raw-review projection requires a title for ${slideId}`);
     }
@@ -231,6 +273,157 @@ export function createPureTargetRawReviewContribution({ receipt, rawWorkPlan } =
   return contribution;
 }
 
+function pureCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, sourceEpoch = null, reviewSlideIds = reviewPlan?.ordered_slide_ids } = {}) {
+  const checkedPlan = reviewPlan?.sha256 ? null : validateRawWorkPlan(reviewPlan);
+  const reviewPlanSha256 = reviewPlan?.sha256 ?? (checkedPlan?.ok ? checkedPlan.sha256 : null);
+  const resolvedSourceEpoch = sourceEpoch ?? reviewPlan?.source_epoch ?? context?.source_epoch;
+  if (!reviewPlan || !SHA256_RE.test(reviewPlanSha256 || "") ||
+    !Array.isArray(reviewPlan.ordered_slide_ids) || reviewPlan.ordered_slide_ids.length === 0 ||
+    !Array.isArray(reviewSlideIds) || reviewSlideIds.length === 0 ||
+    new Set(reviewSlideIds).size !== reviewSlideIds.length ||
+    reviewSlideIds.some((slideId) => !reviewPlan.ordered_slide_ids.includes(slideId)) ||
+    canonicalJson(reviewPlan.ordered_slide_ids.filter((slideId) => reviewSlideIds.includes(slideId))) !== canonicalJson(reviewSlideIds) ||
+    !Number.isInteger(resolvedSourceEpoch) || resolvedSourceEpoch <= 0) {
+    throw new PureImageWorkflowError("pure_complete_page_review_invalid", "Pure Complete Page Review requires one current raw plan");
+  }
+  const contribution = createPureTargetRawReviewContribution({
+    receipt: context.receipt,
+    rawWorkPlan: context.raw_work_plan,
+  });
+  const raw = {};
+  const bindings = {};
+  for (const slideId of reviewSlideIds) {
+    const providerBytes = rawBytesBySlide?.[slideId];
+    if (!providerBytes) {
+      throw new PureImageWorkflowError("pure_complete_page_review_invalid", `Pure Complete Page Review is missing current provider bytes for ${slideId}`);
+    }
+    const bytes = Buffer.from(providerBytes);
+    const providerSha256 = sha256Bytes(bytes);
+    raw[slideId] = bytes;
+    bindings[slideId] = canonicalJsonSha256({
+      schema: "page-image-pure-complete-page-binding-v1",
+      raw_work_plan_sha256: reviewPlanSha256,
+      slide_id: slideId,
+      provider_page_sha256: providerSha256,
+    });
+  }
+  return Object.freeze({
+    contribution,
+    raw_work_plan_sha256: reviewPlanSha256,
+    source_epoch: resolvedSourceEpoch,
+    raw_bytes_by_slide: Object.freeze(raw),
+    adapter_complete_page_bindings_by_slide: Object.freeze(bindings),
+  });
+}
+
+function purePilotReviewContribution({ inputs, batchSha256, coverage } = {}) {
+  if (!SHA256_RE.test(batchSha256 || "") || !Array.isArray(coverage)) {
+    throw new PureImageWorkflowError("pure_pilot_coverage_invalid", "Pure Pilot contribution requires exact current batch coverage");
+  }
+  const slideIds = Object.keys(inputs.raw_bytes_by_slide);
+  if (coverage.length !== slideIds.length || new Set(coverage.map((item) => item?.slide_id)).size !== slideIds.length) {
+    throw new PureImageWorkflowError("pure_pilot_coverage_invalid", "Pure Pilot coverage must name each selected slide exactly once");
+  }
+  const coverageBySlide = new Map(coverage.map((item) => [item.slide_id, item]));
+  const items = slideIds.map((slideId) => {
+    const item = coverageBySlide.get(slideId);
+    if (!item || item.raw_sha256 !== sha256Bytes(inputs.raw_bytes_by_slide[slideId])) {
+      throw new PureImageWorkflowError("pure_pilot_coverage_invalid", `Pure Pilot coverage is stale for ${slideId}`);
+    }
+    return Object.freeze({
+      slide_id: slideId,
+      raw_sha256: item.raw_sha256,
+      adapter_complete_page_binding_sha256: inputs.adapter_complete_page_bindings_by_slide[slideId],
+    });
+  });
+  return canonicalJsonSha256({
+    schema: "page-image-pure-pilot-review-contribution-v1",
+    raw_work_plan_sha256: inputs.raw_work_plan_sha256,
+    batch_sha256: batchSha256,
+    complete_page_review_contribution_sha256: inputs.contribution.typed_review_contribution_sha256,
+    items,
+  });
+}
+
+async function publishPureCompletePageReview({ context, reviewPlan, rawBytesBySlide } = {}) {
+  const inputs = pureCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide });
+  return publishCompletePageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    sourceEpoch: inputs.source_epoch,
+    workflow: PURE_IMAGE_WORKFLOW,
+    typedReviewContributionSha256: inputs.contribution.typed_review_contribution_sha256,
+    orderedSlideIds: reviewPlan.ordered_slide_ids,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+  });
+}
+
+function validatePureCompletePageReview({ context, reviewPlan, rawBytesBySlide, sourceEpoch = null } = {}) {
+  const inputs = pureCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, sourceEpoch });
+  return validateCompletePageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    sourceEpoch: inputs.source_epoch,
+    workflow: PURE_IMAGE_WORKFLOW,
+    typedReviewContributionSha256: inputs.contribution.typed_review_contribution_sha256,
+    orderedSlideIds: reviewPlan.ordered_slide_ids,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+  });
+}
+
+function requirePureFinalizationReview(validation, acceptedCompleteReview) {
+  const reviewEvidenceSha256 = acceptedCompleteReview?.workflow_evidence_sha256 ??
+    acceptedCompleteReview?.complete_page_presentation_sha256;
+  if (!validation?.ok || !acceptedCompleteReview ||
+    acceptedCompleteReview.decision !== "proceed" ||
+    validation.complete_page_presentation_sha256 !== reviewEvidenceSha256 ||
+    validation.projection_sha256 !== acceptedCompleteReview.projection_sha256) {
+    throw new PureImageWorkflowError(
+      "pure_finalization_review_stale",
+      "Pure finalization requires the exact current proceeded Complete Page Review",
+    );
+  }
+  return validation.presentation;
+}
+
+function assertPureFinalMatchesReviewedProviderPage(finalBytesBySlide, presentation) {
+  for (const item of presentation.items) {
+    const finalBytes = finalBytesBySlide?.[item.slide_id];
+    if (!finalBytes || sha256Bytes(finalBytes) !== item.raw_provider_page_sha256 ||
+      item.complete_page_sha256 !== item.raw_provider_page_sha256) {
+      throw new PureImageWorkflowError(
+        "pure_finalization_provider_page_stale",
+        `Pure final media no longer matches the reviewed provider page for ${item.slide_id}`,
+      );
+    }
+  }
+}
+
+function readPureTargetFinalizationReview(context, rawWorkPlan, acceptedRawEvidence) {
+  const current = validateTargetCurrentRawReview(context, rawWorkPlan, {
+    reviewContribution: createPureTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan }),
+    acceptedRawEvidence,
+    validateCompletePageReview: ({ raw_work_plan: reviewPlan, raw_bytes_by_slide: rawBytesBySlide, source_epoch: sourceEpoch }) =>
+      validatePureCompletePageReview({ context, reviewPlan, rawBytesBySlide, sourceEpoch }),
+  });
+  return Object.freeze({
+    presentation: requirePureFinalizationReview(current.completePresentation, current.review),
+    raw_bytes_by_slide: current.rawBytes,
+  });
+}
+
+function readPureProgressiveFinalizationReview(context, progressiveRawWorkPlan, rawBytesBySlide, acceptedCompleteReview) {
+  const validation = validatePureCompletePageReview({
+    context,
+    reviewPlan: progressiveRawWorkPlan,
+    rawBytesBySlide,
+    sourceEpoch: progressiveRawWorkPlan.source_epoch,
+  });
+  return requirePureFinalizationReview(validation, acceptedCompleteReview);
+}
+
 /** Pure finalization publishes the accepted raw bytes unchanged. */
 export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide, evidencePlan = rawWorkPlan } = {}) {
   requireReceipt(receipt);
@@ -250,22 +443,34 @@ export function publishPureFinalSlideManifest({ receipt, rawWorkPlan, acceptedRa
   });
 }
 
-/** Pure display or visual source drift always carries raw-generation debt. */
-export function classifyPureRefresh({ previousReceipt, nextReceipt } = {}) {
+/** Pure provider-rendered content or visual source drift always carries raw-generation debt. */
+export function classifyPureRefresh({
+  previousReceipt,
+  nextReceipt,
+  rawWorkPlan = null,
+  nextRawWorkPlan = null,
+  acceptedRawEvidence = null,
+} = {}) {
   requireReceipt(previousReceipt);
   requireReceipt(nextReceipt);
+  const classified = evaluatePageImageInvalidation({
+    previousReceipt,
+    nextReceipt,
+    previousRawWorkPlan: rawWorkPlan,
+    nextRawWorkPlan,
+    acceptedRawEvidence,
+  });
   return Object.freeze({
-    workflow: PURE_IMAGE_WORKFLOW,
-    kind: previousReceipt.source_sha256 === nextReceipt.source_sha256 ? "current" : "rebuild_raw",
-    provider_required: previousReceipt.source_sha256 !== nextReceipt.source_sha256,
+    ...classified,
+    kind: classified.kind === "raw_rebuild" ? "rebuild_raw" : classified.kind,
   });
 }
 
 function parsePureTargetReceipt({ deckDir, sourcePath, sourceText }) {
-  const visualLanguage = loadPageAuthorityVisualLanguage(deckDir);
-  return parsePageAuthoritySource(sourceText, {
+  const visualLanguage = loadPageImageVisualLanguage(deckDir);
+  return parsePageImageSource(sourceText, {
     source: sourcePath,
-    registry: createPageAuthoritySourceResolver({ deckDir, visualLanguage }),
+    registry: createPageImageSourceResolver({ deckDir, visualLanguage }),
   });
 }
 
@@ -295,17 +500,50 @@ export function resolvePureStyleMasterScope(runDir) {
   return bindStyleMasterScopeCandidate(scope, resolvePureTargetCandidateSource(runDir));
 }
 
-function pureRawContract(slide) {
-  const visualLanguage = slide.visual_language?.projection;
+function coreStyleMasterSelection(workflow, styleMasterReference) {
+  if (!styleMasterReference || typeof styleMasterReference !== "object" ||
+    !SHA256_RE.test(styleMasterReference.selection_sha256 || "") ||
+    !SHA256_RE.test(styleMasterReference.plan_sha256 || "")) {
+    throw new PureImageWorkflowError("pure_page_image_core_invalid", "Pure adapter requires current Style Master selection facts for Page Image Core");
+  }
+  return Object.freeze({
+    workflow,
+    selection_sha256: styleMasterReference.selection_sha256,
+    plan_sha256: styleMasterReference.plan_sha256,
+  });
+}
+
+function createPureCoreFacts(context, generation) {
+  try {
+    return createPageImageCoreFacts({
+      sourceReceipt: context.receipt,
+      visualSelections: context.receipt.slides.map((slide) => ({
+        slide_id: slide.slide_id,
+        selection: slide.visual_language,
+      })),
+      styleMasterSelection: coreStyleMasterSelection(PURE_IMAGE_WORKFLOW, generation.style_master_reference),
+      generationProfile: generation.profile,
+      headerRenderingPolicy: { workflow: PURE_IMAGE_WORKFLOW, policy: "provider-visible-v1" },
+    });
+  } catch (error) {
+    if (error instanceof PageImageCoreError) {
+      throw new PureImageWorkflowError("pure_page_image_core_invalid", error.message);
+    }
+    throw error;
+  }
+}
+
+function pureRawContract(slide, coreSlide) {
+  const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new PureImageWorkflowError("pure_visual_language_required", `Pure visual language is unresolved for ${slide.slide_id}`);
   }
-  const providerClauses = slide.visual_language?.provider_clauses || null;
-  const identityRoleClause = slide.visual_language?.identity_reference?.provider_reference?.role_clause || null;
-  let visualScene = slide.visual_scene ?? null;
-  if (visualScene != null) {
-    visualScene = normalizePageAuthorityTextGuard(visualScene, { context: `VISUAL SCENE:${slide.slide_id}` });
+  if (coreSlide.slide_id !== slide.slide_id || coreSlide.workflow !== PURE_IMAGE_WORKFLOW ||
+    coreSlide.header_policy?.provider_visible === undefined) {
+    throw new PureImageWorkflowError("pure_page_image_core_invalid", `Pure Page Image Core facts are unavailable for ${slide.slide_id}`);
   }
+  const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
+  const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
   return Object.freeze({
     schema: TARGET_RAW_CONTRACT_SCHEMA,
     slide_id: slide.slide_id,
@@ -313,31 +551,78 @@ function pureRawContract(slide) {
     visual_language: { ...visualLanguage, negative_constraints: [...(slide.visual_brief?.negative_constraints || [])] },
     provider_clauses: providerClauses,
     visual_identity_role_clause: identityRoleClause,
-    visual_scene: visualScene,
-    visual_identity: slide.visual_language?.identity_reference?.projection || null,
-    display: { ...slide.display },
-    body: slide.body ?? null,
+    visual_scene: null,
+    visual_identity: coreSlide.visual_selection?.identity_reference?.projection || null,
+    page_image_core: {
+      schema: coreSlide.schema,
+      canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
+    },
+    provider_rendered_content: {
+      header: { ...coreSlide.header_policy.provider_visible },
+      items: coreSlide.provider_content.items.map((item) => ({ ...item })),
+    },
   });
 }
 
-/** Compile a selected Pure v2 raw-plan candidate without materializing state. */
+/** Compile Pure's complete provider-visible page input from its selected adapter facts. */
+function compilePureProviderInput({ slideId, rawContract, generationProfile } = {}) {
+  const contract = validatePureRawContract(rawContract);
+  if (!contract.ok || rawContract.slide_id !== slideId || !generationProfile || typeof generationProfile !== "object") {
+    throw new PureImageWorkflowError("pure_provider_input_invalid", "Pure provider input requires one valid selected raw contract and generation profile");
+  }
+  const utf8 = canonicalJson({
+    schema: "page-image-pure-provider-input-v1",
+    slide_id: slideId,
+    instruction: "Render one complete premium keynote page. Render every header literal and provider-rendered content item as readable integrated page typography; preserve exact literals unless an item explicitly allows presentation adaptation.",
+    provider_rendered_content: rawContract.provider_rendered_content,
+    visual: {
+      recipe: rawContract.provider_clauses.recipe,
+      composition: rawContract.provider_clauses.composition,
+      motifs: rawContract.provider_clauses.motifs,
+      relationship: rawContract.provider_clauses.relationship || null,
+      identity: rawContract.visual_identity,
+    },
+    generation_profile: generationProfile,
+  });
+  return Object.freeze({
+    schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
+    utf8,
+    sha256: sha256Bytes(Buffer.from(utf8, "utf8")),
+  });
+}
+
+/** Compile a selected Pure current raw-plan candidate without materializing state. */
 function compilePureTargetRawPlanCandidate(context) {
   const generation = buildTargetRawGenerationProfile({
     runDir: context.run_dir,
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
+  const coreFacts = createPureCoreFacts(context, generation);
+  const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
+  const providerInputBindingsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
-    const rawContract = pureRawContract(slide);
+    const coreSlide = coreSlidesById.get(slide.slide_id);
+    const rawContract = pureRawContract(slide, coreSlide);
     const rawContractValidation = validatePureRawContract(rawContract);
     if (!rawContractValidation.ok) throw new PureImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
+    const compiledProviderInput = compilePureProviderInput({
+      slideId: slide.slide_id,
+      rawContract,
+      generationProfile: generation.profile,
+    });
     providerRequestsBySlide[slide.slide_id] = createTargetProviderRequest({
       slideId: slide.slide_id,
       rawContract,
       generationProfile: generation.profile,
+      compiledProviderInput,
+    });
+    providerInputBindingsBySlide[slide.slide_id] = createPageImageProviderInputBinding({
+      coreSlide,
+      compiledProviderInputSha256: compiledProviderInput.sha256,
     });
   }
   const authorizationScopeSha = canonicalJsonSha256({
@@ -346,17 +631,20 @@ function compilePureTargetRawPlanCandidate(context) {
     provider_profile_sha256: generation.provider_profile_sha256,
     ordered_slide_ids: context.receipt.slides.map((slide) => slide.slide_id),
     raw_contracts_by_slide: rawContractsBySlide,
+    provider_input_bindings_by_slide: providerInputBindingsBySlide,
   });
   const rawWorkPlan = createPureRawWorkPlan({
     receipt: context.receipt,
     provider_profile_sha256: generation.provider_profile_sha256,
     authorization_scope_sha256: authorizationScopeSha,
     raw_contracts_by_slide: rawContractsBySlide,
+    provider_input_bindings_by_slide: providerInputBindingsBySlide,
   });
   return Object.freeze({
     ...context,
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
+    page_image_core: coreFacts,
     style_master_reference: generation.style_master_reference,
   });
 }
@@ -369,6 +657,7 @@ export function buildPureTargetRawPlan(runDir, { allowSourceRebuild = false } = 
     ...context,
     raw_work_plan: candidate.raw_work_plan,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
+    page_image_core: candidate.page_image_core,
     style_master_reference: candidate.style_master_reference,
   });
 }
@@ -404,6 +693,18 @@ export async function preparePureTargetRawReview(runDir) {
   const plan = readPureTargetStoredPlanContext(runDir);
   return prepareTargetRawReview(plan, plan.raw_work_plan, {
     reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+    publishCompletePageReview: async ({ raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide }) => {
+      const published = await publishPureCompletePageReview({
+        context: plan,
+        reviewPlan: rawWorkPlan,
+        rawBytesBySlide,
+      });
+      return {
+        complete_page_presentation_sha256: published.complete_page_presentation_sha256,
+        projection_sha256: published.projection_sha256,
+        projection_capture_profile_sha256: published.projection_capture_profile_sha256,
+      };
+    },
   });
 }
 
@@ -412,11 +713,13 @@ export function decidePureTargetRawReview(runDir, { decision } = {}) {
   return decideTargetRawReview(plan, plan.raw_work_plan, {
     decision,
     reviewContribution: createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+    validateCompletePageReview: ({ raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide }) =>
+      validatePureCompletePageReview({ context: plan, reviewPlan: rawWorkPlan, rawBytesBySlide }),
   });
 }
 
 function progressivePureDisplayBySlide(receipt) {
-  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.display?.title || "" }]));
+  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.header_policy?.provider_visible?.title || "" }]));
 }
 
 function progressivePurePlanFromContext(context) {
@@ -429,7 +732,7 @@ function progressivePurePlanFromContext(context) {
 }
 
 /**
- * Compile current Pure source/style facts into an expected v3 plan without
+ * Compile current Pure source/style facts into an expected replacement plan without
  * reading or rebuilding any version `_generated` projection.
  */
 export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
@@ -447,9 +750,6 @@ export function readPureProgressiveTargetPlanCandidate(runDir, { sourceEpoch = n
 /** Compile and publish the provider-free v3 full plan through the selected Pure adapter. */
 export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: PURE_IMAGE_WORKFLOW });
-  if (prior.ok && prior.legacy_v2) {
-    throw new PureImageWorkflowError("progressive_raw_legacy_replan_required", "legacy v2 raw records remain readable; start the owner-issued progressive replan/rebuild action instead");
-  }
   assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: PURE_IMAGE_WORKFLOW });
   const candidate = compilePureTargetRawPlanCandidate(resolvePureTargetCandidateSource(runDir));
   const context = materializeTargetSourceCandidateContext(candidate, { allowSourceRebuild });
@@ -482,7 +782,7 @@ export function buildPureProgressiveTargetRawPlan(runDir, { allowSourceRebuild =
   });
 }
 
-/** Resolve the selected Pure source and its exact current v3 raw-plan binding. */
+/** Resolve the selected Pure source and its exact current raw-plan binding. */
 export function readPureProgressiveTargetStoredPlanContext(runDir) {
   const context = readPureTargetStoredPlanContext(runDir);
   const progressiveRawWorkPlan = progressivePurePlanFromContext(context);
@@ -496,7 +796,7 @@ export function pureProgressiveRawPlanProjection(plan) {
     expected_plan: plan.progressive_raw_work_plan,
   });
   return Object.freeze({
-    schema: "page-authority-progressive-raw-plan-projection-v1",
+    schema: "page-image-progressive-raw-plan-projection-v1",
     plan_hash: plan.progressive_raw_work_plan.sha256,
     workflow: PURE_IMAGE_WORKFLOW,
     source_epoch: plan.source_epoch,
@@ -536,7 +836,7 @@ export async function authorizePureProgressiveRawBatch(runDir, { planHash, batch
   return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
 }
 
-export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, submit } = {}) {
+export async function generatePureProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   return generateProgressiveRawItem({
     runDir: plan.run_dir,
@@ -545,35 +845,75 @@ export async function generatePureProgressiveRawItem(runDir, { planHash, batchHa
     batch_hash: batchHash,
     expected_plan: plan.progressive_raw_work_plan,
     provider_requests_by_slide: plan.provider_requests_by_slide,
+    preflight,
     submit,
   });
 }
 
 async function publishPureProgressivePilot({ context, plan, batch_sha256, coverage, materializations }) {
-  const outputRoot = join(pageAuthorityImage2Paths(context.run_dir).review_root, "pilot", batch_sha256);
-  mkdirSync(outputRoot, { recursive: true });
-  const items = coverage.map((item) => {
-    const materialization = materializations.get(item.slide_id);
-    const position = plan.ordered_slide_ids.indexOf(item.slide_id) + 1;
-    if (!materialization || position < 1) {
-      throw new PureImageWorkflowError("pure_pilot_coverage_invalid", `Pure Pilot coverage is unavailable for ${item.slide_id}`);
-    }
-    writeFileSync(join(outputRoot, pageAuthorityOrdinalImageFilename(position, item.slide_id)), materialization.bytes);
-    return { slide_id: item.slide_id, raw_sha256: item.raw_sha256 };
+  const pilotSlideIds = coverage.map((item) => item.slide_id);
+  const rawBytesBySlide = Object.fromEntries(pilotSlideIds.map((slideId) => {
+    const materialization = materializations.get(slideId);
+    if (!materialization) throw new PureImageWorkflowError("pure_pilot_coverage_invalid", `Pure Pilot coverage is unavailable for ${slideId}`);
+    return [slideId, Buffer.from(materialization.bytes)];
+  }));
+  const inputs = pureCompletePageReviewInputs({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide,
+    reviewSlideIds: pilotSlideIds,
   });
-  const projection = {
-    schema: "page-authority-pure-pilot-projection-v1",
+  const typedReviewContributionSha256 = purePilotReviewContribution({ inputs, batchSha256: batch_sha256, coverage });
+  const published = await publishPilotPageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    batchSha256: batch_sha256,
+    sourceEpoch: inputs.source_epoch,
     workflow: PURE_IMAGE_WORKFLOW,
-    raw_work_plan_sha256: plan.sha256,
-    batch_sha256,
-    items,
-  };
-  const bytes = Buffer.from(`${JSON.stringify(projection)}\n`, "utf8");
-  writeFileSync(join(outputRoot, "projection.json"), bytes);
-  return Object.freeze({
-    workflow_evidence_sha256: canonicalJsonSha256({ schema: "page-authority-pure-pilot-evidence-v1", workflow: PURE_IMAGE_WORKFLOW, items }),
-    projection_sha256: canonicalJsonSha256(projection),
+    typedReviewContributionSha256,
+    orderedPlanSlideIds: plan.ordered_slide_ids,
+    pilotSlideIds,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
   });
+  return Object.freeze({
+    workflow_evidence_sha256: published.pilot_page_presentation_sha256,
+    projection_sha256: published.projection_sha256,
+  });
+}
+
+function validatePureProgressivePilot({ context, plan, batch, batch_sha256, coverage, materializations } = {}) {
+  const pilotSlideIds = batch.review_sample_slide_ids;
+  const rawBytesBySlide = Object.fromEntries(pilotSlideIds.map((slideId) => {
+    const materialization = materializations.get(slideId);
+    return [slideId, materialization ? Buffer.from(materialization.bytes) : null];
+  }));
+  try {
+    const inputs = pureCompletePageReviewInputs({
+      context,
+      reviewPlan: plan,
+      rawBytesBySlide,
+      reviewSlideIds: pilotSlideIds,
+    });
+    return validatePilotPageReviewPresentation({
+      runDir: context.run_dir,
+      rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+      batchSha256: batch_sha256,
+      sourceEpoch: inputs.source_epoch,
+      workflow: PURE_IMAGE_WORKFLOW,
+      typedReviewContributionSha256: purePilotReviewContribution({ inputs, batchSha256: batch_sha256, coverage }),
+      orderedPlanSlideIds: plan.ordered_slide_ids,
+      pilotSlideIds,
+      rawBytesBySlide: inputs.raw_bytes_by_slide,
+      adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      code: error.code || "pure_pilot_review_invalid",
+      message: error.message || "Pure Pilot page review is invalid",
+    });
+  }
 }
 
 export async function preparePureProgressivePilotReview(runDir, { planHash, batchHash } = {}) {
@@ -595,6 +935,15 @@ export async function acceptPureProgressivePilot(runDir, { planHash, batchHash, 
     plan_hash: planHash,
     batch_hash: batchHash,
     decision,
+    validatePilotReview: ({ plan: reviewPlan, batch, batch_sha256, coverage, materializations }) =>
+      validatePureProgressivePilot({
+        context: plan,
+        plan: reviewPlan,
+        batch,
+        batch_sha256,
+        coverage,
+        materializations,
+      }),
   });
   const handoff = recordTargetProgressivePilotDecision(plan.deck_dir, {
     runDir: plan.run_dir,
@@ -608,16 +957,33 @@ function progressiveRawBytes(materializations) {
   return Object.fromEntries([...materializations.entries()].map(([slideId, materialization]) => [slideId, Buffer.from(materialization.bytes)]));
 }
 
+async function publishPureProgressiveCompletePageReview({ context, plan, materializations } = {}) {
+  const published = await publishPureCompletePageReview({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide: progressiveRawBytes(materializations),
+  });
+  return Object.freeze({
+    workflow_evidence_sha256: published.complete_page_presentation_sha256,
+    projection_sha256: published.projection_sha256,
+  });
+}
+
+function validatePureProgressiveCompletePageReview({ context, plan, materializations } = {}) {
+  return validatePureCompletePageReview({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide: progressiveRawBytes(materializations),
+  });
+}
+
 export async function preparePureProgressiveRawReview(runDir, { planHash } = {}) {
   const context = readPureProgressiveTargetStoredPlanContext(runDir);
   const prepared = await prepareProgressiveRawCompleteReview({
     runDir: context.run_dir,
     workflow: PURE_IMAGE_WORKFLOW,
     plan_hash: planHash,
-    publish: async ({ materializations }) => publishProgressiveTargetCompleteRawReview(context, context.raw_work_plan, {
-      raw_bytes_by_slide: progressiveRawBytes(materializations),
-      reviewContribution: createPureTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan: context.raw_work_plan }),
-    }),
+    publish: async ({ plan, materializations }) => publishPureProgressiveCompletePageReview({ context, plan, materializations }),
   });
   const handoff = prepared.accepted_raw_evidence_sha256
     ? recordTargetProgressiveAcceptedRawEvidence(context.deck_dir, {
@@ -645,6 +1011,8 @@ export async function acceptPureProgressiveRawReview(runDir, { planHash, decisio
     workflow: PURE_IMAGE_WORKFLOW,
     plan_hash: planHash,
     decision,
+    validate: ({ plan: reviewPlan, materializations }) =>
+      validatePureProgressiveCompletePageReview({ context: plan, plan: reviewPlan, materializations }),
   });
   const handoff = accepted.accepted_raw_evidence_sha256
     ? recordTargetProgressiveAcceptedRawEvidence(plan.deck_dir, {
@@ -666,7 +1034,13 @@ export async function acceptPureProgressiveRawReview(runDir, { planHash, decisio
 }
 
 export async function reconcilePureProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
-  return reconcileProgressiveRawAttempt({ runDir, workflow: PURE_IMAGE_WORKFLOW, plan_hash: planHash, attempt_sha256: attemptSha256, lookup });
+  return reconcileProgressiveRawAttempt({
+    runDir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    attempt_sha256: attemptSha256,
+    lookup,
+  });
 }
 
 /** Publish final and delivery projections from exact v3 accepted raw evidence only. */
@@ -678,6 +1052,12 @@ export async function buildPureProgressiveTargetDelivery(runDir) {
     plan_hash: plan.progressive_raw_work_plan.sha256,
     expected_plan: plan.progressive_raw_work_plan,
   });
+  const reviewedPresentation = readPureProgressiveFinalizationReview(
+    plan,
+    raw.plan,
+    raw.raw_bytes_by_slide,
+    raw.complete_raw_review,
+  );
   const manifest = publishPureFinalSlideManifest({
     receipt: plan.receipt,
     rawWorkPlan: plan.raw_work_plan,
@@ -685,6 +1065,7 @@ export async function buildPureProgressiveTargetDelivery(runDir) {
     acceptedRawEvidence: raw.accepted_raw_evidence,
     rawBytesBySlide: raw.raw_bytes_by_slide,
   });
+  assertPureFinalMatchesReviewedProviderPage(raw.raw_bytes_by_slide, reviewedPresentation);
   const persisted = writeProgressiveTargetFinalManifest(plan, {
     progressiveRawWorkPlan: raw.plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
@@ -726,12 +1107,14 @@ export async function buildPureTargetDelivery(runDir) {
   if (progressive.ok && progressive.plan) return buildPureProgressiveTargetDelivery(runDir);
   const plan = readPureTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
+  const reviewed = readPureTargetFinalizationReview(plan, plan.raw_work_plan, raw.accepted_raw_evidence);
   const manifest = publishPureFinalSlideManifest({
     receipt: plan.receipt,
     rawWorkPlan: plan.raw_work_plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
-    rawBytesBySlide: raw.raw_bytes_by_slide,
+    rawBytesBySlide: reviewed.raw_bytes_by_slide,
   });
+  assertPureFinalMatchesReviewedProviderPage(reviewed.raw_bytes_by_slide, reviewed.presentation);
   const persisted = writeTargetFinalManifest(plan, {
     rawWorkPlan: plan.raw_work_plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
@@ -772,14 +1155,12 @@ export async function refreshPureTargetNotes(runDir) {
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
-  const reviewContribution = createPureTargetRawReviewContribution({
-    receipt: candidate.receipt,
-    rawWorkPlan: candidate.raw_work_plan,
-  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
-    reviewContribution,
+    createPreviousReviewContribution: createPureTargetRawReviewContribution,
+    validatePreviousCompletePageReview: ({ review_context: reviewContext, raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide, source_epoch: sourceEpoch }) =>
+      validatePureCompletePageReview({ context: reviewContext, reviewPlan: rawWorkPlan, rawBytesBySlide, sourceEpoch }),
   });
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan: context.raw_work_plan,

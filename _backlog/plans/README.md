@@ -1,6 +1,6 @@
 # Active Plans — 活跃 plan/分析文档列表
 
-> 最后更新: 2026-08-07 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
+> 最后更新: 2026-08-08 | `_backlog/plans/` — 活跃 plan 在此，完成移入 [`../_done/_closed_plans/`](../_done/_closed_plans/)。
 >
 > **plan 没有编号，文件名即标识。完成后文件名不变，位置即状态。**
 
@@ -17,11 +17,9 @@
 
 ## 活跃列表
 
-| Plan | 摘要 | 状态 |
-| --- | --- | --- |
-| [`framed-hybrid-image2-composition.md`](framed-hybrid-image2-composition.md) | 统一 Pure/Framed 的完整页面生成核心；Framed 仅增加透明、确定性的固定头部 overlay | 待 Review |
+当前没有活跃 plan。
 
-**Next available plan ID: CLS-021**（移入 `_closed_plans/` 时分配；CLS-001…020 已用）
+**Next available plan ID: CLS-023**（移入 `_closed_plans/` 时分配；CLS-001…022 已用）
 
 ---
 

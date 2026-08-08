@@ -1,17 +1,18 @@
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
+import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
 
-export const STYLE_MASTER_PLAN_IDENTITY_SCHEMA = "page-authority-style-master-plan-identity-v1";
-export const STYLE_MASTER_HEAD_SCHEMA = "page-authority-style-master-head-v1";
-export const STYLE_MASTER_CANDIDATE_GRANT_SCHEMA = "page-authority-style-master-candidate-grant-v1";
-export const STYLE_MASTER_CANDIDATE_ATTEMPT_SCHEMA = "page-authority-style-master-candidate-attempt-v1";
-export const STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA = "page-authority-style-master-candidate-abandonment-v1";
-export const STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA = "page-authority-style-master-local-provenance-v1";
-export const STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA = "page-authority-style-master-generated-provenance-v1";
-export const STYLE_MASTER_PROVIDER_REQUEST_SCHEMA = "page-authority-style-master-provider-request-v1";
-export const STYLE_MASTER_REVIEW_DECISION_SCHEMA = "page-authority-style-master-review-decision-v1";
-export const STYLE_MASTER_SELECTION_SCHEMA = "page-authority-style-master-selection-v1";
-export const STYLE_MASTER_GENERATION_PROFILE_SCHEMA = "page-authority-style-master-generation-profile-v1";
+export const STYLE_MASTER_PLAN_IDENTITY_SCHEMA = "page-image-style-master-plan-identity-v1";
+export const STYLE_MASTER_HEAD_SCHEMA = "page-image-style-master-head-v1";
+export const STYLE_MASTER_CANDIDATE_GRANT_SCHEMA = "page-image-style-master-candidate-grant-v1";
+export const STYLE_MASTER_CANDIDATE_ATTEMPT_SCHEMA = "page-image-style-master-candidate-attempt-v1";
+export const STYLE_MASTER_CANDIDATE_ABANDONMENT_SCHEMA = "page-image-style-master-candidate-abandonment-v1";
+export const STYLE_MASTER_LOCAL_PROVENANCE_SCHEMA = "page-image-style-master-local-provenance-v1";
+export const STYLE_MASTER_GENERATED_PROVENANCE_SCHEMA = "page-image-style-master-generated-provenance-v1";
+export const STYLE_MASTER_PROVIDER_REQUEST_SCHEMA = "page-image-style-master-provider-request-v1";
+export const STYLE_MASTER_REVIEW_DECISION_SCHEMA = "page-image-style-master-review-decision-v1";
+export const STYLE_MASTER_SELECTION_SCHEMA = "page-image-style-master-selection-v1";
+export const STYLE_MASTER_GENERATION_PROFILE_SCHEMA = "page-image-style-master-generation-profile-v1";
 
 export const STYLE_MASTER_WORKFLOWS = Object.freeze(["framed", "pure"]);
 export const STYLE_MASTER_MEDIA_TYPES = Object.freeze(["image/png", "image/jpeg"]);
@@ -19,7 +20,7 @@ export const STYLE_MASTER_ATTEMPT_STATUSES = Object.freeze(["claimed", "submitte
 export const STYLE_MASTER_REVIEW_DECISIONS = Object.freeze(["proceed", "repair", "redirect"]);
 export const STYLE_MASTER_GENERATION_PROFILE = Object.freeze({
   schema: STYLE_MASTER_GENERATION_PROFILE_SCHEMA,
-  provider: Object.freeze({ provider: "image2", model: "gpt-image-2", api_revision: "page-authority-image2-v2" }),
+  provider: Object.freeze({ provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow-v1" }),
   output: Object.freeze({ format: "png", width: 2000, height: 1125 }),
   prompt_contract: "style-master-no-readable-text-v1",
 });
@@ -116,12 +117,20 @@ function validation(run) {
 }
 
 export function styleMasterCanonicalBytes(record) {
+  const identity = evaluateReplacementIdentity({ record, recordKind: "style-master-record" });
+  if (!identity.ok) {
+    throw new StyleMasterSchemaError(identity.code, "retired Style Master record is unsupported by the current Page Image Workflow");
+  }
   return Buffer.from(canonicalJson(record), "utf8");
 }
 
 export function parseStyleMasterCanonicalBytes(bytes, label = "Style Master record") {
   if (!Buffer.isBuffer(bytes) && !(bytes instanceof Uint8Array)) {
     throw new StyleMasterSchemaError("style_master_record_invalid", `${label} must be UTF-8 bytes`);
+  }
+  const identity = evaluateReplacementIdentity({ record: bytes, recordKind: "style-master-record", recordPath: label });
+  if (!identity.ok) {
+    throw new StyleMasterSchemaError(identity.code, "retired Style Master record is unsupported by the current Page Image Workflow");
   }
   let value;
   try {

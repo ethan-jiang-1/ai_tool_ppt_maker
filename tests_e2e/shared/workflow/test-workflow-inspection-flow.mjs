@@ -3,12 +3,14 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { createInitialState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { resolveFramedTargetSource } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { resolvePureTargetSource } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { resolveFramedStyleMasterScope, resolveFramedTargetSource } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
+import { resolvePureStyleMasterScope, resolvePureTargetSource } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
+import { acceptLocalStyleMasterFixture } from "../../../tests/helpers/accepted_style_master.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 
@@ -26,43 +28,63 @@ function treeSnapshot(root, current = root, entries = []) {
   return entries;
 }
 
-function createSelectedTargetFixture(workflow) {
+function pngBytes() {
+  const canvas = createCanvas(2000, 1125);
+  canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+  return canvas.toBuffer("image/png");
+}
+
+async function createSelectedTargetFixture(workflow) {
   const root = mkdtempSync(join(tmpdir(), `workflow-inspection-${workflow}-`));
   const deck = join(root, "deck_target_inspection");
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
-  const negativeConstraints = workflow === "framed" ? "  - no-readable-text\n  - no-labels" : "  - no-logo";
+  writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes());
+  const header = workflow === "framed"
+    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard-v1\n"
+    : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   const source = `---
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: ${workflow}
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Target prerequisite
+${header}**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: callout
+    literal: Current provider-rendered observation content
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-${negativeConstraints}
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: Target observation fixture.
 `;
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
   const state = createInitialState("target", "keynote", "dark-executive", {
-    mode: "image2-page-authority-v2",
+    mode: "image2-page-workflow-v1",
     workflow,
   });
   state.continuation_target_version = "v1";
   writeState(deck, state);
-  if (workflow === "framed") resolveFramedTargetSource(runDir);
-  else resolvePureTargetSource(runDir);
+  if (workflow === "framed") {
+    resolveFramedTargetSource(runDir);
+    await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+  } else {
+    resolvePureTargetSource(runDir);
+    await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+  }
   return { root, deck, runDir };
 }
 
@@ -79,14 +101,14 @@ describe("workflow inspection observation flow", () => {
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({
-        pipeline: "page-authority-image2-v2",
+        pipeline: "page-image-workflow-v1",
         structure_issues: [],
-        current_node: "select-target-page-authority-workflow",
+        current_node: "select-target-page-image-workflow",
       });
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
         posture: "confirm",
         root_cause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
-        primary_action: { action_id: "select-target-page-authority-workflow", requires_human: true },
+        primary_action: { action_id: "select-target-page-image-workflow", requires_human: true },
       });
       expect(treeSnapshot(deck)).toEqual(before);
     } finally {
@@ -94,10 +116,10 @@ describe("workflow inspection observation flow", () => {
     }
   });
 
-  it.each(["framed", "pure"])("keeps selected %s workflow observations read-only", (workflow) => {
-    const fixture = createSelectedTargetFixture(workflow);
+  it.each(["framed", "pure"])("keeps selected %s workflow observations read-only", async (workflow) => {
+    const fixture = await createSelectedTargetFixture(workflow);
     try {
-      const paths = pageAuthorityImage2Paths(fixture.runDir);
+      const paths = pageImageWorkflowPaths(fixture.runDir);
       expect(() => readFileSync(paths.target_source_receipt)).not.toThrow();
       expect(() => readFileSync(paths.receipt)).toThrow();
       const targetReceipt = readFileSync(paths.target_source_receipt);
@@ -107,9 +129,9 @@ describe("workflow inspection observation flow", () => {
       expect(status.status, status.stderr).toBe(0);
       expect(state.status, state.stderr).toBe(0);
       expect(JSON.parse(state.stdout).workflow_inspection).toMatchObject({
-        posture: "confirm",
+        posture: "guide",
         evidence_summary: { workflow },
-        primary_action: { action_id: "authorize_target_raw_work" },
+        primary_action: { action_id: "plan_progressive_raw_work" },
       });
       expect(readFileSync(paths.target_source_receipt)).toEqual(targetReceipt);
       expect(() => readFileSync(paths.receipt)).toThrow();
@@ -119,11 +141,11 @@ describe("workflow inspection observation flow", () => {
     }
   });
 
-  it("keeps a v2 workflow mismatch behind its marker/state hard-stop without coercion", () => {
-    const fixture = createSelectedTargetFixture("pure");
+  it("keeps a v2 workflow mismatch behind its marker/state hard-stop without coercion", async () => {
+    const fixture = await createSelectedTargetFixture("pure");
     try {
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "framed",
       });
       state.continuation_target_version = "v1";

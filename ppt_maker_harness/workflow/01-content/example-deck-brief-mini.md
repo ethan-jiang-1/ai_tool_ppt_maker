@@ -1,9 +1,9 @@
 ---
-title: Example — Mini Page Authority Deck
+title: Example — Mini Page Image Deck
 stage: workflow/01-content
 position: example
 type: reference
-summary: Three-slide Page Authority source with stable IDs, visual briefs, and notes.
+summary: Three-slide Page Image source with stable IDs, visual briefs, and notes.
 depends_on:
 - workflow/01-content/template-core-metaphor.md
 - workflow/01-content/template-core-formula.md
@@ -12,7 +12,7 @@ feeds_into: []
 agent_action: reference
 ---
 
-# Example — Mini Page Authority Deck
+# Example — Mini Page Image Deck
 
 This fictional SaaS deck shows source ownership only. Validate the actual source
 against the selected visual-language registry before planning raw work.
@@ -22,7 +22,7 @@ against the selected visual-language registry before planning raw work.
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 

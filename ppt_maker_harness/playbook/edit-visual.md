@@ -1,7 +1,7 @@
 ---
 playbook: edit-visual
-description: v2 Page Authority visual refresh
-supported_pipelines: [page-authority-image2-v2]
+description: Page Image Workflow visual refresh
+supported_pipelines: [page-image-workflow-v1]
 includes: [classify-change]
 ---
 
@@ -12,21 +12,21 @@ includes: [classify-change]
 node: refresh-target-framed-visual
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [classify-change]
 produces: [target-framed-visual-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Framed visual underlay or frame-preset changes use the selected Framed raw rebuild route.
+**Step 1 — CLI**: Framed visual, protected-geometry, or header-profile changes use the selected Framed raw rebuild route.
 
 ### refresh-target-pure-visual
 ```yaml
 node: refresh-target-pure-visual
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [classify-change]
 produces: [target-pure-visual-refresh-route]
@@ -40,7 +40,7 @@ exit: [slide_specs_valid]
 node: review-target-visual-delivery
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
 requires: [refresh-target-framed-visual, refresh-target-pure-visual]
 produces: [reviewed-target-visual-evidence]

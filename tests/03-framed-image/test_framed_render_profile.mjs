@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { HTML_RUNTIME_PROFILE } from '../../ppt_maker_harness/scripts/00-setup/internal/html_runtime_profile.mjs';
 import { HTML_CAPTURE_PROFILE } from '../../ppt_maker_harness/scripts/03-framed-image/internal/capture_runtime.mjs';
 import {
-  compileFramedLayoutGeometry,
-  createFramedRenderProfile,
+  compileFramedHeaderOverlayGeometry,
+  createFramedHeaderOverlayRenderProfile,
   FRAMED_FONT_SELECTION_ALGORITHM,
-  FRAMED_LAYOUT_COMPILER,
-  FRAMED_LAYOUT_COMPILER_COHERENCE_HISTORY,
-  FRAMED_RENDER_PROFILE_SCHEMA,
+  FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
+  FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY,
+  FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
-import { FRAMED_TEXT_FRAME_STANDARD_V1 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/text_frame.mjs';
+import { FRAMED_HEADER_OVERLAY_STANDARD_V1 } from '../../ppt_maker_harness/scripts/03-framed-image/internal/header_overlay.mjs';
 import { canonicalJsonSha256 } from '../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs';
 
 const fontRenderInventory = Object.freeze({
@@ -26,9 +26,9 @@ const fontRenderInventory = Object.freeze({
 });
 
 function profile(input = {}) {
-  return createFramedRenderProfile({
-    preset: FRAMED_TEXT_FRAME_STANDARD_V1,
-    layoutCompiler: FRAMED_LAYOUT_COMPILER,
+  return createFramedHeaderOverlayRenderProfile({
+    preset: FRAMED_HEADER_OVERLAY_STANDARD_V1,
+    layoutCompiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
     fontRenderInventory,
     fontSelectionAlgorithm: FRAMED_FONT_SELECTION_ALGORITHM,
     runtime: HTML_RUNTIME_PROFILE,
@@ -37,12 +37,13 @@ function profile(input = {}) {
   });
 }
 
-describe('Framed render profile', () => {
+describe('Framed header-overlay render profile', () => {
   it('builds one canonical identity from declared pixel-producing inputs', () => {
     expect(profile()).toMatchObject({
-      schema: FRAMED_RENDER_PROFILE_SCHEMA,
+      schema: FRAMED_HEADER_OVERLAY_RENDER_PROFILE_SCHEMA,
       preset: { id: 'standard-v1', digest: expect.any(String) },
-      layout_compiler: FRAMED_LAYOUT_COMPILER,
+      protected_geometry: FRAMED_HEADER_OVERLAY_STANDARD_V1.protected_geometry,
+      layout_compiler: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER,
       font_render_inventory: { schema: fontRenderInventory.schema, digest: expect.any(String) },
       font_selection_algorithm: FRAMED_FONT_SELECTION_ALGORITHM,
       runtime: { id: HTML_RUNTIME_PROFILE.id },
@@ -51,24 +52,29 @@ describe('Framed render profile', () => {
     });
   });
 
-  it('normalizes input ordering and excludes host or page-specific values', () => {
+  it('normalizes input ordering and excludes host or header-literal values', () => {
     const reordered = {
       schema: fontRenderInventory.schema,
       faces: [...fontRenderInventory.faces].reverse().map((face) => ({ host_path: '/different/machine/font-cache', ...face, unicode_ranges: [...face.unicode_ranges].reverse() })),
       families: fontRenderInventory.families.map((family) => ({ host_path: '/different/machine/font-cache', ...family })),
     };
-    const first = profile({ textFrame: { title: 'First title' }, selectedFaces: ['host-only'], pageObservation: { width: 123 }, underlayBytes: Buffer.from('a') });
-    const second = profile({ fontRenderInventory: reordered, textFrame: { title: 'Second title' }, selectedFaces: ['different-host-only'], pageObservation: { width: 456 }, underlayBytes: Buffer.from('b') });
+    const first = profile({ localHeader: { title: 'First title' }, selectedFaces: ['host-only'], pageObservation: { width: 123 }, providerPageBytes: Buffer.from('a') });
+    const second = profile({ fontRenderInventory: reordered, localHeader: { title: 'Second title' }, selectedFaces: ['different-host-only'], pageObservation: { width: 456 }, providerPageBytes: Buffer.from('b') });
     expect(second.render_profile_digest).toBe(first.render_profile_digest);
   });
 
   it.each([
-    ['normalized preset', () => {
-      const preset = structuredClone(FRAMED_TEXT_FRAME_STANDARD_V1);
-      preset.theme.panel = '#ffffff';
+    ['transparent header preset', () => {
+      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+      preset.theme.contrast.opacity = 0.33;
       return { preset };
     }],
-    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_LAYOUT_COMPILER, version: '2' } })],
+    ['protected geometry', () => {
+      const preset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+      preset.protected_geometry[0].height -= 1;
+      return { preset };
+    }],
+    ['layout compiler', () => ({ layoutCompiler: { ...FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER, version: '3' } })],
     ['font render inventory', () => ({
       fontRenderInventory: {
         ...fontRenderInventory,
@@ -82,37 +88,21 @@ describe('Framed render profile', () => {
     expect(profile(changed()).render_profile_digest).not.toBe(profile().render_profile_digest);
   });
 
-  it('keeps non-pixel metadata and Text Frame-only values outside the profile', () => {
-    const preset = { ...FRAMED_TEXT_FRAME_STANDARD_V1, host_path: '/private/host-a' };
-    const first = profile({
-      preset,
-      textFrame: { title: 'First title' },
-      selectedFaces: ['a.woff2'],
-      pageObservation: { scroll_width: 1 },
-      underlayBytes: Buffer.from('first'),
-    });
-    const second = profile({
-      preset: { ...preset, host_path: '/private/host-b', editorial_note: 'not pixels' },
-      fontRenderInventory: {
-        ...fontRenderInventory,
-        note: 'not pixels',
-        faces: fontRenderInventory.faces.map((face) => ({ ...face, source_url: 'https://example.invalid/font' })),
-      },
-      runtime: { ...HTML_RUNTIME_PROFILE, executablePath: '/private/host-b/chromium' },
-      capture: { ...HTML_CAPTURE_PROFILE, temporary_root: '/private/host-b/tmp' },
-      textFrame: { title: 'Updated title' },
-      selectedFaces: ['b.woff2'],
-      pageObservation: { scroll_width: 999 },
-      underlayBytes: Buffer.from('second'),
-    });
-    expect(second.render_profile_digest).toBe(first.render_profile_digest);
+  it('rejects opaque-panel and local-callout preset escape hatches', () => {
+    const panelPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+    panelPreset.theme.panel = '#ffffff';
+    expect(() => profile({ preset: panelPreset })).toThrow(/preset.theme must contain only/);
+
+    const calloutPreset = structuredClone(FRAMED_HEADER_OVERLAY_STANDARD_V1);
+    calloutPreset.fields.callout = { ...calloutPreset.fields.title };
+    expect(() => profile({ preset: calloutPreset })).toThrow(/preset.fields must contain only/);
   });
 
   it('requires a new compiler identity when the canonical geometry fixture changes', () => {
-    const actualFixtureDigest = canonicalJsonSha256(compileFramedLayoutGeometry());
-    const current = FRAMED_LAYOUT_COMPILER_COHERENCE_HISTORY.at(-1);
-    expect(current).toEqual({ version: FRAMED_LAYOUT_COMPILER.version, fixture_sha256: actualFixtureDigest });
-    expect(new Set(FRAMED_LAYOUT_COMPILER_COHERENCE_HISTORY.map((entry) => entry.version)).size)
-      .toBe(FRAMED_LAYOUT_COMPILER_COHERENCE_HISTORY.length);
+    const actualFixtureDigest = canonicalJsonSha256(compileFramedHeaderOverlayGeometry());
+    const current = FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.at(-1);
+    expect(current).toEqual({ version: FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER.version, fixture_sha256: actualFixtureDigest });
+    expect(new Set(FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.map((entry) => entry.version)).size)
+      .toBe(FRAMED_HEADER_OVERLAY_LAYOUT_COMPILER_COHERENCE_HISTORY.length);
   });
 });

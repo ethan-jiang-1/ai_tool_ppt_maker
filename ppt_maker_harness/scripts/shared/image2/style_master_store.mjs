@@ -3,8 +3,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { randomUUID } from "node:crypto";
 
 import {
-  pageAuthorityStyleMasterPaths,
-} from "../run-bundle/page_authority_paths.mjs";
+  pageImageStyleMasterPaths,
+} from "../run-bundle/page_image_paths.mjs";
 import {
   STYLE_MASTER_MEDIA_TYPES,
   STYLE_MASTER_WORKFLOWS,
@@ -208,7 +208,7 @@ function withExclusiveDirectoryLock(lockPath, action) {
 
 /** Resolve the only canonical paths used by Style Master lifecycle records. */
 export function styleMasterStorePaths(runDir, { workflow = null, plan_sha256 = null, candidate_id = null, candidate_media_type = null } = {}) {
-  const root = pageAuthorityStyleMasterPaths(runDir);
+  const root = pageImageStyleMasterPaths(runDir);
   if (workflow !== null) assertWorkflow(workflow);
   if (plan_sha256 !== null) assertSha256(plan_sha256, "plan_sha256");
   if (candidate_id !== null) assertCandidateId(candidate_id);

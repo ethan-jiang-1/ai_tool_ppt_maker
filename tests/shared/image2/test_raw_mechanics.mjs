@@ -3,17 +3,18 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createRawWorkPlan } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import {
   publishAcceptedRawEvidence,
   submitAuthorizedRawWorkPlan,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_raw_mechanics.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_raw_mechanics.mjs";
 import {
   createInitialState,
-  initializeTargetPageAuthorityState,
-  recordPageAuthorityRawProviderAuthorization,
+  initializeTargetPageImageState,
+  recordPageImageRawProviderAuthorization,
   writeState,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
+import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
@@ -24,43 +25,53 @@ function rawWorkPlan(sourceReceiptSha256) {
     ordered_slide_ids: ["DeckGo"],
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
-    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+    items: [{
+      slide_id: "DeckGo",
+      raw_contract_sha256: digest("d"),
+      provider_input_binding: pageImageProviderInputBinding({ workflow: "pure" }),
+    }],
   });
 }
 
 function targetDeck() {
-  const deck = mkdtempSync(join(tmpdir(), "deck_page_authority_v2_raw_"));
+  const deck = mkdtempSync(join(tmpdir(), "deck_page_image_v2_raw_"));
   const runDir = join(deck, "3_versions", "v1");
-  const source = "---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n";
+  const source = "---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n";
   mkdirSync(runDir, { recursive: true });
   writeFileSync(join(runDir, "slide-specifications.md"), source, "utf8");
-  writeState(deck, createInitialState("gated", "keynote", "dark", { mode: "image2-page-authority-v2", workflow: "pure" }));
+  writeState(deck, createInitialState("gated", "keynote", "dark", { mode: "image2-page-workflow-v1", workflow: "pure" }));
   return {
     deck,
     runDir,
     sourceReceipt: {
-      schema: "page-authority-image2-source-v2",
-      pipeline: "page-authority-image2-v2",
+      schema: "page-image-workflow-source-v1",
+      pipeline: "page-image-workflow-v1",
       workflow: "pure",
       source_sha256: createHash("sha256").update(source).digest("hex"),
-      slides: [{ slide_id: "DeckGo", workflow: "pure", display: { title: "Target raw work" } }],
+      slides: [{ slide_id: "DeckGo", position: 1 }],
     },
   };
 }
 
-describe("Page Authority v2 shared raw mechanics", () => {
+describe("Page Image shared raw mechanics", () => {
   it("submits opaque plan items only after current state authorization", async () => {
     const { deck, runDir, sourceReceipt } = targetDeck();
     const plan = rawWorkPlan(sourceReceipt.source_sha256);
     let submits = 0;
     try {
-      initializeTargetPageAuthorityState(deck, { runDir, sourceReceipt });
+      initializeTargetPageImageState(deck, { runDir, sourceReceipt });
+      const unboundPlan = structuredClone(plan);
+      delete unboundPlan.items[0].provider_input_binding;
+      await expect(submitAuthorizedRawWorkPlan({
+        deckDir: deck, runDir, rawWorkPlan: unboundPlan, submit: async () => { submits += 1; },
+      })).rejects.toMatchObject({ code: "raw_plan_invalid" });
+      expect(submits).toBe(0);
       await expect(submitAuthorizedRawWorkPlan({
         deckDir: deck, runDir, rawWorkPlan: plan, submit: async () => { submits += 1; },
       })).rejects.toMatchObject({ code: "provider_authorization_required" });
       expect(submits).toBe(0);
 
-      recordPageAuthorityRawProviderAuthorization(deck, { runDir, rawWorkPlan: plan, maxSubmissions: 1 });
+      recordPageImageRawProviderAuthorization(deck, { runDir, rawWorkPlan: plan, maxSubmissions: 1 });
       const submitted = await submitAuthorizedRawWorkPlan({
         deckDir: deck,
         runDir,
@@ -75,7 +86,7 @@ describe("Page Authority v2 shared raw mechanics", () => {
         rawWorkPlan: plan,
         raw_review_sha256: digest("e"),
         raw_bytes_by_slide: { DeckGo: Buffer.from("raw") },
-      })).toMatchObject({ schema: "page-authority-accepted-raw-evidence-v2", workflow: "pure" });
+      })).toMatchObject({ schema: "page-image-adapter-accepted-raw-evidence-v1", workflow: "pure" });
 
       const stalePlan = createRawWorkPlan({
         ...plan,

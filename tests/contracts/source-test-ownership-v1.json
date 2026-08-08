@@ -55,6 +55,7 @@
       "interfaces": ["04-pure-image/index.mjs"],
       "executables": [],
       "unit_integration": [
+        "tests/04-pure-image/test_pure_page_image_core.mjs",
         "tests/04-pure-image/test_pure_review_contribution.mjs",
         "tests/04-pure-image/test_pure_workflow.mjs",
         "tests/04-pure-image/test_style_master_scope.mjs"
@@ -136,10 +137,11 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_authority_artifacts.mjs", "shared/image2/page_authority_final_manifest.mjs", "shared/image2/page_authority_media_contract.mjs", "shared/image2/page_authority_progressive_raw_owner.mjs", "shared/image2/page_authority_raw_mechanics.mjs", "shared/image2/page_authority_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
+        "tests/shared/image2/test_complete_page_review.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
         "tests/shared/image2/test_page_authority_media_contract.mjs",
@@ -154,10 +156,18 @@
       "e2e": []
     },
     {
+      "owner": "shared/page-image",
+      "interfaces": ["shared/page-image/page_image_core.mjs", "shared/page-image/page_image_invalidation.mjs"],
+      "executables": [],
+      "unit_integration": ["tests/shared/page-image/test_page_image_core.mjs", "tests/shared/page-image/test_page_image_invalidation.mjs"],
+      "e2e": []
+    },
+    {
       "owner": "shared/run-bundle",
       "interfaces": [
         "shared/run-bundle/bundle_layout.mjs",
-        "shared/run-bundle/page_authority_paths.mjs",
+        "shared/run-bundle/page_image_paths.mjs",
+        "shared/run-bundle/page_image_workflow_identity.mjs",
         "shared/run-bundle/production_marker.mjs"
       ],
       "executables": [
@@ -166,6 +176,7 @@
       ],
       "unit_integration": [
         "tests/shared/run-bundle/test_page_authority_layout.mjs",
+        "tests/shared/run-bundle/test_page_image_workflow_identity.mjs",
         "tests/shared/run-bundle/test_process_harness_binding.mjs",
         "tests/shared/run-bundle/test_process_lessons.mjs",
         "tests/shared/run-bundle/test_run_bundle_locator.mjs"

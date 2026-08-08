@@ -4,30 +4,42 @@ import {
   createFramedRawWorkPlan,
   createFramedTargetRawReviewContribution,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { currentFramedRenderProfile } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs";
-import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { currentFramedHeaderOverlayRenderProfile } from "../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs";
+import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
+function framedProviderInputBinding(compiled) {
+  return {
+    compiled_provider_input_sha256: digest(compiled),
+    provider_content_sha256: digest("b"),
+    visual_selection_sha256: digest("c"),
+    style_master_selection_sha256: digest("d"),
+    generation_profile_sha256: digest("e"),
+    header_policy_sha256: digest("f"),
+    local_header_profile_sha256: digest("1"),
+    protected_geometry_sha256: digest("2"),
+  };
+}
+
+function headerPolicy(title) {
+  const header = { kicker: null, title, subtitle: null };
+  return {
+    frame_preset: "standard-v1",
+    local_header: header,
+    context_not_to_render: { ...header },
+  };
+}
+
 function framedReceipt({ firstTitle = "First framed title", secondTitle = "Second framed title" } = {}) {
   return {
-    schema: "page-authority-image2-source-v2",
-    pipeline: "page-authority-image2-v2",
+    schema: "page-image-workflow-source-v1",
+    pipeline: "page-image-workflow-v1",
     workflow: "framed",
     source_sha256: digest("a"),
     slides: [
-      {
-        slide_id: "DeckGo",
-        workflow: "framed",
-        display: { title: firstTitle },
-        text_frame: { preset: "standard-v1", kicker: null, title: firstTitle, subtitle: null, callout: null },
-      },
-      {
-        slide_id: "FlowUp",
-        workflow: "framed",
-        display: { title: secondTitle },
-        text_frame: { preset: "standard-v1", kicker: null, title: secondTitle, subtitle: null, callout: "One current guide" },
-      },
+      { slide_id: "DeckGo", position: 1, header_policy: headerPolicy(firstTitle) },
+      { slide_id: "FlowUp", position: 2, header_policy: headerPolicy(secondTitle) },
     ],
   };
 }
@@ -38,11 +50,15 @@ function rawWorkPlan(receipt) {
     provider_profile_sha256: digest("b"),
     authorization_scope_sha256: digest("c"),
     raw_contracts_by_slide: { DeckGo: digest("d"), FlowUp: digest("e") },
+    provider_input_bindings_by_slide: {
+      DeckGo: framedProviderInputBinding("3"),
+      FlowUp: framedProviderInputBinding("4"),
+    },
   });
 }
 
 describe("Framed raw-review contribution", () => {
-  it("maps canonical Framed safe zones and render profile into generic coverage", () => {
+  it("maps transparent header protected geometry and render profile into generic coverage", () => {
     const receipt = framedReceipt();
     const plan = rawWorkPlan(receipt);
     const contribution = createFramedTargetRawReviewContribution({ receipt, rawWorkPlan: plan });
@@ -51,34 +67,32 @@ describe("Framed raw-review contribution", () => {
       .toMatchObject({ ok: true, typed_review_contribution_sha256: contribution.typed_review_contribution_sha256 });
     expect(contribution.coverage.ordered_stable_ids).toEqual(["DeckGo", "FlowUp"]);
     expect(contribution.coverage.items.map((item) => item.coverage_profile_digest))
-      .toEqual([currentFramedRenderProfile().render_profile_digest, currentFramedRenderProfile().render_profile_digest]);
+      .toEqual([currentFramedHeaderOverlayRenderProfile().render_profile_digest, currentFramedHeaderOverlayRenderProfile().render_profile_digest]);
     expect(contribution.coverage.items).toMatchObject([
       {
         stable_id: "DeckGo",
         coverage_profile_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
-        guide_primitives: [{ kind: "rectangle", guide_id: "guide_1", x: 0, y: 0, width: 1, height: 286 / 562.5 }],
+        guide_primitives: [{ kind: "rectangle", guide_id: "guide_1", x: 40 / 1000, y: 28 / 562.5, width: 920 / 1000, height: 238 / 562.5 }],
       },
       {
         stable_id: "FlowUp",
-        guide_primitives: [
-          { kind: "rectangle", guide_id: "guide_1", x: 0, y: 0, width: 1, height: 286 / 562.5 },
-          { kind: "rectangle", guide_id: "guide_2", x: 0, y: 466 / 562.5, width: 1, height: 96 / 562.5 },
-        ],
+        guide_primitives: [{ kind: "rectangle", guide_id: "guide_1", x: 40 / 1000, y: 28 / 562.5, width: 920 / 1000, height: 238 / 562.5 }],
       },
     ]);
     expect(contribution.projection.labels).toEqual([
       { stable_id: "DeckGo", position: 1, title: "First framed title" },
       { stable_id: "FlowUp", position: 2, title: "Second framed title" },
     ]);
-    expect(contribution.coverage.items.some((item) => Object.hasOwn(item, "title"))).toBe(false);
+    expect(JSON.stringify(contribution.coverage)).not.toContain("panel");
+    expect(JSON.stringify(contribution.coverage)).not.toContain("callout");
   });
 
-  it("keeps accepted-review reuse eligible when only Text Frame labels change", () => {
+  it("keeps the review-guide identity tied to protected geometry rather than header text", () => {
     const initialReceipt = framedReceipt();
     const plan = rawWorkPlan(initialReceipt);
     const initial = createFramedTargetRawReviewContribution({ receipt: initialReceipt, rawWorkPlan: plan });
     const relabeled = createFramedTargetRawReviewContribution({
-      receipt: framedReceipt({ firstTitle: "Retitled without underlay drift", secondTitle: "Another historical label" }),
+      receipt: framedReceipt({ firstTitle: "Retitled header", secondTitle: "Another header" }),
       rawWorkPlan: plan,
     });
 
@@ -86,12 +100,12 @@ describe("Framed raw-review contribution", () => {
     expect(relabeled.typed_review_contribution_sha256).toBe(initial.typed_review_contribution_sha256);
   });
 
-  it("invalidates coverage identity when a Framed safe-zone guide drifts", () => {
+  it("invalidates coverage identity when protected geometry drifts", () => {
     const receipt = framedReceipt();
     const plan = rawWorkPlan(receipt);
     const contribution = createFramedTargetRawReviewContribution({ receipt, rawWorkPlan: plan });
     const drifted = structuredClone(contribution);
-    drifted.coverage.items[1].guide_primitives[1].height -= 0.01;
+    drifted.coverage.items[1].guide_primitives[0].height -= 0.01;
 
     expect(validateTargetRawReviewContribution(drifted, { rawWorkPlan: plan, expectedWorkflow: "framed" }))
       .toMatchObject({ ok: true, typed_review_contribution_sha256: expect.any(String) });

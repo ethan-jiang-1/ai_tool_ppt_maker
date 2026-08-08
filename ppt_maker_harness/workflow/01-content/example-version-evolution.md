@@ -1,5 +1,5 @@
 ---
-title: Example — Page Authority Version Evolution
+title: Example — Page Image Version Evolution
 stage: workflow/01-content
 position: example
 type: reference
@@ -11,22 +11,22 @@ feeds_into:
 agent_action: reference
 ---
 
-# Example — Page Authority Version Evolution
+# Example — Page Image Version Evolution
 
-This example follows one Framed v2 version so its evidence owner stays clear.
+This example follows one Framed Page Image Workflow version so its evidence owner stays clear.
 It focuses on why evidence becomes stale and which current owner must rebuild
 it. Switching the version to Pure is always a separate structural vNext.
 
 ## v1: Establish Source And Visual Language
 
-- Twelve slides use mnemonic IDs and Page Authority source fields.
+- Twelve slides use mnemonic IDs and Page Image source fields.
 - Every slide has a reviewable claim and a registered visual brief.
-- Framed slides use text-free underlays; Pure slides declare Image2 text ownership.
+- Framed slides use Provider-rendered body content plus a local transparent header overlay; Pure slides use Provider-rendered headers too.
 
-## v2: Framed Text Revision
+## v2: Framed Header Revision
 
 - `PainGo` changes only its title and subtitle.
-- Accepted raw evidence remains exact, so the edit uses Header Text & Style Refresh.
+- The compiled provider input changes, so the edit uses Generated Image Rebuild.
 - Final, assembly, notes, and delivery evidence are rebuilt for the current version.
 
 ## v3: Raw Contract Revision
@@ -46,6 +46,6 @@ it. Switching the version to Pure is always a separate structural vNext.
 ## Cross-Version Rules
 
 1. Fix source, never `_generated/`.
-2. Rebuild the smallest stale Page Authority owner.
+2. Rebuild the smallest stale Page Image owner.
 3. Show current artifacts before human decisions.
 4. `needs_render` is a target raw-generation debt, never authorization.

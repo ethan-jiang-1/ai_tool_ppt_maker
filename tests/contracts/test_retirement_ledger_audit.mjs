@@ -18,7 +18,7 @@ describe("main-spec retirement ledger audit", () => {
   });
 
   it("scans active files only and flags a retired source marker", () => {
-    const marker = ["page-authority", "image2", "v1"].join("-");
+    const marker = ["page-image", "image2", "v1"].join("-");
     expect(auditActiveRetirementSurface({ files: { "openspec/specs/example/spec.md": marker } }))
       .toMatchObject({ ok: false, issues: [expect.objectContaining({ code: "retired-active-reference" })] });
   });

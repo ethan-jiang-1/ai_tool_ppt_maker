@@ -7,10 +7,10 @@ import {
   deckRoot,
   styleAsset,
 } from "../run-bundle/bundle_layout.mjs";
-import { isPageAuthorityVersionDir } from "../run-bundle/page_authority_paths.mjs";
-import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE } from "../run-bundle/production_marker.mjs";
+import { isPageImageVersionDir } from "../run-bundle/page_image_paths.mjs";
+import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE } from "../run-bundle/production_marker.mjs";
 import {
-  resolveCurrentTargetPageAuthoritySourceState,
+  resolveCurrentTargetPageImageSourceState,
   resolveRunProductionAdapter,
 } from "../state/state.mjs";
 import { resolveTargetAuthoringDraftRoute } from "../state/target_authoring_draft_route.mjs";
@@ -62,8 +62,8 @@ function scopeContextResult({ runDir, deckDir, runVersion, workflow, draft }) {
  */
 export function resolveStyleMasterScopeContext(runDir) {
   const resolvedRunDir = resolve(runDir || "");
-  if (!isPageAuthorityVersionDir(resolvedRunDir)) {
-    fail("style_master_scope_run_invalid", "Style Master scope requires one canonical Page Authority version directory");
+  if (!isPageImageVersionDir(resolvedRunDir)) {
+    fail("style_master_scope_run_invalid", "Style Master scope requires one canonical Page Image version directory");
   }
   const deckDir = deckRoot(resolvedRunDir);
   const runVersion = basename(resolvedRunDir);
@@ -83,11 +83,11 @@ export function resolveStyleMasterScopeContext(runDir) {
   }
 
   const route = resolveRunProductionAdapter(deckDir, { runDir: resolvedRunDir, purpose: "observe" });
-  if (!route.ok || route.adapter !== "page-authority-image2-v2" || route.policy?.pipeline !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE ||
+  if (!route.ok || route.adapter !== "page-image-workflow-v1" || route.policy?.pipeline !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE ||
     route.run_version !== runVersion || !route.workflow) {
-    fail("style_master_scope_unsupported", "Style Master requires an active fresh draft or exact current Page Authority source/state pair");
+    fail("style_master_scope_unsupported", "Style Master requires an active fresh draft or exact current Page Image source/state pair");
   }
-  const targetState = resolveCurrentTargetPageAuthoritySourceState(deckDir, { runDir: resolvedRunDir });
+  const targetState = resolveCurrentTargetPageImageSourceState(deckDir, { runDir: resolvedRunDir });
   if (!targetState.ok) {
     fail("style_master_scope_stale", "Style Master scope requires current source receipt and state evidence before candidate resolution");
   }

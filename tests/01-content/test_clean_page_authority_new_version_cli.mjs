@@ -14,15 +14,19 @@ function source() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: CLI clean target draft
-**VISUAL SCENE**: calm shared systems work on a single clear surface
-**BODY**: The target draft must preserve text and visual instructions without inherited production evidence.
+**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: body
+    literal: "The target draft must preserve text and visual instructions without inherited production evidence."
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -60,9 +64,9 @@ function finalFailureEnvelope(stderr) {
   return JSON.parse(line);
 }
 
-describe("ppt_flow new-version Page Authority draft activation", () => {
+describe("ppt_flow new-version Page Image draft activation", () => {
   it("creates a clean target that validates through the draft route", () => {
-    const root = mkdtempSync(join(tmpdir(), "clean-page-authority-new-version-cli-"));
+    const root = mkdtempSync(join(tmpdir(), "clean-page-image-new-version-cli-"));
     const deck = join(root, "deck_target");
     const sourceRunDir = join(deck, "3_versions", "v1");
     const aliasRoot = `${root}-alias`;
@@ -80,25 +84,25 @@ describe("ppt_flow new-version Page Authority draft activation", () => {
       const created = runCli(["new-version", aliasSourceRunDir, "--name", "v2"]);
       expect(created.status, created.stderr).toBe(0);
       expect(created.stdout).toContain(`Created clean version: ${aliasTargetRunDir}`);
-      expect(created.stdout).toContain("Activated Page Authority pure authoring draft.");
+      expect(created.stdout).toContain("Activated Page Image pure authoring draft.");
       expect(readdirSync(join(aliasTargetRunDir, "_generated")).sort()).toEqual(["README.md"]);
 
       const draftState = readState(deck, { purpose: "observe" });
       expect(draftState).toMatchObject({
         playbook: "create-deck",
         run_version: "v2",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
       });
       expect(draftState.production_mode.by_version["3_versions/v2"]).toBeUndefined();
-      expect(draftState.page_authority_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
-      expect(draftState.page_authority_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
+      expect(draftState.page_image_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
+      expect(draftState.page_image_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
 
       const status = runCli(["status", aliasTargetRunDir, "--json"]);
       expect(status.status, status.stderr).toBe(0);
       expect(JSON.parse(status.stdout)).toMatchObject({
-        pipeline: "page-authority-image2-v2",
+        pipeline: "page-image-workflow-v1",
         playbook: "create-deck",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
       });
       const targetValidation = runCli(["validate", aliasTargetRunDir]);
       expect(targetValidation.status, targetValidation.stderr).toBe(0);
@@ -110,7 +114,7 @@ describe("ppt_flow new-version Page Authority draft activation", () => {
   });
 
   it("does not report a created version when target-draft activation rejects inherited lineage", () => {
-    const root = mkdtempSync(join(tmpdir(), "clean-page-authority-new-version-cli-failure-"));
+    const root = mkdtempSync(join(tmpdir(), "clean-page-image-new-version-cli-failure-"));
     const deck = join(root, "deck_target");
     const sourceRunDir = join(deck, "3_versions", "v1");
     const targetRunDir = join(deck, "3_versions", "v2");
@@ -121,7 +125,7 @@ describe("ppt_flow new-version Page Authority draft activation", () => {
       makeSourceInactive(deck);
       const state = readState(deck, { purpose: "observe" });
       state.production_mode.by_version["3_versions/v2"] = {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
         source_epoch: 1,
       };

@@ -190,7 +190,7 @@ function layoutExpectationFor(pageSpec) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError('render-contract layout expectation is required');
   }
-  if (!value.slide || !Array.isArray(value.panels) || !Array.isArray(value.fields) || !Array.isArray(value.panel_safe_zones)) {
+  if (!value.slide || !Array.isArray(value.fields) || !Array.isArray(value.protected_geometry) || !value.overlay || typeof value.overlay !== 'object') {
     throw new TypeError('render-contract layout expectation is incomplete');
   }
   return value;
@@ -214,24 +214,36 @@ async function verifyRenderContractLayout(page, expectation, expectedLeafMarkers
     const rootRect = rect(root);
     close(rootRect, { x: 0, y: 0, width: layout.slide.width, height: layout.slide.height }, 'slide geometry');
 
-    const panels = {};
-    for (const expected of layout.panels) {
-      const node = root.querySelector(`[data-pm-panel="${expected.id}"]`);
-      if (!node) throw new Error(`panel ${expected.id} is missing`);
-      const actual = rect(node);
-      close(actual, expected, `panel ${expected.id}`);
-      panels[expected.id] = actual;
+    const overlay = root.querySelector('[data-pm-overlay="transparent-header"]');
+    if (!overlay) throw new Error('transparent header overlay is missing');
+    if (root.querySelector('[data-pm-panel]')) throw new Error('opaque local panel is forbidden');
+    const overlayRect = rect(overlay);
+    close(overlayRect, rootRect, 'transparent header overlay geometry');
+    const overlayStyle = getComputedStyle(overlay);
+    const alpha = (color) => {
+      if (color === 'transparent') return 0;
+      const rgba = /^rgba\([^,]+,[^,]+,[^,]+,\s*([^)]+)\)$/.exec(color);
+      return rgba ? Number(rgba[1]) : 1;
+    };
+    if (layout.overlay.transparent === true && (
+      overlayStyle.backgroundImage !== 'none'
+      || !Number.isFinite(alpha(overlayStyle.backgroundColor))
+      || alpha(overlayStyle.backgroundColor) > 0.001
+    )) {
+      throw new Error('header overlay must remain transparent');
     }
-    for (const expected of layout.panel_safe_zones) {
-      const panel = panels[expected.panel_id];
-      if (!panel) throw new Error(`safe-zone panel ${expected.panel_id} is missing`);
-      const zone = expected.rectangle;
-      if (
-        panel.x < zone.x - epsilon || panel.y < zone.y - epsilon
-        || panel.right > zone.x + zone.width + epsilon || panel.bottom > zone.y + zone.height + epsilon
-      ) {
-        throw new Error(`panel ${expected.panel_id} escapes its reserved underlay rectangle`);
+
+    const providerPage = root.querySelector('[data-pm-provider-page]');
+    if (layout.overlay.requires_full_canvas_provider_page === true) {
+      if (!providerPage) throw new Error('full-canvas provider page is missing');
+      const providerRect = rect(providerPage);
+      close(providerRect, rootRect, 'full-canvas provider page geometry');
+      const providerStyle = getComputedStyle(providerPage);
+      if (providerStyle.objectFit !== 'fill' || providerStyle.clipPath !== 'none' || providerStyle.transform !== 'none') {
+        throw new Error('provider page must remain continuous without crop or transform');
       }
+    } else if (providerPage) {
+      throw new Error('preflight header overlay must not render a provider page');
     }
 
     const fields = {};
@@ -254,6 +266,13 @@ async function verifyRenderContractLayout(page, expectation, expectedLeafMarkers
       if (lineYs.length > expected.max_lines) {
         throw new Error(`field ${expected.id} exceeds ${expected.max_lines} rendered lines`);
       }
+      const protectedZone = layout.protected_geometry.find((zone) => (
+        actual.x >= rootRect.x + zone.x - epsilon
+        && actual.y >= rootRect.y + zone.y - epsilon
+        && actual.right <= rootRect.x + zone.x + zone.width + epsilon
+        && actual.bottom <= rootRect.y + zone.y + zone.height + epsilon
+      ));
+      if (!protectedZone) throw new Error(`field ${expected.id} escapes the protected header geometry`);
       fields[expected.id] = { rect: actual, line_count: lineYs.length, scroll_width: node.scrollWidth, scroll_height: node.scrollHeight };
     }
 
@@ -270,7 +289,13 @@ async function verifyRenderContractLayout(page, expectation, expectedLeafMarkers
         throw new Error(`leaf ${marker} is not visible`);
       }
     }
-    return { slide: rootRect, panels, fields, markers };
+    return {
+      slide: rootRect,
+      overlay: { rect: overlayRect, background: overlayStyle.backgroundColor },
+      provider_page: providerPage ? rect(providerPage) : null,
+      fields,
+      markers,
+    };
   }, {
     layout: expectation,
     expectedMarkers: expectedLeafMarkers,

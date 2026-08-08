@@ -66,7 +66,7 @@ const STABLE_SLIDE_ID_RE = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
 const MAX_PLAN_CAS_RETRIES = 8;
 const MAX_GENERATION_CAS_RETRIES = 8;
 const MAX_SELECTION_CAS_RETRIES = 8;
-const COMPILED_PROMPT_SCHEMA = "page-authority-style-master-provider-brief-v1";
+const COMPILED_PROMPT_SCHEMA = "page-image-style-master-provider-brief-v1";
 const COMPILED_PROMPT_INSTRUCTION = "Generate one visual style reference image with no readable text or labels.";
 const MAX_COMPILED_PROMPT_BYTES = 4_000;
 
@@ -448,7 +448,7 @@ function currentPreviousSelectionSha256(scope) {
   if (state?.replacement_required || state?.corrupted) {
     fail("style_master_selection_invalid", "Style Master cannot plan from unavailable state");
   }
-  const map = state?.page_authority_style_master;
+  const map = state?.page_image_style_master;
   if (map === undefined) return null;
   if (!map || typeof map !== "object" || Array.isArray(map) || !map.by_version || typeof map.by_version !== "object" || Array.isArray(map.by_version)) {
     fail("style_master_selection_invalid", "Style Master selection state has an invalid map shape");
@@ -497,7 +497,7 @@ function inputCandidates(inputs) {
 
 function createPlanFromInputs(scope, inputs, { planGeneration, previousPlanSha256, previousSelectionSha256 }) {
   return createStyleMasterPlanRecord({
-    schema: "page-authority-style-master-plan-identity-v1",
+    schema: "page-image-style-master-plan-identity-v1",
     run_version: scope.run_version,
     workflow: scope.workflow,
     plan_generation: planGeneration,
@@ -2188,7 +2188,7 @@ export async function acceptStyleMasterCandidateReview({
 }
 
 /**
- * Resolve the accepted Style Master authority for Page Authority raw planning.
+ * Resolve the accepted Style Master authority for Page Image raw planning.
  * The compatibility JPEG is intentionally absent from this interface: the
  * returned bytes are the immutable candidate bytes named by the state record.
  */
@@ -2215,7 +2215,7 @@ export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, re
   if (!effective.ok) {
     fail(
       effective.code === "STYLE_MASTER_SELECTION_MISSING" ? "style_master_selection_missing" : "style_master_selection_stale",
-      "Page Authority raw planning requires one current accepted Style Master selection",
+      "Page Image raw planning requires one current accepted Style Master selection",
     );
   }
   if (effective.workflow !== receipt.workflow) {
@@ -2227,7 +2227,7 @@ export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, re
     candidateId: effective.record.candidate_id,
   });
   if (!replay) {
-    fail("style_master_selection_stale", "Style Master selection cannot be reread for the current Page Authority scope");
+    fail("style_master_selection_stale", "Style Master selection cannot be reread for the current Page Image scope");
   }
   const intent = readStyleIntent(scope);
   const styleContext = styleContextFromCandidate(scope);

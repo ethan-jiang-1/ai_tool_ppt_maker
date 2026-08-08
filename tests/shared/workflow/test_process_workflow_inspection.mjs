@@ -40,7 +40,7 @@ describe("workflow inspection protocol fence", () => {
         schema: WORKFLOW_INSPECTION_SCHEMA,
         posture: "hard-stop",
         root_cause: { owner: "production-protocol", kind: "unsupported-protocol" },
-        primary_action: { action_id: "export-unsupported-protocol", kind: "export" },
+        primary_action: { action_id: "unsupported-protocol/export", kind: "export" },
         observations: [],
       });
       expect(canonicalJson(first)).toBe(canonicalJson(second));

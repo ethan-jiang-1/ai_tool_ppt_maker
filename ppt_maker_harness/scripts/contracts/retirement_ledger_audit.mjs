@@ -74,11 +74,11 @@ function readMainSpecs(specsRoot) {
 
 const compose = (...parts) => parts.join("");
 const RETIRED_ACTIVE_MARKERS = Object.freeze([
-  compose("page-authority", "-image2-v1"),
-  new RegExp(`\\b${compose("image2", "-page-authority")}(?!-v2)\\b`),
+  compose("page-image", "-image2-v1"),
+  new RegExp(`\\b${compose("image2", "-page-image")}(?!-v2)\\b`),
   compose("legacy", "_protocol"),
   compose("production_mode", "_transition"),
-  compose("compatibility/", "current", "-v1-page-authority"),
+  compose("compatibility/", "current", "-v1-page-image"),
   compose("whole", "-page-image2-v1"),
   compose("html", "-first-v1"),
   compose("html", "-only"),

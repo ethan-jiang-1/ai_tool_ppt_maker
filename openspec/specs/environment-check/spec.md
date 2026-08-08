@@ -1,6 +1,6 @@
 ## Purpose
 
-Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Authority raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
+Define the pre-flight environment check at `scripts/00-setup/env-check.mjs`: a zero-dependency Phase 0 adapter for supported Node `22.x|24.x|26.x`, base local Framed-runtime readiness, and operation-scoped Page Image Workflow raw-generation readiness. It emits an actionable structured readiness report without requiring `npm install` to start.
 ## Requirements
 
 ### Requirement: Environment checks are owned by the Harness root
@@ -21,7 +21,7 @@ continuation.
 ### Requirement: Zero-dependency runtime check
 `scripts/00-setup/env-check.mjs` SHALL have zero static npm dependencies. Its pre-install closure contains only Node built-ins, shared CLI bootstrap/error helpers, and the pure executable inventory; those helpers import neither a production adapter nor an npm dependency. It SHALL remain runnable before `npm install` so it can diagnose the Node/npm/package foundation. It MAY dynamically import the installed Framed runtime only after package presence checks establish npm dependencies; missing packages are normal check failures rather than load failures. `ppt_flow doctor` remains the Commander-based normal command after installation, while direct env-check is the documented recovery command.
 
-Base runtime/font inspection is owned by the import-safe `00-setup` interface, which SHALL NOT import a provider implementation. The direct adapter and root doctor may lazily call the Page Authority raw-readiness diagnostic only after prerequisites pass and raw generation is explicitly selected. Base mode SHALL not load provider implementation.
+Base runtime/font inspection is owned by the import-safe `00-setup` interface, which SHALL NOT import a provider implementation. The direct adapter and root doctor may lazily call the Page Image Workflow raw-readiness diagnostic only after prerequisites pass and raw generation is explicitly selected. Base mode SHALL not load provider implementation.
 
 #### Scenario: Run without node_modules
 - **WHEN** `node scripts/00-setup/env-check.mjs` runs in a fresh directory with no `node_modules/`
@@ -107,7 +107,7 @@ failed `image_base_url` check SHALL prevent `--smoke` or `--probe-vendors` from 
 ### Requirement: Structured READY/NOT READY output
 
 The env check SHALL output a structured report with per-check status and an
-overall verdict for the selected Page Authority mode and operation. It SHALL
+overall verdict for the selected Page Image Workflow mode and operation. It SHALL
 exit 0 on READY and non-zero on NOT READY. The direct `--json` form SHALL
 retain the existing `env-check-v1` top-level booleans and generic check-array
 contract; it SHALL not expose secrets or add a second incompatible report
@@ -120,7 +120,7 @@ reports local or raw-generation readiness.
 For a successful `--smoke` invocation, the human conclusion SHALL qualify READY as local-prerequisite and
 endpoint-connectivity evidence only. It SHALL state that production prompt fit, requested or returned media
 dimensions, decoded media, async completion, and run authorization remain unverified, and SHALL NOT present
-smoke success as permission to start building decks or to generate Style Master or Page Authority media. The
+smoke success as permission to start building decks or to generate Style Master or Page Image Workflow media. The
 existing machine-compatible overall status and JSON schema SHALL remain unchanged; JSON-compatible smoke check
 evidence SHALL carry the same qualification without exposing prompt, credential, or provider response content.
 
@@ -177,7 +177,7 @@ Authority mode, and `--smoke` / `--probe-vendors` remain mutually exclusive.
 
 `env-check --smoke` SHALL describe a successful live Image2 submission as connectivity evidence for the selected
 endpoint and credential pair only. A successful smoke result SHALL NOT claim that a production Style Master or
-Page Authority prompt is within a provider limit, that the provider will honor a requested image size, that a
+Page Image Workflow prompt is within a provider limit, that the provider will honor a requested image size, that a
 sync or async result will decode as valid media, or that a current run is authorized to generate. The smoke
 request remains the existing single minimal live probe and SHALL not be expanded into a production-like prompt,
 image decode, or task-completion workflow.
@@ -366,8 +366,8 @@ The `git` check SHALL participate in the existing text and direct `env-check --j
 - **THEN** the overall report remains NOT READY and exits non-zero because of the hard requirement
 - **AND** the Git warning does not appear as a blocking diagnostic issue
 
-### Requirement: Environment checks are operation-scoped for Page Authority
-Environment diagnostics SHALL distinguish Page Authority raw-generation readiness from the canonical
+### Requirement: Environment checks are operation-scoped for Page Image Workflow
+Environment diagnostics SHALL distinguish Page Image Workflow raw-generation readiness from the canonical
 Framed render-profile readiness required for plan-time layout proof and final local composition. A
 Framed-local check SHALL validate the same pinned browser, checked-in font inventory, font integrity,
 and capture-profile facts consumed by the Framed owner; it SHALL not require provider credentials,

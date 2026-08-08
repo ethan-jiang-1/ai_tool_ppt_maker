@@ -4,30 +4,41 @@ import {
   createPureRawWorkPlan,
   createPureTargetRawReviewContribution,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
-import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { validateTargetRawReviewContribution } from "../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
+function pureProviderInputBinding(compiled = "a") {
+  return {
+    compiled_provider_input_sha256: digest(compiled),
+    provider_content_sha256: digest("b"),
+    visual_selection_sha256: digest("c"),
+    style_master_selection_sha256: digest("d"),
+    generation_profile_sha256: digest("e"),
+    header_policy_sha256: digest("f"),
+    local_header_profile_sha256: null,
+    protected_geometry_sha256: null,
+  };
+}
+
 function pureReceipt() {
   return {
-    schema: "page-authority-image2-source-v2",
-    pipeline: "page-authority-image2-v2",
+    schema: "page-image-workflow-source-v1",
+    pipeline: "page-image-workflow-v1",
     workflow: "pure",
     source_sha256: digest("a"),
     slides: [
       {
         slide_id: "DeckGo",
-        workflow: "pure",
-        display: { title: "Pure first title" },
-        text_frame: { title: "must not cross the Pure boundary" },
-        framed: { reserved_underlay_rectangles: [{ x: 0, y: 0, width: 1, height: 1 }] },
+        position: 1,
+        header_policy: { provider_visible: { kicker: null, title: "Pure first title", subtitle: null } },
+        provider_content: { items: [] },
       },
       {
         slide_id: "FlowUp",
-        workflow: "pure",
-        display: { title: "Pure second title" },
-        text_frame: { title: "must not cross the Pure boundary either" },
-        framed: { reserved_underlay_rectangles: [{ x: 1, y: 1, width: 1, height: 1 }] },
+        position: 2,
+        header_policy: { provider_visible: { kicker: null, title: "Pure second title", subtitle: null } },
+        provider_content: { items: [] },
       },
     ],
   };
@@ -41,6 +52,10 @@ describe("Pure raw-review contribution", () => {
       provider_profile_sha256: digest("b"),
       authorization_scope_sha256: digest("c"),
       raw_contracts_by_slide: { DeckGo: digest("d"), FlowUp: digest("e") },
+      provider_input_bindings_by_slide: {
+        DeckGo: pureProviderInputBinding("1"),
+        FlowUp: pureProviderInputBinding("2"),
+      },
     });
     const contribution = createPureTargetRawReviewContribution({ receipt, rawWorkPlan: plan });
 
@@ -58,8 +73,8 @@ describe("Pure raw-review contribution", () => {
       { stable_id: "FlowUp", position: 2, title: "Pure second title" },
     ]);
     const sharedInput = JSON.stringify(contribution);
-    expect(sharedInput).not.toContain("text_frame");
-    expect(sharedInput).not.toContain("reserved_underlay_rectangles");
+    expect(sharedInput).not.toContain("local_header");
+    expect(sharedInput).not.toContain("protected_geometry");
     expect(sharedInput).not.toContain("framed");
     expect(contribution.coverage.items.every((item) => item.guide_primitives.length === 0)).toBe(true);
   });

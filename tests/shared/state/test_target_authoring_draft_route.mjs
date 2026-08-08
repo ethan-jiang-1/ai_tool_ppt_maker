@@ -21,7 +21,7 @@ function controllerNode(id, { workflow = null, draftRoute = false } = {}) {
     `node: ${id}`,
     "lifecycle_phase: 1",
     "method_module: 01-content",
-    "production_modes: [image2-page-authority-v2]",
+    "production_modes: [image2-page-workflow-v1]",
     ...(workflow ? [`production_workflows: [${workflow}]`] : []),
     ...(draftRoute ? ["draft_route: true"] : []),
     "requires: []",
@@ -39,12 +39,12 @@ function writePlaybook(playbookDir) {
   writeFileSync(join(playbookDir, "create-deck.md"), [
     "---",
     "playbook: create-deck",
-    "supported_pipelines: [page-authority-image2-v2]",
+    "supported_pipelines: [page-image-workflow-v1]",
     "includes: []",
     "---",
     "",
-    controllerNode("select-target-page-authority-workflow", { draftRoute: true }),
-    controllerNode("author-target-page-authority-content", { workflow: "framed", draftRoute: true }),
+    controllerNode("select-target-page-image-workflow", { draftRoute: true }),
+    controllerNode("author-target-page-image-content", { workflow: "framed", draftRoute: true }),
     controllerNode("target-pure-draft-entry", { workflow: "pure", draftRoute: true }),
     controllerNode("target-framed-post-entry", { workflow: "framed" }),
   ].join("\n"));
@@ -53,11 +53,11 @@ function writePlaybook(playbookDir) {
     shared_nodes: [],
     controllers: {
       "create-deck": {
-        supported_pipelines: ["page-authority-image2-v2"],
-        nodes: ["select-target-page-authority-workflow", "author-target-page-authority-content", "target-pure-draft-entry", "target-framed-post-entry"],
+        supported_pipelines: ["page-image-workflow-v1"],
+        nodes: ["select-target-page-image-workflow", "author-target-page-image-content", "target-pure-draft-entry", "target-framed-post-entry"],
         draft_route_nodes: {
-          framed: ["select-target-page-authority-workflow", "author-target-page-authority-content"],
-          pure: ["select-target-page-authority-workflow", "target-pure-draft-entry"],
+          framed: ["select-target-page-image-workflow", "author-target-page-image-content"],
+          pure: ["select-target-page-image-workflow", "target-pure-draft-entry"],
         },
       },
     },
@@ -73,7 +73,7 @@ function fixture() {
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), [
     "---",
     "production:",
-    "  pipeline: page-authority-image2-v2",
+    "  pipeline: page-image-workflow-v1",
     "  workflow: framed",
     "---",
     "",
@@ -95,7 +95,7 @@ function harnessFixture(workflow) {
     "identity:",
     "  scheme: mnemonic-v1",
     "production:",
-    "  pipeline: page-authority-image2-v2",
+    "  pipeline: page-image-workflow-v1",
     `  workflow: ${workflow}`,
     "---",
     "",
@@ -118,7 +118,7 @@ function setHarnessDraft(value, { currentNode, workflow = "framed", playbook = "
   const source = [
     "---",
     "production:",
-    "  pipeline: page-authority-image2-v2",
+    "  pipeline: page-image-workflow-v1",
     ...(workflow ? [`  workflow: ${workflow}`] : []),
     "---",
     "",
@@ -135,7 +135,7 @@ function setHarnessDraft(value, { currentNode, workflow = "framed", playbook = "
   writeState(value.deck, state);
 }
 
-function setDraftState(fixtureValue, { currentNode = "author-target-page-authority-content", playbook = "create-deck", bound = false } = {}) {
+function setDraftState(fixtureValue, { currentNode = "author-target-page-image-content", playbook = "create-deck", bound = false } = {}) {
   const state = readState(fixtureValue.deck, { purpose: "observe", runDir: fixtureValue.runDir });
   state.playbook = playbook;
   state.run_version = "v1";
@@ -144,7 +144,7 @@ function setDraftState(fixtureValue, { currentNode = "author-target-page-authori
     state.production_mode = {
       by_version: {
         "3_versions/v1": {
-          mode: "image2-page-authority-v2",
+          mode: "image2-page-workflow-v1",
           workflow: "framed",
           source_epoch: 1,
         },
@@ -168,18 +168,18 @@ describe("target authoring draft route", () => {
       setDraftState(value);
       const index = buildPlaybookIndex(value.playbookDir);
       expect(validatePlaybookIndex(index)).toMatchObject({ valid: true });
-      expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-authority-workflow", "author-target-page-authority-content"]);
+      expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-image-workflow", "author-target-page-image-content"]);
       expect(readState(value.deck, { purpose: "observe", runDir: value.runDir })).toMatchObject({
-        pipeline: "page-authority-image2-v2",
+        pipeline: "page-image-workflow-v1",
         playbook: "create-deck",
         run_version: "v1",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
       });
       expect(resolveTargetAuthoringDraftRoute(value.runDir, { playbookDir: value.playbookDir })).toMatchObject({
         run_dir: value.runDir,
         run_version: "v1",
         workflow: "framed",
-        draft_route_nodes: ["select-target-page-authority-workflow", "author-target-page-authority-content"],
+        draft_route_nodes: ["select-target-page-image-workflow", "author-target-page-image-content"],
       });
 
       const sibling = freshRejectedFixture({ currentNode: "target-pure-draft-entry" });
@@ -195,7 +195,7 @@ describe("target authoring draft route", () => {
       const mismatch = freshRejectedFixture();
       const manifestPath = join(mismatch.playbookDir, "controller-manifest-v3.json");
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      manifest.controllers["create-deck"].draft_route_nodes.framed = ["select-target-page-authority-workflow", "target-framed-post-entry"];
+      manifest.controllers["create-deck"].draft_route_nodes.framed = ["select-target-page-image-workflow", "target-framed-post-entry"];
       writeFileSync(manifestPath, JSON.stringify(manifest));
       expect(resolveTargetAuthoringDraftRoute(mismatch.runDir, { playbookDir: mismatch.playbookDir })).toBeNull();
     } finally {
@@ -248,12 +248,12 @@ describe("target authoring draft route", () => {
   it("allows only workflow selection before the source records a selected workflow", () => {
     const value = harnessFixture("framed");
     try {
-      setHarnessDraft(value, { currentNode: "select-target-page-authority-workflow", workflow: null });
+      setHarnessDraft(value, { currentNode: "select-target-page-image-workflow", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toMatchObject({ workflow: null });
 
-      setHarnessDraft(value, { currentNode: "author-target-page-authority-content", workflow: null });
+      setHarnessDraft(value, { currentNode: "author-target-page-image-content", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toBeNull();
-      setHarnessDraft(value, { currentNode: "configure-target-page-authority-visual-system", workflow: null });
+      setHarnessDraft(value, { currentNode: "configure-target-page-image-visual-system", workflow: null });
       expect(resolveTargetAuthoringDraftRoute(value.runDir)).toBeNull();
     } finally {
       rmSync(value.root, { recursive: true, force: true });

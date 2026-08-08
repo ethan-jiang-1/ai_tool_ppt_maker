@@ -12,7 +12,7 @@ import {
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { resolveEffectiveStyleMasterSelection } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
 const LOCAL_PNG = Buffer.from(
@@ -48,7 +48,7 @@ function source(workflow = "pure") {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: ${workflow}
 ---
 
@@ -238,11 +238,11 @@ describe("Style Master process CLI", () => {
     }
   });
 
-  it("rejects a comma-list endpoint before Page Authority fetch or attempt creation", () => {
-    const value = fixture("page-authority-cli-comma-endpoint");
-    const marker = join(value.root, "page-authority-fetches.log");
+  it("rejects a comma-list endpoint before Page Image fetch or attempt creation", () => {
+    const value = fixture("page-image-cli-comma-endpoint");
+    const marker = join(value.root, "page-image-fetches.log");
     const preload = join(process.cwd(), "tests", "helpers", "fixtures", "mock_image_probe_fetch.mjs");
-    const apiKey = "PAGE_AUTHORITY_COMMA_LIST_SECRET";
+    const apiKey = "PAGE_IMAGE_COMMA_LIST_SECRET";
     const endpointList = "https://first.example.test/v1,https://second.example.test/v1";
     try {
       const stylePlan = run(["style-master", "plan", value.runDir, "--candidate-count", "0"]);
@@ -292,9 +292,9 @@ describe("Style Master process CLI", () => {
       expect(finalDiagnostic(generated.stderr)).toMatchObject({
         code: "FAILED",
         diagnostic: {
-          operation: "target-page-authority-generate",
+          operation: "target-page-image-generate",
           category: "provider",
-          reason: { kind: "page_authority_provider_credentials_unavailable" },
+          reason: { kind: "page_image_provider_credentials_unavailable" },
           next: { action: "repair_environment", requires_human: false },
         },
       });

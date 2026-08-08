@@ -8,10 +8,10 @@ registry or mutation authority.
 | Fact | Direct owner | Inspection role |
 | --- | --- | --- |
 | Run-bundle layout and canonical source path | `bundle_layout.mjs` | Locate the exact source and version. |
-| Current source marker | Page Authority source parser | Establish current protocol identity. |
+| Current source marker | Page Image source parser | Establish current protocol identity. |
 | Current state and execution binding | `state.mjs` | Project current lifecycle evidence and durable context. |
-| Raw plan, authorization, and review | Page Authority raw owner | Determine raw-generation prerequisites. |
-| Final manifest, assembly, notes, delivery review | Page Authority final owners | Determine completion and delivery action. |
+| Raw plan, authorization, and review | Page Image raw owner | Determine raw-generation prerequisites. |
+| Final manifest, assembly, notes, delivery review | Page Image final owners | Determine completion and delivery action. |
 | Structural preview and transaction journal | structural/state owner | Bind preview, apply, and recovery. |
 | Unsupported source/state pair | protocol evaluator | Return the byte-preserving export hard-stop. |
 

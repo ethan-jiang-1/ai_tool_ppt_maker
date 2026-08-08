@@ -1,7 +1,7 @@
 ---
 playbook: edit-text
-description: v2 Page Authority text refresh
-supported_pipelines: [page-authority-image2-v2]
+description: Page Image Workflow text refresh
+supported_pipelines: [page-image-workflow-v1]
 includes: [classify-change]
 ---
 
@@ -12,21 +12,21 @@ includes: [classify-change]
 node: refresh-target-framed-text
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [classify-change]
 produces: [target-framed-refresh-route]
 entry: [slide_specs_exists]
 exit: [slide_specs_valid]
 ```
-**Step 1 — CLI**: Use Framed local text refresh only when accepted raw evidence and the frame preset remain current.
+**Step 1 — CLI**: Use Framed local header-overlay refresh only when compiled provider input, protected geometry, raw contract, and the local header profile remain current.
 
 ### refresh-target-pure-text
 ```yaml
 node: refresh-target-pure-text
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [classify-change]
 produces: [target-pure-refresh-route]
@@ -40,7 +40,7 @@ exit: [slide_specs_valid]
 node: review-target-text-delivery
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
 requires: [refresh-target-framed-text, refresh-target-pure-text]
 produces: [verified-target-text-change]

@@ -1,7 +1,7 @@
 # Conventions
 
-Use `page-authority-image2-v2` for new source and
-`image2-page-authority-v2` after source receipt binding. Each slide has a
+Use `page-image-workflow-v1` for new source and
+`image2-page-workflow-v1` after source receipt binding. Each slide has a
 mnemonic `slide_id`; it inherits the one version-level `framed` or `pure`
 workflow. A version source records only its one workflow selection.
 

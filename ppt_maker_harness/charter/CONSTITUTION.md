@@ -22,7 +22,7 @@
 
 **允许**：`node scripts/*.mjs`、Node 内置 `fetch`、npm 依赖（`@napi-rs/canvas`、`pptxgenjs`、`commander`、`yaml`）。文档里的 ` ```bash ` 代码块只是**命令示例**（给人/agent 复制 `node …`），不是可执行资产。
 
-Page Authority raw generation、visual-language compilation 和 raw review **全部在**
+Page Image raw generation、visual-language compilation 和 raw review **全部在**
 `ppt_maker_harness/scripts/` 内实现，不发现、不依赖外部 skill。
 
 ## CLI 失败回执宪法（不可违反）
@@ -114,19 +114,19 @@ deck_{NAME}/
 │   └── visual-style/
 │       ├── style-master-prompt.md
 │       ├── style_master.jpg
-│       └── page-authority-visual-language.yaml
+│       └── page-image-visual-language.yaml
 │
 └── 3_versions/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── slide-specifications.md       ← Page Authority source; stable IDs + one v2 version workflow
+    │   ├── slide-specifications.md       ← Page Image source; stable IDs + one v2 version workflow
     │   ├── overrides/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── visual-style/           ←   (optional) this version's visual tweaks
     │   │   └── manuscript/               ←   (optional) this version's script tweaks
     │   ├── _generated/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │   │   ├── page_authority_image2/receipts/source-receipt.json
-    │   │   ├── page_authority_image2/raw/manifest.json
-    │   │   ├── page_authority_image2/review/
-    │   │   ├── page_authority_image2/final/manifest.json
+    │   │   ├── page_image_workflow/receipts/source-receipt.json
+    │   │   ├── page_image_workflow/raw/plan-manifest-v1.json
+    │   │   ├── page_image_workflow/review/
+    │   │   ├── page_image_workflow/final/final-slide-manifest-v1.json
     │   │   └── ppt/{NAME}.pptx (+ notes receipt)
     │   └── _scratch/                      ← THIS version temp/bak · not SSOT · deletable
     └── v2/  (--new-version v1 → copies source delta only; clean _generated/ + _scratch/; backbone referenced)

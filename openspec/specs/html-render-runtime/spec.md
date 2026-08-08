@@ -3,7 +3,7 @@
 ## Purpose
 
 Define the retained private browser, font, capture, network-denial, timeout, and
-cleanup primitives used only by the Page Authority Framed compositor. It is a
+cleanup primitives used only by the Page Image Workflow Framed header-overlay compositor. It is a
 private runtime seam, not a deck source, renderer, review, or delivery protocol.
 
 ## Requirements
@@ -85,7 +85,7 @@ provider authorization.
 The pinned browser, checked-in fonts, denied network, fixed capture profile, geometry verification,
 PNG validation, timeout, and cleanup SHALL remain private Framed render-contract infrastructure.
 The same runtime profile SHALL be available to the Framed owner for bounded plan-time layout proof
-and final composition. Callers SHALL provide only current Page Authority evidence and SHALL NOT
+and final composition. Callers SHALL provide only current Page Image Workflow evidence and SHALL NOT
 select a browser executable, system font, network asset, markup, CSS, or capture option.
 
 The runtime SHALL evaluate one finite ordered raw-plan batch under one pinned browser process, with
@@ -96,7 +96,7 @@ runtime, font, or proof-timeout result SHALL fail closed without provider work o
 #### Scenario: Runtime use does not create a deck route
 
 - **WHEN** the Framed owner invokes the runtime for plan verification or final composition
-- **THEN** it can evaluate only receipt-bound Page Authority facts under the pinned profile
+- **THEN** it can evaluate only receipt-bound Page Image Workflow facts under the pinned profile
 - **AND** it cannot select a separate source, review, provider, or delivery route
 
 #### Scenario: Plan and final use the same runtime profile
@@ -118,13 +118,13 @@ language support from code-point coverage alone.
 
 #### Scenario: Mixed supported text uses selected local faces
 
-- **WHEN** a Text Frame contains supported Latin and Simplified-Chinese code points
+- **WHEN** a Framed header overlay contains supported Latin and Simplified-Chinese code points
 - **THEN** the runtime embeds the corresponding checked-in faces and proves their use for rendered glyphs
 - **AND** it does not load every unrelated font shard
 
 #### Scenario: Unsupported code point stops before browser-dependent work
 
-- **WHEN** a Text Frame contains code points absent from the canonical inventory
+- **WHEN** a Framed header overlay contains code points absent from the canonical inventory
 - **THEN** the Framed owner returns a bounded source-validation hard-stop naming the affected field and code points
 - **AND** no provider request or system-font fallback occurs
 

@@ -10,7 +10,7 @@ CLI producer fields and diagnostics are governed by `openspec/specs/cli-surface/
 
 ```
 00-setup/              operation-scoped readiness
-01-content/            Page Authority source and stable IDs
+01-content/            Page Image source and stable IDs
 02-visual-system/      visual language, frames, and references
 03-framed-image/       TARGET Framed workflow semantics and final-manifest publication
 04-pure-image/         TARGET Pure workflow semantics and final-manifest publication
@@ -29,7 +29,7 @@ contract; only `05-delivery` writes final projection, PPTX, or notes.
 - Root commands import Phase interfaces, never private Phase modules.
 - `03-framed-image` and `04-pure-image` never import each other; target
   iteration may use only public sibling interfaces.
-- Delivery consumes the Page Authority final manifest without workflow-semantic
+- Delivery consumes the Page Image final manifest without workflow-semantic
   branching.
 - Direct executable inventory is unchanged: target method modules are imported
   interfaces, not new CLI commands.

@@ -9,7 +9,7 @@ import {
   bindStyleMasterScopeCandidate,
   resolveStyleMasterScopeContext,
 } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_scope.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
@@ -18,7 +18,7 @@ import {
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
-  initializeTargetPageAuthorityState,
+  initializeTargetPageImageState,
   statePath,
 } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
@@ -27,21 +27,21 @@ function source() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Style Master scope
+**FRAME PRESET**: standard-v1
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: The source stays read-only during Style Master scope resolution.
@@ -54,7 +54,7 @@ function createFixture() {
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), source(), "utf8");
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 function derivedPaths(paths) {
@@ -118,14 +118,14 @@ describe("Style Master scope", () => {
     const fixture = createFixture();
     try {
       const candidate = sourceCandidate(fixture);
-      initializeTargetPageAuthorityState(fixture.deck, {
+      initializeTargetPageImageState(fixture.deck, {
         runDir: fixture.runDir,
         sourceReceipt: {
-          schema: "page-authority-image2-source-v2",
-          pipeline: "page-authority-image2-v2",
+          schema: "page-image-workflow-source-v1",
+          pipeline: "page-image-workflow-v1",
           workflow: "framed",
           source_sha256: candidate.source_sha256,
-          slides: [{ slide_id: "DeckGo", workflow: "framed" }],
+          slides: [{ slide_id: "DeckGo", position: 1 }],
         },
       });
       const stateBefore = readFileSync(statePath(fixture.deck));

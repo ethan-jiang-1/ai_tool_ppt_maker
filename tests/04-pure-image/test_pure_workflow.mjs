@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { createAcceptedRawEvidence } from "../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+import { createAcceptedRawEvidence } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 
 const pureResolverControls = vi.hoisted(() => ({ null_provider_clauses: false }));
 
@@ -11,8 +11,8 @@ vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (imp
   const actual = await importOriginal();
   return {
     ...actual,
-    createPageAuthoritySourceResolver(...args) {
-      const resolver = actual.createPageAuthoritySourceResolver(...args);
+    createPageImageSourceResolver(...args) {
+      const resolver = actual.createPageImageSourceResolver(...args);
       if (!pureResolverControls.null_provider_clauses) return resolver;
       return Object.freeze({
         resolveSelection(context) {
@@ -22,7 +22,7 @@ vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (imp
     },
   };
 });
-import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { canonicalJson, canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { prepareFramedProgressivePilotReview } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import {
   classifyPureRefresh,
@@ -49,17 +49,30 @@ import {
   validatePureRawContract,
 } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import {
   readProgressiveAcceptedRawWork,
-} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import {
   readProgressiveRawPlanDirectRecords,
-} from "../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+} from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const digest = (letter) => letter.repeat(64);
+
+function pureProviderInputBinding(compiled = "a") {
+  return {
+    compiled_provider_input_sha256: digest(compiled),
+    provider_content_sha256: digest("b"),
+    visual_selection_sha256: digest("c"),
+    style_master_selection_sha256: digest("d"),
+    generation_profile_sha256: digest("e"),
+    header_policy_sha256: digest("f"),
+    local_header_profile_sha256: null,
+    protected_geometry_sha256: null,
+  };
+}
 const NATIVE_PROVIDER_PNG = (() => {
   const image = createCanvas(2048, 1136);
   image.getContext("2d").fillRect(0, 0, 2048, 1136);
@@ -68,7 +81,7 @@ const NATIVE_PROVIDER_PNG = (() => {
 
 function receipt(source = "a") {
   return {
-    schema: "page-authority-image2-source-v2", pipeline: "page-authority-image2-v2", workflow: "pure", source_sha256: digest(source),
+    schema: "page-image-workflow-source-v1", pipeline: "page-image-workflow-v1", workflow: "pure", source_sha256: digest(source),
     slides: [{ slide_id: "DeckGo", workflow: "pure", display: { title: "Visible pure text" } }],
   };
 }
@@ -89,7 +102,13 @@ describe("Pure target workflow", () => {
 
   it("publishes accepted Pure raw bytes directly as a common manifest", () => {
     const source = receipt();
-    const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
+    const rawWorkPlan = createPureRawWorkPlan({
+      receipt: source,
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      raw_contracts_by_slide: { DeckGo: digest("d") },
+      provider_input_bindings_by_slide: { DeckGo: pureProviderInputBinding() },
+    });
     const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: NATIVE_PROVIDER_PNG } });
     expect(publishPureFinalSlideManifest({ receipt: source, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide: { DeckGo: NATIVE_PROVIDER_PNG } })).toMatchObject({
       workflow: "pure",
@@ -99,7 +118,13 @@ describe("Pure target workflow", () => {
 
   it("preserves a non-default provider-native PNG and rejects evidence drift", () => {
     const source = receipt();
-    const rawWorkPlan = createPureRawWorkPlan({ receipt: source, provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"), raw_contracts_by_slide: { DeckGo: digest("d") } });
+    const rawWorkPlan = createPureRawWorkPlan({
+      receipt: source,
+      provider_profile_sha256: digest("b"),
+      authorization_scope_sha256: digest("c"),
+      raw_contracts_by_slide: { DeckGo: digest("d") },
+      provider_input_bindings_by_slide: { DeckGo: pureProviderInputBinding() },
+    });
     const providerNative = createCanvas(1684, 934).toBuffer("image/png");
     const acceptedRawEvidence = createAcceptedRawEvidence({ plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"), raw_bytes_by_slide: { DeckGo: providerNative } });
     expect(publishPureFinalSlideManifest({
@@ -137,7 +162,7 @@ describe("Pure target workflow", () => {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -191,7 +216,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -212,7 +237,7 @@ negative_constraints:
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
       await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
-      const paths = pageAuthorityImage2Paths(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
 
       pureResolverControls.null_provider_clauses = true;
@@ -234,7 +259,7 @@ negative_constraints:
     }
   });
 
-  it("runs the selected Pure receipt through raw evidence, manifest, and shared delivery with a provider fake", async () => {
+  it("requires its current Complete Page Review before publishing Pure provider bytes", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-target-lifecycle-"));
     const deck = join(root, "deck_pure_target");
     const runDir = join(deck, "3_versions", "v1");
@@ -244,7 +269,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -283,12 +308,19 @@ negative_constraints:
         decision: "proceed",
         accepted_raw_evidence: { workflow: "pure" },
       });
+      const paths = pageImageWorkflowPaths(runDir);
+      const reviewEvidencePath = join(paths.review_root, "complete-page", projection, "complete-page-review-evidence-v1.json");
+      const reviewEvidence = readFileSync(reviewEvidencePath);
+      writeFileSync(reviewEvidencePath, "{}\n");
+      await expect(buildPureTargetDelivery(runDir)).rejects.toMatchObject({ code: "target_complete_page_review_stale" });
+      expect(existsSync(paths.target_final_manifest)).toBe(false);
+      writeFileSync(reviewEvidencePath, reviewEvidence);
       const delivery = await buildPureTargetDelivery(runDir);
       expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
-      const paths = pageAuthorityImage2Paths(runDir);
+      expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(NATIVE_PROVIDER_PNG);
       const rawEvidenceBefore = JSON.parse(readFileSync(paths.target_raw_evidence, "utf8"));
       const sourceEpochBefore = readState(deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch;
+        .page_image_target_evidence.by_version["3_versions/v1"].source_epoch;
 
       writeFileSync(join(runDir, "slide-specifications.md"), source("Only the Pure speaker note changed."));
       await expect(refreshPureTargetNotes(runDir)).resolves.toMatchObject({ ok: true });
@@ -296,7 +328,7 @@ negative_constraints:
       expect(providerSubmissions).toBe(1);
       expect(rawEvidenceAfter.raw_review_sha256).toBe(rawEvidenceBefore.raw_review_sha256);
       expect(readState(deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(sourceEpochBefore);
+        .page_image_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(sourceEpochBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -312,7 +344,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -350,11 +382,23 @@ negative_constraints:
       const review = await preparePureProgressiveRawReview(runDir, { planHash });
       const accepted = await acceptPureProgressiveRawReview(runDir, { planHash, decision: "proceed" });
       expect(accepted).toMatchObject({ accepted_raw_evidence_sha256: expect.any(String) });
+      expect(readProgressiveAcceptedRawWork({
+        runDir,
+        workflow: "pure",
+        plan_hash: planHash,
+        expected_plan: plan.progressive_raw_work_plan,
+      })).toMatchObject({
+        complete_raw_review_sha256: accepted.complete_raw_review_sha256,
+        complete_raw_review: {
+          decision: "proceed",
+          workflow_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        },
+      });
 
       const delivery = await buildPureProgressiveTargetDelivery(runDir);
       expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });
       const state = readState(deck, { purpose: "observe", runVersion: "v1" });
-      const handoff = state.page_authority_progressive_handoff.by_version["3_versions/v1"];
+      const handoff = state.page_image_progressive_handoff.by_version["3_versions/v1"];
       expect(handoff).toMatchObject({
         raw_work_plan_sha256: planHash,
         complete_raw_review_sha256: accepted.complete_raw_review_sha256,
@@ -362,8 +406,8 @@ negative_constraints:
         final_manifest_sha256: delivery.finalization.final_manifest_sha256,
         delivery_receipt_sha256: expect.any(String),
       });
-      expect(state.page_authority_raw_provider_authorization?.by_version?.["3_versions/v1"]).toBeUndefined();
-      expect(state.page_authority_target_evidence.by_version["3_versions/v1"].provider_authorization_sha256).toBeNull();
+      expect(state.page_image_raw_provider_authorization?.by_version?.["3_versions/v1"]).toBeUndefined();
+      expect(state.page_image_target_evidence.by_version["3_versions/v1"].provider_authorization_sha256).toBeNull();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -379,7 +423,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -405,18 +449,18 @@ negative_constraints:
 
       const initial = buildPureProgressiveTargetRawPlan(runDir);
       const initialPlanHash = initial.progressive_raw_work_plan.sha256;
-      const paths = pageAuthorityImage2Paths(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
       const initialBytes = readFileSync(paths.target_provider_request_inspection);
       const initialInspection = JSON.parse(initialBytes.toString("utf8"));
       const initialRequest = initial.provider_requests_by_slide.DeckGo;
 
       expect(initial.provider_request_inspection).toMatchObject({
-        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        path: "_generated/page_image_workflow/raw/provider-input-inspection-v1.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         plan_hash: initialPlanHash,
       });
       expect(initialInspection).toMatchObject({
-        schema: "page-authority-provider-request-inspection-v1",
+        schema: "page-image-provider-request-inspection-v1",
         progressive_raw_work_plan_sha256: initialPlanHash,
         target_raw_work_plan_sha256: initial.raw_work_plan.sha256,
         source_receipt_sha256: initial.receipt.source_sha256,
@@ -429,8 +473,9 @@ negative_constraints:
       expect(initialInspection.items).toEqual([{
         slide_id: "DeckGo",
         raw_contract_sha256: initial.progressive_raw_work_plan.items[0].raw_contract_sha256,
+        provider_input_binding: initial.raw_work_plan.items[0].provider_input_binding,
         provider_request_sha256: canonicalJsonSha256(initialRequest),
-        prompt: JSON.stringify(initialRequest),
+        prompt: canonicalJson(initialRequest),
       }]);
       expect(JSON.stringify(initialInspection)).not.toMatch(/data:image|authorization|api[_-]?key/i);
       expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: initialPlanHash })).toMatchObject({
@@ -455,8 +500,9 @@ negative_constraints:
       expect(replacement.provider_request_inspection.sha256).not.toBe(initial.provider_request_inspection.sha256);
       expect(replacementInspection.source_receipt_sha256).not.toBe(initialInspection.source_receipt_sha256);
       expect(replacementInspection.items[0]).toMatchObject({
+        provider_input_binding: replacement.raw_work_plan.items[0].provider_input_binding,
         provider_request_sha256: canonicalJsonSha256(replacement.provider_requests_by_slide.DeckGo),
-        prompt: JSON.stringify(replacement.provider_requests_by_slide.DeckGo),
+        prompt: canonicalJson(replacement.provider_requests_by_slide.DeckGo),
       });
       expect(replacementInspection.items[0].prompt).toContain("Replacement Pure inspection prompt");
     } finally {
@@ -464,7 +510,7 @@ negative_constraints:
     }
   });
 
-  it("compiles provider_clauses text and VISUAL SCENE into the Pure raw contract", async () => {
+  it("compiles structured provider content and visual clauses into the Pure raw contract", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-scene-contract-"));
     const deck = join(root, "deck_pure_scene");
     const runDir = join(deck, "3_versions", "v1");
@@ -474,15 +520,24 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
 ## Slide 01: \`DeckGo\`
 
+**KICKER**: Learning systems
 **TITLE**: Pure target fact
-**BODY**: 两个东西让 AI 学编程比别的都快
-**VISUAL SCENE**: two agents at a shared desk calm work setting
+**SUBTITLE**: Provider-visible headers and body use one Core
+**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: body
+    literal: "两个东西让 AI 学编程比别的都快"
+  - role: supporting_copy
+    literal: "A calm working model for repeatable practice"
+    copy_policy: presentation_adaptable
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
@@ -521,8 +576,23 @@ relationship: causal-flow
         expect(validatePureRawContract({ ...structuredClone(contract), provider_clauses: providerClauses }))
           .toMatchObject({ ok: false, code: "pure_raw_contract_invalid" });
       }
-      expect(contract.visual_scene).toBe("two agents at a shared desk calm work setting");
-      expect(contract.body).toBe("两个东西让 AI 学编程比别的都快");
+      expect(contract.page_image_core).toMatchObject({
+        schema: "page-image-core-slide-facts-v1",
+        canonical_semantic_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
+      expect(contract.provider_rendered_content).toEqual({
+        header: {
+          kicker: "Learning systems",
+          title: "Pure target fact",
+          subtitle: "Provider-visible headers and body use one Core",
+        },
+        items: [
+          { role: "body", literal: "两个东西让 AI 学编程比别的都快", copy_policy: "exact" },
+          { role: "supporting_copy", literal: "A calm working model for repeatable practice", copy_policy: "presentation_adaptable" },
+        ],
+      });
+      expect(contract.visual_scene).toBeNull();
+      expect(contract).not.toHaveProperty("body");
       expect(contract.visual_identity_role_clause).toBeNull();
       expect(contract.visual_language).toEqual(expect.objectContaining({
         recipe: expect.objectContaining({ id: "editorial-systems", provider_clause_sha256: expect.any(String) }),
@@ -532,7 +602,7 @@ relationship: causal-flow
     }
   });
 
-  it("rejects VISUAL SCENE text that fails the text guard at Pure raw planning", async () => {
+  it("rejects legacy VISUAL SCENE input before Pure style or raw planning", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-scene-guard-"));
     const deck = join(root, "deck_pure_scene_guard");
     const runDir = join(deck, "3_versions", "v1");
@@ -542,7 +612,7 @@ relationship: causal-flow
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -565,14 +635,13 @@ negative_constraints:
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), source);
-      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
-      expect(() => buildPureProgressiveTargetRawPlan(runDir)).toThrow(/forbidden_token|VISUAL SCENE/);
+      expect(() => resolvePureStyleMasterScope(runDir)).toThrow(/VISUAL SCENE/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("publishes a partial Pure Pilot as exact canvas raw bytes only", async () => {
+  it("publishes a partial Pure Pilot as preview-only complete-page evidence", async () => {
     const root = mkdtempSync(join(tmpdir(), "pure-progressive-pilot-"));
     const deck = join(root, "deck_pure_progressive_pilot");
     const runDir = join(deck, "3_versions", "v1");
@@ -583,7 +652,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -616,7 +685,7 @@ negative_constraints:
         batchHash: pilot.batch.batch_hash,
         submit: async () => rawBytes,
       });
-      const paths = pageAuthorityImage2Paths(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
       const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
       await expect(prepareFramedProgressivePilotReview(runDir, {
         planHash,
@@ -627,21 +696,34 @@ negative_constraints:
         planHash,
         batchHash: pilot.batch.batch_hash,
       });
-      const projection = JSON.parse(readFileSync(join(pilotRoot, "projection.json"), "utf8"));
+      const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence-v1.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
-      expect(readFileSync(join(pilotRoot, "10_DataMap.png"))).toEqual(rawBytes);
-      expect(existsSync(join(pilotRoot, "DataMap.png"))).toBe(false);
-      expect(projection).toMatchObject({
-        schema: "page-authority-pure-pilot-projection-v1",
+      expect(readFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"))).toEqual(rawBytes);
+      expect(existsSync(join(pilotRoot, "provider-page", "DataMap.png"))).toBe(false);
+      expect(presentation).toMatchObject({
+        schema: "page-image-pilot-page-review-presentation-v1",
         workflow: "pure",
         raw_work_plan_sha256: planHash,
         batch_sha256: pilot.batch.batch_hash,
+        has_complete_page_artifact: false,
         items: [{ slide_id: "DataMap" }],
       });
-      expect(projection.items[0]).not.toHaveProperty("path");
-      expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
-      expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
+      expect(existsSync(join(pilotRoot, "complete-page", "10_DataMap.png"))).toBe(false);
+      expect(existsSync(join(pilotRoot, "pilot-page-review.png"))).toBe(true);
       expect(existsSync(paths.target_final_manifest)).toBe(false);
+      expect(existsSync(join(paths.final_root, "deck.pptx"))).toBe(false);
+      expect(existsSync(join(paths.final_root, "pptx-assembly.json"))).toBe(false);
+      expect(existsSync(join(paths.final_root, "notes-receipt.json"))).toBe(false);
+
+      writeFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"), Buffer.from("stale-pilot-page"));
+      await expect(acceptPureProgressivePilot(runDir, {
+        planHash,
+        batchHash: pilot.batch.batch_hash,
+        decision: "proceed",
+      })).rejects.toMatchObject({ code: "pilot_page_review_stale" });
+      expect(readState(deck).page_image_progressive_handoff.by_version["3_versions/v1"])
+        .toMatchObject({ partial_pilot_decision_sha256: null });
+      writeFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"), rawBytes);
 
       const decision = await acceptPureProgressivePilot(runDir, {
         planHash,
@@ -653,6 +735,14 @@ negative_constraints:
         progressive_handoff: { partial_pilot_decision_sha256: expect.any(String) },
         next_action: { action_id: "plan_progressive_expansion" },
       });
+      const state = readState(deck);
+      expect(state.page_image_progressive_handoff.by_version["3_versions/v1"]).toMatchObject({
+        partial_pilot_decision_sha256: decision.pilot_decision_sha256,
+        accepted_raw_evidence_sha256: null,
+        final_manifest_sha256: null,
+        delivery_receipt_sha256: null,
+      });
+      expect(existsSync(paths.target_final_manifest)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -669,7 +759,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -695,7 +785,7 @@ negative_constraints:
 
       const plan = buildPureProgressiveTargetRawPlan(runDir);
       const planHash = plan.progressive_raw_work_plan.sha256;
-      const paths = pageAuthorityImage2Paths(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
       await expect(buildPureProgressiveTargetDelivery(runDir)).rejects.toMatchObject({
         code: "progressive_raw_accepted_evidence_required",
       });
@@ -767,7 +857,8 @@ negative_constraints:
       const rebuilt = await buildPureProgressiveTargetDelivery(runDir);
       expect(rebuilt.finalization.final_manifest_sha256).toBe(delivery.finalization.final_manifest_sha256);
       expect(existsSync(paths.target_raw_plan)).toBe(true);
-      expect(existsSync(paths.target_raw_review)).toBe(true);
+      expect(existsSync(paths.target_raw_review)).toBe(false);
+      expect(existsSync(join(paths.review_root, "complete-page", planHash, "complete-page-review-evidence-v1.json"))).toBe(true);
       expect(existsSync(paths.target_final_manifest)).toBe(true);
 
       const directAfter = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash });
@@ -795,7 +886,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -836,7 +927,7 @@ negative_constraints:
       const rebuilt = buildPureTargetRawPlan(runDir, { allowSourceRebuild: true });
       expect(rebuilt.source_epoch).toBe(2);
       expect(readState(deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"])
+        .page_image_target_evidence.by_version["3_versions/v1"])
         .toMatchObject({ source_epoch: 2, workflow: "pure", provider_authorization_sha256: null, accepted_raw_evidence_sha256: null });
 
       authorizePureTargetRawPlan(runDir, { planHash: rebuilt.raw_work_plan.sha256 });

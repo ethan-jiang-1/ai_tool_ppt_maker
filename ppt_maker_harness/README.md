@@ -27,32 +27,32 @@ created by `bundle_layout.mjs`; `_generated/` is always rebuildable derived data
 
 ```text
 0 setup and operation-scoped readiness
-1 Page Authority source and stable slide identity
-2 visual language, references, and Text Frame inputs
-03 Framed workflow semantics and local composition
+1 Page Image source and stable slide identity
+2 visual language, references, Provider Content Schema, and Header Rendering Policy
+03 Framed workflow semantics and transparent header overlay
 04 Pure workflow semantics and raw-to-final publication
 05 shared final projection, PPTX assembly, notes, and delivery review
 06 workflow-aware refresh and structural versioning
 ```
 
-New decks use only `image2-page-authority-v2` / `page-authority-image2-v2` and
+New decks use only `image2-page-workflow-v1` / `page-image-workflow-v1` and
 record exactly one version workflow, `framed` or `pure`, before provider work.
 The method graph is `03-framed-image XOR 04-pure-image -> 05-delivery ->
-06-iteration`. Framed supports local deterministic text composition; Pure uses
-Image2 for every final pixel. Raw work is receipt-bound and requires explicit
+06-iteration`. Framed supports only deterministic local header overlay; both
+policies use Provider-rendered body content. Raw work is receipt-bound and requires explicit
 authorization only when it submits a nonzero provider batch.
 
 ## Refresh Vocabulary
 
 | Intent | Current owner path |
 | --- | --- |
-| Framed Text Frame-only, exact evidence + preset | `03-framed-image` Header Text & Style Refresh |
-| Pure text/visual or Framed preset/underlay change | Selected workflow Generated Image Rebuild |
+| Framed exact compiled input, geometry, contract, and profile | `03-framed-image` Header Text & Style Refresh |
+| Provider-visible or header-literal content, visual, geometry, or profile change | Selected workflow Generated Image Rebuild |
 | Speaker notes only | `05-delivery` Notes-Only Refresh |
 | Add, remove, move, reorder, or switch workflow | `06-iteration` Structural Versioning Path |
 
 Structural preview and apply preserve stable IDs, bind an exact plan hash, and
-report `needs_render` as debt rather than permission. A non-v2, partial,
+report `needs_render` as debt rather than permission. A v2, partial,
 hybrid, or mismatched source/state pair is a byte-preserving
 `unsupported-protocol/export` hard-stop, not a current lifecycle branch.
 

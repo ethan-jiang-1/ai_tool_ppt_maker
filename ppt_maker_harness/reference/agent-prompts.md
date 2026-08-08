@@ -160,14 +160,14 @@ For each slide in the template:
 1. Fill the KICKER (short, all-caps, 2-5 words — sets the lens)
 2. Fill the TITLE as a falsifiable claim (could be argued against — not a topic label)
 3. Fill the CONCEPT: MUST communicate (1 sentence), MUST NOT (1 sentence), Bridge from previous slide (1 phrase)
-4. Preserve the version's one selected workflow: `framed` when the local Text Frame owns visible title-like text, or `pure` when Image2 must own readable visual content. Do not choose a workflow per slide.
-5. Fill the VISUAL BRIEF YAML mapping: recipe, composition, motifs, and negative_constraints. Keep Framed underlays text-free.
+4. Preserve the version's one selected workflow: `framed` for its local transparent kicker/title/subtitle overlay, or `pure` for provider-rendered headers. Do not choose a workflow per slide.
+5. Fill the VISUAL BRIEF YAML mapping: recipe, composition, motifs, and negative_constraints. Then fill the closed SLIDE BODY.items schema.
 6. Fill the SPEAKER NOTE: 60-90 seconds of talking points. Narrative flow, not script.
 
 Constraints:
 - Every TITLE must be debatable (could someone say "I disagree"?)
-- VISUAL BRIEF: Select only registered Page Authority visual-language values. Describe desired visual content through its recipe and composition; do not add arbitrary prompt controls, markup, coordinates, or generated-artifact instructions.
-- Framed slides keep readable text in KICKER, TITLE, SUBTITLE, or CALLOUT fields. Pure slides treat display text as raw Image2 work and therefore require a Generated Image Rebuild when it changes.
+- VISUAL BRIEF: Select only registered Page Image visual-language values. Describe desired visual content through its recipe and composition; do not add arbitrary prompt controls, markup, coordinates, or generated-artifact instructions.
+- Both workflows keep body literals in SLIDE BODY.items. Framed keeps only its header overlay local, while header literal changes still require a Generated Image Rebuild.
 - Under {MAX_WORDS} words per slide (excluding VISUAL BRIEF and SPEAKER NOTE)
 - Match the selected visual-language recipe's color family, forbidden elements,
   and tone by describing the intended visual result rather than copying registry prose

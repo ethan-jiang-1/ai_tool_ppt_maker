@@ -9,10 +9,10 @@ import { createCanvas } from "@napi-rs/canvas";
 import { resolveFramedStyleMasterScope } from "../../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { resolvePureStyleMasterScope } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import { CLI_BOUNDS, parseCliErrorLine } from "../../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
-import { pageAuthorityOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
-import { pageAuthorityImage2Paths, pageAuthorityProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { pageImageWorkflowPaths, pageImageProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
@@ -30,21 +30,29 @@ function framedSource(title) {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
 ## Slide 01: \`FramGo\`
 
 **TITLE**: ${title}
+**KICKER**: Operations
+**SUBTITLE**: Current Page Image diagnostics
+**FRAME PRESET**: standard-v1
+**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: callout
+    literal: Current provider-rendered diagnostic content
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: The CLI must preserve the current owner boundary.
@@ -59,7 +67,7 @@ async function createFixture(title) {
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
   writeFileSync(join(runDir, "slide-specifications.md"), framedSource(title));
   await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 function pureSource(firstTitle = "First exact Pure page") {
@@ -67,7 +75,7 @@ function pureSource(firstTitle = "First exact Pure page") {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -109,7 +117,7 @@ async function createPureFixture(firstTitle = "First exact Pure page") {
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#265e74"));
   writeFileSync(join(runDir, "slide-specifications.md"), pureSource(firstTitle));
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 function runFlow(args, env = {}, { cwd = process.cwd(), unsetEnv = [] } = {}) {
@@ -276,7 +284,7 @@ function treeSnapshot(root, current = root, entries = []) {
 }
 
 function immutableSnapshot(fixture) {
-  const progressive = pageAuthorityProgressiveRawPaths(fixture.runDir);
+  const progressive = pageImageProgressiveRawPaths(fixture.runDir);
   return {
     state: readFileSync(join(fixture.deck, "_state", "state.yaml")),
     derived: derivedPaths(fixture.paths).map((path) => (existsSync(path) ? readFileSync(path) : null)),
@@ -314,7 +322,7 @@ function expectOwnerAction(envelope, { category, reason, action }) {
   expect(JSON.stringify(envelope.diagnostic.next)).not.toMatch(/force|waiv|retry/i);
 }
 
-describe("target Page Authority CLI diagnostics", () => {
+describe("target Page Image CLI diagnostics", () => {
   it("short-circuits an unfit Framed source, preserves owner boundaries, and succeeds after the same plan repair", async () => {
     const fixture = await createFixture(`SOURCE_LITERAL_SENTINEL ${"W".repeat(28)}`);
     const provider = await startMockProvider();
@@ -328,6 +336,8 @@ describe("target Page Authority CLI diagnostics", () => {
         reason: "framed_text_fit_failed",
         action: "edit_source",
       });
+      expect(`${envelope.message} ${envelope.hint}`).toMatch(/header overlay|header fields/i);
+      expect(`${envelope.message} ${envelope.hint}`).not.toMatch(/text frame|browser|provider/i);
       expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/SOURCE_LITERAL_SENTINEL|CLI_DIAGNOSTIC_CREDENTIAL_SENTINEL|page\.evaluate/i);
       expect(provider.calls).toHaveLength(0);
       expectUnchanged(fixture, before);
@@ -337,7 +347,7 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan).toMatchObject({
-        schema: "page-authority-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection-v1",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
       });
       expect(provider.calls).toHaveLength(0);
@@ -416,7 +426,7 @@ describe("target Page Authority CLI diagnostics", () => {
       const repaired = await runFlow(["image2", "plan", fixture.runDir], provider.env);
       expect(repaired.status, repaired.stderr).toBe(0);
       expect(JSON.parse(repaired.stdout)).toMatchObject({
-        schema: "page-authority-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection-v1",
         workflow: "framed",
       });
       expect(provider.calls).toHaveLength(0);
@@ -435,7 +445,7 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan).toMatchObject({
-        schema: "page-authority-progressive-raw-plan-projection-v1",
+        schema: "page-image-progressive-raw-plan-projection-v1",
         workflow: "pure",
         plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
       });
@@ -490,8 +500,8 @@ describe("target Page Authority CLI diagnostics", () => {
       });
       expect(provider.calls).toHaveLength(2);
       expect(provider.calls.map((call) => call.idempotency_key)).toEqual([
-        expect.stringMatching(/^page-authority-v3-[0-9a-f]{64}$/),
-        expect.stringMatching(/^page-authority-v3-[0-9a-f]{64}$/),
+        expect.stringMatching(/^page-image-workflow-v1-[0-9a-f]{64}$/),
+        expect.stringMatching(/^page-image-workflow-v1-[0-9a-f]{64}$/),
       ]);
 
       const syntheticPilotReview = await runFlow([
@@ -606,7 +616,7 @@ describe("target Page Authority CLI diagnostics", () => {
       const envelope = parseFailure(rejected);
       expectOwnerAction(envelope, {
         category: "provider",
-        reason: "page_authority_provider_credentials_unavailable",
+        reason: "page_image_provider_credentials_unavailable",
         action: "repair_environment",
       });
       expect(`${rejected.stdout}${rejected.stderr}`).not.toMatch(/IMAGE2_API_KEY|IMAGE2_BASE_URL/i);
@@ -619,7 +629,7 @@ describe("target Page Authority CLI diagnostics", () => {
     }
   }, 45_000);
 
-  it("resolves a Page Authority async task without a second submission or CLI transport leakage", async () => {
+  it("resolves a Page Image async task without a second submission or CLI transport leakage", async () => {
     const image = pngBytes("#397d93");
     const provider = await startAsyncMockProvider({
       pollResponses: [
@@ -834,7 +844,7 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(planned.status, planned.stderr).toBe(0);
       const plan = JSON.parse(planned.stdout);
       expect(plan.provider_request_inspection).toMatchObject({
-        path: "_generated/page_authority_image2/raw/provider-request-inspection-v1.json",
+        path: "_generated/page_image_workflow/raw/provider-input-inspection-v1.json",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         plan_hash: plan.plan_hash,
       });
@@ -972,7 +982,7 @@ describe("target Page Authority CLI diagnostics", () => {
       expect(direct.materializations).toHaveLength(1);
       expect(direct.attempts.some((entry) => entry.record.status === "succeeded")).toBe(true);
       expect(direct.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(0);
-      expect(existsSync(join(framed.paths.raw_root, pageAuthorityOrdinalImageFilename(1, "FramGo")))).toBe(false);
+      expect(existsSync(join(framed.paths.raw_root, pageImageOrdinalImageFilename(1, "FramGo")))).toBe(false);
     } finally {
       await provider.close();
       rmSync(framed.root, { recursive: true, force: true });

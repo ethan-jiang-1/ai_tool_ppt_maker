@@ -228,7 +228,7 @@ describe("cli_error", () => {
     }
   });
 
-  it("matches the current Page Authority ppt_flow registry", () => {
+  it("matches the current Page Image ppt_flow registry", () => {
     const source = readFileSync(join(SCRIPTS, "ppt_flow.mjs"), "utf8");
     const commands = [...source.matchAll(/\.command\("([^"]+)"\)/g)].map((match) => match[1]);
     expect(commands).toEqual(PPT_FLOW_COMMAND_INVENTORY);
@@ -242,7 +242,7 @@ describe("cli_error", () => {
       help: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
       usage: focused("tests/shared/cli/test_process_cli_error.mjs", "every registered executable has side-effect-free help"),
       contextual: focused({
-        "shared/run-bundle/bundle_layout.mjs": "tests/shared/run-bundle/test_page_authority_layout.mjs",
+        "shared/run-bundle/bundle_layout.mjs": "tests/shared/run-bundle/test_page_image_layout.mjs",
         "00-setup/env-check.mjs": "tests/00-setup/test_process_env_check.mjs",
         "shared/run-bundle/lessons.mjs": "tests/shared/run-bundle/test_process_lessons.mjs",
         "ppt_flow.mjs": "tests/contracts/test_retired_cli_surface.mjs",
@@ -336,13 +336,13 @@ describe("cli_error", () => {
         lineage: [{ kind: "script", path: "ppt_maker_harness/scripts/00-setup/env-check.mjs", stage: "foundation" }],
         next: createCliNext("repair_environment", {
           default: "Configure the selected raw-generation environment, then rerun this exact readiness check.",
-          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-authority-v2", "--operation", "raw-generation"] },
+          invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow-v1", "--operation", "raw-generation"] },
         }),
       },
     })));
     const expected = child?.diagnostic;
     const preserved = buildDelegatedDiagnostic({
-      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-authority-v2", "--operation", "raw-generation"] },
+      invocation: { program: "node", args: ["env-check.mjs", "--mode", "image2-page-workflow-v1", "--operation", "raw-generation"] },
       childError: child,
       operation: "doctor",
       next: createCliNext("inspect", { default: "Generic parent advice must not replace the producer action." }),
@@ -541,12 +541,12 @@ describe("cli_error", () => {
     const dir = mkdtempSync(join(tmpdir(), "pptmaker-provider-secret-"));
     try {
       const path = join(dir, "provider.mjs");
-      const rawMechanicsUrl = pathToFileURL(join(SCRIPTS, "shared", "image2", "page_authority_raw_mechanics.mjs")).href;
+      const rawMechanicsUrl = pathToFileURL(join(SCRIPTS, "shared", "image2", "page_image_raw_mechanics.mjs")).href;
       const helperUrl = pathToFileURL(join(SCRIPTS, "shared", "cli", "cli_error.mjs")).href;
-      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageAuthorityRawMechanicsError } from "${rawMechanicsUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageAuthorityRawMechanicsError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
+      writeFileSync(path, `import "${pathToFileURL(BOOTSTRAP).href}?entry=provider.mjs";\nimport { PageImageRawMechanicsError } from "${rawMechanicsUrl}";\nimport { emitCliError, CLI_ERROR_CODES } from "${helperUrl}";\nprocess.env.IMAGE2_API_KEY = "CREDENTIAL_SENTINEL";\nprocess.env.IMAGE2_BASE_URL = "https://provider.example/v1";\ntry { throw new PageImageRawMechanicsError("raw_submit_failed", "PROMPT_SENTINEL PROVIDER_BODY_SENTINEL"); } catch (error) { emitCliError({ code: CLI_ERROR_CODES.FAILED, message: "Image provider failed.", hint: "Repair provider availability.", where: "provider.probe", diagnostic: { version: 1, category: "provider", reason: { kind: error.code || "provider_failure", actual: "PROVIDER_BODY_SENTINEL" }, next: { action: "repair_environment", requires_human: false, default: "Repair provider availability without exposing credentials, then rerun." } } }); process.exit(1); }\n`);
       const result = spawnSync("node", [path], { encoding: "utf8", timeout: 10000 });
       expect(result.status).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).not.toMatch(/CREDENTIAL_SENTINEL|PROMPT_SENTINEL|PROVIDER_BODY_SENTINEL|PageAuthorityRawMechanicsError/);
+      expect(`${result.stdout}${result.stderr}`).not.toMatch(/CREDENTIAL_SENTINEL|PROMPT_SENTINEL|PROVIDER_BODY_SENTINEL|PageImageRawMechanicsError/);
       expect(envelopeLines(result.stderr)[0].diagnostic).toMatchObject({ category: "provider", reason: { kind: "raw_submit_failed" } });
     } finally {
       rmSync(dir, { recursive: true, force: true });

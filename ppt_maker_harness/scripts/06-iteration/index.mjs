@@ -1,14 +1,16 @@
 import {
   FRAMED_IMAGE_WORKFLOW,
-  classifyFramedRefresh,
 } from "../03-framed-image/index.mjs";
 import {
   PURE_IMAGE_WORKFLOW,
-  classifyPureRefresh,
 } from "../04-pure-image/index.mjs";
+import {
+  PAGE_IMAGE_INVALIDATION_CHANGE_KINDS,
+  evaluatePageImageInvalidation,
+} from "../shared/page-image/page_image_invalidation.mjs";
 
-export const TARGET_REFRESH_ROUTING_SCHEMA = "page-authority-target-refresh-route-v1";
-export const TARGET_REFRESH_CHANGE_KINDS = Object.freeze(["source", "notes-only"]);
+export const TARGET_REFRESH_ROUTING_SCHEMA = "page-image-target-refresh-route-v1";
+export const TARGET_REFRESH_CHANGE_KINDS = PAGE_IMAGE_INVALIDATION_CHANGE_KINDS;
 
 export class TargetIterationError extends Error {
   constructor(code, message) {
@@ -19,7 +21,7 @@ export class TargetIterationError extends Error {
 }
 
 function requireTargetReceipt(receipt, label) {
-  if (!receipt || receipt.schema !== "page-authority-image2-source-v2" ||
+  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" ||
     ![FRAMED_IMAGE_WORKFLOW, PURE_IMAGE_WORKFLOW].includes(receipt.workflow) ||
     !Array.isArray(receipt.slides) || receipt.slides.length === 0) {
     throw new TargetIterationError("target_receipt_required", `${label} must be a current target source receipt`);
@@ -35,11 +37,6 @@ function requireBoundWorkflow(workflow, receipt) {
     throw new TargetIterationError("target_workflow_state_mismatch", "target iteration must begin from the state-bound source workflow");
   }
   return workflow;
-}
-
-function sameStableOrder(previousReceipt, nextReceipt) {
-  return previousReceipt.slides.map((slide) => slide.slide_id).join("\n") ===
-    nextReceipt.slides.map((slide) => slide.slide_id).join("\n");
 }
 
 function route({ workflow, kind, owner, providerRequired, nextAction, reason = null, delivery = false, structural = false }) {
@@ -76,80 +73,81 @@ export function classifyTargetRefresh({
   if (!TARGET_REFRESH_CHANGE_KINDS.includes(changeKind)) {
     throw new TargetIterationError("target_change_kind_invalid", "changeKind must be source or notes-only");
   }
-
-  if (next.workflow !== boundWorkflow) {
+  const classified = evaluatePageImageInvalidation({
+    previousReceipt: previous,
+    nextReceipt: next,
+    changeKind,
+    previousRawWorkPlan: rawWorkPlan,
+    nextRawWorkPlan,
+    acceptedRawEvidence,
+  });
+  if (classified.kind === "workflow_switch") {
     return route({
       workflow: boundWorkflow,
       kind: "workflow_switch",
       owner: "01-content",
       providerRequired: false,
-      nextAction: "preview_target_structural_vnext",
+      nextAction: classified.next_action,
       structural: true,
     });
   }
-  if (!sameStableOrder(previous, next)) {
+  if (classified.kind === "structural_versioning") {
     return route({
       workflow: boundWorkflow,
       kind: "structural_versioning",
       owner: "01-content",
       providerRequired: false,
-      nextAction: "preview_target_structural_vnext",
+      nextAction: classified.next_action,
       structural: true,
     });
   }
-  if (changeKind === "notes-only") {
+  if (classified.kind === "notes_only") {
     return route({
       workflow: boundWorkflow,
       kind: "notes_only_delivery",
       owner: "05-delivery",
       providerRequired: false,
-      nextAction: "refresh_target_notes_delivery",
+      nextAction: classified.next_action,
       delivery: true,
     });
   }
-
-  if (boundWorkflow === FRAMED_IMAGE_WORKFLOW) {
-    const classified = classifyFramedRefresh({
-      previousReceipt: previous,
-      nextReceipt: next,
-      rawWorkPlan,
-      nextRawWorkPlan,
-      acceptedRawEvidence,
+  if (classified.kind === "current") {
+    return route({
+      workflow: boundWorkflow,
+      kind: "current",
+      owner: boundWorkflow === FRAMED_IMAGE_WORKFLOW ? "03-framed-image" : "04-pure-image",
+      providerRequired: false,
+      nextAction: "none",
     });
-    if (classified.kind === "current") {
-      return route({ workflow: boundWorkflow, kind: "current", owner: "03-framed-image", providerRequired: false, nextAction: "none" });
-    }
-    if (classified.kind === "local_compose") {
-      return route({
-        workflow: boundWorkflow,
-        kind: "framed_local_compose",
-        owner: "03-framed-image",
-        providerRequired: false,
-        nextAction: "compose_framed_final_then_deliver",
-        delivery: true,
-      });
-    }
+  }
+  if (boundWorkflow === FRAMED_IMAGE_WORKFLOW && classified.kind === "local_overlay_refresh") {
+    return route({
+      workflow: boundWorkflow,
+      kind: "framed_local_compose",
+      owner: "03-framed-image",
+      providerRequired: false,
+      nextAction: "compose_framed_final_then_deliver",
+      delivery: true,
+    });
+  }
+  if (boundWorkflow === FRAMED_IMAGE_WORKFLOW) {
     return route({
       workflow: boundWorkflow,
       kind: "framed_rebuild",
       owner: "03-framed-image",
       providerRequired: true,
-      nextAction: classified.next_action || "authorize_and_rebuild_framed_raw",
-      reason: classified.reason || null,
+      nextAction: classified.next_action,
+      reason: classified.reason,
       delivery: true,
     });
-  }
-
-  const classified = classifyPureRefresh({ previousReceipt: previous, nextReceipt: next });
-  if (classified.kind === "current") {
-    return route({ workflow: boundWorkflow, kind: "current", owner: "04-pure-image", providerRequired: false, nextAction: "none" });
   }
   return route({
     workflow: boundWorkflow,
     kind: "pure_rebuild",
     owner: "04-pure-image",
     providerRequired: true,
-    nextAction: "authorize_and_rebuild_pure_raw",
+    nextAction: classified.next_action,
+    reason: classified.reason,
     delivery: true,
   });
 }

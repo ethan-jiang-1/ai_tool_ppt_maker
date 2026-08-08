@@ -1,16 +1,17 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { canonicalJson } from "../../contracts/canonical_json.mjs";
 import { checkBundle, deckRoot } from "../run-bundle/bundle_layout.mjs";
-import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from "../run-bundle/production_marker.mjs";
+import { evaluateReplacementIdentity } from "../run-bundle/page_image_workflow_identity.mjs";
 import {
   readTargetProgressiveControllerDecision,
   readTargetProgressiveHandoff,
   resolveRunProductionAdapter,
   validateStateReadOnly,
 } from "../state/state.mjs";
-import { inspectProgressiveRawLifecycle } from "../image2/page_authority_progressive_raw_owner.mjs";
+import { inspectProgressiveRawLifecycle } from "../image2/page_image_progressive_raw_owner.mjs";
 import { resolveAcceptedStyleMasterReference } from "../image2/style_master_plan.mjs";
 import {
   inspectFramedProgressiveLocalRebind,
@@ -58,7 +59,7 @@ function report({ runDir, posture, rootCause, primaryAction, evidenceSummary, so
     primary_action: primaryAction,
     observations: Object.freeze([]),
     continuation: null,
-    protected_invariant: "only Page Authority evidence may drive current production",
+    protected_invariant: "only Page Image evidence may drive current production",
     evidence_summary: Object.freeze(evidenceSummary),
   });
   sourceReadyByInspection.set(inspection, sourceReady === true);
@@ -75,7 +76,7 @@ function unsupportedProtocolResult(runDir, marker = null) {
     runDir,
     posture: "hard-stop",
     rootCause: { owner: "production-protocol", kind: "unsupported-protocol" },
-    primaryAction: ownerAction("production-protocol", "export-unsupported-protocol", "export", false, "Export this unsupported source/state pair without modifying it."),
+    primaryAction: ownerAction("production-protocol", "unsupported-protocol/export", "export", false, "Export this unsupported source/state pair without modifying it."),
     evidenceSummary: { pipeline: marker?.branch ?? null, mode: null, workflow: null },
   });
 }
@@ -118,17 +119,6 @@ function progressiveTargetWorkflowResult(runDir, route) {
       sourceReady: true,
     });
   }
-  if (direct.legacy_v2) {
-    return report({
-      runDir,
-      posture: "hard-stop",
-      rootCause: { owner: "progressive-raw-owner", kind: "legacy-v2-replan-required" },
-      primaryAction: progressiveOwnerAction(direct.primary_action),
-      evidenceSummary: { ...baseSummary, progressive: "legacy-v2" },
-      sourceReady: true,
-    });
-  }
-
   // A persisted submitted attempt is recoverability truth even if the source
   // has drifted, so it takes precedence over adapter currentness checks.
   if (direct.primary_action?.action_id === "reconcile_progressive_raw_attempt") {
@@ -178,7 +168,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
     });
   }
 
-  // Framed keeps its narrow, provider-free Text Frame-only path. It is only
+  // Framed keeps its narrow, provider-free header-overlay path. It is only
   // considered after unresolved submission precedence and only from direct
   // accepted raw-owner evidence plus the existing retention validator.
   if (direct.plan && direct.evidence?.accepted_raw_evidence_sha256 &&
@@ -205,7 +195,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
             "refresh_framed_text",
             "refresh",
             false,
-            "Refresh the validated Framed Text Frame through its provider-free local-rebind owner.",
+            "Refresh the validated Framed header overlay through its provider-free local owner.",
           ),
           evidenceSummary,
           sourceReady: true,
@@ -255,7 +245,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
   if (acceptedRawCurrent && handoff?.final_manifest_sha256 && handoff.delivery_receipt_sha256) {
     const deliveryDecision = readTargetProgressiveControllerDecision(deckRoot(runDir), {
       runDir,
-      nodeId: "review-target-page-authority-delivery",
+      nodeId: "review-target-page-image-delivery",
     });
     if (deliveryDecision?.kind === "user" && deliveryDecision.value === "proceed") {
       return report({
@@ -272,7 +262,7 @@ function progressiveTargetWorkflowResult(runDir, route) {
         runDir,
         posture: "hard-stop",
         rootCause: { owner: "05-delivery", kind: "delivery-decision-repair" },
-        primaryAction: ownerAction("05-delivery", "repair-target-page-authority-delivery", "repair", false, "Apply the owner-issued delivery repair before recording another delivery decision."),
+        primaryAction: ownerAction("05-delivery", "repair-target-page-image-delivery", "repair", false, "Apply the owner-issued delivery repair before recording another delivery decision."),
         evidenceSummary: { ...evidenceSummary, delivery_decision: deliveryDecision },
         sourceReady: true,
       });
@@ -280,8 +270,8 @@ function progressiveTargetWorkflowResult(runDir, route) {
     return report({
       runDir,
       posture: "confirm",
-      rootCause: { owner: "05-delivery", kind: "review-target-page-authority-delivery" },
-      primaryAction: ownerAction("05-delivery", "review-target-page-authority-delivery", "confirm", true, "Review the current selected-workflow final projection, PPTX, and notes receipt."),
+      rootCause: { owner: "05-delivery", kind: "review-target-page-image-delivery" },
+      primaryAction: ownerAction("05-delivery", "review-target-page-image-delivery", "confirm", true, "Review the current selected-workflow final projection, PPTX, and notes receipt."),
       evidenceSummary: { ...evidenceSummary, delivery_decision: deliveryDecision },
       sourceReady: true,
     });
@@ -290,8 +280,8 @@ function progressiveTargetWorkflowResult(runDir, route) {
     return report({
       runDir,
       posture: "guide",
-      rootCause: { owner: "05-delivery", kind: "deliver-target-page-authority" },
-      primaryAction: ownerAction("05-delivery", "deliver-target-page-authority", "deliver", false, "Assemble the current selected-workflow final manifest through shared delivery."),
+      rootCause: { owner: "05-delivery", kind: "deliver-target-page-image" },
+      primaryAction: ownerAction("05-delivery", "deliver-target-page-image", "deliver", false, "Assemble the current selected-workflow final manifest through shared delivery."),
       evidenceSummary,
       sourceReady: true,
     });
@@ -307,9 +297,13 @@ function progressiveTargetWorkflowResult(runDir, route) {
   });
 }
 
-function currentPageAuthorityMarker(runDir) {
+function currentPageImageMarker(runDir) {
   try {
-    const marker = probeProductionMarker(readFileSync(join(runDir, "slide-specifications.md")), {
+    const sourcePath = join(runDir, "slide-specifications.md");
+    const sourceBytes = readFileSync(sourcePath);
+    const identity = evaluateReplacementIdentity({ sourceBytes, sourcePath });
+    if (!identity.ok) return { branch: identity.actual || "unsupported", identity };
+    const marker = probeProductionMarker(sourceBytes, {
       source: "slide-specifications.md",
     });
     return marker;
@@ -318,31 +312,38 @@ function currentPageAuthorityMarker(runDir) {
   }
 }
 
-/** Read-only v2 Page Authority lifecycle projection. */
+/** Read-only v2 Page Image lifecycle projection. */
 export function inspectWorkflow({ runDir } = {}) {
   const resolved = resolve(runDir || "");
-  const marker = currentPageAuthorityMarker(resolved);
-  if (isTargetWorkflowSelectionPending(marker)) {
+  const marker = currentPageImageMarker(resolved);
+  if (marker?.identity?.ok === false) return unsupportedProtocolResult(resolved, { branch: marker.identity.actual || null });
+  const deckDir = deckRoot(resolved);
+  const statePath = join(deckDir, "_state", "state.yaml");
+  if (existsSync(statePath)) {
+    const identity = evaluateReplacementIdentity({ stateBytes: readFileSync(statePath), statePath });
+    if (!identity.ok) return unsupportedProtocolResult(resolved, { branch: identity.actual || null });
+  }
+  if (isPageImageWorkflowSelectionPending(marker)) {
     const layoutIssues = checkBundle(resolved, false)
-      .filter((issue) => issue !== TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
+      .filter((issue) => issue !== PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
     if (layoutIssues.length) {
       return report({
         runDir: resolved,
         posture: "hard-stop",
         rootCause: { owner: "run-bundle-layout", kind: "layout-invalid", detail: layoutIssues[0] },
         primaryAction: ownerAction("run-bundle-layout", "repair-layout", "repair", false, "Repair the reported bundle-layout issue."),
-        evidenceSummary: { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, mode: null, workflow: null },
+        evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, mode: null, workflow: null },
       });
     }
     return report({
       runDir: resolved,
       posture: "confirm",
       rootCause: { owner: "01-content", kind: "TARGET_WORKFLOW_SELECTION_REQUIRED" },
-      primaryAction: ownerAction("01-content", "select-target-page-authority-workflow", "select", true, "Select framed or pure for this target version before source validation or provider work."),
-      evidenceSummary: { pipeline: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, mode: null, workflow: null },
+      primaryAction: ownerAction("01-content", "select-target-page-image-workflow", "select", true, "Select framed or pure for this target version before source validation or provider work."),
+      evidenceSummary: { pipeline: PAGE_IMAGE_WORKFLOW_V1_PIPELINE, mode: null, workflow: null },
     });
   }
-  if (!marker || marker.branch !== PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) return unsupportedProtocolResult(resolved, marker);
+  if (!marker || marker.branch !== PAGE_IMAGE_WORKFLOW_V1_PIPELINE) return unsupportedProtocolResult(resolved, marker);
   const layoutIssues = checkBundle(resolved, false);
   if (layoutIssues.length) {
     return report({
@@ -353,14 +354,13 @@ export function inspectWorkflow({ runDir } = {}) {
       evidenceSummary: { pipeline: null, mode: null },
     });
   }
-  const deckDir = deckRoot(resolved);
   const validation = validateStateReadOnly(deckDir, { runDir: resolved });
   if (!validation.valid) {
     return report({
       runDir: resolved,
       posture: "hard-stop",
       rootCause: { owner: "state", kind: "state-validation", detail: validation.issues[0]?.path || "state.yaml" },
-      primaryAction: ownerAction("state", "validate-state", "repair", false, "Repair authoritative Page Authority state."),
+      primaryAction: ownerAction("state", "validate-state", "repair", false, "Repair authoritative Page Image state."),
       evidenceSummary: { pipeline: null, mode: null },
     });
   }
@@ -371,7 +371,7 @@ export function inspectWorkflow({ runDir } = {}) {
       runDir: resolved,
       posture: "hard-stop",
       rootCause: { owner: "production-mode", kind: route.code || "current-route-unavailable" },
-      primaryAction: ownerAction("production-mode", "repair-current-route", "repair", false, "Repair the exact Page Authority source/state pair."),
+      primaryAction: ownerAction("production-mode", "repair-current-route", "repair", false, "Repair the exact Page Image source/state pair."),
       evidenceSummary: { pipeline: null, mode: null },
     });
   }

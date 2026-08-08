@@ -1,8 +1,7 @@
 ## Purpose
 
-Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Authority raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
+Define the requirement that BOOTSTRAP.md Step 1 SHALL be a self-contained environment remediation guide for the Agent. It covers base local Framed-runtime readiness through `scripts/00-setup/env-check.mjs`, operation-scoped Page Image Workflow raw-generation readiness, and labeled user-profile-aware remediation for every emitted check.
 ## Requirements
-
 ### Requirement: Bootstrap guidance names the canonical Harness entry
 
 Bootstrap and top-level onboarding guidance SHALL identify
@@ -125,48 +124,33 @@ The Agent and Harness SHALL NOT automatically initialize a repository, stage fil
 - **THEN** the Agent continues the applicable deck workflow after existing hard gates pass
 - **AND** it does not frame the decision as skipping Structural Versioning Path or source validation
 
-### Requirement: Bootstrap and top-level onboarding expose current operation-scoped readiness
+### Requirement: Bootstrap exposes current Page Image Workflow readiness without false local-refresh claims
 
-Active bootstrap guidance and root `README.md` onboarding SHALL describe only
-current v2 Page Authority local foundation and operation-scoped raw-generation
-readiness. They SHALL state that local Framed work does not require provider
-credentials, that normal foundation checks are offline, and that a live probe
-requires disclosed submission count and explicit human confirmation. They
-SHALL not advertise a retired Page Authority mode, a nonexistent normal
-`ppt_flow doctor --mode` form, or an observer, adoption, compatibility, or
-other-protocol route. Root onboarding SHALL state the supported Node major set
-owned by `environment-check`, rather than an obsolete `Node.js 18+` minimum.
+Active BOOTSTRAP and top-level onboarding SHALL describe local foundation and
+operation-scoped readiness for `page-image-workflow-v1` only. They SHALL state
+that ordinary foundation checks are offline, credentials are needed only when
+the selected operation submits to Image2, and a live probe requires disclosed
+submission count plus explicit human confirmation. They SHALL describe
+Framed local browser/font prerequisites for its deterministic header overlay,
+but SHALL not imply that a complete Framed page, a header literal change, or
+provider-visible content can be produced without current provider-page work.
 
-For a new Deck, BOOTSTRAP SHALL describe the durable handoff as `local
-foundation -> init -> user content and necessary choices -> create-deck
-Controller/current owner action`. It SHALL not prescribe `validate`, a raw
-provider action, Style Master operation, or a fixed
-`authorize/generate/review/accept` command sequence before the current
-Controller/owner selects it. It SHALL make clear that a readiness check or
-successful probe is not production authorization.
+For a new deck, onboarding SHALL retain the durable handoff `local foundation
+-> init -> user content and necessary choices -> create-deck Controller/current
+owner action`. It SHALL not prescribe a fixed provider command sequence,
+promise compatibility, or present v2 Page Authority data as a current route.
 
-#### Scenario: Local Framed readiness is documented
+#### Scenario: Framed local readiness is scoped correctly
 
-- **WHEN** an operator follows active bootstrap guidance for a Framed local
-  refresh
-- **THEN** the guidance names the browser/font runtime prerequisite and does
-  not request an Image2 credential
-- **AND** it does not direct the operator to a historical workflow
+- **WHEN** an operator follows BOOTSTRAP for a Framed operation
+- **THEN** it identifies browser/font readiness for the local header overlay
+- **AND** it does not claim that provider-visible page content or changed
+  header context can skip its raw-page lifecycle
 
-#### Scenario: Top-level onboarding uses the normal entry accurately
+#### Scenario: Fresh onboarding selects a current policy later
 
-- **WHEN** an operator follows the root quick-start guidance
-- **THEN** it uses the normal offline `ppt_flow doctor` entry and defers
-  operation-scoped raw readiness until its exact run exists
-- **AND** it does not advertise a retired mode, unbound normal raw check, or
-  direct recovery command as the ordinary path, and names only the currently
-  supported Node major set
-
-#### Scenario: New-deck guidance keeps lifecycle ownership current
-
-- **WHEN** an Agent follows BOOTSTRAP for a fresh v2 Deck
-- **THEN** it establishes local foundation, initializes the run, obtains user
-  content/necessary choices, and follows the current create-deck Controller or
-  owner action
-- **AND** it does not teach a copied one-shot production script or infer an
-  authorization from setup
+- **WHEN** an Agent follows onboarding for a new deck
+- **THEN** it establishes foundation and follows the current Controller for
+  content and workflow selection
+- **AND** it does not infer `framed`, `pure`, or provider authorization from
+  environment readiness

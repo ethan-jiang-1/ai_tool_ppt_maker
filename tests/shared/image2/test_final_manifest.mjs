@@ -3,11 +3,12 @@ import { createCanvas } from "@napi-rs/canvas";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import {
   inspectCurrentFinalSlideManifest,
   publishCurrentFinalSlideManifest,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_final_manifest.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_final_manifest.mjs";
+import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
 
@@ -21,7 +22,11 @@ function currentInputs() {
   const rawWorkPlan = createRawWorkPlan({
     source_receipt_sha256: digest("a"), workflow: "framed", ordered_slide_ids: ["DeckGo"],
     provider_profile_sha256: digest("b"), authorization_scope_sha256: digest("c"),
-    items: [{ slide_id: "DeckGo", raw_contract_sha256: digest("d") }],
+    items: [{
+      slide_id: "DeckGo",
+      raw_contract_sha256: digest("d"),
+      provider_input_binding: pageImageProviderInputBinding({ workflow: "framed" }),
+    }],
   });
   const acceptedRawEvidence = createAcceptedRawEvidence({
     plan: rawWorkPlan, provider_authorization_sha256: digest("e"), raw_review_sha256: digest("f"),
@@ -30,7 +35,7 @@ function currentInputs() {
   return { rawWorkPlan, acceptedRawEvidence };
 }
 
-describe("Page Authority common final manifest helper", () => {
+describe("Page Image common final manifest helper", () => {
   it("publishes and validates only exact current evidence and bytes", () => {
     const { rawWorkPlan, acceptedRawEvidence } = currentInputs();
     const finalBytesBySlide = { DeckGo: framedFinalPng() };

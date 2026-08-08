@@ -2,7 +2,6 @@
 
 Define how MD Controller playbooks under `ppt_maker_harness/playbook/` drive an agent through a deck lifecycle: registered controller inventory is owned by the normative controller manifest, while playbooks provide intent routing, ownership-aware refresh paths, state initialization, gates, and shared-node reuse. Execution state lives in `_state/state.yaml` beside static project metadata.
 ## Requirements
-
 ### Requirement: MD Controller playbooks are housed by the Harness
 
 MD Controller playbooks and their normative controller inventory SHALL reside
@@ -148,23 +147,6 @@ authorization/state, or authorize a later provider attempt.
 - **AND** a later check requires an explicit route and any new live work needs
   a new disclosure and confirmation
 
-### Requirement: Agent offers channel probe on image-path symptoms
-
-When Page Authority raw-generation symptoms appear — doctor image checks failing,
-`doctor --smoke` failing, style-reference/raw-generation/review work failing with
-API/502/all-vendors-failed, or the user reporting that image generation does not
-work — and a channel probe has not already been run in the session, the agent SHALL
-proactively offer channel体检 as a **concrete candidate** in plain language
-(recognition over recall; consistent with AGENT_CONTRACT §11), e.g. recommend
-running the channel probe / `probe-image-channels` / `doctor --probe-vendors`, with
-a one-line why. The agent SHALL NOT respond only with "check your API" without an
-actionable next step the user can accept.
-
-#### Scenario: First image API failure offers channel probe
-
-- **WHEN** Page Authority raw generation or style-reference work fails with a relay/API error and no probe has run this session
-- **THEN** the agent offers a concrete channel-probe next step the user can accept or decline
-
 ### Requirement: Shared nodes are referenced via includes
 
 A playbook SHALL be able to reference a shared node via `includes: [<node-name>]` in its frontmatter. The referenced node SHALL be defined in a standalone `.md` file with `shared: true` in its frontmatter. Multiple playbooks SHALL be able to include the same shared node.
@@ -231,334 +213,146 @@ The restructure controller's final verification SHALL inspect the target PPTX an
 - **THEN** verification reports its new position and unchanged formal ID
 - **AND** does not treat the heading-number change as an ID migration
 
-### Requirement: Controller resume guidance consumes workflow inspection
-For fresh, resume, and iteration observation, the MD Controller SHALL obtain workflow readiness and the nearest legal action from workflow_inspection only after resolving a current exact run/controller identity. Playbooks retain semantic routing, artifact presentation, and human interaction; they SHALL not recreate a mode, gate, authorization, transaction, or recovery evaluator from Markdown, metadata, generated artifacts, or conversation context. For a non-v2 or otherwise unsupported record, inspection returns one owner-issued typed next action rather than a Controller selection.
-
-#### Scenario: Resume presents the shared primary action
-- **WHEN** a current durable execution resumes with a blocking prerequisite
-- **THEN** the Controller presents workflow inspection's primary action and owner context before later candidates
-- **AND** it does not infer an alternate controller or recovery command
-
-#### Scenario: Controller presents an allowed confirmation
-- **WHEN** workflow inspection reports a confirm posture with an owner-provided continuation
-- **THEN** the Controller presents the required human reason and the action after each allowed choice
-- **AND** it does not treat the continuation as approval or evidence completion
-
-#### Scenario: Controller respects a hard-stop
-- **WHEN** workflow inspection reports a hard-stop
-- **THEN** the Controller explains the protected invariant and routes through the owner recovery action
-- **AND** it does not offer force, waive, source-marker replacement, or state editing
-
-### Requirement: New decks enter the Page Authority production controller
-
-For a fresh TARGET version, the registered create-deck controller SHALL obtain one human semantic choice,
-`framed` or `pure`, before it enters provider-facing work. It SHALL author the canonical v2 selected-workflow
-source, configure the selected visual system, and then enter the Style Master owner, which validates the source
-through the selected workflow's read-only candidate-source interface. The Controller SHALL not invoke the
-materializing source-validation action before this Style Master handoff. Only after current Style Master
-promotion may the selected-workflow raw-plan owner materialize the first source receipt/state pair and expose
-that workflow's page-raw prerequisites, gate, and nearest action. The controller SHALL NOT ask for a per-slide
-authority choice or infer a workflow from deck type, content, or a generated artifact.
-
-The existing draft router SHALL consume the node-declared, registered-controller-manifest-validated ordered
-`draft_route: true` projection for the active selected workflow, so the exact unbound draft remains routable
-at the workflow-selection node and after it advances through content, visual-system, Style Master, and first
-raw-plan handoff. The playbook and router SHALL NOT infer this from node names, lifecycle phase, array position, or
-independent node lists; another controller, sibling-workflow node, unknown node, post-raw node, or bound
-production mode SHALL fail closed rather than regain draft status.
-
-The human owns workflow/content/visual decisions. JS owns parsing, readiness, state, evidence, and recovery. A
-missing or invalid workflow/source is an owner hard-stop; Style Master cost authorization, Style Master visual
-review, page provider authorization, and raw visual review remain distinct bounded human confirms recorded by
-their owning runtime interfaces.
-
-#### Scenario: Framed selection creates a straight controller route
-
-- **WHEN** a human selects `framed` for a fresh target version and its canonical source candidate is valid
-- **THEN** the controller enters the Framed Style Master path before source receipt/raw planning and later shared delivery without presenting Pure as a slide-level option
-- **AND** Style Master and page provider work each wait for their own owner-issued scoped authorization
-
-#### Scenario: Non-v2 source is not a controller route
-
-- **WHEN** an existing source/state pair is non-v2
-- **THEN** the Controller presents the owner-issued unsupported-protocol hard-stop
-- **AND** it does not register, select, rewrite, or resume a compatibility controller
-
-### Requirement: Page Authority gates have one direct recovery path
-Page Authority nodes SHALL classify source/state corruption, invalid frame/registry/reference,
-missing/partial/stale/mismatched raw coverage, invalid provider scope, and unknown or attempted
-unauthorized submission as non-waivable hard-stops. A complete current raw/final projection awaiting a
-human `proceed|repair|redirect` decision, or a complete disclosed raw-submit scope awaiting authorization,
-is a `confirm` gate. A node SHALL present the owner-issued nearest action and shall not synthesize
-approval, a fallback path, or a state edit.
-
-#### Scenario: Invalid or stale raw evidence blocks progress
-- **WHEN** the finalization node detects a missing raw tuple, partial coverage, or stale acceptance
-- **THEN** it returns to the raw evidence/review owner
-- **AND** it does not create final, PPTX, or notes output
-
-#### Scenario: Current raw review waits for a human decision
-- **WHEN** every selected raw tuple and raw-review projection is current but no raw decision exists
-- **THEN** the node exposes exactly the raw-review `confirm` action with the current evidence identity
-- **AND** it does not publish a final slide or classify the missing human choice as a repairable integrity fault
-
-### Requirement: Active controllers route only Page Authority work
-Registered active playbooks SHALL describe v2 Page Authority creation and Pure/Framed/notes/structural refreshes. They SHALL NOT register another-protocol, compatibility, adoption, or migration nodes.
-
-#### Scenario: Controller manifest is validated
-- **WHEN** the controller manifest and playbooks are loaded
-- **THEN** no active node, gate, or resume card names another-protocol or compatibility route
-
-### Requirement: TARGET controller gates reuse direct workflow evidence
-
-TARGET controller nodes SHALL classify source/state/receipt identity mismatch,
-wrong workflow owner, invalid or stale raw evidence, invalid provider scope,
-and final/delivery lineage mismatch as non-waivable hard-stops. They SHALL
-reuse the owning parser, state, evidence, or delivery evaluator and return its
-one nearest legal action. Complete workflow evidence awaiting workflow choice,
-provider authorization, raw review, or visual review SHALL remain a `confirm`
-gate with a bounded human reason where the owning contract requires one.
-
-#### Scenario: Target raw evidence failure returns to its owner
-
-- **WHEN** a selected target workflow reaches final publication with missing or stale accepted raw evidence
-- **THEN** the controller returns the shared raw evidence/review action for that exact receipt
-- **AND** it does not create a final, PPTX, notes, or delivery result
-
-### Requirement: Style Master Controller handoff stays selected-workflow specific
-
-The Page Authority Controller SHALL insert Style Master plan, cost-authorization, candidate-progress,
-real-byte review, and promotion handoffs after visual-system configuration and before page raw planning.
-Framed and Pure SHALL expose separate selected-workflow entries and present only their own visual questions;
-shared Controller wording or mechanics SHALL not make a user compare the sibling workflow.
-
-For fresh creation, the handoff SHALL consume the active fresh-v2 authoring draft and validate its
-selected-workflow source through the existing read-only candidate-source interface without requiring or creating
-page source receipt/state/raw-plan lineage or invoking the materializing source-validation action. For an
-existing run it SHALL require the exact current source/state pair. The Controller SHALL consume the Style
-Master owner's inspection result for current plan identity, progress, and nearest action; it SHALL NOT select
-candidate history by filesystem order or reconstruct attempt/grant state.
-
-The Style Master cost authorization and visual-direction decision are distinct typed human gates. A
-cost-authorization gate SHALL appear only when the exact plan contains generated slots; a zero-generated
-local-existing plan SHALL proceed directly to exact-hash real-byte review without credentials or a grant. A
-`proceed` decision may advance only to owner promotion after current evidence checks; it SHALL NOT satisfy
-page raw authorization, Pilot/Expansion approval, raw acceptance, or a structural workflow switch. A
-`repair` or `redirect` decision returns the owner-issued Style Master checkpoint. Task checklists are
-read-only collaboration projections and SHALL not become Controller evidence or a resume authority.
-
-#### Scenario: Framed path does not expose Pure questions
-
-- **WHEN** the selected current workflow is `framed` and Style Master review is ready
-- **THEN** the Controller presents the Framed Style Master entry and current candidate evidence only
-- **AND** it does not expose Pure display semantics or a sibling-workflow route
-
-#### Scenario: Pure path does not expose Framed questions
-
-- **WHEN** the selected current workflow is `pure` and Style Master review is ready
-- **THEN** the Controller presents the Pure Style Master entry and current candidate evidence only
-- **AND** it does not expose Framed Text Frame or safe-zone semantics
-
-#### Scenario: Promotion is required before raw planning
-
-- **WHEN** a human has reviewed a candidate but promotion has not produced a current effective selection
-- **THEN** the next Controller action remains Style Master promotion/recovery
-- **AND** the page raw authorization node cannot start
-
-#### Scenario: Local-existing review has no cost authorization node
-
-- **WHEN** the exact selected-workflow plan contains one local-existing candidate and zero generated slots
-- **THEN** the Controller presents the current real-byte review action directly
-- **AND** it does not ask for provider authorization, resolve credentials, or mark a cost gate skipped as approval
-
-#### Scenario: Unknown candidate returns to exact owner recovery
-
-- **WHEN** Style Master inspection reports an unknown submitted attempt for the current plan
-- **THEN** the Controller presents the owner-issued exact-plan abandonment decision and required human reason
-- **AND** it does not offer retry, edit state, infer failure, or start a successor authorization
-
-### Requirement: Page Authority Controller uses progressive selected-workflow checkpoints
-
-After Style Master promotion and full raw-plan materialization, each selected
-Page Authority Controller SHALL use a straight, workflow-specific progressive
-route: inspect full-plan debt; present the Agent's representative Pilot
-recommendation; obtain exact Pilot scope/cost authorization when needed;
-advance owner-issued per-item progress; present current Pilot evidence only for
-a partial Pilot; obtain a separate exact Expansion authorization only after
-partial Pilot proceed and nonzero remaining debt; present complete raw review;
-then use the existing selected-workflow finalization and shared delivery route.
-The Controller SHALL obtain every status and next action from workflow
-inspection or the owning raw interface and SHALL not derive them from
-Markdown, a task projection, file presence, or conversation memory.
-
-Agent/MD owns representative-risk reasoning, evidence presentation, and
-human-facing semantic feedback. The human owns sample changes, explicit
-provider cost, Pilot quality, complete raw quality, and delivery quality. JS
-owns scope resolution, currentness, authorization, attempt/provenance, and
-evidence validation. Framed and Pure SHALL have separate nodes and show only
-their own workflow evidence; shared Controller text shall not require users to
-compare the sibling workflow.
-
-#### Scenario: Framed Pilot presents its own evidence only
-
-- **WHEN** a current Framed full plan reaches a partial Pilot review
-- **THEN** the Controller presents the Framed underlay and production-equivalent composite evidence with the owner-issued decision action
-- **AND** it does not expose Pure raw-page evidence or sibling-workflow controls
-
-#### Scenario: Pure Pilot presents its own evidence only
-
-- **WHEN** a current Pure full plan reaches a partial Pilot review
-- **THEN** the Controller presents the exact Pure raw page bytes with the owner-issued decision action
-- **AND** it does not expose Framed Text Frame, safe-zone, or compositor controls
-
-#### Scenario: Partial proceed has one next checkpoint
-
-- **WHEN** the human records proceed for current partial Pilot evidence
-- **THEN** the Controller refreshes inspection and presents the raw owner's exact remaining-scope Expansion authorization checkpoint
-- **AND** it does not call a provider, infer cost approval, or represent Pilot proceed as raw acceptance
-
-#### Scenario: Partial repair or redirect cannot create Expansion
-
-- **WHEN** the human records repair or redirect for current partial Pilot evidence
-- **THEN** the Controller persists only that typed Pilot decision and returns the raw owner's next repair/replan action
-- **AND** it does not mint a successor batch, reuse a grant, or expose Expansion, finalization, or delivery
-
-### Requirement: Progressive Controller task projection is a rebuildable collaboration card
-
-For an exact active progressive Page Authority `create-deck` Controller route,
-the Controller SHALL publish the run-scoped
-`_state/page-production-task-projection.md` card from owner-issued inspection
-and normal typed Controller handoffs. The card SHALL contain only current plan,
-batch, evidence, review, manifest, and delivery references, bounded derived
-progress, the owner-issued next action, and the corresponding typed human
-decision plus its optional persisted note. It SHALL be regenerated on Controller
-route entry/resume and after a Controller decision changes its referenced
-collaboration context.
-
-The card SHALL render every present structured owner and typed-handoff digest
-as a typed, card-scoped display reference rather than a complete SHA-256
-digest. A display reference SHALL have the base form `<prefix>-<digest8>`,
-where `<digest8>` is exactly eight lowercase hexadecimal characters and
-`<prefix>` is `p`, `b`, `e`, `r`, `m`, or `d` for plan, batch, evidence, review,
-manifest, or delivery, respectively. When two distinct current facts of the
-same type share `<digest8>`, both display references SHALL append
-`~<rank>`, where `<rank>` is the positive decimal, one-based lexical rank of
-the complete digest within that collision group; a non-colliding reference
-SHALL not have a rank suffix. A display reference SHALL never contain a
-complete digest. The card text, including HTML comments
-and rendered handoff notes, SHALL NOT contain a complete 64-character
-hexadecimal digest. Rendering a note SHALL replace each bounded,
-case-insensitive 64-character hexadecimal token with `[digest redacted]` in
-the card only and SHALL NOT change the persisted Controller decision or note.
-A display reference SHALL not be a selector, durable identity, or an input to a
-Controller, CLI, owner, or provider operation.
-
-The Controller SHALL treat this card as a collaboration view only. It SHALL
-not use a checked line, prose, generated filename, feedback text, or stale
-reference in the card to authorize a cost, resume generation, prove
-materialization, infer a decision, or choose a node; every such action SHALL
-re-read workflow inspection and owning direct records. A route without the
-exact active progressive Controller identity is not eligible to write the card.
-
-#### Scenario: Missing card is rebuilt without production work
-
-- **WHEN** an exact active progressive Controller route resumes and its task
-  projection is absent or stale
-- **THEN** the Controller rebuilds the card from current inspection and typed
-  handoffs
-- **AND** it does not initialize a provider, recreate a grant or attempt, or
-  infer raw progress from the former card
-
-#### Scenario: Card renders typed references without changing owner identity
-
-- **WHEN** an eligible progressive route has current complete-digest owner and
-  typed-handoff facts and a normal state observation rebuilds its card
-- **THEN** the card shows distinct typed display references for every present
-  plan, batch, evidence, review, manifest, delivery, and typed-handoff fact
-  without showing a complete digest
-- **AND** the full-fact projection payload retains the original complete owner
-  and handoff digests
-
-#### Scenario: Same-type display collision remains bounded and deterministic
-
-- **WHEN** two distinct current facts of one display type share the same
-  initial eight digest characters
-- **THEN** the card gives them distinct deterministic display references for
-  that card scope
-- **AND** neither reference exposes a complete digest or becomes a selector
-
-#### Scenario: Rendered note cannot leak a complete digest
-
-- **WHEN** a typed Controller handoff note contains a bounded,
-  case-insensitive 64-character hexadecimal token
-- **THEN** the card replaces that token with `[digest redacted]` in its rendered
-  presentation
-- **AND** the persisted handoff record retains its original note and remains
-  the only source for the decision context
-
-#### Scenario: Card edits cannot advance a progressive checkpoint
-
-- **WHEN** a task projection contains a changed checkbox, prose feedback, or an obsolete batch reference
-- **THEN** the Controller refreshes its owner-issued route before selecting a checkpoint
-- **AND** it does not treat the card change as authorization, a persisted decision, or materialization evidence
-
-#### Scenario: Ineligible observation does not write a card
-
-- **WHEN** an observation resolves a non-progressive controller, mismatched
-  Controller identity, or unsupported workflow
-- **THEN** it reports the owner-issued observation/action without a card write
-- **AND** it does not create a replacement state, projection, or recovery route
-
-### Requirement: Controller omits duplicate Pilot gates for complete or provider-free debt
-
-When current paid-generation debt is one through five items, the Controller
-SHALL use the entire debt set as the paid Pilot materialization scope and,
-after it completes, move directly to complete raw review. It SHALL not ask for
-a partial Pilot quality decision or Expansion authorization. When debt is zero,
-the Controller SHALL skip Pilot scope authorization/materialization/evidence
-and route to the raw owner's complete-review action. Provider-free Framed
-Text Frame-only local rebind and notes-only refresh paths SHALL retain their
-existing owners and SHALL not enter a synthetic Pilot route. A current Framed
-local rebind accepted by its existing validator SHALL retain its complete
-raw-review reference and proceed without a new complete-review decision; any
-failed retention condition returns the raw owner's normal progressive path.
-
-#### Scenario: Small deck receives one raw-quality decision
-
-- **WHEN** a current run has three paid-debt items and current reusable tuples for every other full-plan item
-- **THEN** the Controller obtains one exact cost authorization, reports materialization progress, and presents complete raw review
-- **AND** it does not create a Pilot proceed record or an Expansion node
-
-#### Scenario: Resume consumes runtime truth
-
-- **WHEN** a progressive Controller resumes after interruption
-- **THEN** it resolves the exact run/controller identity and refreshes owner-issued inspection before choosing its node
-- **AND** it does not use previously checked task lines or generated filenames to infer submit, success, or authorization
-
-### Requirement: Active Pure Pilot prose names Page Authority raw evidence
-
-Current `create-deck` Controller guidance and the active
-`playbook-execution` specification SHALL describe Pure Pilot review evidence
-as Pure raw page bytes. They SHALL preserve the current separation of Framed
-and Pure evidence: each workflow exposes only its own evidence and the
-owner-issued decision action, without sibling-workflow controls.
-
-The active Pure Pilot prose SHALL not use a retired production label. This is
-an active-documentation requirement only; it SHALL not alter raw evidence,
-bindings, Pilot/Expansion gates, authorization, provider behavior, state, or
-the Controller route.
-
-#### Scenario: A Pure Pilot is presented
-
-- **WHEN** the selected Pure workflow reaches partial Pilot review
-- **THEN** the Controller presents the owner-issued action with the exact Pure
-  raw page bytes and their current bindings
-- **AND** it does not expose Framed Text Frame, safe-zone, compositor, or
-  sibling-workflow controls
-
-#### Scenario: Active documentation passes the existing retirement audit
-
-- **WHEN** current Harness guidance and main specifications are audited
-- **THEN** the existing process-document coherence check finds no retired
-  production label in the current Pure Pilot descriptions
-- **AND** no exception, alternate route, or new validation layer is required
+### Requirement: Controllers create and resume only the current Page Image Workflow
+
+The `create-deck` Controller SHALL obtain one human semantic choice, `framed`
+or `pure`, for a new version before provider-facing work. It SHALL author the
+`page-image-workflow-v1` source selection, configure common visual semantics,
+route to the selected Style Master lifecycle, and then route to the selected
+Page Image adapter. The Controller SHALL never ask for a per-slide authority
+choice or offer `hybrid` as a workflow. Fresh Style Master work may use a
+validated draft, while first raw-page planning materializes the current
+source/state receipt pair only after the Style Master prerequisite is current.
+
+On resume, the Controller SHALL obtain the selected workflow and one nearest
+legal action from Workflow Inspection. It SHALL not reconstruct a receipt,
+mode, provider authorization, review decision, or recovery path from Markdown,
+task cards, generated files, or conversation history.
+
+#### Scenario: A Framed deck has one straight selected route
+
+- **WHEN** a human selects `framed` for a valid fresh version
+- **THEN** the Controller presents only the Framed Style Master and Page Image
+  handoffs before shared delivery
+- **AND** it does not expose a Pure or per-slide policy choice
+
+#### Scenario: A current resume preserves owner evaluation
+
+- **WHEN** a current Page Image Workflow Controller resumes with blocked work
+- **THEN** it presents Workflow Inspection's owner-issued primary action
+- **AND** it does not infer a different route or evidence from a task card
+
+### Requirement: Page Image Workflow gates have one direct recovery and review path
+
+Controller nodes SHALL treat source/state/receipt identity mismatch, closed
+content-schema failure, invalid Style Master selection, stale compiled input,
+invalid provider scope, stale/invalid page evidence, and final/delivery
+lineage mismatch as non-waivable hard-stops. Each gate SHALL reuse the owning
+evaluator and present its one nearest legal action. Provider cost authorization
+and visual review remain their own bounded human confirms; neither confirms
+another lifecycle fact.
+
+Complete Page Review SHALL use one `proceed` or `repair` decision. A Framed
+node presents the exact raw provider page beside the production-equivalent
+local-header composite; a Pure node presents its complete provider page. It
+SHALL not add a second composite approval gate, let Pilot approval stand in for
+complete-page acceptance, or expose sibling adapter controls.
+
+#### Scenario: Framed review does not split its decision
+
+- **WHEN** all current Framed page evidence is ready
+- **THEN** the Controller presents raw and composite evidence under one
+  Complete Page Review decision
+- **AND** it does not require a later local-overlay approval
+
+#### Scenario: Stale provider input returns to its owner
+
+- **WHEN** a selected workflow reaches finalization with a stale compiled
+  provider-input binding
+- **THEN** the Controller routes to the owning rebuild action
+- **AND** it does not publish a final slide, PPTX, notes, or delivery receipt
+
+### Requirement: Current Controller refresh and Pilot paths preserve the Page Image model
+
+Pilot remains an explicitly authorized sample/cost stage. Its `pilot` command
+creates only a provider-free exact batch projection; sample provider work starts
+only after that same batch receives its separate exact cost authorization and
+`generate` is invoked. A partial Pilot may present the same policy-specific
+page representation that Complete Page Review will use, but it does not publish
+acceptance or add a duplicate review gate. `pilot-review` and `pilot-accept`
+apply only to partial Pilot evidence; complete current coverage goes directly to
+Complete Page Review. The Controller SHALL use direct owner facts to determine
+any remaining paid work, not task-card state or file presence.
+
+A Framed provider-free local overlay refresh is permitted only when its owner
+proves the compiled provider input, protected geometry, raw contract, and local
+profile are unchanged. A changed header literal normally changes provider
+context and routes to raw rebuild. Notes-only work remains delivery-owned;
+structural or whole-workflow changes use previewed exact-hash versioning.
+
+#### Scenario: A Framed title change avoids false local refresh
+
+- **WHEN** a Framed title literal changes
+- **THEN** the Controller presents the owner-issued raw rebuild path
+- **AND** it does not place the change on a provider-free Pilot or local
+  overlay path
+
+#### Scenario: Pilot remains non-accepting
+
+- **WHEN** an authorized Framed Pilot sample is available
+- **THEN** the Controller presents its raw and composite sample representation
+- **AND** it does not record final-page acceptance or open a second review
+  gate
+
+### Requirement: Agent retains bounded current Image2 channel-probe guidance
+
+When current Style Master or Page Image provider-path symptoms occur -- such as
+failed image checks, an Image2 API/relay failure, or a report that image
+generation is unavailable -- and no channel probe has run in the session, the
+Agent SHALL offer the existing current channel probe as one concrete action,
+for example `probe-image-channels` or `doctor --probe-vendors`, with a short
+reason. It SHALL not respond only with an unbounded instruction to check an
+API, run an undisclosed live probe, or treat a successful probe as page-cost
+authorization, review acceptance, or progress evidence.
+
+#### Scenario: First current provider-path failure offers a bounded probe
+
+- **WHEN** current Page Image or Style Master work fails with a provider-path
+  symptom and no session probe has run
+- **THEN** the Agent offers one concrete channel-probe action that the human may
+  accept or decline
+- **AND** it does not create a page plan, grant, provider attempt, or review
+  decision from the offer or its result
+
+### Requirement: Active Controller guidance rejects v2 Page Authority routes
+
+Registered active playbooks, Controller manifests, resume cards, and task
+projection sources SHALL describe only the replacement Page Image Workflow.
+When they encounter v2 Page Authority source/state/evidence, they SHALL show
+the owner-issued `unsupported-protocol/export` hard-stop and preserve bytes.
+They SHALL not register, select, rewrite, resume, adopt, migrate, or route a
+v2 workflow.
+
+#### Scenario: A v2 run cannot enter an active controller
+
+- **WHEN** a controller attempts to resolve a v2 source/state pair
+- **THEN** it presents the `unsupported-protocol/export` action before
+  selecting nodes
+- **AND** it does not create a compatibility controller or task projection
+
+### Requirement: Page Image task projections remain non-authoritative collaboration views
+
+For an exact active current Page Image Workflow Controller route, the optional
+`_state/page-production-task-projection.md` SHALL be rebuilt only from
+owner-issued inspection and typed handoffs. It may show bounded plan, evidence,
+review, manifest, delivery, and current-action references, but it SHALL not
+become a selector, source of authority, authorization, acceptance record, or
+provider progress evaluator. A v2 record is ineligible to create or refresh
+the view.
+
+#### Scenario: Card edits cannot advance a current page checkpoint
+
+- **WHEN** a task projection contains changed prose, checkboxes, or stale
+  references
+- **THEN** the Controller re-reads current owner facts before choosing work
+- **AND** it does not treat the card as authorization or acceptance evidence

@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { EXECUTABLE_INVENTORY } from "../../ppt_maker_harness/scripts/contracts/executable_inventory.mjs";
 import {
   ACTIVE_PHASES,
+  PAGE_IMAGE_CORE_INTERFACE,
+  PAGE_IMAGE_CORE_SEAM_CONSUMERS,
+  PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS,
+  PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER,
   PHASE_ADJACENCY,
   PUBLIC_SHARED_INTERFACES,
   TARGET_DELIVERY_INTERFACES,
@@ -42,6 +46,9 @@ function canonicalSnapshot() {
     ...REQUIRED_CONTRACTS,
   ];
   for (const path of interfaces) files[path] = "export const importSafe = true;\n";
+  for (const path of TARGET_WORKFLOW_INTERFACES) {
+    files[path] = `import "../${PAGE_IMAGE_CORE_INTERFACE}";\nconst providerInput = { schema: "${PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER[path]}" };\nexport const importSafe = true;\n`;
+  }
   for (const path of EXECUTABLE_INVENTORY) {
     const prefix = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1).split("/").map(() => "..").join("/") : "./";
     files[path] = `import "${prefix}shared/cli/cli_bootstrap.mjs?entry=${path}";\n` +
@@ -124,8 +131,8 @@ describe("Harness architecture contract", () => {
 
   it("rejects Framed/Pure semantic branches in shared mechanics and delivery", () => {
     for (const [path, source] of [
-      ["shared/image2/page_authority_raw_mechanics.mjs", `if (workflow === "framed") return null;`],
-      ["shared/image2/page_authority_final_manifest.mjs", `if (ownerWorkflow !== "pure") return null;`],
+      ["shared/image2/page_image_raw_mechanics.mjs", `if (workflow === "framed") return null;`],
+      ["shared/image2/page_image_final_manifest.mjs", `if (ownerWorkflow !== "pure") return null;`],
       ["05-delivery/index.mjs", `switch (manifest.workflow) { case "framed": return null; }`],
     ]) {
       const snapshot = canonicalSnapshot();
@@ -149,6 +156,43 @@ describe("Harness architecture contract", () => {
       }
       expect(issueCodes(validateArchitectureSnapshot(snapshot)), `${path} -> ${imported}`).toContain("sibling-workflow-import");
     }
+  });
+
+  it("requires one shared Page Image Core seam for both selected adapters", () => {
+    expect(PUBLIC_SHARED_INTERFACES).toContain(PAGE_IMAGE_CORE_INTERFACE);
+    expect(PAGE_IMAGE_CORE_SEAM_CONSUMERS).toEqual([
+      "01-content/internal/page_image_source.mjs",
+      "03-framed-image/index.mjs",
+      "04-pure-image/index.mjs",
+    ]);
+
+    const missing = canonicalSnapshot();
+    missing.files["04-pure-image/index.mjs"] = "export const importSafe = true;\n";
+    expect(issueCodes(validateArchitectureSnapshot(missing))).toContain("page-image-core-adapter-missing");
+
+    const illegal = canonicalSnapshot();
+    illegal.files["shared/image2/page_image_target_runtime.mjs"] = `import "../page-image/page_image_core.mjs";`;
+    expect(issueCodes(validateArchitectureSnapshot(illegal))).toContain("page-image-core-illegal-consumer");
+  });
+
+  it("confines Page Image provider-input compilation to selected adapters", () => {
+    expect(PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS).toEqual(TARGET_WORKFLOW_INTERFACES);
+
+    const missing = canonicalSnapshot();
+    missing.files["04-pure-image/index.mjs"] = `import "../${PAGE_IMAGE_CORE_INTERFACE}";\nexport const importSafe = true;\n`;
+    expect(issueCodes(validateArchitectureSnapshot(missing))).toContain("page-image-provider-input-compiler-missing");
+
+    const sharedCompiler = canonicalSnapshot();
+    sharedCompiler.files["shared/image2/page_image_target_runtime.mjs"] = `const providerInput = { schema: "page-image-pure-provider-input-v1" };`;
+    expect(issueCodes(validateArchitectureSnapshot(sharedCompiler))).toContain("page-image-provider-input-illegal-compiler");
+
+    const siblingCompiler = canonicalSnapshot();
+    siblingCompiler.files["04-pure-image/index.mjs"] += `\nconst wrongPolicy = { schema: "page-image-framed-provider-input-v1" };`;
+    expect(issueCodes(validateArchitectureSnapshot(siblingCompiler))).toContain("page-image-provider-input-illegal-compiler");
+
+    const rootAssembly = canonicalSnapshot();
+    rootAssembly.files["ppt_flow.mjs"] += `\nconst prompt = { provider_rendered_content: [] };`;
+    expect(issueCodes(validateArchitectureSnapshot(rootAssembly))).toContain("root-page-image-prompt-assembly");
   });
 
   it("allows iteration to use target public interfaces but rejects target sibling internals", () => {
@@ -184,9 +228,20 @@ describe("Harness architecture contract", () => {
 
   it("fails closed when a retired protocol owner reappears", () => {
     const snapshot = canonicalSnapshot();
-    const retiredOwner = ["compatibility", "current-v1-page-authority", "index.mjs"].join("/");
+    const retiredOwner = ["compatibility", "current-v1-page-image", "index.mjs"].join("/");
     snapshot.files[retiredOwner] = "export {};";
     expect(issueCodes(validateArchitectureSnapshot(snapshot))).toContain("retired-protocol-owner");
+  });
+
+  it("rejects retired parser, adapter, state, and evidence imports or dispatch", () => {
+    const imported = canonicalSnapshot();
+    imported.files["04-pure-image/index.mjs"] = `import "../shared/image2/page_authority_artifacts.mjs";`;
+    imported.files["shared/image2/page_authority_artifacts.mjs"] = "export {};";
+    expect(issueCodes(validateArchitectureSnapshot(imported))).toContain("retired-protocol-import");
+
+    const dispatched = canonicalSnapshot();
+    dispatched.files["03-framed-image/index.mjs"] = "const parsePageAuthoritySource = () => null;";
+    expect(issueCodes(validateArchitectureSnapshot(dispatched))).toContain("retired-protocol-dispatch");
   });
 
   it("fails closed on executable, recursive test, and source ownership drift", () => {

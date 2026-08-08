@@ -2,12 +2,12 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: <framed|pure>
 deck_type: report
 ---
 
-# Report Page Authority Template
+# Report Page Image Template
 
 Lead with the decision, then scope, findings, evidence, options, recommendation,
 implementation, risks, and next action. Preserve stable IDs when findings

@@ -1,13 +1,15 @@
 import { isMap, isScalar, parseDocument } from "yaml";
 
-/** The exact v2 Page Authority marker is the only current protocol. */
-export const PAGE_AUTHORITY_IMAGE2_V2_PIPELINE = "page-authority-image2-v2";
+/** The exact Page Image Workflow marker is the only current protocol. */
+export const PAGE_IMAGE_WORKFLOW_V1_PIPELINE = "page-image-workflow-v1";
+/** Retained only so the replacement identity boundary can recognize inert v2 bytes. */
+export const RETIRED_PAGE_AUTHORITY_IMAGE2_V2_PIPELINE = "page-authority-image2-v2";
 export const SUPPORTED_PRODUCTION_PIPELINES = Object.freeze([
-  PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+  PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
 ]);
-export const TARGET_WORKFLOWS = Object.freeze(["framed", "pure"]);
-export const TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE =
-  "target workflow selection required: record production.workflow as framed or pure before provider work";
+export const PAGE_IMAGE_WORKFLOWS = Object.freeze(["framed", "pure"]);
+export const PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE =
+  "page image workflow selection required: record production.workflow as framed or pure before provider work";
 
 function issue(code, message, { source, line = 1, actual, expected } = {}) {
   return {
@@ -24,20 +26,20 @@ function invalid(source, code, message, options = {}) {
   return { branch: "invalid", issues: [issue(code, message, { source, ...options })] };
 }
 
-/** A v2 authoring draft is intentionally not a production-ready marker. */
-export function isTargetWorkflowSelectionPending(marker) {
+/** A current authoring draft is intentionally not a production-ready marker. */
+export function isPageImageWorkflowSelectionPending(marker) {
   return Boolean(marker?.branch === "invalid" && marker?.target_workflow_selection_required === true);
 }
 
 /**
- * Read a direct Page Authority frontmatter marker. Non-v2 marker shapes are
+ * Read a direct Page Image Workflow frontmatter marker. Non-current marker shapes are
  * rejected here so they cannot become production input through this seam.
  */
 export function probeProductionMarker(sourceBytes, { source = "slide-specifications.md" } = {}) {
   const text = Buffer.isBuffer(sourceBytes) ? sourceBytes.toString("utf8") : String(sourceBytes ?? "");
   const body = text.startsWith("\uFEFF") ? text.slice(1) : text;
   if (!body.startsWith("---\n") && !body.startsWith("---\r\n")) {
-    return invalid(source, "missing_production_marker", "production.pipeline must explicitly select a supported Page Authority protocol", {
+    return invalid(source, "missing_production_marker", "production.pipeline must explicitly select the current Page Image Workflow protocol", {
       expected: SUPPORTED_PRODUCTION_PIPELINES.join(" | "),
     });
   }
@@ -72,7 +74,7 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
   }
   const pipeline = values.get("pipeline");
   if (!isScalar(pipeline) || typeof pipeline.value !== "string" || !SUPPORTED_PRODUCTION_PIPELINES.includes(pipeline.value)) {
-    return invalid(source, "unsupported_pipeline_marker", "production.pipeline must select a supported Page Authority protocol", {
+    return invalid(source, "unsupported_pipeline_marker", "production.pipeline must select the current Page Image Workflow protocol", {
       actual: pipeline?.value,
       expected: SUPPORTED_PRODUCTION_PIPELINES.join(" | "),
     });
@@ -88,14 +90,14 @@ export function probeProductionMarker(sourceBytes, { source = "slide-specificati
     return result;
   }
   const workflow = values.get("workflow");
-  if (!isScalar(workflow) || typeof workflow.value !== "string" || !TARGET_WORKFLOWS.includes(workflow.value)) {
-    return invalid(source, "invalid_target_workflow", "production.workflow must equal framed | pure", {
+  if (!isScalar(workflow) || typeof workflow.value !== "string" || !PAGE_IMAGE_WORKFLOWS.includes(workflow.value)) {
+    return invalid(source, "invalid_page_image_workflow", "production.workflow must equal framed | pure", {
       actual: workflow?.value,
-      expected: TARGET_WORKFLOWS.join(" | "),
+      expected: PAGE_IMAGE_WORKFLOWS.join(" | "),
     });
   }
   return {
-    branch: PAGE_AUTHORITY_IMAGE2_V2_PIPELINE,
+    branch: PAGE_IMAGE_WORKFLOW_V1_PIPELINE,
     issues: [],
     frontmatter: { metadata: { production: { pipeline: pipeline.value, workflow: workflow.value } } },
   };

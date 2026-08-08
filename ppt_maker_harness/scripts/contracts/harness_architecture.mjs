@@ -37,19 +37,23 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/cli/cli_bootstrap.mjs",
   "shared/cli/cli_error.mjs",
   "shared/run-bundle/bundle_layout.mjs",
-  "shared/run-bundle/page_authority_paths.mjs",
+  "shared/run-bundle/page_image_paths.mjs",
+  "shared/run-bundle/page_image_workflow_identity.mjs",
   "shared/run-bundle/production_marker.mjs",
   "shared/state/state.mjs",
   "shared/state/md_controller_reader.mjs",
   "shared/identity/canonical_json.mjs",
   "shared/identity/byte_hash.mjs",
+  "shared/page-image/page_image_core.mjs",
+  "shared/page-image/page_image_invalidation.mjs",
   "shared/image2/credentials.mjs",
-  "shared/image2/page_authority_artifacts.mjs",
-  "shared/image2/page_authority_final_manifest.mjs",
-  "shared/image2/page_authority_media_contract.mjs",
-  "shared/image2/page_authority_raw_mechanics.mjs",
-  "shared/image2/page_authority_progressive_raw_owner.mjs",
-  "shared/image2/page_authority_target_runtime.mjs",
+  "shared/image2/page_image_artifacts.mjs",
+  "shared/image2/page_image_complete_page_review.mjs",
+  "shared/image2/page_image_final_manifest.mjs",
+  "shared/image2/page_image_media_contract.mjs",
+  "shared/image2/page_image_raw_mechanics.mjs",
+  "shared/image2/page_image_progressive_raw_owner.mjs",
+  "shared/image2/page_image_target_runtime.mjs",
   "shared/image2/style_master_plan.mjs",
   "shared/image2/style_master_scope.mjs",
   "shared/state/target_authoring_draft_route.mjs",
@@ -58,10 +62,30 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/workflow/progressive_controller_task_projection_eligibility.mjs",
 ]);
 
+export const PAGE_IMAGE_CORE_INTERFACE = "shared/page-image/page_image_core.mjs";
+
+export const PAGE_IMAGE_CORE_SEAM_CONSUMERS = Object.freeze([
+  "01-content/internal/page_image_source.mjs",
+  "03-framed-image/index.mjs",
+  "04-pure-image/index.mjs",
+]);
+
+// Provider-input syntax is policy-specific. The common Core supplies facts;
+// only the selected adapters turn those facts into provider bytes.
+export const PAGE_IMAGE_PROVIDER_INPUT_COMPILER_ADAPTERS = Object.freeze([
+  "03-framed-image/index.mjs",
+  "04-pure-image/index.mjs",
+]);
+
+export const PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER = Object.freeze({
+  "03-framed-image/index.mjs": "page-image-framed-provider-input-v1",
+  "04-pure-image/index.mjs": "page-image-pure-provider-input-v1",
+});
+
 export const SHARED_WORKFLOW_SEMANTIC_HELPERS = Object.freeze([
-  "shared/image2/page_authority_raw_mechanics.mjs",
-  "shared/image2/page_authority_final_manifest.mjs",
-  "shared/image2/page_authority_target_runtime.mjs",
+  "shared/image2/page_image_raw_mechanics.mjs",
+  "shared/image2/page_image_final_manifest.mjs",
+  "shared/image2/page_image_target_runtime.mjs",
 ]);
 
 export const CROSS_OWNER_PROCESS_ADAPTERS = Object.freeze([
@@ -256,32 +280,90 @@ function validateSharedWorkflowSemanticBoundaries(files, issues) {
 }
 
 function validateSingleDeliveryOwner(files, issues) {
-  const deliveryWriter = /\bPptxGenJS\b|\binjectNotes\s*\(|\bassemblePageAuthorityPptx\s*\(|\binjectPageAuthorityNotes\s*\(/;
+  const deliveryWriter = /\bPptxGenJS\b|\binjectNotes\s*\(|\bassemblePageImagePptx\s*\(|\binjectPageImageNotes\s*\(/;
   for (const [path, source] of files) {
     if (!/^(?:03-framed-image|04-pure-image|06-iteration)\//.test(path) || !deliveryWriter.test(source)) continue;
     addIssue(issues, "second-delivery-owner", path, "workflow code may not own PPTX, notes, or delivery writing");
   }
 }
 
-const RETIRED_PROTOCOL_PATH = `compatibility/${["current", "v1"].join("-")}-page-authority`;
-const RETIRED_PROTOCOL_TOKENS = Object.freeze([
-  `page-authority-image2-${"v1"}`,
-  ["image2", "page", "authority"].join("-"),
-  "legacy" + "_protocol",
-  "production_mode_" + "transition",
+const RETIRED_PROTOCOL_PATH = `compatibility/${["current", "v1"].join("-")}-page-image`;
+const RETIRED_PROTOCOL_IMPORT_SEGMENT = /(?:^|\/)(?:page_authority(?:_|$)|page-authority(?:_|-|$))/i;
+const retiredDispatchToken = (...parts) => parts.join("");
+const RETIRED_PROTOCOL_DISPATCH_IDENTIFIERS = Object.freeze([
+  retiredDispatchToken("parsePage", "AuthoritySource"),
+  retiredDispatchToken("createPage", "AuthoritySourceResolver"),
+  retiredDispatchToken("page", "AuthorityImage2Paths"),
+  retiredDispatchToken("Page", "Authority"),
 ]);
+
+function validatePageImageCoreSeam(files, issues) {
+  if (!files.has(PAGE_IMAGE_CORE_INTERFACE)) {
+    addIssue(issues, "missing-page-image-core", PAGE_IMAGE_CORE_INTERFACE, "the shared Page Image Core interface is missing");
+    return;
+  }
+  const coreConsumers = new Set();
+  for (const [importer, source] of files) {
+    const importsCore = collectLiteralImports(source)
+      .map((specifier) => resolveLocalImport(importer, specifier))
+      .includes(PAGE_IMAGE_CORE_INTERFACE);
+    if (!importsCore) continue;
+    if (!PAGE_IMAGE_CORE_SEAM_CONSUMERS.includes(importer)) {
+      addIssue(issues, "page-image-core-illegal-consumer", importer, "only the source parser and selected workflow adapters may consume the Page Image Core seam");
+      continue;
+    }
+    coreConsumers.add(importer);
+  }
+  for (const adapter of TARGET_WORKFLOW_INTERFACES) {
+    if (!coreConsumers.has(adapter)) {
+      addIssue(issues, "page-image-core-adapter-missing", adapter, "each selected workflow adapter must compile through the one shared Page Image Core seam");
+    }
+  }
+}
+
+function hasProviderInputSchemaDeclaration(source, schema) {
+  return new RegExp(`\\bschema\\s*:\\s*["']${schema}["']`).test(source);
+}
+
+function validatePageImageProviderInputCompilation(files, issues) {
+  const compilerEntries = Object.entries(PAGE_IMAGE_PROVIDER_INPUT_COMPILER_SCHEMA_BY_ADAPTER);
+  for (const [adapter, schema] of compilerEntries) {
+    const source = files.get(adapter);
+    if (!source || !hasProviderInputSchemaDeclaration(source, schema)) {
+      addIssue(issues, "page-image-provider-input-compiler-missing", adapter, "each selected workflow adapter must own its Page Image provider-input compiler");
+    }
+  }
+  for (const [path, source] of files) {
+    if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
+    for (const [adapter, schema] of compilerEntries) {
+      if (path !== adapter && hasProviderInputSchemaDeclaration(source, schema)) {
+        addIssue(issues, "page-image-provider-input-illegal-compiler", path, `only ${adapter} may declare ${schema}`);
+      }
+    }
+  }
+
+  const rootSource = files.get("ppt_flow.mjs");
+  const semanticFields = ["provider_rendered_content", "context_not_to_render", "protected_geometry"];
+  const foundSemanticField = semanticFields.find((field) => new RegExp(`\\b${field}\\b`).test(rootSource || ""));
+  if (foundSemanticField) {
+    addIssue(issues, "root-page-image-prompt-assembly", "ppt_flow.mjs", `ppt_flow may not assemble Page Image prompt semantics (${foundSemanticField})`);
+  }
+}
 
 function validateRetiredProtocolAbsence(files, issues) {
   for (const [path, source] of files) {
+    if (path.startsWith("tests/") || path.startsWith("tests_e2e/")) continue;
     if (normalized(path).includes(RETIRED_PROTOCOL_PATH)) {
       addIssue(issues, "retired-protocol-owner", path, "retired protocol paths may not exist in active roots");
     }
-    const text = String(source);
-    const hasRetiredToken = text.includes(RETIRED_PROTOCOL_TOKENS[0]) ||
-      new RegExp(`\\b${RETIRED_PROTOCOL_TOKENS[1]}(?!-v2)\\b`).test(text) ||
-      text.includes(RETIRED_PROTOCOL_TOKENS[2]) || text.includes(RETIRED_PROTOCOL_TOKENS[3]);
-    if (hasRetiredToken) {
-      addIssue(issues, "retired-protocol-reference", path, "active source may not reference a retired protocol owner, writer, or decoder");
+    const retiredImport = collectLiteralImports(source).find((specifier) => RETIRED_PROTOCOL_IMPORT_SEGMENT.test(specifier));
+    if (retiredImport) {
+      addIssue(issues, "retired-protocol-import", path, `active source imports retired protocol implementation ${retiredImport}`);
+    }
+    const retiredDispatch = RETIRED_PROTOCOL_DISPATCH_IDENTIFIERS.find((identifier) =>
+      new RegExp(`\\b${identifier}\\b`).test(String(source)));
+    if (retiredDispatch) {
+      addIssue(issues, "retired-protocol-dispatch", path, `active source dispatches retired protocol identifier ${retiredDispatch}`);
     }
   }
 }
@@ -289,6 +371,8 @@ function validateRetiredProtocolAbsence(files, issues) {
 export function validateArchitectureSnapshot({ files: inputFiles, manifest = null, requireCompleteManifest = true }) {
   const files = new Map(Object.entries(inputFiles instanceof Map ? Object.fromEntries(inputFiles) : inputFiles).map(([path, value]) => [normalized(path), String(value)]));
   const issues = [];
+  validatePageImageCoreSeam(files, issues);
+  validatePageImageProviderInputCompilation(files, issues);
   validateSharedWorkflowSemanticBoundaries(files, issues);
   validateSingleDeliveryOwner(files, issues);
   validateRetiredProtocolAbsence(files, issues);

@@ -1,157 +1,7 @@
 ## Purpose
 
-Define Image Production as the active Page Authority capability family.
+Define Image Production as the active Page Image Workflow capability family.
 ## Requirements
-### Requirement: Page Authority has one finalization Interface
-For the exact TARGET `page-authority-image2-v2` / `image2-page-authority-v2` pair, the selected workflow adapter SHALL be the only final-slide publisher. It SHALL publish the common v2 final-slide manifest and shall not route a receipt through another protocol adapter or alternate compositor. A marker/state mismatch or stale raw evidence SHALL stop before final-slide publication.
-
-#### Scenario: Raw acceptance is required before publication
-- **WHEN** a reviewable target raw projection has no decision
-- **THEN** finalization returns the raw-review `confirm` action without publication
-- **AND** invalid or stale raw evidence hard-stops final-slide publication
-
-#### Scenario: TARGET finalization selects one workflow publisher
-- **WHEN** a valid TARGET source/state pair has workflow `framed` or `pure`
-- **THEN** only its matching workflow adapter may publish the v2 final-slide manifest
-- **AND** it does not invoke another-protocol or sibling workflow adapter
-
-### Requirement: Framed compositor is a private evidence-bound adapter
-
-The private Framed adapter SHALL own one canonical frame compiler and browser evaluator used for both
-plan-time proof and final composition. It SHALL derive its document only from the normalized Framed
-preset, current Text Frame, canonical render profile, and verified full-canvas underlay. Final
-composition SHALL require current accepted raw evidence whose Framed raw contract binds that same
-render profile, and SHALL repeat layout, font, geometry, network, and capture checks before publication.
-
-Callers SHALL NOT supply or attest HTML, CSS, asset paths, font paths, capture options, publication
-roots, preflight results, composition callbacks, alternate renderers, or legacy artifacts. The adapter
-SHALL return final bytes for an entire bounded batch only after every page passes; it SHALL NOT publish
-a partial final manifest when any page fails.
-
-#### Scenario: Caller cannot introduce a second renderer
-- **WHEN** a caller supplies HTML, CSS, capture configuration, a trusted preflight object, or a composition callback to Framed finalization
-- **THEN** composition rejects the input before browser setup
-- **AND** no final artifact is published
-
-#### Scenario: Final profile drift stops publication
-
-- **WHEN** accepted underlay evidence binds a render profile different from the current canonical profile
-- **THEN** Framed finalization returns the owning Generated Image Rebuild hard-stop
-- **AND** it does not rebind the underlay or publish a partial final manifest
-
-#### Scenario: Final composition repeats the accepted evaluator
-
-- **WHEN** current accepted underlay evidence and current Text Frames enter Framed finalization
-- **THEN** the adapter compiles and evaluates the same canonical frame contract used at planning
-- **AND** only a completely successful batch may publish final PNG bytes and the common manifest
-
-### Requirement: TARGET workflow adapters publish one common final-slide manifest
-
-For a current `page-authority-image2-v2` source receipt, the selected workflow
-adapter SHALL be the only final-slide publisher. The Framed adapter SHALL
-compose final PNG bytes from accepted text-free native raw evidence and its
-local Text Frame; the Pure adapter SHALL publish the accepted native raw PNG
-bytes unchanged as final PNG bytes. Both SHALL publish the same
-`page-authority-final-slide-manifest-v2` schema, bound to the source receipt,
-accepted raw evidence, ordered stable IDs/positions, final byte hashes, and
-actual final media dimensions, and workflow provenance.
-
-Pure finalization SHALL retain the verified provider-native bytes, their actual
-dimensions, and raw-byte digest exactly; it SHALL NOT crop, resize, transcode,
-or otherwise normalize them. Framed finalization SHALL continue to own its
-fixed local composition output and SHALL NOT present its local frame as a
-repair of provider raw bytes.
-The selected adapter SHALL NOT invoke or import its sibling adapter. A final
-manifest SHALL NOT be published before exact accepted raw evidence is current,
-and no workflow adapter SHALL publish a PPTX, notes receipt, or delivery review.
-
-#### Scenario: Framed and Pure publish interchangeable delivery input
-
-- **WHEN** valid target Framed and target Pure receipts each have current accepted raw evidence
-- **THEN** their selected adapters each publish a valid v2 final-slide manifest with the same schema
-- **AND** `05-delivery` can consume either manifest without an authority-specific caller contract
-
-#### Scenario: Pure final preserves native provider bytes
-
-- **WHEN** a Pure receipt finalizes accepted provider PNG evidence with positive
-  native dimensions
-- **THEN** each final PNG has the same bytes, dimensions, and digest as its
-  accepted raw PNG
-- **AND** the final manifest binds those unchanged final bytes in current order
-
-#### Scenario: Non-default Pure dimensions reach delivery unchanged
-
-- **WHEN** a Pure receipt finalizes accepted provider PNG evidence whose
-  dimensions differ from `2048x1136`
-- **THEN** its final manifest records those actual dimensions and delivery
-  accepts the final bytes without normalization
-- **AND** the resulting PPTX uses the image as a full-slide projection without
-  changing the evidence bytes
-
-#### Scenario: Wrong workflow finalization is rejected
-
-- **WHEN** a Pure receipt is presented to the Framed adapter or a Framed receipt is presented to the Pure adapter
-- **THEN** the adapter rejects the wrong workflow ownership before writing final output
-- **AND** it does not delegate to or import the sibling adapter as a fallback
-
-### Requirement: Image production resolves only selected v2 workflow owners
-Image Production SHALL resolve an exact v2 source/state pair marker-first to the selected `03-framed-image` or `04-pure-image` adapter followed by shared `05-delivery`. A non-v2, partial, hybrid, or mismatched pair SHALL not resolve an adapter, writer, receipt initializer, or finalization path; it receives the owning unsupported-protocol or identity hard-stop.
-
-#### Scenario: Production adapter inventory is inspected
-- **WHEN** a production caller presents a v2 source/state pair
-- **THEN** it resolves only the declared selected workflow owner
-- **AND** no non-v2 adapter is exported, registered, or imported
-
-### Requirement: Framed Pilot preview reuses the final composition contract
-
-For a current Framed Pilot projection, Image Production SHALL use the same
-private canonical frame compiler, browser evaluator, checked-in font inventory,
-underlay validation, and capture profile that Framed finalization uses. It SHALL
-produce preview-only evidence for the selected current Pilot tuples containing
-both the exact text-free underlay and the production-equivalent Text Frame
-composite. The caller SHALL not supply HTML, CSS, fonts, capture settings,
-publication paths, alternate renderers, or a trusted proof result.
-
-The Pilot publisher SHALL not write a final-slide manifest, final projection,
-PPTX, notes receipt, accepted raw evidence, or delivery decision. A failed
-Framed preflight or capture SHALL return the existing owning source,
-environment, or Harness repair action before any Pilot decision is offered.
-
-#### Scenario: Framed Pilot composition is production-equivalent but preview-only
-
-- **WHEN** current selected Framed underlays enter a Pilot review projection
-- **THEN** the adapter validates and captures the same composite contract used by finalization
-- **AND** it publishes only Pilot evidence without creating final or delivery artifacts
-
-#### Scenario: Pilot callers cannot select another renderer
-
-- **WHEN** a Pilot caller supplies a renderer, HTML, CSS, font path, capture override, or output path
-- **THEN** the Framed adapter rejects the request before browser setup
-- **AND** it does not create evidence or fall back to a different renderer
-
-### Requirement: Pilot evidence preserves selected-workflow isolation
-
-The selected workflow adapter SHALL own the workflow-specific Pilot
-contribution. Pure Pilot evidence SHALL present the exact current raw image
-bytes as the selected workflow's content for all final pixels, with identity
-and plan/profile bindings, and SHALL not invoke, import, or expose Framed
-composition, Text Frame, safe-zone, or underlay semantics. Shared production
-mechanics may validate generic coverage and labels but SHALL not decide Pilot
-visual quality for either workflow.
-
-#### Scenario: Pure Pilot has no Framed semantics
-
-- **WHEN** a current Pure Pilot projection is prepared
-- **THEN** it contains exact current raw image bytes and generic identity
-  evidence only
-- **AND** no Framed compositor, safe-zone guide, or Text Frame contribution is used
-
-#### Scenario: Sibling workflow cannot publish Pilot evidence
-
-- **WHEN** a Framed run is passed to a Pure Pilot publisher or a Pure run is passed to a Framed Pilot publisher
-- **THEN** the selected-workflow check hard-stops before artifact publication
-- **AND** the owner does not delegate to the sibling adapter
-
 ### Requirement: Production final files use NN_slideID naming
 
 The final-slide manifest SHALL name each production file `NN_slideID.png`,
@@ -173,3 +23,96 @@ position projection and changes with reordering.
   `${slide_id}.png` only)
 - **THEN** the final manifest validator reports an invalid item
 - **AND** assembly does not accept the manifest
+
+### Requirement: Current Page Image Workflow has one selected finalization publisher
+
+For an exact current `page-image-workflow-v1` source/state/receipt tuple, the
+selected `framed` or `pure` adapter SHALL be the sole publisher of
+`page-image-final-slide-manifest-v1`. It SHALL publish only after the current
+Complete Page Review has proceeded and all bound source, profile, provider-page,
+and workflow facts remain current. A mismatch, stale evidence, or wrong
+workflow owner SHALL hard-stop before final media or manifest publication.
+
+Pure finalization SHALL publish the accepted provider page bytes and their
+actual verified dimensions unchanged. Framed finalization SHALL publish the
+current provider page combined with the deterministic local
+kicker/title/subtitle overlay under the same evaluated profile used for its
+review composite. Both adapters SHALL publish the same final-slide manifest
+shape for shared delivery; neither adapter SHALL publish a PPTX, notes receipt,
+or delivery decision.
+
+#### Scenario: Pure preserves current provider page bytes
+
+- **WHEN** a proceeded Pure Complete Page Review reaches finalization
+- **THEN** the final manifest binds the accepted provider page bytes and actual
+  dimensions unchanged
+- **AND** finalization does not crop, resize, transcode, or invoke a Framed
+  local renderer
+
+#### Scenario: Framed finalization repeats its reviewed overlay
+
+- **WHEN** a proceeded Framed Complete Page Review reaches finalization
+- **THEN** finalization uses the same current local header profile and input as
+  the production-equivalent composite under review
+- **AND** it publishes no final manifest if the profile, header input, or raw
+  provider page has drifted
+
+### Requirement: Complete Page Review makes one complete-page decision
+
+The selected workflow owner SHALL present one `proceed` or `repair` decision
+for each complete page after deterministic preflight and required raw evidence
+are available. For Framed, the decision surface SHALL present the exact
+provider raw page beside a production-equivalent local-header composite. For
+Pure, it SHALL present the exact provider page as the complete page. This
+decision SHALL check source-required literal/data fidelity, readable
+composition, and the policy-specific presentation facts; it SHALL not add a
+second composite approval state.
+
+A `repair` decision SHALL retain the existing owner-issued repair/rebuild
+route. A `proceed` decision records normal page acceptance, not a waiver, and
+does not replace the later final delivery review of final PNG, PPTX, notes, and
+deck-level presentation quality.
+
+#### Scenario: Framed review is not split into raw and composite approvals
+
+- **WHEN** a reviewer receives complete Framed page evidence
+- **THEN** the owner presents raw and composite together with one decision
+- **AND** it does not require a second local-composite approval after proceed
+
+#### Scenario: Pure review has no Framed control surface
+
+- **WHEN** a reviewer receives complete Pure page evidence
+- **THEN** the owner presents the provider page and its current bindings
+- **AND** it does not expose Framed protected-zone, header-renderer, or
+  composite controls
+
+### Requirement: Pilot remains a preview-only sample and cost control
+
+Pilot SHALL remain a selected-workflow sample/cost stage and SHALL reuse the
+same current review representation that Complete Page Review would use for its
+sampled pages: Framed raw plus production-equivalent composite, or Pure
+provider page. Pilot SHALL not publish current accepted raw evidence, a final
+manifest, PPTX, notes receipt, delivery decision, or a duplicate complete-page
+approval state.
+
+#### Scenario: Framed Pilot uses its current page representation
+
+- **WHEN** a current Framed Pilot sample is prepared
+- **THEN** it publishes preview-only raw and production-equivalent composite
+  evidence bound to the same policy inputs
+- **AND** it does not create final or accepted evidence
+
+### Requirement: v2 finalization and evidence are unsupported
+
+An adapter, compositor, Pilot publisher, or shared finalization reader SHALL
+reject v2 source/state/receipt/raw/review/delivery evidence before artifact
+publication. It SHALL not use a v2 compositor, evidence translator, fallback,
+or migration reader as a current finalization route.
+
+#### Scenario: v2 receipt cannot publish a current final manifest
+
+- **WHEN** a v2 receipt is presented to current finalization
+- **THEN** finalization returns the `unsupported-protocol/export` hard-stop before
+  reading provider media or local-renderer inputs
+- **AND** it does not write a final PNG, manifest, PPTX, notes, or delivery
+  evidence
