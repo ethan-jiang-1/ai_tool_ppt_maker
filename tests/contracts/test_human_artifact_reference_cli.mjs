@@ -30,6 +30,7 @@ import {
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { initBundle, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { inspectProgressiveRawLifecycle } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import {
   inspectStyleMasterCandidates,
   resolveAcceptedStyleMasterReference,
@@ -360,6 +361,110 @@ describe("human artifact reference CLI", () => {
       expect(view).toContain("Pilot Page Review contact sheet");
       expect(view).not.toContain("Framed Pilot page");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("lists a current undecided Framed Complete Page Review without provider work or state mutation", async () => {
+    const root = mkdtempSync(join(tmpdir(), "artifact-view-framed-current-review-cli-"));
+    const deck = join(root, "deck_artifact_view_framed_current_review");
+    const runDir = join(deck, "3_versions", "v1");
+    const slideIds = ["DeckGo", "FlowGo"];
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const canvas = createCanvas(2000, 1125);
+      canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+      const image = canvas.toBuffer("image/png");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(runDir, "slide-specifications.md"), progressiveFramedSource(slideIds));
+      await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
+
+      const plan = await buildFramedProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const batch = await planFramedTargetPilot(runDir, { planHash, slideIds });
+      await authorizeFramedProgressiveRawBatch(runDir, { planHash, batchHash: batch.batch.batch_hash });
+      await generateFramedProgressiveRawItem(runDir, { planHash, batchHash: batch.batch.batch_hash, submit: async () => image });
+      await generateFramedProgressiveRawItem(runDir, { planHash, batchHash: batch.batch.batch_hash, submit: async () => image });
+      await prepareFramedProgressiveRawReview(runDir, { planHash });
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
+      const result = flow(["image2", "artifact-view", runDir]);
+      expect(result.status, result.stderr).toBe(0);
+      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      expect(view).toContain("### `01_DeckGo`");
+      expect(view).toContain("### `02_FlowGo`");
+      expect(view).toContain("current provider page");
+      expect(view).toContain("current Framed complete page");
+      expect(view).toContain("Complete Page Review provider PNG");
+      expect(view).toContain("production-equivalent complete-page PNG");
+      expect(view).toContain("before the Complete Page Review decision");
+      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "provider-page", "01_DeckGo.png"));
+      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page", "02_FlowGo.png"));
+      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page-review.png"));
+      expect(view).toContain("Final media: accepted complete-page review evidence is not available");
+      expect(view).toContain("Delivery: a current delivery receipt has not been published");
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }))).toEqual(recordsBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it("lists a current undecided Pure Complete Page Review and hides it after repair", async () => {
+    const root = mkdtempSync(join(tmpdir(), "artifact-view-pure-current-review-cli-"));
+    const deck = join(root, "deck_artifact_view_pure_current_review");
+    const runDir = join(deck, "3_versions", "v1");
+    const slideIds = ["DeckGo", "FlowGo"];
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const canvas = createCanvas(2048, 1136);
+      canvas.getContext("2d").fillRect(0, 0, 2048, 1136);
+      const image = canvas.toBuffer("image/png");
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image);
+      writeFileSync(join(runDir, "slide-specifications.md"), progressivePureSource(slideIds));
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const plan = buildPureProgressiveTargetRawPlan(runDir);
+      const planHash = plan.progressive_raw_work_plan.sha256;
+      const batch = await planPureTargetPilot(runDir, { planHash, slideIds });
+      await authorizePureProgressiveRawBatch(runDir, { planHash, batchHash: batch.batch.batch_hash });
+      await generatePureProgressiveRawItem(runDir, { planHash, batchHash: batch.batch.batch_hash, submit: async () => image });
+      await generatePureProgressiveRawItem(runDir, { planHash, batchHash: batch.batch.batch_hash, submit: async () => image });
+      await preparePureProgressiveRawReview(runDir, { planHash });
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
+      const result = flow(["image2", "artifact-view", runDir]);
+      expect(result.status, result.stderr).toBe(0);
+      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      expect(view).toContain("### `01_DeckGo`");
+      expect(view).toContain("### `02_FlowGo`");
+      expect(view.indexOf("### `01_DeckGo`")).toBeLessThan(view.indexOf("### `02_FlowGo`"));
+      expect(view).toContain("current provider page");
+      expect(view).not.toContain("current Framed complete page");
+      expect(view).toContain("Complete Page Review contact sheet");
+      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "provider-page", "01_DeckGo.png"));
+      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page-review.png"));
+      expect(view).toContain("Final media: accepted complete-page review evidence is not available");
+      expect(view).toContain("Delivery: a current delivery receipt has not been published");
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }))).toEqual(recordsBefore);
+
+      await acceptPureProgressiveRawReview(runDir, { planHash, decision: "repair" });
+      const repairedStateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const repairedRecordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
+      const repaired = flow(["image2", "artifact-view", runDir]);
+      expect(repaired.status, repaired.stderr).toBe(0);
+      const repairedView = readFileSync(paths.human_artifact_reference, "utf8");
+      expect(repairedView).not.toContain("current provider page");
+      expect(repairedView).toContain("Complete Page Review: no current undecided or accepted complete-page review evidence is available");
+      expect(repairedView).toContain("Final media: accepted complete-page review evidence is not available");
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(repairedStateBefore);
+      expect(JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }))).toEqual(repairedRecordsBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

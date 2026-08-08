@@ -75,6 +75,7 @@ import {
   acceptProgressiveRawCompleteReview,
   acceptProgressiveRawPilot,
   publishProgressiveRawWorkPlan,
+  readCurrentProgressiveRawCompleteReview,
   readCurrentProgressiveRawPilotWork,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
@@ -430,6 +431,18 @@ function readPureProgressiveFinalizationReview(context, progressiveRawWorkPlan, 
     sourceEpoch: progressiveRawWorkPlan.source_epoch,
   });
   return requirePureFinalizationReview(validation, acceptedCompleteReview);
+}
+
+function requirePureCurrentCompleteReview(validation, currentCompleteReview) {
+  if (!validation?.ok || !currentCompleteReview ||
+    validation.complete_page_presentation_sha256 !== currentCompleteReview.workflow_evidence_sha256 ||
+    validation.projection_sha256 !== currentCompleteReview.projection_sha256) {
+    throw new PureImageWorkflowError(
+      "pure_current_complete_review_stale",
+      "Pure current Complete Page Review no longer binds its provider and presentation evidence",
+    );
+  }
+  return validation.presentation;
 }
 
 /** Pure finalization publishes the accepted raw bytes unchanged. */
@@ -1109,6 +1122,26 @@ export function inspectPureProgressiveCompletePageReview(runDir) {
     raw.complete_raw_review,
   );
   return Object.freeze({ plan, raw, presentation });
+}
+
+/** Read and validate the current undecided Pure Complete Page Review without writing. */
+export function inspectPureProgressiveCurrentCompletePageReview(runDir) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  const raw = readCurrentProgressiveRawCompleteReview({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  if (!raw.available) return raw;
+  const presentation = requirePureCurrentCompleteReview(
+    validatePureProgressiveCompletePageReview({
+      context: plan,
+      plan: raw.plan,
+      materializations: raw.materializations,
+    }),
+    raw.complete_raw_review,
+  );
+  return Object.freeze({ available: true, plan, raw, presentation });
 }
 
 /** Publish final and delivery projections from exact v3 accepted raw evidence only. */

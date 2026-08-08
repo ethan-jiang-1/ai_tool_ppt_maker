@@ -367,6 +367,13 @@ artifact type, inspection purpose, and a local absolute locator. Visible display
 be kind-prefixed and collision-aware within the view; a full SHA-256 may occur only where it is
 unavoidably part of the physical locator and SHALL not be the view's human display reference.
 
+When the current progressive raw owner establishes a Complete Page Review whose decision is still
+unset, the view SHALL list that review's current page artifacts and review projection before any
+human `proceed` or `repair` decision. The entries SHALL be derived from the same current
+owner-established plan, page bytes, and review projection that the `image2 review` operation
+uses. They SHALL not require accepted raw evidence, create a second review surface, infer a
+review from raw directories, or make final/delivery artifacts appear available.
+
 The view SHALL be rebuildable, provider-free, secret-safe, and non-authoritative. It SHALL not
 contain credentials, authorization headers, environment values, provider response bodies, raw
 prompt prose, image data URLs, or a new copy of lifecycle/review/acceptance state. Neither its
@@ -380,6 +387,24 @@ decision; authorize provider work; or substitute for source, provenance, or rece
   purpose in stable candidate or full-plan slide order
 - **AND** its display labels do not replace the existing exact digest and formal-ID protocol keys
 
+#### Scenario: Current Complete Page Review is inspectable before its decision
+
+- **WHEN** every page in a current Pure or Framed full plan is materialized and the raw owner has
+  established a Complete Page Review with no `proceed` or `repair` decision
+- **THEN** the rebuilt view lists each current review page and its complete-review projection with
+  stable IDs, typed display references, absolute read-only locators, artifact types, and review
+  purposes
+- **AND** it leaves final media and delivery unavailable and does not mutate state, receipts,
+  grants, attempts, review decisions, or provider work
+
+#### Scenario: A repaired Complete Page Review is not current display evidence
+
+- **WHEN** the current plan has only a Complete Page Review whose `repair` decision is already
+  recorded and no accepted raw evidence
+- **THEN** the rebuilt view does not list that historical review's page or contact-sheet locators
+- **AND** it marks Complete Page Review, final media, and delivery unavailable without mutating
+  the next raw-rebuild route
+
 #### Scenario: A later lifecycle artifact does not exist yet
 
 - **WHEN** a current scope has planned or reviewed evidence but no final, notes, or delivery
@@ -391,9 +416,9 @@ decision; authorize provider work; or substitute for source, provenance, or rece
 #### Scenario: A display reference is presented to a lifecycle operation
 
 - **WHEN** a caller supplies a view locator or short display reference where an exact lifecycle
-selector is required
+  selector is required
 - **THEN** the lifecycle operation continues to require its existing formal selector or full
-SHA-256 argument
+  SHA-256 argument
 - **AND** the view does not resolve, translate, or authorize that request
 
 ### Requirement: Pure raw work binds one selected deck visual system

@@ -2329,6 +2329,7 @@ async function targetImage2Operations(workflow) {
       accept: owner.acceptFramedProgressiveRawReview,
       reconcile: owner.reconcileFramedProgressiveRawAttempt,
       inspectPilotReview: owner.inspectFramedProgressivePilotPageReview,
+      inspectCurrentReview: owner.inspectFramedProgressiveCurrentCompletePageReview,
       inspectAcceptedReview: owner.inspectFramedProgressiveCompletePageReview,
       buildDelivery: owner.buildFramedProgressiveTargetDelivery,
       refreshFramedText: owner.refreshFramedTargetText,
@@ -2354,6 +2355,7 @@ async function targetImage2Operations(workflow) {
       accept: owner.acceptPureProgressiveRawReview,
       reconcile: owner.reconcilePureProgressiveRawAttempt,
       inspectPilotReview: owner.inspectPureProgressivePilotPageReview,
+      inspectCurrentReview: owner.inspectPureProgressiveCurrentCompletePageReview,
       inspectAcceptedReview: owner.inspectPureProgressiveCompletePageReview,
       buildDelivery: owner.buildPureProgressiveTargetDelivery,
       refreshNotes: owner.refreshPureTargetNotes,
@@ -2525,33 +2527,43 @@ async function rebuildTargetPageImageArtifactView(route) {
     unavailable.push(artifactUnavailable("Pilot Page Review", "a current partial Pilot review is not available"));
   }
 
+  const currentReview = operations.inspectCurrentReview(route.run_dir);
   let acceptedReview = null;
-  if (currentRaw.evidence?.accepted_raw_evidence_sha256) {
-    acceptedReview = operations.inspectAcceptedReview(route.run_dir);
-    const review = acceptedReview.presentation;
-    const reviewRoot = join(paths.review_root, "complete-page", acceptedReview.raw.plan.sha256);
-    for (const [index, slideId] of acceptedReview.raw.plan.ordered_slide_ids.entries()) {
+  const completeReview = currentReview.available
+    ? currentReview
+    : currentRaw.evidence?.accepted_raw_evidence_sha256
+      ? operations.inspectAcceptedReview(route.run_dir)
+      : null;
+  if (completeReview) {
+    const review = completeReview.presentation;
+    const reviewRoot = join(paths.review_root, "complete-page", completeReview.raw.plan.sha256);
+    const isCurrentReview = currentReview.available;
+    for (const [index, slideId] of completeReview.raw.plan.ordered_slide_ids.entries()) {
       const filename = pageImageOrdinalImageFilename(index + 1, slideId);
       const existing = pageById.get(slideId);
       const pageArtifacts = [
         ...(existing?.artifacts || []),
         artifactReferenceEntry({
-          label: "provider page",
+          label: isCurrentReview ? "current provider page" : "provider page",
           artifactType: "Complete Page Review provider PNG",
-          purpose: "Inspect the accepted provider-rendered page in the complete-page review.",
+          purpose: isCurrentReview
+            ? "Inspect the current provider-rendered page before the Complete Page Review decision."
+            : "Inspect the accepted provider-rendered page in the complete-page review.",
           locator: join(reviewRoot, "provider-page", filename),
           kind: "review",
-          sha256: acceptedReview.raw.complete_raw_review_sha256,
+          sha256: completeReview.raw.complete_raw_review_sha256,
         }),
       ];
       if (review.has_complete_page_artifact) {
         pageArtifacts.push(artifactReferenceEntry({
-          label: "Framed complete page",
+          label: isCurrentReview ? "current Framed complete page" : "Framed complete page",
           artifactType: "production-equivalent complete-page PNG",
-          purpose: "Inspect the Framed provider page with its validated header overlay.",
+          purpose: isCurrentReview
+            ? "Inspect the current Framed provider page with its validated header overlay before the Complete Page Review decision."
+            : "Inspect the Framed provider page with its validated header overlay.",
           locator: join(reviewRoot, "complete-page", filename),
           kind: "review",
-          sha256: acceptedReview.raw.complete_raw_review_sha256,
+          sha256: completeReview.raw.complete_raw_review_sha256,
         }));
       }
       pageById.set(slideId, pageArtifactGroup(existing?.position || index + 1, slideId, pageArtifacts));
@@ -2559,13 +2571,16 @@ async function rebuildTargetPageImageArtifactView(route) {
     deckArtifacts.push(artifactReferenceEntry({
       label: "Complete Page Review contact sheet",
       artifactType: "Complete Page Review contact-sheet PNG",
-      purpose: "Inspect the current complete-page review across the full plan.",
+      purpose: isCurrentReview
+        ? "Inspect the current complete-page review across the full plan before its decision."
+        : "Inspect the accepted complete-page review across the full plan.",
       locator: join(reviewRoot, "complete-page-review.png"),
       kind: "review",
       sha256: review.projection_sha256,
     }));
+    if (!isCurrentReview) acceptedReview = completeReview;
   } else {
-    unavailable.push(artifactUnavailable("Complete Page Review", "accepted complete-page review evidence is not available"));
+    unavailable.push(artifactUnavailable("Complete Page Review", "no current undecided or accepted complete-page review evidence is available"));
   }
 
   let finalInspection = null;

@@ -1682,6 +1682,44 @@ export function readProgressiveAcceptedRawWork({ runDir, workflow, plan_hash, ex
   });
 }
 
+/**
+ * Read the one current Complete Page Review that still awaits its human
+ * decision. A prepared record remains immutable after a later decision, so
+ * `decided_by_prepared` is the authority for excluding that historical input.
+ */
+export function readCurrentProgressiveRawCompleteReview({ runDir, workflow, expected_plan = null } = {}) {
+  const current = loadPlanByHead(runDir, workflow);
+  if (!current) return Object.freeze({ available: false });
+  const snapshot = expected_plan
+    ? requireCurrentPlan(current, current.plan.sha256, expected_plan)
+    : current;
+  const candidates = [...snapshot.complete.reviews.values()].filter((review) =>
+    review.record.decision === null && !snapshot.complete.decided_by_prepared.has(review.sha256));
+  if (candidates.length > 1) {
+    fail("progressive_raw_complete_review_invalid", "more than one current Complete Page Review awaits a decision");
+  }
+  const review = candidates[0] || null;
+  if (!review) return Object.freeze({ available: false });
+  const materializations = new Map();
+  const rawBytes = {};
+  for (const slideId of snapshot.plan.ordered_slide_ids) {
+    const materialization = snapshot.materializations.get(slideId);
+    if (!materialization) {
+      fail("progressive_raw_complete_review_stale", `current Complete Page Review raw bytes are unavailable for ${slideId}`);
+    }
+    materializations.set(slideId, materialization);
+    rawBytes[slideId] = Buffer.from(materialization.bytes);
+  }
+  return Object.freeze({
+    available: true,
+    plan: snapshot.plan,
+    complete_raw_review: review.record,
+    complete_raw_review_sha256: review.sha256,
+    materializations,
+    raw_bytes_by_slide: Object.freeze(rawBytes),
+  });
+}
+
 /** Read the current partial Pilot evidence and exact page materializations without writing. */
 export function readCurrentProgressiveRawPilotWork({ runDir, workflow, expected_plan = null } = {}) {
   const current = loadPlanByHead(runDir, workflow);
