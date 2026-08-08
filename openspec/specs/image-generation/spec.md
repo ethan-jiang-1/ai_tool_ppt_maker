@@ -134,6 +134,19 @@ Pilot decision is created and the owner routes to Complete Page Review. Missing
 partial-Pilot coverage with residual debt returns the owner-issued successor
 Pilot planning action before evidence or decision publication.
 
+For a complete raw review, the owner SHALL treat an immutable prepared record
+as current only when its decision is unset and no validated later decision
+record references that prepared record. Current lifecycle actions and evidence,
+unaccepted review preparation, review acceptance, and read-only current-review
+inspection SHALL apply this same relationship-aware rule. A decision-history
+handoff MAY retain the immutable `repair` decision for audit, but SHALL NOT
+establish current review availability or select a lifecycle action. A human
+`repair` decision SHALL preserve both immutable records, expose no current
+Complete Page Review, and return only the existing
+`rebuild_progressive_raw_work` recovery action. It SHALL not replay the
+historical prepared review, create a second decision from it, create accepted
+raw evidence, or make final or delivery artifacts available.
+
 #### Scenario: Pilot planning cannot submit or accept a page
 
 - **WHEN** a current full plan receives an exact selected-ID `pilot` request
@@ -149,6 +162,26 @@ Pilot planning action before evidence or decision publication.
   the reconciliation or bounded successor action
 - **AND** it does not infer a retry, resubmit the item, or use copied bytes as
   materialization
+
+#### Scenario: A repaired Complete Page Review returns to raw rebuild
+
+- **WHEN** a valid current Complete Page Review has a later immutable decision
+  record with `repair` that references its prepared record
+- **THEN** lifecycle inspection returns `rebuild_progressive_raw_work` and no
+  current Complete Page Review digest
+- **AND** it does not expose review acceptance, accepted evidence, final media,
+  or delivery as available
+- **AND** an audit-only decision handoff, if projected, identifies the review
+  as decided and does not make it current
+
+#### Scenario: Historical prepared evidence cannot be replayed or re-decided
+
+- **WHEN** preparation or acceptance is requested after a repair decision has
+  referenced the only prepared Complete Page Review for the current plan
+- **THEN** the owner rejects that request with the existing bounded rebuild
+  recovery action
+- **AND** it writes no review, decision, accepted evidence, grant, attempt, or
+  provider request
 
 ### Requirement: Structural Page Image targets begin without raw reuse
 

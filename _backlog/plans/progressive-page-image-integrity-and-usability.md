@@ -1,8 +1,25 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–5 已归档；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；BUG-057 已建立 current Pure Pilot target，等待新 source 的 content/visual gate 确认）
+> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–7 均已完成、main-spec sync、归档；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；BUG-057 的三页 Pure review 已记录 `repair`，owner 已恢复既有 rebuild 路由，等待下一轮受控 source edit）
 
-## 当前进度（2026-08-08）
+## 当前进度（2026-08-09）
+
+### 一眼状态
+
+- [x] **工程与协议修复**：Changes 0–7 均已完成、验证、main-spec sync、archive；Change 7
+  `restore-repair-raw-rebuild-routing` 已归档至
+  `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`。
+- [x] **三页当前 Pure Pilot**：`DkfGo`、`TwoMet`、`PlatGo` 的 Style Master 选择、成本授权、raw materialization 与
+  current-review locator 均已完成；未生成 final media、PPTX 或 delivery。
+- [x] **Human Complete Page Review**：已对三张 provider pages / contact sheet 作出 `repair` 决定；既有 immutable
+  decision record 已写入，final media、PPTX 和 delivery 仍不可用。
+- [x] **repair routing**：owner 现在以 relation-aware selector 排除已被 `repair` 决定引用的 prepared review；
+  当前唯一恢复动作是 `rebuild_progressive_raw_work`，历史 decision handoff 仅供审计。
+- [ ] **下一轮受控重建**：按 owner-issued `rebuild_progressive_raw_work` 进行 source edit → 重新披露 exact raw
+  scope → 取得对应授权 → raw rebuild → 同一 Complete Page Review；不得借旧的 broad authorization 推断新 provider scope。
+
+**当前可用审阅入口：**
+`deck_dark_factory_current/3_versions/v1/_generated/page_image_workflow/reference/human-artifact-reference-v1.md`
 
 Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
@@ -24,17 +41,17 @@ Pure token 只产生既有的 raw rebuild debt，不生成或重选 Style Master
 `tests/04-pure-image/test_pure_workflow.mjs` 为 14/14 通过。新增/相关 focused tests、protected `npm test`、
 `git diff --check`、change strict 与 all-spec strict 已通过；未执行 provider-backed E2E 或 Pilot。
 
-这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。下一步须通过既有的成本授权与
-Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人类视觉验收；这不是新 gate。
+这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。三张页面的既有成本授权和
+Complete Page Review evidence 已准备完毕；现在仅等待人类对内容/构图需求不同的 Pure 页进行视觉验收。这不是新 gate。
 
 为避免把历史 `page-authority-image2-v2` source/state 伪装成 current protocol，已保留
 `deck_dark_factory/` 的 v1--v3 原始 bytes，并新建
 `deck_dark_factory_current/3_versions/v1/` 作为干净的 `page-image-workflow-v1` Pure target。它只重写
 BUG-057 Pilot 所需的三页作者输入：`DkfGo`（editorial narrative）、`TwoMet`（metric/data-led）和
 `PlatGo`（process/relationship-led）；三页共享一个 Pure visual-system binding，而 motif/relationship
-selection 各不相同。`ppt_flow validate` 已通过 3 页 source receipt validation；尚未生成 Style Master、raw/final
-images、PPTX 或任何 provider 请求。新 target 的 content/visual gates 均保持 pending，不能继承旧 deck 的
-历史 approval。
+selection 各不相同。`ppt_flow validate` 已通过 3 页 source receipt validation；Style Master、三页 raw provider
+pages 和 Complete Page Review 已准备完成。新 target 的 content/visual gates 已明确批准，仍不继承旧 deck 的历史
+approval；final images、PPTX 和 delivery 尚未生成。
 
 ## 执行看板（2026-08-08）
 
@@ -84,12 +101,18 @@ images、PPTX 或任何 provider 请求。新 target 的 content/visual gates �
 - [x] **BUG-062 proposal**：已创建 `add-human-cli-handoff-guidance`，包含 proposal、`harness-charter` delta spec、design 与 tasks。
 - [x] **BUG-062 polish**：两轮 planning-only 审查、change/all-spec strict、diff check 与 `npm test` 均通过；随后取得人类 `APPLY` 授权。
 - [x] **BUG-062 apply / validate / sync / archive**：Charter/test 已实现；focused handoff 5/5、protected `npm test`、change/all-spec strict 与 diff check 均通过；main `harness-charter` spec 已同步并归档 change。没有 provider 工作、CLI schema、state/receipt/immutable-record 或 production run-bundle 改动。
+- [x] **Change 7 / apply / validate / sync / archive**：已统一 raw owner 的 relation-aware current-review selector，
+  repair 后不再重放或二次决定历史 prepared evidence，且只返回 `rebuild_progressive_raw_work`；focused
+  raw-owner test、protected `npm test`、strict checks 与 diff check 均通过。main `image-generation` spec 已同步，
+  change 已归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；没有 provider 调用或 deck state/evidence 变更。
 
-## 下一步队列（2026-08-08）
+## 下一步队列（2026-08-09）
 
 Change 6 `expose-current-page-review-artifacts` 已完成、同步和归档；它修复 BUG-057 的 existing Complete Page Review
 display surface，不改变 machine JSON 或启动新的 provider 工作。三页 Pure raw evidence 保持未接受状态，provider-free
-binding 不能替代真实像素验收。BUG-062 已完成。
+binding 不能替代真实像素验收。Human 已选择 `repair`；该决定未接受 raw evidence，未解锁 final/delivery，也未发起新的
+provider 请求。Change 7 已恢复 owner 的 rebuild routing，因此不再有工程协议阻塞；下一步是既有的受控 source edit →
+exact-scope disclosure / authorization → raw rebuild → 同一 review。BUG-062 已完成。
 
 ### BUG-057 三页 Pure Pilot（唯一未完成项）
 
@@ -109,8 +132,6 @@ binding 不能替代真实像素验收。BUG-062 已完成。
   current artifact view 定位。
 - [x] **Agent**：已记录 visual-direction decision，并发布 `DkfGo`、`TwoMet`、`PlatGo` 的完整 representative
   Pilot scope；三页 raw work plan 与 provider-input inspection 均可从 current artifact view 定位。
-- [ ] **Human**：明确授权当前三个 exact page-image Pilot slots 的 provider 成本范围；此授权独立于已耗尽的
-  Style Master 候选授权。
 - [x] **Human**：已明确授权当前三个 exact page-image Pilot slots 的 provider 成本范围；此授权独立于已耗尽的
   Style Master 候选授权。
 - [x] **Agent**：已生成三张完整 Pure 页面并准备 owner Complete Page Review；未创建本地 header overlay、第二份
@@ -120,12 +141,13 @@ binding 不能替代真实像素验收。BUG-062 已完成。
 - [x] **Human**：已对该 change 给出 `APPLY` 授权；实施、验证、spec sync 和 archive 均不包含 provider 调用、页面重跑
   或交付。
 - [x] **Agent**：已重建 current artifact view；三页 owner-issued complete-page evidence locator 已可供既有 review 使用。
-- [ ] **Human**：检查三页 current provider page 后给出 `proceed` 或 `repair`；通过前不得 final/delivery。
-- [ ] **Human**：跨页判断 typography hierarchy、Style-Master-derived colour use、title/content zones、
-  whitespace 与 permitted layout-family discipline，同时确认每页各自的内容/构图任务。
-- [ ] **Agent**：记录既有 review 结论：通过则将 BUG-057 移至 `_done/_fixed_bugs/`；需要修复则回到
-  source edit → raw rebuild → 同一 Complete Page Review。只有证据表明已绑定的 token 仍不足以表达问题时，
-  才另行 propose、polish 新 OpenSpec change。
+- [x] **Human**：已从 current artifact view 检查三页 provider page / contact sheet，并作出 `repair` 决定；该决定不等于
+  raw acceptance、final/delivery 授权或新的 provider 成本授权。
+- [x] **Agent**：Change 7 `restore-repair-raw-rebuild-routing` 已实施、验证、main-spec sync 并归档至
+  `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；该修复不修改 deck evidence、不做
+  provider 调用。
+- [ ] **Agent**：routing 修复后，按 owner-issued `rebuild_progressive_raw_work` 回到 source edit → 重新披露 exact raw
+  scope → 既有授权边界 → raw rebuild → 同一 Complete Page Review。不得借当前 broad authorization 推断新的 provider scope。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
@@ -243,7 +265,8 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 3 | `add-human-artifact-reference-view` | BUG-056、BUG-063（BUG-062 仍活跃） | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；显式 provider-free `image2 artifact-view` 重建 run-scoped logical view；所有人类检查 handoff 都有 locator；storage/CLI exact args 与普通 machine JSON 不变。BUG-056/063 已移入 `_done/_fixed_bugs/`。 |
 | 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`run-bundle-layout` | **已完成**：main specs 已同步并归档至 `openspec/changes/archive/2026-08-08-bind-pure-deck-visual-system/`；closed deck-authored source record 已进入 Pure Core/raw contract/compiled input/plan binding；`deck_visual_system_sha256` 为 Pure-required / Framed-null 的 common binding slot，并在 ordinary/progressive raw-plan validation、invalidation、inspection 和 fixtures 同步。Style Master 保持色彩/参考 authority、不扩大 candidate scope。14/14 Pure fixture、focused suites、protected baseline 和 strict checks 已绿；仅待既有成本授权下的三张 representative Pilot 供人类视觉判断。 |
 | 5 | `add-human-cli-handoff-guidance` | BUG-062 | `harness-charter` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-add-human-cli-handoff-guidance/`；成功 direct CLI 对人只报告 Purpose / Outcome / Next human action，当前 Page Image 状态/行动用重建的 typed artifact view。普通 success JSON、full SHA CLI 参数、content-addressed storage 和 selector grammar 保持不变；BUG-062 已移入 `_done/_fixed_bugs/`。 |
-| 6 | `expose-current-page-review-artifacts` | BUG-057 current Complete Page Review locator gap | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-expose-current-page-review-artifacts/`；current Pure/Framed Complete Page Review 在 `proceed`/`repair` 前进入现有 provider-free artifact view，repair 后的 prepared record 不会复活；final/delivery 仍只认 accepted evidence。仅待人类视觉决定。 |
+| 6 | `expose-current-page-review-artifacts` | BUG-057 current Complete Page Review locator gap | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-expose-current-page-review-artifacts/`；current Pure/Framed Complete Page Review 在 `proceed`/`repair` 前进入现有 provider-free artifact view，repair 后的 prepared record 不会在该 display view 复活；final/delivery 仍只认 accepted evidence。owner lifecycle 的独立 selector 漏洞由 Change 7 处理。 |
+| 7 | `restore-repair-raw-rebuild-routing` | BUG-057 repair 后 owner lifecycle selector 漏洞 | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；统一 relation-aware current-review selector，repair 后不得重放/二次决定 historical prepared evidence，唯一合法下一步是 `rebuild_progressive_raw_work`。不改 records、CLI、grant、provider 或 deck bytes。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
 Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在
