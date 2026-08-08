@@ -28,13 +28,20 @@ import {
   resolveFramedStyleMasterScope,
   resolveFramedTargetCandidateSource,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
-import { initBundle, pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  STYLE_MASTER_PROMPT,
+  initBundle,
+  pageImageWorkflowPaths,
+  styleAsset,
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { inspectProgressiveRawLifecycle } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import {
   inspectStyleMasterCandidates,
+  planStyleMasterCandidates,
   resolveAcceptedStyleMasterReference,
 } from "../../ppt_maker_harness/scripts/shared/image2/style_master_plan.mjs";
+import { styleMasterStorePaths } from "../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
 const FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
@@ -199,6 +206,88 @@ describe("human artifact reference CLI", () => {
       expect(recreated.status, recreated.stderr).toBe(0);
       expect(readFileSync(paths.human_artifact_reference, "utf8")).toContain("# Page Image Human Artifact Reference");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("projects a pending Style Master successor before raw inspection and preserves failed-view bytes", async () => {
+    const root = mkdtempSync(join(tmpdir(), "artifact-view-pending-successor-cli-"));
+    const deck = join(root, "deck_artifact_view_pending_successor");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const canvas = createCanvas(2000, 1125);
+      canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      buildPureProgressiveTargetRawPlan(runDir);
+
+      writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a bolder editorial visual system with material depth.\n", "utf8");
+      const successor = await planStyleMasterCandidates({
+        scope: resolvePureStyleMasterScope(runDir),
+        candidateCount: 1,
+      });
+      const paths = pageImageWorkflowPaths(runDir);
+      writeFileSync(paths.target_raw_plan, "not valid progressive raw plan bytes\n", "utf8");
+      const rawBefore = readFileSync(paths.target_raw_plan);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const planPaths = styleMasterStorePaths(runDir, { plan_sha256: successor.plan_sha256 });
+      const localCandidate = successor.plan.candidates.find((candidate) => candidate.candidate_id === "local-existing");
+      const localPaths = styleMasterStorePaths(runDir, {
+        plan_sha256: successor.plan_sha256,
+        candidate_id: localCandidate.candidate_id,
+        candidate_media_type: localCandidate.candidate_media_type,
+      });
+
+      const result = flow(["image2", "artifact-view", runDir]);
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        run_dir: runDir,
+        workflow: "pure",
+        artifact_view: paths.human_artifact_reference,
+        next_action: "authorize_style_master_candidates",
+      });
+      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      expect(view).toContain("Inspect this pending Style Master candidate; it is not accepted for raw work.");
+      expect(view).toContain("Style Master candidate candidate-001: generated candidate lifecycle is planned; verified media is unavailable");
+      expect(view).toContain("Provider input: a pending Style Master successor has no current raw plan");
+      expect(view).toContain("Raw and Complete Page Review: a pending Style Master successor has no current raw plan");
+      expect(view).toContain("Final media: a pending Style Master successor is not accepted for raw work");
+      expect(view).toContain("Delivery: a pending Style Master successor is not accepted for delivery");
+      expect(view).not.toContain("Inspect the current accepted Style Master candidate.");
+      expect(view).not.toContain("current raw work plan");
+      expect(readFileSync(paths.target_raw_plan)).toEqual(rawBefore);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
+      expect(() => readFileSync(planPaths.candidate_grant)).toThrow();
+      expect(() => readFileSync(styleMasterStorePaths(runDir, {
+        plan_sha256: successor.plan_sha256,
+        candidate_id: "candidate-001",
+      }).candidate_attempt)).toThrow();
+
+      writeFileSync(paths.human_artifact_reference, "preserve this artifact view\n", "utf8");
+      writeFileSync(localPaths.candidate_provenance, "corrupt pending local provenance", "utf8");
+      const failedStateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const failedRawBefore = readFileSync(paths.target_raw_plan);
+      const failed = flow(["image2", "artifact-view", runDir]);
+      expect(failed.status).toBe(1);
+      expect(finalDiagnostic(failed)).toMatchObject({
+        diagnostic: {
+          category: "artifact",
+          operation: "target-page-image-artifact-view",
+          next: { action: "inspect" },
+        },
+      });
+      expect(finalDiagnostic(failed).diagnostic.category).not.toBe("internal");
+      expect(readFileSync(paths.human_artifact_reference, "utf8")).toBe("preserve this artifact view\n");
+      expect(readFileSync(paths.target_raw_plan)).toEqual(failedRawBefore);
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(failedStateBefore);
+      expect(() => readFileSync(planPaths.candidate_grant)).toThrow();
+      expect(() => readFileSync(styleMasterStorePaths(runDir, {
+        plan_sha256: successor.plan_sha256,
+        candidate_id: "candidate-001",
+      }).candidate_attempt)).toThrow();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

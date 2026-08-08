@@ -816,6 +816,113 @@ export async function inspectStyleMasterCandidates({
   return inspectCurrentStyleMasterPlan(resolvedScope, current);
 }
 
+function selectionIsStaleForCurrentPlan(plan, selection) {
+  return plan.style_intent_sha256 !== selection.style_intent_sha256 ||
+    plan.style_context_sha256 !== selection.style_context_sha256 ||
+    plan.candidate_generation_profile_sha256 !== selection.candidate_generation_profile_sha256;
+}
+
+async function readPendingStyleMasterSuccessorContext({ scope, refreshScope = null } = {}) {
+  const resolvedScope = await resolveCurrentScope(scope, refreshScope);
+  const current = readCurrentHead(resolvedScope);
+  if (!current.head || current.plan.previous_selection_sha256 === null) return null;
+
+  const inspection = await inspectCurrentStyleMasterPlan(resolvedScope, current);
+  const predecessor = inspectSelectionProjection(resolvedScope);
+  if (!predecessor) {
+    fail("style_master_selection_invalid", "a successor plan predecessor selection cannot be reread");
+  }
+  if (predecessor.selection_sha256 !== current.plan.previous_selection_sha256) {
+    fail("style_master_selection_conflict", "Style Master successor plan predecessor does not match the effective selection");
+  }
+
+  const replay = exactAcceptedSelectionReplay(resolvedScope, {
+    planSha256: predecessor.selection.plan_sha256,
+    decision: "proceed",
+    candidateId: predecessor.selection.candidate_id,
+  });
+  if (!replay || replay.selection_sha256 !== current.plan.previous_selection_sha256) {
+    fail("style_master_selection_invalid", "Style Master successor predecessor cannot be replayed exactly");
+  }
+  if (inspection.input_stale) return null;
+  if (!selectionIsStaleForCurrentPlan(current.plan, replay.selection)) return null;
+
+  return Object.freeze({
+    scope: resolvedScope,
+    current,
+    inspection,
+    records: directPlanRecords(resolvedScope, current),
+  });
+}
+
+function absoluteStyleMasterCandidateLocator(scope, candidate) {
+  const paths = styleMasterStorePaths(scope.run_dir, {
+    plan_sha256: candidate.plan_sha256,
+    candidate_id: candidate.candidate_id,
+    candidate_media_type: candidate.candidate_media_type,
+  });
+  if (!paths.candidate_image || !isAbsolute(paths.candidate_image)) {
+    fail("style_master_review_evidence_invalid", "Style Master candidate does not have a confined absolute locator");
+  }
+  return paths.candidate_image;
+}
+
+function availablePendingSuccessorCandidate(context, candidate) {
+  const reviewed = candidate.kind === "local-existing"
+    ? reviewLocalCandidate(context, candidate)
+    : reviewGeneratedCandidate(context, candidate);
+  return Object.freeze({
+    availability: "available",
+    candidate_id: reviewed.candidate_id,
+    kind: reviewed.kind,
+    lifecycle_state: reviewed.kind === "local-existing" ? "local-existing" : "succeeded",
+    candidate_sha256: reviewed.candidate_sha256,
+    candidate_provenance_sha256: reviewed.candidate_provenance_sha256,
+    candidate_media_type: reviewed.candidate_media_type,
+    candidate_width: reviewed.candidate_width,
+    candidate_height: reviewed.candidate_height,
+    locator: absoluteStyleMasterCandidateLocator(context.scope, {
+      ...reviewed,
+      plan_sha256: context.current.plan.plan_sha256,
+    }),
+  });
+}
+
+function pendingSuccessorCandidateArtifacts(context) {
+  return Object.freeze(context.current.plan.candidates.map((candidate) => {
+    if (candidate.kind === "local-existing") {
+      return availablePendingSuccessorCandidate(context, candidate);
+    }
+    const attempt = context.records.attempts.find((item) => item.record.candidate_id === candidate.candidate_id);
+    if (attempt?.record.status === "succeeded") {
+      return availablePendingSuccessorCandidate(context, candidate);
+    }
+    return Object.freeze({
+      availability: "unavailable",
+      candidate_id: candidate.candidate_id,
+      kind: candidate.kind,
+      lifecycle_state: attempt?.record.status || "planned",
+    });
+  }));
+}
+
+/**
+ * Return verified, display-only candidate facts for one current successor
+ * whose predecessor selection is stale for raw authority. A null result means
+ * the scope follows the ordinary accepted-selection artifact-view path.
+ */
+export async function inspectPendingStyleMasterSuccessorCandidateArtifacts(options = {}) {
+  const context = await readPendingStyleMasterSuccessorContext(options);
+  if (context === null) return null;
+  return Object.freeze({
+    run_version: context.current.plan.run_version,
+    workflow: context.current.plan.workflow,
+    plan_sha256: context.current.plan.plan_sha256,
+    next_action: context.inspection.next_action,
+    candidates: pendingSuccessorCandidateArtifacts(context),
+  });
+}
+
 function assertPlanSha256(value) {
   if (!SHA256_RE.test(value || "")) {
     fail("style_master_plan_hash_invalid", "Style Master operation requires one exact plan SHA-256");

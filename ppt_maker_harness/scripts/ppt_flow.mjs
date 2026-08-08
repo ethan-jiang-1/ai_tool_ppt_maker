@@ -1612,6 +1612,17 @@ function targetPageImageFailure(operation, route, error) {
     };
   }
 
+  if (operation === "artifact-view" && reason.startsWith("style_master_")) {
+    const ownerFailure = styleMasterFailure("inspect", route, error);
+    return {
+      ...ownerFailure,
+      diagnostic: {
+        ...ownerFailure.diagnostic,
+        operation: common.operation,
+      },
+    };
+  }
+
   if (isTargetArtifactFailure(reason)) {
     return {
       code: CLI_ERROR_CODES.FAILED,
@@ -2414,11 +2425,55 @@ function pageArtifactGroup(position, slideId, artifacts) {
 async function rebuildTargetPageImageArtifactView(route) {
   const operations = await targetImage2Operations(route.workflow);
   const styleMasterOwner = await import("./shared/image2/style_master_plan.mjs");
+  const styleScope = operations.resolveStyleMasterScope(route.run_dir);
+  const pendingSuccessor = await styleMasterOwner.inspectPendingStyleMasterSuccessorCandidateArtifacts({
+    scope: styleScope,
+  });
+  const paths = pageImageWorkflowPaths(route.run_dir);
+
+  if (pendingSuccessor) {
+    const styleMaster = [];
+    const unavailable = [];
+    for (const candidate of pendingSuccessor.candidates) {
+      if (candidate.availability === "available") {
+        styleMaster.push(artifactReferenceEntry({
+          label: candidate.candidate_id,
+          artifactType: candidate.candidate_media_type,
+          purpose: "Inspect this pending Style Master candidate; it is not accepted for raw work.",
+          locator: candidate.locator,
+          kind: "style",
+          sha256: candidate.candidate_sha256,
+        }));
+        continue;
+      }
+      unavailable.push(artifactUnavailable(
+        `Style Master candidate ${candidate.candidate_id}`,
+        `generated candidate lifecycle is ${candidate.lifecycle_state}; verified media is unavailable`,
+      ));
+    }
+    unavailable.push(
+      artifactUnavailable("Provider input", "a pending Style Master successor has no current raw plan"),
+      artifactUnavailable("Raw and Complete Page Review", "a pending Style Master successor has no current raw plan"),
+      artifactUnavailable("Final media", "a pending Style Master successor is not accepted for raw work"),
+      artifactUnavailable("Delivery", "a pending Style Master successor is not accepted for delivery"),
+    );
+    const output = writeHumanArtifactReference({
+      run_dir: route.run_dir,
+      workflow: route.workflow,
+      style_master: styleMaster,
+      page_artifacts: [],
+      deck_artifacts: [],
+      unavailable,
+    });
+    return Object.freeze({
+      ...output,
+      pending_successor: Object.freeze({ next_action: pendingSuccessor.next_action }),
+    });
+  }
+
   const rawOwner = await import("./shared/image2/page_image_progressive_raw_owner.mjs");
   const candidate = operations.resolveCandidateSource(route.run_dir);
-  const styleScope = operations.resolveStyleMasterScope(route.run_dir);
   const styleInspection = await styleMasterOwner.inspectStyleMasterCandidates({ scope: styleScope });
-  const paths = pageImageWorkflowPaths(route.run_dir);
   const styleMaster = [];
   const deckArtifacts = [];
   const pageById = new Map();
@@ -2698,7 +2753,13 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
   try {
     if (operation === "artifact-view") {
       const output = await rebuildTargetPageImageArtifactView(route);
-      console.log(JSON.stringify({ run_dir: output.run_dir, workflow: output.workflow, artifact_view: output.path }, null, 2));
+      const result = {
+        run_dir: output.run_dir,
+        workflow: output.workflow,
+        artifact_view: output.path,
+        ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
+      };
+      console.log(JSON.stringify(result, null, 2));
       return 0;
     }
     const operations = await targetImage2Operations(route.workflow);

@@ -41,6 +41,7 @@ import {
   authorizeStyleMasterCandidates,
   compileStyleMasterProviderPrompt,
   generateStyleMasterCandidates,
+  inspectPendingStyleMasterSuccessorCandidateArtifacts,
   inspectStyleMasterCandidates,
   planStyleMasterCandidates,
   prepareStyleMasterCandidateReview,
@@ -468,6 +469,81 @@ async function generatedReviewablePlan(value) {
     submit: async () => generatedCandidateBytes(),
   });
   return plan;
+}
+
+async function staleSelectedSuccessor(value, { candidateCount = 1 } = {}) {
+  const predecessor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 0 });
+  await acceptStyleMasterCandidateReview({
+    scope: planningScope(value),
+    planSha256: predecessor.plan_sha256,
+    decision: "proceed",
+    candidateId: "local-existing",
+  });
+  writeFileSync(styleAsset(value.runDir, STYLE_MASTER_PROMPT), "Use a bolder editorial visual system with material depth.\n", "utf8");
+  const successor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount });
+  return Object.freeze({ predecessor, successor });
+}
+
+function optionalBytes(path) {
+  return path && existsSync(path) ? readFileSync(path) : null;
+}
+
+function pendingSuccessorRecordSnapshot(value, plan) {
+  const scopePaths = styleMasterStorePaths(value.runDir, { workflow: plan.workflow });
+  const planPaths = styleMasterStorePaths(value.runDir, { plan_sha256: plan.plan_sha256 });
+  return Object.freeze({
+    state: readFileSync(statePath(value.deck)),
+    head: readFileSync(scopePaths.scope_head),
+    plan: readFileSync(planPaths.candidate_plan),
+    grant: optionalBytes(planPaths.candidate_grant),
+    decision: optionalBytes(planPaths.review_decision),
+    attempts: Object.freeze(plan.plan.candidates.map((candidate) => {
+      const candidatePaths = styleMasterStorePaths(value.runDir, {
+        plan_sha256: plan.plan_sha256,
+        candidate_id: candidate.candidate_id,
+        candidate_media_type: candidate.candidate_media_type || (candidate.kind === "generated" ? "image/png" : null),
+      });
+      return Object.freeze({
+        candidate_id: candidate.candidate_id,
+        attempt: optionalBytes(candidatePaths.candidate_attempt),
+        provenance: optionalBytes(candidatePaths.candidate_provenance),
+        image: optionalBytes(candidatePaths.candidate_image),
+      });
+    })),
+  });
+}
+
+function persistPendingSuccessorAttempt(value, plan, candidateId, status) {
+  const planPaths = styleMasterStorePaths(value.runDir, { plan_sha256: plan.plan_sha256 });
+  const grant = JSON.parse(readFileSync(planPaths.candidate_grant, "utf8"));
+  const grantChecked = validateStyleMasterCandidateGrantRecord(grant, { plan: plan.plan });
+  if (!grantChecked.ok) throw new Error(grantChecked.message);
+  const claimed = createStyleMasterCandidateAttemptRecord({
+    run_version: plan.run_version,
+    workflow: plan.workflow,
+    plan_sha256: plan.plan_sha256,
+    candidate_id: candidateId,
+    candidate_grant_sha256: grantChecked.candidate_grant_sha256,
+  });
+  const providerRequest = status === "claimed" ? null : createStyleMasterProviderRequestRecord({
+    plan_sha256: plan.plan_sha256,
+    candidate_id: candidateId,
+    compiled_prompt_sha256: plan.plan.compiled_prompt_sha256,
+    candidate_generation_profile_sha256: plan.plan.candidate_generation_profile_sha256,
+  });
+  const attempt = {
+    ...claimed,
+    status,
+    provider_request_sha256: providerRequest ? canonicalJsonSha256(providerRequest) : null,
+  };
+  const candidatePaths = styleMasterStorePaths(value.runDir, {
+    plan_sha256: plan.plan_sha256,
+    candidate_id: candidateId,
+  });
+  createOrExactMatchStyleMasterRecord(candidatePaths.candidate_attempt, attempt, validateStyleMasterCandidateAttemptRecord, {
+    plan: plan.plan,
+    grant,
+  });
 }
 
 describe("Style Master candidate planning", () => {
@@ -2028,6 +2104,142 @@ describe("Style Master candidate planning", () => {
       expect(readFileSync(compatibilityPath).subarray(0, 3).toString("hex")).toBe("ffd8ff");
     } finally {
       rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("Style Master pending successor artifact projection", () => {
+  it("revalidates stale-successor local and succeeded media without mutating owner records", async () => {
+    const value = fixture({ local: true });
+    try {
+      const { successor } = await staleSelectedSuccessor(value);
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: successor.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+        submit: async () => generatedCandidateBytes(),
+      });
+
+      const before = pendingSuccessorRecordSnapshot(value, successor);
+      const projection = await inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(value) });
+      expect(projection).toMatchObject({
+        run_version: "v1",
+        workflow: "framed",
+        plan_sha256: successor.plan_sha256,
+        next_action: "review_style_master_candidates",
+      });
+      expect(projection.candidates).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          availability: "available",
+          candidate_id: "local-existing",
+          kind: "local-existing",
+          lifecycle_state: "local-existing",
+          locator: expect.stringContaining(successor.plan_sha256),
+        }),
+        expect.objectContaining({
+          availability: "available",
+          candidate_id: "candidate-001",
+          kind: "generated",
+          lifecycle_state: "succeeded",
+          candidate_sha256: digest(generatedCandidateBytes()),
+          locator: expect.stringContaining(successor.plan_sha256),
+        }),
+      ]));
+      expect(pendingSuccessorRecordSnapshot(value, successor)).toEqual(before);
+      assertNoPageRawMaterialization(value, before.state);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports non-media generated lifecycle states by stable ID without locators", async () => {
+    const values = [];
+    try {
+      for (const status of ["planned", "claimed", "submitted", "failed", "unknown"]) {
+        const value = fixture({ local: true });
+        values.push(value);
+        const { successor } = await staleSelectedSuccessor(value);
+        if (status !== "planned") {
+          await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: successor.plan_sha256 });
+          persistPendingSuccessorAttempt(value, successor, "candidate-001", status);
+        }
+        const before = pendingSuccessorRecordSnapshot(value, successor);
+        const projection = await inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(value) });
+        const candidate = projection.candidates.find((item) => item.candidate_id === "candidate-001");
+        expect(candidate).toMatchObject({
+          candidate_id: "candidate-001",
+          availability: "unavailable",
+          lifecycle_state: status,
+        });
+        expect(candidate).not.toHaveProperty("locator");
+        expect(pendingSuccessorRecordSnapshot(value, successor)).toEqual(before);
+      }
+    } finally {
+      for (const value of values) rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails closed for stale scope, mismatched predecessor, and corrupt local or generated media", async () => {
+    const staleScope = fixture({ local: true });
+    const mismatched = fixture({ local: true });
+    const localCorrupt = fixture({ local: true });
+    const generatedCorrupt = fixture({ local: true });
+    try {
+      const stale = planningScope(staleScope);
+      writeFileSync(join(staleScope.runDir, SLIDE_SPECS_NAME), source("Changed after pending scope resolution"), "utf8");
+      const staleBefore = readFileSync(statePath(staleScope.deck));
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: stale })).rejects.toMatchObject({
+        code: "style_master_scope_stale",
+      });
+      expect(readFileSync(statePath(staleScope.deck))).toEqual(staleBefore);
+
+      const { successor: mismatchSuccessor } = await staleSelectedSuccessor(mismatched);
+      const changedState = readState(mismatched.deck, { purpose: "observe" });
+      changedState.page_image_style_master.by_version["3_versions/v1"].accepted_at = "2026-08-02T00:00:00.000Z";
+      writeState(mismatched.deck, changedState);
+      const mismatchBefore = pendingSuccessorRecordSnapshot(mismatched, mismatchSuccessor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(mismatched) })).rejects.toMatchObject({
+        code: "style_master_selection_conflict",
+      });
+      expect(pendingSuccessorRecordSnapshot(mismatched, mismatchSuccessor)).toEqual(mismatchBefore);
+
+      const { successor: localSuccessor } = await staleSelectedSuccessor(localCorrupt);
+      const localCandidate = localSuccessor.plan.candidates.find((candidate) => candidate.candidate_id === "local-existing");
+      const localPaths = styleMasterStorePaths(localCorrupt.runDir, {
+        plan_sha256: localSuccessor.plan_sha256,
+        candidate_id: localCandidate.candidate_id,
+        candidate_media_type: localCandidate.candidate_media_type,
+      });
+      writeFileSync(localPaths.candidate_provenance, "corrupt local provenance", "utf8");
+      const localBefore = pendingSuccessorRecordSnapshot(localCorrupt, localSuccessor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(localCorrupt) })).rejects.toMatchObject({
+        code: "style_master_record_invalid",
+      });
+      expect(pendingSuccessorRecordSnapshot(localCorrupt, localSuccessor)).toEqual(localBefore);
+
+      const { successor: generatedSuccessor } = await staleSelectedSuccessor(generatedCorrupt);
+      await authorizeStyleMasterCandidates({ scope: planningScope(generatedCorrupt), planSha256: generatedSuccessor.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(generatedCorrupt),
+        planSha256: generatedSuccessor.plan_sha256,
+        submit: async () => generatedCandidateBytes(),
+      });
+      const generatedPaths = styleMasterStorePaths(generatedCorrupt.runDir, {
+        plan_sha256: generatedSuccessor.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      });
+      writeFileSync(generatedPaths.candidate_image, "corrupt generated candidate", "utf8");
+      const generatedBefore = pendingSuccessorRecordSnapshot(generatedCorrupt, generatedSuccessor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(generatedCorrupt) })).rejects.toMatchObject({
+        code: "style_master_review_evidence_invalid",
+      });
+      expect(pendingSuccessorRecordSnapshot(generatedCorrupt, generatedSuccessor)).toEqual(generatedBefore);
+    } finally {
+      rmSync(staleScope.root, { recursive: true, force: true });
+      rmSync(mismatched.root, { recursive: true, force: true });
+      rmSync(localCorrupt.root, { recursive: true, force: true });
+      rmSync(generatedCorrupt.root, { recursive: true, force: true });
     }
   });
 });
