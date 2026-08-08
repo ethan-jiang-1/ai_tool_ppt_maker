@@ -1,6 +1,6 @@
 {
   "name": "pptmaker-harness",
-  "version": "0.24.4",
+  "version": "0.25.0",
   "description": "Agent-driven PPT generation pipeline — production scripts (Node.js ESM)",
   "type": "module",
   "engines": {

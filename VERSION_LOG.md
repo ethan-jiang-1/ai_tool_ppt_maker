@@ -20,6 +20,30 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.25.0 — Page Image Integrity And Pure Visual-System Binding（2026-08-08）
+
+**代号**：Current-page integrity
+
+> 汇总 `0.24.4` JPEG delivery 之后归档的 Page Image integrity/usability changes：所有 current
+> provider/screenshot PNG 的派生 canvas projection 统一正确处理 8/16-bit、gray/RGB/RGBA layout；完整读取的
+> 非 JSON provider 响应只公开有界 shape；人类有 run-scoped artifact reference view；Pure 每页绑定同一个
+> deck-authored visual-system projection。没有任何 change 绕过 provider 授权或 Complete Page Review。
+
+### 变了什么
+
+1. Shared raster projector 覆盖 Style Master compatibility JPEG、Framed capture、Page Image review 和 delivery
+   projections；原始 provider PNG bytes、hash、dimensions 和 provenance 保持不变。
+2. Page Image 与 Style Master 的已读取非 JSON known failure 仅记录 `empty`、`html_like` 或
+   `other_non_json` response shape，不泄露 provider body、header、credential 或重试路径。
+3. 新增 provider-free `image2 artifact-view`，从 canonical owners 生成带绝对 locator、typed display reference
+   和 inspection purpose 的 run-scoped human reference view；它不是 selector、authority 或 storage alias。
+4. 新 bundle seed `pure-deck-visual-system.yaml`；Pure Core、raw contract、compiled provider input 与
+   ordinary/progressive plan 绑定同一 visual-system digest/projection，token drift 进入既有 raw rebuild。Framed
+   保持 `null`/not-applicable，Style Master 不重选。BUG-057 的输入契约范围已完成；三页人类 Pilot 仍需独立成本
+   授权，绑定测试不构成像素验收。
+
+---
+
 ## v0.24.4 — Fixed-Profile JPEG Delivery Media（2026-08-08）
 
 **代号**：JPEG-backed delivery
