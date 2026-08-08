@@ -1,9 +1,9 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-05 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-08 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
-> **本目录是 bug 编号的唯一权威来源——新 bug 的编号 = 本目录最大编号 + 1。**
+> **本目录是 bug 编号的归档索引；新 bug 使用所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。**
 
 ## 接收一个修完的 bug
 
@@ -69,8 +69,10 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-052](BUG-052-provider-base-url-comma-list-not-supported-and-async-model.md) | 2026-08-05 | provider base_url 逗号列表不被支持；async task 模型不被 Style Master transport 支持 |
 | [BUG-053](BUG-053-style-master-compat-jpeg-loadimage-rejects-cabx-png.md) | 2026-08-05 | Style Master 兼容 JPEG 投影失败：canvas `loadImage` 拒载带 `caBX` chunk 的 provider PNG |
 | [BUG-054](BUG-054-page-raw-provider-native-size-mismatch.md) | 2026-08-05 | Page raw provider 返回非契约原生尺寸，pilot 提交全部 known_failure |
+| [BUG-058](BUG-058-candidate-selection-prompt-unusable-no-path-long-ids.md) | 2026-08-08 | Style Master review 投影提供候选路径和可选的 `candidate_id` |
+| [BUG-061](BUG-061-stray-duplicate-run-bundle-deck-dark-factory-current.md) | 2026-08-08 | 重复的 `deck_dark_factory_current` run bundle 已清理 |
 
-**Next available bug ID: BUG-055**
+**Next available bug ID: BUG-064**
 
 ---
 

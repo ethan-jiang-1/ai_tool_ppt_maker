@@ -46,6 +46,11 @@ describe("Page Image bundle layout", () => {
       expect(paths.raw_manifest).toContain("_generated/page_image_workflow/raw/plan-manifest-v1.json");
       expect(paths.target_provider_request_inspection).toContain("_generated/page_image_workflow/raw/provider-input-inspection-v1.json");
       expect(paths.final_manifest).toContain("_generated/page_image_workflow/final/manifest-v1.json");
+      expect(paths.delivery_media_root).toContain("_generated/page_image_workflow/final/delivery-media");
+      expect(paths.delivery_media_manifest).toContain("_generated/page_image_workflow/final/delivery-media-manifest-v1.json");
+      expect(renderTree()).toContain("NN_slideID.png");
+      expect(renderTree()).toContain("delivery-media/{NN_slideID.jpg}");
+      expect(renderTree()).toContain("delivery-media-manifest-v1.json");
       expect(renderTree()).toContain("page_image_workflow");
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");

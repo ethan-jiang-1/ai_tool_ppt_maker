@@ -22,7 +22,10 @@ inside `deck_*`.
 | accepted Style Master selection | `_state/state.yaml` `page_image_style_master.by_version["3_versions/vN"]` | Optional acceptance record and raw-profile authority; first vNext has no inherited target record. |
 | `style_master.jpg` | `<run-dir>/overrides/visual-style/` if present, otherwise `2_backbone/visual-style/` | Format-correct JPEG compatibility projection after acceptance; not selection or raw-provider authority. |
 | Page Image raw lineage | `<run-dir>/_generated/page_image_workflow/raw/` | Receipt-bound raw image evidence. |
-| Page Image final lineage | `<run-dir>/_generated/page_image_workflow/final/` | Final slides, projection, and manifest. |
+| Page Image final PNG | `<run-dir>/_generated/page_image_workflow/final/NN_slideID.png` | Lossless finalization and review evidence; JPEG never replaces this source-side artifact. |
+| Page Image delivery JPEG | `<run-dir>/_generated/page_image_workflow/final/delivery-media/NN_slideID.jpg` | Rebuildable fixed-profile delivery derivative embedded in the PPTX. |
+| Page Image delivery-media manifest | `<run-dir>/_generated/page_image_workflow/final/delivery-media-manifest-v1.json` | Binds ordered JPEG bytes and fixed profile to the current final PNG manifest. |
+| Page Image final lineage | `<run-dir>/_generated/page_image_workflow/final/` | Final slides, delivery derivatives, projection, and receipts. |
 | `slide_id` | source block heading | Stable cross-version identity. |
 | `position` | current plan projection | Snapshot order only. |
 | `plan_sha256` | structural preview/apply receipt | Exact confirmation binding; stale means re-preview. |

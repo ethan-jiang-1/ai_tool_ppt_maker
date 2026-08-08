@@ -303,6 +303,7 @@ describe("TARGET Page Image state lineage", () => {
           schema: "page-image-delivery-receipt-v1",
           source_epoch: 1,
           final_manifest_sha256: finalManifest.sha256,
+          delivery_media_manifest_sha256: digest("a"),
         },
       });
 
@@ -606,7 +607,17 @@ describe("TARGET Page Image state lineage", () => {
         deliveryReceipt: {
           schema: "page-image-delivery-receipt-v1",
           source_epoch: 1,
+          final_manifest_sha256: finalManifest.sha256,
+        },
+      })).toThrow("TARGET_DELIVERY_RECEIPT_INVALID");
+      expect(readFileSync(statePath(fixture.deck))).toEqual(beforeMismatch);
+      expect(() => recordTargetDeliveryReceipt(fixture.deck, {
+        runVersion: "v1",
+        deliveryReceipt: {
+          schema: "page-image-delivery-receipt-v1",
+          source_epoch: 1,
           final_manifest_sha256: digest("9"),
+          delivery_media_manifest_sha256: digest("a"),
         },
       })).toThrow("TARGET_DELIVERY_LINEAGE_MISMATCH");
       expect(readFileSync(statePath(fixture.deck))).toEqual(beforeMismatch);

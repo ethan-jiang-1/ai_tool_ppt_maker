@@ -11,6 +11,10 @@ import {
 import { pageImageWorkflowPaths } from "../../shared/run-bundle/bundle_layout.mjs";
 import { evaluateReplacementIdentity } from "../../shared/run-bundle/page_image_workflow_identity.mjs";
 import { addPageImageOrdinalFooter } from "./page_image_ordinal_footer.mjs";
+import {
+  readPageImageDeliveryMedia,
+  validatePageImageDeliveryMediaManifest,
+} from "./page_image_delivery_media_v1.mjs";
 
 export const PAGE_IMAGE_FINAL_SLIDE_MANIFEST_SCHEMA = "page-image-final-slide-manifest-v1";
 export const PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA = "page-image-pptx-assembly-v1";
@@ -70,9 +74,14 @@ export function validatePageImageAssemblyReceipt(receipt, {
   manifest,
   finalManifestSha256,
   sourceEpoch,
+  deliveryMediaManifest,
 } = {}) {
   assertReplacementAssemblyRecord(receipt, "pptx-assembly-receipt");
   const manifestChecked = validateFinalSlideManifest(manifest);
+  const deliveryChecked = validatePageImageDeliveryMediaManifest(deliveryMediaManifest, {
+    finalManifest: manifest,
+    finalManifestSha256,
+  });
   if (!manifestChecked.ok || !SHA256_RE.test(finalManifestSha256 || "") ||
     !Number.isInteger(sourceEpoch) || sourceEpoch <= 0 ||
     !exactKeys(receipt, [
@@ -84,6 +93,8 @@ export function validatePageImageAssemblyReceipt(receipt, {
       "workflow",
       "ordered_slide_ids",
       "final_entries",
+      "delivery_media_manifest_sha256",
+      "delivery_entries",
       "pptx_path",
       "pptx_sha256",
     ]) ||
@@ -93,12 +104,15 @@ export function validatePageImageAssemblyReceipt(receipt, {
     receipt.accepted_raw_evidence_sha256 !== manifest.accepted_raw_evidence_sha256 ||
     receipt.source_receipt_sha256 !== manifest.source_receipt_sha256 ||
     receipt.workflow !== manifest.workflow ||
+    receipt.delivery_media_manifest_sha256 !== deliveryChecked.manifest_sha256 ||
     !SHA256_RE.test(receipt.pptx_sha256 || "") ||
     typeof receipt.pptx_path !== "string" || !receipt.pptx_path ||
     !Array.isArray(receipt.ordered_slide_ids) ||
     !Array.isArray(receipt.final_entries) ||
+    !Array.isArray(receipt.delivery_entries) ||
     receipt.ordered_slide_ids.length !== manifest.items.length ||
-    receipt.final_entries.length !== manifest.items.length) {
+    receipt.final_entries.length !== manifest.items.length ||
+    receipt.delivery_entries.length !== manifest.items.length) {
     throw new Error("Page Image assembly lineage is invalid or stale");
   }
   for (const [index, item] of manifest.items.entries()) {
@@ -109,11 +123,22 @@ export function validatePageImageAssemblyReceipt(receipt, {
       entry.final_sha256 !== item.final_sha256) {
       throw new Error("Page Image assembly receipt does not bind final manifest order");
     }
+    const deliveryEntry = receipt.delivery_entries[index];
+    const expectedDeliveryEntry = deliveryChecked.manifest.entries[index];
+    if (!exactKeys(deliveryEntry, ["slide_id", "position", "source_final_sha256", "jpeg_sha256"]) ||
+      deliveryEntry.slide_id !== expectedDeliveryEntry.slide_id ||
+      deliveryEntry.position !== expectedDeliveryEntry.position ||
+      deliveryEntry.source_final_sha256 !== expectedDeliveryEntry.source_final_sha256 ||
+      deliveryEntry.jpeg_sha256 !== expectedDeliveryEntry.jpeg_sha256) {
+      throw new Error("Page Image assembly receipt does not bind delivery media order");
+    }
   }
   return Object.freeze({
     receipt: Object.freeze(receipt),
     final_manifest_sha256: finalManifestSha256,
     ordered_slide_ids: Object.freeze([...receipt.ordered_slide_ids]),
+    delivery_media_manifest_sha256: deliveryChecked.manifest_sha256,
+    delivery_entries: Object.freeze([...receipt.delivery_entries]),
   });
 }
 
@@ -162,7 +187,7 @@ function readFinalMedia(paths, input) {
   return Object.freeze(mediaBySlide);
 }
 
-/** Assemble only receipt-bound replacement final PNGs, preserving media bytes. */
+/** Assemble only validated delivery-owned JPEGs while retaining PNG source validation. */
 export async function assemblePageImagePptx(runDir, {
   title = "Presentation",
   sourceEpoch,
@@ -172,7 +197,11 @@ export async function assemblePageImagePptx(runDir, {
   const input = validatePageImageAssemblyInput({ manifest, acceptedRawEvidence, sourceEpoch });
   const paths = pageImageWorkflowPaths(runDir);
   readPersistedFinalManifest(paths, input);
-  const mediaBySlide = readFinalMedia(paths, input);
+  readFinalMedia(paths, input);
+  const deliveryMedia = await readPageImageDeliveryMedia(paths, {
+    finalManifest: input.manifest,
+    finalManifestSha256: input.final_manifest_sha256,
+  });
   const pptxPath = join(paths.final_root, "deck.pptx");
   const temporary = `${pptxPath}.tmp-${process.pid}.pptx`;
   mkdirSync(paths.final_root, { recursive: true });
@@ -182,7 +211,7 @@ export async function assemblePageImagePptx(runDir, {
   pptx.title = title;
   for (const item of input.manifest.items) {
     const slide = pptx.addSlide();
-    slide.addImage({ path: mediaBySlide[item.slide_id].path, x: 0, y: 0, w: 13.333333, h: 7.5 });
+    slide.addImage({ path: deliveryMedia.media_by_slide[item.slide_id].path, x: 0, y: 0, w: 13.333333, h: 7.5 });
     addPageImageOrdinalFooter(slide, item.position);
   }
   try {
@@ -206,6 +235,13 @@ export async function assemblePageImagePptx(runDir, {
       slide_id: item.slide_id,
       position: item.position,
       final_sha256: item.final_sha256,
+    })),
+    delivery_media_manifest_sha256: deliveryMedia.manifest_sha256,
+    delivery_entries: deliveryMedia.manifest.entries.map((entry) => ({
+      slide_id: entry.slide_id,
+      position: entry.position,
+      source_final_sha256: entry.source_final_sha256,
+      jpeg_sha256: entry.jpeg_sha256,
     })),
     pptx_path: relative(runDir, pptxPath).split("\\").join("/"),
     pptx_sha256: sha256(readFileSync(pptxPath)),

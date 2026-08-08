@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import JSZip from "jszip";
+import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import {
   createAcceptedRawEvidence,
@@ -19,6 +20,10 @@ import {
   validateTargetFinalDeliveryInput,
 } from "../../ppt_maker_harness/scripts/05-delivery/index.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import {
+  derivePageImageDeliveryMedia,
+  publishPageImageDeliveryMedia,
+} from "../../ppt_maker_harness/scripts/05-delivery/internal/page_image_delivery_media_v1.mjs";
 import { pageImageProviderInputBinding } from "../helpers/page_image_provider_input_binding.mjs";
 
 const digest = (letter) => letter.repeat(64);
@@ -44,7 +49,7 @@ async function readPptxSlideXml(pptxPath, position = 1) {
 
 async function readPptxMedia(pptxPath) {
   const archive = await JSZip.loadAsync(readFileSync(pptxPath));
-  const names = Object.keys(archive.files).filter((name) => /^ppt\/media\/[^/]+\.png$/i.test(name)).sort();
+  const names = Object.keys(archive.files).filter((name) => /^ppt\/media\/[^/]+\.jpe?g$/i.test(name)).sort();
   return Promise.all(names.map(async (name) => {
     const file = archive.file(name);
     if (!file) throw new Error(`PPTX media ${name} is missing`);
@@ -88,6 +93,15 @@ function persistFinalManifest(runDir, manifest) {
   mkdirSync(paths.final_root, { recursive: true });
   writeFileSync(paths.target_final_manifest, `${JSON.stringify(manifest)}\n`);
   return paths;
+}
+
+function transparentPng(width, height) {
+  const canvas = createCanvas(width, height);
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#d94841";
+  context.fillRect(Math.floor(width / 2), Math.floor(height / 2), 1, 1);
+  return canvas.toBuffer("image/png");
 }
 
 describe("target Page Image delivery", () => {
@@ -193,6 +207,14 @@ describe("target Page Image delivery", () => {
       expect(existsSync(result.assembly.path)).toBe(true);
       expect(result.assembly.receipt).toMatchObject({ schema: "page-image-pptx-assembly-v1" });
       expect(result.notes.receipt).toMatchObject({ schema: "page-image-notes-receipt-v1" });
+      expect(result.delivery_media.manifest).toMatchObject({
+        schema: "page-image-delivery-media-v1",
+        profile: { quality: 95, chroma_subsampling: "4:4:4", alpha_background: "#ffffff" },
+      });
+      expect(result.receipt).toMatchObject({
+        delivery_media_manifest_sha256: result.delivery_media.manifest_sha256,
+        delivery_entries: result.assembly.receipt.delivery_entries,
+      });
       expect(existsSync(result.projection.path)).toBe(true);
       expect(existsSync(result.receipt_path)).toBe(true);
       const assemblyXml = await readPptxSlideXml(result.assembly.path);
@@ -221,7 +243,7 @@ describe("target Page Image delivery", () => {
     }
   });
 
-  it("embeds non-default native Pure final PNG bytes without a raster rewrite", async () => {
+  it("embeds non-default native Pure final JPEG media without changing source PNG bytes", async () => {
     const deckDir = mkdtempSync(join(tmpdir(), "deck_native_pure_delivery_"));
     const runDir = join(deckDir, "3_versions", "v1");
     mkdirSync(runDir, { recursive: true });
@@ -241,7 +263,10 @@ describe("target Page Image delivery", () => {
       const media = await readPptxMedia(result.assembly.path);
       expect(media).toHaveLength(1);
       expect(manifest.items[0]).toMatchObject({ width: 1684, height: 934 });
-      expect(media[0]).toEqual(providerNative);
+      expect(media[0]).not.toEqual(providerNative);
+      await expect(sharp(media[0]).metadata()).resolves.toMatchObject({
+        format: "jpeg", width: 1684, height: 934, chromaSubsampling: "4:4:4",
+      });
       expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(providerNative);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
@@ -256,6 +281,12 @@ describe("target Page Image delivery", () => {
     try {
       const paths = persistFinalManifest(runDir, manifest);
       writeFileSync(join(paths.final_root, manifest.items[0].path), finalBytesBySlide.DeckGo);
+      const derived = await derivePageImageDeliveryMedia({
+        finalManifest: manifest,
+        finalManifestSha256: manifest.sha256,
+        finalBytesBySlide,
+      });
+      publishPageImageDeliveryMedia(paths, derived);
       const result = await assemblePageImagePptx(runDir, {
         sourceEpoch: 1,
         title: "Replacement footer",
@@ -267,6 +298,116 @@ describe("target Page Image delivery", () => {
       const xml = await readPptxSlideXml(result.pptx_path);
       expect(xml).toContain("<a:blip");
       expect(xml).toContain("<a:t>01</a:t>");
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("flattens transparent final PNG pixels over white for JPEG delivery", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_transparent_jpeg_delivery_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const transparentProviderPng = transparentPng(2048, 1136);
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput("pure", transparentProviderPng);
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+      });
+      const jpeg = readFileSync(result.delivery_media.media_by_slide.DeckGo.path);
+      const decoded = await sharp(jpeg).raw().toBuffer({ resolveWithObject: true });
+      expect(decoded.info.channels).toBe(3);
+      expect([...decoded.data.subarray(0, 3)]).toEqual(expect.arrayContaining([expect.any(Number)]));
+      expect(decoded.data[0]).toBeGreaterThan(245);
+      expect(decoded.data[1]).toBeGreaterThan(245);
+      expect(decoded.data[2]).toBeGreaterThan(245);
+      expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, manifest.items[0].path))).toEqual(transparentProviderPng);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("requires normal delivery rebuild for stale JPEG media and preserves receipts", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_stale_jpeg_delivery_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
+      });
+      const beforePptx = readFileSync(result.assembly.path);
+      const beforeNotes = readFileSync(result.notes.path);
+      writeFileSync(result.delivery_media.media_by_slide.DeckGo.path, Buffer.from("corrupt JPEG"));
+      await expect(refreshTargetPageImageNotes({
+        runDir,
+        sourcePath: join(runDir, "slide-specifications.md"),
+      })).rejects.toMatchObject({ code: "delivery_media_rebuild_required" });
+      expect(readFileSync(result.assembly.path)).toEqual(beforePptx);
+      expect(readFileSync(result.notes.path)).toEqual(beforeNotes);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("requires normal delivery rebuild for a pre-JPEG delivery receipt", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_old_delivery_receipt_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
+      });
+      const beforePptx = readFileSync(result.assembly.path);
+      const oldReceipt = JSON.parse(readFileSync(result.receipt_path, "utf8"));
+      delete oldReceipt.delivery_media_manifest_sha256;
+      delete oldReceipt.delivery_entries;
+      writeFileSync(result.receipt_path, JSON.stringify(oldReceipt));
+      await expect(refreshTargetPageImageNotes({
+        runDir,
+        sourcePath: join(runDir, "slide-specifications.md"),
+      })).rejects.toMatchObject({ code: "delivery_media_rebuild_required" });
+      expect(readFileSync(result.assembly.path)).toEqual(beforePptx);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps a prior delivery intact when JPEG derivation fails", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_failed_jpeg_delivery_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      persistFinalManifest(runDir, manifest);
+      const first = await deliverTargetFinalSlideManifest({
+        runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
+      });
+      const beforePptx = readFileSync(first.assembly.path);
+      const beforeAssembly = readFileSync(first.assembly.receipt_path);
+      const beforeNotes = readFileSync(first.notes.path);
+      const beforeDelivery = readFileSync(first.receipt_path);
+      await expect(deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+        deliveryMediaDeriver: async () => { throw new Error("forced JPEG encoder failure"); },
+      })).rejects.toMatchObject({ code: "delivery_media_derivation_failed" });
+      expect(readFileSync(first.assembly.path)).toEqual(beforePptx);
+      expect(readFileSync(first.assembly.receipt_path)).toEqual(beforeAssembly);
+      expect(readFileSync(first.notes.path)).toEqual(beforeNotes);
+      expect(readFileSync(first.receipt_path)).toEqual(beforeDelivery);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }

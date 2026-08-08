@@ -24,16 +24,29 @@ import {
   validatePageImageNotesInput,
   validatePageImageNotesReceipt,
 } from "./internal/page_image_notes_v1.mjs";
+import {
+  PAGE_IMAGE_DELIVERY_MEDIA_PROFILE,
+  PAGE_IMAGE_DELIVERY_MEDIA_SCHEMA,
+  derivePageImageDeliveryMedia,
+  publishPageImageDeliveryMedia,
+  readPageImageDeliveryMedia,
+  validatePageImageDeliveryMediaManifest,
+} from "./internal/page_image_delivery_media_v1.mjs";
 
 export const PAGE_IMAGE_DELIVERY_RECEIPT_SCHEMA = "page-image-delivery-receipt-v1";
 
 export {
   PAGE_IMAGE_NOTES_RECEIPT_SCHEMA,
   PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA,
+  PAGE_IMAGE_DELIVERY_MEDIA_PROFILE,
+  PAGE_IMAGE_DELIVERY_MEDIA_SCHEMA,
   assemblePageImagePptx,
+  derivePageImageDeliveryMedia,
   injectPageImageNotes,
+  readPageImageDeliveryMedia,
   validatePageImageAssemblyInput,
   validatePageImageAssemblyReceipt,
+  validatePageImageDeliveryMediaManifest,
   validatePageImageNotesInput,
   validatePageImageNotesReceipt,
 };
@@ -224,6 +237,7 @@ export async function deliverTargetFinalSlideManifest({
   sourcePath = null,
   sourceEpoch = 1,
   title = "Presentation",
+  deliveryMediaDeriver = derivePageImageDeliveryMedia,
 } = {}) {
   // Identity must hard-stop before source-note or artifact reads.
   requireReplacementDeliveryRecord(manifest, "final-manifest");
@@ -238,10 +252,26 @@ export async function deliverTargetFinalSlideManifest({
   });
   const paths = pageImageWorkflowPaths(runDir);
   readPersistedTargetFinalManifest(paths, input, acceptedRawEvidence);
+  let derivedDeliveryMedia;
+  try {
+    derivedDeliveryMedia = await deliveryMediaDeriver({
+      finalManifest: input.manifest,
+      finalManifestSha256: input.manifest_sha256,
+      finalBytesBySlide: input.final_bytes_by_slide,
+    });
+  } catch (error) {
+    throw new PageImageDeliveryError("delivery_media_derivation_failed", error.message);
+  }
   for (const item of input.manifest.items) {
     writeAtomic(join(paths.final_root, item.path), input.final_bytes_by_slide[item.slide_id]);
   }
   const projection = await writeProjection(paths, input);
+  let deliveryMedia;
+  try {
+    deliveryMedia = publishPageImageDeliveryMedia(paths, derivedDeliveryMedia);
+  } catch (error) {
+    throw new PageImageDeliveryError("delivery_media_publication_failed", error.message);
+  }
   const assembly = await assemblePageImagePptx(runDir, {
     title,
     sourceEpoch: input.source_epoch,
@@ -258,6 +288,8 @@ export async function deliverTargetFinalSlideManifest({
     final_manifest_sha256: input.manifest_sha256,
     assembly_receipt_sha256: canonicalJsonSha256(assembly.receipt),
     notes_receipt_sha256: canonicalJsonSha256(notes.receipt),
+    delivery_media_manifest_sha256: deliveryMedia.manifest_sha256,
+    delivery_entries: assembly.receipt.delivery_entries,
     ordered_slide_ids: input.ordered_slide_ids,
     final_entries: input.manifest.items.map((item) => ({ slide_id: item.slide_id, final_sha256: item.final_sha256 })),
     projection_sha256: projection.sha256,
@@ -268,10 +300,10 @@ export async function deliverTargetFinalSlideManifest({
   });
   const receiptPath = join(paths.final_root, "delivery-receipt-v1.json");
   writeAtomic(receiptPath, Buffer.from(`${canonicalJson(receipt)}\n`, "utf8"));
-  return Object.freeze({ receipt, receipt_path: receiptPath, projection, assembly, notes });
+  return Object.freeze({ receipt, receipt_path: receiptPath, projection, delivery_media: deliveryMedia, assembly, notes });
 }
 
-function currentTargetDeliveryReceipt(runDir) {
+async function currentTargetDeliveryReceipt(runDir) {
   const paths = pageImageWorkflowPaths(runDir);
   const receiptPath = join(paths.final_root, "delivery-receipt-v1.json");
   let receiptBytes;
@@ -295,6 +327,18 @@ function currentTargetDeliveryReceipt(runDir) {
   if (!manifestCheck.ok || manifest.schema !== "page-image-final-slide-manifest-v1") {
     throw new PageImageDeliveryError("final_manifest_invalid", "current final manifest is invalid");
   }
+  if (!SHA256_RE.test(receipt.delivery_media_manifest_sha256 || "")) {
+    throw new PageImageDeliveryError("delivery_media_rebuild_required", "current JPEG delivery media must be rebuilt through normal delivery");
+  }
+  let deliveryMedia;
+  try {
+    deliveryMedia = await readPageImageDeliveryMedia(paths, {
+      finalManifest: manifest,
+      finalManifestSha256: manifestCheck.sha256,
+    });
+  } catch (error) {
+    throw new PageImageDeliveryError("delivery_media_rebuild_required", "current JPEG delivery media must be rebuilt through normal delivery");
+  }
   const assemblyPath = join(paths.final_root, "pptx-assembly.json");
   let assemblyBytes;
   try {
@@ -307,6 +351,7 @@ function currentTargetDeliveryReceipt(runDir) {
     manifest,
     finalManifestSha256: manifestCheck.sha256,
     sourceEpoch: receipt.source_epoch,
+    deliveryMediaManifest: deliveryMedia.manifest,
   });
   const notesPath = join(paths.final_root, "notes-receipt.json");
   let notesBytes;
@@ -321,6 +366,7 @@ function currentTargetDeliveryReceipt(runDir) {
     assemblyReceiptSha256: canonicalJsonSha256(assembly),
     finalManifest: manifest,
     finalManifestSha256: manifestCheck.sha256,
+    deliveryMediaManifest: deliveryMedia.manifest,
     sourceEpoch: receipt.source_epoch,
   });
   const pptxPath = join(paths.final_root, "deck.pptx");
@@ -331,6 +377,8 @@ function currentTargetDeliveryReceipt(runDir) {
     "final_manifest_sha256",
     "assembly_receipt_sha256",
     "notes_receipt_sha256",
+    "delivery_media_manifest_sha256",
+    "delivery_entries",
     "ordered_slide_ids",
     "final_entries",
     "projection_sha256",
@@ -343,6 +391,8 @@ function currentTargetDeliveryReceipt(runDir) {
     receipt.final_manifest_sha256 !== manifestCheck.sha256 ||
     receipt.assembly_receipt_sha256 !== canonicalJsonSha256(assembly) ||
     receipt.notes_receipt_sha256 !== canonicalJsonSha256(notes) ||
+    receipt.delivery_media_manifest_sha256 !== deliveryMedia.manifest_sha256 ||
+    canonicalJson(receipt.delivery_entries) !== canonicalJson(assemblyCheck.delivery_entries) ||
     canonicalJson(receipt.ordered_slide_ids) !== canonicalJson(assemblyCheck.ordered_slide_ids) ||
     receipt.pptx_path !== expectedPptxPath ||
     receipt.pptx_sha256 !== notesCheck.receipt.pptx_sha256 ||
@@ -358,13 +408,14 @@ function currentTargetDeliveryReceipt(runDir) {
     manifest: Object.freeze(manifest),
     assembly: assemblyCheck.receipt,
     notes: notesCheck.receipt,
+    delivery_media: deliveryMedia,
     pptxPath,
   });
 }
 
 /** Refresh notes only after revalidating the same replacement final/assembly lineage. */
 export async function refreshTargetPageImageNotes({ runDir, sourcePath, sourceEpoch = null } = {}) {
-  const current = currentTargetDeliveryReceipt(runDir);
+  const current = await currentTargetDeliveryReceipt(runDir);
   if (sourceEpoch !== null && sourceEpoch !== current.receipt.source_epoch) {
     throw new PageImageDeliveryError("notes_source_epoch_mismatch", "target notes refresh requires the delivery receipt source epoch");
   }

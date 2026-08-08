@@ -1875,6 +1875,7 @@ export function recordTargetProgressiveDeliveryReceipt(deckDir, {
 } = {}) {
   if (!deliveryReceipt || deliveryReceipt.schema !== "page-image-delivery-receipt-v1" ||
     !SHA256_RE.test(deliveryReceipt.final_manifest_sha256 || "") ||
+    !SHA256_RE.test(deliveryReceipt.delivery_media_manifest_sha256 || "") ||
     !Number.isInteger(deliveryReceipt.source_epoch) || deliveryReceipt.source_epoch <= 0) {
     throw new Error("TARGET_DELIVERY_RECEIPT_INVALID");
   }
@@ -1977,7 +1978,9 @@ export function recordTargetFinalManifest(deckDir, { runVersion, runDir, accepte
 /** Persist one delivery reference after the exact recorded final manifest. */
 export function recordTargetDeliveryReceipt(deckDir, { runVersion, runDir, deliveryReceipt, expectedStateSha = null } = {}) {
   if (!deliveryReceipt || deliveryReceipt.schema !== "page-image-delivery-receipt-v1" ||
-    !SHA256_RE.test(deliveryReceipt.final_manifest_sha256 || "") || !Number.isInteger(deliveryReceipt.source_epoch) || deliveryReceipt.source_epoch <= 0) {
+    !SHA256_RE.test(deliveryReceipt.final_manifest_sha256 || "") ||
+    !SHA256_RE.test(deliveryReceipt.delivery_media_manifest_sha256 || "") ||
+    !Number.isInteger(deliveryReceipt.source_epoch) || deliveryReceipt.source_epoch <= 0) {
     throw new Error("TARGET_DELIVERY_RECEIPT_INVALID");
   }
   return mutateTargetEvidenceRecord(deckDir, {

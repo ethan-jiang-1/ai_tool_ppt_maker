@@ -1614,7 +1614,7 @@ deck_\${NAME}/
     │   │   │   ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json
     │   │   │   ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan-v1.json, <slide_id>.png}
     │   │   │   ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review-v1.png, complete-page-coverage-v1.json}
-    │   │   │   └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, projection.png, deck.pptx, notes-receipt.json}
+    │   │   │   └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest-v1.json, deck.pptx, notes-receipt.json}
     │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;

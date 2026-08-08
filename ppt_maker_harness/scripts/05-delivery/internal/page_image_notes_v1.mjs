@@ -9,6 +9,10 @@ import {
   PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA,
   validatePageImageAssemblyReceipt,
 } from "./page_image_pptx_assembly_v1.mjs";
+import {
+  readPageImageDeliveryMedia,
+  validatePageImageDeliveryMediaManifest,
+} from "./page_image_delivery_media_v1.mjs";
 import { injectNotes } from "./notes_runtime.mjs";
 
 export const PAGE_IMAGE_NOTES_RECEIPT_SCHEMA = "page-image-notes-receipt-v1";
@@ -48,7 +52,7 @@ function writeReceipt(path, receipt) {
 }
 
 /** Validate notes against exact replacement final-manifest and assembly lineage. */
-export function validatePageImageNotesInput({ assembly, finalManifest, finalManifestSha256, notesBySlide, sourceEpoch } = {}) {
+export function validatePageImageNotesInput({ assembly, finalManifest, finalManifestSha256, deliveryMediaManifest, notesBySlide, sourceEpoch } = {}) {
   assertReplacementNotesRecord(assembly, "pptx-assembly-receipt");
   assertReplacementNotesRecord(finalManifest, "final-manifest");
   if (!Number.isInteger(sourceEpoch) || sourceEpoch <= 0 || !SHA256_RE.test(finalManifestSha256 || "")) {
@@ -59,10 +63,15 @@ export function validatePageImageNotesInput({ assembly, finalManifest, finalMani
     finalManifest.schema !== "page-image-final-slide-manifest-v1") {
     throw new Error("Page Image final manifest is invalid or stale");
   }
+  const deliveryChecked = validatePageImageDeliveryMediaManifest(deliveryMediaManifest, {
+    finalManifest,
+    finalManifestSha256,
+  });
   const assemblyChecked = validatePageImageAssemblyReceipt(assembly, {
     manifest: finalManifest,
     finalManifestSha256,
     sourceEpoch,
+    deliveryMediaManifest: deliveryChecked.manifest,
   });
   if (assembly.schema !== PAGE_IMAGE_PPTX_ASSEMBLY_SCHEMA ||
     !notesBySlide || typeof notesBySlide !== "object" || Array.isArray(notesBySlide) ||
@@ -78,6 +87,8 @@ export function validatePageImageNotesInput({ assembly, finalManifest, finalMani
     assembly: assemblyChecked.receipt,
     ordered_slide_ids: assemblyChecked.ordered_slide_ids,
     final_manifest_sha256: finalManifestSha256,
+    delivery_media_manifest_sha256: deliveryChecked.manifest_sha256,
+    delivery_entries: assemblyChecked.delivery_entries,
   });
 }
 
@@ -87,6 +98,7 @@ export function validatePageImageNotesReceipt(receipt, {
   assemblyReceiptSha256,
   finalManifest,
   finalManifestSha256,
+  deliveryMediaManifest,
   sourceEpoch,
 } = {}) {
   assertReplacementNotesRecord(receipt, "notes-receipt");
@@ -94,6 +106,7 @@ export function validatePageImageNotesReceipt(receipt, {
     assembly,
     finalManifest,
     finalManifestSha256,
+    deliveryMediaManifest,
     notesBySlide: Object.fromEntries((assembly?.ordered_slide_ids || []).map((slideId) => [slideId, "validated"])),
     sourceEpoch,
   });
@@ -107,6 +120,8 @@ export function validatePageImageNotesReceipt(receipt, {
       "source_receipt_sha256",
       "workflow",
       "ordered_slide_ids",
+      "delivery_media_manifest_sha256",
+      "delivery_entries",
       "notes_fingerprint",
       "previous_pptx_sha256",
       "pptx_sha256",
@@ -120,6 +135,8 @@ export function validatePageImageNotesReceipt(receipt, {
     receipt.source_receipt_sha256 !== finalManifest.source_receipt_sha256 ||
     receipt.workflow !== finalManifest.workflow ||
     canonicalJson(receipt.ordered_slide_ids) !== canonicalJson(input.ordered_slide_ids) ||
+    receipt.delivery_media_manifest_sha256 !== input.delivery_media_manifest_sha256 ||
+    canonicalJson(receipt.delivery_entries) !== canonicalJson(input.delivery_entries) ||
     !SHA256_RE.test(receipt.notes_fingerprint || "") ||
     !SHA256_RE.test(receipt.previous_pptx_sha256 || "") ||
     !SHA256_RE.test(receipt.pptx_sha256 || "") ||
@@ -144,10 +161,12 @@ export async function injectPageImageNotes(runDir, { notes_by_slide, sourceEpoch
   const assemblyBytes = readFileSync(assemblyPath);
   const assembly = parseCurrentRecord(assemblyBytes, "pptx-assembly-receipt", assemblyPath, "Page Image assembly receipt is invalid");
   const finalManifestSha256 = canonicalJsonSha256(finalManifest);
+  const deliveryMedia = await readPageImageDeliveryMedia(paths, { finalManifest, finalManifestSha256 });
   const input = validatePageImageNotesInput({
     assembly,
     finalManifest,
     finalManifestSha256,
+    deliveryMediaManifest: deliveryMedia.manifest,
     notesBySlide: notes_by_slide,
     sourceEpoch,
   });
@@ -162,6 +181,7 @@ export async function injectPageImageNotes(runDir, { notes_by_slide, sourceEpoch
       assemblyReceiptSha256,
       finalManifest,
       finalManifestSha256,
+      deliveryMediaManifest: deliveryMedia.manifest,
       sourceEpoch,
     }).receipt.pptx_sha256;
   }
@@ -182,6 +202,8 @@ export async function injectPageImageNotes(runDir, { notes_by_slide, sourceEpoch
     source_receipt_sha256: finalManifest.source_receipt_sha256,
     workflow: finalManifest.workflow,
     ordered_slide_ids: input.ordered_slide_ids,
+    delivery_media_manifest_sha256: input.delivery_media_manifest_sha256,
+    delivery_entries: input.delivery_entries,
     notes_fingerprint: sha256(Buffer.from(canonicalJson(notes_by_slide))),
     previous_pptx_sha256: previousPptxSha256,
     pptx_sha256: sha256(readFileSync(pptxPath)),
