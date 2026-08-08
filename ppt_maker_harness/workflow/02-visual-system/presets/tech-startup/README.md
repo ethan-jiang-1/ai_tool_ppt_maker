@@ -25,7 +25,9 @@ agent_action: recommend
 | emphasis | `#f72585` |
 | data | `#7209b7` |
 
-Framed Page Authority composition owns exact header/body/KPI text; Pure pages keep readable content inside their Image2 authority. Do not use arbitrary CSS or provider-generated text outside the declared page authority.
+Framed Page Image composition owns only its local header overlay; Provider pages
+own source-defined body and KPI text for both workflows. Do not use arbitrary CSS
+or provider-generated text outside the declared Provider Content Schema.
 
 适合融资 pitch、产品发布与年轻科技受众。不适合金融、政府或严肃合规汇报。
 

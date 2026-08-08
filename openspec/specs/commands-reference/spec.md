@@ -40,46 +40,6 @@ artifact.
 - **WHEN** a human opens `COMMANDS.md`
 - **THEN** they see a table of common requests with corresponding agent actions
 - **AND** each row includes estimated duration
-### Requirement: COMMANDS routes Page Authority structural changes through clean targets
-For a Page Authority run, COMMANDS.md SHALL route insert, delete, reorder, and page-authority changes
-through the existing preview/hash-bound Structural Versioning Path. It SHALL explain that apply publishes
-a clean target with only plan-bound, target-owned unreviewed raw materialization or
-`needs_raw_generation` debt, makes no provider call, and requires target raw review before finalization.
-It SHALL not direct an Agent to copy a final slide, raw approval, provider authorization, or delivery
-decision across versions.
-
-#### Scenario: Page Authority reorder creates a clean target
-- **WHEN** a user reorders a Page Authority slide
-- **THEN** COMMANDS routes to preview, exact plan confirmation, target raw materialization/debt, and
-  target-local review rather than an in-place refresh
-- **AND** it does not infer reuse from filenames or make a provider request during the structural apply
-
-### Requirement: Commands route work by Page Authority ownership and invalidation
-Active command guidance SHALL route Framed, Pure, notes-only, and structural requests through the v2 Page Authority ownership/invalidation model. A non-v2 input SHALL receive the generic unsupported-protocol/export hard-stop and SHALL NOT be presented as a production, inspection-continuation, or fallback route.
-
-#### Scenario: A non-v2 protocol is not offered
-- **WHEN** command guidance describes a visual or text change
-- **THEN** it selects a v2 Page Authority refresh path without presenting another protocol as a choice
-
-#### Scenario: A non-v2 bundle is encountered
-- **WHEN** command guidance receives a non-v2 source/state identity
-- **THEN** it reports the generic unsupported-protocol/export action
-- **AND** it does not infer a workflow, decode history, or create a receipt
-
-### Requirement: Commands route TARGET work by one version workflow and owner
-For a target `page-authority-image2-v2` run, `COMMANDS.md` SHALL describe one Framed-or-Pure workflow choice at version start and thereafter route requests by the bound workflow and direct artifact ownership. It SHALL present the selected workflow's current fact, gate, and nearest action without exposing shared raw topology, sibling adapter internals, or a per-slide authority choice.
-
-Command guidance SHALL route target Framed text-only work to its local refresh only when exact accepted raw evidence and frame preset remain current; route Framed underlay/preset and Pure display/visual work to raw rebuild; route notes-only work to shared delivery; and route structural or whole-workflow changes through previewed exact-hash vNext versioning. It SHALL name `06-iteration` as the target iteration owner.
-
-#### Scenario: Human requests a target visual edit
-- **WHEN** a human asks to change visible text or visual content in a target Pure version
-- **THEN** COMMANDS guidance routes the request to the Pure raw rebuild path through the selected workflow
-- **AND** it does not offer a Framed local refresh or ask the human to choose an authority for one slide
-
-#### Scenario: Human requests a target workflow switch
-- **WHEN** a human asks to change a target version from Framed to Pure
-- **THEN** COMMANDS guidance routes to Structural Versioning Path preview and exact plan confirmation
-- **AND** it does not describe an in-place workflow mutation or acceptance reuse
 
 ### Requirement: COMMANDS.md complements the target classifier
 COMMANDS.md SHALL be the concise human-facing interface and SHALL link detailed current change classification only to `scripts/06-iteration/change-classifier.md`. It SHALL not link to a compatibility, v1, or archived classifier.
@@ -212,40 +172,6 @@ attempt, history record, task projection, or selected-route record.
 - **AND** it does not create maintenance work unless the user separately
   confirms that extension
 
-### Requirement: COMMANDS.md presents user goals rather than protocol mechanics
-
-`ppt_maker_harness/COMMANDS.md` SHALL render the supported discovery surface
-as a novice-facing reference. Each common-request row SHALL state what the
-user can ask for, what the Agent needs to clarify or inspect, the expected
-result, the meaningful confirmation/cost boundary, and coarse timing as local
-short work, human decision, or provider-variable work. The main request table
-SHALL not expose route IDs, state internals, hashes, grants, raw topology,
-Page Authority implementation mechanics, or shell grammar; auditable
-Agent-facing mappings MAY live outside that novice presentation.
-
-New-deck guidance SHALL express the stable progression `local foundation ->
-init -> user content and necessary choices -> create-deck Controller/current
-owner action`. It SHALL not prescribe a fixed one-shot validation or Image2
-authorization/generation/review/accept chain. Detailed lifecycle and command
-forms remain owned by the current playbooks and CLI specs.
-
-#### Scenario: A novice discovers a supported goal
-
-- **WHEN** a user opens `COMMANDS.md` with a setup, creation, change, resume,
-  or stuck request
-- **THEN** the relevant row explains the next human/Agent interaction and the
-  expected result in goal-oriented language
-- **AND** it does not require the user to understand a command, hash, or
-  workflow-internal term
-
-#### Scenario: Main request table does not teach retired production scripts
-
-- **WHEN** active command-reference examples are audited
-- **THEN** none directs a user through a fixed one-shot Image2 sequence or
-  treats a diagnostic/probe as production authorization
-- **AND** current owner guidance remains reachable without duplicating its
-  lifecycle state machine
-
 ### Requirement: COMMANDS presents a bounded diagnostic outcome without protocol leakage
 
 `ppt_maker_harness/COMMANDS.md` SHALL present the orientation request for a
@@ -276,3 +202,64 @@ environment checking.
   producer-action preservation
 - **AND** it does not create a second locator, env-check, or diagnostic
   fallback policy
+
+### Requirement: Commands route current Page Image changes by compiled-input ownership
+
+Active `COMMANDS.md` guidance SHALL describe one version-level
+`page-image-workflow-v1` choice, `framed` or `pure`, and route work through the
+selected owner. It SHALL route Provider Content Schema, visual-direction,
+generation-profile, protected-geometry, raw-contract, and provider-context
+changes to raw rebuild. A Framed local overlay refresh may be offered only when
+the owner proves that compiled provider input, protected geometry, raw contract,
+and local profile are unchanged; header literal changes normally require raw
+rebuild. Notes-only work remains delivery-owned, and insert/delete/reorder or
+workflow changes route through previewed exact-hash Structural Versioning.
+
+Guidance SHALL explain `hybrid` only as a description of Framed composition,
+not as a user-selectable workflow or slide-level choice. It SHALL remain
+goal-oriented and obtain current status from Workflow Inspection before
+selecting an owner mutation.
+
+#### Scenario: A user changes a Framed header literal
+
+- **WHEN** a user asks to change the title on a current Framed page
+- **THEN** COMMANDS guidance routes to the owner-issued raw rebuild path
+- **AND** it does not promise a provider-free Text Frame refresh
+
+#### Scenario: A user requests a workflow switch
+
+- **WHEN** a user asks to change a version from Framed to Pure
+- **THEN** COMMANDS guidance routes to Structural Versioning preview and exact
+  plan confirmation
+- **AND** it does not describe an in-place mode mutation or reuse acceptance
+
+### Requirement: Commands expose the replacement protocol's unsupported-input boundary
+
+When command guidance receives a v2 Page Authority source/state/receipt or
+evidence identity, it SHALL present the bounded unsupported-protocol/export
+action before route selection. It SHALL not infer the selected workflow, read
+historical evidence as current, offer compatibility, or create a conversion,
+adoption, or fallback path.
+
+#### Scenario: v2 input is not offered as a production route
+
+- **WHEN** a human asks to resume or change a v2 run
+- **THEN** command guidance presents the protocol hard-stop and its owner
+action
+- **AND** it does not offer a Page Image Workflow mutation or inspection route
+
+### Requirement: COMMANDS presents Page Image Workflow goals without protocol mechanics
+
+The novice-facing request table SHALL describe presentation goals, needed
+clarification, expected result, meaningful human confirmation/cost boundary,
+and coarse timing. It SHALL not expose raw prompt text, compiled-input digests,
+provider grants, internal adapter names, v2 Page Authority terminology, or a
+fixed Image2 command sequence. Detailed lifecycle and command forms remain
+with current playbooks and CLI owners.
+
+#### Scenario: A novice requests a visual change
+
+- **WHEN** a user reads the command reference for changing a page
+- **THEN** the reference explains the next human/Agent interaction in
+goal-oriented terms
+- **AND** it does not require the user to identify a workflow-internal record

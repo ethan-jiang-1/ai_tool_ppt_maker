@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { resolvePureStyleMasterScope } from "../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import { SLIDE_SPECS_NAME, initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function fixture() {
@@ -18,7 +18,7 @@ function fixture() {
     "identity:",
     "  scheme: mnemonic-v1",
     "production:",
-    "  pipeline: page-authority-image2-v2",
+    "  pipeline: page-image-workflow-v1",
     "  workflow: pure",
     "---",
     "",
@@ -34,7 +34,7 @@ function fixture() {
     "  - no-logo",
     "```",
   ].join("\n"), "utf8");
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 describe("Pure Style Master scope", () => {

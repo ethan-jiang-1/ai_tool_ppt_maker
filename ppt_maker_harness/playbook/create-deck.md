@@ -1,8 +1,8 @@
 ---
 playbook: create-deck
-description: v2 Page Authority deck creation and delivery
-supported_pipelines: [page-authority-image2-v2]
-supported_production_modes: [image2-page-authority-v2]
+description: Page Image Workflow deck creation and delivery
+supported_pipelines: [page-image-workflow-v1]
+supported_production_modes: [image2-page-workflow-v1]
 includes: []
 ---
 
@@ -55,7 +55,7 @@ acceptance.
 
 ### Progressive Page Production Resume
 
-For a selected progressive Page Authority route, first resolve the exact
+For a selected progressive Page Image route, first resolve the exact
 run/controller identity and refresh workflow inspection before choosing any
 node. The inspection's one owner-issued action selects the current checkpoint;
 it is never inferred from a previously completed node, a generated file, or
@@ -74,15 +74,15 @@ selectors. For an operation that requires a complete digest, refresh workflow
 inspection and use the current direct owner record or its existing CLI surface;
 never expand or submit a card reference.
 
-### select-target-page-authority-workflow
+### select-target-page-image-workflow
 ```yaml
-node: select-target-page-authority-workflow
+node: select-target-page-image-workflow
 lifecycle_phase: 1
 method_module: 01-content
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 draft_route: true
 requires: [checkpoint-intake]
-produces: [target-page-authority-workflow-choice]
+produces: [target-page-image-workflow-choice]
 decisions: [framed, pure]
 entry: []
 exit: [user_decision_recorded]
@@ -90,46 +90,46 @@ exit: [user_decision_recorded]
 **Step 1 — MD**: Choose one version workflow, `framed` or `pure`, based on the content and visual intent. Do not choose an authority per slide.
 **Step 2 — GATE**: Record the one workflow decision before the canonical target source is authored. This decision does not waive source/state validation.
 
-### author-target-page-authority-content
+### author-target-page-image-content
 ```yaml
-node: author-target-page-authority-content
+node: author-target-page-image-content
 lifecycle_phase: 1
 method_module: 01-content
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
 draft_route: true
-requires: [select-target-page-authority-workflow]
-produces: [page-authority-source-v2, page-authority-source-receipt-v2, stable-slide-ids]
+requires: [select-target-page-image-workflow]
+produces: [page-image-workflow-source, page-image-workflow-source-receipt, stable-slide-ids]
 entry: []
 exit: [slide_specs_exists, slide_specs_valid]
 ```
-**Step 1 — MD**: Author the canonical v2 Page Authority source with the recorded version workflow. The workflow applies to every slide in the version.
+**Step 1 — MD**: Author the canonical Page Image Workflow source with the recorded version workflow. The workflow applies to every slide in the version.
 **Step 2 — CLI**: Run the existing source validation action before any provider readiness or authorization.
 
-### configure-target-page-authority-visual-system
+### configure-target-page-image-visual-system
 ```yaml
-node: configure-target-page-authority-visual-system
+node: configure-target-page-image-visual-system
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
 draft_route: true
-requires: [author-target-page-authority-content]
-produces: [target-page-authority-visual-language]
+requires: [author-target-page-image-content]
+produces: [target-page-image-visual-language]
 entry: []
 exit: [visual_preset_seeded]
 ```
-**Step 1 — MD**: Maintain the closed visual-language and reference registries. Framed-specific Text Frame facts remain owned by the selected Framed workflow.
+**Step 1 — MD**: Maintain the closed visual-language and reference registries. Framed-specific Header Rendering Policy facts remain owned by the selected Framed workflow.
 
 ### inspect-target-framed-style-master
 ```yaml
 node: inspect-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
-requires: [configure-target-page-authority-visual-system]
+requires: [configure-target-page-image-visual-system]
 produces: [target-framed-style-master-inspection]
 entry: []
 exit: [evidence:target-framed-style-master-inspected]
@@ -141,7 +141,7 @@ exit: [evidence:target-framed-style-master-inspected]
 node: plan-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [inspect-target-framed-style-master]
@@ -157,7 +157,7 @@ exit: [evidence:target-framed-style-master-plan-current]
 node: authorize-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [plan-target-framed-style-master]
@@ -175,7 +175,7 @@ exit: [user_decision_recorded]
 node: generate-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [authorize-target-framed-style-master]
@@ -190,7 +190,7 @@ exit: [evidence:target-framed-style-master-progress]
 node: abandon-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [generate-target-framed-style-master]
@@ -206,7 +206,7 @@ exit: [evidence:target-framed-style-master-abandoned]
 node: review-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [plan-target-framed-style-master, authorize-target-framed-style-master, generate-target-framed-style-master, abandon-target-framed-style-master]
@@ -223,7 +223,7 @@ exit: [user_decision_recorded]
 node: promote-target-framed-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [review-target-framed-style-master]
@@ -238,8 +238,8 @@ exit: [style_master_accepted]
 node: plan-target-framed-progressive-raw
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 draft_route: true
 requires: [promote-target-framed-style-master]
@@ -254,8 +254,8 @@ exit: [evidence:target-framed-progressive-raw-plan-current]
 node: recommend-target-framed-pilot
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [plan-target-framed-progressive-raw]
 produces: [target-framed-pilot-projection]
@@ -270,8 +270,8 @@ exit: [evidence:target-framed-pilot-projection-current]
 node: authorize-target-framed-pilot
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [recommend-target-framed-pilot]
 produces: [target-framed-pilot-authorization]
@@ -287,8 +287,8 @@ exit: [user_decision_recorded]
 node: generate-target-framed-pilot
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [authorize-target-framed-pilot]
 produces: [target-framed-pilot-item-progress]
@@ -302,8 +302,8 @@ exit: [evidence:target-framed-pilot-item-progress]
 node: review-target-framed-pilot
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [generate-target-framed-pilot]
 produces: [target-framed-pilot-evidence]
@@ -311,7 +311,7 @@ decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
 ```
-**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present only the Framed underlay plus production-equivalent Text Frame composite.
+**Step 1 — CLI**: Run `ppt_flow image2 pilot-review` for the exact partial Pilot batch and present the Framed provider page plus its production-equivalent header composite.
 **Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` for the exact Pilot evidence. A partial `proceed` only unlocks owner-derived Expansion planning.
 
 ### plan-target-framed-expansion
@@ -319,8 +319,8 @@ exit: [user_decision_recorded]
 node: plan-target-framed-expansion
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [review-target-framed-pilot]
 produces: [target-framed-expansion-projection]
@@ -334,8 +334,8 @@ exit: [evidence:target-framed-expansion-projection-current]
 node: authorize-target-framed-expansion
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [plan-target-framed-expansion]
 produces: [target-framed-expansion-authorization]
@@ -351,8 +351,8 @@ exit: [user_decision_recorded]
 node: generate-target-framed-expansion
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [authorize-target-framed-expansion]
 produces: [target-framed-expansion-item-progress]
@@ -366,8 +366,8 @@ exit: [evidence:target-framed-expansion-item-progress]
 node: review-target-framed-raw
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [plan-target-framed-progressive-raw]
 produces: [target-framed-complete-raw-review]
@@ -383,8 +383,8 @@ exit: [user_decision_recorded]
 node: publish-target-framed-final-manifest
 lifecycle_phase: 4
 method_module: 03-framed-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed]
 requires: [review-target-framed-raw]
 produces: [target-framed-final-slide-manifest]
@@ -398,10 +398,10 @@ exit: [evidence:target-framed-final-manifest-current]
 node: inspect-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
-requires: [configure-target-page-authority-visual-system]
+requires: [configure-target-page-image-visual-system]
 produces: [target-pure-style-master-inspection]
 entry: []
 exit: [evidence:target-pure-style-master-inspected]
@@ -413,7 +413,7 @@ exit: [evidence:target-pure-style-master-inspected]
 node: plan-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [inspect-target-pure-style-master]
@@ -429,7 +429,7 @@ exit: [evidence:target-pure-style-master-plan-current]
 node: authorize-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [plan-target-pure-style-master]
@@ -447,7 +447,7 @@ exit: [user_decision_recorded]
 node: generate-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [authorize-target-pure-style-master]
@@ -462,7 +462,7 @@ exit: [evidence:target-pure-style-master-progress]
 node: abandon-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [generate-target-pure-style-master]
@@ -478,7 +478,7 @@ exit: [evidence:target-pure-style-master-abandoned]
 node: review-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [plan-target-pure-style-master, authorize-target-pure-style-master, generate-target-pure-style-master, abandon-target-pure-style-master]
@@ -495,7 +495,7 @@ exit: [user_decision_recorded]
 node: promote-target-pure-style-master
 lifecycle_phase: 2
 method_module: 02-visual-system
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [review-target-pure-style-master]
@@ -510,8 +510,8 @@ exit: [style_master_accepted]
 node: plan-target-pure-progressive-raw
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 draft_route: true
 requires: [promote-target-pure-style-master]
@@ -526,8 +526,8 @@ exit: [evidence:target-pure-progressive-raw-plan-current]
 node: recommend-target-pure-pilot
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [plan-target-pure-progressive-raw]
 produces: [target-pure-pilot-projection]
@@ -542,8 +542,8 @@ exit: [evidence:target-pure-pilot-projection-current]
 node: authorize-target-pure-pilot
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [recommend-target-pure-pilot]
 produces: [target-pure-pilot-authorization]
@@ -559,8 +559,8 @@ exit: [user_decision_recorded]
 node: generate-target-pure-pilot
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [authorize-target-pure-pilot]
 produces: [target-pure-pilot-item-progress]
@@ -574,8 +574,8 @@ exit: [evidence:target-pure-pilot-item-progress]
 node: review-target-pure-pilot
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [generate-target-pure-pilot]
 produces: [target-pure-pilot-evidence]
@@ -591,8 +591,8 @@ exit: [user_decision_recorded]
 node: plan-target-pure-expansion
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [review-target-pure-pilot]
 produces: [target-pure-expansion-projection]
@@ -606,8 +606,8 @@ exit: [evidence:target-pure-expansion-projection-current]
 node: authorize-target-pure-expansion
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [plan-target-pure-expansion]
 produces: [target-pure-expansion-authorization]
@@ -623,8 +623,8 @@ exit: [user_decision_recorded]
 node: generate-target-pure-expansion
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [authorize-target-pure-expansion]
 produces: [target-pure-expansion-item-progress]
@@ -638,8 +638,8 @@ exit: [evidence:target-pure-expansion-item-progress]
 node: review-target-pure-raw
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [plan-target-pure-progressive-raw]
 produces: [target-pure-complete-raw-review]
@@ -655,8 +655,8 @@ exit: [user_decision_recorded]
 node: publish-target-pure-final-manifest
 lifecycle_phase: 4
 method_module: 04-pure-image
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [pure]
 requires: [review-target-pure-raw]
 produces: [target-pure-final-slide-manifest]
@@ -665,31 +665,31 @@ exit: [evidence:target-pure-final-manifest-current]
 ```
 **Step 1 — CLI**: Run `ppt_flow image2 accept <run-dir> --plan-hash <sha256> --decision proceed`, then let the Pure workflow publish its final manifest from the accepted v3 evidence. It does not assemble PPTX or notes.
 
-### deliver-target-page-authority
+### deliver-target-page-image
 ```yaml
-node: deliver-target-page-authority
+node: deliver-target-page-image
 lifecycle_phase: 4
 method_module: 05-delivery
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
 requires: [publish-target-framed-final-manifest, publish-target-pure-final-manifest]
-produces: [target-page-authority-pptx, target-page-authority-notes]
+produces: [target-page-image-pptx, target-page-image-notes]
 entry: []
 exit: [pptx_generated, speaker_notes_injected]
 ```
 **Step 1 — CLI**: Run the existing delivery action for the selected workflow's common final-slide manifest. Delivery owns final projection, PPTX assembly, and notes injection.
 
-### review-target-page-authority-delivery
+### review-target-page-image-delivery
 ```yaml
-node: review-target-page-authority-delivery
+node: review-target-page-image-delivery
 lifecycle_phase: 4
 method_module: 05-delivery
-adapter: page-authority-image2-v2
-production_modes: [image2-page-authority-v2]
+adapter: page-image-workflow-v1
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
-requires: [deliver-target-page-authority]
-produces: [target-page-authority-delivery-review]
+requires: [deliver-target-page-image]
+produces: [target-page-image-delivery-review]
 decisions: [proceed, repair, redirect]
 entry: []
 exit: [user_decision_recorded]
@@ -697,16 +697,16 @@ exit: [user_decision_recorded]
 **Step 1 — MD**: Present the current final projection, PPTX, and notes receipt from shared delivery.
 **Step 2 — GATE**: Record `proceed`, `repair`, or `redirect` against that exact delivery lineage.
 
-### complete-target-page-authority-iteration
+### complete-target-page-image-iteration
 ```yaml
-node: complete-target-page-authority-iteration
+node: complete-target-page-image-iteration
 lifecycle_phase: 5
 method_module: 06-iteration
-production_modes: [image2-page-authority-v2]
+production_modes: [image2-page-workflow-v1]
 production_workflows: [framed, pure]
-requires: [review-target-page-authority-delivery]
-produces: [delivered-target-page-authority-deck]
+requires: [review-target-page-image-delivery]
+produces: [delivered-target-page-image-deck]
 entry: []
-exit: [evidence:target-page-authority-delivery-complete]
+exit: [evidence:target-page-image-delivery-complete]
 ```
 **Step 1 — MD**: Deliver the current target version. The bound workflow selects future refresh ownership; structural and whole-workflow changes create a previewed vNext.

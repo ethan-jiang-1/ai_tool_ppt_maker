@@ -1,14 +1,13 @@
 # Target Change Classifier
 
-Read the exact v2 source/state pair first. Use the bound version workflow and
+Read the exact Page Image Workflow source/state pair first. Use the bound version workflow and
 direct receipt/evidence facts; do not classify from generated files, a snapshot
 position, or an authority choice for one slide.
 
 | Bound workflow / request | Owner-valid path |
 | --- | --- |
-| `framed` Text Frame-only, current accepted raw + preset | Header Text & Style Refresh through `03-framed-image`, then delivery. |
-| `framed` preset, underlay, or visual change | Generated Image Rebuild through the Framed workflow. |
-| `pure` visible display or visual change | Generated Image Rebuild through the Pure workflow. |
+| `framed` exact compiled provider input, geometry, raw contract, and local profile | Header Text & Style Refresh through `03-framed-image`, then delivery. |
+| Either workflow, provider-visible or header-literal content, geometry, profile, or visual change | Generated Image Rebuild through the selected workflow. |
 | Either workflow, speaker notes only | Notes-Only Refresh through `05-delivery`. |
 | Insert, delete, reorder, or Framed/Pure switch | Structural Versioning Path. |
 

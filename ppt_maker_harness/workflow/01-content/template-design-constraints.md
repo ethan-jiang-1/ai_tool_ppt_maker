@@ -13,7 +13,7 @@ agent_action: fill_template
 
 # Template — design-constraints.md
 
-> 复制到 `deck_{NAME}/2_backbone/design-constraints.md`。这是每张 slide 的检查清单。它为 Page Authority visual-language 选择提供人类约束，但不替代注册表或 source receipt。全版本共享，极少变。删除所有 [INSTRUCTION] 注释后交付。
+> 复制到 `deck_{NAME}/2_backbone/design-constraints.md`。这是每张 slide 的检查清单。它为 Page Image visual-language 选择提供人类约束，但不替代注册表或 source receipt。全版本共享，极少变。删除所有 [INSTRUCTION] 注释后交付。
 
 ---
 

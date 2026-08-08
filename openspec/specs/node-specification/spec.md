@@ -2,7 +2,6 @@
 
 Define the Node — the atomic unit of playbook execution — and its governing constitution at `charter/NODE-SPEC.md`: node frontmatter (entry/exit gates), the run-bundle state model (`_state/state.yaml` as the single truth source plus the append-only `_state/history.jsonl`), the five node statuses, shared nodes, the gate-conditions catalog, and the `scripts/shared/state/state.mjs` API (the CONDITIONS registry, `checkEntry`/`checkExit`, atomic writes, and the query/manipulation functions). This capability guarantees that any agent can deterministically decide whether a node may start or complete, resume an in-progress run from persisted state, and switch between playbooks without losing its position.
 ## Requirements
-
 ### Requirement: Stateful Controller entry follows verified Harness binding
 
 Before a Controller or state consumer uses a run-scoped Deck as current work,
@@ -246,7 +245,7 @@ Immediately before rename, every writer SHALL recheck journal bytes/absence, cur
 ### Requirement: CLI exposes state via ppt_flow state command
 ppt_flow state <runDir>, --json, and --check-gates SHALL remain observation-first operations. They SHALL resolve the canonical deck/run version, classify the direct source marker and durable state, and call readState with purpose observe and heal false plus read-only validation. A repairable current record returns the owner-issued action without writes. Missing, retired, malformed, or mismatched state/source identity returns a bounded non-writing protocol diagnostic; it does not seed state, infer mode, select a Controller, or use generated artifacts as a resume substitute.
 
-Closed current mutation forms, including gate-journal recovery and Page Authority delivery decisions, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No unsupported controller identity or receipt is accepted by this command surface.
+Closed current mutation forms, including gate-journal recovery and Page Image Workflow delivery decisions, retain their owning preconditions and exact arguments. They are mutually exclusive with observation modes and must validate current source/state identity before write. No unsupported controller identity or receipt is accepted by this command surface.
 
 #### Scenario: Plain state observes a repairable current record
 - **WHEN** ppt_flow state <runDir> --json sees a one-to-one repairable schema-5 defect
@@ -636,230 +635,6 @@ State-owned transition, gate, journal, reset, and recovery mutations SHALL conti
 - **THEN** the subsequent state mutation revalidates the current journal and CAS facts
 - **AND** it fails or follows the existing owner recovery path when they no longer match
 
-### Requirement: TARGET Page Authority state is bound to one version workflow
-
-For the exact page-authority-image2-v2 / image2-page-authority-v2 pair, Node
-Specification SHALL record the bound source receipt identity, version workflow,
-source epoch, accepted raw-evidence reference, and final/delivery references
-through the existing state owner. The state writer SHALL accept only framed or
-pure when it matches the immutable v2 source receipt. MD Controller and
-inspection consumers SHALL read the owner-issued projection and SHALL NOT
-recreate receipt, CLI, or evidence schemas.
-
-The raw lifecycle owner, not generic node state, SHALL own full plans, batch
-grants, claims, attempts, consumption, materialization provenance, Pilot bytes,
-and batch progress. State may retain typed node decision/evidence references
-needed to resume the current Controller, but such a reference shall not prove
-provider cost, current bytes, coverage, or acceptance without the raw owner's
-direct revalidation.
-
-For a progressive v3 lifecycle, the legacy
-`page_authority_raw_provider_authorization` record and the target evidence
-record's v2 `provider_authorization_sha256` SHALL not be populated or consumed
-as current cost authority. A present legacy field remains parseable only as
-historical v2 context; it shall not be copied into a v3 handoff, used to
-authorize a v3 batch, or silently migrated. The state handoff for accepted raw
-work is only the v3 evidence reference after the raw owner directly validates
-its complete provenance chain.
-
-The state validator SHALL treat a missing workflow, source/state workflow
-mismatch, v1/v2 identity collision, or evidence bound to a different receipt
-or epoch as a non-mutating hard-stop. Its primary result SHALL identify the
-earliest direct-fact failure and one owner-issued repair-and-rerun action.
-
-#### Scenario: Target state records its source workflow once
-
-- **WHEN** a valid v2 Pure source receipt initializes a fresh target version
-- **THEN** state records mode image2-page-authority-v2, workflow pure, and source epoch 1
-- **AND** every later target node reads that one workflow rather than a per-slide authority field
-
-#### Scenario: Source and state cannot claim different target workflows
-
-- **WHEN** a v2 source receipt says framed and the state record says pure
-- **THEN** validation returns the source/state identity repair hard-stop without writing state
-- **AND** no controller, inspection, or generation path guesses which workflow to use
-
-#### Scenario: State cannot become a raw submission ledger
-
-- **WHEN** a progressive Pilot or Expansion has grants, attempts, or materialized items
-- **THEN** state retains only the Controller's typed handoff reference when one is required
-- **AND** it does not duplicate attempts, counters, bytes, grant consumption, or a second success record
-
-#### Scenario: Legacy state authorization cannot authorize a progressive batch
-
-- **WHEN** a selected run retains a valid v2 raw-authorization field while its progressive raw head is current
-- **THEN** state validation treats that field as historical context and asks the raw owner for the current batch/grant facts
-- **AND** it does not copy, upgrade, or consume the v2 field as v3 cost authorization
-
-### Requirement: Progressive Controller handoffs remain evidence references
-
-Node Specification SHALL permit current Page Authority Controller nodes to
-record distinct typed references for a partial Pilot decision, a complete raw
-review decision, and a delivery decision. A partial Pilot proceed reference
-shall only permit the Controller to request the raw owner's current Expansion
-planning projection. Complete raw and delivery decision references shall each
-remain bound to their own current evidence owner. Node status, a checkbox, or
-a decision reference alone SHALL not satisfy authorization, complete coverage,
-finalization, or delivery prerequisites.
-
-#### Scenario: Partial Pilot reference does not bypass complete review
-
-- **WHEN** a current Controller resumes after a partial Pilot proceed
-- **THEN** it consumes the raw owner's remaining-scope inspection before presenting Expansion authorization
-- **AND** it does not mark raw review, finalization, or delivery nodes completed
-
-### Requirement: TARGET structural versions begin with fresh workflow evidence
-An exact-plan structural transaction that publishes a v2 target SHALL bind the chosen workflow into the preview and confirmed plan hash. Apply SHALL initialize target state at source epoch `1` with target-owned unreviewed provenance or `needs_raw_generation` debt only. It SHALL NOT carry provider authorization, raw review, final projection, PPTX, notes, delivery decision, or active execution from its source version.
-
-#### Scenario: Workflow switch creates a clean vNext state
-- **WHEN** a confirmed structural transaction switches a version from target Framed to target Pure
-- **THEN** the published vNext state binds workflow `pure` and starts with fresh target evidence state
-- **AND** apply makes no provider call or inherits the source final/delivery acceptance
-
-### Requirement: State owns clean Page Authority target-draft activation
-
-After a successful clean copy of an exact current Page Authority version with
-an explicit selected workflow, the state owner SHALL atomically create a new
-`create-deck` execution bound to the target version and one manifest-valid
-selected-workflow draft-route node. The activation SHALL preserve source-version
-mode and evidence records and shall only use the copied canonical source marker
-to establish the target workflow. If a Controller execution is active, it SHALL
-be bound to the exact selected source version. An inactive source is eligible
-when its exact current-v2 source marker and durable production-mode record
-agree; the caller's explicit source directory is its identity and no
-continuation pointer is inferred.
-
-The activation SHALL NOT materialize or synthesize a target production-mode
-record, source receipt, target evidence, Style Master selection, raw
-authorization, progressive handoff, raw acceptance, final manifest, delivery
-receipt, provider grant, or provider submission. A malformed source/state
-identity, target record conflict, or active Controller execution bound to
-another version SHALL be a hard-stop before state mutation or provider work.
-
-#### Scenario: A clean target receives its own active draft execution
-
-- **WHEN** the state owner activates a clean selected-workflow target after a current source version is copied
-- **THEN** the active Controller execution and `continuation_target_version` bind the exact target version
-- **AND** the source version's durable mode/evidence records remain unchanged while no target lineage records are created
-
-#### Scenario: An inactive selected source receives a clean target draft
-
-- **WHEN** the caller explicitly selects a completed current-v2 Page Authority source whose source marker and durable mode agree
-- **THEN** the state owner starts the target's `create-deck` draft without requiring a prior active source execution
-- **AND** it does not infer or copy a source continuation, receipt, or target lineage record
-
-#### Scenario: A target activation precondition fails
-
-- **WHEN** the target source, an active source execution, or target-cleanliness check is inconsistent
-- **THEN** state activation fails before writing a replacement Controller execution
-- **AND** it does not reinterpret source evidence as target evidence or invoke a provider
-
-### Requirement: Style Master readiness consumes one canonical effective selection
-
-Node Specification SHALL provide one current Page Authority condition, `style_master_accepted`, for a
-Controller to determine whether its selected workflow may enter page raw planning. The condition SHALL
-consult the Style Master owner's current effective-selection/acceptance evidence for the exact run,
-workflow, scope, and style bytes; a candidate file, `style_master.jpg` path, Markdown task checkbox, or
-generic node status alone SHALL NOT satisfy it.
-
-The condition is a read-only projection. Candidate plans, grants, attempts, progress, human decisions,
-and the candidate lifecycle head remain owned by the Style Master lifecycle. The only Style Master durable
-fact in generic state is the capability-owned effective-selection/acceptance record described below; ordinary
-Controller node records remain handoff projections rather than candidate truth. An absent record or a
-structurally valid but stale selection SHALL make the Boolean condition false without state heal or mutation.
-A present record with an invalid map key, field schema, run-version binding, or workflow binding SHALL also
-never pass the condition, but state validation SHALL report that malformed current record as a non-writing
-hard-stop rather than treating it as ordinary absence. The Controller SHALL obtain
-the owner-issued repair path from the separate Style Master inspection/diagnostic interface, not from the
-Boolean condition or file presence.
-
-#### Scenario: File presence does not pass the Style Master gate
-
-- **WHEN** a deck has `style_master.jpg` but lacks an exact current effective-style acceptance receipt
-- **THEN** `style_master_accepted` is false for page raw Controller entry
-- **AND** the Controller remains at the Style Master checkpoint rather than inferring readiness
-
-#### Scenario: Current accepted selection passes for its workflow
-
-- **WHEN** the Style Master owner exposes a current accepted selection whose bytes, scope, and workflow match the selected version
-- **THEN** `style_master_accepted` passes the corresponding Controller handoff
-- **AND** the condition does not duplicate or rewrite candidate lifecycle records
-
-#### Scenario: Stale selection is read-only failure
-
-- **WHEN** a style-intent, canonical style-context, candidate, profile, scope, or effective-selection identity no longer matches current facts
-- **THEN** the condition reports unavailable readiness and the Controller separately consumes the one Style Master recovery action
-- **AND** it does not heal state, advance source epoch, or create page raw work
-
-### Requirement: Schema-v5 state carries optional Style Master acceptance evidence
-
-Node Specification SHALL admit one optional
-`page_authority_style_master.by_version["3_versions/vN"]` map in schema-v5 state. The state module SHALL own
-its structural validation and atomic/CAS persistence while `style-master-generation` remains authoritative for
-the record fields, currentness evaluator, promotion semantics, and diagnostic actions. No generic state setter,
-second acceptance receipt, metadata mirror, or Controller-owned candidate record SHALL be introduced.
-
-Structural validation SHALL require each present map key to be a canonical version key, each record's
-`run_version` to match that key, and each record to satisfy the Style Master-owned exact field schema. When a
-source/state workflow exists for that version, the record workflow SHALL match it; for an active unbound fresh
-draft, currentness SHALL instead match the validated selected-workflow source. A malformed present record is
-invalid state, not equivalent to an absent optional record, and observation SHALL not delete or normalize it.
-
-An absent map or absent version record in an otherwise exact current schema-v5 bundle SHALL be valid state and
-mean `style_master_accepted = false`. The Style Master writer MAY add the exact selected-workflow record to an
-active fresh-v2 `create-deck` draft after validating its canonical source marker and run identity without
-creating a production-mode, target-evidence, source-receipt, raw-plan, or source-epoch record. It MAY also CAS
-replace the record for an exact current v2 source/state pair. Later selected-workflow source materialization
-SHALL preserve and revalidate the Style Master record. Observation, invalid records, and CAS conflicts SHALL
-remain non-writing.
-
-On first exact-plan structural publication of vNext, the state writer SHALL retain source-version Style Master
-records but SHALL NOT copy, rename, infer, or rebind one under the target version key, regardless of whether the
-workflow stays the same or changes. The target SHALL begin with no accepted Style Master and its own readiness
-condition false. An exact idempotent replay of that already-published structural plan SHALL instead revalidate
-and preserve any target-owned Style Master record created after publication. The state-side replay path SHALL
-be reached only after the structural owner has exact-matched the original source/target plan tuple; it SHALL
-not treat the target's now-active Controller execution as a source-version execution mismatch or reset its
-`playbook`, `run_version`, `current_node`, node records, or continuation pointer. It SHALL NOT erase later
-target work, manufacture inheritance, create or restage a version, call a provider, or rewrite the
-layout-resolved compatibility payload.
-
-#### Scenario: Existing v2 state without Style Master remains supported
-
-- **WHEN** schema-v5 state has an exact v2 source/state pair but no Style Master map or record
-- **THEN** structural state validation passes and `style_master_accepted` is false
-- **AND** observation does not seed the map, infer acceptance from `style_master.jpg`, or classify the state as historical
-
-#### Scenario: Malformed present selection is not disguised as absence
-
-- **WHEN** a schema-v5 state contains a Style Master record whose key, field set, run version, or bound workflow is invalid
-- **THEN** state validation returns a non-writing malformed-record hard-stop and readiness does not pass
-- **AND** it does not delete, normalize, or reinterpret the record as an ordinary missing selection
-
-#### Scenario: Fresh draft promotion does not create page lineage
-
-- **WHEN** an active fresh-v2 `create-deck` draft has a validated selected-workflow source and promotes a reviewed Style Master candidate
-- **THEN** the state owner CAS-writes only the capability-owned Style Master acceptance record plus ordinary audit history
-- **AND** production mode, target evidence, source receipt, raw plan, and source epoch remain absent until their existing owner materializes them
-
-#### Scenario: Raw-plan materialization preserves accepted style
-
-- **WHEN** selected-workflow raw planning later materializes the draft's first source receipt and target state
-- **THEN** the state writer revalidates and preserves the exact current Style Master record
-- **AND** it neither recreates the acceptance nor treats it as page raw authorization
-
-#### Scenario: Structural vNext does not inherit source acceptance
-
-- **WHEN** first structural publication creates a same-workflow or workflow-switch target from a source version with an accepted Style Master
-- **THEN** the state writer preserves the source-version record and creates no target-version Style Master record
-- **AND** target readiness remains false until that exact target scope completes its own promotion
-
-#### Scenario: Structural replay preserves later target acceptance
-
-- **WHEN** the exact structural plan is replayed after its target version acquired a valid target-owned Style Master record
-- **THEN** the state writer revalidates and preserves that target record byte-for-byte
-- **AND** it neither restores source acceptance under the target key nor changes either selection, active target Controller execution, or the layout-resolved payload
-
 ### Requirement: MD diagnostic consumption renders the canonical four-part handoff
 
 MD Controllers and runtime Agent guidance SHALL consume a valid final CLI
@@ -915,3 +690,133 @@ generated output.
   the producer's exact next action
 - **AND** it does not infer a route, state edit, authorization, or raw-output
   repair from the guide
+
+### Requirement: Controller state binds one current Page Image Workflow lineage
+
+For production work, Node/State SHALL bind one exact
+`page-image-workflow-v1` source and `image2-page-workflow-v1` state pair,
+one version-level `framed` or `pure` workflow, and the corresponding
+`page-image-workflow-source-v1` receipt when materialized. The Controller may
+project lifecycle facts, but it SHALL not duplicate provider input, review
+authority, or final acceptance as a second state-owned evaluator. `hybrid`, a
+per-slide workflow, an omitted policy, or a mismatched pair SHALL fail closed
+with the source/identity owner's nearest action.
+
+#### Scenario: State does not invent a per-slide policy
+
+- **WHEN** state contains a current Framed workflow but a slide-level policy
+  override is supplied
+- **THEN** validation returns the source/structural repair action before a
+  Controller route is selected
+- **AND** it does not record mixed workflow state
+
+### Requirement: Current state preserves the unsupported v2 boundary
+
+State validation, Controller resume, mutation, and diagnostic consumption
+SHALL reject any v2 Page Authority source/state/receipt/evidence lineage before
+provider work, generated-artifact reads, state repair, or state mutation. The
+failure SHALL preserve those bytes and cite the owner-issued
+`unsupported-protocol/export` action; it SHALL not normalize, migrate,
+reinterpret, or use them as a basis for replacement workflow facts.
+
+#### Scenario: Resume cannot repair a v2 state record
+
+- **WHEN** a Controller resume encounters `image2-page-authority-v2`
+- **THEN** it returns the `unsupported-protocol/export` hard-stop before node
+  projection or state healing
+- **AND** it does not write replacement state or a continuation target
+
+### Requirement: Fresh target versions do not inherit Page Image Workflow acceptance
+
+On first structural publication or `new-version` target activation, State SHALL
+retain source-version records but create a fresh selected-workflow draft with
+no replacement receipt, Style Master acceptance, raw authorization/evidence,
+Complete Page Review, final manifest, assembly, notes, or delivery receipt.
+Target readiness SHALL be evaluated only from target-owned current facts. An
+exact replay may preserve later target-owned facts after revalidation, but it
+SHALL never copy or rebind source-version acceptance.
+
+#### Scenario: A same-policy target still starts unaccepted
+
+- **WHEN** a current Pure source version produces a new Pure target version
+- **THEN** the target begins with no Style Master or page-production acceptance
+- **AND** state does not inherit source raw or delivery evidence
+
+### Requirement: State atomically activates a clean current target authoring draft
+
+After an exact `new-version` or structural publication creates a clean target
+with an explicit current `framed` or `pure` source selection, the State owner
+SHALL atomically create one `create-deck` execution bound to that exact target
+version and its controller-manifest-validated selected-workflow draft-route
+node. Its continuation target, when recorded, SHALL identify that same target.
+An explicit completed or inactive source is eligible when its current source
+selection and durable facts agree; the caller-supplied source version remains
+the only source identity.
+
+Activation may retain the target's copied canonical source selection, but it
+SHALL NOT materialize a target source receipt or production-mode record, or
+create Style Master acceptance, raw plan/authorization/evidence, Complete Page
+Review, final manifest, assembly, notes, delivery, provider grant, or provider
+attempt. It SHALL preserve source-version records as source facts and shall not
+infer a continuation, receipt, or acceptance from them. A malformed current
+selection, target conflict, or active execution for another version SHALL
+hard-stop before State mutation or provider work.
+
+#### Scenario: A clean target receives its own current draft execution
+
+- **WHEN** an exact current Framed source is copied into a clean target
+- **THEN** the target receives a `create-deck` execution for its Framed draft
+  route and no materialized page-production lineage
+- **AND** the source execution and its receipt/evidence remain unchanged
+
+#### Scenario: Target activation fails before a competing continuation is written
+
+- **WHEN** target cleanliness or an active execution binding is inconsistent
+- **THEN** State returns the owning repair action before writing a target
+  execution or continuation pointer
+- **AND** it does not reinterpret source evidence as target evidence or invoke
+  a provider
+
+### Requirement: Style Master readiness is replacement-protocol scoped
+
+The `style_master_accepted` Controller prerequisite SHALL consult only the
+current Style Master acceptance for the exact Page Image Workflow version,
+workflow, source/visual scope, and selected bytes. File presence, task cards,
+v2 candidates, a v2 acceptance record, or a sibling workflow selection SHALL
+not satisfy the condition. The Boolean remains read-only; the Style Master
+owner supplies its detailed repair action.
+
+#### Scenario: A v2 style asset does not pass current readiness
+
+- **WHEN** an otherwise current Framed version has only a v2 Style Master
+  selection or `style_master.jpg` file
+- **THEN** `style_master_accepted` is false and inspection points to the
+  current Style Master owner
+- **AND** state does not seed a replacement acceptance record
+
+### Requirement: State records only JPEG-bound current delivery lineage
+
+When State records a current Page Image delivery handoff, it SHALL require a
+delivery receipt whose exact source epoch and final-manifest digest match the
+target record and whose JPEG delivery-media manifest digest has the required
+digest shape. State SHALL preserve that receipt as an opaque delivery-owned
+record and SHALL NOT derive, repair, or infer its JPEG entries. A receipt that
+omits the JPEG delivery-media binding is stale derived delivery state and SHALL
+not establish `delivery_receipt_sha256`.
+
+#### Scenario: Current JPEG-bound delivery can complete a state handoff
+
+- **WHEN** a delivery-owned receipt matches the target source epoch and final
+  manifest digest and contains a syntactically valid JPEG delivery-media
+  manifest digest
+- **THEN** State records its receipt digest as the target delivery handoff
+- **AND** it does not copy JPEG media, final PNG bytes, or delivery metadata
+  into State
+
+#### Scenario: Pre-JPEG receipt cannot establish delivery completion
+
+- **WHEN** a caller presents a legacy delivery receipt that lacks the JPEG
+  delivery-media manifest digest
+- **THEN** State rejects the handoff before mutating the target record
+- **AND** its existing delivery rebuild route remains the only way to publish
+  current completion

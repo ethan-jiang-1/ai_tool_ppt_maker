@@ -11,9 +11,9 @@ import {
   initBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
+import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { readState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
@@ -27,27 +27,33 @@ function pngBytes(color) {
 }
 
 function targetSource(workflow, slides) {
-  const negativeConstraints = workflow === "framed"
-    ? "  - no-readable-text\n  - no-labels"
-    : "  - no-logo";
+  const header = workflow === "framed"
+    ? "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n**FRAME PRESET**: standard-v1\n"
+    : "**KICKER**: Operations\n**SUBTITLE**: Current provider-rendered page composition\n";
   return `---
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: ${workflow}
 ---
 
 ${slides.map((slide, index) => `## Slide ${String(index + 1).padStart(2, "0")}: \`${slide.id}\`
 
 **TITLE**: ${slide.title}
+${header}**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: callout
+    literal: ${slide.title} supporting page content
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-${negativeConstraints}
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: ${slide.note}`).join("\n\n")}
@@ -60,7 +66,7 @@ function createTargetFixture(prefix, workflow, slides) {
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), pngBytes("#1f4d6e"));
-  writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with no readable text.\n", "utf8");
+  writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a clear editorial visual system with clear content hierarchy.\n", "utf8");
   writeFileSync(join(runDir, "slide-specifications.md"), targetSource(workflow, slides));
   return { root, deck, runDir };
 }
@@ -191,7 +197,7 @@ async function runTargetRawLifecycle(runDir, env, slides, { styleMaster: include
   const styleMaster = includeStyleMaster ? await runStyleMasterLifecycle(runDir, env) : null;
   const plan = jsonSuccess(await flow(["image2", "plan", runDir], env));
   expect(plan).toMatchObject({
-    schema: "page-authority-progressive-raw-plan-projection-v1",
+    schema: "page-image-progressive-raw-plan-projection-v1",
     plan_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
   });
   const pilot = jsonSuccess(await flow([
@@ -323,7 +329,7 @@ async function runPartialTargetRawLifecycle(runDir, env, slides, { styleMaster: 
 }
 
 async function runStyleMasterLifecycle(runDir, env) {
-  const paths = pageAuthorityImage2Paths(runDir);
+  const paths = pageImageWorkflowPaths(runDir);
   const inspected = jsonSuccess(await flow(["style-master", "inspect", runDir], env));
   expect(inspected).toMatchObject({ head: null, next_action: "plan_style_master_candidates" });
   const planned = jsonSuccess(await flow(["style-master", "plan", runDir, "--candidate-count", "0"], env));
@@ -346,7 +352,7 @@ async function runStyleMasterLifecycle(runDir, env) {
 }
 
 describe("mock TARGET workflow journey", () => {
-  it("runs a homogeneous Framed current-version journey through text-only and notes-only refreshes", async () => {
+  it("runs a homogeneous Framed current-version journey through raw rebuild and notes-only refreshes", async () => {
     const slides = [
       { id: "FramGo", title: "Original framed heading", note: "Original Framed note." },
       { id: "BodyMap", title: "Second framed heading", note: "Second Framed note." },
@@ -361,20 +367,23 @@ describe("mock TARGET workflow journey", () => {
       expect(provider.calls).toHaveLength(2);
       expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
 
-      const paths = pageAuthorityImage2Paths(fixture.runDir);
-      const framGoImage = pageAuthorityOrdinalImageFilename(1, "FramGo");
-      const originalRaw = readFileSync(join(paths.raw_root, framGoImage));
+      const paths = pageImageWorkflowPaths(fixture.runDir);
+      const framGoImage = pageImageOrdinalImageFilename(1, "FramGo");
       const titleUpdated = [
         { ...slides[0], title: "Refreshed framed heading" },
         slides[1],
       ];
       writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("framed", titleUpdated));
-      const refreshed = expectSuccess(await flow([
+      const rejectedRefresh = await flow([
         "refresh", fixture.runDir, "--kind", "title", "--only", "FramGo",
-      ], provider.env));
-      expect(refreshed.stdout).toContain("Target Framed refresh delivered without provider submission");
+      ], provider.env);
+      expect(rejectedRefresh.status).not.toBe(0);
+      expect(`${rejectedRefresh.stdout}\n${rejectedRefresh.stderr}`).toMatch(/Framed local refresh requires/i);
       expect(provider.calls).toHaveLength(2);
-      expect(readFileSync(join(paths.raw_root, framGoImage))).toEqual(originalRaw);
+
+      const rebuilt = await runTargetRawLifecycle(fixture.runDir, provider.env, titleUpdated, { styleMaster: false });
+      expect(rebuilt.rawPlan).toMatchObject({ workflow: "framed", source_epoch: 2 });
+      expect(provider.calls).toHaveLength(4);
       const finalAfterTitleRefresh = readFileSync(join(paths.final_root, framGoImage));
 
       const notesUpdated = [
@@ -383,9 +392,8 @@ describe("mock TARGET workflow journey", () => {
       ];
       writeFileSync(join(fixture.runDir, "slide-specifications.md"), targetSource("framed", notesUpdated));
       const notes = expectSuccess(await flow(["refresh", fixture.runDir, "--kind", "notes"], provider.env));
-      expect(notes.stdout).toContain("Target Page Authority notes refreshed");
-      expect(provider.calls).toHaveLength(2);
-      expect(readFileSync(join(paths.raw_root, framGoImage))).toEqual(originalRaw);
+      expect(notes.stdout).toContain("Target Page Image notes refreshed");
+      expect(provider.calls).toHaveLength(4);
       expect(readFileSync(join(paths.final_root, framGoImage))).toEqual(finalAfterTitleRefresh);
     } finally {
       await provider.close();
@@ -420,7 +428,7 @@ describe("mock TARGET workflow journey", () => {
       expect(rebuilt.rawPlan).toMatchObject({ workflow: "pure", source_epoch: 2 });
       expect(provider.calls).toHaveLength(2);
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.page_authority_target_evidence.by_version["3_versions/v1"])
+      expect(state.page_image_target_evidence.by_version["3_versions/v1"])
         .toMatchObject({
           source_epoch: 2,
           workflow: "pure",
@@ -428,7 +436,7 @@ describe("mock TARGET workflow journey", () => {
           final_manifest_sha256: null,
           delivery_receipt_sha256: null,
         });
-      expect(state.page_authority_progressive_handoff.by_version["3_versions/v1"])
+      expect(state.page_image_progressive_handoff.by_version["3_versions/v1"])
         .toMatchObject({
           source_epoch: 2,
           workflow: "pure",
@@ -469,7 +477,7 @@ describe("mock TARGET workflow journey", () => {
       expect(provider.calls).toHaveLength(slides.length);
       expect(provider.calls.every((call) => call.body?.model === "gpt-image-2")).toBe(true);
 
-      const paths = pageAuthorityImage2Paths(fixture.runDir);
+      const paths = pageImageWorkflowPaths(fixture.runDir);
       const pilotRoot = join(paths.review_root, "pilot", lifecycle.pilot.batch.batch_hash);
       const direct = readProgressiveRawPlanDirectRecords(fixture.runDir, {
         plan_sha256: lifecycle.rawPlan.plan_hash,
@@ -481,18 +489,17 @@ describe("mock TARGET workflow journey", () => {
       expect(acceptedEvidence).toMatchObject({ record: { workflow } });
       expect(finalManifest).toMatchObject({ workflow });
       const state = readState(fixture.deck, { purpose: "observe", runVersion: "v1" });
-      expect(state.page_authority_target_evidence.by_version["3_versions/v1"])
+      expect(state.page_image_target_evidence.by_version["3_versions/v1"])
         .toMatchObject({ workflow, accepted_raw_evidence_sha256: null });
-      expect(state.page_authority_progressive_handoff.by_version["3_versions/v1"])
+      expect(state.page_image_progressive_handoff.by_version["3_versions/v1"])
         .toMatchObject({ workflow, accepted_raw_evidence_sha256: lifecycle.accepted.accepted_raw_evidence_sha256 });
-      const deckGoImage = pageAuthorityOrdinalImageFilename(1, "DeckGo");
+      const deckGoImage = pageImageOrdinalImageFilename(1, "DeckGo");
       if (workflow === "framed") {
-        expect(existsSync(join(pilotRoot, "raw-underlay", deckGoImage))).toBe(true);
-        expect(existsSync(join(pilotRoot, "text-frame-composite", deckGoImage))).toBe(true);
+        expect(existsSync(join(pilotRoot, "provider-page", deckGoImage))).toBe(true);
+        expect(existsSync(join(pilotRoot, "complete-page", deckGoImage))).toBe(true);
       } else {
-        expect(existsSync(join(pilotRoot, deckGoImage))).toBe(true);
-        expect(existsSync(join(pilotRoot, "raw-underlay"))).toBe(false);
-        expect(existsSync(join(pilotRoot, "text-frame-composite"))).toBe(false);
+        expect(existsSync(join(pilotRoot, "provider-page", deckGoImage))).toBe(true);
+        expect(existsSync(join(pilotRoot, "complete-page"))).toBe(false);
       }
     } finally {
       await provider.close();

@@ -1,61 +1,100 @@
 ## Purpose
 
-Define Page Authority PPTX assembly from the ordered current final-slide manifest.
+Define Page Image Workflow PPTX assembly from the ordered current final-slide manifest.
 Assembly creates one receipt-bound delivery container and never accepts a raw,
 historical, partial, or unregistered final artifact as current input.
-
 ## Requirements
+### Requirement: PPTX assembly consumes the replacement final-slide manifest
 
-### Requirement: PPTX assembly consumes the Page Authority final manifest
-PPTX assembly SHALL accept only the ordered v2 Page Authority final-slide
-manifest and its receipt-bound files. It SHALL reject foreign or unregistered
-final artifacts as current assembly input. For a Pure Page Authority manifest,
-the accepted native final PNG is an exact `2048x1136` image; assembly SHALL
-place that verified image as the complete slide image without changing its source
-bytes, stable identity, final manifest identity, or delivery lineage. Framed
-final media remains owned by the Framed local compositor and SHALL not be
-reinterpreted as a provider-media normalization by assembly.
+PPTX Assembly SHALL accept only an ordered
+`page-image-final-slide-manifest-v1`, its current receipt-bound final PNG
+media, and a `page-image-delivery-media-v1` representation published by shared
+delivery. Shared delivery SHALL derive or rebuild one JPEG for every ordered
+final PNG before assembly. Each JPEG SHALL preserve its source dimensions and
+bind its digest, filename, fixed high-quality profile, and source final-PNG
+digest to the exact current final-slide manifest.
 
-#### Scenario: Current native final slides are assembled
-- **WHEN** a valid Pure v2 Page Authority final manifest has receipt-bound
-  `2048x1136` final PNG files
-- **THEN** assembly produces a PPTX receipt bound to the ordered Page Authority
-  final evidence and embeds the verified final image bytes
-- **AND** it does not crop, resize, transcode, or replace the source PNG files
+Assembly SHALL embed only the validated JPEG delivery media and record its
+manifest digest and ordered entries in its receipt. The source PNG remains the
+reviewed finalization evidence: assembly SHALL NOT alter, replace, or make it
+secondary authority. It SHALL reject a raw provider page, partial review,
+foreign artifact, v2 manifest, mismatched workflow/source lineage, or invalid
+delivery media before creating or replacing a delivery container. It SHALL not
+crop, resize, transcode, or substitute a validated JPEG after delivery-media
+validation, and it SHALL not reinterpret Framed's already-reviewed header
+composite or Pure's accepted provider page.
 
-#### Scenario: Foreign or wrong media cannot become assembly input
-- **WHEN** a final artifact is foreign, unregistered, hash-drifted, malformed,
-  or does not meet the selected workflow's final media contract
-- **THEN** assembly rejects it before creating a current delivery container
-- **AND** it does not substitute another image or bypass the current manifest
+#### Scenario: Current Page Image final slides are assembled as JPEG media
 
-### Requirement: Page Authority PPTX slides project their current ordinal
+- **WHEN** a valid replacement final-slide manifest has ordered receipt-bound
+  final PNG media
+- **THEN** shared delivery creates matching JPEG delivery media and assembly
+  validates it before writing the PPTX
+- **AND** its receipt binds the ordered final evidence and the exact JPEG
+  delivery entries embedded in the PPTX
 
-PPTX Assembly SHALL place a small right-bottom footer on every assembled Page
-Authority slide. The footer SHALL display the slide's current one-based
-ordinal with the same minimum-two-digit decimal format used by human-facing
-image projections. Target-v2 delivery SHALL use the final manifest item's
-position; bounded CURRENT assembly SHALL derive the ordinal from the accepted
-manifest order.
+#### Scenario: Stale JPEG delivery media is rebuilt before assembly
 
-The final image SHALL remain the slide's image content. The footer
-is a derived presentation annotation only: it SHALL not alter final image
-bytes, `slide_id`, final manifest identity, raw evidence, or delivery lineage.
-Assembly SHALL not introduce an opt-out configuration or a new review/gate
-path for the footer.
+- **WHEN** an existing JPEG file or delivery-media manifest does not bind the
+  current final PNG digest, manifest digest, ordering, dimensions, or fixed
+  profile declaration
+- **THEN** assembly does not embed that stale JPEG
+- **AND** shared delivery rebuilds and assembly validates current delivery
+  media before writing a new PPTX receipt
 
-#### Scenario: Target delivery writes matching page footers
+#### Scenario: JPEG derivation failure protects the existing delivery
 
-- **WHEN** target-v2 final manifest entries have current positions 1, 10, and
-  100
-- **THEN** the assembled PPTX contains a right-bottom footer with `01`, `10`,
-  and `100` on the corresponding slides
-- **AND** each slide still contains its matching final image
+- **WHEN** a current final PNG cannot be converted or the derived JPEG fails
+  dimension, profile, or digest validation
+- **THEN** assembly hard-stops before replacing the PPTX or publishing an
+  assembly receipt
+- **AND** the prior PPTX and assembly, notes, and delivery receipts remain
+  unmodified
 
-#### Scenario: Bounded CURRENT assembly derives order locally
+#### Scenario: v2 media cannot become assembly input
 
-- **WHEN** a bounded CURRENT manifest contains ordered entries without a
-  separately persisted position field
-- **THEN** assembly writes one footer per entry from its manifest order
-- **AND** it does not add page ordinals to the manifest's stable identities or
-  receipt bindings
+- **WHEN** assembly receives a v2 final manifest or v2 evidence reference
+- **THEN** it returns the `unsupported-protocol/export` hard-stop before reading image
+  bytes or creating a delivery container
+- **AND** it does not convert or adopt the media
+
+### Requirement: JPEG delivery media uses one conservative fixed profile
+
+For every accepted final PNG, shared delivery SHALL create JPEG media at the
+same pixel dimensions with quality `95` and 4:4:4 chroma sampling. Before
+encoding, it SHALL flatten any PNG alpha against opaque white. It SHALL not
+expose a quality, subsampling, resize, background, or alternate-format
+override in the delivery command, state, or manifest. The conversion profile
+is mechanical delivery metadata, not a review decision or a replacement
+image-production profile.
+
+#### Scenario: Delivery preserves presentation detail without resizing
+
+- **WHEN** assembly derives JPEG media from a valid 2000x1125 final PNG
+- **THEN** the JPEG has 2000x1125 pixels and its delivery-manifest entry
+  declares quality `95` and 4:4:4 chroma sampling
+- **AND** no delivery option can lower quality or resize the image
+
+#### Scenario: Delivery flattens transparent PNG pixels deterministically
+
+- **WHEN** an accepted final PNG contains transparent or partially transparent
+  pixels
+- **THEN** shared delivery composites those pixels against opaque white before
+  JPEG encoding without changing the source PNG or its final-manifest digest
+- **AND** the resulting JPEG remains subject to the same dimensions, digest,
+  and delivery-manifest validation as an opaque input
+
+### Requirement: Page Image PPTX slides project only derived current order
+
+PPTX Assembly SHALL retain the small right-bottom ordinal footer on every
+current Page Image slide. It SHALL derive the one-based minimum-two-digit
+ordinal from the accepted replacement manifest order only. The footer is a
+derived presentation annotation and SHALL not alter final image bytes,
+`slide_id`, final manifest identity, evidence, or delivery lineage; it SHALL
+not introduce a new configuration or review gate.
+
+#### Scenario: Replacement manifest order determines the footer
+
+- **WHEN** a current final manifest orders slides at positions 1, 10, and 100
+- **THEN** the assembled PPTX displays `01`, `10`, and `100` on those slides
+- **AND** it does not persist ordinals as stable slide identities

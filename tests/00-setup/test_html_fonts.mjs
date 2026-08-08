@@ -9,12 +9,16 @@ import {
   loadFramedFontRenderInventory,
   parseFontFaces,
   parseUnicodeRanges,
-  selectFramedFontFaces,
+  selectFramedHeaderOverlayFontFaces,
   verifyHtmlFontBundle,
 } from '../../ppt_maker_harness/scripts/00-setup/internal/html_fonts.mjs';
-import { currentFramedRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
+import { currentFramedHeaderOverlayRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const INVENTORY_PATH = join(HTML_FONT_ROOT, 'inventory.json');
+
+function headerOverlay(fields = {}) {
+  return { preset: 'standard-v1', kicker: null, title: 'Heading', subtitle: null, ...fields };
+}
 
 function injectedRead(replacements = new Map()) {
   return (path, ...args) => {
@@ -103,17 +107,17 @@ describe('HTML font bundle', () => {
     });
     expect(inventory.faces).toHaveLength(102);
 
-    const latin = selectFramedFontFaces({ title: 'Latin heading' });
+    const latin = selectFramedHeaderOverlayFontFaces(headerOverlay({ title: 'Latin heading' }));
     expect(latin.selected_faces).toHaveLength(1);
     expect(latin.selected_faces[0]).toMatchObject({ family: 'Source Sans 3' });
     expect(latin.fields).toEqual([{ field: 'title', families: ['Source Sans 3'] }]);
 
-    const han = selectFramedFontFaces({ title: '\u4F60\u597D' });
+    const han = selectFramedHeaderOverlayFontFaces(headerOverlay({ title: '\u4F60\u597D' }));
     expect(han.selected_faces).toHaveLength(1);
     expect(han.selected_faces[0]).toMatchObject({ family: 'Noto Sans SC' });
     expect(han.fields).toEqual([{ field: 'title', families: ['Noto Sans SC'] }]);
 
-    const mixed = selectFramedFontFaces({ kicker: 'Context', title: '\u4F60\u597D World' });
+    const mixed = selectFramedHeaderOverlayFontFaces(headerOverlay({ kicker: 'Context', title: '\u4F60\u597D World' }));
     expect(mixed.selected_faces.map((face) => face.family)).toEqual(['Source Sans 3', 'Noto Sans SC']);
     expect(mixed.fields).toEqual([
       { field: 'kicker', families: ['Source Sans 3'] },
@@ -124,7 +128,7 @@ describe('HTML font bundle', () => {
 
   it('returns a bounded source-facing error for unsupported Framed code points', () => {
     try {
-      selectFramedFontFaces({ title: `Unsupported ${String.fromCodePoint(0x10ffff)}` });
+      selectFramedHeaderOverlayFontFaces(headerOverlay({ title: `Unsupported ${String.fromCodePoint(0x10ffff)}` }));
       throw new Error('expected unsupported-code-point failure');
     } catch (error) {
       expect(error).toBeInstanceOf(HtmlFontSelectionError);
@@ -138,13 +142,13 @@ describe('HTML font bundle', () => {
   it('fails selection when the checked-in render inventory cannot validate', () => {
     const inventory = buildFontInventory();
     const fontPath = join(HTML_FONT_ROOT, ...inventory.files[0].path.split('/'));
-    expect(() => selectFramedFontFaces({ title: 'Heading' }, {
+    expect(() => selectFramedHeaderOverlayFontFaces(headerOverlay(), {
       readFile: injectedRead(new Map([[fontPath, Buffer.from('drift')]])),
     })).toThrow(/font render inventory is unavailable or invalid/);
   });
 
   it.each(['missing', 'changed'])('rejects a %s selected font before building the production profile', (kind) => {
-    const selected = selectFramedFontFaces({ title: 'Heading' }).selected_faces[0];
+    const selected = selectFramedHeaderOverlayFontFaces(headerOverlay()).selected_faces[0];
     const fontPath = join(HTML_FONT_ROOT, ...selected.path.split('/'));
     const readFile = kind === 'missing'
       ? (path, ...args) => {
@@ -156,7 +160,7 @@ describe('HTML font bundle', () => {
         return readFileSync(path, ...args);
       }
       : injectedRead(new Map([[fontPath, Buffer.from('changed')]]));
-    expect(() => currentFramedRenderProfile({ fontOptions: { readFile } }))
+    expect(() => currentFramedHeaderOverlayRenderProfile({ fontOptions: { readFile } }))
       .toThrow(/font render inventory is unavailable or invalid/);
   });
 

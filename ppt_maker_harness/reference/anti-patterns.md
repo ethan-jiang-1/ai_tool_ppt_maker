@@ -3,7 +3,7 @@ title: ANTI_PATTERNS — Harness Errors
 stage: root
 position: appendix
 type: reference
-summary: Harness-level mistakes and their current Page Authority repairs.
+summary: Harness-level mistakes and their current Page Image repairs.
 depends_on:
 - README.md
 feeds_into: []
@@ -16,19 +16,20 @@ agent_action: internalize
 
 Do not spend provider budget before the claim, audience, narrative blocks, and
 stable slide IDs are clear. Return to source authoring and validate the Page
-Authority receipt first.
+Image Workflow receipt first.
 
 ## 2. Treat a visual brief as free-form provider instructions
 
 Use the closed `VISUAL BRIEF`, registered identity, reference profile, and page
-authority fields. Do not add arbitrary layout controls, text literals, or provider
+Image Workflow fields. Do not add arbitrary layout controls, text literals, or provider
 overrides to source.
 
 ## 3. Rebuild raw images for a Framed text-only edit
 
-When accepted raw evidence remains exact, a Framed Text Frame change uses Header
-Text & Style Refresh. A Pure display-text change, underlay change, or raw-contract
-change uses Generated Image Rebuild. Notes use Notes-Only Refresh.
+Only when compiled provider input, protected geometry, raw contract, and local
+header profile remain exact may a Framed header-overlay change use Header Text &
+Style Refresh. Any provider-visible or header-literal change uses Generated Image
+Rebuild. Notes use Notes-Only Refresh.
 
 ## 4. Edit `_generated/`
 
@@ -61,9 +62,9 @@ Use the layout owner and the glossary before adding files or directories. Run-bu
 root controls are intentionally strict; `_scratch/` and `_generated/` have distinct
 purposes and neither is a replacement source owner.
 
-## 9. Resume a non-v2 run as current production
+## 9. Resume a v2 run as current production
 
-An explicitly targeted non-v2, partial, hybrid, or corrupt pair is an
+An explicitly targeted v2, partial, hybrid, or corrupt pair is an
 `unsupported-protocol/export` hard-stop. Preserve its bytes and use the
 owner-issued action; never infer current source, receipt, approval, or artifact
 authority from it.

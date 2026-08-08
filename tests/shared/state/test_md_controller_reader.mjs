@@ -35,8 +35,8 @@ describe("MD Controller reader characterization", () => {
   it("parses fenced YAML nodes rather than only document frontmatter", () => {
     const parsed = parseControllerFile(join(PLAYBOOK_DIR, "create-deck.md"));
     expect(parsed.playbook).toBe("create-deck");
-    expect(parsed.nodes.map((node) => node.id)).toContain("author-target-page-authority-content");
-    expect(parsed.nodes.find((node) => node.id === "author-target-page-authority-content")?.methodModule).toBe("01-content");
+    expect(parsed.nodes.map((node) => node.id)).toContain("author-target-page-image-content");
+    expect(parsed.nodes.find((node) => node.id === "author-target-page-image-content")?.methodModule).toBe("01-content");
   });
 
   it("keeps Controller diagnostic recovery bound to producer structured fields", () => {
@@ -67,37 +67,37 @@ describe("MD Controller reader characterization", () => {
     }
   });
 
-  it("registers Page Authority as the sole active Image Production controller", () => {
+  it("registers Page Image as the sole active Image Production controller", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
     expect(index.controllers.size).toBe(5);
     expect(index.controllers.has("production-mode-transition")).toBe(false);
     expect(index.controllers.has("image2-refine")).toBe(false);
     expect(index.controllers.get("create-deck").supportedPipelines).toEqual([
-      "page-authority-image2-v2",
+      "page-image-workflow-v1",
     ]);
   });
 
   it("uses adapter mode declarations rather than numeric module order for Image Production legality", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const pageAuthority = index.nodesById.get("generate-target-framed-pilot");
+    const pageImage = index.nodesById.get("generate-target-framed-pilot");
     const createDeck = index.controllers.get("create-deck");
-    expect(pageAuthority).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-authority-image2-v2", productionModes: ["image2-page-authority-v2"] });
-    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "image2-page-authority-v2")).toBe(true);
-    expect(nodeAppliesToMode(pageAuthority, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
+    expect(pageImage).toMatchObject({ lifecyclePhase: "4", methodModule: "03-framed-image", adapter: "page-image-workflow-v1", productionModes: ["image2-page-workflow-v1"] });
+    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "image2-page-workflow-v1")).toBe(true);
+    expect(nodeAppliesToMode(pageImage, createDeck.supportedProductionModes, "unsupported-mode")).toBe(false);
   });
 
   it("projects one bound target workflow through 03 XOR 04, then common delivery and iteration", () => {
     const index = buildPlaybookIndex(PLAYBOOK_DIR);
-    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2", "framed");
-    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2", "pure");
-    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-authority-v2");
+    const framed = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1", "framed");
+    const pure = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1", "pure");
+    const unresolved = controllerActiveNodeIds(index, "create-deck", "image2-page-workflow-v1");
 
-    expect(unresolved).toEqual(["checkpoint-intake", "select-target-page-authority-workflow"]);
+    expect(unresolved).toEqual(["checkpoint-intake", "select-target-page-image-workflow"]);
     expect(framed).toEqual([
       "checkpoint-intake",
-      "select-target-page-authority-workflow",
-      "author-target-page-authority-content",
-      "configure-target-page-authority-visual-system",
+      "select-target-page-image-workflow",
+      "author-target-page-image-content",
+      "configure-target-page-image-visual-system",
       "inspect-target-framed-style-master",
       "plan-target-framed-style-master",
       "authorize-target-framed-style-master",
@@ -115,15 +115,15 @@ describe("MD Controller reader characterization", () => {
       "generate-target-framed-expansion",
       "review-target-framed-raw",
       "publish-target-framed-final-manifest",
-      "deliver-target-page-authority",
-      "review-target-page-authority-delivery",
-      "complete-target-page-authority-iteration",
+      "deliver-target-page-image",
+      "review-target-page-image-delivery",
+      "complete-target-page-image-iteration",
     ]);
     expect(pure).toEqual([
       "checkpoint-intake",
-      "select-target-page-authority-workflow",
-      "author-target-page-authority-content",
-      "configure-target-page-authority-visual-system",
+      "select-target-page-image-workflow",
+      "author-target-page-image-content",
+      "configure-target-page-image-visual-system",
       "inspect-target-pure-style-master",
       "plan-target-pure-style-master",
       "authorize-target-pure-style-master",
@@ -141,18 +141,18 @@ describe("MD Controller reader characterization", () => {
       "generate-target-pure-expansion",
       "review-target-pure-raw",
       "publish-target-pure-final-manifest",
-      "deliver-target-page-authority",
-      "review-target-page-authority-delivery",
-      "complete-target-page-authority-iteration",
+      "deliver-target-page-image",
+      "review-target-page-image-delivery",
+      "complete-target-page-image-iteration",
     ]);
     expect(framed).not.toContain("authorize-target-pure-pilot");
     expect(pure).not.toContain("authorize-target-framed-pilot");
     expect(framed).not.toContain("inspect-target-pure-style-master");
     expect(pure).not.toContain("inspect-target-framed-style-master");
     expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual([
-      "select-target-page-authority-workflow",
-      "author-target-page-authority-content",
-      "configure-target-page-authority-visual-system",
+      "select-target-page-image-workflow",
+      "author-target-page-image-content",
+      "configure-target-page-image-visual-system",
       "inspect-target-framed-style-master",
       "plan-target-framed-style-master",
       "authorize-target-framed-style-master",
@@ -163,9 +163,9 @@ describe("MD Controller reader characterization", () => {
       "plan-target-framed-progressive-raw",
     ]);
     expect(controllerDraftRouteNodes(index, "create-deck", "pure")).toEqual([
-      "select-target-page-authority-workflow",
-      "author-target-page-authority-content",
-      "configure-target-page-authority-visual-system",
+      "select-target-page-image-workflow",
+      "author-target-page-image-content",
+      "configure-target-page-image-visual-system",
       "inspect-target-pure-style-master",
       "plan-target-pure-style-master",
       "authorize-target-pure-style-master",
@@ -176,17 +176,17 @@ describe("MD Controller reader characterization", () => {
       "plan-target-pure-progressive-raw",
     ]);
 
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow-v1", "framed")).toEqual([
       "classify-change",
       "refresh-target-framed-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-authority-v2", "pure")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-text", "image2-page-workflow-v1", "pure")).toEqual([
       "classify-change",
       "refresh-target-pure-text",
       "review-target-text-delivery",
     ]);
-    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-authority-v2", "framed")).toEqual([
+    expect(controllerActiveNodeIds(index, "edit-notes", "image2-page-workflow-v1", "framed")).toEqual([
       "classify-change",
       "refresh-target-speaker-notes",
       "verify-target-speaker-notes",
@@ -197,7 +197,7 @@ describe("MD Controller reader characterization", () => {
     expect(nodeAppliesToWorkflow(framedNode, "pure")).toBe(false);
 
     const state = createInitialState("target", "keynote", "dark", {
-      mode: "image2-page-authority-v2",
+      mode: "image2-page-workflow-v1",
       workflow: "framed",
     });
     const card = buildResumeCard(state, null, { index, ctx: { runVersion: "v1" } });
@@ -234,15 +234,15 @@ describe("MD Controller reader characterization", () => {
     const controller = [
       "---",
       "playbook: create-deck",
-      "supported_pipelines: [page-authority-image2-v2]",
+      "supported_pipelines: [page-image-workflow-v1]",
       "includes: []",
       "---",
       "",
       "```yaml",
-      "node: select-target-page-authority-workflow",
+      "node: select-target-page-image-workflow",
       "lifecycle_phase: 1",
       "method_module: 01-content",
-      "production_modes: [image2-page-authority-v2]",
+      "production_modes: [image2-page-workflow-v1]",
       "draft_route: true",
       "requires: []",
       "entry: []",
@@ -259,19 +259,19 @@ describe("MD Controller reader characterization", () => {
         shared_nodes: [],
         controllers: {
           "create-deck": {
-            supported_pipelines: ["page-authority-image2-v2"],
-            nodes: ["select-target-page-authority-workflow"],
+            supported_pipelines: ["page-image-workflow-v1"],
+            nodes: ["select-target-page-image-workflow"],
             draft_route_nodes: {
-              framed: ["select-target-page-authority-workflow"],
-              pure: ["select-target-page-authority-workflow"],
+              framed: ["select-target-page-image-workflow"],
+              pure: ["select-target-page-image-workflow"],
             },
           },
         },
       }));
       const index = buildPlaybookIndex(dir);
       expect(validatePlaybookIndex(index)).toMatchObject({ valid: true });
-      expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-authority-workflow"]);
-      expect(controllerDraftRouteNodes(index, "create-deck", null)).toEqual(["select-target-page-authority-workflow"]);
+      expect(controllerDraftRouteNodes(index, "create-deck", "framed")).toEqual(["select-target-page-image-workflow"]);
+      expect(controllerDraftRouteNodes(index, "create-deck", null)).toEqual(["select-target-page-image-workflow"]);
 
       const manifest = JSON.parse(readFileSync(join(dir, "controller-manifest-v3.json"), "utf8"));
       manifest.controllers["create-deck"].draft_route_nodes.pure = ["unknown-node"];
@@ -288,15 +288,15 @@ describe("MD Controller reader characterization", () => {
     const controllerLines = (value, duplicate = false) => [
       "---",
       "playbook: create-deck",
-      "supported_pipelines: [page-authority-image2-v2]",
+      "supported_pipelines: [page-image-workflow-v1]",
       "includes: []",
       "---",
       "",
       "```yaml",
-      "node: select-target-page-authority-workflow",
+      "node: select-target-page-image-workflow",
       "lifecycle_phase: 1",
       "method_module: 01-content",
-      "production_modes: [image2-page-authority-v2]",
+      "production_modes: [image2-page-workflow-v1]",
       `draft_route: ${value}`,
       ...(duplicate ? [`draft_route: ${value}`] : []),
       "requires: []",

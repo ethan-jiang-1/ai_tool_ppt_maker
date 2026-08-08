@@ -30,11 +30,13 @@ export {
 } from "./internal/slide_ids.mjs";
 
 export {
-  FRAMED_TEXT_PRESET,
-  PAGE_AUTHORITY_SOURCE_V2_RECEIPT_SCHEMA,
-  PageAuthoritySourceError,
-  parsePageAuthoritySource,
-} from "./internal/page_authority_source.mjs";
+  FRAMED_HEADER_PRESET,
+  PAGE_IMAGE_WORKFLOW_SOURCE_RECEIPT_SCHEMA,
+  PageImageSourceError,
+  PROVIDER_CONTENT_COPY_POLICIES,
+  PROVIDER_CONTENT_ROLES,
+  parsePageImageSource,
+} from "./internal/page_image_source.mjs";
 
 export {
   TARGET_STRUCTURAL_PLAN_SCHEMA,

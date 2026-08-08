@@ -5,17 +5,6 @@
 Define creation, validation, current topology, bounded historical handling, and
 exact local Harness binding for Run Bundles.
 ## Requirements
-### Requirement: Init and bundle validation seed only Page Authority topology
-Fresh initialization and normal bundle validation SHALL create and validate only v2 Page Authority source, state, and topology. A non-v2 source/state pair remains byte-preserving under read-only classification and SHALL not be mutated, initialized, or adopted by normal validation.
-
-#### Scenario: A fresh bundle is initialized
-- **WHEN** init creates a new run bundle
-- **THEN** its canonical source marker and production-mode record are v2 Page Authority values
-
-#### Scenario: A non-v2 bundle is checked
-- **WHEN** normal validation reads a non-v2 source/state identity
-- **THEN** it returns the unsupported-protocol hard-stop without writing bundle state or artifacts
-
 ### Requirement: Init emits only a v2 Harness-bound locator
 
 Fresh Run Bundle initialization SHALL verify its creating local Harness root
@@ -63,57 +52,66 @@ work, or write.
 - **THEN** it may report only the Bundle's filesystem layout without mutation
 - **AND** it does not establish a current binding or continuation authority
 
-### Requirement: Current bundle ownership is explicit
+### Requirement: Init and validation seed only the current Page Image Workflow topology
 
-Bundle validation SHALL identify source, state, raw, review, final, assembly, and
-notes ownership through Page Authority paths. `_generated/` remains rebuildable
-derived data and is never hand-edited source.
+Fresh Run Bundle initialization SHALL create a Page Image Workflow authoring
+path, not a default production route. Before provider-facing work, a version
+shall explicitly select exactly one `production.workflow`, `framed` or `pure`,
+under `production.pipeline: page-image-workflow-v1`; its matching state SHALL
+declare `image2-page-workflow-v1`. `hybrid`, a per-slide policy, omitted
+workflow, or a mismatched source/state pair SHALL produce the owner-issued
+source-repair or `unsupported-protocol/export` hard-stop before state, receipt, raw,
+or provider work.
 
-#### Scenario: A current version is checked
+The local `pptmaker-run-bundle-v2` locator remains a Harness-binding schema,
+not a Page Authority production protocol. Init and validation SHALL continue
+to verify that one exact local Harness binding without creating portability,
+fallback, or cross-Harness adoption behavior.
 
-- **WHEN** a Page Authority run is validated
-- **THEN** it receives current ownership diagnostics without selecting historical artifacts
+#### Scenario: Fresh authoring waits for an explicit workflow choice
 
-### Requirement: Init and validation distinguish target workflow authoring from CURRENT compatibility
-After retirement, fresh run-bundle initialization SHALL seed only the v2 Page Authority topology and a source-authoring path that requires an explicit `framed` or `pure` workflow selection before the source becomes a valid provider-work route. Init and validation SHALL bind a selected target source to `page-authority-image2-v2` and `image2-page-authority-v2`; they SHALL not infer the workflow from deck type or create a mixed default.
+- **WHEN** a newly initialized version has not selected `framed` or `pure`
+- **THEN** validation reports the workflow-selection prerequisite
+- **AND** it does not infer a state mode, per-slide authority, or provider route
 
-Bundle validation SHALL reject every non-v2 pair with the owner-issued identity or unsupported-protocol hard-stop. It SHALL NOT migrate, rewrite, or use production deck artifacts as evidence.
+#### Scenario: A selected current source becomes a valid workflow pair
 
-#### Scenario: Fresh target authoring waits for one explicit choice
-- **WHEN** a new run bundle has not yet recorded `framed` or `pure` in its target source
-- **THEN** validation identifies the workflow-selection prerequisite before provider work
-- **AND** it does not seed a per-slide authority default or a state mode by guesswork
+- **WHEN** a version selects `pure` with the replacement pipeline and matching
+  current state mode
+- **THEN** validation recognizes one Pure Page Image Workflow route
+- **AND** it does not create a Framed policy or a `hybrid` route
 
-#### Scenario: Non-v2 pair is not reinitialized
-- **WHEN** bundle validation reads a non-v2 source/state pair
-- **THEN** it preserves source bytes and reports its bounded unsupported-protocol action
-- **AND** it does not create v2 evidence or a compatibility route
+### Requirement: Retired Page Authority bundles hard-stop without migration
 
-### Requirement: A clean current Page Authority version becomes an authoring draft
+Normal state-aware validation and every run operation that carries production
+authority SHALL reject `page-authority-image2-v2`,
+`image2-page-authority-v2`, or v2 receipt/evidence records before derived
+artifact reads, state mutation, or provider initialization. It SHALL retain
+the supplied source and state bytes unchanged and return the bounded
+`unsupported-protocol/export` action. Structure-only layout checks remain
+non-authoritative and may describe physical files without establishing current
+production authority.
 
-When `ppt_flow new-version` copies an exact current Page Authority version whose
-canonical source has an explicitly selected `framed` or `pure` workflow, the
-new visible version SHALL become a usable `create-deck` authoring draft after
-the source-only copy succeeds, whether the selected source has an active or
-completed Controller execution. The target SHALL retain the normal clean-version
-filesystem contract: it contains only copied source/overrides and clean derived
-directories, and it SHALL not inherit production, Style Master, raw, review,
-final, or delivery facts from the source version.
+#### Scenario: A v2 bundle cannot be reinitialized into the new workflow
 
-#### Scenario: A selected current Page Authority version is copied
+- **WHEN** normal validation reads an old v2 source/state pair
+- **THEN** it stops at the protocol boundary and preserves the pair
+- **AND** it does not write replacement source, state, receipt, or migration
+  records
 
-- **WHEN** `ppt_flow new-version <current-page-authority-run> --name vN` completes for a source with an explicitly selected workflow
-- **THEN** `vN` is a current `create-deck` draft for that workflow and provider-free validation can resolve its legal draft route
-- **AND** its production mode, source receipt, Style Master selection, raw plan/grant/acceptance, final manifest, and delivery receipt remain absent
+### Requirement: New versions begin with fresh replacement workflow evidence
 
-#### Scenario: A completed selected Page Authority version is copied
+When `ppt_flow new-version` copies an exact current Page Image Workflow
+version with its selected workflow, the new version SHALL become a clean
+authoring draft for that same explicit workflow. It may retain copied canonical
+source and overrides, but it SHALL begin with no source receipt, Style Master
+selection, raw plan/authorization/evidence, Complete Page Review, final-slide
+manifest, assembly, notes, or delivery facts. The copy operation SHALL not
+call a provider or infer evidence from its source version.
 
-- **WHEN** `ppt_flow new-version <completed-current-page-authority-run> --name vN` selects a source with matching current-v2 marker and durable mode
-- **THEN** `vN` receives the same clean authoring-draft handoff as an active source
-- **AND** no continuation, evidence, or paid-work authority is inferred from the completed source
+#### Scenario: A current Framed version is copied cleanly
 
-#### Scenario: A non-current or non-Page-Authority source is copied
-
-- **WHEN** `ppt_flow new-version` copies a source that is not an exact current Page Authority route
-- **THEN** it retains the existing source-only clean-copy behavior
-- **AND** it does not infer a Page Authority target execution or production facts
+- **WHEN** `ppt_flow new-version` copies a current selected Framed version
+- **THEN** the target is a Framed authoring draft with fresh workflow evidence
+- **AND** it does not inherit the source version's raw page, header composite,
+  review decision, or final manifest

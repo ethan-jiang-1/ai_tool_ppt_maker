@@ -2,15 +2,15 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createVersion,
   initBundle,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
-  activateCleanPageAuthorityTargetDraft,
-  initializeTargetPageAuthorityState,
+  activateCleanPageImageTargetDraft,
+  initializeTargetPageImageState,
   readState,
   statePath,
   writeState,
@@ -22,7 +22,7 @@ function source(workflow = "pure") {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: ${workflow}
 ---
 
@@ -42,22 +42,26 @@ negative_constraints:
 
 function sourceReceipt(sourceText, workflow = "pure") {
   return {
-    schema: "page-authority-image2-source-v2",
-    pipeline: "page-authority-image2-v2",
+    schema: "page-image-workflow-source-v1",
+    pipeline: "page-image-workflow-v1",
     workflow,
-    source_sha256: createHash("sha256").update(sourceText).digest("hex"),
-    slides: [{ slide_id: "DeckGo", workflow }],
+    source_sha256: sha256(sourceText),
+    slides: [{ slide_id: "DeckGo", position: 1 }],
   };
 }
 
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "clean-page-authority-target-draft-"));
+  const root = mkdtempSync(join(tmpdir(), "clean-page-image-target-draft-"));
   const deck = join(root, "deck_target");
   const sourceRunDir = join(deck, "3_versions", "v1");
   const sourceText = source();
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(sourceRunDir, "slide-specifications.md"), sourceText);
-  initializeTargetPageAuthorityState(deck, {
+  initializeTargetPageImageState(deck, {
     runDir: sourceRunDir,
     sourceReceipt: sourceReceipt(sourceText),
   });
@@ -77,16 +81,16 @@ function makeSourceInactive(deck) {
   writeState(deck, state);
 }
 
-describe("clean Page Authority target draft activation", () => {
+describe("clean Page Image target draft activation", () => {
   it("replaces the source execution with a target draft while preserving source lineage", () => {
     const value = fixture();
     try {
       const sourceBefore = readState(value.deck, { purpose: "observe" });
       const sourceMode = structuredClone(sourceBefore.production_mode.by_version["3_versions/v1"]);
-      const sourceEvidence = structuredClone(sourceBefore.page_authority_target_evidence.by_version["3_versions/v1"]);
+      const sourceEvidence = structuredClone(sourceBefore.page_image_target_evidence.by_version["3_versions/v1"]);
       const targetRunDir = createVersion(value.sourceRunDir, "v2");
 
-      const result = activateCleanPageAuthorityTargetDraft(value.deck, {
+      const result = activateCleanPageImageTargetDraft(value.deck, {
         sourceRunDir: value.sourceRunDir,
         targetRunDir,
       });
@@ -96,28 +100,101 @@ describe("clean Page Authority target draft activation", () => {
         source_version: "v1",
         target_version: "v2",
         workflow: "pure",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
       });
       const after = readState(value.deck, { purpose: "observe" });
       expect(after).toMatchObject({
         playbook: "create-deck",
         run_version: "v2",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
         continuation_target_version: "v2",
       });
       expect(after.production_mode.by_version["3_versions/v1"]).toEqual(sourceMode);
-      expect(after.page_authority_target_evidence.by_version["3_versions/v1"]).toEqual(sourceEvidence);
+      expect(after.page_image_target_evidence.by_version["3_versions/v1"]).toEqual(sourceEvidence);
       expect(after.production_mode.by_version["3_versions/v2"]).toBeUndefined();
-      expect(after.page_authority_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
-      expect(after.page_authority_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
-      expect(after.page_authority_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
-      expect(after.page_authority_progressive_handoff?.by_version?.["3_versions/v2"]).toBeUndefined();
+      expect(after.page_image_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
+      expect(after.page_image_style_master?.by_version?.["3_versions/v2"]).toBeUndefined();
+      expect(after.page_image_raw_provider_authorization?.by_version?.["3_versions/v2"]).toBeUndefined();
+      expect(after.page_image_progressive_handoff?.by_version?.["3_versions/v2"]).toBeUndefined();
       expect(readdirSync(join(targetRunDir, "_generated")).sort()).toEqual(["README.md"]);
-      expect(resolveTargetAuthoringDraftRoute(targetRunDir)).toMatchObject({
+      const draftRoute = resolveTargetAuthoringDraftRoute(targetRunDir);
+      expect(draftRoute).toMatchObject({
         run_version: "v2",
         workflow: "pure",
-        draft_route_nodes: expect.arrayContaining(["author-target-page-authority-content"]),
+        draft_route_nodes: expect.arrayContaining(["author-target-page-image-content"]),
       });
+      expect(result.draft_route_nodes).toEqual(draftRoute.draft_route_nodes);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails before state or provider work when the target has derived residue", () => {
+    const value = fixture();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const targetRunDir = createVersion(value.sourceRunDir, "v2");
+      writeFileSync(join(targetRunDir, "_generated", "retained-evidence.json"), "{}\n");
+      const before = readFileSync(statePath(value.deck));
+
+      expect(() => activateCleanPageImageTargetDraft(value.deck, {
+        sourceRunDir: value.sourceRunDir,
+        targetRunDir,
+      })).toThrow("CLEAN_TARGET_FILESYSTEM_NOT_CLEAN:generated:retained-evidence.json");
+      expect(readFileSync(statePath(value.deck))).toEqual(before);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails before activation when the target workflow selection or continuation conflicts", () => {
+    const selectionValue = fixture();
+    const continuationValue = fixture();
+    try {
+      const targetRunDir = createVersion(selectionValue.sourceRunDir, "v2");
+      writeFileSync(join(targetRunDir, "slide-specifications.md"), source("framed"));
+      const selectionBefore = readFileSync(statePath(selectionValue.deck));
+      expect(() => activateCleanPageImageTargetDraft(selectionValue.deck, {
+        sourceRunDir: selectionValue.sourceRunDir,
+        targetRunDir,
+      })).toThrow("CLEAN_TARGET_WORKFLOW_MISMATCH");
+      expect(readFileSync(statePath(selectionValue.deck))).toEqual(selectionBefore);
+
+      const continuationTarget = createVersion(continuationValue.sourceRunDir, "v2");
+      createVersion(continuationValue.sourceRunDir, "v3");
+      const competing = readState(continuationValue.deck, { purpose: "observe" });
+      competing.continuation_target_version = "v3";
+      writeState(continuationValue.deck, competing);
+      const continuationBefore = readFileSync(statePath(continuationValue.deck));
+      expect(() => activateCleanPageImageTargetDraft(continuationValue.deck, {
+        sourceRunDir: continuationValue.sourceRunDir,
+        targetRunDir: continuationTarget,
+      })).toThrow("CLEAN_TARGET_CONTINUATION_CONFLICT");
+      expect(readFileSync(statePath(continuationValue.deck))).toEqual(continuationBefore);
+    } finally {
+      rmSync(selectionValue.root, { recursive: true, force: true });
+      rmSync(continuationValue.root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not overwrite a competing state write after target-draft preflight", () => {
+    const value = fixture();
+    try {
+      const targetRunDir = createVersion(value.sourceRunDir, "v2");
+      const staleStateSha = sha256(readFileSync(statePath(value.deck)));
+      const competing = readState(value.deck, { purpose: "observe" });
+      competing.gates.content = "approved";
+      writeState(value.deck, competing);
+      const concurrentState = readFileSync(statePath(value.deck));
+
+      expect(() => activateCleanPageImageTargetDraft(value.deck, {
+        sourceRunDir: value.sourceRunDir,
+        targetRunDir,
+        expectedStateSha: staleStateSha,
+      })).toThrow("CONFLICT: state precondition changed");
+      expect(readFileSync(statePath(value.deck))).toEqual(concurrentState);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -129,14 +206,14 @@ describe("clean Page Authority target draft activation", () => {
       const targetRunDir = createVersion(value.sourceRunDir, "v2");
       const state = readState(value.deck, { purpose: "observe" });
       state.production_mode.by_version["3_versions/v2"] = {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
         source_epoch: 1,
       };
       writeState(value.deck, state);
       const before = readFileSync(statePath(value.deck));
 
-      expect(() => activateCleanPageAuthorityTargetDraft(value.deck, {
+      expect(() => activateCleanPageImageTargetDraft(value.deck, {
         sourceRunDir: value.sourceRunDir,
         targetRunDir,
       })).toThrow("CLEAN_TARGET_LINEAGE_CONFLICT:production_mode");
@@ -152,7 +229,7 @@ describe("clean Page Authority target draft activation", () => {
       makeSourceInactive(value.deck);
       const targetRunDir = createVersion(value.sourceRunDir, "v2");
 
-      const result = activateCleanPageAuthorityTargetDraft(value.deck, {
+      const result = activateCleanPageImageTargetDraft(value.deck, {
         sourceRunDir: value.sourceRunDir,
         targetRunDir,
       });
@@ -167,11 +244,11 @@ describe("clean Page Authority target draft activation", () => {
       expect(after).toMatchObject({
         playbook: "create-deck",
         run_version: "v2",
-        current_node: "author-target-page-authority-content",
+        current_node: "author-target-page-image-content",
         continuation_target_version: "v2",
       });
       expect(after.production_mode.by_version["3_versions/v2"]).toBeUndefined();
-      expect(after.page_authority_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
+      expect(after.page_image_target_evidence.by_version["3_versions/v2"]).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -187,7 +264,7 @@ describe("clean Page Authority target draft activation", () => {
       writeState(value.deck, state);
       const before = readFileSync(statePath(value.deck));
 
-      expect(() => activateCleanPageAuthorityTargetDraft(value.deck, {
+      expect(() => activateCleanPageImageTargetDraft(value.deck, {
         sourceRunDir: value.sourceRunDir,
         targetRunDir,
       })).toThrow("CLEAN_TARGET_SOURCE_EXECUTION_REQUIRED");

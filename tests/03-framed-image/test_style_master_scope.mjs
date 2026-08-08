@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { resolveFramedStyleMasterScope } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { SLIDE_SPECS_NAME, initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { statePath } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function source() {
@@ -13,21 +13,21 @@ function source() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Framed Style Master scope
+**FRAME PRESET**: standard-v1
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
+  - no-logo
 \`\`\`
 `;
 }
@@ -38,7 +38,7 @@ function fixture() {
   const runDir = join(deck, "3_versions", "v1");
   initBundle(deck, null, "keynote", "dark-executive");
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), source(), "utf8");
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 describe("Framed Style Master scope", () => {

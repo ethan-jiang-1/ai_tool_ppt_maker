@@ -244,14 +244,14 @@ export async function injectNotes({ pptx, notes }) {
     const pptxBuf = readFileSync(pptx);
     zip = await JSZip.loadAsync(pptxBuf);
   } catch {
-    throw attachCliDiagnostic(new Error("Page Authority PPTX prerequisite is missing or invalid."), {
+    throw attachCliDiagnostic(new Error("Page Image PPTX prerequisite is missing or invalid."), {
       version: 1,
       category: "artifact",
       operation: "load-pptx",
       source: { path: pptx },
       reason: { kind: "invalid_pptx" },
-      lineage: [{ kind: "derived", path: pptx, owner: "page-authority-assembly" }],
-      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Repair current Page Authority final evidence and rerun assembly before notes injection." }),
+      lineage: [{ kind: "derived", path: pptx, owner: "page-image-assembly" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Repair current Page Image final evidence and rerun assembly before notes injection." }),
     });
   }
 
@@ -261,7 +261,7 @@ export async function injectNotes({ pptx, notes }) {
     throw attachCliDiagnostic(new Error(
       `✗ Notes injection aborted: ${notes.length} speaker notes in the source but ` +
         `${slideCount} slides in the PPTX. Positional matching would misalign ` +
-        `notes. Rebuild current Page Authority final evidence so counts agree, ` +
+        `notes. Rebuild current Page Image final evidence so counts agree, ` +
         `then rerun notes injection.`
     ), {
       version: 1,
@@ -269,8 +269,8 @@ export async function injectNotes({ pptx, notes }) {
       operation: "match-note-count",
       source: { path: pptx },
       reason: { kind: "count_mismatch", actual: notes.length, expected: slideCount },
-      lineage: [{ kind: "derived", path: pptx, owner: "page-authority-assembly" }],
-      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Rebuild current Page Authority final evidence so slide and note counts agree." }),
+      lineage: [{ kind: "derived", path: pptx, owner: "page-image-assembly" }],
+      next: createCliNext("repair_prerequisite", { inspect: [{ path: pptx }], default: "Rebuild current Page Image final evidence so slide and note counts agree." }),
     });
   }
 

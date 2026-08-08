@@ -40,7 +40,7 @@ describe('runtime and diagnostic guidance coherence', () => {
   it('maps every emitted base and Image2 presence check to a BOOTSTRAP heading', () => {
     const base = runDoctorJson();
     const image2 = runDoctorJson([
-      '--mode', 'image2-page-authority-v2',
+      '--mode', 'image2-page-workflow-v1',
       '--operation', 'raw-generation',
     ]);
     expect(base.checks.map(({ check }) => check)).toEqual(BASE_CHECK_NAMES);
@@ -49,7 +49,7 @@ describe('runtime and diagnostic guidance coherence', () => {
       ...IMAGE2_CHECK_NAMES,
     ]);
     expect(image2).toMatchObject({
-      mode: 'image2-page-authority-v2',
+      mode: 'image2-page-workflow-v1',
       operation: 'raw-generation',
     });
     for (const name of [...BASE_CHECK_NAMES, ...IMAGE2_CHECK_NAMES, ...LIVE_CHECK_NAMES]) {

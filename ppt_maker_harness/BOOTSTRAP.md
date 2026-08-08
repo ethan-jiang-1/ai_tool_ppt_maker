@@ -1,6 +1,6 @@
 # BOOTSTRAP - From zero to a usable deck
 
-这是 Agent 的启动入口。新 deck 使用 Page Authority Image2 v2：先确认本地 Framed runtime，再按实际 raw-generation 操作检查 provider。不要把远端 Image2 凭证或授权当成 source authoring 的前置条件。
+这是 Agent 的启动入口。新 deck 使用 Page Image Workflow：先确认本地 Framed header-overlay runtime，再按实际 raw-generation 操作检查 provider。不要把远端 Image2 凭证或授权当成 source authoring 的前置条件。
 
 ## Step 0 - Read the contract
 
@@ -27,12 +27,12 @@ node ppt_maker_harness/scripts/ppt_flow.mjs doctor --run-dir <run-dir> --operati
 
 ## Step 2 - Choose one version workflow while authoring
 
-新 source 的唯一 pipeline 是 `page-authority-image2-v2`。`init` 创建 v2 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-authority-v2` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
+新 source 的唯一 pipeline 是 `page-image-workflow-v1`。`init` 创建当前 authoring draft；人必须先在 `production.workflow` 明确记录一次 `framed` 或 `pure`，source 才能进入 provider-work route。state 在 receipt 绑定后记录 `image2-page-workflow-v1` 和同一 workflow；`project-metadata.yaml` 只是非权威镜像。不得从 deck type、任一 slide 或已有 artifact 推断 workflow。
 
-- `framed`: `03-framed-image` 生成无文字 full-canvas underlay；固定 `standard-v1` 本地 Text Frame 拥有 kicker、title、subtitle 与 callout。body 必须在 frame 下保持无文字。
-- `pure`: `04-pure-image` 让 Image2 拥有所有最终像素。可读 body labels、values、quotations、captions、timeline dates 或 diagram text 承载语义时选择它。
+- `framed`: Provider 生成连续全画布以及 source-owned body、labels、metrics、callouts 和 supporting copy；固定 `standard-v1` Header Rendering Policy 只在本地透明叠加 kicker、title、subtitle，并将它们作为 `context_not_to_render` 绑定进 provider input。
+- `pure`: `04-pure-image` 让 Provider 生成包括 header 在内的所有最终像素。
 
-一次选择覆盖整个 `vN`，绝不在 slide 上选择 authority。只写 closed `VISUAL BRIEF`、registered identity 与 Page Authority source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
+一次选择覆盖整个 `vN`，绝不在 slide 上选择 authority。只写 closed `VISUAL BRIEF`、registered identity 与 Page Image source fields。不得写 retired source-only fields、slide-owned markup/CSS 或 provider 指令。init 只创建 source/control/state scaffolding；不会创建 style master、raw/final evidence、PPTX、notes 或 provider attempt。
 
 ## Step 3 - Receipt-bound production
 
@@ -48,14 +48,14 @@ raw projection 或 delivery evidence 已完整但还没有 `proceed|repair|redir
 
 ## Step 4 - Refresh and structural changes
 
-显式 change 先进入当前 classifier。`framed` 的 Text Frame-only work 在 exact accepted raw evidence 与 frame preset 都仍 current 时可以 local 完成；`framed` 的 preset/underlay/visual 修改和 `pure` 的任意可见 display/visual 修改回到 selected workflow 的 current rebuild handoff；notes-only work 只走 `05-delivery`。不要从旧 command sequence 猜下一步。
+显式 change 先进入当前 classifier。仅当 Framed 的 compiled provider input、protected geometry、raw contract 与 local header profile 都精确不变时，才可 provider-free 地刷新 local header overlay；任何 header literal、body、visual、geometry 或 profile drift 都回到 selected workflow 的 raw rebuild handoff；notes-only work 只走 `05-delivery`。不要从旧 command sequence 猜下一步。
 
 增删重排和 workflow switch 都是 Structural Versioning Path：先 preview，再确认 exact plan 后发布 clean target。target 只可得到 plan-bound、target-owned `unreviewed` raw materialization 或 `needs_raw_generation` debt；不复制 raw acceptance、provider authorization、final evidence 或 delivery decision，apply 本身零远端。
 
 ## Unsupported-run guidance
 
-任何 non-v2、partial、missing、unknown 或 corrupt source/state pair 都是同一个
-unsupported-protocol/export hard-stop。普通 observation、build、refresh、review 和
+任何 v2、partial、missing、unknown 或 corrupt source/state pair 都是同一个
+`unsupported-protocol/export` hard-stop。普通 observation、build、refresh、review 和
 provider 命令不得推断 workflow、初始化 receipt/state、读取 generated artifacts 或修改原始 bytes。
 
 ## Optional Git note
@@ -83,6 +83,6 @@ source 的 canonical backup 是可见 `vN` 与 Structural Versioning Path，不�
 ### git
 ### api_key
 ### image_base_url
-### page_authority_raw_generator
+### page_image_raw_generator
 ### image_smoke
 ### image_probe_vendors

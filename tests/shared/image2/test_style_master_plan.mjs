@@ -86,7 +86,7 @@ import {
   initBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import {
   CONDITIONS,
   readState,
@@ -103,7 +103,7 @@ function source(title = "Style Master planning") {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
@@ -159,6 +159,16 @@ function nativeGeneratedCandidateBytes(width, height) {
   return Buffer.from(encodePng({ width, height, data }));
 }
 
+function sixteenBitRgbCandidateBytes(width, height) {
+  const data = new Uint16Array(width * height * 3);
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    data[pixel * 3] = 0x1234;
+    data[pixel * 3 + 1] = 0x5678;
+    data[pixel * 3 + 2] = 0x9abc;
+  }
+  return Buffer.from(encodePng({ width, height, channels: 3, depth: 16, data }));
+}
+
 function crc32(bytes) {
   let crc = 0xffffffff;
   for (const byte of bytes) {
@@ -194,7 +204,7 @@ function fixture({ local = false } = {}) {
   writeFileSync(join(runDir, SLIDE_SPECS_NAME), source(), "utf8");
   writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a calm editorial visual system with material depth.\n", "utf8");
   if (local) writeFileSync(styleAsset(runDir, STYLE_MASTER_IMAGE), localImageBytes());
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 function assertNoPageRawMaterialization(value, stateBefore) {
@@ -206,7 +216,7 @@ function assertNoPageRawMaterialization(value, stateBefore) {
 
 function projection(recipe, { relationship = null } = {}) {
   return {
-    schema: "pptmaker-page-authority-visual-language-v1",
+    schema: "pptmaker-page-image-visual-language-v1",
     recipe: { id: recipe, provider_clause_sha256: "a".repeat(64) },
     ...(relationship ? { relationship } : {}),
   };
@@ -242,7 +252,7 @@ function planningScope(value, { slides = null } = {}) {
 
 function detachedPlan() {
   return createStyleMasterPlanRecord({
-    schema: "page-authority-style-master-plan-identity-v1",
+    schema: "page-image-style-master-plan-identity-v1",
     run_version: "v1",
     workflow: "framed",
     plan_generation: 91,
@@ -815,7 +825,7 @@ describe("Style Master candidate planning", () => {
       const divergentPlan = await planStyleMasterCandidates({ scope: planningScope(divergent), candidateCount: 1 });
       const divergentPaths = styleMasterStorePaths(divergent.runDir, { plan_sha256: divergentPlan.plan_sha256 });
       const malformedGrant = {
-        schema: "page-authority-style-master-candidate-grant-v1",
+        schema: "page-image-style-master-candidate-grant-v1",
         run_version: "v1",
         workflow: "framed",
         plan_sha256: divergentPlan.plan_sha256,
@@ -1669,6 +1679,43 @@ describe("Style Master candidate planning", () => {
     }
   });
 
+  it("projects a 16-bit RGB selected candidate without changing its selected PNG bytes", async () => {
+    const value = fixture();
+    try {
+      const candidateBytes = sixteenBitRgbCandidateBytes(17, 11);
+      expect(decodePng(candidateBytes, { checkCrc: true })).toMatchObject({ width: 17, height: 11, channels: 3, depth: 16 });
+      const plan = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        submit: async () => candidateBytes,
+      });
+      await prepareStyleMasterCandidateReview({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+
+      const accepted = await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const candidatePath = styleMasterStorePaths(value.runDir, {
+        plan_sha256: plan.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      }).candidate_image;
+
+      expect(accepted).toMatchObject({
+        compatibility_projection: { status: "rebuilt" },
+        selection: { candidate_sha256: digest(candidateBytes), candidate_width: 17, candidate_height: 11 },
+      });
+      expect(readFileSync(candidatePath)).toEqual(candidateBytes);
+      expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("resumes an exact persisted proceed decision after the selection-CAS interruption window", async () => {
     const value = fixture();
     try {
@@ -1893,7 +1940,7 @@ describe("Style Master candidate planning", () => {
         style_context_sha256: "e".repeat(64),
         review_decision_sha256: "f".repeat(64),
       };
-      state.page_authority_style_master.by_version["3_versions/v2"] = sibling;
+      state.page_image_style_master.by_version["3_versions/v2"] = sibling;
       writeState(value.deck, state);
       const stateBeforeReplay = readFileSync(statePath(value.deck));
       rmSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE), { force: true });
@@ -1907,7 +1954,7 @@ describe("Style Master candidate planning", () => {
 
       expect(replay).toMatchObject({ replay: true, selection_sha256: accepted.selection_sha256 });
       expect(readState(value.deck, { purpose: "observe" })
-        .page_authority_style_master.by_version["3_versions/v2"])
+        .page_image_style_master.by_version["3_versions/v2"])
         .toEqual(sibling);
       expect(readFileSync(statePath(value.deck))).toEqual(stateBeforeReplay);
     } finally {

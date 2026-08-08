@@ -30,7 +30,7 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -59,7 +59,7 @@ function runCli(args) {
 
 function targetSelection() {
   return {
-    schema: "page-authority-style-master-selection-v1",
+    schema: "page-image-style-master-selection-v1",
     run_version: "v2",
     workflow: "pure",
     plan_sha256: "a".repeat(64),
@@ -88,7 +88,7 @@ describe("TARGET structural slides CLI", () => {
       const originalSource = source();
       writeFileSync(join(runDir, "slide-specifications.md"), originalSource);
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -98,7 +98,7 @@ describe("TARGET structural slides CLI", () => {
       expect(preview).toMatchObject({
         applied: false,
         transaction: {
-          page_authority_target_structural: {
+          page_image_target_structural: {
             target_workflow: "pure",
             ordered_slide_ids: ["BodyMap", "DeckGo"],
             provider_calls: 0,
@@ -114,10 +114,10 @@ describe("TARGET structural slides CLI", () => {
         applied: true,
         target_run_dir: join(deck, "3_versions", "v2"),
         receipt: {
-          pipeline: "page-authority-image2-v2",
+          pipeline: "page-image-workflow-v1",
           workflow: "pure",
           needs_render: ["BodyMap", "DeckGo"],
-          page_authority_target_structural: {
+          page_image_target_structural: {
             provider_calls: 0,
             inherited_acceptance: false,
           },
@@ -128,11 +128,11 @@ describe("TARGET structural slides CLI", () => {
         .toContain("## Slide 01: `BodyMap`");
       const after = readState(deck, { purpose: "observe", runVersion: "v1" });
       expect(after.production_mode.by_version["3_versions/v2"]).toEqual({
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
         source_epoch: 1,
       });
-      expect(after.page_authority_target_evidence.by_version["3_versions/v2"])
+      expect(after.page_image_target_evidence.by_version["3_versions/v2"])
         .toMatchObject({ accepted_raw_evidence_sha256: null, final_manifest_sha256: null, delivery_receipt_sha256: null });
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -147,7 +147,7 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -194,7 +194,7 @@ describe("TARGET structural slides CLI", () => {
       initBundle(deck, null, "keynote", "dark-executive");
       writeFileSync(join(runDir, "slide-specifications.md"), source());
       const state = createInitialState("target", "keynote", "dark-executive", {
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
       });
       state.continuation_target_version = "v1";
@@ -210,7 +210,7 @@ describe("TARGET structural slides CLI", () => {
 
       const targetRunDir = join(deck, "3_versions", "v2");
       const stateWithDrift = readState(deck, { purpose: "observe" });
-      stateWithDrift.page_authority_style_master = {
+      stateWithDrift.page_image_style_master = {
         by_version: { "3_versions/v2": { ...targetSelection(), candidate_width: 0 } },
       };
       writeFileSync(statePath(deck), `${JSON.stringify(stateWithDrift, null, 2)}\n`);

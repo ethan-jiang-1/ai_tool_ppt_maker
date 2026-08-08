@@ -14,10 +14,10 @@ import {
 } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   styleMasterSubmitFactory,
-  targetPageAuthoritySubmitFactory,
+  targetPageImageSubmitFactory,
 } from "../../../ppt_maker_harness/scripts/ppt_flow.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
-import { buildTargetRawGenerationProfile } from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+import { buildTargetRawGenerationProfile } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 import { STYLE_MASTER_GENERATION_PROFILE } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_schema.mjs";
 import { styleMasterStorePaths } from "../../../ppt_maker_harness/scripts/shared/image2/style_master_store.mjs";
 import {
@@ -26,7 +26,7 @@ import {
   initBundle,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { readState, statePath } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
@@ -75,7 +75,7 @@ function source({ motifs = [], relationship = null } = {}) {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -103,7 +103,7 @@ async function fixture({ accepted = false, motifs = [], relationship = null } = 
   const result = accepted
     ? await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir))
     : null;
-  return { root, deck, runDir, paths: pageAuthorityImage2Paths(runDir), result };
+  return { root, deck, runDir, paths: pageImageWorkflowPaths(runDir), result };
 }
 
 function candidateReceipt(value) {
@@ -112,7 +112,7 @@ function candidateReceipt(value) {
 
 function sourceEpoch(value) {
   return readState(value.deck, { purpose: "observe", runVersion: "v1" })
-    .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch;
+    .page_image_target_evidence.by_version["3_versions/v1"].source_epoch;
 }
 
 function captureError(action) {
@@ -176,7 +176,7 @@ describe("accepted Style Master raw binding", () => {
       let providerBody = null;
       let providerIdempotencyKey = null;
       let providerCalls = 0;
-      const submit = targetPageAuthoritySubmitFactory(plan, {
+      const submit = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async (_url, options) => {
           providerCalls += 1;
@@ -193,12 +193,43 @@ describe("accepted Style Master raw binding", () => {
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"a".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"a".repeat(64)}`,
       });
       expect(providerBody.image).toBe(`data:image/png;base64,${referenceBytes.toString("base64")}`);
       expect(providerBody.image).not.toContain(localImageBytes(1).toString("base64"));
-      expect(providerIdempotencyKey).toBe(`page-authority-v3-${"a".repeat(64)}`);
+      expect(providerIdempotencyKey).toBe(`page-image-workflow-v1-${"a".repeat(64)}`);
       expect(providerCalls).toBe(1);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a tampered compiled provider input before credentials or transport work", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const plan = buildPureTargetRawPlan(value.runDir);
+      const request = structuredClone(plan.provider_requests_by_slide.DeckGo);
+      request.compiled_provider_input.utf8 = `${request.compiled_provider_input.utf8}\ntampered`;
+      let credentialCalls = 0;
+      let transportCalls = 0;
+      const submit = targetPageImageSubmitFactory(plan, {
+        credentialResolver: () => {
+          credentialCalls += 1;
+          return { base_url: "https://image.example", api_key: "test-key" };
+        },
+        fetchImpl: async () => {
+          transportCalls += 1;
+          return providerJsonResponse({});
+        },
+      });
+
+      await expect(submit({
+        request,
+        item: { slide_id: "DeckGo" },
+        provider_idempotency_key: `page-image-workflow-v1-${"b".repeat(64)}`,
+      })).rejects.toMatchObject({ code: "PAGE_IMAGE_PROVIDER_REQUEST_INVALID" });
+      expect(credentialCalls).toBe(0);
+      expect(transportCalls).toBe(0);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -209,14 +240,14 @@ describe("accepted Style Master raw binding", () => {
     try {
       const plan = buildPureTargetRawPlan(value.runDir);
       const expectedClauses = structuredClone(plan.provider_requests_by_slide.DeckGo.raw_contract.provider_clauses);
-      const registryPath = join(value.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
+      const registryPath = join(value.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
       const registry = readFileSync(registryPath, "utf8");
       const driftClause = "nested focused planes rising from broad base to focused apex";
       expect(registry).toContain("nested translucent planes rising from broad base to focused apex");
       writeFileSync(registryPath, registry.replace("nested translucent planes rising from broad base to focused apex", driftClause));
 
       let providerBody = null;
-      const submit = targetPageAuthoritySubmitFactory(plan, {
+      const submit = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async (_url, options) => {
           providerBody = JSON.parse(options.body);
@@ -226,7 +257,7 @@ describe("accepted Style Master raw binding", () => {
       await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"f".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"f".repeat(64)}`,
       });
 
       const serializedPrompt = JSON.parse(providerBody.prompt);
@@ -234,7 +265,7 @@ describe("accepted Style Master raw binding", () => {
       expect(serializedPrompt.visual.composition).toBe(expectedClauses.composition);
       expect(serializedPrompt.visual.motifs).toEqual(expectedClauses.motifs);
       expect(serializedPrompt.visual.relationship).toBe(expectedClauses.relationship);
-      expect(serializedPrompt.text).toMatchObject({ title: expect.any(String) });
+      expect(serializedPrompt.provider_rendered_content.header).toMatchObject({ title: expect.any(String) });
       expect(providerBody.prompt).not.toContain(driftClause);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
@@ -248,7 +279,7 @@ describe("accepted Style Master raw binding", () => {
       const requests = [];
       let pollCount = 0;
       let clock = 0;
-      const submit = targetPageAuthoritySubmitFactory(plan, {
+      const submit = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         taskPollTimeoutMs: 50,
         taskPollIntervalMs: 5,
@@ -273,7 +304,7 @@ describe("accepted Style Master raw binding", () => {
       const result = await submit({
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"c".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"c".repeat(64)}`,
       });
 
       expect(result).toEqual(VALID_PROVIDER_PNG);
@@ -299,9 +330,9 @@ describe("accepted Style Master raw binding", () => {
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"d".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"d".repeat(64)}`,
       };
-      const asyncSubmit = (pollResponse, options = {}) => targetPageAuthoritySubmitFactory(plan, {
+      const asyncSubmit = (pollResponse, options = {}) => targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async (_url, requestOptions) => requestOptions.method === "POST"
           ? providerJsonResponse({ task_id: "task_async_fixture" })
@@ -312,26 +343,26 @@ describe("accepted Style Master raw binding", () => {
       const terminalError = await asyncSubmit(() => providerJsonResponse({ data: { status: "failed" } }))(args)
         .catch((error) => error);
       expect(terminalError).toMatchObject({
-        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
-        page_authority_known_failure: true,
-        page_authority_known_failure_facts: { response: { classification: "task_terminal_failure" } },
+        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+        page_image_known_failure: true,
+        page_image_known_failure_facts: { response: { classification: "task_terminal_failure" } },
       });
 
       const missingMediaError = await asyncSubmit(() => providerJsonResponse({
         data: { status: "completed", result: { images: [] } },
       }))(args).catch((error) => error);
       expect(missingMediaError).toMatchObject({
-        code: "PAGE_AUTHORITY_PROVIDER_MEDIA_INVALID",
-        page_authority_known_failure: true,
-        page_authority_known_failure_facts: { actual: { classification: "empty" } },
+        code: "PAGE_IMAGE_PROVIDER_MEDIA_INVALID",
+        page_image_known_failure: true,
+        page_image_known_failure_facts: { actual: { classification: "empty" } },
       });
 
       const httpError = await asyncSubmit(() => providerJsonResponse({ response: "withheld" }, 503))(args)
         .catch((error) => error);
       expect(httpError).toMatchObject({
-        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
-        page_authority_known_failure: true,
-        page_authority_known_failure_facts: { response: { classification: "http_error", http_status: 503 } },
+        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+        page_image_known_failure: true,
+        page_image_known_failure_facts: { response: { classification: "http_error", http_status: 503 } },
       });
 
       const interruptedError = await asyncSubmit(() => ({
@@ -339,8 +370,8 @@ describe("accepted Style Master raw binding", () => {
         status: 200,
         text: async () => { throw new Error("poll body interrupted"); },
       }))(args).catch((error) => error);
-      expect(interruptedError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
-      expect(interruptedError.page_authority_known_failure).toBeUndefined();
+      expect(interruptedError).toMatchObject({ code: "PAGE_IMAGE_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(interruptedError.page_image_known_failure).toBeUndefined();
 
       let clock = 0;
       const timeoutError = await asyncSubmit(
@@ -352,8 +383,8 @@ describe("accepted Style Master raw binding", () => {
           sleep: async (milliseconds) => { clock += milliseconds; },
         },
       )(args).catch((error) => error);
-      expect(timeoutError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
-      expect(timeoutError.page_authority_known_failure).toBeUndefined();
+      expect(timeoutError).toMatchObject({ code: "PAGE_IMAGE_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(timeoutError.page_image_known_failure).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -366,10 +397,10 @@ describe("accepted Style Master raw binding", () => {
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"b".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"b".repeat(64)}`,
       };
       let httpBodyRead = false;
-      const http = targetPageAuthoritySubmitFactory(plan, {
+      const http = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async () => ({
           ok: false,
@@ -382,59 +413,59 @@ describe("accepted Style Master raw binding", () => {
       });
       const httpError = await http(args).catch((error) => error);
       expect(httpError).toMatchObject({
-        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
-        page_authority_known_failure: true,
-        page_authority_known_failure_facts: {
+        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+        page_image_known_failure: true,
+        page_image_known_failure_facts: {
           response: { classification: "http_error", http_status: 503 },
         },
       });
       expect(httpBodyRead).toBe(false);
-      expect(JSON.stringify(httpError.page_authority_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      expect(JSON.stringify(httpError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
 
-      const invalidJson = targetPageAuthoritySubmitFactory(plan, {
+      const invalidJson = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async () => ({ ok: true, status: 200, text: async () => "PROVIDER_RESPONSE_BODY_SENTINEL" }),
       });
       const invalidJsonError = await invalidJson(args).catch((error) => error);
       expect(invalidJsonError).toMatchObject({
-        code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_INVALID",
-        page_authority_known_failure: true,
-        page_authority_known_failure_facts: { response: { classification: "invalid_json" } },
+        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+        page_image_known_failure: true,
+        page_image_known_failure_facts: { response: { classification: "invalid_json" } },
       });
-      expect(JSON.stringify(invalidJsonError.page_authority_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      expect(JSON.stringify(invalidJsonError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
 
-      const noResponse = targetPageAuthoritySubmitFactory(plan, {
+      const noResponse = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async () => { throw new Error("connection ended"); },
       });
       const noResponseError = await noResponse(args).catch((error) => error);
-      expect(noResponseError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_SUBMIT_FAILED" });
-      expect(noResponseError.page_authority_known_failure).toBeUndefined();
+      expect(noResponseError).toMatchObject({ code: "PAGE_IMAGE_PROVIDER_SUBMIT_FAILED" });
+      expect(noResponseError.page_image_known_failure).toBeUndefined();
 
-      const unreadableBody = targetPageAuthoritySubmitFactory(plan, {
+      const unreadableBody = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         fetchImpl: async () => ({ ok: true, status: 200, text: async () => { throw new Error("body interrupted"); } }),
       });
       const unreadableBodyError = await unreadableBody(args).catch((error) => error);
-      expect(unreadableBodyError).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
-      expect(unreadableBodyError.page_authority_known_failure).toBeUndefined();
+      expect(unreadableBodyError).toMatchObject({ code: "PAGE_IMAGE_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(unreadableBodyError.page_image_known_failure).toBeUndefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
   });
 
-  it("uses one shared total budget for Page Authority submit and task polling", async () => {
+  it("uses one shared total budget for Page Image submit and task polling", async () => {
     const value = await fixture({ accepted: true });
     try {
       const plan = buildPureTargetRawPlan(value.runDir);
       const args = {
         request: plan.provider_requests_by_slide.DeckGo,
         item: { slide_id: "DeckGo" },
-        provider_idempotency_key: `page-authority-v3-${"e".repeat(64)}`,
+        provider_idempotency_key: `page-image-workflow-v1-${"e".repeat(64)}`,
       };
       let clock = 0;
       const calls = [];
-      const submit = targetPageAuthoritySubmitFactory(plan, {
+      const submit = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
         providerDeadlineMs: 10,
         taskPollIntervalMs: 5,
@@ -451,7 +482,7 @@ describe("accepted Style Master raw binding", () => {
       });
 
       const error = await submit(args).catch((value) => value);
-      expect(error).toMatchObject({ code: "PAGE_AUTHORITY_PROVIDER_RESPONSE_UNRESOLVED" });
+      expect(error).toMatchObject({ code: "PAGE_IMAGE_PROVIDER_RESPONSE_UNRESOLVED" });
       expect(calls).toEqual(["POST", "GET"]);
     } finally {
       rmSync(value.root, { recursive: true, force: true });
@@ -503,7 +534,7 @@ describe("accepted Style Master raw binding", () => {
       buildPureTargetRawPlan(context.runDir);
       const contextRawPlan = readFileSync(context.paths.target_raw_plan);
       const contextState = readFileSync(statePath(context.deck));
-      const registryPath = join(context.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
+      const registryPath = join(context.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
       writeFileSync(registryPath, readFileSync(registryPath, "utf8").replace("quiet depth", "quiet luminous depth"));
       expect(captureError(() => buildTargetRawGenerationProfile({
         runDir: context.runDir,
@@ -547,8 +578,8 @@ describe("accepted Style Master raw binding", () => {
       const stored = JSON.parse(readFileSync(value.paths.target_raw_plan, "utf8"));
       const compatibilityBytes = readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE));
       const legacyProfile = {
-        schema: "page-authority-target-raw-generation-profile-v1",
-        provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-authority-image2-v2" },
+        schema: "page-image-target-raw-generation-profile-v1",
+        provider: { provider: "image2", model: "gpt-image-2", api_revision: "page-image-workflow-v1" },
         output: { format: "png", width: 2000, height: 1125 },
         reference_transport: { style_master: "image-reference-v1", identity_reference: "none" },
         effective_style_master: { sha256: sha256(compatibilityBytes), bytes: compatibilityBytes.length },

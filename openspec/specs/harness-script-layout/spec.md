@@ -5,42 +5,61 @@
 Define executable ownership, import boundaries, and provider-free architecture
 verification for scripts supplied by the PPT Maker Harness.
 ## Requirements
-### Requirement: Harness script layout confines Framed runtime to Page Authority
+### Requirement: Page Image Core is a shared deep module at one explicit seam
+
+The Harness SHALL expose one shared Page Image Core seam for the two selected
+workflow adapters. Its Interface SHALL accept only normalized current source
+content, visual selection, Style Master selection, generation profile, and
+Header Rendering Policy, and SHALL return typed, immutable page-image facts
+needed for policy-specific compilation and evidence binding. Its
+Implementation SHALL hide common content normalization, literal-policy
+validation, canonical byte construction, and lineage facts from callers.
+
+The Framed and Pure adapters are the two concrete adapters at that seam. The
+shared runtime may consume their already-typed plans/evidence, but it SHALL not
+interpret workflow semantics or compile provider prompts. This seam SHALL be
+the test surface for shared Page Image behavior; no caller shall reimplement
+its content or byte-binding rules.
+
+#### Scenario: Shared content compilation has one owner
+
+- **WHEN** Framed and Pure compile equivalent Provider Content Schema and
+  visual direction
+- **THEN** both receive the same shared Page Image Core semantic facts
+- **AND** their adapters add only their distinct Header Rendering Policy facts
+
+### Requirement: Current adapters preserve sibling locality and no legacy imports
+
+`03-framed-image` SHALL be the sole current owner of the deterministic local
+header renderer and its private browser/font/capture seam. `04-pure-image`
+SHALL be the sole owner of Pure final publication. Neither sibling SHALL import
+the other or its private modules, and neither SHALL create a second renderer,
+delivery route, prompt compiler, or recovery route.
+
+Active adapter, shared-runtime, controller-observation, and process modules
+SHALL NOT import or dispatch a v2 adapter, marker decoder, source/receipt
+initializer, evidence reader, converter, or migration implementation. A
+current architecture guard SHALL reject such an import before it can become a
+production route.
+
+#### Scenario: Shared seam does not create a sibling import
+
+- **WHEN** architecture validation inspects a current Framed or Pure module
+- **THEN** it permits only the explicit shared Page Image Core seam and owned
+  private dependencies
+- **AND** it rejects an import of the sibling adapter, v2 implementation, or
+  sibling private module
+
+### Requirement: Framed runtime is confined to the current header-overlay adapter
 
 The retained browser capture, font, denied-network, timeout, and cleanup
-primitives SHALL be reachable only through the Page Authority Framed compositor
-seam. They SHALL NOT create a second deck rendering or delivery entrypoint.
+primitives SHALL be reachable only through the current Framed header-overlay
+adapter. They SHALL not become a general text/body renderer, a second deck
+rendering entrypoint, or a delivery path. Pure SHALL not import that private
+runtime.
 
-#### Scenario: Framed finalization imports its retained runtime
+#### Scenario: Framed finalization uses only its private runtime seam
 
-- **WHEN** a Framed Page Authority slide is finalized
-- **THEN** it uses the private runtime seam without importing a retired deck contract or renderer
-
-### Requirement: Direct Harness executables have explicit current ownership
-Every direct executable SHALL be housed by `ppt_maker_harness/`, listed in the checked-in inventory, and resolve through an allowed current v2/shared interface. The inventory SHALL not register a retired Harness-root executable, retired production executable, compatibility interface, v1 new-authoring interface, v1 receipt writer, or migration runtime.
-
-#### Scenario: Inventory is checked
-- **WHEN** architecture validation scans the script root
-- **THEN** every executable has an approved current owner and source-to-test entry
-
-#### Scenario: Retired interface is absent
-- **WHEN** the checked-in script and ownership inventories are validated
-- **THEN** no registered interface or source-to-test owner resolves to a compatibility or v1 path
-- **AND** no current executable dispatches to a retired protocol
-
-### Requirement: TARGET Harness script layout enforces sibling adapters and shared semantic boundaries
-The target script inventory SHALL give `03-framed-image` and `04-pure-image` separate adapter ownership. The Framed adapter SHALL be the only target caller of its capture/font/denied-network/timeout/cleanup runtime seam; the Pure adapter SHALL own Pure raw-to-final publication. Neither sibling SHALL import the other or its `internal/` modules.
-
-Shared raw mechanics SHALL consume typed raw plans/evidence without Framed Text Frame, no-text, reserved-rectangle, Pure display, or refresh-policy semantics. `05-delivery` SHALL consume the common final-slide manifest and shall not publish different PPTX, notes, or delivery behavior by workflow. The checked-in architecture inventory and source-to-test mapping SHALL validate these boundaries and every direct executable's current owner.
-
-Target adapters, shared workflow observation, and controller-observation code SHALL NOT import a non-v2 adapter, writer, receipt initializer, historical decoder, or migration implementation.
-
-#### Scenario: Architecture validation finds a sibling import
-- **WHEN** a target Framed module imports a target Pure module or its private internal path
-- **THEN** architecture validation fails the ownership boundary
-- **AND** it does not accept the import as a convenience fallback
-
-#### Scenario: Architecture validation finds a non-v2 import
-- **WHEN** an active adapter, observer, controller, or process module imports a non-v2 protocol implementation
-- **THEN** architecture validation fails the ownership boundary
-- **AND** it does not accept the import as a migration or read-only convenience
+- **WHEN** a current Framed page is finalized
+- **THEN** the selected adapter uses its private header-overlay runtime seam
+- **AND** neither Pure nor shared delivery gains a browser-rendering route

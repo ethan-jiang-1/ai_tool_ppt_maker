@@ -2,16 +2,16 @@
 
 ## Purpose
 
-Define the current PPT Maker Harness directory map. It exposes Page Authority ownership,
+Define the current PPT Maker Harness directory map. It exposes Page Image Workflow ownership,
 its retained private runtime seams, and one current production owner graph.
 ## Requirements
 ### Requirement: Harness layout has no retired production owner
-The Harness directory map and executable inventory SHALL give every registered production executable one declared current v2/shared owner. It SHALL NOT expose a compatibility home, v1 implementation, v1 guidance, v1-focused proof, generic branch, README-only test owner, or uncalled iteration interface.
+The Harness directory map and executable inventory SHALL give every registered production executable one declared current Page Image Workflow/shared owner. It SHALL NOT expose a compatibility home, v1 implementation, v1 guidance, v1-focused proof, generic branch, README-only test owner, or uncalled iteration interface.
 
 #### Scenario: Script inventory is audited
 - **WHEN** Harness executable ownership is validated
-- **THEN** every registered production executable has one declared current v2/shared owner
-- **AND** no Page Authority implementation belongs to a retired protocol owner
+- **THEN** every registered production executable has one declared current Page Image Workflow/shared owner
+- **AND** no current implementation belongs to a retired protocol owner
 
 #### Scenario: Retired paths are audited
 - **WHEN** Harness directory layout is inspected after retirement

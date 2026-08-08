@@ -2,29 +2,29 @@
 
 ## Authority
 
-New Page Authority authoring uses `page-authority-image2-v2`. A version records
+New Page Image authoring uses `page-image-workflow-v1`. A version records
 exactly one `production.workflow: framed|pure` before provider work; state then
-binds the same workflow in `image2-page-authority-v2`. The target method graph
+binds the same workflow in `image2-page-workflow-v1`. The target method graph
 is `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`.
 
 | Target concern | Sole owner | Refresh consequence |
 | --- | --- | --- |
-| `framed` semantics, text-free underlay, Text Frame, composition | `03-framed-image` | Exact-evidence Text Frame-only work may compose locally; preset/underlay drift rebuilds raw. |
-| `pure` display/raw contract and raw-to-final publication | `04-pure-image` | Any visible display or visual change rebuilds raw. |
+| `framed` semantics, Header Rendering Policy, protected composition | `03-framed-image` | Only a compiled-input-preserving header-overlay refresh may compose locally; header/content/geometry drift rebuilds raw. |
+| `pure` Provider Content Schema and raw-to-final publication | `04-pure-image` | Any provider-visible content or visual change rebuilds raw. |
 | Final projection, PPTX, notes, delivery | `05-delivery` | Notes-only work refreshes delivery lineage without pixel work. |
 | Refresh classification and structural routing | `06-iteration` | Workflow switches and structural edits create a previewed vNext. |
 
-Any non-v2 source/state pair is an unsupported-protocol hard-stop. It is not a
+Any v2, corrupt, hybrid, or ambiguous source/state pair is an unsupported-protocol hard-stop. It is not a
 workflow choice and is never silently rewritten or interpreted as current.
 
 ## Invalidation
 
 Use the smallest owner-valid path:
 
-- Header Text & Style Refresh for v2 Framed Text Frame-only work with exact
-  accepted raw evidence and a current preset.
-- Generated Image Rebuild for v2 Pure visible display work and every Framed
-  preset, underlay, or visual-contract change.
+- Header Text & Style Refresh only for Framed work that proves exact equality
+  of compiled provider input, protected geometry, raw contract, and local header profile.
+- Generated Image Rebuild for every provider-visible content, header-literal,
+  visual, geometry, or profile change.
 - Notes-Only Refresh for speaker notes through `05-delivery`.
 - Structural Versioning Path for additions, removals, reordering, or a whole
   Framed/Pure workflow switch.
@@ -35,7 +35,7 @@ materialization makes no remote call. A missing raw item is reported as
 
 ## Evidence
 
-Target production is a receipt chain: v2 source receipt, adapter-owned typed raw
+Target production is a receipt chain: current Page Image Workflow source receipt, adapter-owned typed raw
 plan, shared authorization and accepted raw evidence, selected-adapter final
 manifest, then `05-delivery` projection, PPTX, notes, and delivery review. A
 later receipt cannot repair a missing earlier receipt. Generated files are
@@ -43,7 +43,7 @@ rebuildable output and never replace the receipt chain.
 
 ## Unsupported boundary
 
-Non-v2, corrupt, hybrid, or ambiguous source/state pairs stop at the generic
+V2, corrupt, hybrid, or ambiguous source/state pairs stop at the generic
 unsupported-protocol/export action. Observation creates no receipt, state,
 adapter, provider request, or generated-artifact read.
 

@@ -2,7 +2,7 @@
  * Zero-dependency environment checker for ppt_maker_harness.
  *
  * Run this FIRST — it is the hard startup gate. Supported Node.js and npm are
- * the FOUNDATION. It reports Page Authority readiness for the requested
+ * the FOUNDATION. It reports Page Image readiness for the requested
  * operation; local Framed composition is the default and is provider-free.
  *
  * Cross-platform: macOS, Linux, Windows. Node built-in modules only.
@@ -47,11 +47,11 @@ export const BASE_CHECK_NAMES = Object.freeze([
   'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright',
   'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke', 'fonts', 'disk_space', 'git',
 ]);
-export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_authority_raw_generator']);
+export const IMAGE2_CHECK_NAMES = Object.freeze(['api_key', 'image_base_url', 'page_image_raw_generator']);
 export const LIVE_CHECK_NAMES = Object.freeze(['image_smoke', 'image_probe_vendors']);
-export const DOCTOR_MODES = Object.freeze(['image2-page-authority-v2']);
-export const PAGE_AUTHORITY_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
-export const PAGE_AUTHORITY_DOCTOR_OPERATIONS = Object.freeze([
+export const DOCTOR_MODES = Object.freeze(['image2-page-workflow-v1']);
+export const PAGE_IMAGE_DOCTOR_PROFILES = Object.freeze(['framed-runtime', 'image2-raw']);
+export const PAGE_IMAGE_DOCTOR_OPERATIONS = Object.freeze([
   'framed-local-refresh',
   'raw-generation',
   'image2-raw',
@@ -435,21 +435,21 @@ function checkNpmPackages(start = process.cwd()) {
 
 export { checkNode, checkNpmPackages, discoverNpmPackages };
 
-function checkPageAuthorityRawGenerator() {
+function checkPageImageRawGenerator() {
   const root = resolve(__dirname, '..', '..');
   const required = [
     '03-framed-image/index.mjs',
     '04-pure-image/index.mjs',
-    'shared/image2/page_authority_target_runtime.mjs',
+    'shared/image2/page_image_target_runtime.mjs',
   ];
   const missing = required.filter((name) => !existsSync(join(root, name)));
   const ok = missing.length === 0;
   return {
-    check: 'page_authority_raw_generator',
+    check: 'page_image_raw_generator',
     status: ok ? 'ok' : 'fail',
     detail: ok
-      ? 'receipt-bound Page Authority raw compiler and evidence owners are present'
-      : `missing Page Authority raw owner(s): ${missing.join(', ')}`,
+      ? 'receipt-bound Page Image raw compiler and evidence owners are present'
+      : `missing Page Image raw owner(s): ${missing.join(', ')}`,
     fix: ok ? null : 'Restore the v2 Framed/Pure raw owners and their shared target runtime under scripts/.',
   };
 }
@@ -528,8 +528,8 @@ async function checkFramedRenderProfile(runtime) {
   try {
     // Keep the direct doctor pre-install-safe: this production owner is loaded
     // only after the package-backed browser and font prerequisites have passed.
-    const { currentFramedRenderProfile } = await import('../../03-framed-image/internal/framed_render_profile.mjs');
-    const profile = framedProfileFacts(currentFramedRenderProfile());
+    const { currentFramedHeaderOverlayRenderProfile } = await import('../../03-framed-image/internal/framed_render_profile.mjs');
+    const profile = framedProfileFacts(currentFramedHeaderOverlayRenderProfile());
     if (profile.runtime.id !== runtime.profile ||
       profile.runtime.playwright_version !== runtime.playwright?.version ||
       profile.runtime.chromium_revision !== runtime.chromium?.revision ||
@@ -632,9 +632,9 @@ async function runAllChecks({ includeImage2 = false, profile = 'common+html', st
     if (existsSync(join(p, '.env'))) { loadDotenv(p); break; }
   }
 
-  const framedRuntime = ['page-authority-framed', 'page-authority-full', 'page-authority-unbound'].includes(profile);
+  const framedRuntime = ['page-image-framed', 'page-image-full', 'page-image-unbound'].includes(profile);
   const includeHtml = profile === 'common+html' || framedRuntime;
-  const pageAuthorityRaw = ['page-authority-raw', 'page-authority-full', 'page-authority-unbound'].includes(profile);
+  const pageImageRaw = ['page-image-raw', 'page-image-full', 'page-image-unbound'].includes(profile);
   const node = checkNode();
   const npm = checkNpm();
   const packages = discoverNpmPackages(start);
@@ -666,7 +666,7 @@ async function runAllChecks({ includeImage2 = false, profile = 'common+html', st
   if (includeImage2) {
     const apiKey = checkApiKey();
     const baseUrl = checkBaseUrl();
-    const generator = checkPageAuthorityRawGenerator();
+    const generator = checkPageImageRawGenerator();
     results.push(apiKey, baseUrl, generator);
   }
 
@@ -910,7 +910,7 @@ export {
   runAllChecks,
   checkApiKey,
   checkBaseUrl,
-  checkPageAuthorityRawGenerator,
+  checkPageImageRawGenerator,
   probeGitSafetyForTest,
 };
 
@@ -945,7 +945,7 @@ function formatText(results, allPass, { image2 = false, profiles = [], smoke = f
 
   lines.push('');
   const warns = results.filter(r => r.status === 'warn').length;
-  const generatorMissing = results.some(r => r.check === 'page_authority_raw_generator' && r.status !== 'ok');
+  const generatorMissing = results.some(r => r.check === 'page_image_raw_generator' && r.status !== 'ok');
 
   if (!foundationOk) {
     lines.push('  ⛔ FOUNDATION NOT READY — supported Node.js (22/24/26) and npm must be set up FIRST.');
@@ -993,23 +993,23 @@ function emitEnvCheckUsage(message, hint) {
   });
 }
 
-function pageAuthorityDoctorPlan(operation) {
+function pageImageDoctorPlan(operation) {
   if (operation == null) {
     return {
-      profile: 'page-authority-unbound',
+      profile: 'page-image-unbound',
       includeImage2: true,
       activeProfiles: ['framed-runtime'],
       deferredProfiles: ['image2-raw'],
     };
   }
   if (operation === 'framed-local-refresh') {
-    return { profile: 'page-authority-framed', includeImage2: false, activeProfiles: ['framed-runtime'], deferredProfiles: [] };
+    return { profile: 'page-image-framed', includeImage2: false, activeProfiles: ['framed-runtime'], deferredProfiles: [] };
   }
   if (operation === 'raw-generation' || operation === 'image2-raw') {
-    return { profile: 'page-authority-raw', includeImage2: true, activeProfiles: ['image2-raw'], deferredProfiles: [] };
+    return { profile: 'page-image-raw', includeImage2: true, activeProfiles: ['image2-raw'], deferredProfiles: [] };
   }
   if (operation === 'full-build') {
-    return { profile: 'page-authority-full', includeImage2: true, activeProfiles: [...PAGE_AUTHORITY_DOCTOR_PROFILES], deferredProfiles: [] };
+    return { profile: 'page-image-full', includeImage2: true, activeProfiles: [...PAGE_IMAGE_DOCTOR_PROFILES], deferredProfiles: [] };
   }
   return { profile: 'common', includeImage2: false, activeProfiles: [], deferredProfiles: [] };
 }
@@ -1019,14 +1019,14 @@ function profileReady(results, names) {
   return selected.length > 0 && selected.every((result) => result.status !== 'fail');
 }
 
-function pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles }) {
+function pageImageProfileReports(results, { activeProfiles, deferredProfiles }) {
   const framedChecks = new Set([
     'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander',
     'playwright', 'chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke',
   ]);
   const rawChecks = new Set([
     'nodejs', 'npm', '@napi-rs/canvas', 'pptxgenjs', 'commander',
-    'api_key', 'image_base_url', 'page_authority_raw_generator',
+    'api_key', 'image_base_url', 'page_image_raw_generator',
   ]);
   const reports = [];
   for (const id of [...activeProfiles, ...deferredProfiles]) {
@@ -1050,33 +1050,33 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
   if (wantJson) setCliOutputMode('json');
 
   if (retiredImage2Flag) {
-    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-authority-v2 --operation raw-generation.');
+    emitEnvCheckUsage('--image2 is no longer a public doctor flag', 'Use --mode image2-page-workflow-v1 --operation raw-generation.');
     process.exit(1);
   }
   if (mode != null && !DOCTOR_MODES.includes(mode)) {
     emitEnvCheckUsage(`unknown --mode ${JSON.stringify(mode)}`, `Allowed: ${DOCTOR_MODES.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && !PAGE_AUTHORITY_DOCTOR_OPERATIONS.includes(operation)) {
-    emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_AUTHORITY_DOCTOR_OPERATIONS.join(', ')}.`);
+  if (operation != null && !PAGE_IMAGE_DOCTOR_OPERATIONS.includes(operation)) {
+    emitEnvCheckUsage(`unknown --operation ${JSON.stringify(operation)}`, `Allowed: ${PAGE_IMAGE_DOCTOR_OPERATIONS.join(', ')}.`);
     process.exit(1);
   }
-  if (operation != null && mode != null && mode !== 'image2-page-authority-v2') {
-    emitEnvCheckUsage('--operation requires --mode image2-page-authority-v2', 'Select v2 Page Authority mode before an operation-scoped doctor check.');
+  if (operation != null && mode != null && mode !== 'image2-page-workflow-v1') {
+    emitEnvCheckUsage('--operation requires --mode image2-page-workflow-v1', 'Select v2 Page Image mode before an operation-scoped doctor check.');
     process.exit(1);
   }
 
-  const resolvedMode = mode ?? 'image2-page-authority-v2';
+  const resolvedMode = mode ?? 'image2-page-workflow-v1';
   const resolvedOperation = operation ?? 'framed-local-refresh';
-  const plan = pageAuthorityDoctorPlan(resolvedOperation);
+  const plan = pageImageDoctorPlan(resolvedOperation);
   let profile = plan.profile;
   let wantImage2 = plan.includeImage2 || wantSmoke || wantProbe;
   let activeProfiles = plan.activeProfiles;
   let deferredProfiles = plan.deferredProfiles;
   if ((wantSmoke || wantProbe) && operation == null) {
-    profile = 'page-authority-full';
+    profile = 'page-image-full';
     wantImage2 = true;
-    activeProfiles = [...PAGE_AUTHORITY_DOCTOR_PROFILES];
+    activeProfiles = [...PAGE_IMAGE_DOCTOR_PROFILES];
     deferredProfiles = [];
   }
 
@@ -1119,10 +1119,10 @@ export async function runEnvCheckCli(argv = process.argv, { providerApi = null }
     }
   }
 
-  const profiles = pageAuthorityProfileReports(results, { activeProfiles, deferredProfiles });
+  const profiles = pageImageProfileReports(results, { activeProfiles, deferredProfiles });
   const deferredChecks = new Set(
     deferredProfiles.includes('image2-raw')
-      ? ['api_key', 'image_base_url', 'page_authority_raw_generator']
+      ? ['api_key', 'image_base_url', 'page_image_raw_generator']
       : []
   );
   const allPass = results.filter((result) => !deferredChecks.has(result.check)).every((result) => result.status !== 'fail');

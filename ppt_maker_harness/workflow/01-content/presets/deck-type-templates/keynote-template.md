@@ -2,12 +2,12 @@
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: <framed|pure>
 deck_type: keynote
 ---
 
-# Keynote Page Authority Template
+# Keynote Page Image Template
 
 Build claim, diagnosis, framework, evidence, commitment, and close with stable
 mnemonic IDs. Replace `<framed|pure>` once before validation; it selects the

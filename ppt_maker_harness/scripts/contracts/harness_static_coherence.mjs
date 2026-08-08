@@ -30,11 +30,11 @@ export const ACTIVE_SURFACE_PREFIXES = Object.freeze([
 ]);
 
 const PROTOCOL_PATTERNS = Object.freeze([
-  compose("page-authority", "-image2-v1"),
-  new RegExp(`\\b${compose("image2", "-page-authority")}(?!-v2)\\b`),
+  compose("page-image", "-image2-v1"),
+  new RegExp(`\\b${compose("image2", "-page-image")}(?!-v2)\\b`),
   compose("legacy", "_protocol"),
   compose("production_mode", "_transition"),
-  compose("compatibility/", "current", "-v1-page-authority"),
+  compose("compatibility/", "current", "-v1-page-image"),
   ...RETIRED_WHOLE_PAGE_IDENTITIES,
 ]);
 

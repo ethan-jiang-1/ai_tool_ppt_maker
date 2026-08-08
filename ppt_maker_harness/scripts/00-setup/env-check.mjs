@@ -12,7 +12,7 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(entry)) {
 
 Options:
   --json                    Emit one env-check-v1 JSON report on stdout
-  --mode <mode>             Page Authority mode: image2-page-authority-v2
+  --mode <mode>             Page Image mode: image2-page-workflow-v1
   --operation <operation>   framed-local-refresh, raw-generation, or full-build
   --smoke                   One live first-channel diagnostic submit
   --probe-vendors           One live diagnostic submit per resolved channel`);

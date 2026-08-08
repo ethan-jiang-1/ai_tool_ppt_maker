@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { canonicalJson, canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   createProgressiveRawBatch,
   createProgressiveRawItemAttempt,
@@ -15,7 +16,7 @@ import {
   createProgressiveRawWorkPlan,
   validateProgressiveRawBatch,
   validateProgressiveRawWorkPlan,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_schema.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
 import { sha256Bytes } from "../../../ppt_maker_harness/scripts/shared/identity/byte_hash.mjs";
 import {
   publishProgressiveRawMaterialization,
@@ -26,8 +27,13 @@ import {
   stageProgressiveRawPlanContainer,
   writeProgressiveRawItemAttempt,
   writeProgressiveRawScopeHeadCas,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_store.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
+import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
+import {
+  PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA,
+  PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA,
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_provider_request_binding.mjs";
 import {
   acceptProgressiveRawCompleteReview,
   acceptProgressiveRawPilot,
@@ -41,28 +47,87 @@ import {
   publishProgressiveRawWorkPlan,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 
 const digest = (letter) => letter.repeat(64);
+const fixtureProfilesBySha = new Map();
+
+function fixtureGenerationProfile(token = "b") {
+  return Object.freeze({
+    provider: { model: `fixture-image-model-${token}` },
+    output: { format: "png", width: 1600, height: 900 },
+  });
+}
+
+function fixtureRawContract(slideId) {
+  return Object.freeze({ schema: "fixture-page-image-raw-contract-v1", slide_id: slideId });
+}
+
+function fixtureCompiledProviderInput(slideId, rawContract, generationProfile) {
+  const utf8 = canonicalJson({
+    schema: "fixture-page-image-provider-input-v1",
+    slide_id: slideId,
+    raw_contract_sha256: canonicalJsonSha256(rawContract),
+    generation_profile_sha256: canonicalJsonSha256(generationProfile),
+  });
+  return Object.freeze({
+    schema: PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA,
+    utf8,
+    sha256: sha256Bytes(Buffer.from(utf8, "utf8")),
+  });
+}
+
+function fixtureProviderRequests(plan) {
+  const generationProfile = fixtureProfilesBySha.get(plan.provider_profile_sha256);
+  if (!generationProfile) throw new Error("fixture provider profile is unavailable for the plan");
+  return Object.fromEntries(plan.items.map((item) => {
+    const rawContract = fixtureRawContract(item.slide_id);
+    const compiledProviderInput = fixtureCompiledProviderInput(item.slide_id, rawContract, generationProfile);
+    return [item.slide_id, {
+      schema: PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA,
+      slide_id: item.slide_id,
+      raw_contract: rawContract,
+      raw_contract_sha256: canonicalJsonSha256(rawContract),
+      generation_profile: generationProfile,
+      compiled_provider_input: compiledProviderInput,
+    }];
+  }));
+}
 
 function fixturePlan(count = 1, {
+  workflow = "pure",
   source_receipt_sha256 = digest("a"),
   source_epoch = 1,
-  provider_profile_sha256 = digest("b"),
+  profile_token = "b",
   effective_style_master_sha256 = digest("c"),
   source_execution_sha256 = digest("d"),
 } = {}) {
   const ids = Array.from({ length: count }, (_value, index) => `Slide${String(index + 1).padStart(2, "0")}`);
+  const generationProfile = fixtureGenerationProfile(profile_token);
+  const provider_profile_sha256 = canonicalJsonSha256(generationProfile);
+  fixtureProfilesBySha.set(provider_profile_sha256, generationProfile);
   return createProgressiveRawWorkPlan({
     run_version: "v1",
     source_receipt_sha256,
     source_epoch,
-    workflow: "pure",
+    workflow,
     provider_profile_sha256,
     effective_style_master_sha256,
     source_execution_sha256,
     ordered_slide_ids: ids,
-    items: ids.map((slide_id, index) => ({ slide_id, raw_contract_sha256: `${index.toString(16)}`.repeat(64) })),
+    items: ids.map((slide_id) => {
+      const rawContract = fixtureRawContract(slide_id);
+      const compiledProviderInput = fixtureCompiledProviderInput(slide_id, rawContract, generationProfile);
+      return {
+        slide_id,
+        raw_contract_sha256: canonicalJsonSha256(rawContract),
+        provider_input_binding: {
+          ...pageImageProviderInputBinding({ workflow }),
+          compiled_provider_input_sha256: compiledProviderInput.sha256,
+          generation_profile_sha256: provider_profile_sha256,
+        },
+      };
+    }),
   });
 }
 
@@ -90,50 +155,53 @@ function appendTerminalAttemptSibling(runDir, { plan, batch_hash, status }) {
   return Object.freeze({ submitted, terminal });
 }
 
-describe("progressive Page Authority raw owner", () => {
-  it("preserves legacy v2 raw records and returns only the owner-issued progressive replan action", () => {
+describe("progressive Page Image raw owner", () => {
+  it("does not adopt pre-head derived raw projections as progressive authority", () => {
     const { root, runDir } = fixtureRun();
     try {
-      const legacyPlan = createRawWorkPlan({
+      const projectionPlan = createRawWorkPlan({
         source_receipt_sha256: digest("a"),
         workflow: "pure",
         ordered_slide_ids: ["Slide01"],
         provider_profile_sha256: digest("b"),
         authorization_scope_sha256: digest("c"),
-        items: [{ slide_id: "Slide01", raw_contract_sha256: digest("d") }],
+        items: [{
+          slide_id: "Slide01",
+          raw_contract_sha256: digest("d"),
+          provider_input_binding: pageImageProviderInputBinding({ workflow: "pure" }),
+        }],
       });
-      const legacyEvidence = createAcceptedRawEvidence({
-        plan: legacyPlan,
+      const projectionEvidence = createAcceptedRawEvidence({
+        plan: projectionPlan,
         provider_authorization_sha256: digest("e"),
         raw_review_sha256: digest("f"),
-        raw_bytes_by_slide: { Slide01: Buffer.from("legacy raw bytes") },
+        raw_bytes_by_slide: { Slide01: Buffer.from("derived raw bytes") },
       });
-      const legacyPaths = pageAuthorityImage2Paths(runDir);
-      mkdirSync(dirname(legacyPaths.target_raw_plan), { recursive: true });
-      writeFileSync(legacyPaths.target_raw_plan, Buffer.from(`${JSON.stringify(legacyPlan)}\n`, "utf8"));
-      writeFileSync(legacyPaths.target_raw_evidence, Buffer.from(`${JSON.stringify(legacyEvidence)}\n`, "utf8"));
-      const legacyPlanBytes = readFileSync(legacyPaths.target_raw_plan);
-      const legacyEvidenceBytes = readFileSync(legacyPaths.target_raw_evidence);
-      const v3Paths = progressiveRawStorePaths(runDir, { workflow: "pure" });
+      const projectionPaths = pageImageWorkflowPaths(runDir);
+      mkdirSync(dirname(projectionPaths.target_raw_plan), { recursive: true });
+      writeFileSync(projectionPaths.target_raw_plan, Buffer.from(`${JSON.stringify(projectionPlan)}\n`, "utf8"));
+      writeFileSync(projectionPaths.target_raw_evidence, Buffer.from(`${JSON.stringify(projectionEvidence)}\n`, "utf8"));
+      const projectionPlanBytes = readFileSync(projectionPaths.target_raw_plan);
+      const projectionEvidenceBytes = readFileSync(projectionPaths.target_raw_evidence);
+      const progressivePaths = progressiveRawStorePaths(runDir, { workflow: "pure" });
 
-      expect(existsSync(v3Paths.history_root)).toBe(false);
+      expect(existsSync(progressivePaths.history_root)).toBe(false);
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
         ok: true,
-        legacy_v2: true,
         plan: null,
         progress: null,
-        primary_action: { action_id: "replan_progressive_raw_work", kind: "repair" },
+        primary_action: { action_id: "plan_progressive_raw_work", kind: "guide" },
       });
       expect(readProgressiveRawScopeHead(runDir, { workflow: "pure" })).toBeNull();
-      expect(existsSync(v3Paths.history_root)).toBe(false);
-      expect(readFileSync(legacyPaths.target_raw_plan)).toEqual(legacyPlanBytes);
-      expect(readFileSync(legacyPaths.target_raw_evidence)).toEqual(legacyEvidenceBytes);
+      expect(existsSync(progressivePaths.history_root)).toBe(false);
+      expect(readFileSync(projectionPaths.target_raw_plan)).toEqual(projectionPlanBytes);
+      expect(readFileSync(projectionPaths.target_raw_evidence)).toEqual(projectionEvidenceBytes);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("binds v3 batches to one complete ordered plan and rejects cross-bound tuples", () => {
+  it("binds Page Image batches to one complete ordered plan and rejects cross-bound tuples", () => {
     const plan = fixturePlan(2);
     const batch = createProgressiveRawBatch({
       plan_sha256: plan.sha256,
@@ -155,6 +223,9 @@ describe("progressive Page Authority raw owner", () => {
     }, { plan });
 
     expect(validateProgressiveRawWorkPlan(plan)).toMatchObject({ ok: true, sha256: plan.sha256 });
+    const unboundPlan = structuredClone(plan);
+    delete unboundPlan.items[0].provider_input_binding;
+    expect(validateProgressiveRawWorkPlan(unboundPlan)).toMatchObject({ ok: false, code: "progressive_raw_invalid_items" });
     expect(validateProgressiveRawBatch(batch, { plan })).toMatchObject({ ok: true, sha256: batch.sha256 });
     expect(validateProgressiveRawBatch({ ...batch, provider_profile_sha256: digest("9") }, { plan }))
       .toMatchObject({ ok: false, code: "progressive_raw_cross_bound" });
@@ -261,49 +332,66 @@ describe("progressive Page Authority raw owner", () => {
     }
   });
 
-  it("binds a batch grant to exact current plan facts and blocks stale provider preflight", async () => {
+  it("binds a batch grant to exact current source, profile, and geometry before provider work", async () => {
     const { root, runDir } = fixtureRun();
-    const plan = fixturePlan(2);
+    const plan = fixturePlan(2, { workflow: "framed" });
     try {
       publishProgressiveRawWorkPlan({ runDir, plan });
       const pilot = await planProgressiveRawPilot({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: plan.sha256,
         slide_ids: ["Slide01", "Slide02"],
       });
       const grant = await authorizeProgressiveRawBatch({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
       });
       await expect(authorizeProgressiveRawBatch({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
       })).resolves.toMatchObject({ replay: true, grant_hash: grant.grant_hash, maximum_submissions: 2 });
       await expect(authorizeProgressiveRawBatch({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: digest("e"),
         batch_hash: pilot.batch.batch_hash,
       })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
       await expect(authorizeProgressiveRawBatch({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: plan.sha256,
         batch_hash: digest("e"),
       })).rejects.toMatchObject({ code: "progressive_raw_batch_stale" });
+      await expect(authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "framed",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        expected_plan: fixturePlan(2, { workflow: "framed", profile_token: "stale" }),
+      })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
+
+      const geometryDrift = structuredClone(plan);
+      geometryDrift.items[0].provider_input_binding.protected_geometry_sha256 = digest("9");
+      await expect(authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "framed",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        expected_plan: geometryDrift,
+      })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
 
       const submit = vi.fn(async () => Buffer.from("must not submit"));
       await expect(generateProgressiveRawItem({
         runDir,
-        workflow: "pure",
+        workflow: "framed",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        expected_plan: fixturePlan(2, { source_receipt_sha256: digest("f") }),
+        expected_plan: fixturePlan(2, { workflow: "framed", source_receipt_sha256: digest("f") }),
         provider_requests_by_slide: {
           Slide01: { schema: "fixture-request-v1" },
           Slide02: { schema: "fixture-request-v1" },
@@ -311,8 +399,9 @@ describe("progressive Page Authority raw owner", () => {
         submit,
       })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
       expect(submit).not.toHaveBeenCalled();
-      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).grants)
-        .toHaveLength(1);
+      const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      expect(direct.grants).toHaveLength(1);
+      expect(direct.attempts).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -353,7 +442,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => {
           submissions += 1;
           return Buffer.from("fixture raw bytes");
@@ -376,6 +465,104 @@ describe("progressive Page Authority raw owner", () => {
         .toMatchObject({ action_id: "publish_target_final_manifest", plan_hash: plan.sha256 });
       expect(readProgressiveAcceptedRawWork({ runDir, workflow: "pure", plan_hash: plan.sha256 }).raw_bytes_by_slide.Slide01)
         .toEqual(Buffer.from("fixture raw bytes"));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects tampered compiled input before it claims or submits an item", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+      const staleRequests = structuredClone(fixtureProviderRequests(plan));
+      staleRequests.Slide01.compiled_provider_input.utf8 = `${staleRequests.Slide01.compiled_provider_input.utf8}\nchanged`;
+      const submit = vi.fn();
+      const preflight = vi.fn();
+
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: staleRequests,
+        preflight,
+        submit,
+      })).rejects.toMatchObject({ code: "progressive_raw_provider_request_invalid" });
+      expect(preflight).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).attempts).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("runs provider credential preflight after exact eligibility and before attempt persistence", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const pilot = await planProgressiveRawPilot({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        slide_ids: ["Slide01"],
+      });
+      await authorizeProgressiveRawBatch({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+      });
+      const missingCredentials = new Error("credentials unavailable");
+      missingCredentials.code = "PAGE_IMAGE_PROVIDER_CREDENTIALS_UNAVAILABLE";
+      const preflight = vi.fn(async ({ request, item, plan_hash, batch_hash, grant_hash }) => {
+        expect(Object.isFrozen(request)).toBe(true);
+        expect(item).toEqual({ slide_id: "Slide01", raw_contract_sha256: plan.items[0].raw_contract_sha256 });
+        expect(plan_hash).toBe(plan.sha256);
+        expect(batch_hash).toBe(pilot.batch.batch_hash);
+        expect(grant_hash).toMatch(/^[0-9a-f]{64}$/);
+        throw missingCredentials;
+      });
+      const submit = vi.fn();
+
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: fixtureProviderRequests(plan),
+        preflight,
+        submit,
+      })).rejects.toBe(missingCredentials);
+      expect(preflight).toHaveBeenCalledTimes(1);
+      expect(submit).not.toHaveBeenCalled();
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).attempts).toEqual([]);
+
+      const stalePreflight = vi.fn();
+      await expect(generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: digest("e"),
+        batch_hash: pilot.batch.batch_hash,
+        provider_requests_by_slide: fixtureProviderRequests(plan),
+        preflight: stalePreflight,
+        submit,
+      })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
+      expect(stalePreflight).not.toHaveBeenCalled();
+      expect(submit).not.toHaveBeenCalled();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -404,7 +591,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: firstPlan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(firstPlan),
         submit: async () => firstBytes,
       });
       await prepareProgressiveRawCompleteReview({
@@ -474,7 +661,7 @@ describe("progressive Page Authority raw owner", () => {
       const profileDrift = fixturePlan(1, {
         source_receipt_sha256: digest("9"),
         source_execution_sha256: digest("0"),
-        provider_profile_sha256: digest("1"),
+        profile_token: "1",
       });
       expect(publishProgressiveRawWorkPlan({
         runDir,
@@ -513,7 +700,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: firstPlan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(firstPlan),
         submit: async () => bytes,
       });
       const firstReview = await prepareProgressiveRawCompleteReview({
@@ -582,12 +769,22 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => { throw new Error("connection ended after submit"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
 
       const blocked = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" });
       expect(blocked.primary_action).toMatchObject({ action_id: "reconcile_progressive_raw_attempt", plan_hash: plan.sha256 });
+      const staleLookup = vi.fn();
+      await expect(reconcileProgressiveRawAttempt({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        attempt_sha256: blocked.primary_action.attempt_sha256,
+        expected_plan: fixturePlan(1, { profile_token: "stale" }),
+        lookup: staleLookup,
+      })).rejects.toMatchObject({ code: "progressive_raw_plan_stale" });
+      expect(staleLookup).not.toHaveBeenCalled();
       await reconcileProgressiveRawAttempt({
         runDir,
         workflow: "pure",
@@ -625,7 +822,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: predecessor.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => { throw new Error("predecessor transport interrupted"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
       const predecessorAttempt = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" }).primary_action.attempt_sha256;
@@ -659,7 +856,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: successor.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: successorSubmit,
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
 
@@ -713,7 +910,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: predecessor.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: predecessorSubmit,
       });
 
@@ -735,7 +932,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: successor.batch.batch_hash,
-        provider_requests_by_slide: { Slide02: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: successorSubmit,
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
       const successorSubmitted = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 }).attempts
@@ -788,7 +985,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: submitted,
       });
       appendTerminalAttemptSibling(runDir, {
@@ -808,7 +1005,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: blockedSubmit,
       })).rejects.toMatchObject({ code: "progressive_raw_attempt_chain_invalid" });
       expect(submitted).toHaveBeenCalledTimes(1);
@@ -849,7 +1046,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => Buffer.from("partial Pilot bytes"),
       });
 
@@ -924,7 +1121,7 @@ describe("progressive Page Authority raw owner", () => {
           workflow: "pure",
           plan_hash: plan.sha256,
           batch_hash: pilot.batch.batch_hash,
-          provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+          provider_requests_by_slide: fixtureProviderRequests(plan),
           submit: async () => Buffer.from(`partial Pilot ${decision} bytes`),
         });
         await prepareProgressiveRawPilotEvidence({
@@ -978,7 +1175,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => { throw new Error("connection ended after submit"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
 
@@ -1034,7 +1231,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => { throw new Error("connection ended after submit"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
 
@@ -1095,7 +1292,7 @@ describe("progressive Page Authority raw owner", () => {
         submit: async () => Buffer.from("must not submit"),
       })).rejects.toMatchObject({ code: "progressive_raw_provider_request_invalid" });
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
-        progress: { claimed: 1, submitted: 0 },
+        progress: { claimed: 0, submitted: 0 },
         primary_action: { action_id: "generate_progressive_raw_item" },
       });
 
@@ -1105,10 +1302,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: {
-          Slide01: { schema: "fixture-request-v1", item: "one" },
-          Slide02: { schema: "fixture-request-v1", item: "two" },
-        },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async ({ item, provider_idempotency_key }) => {
           const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
           const submitted = records.attempts.filter((entry) => entry.record.status === "submitted");
@@ -1134,10 +1328,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: {
-          Slide01: { schema: "fixture-request-v1", item: "one" },
-          Slide02: { schema: "fixture-request-v1", item: "two" },
-        },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async ({ item }) => {
           expect(item.slide_id).toBe("Slide02");
           return Buffer.from("second committed bytes");
@@ -1171,10 +1362,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: {
-          Slide01: { schema: "fixture-request-v1" },
-          Slide02: { schema: "fixture-request-v1" },
-        },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => ({ outcome: "known_failure" }),
       });
       expect(first).toMatchObject({
@@ -1188,10 +1376,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: {
-          Slide01: { schema: "fixture-request-v1" },
-          Slide02: { schema: "fixture-request-v1" },
-        },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async ({ item }) => {
           expect(item.slide_id).toBe("Slide02");
           return Buffer.from("second item after known failure");
@@ -1223,7 +1408,7 @@ describe("progressive Page Authority raw owner", () => {
     }
   });
 
-  it("returns only bounded tagged Page Authority media facts without materializing rejected bytes", async () => {
+  it("returns only bounded tagged Page Image media facts without materializing rejected bytes", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan();
     try {
@@ -1246,11 +1431,11 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => {
           const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
-          error.page_authority_known_failure = true;
-          error.page_authority_known_failure_facts = {
+          error.page_image_known_failure = true;
+          error.page_image_known_failure_facts = {
             expected: {
               format: "png",
               provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
@@ -1286,7 +1471,7 @@ describe("progressive Page Authority raw owner", () => {
     }
   });
 
-  it("returns only bounded tagged Page Authority response facts without materializing rejected bytes", async () => {
+  it("returns only bounded tagged Page Image response facts without materializing rejected bytes", async () => {
     const { root, runDir } = fixtureRun();
     const plan = fixturePlan();
     try {
@@ -1309,11 +1494,11 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => {
           const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
-          error.page_authority_known_failure = true;
-          error.page_authority_known_failure_facts = {
+          error.page_image_known_failure = true;
+          error.page_image_known_failure_facts = {
             response: {
               classification: "http_error",
               http_status: 502,
@@ -1364,7 +1549,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => ({ outcome: "known_failure" }),
       });
       expect(terminal).toMatchObject({
@@ -1438,7 +1623,7 @@ describe("progressive Page Authority raw owner", () => {
         workflow: "pure",
         plan_hash: plan.sha256,
         batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: { Slide01: { schema: "fixture-request-v1" } },
+        provider_requests_by_slide: fixtureProviderRequests(plan),
         submit: async () => { throw new Error("connection ended after submit"); },
       })).rejects.toMatchObject({ code: "progressive_raw_provider_outcome_unresolved" });
       const oldAttempt = inspectProgressiveRawLifecycle({ runDir, workflow: "pure" }).primary_action.attempt_sha256;

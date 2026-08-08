@@ -337,20 +337,24 @@ function faceSupportsCodePoint(face, point) {
   )));
 }
 
-function textFrameFields(textFrame) {
-  if (!textFrame || typeof textFrame !== 'object' || Array.isArray(textFrame)) {
-    throw new HtmlFontSelectionError('font_selection_input_invalid', 'a typed Framed Text Frame is required for font selection');
+function headerOverlayFields(headerOverlay) {
+  if (!headerOverlay || typeof headerOverlay !== 'object' || Array.isArray(headerOverlay)) {
+    throw new HtmlFontSelectionError('font_selection_input_invalid', 'a typed Framed header overlay is required for font selection');
   }
-  return ['kicker', 'title', 'subtitle', 'callout']
-    .filter((field) => typeof textFrame[field] === 'string' && textFrame[field].length > 0)
-    .map((field) => ({ field, text: textFrame[field] }));
+  const keys = ['preset', 'kicker', 'title', 'subtitle'];
+  if (Object.keys(headerOverlay).length !== keys.length || !keys.every((key) => Object.hasOwn(headerOverlay, key))) {
+    throw new HtmlFontSelectionError('font_selection_input_invalid', 'Framed font selection accepts only a closed header overlay');
+  }
+  return ['kicker', 'title', 'subtitle']
+    .filter((field) => typeof headerOverlay[field] === 'string' && headerOverlay[field].length > 0)
+    .map((field) => ({ field, text: headerOverlay[field] }));
 }
 
 /**
- * Select exactly the checked-in faces needed for current Text Frame code
+ * Select exactly the checked-in faces needed for the closed Framed header
  * points. The selection is deterministic and never uses system fallback.
  */
-export function selectFramedFontFaces(textFrame, options = {}) {
+export function selectFramedHeaderOverlayFontFaces(headerOverlay, options = {}) {
   const inventory = loadFramedFontRenderInventory(options);
   const familyOrder = new Map(inventory.families.map((family, index) => [family.family, index]));
   const faces = [...inventory.faces].sort((left, right) => (
@@ -361,7 +365,7 @@ export function selectFramedFontFaces(textFrame, options = {}) {
   const fields = [];
   const unsupported = [];
 
-  for (const { field, text } of textFrameFields(textFrame)) {
+  for (const { field, text } of headerOverlayFields(headerOverlay)) {
     const fieldFaces = new Map();
     for (const point of [...new Set([...text].map((character) => character.codePointAt(0)))].sort((left, right) => left - right)) {
       const face = faces.find((candidate) => faceSupportsCodePoint(candidate, point));
@@ -382,7 +386,7 @@ export function selectFramedFontFaces(textFrame, options = {}) {
   if (unsupported.length) {
     throw new HtmlFontSelectionError(
       'unsupported_framed_code_points',
-      `Framed Text Frame contains unsupported code points: ${unsupported.map((entry) => `${entry.field}:${entry.code_point}`).join(', ')}`,
+      `Framed header overlay contains unsupported code points: ${unsupported.map((entry) => `${entry.field}:${entry.code_point}`).join(', ')}`,
       Object.freeze({ unsupported: Object.freeze(unsupported) }),
     );
   }

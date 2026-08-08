@@ -27,7 +27,7 @@ export {
   framedFontRenderInventoryDigest,
   loadFramedFontRenderInventory,
   parseUnicodeRanges,
-  selectFramedFontFaces,
+  selectFramedHeaderOverlayFontFaces,
   verifyHtmlFontBundle,
 } from "./internal/html_fonts.mjs";
 

@@ -85,9 +85,9 @@ export function scanMarkdownLinks(file, text = readFileSync(file, "utf8"), linkE
 }
 
 const STALE_RULES = [
-  ["external-image-skill", /(?:Stage 2[^\n]*(?:image2-ppt|\.claude\/skills|\.agents\/skills)|<skills>\/image2-ppt|unified_pipeline\.mjs[^\n]*image2-ppt skill)/i, "use the receipt-bound Page Authority raw lifecycle"],
+  ["external-image-skill", /(?:Stage 2[^\n]*(?:image2-ppt|\.claude\/skills|\.agents\/skills)|<skills>\/image2-ppt|unified_pipeline\.mjs[^\n]*image2-ppt skill)/i, "use the receipt-bound Page Image raw lifecycle"],
   ["old-path", /(?:ppt_maker_harness\/)?(?:automation\/change-classifier\.md|06_reference_scripts\/|00_project_setup\/|01_visual_style_master\/|02_content_design\/|03_image_prompts\/|04_production_pipeline\/|05_iteration\/)/, "replace with the current type-based Harness path"],
-  ["unsupported-stage-run-dir", /stage[345]_[a-z0-9_]+\.mjs\s+--run-dir\b/i, "use the current Page Authority `ppt_flow` operation instead"],
+  ["unsupported-stage-run-dir", /stage[345]_[a-z0-9_]+\.mjs\s+--run-dir\b/i, "use the current Page Image `ppt_flow` operation instead"],
   ["complete-copy-version", /(?:版本快照|new-version|--new-version)[^\n]*(?:完整复制|完整拷贝|complete copy)/i, "state that only downstream source delta is copied and _generated is clean"],
 ];
 
@@ -156,7 +156,7 @@ export function scanSemanticDrift(file, text = readFileSync(file, "utf8")) {
       issues.push(issue(file, lineAt(text, offset), "structural-bypass", "slide addition is routed directly to Generated Image Rebuild", "enter Structural Versioning Path before affected-slide refresh"));
     }
     if (/(?:raw\s+)?unified_pipeline[^\n]*--only[^\n]*(?:automatically|auto(?:matically)?|自动|隐式).{0,30}(?:force|强制|刷新)/i.test(line) && !/(?:does not|doesn't|不|不会|并非|不是)/i.test(line)) {
-      issues.push(issue(file, lineAt(text, offset), "only-implies-force", "raw --only is described as forcing regeneration", "state that Page Authority raw generation requires an explicit authorized scope"));
+      issues.push(issue(file, lineAt(text, offset), "only-implies-force", "raw --only is described as forcing regeneration", "state that Page Image raw generation requires an explicit authorized scope"));
     }
     offset += line.length + 1;
   }

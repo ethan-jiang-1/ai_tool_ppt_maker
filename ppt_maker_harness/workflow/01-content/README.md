@@ -1,5 +1,5 @@
 ---
-title: Page Authority Content
+title: Page Image Content
 stage: workflow/01-content
 position: entry
 type: overview
@@ -7,18 +7,18 @@ feeds_into:
   - workflow/01-content/00-the-problem-why-slide-count-fails.md
 ---
 
-# Phase 1: Page Authority Content
+# Phase 1: Page Image Content
 
-Turn the brief into an ordered, reviewable Page Authority source before any raw
+Turn the brief into an ordered, reviewable Page Image source before any raw
 generation. Start with the core metaphor, formula, and Block Map, then give every
 slide a stable mnemonic ID, one reviewable claim, and a closed `VISUAL BRIEF`.
 Before source validation/provider work, bind the whole version to one `framed`
 or `pure` workflow; slides do not select authority individually.
 
 The canonical source is `3_versions/vN/slide-specifications.md`. It declares
-`production.pipeline: page-authority-image2-v2`, `production.workflow: framed|pure`,
+`production.pipeline: page-image-workflow-v1`, `production.workflow: framed|pure`,
 and `identity.scheme: mnemonic-v1`. `position` is snapshot order; `slide_id` is
-cross-version identity. A non-v2 source is a byte-preserving
+cross-version identity. A v2 source is a byte-preserving
 `unsupported-protocol/export` hard-stop and cannot enter current authoring.
 
 Read in order:

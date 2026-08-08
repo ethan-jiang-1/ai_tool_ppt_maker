@@ -7,13 +7,13 @@ import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle
 import { readState, statePath, validateStateReadOnly } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
 function currentFixture() {
-  const root = mkdtempSync(join(tmpdir(), "page-authority-state-"));
+  const root = mkdtempSync(join(tmpdir(), "page-image-state-"));
   const deck = join(root, "deck_current");
   initBundle(deck, null, "keynote", "dark-executive");
   return { root, deck, runDir: join(deck, "3_versions", "v1") };
 }
 
-describe("Page Authority state boundary", () => {
+describe("Page Image state boundary", () => {
   it("reads a current state without observation mutation", () => {
     const fixture = currentFixture();
     try {

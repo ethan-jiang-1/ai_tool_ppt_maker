@@ -1,17 +1,17 @@
 # Node Specification
 
 Markdown playbooks are the workflow authority. `state.yaml` stores only the
-current execution pointer and Page Authority evidence; it does not define a
+current execution pointer and Page Image evidence; it does not define a
 second workflow.
 
 ## Controller declaration
 
-Controllers declare the Page Authority pipelines they can consume. New v2
-authoring uses `page-authority-image2-v2` /
-`image2-page-authority-v2`, and target nodes declare one or both
+Controllers declare the Page Image pipelines they can consume. New
+authoring uses `page-image-workflow-v1` /
+`image2-page-workflow-v1`, and target nodes declare one or both
 `production_workflows: [framed|pure]`. The selected workflow route is
 `03-framed-image XOR 04-pure-image -> 05-delivery -> 06-iteration`; `05` nodes
-apply to both workflows without semantic branching. A non-v2 source/state pair
+apply to both workflows without semantic branching. A v2 source/state pair
 is a byte-preserving `unsupported-protocol/export` hard-stop.
 
 Node IDs are global kebab-case. Entry and exit conditions must be explicit,
@@ -23,16 +23,16 @@ its own completion as an entry condition.
 For each selected target `vN`, `_state/state.yaml` records:
 
 ```yaml
-pipeline: page-authority-image2-v2
+pipeline: page-image-workflow-v1
 production_mode:
   by_version:
     3_versions/v1:
-      mode: image2-page-authority-v2
+      mode: image2-page-workflow-v1
       workflow: framed # or pure
       source_epoch: 1
 ```
 
-Fresh v2 authoring drafts have no mode record until the human has explicitly
+Fresh authoring drafts have no mode record until the human has explicitly
 selected `framed|pure` and the source receipt is bound. The metadata mirror is
 display-only. It never selects a route or repairs state. Target evidence records
 source receipt, workflow, authorization, accepted raw evidence, final manifest,
@@ -40,8 +40,8 @@ and delivery references. Unknown or retired node/evidence records fail closed.
 
 ## Inspection
 
-Inspection returns one v2 workflow action for an exact target pair or one
-workflow-selection confirm for a fresh v2 draft. A non-v2, partial, hybrid, or
+Inspection returns one Page Image Workflow action for an exact target pair or one
+workflow-selection confirm for a fresh draft. A v2, partial, hybrid, or
 mismatched pair returns the owner-issued `unsupported-protocol/export` action.
 Inspection never produces a historical cursor, approval, provider request, or
 adapter.

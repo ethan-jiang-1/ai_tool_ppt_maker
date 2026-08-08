@@ -14,7 +14,7 @@ import {
   runAllChecks,
 } from '../../ppt_maker_harness/scripts/00-setup/internal/env_check.mjs';
 import { parseCliErrorLine } from '../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs';
-import { currentFramedRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
+import { currentFramedHeaderOverlayRenderProfile } from '../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_profile.mjs';
 
 const ENV_CHECK = 'ppt_maker_harness/scripts/00-setup/env-check.mjs';
 const REQUIRED = ['@napi-rs/canvas', 'pptxgenjs', 'commander', 'playwright'];
@@ -265,7 +265,7 @@ describe('env-check optional Git public wiring', () => {
       let stdout = '';
       let status = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-authority-v2 --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow-v1 --operation raw-generation`, {
           encoding: 'utf8',
           timeout: 15_000,
           env: {
@@ -341,7 +341,7 @@ describe('00-env-check', () => {
 
   it.each([
     ['base', []],
-    ['raw-generation', ['--mode', 'image2-page-authority-v2', '--operation', 'raw-generation']],
+    ['raw-generation', ['--mode', 'image2-page-workflow-v1', '--operation', 'raw-generation']],
     ['smoke', ['--smoke']],
     ['probe-vendors', ['--probe-vendors']],
   ])('emits exactly one parseable JSON document in %s mode', (_mode, modeArgs) => {
@@ -398,16 +398,16 @@ describe('00-env-check', () => {
     expect(data.checks.filter((check) => ['chromium', 'html_fonts', 'framed_render_profile', 'html_runtime_smoke'].includes(check.check)).map((check) => check.status)).toEqual(['ok', 'ok', 'ok', 'ok']);
     expect(data.checks.find((check) => check.check === 'api_key')).toBeUndefined();
     expect(data.checks.find((check) => check.check === 'image_base_url')).toBeUndefined();
-    expect(data.checks.find((check) => check.check === 'page_authority_raw_generator')).toBeUndefined();
+    expect(data.checks.find((check) => check.check === 'page_image_raw_generator')).toBeUndefined();
   });
 
-  it('reports Page Authority raw owners for the raw-generation operation', () => {
-    const { stdout } = runCheck('--json --mode image2-page-authority-v2 --operation raw-generation');
+  it('reports Page Image raw owners for the raw-generation operation', () => {
+    const { stdout } = runCheck('--json --mode image2-page-workflow-v1 --operation raw-generation');
     const data = JSON.parse(stdout);
-    const generator = data.checks.find(c => c.check === 'page_authority_raw_generator');
+    const generator = data.checks.find(c => c.check === 'page_image_raw_generator');
     expect(generator).toBeDefined();
     expect(generator.status).toBe('ok');
-    expect(generator.detail).toMatch(/Page Authority raw compiler/);
+    expect(generator.detail).toMatch(/Page Image raw compiler/);
   });
 });
 
@@ -503,7 +503,7 @@ describe('env-check Image2 base URL hard fail', () => {
       let stdout = '';
       let exitCode = 0;
       try {
-        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-authority-v2 --operation raw-generation`, {
+        stdout = execSync(`node ${join(process.cwd(), ENV_CHECK)} --json --mode image2-page-workflow-v1 --operation raw-generation`, {
           encoding: 'utf-8',
           timeout: 15000,
           cwd,
@@ -844,10 +844,10 @@ describe('env-check v2 mode boundary', () => {
   });
 });
 
-describe('env-check Page Authority operation profiles', () => {
-  function runPageAuthorityCheck(args, env = process.env) {
+describe('env-check Page Image operation profiles', () => {
+  function runPageImageCheck(args, env = process.env) {
     try {
-      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-authority-v2', ...args], {
+      const stdout = execFileSync('node', [join(process.cwd(), ENV_CHECK), '--json', '--mode', 'image2-page-workflow-v1', ...args], {
         encoding: 'utf8',
         timeout: 30_000,
         env: { ...env, IMAGE2_API_KEY: '', IMAGE2_BASE_URL: '' },
@@ -859,19 +859,19 @@ describe('env-check Page Authority operation profiles', () => {
   }
 
   it('reports the exact production profile for default Framed-local readiness', () => {
-    const result = runPageAuthorityCheck([]);
-    const productionProfile = currentFramedRenderProfile();
+    const result = runPageImageCheck([]);
+    const productionProfile = currentFramedHeaderOverlayRenderProfile();
     expect(result.exitCode).toBe(0);
     expect(result.report).toMatchObject({
       allPass: true,
-      profile: 'page-authority-framed',
+      profile: 'page-image-framed',
       profiles: [
         { id: 'framed-runtime', current_action_ready: true, deferred: false },
       ],
     });
     const checks = result.report.checks.map((check) => check.check);
     expect(checks).toContain('playwright');
-    expect(checks).not.toContain('page_authority_raw_generator');
+    expect(checks).not.toContain('page_image_raw_generator');
     expect(result.report.checks.find((check) => check.check === 'framed_render_profile')).toMatchObject({
       status: 'ok',
       profile: {
@@ -885,30 +885,30 @@ describe('env-check Page Authority operation profiles', () => {
   });
 
   it('makes raw generation credentials a hard requirement without requiring the Framed runtime', () => {
-    const result = runPageAuthorityCheck(['--operation', 'raw-generation']);
+    const result = runPageImageCheck(['--operation', 'raw-generation']);
     expect(result.exitCode).not.toBe(0);
     expect(result.report).toMatchObject({
       allPass: false,
-      profile: 'page-authority-raw',
+      profile: 'page-image-raw',
       profiles: [{ id: 'image2-raw', current_action_ready: false, deferred: false }],
     });
     const checks = result.report.checks.map((check) => check.check);
-    expect(checks).toContain('page_authority_raw_generator');
+    expect(checks).toContain('page_image_raw_generator');
     expect(checks).not.toContain('playwright');
   });
 
   it('keeps a local Framed refresh provider-free', () => {
-    const result = runPageAuthorityCheck(['--operation', 'framed-local-refresh']);
+    const result = runPageImageCheck(['--operation', 'framed-local-refresh']);
     expect(result.exitCode).toBe(0);
     const checks = result.report.checks.map((check) => check.check);
     expect(result.report).toMatchObject({
       allPass: true,
-      profile: 'page-authority-framed',
+      profile: 'page-image-framed',
       profiles: [{ id: 'framed-runtime', current_action_ready: true, deferred: false }],
     });
     expect(checks).toContain('playwright');
     expect(checks).not.toContain('api_key');
-    expect(checks).not.toContain('page_authority_raw_generator');
+    expect(checks).not.toContain('page_image_raw_generator');
   });
 
   it('does not initialize a provider while checking Framed-local readiness', async () => {
@@ -918,15 +918,15 @@ describe('env-check Page Authority operation profiles', () => {
       classify: vi.fn(async () => { throw new Error('provider must remain unused'); }),
       host: vi.fn(async () => { throw new Error('provider must remain unused'); }),
     };
-    const { results } = await runAllChecks({ profile: 'page-authority-framed', providerApi });
-    expect(results.some((check) => check.check === 'api_key' || check.check === 'page_authority_raw_generator')).toBe(false);
+    const { results } = await runAllChecks({ profile: 'page-image-framed', providerApi });
+    expect(results.some((check) => check.check === 'api_key' || check.check === 'page_image_raw_generator')).toBe(false);
     for (const probe of Object.values(providerApi)) expect(probe).not.toHaveBeenCalled();
   });
 
   it('reports a missing paired browser without acquiring one', () => {
     const browserCache = mkdtempSync(join(tmpdir(), 'env-empty-browser-cache-'));
     try {
-      const result = runPageAuthorityCheck(['--operation', 'framed-local-refresh'], {
+      const result = runPageImageCheck(['--operation', 'framed-local-refresh'], {
         ...process.env,
         PLAYWRIGHT_BROWSERS_PATH: browserCache,
       });

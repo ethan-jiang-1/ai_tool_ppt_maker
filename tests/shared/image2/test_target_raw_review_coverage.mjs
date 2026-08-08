@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas } from "@napi-rs/canvas";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,19 +17,19 @@ import {
 } from "../../../ppt_maker_harness/scripts/04-pure-image/index.mjs";
 import {
   createRawWorkPlan,
-  pageAuthorityOrdinalImageFilename,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_artifacts.mjs";
+  pageImageOrdinalImageFilename,
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   createTargetRawReviewContribution,
-  currentTargetRawReviewProjectionCaptureProfile,
   prepareTargetRawReview,
   projectTargetRawReviewContribution,
   validateTargetRawReviewContribution,
-} from "../../../ppt_maker_harness/scripts/shared/image2/page_authority_target_runtime.mjs";
+} from "../../../ppt_maker_harness/scripts/shared/image2/page_image_target_runtime.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { pageAuthorityImage2Paths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
+import { pageImageProviderInputBinding } from "../../helpers/page_image_provider_input_binding.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -38,7 +38,7 @@ function source() {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -73,7 +73,7 @@ async function createPureFixture(root, name, imageBytes) {
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), imageBytes);
   writeFileSync(join(runDir, "slide-specifications.md"), source());
   await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
-  return { deck, runDir, paths: pageAuthorityImage2Paths(runDir) };
+  return { deck, runDir, paths: pageImageWorkflowPaths(runDir) };
 }
 
 async function submitPureRaw(runDir, imageBytes) {
@@ -92,8 +92,16 @@ describe("target raw-review coverage", () => {
       provider_profile_sha256: "b".repeat(64),
       authorization_scope_sha256: "c".repeat(64),
       items: [
-        { slide_id: "FlowUp", raw_contract_sha256: "d".repeat(64) },
-        { slide_id: "DeckGo", raw_contract_sha256: "e".repeat(64) },
+        {
+          slide_id: "FlowUp",
+          raw_contract_sha256: "d".repeat(64),
+          provider_input_binding: pageImageProviderInputBinding({ workflow: "framed", compiled: "1" }),
+        },
+        {
+          slide_id: "DeckGo",
+          raw_contract_sha256: "e".repeat(64),
+          provider_input_binding: pageImageProviderInputBinding({ workflow: "framed", compiled: "2" }),
+        },
       ],
     });
     const contribution = createTargetRawReviewContribution({
@@ -144,7 +152,7 @@ describe("target raw-review coverage", () => {
       const plan = buildPureTargetRawPlan(runDir);
       await authorizePureTargetRawPlan(runDir, { planHash: plan.raw_work_plan.sha256 });
       await generatePureTargetRawPlan(runDir, { planHash: plan.raw_work_plan.sha256, submit: async () => imageBytes });
-      const paths = pageAuthorityImage2Paths(runDir);
+      const paths = pageImageWorkflowPaths(runDir);
       const contribution = createPureTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan });
       const partialContribution = structuredClone(contribution);
       partialContribution.coverage.items.pop();
@@ -155,32 +163,47 @@ describe("target raw-review coverage", () => {
 
       const prepared = await preparePureTargetRawReview(runDir);
       const review = JSON.parse(readFileSync(paths.target_raw_review, "utf8"));
-      const projectionBytes = readFileSync(paths.target_raw_review_projection);
-      const profile = currentTargetRawReviewProjectionCaptureProfile();
-      const projectionCanvas = createCanvas(1032, 347);
-      const projectionContext = projectionCanvas.getContext("2d");
-      projectionContext.drawImage(await loadImage(projectionBytes), 0, 0);
-      const labelBand = projectionContext.getImageData(16, 300, 500, 30).data;
+      const reviewRoot = join(paths.review_root, "complete-page", plan.raw_work_plan.sha256);
+      const reviewEvidencePath = join(reviewRoot, "complete-page-review-evidence-v1.json");
+      const reviewProjectionPath = join(reviewRoot, "complete-page-review.png");
+      const projectionBytes = readFileSync(reviewProjectionPath);
+      const presentation = JSON.parse(readFileSync(reviewEvidencePath, "utf8"));
 
       expect(review).toEqual({
-        schema: "page-authority-target-raw-review-v2",
+        schema: "page-image-complete-page-review-v1",
         source_epoch: plan.source_epoch,
         workflow: "pure",
         raw_bytes_sha256: canonicalJsonSha256([{ slide_id: "DeckGo", raw_sha256: sha256(imageBytes) }]),
         typed_review_contribution_sha256: contribution.typed_review_contribution_sha256,
+        complete_page_presentation_sha256: canonicalJsonSha256(presentation),
         projection_sha256: sha256(projectionBytes),
-        projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
+        projection_capture_profile_sha256: presentation.projection_capture_profile_sha256,
         decision: null,
+      });
+      expect(presentation).toMatchObject({
+        schema: "page-image-complete-page-review-presentation-v1",
+        raw_work_plan_sha256: plan.raw_work_plan.sha256,
+        source_epoch: plan.source_epoch,
+        workflow: "pure",
+        typed_review_contribution_sha256: contribution.typed_review_contribution_sha256,
+        projection_sha256: sha256(projectionBytes),
+        has_complete_page_artifact: false,
+        items: [{
+          slide_id: "DeckGo",
+          raw_provider_page_sha256: sha256(imageBytes),
+          complete_page_sha256: sha256(imageBytes),
+        }],
       });
       expect(prepared).toMatchObject({
         typed_review_contribution_sha256: contribution.typed_review_contribution_sha256,
-        projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
+        complete_page_presentation_sha256: canonicalJsonSha256(presentation),
+        projection_capture_profile_sha256: presentation.projection_capture_profile_sha256,
       });
       expect(review).not.toHaveProperty("raw_work_plan_sha256");
       expect(review).not.toHaveProperty("source_receipt_sha256");
-      expect(Array.from(labelBand).some((_channel, index) => index % 4 === 0 &&
-        labelBand[index] < 80 && labelBand[index + 1] < 80 && labelBand[index + 2] < 80)).toBe(true);
-      expect(() => decidePureTargetRawReview(runDir, { decision: "force" })).toThrow(/decision must be proceed, repair, or redirect/);
+      expect(existsSync(paths.target_raw_review_projection)).toBe(false);
+      expect(() => decidePureTargetRawReview(runDir, { decision: "force" })).toThrow(/decision must be proceed or repair/);
+      expect(() => decidePureTargetRawReview(runDir, { decision: "redirect" })).toThrow(/decision must be proceed or repair/);
       expect(existsSync(paths.target_raw_evidence)).toBe(false);
 
       const expectReviewDriftStops = (driftedReview) => {
@@ -192,16 +215,16 @@ describe("target raw-review coverage", () => {
       expectReviewDriftStops({ ...review, source_epoch: review.source_epoch + 1 });
       expectReviewDriftStops({ ...review, projection_capture_profile_sha256: "f".repeat(64) });
 
-      const rawSlidePath = join(paths.raw_root, pageAuthorityOrdinalImageFilename(1, "DeckGo"));
+      const rawSlidePath = join(paths.raw_root, pageImageOrdinalImageFilename(1, "DeckGo"));
       writeFileSync(rawSlidePath, solidPng("#7c2d12"));
-      expect(() => decidePureTargetRawReview(runDir, { decision: "proceed" })).toThrow(/current coverage/);
+      expect(() => decidePureTargetRawReview(runDir, { decision: "proceed" })).toThrow(/current adapter evidence/);
       expect(existsSync(paths.target_raw_evidence)).toBe(false);
       writeFileSync(rawSlidePath, imageBytes);
 
       const tampered = Buffer.from(projectionBytes);
       tampered[tampered.length - 1] ^= 1;
-      writeFileSync(paths.target_raw_review_projection, tampered);
-      expect(() => decidePureTargetRawReview(runDir, { decision: "proceed" })).toThrow(/current coverage/);
+      writeFileSync(reviewProjectionPath, tampered);
+      expect(() => decidePureTargetRawReview(runDir, { decision: "proceed" })).toThrow(/current adapter evidence/);
       expect(existsSync(paths.target_raw_evidence)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -220,9 +243,8 @@ describe("target raw-review coverage", () => {
       await submitPureRaw(second.runDir, secondBytes);
       mkdirSync(dirname(second.paths.target_raw_review), { recursive: true });
       writeFileSync(second.paths.target_raw_review, readFileSync(first.paths.target_raw_review));
-      writeFileSync(second.paths.target_raw_review_projection, readFileSync(first.paths.target_raw_review_projection));
 
-      expect(() => decidePureTargetRawReview(second.runDir, { decision: "proceed" })).toThrow(/current coverage/);
+      expect(() => decidePureTargetRawReview(second.runDir, { decision: "proceed" })).toThrow(/current adapter evidence/);
       await expect(buildPureTargetDelivery(second.runDir)).rejects.toMatchObject({ code: "target_accepted_raw_evidence_required" });
       expect(existsSync(second.paths.target_raw_evidence)).toBe(false);
 

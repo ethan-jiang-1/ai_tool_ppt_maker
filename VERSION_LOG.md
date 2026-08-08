@@ -20,6 +20,29 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.24.4 — Fixed-Profile JPEG Delivery Media（2026-08-08）
+
+**代号**：JPEG-backed delivery
+
+> 归档 `add-jpeg-delivery-media`：shared delivery 对每个有效 final PNG 派生同序 `NN_slideID.jpg`
+> 交付表示（同像素尺寸、quality 95、4:4:4 chroma、alpha 对不透明白展平），并把 digest、文件名、
+> 固定 profile 与来源 final PNG digest 绑定到精确的 final-slide manifest。PPTX 只嵌入已验证的
+> JPEG 交付媒体；notes injection 与 state 绑定新的 JPEG 交付谱系；stale JPEG 在组装前重建；
+> 派生失败 hard-stop 并保留既有交付。raw/final PNG bytes、hash、尺寸与 provenance 不变。
+
+### 变了什么
+
+1. `05-delivery` 对每个 ordered final PNG 派生固定 profile 的 JPEG delivery media，并发布
+   `page-image-delivery-media-v1` manifest；final PNG 仍是 finalization artifact。
+2. PPTX assembly、notes injection 与 state 的 current 交付谱系均校验并绑定 JPEG delivery-media digest
+  与 ordered entries；缺失该绑定的旧 receipt 走 normal delivery rebuild，不做 hand migration。
+3. 派生失败在替换 PPTX/发布 receipt 前 hard-stop；JPEG 转换 profile 是机械 delivery metadata，
+  不暴露 quality/subsampling/resize/background override。
+4. `image-production`、`pptx-assembly`、`notes-injection`、`node-specification`、`run-bundle-layout`
+  main specs 同步新增 JPEG delivery-media 契约。
+
+---
+
 ## v0.24.3 — Render Pure Slide Text In Provider Prompt（2026-08-05）
 
 **代号**：Text-forward pure slides

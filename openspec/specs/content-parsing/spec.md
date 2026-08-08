@@ -1,8 +1,8 @@
 ## Purpose
 
-Define Page Authority source parsing for `slide-specifications.md`. Parsing
-validates the current source marker, stable identity, per-slide authority, closed
-visual brief, and Framed Text Frame receipt before any provider or derived-artifact
+Define Page Image Workflow source parsing for `slide-specifications.md`. Parsing
+validates the current source marker, stable identity, one version workflow, closed
+visual brief, Provider Content Schema, and Framed Header Rendering Policy receipt before any provider or derived-artifact
 work begins.
 ## Requirements
 ### Requirement: Stage 1 emits stable identity and derived position
@@ -26,7 +26,7 @@ the cross-version identity. New template/init sources SHALL declare
 ### Requirement: Stage 1 preserves stable-ID inputs across ordering-only changes
 
 The source parser SHALL exclude physical position, heading number, source block
-order, and position-bearing display names from expensive Page Authority raw inputs.
+order, and position-bearing display names from expensive Page Image Workflow raw inputs.
 Reordering alone SHALL leave semantic raw inputs byte-equivalent for every retained
 slide.
 
@@ -36,147 +36,130 @@ slide.
 - **THEN** each retained ID has the same semantic raw input as before
 - **AND** only order-dependent projections are rebuilt
 
-### Requirement: Framed display fields remain local receipt data
+### Requirement: Current Page Image Workflow source is a closed homogeneous protocol
 
-For Framed slides, `TITLE` SHALL be required and optional kicker, subtitle, and
-callout SHALL normalize into the fixed `standard-v1` Text Frame receipt. Pure
-slides SHALL reject a frame preset. Identity selection and the typed visual brief
-shall validate before receipt compilation.
+Current production source parsing SHALL accept only
+`production.pipeline: page-image-workflow-v1` with exactly one
+`production.workflow` value, `framed` or `pure`. It SHALL bind that
+version-level policy, the ordered stable slide IDs, and the canonical source
+digest into a `page-image-workflow-source-v1` receipt before any raw or
+provider work. Every resolved slide SHALL inherit that one policy; the parser
+SHALL NOT infer it from a slide, artifact, directory, or omitted field.
 
-#### Scenario: Contradictory frame or identity selection is rejected
+`hybrid`, `PAGE AUTHORITY`, `production.page_authority_default`, a per-slide
+workflow override, or an incomplete source/state protocol pair SHALL fail at
+the identity boundary with the owner-issued `unsupported-protocol/export` or
+source-repair action. In particular, a
+`page-authority-image2-v2` source is unsupported input and SHALL NOT produce a
+receipt, plan, adapter route, state repair, or source rewrite.
 
-- **WHEN** a Pure slide selects a frame preset or an identity selection violates its restriction
-- **THEN** parsing returns the field-level repair diagnostic
-- **AND** no raw contract is emitted
+#### Scenario: Current Framed source emits one homogeneous receipt
 
-### Requirement: Page Authority source admits only a closed visual-brief selection
+- **WHEN** a source selects `page-image-workflow-v1` and `framed` with valid
+  stable slide IDs
+- **THEN** parsing emits one `page-image-workflow-source-v1` receipt bound to
+  that source digest and workflow
+- **AND** every receipt slide inherits `framed` without a per-slide authority
+  member
 
-Every Page Authority slide SHALL contain exactly one `VISUAL BRIEF` mapping with
-the registered recipe, composition, motifs, and negative constraints. It MAY add
-one optional lower-kebab plain-string relationship id only as the fifth and final key, after
-`negative_constraints`. Free prose, unregistered IDs, unknown keys, aliases,
-anchors, tags, an out-of-order relationship key, and contradictory authority/text
-constraints SHALL fail at the source span before a receipt or raw contract is
-emitted.
+#### Scenario: v2 source is rejected before receipt creation
 
-When no relationship key is declared, the parser SHALL preserve the exact
-pre-change four-key visual-brief receipt object. When the key is declared, the
-parser SHALL carry only its lower-kebab plain id to the visual-language resolver; it SHALL NOT
-accept source-owned reading order, primitive, bounds, clause text, or geometry.
+- **WHEN** a source selects `page-authority-image2-v2`
+- **THEN** parsing returns the bounded `unsupported-protocol/export` hard-stop before
+  receipt or raw-plan creation
+- **AND** it does not convert, rewrite, or infer a replacement workflow
 
-#### Scenario: Free visual prose cannot enter a Page Authority request
+### Requirement: Provider Content Schema is the only provider-visible source content
 
-- **WHEN** a slide supplies a prose scalar, unknown visual-brief key, or unregistered ID
-- **THEN** parsing returns the field-level repair diagnostic before registry compilation
-- **AND** no provider payload, authorization scope, or raw contract is created
+Each Page Image Workflow slide SHALL declare provider-rendered visible copy in
+at most one `**SLIDE BODY**` YAML block. The block SHALL be a mapping with
+exactly one `items` key whose value is an array of zero through eight items.
+Each item SHALL have exactly `role` and `literal`, plus optional
+`copy_policy`; `role` SHALL be one of `body`, `label`, `metric`,
+`diagram_text`, `quote`, `callout`, or `supporting_copy`, and `literal` SHALL
+be a non-empty source string of at most 240 Unicode code points.
 
-#### Scenario: Optional relationship is position-bound
+`copy_policy` SHALL default to `exact`. The only other value is
+`presentation_adaptable`, which SHALL be accepted only for an explicitly
+non-factual `supporting_copy` item and for no more than two items on a slide.
+All claims, facts, numbers, names, labels, headers, and unmarked literals
+remain exact. The schema SHALL reject free-form `BODY`, a display `CALLOUT`,
+unknown keys, coordinates, typography, provider prompt text, YAML aliases, or
+an item that attempts to declare local rendering ownership.
 
-- **WHEN** a VISUAL BRIEF supplies a registered relationship id as its fifth key
-- **THEN** the parser carries only that id to visual-language selection
-- **AND** a relationship key in any other position, a non-plain or non-lower-kebab id, or an extra sixth key
-  fails before receipt compilation
+The receipt SHALL carry this normalized Provider Content Schema separately from
+visual direction and from the local header fields. It SHALL preserve each exact
+literal and declared adaptation permission; parsing SHALL not shorten,
+rewrite, or invent content.
 
-#### Scenario: Four-key source preserves its receipt semantics
+#### Scenario: Framed slide carries provider-rendered callout content
 
-- **WHEN** a valid existing VISUAL BRIEF declares only recipe, composition, motifs, and
-  negative_constraints in their original order
-- **THEN** the parsed visual-brief receipt object is byte-equivalent to the pre-change
-  four-key object
-- **AND** it carries no relationship member
+- **WHEN** a Framed slide supplies a valid `SLIDE BODY` item with role
+  `callout` and an exact literal
+- **THEN** the receipt records it as provider-rendered content
+- **AND** it does not add that callout to the local header renderer
 
-### Requirement: Current source parsing is Page Authority-only
-Current production source parsing SHALL accept only the v2 Page Authority grammar and bind every slide to the version's selected Framed or Pure workflow. A non-v2 source marker or shape SHALL fail before receipt compilation and return the owner-issued unsupported-protocol hard-stop; it SHALL NOT publish a plan, adapter, receipt, or inferred workflow.
+#### Scenario: Unmarked factual copy cannot become adaptable
 
-#### Scenario: Non-v2 source cannot produce a current plan
-- **WHEN** a source carries a non-v2 marker or per-slide authority grammar
-- **THEN** normal parsing returns the bounded unsupported-protocol action before producing a receipt or raw owner
-- **AND** it does not rewrite source bytes
+- **WHEN** a `metric`, `label`, or `body` item declares
+  `presentation_adaptable`
+- **THEN** parsing reports the offending item as a source error
+- **AND** no receipt or provider input is created
 
-### Requirement: TARGET Page Authority source selects one version workflow
-For `production.pipeline: page-authority-image2-v2`, the source parser SHALL require exactly one `production.workflow` value: `framed` or `pure`. It SHALL bind that value, the ordered stable slide IDs, and the canonical source digest into a `page-authority-image2-source-v2` receipt before raw or provider work. Every resolved target slide SHALL inherit the receipt workflow; the parser SHALL NOT infer a workflow from a slide, artifact, directory, or omitted field.
+#### Scenario: Free-form or layout-bearing body is rejected
 
-TARGET source SHALL reject `production.page_authority_default`, any per-slide `PAGE AUTHORITY` declaration, a missing workflow, an unsupported workflow, and any non-v2 source shape.
+- **WHEN** a slide supplies inline `BODY`, a display `CALLOUT`, a free-form
+  YAML scalar, or a coordinate in `SLIDE BODY`
+- **THEN** parsing returns the bounded Provider Content Schema repair action
+- **AND** it does not treat the field as provider content or local frame data
 
-#### Scenario: Target workflow receipt is homogeneous
-- **WHEN** a source has pipeline `page-authority-image2-v2`, workflow `framed`, and valid stable slides
-- **THEN** parsing publishes one `page-authority-image2-source-v2` receipt with workflow `framed`
-- **AND** every slide is resolved through the Framed workflow without a per-slide authority selection
+### Requirement: Header Rendering Policy has a closed fixed header set
 
-#### Scenario: Non-v2 grammar fails before provider work
-- **WHEN** a v2 source contains `page_authority_default` or a slide `PAGE AUTHORITY` declaration
-- **THEN** parsing rejects the source with the unsupported-protocol or target-shape repair action
-- **AND** no provider payload or source receipt is created
+The canonical source header fields are `KICKER`, `TITLE`, and `SUBTITLE`.
+For `framed`, `TITLE` and a valid Framed preset SHALL be required and the
+receipt SHALL expose those exact literals only as the local header-renderer
+input plus provider context not to render. For `pure`, the same header literals
+are provider-visible content to render and a Framed preset SHALL be forbidden.
+Neither workflow SHALL use a per-slide fixed-field list or move a body, label,
+metric, quote, or callout into local rendering ownership.
 
-### Requirement: VISUAL SCENE is an optional single-occurrence inline source field
+#### Scenario: Framed header is closed to three literals
 
-The v2 Page Authority source grammar SHALL recognize `**VISUAL SCENE**` as an
-optional, single-occurrence, inline bold field on any slide. Its value SHALL be
-one non-empty inline text value and SHALL be carried into the slide receipt as
-`visual_scene` (raw text). A slide without the field SHALL have `visual_scene`
-`null`. A missing value or more than one occurrence SHALL be reported as a
-source error.
+- **WHEN** a valid Framed slide supplies kicker, title, subtitle, and provider
+  content
+- **THEN** the receipt exposes only kicker, title, and subtitle to the local
+  header-renderer input
+- **AND** all provider-rendered content remains outside that input
 
-The field SHALL NOT be interpreted as a display field (KICKER/TITLE/SUBTITLE/
-CALLOUT), a visual-identity field, or a closed `VISUAL BRIEF` selection. The
-source parser SHALL NOT apply the text guard to `visual_scene`; guard
-validation is owned by the workflow adapter at raw-contract compilation.
+#### Scenario: Pure source cannot select a Framed preset
 
-#### Scenario: Scene present
+- **WHEN** a Pure source supplies `FRAME PRESET`
+- **THEN** parsing returns a field-level source repair action
+- **AND** it does not produce a mixed-policy receipt
 
-- **WHEN** a Pure or Framed slide contains exactly one `**VISUAL SCENE**` field
-  with a non-empty inline value
-- **THEN** the receipt slide carries that raw text as `visual_scene`
-- **AND** the source validates without a scene-related error
+### Requirement: Page Image source retains one closed visual-language selection
 
-#### Scenario: Scene absent
+Each current Page Image Workflow slide SHALL contain exactly one `VISUAL BRIEF`
+mapping that selects registered recipe, composition, motifs, and negative visual
+constraints, with an optional registered relationship as its final key. The
+mapping SHALL remain separate from `SLIDE BODY` literals and Header Rendering
+Policy: it SHALL not carry provider copy, local-rendering ownership, free
+prompt prose, coordinates, typography, or a text-free-page instruction.
+Unknown keys, YAML aliases or tags, unregistered IDs, an out-of-order
+relationship, or a visual clause that conflicts with the closed content schema
+SHALL fail before a receipt or provider input is created.
 
-- **WHEN** a slide has no `**VISUAL SCENE**` field
-- **THEN** the receipt slide has `visual_scene` `null`
-- **AND** the rest of the source validates exactly as before
+#### Scenario: Visual selection cannot become content authority
 
-#### Scenario: Empty scene
+- **WHEN** a Page Image slide supplies a valid visual brief and Provider
+  Content Schema items
+- **THEN** the receipt records the visual selection separately from the exact
+  provider-visible literals
+- **AND** no visual registry clause rewrites or supplies a literal
 
-- **WHEN** a slide contains `**VISUAL SCENE**:` with no inline value
-- **THEN** the source reports an empty-page-authority-field error
-- **AND** no receipt is published for that source
+#### Scenario: Invalid visual ingress stops before receipt creation
 
-#### Scenario: Duplicate scene
-
-- **WHEN** a slide contains more than one `**VISUAL SCENE**` field
-- **THEN** the source reports a duplicate-page-authority-field error for each
-  occurrence after the first
-- **AND** no receipt is published for that source
-
-### Requirement: BODY is an optional single-occurrence inline source field
-
-The v2 Page Authority source grammar SHALL recognize `**BODY**` as an optional,
-single-occurrence, inline bold field on any slide. Its value SHALL be one
-non-empty inline text value and SHALL be carried into the slide receipt as
-`body` (raw text). A slide without the field SHALL have `body` `null`. A
-missing value or more than one occurrence SHALL be reported as a source error.
-
-The field SHALL NOT be interpreted as a display field (KICKER/TITLE/SUBTITLE/
-CALLOUT), a `VISUAL BRIEF` selection, or a `VISUAL SCENE`. The existing Framed
-semantic check SHALL continue to reject `BODY` on Framed slides
-(`framed_semantic_body_forbidden`); Pure slides SHALL carry it to the workflow
-adapter.
-
-#### Scenario: Body present on a Pure slide
-
-- **WHEN** a Pure slide contains exactly one `**BODY**` field with a non-empty
-  inline value
-- **THEN** the receipt slide carries that raw text as `body`
-- **AND** the source validates without a body-related error
-
-#### Scenario: Body absent
-
-- **WHEN** a slide has no `**BODY**` field
-- **THEN** the receipt slide has `body` `null`
-- **AND** the rest of the source validates exactly as before
-
-#### Scenario: Framed BODY stays forbidden
-
-- **WHEN** a Framed slide contains a `**BODY**` field
-- **THEN** the existing `framed_semantic_body_forbidden` source error is reported
-- **AND** no receipt is published for that source
+- **WHEN** a visual brief supplies free prose, an unregistered ID, a content
+  literal, or a text-free-page instruction
+- **THEN** parsing returns the field-level visual repair action
+- **AND** it does not create a receipt, adapter route, or provider input

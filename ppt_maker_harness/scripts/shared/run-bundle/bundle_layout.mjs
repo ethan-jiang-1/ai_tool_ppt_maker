@@ -3,7 +3,7 @@
  * bundle_layout.mjs — THE SINGLE SOURCE OF TRUTH for the run-bundle directory structure.
  *
  * Everything that needs to know "where does X live in a run bundle" imports from here:
- * - current Page Authority operations build every derived path from these constants;
+ * - current Page Image operations build every derived path from these constants;
  * - the docs are generated/validated against `renderTree()` so they can never drift.
  *
  * If you want to change the run-bundle layout, change it HERE and nowhere else. Do not
@@ -34,7 +34,7 @@
  *     │   └── visual-style/
  *     │       ├── style-master-prompt.md   the prompt that GENERATES style_master
  *     │       ├── style_master.jpg
- *     │       └── page-authority-visual-language.yaml
+ *     │       └── page-image-visual-language.yaml
  *     │
  *     └── 3_versions/
  *         └── v1/                        DOWNSTREAM delta · one design iteration · --run-dir
@@ -73,8 +73,9 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { readState, writeState, setNodeStatus, createTargetAuthoringState, STATE_DIR, STATE_FILE, STATE_DIR_README, statePath } from '../state/state.mjs';
-import { PAGE_AUTHORITY_IMAGE2_V2_PIPELINE, TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isTargetWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
-import { PRODUCTION_MODES, TARGET_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
+import { PAGE_IMAGE_WORKFLOW_V1_PIPELINE, PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE, isPageImageWorkflowSelectionPending, probeProductionMarker } from './production_marker.mjs';
+import { PRODUCTION_MODES, PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, canonicalVersionKey, isProductionMode, normalizeRunVersion, pipelineFromSourceMarker, productionPolicyForMode } from './production_mode.mjs';
+import { evaluateReplacementIdentity } from './page_image_workflow_identity.mjs';
 import {
     canonicalHarnessRoot,
     currentHarnessRoot,
@@ -84,27 +85,27 @@ import {
 } from './run_bundle_locator.mjs';
 import {
     GENERATED_SUBDIR,
-    GEN_PAGE_AUTHORITY_FINAL_SUBDIR,
-    GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR,
-    GEN_PAGE_AUTHORITY_RAW_SUBDIR,
-    GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR,
-    GEN_PAGE_AUTHORITY_REVIEW_SUBDIR,
-    isPageAuthorityVersionDir,
-    PAGE_AUTHORITY_IMAGE2_PATHS,
-    pageAuthorityImage2Paths,
+    GEN_PAGE_IMAGE_FINAL_SUBDIR,
+    GEN_PAGE_IMAGE_WORKFLOW_SUBDIR,
+    GEN_PAGE_IMAGE_RAW_SUBDIR,
+    GEN_PAGE_IMAGE_RECEIPTS_SUBDIR,
+    GEN_PAGE_IMAGE_REVIEW_SUBDIR,
+    isPageImageVersionDir,
+    PAGE_IMAGE_WORKFLOW_PATHS,
+    pageImageWorkflowPaths,
     STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
     STYLE_MASTER_STAGING_SUBDIR,
     STYLE_MASTER_PLANS_SUBDIR,
     STYLE_MASTER_SCOPES_SUBDIR,
-    pageAuthorityStyleMasterPaths,
+    pageImageStyleMasterPaths,
     PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH,
     PAGE_PRODUCTION_STAGING_SUBDIR,
     PAGE_PRODUCTION_PLANS_SUBDIR,
     PAGE_PRODUCTION_SCOPES_SUBDIR,
-    pageAuthorityProgressiveRawPaths,
+    pageImageProgressiveRawPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
-} from './page_authority_paths.mjs';
+} from './page_image_paths.mjs';
 
 // Production-mode policy is consumed by the root CLI through this public
 // run-bundle interface; the policy module itself remains an internal detail.
@@ -112,32 +113,32 @@ export { PRODUCTION_MODES, canonicalVersionKey, isProductionMode, normalizeRunVe
 export { verifyDeckHarnessBinding };
 export {
     GENERATED_SUBDIR,
-    GEN_PAGE_AUTHORITY_FINAL_SUBDIR,
-    GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR,
-    GEN_PAGE_AUTHORITY_RAW_SUBDIR,
-    GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR,
-    GEN_PAGE_AUTHORITY_REVIEW_SUBDIR,
-    PAGE_AUTHORITY_IMAGE2_PATHS,
-    pageAuthorityImage2Paths,
+    GEN_PAGE_IMAGE_FINAL_SUBDIR,
+    GEN_PAGE_IMAGE_WORKFLOW_SUBDIR,
+    GEN_PAGE_IMAGE_RAW_SUBDIR,
+    GEN_PAGE_IMAGE_RECEIPTS_SUBDIR,
+    GEN_PAGE_IMAGE_REVIEW_SUBDIR,
+    PAGE_IMAGE_WORKFLOW_PATHS,
+    pageImageWorkflowPaths,
     STYLE_MASTER_ITERATIONS_RELATIVE_PATH,
     STYLE_MASTER_STAGING_SUBDIR,
     STYLE_MASTER_PLANS_SUBDIR,
     STYLE_MASTER_SCOPES_SUBDIR,
-    pageAuthorityStyleMasterPaths,
+    pageImageStyleMasterPaths,
     PAGE_PRODUCTION_ITERATIONS_RELATIVE_PATH,
     PAGE_PRODUCTION_STAGING_SUBDIR,
     PAGE_PRODUCTION_PLANS_SUBDIR,
     PAGE_PRODUCTION_SCOPES_SUBDIR,
-    pageAuthorityProgressiveRawPaths,
+    pageImageProgressiveRawPaths,
     SLIDE_SPECS_NAME,
     VERSIONS_DIR,
 };
 
 /**
  * Production mode assumed when `ppt_flow init` omits `--mode`. New decks use
- * Page Authority Image2 v2.
+ * the current Page Image Workflow protocol.
  */
-export const DEFAULT_INIT_MODE = TARGET_PRODUCTION_MODE;
+export const DEFAULT_INIT_MODE = PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE;
 
 function validateInitMode(mode) {
     if (mode !== DEFAULT_INIT_MODE) {
@@ -221,7 +222,7 @@ export const BACKBONE_STYLE_SUBDIR = 'visual-style';
 // ---------------------------------------------------------------------------
 export const STYLE_MASTER_PROMPT = 'style-master-prompt.md';
 export const STYLE_MASTER_IMAGE = 'style_master.jpg';
-export const PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE = 'page-authority-visual-language.yaml';
+export const PAGE_IMAGE_VISUAL_LANGUAGE_FILE = 'page-image-visual-language.yaml';
 const STYLE_MASTER_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
 const STYLE_MASTER_STAGING_DIRECTORY_RE = /^plan-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const STYLE_MASTER_VERSION_DIRECTORY_RE = /^v[0-9]+$/;
@@ -229,43 +230,42 @@ const STYLE_MASTER_WORKFLOWS = new Set(['framed', 'pure']);
 const PAGE_PRODUCTION_PLAN_DIRECTORY_RE = /^[0-9a-f]{64}$/;
 const PAGE_PRODUCTION_STAGING_DIRECTORY_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-const PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-authority-visual-language-v1
+const PAGE_IMAGE_VISUAL_LANGUAGE_SEED = `schema: pptmaker-page-image-visual-language-v1
 revision: 1
-text_guard: page-authority-text-guard-v1
 recipes:
   editorial-systems:
     provider_clause: architectural editorial scene, layered amber and cobalt light, quiet depth
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     composition_ids: [centered-constellation]
     motif_ids: [connected-nodes]
     identity_subject_classes: [none]
 compositions:
   centered-constellation:
     provider_clause: centered focal form with balanced negative space
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     min_motifs: 0
     max_motifs: 1
 motifs:
   connected-nodes:
     provider_clause: luminous connected nodes with measured spacing
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation]
 relationships:
   layer-stack:
     provider_clause: nested translucent planes rising from broad base to focused apex
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation]
     reading_order: bottom-to-top
   causal-flow:
     provider_clause: connected luminous forms progressing from left origin to right outcome
-    authorities: [pure-image2, framed-image2]
+    workflows: [framed, pure]
     recipe_ids: [editorial-systems]
     composition_ids: [centered-constellation]
     reading_order: left-to-right
 `;
-const PAGE_AUTHORITY_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
+const PAGE_IMAGE_REFERENCE_REGISTRY_SEED = `schema: pptmaker-image2-reference-registry-v1
 profiles: {}
 `;
 
@@ -348,7 +348,7 @@ export const BACKBONE_SUBDIRS = Object.freeze([BACKBONE_MANUSCRIPT_SUBDIR, BACKB
 export const BACKBONE_OPTIONAL = new Set(['visual-style.md']);
 
 export const VISUAL_STYLE_FILES = Object.freeze([
-    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE,
+    STYLE_MASTER_PROMPT, STYLE_MASTER_IMAGE, PAGE_IMAGE_VISUAL_LANGUAGE_FILE,
 ]);
 
 export const VISUAL_STYLE_OPTIONAL = new Set([
@@ -450,7 +450,7 @@ export function deckName(runDir) {
 }
 
 export function isVersionDir(runDir) {
-    return isPageAuthorityVersionDir(runDir);
+    return isPageImageVersionDir(runDir);
 }
 
 // ---------------------------------------------------------------------------
@@ -507,14 +507,14 @@ function _isMacOsSystemEntry(name) {
     return name === '.DS_Store';
 }
 
-function _checkPageAuthorityGeneratedOwnership(runDir, problems) {
+function _checkPageImageGeneratedOwnership(runDir, problems) {
     const generated = path.join(runDir, GENERATED_SUBDIR);
     if (!fs.existsSync(generated) || !fs.statSync(generated).isDirectory()) return;
     for (const entry of fs.readdirSync(generated, { withFileTypes: true })) {
         if (_isMacOsSystemEntry(entry.name)) continue;
         if (entry.name === 'README.md' && entry.isFile()) continue;
-        if (entry.name !== GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR || !entry.isDirectory()) {
-            problems.push(`unexpected current generated owner '${entry.name}' — Page Authority owns ${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/ only`);
+        if (entry.name !== GEN_PAGE_IMAGE_WORKFLOW_SUBDIR || !entry.isDirectory()) {
+            problems.push(`unexpected current generated owner '${entry.name}' — Page Image owns ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/ only`);
         }
     }
 }
@@ -625,7 +625,7 @@ export function checkStyleMasterCompatibilityPayload(runDir, { requireJpeg = fal
 export function checkStyleMasterHistoryLayout(runDir) {
     let paths;
     try {
-        paths = pageAuthorityStyleMasterPaths(runDir);
+        paths = pageImageStyleMasterPaths(runDir);
     } catch (error) {
         return [error.message];
     }
@@ -698,7 +698,7 @@ export function checkStyleMasterHistoryLayout(runDir) {
 export function checkProgressivePageProductionHistoryLayout(runDir) {
     let paths;
     try {
-        paths = pageAuthorityProgressiveRawPaths(runDir);
+        paths = pageImageProgressiveRawPaths(runDir);
     } catch (error) {
         return [error.message];
     }
@@ -834,24 +834,29 @@ export function checkBundle(runDir, requirePipelineReady = true) {
     const root = deckRoot(runDir);
     const canonicalSource = path.join(runDir, SLIDE_SPECS_NAME);
     const sourceCandidate = fs.existsSync(canonicalSource) ? canonicalSource : findSlideSpecs(runDir);
-    let currentPageAuthority = false;
+    let currentPageImage = false;
     let branchValid = true;
     if (sourceCandidate) {
-        const marker = probeProductionMarker(fs.readFileSync(sourceCandidate), { source: path.basename(sourceCandidate) });
-        if (isTargetWorkflowSelectionPending(marker)) {
-            currentPageAuthority = false;
-            problems.push(TARGET_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
+        const sourceBytes = fs.readFileSync(sourceCandidate);
+        const identity = evaluateReplacementIdentity({ sourceBytes, sourcePath: sourceCandidate });
+        if (!identity.ok && mode !== 'structure') {
+            return [`${identity.code}: preserve the unsupported source bytes and use ${identity.owner_action}`];
+        }
+        const marker = probeProductionMarker(sourceBytes, { source: path.basename(sourceCandidate) });
+        if (isPageImageWorkflowSelectionPending(marker)) {
+            currentPageImage = false;
+            problems.push(PAGE_IMAGE_WORKFLOW_SELECTION_REQUIRED_MESSAGE);
         } else if (marker.branch === 'invalid') {
             branchValid = false;
             for (const entry of marker.issues) problems.push(`invalid production marker: ${entry.message}`);
-        } else if (marker.branch === PAGE_AUTHORITY_IMAGE2_V2_PIPELINE) {
-            currentPageAuthority = true;
+        } else if (marker.branch === PAGE_IMAGE_WORKFLOW_V1_PIPELINE) {
+            currentPageImage = true;
         } else {
             branchValid = false;
             problems.push('unsupported production source cannot pass normal bundle validation');
         }
     }
-    const needGates = branchValid && currentPageAuthority && mode === 'pipeline';
+    const needGates = branchValid && currentPageImage && mode === 'pipeline';
 
     problems.push(...checkDeckRootControls(root));
     const bbPath = path.join(root, BACKBONE_DIR);
@@ -974,7 +979,7 @@ export function checkBundle(runDir, requirePipelineReady = true) {
         }
     }
 
-    _checkPageAuthorityGeneratedOwnership(runDir, problems);
+    _checkPageImageGeneratedOwnership(runDir, problems);
     return problems;
 }
 
@@ -1217,7 +1222,7 @@ function _writeIfAbsent(filePath, content) {
     }
 }
 
-const _PAGE_AUTHORITY_SEEDS = Object.freeze({
+const _PAGE_IMAGE_SEEDS = Object.freeze({
     generic: Object.freeze({ id: 'DeckGo', title: 'State the deck\'s governing idea', visualType: 'Hero statement' }),
     keynote: Object.freeze({ id: 'KeyGo', title: 'State the keynote\'s consequential idea', visualType: 'Keynote opener' }),
     pitch: Object.freeze({ id: 'AskGo', title: 'State the venture\'s memorable promise', visualType: 'Pitch opener' }),
@@ -1226,16 +1231,16 @@ const _PAGE_AUTHORITY_SEEDS = Object.freeze({
 });
 
 /** Canonical v2 authoring draft. It becomes runnable only after workflow selection. */
-function _pageAuthoritySeedSource(deckType = null) {
-    const seed = _PAGE_AUTHORITY_SEEDS[deckType || 'generic'];
+function _pageImageSeedSource(deckType = null) {
+    const seed = _PAGE_IMAGE_SEEDS[deckType || 'generic'];
     return `---
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
 ---
 
-# Page Authority Image2 v2 source
+# Page Image Image2 v2 source
 
 Before source validation or provider work, record exactly one version workflow under
 \`production\`: \`workflow: framed\` when the local Text Frame owns title-like text, or
@@ -1249,7 +1254,7 @@ closed \`VISUAL BRIEF\` selection from the visual-language registry.
 
 /** Source text + label for a production mode's canonical seed. */
 function _seedSourceForMode(deckType) {
-    return { source: _pageAuthoritySeedSource(deckType), label: 'Page Authority Image2 v2 authoring draft' };
+    return { source: _pageImageSeedSource(deckType), label: 'Page Image Image2 v2 authoring draft' };
 }
 
 const _DIR_READMES = {
@@ -1280,7 +1285,7 @@ const _DIR_READMES = {
     [`${BACKBONE_DIR}/${BACKBONE_STYLE_SUBDIR}`]: (
         '# 视觉主干\n\n' +
         '**这里放什么:**\n' +
-        '- `page-authority-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
+        '- `page-image-visual-language.yaml` — current recipe, composition, motif, and frame inputs\n' +
         '- `style-master-prompt.md` — Style Master intent input; `style_master.jpg` — derived compatibility JPEG after acceptance\n' +
         '- `assets/asset-manifest.yaml` — verified local references\n\n' +
         '**权威:** 当前 version/workflow 的 accepted selection 在 `_state/state.yaml`; `style_master.jpg` 只按 override-first/backbone-default 路径投影，不能单独通过 raw gate。\n\n' +
@@ -1293,7 +1298,7 @@ const _DIR_READMES = {
         '- `svg/` — SVG 矢量资产\n' +
         '- `reference/` — PNG/JPG 参考图\n' +
         '- `icons/` — 图标集\n\n' +
-        '**你做什么:** 添加资产文件到此目录，在 `asset-manifest.yaml` 注册，然后从 Page Authority Visual Brief 的已注册引用语义使用。\n' +
+        '**你做什么:** 添加资产文件到此目录，在 `asset-manifest.yaml` 注册，然后从 Page Image Visual Brief 的已注册引用语义使用。\n' +
         '**这是可选基础设施:** 不需要资产时忽略此目录即可，管线在无 assets/ 时正常运作。\n'
     ),
     [`${BACKBONE_DIR}/${BACKBONE_MANUSCRIPT_SUBDIR}`]: (
@@ -1311,7 +1316,7 @@ const _DIR_READMES = {
     [`${VERSIONS_DIR}/v1`]: (
         '# 这一版(v1)\n\n' +
         '**你改这两处:**\n' +
-        '- `slide-specifications.md` — 每一页的 stable ID、Page Authority、Text Frame/Visual Brief 和 notes\n' +
+        '- `slide-specifications.md` — 每一页的 stable ID、Page Image、Text Frame/Visual Brief 和 notes\n' +
         '- `overrides/` — 只放这一版偏离 backbone 的东西(比如这版单独换配色);空 = 全继承 backbone\n\n' +
         '**临时/备份:** `_scratch/` — 改源前的 `.bak`、草稿（上严下松：别丢到 deck 根）\n\n' +
         '**别碰:** `_generated/` — 那是机器生成的成品,改源文件后会被覆盖重建。\n\n' +
@@ -1327,8 +1332,8 @@ const _DIR_READMES = {
     ),
     [`${VERSIONS_DIR}/v1/${GENERATED_SUBDIR}`]: (
         '# 派生品(_generated)——别手改\n\n' +
-        '**这里全是机器生成的**:Page Authority receipts、raw/review/final evidence、图片、PPTX 和 notes receipt。\n' +
-        '**不要手改任何东西**——改源文件(slide-specifications.md / backbone)后重跑当前 Page Authority lifecycle,这里会被覆盖重建。\n' +
+        '**这里全是机器生成的**:Page Image receipts、raw/review/final evidence、图片、PPTX 和 notes receipt。\n' +
+        '**不要手改任何东西**——改源文件(slide-specifications.md / backbone)后重跑当前 Page Image lifecycle,这里会被覆盖重建。\n' +
         '整个目录可以 `rm -rf` 掉,需要时从源文件重新生成。\n'
     ),
     [`${VERSIONS_DIR}/v1/${SCRATCH_SUBDIR}`]: SCRATCH_DIR_README,
@@ -1473,17 +1478,17 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
     // Stub asset-manifest.yaml (placeholder — user registers assets here when needed)
     _writeIfAbsent(
         path.join(deckDir, assetsBase, ASSET_MANIFEST_FILE),
-        '# Page Authority asset manifest — optional local asset catalog.\n' +
+        '# Page Image asset manifest — optional local asset catalog.\n' +
         '# Bind registered IDs only through current source reference fields.\n' +
         '\n' +
         'version: 2\n' +
         'assets: {}\n');
     _writeIfAbsent(
-        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE),
-        PAGE_AUTHORITY_VISUAL_LANGUAGE_SEED);
+        path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, PAGE_IMAGE_VISUAL_LANGUAGE_FILE),
+        PAGE_IMAGE_VISUAL_LANGUAGE_SEED);
     _writeIfAbsent(
         path.join(deckDir, BACKBONE_DIR, BACKBONE_STYLE_SUBDIR, BACKBONE_ASSETS_SUBDIR, ASSET_REFERENCE_SUBDIR, 'image2-reference-material.yaml'),
-        PAGE_AUTHORITY_REFERENCE_REGISTRY_SEED);
+        PAGE_IMAGE_REFERENCE_REGISTRY_SEED);
     log.push(`asset catalog: ${assetsBase}/${ASSET_MANIFEST_FILE}`);
 
     _writeIfAbsent(
@@ -1539,7 +1544,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
         state.gates.content = 'pending';
         state.gates.visual = 'pending';
         setNodeStatus(state, 'checkpoint-intake', 'completed');
-        state.current_node = 'select-target-page-authority-workflow';
+        state.current_node = 'select-target-page-image-workflow';
         writeState(deckDir, state);
         log.push(`state: ${STATE_DIR}/${STATE_FILE} (mode:${mode})`);
     }
@@ -1547,7 +1552,7 @@ function initBundleForMode(deckDir, harnessDir = null, deckType = null, style = 
     return log;
 }
 
-/** Public new-deck initializer: only Page Authority Image2 may be created. */
+/** Public new-deck initializer: only Page Image Image2 may be created. */
 export function initBundle(deckDir, harnessDir = null, deckType = null, style = null, options = {}) {
     const mode = validateInitMode(options.mode ?? DEFAULT_INIT_MODE);
     return initBundleForMode(deckDir, harnessDir, deckType, style, { mode });
@@ -1573,11 +1578,11 @@ deck_\${NAME}/
 │   └── *.md | *.yaml                   ← one lesson per file (e.g. image2-proven.yaml)
 │
 ├── ${UPSTREAM_DIR}/          ← 上游 UPSTREAM · raw material · shared · append-mostly · no versions
-│   └── style-master-iterations/           ← immutable Style Master candidate history; not current selection
+│   └── page-image-style-master-iterations/ ← immutable Style Master candidate history; not current selection
 │       ├── _staging/plan-<unique>/         ← incomplete owner-only staging; never authority
 │       ├── plans/<plan-sha256>/             ← append-mostly immutable plans/candidates/provenance
 │       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per exact scope
-│   └── page-production-iterations/         ← immutable progressive page raw history; not generated output
+│   └── page-image-workflow-iterations/     ← immutable progressive page history; not generated output
 │       ├── _staging/{plan,record,materialization}-<unique>/ ← owner-only incomplete records
 │       ├── plans/<plan-sha256>/             ← append-mostly plan/batch/attempt/provenance containers
 │       └── scopes/vN/{framed,pure}/head.json ← one mutable current-plan pointer per exact scope
@@ -1591,8 +1596,8 @@ deck_\${NAME}/
 │   └── ${BACKBONE_STYLE_SUBDIR}/
 │       ├── ${STYLE_MASTER_PROMPT}
 │       ├── ${STYLE_MASTER_IMAGE}            ← override-first/backbone-default JPEG compatibility projection only
-│       ├── ${PAGE_AUTHORITY_VISUAL_LANGUAGE_FILE}
-│       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Authority reference registry
+│       ├── ${PAGE_IMAGE_VISUAL_LANGUAGE_FILE}
+│       └── ${BACKBONE_ASSETS_SUBDIR}/                   ← optional Page Image reference registry
 │           ├── ${ASSET_MANIFEST_FILE}
 │           ├── ${ASSET_SVG_SUBDIR}/
 │           ├── ${ASSET_REFERENCE_SUBDIR}/
@@ -1600,16 +1605,16 @@ deck_\${NAME}/
 │
 └── ${VERSIONS_DIR}/                       ← 下游 DOWNSTREAM · 微调+生产 · versions live here
     ├── v1/                               ← --run-dir (one design iteration = downstream delta)
-    │   ├── ${SLIDE_SPECS_NAME}       ← Page Authority source; the version selects Framed or Pure
+    │   ├── ${SLIDE_SPECS_NAME}       ← Page Image source; the version selects Framed or Pure
     │   ├── ${OVERRIDES_SUBDIR}/                    ← only what THIS version changes vs backbone; empty = inherit
     │   │   ├── ${BACKBONE_STYLE_SUBDIR}/           ←   (optional) this version's visual tweaks
     │   │   └── ${BACKBONE_MANUSCRIPT_SUBDIR}/               ←   (optional) this version's script tweaks
     │   ├── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │   │   ├── ${GEN_PAGE_AUTHORITY_IMAGE2_SUBDIR}/
-    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RECEIPTS_SUBDIR}/source-receipt.json
-    │   │   │   ├── ${GEN_PAGE_AUTHORITY_RAW_SUBDIR}/{manifest.json, <slide_id>.png}
-    │   │   │   ├── ${GEN_PAGE_AUTHORITY_REVIEW_SUBDIR}/{raw-review.png, coverage.json}
-    │   │   │   └── ${GEN_PAGE_AUTHORITY_FINAL_SUBDIR}/{manifest.json, projection.png, deck.pptx, notes-receipt.json}
+    │   │   ├── ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/
+    │   │   │   ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json
+    │   │   │   ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan-v1.json, <slide_id>.png}
+    │   │   │   ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review-v1.png, complete-page-coverage-v1.json}
+    │   │   │   └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest-v1.json, deck.pptx, notes-receipt.json}
     │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;
@@ -1830,7 +1835,7 @@ function _main() {
         const deckDir = path.resolve(args.init);
         if (!path.basename(deckDir).startsWith('deck_')) {
             console.error(
-                `✗ deck dir name must start with 'deck_' (Page Authority delivery derives the .pptx name from it); ` +
+                `✗ deck dir name must start with 'deck_' (Page Image delivery derives the .pptx name from it); ` +
                 `got: ${path.basename(deckDir)}`);
             emitCliError({ code: CLI_ERROR_CODES.USAGE, message: "Deck directory name must start with deck_.", hint: "Rename the target directory and rerun init.", where: "bundle_layout.init.name", diagnostic: { version: 1, category: "usage", operation: "init", subject: { kind: "deck", id: path.basename(deckDir) }, source: { path: deckDir }, next: createCliNext("fix_arguments", { inspect: [{ path: path.dirname(deckDir) }], default: "Choose a target directory whose basename starts with deck_." }) } });
             process.exit(1);

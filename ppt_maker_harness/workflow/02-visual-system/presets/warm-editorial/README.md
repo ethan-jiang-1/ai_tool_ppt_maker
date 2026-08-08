@@ -25,8 +25,9 @@ agent_action: recommend
 | premium | `#b8860b` |
 | calm | `#7c9082` |
 
-Framed slides use the local Text Frame for exact quote, caption, and header text.
-Pure slides place semantic display text in Image2. Photography and references
+Framed slides use the local transparent header overlay only for header text;
+quotes and captions are Provider-rendered. Pure slides place all display text in
+the Provider page. Photography and references
 must be registered and fingerprinted; do not treat a style sample as source truth.
 
 适合品牌故事、社会影响、人文和设计叙事。不适合数据密集报告或需要冷峻精密感的深科技 deck。

@@ -1,36 +1,44 @@
 import {
-  FRAMED_TEXT_FRAME_PRESET,
-  FRAMED_TEXT_FRAME_STANDARD_V1,
-  FRAMED_TEXT_FRAME_STANDARD_V1_DIGEST,
-  FramedTextFrameError,
-  resolveFramedTextFramePreset,
-} from "./internal/text_frame.mjs";
+  FRAMED_HEADER_OVERLAY_PRESET,
+  FRAMED_HEADER_OVERLAY_STANDARD_V1,
+  FRAMED_HEADER_OVERLAY_STANDARD_V1_DIGEST,
+  FramedHeaderOverlayError,
+  resolveFramedHeaderOverlayPreset,
+} from "./internal/header_overlay.mjs";
 import {
-  composeFramedRenderContracts,
-  describeFramedFrame,
-  verifyFramedRenderContracts,
+  composeFramedHeaderOverlays,
+  describeFramedHeaderOverlay,
+  verifyFramedHeaderOverlays,
 } from "./internal/framed_render_contract.mjs";
-import { currentFramedRenderProfile } from "./internal/framed_render_profile.mjs";
+import { currentFramedHeaderOverlayRenderProfile } from "./internal/framed_render_profile.mjs";
 import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
-  pageAuthorityOrdinalImageFilename,
-  validateAcceptedRawEvidence,
   validateAcceptedRawEvidenceForFinalization,
   validateRawWorkPlan,
-} from "../shared/image2/page_authority_artifacts.mjs";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { publishCurrentFinalSlideManifest } from "../shared/image2/page_authority_final_manifest.mjs";
-import { canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
-import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
-import { pageAuthorityImage2Paths } from "../shared/run-bundle/page_authority_paths.mjs";
-import { parsePageAuthoritySource } from "../01-content/index.mjs";
+} from "../shared/image2/page_image_artifacts.mjs";
 import {
-  createPageAuthoritySourceResolver,
-  loadPageAuthorityVisualLanguage,
-  normalizePageAuthorityTextGuard,
+  publishCompletePageReviewPresentation,
+  publishPilotPageReviewPresentation,
+  validateCompletePageReviewPresentation,
+  validatePilotPageReviewPresentation,
+} from "../shared/image2/page_image_complete_page_review.mjs";
+import { publishCurrentFinalSlideManifest } from "../shared/image2/page_image_final_manifest.mjs";
+import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
+import { sha256Bytes } from "../shared/identity/byte_hash.mjs";
+import { parsePageImageSource } from "../01-content/index.mjs";
+import {
+  createPageImageSourceResolver,
+  loadPageImageVisualLanguage,
 } from "../02-visual-system/index.mjs";
+import {
+  PageImageCoreError,
+  createPageImageCoreFacts,
+  createPageImageProviderInputBinding,
+  normalizePageImageHeaderPolicy,
+  normalizePageImageProviderContent,
+} from "../shared/page-image/page_image_core.mjs";
+import { evaluatePageImageInvalidation } from "../shared/page-image/page_image_invalidation.mjs";
 import {
   authorizeTargetRawWork,
   buildTargetRawGenerationProfile,
@@ -40,7 +48,6 @@ import {
   generateTargetRawWork,
   materializeTargetSourceCandidateContext,
   prepareTargetRawReview,
-  publishProgressiveTargetCompleteRawReview,
   readTargetAcceptedRawWork,
   readTargetFinalWork,
   recordTargetDelivery,
@@ -53,15 +60,17 @@ import {
   resolveTargetSourceContext,
   targetSourceSemanticSha256,
   targetRawPlanProjection,
+  validateTargetCurrentRawReview,
   validateTargetRawReviewContribution,
   writeTargetProviderRequestInspection,
   writeTargetFinalManifest,
   writeProgressiveTargetFinalManifest,
   writeTargetRawWorkPlan,
-  isPageAuthorityProviderClausesBoundToVisualLanguage,
-  isPageAuthorityProviderClausesShape,
+  isPageImageProviderClausesBoundToVisualLanguage,
+  isPageImageProviderClausesShape,
+  TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
   TARGET_RAW_CONTRACT_SCHEMA,
-} from "../shared/image2/page_authority_target_runtime.mjs";
+} from "../shared/image2/page_image_target_runtime.mjs";
 import {
   acceptProgressiveRawCompleteReview,
   acceptProgressiveRawPilot,
@@ -77,7 +86,7 @@ import {
   publishProgressiveRawWorkPlan,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
-} from "../shared/image2/page_authority_progressive_raw_owner.mjs";
+} from "../shared/image2/page_image_progressive_raw_owner.mjs";
 import {
   recordTargetProgressiveAcceptedRawEvidence,
   recordTargetProgressiveCompleteRawReview,
@@ -92,26 +101,28 @@ import {
 } from "../shared/image2/style_master_scope.mjs";
 import {
   deliverTargetFinalSlideManifest,
-  refreshTargetPageAuthorityNotes,
+  refreshTargetPageImageNotes,
 } from "../05-delivery/index.mjs";
 
 /** TARGET Framed workflow owner. Behavior moves here from the bounded v1 adapter. */
 export const FRAMED_IMAGE_WORKFLOW = "framed";
 
 export const FRAMED_IMAGE_APPROVED_SHARED_INTERFACES = Object.freeze([
-  "shared/image2/page_authority_artifacts.mjs",
-  "shared/image2/page_authority_final_manifest.mjs",
-  "shared/image2/page_authority_raw_mechanics.mjs",
-  "shared/image2/page_authority_target_runtime.mjs",
+  "shared/image2/page_image_artifacts.mjs",
+  "shared/image2/page_image_final_manifest.mjs",
+  "shared/image2/page_image_raw_mechanics.mjs",
+  "shared/image2/page_image_target_runtime.mjs",
   "shared/identity/canonical_json.mjs",
+  "shared/page-image/page_image_core.mjs",
+  "shared/page-image/page_image_invalidation.mjs",
 ]);
 
 export {
-  FRAMED_TEXT_FRAME_PRESET,
-  FRAMED_TEXT_FRAME_STANDARD_V1,
-  FRAMED_TEXT_FRAME_STANDARD_V1_DIGEST,
-  FramedTextFrameError,
-  resolveFramedTextFramePreset,
+  FRAMED_HEADER_OVERLAY_PRESET,
+  FRAMED_HEADER_OVERLAY_STANDARD_V1,
+  FRAMED_HEADER_OVERLAY_STANDARD_V1_DIGEST,
+  FramedHeaderOverlayError,
+  resolveFramedHeaderOverlayPreset,
 };
 
 export class FramedImageWorkflowError extends Error {
@@ -131,16 +142,23 @@ const FRAMED_RAW_CONTRACT_KEYS = Object.freeze([
   "visual_identity_role_clause",
   "visual_scene",
   "visual_identity",
+  "page_image_core",
+  "provider_rendered_content",
   "framed",
 ]);
+const FRAMED_RAW_CONTRACT_CORE_KEYS = Object.freeze(["schema", "canonical_semantic_sha256"]);
+const FRAMED_PROVIDER_RENDERED_CONTENT_KEYS = Object.freeze(["items"]);
 const FRAMED_RAW_CONTRACT_FRAME_KEYS = Object.freeze([
   "preset",
   "preset_digest",
   "canvas",
-  "reserved_underlay_rectangles",
+  "protected_geometry",
+  "local_header",
+  "context_not_to_render",
   "render_profile_digest",
-  "text_free",
 ]);
+const FRAMED_HEADER_POLICY_KEYS = Object.freeze(["frame_preset", "local_header", "context_not_to_render"]);
+const FRAMED_HEADER_FIELDS = Object.freeze(["kicker", "title", "subtitle"]);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 
 function hasExactKeys(value, keys) {
@@ -163,20 +181,25 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
       rawContract.workflow !== FRAMED_IMAGE_WORKFLOW ||
       typeof rawContract.slide_id !== "string" || !rawContract.slide_id ||
       !rawContract.visual_language || typeof rawContract.visual_language !== "object" || Array.isArray(rawContract.visual_language) ||
-      !isPageAuthorityProviderClausesShape(rawContract.provider_clauses) ||
-      !isPageAuthorityProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
+      !isPageImageProviderClausesShape(rawContract.provider_clauses) ||
+      !isPageImageProviderClausesBoundToVisualLanguage(rawContract.visual_language, rawContract.provider_clauses) ||
       (rawContract.visual_identity_role_clause !== null && typeof rawContract.visual_identity_role_clause !== "string") ||
       (rawContract.visual_scene !== null && typeof rawContract.visual_scene !== "string") ||
       (rawContract.visual_identity !== null && (!rawContract.visual_identity || typeof rawContract.visual_identity !== "object" || Array.isArray(rawContract.visual_identity))) ||
+      !hasExactKeys(rawContract.page_image_core, FRAMED_RAW_CONTRACT_CORE_KEYS) ||
+      rawContract.page_image_core.schema !== "page-image-core-slide-facts-v1" ||
+      !SHA256_RE.test(rawContract.page_image_core.canonical_semantic_sha256 || "") ||
+      !hasExactKeys(rawContract.provider_rendered_content, FRAMED_PROVIDER_RENDERED_CONTENT_KEYS) ||
+      !Array.isArray(rawContract.provider_rendered_content.items) ||
       !hasExactKeys(rawContract.framed, FRAMED_RAW_CONTRACT_FRAME_KEYS)) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has an invalid canonical shape");
     }
     const frame = rawContract.framed;
     if (frame.preset !== renderProfile?.preset?.id ||
       frame.preset_digest !== renderProfile?.preset?.digest ||
-      !Array.isArray(frame.reserved_underlay_rectangles) || frame.reserved_underlay_rectangles.length === 0 ||
-      frame.reserved_underlay_rectangles.some((rectangle) => !isRectangle(rectangle, frame.canvas)) ||
-      frame.text_free !== true || !SHA256_RE.test(frame.render_profile_digest || "")) {
+      !Array.isArray(frame.protected_geometry) || frame.protected_geometry.length === 0 ||
+      frame.protected_geometry.some((rectangle) => !isRectangle(rectangle, frame.canvas)) ||
+      !SHA256_RE.test(frame.render_profile_digest || "")) {
       throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract has invalid frame facts");
     }
     if (!SHA256_RE.test(renderProfile?.render_profile_digest || "")) {
@@ -184,6 +207,17 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
     }
     if (frame.render_profile_digest !== renderProfile.render_profile_digest) {
       throw new FramedImageWorkflowError("framed_raw_contract_profile_stale", "Framed raw contract does not bind the current render profile");
+    }
+    const headerPolicy = normalizePageImageHeaderPolicy({
+      frame_preset: frame.preset,
+      local_header: frame.local_header,
+      context_not_to_render: frame.context_not_to_render,
+    }, FRAMED_IMAGE_WORKFLOW);
+    const providerContent = normalizePageImageProviderContent(rawContract.provider_rendered_content);
+    if (canonicalJsonSha256(headerPolicy.local_header) !== canonicalJsonSha256(frame.local_header) ||
+      canonicalJsonSha256(headerPolicy.context_not_to_render) !== canonicalJsonSha256(frame.context_not_to_render) ||
+      canonicalJsonSha256(providerContent.items) !== canonicalJsonSha256(rawContract.provider_rendered_content.items)) {
+      throw new FramedImageWorkflowError("framed_raw_contract_invalid", "Framed raw contract must retain normalized Page Image Core facts");
     }
     return Object.freeze({
       ok: true,
@@ -201,12 +235,12 @@ function validateFramedRawContractAgainstProfile(rawContract, renderProfile) {
 
 /** Validate one Framed raw contract against the canonical current render profile. */
 export function validateFramedRawContract(rawContract) {
-  return validateFramedRawContractAgainstProfile(rawContract, currentFramedRenderProfile());
+  return validateFramedRawContractAgainstProfile(rawContract, currentFramedHeaderOverlayRenderProfile());
 }
 
 function requireReceipt(receipt) {
-  if (!receipt || receipt.schema !== "page-authority-image2-source-v2" || receipt.workflow !== FRAMED_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
-    throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed workflow requires a current framed v2 source receipt");
+  if (!receipt || receipt.schema !== "page-image-workflow-source-v1" || receipt.workflow !== FRAMED_IMAGE_WORKFLOW || !Array.isArray(receipt.slides) || !receipt.slides.length) {
+    throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed workflow requires a current Page Image Workflow framed receipt");
   }
   return receipt;
 }
@@ -216,151 +250,59 @@ function canonicalFramedFrameFacts(frame) {
   const profile = frame?.render_profile;
   if (!layout || !profile || typeof profile.preset?.id !== "string" ||
     !SHA256_RE.test(profile.preset?.digest || "") ||
-    !layout.canvas || !Array.isArray(layout.safe_zones) || layout.safe_zones.length === 0) {
+    !layout.canvas || !Array.isArray(layout.protected_geometry) || layout.protected_geometry.length === 0) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", "Framed render contract is missing canonical raw facts");
   }
   return Object.freeze({
     preset: profile.preset.id,
     preset_digest: profile.preset.digest,
     canvas: layout.canvas,
-    reserved_underlay_rectangles: Object.freeze(layout.safe_zones.map(({ rectangle }) => ({ ...rectangle }))),
+    protected_geometry: Object.freeze(layout.protected_geometry.map(({ x, y, width, height }) => ({ x, y, width, height }))),
+  });
+}
+
+function framedHeaderOverlayInput(slide) {
+  const policy = slide?.header_policy;
+  if (!hasExactKeys(policy, FRAMED_HEADER_POLICY_KEYS) ||
+    !hasExactKeys(policy.local_header, FRAMED_HEADER_FIELDS) ||
+    !hasExactKeys(policy.context_not_to_render, FRAMED_HEADER_FIELDS) ||
+    canonicalJsonSha256(policy.local_header) !== canonicalJsonSha256(policy.context_not_to_render)) {
+    throw new FramedImageWorkflowError("framed_header_policy_invalid", "Framed slides require one closed local header and matching context-not-to-render facts");
+  }
+  return Object.freeze({
+    slide_id: slide.slide_id,
+    frame_preset: policy.frame_preset,
+    local_header: policy.local_header,
   });
 }
 
 function describeFramedSlide(slide) {
-  return describeFramedFrame({ slide_id: slide.slide_id, text_frame: slide.text_frame });
+  return describeFramedHeaderOverlay(framedHeaderOverlayInput(slide));
 }
 
-function sameSlideOrder(previousReceipt, nextReceipt) {
-  return previousReceipt.slides.map((slide) => slide.slide_id).join("\n") ===
-    nextReceipt.slides.map((slide) => slide.slide_id).join("\n");
-}
-
-function underlaySignature(slide) {
-  let frame = null;
-  try {
-    const described = describeFramedSlide(slide);
-    frame = {
-      ...canonicalFramedFrameFacts(described),
-      variant: described.layout.variant,
-    };
-  } catch {
-    frame = null;
-  }
-  return canonicalJsonSha256({
-    visual_brief: slide.visual_brief ?? null,
-    visual_language: slide.visual_language ?? null,
-    visual_identity: slide.visual_identity ?? null,
-    identity_subject_count: slide.identity_subject_count ?? null,
-    subject_restrictions: slide.subject_restrictions ?? null,
-    frame,
+function mapFramedInvalidation(classified) {
+  return Object.freeze({
+    ...classified,
+    kind: classified.kind === "local_overlay_refresh" ? "local_compose" :
+      classified.kind === "raw_rebuild" ? "rebuild_raw" : classified.kind,
   });
 }
 
-function hasExactAcceptedRawEvidence(receipt, rawWorkPlan, acceptedRawEvidence) {
-  if (!rawWorkPlan || !acceptedRawEvidence) return false;
-  const evidence = validateAcceptedRawEvidence(acceptedRawEvidence, { plan: rawWorkPlan });
-  return evidence.ok && rawWorkPlan.workflow === FRAMED_IMAGE_WORKFLOW &&
-    rawWorkPlan.source_receipt_sha256 === receipt.source_sha256;
-}
-
-function hasReusableRawContract(previousReceipt, nextReceipt, previousRawWorkPlan, nextRawWorkPlan) {
-  if (!previousRawWorkPlan) return null;
-  if (!nextRawWorkPlan) return false;
-  const previous = validateRawWorkPlan(previousRawWorkPlan);
-  const next = validateRawWorkPlan(nextRawWorkPlan);
-  return previous.ok && next.ok &&
-    previousRawWorkPlan.source_receipt_sha256 === previousReceipt.source_sha256 &&
-    nextRawWorkPlan.source_receipt_sha256 === nextReceipt.source_sha256 &&
-    previousRawWorkPlan.workflow === FRAMED_IMAGE_WORKFLOW &&
-    nextRawWorkPlan.workflow === FRAMED_IMAGE_WORKFLOW &&
-    previousRawWorkPlan.provider_profile_sha256 === nextRawWorkPlan.provider_profile_sha256 &&
-    canonicalJsonSha256(previousRawWorkPlan.ordered_slide_ids) === canonicalJsonSha256(nextRawWorkPlan.ordered_slide_ids) &&
-    canonicalJsonSha256(previousRawWorkPlan.items) === canonicalJsonSha256(nextRawWorkPlan.items);
-}
-
-/**
- * Classify target Framed drift without submitting provider work. Text Frame
- * literals may be recomposed locally only from exact prior underlay evidence.
- */
-function classifyFramedRefreshFromAcceptedEvidence({
-  previousReceipt,
-  nextReceipt,
-  rawWorkPlan = null,
-  nextRawWorkPlan = null,
-  hasAcceptedEvidence = false,
-} = {}) {
+/** Classify Framed drift from current compiled-input and evidence bindings. */
+export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPlan = null, acceptedRawEvidence = null, nextRawWorkPlan = null } = {}) {
   requireReceipt(previousReceipt);
   requireReceipt(nextReceipt);
-  if (!sameSlideOrder(previousReceipt, nextReceipt)) {
-    return Object.freeze({
-      workflow: FRAMED_IMAGE_WORKFLOW,
-      kind: "structural_versioning",
-      provider_required: false,
-      next_action: "preview_structural_vnext",
-    });
-  }
-  const nextById = new Map(nextReceipt.slides.map((slide) => [slide.slide_id, slide]));
-  for (const previousSlide of previousReceipt.slides) {
-    const nextSlide = nextById.get(previousSlide.slide_id);
-    const previousUnderlay = underlaySignature(previousSlide);
-    const nextUnderlay = underlaySignature(nextSlide);
-    if (previousSlide.text_frame?.preset !== nextSlide.text_frame?.preset ||
-      previousUnderlay !== nextUnderlay) {
-      return Object.freeze({
-        workflow: FRAMED_IMAGE_WORKFLOW,
-        kind: "rebuild_raw",
-        provider_required: true,
-        reason: "underlay_signature_drift",
-        next_action: "authorize_and_rebuild_framed_raw",
-      });
-    }
-  }
-  if (hasReusableRawContract(previousReceipt, nextReceipt, rawWorkPlan, nextRawWorkPlan) === false) {
-    return Object.freeze({
-      workflow: FRAMED_IMAGE_WORKFLOW,
-      kind: "rebuild_raw",
-      provider_required: true,
-      reason: "raw_contract_or_profile_drift",
-      next_action: "authorize_and_rebuild_framed_raw",
-    });
-  }
-  if (previousReceipt.source_sha256 === nextReceipt.source_sha256) {
-    return Object.freeze({
-      workflow: FRAMED_IMAGE_WORKFLOW,
-      kind: "current",
-      provider_required: false,
-      next_action: "none",
-    });
-  }
-  if (!hasAcceptedEvidence) {
-    return Object.freeze({
-      workflow: FRAMED_IMAGE_WORKFLOW,
-      kind: "raw_evidence_required",
-      provider_required: true,
-      next_action: "authorize_and_rebuild_framed_raw",
-    });
-  }
-  return Object.freeze({
-    workflow: FRAMED_IMAGE_WORKFLOW,
-    kind: "local_compose",
-    provider_required: false,
-    next_action: "compose_framed_final_through_owner",
-  });
-}
-
-export function classifyFramedRefresh({ previousReceipt, nextReceipt, rawWorkPlan = null, acceptedRawEvidence = null, nextRawWorkPlan = null } = {}) {
-  return classifyFramedRefreshFromAcceptedEvidence({
+  return mapFramedInvalidation(evaluatePageImageInvalidation({
     previousReceipt,
     nextReceipt,
-    rawWorkPlan,
+    previousRawWorkPlan: rawWorkPlan,
     nextRawWorkPlan,
-    hasAcceptedEvidence: hasExactAcceptedRawEvidence(previousReceipt, rawWorkPlan, acceptedRawEvidence),
-  });
+    acceptedRawEvidence,
+  }));
 }
 
 /**
- * Apply the same Framed Text Frame-only retention validator to direct v3
+ * Apply the same Framed header-overlay retention validator to direct current
  * evidence without treating a rebuildable v2 accepted-evidence projection as
  * canonical authority.
  */
@@ -372,34 +314,40 @@ export function classifyFramedProgressiveLocalRebind({
   progressiveRawWorkPlan = null,
   acceptedRawEvidence = null,
 } = {}) {
-  const accepted = validateAcceptedRawEvidenceForFinalization(acceptedRawEvidence, { plan: progressiveRawWorkPlan });
-  const hasAcceptedEvidence = Boolean(rawWorkPlan && progressiveRawWorkPlan) && accepted.ok &&
-    progressiveRawWorkPlan?.workflow === FRAMED_IMAGE_WORKFLOW &&
-    progressiveRawWorkPlan.source_receipt_sha256 === previousReceipt?.source_sha256 &&
-    canonicalJsonSha256(progressiveRawWorkPlan.ordered_slide_ids) === canonicalJsonSha256(rawWorkPlan?.ordered_slide_ids) &&
-    canonicalJsonSha256(progressiveRawWorkPlan.items) === canonicalJsonSha256(rawWorkPlan?.items);
-  return classifyFramedRefreshFromAcceptedEvidence({
+  requireReceipt(previousReceipt);
+  requireReceipt(nextReceipt);
+  return mapFramedInvalidation(evaluatePageImageInvalidation({
     previousReceipt,
     nextReceipt,
-    rawWorkPlan,
+    previousRawWorkPlan: rawWorkPlan,
     nextRawWorkPlan,
-    hasAcceptedEvidence,
-  });
+    acceptedRawEvidence,
+    acceptedRawWorkPlan: progressiveRawWorkPlan,
+  }));
 }
 
 function framedRawPlanItems(receipt) {
   requireReceipt(receipt);
   return Object.freeze(receipt.slides.map((slide) => Object.freeze({
     slide_id: slide.slide_id,
-    text_free: true,
   })));
 }
 
 /** The selected adapter alone writes target raw plans for its framed receipt. */
-export function createFramedRawWorkPlan({ receipt, provider_profile_sha256, authorization_scope_sha256, raw_contracts_by_slide } = {}) {
+export function createFramedRawWorkPlan({
+  receipt,
+  provider_profile_sha256,
+  authorization_scope_sha256,
+  raw_contracts_by_slide,
+  provider_input_bindings_by_slide,
+} = {}) {
   const items = framedRawPlanItems(receipt);
   if (!raw_contracts_by_slide || typeof raw_contracts_by_slide !== "object" || Array.isArray(raw_contracts_by_slide)) {
     throw new FramedImageWorkflowError("raw_contracts_required", "Framed raw contracts are required for every slide");
+  }
+  if (!provider_input_bindings_by_slide || typeof provider_input_bindings_by_slide !== "object" || Array.isArray(provider_input_bindings_by_slide) ||
+    canonicalJson(Object.keys(provider_input_bindings_by_slide).sort()) !== canonicalJson(items.map((item) => item.slide_id).sort())) {
+    throw new FramedImageWorkflowError("framed_provider_input_bindings_required", "Framed raw plans require one provider input binding for every slide");
   }
   return createRawWorkPlan({
     source_receipt_sha256: receipt.source_sha256,
@@ -407,14 +355,18 @@ export function createFramedRawWorkPlan({ receipt, provider_profile_sha256, auth
     ordered_slide_ids: items.map((item) => item.slide_id),
     provider_profile_sha256,
     authorization_scope_sha256,
-    items: items.map((item) => ({ slide_id: item.slide_id, raw_contract_sha256: raw_contracts_by_slide[item.slide_id] })),
+    items: items.map((item) => ({
+      slide_id: item.slide_id,
+      raw_contract_sha256: raw_contracts_by_slide[item.slide_id],
+      provider_input_binding: provider_input_bindings_by_slide[item.slide_id],
+    })),
   });
 }
 
 /**
- * Map Framed's canonical render contract into the shared review contribution
- * interface. Coverage is deliberately text-free; titles live only in the
- * projection snapshot consumed by the later shared review owner.
+ * Map Framed's canonical header-overlay geometry into the shared review
+ * contribution interface. Protected geometry is a provider-avoidance and
+ * review fact, never a rendered panel or blank strip.
  */
 export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan } = {}) {
   requireReceipt(receipt);
@@ -432,8 +384,8 @@ export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan }
   const described = rawWorkPlan.ordered_slide_ids.map((slideId) => {
     const slide = slidesById.get(slideId);
     if (!slide) throw new FramedImageWorkflowError("framed_review_contribution_source_invalid", `Framed raw-review contribution is missing ${slideId}`);
-    const frame = describeFramedFrame({ slide_id: slideId, text_frame: slide.text_frame });
-    const title = slide.display?.title ?? slide.text_frame?.title;
+    const frame = describeFramedSlide(slide);
+    const title = slide.header_policy?.local_header?.title;
     if (typeof title !== "string" || !title.trim()) {
       throw new FramedImageWorkflowError("framed_review_contribution_label_invalid", `Framed raw-review projection requires a title for ${slideId}`);
     }
@@ -449,7 +401,7 @@ export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan }
     coverage_items: described.map(({ frame }, index) => ({
       stable_id: rawWorkPlan.ordered_slide_ids[index],
       coverage_profile_digest: frame.render_profile.render_profile_digest,
-      guide_primitives: frame.layout.safe_zones.map(({ rectangle }, guideIndex) => ({
+      guide_primitives: frame.layout.protected_geometry.map((rectangle, guideIndex) => ({
         kind: "rectangle",
         guide_id: `guide_${guideIndex + 1}`,
         x: rectangle.x / frame.layout.canvas.css_width,
@@ -472,6 +424,170 @@ export function createFramedTargetRawReviewContribution({ receipt, rawWorkPlan }
   return contribution;
 }
 
+function framedCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, sourceEpoch = null, reviewSlideIds = reviewPlan?.ordered_slide_ids } = {}) {
+  const checkedPlan = reviewPlan?.sha256 ? null : validateRawWorkPlan(reviewPlan);
+  const reviewPlanSha256 = reviewPlan?.sha256 ?? (checkedPlan?.ok ? checkedPlan.sha256 : null);
+  const resolvedSourceEpoch = sourceEpoch ?? reviewPlan?.source_epoch ?? context?.source_epoch;
+  if (!reviewPlan || !SHA256_RE.test(reviewPlanSha256 || "") ||
+    !Array.isArray(reviewPlan.ordered_slide_ids) || reviewPlan.ordered_slide_ids.length === 0 ||
+    !Array.isArray(reviewSlideIds) || reviewSlideIds.length === 0 ||
+    new Set(reviewSlideIds).size !== reviewSlideIds.length ||
+    reviewSlideIds.some((slideId) => !reviewPlan.ordered_slide_ids.includes(slideId)) ||
+    canonicalJson(reviewPlan.ordered_slide_ids.filter((slideId) => reviewSlideIds.includes(slideId))) !== canonicalJson(reviewSlideIds) ||
+    !Number.isInteger(resolvedSourceEpoch) || resolvedSourceEpoch <= 0) {
+    throw new FramedImageWorkflowError("framed_complete_page_review_invalid", "Framed Complete Page Review requires one current raw plan");
+  }
+  const contribution = createFramedTargetRawReviewContribution({
+    receipt: context.receipt,
+    rawWorkPlan: context.raw_work_plan,
+  });
+  const slideById = new Map(context.receipt.slides.map((slide) => [slide.slide_id, slide]));
+  const raw = {};
+  const frames = [];
+  const bindings = {};
+  for (const slideId of reviewSlideIds) {
+    const slide = slideById.get(slideId);
+    const rawBytes = rawBytesBySlide?.[slideId];
+    if (!slide || !rawBytes) {
+      throw new FramedImageWorkflowError("framed_complete_page_review_invalid", `Framed Complete Page Review is missing current provider bytes for ${slideId}`);
+    }
+    const frame = describeFramedSlide(slide);
+    const providerBytes = Buffer.from(rawBytes);
+    const providerSha256 = sha256Bytes(providerBytes);
+    raw[slideId] = providerBytes;
+    frames.push(Object.freeze({
+      ...framedHeaderOverlayInput(slide),
+      verified_raw: { bytes: providerBytes, sha256: providerSha256 },
+    }));
+    bindings[slideId] = canonicalJsonSha256({
+      schema: "page-image-framed-complete-page-binding-v1",
+      raw_work_plan_sha256: reviewPlanSha256,
+      slide_id: slideId,
+      raw_provider_page_sha256: providerSha256,
+      header_overlay: framedHeaderOverlayInput(slide),
+      render_profile_sha256: frame.render_profile.render_profile_digest,
+      protected_geometry_sha256: canonicalJsonSha256(frame.layout.protected_geometry),
+    });
+  }
+  return Object.freeze({
+    contribution,
+    raw_work_plan_sha256: reviewPlanSha256,
+    source_epoch: resolvedSourceEpoch,
+    raw_bytes_by_slide: Object.freeze(raw),
+    frames: Object.freeze(frames),
+    adapter_complete_page_bindings_by_slide: Object.freeze(bindings),
+  });
+}
+
+function framedPilotReviewContribution({ inputs, batchSha256, coverage } = {}) {
+  if (!SHA256_RE.test(batchSha256 || "") || !Array.isArray(coverage)) {
+    throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", "Framed Pilot contribution requires exact current batch coverage");
+  }
+  const slideIds = Object.keys(inputs.raw_bytes_by_slide);
+  if (coverage.length !== slideIds.length || new Set(coverage.map((item) => item?.slide_id)).size !== slideIds.length) {
+    throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", "Framed Pilot coverage must name each selected slide exactly once");
+  }
+  const coverageBySlide = new Map(coverage.map((item) => [item.slide_id, item]));
+  const items = slideIds.map((slideId) => {
+    const item = coverageBySlide.get(slideId);
+    if (!item || item.raw_sha256 !== sha256Bytes(inputs.raw_bytes_by_slide[slideId])) {
+      throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is stale for ${slideId}`);
+    }
+    return Object.freeze({
+      slide_id: slideId,
+      raw_sha256: item.raw_sha256,
+      adapter_complete_page_binding_sha256: inputs.adapter_complete_page_bindings_by_slide[slideId],
+    });
+  });
+  return canonicalJsonSha256({
+    schema: "page-image-framed-pilot-review-contribution-v1",
+    raw_work_plan_sha256: inputs.raw_work_plan_sha256,
+    batch_sha256: batchSha256,
+    complete_page_review_contribution_sha256: inputs.contribution.typed_review_contribution_sha256,
+    items,
+  });
+}
+
+async function publishFramedCompletePageReview({ context, reviewPlan, rawBytesBySlide } = {}) {
+  const inputs = framedCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide });
+  const composed = await composeFramedHeaderOverlays(inputs.frames);
+  return publishCompletePageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    sourceEpoch: inputs.source_epoch,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    typedReviewContributionSha256: inputs.contribution.typed_review_contribution_sha256,
+    orderedSlideIds: reviewPlan.ordered_slide_ids,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    completeBytesBySlide: composed.final_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+  });
+}
+
+function validateFramedCompletePageReview({ context, reviewPlan, rawBytesBySlide, sourceEpoch = null } = {}) {
+  const inputs = framedCompletePageReviewInputs({ context, reviewPlan, rawBytesBySlide, sourceEpoch });
+  return validateCompletePageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    sourceEpoch: inputs.source_epoch,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    typedReviewContributionSha256: inputs.contribution.typed_review_contribution_sha256,
+    orderedSlideIds: reviewPlan.ordered_slide_ids,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+  });
+}
+
+function requireFramedFinalizationReview(validation, acceptedCompleteReview) {
+  const reviewEvidenceSha256 = acceptedCompleteReview?.workflow_evidence_sha256 ??
+    acceptedCompleteReview?.complete_page_presentation_sha256;
+  if (!validation?.ok || !acceptedCompleteReview ||
+    acceptedCompleteReview.decision !== "proceed" ||
+    validation.complete_page_presentation_sha256 !== reviewEvidenceSha256 ||
+    validation.projection_sha256 !== acceptedCompleteReview.projection_sha256) {
+    throw new FramedImageWorkflowError(
+      "framed_finalization_review_stale",
+      "Framed finalization requires the exact current proceeded Complete Page Review",
+    );
+  }
+  return validation.presentation;
+}
+
+function assertFramedFinalMatchesReviewedComposite(finalBytesBySlide, presentation) {
+  for (const item of presentation.items) {
+    const finalBytes = finalBytesBySlide?.[item.slide_id];
+    if (!finalBytes || sha256Bytes(finalBytes) !== item.complete_page_sha256) {
+      throw new FramedImageWorkflowError(
+        "framed_finalization_composite_stale",
+        `Framed final composite no longer matches the reviewed page for ${item.slide_id}`,
+      );
+    }
+  }
+}
+
+function readFramedTargetFinalizationReview(context, rawWorkPlan, acceptedRawEvidence) {
+  const current = validateTargetCurrentRawReview(context, rawWorkPlan, {
+    reviewContribution: createFramedTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan }),
+    acceptedRawEvidence,
+    validateCompletePageReview: ({ raw_work_plan: reviewPlan, raw_bytes_by_slide: rawBytesBySlide, source_epoch: sourceEpoch }) =>
+      validateFramedCompletePageReview({ context, reviewPlan, rawBytesBySlide, sourceEpoch }),
+  });
+  return Object.freeze({
+    presentation: requireFramedFinalizationReview(current.completePresentation, current.review),
+    raw_bytes_by_slide: current.rawBytes,
+  });
+}
+
+function readFramedProgressiveFinalizationReview(context, progressiveRawWorkPlan, rawBytesBySlide, acceptedCompleteReview) {
+  const validation = validateFramedCompletePageReview({
+    context,
+    reviewPlan: progressiveRawWorkPlan,
+    rawBytesBySlide,
+    sourceEpoch: progressiveRawWorkPlan.source_epoch,
+  });
+  return requireFramedFinalizationReview(validation, acceptedCompleteReview);
+}
+
 const FRAMED_FINAL_COMPOSITION_KEYS = Object.freeze([
   "receipt",
   "rawWorkPlan",
@@ -491,7 +607,7 @@ function requireFramedFinalCompositionInput(input) {
   return input;
 }
 
-/** Compose local text over accepted raw bytes, then publish the common manifest. */
+/** Compose the closed local header overlay over accepted provider-page bytes. */
 export async function composeFramedFinalSlideManifest(input = {}) {
   const { receipt, rawWorkPlan, acceptedRawEvidence, rawBytesBySlide } = requireFramedFinalCompositionInput(input);
   const evidencePlan = input.evidencePlan ?? rawWorkPlan;
@@ -512,12 +628,11 @@ export async function composeFramedFinalSlideManifest(input = {}) {
     const raw = rawBytesBySlide?.[item.slide_id];
     if (!slide || !raw) throw new FramedImageWorkflowError("accepted_raw_unavailable", `accepted raw bytes are unavailable for ${item.slide_id}`);
     frames.push(Object.freeze({
-      slide_id: item.slide_id,
-      text_frame: slide.text_frame,
+      ...framedHeaderOverlayInput(slide),
       verified_raw: { bytes: Buffer.from(raw), sha256: item.raw_sha256 },
     }));
   }
-  const composed = await composeFramedRenderContracts(frames);
+  const composed = await composeFramedHeaderOverlays(frames);
   const finalBytesBySlide = composed.final_bytes_by_slide;
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan: evidencePlan,
@@ -534,10 +649,10 @@ export async function publishFramedFinalSlideManifest(input = {}) {
 }
 
 function parseFramedTargetReceipt({ deckDir, sourcePath, sourceText }) {
-  const visualLanguage = loadPageAuthorityVisualLanguage(deckDir);
-  return parsePageAuthoritySource(sourceText, {
+  const visualLanguage = loadPageImageVisualLanguage(deckDir);
+  return parsePageImageSource(sourceText, {
     source: sourcePath,
-    registry: createPageAuthoritySourceResolver({ deckDir, visualLanguage }),
+    registry: createPageImageSourceResolver({ deckDir, visualLanguage }),
   });
 }
 
@@ -567,21 +682,54 @@ export function resolveFramedStyleMasterScope(runDir) {
   return bindStyleMasterScopeCandidate(scope, resolveFramedTargetCandidateSource(runDir));
 }
 
-function framedRawContract(slide, frame) {
-  const visualLanguage = slide.visual_language?.projection;
+function coreStyleMasterSelection(workflow, styleMasterReference) {
+  if (!styleMasterReference || typeof styleMasterReference !== "object" ||
+    !SHA256_RE.test(styleMasterReference.selection_sha256 || "") ||
+    !SHA256_RE.test(styleMasterReference.plan_sha256 || "")) {
+    throw new FramedImageWorkflowError("framed_page_image_core_invalid", "Framed adapter requires current Style Master selection facts for Page Image Core");
+  }
+  return Object.freeze({
+    workflow,
+    selection_sha256: styleMasterReference.selection_sha256,
+    plan_sha256: styleMasterReference.plan_sha256,
+  });
+}
+
+function createFramedCoreFacts(context, generation) {
+  try {
+    return createPageImageCoreFacts({
+      sourceReceipt: context.receipt,
+      visualSelections: context.receipt.slides.map((slide) => ({
+        slide_id: slide.slide_id,
+        selection: slide.visual_language,
+      })),
+      styleMasterSelection: coreStyleMasterSelection(FRAMED_IMAGE_WORKFLOW, generation.style_master_reference),
+      generationProfile: generation.profile,
+      headerRenderingPolicy: { workflow: FRAMED_IMAGE_WORKFLOW, policy: "local-transparent-overlay-v1" },
+    });
+  } catch (error) {
+    if (error instanceof PageImageCoreError) {
+      throw new FramedImageWorkflowError("framed_page_image_core_invalid", error.message);
+    }
+    throw error;
+  }
+}
+
+function framedRawContract(slide, frame, coreSlide) {
+  const visualLanguage = coreSlide?.visual_selection?.projection;
   if (!visualLanguage || typeof visualLanguage !== "object") {
     throw new FramedImageWorkflowError("framed_visual_language_required", `Framed visual language is unresolved for ${slide.slide_id}`);
   }
   if (frame?.slide_id !== slide.slide_id || !SHA256_RE.test(frame?.render_profile?.render_profile_digest || "")) {
     throw new FramedImageWorkflowError("framed_render_contract_invariant_failed", `Framed render contract is unavailable for ${slide.slide_id}`);
   }
-  const facts = canonicalFramedFrameFacts(frame);
-  const providerClauses = slide.visual_language?.provider_clauses || null;
-  const identityRoleClause = slide.visual_language?.identity_reference?.provider_reference?.role_clause || null;
-  let visualScene = slide.visual_scene ?? null;
-  if (visualScene != null) {
-    visualScene = normalizePageAuthorityTextGuard(visualScene, { context: `VISUAL SCENE:${slide.slide_id}` });
+  if (coreSlide.slide_id !== slide.slide_id || coreSlide.workflow !== FRAMED_IMAGE_WORKFLOW ||
+    coreSlide.header_policy?.local_header === undefined || coreSlide.header_policy?.context_not_to_render === undefined) {
+    throw new FramedImageWorkflowError("framed_page_image_core_invalid", `Framed Page Image Core facts are unavailable for ${slide.slide_id}`);
   }
+  const facts = canonicalFramedFrameFacts(frame);
+  const providerClauses = coreSlide.visual_selection?.provider_clauses || null;
+  const identityRoleClause = coreSlide.visual_selection?.identity_reference?.provider_reference?.role_clause || null;
   const rawContract = Object.freeze({
     schema: TARGET_RAW_CONTRACT_SCHEMA,
     slide_id: slide.slide_id,
@@ -589,18 +737,55 @@ function framedRawContract(slide, frame) {
     visual_language: { ...visualLanguage, negative_constraints: [...(slide.visual_brief?.negative_constraints || [])] },
     provider_clauses: providerClauses,
     visual_identity_role_clause: identityRoleClause,
-    visual_scene: visualScene,
-    visual_identity: slide.visual_language?.identity_reference?.projection || null,
+    visual_scene: null,
+    visual_identity: coreSlide.visual_selection?.identity_reference?.projection || null,
+    page_image_core: {
+      schema: coreSlide.schema,
+      canonical_semantic_sha256: coreSlide.canonical_semantic_sha256,
+    },
+    provider_rendered_content: {
+      items: coreSlide.provider_content.items.map((item) => ({ ...item })),
+    },
     framed: {
       ...facts,
+      local_header: { ...coreSlide.header_policy.local_header },
+      context_not_to_render: { ...coreSlide.header_policy.context_not_to_render },
       render_profile_digest: frame.render_profile.render_profile_digest,
-      text_free: true,
     },
   });
   return rawContract;
 }
 
-/** Compile a selected Framed v2 raw-plan candidate without artifact writes. */
+/** Compile Framed's provider page while reserving its transparent local header overlay. */
+function compileFramedProviderInput({ slideId, rawContract, generationProfile } = {}) {
+  const contract = validateFramedRawContract(rawContract);
+  if (!contract.ok || rawContract.slide_id !== slideId || !generationProfile || typeof generationProfile !== "object") {
+    throw new FramedImageWorkflowError("framed_provider_input_invalid", "Framed provider input requires one valid selected raw contract and generation profile");
+  }
+  const utf8 = canonicalJson({
+    schema: "page-image-framed-provider-input-v1",
+    slide_id: slideId,
+    instruction: "Render one complete premium keynote provider page. Render every provider-rendered content item as readable integrated page typography. Keep the full provider canvas continuous. Do not render, repeat, or approximate the fixed header literals; avoid provider text and key subjects in the protected geometry.",
+    provider_rendered_content: rawContract.provider_rendered_content,
+    context_not_to_render: rawContract.framed.context_not_to_render,
+    protected_geometry: rawContract.framed.protected_geometry,
+    visual: {
+      recipe: rawContract.provider_clauses.recipe,
+      composition: rawContract.provider_clauses.composition,
+      motifs: rawContract.provider_clauses.motifs,
+      relationship: rawContract.provider_clauses.relationship || null,
+      identity: rawContract.visual_identity,
+    },
+    generation_profile: generationProfile,
+  });
+  return Object.freeze({
+    schema: TARGET_COMPILED_PROVIDER_INPUT_SCHEMA,
+    utf8,
+    sha256: sha256Bytes(Buffer.from(utf8, "utf8")),
+  });
+}
+
+/** Compile a selected Framed current raw-plan candidate without artifact writes. */
 function compileFramedTargetRawPlanCandidate(context) {
   const framesById = new Map(context.receipt.slides.map((slide) => [slide.slide_id, describeFramedSlide(slide)]));
   const renderProfileDigests = new Set([...framesById.values()].map((frame) => frame.render_profile.render_profile_digest));
@@ -613,17 +798,34 @@ function compileFramedTargetRawPlanCandidate(context) {
     deckDir: context.deck_dir,
     receipt: context.receipt,
   });
+  const coreFacts = createFramedCoreFacts(context, generation);
+  const coreSlidesById = new Map(coreFacts.slides.map((slide) => [slide.slide_id, slide]));
   const rawContractsBySlide = {};
+  const providerInputBindingsBySlide = {};
   const providerRequestsBySlide = {};
   for (const slide of context.receipt.slides) {
-    const rawContract = framedRawContract(slide, framesById.get(slide.slide_id));
+    const frame = framesById.get(slide.slide_id);
+    const coreSlide = coreSlidesById.get(slide.slide_id);
+    const rawContract = framedRawContract(slide, frame, coreSlide);
     const rawContractValidation = validateFramedRawContractAgainstProfile(rawContract, renderProfile);
     if (!rawContractValidation.ok) throw new FramedImageWorkflowError(rawContractValidation.code, rawContractValidation.message);
     rawContractsBySlide[slide.slide_id] = rawContractValidation.raw_contract_sha256;
+    const compiledProviderInput = compileFramedProviderInput({
+      slideId: slide.slide_id,
+      rawContract,
+      generationProfile: generation.profile,
+    });
     providerRequestsBySlide[slide.slide_id] = createTargetProviderRequest({
       slideId: slide.slide_id,
       rawContract,
       generationProfile: generation.profile,
+      compiledProviderInput,
+    });
+    providerInputBindingsBySlide[slide.slide_id] = createPageImageProviderInputBinding({
+      coreSlide,
+      compiledProviderInputSha256: compiledProviderInput.sha256,
+      localHeaderProfileSha256: frame.render_profile.render_profile_digest,
+      protectedGeometrySha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
     });
   }
   const authorizationScopeSha = canonicalJsonSha256({
@@ -632,17 +834,20 @@ function compileFramedTargetRawPlanCandidate(context) {
     provider_profile_sha256: generation.provider_profile_sha256,
     ordered_slide_ids: context.receipt.slides.map((slide) => slide.slide_id),
     raw_contracts_by_slide: rawContractsBySlide,
+    provider_input_bindings_by_slide: providerInputBindingsBySlide,
   });
   const rawWorkPlan = createFramedRawWorkPlan({
     receipt: context.receipt,
     provider_profile_sha256: generation.provider_profile_sha256,
     authorization_scope_sha256: authorizationScopeSha,
     raw_contracts_by_slide: rawContractsBySlide,
+    provider_input_bindings_by_slide: providerInputBindingsBySlide,
   });
   return Object.freeze({
     ...context,
     raw_work_plan: rawWorkPlan,
     provider_requests_by_slide: Object.freeze(providerRequestsBySlide),
+    page_image_core: coreFacts,
     render_profile_digest: renderProfile.render_profile_digest,
     style_master_reference: generation.style_master_reference,
   });
@@ -654,10 +859,7 @@ function compileFramedTargetRawPlanCandidate(context) {
  */
 export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
   const candidate = compileFramedTargetRawPlanCandidate(resolveFramedTargetCandidateSource(runDir));
-  const proof = await verifyFramedRenderContracts(candidate.receipt.slides.map((slide) => ({
-    slide_id: slide.slide_id,
-    text_frame: slide.text_frame,
-  })));
+  const proof = await verifyFramedHeaderOverlays(candidate.receipt.slides.map(framedHeaderOverlayInput));
   if (proof.render_profile_digest !== candidate.render_profile_digest) {
     throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
   }
@@ -667,6 +869,7 @@ export async function buildFramedTargetRawPlan(runDir, { allowSourceRebuild = fa
     ...context,
     raw_work_plan: candidate.raw_work_plan,
     provider_requests_by_slide: candidate.provider_requests_by_slide,
+    page_image_core: candidate.page_image_core,
     style_master_reference: candidate.style_master_reference,
   });
 }
@@ -702,6 +905,18 @@ export async function prepareFramedTargetRawReview(runDir) {
   const plan = readFramedTargetStoredPlanContext(runDir);
   return prepareTargetRawReview(plan, plan.raw_work_plan, {
     reviewContribution: createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+    publishCompletePageReview: async ({ raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide }) => {
+      const published = await publishFramedCompletePageReview({
+        context: plan,
+        reviewPlan: rawWorkPlan,
+        rawBytesBySlide,
+      });
+      return {
+        complete_page_presentation_sha256: published.complete_page_presentation_sha256,
+        projection_sha256: published.projection_sha256,
+        projection_capture_profile_sha256: published.projection_capture_profile_sha256,
+      };
+    },
   });
 }
 
@@ -710,11 +925,13 @@ export async function decideFramedTargetRawReview(runDir, { decision } = {}) {
   return decideTargetRawReview(plan, plan.raw_work_plan, {
     decision,
     reviewContribution: createFramedTargetRawReviewContribution({ receipt: plan.receipt, rawWorkPlan: plan.raw_work_plan }),
+    validateCompletePageReview: ({ raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide }) =>
+      validateFramedCompletePageReview({ context: plan, reviewPlan: rawWorkPlan, rawBytesBySlide }),
   });
 }
 
 function progressiveFramedDisplayBySlide(receipt) {
-  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.display?.title || slide.text_frame?.title || "" }]));
+  return Object.fromEntries(receipt.slides.map((slide) => [slide.slide_id, { title: slide.header_policy?.local_header?.title || "" }]));
 }
 
 function progressiveFramedPlanFromContext(context) {
@@ -731,7 +948,7 @@ function progressiveLocalRebindProjectionUnavailable(error) {
 }
 
 /**
- * Compile the current Framed source/style facts into an expected v3 plan
+ * Compile the current Framed source/style facts into an expected replacement plan
  * without reading or rebuilding any version `_generated` projection.
  */
 export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch = null } = {}) {
@@ -754,7 +971,7 @@ export function readFramedProgressiveTargetPlanCandidate(runDir, { sourceEpoch =
 export function inspectFramedProgressiveLocalRebind(runDir, { planHash, candidate } = {}) {
   const next = candidate || readFramedProgressiveTargetPlanCandidate(runDir, {});
   if (!next?.progressive_raw_work_plan) {
-    throw new FramedImageWorkflowError("progressive_raw_target_plan_invalid", "Framed local-rebind inspection requires a current candidate v3 plan");
+    throw new FramedImageWorkflowError("progressive_raw_target_plan_invalid", "Framed local-rebind inspection requires a current candidate plan");
   }
   const previous = readProgressiveAcceptedRawWork({
     runDir,
@@ -791,9 +1008,6 @@ export function inspectFramedProgressiveLocalRebind(runDir, { planHash, candidat
 /** Compile/prove selected Framed source then publish only its provider-free v3 full plan. */
 export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceRebuild = false } = {}) {
   const prior = inspectProgressiveRawLifecycle({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
-  if (prior.ok && prior.legacy_v2) {
-    throw new FramedImageWorkflowError("progressive_raw_legacy_replan_required", "legacy v2 raw records remain readable; start the owner-issued progressive replan/rebuild action instead");
-  }
   assertNoUnresolvedProgressiveRawSubmission({ runDir, workflow: FRAMED_IMAGE_WORKFLOW });
   let rebindContext = null;
   if (prior.ok && prior.plan && prior.evidence?.accepted_raw_evidence_sha256) {
@@ -807,10 +1021,7 @@ export async function buildFramedProgressiveTargetRawPlan(runDir, { allowSourceR
     }
   }
   const candidate = compileFramedTargetRawPlanCandidate(rebindContext || resolveFramedTargetCandidateSource(runDir));
-  const proof = await verifyFramedRenderContracts(candidate.receipt.slides.map((slide) => ({
-    slide_id: slide.slide_id,
-    text_frame: slide.text_frame,
-  })));
+  const proof = await verifyFramedHeaderOverlays(candidate.receipt.slides.map(framedHeaderOverlayInput));
   if (proof.render_profile_digest !== candidate.render_profile_digest) {
     throw new FramedImageWorkflowError("framed_render_profile_stale", "Framed layout proof did not use the candidate render profile");
   }
@@ -911,7 +1122,7 @@ export function framedProgressiveRawPlanProjection(plan) {
     expected_plan: plan.progressive_raw_work_plan,
   });
   return Object.freeze({
-    schema: "page-authority-progressive-raw-plan-projection-v1",
+    schema: "page-image-progressive-raw-plan-projection-v1",
     plan_hash: plan.progressive_raw_work_plan.sha256,
     workflow: FRAMED_IMAGE_WORKFLOW,
     source_epoch: plan.source_epoch,
@@ -938,7 +1149,7 @@ export async function authorizeFramedProgressiveRawBatch(runDir, { planHash, bat
   return authorizeProgressiveRawBatch({ runDir: plan.run_dir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, batch_hash: batchHash, expected_plan: plan.progressive_raw_work_plan });
 }
 
-export async function generateFramedProgressiveRawItem(runDir, { planHash, batchHash, submit } = {}) {
+export async function generateFramedProgressiveRawItem(runDir, { planHash, batchHash, preflight = null, submit } = {}) {
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   return generateProgressiveRawItem({
     runDir: plan.run_dir,
@@ -947,55 +1158,78 @@ export async function generateFramedProgressiveRawItem(runDir, { planHash, batch
     batch_hash: batchHash,
     expected_plan: plan.progressive_raw_work_plan,
     provider_requests_by_slide: plan.provider_requests_by_slide,
+    preflight,
     submit,
   });
 }
 
 async function publishFramedProgressivePilot({ context, plan, batch_sha256, coverage, materializations }) {
-  const byId = new Map(context.receipt.slides.map((slide) => [slide.slide_id, slide]));
-  const frames = coverage.map((item) => {
-    const slide = byId.get(item.slide_id);
-    const materialization = materializations.get(item.slide_id);
-    if (!slide || !materialization) throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is unavailable for ${item.slide_id}`);
-    return Object.freeze({
-      slide_id: item.slide_id,
-      text_frame: slide.text_frame,
-      verified_raw: { bytes: Buffer.from(materialization.bytes), sha256: item.raw_sha256 },
-    });
+  const pilotSlideIds = coverage.map((item) => item.slide_id);
+  const rawBytesBySlide = Object.fromEntries(pilotSlideIds.map((slideId) => {
+    const materialization = materializations.get(slideId);
+    if (!materialization) throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is unavailable for ${slideId}`);
+    return [slideId, Buffer.from(materialization.bytes)];
+  }));
+  const inputs = framedCompletePageReviewInputs({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide,
+    reviewSlideIds: pilotSlideIds,
   });
   // This uses the exact private compiler/browser evaluator used by finalization.
-  const composed = await composeFramedRenderContracts(frames);
-  const outputRoot = join(pageAuthorityImage2Paths(context.run_dir).review_root, "pilot", batch_sha256);
-  const rawRoot = join(outputRoot, "raw-underlay");
-  const compositeRoot = join(outputRoot, "text-frame-composite");
-  mkdirSync(rawRoot, { recursive: true });
-  mkdirSync(compositeRoot, { recursive: true });
-  const items = coverage.map((item) => {
-    const materialization = materializations.get(item.slide_id);
-    const composite = composed.final_bytes_by_slide[item.slide_id];
-    const position = plan.ordered_slide_ids.indexOf(item.slide_id) + 1;
-    if (!materialization || position < 1) {
-      throw new FramedImageWorkflowError("framed_pilot_coverage_invalid", `Framed Pilot coverage is unavailable for ${item.slide_id}`);
-    }
-    if (!composite) throw new FramedImageWorkflowError("framed_pilot_capture_invalid", `Framed Pilot composite is unavailable for ${item.slide_id}`);
-    const filename = pageAuthorityOrdinalImageFilename(position, item.slide_id);
-    writeFileSync(join(rawRoot, filename), materialization.bytes);
-    writeFileSync(join(compositeRoot, filename), composite);
-    return { slide_id: item.slide_id, raw_sha256: item.raw_sha256, composite_sha256: sha256Bytes(composite) };
-  });
-  const projection = {
-    schema: "page-authority-framed-pilot-projection-v1",
+  const composed = await composeFramedHeaderOverlays(inputs.frames);
+  const typedReviewContributionSha256 = framedPilotReviewContribution({ inputs, batchSha256: batch_sha256, coverage });
+  const published = await publishPilotPageReviewPresentation({
+    runDir: context.run_dir,
+    rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+    batchSha256: batch_sha256,
+    sourceEpoch: inputs.source_epoch,
     workflow: FRAMED_IMAGE_WORKFLOW,
-    raw_work_plan_sha256: plan.sha256,
-    batch_sha256,
-    render_profile_sha256: currentFramedRenderProfile().render_profile_digest,
-    items,
-  };
-  writeFileSync(join(outputRoot, "projection.json"), Buffer.from(`${JSON.stringify(projection)}\n`, "utf8"));
-  return Object.freeze({
-    workflow_evidence_sha256: canonicalJsonSha256({ schema: "page-authority-framed-pilot-evidence-v1", workflow: FRAMED_IMAGE_WORKFLOW, render_profile_sha256: projection.render_profile_sha256, items }),
-    projection_sha256: canonicalJsonSha256(projection),
+    typedReviewContributionSha256,
+    orderedPlanSlideIds: plan.ordered_slide_ids,
+    pilotSlideIds,
+    rawBytesBySlide: inputs.raw_bytes_by_slide,
+    completeBytesBySlide: composed.final_bytes_by_slide,
+    adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
   });
+  return Object.freeze({
+    workflow_evidence_sha256: published.pilot_page_presentation_sha256,
+    projection_sha256: published.projection_sha256,
+  });
+}
+
+function validateFramedProgressivePilot({ context, plan, batch, batch_sha256, coverage, materializations } = {}) {
+  const pilotSlideIds = batch.review_sample_slide_ids;
+  const rawBytesBySlide = Object.fromEntries(pilotSlideIds.map((slideId) => {
+    const materialization = materializations.get(slideId);
+    return [slideId, materialization ? Buffer.from(materialization.bytes) : null];
+  }));
+  try {
+    const inputs = framedCompletePageReviewInputs({
+      context,
+      reviewPlan: plan,
+      rawBytesBySlide,
+      reviewSlideIds: pilotSlideIds,
+    });
+    return validatePilotPageReviewPresentation({
+      runDir: context.run_dir,
+      rawWorkPlanSha256: inputs.raw_work_plan_sha256,
+      batchSha256: batch_sha256,
+      sourceEpoch: inputs.source_epoch,
+      workflow: FRAMED_IMAGE_WORKFLOW,
+      typedReviewContributionSha256: framedPilotReviewContribution({ inputs, batchSha256: batch_sha256, coverage }),
+      orderedPlanSlideIds: plan.ordered_slide_ids,
+      pilotSlideIds,
+      rawBytesBySlide: inputs.raw_bytes_by_slide,
+      adapterCompletePageBindingsBySlide: inputs.adapter_complete_page_bindings_by_slide,
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      code: error.code || "framed_pilot_review_invalid",
+      message: error.message || "Framed Pilot page review is invalid",
+    });
+  }
 }
 
 const FRAMED_PROGRESSIVE_PILOT_REVIEW_KEYS = Object.freeze(["planHash", "batchHash"]);
@@ -1031,6 +1265,15 @@ export async function acceptFramedProgressivePilot(runDir, { planHash, batchHash
     plan_hash: planHash,
     batch_hash: batchHash,
     decision,
+    validatePilotReview: ({ plan: reviewPlan, batch, batch_sha256, coverage, materializations }) =>
+      validateFramedProgressivePilot({
+        context: plan,
+        plan: reviewPlan,
+        batch,
+        batch_sha256,
+        coverage,
+        materializations,
+      }),
   });
   const handoff = recordTargetProgressivePilotDecision(plan.deck_dir, {
     runDir: plan.run_dir,
@@ -1044,16 +1287,33 @@ function progressiveFramedRawBytes(materializations) {
   return Object.fromEntries([...materializations.entries()].map(([slideId, materialization]) => [slideId, Buffer.from(materialization.bytes)]));
 }
 
+async function publishFramedProgressiveCompletePageReview({ context, plan, materializations } = {}) {
+  const published = await publishFramedCompletePageReview({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide: progressiveFramedRawBytes(materializations),
+  });
+  return Object.freeze({
+    workflow_evidence_sha256: published.complete_page_presentation_sha256,
+    projection_sha256: published.projection_sha256,
+  });
+}
+
+function validateFramedProgressiveCompletePageReview({ context, plan, materializations } = {}) {
+  return validateFramedCompletePageReview({
+    context,
+    reviewPlan: plan,
+    rawBytesBySlide: progressiveFramedRawBytes(materializations),
+  });
+}
+
 export async function prepareFramedProgressiveRawReview(runDir, { planHash } = {}) {
   const context = readFramedProgressiveTargetStoredPlanContext(runDir);
   const prepared = await prepareProgressiveRawCompleteReview({
     runDir: context.run_dir,
     workflow: FRAMED_IMAGE_WORKFLOW,
     plan_hash: planHash,
-    publish: async ({ materializations }) => publishProgressiveTargetCompleteRawReview(context, context.raw_work_plan, {
-      raw_bytes_by_slide: progressiveFramedRawBytes(materializations),
-      reviewContribution: createFramedTargetRawReviewContribution({ receipt: context.receipt, rawWorkPlan: context.raw_work_plan }),
-    }),
+    publish: async ({ plan, materializations }) => publishFramedProgressiveCompletePageReview({ context, plan, materializations }),
   });
   const handoff = prepared.accepted_raw_evidence_sha256
     ? recordTargetProgressiveAcceptedRawEvidence(context.deck_dir, {
@@ -1081,6 +1341,8 @@ export async function acceptFramedProgressiveRawReview(runDir, { planHash, decis
     workflow: FRAMED_IMAGE_WORKFLOW,
     plan_hash: planHash,
     decision,
+    validate: ({ plan: reviewPlan, materializations }) =>
+      validateFramedProgressiveCompletePageReview({ context: plan, plan: reviewPlan, materializations }),
   });
   const handoff = accepted.accepted_raw_evidence_sha256
     ? recordTargetProgressiveAcceptedRawEvidence(plan.deck_dir, {
@@ -1102,10 +1364,16 @@ export async function acceptFramedProgressiveRawReview(runDir, { planHash, decis
 }
 
 export async function reconcileFramedProgressiveRawAttempt(runDir, { planHash, attemptSha256, lookup = null } = {}) {
-  return reconcileProgressiveRawAttempt({ runDir, workflow: FRAMED_IMAGE_WORKFLOW, plan_hash: planHash, attempt_sha256: attemptSha256, lookup });
+  return reconcileProgressiveRawAttempt({
+    runDir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    plan_hash: planHash,
+    attempt_sha256: attemptSha256,
+    lookup,
+  });
 }
 
-/** Compose, publish, and deliver only from exact current v3 accepted raw evidence. */
+/** Compose, publish, and deliver only from exact current accepted raw evidence. */
 export async function buildFramedProgressiveTargetDelivery(runDir) {
   const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
   const raw = readProgressiveAcceptedRawWork({
@@ -1114,6 +1382,12 @@ export async function buildFramedProgressiveTargetDelivery(runDir) {
     plan_hash: plan.progressive_raw_work_plan.sha256,
     expected_plan: plan.progressive_raw_work_plan,
   });
+  const reviewedPresentation = readFramedProgressiveFinalizationReview(
+    plan,
+    raw.plan,
+    raw.raw_bytes_by_slide,
+    raw.complete_raw_review,
+  );
   const finalization = await composeFramedFinalSlideManifest({
     receipt: plan.receipt,
     rawWorkPlan: plan.raw_work_plan,
@@ -1121,6 +1395,7 @@ export async function buildFramedProgressiveTargetDelivery(runDir) {
     acceptedRawEvidence: raw.accepted_raw_evidence,
     rawBytesBySlide: raw.raw_bytes_by_slide,
   });
+  assertFramedFinalMatchesReviewedComposite(finalization.final_bytes_by_slide, reviewedPresentation);
   const persisted = writeProgressiveTargetFinalManifest(plan, {
     progressiveRawWorkPlan: raw.plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
@@ -1162,12 +1437,14 @@ export async function buildFramedTargetDelivery(runDir) {
   if (progressive.ok && progressive.plan) return buildFramedProgressiveTargetDelivery(runDir);
   const plan = readFramedTargetStoredPlanContext(runDir);
   const raw = readTargetAcceptedRawWork(plan, plan.raw_work_plan);
+  const reviewed = readFramedTargetFinalizationReview(plan, plan.raw_work_plan, raw.accepted_raw_evidence);
   const finalization = await composeFramedFinalSlideManifest({
     receipt: plan.receipt,
     rawWorkPlan: plan.raw_work_plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
-    rawBytesBySlide: raw.raw_bytes_by_slide,
+    rawBytesBySlide: reviewed.raw_bytes_by_slide,
   });
+  assertFramedFinalMatchesReviewedComposite(finalization.final_bytes_by_slide, reviewed.presentation);
   const persisted = writeTargetFinalManifest(plan, {
     rawWorkPlan: plan.raw_work_plan,
     acceptedRawEvidence: raw.accepted_raw_evidence,
@@ -1186,10 +1463,10 @@ export async function buildFramedTargetDelivery(runDir) {
   return Object.freeze({ ok: true, plan: framedTargetRawPlanProjection(plan), finalization: persisted, delivery, delivery_state: deliveryState });
 }
 
-function changedFramedTextSlideIds(previousReceipt, nextReceipt) {
+function changedFramedHeaderOverlaySlideIds(previousReceipt, nextReceipt) {
   const nextById = new Map(nextReceipt.slides.map((slide) => [slide.slide_id, slide]));
   return previousReceipt.slides
-    .filter((slide) => canonicalJsonSha256(slide.text_frame) !== canonicalJsonSha256(nextById.get(slide.slide_id)?.text_frame))
+    .filter((slide) => canonicalJsonSha256(slide.header_policy) !== canonicalJsonSha256(nextById.get(slide.slide_id)?.header_policy))
     .map((slide) => slide.slide_id);
 }
 
@@ -1201,9 +1478,9 @@ function selectedFramedRefreshIds(previousReceipt, nextReceipt, slideIds) {
     throw new FramedImageWorkflowError("framed_refresh_slide_selection_invalid", "Framed local refresh requires exact current stable slide IDs");
   }
   const selected = new Set(slideIds);
-  const changed = changedFramedTextSlideIds(previousReceipt, nextReceipt);
+  const changed = changedFramedHeaderOverlaySlideIds(previousReceipt, nextReceipt);
   if (changed.some((slideId) => !selected.has(slideId))) {
-    throw new FramedImageWorkflowError("framed_refresh_slide_selection_incomplete", "Framed local refresh selection must include every changed Text Frame");
+    throw new FramedImageWorkflowError("framed_refresh_slide_selection_incomplete", "Framed local refresh selection must include every changed header overlay");
   }
   return [...slideIds];
 }
@@ -1253,7 +1530,7 @@ async function refreshFramedProgressiveTargetNotes(runDir) {
     targetSourceSemanticSha256(refresh.receipt, FRAMED_IMAGE_WORKFLOW)) {
     throw new FramedImageWorkflowError("framed_notes_refresh_rebuild_required", "Framed notes refresh requires unchanged pixel-owning source facts; use the selected Framed rebuild path instead");
   }
-  const refreshed = await refreshTargetPageAuthorityNotes({
+  const refreshed = await refreshTargetPageImageNotes({
     runDir: refresh.run_dir,
     sourcePath: refresh.source_path,
     sourceEpoch: current.plan.source_epoch,
@@ -1295,14 +1572,12 @@ export async function refreshFramedTargetText(runDir, { slideIds = null } = {}) 
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
-  const reviewContribution = createFramedTargetRawReviewContribution({
-    receipt: candidate.receipt,
-    rawWorkPlan: candidate.raw_work_plan,
-  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
-    reviewContribution,
+    createPreviousReviewContribution: createFramedTargetRawReviewContribution,
+    validatePreviousCompletePageReview: ({ review_context: reviewContext, raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide, source_epoch: sourceEpoch }) =>
+      validateFramedCompletePageReview({ context: reviewContext, reviewPlan: rawWorkPlan, rawBytesBySlide, sourceEpoch }),
   });
   const finalization = await composeFramedFinalSlideManifest({
     receipt: context.receipt,
@@ -1369,14 +1644,12 @@ export async function refreshFramedTargetNotes(runDir) {
     raw_review_sha256: refresh.previous_accepted_raw_evidence.raw_review_sha256,
     raw_bytes_by_slide: refresh.raw_bytes_by_slide,
   });
-  const reviewContribution = createFramedTargetRawReviewContribution({
-    receipt: candidate.receipt,
-    rawWorkPlan: candidate.raw_work_plan,
-  });
   const context = rebindTargetLocalComposeWork(candidate, {
     rawWorkPlan: candidate.raw_work_plan,
     acceptedRawEvidence: reboundEvidence,
-    reviewContribution,
+    createPreviousReviewContribution: createFramedTargetRawReviewContribution,
+    validatePreviousCompletePageReview: ({ review_context: reviewContext, raw_work_plan: rawWorkPlan, raw_bytes_by_slide: rawBytesBySlide, source_epoch: sourceEpoch }) =>
+      validateFramedCompletePageReview({ context: reviewContext, reviewPlan: rawWorkPlan, rawBytesBySlide, sourceEpoch }),
   });
   const manifest = publishCurrentFinalSlideManifest({
     rawWorkPlan: context.raw_work_plan,

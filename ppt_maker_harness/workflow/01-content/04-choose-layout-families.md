@@ -9,7 +9,7 @@ feeds_into:
 # Choose Visual Language
 
 Choose the `VISUAL BRIEF` recipe, composition, motifs, negative constraints, and
-optional registered identity from the Page Authority visual-language registry.
+optional registered identity from the Page Image visual-language registry.
 Select them from the information relationship and audience, not from a free-form
 layout vocabulary.
 

@@ -12,7 +12,7 @@ import {
   styleAsset,
 } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import {
-  initializeTargetPageAuthorityState,
+  initializeTargetPageImageState,
   resolveRunProductionAdapter,
 } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 
@@ -36,31 +36,31 @@ function finalDiagnostic(stderr) {
   return JSON.parse(stderr.trim().split("\n").filter(Boolean).at(-1));
 }
 
-describe("v2-only production CLI surface", () => {
-  it("resolves the exact selected v2 workflow and rejects another source protocol", () => {
+describe("current Page Image CLI surface", () => {
+  it("resolves the exact selected workflow and rejects another source protocol", () => {
     const root = mkdtempSync(join(tmpdir(), "current-route-"));
     try {
       const deck = join(root, "deck_current");
       expect(() => initBundle(deck, null, "keynote", "dark-executive", { mode: "unsupported-mode" })).toThrow();
       initBundle(deck, null, "keynote", "dark-executive");
       const runDir = join(deck, "3_versions", "v1");
-      const v2Source = "---\nproduction:\n  pipeline: page-authority-image2-v2\n  workflow: pure\n---\n";
-      writeFileSync(join(runDir, "slide-specifications.md"), v2Source);
-      initializeTargetPageAuthorityState(deck, {
+      const currentSource = "---\nproduction:\n  pipeline: page-image-workflow-v1\n  workflow: pure\n---\n\n## Slide 01: `DeckGo`\n\n**TITLE**: Current source\n";
+      writeFileSync(join(runDir, "slide-specifications.md"), currentSource);
+      initializeTargetPageImageState(deck, {
         runDir,
         sourceReceipt: {
-          schema: "page-authority-image2-source-v2",
-          pipeline: "page-authority-image2-v2",
+          schema: "page-image-workflow-source-v1",
+          pipeline: "page-image-workflow-v1",
           workflow: "pure",
-          source_sha256: createHash("sha256").update(v2Source).digest("hex"),
-          slides: [{ slide_id: "DeckGo", workflow: "pure" }],
+          source_sha256: createHash("sha256").update(currentSource).digest("hex"),
+          slides: [{ slide_id: "DeckGo", position: 1 }],
         },
       });
       expect(resolveRunProductionAdapter(deck, { runDir })).toMatchObject({
         ok: true,
-        mode: "image2-page-authority-v2",
+        mode: "image2-page-workflow-v1",
         workflow: "pure",
-        adapter: "page-authority-image2-v2",
+        adapter: "page-image-workflow-v1",
       });
 
       const unsupportedSource = "---\nproduction:\n  pipeline: unsupported-protocol-v0\n---\n";
@@ -73,7 +73,7 @@ describe("v2-only production CLI surface", () => {
     }
   });
 
-  it("routes fresh v2 Style Master promotion before selected-workflow raw planning", () => {
+  it("routes fresh Style Master promotion before selected-workflow raw planning", () => {
     const root = mkdtempSync(join(tmpdir(), "target-cli-surface-"));
     const deck = join(root, "deck_target_cli");
     const runDir = join(deck, "3_versions", "v1");
@@ -87,7 +87,7 @@ describe("v2-only production CLI surface", () => {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: pure
 ---
 
@@ -145,13 +145,29 @@ negative_constraints:
 
       const result = run(["image2", "plan", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(result.stdout)).toMatchObject({
+      const rawPlan = JSON.parse(result.stdout);
+      expect(rawPlan).toMatchObject({
         workflow: "pure",
         maximum_submissions: 1,
       });
+      const beforeRedirect = treeSnapshot(deck);
+      const redirect = run([
+        "image2", "accept", runDir,
+        "--plan-hash", rawPlan.plan_hash,
+        "--decision", "redirect",
+      ]);
+      expect(redirect.status, redirect.stderr).toBe(1);
+      expect(finalDiagnostic(redirect.stderr)).toMatchObject({
+        code: "USAGE",
+        diagnostic: {
+          category: "usage",
+          next: { action: "fix_arguments", requires_human: false },
+        },
+      });
+      expect(treeSnapshot(deck)).toEqual(beforeRedirect);
       expect(resolveRunProductionAdapter(deck, { runDir })).toMatchObject({
         ok: true,
-        adapter: "page-authority-image2-v2",
+        adapter: "page-image-workflow-v1",
         workflow: "pure",
       });
     } finally {
@@ -159,7 +175,7 @@ negative_constraints:
     }
   });
 
-  it("has no retired command and hard-stops non-v2 observation and execution without writes", () => {
+  it("has no retired command and hard-stops unsupported observation and execution without writes", () => {
     const help = run(["--help"]);
     expect(help.status, help.stderr).toBe(0);
     expect(help.stdout).not.toMatch(/\b(?:approve|pilot)\b/);

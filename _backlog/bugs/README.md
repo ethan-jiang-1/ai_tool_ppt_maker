@@ -1,8 +1,8 @@
 # Active Bugs — 活跃 bug 列表
 
-> 最后更新: 2026-08-05 | `_backlog/bugs/` — 活跃 bug 在此
+> 最后更新: 2026-08-08 | `_backlog/bugs/` — 活跃 bug 在此
 >
-> **bug 编号权威在 `_done/_fixed_bugs/`，新 bug = 最大编号 + 1。** 本文件只列活跃 bug。
+> **bug 编号归档索引在 `_done/_fixed_bugs/`；新 bug 必须取所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。** 本文件只列活跃 bug。
 
 ## 修完一个 bug 的步骤
 
@@ -15,24 +15,32 @@
 
 ## 活跃列表
 
-### P1（重要 — 3 个）
+### P0（阻断 — 1 个）
+
+- **[BUG-060](BUG-060-framed-capture-row-stride-corrupts-alpha.md)** — Framed capture 的行跨步硬编码为 RGBA，RGB 截图会污染 alpha 并截断底部内容
+
+### P1（重要 — 2 个）
 
 - **[BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md)** — page raw generate 报 invalid_json 但 provider 实际返回合法 JSON：无响应可见性，瞬时 provider 抖动被当确定性失败烧掉整批提交
 - **[BUG-057](BUG-057-pure-pages-lack-visual-system-consistency.md)** — Pure workflow 各页视觉系统不一致：字体/字号/色调/layout 每页自由发挥，缺全 deck 锁定视觉系统
-- **[BUG-058](BUG-058-candidate-selection-prompt-unusable-no-path-long-ids.md)** — Style Master 候选选择提示无法使用：不展示候选图文件路径，且截断 SHA256 哈希对人类无辨识度
 
-### P2（次要 — 2 个）
+### P2（次要 — 3 个）
 
 - **[BUG-056](BUG-056-artifacts-need-full-paths-for-user-viewing.md)** — Agent 要求用户查看产物（中间图/PPT）时不提供完整路径，用户无从定位
 - **[BUG-059](BUG-059-style-master-compat-jpeg-fails-16bit-png.md)** — Style Master 兼容 JPEG 投影对 16-bit provider PNG 失败（loadImage 无法解码）
+- **[BUG-063](BUG-063-content-addressed-path-length-unusable.md)** — 内容寻址目录名过长，用户侧路径不可用
+
+### P3（体验 — 1 个）
+
+- **[BUG-062](BUG-062-long-hash-leaks-in-cli-stdout-despite-short-refs.md)** — 短引用只覆盖 task-projection，一般 CLI stdout 仍输出完整 64 位哈希
 
 ---
 
-**Next available bug ID: BUG-060**
+**Next available bug ID: BUG-064**
 
 ## 类别分布
 
-无活跃 bug。
+P0: 1 | P1: 2 | P2: 3 | P3: 1
 
 ---
 

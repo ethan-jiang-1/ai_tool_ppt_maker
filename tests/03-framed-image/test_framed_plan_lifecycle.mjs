@@ -24,8 +24,8 @@ vi.mock("../../ppt_maker_harness/scripts/02-visual-system/index.mjs", async (imp
   const actual = await importOriginal();
   return {
     ...actual,
-    createPageAuthoritySourceResolver(...args) {
-      const resolver = actual.createPageAuthoritySourceResolver(...args);
+    createPageImageSourceResolver(...args) {
+      const resolver = actual.createPageImageSourceResolver(...args);
       if (!framedResolverControls.null_provider_clauses) return resolver;
       return Object.freeze({
         resolveSelection(context) {
@@ -40,10 +40,10 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
   const actual = await importOriginal();
   return {
     ...actual,
-    currentFramedRenderProfile(...args) {
+    currentFramedHeaderOverlayRenderProfile(...args) {
       renderControls.profile_calls += 1;
       if (renderControls.profile_error) throw renderControls.profile_error;
-      const profile = actual.currentFramedRenderProfile(...args);
+      const profile = actual.currentFramedHeaderOverlayRenderProfile(...args);
       const current = renderControls.profile_digest_override
         ? Object.freeze({ ...profile, render_profile_digest: renderControls.profile_digest_override })
         : profile;
@@ -57,23 +57,23 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
   const actual = await importOriginal();
   return {
     ...actual,
-    describeFramedFrame(...args) {
-      const frame = actual.describeFramedFrame(...args);
+    describeFramedHeaderOverlay(...args) {
+      const frame = actual.describeFramedHeaderOverlay(...args);
       if (!renderControls.safe_zone_drift) return frame;
-      const safeZones = frame.layout.safe_zones.map((safeZone, index) => (
+      const protectedGeometry = frame.layout.protected_geometry.map((rectangle, index) => (
         index === 0
           ? Object.freeze({
-            ...safeZone,
-            rectangle: Object.freeze({ ...safeZone.rectangle, width: safeZone.rectangle.width - 1 }),
+            ...rectangle,
+            width: rectangle.width - 1,
           })
-          : safeZone
+          : rectangle
       ));
       return Object.freeze({
         ...frame,
-        layout: Object.freeze({ ...frame.layout, safe_zones: Object.freeze(safeZones) }),
+        layout: Object.freeze({ ...frame.layout, protected_geometry: Object.freeze(protectedGeometry) }),
       });
     },
-    async verifyFramedRenderContracts(frames) {
+    async verifyFramedHeaderOverlays(frames) {
       renderControls.proof_calls += 1;
       renderControls.proof_batches.push(frames.map((frame) => frame.slide_id));
       if (renderControls.proof_error) {
@@ -86,7 +86,7 @@ vi.mock("../../ppt_maker_harness/scripts/03-framed-image/internal/framed_render_
         pages: Object.freeze(frames.map((frame) => Object.freeze({ slide_id: frame.slide_id }))),
       });
     },
-    async composeFramedRenderContracts(frames) {
+    async composeFramedHeaderOverlays(frames) {
       renderControls.composition_calls += 1;
       renderControls.browser_launches += 1;
       if (renderControls.composition_error) throw renderControls.composition_error;
@@ -114,7 +114,8 @@ import {
   validateFramedRawContract,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
-import { pageAuthorityImage2Paths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_authority_paths.mjs";
+import { pageImageOrdinalImageFilename } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
@@ -131,7 +132,7 @@ function source({ invalid = false } = {}) {
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
@@ -152,21 +153,27 @@ negative_constraints:
 identity:
   scheme: mnemonic-v1
 production:
-  pipeline: page-authority-image2-v2
+  pipeline: page-image-workflow-v1
   workflow: framed
 ---
 
 ## Slide 01: \`DeckGo\`
 
 **TITLE**: Exact lifecycle proof
+**FRAME PRESET**: standard-v1
+**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: callout
+    literal: "The provider composes this exact lifecycle evidence with the page."
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: The plan owns this source exactly.
@@ -174,14 +181,20 @@ negative_constraints:
 ## Slide 02: \`BodyMap\`
 
 **TITLE**: The batch stays bounded
+**FRAME PRESET**: standard-v1
+**SLIDE BODY**:
+\`\`\`yaml
+items:
+  - role: label
+    literal: "One selected batch, one current lineage"
+\`\`\`
 **VISUAL BRIEF**:
 \`\`\`yaml
 recipe: editorial-systems
 composition: centered-constellation
 motifs: []
 negative_constraints:
-  - no-readable-text
-  - no-labels
+  - no-logo
 \`\`\`
 
 > **SPEAKER NOTE**: Later raw commands read the stored plan.
@@ -200,7 +213,7 @@ async function createFixture({ invalid = false } = {}) {
   writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), image.toBuffer("image/png"));
   writeFileSync(join(runDir, "slide-specifications.md"), source({ invalid }));
   if (!invalid) await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(runDir));
-  return { root, deck, runDir, image: image.toBuffer("image/png"), paths: pageAuthorityImage2Paths(runDir) };
+  return { root, deck, runDir, image: image.toBuffer("image/png"), paths: pageImageWorkflowPaths(runDir) };
 }
 
 function derivedPaths(paths) {
@@ -233,7 +246,7 @@ function expectNoMaterialization(fixture, stateBefore) {
 
 function sourceEpoch(fixture) {
   return readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
-    .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch;
+    .page_image_target_evidence.by_version["3_versions/v1"].source_epoch;
 }
 
 async function expectStalePlanStopsProvider(fixture, planHash, expectedCode) {
@@ -379,7 +392,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
     }
   });
 
-  it("materializes one exact plan, keeps later raw commands browser-free, and reserves one final composition batch for delivery", async () => {
+  it("materializes one exact plan, keeps later raw commands browser-free, and binds one review composite before final delivery", async () => {
     const fixture = await createFixture();
     try {
       const plan = await buildFramedTargetRawPlan(fixture.runDir);
@@ -390,12 +403,57 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(renderControls.proof_calls).toBe(1);
       expect(renderControls.browser_launches).toBe(1);
       expect(renderControls.proof_batches).toEqual([["DeckGo", "BodyMap"]]);
+      expect(plan.page_image_core).toMatchObject({ schema: "page-image-core-facts-v1", workflow: "framed" });
+      expect(plan.page_image_core.slides[0]).toMatchObject({
+        slide_id: "DeckGo",
+        provider_content: {
+          items: [{
+            role: "callout",
+            literal: "The provider composes this exact lifecycle evidence with the page.",
+            copy_policy: "exact",
+          }],
+        },
+        header_policy: {
+          local_header: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
+          context_not_to_render: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
+        },
+      });
+      expect(rawContracts.DeckGo).toMatchObject({
+        page_image_core: {
+          schema: "page-image-core-slide-facts-v1",
+          canonical_semantic_sha256: plan.page_image_core.slides[0].canonical_semantic_sha256,
+        },
+        provider_rendered_content: {
+          items: [{
+            role: "callout",
+            literal: "The provider composes this exact lifecycle evidence with the page.",
+            copy_policy: "exact",
+          }],
+        },
+        framed: {
+          local_header: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
+          context_not_to_render: { kicker: null, title: "Exact lifecycle proof", subtitle: null },
+        },
+      });
       for (const [slideId, rawContract] of Object.entries(rawContracts)) {
+        const coreSlide = plan.page_image_core.slides.find((slide) => slide.slide_id === slideId);
+        const request = plan.provider_requests_by_slide[slideId];
+        const binding = plan.raw_work_plan.items.find((item) => item.slide_id === slideId).provider_input_binding;
         expect(rawContract.framed.render_profile_digest).toBe(renderControls.latest_profile_digest);
         expect(validateFramedRawContract(rawContract)).toMatchObject({
           ok: true,
           raw_contract_sha256: plan.raw_work_plan.items.find((item) => item.slide_id === slideId).raw_contract_sha256,
           render_profile_digest: renderControls.latest_profile_digest,
+        });
+        expect(binding).toMatchObject({
+          compiled_provider_input_sha256: request.compiled_provider_input.sha256,
+          provider_content_sha256: coreSlide.provider_content_sha256,
+          visual_selection_sha256: coreSlide.visual_selection_sha256,
+          style_master_selection_sha256: coreSlide.style_master_selection_sha256,
+          generation_profile_sha256: coreSlide.generation_profile_sha256,
+          header_policy_sha256: coreSlide.header_policy_sha256,
+          local_header_profile_sha256: rawContract.framed.render_profile_digest,
+          protected_geometry_sha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
         });
       }
       const staleContract = structuredClone(rawContracts.DeckGo);
@@ -436,34 +494,51 @@ describe("Framed proof-before-materialization lifecycle", () => {
       await prepareFramedTargetRawReview(fixture.runDir);
       await decideFramedTargetRawReview(fixture.runDir, { decision: "proceed" });
       const authorization = readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_raw_provider_authorization.by_version["3_versions/v1"];
+        .page_image_raw_provider_authorization.by_version["3_versions/v1"];
       const review = JSON.parse(readFileSync(fixture.paths.target_raw_review, "utf8"));
       const acceptedRawEvidence = JSON.parse(readFileSync(fixture.paths.target_raw_evidence, "utf8"));
+      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", planHash);
+      const completePresentation = JSON.parse(readFileSync(join(completeReviewRoot, "complete-page-review-evidence-v1.json"), "utf8"));
       expect(authorization.raw_work_plan_sha256).toBe(planHash);
       expect(review).toMatchObject({
         source_epoch: 1,
         workflow: "framed",
         raw_bytes_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         typed_review_contribution_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        complete_page_presentation_sha256: canonicalJsonSha256(completePresentation),
         projection_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
         projection_capture_profile_sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
       });
+      expect(completePresentation).toMatchObject({
+        raw_work_plan_sha256: planHash,
+        workflow: "framed",
+        has_complete_page_artifact: true,
+        items: expect.arrayContaining([
+          expect.objectContaining({ slide_id: "DeckGo" }),
+          expect.objectContaining({ slide_id: "BodyMap" }),
+        ]),
+      });
+      for (const [index, slideId] of plan.raw_work_plan.ordered_slide_ids.entries()) {
+        const filename = pageImageOrdinalImageFilename(index + 1, slideId);
+        expect(existsSync(join(completeReviewRoot, "provider-page", filename))).toBe(true);
+        expect(existsSync(join(completeReviewRoot, "complete-page", filename))).toBe(true);
+      }
       expect(review).not.toHaveProperty("raw_work_plan_sha256");
       expect(review).not.toHaveProperty("source_receipt_sha256");
       expect(acceptedRawEvidence.raw_work_plan_sha256).toBe(planHash);
       expect(submissions).toBe(2);
       expect(renderControls.proof_calls).toBe(1);
-      expect(renderControls.browser_launches).toBe(1);
-      expect(renderControls.composition_calls).toBe(0);
+      expect(renderControls.browser_launches).toBe(2);
+      expect(renderControls.composition_calls).toBe(1);
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBytes);
       expect(readFileSync(fixture.paths.target_source_receipt)).toEqual(sourceReceiptBytes);
       expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(1);
+        .page_image_target_evidence.by_version["3_versions/v1"].source_epoch).toBe(1);
 
       const delivery = await buildFramedTargetDelivery(fixture.runDir);
       expect(renderControls.proof_calls).toBe(1);
-      expect(renderControls.browser_launches).toBe(2);
-      expect(renderControls.composition_calls).toBe(1);
+      expect(renderControls.browser_launches).toBe(3);
+      expect(renderControls.composition_calls).toBe(2);
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBytes);
       expect(readFileSync(fixture.paths.target_source_receipt)).toEqual(sourceReceiptBytes);
       expect(delivery.finalization.final_manifest.accepted_raw_evidence_sha256)
@@ -519,7 +594,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
       const rawPlanBefore = readFileSync(fixture.paths.target_raw_plan);
       const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
-      const registryPath = join(fixture.deck, "2_backbone", "visual-style", "page-authority-visual-language.yaml");
+      const registryPath = join(fixture.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
       writeFileSync(registryPath, readFileSync(registryPath, "utf8").replace("quiet depth", "quiet luminous depth"));
 
       await expectStalePlanStopsProvider(fixture, initial.raw_work_plan.sha256, "target_source_receipt_stale");
@@ -563,25 +638,30 @@ describe("Framed proof-before-materialization lifecycle", () => {
     const fixture = await createFixture();
     try {
       let providerSubmissions = 0;
-      await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
+      const acceptedPlan = await buildAcceptedRawWork(fixture, { onSubmit: () => { providerSubmissions += 1; } });
+      await buildFramedTargetDelivery(fixture.runDir);
       const reviewBytes = readFileSync(fixture.paths.target_raw_review);
-      const projectionBytes = readFileSync(fixture.paths.target_raw_review_projection);
+      const completeReviewRoot = join(fixture.paths.review_root, "complete-page", acceptedPlan.raw_work_plan.sha256);
+      const completePresentationPath = join(completeReviewRoot, "complete-page-review-evidence-v1.json");
+      const completePresentationBytes = readFileSync(completePresentationPath);
+      const projectionPath = join(completeReviewRoot, "complete-page-review.png");
+      const projectionBytes = readFileSync(projectionPath);
       const previousEvidence = JSON.parse(readFileSync(fixture.paths.target_raw_evidence, "utf8"));
 
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
-        source().replace("Exact lifecycle proof", "Rebound local composition"),
+        source().replace("The plan owns this source exactly.", "Rebound notes preserve the prior page review."),
       );
-      await expect(refreshFramedTargetText(fixture.runDir, { slideIds: ["DeckGo"] })).resolves.toMatchObject({
+      await expect(refreshFramedTargetNotes(fixture.runDir)).resolves.toMatchObject({
         ok: true,
-        refreshed_slide_ids: ["DeckGo"],
       });
       const reboundEvidence = JSON.parse(readFileSync(fixture.paths.target_raw_evidence, "utf8"));
       expect(reboundEvidence.raw_review_sha256).toBe(previousEvidence.raw_review_sha256);
       expect(sourceEpoch(fixture)).toBe(1);
       expect(readFileSync(fixture.paths.target_raw_review)).toEqual(reviewBytes);
-      expect(readFileSync(fixture.paths.target_raw_review_projection)).toEqual(projectionBytes);
-      expect(renderControls.composition_calls).toBe(1);
+      expect(readFileSync(completePresentationPath)).toEqual(completePresentationBytes);
+      expect(readFileSync(projectionPath)).toEqual(projectionBytes);
+      expect(renderControls.composition_calls).toBe(2);
       expect(providerSubmissions).toBe(2);
 
       const sourceReceiptBeforeRecordDrift = readFileSync(fixture.paths.target_source_receipt);
@@ -591,15 +671,15 @@ describe("Framed proof-before-materialization lifecycle", () => {
       writeFileSync(fixture.paths.target_raw_review, Buffer.concat([reviewBytes, Buffer.from("\n")]));
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
-        source().replace("Exact lifecycle proof", "Record drift must stop"),
+        source().replace("The plan owns this source exactly.", "Record drift must stop"),
       );
-      await expect(refreshFramedTargetText(fixture.runDir, { slideIds: ["DeckGo"] }))
-        .rejects.toMatchObject({ code: "target_raw_review_stale" });
+      await expect(refreshFramedTargetNotes(fixture.runDir))
+        .rejects.toMatchObject({ code: "target_complete_page_review_stale" });
       expect(readFileSync(fixture.paths.target_source_receipt)).toEqual(sourceReceiptBeforeRecordDrift);
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(planBeforeRecordDrift);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBeforeRecordDrift);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBeforeRecordDrift);
-      expect(renderControls.composition_calls).toBe(1);
+      expect(renderControls.composition_calls).toBe(2);
 
       writeFileSync(fixture.paths.target_raw_review, reviewBytes);
       const sourceReceiptBeforeProjectionDrift = readFileSync(fixture.paths.target_source_receipt);
@@ -608,18 +688,18 @@ describe("Framed proof-before-materialization lifecycle", () => {
       const stateBeforeProjectionDrift = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       const tamperedProjection = Buffer.from(projectionBytes);
       tamperedProjection[tamperedProjection.length - 1] ^= 1;
-      writeFileSync(fixture.paths.target_raw_review_projection, tamperedProjection);
+      writeFileSync(projectionPath, tamperedProjection);
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
-        source().replace("Exact lifecycle proof", "Projection drift must stop"),
+        source().replace("The plan owns this source exactly.", "Projection drift must stop"),
       );
-      await expect(refreshFramedTargetText(fixture.runDir, { slideIds: ["DeckGo"] }))
-        .rejects.toMatchObject({ code: "target_raw_review_stale" });
+      await expect(refreshFramedTargetNotes(fixture.runDir))
+        .rejects.toMatchObject({ code: "target_complete_page_review_stale" });
       expect(readFileSync(fixture.paths.target_source_receipt)).toEqual(sourceReceiptBeforeProjectionDrift);
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(planBeforeProjectionDrift);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBeforeProjectionDrift);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBeforeProjectionDrift);
-      expect(renderControls.composition_calls).toBe(1);
+      expect(renderControls.composition_calls).toBe(2);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -633,6 +713,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       await buildFramedTargetDelivery(fixture.runDir);
       const finalManifestBefore = readFileSync(fixture.paths.target_final_manifest);
       const rawReviewBefore = readFileSync(fixture.paths.target_raw_review);
+      const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       renderControls.composition_error = errorWithCode("framed_text_fit_failed", "title field has scroll overflow");
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
@@ -640,13 +721,11 @@ describe("Framed proof-before-materialization lifecycle", () => {
       );
 
       await expect(refreshFramedTargetText(fixture.runDir, { slideIds: ["DeckGo"] }))
-        .rejects.toMatchObject({ code: "framed_text_fit_failed" });
+        .rejects.toMatchObject({ code: "framed_local_compose_rebuild_required" });
       expect(providerSubmissions).toBe(2);
       expect(readFileSync(fixture.paths.target_final_manifest)).toEqual(finalManifestBefore);
       expect(readFileSync(fixture.paths.target_raw_review)).toEqual(rawReviewBefore);
-      expect(readState(fixture.deck, { purpose: "observe", runVersion: "v1" })
-        .page_authority_target_evidence.by_version["3_versions/v1"])
-        .toMatchObject({ source_epoch: 1, final_manifest_sha256: null, delivery_receipt_sha256: null });
+      expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(renderControls.composition_calls).toBe(2);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
@@ -675,7 +754,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBeforeProfileDrift);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBeforeProfileDrift);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBeforeProfileDrift);
-      expect(renderControls.composition_calls).toBe(0);
+      expect(renderControls.composition_calls).toBe(1);
 
       renderControls.profile_digest_override = null;
       renderControls.safe_zone_drift = true;
@@ -690,7 +769,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBeforeProfileDrift);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBeforeProfileDrift);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBeforeProfileDrift);
-      expect(renderControls.composition_calls).toBe(0);
+      expect(renderControls.composition_calls).toBe(1);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -720,14 +799,14 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBefore);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBefore);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
-      expect(renderControls.browser_launches).toBe(1);
-      expect(renderControls.composition_calls).toBe(0);
+      expect(renderControls.browser_launches).toBe(2);
+      expect(renderControls.composition_calls).toBe(1);
 
       writeFileSync(
         join(fixture.runDir, "slide-specifications.md"),
         original
           .replace("workflow: framed", "workflow: pure")
-          .replaceAll("  - no-readable-text\n  - no-labels", "  - no-logo"),
+          .replaceAll("**FRAME PRESET**: standard-v1\n", ""),
       );
       await expect(refreshFramedTargetText(fixture.runDir)).rejects.toMatchObject({
         code: "target_workflow_switch_structural_required",
@@ -737,8 +816,8 @@ describe("Framed proof-before-materialization lifecycle", () => {
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBefore);
       expect(readFileSync(fixture.paths.target_raw_evidence)).toEqual(evidenceBefore);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
-      expect(renderControls.browser_launches).toBe(1);
-      expect(renderControls.composition_calls).toBe(0);
+      expect(renderControls.browser_launches).toBe(2);
+      expect(renderControls.composition_calls).toBe(1);
       expect(providerSubmissions).toBe(2);
       expect(sourceEpoch(fixture)).toBe(1);
     } finally {

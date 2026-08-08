@@ -7,7 +7,7 @@ import {
   PPT_FLOW_COMMAND_INVENTORY,
   parseCliErrorLine,
 } from "../../ppt_maker_harness/scripts/shared/cli/cli_error.mjs";
-import { TARGET_PRODUCTION_MODE } from "../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
+import { PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE } from "../../ppt_maker_harness/scripts/shared/run-bundle/production_mode.mjs";
 
 const ENV_CHECK = "ppt_maker_harness/scripts/00-setup/env-check.mjs";
 const PPT_FLOW = "ppt_maker_harness/scripts/ppt_flow.mjs";
@@ -35,7 +35,7 @@ describe("command-surface entry seams", () => {
     expect(help.stdout).toContain("--probe-vendors");
     expect(help.stdout).not.toContain("--image2");
 
-    const accepted = run(ENV_CHECK, ["--json", "--mode", TARGET_PRODUCTION_MODE, "--operation", "framed-local-refresh"]);
+    const accepted = run(ENV_CHECK, ["--json", "--mode", PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE, "--operation", "framed-local-refresh"]);
     expect(accepted.stderr).not.toMatch(/unknown --mode|unknown --operation|requires --mode/i);
     expect(() => JSON.parse(accepted.stdout)).not.toThrow();
 
@@ -45,7 +45,7 @@ describe("command-surface entry seams", () => {
       category: "usage",
       next: { action: "fix_arguments" },
     });
-    expect(retired.stderr).toContain(`--mode ${TARGET_PRODUCTION_MODE} --operation raw-generation`);
+    expect(retired.stderr).toContain(`--mode ${PAGE_IMAGE_WORKFLOW_PRODUCTION_MODE} --operation raw-generation`);
 
     const providerApi = {
       inspect: vi.fn(async () => { throw new Error("default foundation must remain offline"); }),
@@ -53,7 +53,7 @@ describe("command-surface entry seams", () => {
       classify: vi.fn(async () => { throw new Error("default foundation must remain offline"); }),
       host: vi.fn(async () => { throw new Error("default foundation must remain offline"); }),
     };
-    await runAllChecks({ profile: "page-authority-framed", providerApi });
+    await runAllChecks({ profile: "page-image-framed", providerApi });
     for (const probe of Object.values(providerApi)) expect(probe).not.toHaveBeenCalled();
   }, 60_000);
 

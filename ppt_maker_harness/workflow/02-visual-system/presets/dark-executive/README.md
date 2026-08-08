@@ -25,8 +25,8 @@ agent_action: recommend
 | primary text | `#f4f8fc` |
 | secondary text | `#94a3b8` |
 
-Framed Page Authority compositor owns exact display text and geometry; Pure pages keep readable text in the Image2 authority. Bundled fonts provide accurate English/Hans text. Do not let Image2 decide Framed title placement or spelling.
+Framed Page Image compositor owns exact display text and geometry; Pure pages keep readable text in the Image2 authority. Bundled fonts provide accurate English/Hans text. Do not let Image2 decide Framed title placement or spelling.
 
 适合战略 keynote、董事会、制造业、B2B 与深科技。不适合需要温暖生活方式叙事的消费品牌。
 
-Visual review must open the current raw or final projection. A visual-language or recipe change rechecks the affected Page Authority evidence; an ordinary Framed copy edit does not reopen unrelated raw evidence.
+Visual review must open the current raw or final projection. A visual-language or recipe change rechecks the affected Page Image evidence; an ordinary Framed copy edit does not reopen unrelated raw evidence.
