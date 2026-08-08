@@ -74,6 +74,7 @@ import {
   acceptProgressiveRawCompleteReview,
   acceptProgressiveRawPilot,
   publishProgressiveRawWorkPlan,
+  readCurrentProgressiveRawPilotWork,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
 } from "../shared/image2/page_image_progressive_raw_owner.mjs";
@@ -927,6 +928,29 @@ export async function preparePureProgressivePilotReview(runDir, { planHash, batc
   });
 }
 
+/** Read and validate the current Pure partial Pilot presentation without writing. */
+export function inspectPureProgressivePilotPageReview(runDir) {
+  const context = readPureProgressiveTargetStoredPlanContext(runDir);
+  const pilot = readCurrentProgressiveRawPilotWork({
+    runDir: context.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    expected_plan: context.progressive_raw_work_plan,
+  });
+  if (!pilot.available) return pilot;
+  const presentation = validatePureProgressivePilot({
+    context,
+    plan: pilot.plan,
+    batch: pilot.batch,
+    batch_sha256: pilot.batch.sha256,
+    coverage: pilot.pilot_evidence.items,
+    materializations: pilot.materializations,
+  });
+  if (!presentation.ok) {
+    throw new PureImageWorkflowError(presentation.code, presentation.message);
+  }
+  return Object.freeze({ ...pilot, presentation });
+}
+
 export async function acceptPureProgressivePilot(runDir, { planHash, batchHash, decision } = {}) {
   const plan = readPureProgressiveTargetStoredPlanContext(runDir);
   const accepted = await acceptProgressiveRawPilot({
@@ -1041,6 +1065,24 @@ export async function reconcilePureProgressiveRawAttempt(runDir, { planHash, att
     attempt_sha256: attemptSha256,
     lookup,
   });
+}
+
+/** Read and validate the current accepted Pure complete-page review without writing. */
+export function inspectPureProgressiveCompletePageReview(runDir) {
+  const plan = readPureProgressiveTargetStoredPlanContext(runDir);
+  const raw = readProgressiveAcceptedRawWork({
+    runDir: plan.run_dir,
+    workflow: PURE_IMAGE_WORKFLOW,
+    plan_hash: plan.progressive_raw_work_plan.sha256,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  const presentation = readPureProgressiveFinalizationReview(
+    plan,
+    raw.plan,
+    raw.raw_bytes_by_slide,
+    raw.complete_raw_review,
+  );
+  return Object.freeze({ plan, raw, presentation });
 }
 
 /** Publish final and delivery projections from exact v3 accepted raw evidence only. */

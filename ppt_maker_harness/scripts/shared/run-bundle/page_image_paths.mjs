@@ -10,6 +10,7 @@ export const GEN_PAGE_IMAGE_RECEIPTS_SUBDIR = "receipts";
 export const GEN_PAGE_IMAGE_RAW_SUBDIR = "raw";
 export const GEN_PAGE_IMAGE_REVIEW_SUBDIR = "review";
 export const GEN_PAGE_IMAGE_FINAL_SUBDIR = "final";
+export const GEN_PAGE_IMAGE_REFERENCE_SUBDIR = "reference";
 
 // Style Master candidate history is append-mostly source evidence, not a
 // version-generated artifact. The small per-scope head is its sole mutable
@@ -48,6 +49,8 @@ export const PAGE_IMAGE_WORKFLOW_PATHS = Object.freeze({
   final_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/projection.png`,
   delivery_media_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media`,
   delivery_media_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media-manifest-v1.json`,
+  reference_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REFERENCE_SUBDIR}`,
+  human_artifact_reference: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REFERENCE_SUBDIR}/human-artifact-reference-v1.md`,
 });
 
 export function isPageImageVersionDir(runDir) {

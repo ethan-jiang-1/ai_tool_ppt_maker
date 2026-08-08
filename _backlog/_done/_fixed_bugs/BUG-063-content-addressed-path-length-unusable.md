@@ -1,6 +1,6 @@
 # BUG-063: 内容寻址目录名过长（64-hex），用户侧路径不可用
 
-> 严重级别: P2（UX/导航，协议设计成本）| 发现: 2026-08-06 | 状态: needs-info
+> 严重级别: P2（UX/导航，协议设计成本）| 发现: 2026-08-06 | 状态: 已归档（`add-human-artifact-reference-view`; `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`，2026-08-08）
 
 ## 症状
 
@@ -79,3 +79,19 @@ deck_dark_factory/1_upstream_raw_material/page-production-iterations/plans/<64he
 
 该决策应通过 Page Image / run-bundle OpenSpec change 落地；在此之前不应重命名现有内容寻址目录、改写
 历史，或向不可变 roots 加入临时 alias。
+
+## 修复证据 — 2026-08-08
+
+维护者确认 D3 的解决范围是只读、可重建的 logical navigation view，而不是短物理目录或 selector migration。
+`add-human-artifact-reference-view` 现在通过显式 provider-free 命令重建一个 run-scoped reference Markdown：
+它用 stable `NN_slideID`/candidate ID 和 collision-aware kind-prefixed display refs 组织当前可检查 artifacts，
+并保留完整 SHA-256 仅在不可避免的真实物理 locator 内。人类和 Agent 可从这个固定 derived entry 查看、复制
+当前 owner-issued locator，无需记忆或从 immutable store 中寻找 hash 容器。
+
+该 view 不创建 alias、symlink、resolver 或短 hash 输入语法；删除/手改 view 不改变 authority，重建时不会读取
+旧 view。这正是确认的首期修复。若未来需要可 `cd` 的短物理目录或允许短引用作为命令输入，必须另立 protocol/
+migration change，不能作为本卡已解决 scope 的隐式扩张。
+
+验证：Pure/Framed partial、Pilot、review 与 delivery fixtures 均以短 display labels 和稳定页面顺序渲染；
+collision、escaping locator、stale copied output、删除和手改重建均有回归覆盖。70 项 focused suites、`npm test`、
+strict change validation 与 `git diff --check` 均通过。

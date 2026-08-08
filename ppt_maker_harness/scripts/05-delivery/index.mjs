@@ -433,6 +433,19 @@ async function currentTargetDeliveryReceipt(runDir) {
   });
 }
 
+/**
+ * Inspect the one current delivery lineage without refreshing notes or writing
+ * any state/artifact. A missing receipt means delivery is not available yet;
+ * every present receipt still traverses the same strict binding validation.
+ */
+export async function inspectCurrentTargetPageImageDelivery({ runDir } = {}) {
+  const paths = pageImageWorkflowPaths(runDir);
+  const receiptPath = join(paths.final_root, "delivery-receipt-v1.json");
+  if (!existsSync(receiptPath)) return Object.freeze({ available: false });
+  const current = await currentTargetDeliveryReceipt(runDir);
+  return Object.freeze({ available: true, ...current });
+}
+
 /** Refresh notes only after revalidating the same replacement final/assembly lineage. */
 export async function refreshTargetPageImageNotes({ runDir, sourcePath, sourceEpoch = null } = {}) {
   const current = await currentTargetDeliveryReceipt(runDir);

@@ -1,6 +1,6 @@
 # BUG-056: Agent 让用户查看产物（中间图/PPT/评审图）时不提供完整路径
 
-> 严重级别: P2 | 发现: 2026-08-05 | 状态: ready-for-agent
+> 严重级别: P2 | 发现: 2026-08-05 | 状态: 已归档（`add-human-artifact-reference-view`; `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`，2026-08-08）
 
 ## 症状
 
@@ -62,11 +62,28 @@ Agent 的产物查看习惯只做「open 打开」动作 + 口语化描述，没
 `_generated/` 反推编辑权限，也不得为方便显示创造新的路径协议。
 
 **Acceptance criteria:**
-- [ ] 根级 Agent 指引和新 run bundle 的 operating guide 均定义同一条 artifact 展示规则。
-- [ ] Style Master candidates、raw/review projections、final PNG/PPTX、notes receipt 和 delivery receipt
+- [x] 根级 Agent 指引和新 run bundle 的 operating guide 均定义同一条 artifact 展示规则。
+- [x] Style Master candidates、raw/review projections、final PNG/PPTX、notes receipt 和 delivery receipt
       的用户提示都有可复制定位符。
-- [ ] 多 artifact 评审按稳定 slide ID 或 candidate ID 列出路径，不以 SHA-256 作为人工选择主键。
-- [ ] 规则明确 locator 仅用于查看，不授予 `_generated/` 手工编辑权限。
+- [x] 多 artifact 评审按稳定 slide ID 或 candidate ID 列出路径，不以 SHA-256 作为人工选择主键。
+- [x] 规则明确 locator 仅用于查看，不授予 `_generated/` 手工编辑权限。
 
 **Out of scope:** 改变 artifact 所有权、将内容寻址目录改为短名，或让 CLI 把所有内部绝对路径当作
 machine schema 的必填字段。
+
+## 修复证据 — 2026-08-08
+
+`add-human-artifact-reference-view` 新增显式、provider-free 的
+`ppt_flow image2 artifact-view <run-dir>`。它原子重建当前 run 的
+`_generated/page_image_workflow/reference/human-artifact-reference-v1.md`，按稳定 candidate/slide
+顺序列出 owner-validated 的 Style Master、provider input、Pure/Framed Pilot、Complete Page Review、final
+PNG、PPTX、notes 和 delivery artifacts。每一项给出 confined absolute locator、类型和检查目的；可读的
+kind-prefixed display ref 只用于显示，不能选取 lifecycle record 或授权工作。
+
+`AGENT_CONTRACT.md` 与新 bundle 的 `deck-guide.md` 都要求：请求人工检查前先重建该 view，并逐项引用
+locator、类型和目的；“已生成”或“已打开”不是有效 handoff，locator 也不授予 `_generated/` 编辑、批准或
+provider 权限。
+
+验证：Pure/Framed 的无 plan、Pilot、Complete Review 和 delivery process fixtures，删除/手改 view 的重建，
+stale copied final 的写前拒绝，escaping locator 拒绝，70 项 focused suites、`npm test`、strict change validation
+与 `git diff --check` 均通过。

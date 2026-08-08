@@ -1,6 +1,24 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–2 已归档；BUG-055/059/060 已修复）
+> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–3 已归档；BUG-055/056/059/060/063 已归档；BUG-057/062 仍活跃）
+
+## 当前进度（2026-08-08）
+
+Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
+`openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
+`_done/_fixed_bugs/`。BUG-062 仍保持活跃，因为普通 machine-oriented CLI JSON 继续输出完整 SHA-256，尚待
+maintainer 选择独立的人类 display surface。
+
+本计划还剩一个功能 change，进入 implementation 前仍按质量关执行：
+
+| 下一项 | 状态 | 开始前必须闭合的决策 |
+| --- | --- | --- |
+| Change 3 `add-human-artifact-reference-view` | 已完成：main specs 已同步并归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/` | **D3 已确认并落地**：只读、可重建、run-scoped logical reference view 用于人类浏览与 Agent handoff；不创建短物理目录 alias、不替代完整 digest CLI selector。普通 CLI JSON 保持 machine-only，另以显式 `image2 artifact-view` 提供人类 display projection。 |
+| Change 4 `bind-pure-deck-visual-system` | 待 proposal；proposal 后必须通过两轮 planning-only polish | **D4**：保持 Pure 的完整页面 provider ownership；明确首期锁定的 typography hierarchy、colour use、grid/text zones、whitespace 和 allowed layout families，以及付费 multi-page Pilot 的样本范围与人工验收标准。 |
+
+版本纪律是独立的收尾项：Change 2 和 Change 3 均属于 PATCH 候选，当前只建议在 maintainer 明确确认后将
+`0.24.4` 升至 `0.24.5`，并同步 `VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md` 与
+`package.json`。在确认前不得改动版本号。
 
 ## 背景 / 现状
 
@@ -11,7 +29,7 @@
 | --- | --- | --- |
 | Raster projection integrity | 059、060 | 已完成：共享 projector 已覆盖所有审计到的 derived canvas seam；16-bit/RGB provider PNG 和 Chromium RGB screenshot 不再被错误当作 8-bit RGBA。 |
 | Provider diagnosis | 055 | 已完成：完整读取的非 JSON 响应在既有 `invalid_json` fact 中以闭集 shape 区分 empty、HTML-like 与 other，不泄露 provider 数据或改变成本控制。 |
-| Human artifact navigation | 056、062、063 | 有少量局部路径和短引用，但 Agent 展示、CLI JSON、短引用和可浏览导航没有共同的 display contract。 |
+| Human artifact navigation | 056、062、063 | BUG-056/063 已由 explicit logical reference view、locator/type/purpose handoff 和 typed display refs 解决；BUG-062 仍缺普通 CLI machine JSON 与人类 display 输出的产品决策。 |
 | Pure deck visual system | 057 | Pure 已共享 Style Master/visual language/profile，却没有 deck-level typography、layout 和 whitespace 契约。 |
 
 `add-jpeg-delivery-media` 已于 2026-08-08 完成 main-spec sync 并 archive。其 delivery contact
@@ -85,7 +103,7 @@ response body”的保密边界。默认不采纳原 BUG 提出的 content-type/
 短引用只作为 typed、collision-aware display reference；它不得反向作为 lifecycle selector。
 
 为解决用户浏览而非重写存储，推荐创建可重建的、run-scoped human reference view：用短引用、stable
-slide/candidate ID 和 repo-relative artifact locator 组织 Style Master、provider input、raw/review、final,
+slide/candidate ID 和 confined absolute artifact locator 组织 Style Master、provider input、raw/review、final,
 PPTX、notes 和 delivery receipt。它可被 Agent 的用户提示直接引用；其条目不是编辑许可，不是
 authorization，也不成为 immutable roots 下的 alias/symlink。
 
@@ -111,7 +129,7 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 0 | archive `add-jpeg-delivery-media` | 既有完成 change | 已有 delivery capabilities | 已完成：先同步 delta specs，后 archive；不与后续 raster change 重叠。 |
 | 1 | `harden-page-image-raster-projections` | BUG-059、BUG-060；审计发现的同类 derived projection exposure | `style-master-generation`、`html-render-runtime`、`image-generation`、`image-production` | **已完成**：通过 protected baseline、主 spec sync 后归档至 `openspec/changes/archive/2026-08-08-harden-page-image-raster-projections/`；BUG-059/060 已移入 `_done/_fixed_bugs/`。 |
 | 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | **已完成**：主 spec 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-bounded-provider-response-shape-diagnostics/`，BUG-055 已移入 `_done/_fixed_bugs/`。仅 `empty` / `html_like` / `other_non_json`；无 retry，Style Master 不新增持久化或 CLI field。 |
-| 3 | `add-human-artifact-reference-view` | BUG-056、BUG-062、BUG-063 | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | 先确认 D3 的 logical-view scope。所有人类检查 handoff 都有 locator；storage/CLI exact args 不变。 |
+| 3 | `add-human-artifact-reference-view` | BUG-056、BUG-063（BUG-062 仍活跃） | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；显式 provider-free `image2 artifact-view` 重建 run-scoped logical view；所有人类检查 handoff 都有 locator；storage/CLI exact args 与普通 machine JSON 不变。BUG-056/063 已移入 `_done/_fixed_bugs/`。 |
 | 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`style-master-generation` | 先确认 D4 tokens；offline prompt-binding tests 全绿后，才展示成本明确的 multi-page Pilot 供人类视觉判断。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
@@ -125,6 +143,15 @@ Master 不应持久化或投影该 diagnostic fact 的边界问题；9/9 tasks�
 diagnostics、`npm test`、change strict、all-spec strict 与 `git diff --check` 均通过。BUG-055 已按其“无安全
 响应可见性”范围修复并归档；provider TLS 行为与自动 retry 仍为独立决策。Change 4 最后，因为它需要人类定义
 “统一”意味着什么，且最终验证有 provider 成本。
+
+Change 3 已于 2026-08-08 完成 proposal、五份 delta specs、design 和 tasks；两轮 planning-only polish 已复核
+proposal/spec/design/tasks 的完整链路，以及 Image2 dispatcher、task-projection tail、Style Master/raw/delivery
+owner readers 与 architecture boundary。实施后的 `artifact-view` 在 generic Image2 task-projection tail 前返回，
+保持 `_state` 不变；它从 public owner inspector 组成 Style Master、provider input、Pure/Framed Pilot、Complete
+Page Review、final、PPTX、notes 和 delivery 的可读 view。渲染器只接受已验证、confined 的文件 locator，并可原子
+覆盖手工编辑或删除的旧 view。70 项 focused tests、`npm test`、change strict、main-spec sync、archive 和
+归档后的 all-spec strict validation 均通过；BUG-056/063 已归档，BUG-062 仍活跃。下一步是为 Change 4 先
+创建 proposal，再完成规定的两轮 planning-only polish。
 
 ## Proposed Change 质量关
 
@@ -167,7 +194,7 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 ### 3. Human artifact reference view
 
 - 每一个要求人类查看候选、Pilot/Complete Review、final PNG/PPTX、notes 或 delivery receipt 的 projection/
-  guide 都给出 repo-relative 或 absolute locator，并标明 artifact 类型和检查目的。
+  guide 都给出 confined absolute locator，并标明 artifact 类型和检查目的。
 - 所有 display refs 是 kind-prefixed、collision-aware，按 stable slide/candidate ID 排序；完整 digest 不出现在
   human card 的 display text。
 - reference view 从 canonical owners rebuild；删除后不影响 current authority；不能被 CLI 当作 plan/batch/
@@ -215,7 +242,7 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 
 1. D2 已确认：允许公开 finite `response_shape`（`empty` / `html_like` / `other_non_json`），但不公开任何
    header、长度、digest 或内容。
-2. 确认 D3：接受 logical, rebuildable human reference view 作为 BUG-063 的首期修复；不承诺物理短目录 alias。
+2. **D3 已确认并完成（2026-08-08）**：接受 logical, rebuildable human reference view 作为 BUG-063 的修复范围；不承诺物理短目录 alias。Change 3 已完成 main-spec sync 并归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。
 3. 确认 D4：Pure 保持 provider-owned complete page；指定首期固定 token 的视觉规范和 Pilot sample scope。
 
 确认后，按 Change 1 → 2 → 3 → 4 创建 proposal；每个 change 必须先通过上面的 Proposed Change 质量关，

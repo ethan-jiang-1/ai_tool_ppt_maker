@@ -50,6 +50,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_complete_page_review.mjs",
   "shared/image2/page_image_final_manifest.mjs",
+  "shared/image2/page_image_human_artifact_reference.mjs",
   "shared/image2/page_image_media_contract.mjs",
   "shared/image2/page_image_raw_mechanics.mjs",
   "shared/image2/page_image_progressive_raw_owner.mjs",
@@ -59,6 +60,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/style_master_scope.mjs",
   "shared/state/target_authoring_draft_route.mjs",
   "shared/workflow/inspect_workflow.mjs",
+  "shared/workflow/page_production_display_references.mjs",
   "shared/workflow/page_production_task_projection.mjs",
   "shared/workflow/progressive_controller_task_projection_eligibility.mjs",
 ]);

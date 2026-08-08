@@ -98,6 +98,7 @@
         "tests/contracts/test_harness_architecture.mjs",
         "tests/contracts/test_harness_directory_layout.mjs",
         "tests/contracts/test_harness_governance_ledger.mjs",
+        "tests/contracts/test_human_artifact_reference_cli.mjs",
         "tests/contracts/test_intent_route_catalog.mjs",
         "tests/contracts/test_mock_development_verification_runner.mjs",
         "tests/contracts/test_mock_selected_verification.mjs",
@@ -137,13 +138,14 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/png_raster_projection.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_human_artifact_reference.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/png_raster_projection.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
         "tests/shared/image2/test_complete_page_review.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
+        "tests/shared/image2/test_human_artifact_reference.mjs",
         "tests/shared/image2/test_page_authority_media_contract.mjs",
         "tests/shared/image2/test_png_raster_projection.mjs",
         "tests/shared/image2/test_progressive_raw_owner.mjs",
@@ -203,7 +205,7 @@
     },
     {
       "owner": "shared/workflow",
-      "interfaces": ["shared/workflow/inspect_workflow.mjs", "shared/workflow/page_production_task_projection.mjs", "shared/workflow/progressive_controller_task_projection_eligibility.mjs"],
+      "interfaces": ["shared/workflow/inspect_workflow.mjs", "shared/workflow/page_production_display_references.mjs", "shared/workflow/page_production_task_projection.mjs", "shared/workflow/progressive_controller_task_projection_eligibility.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/workflow/test_page_production_task_projection.mjs",

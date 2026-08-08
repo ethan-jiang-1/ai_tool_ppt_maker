@@ -19,11 +19,6 @@
 
 - **[BUG-057](BUG-057-pure-pages-lack-visual-system-consistency.md)** — Pure workflow 各页视觉系统不一致：字体/字号/色调/layout 每页自由发挥，缺全 deck 锁定视觉系统
 
-### P2（次要 — 2 个）
-
-- **[BUG-056](BUG-056-artifacts-need-full-paths-for-user-viewing.md)** — Agent 要求用户查看产物（中间图/PPT）时不提供完整路径，用户无从定位
-- **[BUG-063](BUG-063-content-addressed-path-length-unusable.md)** — 内容寻址目录名过长，用户侧路径不可用
-
 ### P3（体验 — 1 个）
 
 - **[BUG-062](BUG-062-long-hash-leaks-in-cli-stdout-despite-short-refs.md)** — 短引用只覆盖 task-projection，一般 CLI stdout 仍输出完整 64 位哈希
@@ -34,7 +29,7 @@
 
 ## 类别分布
 
-P0: 0 | P1: 1 | P2: 2 | P3: 1
+P0: 0 | P1: 1 | P2: 0 | P3: 1
 
 ---
 

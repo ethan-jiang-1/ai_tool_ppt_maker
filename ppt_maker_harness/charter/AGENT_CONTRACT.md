@@ -41,6 +41,16 @@ manifest, then `05-delivery` projection, PPTX, notes, and delivery review. A
 later receipt cannot repair a missing earlier receipt. Generated files are
 rebuildable output and never replace the receipt chain.
 
+## Human inspection handoff
+
+Before asking a person to inspect current Style Master, review, final, PPTX,
+notes, or delivery artifacts, rebuild the exact run's human artifact reference
+view with `ppt_flow image2 artifact-view <run-dir>`. Cite every requested
+artifact's owner-issued locator, artifact type, and inspection purpose from
+that view. A locator is a read target only: it neither selects a lifecycle
+record nor authorizes provider work, records a decision, or permits a hand edit
+to `_generated/`.
+
 ## Unsupported boundary
 
 V2, corrupt, hybrid, or ambiguous source/state pairs stop at the generic

@@ -23,6 +23,16 @@ function headingSection(text, heading) {
 }
 
 describe("diagnostic recovery handoff", () => {
+  it("requires locatable, read-only Page Image inspection handoffs", () => {
+    const contract = readFileSync(AGENT_CONTRACT_PATH, "utf8");
+    const handoff = headingSection(contract, "Human inspection handoff");
+
+    expect(handoff).toContain("ppt_flow image2 artifact-view <run-dir>");
+    expect(handoff).toMatch(/locator, artifact type, and inspection purpose/i);
+    expect(handoff).toMatch(/read target only/i);
+    expect(handoff).toMatch(/neither selects a lifecycle\s+record nor authorizes provider work, records a decision, or permits a hand edit\s+to/i);
+  });
+
   it("defines exactly four bounded novice-facing parts in the canonical contract", () => {
     const contract = readFileSync(AGENT_CONTRACT_PATH, "utf8");
     const handoff = headingSection(contract, "Diagnostic Recovery Handoff");

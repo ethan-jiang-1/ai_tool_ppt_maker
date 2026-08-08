@@ -15,6 +15,7 @@ import { publishCurrentFinalSlideManifest } from "../../ppt_maker_harness/script
 import {
   PageImageDeliveryError,
   assemblePageImagePptx,
+  inspectCurrentTargetPageImageDelivery,
   validatePageImageDeliveryInput,
   deliverTargetFinalSlideManifest,
   refreshTargetPageImageNotes,
@@ -116,6 +117,26 @@ function sixteenBitRgbPng(width, height) {
 }
 
 describe("target Page Image delivery", () => {
+  it("inspects only a fully bound current delivery without writing", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_delivery_inspection_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput();
+    try {
+      expect(await inspectCurrentTargetPageImageDelivery({ runDir })).toEqual({ available: false });
+      persistFinalManifest(runDir, manifest);
+      await deliverTargetFinalSlideManifest({
+        runDir, manifest, acceptedRawEvidence: evidence, finalBytesBySlide, notesBySlide, sourceEpoch: 1,
+      });
+      const before = readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt-v1.json"));
+      const inspected = await inspectCurrentTargetPageImageDelivery({ runDir });
+      expect(inspected).toMatchObject({ available: true, receipt: { schema: "page-image-delivery-receipt-v1" } });
+      expect(readFileSync(join(pageImageWorkflowPaths(runDir).final_root, "delivery-receipt-v1.json"))).toEqual(before);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
   it("accepts Framed and Pure replacement manifests through one protocol interface", () => {
     const pure = deliveryInput("pure");
     const framed = deliveryInput("framed");

@@ -48,9 +48,11 @@ describe("Page Image bundle layout", () => {
       expect(paths.final_manifest).toContain("_generated/page_image_workflow/final/manifest-v1.json");
       expect(paths.delivery_media_root).toContain("_generated/page_image_workflow/final/delivery-media");
       expect(paths.delivery_media_manifest).toContain("_generated/page_image_workflow/final/delivery-media-manifest-v1.json");
+      expect(paths.human_artifact_reference).toContain("_generated/page_image_workflow/reference/human-artifact-reference-v1.md");
       expect(renderTree()).toContain("NN_slideID.png");
       expect(renderTree()).toContain("delivery-media/{NN_slideID.jpg}");
       expect(renderTree()).toContain("delivery-media-manifest-v1.json");
+      expect(renderTree()).toContain("reference/human-artifact-reference-v1.md");
       expect(renderTree()).toContain("page_image_workflow");
       expect(renderTree()).not.toContain("html_production");
       expect(renderTree()).toContain("page-image-style-master-iterations");
@@ -99,6 +101,10 @@ describe("Page Image bundle layout", () => {
       expect(guide).toMatch(/No human action is required now/i);
       expect(guide).toMatch(/This\s+guide does not locate a run or select pre-install recovery/i);
       expect(guide).not.toMatch(/code\s*\+\s*hint.*repair/i);
+      expect(guide).toContain("ppt_flow image2 artifact-view <run-dir>");
+      expect(guide).toMatch(/locator, artifact type, and inspection purpose/i);
+      expect(guide).toMatch(/Do not replace this handoff by saying an artifact was generated or opened/i);
+      expect(guide).toMatch(/not a selector, approval, authorization, decision record,\s+or permission to edit/i);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
