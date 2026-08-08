@@ -1,6 +1,6 @@
 # BUG-059: Style Master 兼容 JPEG 投影对 16-bit provider PNG 失败（loadImage 无法解码）
 
-> 严重级别: P2 | 发现: 2026-08-05 | 状态: ready-for-agent
+> 严重级别: P2 | 发现: 2026-08-05 | 状态: 已修复（`harden-page-image-raster-projections`, 2026-08-08）
 
 ## 症状
 
@@ -113,10 +113,19 @@ unchanged.
 - Style Master promotion/replay — retain the current committed-selection and exact-replay semantics when projection fails.
 
 **Acceptance criteria:**
-- [ ] A valid 16-bit RGB provider PNG can be accepted and produces a decodable JPEG at the original dimensions.
-- [ ] Supported 8/16-bit, 1/2/3/4-channel decoded PNG layouts are normalized deterministically before canvas use.
-- [ ] The existing private-`caBX` PNG regression continues to pass without changing selected candidate bytes or selection identity.
-- [ ] Unsupported or malformed decoded layouts still fail with the existing bounded projection diagnostic.
+- [x] A valid 16-bit RGB provider PNG can be accepted and produces a decodable JPEG at the original dimensions.
+- [x] Supported 8/16-bit, 1/2/3/4-channel decoded PNG layouts are normalized deterministically before canvas use.
+- [x] The existing private-`caBX` PNG regression continues to pass without changing selected candidate bytes or selection identity.
+- [x] Unsupported or malformed decoded layouts still fail with the existing bounded projection diagnostic.
+
+## 修复证据 — 2026-08-08
+
+- `harden-page-image-raster-projections` 新增注册的 `shared/image2/png_raster_projection.mjs`：对 8/16-bit、1/2/3/4-channel `fast-png` 输出严格校验，并只为派生绘制规范化为 RGBA8。
+- `encodeStyleMasterCompatibilityJpeg` 现在消费该投影接口；选中候选的原始 PNG bytes、hash、尺寸、provenance 与 selection identity 不转换、不重写。
+- `tests/shared/image2/test_style_master_plan.mjs` 覆盖 16-bit RGB 选中候选生成同尺寸、可解码 JPEG，并证明 selected PNG bytes 未变；私有 `caBX` 回归仍通过。
+- `tests/shared/image2/test_png_raster_projection.mjs` 覆盖全部支持 layout 与不一致/不支持 layout 的 bounded failure。
+
+验证：2026-08-08 聚焦 6 suites / 90 tests 通过；`npm test`、change strict validation、all-spec strict validation（27/27）均通过。
 
 **Out of scope:** Changing Style Master selection authority, changing the compatibility JPEG destination, or converting
 page-raw/compositor PNG paths as an incidental refactor.

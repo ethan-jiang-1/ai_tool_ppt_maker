@@ -1,6 +1,6 @@
 # BUG-060: framed 捕获 `cropOneDeviceRow` 行跨步错误损坏 final PNG（alpha 污染 + 底部透明）
 
-> 严重级别: **P0** | 发现: 2026-08-06 | 状态: ready-for-agent
+> 严重级别: **P0** | 发现: 2026-08-06 | 状态: 已修复（`harden-page-image-raster-projections`, 2026-08-08）
 
 ## 症状
 
@@ -121,11 +121,20 @@ inconsistent layouts before final evidence is emitted.
   and non-single-color output.
 
 **Acceptance criteria:**
-- [ ] A three-channel RGB screenshot crops to the expected 2000x1125 pixels without row misalignment or fabricated transparency.
-- [ ] A four-channel RGBA screenshot crops correctly and preserves its channel semantics.
-- [ ] Single-page and batch capture both use the same validated behavior.
-- [ ] Focused regressions assert opacity evidence sufficient to detect the reported RGB-to-alpha corruption.
-- [ ] Unsupported/mismatched decoded layouts fail before final PNG evidence is returned.
+- [x] A three-channel RGB screenshot crops to the expected 2000x1125 pixels without row misalignment or fabricated transparency.
+- [x] A four-channel RGBA screenshot crops correctly and preserves its channel semantics.
+- [x] Single-page and batch capture both use the same validated behavior.
+- [x] Focused regressions assert opacity evidence sufficient to detect the reported RGB-to-alpha corruption.
+- [x] Unsupported/mismatched decoded layouts fail before final PNG evidence is returned.
+
+## 修复证据 — 2026-08-08
+
+- `cropOneDeviceRow` 先经 `normalizeDecodedPngForProjection()` 把经过 CRC 校验的 Chromium decoded PNG 规范化为 RGBA8，再以固定的四通道目标 row stride 裁掉一行；不再把 RGB 源字节误读成 RGBA。
+- 单页和 batch capture 都复用该 helper；layout/depth/sample-count 不一致会在 final PNG 生成前 hard-stop，不会猜测源 stride。
+- `tests/03-framed-image/test_framed_render_contract.mjs` 使用真实 pinned Chromium RGB capture，在底边放置红色单像素 marker，并断言裁后 `2000x1125` PNG 的末行仍为 `[255, 0, 0, 255]`，直接覆盖历史的错行与 fabricated-alpha 失效模式。
+- 共享 normalizer 单元测试覆盖 RGBA 与其他支持 layout；Framed contract suite 同时覆盖单一及有序 batch capture 的共享路径。
+
+验证：2026-08-08 聚焦 6 suites / 90 tests 通过；`npm test`、change strict validation、all-spec strict validation（27/27）均通过。
 
 **Out of scope:** Changing the fixed capture geometry, changing Framed header/content ownership, or altering provider raw
 image decoding outside the browser screenshot path.

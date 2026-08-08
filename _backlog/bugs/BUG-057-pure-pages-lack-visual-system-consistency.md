@@ -1,6 +1,6 @@
 # BUG-057: Pure workflow 各页视觉系统不一致（字体/字号/色调/layout 每页自由发挥）
 
-> 严重级别: P1 | 发现: 2026-08-05 | 状态: needs-info
+> 严重级别: P1 | 发现: 2026-08-05 | 状态: human-pilot-pending
 
 ## 症状
 
@@ -81,3 +81,36 @@ visual-system digest 全 plan 一致（只内容 digest 变化）。
 请先明确 Pure 的目标边界：是否继续保持“完整页面均由 provider 像素产出”，以及应锁定哪些全 deck
 tokens（字体风格与字号关系、颜色用法、网格/标题区、留白、可用 layout family）。同时需要定义可接受的
 视觉验证方式与容差；仅断言 prompt 带有同一段文字，不能证明生成结果真正一致。
+
+## Implementation Update — 2026-08-08
+
+**Status:** implementation scope resolved; human Pilot visual validation pending.
+
+`bind-pure-deck-visual-system` 已完成 provider-free implementation/validation，覆盖本卡已确认的“缺少跨页
+视觉系统输入契约”范围：
+
+- 新 run bundle 在 `2_backbone/visual-style/pure-deck-visual-system.yaml` 获得 closed、version-resolved 的
+  deck-authored record；它只允许 typography hierarchy、Style-Master-derived colour use、title/content zones、
+  whitespace 和 permitted layout families，不允许 prompt、slide literals、credentials、provider output、review 或
+  lifecycle fields。
+- 每个当前 Pure Page Image Core slide、raw contract、compiled provider input、ordinary/progressive raw plan 和
+  provider-input inspection 都绑定同一个 `deck_visual_system: { sha256, projection }`。共同 closed binding field
+  `deck_visual_system_sha256` 对 Pure 必填、对 Framed 严格为 `null`。
+- 改动 selected token 后，existing raw-plan comparison 返回 `deck_visual_system_drift` 和既有 Pure raw rebuild
+  action；source receipt 继续只锚定 `slide-specifications.md` bytes，已选 Style Master 不重选，既有 State 与已接受
+  evidence 保留为历史而不被当作 current。
+- provider-free coverage 证明多页共享同一 projection/digest，同时保留不同的 per-slide literals 和 visual-language
+  selection；inspection 不含 credential/authorization/data URL，也不是 acceptance、authorization 或 selector。旧
+  Pure focused fixture 已从 13/14 修复为 14/14；focused suites、`npm test`、strict OpenSpec checks 与
+  `git diff --check` 已通过。
+
+这解决了可确定验证的 prompt/input binding 缺口，但**不证明 provider 生成的像素已经遵守这些 token**，也没有
+改变 Pure 的完整 provider-page ownership。因此本卡暂不移动到 `_done`。
+
+### Remaining Human Pilot
+
+在单独的成本授权后，使用既有 Pure Pilot/Complete Page Review 对同一当前 source/version 的三页 representative
+sample 做人工判断：一张 editorial narrative、一张 metric/data-led、一张 process/relationship-led。三页须共享
+visual-system digest，但内容与 visual-language selection 不同；人类跨页检查 hierarchy、Style-Master-derived
+colour use、zones、whitespace 与 permitted layout-family discipline。通过或修复都走既有 review/source-edit/raw-rebuild
+路径，不新增 gate。

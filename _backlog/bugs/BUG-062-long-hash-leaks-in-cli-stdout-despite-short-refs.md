@@ -68,3 +68,10 @@ machine-output 与 human-display-output 边界。
 - 确认短引用的解析/碰撞策略是否仅在单张 card 内有效，还是应成为跨命令的稳定交互标识。
 
 在这些决定明确前，不应全局替换实际 hash、CLI 参数或不可变记录中的完整 digest。
+
+## Change 3 更新 — 2026-08-08
+
+`add-human-artifact-reference-view` 将 typed、collision-aware short display refs 扩展到专门的人类 artifact
+view，并要求 Agent handoff 使用该 view；这改善了人工检查时的 digest 可读性。但该 change 明确保留普通
+`ppt_flow` success JSON 的 machine schema 和所有 exact SHA-256 参数，因此本卡的“一般 CLI stdout 仍输出完整
+64 位 hash”问题仍然存在，不能归档。后续仍需 maintainer 在本卡列出的三种 CLI/display surface 之间作选择。

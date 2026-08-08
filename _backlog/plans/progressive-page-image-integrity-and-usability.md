@@ -1,6 +1,42 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃
+> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–4 已归档；BUG-055/056/059/060/063 已归档；BUG-057 等待既有授权流程下的人类 Pilot，BUG-062 仍活跃）
+
+## 当前进度（2026-08-08）
+
+Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
+`openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
+`_done/_fixed_bugs/`。BUG-062 仍保持活跃，因为普通 machine-oriented CLI JSON 继续输出完整 SHA-256，尚待
+maintainer 选择独立的人类 display surface。
+
+Change 4 `bind-pure-deck-visual-system` 已完成 provider-free implementation/validation。它以
+`visual-config`、`image-generation` 和 `run-bundle-layout` 三个 capability 定义并落实 version-level
+Pure visual-system source/binding：新 bundle 获得闭合、可 version override 的
+`pure-deck-visual-system.yaml`；Pure Core、raw contract、compiled provider input、ordinary/progressive raw plan 和
+inspection 绑定同一 `deck_visual_system: { sha256, projection }`，而 common binding 的
+`deck_visual_system_sha256` 为 Pure 必填、Framed 严格为 `null`。Style Master 保持已选色彩/参考 authority；编辑
+Pure token 只产生既有的 raw rebuild debt，不生成或重选 Style Master candidate，不改变 source receipt 的
+`slide-specifications.md` byte hash，也不写入 State 或历史 evidence。旧 Pure receipt fixture 已修复，
+`tests/04-pure-image/test_pure_workflow.mjs` 为 14/14 通过。新增/相关 focused tests、protected `npm test`、
+`git diff --check`、change strict 与 all-spec strict 已通过；未执行 provider-backed E2E 或 Pilot。
+
+这些结果证明输入绑定和失效边界，不证明 provider 输出像素已经遵守该系统。下一步须通过既有的成本授权与
+Complete Page Review，对三张内容/构图需求不同的 Pure 页进行人类视觉验收；这不是新 gate。
+
+## 下一步队列（2026-08-08）
+
+当前没有 active OpenSpec change。下列事项按所有权和前置条件独立推进，不能将 provider-free binding
+结果误作付费 Pilot 的替代，也不能直接修改 machine JSON 来“顺手”关闭 BUG-062。
+
+| 优先级 | Owner | 下一项 | 进入条件与完成条件 |
+| --- | --- | --- | --- |
+| P0 | Maintainer | **确认 release bump** | 当前 `VERSION` 为 `0.24.4`。Change 4 修改既有 Pure 行为：旧 current Pure run 缺少明确 source record 时会 hard-stop，而不是静默采用历史输入；按 `project-versioning` 的 breaking-change 规则，建议一次性升至 **`0.25.0`（MINOR）**，而非先前仅覆盖 Changes 2/3 的 `0.24.5` PATCH 建议。获得明确确认后，原子同步 `VERSION`、`VERSION_LOG.md`、`ppt_maker_harness/README.md` 和 `package.json`，并单独提交。 |
+| P1 | Human + Agent | **BUG-057 三页 Pure Pilot** | 人类指定真实 deck 的 canonical `runDir`、三张具有 editorial narrative / metric-data-led / process-relationship-led 需求的页，并明确授权该 exact plan/batch 的 provider 成本。随后复用既有 Pilot/Complete Page Review；跨页检查 hierarchy、Style-Master-derived colour use、zones、whitespace 和 layout-family discipline。通过才可将 BUG-057 移至 `_done`；修复则回到 source edit → raw rebuild。无需新的 Harness OpenSpec change。 |
+| P2 | Maintainer | **确定 BUG-062 的产品边界** | 先决定现有显式 `image2 artifact-view` 是否已满足“人类可读 locator/display reference”；若不足，确认要新增的独立 human-oriented CLI surface，同时保持普通 JSON machine-only。只有后者才创建一个独立 OpenSpec proposal，按 polish → apply → archive 推进。 |
+
+Change 3 已完成：main specs 已同步并归档至
+`openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
+`openspec/changes/archive/2026-08-08-bind-pure-deck-visual-system/`。两者均不再是 active implementation work。
 
 ## 背景 / 现状
 
@@ -9,18 +45,18 @@
 
 | 责任面 | 对应 bug | 当前缺口 |
 | --- | --- | --- |
-| Raster projection integrity | 059、060 | 多个 raster-to-canvas 调用点各自假定 PNG 为 8-bit RGBA；16-bit/RGB provider PNG 和 Chromium RGB screenshot 会损坏或失败。 |
-| Provider diagnosis | 055 | 完整收到的非 JSON 响应只有 `invalid_json`，无法区分安全的响应形状；同时不得泄露 body 或 header。 |
-| Human artifact navigation | 056、062、063 | 有少量局部路径和短引用，但 Agent 展示、CLI JSON、短引用和可浏览导航没有共同的 display contract。 |
-| Pure deck visual system | 057 | Pure 已共享 Style Master/visual language/profile，却没有 deck-level typography、layout 和 whitespace 契约。 |
+| Raster projection integrity | 059、060 | 已完成：共享 projector 已覆盖所有审计到的 derived canvas seam；16-bit/RGB provider PNG 和 Chromium RGB screenshot 不再被错误当作 8-bit RGBA。 |
+| Provider diagnosis | 055 | 已完成：完整读取的非 JSON 响应在既有 `invalid_json` fact 中以闭集 shape 区分 empty、HTML-like 与 other，不泄露 provider 数据或改变成本控制。 |
+| Human artifact navigation | 056、062、063 | BUG-056/063 已由 explicit logical reference view、locator/type/purpose handoff 和 typed display refs 解决；BUG-062 仍缺普通 CLI machine JSON 与人类 display 输出的产品决策。 |
+| Pure deck visual system | 057 | 已完成 provider-free binding：Pure 每页共享闭合 deck-level typography、colour-use、zones、whitespace 和 layout-family projection；尚待真实三页 Pilot 的人类像素验收。 |
 
 `add-jpeg-delivery-media` 已于 2026-08-08 完成 main-spec sync 并 archive。其 delivery contact
 projection 仍是 raster-to-canvas 调用点，因而纳入 Change 1；不再有两个 active change 重叠拥有 delivery
 行为。
 
-另外，`tests/04-pure-image/test_pure_workflow.mjs` 有一条 pre-replacement receipt fixture 未同步，
-导致 focused suite 当前 13/14 通过。它不改变本计划的行为目标，但必须在 Pure change 的第一个提交中
-单独修复，作为其绿色基线。
+另外，`tests/04-pure-image/test_pure_workflow.mjs` 的 pre-replacement receipt fixture 已在 Change 4 中修复：
+它现有 ordered `position` 且不再携带 retired per-slide `workflow`，focused suite 为 14/14 通过。该修复是
+视觉系统实现前的绿色基线，不改变 provider/lifecycle ownership。
 
 ## 目标架构
 
@@ -75,13 +111,17 @@ Style Master 和 Page Image 共用；其唯一作用是让已有的最近合法�
 此决策在 proposal 前须由 maintainer 明确确认：`HTML-like` 这类派生分类是否符合现有“不暴露 provider
 response body”的保密边界。默认不采纳原 BUG 提出的 content-type/length/digest。
 
+**确认（2026-08-08）**：允许在现有 `invalid_json` known-failure fact 中增加闭集
+`response_shape: empty | html_like | other_non_json`。它仅表达本地 reader 对完整已读 body 的有限判断；不得
+公开 header、长度、digest、body 片段、provider/task 身份，也不得改变 retry、授权、submission 或持久状态。
+
 ### D3. 人类 display layer 与 immutable protocol 完全分离
 
 完整 SHA-256 继续是 records、directory names、CAS locks 和 CLI precise arguments 的唯一真实键。
 短引用只作为 typed、collision-aware display reference；它不得反向作为 lifecycle selector。
 
 为解决用户浏览而非重写存储，推荐创建可重建的、run-scoped human reference view：用短引用、stable
-slide/candidate ID 和 repo-relative artifact locator 组织 Style Master、provider input、raw/review、final,
+slide/candidate ID 和 confined absolute artifact locator 组织 Style Master、provider input、raw/review、final,
 PPTX、notes 和 delivery receipt。它可被 Agent 的用户提示直接引用；其条目不是编辑许可，不是
 authorization，也不成为 immutable roots 下的 alias/symlink。
 
@@ -105,14 +145,37 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 顺序 | 建议 change | 覆盖 | 主要 capability | 依赖 / 完成条件 |
 | --- | --- | --- | --- | --- |
 | 0 | archive `add-jpeg-delivery-media` | 既有完成 change | 已有 delivery capabilities | 已完成：先同步 delta specs，后 archive；不与后续 raster change 重叠。 |
-| 1 | `harden-page-image-raster-projections` | BUG-059、BUG-060；审计发现的同类 derived projection exposure | `style-master-generation`、`html-render-runtime`、`image-generation`、`image-production` | 无 provider 成本。全部 canvas projection/crop 调用改走 shared projector；原始 evidence byte identity 不变。 |
-| 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | 先确认 D2 taxonomy。无 retry；malformed/HTML JSON response 仅产生有限安全分类。 |
-| 3 | `add-human-artifact-reference-view` | BUG-056、BUG-062、BUG-063 | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | 先确认 D3 的 logical-view scope。所有人类检查 handoff 都有 locator；storage/CLI exact args 不变。 |
-| 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`style-master-generation` | 先确认 D4 tokens；offline prompt-binding tests 全绿后，才展示成本明确的 multi-page Pilot 供人类视觉判断。 |
+| 1 | `harden-page-image-raster-projections` | BUG-059、BUG-060；审计发现的同类 derived projection exposure | `style-master-generation`、`html-render-runtime`、`image-generation`、`image-production` | **已完成**：通过 protected baseline、主 spec sync 后归档至 `openspec/changes/archive/2026-08-08-harden-page-image-raster-projections/`；BUG-059/060 已移入 `_done/_fixed_bugs/`。 |
+| 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | **已完成**：主 spec 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-bounded-provider-response-shape-diagnostics/`，BUG-055 已移入 `_done/_fixed_bugs/`。仅 `empty` / `html_like` / `other_non_json`；无 retry，Style Master 不新增持久化或 CLI field。 |
+| 3 | `add-human-artifact-reference-view` | BUG-056、BUG-063（BUG-062 仍活跃） | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；显式 provider-free `image2 artifact-view` 重建 run-scoped logical view；所有人类检查 handoff 都有 locator；storage/CLI exact args 与普通 machine JSON 不变。BUG-056/063 已移入 `_done/_fixed_bugs/`。 |
+| 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`run-bundle-layout` | **已完成**：main specs 已同步并归档至 `openspec/changes/archive/2026-08-08-bind-pure-deck-visual-system/`；closed deck-authored source record 已进入 Pure Core/raw contract/compiled input/plan binding；`deck_visual_system_sha256` 为 Pure-required / Framed-null 的 common binding slot，并在 ordinary/progressive raw-plan validation、invalidation、inspection 和 fixtures 同步。Style Master 保持色彩/参考 authority、不扩大 candidate scope。14/14 Pure fixture、focused suites、protected baseline 和 strict checks 已绿；仅待既有成本授权下的三张 representative Pilot 供人类视觉判断。 |
 
-Change 1 优先，因为它修复实际像素数据损坏，并保护最近完成的 JPEG delivery 路径。Changes 2 和 3 都是
-display/control 变化，可在 Change 1 archive 后依次进行；不共享 durable lifecycle state。Change 4 最后，
-因为它需要人类定义“统一”意味着什么，且最终验证有 provider 成本。
+Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
+Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在
+任何 final-root 写入前预计算 JPEG/contact projection，失败不改变已有 final artifacts。聚焦 90 项测试、
+protected `npm test` 与归档后的 all-spec strict validation 均通过。
+
+Changes 2 和 3 都是 display/control 变化，可在 Change 1 archive 后依次进行；不共享 durable lifecycle
+state。Change 2 已在 2026-08-08 完成实施、主 spec sync 与 archive：两轮 planning-only review 解决了 Style
+Master 不应持久化或投影该 diagnostic fact 的边界问题；9/9 tasks、74 项 targeted Image2 tests、12 项 process
+diagnostics、`npm test`、change strict、all-spec strict 与 `git diff --check` 均通过。BUG-055 已按其“无安全
+响应可见性”范围修复并归档；provider TLS 行为与自动 retry 仍为独立决策。Change 4 最后，因为它必须把
+“统一”的 token 约束与最终人类视觉判断清楚分开，且后者有 provider 成本。
+
+Change 3 已于 2026-08-08 完成 proposal、五份 delta specs、design 和 tasks；两轮 planning-only polish 已复核
+proposal/spec/design/tasks 的完整链路，以及 Image2 dispatcher、task-projection tail、Style Master/raw/delivery
+owner readers 与 architecture boundary。实施后的 `artifact-view` 在 generic Image2 task-projection tail 前返回，
+保持 `_state` 不变；它从 public owner inspector 组成 Style Master、provider input、Pure/Framed Pilot、Complete
+Page Review、final、PPTX、notes 和 delivery 的可读 view。渲染器只接受已验证、confined 的文件 locator，并可原子
+覆盖手工编辑或删除的旧 view。70 项 focused tests、`npm test`、change strict、main-spec sync、archive 和
+归档后的 all-spec strict validation 均通过；BUG-056/063 已归档，BUG-062 仍活跃。Change 4 的 proposal、
+specs、design、tasks 经两轮 planning-only polish 后已完成实现。普通与 progressive raw-plan schema 的独立严格
+validator 已以一个 `deck_visual_system_sha256` slot 同步扩展，Pure 必填、Framed 固定 null；不能仅改 Core。
+`pure-deck-visual-system.yaml` 的 override/backbone resolver、closed parser、source-first failure、Core/raw
+contract/compiled input/inspection binding、binding-drift invalidation 和 multi-page provider-free coverage 均已落地。
+`tests/04-pure-image/test_pure_workflow.mjs` 的 baseline fixture 已修复至 14/14；focused suites、`npm test`、
+`openspec validate bind-pure-deck-visual-system --strict`、`openspec validate --all --strict` 与 `git diff --check`
+均通过。像素一致性仍留给已有授权的人工 Pilot/Complete Page Review；本 change 不把 binding 结果误记为 acceptance。
 
 ## Proposed Change 质量关
 
@@ -155,7 +218,7 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 ### 3. Human artifact reference view
 
 - 每一个要求人类查看候选、Pilot/Complete Review、final PNG/PPTX、notes 或 delivery receipt 的 projection/
-  guide 都给出 repo-relative 或 absolute locator，并标明 artifact 类型和检查目的。
+  guide 都给出 confined absolute locator，并标明 artifact 类型和检查目的。
 - 所有 display refs 是 kind-prefixed、collision-aware，按 stable slide/candidate ID 排序；完整 digest 不出现在
   human card 的 display text。
 - reference view 从 canonical owners rebuild；删除后不影响 current authority；不能被 CLI 当作 plan/batch/
@@ -170,6 +233,22 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 - 现有 Pure “provider page is complete evidence / no local composite” requirements 保持。
 - 修复旧 receipt fixture 后，Pure focused suite 全绿；再以经授权的 multi-page Pilot 做人类视觉 review，确认
   typography、layout、colour 和 whitespace 达到约定的一致性。
+
+### Change 4 后续人工 Pilot 协议（待单独成本授权）
+
+该协议只使用既有 Pure Pilot authorization 与 Complete Page Review，不创建新的 gate、State 字段、selector 或
+acceptance 记录。授权前不得提交 provider work。
+
+1. 人类先明确授权恰好三张 Pure slide 的 Pilot 范围，并从同一当前 source/version 选择三种需求：一张
+   editorial narrative、 一张 metric/data-led、 一张 process/relationship-led。三页必须有不同的 literals 与
+   visual-language selection，且都绑定同一 selected deck visual-system digest。
+2. Agent 按既有 exact plan hash/batch authorization 生成并展示 provider complete-page evidence；Pure 不生成
+   本地 header overlay、composite 或第二份页面证据。
+3. 人类在既有 Complete Page Review 中跨三页评估：title/body hierarchy、Style-Master-derived colour use、
+   title/content zones、whitespace 密度，以及是否落在允许的 layout family；同时确认各页仍满足其各自内容和
+   构图任务。
+4. 通过只证明该 deck/sample 的人工视觉结论；修复则返回现有 source edit → raw rebuild 路径。输入 digest/
+   inspection 一致性本身不构成 pixel acceptance，也不会 bypass review。
 
 ## 风险 / 取舍
 
@@ -201,10 +280,15 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 
 ## 进入实施前的三个确认
 
-1. 确认 D2：允许公开 finite `response_shape`（推荐 `empty` / `html_like` / `other_non_json`），但不公开任何
+1. D2 已确认：允许公开 finite `response_shape`（`empty` / `html_like` / `other_non_json`），但不公开任何
    header、长度、digest 或内容。
-2. 确认 D3：接受 logical, rebuildable human reference view 作为 BUG-063 的首期修复；不承诺物理短目录 alias。
-3. 确认 D4：Pure 保持 provider-owned complete page；指定首期固定 token 的视觉规范和 Pilot sample scope。
+2. **D3 已确认并完成（2026-08-08）**：接受 logical, rebuildable human reference view 作为 BUG-063 的修复范围；不承诺物理短目录 alias。Change 3 已完成 main-spec sync 并归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。
+3. **D4 已完成 apply 与 provider-free validation**：Pure 保持 provider-owned complete page；closed source record
+   指定 typography hierarchy、Style-Master-derived colour use、zones、whitespace 和 permitted layout families。source
+   receipt 不吸收 profile digest；canonical runDir 选择 override/backbone record；`deck_visual_system_sha256` 同步
+   进入 Core、raw contract、compiled input、ordinary/progressive plan binding、invalidation 与 inspection。14/14
+   Pure fixture、focused suites、strict/diff/protected baseline 均已绿；main-spec sync/archive 已完成。之后仅能按
+   既有成本授权申请三页 human Pilot，binding 测试不构成像素验收。
 
 确认后，按 Change 1 → 2 → 3 → 4 创建 proposal；每个 change 必须先通过上面的 Proposed Change 质量关，
 再进入 apply，archive 后才进入下一项。完成一个 change 后更新对应 BUG 卡，再决定是否移入

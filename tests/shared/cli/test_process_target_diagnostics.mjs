@@ -994,19 +994,33 @@ describe("target Page Image CLI diagnostics", () => {
       {
         name: "HTTP error",
         responseStatus: 503,
+        responseBody: "PROVIDER_RESPONSE_BODY_SENTINEL",
         providerFailure: { classification: "http_error", http_status: 503 },
       },
       {
-        name: "invalid JSON",
+        name: "empty invalid JSON",
         responseStatus: 200,
-        providerFailure: { classification: "invalid_json" },
+        responseBody: " \n\t",
+        providerFailure: { classification: "invalid_json", response_shape: "empty" },
+      },
+      {
+        name: "HTML-like invalid JSON",
+        responseStatus: 200,
+        responseBody: " \n<!DOCTYPE HTML><html>PROVIDER_RESPONSE_BODY_SENTINEL</html>",
+        providerFailure: { classification: "invalid_json", response_shape: "html_like" },
+      },
+      {
+        name: "other invalid JSON",
+        responseStatus: 200,
+        responseBody: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        providerFailure: { classification: "invalid_json", response_shape: "other_non_json" },
       },
     ];
     for (const scenario of cases) {
       const fixture = await createPureFixture("PROMPT_LITERAL_SENTINEL");
       const provider = await startMockProvider({
         responseStatus: scenario.responseStatus,
-        responseBody: "PROVIDER_RESPONSE_BODY_SENTINEL",
+        responseBody: scenario.responseBody,
       });
       try {
         const planned = await runFlow(["image2", "plan", fixture.runDir], provider.env);

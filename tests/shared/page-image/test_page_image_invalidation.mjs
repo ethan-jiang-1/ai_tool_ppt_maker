@@ -189,6 +189,31 @@ describe("Page Image invalidation", () => {
     })).toMatchObject({ kind: "raw_rebuild", reason: "generation_profile_drift" });
   });
 
+  it("turns Pure deck-system drift into raw rebuild debt without mutating accepted evidence", () => {
+    const currentReceipt = receipt({ workflow: "pure", source: "a" });
+    const previousPlan = rawPlan(currentReceipt);
+    const nextPlan = rawPlan(currentReceipt, {
+      binding: { deck_visual_system_sha256: digest("8") },
+    });
+    const historicalEvidence = acceptedEvidence(previousPlan);
+    const evidenceBefore = structuredClone(historicalEvidence);
+
+    expect(evaluatePageImageInvalidation({
+      previousReceipt: currentReceipt,
+      nextReceipt: currentReceipt,
+      previousRawWorkPlan: previousPlan,
+      nextRawWorkPlan: nextPlan,
+      acceptedRawEvidence: historicalEvidence,
+    })).toMatchObject({
+      workflow: "pure",
+      kind: "raw_rebuild",
+      provider_required: true,
+      reason: "deck_visual_system_drift",
+      next_action: "authorize_and_rebuild_pure_raw",
+    });
+    expect(historicalEvidence).toEqual(evidenceBefore);
+  });
+
   it("keeps Pure source changes on raw rebuild while routing explicit notes-only work to delivery", () => {
     const previousReceipt = receipt({ workflow: "pure", source: "a" });
     const nextReceipt = receipt({ workflow: "pure", source: "b" });

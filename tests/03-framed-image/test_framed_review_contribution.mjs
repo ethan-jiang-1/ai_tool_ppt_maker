@@ -17,6 +17,7 @@ function framedProviderInputBinding(compiled) {
     style_master_selection_sha256: digest("d"),
     generation_profile_sha256: digest("e"),
     header_policy_sha256: digest("f"),
+    deck_visual_system_sha256: null,
     local_header_profile_sha256: digest("1"),
     protected_geometry_sha256: digest("2"),
   };

@@ -137,6 +137,18 @@ describe("Page Image typed artifacts", () => {
     const unboundPlan = structuredClone(rawPlan);
     delete unboundPlan.items[0].provider_input_binding;
     expect(validateRawWorkPlan(unboundPlan)).toMatchObject({ ok: false, code: "raw_plan_invalid" });
+    const pureWithoutDeckSystem = structuredClone(rawPlan);
+    pureWithoutDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = null;
+    expect(validateRawWorkPlan(pureWithoutDeckSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
+    });
+    const framedWithDeckSystem = structuredClone(plan("framed"));
+    framedWithDeckSystem.items[0].provider_input_binding.deck_visual_system_sha256 = digest("9");
+    expect(validateRawWorkPlan(framedWithDeckSystem)).toMatchObject({
+      ok: false,
+      code: "raw_plan_provider_input_binding_invalid",
+    });
     expect(validateAcceptedRawEvidence(evidence, { plan: { ...rawPlan, provider_profile_sha256: digest("9") } })).toMatchObject({ ok: false, code: "raw_evidence_stale" });
     expect(() => createFinalSlideManifest({
       evidence,

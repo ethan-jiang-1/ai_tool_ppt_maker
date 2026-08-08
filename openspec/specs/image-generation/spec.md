@@ -267,3 +267,182 @@ reuse, or reinterpret those bytes.
 - **THEN** the operation returns the `unsupported-protocol/export` hard-stop
   before inspecting its media or provenance
 - **AND** it does not issue a new plan, grant, or current evidence reference
+
+### Requirement: Page Image review projections render supported provider PNG layouts as derived evidence
+
+Every rebuildable Page Image raw, Pilot, and Complete Page Review raster
+projection SHALL render CRC-valid provider or adapter-complete PNG media with
+an exact decoded pixel count and supported 8-bit or 16-bit grayscale,
+grayscale-alpha, RGB, or RGBA layout. The projection SHALL normalize only its
+derived canvas pixels and retain the exact input bytes, native dimensions,
+hashes, compiled-input lineage, provenance, review bindings, and acceptance
+authority unchanged.
+
+An inconsistent or unsupported decoded layout SHALL fail the owning derived
+review projection clearly. It SHALL not accept, replace, transcode, or
+reclassify provider media, create another review decision, or publish a
+projection as a selector or evidence authority.
+
+#### Scenario: Pure review renders a non-RGBA provider page without changing it
+
+- **WHEN** a current Pure raw provider page is CRC-valid 16-bit RGB PNG media
+  with accepted exact bytes and provenance
+- **THEN** Complete Page Review publishes its derived visual projection from
+  normalized pixels
+- **AND** the review binds the original provider bytes and does not create a
+  local composite or replacement media record
+
+#### Scenario: A malformed review layout cannot become review evidence
+
+- **WHEN** a Page Image review projection encounters a decoded media layout
+  with an inconsistent sample count
+- **THEN** it reports the owning projection failure before publishing that
+  projection
+- **AND** it leaves current raw media and review authority unchanged
+
+### Requirement: Fully received invalid JSON has a closed response-shape fact
+
+For a current authorized Page Image provider response that was fully read after
+an HTTP-success result but cannot be parsed as JSON, the owner SHALL
+terminalize the submitted item through the existing `invalid_json` known-
+failure outcome and attach exactly one `response_shape` value: `empty`,
+`html_like`, or `other_non_json`. Whitespace-only content is `empty`; content
+whose leading whitespace is followed, case-insensitively, by `<!doctype html`
+or an opening `<html` tag with a tag/doctype boundary is `html_like`; every
+other such parse failure is `other_non_json`. The fact SHALL contain neither
+response content nor any additional content-derived metadata.
+
+The owner SHALL omit `response_shape` from valid JSON, HTTP failures,
+unreadable or lost responses, invalid media, and every other known-failure
+classification. An unreadable or lost response SHALL retain its existing
+uncertain reconciliation outcome rather than being classified from absent
+content.
+
+#### Scenario: An empty successful response terminalizes with its bounded shape
+
+- **WHEN** a current authorized Page Image provider response is HTTP-success,
+  fully read, whitespace-only, and not valid JSON
+- **THEN** the owner terminalizes the submitted item as the existing
+  `invalid_json` known failure with `response_shape: empty`
+- **AND** it does not publish response text, headers, size, digest, task
+  identifier, raw bytes, retry, or alternate recovery action
+
+#### Scenario: A received HTML document does not expose its contents
+
+- **WHEN** a current authorized Page Image provider response is HTTP-success,
+  fully read, begins with an HTML document marker, and is not valid JSON
+- **THEN** its existing `invalid_json` known failure carries only
+  `response_shape: html_like`
+- **AND** media and provenance remain unpublished and the known-failure
+  terminal path remains unchanged
+
+#### Scenario: A non-JSON response outside the named shapes remains bounded
+
+- **WHEN** a current authorized Page Image provider response is HTTP-success,
+  fully read, nonempty, not an HTML document, and not valid JSON
+- **THEN** its existing `invalid_json` known failure carries only
+  `response_shape: other_non_json`
+- **AND** no provider request, authorization, submission, or reconciliation
+  behavior changes
+
+#### Scenario: A response that is not fully available is not shape-classified
+
+- **WHEN** a current authorized Page Image provider response body cannot be
+  read or transport is lost before a terminal result is established
+- **THEN** the owner retains the existing uncertain exact-reconciliation path
+- **AND** it attaches no `response_shape` fact or content-derived diagnostic
+
+### Requirement: Current Page Image human artifact view is bounded and derived from canonical owners
+
+For an exact current Page Image Workflow scope, the Harness SHALL be able to rebuild one local
+human artifact reference view from canonical Style Master, provider-input inspection, raw/review,
+final, assembly, notes, and delivery owners. The view SHALL list only artifacts whose owning
+current facts establish their availability; it SHALL not discover current evidence by directory
+order, filenames, timestamps, copied media, prior view content, or display reference.
+
+Available page artifacts SHALL be ordered by the current full-plan position and stable
+`slide_id`; human-facing image entries SHALL retain the existing `NN_slideID` convention.
+Style Master entries SHALL use their stable candidate identity. Every entry SHALL give an
+artifact type, inspection purpose, and a local absolute locator. Visible display references SHALL
+be kind-prefixed and collision-aware within the view; a full SHA-256 may occur only where it is
+unavoidably part of the physical locator and SHALL not be the view's human display reference.
+
+The view SHALL be rebuildable, provider-free, secret-safe, and non-authoritative. It SHALL not
+contain credentials, authorization headers, environment values, provider response bodies, raw
+prompt prose, image data URLs, or a new copy of lifecycle/review/acceptance state. Neither its
+short display references nor its locators may select a plan, batch, attempt, candidate, or review
+decision; authorize provider work; or substitute for source, provenance, or receipt bindings.
+
+#### Scenario: Current evidence receives stable human locators
+
+- **WHEN** a current plan has available Style Master, review, final, and delivery artifacts
+- **THEN** the rebuilt view lists their owner-established locators with their type and inspection
+  purpose in stable candidate or full-plan slide order
+- **AND** its display labels do not replace the existing exact digest and formal-ID protocol keys
+
+#### Scenario: A later lifecycle artifact does not exist yet
+
+- **WHEN** a current scope has planned or reviewed evidence but no final, notes, or delivery
+  artifact
+- **THEN** the view marks only those later artifact categories as unavailable
+- **AND** it does not infer a path, create placeholder evidence, mutate lifecycle state, or add a
+  review or authorization gate
+
+#### Scenario: A display reference is presented to a lifecycle operation
+
+- **WHEN** a caller supplies a view locator or short display reference where an exact lifecycle
+selector is required
+- **THEN** the lifecycle operation continues to require its existing formal selector or full
+SHA-256 argument
+- **AND** the view does not resolve, translate, or authorize that request
+
+### Requirement: Pure raw work binds one selected deck visual system
+
+Every current Pure Page Image Core slide, raw contract, compiled provider input, provider-input
+inspection projection, and raw-plan item binding SHALL carry the exact digest of the same
+validated Pure deck visual-system projection. The closed provider-input binding field SHALL be
+named `deck_visual_system_sha256`; it is required for Pure and exactly `null` for Framed. The
+ordinary and progressive raw-plan validators SHALL enforce the same shape. The compiled input
+SHALL describe the deterministic typography hierarchy, Style-Master-derived colour use, zones,
+whitespace, and allowed layout families without adding content literals or a local compositor.
+The Pure raw contract and compiled input SHALL each expose the identical content-neutral
+`deck_visual_system` object containing that `sha256` and the validated token projection.
+
+The visual-system projection SHALL remain a source input, not a lifecycle selector, acceptance
+record, provider authorization, or pixel-quality proof. Pure's provider page remains the complete
+page evidence; Framed bindings retain their existing null/not-applicable Pure visual-system value.
+
+#### Scenario: Every Pure page receives the same visual-system binding
+
+- **WHEN** a current Pure full plan contains multiple slides
+- **THEN** each compiled provider input and plan item binding contains the same selected
+  visual-system digest and deterministic projection
+- **AND** per-slide content and visual-language facts remain independently bound
+
+#### Scenario: Pure has no local typography renderer
+
+- **WHEN** a current Pure provider input is compiled with its deck visual system
+- **THEN** it instructs the provider to render the entire page, including provider-visible text
+- **AND** it does not create a Framed Text Frame, local overlay, protected geometry, or second
+  review/acceptance surface
+
+### Requirement: Pure visual-system drift invalidates exact raw evidence
+
+When the selected Pure visual-system source projection changes, current planning and invalidation
+SHALL classify the resulting binding drift as a Pure raw rebuild. They SHALL preserve existing
+accepted raw bytes, provenance, review, final, and delivery facts as historical evidence; they
+SHALL not perform provider work, reuse the old evidence as current, or modify State until the
+existing exact authorization path is used.
+
+#### Scenario: A typography or zone token changes after Pure acceptance
+
+- **WHEN** a current accepted Pure scope is replanned after its selected visual-system digest
+  changes while its slide literals and Style Master selection are unchanged
+- **THEN** the raw-plan bindings differ and the owner returns the existing Pure raw-rebuild action
+- **AND** it does not expose a provider-free final refresh or treat the old provider page as current
+
+#### Scenario: Inspection is deterministic but not pixel acceptance
+
+- **WHEN** an Agent inspects a current Pure provider-input projection for multiple pages
+- **THEN** it can verify that the same visual-system digest and token projection were submitted
+- **AND** it does not infer that the provider pixels obeyed the system or bypass Complete Page Review

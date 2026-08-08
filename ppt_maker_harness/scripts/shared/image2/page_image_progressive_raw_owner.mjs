@@ -1249,7 +1249,14 @@ function pageImageKnownFailureResponseFacts(error) {
   const facts = error?.page_image_known_failure_facts;
   const response = facts?.response;
   if (!error?.page_image_known_failure || !response || typeof response !== "object" || Array.isArray(response)) return null;
-  if (["invalid_json", "task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
+  if (response.classification === "invalid_json") {
+    const result = { classification: "invalid_json" };
+    if (["empty", "html_like", "other_non_json"].includes(response.response_shape)) {
+      result.response_shape = response.response_shape;
+    }
+    return Object.freeze(result);
+  }
+  if (["task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
     return Object.freeze({ classification: response.classification });
   }
   if (response.classification === "http_error") {
@@ -1672,5 +1679,35 @@ export function readProgressiveAcceptedRawWork({ runDir, workflow, plan_hash, ex
     complete_raw_review_sha256: completeReview.sha256,
     raw_bytes_by_slide: Object.freeze(bytes),
     progress: snapshot.progress,
+  });
+}
+
+/** Read the current partial Pilot evidence and exact page materializations without writing. */
+export function readCurrentProgressiveRawPilotWork({ runDir, workflow, expected_plan = null } = {}) {
+  const current = loadPlanByHead(runDir, workflow);
+  if (!current) return Object.freeze({ available: false });
+  const snapshot = expected_plan
+    ? requireCurrentPlan(current, current.plan.sha256, expected_plan)
+    : current;
+  const batch = latestBatch(snapshot);
+  const evidence = batch?.record.is_partial_pilot
+    ? snapshot.pilot.evidence_by_batch.get(batch.sha256) || null
+    : null;
+  if (!batch || !evidence) return Object.freeze({ available: false });
+  const materializations = new Map();
+  for (const slideId of batch.record.review_sample_slide_ids) {
+    const materialization = snapshot.materializations.get(slideId);
+    if (!materialization) {
+      fail("progressive_raw_pilot_evidence_stale", `current Pilot raw bytes are unavailable for ${slideId}`);
+    }
+    materializations.set(slideId, materialization);
+  }
+  return Object.freeze({
+    available: true,
+    plan: snapshot.plan,
+    batch: Object.freeze({ ...batch.record, sha256: batch.sha256 }),
+    pilot_evidence: evidence.record,
+    pilot_evidence_sha256: evidence.sha256,
+    materializations,
   });
 }

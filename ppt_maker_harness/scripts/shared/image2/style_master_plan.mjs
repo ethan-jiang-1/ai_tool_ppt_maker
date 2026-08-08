@@ -2241,6 +2241,11 @@ export function resolveAcceptedStyleMasterReference({ runDir, deckDir = null, re
     candidate_media_type: replay.candidate.candidate_media_type,
     candidate_width: replay.candidate.candidate_width,
     candidate_height: replay.candidate.candidate_height,
+    candidate_path: styleMasterStorePaths(resolvedRunDir, {
+      plan_sha256: replay.plan.plan_sha256,
+      candidate_id: replay.candidate.candidate_id,
+      candidate_media_type: replay.candidate.candidate_media_type,
+    }).candidate_image,
     style_intent_sha256: intent.style_intent_sha256,
     style_context_sha256: styleContext.style_context_sha256,
     candidate_generation_profile_sha256: replay.selection.candidate_generation_profile_sha256,

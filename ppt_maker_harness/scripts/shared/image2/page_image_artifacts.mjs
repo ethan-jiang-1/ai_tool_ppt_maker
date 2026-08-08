@@ -22,6 +22,7 @@ const PROVIDER_INPUT_BINDING_KEYS = Object.freeze([
   "style_master_selection_sha256",
   "generation_profile_sha256",
   "header_policy_sha256",
+  "deck_visual_system_sha256",
   "local_header_profile_sha256",
   "protected_geometry_sha256",
 ]);
@@ -104,13 +105,19 @@ function rawPlanItemShape(item) {
   return exactKeys(item, ["slide_id", "raw_contract_sha256", "provider_input_binding"]);
 }
 
-function assertProviderInputBinding(binding) {
+function assertProviderInputBinding(binding, workflow) {
   if (!exactKeys(binding, PROVIDER_INPUT_BINDING_KEYS)) {
     throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "provider input binding has an invalid shape");
   }
   for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(0, 6)) assertDigest(binding[field], field);
   for (const field of PROVIDER_INPUT_BINDING_KEYS.slice(6)) {
     if (binding[field] !== null) assertDigest(binding[field], field);
+  }
+  if (workflow === "pure" && binding.deck_visual_system_sha256 === null) {
+    throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "Pure provider input binding requires deck_visual_system_sha256");
+  }
+  if (workflow === "framed" && binding.deck_visual_system_sha256 !== null) {
+    throw new PageImageArtifactError("raw_plan_provider_input_binding_invalid", "Framed provider input binding requires null deck_visual_system_sha256");
   }
 }
 
@@ -129,7 +136,7 @@ export function validateRawWorkPlan(plan) {
     for (const item of plan.items) {
       if (!rawPlanItemShape(item) || !SLIDE_ID_RE.test(item.slide_id || "")) throw new PageImageArtifactError("raw_plan_invalid", "raw work item requires one provider input binding");
       assertDigest(item.raw_contract_sha256, "raw_contract_sha256");
-      assertProviderInputBinding(item.provider_input_binding);
+      assertProviderInputBinding(item.provider_input_binding, plan.workflow);
       ids.push(item.slide_id);
     }
     if (canonicalJson(ids) !== canonicalJson(plan.ordered_slide_ids)) throw new PageImageArtifactError("raw_plan_invalid", "raw work item order must equal ordered_slide_ids");

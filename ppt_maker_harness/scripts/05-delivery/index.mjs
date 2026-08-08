@@ -194,7 +194,7 @@ function readPersistedTargetFinalManifest(paths, input, acceptedRawEvidence) {
   return Object.freeze(persisted);
 }
 
-async function writeProjection(paths, input) {
+function deriveFinalProjection(input) {
   const width = 1032;
   const cellWidth = 500;
   const cellHeight = 281;
@@ -222,8 +222,16 @@ async function writeProjection(paths, input) {
     );
   }
   const bytes = canvas.toBuffer("image/png");
-  writeAtomic(paths.final_projection, bytes);
-  return Object.freeze({ path: paths.final_projection, sha256: sha256(bytes) });
+  return Object.freeze({ bytes, sha256: sha256(bytes) });
+}
+
+function publishFinalProjection(paths, derivedProjection) {
+  if ((!Buffer.isBuffer(derivedProjection?.bytes) && !(derivedProjection?.bytes instanceof Uint8Array)) ||
+    sha256(derivedProjection.bytes) !== derivedProjection.sha256) {
+    throw new PageImageDeliveryError("final_projection_invalid", "final projection bytes are invalid");
+  }
+  writeAtomic(paths.final_projection, derivedProjection.bytes);
+  return Object.freeze({ path: paths.final_projection, sha256: derivedProjection.sha256 });
 }
 
 /**
@@ -240,6 +248,7 @@ export async function deliverTargetFinalSlideManifest({
   sourceEpoch = 1,
   title = "Presentation",
   deliveryMediaDeriver = derivePageImageDeliveryMedia,
+  projectionDeriver = deriveFinalProjection,
 } = {}) {
   // Identity must hard-stop before source-note or artifact reads.
   requireReplacementDeliveryRecord(manifest, "final-manifest");
@@ -264,10 +273,19 @@ export async function deliverTargetFinalSlideManifest({
   } catch (error) {
     throw new PageImageDeliveryError("delivery_media_derivation_failed", error.message);
   }
+  let derivedProjection;
+  try {
+    derivedProjection = await projectionDeriver(input);
+  } catch (error) {
+    throw new PageImageDeliveryError(
+      "final_projection_invalid",
+      error?.message || "final PNG media could not be rendered as a delivery projection",
+    );
+  }
   for (const item of input.manifest.items) {
     writeAtomic(join(paths.final_root, item.path), input.final_bytes_by_slide[item.slide_id]);
   }
-  const projection = await writeProjection(paths, input);
+  const projection = publishFinalProjection(paths, derivedProjection);
   let deliveryMedia;
   try {
     deliveryMedia = publishPageImageDeliveryMedia(paths, derivedDeliveryMedia);
@@ -413,6 +431,19 @@ async function currentTargetDeliveryReceipt(runDir) {
     delivery_media: deliveryMedia,
     pptxPath,
   });
+}
+
+/**
+ * Inspect the one current delivery lineage without refreshing notes or writing
+ * any state/artifact. A missing receipt means delivery is not available yet;
+ * every present receipt still traverses the same strict binding validation.
+ */
+export async function inspectCurrentTargetPageImageDelivery({ runDir } = {}) {
+  const paths = pageImageWorkflowPaths(runDir);
+  const receiptPath = join(paths.final_root, "delivery-receipt-v1.json");
+  if (!existsSync(receiptPath)) return Object.freeze({ available: false });
+  const current = await currentTargetDeliveryReceipt(runDir);
+  return Object.freeze({ available: true, ...current });
 }
 
 /** Refresh notes only after revalidating the same replacement final/assembly lineage. */

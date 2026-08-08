@@ -157,3 +157,56 @@ automatic cleanup.
 - **THEN** it returns the `unsupported-protocol/export` boundary before reading media
   provenance or review facts
 - **AND** it does not copy, convert, or register the bytes in current layout
+
+### Requirement: Current Page Image human artifact reference view is a canonical derived artifact
+
+For one exact current Page Image Workflow run, Run-Bundle Layout SHALL reserve
+`_generated/page_image_workflow/reference/human-artifact-reference-v1.md` as the canonical
+location of the rebuildable human artifact reference view. The view SHALL be confined to that
+run-scoped derived location and SHALL remain outside Style Master and progressive-production
+immutable storage roots.
+
+The view SHALL not become source, lifecycle state, a receipt, a CAS head, an artifact alias, or
+an input selector by path, filename, timestamp, or hand edit. Removing or editing it SHALL not
+alter current authority; its owning explicit projection operation is the only supported rebuild
+route.
+
+#### Scenario: A reference view is deleted or changed
+
+- **WHEN** a current run's human artifact reference view is absent or has been manually changed
+- **THEN** current source, state, plans, grants, evidence, review, and delivery authority remain
+  unchanged
+- **AND** the supported projection operation can replace it from canonical owners without using
+  its previous contents as input
+
+#### Scenario: Layout resolves a human locator beside immutable history
+
+- **WHEN** a reference view links to an artifact held below a content-addressed immutable owner
+- **THEN** the view remains a derived locator outside that owner root
+- **AND** layout does not create a short-named directory, symlink, or alternate storage key
+
+### Requirement: Run-Bundle Layout owns the Pure visual-system source location
+
+Run-Bundle Layout SHALL reserve
+`2_backbone/visual-style/pure-deck-visual-system.yaml`, with the existing version
+`overrides/visual-style/` precedence, as the version-resolved deck-authored source of the current
+Pure deck visual system. New Run Bundles SHALL receive a valid seed record at that canonical
+location. The record is source input: it SHALL not be stored in `_generated/`, Style Master
+immutable history, Page Image lifecycle storage, receipts, grants, State, or delivery artifacts.
+
+Removing or changing the record SHALL not mutate existing lifecycle authority. A subsequent Pure
+owner operation re-evaluates it from the resolved source location; it does not recover a value from
+a prior plan, inspection projection, or accepted image.
+
+#### Scenario: A new bundle receives a Pure visual-system source seed
+
+- **WHEN** a new Run Bundle is initialized
+- **THEN** its backbone visual-style directory contains the canonical valid Pure visual-system
+  source record
+- **AND** the seed is a source asset rather than derived Page Image state or media
+
+#### Scenario: A version override changes only that version's Pure source input
+
+- **WHEN** a version provides a valid visual-style override of the Pure visual-system record
+- **THEN** current Pure planning uses that version-resolved record and its digest
+- **AND** sibling versions and immutable artifacts remain unchanged

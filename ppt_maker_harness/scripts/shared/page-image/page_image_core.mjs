@@ -211,6 +211,7 @@ export function createPageImageCoreFacts({
   styleMasterSelection,
   generationProfile,
   headerRenderingPolicy,
+  deckVisualSystemSha256 = null,
 } = {}) {
   const source = requireCurrentReceipt(sourceReceipt, headerRenderingPolicy);
   if (!isPlainObject(styleMasterSelection)) {
@@ -224,6 +225,13 @@ export function createPageImageCoreFacts({
   }
   assertJsonValue(styleMasterSelection, "styleMasterSelection");
   assertJsonValue(generationProfile, "generationProfile");
+  assertSha256(deckVisualSystemSha256, "deckVisualSystemSha256", { nullable: true });
+  if (source.workflow === "pure" && deckVisualSystemSha256 === null) {
+    throw new PageImageCoreError("page_image_core_pure_visual_system_required", "Pure Page Image Core requires one deck visual-system digest");
+  }
+  if (source.workflow === "framed" && deckVisualSystemSha256 !== null) {
+    throw new PageImageCoreError("page_image_core_framed_visual_system_forbidden", "Framed Page Image Core cannot receive a Pure deck visual-system digest");
+  }
   const visuals = normalizeVisualSelections(sourceReceipt, visualSelections);
   const visualById = new Map(visuals.map((entry) => [entry.slide_id, entry.selection]));
   const styleMasterSelectionSha256 = canonicalJsonSha256(styleMasterSelection);
@@ -244,6 +252,7 @@ export function createPageImageCoreFacts({
       style_master_selection_sha256: styleMasterSelectionSha256,
       generation_profile_sha256: generationProfileSha256,
       header_rendering_policy_sha256: headerRenderingPolicySha256,
+      deck_visual_system_sha256: deckVisualSystemSha256,
     };
     const canonicalSemanticJson = canonicalJson(semantic);
     return {
@@ -262,6 +271,7 @@ export function createPageImageCoreFacts({
     style_master_selection_sha256: styleMasterSelectionSha256,
     generation_profile_sha256: generationProfileSha256,
     header_rendering_policy_sha256: headerRenderingPolicySha256,
+    deck_visual_system_sha256: deckVisualSystemSha256,
     slides,
   };
   const canonicalFactsJson = canonicalJson(facts);
@@ -296,6 +306,7 @@ export function createPageImageProviderInputBinding({
   ]) {
     assertSha256(coreSlide[field], `coreSlide.${field}`);
   }
+  assertSha256(coreSlide.deck_visual_system_sha256, "coreSlide.deck_visual_system_sha256", { nullable: true });
   assertSha256(compiledProviderInputSha256, "compiledProviderInputSha256");
   assertSha256(localHeaderProfileSha256, "localHeaderProfileSha256", { nullable: true });
   assertSha256(protectedGeometrySha256, "protectedGeometrySha256", { nullable: true });
@@ -305,6 +316,12 @@ export function createPageImageProviderInputBinding({
   if (coreSlide.workflow === "pure" && (localHeaderProfileSha256 !== null || protectedGeometrySha256 !== null)) {
     throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding cannot contain Framed profile or geometry digests");
   }
+  if (coreSlide.workflow === "pure" && coreSlide.deck_visual_system_sha256 === null) {
+    throw new PageImageCoreError("page_image_core_pure_binding_invalid", "Pure provider input binding requires a deck visual-system digest");
+  }
+  if (coreSlide.workflow === "framed" && coreSlide.deck_visual_system_sha256 !== null) {
+    throw new PageImageCoreError("page_image_core_framed_binding_invalid", "Framed provider input binding cannot contain a Pure deck visual-system digest");
+  }
   return deepFreeze({
     compiled_provider_input_sha256: compiledProviderInputSha256,
     provider_content_sha256: coreSlide.provider_content_sha256,
@@ -312,6 +329,7 @@ export function createPageImageProviderInputBinding({
     style_master_selection_sha256: coreSlide.style_master_selection_sha256,
     generation_profile_sha256: coreSlide.generation_profile_sha256,
     header_policy_sha256: coreSlide.header_policy_sha256,
+    deck_visual_system_sha256: coreSlide.deck_visual_system_sha256,
     local_header_profile_sha256: localHeaderProfileSha256,
     protected_geometry_sha256: protectedGeometrySha256,
   });

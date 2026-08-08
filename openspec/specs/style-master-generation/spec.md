@@ -141,3 +141,68 @@ Page Image Workflow evidence.
 - **THEN** it returns the `unsupported-protocol/export` hard-stop before
   candidate or raw-page work
 - **AND** it does not copy the selected bytes into a replacement record
+
+### Requirement: Style Master compatibility projection supports valid decoded PNG layouts
+
+After current Style Master selection, the layout-resolved `style_master.jpg`
+compatibility payload SHALL be derivable from selected CRC-valid PNG media with
+an exact decoded pixel count and supported 8-bit or 16-bit grayscale,
+grayscale-alpha, RGB, or RGBA layout. The payload SHALL use a derived RGBA8
+pixel representation for JPEG encoding while preserving the selected candidate
+bytes, dimensions, hash, provenance, review decision, and selection authority
+unchanged.
+
+A malformed, inconsistent, or unsupported decoded layout SHALL fail only the
+compatibility projection with its existing owning replay/repair path. It SHALL
+not reinterpret a source stride, replace selected bytes, roll back the
+selection, or make Page Image raw work current.
+
+#### Scenario: A 16-bit RGB selected Style Master has a compatibility JPEG
+
+- **WHEN** a current selected Style Master has CRC-valid 16-bit RGB PNG bytes
+  with its recorded native dimensions
+- **THEN** the owner publishes a decodable same-dimension `style_master.jpg`
+  compatibility payload from derived normalized pixels
+- **AND** the selection continues to bind the original PNG bytes and hash
+
+#### Scenario: An unsupported selected PNG layout does not alter selection
+
+- **WHEN** compatibility projection encounters a decoded layout whose sample
+  count or channel/depth combination cannot be represented reliably
+- **THEN** the projection returns its bounded owning failure
+- **AND** it does not mutate the effective selection or selected candidate
+
+### Requirement: Style Master shares bounded invalid-JSON classification without new lifecycle state
+
+When a current authorized Style Master provider response is fully read after
+an HTTP-success result but cannot be parsed as JSON, the common provider
+boundary SHALL classify its existing `invalid_json` known-failure error with
+exactly one `response_shape` value: `empty`, `html_like`, or `other_non_json`.
+Whitespace-only content is `empty`; leading-whitespace-prefixed, case-
+insensitive `<!doctype html` or opening `<html` document markers with a
+tag/doctype boundary are `html_like`; all other parse failures are
+`other_non_json`. The classification SHALL use the same closed meanings as
+Page Image and SHALL not contain response content or any additional
+content-derived metadata.
+
+The Style Master lifecycle SHALL consume that error through its existing
+terminal known-failure path. It SHALL not persist a response-shape field,
+add a CLI result field, change replay behavior, create a recovery route, or
+alter authorization, submission, retry, or cost control.
+
+#### Scenario: Style Master terminalizes a classified invalid-JSON response
+
+- **WHEN** a current authorized Style Master provider response is HTTP-success,
+  fully read, and not valid JSON
+- **THEN** the common boundary supplies the existing `invalid_json`
+  known-failure error with exactly one closed response shape
+- **AND** the Style Master lifecycle records only its existing terminal failure
+  outcome
+
+#### Scenario: Style Master does not turn the fact into new state or control
+
+- **WHEN** Style Master consumes a known-failure error with a response shape
+- **THEN** replay, authorization, submission count, and next action retain
+  their existing semantics
+- **AND** no response-shape record, provider content, or alternate retry path
+  is published

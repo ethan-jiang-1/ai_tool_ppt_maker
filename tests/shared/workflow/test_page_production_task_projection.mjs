@@ -13,12 +13,14 @@ import {
 import { readState, writeState } from "../../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { inspectWorkflow } from "../../../ppt_maker_harness/scripts/shared/workflow/inspect_workflow.mjs";
 import {
-  createPageProductionDisplayReferenceIndex,
   pageProductionTaskProjectionPath,
   progressiveControllerCheckpoint,
   refreshPageProductionTaskProjection,
   renderPageProductionTaskProjection,
 } from "../../../ppt_maker_harness/scripts/shared/workflow/page_production_task_projection.mjs";
+import {
+  createPageProductionDisplayReferenceIndex,
+} from "../../../ppt_maker_harness/scripts/shared/workflow/page_production_display_references.mjs";
 import { progressiveControllerTaskProjectionEligibility } from "../../../ppt_maker_harness/scripts/shared/workflow/progressive_controller_task_projection_eligibility.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
@@ -191,6 +193,14 @@ describe("progressive page-production task projection", () => {
     expect(forward.describe("plan", nearCompleteFirst)).not.toContain(nearCompleteFirst);
     expect(reversed.describe("plan", first)).toBe(forward.describe("plan", first));
     expect(reversed.describe("plan", nearCompleteSecond)).toBe(forward.describe("plan", nearCompleteSecond));
+  });
+
+  it("formats typed display references without creating an abbreviated control selector", () => {
+    const index = createPageProductionDisplayReferenceIndex([{ kind: "style", sha256: digest("a") }]);
+
+    expect(index.describe("style", digest("a"))).toBe("s-aaaaaaaa");
+    expect(Object.getOwnPropertyNames(index).sort()).toEqual(["describe"]);
+    expect(() => index.describe("s-aaaaaaaa", digest("a"))).toThrow("PAGE_PRODUCTION_DISPLAY_REFERENCE_KIND_INVALID");
   });
 
   it("renders every structured reference as display-only text and redacts notes without mutating the payload", () => {

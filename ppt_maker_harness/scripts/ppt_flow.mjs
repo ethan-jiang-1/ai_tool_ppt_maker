@@ -109,7 +109,14 @@ import {
   PAGE_IMAGE_REQUEST_SIZE,
   PAGE_IMAGE_NATIVE_RAW_PNG,
 } from "./shared/image2/page_image_media_contract.mjs";
+import { pageImageOrdinalImageFilename } from "./shared/image2/page_image_artifacts.mjs";
+import { inspectCurrentFinalSlideManifestFromRun } from "./shared/image2/page_image_final_manifest.mjs";
+import { writeHumanArtifactReference } from "./shared/image2/page_image_human_artifact_reference.mjs";
 import { validateBoundPageImageProviderRequest } from "./shared/image2/page_image_target_runtime.mjs";
+import {
+  deliveryReceiptSha256,
+  inspectCurrentTargetPageImageDelivery,
+} from "./05-delivery/index.mjs";
 
 // ---------------------------------------------------------------------------
 // Script paths for subprocess delegation
@@ -1422,6 +1429,7 @@ async function resolveImage2Run(runDir, where) {
 }
 const PAGE_IMAGE_OPERATIONS = new Set([
   "plan",
+  "artifact-view",
   "pilot",
   "expansion",
   "authorize",
@@ -1651,6 +1659,7 @@ function targetPageImageFailure(operation, route, error) {
 function progressiveUnsupportedOption(operation) {
   const allowed = {
     plan: new Set(),
+    "artifact-view": new Set(),
     pilot: new Set(["--plan-hash", "--slide-id"]),
     expansion: new Set(["--plan-hash"]),
     authorize: new Set(["--plan-hash", "--batch-hash"]),
@@ -1803,13 +1812,31 @@ const PAGE_IMAGE_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
   "task_response_invalid",
 ]);
 
-function pageImageProviderResponseKnownFailure(classification, { httpStatus = null } = {}) {
+const IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES = new Set([
+  "empty",
+  "html_like",
+  "other_non_json",
+]);
+
+function image2InvalidJsonResponseShape(responseText) {
+  if (typeof responseText !== "string") return "other_non_json";
+  if (responseText.trim().length === 0) return "empty";
+  const leadingText = responseText.trimStart();
+  return /^(?:<!doctype\s+html(?=[\s>])|<html(?=[\s/>]))/i.test(leadingText)
+    ? "html_like"
+    : "other_non_json";
+}
+
+function pageImageProviderResponseKnownFailure(classification, { httpStatus = null, responseShape = null } = {}) {
   if (!PAGE_IMAGE_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
     throw new Error("Target Page Image response failure classification is invalid");
   }
   const response = { classification };
   if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
     response.http_status = httpStatus;
+  }
+  if (classification === "invalid_json" && IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES.has(responseShape)) {
+    response.response_shape = responseShape;
   }
   const error = new Error("Target Page Image provider returned an unusable response");
   error.code = "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID";
@@ -1839,13 +1866,16 @@ const STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
   "task_response_invalid",
 ]);
 
-function styleMasterProviderKnownFailure(classification, { httpStatus = null } = {}) {
+function styleMasterProviderKnownFailure(classification, { httpStatus = null, responseShape = null } = {}) {
   if (!STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
     throw new Error("Style Master response failure classification is invalid");
   }
   const response = { classification };
   if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
     response.http_status = httpStatus;
+  }
+  if (classification === "invalid_json" && IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES.has(responseShape)) {
+    response.response_shape = responseShape;
   }
   const error = new Error("Style Master provider returned an unusable response");
   error.code = "style_master_provider_response_invalid";
@@ -1970,7 +2000,7 @@ async function readImage2ProviderResponseJson({
     try {
       return JSON.parse(responseText);
     } catch {
-      throw knownFailure("invalid_json");
+      throw knownFailure("invalid_json", { responseShape: image2InvalidJsonResponseShape(responseText) });
     }
   } finally {
     clearTimeout(timer);
@@ -2298,6 +2328,8 @@ async function targetImage2Operations(workflow) {
       review: owner.prepareFramedProgressiveRawReview,
       accept: owner.acceptFramedProgressiveRawReview,
       reconcile: owner.reconcileFramedProgressiveRawAttempt,
+      inspectPilotReview: owner.inspectFramedProgressivePilotPageReview,
+      inspectAcceptedReview: owner.inspectFramedProgressiveCompletePageReview,
       buildDelivery: owner.buildFramedProgressiveTargetDelivery,
       refreshFramedText: owner.refreshFramedTargetText,
       refreshNotes: owner.refreshFramedTargetNotes,
@@ -2321,6 +2353,8 @@ async function targetImage2Operations(workflow) {
       review: owner.preparePureProgressiveRawReview,
       accept: owner.acceptPureProgressiveRawReview,
       reconcile: owner.reconcilePureProgressiveRawAttempt,
+      inspectPilotReview: owner.inspectPureProgressivePilotPageReview,
+      inspectAcceptedReview: owner.inspectPureProgressiveCompletePageReview,
       buildDelivery: owner.buildPureProgressiveTargetDelivery,
       refreshNotes: owner.refreshPureTargetNotes,
     });
@@ -2341,16 +2375,302 @@ async function refreshProgressiveControllerTaskProjection(runDir, { workflowInsp
   return refreshPageProductionTaskProjection({ runDir, inspection, state: eligibility.state });
 }
 
+function artifactReferenceEntry({ label, artifactType, purpose, locator, kind, sha256 }) {
+  return Object.freeze({
+    label,
+    artifact_type: artifactType,
+    purpose,
+    locator,
+    reference: Object.freeze({ kind, sha256 }),
+  });
+}
+
+function artifactUnavailable(category, reason) {
+  return Object.freeze({ category, reason });
+}
+
+function pageArtifactGroup(position, slideId, artifacts) {
+  return Object.freeze({ position, slide_id: slideId, artifacts: Object.freeze(artifacts) });
+}
+
+/** Compose the provider-free human view solely from current owner inspections. */
+async function rebuildTargetPageImageArtifactView(route) {
+  const operations = await targetImage2Operations(route.workflow);
+  const styleMasterOwner = await import("./shared/image2/style_master_plan.mjs");
+  const rawOwner = await import("./shared/image2/page_image_progressive_raw_owner.mjs");
+  const candidate = operations.resolveCandidateSource(route.run_dir);
+  const styleScope = operations.resolveStyleMasterScope(route.run_dir);
+  const styleInspection = await styleMasterOwner.inspectStyleMasterCandidates({ scope: styleScope });
+  const paths = pageImageWorkflowPaths(route.run_dir);
+  const styleMaster = [];
+  const deckArtifacts = [];
+  const pageById = new Map();
+  const unavailable = [];
+
+  if (styleInspection.selection) {
+    const selected = styleMasterOwner.resolveAcceptedStyleMasterReference({
+      runDir: route.run_dir,
+      receipt: candidate.receipt,
+    });
+    styleMaster.push(artifactReferenceEntry({
+      label: selected.candidate_id,
+      artifactType: selected.candidate_media_type,
+      purpose: "Inspect the current accepted Style Master candidate.",
+      locator: selected.candidate_path,
+      kind: "style",
+      sha256: selected.candidate_sha256,
+    }));
+  } else {
+    unavailable.push(artifactUnavailable("Style Master", "no current accepted Style Master candidate is available"));
+  }
+
+  const rawInspection = rawOwner.inspectProgressiveRawLifecycle({
+    runDir: route.run_dir,
+    workflow: route.workflow,
+  });
+  if (!rawInspection.ok) {
+    const error = new Error("current progressive raw lifecycle is invalid");
+    error.code = rawInspection.code;
+    throw error;
+  }
+  if (!rawInspection.plan) {
+    unavailable.push(
+      artifactUnavailable("Provider input", "no current raw plan has been published"),
+      artifactUnavailable("Raw and Complete Page Review", "no current raw plan has been published"),
+      artifactUnavailable("Final media", "no accepted raw evidence is available"),
+      artifactUnavailable("Delivery", "no delivery receipt is available"),
+    );
+    return writeHumanArtifactReference({
+      run_dir: route.run_dir,
+      workflow: route.workflow,
+      style_master: styleMaster,
+      page_artifacts: [],
+      deck_artifacts: deckArtifacts,
+      unavailable,
+    });
+  }
+
+  // This public selected-workflow reader revalidates the current source/plan binding.
+  const stored = operations.readStoredPlan(route.run_dir);
+  const currentRaw = rawOwner.inspectProgressiveRawLifecycle({
+    runDir: route.run_dir,
+    workflow: route.workflow,
+    expected_plan: stored.progressive_raw_work_plan,
+  });
+  if (!currentRaw.ok || !currentRaw.plan) {
+    const error = new Error("current progressive raw plan is unavailable");
+    error.code = currentRaw.code || "progressive_raw_owner_invalid";
+    throw error;
+  }
+  deckArtifacts.push(artifactReferenceEntry({
+    label: "current raw work plan",
+    artifactType: "Page Image raw work plan",
+    purpose: "Inspect the current provider-free raw lifecycle scope.",
+    locator: paths.target_raw_plan,
+    kind: "plan",
+    sha256: currentRaw.plan.plan_hash,
+  }));
+  if (existsSync(paths.target_provider_request_inspection)) {
+    deckArtifacts.push(artifactReferenceEntry({
+      label: "provider input inspection",
+      artifactType: "provider input inspection",
+      purpose: "Inspect the compiled provider input without using it as a selector or authorization record.",
+      locator: paths.target_provider_request_inspection,
+      kind: "input",
+      sha256: currentRaw.plan.plan_hash,
+    }));
+  } else {
+    unavailable.push(artifactUnavailable("Provider input", "the current raw plan has no provider-input inspection projection"));
+  }
+
+  const pilotReview = operations.inspectPilotReview(route.run_dir);
+  if (pilotReview.available) {
+    const reviewRoot = join(paths.review_root, "pilot", pilotReview.batch.sha256);
+    for (const slideId of pilotReview.batch.review_sample_slide_ids) {
+      const position = stored.progressive_raw_work_plan.ordered_slide_ids.indexOf(slideId) + 1;
+      const filename = pageImageOrdinalImageFilename(position, slideId);
+      const existing = pageById.get(slideId);
+      const pageArtifacts = [
+        ...(existing?.artifacts || []),
+        artifactReferenceEntry({
+          label: "Pilot provider page",
+          artifactType: "Pilot Page Review provider PNG",
+          purpose: "Inspect the current Pilot provider-rendered page.",
+          locator: join(reviewRoot, "provider-page", filename),
+          kind: "review",
+          sha256: pilotReview.pilot_evidence_sha256,
+        }),
+      ];
+      if (pilotReview.presentation.presentation.has_complete_page_artifact) {
+        pageArtifacts.push(artifactReferenceEntry({
+          label: "Framed Pilot page",
+          artifactType: "production-equivalent Pilot PNG",
+          purpose: "Inspect the Framed Pilot page with its validated header overlay.",
+          locator: join(reviewRoot, "complete-page", filename),
+          kind: "review",
+          sha256: pilotReview.pilot_evidence_sha256,
+        }));
+      }
+      pageById.set(slideId, pageArtifactGroup(position, slideId, pageArtifacts));
+    }
+    deckArtifacts.push(artifactReferenceEntry({
+      label: "Pilot Page Review contact sheet",
+      artifactType: "Pilot Page Review contact-sheet PNG",
+      purpose: "Inspect the current Pilot review across its selected sample.",
+      locator: join(reviewRoot, "pilot-page-review.png"),
+      kind: "review",
+      sha256: pilotReview.presentation.projection_sha256,
+    }));
+  } else {
+    unavailable.push(artifactUnavailable("Pilot Page Review", "a current partial Pilot review is not available"));
+  }
+
+  let acceptedReview = null;
+  if (currentRaw.evidence?.accepted_raw_evidence_sha256) {
+    acceptedReview = operations.inspectAcceptedReview(route.run_dir);
+    const review = acceptedReview.presentation;
+    const reviewRoot = join(paths.review_root, "complete-page", acceptedReview.raw.plan.sha256);
+    for (const [index, slideId] of acceptedReview.raw.plan.ordered_slide_ids.entries()) {
+      const filename = pageImageOrdinalImageFilename(index + 1, slideId);
+      const existing = pageById.get(slideId);
+      const pageArtifacts = [
+        ...(existing?.artifacts || []),
+        artifactReferenceEntry({
+          label: "provider page",
+          artifactType: "Complete Page Review provider PNG",
+          purpose: "Inspect the accepted provider-rendered page in the complete-page review.",
+          locator: join(reviewRoot, "provider-page", filename),
+          kind: "review",
+          sha256: acceptedReview.raw.complete_raw_review_sha256,
+        }),
+      ];
+      if (review.has_complete_page_artifact) {
+        pageArtifacts.push(artifactReferenceEntry({
+          label: "Framed complete page",
+          artifactType: "production-equivalent complete-page PNG",
+          purpose: "Inspect the Framed provider page with its validated header overlay.",
+          locator: join(reviewRoot, "complete-page", filename),
+          kind: "review",
+          sha256: acceptedReview.raw.complete_raw_review_sha256,
+        }));
+      }
+      pageById.set(slideId, pageArtifactGroup(existing?.position || index + 1, slideId, pageArtifacts));
+    }
+    deckArtifacts.push(artifactReferenceEntry({
+      label: "Complete Page Review contact sheet",
+      artifactType: "Complete Page Review contact-sheet PNG",
+      purpose: "Inspect the current complete-page review across the full plan.",
+      locator: join(reviewRoot, "complete-page-review.png"),
+      kind: "review",
+      sha256: review.projection_sha256,
+    }));
+  } else {
+    unavailable.push(artifactUnavailable("Complete Page Review", "accepted complete-page review evidence is not available"));
+  }
+
+  let finalInspection = null;
+  if (acceptedReview) {
+    finalInspection = inspectCurrentFinalSlideManifestFromRun({
+      runDir: route.run_dir,
+      rawWorkPlan: acceptedReview.raw.plan,
+      acceptedRawEvidence: acceptedReview.raw.accepted_raw_evidence,
+    });
+    if (finalInspection.available) {
+      for (const item of finalInspection.manifest.items) {
+        const group = pageById.get(item.slide_id);
+        if (!group) continue;
+        pageById.set(item.slide_id, pageArtifactGroup(group.position, group.slide_id, [
+          ...group.artifacts,
+          artifactReferenceEntry({
+            label: "final slide",
+            artifactType: "final PNG",
+            purpose: "Inspect the exact final page media used for delivery.",
+            locator: join(paths.final_root, item.path),
+            kind: "manifest",
+            sha256: finalInspection.manifest_sha256,
+          }),
+        ]));
+      }
+    } else {
+      unavailable.push(artifactUnavailable("Final media", "a current final manifest has not been published"));
+    }
+  } else {
+    unavailable.push(artifactUnavailable("Final media", "accepted complete-page review evidence is not available"));
+  }
+
+  const delivery = await inspectCurrentTargetPageImageDelivery({ runDir: route.run_dir });
+  if (delivery.available) {
+    const deliverySha256 = deliveryReceiptSha256(delivery.receipt);
+    for (const entry of delivery.delivery_media.manifest.entries) {
+      const group = pageById.get(entry.slide_id);
+      if (!group) continue;
+      pageById.set(entry.slide_id, pageArtifactGroup(group.position, group.slide_id, [
+        ...group.artifacts,
+        artifactReferenceEntry({
+          label: "delivery slide",
+          artifactType: "delivery JPEG",
+          purpose: "Inspect the JPEG image embedded in the delivered PPTX.",
+          locator: delivery.delivery_media.media_by_slide[entry.slide_id].path,
+          kind: "delivery",
+          sha256: deliverySha256,
+        }),
+      ]));
+    }
+    deckArtifacts.push(
+      artifactReferenceEntry({
+        label: "delivered PPTX",
+        artifactType: "PPTX",
+        purpose: "Inspect the current assembled presentation.",
+        locator: delivery.pptxPath,
+        kind: "pptx",
+        sha256: delivery.receipt.pptx_sha256,
+      }),
+      artifactReferenceEntry({
+        label: "notes receipt",
+        artifactType: "notes receipt JSON",
+        purpose: "Inspect the current speaker-notes injection receipt.",
+        locator: join(paths.final_root, "notes-receipt.json"),
+        kind: "notes",
+        sha256: delivery.receipt.notes_receipt_sha256,
+      }),
+      artifactReferenceEntry({
+        label: "delivery receipt",
+        artifactType: "delivery receipt JSON",
+        purpose: "Inspect the current delivery lineage binding.",
+        locator: delivery.receiptPath,
+        kind: "delivery",
+        sha256: deliverySha256,
+      }),
+    );
+  } else {
+    unavailable.push(artifactUnavailable("Delivery", "a current delivery receipt has not been published"));
+  }
+
+  return writeHumanArtifactReference({
+    run_dir: route.run_dir,
+    workflow: route.workflow,
+    style_master: styleMaster,
+    page_artifacts: [...pageById.values()].sort((left, right) => left.position - right.position || left.slide_id.localeCompare(right.slide_id)),
+    deck_artifacts: deckArtifacts,
+    unavailable,
+  });
+}
+
 /** Execute the fixed progressive raw lifecycle through the marker-selected owner. */
 async function commandTargetPageImageImage2(operation, route, opts = {}) {
   if (!PAGE_IMAGE_OPERATIONS.has(operation)) {
-    return emitUsage("ppt_flow.image2.target.operation", `Target Page Image image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile.");
+    return emitUsage("ppt_flow.image2.target.operation", `Target Page Image image2 operation ${JSON.stringify(operation)} is not supported`, "Use plan, artifact-view, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile.");
   }
   const override = progressiveUnsupportedOption(operation);
   if (override) {
     return emitUsage("ppt_flow.image2.target", `${override} is not accepted for progressive Page Image`, "Use only the registered progressive form and exact raw-owner hashes or formal IDs.");
   }
   try {
+    if (operation === "artifact-view") {
+      const output = await rebuildTargetPageImageArtifactView(route);
+      console.log(JSON.stringify({ run_dir: output.run_dir, workflow: output.workflow, artifact_view: output.path }, null, 2));
+      return 0;
+    }
     const operations = await targetImage2Operations(route.workflow);
     let output;
     if (operation === "plan") {
@@ -3193,8 +3513,8 @@ Examples:
   // ---- image2 (Page Image raw lifecycle) ----
   program
     .command("image2")
-    .description("Receipt-bound progressive Page Image raw lifecycle")
-    .argument("<operation>", "plan, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile")
+    .description("Receipt-bound progressive Page Image lifecycle and explicit artifact view")
+    .argument("<operation>", "plan, artifact-view, pilot, expansion, authorize, generate, pilot-review, pilot-accept, review, accept, or reconcile")
     .argument("<run_dir>", "Path to the exact version dir")
     .option("--plan-hash <sha256>", "Exact current progressive full-plan hash")
     .option("--batch-hash <sha256>", "Exact current progressive batch hash")
@@ -3202,7 +3522,7 @@ Examples:
     .option("--slide-id <formal-id>", "Repeat an exact formal slide ID for Pilot scope", (value, previous) => [...(previous || []), value])
     .option("--decision <decision>", "Pilot: proceed, repair, or redirect; Complete Page Review: proceed or repair")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
+    .addHelpText("after", "\nartifact-view rebuilds only the current human inspection view; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const code = await commandImage2(operation, runDir, {

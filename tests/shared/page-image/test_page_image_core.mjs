@@ -50,6 +50,7 @@ function coreInputs(receipt) {
     styleMasterSelection: { workflow: receipt.workflow, selection_sha256: "b".repeat(64) },
     generationProfile: { provider: { model: "gpt-image-2" }, output: { format: "png" } },
     headerRenderingPolicy: { workflow: receipt.workflow, policy: receipt.workflow === "framed" ? "local-transparent-overlay" : "provider-visible" },
+    deckVisualSystemSha256: receipt.workflow === "pure" ? "c".repeat(64) : null,
   };
 }
 
@@ -84,6 +85,8 @@ describe("Page Image Core", () => {
     expect(framed.slides[0].provider_content).toEqual(pure.slides[0].provider_content);
     expect(framed.slides[0].header_policy).toHaveProperty("context_not_to_render");
     expect(pure.slides[0].header_policy).toHaveProperty("provider_visible");
+    expect(framed.slides[0].deck_visual_system_sha256).toBeNull();
+    expect(pure.slides[0].deck_visual_system_sha256).toBe("c".repeat(64));
   });
 
   it("owns literal-policy validation and normalizes exact as the default", () => {
@@ -112,5 +115,9 @@ describe("Page Image Core", () => {
     const scopeMismatch = coreInputs(receipt);
     scopeMismatch.styleMasterSelection.workflow = "pure";
     expect(() => createPageImageCoreFacts(scopeMismatch)).toThrow(/does not bind/);
+
+    const missingPureSystem = coreInputs(sourceReceipt({ workflow: "pure" }));
+    missingPureSystem.deckVisualSystemSha256 = null;
+    expect(() => createPageImageCoreFacts(missingPureSystem)).toThrow(/deck visual-system digest/);
   });
 });

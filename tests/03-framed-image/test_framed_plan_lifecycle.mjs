@@ -452,6 +452,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
           style_master_selection_sha256: coreSlide.style_master_selection_sha256,
           generation_profile_sha256: coreSlide.generation_profile_sha256,
           header_policy_sha256: coreSlide.header_policy_sha256,
+          deck_visual_system_sha256: null,
           local_header_profile_sha256: rawContract.framed.render_profile_digest,
           protected_geometry_sha256: canonicalJsonSha256(rawContract.framed.protected_geometry),
         });

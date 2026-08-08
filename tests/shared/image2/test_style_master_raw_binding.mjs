@@ -24,6 +24,7 @@ import {
   STYLE_MASTER_IMAGE,
   STYLE_MASTER_PROMPT,
   initBundle,
+  pureDeckVisualSystemAsset,
   styleAsset,
 } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { pageImageWorkflowPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
@@ -422,17 +423,33 @@ describe("accepted Style Master raw binding", () => {
       expect(httpBodyRead).toBe(false);
       expect(JSON.stringify(httpError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
 
-      const invalidJson = targetPageImageSubmitFactory(plan, {
-        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
-        fetchImpl: async () => ({ ok: true, status: 200, text: async () => "PROVIDER_RESPONSE_BODY_SENTINEL" }),
-      });
-      const invalidJsonError = await invalidJson(args).catch((error) => error);
-      expect(invalidJsonError).toMatchObject({
-        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
-        page_image_known_failure: true,
-        page_image_known_failure_facts: { response: { classification: "invalid_json" } },
-      });
-      expect(JSON.stringify(invalidJsonError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      const invalidJsonCases = [
+        { responseText: " \n\t", responseShape: "empty" },
+        {
+          responseText: " \n<!DOCTYPE HTML><html>PROVIDER_RESPONSE_BODY_SENTINEL</html>",
+          responseShape: "html_like",
+        },
+        { responseText: "PROVIDER_RESPONSE_BODY_SENTINEL", responseShape: "other_non_json" },
+      ];
+      for (const scenario of invalidJsonCases) {
+        const invalidJson = targetPageImageSubmitFactory(plan, {
+          credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+          fetchImpl: async () => ({ ok: true, status: 200, text: async () => scenario.responseText }),
+        });
+        const invalidJsonError = await invalidJson(args).catch((error) => error);
+        expect(invalidJsonError).toMatchObject({
+          code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+          page_image_known_failure: true,
+          page_image_known_failure_facts: {
+            response: { classification: "invalid_json", response_shape: scenario.responseShape },
+          },
+        });
+        expect(invalidJsonError.page_image_known_failure_facts.response).toEqual({
+          classification: "invalid_json",
+          response_shape: scenario.responseShape,
+        });
+        expect(JSON.stringify(invalidJsonError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      }
 
       const noResponse = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
@@ -509,6 +526,35 @@ describe("accepted Style Master raw binding", () => {
       expect(readFileSync(value.paths.target_raw_plan)).toEqual(rawPlanBefore);
       expect(readFileSync(statePath(value.deck))).toEqual(stateAfterSelection);
       expect(sourceEpoch(value)).toBe(first.source_epoch);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("treats a selected Pure visual-system edit as raw rebuild debt without Style Master churn", async () => {
+    const value = await fixture({ accepted: true });
+    try {
+      const initial = buildPureTargetRawPlan(value.runDir);
+      const rawPlanBefore = readFileSync(value.paths.target_raw_plan);
+      const stateBefore = readFileSync(statePath(value.deck));
+      const sourceBefore = candidateReceipt(value);
+      const visualSystemPath = pureDeckVisualSystemAsset(value.runDir);
+      writeFileSync(
+        visualSystemPath,
+        readFileSync(visualSystemPath, "utf8").replace("whitespace: generous", "whitespace: balanced"),
+        "utf8",
+      );
+      const sourceAfter = candidateReceipt(value);
+
+      expect(sourceAfter.source_sha256).toBe(sourceBefore.source_sha256);
+      expect(captureError(() => readPureTargetStoredPlanContext(value.runDir))).toMatchObject({
+        code: "target_raw_plan_stale",
+        next_action: "rebuild_target_raw_plan",
+      });
+      expect(readFileSync(value.paths.target_raw_plan)).toEqual(rawPlanBefore);
+      expect(readFileSync(statePath(value.deck))).toEqual(stateBefore);
+      expect(sourceEpoch(value)).toBe(initial.source_epoch);
+      expect(value.result.accepted.selection_sha256).toBeDefined();
     } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
@@ -673,6 +719,33 @@ describe("Style Master current Image2 transport", () => {
       style_master_known_failure: true,
       style_master_known_failure_facts: { response: { classification: "task_response_invalid" } },
     });
+
+    const invalidJsonCases = [
+      { responseText: " \n\t", responseShape: "empty" },
+      {
+        responseText: " \n<!DOCTYPE HTML><html>PROVIDER_RESPONSE_BODY_SENTINEL</html>",
+        responseShape: "html_like",
+      },
+      { responseText: "PROVIDER_RESPONSE_BODY_SENTINEL", responseShape: "other_non_json" },
+    ];
+    for (const scenario of invalidJsonCases) {
+      const invalidJson = styleMasterSubmitFactory({
+        fetchImpl: async () => ({ ok: true, status: 200, text: async () => scenario.responseText }),
+      });
+      const invalidJsonError = await invalidJson(styleMasterTransportRequest()).catch((value) => value);
+      expect(invalidJsonError).toMatchObject({
+        code: "style_master_provider_response_invalid",
+        style_master_known_failure: true,
+        style_master_known_failure_facts: {
+          response: { classification: "invalid_json", response_shape: scenario.responseShape },
+        },
+      });
+      expect(invalidJsonError.style_master_known_failure_facts.response).toEqual({
+        classification: "invalid_json",
+        response_shape: scenario.responseShape,
+      });
+      expect(JSON.stringify(invalidJsonError.style_master_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+    }
 
     const invalidMedia = styleMasterSubmitFactory({
       fetchImpl: async () => providerJsonResponse({ data: [{ b64_json: Buffer.from("not a PNG").toString("base64") }] }),
