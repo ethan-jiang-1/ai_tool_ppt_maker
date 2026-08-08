@@ -1,9 +1,9 @@
 ---
 title: PPT Maker Harness
-version: 0.24.3
+version: 0.24.4
 ---
 
-# PPT Maker Harness · v0.24.3
+# PPT Maker Harness · v0.24.4
 
 AI-driven presentation Harness soft bundle. The Agent owns process and local
 production work; the human owns content, visual acceptance, and remote-cost

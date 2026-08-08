@@ -75,12 +75,13 @@ infer a global or cross-session memory from those files.
 Run-Bundle Layout SHALL give the current Page Image Workflow canonical owners
 for normalized source, matching state, source receipt, Style Master lifecycle,
 compiled provider input and digest, raw provider page/provenance, Page Review
-contributions, `page-image-final-slide-manifest-v1`, assembly, and notes.
-The selected adapter owns policy-specific raw and review contributions; shared
-delivery owns the common final-manifest projection. All media, receipts,
-inspection projections, composites, and task cards beneath `_generated/` or
-their declared derived owner remain rebuildable and SHALL NOT become source
-authority by path, filename, timestamp, or hand edit.
+contributions, `page-image-final-slide-manifest-v1`, JPEG delivery media and
+its `page-image-delivery-media-v1` manifest, assembly, and notes. The selected
+adapter owns policy-specific raw and review contributions; shared delivery owns
+the common final-manifest projection and its JPEG delivery derivative. All
+media, receipts, inspection projections, composites, and task cards beneath
+`_generated/` or their declared derived owner remain rebuildable and SHALL NOT
+become source authority by path, filename, timestamp, or hand edit.
 
 For Framed, the review owner SHALL retain the exact provider page and its
 production-equivalent transparent header composite as distinct bound
@@ -97,8 +98,8 @@ approval record.
 
 #### Scenario: Deleting a current derived artifact does not make it source
 
-- **WHEN** a generated provider page, composite, manifest, or task projection
-  is absent
+- **WHEN** a generated provider page, composite, final PNG, JPEG delivery
+  file, delivery-media manifest, or task projection is absent
 - **THEN** layout identifies its declared rebuild owner
 - **AND** it does not accept a manually placed replacement as current evidence
 
