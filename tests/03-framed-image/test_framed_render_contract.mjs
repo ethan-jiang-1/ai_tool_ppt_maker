@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 
 import { createCanvas } from '@napi-rs/canvas';
+import { decode as decodePng } from 'fast-png';
 
 import {
   createFramedHeaderOverlayContractForTesting,
@@ -194,6 +195,20 @@ describe('Framed header-overlay contract', () => {
       expect(page.capture.layout.markers).toEqual(page.layout.fields.map((field) => field.id));
       expect(Object.keys(page.capture.fonts)).toEqual(page.layout.fields.map((field) => field.id));
     }
+  }, 20_000);
+
+  it('keeps a bottom-edge marker through the RGB Chromium device-row crop', async () => {
+    const page = await privatePageSpec();
+    page.html = page.html.replace('</body>', [
+      '<div aria-hidden="true" style="position:fixed;left:0;right:0;bottom:0;height:1px;background:#ff0000;z-index:2147483647"></div>',
+      '</body>',
+    ].join(''));
+
+    const result = await capturePrivatePage(page);
+    expect(result.ok, result.error).toBe(true);
+    const decoded = decodePng(result.pages[0].bytes, { checkCrc: true });
+    const pixel = decoded.data.subarray((decoded.height - 1) * decoded.width * 4, (decoded.height - 1) * decoded.width * 4 + 4);
+    expect([...pixel]).toEqual([255, 0, 0, 255]);
   }, 20_000);
 
   it('rejects the known wide-token regression and text that exceeds the line budget', async () => {

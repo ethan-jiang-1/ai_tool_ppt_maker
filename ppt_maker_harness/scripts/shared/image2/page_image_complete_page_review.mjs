@@ -8,10 +8,11 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { pageImageOrdinalImageFilename } from "./page_image_artifacts.mjs";
+import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import { pageImageWorkflowPaths } from "../run-bundle/page_image_paths.mjs";
 
 export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-complete-page-review-presentation-v1";
@@ -189,11 +190,11 @@ async function renderProjection(paths, orderedSlideIds, rawBytesBySlide, complet
       const y = profile.padding + index * (rowHeight + profile.row_gap);
       const rawX = profile.padding;
       const position = positionsBySlide?.[slideId] ?? index + 1;
-      context.drawImage(await loadImage(rawBytesBySlide[slideId]), rawX, y, pageWidth, pageHeight);
+      context.drawImage(createPngRasterProjectionCanvas(rawBytesBySlide[slideId]), rawX, y, pageWidth, pageHeight);
       context.fillText(`${position}. ${slideId} | provider page`, rawX, y + pageHeight + profile.label.baseline_offset, pageWidth);
       if (hasCompletePage) {
         const completeX = rawX + pageWidth + profile.padding;
-        context.drawImage(await loadImage(completeBytesBySlide[slideId]), completeX, y, pageWidth, pageHeight);
+        context.drawImage(createPngRasterProjectionCanvas(completeBytesBySlide[slideId]), completeX, y, pageWidth, pageHeight);
         context.fillText(`${position}. ${slideId} | complete page`, completeX, y + pageHeight + profile.label.baseline_offset, pageWidth);
       }
     }

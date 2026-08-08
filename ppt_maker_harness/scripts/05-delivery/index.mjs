@@ -2,10 +2,10 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
-import { decode as decodePng } from "fast-png";
 import { canonicalJson, canonicalJsonSha256 } from "../shared/identity/canonical_json.mjs";
 import { validateFinalSlideManifest } from "../shared/image2/page_image_artifacts.mjs";
 import { inspectPageImageFinalMedia } from "../shared/image2/page_image_media_contract.mjs";
+import { createPngRasterProjectionCanvas } from "../shared/image2/png_raster_projection.mjs";
 import { pageImageWorkflowPaths } from "../shared/run-bundle/bundle_layout.mjs";
 import {
   UNSUPPORTED_PROTOCOL_EXPORT_ACTION,
@@ -205,19 +205,21 @@ async function writeProjection(paths, input) {
   const context = canvas.getContext("2d");
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [index, item] of input.manifest.items.entries()) {
-    const x = padding + (index % 2) * (cellWidth + padding);
-    const y = padding + Math.floor(index / 2) * (cellHeight + labelHeight + padding);
-    const decoded = decodePng(input.final_bytes_by_slide[item.slide_id], { checkCrc: true });
-    const imageCanvas = createCanvas(decoded.width, decoded.height);
-    const imageContext = imageCanvas.getContext("2d");
-    const pixels = imageContext.createImageData(decoded.width, decoded.height);
-    pixels.data.set(decoded.data);
-    imageContext.putImageData(pixels, 0, 0);
-    context.drawImage(imageCanvas, x, y, cellWidth, cellHeight);
-    context.fillStyle = "#17212b";
-    context.font = "700 16px Arial";
-    context.fillText(item.slide_id, x, y + cellHeight + 22);
+  try {
+    for (const [index, item] of input.manifest.items.entries()) {
+      const x = padding + (index % 2) * (cellWidth + padding);
+      const y = padding + Math.floor(index / 2) * (cellHeight + labelHeight + padding);
+      const imageCanvas = createPngRasterProjectionCanvas(input.final_bytes_by_slide[item.slide_id]);
+      context.drawImage(imageCanvas, x, y, cellWidth, cellHeight);
+      context.fillStyle = "#17212b";
+      context.font = "700 16px Arial";
+      context.fillText(item.slide_id, x, y + cellHeight + 22);
+    }
+  } catch (error) {
+    throw new PageImageDeliveryError(
+      "final_projection_invalid",
+      error?.message || "final PNG media could not be rendered as a delivery projection",
+    );
   }
   const bytes = canvas.toBuffer("image/png");
   writeAtomic(paths.final_projection, bytes);

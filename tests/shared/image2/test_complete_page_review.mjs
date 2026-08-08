@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
+import { encode as encodePng } from "fast-png";
 import { describe, expect, it } from "vitest";
 
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
@@ -28,6 +29,16 @@ function png(color) {
   context.fillStyle = color;
   context.fillRect(0, 0, image.width, image.height);
   return image.toBuffer("image/png");
+}
+
+function sixteenBitRgbPng() {
+  return Buffer.from(encodePng({
+    width: 2,
+    height: 1,
+    channels: 3,
+    depth: 16,
+    data: new Uint16Array([0x1234, 0x5678, 0x9abc, 0xabcd, 0xdef0, 0x1357]),
+  }));
 }
 
 function binding(workflow, rawBytes, completeBytes = null) {
@@ -108,6 +119,37 @@ describe("Complete Page Review presentation", () => {
         completeBytesBySlide: { DeckGo: png("#d97706") },
         adapterCompletePageBindingsBySlide: { DeckGo: bindingDigest },
       })).rejects.toMatchObject({ code: "complete_page_review_invalid" });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("renders a 16-bit RGB Pure provider page while retaining its exact evidence bytes", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pure-16bit-complete-page-review-"));
+    const deck = join(root, "deck_complete_review");
+    initBundle(deck, null, "keynote", "dark-executive");
+    const runDir = join(deck, "3_versions", "v1");
+    const providerBytes = sixteenBitRgbPng();
+    const bindingDigest = binding("pure", providerBytes);
+    try {
+      const published = await publishCompletePageReviewPresentation({
+        runDir,
+        rawWorkPlanSha256: PLAN_DIGEST,
+        sourceEpoch: 1,
+        workflow: "pure",
+        typedReviewContributionSha256: REVIEW_DIGEST,
+        orderedSlideIds: ["DeckGo"],
+        rawBytesBySlide: { DeckGo: providerBytes },
+        adapterCompletePageBindingsBySlide: { DeckGo: bindingDigest },
+      });
+      const rootPath = reviewRoot(runDir);
+      const filename = pageImageOrdinalImageFilename(1, "DeckGo");
+
+      expect(readFileSync(join(rootPath, "provider-page", filename))).toEqual(providerBytes);
+      expect(readFileSync(join(rootPath, "complete-page-review.png")).subarray(0, 8))
+        .toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      expect(validate({ runDir, workflow: "pure", rawBytes: providerBytes, bindingDigest }))
+        .toMatchObject({ ok: true, complete_page_presentation_sha256: published.complete_page_presentation_sha256 });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { decode as decodePng, encode as encodePng } from 'fast-png';
 import { HTML_RUNTIME_PROFILE, launchPinnedChromium } from '../../00-setup/index.mjs';
+import { normalizeDecodedPngForProjection } from '../../shared/image2/png_raster_projection.mjs';
 
 export const HTML_CAPTURE_PROFILE = Object.freeze({
   id: 'html-capture-v1',
@@ -66,27 +67,28 @@ function installNetworkDenialGuards(context) {
 }
 
 function cropOneDeviceRow(decoded) {
-  if (decoded.width !== HTML_CAPTURE_PROFILE.outputWidth || decoded.height !== HTML_CAPTURE_PROFILE.rawCaptureHeight) {
-    throw new Error(`fractional capture produced ${decoded.width}x${decoded.height}; expected ${HTML_CAPTURE_PROFILE.outputWidth}x${HTML_CAPTURE_PROFILE.rawCaptureHeight}`);
+  const raster = normalizeDecodedPngForProjection(decoded);
+  if (raster.width !== HTML_CAPTURE_PROFILE.outputWidth || raster.height !== HTML_CAPTURE_PROFILE.rawCaptureHeight) {
+    throw new Error(`fractional capture produced ${raster.width}x${raster.height}; expected ${HTML_CAPTURE_PROFILE.outputWidth}x${HTML_CAPTURE_PROFILE.rawCaptureHeight}`);
   }
-  const rowBytes = decoded.width * 4;
+  const rowBytes = raster.width * 4;
   const data = new Uint8Array(rowBytes * HTML_CAPTURE_PROFILE.outputHeight);
   for (let row = 0; row < HTML_CAPTURE_PROFILE.outputHeight; row += 1) {
-    data.set(decoded.data.subarray(row * rowBytes, (row + 1) * rowBytes), row * rowBytes);
+    data.set(raster.data.subarray(row * rowBytes, (row + 1) * rowBytes), row * rowBytes);
   }
   return encodePng({ width: HTML_CAPTURE_PROFILE.outputWidth, height: HTML_CAPTURE_PROFILE.outputHeight, data });
 }
 
 function assertNonBlankPng(bytes) {
-  const decoded = decodePng(bytes, { checkCrc: true });
-  if (decoded.width !== HTML_CAPTURE_PROFILE.outputWidth || decoded.height !== HTML_CAPTURE_PROFILE.outputHeight) throw new Error('final PNG dimensions do not match the exact capture profile');
-  const first = decoded.data.subarray(0, 4); let visible = 0; let differs = false;
-  for (let index = 0; index < decoded.data.length; index += 4) {
-    if (decoded.data[index + 3] > 0) visible += 1;
-    if (decoded.data[index] !== first[0] || decoded.data[index + 1] !== first[1] || decoded.data[index + 2] !== first[2] || decoded.data[index + 3] !== first[3]) differs = true;
+  const raster = normalizeDecodedPngForProjection(decodePng(bytes, { checkCrc: true }));
+  if (raster.width !== HTML_CAPTURE_PROFILE.outputWidth || raster.height !== HTML_CAPTURE_PROFILE.outputHeight) throw new Error('final PNG dimensions do not match the exact capture profile');
+  const first = raster.data.subarray(0, 4); let visible = 0; let differs = false;
+  for (let index = 0; index < raster.data.length; index += 4) {
+    if (raster.data[index + 3] > 0) visible += 1;
+    if (raster.data[index] !== first[0] || raster.data[index + 1] !== first[1] || raster.data[index + 2] !== first[2] || raster.data[index + 3] !== first[3]) differs = true;
   }
   if (!visible || !differs) throw new Error('final PNG is blank or a single-color frame');
-  return { width: decoded.width, height: decoded.height, visiblePixels: visible };
+  return { width: raster.width, height: raster.height, visiblePixels: visible };
 }
 
 export async function captureHtmlPng({ runtimeEvidence, html, timeoutMs = HTML_RENDER_TIMEOUT_MS, launch = launchPinnedChromium, onPhase, fontRoles = null, probeForbiddenRoutes = false, expectedLeafMarkers = null } = {}) {

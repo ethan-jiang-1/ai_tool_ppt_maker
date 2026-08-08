@@ -1,11 +1,12 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { loadImage } from "@napi-rs/canvas";
 import { decode as decodePng } from "fast-png";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
 import { sha256Bytes } from "../identity/byte_hash.mjs";
+import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import {
   SLIDE_SPECS_NAME,
   STYLE_MASTER_IMAGE,
@@ -1970,16 +1971,10 @@ function assertUnchangedCompatibilityProjectionTarget(scope, target) {
 
 async function encodeStyleMasterCompatibilityJpeg(candidate) {
   try {
-    const decoded = decodePng(candidate.bytes, { checkCrc: true });
-    if (decoded.width !== candidate.candidate_width || decoded.height !== candidate.candidate_height ||
-      decoded.data.length !== decoded.width * decoded.height * 4) {
+    const canvas = createPngRasterProjectionCanvas(candidate.bytes);
+    if (canvas.width !== candidate.candidate_width || canvas.height !== candidate.candidate_height) {
       fail("style_master_compatibility_projection_failed", "Style Master selected bytes changed image dimensions before compatibility projection");
     }
-    const canvas = createCanvas(decoded.width, decoded.height);
-    const context = canvas.getContext("2d");
-    const pixels = context.createImageData(decoded.width, decoded.height);
-    pixels.data.set(decoded.data);
-    context.putImageData(pixels, 0, 0);
     const jpeg = Buffer.from(canvas.toBuffer("image/jpeg"));
     if (jpeg.length === 0 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
       fail("style_master_compatibility_projection_failed", "Style Master compatibility projection did not produce JPEG bytes");

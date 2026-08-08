@@ -159,6 +159,16 @@ function nativeGeneratedCandidateBytes(width, height) {
   return Buffer.from(encodePng({ width, height, data }));
 }
 
+function sixteenBitRgbCandidateBytes(width, height) {
+  const data = new Uint16Array(width * height * 3);
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    data[pixel * 3] = 0x1234;
+    data[pixel * 3 + 1] = 0x5678;
+    data[pixel * 3 + 2] = 0x9abc;
+  }
+  return Buffer.from(encodePng({ width, height, channels: 3, depth: 16, data }));
+}
+
 function crc32(bytes) {
   let crc = 0xffffffff;
   for (const byte of bytes) {
@@ -1665,6 +1675,43 @@ describe("Style Master candidate planning", () => {
       });
     } finally {
       canvasLoaderControls.rejectPrivatePng = false;
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
+  it("projects a 16-bit RGB selected candidate without changing its selected PNG bytes", async () => {
+    const value = fixture();
+    try {
+      const candidateBytes = sixteenBitRgbCandidateBytes(17, 11);
+      expect(decodePng(candidateBytes, { checkCrc: true })).toMatchObject({ width: 17, height: 11, channels: 3, depth: 16 });
+      const plan = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 1 });
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        submit: async () => candidateBytes,
+      });
+      await prepareStyleMasterCandidateReview({ scope: planningScope(value), planSha256: plan.plan_sha256 });
+
+      const accepted = await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: plan.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const candidatePath = styleMasterStorePaths(value.runDir, {
+        plan_sha256: plan.plan_sha256,
+        candidate_id: "candidate-001",
+        candidate_media_type: "image/png",
+      }).candidate_image;
+
+      expect(accepted).toMatchObject({
+        compatibility_projection: { status: "rebuilt" },
+        selection: { candidate_sha256: digest(candidateBytes), candidate_width: 17, candidate_height: 11 },
+      });
+      expect(readFileSync(candidatePath)).toEqual(candidateBytes);
+      expect(readFileSync(styleAsset(value.runDir, STYLE_MASTER_IMAGE)).subarray(0, 3).toString("hex")).toBe("ffd8ff");
+    } finally {
       rmSync(value.root, { recursive: true, force: true });
     }
   });

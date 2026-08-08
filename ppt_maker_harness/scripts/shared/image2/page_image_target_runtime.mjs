@@ -9,9 +9,10 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas } from "@napi-rs/canvas";
 
 import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.mjs";
+import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import {
   PAGE_IMAGE_COMPILED_PROVIDER_INPUT_SCHEMA,
   PAGE_IMAGE_PROVIDER_REQUEST_SCHEMA,
@@ -1182,25 +1183,32 @@ async function renderTargetRawReview(paths, projectionItems, rawBytes, projectio
   const context = canvas.getContext("2d");
   context.fillStyle = layout.background;
   context.fillRect(0, 0, canvas.width, canvas.height);
-  for (const [index, item] of projectionItems.entries()) {
-    const x = layout.padding + (index % layout.columns) * (layout.cell_width + layout.padding);
-    const y = layout.padding + Math.floor(index / layout.columns) * (layout.cell_height + layout.label_height + layout.row_gap);
-    context.drawImage(await loadImage(rawBytes[item.stable_id]), x, y, layout.cell_width, layout.cell_height);
-    context.save();
-    context.strokeStyle = guide.rectangle.stroke;
-    context.lineWidth = guide.rectangle.line_width;
-    for (const primitive of item.guide_primitives) {
-      context.strokeRect(
-        x + primitive.x * layout.cell_width,
-        y + primitive.y * layout.cell_height,
-        primitive.width * layout.cell_width,
-        primitive.height * layout.cell_height,
-      );
+  try {
+    for (const [index, item] of projectionItems.entries()) {
+      const x = layout.padding + (index % layout.columns) * (layout.cell_width + layout.padding);
+      const y = layout.padding + Math.floor(index / layout.columns) * (layout.cell_height + layout.label_height + layout.row_gap);
+      context.drawImage(createPngRasterProjectionCanvas(rawBytes[item.stable_id]), x, y, layout.cell_width, layout.cell_height);
+      context.save();
+      context.strokeStyle = guide.rectangle.stroke;
+      context.lineWidth = guide.rectangle.line_width;
+      for (const primitive of item.guide_primitives) {
+        context.strokeRect(
+          x + primitive.x * layout.cell_width,
+          y + primitive.y * layout.cell_height,
+          primitive.width * layout.cell_width,
+          primitive.height * layout.cell_height,
+        );
+      }
+      context.restore();
+      context.fillStyle = label.font.color;
+      context.font = `${label.font.weight} ${label.font.size}px ${label.font.family}`;
+      context.fillText(projectionLabelText(item, projectionCaptureProfile), x, y + layout.cell_height + label.font.baseline_offset, layout.cell_width);
     }
-    context.restore();
-    context.fillStyle = label.font.color;
-    context.font = `${label.font.weight} ${label.font.size}px ${label.font.family}`;
-    context.fillText(projectionLabelText(item, projectionCaptureProfile), x, y + layout.cell_height + label.font.baseline_offset, layout.cell_width);
+  } catch (error) {
+    throw new PageImageTargetRuntimeError(
+      "target_raw_review_projection_invalid",
+      error?.message || "target raw review images could not be rendered",
+    );
   }
   const bytes = canvas.toBuffer("image/png");
   atomicWrite(paths.target_raw_review_projection, bytes);

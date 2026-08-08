@@ -54,6 +54,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/page_image_raw_mechanics.mjs",
   "shared/image2/page_image_progressive_raw_owner.mjs",
   "shared/image2/page_image_target_runtime.mjs",
+  "shared/image2/png_raster_projection.mjs",
   "shared/image2/style_master_plan.mjs",
   "shared/image2/style_master_scope.mjs",
   "shared/state/target_authoring_draft_route.mjs",

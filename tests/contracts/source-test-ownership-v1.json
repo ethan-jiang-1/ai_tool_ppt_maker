@@ -137,7 +137,7 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/png_raster_projection.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
@@ -145,6 +145,7 @@
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
         "tests/shared/image2/test_page_authority_media_contract.mjs",
+        "tests/shared/image2/test_png_raster_projection.mjs",
         "tests/shared/image2/test_progressive_raw_owner.mjs",
         "tests/shared/image2/test_raw_mechanics.mjs",
         "tests/shared/image2/test_style_master_plan.mjs",

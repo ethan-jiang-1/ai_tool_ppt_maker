@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
+import { encode as encodePng } from "fast-png";
 import JSZip from "jszip";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
@@ -102,6 +103,16 @@ function transparentPng(width, height) {
   context.fillStyle = "#d94841";
   context.fillRect(Math.floor(width / 2), Math.floor(height / 2), 1, 1);
   return canvas.toBuffer("image/png");
+}
+
+function sixteenBitRgbPng(width, height) {
+  const data = new Uint16Array(width * height * 3);
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    data[pixel * 3] = 0x1234;
+    data[pixel * 3 + 1] = 0x5678;
+    data[pixel * 3 + 2] = 0x9abc;
+  }
+  return Buffer.from(encodePng({ width, height, channels: 3, depth: 16, data }));
 }
 
 describe("target Page Image delivery", () => {
@@ -268,6 +279,32 @@ describe("target Page Image delivery", () => {
         format: "jpeg", width: 1684, height: 934, chromaSubsampling: "4:4:4",
       });
       expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(providerNative);
+    } finally {
+      rmSync(deckDir, { recursive: true, force: true });
+    }
+  });
+
+  it("renders a 16-bit RGB Pure final contact projection without changing final PNG identity", async () => {
+    const deckDir = mkdtempSync(join(tmpdir(), "deck_16bit_pure_delivery_"));
+    const runDir = join(deckDir, "3_versions", "v1");
+    mkdirSync(runDir, { recursive: true });
+    const providerNative = sixteenBitRgbPng(4, 2);
+    const { manifest, evidence, finalBytesBySlide, notesBySlide } = deliveryInput("pure", providerNative);
+    try {
+      const paths = persistFinalManifest(runDir, manifest);
+      const result = await deliverTargetFinalSlideManifest({
+        runDir,
+        manifest,
+        acceptedRawEvidence: evidence,
+        finalBytesBySlide,
+        notesBySlide,
+        sourceEpoch: 1,
+        title: "16-bit Pure delivery",
+      });
+
+      expect(readFileSync(join(paths.final_root, "01_DeckGo.png"))).toEqual(providerNative);
+      expect(readFileSync(result.projection.path).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      expect(result.receipt.final_entries).toEqual([{ slide_id: "DeckGo", final_sha256: sha256(providerNative) }]);
     } finally {
       rmSync(deckDir, { recursive: true, force: true });
     }
