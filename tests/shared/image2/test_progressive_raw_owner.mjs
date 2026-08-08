@@ -1472,58 +1472,77 @@ describe("progressive Page Image raw owner", () => {
   });
 
   it("returns only bounded tagged Page Image response facts without materializing rejected bytes", async () => {
-    const { root, runDir } = fixtureRun();
-    const plan = fixturePlan();
-    try {
-      publishProgressiveRawWorkPlan({ runDir, plan });
-      const pilot = await planProgressiveRawPilot({
-        runDir,
-        workflow: "pure",
-        plan_hash: plan.sha256,
-        slide_ids: ["Slide01"],
-      });
-      await authorizeProgressiveRawBatch({
-        runDir,
-        workflow: "pure",
-        plan_hash: plan.sha256,
-        batch_hash: pilot.batch.batch_hash,
-      });
+    const cases = [
+      {
+        response: { classification: "invalid_json", response_shape: "html_like" },
+        expected: { classification: "invalid_json", response_shape: "html_like" },
+      },
+      {
+        response: { classification: "invalid_json", response_shape: "provider-defined-shape" },
+        expected: { classification: "invalid_json" },
+      },
+      {
+        response: { classification: "task_terminal_failure", response_shape: "html_like" },
+        expected: { classification: "task_terminal_failure" },
+      },
+    ];
+    for (const scenario of cases) {
+      const { root, runDir } = fixtureRun();
+      const plan = fixturePlan();
+      try {
+        publishProgressiveRawWorkPlan({ runDir, plan });
+        const pilot = await planProgressiveRawPilot({
+          runDir,
+          workflow: "pure",
+          plan_hash: plan.sha256,
+          slide_ids: ["Slide01"],
+        });
+        await authorizeProgressiveRawBatch({
+          runDir,
+          workflow: "pure",
+          plan_hash: plan.sha256,
+          batch_hash: pilot.batch.batch_hash,
+        });
 
-      const result = await generateProgressiveRawItem({
-        runDir,
-        workflow: "pure",
-        plan_hash: plan.sha256,
-        batch_hash: pilot.batch.batch_hash,
-        provider_requests_by_slide: fixtureProviderRequests(plan),
-        submit: async () => {
-          const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
-          error.page_image_known_failure = true;
-          error.page_image_known_failure_facts = {
-            response: {
-              classification: "http_error",
-              http_status: 502,
-              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
-            },
-          };
-          throw error;
-        },
-      });
+        const result = await generateProgressiveRawItem({
+          runDir,
+          workflow: "pure",
+          plan_hash: plan.sha256,
+          batch_hash: pilot.batch.batch_hash,
+          provider_requests_by_slide: fixtureProviderRequests(plan),
+          submit: async () => {
+            const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
+            error.page_image_known_failure = true;
+            error.page_image_known_failure_facts = {
+              response: {
+                ...scenario.response,
+                provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+                response_header: "PROVIDER_RESPONSE_HEADER_SENTINEL",
+                response_length: 123,
+                task_id: "PROVIDER_TASK_ID_SENTINEL",
+              },
+            };
+            throw error;
+          },
+        });
 
-      expect(result).toMatchObject({
-        item: "Slide01",
-        outcome: "known_failure",
-        provider_failure: { classification: "http_error", http_status: 502 },
-        progress: { materialized: 0, known_failure: 1 },
-        next_action: { action_id: "plan_progressive_pilot" },
-      });
-      expect(result.provider_media).toBeUndefined();
-      expect(JSON.stringify(result)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
-      const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
-      expect(records.materializations).toHaveLength(0);
-      expect(records.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
-      expect(records.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
+        expect(result).toMatchObject({
+          item: "Slide01",
+          outcome: "known_failure",
+          provider_failure: scenario.expected,
+          progress: { materialized: 0, known_failure: 1 },
+          next_action: { action_id: "plan_progressive_pilot" },
+        });
+        expect(result.provider_failure).toEqual(scenario.expected);
+        expect(result.provider_media).toBeUndefined();
+        expect(JSON.stringify(result)).not.toMatch(/PROVIDER_RESPONSE_BODY_SENTINEL|PROVIDER_RESPONSE_HEADER_SENTINEL|PROVIDER_TASK_ID_SENTINEL/);
+        const records = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+        expect(records.materializations).toHaveLength(0);
+        expect(records.attempts.some((entry) => entry.record.status === "succeeded")).toBe(false);
+        expect(records.attempts.filter((entry) => entry.record.status === "known_failure")).toHaveLength(1);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     }
   });
 

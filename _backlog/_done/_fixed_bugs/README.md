@@ -69,6 +69,7 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-052](BUG-052-provider-base-url-comma-list-not-supported-and-async-model.md) | 2026-08-05 | provider base_url 逗号列表不被支持；async task 模型不被 Style Master transport 支持 |
 | [BUG-053](BUG-053-style-master-compat-jpeg-loadimage-rejects-cabx-png.md) | 2026-08-05 | Style Master 兼容 JPEG 投影失败：canvas `loadImage` 拒载带 `caBX` chunk 的 provider PNG |
 | [BUG-054](BUG-054-page-raw-provider-native-size-mismatch.md) | 2026-08-05 | Page raw provider 返回非契约原生尺寸，pilot 提交全部 known_failure |
+| [BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md) | 2026-08-08 | Page Image `invalid_json` 以闭集 response shape 区分空响应、HTML 文档和其他非 JSON，且不泄露 provider 数据 |
 | [BUG-058](BUG-058-candidate-selection-prompt-unusable-no-path-long-ids.md) | 2026-08-08 | Style Master review 投影提供候选路径和可选的 `candidate_id` |
 | [BUG-059](BUG-059-style-master-compat-jpeg-fails-16bit-png.md) | 2026-08-08 | Style Master 兼容 JPEG 投影支持 16-bit 和非 RGBA provider PNG，且不改变 selection authority |
 | [BUG-060](BUG-060-framed-capture-row-stride-corrupts-alpha.md) | 2026-08-08 | Framed RGB Chromium capture 规范化后裁行，修复 alpha 污染和底边透明 |

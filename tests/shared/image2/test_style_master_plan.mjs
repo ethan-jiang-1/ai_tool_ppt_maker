@@ -935,7 +935,7 @@ describe("Style Master candidate planning", () => {
     }
   });
 
-  it("stops at the first explicit known provider failure without consuming later candidate slots", async () => {
+  it("terminalizes a classified provider failure without adding Style Master lifecycle state", async () => {
     const value = fixture();
     try {
       const stateBefore = readFileSync(statePath(value.deck));
@@ -947,7 +947,16 @@ describe("Style Master candidate planning", () => {
         planSha256: planned.plan_sha256,
         submit: async ({ candidate_id }) => {
           calls.push(candidate_id);
-          return Object.freeze({ outcome: "known_failure" });
+          const error = new Error("PROVIDER_RESPONSE_BODY_SENTINEL");
+          error.style_master_known_failure = true;
+          error.style_master_known_failure_facts = {
+            response: {
+              classification: "invalid_json",
+              response_shape: "html_like",
+              provider_response: "PROVIDER_RESPONSE_BODY_SENTINEL",
+            },
+          };
+          throw error;
         },
       });
       const first = readCandidateAttempt(value.runDir, planned.plan_sha256, "candidate-001");
@@ -961,6 +970,8 @@ describe("Style Master candidate planning", () => {
         status: "failed",
         candidate_grant_sha256: authorized.candidate_grant_sha256,
       });
+      expect(first.record).not.toHaveProperty("response_shape");
+      expect(JSON.stringify(first.record)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
       expect(existsSync(secondPaths.candidate_attempt)).toBe(false);
       expect(result).toMatchObject({
         terminal: true,
@@ -969,6 +980,15 @@ describe("Style Master candidate planning", () => {
         next_action: "plan_style_master_successor",
         progress: { max_submissions: 2, consumed_submissions: 1, remaining_submissions: 1 },
       });
+      expect(result).not.toHaveProperty("response_shape");
+      const replaySubmit = vi.fn();
+      const replay = await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: planned.plan_sha256,
+        submit: replaySubmit,
+      });
+      expect(replay).toEqual(result);
+      expect(replaySubmit).not.toHaveBeenCalled();
       assertNoPageRawMaterialization(value, stateBefore);
     } finally {
       rmSync(value.root, { recursive: true, force: true });

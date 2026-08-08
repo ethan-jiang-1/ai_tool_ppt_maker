@@ -1,6 +1,6 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃
+> 类型: 设计 | 更新: 2026-08-08 | 状态: 活跃（Changes 1–2 已归档；BUG-055/059/060 已修复）
 
 ## 背景 / 现状
 
@@ -9,8 +9,8 @@
 
 | 责任面 | 对应 bug | 当前缺口 |
 | --- | --- | --- |
-| Raster projection integrity | 059、060 | 多个 raster-to-canvas 调用点各自假定 PNG 为 8-bit RGBA；16-bit/RGB provider PNG 和 Chromium RGB screenshot 会损坏或失败。 |
-| Provider diagnosis | 055 | 完整收到的非 JSON 响应只有 `invalid_json`，无法区分安全的响应形状；同时不得泄露 body 或 header。 |
+| Raster projection integrity | 059、060 | 已完成：共享 projector 已覆盖所有审计到的 derived canvas seam；16-bit/RGB provider PNG 和 Chromium RGB screenshot 不再被错误当作 8-bit RGBA。 |
+| Provider diagnosis | 055 | 已完成：完整读取的非 JSON 响应在既有 `invalid_json` fact 中以闭集 shape 区分 empty、HTML-like 与 other，不泄露 provider 数据或改变成本控制。 |
 | Human artifact navigation | 056、062、063 | 有少量局部路径和短引用，但 Agent 展示、CLI JSON、短引用和可浏览导航没有共同的 display contract。 |
 | Pure deck visual system | 057 | Pure 已共享 Style Master/visual language/profile，却没有 deck-level typography、layout 和 whitespace 契约。 |
 
@@ -75,6 +75,10 @@ Style Master 和 Page Image 共用；其唯一作用是让已有的最近合法�
 此决策在 proposal 前须由 maintainer 明确确认：`HTML-like` 这类派生分类是否符合现有“不暴露 provider
 response body”的保密边界。默认不采纳原 BUG 提出的 content-type/length/digest。
 
+**确认（2026-08-08）**：允许在现有 `invalid_json` known-failure fact 中增加闭集
+`response_shape: empty | html_like | other_non_json`。它仅表达本地 reader 对完整已读 body 的有限判断；不得
+公开 header、长度、digest、body 片段、provider/task 身份，也不得改变 retry、授权、submission 或持久状态。
+
 ### D3. 人类 display layer 与 immutable protocol 完全分离
 
 完整 SHA-256 继续是 records、directory names、CAS locks 和 CLI precise arguments 的唯一真实键。
@@ -105,14 +109,22 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 顺序 | 建议 change | 覆盖 | 主要 capability | 依赖 / 完成条件 |
 | --- | --- | --- | --- | --- |
 | 0 | archive `add-jpeg-delivery-media` | 既有完成 change | 已有 delivery capabilities | 已完成：先同步 delta specs，后 archive；不与后续 raster change 重叠。 |
-| 1 | `harden-page-image-raster-projections` | BUG-059、BUG-060；审计发现的同类 derived projection exposure | `style-master-generation`、`html-render-runtime`、`image-generation`、`image-production` | 无 provider 成本。全部 canvas projection/crop 调用改走 shared projector；原始 evidence byte identity 不变。 |
-| 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | 先确认 D2 taxonomy。无 retry；malformed/HTML JSON response 仅产生有限安全分类。 |
+| 1 | `harden-page-image-raster-projections` | BUG-059、BUG-060；审计发现的同类 derived projection exposure | `style-master-generation`、`html-render-runtime`、`image-generation`、`image-production` | **已完成**：通过 protected baseline、主 spec sync 后归档至 `openspec/changes/archive/2026-08-08-harden-page-image-raster-projections/`；BUG-059/060 已移入 `_done/_fixed_bugs/`。 |
+| 2 | `add-bounded-provider-response-shape-diagnostics` | BUG-055 | `image-generation`、`cli-surface`、`style-master-generation` | **已完成**：主 spec 已同步，change 已归档至 `openspec/changes/archive/2026-08-08-add-bounded-provider-response-shape-diagnostics/`，BUG-055 已移入 `_done/_fixed_bugs/`。仅 `empty` / `html_like` / `other_non_json`；无 retry，Style Master 不新增持久化或 CLI field。 |
 | 3 | `add-human-artifact-reference-view` | BUG-056、BUG-062、BUG-063 | `harness-charter`、`run-bundle-layout`、`image-generation`、`cli-surface`、`node-specification` | 先确认 D3 的 logical-view scope。所有人类检查 handoff 都有 locator；storage/CLI exact args 不变。 |
 | 4 | `bind-pure-deck-visual-system` | BUG-057 + Pure fixture baseline | `visual-config`、`image-generation`、`style-master-generation` | 先确认 D4 tokens；offline prompt-binding tests 全绿后，才展示成本明确的 multi-page Pilot 供人类视觉判断。 |
 
-Change 1 优先，因为它修复实际像素数据损坏，并保护最近完成的 JPEG delivery 路径。Changes 2 和 3 都是
-display/control 变化，可在 Change 1 archive 后依次进行；不共享 durable lifecycle state。Change 4 最后，
-因为它需要人类定义“统一”意味着什么，且最终验证有 provider 成本。
+Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
+Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在
+任何 final-root 写入前预计算 JPEG/contact projection，失败不改变已有 final artifacts。聚焦 90 项测试、
+protected `npm test` 与归档后的 all-spec strict validation 均通过。
+
+Changes 2 和 3 都是 display/control 变化，可在 Change 1 archive 后依次进行；不共享 durable lifecycle
+state。Change 2 已在 2026-08-08 完成实施、主 spec sync 与 archive：两轮 planning-only review 解决了 Style
+Master 不应持久化或投影该 diagnostic fact 的边界问题；9/9 tasks、74 项 targeted Image2 tests、12 项 process
+diagnostics、`npm test`、change strict、all-spec strict 与 `git diff --check` 均通过。BUG-055 已按其“无安全
+响应可见性”范围修复并归档；provider TLS 行为与自动 retry 仍为独立决策。Change 4 最后，因为它需要人类定义
+“统一”意味着什么，且最终验证有 provider 成本。
 
 ## Proposed Change 质量关
 
@@ -201,7 +213,7 @@ change。它位于 `openspec-propose`（或手工完成 proposal/specs/design/ta
 
 ## 进入实施前的三个确认
 
-1. 确认 D2：允许公开 finite `response_shape`（推荐 `empty` / `html_like` / `other_non_json`），但不公开任何
+1. D2 已确认：允许公开 finite `response_shape`（`empty` / `html_like` / `other_non_json`），但不公开任何
    header、长度、digest 或内容。
 2. 确认 D3：接受 logical, rebuildable human reference view 作为 BUG-063 的首期修复；不承诺物理短目录 alias。
 3. 确认 D4：Pure 保持 provider-owned complete page；指定首期固定 token 的视觉规范和 Pilot sample scope。

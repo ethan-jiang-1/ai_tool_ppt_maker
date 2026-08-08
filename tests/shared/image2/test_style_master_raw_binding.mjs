@@ -422,17 +422,33 @@ describe("accepted Style Master raw binding", () => {
       expect(httpBodyRead).toBe(false);
       expect(JSON.stringify(httpError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
 
-      const invalidJson = targetPageImageSubmitFactory(plan, {
-        credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
-        fetchImpl: async () => ({ ok: true, status: 200, text: async () => "PROVIDER_RESPONSE_BODY_SENTINEL" }),
-      });
-      const invalidJsonError = await invalidJson(args).catch((error) => error);
-      expect(invalidJsonError).toMatchObject({
-        code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
-        page_image_known_failure: true,
-        page_image_known_failure_facts: { response: { classification: "invalid_json" } },
-      });
-      expect(JSON.stringify(invalidJsonError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      const invalidJsonCases = [
+        { responseText: " \n\t", responseShape: "empty" },
+        {
+          responseText: " \n<!DOCTYPE HTML><html>PROVIDER_RESPONSE_BODY_SENTINEL</html>",
+          responseShape: "html_like",
+        },
+        { responseText: "PROVIDER_RESPONSE_BODY_SENTINEL", responseShape: "other_non_json" },
+      ];
+      for (const scenario of invalidJsonCases) {
+        const invalidJson = targetPageImageSubmitFactory(plan, {
+          credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
+          fetchImpl: async () => ({ ok: true, status: 200, text: async () => scenario.responseText }),
+        });
+        const invalidJsonError = await invalidJson(args).catch((error) => error);
+        expect(invalidJsonError).toMatchObject({
+          code: "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID",
+          page_image_known_failure: true,
+          page_image_known_failure_facts: {
+            response: { classification: "invalid_json", response_shape: scenario.responseShape },
+          },
+        });
+        expect(invalidJsonError.page_image_known_failure_facts.response).toEqual({
+          classification: "invalid_json",
+          response_shape: scenario.responseShape,
+        });
+        expect(JSON.stringify(invalidJsonError.page_image_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+      }
 
       const noResponse = targetPageImageSubmitFactory(plan, {
         credentialResolver: () => ({ base_url: "https://image.example", api_key: "test-key" }),
@@ -673,6 +689,33 @@ describe("Style Master current Image2 transport", () => {
       style_master_known_failure: true,
       style_master_known_failure_facts: { response: { classification: "task_response_invalid" } },
     });
+
+    const invalidJsonCases = [
+      { responseText: " \n\t", responseShape: "empty" },
+      {
+        responseText: " \n<!DOCTYPE HTML><html>PROVIDER_RESPONSE_BODY_SENTINEL</html>",
+        responseShape: "html_like",
+      },
+      { responseText: "PROVIDER_RESPONSE_BODY_SENTINEL", responseShape: "other_non_json" },
+    ];
+    for (const scenario of invalidJsonCases) {
+      const invalidJson = styleMasterSubmitFactory({
+        fetchImpl: async () => ({ ok: true, status: 200, text: async () => scenario.responseText }),
+      });
+      const invalidJsonError = await invalidJson(styleMasterTransportRequest()).catch((value) => value);
+      expect(invalidJsonError).toMatchObject({
+        code: "style_master_provider_response_invalid",
+        style_master_known_failure: true,
+        style_master_known_failure_facts: {
+          response: { classification: "invalid_json", response_shape: scenario.responseShape },
+        },
+      });
+      expect(invalidJsonError.style_master_known_failure_facts.response).toEqual({
+        classification: "invalid_json",
+        response_shape: scenario.responseShape,
+      });
+      expect(JSON.stringify(invalidJsonError.style_master_known_failure_facts)).not.toContain("PROVIDER_RESPONSE_BODY_SENTINEL");
+    }
 
     const invalidMedia = styleMasterSubmitFactory({
       fetchImpl: async () => providerJsonResponse({ data: [{ b64_json: Buffer.from("not a PNG").toString("base64") }] }),

@@ -1803,13 +1803,31 @@ const PAGE_IMAGE_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
   "task_response_invalid",
 ]);
 
-function pageImageProviderResponseKnownFailure(classification, { httpStatus = null } = {}) {
+const IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES = new Set([
+  "empty",
+  "html_like",
+  "other_non_json",
+]);
+
+function image2InvalidJsonResponseShape(responseText) {
+  if (typeof responseText !== "string") return "other_non_json";
+  if (responseText.trim().length === 0) return "empty";
+  const leadingText = responseText.trimStart();
+  return /^(?:<!doctype\s+html(?=[\s>])|<html(?=[\s/>]))/i.test(leadingText)
+    ? "html_like"
+    : "other_non_json";
+}
+
+function pageImageProviderResponseKnownFailure(classification, { httpStatus = null, responseShape = null } = {}) {
   if (!PAGE_IMAGE_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
     throw new Error("Target Page Image response failure classification is invalid");
   }
   const response = { classification };
   if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
     response.http_status = httpStatus;
+  }
+  if (classification === "invalid_json" && IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES.has(responseShape)) {
+    response.response_shape = responseShape;
   }
   const error = new Error("Target Page Image provider returned an unusable response");
   error.code = "PAGE_IMAGE_PROVIDER_RESPONSE_INVALID";
@@ -1839,13 +1857,16 @@ const STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS = new Set([
   "task_response_invalid",
 ]);
 
-function styleMasterProviderKnownFailure(classification, { httpStatus = null } = {}) {
+function styleMasterProviderKnownFailure(classification, { httpStatus = null, responseShape = null } = {}) {
   if (!STYLE_MASTER_PROVIDER_RESPONSE_FAILURE_CLASSIFICATIONS.has(classification)) {
     throw new Error("Style Master response failure classification is invalid");
   }
   const response = { classification };
   if (classification === "http_error" && Number.isSafeInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599) {
     response.http_status = httpStatus;
+  }
+  if (classification === "invalid_json" && IMAGE2_PROVIDER_INVALID_JSON_RESPONSE_SHAPES.has(responseShape)) {
+    response.response_shape = responseShape;
   }
   const error = new Error("Style Master provider returned an unusable response");
   error.code = "style_master_provider_response_invalid";
@@ -1970,7 +1991,7 @@ async function readImage2ProviderResponseJson({
     try {
       return JSON.parse(responseText);
     } catch {
-      throw knownFailure("invalid_json");
+      throw knownFailure("invalid_json", { responseShape: image2InvalidJsonResponseShape(responseText) });
     }
   } finally {
     clearTimeout(timer);

@@ -15,9 +15,8 @@
 
 ## 活跃列表
 
-### P1（重要 — 2 个）
+### P1（重要 — 1 个）
 
-- **[BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md)** — page raw generate 报 invalid_json 但 provider 实际返回合法 JSON：无响应可见性，瞬时 provider 抖动被当确定性失败烧掉整批提交
 - **[BUG-057](BUG-057-pure-pages-lack-visual-system-consistency.md)** — Pure workflow 各页视觉系统不一致：字体/字号/色调/layout 每页自由发挥，缺全 deck 锁定视觉系统
 
 ### P2（次要 — 2 个）
@@ -35,7 +34,7 @@
 
 ## 类别分布
 
-P0: 0 | P1: 2 | P2: 2 | P3: 1
+P0: 0 | P1: 1 | P2: 2 | P3: 1
 
 ---
 

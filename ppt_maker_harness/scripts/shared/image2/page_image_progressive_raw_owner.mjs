@@ -1249,7 +1249,14 @@ function pageImageKnownFailureResponseFacts(error) {
   const facts = error?.page_image_known_failure_facts;
   const response = facts?.response;
   if (!error?.page_image_known_failure || !response || typeof response !== "object" || Array.isArray(response)) return null;
-  if (["invalid_json", "task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
+  if (response.classification === "invalid_json") {
+    const result = { classification: "invalid_json" };
+    if (["empty", "html_like", "other_non_json"].includes(response.response_shape)) {
+      result.response_shape = response.response_shape;
+    }
+    return Object.freeze(result);
+  }
+  if (["task_terminal_failure", "task_response_invalid"].includes(response.classification)) {
     return Object.freeze({ classification: response.classification });
   }
   if (response.classification === "http_error") {
