@@ -1523,6 +1523,20 @@ function targetPageImageFailure(operation, route, error) {
   const source = { path: join(route.run_dir, SLIDE_SPECS_NAME) };
 
   if (reason.startsWith("progressive_raw") || reason === "progressive_raw_legacy_replan_required") {
+    if (reason === "progressive_raw_attempt_chain_invalid") {
+      return {
+        code: CLI_ERROR_CODES.FAILED,
+        message: "The progressive Page Image attempt history has an immutable integrity conflict.",
+        hint: "Report the Harness integrity defect; do not retry, rebuild, edit records, or start provider work.",
+        diagnostic: {
+          ...common,
+          category: "internal",
+          next: createCliNext("report_internal", {
+            default: "Report the progressive raw integrity conflict with its exact run and plan facts before any further work.",
+          }),
+        },
+      };
+    }
     const ownerAction = error?.next_action || null;
     const reconciliation = reason.includes("reconciliation") || reason.includes("outcome_unresolved");
     const gate = reconciliation || /(?:grant_required|authorization|required|batch_terminal|pilot_|complete_review)/.test(reason);

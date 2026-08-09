@@ -1,6 +1,6 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–8 均已完成、main-spec sync、归档并提交；Change 9 已完成实施、验证、归档并提交 `e7365cc`，其 delta specs 未同步至 main specs；Change 10 已完成 provider-free 实施、验证、main-spec sync、归档并提交 `d8b9389`，版本已升至 `0.26.0`；BUG-057 的 successor view 已重建且三张 Style Master 候选可审阅）
+> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃；Change 12 的 Harness terminal-sibling repair 已完成 main-spec sync 与归档。真实 owner 已将 `TwoMet`、`PlatGo` 证实为 materialized，但 `DkfGo` 保持 `unknown`；旧 grant 已耗尽，后续需由人确认 successor Pilot scope（Changes 0–12 均已完成）
 
 ## 当前进度（2026-08-09）
 
@@ -65,21 +65,44 @@
   自动访问；它们只在下一次显式 `artifact-view` 时迁移这个可重建派生 surface。
 - [x] **Release 版本决策**：人类已确认 Change 10 的 `0.25.1 → 0.26.0` MINOR；`VERSION`、`VERSION_LOG.md`、
   Harness README、`package.json` 与 lockfile 已同步更新。
-- [ ] **当前 Style Master selection conflict**：2026-08-09 对该 exact `v1` 执行 provider-free
-  `image2 artifact-view` 时，owner 在写入 `nav/` 前返回 `style_master_selection_conflict`。没有 provider request、
-  state 写入或导航树迁移；必须先 review current selection。
-- [ ] **下一轮受控重建**：人类对 current Style Master selection 明确选定一个
-  `proceed(candidate)`、`repair` 或 `redirect`；不能同时接受三个候选。只有 `proceed` 接受一个新 Style Master 后，
-  Agent 才能 validation → 新 current raw plan / exact-scope disclosure → 人类授权 raw rebuild → 同一 Complete Page
-  Review。不得借旧的 broad authorization 推断新的 provider scope。
+- [x] **Change 11 / pending successor artifact view（实施、验证、main-spec sync、归档与提交完成）**：
+  `fix-pending-successor-artifact-view` 已归档至
+  `openspec/changes/archive/2026-08-09-fix-pending-successor-artifact-view/`，并提交为 `006ec59`。
+  owner 以 predecessor identity 而非 style-intent/context/profile hash divergence 投影 matching-binding pending
+  successor；exact promotion 回到 ordinary accepted-selection path，其他 selection mismatch 仍保留
+  `style_master_selection_conflict`。不访问生产 deck、不写入 state、也不调用 provider。
+- [x] **Style Master acceptance 与 current raw plan**：人类已作出 `proceed(candidate-001)`，owner 已接受该 current
+  successor 并重建 compatibility Style Master JPEG。Agent 随后 provider-free 发布 source epoch 2 的 current raw plan：
+  `DkfGo`、`TwoMet`、`PlatGo`，最多三次提交，三页均为 unsubmitted；没有 provider 请求或新授权。
+- [x] **短导航已刷新为 current raw scope**：`_generated/nav/index.md` 与 `nav/art/` 现在给出已接受
+  `candidate-001`、current raw work plan 与 provider-input inspection 的短 physical locators。
+- [x] **三页 Pilot scope 与独立授权**：人类选择 `DkfGo`、`TwoMet`、`PlatGo`；owner 发布 exact Pilot batch，
+  人类授权最多三次 `image2 / gpt-image-2 / PNG 2000x1125` raw 提交。该授权不包括 retry、replacement batch、final 或 delivery。
+- [x] **三次既有 submission 已核对**：`DkfGo` 的原始 provider outcome 经 reconciliation 终态为 `unknown`，不得重试；
+  `TwoMet` 的 exact attempt 同时保留 `succeeded` 与 `unknown` terminal siblings，已作为有效 materialization 继续；
+  `PlatGo` 随后以既有第三次 exact submission materialize。没有 retry、第四次 provider request 或 grant 扩展。
+- [x] **Change 12 / progressive raw terminal conflict repair（实施、验证、main-spec sync 与归档完成）**：
+  `repair-progressive-raw-terminal-conflict` 只接受同一 submitted parent 下 childless、tuple-identical 且已通过既有
+  provenance/raw-byte 验证的 `succeeded` + `unknown` pair；`succeeded` 是 effective terminal，`unknown` 保持 immutable audit
+  history。对该 effective parent 的 reconcile 不 lookup、不追加 terminal record，也不写 grant/provenance/provider state。
+  其他 sibling shape、descendant、identity/provenance/media 失效仍 hard-stop；公开 CLI 只返回 bounded
+  `internal/report_internal`，不再谎称存在可执行的 `rebuild_progressive_raw_work`。owner 28/28、公开 CLI process、
+  protected `npm test`、change/all-spec strict 与 diff check 已通过。两份 delta 已同步至 main specs，change 已归档至
+  `openspec/changes/archive/2026-08-09-repair-progressive-raw-terminal-conflict/`；Harness 维护本身未调用 provider 或修改 deck。
+- [x] **真实 owner 续跑确认与既有 grant 完成**：显式 provider-free `image2 plan` 确认 `PlatGo` 是既有 grant 下唯一
+  eligible item；Agent 仅提交该一项。后续 owner inspection 将 `PlatGo` 与 `TwoMet` 证实为 materialized、`DkfGo` 保持
+  unknown，短 `artifact-view` 已重建。没有 retry、第四次提交、grant 扩展、final 或 delivery。
+- [ ] **新的 successor Pilot scope / 人类确认**：当前 batch 因 `DkfGo` 的 paid debt 成为 terminal partial Pilot，未形成
+  current Complete Page Review。owner 只给出 `plan_progressive_pilot`（`requires_human: true`）；人类必须先确认新的
+  replacement Pilot scope，随后才可以 provider-free 规划、重新披露成本并单独授权。旧 grant、历史 review 与本次 Harness
+  测试都不能替代该确认或授权。
 
-**现存长路径审阅入口（legacy；Harness 已不再把它作为 human entry；2026-08-09 的显式 `artifact-view` 迁移在
-selection conflict 前停止）：**
+**现存长路径（legacy audit-only；Harness 已不再将它作为 human entry）：**
 `deck_dark_factory_current/3_versions/v1/_generated/page_image_workflow/reference/human-artifact-reference-v1.md`
 
-该 view 已于 2026-08-09 在成功生成后 provider-free 重建：它给出待接受 local-existing `s-e5dc5294`、
-`candidate-001` `s-26a6f1f8`、`candidate-002` `s-97f3acb7` 的 owner-issued read-only locator。它不提供 raw、final 或
-delivery projection，且当前 human gate 为 `review_style_master_candidates`。
+该 legacy view 仅作历史审计。短 `nav/` tree 最后一次重建发生在 Pilot provider activity 之前；须在 owner 成功给出
+current action 或 review projection 后通过显式 `artifact-view` 重建，不能充当 current review、authorization 或 status
+surface。当前不推断已有 Page Review、final 或 delivery projection。
 
 Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
@@ -189,16 +212,25 @@ binding 不能替代真实像素验收。Human 已选择 `repair`；该决定未
 provider 请求。Change 7 已恢复 owner 的 rebuild routing。随后的 source-only visual-language / motif 修订保留 claims、stable
 IDs 与 notes，却正确使旧 Style Master selection stale。Change 8
 `recover-stale-style-master-scope` 已 provider-free 地发布 replacement Style Master plan；Change 9
-`expose-style-master-successor-artifact-view` 已实现、验证、归档并提交 `e7365cc`，但按 archive 决策未同步 delta specs 到
-main specs。它让现有 artifact view 在 pending successor 时只显示 owner-verified candidate locator、按 state 标示 unavailable
-generated slots、并给出既有 owner `next_action`；不投影 raw/final/delivery。真实 `v1` 的 provider-free view 已在两次已授权
-Style Master generation 成功后重建：local-existing、`candidate-001`、`candidate-002` 三张候选均有 owner-verified locator。
-Change 10 `introduce-short-physical-human-artifact-paths` 已完成 main-spec sync、归档与提交 `d8b9389`：它将
-human-facing artifact entry 收敛为短物理 `nav/` tree，不改 immutable evidence，也不会自动访问历史 run。`0.26.0` MINOR
-版本表面已同步。Deck-production 轨道当前待办仍是人类对该 view
-作出新的 Style Master visual-direction decision；`proceed` 接受新 selection 后，才回到既有受控 source edit →
-exact-scope disclosure / authorization → raw rebuild → 同一 review。若新 review 仍发现 claim、叙事或数据问题，再由内容所有者
-给出逐页修订意图；这不是新的 provider 或 OpenSpec gate。
+`expose-style-master-successor-artifact-view` 的历史未同步 delta，在实际合约上已由 Change 11
+`fix-pending-successor-artifact-view` 的 main-spec sync 最终取代。Change 11 使 owner 按 predecessor identity 投影
+matching-binding pending successors，并使 current successor 的 exact promotion 回归 ordinary accepted-selection path；其他
+selection mismatch 仍为 `style_master_selection_conflict`。历史 `v1` view 曾投影 local-existing、`candidate-001`、
+`candidate-002` 三张 owner-verified candidates；重建后的 current short navigation view 只列出前两张。Change 10
+`introduce-short-physical-human-artifact-paths` 已完成 main-spec sync、归档与提交 `d8b9389`：它将 human-facing artifact entry
+收敛为短物理 `nav/` tree，不改 immutable evidence，也不会自动访问历史 run。`0.26.0` MINOR 版本表面已同步。
+
+Deck-production 的 provider-free 短导航树已重建，并由人类确认 `proceed(candidate-001)`；owner 已接受 current
+successor 并重建 compatibility Style Master JPEG。Agent 随后 provider-free 发布 source epoch 2 的 current raw plan，并由
+人类选定 `DkfGo`、`TwoMet`、`PlatGo` 三页 Pilot，授权最多三次 `image2 / gpt-image-2 / PNG 2000x1125` 提交。运行时首个
+`DkfGo` outcome 经 reconciliation 为 `unknown`；随后 `TwoMet` 同一 immutable attempt 出现 `succeeded` 与 `unknown`
+terminal siblings，owner 的既有 integrity rule 将此判为 `progressive_raw_attempt_chain_invalid`。`PlatGo` 仍未提交。
+
+Change 12 `repair-progressive-raw-terminal-conflict` 已完成该窄范围 owner/CLI repair：验证过的 `succeeded` + `unknown`
+pair 现在以 success 继续，未知 sibling 仅留审计；无效证据仍 fail-closed 并只报 `report_internal`，不会制造 retry 或假 rebuild
+路径。真实 `v1` 的 provider-free plan 已据此恢复，并在原 exact grant 中只提交 `PlatGo`；当前 owner 确认 `TwoMet`、`PlatGo`
+materialized、`DkfGo` unknown。由于没有完整三页证据，review 尚未恢复；owner 要求一个明确的人类 successor Pilot scope，再走新的
+cost disclosure / authorization。不得将旧 grant、历史 review 或本次 Harness repair 当作该新 scope 的授权。
 BUG-062 已完成。
 
 ### BUG-057 三页 Pure Pilot（Deck production track）
@@ -252,11 +284,30 @@ BUG-062 已完成。
   提交或 retry。
 - [x] **Agent**：已对真实 `v1` 重建 owner-issued successor artifact view；它显示待接受的 local-existing `s-e5dc5294`、
   `candidate-001` `s-26a6f1f8`、`candidate-002` `s-97f3acb7`，并返回 `review_style_master_candidates`。
-- [ ] **Human / Agent**：2026-08-09 的 exact `v1` provider-free `artifact-view` 在写入 Human Navigation Path 前返回
-  `style_master_selection_conflict`；没有 provider request 或 state mutation。人类必须对 current selection 选定一个
-  `proceed(candidate)`、`repair` 或 `redirect`，不能同时接受三个候选。仅在 `proceed` 后，Agent 才能
-  `rebuild_progressive_raw_work` 发布新 raw plan / exact-scope disclosure → 人类对新 raw scope 独立授权 → Agent raw
-  rebuild → 同一 Complete Page Review。不得借旧的 broad authorization 推断新 provider scope。
+- [x] **Agent**：Change 11 `fix-pending-successor-artifact-view` 已完成实施、验证、main-spec sync、归档至
+  `openspec/changes/archive/2026-08-09-fix-pending-successor-artifact-view/` 并提交为 `006ec59`；matching-binding
+  pending successor 不再因 hash divergence 被拒绝，exact promotion 保持 ordinary path。未访问生产 deck，未发起 provider
+  request，也未写入 state。
+- [x] **Agent**：已对 exact `v1` 执行 provider-free `image2 artifact-view`，重建短 Human Navigation Path：
+  `_generated/nav/index.md` 与 `nav/art/`。current owner view 只给出 local-existing `s-47d12ea5` 与
+  `candidate-001` `s-9edcea6a`；未调用 provider、不创建或消费授权、不改变 owner/state/evidence。
+- [x] **Human / Agent**：人类已明确 `proceed(candidate-001)`；owner 已接受 current successor，并由 Agent provider-free
+  发布 source epoch 2 的 `DkfGo`、`TwoMet`、`PlatGo` 三页 raw plan。三页均 unsubmitted，最多三次提交；短导航已重建为
+  accepted Style Master、current raw work plan 与 provider-input inspection。
+- [x] **Human / Agent**：人类已选择全部三页 representative Pilot，并授权最多三次 exact raw submission；Agent 已发布
+  batch scope、记录 grant，按 owner 逐页提交。没有 retry 或第 4 次提交。
+- [x] **Agent**：DkfGo reconciliation 的 terminal outcome 为 `unknown`；TwoMet 产生 `succeeded` 与 `unknown` terminal
+  sibling 分叉，随后由 Change 12 验证为 effective success；PlatGo 已在既有第三次 exact submission 内 materialize。
+- [x] **Human / Agent**：已授权并完成 Change 12 `repair-progressive-raw-terminal-conflict` 的窄范围 Harness / OpenSpec
+  repair；它不重试、手改 state、修改历史证据、创建 replacement scope 或 delivery。owner/CLI regressions、protected
+  baseline、strict validation 与 diff check 均通过；两份 delta 已 main-spec sync，change 已归档至
+  `openspec/changes/archive/2026-08-09-repair-progressive-raw-terminal-conflict/`。
+- [x] **Agent**：以 provider-free `image2 plan` 读取 current `v1` owner action，并在既有 grant 中只提交 `PlatGo`；
+  owner 现确认 `TwoMet`、`PlatGo` materialized，`DkfGo` unknown，短 artifact-view 已重建。未发生 retry、grant 扩展、
+  final 或 delivery。
+- [ ] **Human**：确认一个 successor Pilot replacement scope，处理 `DkfGo` 的 paid debt。该决定只允许随后 provider-free
+  planning / exact cost disclosure；任何 provider submission 仍须新的单独授权，且不推断 retry、历史 evidence acceptance、
+  final 或 delivery。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
@@ -386,6 +437,8 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 8 | `recover-stale-style-master-scope` | BUG-057 source-only visual repair 后的 Style Master replacement-plan deadlock | `style-master-generation`、`image-generation`、`cli-surface` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/` 并已提交；current validated selected-workflow candidate 可 provider-free 地发布 Style Master successor plan；旧历史只作审计，新 selection 前 raw source epoch、plan、authorization、provider 与 evidence 全部保持不可用。目标回归、protected baseline 与 strict checks 已通过，无 provider 或真实 deck mutation。 |
 | 9 | `expose-style-master-successor-artifact-view` | BUG-057 replacement Style Master plan 的授权前 human artifact-view gap | `style-master-generation`、`image-generation`、`cli-surface` | **已完成（未同步 main specs）**：已验证、归档至 `openspec/changes/archive/2026-08-09-expose-style-master-successor-artifact-view/` 并提交为 `e7365cc`；current successor plan 只将 owner-verified local/succeeded candidate locator 投影为 pending view，其他 generated slots 仅按 lifecycle state 显示 unavailable；stale predecessor selection 和 raw/final/delivery history 不会被投影为 current，pending view 只返回既有 owner `next_action`。 |
 | 10 | `introduce-short-physical-human-artifact-paths` | D3 supersession：短 display ref / logical locator 不满足人类实际使用 artifact 的要求 | `run-bundle-layout`、`image-generation`、`style-master-generation`、`cli-surface`、`harness-charter` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-introduce-short-physical-human-artifact-paths/`，提交为 `d8b9389`。`_generated/nav/index.md` + `nav/art/` 是唯一 human-facing physical entry；owner-validated artifacts 以 staged regular copies materialize，full SHA 仅留 internal canonical identity。artifact-view 返回 index/root、不写 state、不做 provider work；unsupported v2 保持 hard-stop。历史 run 仅在下一次显式 provider-free artifact-view 重建时迁移，immutable evidence 不改写。人类已确认并完成 `0.25.1 → 0.26.0` MINOR version bump。 |
+| 11 | `fix-pending-successor-artifact-view` | BUG-057 matching-binding pending successor 在短导航重建前被误报为 selection conflict | `style-master-generation`、`image-generation`、`cli-surface` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-fix-pending-successor-artifact-view/`，提交为 `006ec59`。pending successor 的匹配以 predecessor identity 为准，而非 style-intent/context/profile hash divergence；current successor 的 exact promotion 恢复 ordinary accepted-selection path，其他 selection mismatch 仍严格返回 `style_master_selection_conflict`。不访问生产 deck、不写 state、不调用 provider。 |
+| 12 | `repair-progressive-raw-terminal-conflict` | BUG-057 的 `succeeded` + `unknown` terminal sibling race 把可验证 materialization 错投影为不可执行 rebuild | `image-generation`、`cli-surface` | **已完成**：只将 childless、tuple-identical、通过既有 provenance/raw-byte 验证的 pair 视为 effective success；unknown 仍不可变审计。reconcile 对 effective parent 为 provider-free no-write replay；无效 branches 维持 hard-stop，CLI 仅投影 bounded `report_internal`。owner 28/28、公开 CLI process、protected baseline、change/all-spec strict 与 diff check 通过。两份 delta 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-repair-progressive-raw-terminal-conflict/`；Harness 维护本身未触碰生产 deck 或调用 provider。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
 Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在
