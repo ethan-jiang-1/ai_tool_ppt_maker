@@ -20,6 +20,24 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.26.0 — Short Physical Human Navigation Paths（2026-08-09）
+
+**代号**：Physical artifact navigation
+
+> 归档 `introduce-short-physical-human-artifact-paths`：人类现在通过实际存在的短物理
+> `_generated/nav/` 路径检查 Page Image artifacts，而非进入 SHA 命名的 immutable storage。
+
+### 变了什么
+
+1. provider-free `image2 artifact-view` 从 owner-validated current facts staged materialize
+   `_generated/nav/index.md` 和 `nav/art/` regular copies；index 不公开完整 SHA、原始 locator 或 source filename。
+2. navigation tree 的目录和文件 component 被限制为短的安全 ASCII 名；替换采用 staging、regular copy 和回滚，
+   不修改 immutable owner、不使用 symlink/hardlink，也不让导航路径成为 selector、evidence 或授权。
+3. CLI、Charter、run-bundle guide 和 MD consumer contract 均要求人类 handoff 只使用短物理 locator；历史 run 仅在
+   下一次显式 artifact-view 时迁移。main specs、focused suites、`npm test` 和 strict OpenSpec validation 均已通过。
+
+---
+
 ## v0.25.1 — Human-Readable CLI Success Handoff（2026-08-08）
 
 **代号**：Readable control boundary
