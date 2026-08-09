@@ -29,7 +29,6 @@ import {
   resolveFramedTargetCandidateSource,
 } from "../../ppt_maker_harness/scripts/03-framed-image/index.mjs";
 import {
-  STYLE_MASTER_PROMPT,
   initBundle,
   pageImageWorkflowPaths,
   styleAsset,
@@ -37,6 +36,9 @@ import {
 import { inspectProgressiveRawLifecycle } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
 import { readProgressiveRawPlanDirectRecords } from "../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import {
+  acceptStyleMasterCandidateReview,
+  authorizeStyleMasterCandidates,
+  generateStyleMasterCandidates,
   inspectStyleMasterCandidates,
   planStyleMasterCandidates,
   resolveAcceptedStyleMasterReference,
@@ -54,7 +56,7 @@ function finalDiagnostic(result) {
   return JSON.parse(result.stderr.trim().split("\n").filter(Boolean).at(-1));
 }
 
-function pureSource() {
+function pureSource({ speakerNote = "The fixture keeps generated facts local." } = {}) {
   return `---
 identity:
   scheme: mnemonic-v1
@@ -75,7 +77,7 @@ negative_constraints:
   - no-logo
 \`\`\`
 
-> **SPEAKER NOTE**: The fixture keeps generated facts local.
+> **SPEAKER NOTE**: ${speakerNote}
 `;
 }
 
@@ -214,7 +216,7 @@ describe("human artifact reference CLI", () => {
     }
   });
 
-  it("projects a pending Style Master successor before raw inspection and preserves failed-view bytes", async () => {
+  it("projects a matching-binding pending Style Master successor before stale raw inspection and preserves failed-view bytes", async () => {
     const root = mkdtempSync(join(tmpdir(), "artifact-view-pending-successor-cli-"));
     const deck = join(root, "deck_artifact_view_pending_successor");
     const runDir = join(deck, "3_versions", "v1");
@@ -224,15 +226,20 @@ describe("human artifact reference CLI", () => {
       canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
       writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
       writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
-      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+      const predecessor = await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
       buildPureProgressiveTargetRawPlan(runDir);
 
-      writeFileSync(styleAsset(runDir, STYLE_MASTER_PROMPT), "Use a bolder editorial visual system with material depth.\n", "utf8");
       const successor = await planStyleMasterCandidates({
         scope: resolvePureStyleMasterScope(runDir),
         candidateCount: 1,
       });
+      expect(successor.plan.style_intent_sha256).toBe(predecessor.plan.plan.style_intent_sha256);
+      expect(successor.plan.style_context_sha256).toBe(predecessor.plan.plan.style_context_sha256);
+      expect(successor.plan.candidate_generation_profile_sha256).toBe(predecessor.plan.plan.candidate_generation_profile_sha256);
       const paths = pageImageWorkflowPaths(runDir);
+      writeFileSync(join(runDir, "slide-specifications.md"), pureSource({
+        speakerNote: "This non-visual literal makes the Page Image receipt stale.",
+      }));
       writeFileSync(paths.target_raw_plan, "not valid progressive raw plan bytes\n", "utf8");
       const rawBefore = readFileSync(paths.target_raw_plan);
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
@@ -292,6 +299,57 @@ describe("human artifact reference CLI", () => {
         plan_sha256: successor.plan_sha256,
         candidate_id: "candidate-001",
       }).candidate_attempt)).toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns an exactly promoted successor to the ordinary artifact-view path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "artifact-view-promoted-successor-cli-"));
+    const deck = join(root, "deck_artifact_view_promoted_successor");
+    const runDir = join(deck, "3_versions", "v1");
+    try {
+      initBundle(deck, null, "keynote", "dark-executive");
+      const canvas = createCanvas(2000, 1125);
+      canvas.getContext("2d").fillRect(0, 0, 2000, 1125);
+      writeFileSync(join(deck, "2_backbone", "visual-style", "style_master.jpg"), canvas.toBuffer("image/png"));
+      writeFileSync(join(runDir, "slide-specifications.md"), pureSource());
+      await acceptLocalStyleMasterFixture(resolvePureStyleMasterScope(runDir));
+
+      const successor = await planStyleMasterCandidates({
+        scope: resolvePureStyleMasterScope(runDir),
+        candidateCount: 1,
+      });
+      await authorizeStyleMasterCandidates({
+        scope: resolvePureStyleMasterScope(runDir),
+        planSha256: successor.plan_sha256,
+      });
+      await generateStyleMasterCandidates({
+        scope: resolvePureStyleMasterScope(runDir),
+        planSha256: successor.plan_sha256,
+        submit: async () => canvas.toBuffer("image/png"),
+      });
+      await acceptStyleMasterCandidateReview({
+        scope: resolvePureStyleMasterScope(runDir),
+        planSha256: successor.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+
+      const paths = pageImageWorkflowPaths(runDir);
+      const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
+      const result = flow(["image2", "artifact-view", runDir]);
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({
+        run_dir: runDir,
+        workflow: "pure",
+        artifact_view: paths.human_navigation_index,
+        human_navigation_root: paths.human_navigation_root,
+      });
+      const view = readFileSync(paths.human_navigation_index, "utf8");
+      expect(view).toContain("Inspect the current accepted Style Master candidate.");
+      expect(view).not.toContain("Inspect this pending Style Master candidate");
+      expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
