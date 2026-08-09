@@ -10,7 +10,13 @@ export const GEN_PAGE_IMAGE_RECEIPTS_SUBDIR = "receipts";
 export const GEN_PAGE_IMAGE_RAW_SUBDIR = "raw";
 export const GEN_PAGE_IMAGE_REVIEW_SUBDIR = "review";
 export const GEN_PAGE_IMAGE_FINAL_SUBDIR = "final";
-export const GEN_PAGE_IMAGE_REFERENCE_SUBDIR = "reference";
+export const GEN_PAGE_IMAGE_NAV_SUBDIR = "nav";
+export const GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR = "art";
+
+// This retired leaf is retained only so an explicit artifact-view rebuild can
+// remove the old derived document after publishing the short navigation tree.
+// It is never a current human navigation location.
+const RETIRED_HUMAN_ARTIFACT_REFERENCE_RELATIVE_PATH = `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/reference/human-artifact-reference-v1.md`;
 
 // Style Master candidate history is append-mostly source evidence, not a
 // version-generated artifact. The small per-scope head is its sole mutable
@@ -29,6 +35,11 @@ export const PAGE_PRODUCTION_PLANS_SUBDIR = "plans";
 export const PAGE_PRODUCTION_SCOPES_SUBDIR = "scopes";
 
 export const PAGE_IMAGE_WORKFLOW_PATHS = Object.freeze({
+  generated_root: GENERATED_SUBDIR,
+  human_navigation_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}`,
+  human_navigation_index: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/index.md`,
+  human_navigation_artifacts_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/${GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR}`,
+  retired_human_artifact_reference: RETIRED_HUMAN_ARTIFACT_REFERENCE_RELATIVE_PATH,
   root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}`,
   receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt.json`,
   target_source_receipt: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json`,
@@ -49,8 +60,6 @@ export const PAGE_IMAGE_WORKFLOW_PATHS = Object.freeze({
   final_projection: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/projection.png`,
   delivery_media_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media`,
   delivery_media_manifest: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_FINAL_SUBDIR}/delivery-media-manifest-v1.json`,
-  reference_root: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REFERENCE_SUBDIR}`,
-  human_artifact_reference: `${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/${GEN_PAGE_IMAGE_REFERENCE_SUBDIR}/human-artifact-reference-v1.md`,
 });
 
 export function isPageImageVersionDir(runDir) {

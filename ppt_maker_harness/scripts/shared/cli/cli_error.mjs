@@ -53,6 +53,7 @@ export const CLI_NEXT_ACTIONS = Object.freeze([
   "rerun",
   "review",
   "approve",
+  "plan_style_master_successor",
   "export",
   "report_internal",
 ]);

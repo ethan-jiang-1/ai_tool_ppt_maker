@@ -100,6 +100,17 @@ legal owner action for missing/stale intent or selection, unavailable runtime, c
 uncertain attempt, invalid candidate evidence, lifecycle-head conflict, or selection compare-and-swap conflict; consumers SHALL NOT derive a
 parallel style recovery route from prose or file presence.
 
+When selected-workflow visual/source drift makes an existing Style Master
+selection stale but a current canonical candidate validates, `style-master
+inspect` SHALL return its normal owner projection with one replacement-planning
+next action and `style-master plan` SHALL accept that same scope for the
+provider-free successor plan. Neither command SHALL classify that bounded
+condition as an internal failure or direct the Agent to an inspection that has
+the same stale-scope precondition. Any raw-plan diagnostic preceding the new
+selection shall name only this Style Master recovery and shall not imply
+provider authorization, provider retry, source-epoch mutation, raw-plan
+publication, or Page Image evidence acceptance.
+
 #### Scenario: Missing selection has one repair action
 
 - **WHEN** page raw planning finds no current accepted effective-style selection
@@ -117,6 +128,16 @@ parallel style recovery route from prose or file presence.
 - **WHEN** inspection finds an attempt whose provider outcome became unknown after submit
 - **THEN** the CLI reports the recoverability hard-stop and exact-plan abandonment action requiring a human reason
 - **AND** it does not offer retry, force, outcome editing, or successor authorization as the same action
+
+#### Scenario: Stale source context has one replacement-planning action
+
+- **WHEN** `style-master inspect` or `style-master plan` reaches a stale prior
+  selection while the selected workflow's current canonical candidate validates
+- **THEN** inspection returns the owner-issued replacement Style Master
+  planning action and planning accepts the same scope to publish its
+  provider-free successor
+- **AND** neither command returns an opaque internal error, self-referential
+  inspect loop, raw-plan force, provider retry, or mutation claim
 
 ### Requirement: Progressive production diagnostics remain direct and bounded
 
@@ -218,36 +239,49 @@ as final acceptance.
 ### Requirement: Explicit artifact view preserves the machine CLI contract
 
 On a current supported Page Image run, `image2 artifact-view <run-dir>` SHALL
-perform no provider work and rebuild only the canonical human artifact
-reference view. Its success result SHALL identify that view's local locator and
-the exact run/workflow scope; it SHALL not print raw prompt prose, credentials,
-provider responses, or a broad dump of owner records.
+perform no provider work and rebuild only the canonical Human Navigation Path
+tree. Its success result SHALL identify the short navigation index locator,
+the short navigation root, and the exact run/workflow scope; it SHALL not
+print raw prompt prose, credentials, provider responses, original
+content-addressed artifact locators, or a broad dump of owner records.
 
 Existing success JSON for `status`, `state`, `style-master`, and the other
 `image2` operations SHALL retain their current machine-oriented schema. The
-artifact view SHALL not add a short-hash selector, change any exact SHA-256
-argument grammar, provide a direct lifecycle/authorization/review command, or
-write any `_state/` file including the Page Production task projection.
+artifact-view success result SHALL retain its existing view locator field for
+the new short index and add only the short navigation-root field. The command
+SHALL not add a short-hash selector, change any exact SHA-256 argument grammar,
+provide a direct lifecycle/authorization/review command, or write any
+`_state/` file including the Page Production task projection.
 
 Current protocol identity remains the earliest prerequisite. For an unsupported
 or unresolved scope, the command SHALL preserve the existing bounded
-owner-issued diagnostic and SHALL not write the view, initialize a provider,
-read legacy media, or mutate source/state/generated authority.
+owner-issued diagnostic and SHALL not write the navigation tree, initialize a
+provider, read legacy media, or mutate source/state/generated authority.
 
 #### Scenario: Artifact view is explicitly requested for a current run
 
 - **WHEN** an Agent invokes `image2 artifact-view` for an exact current Pure or Framed run
-- **THEN** the CLI rebuilds and returns the run-scoped human artifact view without a provider
-  request or lifecycle transition
+- **THEN** the CLI rebuilds and returns the run-scoped short navigation index and root without a
+  provider request or lifecycle transition
 - **AND** the complete `_state/` tree and ordinary `status`/`state` observations remain unchanged
   unless separately invoked
+
+#### Scenario: Artifact view does not expose canonical artifact paths
+
+- **WHEN** the current view contains available artifacts held below SHA-named immutable owner
+  directories
+- **THEN** the CLI success result and its human navigation index expose only their derived short
+  physical paths
+- **AND** they do not serialize the source artifact locators or add a navigation path as a CLI
+  lifecycle selector
 
 #### Scenario: Artifact view receives an unsupported v2 run
 
 - **WHEN** `image2 artifact-view` is requested for a `page-authority-image2-v2` source/state pair
 - **THEN** the CLI returns the existing `unsupported-protocol/export` boundary before reading
-  artifacts or writing the view
-- **AND** it does not create an alias, compatibility report, or adoption path
+  artifacts or writing the navigation tree
+- **AND** it does not create an alias, compatibility report, adoption path, or short-path
+  migration for the unsupported run
 
 ### Requirement: CLI plan output binds actual compiled provider inputs safely
 

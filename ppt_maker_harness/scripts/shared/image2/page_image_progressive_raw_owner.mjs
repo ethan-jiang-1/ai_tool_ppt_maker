@@ -678,10 +678,17 @@ function latestBatch(snapshot) {
   return snapshot.batch_lineage.length ? snapshot.batch_lineage.at(-1) : null;
 }
 
+function currentCompleteReview(snapshot) {
+  const candidates = [...snapshot.complete.reviews.values()].filter((review) =>
+    review.record.decision === null && !snapshot.complete.decided_by_prepared.has(review.sha256));
+  if (candidates.length > 1) {
+    fail("progressive_raw_complete_review_invalid", "more than one complete raw review awaits a decision");
+  }
+  return candidates[0] || null;
+}
+
 function completeReviewAction(snapshot) {
-  const undecided = [...snapshot.complete.reviews.values()].filter((review) => review.record.decision === null);
-  if (undecided.length > 1) fail("progressive_raw_complete_review_invalid", "more than one complete raw review awaits a decision");
-  if (undecided.length === 1) {
+  if (currentCompleteReview(snapshot)) {
     return action("accept_progressive_raw_review", {
       kind: "confirm",
       requires_human: true,
@@ -1062,7 +1069,7 @@ function progressiveControllerHandoffs(snapshot) {
   const acceptedReview = snapshot.complete.accepted
     ? snapshot.complete.reviews.get(snapshot.complete.accepted.record.complete_raw_review_sha256) || null
     : null;
-  const complete = acceptedReview || reviews.find((review) => review.record.decision === null) ||
+  const complete = acceptedReview || currentCompleteReview(snapshot) ||
     reviews.find((review) => review.record.decision !== null) || null;
   return Object.freeze({
     partial_pilot: pilot,
@@ -1095,6 +1102,7 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
   }
   const primary = nextAction(snapshot, { expectedPlan: expected_plan });
   const latest = latestBatch(snapshot);
+  const currentReview = currentCompleteReview(snapshot);
   return Object.freeze({
     ok: true,
     plan: Object.freeze({ plan_hash: snapshot.plan.sha256, ...binding(snapshot.plan) }),
@@ -1103,7 +1111,7 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
     controller_handoffs: progressiveControllerHandoffs(snapshot),
     evidence: Object.freeze({
       accepted_raw_evidence_sha256: snapshot.complete.accepted?.sha256 || null,
-      complete_raw_review_sha256: [...snapshot.complete.reviews.values()].find((review) => review.record.decision === null)?.sha256 || null,
+      complete_raw_review_sha256: currentReview?.sha256 || null,
       pilot_evidence_sha256: latest ? snapshot.pilot.evidence_by_batch.get(latest.sha256)?.sha256 || null : null,
       pilot_decision_sha256: latest ? snapshot.pilot.decision_by_batch.get(latest.sha256)?.sha256 || null : null,
     }),
@@ -1572,16 +1580,22 @@ export async function prepareProgressiveRawCompleteReview({ runDir, workflow, pl
       if (snapshot.progress.paid_debt.length > 0 || snapshot.progress.claimed || snapshot.progress.submitted) {
         fail("progressive_raw_complete_review_unavailable", "complete raw review requires full current materialization coverage", { nextAction: nextAction(snapshot) });
       }
-      const existing = [...snapshot.complete.reviews.values()].find((review) => review.record.decision === null);
+      const existing = currentCompleteReview(snapshot);
+      const acceptedReview = snapshot.complete.accepted
+        ? snapshot.complete.reviews.get(snapshot.complete.accepted.record.complete_raw_review_sha256) || null
+        : null;
+      const replay = acceptedReview || existing;
+      if (!replay) {
+        const ownerAction = nextAction(snapshot);
+        if (ownerAction.action_id !== "prepare_progressive_raw_review") {
+          fail("progressive_raw_complete_review_unavailable", "the current progressive lifecycle does not permit another complete raw review", { nextAction: ownerAction });
+        }
+      }
       const coverage = rawCoverage(snapshot.plan, snapshot.materializations);
       const published = await publish(Object.freeze({ plan: snapshot.plan, coverage: Object.freeze(coverage), materializations: snapshot.materializations }));
       asObject(published, "complete review publication");
       digest(published.workflow_evidence_sha256, "workflow_evidence_sha256");
       digest(published.projection_sha256, "projection_sha256");
-      const acceptedReview = snapshot.complete.accepted
-        ? snapshot.complete.reviews.get(snapshot.complete.accepted.record.complete_raw_review_sha256) || null
-        : null;
-      const replay = acceptedReview || existing;
       if (replay) {
         if (published.workflow_evidence_sha256 !== replay.record.workflow_evidence_sha256 ||
           published.projection_sha256 !== replay.record.projection_sha256) {
@@ -1617,7 +1631,7 @@ export async function acceptProgressiveRawCompleteReview({ runDir, workflow, pla
     workflow,
     plan_hash,
     action: async (snapshot) => {
-      const prepared = [...snapshot.complete.reviews.values()].find((review) => review.record.decision === null);
+      const prepared = currentCompleteReview(snapshot);
       if (!prepared) fail("progressive_raw_complete_review_required", "a current prepared complete raw review is required", { nextAction: nextAction(snapshot) });
       if (validate !== null) {
         const validation = await validate(Object.freeze({
@@ -1679,6 +1693,39 @@ export function readProgressiveAcceptedRawWork({ runDir, workflow, plan_hash, ex
     complete_raw_review_sha256: completeReview.sha256,
     raw_bytes_by_slide: Object.freeze(bytes),
     progress: snapshot.progress,
+  });
+}
+
+/**
+ * Read the one current Complete Page Review that still awaits its human
+ * decision. A prepared record remains immutable after a later decision, so
+ * `decided_by_prepared` is the authority for excluding that historical input.
+ */
+export function readCurrentProgressiveRawCompleteReview({ runDir, workflow, expected_plan = null } = {}) {
+  const current = loadPlanByHead(runDir, workflow);
+  if (!current) return Object.freeze({ available: false });
+  const snapshot = expected_plan
+    ? requireCurrentPlan(current, current.plan.sha256, expected_plan)
+    : current;
+  const review = currentCompleteReview(snapshot);
+  if (!review) return Object.freeze({ available: false });
+  const materializations = new Map();
+  const rawBytes = {};
+  for (const slideId of snapshot.plan.ordered_slide_ids) {
+    const materialization = snapshot.materializations.get(slideId);
+    if (!materialization) {
+      fail("progressive_raw_complete_review_stale", `current Complete Page Review raw bytes are unavailable for ${slideId}`);
+    }
+    materializations.set(slideId, materialization);
+    rawBytes[slideId] = Buffer.from(materialization.bytes);
+  }
+  return Object.freeze({
+    available: true,
+    plan: snapshot.plan,
+    complete_raw_review: review.record,
+    complete_raw_review_sha256: review.sha256,
+    materializations,
+    raw_bytes_by_slide: Object.freeze(rawBytes),
   });
 }
 

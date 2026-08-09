@@ -134,6 +134,19 @@ Pilot decision is created and the owner routes to Complete Page Review. Missing
 partial-Pilot coverage with residual debt returns the owner-issued successor
 Pilot planning action before evidence or decision publication.
 
+For a complete raw review, the owner SHALL treat an immutable prepared record
+as current only when its decision is unset and no validated later decision
+record references that prepared record. Current lifecycle actions and evidence,
+unaccepted review preparation, review acceptance, and read-only current-review
+inspection SHALL apply this same relationship-aware rule. A decision-history
+handoff MAY retain the immutable `repair` decision for audit, but SHALL NOT
+establish current review availability or select a lifecycle action. A human
+`repair` decision SHALL preserve both immutable records, expose no current
+Complete Page Review, and return only the existing
+`rebuild_progressive_raw_work` recovery action. It SHALL not replay the
+historical prepared review, create a second decision from it, create accepted
+raw evidence, or make final or delivery artifacts available.
+
 #### Scenario: Pilot planning cannot submit or accept a page
 
 - **WHEN** a current full plan receives an exact selected-ID `pilot` request
@@ -149,6 +162,63 @@ Pilot planning action before evidence or decision publication.
   the reconciliation or bounded successor action
 - **AND** it does not infer a retry, resubmit the item, or use copied bytes as
   materialization
+
+#### Scenario: A repaired Complete Page Review returns to raw rebuild
+
+- **WHEN** a valid current Complete Page Review has a later immutable decision
+  record with `repair` that references its prepared record
+- **THEN** lifecycle inspection returns `rebuild_progressive_raw_work` and no
+  current Complete Page Review digest
+- **AND** it does not expose review acceptance, accepted evidence, final media,
+  or delivery as available
+- **AND** an audit-only decision handoff, if projected, identifies the review
+  as decided and does not make it current
+
+#### Scenario: Historical prepared evidence cannot be replayed or re-decided
+
+- **WHEN** preparation or acceptance is requested after a repair decision has
+  referenced the only prepared Complete Page Review for the current plan
+- **THEN** the owner rejects that request with the existing bounded rebuild
+  recovery action
+- **AND** it writes no review, decision, accepted evidence, grant, attempt, or
+  provider request
+
+### Requirement: Stale selected Style Master routes to replacement planning before raw rebuild
+
+When a selected Page Image workflow has a current validated source candidate
+but its required Style Master selection is stale because the selected
+visual/source context drifted, raw-plan evaluation SHALL stop before source
+epoch, raw-plan, batch, grant, attempt, provider request, or Page Image
+evidence mutation. It SHALL return the existing Style Master owner's one
+provider-free replacement-planning action for the same exact version and
+workflow. The raw owner SHALL not treat the prior selection as current,
+construct a replacement raw plan, or require a human authorization before the
+replacement Style Master plan exists.
+
+The recovery route SHALL preserve prior source receipts, raw plans, grants,
+attempts, reviews, accepted raw bytes, final media, and delivery records as
+immutable historical evidence. It does not relax the existing requirements for
+current Style Master acceptance, exact raw authorization, provider work, or
+Complete Page Review after the new selection is made.
+
+#### Scenario: Pure visual-system drift stops at Style Master replacement planning
+
+- **WHEN** a current Pure source candidate changes its selected visual-system
+  projection and the existing Style Master selection no longer binds that
+  projection
+- **THEN** raw planning returns only the replacement Style Master planning
+  action before source-epoch or raw-work publication
+- **AND** it does not reuse the prior selection, mutate state, or initialize a
+  provider request
+
+#### Scenario: Framed visual-language drift keeps raw work blocked
+
+- **WHEN** a current Framed source candidate changes visual-language facts and
+  its existing Style Master selection is stale
+- **THEN** raw planning returns only the replacement Style Master planning
+  action for that same Framed version
+- **AND** it does not create a target source receipt, raw authorization,
+  attempt, or Page Image evidence
 
 ### Requirement: Structural Page Image targets begin without raw reuse
 
@@ -355,46 +425,89 @@ content.
 ### Requirement: Current Page Image human artifact view is bounded and derived from canonical owners
 
 For an exact current Page Image Workflow scope, the Harness SHALL be able to rebuild one local
-human artifact reference view from canonical Style Master, provider-input inspection, raw/review,
-final, assembly, notes, and delivery owners. The view SHALL list only artifacts whose owning
+Human Navigation Path tree from canonical Style Master, provider-input inspection, raw/review,
+final, assembly, notes, and delivery owners. The tree SHALL list only artifacts whose owning
 current facts establish their availability; it SHALL not discover current evidence by directory
-order, filenames, timestamps, copied media, prior view content, or display reference.
+order, filenames, timestamps, copied media, prior navigation content, or display reference.
+
+Before an artifact becomes available through the tree, the projection SHALL validate its
+owner-issued confined regular-file locator and then materialize a regular derived copy below the
+short navigation root. The index and every human-facing locator SHALL refer only to that short
+physical tree, not to an original content-addressed artifact path. A failed owner validation,
+unsafe existing navigation root, or copy/materialization failure SHALL fail before replacement and
+preserve the prior navigation tree; it SHALL not initialize a provider, infer a fallback artifact,
+or mutate lifecycle authority.
 
 Available page artifacts SHALL be ordered by the current full-plan position and stable
-`slide_id`; human-facing image entries SHALL retain the existing `NN_slideID` convention.
-Style Master entries SHALL use their stable candidate identity. Every entry SHALL give an
-artifact type, inspection purpose, and a local absolute locator. Visible display references SHALL
-be kind-prefixed and collision-aware within the view; a full SHA-256 may occur only where it is
-unavoidably part of the physical locator and SHALL not be the view's human display reference.
+`slide_id`; human-facing image entries SHALL retain that order without requiring the stable ID to
+be a filename. Style Master entries SHALL use their stable candidate identity. Every entry SHALL
+give an artifact type, inspection purpose, and a confined short physical locator. Visible display
+references and derived filenames SHALL be kind-prefixed and collision-aware within the rebuilt
+tree; no human-facing locator or navigation-tree component SHALL expose a full SHA-256.
 
-The view SHALL be rebuildable, provider-free, secret-safe, and non-authoritative. It SHALL not
+When the current progressive raw owner establishes a Complete Page Review whose decision is still
+unset, the tree SHALL list that review's current page artifacts and review projection before any
+human `proceed` or `repair` decision. The entries SHALL be derived from the same current
+owner-established plan, page bytes, and review projection that the `image2 review` operation
+uses. They SHALL not require accepted raw evidence, create a second review surface, infer a
+review from raw directories, or make final/delivery artifacts appear available.
+
+The tree SHALL be rebuildable, provider-free, secret-safe, and non-authoritative. It SHALL not
 contain credentials, authorization headers, environment values, provider response bodies, raw
 prompt prose, image data URLs, or a new copy of lifecycle/review/acceptance state. Neither its
-short display references nor its locators may select a plan, batch, attempt, candidate, or review
-decision; authorize provider work; or substitute for source, provenance, or receipt bindings.
+short physical paths nor its display references may select a plan, batch, attempt, candidate, or
+review decision; authorize provider work; or substitute for source, provenance, or receipt
+bindings.
 
 #### Scenario: Current evidence receives stable human locators
 
 - **WHEN** a current plan has available Style Master, review, final, and delivery artifacts
-- **THEN** the rebuilt view lists their owner-established locators with their type and inspection
-  purpose in stable candidate or full-plan slide order
-- **AND** its display labels do not replace the existing exact digest and formal-ID protocol keys
+- **THEN** the rebuilt navigation index lists their owner-established derived copies with type and
+  inspection purpose in stable candidate or full-plan slide order
+- **AND** every reported artifact locator is confined below the short navigation root and its
+  labels do not replace the existing exact digest and formal-ID protocol keys
+
+#### Scenario: Current Complete Page Review is inspectable before its decision
+
+- **WHEN** every page in a current Pure or Framed full plan is materialized and the raw owner has
+  established a Complete Page Review with no `proceed` or `repair` decision
+- **THEN** the rebuilt navigation tree lists each current review page and its complete-review
+  projection with stable IDs, typed display references, short physical locators, artifact types,
+  and review purposes
+- **AND** it leaves final media and delivery unavailable and does not mutate state, receipts,
+  grants, attempts, review decisions, or provider work
+
+#### Scenario: A repaired Complete Page Review is not current display evidence
+
+- **WHEN** the current plan has only a Complete Page Review whose `repair` decision is already
+  recorded and no accepted raw evidence
+- **THEN** the rebuilt navigation tree does not list that historical review's page or contact-sheet
+  copies
+- **AND** it marks Complete Page Review, final media, and delivery unavailable without mutating
+  the next raw-rebuild route
 
 #### Scenario: A later lifecycle artifact does not exist yet
 
 - **WHEN** a current scope has planned or reviewed evidence but no final, notes, or delivery
   artifact
-- **THEN** the view marks only those later artifact categories as unavailable
+- **THEN** the navigation index marks only those later artifact categories as unavailable
 - **AND** it does not infer a path, create placeholder evidence, mutate lifecycle state, or add a
   review or authorization gate
 
 #### Scenario: A display reference is presented to a lifecycle operation
 
-- **WHEN** a caller supplies a view locator or short display reference where an exact lifecycle
-selector is required
+- **WHEN** a caller supplies a Human Navigation Path or short display reference where an exact
+  lifecycle selector is required
 - **THEN** the lifecycle operation continues to require its existing formal selector or full
-SHA-256 argument
-- **AND** the view does not resolve, translate, or authorize that request
+  SHA-256 argument through the owner-controlled control path
+- **AND** the navigation tree does not resolve, translate, or authorize that request
+
+#### Scenario: A navigation copy is edited after publication
+
+- **WHEN** a person changes or removes a derived file below the Human Navigation Path tree
+- **THEN** the canonical owner artifact and its current evidence authority remain unchanged
+- **AND** a later successful explicit rebuild replaces the derived tree solely from current
+  owner-validated locators
 
 ### Requirement: Pure raw work binds one selected deck visual system
 

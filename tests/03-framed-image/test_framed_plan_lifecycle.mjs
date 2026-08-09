@@ -116,7 +116,11 @@ import {
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import { pageImageOrdinalImageFilename } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths } from "../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
-import { initBundle } from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
+import {
+  STYLE_MASTER_IMAGE,
+  initBundle,
+  styleAsset,
+} from "../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
 import { readState } from "../../ppt_maker_harness/scripts/shared/state/state.mjs";
 import { acceptLocalStyleMasterFixture } from "../helpers/accepted_style_master.mjs";
 
@@ -589,7 +593,7 @@ describe("Framed proof-before-materialization lifecycle", () => {
     }
   });
 
-  it("routes style-context registry drift back to Style Master before raw rebuild", async () => {
+  it("replaces a stale Framed Style Master before source-epoch rebuild", async () => {
     const fixture = await createFixture();
     try {
       const initial = await buildFramedTargetRawPlan(fixture.runDir);
@@ -597,18 +601,30 @@ describe("Framed proof-before-materialization lifecycle", () => {
       const stateBefore = readFileSync(join(fixture.deck, "_state", "state.yaml"));
       const registryPath = join(fixture.deck, "2_backbone", "visual-style", "page-image-visual-language.yaml");
       writeFileSync(registryPath, readFileSync(registryPath, "utf8").replace("quiet depth", "quiet luminous depth"));
+      const sourcePath = join(fixture.runDir, "slide-specifications.md");
+      writeFileSync(sourcePath, `${readFileSync(sourcePath, "utf8")}\n<!-- Style Master successor source epoch -->\n`, "utf8");
 
       await expectStalePlanStopsProvider(fixture, initial.raw_work_plan.sha256, "target_source_receipt_stale");
       expect(sourceEpoch(fixture)).toBe(1);
       expect(renderControls.proof_calls).toBe(1);
       await expect(buildFramedTargetRawPlan(fixture.runDir, { allowSourceRebuild: true })).rejects.toMatchObject({
         code: "target_style_master_stale",
-        next_action: "inspect_style_master",
+        next_action: "plan_style_master_successor",
       });
       expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBefore);
       expect(readFileSync(join(fixture.deck, "_state", "state.yaml"))).toEqual(stateBefore);
       expect(sourceEpoch(fixture)).toBe(1);
       expect(renderControls.proof_calls).toBe(1);
+
+      writeFileSync(styleAsset(fixture.runDir, STYLE_MASTER_IMAGE), fixture.image);
+      const replacement = await acceptLocalStyleMasterFixture(resolveFramedStyleMasterScope(fixture.runDir));
+      expect(replacement.plan.plan_sha256).not.toBeNull();
+      expect(readFileSync(fixture.paths.target_raw_plan)).toEqual(rawPlanBefore);
+      expect(sourceEpoch(fixture)).toBe(1);
+
+      const rebuilt = await buildFramedTargetRawPlan(fixture.runDir, { allowSourceRebuild: true });
+      expect(rebuilt.source_epoch).toBe(2);
+      expect(rebuilt.raw_work_plan.sha256).not.toBe(initial.raw_work_plan.sha256);
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
     }

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -45,6 +45,7 @@ import {
   prepareProgressiveRawCompleteReview,
   prepareProgressiveRawPilotEvidence,
   publishProgressiveRawWorkPlan,
+  readCurrentProgressiveRawCompleteReview,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_raw_owner.mjs";
@@ -473,10 +474,147 @@ describe("progressive Page Image raw owner", () => {
       expect(review.complete_raw_review_sha256).toMatch(/^[0-9a-f]{64}$/);
       const accepted = await acceptProgressiveRawCompleteReview({ runDir, workflow: "pure", plan_hash: plan.sha256, decision: "proceed" });
       expect(accepted.accepted_raw_evidence_sha256).toMatch(/^[0-9a-f]{64}$/);
+      const replayPublish = vi.fn(async () => ({ workflow_evidence_sha256: digest("e"), projection_sha256: digest("f") }));
+      await expect(prepareProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        publish: replayPublish,
+      })).resolves.toMatchObject({
+        complete_raw_review_sha256: accepted.complete_raw_review_sha256,
+        accepted_raw_evidence_sha256: accepted.accepted_raw_evidence_sha256,
+        replay: true,
+      });
+      expect(replayPublish).toHaveBeenCalledTimes(1);
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" }).primary_action)
         .toMatchObject({ action_id: "publish_target_final_manifest", plan_hash: plan.sha256 });
       expect(readProgressiveAcceptedRawWork({ runDir, workflow: "pure", plan_hash: plan.sha256 }).raw_bytes_by_slide.Slide01)
         .toEqual(Buffer.from("fixture raw bytes"));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reads only the exact current undecided Complete Page Review", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const batch = await planProgressiveRawPilot({ runDir, workflow: "pure", plan_hash: plan.sha256, slide_ids: ["Slide01"] });
+      await authorizeProgressiveRawBatch({ runDir, workflow: "pure", plan_hash: plan.sha256, batch_hash: batch.batch.batch_hash });
+      await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: batch.batch.batch_hash,
+        provider_requests_by_slide: fixtureProviderRequests(plan),
+        submit: async () => Buffer.from("current review bytes"),
+      });
+      const prepared = await prepareProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        publish: async () => ({ workflow_evidence_sha256: digest("e"), projection_sha256: digest("f") }),
+      });
+
+      const current = readCurrentProgressiveRawCompleteReview({ runDir, workflow: "pure", expected_plan: plan });
+      expect(current).toMatchObject({
+        available: true,
+        plan: { sha256: plan.sha256 },
+        complete_raw_review_sha256: prepared.complete_raw_review_sha256,
+      });
+      expect(current.raw_bytes_by_slide.Slide01).toEqual(Buffer.from("current review bytes"));
+      expect([...current.materializations.keys()]).toEqual(["Slide01"]);
+      await expect(() => readCurrentProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        expected_plan: fixturePlan(1, { source_receipt_sha256: digest("f") }),
+      })).toThrow(/current source, workflow, profile, or raw contracts/i);
+
+      const repaired = await acceptProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        decision: "repair",
+      });
+      expect(repaired).toMatchObject({
+        accepted_raw_evidence_sha256: null,
+        next_action: { action_id: "rebuild_progressive_raw_work", kind: "repair" },
+      });
+      expect(readCurrentProgressiveRawCompleteReview({ runDir, workflow: "pure", expected_plan: plan }))
+        .toEqual({ available: false });
+      expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
+        evidence: { complete_raw_review_sha256: null, accepted_raw_evidence_sha256: null },
+        controller_handoffs: {
+          complete_raw_review: {
+            complete_raw_review_sha256: repaired.complete_raw_review_sha256,
+            decision: "repair",
+          },
+        },
+        primary_action: { action_id: "rebuild_progressive_raw_work", kind: "repair", plan_hash: plan.sha256 },
+      });
+
+      const before = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
+      const blockedPublish = vi.fn(async () => ({ workflow_evidence_sha256: digest("e"), projection_sha256: digest("f") }));
+      await expect(prepareProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        publish: blockedPublish,
+      })).rejects.toMatchObject({
+        code: "progressive_raw_complete_review_unavailable",
+        next_action: { action_id: "rebuild_progressive_raw_work", kind: "repair", plan_hash: plan.sha256 },
+      });
+      expect(blockedPublish).not.toHaveBeenCalled();
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 })).toEqual(before);
+
+      const blockedValidate = vi.fn(async () => ({ ok: true }));
+      await expect(acceptProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        decision: "repair",
+        validate: blockedValidate,
+      })).rejects.toMatchObject({
+        code: "progressive_raw_complete_review_required",
+        next_action: { action_id: "rebuild_progressive_raw_work", kind: "repair", plan_hash: plan.sha256 },
+      });
+      expect(blockedValidate).not.toHaveBeenCalled();
+      expect(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 })).toEqual(before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a current Complete Page Review whose materialized bytes are missing", async () => {
+    const { root, runDir } = fixtureRun();
+    const plan = fixturePlan();
+    try {
+      publishProgressiveRawWorkPlan({ runDir, plan });
+      const batch = await planProgressiveRawPilot({ runDir, workflow: "pure", plan_hash: plan.sha256, slide_ids: ["Slide01"] });
+      await authorizeProgressiveRawBatch({ runDir, workflow: "pure", plan_hash: plan.sha256, batch_hash: batch.batch.batch_hash });
+      const generated = await generateProgressiveRawItem({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        batch_hash: batch.batch.batch_hash,
+        provider_requests_by_slide: fixtureProviderRequests(plan),
+        submit: async () => Buffer.from("missing review bytes"),
+      });
+      await prepareProgressiveRawCompleteReview({
+        runDir,
+        workflow: "pure",
+        plan_hash: plan.sha256,
+        publish: async () => ({ workflow_evidence_sha256: digest("e"), projection_sha256: digest("f") }),
+      });
+      const materialization = progressiveRawStorePaths(runDir, {
+        plan_sha256: plan.sha256,
+        provenance_sha256: generated.materialization_provenance_sha256,
+      });
+      unlinkSync(materialization.materialization_bytes);
+
+      expect(() => readCurrentProgressiveRawCompleteReview({ runDir, workflow: "pure", expected_plan: plan }))
+        .toThrow(/raw\.png/i);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

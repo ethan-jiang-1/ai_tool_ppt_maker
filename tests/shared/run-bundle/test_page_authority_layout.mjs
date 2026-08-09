@@ -50,11 +50,16 @@ describe("Page Image bundle layout", () => {
       expect(paths.final_manifest).toContain("_generated/page_image_workflow/final/manifest-v1.json");
       expect(paths.delivery_media_root).toContain("_generated/page_image_workflow/final/delivery-media");
       expect(paths.delivery_media_manifest).toContain("_generated/page_image_workflow/final/delivery-media-manifest-v1.json");
-      expect(paths.human_artifact_reference).toContain("_generated/page_image_workflow/reference/human-artifact-reference-v1.md");
+      expect(paths.human_navigation_root).toContain("_generated/nav");
+      expect(paths.human_navigation_index).toContain("_generated/nav/index.md");
+      expect(paths.human_navigation_artifacts_root).toContain("_generated/nav/art");
+      expect(paths.retired_human_artifact_reference).toContain("_generated/page_image_workflow/reference/human-artifact-reference-v1.md");
       expect(renderTree()).toContain("NN_slideID.png");
       expect(renderTree()).toContain("delivery-media/{NN_slideID.jpg}");
       expect(renderTree()).toContain("delivery-media-manifest-v1.json");
-      expect(renderTree()).toContain("reference/human-artifact-reference-v1.md");
+      expect(renderTree()).toContain("Human Navigation Path tree");
+      expect(renderTree()).toContain("p-1234abcd.png");
+      expect(renderTree()).not.toContain("reference/human-artifact-reference-v1.md");
       expect(renderTree()).toContain("page_image_workflow");
       expect(renderTree()).toContain(PURE_DECK_VISUAL_SYSTEM_FILE);
       expect(renderTree()).not.toContain("html_production");
@@ -108,8 +113,10 @@ describe("Page Image bundle layout", () => {
       expect(guide).toMatch(/This\s+guide does not locate a run or select pre-install recovery/i);
       expect(guide).not.toMatch(/code\s*\+\s*hint.*repair/i);
       expect(guide).toContain("ppt_flow image2 artifact-view <run-dir>");
-      expect(guide).toMatch(/locator, artifact type, and inspection purpose/i);
-      expect(guide).toMatch(/Do not replace this handoff by saying an artifact was generated or opened/i);
+      expect(guide).toMatch(/short physical locator, artifact type, and inspection purpose/i);
+      expect(guide).toContain("_generated/nav/index.md");
+      expect(guide).toMatch(/never give a SHA-named storage locator/i);
+      expect(guide).toMatch(/Do not replace this handoff by saying an artifact was\s+generated or opened/i);
       expect(guide).toMatch(/not a selector, approval, authorization, decision record,\s+or permission to edit/i);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -152,7 +159,7 @@ describe("Page Image bundle layout", () => {
       const runDir = join(deck, "3_versions", "v1");
       const retiredOwner = join(runDir, "_generated", "retired-owner");
       writeFileSync(retiredOwner, "not current", "utf8");
-      expect(checkBundle(runDir, false)).toContain("unexpected current generated owner 'retired-owner' — Page Image owns page_image_workflow/ only");
+      expect(checkBundle(runDir, false)).toContain("unexpected current generated owner 'retired-owner' — Page Image owns page_image_workflow/ and nav/ only");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

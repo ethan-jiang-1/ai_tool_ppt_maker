@@ -171,3 +171,9 @@ _Avoid_: Zero-write observation, state mutation
 **Collaboration Projection**:
 A rebuildable, non-authoritative view that helps an Agent and human coordinate but cannot prove progress, authorize cost, or select lifecycle work.
 _Avoid_: State of record, task authority
+
+### Human Artifact Navigation
+
+**Human Navigation Path**:
+The short physical directory-and-filename path through which a human locates and uses a Run Bundle artifact. It is distinct from the artifact's canonical full-SHA identity and is the only artifact path exposed for human navigation.
+_Avoid_: Display reference, canonical storage path, SHA directory, logical locator

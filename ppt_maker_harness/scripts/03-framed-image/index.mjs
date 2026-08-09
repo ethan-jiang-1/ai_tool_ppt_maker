@@ -84,6 +84,7 @@ import {
   prepareProgressiveRawCompleteReview,
   prepareProgressiveRawPilotEvidence,
   publishProgressiveRawWorkPlan,
+  readCurrentProgressiveRawCompleteReview,
   readCurrentProgressiveRawPilotWork,
   readProgressiveAcceptedRawWork,
   reconcileProgressiveRawAttempt,
@@ -589,6 +590,18 @@ function readFramedProgressiveFinalizationReview(context, progressiveRawWorkPlan
   return requireFramedFinalizationReview(validation, acceptedCompleteReview);
 }
 
+function requireFramedCurrentCompleteReview(validation, currentCompleteReview) {
+  if (!validation?.ok || !currentCompleteReview ||
+    validation.complete_page_presentation_sha256 !== currentCompleteReview.workflow_evidence_sha256 ||
+    validation.projection_sha256 !== currentCompleteReview.projection_sha256) {
+    throw new FramedImageWorkflowError(
+      "framed_current_complete_review_stale",
+      "Framed current Complete Page Review no longer binds its provider and presentation evidence",
+    );
+  }
+  return validation.presentation;
+}
+
 const FRAMED_FINAL_COMPOSITION_KEYS = Object.freeze([
   "receipt",
   "rawWorkPlan",
@@ -676,11 +689,12 @@ export function resolveFramedTargetCandidateSource(runDir) {
 
 /** Resolve Framed's exact Style Master scope without materializing page lineage. */
 export function resolveFramedStyleMasterScope(runDir) {
-  const scope = resolveStyleMasterScopeContext(runDir);
+  const sourceCandidate = resolveFramedTargetCandidateSource(runDir);
+  const scope = resolveStyleMasterScopeContext(runDir, { sourceCandidate });
   if (scope.workflow !== FRAMED_IMAGE_WORKFLOW) {
     throw new FramedImageWorkflowError("wrong_workflow_owner", "Framed Style Master scope requires the selected framed workflow");
   }
-  return bindStyleMasterScopeCandidate(scope, resolveFramedTargetCandidateSource(runDir));
+  return bindStyleMasterScopeCandidate(scope, sourceCandidate);
 }
 
 function coreStyleMasterSelection(workflow, styleMasterReference) {
@@ -1413,6 +1427,26 @@ export function inspectFramedProgressiveCompletePageReview(runDir) {
     raw.complete_raw_review,
   );
   return Object.freeze({ plan, raw, presentation });
+}
+
+/** Read and validate the current undecided Framed Complete Page Review without writing. */
+export function inspectFramedProgressiveCurrentCompletePageReview(runDir) {
+  const plan = readFramedProgressiveTargetStoredPlanContext(runDir);
+  const raw = readCurrentProgressiveRawCompleteReview({
+    runDir: plan.run_dir,
+    workflow: FRAMED_IMAGE_WORKFLOW,
+    expected_plan: plan.progressive_raw_work_plan,
+  });
+  if (!raw.available) return raw;
+  const presentation = requireFramedCurrentCompleteReview(
+    validateFramedProgressiveCompletePageReview({
+      context: plan,
+      plan: raw.plan,
+      materializations: raw.materializations,
+    }),
+    raw.complete_raw_review,
+  );
+  return Object.freeze({ available: true, plan, raw, presentation });
 }
 
 /** Compose, publish, and deliver only from exact current accepted raw evidence. */

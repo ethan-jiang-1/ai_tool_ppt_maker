@@ -41,13 +41,17 @@ describe("diagnostic recovery handoff", () => {
     const handoff = headingSection(contract, "Human inspection handoff");
 
     expect(handoff).toContain("ppt_flow image2 artifact-view <run-dir>");
-    expect(handoff).toMatch(/locator, artifact type, and inspection purpose/i);
-    expect(handoff).toMatch(/stable slide\/candidate IDs/i);
+    expect(handoff).toMatch(/Human Navigation Path/i);
+    expect(handoff).toContain("_generated/nav/index.md");
+    expect(handoff).toMatch(/short physical locator, artifact type, and inspection purpose/i);
+    expect(handoff).toMatch(/never give a SHA-named storage locator/i);
+    expect(handoff).toMatch(/stable\s+slide\/candidate IDs/i);
     expect(handoff).toMatch(/typed display references/i);
     expect(handoff).toMatch(/artifact unavailable[\s\S]*do not invent a reference/i);
-    expect(handoff).toMatch(/abbreviated[\s\S]*reference as a selector/i);
+    expect(handoff).toMatch(/abbreviated[\s\S]*reference\s+as a selector/i);
     expect(handoff).toMatch(/read target only/i);
     expect(handoff).toMatch(/neither selects a lifecycle\s+record nor[\s\S]{0,80}authorizes provider work, records a decision, or permits a hand edit[\s\S]{0,80}to/i);
+    expect(handoff).toMatch(/Full SHA-256 values remain internal/i);
   });
 
   it("defines exactly four bounded novice-facing parts in the canonical contract", () => {

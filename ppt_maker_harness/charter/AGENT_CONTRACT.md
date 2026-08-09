@@ -65,19 +65,21 @@ Diagnostic Recovery Handoff; do not summarize a failure as a successful result.
 ## Human inspection handoff
 
 Before asking a person to inspect current Style Master, review, final, PPTX,
-notes, or delivery artifacts, rebuild the exact run's human artifact reference
-view with `ppt_flow image2 artifact-view <run-dir>`. Cite every requested
-artifact's owner-issued locator, artifact type, and inspection purpose from
-that view. For every current Page Image status or request for review,
-authorization, or delivery action, use that rebuilt view as the human display
-surface: cite stable slide/candidate IDs and available typed display references
-with their locators. When the view marks an artifact unavailable, report that
-bounded owner-issued fact and do not invent a reference or use an abbreviated
-reference as a selector.
+notes, or delivery artifacts, rebuild the exact run's Human Navigation Path
+with `ppt_flow image2 artifact-view <run-dir>`. Cite every requested artifact's
+short physical locator, artifact type, and inspection purpose from its
+`_generated/nav/index.md`; never give a SHA-named storage locator. For every
+current Page Image status or request for review, authorization, or delivery
+action, use that rebuilt index as the human display surface: cite stable
+slide/candidate IDs and available typed display references with their short
+locators. When the index marks an artifact unavailable, report that bounded
+owner-issued fact and do not invent a reference or use an abbreviated reference
+as a selector.
 
-A locator is a read target only: it neither selects a lifecycle record nor
-authorizes provider work, records a decision, or permits a hand edit to
-`_generated/`.
+A Human Navigation Path is a read target only: it neither selects a lifecycle
+record nor authorizes provider work, records a decision, or permits a hand edit
+to `_generated/`. Full SHA-256 values remain internal to owner-controlled
+commands and are never human artifact-navigation paths.
 
 ## Unsupported boundary
 

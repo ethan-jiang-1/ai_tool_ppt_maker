@@ -111,7 +111,7 @@ import {
 } from "./shared/image2/page_image_media_contract.mjs";
 import { pageImageOrdinalImageFilename } from "./shared/image2/page_image_artifacts.mjs";
 import { inspectCurrentFinalSlideManifestFromRun } from "./shared/image2/page_image_final_manifest.mjs";
-import { writeHumanArtifactReference } from "./shared/image2/page_image_human_artifact_reference.mjs";
+import { writeHumanArtifactNavigation } from "./shared/image2/page_image_human_artifact_reference.mjs";
 import { validateBoundPageImageProviderRequest } from "./shared/image2/page_image_target_runtime.mjs";
 import {
   deliveryReceiptSha256,
@@ -1501,7 +1501,7 @@ const TARGET_GATE_CODES = new Set([
 ]);
 
 function isTargetArtifactFailure(code) {
-  if (code === "target_style_master_unavailable" || code === "framed_raw_contract_profile_stale") return true;
+  if (["target_style_master_unavailable", "target_style_master_stale", "framed_raw_contract_profile_stale", "human_navigation_invalid"].includes(code)) return true;
   return /^target_(?:source_receipt|source_state|raw_plan|raw_evidence|raw_review|accepted_raw_evidence|final_manifest|final_bytes|delivery)_.*(?:stale|required|missing|invalid|mismatch|drift)$/.test(code)
     || code === "target_raw_review_contribution_stale";
 }
@@ -1593,6 +1593,32 @@ function targetPageImageFailure(operation, route, error) {
         next: createCliNext("report_internal", {
           default: "Inspect the Framed compiler, profile, or capture owner and report the Harness defect before rerunning.",
         }),
+      },
+    };
+  }
+
+  if (reason === "target_style_master_stale" && error?.next_action === "plan_style_master_successor") {
+    return {
+      code: CLI_ERROR_CODES.FAILED,
+      message: "The current Style Master selection is stale for the selected workflow source.",
+      hint: "Publish a provider-free Style Master successor plan, then complete its review and selection before rebuilding raw work.",
+      diagnostic: {
+        ...common,
+        category: "artifact",
+        next: createCliNext("plan_style_master_successor", {
+          default: "Run Style Master inspection, publish one current successor plan with an explicit candidate count, then review and select it before rerunning image2 plan.",
+        }),
+      },
+    };
+  }
+
+  if (operation === "artifact-view" && reason.startsWith("style_master_")) {
+    const ownerFailure = styleMasterFailure("inspect", route, error);
+    return {
+      ...ownerFailure,
+      diagnostic: {
+        ...ownerFailure.diagnostic,
+        operation: common.operation,
       },
     };
   }
@@ -2329,6 +2355,7 @@ async function targetImage2Operations(workflow) {
       accept: owner.acceptFramedProgressiveRawReview,
       reconcile: owner.reconcileFramedProgressiveRawAttempt,
       inspectPilotReview: owner.inspectFramedProgressivePilotPageReview,
+      inspectCurrentReview: owner.inspectFramedProgressiveCurrentCompletePageReview,
       inspectAcceptedReview: owner.inspectFramedProgressiveCompletePageReview,
       buildDelivery: owner.buildFramedProgressiveTargetDelivery,
       refreshFramedText: owner.refreshFramedTargetText,
@@ -2354,6 +2381,7 @@ async function targetImage2Operations(workflow) {
       accept: owner.acceptPureProgressiveRawReview,
       reconcile: owner.reconcilePureProgressiveRawAttempt,
       inspectPilotReview: owner.inspectPureProgressivePilotPageReview,
+      inspectCurrentReview: owner.inspectPureProgressiveCurrentCompletePageReview,
       inspectAcceptedReview: owner.inspectPureProgressiveCompletePageReview,
       buildDelivery: owner.buildPureProgressiveTargetDelivery,
       refreshNotes: owner.refreshPureTargetNotes,
@@ -2397,11 +2425,55 @@ function pageArtifactGroup(position, slideId, artifacts) {
 async function rebuildTargetPageImageArtifactView(route) {
   const operations = await targetImage2Operations(route.workflow);
   const styleMasterOwner = await import("./shared/image2/style_master_plan.mjs");
+  const styleScope = operations.resolveStyleMasterScope(route.run_dir);
+  const pendingSuccessor = await styleMasterOwner.inspectPendingStyleMasterSuccessorCandidateArtifacts({
+    scope: styleScope,
+  });
+  const paths = pageImageWorkflowPaths(route.run_dir);
+
+  if (pendingSuccessor) {
+    const styleMaster = [];
+    const unavailable = [];
+    for (const candidate of pendingSuccessor.candidates) {
+      if (candidate.availability === "available") {
+        styleMaster.push(artifactReferenceEntry({
+          label: candidate.candidate_id,
+          artifactType: candidate.candidate_media_type,
+          purpose: "Inspect this pending Style Master candidate; it is not accepted for raw work.",
+          locator: candidate.locator,
+          kind: "style",
+          sha256: candidate.candidate_sha256,
+        }));
+        continue;
+      }
+      unavailable.push(artifactUnavailable(
+        `Style Master candidate ${candidate.candidate_id}`,
+        `generated candidate lifecycle is ${candidate.lifecycle_state}; verified media is unavailable`,
+      ));
+    }
+    unavailable.push(
+      artifactUnavailable("Provider input", "a pending Style Master successor has no current raw plan"),
+      artifactUnavailable("Raw and Complete Page Review", "a pending Style Master successor has no current raw plan"),
+      artifactUnavailable("Final media", "a pending Style Master successor is not accepted for raw work"),
+      artifactUnavailable("Delivery", "a pending Style Master successor is not accepted for delivery"),
+    );
+    const output = writeHumanArtifactNavigation({
+      run_dir: route.run_dir,
+      workflow: route.workflow,
+      style_master: styleMaster,
+      page_artifacts: [],
+      deck_artifacts: [],
+      unavailable,
+    });
+    return Object.freeze({
+      ...output,
+      pending_successor: Object.freeze({ next_action: pendingSuccessor.next_action }),
+    });
+  }
+
   const rawOwner = await import("./shared/image2/page_image_progressive_raw_owner.mjs");
   const candidate = operations.resolveCandidateSource(route.run_dir);
-  const styleScope = operations.resolveStyleMasterScope(route.run_dir);
   const styleInspection = await styleMasterOwner.inspectStyleMasterCandidates({ scope: styleScope });
-  const paths = pageImageWorkflowPaths(route.run_dir);
   const styleMaster = [];
   const deckArtifacts = [];
   const pageById = new Map();
@@ -2440,7 +2512,7 @@ async function rebuildTargetPageImageArtifactView(route) {
       artifactUnavailable("Final media", "no accepted raw evidence is available"),
       artifactUnavailable("Delivery", "no delivery receipt is available"),
     );
-    return writeHumanArtifactReference({
+    return writeHumanArtifactNavigation({
       run_dir: route.run_dir,
       workflow: route.workflow,
       style_master: styleMaster,
@@ -2525,33 +2597,43 @@ async function rebuildTargetPageImageArtifactView(route) {
     unavailable.push(artifactUnavailable("Pilot Page Review", "a current partial Pilot review is not available"));
   }
 
+  const currentReview = operations.inspectCurrentReview(route.run_dir);
   let acceptedReview = null;
-  if (currentRaw.evidence?.accepted_raw_evidence_sha256) {
-    acceptedReview = operations.inspectAcceptedReview(route.run_dir);
-    const review = acceptedReview.presentation;
-    const reviewRoot = join(paths.review_root, "complete-page", acceptedReview.raw.plan.sha256);
-    for (const [index, slideId] of acceptedReview.raw.plan.ordered_slide_ids.entries()) {
+  const completeReview = currentReview.available
+    ? currentReview
+    : currentRaw.evidence?.accepted_raw_evidence_sha256
+      ? operations.inspectAcceptedReview(route.run_dir)
+      : null;
+  if (completeReview) {
+    const review = completeReview.presentation;
+    const reviewRoot = join(paths.review_root, "complete-page", completeReview.raw.plan.sha256);
+    const isCurrentReview = currentReview.available;
+    for (const [index, slideId] of completeReview.raw.plan.ordered_slide_ids.entries()) {
       const filename = pageImageOrdinalImageFilename(index + 1, slideId);
       const existing = pageById.get(slideId);
       const pageArtifacts = [
         ...(existing?.artifacts || []),
         artifactReferenceEntry({
-          label: "provider page",
+          label: isCurrentReview ? "current provider page" : "provider page",
           artifactType: "Complete Page Review provider PNG",
-          purpose: "Inspect the accepted provider-rendered page in the complete-page review.",
+          purpose: isCurrentReview
+            ? "Inspect the current provider-rendered page before the Complete Page Review decision."
+            : "Inspect the accepted provider-rendered page in the complete-page review.",
           locator: join(reviewRoot, "provider-page", filename),
           kind: "review",
-          sha256: acceptedReview.raw.complete_raw_review_sha256,
+          sha256: completeReview.raw.complete_raw_review_sha256,
         }),
       ];
       if (review.has_complete_page_artifact) {
         pageArtifacts.push(artifactReferenceEntry({
-          label: "Framed complete page",
+          label: isCurrentReview ? "current Framed complete page" : "Framed complete page",
           artifactType: "production-equivalent complete-page PNG",
-          purpose: "Inspect the Framed provider page with its validated header overlay.",
+          purpose: isCurrentReview
+            ? "Inspect the current Framed provider page with its validated header overlay before the Complete Page Review decision."
+            : "Inspect the Framed provider page with its validated header overlay.",
           locator: join(reviewRoot, "complete-page", filename),
           kind: "review",
-          sha256: acceptedReview.raw.complete_raw_review_sha256,
+          sha256: completeReview.raw.complete_raw_review_sha256,
         }));
       }
       pageById.set(slideId, pageArtifactGroup(existing?.position || index + 1, slideId, pageArtifacts));
@@ -2559,13 +2641,16 @@ async function rebuildTargetPageImageArtifactView(route) {
     deckArtifacts.push(artifactReferenceEntry({
       label: "Complete Page Review contact sheet",
       artifactType: "Complete Page Review contact-sheet PNG",
-      purpose: "Inspect the current complete-page review across the full plan.",
+      purpose: isCurrentReview
+        ? "Inspect the current complete-page review across the full plan before its decision."
+        : "Inspect the accepted complete-page review across the full plan.",
       locator: join(reviewRoot, "complete-page-review.png"),
       kind: "review",
       sha256: review.projection_sha256,
     }));
+    if (!isCurrentReview) acceptedReview = completeReview;
   } else {
-    unavailable.push(artifactUnavailable("Complete Page Review", "accepted complete-page review evidence is not available"));
+    unavailable.push(artifactUnavailable("Complete Page Review", "no current undecided or accepted complete-page review evidence is available"));
   }
 
   let finalInspection = null;
@@ -2646,7 +2731,7 @@ async function rebuildTargetPageImageArtifactView(route) {
     unavailable.push(artifactUnavailable("Delivery", "a current delivery receipt has not been published"));
   }
 
-  return writeHumanArtifactReference({
+  return writeHumanArtifactNavigation({
     run_dir: route.run_dir,
     workflow: route.workflow,
     style_master: styleMaster,
@@ -2668,7 +2753,14 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
   try {
     if (operation === "artifact-view") {
       const output = await rebuildTargetPageImageArtifactView(route);
-      console.log(JSON.stringify({ run_dir: output.run_dir, workflow: output.workflow, artifact_view: output.path }, null, 2));
+      const result = {
+        run_dir: output.run_dir,
+        workflow: output.workflow,
+        artifact_view: output.path,
+        human_navigation_root: output.root,
+        ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
+      };
+      console.log(JSON.stringify(result, null, 2));
       return 0;
     }
     const operations = await targetImage2Operations(route.workflow);
@@ -3522,7 +3614,7 @@ Examples:
     .option("--slide-id <formal-id>", "Repeat an exact formal slide ID for Pilot scope", (value, previous) => [...(previous || []), value])
     .option("--decision <decision>", "Pilot: proceed, repair, or redirect; Complete Page Review: proceed or repair")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nartifact-view rebuilds only the current human inspection view; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
+    .addHelpText("after", "\nartifact-view rebuilds only the current Human Navigation Path; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const code = await commandImage2(operation, runDir, {

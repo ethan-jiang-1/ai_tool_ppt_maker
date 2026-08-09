@@ -60,7 +60,7 @@ function scopeContextResult({ runDir, deckDir, runVersion, workflow, draft }) {
  * interface supplies the read-only candidate source separately, avoiding a
  * shared-module workflow branch or a materializing resolveSource call.
  */
-export function resolveStyleMasterScopeContext(runDir) {
+export function resolveStyleMasterScopeContext(runDir, { sourceCandidate = null } = {}) {
   const resolvedRunDir = resolve(runDir || "");
   if (!isPageImageVersionDir(resolvedRunDir)) {
     fail("style_master_scope_run_invalid", "Style Master scope requires one canonical Page Image version directory");
@@ -89,6 +89,22 @@ export function resolveStyleMasterScopeContext(runDir) {
   }
   const targetState = resolveCurrentTargetPageImageSourceState(deckDir, { runDir: resolvedRunDir });
   if (!targetState.ok) {
+    const sourceDrift = targetState.code === "TARGET_SOURCE_STATE_IDENTITY_MISMATCH" ||
+      targetState.code === "TARGET_SOURCE_RECEIPT_STALE";
+    if (sourceDrift && sourceCandidate !== null) {
+      assertCandidateScope(sourceCandidate, {
+        runDir: resolvedRunDir,
+        deckDir,
+        workflow: route.workflow,
+      });
+      return scopeContextResult({
+        runDir: resolvedRunDir,
+        deckDir,
+        runVersion,
+        workflow: route.workflow,
+        draft: false,
+      });
+    }
     fail("style_master_scope_stale", "Style Master scope requires current source receipt and state evidence before candidate resolution");
   }
   return scopeContextResult({
