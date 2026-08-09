@@ -480,9 +480,10 @@ An Agent entering a newly initialized run bundle SHALL encounter generated root
 referencing repo-only OpenSpec paths: parse the final failure envelope, use supported structured
 `diagnostic.next`, preserve invocation argument boundaries, stop when `requires_human` is true,
 do not guess omitted lineage, and never hand-edit `_generated/`. Before asking a person to inspect
-current Page Image artifacts, the guide SHALL direct the Agent to rebuild the explicit artifact
-view and cite its owner-issued locators as read targets rather than control or edit authority. The
-locator contains no consumer protocol, current execution fact, or command menu.
+current Page Image artifacts, the guide SHALL direct the Agent to rebuild the explicit Human
+Navigation Path tree and cite only its short physical locators as read targets rather than control
+or edit authority. The locator contains no consumer protocol, current execution fact, command
+menu, or full SHA-256 storage path.
 
 Repository-maintenance discovery for MD implementation SHALL also be present in root `AGENTS.md` and short headers of `scripts/shared/state/md_controller_reader.mjs` and `state.mjs`, pointing to `node-specification` and active deltas without duplicating field schema.
 
@@ -496,8 +497,10 @@ Repository-maintenance discovery for MD implementation SHALL also be present in 
 #### Scenario: Agent asks a person to inspect Page Image artifacts
 
 - **WHEN** the generated guidance leads an Agent to request Style Master, page-review, final, or delivery inspection
-- **THEN** the Agent rebuilds the current explicit artifact view and cites the relevant locators
-- **AND** it does not treat a locator, display reference, or edited view as a selector, approval, or generated-artifact edit permission
+- **THEN** the Agent rebuilds the current explicit Human Navigation Path tree and cites the
+  relevant short physical locators
+- **AND** it does not treat a locator, display reference, or edited navigation copy as a selector,
+  approval, or generated-artifact edit permission
 
 #### Scenario: Coding Agent changes MD consumption
 

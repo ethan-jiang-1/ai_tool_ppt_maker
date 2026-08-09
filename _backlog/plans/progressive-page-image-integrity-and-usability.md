@@ -1,6 +1,6 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–7 均已完成、main-spec sync、归档并提交 `e2a74d6`；发布至 v0.25.1；BUG-055/056/059/060/062/063 已归档；BUG-057 的三页 Pure review 已记录 `repair`，source-only visual repair 已完成；Change 8 已完成实施、验证、main-spec sync、archive 和 commit）
+> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃（Changes 0–8 均已完成、main-spec sync、归档并提交；Change 9 已完成实施、验证、归档并提交 `e7365cc`，其 delta specs 未同步至 main specs；Change 10 已完成 provider-free 实施、验证、main-spec sync 与归档；BUG-057 的 successor view 已重建且三张 Style Master 候选可审阅）
 
 ## 当前进度（2026-08-09）
 
@@ -34,12 +34,46 @@
   或生产 deck mutation。main specs 已同步，change 已归档至
   `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`。额外 opt-in CLI audit 为既存基线红灯：其 registry 引用了缺失的
   `tests/shared/run-bundle/test_page_image_layout.mjs`（27/28），与本 change 无关。
-- [ ] **下一轮受控重建**：Change 8 已实施、验证、sync/archive；Agent 执行 replacement Style Master plan → 新 selection
-  → validation → 新 current raw plan / exact-scope disclosure；人类对该新 scope 独立授权后，Agent raw rebuild → 同一
-  Complete Page Review。不得借旧的 broad authorization 推断新的 provider scope。
+- [x] **BUG-057 runtime successor plan、授权与生成**：真实 Pure `v1` 已通过 Change 8 的 owner recovery 发布 Style Master
+  generation 2 plan：一个重新验证的 local-existing candidate 与两个 generated slots。人类随后对该 exact plan 作出独立授权，
+  owner grant 严格限制为 `candidate-001`、`candidate-002` 的两次提交；两次均成功并有 owner-validated PNG candidate
+  bytes。中间一次只读 inspection 曾看到 `candidate-002: submitted`，随后 owner 重查自行完成；没有重试、追加提交、raw/source
+  epoch 或 Page Image evidence mutation。
+- [x] **授权前 handoff 缺口已定位**：该 successor plan 的 `image2 artifact-view` 错将 stale predecessor selection
+  当作 current raw authority，返回 `style_master_selection_stale` internal diagnostic，而非现有授权 gate 所需的候选 view；
+  未写入 state 或调用 provider。
+- [x] **Change 9 / successor artifact view（实施、验证、归档与提交完成）**：
+  `expose-style-master-successor-artifact-view` 已覆盖 `style-master-generation`、`image-generation` 和 `cli-surface`，
+  并归档至 `openspec/changes/archive/2026-08-09-expose-style-master-successor-artifact-view/`、提交为 `e7365cc`。
+  它只从 current successor plan 投影 owner-verified candidate locator；无可验证媒体的 generated slot 仅按
+  owner-established lifecycle state 显示 unavailable，并在 raw owner 前结束 view。仅 pending-successor view 返回既有
+  owner-issued `next_action`；不会使 stale predecessor selection、raw/final/delivery history 复活，也不会创建 state 或
+  授权。按本次 archive 决策，其 delta specs 未同步至 main specs。
+- [x] **真实 successor artifact view 已重建**：已对 `deck_dark_factory_current/3_versions/v1/` 成功执行
+  provider-free `image2 artifact-view`。view 现在暴露三个待接受的 owner-verified Style Master candidates：local-existing
+  `s-e5dc5294`、`candidate-001` `s-26a6f1f8` 与 `candidate-002` `s-97f3acb7`；provider input、raw/review、final 与
+  delivery 仍不可用。owner 返回的唯一下一动作是 `review_style_master_candidates`。
+- [x] **Change 10 / short physical human artifact paths（实施、验证、main-spec sync 与归档完成）**：`image2 artifact-view`
+  现在将 owner-validated current artifacts 复制到 `_generated/nav/art/`，并将唯一 human entry 发布为
+  `_generated/nav/index.md`。所有该树内的目录/文件 components 为 1–24 个安全 ASCII 字符；index 只给相对短
+  physical locators，不给 source filename、canonical locator 或完整 SHA。旧 reference leaf 只会在新 nav tree
+  成功替换后 best-effort 删除。实现采用 confined regular copy + staged root replacement；不改 immutable owner、
+  不使用 symlink/hardlink，也不让 navigation path 成为 selector、state、evidence 或授权。用户已明确授权 APPLY；
+  focused suites、protected `npm test`、change/all-spec strict 和 diff check 均通过，且没有 provider request 或生产
+  deck mutation。五份 main specs 已同步，change 已归档至
+  `openspec/changes/archive/2026-08-09-introduce-short-physical-human-artifact-paths/`。历史 run 不会被自动访问；它们只在
+  下一次显式 `artifact-view` 时迁移这个可重建派生 surface。
+- [ ] **下一轮受控重建**：人类检查该 view 中的三张真实候选，并在既有 Style Master review 中作出
+  `proceed(candidate)`、`repair` 或 `redirect` 的 visual-direction decision。只有 `proceed` 接受新 Style Master 后，
+  Agent 才能 validation → 新 current raw plan / exact-scope disclosure → 人类授权 raw rebuild → 同一 Complete Page
+  Review。不得借旧的 broad authorization 推断新的 provider scope。
 
-**当前可用审阅入口：**
+**现存长路径审阅入口（legacy；Harness 已不再把它作为 human entry，真实 run 待下一次显式 `artifact-view` 迁移）：**
 `deck_dark_factory_current/3_versions/v1/_generated/page_image_workflow/reference/human-artifact-reference-v1.md`
+
+该 view 已于 2026-08-09 在成功生成后 provider-free 重建：它给出待接受 local-existing `s-e5dc5294`、
+`candidate-001` `s-26a6f1f8`、`candidate-002` `s-97f3acb7` 的 owner-issued read-only locator。它不提供 raw、final 或
+delivery projection，且当前 human gate 为 `review_style_master_candidates`。
 
 Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
@@ -147,13 +181,20 @@ Change 6 `expose-current-page-review-artifacts` 已完成、同步和归档；�
 display surface，不改变 machine JSON 或启动新的 provider 工作。三页 Pure raw evidence 保持未接受状态，provider-free
 binding 不能替代真实像素验收。Human 已选择 `repair`；该决定未接受 raw evidence，未解锁 final/delivery，也未发起新的
 provider 请求。Change 7 已恢复 owner 的 rebuild routing。随后的 source-only visual-language / motif 修订保留 claims、stable
-IDs 与 notes，却正确使旧 Style Master selection stale；当前 implementation 缺少从 validated candidate 发布 replacement
-Style Master plan 的无副作用恢复路径，`inspect` 与 `plan` 形成自引用阻塞。Change 8
-`recover-stale-style-master-scope` 只解决此协议缺口，完成并获得新 selection 后才回到既有受控 source edit → exact-scope
-disclosure / authorization → raw rebuild → 同一 review。若新 review 仍发现 claim、叙事或数据问题，再由内容所有者给出逐页修订
-意图；这不是新的 provider 或 OpenSpec gate。BUG-062 已完成。
+IDs 与 notes，却正确使旧 Style Master selection stale。Change 8
+`recover-stale-style-master-scope` 已 provider-free 地发布 replacement Style Master plan；Change 9
+`expose-style-master-successor-artifact-view` 已实现、验证、归档并提交 `e7365cc`，但按 archive 决策未同步 delta specs 到
+main specs。它让现有 artifact view 在 pending successor 时只显示 owner-verified candidate locator、按 state 标示 unavailable
+generated slots、并给出既有 owner `next_action`；不投影 raw/final/delivery。真实 `v1` 的 provider-free view 已在两次已授权
+Style Master generation 成功后重建：local-existing、`candidate-001`、`candidate-002` 三张候选均有 owner-verified locator。
+Change 10 `introduce-short-physical-human-artifact-paths` 已完成 main-spec sync 并归档：它将 human-facing artifact
+entry 收敛为短物理 `nav/` tree，不改 immutable evidence，也不会自动访问历史 run。Deck-production 轨道当前待办仍是人类
+对该 view 作出新的 Style Master visual-direction decision；`proceed` 接受新 selection 后，才回到既有受控 source edit →
+exact-scope disclosure / authorization → raw rebuild → 同一 review。若新 review 仍发现 claim、叙事或数据问题，再由内容所有者
+给出逐页修订意图；这不是新的 provider 或 OpenSpec gate。
+BUG-062 已完成。
 
-### BUG-057 三页 Pure Pilot（唯一未完成项）
+### BUG-057 三页 Pure Pilot（Deck production track）
 
 - [x] **Agent（已获建立授权）**：建立 current `deck_dark_factory_current/3_versions/v1/`，并保留 legacy
   deck bytes 不变。
@@ -196,9 +237,17 @@ disclosure / authorization → raw rebuild → 同一 review。若新 review 仍
   且在新 selection 前不允许 raw rebuild。所有目标回归、protected baseline、strict validation 和 diff check 均已通过；
   无 provider 或真实 deck mutation；main specs 已同步，change 已归档至
   `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`，已提交。
-- [ ] **Agent / Human**：按 owner-issued replacement Style Master plan → selection →
-  `rebuild_progressive_raw_work` 发布新 raw plan / exact-scope disclosure；人类对新 scope 独立授权后，Agent raw rebuild
-  → 同一 Complete Page Review。不得借旧的 broad authorization 推断新 provider scope。
+- [x] **Agent**：Change 9 `expose-style-master-successor-artifact-view` 已完成实施、验证、archive 与提交 `e7365cc`；
+  它使 pending successor 可作为 provider-free human view 重建，且不同步其 delta specs 至 main specs。
+- [x] **Human**：已对 generation 2 successor plan 的 `candidate-001`、`candidate-002` 明确授权；grant 最多允许两次
+  Style Master 提交，不包含 raw page work。
+- [x] **Agent**：已在该 exact grant 内提交并完成两个 Style Master candidates；owner 复核确认两张均为 succeeded、没有额外
+  提交或 retry。
+- [x] **Agent**：已对真实 `v1` 重建 owner-issued successor artifact view；它显示待接受的 local-existing `s-e5dc5294`、
+  `candidate-001` `s-26a6f1f8`、`candidate-002` `s-97f3acb7`，并返回 `review_style_master_candidates`。
+- [ ] **Human / Agent**：人类在该 view 对三张当前候选作出 `proceed(candidate)`、`repair` 或 `redirect`；仅在
+  `proceed` 后，Agent 才能 `rebuild_progressive_raw_work` 发布新 raw plan / exact-scope disclosure → 人类对新 raw scope
+  独立授权 → Agent raw rebuild → 同一 Complete Page Review。不得借旧的 broad authorization 推断新 provider scope。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
@@ -213,7 +262,7 @@ Change 3 已完成：main specs 已同步并归档至
 | --- | --- | --- |
 | Raster projection integrity | 059、060 | 已完成：共享 projector 已覆盖所有审计到的 derived canvas seam；16-bit/RGB provider PNG 和 Chromium RGB screenshot 不再被错误当作 8-bit RGBA。 |
 | Provider diagnosis | 055 | 已完成：完整读取的非 JSON 响应在既有 `invalid_json` fact 中以闭集 shape 区分 empty、HTML-like 与 other，不泄露 provider 数据或改变成本控制。 |
-| Human artifact navigation | 056、062、063 | 已完成：BUG-056/063 由 explicit logical reference view、locator/type/purpose handoff 和 typed display refs 解决；BUG-062 以 Agent 成功交接规则解决，普通 CLI JSON 与 exact SHA 继续仅作 machine/control contract。 |
+| Human artifact navigation | 056、062、063 + D3 supersession | BUG-056/063 的 logical reference view 与 BUG-062 的成功交接规则均已完成，但它们只提供短 display ref 和含长 SHA 的 locator；这不再满足产品要求。人类实际导航、复制和使用 artifact 时必须只使用短的物理目录/文件路径，完整 SHA-256 只保留为 owner 内部的 canonical identity；待独立 Change 10 迁移。 |
 | Pure deck visual system | 057 | 已完成 provider-free binding：Pure 每页共享闭合 deck-level typography、colour-use、zones、whitespace 和 layout-family projection；尚待真实三页 Pilot 的人类像素验收。 |
 
 `add-jpeg-delivery-media` 已于 2026-08-08 完成 main-spec sync 并 archive。其 delivery contact
@@ -239,14 +288,15 @@ exact provider/screenshot PNG bytes
      |                  |          |
 Style Master JPEG   Framed crop   review/delivery projections
 
-owner records (full SHA-256, unchanged)
+owner records (full SHA-256, canonical internal identity)
               |
               v
-rebuildable human reference view
-short typed display refs + artifact locators
+future owner-materialized Human Navigation Path tree
+short physical directories + short physical filenames
               |
               v
-Agent/user inspection only; never a selector, authority, or storage alias
+short display refs and human-facing navigation/operations only
+owner resolves an allowed short path to its exact canonical identity
 ```
 
 Pure remains a separate branch: it binds one selected deck-level visual-system digest into every
@@ -281,19 +331,25 @@ response body”的保密边界。默认不采纳原 BUG 提出的 content-type/
 `response_shape: empty | html_like | other_non_json`。它仅表达本地 reader 对完整已读 body 的有限判断；不得
 公开 header、长度、digest、body 片段、provider/task 身份，也不得改变 retry、授权、submission 或持久状态。
 
-### D3. 人类 display layer 与 immutable protocol 完全分离
+### D3. Human Navigation Path 必须是短的物理路径；SHA 只保留为 canonical internals
 
-完整 SHA-256 继续是 records、directory names、CAS locks 和 CLI precise arguments 的唯一真实键。
-短引用只作为 typed、collision-aware display reference；它不得反向作为 lifecycle selector。
+**新决定（2026-08-09，取代 D3 的旧完成范围）**：短 typed display ref 或 Markdown 中写出的 locator 都不等于
+人类可用路径。人类实际进入、复制、传递或使用任何 artifact 时，必须只使用短的物理目录和短的物理文件名；不得
+要求人类 `cd`、复制或输入含 64-hex SHA-256 的路径。这个路径类别称为 **Human Navigation Path**。
 
-为解决用户浏览而非重写存储，推荐创建可重建的、run-scoped human reference view：用短引用、stable
-slide/candidate ID 和 confined absolute artifact locator 组织 Style Master、provider input、raw/review、final,
-PPTX、notes 和 delivery receipt。它可被 Agent 的用户提示直接引用；其条目不是编辑许可，不是
-authorization，也不成为 immutable roots 下的 alias/symlink。
+完整 SHA-256 仍是 immutable records、CAS locks、evidence binding 和 owner 内部精确解析的 canonical identity；
+它不能再作为人类 artifact navigation 的物理路径。Human Navigation Path 必须由 owner 在限定 scope 内发布和解析，
+collision-safe、可审计，并在内部唯一映射到相应 canonical identity。它本身不证明证据、不替代 source/receipt、
+不隐式授权 provider work；显式 gate 和 owner validation 仍然适用。
 
-该方案将 BUG-056 的“每项可定位”、BUG-062 的“可读短引用”、BUG-063 的“短入口导航”收敛成一个
-display-only projection，而不破坏 store 对 64-hex real directory 的验证。它不承诺把物理目录变成可
-`cd` 的短路径；若这一点是不可协商需求，必须另立 protocol/migration change。
+因此，Change 3 的 rebuildable logical reference view 是已交付的中间能力，不再是 BUG-063 的产品完成定义。
+必须新建独立的 protocol/migration change，提供实际存在于磁盘上的短路径树，并规定所有向人暴露的目录和文件
+component 都使用受限、稳定、collision-safe 的短名。human-facing locator、handoff 与操作入口只可要求 Human
+Navigation Path；owner 可在内部解析为完整 SHA，但不得要求用户再接触完整 SHA。
+
+该 change 必须明确 short tree 的受控 materialization/rebuild、删除/失效、跨 version scope、权限与 collision
+规则，并为历史 run 提供不改写 evidence 的迁移路径。不得手工重命名 immutable SHA 根，也不得把今天已被拒绝的
+alias/symlink 做法悄悄当作迁移；当前 Markdown view 仍可存在，但不能声称满足短物理路径要求。
 
 ### D4. Pure 固定系统，provider 仍拥有全部页面像素
 
@@ -319,6 +375,8 @@ prompt ingress。其 canonical digest 进入 Page Image Core、raw contract、co
 | 6 | `expose-current-page-review-artifacts` | BUG-057 current Complete Page Review locator gap | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-08-expose-current-page-review-artifacts/`；current Pure/Framed Complete Page Review 在 `proceed`/`repair` 前进入现有 provider-free artifact view，repair 后的 prepared record 不会在该 display view 复活；final/delivery 仍只认 accepted evidence。owner lifecycle 的独立 selector 漏洞由 Change 7 处理。 |
 | 7 | `restore-repair-raw-rebuild-routing` | BUG-057 repair 后 owner lifecycle selector 漏洞 | `image-generation` | **已完成**：main spec 已同步并归档至 `openspec/changes/archive/2026-08-09-restore-repair-raw-rebuild-routing/`；统一 relation-aware current-review selector，repair 后不得重放/二次决定 historical prepared evidence，唯一合法下一步是 `rebuild_progressive_raw_work`。不改 records、CLI、grant、provider 或 deck bytes。 |
 | 8 | `recover-stale-style-master-scope` | BUG-057 source-only visual repair 后的 Style Master replacement-plan deadlock | `style-master-generation`、`image-generation`、`cli-surface` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/` 并已提交；current validated selected-workflow candidate 可 provider-free 地发布 Style Master successor plan；旧历史只作审计，新 selection 前 raw source epoch、plan、authorization、provider 与 evidence 全部保持不可用。目标回归、protected baseline 与 strict checks 已通过，无 provider 或真实 deck mutation。 |
+| 9 | `expose-style-master-successor-artifact-view` | BUG-057 replacement Style Master plan 的授权前 human artifact-view gap | `style-master-generation`、`image-generation`、`cli-surface` | **已完成（未同步 main specs）**：已验证、归档至 `openspec/changes/archive/2026-08-09-expose-style-master-successor-artifact-view/` 并提交为 `e7365cc`；current successor plan 只将 owner-verified local/succeeded candidate locator 投影为 pending view，其他 generated slots 仅按 lifecycle state 显示 unavailable；stale predecessor selection 和 raw/final/delivery history 不会被投影为 current，pending view 只返回既有 owner `next_action`。 |
+| 10 | `introduce-short-physical-human-artifact-paths` | D3 supersession：短 display ref / logical locator 不满足人类实际使用 artifact 的要求 | `run-bundle-layout`、`image-generation`、`style-master-generation`、`cli-surface`、`harness-charter` | **已完成**：main specs 已同步，change 已归档至 `openspec/changes/archive/2026-08-09-introduce-short-physical-human-artifact-paths/`。`_generated/nav/index.md` + `nav/art/` 是唯一 human-facing physical entry；owner-validated artifacts 以 staged regular copies materialize，full SHA 仅留 internal canonical identity。artifact-view 返回 index/root、不写 state、不做 provider work；unsupported v2 保持 hard-stop。历史 run 仅在下一次显式 provider-free artifact-view 重建时迁移，immutable evidence 不改写。 |
 
 Change 1 已在 2026-08-08 完成实施、验证、主 spec sync 和 archive：共享 raster projector 覆盖 Style
 Master compatibility JPEG、Framed capture、Page Image review 与 delivery contact projection；delivery 还在
@@ -428,10 +486,13 @@ acceptance 记录。授权前不得提交 provider work。
   明确 disposition；测试至少覆盖 Style Master、Framed capture、review/projection 与 delivery。
 - [诊断为排错泄露 provider 数据] → D2 仅允许 closed enum；任何新增字段先以 secret-safety negative tests
   证明不会透出原文、header 或稳定 body fingerprint。
-- [短引用碰撞或被误当作 command key] → 只在 scope 内生成带 `~N` 的 display ref；不修改任何 selection/
-  authorization parameter grammar。
-- [logical view 仍不满足“短物理路径”] → 先交付可浏览、可定位、无协议迁移的版本；若要 alias directory，
-  必须新开 migration change，不能藏在 Change 3。
+- [短物理路径碰撞，或因碰撞退回暴露长 SHA] → Human Navigation Path 由 owner 在限定 scope 内发布、稳定
+  collision-safe 地解析；所有 human-facing path component 保持短，完整 SHA 只留在内部 mapping/evidence。
+- [短物理树被误当作第二套证据、授权或可随意修改的 storage] → Change 10 必须规定 owner-controlled
+  materialization/rebuild 和 lifecycle boundary；路径可以作为人类操作入口，但仍须 owner 解析、validation 和显式
+  authorization，不能靠路径本身建立 authority。
+- [迁移破坏既有 immutable SHA evidence] → 不就地改名、不手工创建 alias/symlink；新 change 以可验证的
+  projection/migration 处理历史 run，并保留 canonical owner records 不变。
 - [Pure prompt 规则被误解为像素保证] → 把 deterministic binding 与 human visual acceptance 分开；无需新增
   quality state、自动 retry 或第二个 acceptance 流程。
 
@@ -441,6 +502,10 @@ acceptance 记录。授权前不得提交 provider work。
 - Change 2 不改变 provider submission/control；所有 invalid JSON 仍是既有 known failure，避免以自动 retry
   烧掉授权项。
 - Change 3 是可重建 display projection；没有新 approval、waiver 或 state，不引入第二套 locator authority。
+- Change 10 已将短物理 Human Navigation Path 设为唯一 human-facing artifact path，同时保留 SHA 作为 owner
+  internals；它通过独立 OpenSpec proposal、migration/protocol 审查和 provider-free 回归验证，未用手工重命名或
+  symlink 绕过现有 immutable/storage 控制，也未授权 provider work。其历史迁移仍须由各 run 的下一次显式
+  artifact-view 触发。
 - Change 4 的 token 定义与最终视觉满意度是人类决策；Agent 可完成 binding/test/prompt 机械工作，但只有在
   明确成本和样本 scope 后才请求 Pilot provider work。
 
@@ -452,7 +517,10 @@ acceptance 记录。授权前不得提交 provider work。
 
 1. D2 已确认：允许公开 finite `response_shape`（`empty` / `html_like` / `other_non_json`），但不公开任何
    header、长度、digest 或内容。
-2. **D3 已确认并完成（2026-08-08）**：接受 logical, rebuildable human reference view 作为 BUG-063 的修复范围；不承诺物理短目录 alias。Change 3 已完成 main-spec sync 并归档至 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。
+2. **D3 已重新确认并落实（2026-08-09，取代旧范围）**：Change 3 的 logical, rebuildable human reference view
+   已不再是 BUG-063 的产品完成定义。Change 10 已使人类只使用短的物理 Human Navigation Path（目录和文件名均短），
+   完整 SHA-256 仅为 owner 内部 canonical identity；不会手工重命名 immutable SHA 目录，也不以 alias/symlink
+   规避迁移。已存在 run 的 derived migration 只在下一次显式 artifact-view 中发生。
 3. **D4 已完成 apply 与 provider-free validation**：Pure 保持 provider-owned complete page；closed source record
    指定 typography hierarchy、Style-Master-derived colour use、zones、whitespace 和 permitted layout families。source
    receipt 不吸收 profile digest；canonical runDir 选择 override/backbone record；`deck_visual_system_sha256` 同步
@@ -460,6 +528,6 @@ acceptance 记录。授权前不得提交 provider work。
    Pure fixture、focused suites、strict/diff/protected baseline 均已绿；main-spec sync/archive 已完成。之后仅能按
    既有成本授权申请三页 human Pilot，binding 测试不构成像素验收。
 
-确认后，按 Change 1 → 2 → 3 → 4 创建 proposal；每个 change 必须先通过上面的 Proposed Change 质量关，
-再进入 apply，archive 后才进入下一项。完成一个 change 后更新对应 BUG 卡，再决定是否移入
-`_done/_fixed_bugs/`。
+原 D1–D4 的 Change 1 → 2 → 3 → 4 顺序均已完成并归档。Change 10 已作为独立 proposal 通过自己的
+protocol/migration 质量关，完成 APPLY、main-spec sync 与 archive；它不回写或重做已归档变更。对应 navigation
+记录已更新，是否移入 `_done/_fixed_bugs/` 留待单独的 bug disposition 决定。

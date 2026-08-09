@@ -187,24 +187,27 @@ describe("human artifact reference CLI", () => {
       expect(JSON.parse(result.stdout)).toEqual({
         run_dir: runDir,
         workflow: "pure",
-        artifact_view: paths.human_artifact_reference,
+        artifact_view: paths.human_navigation_index,
+        human_navigation_root: paths.human_navigation_root,
       });
-      const view = readFileSync(paths.human_artifact_reference, "utf8");
-      expect(view).toContain("# Page Image Human Artifact Reference");
+      const view = readFileSync(paths.human_navigation_index, "utf8");
+      expect(view).toContain("# Page Image Human Navigation");
       expect(view).toContain("local-existing");
       expect(view).toContain("provider input inspection");
       expect(view).toContain("Final media: accepted complete-page review evidence is not available");
       expect(view).not.toContain("Current reference view");
+      expect(view).toMatch(/Locator: `art\/[A-Za-z0-9._~-]{1,24}`/);
+      expect(view).not.toMatch(/[0-9a-f]{64}/i);
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
 
-      writeFileSync(paths.human_artifact_reference, "manually changed\n");
+      writeFileSync(paths.human_navigation_index, "manually changed\n");
       const rebuilt = flow(["image2", "artifact-view", runDir]);
       expect(rebuilt.status, rebuilt.stderr).toBe(0);
-      expect(readFileSync(paths.human_artifact_reference, "utf8")).toContain("# Page Image Human Artifact Reference");
-      rmSync(paths.human_artifact_reference);
+      expect(readFileSync(paths.human_navigation_index, "utf8")).toContain("# Page Image Human Navigation");
+      rmSync(paths.human_navigation_index);
       const recreated = flow(["image2", "artifact-view", runDir]);
       expect(recreated.status, recreated.stderr).toBe(0);
-      expect(readFileSync(paths.human_artifact_reference, "utf8")).toContain("# Page Image Human Artifact Reference");
+      expect(readFileSync(paths.human_navigation_index, "utf8")).toContain("# Page Image Human Navigation");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -246,10 +249,11 @@ describe("human artifact reference CLI", () => {
       expect(JSON.parse(result.stdout)).toEqual({
         run_dir: runDir,
         workflow: "pure",
-        artifact_view: paths.human_artifact_reference,
+        artifact_view: paths.human_navigation_index,
+        human_navigation_root: paths.human_navigation_root,
         next_action: "authorize_style_master_candidates",
       });
-      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("Inspect this pending Style Master candidate; it is not accepted for raw work.");
       expect(view).toContain("Style Master candidate candidate-001: generated candidate lifecycle is planned; verified media is unavailable");
       expect(view).toContain("Provider input: a pending Style Master successor has no current raw plan");
@@ -266,7 +270,7 @@ describe("human artifact reference CLI", () => {
         candidate_id: "candidate-001",
       }).candidate_attempt)).toThrow();
 
-      writeFileSync(paths.human_artifact_reference, "preserve this artifact view\n", "utf8");
+      writeFileSync(paths.human_navigation_index, "preserve this artifact view\n", "utf8");
       writeFileSync(localPaths.candidate_provenance, "corrupt pending local provenance", "utf8");
       const failedStateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const failedRawBefore = readFileSync(paths.target_raw_plan);
@@ -280,7 +284,7 @@ describe("human artifact reference CLI", () => {
         },
       });
       expect(finalDiagnostic(failed).diagnostic.category).not.toBe("internal");
-      expect(readFileSync(paths.human_artifact_reference, "utf8")).toBe("preserve this artifact view\n");
+      expect(readFileSync(paths.human_navigation_index, "utf8")).toBe("preserve this artifact view\n");
       expect(readFileSync(paths.target_raw_plan)).toEqual(failedRawBefore);
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(failedStateBefore);
       expect(() => readFileSync(planPaths.candidate_grant)).toThrow();
@@ -310,8 +314,8 @@ describe("human artifact reference CLI", () => {
       expect(finalDiagnostic(result)).toMatchObject({
         diagnostic: { operation: "export-unsupported-protocol", next: { action: "export" } },
       });
-      expect(pageImageWorkflowPaths(runDir).human_artifact_reference).not.toBeUndefined();
-      expect(() => readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference)).toThrow();
+      expect(pageImageWorkflowPaths(runDir).human_navigation_index).not.toBeUndefined();
+      expect(() => readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index)).toThrow();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -341,7 +345,7 @@ describe("human artifact reference CLI", () => {
 
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference, "utf8");
+      const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Workflow: `framed`");
       expect(view).toContain("local-existing");
       expect(view).toContain("Provider input: no current raw plan has been published");
@@ -376,7 +380,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference, "utf8");
+      const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Workflow: `framed`");
       expect(view).toContain("Framed complete page");
       expect(view).toContain("final slide");
@@ -411,7 +415,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference, "utf8");
+      const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Pilot provider page");
       expect(view).toContain("Framed Pilot page");
       expect(view).toContain("Pilot Page Review contact sheet");
@@ -445,7 +449,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference, "utf8");
+      const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("Pilot provider page");
       expect(view).toContain("Pilot Page Review contact sheet");
       expect(view).not.toContain("Framed Pilot page");
@@ -482,7 +486,7 @@ describe("human artifact reference CLI", () => {
       const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
       expect(view).toContain("### `02_FlowGo`");
       expect(view).toContain("current provider page");
@@ -490,9 +494,8 @@ describe("human artifact reference CLI", () => {
       expect(view).toContain("Complete Page Review provider PNG");
       expect(view).toContain("production-equivalent complete-page PNG");
       expect(view).toContain("before the Complete Page Review decision");
-      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "provider-page", "01_DeckGo.png"));
-      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page", "02_FlowGo.png"));
-      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page-review.png"));
+      expect(view).not.toContain(paths.review_root);
+      expect(view).toMatch(/Locator: `art\/[A-Za-z0-9._~-]{1,24}`/);
       expect(view).toContain("Final media: accepted complete-page review evidence is not available");
       expect(view).toContain("Delivery: a current delivery receipt has not been published");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
@@ -529,15 +532,15 @@ describe("human artifact reference CLI", () => {
       const recordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(paths.human_artifact_reference, "utf8");
+      const view = readFileSync(paths.human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
       expect(view).toContain("### `02_FlowGo`");
       expect(view.indexOf("### `01_DeckGo`")).toBeLessThan(view.indexOf("### `02_FlowGo`"));
       expect(view).toContain("current provider page");
       expect(view).not.toContain("current Framed complete page");
       expect(view).toContain("Complete Page Review contact sheet");
-      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "provider-page", "01_DeckGo.png"));
-      expect(view).toContain(join(paths.review_root, "complete-page", planHash, "complete-page-review.png"));
+      expect(view).not.toContain(paths.review_root);
+      expect(view).toMatch(/Locator: `art\/[A-Za-z0-9._~-]{1,24}`/);
       expect(view).toContain("Final media: accepted complete-page review evidence is not available");
       expect(view).toContain("Delivery: a current delivery receipt has not been published");
       expect(readFileSync(join(deck, "_state", "state.yaml"))).toEqual(stateBefore);
@@ -548,7 +551,7 @@ describe("human artifact reference CLI", () => {
       const repairedRecordsBefore = JSON.stringify(readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: planHash }));
       const repaired = flow(["image2", "artifact-view", runDir]);
       expect(repaired.status, repaired.stderr).toBe(0);
-      const repairedView = readFileSync(paths.human_artifact_reference, "utf8");
+      const repairedView = readFileSync(paths.human_navigation_index, "utf8");
       expect(repairedView).not.toContain("current provider page");
       expect(repairedView).toContain("Complete Page Review: no current undecided or accepted complete-page review evidence is available");
       expect(repairedView).toContain("Final media: accepted complete-page review evidence is not available");
@@ -594,7 +597,7 @@ describe("human artifact reference CLI", () => {
       const stateBefore = readFileSync(join(deck, "_state", "state.yaml"));
       const result = flow(["image2", "artifact-view", runDir]);
       expect(result.status, result.stderr).toBe(0);
-      const view = readFileSync(pageImageWorkflowPaths(runDir).human_artifact_reference, "utf8");
+      const view = readFileSync(pageImageWorkflowPaths(runDir).human_navigation_index, "utf8");
       expect(view).toContain("### `01_DeckGo`");
       expect(view).toContain("### `02_FlowGo`");
       expect(view.indexOf("### `01_DeckGo`")).toBeLessThan(view.indexOf("### `02_FlowGo`"));
@@ -614,7 +617,7 @@ describe("human artifact reference CLI", () => {
       );
       const rejected = flow(["image2", "artifact-view", runDir]);
       expect(rejected.status).toBe(1);
-      expect(readFileSync(paths.human_artifact_reference, "utf8")).toBe(view);
+      expect(readFileSync(paths.human_navigation_index, "utf8")).toBe(view);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

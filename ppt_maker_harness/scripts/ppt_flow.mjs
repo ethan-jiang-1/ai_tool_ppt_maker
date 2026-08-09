@@ -111,7 +111,7 @@ import {
 } from "./shared/image2/page_image_media_contract.mjs";
 import { pageImageOrdinalImageFilename } from "./shared/image2/page_image_artifacts.mjs";
 import { inspectCurrentFinalSlideManifestFromRun } from "./shared/image2/page_image_final_manifest.mjs";
-import { writeHumanArtifactReference } from "./shared/image2/page_image_human_artifact_reference.mjs";
+import { writeHumanArtifactNavigation } from "./shared/image2/page_image_human_artifact_reference.mjs";
 import { validateBoundPageImageProviderRequest } from "./shared/image2/page_image_target_runtime.mjs";
 import {
   deliveryReceiptSha256,
@@ -1501,7 +1501,7 @@ const TARGET_GATE_CODES = new Set([
 ]);
 
 function isTargetArtifactFailure(code) {
-  if (["target_style_master_unavailable", "target_style_master_stale", "framed_raw_contract_profile_stale"].includes(code)) return true;
+  if (["target_style_master_unavailable", "target_style_master_stale", "framed_raw_contract_profile_stale", "human_navigation_invalid"].includes(code)) return true;
   return /^target_(?:source_receipt|source_state|raw_plan|raw_evidence|raw_review|accepted_raw_evidence|final_manifest|final_bytes|delivery)_.*(?:stale|required|missing|invalid|mismatch|drift)$/.test(code)
     || code === "target_raw_review_contribution_stale";
 }
@@ -2457,7 +2457,7 @@ async function rebuildTargetPageImageArtifactView(route) {
       artifactUnavailable("Final media", "a pending Style Master successor is not accepted for raw work"),
       artifactUnavailable("Delivery", "a pending Style Master successor is not accepted for delivery"),
     );
-    const output = writeHumanArtifactReference({
+    const output = writeHumanArtifactNavigation({
       run_dir: route.run_dir,
       workflow: route.workflow,
       style_master: styleMaster,
@@ -2512,7 +2512,7 @@ async function rebuildTargetPageImageArtifactView(route) {
       artifactUnavailable("Final media", "no accepted raw evidence is available"),
       artifactUnavailable("Delivery", "no delivery receipt is available"),
     );
-    return writeHumanArtifactReference({
+    return writeHumanArtifactNavigation({
       run_dir: route.run_dir,
       workflow: route.workflow,
       style_master: styleMaster,
@@ -2731,7 +2731,7 @@ async function rebuildTargetPageImageArtifactView(route) {
     unavailable.push(artifactUnavailable("Delivery", "a current delivery receipt has not been published"));
   }
 
-  return writeHumanArtifactReference({
+  return writeHumanArtifactNavigation({
     run_dir: route.run_dir,
     workflow: route.workflow,
     style_master: styleMaster,
@@ -2757,6 +2757,7 @@ async function commandTargetPageImageImage2(operation, route, opts = {}) {
         run_dir: output.run_dir,
         workflow: output.workflow,
         artifact_view: output.path,
+        human_navigation_root: output.root,
         ...(output.pending_successor ? { next_action: output.pending_successor.next_action } : {}),
       };
       console.log(JSON.stringify(result, null, 2));
@@ -3613,7 +3614,7 @@ Examples:
     .option("--slide-id <formal-id>", "Repeat an exact formal slide ID for Pilot scope", (value, previous) => [...(previous || []), value])
     .option("--decision <decision>", "Pilot: proceed, repair, or redirect; Complete Page Review: proceed or repair")
     .option("--json", "Output one machine-readable success report")
-    .addHelpText("after", "\nartifact-view rebuilds only the current human inspection view; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
+    .addHelpText("after", "\nartifact-view rebuilds only the current Human Navigation Path; it performs no provider work or state/task-projection write.\nplan -> pilot | expansion -> authorize -> generate (one item) -> pilot-review/pilot-accept | Complete Page Review -> build\nPilot accepts repeated exact --slide-id values; all paid work requires exact plan and batch hashes.\n")
     .action(async (operation, runDir, opts) => {
       if (opts.json) setCliOutputMode("json");
       const code = await commandImage2(operation, runDir, {

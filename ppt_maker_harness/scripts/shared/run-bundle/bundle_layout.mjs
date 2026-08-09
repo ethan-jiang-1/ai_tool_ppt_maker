@@ -86,7 +86,8 @@ import {
 import {
     GENERATED_SUBDIR,
     GEN_PAGE_IMAGE_FINAL_SUBDIR,
-    GEN_PAGE_IMAGE_REFERENCE_SUBDIR,
+    GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR,
+    GEN_PAGE_IMAGE_NAV_SUBDIR,
     GEN_PAGE_IMAGE_WORKFLOW_SUBDIR,
     GEN_PAGE_IMAGE_RAW_SUBDIR,
     GEN_PAGE_IMAGE_RECEIPTS_SUBDIR,
@@ -115,7 +116,8 @@ export { verifyDeckHarnessBinding };
 export {
     GENERATED_SUBDIR,
     GEN_PAGE_IMAGE_FINAL_SUBDIR,
-    GEN_PAGE_IMAGE_REFERENCE_SUBDIR,
+    GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR,
+    GEN_PAGE_IMAGE_NAV_SUBDIR,
     GEN_PAGE_IMAGE_WORKFLOW_SUBDIR,
     GEN_PAGE_IMAGE_RAW_SUBDIR,
     GEN_PAGE_IMAGE_RECEIPTS_SUBDIR,
@@ -552,8 +554,8 @@ function _checkPageImageGeneratedOwnership(runDir, problems) {
     for (const entry of fs.readdirSync(generated, { withFileTypes: true })) {
         if (_isMacOsSystemEntry(entry.name)) continue;
         if (entry.name === 'README.md' && entry.isFile()) continue;
-        if (entry.name !== GEN_PAGE_IMAGE_WORKFLOW_SUBDIR || !entry.isDirectory()) {
-            problems.push(`unexpected current generated owner '${entry.name}' — Page Image owns ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/ only`);
+        if (![GEN_PAGE_IMAGE_WORKFLOW_SUBDIR, GEN_PAGE_IMAGE_NAV_SUBDIR].includes(entry.name) || !entry.isDirectory()) {
+            problems.push(`unexpected current generated owner '${entry.name}' — Page Image owns ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/ and ${GEN_PAGE_IMAGE_NAV_SUBDIR}/ only`);
         }
     }
 }
@@ -1411,11 +1413,12 @@ owning path. Put version-local temporary work only in \`${VERSIONS_DIR}/vN/${SCR
 ## Human Page Image inspection
 
 Before asking a person to inspect current Style Master, page-review, final, PPTX, notes, or delivery
-artifacts, rebuild the exact run's inspection view with \`ppt_flow image2 artifact-view <run-dir>\`.
-For every requested artifact, cite the owner-issued locator, artifact type, and inspection purpose from
-that view. Do not replace this handoff by saying an artifact was generated or opened. A locator or
-display reference is a read target only: it is not a selector, approval, authorization, decision record,
-or permission to edit \`${GENERATED_SUBDIR}/\`.
+artifacts, rebuild the exact run's Human Navigation Path with \`ppt_flow image2 artifact-view <run-dir>\`.
+For every requested artifact, cite the short physical locator, artifact type, and inspection purpose from
+its \`${GENERATED_SUBDIR}/${GEN_PAGE_IMAGE_NAV_SUBDIR}/index.md\`. Do not replace this handoff by saying an artifact was
+generated or opened, and never give a SHA-named storage locator. A locator or display reference is a
+read target only: it is not a selector, approval, authorization, decision record, or permission to edit
+\`${GENERATED_SUBDIR}/\`.
 
 ## CLI diagnostic contract
 
@@ -1663,12 +1666,14 @@ deck_\${NAME}/
     │   │   ├── ${BACKBONE_STYLE_SUBDIR}/           ←   (optional) this version's visual tweaks
     │   │   └── ${BACKBONE_MANUSCRIPT_SUBDIR}/               ←   (optional) this version's script tweaks
     │   ├── ${GENERATED_SUBDIR}/                    ← GENERATED · rm -rf & rerun · never hand-edit
-    │   │   ├── ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/
-    │   │   │   ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json
-    │   │   │   ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan-v1.json, <slide_id>.png}
-    │   │   │   ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review-v1.png, complete-page-coverage-v1.json}
-    │   │   │   ├── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest-v1.json, deck.pptx, notes-receipt.json}
-    │   │   │   └── ${GEN_PAGE_IMAGE_REFERENCE_SUBDIR}/human-artifact-reference-v1.md
+    │   │   ├── ${GEN_PAGE_IMAGE_NAV_SUBDIR}/                 ← Human Navigation Path tree (derived copies only)
+    │   │   │   ├── index.md                  ← canonical human inspection entry point
+    │   │   │   └── ${GEN_PAGE_IMAGE_NAV_ARTIFACTS_SUBDIR}/{p-1234abcd.png, s-1234abcd.jpg} ← short physical artifact paths
+    │   │   └── ${GEN_PAGE_IMAGE_WORKFLOW_SUBDIR}/
+    │   │       ├── ${GEN_PAGE_IMAGE_RECEIPTS_SUBDIR}/source-receipt-v1.json
+    │   │       ├── ${GEN_PAGE_IMAGE_RAW_SUBDIR}/{work-plan-v1.json, <slide_id>.png}
+    │   │       ├── ${GEN_PAGE_IMAGE_REVIEW_SUBDIR}/{complete-page-review-v1.png, complete-page-coverage-v1.json}
+    │   │       └── ${GEN_PAGE_IMAGE_FINAL_SUBDIR}/{final-slide-manifest-v1.json, NN_slideID.png, projection.png, delivery-media/{NN_slideID.jpg}, delivery-media-manifest-v1.json, deck.pptx, notes-receipt.json}
     │   └── ${SCRATCH_SUBDIR}/                         ← version-local temporary output only
     └── v2/  (--new-version v1 → copies source delta only; clean ${GENERATED_SUBDIR}/ + ${SCRATCH_SUBDIR}/; backbone referenced)
 `;

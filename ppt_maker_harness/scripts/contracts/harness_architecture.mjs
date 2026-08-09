@@ -27,6 +27,10 @@ export const TARGET_ITERATION_INTERFACES = Object.freeze([
   "06-iteration/index.mjs",
 ]);
 
+// The sole cross-owner writer for derived short physical artifact navigation.
+// It consumes owner-issued facts and cannot select or mutate lifecycle state.
+export const HUMAN_NAVIGATION_INTERFACE = "shared/image2/page_image_human_artifact_reference.mjs";
+
 export const PHASE_ADJACENCY = Object.freeze({
   "00-setup": Object.freeze([]),
   "01-content": Object.freeze([]),
@@ -50,7 +54,7 @@ export const PUBLIC_SHARED_INTERFACES = Object.freeze([
   "shared/image2/page_image_artifacts.mjs",
   "shared/image2/page_image_complete_page_review.mjs",
   "shared/image2/page_image_final_manifest.mjs",
-  "shared/image2/page_image_human_artifact_reference.mjs",
+  HUMAN_NAVIGATION_INTERFACE,
   "shared/image2/page_image_media_contract.mjs",
   "shared/image2/page_image_raw_mechanics.mjs",
   "shared/image2/page_image_progressive_raw_owner.mjs",
