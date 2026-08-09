@@ -1,6 +1,6 @@
 # Closed Plans Index — 已完成 plan 归档
 
-> 最后更新: 2026-08-08 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
+> 最后更新: 2026-08-09 | `_backlog/_done/_closed_plans/` — 已完成 plan 的归档目录。
 > 接收来自 [`../../plans/`](../../plans/) 的 plan。`_` 前缀 = coding agent 默认忽略。
 >
 > **plan 完成后文件名不变，位置即状态。** 移入时分配 `CLS-NNN` 序号（Closed），按完成时间递增。
@@ -41,7 +41,8 @@ plan 完成后从 `_backlog/plans/` 通过 `git mv` 移入本目录：
 | [CLS-020](page-production-short-references.md) | 2026-08-06 | `page-production-short-references.md` | 渐进式页面生产协作卡的 typed 短引用、完整 digest 脱敏与非 authority 边界；由 `short-page-production-references` change 吸收并归档。 |
 | [CLS-021](framed-hybrid-image2-composition.md) | 2026-08-08 | `framed-hybrid-image2-composition.md` | Pure/Framed 共享完整页面生成核心、Framed 仅保留透明确定性 header overlay；由 `correct-framed-page-image-model` change 吸收并归档。 |
 | [CLS-022](page-image-workflow-master-plan.md) | 2026-08-08 | `page-image-workflow-master-plan.md` | Page Image Workflow 转换总路线图；两个里程碑完成，后续仅保留为独立提案候选。 |
+| [CLS-023](progressive-page-image-integrity-and-usability.md) | 2026-08-09 | `progressive-page-image-integrity-and-usability.md` | BUG-055/056/057/059/060/062/063 的渐进式 Page Image 完整性与可用性修复；Changes 0–12、successor Pilot、三页交付与最终复核均完成。 |
 
-**Next available plan ID: CLS-023**
+**Next available plan ID: CLS-024**
 
 > 已完成计划保留历史决策；当前工作只从 `_backlog/plans/` 重新进入。
