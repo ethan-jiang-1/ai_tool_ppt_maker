@@ -1,10 +1,22 @@
 # Plan: Progressive Page Image Integrity and Usability Repair
 
-> 类型: 设计 | 更新: 2026-08-09 | 状态: 活跃；Change 12 的 Harness terminal-sibling repair 已完成 main-spec sync 与归档。真实 owner 已将 `TwoMet`、`PlatGo` 证实为 materialized，但 `DkfGo` 保持 `unknown`；旧 grant 已耗尽，后续需由人确认 successor Pilot scope（Changes 0–12 均已完成）
+> 类型: 设计 | 更新: 2026-08-09 | 状态: 已完成；Changes 0–12 均已归档。真实 Pure `v1` 已完成 successor Pilot、Complete Page Review、finalization、PPTX/notes delivery，并已记录人类 delivery `proceed` 决策。
 
 ## 当前进度（2026-08-09）
 
-### 一眼状态
+### 最终状态
+
+- [x] **Successor Pilot**：`DkfGo` 的 replacement Pilot scope 已获独立成本授权并完成；`DkfGo`、`TwoMet`、`PlatGo`
+  全部为 current `materialized` evidence，未发生重复提交或超出授权的 provider request。
+- [x] **Complete Page Review 与 finalization**：三页 current raw review 已接受；Pure final manifest、delivery media、PPTX
+  与 speaker-notes receipt 已由 owner 发布，短 Human Navigation Path 已重建。
+- [x] **交付办结**：人类对当前 final projection、PPTX 与 notes receipt 的 `proceed` 已通过 MD Controller
+  `review-target-page-image-delivery` 记录。`ppt_flow state` 的 workflow inspection 为 `complete`，唯一结果为
+  `complete-target-delivery`，无后续人类 action。
+- [x] **最终核验**：`ppt_flow state --validate-state` 与 run-bundle `--check` 均通过。后续内容、视觉、notes 或结构请求
+  必须从当前 owner 的 `classify-change` / Structural Versioning Path 重新开始，不复用本次授权或证据。
+
+### 历史过程记录（已办结，非当前状态）
 
 - [x] **工程与协议修复**：Changes 0–7 均已完成、验证、main-spec sync、archive；Change 7
   `restore-repair-raw-rebuild-routing` 已归档至
@@ -92,17 +104,15 @@
 - [x] **真实 owner 续跑确认与既有 grant 完成**：显式 provider-free `image2 plan` 确认 `PlatGo` 是既有 grant 下唯一
   eligible item；Agent 仅提交该一项。后续 owner inspection 将 `PlatGo` 与 `TwoMet` 证实为 materialized、`DkfGo` 保持
   unknown，短 `artifact-view` 已重建。没有 retry、第四次提交、grant 扩展、final 或 delivery。
-- [ ] **新的 successor Pilot scope / 人类确认**：当前 batch 因 `DkfGo` 的 paid debt 成为 terminal partial Pilot，未形成
-  current Complete Page Review。owner 只给出 `plan_progressive_pilot`（`requires_human: true`）；人类必须先确认新的
-  replacement Pilot scope，随后才可以 provider-free 规划、重新披露成本并单独授权。旧 grant、历史 review 与本次 Harness
-  测试都不能替代该确认或授权。
+- [x] **新的 successor Pilot scope / 人类确认**：人类已确认 `DkfGo` replacement Pilot scope，并在精确成本披露后
+  独立授权一次提交。owner 完成 materialization、current Complete Page Review、finalization 与 delivery；旧 grant 与历史
+  review 始终只保留审计用途。
 
 **现存长路径（legacy audit-only；Harness 已不再将它作为 human entry）：**
 `deck_dark_factory_current/3_versions/v1/_generated/page_image_workflow/reference/human-artifact-reference-v1.md`
 
-该 legacy view 仅作历史审计。短 `nav/` tree 最后一次重建发生在 Pilot provider activity 之前；须在 owner 成功给出
-current action 或 review projection 后通过显式 `artifact-view` 重建，不能充当 current review、authorization 或 status
-surface。当前不推断已有 Page Review、final 或 delivery projection。
+该 legacy view 仅作历史审计。当前 short `nav/` tree 已在 delivery evidence 发布后重建；它仍然只是 read target，不能
+充当 selector、authorization、state 或 evidence。
 
 Change 1、2、3 均已完成实现、受保护基线验证、main-spec sync 和 OpenSpec archive。Change 3 归档于
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`；其完整覆盖的 BUG-056、063 已移至
@@ -204,34 +214,11 @@ approval；final images、PPTX 和 delivery 尚未生成。
   provider-backed E2E 或 Pilot，也未写入真实 deck；main specs 已同步，change 已归档至
   `openspec/changes/archive/2026-08-09-recover-stale-style-master-scope/`，已提交。
 
-## 下一步队列（2026-08-09）
+## 办结结论（2026-08-09）
 
-Change 6 `expose-current-page-review-artifacts` 已完成、同步和归档；它修复 BUG-057 的 existing Complete Page Review
-display surface，不改变 machine JSON 或启动新的 provider 工作。三页 Pure raw evidence 保持未接受状态，provider-free
-binding 不能替代真实像素验收。Human 已选择 `repair`；该决定未接受 raw evidence，未解锁 final/delivery，也未发起新的
-provider 请求。Change 7 已恢复 owner 的 rebuild routing。随后的 source-only visual-language / motif 修订保留 claims、stable
-IDs 与 notes，却正确使旧 Style Master selection stale。Change 8
-`recover-stale-style-master-scope` 已 provider-free 地发布 replacement Style Master plan；Change 9
-`expose-style-master-successor-artifact-view` 的历史未同步 delta，在实际合约上已由 Change 11
-`fix-pending-successor-artifact-view` 的 main-spec sync 最终取代。Change 11 使 owner 按 predecessor identity 投影
-matching-binding pending successors，并使 current successor 的 exact promotion 回归 ordinary accepted-selection path；其他
-selection mismatch 仍为 `style_master_selection_conflict`。历史 `v1` view 曾投影 local-existing、`candidate-001`、
-`candidate-002` 三张 owner-verified candidates；重建后的 current short navigation view 只列出前两张。Change 10
-`introduce-short-physical-human-artifact-paths` 已完成 main-spec sync、归档与提交 `d8b9389`：它将 human-facing artifact entry
-收敛为短物理 `nav/` tree，不改 immutable evidence，也不会自动访问历史 run。`0.26.0` MINOR 版本表面已同步。
-
-Deck-production 的 provider-free 短导航树已重建，并由人类确认 `proceed(candidate-001)`；owner 已接受 current
-successor 并重建 compatibility Style Master JPEG。Agent 随后 provider-free 发布 source epoch 2 的 current raw plan，并由
-人类选定 `DkfGo`、`TwoMet`、`PlatGo` 三页 Pilot，授权最多三次 `image2 / gpt-image-2 / PNG 2000x1125` 提交。运行时首个
-`DkfGo` outcome 经 reconciliation 为 `unknown`；随后 `TwoMet` 同一 immutable attempt 出现 `succeeded` 与 `unknown`
-terminal siblings，owner 的既有 integrity rule 将此判为 `progressive_raw_attempt_chain_invalid`。`PlatGo` 仍未提交。
-
-Change 12 `repair-progressive-raw-terminal-conflict` 已完成该窄范围 owner/CLI repair：验证过的 `succeeded` + `unknown`
-pair 现在以 success 继续，未知 sibling 仅留审计；无效证据仍 fail-closed 并只报 `report_internal`，不会制造 retry 或假 rebuild
-路径。真实 `v1` 的 provider-free plan 已据此恢复，并在原 exact grant 中只提交 `PlatGo`；当前 owner 确认 `TwoMet`、`PlatGo`
-materialized、`DkfGo` unknown。由于没有完整三页证据，review 尚未恢复；owner 要求一个明确的人类 successor Pilot scope，再走新的
-cost disclosure / authorization。不得将旧 grant、历史 review 或本次 Harness repair 当作该新 scope 的授权。
-BUG-062 已完成。
+本计划的 Harness 修复、OpenSpec sync/archive、successor Pilot、current Complete Page Review、finalization 与 delivery
+均已完成。`DkfGo` 的旧 `unknown` audit sibling 经过 successor scope 解决，当前三页均 materialized；当前 evidence 已接受并
+投影为 PPTX、notes 和 delivery media。所有 active OpenSpec changes 已清空。本计划没有待办或待批复事项。
 
 ### BUG-057 三页 Pure Pilot（Deck production track）
 
@@ -305,9 +292,9 @@ BUG-062 已完成。
 - [x] **Agent**：以 provider-free `image2 plan` 读取 current `v1` owner action，并在既有 grant 中只提交 `PlatGo`；
   owner 现确认 `TwoMet`、`PlatGo` materialized，`DkfGo` unknown，短 artifact-view 已重建。未发生 retry、grant 扩展、
   final 或 delivery。
-- [ ] **Human**：确认一个 successor Pilot replacement scope，处理 `DkfGo` 的 paid debt。该决定只允许随后 provider-free
-  planning / exact cost disclosure；任何 provider submission 仍须新的单独授权，且不推断 retry、历史 evidence acceptance、
-  final 或 delivery。
+- [x] **Human / Agent**：人类确认并授权 `DkfGo` successor Pilot replacement scope；owner 完成其 materialization，
+  随后完成三页 current Complete Page Review、finalization、delivery 与 controller-recorded final `proceed`。本计划无剩余
+  provider debt、待批复 action 或交付 gate。
 
 Change 3 已完成：main specs 已同步并归档至
 `openspec/changes/archive/2026-08-08-add-human-artifact-reference-view/`。Change 4 已完成：main specs 已同步并归档至
