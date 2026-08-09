@@ -2182,7 +2182,7 @@ describe("Style Master pending successor artifact projection", () => {
           candidate_id: "local-existing",
           kind: "local-existing",
           lifecycle_state: "local-existing",
-          locator: expect.stringContaining(successor.plan_sha256),
+          locator: expect.stringContaining(successor.plan_sha256.slice(0, 8)),
         }),
         expect.objectContaining({
           availability: "available",
@@ -2190,7 +2190,7 @@ describe("Style Master pending successor artifact projection", () => {
           kind: "generated",
           lifecycle_state: "succeeded",
           candidate_sha256: digest(generatedCandidateBytes()),
-          locator: expect.stringContaining(successor.plan_sha256),
+          locator: expect.stringContaining(successor.plan_sha256.slice(0, 8)),
         }),
       ]));
       expect(pendingSuccessorRecordSnapshot(value, successor)).toEqual(before);

@@ -112,6 +112,7 @@ import {
 import { pageImageOrdinalImageFilename } from "./shared/image2/page_image_artifacts.mjs";
 import { inspectCurrentFinalSlideManifestFromRun } from "./shared/image2/page_image_final_manifest.mjs";
 import { writeHumanArtifactNavigation } from "./shared/image2/page_image_human_artifact_reference.mjs";
+import { resolveContentAddressName } from "./shared/image2/content_address_store.mjs";
 import { validateBoundPageImageProviderRequest } from "./shared/image2/page_image_target_runtime.mjs";
 import {
   deliveryReceiptSha256,
@@ -2571,7 +2572,7 @@ async function rebuildTargetPageImageArtifactView(route) {
 
   const pilotReview = operations.inspectPilotReview(route.run_dir);
   if (pilotReview.available) {
-    const reviewRoot = join(paths.review_root, "pilot", pilotReview.batch.sha256);
+    const reviewRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilotReview.batch.sha256));
     for (const slideId of pilotReview.batch.review_sample_slide_ids) {
       const position = stored.progressive_raw_work_plan.ordered_slide_ids.indexOf(slideId) + 1;
       const filename = pageImageOrdinalImageFilename(position, slideId);
@@ -2620,7 +2621,7 @@ async function rebuildTargetPageImageArtifactView(route) {
       : null;
   if (completeReview) {
     const review = completeReview.presentation;
-    const reviewRoot = join(paths.review_root, "complete-page", completeReview.raw.plan.sha256);
+    const reviewRoot = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), completeReview.raw.plan.sha256));
     const isCurrentReview = currentReview.available;
     for (const [index, slideId] of completeReview.raw.plan.ordered_slide_ids.entries()) {
       const filename = pageImageOrdinalImageFilename(index + 1, slideId);

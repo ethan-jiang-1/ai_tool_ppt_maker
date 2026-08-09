@@ -20,6 +20,23 @@ MAJOR 从 1 修正为 0 的原因：项目未到 1.0 水准。历史积累通过
 
 ---
 
+## v0.27.0 — Content-addressed short physical paths（2026-08-10）
+
+> 归档 `content-addressed-short-paths` 并关闭 BUG-065：Style Master、progressive
+> production 和 Complete Page Review 的内容寻址物理路径现在统一使用 8-hex 短名，完整
+> SHA 仍保留在记录、state、receipt 和 CAS identity 中。
+
+### 变了什么
+
+1. 短路径 lookup 由 canonical record 验证完整 SHA；同父目录前缀冲突会硬停，遗留 64-hex
+   存储仍可作为验证过的读取回退，避免将短名当作 authority。
+2. 新增私有 exact-run migration owner：它先检查 current v1 Pure/Framed identity，再以 deck
+   migration lock、owner resource lock 预检和 child-first rollback 完成纯重命名；不增加公开 CLI。
+3. 迁移副本通过 `validate`、`build` 和 `image2 artifact-view`；主规格、focused suite、core
+   regression 和严格 OpenSpec 验证均已通过。真实生产 bundle 迁移保持显式人类确认步骤。
+
+---
+
 ## v0.26.0 — Short Physical Human Navigation Paths（2026-08-09）
 
 **代号**：Physical artifact navigation

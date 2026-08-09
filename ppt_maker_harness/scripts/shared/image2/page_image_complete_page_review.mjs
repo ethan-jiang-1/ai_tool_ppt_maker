@@ -6,7 +6,7 @@
  * not compile Framed/Pure prompts or render workflow-specific semantics.
  */
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 
@@ -14,6 +14,7 @@ import { canonicalJson, canonicalJsonSha256 } from "../identity/canonical_json.m
 import { pageImageOrdinalImageFilename } from "./page_image_artifacts.mjs";
 import { createPngRasterProjectionCanvas } from "./png_raster_projection.mjs";
 import { pageImageWorkflowPaths } from "../run-bundle/page_image_paths.mjs";
+import { assertNoActiveMigration, resolveContentAddressName, shortName } from "./content_address_store.mjs";
 
 export const PAGE_IMAGE_COMPLETE_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-complete-page-review-presentation-v1";
 export const PAGE_IMAGE_PILOT_PAGE_REVIEW_PRESENTATION_SCHEMA = "page-image-pilot-page-review-presentation-v1";
@@ -124,11 +125,52 @@ function atomicWrite(pathname, bytes) {
   renameSync(temporary, pathname);
 }
 
+/** Serialize one review-root publication; fail when a content-address migration is active. */
+async function withReviewPublishLock(paths, deckRoot, action) {
+  const lock = paths.publish_lock;
+  mkdirSync(dirname(lock), { recursive: true, mode: 0o700 });
+  try {
+    mkdirSync(lock, { mode: 0o700 });
+  } catch (error) {
+    if (error?.code === "EEXIST") {
+      throw new PageImageCompletePageReviewError(
+        "complete_page_review_locked",
+        "another review publication is in progress for this exact review root",
+      );
+    }
+    throw error;
+  }
+  try {
+    assertNoActiveMigration(deckRoot);
+    return await action();
+  } finally {
+    try { rmdirSync(lock); } catch { /* best effort */ }
+  }
+}
+
+function reviewEvidenceAddress(field) {
+  return (pathname) => {
+    try {
+      const bytes = readFileSync(pathname);
+      const record = JSON.parse(bytes.toString("utf8"));
+      if (!bytes.equals(Buffer.from(`${canonicalJson(record)}\n`, "utf8"))) return null;
+      return record[field];
+    } catch {
+      return null;
+    }
+  };
+}
+
 function presentationPaths(runDir, rawWorkPlanSha256) {
   requireDigest(rawWorkPlanSha256, "raw work plan digest");
-  const root = join(pageImageWorkflowPaths(runDir).review_root, "complete-page", rawWorkPlanSha256);
+  const reviewRoot = pageImageWorkflowPaths(runDir).review_root;
+  const completePageRoot = join(reviewRoot, "complete-page");
+  const root = join(completePageRoot, resolveContentAddressName(completePageRoot, rawWorkPlanSha256, {
+    recordHashReader: (pathname) => reviewEvidenceAddress("raw_work_plan_sha256")(join(pathname, "complete-page-review-evidence-v1.json")),
+  }));
   return Object.freeze({
     root,
+    publish_lock: join(completePageRoot, `.${shortName(rawWorkPlanSha256)}.publish.lock`),
     provider_page_root: join(root, "provider-page"),
     complete_page_root: join(root, "complete-page"),
     projection: join(root, "complete-page-review.png"),
@@ -138,9 +180,14 @@ function presentationPaths(runDir, rawWorkPlanSha256) {
 
 function pilotPresentationPaths(runDir, batchSha256) {
   requireDigest(batchSha256, "Pilot batch digest");
-  const root = join(pageImageWorkflowPaths(runDir).review_root, "pilot", batchSha256);
+  const reviewRoot = pageImageWorkflowPaths(runDir).review_root;
+  const pilotRoot = join(reviewRoot, "pilot");
+  const root = join(pilotRoot, resolveContentAddressName(pilotRoot, batchSha256, {
+    recordHashReader: (pathname) => reviewEvidenceAddress("batch_sha256")(join(pathname, "pilot-page-review-evidence-v1.json")),
+  }));
   return Object.freeze({
     root,
+    publish_lock: join(pilotRoot, `.${shortName(batchSha256)}.publish.lock`),
     provider_page_root: join(root, "provider-page"),
     complete_page_root: join(root, "complete-page"),
     projection: join(root, "pilot-page-review.png"),
@@ -324,44 +371,46 @@ export async function publishCompletePageReviewPresentation({
   const bindings = requireExactBindingMap(adapterCompletePageBindingsBySlide, ids);
   const paths = presentationPaths(runDir, rawWorkPlanSha256);
 
-  for (const [index, slideId] of ids.entries()) {
-    const filename = pageImageOrdinalImageFilename(index + 1, slideId);
-    atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);
-    if (complete !== null) atomicWrite(join(paths.complete_page_root, filename), complete[slideId]);
-  }
-  const projectionSha256 = await renderProjection(paths, ids, raw, complete);
-  const profile = captureProfile();
-  const presentation = buildPresentation({
-    rawWorkPlanSha256,
-    sourceEpoch,
-    workflow,
-    typedReviewContributionSha256,
-    projectionSha256,
-    projectionCaptureProfileSha256: profile.projection_capture_profile_sha256,
-    hasCompletePageArtifact: complete !== null,
-    orderedSlideIds: ids,
-    rawBytesBySlide: raw,
-    completeBytesBySlide: complete,
-    adapterCompletePageBindingsBySlide: bindings,
-  });
-  atomicWrite(paths.evidence, Buffer.from(`${canonicalJson(presentation)}\n`, "utf8"));
-  const validation = validateCompletePageReviewPresentation({
-    runDir,
-    rawWorkPlanSha256,
-    sourceEpoch,
-    workflow,
-    typedReviewContributionSha256,
-    orderedSlideIds: ids,
-    rawBytesBySlide: raw,
-    adapterCompletePageBindingsBySlide: bindings,
-  });
-  if (!validation.ok) throw new PageImageCompletePageReviewError(validation.code, validation.message);
-  return Object.freeze({
-    presentation,
-    complete_page_presentation_sha256: validation.complete_page_presentation_sha256,
-    projection_sha256: projectionSha256,
-    projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
-    root: paths.root,
+  return withReviewPublishLock(paths, dirname(dirname(runDir)), async () => {
+    for (const [index, slideId] of ids.entries()) {
+      const filename = pageImageOrdinalImageFilename(index + 1, slideId);
+      atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);
+      if (complete !== null) atomicWrite(join(paths.complete_page_root, filename), complete[slideId]);
+    }
+    const projectionSha256 = await renderProjection(paths, ids, raw, complete);
+    const profile = captureProfile();
+    const presentation = buildPresentation({
+      rawWorkPlanSha256,
+      sourceEpoch,
+      workflow,
+      typedReviewContributionSha256,
+      projectionSha256,
+      projectionCaptureProfileSha256: profile.projection_capture_profile_sha256,
+      hasCompletePageArtifact: complete !== null,
+      orderedSlideIds: ids,
+      rawBytesBySlide: raw,
+      completeBytesBySlide: complete,
+      adapterCompletePageBindingsBySlide: bindings,
+    });
+    atomicWrite(paths.evidence, Buffer.from(`${canonicalJson(presentation)}\n`, "utf8"));
+    const validation = validateCompletePageReviewPresentation({
+      runDir,
+      rawWorkPlanSha256,
+      sourceEpoch,
+      workflow,
+      typedReviewContributionSha256,
+      orderedSlideIds: ids,
+      rawBytesBySlide: raw,
+      adapterCompletePageBindingsBySlide: bindings,
+    });
+    if (!validation.ok) throw new PageImageCompletePageReviewError(validation.code, validation.message);
+    return Object.freeze({
+      presentation,
+      complete_page_presentation_sha256: validation.complete_page_presentation_sha256,
+      projection_sha256: projectionSha256,
+      projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
+      root: paths.root,
+    });
   });
 }
 
@@ -485,53 +534,55 @@ export async function publishPilotPageReviewPresentation({
   const bindings = requireExactBindingMap(adapterCompletePageBindingsBySlide, selection.pilot);
   const paths = pilotPresentationPaths(runDir, batchSha256);
 
-  for (const slideId of selection.pilot) {
-    const filename = pageImageOrdinalImageFilename(selection.positions_by_slide[slideId], slideId);
-    atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);
-    if (complete !== null) atomicWrite(join(paths.complete_page_root, filename), complete[slideId]);
-  }
-  const projectionSha256 = await renderProjection(
-    paths,
-    selection.pilot,
-    raw,
-    complete,
-    selection.positions_by_slide,
-  );
-  const profile = captureProfile();
-  const presentation = buildPilotPresentation({
-    rawWorkPlanSha256,
-    batchSha256,
-    sourceEpoch,
-    workflow,
-    typedReviewContributionSha256,
-    projectionSha256,
-    projectionCaptureProfileSha256: profile.projection_capture_profile_sha256,
-    hasCompletePageArtifact: complete !== null,
-    pilotSlideIds: selection.pilot,
-    rawBytesBySlide: raw,
-    completeBytesBySlide: complete,
-    adapterCompletePageBindingsBySlide: bindings,
-  });
-  atomicWrite(paths.evidence, Buffer.from(`${canonicalJson(presentation)}\n`, "utf8"));
-  const validation = validatePilotPageReviewPresentation({
-    runDir,
-    rawWorkPlanSha256,
-    batchSha256,
-    sourceEpoch,
-    workflow,
-    typedReviewContributionSha256,
-    orderedPlanSlideIds: selection.full_plan,
-    pilotSlideIds: selection.pilot,
-    rawBytesBySlide: raw,
-    adapterCompletePageBindingsBySlide: bindings,
-  });
-  if (!validation.ok) throw new PageImageCompletePageReviewError(validation.code, validation.message);
-  return Object.freeze({
-    presentation,
-    pilot_page_presentation_sha256: validation.pilot_page_presentation_sha256,
-    projection_sha256: projectionSha256,
-    projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
-    root: paths.root,
+  return withReviewPublishLock(paths, dirname(dirname(runDir)), async () => {
+    for (const slideId of selection.pilot) {
+      const filename = pageImageOrdinalImageFilename(selection.positions_by_slide[slideId], slideId);
+      atomicWrite(join(paths.provider_page_root, filename), raw[slideId]);
+      if (complete !== null) atomicWrite(join(paths.complete_page_root, filename), complete[slideId]);
+    }
+    const projectionSha256 = await renderProjection(
+      paths,
+      selection.pilot,
+      raw,
+      complete,
+      selection.positions_by_slide,
+    );
+    const profile = captureProfile();
+    const presentation = buildPilotPresentation({
+      rawWorkPlanSha256,
+      batchSha256,
+      sourceEpoch,
+      workflow,
+      typedReviewContributionSha256,
+      projectionSha256,
+      projectionCaptureProfileSha256: profile.projection_capture_profile_sha256,
+      hasCompletePageArtifact: complete !== null,
+      pilotSlideIds: selection.pilot,
+      rawBytesBySlide: raw,
+      completeBytesBySlide: complete,
+      adapterCompletePageBindingsBySlide: bindings,
+    });
+    atomicWrite(paths.evidence, Buffer.from(`${canonicalJson(presentation)}\n`, "utf8"));
+    const validation = validatePilotPageReviewPresentation({
+      runDir,
+      rawWorkPlanSha256,
+      batchSha256,
+      sourceEpoch,
+      workflow,
+      typedReviewContributionSha256,
+      orderedPlanSlideIds: selection.full_plan,
+      pilotSlideIds: selection.pilot,
+      rawBytesBySlide: raw,
+      adapterCompletePageBindingsBySlide: bindings,
+    });
+    if (!validation.ok) throw new PageImageCompletePageReviewError(validation.code, validation.message);
+    return Object.freeze({
+      presentation,
+      pilot_page_presentation_sha256: validation.pilot_page_presentation_sha256,
+      projection_sha256: projectionSha256,
+      projection_capture_profile_sha256: profile.projection_capture_profile_sha256,
+      root: paths.root,
+    });
   });
 }
 

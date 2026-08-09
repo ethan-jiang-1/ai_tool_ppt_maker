@@ -8,6 +8,7 @@ import {
   createAcceptedRawEvidence,
   createRawWorkPlan,
 } from "../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
+import { resolveContentAddressName } from "../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import { canonicalJsonSha256 } from "../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
 import {
   classifyFramedRefresh,
@@ -852,7 +853,7 @@ negative_constraints:
         batchHash: pilot.batch.batch_hash,
       });
       const paths = pageImageWorkflowPaths(runDir);
-      const pilotRoot = join(paths.review_root, "pilot", pilot.batch.batch_hash);
+      const pilotRoot = join(paths.review_root, "pilot", resolveContentAddressName(join(paths.review_root, "pilot"), pilot.batch.batch_hash));
       const presentation = JSON.parse(readFileSync(join(pilotRoot, "pilot-page-review-evidence-v1.json"), "utf8"));
       expect(evidence).toMatchObject({ pilot_evidence_sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
       expect(readFileSync(join(pilotRoot, "provider-page", "10_DataMap.png"))).toEqual(rawBytes);
@@ -962,7 +963,7 @@ negative_constraints:
       });
 
       const paths = pageImageWorkflowPaths(runDir);
-      const compositePath = join(paths.review_root, "complete-page", planHash, "complete-page", "01_DeckGo.png");
+      const compositePath = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), planHash), "complete-page", "01_DeckGo.png");
       const reviewedComposite = readFileSync(compositePath);
       const delivery = await buildFramedProgressiveTargetDelivery(runDir);
       expect(delivery).toMatchObject({ ok: true, delivery: { receipt: { ordered_slide_ids: ["DeckGo"] } } });

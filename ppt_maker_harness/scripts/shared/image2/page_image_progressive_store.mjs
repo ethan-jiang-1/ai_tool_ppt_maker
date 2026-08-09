@@ -35,6 +35,14 @@ import {
   validateProgressiveRawScopeHead,
   validateProgressiveRawWorkPlan,
 } from "./page_image_progressive_schema.mjs";
+import {
+  CONTENT_ADDRESS_LEGACY_NAME_RE,
+  CONTENT_ADDRESS_SHORT_NAME_RE,
+  assertNoActiveMigration,
+  nameMatchesAddress,
+  resolveContentAddressName,
+  shortName,
+} from "./content_address_store.mjs";
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const STAGING_NAME_RE = /^(?:plan|record|materialization)-[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -139,6 +147,16 @@ function directStagingPath(paths, stagingPath, label) {
 
 function canonicalBytes(record) {
   return Buffer.from(`${canonicalJson(record)}\n`, "utf8");
+}
+
+function canonicalRecordAddress(pathname) {
+  try {
+    const bytes = readFileSync(pathname);
+    const record = JSON.parse(bytes.toString("utf8"));
+    return bytes.equals(canonicalBytes(record)) ? canonicalJsonSha256(record) : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseCanonicalRecord(bytes, label) {
@@ -246,6 +264,7 @@ function writeStagedImmutableRecord(runDir, {
   const targetPath = assertInside(paths.plan_root, target, "immutable direct record");
   ensureRealDirectoryBelowDeck(paths.deck_root, dirname(targetPath), "immutable direct record parent");
   return withExclusiveDirectoryLock(join(dirname(targetPath), `.${basename(targetPath)}.lock`), () => {
+    assertNoActiveMigration(paths.deck_root);
     const existing = readBytesOrNull(targetPath);
     if (existing !== null) {
       const read = readCanonicalValidatedRecord(targetPath, validator, options);
@@ -277,7 +296,11 @@ function writeStagedImmutableRecord(runDir, {
 
 function recordTarget(paths, group, sha256) {
   assertDigest(sha256, `${group}_sha256`);
-  return join(paths.plan_root, group, `${sha256}.json`);
+  const root = join(paths.plan_root, group);
+  return join(root, resolveContentAddressName(root, sha256, {
+    suffix: ".json",
+    recordHashReader: canonicalRecordAddress,
+  }));
 }
 
 export function progressiveRawStorePaths(runDir, { workflow = null, plan_sha256 = null, batch_sha256 = null, attempt_sha256 = null, provenance_sha256 = null } = {}) {
@@ -287,9 +310,15 @@ export function progressiveRawStorePaths(runDir, { workflow = null, plan_sha256 
   }
   const root = pageImageProgressiveRawPaths(runDir);
   const scopeRoot = workflow === null ? null : join(root.scopes_root, root.run_version, workflow);
-  const planRoot = plan_sha256 === null ? null : join(root.plans_root, plan_sha256);
-  const batchRoot = planRoot === null || batch_sha256 === null ? null : join(planRoot, "batches", batch_sha256);
-  const materializationRoot = planRoot === null || provenance_sha256 === null ? null : join(planRoot, "materializations", provenance_sha256);
+  const planRoot = plan_sha256 === null ? null : join(root.plans_root, resolveContentAddressName(root.plans_root, plan_sha256, {
+    recordHashReader: (pathname) => canonicalRecordAddress(join(pathname, "work-plan.json")),
+  }));
+  const batchRoot = planRoot === null || batch_sha256 === null ? null : join(planRoot, "batches", resolveContentAddressName(join(planRoot, "batches"), batch_sha256, {
+    recordHashReader: (pathname) => canonicalRecordAddress(join(pathname, "batch.json")),
+  }));
+  const materializationRoot = planRoot === null || provenance_sha256 === null ? null : join(planRoot, "materializations", resolveContentAddressName(join(planRoot, "materializations"), provenance_sha256, {
+    recordHashReader: (pathname) => canonicalRecordAddress(join(pathname, "provenance.json")),
+  }));
   return Object.freeze({
     ...root,
     scope_root: scopeRoot,
@@ -303,7 +332,10 @@ export function progressiveRawStorePaths(runDir, { workflow = null, plan_sha256 
     batch: batchRoot === null ? null : join(batchRoot, "batch.json"),
     grant: batchRoot === null ? null : join(batchRoot, "grant.json"),
     attempts_root: planRoot === null ? null : join(planRoot, "attempts"),
-    attempt: planRoot === null || attempt_sha256 === null ? null : join(planRoot, "attempts", `${attempt_sha256}.json`),
+    attempt: planRoot === null || attempt_sha256 === null ? null : join(planRoot, "attempts", resolveContentAddressName(join(planRoot, "attempts"), attempt_sha256, {
+      suffix: ".json",
+      recordHashReader: canonicalRecordAddress,
+    })),
     materializations_root: planRoot === null ? null : join(planRoot, "materializations"),
     materialization_root: materializationRoot,
     materialization_provenance: materializationRoot === null ? null : join(materializationRoot, "provenance.json"),
@@ -369,7 +401,8 @@ export function publishProgressiveRawStagedPlan(runDir, { staging_path, plan_sha
   const staged = readCanonicalValidatedRecord(join(staging, "work-plan.json"), validateProgressiveRawWorkPlan, undefined, "staged raw work plan");
   if (staged.sha256 !== plan_sha256) fail("progressive_raw_store_record_invalid", "staged plan digest does not match the publication path");
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.plans_root, "progressive raw plans root");
-  return withExclusiveDirectoryLock(join(paths.plans_root, `.${plan_sha256}.lock`), () => {
+  return withExclusiveDirectoryLock(join(paths.plans_root, `.${shortName(plan_sha256)}.lock`), () => {
+    assertNoActiveMigration(paths.deck_root);
     if (existsSync(paths.plan_root)) {
       const existing = readProgressiveRawWorkPlan(runDir, { plan_sha256 });
       if (existing.sha256 !== plan_sha256 || !equalBytes(existing.bytes, staged.bytes)) {
@@ -414,6 +447,7 @@ export function writeProgressiveRawScopeHeadCas(runDir, { workflow, head, plan, 
   const desired = canonicalBytes(head);
   ensureRealDirectoryBelowDeck(paths.deck_root, paths.scope_root, "progressive raw scope root");
   return withExclusiveDirectoryLock(paths.scope_lock, () => {
+    assertNoActiveMigration(paths.deck_root);
     const actual = readBytesOrNull(paths.scope_head);
     if ((expected === null && actual !== null) || (expected !== null && !equalBytes(expected, actual))) {
       fail("progressive_raw_head_conflict", "progressive raw scope head changed before compare-and-swap");
@@ -429,7 +463,10 @@ export async function withProgressiveRawPlanLock(runDir, { plan_sha256, action }
   if (typeof action !== "function") fail("progressive_raw_store_invalid", "plan lock requires an action");
   const paths = progressiveRawStorePaths(runDir, { plan_sha256 });
   realDirectory(paths.plan_root, "progressive raw plan container");
-  return withExclusiveDirectoryLockAsync(paths.plan_lock, action);
+  return withExclusiveDirectoryLockAsync(paths.plan_lock, async () => {
+    assertNoActiveMigration(paths.deck_root);
+    return action();
+  });
 }
 
 export function writeProgressiveRawBatch(runDir, { plan, batch } = {}) {
@@ -542,7 +579,8 @@ export function publishProgressiveRawMaterialization(runDir, { plan, provenance,
     const staged = readCanonicalValidatedRecord(join(staging, "provenance.json"), validateProgressiveRawMaterializationProvenance, { plan }, "staged materialization provenance");
     if (staged.sha256 !== provenanceCheck.sha256) fail("progressive_raw_store_record_invalid", "staged materialization provenance digest drifted");
     ensureRealDirectoryBelowDeck(paths.deck_root, paths.materializations_root, "progressive raw materializations root");
-    return withExclusiveDirectoryLock(join(paths.materializations_root, `.${provenanceCheck.sha256}.lock`), () => {
+    return withExclusiveDirectoryLock(join(paths.materializations_root, `.${shortName(provenanceCheck.sha256)}.lock`), () => {
+      assertNoActiveMigration(paths.deck_root);
       if (existsSync(paths.materialization_root)) {
         const existing = readProgressiveRawMaterialization(runDir, { plan_sha256: planCheck.sha256, provenance_sha256: provenanceCheck.sha256, plan });
         if (!equalBytes(existing.provenance.bytes, staged.bytes) || !equalBytes(existing.bytes, payload)) {
@@ -577,7 +615,7 @@ function listRecordFiles(root, label) {
   if (!existsSync(root)) return [];
   realDirectory(root, label);
   return readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && /^[0-9a-f]{64}\.json$/.test(entry.name))
+    .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && /^(?:[0-9a-f]{8}|[0-9a-f]{64})\.json$/.test(entry.name))
     .map((entry) => join(root, entry.name));
 }
 
@@ -586,7 +624,8 @@ function listBatchDirectories(root) {
   realDirectory(root, "progressive raw batches root");
   const paths = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.isSymbolicLink() || !SHA256_RE.test(entry.name)) {
+    if (!entry.isDirectory() || entry.isSymbolicLink() ||
+      !(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
       fail("progressive_raw_store_record_invalid", "batches root contains a noncanonical immutable batch container");
     }
     paths.push(join(root, entry.name));
@@ -603,24 +642,37 @@ export function readProgressiveRawPlanDirectRecords(runDir, { plan_sha256 } = {}
   const grants = [];
   for (const batchRoot of listBatchDirectories(paths.batches_root)) {
     const batch = readCanonicalValidatedRecord(join(batchRoot, "batch.json"), validateProgressiveRawBatch, { plan: plan.record }, "progressive raw batch");
-    if (basename(batchRoot) !== batch.sha256) fail("progressive_raw_store_record_invalid", "batch directory does not match its canonical record digest");
+    if (!nameMatchesAddress(basename(batchRoot), batch.sha256)) fail("progressive_raw_store_record_invalid", "batch directory does not match its canonical record digest");
     batches.push(batch);
     const grantPath = join(batchRoot, "grant.json");
     if (existsSync(grantPath)) grants.push(readCanonicalValidatedRecord(grantPath, validateProgressiveRawBatchGrant, { plan: plan.record, batch: batch.record }, "progressive raw batch grant"));
   }
   const attempts = listRecordFiles(paths.attempts_root, "progressive raw attempts root").map((pathname) => {
     const record = readCanonicalValidatedRecord(pathname, validateProgressiveRawItemAttempt, { plan: plan.record }, "progressive raw item attempt");
-    if (basename(pathname) !== `${record.sha256}.json`) fail("progressive_raw_store_record_invalid", "attempt file does not match its canonical record digest");
+    const fileName = basename(pathname);
+    if (fileName !== `${shortName(record.sha256)}.json` && fileName !== `${record.sha256}.json`) {
+      fail("progressive_raw_store_record_invalid", "attempt file does not match its canonical record digest");
+    }
     return record;
   });
   const materializations = [];
   if (existsSync(paths.materializations_root)) {
     realDirectory(paths.materializations_root, "progressive raw materializations root");
     for (const entry of readdirSync(paths.materializations_root, { withFileTypes: true })) {
-      if (!entry.isDirectory() || entry.isSymbolicLink() || !SHA256_RE.test(entry.name)) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() ||
+        !(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
         fail("progressive_raw_store_record_invalid", "materializations root contains a noncanonical immutable bundle");
       }
-      materializations.push(readProgressiveRawMaterialization(runDir, { plan_sha256, provenance_sha256: entry.name, plan: plan.record }));
+      const provenance = readCanonicalValidatedRecord(
+        join(paths.materializations_root, entry.name, "provenance.json"),
+        validateProgressiveRawMaterializationProvenance,
+        { plan: plan.record },
+        "progressive raw materialization provenance",
+      );
+      if (!nameMatchesAddress(entry.name, provenance.sha256)) {
+        fail("progressive_raw_store_record_invalid", "materialization bundle does not match its canonical provenance digest");
+      }
+      materializations.push(readProgressiveRawMaterialization(runDir, { plan_sha256, provenance_sha256: provenance.sha256, plan: plan.record }));
     }
   }
   const pilotEvidence = listRecordFiles(paths.pilot_evidence_root, "progressive raw Pilot-evidence root")
@@ -658,13 +710,14 @@ export function findProgressiveRawMaterializationByProvenance(runDir, { provenan
   let found = null;
   for (const entry of readdirSync(root.plans_root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) {
-      if (/^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
+      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name) || /^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical entry");
     }
-    if (!SHA256_RE.test(entry.name)) {
+    if (!(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
-    const plan = readProgressiveRawWorkPlan(runDir, { plan_sha256: entry.name });
+    const planDir = join(root.plans_root, entry.name);
+    const plan = readCanonicalValidatedRecord(join(planDir, "work-plan.json"), validateProgressiveRawWorkPlan, undefined, "progressive raw work plan");
     const paths = progressiveRawStorePaths(runDir, {
       plan_sha256: plan.sha256,
       provenance_sha256,
@@ -697,13 +750,15 @@ export function findProgressiveRawCompleteReviewBySha(runDir, { complete_raw_rev
   let found = null;
   for (const entry of readdirSync(root.plans_root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) {
-      if (/^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
+      if (/^\.[0-9a-f]{8}\.lock$/.test(entry.name) || /^\.[0-9a-f]{64}\.lock$/.test(entry.name)) continue;
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical entry");
     }
-    if (!SHA256_RE.test(entry.name)) {
+    if (!(CONTENT_ADDRESS_SHORT_NAME_RE.test(entry.name) || CONTENT_ADDRESS_LEGACY_NAME_RE.test(entry.name))) {
       fail("progressive_raw_store_record_invalid", "plans root contains a noncanonical plan container");
     }
-    const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: entry.name });
+    const planDir = join(root.plans_root, entry.name);
+    const plan = readCanonicalValidatedRecord(join(planDir, "work-plan.json"), validateProgressiveRawWorkPlan, undefined, "progressive raw work plan");
+    const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan.sha256 });
     const review = direct.complete_reviews.find((candidate) => candidate.sha256 === complete_raw_review_sha256) || null;
     if (!review) continue;
     if (found) {

@@ -3,8 +3,12 @@
   "owners": [
     {
       "owner": "00-setup",
-      "interfaces": ["00-setup/index.mjs"],
-      "executables": ["00-setup/env-check.mjs"],
+      "interfaces": [
+        "00-setup/index.mjs"
+      ],
+      "executables": [
+        "00-setup/env-check.mjs"
+      ],
       "unit_integration": [
         "tests/00-setup/test_html_fonts.mjs",
         "tests/00-setup/test_html_runtime_profile.mjs",
@@ -15,7 +19,9 @@
     },
     {
       "owner": "01-content",
-      "interfaces": ["01-content/index.mjs"],
+      "interfaces": [
+        "01-content/index.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/01-content/test_clean_page_authority_new_version_cli.mjs",
@@ -29,7 +35,9 @@
     },
     {
       "owner": "02-visual-system",
-      "interfaces": ["02-visual-system/index.mjs"],
+      "interfaces": [
+        "02-visual-system/index.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/02-visual-system/test_page_authority_visual_language_relationships.mjs",
@@ -39,7 +47,9 @@
     },
     {
       "owner": "03-framed-image",
-      "interfaces": ["03-framed-image/index.mjs"],
+      "interfaces": [
+        "03-framed-image/index.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/03-framed-image/test_framed_plan_lifecycle.mjs",
@@ -53,7 +63,9 @@
     },
     {
       "owner": "04-pure-image",
-      "interfaces": ["04-pure-image/index.mjs"],
+      "interfaces": [
+        "04-pure-image/index.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/04-pure-image/test_pure_page_image_core.mjs",
@@ -65,16 +77,24 @@
     },
     {
       "owner": "05-delivery",
-      "interfaces": ["05-delivery/index.mjs"],
+      "interfaces": [
+        "05-delivery/index.mjs"
+      ],
       "executables": [],
-      "unit_integration": ["tests/05-delivery/test_delivery.mjs"],
+      "unit_integration": [
+        "tests/05-delivery/test_delivery.mjs"
+      ],
       "e2e": []
     },
     {
       "owner": "06-iteration",
-      "interfaces": ["06-iteration/index.mjs"],
+      "interfaces": [
+        "06-iteration/index.mjs"
+      ],
       "executables": [],
-      "unit_integration": ["tests/06-iteration/test_target_refresh_routing.mjs"],
+      "unit_integration": [
+        "tests/06-iteration/test_target_refresh_routing.mjs"
+      ],
       "e2e": []
     },
     {
@@ -88,7 +108,9 @@
         "contracts/harness_static_coherence.mjs",
         "contracts/retirement_ledger_audit.mjs"
       ],
-      "executables": ["ppt_flow.mjs"],
+      "executables": [
+        "ppt_flow.mjs"
+      ],
       "unit_integration": [
         "tests/contracts/fixtures/development-verification/test_mock_admitted_entry.mjs",
         "tests/contracts/fixtures/development-verification/test_mock_out_of_root.mjs",
@@ -139,11 +161,27 @@
     },
     {
       "owner": "shared/image2",
-      "interfaces": ["shared/image2/credentials.mjs", "shared/image2/page_image_artifacts.mjs", "shared/image2/page_image_complete_page_review.mjs", "shared/image2/page_image_final_manifest.mjs", "shared/image2/page_image_human_artifact_reference.mjs", "shared/image2/page_image_media_contract.mjs", "shared/image2/page_image_progressive_raw_owner.mjs", "shared/image2/page_image_raw_mechanics.mjs", "shared/image2/page_image_target_runtime.mjs", "shared/image2/png_raster_projection.mjs", "shared/image2/style_master_plan.mjs", "shared/image2/style_master_scope.mjs"],
+      "interfaces": [
+        "shared/image2/content_address_store.mjs",
+        "shared/image2/credentials.mjs",
+        "shared/image2/page_image_artifacts.mjs",
+        "shared/image2/page_image_complete_page_review.mjs",
+        "shared/image2/page_image_final_manifest.mjs",
+        "shared/image2/page_image_human_artifact_reference.mjs",
+        "shared/image2/page_image_media_contract.mjs",
+        "shared/image2/page_image_progressive_raw_owner.mjs",
+        "shared/image2/page_image_raw_mechanics.mjs",
+        "shared/image2/page_image_target_runtime.mjs",
+        "shared/image2/png_raster_projection.mjs",
+        "shared/image2/style_master_plan.mjs",
+        "shared/image2/style_master_scope.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/shared/image2/test_artifact_contracts.mjs",
         "tests/shared/image2/test_complete_page_review.mjs",
+        "tests/shared/image2/test_content_address_migrate.mjs",
+        "tests/shared/image2/test_content_address_store.mjs",
         "tests/shared/image2/test_credentials.mjs",
         "tests/shared/image2/test_final_manifest.mjs",
         "tests/shared/image2/test_human_artifact_reference.mjs",
@@ -161,9 +199,15 @@
     },
     {
       "owner": "shared/page-image",
-      "interfaces": ["shared/page-image/page_image_core.mjs", "shared/page-image/page_image_invalidation.mjs"],
+      "interfaces": [
+        "shared/page-image/page_image_core.mjs",
+        "shared/page-image/page_image_invalidation.mjs"
+      ],
       "executables": [],
-      "unit_integration": ["tests/shared/page-image/test_page_image_core.mjs", "tests/shared/page-image/test_page_image_invalidation.mjs"],
+      "unit_integration": [
+        "tests/shared/page-image/test_page_image_core.mjs",
+        "tests/shared/page-image/test_page_image_invalidation.mjs"
+      ],
       "e2e": []
     },
     {
@@ -185,7 +229,9 @@
         "tests/shared/run-bundle/test_process_lessons.mjs",
         "tests/shared/run-bundle/test_run_bundle_locator.mjs"
       ],
-      "e2e": ["tests_e2e/shared/run-bundle/test-lessons-flow.mjs"]
+      "e2e": [
+        "tests_e2e/shared/run-bundle/test-lessons-flow.mjs"
+      ]
     },
     {
       "owner": "shared/state",
@@ -206,7 +252,12 @@
     },
     {
       "owner": "shared/workflow",
-      "interfaces": ["shared/workflow/inspect_workflow.mjs", "shared/workflow/page_production_display_references.mjs", "shared/workflow/page_production_task_projection.mjs", "shared/workflow/progressive_controller_task_projection_eligibility.mjs"],
+      "interfaces": [
+        "shared/workflow/inspect_workflow.mjs",
+        "shared/workflow/page_production_display_references.mjs",
+        "shared/workflow/page_production_task_projection.mjs",
+        "shared/workflow/progressive_controller_task_projection_eligibility.mjs"
+      ],
       "executables": [],
       "unit_integration": [
         "tests/shared/workflow/test_page_production_task_projection.mjs",

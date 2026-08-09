@@ -259,7 +259,7 @@ describe("progressive Page Image raw owner", () => {
       expect(publishProgressiveRawStagedPlan(runDir, {
         staging_path: staged.staging_path,
         plan_sha256: plan.sha256,
-      })).toMatchObject({ published: true, plan_root: expect.stringContaining(plan.sha256) });
+      })).toMatchObject({ published: true, plan_root: expect.stringContaining(plan.sha256.slice(0, 8)) });
       expect(readProgressiveRawScopeHead(runDir, { workflow: "pure" })).toBeNull();
       expect(inspectProgressiveRawLifecycle({ runDir, workflow: "pure" })).toMatchObject({
         plan: null,

@@ -20,6 +20,7 @@ import {
   pageImageOrdinalImageFilename,
 } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { canonicalJsonSha256 } from "../../../ppt_maker_harness/scripts/shared/identity/canonical_json.mjs";
+import { resolveContentAddressName } from "../../../ppt_maker_harness/scripts/shared/image2/content_address_store.mjs";
 import {
   createTargetRawReviewContribution,
   prepareTargetRawReview,
@@ -163,7 +164,7 @@ describe("target raw-review coverage", () => {
 
       const prepared = await preparePureTargetRawReview(runDir);
       const review = JSON.parse(readFileSync(paths.target_raw_review, "utf8"));
-      const reviewRoot = join(paths.review_root, "complete-page", plan.raw_work_plan.sha256);
+      const reviewRoot = join(paths.review_root, "complete-page", resolveContentAddressName(join(paths.review_root, "complete-page"), plan.raw_work_plan.sha256));
       const reviewEvidencePath = join(reviewRoot, "complete-page-review-evidence-v1.json");
       const reviewProjectionPath = join(reviewRoot, "complete-page-review.png");
       const projectionBytes = readFileSync(reviewProjectionPath);
