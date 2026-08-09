@@ -240,12 +240,14 @@ function validateAttemptState(plan, batches, grants, attempts) {
       }
       const parent = bySha.get(parentSha256);
       const knownFailure = siblings.find((entry) => entry.record.status === "known_failure") || null;
+      const succeeded = siblings.find((entry) => entry.record.status === "succeeded") || null;
       const unknown = siblings.find((entry) => entry.record.status === "unknown") || null;
       const childless = siblings.every((entry) => (children.get(entry.sha256) || []).length === 0);
-      if (siblings.length !== 2 || parent?.record.status !== "submitted" || !knownFailure || !unknown || !childless) {
+      const effectiveTerminal = knownFailure || succeeded;
+      if (siblings.length !== 2 || parent?.record.status !== "submitted" || !effectiveTerminal || !unknown || !childless) {
         fail("progressive_raw_attempt_chain_invalid", "attempt transitions cannot branch");
       }
-      effectiveChildren.set(parentSha256, [knownFailure]);
+      effectiveChildren.set(parentSha256, [effectiveTerminal]);
       ignoredTerminalSiblings.add(unknown.sha256);
     }
 
@@ -1089,7 +1091,13 @@ export function inspectProgressiveRawLifecycle({ runDir, workflow, expected_plan
   try {
     snapshot = loadPlanByHead(runDir, workflow);
   } catch (error) {
-    return Object.freeze({ ok: false, code: error.code || "progressive_raw_owner_invalid", next_action: error.next_action || action("rebuild_progressive_raw_work", { kind: "repair" }) });
+    return Object.freeze({
+      ok: false,
+      code: error.code || "progressive_raw_owner_invalid",
+      next_action: error.next_action || action("report_internal", {
+        summary: "The progressive raw owner detected an immutable integrity conflict requiring Harness maintenance.",
+      }),
+    });
   }
   if (!snapshot) {
     return Object.freeze({
@@ -1427,6 +1435,20 @@ export async function reconcileProgressiveRawAttempt({ runDir, workflow, plan_ha
       const attempt = snapshot.attempt_state.by_sha.get(attempt_sha256);
       if (!attempt || attempt.record.status !== "submitted") {
         fail("progressive_raw_reconcile_invalid", "reconcile accepts only an exact persisted submitted attempt", { nextAction: historical ? nextAction(current) : nextAction(snapshot) });
+      }
+      const effectiveTerminal = snapshot.attempt_state.current_by_key.get(attempt.record.attempt_key_sha256) || null;
+      if (effectiveTerminal?.record.status === "succeeded" && effectiveTerminal.record.previous_attempt_sha256 === attempt.sha256) {
+        return Object.freeze({
+          plan_hash,
+          attempt_sha256,
+          reconciled: true,
+          replay: true,
+          outcome: "succeeded",
+          historical,
+          progress: snapshot.progress,
+          ...(historical ? { current_plan_hash: current.plan.sha256 } : {}),
+          next_action: historical ? nextAction(current) : nextAction(snapshot),
+        });
       }
       const batch = snapshot.attempt_state.batch_by_sha.get(attempt.record.batch_sha256);
       const grant = snapshot.attempt_state.grant_by_batch.get(attempt.record.batch_sha256);

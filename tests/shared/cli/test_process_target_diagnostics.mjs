@@ -12,7 +12,8 @@ import { CLI_BOUNDS, parseCliErrorLine } from "../../../ppt_maker_harness/script
 import { pageImageOrdinalImageFilename } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_artifacts.mjs";
 import { pageImageWorkflowPaths, pageImageProgressiveRawPaths } from "../../../ppt_maker_harness/scripts/shared/run-bundle/page_image_paths.mjs";
 import { initBundle } from "../../../ppt_maker_harness/scripts/shared/run-bundle/bundle_layout.mjs";
-import { readProgressiveRawPlanDirectRecords } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
+import { createProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_schema.mjs";
+import { readProgressiveRawPlanDirectRecords, writeProgressiveRawItemAttempt } from "../../../ppt_maker_harness/scripts/shared/image2/page_image_progressive_store.mjs";
 import { acceptLocalStyleMasterFixture } from "../../helpers/accepted_style_master.mjs";
 
 const FLOW = resolve(process.cwd(), "ppt_maker_harness/scripts/ppt_flow.mjs");
@@ -297,6 +298,26 @@ function expectUnchanged(fixture, snapshot) {
   expect(immutableSnapshot(fixture)).toEqual(snapshot);
 }
 
+function appendTerminalAttemptSibling(runDir, { plan_hash, batch_hash, slide_id, status }) {
+  const direct = readProgressiveRawPlanDirectRecords(runDir, { plan_sha256: plan_hash });
+  const submitted = direct.attempts.find((entry) =>
+    entry.record.batch_sha256 === batch_hash && entry.record.slide_id === slide_id && entry.record.status === "submitted",
+  );
+  const batch = direct.batches.find((entry) => entry.sha256 === batch_hash);
+  const grant = direct.grants.find((entry) => entry.sha256 === submitted?.record.grant_sha256);
+  const terminal = createProgressiveRawItemAttempt({
+    ...submitted.record,
+    status,
+    previous_attempt_sha256: submitted.sha256,
+  }, { plan: direct.plan.record, batch: batch.record, grant: grant.record });
+  writeProgressiveRawItemAttempt(runDir, {
+    plan: direct.plan.record,
+    batch: batch.record,
+    grant: grant.record,
+    attempt: terminal,
+  });
+}
+
 function parseFailure(result) {
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(1);
   expect(result.stdout).toBe("");
@@ -532,6 +553,82 @@ describe("target Page Image CLI diagnostics", () => {
       rmSync(fixture.root, { recursive: true, force: true });
     }
   }, 45_000);
+
+  it("continues a verified terminal sibling and reports an unrepairable branch without a fake rebuild action", async () => {
+    const valid = await createPureFixture();
+    const invalid = await createPureFixture();
+    const provider = await startMockProvider({ responseBytes: pngBytes("#397d93") });
+    try {
+      const validPlan = JSON.parse((await runFlow(["image2", "plan", valid.runDir], provider.env)).stdout);
+      const validPilot = JSON.parse((await runFlow([
+        "image2", "pilot", valid.runDir,
+        "--plan-hash", validPlan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], provider.env)).stdout).batch;
+      await runFlow([
+        "image2", "authorize", valid.runDir,
+        "--plan-hash", validPlan.plan_hash,
+        "--batch-hash", validPilot.batch_hash,
+      ], provider.env);
+      const validGenerated = await runFlow([
+        "image2", "generate", valid.runDir,
+        "--plan-hash", validPlan.plan_hash,
+        "--batch-hash", validPilot.batch_hash,
+      ], provider.env);
+      expect(validGenerated.status, validGenerated.stderr).toBe(0);
+      appendTerminalAttemptSibling(valid.runDir, {
+        plan_hash: validPlan.plan_hash,
+        batch_hash: validPilot.batch_hash,
+        slide_id: "PureOne",
+        status: "unknown",
+      });
+      const validBefore = readProgressiveRawPlanDirectRecords(valid.runDir, { plan_sha256: validPlan.plan_hash });
+      const validReplan = await runFlow(["image2", "plan", valid.runDir], provider.env);
+      expect(validReplan.status, validReplan.stderr).toBe(0);
+      expect(JSON.parse(validReplan.stdout)).toMatchObject({ plan_hash: validPlan.plan_hash });
+      expect(readProgressiveRawPlanDirectRecords(valid.runDir, { plan_sha256: validPlan.plan_hash })).toEqual(validBefore);
+
+      const invalidPlan = JSON.parse((await runFlow(["image2", "plan", invalid.runDir], provider.env)).stdout);
+      const invalidPilot = JSON.parse((await runFlow([
+        "image2", "pilot", invalid.runDir,
+        "--plan-hash", invalidPlan.plan_hash,
+        "--slide-id", "PureOne",
+        "--slide-id", "PureTwo",
+      ], provider.env)).stdout).batch;
+      await runFlow([
+        "image2", "authorize", invalid.runDir,
+        "--plan-hash", invalidPlan.plan_hash,
+        "--batch-hash", invalidPilot.batch_hash,
+      ], provider.env);
+      const invalidGenerated = await runFlow([
+        "image2", "generate", invalid.runDir,
+        "--plan-hash", invalidPlan.plan_hash,
+        "--batch-hash", invalidPilot.batch_hash,
+      ], provider.env);
+      expect(invalidGenerated.status, invalidGenerated.stderr).toBe(0);
+      appendTerminalAttemptSibling(invalid.runDir, {
+        plan_hash: invalidPlan.plan_hash,
+        batch_hash: invalidPilot.batch_hash,
+        slide_id: "PureOne",
+        status: "known_failure",
+      });
+      const invalidBefore = readProgressiveRawPlanDirectRecords(invalid.runDir, { plan_sha256: invalidPlan.plan_hash });
+      const invalidReplan = await runFlow(["image2", "plan", invalid.runDir], provider.env);
+      const envelope = parseFailure(invalidReplan);
+      expectOwnerAction(envelope, {
+        category: "internal",
+        reason: "progressive_raw_attempt_chain_invalid",
+        action: "report_internal",
+      });
+      expect(readProgressiveRawPlanDirectRecords(invalid.runDir, { plan_sha256: invalidPlan.plan_hash })).toEqual(invalidBefore);
+      expect(provider.calls).toHaveLength(2);
+    } finally {
+      await provider.close();
+      rmSync(valid.root, { recursive: true, force: true });
+      rmSync(invalid.root, { recursive: true, force: true });
+    }
+  }, 90_000);
 
   it("loads cwd dotenv credentials only when an authorized generate crosses the remote boundary", async () => {
     const fixture = await createPureFixture();

@@ -1,6 +1,6 @@
 # Fixed Bugs Index — 已修复 bug 归档
 
-> 最后更新: 2026-08-08 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
+> 最后更新: 2026-08-09 | `_backlog/_done/_fixed_bugs/` — 已修复 bug 的归档目录。
 > 接收来自 [`../../bugs/`](../../bugs/) 的 bug。`_` 前缀 = coding agent 默认忽略。
 >
 > **本目录是 bug 编号的归档索引；新 bug 使用所有已分配 BUG 编号后的下一个值，避免与活跃条目冲突。**
@@ -71,13 +71,14 @@ bug 修完后从 `_backlog/bugs/` 通过 `git mv` 移入本目录：
 | [BUG-054](BUG-054-page-raw-provider-native-size-mismatch.md) | 2026-08-05 | Page raw provider 返回非契约原生尺寸，pilot 提交全部 known_failure |
 | [BUG-055](BUG-055-page-raw-invalid-json-no-response-visibility.md) | 2026-08-08 | Page Image `invalid_json` 以闭集 response shape 区分空响应、HTML 文档和其他非 JSON，且不泄露 provider 数据 |
 | [BUG-056](BUG-056-artifacts-need-full-paths-for-user-viewing.md) | 2026-08-08 | 人工 Page Image 检查 handoff 由显式 reference view 逐项给出 locator、类型和目的 |
+| [BUG-057](BUG-057-pure-pages-lack-visual-system-consistency.md) | 2026-08-09 | Pure deck-level visual-system binding 与代表性三页 Complete Page Review 共同确认跨页 typography、colour、zones、whitespace 与 layout family 一致 |
 | [BUG-058](BUG-058-candidate-selection-prompt-unusable-no-path-long-ids.md) | 2026-08-08 | Style Master review 投影提供候选路径和可选的 `candidate_id` |
 | [BUG-059](BUG-059-style-master-compat-jpeg-fails-16bit-png.md) | 2026-08-08 | Style Master 兼容 JPEG 投影支持 16-bit 和非 RGBA provider PNG，且不改变 selection authority |
 | [BUG-060](BUG-060-framed-capture-row-stride-corrupts-alpha.md) | 2026-08-08 | Framed RGB Chromium capture 规范化后裁行，修复 alpha 污染和底边透明 |
 | [BUG-061](BUG-061-stray-duplicate-run-bundle-deck-dark-factory-current.md) | 2026-08-08 | 重复的 `deck_dark_factory_current` run bundle 已清理 |
 | [BUG-063](BUG-063-content-addressed-path-length-unusable.md) | 2026-08-08 | 可重建 logical reference view 解决人类导航，不迁移内容寻址物理目录 |
 
-**Next available bug ID: BUG-064**
+**Next available bug ID: BUG-065**
 
 ---
 

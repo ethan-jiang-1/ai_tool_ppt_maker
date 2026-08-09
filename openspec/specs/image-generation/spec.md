@@ -509,6 +509,46 @@ bindings.
 - **AND** a later successful explicit rebuild replaces the derived tree solely from current
   owner-validated locators
 
+### Requirement: Human Navigation Path short-circuits every validated pending successor
+
+When the Style Master owner returns a validated pending-successor candidate
+projection for an exact current Page Image Workflow run, the Human Navigation
+Path SHALL render that projection before raw-owner, stored-raw-plan, or
+raw-only accepted-selection inspection. This applies whether or not the
+predecessor selection's style-intent, style-context, or
+candidate-generation-profile hashes differ from the successor plan.
+
+The tree SHALL materialize short physical copies only from the owner-provided
+verified candidate locators, label them pending and not accepted, and mark raw,
+review, final, and delivery work unavailable. The artifact-view success
+projection SHALL report the owner's existing next action. Neither surface
+SHALL display the predecessor as current Style Master authority, infer a raw
+plan from it, or expose a SHA-named storage path.
+
+The projection remains a provider-free guide. Any owner hard-stop for scope,
+plan, predecessor, media, provenance, or navigation materialization SHALL
+preserve the existing navigation tree and return the existing nearest recovery
+without writing lifecycle authority.
+
+#### Scenario: Source-receipt successor is visible before stale raw inspection
+
+- **WHEN** a valid current successor has verified candidate media while a
+  non-visual source edit makes the Page Image source receipt stale and its
+  predecessor's three Style Master input hashes still match
+- **THEN** rebuilding the Human Navigation Path publishes the successor's
+  short candidate artifact copy and pending inspection purpose
+- **AND** it does not read the stale raw plan, publish raw/final/delivery
+  artifacts, initialize a provider, or mutate state
+
+#### Scenario: Invalid pending candidate evidence leaves navigation unchanged
+
+- **WHEN** an owner-projected successor candidate fails immutable media or
+  provenance validation
+- **THEN** the navigation rebuild returns the existing owner hard-stop before
+  replacing the navigation tree
+- **AND** it does not publish a partial candidate list or use a predecessor
+  artifact as fallback
+
 ### Requirement: Pure raw work binds one selected deck visual system
 
 Every current Pure Page Image Core slide, raw contract, compiled provider input, provider-input
@@ -559,3 +599,58 @@ existing exact authorization path is used.
 - **WHEN** an Agent inspects a current Pure provider-input projection for multiple pages
 - **THEN** it can verify that the same visual-system digest and token projection were submitted
 - **AND** it does not infer that the provider pixels obeyed the system or bypass Complete Page Review
+
+### Requirement: Progressive terminal siblings preserve verified success
+
+For one exact submitted progressive raw attempt, a childless `succeeded` and
+`unknown` terminal pair SHALL have one effective `succeeded` terminal only when
+both records bind the same immutable attempt tuple and the succeeded record's
+existing materialization provenance and provider bytes validate through the
+ordinary direct owner evidence path. The unknown record SHALL remain immutable
+audit history; it SHALL not replace, downgrade, retry, reopen, or authorize the
+item.
+
+The progressive owner SHALL retain a non-bypassable integrity hard-stop for
+every terminal branch other than the existing childless `known_failure` plus
+`unknown` compatibility pair and the verified pair defined above, for a missing
+or invalid succeeded provenance or bytes chain, or for any plan, batch, grant,
+attempt-key, slide, or raw-contract mismatch. Valid terminal-sibling
+classification is a deterministic `guide` and requires no human decision;
+invalid branches protect immutable identity and provenance and create no retry,
+record rewrite, replacement authorization, or provider request.
+
+The owner SHALL complete the existing direct materialization provenance and
+byte validation before exposing the succeeded child as an effective terminal.
+If an exact `reconcile` request names the submitted parent of an already
+validated effective pair, the owner SHALL return its current next-action
+projection without calling lookup or appending an attempt, provenance, grant,
+or provider request. This idempotent result SHALL NOT make the retained
+`unknown` child eligible, current, or retryable.
+
+#### Scenario: Verified success dominates its unknown sibling without mutation
+
+- **WHEN** one submitted attempt has childless `succeeded` and `unknown`
+  terminal records and the succeeded record's exact provenance and provider
+  bytes validate
+- **THEN** lifecycle inspection, reconciliation, and next-action evaluation
+  treat that tuple as succeeded and retain the unknown record only for audit
+- **AND** they create no retry, replacement grant, record rewrite, provider
+  request, or human confirmation
+
+#### Scenario: Reconcile does not append a third terminal after effective success
+
+- **WHEN** `reconcile` receives the exact submitted parent for an already
+  validated succeeded/unknown terminal pair
+- **THEN** it returns the current owner-issued next action without lookup or a
+  raw-owner record write
+- **AND** it does not append a terminal sibling, submit a provider request, or
+  alter the batch grant or materialization evidence
+
+#### Scenario: An unproven success sibling remains an integrity hard-stop
+
+- **WHEN** a submitted attempt has a `succeeded` and `unknown` sibling pair
+  but the succeeded provenance or bytes cannot validate, or a terminal branch
+  other than the preserved known-failure/unknown pair exists
+- **THEN** the owner hard-stops before lifecycle continuation
+- **AND** it neither selects a terminal child nor creates a retry, state edit,
+  replacement authorization, or provider request

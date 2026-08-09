@@ -816,43 +816,49 @@ export async function inspectStyleMasterCandidates({
   return inspectCurrentStyleMasterPlan(resolvedScope, current);
 }
 
-function selectionIsStaleForCurrentPlan(plan, selection) {
-  return plan.style_intent_sha256 !== selection.style_intent_sha256 ||
-    plan.style_context_sha256 !== selection.style_context_sha256 ||
-    plan.candidate_generation_profile_sha256 !== selection.candidate_generation_profile_sha256;
-}
-
 async function readPendingStyleMasterSuccessorContext({ scope, refreshScope = null } = {}) {
   const resolvedScope = await resolveCurrentScope(scope, refreshScope);
   const current = readCurrentHead(resolvedScope);
   if (!current.head || current.plan.previous_selection_sha256 === null) return null;
 
   const inspection = await inspectCurrentStyleMasterPlan(resolvedScope, current);
-  const predecessor = inspectSelectionProjection(resolvedScope);
-  if (!predecessor) {
+  const effective = inspectSelectionProjection(resolvedScope);
+  if (!effective) {
     fail("style_master_selection_invalid", "a successor plan predecessor selection cannot be reread");
   }
-  if (predecessor.selection_sha256 !== current.plan.previous_selection_sha256) {
-    fail("style_master_selection_conflict", "Style Master successor plan predecessor does not match the effective selection");
+
+  if (effective.selection_sha256 === current.plan.previous_selection_sha256) {
+    const replay = exactAcceptedSelectionReplay(resolvedScope, {
+      planSha256: effective.selection.plan_sha256,
+      decision: "proceed",
+      candidateId: effective.selection.candidate_id,
+    });
+    if (!replay || replay.selection_sha256 !== current.plan.previous_selection_sha256) {
+      fail("style_master_selection_invalid", "Style Master successor predecessor cannot be replayed exactly");
+    }
+    if (inspection.input_stale) return null;
+
+    return Object.freeze({
+      scope: resolvedScope,
+      current,
+      inspection,
+      records: directPlanRecords(resolvedScope, current),
+    });
   }
 
-  const replay = exactAcceptedSelectionReplay(resolvedScope, {
-    planSha256: predecessor.selection.plan_sha256,
-    decision: "proceed",
-    candidateId: predecessor.selection.candidate_id,
-  });
-  if (!replay || replay.selection_sha256 !== current.plan.previous_selection_sha256) {
-    fail("style_master_selection_invalid", "Style Master successor predecessor cannot be replayed exactly");
+  if (effective.selection.plan_sha256 === current.plan.plan_sha256) {
+    const promotion = exactAcceptedSelectionReplay(resolvedScope, {
+      planSha256: current.plan.plan_sha256,
+      decision: "proceed",
+      candidateId: effective.selection.candidate_id,
+    });
+    if (!promotion || promotion.selection_sha256 !== effective.selection_sha256) {
+      fail("style_master_selection_invalid", "Style Master successor promotion cannot be replayed exactly");
+    }
+    return null;
   }
-  if (inspection.input_stale) return null;
-  if (!selectionIsStaleForCurrentPlan(current.plan, replay.selection)) return null;
 
-  return Object.freeze({
-    scope: resolvedScope,
-    current,
-    inspection,
-    records: directPlanRecords(resolvedScope, current),
-  });
+  fail("style_master_selection_conflict", "Style Master successor plan predecessor does not match the effective selection");
 }
 
 function absoluteStyleMasterCandidateLocator(scope, candidate) {

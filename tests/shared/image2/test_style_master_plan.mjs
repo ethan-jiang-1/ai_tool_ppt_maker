@@ -484,6 +484,18 @@ async function staleSelectedSuccessor(value, { candidateCount = 1 } = {}) {
   return Object.freeze({ predecessor, successor });
 }
 
+async function matchingSelectedSuccessor(value, { candidateCount = 1 } = {}) {
+  const predecessor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount: 0 });
+  await acceptStyleMasterCandidateReview({
+    scope: planningScope(value),
+    planSha256: predecessor.plan_sha256,
+    decision: "proceed",
+    candidateId: "local-existing",
+  });
+  const successor = await planStyleMasterCandidates({ scope: planningScope(value), candidateCount });
+  return Object.freeze({ predecessor, successor });
+}
+
 function optionalBytes(path) {
   return path && existsSync(path) ? readFileSync(path) : null;
 }
@@ -2109,6 +2121,42 @@ describe("Style Master candidate planning", () => {
 });
 
 describe("Style Master pending successor artifact projection", () => {
+  it("projects a matching-binding successor and returns to the accepted path after exact promotion", async () => {
+    const value = fixture({ local: true });
+    try {
+      const { predecessor, successor } = await matchingSelectedSuccessor(value);
+      expect(successor.plan.style_intent_sha256).toBe(predecessor.plan.style_intent_sha256);
+      expect(successor.plan.style_context_sha256).toBe(predecessor.plan.style_context_sha256);
+      expect(successor.plan.candidate_generation_profile_sha256).toBe(predecessor.plan.candidate_generation_profile_sha256);
+
+      const pendingBefore = pendingSuccessorRecordSnapshot(value, successor);
+      const projection = await inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(value) });
+      expect(projection).toMatchObject({
+        plan_sha256: successor.plan_sha256,
+        next_action: "authorize_style_master_candidates",
+      });
+      expect(pendingSuccessorRecordSnapshot(value, successor)).toEqual(pendingBefore);
+
+      await authorizeStyleMasterCandidates({ scope: planningScope(value), planSha256: successor.plan_sha256 });
+      await generateStyleMasterCandidates({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+        submit: async () => generatedCandidateBytes(),
+      });
+      await acceptStyleMasterCandidateReview({
+        scope: planningScope(value),
+        planSha256: successor.plan_sha256,
+        decision: "proceed",
+        candidateId: "candidate-001",
+      });
+      const promotedBefore = pendingSuccessorRecordSnapshot(value, successor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(value) })).resolves.toBeNull();
+      expect(pendingSuccessorRecordSnapshot(value, successor)).toEqual(promotedBefore);
+    } finally {
+      rmSync(value.root, { recursive: true, force: true });
+    }
+  });
+
   it("revalidates stale-successor local and succeeded media without mutating owner records", async () => {
     const value = fixture({ local: true });
     try {
@@ -2182,6 +2230,8 @@ describe("Style Master pending successor artifact projection", () => {
   it("fails closed for stale scope, mismatched predecessor, and corrupt local or generated media", async () => {
     const staleScope = fixture({ local: true });
     const mismatched = fixture({ local: true });
+    const inputStale = fixture({ local: true });
+    const invalidReplay = fixture({ local: true });
     const localCorrupt = fixture({ local: true });
     const generatedCorrupt = fixture({ local: true });
     try {
@@ -2202,6 +2252,21 @@ describe("Style Master pending successor artifact projection", () => {
         code: "style_master_selection_conflict",
       });
       expect(pendingSuccessorRecordSnapshot(mismatched, mismatchSuccessor)).toEqual(mismatchBefore);
+
+      const { successor: inputStaleSuccessor } = await matchingSelectedSuccessor(inputStale);
+      writeFileSync(styleAsset(inputStale.runDir, STYLE_MASTER_PROMPT), "The current plan inputs are stale.\n", "utf8");
+      const inputStaleBefore = pendingSuccessorRecordSnapshot(inputStale, inputStaleSuccessor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(inputStale) })).resolves.toBeNull();
+      expect(pendingSuccessorRecordSnapshot(inputStale, inputStaleSuccessor)).toEqual(inputStaleBefore);
+
+      const { predecessor: replayPredecessor, successor: replaySuccessor } = await matchingSelectedSuccessor(invalidReplay);
+      const predecessorPaths = styleMasterStorePaths(invalidReplay.runDir, { plan_sha256: replayPredecessor.plan_sha256 });
+      writeFileSync(predecessorPaths.review_decision, "corrupt predecessor decision", "utf8");
+      const replayBefore = pendingSuccessorRecordSnapshot(invalidReplay, replaySuccessor);
+      await expect(inspectPendingStyleMasterSuccessorCandidateArtifacts({ scope: planningScope(invalidReplay) })).rejects.toMatchObject({
+        code: "style_master_selection_invalid",
+      });
+      expect(pendingSuccessorRecordSnapshot(invalidReplay, replaySuccessor)).toEqual(replayBefore);
 
       const { successor: localSuccessor } = await staleSelectedSuccessor(localCorrupt);
       const localCandidate = localSuccessor.plan.candidates.find((candidate) => candidate.candidate_id === "local-existing");
@@ -2238,6 +2303,8 @@ describe("Style Master pending successor artifact projection", () => {
     } finally {
       rmSync(staleScope.root, { recursive: true, force: true });
       rmSync(mismatched.root, { recursive: true, force: true });
+      rmSync(inputStale.root, { recursive: true, force: true });
+      rmSync(invalidReplay.root, { recursive: true, force: true });
       rmSync(localCorrupt.root, { recursive: true, force: true });
       rmSync(generatedCorrupt.root, { recursive: true, force: true });
     }
